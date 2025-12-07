@@ -158,13 +158,13 @@ getEnabledPairs:
 	return subscriptions, nil
 }
 
-func (e *Exchange) generateOptionsPayload(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
+func (e *Exchange) generateOptionsPayload(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]*WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
 	var err error
 	var intervalString string
-	payloads := make([]WsInput, len(channelsToSubscribe))
+	payloads := make([]*WsInput, len(channelsToSubscribe))
 	for i := range channelsToSubscribe {
 		if len(channelsToSubscribe[i].Pairs) != 1 {
 			return nil, subscription.ErrNotSinglePair
@@ -259,7 +259,7 @@ func (e *Exchange) generateOptionsPayload(ctx context.Context, event string, cha
 				[]string{intervalString},
 				params...)
 		}
-		payloads[i] = WsInput{
+		payloads[i] = &WsInput{
 			ID:      e.MessageSequence(),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,

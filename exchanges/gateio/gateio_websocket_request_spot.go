@@ -86,7 +86,7 @@ func (e *Exchange) WebsocketSpotCancelOrder(ctx context.Context, orderID string,
 }
 
 // WebsocketSpotCancelAllOrdersByIDs cancels multiple orders via the websocket
-func (e *Exchange) WebsocketSpotCancelAllOrdersByIDs(ctx context.Context, o []WebsocketOrderBatchRequest) ([]WebsocketCancellAllResponse, error) {
+func (e *Exchange) WebsocketSpotCancelAllOrdersByIDs(ctx context.Context, o []WebsocketOrderBatchRequest) ([]*WebsocketCancellAllResponse, error) {
 	if len(o) == 0 {
 		return nil, errNoOrdersToCancel
 	}
@@ -100,12 +100,12 @@ func (e *Exchange) WebsocketSpotCancelAllOrdersByIDs(ctx context.Context, o []We
 		}
 	}
 
-	var resp []WebsocketCancellAllResponse
+	var resp []*WebsocketCancellAllResponse
 	return resp, e.SendWebsocketRequest(ctx, spotCancelBatchOrdersEPL, "spot.order_cancel_ids", asset.Spot, o, &resp, 2)
 }
 
 // WebsocketSpotCancelAllOrdersByPair cancels all orders for a specific pair
-func (e *Exchange) WebsocketSpotCancelAllOrdersByPair(ctx context.Context, pair currency.Pair, side order.Side, account string) ([]WebsocketOrderResponse, error) {
+func (e *Exchange) WebsocketSpotCancelAllOrdersByPair(ctx context.Context, pair currency.Pair, side order.Side, account string) ([]*WebsocketOrderResponse, error) {
 	if !pair.IsEmpty() && side == order.UnknownSide {
 		// This case will cancel all orders for every pair, this can be introduced later
 		return nil, fmt.Errorf("'%v' %w while pair is set", side, order.ErrSideIsInvalid)
@@ -122,7 +122,7 @@ func (e *Exchange) WebsocketSpotCancelAllOrdersByPair(ctx context.Context, pair 
 		Account: account,
 	}
 
-	var resp []WebsocketOrderResponse
+	var resp []*WebsocketOrderResponse
 	return resp, e.SendWebsocketRequest(ctx, spotCancelAllOpenOrdersEPL, "spot.order_cancel_cp", asset.Spot, params, &resp, 1)
 }
 

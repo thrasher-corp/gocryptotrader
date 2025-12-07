@@ -1108,9 +1108,9 @@ type SubAccountTransfer struct {
 
 // CurrencyDepositAddressInfo represents a crypto deposit address
 type CurrencyDepositAddressInfo struct {
-	Currency            string                  `json:"currency"`
-	Address             string                  `json:"address"`
-	MultichainAddresses []MultiChainAddressItem `json:"multichain_addresses"`
+	Currency            string                   `json:"currency"`
+	Address             string                   `json:"address"`
+	MultichainAddresses []*MultiChainAddressItem `json:"multichain_addresses"`
 }
 
 // MultiChainAddressItem represents a multi-chain address item
@@ -1485,9 +1485,9 @@ type SpotOrder struct {
 
 // SpotOrdersDetail represents list of orders for specific currency pair
 type SpotOrdersDetail struct {
-	CurrencyPair string      `json:"currency_pair"`
-	Total        float64     `json:"total"`
-	Orders       []SpotOrder `json:"orders"`
+	CurrencyPair string       `json:"currency_pair"`
+	Total        float64      `json:"total"`
+	Orders       []*SpotOrder `json:"orders"`
 }
 
 // ClosePositionRequestParam represents close position when cross currency is disable.
@@ -1846,8 +1846,8 @@ type StructuredProductOrderDetail struct {
 
 // StructuredOrder holds a structured order info
 type StructuredOrder struct {
-	ProductID string  `json:"pid,omitempty"`
-	Amount    float64 `json:"amount,omitempty,string"`
+	ProductID string       `json:"pid,omitempty"`
+	Amount    types.Number `json:"amount,omitempty"`
 }
 
 // FuturesAccount represents futures account detail
@@ -3257,8 +3257,8 @@ type SpotOrderParams struct {
 // FuturesOrderInfo holds option unified account margin calculator parameters
 type FuturesOrderInfo struct {
 	Contract string  `json:"contract,omitempty"`
-	Size     float64 `json:"size,string,omitempty"`
-	Left     float64 `json:"left,string,omitempty"`
+	Size     float64 `json:"size,omitempty,string"`
+	Left     float64 `json:"left,omitempty,string"`
 }
 
 // OptionsOrderInfo holds option unified account margin calculator parameters

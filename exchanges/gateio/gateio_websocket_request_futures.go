@@ -93,7 +93,7 @@ func (e *Exchange) WebsocketFuturesCancelOrder(ctx context.Context, orderID stri
 }
 
 // WebsocketFuturesCancelAllOpenFuturesOrders cancels multiple orders via the websocket.
-func (e *Exchange) WebsocketFuturesCancelAllOpenFuturesOrders(ctx context.Context, contract currency.Pair, a asset.Item, side string) ([]WebsocketFuturesOrderResponse, error) {
+func (e *Exchange) WebsocketFuturesCancelAllOpenFuturesOrders(ctx context.Context, contract currency.Pair, a asset.Item, side string) ([]*WebsocketFuturesOrderResponse, error) {
 	if err := validateFuturesPairAsset(contract, a); err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func (e *Exchange) WebsocketFuturesCancelAllOpenFuturesOrders(ctx context.Contex
 		Side     string        `json:"side,omitempty"`
 	}{Contract: contract, Side: side}
 
-	var resp []WebsocketFuturesOrderResponse
+	var resp []*WebsocketFuturesOrderResponse
 	return resp, e.SendWebsocketRequest(ctx, perpetualCancelOpenOrdersEPL, "futures.order_cancel_cp", a, params, &resp, 2)
 }
 
@@ -134,7 +134,7 @@ func (e *Exchange) WebsocketFuturesAmendOrder(ctx context.Context, amend *Websoc
 }
 
 // WebsocketFuturesOrderList fetches a list of orders via the websocket connection
-func (e *Exchange) WebsocketFuturesOrderList(ctx context.Context, list *WebsocketFutureOrdersList) ([]WebsocketFuturesOrderResponse, error) {
+func (e *Exchange) WebsocketFuturesOrderList(ctx context.Context, list *WebsocketFutureOrdersList) ([]*WebsocketFuturesOrderResponse, error) {
 	if list == nil {
 		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, list)
 	}
@@ -147,7 +147,7 @@ func (e *Exchange) WebsocketFuturesOrderList(ctx context.Context, list *Websocke
 		return nil, errStatusNotSet
 	}
 
-	var resp []WebsocketFuturesOrderResponse
+	var resp []*WebsocketFuturesOrderResponse
 	return resp, e.SendWebsocketRequest(ctx, perpetualGetOrdersEPL, "futures.order_list", list.Asset, list, &resp, 1)
 }
 

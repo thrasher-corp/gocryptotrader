@@ -29,8 +29,8 @@ var (
 )
 
 // GetAlphaAccounts retrieves accounts position assets
-func (e *Exchange) GetAlphaAccounts(ctx context.Context) ([]AlphaAccount, error) {
-	var resp []AlphaAccount
+func (e *Exchange) GetAlphaAccounts(ctx context.Context) ([]*AlphaAccount, error) {
+	var resp []*AlphaAccount
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestAlpha, request.UnAuth, http.MethodGet, "alpha/accounts", nil, nil, &resp)
 }
 

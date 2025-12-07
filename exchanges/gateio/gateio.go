@@ -161,8 +161,8 @@ func (e *Exchange) CreateNewSubAccount(ctx context.Context, arg *SubAccountParam
 }
 
 // GetSubAccounts retrieves list of sub-accounts for given account
-func (e *Exchange) GetSubAccounts(ctx context.Context) ([]SubAccount, error) {
-	var response []SubAccount
+func (e *Exchange) GetSubAccounts(ctx context.Context) ([]*SubAccount, error) {
+	var response []*SubAccount
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, subAccountEPL, http.MethodGet, subAccounts, nil, nil, &response)
 }
 
@@ -191,8 +191,8 @@ func (e *Exchange) CreateAPIKeysOfSubAccount(ctx context.Context, arg CreateAPIK
 }
 
 // GetAllAPIKeyOfSubAccount list all API Key of the sub-account
-func (e *Exchange) GetAllAPIKeyOfSubAccount(ctx context.Context, userID int64) ([]APIDetailResponse, error) {
-	var resp []APIDetailResponse
+func (e *Exchange) GetAllAPIKeyOfSubAccount(ctx context.Context, userID int64) ([]*APIDetailResponse, error) {
+	var resp []*APIDetailResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, subAccountEPL, http.MethodGet, subAccountsPath+strconv.FormatInt(userID, 10)+"/keys", nil, nil, &resp)
 }
 
@@ -252,16 +252,16 @@ func (e *Exchange) UnlockSubAccount(ctx context.Context, subAccountUserID int64)
 //	classic: Classic account mode
 //	multi_currency: Multi-currency margin mode
 //	portfolio: Portfolio margin mode
-func (e *Exchange) GetSubAccountMode(ctx context.Context) ([]SubAccountMode, error) {
-	var resp []SubAccountMode
+func (e *Exchange) GetSubAccountMode(ctx context.Context) ([]*SubAccountMode, error) {
+	var resp []*SubAccountMode
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "sub_accounts/unified_mode", nil, nil, &resp)
 }
 
 // *****************************************  Spot **************************************
 
 // ListSpotCurrencies to retrieve detailed list of each currency.
-func (e *Exchange) ListSpotCurrencies(ctx context.Context) ([]CurrencyInfo, error) {
-	var resp []CurrencyInfo
+func (e *Exchange) ListSpotCurrencies(ctx context.Context) ([]*CurrencyInfo, error) {
+	var resp []*CurrencyInfo
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicCurrenciesSpotEPL, gateioSpotCurrencies, &resp)
 }
 
@@ -275,8 +275,8 @@ func (e *Exchange) GetCurrencyDetail(ctx context.Context, ccy currency.Code) (*C
 }
 
 // ListSpotCurrencyPairs retrieve all currency pairs supported by the exchange.
-func (e *Exchange) ListSpotCurrencyPairs(ctx context.Context) ([]CurrencyPairDetail, error) {
-	var resp []CurrencyPairDetail
+func (e *Exchange) ListSpotCurrencyPairs(ctx context.Context) ([]*CurrencyPairDetail, error) {
+	var resp []*CurrencyPairDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicListCurrencyPairsSpotEPL, "spot/currency_pairs", &resp)
 }
 
@@ -291,7 +291,7 @@ func (e *Exchange) GetCurrencyPairDetail(ctx context.Context, currencyPair strin
 
 // GetTickers retrieve ticker information
 // Return only related data if currency_pair is specified; otherwise return all of them
-func (e *Exchange) GetTickers(ctx context.Context, currencyPair, timezone string) ([]Ticker, error) {
+func (e *Exchange) GetTickers(ctx context.Context, currencyPair, timezone string) ([]*Ticker, error) {
 	params := url.Values{}
 	if currencyPair != "" {
 		params.Set("currency_pair", currencyPair)
@@ -301,7 +301,7 @@ func (e *Exchange) GetTickers(ctx context.Context, currencyPair, timezone string
 	} else if timezone != "" {
 		params.Set("timezone", timezone)
 	}
-	var tickers []Ticker
+	var tickers []*Ticker
 	return tickers, e.SendHTTPRequest(ctx, exchange.RestSpot, publicTickersSpotEPL, common.EncodeURLValues("spot/tickers", params), &tickers)
 }
 
@@ -315,7 +315,7 @@ func (e *Exchange) GetTicker(ctx context.Context, currencyPair, timezone string)
 		return nil, err
 	}
 	if len(tickers) > 0 {
-		return &tickers[0], err
+		return tickers[0], err
 	}
 	return nil, fmt.Errorf("no ticker data found for currency pair %v", currencyPair)
 }
@@ -402,7 +402,7 @@ func (e *Exchange) GetOrderbook(ctx context.Context, pairString, interval string
 }
 
 // GetMarketTrades retrieve market trades
-func (e *Exchange) GetMarketTrades(ctx context.Context, pairString currency.Pair, limit uint64, lastID string, reverse bool, from, to time.Time, page uint64) ([]Trade, error) {
+func (e *Exchange) GetMarketTrades(ctx context.Context, pairString currency.Pair, limit uint64, lastID string, reverse bool, from, to time.Time, page uint64) ([]*Trade, error) {
 	params := url.Values{}
 	if pairString.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -426,12 +426,12 @@ func (e *Exchange) GetMarketTrades(ctx context.Context, pairString currency.Pair
 	if page != 0 {
 		params.Set("page", strconv.FormatUint(page, 10))
 	}
-	var response []Trade
+	var response []*Trade
 	return response, e.SendHTTPRequest(ctx, exchange.RestSpot, publicMarketTradesSpotEPL, common.EncodeURLValues("spot/trades", params), &response)
 }
 
 // GetCandlesticks retrieves market candlesticks.
-func (e *Exchange) GetCandlesticks(ctx context.Context, currencyPair currency.Pair, limit uint64, from, to time.Time, interval kline.Interval) ([]Candlestick, error) {
+func (e *Exchange) GetCandlesticks(ctx context.Context, currencyPair currency.Pair, limit uint64, from, to time.Time, interval kline.Interval) ([]*Candlestick, error) {
 	params := url.Values{}
 	if currencyPair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -455,7 +455,7 @@ func (e *Exchange) GetCandlesticks(ctx context.Context, currencyPair currency.Pa
 	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
-	var candles []Candlestick
+	var candles []*Candlestick
 	return candles, e.SendHTTPRequest(ctx, exchange.RestSpot, publicCandleStickSpotEPL, common.EncodeURLValues("spot/candlesticks", params), &candles)
 }
 
@@ -472,23 +472,23 @@ func (e *Exchange) GetTradingFeeRatio(ctx context.Context, currencyPair currency
 
 // GetAccountBatchFeeRates retrieves account fee rates
 // Maximum 50 currency pairs per request
-func (e *Exchange) GetAccountBatchFeeRates(ctx context.Context, currencyPairs []string) ([]SpotTradingFeeRate, error) {
+func (e *Exchange) GetAccountBatchFeeRates(ctx context.Context, currencyPairs []string) ([]*SpotTradingFeeRate, error) {
 	if len(currencyPairs) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
 	params := url.Values{}
 	params.Set("currency_pairs", strings.Join(currencyPairs, ","))
-	var resp []SpotTradingFeeRate
+	var resp []*SpotTradingFeeRate
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotTradingFeeEPL, http.MethodGet, "spot/batch_fee", params, nil, &resp)
 }
 
 // GetSpotAccounts retrieves spot account.
-func (e *Exchange) GetSpotAccounts(ctx context.Context, ccy currency.Code) ([]SpotAccount, error) {
+func (e *Exchange) GetSpotAccounts(ctx context.Context, ccy currency.Code) ([]*SpotAccount, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
 	}
-	var response []SpotAccount
+	var response []*SpotAccount
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "spot/accounts", params, nil, &response)
 }
 
@@ -528,7 +528,7 @@ func (e *Exchange) GetUnifiedAccountMaximumTransferableAmount(ctx context.Contex
 }
 
 // GetMultipleTransferableAmountForUnifiedAccounts batch query maximum transferable amount for unified accounts. Each currency shows the maximum value. After user withdrawal, the transferable amount for all currencies will change
-func (e *Exchange) GetMultipleTransferableAmountForUnifiedAccounts(ctx context.Context, currencies ...currency.Code) ([]CurrencyAndAmount, error) {
+func (e *Exchange) GetMultipleTransferableAmountForUnifiedAccounts(ctx context.Context, currencies ...currency.Code) ([]*CurrencyAndAmount, error) {
 	if len(currencies) == 0 {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -541,12 +541,12 @@ func (e *Exchange) GetMultipleTransferableAmountForUnifiedAccounts(ctx context.C
 	}
 	params := url.Values{}
 	params.Set("currencies", strings.Join(currenciesString, ","))
-	var resp []CurrencyAndAmount
+	var resp []*CurrencyAndAmount
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privateUnifiedSpotEPL, http.MethodGet, "unified/transferables", params, nil, &resp)
 }
 
 // GetBatchUnifiedAccountMaximumBorrowableAmount batch query unified account maximum borrowable amount
-func (e *Exchange) GetBatchUnifiedAccountMaximumBorrowableAmount(ctx context.Context, currencies ...currency.Code) ([]CurrencyAndAmount, error) {
+func (e *Exchange) GetBatchUnifiedAccountMaximumBorrowableAmount(ctx context.Context, currencies ...currency.Code) ([]*CurrencyAndAmount, error) {
 	if len(currencies) == 0 {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -559,7 +559,7 @@ func (e *Exchange) GetBatchUnifiedAccountMaximumBorrowableAmount(ctx context.Con
 	}
 	params := url.Values{}
 	params.Set("currencies", strings.Join(currenciesString, ","))
-	var resp []CurrencyAndAmount
+	var resp []*CurrencyAndAmount
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privateUnifiedSpotEPL, http.MethodGet, "unified/batch_borrowable", params, nil, &resp)
 }
 
@@ -584,16 +584,16 @@ func (e *Exchange) BorrowOrRepay(ctx context.Context, arg *BorrowOrRepayParams) 
 }
 
 // GetLoans retrieves a list of borrow or repay loan actions detail
-func (e *Exchange) GetLoans(ctx context.Context, ccy currency.Code, loanType string, page, limit uint64) ([]LoadDetail, error) {
+func (e *Exchange) GetLoans(ctx context.Context, ccy currency.Code, loanType string, page, limit uint64) ([]*LoadDetail, error) {
 	return e.getLoans(ctx, ccy, loanType, "unified/loans", page, limit)
 }
 
 // GetLoanRecords retrieves a borrow and repay loan types records
-func (e *Exchange) GetLoanRecords(ctx context.Context, ccy currency.Code, loanType string, page, limit uint64) ([]LoadDetail, error) {
+func (e *Exchange) GetLoanRecords(ctx context.Context, ccy currency.Code, loanType string, page, limit uint64) ([]*LoadDetail, error) {
 	return e.getLoans(ctx, ccy, loanType, "unified/loan_records", page, limit)
 }
 
-func (e *Exchange) getLoans(ctx context.Context, ccy currency.Code, loanType, path string, page, limit uint64) ([]LoadDetail, error) {
+func (e *Exchange) getLoans(ctx context.Context, ccy currency.Code, loanType, path string, page, limit uint64) ([]*LoadDetail, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -607,12 +607,12 @@ func (e *Exchange) getLoans(ctx context.Context, ccy currency.Code, loanType, pa
 	if loanType != "" {
 		params.Set("type", loanType)
 	}
-	var resp []LoadDetail
+	var resp []*LoadDetail
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, path, params, nil, &resp)
 }
 
 // GetInterestDeductionRecords retrieves interest deduction records
-func (e *Exchange) GetInterestDeductionRecords(ctx context.Context, ccy currency.Code, page, limit uint64, startTime, endTime time.Time, loanType string) ([]InterestDeductionRecord, error) {
+func (e *Exchange) GetInterestDeductionRecords(ctx context.Context, ccy currency.Code, page, limit uint64, startTime, endTime time.Time, loanType string) ([]*InterestDeductionRecord, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -634,7 +634,7 @@ func (e *Exchange) GetInterestDeductionRecords(ctx context.Context, ccy currency
 	if loanType != "" {
 		params.Set("type", loanType)
 	}
-	var resp []InterestDeductionRecord
+	var resp []*InterestDeductionRecord
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "unified/interest_records", params, nil, &resp)
 }
 
@@ -679,14 +679,14 @@ func (e *Exchange) GetUnifiedAccountEstimatedInterestRate(ctx context.Context, c
 }
 
 // GetUnifiedAccountTiered retrieves unified account tiered
-func (e *Exchange) GetUnifiedAccountTiered(ctx context.Context) ([]UnifiedAccountTieredDetail, error) {
-	var resp []UnifiedAccountTieredDetail
+func (e *Exchange) GetUnifiedAccountTiered(ctx context.Context) ([]*UnifiedAccountTieredDetail, error) {
+	var resp []*UnifiedAccountTieredDetail
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "unified/currency_discount_tiers", nil, nil, &resp)
 }
 
 // GetUnifiedAccountTieredLoanMargin query unified account tiered loan margin
-func (e *Exchange) GetUnifiedAccountTieredLoanMargin(ctx context.Context) ([]UnifiedAccountLoanMargin, error) {
-	var resp []UnifiedAccountLoanMargin
+func (e *Exchange) GetUnifiedAccountTieredLoanMargin(ctx context.Context) ([]*UnifiedAccountLoanMargin, error) {
+	var resp []*UnifiedAccountLoanMargin
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "unified/loan_margin_tiers", nil, nil, &resp)
 }
 
@@ -699,7 +699,7 @@ func (e *Exchange) CalculatePortfolioMargin(ctx context.Context, arg *PortfolioM
 
 // CreateBatchOrders Create a batch of orders Batch orders requirements: custom order field text is required At most 4 currency pairs,
 // maximum 10 orders each, are allowed in one request No mixture of spot orders and margin orders, i.e. account must be identical for all orders
-func (e *Exchange) CreateBatchOrders(ctx context.Context, args []CreateOrderRequest) ([]SpotOrder, error) {
+func (e *Exchange) CreateBatchOrders(ctx context.Context, args []CreateOrderRequest) ([]*SpotOrder, error) {
 	if len(args) > 10 {
 		return nil, fmt.Errorf("%w only 10 orders are canceled at once", errMultipleOrders)
 	}
@@ -729,7 +729,7 @@ func (e *Exchange) CreateBatchOrders(ctx context.Context, args []CreateOrderRequ
 			return nil, errInvalidPrice
 		}
 	}
-	var response []SpotOrder
+	var response []*SpotOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotBatchOrdersEPL, http.MethodPost, "spot/batch_orders", nil, &args, &response)
 }
 
@@ -737,7 +737,7 @@ func (e *Exchange) CreateBatchOrders(ctx context.Context, args []CreateOrderRequ
 // List open orders in all currency pairs.
 // Note that pagination parameters affect record number in each currency pair's open order list. No pagination is applied to the number of currency pairs returned. All currency pairs with open orders will be returned.
 // Spot and margin orders are returned by default. To list cross margin orders, account must be set to cross_margin
-func (e *Exchange) GetSpotOpenOrders(ctx context.Context, page, limit uint64, isCrossMargin bool) ([]SpotOrdersDetail, error) {
+func (e *Exchange) GetSpotOpenOrders(ctx context.Context, page, limit uint64, isCrossMargin bool) ([]*SpotOrdersDetail, error) {
 	params := url.Values{}
 	if page > 0 {
 		params.Set("page", strconv.FormatUint(page, 10))
@@ -748,7 +748,7 @@ func (e *Exchange) GetSpotOpenOrders(ctx context.Context, page, limit uint64, is
 	if isCrossMargin {
 		params.Set("account", asset.CrossMargin.String())
 	}
-	var response []SpotOrdersDetail
+	var response []*SpotOrdersDetail
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotGetOpenOrdersEPL, http.MethodGet, "spot/open_orders", params, nil, &response)
 }
 
@@ -793,7 +793,7 @@ func (e *Exchange) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequest) 
 }
 
 // GetSpotOrders retrieves spot orders.
-func (e *Exchange) GetSpotOrders(ctx context.Context, currencyPair currency.Pair, status string, page, limit uint64) ([]SpotOrder, error) {
+func (e *Exchange) GetSpotOrders(ctx context.Context, currencyPair currency.Pair, status string, page, limit uint64) ([]*SpotOrder, error) {
 	if currencyPair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -808,12 +808,12 @@ func (e *Exchange) GetSpotOrders(ctx context.Context, currencyPair currency.Pair
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var response []SpotOrder
+	var response []*SpotOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotGetOrdersEPL, http.MethodGet, gateioSpotOrders, params, nil, &response)
 }
 
 // CancelAllOpenOrdersSpecifiedCurrencyPair cancel all open orders in specified currency pair
-func (e *Exchange) CancelAllOpenOrdersSpecifiedCurrencyPair(ctx context.Context, currencyPair currency.Pair, side order.Side, a asset.Item) ([]SpotOrder, error) {
+func (e *Exchange) CancelAllOpenOrdersSpecifiedCurrencyPair(ctx context.Context, currencyPair currency.Pair, side order.Side, a asset.Item) ([]*SpotOrder, error) {
 	if currencyPair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -825,14 +825,14 @@ func (e *Exchange) CancelAllOpenOrdersSpecifiedCurrencyPair(ctx context.Context,
 	if a == asset.Spot || a == asset.Margin || a == asset.CrossMargin {
 		params.Set("account", a.String())
 	}
-	var response []SpotOrder
+	var response []*SpotOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotCancelAllOpenOrdersEPL, http.MethodDelete, gateioSpotOrders, params, nil, &response)
 }
 
 // CancelBatchOrdersWithIDList cancels batch orders specifying the order ID and currency pair information
 // Multiple currency pairs can be specified, but maximum 20 orders are allowed per request
-func (e *Exchange) CancelBatchOrdersWithIDList(ctx context.Context, args []CancelOrderByIDParam) ([]CancelOrderByIDResponse, error) {
-	var response []CancelOrderByIDResponse
+func (e *Exchange) CancelBatchOrdersWithIDList(ctx context.Context, args []CancelOrderByIDParam) ([]*CancelOrderByIDResponse, error) {
+	var response []*CancelOrderByIDResponse
 	if len(args) == 0 {
 		return nil, errNoValidParameterPassed
 	} else if len(args) > 20 {
@@ -906,7 +906,7 @@ func (e *Exchange) CancelSingleSpotOrder(ctx context.Context, orderID, currencyP
 }
 
 // GetMySpotTradingHistory retrieves personal trading history
-func (e *Exchange) GetMySpotTradingHistory(ctx context.Context, p currency.Pair, orderID string, page, limit uint64, crossMargin bool, from, to time.Time) ([]SpotPersonalTradeHistory, error) {
+func (e *Exchange) GetMySpotTradingHistory(ctx context.Context, p currency.Pair, orderID string, page, limit uint64, crossMargin bool, from, to time.Time) ([]*SpotPersonalTradeHistory, error) {
 	params := url.Values{}
 	if p.IsPopulated() {
 		params.Set("currency_pair", p.String())
@@ -929,7 +929,7 @@ func (e *Exchange) GetMySpotTradingHistory(ctx context.Context, p currency.Pair,
 	if !to.IsZero() && to.After(from) {
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
-	var response []SpotPersonalTradeHistory
+	var response []*SpotPersonalTradeHistory
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotTradingHistoryEPL, http.MethodGet, "spot/my_trades", params, nil, &response)
 }
 
@@ -995,7 +995,7 @@ func (e *Exchange) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTrig
 }
 
 // GetPriceTriggeredOrderList retrieves price orders created with an order detail and trigger price information.
-func (e *Exchange) GetPriceTriggeredOrderList(ctx context.Context, status string, market currency.Pair, a asset.Item, offset, limit uint64) ([]SpotPriceTriggeredOrder, error) {
+func (e *Exchange) GetPriceTriggeredOrderList(ctx context.Context, status string, market currency.Pair, a asset.Item, offset, limit uint64) ([]*SpotPriceTriggeredOrder, error) {
 	if status != statusOpen && status != statusFinished {
 		return nil, fmt.Errorf("%w status %s", errInvalidOrderStatus, status)
 	}
@@ -1013,12 +1013,12 @@ func (e *Exchange) GetPriceTriggeredOrderList(ctx context.Context, status string
 	if offset > 0 {
 		params.Set("offset", strconv.FormatUint(offset, 10))
 	}
-	var response []SpotPriceTriggeredOrder
+	var response []*SpotPriceTriggeredOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotGetTriggerOrderListEPL, http.MethodGet, gateioSpotPriceOrders, params, nil, &response)
 }
 
 // CancelMultipleSpotOpenOrders deletes price triggered orders.
-func (e *Exchange) CancelMultipleSpotOpenOrders(ctx context.Context, currencyPair currency.Pair, a asset.Item) ([]SpotPriceTriggeredOrder, error) {
+func (e *Exchange) CancelMultipleSpotOpenOrders(ctx context.Context, currencyPair currency.Pair, a asset.Item) ([]*SpotPriceTriggeredOrder, error) {
 	params := url.Values{}
 	if currencyPair.IsPopulated() {
 		params.Set("market", currencyPair.String())
@@ -1031,7 +1031,7 @@ func (e *Exchange) CancelMultipleSpotOpenOrders(ctx context.Context, currencyPai
 	default:
 		params.Set("account", a.String())
 	}
-	var response []SpotPriceTriggeredOrder
+	var response []*SpotPriceTriggeredOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotCancelTriggerOrdersEPL, http.MethodDelete, gateioSpotPriceOrders, params, nil, &response)
 }
 
@@ -1146,13 +1146,16 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			errCap.Label,
 			errCap.Message)
 	}
-	if castedInterface, okay := result.(interface{ Error() error }); okay {
-		return castedInterface.Error()
-	}
 	if result == nil {
 		return nil
 	}
-	return json.Unmarshal(intermediary, result)
+	if err := json.Unmarshal(intermediary, result); err != nil {
+		return fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, err)
+	}
+	if errType, ok := result.(interface{ Error() error }); ok && errType.Error() != nil {
+		return fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, errType.Error())
+	}
+	return nil
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
@@ -1218,13 +1221,13 @@ func (e *Exchange) CancelWithdrawalWithSpecifiedID(ctx context.Context, withdraw
 // *********************************** Wallet ***********************************
 
 // ListCurrencyChain retrieves a list of currency chain name
-func (e *Exchange) ListCurrencyChain(ctx context.Context, ccy currency.Code) ([]CurrencyChain, error) {
+func (e *Exchange) ListCurrencyChain(ctx context.Context, ccy currency.Code) ([]*CurrencyChain, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	params := url.Values{}
 	params.Set("currency", ccy.String())
-	var resp []CurrencyChain
+	var resp []*CurrencyChain
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicListCurrencyChainEPL, common.EncodeURLValues("wallet/currency_chains", params), &resp)
 }
 
@@ -1240,7 +1243,7 @@ func (e *Exchange) GenerateCurrencyDepositAddress(ctx context.Context, ccy curre
 }
 
 // GetWithdrawalRecords retrieves withdrawal records. Record time range cannot exceed 30 days
-func (e *Exchange) GetWithdrawalRecords(ctx context.Context, ccy currency.Code, from, to time.Time, offset, limit uint64) ([]WithdrawalResponse, error) {
+func (e *Exchange) GetWithdrawalRecords(ctx context.Context, ccy currency.Code, from, to time.Time, offset, limit uint64) ([]*WithdrawalResponse, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -1259,12 +1262,12 @@ func (e *Exchange) GetWithdrawalRecords(ctx context.Context, ccy currency.Code, 
 			params.Set("to", strconv.FormatInt(to.Unix(), 10))
 		}
 	}
-	var withdrawals []WithdrawalResponse
+	var withdrawals []*WithdrawalResponse
 	return withdrawals, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletWithdrawalRecordsEPL, http.MethodGet, "wallet/withdrawals", params, nil, &withdrawals)
 }
 
 // GetDepositRecords retrieves deposit records. Record time range cannot exceed 30 days
-func (e *Exchange) GetDepositRecords(ctx context.Context, ccy currency.Code, from, to time.Time, offset, limit uint64) ([]DepositRecord, error) {
+func (e *Exchange) GetDepositRecords(ctx context.Context, ccy currency.Code, from, to time.Time, offset, limit uint64) ([]*DepositRecord, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -1282,7 +1285,7 @@ func (e *Exchange) GetDepositRecords(ctx context.Context, ccy currency.Code, fro
 		}
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
-	var depositHistories []DepositRecord
+	var depositHistories []*DepositRecord
 	return depositHistories, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletDepositRecordsEPL, http.MethodGet, "wallet/deposits", params, nil, &depositHistories)
 }
 
@@ -1349,7 +1352,7 @@ func (e *Exchange) SubAccountTransfer(ctx context.Context, arg *SubAccountTransf
 // GetSubAccountTransferHistory retrieve transfer records between main and sub accounts.
 // retrieve transfer records between main and sub accounts. Record time range cannot exceed 30 days
 // Note: only records after 2020-04-10 can be retrieved
-func (e *Exchange) GetSubAccountTransferHistory(ctx context.Context, subAccountUserID string, from, to time.Time, offset, limit uint64) ([]SubAccountTransferResponse, error) {
+func (e *Exchange) GetSubAccountTransferHistory(ctx context.Context, subAccountUserID string, from, to time.Time, offset, limit uint64) ([]*SubAccountTransferResponse, error) {
 	params := url.Values{}
 	if subAccountUserID != "" {
 		params.Set("sub_uid", subAccountUserID)
@@ -1370,7 +1373,7 @@ func (e *Exchange) GetSubAccountTransferHistory(ctx context.Context, subAccountU
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var response []SubAccountTransferResponse
+	var response []*SubAccountTransferResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSubAccountTransferHistoryEPL, http.MethodGet, walletSubAccountTransfer, params, nil, &response)
 }
 
@@ -1399,12 +1402,12 @@ func (e *Exchange) SubAccountTransferToSubAccount(ctx context.Context, arg *Inte
 }
 
 // GetWithdrawalStatus retrieves withdrawal status
-func (e *Exchange) GetWithdrawalStatus(ctx context.Context, ccy currency.Code) ([]WithdrawalStatus, error) {
+func (e *Exchange) GetWithdrawalStatus(ctx context.Context, ccy currency.Code) ([]*WithdrawalStatus, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
 	}
-	var response []WithdrawalStatus
+	var response []*WithdrawalStatus
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletWithdrawStatusEPL, http.MethodGet, "wallet/withdraw_status", params, nil, &response)
 }
 
@@ -1419,12 +1422,12 @@ func (e *Exchange) GetSubAccountBalances(ctx context.Context, subAccountUserID s
 }
 
 // GetSubAccountMarginBalances query sub accounts' margin balances
-func (e *Exchange) GetSubAccountMarginBalances(ctx context.Context, subAccountUserID string) ([]SubAccountMarginBalance, error) {
+func (e *Exchange) GetSubAccountMarginBalances(ctx context.Context, subAccountUserID string) ([]*SubAccountMarginBalance, error) {
 	params := url.Values{}
 	if subAccountUserID != "" {
 		params.Set("sub_uid", subAccountUserID)
 	}
-	var response []SubAccountMarginBalance
+	var response []*SubAccountMarginBalance
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSubAccountMarginBalancesEPL, http.MethodGet, "wallet/sub_account_margin_balances", params, nil, &response)
 }
 
@@ -1442,7 +1445,7 @@ func (e *Exchange) GetTransferOrderStatus(ctx context.Context, clientOrderID, tr
 }
 
 // GetSubAccountFuturesBalances retrieves sub accounts' futures account balances
-func (e *Exchange) GetSubAccountFuturesBalances(ctx context.Context, subAccountUserID string, settle currency.Code) ([]FuturesSubAccountBalance, error) {
+func (e *Exchange) GetSubAccountFuturesBalances(ctx context.Context, subAccountUserID string, settle currency.Code) ([]*FuturesSubAccountBalance, error) {
 	params := url.Values{}
 	if subAccountUserID != "" {
 		params.Set("sub_uid", subAccountUserID)
@@ -1450,22 +1453,22 @@ func (e *Exchange) GetSubAccountFuturesBalances(ctx context.Context, subAccountU
 	if !settle.IsEmpty() {
 		params.Set("settle", settle.Item.Lower)
 	}
-	var response []FuturesSubAccountBalance
+	var response []*FuturesSubAccountBalance
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSubAccountFuturesBalancesEPL, http.MethodGet, "wallet/sub_account_futures_balances", params, nil, &response)
 }
 
 // GetSubAccountCrossMarginBalances query subaccount's cross_margin account info
-func (e *Exchange) GetSubAccountCrossMarginBalances(ctx context.Context, subAccountUserID string) ([]SubAccountCrossMarginInfo, error) {
+func (e *Exchange) GetSubAccountCrossMarginBalances(ctx context.Context, subAccountUserID string) ([]*SubAccountCrossMarginInfo, error) {
 	params := url.Values{}
 	if subAccountUserID != "" {
 		params.Set("sub_uid", subAccountUserID)
 	}
-	var response []SubAccountCrossMarginInfo
+	var response []*SubAccountCrossMarginInfo
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSubAccountCrossMarginBalancesEPL, http.MethodGet, "wallet/sub_account_cross_margin_balances", params, nil, &response)
 }
 
 // GetSavedAddresses retrieves saved currency address info and related details.
-func (e *Exchange) GetSavedAddresses(ctx context.Context, ccy currency.Code, chain string, limit, page uint64) ([]WalletSavedAddress, error) {
+func (e *Exchange) GetSavedAddresses(ctx context.Context, ccy currency.Code, chain string, limit, page uint64) ([]*WalletSavedAddress, error) {
 	params := url.Values{}
 	if ccy.IsEmpty() {
 		return nil, fmt.Errorf("%w address is required", currency.ErrCurrencyPairEmpty)
@@ -1480,7 +1483,7 @@ func (e *Exchange) GetSavedAddresses(ctx context.Context, ccy currency.Code, cha
 	if page > 0 {
 		params.Set("page", strconv.FormatUint(page, 10))
 	}
-	var response []WalletSavedAddress
+	var response []*WalletSavedAddress
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSavedAddressesEPL, http.MethodGet, "wallet/saved_address", params, nil, &response)
 }
 
@@ -1531,7 +1534,7 @@ func (e *Exchange) ConvertSmallBalances(ctx context.Context, currs ...currency.C
 }
 
 // GetConvertibleSmallBalanceCurrencyHistory get convertible small balance currency history
-func (e *Exchange) GetConvertibleSmallBalanceCurrencyHistory(ctx context.Context, ccy currency.Code, page, limit int64) ([]SmallCurrencyBalance, error) {
+func (e *Exchange) GetConvertibleSmallBalanceCurrencyHistory(ctx context.Context, ccy currency.Code, page, limit int64) ([]*SmallCurrencyBalance, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -1542,7 +1545,7 @@ func (e *Exchange) GetConvertibleSmallBalanceCurrencyHistory(ctx context.Context
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []SmallCurrencyBalance
+	var resp []*SmallCurrencyBalance
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "wallet/small_balance_history", params, nil, &resp)
 }
 
@@ -1574,9 +1577,9 @@ func (e *Exchange) GetEstimatedInterestRate(ctx context.Context, currencies []cu
 }
 
 // GetMarginSupportedCurrencyPairs retrieves margin supported currency pairs.
-func (e *Exchange) GetMarginSupportedCurrencyPairs(ctx context.Context) ([]MarginCurrencyPairInfo, error) {
-	var currenciePairsInfo []MarginCurrencyPairInfo
-	return currenciePairsInfo, e.SendHTTPRequest(ctx, exchange.RestSpot, publicCurrencyPairsMarginEPL, gateioMarginCurrencyPairs, &currenciePairsInfo)
+func (e *Exchange) GetMarginSupportedCurrencyPairs(ctx context.Context) ([]*MarginCurrencyPairInfo, error) {
+	var resp []*MarginCurrencyPairInfo
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicCurrencyPairsMarginEPL, gateioMarginCurrencyPairs, &resp)
 }
 
 // GetSingleMarginSupportedCurrencyPair retrieves margin supported currency pair detail given the currency pair.
@@ -1589,27 +1592,27 @@ func (e *Exchange) GetSingleMarginSupportedCurrencyPair(ctx context.Context, mar
 }
 
 // GetOrderbookOfLendingLoans retrieves order book of lending loans for specific currency
-func (e *Exchange) GetOrderbookOfLendingLoans(ctx context.Context, ccy currency.Code) ([]OrderbookOfLendingLoan, error) {
+func (e *Exchange) GetOrderbookOfLendingLoans(ctx context.Context, ccy currency.Code) ([]*OrderbookOfLendingLoan, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	var lendingLoans []OrderbookOfLendingLoan
+	var lendingLoans []*OrderbookOfLendingLoan
 	return lendingLoans, e.SendHTTPRequest(ctx, exchange.RestSpot, publicOrderbookMarginEPL, "margin/funding_book?currency="+ccy.String(), &lendingLoans)
 }
 
 // GetMarginAccountList margin account list
-func (e *Exchange) GetMarginAccountList(ctx context.Context, currencyPair currency.Pair) ([]MarginAccountItem, error) {
+func (e *Exchange) GetMarginAccountList(ctx context.Context, currencyPair currency.Pair) ([]*MarginAccountItem, error) {
 	params := url.Values{}
 	if currencyPair.IsPopulated() {
 		params.Set("currency_pair", currencyPair.String())
 	}
-	var response []MarginAccountItem
+	var response []*MarginAccountItem
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginAccountListEPL, http.MethodGet, "margin/accounts", params, nil, &response)
 }
 
 // ListMarginAccountBalanceChangeHistory retrieves margin account balance change history
 // Only transferals from and to margin account are provided for now. Time range allows 30 days at most
-func (e *Exchange) ListMarginAccountBalanceChangeHistory(ctx context.Context, ccy currency.Code, currencyPair currency.Pair, from, to time.Time, page, limit uint64) ([]MarginAccountBalanceChangeInfo, error) {
+func (e *Exchange) ListMarginAccountBalanceChangeHistory(ctx context.Context, ccy currency.Code, currencyPair currency.Pair, from, to time.Time, page, limit uint64) ([]*MarginAccountBalanceChangeInfo, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -1629,17 +1632,17 @@ func (e *Exchange) ListMarginAccountBalanceChangeHistory(ctx context.Context, cc
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var response []MarginAccountBalanceChangeInfo
+	var response []*MarginAccountBalanceChangeInfo
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginAccountBalanceEPL, http.MethodGet, "margin/account_book", params, nil, &response)
 }
 
 // GetMarginFundingAccountList retrieves funding account list
-func (e *Exchange) GetMarginFundingAccountList(ctx context.Context, ccy currency.Code) ([]MarginFundingAccountItem, error) {
+func (e *Exchange) GetMarginFundingAccountList(ctx context.Context, ccy currency.Code) ([]*MarginFundingAccountItem, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
 	}
-	var response []MarginFundingAccountItem
+	var response []*MarginFundingAccountItem
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginFundingAccountListEPL, http.MethodGet, "margin/funding_accounts", params, nil, &response)
 }
 
@@ -1665,7 +1668,7 @@ func (e *Exchange) MarginLoan(ctx context.Context, arg *MarginLoanRequestParam) 
 }
 
 // GetMarginAllLoans retrieves all loans (borrow and lending) orders.
-func (e *Exchange) GetMarginAllLoans(ctx context.Context, status, side, sortBy string, ccy currency.Code, currencyPair currency.Pair, reverseSort bool, page, limit uint64) ([]MarginLoanResponse, error) {
+func (e *Exchange) GetMarginAllLoans(ctx context.Context, status, side, sortBy string, ccy currency.Code, currencyPair currency.Pair, reverseSort bool, page, limit uint64) ([]*MarginLoanResponse, error) {
 	if side != sideLend && side != sideBorrow {
 		return nil, fmt.Errorf("%w, only 'lend' and 'borrow' are supported", order.ErrSideIsInvalid)
 	}
@@ -1694,7 +1697,7 @@ func (e *Exchange) GetMarginAllLoans(ctx context.Context, status, side, sortBy s
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var response []MarginLoanResponse
+	var response []*MarginLoanResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginAllLoansEPL, http.MethodGet, gateioMarginLoans, params, nil, &response)
 }
 
@@ -1783,16 +1786,16 @@ func (e *Exchange) RepayALoan(ctx context.Context, loanID string, arg *RepayLoan
 }
 
 // ListLoanRepaymentRecords retrieves loan repayment records for specified loan ID
-func (e *Exchange) ListLoanRepaymentRecords(ctx context.Context, loanID string) ([]LoanRepaymentRecord, error) {
+func (e *Exchange) ListLoanRepaymentRecords(ctx context.Context, loanID string) ([]*LoanRepaymentRecord, error) {
 	if loanID == "" {
 		return nil, fmt.Errorf("%w, %v", errInvalidLoanID, " loan_id is required")
 	}
-	var response []LoanRepaymentRecord
+	var response []*LoanRepaymentRecord
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginListLoansEPL, http.MethodGet, gateioMarginLoans+"/"+loanID+"/repayment", nil, nil, &response)
 }
 
 // ListRepaymentRecordsOfSpecificLoan retrieves repayment records of specific loan
-func (e *Exchange) ListRepaymentRecordsOfSpecificLoan(ctx context.Context, loanID, status string, page, limit uint64) ([]LoanRecord, error) {
+func (e *Exchange) ListRepaymentRecordsOfSpecificLoan(ctx context.Context, loanID, status string, page, limit uint64) ([]*LoanRecord, error) {
 	if loanID == "" {
 		return nil, fmt.Errorf("%w, %v", errInvalidLoanID, " loan_id is required")
 	}
@@ -1807,7 +1810,7 @@ func (e *Exchange) ListRepaymentRecordsOfSpecificLoan(ctx context.Context, loanI
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var response []LoanRecord
+	var response []*LoanRecord
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginRepaymentRecordEPL, http.MethodGet, gateioMarginLoanRecords, params, nil, &response)
 }
 
@@ -1891,8 +1894,8 @@ func (e *Exchange) GetMaxBorrowableAmountForSpecificMarginCurrency(ctx context.C
 }
 
 // CurrencySupportedByCrossMargin currencies supported by cross margin.
-func (e *Exchange) CurrencySupportedByCrossMargin(ctx context.Context) ([]CrossMarginCurrencies, error) {
-	var response []CrossMarginCurrencies
+func (e *Exchange) CurrencySupportedByCrossMargin(ctx context.Context) ([]*CrossMarginCurrencies, error) {
+	var response []*CrossMarginCurrencies
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginSupportedCurrencyCrossListEPL, http.MethodGet, gateioCrossMarginCurrencies, nil, nil, &response)
 }
 
@@ -1913,7 +1916,7 @@ func (e *Exchange) GetCrossMarginAccounts(ctx context.Context) (*CrossMarginAcco
 
 // GetCrossMarginAccountChangeHistory retrieve cross margin account change history
 // Record time range cannot exceed 30 days
-func (e *Exchange) GetCrossMarginAccountChangeHistory(ctx context.Context, ccy currency.Code, from, to time.Time, page, limit uint64, accountChangeType string) ([]CrossMarginAccountHistoryItem, error) {
+func (e *Exchange) GetCrossMarginAccountChangeHistory(ctx context.Context, ccy currency.Code, from, to time.Time, page, limit uint64, accountChangeType string) ([]*CrossMarginAccountHistoryItem, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -1933,7 +1936,7 @@ func (e *Exchange) GetCrossMarginAccountChangeHistory(ctx context.Context, ccy c
 	if accountChangeType != "" { // "in", "out", "repay", "new_order", "order_fill", "referral_fee", "order_fee", "unknown" are supported
 		params.Set("type", accountChangeType)
 	}
-	var response []CrossMarginAccountHistoryItem
+	var response []*CrossMarginAccountHistoryItem
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginAccountHistoryEPL, http.MethodGet, "margin/cross/account_book", params, nil, &response)
 }
 
@@ -1953,19 +1956,19 @@ func (e *Exchange) CreateCrossMarginBorrowLoan(ctx context.Context, arg CrossMar
 // ExecuteRepayment when the liquidity of the currency is insufficient and the transaction risk is high, the currency will be disabled,
 // and funds cannot be transferred.When the available balance of cross-margin is insufficient, the balance of the spot account can be used for repayment.
 // Please ensure that the balance of the spot account is sufficient, and system uses cross-margin account for repayment first
-func (e *Exchange) ExecuteRepayment(ctx context.Context, arg CurrencyAndAmount) ([]CrossMarginLoanResponse, error) {
+func (e *Exchange) ExecuteRepayment(ctx context.Context, arg CurrencyAndAmount) ([]*CrossMarginLoanResponse, error) {
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.Amount <= 0 {
 		return nil, fmt.Errorf("%w, repay amount must be greater than 0", order.ErrAmountIsInvalid)
 	}
-	var response []CrossMarginLoanResponse
+	var response []*CrossMarginLoanResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginExecuteRepaymentsEPL, http.MethodPost, gateioCrossMarginRepayments, nil, &arg, &response)
 }
 
 // GetCrossMarginRepayments retrieves list of cross margin repayments
-func (e *Exchange) GetCrossMarginRepayments(ctx context.Context, ccy currency.Code, loanID string, limit, offset uint64, reverse bool) ([]CrossMarginLoanResponse, error) {
+func (e *Exchange) GetCrossMarginRepayments(ctx context.Context, ccy currency.Code, loanID string, limit, offset uint64, reverse bool) ([]*CrossMarginLoanResponse, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -1982,7 +1985,7 @@ func (e *Exchange) GetCrossMarginRepayments(ctx context.Context, ccy currency.Co
 	if reverse {
 		params.Set("reverse", "true")
 	}
-	var response []CrossMarginLoanResponse
+	var response []*CrossMarginLoanResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginGetCrossMarginRepaymentsEPL, http.MethodGet, gateioCrossMarginRepayments, params, nil, &response)
 }
 
@@ -2010,7 +2013,7 @@ func (e *Exchange) GetMaxBorrowableAmountForSpecificCrossMarginCurrency(ctx cont
 
 // GetCrossMarginBorrowHistory retrieves cross margin borrow history sorted by creation time in descending order by default.
 // Set reverse=false to return ascending results.
-func (e *Exchange) GetCrossMarginBorrowHistory(ctx context.Context, status uint64, ccy currency.Code, limit, offset uint64, reverse bool) ([]CrossMarginLoanResponse, error) {
+func (e *Exchange) GetCrossMarginBorrowHistory(ctx context.Context, status uint64, ccy currency.Code, limit, offset uint64, reverse bool) ([]*CrossMarginLoanResponse, error) {
 	if status < 1 || status > 3 {
 		return nil, fmt.Errorf("%s %v, only allowed status values are 1:failed, 2:borrowed, and 3:repayment", e.Name, errInvalidOrderStatus)
 	}
@@ -2028,7 +2031,7 @@ func (e *Exchange) GetCrossMarginBorrowHistory(ctx context.Context, status uint6
 	if reverse {
 		params.Set("reverse", strconv.FormatBool(reverse))
 	}
-	var response []CrossMarginLoanResponse
+	var response []*CrossMarginLoanResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginGetCrossBorrowHistoryEPL, http.MethodGet, gateioCrossMarginLoans, params, nil, &response)
 }
 
@@ -2044,11 +2047,11 @@ func (e *Exchange) GetSingleBorrowLoanDetail(ctx context.Context, loanID string)
 // *********************************Futures***************************************
 
 // GetAllFutureContracts retrieves list all futures contracts
-func (e *Exchange) GetAllFutureContracts(ctx context.Context, settle currency.Code) ([]FuturesContract, error) {
+func (e *Exchange) GetAllFutureContracts(ctx context.Context, settle currency.Code) ([]*FuturesContract, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
-	var contracts []FuturesContract
+	var contracts []*FuturesContract
 	return contracts, e.SendHTTPRequest(ctx, exchange.RestSpot, publicFuturesContractsEPL, futuresPath+settle.Item.Lower+"/contracts", &contracts)
 }
 
@@ -2088,7 +2091,7 @@ func (e *Exchange) GetFuturesOrderbook(ctx context.Context, settle currency.Code
 }
 
 // GetFuturesTradingHistory retrieves futures trading history
-func (e *Exchange) GetFuturesTradingHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit, offset uint64, lastID string, from, to time.Time) ([]TradingHistoryItem, error) {
+func (e *Exchange) GetFuturesTradingHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit, offset uint64, lastID string, from, to time.Time) ([]*TradingHistoryItem, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2112,12 +2115,12 @@ func (e *Exchange) GetFuturesTradingHistory(ctx context.Context, settle currency
 	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
-	var response []TradingHistoryItem
+	var response []*TradingHistoryItem
 	return response, e.SendHTTPRequest(ctx, exchange.RestSpot, publicTradingHistoryFuturesEPL, common.EncodeURLValues(futuresPath+settle.Item.Lower+"/trades", params), &response)
 }
 
 // GetFuturesCandlesticks retrieves specified contract candlesticks.
-func (e *Exchange) GetFuturesCandlesticks(ctx context.Context, settle currency.Code, contract string, from, to time.Time, limit uint64, interval kline.Interval) ([]FuturesCandlestick, error) {
+func (e *Exchange) GetFuturesCandlesticks(ctx context.Context, settle currency.Code, contract string, from, to time.Time, limit uint64, interval kline.Interval) ([]*FuturesCandlestick, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2142,13 +2145,13 @@ func (e *Exchange) GetFuturesCandlesticks(ctx context.Context, settle currency.C
 		}
 		params.Set("interval", intervalString)
 	}
-	var candlesticks []FuturesCandlestick
+	var candlesticks []*FuturesCandlestick
 	return candlesticks, e.SendHTTPRequest(ctx, exchange.RestFutures, publicCandleSticksFuturesEPL, common.EncodeURLValues(futuresPath+settle.Item.Lower+"/candlesticks", params), &candlesticks)
 }
 
 // PremiumIndexKLine retrieves premium Index K-Line
 // Maximum of 1000 points can be returned in a query. Be sure not to exceed the limit when specifying from, to and interval
-func (e *Exchange) PremiumIndexKLine(ctx context.Context, settleCurrency currency.Code, contract currency.Pair, from, to time.Time, limit int64, interval kline.Interval) ([]FuturesPremiumIndexKLineResponse, error) {
+func (e *Exchange) PremiumIndexKLine(ctx context.Context, settleCurrency currency.Code, contract currency.Pair, from, to time.Time, limit int64, interval kline.Interval) ([]*FuturesPremiumIndexKLineResponse, error) {
 	if settleCurrency.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2171,12 +2174,12 @@ func (e *Exchange) PremiumIndexKLine(ctx context.Context, settleCurrency currenc
 		return nil, err
 	}
 	params.Set("interval", intervalString)
-	var resp []FuturesPremiumIndexKLineResponse
+	var resp []*FuturesPremiumIndexKLineResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicPremiumIndexEPL, common.EncodeURLValues(futuresPath+settleCurrency.Item.Lower+"/premium_index", params), &resp)
 }
 
 // GetFuturesTickers retrieves futures ticker information for a specific settle and contract info.
-func (e *Exchange) GetFuturesTickers(ctx context.Context, settle currency.Code, contract currency.Pair) ([]FuturesTicker, error) {
+func (e *Exchange) GetFuturesTickers(ctx context.Context, settle currency.Code, contract currency.Pair) ([]*FuturesTicker, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2184,12 +2187,12 @@ func (e *Exchange) GetFuturesTickers(ctx context.Context, settle currency.Code, 
 	if contract.IsPopulated() {
 		params.Set("contract", contract.String())
 	}
-	var tickers []FuturesTicker
+	var tickers []*FuturesTicker
 	return tickers, e.SendHTTPRequest(ctx, exchange.RestSpot, publicTickersFuturesEPL, common.EncodeURLValues(futuresPath+settle.Item.Lower+"/tickers", params), &tickers)
 }
 
 // GetFutureFundingRates retrieves funding rate information.
-func (e *Exchange) GetFutureFundingRates(ctx context.Context, settle currency.Code, contract currency.Pair, limit uint64) ([]FuturesFundingRate, error) {
+func (e *Exchange) GetFutureFundingRates(ctx context.Context, settle currency.Code, contract currency.Pair, limit uint64) ([]*FuturesFundingRate, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2201,12 +2204,12 @@ func (e *Exchange) GetFutureFundingRates(ctx context.Context, settle currency.Co
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var rates []FuturesFundingRate
+	var rates []*FuturesFundingRate
 	return rates, e.SendHTTPRequest(ctx, exchange.RestSpot, publicFundingRatesEPL, common.EncodeURLValues(futuresPath+settle.Item.Lower+"/funding_rate", params), &rates)
 }
 
 // GetFuturesInsuranceBalanceHistory retrieves futures insurance balance history
-func (e *Exchange) GetFuturesInsuranceBalanceHistory(ctx context.Context, settle currency.Code, limit uint64) ([]InsuranceBalance, error) {
+func (e *Exchange) GetFuturesInsuranceBalanceHistory(ctx context.Context, settle currency.Code, limit uint64) ([]*InsuranceBalance, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2214,12 +2217,12 @@ func (e *Exchange) GetFuturesInsuranceBalanceHistory(ctx context.Context, settle
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var balances []InsuranceBalance
+	var balances []*InsuranceBalance
 	return balances, e.SendHTTPRequest(ctx, exchange.RestSpot, publicInsuranceFuturesEPL, common.EncodeURLValues(futuresPath+settle.Item.Lower+"/insurance", params), &balances)
 }
 
 // GetFutureStats retrieves futures stats
-func (e *Exchange) GetFutureStats(ctx context.Context, settle currency.Code, contract currency.Pair, from time.Time, interval kline.Interval, limit uint64) ([]ContractStat, error) {
+func (e *Exchange) GetFutureStats(ctx context.Context, settle currency.Code, contract currency.Pair, from time.Time, interval kline.Interval, limit uint64) ([]*ContractStat, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2241,7 +2244,7 @@ func (e *Exchange) GetFutureStats(ctx context.Context, settle currency.Code, con
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var stats []ContractStat
+	var stats []*ContractStat
 	return stats, e.SendHTTPRequest(ctx, exchange.RestSpot, publicStatsFuturesEPL, common.EncodeURLValues(futuresPath+settle.Item.Lower+"/contract_stats", params), &stats)
 }
 
@@ -2259,7 +2262,7 @@ func (e *Exchange) GetIndexConstituent(ctx context.Context, settle currency.Code
 }
 
 // GetLiquidationHistory retrieves liqudiation history
-func (e *Exchange) GetLiquidationHistory(ctx context.Context, settle currency.Code, contract currency.Pair, from, to time.Time, limit uint64) ([]LiquidationHistory, error) {
+func (e *Exchange) GetLiquidationHistory(ctx context.Context, settle currency.Code, contract currency.Pair, from, to time.Time, limit uint64) ([]*LiquidationHistory, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2277,14 +2280,14 @@ func (e *Exchange) GetLiquidationHistory(ctx context.Context, settle currency.Co
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var histories []LiquidationHistory
+	var histories []*LiquidationHistory
 	return histories, e.SendHTTPRequest(ctx, exchange.RestSpot, publicLiquidationHistoryEPL, common.EncodeURLValues(futuresPath+settle.String()+"/liq_orders", params), &histories)
 }
 
 // GetRiskLimitTiers retrieves risk limit tiers
 // When the 'contract' parameter is not passed, the default is to query the risk limits for the top 100 markets.
 // 'Limit' and 'offset' correspond to pagination queries at the market level, not to the length of the returned array.
-func (e *Exchange) GetRiskLimitTiers(ctx context.Context, settle currency.Code, contract currency.Pair, limit, offset uint64) ([]RiskLimitTier, error) {
+func (e *Exchange) GetRiskLimitTiers(ctx context.Context, settle currency.Code, contract currency.Pair, limit, offset uint64) ([]*RiskLimitTier, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2299,7 +2302,7 @@ func (e *Exchange) GetRiskLimitTiers(ctx context.Context, settle currency.Code, 
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var resp []RiskLimitTier
+	var resp []*RiskLimitTier
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicLiquidationHistoryEPL, common.EncodeURLValues(futuresPath+settle.String()+"/risk_limit_tiers", params), &resp)
 }
 
@@ -2313,7 +2316,7 @@ func (e *Exchange) QueryFuturesAccount(ctx context.Context, settle currency.Code
 }
 
 // GetFuturesAccountBooks retrieves account books
-func (e *Exchange) GetFuturesAccountBooks(ctx context.Context, settle currency.Code, limit uint64, from, to time.Time, changingType string) ([]AccountBookItem, error) {
+func (e *Exchange) GetFuturesAccountBooks(ctx context.Context, settle currency.Code, limit uint64, from, to time.Time, changingType string) ([]*AccountBookItem, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2330,12 +2333,12 @@ func (e *Exchange) GetFuturesAccountBooks(ctx context.Context, settle currency.C
 	if changingType != "" {
 		params.Set("type", changingType)
 	}
-	var response []AccountBookItem
+	var response []*AccountBookItem
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualAccountBooksEPL, http.MethodGet, futuresPath+settle.Item.Lower+"/account_book", params, nil, &response)
 }
 
 // GetAllFuturesPositionsOfUsers list all positions of users.
-func (e *Exchange) GetAllFuturesPositionsOfUsers(ctx context.Context, settle currency.Code, realPositionsOnly bool) ([]Position, error) {
+func (e *Exchange) GetAllFuturesPositionsOfUsers(ctx context.Context, settle currency.Code, realPositionsOnly bool) ([]*Position, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2343,7 +2346,7 @@ func (e *Exchange) GetAllFuturesPositionsOfUsers(ctx context.Context, settle cur
 	if realPositionsOnly {
 		params.Set("holding", "true")
 	}
-	var response []Position
+	var response []*Position
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualPositionsEPL, http.MethodGet, futuresPath+settle.Item.Lower+"/positions", params, nil, &response)
 }
 
@@ -2423,19 +2426,19 @@ func (e *Exchange) EnableOrDisableDualMode(ctx context.Context, settle currency.
 }
 
 // RetrivePositionDetailInDualMode retrieve position detail in dual mode
-func (e *Exchange) RetrivePositionDetailInDualMode(ctx context.Context, settle currency.Code, contract currency.Pair) ([]Position, error) {
+func (e *Exchange) RetrivePositionDetailInDualMode(ctx context.Context, settle currency.Code, contract currency.Pair) ([]*Position, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if contract.IsInvalid() {
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
 	}
-	var response []Position
+	var response []*Position
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualPositionsDualModeEPL, http.MethodGet, futuresPath+settle.Item.Lower+hedgeModePath+contract.String(), nil, nil, &response)
 }
 
 // UpdatePositionMarginInDualMode update position margin in dual mode
-func (e *Exchange) UpdatePositionMarginInDualMode(ctx context.Context, settle currency.Code, contract currency.Pair, change float64, dualSide string) ([]Position, error) {
+func (e *Exchange) UpdatePositionMarginInDualMode(ctx context.Context, settle currency.Code, contract currency.Pair, change float64, dualSide string) ([]*Position, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2448,7 +2451,7 @@ func (e *Exchange) UpdatePositionMarginInDualMode(ctx context.Context, settle cu
 		return nil, errors.New("invalid 'dual_side' should be 'dual_short' or 'dual_long'")
 	}
 	params.Set("dual_side", dualSide)
-	var response []Position
+	var response []*Position
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualUpdateMarginDualModeEPL, http.MethodPost, futuresPath+settle.Item.Lower+hedgeModePath+contract.String()+"/margin", params, nil, &response)
 }
 
@@ -2473,7 +2476,7 @@ func (e *Exchange) UpdatePositionLeverageInDualMode(ctx context.Context, settle 
 }
 
 // UpdatePositionRiskLimitInDualMode update position risk limit in dual mode
-func (e *Exchange) UpdatePositionRiskLimitInDualMode(ctx context.Context, settle currency.Code, contract currency.Pair, riskLimit float64) ([]Position, error) {
+func (e *Exchange) UpdatePositionRiskLimitInDualMode(ctx context.Context, settle currency.Code, contract currency.Pair, riskLimit float64) ([]*Position, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2485,7 +2488,7 @@ func (e *Exchange) UpdatePositionRiskLimitInDualMode(ctx context.Context, settle
 	}
 	params := url.Values{}
 	params.Set("risk_limit", strconv.FormatFloat(riskLimit, 'f', -1, 64))
-	var response []Position
+	var response []*Position
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualUpdateRiskDualModeEPL, http.MethodPost, futuresPath+settle.Item.Lower+"/dual_comp/positions/"+contract.String()+"/risk_limit", params, nil, &response)
 }
 
@@ -2506,7 +2509,7 @@ func (e *Exchange) PlaceFuturesOrder(ctx context.Context, arg *ContractOrderCrea
 
 // GetFuturesOrders retrieves list of futures orders
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
-func (e *Exchange) GetFuturesOrders(ctx context.Context, contract currency.Pair, status, lastID string, settle currency.Code, limit, offset uint64, countTotal bool) ([]Order, error) {
+func (e *Exchange) GetFuturesOrders(ctx context.Context, contract currency.Pair, status, lastID string, settle currency.Code, limit, offset uint64, countTotal bool) ([]*Order, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2530,13 +2533,13 @@ func (e *Exchange) GetFuturesOrders(ctx context.Context, contract currency.Pair,
 	if countTotal && status != statusOpen {
 		params.Set("count_total", "1")
 	}
-	var response []Order
+	var response []*Order
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualGetOrdersEPL, http.MethodGet, futuresPath+settle.Item.Lower+ordersPath, params, nil, &response)
 }
 
 // CancelMultipleFuturesOpenOrders ancel all open orders
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
-func (e *Exchange) CancelMultipleFuturesOpenOrders(ctx context.Context, contract currency.Pair, side string, settle currency.Code) ([]Order, error) {
+func (e *Exchange) CancelMultipleFuturesOpenOrders(ctx context.Context, contract currency.Pair, side string, settle currency.Code) ([]*Order, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2548,7 +2551,7 @@ func (e *Exchange) CancelMultipleFuturesOpenOrders(ctx context.Context, contract
 		params.Set("side", side)
 	}
 	params.Set("contract", contract.String())
-	var response []Order
+	var response []*Order
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualGetOrdersEPL, http.MethodDelete, futuresPath+settle.Item.Lower+ordersPath, params, nil, &response)
 }
 
@@ -2560,7 +2563,7 @@ func (e *Exchange) CancelMultipleFuturesOpenOrders(ctx context.Context, contract
 // In the returned result, the succeeded field of type bool indicates whether the execution was successful or not
 // If the execution is successful, the normal order content is included; if the execution fails, the label field is included to indicate the cause of the error
 // In the rate limiting, each order is counted individually
-func (e *Exchange) PlaceBatchFuturesOrders(ctx context.Context, settle currency.Code, args []ContractOrderCreateParams) ([]Order, error) {
+func (e *Exchange) PlaceBatchFuturesOrders(ctx context.Context, settle currency.Code, args []ContractOrderCreateParams) ([]*Order, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2584,7 +2587,7 @@ func (e *Exchange) PlaceBatchFuturesOrders(ctx context.Context, settle currency.
 			return nil, fmt.Errorf("%w: %q expected %q", errEmptyOrInvalidSettlementCurrency, args[x].Settle, settle)
 		}
 	}
-	var response []Order
+	var response []*Order
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSubmitBatchOrdersEPL, http.MethodPost, futuresPath+settle.Item.Lower+"/batch_orders", nil, &args, &response)
 }
 
@@ -2628,7 +2631,7 @@ func (e *Exchange) AmendFuturesOrder(ctx context.Context, settle currency.Code, 
 }
 
 // GetMyFuturesTradingHistory retrieves authenticated account's futures trading history
-func (e *Exchange) GetMyFuturesTradingHistory(ctx context.Context, settle currency.Code, lastID, orderID string, contract currency.Pair, limit, offset, countTotal uint64) ([]TradingHistoryItem, error) {
+func (e *Exchange) GetMyFuturesTradingHistory(ctx context.Context, settle currency.Code, lastID, orderID string, contract currency.Pair, limit, offset, countTotal uint64) ([]*TradingHistoryItem, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2651,12 +2654,12 @@ func (e *Exchange) GetMyFuturesTradingHistory(ctx context.Context, settle curren
 	if countTotal == 1 {
 		params.Set("count_total", strconv.FormatUint(countTotal, 10))
 	}
-	var response []TradingHistoryItem
+	var response []*TradingHistoryItem
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualTradingHistoryEPL, http.MethodGet, futuresPath+settle.Item.Lower+"/my_trades", params, nil, &response)
 }
 
 // GetFuturesPositionCloseHistory lists position close history
-func (e *Exchange) GetFuturesPositionCloseHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit, offset uint64, from, to time.Time) ([]PositionCloseHistoryResponse, error) {
+func (e *Exchange) GetFuturesPositionCloseHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit, offset uint64, from, to time.Time) ([]*PositionCloseHistoryResponse, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2676,12 +2679,12 @@ func (e *Exchange) GetFuturesPositionCloseHistory(ctx context.Context, settle cu
 	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
-	var response []PositionCloseHistoryResponse
+	var response []*PositionCloseHistoryResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualClosePositionEPL, http.MethodGet, futuresPath+settle.Item.Lower+"/position_close", params, nil, &response)
 }
 
 // GetFuturesLiquidationHistory list liquidation history
-func (e *Exchange) GetFuturesLiquidationHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit uint64, at time.Time) ([]LiquidationHistoryItem, error) {
+func (e *Exchange) GetFuturesLiquidationHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit uint64, at time.Time) ([]*LiquidationHistoryItem, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2695,7 +2698,7 @@ func (e *Exchange) GetFuturesLiquidationHistory(ctx context.Context, settle curr
 	if !at.IsZero() {
 		params.Set("at", strconv.FormatInt(at.Unix(), 10))
 	}
-	var response []LiquidationHistoryItem
+	var response []*LiquidationHistoryItem
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualLiquidationHistoryEPL, http.MethodGet, futuresPath+settle.Item.Lower+"/liquidates", params, nil, &response)
 }
 
@@ -2748,7 +2751,7 @@ func (e *Exchange) CreatePriceTriggeredFuturesOrder(ctx context.Context, settle 
 }
 
 // ListAllFuturesAutoOrders lists all open orders
-func (e *Exchange) ListAllFuturesAutoOrders(ctx context.Context, status string, settle currency.Code, contract currency.Pair, limit, offset uint64) ([]PriceTriggeredOrder, error) {
+func (e *Exchange) ListAllFuturesAutoOrders(ctx context.Context, status string, settle currency.Code, contract currency.Pair, limit, offset uint64) ([]*PriceTriggeredOrder, error) {
 	if status != statusOpen && status != statusFinished {
 		return nil, fmt.Errorf("%w status: %s", errInvalidOrderStatus, status)
 	}
@@ -2766,12 +2769,12 @@ func (e *Exchange) ListAllFuturesAutoOrders(ctx context.Context, status string, 
 	if contract.IsPopulated() {
 		params.Set("contract", contract.String())
 	}
-	var response []PriceTriggeredOrder
+	var response []*PriceTriggeredOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualListOpenOrdersEPL, http.MethodGet, futuresPath+settle.Item.Lower+priceOrdersPaths, params, nil, &response)
 }
 
 // CancelAllFuturesOpenOrders cancels all futures open orders
-func (e *Exchange) CancelAllFuturesOpenOrders(ctx context.Context, settle currency.Code, contract currency.Pair) ([]PriceTriggeredOrder, error) {
+func (e *Exchange) CancelAllFuturesOpenOrders(ctx context.Context, settle currency.Code, contract currency.Pair) ([]*PriceTriggeredOrder, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2780,7 +2783,7 @@ func (e *Exchange) CancelAllFuturesOpenOrders(ctx context.Context, settle curren
 	}
 	params := url.Values{}
 	params.Set("contract", contract.String())
-	var response []PriceTriggeredOrder
+	var response []*PriceTriggeredOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualCancelOpenOrdersEPL, http.MethodDelete, futuresPath+settle.Item.Lower+priceOrdersPaths, params, nil, &response)
 }
 
@@ -2811,11 +2814,11 @@ func (e *Exchange) CancelFuturesPriceTriggeredOrder(ctx context.Context, settle 
 // *************************************** Delivery ***************************************
 
 // GetAllDeliveryContracts retrieves all futures contracts
-func (e *Exchange) GetAllDeliveryContracts(ctx context.Context, settle currency.Code) ([]DeliveryContract, error) {
+func (e *Exchange) GetAllDeliveryContracts(ctx context.Context, settle currency.Code) ([]*DeliveryContract, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
-	var contracts []DeliveryContract
+	var contracts []*DeliveryContract
 	return contracts, e.SendHTTPRequest(ctx, exchange.RestSpot, publicDeliveryContractsEPL, deliveryPath+settle.Item.Lower+"/contracts", &contracts)
 }
 
@@ -2852,7 +2855,7 @@ func (e *Exchange) GetDeliveryOrderbook(ctx context.Context, settle currency.Cod
 }
 
 // GetDeliveryTradingHistory retrieves futures trading history
-func (e *Exchange) GetDeliveryTradingHistory(ctx context.Context, settle currency.Code, lastID string, contract currency.Pair, limit uint64, from, to time.Time) ([]TradingHistoryItem, error) {
+func (e *Exchange) GetDeliveryTradingHistory(ctx context.Context, settle currency.Code, lastID string, contract currency.Pair, limit uint64, from, to time.Time) ([]*TradingHistoryItem, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2873,12 +2876,12 @@ func (e *Exchange) GetDeliveryTradingHistory(ctx context.Context, settle currenc
 	if lastID != "" {
 		params.Set("last_id", lastID)
 	}
-	var histories []TradingHistoryItem
+	var histories []*TradingHistoryItem
 	return histories, e.SendHTTPRequest(ctx, exchange.RestSpot, publicTradingHistoryDeliveryEPL, common.EncodeURLValues(deliveryPath+settle.Item.Lower+"/trades", params), &histories)
 }
 
 // GetDeliveryFuturesCandlesticks retrieves specified contract candlesticks
-func (e *Exchange) GetDeliveryFuturesCandlesticks(ctx context.Context, settle currency.Code, contract currency.Pair, from, to time.Time, limit uint64, interval kline.Interval) ([]FuturesCandlestick, error) {
+func (e *Exchange) GetDeliveryFuturesCandlesticks(ctx context.Context, settle currency.Code, contract currency.Pair, from, to time.Time, limit uint64, interval kline.Interval) ([]*FuturesCandlestick, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2903,12 +2906,12 @@ func (e *Exchange) GetDeliveryFuturesCandlesticks(ctx context.Context, settle cu
 		}
 		params.Set("interval", intervalString)
 	}
-	var candlesticks []FuturesCandlestick
+	var candlesticks []*FuturesCandlestick
 	return candlesticks, e.SendHTTPRequest(ctx, exchange.RestSpot, publicCandleSticksDeliveryEPL, common.EncodeURLValues(deliveryPath+settle.Item.Lower+"/candlesticks", params), &candlesticks)
 }
 
 // GetDeliveryFutureTickers retrieves futures ticker information for a specific settle and contract info.
-func (e *Exchange) GetDeliveryFutureTickers(ctx context.Context, settle currency.Code, contract currency.Pair) ([]FuturesTicker, error) {
+func (e *Exchange) GetDeliveryFutureTickers(ctx context.Context, settle currency.Code, contract currency.Pair) ([]*FuturesTicker, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2916,12 +2919,12 @@ func (e *Exchange) GetDeliveryFutureTickers(ctx context.Context, settle currency
 	if contract.IsPopulated() {
 		params.Set("contract", contract.String())
 	}
-	var tickers []FuturesTicker
+	var tickers []*FuturesTicker
 	return tickers, e.SendHTTPRequest(ctx, exchange.RestSpot, publicTickersDeliveryEPL, common.EncodeURLValues(deliveryPath+settle.Item.Lower+"/tickers", params), &tickers)
 }
 
 // GetDeliveryInsuranceBalanceHistory retrieves delivery futures insurance balance history
-func (e *Exchange) GetDeliveryInsuranceBalanceHistory(ctx context.Context, settle currency.Code, limit uint64) ([]InsuranceBalance, error) {
+func (e *Exchange) GetDeliveryInsuranceBalanceHistory(ctx context.Context, settle currency.Code, limit uint64) ([]*InsuranceBalance, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2929,7 +2932,7 @@ func (e *Exchange) GetDeliveryInsuranceBalanceHistory(ctx context.Context, settl
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var balances []InsuranceBalance
+	var balances []*InsuranceBalance
 	return balances, e.SendHTTPRequest(ctx, exchange.RestSpot, publicInsuranceDeliveryEPL, common.EncodeURLValues(deliveryPath+settle.Item.Lower+"/insurance", params), &balances)
 }
 
@@ -2943,7 +2946,7 @@ func (e *Exchange) GetDeliveryFuturesAccounts(ctx context.Context, settle curren
 }
 
 // GetDeliveryAccountBooks retrieves account books
-func (e *Exchange) GetDeliveryAccountBooks(ctx context.Context, settle currency.Code, limit uint64, from, to time.Time, changingType string) ([]AccountBookItem, error) {
+func (e *Exchange) GetDeliveryAccountBooks(ctx context.Context, settle currency.Code, limit uint64, from, to time.Time, changingType string) ([]*AccountBookItem, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2960,7 +2963,7 @@ func (e *Exchange) GetDeliveryAccountBooks(ctx context.Context, settle currency.
 	if changingType != "" {
 		params.Set("type", changingType)
 	}
-	var response []AccountBookItem
+	var response []*AccountBookItem
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, deliveryAccountBooksEPL, http.MethodGet, deliveryPath+settle.Item.Lower+"/account_book", params, nil, &response)
 }
 
@@ -3046,7 +3049,7 @@ func (e *Exchange) PlaceDeliveryOrder(ctx context.Context, arg *ContractOrderCre
 
 // GetDeliveryOrders list futures orders
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
-func (e *Exchange) GetDeliveryOrders(ctx context.Context, contract currency.Pair, status string, settle currency.Code, lastID string, limit, offset uint64, countTotal bool) ([]Order, error) {
+func (e *Exchange) GetDeliveryOrders(ctx context.Context, contract currency.Pair, status string, settle currency.Code, lastID string, limit, offset uint64, countTotal bool) ([]*Order, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -3070,13 +3073,13 @@ func (e *Exchange) GetDeliveryOrders(ctx context.Context, contract currency.Pair
 	if countTotal && status != statusOpen {
 		params.Set("count_total", "1")
 	}
-	var response []Order
+	var response []*Order
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, deliveryGetOrdersEPL, http.MethodGet, deliveryPath+settle.Item.Lower+ordersPath, params, nil, &response)
 }
 
 // CancelMultipleDeliveryOrders cancel all open orders matched
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
-func (e *Exchange) CancelMultipleDeliveryOrders(ctx context.Context, contract currency.Pair, side string, settle currency.Code) ([]Order, error) {
+func (e *Exchange) CancelMultipleDeliveryOrders(ctx context.Context, contract currency.Pair, side string, settle currency.Code) ([]*Order, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -3088,7 +3091,7 @@ func (e *Exchange) CancelMultipleDeliveryOrders(ctx context.Context, contract cu
 		params.Set("side", side)
 	}
 	params.Set("contract", contract.String())
-	var response []Order
+	var response []*Order
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, deliveryCancelOrdersEPL, http.MethodDelete, deliveryPath+settle.Item.Lower+ordersPath, params, nil, &response)
 }
 
@@ -3118,7 +3121,7 @@ func (e *Exchange) CancelSingleDeliveryOrder(ctx context.Context, settle currenc
 }
 
 // GetMyDeliveryTradingHistory retrieves authenticated account delivery futures trading history
-func (e *Exchange) GetMyDeliveryTradingHistory(ctx context.Context, settle currency.Code, orderID string, contract currency.Pair, limit, offset, countTotal uint64, lastID string) ([]TradingHistoryItem, error) {
+func (e *Exchange) GetMyDeliveryTradingHistory(ctx context.Context, settle currency.Code, orderID string, contract currency.Pair, limit, offset, countTotal uint64, lastID string) ([]*TradingHistoryItem, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -3141,12 +3144,12 @@ func (e *Exchange) GetMyDeliveryTradingHistory(ctx context.Context, settle curre
 	if countTotal == 1 {
 		params.Set("count_total", strconv.FormatUint(countTotal, 10))
 	}
-	var response []TradingHistoryItem
+	var response []*TradingHistoryItem
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, deliveryTradingHistoryEPL, http.MethodGet, deliveryPath+settle.Item.Lower+"/my_trades", params, nil, &response)
 }
 
 // GetDeliveryPositionCloseHistory retrieves position history
-func (e *Exchange) GetDeliveryPositionCloseHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit, offset uint64, from, to time.Time) ([]PositionCloseHistoryResponse, error) {
+func (e *Exchange) GetDeliveryPositionCloseHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit, offset uint64, from, to time.Time) ([]*PositionCloseHistoryResponse, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -3166,12 +3169,12 @@ func (e *Exchange) GetDeliveryPositionCloseHistory(ctx context.Context, settle c
 	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
-	var response []PositionCloseHistoryResponse
+	var response []*PositionCloseHistoryResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, deliveryCloseHistoryEPL, http.MethodGet, deliveryPath+settle.Item.Lower+"/position_close", params, nil, &response)
 }
 
 // GetDeliveryLiquidationHistory lists liquidation history
-func (e *Exchange) GetDeliveryLiquidationHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit uint64, at time.Time) ([]LiquidationHistoryItem, error) {
+func (e *Exchange) GetDeliveryLiquidationHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit uint64, at time.Time) ([]*LiquidationHistoryItem, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -3185,12 +3188,12 @@ func (e *Exchange) GetDeliveryLiquidationHistory(ctx context.Context, settle cur
 	if !at.IsZero() {
 		params.Set("at", strconv.FormatInt(at.Unix(), 10))
 	}
-	var response []LiquidationHistoryItem
+	var response []*LiquidationHistoryItem
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, deliveryLiquidationHistoryEPL, http.MethodGet, deliveryPath+settle.Item.Lower+"/liquidates", params, nil, &response)
 }
 
 // GetDeliverySettlementHistory retrieves settlement history
-func (e *Exchange) GetDeliverySettlementHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit uint64, at time.Time) ([]SettlementHistoryItem, error) {
+func (e *Exchange) GetDeliverySettlementHistory(ctx context.Context, settle currency.Code, contract currency.Pair, limit uint64, at time.Time) ([]*SettlementHistoryItem, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -3204,7 +3207,7 @@ func (e *Exchange) GetDeliverySettlementHistory(ctx context.Context, settle curr
 	if !at.IsZero() {
 		params.Set("at", strconv.FormatInt(at.Unix(), 10))
 	}
-	var response []SettlementHistoryItem
+	var response []*SettlementHistoryItem
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, deliverySettlementHistoryEPL, http.MethodGet, deliveryPath+settle.Item.Lower+"/settlements", params, nil, &response)
 }
 
@@ -3252,7 +3255,7 @@ func (e *Exchange) GetDeliveryPriceTriggeredOrder(ctx context.Context, settle cu
 }
 
 // GetDeliveryAllAutoOrder retrieves all auto orders
-func (e *Exchange) GetDeliveryAllAutoOrder(ctx context.Context, status string, settle currency.Code, contract currency.Pair, limit, offset uint64) ([]PriceTriggeredOrder, error) {
+func (e *Exchange) GetDeliveryAllAutoOrder(ctx context.Context, status string, settle currency.Code, contract currency.Pair, limit, offset uint64) ([]*PriceTriggeredOrder, error) {
 	if status != statusOpen && status != statusFinished {
 		return nil, fmt.Errorf("%w status %s", errInvalidOrderStatus, status)
 	}
@@ -3270,12 +3273,12 @@ func (e *Exchange) GetDeliveryAllAutoOrder(ctx context.Context, status string, s
 	if contract.IsPopulated() {
 		params.Set("contract", contract.String())
 	}
-	var response []PriceTriggeredOrder
+	var response []*PriceTriggeredOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, deliveryAutoOrdersEPL, http.MethodGet, deliveryPath+settle.Item.Lower+priceOrdersPaths, params, nil, &response)
 }
 
 // CancelAllDeliveryPriceTriggeredOrder cancels all delivery price triggered orders
-func (e *Exchange) CancelAllDeliveryPriceTriggeredOrder(ctx context.Context, settle currency.Code, contract currency.Pair) ([]PriceTriggeredOrder, error) {
+func (e *Exchange) CancelAllDeliveryPriceTriggeredOrder(ctx context.Context, settle currency.Code, contract currency.Pair) ([]*PriceTriggeredOrder, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -3284,7 +3287,7 @@ func (e *Exchange) CancelAllDeliveryPriceTriggeredOrder(ctx context.Context, set
 	}
 	params := url.Values{}
 	params.Set("contract", contract.String())
-	var response []PriceTriggeredOrder
+	var response []*PriceTriggeredOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, deliveryCancelTriggerOrdersEPL, http.MethodDelete, deliveryPath+settle.Item.Lower+priceOrdersPaths, params, nil, &response)
 }
 
@@ -3315,8 +3318,8 @@ func (e *Exchange) CancelDeliveryPriceTriggeredOrder(ctx context.Context, settle
 // ********************************** Options ***************************************************
 
 // GetAllOptionsUnderlyings retrieves all option underlyings
-func (e *Exchange) GetAllOptionsUnderlyings(ctx context.Context) ([]OptionUnderlying, error) {
-	var response []OptionUnderlying
+func (e *Exchange) GetAllOptionsUnderlyings(ctx context.Context) ([]*OptionUnderlying, error) {
+	var response []*OptionUnderlying
 	return response, e.SendHTTPRequest(ctx, exchange.RestSpot, publicUnderlyingOptionsEPL, "options/underlyings", &response)
 }
 
@@ -3337,7 +3340,7 @@ func (e *Exchange) GetExpirationTime(ctx context.Context, underlying string) (ti
 }
 
 // GetAllContractOfUnderlyingWithinExpiryDate retrieves list of contracts of the specified underlying and expiry time.
-func (e *Exchange) GetAllContractOfUnderlyingWithinExpiryDate(ctx context.Context, underlying string, expTime time.Time) ([]OptionContract, error) {
+func (e *Exchange) GetAllContractOfUnderlyingWithinExpiryDate(ctx context.Context, underlying string, expTime time.Time) ([]*OptionContract, error) {
 	params := url.Values{}
 	if underlying == "" {
 		return nil, errInvalidUnderlying
@@ -3346,7 +3349,7 @@ func (e *Exchange) GetAllContractOfUnderlyingWithinExpiryDate(ctx context.Contex
 	if !expTime.IsZero() {
 		params.Set("expires", strconv.FormatInt(expTime.Unix(), 10))
 	}
-	var contracts []OptionContract
+	var contracts []*OptionContract
 	return contracts, e.SendHTTPRequest(ctx, exchange.RestSpot, publicContractsOptionsEPL, common.EncodeURLValues(gateioOptionContracts, params), &contracts)
 }
 
@@ -3360,7 +3363,7 @@ func (e *Exchange) GetOptionsSpecifiedContractDetail(ctx context.Context, contra
 }
 
 // GetSettlementHistory retrieves list of settlement history
-func (e *Exchange) GetSettlementHistory(ctx context.Context, underlying string, offset, limit uint64, from, to time.Time) ([]OptionSettlement, error) {
+func (e *Exchange) GetSettlementHistory(ctx context.Context, underlying string, offset, limit uint64, from, to time.Time) ([]*OptionSettlement, error) {
 	if underlying == "" {
 		return nil, errInvalidUnderlying
 	}
@@ -3378,7 +3381,7 @@ func (e *Exchange) GetSettlementHistory(ctx context.Context, underlying string, 
 	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
-	var settlements []OptionSettlement
+	var settlements []*OptionSettlement
 	return settlements, e.SendHTTPRequest(ctx, exchange.RestSpot, publicSettlementOptionsEPL, common.EncodeURLValues(gateioOptionSettlement, params), &settlements)
 }
 
@@ -3398,7 +3401,7 @@ func (e *Exchange) GetOptionsSpecifiedContractsSettlement(ctx context.Context, c
 }
 
 // GetMyOptionsSettlements retrieves accounts option settlements.
-func (e *Exchange) GetMyOptionsSettlements(ctx context.Context, underlying string, contract currency.Pair, offset, limit uint64, to time.Time) ([]MyOptionSettlement, error) {
+func (e *Exchange) GetMyOptionsSettlements(ctx context.Context, underlying string, contract currency.Pair, offset, limit uint64, to time.Time) ([]*MyOptionSettlement, error) {
 	if underlying == "" {
 		return nil, errInvalidUnderlying
 	}
@@ -3416,7 +3419,7 @@ func (e *Exchange) GetMyOptionsSettlements(ctx context.Context, underlying strin
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var settlements []MyOptionSettlement
+	var settlements []*MyOptionSettlement
 	return settlements, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, optionsSettlementsEPL, http.MethodGet, "options/my_settlements", params, nil, &settlements)
 }
 
@@ -3445,7 +3448,7 @@ func (e *Exchange) GetOptionAccounts(ctx context.Context) (*OptionAccount, error
 }
 
 // GetAccountChangingHistory retrieves list of account changing history
-func (e *Exchange) GetAccountChangingHistory(ctx context.Context, offset, limit uint64, from, to time.Time, changingType string) ([]AccountBook, error) {
+func (e *Exchange) GetAccountChangingHistory(ctx context.Context, offset, limit uint64, from, to time.Time, changingType string) ([]*AccountBook, error) {
 	params := url.Values{}
 	if changingType != "" {
 		params.Set("type", changingType)
@@ -3462,17 +3465,17 @@ func (e *Exchange) GetAccountChangingHistory(ctx context.Context, offset, limit 
 	if !to.IsZero() && ((!from.IsZero() && to.After(from)) || to.Before(time.Now())) {
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
-	var accountBook []AccountBook
+	var accountBook []*AccountBook
 	return accountBook, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, optionsAccountBooksEPL, http.MethodGet, "options/account_book", params, nil, &accountBook)
 }
 
 // GetUsersPositionSpecifiedUnderlying lists user's positions of specified underlying
-func (e *Exchange) GetUsersPositionSpecifiedUnderlying(ctx context.Context, underlying string) ([]UsersPositionForUnderlying, error) {
+func (e *Exchange) GetUsersPositionSpecifiedUnderlying(ctx context.Context, underlying string) ([]*UsersPositionForUnderlying, error) {
 	params := url.Values{}
 	if underlying != "" {
 		params.Set("underlying", underlying)
 	}
-	var response []UsersPositionForUnderlying
+	var response []*UsersPositionForUnderlying
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, optionsPositions, http.MethodGet, gateioOptionsPosition, params, nil, &response)
 }
 
@@ -3486,7 +3489,7 @@ func (e *Exchange) GetSpecifiedContractPosition(ctx context.Context, contract cu
 }
 
 // GetUsersLiquidationHistoryForSpecifiedUnderlying retrieves user's liquidation history of specified underlying
-func (e *Exchange) GetUsersLiquidationHistoryForSpecifiedUnderlying(ctx context.Context, underlying string, contract currency.Pair) ([]ContractClosePosition, error) {
+func (e *Exchange) GetUsersLiquidationHistoryForSpecifiedUnderlying(ctx context.Context, underlying string, contract currency.Pair) ([]*ContractClosePosition, error) {
 	if underlying == "" {
 		return nil, errInvalidUnderlying
 	}
@@ -3495,7 +3498,7 @@ func (e *Exchange) GetUsersLiquidationHistoryForSpecifiedUnderlying(ctx context.
 	if contract.IsPopulated() {
 		params.Set("contract", contract.String())
 	}
-	var response []ContractClosePosition
+	var response []*ContractClosePosition
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, optionsLiquidationHistoryEPL, http.MethodGet, "options/position_close", params, nil, &response)
 }
 
@@ -3521,7 +3524,7 @@ func (e *Exchange) PlaceOptionOrder(ctx context.Context, arg *OptionOrderParam) 
 }
 
 // GetOptionFuturesOrders retrieves futures orders
-func (e *Exchange) GetOptionFuturesOrders(ctx context.Context, contract currency.Pair, underlying, status string, offset, limit uint64, from, to time.Time) ([]OptionOrderResponse, error) {
+func (e *Exchange) GetOptionFuturesOrders(ctx context.Context, contract currency.Pair, underlying, status string, offset, limit uint64, from, to time.Time) ([]*OptionOrderResponse, error) {
 	params := url.Values{}
 	if contract.IsPopulated() {
 		params.Set("contract", contract.String())
@@ -3545,12 +3548,12 @@ func (e *Exchange) GetOptionFuturesOrders(ctx context.Context, contract currency
 	if !to.IsZero() && ((!from.IsZero() && to.After(from)) || to.Before(time.Now())) {
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
-	var response []OptionOrderResponse
+	var response []*OptionOrderResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, optionsOrdersEPL, http.MethodGet, gateioOptionsOrders, params, nil, &response)
 }
 
 // CancelMultipleOptionOpenOrders cancels all open orders matched
-func (e *Exchange) CancelMultipleOptionOpenOrders(ctx context.Context, contract currency.Pair, underlying, side string) ([]OptionOrderResponse, error) {
+func (e *Exchange) CancelMultipleOptionOpenOrders(ctx context.Context, contract currency.Pair, underlying, side string) ([]*OptionOrderResponse, error) {
 	params := url.Values{}
 	if contract.IsPopulated() {
 		params.Set("contract", contract.String())
@@ -3561,7 +3564,7 @@ func (e *Exchange) CancelMultipleOptionOpenOrders(ctx context.Context, contract 
 	if side != "" {
 		params.Set("side", side)
 	}
-	var response []OptionOrderResponse
+	var response []*OptionOrderResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, optionsCancelOrdersEPL, http.MethodDelete, gateioOptionsOrders, params, nil, &response)
 }
 
@@ -3584,7 +3587,7 @@ func (e *Exchange) CancelOptionSingleOrder(ctx context.Context, orderID string) 
 }
 
 // GetMyOptionsTradingHistory retrieves authenticated account's option trading history
-func (e *Exchange) GetMyOptionsTradingHistory(ctx context.Context, underlying string, contract currency.Pair, offset, limit uint64, from, to time.Time) ([]OptionTradingHistory, error) {
+func (e *Exchange) GetMyOptionsTradingHistory(ctx context.Context, underlying string, contract currency.Pair, offset, limit uint64, from, to time.Time) ([]*OptionTradingHistory, error) {
 	if underlying == "" {
 		return nil, errInvalidUnderlying
 	}
@@ -3605,17 +3608,17 @@ func (e *Exchange) GetMyOptionsTradingHistory(ctx context.Context, underlying st
 	if !to.IsZero() && ((!from.IsZero() && to.After(from)) || to.Before(time.Now())) {
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
-	var resp []OptionTradingHistory
+	var resp []*OptionTradingHistory
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, optionsTradingHistoryEPL, http.MethodGet, "options/my_trades", params, nil, &resp)
 }
 
 // GetOptionsTickers lists  tickers of options contracts
-func (e *Exchange) GetOptionsTickers(ctx context.Context, underlying string) ([]OptionsTicker, error) {
+func (e *Exchange) GetOptionsTickers(ctx context.Context, underlying string) ([]*OptionsTicker, error) {
 	if underlying == "" {
 		return nil, errInvalidUnderlying
 	}
 	underlying = strings.ToUpper(underlying)
-	var response []OptionsTicker
+	var response []*OptionsTicker
 	return response, e.SendHTTPRequest(ctx, exchange.RestSpot, publicTickerOptionsEPL, "options/tickers?underlying="+underlying, &response)
 }
 
@@ -3629,7 +3632,7 @@ func (e *Exchange) GetOptionUnderlyingTickers(ctx context.Context, underlying st
 }
 
 // GetOptionFuturesCandlesticks retrieves option futures candlesticks
-func (e *Exchange) GetOptionFuturesCandlesticks(ctx context.Context, contract currency.Pair, limit uint64, from, to time.Time, interval kline.Interval) ([]FuturesCandlestick, error) {
+func (e *Exchange) GetOptionFuturesCandlesticks(ctx context.Context, contract currency.Pair, limit uint64, from, to time.Time, interval kline.Interval) ([]*FuturesCandlestick, error) {
 	if contract.IsInvalid() {
 		return nil, errInvalidOrMissingContractParam
 	}
@@ -3649,12 +3652,12 @@ func (e *Exchange) GetOptionFuturesCandlesticks(ctx context.Context, contract cu
 		return nil, err
 	}
 	params.Set("interval", intervalString)
-	var candles []FuturesCandlestick
+	var candles []*FuturesCandlestick
 	return candles, e.SendHTTPRequest(ctx, exchange.RestSpot, publicCandleSticksOptionsEPL, common.EncodeURLValues("options/candlesticks", params), &candles)
 }
 
 // GetOptionFuturesMarkPriceCandlesticks retrieves mark price candlesticks of an underlying
-func (e *Exchange) GetOptionFuturesMarkPriceCandlesticks(ctx context.Context, underlying string, limit uint64, from, to time.Time, interval kline.Interval) ([]FuturesCandlestick, error) {
+func (e *Exchange) GetOptionFuturesMarkPriceCandlesticks(ctx context.Context, underlying string, limit uint64, from, to time.Time, interval kline.Interval) ([]*FuturesCandlestick, error) {
 	if underlying == "" {
 		return nil, errInvalidUnderlying
 	}
@@ -3676,12 +3679,12 @@ func (e *Exchange) GetOptionFuturesMarkPriceCandlesticks(ctx context.Context, un
 		}
 		params.Set("interval", intervalString)
 	}
-	var candles []FuturesCandlestick
+	var candles []*FuturesCandlestick
 	return candles, e.SendHTTPRequest(ctx, exchange.RestSpot, publicMarkpriceCandleSticksOptionsEPL, common.EncodeURLValues("options/underlying/candlesticks", params), &candles)
 }
 
 // GetOptionsTradeHistory retrieves options trade history
-func (e *Exchange) GetOptionsTradeHistory(ctx context.Context, contract currency.Pair, callType string, offset, limit uint64, from, to time.Time) ([]TradingHistoryItem, error) {
+func (e *Exchange) GetOptionsTradeHistory(ctx context.Context, contract currency.Pair, callType string, offset, limit uint64, from, to time.Time) ([]*TradingHistoryItem, error) {
 	params := url.Values{}
 	callType = strings.ToUpper(callType)
 	if callType == "C" || callType == "P" {
@@ -3702,15 +3705,15 @@ func (e *Exchange) GetOptionsTradeHistory(ctx context.Context, contract currency
 	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
-	var trades []TradingHistoryItem
+	var trades []*TradingHistoryItem
 	return trades, e.SendHTTPRequest(ctx, exchange.RestSpot, publicTradeHistoryOptionsEPL, common.EncodeURLValues("options/trades", params), &trades)
 }
 
 // ********************************** Flash_SWAP *************************
 
 // GetSupportedFlashSwapCurrencies retrieves all supported currencies in flash swap
-func (e *Exchange) GetSupportedFlashSwapCurrencies(ctx context.Context) ([]SwapCurrencies, error) {
-	var currencies []SwapCurrencies
+func (e *Exchange) GetSupportedFlashSwapCurrencies(ctx context.Context) ([]*SwapCurrencies, error) {
+	var currencies []*SwapCurrencies
 	return currencies, e.SendHTTPRequest(ctx, exchange.RestSpot, publicFlashSwapEPL, "flash_swap/currencies", &currencies)
 }
 
@@ -3737,7 +3740,7 @@ func (e *Exchange) CreateFlashSwapOrder(ctx context.Context, arg FlashSwapOrderP
 }
 
 // GetAllFlashSwapOrders retrieves list of flash swap orders filtered by the params
-func (e *Exchange) GetAllFlashSwapOrders(ctx context.Context, status int, sellCurrency, buyCurrency currency.Code, reverse bool, limit, page uint64) ([]FlashSwapOrderResponse, error) {
+func (e *Exchange) GetAllFlashSwapOrders(ctx context.Context, status int, sellCurrency, buyCurrency currency.Code, reverse bool, limit, page uint64) ([]*FlashSwapOrderResponse, error) {
 	params := url.Values{}
 	if status == 1 || status == 2 {
 		params.Set("status", strconv.Itoa(status))
@@ -3755,7 +3758,7 @@ func (e *Exchange) GetAllFlashSwapOrders(ctx context.Context, status int, sellCu
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var response []FlashSwapOrderResponse
+	var response []*FlashSwapOrderResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, flashGetOrdersEPL, http.MethodGet, gateioFlashSwapOrders, params, nil, &response)
 }
 
@@ -3816,23 +3819,23 @@ func (e *Exchange) SwapETH2(ctx context.Context, arg *SwapETHParam) error {
 
 // GetETH2HistoricalReturnRate gets ETH2 historical return rate
 // Query ETH earnings rate records for the last 31 days
-func (e *Exchange) GetETH2HistoricalReturnRate(ctx context.Context) ([]ETH2ReturnRate, error) {
-	var resp []ETH2ReturnRate
+func (e *Exchange) GetETH2HistoricalReturnRate(ctx context.Context) ([]*ETH2ReturnRate, error) {
+	var resp []*ETH2ReturnRate
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/staking/eth2/rate_records", nil, nil, &resp)
 }
 
 // GetDualInvestmentProductList dual Investment product list
-func (e *Exchange) GetDualInvestmentProductList(ctx context.Context, planID uint64) ([]DualInvestmentPlan, error) {
+func (e *Exchange) GetDualInvestmentProductList(ctx context.Context, planID uint64) ([]*DualInvestmentPlan, error) {
 	params := url.Values{}
 	if planID != 0 {
 		params.Set("plan_id", strconv.FormatUint(planID, 10))
 	}
-	var resp []DualInvestmentPlan
+	var resp []*DualInvestmentPlan
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/dual/investment_plan", params, nil, &resp)
 }
 
 // GetDualInvestmentOrderList dual Investment order list
-func (e *Exchange) GetDualInvestmentOrderList(ctx context.Context, from, to time.Time, page, limit int64) ([]DualInvestmentOrderDetail, error) {
+func (e *Exchange) GetDualInvestmentOrderList(ctx context.Context, from, to time.Time, page, limit int64) ([]*DualInvestmentOrderDetail, error) {
 	params := url.Values{}
 	if !from.IsZero() && !to.IsZero() {
 		err := common.StartEndTimeCheck(from, to)
@@ -3848,7 +3851,7 @@ func (e *Exchange) GetDualInvestmentOrderList(ctx context.Context, from, to time
 	if page > 0 {
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
-	var resp []DualInvestmentOrderDetail
+	var resp []*DualInvestmentOrderDetail
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/dual/orders", params, nil, &resp)
 }
 
@@ -3867,7 +3870,7 @@ func (e *Exchange) PlaceDualInvestmentOrder(ctx context.Context, arg *DualInvest
 }
 
 // GetStructuredProductList retrieves a structured Product List
-func (e *Exchange) GetStructuredProductList(ctx context.Context, productType, status string, page, limit int64) ([]StructuredProductDetail, error) {
+func (e *Exchange) GetStructuredProductList(ctx context.Context, productType, status string, page, limit int64) ([]*StructuredProductDetail, error) {
 	params := url.Values{}
 	if productType != "" {
 		params.Set("type", productType)
@@ -3881,12 +3884,12 @@ func (e *Exchange) GetStructuredProductList(ctx context.Context, productType, st
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []StructuredProductDetail
+	var resp []*StructuredProductDetail
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/structured/products", params, nil, &resp)
 }
 
 // GetStructuredProductOrderList retrieves structured product order list
-func (e *Exchange) GetStructuredProductOrderList(ctx context.Context, from, to time.Time, page, limit int64) ([]StructuredProductOrderDetail, error) {
+func (e *Exchange) GetStructuredProductOrderList(ctx context.Context, from, to time.Time, page, limit int64) ([]*StructuredProductOrderDetail, error) {
 	params := url.Values{}
 	if !from.IsZero() && !to.IsZero() {
 		err := common.StartEndTimeCheck(from, to)
@@ -3902,7 +3905,7 @@ func (e *Exchange) GetStructuredProductOrderList(ctx context.Context, from, to t
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []StructuredProductOrderDetail
+	var resp []*StructuredProductOrderDetail
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/structured/orders", params, nil, &resp)
 }
 
@@ -3975,8 +3978,8 @@ func (e *Exchange) GetAccountDetails(ctx context.Context) (*AccountDetails, erro
 }
 
 // GetUserTransactionRateLimitInfo retrieves user transaction rate limit info
-func (e *Exchange) GetUserTransactionRateLimitInfo(ctx context.Context) ([]UserTransactionRateLimitInfo, error) {
-	var resp []UserTransactionRateLimitInfo
+func (e *Exchange) GetUserTransactionRateLimitInfo(ctx context.Context) ([]*UserTransactionRateLimitInfo, error) {
+	var resp []*UserTransactionRateLimitInfo
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "account/rate_limit", nil, nil, &resp)
 }
 
@@ -3995,42 +3998,42 @@ func (e *Exchange) CreateSelfTradePreventionUserGroup(ctx context.Context, arg *
 
 // GetUserSelfTradePreventionGroups query STP user groups created by the user
 // Only query STP user groups created by the current main account
-func (e *Exchange) GetUserSelfTradePreventionGroups(ctx context.Context, name string) ([]STPUserGroup, error) {
+func (e *Exchange) GetUserSelfTradePreventionGroups(ctx context.Context, name string) ([]*STPUserGroup, error) {
 	params := url.Values{}
 	if name != "" {
 		params.Set("name", name)
 	}
-	var resp []STPUserGroup
+	var resp []*STPUserGroup
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "account/stp_groups", params, nil, &resp)
 }
 
 // GetUsersInSTPUserGroup query users in the STP user group
 // Only the main account that created this STP group can query the account ID list in the current STP group
-func (e *Exchange) GetUsersInSTPUserGroup(ctx context.Context, stpID string) ([]STPUserGroupMember, error) {
+func (e *Exchange) GetUsersInSTPUserGroup(ctx context.Context, stpID string) ([]*STPUserGroupMember, error) {
 	if stpID == "" {
 		return nil, errSTPGroupIDRequired
 	}
-	var resp []STPUserGroupMember
+	var resp []*STPUserGroupMember
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "account/stp_groups/"+stpID+"/users", nil, nil, &resp)
 }
 
 // AddUsersToSTPUserGroup add users to the STP user group
 // Only the main account that created this STP group can add users to the STP user group
 // Only accounts under the current main account are allowed, cross-main account is not permitted
-func (e *Exchange) AddUsersToSTPUserGroup(ctx context.Context, stpID string, usersID []uint64) ([]STPUserGroupMember, error) {
+func (e *Exchange) AddUsersToSTPUserGroup(ctx context.Context, stpID string, usersID []uint64) ([]*STPUserGroupMember, error) {
 	if stpID == "" {
 		return nil, errSTPGroupIDRequired
 	}
 	if len(usersID) == 0 {
 		return nil, errUserIDRequired
 	}
-	var resp []STPUserGroupMember
+	var resp []*STPUserGroupMember
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "account/stp_groups/"+stpID+"/users", nil, usersID, &resp)
 }
 
 // DeleteUserFromSTPUserGroup delete users from the STP user group
 // Only the main account that created this STP group is allowed to delete users from the STP user group
-func (e *Exchange) DeleteUserFromSTPUserGroup(ctx context.Context, stpID string, userID uint64) ([]STPUserGroupMember, error) {
+func (e *Exchange) DeleteUserFromSTPUserGroup(ctx context.Context, stpID string, userID uint64) ([]*STPUserGroupMember, error) {
 	if stpID == "" {
 		return nil, errSTPGroupIDRequired
 	}
@@ -4039,7 +4042,7 @@ func (e *Exchange) DeleteUserFromSTPUserGroup(ctx context.Context, stpID string,
 	}
 	params := url.Values{}
 	params.Set("user_id", strconv.FormatUint(userID, 10))
-	var resp []STPUserGroupMember
+	var resp []*STPUserGroupMember
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodDelete, "account/stp_groups/"+stpID+"/users", params, nil, &resp)
 }
 
@@ -4097,7 +4100,7 @@ func (e *Exchange) RepayMultiCollateraLoan(ctx context.Context, arg *MultiCollat
 }
 
 // GetMultiCurrencyCollateralRepaymentRecords query multi-currency collateral repayment records
-func (e *Exchange) GetMultiCurrencyCollateralRepaymentRecords(ctx context.Context, operationType string, borrowCurrency currency.Code, page, limit uint64, from, to time.Time) ([]MultiCurrencyCollateralRepayment, error) {
+func (e *Exchange) GetMultiCurrencyCollateralRepaymentRecords(ctx context.Context, operationType string, borrowCurrency currency.Code, page, limit uint64, from, to time.Time) ([]*MultiCurrencyCollateralRepayment, error) {
 	if operationType == "" {
 		return nil, errLoanTypeIsRequired
 	}
@@ -4120,7 +4123,7 @@ func (e *Exchange) GetMultiCurrencyCollateralRepaymentRecords(ctx context.Contex
 		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
 		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
 	}
-	var resp []MultiCurrencyCollateralRepayment
+	var resp []*MultiCurrencyCollateralRepayment
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "loan/multi_collateral/repay", params, nil, &resp)
 }
 

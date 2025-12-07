@@ -194,7 +194,7 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 	}
 }
 
-func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
+func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]*WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
@@ -207,7 +207,7 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 		}
 	}
 
-	outbound := make([]WsInput, 0, len(channelsToSubscribe))
+	outbound := make([]*WsInput, 0, len(channelsToSubscribe))
 	for i := range channelsToSubscribe {
 		if len(channelsToSubscribe[i].Pairs) != 1 {
 			return nil, subscription.ErrNotSinglePair
@@ -279,7 +279,7 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 				params = append(params, intervalString)
 			}
 		}
-		outbound = append(outbound, WsInput{
+		outbound = append(outbound, &WsInput{
 			ID:      e.MessageSequence(),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
@@ -552,6 +552,7 @@ func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Ite
 			CloseTime:      resp.Result[x].FinishTime.Time(),
 		}
 	}
+	e.Websocket.DataHandler <- orderDetails
 	return orderDetails, nil
 }
 
