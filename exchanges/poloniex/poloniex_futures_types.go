@@ -487,8 +487,9 @@ type ContractLimitPrice struct {
 	SellLimit float64       `json:"sellLmt"`
 }
 
-// FuturesSubscriptionResp represents a subscription response item.
-type FuturesSubscriptionResp struct {
+// SubscriptionResponse represents a subscription response detail
+type SubscriptionResponse struct {
+	ID      string          `json:"id"`
 	Channel string          `json:"channel"`
 	Data    json.RawMessage `json:"data"`
 	Action  string          `json:"action"`

@@ -7,11 +7,9 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	gws "github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -149,17 +147,15 @@ func (e *Exchange) generateFuturesPrivateSubscriptions() (subscription.List, err
 }
 
 func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connection, respRaw []byte) error {
-	var result *FuturesSubscriptionResp
+	var result *SubscriptionResponse
 	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
 	}
 	if result.Event != "" {
 		switch result.Event {
 		case "pong":
-		case "subscribe", "unsubscribe":
-			return conn.RequireMatchWithData(result.Channel, respRaw)
-		case "error":
-			log.Errorf(log.ExchangeSys, "Unexpected error event message futures %s", string(respRaw))
+		case "subscribe", "unsubscribe", "error":
+			return conn.RequireMatchWithData("subscription", respRaw)
 		default:
 			e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
 			log.Debugf(log.ExchangeSys, "Unexpected event message futures %s", string(respRaw))
@@ -168,7 +164,7 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 	}
 	switch result.Channel {
 	case channelAuth:
-		return conn.RequireMatchWithData("auth", respRaw)
+		return conn.RequireMatchWithData(channelAuth, respRaw)
 	case channelFuturesSymbol:
 		var resp []*ProductDetail
 		if err := json.Unmarshal(result.Data, &resp); err != nil {
@@ -176,9 +172,10 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 		}
 		e.Websocket.DataHandler <- resp
 		return nil
-	case channelFuturesOrderbookLvl2,
-		channelFuturesOrderbook:
-		return e.processFuturesOrderbook(result.Data, result.Action)
+	case channelFuturesOrderbookLvl2:
+		return e.processFuturesOrderbookLevel2(result.Data, result.Action)
+	case channelFuturesOrderbook:
+		return e.processFuturesOrderbook(result.Data)
 	case channelFuturesCandles:
 		candleIndex := strings.Index(result.Channel, "_")
 		if candleIndex == -1 {
@@ -376,7 +373,28 @@ func (e *Exchange) processFuturesMarkAndIndexPriceCandlesticks(data []byte, inte
 	return nil
 }
 
-func (e *Exchange) processFuturesOrderbook(data []byte, action string) error {
+func (e *Exchange) processFuturesOrderbook(data []byte) error {
+	var resp []*WSFuturesOrderbook
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return err
+	}
+	for _, r := range resp {
+		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			Bids:         r.Bids.Levels(),
+			Asks:         r.Asks.Levels(),
+			Exchange:     e.Name,
+			LastUpdateID: r.ID,
+			Asset:        asset.Futures,
+			Pair:         r.Symbol,
+			LastUpdated:  r.CreationTime.Time(),
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (e *Exchange) processFuturesOrderbookLevel2(data []byte, action string) error {
 	var resp []*WSFuturesOrderbook
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
@@ -495,61 +513,27 @@ func (e *Exchange) processFuturesCandlesticks(data []byte, interval kline.Interv
 	return nil
 }
 
-func (e *Exchange) handleFuturesSubscriptions(operation string, subscs subscription.List) []*SubscriptionPayload {
-	payloads := make([]*SubscriptionPayload, len(subscs))
-	for i := range subscs {
-		input := &SubscriptionPayload{
-			Event:   operation,
-			Channel: []string{subscs[i].QualifiedChannel},
-		}
-		if len(subscs[i].Pairs) != 0 && subscs[i].QualifiedChannel != channelFuturesAccount {
-			input.Symbols = subscs[i].Pairs.Strings()
-		}
-		payloads[i] = input
+func (e *Exchange) handleFuturesSubscriptions(operation string, sub *subscription.Subscription) (*SubscriptionPayload, error) {
+	pairFormat, err := e.GetPairFormat(asset.Futures, true)
+	if err != nil {
+		return nil, err
 	}
-	return payloads
+	input := &SubscriptionPayload{
+		Event:   operation,
+		Channel: []string{sub.QualifiedChannel},
+	}
+	if len(sub.Pairs) != 0 && sub.QualifiedChannel != channelFuturesAccount {
+		input.Symbols = sub.Pairs.Format(pairFormat).Strings()
+	}
+	return input, nil
 }
 
 // SubscribeFutures sends a websocket message to receive data from the channel
 func (e *Exchange) SubscribeFutures(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
-	return e.manageFuturesSubscription(ctx, "subscribe", conn, subs)
+	return e.manageSubs(ctx, "subscribe", conn, subs, e.handleFuturesSubscriptions, &e.futuresSubMtx)
 }
 
 // UnsubscribeFutures sends a websocket message to stop receiving data from the channel
 func (e *Exchange) UnsubscribeFutures(ctx context.Context, conn websocket.Connection, unsub subscription.List) error {
-	return e.manageFuturesSubscription(ctx, "unsubscribe", conn, unsub)
-}
-
-func (e *Exchange) manageFuturesSubscription(ctx context.Context, operation string, conn websocket.Connection, subscs subscription.List) error {
-	var (
-		errLock sync.Mutex
-		errs    error
-		wg      sync.WaitGroup
-	)
-	payloads := e.handleFuturesSubscriptions(operation, subscs)
-	for i, payload := range payloads {
-		wg.Add(1)
-		go func(s *subscription.Subscription, payload *SubscriptionPayload) {
-			defer wg.Done()
-			_, err := conn.SendMessageReturnResponse(ctx, request.UnAuth, payload.Channel[0], payload)
-			if err != nil {
-				errLock.Lock()
-				errs = common.AppendError(errs, fmt.Errorf("%w subscribing to futures channel: %s", err, payload.Channel[0]))
-				errLock.Unlock()
-				return
-			}
-			if operation == "subscribe" {
-				err = e.Websocket.AddSuccessfulSubscriptions(conn, s)
-			} else {
-				err = e.Websocket.RemoveSubscriptions(conn, s)
-			}
-			if err != nil {
-				errLock.Lock()
-				errs = common.AppendError(errs, err)
-				errLock.Unlock()
-			}
-		}(subscs[i], payload)
-	}
-	wg.Wait()
-	return errs
+	return e.manageSubs(ctx, "unsubscribe", conn, unsub, e.handleFuturesSubscriptions, &e.futuresSubMtx)
 }

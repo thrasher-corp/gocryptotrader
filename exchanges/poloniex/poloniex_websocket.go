@@ -154,10 +154,9 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	if result.Event != "" {
 		switch result.Event {
 		case "pong":
-		case "subscribe", "unsubscribe":
-			return conn.RequireMatchWithData(result.Channel, respRaw)
-		case "error":
-			log.Errorf(log.ExchangeSys, "Unexpected error event message spot %s", string(respRaw))
+			return nil
+		case "subscribe", "unsubscribe", "error":
+			return conn.RequireMatchWithData("subscription", respRaw)
 		default:
 			e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
 			log.Debugf(log.ExchangeSys, "Unexpected event message spot %s", string(respRaw))
@@ -166,7 +165,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	}
 	switch result.Channel {
 	case channelAuth:
-		return conn.RequireMatchWithData("auth", respRaw)
+		return conn.RequireMatchWithData(channelAuth, respRaw)
 	case channelSymbols:
 		var response [][]WsSymbol
 		return e.processResponse(&result, &response)
@@ -410,12 +409,12 @@ func (e *Exchange) processResponse(result *SubscriptionResponse, instance any) e
 	return nil
 }
 
-func (e *Exchange) handleSubscription(operation string, s *subscription.Subscription) (SubscriptionPayload, error) {
+func (e *Exchange) handleSubscription(operation string, s *subscription.Subscription) (*SubscriptionPayload, error) {
 	pairFormat, err := e.GetPairFormat(asset.Spot, true)
 	if err != nil {
-		return SubscriptionPayload{}, err
+		return nil, err
 	}
-	sp := SubscriptionPayload{
+	sp := &SubscriptionPayload{
 		Event:   operation,
 		Channel: []string{strings.ToLower(s.QualifiedChannel)},
 	}
@@ -484,9 +483,7 @@ func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, sub
 	if err != nil {
 		return err
 	}
-	return e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error {
-		return e.manageSubs(ctx, conn, "subscribe", l)
-	}, 1)
+	return e.manageSubs(ctx, "subscribe", conn, subs, e.handleSubscription, &e.spotSubMtx)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -495,51 +492,40 @@ func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, s
 	if err != nil {
 		return err
 	}
-	return e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error {
-		return e.manageSubs(ctx, conn, "unsubscribe", l)
-	}, 1)
+	return e.manageSubs(ctx, "unsubscribe", conn, subs, e.handleSubscription, &e.spotSubMtx)
 }
 
-func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, operation string, subs subscription.List) error {
-	var (
-		errsLock sync.Mutex
-		wg       sync.WaitGroup
-		errs     error
-	)
-	for _, s := range subs {
-		if strings.HasSuffix(conn.GetURL(), "private") != s.Authenticated {
+func (e *Exchange) manageSubs(ctx context.Context, operation string, conn websocket.Connection, subscs subscription.List, payloadGen func(op string, s *subscription.Subscription) (*SubscriptionPayload, error), sendMsgLock *sync.Mutex) error {
+	var errs error
+	for _, s := range subscs {
+		payload, err := payloadGen(operation, s)
+		if err != nil {
+			errs = common.AppendError(errs, err)
 			continue
 		}
-		wg.Add(1)
-		go func(s *subscription.Subscription) {
-			defer wg.Done()
-			payload, err := e.handleSubscription(operation, s)
-			if err != nil {
-				errsLock.Lock()
-				errs = common.AppendError(errs, err)
-				errsLock.Unlock()
-				return
-			}
-			_, err = conn.SendMessageReturnResponse(ctx, request.UnAuth, payload.Channel[0], &payload)
-			if err != nil {
-				errsLock.Lock()
-				errs = common.AppendError(errs, fmt.Errorf("%w subscribing to channel: %s", err, payload.Channel[0]))
-				errsLock.Unlock()
-				return
-			}
-			if operation == "subscribe" {
-				err = e.Websocket.AddSuccessfulSubscriptions(conn, s)
-			} else {
-				err = e.Websocket.RemoveSubscriptions(conn, s)
-			}
-			if err != nil {
-				errsLock.Lock()
-				errs = common.AppendError(errs, err)
-				errsLock.Unlock()
-			}
-		}(s)
+		sendMsgLock.Lock()
+		result, err := conn.SendMessageReturnResponse(ctx, request.UnAuth, "subscription", &payload)
+		sendMsgLock.Unlock()
+		if err != nil {
+			errs = common.AppendError(errs, fmt.Errorf("%w %w subscribing to channel: %s", websocket.ErrSubscriptionFailure, err, payload.Channel[0]))
+			continue
+		}
+		var subscriptionResponse *SubscriptionResponse
+		if err := json.Unmarshal(result, &subscriptionResponse); err != nil {
+			errs = common.AppendError(errs, err)
+			continue
+		}
+		if subscriptionResponse.Event == "error" {
+			errs = common.AppendError(errs, fmt.Errorf("%w %s subscribing to channel: %s", websocket.ErrSubscriptionFailure, subscriptionResponse.Message, payload.Channel[0]))
+			continue
+		}
+		if operation == "subscribe" {
+			err = e.Websocket.AddSuccessfulSubscriptions(conn, s)
+		} else {
+			err = e.Websocket.RemoveSubscriptions(conn, s)
+		}
+		errs = common.AppendError(errs, err)
 	}
-	wg.Wait()
 	return errs
 }
 

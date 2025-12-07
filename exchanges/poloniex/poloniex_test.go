@@ -2766,11 +2766,10 @@ func TestHandleFuturesSubscriptions(t *testing.T) {
 		{Event: "subscribe", Channel: []string{"tickers"}, Symbols: enabledPairs.Strings()},
 		{Event: "subscribe", Channel: []string{"book_lv2"}, Symbols: enabledPairs.Strings()},
 	}
-
-	result := e.handleFuturesSubscriptions("subscribe", subscs)
-	require.Len(t, payloads, 2)
-	for i := range subscs {
-		require.Equal(t, payloads[i], result[i])
+	for i, s := range subscs {
+		result, err := e.handleFuturesSubscriptions("subscribe", s)
+		require.NoError(t, err)
+		require.Equal(t, payloads[i], result)
 	}
 }
 
@@ -2850,4 +2849,5 @@ func TestStatusResponseError(t *testing.T) {
 func TestConnect(t *testing.T) {
 	t.Parallel()
 	require.NoError(t, e.Websocket.Connect())
+	time.Sleep(time.Second * 23)
 }

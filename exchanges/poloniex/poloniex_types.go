@@ -803,19 +803,6 @@ type SubscriptionPayload struct {
 	Params     map[string]any `json:"params,omitempty"`
 }
 
-// SubscriptionResponse represents a subscription response instance.
-type SubscriptionResponse struct {
-	ID      string          `json:"id"`
-	Event   string          `json:"event"`
-	Message string          `json:"message"`
-	Channel string          `json:"channel"`
-	Action  string          `json:"action"`
-	Data    json.RawMessage `json:"data"`
-
-	Currencies []string `json:"currencies"`
-	Symbols    []string `json:"symbols"`
-}
-
 // GetWsResponse returns a *WsResponse instance from *SubscriptionResponse
 func (a *SubscriptionResponse) GetWsResponse() *WsResponse {
 	return &WsResponse{

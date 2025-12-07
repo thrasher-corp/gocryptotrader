@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -45,6 +46,8 @@ var (
 // Exchange is the overarching type across the poloniex package
 type Exchange struct {
 	exchange.Base
+	spotSubMtx    sync.Mutex
+	futuresSubMtx sync.Mutex
 }
 
 // GetSymbol returns symbol and trade limit info
