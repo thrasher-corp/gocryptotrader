@@ -608,7 +608,7 @@ func (m *Manager) connectAndSubscribe(ctx context.Context, wrapper *connectionWr
 	}
 
 	m.connections[conn] = wrapper
-	connectionStore := subscription.NewStore()
+	connSubsStore := subscription.NewStore()
 	wrapper.connectionsSubs = append(wrapper.connectionsSubs, connectionSubscriptions{Connection: conn, Subscriptions: connectionStore})
 
 	m.Wg.Add(1)
