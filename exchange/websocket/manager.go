@@ -116,12 +116,10 @@ type Manager struct {
 	ExchangeLevelReporter         Reporter   // Latency reporter
 	MaxSubscriptionsPerConnection int
 
-	// connectionManager stores all *potential* connections for the exchange, organised within connectionWrapper structs.
-	// Each connectionWrapper one connection (will be expanded soon) tailored for specific exchange functionalities or asset types. // TODO: Expand this to support multiple connections per connectionWrapper
+	// connectionManager stores all *potential* connections for the exchange, organised within websocket structs.
 	// For example, separate connections can be used for Spot, Margin, and Futures trading. This structure is especially useful
 	// for exchanges that differentiate between trading pairs by using different connection endpoints or protocols for various asset classes.
-	// If an exchange does not require such differentiation, all connections may be managed under a single connectionWrapper.
-
+	// If an exchange does not require such differentiation, all connections may be managed under a single websocket.
 	connectionManager []*websocket
 }
 
@@ -327,8 +325,8 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 	}
 
 	if m.useMultiConnectionManagement {
-		// The connection and supporting functions are defined per connection
-		// and the connection wrapper is stored in the connection manager.
+		// The connection and supporting functions are defined per connection and the connection websocket is stored in
+		// the connection manager.
 		if c.URL == "" {
 			return fmt.Errorf("%w: %w", errConnSetup, errDefaultURLIsEmpty)
 		}
@@ -551,15 +549,15 @@ func (m *Manager) connect() error {
 
 	if multiConnectFatalError != nil {
 		// Roll back any successful connections and flush subscriptions
-		for _, wrapper := range m.connectionManager {
-			for _, conn := range wrapper.connections {
+		for _, ws := range m.connectionManager {
+			for _, conn := range ws.connections {
 				if err := conn.Shutdown(); err != nil {
 					log.Errorln(log.WebsocketMgr, err)
 				}
 				conn.SubStore().Clear()
 			}
-			wrapper.connections = nil
-			wrapper.subscriptions.Clear()
+			ws.connections = nil
+			ws.subscriptions.Clear()
 		}
 		clear(m.connections)
 		m.setState(disconnectedState) // Flip from connecting to disconnected.
@@ -686,16 +684,16 @@ func (m *Manager) shutdown() error {
 	var nonFatalCloseConnectionErrors error
 
 	// Shutdown managed connections
-	for _, wrapper := range m.connectionManager {
-		for _, conn := range wrapper.connections {
+	for _, ws := range m.connectionManager {
+		for _, conn := range ws.connections {
 			if err := conn.Shutdown(); err != nil {
 				nonFatalCloseConnectionErrors = common.AppendError(nonFatalCloseConnectionErrors, err)
 			}
 			conn.SubStore().Clear()
 		}
-		wrapper.connections = nil
+		ws.connections = nil
 		// Flush any subscriptions from last connection across any managed connections
-		wrapper.subscriptions.Clear()
+		ws.subscriptions.Clear()
 	}
 	// Clean map of old connections
 	clear(m.connections)
@@ -859,8 +857,8 @@ func (m *Manager) SetProxyAddress(proxyAddr string) error {
 		log.Debugf(log.ExchangeSys, "%s websocket: removing websocket proxy", m.exchangeName)
 	}
 
-	for _, wrapper := range m.connectionManager {
-		for _, conn := range wrapper.connections {
+	for _, ws := range m.connectionManager {
+		for _, conn := range ws.connections {
 			conn.SetProxy(proxyAddr)
 		}
 	}
@@ -1105,14 +1103,14 @@ func (m *Manager) GetConnection(messageFilter any) (Connection, error) {
 		return nil, ErrNotConnected
 	}
 
-	for _, wrapper := range m.connectionManager {
-		if wrapper.setup.MessageFilter != messageFilter {
+	for _, ws := range m.connectionManager {
+		if ws.setup.MessageFilter != messageFilter {
 			continue
 		}
-		if len(wrapper.connections) == 0 {
-			return nil, fmt.Errorf("%s: %s %w associated with message filter: '%v'", m.exchangeName, wrapper.setup.URL, ErrNotConnected, messageFilter)
+		if len(ws.connections) == 0 {
+			return nil, fmt.Errorf("%s: %s %w associated with message filter: '%v'", m.exchangeName, ws.setup.URL, ErrNotConnected, messageFilter)
 		}
-		return wrapper.connections[0], nil
+		return ws.connections[0], nil
 	}
 
 	return nil, fmt.Errorf("%s: %w associated with message filter: '%v'", m.exchangeName, ErrRequestRouteNotFound, messageFilter)
