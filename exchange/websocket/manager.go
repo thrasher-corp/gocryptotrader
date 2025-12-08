@@ -395,8 +395,8 @@ func (m *Manager) getConnectionFromSetup(c *ConnectionSetup) *connection {
 		match = NewMatch()
 	}
 	rateLimit := c.RateLimit
-	if c.ConnectionRateLimit != nil {
-		rateLimit = c.ConnectionRateLimit()
+	if c.ConnectionRateLimiter != nil {
+		rateLimit = c.ConnectionRateLimiter()
 	}
 	return &connection{
 		ExchangeName:         m.exchangeName,
@@ -609,7 +609,7 @@ func (m *Manager) connectAndSubscribe(ctx context.Context, wrapper *connectionWr
 
 	m.connections[conn] = wrapper
 	connSubsStore := subscription.NewStore()
-	wrapper.connectionsSubs = append(wrapper.connectionsSubs, connectionSubscriptions{Connection: conn, Subscriptions: connectionStore})
+	wrapper.connectionsSubs = append(wrapper.connectionsSubs, connectionSubscriptions{Connection: conn, Subscriptions: connSubsStore})
 
 	m.Wg.Add(1)
 	go m.Reader(ctx, conn, wrapper.setup.Handler)
@@ -634,7 +634,7 @@ func (m *Manager) connectAndSubscribe(ctx context.Context, wrapper *connectionWr
 
 	for _, sub := range wrapper.subscriptions.Contained(subs) {
 		// Store subscription against this specific connection for tracking
-		if err := connectionStore.Add(sub); err != nil {
+		if err := connSubsStore.Add(sub); err != nil {
 			return fmt.Errorf("%w: adding subscriptions to the specific connection subscription store: %w", ErrSubscriptionFailure, err)
 		}
 	}
