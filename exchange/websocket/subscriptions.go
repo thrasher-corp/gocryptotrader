@@ -230,9 +230,9 @@ func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) er
 			return fmt.Errorf("%w: Websocket.subscriptions", common.ErrNilPointer)
 		}
 		var connSubStore *subscription.Store
-		for _, connSubs := range wrapper.connectionsSubs {
-			if connSubs.Connection == conn {
-				connSubStore = connSubs.Subscriptions
+		for _, c := range wrapper.connections { // ensure connection is actually managed
+			if c == conn {
+				connSubStore = c.SubStore()
 				break
 			}
 		}
@@ -309,7 +309,7 @@ func (m *Manager) FlushChannels() error {
 		}
 
 		// Case if there is nothing to unsubscribe from and the connection is nil
-		if len(newSubs) == 0 && len(wrapper.connectionsSubs) == 0 {
+		if len(newSubs) == 0 && len(wrapper.connections) == 0 {
 			continue
 		}
 
@@ -354,8 +354,8 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, wrapper *
 	if len(unsubs) != 0 {
 		currentUnsubs := slices.Clone(unsubs)
 		// Unsubscribe first to free up capacity on existing connections
-		for _, connSubs := range wrapper.connectionsSubs {
-			leftOver, err := m.unsubscribeFromConnection(connSubs.Connection, connSubs.Subscriptions, currentUnsubs)
+		for _, conn := range wrapper.connections {
+			leftOver, err := m.unsubscribeFromConnection(conn, currentUnsubs)
 			if err != nil {
 				return err
 			}
@@ -380,8 +380,8 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, wrapper *
 	if len(subs) != 0 {
 		// Subscribe to existing connections to use up existing capacity
 		currentSubs := slices.Clone(subs)
-		for _, connSubs := range wrapper.connectionsSubs {
-			leftOver, err := m.subscribeToConnection(connSubs.Connection, connSubs.Subscriptions, currentSubs)
+		for _, conn := range wrapper.connections {
+			leftOver, err := m.subscribeToConnection(conn, currentSubs)
 			if err != nil {
 				return err
 			}
@@ -404,24 +404,28 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, wrapper *
 	}
 
 	// Clean up any connections that have no subscriptions left to reduce resource usage
-	clean := make([]connectionSubscriptions, 0, len(wrapper.connectionsSubs))
-	for _, connSubs := range wrapper.connectionsSubs {
-		if connSubs.Subscriptions.Len() != 0 {
-			clean = append(clean, connSubs)
+	clean := make([]Connection, 0, len(wrapper.connections))
+	for _, conn := range wrapper.connections {
+		if conn.SubStore().Len() != 0 {
+			clean = append(clean, conn)
 			continue
 		}
-		delete(m.connections, connSubs.Connection)
-		if err := connSubs.Connection.Shutdown(); err != nil {
+		delete(m.connections, conn)
+		if err := conn.Shutdown(); err != nil {
 			log.Warnf(log.WebsocketMgr, "%v websocket: failed to shutdown connection: %v", m.exchangeName, err)
 		}
 	}
-	wrapper.connectionsSubs = clean
-
+	wrapper.connections = clean
 	return nil
 }
 
 // unsubscribeFromConnection unsubscribes from a connection and removes subscriptions from the store
-func (m *Manager) unsubscribeFromConnection(conn Connection, store *subscription.Store, subs subscription.List) (subscription.List, error) {
+func (m *Manager) unsubscribeFromConnection(conn Connection, subs subscription.List) (subscription.List, error) {
+	store := conn.SubStore()
+	if err := common.NilGuard(store); err != nil {
+		return nil, fmt.Errorf("websocket connection %w", err)
+	}
+
 	remove := store.Contained(subs)
 	if len(remove) == 0 {
 		return subs, nil
@@ -441,7 +445,12 @@ func (m *Manager) unsubscribeFromConnection(conn Connection, store *subscription
 }
 
 // subscribeToConnection subscribes to a connection and adds subscriptions to the store
-func (m *Manager) subscribeToConnection(conn Connection, store *subscription.Store, subs subscription.List) (subscription.List, error) {
+func (m *Manager) subscribeToConnection(conn Connection, subs subscription.List) (subscription.List, error) {
+	store := conn.SubStore()
+	if err := common.NilGuard(store); err != nil {
+		return nil, fmt.Errorf("websocket connection %w", err)
+	}
+
 	usedCap := store.Len()
 	if m.MaxSubscriptionsPerConnection > 0 && usedCap == m.MaxSubscriptionsPerConnection {
 		return subs, nil // No capacity left for this connection

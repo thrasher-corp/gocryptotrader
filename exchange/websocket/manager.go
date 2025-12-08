@@ -160,14 +160,9 @@ type ManagerSetup struct {
 // attempting a new connection. It also contains the subscriptions that are
 // associated with the specific connection.
 type connectionWrapper struct {
-	setup           *ConnectionSetup
-	subscriptions   *subscription.Store
-	connectionsSubs []connectionSubscriptions
-}
-
-type connectionSubscriptions struct {
-	Connection    Connection
-	Subscriptions *subscription.Store
+	setup         *ConnectionSetup
+	subscriptions *subscription.Store
+	connections   []Connection
 }
 
 var globalReporter Reporter
@@ -412,6 +407,7 @@ func (m *Manager) getConnectionFromSetup(c *ConnectionSetup) *connection {
 		RateLimit:            rateLimit,
 		Reporter:             c.ConnectionLevelReporter,
 		RateLimitDefinitions: m.rateLimitDefinitions,
+		Store:                subscription.NewStore(),
 	}
 }
 
@@ -559,13 +555,13 @@ func (m *Manager) connect() error {
 	if multiConnectFatalError != nil {
 		// Roll back any successful connections and flush subscriptions
 		for _, wrapper := range m.connectionManager {
-			for _, connSubs := range wrapper.connectionsSubs {
-				if err := connSubs.Connection.Shutdown(); err != nil {
+			for _, conn := range wrapper.connections {
+				if err := conn.Shutdown(); err != nil {
 					log.Errorln(log.WebsocketMgr, err)
 				}
-				connSubs.Subscriptions.Clear()
+				conn.SubStore().Clear()
 			}
-			wrapper.connectionsSubs = nil
+			wrapper.connections = nil
 			wrapper.subscriptions.Clear()
 		}
 		clear(m.connections)
@@ -608,8 +604,7 @@ func (m *Manager) connectAndSubscribe(ctx context.Context, wrapper *connectionWr
 	}
 
 	m.connections[conn] = wrapper
-	connSubsStore := subscription.NewStore()
-	wrapper.connectionsSubs = append(wrapper.connectionsSubs, connectionSubscriptions{Connection: conn, Subscriptions: connSubsStore})
+	wrapper.connections = append(wrapper.connections, conn)
 
 	m.Wg.Add(1)
 	go m.Reader(ctx, conn, wrapper.setup.Handler)
@@ -632,6 +627,7 @@ func (m *Manager) connectAndSubscribe(ctx context.Context, wrapper *connectionWr
 		return fmt.Errorf("%w: %w %q", ErrSubscriptionFailure, ErrSubscriptionsNotAdded, missing)
 	}
 
+	connSubsStore := conn.SubStore()
 	for _, sub := range wrapper.subscriptions.Contained(subs) {
 		// Store subscription against this specific connection for tracking
 		if err := connSubsStore.Add(sub); err != nil {
@@ -695,13 +691,13 @@ func (m *Manager) shutdown() error {
 
 	// Shutdown managed connections
 	for _, wrapper := range m.connectionManager {
-		for _, connSubs := range wrapper.connectionsSubs {
-			if err := connSubs.Connection.Shutdown(); err != nil {
+		for _, conn := range wrapper.connections {
+			if err := conn.Shutdown(); err != nil {
 				nonFatalCloseConnectionErrors = common.AppendError(nonFatalCloseConnectionErrors, err)
 			}
-			connSubs.Subscriptions.Clear()
+			conn.SubStore().Clear()
 		}
-		wrapper.connectionsSubs = nil
+		wrapper.connections = nil
 		// Flush any subscriptions from last connection across any managed connections
 		wrapper.subscriptions.Clear()
 	}
@@ -868,8 +864,8 @@ func (m *Manager) SetProxyAddress(proxyAddr string) error {
 	}
 
 	for _, wrapper := range m.connectionManager {
-		for _, connSubs := range wrapper.connectionsSubs {
-			connSubs.Connection.SetProxy(proxyAddr)
+		for _, conn := range wrapper.connections {
+			conn.SetProxy(proxyAddr)
 		}
 	}
 	if m.Conn != nil {
@@ -1117,10 +1113,10 @@ func (m *Manager) GetConnection(messageFilter any) (Connection, error) {
 		if wrapper.setup.MessageFilter != messageFilter {
 			continue
 		}
-		if len(wrapper.connectionsSubs) == 0 {
+		if len(wrapper.connections) == 0 {
 			return nil, fmt.Errorf("%s: %s %w associated with message filter: '%v'", m.exchangeName, wrapper.setup.URL, ErrNotConnected, messageFilter)
 		}
-		return wrapper.connectionsSubs[0].Connection, nil
+		return wrapper.connections[0], nil
 	}
 
 	return nil, fmt.Errorf("%s: %w associated with message filter: '%v'", m.exchangeName, ErrRequestRouteNotFound, messageFilter)

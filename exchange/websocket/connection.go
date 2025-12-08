@@ -56,6 +56,8 @@ type Connection interface {
 	IncomingWithData(signature any, data []byte) bool
 	// MatchReturnResponses sets up a channel to listen for an expected number of responses.
 	MatchReturnResponses(ctx context.Context, signature any, expected int) (<-chan MatchedResponse, error)
+	// SubStore returns the subscription store for the connection
+	SubStore() *subscription.Store
 }
 
 // ConnectionSetup defines variables for an individual stream connection
@@ -111,6 +113,7 @@ type Response struct {
 
 // connection contains all the data needed to send a message to a websocket connection
 type connection struct {
+	*subscription.Store
 	Verbose              bool
 	connected            int32
 	writeControl         sync.Mutex                     // Gorilla websocket does not allow more than one goroutine to utilise write methods
@@ -474,4 +477,9 @@ func (c *connection) RequireMatchWithData(signature any, incoming []byte) error 
 // IncomingWithData routes incoming data using the connection specific match system to the correct handler
 func (c *connection) IncomingWithData(signature any, data []byte) bool {
 	return c.Match.IncomingWithData(signature, data)
+}
+
+// SubStore returns the subscription store for the connection
+func (c *connection) SubStore() *subscription.Store {
+	return c.Store
 }
