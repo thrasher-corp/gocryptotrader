@@ -240,7 +240,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 
 	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
 	defer mock.Close()
-	ws.connectionManager = []*connectionWrapper{{setup: &ConnectionSetup{URL: "ws" + mock.URL[len("http"):] + "/ws"}}}
+	ws.connectionManager = []*websocket{{setup: &ConnectionSetup{URL: "ws" + mock.URL[len("http"):] + "/ws"}}}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errWebsocketSubscriptionsGeneratorUnset)
 
@@ -422,7 +422,7 @@ func TestManager(t *testing.T) {
 
 	ws.useMultiConnectionManagement = true
 
-	ws.connectionManager = []*connectionWrapper{{setup: &ConnectionSetup{URL: "ws://demos.kaazing.com/echo"}, connections: []Connection{&connection{Store: subscription.NewStore()}}}}
+	ws.connectionManager = []*websocket{{setup: &ConnectionSetup{URL: "ws://demos.kaazing.com/echo"}, connections: []Connection{&connection{Store: subscription.NewStore()}}}}
 	err = ws.SetProxyAddress("https://192.168.0.1:1337")
 	require.NoError(t, err)
 }
@@ -1160,7 +1160,7 @@ func TestGetConnection(t *testing.T) {
 	_, err = ws.GetConnection("testURL")
 	require.ErrorIs(t, err, ErrRequestRouteNotFound)
 
-	ws.connectionManager = []*connectionWrapper{{
+	ws.connectionManager = []*websocket{{
 		setup: &ConnectionSetup{MessageFilter: "testURL", URL: "testURL"},
 	}}
 
@@ -1201,7 +1201,7 @@ func TestShutdown(t *testing.T) {
 
 	m.AuthConn = nil
 	m.Conn = nil
-	m.connectionManager = []*connectionWrapper{
+	m.connectionManager = []*websocket{
 		{connections: []Connection{&connection{Connection: nil, Store: subscription.NewStore()}}},
 		{connections: []Connection{&connection{Connection: conn, Store: subscription.NewStore()}}},
 	}

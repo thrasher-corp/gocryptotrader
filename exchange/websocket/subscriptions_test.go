@@ -80,7 +80,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	require.NoError(t, multi.SetupNewConnection(amazingCandidate))
 
 	amazingConn := multi.getConnectionFromSetup(amazingCandidate)
-	multi.connections = map[Connection]*connectionWrapper{
+	multi.connections = map[Connection]*websocket{
 		amazingConn: multi.connectionManager[0],
 	}
 
@@ -93,7 +93,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	assert.Nil(t, multi.GetSubscription(42), "GetSubscription on empty internal map should return")
 
 	assert.ErrorIs(t, multi.SubscribeToChannels(nil, subs), common.ErrNilPointer, "If no connection is set, Subscribe should error")
-	assert.ErrorIs(t, multi.SubscribeToChannels(amazingConn, subs), common.ErrNilPointer, "Basic Subscribing should error when connection is not present in wrapper map")
+	assert.ErrorIs(t, multi.SubscribeToChannels(amazingConn, subs), common.ErrNilPointer, "Basic Subscribing should error when connection is not present in ws map")
 
 	multi.connectionManager[0].connections = []Connection{amazingConn}
 	assert.NoError(t, multi.SubscribeToChannels(amazingConn, subs), "Basic Subscribing should not error")
@@ -250,7 +250,7 @@ func TestCheckSubscriptions(t *testing.T) {
 
 	ws.subscriptions = subscription.NewStore()
 	conn := &connection{}
-	ws.connections = map[Connection]*connectionWrapper{
+	ws.connections = map[Connection]*websocket{
 		conn: {},
 	}
 	err = ws.checkSubscriptions(conn, subscription.List{{}})
@@ -476,7 +476,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 	t.Parallel()
 
 	// Common setup helper
-	setup := func() (*Manager, *connectionWrapper, *httptest.Server) {
+	setup := func() (*Manager, *websocket, *httptest.Server) {
 		m := NewManager()
 		m.MaxSubscriptionsPerConnection = 2
 
@@ -485,7 +485,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
 		}))
 
-		wrapper := &connectionWrapper{
+		ws := &websocket{
 			setup: &ConnectionSetup{
 				URL: "ws" + srv.URL[len("http"):] + "/ws",
 				Connector: func(ctx context.Context, c Connection) error {
@@ -501,10 +501,10 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 			},
 			subscriptions: subscription.NewStore(),
 		}
-		return m, wrapper, srv
+		return m, ws, srv
 	}
 
-	t.Run("Nil Wrapper", func(t *testing.T) {
+	t.Run("Nil ws", func(t *testing.T) {
 		t.Parallel()
 		m, _, srv := setup()
 		defer srv.Close()
@@ -514,145 +514,145 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 
 	t.Run("No Changes", func(t *testing.T) {
 		t.Parallel()
-		m, wrapper, srv := setup()
+		m, ws, srv := setup()
 		defer srv.Close()
-		err := m.scaleConnectionsToSubscriptions(t.Context(), wrapper, nil)
+		err := m.scaleConnectionsToSubscriptions(t.Context(), ws, nil)
 		require.NoError(t, err)
 	})
 
 	t.Run("Scale Up (Add Subs)", func(t *testing.T) {
 		t.Parallel()
-		m, wrapper, srv := setup()
+		m, ws, srv := setup()
 		defer srv.Close()
 
 		subs := subscription.List{{Channel: "A"}, {Channel: "B"}, {Channel: "C"}}
-		err := m.scaleConnectionsToSubscriptions(t.Context(), wrapper, subs)
+		err := m.scaleConnectionsToSubscriptions(t.Context(), ws, subs)
 		require.NoError(t, err)
 
-		assert.Equal(t, 3, wrapper.subscriptions.Len())
-		assert.Len(t, wrapper.connections, 2) // 2 per conn -> 2 conns
+		assert.Equal(t, 3, ws.subscriptions.Len())
+		assert.Len(t, ws.connections, 2) // 2 per conn -> 2 conns
 	})
 
 	t.Run("Scale Down (Remove Subs)", func(t *testing.T) {
 		t.Parallel()
-		m, wrapper, srv := setup()
+		m, ws, srv := setup()
 		defer srv.Close()
 
 		// Add subs first
 		subs := subscription.List{{Channel: "A"}, {Channel: "B"}}
-		err := m.scaleConnectionsToSubscriptions(t.Context(), wrapper, subs)
+		err := m.scaleConnectionsToSubscriptions(t.Context(), ws, subs)
 		require.NoError(t, err)
-		require.Equal(t, 2, wrapper.subscriptions.Len())
+		require.Equal(t, 2, ws.subscriptions.Len())
 
 		// Remove all
-		err = m.scaleConnectionsToSubscriptions(t.Context(), wrapper, nil)
+		err = m.scaleConnectionsToSubscriptions(t.Context(), ws, nil)
 		require.NoError(t, err)
-		assert.Equal(t, 0, wrapper.subscriptions.Len())
-		assert.Empty(t, wrapper.connections)
+		assert.Equal(t, 0, ws.subscriptions.Len())
+		assert.Empty(t, ws.connections)
 	})
 
 	t.Run("Unsubscribe Error", func(t *testing.T) {
 		t.Parallel()
-		m, wrapper, srv := setup()
+		m, ws, srv := setup()
 		defer srv.Close()
 
 		// Add sub first
 		sub := subscription.List{{Channel: "A"}}
-		require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), wrapper, sub))
+		require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), ws, sub))
 
 		// Now set error and remove
-		wrapper.setup.Unsubscriber = func(context.Context, Connection, subscription.List) error {
+		ws.setup.Unsubscriber = func(context.Context, Connection, subscription.List) error {
 			return errors.New("unsub fail")
 		}
-		err := m.scaleConnectionsToSubscriptions(t.Context(), wrapper, nil)
+		err := m.scaleConnectionsToSubscriptions(t.Context(), ws, nil)
 		require.ErrorContains(t, err, "unsub fail")
 	})
 
 	t.Run("Subscribe Error (Existing Connection)", func(t *testing.T) {
 		t.Parallel()
-		m, wrapper, srv := setup()
+		m, ws, srv := setup()
 		defer srv.Close()
 
 		// Add one sub (capacity 2)
-		require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), wrapper, subscription.List{{Channel: "A"}}))
+		require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), ws, subscription.List{{Channel: "A"}}))
 
 		// Set error
-		wrapper.setup.Subscriber = func(context.Context, Connection, subscription.List) error {
+		ws.setup.Subscriber = func(context.Context, Connection, subscription.List) error {
 			return errors.New("sub fail")
 		}
 
 		// Add another sub (should use existing connection)
-		err := m.scaleConnectionsToSubscriptions(t.Context(), wrapper, subscription.List{{Channel: "A"}, {Channel: "B"}})
+		err := m.scaleConnectionsToSubscriptions(t.Context(), ws, subscription.List{{Channel: "A"}, {Channel: "B"}})
 		require.ErrorContains(t, err, "sub fail")
 	})
 
 	t.Run("Subscribe Error (New Connection)", func(t *testing.T) {
-		m, wrapper, srv := setup()
+		m, ws, srv := setup()
 		defer srv.Close()
 
 		// Set connector error
-		wrapper.setup.Connector = func(context.Context, Connection) error {
+		ws.setup.Connector = func(context.Context, Connection) error {
 			return errors.New("connect fail")
 		}
 
-		err := m.scaleConnectionsToSubscriptions(t.Context(), wrapper, subscription.List{{Channel: "A"}})
+		err := m.scaleConnectionsToSubscriptions(t.Context(), ws, subscription.List{{Channel: "A"}})
 		require.ErrorContains(t, err, "connect fail")
 	})
 
 	t.Run("Global Unsubscribe Fallback Success", func(t *testing.T) {
 		t.Parallel()
-		m, wrapper, srv := setup()
+		m, ws, srv := setup()
 		defer srv.Close()
 
 		s1 := &subscription.Subscription{Channel: "A"}
 		s2 := &subscription.Subscription{Channel: "B"}
-		require.NoError(t, wrapper.subscriptions.Add(s1))
-		require.NoError(t, wrapper.subscriptions.Add(s2))
+		require.NoError(t, ws.subscriptions.Add(s1))
+		require.NoError(t, ws.subscriptions.Add(s2))
 		// empty incoming subscriptions will remove existing subs
 		in := subscription.List{}
-		require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), wrapper, in))
-		assert.Equal(t, 0, wrapper.subscriptions.Len())
+		require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), ws, in))
+		assert.Equal(t, 0, ws.subscriptions.Len())
 	})
 
 	t.Run("Missing Subscriptions After Subscribe", func(t *testing.T) {
 		t.Parallel()
-		m, wrapper, srv := setup()
+		m, ws, srv := setup()
 		defer srv.Close()
 
 		s1 := &subscription.Subscription{Channel: "A"}
 		s2 := &subscription.Subscription{Channel: "B"}
-		require.NoError(t, wrapper.subscriptions.Add(s1))
+		require.NoError(t, ws.subscriptions.Add(s1))
 
 		in := subscription.List{s1, s2}
-		err := m.scaleConnectionsToSubscriptions(t.Context(), wrapper, in)
+		err := m.scaleConnectionsToSubscriptions(t.Context(), ws, in)
 		require.NoError(t, err)
 
 		// After scaling, both subs should be present in the store
-		assert.NotNil(t, wrapper.subscriptions.Get(s1))
-		assert.NotNil(t, wrapper.subscriptions.Get(s2))
+		assert.NotNil(t, ws.subscriptions.Get(s1))
+		assert.NotNil(t, ws.subscriptions.Get(s2))
 	})
 
 	t.Run("Multi-batch ConnectAndSubscribe Success", func(t *testing.T) {
 		t.Parallel()
-		m, wrapper, srv := setup()
+		m, ws, srv := setup()
 		defer srv.Close()
 
 		m.MaxSubscriptionsPerConnection = 2
 
 		in := subscription.List{{Channel: "A"}, {Channel: "B"}, {Channel: "C"}, {Channel: "D"}, {Channel: "E"}}
-		require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), wrapper, in))
+		require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), ws, in))
 
 		// With max 2 subs per connection and 5 total, we expect 3 connections
-		assert.Len(t, wrapper.connections, 3)
+		assert.Len(t, ws.connections, 3)
 	})
 
 	t.Run("Cleanup Removes Empty Connections", func(t *testing.T) {
 		t.Parallel()
 		m := NewManager()
 		m.MaxSubscriptionsPerConnection = 2
-		m.connections = make(map[Connection]*connectionWrapper)
+		m.connections = make(map[Connection]*websocket)
 
-		wrapper := &connectionWrapper{
+		ws := &websocket{
 			setup:         &ConnectionSetup{},
 			subscriptions: subscription.NewStore(),
 		}
@@ -662,18 +662,18 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 		activeConn := &fakeConnection{Store: subscription.NewStore()}
 		require.NoError(t, activeConn.Add(&subscription.Subscription{Channel: "A"}))
 
-		wrapper.connections = []Connection{emptyConn, activeConn}
+		ws.connections = []Connection{emptyConn, activeConn}
 
-		m.connections[emptyConn] = wrapper
-		m.connections[activeConn] = wrapper
+		m.connections[emptyConn] = ws
+		m.connections[activeConn] = ws
 
 		// No incoming/sub changes; trigger only cleanup logic
-		require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), wrapper, nil))
+		require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), ws, nil))
 
 		assert.True(t, emptyConn.shutdownCalled)
 		assert.False(t, activeConn.shutdownCalled)
-		assert.Len(t, wrapper.connections, 1)
-		assert.Same(t, activeConn, wrapper.connections[0])
+		assert.Len(t, ws.connections, 1)
+		assert.Same(t, activeConn, ws.connections[0])
 	})
 }
 

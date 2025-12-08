@@ -93,7 +93,7 @@ type Manager struct {
 	exchangeName                  string
 	features                      *protocol.Features
 	m                             sync.Mutex
-	connections                   map[Connection]*connectionWrapper
+	connections                   map[Connection]*websocket
 	subscriptions                 *subscription.Store
 	connector                     func() error
 	rateLimitDefinitions          request.RateLimitDefinitions // rate limiters shared between Websocket and REST connections
@@ -122,7 +122,7 @@ type Manager struct {
 	// for exchanges that differentiate between trading pairs by using different connection endpoints or protocols for various asset classes.
 	// If an exchange does not require such differentiation, all connections may be managed under a single connectionWrapper.
 
-	connectionManager []*connectionWrapper
+	connectionManager []*websocket
 }
 
 // ManagerSetup defines variables for setting up a websocket manager
@@ -156,10 +156,10 @@ type ManagerSetup struct {
 	RateLimitDefinitions request.RateLimitDefinitions
 }
 
-// connectionWrapper contains the connection setup details to be used when
-// attempting a new connection. It also contains the subscriptions that are
-// associated with the specific connection.
-type connectionWrapper struct {
+// websocket contains the connection setup details to be used when attempting a new connection. It also contains the
+// global subscription store that are associated with the connections. Each connection will have its own subscription
+// store to track subscriptions made on that specific connection.
+type websocket struct {
 	setup         *ConnectionSetup
 	subscriptions *subscription.Store
 	connections   []Connection
@@ -189,7 +189,7 @@ func NewManager() *Manager {
 		subscriptions:     subscription.NewStore(),
 		features:          &protocol.Features{},
 		Orderbook:         buffer.Orderbook{},
-		connections:       make(map[Connection]*connectionWrapper),
+		connections:       make(map[Connection]*websocket),
 	}
 }
 
@@ -360,10 +360,7 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 				return fmt.Errorf("%w: %w", errConnSetup, errDuplicateConnectionSetup)
 			}
 		}
-		m.connectionManager = append(m.connectionManager, &connectionWrapper{
-			setup:         c,
-			subscriptions: subscription.NewStore(),
-		})
+		m.connectionManager = append(m.connectionManager, &websocket{setup: c, subscriptions: subscription.NewStore()})
 		return nil
 	}
 
@@ -588,14 +585,14 @@ func (m *Manager) connect() error {
 	return subscriptionError
 }
 
-func (m *Manager) connectAndSubscribe(ctx context.Context, wrapper *connectionWrapper, subs subscription.List) error {
+func (m *Manager) connectAndSubscribe(ctx context.Context, ws *websocket, subs subscription.List) error {
 	if m.MaxSubscriptionsPerConnection > 0 && len(subs) > m.MaxSubscriptionsPerConnection {
 		return fmt.Errorf("%w %w: max subs allowed %d, requested %d", common.ErrFatal, errSubscriptionsExceedsLimit, m.MaxSubscriptionsPerConnection, len(subs))
 	}
 
-	conn := m.getConnectionFromSetup(wrapper.setup)
+	conn := m.getConnectionFromSetup(ws.setup)
 
-	if err := wrapper.setup.Connector(ctx, conn); err != nil {
+	if err := ws.setup.Connector(ctx, conn); err != nil {
 		return fmt.Errorf("%w: %w", common.ErrFatal, err)
 	}
 
@@ -603,32 +600,31 @@ func (m *Manager) connectAndSubscribe(ctx context.Context, wrapper *connectionWr
 		return fmt.Errorf("%w: %w", common.ErrFatal, ErrNotConnected)
 	}
 
-	m.connections[conn] = wrapper
-	wrapper.connections = append(wrapper.connections, conn)
+	m.connections[conn] = ws
+	ws.connections = append(ws.connections, conn)
 
 	m.Wg.Add(1)
-	go m.Reader(ctx, conn, wrapper.setup.Handler)
+	go m.Reader(ctx, conn, ws.setup.Handler)
 
-	if wrapper.setup.Authenticate != nil && m.CanUseAuthenticatedEndpoints() {
-		if err := wrapper.setup.Authenticate(ctx, conn); err != nil {
+	if ws.setup.Authenticate != nil && m.CanUseAuthenticatedEndpoints() {
+		if err := ws.setup.Authenticate(ctx, conn); err != nil {
 			return fmt.Errorf("%w %w: %w", common.ErrFatal, errFailedToAuthenticate, err)
 		}
 	}
 
-	if wrapper.setup.SubscriptionsNotRequired {
+	if ws.setup.SubscriptionsNotRequired {
 		return nil
 	}
 
-	if err := wrapper.setup.Subscriber(ctx, conn, subs); err != nil {
+	if err := ws.setup.Subscriber(ctx, conn, subs); err != nil {
 		return fmt.Errorf("%w: %w", ErrSubscriptionFailure, err)
 	}
-
-	if missing := wrapper.subscriptions.Missing(subs); len(missing) > 0 {
+	if missing := ws.subscriptions.Missing(subs); len(missing) > 0 {
 		return fmt.Errorf("%w: %w %q", ErrSubscriptionFailure, ErrSubscriptionsNotAdded, missing)
 	}
 
 	connSubsStore := conn.SubStore()
-	for _, sub := range wrapper.subscriptions.Contained(subs) {
+	for _, sub := range ws.subscriptions.Contained(subs) {
 		// Store subscription against this specific connection for tracking
 		if err := connSubsStore.Add(sub); err != nil {
 			return fmt.Errorf("%w: adding subscriptions to the specific connection subscription store: %w", ErrSubscriptionFailure, err)
