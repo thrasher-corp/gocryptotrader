@@ -64,7 +64,7 @@ type ConnectionSetup struct {
 	ResponseMaxLimit     time.Duration
 	RateLimit            *request.RateLimiterWithWeight
 	// ConnectionRateLimit returns a new rate limiter for each connection instance
-	ConnectionRateLimit      func() *request.RateLimiterWithWeight
+	ConnectionRateLimiter      func() *request.RateLimiterWithWeight
 	Authenticated            bool // unused for multi-connection websocket
 	SubscriptionsNotRequired bool
 	ConnectionLevelReporter  Reporter
