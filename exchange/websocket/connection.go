@@ -56,8 +56,8 @@ type Connection interface {
 	IncomingWithData(signature any, data []byte) bool
 	// MatchReturnResponses sets up a channel to listen for an expected number of responses.
 	MatchReturnResponses(ctx context.Context, signature any, expected int) (<-chan MatchedResponse, error)
-	// SubStore returns the subscription store for the connection
-	SubStore() *subscription.Store
+	// Subscriptions returns the subscription store for the connection
+	Subscriptions() *subscription.Store
 }
 
 // ConnectionSetup defines variables for an individual stream connection
