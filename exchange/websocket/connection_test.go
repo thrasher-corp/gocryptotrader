@@ -61,10 +61,10 @@ func TestIncomingWithData(t *testing.T) {
 	assert.Equal(t, []byte("test"), <-ch)
 }
 
-func TestSubStore(t *testing.T) {
+func TestConnectionSubscriptions(t *testing.T) {
 	t.Parallel()
 	ws := &connection{}
-	require.Nil(t, ws.SubStore())
-	ws.Store = subscription.NewStore()
-	require.NotNil(t, ws.SubStore())
+	require.Nil(t, ws.Subscriptions())
+	ws.subscriptions = subscription.NewStore()
+	require.NotNil(t, ws.Subscriptions())
 }

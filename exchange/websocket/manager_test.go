@@ -422,7 +422,7 @@ func TestManager(t *testing.T) {
 
 	ws.useMultiConnectionManagement = true
 
-	ws.connectionManager = []*websocket{{setup: &ConnectionSetup{URL: "ws://demos.kaazing.com/echo"}, connections: []Connection{&connection{Store: subscription.NewStore()}}}}
+	ws.connectionManager = []*websocket{{setup: &ConnectionSetup{URL: "ws://demos.kaazing.com/echo"}, connections: []Connection{&connection{subscriptions: subscription.NewStore()}}}}
 	err = ws.SetProxyAddress("https://192.168.0.1:1337")
 	require.NoError(t, err)
 }
@@ -1167,7 +1167,7 @@ func TestGetConnection(t *testing.T) {
 	_, err = ws.GetConnection("testURL")
 	require.ErrorIs(t, err, ErrNotConnected)
 
-	expected := &connection{Store: subscription.NewStore()}
+	expected := &connection{subscriptions: subscription.NewStore()}
 	ws.connectionManager[0].connections = []Connection{expected}
 
 	conn, err := ws.GetConnection("testURL")
@@ -1202,8 +1202,8 @@ func TestShutdown(t *testing.T) {
 	m.AuthConn = nil
 	m.Conn = nil
 	m.connectionManager = []*websocket{
-		{connections: []Connection{&connection{Connection: nil, Store: subscription.NewStore()}}},
-		{connections: []Connection{&connection{Connection: conn, Store: subscription.NewStore()}}},
+		{connections: []Connection{&connection{Connection: nil, subscriptions: subscription.NewStore()}}},
+		{connections: []Connection{&connection{Connection: conn, subscriptions: subscription.NewStore()}}},
 	}
 	m.setState(connectedState)
 	require.NoError(t, m.Shutdown(), "Shutdown must not error with faulty connection in connectionManager")

@@ -232,7 +232,7 @@ func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) er
 		var connSubStore *subscription.Store
 		for _, c := range ws.connections { // ensure connection is actually managed
 			if c == conn {
-				connSubStore = c.SubStore()
+				connSubStore = c.Subscriptions()
 				break
 			}
 		}
@@ -406,7 +406,7 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, ws *webso
 	// Clean up any connections that have no subscriptions left to reduce resource usage
 	clean := make([]Connection, 0, len(ws.connections))
 	for _, conn := range ws.connections {
-		if conn.SubStore().Len() != 0 {
+		if conn.Subscriptions().Len() != 0 {
 			clean = append(clean, conn)
 			continue
 		}
@@ -421,7 +421,7 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, ws *webso
 
 // unsubscribeFromConnection unsubscribes from a connection and removes subscriptions from the store
 func (m *Manager) unsubscribeFromConnection(conn Connection, subs subscription.List) (subscription.List, error) {
-	store := conn.SubStore()
+	store := conn.Subscriptions()
 	if err := common.NilGuard(store); err != nil {
 		return nil, fmt.Errorf("websocket connection %w", err)
 	}
@@ -446,7 +446,7 @@ func (m *Manager) unsubscribeFromConnection(conn Connection, subs subscription.L
 
 // subscribeToConnection subscribes to a connection and adds subscriptions to the store
 func (m *Manager) subscribeToConnection(conn Connection, subs subscription.List) (subscription.List, error) {
-	store := conn.SubStore()
+	store := conn.Subscriptions()
 	if err := common.NilGuard(store); err != nil {
 		return nil, fmt.Errorf("websocket connection %w", err)
 	}

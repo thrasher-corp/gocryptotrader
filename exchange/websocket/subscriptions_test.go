@@ -461,7 +461,7 @@ func TestFlushChannels(t *testing.T) {
 // fakeConnection is a minimal Connection implementation used in cleanup tests.
 type fakeConnection struct {
 	Connection
-	*subscription.Store
+	subscriptions  *subscription.Store
 	shutdownCalled bool
 }
 
@@ -470,7 +470,7 @@ func (f *fakeConnection) Shutdown() error {
 	return nil
 }
 
-func (f *fakeConnection) SubStore() *subscription.Store { return f.Store }
+func (f *fakeConnection) Subscriptions() *subscription.Store { return f.subscriptions }
 
 func TestScaleConnectionsToSubscriptions(t *testing.T) {
 	t.Parallel()
@@ -658,9 +658,9 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 		}
 
 		// One connection with zero subs, one with non-zero
-		emptyConn := &fakeConnection{Store: subscription.NewStore()}
-		activeConn := &fakeConnection{Store: subscription.NewStore()}
-		require.NoError(t, activeConn.Add(&subscription.Subscription{Channel: "A"}))
+		emptyConn := &fakeConnection{subscriptions: subscription.NewStore()}
+		activeConn := &fakeConnection{subscriptions: subscription.NewStore()}
+		require.NoError(t, activeConn.subscriptions.Add(&subscription.Subscription{Channel: "A"}))
 
 		ws.connections = []Connection{emptyConn, activeConn}
 
@@ -690,27 +690,27 @@ func TestUnsubscribeFromConnection(t *testing.T) {
 	sub1 := &subscription.Subscription{Channel: "sub1"}
 	subs := subscription.List{sub1}
 
-	remaining, err := m.unsubscribeFromConnection(&connection{Store: store}, subs)
+	remaining, err := m.unsubscribeFromConnection(&connection{subscriptions: store}, subs)
 	require.NoError(t, err, "unsubscribeFromConnection must not error when no subs in store")
 	assert.Equal(t, subs, remaining, "remaining should equal input subs when none removed")
 
 	require.NoError(t, store.Add(sub1))
 	m.Unsubscriber = func(subscription.List) error { return nil }
-	_, err = m.unsubscribeFromConnection(&connection{Store: store}, subs)
+	_, err = m.unsubscribeFromConnection(&connection{subscriptions: store}, subs)
 	require.ErrorIs(t, err, subscription.ErrNotFound, "must error if sub not in manager store")
 
 	require.NoError(t, m.subscriptions.Add(sub1))
 	m.Unsubscriber = func(subscription.List) error {
 		return errors.New("unsub failed")
 	}
-	_, err = m.unsubscribeFromConnection(&connection{Store: store}, subs)
+	_, err = m.unsubscribeFromConnection(&connection{subscriptions: store}, subs)
 	require.ErrorContains(t, err, "unsub failed")
 
 	m.Unsubscriber = func(subscription.List) error { return nil }
 	sub2 := &subscription.Subscription{Channel: "sub2"}
 	subs = subscription.List{sub1, sub2}
 
-	remaining, err = m.unsubscribeFromConnection(&connection{Store: store}, subs)
+	remaining, err = m.unsubscribeFromConnection(&connection{subscriptions: store}, subs)
 	require.NoError(t, err, "unsubscribeFromConnection must not error when unsubscribing existing subs")
 
 	assert.Nil(t, store.Get(sub1), "sub1 should be removed from store")
@@ -739,7 +739,7 @@ func TestSubscribeToConnection(t *testing.T) {
 	m.MaxSubscriptionsPerConnection = 1
 	require.NoError(t, store.Add(&subscription.Subscription{Channel: "existing"}))
 
-	remaining, err := m.subscribeToConnection(&connection{Store: store}, subs)
+	remaining, err := m.subscribeToConnection(&connection{subscriptions: store}, subs)
 	require.NoError(t, err, "subscribeToConnection must not error when full capacity")
 	assert.Equal(t, subs, remaining, "remaining should equal input subs when capacity full")
 
@@ -752,7 +752,7 @@ func TestSubscribeToConnection(t *testing.T) {
 
 	// subs has 3 items. Capacity is 3. Used is 1. Available is 2.
 	// Should subscribe to sub1, sub2. Return sub3.
-	remaining, err = m.subscribeToConnection(&connection{Store: store}, subs)
+	remaining, err = m.subscribeToConnection(&connection{subscriptions: store}, subs)
 	require.NoError(t, err)
 	assert.Len(t, remaining, 1, "should return 1 remaining subscription")
 	assert.Equal(t, sub3, remaining[0], "should return sub3")
@@ -767,7 +767,7 @@ func TestSubscribeToConnection(t *testing.T) {
 	store = subscription.NewStore()
 	m.MaxSubscriptionsPerConnection = 0
 
-	remaining, err = m.subscribeToConnection(&connection{Store: store}, subs)
+	remaining, err = m.subscribeToConnection(&connection{subscriptions: store}, subs)
 	require.NoError(t, err)
 	assert.Empty(t, remaining, "should return no remaining subscriptions with no capacity limit")
 	assert.Equal(t, 3, store.Len(), "store should have 3 subscriptions when no capacity limit")
@@ -777,7 +777,7 @@ func TestSubscribeToConnection(t *testing.T) {
 	m.Subscriber = func(subscription.List) error { return errors.New("sub failed") }
 	store = subscription.NewStore()
 
-	_, err = m.subscribeToConnection(&connection{Store: store}, subs)
+	_, err = m.subscribeToConnection(&connection{subscriptions: store}, subs)
 	require.ErrorContains(t, err, "sub failed")
 
 	m = NewManager()
@@ -786,7 +786,7 @@ func TestSubscribeToConnection(t *testing.T) {
 	store = subscription.NewStore()
 	require.NoError(t, store.Add(sub1)) // sub1 already in store
 
-	_, err = m.subscribeToConnection(&connection{Store: store}, subs)
+	_, err = m.subscribeToConnection(&connection{subscriptions: store}, subs)
 	require.ErrorIs(t, err, subscription.ErrDuplicate, "must error when subscription already in store")
 
 	m = NewManager()
@@ -795,6 +795,6 @@ func TestSubscribeToConnection(t *testing.T) {
 	m.Subscriber = func(subscription.List) error { return nil }
 	store = subscription.NewStore()
 
-	_, err = m.subscribeToConnection(&connection{Store: store}, subs)
+	_, err = m.subscribeToConnection(&connection{subscriptions: store}, subs)
 	require.NoError(t, err, "must not error when all subscriptions can be added, this exercises the path where available > len(subs)")
 }

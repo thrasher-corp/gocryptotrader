@@ -113,7 +113,7 @@ type Response struct {
 
 // connection contains all the data needed to send a message to a websocket connection
 type connection struct {
-	subscriptions *subscription.Store
+	subscriptions        *subscription.Store
 	Verbose              bool
 	connected            int32
 	writeControl         sync.Mutex                     // Gorilla websocket does not allow more than one goroutine to utilise write methods
@@ -479,7 +479,7 @@ func (c *connection) IncomingWithData(signature any, data []byte) bool {
 	return c.Match.IncomingWithData(signature, data)
 }
 
-// SubStore returns the subscription store for the connection
-func (c *connection) SubStore() *subscription.Store {
-	return c.Store
+// Subscriptions returns the subscription store for the connection
+func (c *connection) Subscriptions() *subscription.Store {
+	return c.subscriptions
 }

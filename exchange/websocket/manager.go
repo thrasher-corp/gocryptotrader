@@ -402,7 +402,7 @@ func (m *Manager) getConnectionFromSetup(c *ConnectionSetup) *connection {
 		RateLimit:            rateLimit,
 		Reporter:             c.ConnectionLevelReporter,
 		RateLimitDefinitions: m.rateLimitDefinitions,
-		Store:                subscription.NewStore(),
+		subscriptions:        subscription.NewStore(),
 	}
 }
 
@@ -554,7 +554,7 @@ func (m *Manager) connect() error {
 				if err := conn.Shutdown(); err != nil {
 					log.Errorln(log.WebsocketMgr, err)
 				}
-				conn.SubStore().Clear()
+				conn.Subscriptions().Clear()
 			}
 			ws.connections = nil
 			ws.subscriptions.Clear()
@@ -621,7 +621,7 @@ func (m *Manager) connectAndSubscribe(ctx context.Context, ws *websocket, subs s
 		return fmt.Errorf("%w: %w %q", ErrSubscriptionFailure, ErrSubscriptionsNotAdded, missing)
 	}
 
-	connSubsStore := conn.SubStore()
+	connSubsStore := conn.Subscriptions()
 	for _, sub := range ws.subscriptions.Contained(subs) {
 		// Store subscription against this specific connection for tracking
 		if err := connSubsStore.Add(sub); err != nil {
@@ -689,7 +689,7 @@ func (m *Manager) shutdown() error {
 			if err := conn.Shutdown(); err != nil {
 				nonFatalCloseConnectionErrors = common.AppendError(nonFatalCloseConnectionErrors, err)
 			}
-			conn.SubStore().Clear()
+			conn.Subscriptions().Clear()
 		}
 		ws.connections = nil
 		// Flush any subscriptions from last connection across any managed connections
