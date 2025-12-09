@@ -113,7 +113,7 @@ type Response struct {
 
 // connection contains all the data needed to send a message to a websocket connection
 type connection struct {
-	*subscription.Store
+	subscriptions *subscription.Store
 	Verbose              bool
 	connected            int32
 	writeControl         sync.Mutex                     // Gorilla websocket does not allow more than one goroutine to utilise write methods
