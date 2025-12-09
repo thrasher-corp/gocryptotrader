@@ -622,11 +622,11 @@ func validateOrderRequest(arg *PlaceOrderRequest) error {
 }
 
 // PlaceOrder places an order
-func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderRequest) (*PlaceOrderResponse, error) {
+func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderRequest) (*OrderIDResponse, error) {
 	if err := validateOrderRequest(arg); err != nil {
 		return nil, err
 	}
-	var resp PlaceOrderResponse
+	var resp OrderIDResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCreateOrderEPL, http.MethodPost, "/orders", nil, arg, &resp); err != nil {
 		return nil, fmt.Errorf("%w: %w", order.ErrPlaceFailed, err)
 	}
@@ -634,7 +634,7 @@ func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderRequest) (*Pla
 }
 
 // PlaceBatchOrders places a batch of orders
-func (e *Exchange) PlaceBatchOrders(ctx context.Context, args []PlaceOrderRequest) ([]*PlaceBatchOrderItem, error) {
+func (e *Exchange) PlaceBatchOrders(ctx context.Context, args []PlaceOrderRequest) ([]*OrderIDResponse, error) {
 	if len(args) == 0 {
 		return nil, common.ErrNilPointer
 	}
@@ -643,7 +643,7 @@ func (e *Exchange) PlaceBatchOrders(ctx context.Context, args []PlaceOrderReques
 			return nil, err
 		}
 	}
-	var resp []*PlaceBatchOrderItem
+	var resp []*OrderIDResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sBatchOrderEPL, http.MethodPost, "/orders/batch", nil, args, &resp); err != nil {
 		return nil, fmt.Errorf("%w: %w", order.ErrPlaceFailed, err)
 	}
@@ -775,7 +775,7 @@ func (e *Exchange) GetKillSwitchStatus(ctx context.Context) (*KillSwitchStatus, 
 }
 
 // CreateSmartOrder create a smart order for an account. Funds will only be frozen when the smart order triggers, not upon smart order creation
-func (e *Exchange) CreateSmartOrder(ctx context.Context, arg *SmartOrderRequest) (*PlaceOrderResponse, error) {
+func (e *Exchange) CreateSmartOrder(ctx context.Context, arg *SmartOrderRequest) (*OrderIDResponse, error) {
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -794,7 +794,7 @@ func (e *Exchange) CreateSmartOrder(ctx context.Context, arg *SmartOrderRequest)
 	if arg.Type == OrderType(order.TrailingStopLimit) && arg.LimitOffset == "" {
 		return nil, errInvalidOffsetLimit
 	}
-	var resp *PlaceOrderResponse
+	var resp *OrderIDResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCreateSmartOrdersEPL, http.MethodPost, "/smartorders", nil, arg, &resp); err != nil {
 		return nil, fmt.Errorf("%w: %w", order.ErrPlaceFailed, err)
 	}
@@ -813,12 +813,12 @@ func orderPath(orderID, idPath, clientOrderID, clientIDPath string) (string, err
 }
 
 // CancelReplaceSmartOrder cancel an existing untriggered smart order and place a new smart order on the same symbol with details from existing smart order unless amended by new parameters
-func (e *Exchange) CancelReplaceSmartOrder(ctx context.Context, arg *CancelReplaceSmartOrderRequest) (*CancelReplaceSmartOrder, error) {
+func (e *Exchange) CancelReplaceSmartOrder(ctx context.Context, arg *CancelReplaceSmartOrderRequest) (*OrderIDResponse, error) {
 	path, err := orderPath(arg.OrderID, "/smartorders/", arg.OldClientOrderID, "/smartorders/cid:")
 	if err != nil {
 		return nil, err
 	}
-	var resp *CancelReplaceSmartOrder
+	var resp *OrderIDResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCreateReplaceSmartOrdersEPL, http.MethodPut, path, nil, arg, &resp); err != nil {
 		return nil, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
 	}
@@ -1096,7 +1096,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers["signatureMethod"] = "hmacSHA256"
 		headers["signature"] = base64.StdEncoding.EncodeToString(hmac)
 		headers["signTimestamp"] = signTimestamp
-		values.Del("signTimestamp") // The signature timestamp has been removed from the query string as it is now included in the request header.
+		values.Del("signTimestamp") // The signature timestamp was removed from the query string because we now send the timestamp in the request header instead.
 		req.Path = common.EncodeURLValues(endpoint+path, values)
 		return req, nil
 	}

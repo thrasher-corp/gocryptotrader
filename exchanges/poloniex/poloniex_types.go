@@ -595,20 +595,6 @@ func (s *statusResponse) Error() error {
 	return nil
 }
 
-// PlaceOrderResponse represents a response structure for placing order.
-type PlaceOrderResponse struct {
-	ID            string `json:"id"`
-	ClientOrderID string `json:"clientOrderId"`
-	statusResponse
-}
-
-// PlaceBatchOrderItem represents a single batch order response item.
-type PlaceBatchOrderItem struct {
-	ID            string `json:"id"`
-	ClientOrderID string `json:"clientOrderId"`
-	statusResponse
-}
-
 // CancelReplaceOrderRequest represents a cancellation and order replacement request parameter.
 type CancelReplaceOrderRequest struct {
 	OrderID           string      `json:"-"` // used in order path parameter.
@@ -651,7 +637,7 @@ type OrdersHistoryRequest struct {
 
 // TradeOrder represents a trade order
 type TradeOrder struct {
-	ID             string            `json:"id"`
+	ID             types.Number      `json:"id"`
 	ClientOrderID  string            `json:"clientOrderId"`
 	Symbol         currency.Pair     `json:"symbol"`
 	State          string            `json:"state"`
@@ -753,8 +739,8 @@ type CancelReplaceSmartOrderRequest struct {
 	ProceedOnFailure bool        `json:"proceedOnFailure,omitempty,string"` // proceedOnFailure flag is intended to specify whether to continue with new smart order placement in case cancellation of the existing smart order fails.
 }
 
-// CancelReplaceSmartOrder represents a response parameter for order cancellation and replacement operation.
-type CancelReplaceSmartOrder struct {
+// OrderIDResponse represents order's ID response structure details
+type OrderIDResponse struct {
 	ID            string `json:"id"`
 	ClientOrderID string `json:"clientOrderId"`
 	statusResponse
@@ -804,30 +790,13 @@ type TradeHistory struct {
 
 // SubscriptionPayload represents a subscriptions request instance structure.
 type SubscriptionPayload struct {
+	ID         string         `json:"id"`
 	Event      string         `json:"event"`
 	Channel    []string       `json:"channel"`
 	Symbols    []string       `json:"symbols,omitempty"`
 	Currencies []string       `json:"currencies,omitempty"`
 	Depth      int64          `json:"depth,omitempty"`
 	Params     map[string]any `json:"params,omitempty"`
-}
-
-// GetWsResponse returns a *WsResponse instance from *SubscriptionResponse
-func (a *SubscriptionResponse) GetWsResponse() *WsResponse {
-	return &WsResponse{
-		Event:   a.Event,
-		Channel: a.Channel,
-		Action:  a.Action,
-		Data:    a.Data,
-	}
-}
-
-// WsResponse represents a websocket push data instance.
-type WsResponse struct {
-	Event   string `json:"event"`
-	Channel string `json:"channel"`
-	Action  string `json:"action"`
-	Data    any    `json:"data"`
 }
 
 // CrossMarginSupportInfo represents information on whether cross margin support is enabled or not, and leverage detail
@@ -838,7 +807,7 @@ type CrossMarginSupportInfo struct {
 
 // WsSymbol represents a subscription
 type WsSymbol struct {
-	Symbol            string                  `json:"symbol"`
+	Symbol            currency.Pair           `json:"symbol"`
 	BaseCurrencyName  currency.Code           `json:"baseCurrencyName"`
 	QuoteCurrencyName currency.Code           `json:"quoteCurrencyName"`
 	DisplayName       string                  `json:"displayName"`
@@ -858,7 +827,7 @@ type WsCurrency struct {
 	Type              string        `json:"type"`
 	WithdrawalFee     types.Number  `json:"withdrawalFee"`
 	MinConf           uint64        `json:"minConf"`
-	DepositAddress    any           `json:"depositAddress"`
+	DepositAddress    string        `json:"depositAddress"`
 	Blockchain        string        `json:"blockchain"`
 	Delisted          bool          `json:"delisted"`
 	TradingState      string        `json:"tradingState"`
@@ -895,11 +864,11 @@ type WsCandles struct {
 
 // WsTrade represents websocket trade data
 type WsTrade struct {
-	ID         string        `json:"id"`
+	ID         uint64        `json:"id"`
 	Symbol     currency.Pair `json:"symbol"`
 	Amount     types.Number  `json:"amount"`
 	Quantity   types.Number  `json:"quantity"`
-	TakerSide  string        `json:"takerSide"`
+	TakerSide  order.Side    `json:"takerSide"`
 	Price      types.Number  `json:"price"`
 	CreateTime types.Time    `json:"createTime"`
 	Timestamp  types.Time    `json:"ts"`
@@ -988,6 +957,7 @@ type WsTradeBalance struct {
 	Available   types.Number  `json:"available"`
 	Currency    currency.Code `json:"currency"`
 	Hold        types.Number  `json:"hold"`
+	Version     uint32        `json:"version"`
 	Timestamp   types.Time    `json:"ts"`
 }
 

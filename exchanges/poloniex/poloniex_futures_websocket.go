@@ -4,12 +4,10 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
-	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -19,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
@@ -78,27 +75,6 @@ var (
 	}
 )
 
-// WsFuturesConnect establishes a websocket connection to the futures websocket server.
-func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connection) error {
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
-		return websocket.ErrWebsocketNotEnabled
-	}
-	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
-		return err
-	}
-	setupPingHandler(conn)
-	return nil
-}
-
-// futuresAuthConnect establishes a websocket and authenticates to futures private websocket
-func (e *Exchange) futuresAuthConnect(ctx context.Context, conn websocket.Connection) error {
-	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
-		return err
-	}
-	setupPingHandler(conn)
-	return nil
-}
-
 // authenticateFuturesAuthConn authenticates a futures websocket connection
 func (e *Exchange) authenticateFuturesAuthConn(ctx context.Context, conn websocket.Connection) error {
 	creds, err := e.GetCredentials(ctx)
@@ -116,7 +92,7 @@ func (e *Exchange) authenticateFuturesAuthConn(ctx context.Context, conn websock
 	if err != nil {
 		return err
 	}
-	data, err := conn.SendMessageReturnResponse(ctx, request.Auth, "auth", &SubscriptionPayload{
+	data, err := conn.SendMessageReturnResponse(ctx, fWebsocketPrivateEPL, "auth", &SubscriptionPayload{
 		Event:   "subscribe",
 		Channel: []string{"auth"},
 		Params: map[string]any{
@@ -233,6 +209,15 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
 		return fmt.Errorf("%s unhandled message: %s", e.Name, string(respRaw))
 	}
+}
+func channelToIntervalSplit(intervalString string) (string, kline.Interval, error) {
+	splits := strings.Split(intervalString, "_")
+	length := len(splits)
+	if length < 3 {
+		return intervalString, kline.Interval(0), fmt.Errorf("%w %q", kline.ErrInvalidInterval, intervalString)
+	}
+	intervalValue, err := stringToInterval(strings.Join(splits[length-2:], "_"))
+	return strings.Join(splits[:length-2], "_"), intervalValue, err
 }
 
 func (e *Exchange) processFuturesAccountData(data []byte) error {
@@ -513,27 +498,12 @@ func (e *Exchange) processFuturesCandlesticks(data []byte, interval kline.Interv
 	return nil
 }
 
-func (e *Exchange) handleFuturesSubscriptions(operation string, sub *subscription.Subscription) (*SubscriptionPayload, error) {
-	pairFormat, err := e.GetPairFormat(asset.Futures, true)
-	if err != nil {
-		return nil, err
-	}
-	input := &SubscriptionPayload{
-		Event:   operation,
-		Channel: []string{sub.QualifiedChannel},
-	}
-	if len(sub.Pairs) != 0 && sub.QualifiedChannel != channelFuturesAccount {
-		input.Symbols = sub.Pairs.Format(pairFormat).Strings()
-	}
-	return input, nil
-}
-
 // SubscribeFutures sends a websocket message to receive data from the channel
 func (e *Exchange) SubscribeFutures(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
-	return e.manageSubs(ctx, "subscribe", conn, subs, e.handleFuturesSubscriptions, &e.futuresSubMtx)
+	return e.manageSubs(ctx, "subscribe", conn, subs, &e.futuresSubMtx)
 }
 
 // UnsubscribeFutures sends a websocket message to stop receiving data from the channel
 func (e *Exchange) UnsubscribeFutures(ctx context.Context, conn websocket.Connection, unsub subscription.List) error {
-	return e.manageSubs(ctx, "unsubscribe", conn, unsub, e.handleFuturesSubscriptions, &e.futuresSubMtx)
+	return e.manageSubs(ctx, "unsubscribe", conn, unsub, &e.futuresSubMtx)
 }

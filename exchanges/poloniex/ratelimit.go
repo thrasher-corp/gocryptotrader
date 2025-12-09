@@ -8,6 +8,10 @@ import (
 
 const (
 	publicEPL request.EndpointLimit = iota
+	sWebsocketPublicEPL
+	sWebsocketPrivateEPL
+	fWebsocketPublicEPL
+	fWebsocketPrivateEPL
 	referenceDataEPL
 	sCreateOrderEPL
 	sBatchOrderEPL
@@ -73,9 +77,12 @@ const (
 // rateLimits returns the rate limit for the exchange
 // As per https://docs.poloniex.com/#http-api
 var rateLimits = request.RateLimitDefinitions{
-	referenceDataEPL: request.NewRateLimitWithWeight(time.Second, 30, 1),
-	publicEPL:        request.NewRateLimitWithWeight(time.Second, 200, 1),
-
+	referenceDataEPL:                    request.NewRateLimitWithWeight(time.Second, 30, 1),
+	publicEPL:                           request.NewRateLimitWithWeight(time.Second, 200, 1),
+	sWebsocketPublicEPL:                 request.NewRateLimitWithWeight(time.Second, 500, 1),
+	sWebsocketPrivateEPL:                request.NewRateLimitWithWeight(time.Second, 500, 1),
+	fWebsocketPublicEPL:                 request.NewRateLimitWithWeight(time.Second, 500, 1),
+	fWebsocketPrivateEPL:                request.NewRateLimitWithWeight(time.Second, 500, 1),
 	fOrderEPL:                           request.NewRateLimitWithWeight(time.Second, 50, 1),
 	fBatchOrdersEPL:                     request.NewRateLimitWithWeight(time.Second, 5, 1),
 	fCancelOrderEPL:                     request.NewRateLimitWithWeight(time.Second, 100, 1),

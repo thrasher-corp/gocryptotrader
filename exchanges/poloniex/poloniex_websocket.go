@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"text/template"
@@ -79,19 +80,11 @@ func setupPingHandler(conn websocket.Connection) {
 	})
 }
 
-// wsConnect initiates a websocket connection
+// wsConnect checks of websocket is enabled and initiates a websocket connection
 func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
-	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
-		return err
-	}
-	setupPingHandler(conn)
-	return nil
-}
-
-func (e *Exchange) wsAuthConn(ctx context.Context, conn websocket.Connection) error {
 	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
@@ -126,7 +119,7 @@ func (e *Exchange) authenticateSpotAuthConn(ctx context.Context, conn websocket.
 			Signature:       base64.StdEncoding.EncodeToString(hmac),
 		},
 	}
-	data, err := conn.SendMessageReturnResponse(ctx, request.UnAuth, channelAuth, auth)
+	data, err := conn.SendMessageReturnResponse(ctx, fWebsocketPrivateEPL, channelAuth, auth)
 	if err != nil {
 		return err
 	}
@@ -358,7 +351,8 @@ func (e *Exchange) processTrades(result *SubscriptionResponse) error {
 	trades := make([]trade.Data, len(resp))
 	for x, r := range resp {
 		trades[x] = trade.Data{
-			TID:          r.ID,
+			TID:          strconv.FormatUint(r.ID, 10),
+			Side:         r.TakerSide,
 			Exchange:     e.Name,
 			CurrencyPair: r.Symbol,
 			Price:        r.Price.Float64(),
@@ -397,9 +391,7 @@ func (e *Exchange) processResponse(result *SubscriptionResponse, instance any) e
 	if err := json.Unmarshal(result.Data, instance); err != nil {
 		return err
 	}
-	fullResp := result.GetWsResponse()
-	fullResp.Data = instance
-	e.Websocket.DataHandler <- fullResp
+	e.Websocket.DataHandler <- instance
 	return nil
 }
 
@@ -408,27 +400,30 @@ func (e *Exchange) handleSubscription(operation string, s *subscription.Subscrip
 	if err != nil {
 		return nil, err
 	}
-	sp := &SubscriptionPayload{
+	input := &SubscriptionPayload{
 		Event:   operation,
 		Channel: []string{strings.ToLower(s.QualifiedChannel)},
 	}
-	if len(s.Pairs) != 0 {
-		sp.Symbols = s.Pairs.Format(pairFormat).Strings()
+
+	if len(s.Pairs) != 0 && s.QualifiedChannel != channelFuturesAccount {
+		input.Symbols = s.Pairs.Format(pairFormat).Strings()
 	}
 
 	switch s.Channel {
 	case subscription.OrderbookChannel, channelBooks:
-		sp.Depth = int64(s.Levels)
+		input.Depth = int64(s.Levels) // supported orderbook levels are 5, 10 and 20
 	case channelCurrencies:
 		for _, p := range s.Pairs {
-			if !slices.Contains(sp.Currencies, p.Base.String()) {
-				sp.Currencies = append(sp.Currencies, p.Base.String())
+			if !slices.Contains(input.Currencies, p.Base.String()) {
+				input.Currencies = append(input.Currencies, p.Base.String())
 			}
 		}
 	case subscription.MyOrdersChannel:
-		sp.Symbols = []string{"all"}
+		if s.Asset == asset.Spot && len(input.Symbols) == 0 {
+			input.Symbols = []string{"all"}
+		}
 	}
-	return sp, nil
+	return input, nil
 }
 
 func (e *Exchange) generateSubscriptions() (subscription.List, error) {
@@ -461,23 +456,13 @@ func channelName(s *subscription.Subscription) string {
 	return s.Channel
 }
 
-func channelToIntervalSplit(intervalString string) (string, kline.Interval, error) {
-	splits := strings.Split(intervalString, "_")
-	length := len(splits)
-	if length < 3 {
-		return intervalString, kline.Interval(0), fmt.Errorf("%w %q", kline.ErrInvalidInterval, intervalString)
-	}
-	intervalValue, err := stringToInterval(strings.Join(splits[length-2:], "_"))
-	return strings.Join(splits[:length-2], "_"), intervalValue, err
-}
-
 // Subscribe sends a websocket message to receive data from the channel
 func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	subs, err := subs.ExpandTemplates(e)
 	if err != nil {
 		return err
 	}
-	return e.manageSubs(ctx, "subscribe", conn, subs, e.handleSubscription, &e.spotSubMtx)
+	return e.manageSubs(ctx, "subscribe", conn, subs, &e.spotSubMtx)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
@@ -486,19 +471,28 @@ func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, s
 	if err != nil {
 		return err
 	}
-	return e.manageSubs(ctx, "unsubscribe", conn, subs, e.handleSubscription, &e.spotSubMtx)
+	return e.manageSubs(ctx, "unsubscribe", conn, subs, &e.spotSubMtx)
 }
 
-func (e *Exchange) manageSubs(ctx context.Context, operation string, conn websocket.Connection, subscs subscription.List, payloadGen func(op string, s *subscription.Subscription) (*SubscriptionPayload, error), sendMsgLock *sync.Mutex) error {
+func (e *Exchange) manageSubs(ctx context.Context, operation string, conn websocket.Connection, subscs subscription.List, sendMsgLock *sync.Mutex) error {
 	var errs error
 	for _, s := range subscs {
-		payload, err := payloadGen(operation, s)
+		payload, err := e.handleSubscription(operation, s)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
+		epl := sWebsocketPublicEPL
+		if s.Asset == asset.Futures && s.Authenticated {
+			epl = fWebsocketPrivateEPL
+		} else if s.Asset == asset.Futures {
+			epl = fWebsocketPublicEPL
+		} else if s.Authenticated {
+			epl = sWebsocketPrivateEPL
+		}
+
 		sendMsgLock.Lock()
-		result, err := conn.SendMessageReturnResponse(ctx, request.UnAuth, "subscription", &payload)
+		result, err := conn.SendMessageReturnResponse(ctx, epl, "subscription", &payload)
 		sendMsgLock.Unlock()
 		if err != nil {
 			errs = common.AppendError(errs, fmt.Errorf("%w %s channel %q: %w", websocket.ErrSubscriptionFailure, operation, payload.Channel[0], err))

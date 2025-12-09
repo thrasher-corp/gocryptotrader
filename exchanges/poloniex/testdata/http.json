@@ -136,7 +136,17 @@
   "/accounts/activity": {
    "GET": [
     {
-     "data": null,
+     "data": [
+        {
+            "id": "22774050",
+            "currency": "LINK",
+            "amount": "100000000",
+            "state": "SUCCESS",
+            "createTime": 1659781580499,
+            "description": "Your airdrop for 100000000 LINK",
+            "activityType": 200
+        }
+    ],
      "queryString": "",
      "bodyParams": "",
      "headers": {
@@ -161,7 +171,52 @@
      }
     },
     {
-     "data": null,
+     "data": [
+        {
+            "id": "22774050",
+            "currency": "LINK",
+            "amount": "100000000",
+            "state": "SUCCESS",
+            "createTime": 1659781580499,
+            "description": "Your airdrop for 100000000 LINK",
+            "activityType": 200
+        }
+    ],
+     "queryString": "direction=PREV\u0026from=100\u0026limit=10",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "BPPZeUXRcLj0/a9Z7CHN+H4Qv0zVEC6PqHe3PvuQq4c="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1754250968214"
+      ]
+     }
+    },
+    {
+     "data": [
+        {
+            "id": "22774050",
+            "currency": "LINK",
+            "amount": "100000000",
+            "state": "SUCCESS",
+            "createTime": 1659781580499,
+            "description": "Your airdrop for 100000000 LINK",
+            "activityType": 200
+        }
+    ],
      "queryString": "endTime=1764668001864\u0026startTime=1764664401864",
      "bodyParams": "",
      "headers": {
@@ -171,19 +226,22 @@
       "Key": [
        ""
       ],
+      "Recvwindow": [
+       "1500"
+      ],
       "Signature": [
-       "LWvSixPU0REt+qbjagC/NowezG0NXuA6pwC8w/PhhGo="
+       "BPPZeUXRcLj0/a9Z7CHN+H4Qv0zVEC6PqHe3PvuQq4c="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1764668001864"
+       "1754250968214"
       ]
      }
     },
     {
-     "data": null,
+     "data": [],
      "queryString": "activityType=200",
      "bodyParams": "",
      "headers": {
@@ -193,20 +251,23 @@
       "Key": [
        ""
       ],
+      "Recvwindow": [
+       "1500"
+      ],
       "Signature": [
-       "DldTuysWEQxRXdKriN112cNtCwfvednVRpJdB33GFSw="
+       "BPPZeUXRcLj0/a9Z7CHN+H4Qv0zVEC6PqHe3PvuQq4c="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1764668002259"
+       "1754250968214"
       ]
      }
     },
     {
-     "data": null,
-     "queryString": "from=100\u0026limit=10",
+     "data": [],
+     "queryString": "currency=BTC\u0026direction=NEXT",
      "bodyParams": "",
      "headers": {
       "Content-Type": [
@@ -215,36 +276,17 @@
       "Key": [
        ""
       ],
+      "Recvwindow": [
+       "1500"
+      ],
       "Signature": [
-       "YlG9kAPc5luIwEnyJE5ByGQohm39+8wt6zFntJz0LKE="
+       "BPPZeUXRcLj0/a9Z7CHN+H4Qv0zVEC6PqHe3PvuQq4c="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1764668002691"
-      ]
-     }
-    },
-    {
-     "data": null,
-     "queryString": "currency=BTC",
-     "bodyParams": "",
-     "headers": {
-      "Content-Type": [
-       "application/json"
-      ],
-      "Key": [
-       ""
-      ],
-      "Signature": [
-       "ZCAWfkVt957HTpFp9bqd9zA9VY6fwu0FNNAQf1XEqIM="
-      ],
-      "Signaturemethod": [
-       "hmacSHA256"
-      ],
-      "Signtimestamp": [
-       "1764668003086"
+       "1754250968214"
       ]
      }
     }
@@ -8940,7 +8982,29 @@
      }
     },
     {
-     "data": null,
+     "data": [
+        {
+            "id": 35490370041151490,
+            "clientOrderId": "Try1",
+            "symbol": "TRX_USDC",
+            "accountType": "SPOT",
+            "side": "SELL",
+            "type": "LIMIT_MAKER",
+            "timeInForce": "GTC",
+            "price": "3333",
+            "avgPrice": "0",
+            "quantity": "5",
+            "amount": "0",
+            "filledQuantity": "0",
+            "filledAmount": "0",
+            "state": "CANCELED",
+            "orderSource": "API",
+            "createTime": 1649427963597,
+            "updateTime": 1649427963597,
+            "loan": false,
+            "cancelReason": 1
+        }
+     ],
      "queryString": "accountType=SPOT\u0026limit=10\u0026symbol=BTC_USDT",
      "bodyParams": "",
      "headers": {
@@ -8954,13 +9018,60 @@
        "1500"
       ],
       "Signature": [
-       "scC9sR0xxdXP7wvqkO3MH6RY7WPVo4gCaD80RRIJvpY="
+       "+s7FWBnavPvFpYU+VBHU8PCTpdzcRQW7O/AAovNzu2w="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1754250970573"
+       "1743973442485"
+      ]
+     }
+    },
+    {
+     "data": [
+        {
+            "id": 35490370041151490,
+            "clientOrderId": "Try1",
+            "symbol": "BTC_USDT",
+            "accountType": "SPOT",
+            "side": "SELL",
+            "type": "LIMIT_MAKER",
+            "timeInForce": "GTC",
+            "price": "3333",
+            "avgPrice": "0",
+            "quantity": "5",
+            "amount": "0",
+            "filledQuantity": "0",
+            "filledAmount": "0",
+            "state": "FAILED",
+            "orderSource": "API",
+            "createTime": 1649427963597,
+            "updateTime": 1649427963597,
+            "loan": false,
+            "cancelReason": 1
+        }
+     ],
+     "queryString": "accountType=SPOT\u0026direction=NEXT\u0026endTime=1765290174763\u0026hideCancel=true\u0026limit=10\u0026side=SELL\u0026startTime=1764930174763\u0026states=FAILED\u0026symbol=BTC_USDT\u0026type=LIMIT_MAKER",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "+s7FWBnavPvFpYU+VBHU8PCTpdzcRQW7O/AAovNzu2w="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1743973442485"
       ]
      }
     }

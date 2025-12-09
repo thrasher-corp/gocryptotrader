@@ -12,6 +12,10 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 	t.Parallel()
 	testTable := map[string]request.EndpointLimit{
 		"unauth":                           publicEPL,
+		"futuresWebsocketPublicEPL":        fWebsocketPublicEPL,
+		"futuresWebsocketPrivateEPL":       fWebsocketPrivateEPL,
+		"spotWebsocketPublicEPL":           sWebsocketPublicEPL,
+		"spotWebsocketPrivateEPL":          sWebsocketPrivateEPL,
 		"referenceData":                    referenceDataEPL,
 		"sCreateOrder":                     sCreateOrderEPL,
 		"sBatchOrder":                      sBatchOrderEPL,

@@ -11,11 +11,11 @@ import (
 )
 
 // WsCreateOrder create an order for an account.
-func (e *Exchange) WsCreateOrder(ctx context.Context, arg *PlaceOrderRequest) (*PlaceOrderResponse, error) {
+func (e *Exchange) WsCreateOrder(ctx context.Context, arg *PlaceOrderRequest) (*OrderIDResponse, error) {
 	if err := validateOrderRequest(arg); err != nil {
 		return nil, err
 	}
-	var resp []*PlaceOrderResponse
+	var resp []*OrderIDResponse
 	if err := e.SendWebsocketRequest(ctx, "createOrder", arg, &resp); err != nil {
 		return nil, err
 	}
@@ -89,7 +89,9 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, event string, arg, 
 		Event:  event,
 		Params: arg,
 	}
-	result, err := conn.SendMessageReturnResponse(ctx, request.Auth, input.ID, input)
+	e.spotSubMtx.Lock()
+	result, err := conn.SendMessageReturnResponse(ctx, sWebsocketPrivateEPL, input.ID, input)
+	e.spotSubMtx.Unlock()
 	if err != nil {
 		return err
 	}

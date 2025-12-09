@@ -221,7 +221,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Unsubscriber:          e.Unsubscribe,
 		GenerateSubscriptions: e.generatePrivateSubscriptions,
 		Handler:               e.wsHandleData,
-		Connector:             e.wsAuthConn,
+		Connector:             e.wsConnect,
 		MessageFilter:         connSpotPrivate,
 		Authenticate:          e.authenticateSpotAuthConn,
 	}); err != nil {
@@ -241,7 +241,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Subscriber:            e.SubscribeFutures,
 		Unsubscriber:          e.UnsubscribeFutures,
 		GenerateSubscriptions: e.generateFuturesSubscriptions,
-		Connector:             e.WsFuturesConnect,
+		Connector:             e.wsConnect,
 		MessageFilter:         connFuturesPublic,
 	}); err != nil {
 		return err
@@ -261,7 +261,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Subscriber:            e.SubscribeFutures,
 		Unsubscriber:          e.UnsubscribeFutures,
 		GenerateSubscriptions: e.generateFuturesPrivateSubscriptions,
-		Connector:             e.futuresAuthConnect,
+		Connector:             e.wsConnect,
 		MessageFilter:         connFuturesPrivate,
 		Authenticate:          e.authenticateFuturesAuthConn,
 		Authenticated:         true,
@@ -1079,7 +1079,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Cost:                 resp.FilledQuantity.Float64() * resp.AveragePrice.Float64(),
 			Side:                 resp.Side,
 			Exchange:             e.Name,
-			OrderID:              resp.ID,
+			OrderID:              resp.ID.String(),
 			ClientOrderID:        resp.ClientOrderID,
 			Type:                 oType,
 			Status:               orderStateFromString(resp.State),
@@ -1278,7 +1278,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			}
 			orders = append(orders, order.Detail{
 				Type:        oType,
-				OrderID:     td.ID,
+				OrderID:     td.ID.String(),
 				Side:        td.Side,
 				Amount:      td.Amount.Float64(),
 				Date:        td.CreateTime.Time(),
@@ -1407,6 +1407,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					return nil, err
 				}
 				detail := order.Detail{
+					OrderID:              tOrder.ID.String(),
 					Side:                 tOrder.Side,
 					Amount:               tOrder.Amount.Float64(),
 					ExecutedAmount:       tOrder.FilledAmount.Float64(),
@@ -1417,7 +1418,6 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					Exchange:             e.Name,
 					QuoteAmount:          tOrder.Amount.Float64() * tOrder.AveragePrice.Float64(),
 					RemainingAmount:      tOrder.Quantity.Float64() - tOrder.FilledQuantity.Float64(),
-					OrderID:              tOrder.ID,
 					ClientOrderID:        tOrder.ClientOrderID,
 					Status:               orderStateFromString(tOrder.State),
 					AssetType:            assetType,
