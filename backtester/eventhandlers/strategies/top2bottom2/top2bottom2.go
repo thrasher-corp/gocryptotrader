@@ -76,7 +76,7 @@ func (b byMFI) Len() int           { return len(b) }
 func (b byMFI) Less(i, j int) bool { return b[i].mfi.LessThan(b[j].mfi) }
 func (b byMFI) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
 
-// sortOrdersByPrice the caller function to sort orders
+// sortByMFI sorts mfiFundEvents by their MFI values
 func sortByMFI(o *[]mfiFundEvent, reverse bool) {
 	if reverse {
 		sort.Sort(sort.Reverse(byMFI(*o)))
