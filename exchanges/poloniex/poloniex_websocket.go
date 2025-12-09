@@ -145,12 +145,6 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
 	}
-	if result.ID != "" {
-		if !conn.IncomingWithData(result.ID, respRaw) {
-			return fmt.Errorf("could not match trade response with ID: %s Event: %s ", result.ID, result.Event)
-		}
-		return nil
-	}
 	if result.Event != "" {
 		switch result.Event {
 		case "pong":
@@ -507,7 +501,7 @@ func (e *Exchange) manageSubs(ctx context.Context, operation string, conn websoc
 		result, err := conn.SendMessageReturnResponse(ctx, request.UnAuth, "subscription", &payload)
 		sendMsgLock.Unlock()
 		if err != nil {
-			errs = common.AppendError(errs, fmt.Errorf("%w %w subscribing to channel: %s", websocket.ErrSubscriptionFailure, err, payload.Channel[0]))
+			errs = common.AppendError(errs, fmt.Errorf("%w %s channel %q: %w", websocket.ErrSubscriptionFailure, operation, payload.Channel[0], err))
 			continue
 		}
 		var subscriptionResponse *SubscriptionResponse
@@ -516,7 +510,7 @@ func (e *Exchange) manageSubs(ctx context.Context, operation string, conn websoc
 			continue
 		}
 		if subscriptionResponse.Event == "error" {
-			errs = common.AppendError(errs, fmt.Errorf("%w %s subscribing to channel: %s", websocket.ErrSubscriptionFailure, subscriptionResponse.Message, payload.Channel[0]))
+			errs = common.AppendError(errs, fmt.Errorf("%w %s channel %q: %w", websocket.ErrSubscriptionFailure, operation, payload.Channel[0], err))
 			continue
 		}
 		if operation == "subscribe" {

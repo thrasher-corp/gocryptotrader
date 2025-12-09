@@ -144,6 +144,15 @@ var WithdrawalFees = map[currency.Code]float64{
 	currency.ZEC:   0.001,
 }
 
+// SubscriptionResponse represents a subscription response detail
+type SubscriptionResponse struct {
+	Channel string          `json:"channel"`
+	Data    json.RawMessage `json:"data"`
+	Action  string          `json:"action"`
+	Event   string          `json:"event"`
+	Message string          `json:"message"`
+}
+
 // SymbolTradeLimit holds symbol's trade details
 type SymbolTradeLimit struct {
 	Symbol        currency.Pair `json:"symbol"`

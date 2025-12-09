@@ -2849,4 +2849,5 @@ func TestStatusResponseError(t *testing.T) {
 func TestConnect(t *testing.T) {
 	t.Parallel()
 	require.NoError(t, e.Websocket.Connect())
+	assert.True(t, e.Websocket.IsConnected(), "websocket should be connected")
 }

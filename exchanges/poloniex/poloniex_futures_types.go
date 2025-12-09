@@ -25,12 +25,6 @@ func (m marginMode) MarshalText() ([]byte, error) {
 	return nil, fmt.Errorf("%w: %q", margin.ErrMarginTypeUnsupported, m)
 }
 
-// ServerTimeResponse represents a server time response.
-type ServerTimeResponse struct {
-	V3ResponseWrapper
-	Data types.Time `json:"data"`
-}
-
 // FuturesAccountBalance represents a futures account balance detail
 type FuturesAccountBalance struct {
 	State                   string                           `json:"state"`
@@ -485,16 +479,6 @@ type ContractLimitPrice struct {
 	Symbol    currency.Pair `json:"symbol"`
 	BuyLimit  float64       `json:"buyLmt"`
 	SellLimit float64       `json:"sellLmt"`
-}
-
-// SubscriptionResponse represents a subscription response detail
-type SubscriptionResponse struct {
-	ID      string          `json:"id"`
-	Channel string          `json:"channel"`
-	Data    json.RawMessage `json:"data"`
-	Action  string          `json:"action"`
-	Event   string          `json:"event"`
-	Message string          `json:"message"`
 }
 
 // FuturesOrders represents a paginated list of Futures orders.
