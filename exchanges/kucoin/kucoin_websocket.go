@@ -984,7 +984,7 @@ func (e *Exchange) manageSubscriptions(ctx context.Context, conn websocket.Conne
 			PrivateChannel: s.Authenticated,
 			Response:       true,
 		}
-		if respRaw, err := conn.SendMessageReturnResponse(request.WithVerbose(ctx), request.Unset, req.ID, req); err != nil {
+		if respRaw, err := conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req); err != nil {
 			errs = common.AppendError(errs, err)
 		} else {
 			rType, err := jsonparser.GetUnsafeString(respRaw, "type")
