@@ -210,6 +210,7 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 		return fmt.Errorf("%s unhandled message: %s", e.Name, string(respRaw))
 	}
 }
+
 func channelToIntervalSplit(intervalString string) (string, kline.Interval, error) {
 	splits := strings.Split(intervalString, "_")
 	length := len(splits)

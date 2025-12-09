@@ -483,11 +483,12 @@ func (e *Exchange) manageSubs(ctx context.Context, operation string, conn websoc
 			continue
 		}
 		epl := sWebsocketPublicEPL
-		if s.Asset == asset.Futures && s.Authenticated {
+		switch {
+		case s.Asset == asset.Futures && s.Authenticated:
 			epl = fWebsocketPrivateEPL
-		} else if s.Asset == asset.Futures {
+		case s.Asset == asset.Futures:
 			epl = fWebsocketPublicEPL
-		} else if s.Authenticated {
+		case s.Authenticated:
 			epl = sWebsocketPrivateEPL
 		}
 
