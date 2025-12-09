@@ -64,7 +64,6 @@ func main() {
 	wg.Wait()
 	log.Println("Done.")
 
-	var dummyInterface exchange.IBotExchange
 	totalWrappers := reflect.TypeFor[exchange.IBotExchange]().NumMethod()
 
 	log.Println()
