@@ -71,6 +71,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestSetup(t *testing.T) {
+	t.Parallel()
 	require.NotNil(t, Setup(), "Setup must not return nil")
 }
 

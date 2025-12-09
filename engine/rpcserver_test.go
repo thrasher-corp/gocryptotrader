@@ -1529,7 +1529,7 @@ func TestParseEvents(t *testing.T) {
 		testData[x] = resp
 	}
 	v := parseMultipleEvents(testData)
-	require.NotNil(t, v)
+	require.NotNil(t, v, "parseMultipleEvents must not return nil")
 	require.Len(t, v.Event, 5, "parseMultipleEvents must return 5 events")
 
 	v = parseSingleEvents(testData[0])
