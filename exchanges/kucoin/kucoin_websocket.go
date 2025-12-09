@@ -134,6 +134,11 @@ func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) err
 		return errors.New("no websocket instance server found")
 	}
 
+	if conn.GetURL() != instances.InstanceServers[0].Endpoint {
+		log.Warnf(log.WebsocketMgr, "%s websocket endpoint has changed, overriding old: %s with new: %s", e.Name, conn.GetURL(), instances.InstanceServers[0].Endpoint)
+		conn.SetURL(instances.InstanceServers[0].Endpoint)
+	}
+
 	values := url.Values{}
 	values.Set("token", instances.Token)
 
@@ -144,7 +149,7 @@ func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) err
 		return err
 	}
 	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
-		Delay:       time.Millisecond * time.Duration(instances.InstanceServers[0].PingTimeout),
+		Delay:       time.Millisecond * time.Duration(instances.InstanceServers[0].PingInterval),
 		Message:     []byte(`{"type":"ping"}`),
 		MessageType: gws.TextMessage,
 	})
