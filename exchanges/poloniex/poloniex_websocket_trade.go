@@ -7,7 +7,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 // WsCreateOrder create an order for an account.
@@ -101,9 +100,6 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, event string, arg, 
 	}
 	if response == nil {
 		return common.ErrNoResponse
-	}
-	if errType, ok := response.(interface{ Error() error }); ok && errType.Error() != nil {
-		return fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, errType.Error())
 	}
 	return nil
 }
