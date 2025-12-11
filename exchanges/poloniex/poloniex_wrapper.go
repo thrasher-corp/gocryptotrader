@@ -920,7 +920,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			}
 			for _, co := range cancelledOrders {
 				cancellationStatus := "Cancelled"
-				if co.Code == 200 {
+				if co.Code != 200 && co.Code != 0 {
 					cancellationStatus = "Failed"
 				}
 				if slices.Contains(value.orderIDs, co.OrderID) {
@@ -972,8 +972,10 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 					return cancelAllOrdersResponse, err
 				}
 				for _, wco := range wsResponse {
-					if wco.Code == 0 {
+					if wco.Code == 0 || wco.Code == 200 {
 						cancelAllOrdersResponse.Status[strconv.FormatUint(wco.OrderID, 10)] = wco.State
+					} else {
+						cancelAllOrdersResponse.Status[strconv.FormatUint(wco.OrderID, 10)] = "failed"
 					}
 				}
 			} else {
@@ -982,7 +984,9 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 					return cancelAllOrdersResponse, err
 				}
 				for _, co := range resp {
-					if co.Code == 0 {
+					if co.Code == 0 || co.Code == 200 {
+						cancelAllOrdersResponse.Status[co.OrderID] = co.State
+					} else {
 						cancelAllOrdersResponse.Status[co.OrderID] = co.State
 					}
 				}
@@ -994,8 +998,9 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 			return cancelAllOrdersResponse, err
 		}
 		for _, co := range result {
-			if co.Code == 200 {
-				cancelAllOrdersResponse.Status[co.OrderID] = "cancelled"
+			cancelAllOrdersResponse.Status[co.OrderID] = "cancelled"
+			if co.Code != 200 && co.Code != 0 {
+				cancelAllOrdersResponse.Status[co.OrderID] = "failed"
 			}
 		}
 	default:
@@ -1882,7 +1887,7 @@ func (e *Exchange) WebsocketCancelOrder(ctx context.Context, req *order.Cancel) 
 	}
 	if len(resp) != 1 {
 		return common.ErrNoResponse
-	} else if resp[0].Code != 200 {
+	} else if resp[0].Code != 200 && resp[0].Code != 0 {
 		return fmt.Errorf("%w: code: %d message: %s", order.ErrCancelFailed, resp[0].Code, resp[0].Message)
 	}
 	return nil

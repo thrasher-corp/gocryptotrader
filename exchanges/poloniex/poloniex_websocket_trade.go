@@ -16,7 +16,7 @@ func (e *Exchange) WsCreateOrder(ctx context.Context, arg *PlaceOrderRequest) (*
 	}
 	var resp []*OrderIDResponse
 	if err := e.SendWebsocketRequest(ctx, "createOrder", arg, &resp); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w %w", order.ErrPlaceFailed, err)
 	}
 	if len(resp) != 1 {
 		return nil, common.ErrInvalidResponse
@@ -39,16 +39,10 @@ func (e *Exchange) WsCancelMultipleOrdersByIDs(ctx context.Context, orderIDs, cl
 		params["orderIds"] = orderIDs
 	}
 	var resp []*WsCancelOrderResponse
-	err := e.SendWebsocketRequest(ctx, "cancelOrders", params, &resp)
-	if err != nil {
-		return nil, err
+	if err := e.SendWebsocketRequest(ctx, "cancelOrders", params, &resp); err != nil {
+		return nil, fmt.Errorf("%w %w", order.ErrCancelFailed, err)
 	}
-	for r := range resp {
-		if resp[r].Code != 0 && resp[r].Code != 200 {
-			err = common.AppendError(err, fmt.Errorf("%w: code: %d message: %s", order.ErrCancelFailed, resp[r].Code, resp[r].Message))
-		}
-	}
-	return resp, err
+	return resp, nil
 }
 
 // WsCancelTradeOrders batch cancel all orders in an account.
@@ -61,16 +55,10 @@ func (e *Exchange) WsCancelTradeOrders(ctx context.Context, symbols []string, ac
 		args["accountTypes"] = accountTypes
 	}
 	var resp []*WsCancelOrderResponse
-	err := e.SendWebsocketRequest(ctx, "cancelAllOrders", args, &resp)
-	if err != nil {
-		return nil, err
+	if err := e.SendWebsocketRequest(ctx, "cancelAllOrders", args, &resp); err != nil {
+		return nil, fmt.Errorf("%w %w", order.ErrCancelFailed, err)
 	}
-	for r := range resp {
-		if resp[r].Code != 0 && resp[r].Code != 200 {
-			err = common.AppendError(err, fmt.Errorf("%w: code: %d message: %s", order.ErrCancelFailed, resp[r].Code, resp[r].Message))
-		}
-	}
-	return resp, err
+	return resp, nil
 }
 
 // SendWebsocketRequest sends a websocket request through the private connection
