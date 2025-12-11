@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
 
 	objects "github.com/d5/tengo/v2"
@@ -72,11 +71,8 @@ func TestMain(m *testing.M) {
 }
 
 func TestSetup(t *testing.T) {
-	x := Setup()
-	xType := reflect.TypeOf(x).String()
-	if xType != "*gct.Wrapper" {
-		t.Fatalf("SetupCommunicationManager() should return pointer to Wrapper instead received: %v", x)
-	}
+	t.Parallel()
+	require.NotNil(t, Setup(), "Setup must not return nil")
 }
 
 var (
