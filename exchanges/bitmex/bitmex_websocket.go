@@ -90,7 +90,7 @@ func (e *Exchange) WsConnect() error {
 
 	ctx := context.TODO()
 	var dialer gws.Dialer
-	if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}); err != nil {
+	if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
 		return err
 	}
 
