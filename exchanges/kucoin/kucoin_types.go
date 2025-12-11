@@ -36,7 +36,6 @@ var (
 	errAPIKeyRequired             = errors.New("account API key is required")
 	errInvalidPassPhraseInstance  = errors.New("invalid passphrase string")
 	errNoValidResponseFromServer  = errors.New("no valid response from server")
-	errMissingOrderbookSequence   = errors.New("missing orderbook sequence")
 	errSizeOrFundIsRequired       = errors.New("at least one required among size and funds")
 	errInvalidLeverage            = errors.New("invalid leverage value")
 	errAccountTypeMissing         = errors.New("account type is required")
@@ -1338,8 +1337,8 @@ type WsOrderbook struct {
 
 // OrderbookChanges represents orderbook ask and bid changes
 type OrderbookChanges struct {
-	Asks [][]types.Number `json:"asks"`
-	Bids [][]types.Number `json:"bids"`
+	Asks [][3]types.Number `json:"asks"`
+	Bids [][3]types.Number `json:"bids"`
 }
 
 // WsCandlestick represents candlestick information push data for a symbol

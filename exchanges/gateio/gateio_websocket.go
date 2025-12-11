@@ -373,7 +373,7 @@ func (e *Exchange) processOrderbookUpdate(ctx context.Context, incoming []byte, 
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
-	return e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, e, data.FirstUpdateID, &orderbook.Update{
+	return e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, data.FirstUpdateID, &orderbook.Update{
 		UpdateID:   data.LastUpdateID,
 		UpdateTime: data.UpdateTime.Time(),
 		LastPushed: lastPushed,
@@ -982,30 +982,4 @@ func getWSPingHandler(channel string) (websocket.PingHandler, error) {
 		Message:     pingMessage,
 		MessageType: gws.TextMessage,
 	}, nil
-}
-
-// TODO: When subscription config is added for all assets update limits to use sub.Levels
-func (e *Exchange) extractOrderbookLimit(a asset.Item) (uint64, error) {
-	switch a {
-	case asset.Spot:
-		sub := e.Websocket.GetSubscription(spotOrderbookUpdateKey)
-		if sub == nil {
-			return 0, fmt.Errorf("%w for %q", subscription.ErrNotFound, spotOrderbookUpdateKey)
-		}
-		// There is no way to set levels when we subscribe for this specific channel
-		// Extract limit from interval e.g. 20ms == 20 limit book and 100ms == 100 limit book.
-		lim := uint64(sub.Interval.Duration().Milliseconds()) //nolint:gosec // No overflow risk
-		if lim != 20 && lim != 100 {
-			return 0, fmt.Errorf("%w: %d. Valid limits are 20 and 100", errInvalidOrderbookUpdateInterval, lim)
-		}
-		return lim, nil
-	case asset.USDTMarginedFutures, asset.CoinMarginedFutures:
-		return futuresOrderbookUpdateLimit, nil
-	case asset.DeliveryFutures:
-		return deliveryFuturesUpdateLimit, nil
-	case asset.Options:
-		return optionOrderbookUpdateLimit, nil
-	default:
-		return 0, fmt.Errorf("%w: %q", asset.ErrNotSupported, a)
-	}
 }
