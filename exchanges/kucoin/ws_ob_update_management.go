@@ -49,7 +49,7 @@ func (e *Exchange) fetchWSOrderbookSnapshot(ctx context.Context, p currency.Pair
 // From docs: sequenceStart(new) <= sequenceEnd(old) + 1 sequenceEnd(new) > sequenceEnd(old)
 // Spot see: https://www.kucoin.com/docs-new/3470221w0
 // Futures see: https://www.kucoin.com/docs-new/3470082w0
-func checkPendingUpdate(sequenceEndOld int64, sequenceStartNew int64, update *orderbook.Update) (skip bool, err error) {
+func checkPendingUpdate(sequenceEndOld, sequenceStartNew int64, update *orderbook.Update) (skip bool, err error) {
 	target := sequenceEndOld + 1
 	if sequenceStartNew > target {
 		return false, buffer.ErrOrderbookSnapshotOutdated
@@ -77,6 +77,6 @@ func checkPendingUpdate(sequenceEndOld int64, sequenceStartNew int64, update *or
 	return false, nil
 }
 
-func canApplyUpdate(lastUpdateID int64, firstUpdateID int64) bool {
+func canApplyUpdate(lastUpdateID, firstUpdateID int64) bool {
 	return lastUpdateID+1 == firstUpdateID
 }

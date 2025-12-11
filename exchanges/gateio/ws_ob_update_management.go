@@ -51,7 +51,7 @@ func (e *Exchange) extractOrderbookLimit(a asset.Item) (uint64, error) {
 	}
 }
 
-func checkPendingUpdate(lastUpdateID int64, firstUpdateID int64, update *orderbook.Update) (skip bool, err error) {
+func checkPendingUpdate(lastUpdateID, firstUpdateID int64, update *orderbook.Update) (skip bool, err error) {
 	nextUpdateID := lastUpdateID + 1 // From docs: `baseId+1`
 
 	// From docs: Dump all notifications which satisfy `u` < `baseId+1`
@@ -67,6 +67,6 @@ func checkPendingUpdate(lastUpdateID int64, firstUpdateID int64, update *orderbo
 	return false, nil
 }
 
-func canApplyUpdate(lastUpdateID int64, firstUpdateID int64) bool {
+func canApplyUpdate(lastUpdateID, firstUpdateID int64) bool {
 	return lastUpdateID+1 == firstUpdateID
 }

@@ -249,8 +249,8 @@ func TestInitialiseOrderbookCache(t *testing.T) {
 	cache := &updateCache{}
 	m.initialiseOrderbookCache(ctx, 1337, update, cache)
 	cache.m.Lock()
-	require.Equal(t, cacheStateQueuing, cache.state, "state should be queuing")
-	require.NotEmpty(t, cache.updates, "updates should have queued update")
+	require.Equal(t, cacheStateQueuing, cache.state, "state must be queuing")
+	require.NotEmpty(t, cache.updates, "updates must have queued update")
 	cache.m.Unlock()
 
 	eventuallyCondition := func() bool {
@@ -258,7 +258,7 @@ func TestInitialiseOrderbookCache(t *testing.T) {
 		defer cache.m.Unlock()
 		return cache.state == cacheStateQueuing && len(cache.updates) == 0
 	}
-	require.Eventually(t, eventuallyCondition, time.Second, time.Millisecond*50, "state should be queuing and updates cleared after syncOrderbook completes when it fails on context cancellation")
+	require.Eventually(t, eventuallyCondition, time.Second, time.Millisecond*50, "state must be queuing and updates cleared after syncOrderbook completes when it fails on context cancellation")
 }
 
 func TestInvalidateCache(t *testing.T) {
@@ -285,8 +285,8 @@ func TestInvalidateCache(t *testing.T) {
 	require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "invalidateCache must error but still trigger syncOrderbook")
 
 	cache.m.Lock()
-	require.Equal(t, cacheStateQueuing, cache.state, "state should be uninitialised after invalidateCache")
-	require.NotEmpty(t, cache.updates, "updates should not be empty after invalidateCache")
+	require.Equal(t, cacheStateQueuing, cache.state, "state must be uninitialised after invalidateCache")
+	require.NotEmpty(t, cache.updates, "updates must not be empty after invalidateCache")
 	cache.m.Unlock()
 
 	eventuallyCondition := func() bool {
@@ -294,7 +294,7 @@ func TestInvalidateCache(t *testing.T) {
 		defer cache.m.Unlock()
 		return cache.state == cacheStateQueuing && len(cache.updates) == 0
 	}
-	require.Eventually(t, eventuallyCondition, time.Second, time.Millisecond*50, "state should be queuing and updates cleared after syncOrderbook completes when it fails on context cancellation")
+	require.Eventually(t, eventuallyCondition, time.Second, time.Millisecond*50, "state must be queuing and updates cleared after syncOrderbook completes when it fails on context cancellation")
 }
 
 func TestSyncOrderbook(t *testing.T) {
