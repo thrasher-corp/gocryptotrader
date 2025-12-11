@@ -987,7 +987,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 					if co.Code == 0 || co.Code == 200 {
 						cancelAllOrdersResponse.Status[co.OrderID] = co.State
 					} else {
-						cancelAllOrdersResponse.Status[co.OrderID] = co.State
+						cancelAllOrdersResponse.Status[co.OrderID] = "Failed"
 					}
 				}
 			}
