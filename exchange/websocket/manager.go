@@ -154,8 +154,8 @@ type ManagerSetup struct {
 	RateLimitDefinitions request.RateLimitDefinitions
 }
 
-// websocket contains the connection setup details to be used when attempting a new connection. It also contains the
-// global subscription store that are associated with the connections. Each connection will have its own subscription
+// websocket contains the connection setup details to be used when attempting a new connection. Its subscription store
+// knows of all subscriptions for each connection. Each connection will have its own subscription
 // store to track subscriptions made on that specific connection.
 type websocket struct {
 	setup         *ConnectionSetup
