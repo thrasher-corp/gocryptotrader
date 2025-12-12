@@ -92,6 +92,7 @@ func (e *Exchange) authenticateFuturesAuthConn(ctx context.Context, conn websock
 	if err != nil {
 		return err
 	}
+	e.futuresSubMtx.Lock()
 	data, err := conn.SendMessageReturnResponse(ctx, fWebsocketPrivateEPL, "auth", &SubscriptionPayload{
 		Event:   "subscribe",
 		Channel: []string{"auth"},
@@ -101,6 +102,7 @@ func (e *Exchange) authenticateFuturesAuthConn(ctx context.Context, conn websock
 			"signature":     base64.StdEncoding.EncodeToString(hmac),
 		},
 	})
+	e.futuresSubMtx.Unlock()
 	if err != nil {
 		return err
 	}

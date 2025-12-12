@@ -8475,6 +8475,34 @@
        "1759182889740"
       ]
      }
+    },
+    {
+     "data": {
+      "id": "29772698821328896",
+      "clientOrderId": "1234Abc"
+     },
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"BTC_USDT\",\"side\":\"BUY\",\"type\":\"MARKET\",\"accountType\":\"SPOT\",\"amount\":\"10000000\",\"price\":\"10\",\"slippageTolerance\":\"0\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "5ZAw+roGshoL3o91+XBQoNayuX+ZxUBkMu9e/Srdt9M="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1759182889740"
+      ]
+     }
     }
    ]
   },
@@ -9279,6 +9307,34 @@
      },
      "queryString": "",
      "bodyParams": "{\"symbol\":\"BTC_USDT\",\"side\":\"BUY\",\"timeInForce\":\"GTC\",\"type\":\"TRAILING_STOP_LIMIT\",\"price\":\"100000.5\",\"quantity\":\"100\",\"clientOrderId\":\"55667798abcd\",\"trailingOffset\":\"2%\",\"limitOffset\":\"1%\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "t9ziufRKQlrLUISTEUV5gAzRrwEFAxIJoy7zRCaHnb0="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1760686643056"
+      ]
+     }
+    },
+    {
+     "data": {
+      "clientOrderId": "55667798abcd",
+      "id": "502143097648869376"
+     },
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"BTC_USDT\",\"side\":\"BUY\",\"accountType\":\"SPOT\",\"type\":\"STOP_LIMIT\",\"price\":\"10\",\"stopPrice\":\"11\",\"quantity\":\"10000000\"}",
      "headers": {
       "Content-Type": [
        "application/json"
@@ -12326,6 +12382,102 @@
      },
      "queryString": "",
      "bodyParams": "{\"symbol\":\"BTC_USDT_PERP\",\"side\":\"buy\",\"mgnMode\":\"CROSS\",\"posSide\":\"LONG\",\"type\":\"LIMIT_MAKER\",\"clOrdId\":\"939a9d51-8f32-443a-9fb8-ff0852010487\",\"px\":\"46050\",\"sz\":\"10\",\"timeInForce\":\"GTC\",\"stpMode\":\"EXPIRE_TAKER\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "MK72Vc1EZ4H5RapViCE7qIs7bD/vuVehj2rbMCcuwpM="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1759075010078"
+      ]
+     }
+    },
+    {
+     "data": {
+      "code": 200,
+      "data": {
+       "clOrdId": "939a9d51-8f32-443a-9fb8-ff0852010487",
+       "ordId": "331375826421678080"
+      },
+      "msg": "Success"
+     },
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"BTC_USDT\",\"side\":\"BUY\",\"mgnMode\":\"\",\"posSide\":\"UNKNOWN\",\"type\":\"MARKET\",\"px\":\"10\",\"sz\":\"10000000\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "MK72Vc1EZ4H5RapViCE7qIs7bD/vuVehj2rbMCcuwpM="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1759075010078"
+      ]
+     }
+    },
+    {
+     "data": {
+      "code": 200,
+      "data": {
+       "clOrdId": "939a9d51-8f32-443a-9fb8-ff0852010487",
+       "ordId": "331375826421678080"
+      },
+      "msg": "Success"
+     },
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"BTC_USDT_PERP\",\"side\":\"BUY\",\"mgnMode\":\"\",\"posSide\":\"UNKNOWN\",\"type\":\"MARKET\",\"px\":\"10\",\"sz\":\"10000000\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "MK72Vc1EZ4H5RapViCE7qIs7bD/vuVehj2rbMCcuwpM="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1759075010078"
+      ]
+     }
+    },
+    {
+     "data": {
+      "code": 200,
+      "data": {
+       "clOrdId": "939a9d51-8f32-443a-9fb8-ff0852010487",
+       "ordId": "331375826421678080"
+      },
+      "msg": "Success"
+     },
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"BTC_USDT_PERP\",\"side\":\"BUY\",\"mgnMode\":\"CROSS\",\"posSide\":\"LONG\",\"type\":\"LIMIT\",\"px\":\"10\",\"sz\":\"10000000\"}",
      "headers": {
       "Content-Type": [
        "application/json"

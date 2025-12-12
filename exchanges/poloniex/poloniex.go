@@ -949,7 +949,7 @@ func (e *Exchange) GetOrdersHistory(ctx context.Context, arg *OrdersHistoryReque
 	}
 	var resp []*TradeOrder
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetOrderHistoryEPL, http.MethodGet, "/orders/history", params, nil, &resp); err != nil {
-		return nil, fmt.Errorf("%w %v", order.ErrGetFailed, err)
+		return nil, fmt.Errorf("%w %w", order.ErrGetFailed, err)
 	}
 	return resp, nil
 }

@@ -138,7 +138,9 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
 	}
-	if result.Event != "" {
+	if result.ID != "" {
+		return conn.RequireMatchWithData(result.ID, respRaw)
+	} else if result.Event != "" {
 		switch result.Event {
 		case "pong":
 			return nil
@@ -405,7 +407,10 @@ func (e *Exchange) handleSubscription(operation string, s *subscription.Subscrip
 		Channel: []string{strings.ToLower(s.QualifiedChannel)},
 	}
 
-	if len(s.Pairs) != 0 && s.QualifiedChannel != channelFuturesAccount {
+	switch {
+	case s.Asset == asset.Futures && s.QualifiedChannel == channelFuturesAccount,
+		s.Asset == asset.Spot && (s.QualifiedChannel == channelBalances || s.QualifiedChannel == channelOrders):
+	case len(s.Pairs) != 0:
 		input.Symbols = s.Pairs.Format(pairFormat).Strings()
 	}
 
@@ -505,7 +510,7 @@ func (e *Exchange) manageSubs(ctx context.Context, operation string, conn websoc
 			continue
 		}
 		if subscriptionResponse.Event == "error" {
-			errs = common.AppendError(errs, fmt.Errorf("%w %s channel %q: %w", websocket.ErrSubscriptionFailure, operation, payload.Channel[0], err))
+			errs = common.AppendError(errs, fmt.Errorf("%w %s channel %q", websocket.ErrSubscriptionFailure, operation, payload.Channel[0]))
 			continue
 		}
 		if operation == "subscribe" {

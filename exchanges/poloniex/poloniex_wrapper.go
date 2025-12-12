@@ -653,8 +653,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
-	switch s.AssetType {
-	case asset.Spot:
+	if s.AssetType == asset.Spot {
 		var stpMode string
 		switch s.TimeInForce {
 		case order.PostOnly:
@@ -711,47 +710,44 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		default:
 			return nil, fmt.Errorf("%w: %v", order.ErrUnsupportedOrderType, s.Type)
 		}
-	case asset.Futures:
-		side := "BUY"
-		if s.Side.IsShort() {
-			side = "SELL"
-		}
-		var stpMode string
-		switch s.TimeInForce {
-		case order.PostOnly:
-			stpMode = "EXPIRE_MAKER"
-		case order.GoodTillCancel:
-			stpMode = "EXPIRE_TAKER"
-		}
-		switch s.Type {
-		case order.Market, order.Limit, order.LimitMaker:
-		default:
-			return nil, fmt.Errorf("%w: %v", order.ErrUnsupportedOrderType, s.Type)
-		}
-		var positionSide order.Side
-		if s.MarginType != margin.Unset {
-			positionSide = s.Side.Position()
-		}
-		response, err := e.PlaceFuturesOrder(ctx, &FuturesOrderRequest{
-			ClientOrderID:           s.ClientOrderID,
-			Side:                    side,
-			MarginMode:              marginMode(s.MarginType),
-			PositionSide:            positionSide,
-			Symbol:                  s.Pair.String(),
-			OrderType:               OrderType(s.Type),
-			ReduceOnly:              s.ReduceOnly,
-			TimeInForce:             TimeInForce(s.TimeInForce),
-			Price:                   s.Price,
-			Size:                    s.Amount,
-			SelfTradePreventionMode: stpMode,
-		})
-		if err != nil {
-			return nil, err
-		}
-		return s.DeriveSubmitResponse(response.OrderID)
-	default:
-		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, s.AssetType)
 	}
+	side := "BUY"
+	if s.Side.IsShort() {
+		side = "SELL"
+	}
+	var stpMode string
+	switch s.TimeInForce {
+	case order.PostOnly:
+		stpMode = "EXPIRE_MAKER"
+	case order.GoodTillCancel:
+		stpMode = "EXPIRE_TAKER"
+	}
+	switch s.Type {
+	case order.Market, order.Limit, order.LimitMaker:
+	default:
+		return nil, fmt.Errorf("%w: %v", order.ErrUnsupportedOrderType, s.Type)
+	}
+	var positionSide order.Side
+	if s.MarginType != margin.Unset {
+		positionSide = s.Side.Position()
+	}
+	response, err := e.PlaceFuturesOrder(ctx, &FuturesOrderRequest{
+		ClientOrderID:           s.ClientOrderID,
+		Side:                    side,
+		MarginMode:              marginMode(s.MarginType),
+		PositionSide:            positionSide,
+		Symbol:                  s.Pair.String(),
+		OrderType:               OrderType(s.Type),
+		ReduceOnly:              s.ReduceOnly,
+		TimeInForce:             TimeInForce(s.TimeInForce),
+		Price:                   s.Price,
+		Size:                    s.Amount,
+		SelfTradePreventionMode: stpMode,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s.DeriveSubmitResponse(response.OrderID)
 }
 
 // ModifyOrder modifies an existing order
@@ -876,16 +872,16 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	resp := &order.CancelBatchResponse{
 		Status: make(map[string]string),
 	}
-	for key, value := range assetAndTypeToIDsMap {
-		if key.aType == asset.Spot {
-			switch key.oType {
+	for k, v := range assetAndTypeToIDsMap {
+		if k.aType == asset.Spot {
+			switch k.oType {
 			case order.Market, order.Limit, order.AnyType, order.UnknownType:
-				cancelledOrders, err := e.CancelOrdersByIDs(ctx, value.orderIDs, value.clientOrderIDs)
+				cancelledOrders, err := e.CancelOrdersByIDs(ctx, v.orderIDs, v.clientOrderIDs)
 				if err != nil {
 					return nil, err
 				}
 				for _, co := range cancelledOrders {
-					if slices.Contains(value.orderIDs, co.OrderID) {
+					if slices.Contains(v.orderIDs, co.OrderID) {
 						resp.Status[co.OrderID] = co.State + " " + co.Message
 					} else {
 						resp.Status[co.ClientOrderID] = co.State + " " + co.Message
@@ -893,37 +889,37 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 				}
 			case order.Stop, order.StopLimit, order.TrailingStop, order.TrailingStopLimit:
 				cancelledOrders, err := e.CancelMultipleSmartOrders(ctx, &CancelOrdersRequest{
-					OrderIDs:       value.orderIDs,
-					ClientOrderIDs: value.clientOrderIDs,
+					OrderIDs:       v.orderIDs,
+					ClientOrderIDs: v.clientOrderIDs,
 				})
 				if err != nil {
 					return nil, err
 				}
 				for _, co := range cancelledOrders {
-					if slices.Contains(value.orderIDs, co.OrderID) {
+					if slices.Contains(v.orderIDs, co.OrderID) {
 						resp.Status[co.OrderID] = co.State + " " + co.Message
 					} else {
 						resp.Status[co.ClientOrderID] = co.State + " " + co.Message
 					}
 				}
 			default:
-				return nil, fmt.Errorf("%w: %s", order.ErrUnsupportedOrderType, key.oType.String())
+				return nil, fmt.Errorf("%w: %s", order.ErrUnsupportedOrderType, k.oType.String())
 			}
 		} else {
 			cancelledOrders, err := e.CancelMultipleFuturesOrders(ctx, &CancelFuturesOrdersRequest{
-				Symbol:         key.pair,
-				OrderIDs:       value.orderIDs,
-				ClientOrderIDs: value.clientOrderIDs,
+				Symbol:         k.pair,
+				OrderIDs:       v.orderIDs,
+				ClientOrderIDs: v.clientOrderIDs,
 			})
 			if err != nil {
 				return nil, err
 			}
 			for _, co := range cancelledOrders {
-				cancellationStatus := "Cancelled"
+				cancellationStatus := order.Cancelled.String()
 				if co.Code != 200 && co.Code != 0 {
 					cancellationStatus = "Failed"
 				}
-				if slices.Contains(value.orderIDs, co.OrderID) {
+				if slices.Contains(v.orderIDs, co.OrderID) {
 					resp.Status[co.OrderID] = cancellationStatus
 				} else {
 					resp.Status[co.ClientOrderID] = cancellationStatus
@@ -975,7 +971,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 					if wco.Code == 0 || wco.Code == 200 {
 						cancelAllOrdersResponse.Status[strconv.FormatUint(wco.OrderID, 10)] = wco.State
 					} else {
-						cancelAllOrdersResponse.Status[strconv.FormatUint(wco.OrderID, 10)] = "failed"
+						cancelAllOrdersResponse.Status[strconv.FormatUint(wco.OrderID, 10)] = "Failed"
 					}
 				}
 			} else {
@@ -998,9 +994,9 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 			return cancelAllOrdersResponse, err
 		}
 		for _, co := range result {
-			cancelAllOrdersResponse.Status[co.OrderID] = "cancelled"
+			cancelAllOrdersResponse.Status[co.OrderID] = order.Cancelled.String()
 			if co.Code != 200 && co.Code != 0 {
-				cancelAllOrdersResponse.Status[co.OrderID] = "failed"
+				cancelAllOrdersResponse.Status[co.OrderID] = "Failed"
 			}
 		}
 	default:
