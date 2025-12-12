@@ -203,7 +203,7 @@ func TestGetOrderHistory(t *testing.T) {
 	assert.NotNil(t, result)
 
 	result, err = e.GetOrderHistory(generateContext(t), &order.MultiOrderRequest{
-		Type:      order.Limit,
+		Type:      order.StopLimit,
 		AssetType: asset.Spot,
 		Side:      order.Sell,
 	})
@@ -400,6 +400,11 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 	_, err = e.WebsocketSubmitOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
 
+	arg.AssetType = asset.Futures
+	arg.Price = 10
+	_, err = e.WebsocketSubmitOrder(t.Context(), arg)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
@@ -417,7 +422,7 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 		Side:        order.Buy,
 		Type:        order.Market,
 		Price:       10,
-		QuoteAmount: 10000000,
+		QuoteAmount: 1000000,
 		AssetType:   asset.Spot,
 	})
 	assert.NoError(t, err)
@@ -569,6 +574,12 @@ func TestModifyOrder(t *testing.T) {
 
 	arg.TimeInForce = order.GoodTillCancel
 	result, err := e.ModifyOrder(t.Context(), arg)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	e.Verbose = true
+	arg.Type = order.StopLimit
+	result, err = e.ModifyOrder(t.Context(), arg)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -779,7 +790,19 @@ func TestCancelBatchOrders(t *testing.T) {
 	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: asset.Futures, OrderID: "1233"}, {AssetType: asset.Futures}})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	}
+	_, err = e.CancelBatchOrders(generateContext(t), []order.Cancel{
+		{
+			OrderID:   "1234",
+			AssetType: asset.Spot,
+			Pair:      spotTradablePair,
+			Type:      order.Liquidation,
+		},
+	})
+	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
+
 	resp, err := e.CancelBatchOrders(generateContext(t), []order.Cancel{
 		{
 			Pair:      futuresTradablePair,
@@ -1369,6 +1392,9 @@ func TestGetOrderInfo(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
+	_, err := e.GetOrderInfo(generateContext(t), "1234", spotTradablePair, asset.Options)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
 	result, err := e.GetOrderInfo(generateContext(t), "1234", spotTradablePair, asset.Spot)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)

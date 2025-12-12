@@ -9544,6 +9544,42 @@
     }
    ]
   },
+  "/smartorders/1337": {
+   "PUT": [
+    {
+     "data": {
+      "code": 200,
+      "message": "",
+      "data": {
+       "id": "1337",
+       "clientOrderId": "1234Abc"
+      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"price\":\"1337\",\"type\":\"STOP_LIMIT\",\"timeInForce\":\"GTC\",\"proceedOnFailure\":\"true\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "Ihm+6Hy71J0aRF51RjA8aPmxDnN5aDDsid0nzGOizEQ="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1743968951008"
+      ]
+     }
+    }
+   ]
+  },
   "/smartorders/29772698821328896": {
    "PUT": [
     {
@@ -9629,6 +9665,48 @@
     {
      "data": null,
      "queryString": "limit=10",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "wqrMHpazrPftzGuQaTR/0/37FNqBGJDqryHNBWZigxM="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1754251060127"
+      ]
+     }
+    },
+    {
+     "data": [
+        {
+            "id": "25444163851911168",
+            "clientOrderId": "",
+            "symbol": "BTC_USDT",
+            "state": "CANCELED",
+            "accountType": "SPOT",
+            "side": "BUY",
+            "type": "STOP_LIMIT",
+            "timeInForce": "GTC",
+            "quantity": "2",
+            "price": "100",
+            "amount": "200",
+            "stopPrice": "125",
+            "createTime": 1647032761392,
+            "updateTime": 1647032874275
+        }
+     ],
+     "queryString": "accountType=SPOT&limit=100&side=SELL&type=STOP_LIMIT",
      "bodyParams": "",
      "headers": {
       "Content-Type": [

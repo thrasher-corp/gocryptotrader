@@ -1375,8 +1375,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
-	switch req.AssetType {
-	case asset.Spot:
+	if req.AssetType == asset.Spot {
 		switch req.Type {
 		case order.Market, order.Limit, order.UnknownType, order.AnyType:
 			oTypeString, err := orderTypeString(req.Type)
@@ -1485,48 +1484,45 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		default:
 			return nil, fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, req.Type)
 		}
-	case asset.Futures:
-		oTypeString, err := orderTypeString(req.Type)
-		if err != nil {
-			return nil, err
-		}
-		orderHistory, err := e.GetFuturesOrderHistory(ctx, "", oTypeString, req.Side.String(), "", "", "", "", req.StartTime, req.EndTime, 0, 100)
-		if err != nil {
-			return nil, err
-		}
-		orders := make([]order.Detail, 0, len(orderHistory))
-		for _, fOrder := range orderHistory {
-			if len(req.Pairs) != 0 && !req.Pairs.Contains(fOrder.Symbol, true) {
-				continue
-			}
-			oType, err := order.StringToOrderType(fOrder.OrderType)
-			if err != nil {
-				return nil, err
-			}
-			detail := order.Detail{
-				Side:            fOrder.Side,
-				Amount:          fOrder.Quantity.Float64(),
-				ExecutedAmount:  fOrder.ExecutedAmount.Float64(),
-				Price:           fOrder.Price.Float64(),
-				Pair:            fOrder.Symbol,
-				Type:            oType,
-				Exchange:        e.Name,
-				RemainingAmount: fOrder.Quantity.Float64() - fOrder.ExecutedAmount.Float64(),
-				OrderID:         fOrder.OrderID,
-				ClientOrderID:   fOrder.ClientOrderID,
-				Status:          orderStateFromString(fOrder.State),
-				AssetType:       asset.Futures,
-				Date:            fOrder.CreationTime.Time(),
-				LastUpdated:     fOrder.UpdateTime.Time(),
-				TimeInForce:     fOrder.TimeInForce,
-			}
-			detail.InferCostsAndTimes()
-			orders = append(orders, detail)
-		}
-		return req.Filter(e.Name, orders), nil
-	default:
-		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, req.AssetType)
 	}
+	oTypeString, err := orderTypeString(req.Type)
+	if err != nil {
+		return nil, err
+	}
+	orderHistory, err := e.GetFuturesOrderHistory(ctx, "", oTypeString, req.Side.String(), "", "", "", "", req.StartTime, req.EndTime, 0, 100)
+	if err != nil {
+		return nil, err
+	}
+	orders := make([]order.Detail, 0, len(orderHistory))
+	for _, fOrder := range orderHistory {
+		if len(req.Pairs) != 0 && !req.Pairs.Contains(fOrder.Symbol, true) {
+			continue
+		}
+		oType, err := order.StringToOrderType(fOrder.OrderType)
+		if err != nil {
+			return nil, err
+		}
+		detail := order.Detail{
+			Side:            fOrder.Side,
+			Amount:          fOrder.Quantity.Float64(),
+			ExecutedAmount:  fOrder.ExecutedAmount.Float64(),
+			Price:           fOrder.Price.Float64(),
+			Pair:            fOrder.Symbol,
+			Type:            oType,
+			Exchange:        e.Name,
+			RemainingAmount: fOrder.Quantity.Float64() - fOrder.ExecutedAmount.Float64(),
+			OrderID:         fOrder.OrderID,
+			ClientOrderID:   fOrder.ClientOrderID,
+			Status:          orderStateFromString(fOrder.State),
+			AssetType:       asset.Futures,
+			Date:            fOrder.CreationTime.Time(),
+			LastUpdated:     fOrder.UpdateTime.Time(),
+			TimeInForce:     fOrder.TimeInForce,
+		}
+		detail.InferCostsAndTimes()
+		orders = append(orders, detail)
+	}
+	return req.Filter(e.Name, orders), nil
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper

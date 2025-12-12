@@ -134,6 +134,7 @@ func (e *Exchange) authenticateSpotAuthConn(ctx context.Context, conn websocket.
 }
 
 func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
+	println(string(respRaw))
 	var result SubscriptionResponse
 	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
