@@ -1,5 +1,4 @@
 //go:build config_versions
-// +build config_versions
 
 // This test is run independently from CI for developer convenience when developing out-of-sequence versions
 // Called from a separate github workflow to prevent a PR from being merged without failing the main unit tests
