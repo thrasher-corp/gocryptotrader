@@ -577,7 +577,6 @@ func TestModifyOrder(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
-	e.Verbose = true
 	arg.Type = order.StopLimit
 	result, err = e.ModifyOrder(t.Context(), arg)
 	assert.NoError(t, err)
