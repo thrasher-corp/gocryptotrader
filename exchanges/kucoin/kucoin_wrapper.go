@@ -220,7 +220,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
 func (e *Exchange) FetchTradablePairs(ctx context.Context, assetType asset.Item) (currency.Pairs, error) {
-	var cp currency.Pair
 	switch assetType {
 	case asset.Futures:
 		myPairs, err := e.GetFuturesOpenContracts(ctx)
@@ -232,11 +231,8 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, assetType asset.Item)
 			if strings.ToLower(myPairs[x].Status) != "open" { //nolint:gocritic // strings.ToLower is faster
 				continue
 			}
-			cp, err = currency.NewPairFromStrings(myPairs[x].BaseCurrency, myPairs[x].Symbol[len(myPairs[x].BaseCurrency):])
-			if err != nil {
-				return nil, err
-			}
-			pairs = pairs.Add(cp)
+			quote := currency.NewCode(myPairs[x].Symbol[len(myPairs[x].BaseCurrency.String()):])
+			pairs = pairs.Add(currency.NewPair(myPairs[x].BaseCurrency, quote))
 		}
 		configFormat, err := e.GetPairFormat(asset.Futures, false)
 		if err != nil {
@@ -255,11 +251,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, assetType asset.Item)
 			}
 			// Symbol field must be used to generate pair as this is the symbol
 			// to fetch data from the API. e.g. BSV-USDT name is BCHSV-USDT as symbol.
-			cp, err = currency.NewPairFromString(strings.ToUpper(myPairs[x].Symbol))
-			if err != nil {
-				return nil, err
-			}
-			pairs = pairs.Add(cp)
+			pairs = pairs.Add(myPairs[x].Symbol)
 		}
 		return pairs, nil
 	default:
@@ -309,11 +301,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			return err
 		}
 		for x := range ticks {
-			var pair currency.Pair
-			pair, err = currency.NewPairFromStrings(ticks[x].BaseCurrency, ticks[x].Symbol[len(ticks[x].BaseCurrency):])
-			if err != nil {
-				return err
-			}
+			pair := currency.NewPair(ticks[x].BaseCurrency, currency.NewCode(ticks[x].Symbol[len(ticks[x].BaseCurrency.String()):]))
 			if !pairs.Contains(pair, true) {
 				continue
 			}
@@ -1868,21 +1856,9 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 
 	resp := make([]futures.Contract, len(contracts))
 	for i := range contracts {
-		var cp, underlying currency.Pair
-		underlying, err = currency.NewPairFromStrings(contracts[i].BaseCurrency, contracts[i].QuoteCurrency)
-		if err != nil {
-			return nil, err
-		}
-		cp, err = currency.NewPairFromStrings(contracts[i].BaseCurrency, contracts[i].Symbol[len(contracts[i].BaseCurrency):])
-		if err != nil {
-			return nil, err
-		}
-		settleCurr := currency.NewCode(contracts[i].SettleCurrency)
-		var ct futures.ContractType
+		ct := futures.Quarterly
 		if contracts[i].ContractType == "FFWCSX" {
 			ct = futures.Perpetual
-		} else {
-			ct = futures.Quarterly
 		}
 		contractSettlementType := futures.Linear
 		if contracts[i].IsInverse {
@@ -1898,10 +1874,10 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 		timeOfCurrentFundingRate := time.Now().Add((time.Duration(contracts[i].NextFundingRateTime) * time.Millisecond) - fri).Truncate(time.Hour).UTC()
 		resp[i] = futures.Contract{
 			Exchange:           e.Name,
-			Name:               cp,
-			Underlying:         underlying,
-			SettlementCurrency: settleCurr,
-			MarginCurrency:     settleCurr,
+			Name:               currency.NewPair(contracts[i].BaseCurrency, currency.NewCode(contracts[i].Symbol[len(contracts[i].BaseCurrency.String()):])),
+			Underlying:         currency.NewPair(contracts[i].BaseCurrency, contracts[i].QuoteCurrency),
+			SettlementCurrency: contracts[i].SettleCurrency,
+			MarginCurrency:     contracts[i].SettleCurrency,
 			Asset:              item,
 			StartDate:          contracts[i].FirstOpenDate.Time(),
 			EndDate:            contracts[i].ExpireDate.Time(),
@@ -1944,11 +1920,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		resp := make([]fundingrate.LatestRateResponse, 0, len(contracts))
 		for i := range contracts {
 			timeOfNextFundingRate := time.Now().Add(time.Duration(contracts[i].NextFundingRateTime) * time.Millisecond).Truncate(time.Hour).UTC()
-			var cp currency.Pair
-			cp, err = currency.NewPairFromStrings(contracts[i].BaseCurrency, contracts[i].Symbol[len(contracts[i].BaseCurrency):])
-			if err != nil {
-				return nil, err
-			}
+			cp := currency.NewPair(contracts[i].BaseCurrency, currency.NewCode(contracts[i].Symbol[len(contracts[i].BaseCurrency.String()):]))
 			var isPerp bool
 			isPerp, err = e.IsPerpetualFutureCurrency(r.Asset, cp)
 			if err != nil {
@@ -2323,22 +2295,16 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			if a == asset.Margin && !symbols[x].IsMarginEnabled {
 				continue
 			}
-			pair, enabled, err := e.MatchSymbolCheckEnabled(symbols[x].Symbol, a, true)
-			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-				return err
-			}
-			if !enabled {
-				continue
-			}
 			l = append(l, limits.MinMaxLevel{
-				Key:                     key.NewExchangeAssetPair(e.Name, a, pair),
-				AmountStepIncrementSize: symbols[x].BaseIncrement,
-				QuoteStepIncrementSize:  symbols[x].QuoteIncrement,
-				PriceStepIncrementSize:  symbols[x].PriceIncrement,
-				MinimumBaseAmount:       symbols[x].BaseMinSize,
-				MaximumBaseAmount:       symbols[x].BaseMaxSize,
-				MinimumQuoteAmount:      symbols[x].QuoteMinSize,
-				MaximumQuoteAmount:      symbols[x].QuoteMaxSize,
+				Key:                     key.NewExchangeAssetPair(e.Name, a, symbols[x].Symbol),
+				AmountStepIncrementSize: symbols[x].BaseIncrement.Float64(),
+				QuoteStepIncrementSize:  symbols[x].QuoteIncrement.Float64(),
+				PriceStepIncrementSize:  symbols[x].PriceIncrement.Float64(),
+				MinimumBaseAmount:       symbols[x].BaseMinSize.Float64(),
+				MaximumBaseAmount:       symbols[x].BaseMaxSize.Float64(),
+				MinimumQuoteAmount:      symbols[x].QuoteMinSize.Float64(),
+				MaximumQuoteAmount:      symbols[x].QuoteMaxSize.Float64(),
+				Listed:                  symbols[x].TradingStartTime.Time(),
 			})
 		}
 	case asset.Futures:
@@ -2346,21 +2312,36 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		if err != nil {
 			return err
 		}
+
 		l = make([]limits.MinMaxLevel, 0, len(contract))
 		for x := range contract {
-			pair, enabled, err := e.MatchSymbolCheckEnabled(contract[x].Symbol, a, false)
-			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+			pair, err := e.MatchSymbolWithAvailablePairs(contract[x].Symbol, a, false)
+			if err != nil {
 				return err
 			}
-			if !enabled {
-				continue
+
+			priceDivisor := 1.0
+			if contract[x].Symbol[:2] == "10" { // handle 1000SHIBUSDT, 1000PEPEUSDT etc; screen 1INCHUSDT
+				for _, r := range contract[x].Symbol[1:] {
+					if r != '0' {
+						break
+					}
+					priceDivisor *= 10
+				}
 			}
+
 			l = append(l, limits.MinMaxLevel{
 				Key:                     key.NewExchangeAssetPair(e.Name, a, pair),
 				AmountStepIncrementSize: contract[x].LotSize,
 				QuoteStepIncrementSize:  contract[x].TickSize,
+				MinimumBaseAmount:       contract[x].LotSize,
 				MaximumBaseAmount:       contract[x].MaxOrderQty,
 				MaximumQuoteAmount:      contract[x].MaxPrice,
+				MultiplierDecimal:       contract[x].Multiplier,
+				Listed:                  contract[x].FirstOpenDate.Time(),
+				Delisted:                contract[x].ExpireDate.Time(),
+				Expiry:                  contract[x].SettleDate.Time(),
+				PriceDivisor:            priceDivisor,
 			})
 		}
 	}
