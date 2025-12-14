@@ -297,10 +297,8 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 	}
 	fPair, err := e.FormatExchangeCurrency(p, a)
 	if err != nil {
+		panic(a)
 		return nil, err
-	}
-	if fPair.IsEmpty() || fPair.Quote.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
 	}
 	fPair = fPair.Upper()
 	var tickerData *ticker.Price

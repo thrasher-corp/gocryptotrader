@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -80,7 +81,7 @@ const (
 
 var (
 	errInvalidAutoSizeValue             = errors.New("invalid \"auto_size\" value, only \"close_long\" and \"close_short\" are supported")
-	errInvalidTextValue                 = errors.New("invalid text value, requires prefix `t-`")
+	errInvalidOrderText                 = errors.New("invalid text value, requires prefix `t-`")
 	errLoanTypeIsRequired               = errors.New("loan type is required")
 	errUserIDRequired                   = errors.New("user id is required")
 	errSTPGroupNameRequired             = errors.New("self-trade prevention group name required")
@@ -99,6 +100,7 @@ var (
 	errInvalidCountdown                 = errors.New("invalid countdown, Countdown time, in seconds At least 5 seconds, 0 means cancel the countdown")
 	errInvalidOrderStatus               = errors.New("invalid order status")
 	errInvalidLoanSide                  = errors.New("invalid loan side, only 'lend' and 'borrow'")
+	errLoanRateIsRequired               = errors.New("loan rate is required for borrow side")
 	errInvalidLoanID                    = errors.New("missing loan ID")
 	errInvalidRepayMode                 = errors.New("invalid repay mode specified, must be 'all' or 'partial'")
 	errMissingPreviewID                 = errors.New("missing required parameter: preview_id")
@@ -115,7 +117,6 @@ var (
 	errInvalidSettlementQuote           = errors.New("symbol quote currency does not match asset settlement currency")
 	errInvalidSettlementBase            = errors.New("symbol base currency does not match asset settlement currency")
 	errMissingAPIKey                    = errors.New("missing API key information")
-	errInvalidTextPrefix                = errors.New("invalid text value, requires prefix `t-`")
 	errSingleAssetRequired              = errors.New("single asset type required")
 	errMissingUnifiedAccountMode        = errors.New("unified account mode is required")
 	errTooManyCurrencyCodes             = errors.New("too many currency codes supplied")
@@ -472,13 +473,13 @@ func (e *Exchange) GetTradingFeeRatio(ctx context.Context, currencyPair currency
 
 // GetAccountBatchFeeRates retrieves account fee rates
 // Maximum 50 currency pairs per request
-func (e *Exchange) GetAccountBatchFeeRates(ctx context.Context, currencyPairs []string) ([]*SpotTradingFeeRate, error) {
+func (e *Exchange) GetAccountBatchFeeRates(ctx context.Context, currencyPairs []string) (map[string]*SpotTradingFeeRate, error) {
 	if len(currencyPairs) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
 	params := url.Values{}
 	params.Set("currency_pairs", strings.Join(currencyPairs, ","))
-	var resp []*SpotTradingFeeRate
+	var resp map[string]*SpotTradingFeeRate // map of currency pair string to trading fee rate detail.
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotTradingFeeEPL, http.MethodGet, "spot/batch_fee", params, nil, &resp)
 }
 
@@ -707,11 +708,13 @@ func (e *Exchange) CreateBatchOrders(ctx context.Context, args []CreateOrderRequ
 		if (x != 0) && args[x-1].Account != args[x].Account {
 			return nil, errDifferentAccount
 		}
+		if args[x].Text == "" {
+			return nil, order.ErrClientOrderIDMustBeSet
+		} else if !strings.HasPrefix(args[x].Text, "t-") {
+			return nil, errInvalidOrderText
+		}
 		if args[x].CurrencyPair.IsEmpty() {
 			return nil, currency.ErrCurrencyPairEmpty
-		}
-		if args[x].Type != "limit" {
-			return nil, errors.New("only order type limit is allowed")
 		}
 		args[x].Side = strings.ToLower(args[x].Side)
 		if args[x].Side != "buy" && args[x].Side != "sell" {
@@ -840,7 +843,7 @@ func (e *Exchange) CancelBatchOrdersWithIDList(ctx context.Context, args []Cance
 	}
 	for x := range args {
 		if args[x].CurrencyPair.IsEmpty() || args[x].ID == "" {
-			return nil, errors.New("currency pair and order ID are required")
+			return nil, fmt.Errorf("%w %w currency pair or order ID are required", currency.ErrCurrencyPairEmpty, order.ErrOrderIDNotSet)
 		}
 	}
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotCancelBatchOrdersEPL, http.MethodPost, "spot/cancel_batch_orders", nil, &args, &response)
@@ -879,8 +882,8 @@ func (e *Exchange) AmendSpotOrder(ctx context.Context, orderID string, currencyP
 	if isCrossMarginAccount {
 		params.Set("account", asset.CrossMargin.String())
 	}
-	if arg.Amount != 0 && arg.Price != 0 {
-		return nil, errors.New("only can chose one of amount or price")
+	if arg.Price <= 0 && arg.Amount <= 0 {
+		return nil, fmt.Errorf("%w %w : either price or amount has to be set", order.ErrAmountIsInvalid, limits.ErrPriceBelowMin)
 	}
 	var resp *SpotOrder
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAmendOrderEPL, http.MethodPatch, gateioSpotOrders+"/"+orderID, params, arg, &resp)
@@ -957,10 +960,10 @@ func (e *Exchange) CountdownCancelorders(ctx context.Context, arg CountdownCance
 
 // CreatePriceTriggeredOrder create a price-triggered order
 func (e *Exchange) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTriggeredOrderParam) (*OrderID, error) {
-	if arg.Put.TimeInForce != gtcTIF && arg.Put.TimeInForce != iocTIF {
-		return nil, fmt.Errorf("%w: %q only 'gct' and 'ioc' are supported", order.ErrUnsupportedTimeInForce, arg.Put.TimeInForce)
+	if arg.Put.TimeInForce == "" {
+		return nil, fmt.Errorf("%w: %q only 'gtc' and 'ioc' are supported", order.ErrInvalidTimeInForce, arg.Put.TimeInForce)
 	}
-	if arg.Market.IsEmpty() {
+	if arg.Symbol.IsEmpty() {
 		return nil, fmt.Errorf("%w, %s", currency.ErrCurrencyPairEmpty, "field market is required")
 	}
 	if arg.Trigger.Price < 0 {
@@ -968,14 +971,6 @@ func (e *Exchange) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTrig
 	}
 	if arg.Trigger.Rule != "<=" && arg.Trigger.Rule != ">=" {
 		return nil, fmt.Errorf("invalid price trigger condition or rule %q but expected '>=' or '<='", arg.Trigger.Rule)
-	}
-	if arg.Trigger.Expiration <= 0 {
-		return nil, errors.New("invalid expiration(seconds to wait for the condition to be triggered before cancelling the order)")
-	}
-	arg.Put.Side = strings.ToLower(arg.Put.Side)
-	arg.Put.Type = strings.ToLower(arg.Put.Type)
-	if arg.Put.Type != "limit" {
-		return nil, errors.New("invalid order type, only order type 'limit' is allowed")
 	}
 	if arg.Put.Side != "buy" && arg.Put.Side != "sell" {
 		return nil, order.ErrSideIsInvalid
@@ -986,6 +981,8 @@ func (e *Exchange) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTrig
 	if arg.Put.Amount <= 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
+	arg.Put.Side = strings.ToLower(arg.Put.Side)
+	arg.Put.Type = strings.ToLower(arg.Put.Type)
 	arg.Put.Account = strings.ToLower(arg.Put.Account)
 	if arg.Put.Account == "" {
 		arg.Put.Account = "normal"
@@ -1652,16 +1649,13 @@ func (e *Exchange) MarginLoan(ctx context.Context, arg *MarginLoanRequestParam) 
 		return nil, errInvalidLoanSide
 	}
 	if arg.Side == sideBorrow && arg.Rate == 0 {
-		return nil, errors.New("`rate` is required in borrowing")
+		return nil, errLoanRateIsRequired
 	}
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.Amount <= 0 {
-		return nil, order.ErrAmountIsInvalid
-	}
-	if arg.Rate != 0 && arg.Rate > 0.002 || arg.Rate < 0.0002 {
-		return nil, errors.New("invalid loan rate, rate must be between 0.0002 and 0.002")
+		return nil, limits.ErrAmountBelowMin
 	}
 	var response *MarginLoanResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginLendBorrowEPL, http.MethodPost, gateioMarginLoans, nil, &arg, &response)
@@ -1672,13 +1666,10 @@ func (e *Exchange) GetMarginAllLoans(ctx context.Context, status, side, sortBy s
 	if side != sideLend && side != sideBorrow {
 		return nil, fmt.Errorf("%w, only 'lend' and 'borrow' are supported", order.ErrSideIsInvalid)
 	}
-	params := url.Values{}
-	params.Set("side", side)
-	if status == statusOpen || status == "loaned" || status == statusFinished || status == "auto_repair" {
-		params.Set("status", status)
-	} else {
-		return nil, errors.New("loan status \"status\" is required")
+	if status == "" {
+		return nil, errInvalidLoanSide
 	}
+	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
 	}
@@ -1697,6 +1688,8 @@ func (e *Exchange) GetMarginAllLoans(ctx context.Context, status, side, sortBy s
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
+
+	params.Set("status", status)
 	var response []*MarginLoanResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginAllLoansEPL, http.MethodGet, gateioMarginLoans, params, nil, &response)
 }
@@ -2015,7 +2008,7 @@ func (e *Exchange) GetMaxBorrowableAmountForSpecificCrossMarginCurrency(ctx cont
 // Set reverse=false to return ascending results.
 func (e *Exchange) GetCrossMarginBorrowHistory(ctx context.Context, status uint64, ccy currency.Code, limit, offset uint64, reverse bool) ([]*CrossMarginLoanResponse, error) {
 	if status < 1 || status > 3 {
-		return nil, fmt.Errorf("%s %v, only allowed status values are 1:failed, 2:borrowed, and 3:repayment", e.Name, errInvalidOrderStatus)
+		return nil, fmt.Errorf("%s %w, only allowed status values are 1:failed, 2:borrowed, and 3:repayment", e.Name, errInvalidOrderStatus)
 	}
 	params := url.Values{}
 	params.Set("status", strconv.FormatUint(status, 10))
@@ -2578,7 +2571,7 @@ func (e *Exchange) PlaceBatchFuturesOrders(ctx context.Context, settle currency.
 			return nil, fmt.Errorf("%w: %q; only 'ioc' and 'fok' allowed for market order", order.ErrUnsupportedTimeInForce, args[x].TimeInForce)
 		}
 		if args[x].Text != "" && !strings.HasPrefix(args[x].Text, "t-") {
-			return nil, errInvalidTextValue
+			return nil, errInvalidOrderText
 		}
 		if args[x].AutoSize != "" && (args[x].AutoSize == "close_long" || args[x].AutoSize == "close_short") {
 			return nil, errInvalidAutoSizeValue
@@ -4331,7 +4324,7 @@ func (c *ContractOrderCreateParams) validate(isRest bool) error {
 		return fmt.Errorf("%w: %q; only 'ioc' and 'fok' allowed for market order", order.ErrUnsupportedTimeInForce, c.TimeInForce)
 	}
 	if c.Text != "" && !strings.HasPrefix(c.Text, "t-") {
-		return errInvalidTextPrefix
+		return errInvalidOrderText
 	}
 	if c.AutoSize != "" {
 		if c.AutoSize != "close_long" && c.AutoSize != "close_short" {

@@ -1428,7 +1428,7 @@ type SpotAccount struct {
 
 // CreateOrderRequest represents a single order creation param.
 type CreateOrderRequest struct {
-	Text                      string        `json:"text,omitempty"`
+	Text                      string        `json:"text"`
 	CurrencyPair              currency.Pair `json:"currency_pair,omitzero"`
 	Type                      string        `json:"type,omitempty"`
 	Account                   string        `json:"account,omitempty"`
@@ -1545,7 +1545,7 @@ type TriggerTimeResponse struct {
 type PriceTriggeredOrderParam struct {
 	Trigger TriggerPriceInfo `json:"trigger"`
 	Put     PutOrderData     `json:"put"`
-	Market  currency.Pair    `json:"market"`
+	Symbol  currency.Pair    `json:"market"`
 }
 
 // TriggerPriceInfo represents a trigger price and related information for Price triggered order
