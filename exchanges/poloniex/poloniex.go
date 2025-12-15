@@ -683,7 +683,7 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, symbol currency.Pair, side
 	}
 	var resp []*TradeOrder
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetOpenOrdersEPL, http.MethodGet, "/orders", params, nil, &resp); err != nil {
-		return nil, fmt.Errorf("%w %w", order.ErrGetFailed, err)
+		return nil, fmt.Errorf("%w: %w", order.ErrGetFailed, err)
 	}
 	return resp, nil
 }
@@ -786,12 +786,12 @@ func (e *Exchange) CreateSmartOrder(ctx context.Context, arg *SmartOrderRequest)
 		return nil, fmt.Errorf("%w; base quantity is required", limits.ErrAmountBelowMin)
 	}
 	if arg.Type == OrderType(order.StopLimit) && arg.Price <= 0 {
-		return nil, fmt.Errorf("%w %w", order.ErrPriceMustBeSetIfLimitOrder, limits.ErrPriceBelowMin)
+		return nil, fmt.Errorf("%w: %w", order.ErrPriceMustBeSetIfLimitOrder, limits.ErrPriceBelowMin)
 	}
-	if (order.Type(arg.Type)&order.TrailingStop == order.TrailingStop) && arg.TrailingOffset == "" {
+	if oType := order.Type(arg.Type); oType.Is(order.TrailingStop) && arg.TrailingOffset == "" {
 		return nil, errInvalidTrailingOffset
 	}
-	if arg.Type == OrderType(order.TrailingStopLimit) && arg.LimitOffset == "" {
+	if oType := order.Type(arg.Type); oType.Is(order.TrailingStopLimit) && arg.LimitOffset == "" {
 		return nil, errInvalidOffsetLimit
 	}
 	var resp *OrderIDResponse
@@ -949,7 +949,7 @@ func (e *Exchange) GetOrdersHistory(ctx context.Context, arg *OrdersHistoryReque
 	}
 	var resp []*TradeOrder
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetOrderHistoryEPL, http.MethodGet, "/orders/history", params, nil, &resp); err != nil {
-		return nil, fmt.Errorf("%w %w", order.ErrGetFailed, err)
+		return nil, fmt.Errorf("%w: %w", order.ErrGetFailed, err)
 	}
 	return resp, nil
 }
@@ -962,7 +962,7 @@ func (e *Exchange) GetSmartOrderHistory(ctx context.Context, arg *OrdersHistoryR
 	}
 	var resp []*SmartOrder
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetSmartOrderHistoryEPL, http.MethodGet, "/smartorders/history", params, nil, &resp); err != nil {
-		return nil, fmt.Errorf("%w %w", order.ErrGetFailed, err)
+		return nil, fmt.Errorf("%w: %w", order.ErrGetFailed, err)
 	}
 	return resp, nil
 }
@@ -1034,7 +1034,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	if resp == nil {
 		return common.ErrNoResponse
 	}
-	if errType, ok := resp.(interface{ Error() error }); ok && errType.Error() != nil {
+	if errType, ok := resp.(hasError); ok && errType.Error() != nil {
 		return errType.Error()
 	}
 	return nil
@@ -1101,12 +1101,12 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		return req, nil
 	}
 	if err := e.SendPayload(ctx, epl, requestFunc, request.AuthenticatedRequest); err != nil {
-		return fmt.Errorf("%w %w", request.ErrAuthRequestFailed, err)
+		return fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, err)
 	}
 	if resp == nil {
 		return common.ErrNoResponse
 	}
-	if errType, ok := resp.(interface{ Error() error }); ok && errType.Error() != nil {
+	if errType, ok := resp.(hasError); ok && errType.Error() != nil {
 		return fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, errType.Error())
 	}
 	return nil

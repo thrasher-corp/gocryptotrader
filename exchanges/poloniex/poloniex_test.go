@@ -411,8 +411,8 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 	if mockTests {
 		t.Skip(websocketMockTestsSkipped)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	e.setAPICredential(apiKey, apiSecret)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
 	testexch.SetupWs(t, e)
@@ -454,8 +454,8 @@ func TestWebsocketCancelOrder(t *testing.T) {
 	if mockTests {
 		t.Skip(websocketMockTestsSkipped)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	e.setAPICredential(apiKey, apiSecret)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
 	testexch.SetupWs(t, e)
@@ -1770,11 +1770,11 @@ func TestCreateSmartOrder(t *testing.T) {
 	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequest{Symbol: spotTradablePair, Side: order.Buy, Quantity: 10, Type: OrderType(order.StopLimit)})
 	require.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
 
-	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequest{Symbol: spotTradablePair, Side: order.Buy, Quantity: 10, Type: OrderType(order.TrailingStopLimit), Price: 1234})
-	require.ErrorIs(t, err, errInvalidTrailingOffset)
-
 	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequest{Symbol: spotTradablePair, Side: order.Buy, Quantity: 10, Type: OrderType(order.TrailingStopLimit), Price: 1234, TrailingOffset: "1%"})
 	require.ErrorIs(t, err, errInvalidOffsetLimit)
+
+	_, err = e.CreateSmartOrder(t.Context(), &SmartOrderRequest{Symbol: spotTradablePair, Side: order.Buy, Quantity: 10, Type: OrderType(order.TrailingStopLimit), Price: 1234})
+	require.ErrorIs(t, err, errInvalidTrailingOffset)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -2050,6 +2050,7 @@ func TestWsCreateOrder(t *testing.T) {
 
 	_, err := e.WsCreateOrder(t.Context(), &PlaceOrderRequest{Amount: 1})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
 	_, err = e.WsCreateOrder(t.Context(), &PlaceOrderRequest{
 		Symbol: spotTradablePair,
 	})
@@ -2065,8 +2066,8 @@ func TestWsCreateOrder(t *testing.T) {
 		t.Skip(websocketMockTestsSkipped)
 	}
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	e.setAPICredential(apiKey, apiSecret)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
 	testexch.SetupWs(t, e)
@@ -2092,8 +2093,8 @@ func TestWsCancelMultipleOrdersByIDs(t *testing.T) {
 	if mockTests {
 		t.Skip(websocketMockTestsSkipped)
 	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	e.setAPICredential(apiKey, apiSecret)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
 	testexch.SetupWs(t, e)
@@ -2110,9 +2111,8 @@ func TestWsCancelTradeOrders(t *testing.T) {
 	if mockTests {
 		t.Skip(websocketMockTestsSkipped)
 	}
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	e.setAPICredential(apiKey, apiSecret)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
 	testexch.SetupWs(t, e)

@@ -997,3 +997,5 @@ func (s *V3ResponseWrapper) Error() error {
 	}
 	return nil
 }
+
+type hasError interface{ Error() error }

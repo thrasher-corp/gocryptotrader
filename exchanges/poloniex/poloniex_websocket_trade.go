@@ -16,10 +16,10 @@ func (e *Exchange) WsCreateOrder(ctx context.Context, arg *PlaceOrderRequest) (*
 	}
 	var resp []*OrderIDResponse
 	if err := e.SendWebsocketRequest(ctx, "createOrder", arg, &resp); err != nil {
-		return nil, fmt.Errorf("%w %w", order.ErrPlaceFailed, err)
+		return nil, fmt.Errorf("%w: %w", order.ErrPlaceFailed, err)
 	}
 	if len(resp) != 1 {
-		return nil, common.ErrInvalidResponse
+		return nil, fmt.Errorf("%w: %w", order.ErrPlaceFailed, common.ErrInvalidResponse)
 	} else if resp[0].Code != 0 && resp[0].Code != 200 {
 		return nil, fmt.Errorf("%w: error code: %d message: %s", order.ErrPlaceFailed, resp[0].Code, resp[0].Message)
 	}
@@ -40,7 +40,7 @@ func (e *Exchange) WsCancelMultipleOrdersByIDs(ctx context.Context, orderIDs, cl
 	}
 	var resp []*WsCancelOrderResponse
 	if err := e.SendWebsocketRequest(ctx, "cancelOrders", params, &resp); err != nil {
-		return nil, fmt.Errorf("%w %w", order.ErrCancelFailed, err)
+		return nil, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
 	}
 	return resp, nil
 }
@@ -56,7 +56,7 @@ func (e *Exchange) WsCancelTradeOrders(ctx context.Context, symbols []string, ac
 	}
 	var resp []*WsCancelOrderResponse
 	if err := e.SendWebsocketRequest(ctx, "cancelAllOrders", args, &resp); err != nil {
-		return nil, fmt.Errorf("%w %w", order.ErrCancelFailed, err)
+		return nil, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
 	}
 	return resp, nil
 }
@@ -89,5 +89,10 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, event string, arg, 
 	if response == nil {
 		return common.ErrNoResponse
 	}
-	return nil
+	if errTypes, ok := response.([]hasError); ok {
+		for _, errType := range errTypes {
+			err = common.AppendError(err, errType.Error())
+		}
+	}
+	return err
 }

@@ -560,10 +560,10 @@ func (e *Exchange) GetIndexPriceComponents(ctx context.Context, symbol string) (
 	params.Set("symbol", symbol)
 	var resp []*IndexPriceComponent
 	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, common.EncodeURLValues(marketsPathV3+"indexPriceComponents", params), &resp); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w %w", order.ErrGetFailed, err)
 	}
 	if len(resp) != 1 {
-		return nil, common.ErrInvalidResponse
+		return nil, fmt.Errorf("%w %w", order.ErrGetFailed, common.ErrInvalidResponse)
 	}
 	return resp[0], nil
 }
