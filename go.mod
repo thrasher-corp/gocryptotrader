@@ -26,7 +26,7 @@ require (
 	github.com/volatiletech/null v8.0.0+incompatible
 	golang.org/x/crypto v0.45.0
 	golang.org/x/term v0.37.0
-	golang.org/x/text v0.31.0
+	golang.org/x/text v0.32.0
 	golang.org/x/time v0.14.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20251022142026-3a174f9686a8
 	google.golang.org/grpc v1.77.0
