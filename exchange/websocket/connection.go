@@ -458,8 +458,9 @@ func (c *connection) MatchReturnResponses(ctx context.Context, signature any, ex
 }
 
 func removeURLQueryString(u string) string {
-	if index := strings.Index(u, "?"); index != -1 {
-		return u[:index]
+	before, _, found := strings.Cut(u, "?")
+	if found {
+		return before
 	}
 	return u
 }
