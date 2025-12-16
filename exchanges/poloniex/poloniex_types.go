@@ -227,7 +227,7 @@ type MarketPrice struct {
 // MarkPrice represents latest mark price for all cross margin symbols.
 type MarkPrice struct {
 	Symbol          currency.Pair `json:"symbol"`
-	MarkPrice       any           `json:"markPrice"`
+	MarkPrice       types.Number  `json:"markPrice"`
 	RecordTimestamp types.Time    `json:"time"`
 }
 
@@ -832,7 +832,7 @@ type WsCurrency struct {
 	Delisted          bool          `json:"delisted"`
 	TradingState      string        `json:"tradingState"`
 	WalletState       string        `json:"walletState"`
-	ParentChain       any           `json:"parentChain"`
+	ParentChain       string        `json:"parentChain"`
 	IsMultiChain      bool          `json:"isMultiChain"`
 	IsChildChain      bool          `json:"isChildChain"`
 	SupportCollateral bool          `json:"supportCollateral"`
