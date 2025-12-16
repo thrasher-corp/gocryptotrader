@@ -236,8 +236,8 @@ func (e *Exchange) processFuturesAccountData(data []byte) error {
 				Balance: accounts.Balance{
 					Currency:  detail.Currency,
 					Total:     detail.Available.Float64(),
-					Hold:      detail.TrdHold.Float64(),
-					Free:      detail.Available.Float64() - detail.TrdHold.Float64(),
+					Hold:      detail.TradeHold.Float64(),
+					Free:      detail.Available.Float64() - detail.TradeHold.Float64(),
 					UpdatedAt: detail.UpdateTime.Time(),
 				},
 			})

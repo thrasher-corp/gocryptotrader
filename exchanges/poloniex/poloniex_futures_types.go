@@ -11,9 +11,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-type marginMode margin.Type
+type MarginMode margin.Type
 
-func (m marginMode) MarshalText() ([]byte, error) {
+func (m MarginMode) MarshalText() ([]byte, error) {
 	switch margin.Type(m) {
 	case margin.Multi:
 		return []byte("CROSS"), nil
@@ -29,12 +29,12 @@ func (m marginMode) MarshalText() ([]byte, error) {
 type FuturesAccountBalance struct {
 	State                   string                           `json:"state"`
 	Equity                  types.Number                     `json:"eq"`
-	IsoEquity               types.Number                     `json:"isoEq"`
+	IsolatedEquity          types.Number                     `json:"isoEq"`
 	InitialMargin           types.Number                     `json:"im"`
 	MaintenanceMargin       types.Number                     `json:"mm"`
 	MaintenanceMarginRate   types.Number                     `json:"mmr"`
 	UnrealizedProfitAndLoss types.Number                     `json:"upl"`
-	AvailMargin             types.Number                     `json:"availMgn"`
+	AvailableMargin         types.Number                     `json:"availMgn"`
 	CreationTime            types.Time                       `json:"cTime"`
 	UpdateTime              types.Time                       `json:"uTime"`
 	Details                 []*FuturesCurrencyAccountBalance `json:"details"`
@@ -44,13 +44,13 @@ type FuturesAccountBalance struct {
 type FuturesCurrencyAccountBalance struct {
 	Currency              currency.Code `json:"ccy"`
 	Equity                types.Number  `json:"eq"`
-	IsoEquity             types.Number  `json:"isoEq"`
+	IsolatedEquity        types.Number  `json:"isoEq"`
 	Available             types.Number  `json:"avail"`
-	TrdHold               types.Number  `json:"trdHold"`
+	TradeHold             types.Number  `json:"trdHold"`
 	UnrealisedPNL         types.Number  `json:"upl"`
-	IsoAvailable          types.Number  `json:"isoAvail"`
-	IsoHold               string        `json:"isoHold"`
-	IsoUpl                string        `json:"isoUpl"`
+	IsolatedAvailable     types.Number  `json:"isoAvail"`
+	IsolatedHold          types.Number  `json:"isoHold"`
+	IsolatedUPL           types.Number  `json:"isoUpl"`
 	InitialMargin         types.Number  `json:"im"`
 	MaintenanceMargin     types.Number  `json:"mm"`
 	MaintenanceMarginRate types.Number  `json:"mmr"`
@@ -74,17 +74,17 @@ type BillDetails struct {
 
 // FuturesOrderRequest represents a futures order parameters
 type FuturesOrderRequest struct {
-	Symbol                  string      `json:"symbol"`
-	Side                    string      `json:"side"`
-	MarginMode              marginMode  `json:"mgnMode"`
-	PositionSide            order.Side  `json:"posSide"`
-	OrderType               OrderType   `json:"type,omitempty"`
-	ClientOrderID           string      `json:"clOrdId,omitempty"`
-	Price                   float64     `json:"px,omitempty,string"`
-	Size                    float64     `json:"sz,omitempty,string"`
-	ReduceOnly              bool        `json:"reduceOnly,omitempty"`
-	TimeInForce             TimeInForce `json:"timeInForce,omitempty"`
-	SelfTradePreventionMode string      `json:"stpMode,omitempty"`
+	Symbol                  currency.Pair `json:"symbol"`
+	Side                    string        `json:"side"`
+	MarginMode              MarginMode    `json:"mgnMode"`
+	PositionSide            order.Side    `json:"posSide"`
+	OrderType               OrderType     `json:"type,omitempty"`
+	ClientOrderID           string        `json:"clOrdId,omitempty"`
+	Price                   float64       `json:"px,omitempty,string"`
+	Size                    float64       `json:"sz,omitempty,string"`
+	ReduceOnly              bool          `json:"reduceOnly,omitempty"`
+	TimeInForce             TimeInForce   `json:"timeInForce,omitempty"`
+	SelfTradePreventionMode string        `json:"stpMode,omitempty"`
 }
 
 // FuturesOrderIDResponse represents a futures order creation response
@@ -96,9 +96,9 @@ type FuturesOrderIDResponse struct {
 
 // CancelOrderRequest represents a single order cancellation parameters
 type CancelOrderRequest struct {
-	Symbol        string `json:"symbol"`
-	OrderID       string `json:"ordId,omitempty"`
-	ClientOrderID string `json:"clOrdId,omitempty"`
+	Symbol        currency.Pair `json:"symbol"`
+	OrderID       string        `json:"ordId,omitempty"`
+	ClientOrderID string        `json:"clOrdId,omitempty"`
 }
 
 // CancelFuturesOrdersRequest represents cancel futures order request parameters
@@ -267,12 +267,12 @@ type FuturesExecutionInfo struct {
 
 // LiquidationPrice represents a liquidiation price detail for an instrument
 type LiquidationPrice struct {
-	Symbol                         string       `json:"symbol"`
-	PositionSide                   string       `json:"posSide"`
-	Side                           string       `json:"side"`
-	Size                           types.Number `json:"sz"`
-	PriceOfCommissionedTransaction types.Number `json:"bkPx"`
-	UpdateTime                     types.Time   `json:"uTime"`
+	Symbol                         currency.Pair `json:"symbol"`
+	PositionSide                   string        `json:"posSide"`
+	Side                           string        `json:"side"`
+	Size                           types.Number  `json:"sz"`
+	PriceOfCommissionedTransaction types.Number  `json:"bkPx"`
+	UpdateTime                     types.Time    `json:"uTime"`
 }
 
 // FuturesTickerDetails represents a v3 futures instrument ticker detail

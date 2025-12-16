@@ -98,14 +98,14 @@ func (e *Exchange) PlaceFuturesMultipleOrders(ctx context.Context, args []Future
 }
 
 func (o *FuturesOrderRequest) validate() error {
-	if o.Symbol == "" {
+	if o.Symbol.IsEmpty() {
 		return currency.ErrSymbolStringEmpty
 	}
 	if o.Side == "" {
 		return order.ErrSideIsInvalid
 	}
-	if (o.MarginMode != marginMode(margin.Unset) && o.PositionSide == order.UnknownSide) ||
-		(o.MarginMode == marginMode(margin.Unset) && o.PositionSide != order.UnknownSide) {
+	if (o.MarginMode != MarginMode(margin.Unset) && o.PositionSide == order.UnknownSide) ||
+		(o.MarginMode == MarginMode(margin.Unset) && o.PositionSide != order.UnknownSide) {
 		return fmt.Errorf("%w: %w: either both margin mode and position side fields are filled or left blank", order.ErrSideIsInvalid, margin.ErrInvalidMarginType)
 	}
 	if o.OrderType == OrderType(order.UnknownType) {
@@ -119,7 +119,7 @@ func (o *FuturesOrderRequest) validate() error {
 
 // CancelFuturesOrder cancels an order in futures trading.
 func (e *Exchange) CancelFuturesOrder(ctx context.Context, arg *CancelOrderRequest) (*FuturesOrderIDResponse, error) {
-	if arg.Symbol == "" {
+	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if arg.OrderID == "" && arg.ClientOrderID == "" {
@@ -148,15 +148,15 @@ func (e *Exchange) CancelMultipleFuturesOrders(ctx context.Context, args *Cancel
 }
 
 // CancelFuturesOrders cancel all current pending orders.
-func (e *Exchange) CancelFuturesOrders(ctx context.Context, symbol, side string) ([]*FuturesOrderIDResponse, error) {
-	if symbol == "" {
+func (e *Exchange) CancelFuturesOrders(ctx context.Context, symbol currency.Pair, side string) ([]*FuturesOrderIDResponse, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	arg := &struct {
 		Symbol string `json:"symbol"`
 		Side   string `json:"side,omitempty"`
 	}{
-		Symbol: symbol,
+		Symbol: symbol.String(),
 		Side:   side,
 	}
 	var resp []*FuturesOrderIDResponse
@@ -167,23 +167,20 @@ func (e *Exchange) CancelFuturesOrders(ctx context.Context, symbol, side string)
 }
 
 // CloseAtMarketPrice close orders at market price.
-func (e *Exchange) CloseAtMarketPrice(ctx context.Context, symbol, marginMode, positionSide, clientOrderID string) (*FuturesOrderIDResponse, error) {
-	if symbol == "" {
+func (e *Exchange) CloseAtMarketPrice(ctx context.Context, symbol currency.Pair, marginMode, positionSide, clientOrderID string) (*FuturesOrderIDResponse, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if marginMode == "" {
 		return nil, margin.ErrInvalidMarginType
 	}
-	if clientOrderID == "" {
-		return nil, order.ErrClientOrderIDMustBeSet
-	}
 	arg := &struct {
 		Symbol       string `json:"symbol"`
 		MgnMode      string `json:"mgnMode"`
-		ClOrdID      string `json:"clOrdId"`
+		ClOrdID      string `json:"clOrdId,omitempty"`
 		PositionSide string `json:"posSide,omitempty"`
 	}{
-		Symbol:       symbol,
+		Symbol:       symbol.String(),
 		MgnMode:      marginMode,
 		ClOrdID:      clientOrderID,
 		PositionSide: positionSide,
@@ -199,16 +196,16 @@ func (e *Exchange) CloseAllPositionsAtMarketPrice(ctx context.Context) ([]*Futur
 }
 
 // GetCurrentFuturesOrders get unfilled futures orders. If no request parameters are specified, you will get all open orders sorted on the creation time in chronological order.
-func (e *Exchange) GetCurrentFuturesOrders(ctx context.Context, symbol, side, orderID, clientOrderID, direction string, offset, limit uint64) ([]*FuturesOrderDetails, error) {
+func (e *Exchange) GetCurrentFuturesOrders(ctx context.Context, symbol currency.Pair, side, clientOrderID, direction string, orderID, offsetOrderID, limit uint64) ([]*FuturesOrderDetails, error) {
 	params := url.Values{}
 	if side != "" {
 		params.Set("side", side)
 	}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if !symbol.IsEmpty() {
+		params.Set("symbol", symbol.String())
 	}
-	if orderID != "" {
-		params.Set("ordId", orderID)
+	if orderID > 0 {
+		params.Set("ordId", strconv.FormatUint(orderID, 10))
 	}
 	if clientOrderID != "" {
 		params.Set("clOrdId", clientOrderID)
@@ -216,8 +213,8 @@ func (e *Exchange) GetCurrentFuturesOrders(ctx context.Context, symbol, side, or
 	if direction != "" {
 		params.Set("direct", direction)
 	}
-	if offset > 0 {
-		params.Set("from", strconv.FormatUint(offset, 10))
+	if offsetOrderID > 0 {
+		params.Set("from", strconv.FormatUint(offsetOrderID, 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
@@ -227,7 +224,7 @@ func (e *Exchange) GetCurrentFuturesOrders(ctx context.Context, symbol, side, or
 }
 
 // GetOrderExecutionDetails retrieves detailed information about your executed futures order
-func (e *Exchange) GetOrderExecutionDetails(ctx context.Context, symbol, orderID, clientOrderID, direction string, startTime, endTime time.Time, offset, limit uint64) ([]*FuturesTradeFill, error) {
+func (e *Exchange) GetOrderExecutionDetails(ctx context.Context, symbol currency.Pair, orderID, clientOrderID, direction string, startTime, endTime time.Time, offset, limit uint64) ([]*FuturesTradeFill, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
@@ -240,8 +237,8 @@ func (e *Exchange) GetOrderExecutionDetails(ctx context.Context, symbol, orderID
 	if !endTime.IsZero() {
 		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if !symbol.IsEmpty() {
+		params.Set("symbol", symbol.String())
 	}
 	if orderID != "" {
 		params.Set("ordId", orderID)
@@ -263,7 +260,7 @@ func (e *Exchange) GetOrderExecutionDetails(ctx context.Context, symbol, orderID
 }
 
 // GetFuturesOrderHistory retrieves previous futures orders. Orders that are completely canceled (no transaction has occurred) initiated through the API can only be queried for 4 hours.
-func (e *Exchange) GetFuturesOrderHistory(ctx context.Context, symbol, orderType, side, orderState, orderID, clientOrderID, direction string, startTime, endTime time.Time, offset, limit uint64) ([]*FuturesOrderDetails, error) {
+func (e *Exchange) GetFuturesOrderHistory(ctx context.Context, symbol currency.Pair, orderType, side, orderState, orderID, clientOrderID, direction string, startTime, endTime time.Time, offset, limit uint64) ([]*FuturesOrderDetails, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
@@ -282,8 +279,8 @@ func (e *Exchange) GetFuturesOrderHistory(ctx context.Context, symbol, orderType
 	if side != "" {
 		params.Set("side", side)
 	}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if !symbol.IsEmpty() {
+		params.Set("symbol", symbol.String())
 	}
 	if orderState != "" {
 		params.Set("state", orderState)
@@ -308,25 +305,25 @@ func (e *Exchange) GetFuturesOrderHistory(ctx context.Context, symbol, orderType
 }
 
 // GetFuturesCurrentPosition retrieves information about your current position.
-func (e *Exchange) GetFuturesCurrentPosition(ctx context.Context, symbol string) ([]*FuturesPosition, error) {
+func (e *Exchange) GetFuturesCurrentPosition(ctx context.Context, symbol currency.Pair) ([]*FuturesPosition, error) {
 	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if !symbol.IsEmpty() {
+		params.Set("symbol", symbol.String())
 	}
 	var resp []*FuturesPosition
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fGetPositionOpenEPL, http.MethodGet, tradePathV3+"position/opens", params, nil, &resp)
 }
 
 // GetFuturesPositionHistory get information about previous positions.
-func (e *Exchange) GetFuturesPositionHistory(ctx context.Context, symbol, marginMode, positionSide, direction string, startTime, endTime time.Time, offset, limit uint64) ([]*FuturesPosition, error) {
+func (e *Exchange) GetFuturesPositionHistory(ctx context.Context, symbol currency.Pair, marginMode, positionSide, direction string, startTime, endTime time.Time, offset, limit uint64) ([]*FuturesPosition, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
 	}
 	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if !symbol.IsEmpty() {
+		params.Set("symbol", symbol.String())
 	}
 	if marginMode != "" {
 		params.Set("mgnMode", marginMode)
@@ -354,8 +351,8 @@ func (e *Exchange) GetFuturesPositionHistory(ctx context.Context, symbol, margin
 }
 
 // AdjustMarginForIsolatedMarginTradingPositions add or reduce margin for positions in isolated margin mode.
-func (e *Exchange) AdjustMarginForIsolatedMarginTradingPositions(ctx context.Context, symbol, positionSide, adjustType string, amount float64) (*AdjustFuturesMarginResponse, error) {
-	if symbol == "" {
+func (e *Exchange) AdjustMarginForIsolatedMarginTradingPositions(ctx context.Context, symbol currency.Pair, positionSide, adjustType string, amount float64) (*AdjustFuturesMarginResponse, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if amount <= 0 {
@@ -365,10 +362,10 @@ func (e *Exchange) AdjustMarginForIsolatedMarginTradingPositions(ctx context.Con
 		return nil, errInvalidMarginAdjustType
 	}
 	arg := &struct {
-		Symbol       string  `json:"symbol"`
-		PositionSide string  `json:"posSide,omitempty"`
-		Amount       float64 `json:"amt,string"`
-		Type         string  `json:"type"`
+		Symbol       currency.Pair `json:"symbol"`
+		PositionSide string        `json:"posSide,omitempty"`
+		Amount       float64       `json:"amt,string"`
+		Type         string        `json:"type"`
 	}{
 		Symbol:       symbol,
 		PositionSide: positionSide,
@@ -380,12 +377,12 @@ func (e *Exchange) AdjustMarginForIsolatedMarginTradingPositions(ctx context.Con
 }
 
 // GetFuturesLeverage retrieves the list of leverage.
-func (e *Exchange) GetFuturesLeverage(ctx context.Context, symbol, marginMode string) ([]*FuturesLeverage, error) {
-	if symbol == "" {
+func (e *Exchange) GetFuturesLeverage(ctx context.Context, symbol currency.Pair, marginMode string) ([]*FuturesLeverage, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	if marginMode != "" {
 		params.Set("mgnMode", marginMode)
 	}
@@ -394,8 +391,8 @@ func (e *Exchange) GetFuturesLeverage(ctx context.Context, symbol, marginMode st
 }
 
 // SetFuturesLeverage change leverage
-func (e *Exchange) SetFuturesLeverage(ctx context.Context, symbol, marginMode, positionSide string, leverage int64) (*FuturesLeverage, error) {
-	if symbol == "" {
+func (e *Exchange) SetFuturesLeverage(ctx context.Context, symbol currency.Pair, marginMode, positionSide string, leverage int64) (*FuturesLeverage, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if marginMode == "" {
@@ -409,7 +406,7 @@ func (e *Exchange) SetFuturesLeverage(ctx context.Context, symbol, marginMode, p
 	}
 	var resp *FuturesLeverage
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fSetPositionLeverageEPL, http.MethodPost, positionPathV3+"leverage", nil, &map[string]string{
-		"symbol":  symbol,
+		"symbol":  symbol.String(),
 		"mgnMode": marginMode,
 		"posSide": positionSide,
 		"lever":   strconv.FormatInt(leverage, 10),
@@ -434,12 +431,12 @@ func (e *Exchange) GetPositionMode(ctx context.Context) (string, error) {
 }
 
 // GetFuturesOrderBook get market depth data of the designated trading pair
-func (e *Exchange) GetFuturesOrderBook(ctx context.Context, symbol string, depth, limit uint64) (*FuturesOrderbook, error) {
-	if symbol == "" {
+func (e *Exchange) GetFuturesOrderBook(ctx context.Context, symbol currency.Pair, depth, limit uint64) (*FuturesOrderbook, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	if depth > 0 {
 		params.Set("scale", strconv.FormatUint(depth, 10))
 	}
@@ -451,8 +448,8 @@ func (e *Exchange) GetFuturesOrderBook(ctx context.Context, symbol string, depth
 }
 
 // GetFuturesKlineData retrieves K-line data of the designated trading pair
-func (e *Exchange) GetFuturesKlineData(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]*FuturesCandle, error) {
-	if symbol == "" {
+func (e *Exchange) GetFuturesKlineData(ctx context.Context, symbol currency.Pair, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]*FuturesCandle, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -465,7 +462,7 @@ func (e *Exchange) GetFuturesKlineData(ctx context.Context, symbol string, inter
 		return nil, err
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	params.Set("interval", intervalString)
 	if !startTime.IsZero() {
 		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -481,12 +478,12 @@ func (e *Exchange) GetFuturesKlineData(ctx context.Context, symbol string, inter
 }
 
 // GetFuturesExecution get the latest execution information. The default limit is 500, with a maximum of 1,000.
-func (e *Exchange) GetFuturesExecution(ctx context.Context, symbol string, limit uint64) ([]*FuturesExecutionInfo, error) {
-	if symbol == "" {
+func (e *Exchange) GetFuturesExecution(ctx context.Context, symbol currency.Pair, limit uint64) ([]*FuturesExecutionInfo, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
@@ -495,7 +492,7 @@ func (e *Exchange) GetFuturesExecution(ctx context.Context, symbol string, limit
 }
 
 // GetLiquidationOrder get Liquidation Order Interface
-func (e *Exchange) GetLiquidationOrder(ctx context.Context, symbol, direction string, startTime, endTime time.Time, offset, limit uint64) ([]*LiquidationPrice, error) {
+func (e *Exchange) GetLiquidationOrder(ctx context.Context, symbol currency.Pair, direction string, startTime, endTime time.Time, offset, limit uint64) ([]*LiquidationPrice, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
@@ -511,8 +508,8 @@ func (e *Exchange) GetLiquidationOrder(ctx context.Context, symbol, direction st
 	if direction != "" {
 		params.Set("direct", direction)
 	}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if !symbol.IsEmpty() {
+		params.Set("symbol", symbol.String())
 	}
 	if offset > 0 {
 		params.Set("from", strconv.FormatUint(offset, 10))
@@ -525,22 +522,22 @@ func (e *Exchange) GetLiquidationOrder(ctx context.Context, symbol, direction st
 }
 
 // GetFuturesMarket get the market information of trading pairs in the past 24 hours.
-func (e *Exchange) GetFuturesMarket(ctx context.Context, symbol string) ([]*FuturesTickerDetails, error) {
+func (e *Exchange) GetFuturesMarket(ctx context.Context, symbol currency.Pair) ([]*FuturesTickerDetails, error) {
 	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if !symbol.IsEmpty() {
+		params.Set("symbol", symbol.String())
 	}
 	var resp []*FuturesTickerDetails
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, common.EncodeURLValues(marketsPathV3+"tickers", params), &resp)
 }
 
 // GetFuturesIndexPrice get the current index price.
-func (e *Exchange) GetFuturesIndexPrice(ctx context.Context, symbol string) (*InstrumentIndexPrice, error) {
-	if symbol == "" {
+func (e *Exchange) GetFuturesIndexPrice(ctx context.Context, symbol currency.Pair) (*InstrumentIndexPrice, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	var resp *InstrumentIndexPrice
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, common.EncodeURLValues(marketsPathV3+"indexPrice", params), &resp)
 }
@@ -552,12 +549,12 @@ func (e *Exchange) GetFuturesIndexPrices(ctx context.Context) ([]*InstrumentInde
 }
 
 // GetIndexPriceComponents get the index price components for a trading pair.
-func (e *Exchange) GetIndexPriceComponents(ctx context.Context, symbol string) (*IndexPriceComponent, error) {
-	if symbol == "" {
+func (e *Exchange) GetIndexPriceComponents(ctx context.Context, symbol currency.Pair) (*IndexPriceComponent, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	var resp []*IndexPriceComponent
 	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, common.EncodeURLValues(marketsPathV3+"indexPriceComponents", params), &resp); err != nil {
 		return nil, fmt.Errorf("%w %w", order.ErrGetFailed, err)
@@ -575,8 +572,8 @@ func (e *Exchange) GetInstrumentsIndexPriceComponents(ctx context.Context) ([]*I
 }
 
 // GetIndexPriceKlineData obtain the K-line data for the index price.
-func (e *Exchange) GetIndexPriceKlineData(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]*FuturesIndexPriceData, error) {
-	if symbol == "" {
+func (e *Exchange) GetIndexPriceKlineData(ctx context.Context, symbol currency.Pair, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]*FuturesIndexPriceData, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	intervalString, err := intervalToString(interval)
@@ -589,7 +586,7 @@ func (e *Exchange) GetIndexPriceKlineData(ctx context.Context, symbol string, in
 		}
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	params.Set("interval", intervalString)
 	if !startTime.IsZero() {
 		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -605,12 +602,12 @@ func (e *Exchange) GetIndexPriceKlineData(ctx context.Context, symbol string, in
 }
 
 // GetFuturesMarkPrice get the current mark price.
-func (e *Exchange) GetFuturesMarkPrice(ctx context.Context, symbol string) (*FuturesMarkPrice, error) {
-	if symbol == "" {
+func (e *Exchange) GetFuturesMarkPrice(ctx context.Context, symbol currency.Pair) (*FuturesMarkPrice, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	var resp *FuturesMarkPrice
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, common.EncodeURLValues(marketsPathV3+"markPrice", params), &resp)
 }
@@ -622,8 +619,8 @@ func (e *Exchange) GetFuturesMarkPrices(ctx context.Context) ([]*FuturesMarkPric
 }
 
 // GetMarkPriceKlineData obtain the K-line data for the mark price.
-func (e *Exchange) GetMarkPriceKlineData(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]*FuturesMarkPriceCandle, error) {
-	if symbol == "" {
+func (e *Exchange) GetMarkPriceKlineData(ctx context.Context, symbol currency.Pair, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]*FuturesMarkPriceCandle, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	intervalString, err := intervalToString(interval)
@@ -636,7 +633,7 @@ func (e *Exchange) GetMarkPriceKlineData(ctx context.Context, symbol string, int
 		}
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	params.Set("interval", intervalString)
 	if !startTime.IsZero() {
 		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -652,40 +649,40 @@ func (e *Exchange) GetMarkPriceKlineData(ctx context.Context, symbol string, int
 }
 
 // GetFuturesAllProducts inquire about the basic information of the all product.
-func (e *Exchange) GetFuturesAllProducts(ctx context.Context, symbol string) ([]*ProductDetail, error) {
+func (e *Exchange) GetFuturesAllProducts(ctx context.Context, symbol currency.Pair) ([]*ProductDetail, error) {
 	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if !symbol.IsEmpty() {
+		params.Set("symbol", symbol.String())
 	}
 	var resp []*ProductDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, common.EncodeURLValues(marketsPathV3+"allInstruments", params), &resp)
 }
 
 // GetFuturesProduct inquire about the basic information of the product.
-func (e *Exchange) GetFuturesProduct(ctx context.Context, symbol string) (*ProductDetail, error) {
-	if symbol == "" {
+func (e *Exchange) GetFuturesProduct(ctx context.Context, symbol currency.Pair) (*ProductDetail, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	var resp *ProductDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, common.EncodeURLValues(marketsPathV3+"instruments", params), &resp)
 }
 
 // GetFuturesCurrentFundingRate retrieve the current funding rate of the contract.
-func (e *Exchange) GetFuturesCurrentFundingRate(ctx context.Context, symbol string) (*FuturesFundingRate, error) {
-	if symbol == "" {
+func (e *Exchange) GetFuturesCurrentFundingRate(ctx context.Context, symbol currency.Pair) (*FuturesFundingRate, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	var resp *FuturesFundingRate
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, common.EncodeURLValues(marketsPathV3+"fundingRate", params), &resp)
 }
 
 // GetFuturesHistoricalFundingRates retrieve the previous funding rates of a contract.
-func (e *Exchange) GetFuturesHistoricalFundingRates(ctx context.Context, symbol string, startTime, endTime time.Time, limit uint64) ([]*FuturesFundingRate, error) {
-	if symbol == "" {
+func (e *Exchange) GetFuturesHistoricalFundingRates(ctx context.Context, symbol currency.Pair, startTime, endTime time.Time, limit uint64) ([]*FuturesFundingRate, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -694,7 +691,7 @@ func (e *Exchange) GetFuturesHistoricalFundingRates(ctx context.Context, symbol 
 		}
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	if !startTime.IsZero() {
 		params.Set("sT", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -709,12 +706,12 @@ func (e *Exchange) GetFuturesHistoricalFundingRates(ctx context.Context, symbol 
 }
 
 // GetContractOpenInterest retrieve all current open interest in the market.
-func (e *Exchange) GetContractOpenInterest(ctx context.Context, symbol string) (*OpenInterestData, error) {
-	if symbol == "" {
+func (e *Exchange) GetContractOpenInterest(ctx context.Context, symbol currency.Pair) (*OpenInterestData, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	var resp *OpenInterestData
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, common.EncodeURLValues(marketsPathV3+"openInterest", params), &resp)
 }
@@ -726,12 +723,12 @@ func (e *Exchange) GetInsuranceFund(ctx context.Context) ([]*InsuranceFundInfo, 
 }
 
 // GetFuturesRiskLimit retrieve information from the Futures Risk Limit Table.
-func (e *Exchange) GetFuturesRiskLimit(ctx context.Context, symbol, marginMode string, tier uint8) ([]*RiskLimit, error) {
-	if symbol == "" {
+func (e *Exchange) GetFuturesRiskLimit(ctx context.Context, symbol currency.Pair, marginMode string, tier uint8) ([]*RiskLimit, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	if marginMode != "" {
 		params.Set("mgnMode", marginMode)
 	}

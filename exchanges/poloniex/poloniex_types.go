@@ -638,7 +638,7 @@ type OrdersHistoryRequest struct {
 
 // TradeOrder represents a trade order
 type TradeOrder struct {
-	ID             types.Number      `json:"id"`
+	ID             string            `json:"id"`
 	ClientOrderID  string            `json:"clientOrderId"`
 	Symbol         currency.Pair     `json:"symbol"`
 	State          string            `json:"state"`

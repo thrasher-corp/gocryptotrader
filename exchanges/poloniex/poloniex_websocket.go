@@ -80,7 +80,7 @@ func setupPingHandler(conn websocket.Connection) {
 	})
 }
 
-// wsConnect checks of websocket is enabled and initiates a websocket connection
+// wsConnect checks if websocket is enabled and initiates a websocket connection
 func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
@@ -398,7 +398,7 @@ func (e *Exchange) processResponse(result *SubscriptionResponse, instance any) e
 }
 
 func (e *Exchange) handleSubscription(operation string, s *subscription.Subscription) (*SubscriptionPayload, error) {
-	pairFormat, err := e.GetPairFormat(asset.Spot, true)
+	pairFormat, err := e.GetPairFormat(s.Asset, true)
 	if err != nil {
 		return nil, err
 	}
