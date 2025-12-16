@@ -621,7 +621,7 @@ func TestWithdrawFiat(t *testing.T) {
 		},
 		Amount:      10,
 		Currency:    currency.USD,
-		Description: "BROKEN TEST WITHDRAWAL",
+		Description: "WITHDRAW IT ALL",
 	}
 
 	w, err := e.WithdrawFiatFunds(t.Context(), &withdrawFiatRequest)
@@ -670,7 +670,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		},
 		Amount:      50,
 		Currency:    currency.USD,
-		Description: "BROKEN TEST WITHDRAWAL",
+		Description: "WITHDRAW IT ALL",
 	}
 
 	w, err := e.WithdrawFiatFundsToInternationalBank(t.Context(),

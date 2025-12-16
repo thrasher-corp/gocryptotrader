@@ -1290,12 +1290,13 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 	req.Exchange = e.Name
 	req.Currency = testCrypto
-	req.Amount = -0.1
+	req.Amount = testAmount
 	req.Type = withdraw.Crypto
 	req.Crypto.Address = testAddress
 	_, err = e.WithdrawCryptocurrencyFunds(t.Context(), &req)
 	assert.ErrorIs(t, err, errWalletIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	req.Amount = -0.1
 	wallets, err := e.GetAllWallets(t.Context(), PaginationInp{})
 	assert.NoError(t, err)
 	if wallets == nil || len(wallets.Data) == 0 {
