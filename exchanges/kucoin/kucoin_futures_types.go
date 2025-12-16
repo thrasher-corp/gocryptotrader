@@ -81,8 +81,8 @@ type Contract struct {
 	K                                  float64         `json:"k"`
 	M                                  float64         `json:"m"`
 	F                                  float64         `json:"f"`
-	MmrLimit                           float64         `json:"mmrLimit"`
-	MmrLevConstant                     float64         `json:"mmrLevConstant"`
+	MMRLimit                           float64         `json:"mmrLimit"`
+	MMRLeverageConstant                float64         `json:"mmrLevConstant"`
 	SupportCross                       bool            `json:"supportCross"`
 	BuyLimit                           float64         `json:"buyLimit"`
 	SellLimit                          float64         `json:"sellLimit"`
