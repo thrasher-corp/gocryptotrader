@@ -19,7 +19,7 @@ func (f *Number) UnmarshalJSON(data []byte) error {
 	case 'n': // null
 		*f = Number(0)
 		return nil
-	case 't', 'f': // null, true, false
+	case 't', 'f': // true, false
 		return fmt.Errorf("%w: %s", errInvalidNumberValue, data)
 	case '"': // string
 		if len(data) < 2 || data[len(data)-1] != '"' {
