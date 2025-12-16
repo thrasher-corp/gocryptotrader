@@ -76,8 +76,8 @@ type Contract struct {
 	FundingQuoteSymbol1M               string          `json:"fundingQuoteSymbol1M"`
 	LowPrice                           float64         `json:"lowPrice"`
 	HighPrice                          float64         `json:"highPrice"`
-	PriceChgPct                        float64         `json:"priceChgPct"`
-	PriceChg                           float64         `json:"priceChg"`
+	PriceChangePercentage              float64         `json:"priceChgPct"`
+	PriceChange                        float64         `json:"priceChg"`
 	K                                  float64         `json:"k"`
 	M                                  float64         `json:"m"`
 	F                                  float64         `json:"f"`
