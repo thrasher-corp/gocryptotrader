@@ -1928,7 +1928,7 @@ func TestRemoveMarginManually(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.RemoveMarginManually(t.Context(), &WithdrawMarginResponse{
 		Symbol:         "ADAUSDTM",
-		WithdrawAmount: 1,
+		WithdrawAmount: -1,
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
