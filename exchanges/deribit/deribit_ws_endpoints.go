@@ -163,20 +163,6 @@ func (e *Exchange) WSRetrieveHistoricalVolatility(ctx context.Context, ccy curre
 	return data, e.SendWSRequest(ctx, nonMatchingEPL, getHistoricalVolatility, input, &data, false)
 }
 
-// WSRetrieveCurrencyIndexPrice the current index price for the instruments, for the selected currency through the websocket connection.
-func (e *Exchange) WSRetrieveCurrencyIndexPrice(ctx context.Context, ccy currency.Code) (map[string]float64, error) {
-	if ccy.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	input := &struct {
-		Currency currency.Code `json:"currency"`
-	}{
-		Currency: ccy,
-	}
-	var resp map[string]float64
-	return resp, e.SendWSRequest(ctx, nonMatchingEPL, getCurrencyIndexPrice, input, &resp, false)
-}
-
 // WSRetrieveIndexPrice retrieves price data for the requested index through the websocket connection.
 func (e *Exchange) WSRetrieveIndexPrice(ctx context.Context, index string) (*IndexPriceData, error) {
 	if index == "" {

@@ -1539,6 +1539,8 @@ func formatPairString(assetType asset.Item, pair currency.Pair) string {
 		return optionPairToString(pair)
 	case asset.OptionCombo:
 		return optionComboPairToString(pair)
+	case asset.FutureCombo:
+		return futureComboPairToString(pair)
 	}
 	return pair.String()
 }

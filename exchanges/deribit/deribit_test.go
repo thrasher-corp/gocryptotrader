@@ -256,7 +256,7 @@ func TestGetMarkPriceHistory(t *testing.T) {
 		optionPairToString(optionsTradablePair),
 		spotTradablePair.String(),
 		btcPerpInstrument,
-		futureComboTradablePair.String(),
+		futureComboPairToString(futureComboTradablePair),
 	} {
 		result, err = e.GetMarkPriceHistory(t.Context(), ps, time.Now().Add(-5*time.Minute), time.Now())
 		require.NoErrorf(t, err, "expected nil, got %v for pair %s", err, ps)
@@ -274,7 +274,7 @@ func TestWSRetrieveMarkPriceHistory(t *testing.T) {
 		optionPairToString(optionsTradablePair),
 		spotTradablePair.String(),
 		btcPerpInstrument,
-		futureComboTradablePair.String(),
+		futureComboPairToString(futureComboTradablePair),
 	} {
 		result, err = e.WSRetrieveMarkPriceHistory(t.Context(), ps, time.Now().Add(-4*time.Hour), time.Now())
 		require.NoErrorf(t, err, "expected %v, got %v currency pair %v", nil, err, ps)
@@ -315,7 +315,7 @@ func TestGetBookSummaryByInstrument(t *testing.T) {
 	for _, ps := range []string{
 		btcPerpInstrument,
 		spotTradablePair.String(),
-		futureComboTradablePair.String(),
+		futureComboPairToString(futureComboTradablePair),
 		optionPairToString(optionsTradablePair),
 		optionComboPairToString(optionComboTradablePair),
 	} {
@@ -336,7 +336,7 @@ func TestWSRetrieveBookSummaryByInstrument(t *testing.T) {
 	for _, ps := range []string{
 		btcPerpInstrument,
 		spotTradablePair.String(),
-		futureComboTradablePair.String(),
+		futureComboPairToString(futureComboTradablePair),
 		optionPairToString(optionsTradablePair),
 		optionComboPairToString(optionComboTradablePair),
 	} {
@@ -490,24 +490,6 @@ func TestWSRetrieveHistoricalVolatility(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	result, err := e.WSRetrieveHistoricalVolatility(t.Context(), currency.SOL)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetCurrencyIndexPrice(t *testing.T) {
-	t.Parallel()
-	_, err := e.GetCurrencyIndexPrice(t.Context(), currency.EMPTYCODE)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	result, err := e.GetCurrencyIndexPrice(t.Context(), currency.BTC)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestWSRetrieveCurrencyIndexPrice(t *testing.T) {
-	t.Parallel()
-	_, err := e.WSRetrieveCurrencyIndexPrice(t.Context(), currency.EMPTYCODE)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	result, err := e.WSRetrieveCurrencyIndexPrice(t.Context(), currency.BTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2730,7 +2712,7 @@ func TestGetComboDetails(t *testing.T) {
 	_, err := e.GetComboDetails(t.Context(), "")
 	require.ErrorIs(t, err, errInvalidComboID)
 
-	result, err := e.GetComboDetails(t.Context(), futureComboTradablePair.String())
+	result, err := e.GetComboDetails(t.Context(), futureComboPairToString(futureComboTradablePair))
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2740,7 +2722,7 @@ func TestWSRetrieveComboDetails(t *testing.T) {
 	_, err := e.WSRetrieveComboDetails(t.Context(), "")
 	require.ErrorIs(t, err, errInvalidComboID)
 
-	result, err := e.WSRetrieveComboDetails(t.Context(), futureComboTradablePair.String())
+	result, err := e.WSRetrieveComboDetails(t.Context(), futureComboPairToString(futureComboTradablePair))
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3776,6 +3758,19 @@ func TestOptionPairToString(t *testing.T) {
 		{Delimiter: currency.DashDelimiter, Base: currency.MATIC, Quote: currency.NewCode("USDC-6DEC29-0D87-C")}: "MATIC_USDC-6DEC29-0d87-C",
 	} {
 		assert.Equal(t, exp, optionPairToString(pair), "optionPairToString should return correctly")
+	}
+}
+
+func TestFutureComboPairToString(t *testing.T) {
+	t.Parallel()
+	for pair, exp := range map[currency.Pair]string{
+		{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.NewCode("FS-28NOV25_PERP")}:      "BTC-FS-28NOV25_PERP",
+		{Delimiter: currency.DashDelimiter, Base: currency.ETH, Quote: currency.NewCode("FS-28NOV25_PERP")}:      "ETH-FS-28NOV25_PERP",
+		{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.NewCode("FS-30JAN26_26DEC25")}:   "BTC-FS-30JAN26_26DEC25",
+		{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.NewCode("USDC-FS-28NOV25_PERP")}: "BTC_USDC-FS-28NOV25_PERP",
+		{Delimiter: currency.DashDelimiter, Base: currency.ETH, Quote: currency.NewCode("USDC-FS-28NOV25_PERP")}: "ETH_USDC-FS-28NOV25_PERP",
+	} {
+		assert.Equal(t, exp, futureComboPairToString(pair), "futureComboPairToString should return correctly")
 	}
 }
 

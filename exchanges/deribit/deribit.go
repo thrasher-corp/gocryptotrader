@@ -292,17 +292,6 @@ func (e *Exchange) GetHistoricalVolatility(ctx context.Context, ccy currency.Cod
 	return data, e.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getHistoricalVolatility, params), &data)
 }
 
-// GetCurrencyIndexPrice retrieves the current index price for the instruments, for the selected currency.
-func (e *Exchange) GetCurrencyIndexPrice(ctx context.Context, ccy currency.Code) (*IndexPrice, error) {
-	if ccy.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	params := url.Values{}
-	params.Set("currency", ccy.String())
-	var resp *IndexPrice
-	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getCurrencyIndexPrice, params), &resp)
-}
-
 // GetIndexPrice gets price data for the requested index
 func (e *Exchange) GetIndexPrice(ctx context.Context, index string) (*IndexPriceData, error) {
 	if index == "" {
@@ -2725,5 +2714,21 @@ func optionComboPairToString(pair currency.Pair) string {
 	// Otherwise insert underscore after base (covers:
 	// * any length > 4
 	// * length == 4 with USDC as second token)
+	return parts[0] + "_" + strings.Join(parts[1:], "-")
+}
+
+// futureComboPairToString formats a future combo pair to deribit request format
+// e.g. ETH-USDC-FS-28NOV25_PERP -> ETH_USDC-FS-28NOV25_PERP (linear)
+// e.g. BTC-FS-28NOV25_PERP -> BTC-FS-28NOV25_PERP (inverse, unchanged)
+func futureComboPairToString(pair currency.Pair) string {
+	parts := strings.Split(pair.String(), "-")
+	// Leave unchanged when:
+	// * length <= 3 (not enough info to be a combo needing underscore)
+	// * second token is not USDC (inverse future combo)
+	if len(parts) <= 3 || parts[1] != "USDC" {
+		return strings.Join(parts, "-")
+	}
+	// For linear future combos with USDC, insert underscore after base
+	// e.g. ETH-USDC-FS-28NOV25_PERP -> ETH_USDC-FS-28NOV25_PERP
 	return parts[0] + "_" + strings.Join(parts[1:], "-")
 }
