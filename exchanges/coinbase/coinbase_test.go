@@ -1290,7 +1290,7 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 	req.Exchange = e.Name
 	req.Currency = testCrypto
-	req.Amount = testAmount
+	req.Amount = -0.1
 	req.Type = withdraw.Crypto
 	req.Crypto.Address = testAddress
 	_, err = e.WithdrawCryptocurrencyFunds(t.Context(), &req)
