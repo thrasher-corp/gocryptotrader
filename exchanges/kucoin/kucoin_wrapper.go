@@ -301,7 +301,8 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			return err
 		}
 		for x := range ticks {
-			pair := currency.NewPair(ticks[x].BaseCurrency, currency.NewCode(ticks[x].Symbol[len(ticks[x].BaseCurrency.String()):]))
+			pair := currency.NewPair(ticks[x].BaseCurrency,
+				currency.NewCode(ticks[x].Symbol[len(ticks[x].BaseCurrency.String()):]))
 			if !pairs.Contains(pair, true) {
 				continue
 			}
