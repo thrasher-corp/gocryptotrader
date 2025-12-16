@@ -942,12 +942,12 @@ func orderFillParams(arg *OrdersHistoryRequest) (url.Values, error) {
 }
 
 // GetOrdersHistory gets a list of historical orders in an account
-func (e *Exchange) GetOrdersHistory(ctx context.Context, arg *OrdersHistoryRequest) ([]*TradeOrder, error) {
+func (e *Exchange) GetOrdersHistory(ctx context.Context, arg *OrdersHistoryRequest) ([]*OrderHistoryItem, error) {
 	params, err := orderFillParams(arg)
 	if err != nil {
 		return nil, err
 	}
-	var resp []*TradeOrder
+	var resp []*OrderHistoryItem
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetOrderHistoryEPL, http.MethodGet, "/orders/history", params, nil, &resp); err != nil {
 		return nil, fmt.Errorf("%w: %w", order.ErrGetFailed, err)
 	}

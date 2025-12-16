@@ -292,7 +292,7 @@ func (e *Exchange) processFuturesOrders(data []byte) error {
 			return err
 		}
 		orders[i] = order.Detail{
-			ReduceOnly:           r.ReduceOnly,
+			ReduceOnly:           r.ReduceOnly.Bool(),
 			Leverage:             r.Leverage.Float64(),
 			Price:                r.Price.Float64(),
 			Amount:               r.Size.Float64(),

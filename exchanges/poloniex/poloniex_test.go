@@ -30,8 +30,8 @@ import (
 
 // Please supply your own APIKEYS here for due diligence testing
 const (
-	apiKey                  = "WSKMLKNW-JCKF6SGH-VWKQAUS8-RYYWFJYP"
-	apiSecret               = "b1b11137b33e52bd7ae2df3a59e905141b40740edd0568f9141b63ed0cea6bdcab8b2ac8e307ca11a048493fd7d1528a26d7a1a9e3caae53fb82965b3ebf2b57"
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 
 	websocketMockTestsSkipped = "skipped websocket test while mock testing is enabled"
@@ -2170,21 +2170,22 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 }
 
 var futuresPushDataMap = map[string]string{
-	"Product Info":            `{"channel": "symbol", "data":[{"symbol": futuresTradablePair, "visibleStartTime": "1584721775000", "tradableStartTime": "1584721775000", "pxScale": "0.01,0.1,1,10,100", "lotSz": 1, "minSz": 1, "ctVal": "0.001", "status": "OPEN", "maxPx": "1000000", "minPx": "0.01", "marketMaxQty": 100000, "limitMaxQty": 100000, "maxQty": "1000000", "minQty": "1", "maxLever": "75", "lever": "20", "ctType": "LINEAR", "alias": "", "bAsset": ".PXBTUSDT", "bCcy": "BTC", "qCcy": "USDT", "sCcy": "USDT", "tSz": "0.01","oDate": "1547435912000", "iM": "0.0133", "mR": "5000", "mM": "0.006" } ], "action": "snapshot"}`,
-	"Orderbook":               `{"channel": "book", "data": [ { "asks": [ ["46100", "9284"] ], "bids": [ ["34400.089", "1"] ], "id": 954, "ts": 1718869676586, "s": futuresTradablePair, "cT": 1718869676555}]}`,
-	"Orderbook Lvl2":          `{"channel": "book_lv2", "data": [ { "asks": [["46100", "9284"]], "bids": [["34400.089", "1"]], "lid": 953, "id": 954, "ts": 1718870001418, "s": futuresTradablePair, "cT": 1718869676555 } ], "action": "snapshot"}`,
-	"K-Line Data":             `{"channel": "candles_minute_1", "data": [ [futuresTradablePair,"91883.46","91958.73","91883.46","91958.73","367.68438","4",2,1741243200000,1741243259999,1741243218348]]}`,
-	"K-Line Five Min Data":    `{"channel": "candles_minute_5", "data": [ [futuresTradablePair,"91883.46","91958.73","91883.46","91958.73","367.68438","4",2,1741243200000,1741243259999,1741243218348]]}`,
-	"Tickers":                 `{"channel": "tickers", "data": [ { "s": futuresTradablePair, "o": "46000", "l": "26829.541", "h": "46100", "c": "46100", "qty": "18736", "amt": "8556118.81658", "tC": 44, "sT": 1718785800000, "cT": 1718872244268, "dC": "0.0022", "bPx": "46000", "bSz": "46000", "aPx": "46100", "aSz": "9279", "ts": 1718872247385}]}`,
-	"Trades":                  `{"channel":"trades", "data": [ { "id": 291, "ts": 1718871802553, "s": futuresTradablePair, "px": "46100", "qty": "1", "amt": "461", "side": "buy", "cT": 1718871802534}]}`,
-	"Index Price":             `{"channel": "index_price", "data": [ { "ts": 1719226453000, "s": futuresTradablePair, "iPx": "34400"}]}`,
-	"Mark Price":              `{"channel":"mark_price", "data": [ { "ts": 1719226453000, "s": futuresTradablePair, "mPx": "34400"}]}`,
-	"Mark Price K-line Data":  `{"channel": "mark_price_candles_minute_1", "data": [[futuresTradablePair,"57800.17","57815.95","57809.65","57800.17",1725264900000,1725264959999,1725264919140]]}`,
-	"Index Price K-line Data": `{"channel": "index_candles_minute_1", "data": [ [futuresTradablePair,"57520.09","57614.9","57520.09","57609.89",1725248760000,1725248819999,1725248813187]]}`,
-	"Funding Rate":            `{"channel":"funding_rate", "data": [ { "ts": 1718874420000, "s": futuresTradablePair, "nFR": "0.000003", "fR": "0.000619", "fT": 1718874000000, "nFT": 1718874900000}]}`,
-	"Positions":               `{"channel":"positions", "data": [ { "symbol": futuresTradablePair, "posSide": "BOTH", "side": "buy", "mgnMode": "CROSS", "openAvgPx": "64999", "qty": "1", "oldQty": "0", "availQty": "1", "lever": 1, "fee": "-0.259996", "adl": "0", "liqPx": "-965678126.114070339063390145", "mgn": "604.99", "im": "604.99", "mm": "3.327445", "upl": "-45", "uplRatio": "-0.0743", "pnl": "0", "markPx": "60499", "mgnRatio": "0.000007195006959591", "state": "NORMAL", "ffee": "0", "fpnl": "0", "cTime": 1723459553457, "uTime": 1725330697439, "ts": 1725330697459}]}`,
-	"Orders":                  `{"channel": "orders", "data": [ { "symbol": futuresTradablePair, "side": "BUY", "type": "LIMIT", "mgnMode": "CROSS", "timeInForce": "GTC", "clOrdId": "polo353849510130364416", "sz": "1", "px": "64999", "reduceOnly": false, "posSide": "BOTH", "ordId": "353849510130364416", "state": "NEW", "source": "WEB", "avgPx": "0", "execQty": "0", "execAmt": "0", "feeCcy": "", "feeAmt": "0", "deductCcy": "", "deductAmt": "0", "actType": "TRADING", "qCcy": "USDT", "cTime": 1725330697421, "uTime": 1725330697421, "ts": 1725330697451}]}`,
-	"Trade":                   `{"channel": "trade", "data": [ { "symbol": futuresTradablePair, "side": "BUY", "ordId": "353849510130364416", "clOrdId": "polo353849510130364416", "role": "TAKER", "trdId": "48", "feeCcy": "USDT", "feeAmt": "0.259996", "deductCcy": "", "deductAmt": "0", "fpx": "64999", "fqty": "1", "uTime": 1725330697559, "ts": 1725330697579}]}`,
+	"Product Info":            `{"channel": "symbol", "data":[{"symbol": "BTC_USDT_PERP", "visibleStartTime": "1584721775000", "tradableStartTime": "1584721775000", "pxScale": "0.01,0.1,1,10,100", "lotSz": 1, "minSz": 1, "ctVal": "0.001", "status": "OPEN", "maxPx": "1000000", "minPx": "0.01", "marketMaxQty": 100000, "limitMaxQty": 100000, "maxQty": "1000000", "minQty": "1", "maxLever": "75", "lever": "20", "ctType": "LINEAR", "alias": "", "bAsset": ".PXBTUSDT", "bCcy": "BTC", "qCcy": "USDT", "sCcy": "USDT", "tSz": "0.01","oDate": "1547435912000", "iM": "0.0133", "mR": "5000", "mM": "0.006" } ], "action": "snapshot"}`,
+	"Orderbook":               `{"channel":"book","data":[{"asks":[["87854.92","9"],["87854.93","1"],["87861.31","1"],["87864.51","530"],["87866.84","21"]],"bids":[["87851.73","1"],["87851.72","1"],["87811.92","158"],["87810.84","9"],["87809.78","446"]],"id":3206990058,"ts":1765921966039,"s":"BTC_USDT_PERP","cT":1765921965951}]}`,
+	"Orderbook Lvl2":          `{"channel":"book_lv2","data":[{"asks":[["87845.63","1"],["87850.4","1"],["87859.98","9"],["87866.84","21"],["87888.32","33"],["87891.40","106"],["87894.48","705"],["87897.56","238"],["87900.64","762"],["87905.16","8"],["87911.17","34"],["87913.95","4040"],["87915.13","470"],["87919.09","199"],["87922.74","2141"],["87923.05","758"],["87931.52","1568"],["87937.09","10"],["87940.31","1392"],["87940.61","64"]],"bids":[["87842.42","1"],["87842.41","1"],["87835.72","1138"],["87834.64","226"],["87833.61","446"],["87833.56","26"],["87832.48","13"],["87831.40","130"],["87807.27","69"],["87798.48","935"],["87794.18","1932"],["87791.10","296"],["87789.69","1596"],["87788.02","320"],["87784.94","131"],["87781.86","242"],["87780.90","768"],["87772.11","1737"],["87771.33","910"],["87767.37","261"]],"lid":3206980818,"id":3206980819,"ts":1765921828543,"s":"BTC_USDT_PERP","cT":1765921827839}],"action":"snapshot"}`,
+	"Orderbook Lvl2 Update":   `{"channel":"book_lv2","data":[{"asks":[],"bids":[["87807.27","4"]],"lid":3206980819,"id":3206980843,"ts":1765921828626,"s":"BTC_USDT_PERP","cT":1765921828619}],"action":"update"}`,
+	"K-Line Data":             `{"channel": "candles_minute_1", "data": [ ["BTC_USDT_PERP","91883.46","91958.73","91883.46","91958.73","367.68438","4",2,1741243200000,1741243259999,1741243218348]]}`,
+	"K-Line Five Min Data":    `{"channel": "candles_minute_5", "data": [ ["BTC_USDT_PERP","91883.46","91958.73","91883.46","91958.73","367.68438","4",2,1741243200000,1741243259999,1741243218348]]}`,
+	"Tickers":                 `{"channel": "tickers", "data": [ { "s": "BTC_USDT_PERP", "o": "46000", "l": "26829.541", "h": "46100", "c": "46100", "qty": "18736", "amt": "8556118.81658", "tC": 44, "sT": 1718785800000, "cT": 1718872244268, "dC": "0.0022", "bPx": "46000", "bSz": "46000", "aPx": "46100", "aSz": "9279", "ts": 1718872247385}]}`,
+	"Trades":                  `{"channel":"trades", "data": [ { "id": 291, "ts": 1718871802553, "s": "BTC_USDT_PERP", "px": "46100", "qty": "1", "amt": "461", "side": "buy", "cT": 1718871802534}]}`,
+	"Index Price":             `{"channel": "index_price", "data": [ { "ts": 1719226453000, "s": "BTC_USDT_PERP", "iPx": "34400"}]}`,
+	"Mark Price":              `{"channel":"mark_price", "data": [ { "ts": 1719226453000, "s": "BTC_USDT_PERP", "mPx": "34400"}]}`,
+	"Mark Price K-line Data":  `{"channel": "mark_price_candles_minute_1", "data": [["BTC_USDT_PERP","57800.17","57815.95","57809.65","57800.17",1725264900000,1725264959999,1725264919140]]}`,
+	"Index Price K-line Data": `{"channel": "index_candles_minute_1", "data": [ ["BTC_USDT_PERP","57520.09","57614.9","57520.09","57609.89",1725248760000,1725248819999,1725248813187]]}`,
+	"Funding Rate":            `{"channel":"funding_rate", "data": [ { "ts": 1718874420000, "s": "BTC_USDT_PERP", "nFR": "0.000003", "fR": "0.000619", "fT": 1718874000000, "nFT": 1718874900000}]}`,
+	"Positions":               `{"channel":"positions", "data": [ { "symbol": "BTC_USDT_PERP", "posSide": "BOTH", "side": "buy", "mgnMode": "CROSS", "openAvgPx": "64999", "qty": "1", "oldQty": "0", "availQty": "1", "lever": 1, "fee": "-0.259996", "adl": "0", "liqPx": "-965678126.114070339063390145", "mgn": "604.99", "im": "604.99", "mm": "3.327445", "upl": "-45", "uplRatio": "-0.0743", "pnl": "0", "markPx": "60499", "mgnRatio": "0.000007195006959591", "state": "NORMAL", "ffee": "0", "fpnl": "0", "cTime": 1723459553457, "uTime": 1725330697439, "ts": 1725330697459}]}`,
+	"Orders":                  `{"channel": "orders", "data": [ { "symbol": "BTC_USDT_PERP", "side": "BUY", "type": "LIMIT", "mgnMode": "CROSS", "timeInForce": "GTC", "clOrdId": "polo353849510130364416", "sz": "1", "px": "64999", "reduceOnly": false, "posSide": "BOTH", "ordId": "353849510130364416", "state": "NEW", "source": "WEB", "avgPx": "0", "execQty": "0", "execAmt": "0", "feeCcy": "", "feeAmt": "0", "deductCcy": "", "deductAmt": "0", "actType": "TRADING", "qCcy": "USDT", "cTime": 1725330697421, "uTime": 1725330697421, "ts": 1725330697451}]}`,
+	"Trade":                   `{"channel": "trade", "data": [ { "symbol": "BTC_USDT_PERP", "side": "BUY", "ordId": "353849510130364416", "clOrdId": "polo353849510130364416", "role": "TAKER", "trdId": "48", "feeCcy": "USDT", "feeAmt": "0.259996", "deductCcy": "", "deductAmt": "0", "fpx": "64999", "fqty": "1", "uTime": 1725330697559, "ts": 1725330697579}]}`,
 	"Account Change":          `{"channel": "account", "data": [ { "state": "NORMAL", "eq": "9604385.495986629521985415", "isoEq": "0", "im": "281.27482", "mm": "65.7758462", "mmr": "0.000006848522086861", "upl": "702.005423182573616772", "availMgn": "9604104.221166629521985415", "details": [ { "ccy": "USDT", "eq": "9604385.495986629521985415", "isoEq": "0", "avail": "9603683.490563446948368643", "upl": "702.005423182573616772", "isoAvail": "0", "isoHold": "0", "isoUpl": "0", "im": "281.27482", "imr": "0.000029286081875569", "mm": "65.7758462", "mmr": "0.000006848522086861", "cTime": 1723431998599, "uTime": 1725329576649 } ], "cTime": 1689326308656, "uTime": 1725329576649, "ts": 1725329576659}]}`,
 }
 
@@ -2358,17 +2359,15 @@ func TestCancelFuturesOrders(t *testing.T) {
 
 func TestCloseAtMarketPrice(t *testing.T) {
 	t.Parallel()
-	// _, err := e.CloseAtMarketPrice(t.Context(), currency.EMPTYPAIR, "", "", "")
-	// require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
-	// _, err = e.CloseAtMarketPrice(t.Context(), futuresTradablePair, "", "", "")
-	// require.ErrorIs(t, err, margin.ErrInvalidMarginType)
-	// _, err = e.CloseAtMarketPrice(t.Context(), futuresTradablePair, "CROSS", "", "")
-	// require.ErrorIs(t, err, order.ErrClientOrderIDMustBeSet)
+	_, err := e.CloseAtMarketPrice(t.Context(), currency.EMPTYPAIR, "", "", "")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+	_, err = e.CloseAtMarketPrice(t.Context(), futuresTradablePair, "", "", "")
+	require.ErrorIs(t, err, margin.ErrInvalidMarginType)
 
-	// if !mockTests {
-	// 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	// }
-	_, err := e.CloseAtMarketPrice(generateContext(t), futuresTradablePair, "CROSS", "", "")
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	}
+	_, err = e.CloseAtMarketPrice(generateContext(t), futuresTradablePair, "CROSS", "", "")
 	require.NoError(t, err)
 }
 
@@ -2531,7 +2530,7 @@ func TestGetFuturesKlineData(t *testing.T) {
 	_, err := e.GetFuturesKlineData(t.Context(), currency.EMPTYPAIR, kline.FiveMin, time.Time{}, time.Time{}, 100)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
-	_, err = e.GetFuturesKlineData(t.Context(), currency.EMPTYPAIR, kline.FiveMin, time.Now(), time.Now().Add(-time.Hour*48), 100)
+	_, err = e.GetFuturesKlineData(t.Context(), futuresTradablePair, kline.FiveMin, time.Now(), time.Now().Add(-time.Hour*48), 100)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	_, err = e.GetFuturesKlineData(t.Context(), futuresTradablePair, kline.HundredMilliseconds, time.Time{}, time.Time{}, 100)

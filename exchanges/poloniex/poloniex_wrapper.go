@@ -1327,7 +1327,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				Price:           fOrder.Price.Float64(),
 				Exchange:        e.Name,
 				Pair:            fOrder.Symbol,
-				ReduceOnly:      fOrder.ReduceOnly,
+				ReduceOnly:      fOrder.ReduceOnly.Bool(),
 				Leverage:        fOrder.Leverage.Float64(),
 				ExecutedAmount:  fOrder.ExecQuantity.Float64(),
 				RemainingAmount: fOrder.Size.Float64() - fOrder.ExecQuantity.Float64(),
@@ -1407,7 +1407,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					return nil, err
 				}
 				detail := order.Detail{
-					OrderID:              tOrder.ID,
+					OrderID:              strconv.FormatUint(tOrder.ID, 10),
 					Side:                 tOrder.Side,
 					Amount:               tOrder.Amount.Float64(),
 					ExecutedAmount:       tOrder.FilledAmount.Float64(),

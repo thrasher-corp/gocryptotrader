@@ -636,6 +636,12 @@ type OrdersHistoryRequest struct {
 	HideCancel  bool
 }
 
+// OrderHistoryItem represents an order history item
+type OrderHistoryItem struct {
+	TradeOrder
+	ID uint64 `json:"id"`
+}
+
 // TradeOrder represents a trade order
 type TradeOrder struct {
 	ID             string            `json:"id"`

@@ -146,7 +146,7 @@ type FuturesOrderDetails struct {
 	FeeAmount                  types.Number      `json:"feeAmt"`
 	FeeCurrency                currency.Code     `json:"feeCcy"`
 	Leverage                   types.Number      `json:"lever"`
-	ReduceOnly                 bool              `json:"reduceOnly"`
+	ReduceOnly                 types.Boolean     `json:"reduceOnly"`
 	StopLossPrice              types.Number      `json:"slPx"`
 	StopLossTriggerPrice       string            `json:"slTrgPx"`
 	StopLossTriggerPriceType   string            `json:"slTrgPxType"`

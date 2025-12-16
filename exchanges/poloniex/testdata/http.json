@@ -10445,6 +10445,35 @@
        "1759093194968"
       ]
      }
+    },
+    {
+     "data": {
+      "currency": "ETH",
+      "amount": "1.50",
+      "address": "0xbb8d0d7c346daecc2380dabaa91f3ccf8ae232fb4"
+     },
+     "queryString": "",
+     "bodyParams": "{\"coin\":\"BTC\",\"network\":\"ERP\",\"amount\":\"1e-7\",\"address\":\"bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "P/vq7oFw/yOSVG1zZHfK7ymz1sJNBkXK8whPu31IJ5M="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1759093194968"
+      ]
+     }
     }
    ]
   },
@@ -11463,44 +11492,20 @@
       "code": 200,
       "data": [
        {
-        "bkPx": "103296.730000000000000000",
-        "posSide": "BOTH",
-        "side": "SELL",
-        "symbol": "BTCUSDTPERP",
-        "sz": "143",
-        "uTime": "1734349851016"
+        "symbol":"BTC_USDT_PERP",
+        "posSide":"BOTH",
+        "side":"SELL",
+        "sz":"2",
+        "bkPx":"2974.9661346666666666",
+        "uTime":"1765917388122"
        },
        {
-        "bkPx": "103339.530000000000000000",
-        "posSide": "BOTH",
-        "side": "SELL",
-        "symbol": "BTCUSDTPERP",
-        "sz": "1",
-        "uTime": "1734349848016"
-       },
-       {
-        "bkPx": "105777.400000000000000000",
-        "posSide": "BOTH",
-        "side": "BUY",
-        "symbol": "BTCUSDTPERP",
-        "sz": "9",
-        "uTime": "1734330078032"
-       },
-       {
-        "bkPx": "107156.100000000000000000",
-        "posSide": "BOTH",
-        "side": "BUY",
-        "symbol": "BTCUSDTPERP",
-        "sz": "11",
-        "uTime": "1734309603030"
-       },
-       {
-        "bkPx": "106868.890000000000000000",
-        "posSide": "BOTH",
-        "side": "BUY",
-        "symbol": "BTCUSDTPERP",
-        "sz": "19",
-        "uTime": "1734309393028"
+        "symbol":"BTC_USDT_PERP",
+        "posSide":"BOTH",
+        "side":"BUY",
+        "sz":"2",
+        "bkPx":"2903.9638973333333334",
+        "uTime":"1765912527011"
        }
       ],
       "msg": "success"
@@ -12671,6 +12676,71 @@
     {
      "data": {
       "code": 200,
+      "data": [
+        {
+            "avgPx": "0.6272",
+            "cTime": "1719973768748",
+            "cancelReason": "",
+            "clOrdId": "polo331380922769473536",
+            "deductAmt": "0",
+            "deductCcy": "0",
+            "execAmt": "1.8816",
+            "execQty": "3",
+            "feeAmt": "0.00009408",
+            "feeCcy": "USDT",
+            "lever": "20",
+            "mgnMode": "CROSS",
+            "posSide": "BOTH",
+            "ordId": "331380922769473536",
+            "px": "60000",
+            "reduceOnly": "false",
+            "side": "BUY",
+            "slPx": "",
+            "slTrgPx": "",
+            "slTrgPxType": "",
+            "source": "WEB",
+            "state": "FILLED",
+            "stpMode": "NONE",
+            "symbol": "BTC_USDT_PERP",
+            "sz": "3",
+            "timeInForce": "GTC",
+            "tpPx": "",
+            "tpTrgPx": "",
+            "tpTrgPxType": "",
+            "actType": "TRADING",
+            "qCcy": "USDT",        
+            "type": "LIMIT",
+            "uTime": "1719973768764"
+        }
+      ],
+      "msg": ""
+     },
+     "queryString": "ordId=12345\u0026symbol=BTC_USDT_PERP",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "q+fj3lPyXJOi/zuAEUrQb4ANIpx9dAwevwiIYtMLtlk="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1744053335462"
+      ]
+     }
+    },
+    {
+     "data": {
+      "code": 200,
       "data": [],
       "msg": ""
      },
@@ -12855,35 +12925,6 @@
     },
     {
      "data": {
-      "code": 400,
-      "data": [],
-      "msg": "Param error symbol"
-     },
-     "queryString": "direct=NEXT\u0026limit=100\u0026side=SELL\u0026symbol=BTCUSDT_PERP",
-     "bodyParams": "",
-     "headers": {
-      "Content-Type": [
-       "application/json"
-      ],
-      "Key": [
-       ""
-      ],
-      "Recvwindow": [
-       "1500"
-      ],
-      "Signature": [
-       "CVVEKq8kcTIU0U5lyWHdl8gMQlUjbrp6rQtjD9CEmGM="
-      ],
-      "Signaturemethod": [
-       "hmacSHA256"
-      ],
-      "Signtimestamp": [
-       "1742835652085"
-      ]
-     }
-    },
-    {
-     "data": {
       "code": 200,
       "data": [],
       "msg": ""
@@ -12947,6 +12988,70 @@
       "msg": ""
      },
      "queryString": "direct=NEXT\u0026limit=100\u0026side=SELL\u0026symbol=BTC_USDT_PERP",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "DWowdCyL90qQ3Hc28fCe1HnScNKAmqeR6HE/OVueJjI="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1754251004985"
+      ]
+     }
+    },
+    {
+     "data": {
+      "code": 200,
+      "data": [
+        {
+            "avgPx": "0",
+            "cTime": "1719974138337",
+            "clOrdId": "11c033ce-8d86-49e2-9503-f21c61de51ee",
+            "deductAmt": "0",
+            "deductCcy": "0",
+            "execAmt": "0",
+            "execQty": "0",
+            "feeAmt": "0",
+            "feeCcy": "",
+            "posSide": "BOTH",
+            "lever": "20",
+            "mgnMode": "CROSS",
+            "ordId": "331382472938094592",
+            "px": "60000",
+            "reduceOnly": false,
+            "side": "SELL",
+            "slPx": "0",
+            "slTrgPx": "",
+            "slTrgPxType": "",
+            "source": "API",
+            "state": "NEW",
+            "stpMode": "EXPIRE_TAKER",
+            "symbol": "BTC_USDT_PERP",
+            "sz": "2",
+            "timeInForce": "GTC",
+            "tpPx": "",
+            "tpTrgPx": "",
+            "tpTrgPxType": "",
+            "actType": "TRADING",
+            "qCcy": "USDT",
+            "type": "LIMIT",
+            "uTime": "1719974161941"
+        }
+      ],
+      "msg": ""
+     },
+     "queryString": "clOrdId=NEXT\u0026limit=100\u0026side=SELL\u0026symbol=BTC_USDT_PERP",
      "bodyParams": "",
      "headers": {
       "Content-Type": [
@@ -13124,11 +13229,15 @@
    "POST": [
     {
      "data": {
-      "code": 400,
-      "msg": "Param error symbol"
+      "code": 200,
+      "data": {
+       "clOrdId": "12345",
+       "ordId": "331380687661957120"
+      },
+      "msg": "Success"
      },
      "queryString": "",
-     "bodyParams": "{\"symbol\":\"BTCUSDT_PERP\",\"mgnMode\":\"CROSS\",\"clOrdId\":\"123123\"}",
+     "bodyParams": "{\"symbol\":\"BTC_USDT_PERP\",\"mgnMode\":\"CROSS\"}",
      "headers": {
       "Content-Type": [
        "application/json"
@@ -13140,13 +13249,13 @@
        "1500"
       ],
       "Signature": [
-       "C2GXnr2KglY6h3Nhl9HWLDWjNrEDZkwbAOPWuCpj3uM="
+       "MMBoIOMeGmJGXWpi8QHGKiQg/H5gwz20AVJnuGtdsos="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1742835810750"
+       "1754250970262"
       ]
      }
     },
