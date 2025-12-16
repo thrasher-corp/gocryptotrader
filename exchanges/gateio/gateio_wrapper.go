@@ -297,7 +297,6 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 	}
 	fPair, err := e.FormatExchangeCurrency(p, a)
 	if err != nil {
-		panic(a)
 		return nil, err
 	}
 	fPair = fPair.Upper()

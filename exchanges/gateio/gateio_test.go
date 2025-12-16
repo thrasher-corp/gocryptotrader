@@ -2540,7 +2540,7 @@ func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 func TestCreateAPIKeysOfSubAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.CreateAPIKeysOfSubAccount(t.Context(), CreateAPIKeySubAccountParams{
+	_, err := e.CreateAPIKeysOfSubAccount(t.Context(), &CreateAPIKeySubAccountParams{
 		SubAccountUserID: 12345,
 		Body: &SubAccountKey{
 			APIKeyName: "12312mnfsndfsfjsdklfjsdlkfj",

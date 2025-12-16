@@ -180,7 +180,7 @@ func (e *Exchange) GetSingleSubAccount(ctx context.Context, userID string) (*Sub
 //
 // name: Permission name (all permissions will be removed if no value is passed)
 // >> wallet: wallet, spot: spot/margin, futures: perpetual contract, delivery: delivery, earn: earn, options: options
-func (e *Exchange) CreateAPIKeysOfSubAccount(ctx context.Context, arg CreateAPIKeySubAccountParams) (*APIDetailResponse, error) {
+func (e *Exchange) CreateAPIKeysOfSubAccount(ctx context.Context, arg *CreateAPIKeySubAccountParams) (*APIDetailResponse, error) {
 	if arg.SubAccountUserID == 0 {
 		return nil, errInvalidSubAccountUserID
 	}
@@ -404,14 +404,16 @@ func (e *Exchange) GetOrderbook(ctx context.Context, pairString, interval string
 
 // GetMarketTrades retrieve market trades
 func (e *Exchange) GetMarketTrades(ctx context.Context, pairString currency.Pair, limit uint64, lastID string, reverse bool, from, to time.Time, page uint64) ([]*Trade, error) {
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if pairString.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params.Set("currency_pair", pairString.String())
-	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
-	}
 	if lastID != "" {
 		params.Set("last_id", lastID)
 	}
@@ -427,24 +429,28 @@ func (e *Exchange) GetMarketTrades(ctx context.Context, pairString currency.Pair
 	if page != 0 {
 		params.Set("page", strconv.FormatUint(page, 10))
 	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
 	var response []*Trade
 	return response, e.SendHTTPRequest(ctx, exchange.RestSpot, publicMarketTradesSpotEPL, common.EncodeURLValues("spot/trades", params), &response)
 }
 
 // GetCandlesticks retrieves market candlesticks.
 func (e *Exchange) GetCandlesticks(ctx context.Context, currencyPair currency.Pair, limit uint64, from, to time.Time, interval kline.Interval) ([]*Candlestick, error) {
-	params := url.Values{}
 	if currencyPair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	params.Set("currency_pair", currencyPair.String())
-	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
+			return nil, err
+		}
 	}
-	var err error
+	params := url.Values{}
+	params.Set("currency_pair", currencyPair.String())
 	if interval.Duration().Microseconds() != 0 {
 		var intervalString string
-		intervalString, err = getIntervalString(interval)
+		intervalString, err := getIntervalString(interval)
 		if err != nil {
 			return nil, err
 		}
@@ -455,6 +461,9 @@ func (e *Exchange) GetCandlesticks(ctx context.Context, currencyPair currency.Pa
 	}
 	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var candles []*Candlestick
 	return candles, e.SendHTTPRequest(ctx, exchange.RestSpot, publicCandleStickSpotEPL, common.EncodeURLValues("spot/candlesticks", params), &candles)
@@ -614,16 +623,20 @@ func (e *Exchange) getLoans(ctx context.Context, ccy currency.Code, loanType, pa
 
 // GetInterestDeductionRecords retrieves interest deduction records
 func (e *Exchange) GetInterestDeductionRecords(ctx context.Context, ccy currency.Code, page, limit uint64, startTime, endTime time.Time, loanType string) ([]*InterestDeductionRecord, error) {
-	params := url.Values{}
-	if !ccy.IsEmpty() {
-		params.Set("currency", ccy.String())
-	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		err := common.StartEndTimeCheck(startTime, endTime)
 		if err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	if !startTime.IsZero() {
 		params.Set("from", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("to", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if page > 0 {
@@ -910,18 +923,17 @@ func (e *Exchange) CancelSingleSpotOrder(ctx context.Context, orderID, currencyP
 
 // GetMySpotTradingHistory retrieves personal trading history
 func (e *Exchange) GetMySpotTradingHistory(ctx context.Context, p currency.Pair, orderID string, page, limit uint64, crossMargin bool, from, to time.Time) ([]*SpotPersonalTradeHistory, error) {
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if p.IsPopulated() {
 		params.Set("currency_pair", p.String())
 	}
 	if orderID != "" {
 		params.Set("order_id", orderID)
-	}
-	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
-	}
-	if page > 0 {
-		params.Set("page", strconv.FormatUint(page, 10))
 	}
 	if crossMargin {
 		params.Set("account", asset.CrossMargin.String())
@@ -931,6 +943,12 @@ func (e *Exchange) GetMySpotTradingHistory(ctx context.Context, p currency.Pair,
 	}
 	if !to.IsZero() && to.After(from) {
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatUint(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var response []*SpotPersonalTradeHistory
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotTradingHistoryEPL, http.MethodGet, "spot/my_trades", params, nil, &response)
@@ -1241,23 +1259,26 @@ func (e *Exchange) GenerateCurrencyDepositAddress(ctx context.Context, ccy curre
 
 // GetWithdrawalRecords retrieves withdrawal records. Record time range cannot exceed 30 days
 func (e *Exchange) GetWithdrawalRecords(ctx context.Context, ccy currency.Code, from, to time.Time, offset, limit uint64) ([]*WithdrawalResponse, error) {
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
 	}
-	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
-	}
 	if offset > 0 {
 		params.Set("offset", strconv.FormatUint(offset, 10))
 	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
 	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.Unix(), 10))
-		if err := common.StartEndTimeCheck(from, to); err != nil && !to.IsZero() {
-			return nil, err
-		} else if !to.IsZero() {
-			params.Set("to", strconv.FormatInt(to.Unix(), 10))
-		}
+	}
+	if !to.IsZero() {
+		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
 	var withdrawals []*WithdrawalResponse
 	return withdrawals, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletWithdrawalRecordsEPL, http.MethodGet, "wallet/withdrawals", params, nil, &withdrawals)
@@ -1265,6 +1286,11 @@ func (e *Exchange) GetWithdrawalRecords(ctx context.Context, ccy currency.Code, 
 
 // GetDepositRecords retrieves deposit records. Record time range cannot exceed 30 days
 func (e *Exchange) GetDepositRecords(ctx context.Context, ccy currency.Code, from, to time.Time, offset, limit uint64) ([]*DepositRecord, error) {
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil && !to.IsZero() {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -1277,9 +1303,8 @@ func (e *Exchange) GetDepositRecords(ctx context.Context, ccy currency.Code, fro
 	}
 	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.Unix(), 10))
-		if err := common.StartEndTimeCheck(from, to); err != nil && !to.IsZero() {
-			return nil, err
-		}
+	}
+	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
 	var depositHistories []*DepositRecord
@@ -1348,21 +1373,26 @@ func (e *Exchange) SubAccountTransfer(ctx context.Context, arg *SubAccountTransf
 
 // GetSubAccountTransferHistory retrieve transfer records between main and sub accounts.
 // retrieve transfer records between main and sub accounts. Record time range cannot exceed 30 days
-// Note: only records after 2020-04-10 can be retrieved
+// Note: only records after 2020-04-10 can be retrieved // TODO:
 func (e *Exchange) GetSubAccountTransferHistory(ctx context.Context, subAccountUserID string, from, to time.Time, offset, limit uint64) ([]*SubAccountTransferResponse, error) {
-	params := url.Values{}
-	if subAccountUserID != "" {
-		params.Set("sub_uid", subAccountUserID)
-	}
 	startingTime, err := time.Parse("2006-Jan-02", "2020-Apr-10")
 	if err != nil {
 		return nil, err
 	}
-	if err := common.StartEndTimeCheck(startingTime, from); err == nil {
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(startingTime, from); err != nil {
+			return nil, err
+		}
+	}
+	params := url.Values{}
+	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.Unix(), 10))
 	}
-	if err := common.StartEndTimeCheck(from, to); err == nil {
+	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	}
+	if subAccountUserID != "" {
+		params.Set("sub_uid", subAccountUserID)
 	}
 	if offset > 0 {
 		params.Set("offset", strconv.FormatUint(offset, 10))
@@ -3829,13 +3859,16 @@ func (e *Exchange) GetDualInvestmentProductList(ctx context.Context, planID uint
 
 // GetDualInvestmentOrderList dual Investment order list
 func (e *Exchange) GetDualInvestmentOrderList(ctx context.Context, from, to time.Time, page, limit int64) ([]*DualInvestmentOrderDetail, error) {
-	params := url.Values{}
 	if !from.IsZero() && !to.IsZero() {
-		err := common.StartEndTimeCheck(from, to)
-		if err != nil {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
+	}
+	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
 	}
 	if limit > 0 {
@@ -3883,13 +3916,16 @@ func (e *Exchange) GetStructuredProductList(ctx context.Context, productType, st
 
 // GetStructuredProductOrderList retrieves structured product order list
 func (e *Exchange) GetStructuredProductOrderList(ctx context.Context, from, to time.Time, page, limit int64) ([]*StructuredProductOrderDetail, error) {
-	params := url.Values{}
 	if !from.IsZero() && !to.IsZero() {
-		err := common.StartEndTimeCheck(from, to)
-		if err != nil {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
+	}
+	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
 	}
 	if page > 0 {
@@ -4097,6 +4133,11 @@ func (e *Exchange) GetMultiCurrencyCollateralRepaymentRecords(ctx context.Contex
 	if operationType == "" {
 		return nil, errLoanTypeIsRequired
 	}
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	params.Set("type", operationType)
 	if !borrowCurrency.IsEmpty() {
@@ -4108,12 +4149,10 @@ func (e *Exchange) GetMultiCurrencyCollateralRepaymentRecords(ctx context.Contex
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	if !from.IsZero() && !to.IsZero() {
-		err := common.StartEndTimeCheck(from, to)
-		if err != nil {
-			return nil, err
-		}
+	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
+	}
+	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
 	}
 	var resp []*MultiCurrencyCollateralRepayment
@@ -4137,6 +4176,11 @@ func (e *Exchange) AddOrWithdrawCollateral(ctx context.Context, arg *AddOrWithdr
 // GetBrokerTransactionHistory retrieves broker obtains transaction history of recommended users
 // Record query time range cannot exceed 30 days
 func (e *Exchange) GetBrokerTransactionHistory(ctx context.Context, currencyPair string, userID uint64, from, to time.Time, limit, offset int) (*BrokerRebateTransactionHistory, error) {
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if currencyPair != "" {
 		params.Set("currency_pair", currencyPair)
@@ -4144,12 +4188,10 @@ func (e *Exchange) GetBrokerTransactionHistory(ctx context.Context, currencyPair
 	if userID != 0 {
 		params.Set("user_id", strconv.FormatUint(userID, 10))
 	}
-	if !from.IsZero() && !to.IsZero() {
-		err := common.StartEndTimeCheck(from, to)
-		if err != nil {
-			return nil, err
-		}
+	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
+	}
+	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
 	}
 	if limit > 0 {
@@ -4165,6 +4207,11 @@ func (e *Exchange) GetBrokerTransactionHistory(ctx context.Context, currencyPair
 // GetBrokerRebateHistory broker obtains rebate history of recommended users
 // Record query time range cannot exceed 30 days
 func (e *Exchange) GetBrokerRebateHistory(ctx context.Context, ccy currency.Code, userID uint64, from, to time.Time, limit, offset int) (*BrokerRebateHistory, error) {
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -4172,12 +4219,10 @@ func (e *Exchange) GetBrokerRebateHistory(ctx context.Context, ccy currency.Code
 	if userID != 0 {
 		params.Set("user_id", strconv.FormatUint(userID, 10))
 	}
-	if !from.IsZero() && !to.IsZero() {
-		err := common.StartEndTimeCheck(from, to)
-		if err != nil {
-			return nil, err
-		}
+	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
+	}
+	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
 	}
 	if limit > 0 {
@@ -4193,6 +4238,11 @@ func (e *Exchange) GetBrokerRebateHistory(ctx context.Context, ccy currency.Code
 // GetPartnerRebateRecordsRecommendedUsers partner obtains rebate records of recommended users
 // Record query time range cannot exceed 30 days
 func (e *Exchange) GetPartnerRebateRecordsRecommendedUsers(ctx context.Context, ccy currency.Code, userID uint64, from, to time.Time, limit, offset int) (*UsersRebateRecords, error) {
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -4200,12 +4250,10 @@ func (e *Exchange) GetPartnerRebateRecordsRecommendedUsers(ctx context.Context, 
 	if userID != 0 {
 		params.Set("user_id", strconv.FormatUint(userID, 10))
 	}
-	if !from.IsZero() && !to.IsZero() {
-		err := common.StartEndTimeCheck(from, to)
-		if err != nil {
-			return nil, err
-		}
+	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
+	}
+	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
 	}
 	if limit > 0 {
@@ -4238,16 +4286,19 @@ func (e *Exchange) GetPartnerSubordinateList(ctx context.Context, userID uint64,
 // BrokerObtainsUserRebateRecords broker obtains user's rebate records
 // Record query time range cannot exceed 30 days
 func (e *Exchange) BrokerObtainsUserRebateRecords(ctx context.Context, userID uint64, from, to time.Time, limit, offset int64) (*BrokerCommissionHistory, error) {
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if userID != 0 {
 		params.Set("user_id", strconv.FormatUint(userID, 10))
 	}
-	if !from.IsZero() && !to.IsZero() {
-		err := common.StartEndTimeCheck(from, to)
-		if err != nil {
-			return nil, err
-		}
+	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
+	}
+	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
 	}
 	if limit > 0 {
@@ -4263,23 +4314,26 @@ func (e *Exchange) BrokerObtainsUserRebateRecords(ctx context.Context, userID ui
 // GetRebateBrokerTransactionHistory retrieves broker obtains user's trading history
 // Record query time range cannot exceed 30 days
 func (e *Exchange) GetRebateBrokerTransactionHistory(ctx context.Context, userID uint64, from, to time.Time, limit, offset int64) (*BrokerRebateUserTradingHistory, error) {
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if userID != 0 {
 		params.Set("user_id", strconv.FormatUint(userID, 10))
 	}
-	if !from.IsZero() && !to.IsZero() {
-		err := common.StartEndTimeCheck(from, to)
-		if err != nil {
-			return nil, err
-		}
+	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
-		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
 	}
-	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+	if !to.IsZero() {
+		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
 	}
 	if offset > 0 {
 		params.Set("offset", strconv.FormatInt(offset, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *BrokerRebateUserTradingHistory
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "rebate/broker/transaction_history", params, nil, &resp)
