@@ -1920,7 +1920,8 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		resp := make([]fundingrate.LatestRateResponse, 0, len(contracts))
 		for i := range contracts {
 			timeOfNextFundingRate := time.Now().Add(time.Duration(contracts[i].NextFundingRateTime) * time.Millisecond).Truncate(time.Hour).UTC()
-			cp := currency.NewPair(contracts[i].BaseCurrency, currency.NewCode(contracts[i].Symbol[len(contracts[i].BaseCurrency.String()):]))
+			cp := currency.NewPair(contracts[i].BaseCurrency, 
+				currency.NewCode(contracts[i].Symbol[len(contracts[i].BaseCurrency.String()):]))
 			var isPerp bool
 			isPerp, err = e.IsPerpetualFutureCurrency(r.Asset, cp)
 			if err != nil {
