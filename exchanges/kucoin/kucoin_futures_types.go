@@ -88,7 +88,7 @@ type Contract struct {
 	SellLimit                          float64         `json:"sellLimit"`
 	AdjustK                            json.RawMessage `json:"adjustK"`              // Null value returned
 	AdjustM                            json.RawMessage `json:"adjustM"`              // Null value returned
-	AdjustMmrLevConstant               json.RawMessage `json:"adjustMmrLevConstant"` // Null value returned
+	AdjustMMRLeverageConstant          json.RawMessage `json:"adjustMmrLevConstant"` // Null value returned
 	AdjustActiveTime                   json.RawMessage `json:"adjustActiveTime"`     // Null value returned
 	CrossRiskLimit                     float64         `json:"crossRiskLimit"`
 	MarketStage                        string          `json:"marketStage"`
