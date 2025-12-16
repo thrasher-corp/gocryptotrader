@@ -1874,7 +1874,8 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 		timeOfCurrentFundingRate := time.Now().Add((time.Duration(contracts[i].NextFundingRateTime) * time.Millisecond) - fri).Truncate(time.Hour).UTC()
 		resp[i] = futures.Contract{
 			Exchange:           e.Name,
-			Name:               currency.NewPair(contracts[i].BaseCurrency, currency.NewCode(contracts[i].Symbol[len(contracts[i].BaseCurrency.String()):])),
+			Name:               currency.NewPair(contracts[i].BaseCurrency, 
+				currency.NewCode(contracts[i].Symbol[len(contracts[i].BaseCurrency.String()):])),
 			Underlying:         currency.NewPair(contracts[i].BaseCurrency, contracts[i].QuoteCurrency),
 			SettlementCurrency: contracts[i].SettleCurrency,
 			MarginCurrency:     contracts[i].SettleCurrency,
