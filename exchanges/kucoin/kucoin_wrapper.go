@@ -2324,7 +2324,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			}
 
 			priceDivisor := 1.0
-			if contract[x].Symbol[:2] == "10" { // handle 1000SHIBUSDT, 1000PEPEUSDT etc; screen 1INCHUSDT
+			if contract[x].Symbol[:2] == "10" { // handle 1000SHIBUSDT, 1000PEPEUSDT etc; exclude 1INCHUSDT
 				for _, r := range contract[x].Symbol[1:] {
 					if r != '0' {
 						break
