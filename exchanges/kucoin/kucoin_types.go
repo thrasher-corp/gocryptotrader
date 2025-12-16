@@ -109,7 +109,7 @@ type SymbolInfo struct {
 	FeeCategory                     int64         `json:"feeCategory"`
 	MakerFeeCoefficient             types.Number  `json:"makerFeeCoefficient"`
 	TakerFeeCoefficient             types.Number  `json:"takerFeeCoefficient"`
-	ST                              bool          `json:"st"`
+	SpecialTreatment                bool          `json:"st"`
 	CallAuctionIsEnabled            bool          `json:"callauctionIsEnabled"`
 	CallAuctionPriceFloor           types.Number  `json:"callauctionPriceFloor"`
 	CallAuctionPriceCeiling         types.Number  `json:"callauctionPriceCeiling"`
