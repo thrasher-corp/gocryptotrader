@@ -20,8 +20,6 @@ func (e *Exchange) WsCreateOrder(ctx context.Context, arg *PlaceOrderRequest) (*
 	}
 	if len(resp) != 1 {
 		return nil, fmt.Errorf("%w: %w", order.ErrPlaceFailed, common.ErrInvalidResponse)
-	} else if resp[0].Code != 0 && resp[0].Code != 200 {
-		return nil, fmt.Errorf("%w: error code: %d message: %s", order.ErrPlaceFailed, resp[0].Code, resp[0].Message)
 	}
 	return resp[0], nil
 }

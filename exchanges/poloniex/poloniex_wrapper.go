@@ -968,11 +968,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 					return cancelAllOrdersResponse, err
 				}
 				for _, wco := range wsResponse {
-					if wco.Code == 0 || wco.Code == 200 {
-						cancelAllOrdersResponse.Status[strconv.FormatUint(wco.OrderID, 10)] = wco.State
-					} else {
-						cancelAllOrdersResponse.Status[strconv.FormatUint(wco.OrderID, 10)] = "Failed"
-					}
+					cancelAllOrdersResponse.Status[strconv.FormatUint(wco.OrderID, 10)] = wco.State
 				}
 			} else {
 				resp, err := e.CancelTradeOrders(ctx, pairs.Strings(), []AccountType{AccountType(cancelOrd.AssetType)})
@@ -1871,16 +1867,8 @@ func (e *Exchange) WebsocketCancelOrder(ctx context.Context, req *order.Cancel) 
 	if err := req.Validate(req.StandardCancel()); err != nil {
 		return err
 	}
-	resp, err := e.WsCancelMultipleOrdersByIDs(ctx, []string{req.OrderID}, []string{req.ClientOrderID})
-	if err != nil {
-		return err
-	}
-	if len(resp) != 1 {
-		return common.ErrNoResponse
-	} else if resp[0].Code != 200 && resp[0].Code != 0 {
-		return fmt.Errorf("%w: code: %d message: %s", order.ErrCancelFailed, resp[0].Code, resp[0].Message)
-	}
-	return nil
+	_, err := e.WsCancelMultipleOrdersByIDs(ctx, []string{req.OrderID}, []string{req.ClientOrderID})
+	return err
 }
 
 // orderTypeString return a string representation of order type
