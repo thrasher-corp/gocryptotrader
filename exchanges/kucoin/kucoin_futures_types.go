@@ -78,9 +78,9 @@ type Contract struct {
 	HighPrice                          float64         `json:"highPrice"`
 	PriceChangePercentage              float64         `json:"priceChgPct"`
 	PriceChange                        float64         `json:"priceChg"`
-	K                                  float64         `json:"k"`
-	M                                  float64         `json:"m"`
-	F                                  float64         `json:"f"`
+	K                                  float64         `json:"k"` // Max open size amplification factor
+	M                                  float64         `json:"m"` // Margin-curve slope/smoothing constant (affects MMR growth with size)
+	F                                  float64         `json:"f"` // IMR to MMR safety multiplier
 	MMRLimit                           float64         `json:"mmrLimit"`
 	MMRLeverageConstant                float64         `json:"mmrLevConstant"`
 	SupportCross                       bool            `json:"supportCross"`
