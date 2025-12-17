@@ -50,7 +50,6 @@ const (
 	getFundingRateHistory            = "public/get_funding_rate_history"
 	getFundingRateValue              = "public/get_funding_rate_value"
 	getHistoricalVolatility          = "public/get_historical_volatility"
-	getCurrencyIndexPrice            = "public/get_index"
 	getIndexPrice                    = "public/get_index_price"
 	getIndexPriceNames               = "public/get_index_price_names"
 	getInstrument                    = "public/get_instrument"
