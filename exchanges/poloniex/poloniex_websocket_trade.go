@@ -21,7 +21,7 @@ func (e *Exchange) WsCreateOrder(ctx context.Context, arg *PlaceOrderRequest) (*
 	if len(resp) != 1 {
 		return nil, fmt.Errorf("%w: %w", order.ErrPlaceFailed, common.ErrInvalidResponse)
 	}
-	return resp[0], nil
+	return resp[0], nil //nolint:nilness // resp is guaranteed to be non-nil and contain exactly one element
 }
 
 // WsCancelMultipleOrdersByIDs batch cancel one or many active orders in an account by IDs through the websocket stream.
