@@ -15,7 +15,7 @@ func (e *Exchange) WsCreateOrder(ctx context.Context, arg *PlaceOrderRequest) (*
 		return nil, err
 	}
 	var resp []*OrderIDResponse
-	if err := e.SendWebsocketRequest(ctx, "createOrder", arg, &resp); err != nil {
+	if err := SendWebsocketRequest(ctx, e, "createOrder", arg, resp); err != nil {
 		return nil, fmt.Errorf("%w: %w", order.ErrPlaceFailed, err)
 	}
 	if len(resp) != 1 {
@@ -39,7 +39,7 @@ func (e *Exchange) WsCancelMultipleOrdersByIDs(ctx context.Context, orderIDs, cl
 		params["orderIds"] = orderIDs
 	}
 	var resp []*WsCancelOrderResponse
-	if err := e.SendWebsocketRequest(ctx, "cancelOrders", params, &resp); err != nil {
+	if err := SendWebsocketRequest(ctx, e, "cancelOrders", params, resp); err != nil {
 		return nil, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
 	}
 	return resp, nil
@@ -55,18 +55,24 @@ func (e *Exchange) WsCancelTradeOrders(ctx context.Context, symbols []string, ac
 		args["accountTypes"] = accountTypes
 	}
 	var resp []*WsCancelOrderResponse
-	if err := e.SendWebsocketRequest(ctx, "cancelAllOrders", args, &resp); err != nil {
+	if err := SendWebsocketRequest(ctx, e, "cancelAllOrders", args, resp); err != nil {
 		return nil, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
 	}
 	return resp, nil
 }
 
 // SendWebsocketRequest sends a websocket request through the private connection
-func (e *Exchange) SendWebsocketRequest(ctx context.Context, event string, arg, response any) error {
+func SendWebsocketRequest[T hasError](ctx context.Context,
+	e *Exchange,
+	event string,
+	arg any,
+	response []T,
+) error {
 	conn, err := e.Websocket.GetConnection(connSpotPrivate)
 	if err != nil {
 		return err
 	}
+
 	input := &struct {
 		ID     string `json:"id"`
 		Event  string `json:"event"`
@@ -76,6 +82,7 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, event string, arg, 
 		Event:  event,
 		Params: arg,
 	}
+
 	e.spotSubMtx.Lock()
 	result, err := conn.SendMessageReturnResponse(ctx, sWebsocketPrivateEPL, input.ID, input)
 	e.spotSubMtx.Unlock()
@@ -83,11 +90,22 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, event string, arg, 
 		return err
 	}
 
-	if err := json.Unmarshal(result, &WebsocketResponse{Data: response}); err != nil {
+	if err := json.Unmarshal(result, &WebsocketResponse{Data: &response}); err != nil {
 		return err
 	}
 	if response == nil {
 		return common.ErrNoResponse
+	}
+
+	return checkForErrorInSliceResponse(response)
+}
+
+func checkForErrorInSliceResponse[T hasError](slice []T) error {
+	var err error
+	for _, v := range slice {
+		if e := v.Error(); e != nil {
+			err = common.AppendError(err, e)
+		}
 	}
 	return err
 }

@@ -2912,3 +2912,28 @@ func TestConnect(t *testing.T) {
 	require.NoError(t, e.Websocket.Connect())
 	assert.True(t, e.Websocket.IsConnected(), "websocket should be connected")
 }
+
+func TestWebsocketSliceErrorCheck(t *testing.T) {
+	t.Parallel()
+	results := []struct {
+		in       string
+		hasError bool
+		sliceLen int
+	}{
+		{in: `{"data":[{ "orderId": 205343650954092544, "clientOrderId": "", "message": "", "code": 200 }]}`, sliceLen: 1},
+		{in: `{ "id": "123457", "data": [{ "orderId": 0, "clientOrderId": null, "message": "Currency trade disabled", "code": 21352 }] }`, hasError: true, sliceLen: 1},
+		{in: `{ "id": "123457", "data": [{ "orderId": 205343650954092544, "clientOrderId": "", "message": "", "code": 200 }, { "orderId": 0, "clientOrderId": null, "message": "Currency trade disabled", "code": 21352 }] }`, hasError: true, sliceLen: 2},
+	}
+
+	response := []*WsCancelOrderResponse{}
+	for _, elem := range results {
+		require.NoError(t, json.Unmarshal([]byte(elem.in), &WebsocketResponse{Data: &response}))
+		assert.NotNil(t, response)
+		assert.Len(t, response, elem.sliceLen)
+		if elem.hasError {
+			assert.Error(t, checkForErrorInSliceResponse(response))
+		} else {
+			assert.NoError(t, checkForErrorInSliceResponse(response))
+		}
+	}
+}
