@@ -699,8 +699,10 @@ type CancelOrderResponse struct {
 
 // WsCancelOrderResponse represents a websocket cancel orders instance.
 type WsCancelOrderResponse struct {
-	OrderID uint64 `json:"orderId"`
-	CancelOrderResponse
+	OrderID       uint64 `json:"orderId"`
+	ClientOrderID string `json:"clientOrderId"`
+	State         string `json:"state"`
+	statusResponse
 }
 
 // CancelOrdersRequest represents cancel spot order request parameters

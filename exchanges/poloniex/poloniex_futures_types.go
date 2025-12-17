@@ -11,8 +11,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
+// MarginMode represents margin mode type for futures orders
 type MarginMode margin.Type
 
+// MarshalText implements encoding.TextMarshaler and serializes MarginMode to a string
 func (m MarginMode) MarshalText() ([]byte, error) {
 	switch margin.Type(m) {
 	case margin.Multi:

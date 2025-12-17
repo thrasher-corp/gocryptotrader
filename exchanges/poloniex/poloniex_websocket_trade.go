@@ -89,10 +89,5 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, event string, arg, 
 	if response == nil {
 		return common.ErrNoResponse
 	}
-	if errTypes, ok := response.([]hasError); ok {
-		for _, errType := range errTypes {
-			err = common.AppendError(err, errType.Error())
-		}
-	}
 	return err
 }
