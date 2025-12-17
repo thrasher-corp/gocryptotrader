@@ -3074,6 +3074,7 @@ var (
 	AIDOGE           = NewCode("AIDOGE")
 	PEPE             = NewCode("PEPE")
 	USDCM            = NewCode("USDCM")
+	SUSDT            = NewCode("SUSDT")
 	EURR             = NewCode("EURR")
 
 	stables = Currencies{
