@@ -2721,18 +2721,20 @@ func optionComboPairToString(pair currency.Pair) string {
 // e.g. BTC-FS-28NOV25_PERP -> BTC-FS-28NOV25_PERP (inverse, unchanged)
 func futureComboPairToString(pair currency.Pair) string {
 	s := pair.String()
-	firstDash := strings.IndexByte(s, '-')
-	if firstDash == -1 {
+	before, after, found := strings.Cut(s, "-")
+	if !found {
 		return s
 	}
-	afterFirst := s[firstDash+1:]
+
 	// Must have "USDC-" immediately after first dash (linear combo)
-	if len(afterFirst) < 5 || afterFirst[:5] != "USDC-" {
+	if len(after) < 5 || after[:5] != "USDC-" {
 		return s
 	}
+
 	// Need at least one more dash after "USDC-" to have 4+ parts
-	if strings.IndexByte(afterFirst[5:], '-') == -1 {
+	if !strings.Contains(after[5:], "-") {
 		return s
 	}
-	return s[:firstDash] + "_" + s[firstDash+1:]
+
+	return before + "_" + after
 }
