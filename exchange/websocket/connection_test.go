@@ -67,5 +67,5 @@ func TestConnectionSubscriptions(t *testing.T) {
 	require.Nil(t, ws.Subscriptions())
 	ws.subscriptions = subscription.NewStore()
 	require.NotNil(t, ws.Subscriptions())
-	assert.Equal(t, ws.subscriptions, ws.Subscriptions())
+	testsubs.EqualLists(t, ws.subscriptions, ws.Subscriptions())
 }
