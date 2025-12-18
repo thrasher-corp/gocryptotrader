@@ -2720,14 +2720,19 @@ func optionComboPairToString(pair currency.Pair) string {
 // e.g. ETH-USDC-FS-28NOV25_PERP -> ETH_USDC-FS-28NOV25_PERP (linear)
 // e.g. BTC-FS-28NOV25_PERP -> BTC-FS-28NOV25_PERP (inverse, unchanged)
 func futureComboPairToString(pair currency.Pair) string {
-	parts := strings.Split(pair.String(), "-")
-	// Leave unchanged when:
-	// * length <= 3 (not enough info to be a combo needing underscore)
-	// * second token is not USDC (inverse future combo)
-	if len(parts) <= 3 || parts[1] != "USDC" {
-		return strings.Join(parts, "-")
+	s := pair.String()
+	firstDash := strings.IndexByte(s, '-')
+	if firstDash == -1 {
+		return s
 	}
-	// For linear future combos with USDC, insert underscore after base
-	// e.g. ETH-USDC-FS-28NOV25_PERP -> ETH_USDC-FS-28NOV25_PERP
-	return parts[0] + "_" + strings.Join(parts[1:], "-")
+	afterFirst := s[firstDash+1:]
+	// Must have "USDC-" immediately after first dash (linear combo)
+	if len(afterFirst) < 5 || afterFirst[:5] != "USDC-" {
+		return s
+	}
+	// Need at least one more dash after "USDC-" to have 4+ parts
+	if strings.IndexByte(afterFirst[5:], '-') == -1 {
+		return s
+	}
+	return s[:firstDash] + "_" + s[firstDash+1:]
 }

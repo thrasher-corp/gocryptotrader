@@ -3769,6 +3769,8 @@ func TestFutureComboPairToString(t *testing.T) {
 		{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.NewCode("FS-30JAN26_26DEC25")}:   "BTC-FS-30JAN26_26DEC25",
 		{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.NewCode("USDC-FS-28NOV25_PERP")}: "BTC_USDC-FS-28NOV25_PERP",
 		{Delimiter: currency.DashDelimiter, Base: currency.ETH, Quote: currency.NewCode("USDC-FS-28NOV25_PERP")}: "ETH_USDC-FS-28NOV25_PERP",
+		{Base: currency.BTC, Quote: currency.USDT}:                                                               "BTCUSDT",            // no dash at all
+		{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.NewCode("USDC-PERPETUAL")}:       "BTC-USDC-PERPETUAL", // USDC- prefix but no dash after (3 parts)
 	} {
 		assert.Equal(t, exp, futureComboPairToString(pair), "futureComboPairToString should return correctly")
 	}
