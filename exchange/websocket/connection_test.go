@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 )
 
 func TestMatchReturnResponses(t *testing.T) {
@@ -67,5 +68,5 @@ func TestConnectionSubscriptions(t *testing.T) {
 	require.Nil(t, ws.Subscriptions())
 	ws.subscriptions = subscription.NewStore()
 	require.NotNil(t, ws.Subscriptions())
-	testsubs.EqualLists(t, ws.subscriptions, ws.Subscriptions())
+	testsubs.EqualLists(t, ws.subscriptions.List(), ws.Subscriptions().List())
 }
