@@ -275,7 +275,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	require.ErrorIs(t, err, errDastardlyReason)
 
 	ws.connectionManager[0].setup.Connector = func(ctx context.Context, conn Connection) error {
-		return conn.Dial(ctx, gws.DefaultDialer, nil)
+		return conn.Dial(ctx, gws.DefaultDialer, nil, nil)
 	}
 	err = ws.Connect()
 	require.ErrorIs(t, err, errDastardlyReason)
@@ -469,7 +469,7 @@ func TestDial(t *testing.T) {
 			t.Log("Proxy testing not enabled, skipping")
 			continue
 		}
-		err := testCases[i].WC.Dial(t.Context(), &gws.Dialer{}, http.Header{})
+		err := testCases[i].WC.Dial(t.Context(), &gws.Dialer{}, http.Header{}, nil)
 		if err != nil {
 			if testCases[i].Error != nil && strings.Contains(err.Error(), testCases[i].Error.Error()) {
 				return
@@ -521,7 +521,7 @@ func TestSendMessage(t *testing.T) {
 			t.Log("Proxy testing not enabled, skipping")
 			continue
 		}
-		err := testCases[x].WC.Dial(t.Context(), &gws.Dialer{}, http.Header{})
+		err := testCases[x].WC.Dial(t.Context(), &gws.Dialer{}, http.Header{}, nil)
 		if err != nil {
 			if testCases[x].Error != nil && strings.Contains(err.Error(), testCases[x].Error.Error()) {
 				return
@@ -551,7 +551,7 @@ func TestSendMessageReturnResponse(t *testing.T) {
 		t.Skip("Proxy testing not enabled, skipping")
 	}
 
-	err := wc.Dial(t.Context(), &gws.Dialer{}, http.Header{})
+	err := wc.Dial(t.Context(), &gws.Dialer{}, http.Header{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -676,7 +676,7 @@ func TestSetupPingHandler(t *testing.T) {
 		t.Skip("Proxy testing not enabled, skipping")
 	}
 	wc.shutdown = make(chan struct{})
-	err := wc.Dial(t.Context(), &gws.Dialer{}, http.Header{})
+	err := wc.Dial(t.Context(), &gws.Dialer{}, http.Header{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -692,7 +692,7 @@ func TestSetupPingHandler(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = wc.Dial(t.Context(), &gws.Dialer{}, http.Header{})
+	err = wc.Dial(t.Context(), &gws.Dialer{}, http.Header{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -922,7 +922,7 @@ func TestFlushChannels(t *testing.T) {
 	amazingCandidate := &ConnectionSetup{
 		URL: "ws" + mock.URL[len("http"):] + "/ws",
 		Connector: func(ctx context.Context, conn Connection) error {
-			return conn.Dial(ctx, gws.DefaultDialer, nil)
+			return conn.Dial(ctx, gws.DefaultDialer, nil, nil)
 		},
 		GenerateSubscriptions: newgen.generateSubs,
 		Subscriber:            func(context.Context, Connection, subscription.List) error { return nil },
@@ -1059,7 +1059,7 @@ func TestConnectionShutdown(t *testing.T) {
 	err := wc.Shutdown()
 	assert.ErrorIs(t, err, common.ErrNilPointer, "Shutdown should error correctly")
 
-	err = wc.Dial(t.Context(), &gws.Dialer{}, nil)
+	err = wc.Dial(t.Context(), &gws.Dialer{}, nil, nil)
 	assert.ErrorContains(t, err, "malformed ws or wss URL", "Dial should error correctly")
 
 	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
@@ -1067,7 +1067,7 @@ func TestConnectionShutdown(t *testing.T) {
 
 	wc.URL = "ws" + mock.URL[len("http"):] + "/ws"
 
-	err = wc.Dial(t.Context(), &gws.Dialer{}, nil)
+	err = wc.Dial(t.Context(), &gws.Dialer{}, nil, nil)
 	require.NoError(t, err, "Dial must not error")
 
 	err = wc.Shutdown()
@@ -1095,7 +1095,7 @@ func TestLatency(t *testing.T) {
 		t.Skip("Proxy testing not enabled, skipping")
 	}
 
-	err := wc.Dial(t.Context(), &gws.Dialer{}, http.Header{})
+	err := wc.Dial(t.Context(), &gws.Dialer{}, http.Header{}, nil)
 	require.NoError(t, err)
 
 	go readMessages(t, wc)
