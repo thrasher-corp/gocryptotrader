@@ -607,7 +607,7 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err := e.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{
 		Exchange: "Bybit",
-		Amount:   10,
+		Amount:   -0.1,
 		Currency: currency.LTC,
 		Crypto: withdraw.CryptoRequest{
 			Chain:      currency.LTC.String(),
@@ -2233,10 +2233,8 @@ func TestWithdrawCurrency(t *testing.T) {
 	_, err = e.WithdrawCurrency(t.Context(), &WithdrawalParam{Coin: currency.LTC, Chain: "LTC", Address: "234234234"})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
-	_, err = e.WithdrawCurrency(t.Context(), &WithdrawalParam{Coin: currency.LTC, Chain: "LTC", Address: "234234234", Amount: 123})
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, err = e.WithdrawCurrency(t.Context(), &WithdrawalParam{Coin: currency.LTC, Chain: "LTC", Address: "234234234", Amount: -0.1})
+	require.NoError(t, err)
 }
 
 func TestCancelWithdrawal(t *testing.T) {

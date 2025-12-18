@@ -1854,12 +1854,12 @@ func TestWithdrawal(t *testing.T) {
 	require.ErrorIs(t, err, errAddressRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.Withdrawal(contextGenerate(), &WithdrawalInput{Amount: 0.1, TransactionFee: 0.00005, Currency: currency.BTC, WithdrawalDestination: "4", ToAddress: core.BitcoinDonationAddress})
+	result, err := e.Withdrawal(contextGenerate(), &WithdrawalInput{Amount: -0.1, TransactionFee: 0.00005, Currency: currency.BTC, WithdrawalDestination: "4", ToAddress: core.BitcoinDonationAddress})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	result, err = e.Withdrawal(contextGenerate(), &WithdrawalInput{
-		Amount:                0.1,
+		Amount:                -0.1,
 		WithdrawalDestination: "4",
 		TransactionFee:        0.00005,
 		Currency:              currency.BTC,
@@ -3771,7 +3771,7 @@ func TestWithdraw(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	withdrawCryptoRequest := withdraw.Request{
 		Exchange: e.Name,
-		Amount:   0.00000000001,
+		Amount:   -0.1,
 		Currency: currency.BTC,
 		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
