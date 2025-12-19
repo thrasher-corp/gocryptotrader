@@ -748,6 +748,13 @@ type CancelReplaceSmartOrderRequest struct {
 	ProceedOnFailure bool        `json:"proceedOnFailure,omitempty,string"` // proceedOnFailure flag is intended to specify whether to continue with new smart order placement in case cancellation of the existing smart order fails.
 }
 
+// WsOrderIDResponse represents order's ID response for websocket create order
+type WsOrderIDResponse struct {
+	OrderID       int64  `json:"orderId"`
+	ClientOrderID string `json:"clientOrderId"`
+	statusResponse
+}
+
 // OrderIDResponse represents order's ID response structure details
 type OrderIDResponse struct {
 	ID            string `json:"id"`

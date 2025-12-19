@@ -1856,7 +1856,7 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	if err != nil {
 		return nil, err
 	}
-	return s.DeriveSubmitResponse(response.ID)
+	return s.DeriveSubmitResponse(strconv.FormatInt(response.OrderID, 10))
 }
 
 // WebsocketCancelOrder cancels an order via the websocket connection

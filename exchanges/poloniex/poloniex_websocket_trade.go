@@ -10,12 +10,12 @@ import (
 )
 
 // WsCreateOrder create an order for an account.
-func (e *Exchange) WsCreateOrder(ctx context.Context, arg *PlaceOrderRequest) (*OrderIDResponse, error) {
+func (e *Exchange) WsCreateOrder(ctx context.Context, arg *PlaceOrderRequest) (*WsOrderIDResponse, error) {
 	if err := validateOrderRequest(arg); err != nil {
 		return nil, err
 	}
-	var resp []*OrderIDResponse
-	if err := SendWebsocketRequest(ctx, e, "createOrder", arg, resp); err != nil {
+	resp, err := SendWebsocketRequest[*WsOrderIDResponse](ctx, e, "createOrder", arg)
+	if err != nil {
 		return nil, fmt.Errorf("%w: %w", order.ErrPlaceFailed, err)
 	}
 	if len(resp) != 1 {
@@ -36,8 +36,8 @@ func (e *Exchange) WsCancelMultipleOrdersByIDs(ctx context.Context, orderIDs, cl
 	if len(orderIDs) > 0 {
 		params["orderIds"] = orderIDs
 	}
-	var resp []*WsCancelOrderResponse
-	if err := SendWebsocketRequest(ctx, e, "cancelOrders", params, resp); err != nil {
+	resp, err := SendWebsocketRequest[*WsCancelOrderResponse](ctx, e, "cancelOrders", params)
+	if err != nil {
 		return nil, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
 	}
 	return resp, nil
@@ -52,8 +52,8 @@ func (e *Exchange) WsCancelTradeOrders(ctx context.Context, symbols []string, ac
 	if len(accountTypes) > 0 {
 		args["accountTypes"] = accountTypes
 	}
-	var resp []*WsCancelOrderResponse
-	if err := SendWebsocketRequest(ctx, e, "cancelAllOrders", args, resp); err != nil {
+	resp, err := SendWebsocketRequest[*WsCancelOrderResponse](ctx, e, "cancelAllOrders", args)
+	if err != nil {
 		return nil, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
 	}
 	return resp, nil
@@ -64,11 +64,10 @@ func SendWebsocketRequest[T hasError](ctx context.Context,
 	e *Exchange,
 	event string,
 	arg any,
-	response []T,
-) error {
+) (response []T, err error) {
 	conn, err := e.Websocket.GetConnection(connSpotPrivate)
 	if err != nil {
-		return err
+		return response, err
 	}
 
 	input := &struct {
@@ -85,17 +84,17 @@ func SendWebsocketRequest[T hasError](ctx context.Context,
 	result, err := conn.SendMessageReturnResponse(ctx, sWebsocketPrivateEPL, input.ID, input)
 	e.spotSubMtx.Unlock()
 	if err != nil {
-		return err
+		return response, err
 	}
 
 	if err := json.Unmarshal(result, &WebsocketResponse{Data: &response}); err != nil {
-		return err
+		return response, err
 	}
 	if response == nil {
-		return common.ErrNoResponse
+		return response, common.ErrNoResponse
 	}
 
-	return checkForErrorInSliceResponse(response)
+	return response, checkForErrorInSliceResponse(response)
 }
 
 func checkForErrorInSliceResponse[T hasError](slice []T) error {
