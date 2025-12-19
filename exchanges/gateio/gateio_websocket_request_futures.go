@@ -37,20 +37,16 @@ func (e *Exchange) WebsocketFuturesSubmitOrders(ctx context.Context, a asset.Ite
 	if len(orders) == 0 {
 		return nil, errOrdersEmpty
 	}
-
 	for _, o := range orders {
 		if err := o.validate(false); err != nil {
 			return nil, err
 		}
-
 		if o.Price == 0 && !slices.Contains([]string{"ioc", "fok"}, o.TimeInForce) {
 			return nil, fmt.Errorf("%w: cannot be zero when time in force is not IOC", errInvalidPrice)
 		}
-
 		if o.Size == 0 && o.AutoSize == "" {
 			return nil, fmt.Errorf("%w: size cannot be zero", order.ErrAmountIsInvalid)
 		}
-
 		if o.AutoSize != "" {
 			if o.AutoSize != "close_long" && o.AutoSize != "close_short" {
 				return nil, fmt.Errorf("%w: %s", errInvalidAutoSize, o.AutoSize)
@@ -63,7 +59,6 @@ func (e *Exchange) WebsocketFuturesSubmitOrders(ctx context.Context, a asset.Ite
 			return nil, err
 		}
 	}
-
 	if len(orders) == 1 {
 		var singleResponse *WebsocketFuturesOrderResponse
 		err := e.SendWebsocketRequest(ctx, perpetualSubmitOrderEPL, "futures.order_place", a, orders[0], &singleResponse, 2)
@@ -79,11 +74,9 @@ func (e *Exchange) WebsocketFuturesCancelOrder(ctx context.Context, orderID stri
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-
 	if err := validateFuturesPairAsset(contract, a); err != nil {
 		return nil, err
 	}
-
 	params := &struct {
 		OrderID string `json:"order_id"`
 	}{OrderID: orderID}
@@ -97,11 +90,9 @@ func (e *Exchange) WebsocketFuturesCancelAllOpenFuturesOrders(ctx context.Contex
 	if err := validateFuturesPairAsset(contract, a); err != nil {
 		return nil, err
 	}
-
 	if side != "" && side != order.Ask.Lower() && side != order.Bid.Lower() {
 		return nil, fmt.Errorf("%w: %s", order.ErrSideIsInvalid, side)
 	}
-
 	params := &struct {
 		Contract currency.Pair `json:"contract"`
 		Side     string        `json:"side,omitempty"`
@@ -116,21 +107,17 @@ func (e *Exchange) WebsocketFuturesAmendOrder(ctx context.Context, amend *Websoc
 	if amend == nil {
 		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, amend)
 	}
-
 	if amend.OrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-
 	if err := validateFuturesPairAsset(amend.Contract, amend.Asset); err != nil {
 		return nil, err
 	}
-
 	if amend.Size == 0 && amend.Price == "" {
 		return nil, fmt.Errorf("%w: size or price must be set", order.ErrAmountIsInvalid)
 	}
-
-	var resp WebsocketFuturesOrderResponse
-	return &resp, e.SendWebsocketRequest(ctx, perpetualAmendOrderEPL, "futures.order_amend", amend.Asset, amend, &resp, 1)
+	var resp *WebsocketFuturesOrderResponse
+	return resp, e.SendWebsocketRequest(ctx, perpetualAmendOrderEPL, "futures.order_amend", amend.Asset, amend, &resp, 1)
 }
 
 // WebsocketFuturesOrderList fetches a list of orders via the websocket connection
@@ -165,8 +152,8 @@ func (e *Exchange) WebsocketFuturesGetOrderStatus(ctx context.Context, contract 
 		OrderID string `json:"order_id"`
 	}{OrderID: orderID}
 
-	var resp WebsocketFuturesOrderResponse
-	return &resp, e.SendWebsocketRequest(ctx, perpetualFetchOrderEPL, "futures.order_status", a, params, &resp, 1)
+	var resp *WebsocketFuturesOrderResponse
+	return resp, e.SendWebsocketRequest(ctx, perpetualFetchOrderEPL, "futures.order_status", a, params, &resp, 1)
 }
 
 // validateFuturesPairAsset enforces that a futures pair's quote currency matches the given asset

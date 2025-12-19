@@ -2396,12 +2396,12 @@ type WsFuturesOrderbookTicker struct {
 
 // WsFuturesAndOptionsOrderbookUpdate represents futures and options account orderbook update push data
 type WsFuturesAndOptionsOrderbookUpdate struct {
-	Timestamp      types.Time    `json:"t"`
-	ContractName   currency.Pair `json:"s"`
-	FirstUpdatedID int64         `json:"U"`
-	LastUpdatedID  int64         `json:"u"`
-	Bids           []Level       `json:"b"`
-	Asks           []Level       `json:"a"`
+	Timestamp      types.Time                       `json:"t"`
+	ContractName   currency.Pair                    `json:"s"`
+	FirstUpdatedID int64                            `json:"U"`
+	LastUpdatedID  int64                            `json:"u"`
+	Bids           orderbook.LevelsArrayPriceAmount `json:"b"`
+	Asks           orderbook.LevelsArrayPriceAmount `json:"a"`
 }
 
 // Level represents a level of orderbook data

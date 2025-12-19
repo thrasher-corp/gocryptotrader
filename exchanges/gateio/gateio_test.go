@@ -814,7 +814,7 @@ func TestGetCrossMarginBorrowHistory(t *testing.T) {
 func TestGetSingleBorrowLoanDetail(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetSingleBorrowLoanDetail(t.Context(), "")
-	require.NoError(t, err, errInvalidLoanID)
+	require.ErrorIs(t, err, errInvalidLoanID)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err = e.GetSingleBorrowLoanDetail(t.Context(), "1234")
