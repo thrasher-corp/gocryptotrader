@@ -67,7 +67,7 @@ func SendWebsocketRequest[T hasError](ctx context.Context,
 ) (response []T, err error) {
 	conn, err := e.Websocket.GetConnection(connSpotPrivate)
 	if err != nil {
-		return response, err
+		return nil, err
 	}
 
 	input := &struct {
@@ -84,14 +84,14 @@ func SendWebsocketRequest[T hasError](ctx context.Context,
 	result, err := conn.SendMessageReturnResponse(ctx, sWebsocketPrivateEPL, input.ID, input)
 	e.spotSubMtx.Unlock()
 	if err != nil {
-		return response, err
+		return nil, err
 	}
 
 	if err := json.Unmarshal(result, &WebsocketResponse{Data: &response}); err != nil {
-		return response, err
+		return nil, err
 	}
 	if response == nil {
-		return response, common.ErrNoResponse
+		return nil, common.ErrNoResponse
 	}
 
 	return response, checkForErrorInSliceResponse(response)
