@@ -85,6 +85,7 @@ jobs:
         
     - name: Check Go modernise tool issues
       run: |
-        go run golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest -test ./...
+        pkgs=$(go list ./... | grep -vE '/gctrpc$|/backtester/btrpc$|/database/models/')
+        go run golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest -test $pkgs
     
 
