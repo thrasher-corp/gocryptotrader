@@ -45,7 +45,7 @@ func TestWebsocketSpotSubmitOrder(t *testing.T) {
 	out.Amount = 1
 	out.Type = "limit"
 	_, err = e.WebsocketSpotSubmitOrder(t.Context(), out)
-	require.ErrorIs(t, err, errInvalidPrice)
+	require.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
 	out.Price = 100
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -73,7 +73,7 @@ func TestWebsocketSpotSubmitOrders(t *testing.T) {
 	out.Amount = 0.0003
 	out.Type = "limit"
 	_, err = e.WebsocketSpotSubmitOrders(t.Context(), out)
-	require.ErrorIs(t, err, errInvalidPrice)
+	require.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
 	out.Price = 20000
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)

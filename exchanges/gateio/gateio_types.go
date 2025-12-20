@@ -1139,11 +1139,11 @@ type DepositRecord struct {
 // TransferCurrencyParam represents currency transfer.
 type TransferCurrencyParam struct {
 	Currency     currency.Code `json:"currency"`
-	From         string        `json:"from"`
-	To           string        `json:"to"`
+	From         asset.Item    `json:"from"`
+	To           asset.Item    `json:"to"`
 	Amount       types.Number  `json:"amount"`
 	CurrencyPair currency.Pair `json:"currency_pair"`
-	Settle       string        `json:"settle"`
+	Settle       currency.Code `json:"settle"`
 }
 
 // TransactionIDResponse represents transaction ID
@@ -1431,7 +1431,7 @@ type CreateOrderRequest struct {
 	Text                      string        `json:"text"`
 	CurrencyPair              currency.Pair `json:"currency_pair,omitzero"`
 	Type                      string        `json:"type,omitempty"`
-	Account                   string        `json:"account,omitempty"`
+	Account                   asset.Item    `json:"account,omitempty"`
 	Side                      string        `json:"side,omitempty"`
 	Iceberg                   string        `json:"iceberg,omitempty"`
 	Amount                    types.Number  `json:"amount,omitempty"`

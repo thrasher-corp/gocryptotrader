@@ -278,7 +278,7 @@ func TestCreateBatchOrders(t *testing.T) {
 		Side:    "sell",
 		Amount:  0.001,
 		Price:   12349,
-		Account: e.assetTypeToString(asset.Spot),
+		Account: asset.Spot,
 		Type:    "limit",
 	}
 	_, err := e.CreateBatchOrders(t.Context(), []CreateOrderRequest{arg})
@@ -299,7 +299,7 @@ func TestCreateBatchOrders(t *testing.T) {
 			Side:         "sell",
 			Amount:       0.001,
 			Price:        12349,
-			Account:      e.assetTypeToString(asset.Spot),
+			Account:      asset.Spot,
 			Type:         "limit",
 		},
 		{
@@ -308,7 +308,7 @@ func TestCreateBatchOrders(t *testing.T) {
 			Side:         "buy",
 			Amount:       1,
 			Price:        1234567789,
-			Account:      e.assetTypeToString(asset.Spot),
+			Account:      asset.Spot,
 			Type:         "limit",
 		},
 	})
@@ -335,13 +335,25 @@ func TestSpotClosePositionWhenCrossCurrencyDisabled(t *testing.T) {
 
 func TestCreateSpotOrder(t *testing.T) {
 	t.Parallel()
+	_, err := e.PlaceSpotOrder(t.Context(), &CreateOrderRequest{})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	_, err = e.PlaceSpotOrder(t.Context(), &CreateOrderRequest{})
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+
+	_, err = e.PlaceSpotOrder(t.Context(), &CreateOrderRequest{})
+	require.ErrorIs(t, err, asset.ErrInvalidAsset)
+
+	_, err = e.PlaceSpotOrder(t.Context(), &CreateOrderRequest{})
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.PlaceSpotOrder(t.Context(), &CreateOrderRequest{
+	_, err = e.PlaceSpotOrder(t.Context(), &CreateOrderRequest{
 		CurrencyPair: getPair(t, asset.Spot),
 		Side:         "buy",
 		Amount:       1,
 		Price:        900000,
-		Account:      e.assetTypeToString(asset.Spot),
+		Account:      asset.Spot,
 		Type:         "limit",
 	})
 	assert.NoError(t, err)
@@ -456,7 +468,7 @@ func TestCreatePriceTriggeredOrder(t *testing.T) {
 	_, err = e.CreatePriceTriggeredOrder(t.Context(), &PriceTriggeredOrderParam{
 		Symbol: spotTradablePair,
 		Put:    PutOrderData{TimeInForce: "GTC"}, Trigger: TriggerPriceInfo{Price: -1}})
-	require.ErrorIs(t, err, errInvalidPrice)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	_, err = e.CreatePriceTriggeredOrder(t.Context(), &PriceTriggeredOrderParam{
 		Symbol: spotTradablePair,
@@ -823,8 +835,14 @@ func TestGetSingleBorrowLoanDetail(t *testing.T) {
 
 func TestExecuteRepayment(t *testing.T) {
 	t.Parallel()
+	_, err := e.ExecuteRepayment(t.Context(), CurrencyAndAmount{})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.ExecuteRepayment(t.Context(), CurrencyAndAmount{Currency: currency.BTC})
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.ExecuteRepayment(t.Context(), CurrencyAndAmount{
+	_, err = e.ExecuteRepayment(t.Context(), CurrencyAndAmount{
 		Currency: currency.USD,
 		Amount:   1234.55,
 	})
@@ -840,15 +858,21 @@ func TestGetCrossMarginRepayments(t *testing.T) {
 
 func TestGetMaxTransferableAmountForSpecificCrossMarginCurrency(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetMaxTransferableAmountForSpecificCrossMarginCurrency(t.Context(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetMaxTransferableAmountForSpecificCrossMarginCurrency(t.Context(), currency.BTC)
+	_, err = e.GetMaxTransferableAmountForSpecificCrossMarginCurrency(t.Context(), currency.BTC)
 	assert.NoError(t, err)
 }
 
 func TestGetMaxBorrowableAmountForSpecificCrossMarginCurrency(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetMaxBorrowableAmountForSpecificCrossMarginCurrency(t.Context(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetMaxBorrowableAmountForSpecificCrossMarginCurrency(t.Context(), currency.BTC)
+	_, err = e.GetMaxBorrowableAmountForSpecificCrossMarginCurrency(t.Context(), currency.BTC)
 	assert.NoError(t, err)
 }
 
@@ -860,36 +884,77 @@ func TestListCurrencyChain(t *testing.T) {
 
 func TestGenerateCurrencyDepositAddress(t *testing.T) {
 	t.Parallel()
+	_, err := e.GenerateCurrencyDepositAddress(t.Context(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GenerateCurrencyDepositAddress(t.Context(), currency.BTC)
+	_, err = e.GenerateCurrencyDepositAddress(t.Context(), currency.BTC)
 	assert.NoError(t, err)
 }
 
 func TestGetWithdrawalRecords(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetWithdrawalRecords(t.Context(), currency.BTC, time.Now(), time.Now().Add(-time.Hour), 0, 0)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetWithdrawalRecords(t.Context(), currency.BTC, time.Time{}, time.Time{}, 0, 0)
+	_, err = e.GetWithdrawalRecords(t.Context(), currency.BTC, time.Time{}, time.Time{}, 0, 0)
 	assert.NoError(t, err)
 }
 
 func TestGetDepositRecords(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetDepositRecords(t.Context(), currency.BTC, time.Now(), time.Now().Add(-time.Hour), 0, 0)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetDepositRecords(t.Context(), currency.BTC, time.Time{}, time.Time{}, 0, 0)
+	_, err = e.GetDepositRecords(t.Context(), currency.BTC, time.Time{}, time.Time{}, 0, 0)
 	assert.NoError(t, err)
 }
 
 func TestTransferCurrency(t *testing.T) {
 	t.Parallel()
+	arg := &TransferCurrencyParam{}
+	_, err := e.TransferCurrency(t.Context(), arg)
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	arg.Currency = currency.BTC
+	_, err = e.TransferCurrency(t.Context(), arg)
+	assert.ErrorIs(t, err, asset.ErrInvalidAsset)
+
+	arg.From = asset.Spot
+	_, err = e.TransferCurrency(t.Context(), arg)
+	assert.ErrorIs(t, err, asset.ErrInvalidAsset)
+
+	arg.To = asset.Futures
+	_, err = e.TransferCurrency(t.Context(), arg)
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	arg.Settle = currency.USDT
+	_, err = e.TransferCurrency(t.Context(), arg)
+	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.TransferCurrency(t.Context(), &TransferCurrencyParam{
+	_, err = e.TransferCurrency(t.Context(), &TransferCurrencyParam{
 		Currency:     currency.BTC,
-		From:         e.assetTypeToString(asset.Spot),
-		To:           e.assetTypeToString(asset.Margin),
+		From:         asset.Spot,
+		To:           asset.Margin,
 		Amount:       1202.000,
 		CurrencyPair: getPair(t, asset.Spot),
 	})
 	assert.NoError(t, err)
+}
+
+func TestSomething(t *testing.T) {
+	t.Parallel()
+	abc := &struct {
+		Account asset.Item `json:"account"`
+	}{
+		Account: asset.Futures,
+	}
+	val, err := json.Marshal(abc)
+	require.NoError(t, err)
+	println(string(val))
 }
 
 func TestSubAccountTransfer(t *testing.T) {
@@ -2577,8 +2642,11 @@ func TestCreateAPIKeysOfSubAccount(t *testing.T) {
 
 func TestListAllAPIKeyOfSubAccount(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetAllAPIKeyOfSubAccount(t.Context(), 0)
+	require.ErrorIs(t, err, errUserIDRequired)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetAllAPIKeyOfSubAccount(t.Context(), 1234)
+	_, err = e.GetAllAPIKeyOfSubAccount(t.Context(), 1234)
 	assert.NoError(t, err)
 }
 

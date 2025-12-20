@@ -95,7 +95,6 @@ var (
 	errInvalidSubAccount                = errors.New("invalid or empty subaccount")
 	errInvalidTransferDirection         = errors.New("invalid transfer direction")
 	errDifferentAccount                 = errors.New("account type must be identical for all orders")
-	errInvalidPrice                     = errors.New("invalid price")
 	errNoValidParameterPassed           = errors.New("no valid parameter passed")
 	errInvalidCountdown                 = errors.New("invalid countdown, Countdown time, in seconds At least 5 seconds, 0 means cancel the countdown")
 	errInvalidOrderStatus               = errors.New("invalid order status")
@@ -192,9 +191,12 @@ func (e *Exchange) CreateAPIKeysOfSubAccount(ctx context.Context, arg *CreateAPI
 }
 
 // GetAllAPIKeyOfSubAccount list all API Key of the sub-account
-func (e *Exchange) GetAllAPIKeyOfSubAccount(ctx context.Context, userID int64) ([]*APIDetailResponse, error) {
+func (e *Exchange) GetAllAPIKeyOfSubAccount(ctx context.Context, userID uint64) ([]*APIDetailResponse, error) {
+	if userID == 0 {
+		return nil, errUserIDRequired
+	}
 	var resp []*APIDetailResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, subAccountEPL, http.MethodGet, subAccountsPath+strconv.FormatInt(userID, 10)+"/keys", nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, subAccountEPL, http.MethodGet, subAccountsPath+strconv.FormatUint(userID, 10)+"/keys", nil, nil, &resp)
 }
 
 // UpdateAPIKeyOfSubAccount update API key of the sub-account
@@ -733,16 +735,16 @@ func (e *Exchange) CreateBatchOrders(ctx context.Context, args []CreateOrderRequ
 		if args[x].Side != "buy" && args[x].Side != "sell" {
 			return nil, order.ErrSideIsInvalid
 		}
-		if !strings.EqualFold(args[x].Account, asset.Spot.String()) &&
-			!strings.EqualFold(args[x].Account, asset.CrossMargin.String()) &&
-			!strings.EqualFold(args[x].Account, asset.Margin.String()) {
-			return nil, errors.New("only spot, margin, and cross_margin area allowed")
+		if args[x].Account != asset.Spot &&
+			args[x].Account != asset.CrossMargin &&
+			args[x].Account != asset.Margin {
+			return nil, fmt.Errorf("%w: only spot, margin, and cross_margin area allowed", asset.ErrInvalidAsset)
 		}
 		if args[x].Amount <= 0 {
 			return nil, order.ErrAmountIsInvalid
 		}
 		if args[x].Price <= 0 {
-			return nil, errInvalidPrice
+			return nil, limits.ErrPriceBelowMin
 		}
 	}
 	var response []*SpotOrder
@@ -777,7 +779,7 @@ func (e *Exchange) SpotClosePositionWhenCrossCurrencyDisabled(ctx context.Contex
 		return nil, order.ErrAmountIsInvalid
 	}
 	if arg.Price <= 0 {
-		return nil, errInvalidPrice
+		return nil, limits.ErrPriceBelowMin
 	}
 	var response *SpotOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotClosePositionEPL, http.MethodPost, "spot/cross_liquidate_orders", nil, &arg, &response)
@@ -793,16 +795,16 @@ func (e *Exchange) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequest) 
 	if arg.Side != "buy" && arg.Side != "sell" {
 		return nil, order.ErrSideIsInvalid
 	}
-	if !strings.EqualFold(arg.Account, asset.Spot.String()) &&
-		!strings.EqualFold(arg.Account, asset.CrossMargin.String()) &&
-		!strings.EqualFold(arg.Account, asset.Margin.String()) {
-		return nil, errors.New("only 'spot', 'cross_margin', and 'margin' area allowed")
+	if arg.Account != asset.Spot &&
+		arg.Account != asset.CrossMargin &&
+		arg.Account != asset.Margin {
+		return nil, fmt.Errorf("%w: only 'spot', 'cross_margin', and 'margin' area allowed", asset.ErrInvalidAsset)
 	}
 	if arg.Amount <= 0 {
 		return nil, order.ErrAmountIsInvalid
 	}
 	if arg.Price < 0 {
-		return nil, errInvalidPrice
+		return nil, limits.ErrPriceBelowMin
 	}
 	var response *SpotOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotPlaceOrderEPL, http.MethodPost, gateioSpotOrders, nil, &arg, &response)
@@ -985,7 +987,7 @@ func (e *Exchange) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTrig
 		return nil, fmt.Errorf("%w, %s", currency.ErrCurrencyPairEmpty, "field market is required")
 	}
 	if arg.Trigger.Price < 0 {
-		return nil, fmt.Errorf("%w trigger price found %f, but expected trigger_price >=0", errInvalidPrice, arg.Trigger.Price)
+		return nil, fmt.Errorf("%w trigger price found %f, but expected trigger_price >=0", limits.ErrPriceBelowMin, arg.Trigger.Price)
 	}
 	if arg.Trigger.Rule != "<=" && arg.Trigger.Rule != ">=" {
 		return nil, fmt.Errorf("invalid price trigger condition or rule %q but expected '>=' or '<='", arg.Trigger.Rule)
@@ -994,7 +996,7 @@ func (e *Exchange) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTrig
 		return nil, order.ErrSideIsInvalid
 	}
 	if arg.Put.Price < 0 {
-		return nil, fmt.Errorf("%w, %s", errInvalidPrice, "put price has to be greater than 0")
+		return nil, fmt.Errorf("%w, %s", limits.ErrPriceBelowMin, "put price has to be greater than 0")
 	}
 	if arg.Put.Amount <= 0 {
 		return nil, order.ErrAmountIsInvalid
@@ -1318,33 +1320,23 @@ func (e *Exchange) TransferCurrency(ctx context.Context, arg *TransferCurrencyPa
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if arg.From == "" {
-		return nil, errors.New("from account is required")
+	if arg.From.IsValid() {
+		return nil, fmt.Errorf("%w: source account address(From) is required ", asset.ErrInvalidAsset)
 	}
-	if arg.To == "" {
-		return nil, errors.New("to account is required")
+	if arg.To.IsValid() {
+		return nil, fmt.Errorf("%w: destination account address(To) is required ", asset.ErrInvalidAsset)
 	}
-	if arg.To == arg.From {
-		return nil, errors.New("from and to account cannot be the same")
+	if (arg.To == asset.Margin || arg.From == asset.Margin) && arg.CurrencyPair.IsEmpty() {
+		return nil, fmt.Errorf("%w: currency pair is required for margin account transfer", currency.ErrCurrencyPairEmpty)
 	}
-	if (arg.To == "margin" || arg.From == "margin") && arg.CurrencyPair.IsEmpty() {
-		return nil, errors.New("currency pair is required for margin account transfer")
-	}
-	if (arg.To == "futures" || arg.From == "futures") && arg.Settle == "" {
-		return nil, errors.New("settle is required for futures account transfer")
+	if (arg.To == asset.Futures || arg.From == asset.Futures) && arg.Settle.IsEmpty() {
+		return nil, fmt.Errorf("%w: settle is required for futures account transfer", currency.ErrCurrencyCodeEmpty)
 	}
 	if arg.Amount <= 0 {
-		return nil, order.ErrAmountIsInvalid
+		return nil, limits.ErrAmountBelowMin
 	}
 	var response *TransactionIDResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletTransferCurrencyEPL, http.MethodPost, "wallet/transfers", nil, &arg, &response)
-}
-
-func (e *Exchange) assetTypeToString(acc asset.Item) string {
-	if acc == asset.Options {
-		return "options"
-	}
-	return acc.String()
 }
 
 // SubAccountTransfer to transfer between main and sub accounts
@@ -2746,7 +2738,7 @@ func (e *Exchange) CreatePriceTriggeredFuturesOrder(ctx context.Context, settle 
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
 	}
 	if arg.Initial.Price < 0 {
-		return nil, fmt.Errorf("%w, price must be greater than 0", errInvalidPrice)
+		return nil, fmt.Errorf("%w, price must be greater than 0", limits.ErrPriceBelowMin)
 	}
 	if arg.Initial.TimeInForce != "" && arg.Initial.TimeInForce != gtcTIF && arg.Initial.TimeInForce != iocTIF {
 		return nil, fmt.Errorf("%w: %q; only 'gtc' and 'ioc' are allowed", order.ErrInvalidTimeInForce, arg.Initial.TimeInForce)
@@ -3243,7 +3235,7 @@ func (e *Exchange) GetDeliveryPriceTriggeredOrder(ctx context.Context, settle cu
 		return nil, fmt.Errorf("%w, currency pair for contract must not be empty", errInvalidOrMissingContractParam)
 	}
 	if arg.Initial.Price < 0 {
-		return nil, fmt.Errorf("%w, price must be greater than 0", errInvalidPrice)
+		return nil, fmt.Errorf("%w, price must be greater than 0", limits.ErrPriceBelowMin)
 	}
 	if arg.Initial.Size <= 0 {
 		return nil, errors.New("invalid argument: initial.size out of range")
@@ -3532,15 +3524,6 @@ func (e *Exchange) PlaceOptionOrder(ctx context.Context, arg *OptionOrderParam) 
 	}
 	if arg.OrderSize == 0 {
 		return nil, errInvalidOrderSize
-	}
-	if arg.Iceberg < 0 {
-		arg.Iceberg = 0
-	}
-	if arg.TimeInForce != gtcTIF && arg.TimeInForce != iocTIF && arg.TimeInForce != pocTIF {
-		arg.TimeInForce = ""
-	}
-	if arg.TimeInForce == iocTIF || arg.Price < 0 {
-		arg.Price = 0
 	}
 	var response *OptionOrderResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, optionsSubmitOrderEPL, http.MethodPost, gateioOptionsOrders, nil, &arg, &response)

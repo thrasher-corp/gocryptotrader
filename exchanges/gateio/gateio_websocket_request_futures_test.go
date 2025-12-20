@@ -22,7 +22,7 @@ func TestWebsocketFuturesSubmitOrder(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	out := &ContractOrderCreateParams{Contract: BTCUSDT}
 	_, err = e.WebsocketFuturesSubmitOrder(t.Context(), asset.USDTMarginedFutures, out)
-	require.ErrorIs(t, err, errInvalidPrice)
+	require.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
 	out.Price = 40000
 	_, err = e.WebsocketFuturesSubmitOrder(t.Context(), asset.USDTMarginedFutures, out)
 	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
@@ -58,8 +58,7 @@ func TestWebsocketFuturesSubmitOrders(t *testing.T) {
 
 	out.Size = 1 // 1 lovely long contract
 	_, err = e.WebsocketFuturesSubmitOrders(t.Context(), asset.USDTMarginedFutures, out)
-	// require.ErrorIs(t, err, order.ErrInvalidTimeInForce)
-	require.ErrorIs(t, err, errInvalidPrice)
+	require.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
 
 	out.Price = 40000
 	_, err = e.WebsocketFuturesSubmitOrders(t.Context(), asset.USDTMarginedFutures, out)

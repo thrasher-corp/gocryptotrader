@@ -42,7 +42,7 @@ func (e *Exchange) WebsocketFuturesSubmitOrders(ctx context.Context, a asset.Ite
 			return nil, err
 		}
 		if o.Price == 0 && !slices.Contains([]string{"ioc", "fok"}, o.TimeInForce) {
-			return nil, fmt.Errorf("%w: cannot be zero when time in force is not IOC", errInvalidPrice)
+			return nil, order.ErrPriceMustBeSetIfLimitOrder
 		}
 		if o.Size == 0 && o.AutoSize == "" {
 			return nil, fmt.Errorf("%w: size cannot be zero", order.ErrAmountIsInvalid)

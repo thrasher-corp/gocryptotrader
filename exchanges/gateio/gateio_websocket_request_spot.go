@@ -58,7 +58,7 @@ func (e *Exchange) WebsocketSpotSubmitOrders(ctx context.Context, orders ...*Cre
 			return nil, order.ErrAmountIsInvalid
 		}
 		if orders[i].Type == "limit" && orders[i].Price == 0 {
-			return nil, errInvalidPrice
+			return nil, order.ErrPriceMustBeSetIfLimitOrder
 		}
 	}
 
