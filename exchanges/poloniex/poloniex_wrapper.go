@@ -964,23 +964,25 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 		default:
 			if e.Websocket.IsConnected() && e.Websocket.CanUseAuthenticatedEndpoints() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 				wsResponse, err := e.WsCancelTradeOrders(ctx, pairs.Strings(), []AccountType{AccountType(cancelOrd.AssetType)})
-				if err != nil {
-					return cancelAllOrdersResponse, err
-				}
 				for _, wco := range wsResponse {
 					cancelAllOrdersResponse.Status[strconv.FormatUint(wco.OrderID, 10)] = wco.State
+					if wco.Code != 0 && wco.Code != 200 {
+						cancelAllOrdersResponse.Status[strconv.FormatUint(wco.OrderID, 10)] = "Failed"
+					}
+				}
+				if err != nil {
+					return cancelAllOrdersResponse, err
 				}
 			} else {
 				resp, err := e.CancelTradeOrders(ctx, pairs.Strings(), []AccountType{AccountType(cancelOrd.AssetType)})
-				if err != nil {
-					return cancelAllOrdersResponse, err
-				}
 				for _, co := range resp {
-					if co.Code == 0 || co.Code == 200 {
-						cancelAllOrdersResponse.Status[co.OrderID] = co.State
-					} else {
+					cancelAllOrdersResponse.Status[co.OrderID] = co.State
+					if co.Code != 0 && co.Code != 200 {
 						cancelAllOrdersResponse.Status[co.OrderID] = "Failed"
 					}
+				}
+				if err != nil {
+					return cancelAllOrdersResponse, err
 				}
 			}
 		}
@@ -991,7 +993,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 		}
 		for _, co := range result {
 			cancelAllOrdersResponse.Status[co.OrderID] = order.Cancelled.String()
-			if co.Code != 200 && co.Code != 0 {
+			if co.Code != 0 && co.Code != 200 {
 				cancelAllOrdersResponse.Status[co.OrderID] = "Failed"
 			}
 		}

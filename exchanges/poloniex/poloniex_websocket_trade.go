@@ -38,7 +38,8 @@ func (e *Exchange) WsCancelMultipleOrdersByIDs(ctx context.Context, orderIDs, cl
 	}
 	resp, err := SendWebsocketRequest[*WsCancelOrderResponse](ctx, e, "cancelOrders", params)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
+		// Return resp, containing any successful transactions
+		return resp, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
 	}
 	return resp, nil
 }
@@ -54,7 +55,8 @@ func (e *Exchange) WsCancelTradeOrders(ctx context.Context, symbols []string, ac
 	}
 	resp, err := SendWebsocketRequest[*WsCancelOrderResponse](ctx, e, "cancelAllOrders", args)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
+		// Return resp, containing any successful transactions
+		return resp, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
 	}
 	return resp, nil
 }
