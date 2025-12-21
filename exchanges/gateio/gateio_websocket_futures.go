@@ -394,8 +394,7 @@ func (e *Exchange) processFuturesCandlesticks(data []byte, assetType asset.Item)
 		Event   string               `json:"event"`
 		Result  []FuturesCandlestick `json:"result"`
 	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	klineDatas := make([]websocket.KlineData, len(resp.Result))
@@ -430,6 +429,20 @@ func (e *Exchange) processFuturesOrderbookUpdate(ctx context.Context, incoming [
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
+	asks := make([]orderbook.Level, len(data.Asks))
+	for x := range data.Asks {
+		asks[x] = orderbook.Level{
+			Amount: data.Asks[x].Size,
+			Price:  data.Asks[x].Price.Float64(),
+		}
+	}
+	bids := make([]orderbook.Level, len(data.Bids))
+	for x := range data.Bids {
+		bids[x] = orderbook.Level{
+			Amount: data.Bids[x].Size,
+			Price:  data.Bids[x].Price.Float64(),
+		}
+	}
 
 	return e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, e, data.FirstUpdatedID, &orderbook.Update{
 		UpdateID:   data.LastUpdatedID,
@@ -437,15 +450,15 @@ func (e *Exchange) processFuturesOrderbookUpdate(ctx context.Context, incoming [
 		LastPushed: pushTime,
 		Pair:       data.ContractName,
 		Asset:      a,
-		Asks:       data.Asks.Levels(),
-		Bids:       data.Bids.Levels(),
+		Asks:       asks,
+		Bids:       bids,
 		AllowEmpty: true,
 	})
 }
 
 func (e *Exchange) processFuturesOrderbookSnapshot(event string, incoming []byte, assetType asset.Item, lastPushed time.Time) error {
 	if event == "all" {
-		var data WsFuturesOrderbookSnapshot
+		var data *WsFuturesOrderbookSnapshot
 		if err := json.Unmarshal(incoming, &data); err != nil {
 			return err
 		}
@@ -469,7 +482,7 @@ func (e *Exchange) processFuturesOrderbookSnapshot(event string, incoming []byte
 		}
 		return e.Websocket.Orderbook.LoadSnapshot(&base)
 	}
-	var data []WsFuturesOrderbookUpdateEvent
+	var data []*WsFuturesOrderbookUpdateEvent
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}

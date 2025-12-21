@@ -125,11 +125,9 @@ func (e *Exchange) WebsocketFuturesOrderList(ctx context.Context, list *Websocke
 	if list == nil {
 		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, list)
 	}
-
 	if err := validateFuturesPairAsset(list.Contract, list.Asset); err != nil {
 		return nil, err
 	}
-
 	if list.Status == "" {
 		return nil, errStatusNotSet
 	}

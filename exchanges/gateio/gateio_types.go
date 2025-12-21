@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -1023,12 +1024,12 @@ type ContractClosePosition struct {
 
 // OptionOrderParam represents option order request body
 type OptionOrderParam struct {
-	OrderSize   float64      `json:"size"`              // Order size. Specify positive number to make a bid, and negative number to ask
-	Iceberg     float64      `json:"iceberg,omitempty"` // Display size for iceberg order. 0 for non-iceberg. Note that you will have to pay the taker fee for the hidden size
-	Contract    string       `json:"contract"`
-	Text        string       `json:"text,omitempty"`
-	TimeInForce string       `json:"tif,omitempty"`
-	Price       types.Number `json:"price,omitempty"`
+	OrderSize   float64       `json:"size"`              // Order size. Specify positive number to make a bid, and negative number to ask
+	Iceberg     float64       `json:"iceberg,omitempty"` // Display size for iceberg order. 0 for non-iceberg. Note that you will have to pay the taker fee for the hidden size
+	Contract    currency.Pair `json:"contract"`
+	Text        string        `json:"text,omitempty"`
+	TimeInForce string        `json:"tif,omitempty"`
+	Price       types.Number  `json:"price,omitempty"`
 	// Close Set as true to close the position, with size set to 0
 	Close      bool `json:"close,omitempty"`
 	ReduceOnly bool `json:"reduce_only,omitempty"`
@@ -1432,7 +1433,7 @@ type CreateOrderRequest struct {
 	CurrencyPair              currency.Pair `json:"currency_pair,omitzero"`
 	Type                      string        `json:"type,omitempty"`
 	Account                   asset.Item    `json:"account,omitempty"`
-	Side                      string        `json:"side,omitempty"`
+	Side                      order.Side    `json:"side,omitempty"`
 	Iceberg                   string        `json:"iceberg,omitempty"`
 	Amount                    types.Number  `json:"amount,omitempty"`
 	Price                     types.Number  `json:"price,omitempty"`
@@ -2396,12 +2397,12 @@ type WsFuturesOrderbookTicker struct {
 
 // WsFuturesAndOptionsOrderbookUpdate represents futures and options account orderbook update push data
 type WsFuturesAndOptionsOrderbookUpdate struct {
-	Timestamp      types.Time                       `json:"t"`
-	ContractName   currency.Pair                    `json:"s"`
-	FirstUpdatedID int64                            `json:"U"`
-	LastUpdatedID  int64                            `json:"u"`
-	Bids           orderbook.LevelsArrayPriceAmount `json:"b"`
-	Asks           orderbook.LevelsArrayPriceAmount `json:"a"`
+	Timestamp      types.Time    `json:"t"`
+	ContractName   currency.Pair `json:"s"`
+	FirstUpdatedID int64         `json:"U"`
+	LastUpdatedID  int64         `json:"u"`
+	Bids           []Level       `json:"b"`
+	Asks           []Level       `json:"a"`
 }
 
 // Level represents a level of orderbook data

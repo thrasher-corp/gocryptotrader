@@ -1,7 +1,6 @@
 package gateio
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -36,22 +35,24 @@ func TestWebsocketSpotSubmitOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.WebsocketSpotSubmitOrder(t.Context(), &CreateOrderRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
 	out := &CreateOrderRequest{CurrencyPair: currency.NewPair(currency.NewCode("GT"), currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"})}
 	_, err = e.WebsocketSpotSubmitOrder(t.Context(), out)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
-	out.Side = strings.ToLower(order.Sell.String())
+
+	out.Side = order.Sell
 	_, err = e.WebsocketSpotSubmitOrder(t.Context(), out)
 	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
+
 	out.Amount = 1
 	out.Type = "limit"
 	_, err = e.WebsocketSpotSubmitOrder(t.Context(), out)
 	require.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
-	out.Price = 100
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
+	out.Price = 100
 	e := newExchangeWithWebsocket(t, asset.Spot)
-
 	got, err := e.WebsocketSpotSubmitOrder(t.Context(), out)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
@@ -61,25 +62,28 @@ func TestWebsocketSpotSubmitOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.WebsocketSpotSubmitOrders(t.Context())
 	require.ErrorIs(t, err, errOrdersEmpty)
+
 	out := &CreateOrderRequest{}
 	_, err = e.WebsocketSpotSubmitOrders(t.Context(), out)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
 	out.CurrencyPair = currency.NewBTCUSDT()
 	_, err = e.WebsocketSpotSubmitOrders(t.Context(), out)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
-	out.Side = strings.ToLower(order.Buy.String())
+
+	out.Side = order.Buy
 	_, err = e.WebsocketSpotSubmitOrders(t.Context(), out)
 	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
+
 	out.Amount = 0.0003
 	out.Type = "limit"
 	_, err = e.WebsocketSpotSubmitOrders(t.Context(), out)
 	require.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
-	out.Price = 20000
 
+	out.Price = 20000
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	e := newExchangeWithWebsocket(t, asset.Spot)
-
 	// test single order
 	got, err := e.WebsocketSpotSubmitOrders(t.Context(), out)
 	require.NoError(t, err)
@@ -95,6 +99,7 @@ func TestWebsocketSpotCancelOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.WebsocketSpotCancelOrder(t.Context(), "", currency.EMPTYPAIR, "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	_, err = e.WebsocketSpotCancelOrder(t.Context(), "1337", currency.EMPTYPAIR, "")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
@@ -111,15 +116,16 @@ func TestWebsocketSpotCancelAllOrdersByIDs(t *testing.T) {
 	t.Parallel()
 	_, err := e.WebsocketSpotCancelAllOrdersByIDs(t.Context(), []WebsocketOrderBatchRequest{})
 	require.ErrorIs(t, err, errNoOrdersToCancel)
+
 	out := WebsocketOrderBatchRequest{}
 	_, err = e.WebsocketSpotCancelAllOrdersByIDs(t.Context(), []WebsocketOrderBatchRequest{out})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	out.OrderID = "1337"
 	_, err = e.WebsocketSpotCancelAllOrdersByIDs(t.Context(), []WebsocketOrderBatchRequest{out})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	out.Pair = BTCUSDT
-
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	e := newExchangeWithWebsocket(t, asset.Spot)

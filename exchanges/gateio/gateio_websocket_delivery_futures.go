@@ -55,8 +55,7 @@ func (e *Exchange) WsDeliveryFuturesConnect(ctx context.Context, conn websocket.
 // TODO: Update to use the new subscription template system
 func (e *Exchange) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.List, error) {
 	ctx := context.TODO()
-	_, err := e.GetCredentials(ctx)
-	if err != nil {
+	if _, err := e.GetCredentials(ctx); err != nil {
 		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 	channelsToSubscribe := defaultDeliveryFuturesSubscriptions
@@ -115,8 +114,10 @@ func (e *Exchange) generateDeliveryFuturesPayload(ctx context.Context, event str
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
-	var creds *accounts.Credentials
-	var err error
+	var (
+		creds *accounts.Credentials
+		err   error
+	)
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
 		creds, err = e.GetCredentials(ctx)
 		if err != nil {

@@ -310,7 +310,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		if a != asset.Spot && !available {
 			return nil, fmt.Errorf("%v instrument %v does not have ticker data", a, fPair)
 		}
-		tickerNew, err := e.GetTicker(ctx, fPair.String(), "")
+		tickerNew, err := e.GetTicker(ctx, fPair, "")
 		if err != nil {
 			return nil, err
 		}
@@ -504,7 +504,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 	}
 	switch a {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
-		tickers, err := e.GetTickers(ctx, currency.EMPTYPAIR.String(), "")
+		tickers, err := e.GetTickers(ctx, currency.EMPTYPAIR, "")
 		if err != nil {
 			return err
 		}
@@ -627,14 +627,14 @@ func (e *Exchange) fetchOrderbook(ctx context.Context, p currency.Pair, a asset.
 		}
 		fallthrough
 	case asset.Spot:
-		o, err = e.GetOrderbook(ctx, p.String(), "", limit, true)
+		o, err = e.GetOrderbook(ctx, p, "", limit, true)
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
 		var settle currency.Code
 		settle, err = getSettlementCurrency(p, a)
 		if err != nil {
 			return nil, err
 		}
-		o, err = e.GetFuturesOrderbook(ctx, settle, p.String(), "", limit, true)
+		o, err = e.GetFuturesOrderbook(ctx, settle, p, "", limit, true)
 	case asset.DeliveryFutures:
 		o, err = e.GetDeliveryOrderbook(ctx, currency.USDT, "", p, limit, true)
 	case asset.Options:
@@ -931,7 +931,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		return resp, nil
 	case asset.Options:
 		optionOrder, err := e.PlaceOptionOrder(ctx, &OptionOrderParam{
-			Contract:   s.Pair.String(),
+			Contract:   s.Pair,
 			OrderSize:  s.Amount,
 			Price:      types.Number(s.Price),
 			ReduceOnly: s.ReduceOnly,
@@ -974,7 +974,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	}
 	switch o.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
-		_, err = e.CancelSingleSpotOrder(ctx, o.OrderID, fPair.String(), o.AssetType == asset.CrossMargin)
+		_, err = e.CancelSingleSpotOrder(ctx, o.OrderID, fPair, o.AssetType == asset.CrossMargin)
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
 		var settle currency.Code
 		if settle, err = getSettlementCurrency(o.Pair, o.AssetType); err == nil {
@@ -1411,7 +1411,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 		}
 		var futuresOrders []*Order
 		if req.AssetType == asset.DeliveryFutures {
-			futuresOrders, err = e.GetDeliveryOrders(ctx, currency.EMPTYPAIR, statusOpen, settle, "", 0, 0, false)
+			futuresOrders, err = e.GetDeliveryOrders(ctx, currency.EMPTYPAIR, settle, statusOpen, "", 0, 0, false)
 		} else {
 			futuresOrders, err = e.GetFuturesOrders(ctx, currency.EMPTYPAIR, statusOpen, "", settle, 0, 0, false)
 		}
@@ -1623,7 +1623,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 		if a == asset.DeliveryFutures {
 			candles, err = e.GetDeliveryFuturesCandlesticks(ctx, settle, req.RequestFormatted.Upper(), start, end, 0, interval)
 		} else {
-			candles, err = e.GetFuturesCandlesticks(ctx, settle, req.RequestFormatted.String(), start, end, 0, interval)
+			candles, err = e.GetFuturesCandlesticks(ctx, settle, req.RequestFormatted, start, end, 0, interval)
 		}
 		if err != nil {
 			return nil, err
@@ -1678,7 +1678,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 			if a == asset.DeliveryFutures {
 				candles, err = e.GetDeliveryFuturesCandlesticks(ctx, settle, req.RequestFormatted.Upper(), r.Start.Time, r.End.Time, 0, interval)
 			} else {
-				candles, err = e.GetFuturesCandlesticks(ctx, settle, req.RequestFormatted.String(), r.Start.Time, r.End.Time, 0, interval)
+				candles, err = e.GetFuturesCandlesticks(ctx, settle, req.RequestFormatted, r.Start.Time, r.End.Time, 0, interval)
 			}
 			if err != nil {
 				return nil, err
@@ -2533,12 +2533,12 @@ func (e *Exchange) deriveFuturesWebsocketOrderResponses(responses []*WebsocketFu
 }
 
 func (e *Exchange) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequest, error) {
-	var side string
+	var side order.Side
 	switch {
 	case s.Side.IsLong():
-		side = order.Buy.Lower()
+		side = order.Buy
 	case s.Side.IsShort():
-		side = order.Sell.Lower()
+		side = order.Sell
 	default:
 		return nil, fmt.Errorf("%w: %q", order.ErrSideIsInvalid, s.Side)
 	}

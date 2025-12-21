@@ -434,8 +434,7 @@ func (e *Exchange) processOptionsCandlestickPushData(data []byte) error {
 		Event   string                         `json:"event"`
 		Result  []WsOptionsContractCandlestick `json:"result"`
 	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	klineDatas := make([]websocket.KlineData, len(resp.Result))
@@ -466,16 +465,30 @@ func (e *Exchange) processOptionsCandlestickPushData(data []byte) error {
 }
 
 func (e *Exchange) processOptionsOrderbookUpdate(ctx context.Context, incoming []byte, a asset.Item, pushTime time.Time) error {
-	var data WsFuturesAndOptionsOrderbookUpdate
+	var data *WsFuturesAndOptionsOrderbookUpdate
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
+	}
+	asks := make([]orderbook.Level, len(data.Asks))
+	for x := range data.Asks {
+		asks[x] = orderbook.Level{
+			Amount: data.Asks[x].Size,
+			Price:  data.Asks[x].Price.Float64(),
+		}
+	}
+	bids := make([]orderbook.Level, len(data.Bids))
+	for x := range data.Bids {
+		bids[x] = orderbook.Level{
+			Amount: data.Bids[x].Size,
+			Price:  data.Bids[x].Price.Float64(),
+		}
 	}
 	return e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, e, data.FirstUpdatedID, &orderbook.Update{
 		Asset:      a,
 		LastPushed: pushTime,
 		Pair:       data.ContractName,
-		Asks:       data.Asks.Levels(),
-		Bids:       data.Bids.Levels(),
+		Asks:       asks,
+		Bids:       bids,
 		UpdateID:   data.LastUpdatedID,
 		UpdateTime: data.Timestamp.Time(),
 		AllowEmpty: true,
@@ -484,9 +497,8 @@ func (e *Exchange) processOptionsOrderbookUpdate(ctx context.Context, incoming [
 
 func (e *Exchange) processOptionsOrderbookSnapshotPushData(event string, incoming []byte, lastPushed time.Time) error {
 	if event == "all" {
-		var data WsOptionsOrderbookSnapshot
-		err := json.Unmarshal(incoming, &data)
-		if err != nil {
+		var data *WsOptionsOrderbookSnapshot
+		if err := json.Unmarshal(incoming, &data); err != nil {
 			return err
 		}
 		base := orderbook.Book{
@@ -509,7 +521,7 @@ func (e *Exchange) processOptionsOrderbookSnapshotPushData(event string, incomin
 		}
 		return e.Websocket.Orderbook.LoadSnapshot(&base)
 	}
-	var data []WsFuturesOrderbookUpdateEvent
+	var data []*WsFuturesOrderbookUpdateEvent
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
@@ -540,7 +552,7 @@ func (e *Exchange) processOptionsOrderbookSnapshotPushData(event string, incomin
 		if err != nil {
 			return err
 		}
-		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Asks:              ab[0],
 			Bids:              ab[1],
 			Asset:             asset.Options,
@@ -549,8 +561,7 @@ func (e *Exchange) processOptionsOrderbookSnapshotPushData(event string, incomin
 			LastUpdated:       lastPushed,
 			LastPushed:        lastPushed,
 			ValidateOrderbook: e.ValidateOrderbook,
-		})
-		if err != nil {
+		}); err != nil {
 			return err
 		}
 	}
@@ -564,8 +575,7 @@ func (e *Exchange) processOptionsOrderPushData(data []byte) error {
 		Event   string           `json:"event"`
 		Result  []WsOptionsOrder `json:"result"`
 	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	orderDetails := make([]order.Detail, len(resp.Result))
@@ -606,8 +616,7 @@ func (e *Exchange) processOptionsUserTradesPushData(data []byte) error {
 		Event   string               `json:"event"`
 		Result  []WsOptionsUserTrade `json:"result"`
 	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	fills := make([]fill.Data, len(resp.Result))
