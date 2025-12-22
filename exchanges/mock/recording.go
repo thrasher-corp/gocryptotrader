@@ -310,7 +310,7 @@ const (
 // CheckJSON recursively parses json data to retract keywords, quite intensive.
 func CheckJSON(data any, excluded *Exclusion, limit int) (any, error) {
 	if value, ok := data.([]any); ok {
-		var sData []any
+		sData := make([]any, 0, len(data.([]any))%limit)
 		for i := range value {
 			switch subvalue := value[i].(type) {
 			case []any, map[string]any:
@@ -343,7 +343,7 @@ func CheckJSON(data any, excluded *Exclusion, limit int) (any, error) {
 
 	if len(contextValue) == 0 {
 		// Nil for some reason, should error out before in json.Unmarshal
-		return contextValue, nil
+		return map[string]any{}, nil
 	}
 
 	for key, val := range contextValue {

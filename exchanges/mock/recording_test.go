@@ -39,29 +39,50 @@ func TestGetFilteredURLVals(t *testing.T) {
 	assert.NotContains(t, cleanVals, superSecretData, "exclusion real_name should be removed")
 }
 
+type checkclass struct {
+	Counter int     `json:"counter,omitempty"`
+	Numbers []int   `json:"numbers,omitempty"`
+	Number  float64 `json:"number,omitempty"`
+	Name    string  `json:"name,omitempty"`
+}
+
 func TestCheckResponsePayload(t *testing.T) {
 	type someJSON struct {
-		SomeJSON string `json:"stuff,omitempty"`
+		Secret      string      `json:"secret,omitempty"`
+		Data        checkclass  `json:"data"`
+		DataPointer *checkclass `json:"datapointer,omitempty"`
+		Login       int         `json:"login,omitempty"`
+		IsEvenNum   bool        `json:"pass,omitempty"`
+		Balance     float64     `json:"bsb,omitempty"`
+		RealName    string      `json:"real_name,omitempty"`
 	}
 	inputs := []struct {
 		in  any
-		exp string
+		exp []byte
+		err error
 	}{
 		{
 			in: []someJSON{
 				{
-					SomeJSON: "REAAAAHHHHH",
+					Secret: "REAAAAHHHHH",
+					Data: checkclass{
+						Name: "the-super-secret-name",
+					},
 				},
 				{},
-			}, exp: `[
- {
-  "stuff": "REAAAAHHHHH"
- },
- {}
-]`,
-		}, {
-			in: someJSON{}, exp: `{}`,
+			}, exp: []byte("[\n {\n  \"data\": {\n   \"name\": \"\"\n  },\n  \"secret\": \"\"\n },\n {\n  \"data\": {}\n }\n]"),
 		},
+		{
+			in: someJSON{}, exp: []byte("{\n \"data\": {}\n}"),
+		},
+		{in: []*string{}, exp: []byte(`[]`)},
+		{in: someJSON{
+			Secret:    "",
+			Login:     1234,
+			IsEvenNum: true,
+			Balance:   1234.56,
+			RealName:  "sam",
+		}, exp: []byte("{\n \"bsb\": 0,\n \"data\": {},\n \"login\": 0,\n \"pass\": true,\n \"real_name\": \"\"\n}")},
 	}
 
 	items, err := getExcludedItems()
@@ -74,7 +95,7 @@ func TestCheckResponsePayload(t *testing.T) {
 
 		data, err := CheckResponsePayload(payload, items, 5)
 		assert.NoError(t, err, "CheckResponsePayload should not error")
-		assert.Equal(t, inputs[i].exp, string(data))
+		assert.Equal(t, inputs[i].exp, data)
 	}
 }
 
