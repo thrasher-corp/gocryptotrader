@@ -46,20 +46,22 @@ func TestCheckResponsePayload(t *testing.T) {
 	inputs := []struct {
 		in  any
 		exp string
-	}{{
-		in: []someJSON{
-			{
-				SomeJSON: "REAAAAHHHHH",
-			},
-			{},
-		}, exp: `[
+	}{
+		{
+			in: []someJSON{
+				{
+					SomeJSON: "REAAAAHHHHH",
+				},
+				{},
+			}, exp: `[
  {
   "stuff": "REAAAAHHHHH"
  },
  {}
-]`}, {
-		in: someJSON{}, exp: `{}`,
-	},
+]`,
+		}, {
+			in: someJSON{}, exp: `{}`,
+		},
 	}
 
 	items, err := getExcludedItems()

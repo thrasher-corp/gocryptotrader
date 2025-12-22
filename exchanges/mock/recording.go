@@ -181,9 +181,9 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 						}
 
 					case applicationJSON, textPlain:
-						trimmedBody := strings.TrimSpace(mockResponses[i].BodyParams)
-						trimmedMockBody := strings.TrimSpace(body)
-						if strings.HasPrefix(trimmedBody, "[") && strings.HasPrefix(trimmedMockBody, "[") {
+						trimmedStoredBody := strings.TrimSpace(mockResponses[i].BodyParams)
+						trimmedRequestBody := strings.TrimSpace(body)
+						if strings.HasPrefix(trimmedStoredBody, "[") && strings.HasPrefix(trimmedRequestBody, "[") {
 							reqVals, jErr := DeriveURLValsFromJSONSlice([]byte(body))
 							if jErr != nil {
 								return jErr
@@ -202,7 +202,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 								// data
 								mockResponses = slices.Delete(mockResponses, i, i+1)
 							}
-						} else if strings.HasPrefix(trimmedBody, "{") && strings.HasPrefix(trimmedMockBody, "{") {
+						} else if strings.HasPrefix(trimmedStoredBody, "{") && strings.HasPrefix(trimmedRequestBody, "{") {
 							reqVals, jErr := DeriveURLValsFromJSONMap([]byte(body))
 							if jErr != nil {
 								return jErr
