@@ -304,8 +304,7 @@ func getTecnicalAnalysis(c *cli.Context, algo string) error {
 	if err != nil {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
-	err = common.StartEndTimeCheck(s, e)
-	if err != nil {
+	if err := common.StartEndTimeCheck(s, e); err != nil {
 		return err
 	}
 
@@ -340,8 +339,8 @@ func getTecnicalAnalysis(c *cli.Context, algo string) error {
 		Period:        taPeriod,
 	}
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetTechnicalAnalysis(c.Context, req)
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		GetTechnicalAnalysis(c.Context, req)
 	if err != nil {
 		return err
 	}
@@ -420,8 +419,7 @@ func getBollingerBands(c *cli.Context) error {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
 
-	err = common.StartEndTimeCheck(s, e)
-	if err != nil {
+	if err := common.StartEndTimeCheck(s, e); err != nil {
 		return err
 	}
 
@@ -496,8 +494,8 @@ func getBollingerBands(c *cli.Context) error {
 		MovingAverageType:     maType,
 	}
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetTechnicalAnalysis(c.Context, req)
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		GetTechnicalAnalysis(c.Context, req)
 	if err != nil {
 		return err
 	}
@@ -576,8 +574,7 @@ func getMACD(c *cli.Context) error {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
 
-	err = common.StartEndTimeCheck(s, e)
-	if err != nil {
+	if err := common.StartEndTimeCheck(s, e); err != nil {
 		return err
 	}
 
@@ -636,8 +633,8 @@ func getMACD(c *cli.Context) error {
 		FastPeriod:    taFastPeriod,
 	}
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetTechnicalAnalysis(c.Context, req)
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		GetTechnicalAnalysis(c.Context, req)
 	if err != nil {
 		return err
 	}
@@ -716,8 +713,7 @@ func getCoco(c *cli.Context) error {
 		return fmt.Errorf("invalid time format for end: %v", err)
 	}
 
-	err = common.StartEndTimeCheck(s, e)
-	if err != nil {
+	if err := common.StartEndTimeCheck(s, e); err != nil {
 		return err
 	}
 
@@ -789,8 +785,8 @@ func getCoco(c *cli.Context) error {
 		OtherAssetType: otherAsset,
 	}
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetTechnicalAnalysis(c.Context, req)
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		GetTechnicalAnalysis(c.Context, req)
 	if err != nil {
 		return err
 	}
