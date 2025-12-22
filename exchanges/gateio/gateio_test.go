@@ -1510,7 +1510,7 @@ func TestUpdatePositionLeverageInDualMode(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidOrMissingContract)
 
 	_, err = e.UpdatePositionLeverageInDualMode(t.Context(), currency.USDT, usdtMFuturesTradablePair, -1, 0.001)
-	require.ErrorIs(t, err, errInvalidLeverage)
+	require.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err = e.UpdatePositionLeverageInDualMode(t.Context(), currency.BTC, coinMFuturesTradablePair, 1, 0.001)
@@ -1909,7 +1909,7 @@ func TestUpdateDeliveryPositionLeverage(t *testing.T) {
 	assert.ErrorIs(t, err, errInvalidOrMissingContract)
 
 	_, err = e.UpdateDeliveryPositionLeverage(t.Context(), currency.USDT, deliveryFuturesTradablePair, -1)
-	assert.ErrorIs(t, err, errInvalidLeverage)
+	assert.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err = e.UpdateDeliveryPositionLeverage(t.Context(), currency.USDT, deliveryFuturesTradablePair, 1)
@@ -4534,13 +4534,13 @@ func TestValidateContractOrderCreateParams(t *testing.T) {
 				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long",
 			},
 			isRest: true,
-			err:    errEmptyOrInvalidSettlementCurrency,
+			err:    currency.ErrCurrencyCodeEmpty,
 		},
 		{
 			params: &ContractOrderCreateParams{
 				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long", Settle: currency.NewCode("Silly"),
 			},
-			err: errEmptyOrInvalidSettlementCurrency,
+			err: currency.ErrCurrencyCodeEmpty,
 		},
 		{
 			params: &ContractOrderCreateParams{

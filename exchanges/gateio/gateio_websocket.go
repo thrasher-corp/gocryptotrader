@@ -334,9 +334,9 @@ func (e *Exchange) processCandlestick(incoming []byte) error {
 			out = append(out, websocket.KlineData{
 				Pair:       currencyPair,
 				AssetType:  a,
+				Interval:   icp[0],
 				Exchange:   e.Name,
 				StartTime:  data.Timestamp.Time(),
-				Interval:   icp[0],
 				OpenPrice:  data.OpenPrice.Float64(),
 				ClosePrice: data.ClosePrice.Float64(),
 				HighPrice:  data.HighestPrice.Float64(),
@@ -350,7 +350,7 @@ func (e *Exchange) processCandlestick(incoming []byte) error {
 }
 
 func (e *Exchange) processOrderbookTicker(incoming []byte, lastPushed time.Time) error {
-	var data WsOrderbookTickerData
+	var data *WsOrderbookTickerData
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
@@ -366,7 +366,7 @@ func (e *Exchange) processOrderbookTicker(incoming []byte, lastPushed time.Time)
 }
 
 func (e *Exchange) processOrderbookUpdate(ctx context.Context, incoming []byte, lastPushed time.Time) error {
-	var data WsOrderbookUpdate
+	var data *WsOrderbookUpdate
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
@@ -383,7 +383,7 @@ func (e *Exchange) processOrderbookUpdate(ctx context.Context, incoming []byte, 
 }
 
 func (e *Exchange) processOrderbookSnapshot(incoming []byte, lastPushed time.Time) error {
-	var data WsOrderbookSnapshot
+	var data *WsOrderbookSnapshot
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
@@ -408,10 +408,10 @@ func (e *Exchange) processOrderbookSnapshot(incoming []byte, lastPushed time.Tim
 
 func (e *Exchange) processSpotOrders(data []byte) error {
 	resp := struct {
-		Time    types.Time    `json:"time"`
-		Channel string        `json:"channel"`
-		Event   string        `json:"event"`
-		Result  []WsSpotOrder `json:"result"`
+		Time    types.Time     `json:"time"`
+		Channel string         `json:"channel"`
+		Event   string         `json:"event"`
+		Result  []*WsSpotOrder `json:"result"`
 	}{}
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
@@ -537,10 +537,10 @@ func (e *Exchange) processMarginBalances(ctx context.Context, data []byte) error
 
 func (e *Exchange) processFundingBalances(data []byte) error {
 	resp := struct {
-		Time    types.Time         `json:"time"`
-		Channel string             `json:"channel"`
-		Event   string             `json:"event"`
-		Result  []WsFundingBalance `json:"result"`
+		Time    types.Time          `json:"time"`
+		Channel string              `json:"channel"`
+		Event   string              `json:"event"`
+		Result  []*WsFundingBalance `json:"result"`
 	}{}
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err

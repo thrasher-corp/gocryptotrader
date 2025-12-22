@@ -3269,6 +3269,59 @@ type OptionsOrderInfo struct {
 	Left        float64 `json:"left,omitempty,string"`
 }
 
+// SpotPortfolioBalanceCalculationParam spot portfolio balance calculation params
+type SpotPortfolioBalanceCalculationParam struct {
+	Currency string  `json:"currency"`
+	Equity   float64 `json:"equity,omitempty,string"`
+	Freeze   float64 `json:"freeze,omitempty,string"`
+}
+
+// SpotOrdersCalculationParam spot portfolio calculation params
+type SpotOrdersCalculationParam struct {
+	CurrencyPairs string  `json:"currency_pairs"`
+	OrderPrice    float64 `json:"order_price,omitempty,string"`
+	Size          float64 `json:"size,omitempty,string"`
+	Left          float64 `json:"left,omitempty,string"`
+	Type          string  `json:"type"`
+}
+
+// FuturesPositionCalculationParam futures portfolio position calculation params
+type FuturesPositionCalculationParam struct {
+	Contract string  `json:"contract"`
+	Size     float64 `json:"size,omitempty,string"`
+}
+
+// FuturesOrdersCalculationParam holds futures portfolio orders detail calculation params
+type FuturesOrdersCalculationParam struct {
+	Contract string  `json:"contract"`
+	Size     float64 `json:"size,omitempty,string"`
+	Left     float64 `json:"left,omitempty,string"`
+}
+
+// OptionsPositionCalculationParam holds an options portfolio positions calculation params
+type OptionsPositionCalculationParam struct {
+	OptionsName string  `json:"options_name,omitempty"`
+	Size        float64 `json:"size,omitempty,string"`
+}
+
+// OptionsOrdersCalculationParam holds an options portfolio orders detail calculation params
+type OptionsOrdersCalculationParam struct {
+	OptionsName string  `json:"options_name,omitempty"`
+	Size        float64 `json:"size,omitempty,string"`
+	Left        float64 `json:"left,omitempty,string"`
+}
+
+// PortfolioMarginCalculationRequest holds a portfolio margin calculation requests
+type PortfolioMarginCalculationRequest struct {
+	SpotBalances     []*SpotPortfolioBalanceCalculationParam `json:"spot_balances"`
+	SpotOrders       []*SpotOrdersCalculationParam           `json:"spot_orders"`
+	FuturesPositions []*FuturesPositionCalculationParam      `json:"futures_positions"`
+	FuturesOrders    []*FuturesOrdersCalculationParam        `json:"futures_orders"`
+	OptionsPositions []*OptionsPositionCalculationParam      `json:"options_positions"`
+	OptionsOrders    []*OptionsOrdersCalculationParam        `json:"options_orders"`
+	SpotHedge        bool                                    `json:"spot_hedge"`
+}
+
 // PortfolioMarginCalculationResponse holds a portfolio margin calculation response
 type PortfolioMarginCalculationResponse struct {
 	MaintainMarginTotal types.Number `json:"maintain_margin_total"`
