@@ -2,7 +2,6 @@ package gct
 
 import (
 	"os"
-	"reflect"
 	"testing"
 	"time"
 
@@ -186,11 +185,7 @@ func TestExchangeOrderSubmit(t *testing.T) {
 
 func TestAllModuleNames(t *testing.T) {
 	t.Parallel()
-	x := AllModuleNames()
-	xType := reflect.TypeOf(x).Kind()
-	if xType != reflect.Slice {
-		t.Errorf("AllModuleNames() should return slice instead received: %v", x)
-	}
+	require.NotEmpty(t, AllModuleNames(), "AllModuleNames must not return an empty slice")
 }
 
 func TestExchangeDepositAddress(t *testing.T) {

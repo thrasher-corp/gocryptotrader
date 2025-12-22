@@ -13,7 +13,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -1530,22 +1529,18 @@ func TestParseEvents(t *testing.T) {
 		testData[x] = resp
 	}
 	v := parseMultipleEvents(testData)
-	if reflect.TypeOf(v).String() != "*gctrpc.WithdrawalEventsByExchangeResponse" {
-		t.Fatal("expected type to be *gctrpc.WithdrawalEventsByExchangeResponse")
-	}
-	if len(testData) < 2 {
-		t.Fatal("expected at least 2")
-	}
+	require.NotNil(t, v, "parseMultipleEvents must not return nil")
+	require.Len(t, v.Event, 5, "parseMultipleEvents must return 5 events")
 
 	v = parseSingleEvents(testData[0])
-	if reflect.TypeOf(v).String() != "*gctrpc.WithdrawalEventsByExchangeResponse" {
-		t.Fatal("expected type to be *gctrpc.WithdrawalEventsByExchangeResponse")
-	}
+	require.NotNil(t, v, "parseSingleEvents must not return nil")
+	require.NotEmpty(t, v.Event, "parseSingleEvents must return an event")
+	assert.Equal(t, int64(1), v.Event[0].Request.Type, "parseSingleEvents should return an event with the correct request type")
 
 	v = parseSingleEvents(testData[1])
-	if v.Event[0].Request.Type != 0 {
-		t.Fatal("Expected second entry in slice to return a Request.Type of Crypto")
-	}
+	require.NotNil(t, v, "parseSingleEvents must not return nil")
+	require.NotEmpty(t, v.Event, "parseSingleEvents must return an event")
+	assert.Zero(t, v.Event[0].Request.Type, "parseSingleEvents should return an event with the correct request type")
 }
 
 func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
