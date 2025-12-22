@@ -22,12 +22,16 @@ func TestNumberUnmarshalJSON(t *testing.T) {
 	assert.NoError(t, err, "Unmarshal should not error")
 	assert.Zero(t, n.Float64(), "UnmarshalJSON should parse empty as 0")
 
+	err = n.UnmarshalJSON([]byte(`null`))
+	assert.NoError(t, err, "Unmarshal should not error")
+	assert.Zero(t, n.Float64(), "UnmarshalJSON should parse empty as 0")
+
 	err = n.UnmarshalJSON([]byte(`1337.37`))
 	assert.NoError(t, err, "Unmarshal should not error on number types")
 	assert.Equal(t, 1337.37, n.Float64(), "UnmarshalJSON should handle raw numerics")
 
 	// Invalid value checking
-	for _, i := range []string{`"MEOW"`, `null`, `false`, `true`, `"1337.37`} {
+	for _, i := range []string{`"MEOW"`, `false`, `true`, `"1337.37`} {
 		err = n.UnmarshalJSON([]byte(i))
 		assert.ErrorIsf(t, err, errInvalidNumberValue, "UnmarshalJSON should error with invalid Value for %q", i)
 	}
