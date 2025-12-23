@@ -224,13 +224,16 @@ func (e *Exchange) GetCurrentFuturesOrders(ctx context.Context, symbol currency.
 }
 
 // GetOrderExecutionDetails retrieves detailed information about your executed futures order
-func (e *Exchange) GetOrderExecutionDetails(ctx context.Context, symbol currency.Pair, orderID, clientOrderID, direction string, startTime, endTime time.Time, offset, limit uint64) ([]*FuturesTradeFill, error) {
+func (e *Exchange) GetOrderExecutionDetails(ctx context.Context, side order.Side, symbol currency.Pair, orderID, clientOrderID, direction string, startTime, endTime time.Time, offset, limit uint64) ([]*FuturesTradeFill, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
 	}
 	params := url.Values{}
+	if side != order.UnknownSide {
+		params.Set("side", side.String())
+	}
 	if !startTime.IsZero() {
 		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -260,7 +263,7 @@ func (e *Exchange) GetOrderExecutionDetails(ctx context.Context, symbol currency
 }
 
 // GetFuturesOrderHistory retrieves previous futures orders. Orders that are completely canceled (no transaction has occurred) initiated through the API can only be queried for 4 hours.
-func (e *Exchange) GetFuturesOrderHistory(ctx context.Context, symbol currency.Pair, orderType, side, orderState, orderID, clientOrderID, direction string, startTime, endTime time.Time, offset, limit uint64) ([]*FuturesOrderDetails, error) {
+func (e *Exchange) GetFuturesOrderHistory(ctx context.Context, symbol currency.Pair, side order.Side, orderType, orderState, orderID, clientOrderID, direction string, startTime, endTime time.Time, offset, limit uint64) ([]*FuturesOrderDetails, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
@@ -276,8 +279,8 @@ func (e *Exchange) GetFuturesOrderHistory(ctx context.Context, symbol currency.P
 	if orderType != "" {
 		params.Set("type", orderType)
 	}
-	if side != "" {
-		params.Set("side", side)
+	if side != order.UnknownSide {
+		params.Set("side", side.String())
 	}
 	if !symbol.IsEmpty() {
 		params.Set("symbol", symbol.String())

@@ -93,7 +93,15 @@ type FuturesOrderRequest struct {
 type FuturesOrderIDResponse struct {
 	ClientOrderID string `json:"clOrdId"`
 	OrderID       string `json:"ordId"`
-	V3ResponseWrapper
+	Code          int64  `json:"code"`
+	Message       string `json:"msg"`
+}
+
+func (s *FuturesOrderIDResponse) Error() error {
+	if s.Code != 0 && s.Code != 200 {
+		return fmt.Errorf("error code: %d; message: %s", s.Code, s.Message)
+	}
+	return nil
 }
 
 // CancelOrderRequest represents a single order cancellation parameters
@@ -112,6 +120,7 @@ type CancelFuturesOrdersRequest struct {
 
 // FuturesTradeFill represents a trade executions
 type FuturesTradeFill struct {
+	ID             string        `json:""`
 	Symbol         currency.Pair `json:"symbol"`
 	Side           string        `json:"side"`
 	OrderID        string        `json:"ordId"`
@@ -122,9 +131,19 @@ type FuturesTradeFill struct {
 	FeeAmount      types.Number  `json:"feeAmt"`
 	DeductCurrency currency.Code `json:"deductCcy"`
 	DeductAmount   types.Number  `json:"deductAmt"`
-	FillPrice      types.Number  `json:"fpx"`
-	FillQuantity   types.Number  `json:"fqty"`
 	UpdateTime     types.Time    `json:"uTime"`
+	FillSize       types.Number  `json:"fillSz"`
+	CreationTime   types.Time    `json:"cTime"`
+	FeeRate        types.Number  `json:"feeRate"`
+	MarginMode     string        `json:"mgnMode"`
+	PositionSide   string        `json:"posSide"`
+	OrderType      string        `json:"ordType"`
+	Price          types.Number  `json:"px"`
+	Quantity       types.Number  `json:"qty"`
+	Type           string        `json:"type"`
+	AccountType    string        `json:"actType"`
+	QuoteCurrency  currency.Code `json:"qCcy"`
+	Value          types.Number  `json:"value"`
 }
 
 // FuturesOrderDetails represents a futures v3 order detail
@@ -133,6 +152,8 @@ type FuturesOrderDetails struct {
 	Side                       order.Side        `json:"side"`
 	MarginMode                 string            `json:"mgnMode"`
 	PositionSide               string            `json:"posSide"`
+	AccountType                string            `json:"actType"`
+	QuoteCurrency              currency.Code     `json:"qCcy"`
 	OrderType                  string            `json:"type"`
 	Price                      types.Number      `json:"px"`
 	Size                       types.Number      `json:"sz"`
@@ -144,7 +165,7 @@ type FuturesOrderDetails struct {
 	DeductAmount               types.Number      `json:"deductAmt"`
 	ExecutedAmount             types.Number      `json:"execAmt"`
 	DeductCurrency             currency.Code     `json:"deductCcy"`
-	ExecQuantity               types.Number      `json:"execQty"`
+	ExecutedQuantity           types.Number      `json:"execQty"`
 	FeeAmount                  types.Number      `json:"feeAmt"`
 	FeeCurrency                currency.Code     `json:"feeCcy"`
 	Leverage                   types.Number      `json:"lever"`
@@ -165,7 +186,6 @@ type FuturesOrderDetails struct {
 	Role                       string            `json:"role"`
 	TradeID                    string            `json:"trdId"`
 	CancelReason               string            `json:"cancelReason"`
-	OrdType                    string            `json:"ordType"`
 }
 
 // FuturesPosition represents a v3 futures position detail

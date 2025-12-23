@@ -1090,7 +1090,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			TimeInForce:          resp.TimeInForce,
 		}, nil
 	case asset.Futures:
-		fResults, err := e.GetFuturesOrderHistory(ctx, pair, "", "", "", orderID, "", "", time.Time{}, time.Time{}, 0, 0)
+		fResults, err := e.GetFuturesOrderHistory(ctx, pair, order.UnknownSide, "", "", orderID, "", "", time.Time{}, time.Time{}, 0, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -1106,9 +1106,9 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Price:                orderDetail.Price.Float64(),
 			Amount:               orderDetail.Quantity.Float64(),
 			AverageExecutedPrice: orderDetail.AveragePrice.Float64(),
-			QuoteAmount:          orderDetail.AveragePrice.Float64() * orderDetail.ExecQuantity.Float64(),
-			ExecutedAmount:       orderDetail.ExecQuantity.Float64(),
-			RemainingAmount:      orderDetail.Quantity.Float64() - orderDetail.ExecQuantity.Float64(),
+			QuoteAmount:          orderDetail.AveragePrice.Float64() * orderDetail.ExecutedQuantity.Float64(),
+			ExecutedAmount:       orderDetail.ExecutedQuantity.Float64(),
+			RemainingAmount:      orderDetail.Quantity.Float64() - orderDetail.ExecutedQuantity.Float64(),
 			OrderID:              orderDetail.OrderID,
 			Exchange:             e.Name,
 			ClientOrderID:        orderDetail.ClientOrderID,
@@ -1327,8 +1327,8 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				Pair:            fOrder.Symbol,
 				ReduceOnly:      fOrder.ReduceOnly.Bool(),
 				Leverage:        fOrder.Leverage.Float64(),
-				ExecutedAmount:  fOrder.ExecQuantity.Float64(),
-				RemainingAmount: fOrder.Size.Float64() - fOrder.ExecQuantity.Float64(),
+				ExecutedAmount:  fOrder.ExecutedQuantity.Float64(),
+				RemainingAmount: fOrder.Size.Float64() - fOrder.ExecutedQuantity.Float64(),
 				ClientOrderID:   fOrder.ClientOrderID,
 				Status:          oState,
 				AssetType:       req.AssetType,
@@ -1487,7 +1487,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	if err != nil {
 		return nil, err
 	}
-	orderHistory, err := e.GetFuturesOrderHistory(ctx, currency.EMPTYPAIR, oTypeString, req.Side.String(), "", "", "", "", req.StartTime, req.EndTime, 0, 100)
+	orderHistory, err := e.GetFuturesOrderHistory(ctx, currency.EMPTYPAIR, req.Side, oTypeString, "", "", "", "", req.StartTime, req.EndTime, 0, 100)
 	if err != nil {
 		return nil, err
 	}

@@ -268,8 +268,8 @@ func (e *Exchange) processFuturesTradeFills(data []byte) error {
 			TradeID:       r.TradeID,
 			ClientOrderID: r.ClientOrderID,
 			Timestamp:     r.UpdateTime.Time(),
-			Price:         r.FillPrice.Float64(),
-			Amount:        r.FillQuantity.Float64(),
+			Amount:        r.FillSize.Float64(),
+			Price:         r.Price.Float64(),
 		}
 	}
 	e.Websocket.DataHandler <- tFills
@@ -298,8 +298,8 @@ func (e *Exchange) processFuturesOrders(data []byte) error {
 			Amount:               r.Size.Float64(),
 			TriggerPrice:         r.TakeProfitTriggerPrice.Float64(),
 			AverageExecutedPrice: r.AveragePrice.Float64(),
-			ExecutedAmount:       r.ExecQuantity.Float64(),
-			RemainingAmount:      r.Size.Float64() - r.ExecQuantity.Float64(),
+			ExecutedAmount:       r.ExecutedQuantity.Float64(),
+			RemainingAmount:      r.Size.Float64() - r.ExecutedQuantity.Float64(),
 			Fee:                  r.FeeAmount.Float64(),
 			FeeAsset:             r.FeeCurrency,
 			Exchange:             e.Name,

@@ -645,7 +645,7 @@ func (e *Exchange) PlaceBatchOrders(ctx context.Context, args []PlaceOrderReques
 	}
 	var resp []*OrderIDResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sBatchOrderEPL, http.MethodPost, "/orders/batch", nil, args, &resp); err != nil {
-		return nil, fmt.Errorf("%w: %w", order.ErrPlaceFailed, err)
+		return resp, fmt.Errorf("%w: %w", order.ErrPlaceFailed, err)
 	}
 	return resp, nil
 }
@@ -728,7 +728,7 @@ func (e *Exchange) CancelOrdersByIDs(ctx context.Context, orderIDs, clientOrderI
 	}
 	var resp []*CancelOrderResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCancelBatchOrdersEPL, http.MethodDelete, "/orders/cancelByIds", nil, params, &resp); err != nil {
-		return nil, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
+		return resp, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
 	}
 	return resp, nil
 }
@@ -744,7 +744,7 @@ func (e *Exchange) CancelTradeOrders(ctx context.Context, symbols []string, acco
 	}
 	var resp []*CancelOrderResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCancelAllOrdersEPL, http.MethodDelete, "/orders", nil, args, &resp); err != nil {
-		return nil, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
+		return resp, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
 	}
 	return resp, nil
 }
@@ -896,7 +896,18 @@ func (e *Exchange) CancelSmartOrders(ctx context.Context, symbols []currency.Pai
 }
 
 func orderFillParams(arg *OrdersHistoryRequest) (url.Values, error) {
+	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
+		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
+	if !arg.StartTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(arg.StartTime.UnixMilli(), 10))
+	}
+	if !arg.EndTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
+	}
 	if arg.AccountType != "" {
 		params.Set("accountType", arg.AccountType)
 	}
@@ -926,17 +937,6 @@ func orderFillParams(arg *OrdersHistoryRequest) (url.Values, error) {
 	}
 	if arg.HideCancel {
 		params.Set("hideCancel", "true")
-	}
-	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
-		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
-			return nil, err
-		}
-	}
-	if !arg.StartTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(arg.StartTime.UnixMilli(), 10))
-	}
-	if !arg.EndTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
 	return params, nil
 }

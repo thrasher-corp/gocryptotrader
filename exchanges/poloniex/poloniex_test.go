@@ -616,7 +616,7 @@ func TestWithdraw(t *testing.T) {
 	withdrawCryptoRequest := withdraw.Request{
 		Exchange: e.Name,
 		Crypto: withdraw.CryptoRequest{
-			Address: core.BitcoinDonationAddress,
+			Address: "bc1qk0jareu4jytc0cfrhr5wgshsq8",
 			Chain:   "ERP",
 		},
 		Amount:   0.0000001,
@@ -1355,7 +1355,13 @@ func TestGetSubAccountTransferRecords(t *testing.T) {
 	_, err := e.GetSubAccountTransferRecords(generateContext(t), &SubAccountTransferRecordRequest{Currency: currency.BTC, StartTime: endTime, EndTime: startTime})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	_, err = e.GetSubAccountTransferRecords(generateContext(t), &SubAccountTransferRecordRequest{Currency: currency.BTC})
+	_, err = e.GetSubAccountTransferRecords(generateContext(t), &SubAccountTransferRecordRequest{
+		Currency:        currency.BTC,
+		FromAccountType: "SPOT",
+		ToAccountType:   "FUTURES",
+		ToAccountID:     "32b323201-e832-2270-78t4-e25ak408946",
+		FromAccountID:   "32b323201-e832-2270-78t4-e25ak408941",
+	})
 	require.NoError(t, err)
 
 	_, err = e.GetSubAccountTransferRecords(generateContext(t), &SubAccountTransferRecordRequest{Currency: currency.BTC, StartTime: startTime, EndTime: endTime})
@@ -1791,8 +1797,8 @@ func TestCreateSmartOrder(t *testing.T) {
 		TimeInForce:   TimeInForce(order.GoodTillCancel),
 		Quantity:      100,
 	})
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
+	require.NoError(t, err)
+	require.NotNil(t, result)
 	assert.Equalf(t, int64(200), result.Code, "CreateSmartOrder error with code: %d message: %s", result.Code, result.Message)
 
 	result, err = e.CreateSmartOrder(generateContext(t), &SmartOrderRequest{
@@ -1896,7 +1902,7 @@ func TestGetOrdersHistory(t *testing.T) {
 		startTime, endTime = time.Now().Add(-time.Hour*100), time.Now()
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	_, err := e.GetOrdersHistory(generateContext(t), &OrdersHistoryRequest{Symbol: spotTradablePair, AccountType: "SPOT", Limit: 10})
+	_, err := e.GetOrdersHistory(generateContext(t), &OrdersHistoryRequest{Symbol: spotTradablePair, AccountType: "SPOT", Limit: 10, OrderTypes: []string{"LIMIT", "LIMIT_MAKER"}})
 	require.NoError(t, err)
 
 	_, err = e.GetOrdersHistory(generateContext(t), &OrdersHistoryRequest{Symbol: spotTradablePair, AccountType: "SPOT", Limit: 10, StartTime: endTime, EndTime: startTime})
@@ -1905,6 +1911,7 @@ func TestGetOrdersHistory(t *testing.T) {
 	_, err = e.GetOrdersHistory(generateContext(t), &OrdersHistoryRequest{
 		Symbol:      spotTradablePair,
 		AccountType: "SPOT",
+		From:        228530000,
 		Limit:       10,
 		Direction:   "NEXT",
 		Side:        order.Sell,
@@ -2018,8 +2025,8 @@ var pushMessages = map[string]string{
 	"Books":          `{"channel":"book","data":[{"symbol":"BTC_USDC","createTime":1694469187686,"asks":[["25157.24","0.444294"],["25157.25","0.024357"],["25157.26","0.003204"],["25163.39","0.039476"],["25163.4","0.110047"]],"bids":[["25148.8","0.00692"],["25148.61","0.021581"],["25148.6","0.034504"],["25148.59","0.065405"],["25145.52","0.79537"]],"id":598273384,"ts":1694469187733}]}`,
 	"Tickers":        `{"channel":"ticker","data":[{"symbol":"BTC_USDC","startTime":1694382780000,"open":"25866.3","high":"26008.47","low":"24923.65","close":"25153.02","quantity":"1626.444884","amount":"41496808.63699303","tradeCount":37124,"dailyChange":"-0.0276","markPrice":"25154.9","closeTime":1694469183664,"ts":1694469187081}]}`,
 	"Trades":         `{"channel":"trades","data":[{"symbol":"BTC_USDC","amount":"52.821342","quantity":"0.0021","takerSide":"sell","createTime":1694469183664,"price":"25153.02","id":71076055,"ts":1694469183673}]}`,
-	"Currencies":     `{"channel":"currencies","data":[[{"currency":"BTC","id":28,"name":"Bitcoin","description":"BTC Clone","type":"address","withdrawalFee":"0.0008","minConf":2,"depositAddress":null,"blockchain":"BTC","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":true,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":["BTCTRON"]},{"currency":"XRP","id":243,"name":"XRP","description":"Payment ID","type":"address-payment-id","withdrawalFee":"0.2","minConf":2,"depositAddress":"rwU8rAiE2eyEPz3sikfbHuqCuiAtdXqa2v","blockchain":"XRP","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":false,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":[]},{"currency":"ETH","id":267,"name":"Ethereum","description":"Sweep to Main Account","type":"address","withdrawalFee":"0.00197556","minConf":64,"depositAddress":null,"blockchain":"ETH","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":true,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":["ETHTRON"]},{"currency":"USDT","id":214,"name":"Tether USD","description":"Sweep to Main Account","type":"address","withdrawalFee":"0","minConf":2,"depositAddress":null,"blockchain":"OMNI","delisted":false,"tradingState":"NORMAL","walletState":"DISABLED","parentChain":null,"isMultiChain":true,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":["USDTETH","USDTTRON"]},{"currency":"DOGE","id":59,"name":"Dogecoin","description":"BTC Clone","type":"address","withdrawalFee":"20","minConf":6,"depositAddress":null,"blockchain":"DOGE","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":true,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":["DOGETRON"]},{"currency":"LTC","id":125,"name":"Litecoin","description":"BTC Clone","type":"address","withdrawalFee":"0.001","minConf":4,"depositAddress":null,"blockchain":"LTC","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":true,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":["LTCTRON"]},{"currency":"DASH","id":60,"name":"Dash","description":"BTC Clone","type":"address","withdrawalFee":"0.01","minConf":20,"depositAddress":null,"blockchain":"DASH","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":false,"isChildChain":false,"supportCollateral":false,"supportBorrow":false,"childChains":[]}]],"action":"snapshot"}`,
-	"Symbols":        `{"channel":"symbols","data":[[{"symbol":"BTC_USDC","baseCurrencyName":"BTC","quoteCurrencyName":"USDT","displayName":"BTC/USDT","state":"NORMAL","visibleStartTime":1659018819512,"tradableStartTime":1659018819512,"crossMargin":{"supportCrossMargin":true,"maxLeverage":"3"},"symbolTradeLimit":{"symbol":"BTC_USDT","priceScale":2,"quantityScale":6,"amountScale":2,"minQuantity":"0.000001","minAmount":"1","highestBid":"0","lowestAsk":"0"}}]],"action":"snapshot"}`,
+	"Currencies":     `{"channel":"currencies","data":[{"currency":"BTC","id":28,"name":"Bitcoin","description":"BTC Clone","type":"address","withdrawalFee":"0.0008","minConf":2,"depositAddress":null,"blockchain":"BTC","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":true,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":["BTCTRON"]},{"currency":"XRP","id":243,"name":"XRP","description":"Payment ID","type":"address-payment-id","withdrawalFee":"0.2","minConf":2,"depositAddress":"rwU8rAiE2eyEPz3sikfbHuqCuiAtdXqa2v","blockchain":"XRP","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":false,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":[]},{"currency":"ETH","id":267,"name":"Ethereum","description":"Sweep to Main Account","type":"address","withdrawalFee":"0.00197556","minConf":64,"depositAddress":null,"blockchain":"ETH","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":true,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":["ETHTRON"]},{"currency":"USDT","id":214,"name":"Tether USD","description":"Sweep to Main Account","type":"address","withdrawalFee":"0","minConf":2,"depositAddress":null,"blockchain":"OMNI","delisted":false,"tradingState":"NORMAL","walletState":"DISABLED","parentChain":null,"isMultiChain":true,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":["USDTETH","USDTTRON"]},{"currency":"DOGE","id":59,"name":"Dogecoin","description":"BTC Clone","type":"address","withdrawalFee":"20","minConf":6,"depositAddress":null,"blockchain":"DOGE","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":true,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":["DOGETRON"]},{"currency":"LTC","id":125,"name":"Litecoin","description":"BTC Clone","type":"address","withdrawalFee":"0.001","minConf":4,"depositAddress":null,"blockchain":"LTC","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":true,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":["LTCTRON"]},{"currency":"DASH","id":60,"name":"Dash","description":"BTC Clone","type":"address","withdrawalFee":"0.01","minConf":20,"depositAddress":null,"blockchain":"DASH","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":false,"isChildChain":false,"supportCollateral":false,"supportBorrow":false,"childChains":[]}],"action":"snapshot"}`,
+	"Symbols":        `{"channel":"symbols","data":[{"symbol":"BTC_USDC","baseCurrencyName":"BTC","quoteCurrencyName":"USDT","displayName":"BTC/USDT","state":"NORMAL","visibleStartTime":1659018819512,"tradableStartTime":1659018819512,"crossMargin":{"supportCrossMargin":true,"maxLeverage":"3"},"symbolTradeLimit":{"symbol":"BTC_USDT","priceScale":2,"quantityScale":6,"amountScale":2,"minQuantity":"0.000001","minAmount":"1","highestBid":"0","lowestAsk":"0"}}],"action":"snapshot"}`,
 }
 
 func TestWsPushData(t *testing.T) {
@@ -2031,7 +2038,7 @@ func TestWsPushData(t *testing.T) {
 			assert.NoError(t, err)
 		})
 	}
-	// Since running test parallelly shuffles the order of execution
+	// Since running test in parallel shuffles the order of execution
 	// We run book_lv2 data handling, ensuring the snapshot is processed before the update as follows
 	err := e.wsHandleData(generateContext(t), e.Websocket.Conn, []byte(`{"channel":"book_lv2","data":[{"symbol":"BTC_USDC","createTime":1694469187745,"asks":[],"bids":[["25148.81","0.02158"],["25088.11","0"]],"lastId":598273385,"id":598273386,"ts":1694469187760}],"action":"snapshot"}`))
 	require.NoError(t, err, "book_lv2 snapshot must not error")
@@ -2196,7 +2203,7 @@ func TestWsFuturesHandleData(t *testing.T) {
 			assert.NoError(t, err)
 		})
 	}
-	// Since running test parallelly shuffles the order of execution
+	// Since running test in parallel shuffles the order of execution
 	// We run book_lv2 data handling, ensuring the snapshot is processed before the update as follows
 	err := e.wsFuturesHandleData(generateContext(t), e.Websocket.Conn, []byte(`{"channel":"book_lv2","data":[{"asks":[["87845.63","1"],["87850.4","1"],["87859.98","9"],["87866.84","21"],["87888.32","33"],["87891.40","106"],["87894.48","705"],["87897.56","238"],["87900.64","762"],["87905.16","8"],["87911.17","34"],["87913.95","4040"],["87915.13","470"],["87919.09","199"],["87922.74","2141"],["87923.05","758"],["87931.52","1568"],["87937.09","10"],["87940.31","1392"],["87940.61","64"]],"bids":[["87842.42","1"],["87842.41","1"],["87835.72","1138"],["87834.64","226"],["87833.61","446"],["87833.56","26"],["87832.48","13"],["87831.40","130"],["87807.27","69"],["87798.48","935"],["87794.18","1932"],["87791.10","296"],["87789.69","1596"],["87788.02","320"],["87784.94","131"],["87781.86","242"],["87780.90","768"],["87772.11","1737"],["87771.33","910"],["87767.37","261"]],"lid":3206980818,"id":3206980819,"ts":1765921828543,"s":"BTC_USDT_PERP","cT":1765921827839}],"action":"snapshot"}`))
 	require.NoError(t, err, "Futures Orderbook Level-2 Snapshot must not error")
@@ -2385,7 +2392,7 @@ func TestCloseAllPositionsAtMarketPrice(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetCurrentOrders(t *testing.T) {
+func TestGetCurrentFuturesOrders(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -2402,23 +2409,25 @@ func TestGetOrderExecutionDetails(t *testing.T) {
 		startTime, endTime = time.Now().Add(-time.Hour*24), time.Now()
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	_, err := e.GetOrderExecutionDetails(generateContext(t), currency.EMPTYPAIR, "", "", "NEXT", time.Now(), time.Now().Add(-time.Hour), 0, 100)
+	_, err := e.GetOrderExecutionDetails(generateContext(t), order.Sell, currency.EMPTYPAIR, "", "", "NEXT", time.Now(), time.Now().Add(-time.Hour), 0, 100)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	result, err := e.GetOrderExecutionDetails(generateContext(t), currency.EMPTYPAIR, "", "", "NEXT", startTime, endTime, 0, 100)
+	result, err := e.GetOrderExecutionDetails(generateContext(t), order.Buy, futuresTradablePair, "331381604734197760", "polo331381602863284224", "NEXT", startTime, endTime, 1, 100)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetFuturesOrderHistory(t *testing.T) {
 	t.Parallel()
+	startTime, endTime := time.UnixMilli(1743615790295), time.UnixMilli(1743702190295)
 	if !mockTests {
+		startTime, endTime = time.Now().Add(-time.Hour*24), time.Now()
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	_, err := e.GetFuturesOrderHistory(generateContext(t), currency.EMPTYPAIR, "LIMIT", "", "PARTIALLY_CANCELED", "", "", "PREV", time.Now(), time.Now().Add(-time.Hour), 0, 100)
+	_, err := e.GetFuturesOrderHistory(generateContext(t), currency.EMPTYPAIR, order.UnknownSide, "LIMIT", "PARTIALLY_CANCELED", "", "", "PREV", time.Now(), time.Now().Add(-time.Hour), 0, 100)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	result, err := e.GetFuturesOrderHistory(generateContext(t), currency.EMPTYPAIR, "LIMIT", "", "PARTIALLY_CANCELED", "", "", "PREV", time.Time{}, time.Time{}, 0, 100)
+	result, err := e.GetFuturesOrderHistory(generateContext(t), futuresTradablePair, order.Sell, "LIMIT", "PARTIALLY_CANCELED", "331381604734197760", "polo331381602863284224", "PREV", startTime, endTime, 1, 100)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }

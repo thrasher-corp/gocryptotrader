@@ -820,17 +820,23 @@ type CrossMarginSupportInfo struct {
 	MaxLeverage        types.Number `json:"maxLeverage"`
 }
 
+// WsCrossMarginSupportInfo represents information returned throught the websocket stream on whether cross margin support is enabled or not, and leverage detail
+type WsCrossMarginSupportInfo struct {
+	SupportCrossMargin bool   `json:"supportCrossMargin"`
+	MaxLeverage        uint64 `json:"maxLeverage,string"`
+}
+
 // WsSymbol represents a subscription
 type WsSymbol struct {
-	Symbol            currency.Pair           `json:"symbol"`
-	BaseCurrencyName  currency.Code           `json:"baseCurrencyName"`
-	QuoteCurrencyName currency.Code           `json:"quoteCurrencyName"`
-	DisplayName       string                  `json:"displayName"`
-	State             string                  `json:"state"`
-	VisibleStartTime  types.Time              `json:"visibleStartTime"`
-	TradableStartTime types.Time              `json:"tradableStartTime"`
-	CrossMargin       *CrossMarginSupportInfo `json:"crossMargin"`
-	SymbolTradeLimit  *SymbolTradeLimit       `json:"symbolTradeLimit"`
+	Symbol            currency.Pair             `json:"symbol"`
+	BaseCurrencyName  currency.Code             `json:"baseCurrencyName"`
+	QuoteCurrencyName currency.Code             `json:"quoteCurrencyName"`
+	DisplayName       string                    `json:"displayName"`
+	State             string                    `json:"state"`
+	VisibleStartTime  types.Time                `json:"visibleStartTime"`
+	TradableStartTime types.Time                `json:"tradableStartTime"`
+	CrossMargin       *WsCrossMarginSupportInfo `json:"crossMargin"`
+	SymbolTradeLimit  *SymbolTradeLimit         `json:"symbolTradeLimit"`
 }
 
 // WsCurrency represents a currency instance from websocket stream.

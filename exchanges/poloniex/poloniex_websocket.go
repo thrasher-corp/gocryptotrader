@@ -156,10 +156,10 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	case channelAuth:
 		return conn.RequireMatchWithData(channelAuth, respRaw)
 	case channelSymbols:
-		var response [][]WsSymbol
+		var response []*WsSymbol
 		return e.processResponse(&result, &response)
 	case channelCurrencies:
-		var response [][]WsCurrency
+		var response []*WsCurrency
 		return e.processResponse(&result, &response)
 	case channelExchange:
 		var response WsExchangeStatus

@@ -8932,34 +8932,6 @@
   "/orders/history": {
    "GET": [
     {
-     "data": {
-      "code": 601,
-      "message": "Invalid side: ANY"
-     },
-     "queryString": "accountType=SPOT\u0026limit=100\u0026type=LIMIT",
-     "bodyParams": "",
-     "headers": {
-      "Content-Type": [
-       "application/json"
-      ],
-      "Key": [
-       ""
-      ],
-      "Recvwindow": [
-       "1500"
-      ],
-      "Signature": [
-       "qd3BP/RP1dLbOhorM1VehUsSCCvLNTCAnwimGCNJamc="
-      ],
-      "Signaturemethod": [
-       "hmacSHA256"
-      ],
-      "Signtimestamp": [
-       "1742737815103"
-      ]
-     }
-    },
-    {
      "data": null,
      "queryString": "accountType=SPOT\u0026limit=100\u0026side=BUY\u0026type=LIMIT",
      "bodyParams": "",
@@ -9033,7 +9005,7 @@
             "cancelReason": 1
         }
      ],
-     "queryString": "accountType=SPOT\u0026limit=10\u0026symbol=BTC_USDT",
+     "queryString": "accountType=SPOT\u0026limit=10\u0026symbol=BTC_USDT\u0026types=LIMIT%2CLIMIT_MAKER",
      "bodyParams": "",
      "headers": {
       "Content-Type": [
@@ -9080,7 +9052,7 @@
             "cancelReason": 1
         }
      ],
-     "queryString": "accountType=SPOT\u0026direction=NEXT\u0026endTime=1765290174763\u0026hideCancel=true\u0026limit=10\u0026side=SELL\u0026startTime=1764930174763\u0026states=FAILED\u0026symbol=BTC_USDT\u0026type=LIMIT_MAKER",
+     "queryString": "accountType=SPOT\u0026direction=NEXT\u0026endTime=1765290174763\u0026from=228530000\u0026hideCancel=true\u0026limit=10\u0026side=SELL\u0026startTime=1764930174763\u0026states=FAILED\u0026symbol=BTC_USDT\u0026type=LIMIT_MAKER",
      "bodyParams": "",
      "headers": {
       "Content-Type": [
@@ -9855,8 +9827,35 @@
   "/subaccounts/transfer": {
    "GET": [
     {
-     "data": null,
-     "queryString": "currency=BTC",
+     "data": [
+        {
+            "id": "228535117",        
+            "fromAccountId": "32b323201-e832-2270-78t4-e25ak408945",
+            "fromAccountName": "primary Acct",        
+            "fromAccountType": "SPOT",
+            "toAccountId": "23422vdd1-e832-2270-78t4-2342cl2292",
+            "toAccountName": "sub1",
+            "toAccountType": "SPOT",
+            "currency": "USDT",
+            "amount": "111",
+            "state": "SUCCESS",
+            "createTime": 1670980921113
+        },
+        {
+            "id": "1328535117",        
+            "fromAccountId": "32b323201-e832-2270-78t4-e25ak408945",
+            "fromAccountName": "primary Acct",        
+            "fromAccountType": "SPOT",
+            "toAccountId": "23422vdd1-e832-2270-78t4-2342cl2292",
+            "toAccountName": "sub2",
+            "toAccountType": "FUTURES",
+            "currency": "USDT",
+            "amount": "111",
+            "state": "SUCCESS",
+            "createTime": 1670980921113
+        }
+    ],
+     "queryString": "currency=BTC\u0026fromAccountID=32b323201-e832-2270-78t4-e25ak408941\u0026fromAccountType=SPOT\u0026toAccountID=32b323201-e832-2270-78t4-e25ak408946\u0026toAccountType=FUTURES",
      "bodyParams": "",
      "headers": {
       "Content-Type": [
@@ -10448,12 +10447,12 @@
     },
     {
      "data": {
-      "currency": "ETH",
+      "currency": "BTC",
       "amount": "1.50",
       "address": "0xbb8d0d7c346daecc2380dabaa91f3ccf8ae232fb4"
      },
      "queryString": "",
-     "bodyParams": "{\"coin\":\"BTC\",\"network\":\"ERP\",\"amount\":\"1e-7\",\"address\":\"bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc\"}",
+     "bodyParams": "{\"coin\":\"BTC\",\"network\":\"ERP\",\"amount\":\"1e-7\",\"address\":\"bc1qk0jareu4jytc0cfrhr5wgshsq8\"}",
      "headers": {
       "Content-Type": [
        "application/json"
@@ -12647,10 +12646,36 @@
     {
      "data": {
       "code": 200,
-      "data": [],
+      "data": [
+        {
+            "cTime": "1719973930900",
+            "clOrdId": "polo331381602863284224",
+            "deductAmt": "0",
+            "deductCcy": "",
+            "feeAmt": "0.00009405",
+            "feeCcy": "USDT",
+            "feeRate": "0.0005",
+            "id": "331381604734197760",
+            "mgnMode": "CROSS",
+            "posSide": "BOTH",
+            "ordType": "MARKET",
+            "px": "60000",
+            "qty": "3",
+            "role": "TAKER",
+            "side": "SELL",
+            "symbol": "BTC_USDT_PERP",
+            "ordId":"356743696043233280",
+            "trdId": "100000010",
+            "type": "TRADE",
+            "actType": "TRADING",
+            "qCcy": "USDT",
+            "value": "1000",
+            "uTime": "1719973930924"
+        }
+      ],
       "msg": ""
      },
-     "queryString": "direct=PREV\u0026limit=100\u0026state=PARTIALLY_CANCELED\u0026type=LIMIT",
+     "queryString": "clOrdId=polo331381602863284224\u0026direct=PREV\u0026eTime=1743702190295\u0026from=1\u0026limit=100\u0026ordId=331381604734197760\u0026sTime=1743615790295\u0026side=SELL\u0026state=PARTIALLY_CANCELED\u0026symbol=BTC_USDT_PERP\u0026type=LIMIT",
      "bodyParams": "",
      "headers": {
       "Content-Type": [
@@ -13080,127 +13105,37 @@
    "GET": [
     {
      "data": {
-      "code": 400,
-      "data": [],
-      "msg": "Param error symbol:ETH_USDTPERP"
-     },
-     "queryString": "direct=NEXT\u0026eTime=1734073047188\u0026limit=100\u0026sTime=1733986647188\u0026symbol=ETH_USDTPERP",
-     "bodyParams": "",
-     "headers": {
-      "Content-Type": [
-       "application/json"
-      ],
-      "Key": [
-       ""
-      ],
-      "Recvwindow": [
-       "1500"
-      ],
-      "Signature": [
-       "rI7EosKqFwBz6knrnYkUrcIpBLZHwLQ4ZndlvXVmWCw="
-      ],
-      "Signaturemethod": [
-       "hmacSHA256"
-      ],
-      "Signtimestamp": [
-       "1734073047188"
-      ]
-     }
-    },
-    {
-     "data": {
-      "code": 400,
-      "data": [],
-      "msg": "Param error symbol:ETH_USDTPERP"
-     },
-     "queryString": "direct=NEXT\u0026eTime=1734073088055\u0026limit=100\u0026sTime=1733986688055\u0026symbol=ETH_USDTPERP",
-     "bodyParams": "",
-     "headers": {
-      "Content-Type": [
-       "application/json"
-      ],
-      "Key": [
-       ""
-      ],
-      "Recvwindow": [
-       "1500"
-      ],
-      "Signature": [
-       "aZvpznBViYntqu883KssU4wmYWRZJ6FgNOXDmS3CK9c="
-      ],
-      "Signaturemethod": [
-       "hmacSHA256"
-      ],
-      "Signtimestamp": [
-       "1734073088055"
-      ]
-     }
-    },
-    {
-     "data": {
       "code": 200,
-      "data": [],
+      "data": [
+        {
+            "cTime": "1719973930900",
+            "clOrdId": "polo331381602863284224",
+            "deductAmt": "0",
+            "deductCcy": "",
+            "feeAmt": "0.00009405",
+            "feeCcy": "USDT",
+            "feeRate": "0.0005",
+            "id": "331381604734197760",
+            "mgnMode": "CROSS",
+            "posSide": "BOTH",
+            "ordType": "MARKET",
+            "px": "60000",
+            "qty": "3",
+            "role": "TAKER",
+            "side": "SELL",
+            "symbol": "BTC_USDT_PERP",
+            "ordId":"356743696043233280",
+            "trdId": "100000010",
+            "type": "TRADE",
+            "actType": "TRADING",
+            "qCcy": "USDT",
+            "value": "1000",
+            "uTime": "1719973930924"
+        }
+      ],
       "msg": ""
      },
-     "queryString": "direct=NEXT\u0026eTime=1734073127962\u0026limit=100\u0026sTime=1733986727962",
-     "bodyParams": "",
-     "headers": {
-      "Content-Type": [
-       "application/json"
-      ],
-      "Key": [
-       ""
-      ],
-      "Recvwindow": [
-       "1500"
-      ],
-      "Signature": [
-       "TfWEeJY2rBP2x+Y4mbsmdFrCsqjdBLvtHZfZ6GMPnF0="
-      ],
-      "Signaturemethod": [
-       "hmacSHA256"
-      ],
-      "Signtimestamp": [
-       "1734073127962"
-      ]
-     }
-    },
-    {
-     "data": {
-      "code": 200,
-      "data": [],
-      "msg": ""
-     },
-     "queryString": "direct=NEXT\u0026eTime=1734073166289\u0026limit=100\u0026sTime=1733986766289",
-     "bodyParams": "",
-     "headers": {
-      "Content-Type": [
-       "application/json"
-      ],
-      "Key": [
-       ""
-      ],
-      "Recvwindow": [
-       "1500"
-      ],
-      "Signature": [
-       "NnWGMSeEG8QPopaws6lcfEgGexlKWdpEMKCNLcGcL2Y="
-      ],
-      "Signaturemethod": [
-       "hmacSHA256"
-      ],
-      "Signtimestamp": [
-       "1734073166289"
-      ]
-     }
-    },
-    {
-     "data": {
-      "code": 200,
-      "data": [],
-      "msg": ""
-     },
-     "queryString": "direct=NEXT\u0026eTime=1743702190295\u0026limit=100\u0026sTime=1743615790295",
+     "queryString": "clOrdId=polo331381602863284224\u0026direct=NEXT\u0026eTime=1743702190295\u0026from=1\u0026limit=100\u0026ordId=331381604734197760\u0026sTime=1743615790295\u0026side=BUY\u0026symbol=BTC_USDT_PERP",
      "bodyParams": "",
      "headers": {
       "Content-Type": [
