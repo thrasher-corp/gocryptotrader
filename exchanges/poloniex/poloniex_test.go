@@ -2448,13 +2448,15 @@ func TestGetFuturesCurrentPosition(t *testing.T) {
 
 func TestGetFuturesPositionHistory(t *testing.T) {
 	t.Parallel()
+	startTime, endTime := time.UnixMilli(1743615790295), time.UnixMilli(1743702190295)
 	if !mockTests {
+		startTime, endTime = time.Now().Add(-time.Hour*24), time.Now()
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	_, err := e.GetFuturesPositionHistory(generateContext(t), currency.EMPTYPAIR, "ISOLATED", "LONG", "NEXT", time.Now(), time.Now().Add(-time.Hour), 0, 100)
+	_, err := e.GetFuturesPositionHistory(generateContext(t), currency.EMPTYPAIR, "ISOLATED", "LONG", "NEXT", endTime, startTime, 0, 100)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	result, err := e.GetFuturesPositionHistory(generateContext(t), currency.EMPTYPAIR, "ISOLATED", "LONG", "NEXT", time.Time{}, time.Time{}, 0, 100)
+	result, err := e.GetFuturesPositionHistory(generateContext(t), futuresTradablePair, "ISOLATED", "LONG", "NEXT", startTime, endTime, 1, 100)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2562,17 +2564,21 @@ func TestGetFuturesExecution(t *testing.T) {
 	_, err := e.GetFuturesExecution(t.Context(), currency.EMPTYPAIR, 0)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
-	result, err := e.GetFuturesExecution(t.Context(), futuresTradablePair, 0)
+	result, err := e.GetFuturesExecution(t.Context(), futuresTradablePair, 5)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetLiquidationOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetLiquidationOrder(t.Context(), futuresTradablePair, "NEXT", time.Now(), time.Now().Add(-time.Hour), 0, 0)
+	startTime, endTime := time.UnixMilli(1764664401864), time.UnixMilli(1764668001864)
+	if !mockTests {
+		startTime, endTime = time.Now().Add(-time.Hour), time.Now()
+	}
+	_, err := e.GetLiquidationOrder(t.Context(), futuresTradablePair, "NEXT", endTime, startTime, 0, 0)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	result, err := e.GetLiquidationOrder(t.Context(), futuresTradablePair, "NEXT", time.Time{}, time.Time{}, 0, 0)
+	result, err := e.GetLiquidationOrder(t.Context(), futuresTradablePair, "NEXT", startTime, endTime, 1, 100)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }

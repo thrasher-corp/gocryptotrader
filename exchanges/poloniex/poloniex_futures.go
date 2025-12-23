@@ -394,7 +394,7 @@ func (e *Exchange) GetFuturesLeverage(ctx context.Context, symbol currency.Pair,
 }
 
 // SetFuturesLeverage change leverage
-func (e *Exchange) SetFuturesLeverage(ctx context.Context, symbol currency.Pair, marginMode, positionSide string, leverage int64) (*FuturesLeverage, error) {
+func (e *Exchange) SetFuturesLeverage(ctx context.Context, symbol currency.Pair, marginMode, positionSide string, leverage uint64) (*FuturesLeverage, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -407,13 +407,19 @@ func (e *Exchange) SetFuturesLeverage(ctx context.Context, symbol currency.Pair,
 	if leverage <= 0 {
 		return nil, order.ErrSubmitLeverageNotSupported
 	}
+	arg := &struct {
+		Symbol       string `json:"symbol"`
+		MarginMode   string `json:"mgnMode"`
+		PositionSide string `json:"posSide"`
+		Leverage     uint64 `json:"lever,string"`
+	}{
+		Symbol:       symbol.String(),
+		MarginMode:   marginMode,
+		PositionSide: positionSide,
+		Leverage:     leverage,
+	}
 	var resp *FuturesLeverage
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fSetPositionLeverageEPL, http.MethodPost, positionPathV3+"leverage", nil, &map[string]string{
-		"symbol":  symbol.String(),
-		"mgnMode": marginMode,
-		"posSide": positionSide,
-		"lever":   strconv.FormatInt(leverage, 10),
-	}, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fSetPositionLeverageEPL, http.MethodPost, positionPathV3+"leverage", nil, arg, &resp)
 }
 
 // SwitchPositionMode switch the current position mode. Please ensure you do not have open positions and open orders under this mode before the switch.

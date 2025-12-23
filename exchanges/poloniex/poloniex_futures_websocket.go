@@ -185,7 +185,7 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 	case channelFuturesFundingRate:
 		return e.processFuturesFundingRate(result.Data)
 	case channelFuturesPrivatePositions:
-		var resp []*FuturesPosition
+		var resp []*WsFuturesPosition
 		if err := json.Unmarshal(result.Data, &resp); err != nil {
 			return err
 		}

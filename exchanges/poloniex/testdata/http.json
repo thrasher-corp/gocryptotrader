@@ -11509,7 +11509,7 @@
       ],
       "msg": "success"
      },
-     "queryString": "direct=NEXT\u0026symbol=BTC_USDT_PERP",
+     "queryString": "direct=NEXT\u0026eTime=1764668001864\u0026from=1\u0026limit=100\u0026sTime=1764664401864\u0026symbol=BTC_USDT_PERP",
      "bodyParams": "",
      "headers": {}
     }
@@ -12163,7 +12163,7 @@
       ],
       "msg": "Success"
      },
-     "queryString": "symbol=BTC_USDT_PERP",
+     "queryString": "limit=5\u0026symbol=BTC_USDT_PERP",
      "bodyParams": "",
      "headers": {}
     }
@@ -13233,10 +13233,29 @@
     {
      "data": {
       "code": 200,
-      "data": [],
+      "data": [
+        {
+            "availQty": "0",
+            "cTime": "1719910544000",
+            "closeAvgPx": "0.6271",
+            "closedQty": "-2",
+            "fFee": "0.0000025",
+            "fee": "-0.00012541",
+            "id": "101000367",
+            "mgnMode": "CROSS",
+            "openAvgPx": "0.627",
+            "pnl": "-0.00002",
+            "posSide": "BOTH",
+            "qty": "0",
+            "side": "SELL",
+            "state": "NORMAL",
+            "symbol": "BTC_USDT_PERP",
+            "uTime": "1719916971000"
+        }
+      ],
       "msg": ""
      },
-     "queryString": "direct=NEXT\u0026limit=100\u0026mgnMode=ISOLATED\u0026posSide=LONG",
+     "queryString": "direct=NEXT\u0026eTime=1743702190295\u0026from=1\u0026limit=100\u0026mgnMode=ISOLATED\u0026posSide=LONG\u0026sTime=1743615790295\u0026symbol=BTC_USDT_PERP",
      "bodyParams": "",
      "headers": {
       "Content-Type": [
