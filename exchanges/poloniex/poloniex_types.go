@@ -820,7 +820,7 @@ type CrossMarginSupportInfo struct {
 	MaxLeverage        types.Number `json:"maxLeverage"`
 }
 
-// WsCrossMarginSupportInfo represents information returned throught the websocket stream on whether cross margin support is enabled or not, and leverage detail
+// WsCrossMarginSupportInfo represents information returned through the websocket stream on whether cross margin support is enabled or not, and leverage detail
 type WsCrossMarginSupportInfo struct {
 	SupportCrossMargin bool   `json:"supportCrossMargin"`
 	MaxLeverage        uint64 `json:"maxLeverage,string"`
