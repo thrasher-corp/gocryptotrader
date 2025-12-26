@@ -688,12 +688,16 @@ func (t Type) String() string {
 		return orderTakeProfitMarket
 	case TrailingStop:
 		return orderTrailingStop
+	case TrailingStopLimit:
+		return orderTrailingStopLimit
 	case IOS:
 		return orderIOS
 	case Liquidation:
 		return orderLiquidation
 	case Trigger:
 		return orderTrigger
+	case LimitMaker:
+		return orderLimitMaker
 	case OCO:
 		return orderOCO
 	case Bracket:
@@ -780,6 +784,18 @@ func (s Side) IsShort() bool {
 // IsLong returns if the side is long
 func (s Side) IsLong() bool {
 	return s != UnknownSide && longSide&s == s
+}
+
+// Position converts a spot side to a futures position; eg BUY => LONG
+// Returns UnknownSide unless s.IsLong or s.IsShort
+func (s Side) Position() Side {
+	switch {
+	case s.IsLong():
+		return Long
+	case s.IsShort():
+		return Short
+	}
+	return UnknownSide
 }
 
 // String implements the stringer interface
@@ -1112,10 +1128,14 @@ func StringToOrderType(oType string) (Type, error) {
 		return StopMarket, nil
 	case orderTrailingStop, "TRAILING STOP", "EXCHANGE TRAILING STOP", "MOVE_ORDER_STOP":
 		return TrailingStop, nil
+	case orderTrailingStopLimit:
+		return TrailingStopLimit, nil
 	case orderIOS:
 		return IOS, nil
 	case orderAnyType:
 		return AnyType, nil
+	case orderLimitMaker, "LIMIT MAKER":
+		return LimitMaker, nil
 	case orderTrigger:
 		return Trigger, nil
 	case orderOptimalLimit:
