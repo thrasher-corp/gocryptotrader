@@ -2120,7 +2120,7 @@ func (e *Exchange) GetFuturesInsuranceBalanceHistory(ctx context.Context, settle
 // GetFutureStats retrieves futures stats
 func (e *Exchange) GetFutureStats(ctx context.Context, settle currency.Code, contract currency.Pair, from time.Time, interval kline.Interval, limit uint64) ([]*ContractStat, error) {
 	if settle.IsEmpty() {
-		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
+		return nil, fmt.Errorf("%w: settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if contract.IsInvalid() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -2150,7 +2150,7 @@ func (e *Exchange) GetIndexConstituent(ctx context.Context, settle currency.Code
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if index == "" {
-		return nil, currency.ErrCurrencyPairEmpty
+		return nil, fmt.Errorf("%w: index pair string is required", currency.ErrCurrencyPairEmpty)
 	}
 	indexString := strings.ToUpper(index)
 	var constituents *IndexConstituent
@@ -2165,6 +2165,11 @@ func (e *Exchange) GetLiquidationHistory(ctx context.Context, settle currency.Co
 	if contract.IsEmpty() {
 		return nil, fmt.Errorf("%w: contract pair is required", currency.ErrCurrencyPairEmpty)
 	}
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	params.Set("contract", contract.String())
 	if !from.IsZero() {
@@ -2177,13 +2182,13 @@ func (e *Exchange) GetLiquidationHistory(ctx context.Context, settle currency.Co
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var histories []*LiquidationHistory
-	return histories, e.SendHTTPRequest(ctx, exchange.RestSpot, publicLiquidationHistoryEPL, common.EncodeURLValues(futuresPath+settle.String()+"/liq_orders", params), &histories)
+	return histories, e.SendHTTPRequest(ctx, exchange.RestSpot, publicLiquidationHistoryEPL, common.EncodeURLValues(futuresPath+settle.Lower().String()+"/liq_orders", params), &histories)
 }
 
 // GetRiskLimitTiers retrieves risk limit tiers
 // When the 'contract' parameter is not passed, the default is to query the risk limits for the top 100 markets.
 // 'Limit' and 'offset' correspond to pagination queries at the market level, not to the length of the returned array.
-func (e *Exchange) GetRiskLimitTiers(ctx context.Context, settle currency.Code, contract currency.Pair, limit, offset uint64) ([]*RiskLimitTier, error) {
+func (e *Exchange) GetRiskLimitTiers(ctx context.Context, settle currency.Code, contract currency.Pair, offset, limit uint64) ([]*RiskLimitTier, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2199,13 +2204,13 @@ func (e *Exchange) GetRiskLimitTiers(ctx context.Context, settle currency.Code, 
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp []*RiskLimitTier
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicLiquidationHistoryEPL, common.EncodeURLValues(futuresPath+settle.String()+"/risk_limit_tiers", params), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicLiquidationHistoryEPL, common.EncodeURLValues(futuresPath+settle.Lower().String()+"/risk_limit_tiers", params), &resp)
 }
 
 // QueryFuturesAccount retrieves futures account
 func (e *Exchange) QueryFuturesAccount(ctx context.Context, settle currency.Code) (*FuturesAccount, error) {
 	if settle.IsEmpty() {
-		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
+		return nil, fmt.Errorf("%w: settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	var response *FuturesAccount
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualAccountEPL, http.MethodGet, futuresPath+settle.Item.Lower+"/accounts", nil, nil, &response)
@@ -2215,6 +2220,11 @@ func (e *Exchange) QueryFuturesAccount(ctx context.Context, settle currency.Code
 func (e *Exchange) GetFuturesAccountBooks(ctx context.Context, settle currency.Code, limit uint64, from, to time.Time, changingType string) ([]*AccountBookItem, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
+	}
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
+			return nil, err
+		}
 	}
 	params := url.Values{}
 	if limit > 0 {
