@@ -305,7 +305,7 @@ func (e *Exchange) WsHandleOptionsData(ctx context.Context, conn websocket.Conne
 		return e.processResponse(respRaw, &data)
 	case optionsMarkPriceChannel:
 		var data *WsOptionsMarkPrice
-		return e.processResponse(push.Result, data)
+		return e.processResponse(push.Result, &data)
 	case optionsSettlementChannel:
 		var data *WsOptionsSettlement
 		return e.processResponse(push.Result, &data)
