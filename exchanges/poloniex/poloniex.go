@@ -1170,10 +1170,10 @@ func SendBatchValidatedAuthenticatedHTTPRequest[T hasError](ctx context.Context,
 		return req, nil
 	}
 	if err := e.SendPayload(ctx, epl, requestFunc, request.AuthenticatedRequest); err != nil {
-		return result, fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, err)
+		return nil, fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, err)
 	}
 	if result == nil {
-		return result, common.ErrNoResponse
+		return nil, common.ErrNoResponse
 	}
 
 	return result, checkForErrorInSliceResponse(result)
