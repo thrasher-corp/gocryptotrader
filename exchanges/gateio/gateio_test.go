@@ -715,7 +715,7 @@ func TestGetOneSingleloanRecord(t *testing.T) {
 func TestModifyALoanRecord(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.ModifyALoanRecord(t.Context(), "1234", &ModifyLoanRequestParam{
+	_, err := e.ModifyLoanRecord(t.Context(), "1234", &ModifyLoanRequestParam{
 		Currency:     currency.USDT,
 		CurrencyPair: currency.NewBTCUSDT(),
 		Side:         "lend",
@@ -741,8 +741,11 @@ func TestGetUserAutoRepaymentSetting(t *testing.T) {
 
 func TestGetMaxTransferableAmountForSpecificMarginCurrency(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetMaxTransferableAmountForSpecificMarginCurrency(t.Context(), currency.EMPTYCODE, currency.EMPTYPAIR)
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetMaxTransferableAmountForSpecificMarginCurrency(t.Context(), currency.BTC, currency.EMPTYPAIR)
+	_, err = e.GetMaxTransferableAmountForSpecificMarginCurrency(t.Context(), currency.BTC, getPair(t, asset.Margin))
 	assert.NoError(t, err)
 }
 
@@ -765,8 +768,11 @@ func TestCurrencySupportedByCrossMargin(t *testing.T) {
 
 func TestGetCrossMarginSupportedCurrencyDetail(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetCrossMarginSupportedCurrencyDetail(t.Context(), currency.EMPTYCODE)
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetCrossMarginSupportedCurrencyDetail(t.Context(), currency.BTC)
+	_, err = e.GetCrossMarginSupportedCurrencyDetail(t.Context(), currency.BTC)
 	assert.NoError(t, err)
 }
 
@@ -779,8 +785,11 @@ func TestGetCrossMarginAccounts(t *testing.T) {
 
 func TestGetCrossMarginAccountChangeHistory(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetCrossMarginAccountChangeHistory(t.Context(), currency.BTC, time.Now(), time.Now().Add(-time.Hour), 0, 6, "in")
+	assert.NoError(t, err)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetCrossMarginAccountChangeHistory(t.Context(), currency.BTC, time.Time{}, time.Time{}, 0, 6, "in")
+	_, err = e.GetCrossMarginAccountChangeHistory(t.Context(), currency.BTC, time.Now().Add(-time.Hour), time.Now(), 1, 6, "in")
 	assert.NoError(t, err)
 }
 
@@ -845,7 +854,7 @@ func TestExecuteRepayment(t *testing.T) {
 func TestGetCrossMarginRepayments(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetCrossMarginRepayments(t.Context(), currency.BTC, "123", 0, 0, false)
+	_, err := e.GetCrossMarginRepayments(t.Context(), currency.BTC, "123", 1000, 10, true)
 	assert.NoError(t, err)
 }
 
@@ -871,7 +880,10 @@ func TestGetMaxBorrowableAmountForSpecificCrossMarginCurrency(t *testing.T) {
 
 func TestListCurrencyChain(t *testing.T) {
 	t.Parallel()
-	_, err := e.ListCurrencyChain(t.Context(), currency.BTC)
+	_, err := e.ListCurrencyChain(t.Context(), currency.EMPTYCODE)
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.ListCurrencyChain(t.Context(), currency.BTC)
 	assert.NoError(t, err)
 }
 
@@ -891,7 +903,7 @@ func TestGetWithdrawalRecords(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err = e.GetWithdrawalRecords(t.Context(), currency.BTC, time.Time{}, time.Time{}, 0, 0)
+	_, err = e.GetWithdrawalRecords(t.Context(), currency.BTC, time.Now().Add(-time.Hour*24), time.Now(), 10, 100)
 	assert.NoError(t, err)
 }
 
@@ -901,7 +913,7 @@ func TestGetDepositRecords(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err = e.GetDepositRecords(t.Context(), currency.BTC, time.Time{}, time.Time{}, 0, 0)
+	_, err = e.GetDepositRecords(t.Context(), currency.BTC, time.Now().Add(-time.Hour*24), time.Now(), 10, 100)
 	assert.NoError(t, err)
 }
 
@@ -915,11 +927,15 @@ func TestTransferCurrency(t *testing.T) {
 	_, err = e.TransferCurrency(t.Context(), arg)
 	assert.ErrorIs(t, err, asset.ErrInvalidAsset)
 
-	arg.From = asset.Spot
+	arg.From = asset.Margin
 	_, err = e.TransferCurrency(t.Context(), arg)
 	assert.ErrorIs(t, err, asset.ErrInvalidAsset)
 
 	arg.To = asset.Futures
+	_, err = e.TransferCurrency(t.Context(), arg)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	arg.CurrencyPair = getPair(t, asset.Margin)
 	_, err = e.TransferCurrency(t.Context(), arg)
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
@@ -931,6 +947,16 @@ func TestTransferCurrency(t *testing.T) {
 	_, err = e.TransferCurrency(t.Context(), &TransferCurrencyParam{
 		Currency:     currency.BTC,
 		From:         asset.Spot,
+		To:           asset.Margin,
+		Amount:       1202.000,
+		CurrencyPair: getPair(t, asset.Spot),
+	})
+	assert.NoError(t, err)
+
+	_, err = e.TransferCurrency(t.Context(), &TransferCurrencyParam{
+		Currency:     currency.BTC,
+		Settle:       currency.USDT,
+		From:         asset.Futures,
 		To:           asset.Margin,
 		Amount:       1202.000,
 		CurrencyPair: getPair(t, asset.Spot),
@@ -4854,6 +4880,222 @@ func TestGetAlphaCurrencyTicker(t *testing.T) {
 	require.NotEmpty(t, result)
 
 	result, err = e.GetAlphaCurrencyTicker(t.Context(), currency.NewCode("memeboxtrump"), 100, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetLendingCurrencyList(t *testing.T) {
+	t.Parallel()
+	result, err := e.GetLendingCurrencyList(t.Context())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetLendingCurrencyDetail(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetLendingCurrencyDetail(t.Context(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	result, err := e.GetLendingCurrencyDetail(t.Context(), currency.ETH)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCreateLendingOrRedemption(t *testing.T) {
+	t.Parallel()
+	err := e.CreateLendingOrRedemption(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	arg := &LendingOrRedemptionRequest{}
+	err = e.CreateLendingOrRedemption(t.Context(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	arg.Currency = currency.USDT
+	err = e.CreateLendingOrRedemption(t.Context(), arg)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+
+	arg.Amount = 1
+	err = e.CreateLendingOrRedemption(t.Context(), arg)
+	require.ErrorIs(t, err, errLoanTypeIsRequired)
+
+	arg.Type = "lend"
+	err = e.CreateLendingOrRedemption(t.Context(), arg)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	arg.MinRate = 0.00000211
+	err = e.CreateLendingOrRedemption(t.Context(), arg)
+	require.NoError(t, err)
+}
+
+func TestGetUserLendingOrderList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetUserLendingOrderList(t.Context(), currency.USDT, 10, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestAmendUserLendingInformation(t *testing.T) {
+	t.Parallel()
+	err := e.AmendUserLendingInformation(t.Context(), currency.EMPTYCODE, 123.45)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	err = e.AmendUserLendingInformation(t.Context(), currency.USDT, 0)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	err = e.AmendUserLendingInformation(t.Context(), currency.USDT, 0.0001)
+	require.NoError(t, err)
+}
+
+func TestGetLendingTransactionRecords(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetLendingTransactionRecords(t.Context(), currency.USDT, 1, 100, time.Now(), time.Now().Add(-time.Hour), "lend")
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetLendingTransactionRecords(t.Context(), currency.USDT, 10, 100, time.Now().Add(-time.Hour), time.Now(), "redeem")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUserTotalInterestIncomePerCurrency(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetUserTotalInterestIncomePerCurrency(t.Context(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	e.Verbose = true
+	result, err := e.GetUserTotalInterestIncomePerCurrency(t.Context(), currency.USDT)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUserDividendRecords(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetUserDividendRecords(t.Context(), currency.USDT, 1, 100, time.Now(), time.Now().Add(-time.Hour))
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetUserDividendRecords(t.Context(), currency.AE, 0, 0, time.Now().Add(-time.Hour), time.Now())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetCurrencyInterestCompoundingStatus(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetCurrencyInterestCompoundingStatus(t.Context(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetCurrencyInterestCompoundingStatus(t.Context(), currency.USDT)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUniLoanCurrencyAnnualizedTrendChart(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetUniLoanCurrencyAnnualizedTrendChart(t.Context(), time.Now(), time.Now().Add(-time.Hour), currency.USDT)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
+	_, err = e.GetUniLoanCurrencyAnnualizedTrendChart(t.Context(), time.Now(), time.Now().Add(-time.Hour), currency.USDT)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
+	_, err = e.GetUniLoanCurrencyAnnualizedTrendChart(t.Context(), time.Now(), time.Now().Add(-time.Hour), currency.USDT)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetUniLoanCurrencyAnnualizedTrendChart(t.Context(), time.Now().Add(-time.Hour), time.Now(), currency.AE)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetCurrencyEstimatedAnnualizedInterestRate(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetCurrencyEstimatedAnnualizedInterestRate(t.Context())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestPlaceCollateralLoanOrder(t *testing.T) {
+	t.Parallel()
+	_, err := e.PlaceCollateralLoanOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	arg := &PlaceColateralLoanRequest{}
+	_, err = e.PlaceCollateralLoanOrder(t.Context(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	arg.CollateralCurrency = currency.BTC
+	_, err = e.PlaceCollateralLoanOrder(t.Context(), arg)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+
+	arg.CollateralAmount = .5
+	_, err = e.PlaceCollateralLoanOrder(t.Context(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	arg.BorrowCurrency = currency.USDT
+	_, err = e.PlaceCollateralLoanOrder(t.Context(), arg)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	arg.BorrowAmount = 2000
+	result, err := e.PlaceCollateralLoanOrder(t.Context(), arg)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetCollateralLoanOrderList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetCollateralLoanOrderList(t.Context(), 1, 100, currency.USDT, currency.BTC)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSingleCollateralOrderDetail(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetSingleCollateralOrderDetail(t.Context(), "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetSingleCollateralOrderDetail(t.Context(), "10000421")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestRepayCollateralLoan(t *testing.T) {
+	t.Parallel()
+	_, err := e.RepayCollateralLoan(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	arg := &CollateralLoanRepayRequest{}
+	_, err = e.RepayCollateralLoan(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	arg.OrderID = 37438962
+	_, err = e.RepayCollateralLoan(t.Context(), arg)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	arg.RepayAmount = 100
+	result, err := e.RepayCollateralLoan(t.Context(), arg)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetCollateralLoanRepaymentRecords(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetCollateralLoanRepaymentRecords(t.Context(), "", 1, 100, currency.BTC, currency.USDT, time.Now().Add(-time.Hour*240), time.Now())
+	require.ErrorIs(t, err, errOperationTypeRequired)
+
+	_, err = e.GetCollateralLoanRepaymentRecords(t.Context(), "repay", 1, 100, currency.BTC, currency.USDT, time.Now(), time.Now().Add(-time.Hour*240))
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetCollateralLoanRepaymentRecords(t.Context(), "repay", 1, 100, currency.BTC, currency.USDT, time.Now().Add(-time.Hour*240), time.Now())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

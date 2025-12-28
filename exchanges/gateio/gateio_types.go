@@ -3350,3 +3350,143 @@ type PortfolioMarginCalculationResponse struct {
 		InitialMargin  types.Number `json:"initial_margin"`
 	} `json:"risk_unit"`
 }
+
+// LendingCurrencyDetail holds a lending currency detail information
+type LendingCurrencyDetail struct {
+	Currency      string       `json:"currency"`
+	MinLendAmount types.Number `json:"min_lend_amount"`
+	MaxLendAmount types.Number `json:"max_lend_amount"`
+	MaxRate       types.Number `json:"max_rate"`
+	MinRate       types.Number `json:"min_rate"`
+}
+
+// LendingOrRedemptionRequest holds a lending or redemption request parameters
+type LendingOrRedemptionRequest struct {
+	Currency currency.Code `json:"currency"`
+	Amount   float64       `json:"amount,string"`
+	MinRate  float64       `json:"min_rate,omitempty,string"`
+	Type     string        `json:"type"`
+}
+
+// LendOrderDetail represents a user's lend order item detail
+type LendOrderDetail struct {
+	Currency           currency.Code `json:"currency"`
+	CurrentAmount      types.Number  `json:"current_amount"`
+	Amount             types.Number  `json:"amount"`
+	LentAmount         types.Number  `json:"lent_amount"`
+	FrozenAmount       types.Number  `json:"frozen_amount"`
+	MinRate            types.Number  `json:"min_rate"`
+	InterestStatus     string        `json:"interest_status"`
+	ReinvestLeftAmount types.Number  `json:"reinvest_left_amount"`
+	CreateTime         types.Time    `json:"create_time"`
+	UpdateTime         types.Time    `json:"update_time"`
+}
+
+// LendingTransactionRecord holds a lending order transaction records
+type LendingTransactionRecord struct {
+	Type             string        `json:"type"`
+	Currency         currency.Code `json:"currency"`
+	Amount           types.Number  `json:"amount"`
+	LastWalletAmount types.Number  `json:"last_wallet_amount"`
+	LastLentAmount   types.Number  `json:"last_lent_amount"`
+	LastFrozenAmount types.Number  `json:"last_frozen_amount"`
+	CreateTime       types.Time    `json:"create_time"`
+}
+
+// CurrencyAndInterestIncome holds a currency and interest income detail
+type CurrencyAndInterestIncome struct {
+	Currency currency.Code `json:"currency"`
+	Interest types.Number  `json:"interest"`
+}
+
+// UserDividendRecords holds user's dividend records
+type UserDividendRecords struct {
+	Status         int8          `json:"status"`
+	Currency       currency.Code `json:"currency"`
+	ActualRate     types.Number  `json:"actual_rate"`
+	Interest       types.Number  `json:"interest"`
+	InterestStatus string        `json:"interest_status"`
+	CreateTime     types.Time    `json:"create_time"`
+}
+
+// CurrencyInterestStatus holds a currency and it's interest status of user's account
+type CurrencyInterestStatus struct {
+	Currency       currency.Code `json:"currency"`
+	InterestStatus string        `json:"interest_status"`
+}
+
+// UniLoanAssetData holds a uni loan asset annualized trend chart data
+type UniLoanAssetData struct {
+	Time  types.Time   `json:"time"`
+	Value types.Number `json:"value"`
+}
+
+// CurrencyEstimatedAnnualInterestRate holds user's account currency and estimated annualized interest reate details
+type CurrencyEstimatedAnnualInterestRate struct {
+	Currency      currency.Code `json:"currency"`
+	EstimatedRate types.Number  `json:"est_rate"` // Estimated Annualized Rate
+}
+
+// PlaceColateralLoanRequest holds a request parameters for placing a collateral loan
+type PlaceColateralLoanRequest struct {
+	CollateralAmount   float64       `json:"collateral_amount,omitempty,string"`
+	CollateralCurrency currency.Code `json:"collateral_currency"`
+	BorrowAmount       float64       `json:"borrow_amount,omitempty,string"`
+	BorrowCurrency     currency.Code `json:"borrow_currency"`
+}
+
+// OrderIDResponse represents an order ID response
+type OrderIDResponse struct {
+	OrderID uint64 `json:"order_id"`
+}
+
+// CollateralLoanOrderDetail represents a collateral loan order detail
+type CollateralLoanOrderDetail struct {
+	OrderID                     uint64        `json:"order_id"`
+	CollateralCurrency          currency.Code `json:"collateral_currency"`
+	BorrowCurrency              currency.Code `json:"borrow_currency"`
+	CollateralAmount            types.Number  `json:"collateral_amount"`
+	BorrowAmount                types.Number  `json:"borrow_amount"`
+	RepaidAmount                types.Number  `json:"repaid_amount"`
+	RepaidPrincipal             types.Number  `json:"repaid_principal"`
+	RepaidInterest              types.Number  `json:"repaid_interest"`
+	InitialCollateralRate       types.Number  `json:"init_ltv"`
+	CurrentCollateralRate       types.Number  `json:"current_ltv"`
+	LiquidaiationCollateralRate types.Number  `json:"liquidate_ltv"`
+	Status                      string        `json:"status"`
+	BorrowTime                  types.Time    `json:"borrow_time"`
+	LeftRepayTotal              types.Number  `json:"left_repay_total"`
+	LeftRepayInterest           types.Number  `json:"left_repay_interest"`
+}
+
+// CollateralLoanRepayRequest holds a collateral loan repayment request parameter
+type CollateralLoanRepayRequest struct {
+	OrderID     uint64  `json:"order_id"`
+	RepayAmount float64 `json:"repay_amount,omitempty,string"`
+	RepaidAll   bool    `json:"repaid_all"`
+}
+
+// CollateralLoanRepaymentResponse represents a collateral loan repayment response
+type CollateralLoanRepaymentResponse struct {
+	RepaidPrincipal types.Number `json:"repaid_principal"`
+	RepaidInterest  types.Number `json:"repaid_interest"`
+}
+
+// CollateralLoanRepaymentOrderDetail
+type CollateralLoanRepaymentOrderDetail struct {
+	OrderID               uint64        `json:"order_id"`
+	RecordID              uint64        `json:"record_id"`
+	RepaidAmount          types.Number  `json:"repaid_amount"`
+	BorrowCurrency        currency.Code `json:"borrow_currency"`
+	CollateralCurrency    currency.Code `json:"collateral_currency"`
+	CollateralAmount      types.Number  `json:"collateral_amount"`
+	InitialCollateralRate types.Number  `json:"init_ltv"`
+	BorrowTime            types.Time    `json:"borrow_time"`
+	RepayTime             types.Time    `json:"repay_time"`
+	TotalInterest         types.Number  `json:"total_interest"`
+	BeforeLeftPrincipal   types.Number  `json:"before_left_principal"`
+	PreLeftPrincipal      types.Number  `json:"pre_left_principal"`
+	AfterLeftPrincipal    types.Number  `json:"after_left_principal"`
+	BeforeLeftCollateral  types.Number  `json:"before_left_collateral"`
+	AfterLeftCollateral   types.Number  `json:"after_left_collateral"`
+}

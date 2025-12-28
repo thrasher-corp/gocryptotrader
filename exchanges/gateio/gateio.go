@@ -119,6 +119,7 @@ var (
 	errTooManyCurrencyCodes      = errors.New("too many currency codes supplied")
 	errFetchingOrderbook         = errors.New("error fetching orderbook")
 	errNoSpotInstrument          = errors.New("no spot instrument available")
+	errOperationTypeRequired     = errors.New("operation type required")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
@@ -1201,10 +1202,10 @@ func (e *Exchange) TransferCurrency(ctx context.Context, arg *TransferCurrencyPa
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if arg.From.IsValid() {
+	if arg.From == asset.Empty || !arg.From.IsValid() {
 		return nil, fmt.Errorf("%w: source account address(From) is required ", asset.ErrInvalidAsset)
 	}
-	if arg.To.IsValid() {
+	if arg.To == asset.Empty || !arg.To.IsValid() {
 		return nil, fmt.Errorf("%w: destination account address(To) is required ", asset.ErrInvalidAsset)
 	}
 	if (arg.To == asset.Margin || arg.From == asset.Margin) && arg.CurrencyPair.IsEmpty() {
@@ -1724,9 +1725,9 @@ func (e *Exchange) GetOneSingleLoanRecord(ctx context.Context, loanID, loanRecor
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginSingleRecordEPL, http.MethodGet, gateioMarginLoanRecords+"/"+loanRecordID, params, nil, &response)
 }
 
-// ModifyALoanRecord modify a loan record
+// ModifyLoanRecord modify a loan record
 // Only auto_renew modification is supported currently
-func (e *Exchange) ModifyALoanRecord(ctx context.Context, loanRecordID string, arg *ModifyLoanRequestParam) (*LoanRecord, error) {
+func (e *Exchange) ModifyLoanRecord(ctx context.Context, loanRecordID string, arg *ModifyLoanRequestParam) (*LoanRecord, error) {
 	if loanRecordID == "" {
 		return nil, fmt.Errorf("%w, %v", errInvalidLoanID, " loan_record_id is required")
 	}
@@ -1812,7 +1813,13 @@ func (e *Exchange) GetCrossMarginAccounts(ctx context.Context) (*CrossMarginAcco
 
 // GetCrossMarginAccountChangeHistory retrieve cross margin account change history
 // Record time range cannot exceed 30 days
+// possible values of account change types are "in", "out", "repay", "new_order", "order_fill", "referral_fee", "order_fee", and "unknown"
 func (e *Exchange) GetCrossMarginAccountChangeHistory(ctx context.Context, ccy currency.Code, from, to time.Time, page, limit uint64, accountChangeType string) ([]*CrossMarginAccountHistoryItem, error) {
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -1829,7 +1836,7 @@ func (e *Exchange) GetCrossMarginAccountChangeHistory(ctx context.Context, ccy c
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	if accountChangeType != "" { // "in", "out", "repay", "new_order", "order_fill", "referral_fee", "order_fee", "unknown" are supported
+	if accountChangeType != "" {
 		params.Set("type", accountChangeType)
 	}
 	var response []*CrossMarginAccountHistoryItem
@@ -4360,20 +4367,19 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	}, request.AuthenticatedRequest); err != nil {
 		return err
 	}
+	if result == nil {
+		return nil
+	}
 	errCap := struct {
 		Label   string `json:"label"`
 		Code    string `json:"code"`
 		Message string `json:"message"`
 	}{}
-
 	if err := json.Unmarshal(intermediary, &errCap); err == nil && errCap.Code != "" {
 		return fmt.Errorf("%s auth request error, code: %s message: %s",
 			e.Name,
 			errCap.Label,
 			errCap.Message)
-	}
-	if result == nil {
-		return nil
 	}
 	if err := json.Unmarshal(intermediary, result); err != nil {
 		return fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, err)
@@ -4401,4 +4407,275 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.UnauthenticatedRequest)
+}
+
+// ----- Earning endpoints -----------------
+
+// GetLendingCurrencyList retrieves lending currency list
+func (e *Exchange) GetLendingCurrencyList(ctx context.Context) ([]*LendingCurrencyDetail, error) {
+	var resp []*LendingCurrencyDetail
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "earn/uni/currencies", &resp)
+}
+
+// GetLendingCurrencyDetail retrieves a single lending currency detail
+func (e *Exchange) GetLendingCurrencyDetail(ctx context.Context, ccy currency.Code) (*LendingCurrencyDetail, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	var resp *LendingCurrencyDetail
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "earn/uni/currencies/"+ccy.Item.Lower, &resp)
+}
+
+// CreateLendingOrRedemption creates lending or redemption
+// possible values of lending, redemption type are 'lend'  and 'redeem' respectively.
+func (e *Exchange) CreateLendingOrRedemption(ctx context.Context, arg *LendingOrRedemptionRequest) error {
+	if err := common.NilGuard(arg); err != nil {
+		return err
+	}
+	if arg.Currency.IsEmpty() {
+		return currency.ErrCurrencyCodeEmpty
+	}
+	if arg.Amount <= 0 {
+		return fmt.Errorf("%w: minimum lending or redemption amount is required", limits.ErrAmountBelowMin)
+	}
+	if arg.Type == "" {
+		return errLoanTypeIsRequired
+	}
+	if arg.MinRate <= 0 {
+		return fmt.Errorf("%w: minimum interest rate is required", limits.ErrAmountBelowMin)
+	}
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "earn/uni/lends", nil, arg, nil)
+}
+
+// GetUserLendingOrderList get user's lending order list
+func (e *Exchange) GetUserLendingOrderList(ctx context.Context, ccy currency.Code, page, limit uint64) ([]*LendOrderDetail, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatUint(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	var resp []*LendOrderDetail
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "earn/uni/lends", params, nil, &resp)
+}
+
+// AmendUserLendingInformation amends user lending information
+func (e *Exchange) AmendUserLendingInformation(ctx context.Context, ccy currency.Code, minRate float64) error {
+	if ccy.IsEmpty() {
+		return currency.ErrCurrencyCodeEmpty
+	}
+	if minRate <= 0 {
+		return fmt.Errorf("%w: minimum interest rate is required", limits.ErrAmountBelowMin)
+	}
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPatch, "earn/uni/lends", nil, map[string]string{
+		"currency": ccy.String(),
+		"min_rate": strconv.FormatFloat(minRate, 'f', 10, 64),
+	}, nil)
+}
+
+// GetLendingTransactionRecords retrieves lending transaction records
+func (e *Exchange) GetLendingTransactionRecords(ctx context.Context, ccy currency.Code, page, limit uint64, from, to time.Time, operationType string) ([]*LendingTransactionRecord, error) {
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
+			return nil, err
+		}
+	}
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatUint(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	if !from.IsZero() {
+		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
+	}
+	if !to.IsZero() {
+		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
+	}
+	if operationType != "" {
+		params.Set("type", operationType)
+	}
+	var resp []*LendingTransactionRecord
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "earn/uni/lend_records", params, nil, &resp)
+}
+
+// GetUserTotalInterestIncomePerCurrency retrieves user's total interest income for specified currency
+func (e *Exchange) GetUserTotalInterestIncomePerCurrency(ctx context.Context, ccy currency.Code) (*CurrencyAndInterestIncome, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("currency", ccy.String())
+	var resp *CurrencyAndInterestIncome
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "earn/uni/interests/"+ccy.Item.Lower, params, nil, &resp)
+}
+
+// GetUserDividendRecords retrieves user dividend records
+func (e *Exchange) GetUserDividendRecords(ctx context.Context, ccy currency.Code, page, limit uint64, from, to time.Time) ([]*UserDividendRecords, error) {
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
+			return nil, err
+		}
+	}
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatUint(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	if !from.IsZero() {
+		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
+	}
+	if !to.IsZero() {
+		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
+	}
+	var resp []*UserDividendRecords
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "earn/uni/interest_records", params, nil, &resp)
+}
+
+// GetCurrencyInterestCompoundingStatus retrieves a currency code interest compounding status
+func (e *Exchange) GetCurrencyInterestCompoundingStatus(ctx context.Context, ccy currency.Code) (*CurrencyInterestStatus, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	var resp *CurrencyInterestStatus
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "earn/uni/interest_status/"+ccy.Lower().String(), nil, nil, &resp)
+}
+
+// GetUniLoanCurrencyAnnualizedTrendChart retrieves UniLoan currency annualized trend chart
+func (e *Exchange) GetUniLoanCurrencyAnnualizedTrendChart(ctx context.Context, from, to time.Time, ccy currency.Code) ([]*UniLoanAssetData, error) {
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
+			return nil, err
+		}
+	}
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("asset", ccy.String())
+	}
+	if !from.IsZero() {
+		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
+	}
+	if !to.IsZero() {
+		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
+	}
+	var resp []*UniLoanAssetData
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "earn/uni/chart", params, nil, &resp)
+}
+
+// GetCurrencyEstimatedAnnualizedInterestRate retrieves user's account estimated annulaized interest rate for each currency
+func (e *Exchange) GetCurrencyEstimatedAnnualizedInterestRate(ctx context.Context) ([]*CurrencyEstimatedAnnualInterestRate, error) {
+	var resp []*CurrencyEstimatedAnnualInterestRate
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "earn/uni/rate", nil, nil, &resp)
+}
+
+// -------------- Collateral Loan endpoints ------------------------------
+
+func (e *Exchange) PlaceCollateralLoanOrder(ctx context.Context, arg *PlaceColateralLoanRequest) (*OrderIDResponse, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
+	if arg.CollateralCurrency.IsEmpty() {
+		return nil, fmt.Errorf("%w: collateral currency is required", currency.ErrCurrencyCodeEmpty)
+	}
+	if arg.CollateralAmount <= 0 {
+		return nil, fmt.Errorf("%w: collateral asset amount is required", limits.ErrAmountBelowMin)
+	}
+	if arg.BorrowCurrency.IsEmpty() {
+		return nil, fmt.Errorf("%w: borrow currency is required", currency.ErrCurrencyCodeEmpty)
+	}
+	if arg.BorrowAmount <= 0 {
+		return nil, fmt.Errorf("%w: borrow asset amount is required", limits.ErrAmountBelowMin)
+	}
+	var resp *OrderIDResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "loan/collateral/orders", nil, arg, &resp)
+}
+
+// GetCollateralLoanOrderList retrieves collateral loan order list
+func (e *Exchange) GetCollateralLoanOrderList(ctx context.Context, page, limit uint64, collateralCcy, borrowCcy currency.Code) ([]*CollateralLoanOrderDetail, error) {
+	params := url.Values{}
+	if page > 0 {
+		params.Set("page", strconv.FormatUint(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	if !collateralCcy.IsEmpty() {
+		params.Set("collateral_currency", collateralCcy.String())
+	}
+	if !borrowCcy.IsEmpty() {
+		params.Set("borrow_currency", borrowCcy.String())
+	}
+	var resp []*CollateralLoanOrderDetail
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "loan/collateral/orders", params, nil, &resp)
+}
+
+// GetSingleCollateralOrderDetail retrieves a single collateral loan order by ID
+func (e *Exchange) GetSingleCollateralOrderDetail(ctx context.Context, orderID string) (*CollateralLoanOrderDetail, error) {
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	var resp *CollateralLoanOrderDetail
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "loan/collateral/orders/"+orderID, nil, nil, &resp)
+}
+
+// RepayCollateralLoan repays a loan backed by a collateral
+func (e *Exchange) RepayCollateralLoan(ctx context.Context, arg *CollateralLoanRepayRequest) (*CollateralLoanRepaymentResponse, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
+	if arg.OrderID == 0 {
+		return nil, order.ErrOrderIDNotSet
+	}
+	if arg.RepayAmount <= 0 {
+		return nil, fmt.Errorf("%w: repayment amount is required", limits.ErrAmountBelowMin)
+	}
+	var resp *CollateralLoanRepaymentResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "loan/collateral/repay", nil, arg, &resp)
+}
+
+// GetCollateralLoanRepaymentRecords retrieves collateral loan repayment records
+func (e *Exchange) GetCollateralLoanRepaymentRecords(ctx context.Context, operationType string, page, limit uint64, collateralCcy, borrowCcy currency.Code, from, to time.Time) ([]*CollateralLoanRepaymentOrderDetail, error) {
+	if operationType == "" {
+		return nil, errOperationTypeRequired
+	}
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
+			return nil, err
+		}
+	}
+	params := url.Values{}
+	params.Set("source", operationType)
+	if !from.IsZero() {
+		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
+	}
+	if !to.IsZero() {
+		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
+	}
+	if !collateralCcy.IsEmpty() {
+		params.Set("collateral_currency", collateralCcy.String())
+	}
+	if !borrowCcy.IsEmpty() {
+		params.Set("borrow_currency", borrowCcy.String())
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatUint(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	var resp []*CollateralLoanRepaymentOrderDetail
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "loan/collateral/repay_records", params, nil, &resp)
 }
