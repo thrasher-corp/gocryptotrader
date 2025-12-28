@@ -8303,7 +8303,7 @@
   "/orders": {
    "DELETE": [
     {
-     "data": null,
+     "data": [],
      "queryString": "",
      "bodyParams": "{\"accountTypes\":[\"SPOT\"],\"symbols\":[\"BTC_USDT\",\"ETH_USDT\"]}",
      "headers": {

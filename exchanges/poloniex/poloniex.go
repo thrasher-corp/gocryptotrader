@@ -726,8 +726,9 @@ func (e *Exchange) CancelOrdersByIDs(ctx context.Context, orderIDs, clientOrderI
 	if len(clientOrderIDs) > 0 {
 		params["clientOrderIds"] = clientOrderIDs
 	}
-	var resp []*CancelOrderResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCancelBatchOrdersEPL, http.MethodDelete, "/orders/cancelByIds", nil, params, &resp); err != nil {
+	resp, err := SendBatchValidatedAuthenticatedHTTPRequest[*CancelOrderResponse](ctx, e, exchange.RestSpot, sCancelBatchOrdersEPL, http.MethodDelete, "/orders/cancelByIds", nil, params)
+	if err != nil {
+		// Return resp, containing any successful transactions
 		return resp, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
 	}
 	return resp, nil
@@ -743,7 +744,9 @@ func (e *Exchange) CancelTradeOrders(ctx context.Context, symbols []string, acco
 		args["accountTypes"] = accountTypes
 	}
 	var resp []*CancelOrderResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sCancelAllOrdersEPL, http.MethodDelete, "/orders", nil, args, &resp); err != nil {
+	resp, err := SendBatchValidatedAuthenticatedHTTPRequest[*CancelOrderResponse](ctx, e, exchange.RestSpot, sCancelAllOrdersEPL, http.MethodDelete, "/orders", nil, args)
+	if err != nil {
+		// Return resp, containing any successful transactions
 		return resp, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
 	}
 	return resp, nil
@@ -1110,6 +1113,70 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		return fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, errType.Error())
 	}
 	return nil
+}
+
+// SendBatchValidatedAuthenticatedHTTPRequest sends an authenticated V3 HTTP request and returns a slice response after validating errors on each batch item.
+func SendBatchValidatedAuthenticatedHTTPRequest[T hasError](ctx context.Context, e *Exchange, ep exchange.URL, epl request.EndpointLimit, method, path string, values url.Values, body any) (result []T, err error) {
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	endpoint, err := e.API.Endpoints.GetURL(ep)
+	if err != nil {
+		return nil, err
+	}
+	requestFunc := func() (*request.Item, error) {
+		headers := make(map[string]string)
+		headers["Content-Type"] = "application/json"
+		headers["key"] = creds.Key
+		if values == nil {
+			values = url.Values{}
+		}
+		timestamp := time.Now()
+		signTimestamp := strconv.FormatInt(timestamp.UnixMilli(), 10)
+		values.Set("signTimestamp", signTimestamp)
+		var signatureStrings string
+		req := &request.Item{
+			Method:        method,
+			Result:        &result,
+			Headers:       headers,
+			Verbose:       e.Verbose,
+			HTTPDebugging: e.HTTPDebugging,
+			HTTPRecording: e.HTTPRecording,
+		}
+		if body != nil {
+			bodyPayload, err := json.Marshal(body)
+			if err != nil {
+				return nil, err
+			}
+			signatureStrings = method + "\n" + path + "\n" + "requestBody=" + string(bodyPayload) + "&" + values.Encode()
+			req.Body = bytes.NewBuffer(bodyPayload)
+		} else {
+			signatureStrings = method + "\n" + path + "\n" + values.Encode()
+		}
+		var hmac []byte
+		hmac, err = crypto.GetHMAC(crypto.HashSHA256,
+			[]byte(signatureStrings),
+			[]byte(creds.Secret))
+		if err != nil {
+			return nil, err
+		}
+
+		headers["signatureMethod"] = "hmacSHA256"
+		headers["signature"] = base64.StdEncoding.EncodeToString(hmac)
+		headers["signTimestamp"] = signTimestamp
+		values.Del("signTimestamp") // The signature timestamp was removed from the query string because we now send the timestamp in the request header instead.
+		req.Path = common.EncodeURLValues(endpoint+path, values)
+		return req, nil
+	}
+	if err := e.SendPayload(ctx, epl, requestFunc, request.AuthenticatedRequest); err != nil {
+		return result, fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, err)
+	}
+	if result == nil {
+		return result, common.ErrNoResponse
+	}
+
+	return result, checkForErrorInSliceResponse(result)
 }
 
 // GetFee returns an estimate of fee based on type of transaction
