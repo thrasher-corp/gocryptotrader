@@ -249,7 +249,7 @@ func TestCreateBatchOrders(t *testing.T) {
 		Account: asset.Spot,
 		Type:    "limit",
 	}
-	_, err := e.CreateBatchOrders(t.Context(), []CreateOrderRequest{arg})
+	_, err := e.CreateBatchOrders(t.Context(), make([]CreateOrderRequest, 11))
 	require.ErrorIs(t, err, errMultipleOrders)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -331,6 +331,7 @@ func TestCreateSpotOrder(t *testing.T) {
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.Amount = 1
+	arg.Price = -1
 	_, err = e.PlaceSpotOrder(t.Context(), arg)
 	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
@@ -786,7 +787,7 @@ func TestGetCrossMarginAccounts(t *testing.T) {
 func TestGetCrossMarginAccountChangeHistory(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetCrossMarginAccountChangeHistory(t.Context(), currency.BTC, time.Now(), time.Now().Add(-time.Hour), 0, 6, "in")
-	assert.NoError(t, err)
+	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err = e.GetCrossMarginAccountChangeHistory(t.Context(), currency.BTC, time.Now().Add(-time.Hour), time.Now(), 1, 6, "in")
@@ -991,10 +992,28 @@ func TestGetSubAccountTransferHistory(t *testing.T) {
 
 func TestSubAccountTransferToSubAccount(t *testing.T) {
 	t.Parallel()
-	_, err := e.SubAccountTransferToSubAccount(t.Context(), &InterSubAccountTransferParams{})
+	arg := &InterSubAccountTransferParams{}
+	_, err := e.SubAccountTransferToSubAccount(t.Context(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	_, err = e.SubAccountTransferToSubAccount(t.Context(), &InterSubAccountTransferParams{Currency: currency.ETH})
+	arg.Currency = currency.BTC
+	_, err = e.SubAccountTransferToSubAccount(t.Context(), arg)
+	require.ErrorIs(t, err, errInvalidSubAccountUserID)
+
+	arg.SubAccountFromUserID = "123456"
+	_, err = e.SubAccountTransferToSubAccount(t.Context(), arg)
+	require.ErrorIs(t, err, asset.ErrInvalidAsset)
+
+	arg.SubAccountFromAssetType = asset.Spot
+	_, err = e.SubAccountTransferToSubAccount(t.Context(), arg)
+	require.ErrorIs(t, err, errInvalidSubAccountUserID)
+
+	arg.SubAccountToUserID = "993883"
+	_, err = e.SubAccountTransferToSubAccount(t.Context(), arg)
+	require.ErrorIs(t, err, asset.ErrInvalidAsset)
+
+	arg.SubAccountToAssetType = asset.Margin
+	_, err = e.SubAccountTransferToSubAccount(t.Context(), arg)
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1488,7 +1507,7 @@ func TestGetSingleDeliveryPriceTriggeredOrder(t *testing.T) {
 func TestCancelDeliveryPriceTriggeredOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelDeliveryPriceTriggeredOrder(t.Context(), currency.EMPTYCODE, "12345")
-	require.ErrorIs(t, err, nil)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	_, err = e.CancelDeliveryPriceTriggeredOrder(t.Context(), currency.USDT, "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
@@ -1526,13 +1545,13 @@ func TestRetrivePositionDetailInDualMode(t *testing.T) {
 
 func TestUpdatePositionMarginInDualMode(t *testing.T) {
 	t.Parallel()
-	_, err := e.UpdatePositionMarginInDualMode(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), 0.001, "dual_long")
+	_, err := e.UpdatePositionMarginInDualMode(t.Context(), currency.EMPTYCODE, getPair(t, asset.CoinMarginedFutures), 0.001, "dual_long")
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	_, err = e.UpdatePositionMarginInDualMode(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), 0.001, "dual_long")
+	_, err = e.UpdatePositionMarginInDualMode(t.Context(), currency.BTC, currency.EMPTYPAIR, 0.001, "dual_long")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	_, err = e.UpdatePositionMarginInDualMode(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), 0.001, "dual_long")
+	_, err = e.UpdatePositionMarginInDualMode(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), 0.001, "")
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -4512,6 +4531,17 @@ func TestAddOrWithdrawCollateral(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestGetMultiCollateralAdjustmentRecords(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetMultiCollateralAdjustmentRecords(t.Context(), 1, 10, time.Now(), time.Now().Add(-time.Hour), currency.ETH)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetMultiCollateralAdjustmentRecords(t.Context(), 1, 10, time.Now().Add(-time.Hour), time.Now(), currency.ETH)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestWebsocketSubmitOrders(t *testing.T) {
 	t.Parallel()
 
@@ -4554,11 +4584,11 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 
 func TestGetBrokerTransactionHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetBrokerTransactionHistory(t.Context(), currency.EMPTYPAIR, 0, time.Now().Add(-time.Hour), time.Now(), 10, 0)
+	_, err := e.GetBrokerTransactionHistory(t.Context(), currency.EMPTYPAIR, 0, time.Now(), time.Now().Add(-time.Hour), 10, 0)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetBrokerTransactionHistory(t.Context(), currency.EMPTYPAIR, 0, time.Time{}, time.Time{}, 10, 0)
+	result, err := e.GetBrokerTransactionHistory(t.Context(), currency.EMPTYPAIR, 0, time.Now().Add(-time.Hour), time.Now(), 10, 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -4674,7 +4704,6 @@ func TestValidateContractOrderCreateParams(t *testing.T) {
 			params: &ContractOrderCreateParams{
 				Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long",
 			},
-			err: errInvalidOrderSize,
 		},
 		{
 			params: &ContractOrderCreateParams{
@@ -5096,6 +5125,77 @@ func TestGetCollateralLoanRepaymentRecords(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetCollateralLoanRepaymentRecords(t.Context(), "repay", 1, 100, currency.BTC, currency.USDT, time.Now().Add(-time.Hour*240), time.Now())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestIncreaseOrRedeemCollateral(t *testing.T) {
+	t.Parallel()
+	err := e.IncreaseOrRedeemCollateral(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	arg := &IncreaseOrRedeemCollateralRequest{}
+	err = e.IncreaseOrRedeemCollateral(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	arg.OrderID = 123456
+	err = e.IncreaseOrRedeemCollateral(t.Context(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	arg.CollateralCurrency = currency.BTC
+	err = e.IncreaseOrRedeemCollateral(t.Context(), arg)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+
+	arg.CollateralAmount = 2
+	err = e.IncreaseOrRedeemCollateral(t.Context(), arg)
+	require.ErrorIs(t, err, errOperationTypeRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	arg.OperationType = "append"
+	err = e.IncreaseOrRedeemCollateral(t.Context(), arg)
+	require.NoError(t, err)
+}
+
+func TestGetCollateralAdjustmentRecords(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetCollateralAdjustmentRecords(t.Context(), 1, 10, currency.ETH, currency.USDT, time.Now(), time.Now().Add(-time.Hour*24))
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetCollateralAdjustmentRecords(t.Context(), 1, 10, currency.ETH, currency.USDT, time.Now().Add(-time.Hour*24), time.Now())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUserTotalBorrowingAndCollateralAmount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetUserTotalBorrowingAndCollateralAmount(t.Context())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetUserCollateralizationRatioAndRemainingBorrowables(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetUserCollateralizationRatioAndRemainingBorrowables(t.Context(), currency.EMPTYCODE, currency.USDT)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.GetUserCollateralizationRatioAndRemainingBorrowables(t.Context(), currency.BTC, currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetUserCollateralizationRatioAndRemainingBorrowables(t.Context(), currency.BTC, currency.USDT)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetSupportedBorrowingAndCollateralCurrencies(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetSupportedBorrowingAndCollateralCurrencies(t.Context(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetSupportedBorrowingAndCollateralCurrencies(t.Context(), currency.BTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

@@ -51,7 +51,7 @@ func (e *Exchange) WebsocketSpotSubmitOrders(ctx context.Context, orders ...*Cre
 		if orders[i].CurrencyPair.IsEmpty() {
 			return nil, currency.ErrCurrencyPairEmpty
 		}
-		if orders[i].Side == order.Buy || orders[i].Side == order.Sell {
+		if orders[i].Side != order.Buy && orders[i].Side != order.Sell {
 			return nil, order.ErrSideIsInvalid
 		}
 		if orders[i].Amount == 0 {

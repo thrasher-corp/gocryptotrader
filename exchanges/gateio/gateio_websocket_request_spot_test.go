@@ -36,7 +36,11 @@ func TestWebsocketSpotSubmitOrder(t *testing.T) {
 	_, err := e.WebsocketSpotSubmitOrder(t.Context(), &CreateOrderRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	out := &CreateOrderRequest{CurrencyPair: currency.NewPair(currency.NewCode("GT"), currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"})}
+	out := &CreateOrderRequest{}
+	_, err = e.WebsocketSpotSubmitOrder(t.Context(), out)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	out.CurrencyPair = getPair(t, asset.Spot)
 	_, err = e.WebsocketSpotSubmitOrder(t.Context(), out)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 

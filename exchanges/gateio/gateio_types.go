@@ -3472,7 +3472,7 @@ type CollateralLoanRepaymentResponse struct {
 	RepaidInterest  types.Number `json:"repaid_interest"`
 }
 
-// CollateralLoanRepaymentOrderDetail
+// CollateralLoanRepaymentOrderDetail represents a detail of collateral loan repayment orders
 type CollateralLoanRepaymentOrderDetail struct {
 	OrderID               uint64        `json:"order_id"`
 	RecordID              uint64        `json:"record_id"`
@@ -3489,4 +3489,70 @@ type CollateralLoanRepaymentOrderDetail struct {
 	AfterLeftPrincipal    types.Number  `json:"after_left_principal"`
 	BeforeLeftCollateral  types.Number  `json:"before_left_collateral"`
 	AfterLeftCollateral   types.Number  `json:"after_left_collateral"`
+}
+
+// IncreaseOrRedeemCollateralRequest holds a request parameter for increasing or redeeming collateral
+type IncreaseOrRedeemCollateralRequest struct {
+	CollateralAmount   float64       `json:"collateral_amount,string"`
+	CollateralCurrency currency.Code `json:"collateral_currency"`
+	OrderID            uint64        `json:"order_id"`
+	OperationType      string        `json:"type"`
+}
+
+// CollateralAdjustmentRecord represents a collateral adjustment record
+type CollateralAdjustmentRecord struct {
+	OrderID                   uint64        `json:"order_id"`
+	RecordID                  uint64        `json:"record_id"`
+	BorrowCurrency            currency.Code `json:"borrow_currency"`
+	BorrowAmount              types.Number  `json:"borrow_amount"`
+	CollateralCurrency        currency.Code `json:"collateral_currency"`
+	PreCollateral             types.Number  `json:"pre_collateral"`
+	AfterCollateral           types.Number  `json:"after_collateral"`
+	PreCollateralAdjustment   types.Number  `json:"pre_ltv"`
+	AfterCollateralAdjustment types.Number  `json:"after_ltv"`
+	OperateTime               types.Time    `json:"operate_time"`
+}
+
+// TotalBorrowingAndCollateralAmount represents a total borrowing and collateral amount
+type TotalBorrowingAndCollateralAmount struct {
+	BorrowAmount     types.Number `json:"borrow_amount"`
+	CollateralAmount types.Number `json:"collateral_amount"`
+}
+
+// UserCollateralRatioAndRemainingBorrowable holds user's collateralization ratio and remaining borrowable currencies
+type UserCollateralRatioAndRemainingBorrowable struct {
+	CollateralCurrency             currency.Code `json:"collateral_currency"`
+	BorrowCurrency                 currency.Code `json:"borrow_currency"`
+	InitCollateralizationRate      types.Number  `json:"init_ltv"`
+	AlertCollateralizationRate     types.Number  `json:"alert_ltv"`
+	LiquidateCollateralizationRate types.Number  `json:"liquidate_ltv"`
+	MinBorrowAmount                types.Number  `json:"min_borrow_amount"`
+	LeftBorrowableAmount           types.Number  `json:"left_borrowable_amount"`
+}
+
+// SupportedBorrowingAndCollateralCurrencies holds supported borrowing and collateral currencies
+type SupportedBorrowingAndCollateralCurrencies struct {
+	LoanCurrency       currency.Code   `json:"loan_currency"`
+	CollateralCurrency []currency.Code `json:"collateral_currency"`
+}
+
+// MultiCollateralAdjustmentRecord holds a multi collateral adjustment records
+type MultiCollateralAdjustmentRecord struct {
+	OrderID              uint64            `json:"order_id"`
+	RecordID             uint64            `json:"record_id"`
+	BeforeLtv            string            `json:"before_ltv"`
+	AfterLtv             string            `json:"after_ltv"`
+	OperateTime          types.Time        `json:"operate_time"`
+	BorrowCurrencies     []*CurrencyDetail `json:"borrow_currencies"`
+	CollateralCurrencies []*CurrencyDetail `json:"collateral_currencies"`
+}
+
+// CurrencyDetail holds a currency detail
+type CurrencyDetail struct {
+	Currency         currency.Code `json:"currency"`
+	IndexPrice       types.Number  `json:"index_price"`
+	BeforeAmount     types.Number  `json:"before_amount"`
+	BeforeAmountUSDT types.Number  `json:"before_amount_usdt"`
+	AfterAmount      types.Number  `json:"after_amount"`
+	AfterAmountUSDT  types.Number  `json:"after_amount_usdt"`
 }

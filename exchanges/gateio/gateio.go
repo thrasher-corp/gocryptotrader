@@ -1284,16 +1284,16 @@ func (e *Exchange) SubAccountTransferToSubAccount(ctx context.Context, arg *Inte
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if arg.SubAccountFromUserID == "" {
-		return nil, errors.New("sub-account from user-id is required")
+		return nil, fmt.Errorf("%w: sub-account from user-id is required", errInvalidSubAccountUserID)
 	}
 	if arg.SubAccountFromAssetType == asset.Empty {
-		return nil, errors.New("sub-account to transfer the asset from is required")
+		return nil, fmt.Errorf("%w: sub-account to transfer the asset from is required", asset.ErrInvalidAsset)
 	}
 	if arg.SubAccountToUserID == "" {
-		return nil, errors.New("sub-account to user-id is required")
+		return nil, fmt.Errorf("%w: sub-account to user-id is required", errInvalidSubAccountUserID)
 	}
 	if arg.SubAccountToAssetType == asset.Empty {
-		return nil, errors.New("sub-account to transfer to is required")
+		return nil, fmt.Errorf("%w: sub-account to transfer to is required", asset.ErrInvalidAsset)
 	}
 	if arg.Amount <= 0 {
 		return nil, limits.ErrAmountBelowMin
@@ -4087,6 +4087,33 @@ func (e *Exchange) AddOrWithdrawCollateral(ctx context.Context, arg *AddOrWithdr
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "loan/multi_collateral/mortgage", nil, arg, &resp)
 }
 
+// GetMultiCollateralAdjustmentRecords retrieves a multi-collateral adjustment records
+func (e *Exchange) GetMultiCollateralAdjustmentRecords(ctx context.Context, page, limit uint64, from, to time.Time, collateralCcy currency.Code) ([]*MultiCollateralAdjustmentRecord, error) {
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
+			return nil, err
+		}
+	}
+	params := url.Values{}
+	if !collateralCcy.IsEmpty() {
+		params.Set("collateral_currency", collateralCcy.String())
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatUint(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	if !from.IsZero() {
+		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
+	}
+	if !to.IsZero() {
+		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
+	}
+	var resp []*MultiCollateralAdjustmentRecord
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "loan/multi_collateral/mortgage", params, nil, &resp)
+}
+
 // ------------------------ Broker Rebate Endpoints ------------------------
 
 // GetBrokerTransactionHistory retrieves broker obtains transaction history of recommended users
@@ -4583,6 +4610,7 @@ func (e *Exchange) GetCurrencyEstimatedAnnualizedInterestRate(ctx context.Contex
 
 // -------------- Collateral Loan endpoints ------------------------------
 
+// PlaceCollateralLoanOrder places a collateral loan order detail
 func (e *Exchange) PlaceCollateralLoanOrder(ctx context.Context, arg *PlaceColateralLoanRequest) (*OrderIDResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
@@ -4678,4 +4706,86 @@ func (e *Exchange) GetCollateralLoanRepaymentRecords(ctx context.Context, operat
 	}
 	var resp []*CollateralLoanRepaymentOrderDetail
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "loan/collateral/repay_records", params, nil, &resp)
+}
+
+// IncreaseOrRedeemCollateral increases or redeem collateral
+func (e *Exchange) IncreaseOrRedeemCollateral(ctx context.Context, arg *IncreaseOrRedeemCollateralRequest) error {
+	if err := common.NilGuard(arg); err != nil {
+		return err
+	}
+	if arg.OrderID == 0 {
+		return order.ErrOrderIDNotSet
+	}
+	if arg.CollateralCurrency.IsEmpty() {
+		return fmt.Errorf("%w: collateral currency is required", currency.ErrCurrencyCodeEmpty)
+	}
+	if arg.CollateralAmount <= 0 {
+		return fmt.Errorf("%w: collateral asset amount is required", limits.ErrAmountBelowMin)
+	}
+	if arg.OperationType == "" {
+		return errOperationTypeRequired
+	}
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "loan/collateral/collaterals", nil, arg, nil)
+}
+
+// GetCollateralAdjustmentRecords retrieves collateral adjustment records
+func (e *Exchange) GetCollateralAdjustmentRecords(ctx context.Context, page, limit uint64, collateralCcy, borrowCcy currency.Code, from, to time.Time) ([]*CollateralAdjustmentRecord, error) {
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
+			return nil, err
+		}
+	}
+	params := url.Values{}
+	if !from.IsZero() {
+		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
+	}
+	if !to.IsZero() {
+		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
+	}
+	if !collateralCcy.IsEmpty() {
+		params.Set("collateral_currency", collateralCcy.String())
+	}
+	if !borrowCcy.IsEmpty() {
+		params.Set("borrow_currency", borrowCcy.String())
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatUint(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	var resp []*CollateralAdjustmentRecord
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "loan/collateral/collaterals", params, nil, &resp)
+}
+
+// GetUserTotalBorrowingAndCollateralAmount query user's total borrowing and collateral amount
+func (e *Exchange) GetUserTotalBorrowingAndCollateralAmount(ctx context.Context) (*TotalBorrowingAndCollateralAmount, error) {
+	var resp *TotalBorrowingAndCollateralAmount
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "loan/collateral/total_amount", nil, nil, &resp)
+}
+
+// GetUserCollateralizationRatioAndRemainingBorrowables retrieves user's collateralization ratio and remaining borrowable currencies
+func (e *Exchange) GetUserCollateralizationRatioAndRemainingBorrowables(ctx context.Context, collateralCcy, borrowCcy currency.Code) (*UserCollateralRatioAndRemainingBorrowable, error) {
+	if collateralCcy.IsEmpty() {
+		return nil, fmt.Errorf("%w: collateral currency is required", currency.ErrCurrencyCodeEmpty)
+	}
+	if borrowCcy.IsEmpty() {
+		return nil, fmt.Errorf("%w: borrow currency is required", currency.ErrCurrencyCodeEmpty)
+	}
+	params := url.Values{}
+	params.Set("collateral_currency", collateralCcy.String())
+	params.Set("borrow_currency", borrowCcy.String())
+	var resp *UserCollateralRatioAndRemainingBorrowable
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "loan/collateral/ltv", params, nil, &resp)
+}
+
+// GetSupportedBorrowingAndCollateralCurrencies retrieves supported borrowing and collateral currencies
+func (e *Exchange) GetSupportedBorrowingAndCollateralCurrencies(ctx context.Context, loanCurrency currency.Code) ([]*SupportedBorrowingAndCollateralCurrencies, error) {
+	if loanCurrency.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("loan_currency", loanCurrency.String())
+	var resp []*SupportedBorrowingAndCollateralCurrencies
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "loan/collateral/currencies", params, nil, &resp)
 }
