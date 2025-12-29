@@ -10,7 +10,7 @@ require (
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/gorilla/websocket v1.5.3
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.3
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.4
 	github.com/kat-co/vala v0.0.0-20170210184112-42e1d8b61f12
 	github.com/lib/pq v1.10.9
 	github.com/mattn/go-sqlite3 v1.14.32
@@ -28,8 +28,8 @@ require (
 	golang.org/x/term v0.38.0
 	golang.org/x/text v0.32.0
 	golang.org/x/time v0.14.0
-	google.golang.org/genproto/googleapis/api v0.0.0-20251022142026-3a174f9686a8
-	google.golang.org/grpc v1.77.0
+	google.golang.org/genproto/googleapis/api v0.0.0-20251222181119-0a764e51fe1b
+	google.golang.org/grpc v1.78.0
 	google.golang.org/protobuf v1.36.11
 )
 
@@ -70,6 +70,6 @@ require (
 	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20251022142026-3a174f9686a8 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20251222181119-0a764e51fe1b // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
