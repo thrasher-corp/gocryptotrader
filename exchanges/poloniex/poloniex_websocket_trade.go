@@ -98,13 +98,3 @@ func SendWebsocketRequest[T hasError](ctx context.Context,
 
 	return response, checkForErrorInSliceResponse(response)
 }
-
-func checkForErrorInSliceResponse[T hasError](slice []T) error {
-	var err error
-	for _, v := range slice {
-		if e := v.Error(); e != nil {
-			err = common.AppendError(err, e)
-		}
-	}
-	return err
-}

@@ -439,6 +439,23 @@ func (e *Exchange) GetPositionMode(ctx context.Context) (string, error) {
 	return resp.PositionMode, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fGetPositionModeEPL, http.MethodGet, positionPathV3+"mode", nil, nil, &resp)
 }
 
+// GetUserPositionRiskLimit retrieves user's position risk limit.
+func (e *Exchange) GetUserPositionRiskLimit(ctx context.Context, symbol currency.Pair, marginMode, positionSide string) ([]*UserPositionRiskLimit, error) {
+	if symbol.IsEmpty() {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol.String())
+	if marginMode != "" {
+		params.Set("mgnMode", marginMode)
+	}
+	if positionSide != "" {
+		params.Set("posSide", positionSide)
+	}
+	var resp []*UserPositionRiskLimit
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fGetPositionRiskLimitEPL, http.MethodGet, positionPathV3+"riskLimit", params, nil, &resp)
+}
+
 // GetFuturesOrderBook get market depth data of the designated trading pair
 func (e *Exchange) GetFuturesOrderBook(ctx context.Context, symbol currency.Pair, depth, limit uint64) (*FuturesOrderbook, error) {
 	if symbol.IsEmpty() {

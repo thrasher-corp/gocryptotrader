@@ -1179,6 +1179,16 @@ func SendBatchValidatedAuthenticatedHTTPRequest[T hasError](ctx context.Context,
 	return result, checkForErrorInSliceResponse(result)
 }
 
+func checkForErrorInSliceResponse[T hasError](slice []T) error {
+	var err error
+	for _, v := range slice {
+		if e := v.Error(); e != nil {
+			err = common.AppendError(err, e)
+		}
+	}
+	return err
+}
+
 // GetFee returns an estimate of fee based on type of transaction
 func (e *Exchange) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	var fee float64

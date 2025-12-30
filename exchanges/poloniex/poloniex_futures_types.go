@@ -250,6 +250,18 @@ type FuturesLeverage struct {
 	Symbol       currency.Pair `json:"symbol"`
 }
 
+// UserPositionRiskLimit represents a user position risk limit detail
+type UserPositionRiskLimit struct {
+	Symbol                 currency.Pair `json:"symbol"`
+	MarginMode             string        `json:"mgnMode"`
+	PossitionSide          string        `json:"posSide"`
+	Tier                   string        `json:"tier"`
+	MaxLeverage            types.Number  `json:"maxLever"`
+	MaintenanceMarginRatio types.Number  `json:"mMRatio"`
+	MaxSize                types.Number  `json:"maxSize"`
+	MinSize                types.Number  `json:"minSize"`
+}
+
 // FuturesOrderbook represents an orderbook data for v3 futures instruments
 type FuturesOrderbook struct {
 	Asks      orderbook.LevelsArrayPriceAmount `json:"asks"`

@@ -68,6 +68,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"fGetPositionOpen":                 fGetPositionOpenEPL,
 		"fGetPositionHistory":              fGetPositionHistoryEPL,
 		"fGetPositionMode":                 fGetPositionModeEPL,
+		"fGetPositionRiskLimit":            fGetPositionRiskLimitEPL,
 		"fSwitchPositionMode":              fSwitchPositionModeEPL,
 		"fAdjustMargin":                    fAdjustMarginEPL,
 		"fGetPositionLeverage":             fGetPositionLeverageEPL,

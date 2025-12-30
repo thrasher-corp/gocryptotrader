@@ -64,6 +64,7 @@ const (
 	fGetPositionOpenEPL
 	fGetPositionHistoryEPL
 	fGetPositionModeEPL
+	fGetPositionRiskLimitEPL
 	fSwitchPositionModeEPL
 	fAdjustMarginEPL
 	fGetPositionLeverageEPL
@@ -96,6 +97,7 @@ var rateLimits = request.RateLimitDefinitions{
 	fGetPositionOpenEPL:                 request.NewRateLimitWithWeight(time.Second, 10, 1),
 	fGetPositionHistoryEPL:              request.NewRateLimitWithWeight(time.Second, 10, 1),
 	fGetPositionModeEPL:                 request.NewRateLimitWithWeight(time.Second, 10, 1),
+	fGetPositionRiskLimitEPL:            request.NewRateLimitWithWeight(time.Second, 10, 1),
 	fSwitchPositionModeEPL:              request.NewRateLimitWithWeight(time.Second, 10, 1),
 	fAdjustMarginEPL:                    request.NewRateLimitWithWeight(time.Second, 10, 1),
 	fGetPositionLeverageEPL:             request.NewRateLimitWithWeight(time.Second, 10, 1),

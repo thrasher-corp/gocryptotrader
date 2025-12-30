@@ -2530,6 +2530,19 @@ func TestGetPositionMode(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestGetUserPositionRiskLimit(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetUserPositionRiskLimit(t.Context(), currency.EMPTYPAIR, "CROSS", "LONG")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	}
+	result, err := e.GetUserPositionRiskLimit(t.Context(), futuresTradablePair, "CROSS", "LONG")
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestGetFuturesOrderBook(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesOrderBook(t.Context(), currency.EMPTYPAIR, 100, 100)
