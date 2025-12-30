@@ -418,7 +418,7 @@ type FuturesMarkPriceCandle struct {
 
 // UnmarshalJSON deserializes byte data into FuturesMarkPriceCandle instance
 func (v *FuturesMarkPriceCandle) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[6]any{&v.OpeningPrice, &v.HighestPrice, &v.LowestPrice, &v.ClosingPrice, &v.StartTime, &v.EndTime})
+	return json.Unmarshal(data, &[6]any{&v.LowestPrice, &v.HighestPrice, &v.OpeningPrice, &v.ClosingPrice, &v.StartTime, &v.EndTime})
 }
 
 // ProductDetail represents basic information of the all product
