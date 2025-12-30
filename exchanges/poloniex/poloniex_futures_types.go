@@ -132,7 +132,6 @@ type FuturesTradeFill struct {
 	DeductCurrency currency.Code `json:"deductCcy"`
 	DeductAmount   types.Number  `json:"deductAmt"`
 	UpdateTime     types.Time    `json:"uTime"`
-	FillSize       types.Number  `json:"fillSz"`
 	CreationTime   types.Time    `json:"cTime"`
 	FeeRate        types.Number  `json:"feeRate"`
 	MarginMode     string        `json:"mgnMode"`
@@ -144,6 +143,25 @@ type FuturesTradeFill struct {
 	AccountType    string        `json:"actType"`
 	QuoteCurrency  currency.Code `json:"qCcy"`
 	Value          types.Number  `json:"value"`
+}
+
+// WSTradeFill represents a websocket streamed trade fill data
+type WSTradeFill struct {
+	Symbol         currency.Pair `json:"symbol"`
+	Side           string        `json:"side"`
+	OrderID        string        `json:"ordId"`
+	ClientOrderID  string        `json:"clOrdId"`
+	Role           string        `json:"role"`
+	TradeID        string        `json:"trdId"`
+	FeeCurrency    currency.Code `json:"feeCcy"`
+	FeeAmount      types.Number  `json:"feeAmt"`
+	DeductCurrency currency.Code `json:"deductCcy"`
+	DeductAmount   types.Number  `json:"deductAmt"`
+	Type           string        `json:"type"`
+	FillPrice      types.Number  `json:"fpx"`
+	FillQuantity   types.Number  `json:"fqty"`
+	UpdateTime     types.Time    `json:"uTime"`
+	Timestamp      types.Time    `json:"ts"`
 }
 
 // FuturesOrderDetails represents a futures v3 order detail
@@ -204,7 +222,7 @@ type FuturesPosition struct {
 	UpdateTime        types.Time    `json:"uTime"`
 }
 
-// OpenFuturesPosition represents a v3 futures websocket position detail
+// OpenFuturesPosition represents a v3 futures open position detail
 type OpenFuturesPosition struct {
 	FuturesPosition
 	AutoDeleveraging       string       `json:"adl"`
@@ -251,9 +269,9 @@ type FuturesLeverage struct {
 type UserPositionRiskLimit struct {
 	Symbol                 currency.Pair `json:"symbol"`
 	MarginMode             string        `json:"mgnMode"`
-	PossitionSide          string        `json:"posSide"`
+	PositionSide           string        `json:"posSide"`
 	Tier                   string        `json:"tier"`
-	MaxLeverage            types.Number  `json:"maxLever"`
+	MaxLeverage            uint16        `json:"maxLever,string"`
 	MaintenanceMarginRatio types.Number  `json:"mMRatio"`
 	MaxSize                types.Number  `json:"maxSize"`
 	MinSize                types.Number  `json:"minSize"`
@@ -353,14 +371,17 @@ type WSInstrumentIndexPrice struct {
 
 // IndexPriceComponent represents an index price component detail
 type IndexPriceComponent struct {
-	Symbol currency.Pair `json:"s"`
-	Price  types.Number  `json:"px"`
-	Cs     []struct {
-		Exchange              string       `json:"e"`
-		WeightFactor          types.Number `json:"w"`
-		TradingPairPrice      types.Number `json:"sPx"`
-		TradingPairIndexPrice types.Number `json:"cPx"`
-	} `json:"cs"`
+	Symbol currency.Pair        `json:"s"`
+	Price  types.Number         `json:"px"`
+	Cs     []SymbolPriceDetails `json:"cs"`
+}
+
+// SymbolPriceDetails represents symbol's price from different exchanges and its weight factor.
+type SymbolPriceDetails struct {
+	Exchange              string       `json:"e"`
+	WeightFactor          types.Number `json:"w"`
+	TradingPairPrice      types.Number `json:"sPx"`
+	TradingPairIndexPrice types.Number `json:"cPx"`
 }
 
 // FuturesIndexPriceData represents a futures index price data detail
@@ -572,11 +593,14 @@ type FuturesOrder struct {
 	UpdatedAt           types.Time        `json:"updatedAt"`
 	OrderTime           types.Time        `json:"orderTime"`
 
-	MarginType int64 `json:"marginType"` // Margin Mode, 0 (Isolated) or 1 (Cross)
-	Trades     []struct {
-		FeePay  float64 `json:"feePay"`
-		TradeID string  `json:"tradeId"`
-	} `json:"trades"`
+	MarginType int64           `json:"marginType"` // Margin Mode, 0 (Isolated) or 1 (Cross)
+	Trades     []TradeIDAndFee `json:"trades"`
+}
+
+// TradeIDAndFee holds a trade ID and fee information
+type TradeIDAndFee struct {
+	FeePay  float64 `json:"feePay"`
+	TradeID string  `json:"tradeId"`
 }
 
 // AuthenticationResponse represents an authentication response for futures websocket connection

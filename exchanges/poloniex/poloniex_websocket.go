@@ -162,7 +162,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		var response []*WsCurrency
 		return e.processResponse(&result, &response)
 	case channelExchange:
-		var response WsExchangeStatus
+		var response []*WsExchangeStatus
 		return e.processResponse(&result, &response)
 	case channelTrades:
 		return e.processTrades(&result)

@@ -2647,7 +2647,7 @@ func TestGetIndexPriceComponents(t *testing.T) {
 
 func TestGetInstrumentsIndexPriceComponents(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetInstrumentsIndexPriceComponents(t.Context())
+	result, err := e.GetAllIndexPriceComponents(t.Context())
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }

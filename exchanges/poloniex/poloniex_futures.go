@@ -591,8 +591,8 @@ func (e *Exchange) GetIndexPriceComponents(ctx context.Context, symbol currency.
 	return resp[0], nil
 }
 
-// GetInstrumentsIndexPriceComponents returns index price components for a single pairs.
-func (e *Exchange) GetInstrumentsIndexPriceComponents(ctx context.Context) ([]*IndexPriceComponent, error) {
+// GetAllIndexPriceComponents returns index price components for all pairs.
+func (e *Exchange) GetAllIndexPriceComponents(ctx context.Context) ([]*IndexPriceComponent, error) {
 	var resp []*IndexPriceComponent
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, marketsPathV3+"indexPriceComponents", &resp)
 }

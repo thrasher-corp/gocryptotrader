@@ -875,7 +875,7 @@ type WsCurrency struct {
 
 // WsExchangeStatus represents websocket exchange status.
 // the values for MM and POM are ON and OFF
-type WsExchangeStatus []struct {
+type WsExchangeStatus struct {
 	MaintenanceMode string `json:"MM"`
 	PostOnlyMode    string `json:"POM"`
 }

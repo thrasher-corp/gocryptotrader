@@ -248,7 +248,7 @@ func (e *Exchange) processFuturesAccountData(data []byte) error {
 }
 
 func (e *Exchange) processFuturesTradeFills(data []byte) error {
-	var resp []*FuturesTradeFill
+	var resp []*WSTradeFill
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -268,8 +268,8 @@ func (e *Exchange) processFuturesTradeFills(data []byte) error {
 			TradeID:       r.TradeID,
 			ClientOrderID: r.ClientOrderID,
 			Timestamp:     r.UpdateTime.Time(),
-			Amount:        r.FillSize.Float64(),
-			Price:         r.Price.Float64(),
+			Amount:        r.FillQuantity.Float64(),
+			Price:         r.FillPrice.Float64(),
 		}
 	}
 	e.Websocket.DataHandler <- tFills
