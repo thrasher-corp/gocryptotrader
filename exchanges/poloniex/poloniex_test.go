@@ -1925,10 +1925,10 @@ func TestGetOrdersHistory(t *testing.T) {
 
 func TestGetSmartOrderHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetSmartOrderHistory(generateContext(t), &OrdersHistoryRequest{Limit: 10, StartTime: time.Now(), EndTime: time.Now().Add(-time.Hour)})
+	startTime, endTime := time.UnixMilli(1764930174763), time.UnixMilli(1765290174763)
+	_, err := e.GetSmartOrderHistory(generateContext(t), &OrdersHistoryRequest{Limit: 10, StartTime: endTime, EndTime: startTime})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	startTime, endTime := time.UnixMilli(1764930174763), time.UnixMilli(1765290174763)
 	if !mockTests {
 		startTime, endTime = time.Now().Add(-time.Hour*100), time.Now()
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
