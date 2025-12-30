@@ -169,7 +169,7 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 	case channelFuturesTrades:
 		return e.processFuturesTrades(result.Data)
 	case channelFuturesIndexPrice:
-		var resp []*InstrumentIndexPrice
+		var resp []*WSInstrumentIndexPrice
 		if err := json.Unmarshal(result.Data, &resp); err != nil {
 			return err
 		}
@@ -185,7 +185,7 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 	case channelFuturesFundingRate:
 		return e.processFuturesFundingRate(result.Data)
 	case channelFuturesPrivatePositions:
-		var resp []*WsFuturesPosition
+		var resp []*OpenFuturesPosition
 		if err := json.Unmarshal(result.Data, &resp); err != nil {
 			return err
 		}

@@ -154,7 +154,7 @@ type SubscriptionResponse struct {
 	Message string          `json:"message"`
 }
 
-// SymbolTradeLimit holds symbol's trade details
+// SymbolTradeLimit holds symbol's trade limit details
 type SymbolTradeLimit struct {
 	Symbol        currency.Pair `json:"symbol"`
 	PriceScale    uint8         `json:"priceScale"`
@@ -164,6 +164,18 @@ type SymbolTradeLimit struct {
 	MinAmount     types.Number  `json:"minAmount"`
 	MaxQuantity   types.Number  `json:"maxQuantity"`
 	MaxAmount     types.Number  `json:"maxAmount"`
+	HighestBid    types.Number  `json:"highestBid"`
+	LowestAsk     types.Number  `json:"lowestAsk"`
+}
+
+// WsSymbolTradeLimit holds a websocket symbol's trade limit details
+type WsSymbolTradeLimit struct {
+	Symbol        currency.Pair `json:"symbol"`
+	PriceScale    uint8         `json:"priceScale"`
+	QuantityScale uint8         `json:"quantityScale"`
+	AmountScale   uint8         `json:"amountScale"`
+	MinQuantity   types.Number  `json:"minQuantity"`
+	MinAmount     types.Number  `json:"minAmount"`
 	HighestBid    types.Number  `json:"highestBid"`
 	LowestAsk     types.Number  `json:"lowestAsk"`
 }
@@ -816,8 +828,8 @@ type SubscriptionPayload struct {
 
 // CrossMarginSupportInfo represents information on whether cross margin support is enabled or not, and leverage detail
 type CrossMarginSupportInfo struct {
-	SupportCrossMargin bool         `json:"supportCrossMargin"`
-	MaxLeverage        types.Number `json:"maxLeverage"`
+	SupportCrossMargin bool   `json:"supportCrossMargin"`
+	MaxLeverage        uint64 `json:"maxLeverage"`
 }
 
 // WsCrossMarginSupportInfo represents information returned through the websocket stream on whether cross margin support is enabled or not, and leverage detail
@@ -836,7 +848,7 @@ type WsSymbol struct {
 	VisibleStartTime  types.Time                `json:"visibleStartTime"`
 	TradableStartTime types.Time                `json:"tradableStartTime"`
 	CrossMargin       *WsCrossMarginSupportInfo `json:"crossMargin"`
-	SymbolTradeLimit  *SymbolTradeLimit         `json:"symbolTradeLimit"`
+	SymbolTradeLimit  *WsSymbolTradeLimit       `json:"symbolTradeLimit"`
 }
 
 // WsCurrency represents a currency instance from websocket stream.

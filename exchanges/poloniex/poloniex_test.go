@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -1471,7 +1470,7 @@ func TestWithdrawCurrency(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	result, err := e.WithdrawCurrency(t.Context(), &WithdrawCurrencyRequest{Network: "ERP", Coin: currency.BTC, Amount: 1, Address: core.BitcoinDonationAddress})
+	result, err := e.WithdrawCurrency(t.Context(), &WithdrawCurrencyRequest{Network: "ERP", Coin: currency.BTC, Amount: 1, Address: "bc1qk0jareu4jytc0cfrhr5wgshsq8"})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1926,10 +1925,26 @@ func TestGetOrdersHistory(t *testing.T) {
 
 func TestGetSmartOrderHistory(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetSmartOrderHistory(generateContext(t), &OrdersHistoryRequest{Limit: 10, StartTime: time.Now(), EndTime: time.Now().Add(-time.Hour)})
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
+	startTime, endTime := time.UnixMilli(1764930174763), time.UnixMilli(1765290174763)
 	if !mockTests {
+		startTime, endTime = time.Now().Add(-time.Hour*100), time.Now()
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	_, err := e.GetSmartOrderHistory(generateContext(t), &OrdersHistoryRequest{Limit: 10})
+	_, err = e.GetSmartOrderHistory(generateContext(t), &OrdersHistoryRequest{
+		Symbol:      spotTradablePair,
+		AccountType: "SPOT",
+		OrderType:   "LIMIT",
+		Side:        order.Sell,
+		Direction:   "PREV",
+		From:        12323123,
+		Limit:       100,
+		StartTime:   startTime,
+		EndTime:     endTime,
+		HideCancel:  true,
+	})
 	require.NoError(t, err)
 }
 

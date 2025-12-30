@@ -308,12 +308,12 @@ func (e *Exchange) GetFuturesOrderHistory(ctx context.Context, symbol currency.P
 }
 
 // GetFuturesCurrentPosition retrieves information about your current position.
-func (e *Exchange) GetFuturesCurrentPosition(ctx context.Context, symbol currency.Pair) ([]*FuturesPosition, error) {
+func (e *Exchange) GetFuturesCurrentPosition(ctx context.Context, symbol currency.Pair) ([]*OpenFuturesPosition, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		params.Set("symbol", symbol.String())
 	}
-	var resp []*FuturesPosition
+	var resp []*OpenFuturesPosition
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fGetPositionOpenEPL, http.MethodGet, tradePathV3+"position/opens", params, nil, &resp)
 }
 

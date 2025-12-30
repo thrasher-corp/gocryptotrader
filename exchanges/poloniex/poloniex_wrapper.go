@@ -1104,11 +1104,11 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		}
 		return &order.Detail{
 			Price:                orderDetail.Price.Float64(),
-			Amount:               orderDetail.Quantity.Float64(),
+			Amount:               orderDetail.Size.Float64(),
 			AverageExecutedPrice: orderDetail.AveragePrice.Float64(),
 			QuoteAmount:          orderDetail.AveragePrice.Float64() * orderDetail.ExecutedQuantity.Float64(),
 			ExecutedAmount:       orderDetail.ExecutedQuantity.Float64(),
-			RemainingAmount:      orderDetail.Quantity.Float64() - orderDetail.ExecutedQuantity.Float64(),
+			RemainingAmount:      orderDetail.Size.Float64() - orderDetail.ExecutedQuantity.Float64(),
 			OrderID:              orderDetail.OrderID,
 			Exchange:             e.Name,
 			ClientOrderID:        orderDetail.ClientOrderID,
@@ -1502,13 +1502,13 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		}
 		detail := order.Detail{
 			Side:            fOrder.Side,
-			Amount:          fOrder.Quantity.Float64(),
+			Amount:          fOrder.Size.Float64(),
 			ExecutedAmount:  fOrder.ExecutedAmount.Float64(),
 			Price:           fOrder.Price.Float64(),
 			Pair:            fOrder.Symbol,
 			Type:            oType,
 			Exchange:        e.Name,
-			RemainingAmount: fOrder.Quantity.Float64() - fOrder.ExecutedAmount.Float64(),
+			RemainingAmount: fOrder.Size.Float64() - fOrder.ExecutedAmount.Float64(),
 			OrderID:         fOrder.OrderID,
 			ClientOrderID:   fOrder.ClientOrderID,
 			Status:          orderStateFromString(fOrder.State),

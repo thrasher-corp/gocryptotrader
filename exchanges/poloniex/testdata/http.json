@@ -9635,8 +9635,25 @@
         "/smartorders/history": {
             "GET": [
                 {
-                    "data": null,
-                    "queryString": "limit=10",
+                    "data": [
+                        {
+                            "id": "25444163851911168",
+                            "clientOrderId": "",
+                            "symbol": "BTC_USDT",
+                            "state": "CANCELED",
+                            "accountType": "SPOT",
+                            "side": "BUY",
+                            "type": "STOP_LIMIT",
+                            "timeInForce": "GTC",
+                            "quantity": "2",
+                            "price": "100",
+                            "amount": "200",
+                            "stopPrice": "125",
+                            "createTime": 1647032761392,
+                            "updateTime": 1647032874275
+                        }
+                    ],
+                    "queryString": "accountType=SPOT\u0026direction=PREV\u0026endTime=1765290174763\u0026from=12323123\u0026hideCancel=true\u0026limit=100\u0026side=SELL\u0026startTime=1764930174763\u0026symbol=BTC_USDT\u0026type=LIMIT",
                     "bodyParams": "",
                     "headers": {
                         "Content-Type": [
@@ -10423,7 +10440,7 @@
                         "address": "0xbb8d0d7c346daecc2380dabaa91f3ccf8ae232fb4"
                     },
                     "queryString": "",
-                    "bodyParams": "{\"coin\":\"BTC\",\"network\":\"ERP\",\"amount\":\"1\",\"address\":\"bc1qk0jareu4jytc0cfrhr5wgshsq8282awpavfahc\"}",
+                    "bodyParams": "{\"coin\":\"BTC\",\"network\":\"ERP\",\"amount\":\"1\",\"address\":\"bc1qk0jareu4jytc0cfrhr5wgshsq8\"}",
                     "headers": {
                         "Content-Type": [
                             "application/json"

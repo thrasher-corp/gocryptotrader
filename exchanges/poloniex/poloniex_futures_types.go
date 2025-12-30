@@ -120,7 +120,7 @@ type CancelFuturesOrdersRequest struct {
 
 // FuturesTradeFill represents a trade executions
 type FuturesTradeFill struct {
-	ID             string        `json:""`
+	ID             string        `json:"id"`
 	Symbol         currency.Pair `json:"symbol"`
 	Side           string        `json:"side"`
 	OrderID        string        `json:"ordId"`
@@ -181,10 +181,6 @@ type FuturesOrderDetails struct {
 	TakeProfitTriggerPriceType string            `json:"tpTrgPxType"`
 	UpdateTime                 types.Time        `json:"uTime"`
 	FeeRate                    types.Number      `json:"feeRate"`
-	ID                         string            `json:"id"`
-	Quantity                   types.Number      `json:"qty"`
-	Role                       string            `json:"role"`
-	TradeID                    string            `json:"trdId"`
 	CancelReason               string            `json:"cancelReason"`
 }
 
@@ -198,6 +194,7 @@ type FuturesPosition struct {
 	OpenAveragePrice  types.Number  `json:"openAvgPx"`
 	CloseAveragePrice string        `json:"closeAvgPx"`
 	ClosedQuantity    string        `json:"closedQty"`
+	AvailableQuantity types.Number  `json:"availQty"`
 	Quantity          types.Number  `json:"qty"`
 	ProfitAndLoss     types.Number  `json:"pnl"`
 	Fee               string        `json:"fee"`
@@ -207,8 +204,8 @@ type FuturesPosition struct {
 	UpdateTime        types.Time    `json:"uTime"`
 }
 
-// WsFuturesPosition represents a v3 futures websocket position detail
-type WsFuturesPosition struct {
+// OpenFuturesPosition represents a v3 futures websocket position detail
+type OpenFuturesPosition struct {
 	FuturesPosition
 	AutoDeleveraging       string       `json:"adl"`
 	AvailableQuantity      types.Number `json:"availQty"`
@@ -219,7 +216,7 @@ type WsFuturesPosition struct {
 	IsolatedPositionMargin string       `json:"mgn"`
 	MarginRatio            types.Number `json:"mgnRatio"`
 	MaintenanceMargin      string       `json:"mm"`
-	MixWithdrawalAmount    types.Number `json:"maxWAmt"`
+	MaxWithdrawalAmount    types.Number `json:"maxWAmt"`
 	UnrealizedPNL          types.Number `json:"upl"`
 	UnrealizedPNLRatio     types.Number `json:"uplRatio"`
 	LastPrice              types.Number `json:"lastPx"`
@@ -337,11 +334,18 @@ type FuturesTickerDetails struct {
 	BestAskPrice types.Number  `json:"aPx"`
 	BestAskSize  types.Number  `json:"aSz"`
 	MarkPrice    types.Number  `json:"mPx"`
+	IndexPrice   types.Number  `json:"iPx"`
 	Timestamp    types.Time    `json:"ts"`
 }
 
 // InstrumentIndexPrice represents a symbols index price
 type InstrumentIndexPrice struct {
+	Symbol    currency.Pair `json:"s"`
+	Timestamp types.Time    `json:"ts"`
+}
+
+// WSInstrumentIndexPrice represents a symbols index price of websocket response
+type WSInstrumentIndexPrice struct {
 	Symbol     currency.Pair `json:"s"`
 	Timestamp  types.Time    `json:"ts"`
 	IndexPrice types.Number  `json:"iPx"`
