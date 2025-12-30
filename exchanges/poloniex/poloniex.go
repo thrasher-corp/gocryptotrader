@@ -524,6 +524,7 @@ var supportedIntervals = []struct {
 	{key: "HOUR_2", val: kline.TwoHour},
 	{key: "HOUR_4", val: kline.FourHour},
 	{key: "HOUR_6", val: kline.SixHour},
+	{key: "HOUR_8", val: kline.EightHour},
 	{key: "HOUR_12", val: kline.TwelveHour},
 	{key: "DAY_1", val: kline.OneDay},
 	{key: "DAY_3", val: kline.ThreeDay},
