@@ -478,10 +478,8 @@ func (c *connection) MatchReturnResponses(ctx context.Context, signature any, ex
 }
 
 func removeURLQueryString(u string) string {
-	if index := strings.Index(u, "?"); index != -1 {
-		return u[:index]
-	}
-	return u
+	baseURL, _, _ := strings.Cut(u, "?")
+	return baseURL
 }
 
 // RequireMatchWithData routes incoming data using the connection specific match system to the correct handler
