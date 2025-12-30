@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -30,8 +31,8 @@ type Exchange struct {
 }
 
 const (
-	spotAPIURL     = "https://api.mexc.com/api/v3/"
-	contractAPIURL = "https://contract.mexc.com/api/v1/"
+	spotAPIURL     = "https://api.mexc.com/"
+	contractAPIURL = "https://contract.mexc.com/"
 )
 
 var (
@@ -1392,10 +1393,17 @@ func (e *Exchange) GenerateListenKey(ctx context.Context) (string, error) {
 }
 
 // SendHTTPRequest sends an http request to a desired path with a JSON payload (of present)
-func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, requestPath string, values url.Values, arg, result interface{}, auth ...bool) error {
+func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, requestPath string, values url.Values, arg, result any, auth ...bool) error {
 	ePoint, err := e.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
+	}
+	var versionStr string
+	switch ep {
+	case exchange.RestSpot:
+		versionStr = "/api/v3/"
+	case exchange.RestFutures:
+		versionStr = "/api/v1/"
 	}
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/json"
@@ -1433,7 +1441,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	err = e.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return &request.Item{
 			Method:        method,
-			Path:          ePoint + common.EncodeURLValues(requestPath, values),
+			Path:          ePoint + path.Join(versionStr, common.EncodeURLValues(requestPath, values)),
 			Headers:       headers,
 			Body:          strings.NewReader(payload),
 			Result:        result,

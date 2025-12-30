@@ -1,0 +1,253 @@
+{
+ "routes": {
+  "/api/v3/exchangeInfo": {
+   "GET": [
+    {
+     "data": {
+      "exchangeFilters": [],
+      "rateLimits": [],
+      "serverTime": 1767110261777,
+      "symbols": [
+       {
+        "baseAsset": "METAL",
+        "baseAssetPrecision": 2,
+        "baseCommissionPrecision": 2,
+        "baseSizePrecision": "0.1",
+        "conceptPlateIds": [
+         51
+        ],
+        "contractAddress": "xtokens",
+        "filters": [
+         {
+          "askMultiplierDown": "0.2",
+          "bidMultiplierUp": "0.2",
+          "filterType": "PERCENT_PRICE_BY_SIDE"
+         }
+        ],
+        "fullName": "Metal Blockchain",
+        "isMarginTradingAllowed": false,
+        "isSpotTradingAllowed": true,
+        "makerCommission": "0",
+        "maxQuoteAmount": "2000000",
+        "maxQuoteAmountMarket": "100000",
+        "orderTypes": [
+         "LIMIT",
+         "MARKET",
+         "LIMIT_MAKER"
+        ],
+        "permissions": [
+         "SPOT"
+        ],
+        "quoteAmountPrecision": "1",
+        "quoteAmountPrecisionMarket": "1",
+        "quoteAsset": "USDT",
+        "quoteAssetPrecision": 5,
+        "quoteCommissionPrecision": 5,
+        "quotePrecision": 5,
+        "st": false,
+        "status": "1",
+        "symbol": "METALUSDT",
+        "takerCommission": "0.0005",
+        "tradeSideType": 1
+       },
+       {
+        "baseAsset": "RARI",
+        "baseAssetPrecision": 2,
+        "baseCommissionPrecision": 2,
+        "baseSizePrecision": "0.0001",
+        "conceptPlateIds": [
+         51
+        ],
+        "contractAddress": "0xfca59cd816ab1ead66534d82bc21e7515ce441cf",
+        "filters": [
+         {
+          "askMultiplierDown": "0.2",
+          "bidMultiplierUp": "0.2",
+          "filterType": "PERCENT_PRICE_BY_SIDE"
+         }
+        ],
+        "fullName": "Rarible",
+        "isMarginTradingAllowed": false,
+        "isSpotTradingAllowed": true,
+        "makerCommission": "0",
+        "maxQuoteAmount": "2000000",
+        "maxQuoteAmountMarket": "100000",
+        "orderTypes": [
+         "LIMIT",
+         "MARKET",
+         "LIMIT_MAKER"
+        ],
+        "permissions": [
+         "SPOT"
+        ],
+        "quoteAmountPrecision": "1",
+        "quoteAmountPrecisionMarket": "1",
+        "quoteAsset": "USDT",
+        "quoteAssetPrecision": 4,
+        "quoteCommissionPrecision": 4,
+        "quotePrecision": 4,
+        "st": false,
+        "status": "1",
+        "symbol": "RARIUSDT",
+        "takerCommission": "0.0005",
+        "tradeSideType": 1
+       },
+       {
+        "baseAsset": "PYTH",
+        "baseAssetPrecision": 2,
+        "baseCommissionPrecision": 2,
+        "baseSizePrecision": "0",
+        "conceptPlateIds": [
+         50
+        ],
+        "contractAddress": "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3",
+        "filters": [
+         {
+          "askMultiplierDown": "0.02",
+          "bidMultiplierUp": "0.02",
+          "filterType": "PERCENT_PRICE_BY_SIDE"
+         }
+        ],
+        "fullName": "Pyth Network",
+        "isMarginTradingAllowed": false,
+        "isSpotTradingAllowed": true,
+        "makerCommission": "0",
+        "maxQuoteAmount": "2000000",
+        "maxQuoteAmountMarket": "200000",
+        "orderTypes": [
+         "LIMIT",
+         "MARKET",
+         "LIMIT_MAKER"
+        ],
+        "permissions": [
+         "SPOT"
+        ],
+        "quoteAmountPrecision": "1",
+        "quoteAmountPrecisionMarket": "1",
+        "quoteAsset": "USDT",
+        "quoteAssetPrecision": 5,
+        "quoteCommissionPrecision": 5,
+        "quotePrecision": 5,
+        "st": false,
+        "status": "1",
+        "symbol": "PYTHUSDT",
+        "takerCommission": "0.0005",
+        "tradeSideType": 1
+       },
+       {
+        "baseAsset": "AO",
+        "baseAssetPrecision": 2,
+        "baseCommissionPrecision": 2,
+        "baseSizePrecision": "0",
+        "conceptPlateIds": [
+         51,
+         40
+        ],
+        "contractAddress": "",
+        "filters": [
+         {
+          "askMultiplierDown": "0.2",
+          "bidMultiplierUp": "0.2",
+          "filterType": "PERCENT_PRICE_BY_SIDE"
+         }
+        ],
+        "fullName": "AO",
+        "isMarginTradingAllowed": false,
+        "isSpotTradingAllowed": true,
+        "makerCommission": "0",
+        "maxQuoteAmount": "2000000",
+        "maxQuoteAmountMarket": "100000",
+        "orderTypes": [
+         "LIMIT",
+         "MARKET",
+         "LIMIT_MAKER"
+        ],
+        "permissions": [
+         "SPOT"
+        ],
+        "quoteAmountPrecision": "1",
+        "quoteAmountPrecisionMarket": "1",
+        "quoteAsset": "USDT",
+        "quoteAssetPrecision": 3,
+        "quoteCommissionPrecision": 3,
+        "quotePrecision": 3,
+        "st": false,
+        "status": "1",
+        "symbol": "AOUSDT",
+        "takerCommission": "0.0005",
+        "tradeSideType": 1
+       },
+       {
+        "baseAsset": "AMPED",
+        "baseAssetPrecision": 2,
+        "baseCommissionPrecision": 2,
+        "baseSizePrecision": "0",
+        "conceptPlateIds": [
+         19,
+         51
+        ],
+        "contractAddress": "0x4Cae73a23078e7A94D1e828Fa3bABa5080c04FcA",
+        "filters": [
+         {
+          "askMultiplierDown": "0.2",
+          "bidMultiplierUp": "0.2",
+          "filterType": "PERCENT_PRICE_BY_SIDE"
+         }
+        ],
+        "fullName": "Amped Finance",
+        "isMarginTradingAllowed": false,
+        "isSpotTradingAllowed": true,
+        "makerCommission": "0",
+        "maxQuoteAmount": "2000000",
+        "maxQuoteAmountMarket": "100000",
+        "orderTypes": [
+         "LIMIT",
+         "MARKET",
+         "LIMIT_MAKER"
+        ],
+        "permissions": [
+         "SPOT"
+        ],
+        "quoteAmountPrecision": "1",
+        "quoteAmountPrecisionMarket": "1",
+        "quoteAsset": "USDT",
+        "quoteAssetPrecision": 5,
+        "quoteCommissionPrecision": 5,
+        "quotePrecision": 5,
+        "st": false,
+        "status": "1",
+        "symbol": "AMPEDUSDT",
+        "takerCommission": "0.0005",
+        "tradeSideType": 1
+       }
+      ],
+      "timezone": "CST"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  },
+  "/api/v3/time": {
+   "GET": [
+    {
+     "data": {
+      "serverTime": 1767110387512
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ]
+     }
+    }
+   ]
+  }
+ }
+}

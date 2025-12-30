@@ -2,8 +2,6 @@ package mexc
 
 import (
 	"context"
-	"log"
-	"os"
 	"testing"
 	"time"
 
@@ -43,24 +41,6 @@ var (
 
 	spotTradablePair, futuresTradablePair currency.Pair
 )
-
-func TestMain(m *testing.M) {
-	e = new(Exchange)
-	if err := testexch.Setup(e); err != nil {
-		log.Fatal(err)
-	}
-
-	if apiKey != "" && apiSecret != "" {
-		e.API.AuthenticatedSupport = true
-		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
-		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	}
-	if err := populateTradablePairs(); err != nil {
-		log.Fatal(err)
-	}
-	os.Exit(m.Run())
-}
 
 func populateTradablePairs() error {
 	if err := e.UpdateTradablePairs(context.Background()); err != nil {
@@ -1883,4 +1863,10 @@ func TestCancelAllOrders(t *testing.T) {
 	result, err = e.CancelAllOrders(t.Context(), &order.Cancel{OrderID: "12345", AssetType: asset.Futures, Pair: futuresTradablePair})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+func TestWsCOnnect(t *testing.T) {
+	t.Parallel()
+	testexch.SetupWs(t, e)
+	time.Sleep(time.Second * 23)
 }
