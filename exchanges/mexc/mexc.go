@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -31,8 +30,8 @@ type Exchange struct {
 }
 
 const (
-	spotAPIURL     = "https://api.mexc.com/"
-	contractAPIURL = "https://contract.mexc.com/"
+	spotAPIURL     = "https://api.mexc.com"
+	contractAPIURL = "https://contract.mexc.com"
 )
 
 var (
@@ -80,12 +79,12 @@ func (e *Exchange) GetDefaultSumbols(ctx context.Context) ([]string, error) {
 }
 
 // GetOrderbook retrieves orderbook data of a symbol
-func (e *Exchange) GetOrderbook(ctx context.Context, symbol string, limit int64) (*Orderbook, error) {
-	if symbol == "" {
+func (e *Exchange) GetOrderbook(ctx context.Context, symbol currency.Pair, limit int64) (*Orderbook, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
@@ -94,12 +93,12 @@ func (e *Exchange) GetOrderbook(ctx context.Context, symbol string, limit int64)
 }
 
 // GetRecentTradesList retrieves recent trades list
-func (e *Exchange) GetRecentTradesList(ctx context.Context, symbol string, limit int64) ([]TradeDetail, error) {
-	if symbol == "" {
+func (e *Exchange) GetRecentTradesList(ctx context.Context, symbol currency.Pair, limit int64) ([]TradeDetail, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
@@ -108,8 +107,8 @@ func (e *Exchange) GetRecentTradesList(ctx context.Context, symbol string, limit
 }
 
 // GetAggregatedTrades get compressed, aggregate trades. Trades that fill at the time, from the same order, with the same price will have the quantity aggregated.
-func (e *Exchange) GetAggregatedTrades(ctx context.Context, symbol string, startTime, endTime time.Time, limit uint64) ([]AggregatedTradeDetail, error) {
-	if symbol == "" {
+func (e *Exchange) GetAggregatedTrades(ctx context.Context, symbol currency.Pair, startTime, endTime time.Time, limit uint64) ([]AggregatedTradeDetail, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -118,7 +117,7 @@ func (e *Exchange) GetAggregatedTrades(ctx context.Context, symbol string, start
 		}
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -174,8 +173,8 @@ func intervalToString(interval kline.Interval, isWebsocket ...bool) (string, err
 
 // GetCandlestick retrieves kline/candlestick bars for a symbol.
 // Klines are uniquely identified by their open time.
-func (e *Exchange) GetCandlestick(ctx context.Context, symbol, interval string, startTime, endTime time.Time, limit uint64) ([]CandlestickData, error) {
-	if symbol == "" {
+func (e *Exchange) GetCandlestick(ctx context.Context, symbol currency.Pair, interval string, startTime, endTime time.Time, limit uint64) ([]CandlestickData, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if interval == "" {
@@ -187,7 +186,7 @@ func (e *Exchange) GetCandlestick(ctx context.Context, symbol, interval string, 
 		}
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	params.Set("interval", interval)
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -204,12 +203,12 @@ func (e *Exchange) GetCandlestick(ctx context.Context, symbol, interval string, 
 }
 
 // GetCurrentAveragePrice retrieves current average price of symbol
-func (e *Exchange) GetCurrentAveragePrice(ctx context.Context, symbol string) (*SymbolAveragePrice, error) {
-	if symbol == "" {
+func (e *Exchange) GetCurrentAveragePrice(ctx context.Context, symbol currency.Pair) (*SymbolAveragePrice, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	var resp *SymbolAveragePrice
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, currentAveragePriceEPL, http.MethodGet, "avgPrice", params, nil, &resp)
 }
@@ -231,12 +230,12 @@ func (e *Exchange) Get24HourTickerPriceChangeStatistics(ctx context.Context, sym
 }
 
 // GetSymbolPriceTicker represents a symbol price ticker detail
-func (e *Exchange) GetSymbolPriceTicker(ctx context.Context, symbol string) (*SymbolPriceTicker, error) {
-	if symbol == "" {
-		return nil, currency.ErrSymbolStringEmpty
+func (e *Exchange) GetSymbolPriceTicker(ctx context.Context, symbol currency.Pair) (*SymbolPriceTicker, error) {
+	if symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	var resp *SymbolPriceTicker
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, symbolPriceTickerEPL, http.MethodGet, "ticker/price", params, nil, &resp)
 }
@@ -252,12 +251,12 @@ func (e *Exchange) GetSymbolsPriceTicker(ctx context.Context, symbols []string) 
 }
 
 // GetSymbolOrderbookTicker represents an orderbook detail for a symbol
-func (e *Exchange) GetSymbolOrderbookTicker(ctx context.Context, symbol string) (*SymbolOrderbookTicker, error) {
-	if symbol == "" {
+func (e *Exchange) GetSymbolOrderbookTicker(ctx context.Context, symbol currency.Pair) (*SymbolOrderbookTicker, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	var resp *SymbolOrderbookTicker
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, symbolOrderbookTickerEPL, http.MethodGet, "ticker/bookTicker", params, nil, &resp)
 }
@@ -807,7 +806,7 @@ func (e *Exchange) CapitalWithdrawal(ctx context.Context, coin currency.Code, wi
 }
 
 // NewTestOrder creates and validates a new order but does not send it into the matching engine.
-func (e *Exchange) NewTestOrder(ctx context.Context, symbol, newClientOrderID, side, orderType string, quantity, quoteOrderQty, price float64) (*OrderDetail, error) {
+func (e *Exchange) NewTestOrder(ctx context.Context, symbol currency.Pair, newClientOrderID, side, orderType string, quantity, quoteOrderQty, price float64) (*OrderDetail, error) {
 	return e.newOrder(ctx, symbol, newClientOrderID, side, orderType, "order/test", quantity, quoteOrderQty, price)
 }
 
@@ -842,12 +841,12 @@ func SpotOrderStringFromOrderTypeAndTimeInForce(oType order.Type, tif order.Time
 }
 
 // NewOrder creates a new order
-func (e *Exchange) NewOrder(ctx context.Context, symbol, newClientOrderID, side, orderType string, quantity, quoteOrderQty, price float64) (*OrderDetail, error) {
+func (e *Exchange) NewOrder(ctx context.Context, symbol currency.Pair, newClientOrderID, side, orderType string, quantity, quoteOrderQty, price float64) (*OrderDetail, error) {
 	return e.newOrder(ctx, symbol, newClientOrderID, side, orderType, "order", quantity, quoteOrderQty, price)
 }
 
-func (e *Exchange) newOrder(ctx context.Context, symbol, newClientOrderID, side, orderType, path string, quantity, quoteOrderQty, price float64) (*OrderDetail, error) {
-	if symbol == "" {
+func (e *Exchange) newOrder(ctx context.Context, symbol currency.Pair, newClientOrderID, side, orderType, path string, quantity, quoteOrderQty, price float64) (*OrderDetail, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if side == "" {
@@ -873,7 +872,7 @@ func (e *Exchange) newOrder(ctx context.Context, symbol, newClientOrderID, side,
 		return nil, fmt.Errorf("%w, order type %s", order.ErrUnsupportedOrderType, orderType)
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	params.Set("side", side)
 	params.Set("type", orderType)
 	if quantity > 0 {
@@ -954,7 +953,7 @@ func (e *Exchange) CreateBatchOrder(ctx context.Context, args []BatchOrderCreati
 		if args[a] == (BatchOrderCreationParam{}) {
 			return nil, common.ErrEmptyParams
 		}
-		if args[a].Symbol == "" {
+		if args[a].Symbol.IsEmpty() {
 			return nil, currency.ErrSymbolStringEmpty
 		}
 		if args[a].Side == "" {
@@ -988,15 +987,15 @@ func (e *Exchange) CreateBatchOrder(ctx context.Context, args []BatchOrderCreati
 }
 
 // CancelTradeOrder cancels an order
-func (e *Exchange) CancelTradeOrder(ctx context.Context, symbol, orderID, clientOrderID, newClientOrderID string) (*OrderDetail, error) {
-	if symbol == "" {
+func (e *Exchange) CancelTradeOrder(ctx context.Context, symbol currency.Pair, orderID, clientOrderID, newClientOrderID string) (*OrderDetail, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if orderID == "" && clientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	if orderID != "" {
 		params.Set("orderId", orderID)
 	}
@@ -1011,23 +1010,23 @@ func (e *Exchange) CancelTradeOrder(ctx context.Context, symbol, orderID, client
 }
 
 // CancelAllOpenOrdersBySymbol cancel all pending orders for a single symbol, including OCO pending orders.
-func (e *Exchange) CancelAllOpenOrdersBySymbol(ctx context.Context, symbol string) ([]OrderDetail, error) {
-	if symbol == "" {
+func (e *Exchange) CancelAllOpenOrdersBySymbol(ctx context.Context, symbol currency.Pair) ([]OrderDetail, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	var resp []OrderDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllOpenOrdersBySymbolEPL, http.MethodDelete, "openOrders", params, nil, &resp, true)
 }
 
 // GetOrderByID retrieves a single order
-func (e *Exchange) GetOrderByID(ctx context.Context, symbol, clientOrderID, orderID string) (*OrderDetail, error) {
-	if symbol == "" {
+func (e *Exchange) GetOrderByID(ctx context.Context, symbol currency.Pair, clientOrderID, orderID string) (*OrderDetail, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	if clientOrderID == "" && orderID == "" {
 		return nil, order.ErrClientOrderIDMustBeSet
 	}
@@ -1042,20 +1041,20 @@ func (e *Exchange) GetOrderByID(ctx context.Context, symbol, clientOrderID, orde
 }
 
 // GetOpenOrders retrieves all open orders on a symbol. Careful when accessing this with no symbol.
-func (e *Exchange) GetOpenOrders(ctx context.Context, symbol string) ([]OrderDetail, error) {
-	if symbol == "" {
+func (e *Exchange) GetOpenOrders(ctx context.Context, symbol currency.Pair) ([]OrderDetail, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	var resp []OrderDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getOpenOrdersEPL, http.MethodGet, "openOrders", params, nil, &resp, true)
 }
 
 // GetAllOrders retrieves all account orders including active, cancelled or completed orders(the query period is the latest 24 hours by default).
 // You can query a maximum of the latest 7 days.
-func (e *Exchange) GetAllOrders(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) ([]OrderDetail, error) {
-	if symbol == "" {
+func (e *Exchange) GetAllOrders(ctx context.Context, symbol currency.Pair, startTime, endTime time.Time, limit int64) ([]OrderDetail, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -1064,7 +1063,7 @@ func (e *Exchange) GetAllOrders(ctx context.Context, symbol string, startTime, e
 		}
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -1086,8 +1085,8 @@ func (e *Exchange) GetAccountInformation(ctx context.Context) (*AccountDetail, e
 }
 
 // GetAccountTradeList retrieves trades for a specific account and symbol,Only the transaction records in the past 1 month can be queried.
-func (e *Exchange) GetAccountTradeList(ctx context.Context, symbol, orderID string, startTime, endTime time.Time, limit int64) ([]AccountTrade, error) {
-	if symbol == "" {
+func (e *Exchange) GetAccountTradeList(ctx context.Context, symbol currency.Pair, orderID string, startTime, endTime time.Time, limit int64) ([]AccountTrade, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -1096,7 +1095,7 @@ func (e *Exchange) GetAccountTradeList(ctx context.Context, symbol, orderID stri
 		}
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	if orderID != "" {
 		params.Set("orderId", orderID)
 	}
@@ -1133,12 +1132,12 @@ func (e *Exchange) GetMXDeductStatus(ctx context.Context) (*MXDeductResponse, er
 }
 
 // GetSymbolTradingFee retrieves symbol commissions
-func (e *Exchange) GetSymbolTradingFee(ctx context.Context, symbol string) (*SymbolCommissionFee, error) {
-	if symbol == "" {
+func (e *Exchange) GetSymbolTradingFee(ctx context.Context, symbol currency.Pair) (*SymbolCommissionFee, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	var resp *SymbolCommissionFee
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getSymbolTradingFeeEPL, http.MethodGet, "tradeFee", params, nil, &resp, true)
 }
@@ -1441,7 +1440,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	err = e.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return &request.Item{
 			Method:        method,
-			Path:          ePoint + path.Join(versionStr, common.EncodeURLValues(requestPath, values)),
+			Path:          ePoint + versionStr + common.EncodeURLValues(requestPath, values),
 			Headers:       headers,
 			Body:          strings.NewReader(payload),
 			Result:        result,

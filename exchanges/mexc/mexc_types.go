@@ -271,13 +271,13 @@ type OrderDetail struct {
 
 // BatchOrderCreationParam represents a batch order creation parameter
 type BatchOrderCreationParam struct {
-	OrderType        string  `json:"type"`
-	Price            float64 `json:"price,omitempty,string"`
-	Quantity         float64 `json:"quantity,omitempty,string"`
-	QuoteOrderQty    float64 `json:"quoteOrderQty,omitempty,string"`
-	Symbol           string  `json:"symbol,omitempty"`
-	Side             string  `json:"side,omitempty"`
-	NewClientOrderID int64   `json:"newClientOrderId,omitempty"`
+	OrderType        string        `json:"type"`
+	Price            float64       `json:"price,omitempty,string"`
+	Quantity         float64       `json:"quantity,omitempty,string"`
+	QuoteOrderQty    float64       `json:"quoteOrderQty,omitempty,string"`
+	Symbol           currency.Pair `json:"symbol,omitempty"`
+	Side             string        `json:"side,omitempty"`
+	NewClientOrderID int64         `json:"newClientOrderId,omitempty"`
 }
 
 // AccountDetail represents an account detail information

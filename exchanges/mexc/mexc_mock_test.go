@@ -9,6 +9,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
@@ -19,9 +20,21 @@ func TestMain(m *testing.M) {
 	}
 
 	if err := testexch.MockHTTPInstance(e); err != nil {
-		log.Fatalf("Poloniex MockHTTPInstance error: %s", err)
+		log.Fatalf("MEXC MockHTTPInstance error: %s", err)
 	}
-	if err := populateTradablePairs(); err != nil {
+	// if err := populateTradablePairs(); err != nil {
+	// 	log.Fatal(err)
+	// }
+	var err error
+	spotTradablePair, err = currency.NewPairFromString("BTCUSDT")
+	if err != nil {
+		log.Fatal(err)
+	}
+	futuresTradablePair, err = currency.NewPairFromString("BTC_USDT")
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := e.setEnabledPairs(spotTradablePair, futuresTradablePair); err != nil {
 		log.Fatal(err)
 	}
 	os.Exit(m.Run())

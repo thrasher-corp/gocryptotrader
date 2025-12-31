@@ -210,7 +210,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 		return currencyPairs, nil
 	case asset.Futures:
-		result, err := e.GetFuturesContracts(ctx, "")
+		result, err := e.GetFuturesContracts(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return nil, err
 		}
@@ -293,14 +293,13 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 			return nil, fmt.Errorf("%w for currency pair: %s", ticker.ErrTickerNotFound, p)
 		}
 	case asset.Futures:
-		pairString := pFormat.Format(p)
-		tickers, err := e.GetContractTickers(ctx, pairString)
+		tickers, err := e.GetContractTickers(ctx, p.Format(pFormat))
 		if err != nil {
 			return nil, err
 		}
 		var found bool
 		for t := range tickers.Data {
-			if tickers.Data[t].Symbol != pairString {
+			if tickers.Data[t].Symbol != p.Format(pFormat).String() {
 				continue
 			}
 			found = true
@@ -363,7 +362,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			}
 		}
 	case asset.Futures:
-		tickers, err := e.GetContractTickers(ctx, "")
+		tickers, err := e.GetContractTickers(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return err
 		}
@@ -430,7 +429,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	}
 	switch assetType {
 	case asset.Spot:
-		result, err := e.GetOrderbook(ctx, fPair.String(), 1000)
+		result, err := e.GetOrderbook(ctx, fPair, 1000)
 		if err != nil {
 			return book, err
 		}
@@ -440,7 +439,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 			return book, err
 		}
 	case asset.Futures:
-		result, err := e.GetContractOrderbook(ctx, fPair.String(), 1000)
+		result, err := e.GetContractOrderbook(ctx, fPair, 1000)
 		if err != nil {
 			return nil, err
 		}
@@ -603,7 +602,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 	}
 	switch assetType {
 	case asset.Spot:
-		result, err := e.GetRecentTradesList(ctx, p.String(), 0)
+		result, err := e.GetRecentTradesList(ctx, p, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -626,7 +625,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 		}
 		return resp, nil
 	case asset.Futures:
-		result, err := e.GetContractTransactionData(ctx, p.String(), 0)
+		result, err := e.GetContractTransactionData(ctx, p, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -660,7 +659,7 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, asset
 	}
 	switch assetType {
 	case asset.Futures:
-		result, err := e.GetContractTransactionData(ctx, p.String(), 0)
+		result, err := e.GetContractTransactionData(ctx, p, 100)
 		if err != nil {
 			return nil, err
 		}
@@ -682,7 +681,7 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, asset
 		}
 		return resp, nil
 	case asset.Spot:
-		result, err := e.GetAggregatedTrades(ctx, p.String(), startTime, endTime, 0)
+		result, err := e.GetAggregatedTrades(ctx, p, startTime, endTime, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -733,7 +732,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		if err != nil {
 			return nil, err
 		}
-		result, err := e.NewOrder(ctx, s.Pair.String(), s.ClientOrderID, s.Side.String(), orderTypeString, s.Amount, s.QuoteAmount, s.Price)
+		result, err := e.NewOrder(ctx, s.Pair, s.ClientOrderID, s.Side.String(), orderTypeString, s.Amount, s.QuoteAmount, s.Price)
 		if err != nil {
 			return nil, err
 		}
@@ -832,14 +831,14 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	}
 	switch ord.AssetType {
 	case asset.Spot:
-		_, err := e.CancelTradeOrder(ctx, ord.Pair.String(), ord.OrderID, ord.ClientOrderID, "")
+		_, err := e.CancelTradeOrder(ctx, ord.Pair, ord.OrderID, ord.ClientOrderID, "")
 		return err
 	case asset.Futures:
 		var err error
 		if ord.OrderID != "" {
 			_, err = e.CancelOrdersByID(ctx, ord.Pair.String(), ord.OrderID)
 		} else {
-			_, err = e.CancelOrderByClientOrderID(ctx, ord.Pair.String(), ord.ClientOrderID)
+			_, err = e.CancelOrderByClientOrderID(ctx, ord.Pair, ord.ClientOrderID)
 		}
 		return err
 	}
@@ -866,7 +865,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		if err != nil {
 			return order.CancelAllResponse{}, err
 		}
-		result, err := e.CancelAllOpenOrdersBySymbol(ctx, orderCancellation.Pair.String())
+		result, err := e.CancelAllOpenOrdersBySymbol(ctx, orderCancellation.Pair)
 		if err != nil {
 			return order.CancelAllResponse{}, err
 		}
@@ -875,14 +874,13 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		}
 		return resp, nil
 	case asset.Futures:
-		var symbolString string
 		if !orderCancellation.Pair.IsEmpty() {
-			symbolString, err = e.FormatSymbol(orderCancellation.Pair, orderCancellation.AssetType)
+			orderCancellation.Pair, err = e.FormatExchangeCurrency(orderCancellation.Pair, orderCancellation.AssetType)
 			if err != nil {
 				return order.CancelAllResponse{}, err
 			}
 		}
-		result, err := e.CancelAllOpenOrders(ctx, symbolString)
+		result, err := e.CancelAllOpenOrders(ctx, orderCancellation.Pair)
 		if err != nil {
 			return resp, err
 		}
@@ -940,7 +938,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		if pair.IsEmpty() {
 			return nil, currency.ErrSymbolStringEmpty
 		}
-		result, err := e.GetOrderByID(ctx, pairFormat.Format(pair), "", orderID)
+		result, err := e.GetOrderByID(ctx, pair.Format(pairFormat), "", orderID)
 		if err != nil {
 			return nil, err
 		}
@@ -1081,7 +1079,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 		}
 		var details order.FilteredOrders
 		for p := range getOrdersRequest.Pairs {
-			result, err := e.GetOpenOrders(ctx, pairFormat.Format(getOrdersRequest.Pairs[p]))
+			result, err := e.GetOpenOrders(ctx, getOrdersRequest.Pairs[p].Format(pairFormat))
 			if err != nil {
 				return nil, err
 			}
@@ -1132,7 +1130,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 		}
 		var details order.FilteredOrders
 		for p := range getOrdersRequest.Pairs {
-			result, err := e.GetUserCurrentPendingOrder(ctx, pairFormat.Format(getOrdersRequest.Pairs[p]), 0, 0)
+			result, err := e.GetUserCurrentPendingOrder(ctx, getOrdersRequest.Pairs[p].Format(pairFormat), 0, 0)
 			if err != nil {
 				return nil, err
 			}
@@ -1190,11 +1188,11 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 	}
 	switch getOrdersRequest.AssetType {
 	case asset.Spot:
-		var symbolString string
+		var pair currency.Pair
 		if len(getOrdersRequest.Pairs) == 1 {
-			symbolString = pairFormat.Format(getOrdersRequest.Pairs[0])
+			pair = getOrdersRequest.Pairs[0].Format(pairFormat)
 		}
-		result, err := e.GetAllOrders(ctx, symbolString, getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0)
+		result, err := e.GetAllOrders(ctx, pair, getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -1326,7 +1324,7 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 		}
 		return 0.0005, nil
 	case exchange.CryptocurrencyTradeFee:
-		result, err := e.GetSymbolTradingFee(ctx, feeBuilder.Pair.String())
+		result, err := e.GetSymbolTradingFee(ctx, feeBuilder.Pair)
 		if err != nil {
 			return 0, err
 		}
@@ -1357,7 +1355,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	}
 	switch a {
 	case asset.Spot:
-		result, err := e.GetCandlestick(ctx, pair.String(), intervalString, start, end, 0)
+		result, err := e.GetCandlestick(ctx, pair, intervalString, start, end, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -1374,7 +1372,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 		}
 		return req.ProcessResponse(timeSeries)
 	case asset.Futures:
-		result, err := e.GetContractsCandlestickData(ctx, pair.String(), req.ExchangeInterval, start, end)
+		result, err := e.GetContractsCandlestickData(ctx, pair, req.ExchangeInterval, start, end)
 		if err != nil {
 			return nil, err
 		}
@@ -1414,7 +1412,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 		timeSeries := make([]kline.Candle, 0, req.Size())
 		for x := range req.RangeHolder.Ranges {
 			result, err := e.GetCandlestick(ctx,
-				pFormat.Format(pair),
+				pair.Format(pFormat),
 				intervalString,
 				req.RangeHolder.Ranges[x].Start.Time,
 				req.RangeHolder.Ranges[x].End.Time,
@@ -1438,7 +1436,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	case asset.Futures:
 		timeSeries := make([]kline.Candle, 0, req.Size())
 		for x := range req.RangeHolder.Ranges {
-			result, err := e.GetContractsCandlestickData(ctx, pFormat.Format(pair), req.ExchangeInterval, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
+			result, err := e.GetContractsCandlestickData(ctx, pair.Format(pFormat), req.ExchangeInterval, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
 			if err != nil {
 				return nil, err
 			}
@@ -1467,7 +1465,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 	if item != asset.Futures {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
-	contracts, err := e.GetFuturesContracts(ctx, "")
+	contracts, err := e.GetFuturesContracts(ctx, currency.EMPTYPAIR)
 	if err != nil {
 		return nil, err
 	}
@@ -1518,7 +1516,7 @@ func (e *Exchange) IsPerpetualFutureCurrency(assetType asset.Item, pair currency
 	if assetType != asset.Futures {
 		return false, futures.ErrNotFuturesAsset
 	}
-	result, err := e.GetFuturesContracts(context.Background(), pair.String())
+	result, err := e.GetFuturesContracts(context.Background(), pair)
 	if err != nil {
 		return false, err
 	}
@@ -1541,7 +1539,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		return nil, err
 	}
 	cp := r.Pair.Format(pFmt)
-	fundingRates, err := e.GetContractFundingPrice(ctx, cp.String())
+	fundingRates, err := e.GetContractFundingPrice(ctx, cp)
 	if err != nil {
 		return nil, err
 	}
@@ -1590,7 +1588,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, assetType ass
 			return err
 		}
 	case asset.Futures:
-		result, err := e.GetFuturesContracts(ctx, "")
+		result, err := e.GetFuturesContracts(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return err
 		}
