@@ -285,7 +285,7 @@ func (e *Exchange) GetUsersCurrentHoldingPositions(ctx context.Context, symbol c
 }
 
 // GetUsersFundingRateDetails retrieves user's funding rate details
-func (e *Exchange) GetUsersFundingRateDetails(ctx context.Context, symbol currency.Pair, positionID, pageNumber, pageSize int64) (interface{}, error) {
+func (e *Exchange) GetUsersFundingRateDetails(ctx context.Context, symbol currency.Pair, positionID, pageNumber, pageSize int64) (any, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		params.Set("symbol", symbol.String())
@@ -356,7 +356,7 @@ func (e *Exchange) GetAllUserHistoricalOrders(ctx context.Context, symbol curren
 }
 
 // GetOrderBasedOnExternalNumber retrieves a single order using the external order ID and symbol.
-func (e *Exchange) GetOrderBasedOnExternalNumber(ctx context.Context, symbol currency.Pair, externalOrderID string) (interface{}, error) {
+func (e *Exchange) GetOrderBasedOnExternalNumber(ctx context.Context, symbol currency.Pair, externalOrderID string) (any, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -381,7 +381,7 @@ func (e *Exchange) GetOrderByOrderID(ctx context.Context, orderID string) (*Futu
 }
 
 // GetBatchOrdersByOrderID retrieves a batch of futures orders by order ids
-func (e *Exchange) GetBatchOrdersByOrderID(ctx context.Context, orderIDs []string) (interface{}, error) {
+func (e *Exchange) GetBatchOrdersByOrderID(ctx context.Context, orderIDs []string) (any, error) {
 	if len(orderIDs) == 0 {
 		return nil, fmt.Errorf("%w: no order ID provided", order.ErrOrderIDNotSet)
 	}
@@ -461,7 +461,7 @@ func (e *Exchange) GetTriggerOrderList(ctx context.Context, symbol currency.Pair
 }
 
 // GetFuturesStopLimitOrderList retrieves futures stop limit orders list
-func (e *Exchange) GetFuturesStopLimitOrderList(ctx context.Context, symbol currency.Pair, isFinished bool, startTime, endTime time.Time, pageNumber, pageSize int64) (interface{}, error) {
+func (e *Exchange) GetFuturesStopLimitOrderList(ctx context.Context, symbol currency.Pair, isFinished bool, startTime, endTime time.Time, pageNumber, pageSize int64) (any, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err

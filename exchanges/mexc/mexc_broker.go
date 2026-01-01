@@ -114,7 +114,7 @@ func (e *Exchange) GetBrokerSubAccountAPIKey(ctx context.Context, subAccount str
 }
 
 // DeleteBrokerAPIKeySubAccount deletes broker's sub-account API key
-func (e *Exchange) DeleteBrokerAPIKeySubAccount(ctx context.Context, arg *BrokerSubAccountAPIKeyDeletionParams) (interface{}, error) {
+func (e *Exchange) DeleteBrokerAPIKeySubAccount(ctx context.Context, arg *BrokerSubAccountAPIKeyDeletionParams) (any, error) {
 	if arg.SubAccount == "" {
 		return nil, errInvalidSubAccountName
 	}
