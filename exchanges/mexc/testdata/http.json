@@ -3957,6 +3957,51 @@
       "rateLimits": [],
       "serverTime": 1767211147355,
       "symbols": [
+        {
+        "baseAsset": "BTC",
+        "baseAssetPrecision": 8,
+        "baseCommissionPrecision": 8,
+        "baseSizePrecision": "0.000001",
+        "conceptPlateIds": [
+         50,
+         5,
+         39,
+         12
+        ],
+        "contractAddress": "",
+        "filters": [
+         {
+          "askMultiplierDown": "0.005",
+          "bidMultiplierUp": "0.005",
+          "filterType": "PERCENT_PRICE_BY_SIDE"
+         }
+        ],
+        "fullName": "Bitcoin",
+        "isMarginTradingAllowed": false,
+        "isSpotTradingAllowed": false,
+        "makerCommission": "0",
+        "maxQuoteAmount": "4000000",
+        "maxQuoteAmountMarket": "4000000",
+        "orderTypes": [
+         "LIMIT",
+         "MARKET",
+         "LIMIT_MAKER"
+        ],
+        "permissions": [
+         "SPOT"
+        ],
+        "quoteAmountPrecision": "1",
+        "quoteAmountPrecisionMarket": "1",
+        "quoteAsset": "USDT",
+        "quoteAssetPrecision": 2,
+        "quoteCommissionPrecision": 2,
+        "quotePrecision": 2,
+        "st": false,
+        "status": "1",
+        "symbol": "BTCUSDT",
+        "takerCommission": "0.0005",
+        "tradeSideType": 1
+       },
        {
         "baseAsset": "METAL",
         "baseAssetPrecision": 2,
@@ -4299,7 +4344,7 @@
        "712261.33"
       ]
      ],
-     "queryString": "interval=5m\u0026symbol=BTCUSDT",
+     "queryString": "endTime=1767204403384\u0026interval=5m\u0026limit=100\u0026startTime=1767204283384\u0026symbol=BTCUSDT",
      "bodyParams": "",
      "headers": {
       "Content-Type": [

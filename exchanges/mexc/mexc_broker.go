@@ -11,15 +11,16 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 // GetBrokerUniversalTransferHistory retrieves universal transfer history for broker users
-func (e *Exchange) GetBrokerUniversalTransferHistory(ctx context.Context, fromAccountType, toAccountType, fromAccount, toAccount string, startTime, endTime time.Time, page, limit int64) ([]BrokerAssetTransfer, error) {
-	if fromAccountType == "" {
+func (e *Exchange) GetBrokerUniversalTransferHistory(ctx context.Context, fromAccountType, toAccountType asset.Item, fromAccount, toAccount string, startTime, endTime time.Time, page, limit int64) ([]BrokerAssetTransfer, error) {
+	if !fromAccountType.IsValid() {
 		return nil, fmt.Errorf("%w: FronAccountType is required", errAddressRequired)
 	}
-	if toAccountType == "" {
+	if !toAccountType.IsValid() {
 		return nil, fmt.Errorf("%w: ToAccountType is required", errAddressRequired)
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
@@ -29,8 +30,8 @@ func (e *Exchange) GetBrokerUniversalTransferHistory(ctx context.Context, fromAc
 		}
 	}
 	params := url.Values{}
-	params.Set("fromAccountType", fromAccountType)
-	params.Set("toAccountType", toAccountType)
+	params.Set("fromAccountType", fromAccountType.String())
+	params.Set("toAccountType", toAccountType.String())
 	if fromAccount != "" {
 		params.Set("fromAccount", fromAccount)
 	}

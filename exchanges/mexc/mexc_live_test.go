@@ -5,11 +5,13 @@
 package mexc
 
 import (
+	"context"
 	"log"
 	"os"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
@@ -44,4 +46,24 @@ func TestMain(m *testing.M) {
 	}
 	e.HTTPRecording = true
 	os.Exit(m.Run())
+}
+
+func populateTradablePairs() error {
+	if err := e.UpdateTradablePairs(context.Background()); err != nil {
+		return err
+	}
+	tradablePairs, err := e.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return err
+	}
+	spotTradablePair, err = e.FormatExchangeCurrency(tradablePairs[0], asset.Spot)
+	if err != nil {
+		return err
+	}
+	tradablePairs, err = e.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		return err
+	}
+	futuresTradablePair, err = e.FormatExchangeCurrency(tradablePairs[0], asset.Futures)
+	return err
 }

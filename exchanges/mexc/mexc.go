@@ -600,12 +600,12 @@ func (e *Exchange) GetWithdrawalAddress(ctx context.Context, coin currency.Code,
 }
 
 // UserUniversalTransfer transfers an asset transfer between account types of same account
-func (e *Exchange) UserUniversalTransfer(ctx context.Context, fromAccountType, toAccountType string, ccy currency.Code, amount float64) ([]UserUniversalTransferResponse, error) {
-	if fromAccountType == "" {
-		return nil, fmt.Errorf("%w, fromAccountType is required", errAccountTypeRequired)
+func (e *Exchange) UserUniversalTransfer(ctx context.Context, fromAccountType, toAccountType asset.Item, ccy currency.Code, amount float64) ([]UserUniversalTransferResponse, error) {
+	if !fromAccountType.IsValid() {
+		return nil, fmt.Errorf("%w, fromAccountType is required", asset.ErrInvalidAsset)
 	}
-	if toAccountType == "" {
-		return nil, fmt.Errorf("%w, toAccountType is required", errAccountTypeRequired)
+	if !toAccountType.IsValid() {
+		return nil, fmt.Errorf("%w, toAccountType is required", asset.ErrInvalidAsset)
 	}
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -615,20 +615,20 @@ func (e *Exchange) UserUniversalTransfer(ctx context.Context, fromAccountType, t
 	}
 	params := url.Values{}
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	params.Set("fromAccountType", fromAccountType)
-	params.Set("toAccountType", toAccountType)
+	params.Set("fromAccountType", fromAccountType.String())
+	params.Set("toAccountType", toAccountType.String())
 	params.Set("asset", ccy.String())
 	var resp []UserUniversalTransferResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, userUniversalTransferEPL, http.MethodPost, "capital/transfer", params, nil, &resp, true)
 }
 
 // GetUniversalTransferHistory retrieves users universal asset transfer history
-func (e *Exchange) GetUniversalTransferHistory(ctx context.Context, fromAccountType, toAccountType string, startTime, endTime time.Time, page, size int64) (*UniversalTransferHistoryResponse, error) {
-	if fromAccountType == "" {
-		return nil, fmt.Errorf("%w, fromAccountType is required", errAccountTypeRequired)
+func (e *Exchange) GetUniversalTransferHistory(ctx context.Context, fromAccountType, toAccountType asset.Item, startTime, endTime time.Time, page, size int64) (*UniversalTransferHistoryResponse, error) {
+	if !fromAccountType.IsValid() {
+		return nil, fmt.Errorf("%w, fromAccountType is required", asset.ErrInvalidAsset)
 	}
-	if toAccountType == "" {
-		return nil, fmt.Errorf("%w, toAccountType is required", errAccountTypeRequired)
+	if !toAccountType.IsValid() {
+		return nil, fmt.Errorf("%w, toAccountType is required", asset.ErrInvalidAsset)
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
@@ -636,8 +636,8 @@ func (e *Exchange) GetUniversalTransferHistory(ctx context.Context, fromAccountT
 		}
 	}
 	params := url.Values{}
-	params.Set("fromAccountType", fromAccountType)
-	params.Set("toAccountType", toAccountType)
+	params.Set("fromAccountType", fromAccountType.String())
+	params.Set("toAccountType", toAccountType.String())
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -701,6 +701,9 @@ func (e *Exchange) DustLog(ctx context.Context, startTime, endTime time.Time, pa
 			return nil, err
 		}
 	}
+	if limit <= 0 {
+		return nil, errPaginationLimitIsRequired
+	}
 	params := url.Values{}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -711,9 +714,6 @@ func (e *Exchange) DustLog(ctx context.Context, startTime, endTime time.Time, pa
 
 	if page > 0 {
 		params.Set("page", strconv.FormatInt(page, 10))
-	}
-	if limit <= 0 {
-		return nil, errPaginationLimitIsRequired
 	}
 	params.Set("limit", strconv.FormatInt(limit, 10))
 	var resp *DustLogDetail

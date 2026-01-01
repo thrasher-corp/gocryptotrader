@@ -256,10 +256,10 @@ func (e *Exchange) GetUserAssetTransferRecords(ctx context.Context, ccy currency
 // Possible position type values are:
 // - '1' for long positions
 // - '2' for short positions.
-func (e *Exchange) GetUserPositionHistory(ctx context.Context, symbol, positionType string, pageNumber, pageSize int64) (*Positions, error) {
+func (e *Exchange) GetUserPositionHistory(ctx context.Context, symbol currency.Pair, positionType string, pageNumber, pageSize int64) (*Positions, error) {
 	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if !symbol.IsEmpty() {
+		params.Set("symbol", symbol.String())
 	}
 	if positionType != "" {
 		params.Set("type", positionType)
@@ -320,15 +320,15 @@ func (e *Exchange) GetUserCurrentPendingOrder(ctx context.Context, symbol curren
 }
 
 // GetAllUserHistoricalOrders retrieves user all order history
-func (e *Exchange) GetAllUserHistoricalOrders(ctx context.Context, symbol, states, category, side string, startTime, endTime time.Time, pageNumber, pageSize int64) (*FuturesOrders, error) {
+func (e *Exchange) GetAllUserHistoricalOrders(ctx context.Context, symbol currency.Pair, states, category, side string, startTime, endTime time.Time, pageNumber, pageSize int64) (*FuturesOrders, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
 	}
 	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if !symbol.IsEmpty() {
+		params.Set("symbol", symbol.String())
 	}
 	if states != "" {
 		params.Set("states", states)
@@ -356,8 +356,8 @@ func (e *Exchange) GetAllUserHistoricalOrders(ctx context.Context, symbol, state
 }
 
 // GetOrderBasedOnExternalNumber retrieves a single order using the external order ID and symbol.
-func (e *Exchange) GetOrderBasedOnExternalNumber(ctx context.Context, symbol, externalOrderID string) (interface{}, error) {
-	if symbol == "" {
+func (e *Exchange) GetOrderBasedOnExternalNumber(ctx context.Context, symbol currency.Pair, externalOrderID string) (interface{}, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	if externalOrderID == "" {
@@ -366,7 +366,7 @@ func (e *Exchange) GetOrderBasedOnExternalNumber(ctx context.Context, symbol, ex
 	var resp struct {
 		Data *FuturesOrderDetail `json:"data"`
 	}
-	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestFutures, getOrderBasedOnExternalNumberEPL, http.MethodGet, "private/order/external/"+symbol+"/"+externalOrderID, nil, &resp, true)
+	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestFutures, getOrderBasedOnExternalNumberEPL, http.MethodGet, "private/order/external/"+symbol.String()+"/"+externalOrderID, nil, &resp, true)
 }
 
 // GetOrderByOrderID retrieves a single order using order id

@@ -22,9 +22,6 @@ func TestMain(m *testing.M) {
 	if err := testexch.MockHTTPInstance(e); err != nil {
 		log.Fatalf("MEXC MockHTTPInstance error: %s", err)
 	}
-	// if err := populateTradablePairs(); err != nil {
-	// 	log.Fatal(err)
-	// }
 	var err error
 	spotTradablePair, err = currency.NewPairFromString("BTCUSDT")
 	if err != nil {

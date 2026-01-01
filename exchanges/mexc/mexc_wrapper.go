@@ -1238,11 +1238,11 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 		}
 		return orderDetails, nil
 	case asset.Futures:
-		var symbolString string
+		var pair currency.Pair
 		if len(getOrdersRequest.Pairs) == 1 {
-			symbolString = pairFormat.Format(getOrdersRequest.Pairs[0])
+			pair = getOrdersRequest.Pairs[0].Format(pairFormat)
 		}
-		result, err := e.GetAllUserHistoricalOrders(ctx, symbolString, "", "", getOrdersRequest.Side.String(), getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0, 0)
+		result, err := e.GetAllUserHistoricalOrders(ctx, pair, "", "", getOrdersRequest.Side.String(), getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -1299,12 +1299,12 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 				Fee:                  fee,
 				FeeAsset:             currency.NewCode(result.Data[r].FeeCurrency),
 				OrderID:              strconv.FormatInt(result.Data[r].OrderID, 10),
+				LastUpdated:          result.Data[r].UpdateTime.Time(),
 				ClientOrderID:        result.Data[r].ExternalOrderID,
+				AssetType:            asset.Futures,
 				Type:                 oType,
 				Side:                 oSide,
 				Status:               oStatus,
-				AssetType:            asset.Futures,
-				LastUpdated:          result.Data[r].UpdateTime.Time(),
 				Pair:                 cp,
 				MarginType:           marginType,
 			}
@@ -1362,11 +1362,11 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 		timeSeries := make([]kline.Candle, len(result))
 		for c := range result {
 			timeSeries[c] = kline.Candle{
-				Time:   result[c].CloseTime.Time(),
+				Close:  result[c].ClosePrice.Float64(),
 				Open:   result[c].OpenPrice.Float64(),
 				High:   result[c].HighPrice.Float64(),
 				Low:    result[c].LowPrice.Float64(),
-				Close:  result[c].ClosePrice.Float64(),
+				Time:   result[c].CloseTime.Time(),
 				Volume: result[c].Volume.Float64(),
 			}
 		}
@@ -1379,11 +1379,11 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 		timeSeries := make([]kline.Candle, len(result.Data.ClosePrice))
 		for i := range result.Data.ClosePrice {
 			timeSeries[i] = kline.Candle{
-				Open:   result.Data.ClosePrice[i],
 				Time:   result.Data.Time[i].Time(),
+				Open:   result.Data.ClosePrice[i],
+				Close:  result.Data.ClosePrice[i],
 				High:   result.Data.HighPrice[i],
 				Low:    result.Data.LowPrice[i],
-				Close:  result.Data.ClosePrice[i],
 				Volume: result.Data.Volume[i],
 			}
 		}
@@ -1423,12 +1423,12 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 			}
 			for c := range result {
 				timeSeries = append(timeSeries, kline.Candle{
-					Time:   result[c].CloseTime.Time(),
+					Close:  result[c].ClosePrice.Float64(),
 					Open:   result[c].OpenPrice.Float64(),
 					High:   result[c].HighPrice.Float64(),
 					Low:    result[c].LowPrice.Float64(),
-					Close:  result[c].ClosePrice.Float64(),
 					Volume: result[c].Volume.Float64(),
+					Time:   result[c].CloseTime.Time(),
 				})
 			}
 		}
@@ -1443,11 +1443,11 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 			for i := range result.Data.ClosePrice {
 				timeSeries = append(timeSeries, kline.Candle{
 					Open:   result.Data.ClosePrice[i],
-					Time:   result.Data.Time[i].Time(),
+					Close:  result.Data.ClosePrice[i],
 					High:   result.Data.HighPrice[i],
 					Low:    result.Data.LowPrice[i],
-					Close:  result.Data.ClosePrice[i],
 					Volume: result.Data.Volume[i],
+					Time:   result.Data.Time[i].Time(),
 				})
 			}
 		}
@@ -1471,8 +1471,9 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 	}
 	resp := make([]futures.Contract, len(contracts.Data))
 	for a := range contracts.Data {
-		cp, err := e.MatchSymbolWithAvailablePairs(contracts.Data[a].Symbol, item, true)
+		cp, err := currency.NewPairFromString(contracts.Data[a].Symbol)
 		if err != nil {
+			// panic(fmt.Errorf("%v : %w", contracts.Data[a].Symbol, err))
 			return nil, err
 		}
 		var contractType futures.ContractType
@@ -1493,9 +1494,9 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			contractStatus = "pause"
 		}
 		resp[a] = futures.Contract{
-			Exchange:           e.Name,
 			Name:               cp,
 			Asset:              item,
+			Exchange:           e.Name,
 			SettlementCurrency: currency.NewCode(contracts.Data[a].SettleCoin),
 			Type:               contractType,
 			MaxLeverage:        contracts.Data[a].MaxLeverage,
