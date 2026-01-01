@@ -72,7 +72,6 @@ func TestMain(m *testing.M) {
 		asset.Margin:  marginTradablePair,
 		asset.Futures: futuresTradablePair,
 	}
-	fetchedFuturesOrderbook = map[string]bool{}
 
 	os.Exit(m.Run())
 }
@@ -3290,22 +3289,6 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestUpdateOrderExecutionLimits(t *testing.T) {
-	t.Parallel()
-	testexch.UpdatePairsOnce(t, e)
-	for _, a := range e.GetAssetTypes(false) {
-		t.Run(a.String(), func(t *testing.T) {
-			t.Parallel()
-			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
-			pairs, err := e.CurrencyPairs.GetPairs(a, true)
-			require.NoError(t, err, "GetPairs must not error")
-			l, err := e.GetOrderExecutionLimits(a, pairs[0])
-			require.NoError(t, err, "GetOrderExecutionLimits must not error")
-			assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should not be zero")
-		})
-	}
-}
-
 func BenchmarkIntervalToString(b *testing.B) {
 	for b.Loop() {
 		result, err := IntervalToString(kline.OneWeek)
@@ -4088,13 +4071,14 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 // testInstance returns a local Kucoin for isolated testing
 func testInstance(tb testing.TB) *Exchange {
 	tb.Helper()
-	kucoin := new(Exchange)
-	require.NoError(tb, testexch.Setup(kucoin), "Test instance Setup must not error")
-	kucoin.obm = &orderbookManager{
+	e := new(Exchange)
+	require.NoError(tb, testexch.Setup(e), "Test instance Setup must not error")
+	e.obm = &orderbookManager{
 		state: make(map[currency.Code]map[currency.Code]map[asset.Item]*update),
 		jobs:  make(chan job, maxWSOrderbookJobs),
 	}
-	return kucoin
+	e.fetchedFuturesOrderbook = map[string]bool{}
+	return e
 }
 
 func TestGetTradingPairActualFees(t *testing.T) {

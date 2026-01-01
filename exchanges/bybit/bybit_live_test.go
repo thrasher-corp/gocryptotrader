@@ -31,7 +31,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func testInstance() *Bybit {
+func testInstance() *Exchange {
 	e := new(Exchange)
 	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("Bybit Setup error: %s", err)

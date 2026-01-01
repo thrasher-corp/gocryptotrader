@@ -1092,8 +1092,7 @@ func StringToOrderSide(side string) (Side, error) {
 func (s *Side) UnmarshalJSON(data []byte) (err error) {
 	if !bytes.HasPrefix(data, []byte(`"`)) {
 		// Note that we don't need to worry about invalid JSON here, it wouldn't have made it past the deserialiser far
-		// TODO: Can use reflect.TypeFor[s]() when it's released, probably 1.21
-		return &json.UnmarshalTypeError{Value: string(data), Type: reflect.TypeOf(s), Offset: 1}
+		return &json.UnmarshalTypeError{Value: string(data), Type: reflect.TypeFor[*Side]()}
 	}
 	*s, err = StringToOrderSide(string(data[1 : len(data)-1])) // Remove quotes
 	return
