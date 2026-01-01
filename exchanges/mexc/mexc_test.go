@@ -162,10 +162,10 @@ func TestGet24HourTickerPriceChangeStatistics(t *testing.T) {
 
 func TestGetSymbolPriceTicker(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetSymbolPriceTicker(t.Context(), currency.EMPTYPAIR)
+	_, err := e.GetSymbolPriceTicker(t.Context(), currency.EMPTYPAIR)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	result, err = e.GetSymbolPriceTicker(t.Context(), spotTradablePair)
+	result, err := e.GetSymbolPriceTicker(t.Context(), spotTradablePair)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -921,10 +921,10 @@ func TestGetSubAffiliateData(t *testing.T) {
 
 func TestGetContractsDetail(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetFuturesContracts(t.Context(), currency.EMPTYPAIR)
+	_, err := e.GetFuturesContracts(t.Context(), currency.EMPTYPAIR)
 	require.NoError(t, err)
 
-	result, err = e.GetFuturesContracts(t.Context(), futuresTradablePair)
+	result, err := e.GetFuturesContracts(t.Context(), futuresTradablePair)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

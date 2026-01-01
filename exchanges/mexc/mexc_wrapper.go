@@ -1473,7 +1473,6 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 	for a := range contracts.Data {
 		cp, err := currency.NewPairFromString(contracts.Data[a].Symbol)
 		if err != nil {
-			// panic(fmt.Errorf("%v : %w", contracts.Data[a].Symbol, err))
 			return nil, err
 		}
 		var contractType futures.ContractType
