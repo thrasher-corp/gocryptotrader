@@ -37,7 +37,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-var errChainsNotFound = errors.New("chains not found")
+var (
+	errChainsNotFound = errors.New("chains not found")
+	errAllMustBeEqual = errors.New("all must be equal")
+)
 
 var assetPairStores = map[asset.Item]currency.PairStore{
 	asset.Futures: {
@@ -577,70 +580,8 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, pair currency.Pair, asse
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (e *Exchange) GetHistoricTrades(ctx context.Context, pair currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
-	if err := common.StartEndTimeCheck(timestampStart, timestampEnd); err != nil {
-		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", timestampStart, timestampEnd, err)
-	}
-	fPair, err := e.FormatExchangeCurrency(pair, assetType)
-	if err != nil {
-		return nil, err
-	}
-
-	var resp []trade.Data
-	switch assetType {
-	case asset.Spot:
-		tradeData, err := e.GetTrades(ctx, fPair, 1000)
-		if err != nil {
-			return nil, err
-		}
-		for _, td := range tradeData {
-			if td.CreateTime.Time().After(timestampEnd) ||
-				td.CreateTime.Time().Before(timestampStart) {
-				continue
-			}
-			side, err := order.StringToOrderSide(td.TakerSide)
-			if err != nil {
-				return nil, err
-			}
-			resp = append(resp, trade.Data{
-				TID:          td.ID,
-				Exchange:     e.Name,
-				CurrencyPair: fPair,
-				AssetType:    assetType,
-				Side:         side,
-				Price:        td.Price.Float64(),
-				Amount:       td.Amount.Float64(),
-				Timestamp:    td.CreateTime.Time(),
-			})
-		}
-	case asset.Futures:
-		tradeData, err := e.GetFuturesExecution(ctx, fPair, 0)
-		if err != nil {
-			return nil, err
-		}
-		for _, fExecInfo := range tradeData {
-			side, err := order.StringToOrderSide(fExecInfo.Side)
-			if err != nil {
-				return nil, err
-			}
-			resp = append(resp, trade.Data{
-				TID:          strconv.FormatInt(fExecInfo.ID, 10),
-				Exchange:     e.Name,
-				CurrencyPair: fPair,
-				AssetType:    assetType,
-				Side:         side,
-				Price:        fExecInfo.Price.Float64(),
-				Amount:       fExecInfo.Amount.Float64(),
-				Timestamp:    fExecInfo.CreationTime.Time(),
-			})
-		}
-	}
-	if err := e.AddTradesToBuffer(resp...); err != nil {
-		return nil, err
-	}
-	resp = trade.FilterTradesByTime(resp, timestampStart, timestampEnd)
-	sort.Sort(trade.ByDate(resp))
-	return resp, nil
+func (e *Exchange) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+	return nil, common.ErrFunctionNotSupported
 }
 
 // SubmitOrder submits a new order
@@ -814,10 +755,9 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	var err error
 	switch o.AssetType {
 	case asset.Spot:
-		switch o.Type {
-		case order.Stop, order.StopLimit, order.TrailingStop, order.TrailingStopLimit:
+		if IsSmartOrderType(o.Type) {
 			_, err = e.CancelSmartOrderByID(ctx, o.OrderID, o.ClientOrderID)
-		default:
+		} else {
 			_, err = e.CancelOrderByID(ctx, o.OrderID, o.ClientOrderID)
 		}
 	case asset.Futures:
@@ -828,103 +768,99 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	return err
 }
 
+// IsSmartOrderType returns whether an order type is a smart order type
+func IsSmartOrderType(o order.Type) bool {
+	return o == order.Stop || o == order.StopLimit || o == order.TrailingStop || o == order.TrailingStopLimit
+}
+
 // CancelBatchOrders cancels an orders by their corresponding ID numbers
 func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
 	if len(o) == 0 {
 		return nil, common.ErrEmptyParams
 	}
-	type assetAndType struct {
-		aType asset.Item
-		oType order.Type
-		pair  currency.Pair // only futures orders need grouping by pair
-	}
-	type orderAndClientSuppliedIDs struct {
-		orderIDs       []string
-		clientOrderIDs []string
-	}
-	assetAndTypeToIDsMap := make(map[assetAndType]*orderAndClientSuppliedIDs)
+	a := o[0].AssetType
+	p := o[0].Pair
+	isSmartOrder := IsSmartOrderType(o[0].Type)
 	for i := range o {
-		var pair currency.Pair
-		if o[i].AssetType == asset.Futures {
+		if o[i].AssetType != asset.Spot && o[i].AssetType != asset.Futures {
+			return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, o[i].AssetType)
+		}
+		if o[i].OrderID == "" && o[i].ClientOrderID == "" {
+			return nil, order.ErrOrderIDNotSet
+		}
+		if o[i].AssetType != a {
+			return nil, fmt.Errorf("%w: %v vs %v", errAllMustBeEqual, o[i].AssetType, a)
+		}
+		switch a {
+		case asset.Futures:
 			if o[i].Pair.IsEmpty() {
 				return nil, currency.ErrCurrencyPairEmpty
 			}
-			pair = o[i].Pair
-		} else if o[i].AssetType != asset.Spot {
-			return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, o[i].AssetType)
-		}
-		keyInfo := assetAndType{o[i].AssetType, o[i].Type, pair}
-		if assetAndTypeToIDsMap[keyInfo] == nil {
-			assetAndTypeToIDsMap[keyInfo] = &orderAndClientSuppliedIDs{
-				orderIDs:       []string{},
-				clientOrderIDs: []string{},
+			if !o[i].Pair.Equal(p) {
+				return nil, fmt.Errorf("%w: %v vs %v", errAllMustBeEqual, o[i].Pair, p)
+			}
+		case asset.Spot:
+			if IsSmartOrderType(o[i].Type) != isSmartOrder {
+				return nil, fmt.Errorf("%w: smart orders vs standard orders", errAllMustBeEqual)
 			}
 		}
-		switch {
-		case o[i].OrderID != "":
-			assetAndTypeToIDsMap[keyInfo].orderIDs = append(assetAndTypeToIDsMap[keyInfo].orderIDs, o[i].OrderID)
-		case o[i].ClientOrderID != "":
-			assetAndTypeToIDsMap[keyInfo].clientOrderIDs = append(assetAndTypeToIDsMap[keyInfo].clientOrderIDs, o[i].ClientOrderID)
-		default:
-			return nil, order.ErrOrderIDNotSet
+	}
+	type ordersToCancel struct {
+		orderIDs       []string
+		clientOrderIDs []string
+	}
+	var orderAndClientIDs ordersToCancel
+	for i := range o {
+		if o[i].OrderID != "" {
+			orderAndClientIDs.orderIDs = append(orderAndClientIDs.orderIDs, o[i].OrderID)
+		} else {
+			orderAndClientIDs.clientOrderIDs = append(orderAndClientIDs.clientOrderIDs, o[i].ClientOrderID)
 		}
 	}
 	resp := &order.CancelBatchResponse{
-		Status: make(map[string]string),
+		Status: make(map[string]string, len(o)),
 	}
-	for k, v := range assetAndTypeToIDsMap {
-		if k.aType == asset.Spot {
-			switch k.oType {
-			case order.Market, order.Limit, order.AnyType, order.UnknownType:
-				cancelledOrders, err := e.CancelOrdersByIDs(ctx, v.orderIDs, v.clientOrderIDs)
-				if err != nil {
-					return nil, err
-				}
-				for _, co := range cancelledOrders {
-					if slices.Contains(v.orderIDs, co.OrderID) {
-						resp.Status[co.OrderID] = co.State + " " + co.Message
-					} else {
-						resp.Status[co.ClientOrderID] = co.State + " " + co.Message
-					}
-				}
-			case order.Stop, order.StopLimit, order.TrailingStop, order.TrailingStopLimit:
-				cancelledOrders, err := e.CancelMultipleSmartOrders(ctx, &CancelOrdersRequest{
-					OrderIDs:       v.orderIDs,
-					ClientOrderIDs: v.clientOrderIDs,
-				})
-				if err != nil {
-					return nil, err
-				}
-				for _, co := range cancelledOrders {
-					if slices.Contains(v.orderIDs, co.OrderID) {
-						resp.Status[co.OrderID] = co.State + " " + co.Message
-					} else {
-						resp.Status[co.ClientOrderID] = co.State + " " + co.Message
-					}
-				}
-			default:
-				return nil, fmt.Errorf("%w: %s", order.ErrUnsupportedOrderType, k.oType.String())
-			}
-		} else {
-			cancelledOrders, err := e.CancelMultipleFuturesOrders(ctx, &CancelFuturesOrdersRequest{
-				Symbol:         k.pair,
-				OrderIDs:       v.orderIDs,
-				ClientOrderIDs: v.clientOrderIDs,
+	switch a {
+	case asset.Spot:
+		var r []*CancelOrderResponse
+		var err error
+		if isSmartOrder {
+			r, err = e.CancelMultipleSmartOrders(ctx, &CancelOrdersRequest{
+				OrderIDs:       orderAndClientIDs.orderIDs,
+				ClientOrderIDs: orderAndClientIDs.clientOrderIDs,
 			})
-			if err != nil {
-				return nil, err
+		} else {
+			r, err = e.CancelOrdersByIDs(ctx, orderAndClientIDs.orderIDs, orderAndClientIDs.clientOrderIDs)
+		}
+		for _, co := range r {
+			if slices.Contains(orderAndClientIDs.orderIDs, co.OrderID) {
+				resp.Status[co.OrderID] = co.State + " " + co.Message
+			} else {
+				resp.Status[co.ClientOrderID] = co.State + " " + co.Message
 			}
-			for _, co := range cancelledOrders {
-				cancellationStatus := order.Cancelled.String()
-				if co.Code != 200 && co.Code != 0 {
-					cancellationStatus = "Failed"
-				}
-				if slices.Contains(v.orderIDs, co.OrderID) {
-					resp.Status[co.OrderID] = cancellationStatus
-				} else {
-					resp.Status[co.ClientOrderID] = cancellationStatus
-				}
+		}
+		if err != nil {
+			return nil, err
+		}
+	case asset.Futures:
+		cancelledOrders, err := e.CancelMultipleFuturesOrders(ctx, &CancelFuturesOrdersRequest{
+			Symbol:         p,
+			OrderIDs:       orderAndClientIDs.orderIDs,
+			ClientOrderIDs: orderAndClientIDs.clientOrderIDs,
+		})
+		for _, co := range cancelledOrders {
+			cancellationStatus := order.Cancelled.String()
+			if co.Code != 200 && co.Code != 0 {
+				cancellationStatus = "Failed"
 			}
+			if slices.Contains(orderAndClientIDs.orderIDs, co.OrderID) {
+				resp.Status[co.OrderID] = cancellationStatus
+			} else {
+				resp.Status[co.ClientOrderID] = cancellationStatus
+			}
+		}
+		if err != nil {
+			return nil, err
 		}
 	}
 	return resp, nil
@@ -948,8 +884,8 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 	}
 	switch cancelOrd.AssetType {
 	case asset.Spot:
-		switch cancelOrd.Type {
-		case order.TrailingStop, order.TrailingStopLimit, order.StopLimit, order.Stop:
+
+		if IsSmartOrderType(cancelOrd.Type) {
 			var orderTypes []OrderType
 			if cancelOrd.Type != order.UnknownType {
 				orderTypes = append(orderTypes, OrderType(cancelOrd.Type))
@@ -961,7 +897,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 			for _, co := range resp {
 				cancelAllOrdersResponse.Status[co.OrderID] = co.State
 			}
-		default:
+		} else {
 			if e.Websocket.IsConnected() && e.Websocket.CanUseAuthenticatedEndpoints() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 				wsResponse, err := e.WsCancelTradeOrders(ctx, pairs.Strings(), []AccountType{AccountType(cancelOrd.AssetType)})
 				for _, wco := range wsResponse {

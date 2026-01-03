@@ -779,7 +779,7 @@ func TestCancelBatchOrders(t *testing.T) {
 	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: asset.Options}})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
-	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: asset.Futures}})
+	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: asset.Futures, OrderID: "1234"}})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: asset.Futures, Pair: futuresTradablePair}})
@@ -791,15 +791,6 @@ func TestCancelBatchOrders(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
-	_, err = e.CancelBatchOrders(generateContext(t), []order.Cancel{
-		{
-			OrderID:   "1234",
-			AssetType: asset.Spot,
-			Pair:      spotTradablePair,
-			Type:      order.Liquidation,
-		},
-	})
-	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 
 	resp, err := e.CancelBatchOrders(generateContext(t), []order.Cancel{
 		{
@@ -812,6 +803,10 @@ func TestCancelBatchOrders(t *testing.T) {
 			AssetType: asset.Futures,
 			OrderID:   "123444",
 		},
+	})
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+	resp, err = e.CancelBatchOrders(generateContext(t), []order.Cancel{
 		{
 			OrderID:   "1234",
 			AssetType: asset.Spot,
@@ -826,6 +821,10 @@ func TestCancelBatchOrders(t *testing.T) {
 			OrderID:   "234",
 			AssetType: asset.Spot,
 		},
+	})
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+	resp, err = e.CancelBatchOrders(generateContext(t), []order.Cancel{
 		{
 			OrderID:   "134",
 			AssetType: asset.Spot,

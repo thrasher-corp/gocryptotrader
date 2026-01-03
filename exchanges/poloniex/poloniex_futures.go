@@ -90,9 +90,9 @@ func (e *Exchange) PlaceFuturesMultipleOrders(ctx context.Context, args []Future
 			return nil, err
 		}
 	}
-	var resp []*FuturesOrderIDResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fBatchOrdersEPL, http.MethodPost, tradePathV3+"orders", nil, args, &resp); err != nil {
-		return nil, fmt.Errorf("%w: %w", order.ErrPlaceFailed, err)
+	resp, err := SendBatchValidatedAuthenticatedHTTPRequest[*FuturesOrderIDResponse](ctx, e, exchange.RestSpot, fBatchOrdersEPL, http.MethodPost, tradePathV3+"orders", nil, args)
+	if err != nil {
+		return resp, fmt.Errorf("%w: %w", order.ErrPlaceFailed, err)
 	}
 	return resp, nil
 }
@@ -140,9 +140,9 @@ func (e *Exchange) CancelMultipleFuturesOrders(ctx context.Context, args *Cancel
 	if len(args.OrderIDs) == 0 && len(args.ClientOrderIDs) == 0 {
 		return nil, order.ErrOrderIDNotSet
 	}
-	var resp []*FuturesOrderIDResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fCancelBatchOrdersEPL, http.MethodDelete, tradePathV3+"batchOrders", nil, args, &resp); err != nil {
-		return nil, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
+	resp, err := SendBatchValidatedAuthenticatedHTTPRequest[*FuturesOrderIDResponse](ctx, e, exchange.RestSpot, fCancelBatchOrdersEPL, http.MethodDelete, tradePathV3+"batchOrders", nil, args)
+	if err != nil {
+		return resp, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
 	}
 	return resp, nil
 }
@@ -159,9 +159,9 @@ func (e *Exchange) CancelFuturesOrders(ctx context.Context, symbol currency.Pair
 		Symbol: symbol.String(),
 		Side:   side,
 	}
-	var resp []*FuturesOrderIDResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fCancelAllLimitOrdersEPL, http.MethodDelete, tradePathV3+"allOrders", nil, arg, &resp); err != nil {
-		return nil, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
+	resp, err := SendBatchValidatedAuthenticatedHTTPRequest[*FuturesOrderIDResponse](ctx, e, exchange.RestSpot, fCancelAllLimitOrdersEPL, http.MethodDelete, tradePathV3+"allOrders", nil, arg)
+	if err != nil {
+		return resp, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
 	}
 	return resp, nil
 }
@@ -191,8 +191,11 @@ func (e *Exchange) CloseAtMarketPrice(ctx context.Context, symbol currency.Pair,
 
 // CloseAllPositionsAtMarketPrice close all orders at market price.
 func (e *Exchange) CloseAllPositionsAtMarketPrice(ctx context.Context) ([]*FuturesOrderIDResponse, error) {
-	var resp []*FuturesOrderIDResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fCancelAllPositionsAtMarketPriceEPL, http.MethodPost, tradePathV3+"positionAll", nil, nil, &resp)
+	resp, err := SendBatchValidatedAuthenticatedHTTPRequest[*FuturesOrderIDResponse](ctx, e, exchange.RestSpot, fCancelAllPositionsAtMarketPriceEPL, http.MethodPost, tradePathV3+"positionAll", nil, nil)
+	if err != nil {
+		return resp, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
+	}
+	return resp, nil
 }
 
 // GetCurrentFuturesOrders get unfilled futures orders. If no request parameters are specified, you will get all open orders sorted on the creation time in chronological order.
