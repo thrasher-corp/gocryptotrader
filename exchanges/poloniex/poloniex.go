@@ -1054,7 +1054,7 @@ func (e *Exchange) sendAuthenticatedRequest(ctx context.Context, ep exchange.URL
 	if err != nil {
 		return err
 	}
-	var resp any = result
+	var resp = result
 	if strings.HasPrefix(path, v3Path) {
 		resp = &V3ResponseWrapper{
 			Data: result,
