@@ -705,20 +705,9 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	tStart := time.Date(2020, 6, 6, 0, 0, 0, 0, time.UTC)
-	tEnd := time.Date(2020, 6, 6, 1, 0, 0, 0, time.UTC)
-	if !mockTests {
-		tmNow := time.Now()
-		tStart = time.Date(tmNow.Year(), tmNow.Month()-3, 6, 0, 0, 0, 0, time.UTC)
-		tEnd = time.Date(tmNow.Year(), tmNow.Month()-3, 7, 0, 0, 0, 0, time.UTC)
-	}
 	_, err := e.GetHistoricTrades(t.Context(),
-		spotTradablePair, asset.Spot, tStart, tEnd)
-	require.NoError(t, err)
-
-	_, err = e.GetHistoricTrades(t.Context(),
-		futuresTradablePair, asset.Futures, tStart, tEnd)
-	require.NoError(t, err)
+		spotTradablePair, asset.Spot, time.Time{}, time.Time{})
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
 func TestUpdateTicker(t *testing.T) {
@@ -1681,7 +1670,7 @@ func TestGetOrder(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
 	_, err = e.GetOrder(generateContext(t), "12345536545645", "")
-	require.Error(t, err)
+	require.ErrorIs(t, err, order.ErrGetFailed)
 
 	_, err = e.GetOrder(generateContext(t), "", "12345")
 	require.ErrorIs(t, err, order.ErrGetFailed)

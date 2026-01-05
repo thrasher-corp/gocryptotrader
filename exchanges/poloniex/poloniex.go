@@ -1054,6 +1054,12 @@ func (e *Exchange) sendAuthenticatedRequest(ctx context.Context, ep exchange.URL
 	if err != nil {
 		return err
 	}
+	var resp any = result
+	if strings.HasPrefix(path, v3Path) {
+		resp = &V3ResponseWrapper{
+			Data: result,
+		}
+	}
 	requestFunc := func() (*request.Item, error) {
 		headers := make(map[string]string)
 		headers["Content-Type"] = "application/json"
@@ -1067,7 +1073,7 @@ func (e *Exchange) sendAuthenticatedRequest(ctx context.Context, ep exchange.URL
 		var signatureStrings string
 		req := &request.Item{
 			Method:        method,
-			Result:        result,
+			Result:        resp,
 			Headers:       headers,
 			Verbose:       e.Verbose,
 			HTTPDebugging: e.HTTPDebugging,
@@ -1101,25 +1107,16 @@ func (e *Exchange) sendAuthenticatedRequest(ctx context.Context, ep exchange.URL
 	if err := e.SendPayload(ctx, epl, requestFunc, request.AuthenticatedRequest); err != nil {
 		return fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, err)
 	}
-	if result == nil {
-		return common.ErrNoResponse
+	if errType, ok := resp.(hasError); ok && errType.Error() != nil {
+		return fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, errType.Error())
 	}
 	return nil
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
 func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, path string, values url.Values, body, result any) error {
-	resp := result
-	if strings.HasPrefix(path, v3Path) {
-		resp = &V3ResponseWrapper{
-			Data: result,
-		}
-	}
-	if err := e.sendAuthenticatedRequest(ctx, ep, epl, method, path, values, body, &resp); err != nil {
+	if err := e.sendAuthenticatedRequest(ctx, ep, epl, method, path, values, body, result); err != nil {
 		return err
-	}
-	if errType, ok := resp.(hasError); ok && errType.Error() != nil {
-		return fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, errType.Error())
 	}
 	return nil
 }
