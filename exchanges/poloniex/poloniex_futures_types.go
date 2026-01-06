@@ -286,12 +286,13 @@ type FuturesOrderbook struct {
 
 // WSFuturesOrderbook represents an orderbook data for v3 websocket futures instruments
 type WSFuturesOrderbook struct {
-	ID           int64                            `json:"id"`
-	Symbol       currency.Pair                    `json:"s"`
-	Asks         orderbook.LevelsArrayPriceAmount `json:"asks"`
-	Bids         orderbook.LevelsArrayPriceAmount `json:"bids"`
-	CreationTime types.Time                       `json:"cT"`
-	Timestamp    types.Time                       `json:"ts"`
+	ID            int64                            `json:"id"`
+	LastVersionID int64                            `json:"lid"`
+	Symbol        currency.Pair                    `json:"s"`
+	Asks          orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Bids          orderbook.LevelsArrayPriceAmount `json:"bids"`
+	CreationTime  types.Time                       `json:"cT"`
+	Timestamp     types.Time                       `json:"ts"`
 }
 
 // FuturesCandle represents a kline data for v3 futures instrument
@@ -339,8 +340,8 @@ type FuturesTickerDetails struct {
 	LowPrice     types.Number  `json:"l"`
 	HighPrice    types.Number  `json:"h"`
 	ClosingPrice types.Number  `json:"c"`
-	Quantity     types.Number  `json:"qty"`
-	Amount       types.Number  `json:"amt"`
+	BaseAmount   types.Number  `json:"qty"`
+	QuoteAmount  types.Number  `json:"amt"`
 	TradeCount   int64         `json:"tC"`
 	StartTime    types.Time    `json:"sT"`
 	EndTime      types.Time    `json:"cT"`
@@ -420,6 +421,39 @@ func (v *FuturesMarkPriceCandle) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[6]any{&v.LowestPrice, &v.HighestPrice, &v.OpeningPrice, &v.ClosingPrice, &v.StartTime, &v.EndTime})
 }
 
+// WSProductDetail represents websocket response of basic information of the all product
+type WSProductDetail struct {
+	Symbol                string        `json:"s"`
+	VisibleStartTime      types.Time    `json:"visibleST"`
+	TradableStartTime     types.Time    `json:"tradableST"`
+	PriceScale            string        `json:"pxScale"`
+	LotSize               float64       `json:"lotSz"`
+	MinSize               float64       `json:"minSz"`
+	ContractFeeValue      types.Number  `json:"ctVal"`
+	Status                string        `json:"status"`
+	MaxPrice              types.Number  `json:"maxPx"`
+	MinPrice              types.Number  `json:"minPx"`
+	MaxQuantity           types.Number  `json:"maxQty"`
+	MinQuantity           types.Number  `json:"minQty"`
+	MaxLeverage           uint16        `json:"maxLever,string"`
+	Leverage              string        `json:"lever"`
+	OrderPriceRange       string        `json:"ordPxRange"`
+	ContractType          string        `json:"ctType"`
+	Alias                 string        `json:"alias"`
+	MarketMaxQuantity     types.Number  `json:"marketMaxQty"`
+	LimitMaxQuantity      types.Number  `json:"limitMaxQty"`
+	Timestamp             types.Time    `json:"ts"`
+	BaseCurrency          currency.Code `json:"bCcy"`
+	UnderlyingAsset       string        `json:"bAsset"`
+	QuoteCurrency         currency.Code `json:"qCcy"`
+	SettlementCurrency    currency.Code `json:"sCcy"`
+	TickSize              types.Number  `json:"tSz"`
+	ListingDate           types.Time    `json:"oDate"`
+	InitialMarginRate     types.Number  `json:"iM"`
+	MaximumRiskLimit      types.Number  `json:"mR"`
+	MaintenanceMarginRate types.Number  `json:"mM"`
+}
+
 // ProductDetail represents basic information of the all product
 type ProductDetail struct {
 	Alias                 string        `json:"alias"`
@@ -454,6 +488,15 @@ type ProductDetail struct {
 
 // FuturesFundingRate represents symbols funding rate information
 type FuturesFundingRate struct {
+	Symbol                   currency.Pair `json:"s"`
+	FundingRate              types.Number  `json:"fR"`
+	FundingRateSettleTime    types.Time    `json:"fT"`
+	NextPredictedFundingRate types.Number  `json:"nFR"`
+	NextFundingTime          types.Time    `json:"nFT"`
+}
+
+// WSFuturesFundingRate represents symbols funding rate information pushed through websocket
+type WSFuturesFundingRate struct {
 	Symbol                   currency.Pair `json:"s"`
 	FundingRate              types.Number  `json:"fR"`
 	FundingRateSettleTime    types.Time    `json:"fT"`
@@ -495,7 +538,7 @@ type WsFuturesCandlesctick struct {
 	ClosePrice   types.Number
 	Amount       types.Number
 	Quantity     types.Number
-	Trades       types.Number
+	Trades       uint64
 	StartTime    types.Time
 	EndTime      types.Time
 	PushTime     types.Time

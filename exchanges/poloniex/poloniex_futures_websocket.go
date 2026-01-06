@@ -52,10 +52,11 @@ const (
 
 var (
 	futuresDefaultSubscriptions = subscription.List{
-		{Enabled: true, Asset: asset.Futures, Channel: subscription.CandlesChannel, Interval: kline.FiveMin},
-		{Enabled: true, Asset: asset.Futures, Channel: subscription.AllTradesChannel},
-		{Enabled: true, Asset: asset.Futures, Channel: subscription.TickerChannel},
-		{Enabled: true, Asset: asset.Futures, Channel: subscription.OrderbookChannel},
+		// {Enabled: true, Asset: asset.Futures, Channel: subscription.CandlesChannel, Interval: kline.FiveMin},
+		// {Enabled: true, Asset: asset.Futures, Channel: subscription.AllTradesChannel},
+		// {Enabled: true, Asset: asset.Futures, Channel: subscription.TickerChannel},
+		// {Enabled: true, Asset: asset.Futures, Channel: subscription.OrderbookChannel},
+		{Enabled: true, Asset: asset.Futures, Channel: channelFuturesCandles, Interval: kline.FiveMin},
 	}
 
 	futuresPrivateDefaultSubscriptions = subscription.List{
@@ -144,7 +145,7 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 	case channelAuth:
 		return conn.RequireMatchWithData(channelAuth, respRaw)
 	case channelFuturesSymbol:
-		var resp []*ProductDetail
+		var resp []*WSProductDetail
 		if err := json.Unmarshal(result.Data, &resp); err != nil {
 			return err
 		}
@@ -154,16 +155,6 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 		return e.processFuturesOrderbookLevel2(result.Data, result.Action)
 	case channelFuturesOrderbook:
 		return e.processFuturesOrderbook(result.Data)
-	case channelFuturesCandles:
-		candleIndex := strings.Index(result.Channel, "_")
-		if candleIndex == -1 {
-			return fmt.Errorf("%w %q", kline.ErrUnsupportedInterval, result.Channel)
-		}
-		interval, err := stringToInterval(result.Channel[candleIndex:])
-		if err != nil {
-			return err
-		}
-		return e.processFuturesCandlesticks(result.Data, interval)
 	case channelFuturesTickers:
 		return e.processFuturesTickers(result.Data)
 	case channelFuturesTrades:
@@ -318,7 +309,7 @@ func (e *Exchange) processFuturesOrders(data []byte) error {
 }
 
 func (e *Exchange) processFuturesFundingRate(data []byte) error {
-	var resp []*FuturesFundingRate
+	var resp []*WSFuturesFundingRate
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -393,10 +384,10 @@ func (e *Exchange) processFuturesOrderbookLevel2(data []byte, action string) err
 				Bids:         r.Bids.Levels(),
 				Asks:         r.Asks.Levels(),
 				Exchange:     e.Name,
-				LastUpdateID: r.ID,
 				Asset:        asset.Futures,
 				Pair:         r.Symbol,
 				LastUpdated:  r.CreationTime.Time(),
+				LastUpdateID: r.LastVersionID,
 			}); err != nil {
 				return err
 			}
@@ -432,8 +423,8 @@ func (e *Exchange) processFuturesTickers(data []byte) error {
 			BidSize:      r.BestBidSize.Float64(),
 			Ask:          r.BestAskPrice.Float64(),
 			AskSize:      r.BestAskSize.Float64(),
-			Volume:       r.Quantity.Float64(),
-			QuoteVolume:  r.Amount.Float64(),
+			Volume:       r.BaseAmount.Float64(),
+			QuoteVolume:  r.QuoteAmount.Float64(),
 			Open:         r.OpeningPrice.Float64(),
 			Close:        r.ClosingPrice.Float64(),
 			MarkPrice:    r.MarkPrice.Float64(),
