@@ -80,20 +80,20 @@ func (e *Exchange) GetCurrency(ctx context.Context, ccy currency.Code) (*Currenc
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicEPL, "/v2/currencies/"+ccy.String(), &resp)
 }
 
-// GetSystemTimestamp retrieves current server time.
+// GetSystemTimestamp retrieves the current server time.
 func (e *Exchange) GetSystemTimestamp(ctx context.Context) (time.Time, error) {
 	var resp ServerSystemTime
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, publicEPL, "/timestamp", &resp)
 	return resp.ServerTime.Time(), err
 }
 
-// GetMarketPrices retrieves latest trade price for all symbols.
+// GetMarketPrices retrieves the latest trade price for all symbols.
 func (e *Exchange) GetMarketPrices(ctx context.Context) ([]*MarketPrice, error) {
 	var resp []*MarketPrice
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/markets/price", &resp)
 }
 
-// GetMarketPrice retrieves latest trade price for a symbol
+// GetMarketPrice retrieves the latest trade price for a symbol
 func (e *Exchange) GetMarketPrice(ctx context.Context, symbol currency.Pair) (*MarketPrice, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -102,13 +102,13 @@ func (e *Exchange) GetMarketPrice(ctx context.Context, symbol currency.Pair) (*M
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicEPL, marketsPath+symbol.String()+"/price", &resp)
 }
 
-// GetMarkPrices retrieves latest mark prices for all currencies
+// GetMarkPrices retrieves the latest mark prices for all currencies
 func (e *Exchange) GetMarkPrices(ctx context.Context) ([]*MarkPrice, error) {
 	var resp []*MarkPrice
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/markets/markPrice", &resp)
 }
 
-// GetMarkPrice retrieves latest mark price for a symbol.
+// GetMarkPrice retrieves the latest mark price for a symbol.
 func (e *Exchange) GetMarkPrice(ctx context.Context, symbol currency.Pair) (*MarkPrice, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -117,7 +117,7 @@ func (e *Exchange) GetMarkPrice(ctx context.Context, symbol currency.Pair) (*Mar
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicEPL, marketsPath+symbol.String()+"/markPrice", &resp)
 }
 
-// GetMarkPriceComponents retrieves components of a mark price
+// GetMarkPriceComponents retrieves the components of a mark price
 func (e *Exchange) GetMarkPriceComponents(ctx context.Context, symbol currency.Pair) (*MarkPriceComponents, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -172,7 +172,7 @@ func (e *Exchange) GetCandlesticks(ctx context.Context, symbol currency.Pair, in
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicEPL, common.EncodeURLValues(marketsPath+symbol.String()+"/candles", params), &resp)
 }
 
-// GetTrades returns a list of recent trades, request param limit is optional, its default value is 500, and max value is 1000.
+// GetTrades returns a list of recent trades, the request param limit is optional, its default value is 500, and its max value is 1000.
 func (e *Exchange) GetTrades(ctx context.Context, symbol currency.Pair, limit uint64) ([]*Trade, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -185,13 +185,13 @@ func (e *Exchange) GetTrades(ctx context.Context, symbol currency.Pair, limit ui
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicEPL, common.EncodeURLValues(marketsPath+symbol.String()+"/trades", params), &resp)
 }
 
-// GetTickers retrieves tickers for last 24 hours for all symbols.
+// GetTickers retrieves tickers for the last 24 hours for all symbols.
 func (e *Exchange) GetTickers(ctx context.Context) ([]*TickerData, error) {
 	var resp []*TickerData
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/markets/ticker24h", &resp)
 }
 
-// GetTicker retrieves ticker for last 24 hours for a symbol
+// GetTicker retrieves ticker for the last 24 hours for a symbol
 func (e *Exchange) GetTicker(ctx context.Context, symbol currency.Pair) (*TickerData, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -209,7 +209,7 @@ func (e *Exchange) GetCollateral(ctx context.Context, ccy currency.Code) (*Colla
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicEPL, marketsPath+ccy.String()+"/collateralInfo", &resp)
 }
 
-// GetCollaterals retrieves account's collaterals information
+// GetCollaterals retrieves an account's collaterals information
 func (e *Exchange) GetCollaterals(ctx context.Context) ([]*CollateralDetails, error) {
 	var resp []*CollateralDetails
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, referenceDataEPL, "/markets/collateralInfo", &resp)
@@ -221,7 +221,7 @@ func (e *Exchange) GetBorrowRate(ctx context.Context) ([]*BorrowRateDetails, err
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicEPL, "/markets/borrowRatesInfo", &resp)
 }
 
-// GetAccount retrieves all accounts of a user.
+// GetAccount retrieves all of a user's accounts.
 func (e *Exchange) GetAccount(ctx context.Context) ([]*AccountDetails, error) {
 	var resp []*AccountDetails
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sAccountInfoEPL, http.MethodGet, "/accounts", nil, nil, &resp)
@@ -251,7 +251,7 @@ func (e *Exchange) GetAccountBalances(ctx context.Context, accountID, accountTyp
 }
 
 // GetAccountActivities retrieves a list of activities such as airdrop, rebates, staking, credit/debit adjustments, and other (historical adjustments).
-// possible account avtivity types are: 200 for ALL, 201 for AIRDROP, 202 for COMMISSION_REBATE, 203, REFERRAL_REBATE: 204, SWAP: 205, CREDIT_ADJUSTMENT: 104, DEBIT_ADJUSTMENT: 105, OTHER: 199
+// possible account activity types are: 200 for ALL, 201 for AIRDROP, 202 for COMMISSION_REBATE, 203, REFERRAL_REBATE: 204, SWAP: 205, CREDIT_ADJUSTMENT: 104, DEBIT_ADJUSTMENT: 105, OTHER: 199
 func (e *Exchange) GetAccountActivities(ctx context.Context, startTime, endTime time.Time, activityType, limit, from uint64, direction string, ccy currency.Code) ([]*AccountActivity, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
@@ -302,7 +302,7 @@ func (e *Exchange) AccountsTransfer(ctx context.Context, arg *AccountTransferReq
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sAccountsTransferEPL, http.MethodPost, "/accounts/transfer", nil, arg, &resp)
 }
 
-// GetAccountsTransferRecords gets a list of transfer records of a user
+// GetAccountsTransferRecords gets a list of a user's transfer records
 func (e *Exchange) GetAccountsTransferRecords(ctx context.Context, startTime, endTime time.Time, direction string, ccy currency.Code, from, limit uint64) ([]*AccountTransferRecord, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
@@ -332,7 +332,7 @@ func (e *Exchange) GetAccountsTransferRecords(ctx context.Context, startTime, en
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sAccountsTransferRecordsEPL, http.MethodGet, "/accounts/transfer", params, nil, &resp)
 }
 
-// GetAccountsTransferRecordByTransferID gets a transfer record of a user.
+// GetAccountsTransferRecordByTransferID gets a user's transfer record
 func (e *Exchange) GetAccountsTransferRecordByTransferID(ctx context.Context, transferID string) (*AccountTransferRecord, error) {
 	if transferID == "" {
 		return nil, errAccountIDRequired
@@ -341,13 +341,13 @@ func (e *Exchange) GetAccountsTransferRecordByTransferID(ctx context.Context, tr
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sAccountsTransferRecordsEPL, http.MethodGet, "/accounts/transfer/"+transferID, nil, nil, &resp)
 }
 
-// GetFeeInfo retrieves fee rate for an account
+// GetFeeInfo retrieves the fee rate for an account
 func (e *Exchange) GetFeeInfo(ctx context.Context) (*FeeInfo, error) {
 	var resp *FeeInfo
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sFeeInfoEPL, http.MethodGet, "/feeinfo", nil, nil, &resp)
 }
 
-// GetInterestHistory gets a list of interest collection records of a user
+// GetInterestHistory gets a list of a user's interest collection records
 func (e *Exchange) GetInterestHistory(ctx context.Context, startTime, endTime time.Time, direction string, from, limit uint64) ([]*InterestHistory, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
@@ -374,20 +374,19 @@ func (e *Exchange) GetInterestHistory(ctx context.Context, startTime, endTime ti
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sInterestHistoryEPL, http.MethodGet, "/accounts/interest/history", params, nil, &resp)
 }
 
-// GetSubAccount gets a list of all the accounts within an Account Group for a user.
+// GetSubAccount gets a list of all the accounts within a user's Account Group.
 func (e *Exchange) GetSubAccount(ctx context.Context) ([]*SubAccount, error) {
 	var resp []*SubAccount
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetSubAccountEPL, http.MethodGet, "/subaccounts", nil, nil, &resp)
 }
 
-// GetSubAccountBalances retrieves balances by currency and account type (SPOT or FUTURES)
-// for all accounts in the group. Available only to the primary user.
+// GetSubAccountBalances retrieves balances by currency and account type (SPOT or FUTURES) for all accounts in the group. Available only to the primary user.
 func (e *Exchange) GetSubAccountBalances(ctx context.Context) ([]*SubAccountBalances, error) {
 	var resp []*SubAccountBalances
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetSubAccountBalancesEPL, http.MethodGet, "/subaccounts/balances", nil, nil, &resp)
 }
 
-// GetSubAccountBalance gets balances information by currency and account type (SPOT and FUTURES) for a given external accountId in the account group.
+// GetSubAccountBalance gets balance information by currency and account type (SPOT and FUTURES) for a given external accountId in the account group.
 // Subaccounts should use GetBalances() for SPOT and the Futures API for FUTURES.
 func (e *Exchange) GetSubAccountBalance(ctx context.Context, subAccountID string) ([]*SubAccountBalances, error) {
 	if subAccountID == "" {
@@ -423,7 +422,7 @@ func (e *Exchange) SubAccountTransfer(ctx context.Context, arg *SubAccountTransf
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetSubAccountTransfersEPL, http.MethodPost, "/subaccounts/transfer", nil, arg, &resp)
 }
 
-// GetSubAccountTransferRecords gets a list of transfer records of a user. Max interval for start and end time is 6 months.
+// GetSubAccountTransferRecords gets a list of transfer records involving a user's subaccounts. Max interval for start and end time is 6 months.
 func (e *Exchange) GetSubAccountTransferRecords(ctx context.Context, arg *SubAccountTransferRecordRequest) ([]*SubAccountTransfer, error) {
 	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
 		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
@@ -474,7 +473,7 @@ func (e *Exchange) GetSubAccountTransferRecord(ctx context.Context, id string) (
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetSubAccountTransfersEPL, http.MethodGet, "/subaccounts/transfer/"+id, nil, nil, &resp)
 }
 
-// GetDepositAddresses gets all deposit addresses for a user.
+// GetDepositAddresses gets all of a user's deposit addresses.
 func (e *Exchange) GetDepositAddresses(ctx context.Context, ccy currency.Code) (DepositAddresses, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -484,7 +483,7 @@ func (e *Exchange) GetDepositAddresses(ctx context.Context, ccy currency.Code) (
 	return addresses, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetDepositAddressesEPL, http.MethodGet, "/wallets/addresses", params, nil, &addresses)
 }
 
-// WalletActivity returns the wallet activity between set start and end time
+// WalletActivity returns the wallet activity between the set start and end times
 // possible wallet activity types are 'deposits' and 'withdrawals'
 func (e *Exchange) WalletActivity(ctx context.Context, start, end time.Time, activityType string) (*WalletActivity, error) {
 	if err := common.StartEndTimeCheck(start, end); err != nil {
@@ -551,7 +550,7 @@ func intervalToString(interval kline.Interval) (string, error) {
 	return "", kline.ErrUnsupportedInterval
 }
 
-// WithdrawCurrency withdraws a currency to a specific delegated address
+// WithdrawCurrency withdraws a currency to a specific designated address
 func (e *Exchange) WithdrawCurrency(ctx context.Context, arg *WithdrawCurrencyRequest) (*Withdraw, error) {
 	if arg.Coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -569,7 +568,7 @@ func (e *Exchange) WithdrawCurrency(ctx context.Context, arg *WithdrawCurrencyRe
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sWithdrawCurrencyEPL, http.MethodPost, "/v2/wallets/withdraw", nil, arg, &resp)
 }
 
-// GetAccountMargin retrieves account margin information
+// GetAccountMargin retrieves the account's margin information
 func (e *Exchange) GetAccountMargin(ctx context.Context, accountType string) (*AccountMargin, error) {
 	if accountType == "" {
 		return nil, errAccountTypeRequired
@@ -580,7 +579,7 @@ func (e *Exchange) GetAccountMargin(ctx context.Context, accountType string) (*A
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sAccountMarginEPL, http.MethodGet, "/margin/accountMargin", params, nil, &resp)
 }
 
-// GetBorrowStatus retrieves borrow status of currencies
+// GetBorrowStatus retrieves the borrow status of the provided currency, or all currencies if left empty
 func (e *Exchange) GetBorrowStatus(ctx context.Context, ccy currency.Code) ([]*BorrowStatus, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -590,7 +589,7 @@ func (e *Exchange) GetBorrowStatus(ctx context.Context, ccy currency.Code) ([]*B
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sBorrowStatusEPL, http.MethodGet, "/margin/borrowStatus", params, nil, &resp)
 }
 
-// GetMarginBuySellAmounts gets the maximum and available margin buy/sell amount for a given symbol
+// GetMarginBuySellAmounts gets the maximum and available margin buy/sell amounts for a given symbol
 func (e *Exchange) GetMarginBuySellAmounts(ctx context.Context, symbol currency.Pair) (*MarginBuySellAmount, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -729,14 +728,12 @@ func (e *Exchange) CancelOrdersByIDs(ctx context.Context, orderIDs, clientOrderI
 	}
 	resp, err := SendBatchValidatedAuthenticatedHTTPRequest[*CancelOrderResponse](ctx, e, exchange.RestSpot, sCancelBatchOrdersEPL, http.MethodDelete, "/orders/cancelByIds", nil, params)
 	if err != nil {
-		// Return resp,  which contains the full response including both
-		// successful and failed cancellation attempts.
 		return resp, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
 	}
 	return resp, nil
 }
 
-// CancelTradeOrders batch cancel all orders in an account
+// CancelTradeOrders batch cancels all orders in an account
 func (e *Exchange) CancelTradeOrders(ctx context.Context, symbols []string, accountTypes []AccountType) ([]*CancelOrderResponse, error) {
 	args := make(map[string]any)
 	if len(symbols) != 0 {
@@ -747,14 +744,12 @@ func (e *Exchange) CancelTradeOrders(ctx context.Context, symbols []string, acco
 	}
 	resp, err := SendBatchValidatedAuthenticatedHTTPRequest[*CancelOrderResponse](ctx, e, exchange.RestSpot, sCancelAllOrdersEPL, http.MethodDelete, "/orders", nil, args)
 	if err != nil {
-		// Return resp,  which contains the full response including both
-		// successful and failed cancellation attempts.
 		return resp, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
 	}
 	return resp, nil
 }
 
-// KillSwitch set a timer that cancels all regular and smartorders after the timeout has expired.
+// KillSwitch sets a timer that cancels all regular and smartorders after the timeout has expired.
 // Timeout can be reset by calling this command again with a new timeout value.
 // timeout value in seconds; range is 10 seconds to 10 minutes or 600 seconds
 func (e *Exchange) KillSwitch(ctx context.Context, timeout time.Duration) (*KillSwitchStatus, error) {
@@ -767,13 +762,13 @@ func (e *Exchange) KillSwitch(ctx context.Context, timeout time.Duration) (*Kill
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sKillSwitchEPL, http.MethodPost, "/orders/killSwitch", nil, map[string]any{"timeout": timeoutString}, &resp)
 }
 
-// DisableKillSwitch disables the timer to cancels all regular and smartorders
+// DisableKillSwitch disables the timer to cancels all regular and smart orders
 func (e *Exchange) DisableKillSwitch(ctx context.Context) (*KillSwitchStatus, error) {
 	var resp *KillSwitchStatus
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sKillSwitchEPL, http.MethodPost, "/orders/killSwitch", nil, map[string]any{"timeout": "-1"}, &resp)
 }
 
-// GetKillSwitchStatus gets status of kill switch
+// GetKillSwitchStatus gets status of the kill switch
 func (e *Exchange) GetKillSwitchStatus(ctx context.Context) (*KillSwitchStatus, error) {
 	var resp *KillSwitchStatus
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetKillSwitchStatusEPL, http.MethodGet, "/orders/killSwitchStatus", nil, nil, &resp)
@@ -817,7 +812,7 @@ func orderPath(orderID, idPath, clientOrderID, clientIDPath string) (string, err
 	}
 }
 
-// CancelReplaceSmartOrder cancel an existing untriggered smart order and place a new smart order on the same symbol with details from existing smart order unless amended by new parameters
+// CancelReplaceSmartOrder cancel an existing untriggered smart order and places a new smart order on the same symbol with details from the existing smart order, unless amended by new parameters
 func (e *Exchange) CancelReplaceSmartOrder(ctx context.Context, arg *CancelReplaceSmartOrderRequest) (*OrderIDResponse, error) {
 	path, err := orderPath(arg.OrderID, "/smartorders/", arg.OldClientOrderID, "/smartorders/cid:")
 	if err != nil {
@@ -843,7 +838,7 @@ func (e *Exchange) GetSmartOpenOrders(ctx context.Context, limit uint64, types [
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sGetSmartOrdersEPL, http.MethodGet, "/smartorders", params, nil, &resp)
 }
 
-// GetSmartOrderDetails retrieves a smart order's detail
+// GetSmartOrderDetails retrieves a smart order's details
 func (e *Exchange) GetSmartOrderDetails(ctx context.Context, orderID, clientOrderID string) ([]*SmartOrderDetails, error) {
 	path, err := orderPath(orderID, "/smartorders/", clientOrderID, "/smartorders/cid:")
 	if err != nil {
@@ -856,7 +851,7 @@ func (e *Exchange) GetSmartOrderDetails(ctx context.Context, orderID, clientOrde
 	return resp, nil
 }
 
-// CancelSmartOrderByID cancel a smart order by its id.
+// CancelSmartOrderByID cancels a smart order by its id.
 func (e *Exchange) CancelSmartOrderByID(ctx context.Context, id, clientOrderID string) (*CancelOrderResponse, error) {
 	path, err := orderPath(id, "/smartorders/", clientOrderID, "/smartorders/cid:")
 	if err != nil {
@@ -869,7 +864,7 @@ func (e *Exchange) CancelSmartOrderByID(ctx context.Context, id, clientOrderID s
 	return resp, nil
 }
 
-// CancelMultipleSmartOrders performs a batch cancel one or many smart orders in an account by IDs.
+// CancelMultipleSmartOrders performs a batch cancel of one or many smart orders in an account by their IDs.
 func (e *Exchange) CancelMultipleSmartOrders(ctx context.Context, args *CancelOrdersRequest) ([]*CancelOrderResponse, error) {
 	if len(args.ClientOrderIDs) == 0 && len(args.OrderIDs) == 0 {
 		return nil, order.ErrOrderIDNotSet
@@ -1054,7 +1049,8 @@ func (e *Exchange) sendAuthenticatedRequest(ctx context.Context, ep exchange.URL
 	if err != nil {
 		return err
 	}
-	var resp = result
+	var resp any
+	resp = result
 	if strings.HasPrefix(path, v3Path) {
 		resp = &V3ResponseWrapper{
 			Data: result,
@@ -1126,6 +1122,8 @@ func SendBatchValidatedAuthenticatedHTTPRequest[T hasError](ctx context.Context,
 	if err := e.sendAuthenticatedRequest(ctx, ep, epl, method, path, values, body, &result); err != nil {
 		return nil, err
 	}
+	// Return result,  which contains the full response including both
+	// successful and failed cancellation attempts.
 	return result, checkForErrorInSliceResponse(result)
 }
 

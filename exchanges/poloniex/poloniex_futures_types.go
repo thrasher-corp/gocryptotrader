@@ -198,7 +198,6 @@ type FuturesOrderDetails struct {
 	TakeProfitTriggerPrice     types.Number      `json:"tpTrgPx"`
 	TakeProfitTriggerPriceType string            `json:"tpTrgPxType"`
 	UpdateTime                 types.Time        `json:"uTime"`
-	FeeRate                    types.Number      `json:"feeRate"`
 	CancelReason               string            `json:"cancelReason"`
 }
 
@@ -396,7 +395,7 @@ type FuturesIndexPriceData struct {
 
 // UnmarshalJSON deserializes candlestick data into a FuturesIndexPriceData instance
 func (v *FuturesIndexPriceData) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[6]any{&v.OpenPrice, &v.HighPrice, &v.LowestPrice, &v.ClosingPrice, &v.StartTime, &v.EndTime})
+	return json.Unmarshal(data, &[6]any{&v.LowestPrice, &v.HighPrice, &v.OpenPrice, &v.ClosingPrice, &v.StartTime, &v.EndTime})
 }
 
 // FuturesMarkPrice represents a mark price instance
@@ -460,7 +459,7 @@ type FuturesFundingRate struct {
 	FundingRateSettleTime    types.Time    `json:"fT"`
 	NextPredictedFundingRate types.Number  `json:"nFR"`
 	NextFundingTime          types.Time    `json:"nFT"`
-	Timestamp                types.Time    `json:"ts"`
+	PushTime                 types.Time    `json:"ts"`
 }
 
 // OpenInterestData represents an open interest data
@@ -480,8 +479,8 @@ type InsuranceFundInfo struct {
 type RiskLimit struct {
 	Symbol                 currency.Pair `json:"symbol"`
 	MarginMode             string        `json:"mgnMode"`
-	Tier                   string        `json:"tier"`
-	MaxLeverage            types.Number  `json:"maxLever"`
+	Tier                   uint8         `json:"tier,string"`
+	MaxLeverage            uint16        `json:"maxLever,string"`
 	MaintenanceMarginRatio types.Number  `json:"mMRatio"`
 	MaxSize                types.Number  `json:"maxSize"`
 	MinSize                types.Number  `json:"minSize"`

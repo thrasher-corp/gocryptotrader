@@ -326,7 +326,7 @@ func (e *Exchange) processFuturesFundingRate(data []byte) error {
 	for _, r := range resp {
 		e.Websocket.DataHandler <- websocket.FundingData{
 			CurrencyPair: r.Symbol,
-			Timestamp:    r.Timestamp.Time(),
+			Timestamp:    r.PushTime.Time(),
 			AssetType:    asset.Futures,
 			Exchange:     e.Name,
 			Rate:         r.FundingRate.Float64(),

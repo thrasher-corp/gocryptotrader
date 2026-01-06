@@ -6,9 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"slices"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -32,13 +30,13 @@ const (
 	positionPathV3 = v3Path + "position/"
 )
 
-// GetAccountBalance get information about your Futures account.
+// GetAccountBalance gets information about your Futures account.
 func (e *Exchange) GetAccountBalance(ctx context.Context) (*FuturesAccountBalance, error) {
 	var resp *FuturesAccountBalance
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fGetAccountBalanceEPL, http.MethodGet, accountPathV3+"balance", nil, nil, &resp)
 }
 
-// GetAccountBills retrieve the account’s bills.
+// GetAccountBills retrieves the account’s bills.
 func (e *Exchange) GetAccountBills(ctx context.Context, startTime, endTime time.Time, offset, limit uint64, direction, billType string) ([]*BillDetails, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
@@ -80,7 +78,7 @@ func (e *Exchange) PlaceFuturesOrder(ctx context.Context, arg *FuturesOrderReque
 	return resp, nil
 }
 
-// PlaceFuturesMultipleOrders place orders in a batch. A maximum of 10 orders can be placed per request.
+// PlaceFuturesMultipleOrders places orders in a batch. A maximum of 10 orders can be placed per request.
 func (e *Exchange) PlaceFuturesMultipleOrders(ctx context.Context, args []FuturesOrderRequest) ([]*FuturesOrderIDResponse, error) {
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
@@ -132,7 +130,7 @@ func (e *Exchange) CancelFuturesOrder(ctx context.Context, arg *CancelOrderReque
 	return resp, nil
 }
 
-// CancelMultipleFuturesOrders cancel orders in a batch. A maximum of 10 orders can be cancelled per request.
+// CancelMultipleFuturesOrders cancels orders in a batch. A maximum of 10 orders can be cancelled per request.
 func (e *Exchange) CancelMultipleFuturesOrders(ctx context.Context, args *CancelFuturesOrdersRequest) ([]*FuturesOrderIDResponse, error) {
 	if args.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -147,7 +145,7 @@ func (e *Exchange) CancelMultipleFuturesOrders(ctx context.Context, args *Cancel
 	return resp, nil
 }
 
-// CancelFuturesOrders cancel all current pending orders.
+// CancelFuturesOrders cancels all current pending orders.
 func (e *Exchange) CancelFuturesOrders(ctx context.Context, symbol currency.Pair, side string) ([]*FuturesOrderIDResponse, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
@@ -166,7 +164,7 @@ func (e *Exchange) CancelFuturesOrders(ctx context.Context, symbol currency.Pair
 	return resp, nil
 }
 
-// CloseAtMarketPrice close orders at market price.
+// CloseAtMarketPrice closes orders at market price.
 func (e *Exchange) CloseAtMarketPrice(ctx context.Context, symbol currency.Pair, marginMode, positionSide, clientOrderID string) (*FuturesOrderIDResponse, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
@@ -189,7 +187,7 @@ func (e *Exchange) CloseAtMarketPrice(ctx context.Context, symbol currency.Pair,
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fCancelPositionAtMarketPriceEPL, http.MethodPost, tradePathV3+"position", nil, arg, &resp)
 }
 
-// CloseAllPositionsAtMarketPrice close all orders at market price.
+// CloseAllPositionsAtMarketPrice closes all orders at market price.
 func (e *Exchange) CloseAllPositionsAtMarketPrice(ctx context.Context) ([]*FuturesOrderIDResponse, error) {
 	resp, err := SendBatchValidatedAuthenticatedHTTPRequest[*FuturesOrderIDResponse](ctx, e, exchange.RestSpot, fCancelAllPositionsAtMarketPriceEPL, http.MethodPost, tradePathV3+"positionAll", nil, nil)
 	if err != nil {
@@ -198,7 +196,7 @@ func (e *Exchange) CloseAllPositionsAtMarketPrice(ctx context.Context) ([]*Futur
 	return resp, nil
 }
 
-// GetCurrentFuturesOrders get unfilled futures orders. If no request parameters are specified, you will get all open orders sorted on the creation time in chronological order.
+// GetCurrentFuturesOrders gets unfilled futures orders. If no request parameters are specified, you will get all open orders sorted by creation time in chronological order.
 func (e *Exchange) GetCurrentFuturesOrders(ctx context.Context, symbol currency.Pair, side, clientOrderID, direction string, orderID, offsetOrderID, limit uint64) ([]*FuturesOrderDetails, error) {
 	params := url.Values{}
 	if side != "" {
@@ -265,7 +263,7 @@ func (e *Exchange) GetOrderExecutionDetails(ctx context.Context, side order.Side
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fGetFillsV2EPL, http.MethodGet, tradePathV3+"order/trades", params, nil, &resp)
 }
 
-// GetFuturesOrderHistory retrieves previous futures orders. Orders that are completely canceled (no transaction has occurred) initiated through the API can only be queried for 4 hours.
+// GetFuturesOrderHistory retrieves previous futures orders. Orders initiated through the API that are completely canceled (no transaction has occurred) can only be queried for 4 hours.
 func (e *Exchange) GetFuturesOrderHistory(ctx context.Context, symbol currency.Pair, side order.Side, orderType, orderState, orderID, clientOrderID, direction string, startTime, endTime time.Time, offset, limit uint64) ([]*FuturesOrderDetails, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
@@ -320,7 +318,7 @@ func (e *Exchange) GetFuturesCurrentPosition(ctx context.Context, symbol currenc
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fGetPositionOpenEPL, http.MethodGet, tradePathV3+"position/opens", params, nil, &resp)
 }
 
-// GetFuturesPositionHistory get information about previous positions.
+// GetFuturesPositionHistory gets information about previous positions.
 func (e *Exchange) GetFuturesPositionHistory(ctx context.Context, symbol currency.Pair, marginMode, positionSide, direction string, startTime, endTime time.Time, offset, limit uint64) ([]*FuturesPosition, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
@@ -356,7 +354,7 @@ func (e *Exchange) GetFuturesPositionHistory(ctx context.Context, symbol currenc
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fGetPositionHistoryEPL, http.MethodGet, tradePathV3+"position/history", params, nil, &resp)
 }
 
-// AdjustMarginForIsolatedMarginTradingPositions add or reduce margin for positions in isolated margin mode.
+// AdjustMarginForIsolatedMarginTradingPositions adds or reduces margin for positions in isolated margin mode.
 func (e *Exchange) AdjustMarginForIsolatedMarginTradingPositions(ctx context.Context, symbol currency.Pair, positionSide, adjustType string, amount float64) (*AdjustFuturesMarginResponse, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
@@ -396,7 +394,7 @@ func (e *Exchange) GetFuturesLeverage(ctx context.Context, symbol currency.Pair,
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fGetPositionLeverageEPL, http.MethodGet, positionPathV3+"leverages", params, nil, &resp)
 }
 
-// SetFuturesLeverage change leverage
+// SetFuturesLeverage changes leverage
 func (e *Exchange) SetFuturesLeverage(ctx context.Context, symbol currency.Pair, marginMode, positionSide string, leverage uint64) (*FuturesLeverage, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
@@ -425,7 +423,7 @@ func (e *Exchange) SetFuturesLeverage(ctx context.Context, symbol currency.Pair,
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fSetPositionLeverageEPL, http.MethodPost, positionPathV3+"leverage", nil, arg, &resp)
 }
 
-// SwitchPositionMode switch the current position mode. Please ensure you do not have open positions and open orders under this mode before the switch.
+// SwitchPositionMode switches the current position mode. Please ensure you do not have open positions and open orders under this mode before the switch.
 // Position mode, HEDGE: LONG/SHORT, ONE_WAY: BOTH
 func (e *Exchange) SwitchPositionMode(ctx context.Context, positionMode string) error {
 	if positionMode != "HEDGE" && positionMode != "ONE_WAY" {
@@ -434,7 +432,7 @@ func (e *Exchange) SwitchPositionMode(ctx context.Context, positionMode string) 
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fSwitchPositionModeEPL, http.MethodPost, positionPathV3+"mode", nil, map[string]string{"posMode": positionMode}, nil)
 }
 
-// GetPositionMode get the current position mode.
+// GetPositionMode gets the current position mode.
 func (e *Exchange) GetPositionMode(ctx context.Context) (string, error) {
 	resp := &struct {
 		PositionMode string `json:"posMode"`
@@ -442,7 +440,7 @@ func (e *Exchange) GetPositionMode(ctx context.Context) (string, error) {
 	return resp.PositionMode, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fGetPositionModeEPL, http.MethodGet, positionPathV3+"mode", nil, nil, &resp)
 }
 
-// GetUserPositionRiskLimit retrieves user's position risk limit.
+// GetUserPositionRiskLimit retrieves the user's position risk limit.
 func (e *Exchange) GetUserPositionRiskLimit(ctx context.Context, symbol currency.Pair, marginMode, positionSide string) ([]*UserPositionRiskLimit, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
@@ -459,7 +457,7 @@ func (e *Exchange) GetUserPositionRiskLimit(ctx context.Context, symbol currency
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fGetPositionRiskLimitEPL, http.MethodGet, positionPathV3+"riskLimit", params, nil, &resp)
 }
 
-// GetFuturesOrderBook get market depth data of the designated trading pair
+// GetFuturesOrderBook gets market depth data for the designated trading pair
 func (e *Exchange) GetFuturesOrderBook(ctx context.Context, symbol currency.Pair, depth, limit uint64) (*FuturesOrderbook, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
@@ -476,7 +474,7 @@ func (e *Exchange) GetFuturesOrderBook(ctx context.Context, symbol currency.Pair
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, common.EncodeURLValues(marketsPathV3+"orderBook", params), &resp)
 }
 
-// GetFuturesKlineData retrieves K-line data of the designated trading pair
+// GetFuturesKlineData retrieves K-line data for the designated trading pair
 func (e *Exchange) GetFuturesKlineData(ctx context.Context, symbol currency.Pair, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]*FuturesCandle, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
@@ -520,7 +518,7 @@ func (e *Exchange) GetFuturesExecution(ctx context.Context, symbol currency.Pair
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, common.EncodeURLValues(marketsPathV3+"trades", params), &resp)
 }
 
-// GetLiquidationOrder get Liquidation Order Interface
+// GetLiquidationOrder gets details of previous liquidation events
 func (e *Exchange) GetLiquidationOrder(ctx context.Context, symbol currency.Pair, direction string, startTime, endTime time.Time, offset, limit uint64) ([]*LiquidationPrice, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
@@ -600,7 +598,7 @@ func (e *Exchange) GetAllIndexPriceComponents(ctx context.Context) ([]*IndexPric
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, marketsPathV3+"indexPriceComponents", &resp)
 }
 
-// GetIndexPriceKlineData obtain the K-line data for the index price.
+// GetIndexPriceKlineData obtains the K-line data for the index price.
 func (e *Exchange) GetIndexPriceKlineData(ctx context.Context, symbol currency.Pair, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]*FuturesIndexPriceData, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
@@ -641,7 +639,7 @@ func (e *Exchange) GetFuturesMarkPrice(ctx context.Context, symbol currency.Pair
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, common.EncodeURLValues(marketsPathV3+"markPrice", params), &resp)
 }
 
-// GetFuturesMarkPrices get the current mark price for instruments.
+// GetFuturesMarkPrices get the current mark price for all instruments
 func (e *Exchange) GetFuturesMarkPrices(ctx context.Context) ([]*FuturesMarkPrice, error) {
 	var resp []*FuturesMarkPrice
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, marketsPathV3+"markPrice", &resp)
@@ -677,7 +675,7 @@ func (e *Exchange) GetMarkPriceKlineData(ctx context.Context, symbol currency.Pa
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fCandlestickEPL, common.EncodeURLValues(marketsPathV3+"markPriceCandlesticks", params), &resp)
 }
 
-// GetFuturesAllProducts inquire about the basic information of the all product.
+// GetFuturesAllProducts inquires about the basic information of all products.
 func (e *Exchange) GetFuturesAllProducts(ctx context.Context, symbol currency.Pair) ([]*ProductDetail, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {
@@ -687,7 +685,7 @@ func (e *Exchange) GetFuturesAllProducts(ctx context.Context, symbol currency.Pa
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, common.EncodeURLValues(marketsPathV3+"allInstruments", params), &resp)
 }
 
-// GetFuturesProduct inquire about the basic information of the product.
+// GetFuturesProduct inquires about the basic information of one product.
 func (e *Exchange) GetFuturesProduct(ctx context.Context, symbol currency.Pair) (*ProductDetail, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
@@ -769,12 +767,12 @@ func (e *Exchange) GetFuturesRiskLimit(ctx context.Context, symbol currency.Pair
 }
 
 // GetContractLimitPrice query the highest buy price and the lowest sell price of the current contract trading pair.
-func (e *Exchange) GetContractLimitPrice(ctx context.Context, symbols []string) ([]ContractLimitPrice, error) {
-	if len(symbols) == 0 || slices.Contains(symbols, "") {
+func (e *Exchange) GetContractLimitPrice(ctx context.Context, symbols currency.Pairs) ([]ContractLimitPrice, error) {
+	if len(symbols) == 0 || (len(symbols) == 1 && symbols[0].IsEmpty()) {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
-	params.Set("symbol", strings.Join(symbols, ","))
+	params.Set("symbol", symbols.Join())
 	var resp []ContractLimitPrice
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, common.EncodeURLValues(marketsPathV3+"limitPrice", params), &resp)
 }

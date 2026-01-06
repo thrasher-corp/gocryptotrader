@@ -1025,10 +1025,12 @@ func TestGetCandlesticks(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	_, err = e.GetCandlesticks(t.Context(), spotTradablePair, kline.HundredMilliseconds, time.Now().Add(-time.Hour*48), time.Time{}, 0)
 	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
-	_, err = e.GetCandlesticks(t.Context(), spotTradablePair, kline.FiveMin, time.Now(), time.Now().Add(-time.Hour), 0)
+
+	startTime, endTime := time.UnixMilli(1743615790295), time.UnixMilli(1743702190295)
+	_, err = e.GetCandlesticks(t.Context(), spotTradablePair, kline.FiveMin, endTime, startTime, 0)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	result, err := e.GetCandlesticks(t.Context(), spotTradablePair, kline.FiveMin, time.Time{}, time.Time{}, 0)
+	result, err := e.GetCandlesticks(t.Context(), spotTradablePair, kline.FiveMin, startTime, endTime, 0)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2228,10 +2230,11 @@ func TestGetAccountBills(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	_, err := e.GetAccountBills(generateContext(t), time.Now(), time.Now().Add(-time.Hour), 0, 0, "NEXT", "PNL")
+	startTime, endTime := time.UnixMilli(1764930174763), time.UnixMilli(1765290174763)
+	_, err := e.GetAccountBills(generateContext(t), endTime, startTime, 0, 0, "NEXT", "PNL")
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	result, err := e.GetAccountBills(generateContext(t), time.Time{}, time.Time{}, 0, 0, "NEXT", "PNL")
+	result, err := e.GetAccountBills(generateContext(t), startTime, endTime, 0, 0, "NEXT", "PNL")
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2561,16 +2564,17 @@ func TestGetFuturesKlineData(t *testing.T) {
 	_, err := e.GetFuturesKlineData(t.Context(), currency.EMPTYPAIR, kline.FiveMin, time.Time{}, time.Time{}, 100)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
-	_, err = e.GetFuturesKlineData(t.Context(), futuresTradablePair, kline.FiveMin, time.Now(), time.Now().Add(-time.Hour*48), 100)
+	startTime, endTime := time.UnixMilli(1743615790295), time.UnixMilli(1743702190295)
+	_, err = e.GetFuturesKlineData(t.Context(), futuresTradablePair, kline.FiveMin, endTime, startTime, 100)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	_, err = e.GetFuturesKlineData(t.Context(), futuresTradablePair, kline.HundredMilliseconds, time.Time{}, time.Time{}, 100)
+	_, err = e.GetFuturesKlineData(t.Context(), futuresTradablePair, kline.HundredMilliseconds, startTime, endTime, 100)
 	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
 
-	_, err = e.GetFuturesKlineData(t.Context(), futuresTradablePair, kline.HundredMilliseconds, time.Now(), time.Now().Add(-time.Hour), 100)
+	_, err = e.GetFuturesKlineData(t.Context(), futuresTradablePair, kline.HundredMilliseconds, endTime, startTime, 100)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	result, err := e.GetFuturesKlineData(t.Context(), futuresTradablePair, kline.FiveMin, time.Time{}, time.Time{}, 100)
+	result, err := e.GetFuturesKlineData(t.Context(), futuresTradablePair, kline.FiveMin, startTime, endTime, 100)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2648,10 +2652,11 @@ func TestGetIndexPriceKlineData(t *testing.T) {
 	_, err = e.GetIndexPriceKlineData(t.Context(), futuresTradablePair, kline.HundredMilliseconds, time.Time{}, time.Time{}, 10)
 	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
 
-	_, err = e.GetIndexPriceKlineData(t.Context(), futuresTradablePair, kline.FourHour, time.Now(), time.Now().Add(-time.Hour), 10)
+	startTime, endTime := time.UnixMilli(1764930174763), time.UnixMilli(1765290174763)
+	_, err = e.GetIndexPriceKlineData(t.Context(), futuresTradablePair, kline.FourHour, endTime, startTime, 10)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	result, err := e.GetIndexPriceKlineData(t.Context(), futuresTradablePair, kline.FourHour, time.Time{}, time.Time{}, 10)
+	result, err := e.GetIndexPriceKlineData(t.Context(), futuresTradablePair, kline.FourHour, startTime, endTime, 10)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2681,10 +2686,11 @@ func TestGetMarkPriceKlineData(t *testing.T) {
 	_, err = e.GetMarkPriceKlineData(t.Context(), futuresTradablePair, kline.HundredMilliseconds, time.Time{}, time.Time{}, 10)
 	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
 
-	_, err = e.GetMarkPriceKlineData(t.Context(), futuresTradablePair, kline.FourHour, time.Now(), time.Now().Add(-time.Hour), 10)
+	startTime, endTime := time.UnixMilli(1764930174763), time.UnixMilli(1765290174763)
+	_, err = e.GetMarkPriceKlineData(t.Context(), futuresTradablePair, kline.FourHour, endTime, startTime, 10)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	result, err := e.GetMarkPriceKlineData(t.Context(), futuresTradablePair, kline.FourHour, time.Time{}, time.Time{}, 10)
+	result, err := e.GetMarkPriceKlineData(t.Context(), futuresTradablePair, kline.FourHour, startTime, endTime, 10)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2714,10 +2720,11 @@ func TestGetFuturesHistoricalFundingRates(t *testing.T) {
 	_, err := e.GetFuturesHistoricalFundingRates(t.Context(), currency.EMPTYPAIR, time.Time{}, time.Time{}, 100)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
-	_, err = e.GetFuturesHistoricalFundingRates(t.Context(), futuresTradablePair, time.Now(), time.Now().Add(-time.Hour), 100)
+	startTime, endTime := time.UnixMilli(1743615790295), time.UnixMilli(1743702190295)
+	_, err = e.GetFuturesHistoricalFundingRates(t.Context(), futuresTradablePair, endTime, startTime, 100)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	result, err := e.GetFuturesHistoricalFundingRates(t.Context(), futuresTradablePair, time.Time{}, time.Time{}, 100)
+	result, err := e.GetFuturesHistoricalFundingRates(t.Context(), futuresTradablePair, startTime, endTime, 100)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2755,10 +2762,10 @@ func TestGetFuturesRiskLimit(t *testing.T) {
 
 func TestGetContractLimitPrice(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetContractLimitPrice(t.Context(), []string{"DOT_USDT_PERP", ""})
+	_, err := e.GetContractLimitPrice(t.Context(), []currency.Pair{currency.EMPTYPAIR})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
-	result, err := e.GetContractLimitPrice(t.Context(), []string{"DOT_USDT_PERP", futuresTradablePair.String()})
+	result, err := e.GetContractLimitPrice(t.Context(), []currency.Pair{currency.NewPairWithDelimiter("DOT", "USDT_PERP", "_"), currency.EMPTYPAIR, futuresTradablePair})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2771,15 +2778,19 @@ func TestIntervalString(t *testing.T) {
 	}{
 		kline.OneMin:     {IntervalString: "MINUTE_1"},
 		kline.FiveMin:    {IntervalString: "MINUTE_5"},
+		kline.TenMin:     {IntervalString: "MINUTE_10"},
 		kline.FifteenMin: {IntervalString: "MINUTE_15"},
 		kline.ThirtyMin:  {IntervalString: "MINUTE_30"},
 		kline.OneHour:    {IntervalString: "HOUR_1"},
 		kline.TwoHour:    {IntervalString: "HOUR_2"},
 		kline.FourHour:   {IntervalString: "HOUR_4"},
+		kline.SixHour:    {IntervalString: "HOUR_6"},
+		kline.EightHour:  {IntervalString: "HOUR_8"},
 		kline.TwelveHour: {IntervalString: "HOUR_12"},
 		kline.OneDay:     {IntervalString: "DAY_1"},
 		kline.ThreeDay:   {IntervalString: "DAY_3"},
 		kline.OneWeek:    {IntervalString: "WEEK_1"},
+		kline.OneMonth:   {IntervalString: "MONTH_1"},
 		kline.TwoWeek:    {Error: kline.ErrUnsupportedInterval},
 	}
 	for key, val := range params {

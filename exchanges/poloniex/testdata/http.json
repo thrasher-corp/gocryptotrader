@@ -2225,7 +2225,7 @@
                             1720122299999
                         ]
                     ],
-                    "queryString": "interval=MINUTE_5",
+                    "queryString": "endTime=1743702190295\u0026interval=MINUTE_5\u0026startTime=1743615790295",
                     "bodyParams": "",
                     "headers": {}
                 },
@@ -10533,7 +10533,7 @@
                         "data": [],
                         "msg": ""
                     },
-                    "queryString": "direct=NEXT\u0026type=PNL",
+                    "queryString": "direct=NEXT\u0026eTime=1765290174763\u0026sTime=1764930174763\u0026type=PNL",
                     "bodyParams": "",
                     "headers": {
                         "Content-Type": [
@@ -10853,7 +10853,7 @@
                         ],
                         "msg": "Success"
                     },
-                    "queryString": "interval=MINUTE_5\u0026limit=100\u0026symbol=BTC_USDT_PERP",
+                    "queryString": "eTime=1743702190295\u0026interval=MINUTE_5\u0026limit=100\u0026sTime=1743615790295\u0026symbol=BTC_USDT_PERP",
                     "bodyParams": "",
                     "headers": {}
                 },
@@ -11041,7 +11041,7 @@
                         ],
                         "msg": "Success"
                     },
-                    "queryString": "limit=100\u0026symbol=BTC_USDT_PERP",
+                    "queryString": "eT=1743702190295\u0026limit=100\u0026sT=1743615790295\u0026symbol=BTC_USDT_PERP",
                     "bodyParams": "",
                     "headers": {}
                 },
@@ -11170,7 +11170,7 @@
                         ],
                         "msg": "Success"
                     },
-                    "queryString": "interval=HOUR_4\u0026limit=10\u0026symbol=BTC_USDT_PERP",
+                    "queryString": "eTime=1765290174763\u0026interval=HOUR_4\u0026limit=10\u0026sTime=1764930174763\u0026symbol=BTC_USDT_PERP",
                     "bodyParams": "",
                     "headers": {}
                 }
@@ -11495,7 +11495,7 @@
                         ],
                         "msg": "Success"
                     },
-                    "queryString": "symbol=DOT_USDT_PERP%2CBTC_USDT_PERP",
+                    "queryString": "symbol=DOT_USDT_PERP%2C%2CBTC_USDT_PERP",
                     "bodyParams": "",
                     "headers": {}
                 }
@@ -11639,7 +11639,7 @@
                         ],
                         "msg": "Success"
                     },
-                    "queryString": "interval=HOUR_4\u0026limit=10\u0026symbol=BTC_USDT_PERP",
+                    "queryString": "eTime=1765290174763\u0026interval=HOUR_4\u0026limit=10\u0026sTime=1764930174763\u0026symbol=BTC_USDT_PERP",
                     "bodyParams": "",
                     "headers": {}
                 }
