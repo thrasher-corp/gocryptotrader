@@ -335,20 +335,22 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 	if m.useMultiConnectionManagement {
 		// The connection and supporting functions are defined per connection
 		// and the connection wrapper is stored in the connection manager.
-		if c.URL == "" {
-			return fmt.Errorf("%w: %w", errConnSetup, errDefaultURLIsEmpty)
-		}
-		if c.Connector == nil {
-			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketConnectorUnset)
-		}
-		if c.Subscriber == nil && !c.SubscriptionsNotRequired {
-			return fmt.Errorf("%w (%s): %w", errConnSetup, c.URL, errWebsocketSubscriberUnset)
-		}
-		if c.Unsubscriber == nil && m.features.Unsubscribe && !c.SubscriptionsNotRequired {
-			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketUnsubscriberUnset)
-		}
-		if c.Handler == nil {
-			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketDataHandlerUnset)
+		if err := func() error {
+			switch {
+			case c.URL == "":
+				return errDefaultURLIsEmpty
+			case c.Connector == nil:
+				return errWebsocketConnectorUnset
+			case c.Subscriber == nil && !c.SubscriptionsNotRequired:
+				return errWebsocketSubscriberUnset
+			case c.Unsubscriber == nil && m.features.Unsubscribe && !c.SubscriptionsNotRequired:
+				return errWebsocketUnsubscriberUnset
+			case c.Handler == nil:
+				return errWebsocketDataHandlerUnset
+			}
+			return nil
+		}(); err != nil {
+			return fmt.Errorf("%w %q: %w", errConnSetup, c.URL, err)
 		}
 
 		m.connectionManager = append(m.connectionManager, &connectionWrapper{
