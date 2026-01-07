@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -1031,23 +1032,21 @@ func (m *Manager) GetConnection(messageFilter any) (Connection, error) {
 	return nil, fmt.Errorf("%s: %w associated with message filter: '%v'", m.exchangeName, ErrRequestRouteNotFound, messageFilter)
 }
 
-func (w *connectionWrapper) generateSubscriptions(managerSubs subscription.List) (connSubs subscription.List, err error) {
+func (w *connectionWrapper) generateSubscriptions(managerSubs subscription.List) (subscription.List, error) {
 	if w.setup.GenerateSubscriptions != nil {
-		if connSubs, err = w.setup.GenerateSubscriptions(); err != nil {
-			return nil, err
-		}
-	} else {
-		f := w.setup.MessageFilter
-		if f == nil {
-			return nil, errNoMessageFilter
-		}
-		for _, s := range managerSubs {
-			if f.MatchesSub(s) {
-				connSubs = append(connSubs, s)
-			}
+		return w.setup.GenerateSubscriptions()
+	}
+	connSubs := make(subscription.List, 0, len(managerSubs))
+	f := w.setup.MessageFilter
+	if f == nil {
+		return nil, errNoMessageFilter
+	}
+	for _, s := range managerSubs {
+		if f.MatchesSub(s) {
+			connSubs = append(connSubs, s)
 		}
 	}
-	return connSubs, err
+	return slices.Clip(connSubs), nil
 }
 
 func (m *Manager) generateSubs() (subscription.List, error) {
