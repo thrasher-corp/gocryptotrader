@@ -13,7 +13,7 @@ import (
 // Version is an ExchangeVersion to ensure all binance subscriptions have asset set
 type Version struct{}
 
-// Exchanges returns just Bitmex
+// Exchanges returns just Binance
 func (v *Version) Exchanges() []string { return []string{"Binance"} }
 
 // UpgradeExchange adds asset to all fluffins
