@@ -16,7 +16,7 @@ type Version struct{}
 // Exchanges returns just Binance
 func (v *Version) Exchanges() []string { return []string{"Binance"} }
 
-// UpgradeExchange adds asset to all fluffins
+// UpgradeExchange ensures all subscriptions have asset set
 func (v *Version) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
 	var errs error
 	newSubs := [][]byte{}
