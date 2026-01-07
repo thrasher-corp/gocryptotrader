@@ -484,8 +484,6 @@ type MessageFilter interface {
 // AssetFilter is a MessageFilter for filtering connections by Asset
 type AssetFilter asset.Item
 
-var _ MessageFilter = AssetFilter(asset.Spot)
-
 // MatchesSub returns if the subscription Asset exactly matches the assetFilter asset
 func (a AssetFilter) MatchesSub(s *subscription.Subscription) bool {
 	return s.Asset == asset.Item(a)
@@ -493,8 +491,6 @@ func (a AssetFilter) MatchesSub(s *subscription.Subscription) bool {
 
 // AuthenticatedFilter is a MessageFilter for filtering connections by Authenticated
 type AuthenticatedFilter bool
-
-var _ MessageFilter = AuthenticatedFilter(true)
 
 // MatchesSub returns if the subscription Authenticated matches the AuthenticatedFilter
 func (a AuthenticatedFilter) MatchesSub(s *subscription.Subscription) bool {

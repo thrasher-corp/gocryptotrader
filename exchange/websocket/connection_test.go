@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 func TestMatchReturnResponses(t *testing.T) {
@@ -58,4 +59,14 @@ func TestIncomingWithData(t *testing.T) {
 	require.True(t, ws.IncomingWithData(0, []byte("test")))
 	require.Len(t, ch, 1, "must have one item in channel")
 	assert.Equal(t, []byte("test"), <-ch)
+}
+
+func TestAssetFilter(t *testing.T) {
+	t.Parallel()
+	assert.Implements(t, (*MessageFilter)(nil), AssetFilter(asset.Spot))
+}
+
+func TestAuthenticatedFilter(t *testing.T) {
+	t.Parallel()
+	assert.Implements(t, (*MessageFilter)(nil), AuthenticatedFilter(true))
 }
