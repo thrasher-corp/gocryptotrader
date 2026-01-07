@@ -884,10 +884,10 @@ func drain(ch <-chan error) {
 // monitorConsumers observes data throughput and logs if there is a backlog in DataHandler
 func (m *Manager) monitorConsumers() {
 	dropped := 0
-	for done := false; !done; {
+	for {
 		select {
 		case <-m.ShutdownC:
-			done = true
+			return
 		case d := <-m.DataHandler:
 			select {
 			case m.ToRoutine <- d:
@@ -909,7 +909,7 @@ func (m *Manager) monitorConsumers() {
 // monitorConnection observes the connection and attempts to reconnect if the connection is lost
 func (m *Manager) monitorConnection() {
 	t := time.NewTimer(m.connectionMonitorDelay)
-	for done := false; !done; {
+	for {
 		select {
 		case err := <-m.ReadMessageErrors:
 			if errors.Is(err, errConnectionFault) {
@@ -945,8 +945,7 @@ func (m *Manager) monitorConnection() {
 				}
 				t.Stop()
 				m.connectionMonitorRunning.Store(false)
-				done = true
-				continue
+				return
 			}
 			if !m.IsConnecting() && !m.IsConnected() {
 				if err := m.Connect(); err != nil {
@@ -965,16 +964,15 @@ func (m *Manager) monitorTraffic() {
 	for done := false; !done; {
 		select {
 		case <-m.ShutdownC:
-			done = true
 			if m.verbose {
 				log.Debugf(log.WebsocketMgr, "%v websocket: trafficMonitor shutdown message received", m.exchangeName)
 			}
+			return
 		case <-t.C:
 			if m.IsConnecting() || signalReceived(m.TrafficAlert) {
 				t.Reset(m.trafficTimeout)
 				continue
 			}
-			done = true
 			if m.verbose {
 				log.Warnf(log.WebsocketMgr, "%v websocket: has not received a traffic alert in %v. Reconnecting", m.exchangeName, m.trafficTimeout)
 			}
@@ -985,6 +983,7 @@ func (m *Manager) monitorTraffic() {
 					}
 				}()
 			}
+			return
 		}
 	}
 }
