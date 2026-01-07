@@ -10,13 +10,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
-// Version is an ExchangeVersion to ensure all binance subscriptions have asset set
+// Version is an ExchangeVersion to set any Binance subscriptions without an asset to spot
 type Version struct{}
 
 // Exchanges returns just Binance
 func (v *Version) Exchanges() []string { return []string{"Binance"} }
 
-// UpgradeExchange ensures all subscriptions have asset set
+// UpgradeExchange sets any subscriptions without an asset to spot
 func (v *Version) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
 	var errs error
 	newSubs := [][]byte{}
