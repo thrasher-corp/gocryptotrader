@@ -25,12 +25,13 @@ func TestUpgradeExchange(t *testing.T) {
 
 	in = []byte(`{"name":"Binance","features":{"subscriptions":[{"channel":"1"},{"channel":"2","asset":"all"}]}}`)
 	out, err := new(v11.Version).UpgradeExchange(t.Context(), in)
+	exp := `{"name":"Binance","features":{"subscriptions":[{"channel":"1","asset":"spot"},{"channel":"2","asset":"all"}]}}`
 	require.NoError(t, err)
+	assert.Equal(t, exp, string(out), "UpgradeExchange should modify the subscriptions correctly")
 
 	out, err = new(v11.Version).UpgradeExchange(t.Context(), out)
 	require.NoError(t, err)
-	exp := `{"name":"Binance","features":{"subscriptions":[{"channel":"1","asset":"spot"},{"channel":"2","asset":"all"}]}}`
-	assert.Equal(t, exp, string(out), "UpgradeExchange should modify the subscriptions correctly")
+	assert.Equal(t, exp, string(out), "Running UpgradeExchange twice should not make any changes")
 }
 
 func TestDowngradeExchange(t *testing.T) {
