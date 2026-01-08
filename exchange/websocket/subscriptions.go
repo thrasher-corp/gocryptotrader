@@ -314,39 +314,39 @@ func (m *Manager) FlushChannels() error {
 		return m.updateChannelSubscriptions(nil, m.subscriptions, newSubs)
 	}
 
-	for _, cW := range m.connectionManager {
-		connSubs, err := cW.generateSubscriptions(newSubs)
+	for _, c := range m.connectionManager {
+		connSubs, err := c.generateSubscriptions(newSubs)
 		if err != nil {
 			return err
 		}
 
 		// Case if there is nothing to unsubscribe from and the connection is nil
-		if len(connSubs) == 0 && cW.connection == nil {
+		if len(connSubs) == 0 && c.connection == nil {
 			continue
 		}
 
 		// If there are subscriptions to subscribe to but no connection to subscribe to, establish a new connection.
-		if cW.connection == nil {
-			conn := m.getConnectionFromSetup(cW.setup)
-			if err := cW.setup.Connector(context.TODO(), conn); err != nil {
+		if c.connection == nil {
+			conn := m.getConnectionFromSetup(c.setup)
+			if err := c.setup.Connector(context.TODO(), conn); err != nil {
 				return err
 			}
-			m.Wg.Go(func() { m.Reader(context.TODO(), conn, cW.setup.Handler) })
-			m.connections[conn] = cW
-			cW.connection = conn
+			m.Wg.Go(func() { m.Reader(context.TODO(), conn, c.setup.Handler) })
+			m.connections[conn] = c
+			c.connection = conn
 		}
 
-		if err := m.updateChannelSubscriptions(cW.connection, cW.subscriptions, connSubs); err != nil {
+		if err := m.updateChannelSubscriptions(c.connection, c.subscriptions, connSubs); err != nil {
 			return err
 		}
 
 		// If there are no subscriptions to subscribe to, close the connection as it is no longer needed.
-		if cW.subscriptions.Len() == 0 {
-			delete(m.connections, cW.connection) // Remove from lookup map
-			if err := cW.connection.Shutdown(); err != nil {
+		if c.subscriptions.Len() == 0 {
+			delete(m.connections, c.connection) // Remove from lookup map
+			if err := c.connection.Shutdown(); err != nil {
 				log.Warnf(log.WebsocketMgr, "%v websocket: failed to shutdown connection: %v", m.exchangeName, err)
 			}
-			cW.connection = nil
+			c.connection = nil
 		}
 	}
 	return nil
