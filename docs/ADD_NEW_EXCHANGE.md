@@ -729,21 +729,6 @@ func (e *Exchange) KeepAuthKeyAlive(ctx context.Context) {
 }
 ```
 
-- Create function to generate default subscriptions:
-
-```go
-// generateSubscriptions generates default subscription
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
-    for _, s := range e.Features.Subscriptions {
-        if s.Asset == asset.Empty {
-            // Handle backwards compatibility with config without assets, all binance subs are spot
-            s.Asset = asset.Spot
-        }
-    }
-    return e.Features.Subscriptions.ExpandTemplates(b)
-}
-```
-
 - To receive data from websocket, a subscription needs to be made with one or more of the available channels:
 
 - Set channel names as consts for ease of use:
@@ -1036,8 +1021,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
         Subscriber:             e.Subscribe, 
         // Unsubscriber function outlined above.
         UnSubscriber:           e.Unsubscribe,
-        // GenerateSubscriptions function outlined above. 
-        GenerateSubscriptions:  e.generateSubscriptions, 
         // Defines the capabilities of the websocket outlined in supported 
         // features struct. This allows the websocket connection to be flushed 
         // appropriately if we have a pair/asset enable/disable change. This is 

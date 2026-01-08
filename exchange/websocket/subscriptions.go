@@ -33,6 +33,26 @@ func (m *Manager) GenerateSubscriptions() (subscription.List, error) {
 	return m.Subscriptions.ExpandTemplates(m.Exchange)
 }
 
+// generateSubscriptions returns the subscriptions for a specific connection.
+// Calls connection specific GenerateSubscriptions if set. Currently only bybit uses this.
+// Otherwise the websocket manager subscriptions are filtered by MessageFilter
+func (w *connectionWrapper) generateSubscriptions(managerSubs subscription.List) (subscription.List, error) {
+	if w.setup.GenerateSubscriptions != nil {
+		return w.setup.GenerateSubscriptions()
+	}
+	connSubs := make(subscription.List, 0, len(managerSubs))
+	f := w.setup.MessageFilter
+	if f == nil {
+		return nil, errNoMessageFilter
+	}
+	for _, s := range managerSubs {
+		if f.MatchesSub(s) {
+			connSubs = append(connSubs, s)
+		}
+	}
+	return slices.Clip(connSubs), nil
+}
+
 // UnsubscribeChannels unsubscribes from a list of websocket channel
 func (m *Manager) UnsubscribeChannels(conn Connection, channels subscription.List) error {
 	if len(channels) == 0 {

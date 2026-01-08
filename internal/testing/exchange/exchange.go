@@ -196,8 +196,6 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 
 	// For testing we never want to use the default subscriptions; Tests of GenerateSubscriptions should be exercising it directly
 	b.Websocket.Subscriptions = subscription.List{}
-	// Exchanges which don't support subscription conf; Can be removed when all exchanges support sub conf
-	w.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
 
 	err = w.Connect()
 	require.NoError(tb, err, "Connect must not error")

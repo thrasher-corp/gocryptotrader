@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
-	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -98,7 +97,7 @@ type Manager struct {
 	Subscriptions                 subscription.List // Public api for configuring
 	Subscriber                    func(subscription.List) error
 	Unsubscriber                  func(subscription.List) error
-	GenerateSubs                  func() (subscription.List, error)
+	generateSubs                  func() (subscription.List, error)
 	useMultiConnectionManagement  bool
 	DataHandler                   chan any
 	ToRoutine                     chan any
@@ -236,6 +235,8 @@ func (m *Manager) Setup(s *ManagerSetup) error {
 
 	m.useMultiConnectionManagement = s.UseMultiConnectionManagement
 
+	m.generateSubs = m.GenerateSubscriptions // Default to generating subs using templating
+
 	if !m.useMultiConnectionManagement {
 		// TODO: Remove this block when all exchanges are updated and backwards
 		// compatibility is no longer required.
@@ -259,7 +260,10 @@ func (m *Manager) Setup(s *ManagerSetup) error {
 		m.connector = s.Connector
 		m.Subscriber = s.Subscriber
 		m.Unsubscriber = s.Unsubscriber
-		m.GenerateSubs = s.GenerateSubscriptions
+
+		if s.GenerateSubscriptions != nil {
+			m.generateSubs = s.GenerateSubscriptions
+		}
 
 		err := m.SetWebsocketURL(s.RunningURL, false, false)
 		if err != nil {
@@ -1032,28 +1036,4 @@ func (m *Manager) GetConnection(messageFilter any) (Connection, error) {
 	}
 
 	return nil, fmt.Errorf("%s: %w associated with message filter: '%v'", m.exchangeName, ErrRequestRouteNotFound, messageFilter)
-}
-
-func (w *connectionWrapper) generateSubscriptions(managerSubs subscription.List) (subscription.List, error) {
-	if w.setup.GenerateSubscriptions != nil {
-		return w.setup.GenerateSubscriptions()
-	}
-	connSubs := make(subscription.List, 0, len(managerSubs))
-	f := w.setup.MessageFilter
-	if f == nil {
-		return nil, errNoMessageFilter
-	}
-	for _, s := range managerSubs {
-		if f.MatchesSub(s) {
-			connSubs = append(connSubs, s)
-		}
-	}
-	return slices.Clip(connSubs), nil
-}
-
-func (m *Manager) generateSubs() (subscription.List, error) {
-	if m.GenerateSubs != nil {
-		return m.GenerateSubs()
-	}
-	return m.GenerateSubscriptions()
 }
