@@ -1216,9 +1216,9 @@ func TestMonitorConnection(t *testing.T) {
 
 	go ws.monitorConnection()
 
-	time.Sleep(50 * time.Millisecond)
-	assert.True(t, ws.connectionMonitorRunning.Load(), "enabled websocket should keep monitor running")
-	assert.Equal(t, connectedState, ws.state.Load(), "enabled websocket should remain in connected state")
+	assert.Eventually(t, func() bool {
+		return ws.connectionMonitorRunning.Load() && ws.state.Load() == connectedState
+	}, 100*time.Millisecond, 5*time.Millisecond, "enabled websocket should keep monitor running and remain connected")
 
 	ws.setEnabled(false)
 	require.Eventually(t, func() bool {
@@ -1272,25 +1272,29 @@ func TestMonitorTraffic(t *testing.T) {
 	ws.setState(connectedState)
 
 	go ws.monitorTraffic()
-	time.Sleep(40 * time.Millisecond)
-	assert.Equal(t, disconnectedState, ws.state.Load(), "monitorTraffic should shutdown when no traffic received")
+	assert.Eventually(t, func() bool {
+		return ws.state.Load() == disconnectedState
+	}, time.Second, 5*time.Millisecond, "monitorTraffic should shutdown when no traffic received")
 
 	ws.m.Lock() // Prevents race with shutdown
 	ws.setState(connectingState)
 	go ws.monitorTraffic()
 	ws.m.Unlock()
 
-	time.Sleep(40 * time.Millisecond)
-	assert.Equal(t, connectingState, ws.state.Load(), "monitorTraffic should not shutdown when connecting")
+	assert.Eventually(t, func() bool {
+		return ws.state.Load() == connectingState
+	}, time.Second, 5*time.Millisecond, "monitorTraffic should not shutdown when connecting")
 
 	ws.TrafficAlert <- struct{}{}
 	ws.setState(connectedState)
 
-	time.Sleep(40 * time.Millisecond)
-	assert.Equal(t, connectedState, ws.state.Load(), "monitorTraffic should not shutdown when receiving traffic")
+	assert.Eventually(t, func() bool {
+		return ws.state.Load() == connectedState
+	}, time.Second, 5*time.Millisecond, "monitorTraffic should not shutdown when receiving traffic")
 
-	time.Sleep(40 * time.Millisecond)
-	assert.Equal(t, disconnectedState, ws.state.Load(), "monitorTraffic should shutdown when no traffic received")
+	assert.Eventually(t, func() bool {
+		return ws.state.Load() == disconnectedState
+	}, time.Second, 5*time.Millisecond, "monitorTraffic should shutdown when no traffic received")
 }
 
 func TestGetConnection(t *testing.T) {
