@@ -231,8 +231,7 @@ func main() {
 		os.Exit(1)
 	}()
 
-	err := app.RunContext(ctx, os.Args)
-	if err != nil {
+	if err := app.RunContext(ctx, os.Args); err != nil {
 		log.Fatal(err)
 	}
 }

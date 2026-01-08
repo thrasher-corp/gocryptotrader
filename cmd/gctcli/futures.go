@@ -343,18 +343,13 @@ func getLatestFundingRate(c *cli.Context) error {
 	if err := unmarshalCLIFields(c, arg); err != nil {
 		return err
 	}
-
 	if err := isFuturesAsset(arg.Asset); err != nil {
 		return err
 	}
 	if !validPair(arg.Pair) {
 		return errInvalidPair
 	}
-	var (
-		p   currency.Pair
-		err error
-	)
-	p, err = currency.NewPairFromString(arg.Pair)
+	p, err := currency.NewPairFromString(arg.Pair)
 	if err != nil {
 		return err
 	}

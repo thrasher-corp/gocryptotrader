@@ -179,8 +179,10 @@ func getExchangePairs(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchange string
-	var asset string
+	var (
+		exchange string
+		asset    string
+	)
 
 	if c.IsSet("exchange") {
 		exchange = c.String("exchange")
