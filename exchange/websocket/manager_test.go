@@ -1168,12 +1168,24 @@ func TestMonitorConsumers(t *testing.T) {
 	go ws.monitorConsumers()
 
 	ws.DataHandler <- "test-1"
-	ws.DataHandler <- "test-2"        // Expect to be dropped
-	time.Sleep(10 * time.Millisecond) // Allow dropping to actually happen
-	assert.Equal(t, "test-1", <-ws.ToRoutine, "Should be able to drain expected value from ToRoutine")
+	ws.DataHandler <- "test-2" // Expect to be dropped
+	assert.Eventually(t, func() bool {
+		select {
+		case got := <-ws.ToRoutine:
+			return got == "test-1"
+		default:
+			return false
+		}
+	}, time.Second, 10*time.Millisecond, "Should be able to drain expected value from ToRoutine")
 	ws.DataHandler <- "test-3"
-	time.Sleep(10 * time.Millisecond) // Allow dropping to actually happen
-	assert.Equal(t, "test-3", <-ws.ToRoutine, "Should restore delivery after dropping 1 message")
+	assert.Eventually(t, func() bool {
+		select {
+		case got := <-ws.ToRoutine:
+			return got == "test-3"
+		default:
+			return false
+		}
+	}, time.Second, 10*time.Millisecond, "Should restore delivery after dropping 1 message")
 }
 
 func TestMonitorConnection(t *testing.T) {
