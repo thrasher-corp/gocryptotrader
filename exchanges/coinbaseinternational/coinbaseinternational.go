@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -46,7 +45,7 @@ var (
 	errMissingNetworkArnID        = errors.New("network ARN missing")
 	errMissingTransferID          = errors.New("missing transfer ID")
 	errAddressIsRequired          = errors.New("missing address")
-	errAssetIdentifierRequired    = errors.New("asset identified is required")
+	errAssetIdentifierRequired    = fmt.Errorf("%w: asset identified is required", currency.ErrCurrencyCodeEmpty)
 	errIndexNameRequired          = errors.New("index name required")
 	errGranularityRequired        = errors.New("granularity value is required")
 	errStartTimeRequired          = errors.New("start time required")
@@ -63,15 +62,15 @@ func (e *Exchange) ListAssets(ctx context.Context) ([]*AssetItemInfo, error) {
 }
 
 // GetAssetDetails retrieves information for a specific asset.
-func (e *Exchange) GetAssetDetails(ctx context.Context, assetName currency.Code, assetUUID, assetID string) (*AssetItemInfo, error) {
+func (e *Exchange) GetAssetDetails(ctx context.Context, assetName currency.Code, assetUUID string, assetID currency.Code) (*AssetItemInfo, error) {
 	path := "assets/"
 	switch {
 	case !assetName.IsEmpty():
 		path += assetName.String()
 	case assetUUID != "":
 		path += assetUUID
-	case assetID != "":
-		path += assetID
+	case !assetID.IsEmpty():
+		path += assetID.String()
 	default:
 		return nil, errAssetIdentifierRequired
 	}
@@ -169,15 +168,15 @@ func (e *Exchange) GetInstruments(ctx context.Context) ([]*InstrumentInfo, error
 }
 
 // GetInstrumentDetails retrieves market information for a specific instrument.
-func (e *Exchange) GetInstrumentDetails(ctx context.Context, instrumentName, instrumentUUID, instrumentID string) (*InstrumentInfo, error) {
+func (e *Exchange) GetInstrumentDetails(ctx context.Context, instrumentName currency.Pair, instrumentUUID, instrumentID string) (*InstrumentInfo, error) {
 	path := "instruments/"
 	switch {
 	case instrumentID != "":
 		path += instrumentID
 	case instrumentUUID != "":
 		path += instrumentUUID
-	case instrumentName != "":
-		path += instrumentName
+	case !instrumentName.IsEmpty():
+		path += instrumentName.String()
 	default:
 		return nil, errInstrumentIDRequired
 	}
@@ -186,11 +185,11 @@ func (e *Exchange) GetInstrumentDetails(ctx context.Context, instrumentName, ins
 }
 
 // GetQuotePerInstrument retrieves the current quote for a specific instrument.
-func (e *Exchange) GetQuotePerInstrument(ctx context.Context, instrumentName, instrumentUUID, instrumentID string) (*QuoteInformation, error) {
+func (e *Exchange) GetQuotePerInstrument(ctx context.Context, instrumentName currency.Pair, instrumentUUID, instrumentID string) (*QuoteInformation, error) {
 	path := "instruments/"
 	switch {
-	case instrumentName != "":
-		path += instrumentName
+	case !instrumentName.IsEmpty():
+		path += instrumentName.String()
 	case instrumentUUID != "":
 		path += instrumentUUID
 	case instrumentID != "":
@@ -203,12 +202,12 @@ func (e *Exchange) GetQuotePerInstrument(ctx context.Context, instrumentName, in
 }
 
 // GetDailyTradingVolumes retrieves the trading volumes for each instrument separated by day
-func (e *Exchange) GetDailyTradingVolumes(ctx context.Context, instruments []string, resultLimit, resultOffset int64, timeFrom time.Time, showOther bool) (*InstrumentsTradingVolumes, error) {
-	if len(instruments) == 0 || slices.Contains(instruments, "") {
+func (e *Exchange) GetDailyTradingVolumes(ctx context.Context, instruments currency.Pairs, resultLimit, resultOffset int64, timeFrom time.Time, showOther bool) (*InstrumentsTradingVolumes, error) {
+	if len(instruments) == 0 {
 		return nil, errInstrumentIDRequired
 	}
 	params := url.Values{}
-	params.Set("instruments", strings.Join(instruments, ","))
+	params.Set("instruments", instruments.Join())
 	if resultOffset > 0 {
 		params.Set("result_offset", strconv.FormatInt(resultOffset, 10))
 	}
@@ -226,8 +225,8 @@ func (e *Exchange) GetDailyTradingVolumes(ctx context.Context, instruments []str
 }
 
 // GetAggregatedCandlesDataPerInstrument retrieves a list of aggregated candles data for a given instrument, granularity and time range
-func (e *Exchange) GetAggregatedCandlesDataPerInstrument(ctx context.Context, instrument string, granularity kline.Interval, start, end time.Time) (*CandlestickDataHistory, error) {
-	if instrument == "" {
+func (e *Exchange) GetAggregatedCandlesDataPerInstrument(ctx context.Context, instrument currency.Pair, granularity kline.Interval, start, end time.Time) (*CandlestickDataHistory, error) {
+	if instrument.IsEmpty() {
 		return nil, errInstrumentIDRequired
 	}
 	if start.IsZero() {
@@ -246,7 +245,7 @@ func (e *Exchange) GetAggregatedCandlesDataPerInstrument(ctx context.Context, in
 		params.Set("end", end.Format("2006-01-02T15:04:05Z"))
 	}
 	var resp *CandlestickDataHistory
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "instruments/"+instrument+"/candles", params, nil, &resp, false)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "instruments/"+instrument.String()+"/candles", params, nil, &resp, false)
 }
 
 var intervalToStringList = []struct {
@@ -266,8 +265,8 @@ func stringFromInterval(interval kline.Interval) (string, error) {
 }
 
 // GetHistoricalFundingRate retrieves the historical funding rates for a specific instrument.
-func (e *Exchange) GetHistoricalFundingRate(ctx context.Context, instrument string, resultOffset, resultLimit int64) (*FundingRateHistory, error) {
-	if instrument == "" {
+func (e *Exchange) GetHistoricalFundingRate(ctx context.Context, instrument currency.Pair, resultOffset, resultLimit int64) (*FundingRateHistory, error) {
+	if instrument.IsEmpty() {
 		return nil, errInstrumentIDRequired
 	}
 	params := url.Values{}
@@ -278,7 +277,7 @@ func (e *Exchange) GetHistoricalFundingRate(ctx context.Context, instrument stri
 		params.Set("result_limit", strconv.FormatInt(resultLimit, 10))
 	}
 	var resp *FundingRateHistory
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "instruments/"+instrument+"/funding", params, nil, &resp, false)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "instruments/"+instrument.String()+"/funding", params, nil, &resp, false)
 }
 
 // GetPositionOffsets returns all active position offsets
@@ -289,8 +288,8 @@ func (e *Exchange) GetPositionOffsets(ctx context.Context) (*PositionsOffset, er
 
 // CreateOrder creates a new order.
 func (e *Exchange) CreateOrder(ctx context.Context, arg *OrderRequestParams) (*OrderDetail, error) {
-	if arg == nil || *arg == (OrderRequestParams{}) {
-		return nil, common.ErrNilPointer
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if arg.ClientOrderID == "" {
 		return nil, fmt.Errorf("%w, client_order_id is required", order.ErrClientOrderIDMustBeSet)
@@ -310,7 +309,7 @@ func (e *Exchange) CreateOrder(ctx context.Context, arg *OrderRequestParams) (*O
 	if arg.TimeInForce == "" {
 		return nil, fmt.Errorf("%w: time-in-force is missing", order.ErrInvalidTimeInForce)
 	}
-	if arg.Instrument == "" {
+	if arg.Instrument.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	var resp *OrderDetail
@@ -320,7 +319,7 @@ func (e *Exchange) CreateOrder(ctx context.Context, arg *OrderRequestParams) (*O
 // GetOpenOrders returns a list of active orders resting on the order book matching the requested criteria. Does not return any rejected, cancelled, or fully filled orders as they are not active.
 // possible event type values are: NEW, TRADE, CANCELED, REPLACED, PENDING_CANCEL, REJECTED, PENDING_NEW, EXPIRED, PENDING_REPLACE, STOP_TRIGGERED
 // possible order type values are: LIMIT, MARKET, STOP_LIMIT, STOP, TAKE_PROFIT_STOP_LOSS
-func (e *Exchange) GetOpenOrders(ctx context.Context, portfolioUUID, portfolioID, instrument, instrumentType, clientOrderID, eventType, orderType string, startingDateTime time.Time, resultOffset, resultLimit int64) (*Orders, error) {
+func (e *Exchange) GetOpenOrders(ctx context.Context, instrument currency.Pair, portfolioUUID, portfolioID, instrumentType, clientOrderID, eventType, orderType string, startingDateTime time.Time, resultOffset, resultLimit int64) (*Orders, error) {
 	params := url.Values{}
 	switch {
 	case portfolioID != "":
@@ -328,8 +327,8 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, portfolioUUID, portfolioID
 	case portfolioUUID != "":
 		params.Set("portfolio", portfolioUUID)
 	}
-	if instrument != "" {
-		params.Set("instrument", instrument)
+	if !instrument.IsEmpty() {
+		params.Set("instrument", instrument.String())
 	}
 	if instrumentType != "" {
 		params.Set("instrument_type", instrumentType)
@@ -357,7 +356,7 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, portfolioUUID, portfolioID
 }
 
 // CancelOrders cancels all orders matching the requested criteria.
-func (e *Exchange) CancelOrders(ctx context.Context, portfolioID, portfolioUUID, instrument string) ([]*OrderDetail, error) {
+func (e *Exchange) CancelOrders(ctx context.Context, portfolioID, portfolioUUID string, instrument currency.Pair) ([]*OrderDetail, error) {
 	params := url.Values{}
 	switch {
 	case portfolioID != "":
@@ -367,8 +366,8 @@ func (e *Exchange) CancelOrders(ctx context.Context, portfolioID, portfolioUUID,
 	default:
 		return nil, fmt.Errorf("%w %w", request.ErrAuthRequestFailed, errMissingPortfolioID)
 	}
-	if instrument != "" {
-		params.Set("instrument", instrument)
+	if !instrument.IsEmpty() {
+		params.Set("instrument", instrument.String())
 	}
 	var resp []*OrderDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "orders", params, nil, &resp, true)
@@ -376,8 +375,8 @@ func (e *Exchange) CancelOrders(ctx context.Context, portfolioID, portfolioUUID,
 
 // ModifyOpenOrder modifies an open order.
 func (e *Exchange) ModifyOpenOrder(ctx context.Context, orderID string, arg *ModifyOrderParam) (*OrderDetail, error) {
-	if arg == nil || *arg == (ModifyOrderParam{}) {
-		return nil, common.ErrNilPointer
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
@@ -452,8 +451,8 @@ func (e *Exchange) GetUserPortfolio(ctx context.Context, portfolioID string) (*P
 
 // PatchPortfolio update parameters for existing portfolio
 func (e *Exchange) PatchPortfolio(ctx context.Context, portfolioID, portfolioUUID string, arg *PatchPortfolioParams) (*PortfolioInfo, error) {
-	if arg == nil || *arg == (PatchPortfolioParams{}) {
-		return nil, common.ErrEmptyParams
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	var path string
 	switch {
@@ -544,8 +543,8 @@ func (e *Exchange) ListPortfolioBalances(ctx context.Context, portfolioUUID, por
 }
 
 // GetPortfolioAssetBalance retrieves the balance for a given portfolio and asset.
-func (e *Exchange) GetPortfolioAssetBalance(ctx context.Context, portfolioUUID, portfolioID, assetID string) (*PortfolioBalance, error) {
-	if assetID == "" {
+func (e *Exchange) GetPortfolioAssetBalance(ctx context.Context, portfolioUUID, portfolioID string, assetID currency.Code) (*PortfolioBalance, error) {
+	if assetID.IsEmpty() {
 		return nil, errAssetIdentifierRequired
 	}
 	var path string
@@ -558,19 +557,19 @@ func (e *Exchange) GetPortfolioAssetBalance(ctx context.Context, portfolioUUID, 
 		return nil, errMissingPortfolioID
 	}
 	var resp *PortfolioBalance
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+"/balances/"+assetID, nil, nil, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+"/balances/"+assetID.String(), nil, nil, &resp, true)
 }
 
 // GetFundTransferLimitBetweenPortfolio retrieves the maximum fund transfer amount allowed between portfolios for a specific asset
-func (e *Exchange) GetFundTransferLimitBetweenPortfolio(ctx context.Context, portfolioID, assetID string) (*PortfoliosMaxFundTransfer, error) {
+func (e *Exchange) GetFundTransferLimitBetweenPortfolio(ctx context.Context, portfolioID string, assetID currency.Code) (*PortfoliosMaxFundTransfer, error) {
 	if portfolioID == "" {
 		return nil, errMissingPortfolioID
 	}
-	if assetID == "" {
+	if assetID.IsEmpty() {
 		return nil, errAssetIdentifierRequired
 	}
 	var resp *PortfoliosMaxFundTransfer
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "portfolios/transfer/"+portfolioID+"/"+assetID+"/transfer-limit", nil, nil, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "portfolios/transfer/"+portfolioID+"/"+assetID.String()+"/transfer-limit", nil, nil, &resp, true)
 }
 
 // GetActiveLoansForPortfolio retrieves all loan info for a given portfolio.
@@ -589,7 +588,7 @@ func (e *Exchange) GetActiveLoansForPortfolio(ctx context.Context, portfolioUUID
 }
 
 // GetLoanInfoForPortfolioAsset retrieves the loan info for a given portfolio and asset.
-func (e *Exchange) GetLoanInfoForPortfolioAsset(ctx context.Context, portfolioUUID, portfolioID, assetID string) (*PortfolioLoanDetail, error) {
+func (e *Exchange) GetLoanInfoForPortfolioAsset(ctx context.Context, portfolioUUID, portfolioID string, assetID currency.Code) (*PortfolioLoanDetail, error) {
 	var path string
 	switch {
 	case portfolioUUID != "":
@@ -599,18 +598,18 @@ func (e *Exchange) GetLoanInfoForPortfolioAsset(ctx context.Context, portfolioUU
 	default:
 		return nil, errMissingPortfolioID
 	}
-	if assetID == "" {
+	if assetID.IsEmpty() {
 		return nil, errAssetIdentifierRequired
 	}
 	var resp *PortfolioLoanDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+"/loans/"+assetID, nil, nil, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+"/loans/"+assetID.String(), nil, nil, &resp, true)
 }
 
 // AcquireRepayLoan acquire or repay loan for a given portfolio and asset.
 // Action possible values: [ACQUIRE, REPAY]
-func (e *Exchange) AcquireRepayLoan(ctx context.Context, portfolioUUID, portfolioID, assetID string, arg *LoanActionAmountParam) (*AcquireRepayLoanResponse, error) {
-	if arg == nil || *arg == (LoanActionAmountParam{}) {
-		return nil, common.ErrEmptyParams
+func (e *Exchange) AcquireRepayLoan(ctx context.Context, portfolioUUID, portfolioID string, assetID currency.Code, arg *LoanActionAmountParam) (*AcquireRepayLoanResponse, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	var path string
 	switch {
@@ -621,7 +620,7 @@ func (e *Exchange) AcquireRepayLoan(ctx context.Context, portfolioUUID, portfoli
 	default:
 		return nil, errMissingPortfolioID
 	}
-	if assetID == "" {
+	if assetID.IsEmpty() {
 		return nil, errAssetIdentifierRequired
 	}
 	if arg.Action == "" {
@@ -631,13 +630,13 @@ func (e *Exchange) AcquireRepayLoan(ctx context.Context, portfolioUUID, portfoli
 		return nil, order.ErrAmountMustBeSet
 	}
 	var resp *AcquireRepayLoanResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path+"/loans/"+assetID, nil, arg, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path+"/loans/"+assetID.String(), nil, arg, &resp, true)
 }
 
 // PreviewLoanUpdate preview acquire or repay loan for a given portfolio and asset
-func (e *Exchange) PreviewLoanUpdate(ctx context.Context, portfolioUUID, portfolioID, assetID string, arg *LoanActionAmountParam) (*LoanUpdate, error) {
-	if arg == nil || *arg == (LoanActionAmountParam{}) {
-		return nil, common.ErrEmptyParams
+func (e *Exchange) PreviewLoanUpdate(ctx context.Context, portfolioUUID, portfolioID string, assetID currency.Code, arg *LoanActionAmountParam) (*LoanUpdate, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	var path string
 	switch {
@@ -648,15 +647,15 @@ func (e *Exchange) PreviewLoanUpdate(ctx context.Context, portfolioUUID, portfol
 	default:
 		return nil, errMissingPortfolioID
 	}
-	if assetID == "" {
+	if assetID.IsEmpty() {
 		return nil, errAssetIdentifierRequired
 	}
 	var resp *LoanUpdate
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path+"/loans/"+assetID+"/preview", nil, arg, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path+"/loans/"+assetID.String()+"/preview", nil, arg, &resp, true)
 }
 
 // ViewMaxLoanAvailability view the maximum amount of loan that could be acquired now
-func (e *Exchange) ViewMaxLoanAvailability(ctx context.Context, portfolioUUID, portfolioID, assetID string) (*MaxLoanAvailability, error) {
+func (e *Exchange) ViewMaxLoanAvailability(ctx context.Context, portfolioUUID, portfolioID string, assetID currency.Code) (*MaxLoanAvailability, error) {
 	var path string
 	switch {
 	case portfolioUUID != "":
@@ -666,11 +665,11 @@ func (e *Exchange) ViewMaxLoanAvailability(ctx context.Context, portfolioUUID, p
 	default:
 		return nil, errMissingPortfolioID
 	}
-	if assetID == "" {
+	if assetID.IsEmpty() {
 		return nil, errAssetIdentifierRequired
 	}
 	var resp *MaxLoanAvailability
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+"/loans/"+assetID+"/availability", nil, nil, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path+"/loans/"+assetID.String()+"/availability", nil, nil, &resp, true)
 }
 
 // ListPortfolioPositions returns all of the positions for a given portfolio.
@@ -832,8 +831,8 @@ func (e *Exchange) EnableDisablePortfolioAutoMarginMode(ctx context.Context, por
 
 // SetPortfolioMarginOverride specify the margin override value for a portfolio to either increase notional requirements or opt-in to higher leverage.
 func (e *Exchange) SetPortfolioMarginOverride(ctx context.Context, arg *PortfolioMarginOverride) (*PortfolioMarginOverride, error) {
-	if arg == nil || *arg == (PortfolioMarginOverride{}) {
-		return nil, common.ErrEmptyParams
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if arg.PortfolioID == "" {
 		return nil, errMissingPortfolioID
@@ -847,8 +846,8 @@ func (e *Exchange) SetPortfolioMarginOverride(ctx context.Context, arg *Portfoli
 
 // TransferFundsBetweenPortfolios transfer assets from one portfolio to another.
 func (e *Exchange) TransferFundsBetweenPortfolios(ctx context.Context, arg *TransferFundsBetweenPortfoliosParams) (bool, error) {
-	if arg == nil || *arg == (TransferFundsBetweenPortfoliosParams{}) {
-		return false, common.ErrEmptyParams
+	if err := common.NilGuard(arg); err != nil {
+		return false, err
 	}
 	if arg.From == "" {
 		return false, fmt.Errorf("%w: source portfolio address is missing", errMissingPortfolioID)
@@ -856,7 +855,7 @@ func (e *Exchange) TransferFundsBetweenPortfolios(ctx context.Context, arg *Tran
 	if arg.To == "" {
 		return false, fmt.Errorf("%w: destination portfolio account is missing", errMissingPortfolioID)
 	}
-	if arg.AssetID == "" {
+	if arg.AssetID.IsEmpty() {
 		return false, errAssetIdentifierRequired
 	}
 	if arg.Amount <= 0 {
@@ -872,8 +871,8 @@ func (e *Exchange) TransferFundsBetweenPortfolios(ctx context.Context, arg *Tran
 // The position transfer must fulfill the same portfolio-level margin requirements as submitting a new order on the opposite side for the sender's portfolio and a new order on the same side for the recipient's portfolio.
 // Additionally, organization-level requirements must be satisfied when evaluating the outcome of the position transfer.
 func (e *Exchange) TransferPositionsBetweenPortfolios(ctx context.Context, arg *TransferPortfolioParams) (bool, error) {
-	if arg == nil || *arg == (TransferPortfolioParams{}) {
-		return false, common.ErrEmptyParams
+	if err := common.NilGuard(arg); err != nil {
+		return false, err
 	}
 	if arg.From == "" {
 		return false, fmt.Errorf("%w: source portfolio address is missing", errMissingPortfolioID)
@@ -881,7 +880,7 @@ func (e *Exchange) TransferPositionsBetweenPortfolios(ctx context.Context, arg *
 	if arg.To == "" {
 		return false, fmt.Errorf("%w: destination portfolio account is missing", errMissingPortfolioID)
 	}
-	if arg.Instrument == "" {
+	if arg.Instrument.IsEmpty() {
 		return false, errInstrumentIDRequired
 	}
 	if arg.Quantity <= 0 {
@@ -962,8 +961,8 @@ func (e *Exchange) GetTransfer(ctx context.Context, transferID string) (*FundTra
 
 // WithdrawToCryptoAddress withdraws a crypto fund to crypto address
 func (e *Exchange) WithdrawToCryptoAddress(ctx context.Context, arg *WithdrawCryptoParams) (*WithdrawalResponse, error) {
-	if arg == nil {
-		return nil, common.ErrNilPointer
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if arg.Portfolio == "" {
 		return nil, errMissingPortfolioID
@@ -985,9 +984,9 @@ func (e *Exchange) WithdrawToCryptoAddress(ctx context.Context, arg *WithdrawCry
 }
 
 // CreateCryptoAddress created a new crypto address
-func (e *Exchange) CreateCryptoAddress(ctx context.Context, arg *CryptoAddressParam) (*CryptoAddressInfo, error) {
-	if arg == nil {
-		return nil, common.ErrNilPointer
+func (e *Exchange) CreateCryptoAddress(ctx context.Context, arg *CryptoAddressParam) (*CryptoAddressDetail, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if arg.AssetID == "" {
 		return nil, errAssetIdentifierRequired
@@ -998,7 +997,7 @@ func (e *Exchange) CreateCryptoAddress(ctx context.Context, arg *CryptoAddressPa
 	if arg.NetworkArnID == "" {
 		return nil, errMissingNetworkArnID
 	}
-	var resp *CryptoAddressInfo
+	var resp *CryptoAddressDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "transfers/address", nil, arg, &resp, true)
 }
 
@@ -1026,8 +1025,8 @@ func (e *Exchange) ValidateCounterpartyID(ctx context.Context, counterpartyID st
 
 // WithdrawToCounterpartyID withdraw to counterparty Id
 func (e *Exchange) WithdrawToCounterpartyID(ctx context.Context, arg *AssetCounterpartyWithdrawalResponse) (*CounterpartyWithdrawalResponse, error) {
-	if arg == nil || *arg == (AssetCounterpartyWithdrawalResponse{}) {
-		return nil, common.ErrEmptyParams
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if arg.Portfolio == "" {
 		return nil, errMissingPortfolioID
@@ -1035,7 +1034,7 @@ func (e *Exchange) WithdrawToCounterpartyID(ctx context.Context, arg *AssetCount
 	if arg.CounterpartyID == "" {
 		return nil, errMissingCounterpartyID
 	}
-	if arg.Asset == "" {
+	if arg.Asset.IsEmpty() {
 		return nil, errAssetIdentifierRequired
 	}
 	if arg.Amount <= 0 {
@@ -1127,7 +1126,9 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, method,
 		Title  string `json:"title"`
 		Status int64  `json:"status"`
 	}{}
-	err = json.Unmarshal(intrim, errorMessage)
+	if err := json.Unmarshal(intrim, errorMessage); err != nil {
+		return err
+	}
 	if errorMessage.Status != 0 {
 		if authenticated {
 			return fmt.Errorf("%v %w status: %d title: %s", err, request.ErrAuthRequestFailed, errorMessage.Status, errorMessage.Title)
@@ -1154,8 +1155,10 @@ func OrderTypeString(oType order.Type) (string, error) {
 
 // GetFee returns an estimate of fee based on type of transaction
 func (e *Exchange) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
-	var fee float64
-	var err error
+	var (
+		fee float64
+		err error
+	)
 	switch feeBuilder.FeeType {
 	case exchange.CryptocurrencyTradeFee:
 		fee, err = e.calculateTradingFee(

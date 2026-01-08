@@ -59,7 +59,6 @@ func (e *Exchange) WsConnect() error {
 	})
 	e.Websocket.Wg.Add(1)
 	go e.wsReadData(e.Websocket.Conn)
-
 	return nil
 }
 
@@ -151,7 +150,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 }
 
 func (e *Exchange) processOrderbookLevel2(respRaw []byte) error {
-	var resp []WsOrderbookLevel2
+	var resp []*WsOrderbookLevel2
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
@@ -189,7 +188,7 @@ func (e *Exchange) processOrderbookLevel2(respRaw []byte) error {
 }
 
 func (e *Exchange) processOrderbookLevel1(respRaw []byte) error {
-	var resp []WsOrderbookLevel1
+	var resp []*WsOrderbookLevel1
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
@@ -227,7 +226,7 @@ func (e *Exchange) processOrderbookLevel1(respRaw []byte) error {
 }
 
 func (e *Exchange) processRisk(respRaw []byte) error {
-	var resp []WsRisk
+	var resp []*WsRisk
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
@@ -236,7 +235,7 @@ func (e *Exchange) processRisk(respRaw []byte) error {
 }
 
 func (e *Exchange) processFunding(respRaw []byte) error {
-	var resp []WsFunding
+	var resp []*WsFunding
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
@@ -252,7 +251,7 @@ func (e *Exchange) processFunding(respRaw []byte) error {
 }
 
 func (e *Exchange) processMatch(respRaw []byte) error {
-	var resp []WsMatch
+	var resp []*WsMatch
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
@@ -261,7 +260,7 @@ func (e *Exchange) processMatch(respRaw []byte) error {
 }
 
 func (e *Exchange) processInstruments(respRaw []byte) error {
-	var resp []WsInstrument
+	var resp []*WsInstrument
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}

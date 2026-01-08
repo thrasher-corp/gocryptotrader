@@ -217,7 +217,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	p = p.Format(format)
-	tick, err := e.GetQuotePerInstrument(ctx, p.String(), "", "")
+	tick, err := e.GetQuotePerInstrument(ctx, p, "", "")
 	if err != nil {
 		return nil, err
 	}
@@ -250,7 +250,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 		return err
 	}
 	for x := range enabledPairs {
-		tick, err = e.GetQuotePerInstrument(ctx, enabledPairs[x].String(), "", "")
+		tick, err = e.GetQuotePerInstrument(ctx, enabledPairs[x], "", "")
 		if err != nil {
 			return err
 		}
@@ -312,7 +312,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	if err != nil {
 		return nil, err
 	}
-	orderbookNew, err := e.GetQuotePerInstrument(ctx, format.Format(pair), "", "")
+	orderbookNew, err := e.GetQuotePerInstrument(ctx, pair.Format(format), "", "")
 	if err != nil {
 		return book, err
 	}
@@ -352,8 +352,8 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 			Balances:  make(accounts.CurrencyBalances, len(balances)),
 		}
 		for _, balanceDetail := range balances {
-			subAccount.Balances[currency.NewCode(balanceDetail.AssetName)] = accounts.Balance{
-				Currency:               currency.NewCode(balanceDetail.AssetName),
+			subAccount.Balances[balanceDetail.AssetName] = accounts.Balance{
+				Currency:               balanceDetail.AssetName,
 				Total:                  balanceDetail.Quantity.Float64(),
 				Hold:                   balanceDetail.Hold.Float64(),
 				Free:                   balanceDetail.Quantity.Float64() - balanceDetail.Hold.Float64(),
@@ -447,7 +447,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		ClientOrderID: s.ClientOrderID,
 		Side:          s.Side.String(),
 		BaseSize:      s.Amount,
-		Instrument:    s.Pair.String(),
+		Instrument:    s.Pair,
 		OrderType:     oType,
 		Price:         s.Price,
 		StopPrice:     s.TriggerPrice,
@@ -516,7 +516,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, action *order.Cancel) (o
 	if err != nil {
 		return order.CancelAllResponse{}, err
 	}
-	canceled, err := e.CancelOrders(ctx, action.AccountID, "", format.Format(action.Pair))
+	canceled, err := e.CancelOrders(ctx, action.AccountID, "", action.Pair.Format(format))
 	if err != nil {
 		return order.CancelAllResponse{}, err
 	}
@@ -564,8 +564,8 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		TriggerPrice:         resp.StopPrice,
 		AverageExecutedPrice: resp.AveragePrice.Float64(),
 		QuoteAmount:          resp.Size * resp.AveragePrice.Float64(),
-		ExecutedAmount:       resp.ExecQty.Float64(),
-		RemainingAmount:      resp.Size - resp.ExecQty.Float64(),
+		ExecutedAmount:       resp.ExecutedQuantity.Float64(),
+		RemainingAmount:      resp.Size - resp.ExecutedQuantity.Float64(),
 		Fee:                  resp.Fee.Float64(),
 		OrderID:              strconv.FormatInt(resp.OrderID.Int64(), 10),
 		ClientOrderID:        resp.ClientOrderID,
@@ -637,7 +637,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 	if len(getOrdersRequest.Pairs) == 1 {
 		instrument = getOrdersRequest.Pairs[0].String()
 	}
-	resp, err := e.GetOpenOrders(ctx, "", "", instrument, asssetToInstrumentType(getOrdersRequest.AssetType), "", "", "LIMIT", getOrdersRequest.StartTime, 0, 0)
+	resp, err := e.GetOpenOrders(ctx, currency.EMPTYPAIR, "", instrument, asssetToInstrumentType(getOrdersRequest.AssetType), "", "", "LIMIT", getOrdersRequest.StartTime, 0, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -672,9 +672,9 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 			TriggerPrice:         orderDetail.StopPrice,
 			AverageExecutedPrice: orderDetail.AveragePrice.Float64(),
 			QuoteAmount:          orderDetail.Size * orderDetail.AveragePrice.Float64(),
-			RemainingAmount:      orderDetail.Size - orderDetail.ExecQty.Float64(),
+			RemainingAmount:      orderDetail.Size - orderDetail.ExecutedQuantity.Float64(),
 			OrderID:              strconv.FormatInt(orderDetail.OrderID.Int64(), 10),
-			ExecutedAmount:       orderDetail.ExecQty.Float64(),
+			ExecutedAmount:       orderDetail.ExecutedQuantity.Float64(),
 			Fee:                  orderDetail.Fee.Float64(),
 			ClientOrderID:        orderDetail.ClientOrderID,
 			CloseTime:            orderDetail.ExpireTime,
@@ -724,7 +724,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	if err != nil {
 		return nil, err
 	}
-	result, err := e.GetAggregatedCandlesDataPerInstrument(ctx, req.Pair.String(), interval, start, end)
+	result, err := e.GetAggregatedCandlesDataPerInstrument(ctx, req.Pair, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -754,7 +754,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	}
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	for x := range req.RangeHolder.Ranges {
-		result, err := e.GetAggregatedCandlesDataPerInstrument(ctx, req.Pair.String(), interval, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
+		result, err := e.GetAggregatedCandlesDataPerInstrument(ctx, req.Pair, interval, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time)
 		if err != nil {
 			return nil, err
 		}
@@ -823,7 +823,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, fr *fundingrate.La
 	if fr.Pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	result, err := e.GetHistoricalFundingRate(ctx, fr.Pair.String(), 0, 0)
+	result, err := e.GetHistoricalFundingRate(ctx, fr.Pair, 0, 0)
 	if err != nil {
 		return nil, err
 	}

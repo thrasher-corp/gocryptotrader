@@ -231,22 +231,22 @@ type QuoteInformation struct {
 
 // OrderRequestParams represents a request parameter for creating order.
 type OrderRequestParams struct {
-	ClientOrderID  string  `json:"client_order_id"`
-	Side           string  `json:"side,omitempty"`
-	BaseSize       float64 `json:"size,omitempty,string"`
-	TimeInForce    string  `json:"tif,omitempty"`        // Possible values: [GTC, IOC, GTT]
-	Instrument     string  `json:"instrument,omitempty"` // The name, ID, or UUID of the instrument the order wants to transact
-	OrderType      string  `json:"type,omitempty"`
-	Price          float64 `json:"price,omitempty,string"`
-	StopPrice      float64 `json:"stop_price,omitempty,string"`
-	StopLimitPrice float64 `json:"stop_limit_price,omitempty"`
-	ExpireTime     string  `json:"expire_time,omitempty"` // e.g., 2023-03-16T23:59:53Z
-	Portfolio      string  `json:"portfolio,omitempty"`
-	User           string  `json:"user,omitempty"`     // The ID or UUID of the user the order belongs to (only used and required for brokers)
-	STPMode        string  `json:"stp_mode,omitempty"` // Possible values: [NONE, AGGRESSING, BOTH]
-	PostOnly       bool    `json:"post_only,omitempty"`
-	CloseOnly      bool    `json:"close_only,omitempty"`
-	AlgoStrategy   string  `json:"algo_strategy,omitempty"`
+	ClientOrderID  string        `json:"client_order_id"`
+	Side           string        `json:"side,omitempty"`
+	BaseSize       float64       `json:"size,omitempty,string"`
+	TimeInForce    string        `json:"tif,omitempty"`        // Possible values: [GTC, IOC, GTT]
+	Instrument     currency.Pair `json:"instrument,omitempty"` // The name, ID, or UUID of the instrument the order wants to transact
+	OrderType      string        `json:"type,omitempty"`
+	Price          float64       `json:"price,omitempty,string"`
+	StopPrice      float64       `json:"stop_price,omitempty,string"`
+	StopLimitPrice float64       `json:"stop_limit_price,omitempty"`
+	ExpireTime     string        `json:"expire_time,omitempty"` // e.g., 2023-03-16T23:59:53Z
+	Portfolio      string        `json:"portfolio,omitempty"`
+	User           string        `json:"user,omitempty"`     // The ID or UUID of the user the order belongs to (only used and required for brokers)
+	STPMode        string        `json:"stp_mode,omitempty"` // Possible values: [NONE, AGGRESSING, BOTH]
+	PostOnly       bool          `json:"post_only,omitempty"`
+	CloseOnly      bool          `json:"close_only,omitempty"`
+	AlgoStrategy   string        `json:"algo_strategy,omitempty"`
 }
 
 // Orders represents an open order detail.
@@ -271,35 +271,35 @@ type ModifyOrderParam struct {
 
 // OrderDetail represents a single order item.
 type OrderDetail struct {
-	OrderID        types.Number `json:"order_id"`
-	ClientOrderID  string       `json:"client_order_id"`
-	Side           string       `json:"side"`
-	InstrumentID   string       `json:"instrument_id"`
-	InstrumentUUID string       `json:"instrument_uuid"`
-	Symbol         string       `json:"symbol"`
-	PortfolioID    int64        `json:"portfolio_id"`
-	PortfolioUUID  string       `json:"portfolio_uuid"`
-	Type           string       `json:"type"`
-	Price          float64      `json:"price"`
-	StopPrice      float64      `json:"stop_price"`
-	Size           float64      `json:"size"`
-	TimeInForce    string       `json:"tif"`
-	ExpireTime     time.Time    `json:"expire_time"`
-	StpMode        string       `json:"stp_mode"`
-	EventType      string       `json:"event_type"`
-	OrderStatus    string       `json:"order_status"`
-	LeavesQuantity types.Number `json:"leaves_qty"`
-	ExecQty        types.Number `json:"exec_qty"`
-	AveragePrice   types.Number `json:"avg_price"`
-	Message        string       `json:"message"`
-	Fee            types.Number `json:"fee"`
-	StopLimitPrice float64      `json:"stop_limit_price"`
-	EventTime      time.Time    `json:"event_time"`
-	SubmitTime     time.Time    `json:"submit_time"`
-	PostOnly       bool         `json:"post_only"`
-	CloseOnly      bool         `json:"close_only"`
-	AlgoStrategy   string       `json:"algo_strategy"`
-	Text           string       `json:"text"`
+	OrderID          types.Number `json:"order_id"`
+	ClientOrderID    string       `json:"client_order_id"`
+	Side             string       `json:"side"`
+	InstrumentID     string       `json:"instrument_id"`
+	InstrumentUUID   string       `json:"instrument_uuid"`
+	Symbol           string       `json:"symbol"`
+	PortfolioID      int64        `json:"portfolio_id"`
+	PortfolioUUID    string       `json:"portfolio_uuid"`
+	Type             string       `json:"type"`
+	Price            float64      `json:"price"`
+	StopPrice        float64      `json:"stop_price"`
+	Size             float64      `json:"size"`
+	TimeInForce      string       `json:"tif"`
+	ExpireTime       time.Time    `json:"expire_time"`
+	StpMode          string       `json:"stp_mode"`
+	EventType        string       `json:"event_type"`
+	OrderStatus      string       `json:"order_status"`
+	LeavesQuantity   types.Number `json:"leaves_qty"`
+	ExecutedQuantity types.Number `json:"exec_qty"`
+	AveragePrice     types.Number `json:"avg_price"`
+	Message          string       `json:"message"`
+	Fee              types.Number `json:"fee"`
+	StopLimitPrice   float64      `json:"stop_limit_price"`
+	EventTime        time.Time    `json:"event_time"`
+	SubmitTime       time.Time    `json:"submit_time"`
+	PostOnly         bool         `json:"post_only"`
+	CloseOnly        bool         `json:"close_only"`
+	AlgoStrategy     string       `json:"algo_strategy"`
+	Text             string       `json:"text"`
 }
 
 // PortfolioInfo represents a user portfolio item
@@ -474,14 +474,14 @@ type PortfolioSummary struct {
 
 // PortfolioBalance represents a portfolio balance instance.
 type PortfolioBalance struct {
-	AssetID           string       `json:"asset_id"`
-	AssetUUID         string       `json:"asset_uuid"`
-	AssetName         string       `json:"asset_name"`
-	Quantity          types.Number `json:"quantity"`
-	Hold              types.Number `json:"hold"`
-	TransferHold      types.Number `json:"transfer_hold"`
-	CollateralValue   types.Number `json:"collateral_value"`
-	MaxWithdrawAmount types.Number `json:"max_withdraw_amount"`
+	AssetID           string        `json:"asset_id"`
+	AssetUUID         string        `json:"asset_uuid"`
+	AssetName         currency.Code `json:"asset_name"`
+	Quantity          types.Number  `json:"quantity"`
+	Hold              types.Number  `json:"hold"`
+	TransferHold      types.Number  `json:"transfer_hold"`
+	CollateralValue   types.Number  `json:"collateral_value"`
+	MaxWithdrawAmount types.Number  `json:"max_withdraw_amount"`
 }
 
 // PortfolioPosition represents a portfolio positions instance.
@@ -563,19 +563,19 @@ type PortfolioPositionLimit struct {
 
 // TransferFundsBetweenPortfoliosParams transfer assets from one portfolio to another
 type TransferFundsBetweenPortfoliosParams struct {
-	From    string  `json:"from,omitempty"`
-	To      string  `json:"to,omitempty"`
-	AssetID string  `json:"asset,omitempty"`
-	Amount  float64 `json:"amount,omitempty"`
+	From    string        `json:"from,omitempty"`
+	To      string        `json:"to,omitempty"`
+	AssetID currency.Code `json:"asset,omitempty"`
+	Amount  float64       `json:"amount,omitempty"`
 }
 
 // TransferPortfolioParams represents a response detail for transfer an existing position from one portfolio to another
 type TransferPortfolioParams struct {
-	From       string  `json:"from"`
-	To         string  `json:"to"`
-	Instrument string  `json:"instrument"`
-	Quantity   float64 `json:"quantity"`
-	Side       string  `json:"side"`
+	From       string        `json:"from"`
+	To         string        `json:"to"`
+	Instrument currency.Pair `json:"instrument"`
+	Quantity   float64       `json:"quantity"`
+	Side       string        `json:"side"`
 }
 
 // PortfolioFeeRate represents Perpetual Future and Spot fee rate
@@ -690,8 +690,8 @@ type CryptoAddressParam struct {
 	NetworkArnID string `json:"network_arn_id"` // Identifies the blockchain network
 }
 
-// CryptoAddressInfo holds crypto address information after creation
-type CryptoAddressInfo struct {
+// CryptoAddressDetail holds crypto address information after creation
+type CryptoAddressDetail struct {
 	Address      string `json:"address"`
 	NetworkArnID string `json:"network_arn_id"`
 }
@@ -710,11 +710,11 @@ type CounterpartyValidationResponse struct {
 
 // AssetCounterpartyWithdrawalResponse represents an asset counterparty withdrawal information
 type AssetCounterpartyWithdrawalResponse struct {
-	Portfolio      string  `json:"portfolio"`
-	CounterpartyID string  `json:"counterparty_id"`
-	Asset          string  `json:"asset"`
-	Amount         float64 `json:"amount"`
-	Nonce          int64   `json:"nonce"`
+	Portfolio      string        `json:"portfolio"`
+	CounterpartyID string        `json:"counterparty_id"`
+	Asset          currency.Code `json:"asset"`
+	Amount         float64       `json:"amount"`
+	Nonce          int64         `json:"nonce"`
 }
 
 // CounterpartyWithdrawalResponse an asset withdrawal response
