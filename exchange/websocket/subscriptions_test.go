@@ -20,7 +20,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	ws.Subscriber = currySimpleSub(ws)
 	ws.Unsubscriber = currySimpleUnsub(ws)
 
-	subs, err := ws.GenerateSubs()
+	subs, err := ws.generateSubs()
 	require.NoError(t, err, "Generating test subscriptions must not error")
 	assert.ErrorIs(t, new(Manager).UnsubscribeChannels(nil, subs), common.ErrNilPointer, "Should error when unsubscribing with nil unsubscribe function")
 	assert.NoError(t, ws.UnsubscribeChannels(nil, nil), "Unsubscribing from nil should not error")
@@ -62,7 +62,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	amazingCandidate := &ConnectionSetup{
 		URL:                   "AMAZING",
 		Connector:             func(context.Context, Connection) error { return nil },
-		GenerateSubscriptions: ws.GenerateSubs,
+		GenerateSubscriptions: ws.generateSubs,
 		Subscriber: func(ctx context.Context, c Connection, s subscription.List) error {
 			return currySimpleSubConn(multi)(ctx, c, s)
 		},

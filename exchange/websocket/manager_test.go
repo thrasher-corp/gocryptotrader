@@ -166,10 +166,9 @@ func TestSetup(t *testing.T) {
 
 func TestConnectionMessageErrors(t *testing.T) {
 	t.Parallel()
-	wsWrong := &Manager{
-		exchangeName: "mock",
-		Exchange:     &mockEx{},
-	}
+	wsWrong := NewManager()
+	wsWrong.exchangeName = "mock"
+	wsWrong.Exchange = &mockEx{}
 	wsWrong.connector = func() error { return nil }
 	err := wsWrong.Connect()
 	assert.ErrorIs(t, err, ErrWebsocketNotEnabled, "Connect should error correctly")
@@ -179,6 +178,7 @@ func TestConnectionMessageErrors(t *testing.T) {
 	err = wsWrong.Connect()
 	assert.ErrorIs(t, err, errAlreadyReconnecting, "Connect should error correctly")
 
+	wsWrong.subscriptions = nil
 	wsWrong.setState(disconnectedState)
 	err = wsWrong.Connect()
 	assert.ErrorIs(t, err, common.ErrNilPointer, "Connect should get a nil pointer error")
@@ -844,7 +844,7 @@ func TestFlushChannels(t *testing.T) {
 
 	// Disable pair and flush system
 	newgen.EnabledPairs = []currency.Pair{currency.NewPair(currency.BTC, currency.AUD)}
-	w.GenerateSubs = func() (subscription.List, error) { return subscription.List{{Channel: "test"}}, nil }
+	w.generateSubs = func() (subscription.List, error) { return subscription.List{{Channel: "test"}}, nil }
 
 	require.ErrorIs(t, w.FlushChannels(), ErrSubscriptionsNotAdded, "FlushChannels must error correctly on no subscriptions added")
 
@@ -859,11 +859,11 @@ func TestFlushChannels(t *testing.T) {
 
 	require.NoError(t, w.FlushChannels(), "FlushChannels must not error")
 
-	w.GenerateSubs = func() (subscription.List, error) { return nil, errors.New("GenerateSubs error") }
+	w.generateSubs = func() (subscription.List, error) { return nil, errors.New("GenerateSubs error") }
 	err = w.FlushChannels()
 	assert.ErrorContains(t, err, "GenerateSubs error", "FlushChannels should error correctly on GenerateSubs")
 
-	w.GenerateSubs = func() (subscription.List, error) { return nil, nil } // No subs to sub
+	w.generateSubs = func() (subscription.List, error) { return nil, nil } // No subs to sub
 
 	require.ErrorIs(t, w.FlushChannels(), ErrSubscriptionsNotRemoved)
 
@@ -877,14 +877,14 @@ func TestFlushChannels(t *testing.T) {
 	}
 	assert.NoError(t, w.FlushChannels(), "FlushChannels should not error")
 
-	w.GenerateSubs = newgen.generateSubs
-	subs, err := w.GenerateSubs()
+	w.generateSubs = newgen.generateSubs
+	subs, err := w.generateSubs()
 	require.NoError(t, err, "GenerateSubs must not error")
 	require.NoError(t, w.AddSubscriptions(nil, subs...), "AddSubscriptions must not error")
 	err = w.FlushChannels()
 	assert.NoError(t, err, "FlushChannels should not error")
 
-	w.GenerateSubs = newgen.generateSubs
+	w.generateSubs = newgen.generateSubs
 	w.subscriptions = subscription.NewStore()
 	err = w.subscriptions.Add(&subscription.Subscription{
 		Key:     41,
@@ -962,7 +962,7 @@ func TestEnable(t *testing.T) {
 	w.connector = connect
 	w.Subscriber = func(subscription.List) error { return nil }
 	w.Unsubscriber = func(subscription.List) error { return nil }
-	w.GenerateSubs = func() (subscription.List, error) { return nil, nil }
+	w.generateSubs = func() (subscription.List, error) { return nil, nil }
 	require.NoError(t, w.Enable(), "Enable must not error")
 	assert.ErrorIs(t, w.Enable(), ErrWebsocketAlreadyEnabled, "Enable should error correctly")
 }

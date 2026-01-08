@@ -179,7 +179,7 @@ func SetupGlobalReporter(r Reporter) {
 
 // NewManager initialises the websocket struct
 func NewManager() *Manager {
-	return &Manager{
+	m := &Manager{
 		DataHandler:  make(chan any, jobBuffer),
 		ToRoutine:    make(chan any, jobBuffer),
 		ShutdownC:    make(chan struct{}),
@@ -195,6 +195,9 @@ func NewManager() *Manager {
 		Orderbook:         buffer.Orderbook{},
 		connections:       make(map[Connection]*connectionWrapper),
 	}
+	// Default to using templates to generate subscriptions
+	m.generateSubs = m.GenerateSubscriptions
+	return m
 }
 
 // Setup sets main variables for websocket connection
@@ -234,8 +237,6 @@ func (m *Manager) Setup(s *ManagerSetup) error {
 	m.setEnabled(s.ExchangeConfig.Features.Enabled.Websocket)
 
 	m.useMultiConnectionManagement = s.UseMultiConnectionManagement
-
-	m.generateSubs = m.GenerateSubscriptions // Default to generating subs using templating
 
 	if !m.useMultiConnectionManagement {
 		// TODO: Remove this block when all exchanges are updated and backwards
