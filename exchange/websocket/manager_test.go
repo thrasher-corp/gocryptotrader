@@ -1361,7 +1361,7 @@ func TestShutdown(t *testing.T) {
 	require.Equal(t, m.ShutdownC, authConn.shutdown, "shutdown channels must be the same after original shutdown channel is closed")
 	require.Equal(t, m.ShutdownC, unauthConn.shutdown, "shutdown channels must be the same after original shutdown channel is closed")
 	
-	// Test OKX scenario: Conn is dialed but AuthConn setup failed before dial
+	// Test OKX scenario: Verify Shutdown succeeds when Conn is dialed but AuthConn has nil Connection field
 	m.ShutdownC = make(chan struct{})
 	gwsConnPublic, respPublic, err := gws.DefaultDialer.DialContext(t.Context(), wsURL, nil)
 	require.NoError(t, err, "DialContext must not error")

@@ -332,8 +332,8 @@ func (c *connection) Shutdown() error {
 		return common.ErrNilPointer
 	}
 	// If the connection was never established (c.Connection is nil),
-	// there's nothing to shut down. This can happen when SetupNewConnection
-	// is called but Dial() was never successfully called.
+	// there's nothing to shut down. This can happen during connection
+	// setup when Dial() was never successfully called.
 	if c.Connection == nil {
 		return nil
 	}
