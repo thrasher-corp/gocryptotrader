@@ -1057,7 +1057,12 @@ func TestConnectionShutdown(t *testing.T) {
 	t.Parallel()
 	wc := connection{shutdown: make(chan struct{})}
 	err := wc.Shutdown()
-	assert.ErrorIs(t, err, common.ErrNilPointer, "Shutdown should error correctly")
+	assert.NoError(t, err, "Shutdown should not error when Connection is nil")
+	
+	// Test with nil connection pointer
+	var nilConn *connection
+	err = nilConn.Shutdown()
+	assert.ErrorIs(t, err, common.ErrNilPointer, "Shutdown should error correctly with nil pointer")
 
 	err = wc.Dial(t.Context(), &gws.Dialer{}, nil)
 	assert.ErrorContains(t, err, "malformed ws or wss URL", "Dial should error correctly")
@@ -1355,4 +1360,16 @@ func TestShutdown(t *testing.T) {
 
 	require.Equal(t, m.ShutdownC, authConn.shutdown, "shutdown channels must be the same after original shutdown channel is closed")
 	require.Equal(t, m.ShutdownC, unauthConn.shutdown, "shutdown channels must be the same after original shutdown channel is closed")
+	
+	// Test OKX scenario: Conn is dialed but AuthConn setup failed before dial
+	m.ShutdownC = make(chan struct{})
+	gwsConnPublic, respPublic, err := gws.DefaultDialer.DialContext(t.Context(), wsURL, nil)
+	require.NoError(t, err, "DialContext must not error")
+	defer respPublic.Body.Close()
+	
+	m.Conn = &connection{Connection: gwsConnPublic, shutdown: m.ShutdownC}
+	// AuthConn is setup but never dialed (Connection field is nil)
+	m.AuthConn = &connection{shutdown: m.ShutdownC}
+	m.setState(connectedState)
+	require.NoError(t, m.Shutdown(), "Shutdown must not error when AuthConn.Connection is nil")
 }

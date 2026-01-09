@@ -328,8 +328,14 @@ func (c *connection) parseBinaryResponse(resp []byte) ([]byte, error) {
 
 // Shutdown shuts down and closes specific connection
 func (c *connection) Shutdown() error {
-	if err := common.NilGuard(c, c.Connection); err != nil {
-		return err
+	if c == nil {
+		return common.ErrNilPointer
+	}
+	// If the connection was never established (c.Connection is nil),
+	// there's nothing to shut down. This can happen when SetupNewConnection
+	// is called but Dial() was never successfully called.
+	if c.Connection == nil {
+		return nil
 	}
 	c.setConnectedStatus(false)
 	c.writeControl.Lock()
