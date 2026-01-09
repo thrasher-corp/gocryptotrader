@@ -1,9 +1,7 @@
 package mock
 
 import (
-	"errors"
 	"fmt"
-	"log"
 	"net/url"
 	"reflect"
 	"strconv"
@@ -68,8 +66,7 @@ func DeriveURLValsFromJSONMap(payload []byte) (url.Values, error) {
 		return vals, nil
 	}
 	intermediary := make(map[string]any)
-	err := json.Unmarshal(payload, &intermediary)
-	if err != nil {
+	if err := json.Unmarshal(payload, &intermediary); err != nil {
 		return vals, err
 	}
 
@@ -84,8 +81,7 @@ func DeriveURLValsFromJSONMap(payload []byte) (url.Values, error) {
 		case map[string]any, []any, nil:
 			vals.Add(k, fmt.Sprintf("%v", val))
 		default:
-			log.Println(reflect.TypeOf(val))
-			return vals, errors.New("unhandled conversion type, please add as needed")
+			return vals, fmt.Errorf("unhandled conversion type: %v, please add as needed", reflect.TypeOf(val))
 		}
 	}
 

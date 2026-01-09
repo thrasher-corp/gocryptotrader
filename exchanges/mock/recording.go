@@ -214,8 +214,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 							}
 
 							if found = MatchURLVals(reqVals, mockVals); found {
-								// if found will delete instance and overwrite with new
-								// data
+								// if the incoming query matches an existing, we will delete the existing mock record and overwrite with new data
 								mockResponses = slices.Delete(mockResponses, i, i+1)
 							}
 						}
@@ -228,7 +227,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 							}
 
 							if found = MatchURLVals(mockQuery, res.Request.URL.Query()); found {
-								// if found will delete instance and overwrite with new data
+								// if the incoming query matches an existing, we will delete the existing mock record and overwrite with new data
 								mockResponses = slices.Delete(mockResponses, i, i+1)
 							}
 							break
