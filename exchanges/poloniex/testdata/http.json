@@ -182,7 +182,7 @@
                             "activityType": 200
                         }
                     ],
-                    "queryString": "direction=PREV\u0026from=100\u0026limit=10",
+                    "queryString": "direction=PRE\u0026from=100\u0026limit=10",
                     "bodyParams": "",
                     "headers": {
                         "Content-Type": [
@@ -453,7 +453,17 @@
         "/accounts/transfer": {
             "GET": [
                 {
-                    "data": null,
+                    "data": [
+                        {
+                            "id": "23365",
+                            "fromAccount": "SPOT",
+                            "toAccount": "FUTURES",
+                            "currency": "BTC",
+                            "amount": "0.01",
+                            "state": "SUCCESS",
+                            "createTime": 1656000618690
+                        }
+                    ],
                     "queryString": "currency=BTC\u0026endTime=1764668001864\u0026startTime=1764664401864",
                     "bodyParams": "",
                     "headers": {
@@ -475,7 +485,26 @@
                     }
                 },
                 {
-                    "data": null,
+                    "data": [
+                        {
+                            "id": "23365",
+                            "fromAccount": "SPOT",
+                            "toAccount": "FUTURES",
+                            "currency": "USDT",
+                            "amount": "0.01",
+                            "state": "SUCCESS",
+                            "createTime": 1656000618690
+                        },
+                        {
+                            "id": "532",
+                            "fromAccount": "SPOT",
+                            "toAccount": "FUTURES",
+                            "currency": "USDT",
+                            "amount": "1.2",
+                            "state": "SUCCESS",
+                            "createTime": 1650843791635
+                        }
+                    ],
                     "queryString": "currency=BTC\u0026direction=NEXT\u0026from=1\u0026limit=100",
                     "bodyParams": "",
                     "headers": {
@@ -497,8 +526,36 @@
                     }
                 },
                 {
-                    "data": null,
-                    "queryString": "currency=BTC",
+                    "data": [
+                        {
+                            "id": "23365",
+                            "fromAccount": "SPOT",
+                            "toAccount": "FUTURES",
+                            "currency": "USDT",
+                            "amount": "0.01",
+                            "state": "SUCCESS",
+                            "createTime": 1656000618690
+                        },
+                        {
+                            "id": "532",
+                            "fromAccount": "SPOT",
+                            "toAccount": "FUTURES",
+                            "currency": "USDT",
+                            "amount": "1.2",
+                            "state": "SUCCESS",
+                            "createTime": 1650843791635
+                        },
+                        {
+                            "id": "147",
+                            "fromAccount": "FUTURES",
+                            "toAccount": "SPOT",
+                            "currency": "ETH",
+                            "amount": "2.05",
+                            "state": "SUCCESS",
+                            "createTime": 1650465162165
+                        }
+                    ],
+                    "queryString": "endTime=1764668001864\u0026startTime=1764664401864",
                     "bodyParams": "",
                     "headers": {
                         "Content-Type": [
@@ -9653,7 +9710,7 @@
                             "updateTime": 1647032874275
                         }
                     ],
-                    "queryString": "accountType=SPOT\u0026direction=PREV\u0026endTime=1765290174763\u0026from=12323123\u0026hideCancel=true\u0026limit=100\u0026side=SELL\u0026startTime=1764930174763\u0026symbol=BTC_USDT\u0026type=LIMIT",
+                    "queryString": "accountType=SPOT\u0026direction=PRE\u0026endTime=1765290174763\u0026from=12323123\u0026hideCancel=true\u0026limit=100\u0026side=SELL\u0026startTime=1764930174763\u0026symbol=BTC_USDT\u0026type=LIMIT",
                     "bodyParams": "",
                     "headers": {
                         "Content-Type": [
@@ -10469,7 +10526,7 @@
                         "address": "0xbb8d0d7c346daecc2380dabaa91f3ccf8ae232fb4"
                     },
                     "queryString": "",
-                    "bodyParams": "{\"coin\":\"BTC\",\"network\":\"ERP\",\"amount\":\"1e-7\",\"address\":\"bc1qk0jareu4jytc0cfrhr5wgshsq8\"}",
+                    "bodyParams": "{\"coin\":\"BTC\",\"network\":\"ETH\",\"amount\":\"1e-7\",\"address\":\"bc1qk0jareu4jytc0cfrhr5wgshsq8\"}",
                     "headers": {
                         "Content-Type": [
                             "application/json"
