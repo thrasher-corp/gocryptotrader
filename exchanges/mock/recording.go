@@ -309,7 +309,7 @@ const (
 // CheckJSON recursively parses json data to retract keywords, quite intensive.
 func CheckJSON(data any, excluded *Exclusion, limit int) (any, error) {
 	if value, ok := data.([]any); ok {
-		sData := make([]any, 0, len(data.([]any))%limit)
+		sData := []any{}
 		for i := range value {
 			switch subvalue := value[i].(type) {
 			case []any, map[string]any:
