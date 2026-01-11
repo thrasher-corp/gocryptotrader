@@ -511,7 +511,7 @@ type HistoricalTrade struct {
 
 // AggregatedTradeRequestParams holds request params
 type AggregatedTradeRequestParams struct {
-	Symbol string // Required field; example LTCBTC, BTCUSDT
+	Symbol currency.Pair // Required field; example LTCBTC, BTCUSDT
 	// The first trade to retrieve
 	FromID int64
 	// The API seems to accept (start and end time) or FromID and no other combinations
@@ -523,7 +523,7 @@ type AggregatedTradeRequestParams struct {
 
 // WsAggregateTradeRequestParams holds request parameters for aggregate trades
 type WsAggregateTradeRequestParams struct {
-	Symbol    string `json:"symbol"`
+	Symbol    currency.Pair `json:"symbol"`
 	FromID    int64  `json:"fromId,omitempty"`
 	Limit     int64  `json:"limit,omitempty"`
 	StartTime int64  `json:"startTime,omitempty"`
@@ -596,7 +596,7 @@ type AveragePrice struct {
 }
 
 // PriceChangesWrapper to be used when the response is either a single PriceChangeStats instance or a slice.
-type PriceChangesWrapper []PriceChangeStats
+type PriceChangesWrapper []*PriceChangeStats
 
 // PriceChangeStats contains statistics for the last 24 hours trade
 type PriceChangeStats struct {
@@ -777,9 +777,9 @@ type SymbolOrders struct {
 
 // CancelReplaceOrderParams represents a request parameter to cancel an existing order and send a new order.
 type CancelReplaceOrderParams struct {
-	Symbol    string `json:"symbol"`
-	Side      string `json:"side"`
-	OrderType string `json:"type"`
+	Symbol    currency.Pair `json:"symbol"`
+	Side      string        `json:"side"`
+	OrderType string        `json:"type"`
 
 	// The allowed values are:
 	// STOP_ON_FAILURE - If the cancel request fails, the new order placement will not be attempted.
@@ -1957,15 +1957,15 @@ type FuturesAggTrade struct {
 
 // FuturesDepthOrderbook represents bids and asks
 type FuturesDepthOrderbook struct {
-	EventType               string     `json:"e"`
-	EventTime               types.Time `json:"E"`
-	TransactionTime         types.Time `json:"T"`
-	Symbol                  string     `json:"s"`
-	FirstUpdateID           int64      `json:"U"`
-	LastUpdateID            int64      `json:"u"`
-	FinalUpdateIDLastStream int64      `json:"pu"`
-	Bids                    [][]string `json:"b"`
-	Asks                    [][]string `json:"a"`
+	EventType               string                           `json:"e"`
+	EventTime               types.Time                       `json:"E"`
+	TransactionTime         types.Time                       `json:"T"`
+	Symbol                  string                           `json:"s"`
+	FirstUpdateID           int64                            `json:"U"`
+	LastUpdateID            int64                            `json:"u"`
+	FinalUpdateIDLastStream int64                            `json:"pu"`
+	Bids                    orderbook.LevelsArrayPriceAmount `json:"b"`
+	Asks                    orderbook.LevelsArrayPriceAmount `json:"a"`
 
 	// Added for coin margined futures
 	Pair string `json:"ps"`
@@ -2044,7 +2044,7 @@ type PriceChangeRequestParam struct {
 }
 
 // PriceChanges holds a single or slice of WsTickerPriceChange instance into a new type.
-type PriceChanges []PriceChangeStats
+type PriceChanges []*PriceChangeStats
 
 // WsRollingWindowPriceParams rolling window price change statistics request params
 type WsRollingWindowPriceParams struct {
@@ -2062,7 +2062,7 @@ type SymbolTickerItem struct {
 }
 
 // SymbolTickers holds symbol and price ticker information.
-type SymbolTickers []SymbolTickerItem
+type SymbolTickers []*SymbolTickerItem
 
 // WsOrderbookTicker holds orderbook ticker information
 type WsOrderbookTicker struct {
@@ -2074,7 +2074,7 @@ type WsOrderbookTicker struct {
 }
 
 // WsOrderbookTickers represents an orderbook ticker information
-type WsOrderbookTickers []WsOrderbookTicker
+type WsOrderbookTickers []*WsOrderbookTicker
 
 // APISignatureInfo holds API key and signature information
 type APISignatureInfo struct {
@@ -2086,21 +2086,21 @@ type APISignatureInfo struct {
 // TradeOrderRequestParam new order request parameter
 type TradeOrderRequestParam struct {
 	APISignatureInfo
-	Symbol      string  `json:"symbol"`
-	Side        string  `json:"side"`
-	OrderType   string  `json:"type"`
-	TimeInForce string  `json:"timeInForce"`
-	Price       float64 `json:"price,omitempty,string"`
-	Quantity    float64 `json:"quantity,omitempty,string"`
+	Symbol      currency.Pair `json:"symbol"`
+	Side        string        `json:"side"`
+	OrderType   string        `json:"type"`
+	TimeInForce string        `json:"timeInForce"`
+	Price       float64       `json:"price,omitempty,string"`
+	Quantity    float64       `json:"quantity,omitempty,string"`
 }
 
 // QueryOrderParam represents an order querying parameters
 type QueryOrderParam struct {
 	APISignatureInfo
-	Symbol            string `json:"symbol,omitempty"`
-	OrderID           int64  `json:"orderId,omitempty"`
-	OrigClientOrderID string `json:"origClientOrderId,omitempty"`
-	RecvWindow        int64  `json:"recvWindow,omitempty"`
+	Symbol            currency.Pair `json:"symbol,omitempty"`
+	OrderID           int64         `json:"orderId,omitempty"`
+	OrigClientOrderID string        `json:"origClientOrderId,omitempty"`
+	RecvWindow        int64         `json:"recvWindow,omitempty"`
 
 	NewClientOrderID   string `json:"newClientOrderId,omitempty"`
 	CancelRestrictions string `json:"cancelRestrictions,omitempty"`
@@ -2109,8 +2109,8 @@ type QueryOrderParam struct {
 // WsCancelAndReplaceParam represents a cancel and replace request parameters
 type WsCancelAndReplaceParam struct {
 	APISignatureInfo
-	Symbol        string `json:"symbol,omitempty"`
-	CancelOrderID string `json:"cancelOrderId,omitempty"`
+	Symbol        currency.Pair `json:"symbol,omitempty"`
+	CancelOrderID string        `json:"cancelOrderId,omitempty"`
 
 	// CancelReplaceMode possible values are 'STOP_ON_FAILURE', 'ALLOW_FAILURE'
 	CancelReplaceMode         string  `json:"cancelReplaceMode,omitempty"`
@@ -2147,24 +2147,24 @@ type WsCancelAndReplaceParam struct {
 // PlaceOCOOrderParam holds a request parameters for one-cancel-other orders
 type PlaceOCOOrderParam struct {
 	APISignatureInfo
-	Symbol               string  `json:"symbol,omitempty"`
-	Side                 string  `json:"side,omitempty"`
-	Price                float64 `json:"price,omitempty"`
-	Quantity             float64 `json:"quantity,omitempty"`
-	ListClientOrderID    string  `json:"listClientOrderId,omitempty"`
-	LimitClientOrderID   string  `json:"limitClientOrderId,omitempty"`
-	LimitIcebergQty      float64 `json:"limitIcebergQty,omitempty"`
-	LimitStrategyID      string  `json:"limitStrategyId,omitempty"`
-	LimitStrategyType    string  `json:"limitStrategyType,omitempty"`
-	StopPrice            float64 `json:"stopPrice,omitempty"`
-	TrailingDelta        int64   `json:"trailingDelta,omitempty"`
-	StopClientOrderID    string  `json:"stopClientOrderId,omitempty"`
-	StopLimitPrice       float64 `json:"stopLimitPrice,omitempty"`
-	StopLimitTimeInForce string  `json:"stopLimitTimeInForce,omitempty"`
-	StopIcebergQty       float64 `json:"stopIcebergQty,omitempty"`
-	StopStrategyID       string  `json:"stopStrategyId,omitempty"`
-	StopStrategyType     string  `json:"stopStrategyType,omitempty"`
-	NewOrderRespType     string  `json:"newOrderRespType,omitempty"`
+	Symbol               currency.Pair `json:"symbol,omitempty"`
+	Side                 string        `json:"side,omitempty"`
+	Price                float64       `json:"price,omitempty"`
+	Quantity             float64       `json:"quantity,omitempty"`
+	ListClientOrderID    string        `json:"listClientOrderId,omitempty"`
+	LimitClientOrderID   string        `json:"limitClientOrderId,omitempty"`
+	LimitIcebergQty      float64       `json:"limitIcebergQty,omitempty"`
+	LimitStrategyID      string        `json:"limitStrategyId,omitempty"`
+	LimitStrategyType    string        `json:"limitStrategyType,omitempty"`
+	StopPrice            float64       `json:"stopPrice,omitempty"`
+	TrailingDelta        int64         `json:"trailingDelta,omitempty"`
+	StopClientOrderID    string        `json:"stopClientOrderId,omitempty"`
+	StopLimitPrice       float64       `json:"stopLimitPrice,omitempty"`
+	StopLimitTimeInForce string        `json:"stopLimitTimeInForce,omitempty"`
+	StopIcebergQty       float64       `json:"stopIcebergQty,omitempty"`
+	StopStrategyID       string        `json:"stopStrategyId,omitempty"`
+	StopStrategyType     string        `json:"stopStrategyType,omitempty"`
+	NewOrderRespType     string        `json:"newOrderRespType,omitempty"`
 
 	// The allowed enums is dependent on what is configured on the symbol. The possible supported values are 'EXPIRE_TAKER', 'EXPIRE_MAKER', 'EXPIRE_BOTH', 'NONE'.
 	SelfTradePreventionMode string `json:"selfTradePreventionMode,omitempty"`
@@ -2315,13 +2315,13 @@ type OCOOrderInfo struct {
 // WsOSRPlaceOrderParams holds request parameters for placing OSR orders.
 type WsOSRPlaceOrderParams struct {
 	APISignatureInfo
-	Symbol           string  `json:"symbol,omitempty"`
-	Side             string  `json:"side,omitempty"`
-	OrderType        string  `json:"type,omitempty"`
-	TimeInForce      string  `json:"timeInForce,omitempty"`
-	Price            float64 `json:"price,omitempty"`
-	Quantity         float64 `json:"quantity,omitempty"`
-	NewClientOrderID string  `json:"newClientOrderId,omitempty"`
+	Symbol           currency.Pair `json:"symbol,omitempty"`
+	Side             string        `json:"side,omitempty"`
+	OrderType        string        `json:"type,omitempty"`
+	TimeInForce      string        `json:"timeInForce,omitempty"`
+	Price            float64       `json:"price,omitempty"`
+	Quantity         float64       `json:"quantity,omitempty"`
+	NewClientOrderID string        `json:"newClientOrderId,omitempty"`
 
 	// Select response format: ACK, RESULT, FULL.
 	// MARKET and LIMIT orders use FULL by default.
@@ -2368,12 +2368,12 @@ type OSROrder struct {
 // AccountOrderRequestParam retrieves an account order history parameters
 type AccountOrderRequestParam struct {
 	APISignatureInfo
-	EndTime    int64  `json:"endTime,omitempty"`
-	Limit      int64  `json:"limit,omitempty"`
-	OrderID    int64  `json:"orderId,omitempty"` // Order ID to begin at
-	RecvWindow int64  `json:"recvWindow,omitempty"`
-	StartTime  int64  `json:"startTime,omitempty"`
-	Symbol     string `json:"symbol"`
+	EndTime    int64         `json:"endTime,omitempty"`
+	Limit      int64         `json:"limit,omitempty"`
+	OrderID    int64         `json:"orderId,omitempty"` // Order ID to begin at
+	RecvWindow int64         `json:"recvWindow,omitempty"`
+	StartTime  int64         `json:"startTime,omitempty"`
+	Symbol     currency.Pair `json:"symbol"`
 
 	// for requesting trades
 	FromID int64 `json:"fromId,omitempty"`
@@ -4669,26 +4669,26 @@ type HistoricalOrderbookDownloadLink struct {
 
 // VolumeParticipationOrderParams represents a volume participation new order.
 type VolumeParticipationOrderParams struct {
-	Symbol       string  `json:"symbol"`
-	Side         string  `json:"side"`                   // Trading side ( BUY or SELL )
-	PositionSide string  `json:"positionSide,omitempty"` // Default BOTH for One-way Mode ; LONG or SHORT for Hedge Mode. It must be sent in Hedge Mode.
-	Quantity     float64 `json:"quantity"`               // Quantity of base asset; The notional (quantity * mark price(base asset)) must be more than the equivalent of 1,000 USDT and less than the equivalent of 1,000,000 USDT
-	Urgency      string  `json:"urgency"`                // Represent the relative speed of the current execution; ENUM: LOW, MEDIUM, HIGH
-	ClientAlgoID string  `json:"clientAlgoId,omitempty"`
-	ReduceOnly   bool    `json:"reduceOnly,omitempty"`
-	LimitPrice   float64 `json:"limitPrice,omitempty"` // Limit price of the order; If it is not sent, will place order by market price by default
+	Symbol       currency.Pair `json:"symbol"`
+	Side         string        `json:"side"`                   // Trading side ( BUY or SELL )
+	PositionSide string        `json:"positionSide,omitempty"` // Default BOTH for One-way Mode ; LONG or SHORT for Hedge Mode. It must be sent in Hedge Mode.
+	Quantity     float64       `json:"quantity"`               // Quantity of base asset; The notional (quantity * mark price(base asset)) must be more than the equivalent of 1,000 USDT and less than the equivalent of 1,000,000 USDT
+	Urgency      string        `json:"urgency"`                // Represent the relative speed of the current execution; ENUM: LOW, MEDIUM, HIGH
+	ClientAlgoID string        `json:"clientAlgoId,omitempty"`
+	ReduceOnly   bool          `json:"reduceOnly,omitempty"`
+	LimitPrice   float64       `json:"limitPrice,omitempty"` // Limit price of the order; If it is not sent, will place order by market price by default
 }
 
 // TWAPOrderParams represents a time-weighted average price(TWAP) order parameters.
 type TWAPOrderParams struct {
-	Symbol       string  `json:"symbol"`
-	Side         string  `json:"side"`
-	PositionSide string  `json:"positionSide,omitempty"`
-	Quantity     float64 `json:"quantity"`
-	Duration     int64   `json:"duration"`
-	ClientAlgoID string  `json:"clientAlgoId,omitempty"`
-	ReduceOnly   bool    `json:"reduceOnly,omitempty"`
-	LimitPrice   float64 `json:"limitPrice,omitempty"`
+	Symbol       currency.Pair `json:"symbol"`
+	Side         string        `json:"side"`
+	PositionSide string        `json:"positionSide,omitempty"`
+	Quantity     float64       `json:"quantity"`
+	Duration     int64         `json:"duration"`
+	ClientAlgoID string        `json:"clientAlgoId,omitempty"`
+	ReduceOnly   bool          `json:"reduceOnly,omitempty"`
+	LimitPrice   float64       `json:"limitPrice,omitempty"`
 }
 
 // AlgoOrderResponse represents a response after placing structure of TWAP and VP, and cancelling algo order
@@ -4748,13 +4748,13 @@ type AlgoSubOrders struct {
 
 // SpotTWAPOrderParam represents a spot time-weighted averaged price(TWAP) order params.
 type SpotTWAPOrderParam struct {
-	Symbol       string  `json:"symbol"`
-	Side         string  `json:"side"`
-	Quantity     float64 `json:"quantity"`
-	Duration     int64   `json:"duration"`
-	ClientAlgoID string  `json:"clientAlgoId,omitempty"`
-	LimitPrice   float64 `json:"limitPrice,omitempty"`
-	STPMode      string  `json:"stpMode,omitempty"`
+	Symbol       currency.Pair `json:"symbol"`
+	Side         string        `json:"side"`
+	Quantity     float64       `json:"quantity"`
+	Duration     int64         `json:"duration"`
+	ClientAlgoID string        `json:"clientAlgoId,omitempty"`
+	LimitPrice   float64       `json:"limitPrice,omitempty"`
+	STPMode      string        `json:"stpMode,omitempty"`
 }
 
 // ClassicPMAccountInfo represents a classic portfolio margin account information.

@@ -486,7 +486,7 @@ type WsOptionIncomingResp struct {
 
 // WsOptionIncomingResps list of WsOptionIncomingResp
 type WsOptionIncomingResps struct {
-	Instances []WsOptionIncomingResp
+	Instances []*WsOptionIncomingResp
 
 	// To record the information about whether the incoming data was a slice or sing object instance.
 	// Reason: Some slices may have a single element, which creates uncertainty about whether the incoming data is slice or object instance.

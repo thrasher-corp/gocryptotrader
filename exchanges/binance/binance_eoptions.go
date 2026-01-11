@@ -41,7 +41,7 @@ func (e *Exchange) GetOptionsExchangeInformation(ctx context.Context) (*EOptionE
 // GetEOptionsOrderbook retrieves european options orderbook information for specific symbol
 func (e *Exchange) GetEOptionsOrderbook(ctx context.Context, symbol string, limit int64) (*EOptionsOrderbook, error) {
 	if symbol == "" {
-		return nil, currency.ErrSymbolStringEmpty
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
@@ -53,23 +53,23 @@ func (e *Exchange) GetEOptionsOrderbook(ctx context.Context, symbol string, limi
 }
 
 // GetEOptionsRecentTrades retrieves recent market trades
-func (e *Exchange) GetEOptionsRecentTrades(ctx context.Context, symbol string, limit int64) ([]EOptionsTradeItem, error) {
+func (e *Exchange) GetEOptionsRecentTrades(ctx context.Context, symbol string, limit int64) ([]*EOptionsTradeItem, error) {
 	if symbol == "" {
-		return nil, currency.ErrSymbolStringEmpty
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []EOptionsTradeItem
+	var resp []*EOptionsTradeItem
 	return resp, e.SendAPIKeyHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, common.EncodeURLValues("/eapi/v1/trades", params), optionsRecentTradesRate, &resp)
 }
 
 // GetEOptionsTradeHistory retrieves older market historical trades.
-func (e *Exchange) GetEOptionsTradeHistory(ctx context.Context, symbol string, fromID, limit int64) ([]EOptionsTradeItem, error) {
+func (e *Exchange) GetEOptionsTradeHistory(ctx context.Context, symbol string, fromID, limit int64) ([]*EOptionsTradeItem, error) {
 	if symbol == "" {
-		return nil, currency.ErrSymbolStringEmpty
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
@@ -79,14 +79,14 @@ func (e *Exchange) GetEOptionsTradeHistory(ctx context.Context, symbol string, f
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []EOptionsTradeItem
+	var resp []*EOptionsTradeItem
 	return resp, e.SendAPIKeyHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, common.EncodeURLValues("/eapi/v1/historicalTrades", params), optionsDefaultRate, &resp)
 }
 
 // GetEOptionsCandlesticks retrieves kline/candlestick bars for an option symbol. Klines are uniquely identified by their open time.
-func (e *Exchange) GetEOptionsCandlesticks(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]EOptionsCandlestick, error) {
+func (e *Exchange) GetEOptionsCandlesticks(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]*EOptionsCandlestick, error) {
 	if symbol == "" {
-		return nil, currency.ErrSymbolStringEmpty
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if interval == 0 || interval.String() == "" {
 		return nil, kline.ErrInvalidInterval
@@ -95,37 +95,34 @@ func (e *Exchange) GetEOptionsCandlesticks(ctx context.Context, symbol string, i
 	params.Set("symbol", symbol)
 	params.Set("interval", e.FormatExchangeKlineInterval(interval))
 	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var resp []EOptionsCandlestick
+	var resp []*EOptionsCandlestick
 	return resp, e.SendHTTPRequest(ctx, exchange.RestOptions, common.EncodeURLValues("/eapi/v1/klines", params), optionsDefaultRate, &resp)
 }
 
 // GetOptionMarkPrice option mark price and greek info.
-func (e *Exchange) GetOptionMarkPrice(ctx context.Context, symbol string) ([]OptionMarkPrice, error) {
+func (e *Exchange) GetOptionMarkPrice(ctx context.Context, symbol string) ([]*OptionMarkPrice, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	var resp []OptionMarkPrice
+	var resp []*OptionMarkPrice
 	return resp, e.SendHTTPRequest(ctx, exchange.RestOptions, common.EncodeURLValues("/eapi/v1/mark", params), optionsMarkPriceRate, &resp)
 }
 
 // GetEOptions24hrTickerPriceChangeStatistics 24 hour rolling window price change statistics.
-func (e *Exchange) GetEOptions24hrTickerPriceChangeStatistics(ctx context.Context, symbol string) ([]EOptionTicker, error) {
+func (e *Exchange) GetEOptions24hrTickerPriceChangeStatistics(ctx context.Context, symbol string) ([]*EOptionTicker, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
-	var resp []EOptionTicker
+	var resp []*EOptionTicker
 	return resp, e.SendHTTPRequest(ctx, exchange.RestOptions, common.EncodeURLValues("/eapi/v1/ticker", params), optionsAllTickerPriceStatistics, &resp)
 }
 
@@ -141,28 +138,31 @@ func (e *Exchange) GetEOptionsSymbolPriceTicker(ctx context.Context, underlying 
 }
 
 // GetEOptionsHistoricalExerciseRecords retrieves historical exercise records.
-func (e *Exchange) GetEOptionsHistoricalExerciseRecords(ctx context.Context, underlying string, startTime, endTime time.Time, limit int64) ([]ExerciseHistoryItem, error) {
+func (e *Exchange) GetEOptionsHistoricalExerciseRecords(ctx context.Context, underlying string, startTime, endTime time.Time, limit int64) ([]*ExerciseHistoryItem, error) {
 	params := url.Values{}
 	if underlying != "" {
 		params.Set("underlying", underlying)
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []ExerciseHistoryItem
+	var resp []*ExerciseHistoryItem
 	return resp, e.SendHTTPRequest(ctx, exchange.RestOptions, common.EncodeURLValues("/eapi/v1/exerciseHistory", params), optionsHistoricalExerciseRecordsRate, &resp)
 }
 
 // GetEOptionsOpenInterests retrieves  open interest for specific underlying asset on specific expiration date.
-func (e *Exchange) GetEOptionsOpenInterests(ctx context.Context, underlyingAsset currency.Code, expiration time.Time) ([]OpenInterest, error) {
+func (e *Exchange) GetEOptionsOpenInterests(ctx context.Context, underlyingAsset currency.Code, expiration time.Time) ([]*OpenInterest, error) {
 	if underlyingAsset.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -173,7 +173,7 @@ func (e *Exchange) GetEOptionsOpenInterests(ctx context.Context, underlyingAsset
 	params.Set("underlyingAsset", underlyingAsset.String())
 	params.Set("expiration", expiration.Format("020106"))
 	println("expiration.Format('020106'): ", expiration.Format("020106"))
-	var resp []OpenInterest
+	var resp []*OpenInterest
 	return resp, e.SendHTTPRequest(ctx, exchange.RestOptions, common.EncodeURLValues("/eapi/v1/openInterest", params), optionsDefaultRate, &resp)
 }
 
@@ -187,8 +187,8 @@ func (e *Exchange) GetOptionsAccountInformation(ctx context.Context) (*EOptionsA
 
 // NewOptionsOrder places a new european options order instance.
 func (e *Exchange) NewOptionsOrder(ctx context.Context, arg *OptionsOrderParams) (*OptionOrder, error) {
-	if *arg == (OptionsOrderParams{}) {
-		return nil, common.ErrEmptyParams
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -237,13 +237,13 @@ func (e *Exchange) NewOptionsOrder(ctx context.Context, arg *OptionsOrderParams)
 }
 
 // PlaceBatchEOptionsOrder send multiple option orders.
-func (e *Exchange) PlaceBatchEOptionsOrder(ctx context.Context, args []OptionsOrderParams) ([]OptionOrder, error) {
+func (e *Exchange) PlaceBatchEOptionsOrder(ctx context.Context, args []*OptionsOrderParams) ([]*OptionOrder, error) {
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
 	}
 	for a := range args {
-		if args[a] == (OptionsOrderParams{}) {
-			return nil, common.ErrEmptyParams
+		if err := common.NilGuard(args[a]); err != nil {
+			return nil, err
 		}
 		if args[a].Symbol.IsEmpty() {
 			return nil, currency.ErrCurrencyPairEmpty
@@ -264,20 +264,20 @@ func (e *Exchange) PlaceBatchEOptionsOrder(ctx context.Context, args []OptionsOr
 	}
 	params := url.Values{}
 	params.Set("orders", string(val))
-	var resp []OptionOrder
+	var resp []*OptionOrder
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodPost, "/eapi/v1/batchOrders", params, optionsBatchOrderRate, nil, &resp)
 }
 
 // GetSingleEOptionsOrder retrieves a single order status.
-func (e *Exchange) GetSingleEOptionsOrder(ctx context.Context, symbol, clientOrderID string, orderID int64) (*OptionOrder, error) {
-	if symbol == "" {
-		return nil, currency.ErrSymbolStringEmpty
+func (e *Exchange) GetSingleEOptionsOrder(ctx context.Context, symbol currency.Pair, clientOrderID string, orderID int64) (*OptionOrder, error) {
+	if symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if orderID == 0 && clientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	if clientOrderID != "" {
 		params.Set("clientOrderId", clientOrderID)
 	}
@@ -291,7 +291,7 @@ func (e *Exchange) GetSingleEOptionsOrder(ctx context.Context, symbol, clientOrd
 // CancelOptionsOrder represents an options order instance
 func (e *Exchange) CancelOptionsOrder(ctx context.Context, symbol, clientOrderID, orderID string) (*OptionOrder, error) {
 	if symbol == "" {
-		return nil, currency.ErrSymbolStringEmpty
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if orderID == "" && clientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
@@ -309,9 +309,9 @@ func (e *Exchange) CancelOptionsOrder(ctx context.Context, symbol, clientOrderID
 }
 
 // CancelBatchOptionsOrders cancel an active orders
-func (e *Exchange) CancelBatchOptionsOrders(ctx context.Context, symbol string, orderIDs []int64, clientOrderIDs []string) ([]OptionOrder, error) {
+func (e *Exchange) CancelBatchOptionsOrders(ctx context.Context, symbol string, orderIDs []int64, clientOrderIDs []string) ([]*OptionOrder, error) {
 	if symbol == "" {
-		return nil, currency.ErrSymbolStringEmpty
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if len(orderIDs) == 0 && len(clientOrderIDs) == 0 {
 		return nil, order.ErrOrderIDNotSet
@@ -332,7 +332,7 @@ func (e *Exchange) CancelBatchOptionsOrders(ctx context.Context, symbol string, 
 		}
 		params.Set("clientOrderIds", string(vals))
 	}
-	var resp []OptionOrder
+	var resp []*OptionOrder
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodDelete, "/eapi/v1/batchOrders", params, optionsDefaultOrderRate, nil, &resp)
 }
 
@@ -356,32 +356,35 @@ func (e *Exchange) CancelAllOptionsOrdersByUnderlying(ctx context.Context, under
 }
 
 // GetCurrentOpenOptionsOrders retrieves all open orders. Status: ACCEPTED PARTIALLY_FILLED
-func (e *Exchange) GetCurrentOpenOptionsOrders(ctx context.Context, symbol string, startTime, endTime time.Time, orderID, limit int64) ([]OptionOrder, error) {
+func (e *Exchange) GetCurrentOpenOptionsOrders(ctx context.Context, symbol currency.Pair, startTime, endTime time.Time, orderID, limit int64) ([]*OptionOrder, error) {
 	return e.getOptionsOrders(ctx, "/eapi/v1/openOrders", symbol, startTime, endTime, orderID, limit)
 }
 
 // GetOptionsOrdersHistory retrieves all finished orders within 5 days.
 // Possible finished status values: CANCELLED, FILLED, REJECTED
-func (e *Exchange) GetOptionsOrdersHistory(ctx context.Context, symbol string, startTime, endTime time.Time, orderID, limit int64) ([]OptionOrder, error) {
+func (e *Exchange) GetOptionsOrdersHistory(ctx context.Context, symbol currency.Pair, startTime, endTime time.Time, orderID, limit int64) ([]*OptionOrder, error) {
 	return e.getOptionsOrders(ctx, "/eapi/v1/historyOrders", symbol, startTime, endTime, orderID, limit)
 }
 
-func (e *Exchange) getOptionsOrders(ctx context.Context, path, symbol string, startTime, endTime time.Time, orderID, limit int64) ([]OptionOrder, error) {
+func (e *Exchange) getOptionsOrders(ctx context.Context, path string, symbol currency.Pair, startTime, endTime time.Time, orderID, limit int64) ([]*OptionOrder, error) {
 	ratelimit := optionsAllQueryOpenOrdersRate
 	if path == "/eapi/v1/historyOrders" {
 		ratelimit = optionsGetOrderHistory
 	}
 	params := url.Values{}
-	if symbol != "" {
+	if !symbol.IsEmpty() {
 		ratelimit = optionsDefaultOrderRate
-		params.Set("symbol", symbol)
+		params.Set("symbol", symbol.String())
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if orderID != 0 {
@@ -390,22 +393,22 @@ func (e *Exchange) getOptionsOrders(ctx context.Context, path, symbol string, st
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []OptionOrder
+	var resp []*OptionOrder
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, path, params, ratelimit, nil, &resp)
 }
 
 // GetOptionPositionInformation retrieves current position information.
-func (e *Exchange) GetOptionPositionInformation(ctx context.Context, symbol string) ([]OptionPosition, error) {
+func (e *Exchange) GetOptionPositionInformation(ctx context.Context, symbol currency.Pair) ([]*OptionPosition, error) {
 	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if !symbol.IsEmpty() {
+		params.Set("symbol", symbol.String())
 	}
-	var resp []OptionPosition
+	var resp []*OptionPosition
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/position", params, optionsPositionInformationRate, nil, &resp)
 }
 
 // GetEOptionsAccountTradeList retrieves trades for a specific account and symbol
-func (e *Exchange) GetEOptionsAccountTradeList(ctx context.Context, symbol string, fromID, limit int64, startTime, endTime time.Time) ([]OptionsAccountTradeItem, error) {
+func (e *Exchange) GetEOptionsAccountTradeList(ctx context.Context, symbol string, fromID, limit int64, startTime, endTime time.Time) ([]*OptionsAccountTradeItem, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -414,53 +417,62 @@ func (e *Exchange) GetEOptionsAccountTradeList(ctx context.Context, symbol strin
 		params.Set("fromId", strconv.FormatInt(fromID, 10))
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []OptionsAccountTradeItem
+	var resp []*OptionsAccountTradeItem
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/userTrades", params, optionsAccountTradeListRate, nil, &resp)
 }
 
 // GetUserOptionsExerciseRecord retrieves account exercise records
-func (e *Exchange) GetUserOptionsExerciseRecord(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) ([]UserOptionsExerciseRecord, error) {
+func (e *Exchange) GetUserOptionsExerciseRecord(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) ([]*UserOptionsExerciseRecord, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []UserOptionsExerciseRecord
+	var resp []*UserOptionsExerciseRecord
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/exerciseRecord", params, optionsUserExerciseRecordRate, nil, &resp)
 }
 
 // GetAccountFundingFlow retrieves account funding flows
-func (e *Exchange) GetAccountFundingFlow(ctx context.Context, ccy currency.Code, recordID, limit int64, startTime, endTime time.Time) ([]AccountFunding, error) {
+func (e *Exchange) GetAccountFundingFlow(ctx context.Context, ccy currency.Code, recordID, limit int64, startTime, endTime time.Time) ([]*AccountFunding, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(startTime, endTime)
-		if err != nil {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	params.Set("currency", ccy.String())
@@ -470,14 +482,13 @@ func (e *Exchange) GetAccountFundingFlow(ctx context.Context, ccy currency.Code,
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []AccountFunding
+	var resp []*AccountFunding
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, "/eapi/v1/bill", params, optionsDefaultRate, nil, &resp)
 }
 
 // GetDownloadIDForOptionTransactionHistory retrieves options transaction history
 func (e *Exchange) GetDownloadIDForOptionTransactionHistory(ctx context.Context, startTime, endTime time.Time) (*DownloadIDOfOptionsTransaction, error) {
-	err := common.StartEndTimeCheck(startTime, endTime)
-	if err != nil {
+	if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 		return nil, err
 	}
 	params := url.Values{}
@@ -513,8 +524,8 @@ func (e *Exchange) GetOptionMarginAccountInformation(ctx context.Context) (*Opti
 // When Market Maker Protection triggers, all the current MMP orders will be canceled, new MMP orders will be rejected.
 // Market maker can use this time to reevaluate market and modify order price.
 func (e *Exchange) SetOptionsMarketMakerProtectionConfig(ctx context.Context, arg *MarketMakerProtectionConfig) (*MarketMakerProtection, error) {
-	if *arg == (MarketMakerProtectionConfig{}) {
-		return nil, common.ErrEmptyParams
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if arg.Underlying == "" {
 		return nil, errUnderlyingIsRequired
@@ -599,14 +610,14 @@ func (e *Exchange) GetAutoCancelAllOpenOrdersConfig(ctx context.Context, underly
 
 // GetOptionsAutoCancelAllOpenOrdersHeartbeat resets the time from which the countdown will begin to the time this messaged is received. It should be called repeatedly as heartbeats.
 // Multiple heartbeats can be updated at once by specifying the underlying symbols as a list in the underlyings parameter.
-func (e *Exchange) GetOptionsAutoCancelAllOpenOrdersHeartbeat(ctx context.Context, underlyings []string) ([]string, error) {
+func (e *Exchange) GetOptionsAutoCancelAllOpenOrdersHeartbeat(ctx context.Context, underlyings []string) ([]*string, error) {
 	if len(underlyings) == 0 {
 		return nil, errUnderlyingIsRequired
 	}
 	params := url.Values{}
 	params.Set("underlyings", strings.Join(underlyings, ","))
 	resp := &struct {
-		Underlyings []string `json:"underlyings"`
+		Underlyings []*string `json:"underlyings"`
 	}{}
 	return resp.Underlyings, e.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodPost, "/eapi/v1/countdownCancelAllHeartBeat", params, optionsDefaultRate, nil, &resp)
 }

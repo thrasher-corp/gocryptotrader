@@ -500,7 +500,7 @@ type AssetIndex struct {
 }
 
 // AssetIndexResponse represents a list of asset indexes
-type AssetIndexResponse []AssetIndex
+type AssetIndexResponse []*AssetIndex
 
 // IndexPriceConstituent represents an index price constituents
 type IndexPriceConstituent struct {

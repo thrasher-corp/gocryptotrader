@@ -262,8 +262,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 			return nil
 		case "listStatus":
 			var data WsListStatusData
-			err = json.Unmarshal(jsonData, &data)
-			if err != nil {
+			if err := json.Unmarshal(jsonData, &data); err != nil {
 				return fmt.Errorf("%v - Could not convert to listStatus structure %s",
 					e.Name,
 					err)
@@ -272,11 +271,8 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 			return nil
 		case "outboundAccountInfo":
 			var data wsAccountInfo
-			err = json.Unmarshal(respRaw, &data)
-			if err != nil {
-				return fmt.Errorf("%v - Could not convert to outboundAccountInfo structure %s",
-					e.Name,
-					err)
+			if err := json.Unmarshal(respRaw, &data); err != nil {
+				return fmt.Errorf("%v - Could not convert to outboundAccountInfo structure %s", e.Name, err)
 			}
 			e.Websocket.DataHandler <- data
 			return nil

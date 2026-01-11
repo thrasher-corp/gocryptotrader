@@ -52,8 +52,7 @@ var defaultEOptionsSubscriptions = []string{
 
 // WsOptionsConnect initiates a websocket connection to coin margined futures websocket
 func (e *Exchange) WsOptionsConnect(ctx context.Context, conn websocket.Connection) error {
-	err := e.CurrencyPairs.IsAssetEnabled(asset.Options)
-	if err != nil {
+	if err := e.CurrencyPairs.IsAssetEnabled(asset.Options); err != nil {
 		return err
 	}
 
@@ -65,7 +64,7 @@ func (e *Exchange) WsOptionsConnect(ctx context.Context, conn websocket.Connecti
 	conn.SetURL(wsURL)
 
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		listenKey, err = e.GetEOptionsWsAuthStreamKey(ctx)
+		listenKey, err := e.GetEOptionsWsAuthStreamKey(ctx)
 		switch {
 		case err != nil:
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -76,8 +75,7 @@ func (e *Exchange) WsOptionsConnect(ctx context.Context, conn websocket.Connecti
 		}
 	}
 	conn.SetURL(wsURL)
-	err = conn.Dial(ctx, &dialer, http.Header{})
-	if err != nil {
+	if err := conn.Dial(ctx, &dialer, http.Header{}); err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", e.Name, err)
 	}
 
@@ -158,15 +156,13 @@ func (e *Exchange) handleEOptionsSubscriptions(ctx context.Context, conn websock
 		return err
 	}
 	var resp EOptionsOperationResponse
-	err = json.Unmarshal(response, &resp)
-	if err != nil {
+	if err := json.Unmarshal(response, &resp); err != nil {
 		return err
 	} else if resp.Error.Code != 0 {
 		return fmt.Errorf("err: code: %d, msg: %s", resp.Error.Code, resp.Error.Message)
 	}
 	if operation == "SUBSCRIBE" {
-		err = e.Websocket.AddSuccessfulSubscriptions(conn, subscs...)
-		if err != nil {
+		if err := e.Websocket.AddSuccessfulSubscriptions(conn, subscs...); err != nil {
 			return err
 		}
 	}
@@ -215,7 +211,7 @@ func (e *Exchange) GenerateEOptionsDefaultSubscriptions() (subscription.List, er
 				Channel: channels[z],
 				Pairs:   pairs,
 				Asset:   asset.Options,
-				Params: map[string]interface{}{
+				Params: map[string]any{
 					"expiration": time.Now().Add(time.Hour * 24 * 5),
 				},
 			})
@@ -225,7 +221,7 @@ func (e *Exchange) GenerateEOptionsDefaultSubscriptions() (subscription.List, er
 				Pairs:    pairs,
 				Asset:    asset.Options,
 				Interval: kline.FiveHundredMilliseconds,
-				Params: map[string]interface{}{
+				Params: map[string]any{
 					"level": 50, // Valid levels are 10, 20, 50, 100.
 				},
 			})
@@ -272,8 +268,7 @@ func (e *Exchange) GetEOptionsWsAuthStreamKey(ctx context.Context) (string, erro
 
 func (e *Exchange) wsHandleEOptionsData(_ context.Context, respRaw []byte) error {
 	var result WsOptionIncomingResps
-	err := json.Unmarshal(respRaw, &result)
-	if err != nil {
+	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
 	}
 	if result.Instances[0].EventType == "" || (result.Instances[0].ID != 0 && result.Instances[0].Result != nil) {
@@ -312,8 +307,7 @@ var orderbookSnapshotLoadedPairsMap = map[string]bool{}
 
 func (e *Exchange) processOptionsOrderbook(data []byte) error {
 	var resp WsOptionsOrderbook
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	pair, err := currency.NewPairFromString(resp.OptionSymbol)
@@ -325,39 +319,30 @@ func (e *Exchange) processOptionsOrderbook(data []byte) error {
 	}
 	okay := orderbookSnapshotLoadedPairsMap[resp.OptionSymbol]
 	if !okay {
-		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Pair:         pair,
 			Exchange:     e.Name,
 			Asset:        asset.Options,
 			LastUpdated:  resp.TransactionTime.Time(),
 			LastUpdateID: resp.UpdateID,
-			Asks:         orderbook.Levels(resp.Asks),
-			Bids:         orderbook.Levels(resp.Bids),
+			Asks:         resp.Asks.Levels(),
+			Bids:         resp.Bids.Levels(),
 		})
-		if err != nil {
-			return err
-		}
-	} else {
-		err = e.Websocket.Orderbook.Update(&orderbook.Update{
-			Pair:       pair,
-			Asks:       orderbook.Levels(resp.Asks),
-			Bids:       orderbook.Levels(resp.Bids),
-			Asset:      asset.Options,
-			UpdateID:   resp.UpdateID,
-			UpdateTime: resp.TransactionTime.Time(),
-		})
-		if err != nil {
-			return err
-		}
 	}
-	return nil
+	return e.Websocket.Orderbook.Update(&orderbook.Update{
+		Pair:       pair,
+		Asks:       resp.Asks.Levels(),
+		Bids:       resp.Bids.Levels(),
+		Asset:      asset.Options,
+		UpdateID:   resp.UpdateID,
+		UpdateTime: resp.TransactionTime.Time()},
+	)
 }
 
 // processOptionsPair new symbol listing stream
 func (e *Exchange) processOptionsPair(data []byte) error {
 	var resp WsOptionsNewPair
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	e.Websocket.DataHandler <- resp
@@ -366,8 +351,7 @@ func (e *Exchange) processOptionsPair(data []byte) error {
 
 func (e *Exchange) processOptionsOpenInterest(data []byte) error {
 	var resp []WsOpenInterest
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	e.Websocket.DataHandler <- resp
@@ -376,8 +360,7 @@ func (e *Exchange) processOptionsOpenInterest(data []byte) error {
 
 func (e *Exchange) processOptionsKline(data []byte) error {
 	var resp WsOptionsKlineData
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	pair, err := currency.NewPairFromString(resp.KlineData.Symbol)
@@ -403,8 +386,7 @@ func (e *Exchange) processOptionsKline(data []byte) error {
 
 func (e *Exchange) processOptionsMarkPrices(data []byte) error {
 	var resp []WsOptionsMarkPrice
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	e.Websocket.DataHandler <- resp
@@ -413,8 +395,7 @@ func (e *Exchange) processOptionsMarkPrices(data []byte) error {
 
 func (e *Exchange) processOptionsIndexPrice(data []byte) error {
 	var resp OptionsIndexInfo
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	e.Websocket.DataHandler <- resp
@@ -424,14 +405,12 @@ func (e *Exchange) processOptionsIndexPrice(data []byte) error {
 func (e *Exchange) processOptionsTicker(data []byte, isSlice bool) error {
 	var resp []OptionsTicker24Hr
 	if isSlice {
-		err := json.Unmarshal(data, &resp)
-		if err != nil {
+		if err := json.Unmarshal(data, &resp); err != nil {
 			return err
 		}
 	} else {
 		respSingle := OptionsTicker24Hr{}
-		err := json.Unmarshal(data, &resp)
-		if err != nil {
+		if err := json.Unmarshal(data, &resp); err != nil {
 			return err
 		}
 		resp = append(resp, respSingle)
@@ -462,19 +441,16 @@ func (e *Exchange) processOptionsTicker(data []byte, isSlice bool) error {
 
 func (e *Exchange) processOptionsTradeStream(data []byte) error {
 	var resp *EOptionsWsTrade
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	pair, err := currency.NewPairFromString(resp.Symbol)
 	if err != nil {
 		return err
 	}
-	var side order.Side
+	side := order.Buy
 	if resp.Direction == "-1" {
 		side = order.Sell
-	} else {
-		side = order.Buy
 	}
 	e.Websocket.DataHandler <- trade.Data{
 		TID:          strconv.FormatInt(resp.TradeID, 10),

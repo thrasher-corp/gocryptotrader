@@ -173,40 +173,40 @@ func (e *Exchange) GetWsOrderbook(obd *OrderBookDataRequestParams) (*OrderBook, 
 
 // GetWsMostRecentTrades returns recent trade activity through the websocket connection
 // limit: Up to 500 results returned
-func (e *Exchange) GetWsMostRecentTrades(rtr *RecentTradeRequestParams) ([]RecentTrade, error) {
+func (e *Exchange) GetWsMostRecentTrades(rtr *RecentTradeRequestParams) ([]*RecentTrade, error) {
 	if rtr == nil || *rtr == (RecentTradeRequestParams{}) {
 		return nil, common.ErrEmptyParams
 	}
 	if rtr.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	var resp []RecentTrade
+	var resp []*RecentTrade
 	return resp, e.SendWsRequest("trades.recent", rtr, &resp)
 }
 
 // GetWsAggregatedTrades retrieves aggregated trade activity.
-func (e *Exchange) GetWsAggregatedTrades(arg *WsAggregateTradeRequestParams) ([]AggregatedTrade, error) {
-	if *arg == (WsAggregateTradeRequestParams{}) {
-		return nil, common.ErrEmptyParams
+func (e *Exchange) GetWsAggregatedTrades(arg *WsAggregateTradeRequestParams) ([]*AggregatedTrade, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
-	var resp []AggregatedTrade
+	var resp []*AggregatedTrade
 	return resp, e.SendWsRequest("trades.aggregate", arg, &resp)
 }
 
 // GetWsCandlestick retrieves spot kline data through the websocket connection.
-func (e *Exchange) GetWsCandlestick(arg *KlinesRequestParams) ([]CandleStick, error) {
+func (e *Exchange) GetWsCandlestick(arg *KlinesRequestParams) ([]*CandleStick, error) {
 	return e.getWsKlines("klines", arg)
 }
 
 // GetWsOptimizedCandlestick retrieves spot candlestick bars through the websocket connection.
-func (e *Exchange) GetWsOptimizedCandlestick(arg *KlinesRequestParams) ([]CandleStick, error) {
+func (e *Exchange) GetWsOptimizedCandlestick(arg *KlinesRequestParams) ([]*CandleStick, error) {
 	return e.getWsKlines("uiKlines", arg)
 }
 
 // getWsKlines retrieves spot kline data through the websocket connection.
-func (e *Exchange) getWsKlines(method string, arg *KlinesRequestParams) ([]CandleStick, error) {
-	if *arg == (KlinesRequestParams{}) {
-		return nil, common.ErrEmptyParams
+func (e *Exchange) getWsKlines(method string, arg *KlinesRequestParams) ([]*CandleStick, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -214,13 +214,18 @@ func (e *Exchange) getWsKlines(method string, arg *KlinesRequestParams) ([]Candl
 	if arg.Interval == "" {
 		return nil, kline.ErrInvalidInterval
 	}
+	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
+		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
+			return nil, err
+		}
+	}
 	if !arg.StartTime.IsZero() {
 		arg.StartTimestamp = arg.StartTime.UnixMilli()
 	}
 	if !arg.EndTime.IsZero() {
 		arg.EndTimestamp = arg.EndTime.UnixMilli()
 	}
-	var resp []CandleStick
+	var resp []*CandleStick
 	return resp, e.SendWsRequest(method, arg, &resp)
 }
 
@@ -241,21 +246,21 @@ func (e *Exchange) GetWsCurrenctAveragePrice(symbol currency.Pair) (*SymbolAvera
 // GetWs24HourPriceChanges 24-hour rolling window price changes statistics through the websocket stream.
 // 'type': 'FULL' (default) or 'MINI'
 // 'timeZone' Default: 0 (UTC)
-func (e *Exchange) GetWs24HourPriceChanges(arg *PriceChangeRequestParam) ([]PriceChangeStats, error) {
+func (e *Exchange) GetWs24HourPriceChanges(arg *PriceChangeRequestParam) ([]*PriceChangeStats, error) {
 	return e.tickerDataChange("ticker.24hr", arg)
 }
 
 // GetWsTradingDayTickers price change statistics for a trading day.
 // 'type': 'FULL' (default) or 'MINI'
 // 'timeZone' Default: 0 (UTC)
-func (e *Exchange) GetWsTradingDayTickers(arg *PriceChangeRequestParam) ([]PriceChangeStats, error) {
+func (e *Exchange) GetWsTradingDayTickers(arg *PriceChangeRequestParam) ([]*PriceChangeStats, error) {
 	return e.tickerDataChange("ticker.tradingDay", arg)
 }
 
 // tickerDataChange unifying method to make price change requests through the websocket stream.
-func (e *Exchange) tickerDataChange(method string, arg *PriceChangeRequestParam) ([]PriceChangeStats, error) {
-	if arg == nil {
-		return nil, common.ErrEmptyParams
+func (e *Exchange) tickerDataChange(method string, arg *PriceChangeRequestParam) ([]*PriceChangeStats, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if arg.Symbol == "" && len(arg.Symbols) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
@@ -278,7 +283,7 @@ func (e *Exchange) WindowSizeToString(windowSize time.Duration) string {
 }
 
 // GetSymbolPriceTicker represents a symbol ticker item information.
-func (e *Exchange) GetSymbolPriceTicker(symbol currency.Pair) ([]SymbolTickerItem, error) {
+func (e *Exchange) GetSymbolPriceTicker(symbol currency.Pair) ([]*SymbolTickerItem, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
@@ -288,9 +293,9 @@ func (e *Exchange) GetSymbolPriceTicker(symbol currency.Pair) ([]SymbolTickerIte
 
 // GetWsRollingWindowPriceChanges retrieves rolling window price change statistics with a custom window.
 // this request is similar to ticker.24hr, but statistics are computed on demand using the arbitrary window you specify
-func (e *Exchange) GetWsRollingWindowPriceChanges(arg *WsRollingWindowPriceParams) ([]PriceChangeStats, error) {
+func (e *Exchange) GetWsRollingWindowPriceChanges(arg *WsRollingWindowPriceParams) ([]*PriceChangeStats, error) {
 	if arg.Symbol == "" && len(arg.Symbols) == 0 {
-		return nil, currency.ErrSymbolStringEmpty
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	arg.WindowSize = e.WindowSizeToString(arg.WindowSizeDuration)
 	var resp PriceChanges
@@ -298,7 +303,7 @@ func (e *Exchange) GetWsRollingWindowPriceChanges(arg *WsRollingWindowPriceParam
 }
 
 // GetWsSymbolOrderbookTicker retrieves the current best price and quantity on the order book.
-func (e *Exchange) GetWsSymbolOrderbookTicker(symbols currency.Pairs) ([]WsOrderbookTicker, error) {
+func (e *Exchange) GetWsSymbolOrderbookTicker(symbols currency.Pairs) ([]*WsOrderbookTicker, error) {
 	if len(symbols) == 0 || (len(symbols) == 1 && symbols[0].IsEmpty()) {
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
@@ -400,7 +405,10 @@ func (e *Exchange) GetLogOutOfSession() (*FuturesAuthenticationResp, error) {
 
 // WsPlaceNewOrder place new order
 func (e *Exchange) WsPlaceNewOrder(arg *TradeOrderRequestParam) (*TradeOrderResponse, error) {
-	if arg.Symbol == "" {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
+	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if arg.Side == "" {
@@ -422,10 +430,10 @@ func (e *Exchange) WsPlaceNewOrder(arg *TradeOrderRequestParam) (*TradeOrderResp
 
 // ValidatePlaceNewOrderRequest tests whether the request order is valid or not.
 func (e *Exchange) ValidatePlaceNewOrderRequest(arg *TradeOrderRequestParam) error {
-	if arg == nil {
-		return common.ErrEmptyParams
+	if err := common.NilGuard(arg); err != nil {
+		return err
 	}
-	if arg.Symbol == "" {
+	if arg.Symbol.IsEmpty() {
 		return currency.ErrCurrencyPairEmpty
 	}
 	if arg.Side == "" {
@@ -446,13 +454,13 @@ func (e *Exchange) ValidatePlaceNewOrderRequest(arg *TradeOrderRequestParam) err
 
 // WsQueryOrder to query a trade order
 func (e *Exchange) WsQueryOrder(arg *QueryOrderParam) (*TradeOrder, error) {
-	if arg == nil {
-		return nil, common.ErrEmptyParams
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if arg.OrderID == 0 && arg.OrigClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	if arg.Symbol == "" {
+	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	arg.Timestamp = time.Now().UnixMilli()
@@ -468,13 +476,13 @@ func (e *Exchange) WsQueryOrder(arg *QueryOrderParam) (*TradeOrder, error) {
 
 // WsCancelOrder cancel an active order.
 func (e *Exchange) WsCancelOrder(arg *QueryOrderParam) (*TradeOrder, error) {
-	if arg == nil {
-		return nil, common.ErrEmptyParams
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if arg.OrderID == 0 && arg.OrigClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	if arg.Symbol == "" {
+	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	arg.Timestamp = time.Now().UnixMilli()
@@ -490,10 +498,10 @@ func (e *Exchange) WsCancelOrder(arg *QueryOrderParam) (*TradeOrder, error) {
 
 // WsCancelAndReplaceTradeOrder cancel an existing order and immediately place a new order instead of the canceled one.
 func (e *Exchange) WsCancelAndReplaceTradeOrder(arg *WsCancelAndReplaceParam) (*WsCancelAndReplaceTradeOrderResponse, error) {
-	if arg == nil {
-		return nil, common.ErrEmptyParams
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
-	if arg.Symbol == "" {
+	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if arg.CancelReplaceMode == "" {
@@ -539,7 +547,7 @@ func (e *Exchange) openOrdersFilter(symbol currency.Pair, recvWindow int64) (map
 }
 
 // WsCurrentOpenOrders retrieves list of open orders.
-func (e *Exchange) WsCurrentOpenOrders(symbol currency.Pair, recvWindow int64) ([]TradeOrder, error) {
+func (e *Exchange) WsCurrentOpenOrders(symbol currency.Pair, recvWindow int64) ([]*TradeOrder, error) {
 	arg, err := e.openOrdersFilter(symbol, recvWindow)
 	if err != nil {
 		return nil, err
@@ -551,12 +559,12 @@ func (e *Exchange) WsCurrentOpenOrders(symbol currency.Pair, recvWindow int64) (
 	}
 	arg["apiKey"] = apiKey
 	arg["signature"] = signature
-	var resp []TradeOrder
+	var resp []*TradeOrder
 	return resp, e.SendWsRequest("openOrders.status", arg, &resp)
 }
 
 // WsCancelOpenOrders represents an open orders list
-func (e *Exchange) WsCancelOpenOrders(symbol currency.Pair, recvWindow int64) ([]WsCancelOrder, error) {
+func (e *Exchange) WsCancelOpenOrders(symbol currency.Pair, recvWindow int64) ([]*WsCancelOrder, error) {
 	arg, err := e.openOrdersFilter(symbol, recvWindow)
 	if err != nil {
 		return nil, err
@@ -568,17 +576,17 @@ func (e *Exchange) WsCancelOpenOrders(symbol currency.Pair, recvWindow int64) ([
 	}
 	arg["apiKey"] = apiKey
 	arg["signature"] = signature
-	var resp []WsCancelOrder
+	var resp []*WsCancelOrder
 	return resp, e.SendWsRequest("openOrders.cancelAll", arg, &resp)
 }
 
 // WsPlaceOCOOrder send in a new one-cancels-the-other (OCO) pair: LIMIT_MAKER + STOP_LOSS/STOP_LOSS_LIMIT orders (called legs), where activation of one order immediately cancels the other.
 // Response format for orderReports is selected using the newOrderRespType parameter. The following example is for RESULT response type. See order.place for more examples.
 func (e *Exchange) WsPlaceOCOOrder(arg *PlaceOCOOrderParam) (*OCOOrder, error) {
-	if arg == nil || *arg == (PlaceOCOOrderParam{}) {
-		return nil, common.ErrEmptyParams
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
-	if arg.Symbol == "" {
+	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if arg.Side == "" {
@@ -657,7 +665,7 @@ func (e *Exchange) WsCancelOCOOrder(symbol currency.Pair, orderListID, listClien
 }
 
 // WsCurrentOpenOCOOrders query execution status of all open OCOs.
-func (e *Exchange) WsCurrentOpenOCOOrders(recvWindow int64) ([]OCOOrder, error) {
+func (e *Exchange) WsCurrentOpenOCOOrders(recvWindow int64) ([]*OCOOrder, error) {
 	params := make(map[string]any)
 	if recvWindow != 0 {
 		params["recvWindow"] = recvWindow
@@ -669,16 +677,16 @@ func (e *Exchange) WsCurrentOpenOCOOrders(recvWindow int64) ([]OCOOrder, error) 
 	}
 	params["apiKey"] = apiKey
 	params["signature"] = signature
-	var resp []OCOOrder
+	var resp []*OCOOrder
 	return resp, e.SendWsRequest("openOrderLists.status", params, &resp)
 }
 
 // WsPlaceNewSOROrder places an order using smart order routing (SOR).
-func (e *Exchange) WsPlaceNewSOROrder(arg *WsOSRPlaceOrderParams) ([]OSROrder, error) {
-	if arg == nil || *arg == (WsOSRPlaceOrderParams{}) {
-		return nil, common.ErrEmptyParams
+func (e *Exchange) WsPlaceNewSOROrder(arg *WsOSRPlaceOrderParams) ([]*OSROrder, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
-	if arg.Symbol == "" {
+	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if arg.Side == "" {
@@ -697,17 +705,17 @@ func (e *Exchange) WsPlaceNewSOROrder(arg *WsOSRPlaceOrderParams) ([]OSROrder, e
 	}
 	arg.APIKey = apiKey
 	arg.Signature = signature
-	var resp []OSROrder
+	var resp []*OSROrder
 	return resp, e.SendWsRequest("sor.order.place", arg, &resp)
 }
 
 // WsTestNewOrderUsingSOR test new order creation and signature/recvWindow using smart order routing (SOR).
 // Creates and validates a new order but does not send it into the matching engine.
 func (e *Exchange) WsTestNewOrderUsingSOR(arg *WsOSRPlaceOrderParams) error {
-	if *arg == (WsOSRPlaceOrderParams{}) {
-		return common.ErrEmptyParams
+	if err := common.NilGuard(arg); err != nil {
+		return err
 	}
-	if arg.Symbol == "" {
+	if arg.Symbol.IsEmpty() {
 		return currency.ErrCurrencyPairEmpty
 	}
 	if arg.Side == "" {
@@ -759,7 +767,7 @@ func (e *Exchange) GetWsAccountInfo(recvWindow int64) (*Account, error) {
 }
 
 // WsQueryAccountOrderRateLimits query your current order rate limit.
-func (e *Exchange) WsQueryAccountOrderRateLimits(recvWindow int64) ([]RateLimitItem, error) {
+func (e *Exchange) WsQueryAccountOrderRateLimits(recvWindow int64) ([]*RateLimitItem, error) {
 	params := map[string]any{}
 	if recvWindow > 0 {
 		params["recvWindow"] = recvWindow
@@ -771,18 +779,18 @@ func (e *Exchange) WsQueryAccountOrderRateLimits(recvWindow int64) ([]RateLimitI
 	}
 	params["apiKey"] = apiKey
 	params["signature"] = signature
-	var resp []RateLimitItem
+	var resp []*RateLimitItem
 	return resp, e.SendWsRequest("account.rateLimits.orders", params, &resp)
 }
 
 // WsQueryAccountOrderHistory query information about all your orders – active, canceled, filled – filtered by time range.
 // Status reports for orders are identical to order.status.
-func (e *Exchange) WsQueryAccountOrderHistory(arg *AccountOrderRequestParam) ([]TradeOrder, error) {
-	if arg == nil || *arg == (AccountOrderRequestParam{}) {
-		return nil, common.ErrEmptyParams
+func (e *Exchange) WsQueryAccountOrderHistory(arg *AccountOrderRequestParam) ([]*TradeOrder, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
-	if arg.Symbol == "" {
-		return nil, currency.ErrSymbolStringEmpty
+	if arg.Symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	arg.Timestamp = time.Now().UnixMilli()
 	apiKey, signature, err := e.getSignature(arg)
@@ -791,13 +799,13 @@ func (e *Exchange) WsQueryAccountOrderHistory(arg *AccountOrderRequestParam) ([]
 	}
 	arg.APIKey = apiKey
 	arg.Signature = signature
-	var resp []TradeOrder
+	var resp []*TradeOrder
 	return resp, e.SendWsRequest("allOrders", arg, &resp)
 }
 
 // WsQueryAccountOCOOrderHistory query information about all your OCOs, filtered by time range.
 // Status reports for OCOs are identical to orderList.status.
-func (e *Exchange) WsQueryAccountOCOOrderHistory(fromID, limit, recvWindow int64, startTime, endTime time.Time) ([]OCOOrder, error) {
+func (e *Exchange) WsQueryAccountOCOOrderHistory(fromID, limit, recvWindow int64, startTime, endTime time.Time) ([]*OCOOrder, error) {
 	params := make(map[string]any)
 	if fromID != 0 {
 		params["fromId"] = fromID
@@ -826,17 +834,17 @@ func (e *Exchange) WsQueryAccountOCOOrderHistory(fromID, limit, recvWindow int64
 	}
 	params["apiKey"] = apiKey
 	params["signature"] = signature
-	var resp []OCOOrder
+	var resp []*OCOOrder
 	return resp, e.SendWsRequest("allOrderLists", params, &resp)
 }
 
 // WsAccountTradeHistory query information about all your trades, filtered by time range.
-func (e *Exchange) WsAccountTradeHistory(arg *AccountOrderRequestParam) ([]TradeHistory, error) {
-	if arg == nil || *arg == (AccountOrderRequestParam{}) {
-		return nil, common.ErrEmptyParams
+func (e *Exchange) WsAccountTradeHistory(arg *AccountOrderRequestParam) ([]*TradeHistory, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
-	if arg.Symbol == "" {
-		return nil, currency.ErrSymbolStringEmpty
+	if arg.Symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	arg.Timestamp = time.Now().UnixMilli()
 	apiKey, signatures, err := e.getSignature(arg)
@@ -845,7 +853,7 @@ func (e *Exchange) WsAccountTradeHistory(arg *AccountOrderRequestParam) ([]Trade
 	}
 	arg.APIKey = apiKey
 	arg.Signature = signatures
-	var resp []TradeHistory
+	var resp []*TradeHistory
 	return resp, e.SendWsRequest("myTrades", arg, &resp)
 }
 
@@ -856,7 +864,7 @@ func (e *Exchange) WsAccountTradeHistory(arg *AccountOrderRequestParam) ([]Trade
 // symbol + orderId
 // symbol + orderId + fromPreventedMatchId (limit will default to 500)
 // symbol + orderId + fromPreventedMatchId + limit
-func (e *Exchange) WsAccountPreventedMatches(symbol currency.Pair, preventedMatchID, orderID, fromPreventedMatchID, limit, recvWindow int64) ([]SelfTradePrevention, error) {
+func (e *Exchange) WsAccountPreventedMatches(symbol currency.Pair, preventedMatchID, orderID, fromPreventedMatchID, limit, recvWindow int64) ([]*SelfTradePrevention, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -887,12 +895,12 @@ func (e *Exchange) WsAccountPreventedMatches(symbol currency.Pair, preventedMatc
 	}
 	params["apiKey"] = apiKey
 	params["signature"] = signature
-	var resp []SelfTradePrevention
+	var resp []*SelfTradePrevention
 	return resp, e.SendWsRequest("myPreventedMatches", params, &resp)
 }
 
 // WsAccountAllocation retrieves allocations resulting from SOR order placement.
-func (e *Exchange) WsAccountAllocation(symbol currency.Pair, startTime, endTime time.Time, orderID, fromAllocationID, recvWindow, limit int64) ([]SORReplacements, error) {
+func (e *Exchange) WsAccountAllocation(symbol currency.Pair, startTime, endTime time.Time, orderID, fromAllocationID, recvWindow, limit int64) ([]*SORReplacements, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -929,7 +937,7 @@ func (e *Exchange) WsAccountAllocation(symbol currency.Pair, startTime, endTime 
 	}
 	params["apiKey"] = apiKey
 	params["signature"] = signature
-	var resp []SORReplacements
+	var resp []*SORReplacements
 	return resp, e.SendWsRequest("myAllocations", params, &resp)
 }
 

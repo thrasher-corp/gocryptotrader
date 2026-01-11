@@ -122,7 +122,11 @@ func (e *Exchange) GetFuturesAggregatedTradesList(ctx context.Context, symbol cu
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []AggregatedTrade
@@ -158,7 +162,11 @@ func (e *Exchange) GetFuturesKlineData(ctx context.Context, symbol currency.Pair
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if !symbol.IsEmpty() {
@@ -178,9 +186,9 @@ func (e *Exchange) GetFuturesKlineData(ctx context.Context, symbol currency.Pair
 }
 
 // GetContinuousKlineData gets continuous kline data
-func (e *Exchange) GetContinuousKlineData(ctx context.Context, pair, contractType, interval string, limit uint64, startTime, endTime time.Time) ([]CFuturesCandleStick, error) {
+func (e *Exchange) GetContinuousKlineData(ctx context.Context, pair string, contractType, interval string, limit uint64, startTime, endTime time.Time) ([]CFuturesCandleStick, error) {
 	if pair == "" {
-		return nil, currency.ErrSymbolStringEmpty
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if !slices.Contains(validContractType, contractType) {
 		return nil, errContractTypeIsRequired
@@ -193,7 +201,11 @@ func (e *Exchange) GetContinuousKlineData(ctx context.Context, pair, contractTyp
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
@@ -221,7 +233,11 @@ func (e *Exchange) GetIndexPriceKlines(ctx context.Context, pair, interval strin
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	params.Set("pair", pair)
@@ -259,7 +275,11 @@ func (e *Exchange) getKline(ctx context.Context, symbol currency.Pair, interval,
 		if err != nil {
 			return nil, err
 		}
+	}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	params.Set("symbol", symbolValue)
@@ -319,7 +339,11 @@ func (e *Exchange) FuturesGetFundingHistory(ctx context.Context, symbol currency
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []FundingRateHistory
@@ -367,7 +391,7 @@ func (e *Exchange) GetFuturesOrderbookTicker(ctx context.Context, symbol currenc
 // GetCFuturesIndexPriceConstituents retrieved index price constituents detail
 func (e *Exchange) GetCFuturesIndexPriceConstituents(ctx context.Context, symbol currency.Pair) (*CFuturesIndexPriceConstituents, error) {
 	if symbol.IsEmpty() {
-		return nil, currency.ErrSymbolStringEmpty
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol.String())
@@ -407,7 +431,11 @@ func (e *Exchange) GetOpenInterestStats(ctx context.Context, pair, contractType,
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	params.Set("contractType", contractType)
@@ -435,7 +463,11 @@ func (e *Exchange) GetTraderFuturesAccountRatio(ctx context.Context, pair curren
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	params.Set("pair", pair.String())
@@ -460,7 +492,11 @@ func (e *Exchange) GetTraderFuturesPositionsRatio(ctx context.Context, pair curr
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	params.Set("pair", pair.String())
@@ -485,7 +521,11 @@ func (e *Exchange) GetMarketRatio(ctx context.Context, pair currency.Pair, perio
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	params.Set("pair", pair.String())
@@ -513,7 +553,11 @@ func (e *Exchange) GetFuturesTakerVolume(ctx context.Context, pair currency.Pair
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	params.Set("pair", pair.String())
@@ -548,7 +592,11 @@ func (e *Exchange) GetFuturesBasisData(ctx context.Context, pair currency.Pair, 
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []FuturesBasisData
@@ -763,7 +811,11 @@ func (e *Exchange) GetAllFuturesOrders(ctx context.Context, symbol, pair currenc
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []FuturesOrderData
@@ -857,7 +909,11 @@ func (e *Exchange) FuturesMarginChangeHistory(ctx context.Context, symbol curren
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit != 0 {
@@ -901,7 +957,11 @@ func (e *Exchange) FuturesTradeHistory(ctx context.Context, symbol currency.Pair
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit != 0 {
@@ -934,7 +994,11 @@ func (e *Exchange) FuturesIncomeHistory(ctx context.Context, symbol currency.Pai
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit != 0 {
@@ -974,7 +1038,11 @@ func (e *Exchange) FuturesForceOrders(ctx context.Context, symbol currency.Pair,
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []ForcedOrdersData

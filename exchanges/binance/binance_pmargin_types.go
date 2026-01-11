@@ -1,6 +1,7 @@
 package binance
 
 import (
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -35,18 +36,18 @@ type UMCMOrder struct {
 
 // UMOrderParam request parameters for UM order
 type UMOrderParam struct {
-	Symbol                  string  `json:"symbol"`
-	Side                    string  `json:"side"`
-	PositionSide            string  `json:"positionSide,omitempty"`
-	OrderType               string  `json:"type"`
-	TimeInForce             string  `json:"timeInForce,omitempty"`
-	Quantity                float64 `json:"quantity,omitempty"`
-	ReduceOnly              bool    `json:"reduceOnly,omitempty"`
-	Price                   float64 `json:"price,omitempty"`
-	NewClientOrderID        string  `json:"newClientOrderId,omitempty"`
-	NewOrderRespType        string  `json:"newOrderRespType,omitempty"`
-	SelfTradePreventionMode string  `json:"selfTradePreventionMode,omitempty"`
-	GoodTillDate            int64   `json:"goodTillDate,omitempty"`
+	Symbol                  currency.Pair `json:"symbol"`
+	Side                    string        `json:"side"`
+	PositionSide            string        `json:"positionSide,omitempty"`
+	OrderType               string        `json:"type"`
+	TimeInForce             string        `json:"timeInForce,omitempty"`
+	Quantity                float64       `json:"quantity,omitempty"`
+	ReduceOnly              bool          `json:"reduceOnly,omitempty"`
+	Price                   float64       `json:"price,omitempty"`
+	NewClientOrderID        string        `json:"newClientOrderId,omitempty"`
+	NewOrderRespType        string        `json:"newOrderRespType,omitempty"`
+	SelfTradePreventionMode string        `json:"selfTradePreventionMode,omitempty"`
+	GoodTillDate            int64         `json:"goodTillDate,omitempty"`
 }
 
 // MarginOrderParam represents request parameter for margin trade order
@@ -150,20 +151,20 @@ type ConditionalOrder struct {
 
 // ConditionalOrderParam represents a conditional order parameter for coin/usdt margined futures.
 type ConditionalOrderParam struct {
-	Symbol              string  `json:"symbol"`
-	Side                string  `json:"side"`
-	PositionSide        string  `json:"positionSide,omitempty"` // Default BOTH for One-way Mode ; LONG or SHORT for Hedge Mode. It must be sent in Hedge Mode.
-	StrategyType        string  `json:"strategyType"`           // "STOP", "STOP_MARKET", "TAKE_PROFIT", "TAKE_PROFIT_MARKET", and "TRAILING_STOP_MARKET"
-	TimeInForce         string  `json:"timeInForce,omitempty"`
-	Quantity            float64 `json:"quantity,omitempty"`
-	ReduceOnly          bool    `json:"reduceOnly,omitempty"`
-	Price               float64 `json:"price,omitempty"`
-	WorkingType         string  `json:"workingType,omitempty"`
-	PriceProtect        bool    `json:"priceProtect,omitempty"`
-	NewClientStrategyID string  `json:"newClientStrategyID,omitempty"`
-	StopPrice           float64 `json:"stopPrice,omitempty"`
-	ActivationPrice     float64 `json:"activationPrice,omitempty"`
-	CallbackRate        float64 `json:"callbackRate,omitempty"`
+	Symbol              currency.Pair `json:"symbol"`
+	Side                string        `json:"side"`
+	PositionSide        string        `json:"positionSide,omitempty"` // Default BOTH for One-way Mode ; LONG or SHORT for Hedge Mode. It must be sent in Hedge Mode.
+	StrategyType        string        `json:"strategyType"`           // "STOP", "STOP_MARKET", "TAKE_PROFIT", "TAKE_PROFIT_MARKET", and "TRAILING_STOP_MARKET"
+	TimeInForce         string        `json:"timeInForce,omitempty"`
+	Quantity            float64       `json:"quantity,omitempty"`
+	ReduceOnly          bool          `json:"reduceOnly,omitempty"`
+	Price               float64       `json:"price,omitempty"`
+	WorkingType         string        `json:"workingType,omitempty"`
+	PriceProtect        bool          `json:"priceProtect,omitempty"`
+	NewClientStrategyID string        `json:"newClientStrategyID,omitempty"`
+	StopPrice           float64       `json:"stopPrice,omitempty"`
+	ActivationPrice     float64       `json:"activationPrice,omitempty"`
+	CallbackRate        float64       `json:"callbackRate,omitempty"`
 
 	// User in USDT margined futures only
 	SelfTradePreventionMode string `json:"selfTradePreventionMode,omitempty"`
