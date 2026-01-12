@@ -199,11 +199,10 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		RateLimit:             request.NewRateLimitWithWeight(time.Second, 2, 1),
+		RateLimit:             request.NewRateLimitWithWeight(time.Second*10, 100, 1), // See: https://www.kucoin.com/docs-new/rate-limit#websocket-rate-limit
 		URL:                   wsRunningEndpoint,
 		Connector:             e.WsConnect,
 		GenerateSubscriptions: e.generateSubscriptions,
