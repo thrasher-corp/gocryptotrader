@@ -104,7 +104,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
 	result, err := e.GetFee(t.Context(), feeBuilder)
 	require.NoError(t, err)
-	require.NotNil(t, result)
+	assert.NotNil(t, result)
 
 	// CryptocurrencyWithdrawalFee Invalid currency
 	feeBuilder = setFeeBuilder()
@@ -112,28 +112,28 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
 	result, err = e.GetFee(t.Context(), feeBuilder)
 	require.NoError(t, err)
-	require.NotNil(t, result)
+	assert.NotNil(t, result)
 
 	// CryptocurrencyDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyDepositFee
 	result, err = e.GetFee(t.Context(), feeBuilder)
 	require.NoError(t, err)
-	require.NotNil(t, result)
+	assert.NotNil(t, result)
 
 	// InternationalBankDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
 	result, err = e.GetFee(t.Context(), feeBuilder)
 	require.NoError(t, err)
-	require.NotNil(t, result)
+	assert.NotNil(t, result)
 
 	// InternationalBankWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.USD
 	result, err = e.GetFee(t.Context(), feeBuilder)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -141,7 +141,7 @@ func TestGetFee(t *testing.T) {
 	feeBuilder = setFeeBuilder()
 	result, err = e.GetFee(t.Context(), feeBuilder)
 	require.NoError(t, err)
-	require.NotNil(t, result)
+	assert.NotNil(t, result)
 
 	// CryptocurrencyTradeFee High quantity
 	feeBuilder = setFeeBuilder()
@@ -149,14 +149,14 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.PurchasePrice = 1000
 	result, err = e.GetFee(t.Context(), feeBuilder)
 	require.NoError(t, err)
-	require.NotNil(t, result)
+	assert.NotNil(t, result)
 
 	// CryptocurrencyTradeFee Negative purchase price
 	feeBuilder = setFeeBuilder()
 	feeBuilder.PurchasePrice = -1000
 	result, err = e.GetFee(t.Context(), feeBuilder)
 	require.NoError(t, err)
-	require.NotNil(t, result)
+	assert.NotNil(t, result)
 }
 
 func TestGetActiveOrders(t *testing.T) {
@@ -170,7 +170,7 @@ func TestGetActiveOrders(t *testing.T) {
 	result, err := e.GetActiveOrders(generateContext(t), &order.MultiOrderRequest{
 		AssetType: asset.Spot,
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	result, err = e.GetActiveOrders(generateContext(t), &order.MultiOrderRequest{
@@ -198,7 +198,7 @@ func TestGetOrderHistory(t *testing.T) {
 		AssetType: asset.Spot,
 		Side:      order.Buy,
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	result, err = e.GetOrderHistory(generateContext(t), &order.MultiOrderRequest{
@@ -206,7 +206,7 @@ func TestGetOrderHistory(t *testing.T) {
 		AssetType: asset.Spot,
 		Side:      order.Sell,
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	result, err = e.GetOrderHistory(generateContext(t), &order.MultiOrderRequest{
@@ -219,7 +219,6 @@ func TestGetOrderHistory(t *testing.T) {
 }
 
 // Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
-// ----------------------------------------------------------------------------------------------------------------------------
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
@@ -305,7 +304,7 @@ func TestSubmitOrder(t *testing.T) {
 		QuoteAmount: 10000000,
 		AssetType:   asset.Spot,
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	result, err = e.SubmitOrder(generateContext(t), &order.Submit{
@@ -319,7 +318,7 @@ func TestSubmitOrder(t *testing.T) {
 		ClientID:     "hi",
 		AssetType:    asset.Spot,
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	result, err = e.SubmitOrder(generateContext(t), &order.Submit{
@@ -333,7 +332,7 @@ func TestSubmitOrder(t *testing.T) {
 		ClientID:     "hi",
 		AssetType:    asset.Futures,
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	result, err = e.SubmitOrder(generateContext(t), &order.Submit{
@@ -345,7 +344,7 @@ func TestSubmitOrder(t *testing.T) {
 		Amount:    10000000,
 		AssetType: asset.Futures,
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	result, err = e.SubmitOrder(generateContext(t), &order.Submit{
@@ -424,7 +423,7 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 		QuoteAmount: 1000000,
 		AssetType:   asset.Spot,
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	result, err = e.WebsocketSubmitOrder(generateContext(t), &order.Submit{
@@ -522,18 +521,18 @@ func TestCancelAllOrders(t *testing.T) {
 	}
 	arg.Type = order.Stop
 	result, err := e.CancelAllOrders(generateContext(t), arg)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	arg.Type = order.Limit
 	result, err = e.CancelAllOrders(generateContext(t), arg)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	arg.AssetType = asset.Futures
 	arg.Pair = futuresTradablePair
 	result, err = e.CancelAllOrders(generateContext(t), arg)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	arg.Type = order.StopLimit
@@ -573,7 +572,7 @@ func TestModifyOrder(t *testing.T) {
 	}
 	arg.TimeInForce = order.GoodTillCancel
 	result, err := e.ModifyOrder(t.Context(), arg)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	arg.Type = order.StopLimit
@@ -634,7 +633,7 @@ func TestUpdateAccountBalances(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
 	result, err := e.UpdateAccountBalances(generateContext(t), asset.Spot)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	result, err = e.UpdateAccountBalances(generateContext(t), asset.Futures)
@@ -662,7 +661,7 @@ func TestGetHistoricCandles(t *testing.T) {
 		startTime, endTime = time.Now().Add(-time.Hour*2), time.Now()
 	}
 	result, err := e.GetHistoricCandles(t.Context(), spotTradablePair, asset.Spot, kline.FiveMin, startTime.UTC(), endTime.UTC())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	result, err = e.GetHistoricCandles(t.Context(), futuresTradablePair, asset.Futures, kline.FiveMin, startTime.UTC(), endTime.UTC())
@@ -677,7 +676,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 		startTime, endTime = time.Now().Add(-time.Hour*24), time.Now()
 	}
 	result, err := e.GetHistoricCandlesExtended(t.Context(), spotTradablePair, asset.Spot, kline.OneHour, startTime, endTime)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	result, err = e.GetHistoricCandlesExtended(t.Context(), futuresTradablePair, asset.Futures, kline.FiveMin, startTime, endTime)
@@ -688,7 +687,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
 	result, err := e.GetRecentTrades(t.Context(), spotTradablePair, asset.Spot)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	result, err = e.GetRecentTrades(t.Context(), futuresTradablePair, asset.Futures)
@@ -987,7 +986,7 @@ func TestGetOrderbook(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	result, err := e.GetOrderbook(t.Context(), spotTradablePair, 0, 0)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	result, err = e.GetOrderbook(t.Context(), spotTradablePair, 1, 100)
@@ -1004,7 +1003,7 @@ func TestUpdateOrderbook(t *testing.T) {
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	result, err := e.UpdateOrderbook(t.Context(), spotTradablePair, asset.Spot)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	result, err = e.UpdateOrderbook(t.Context(), futuresTradablePair, asset.Futures)
@@ -1100,7 +1099,7 @@ func TestGetBalances(t *testing.T) {
 	}
 	result, err := e.GetBalances(generateContext(t), "")
 	require.NoError(t, err)
-	require.NotNil(t, result)
+	assert.NotNil(t, result)
 
 	result, err = e.GetBalances(generateContext(t), "SPOT")
 	assert.NoError(t, err)
@@ -1117,7 +1116,7 @@ func TestGetBalancesByID(t *testing.T) {
 	}
 	result, err := e.GetAccountBalances(generateContext(t), "329455537441832960", "")
 	require.NoError(t, err)
-	require.NotNil(t, result)
+	assert.NotNil(t, result)
 
 	result, err = e.GetAccountBalances(generateContext(t), "329455537441832960", "SPOT")
 	assert.NoError(t, err)
@@ -1390,7 +1389,7 @@ func TestGetOrderInfo(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
 	result, err := e.GetOrderInfo(generateContext(t), "1234", spotTradablePair, asset.Spot)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	result, err = e.GetOrderInfo(generateContext(t), "12345", futuresTradablePair, asset.Futures)
@@ -2160,8 +2159,6 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	assert.Equal(t, lms.MinimumQuoteAmount, spotInstruments[0].SymbolTradeLimit.MinAmount.Float64())
 }
 
-// ---- Futures endpoints ---
-
 func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, e)
@@ -2440,7 +2437,7 @@ func TestGetFuturesCurrentPosition(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
 	result, err := e.GetFuturesCurrentPosition(generateContext(t), currency.EMPTYPAIR)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	result, err = e.GetFuturesCurrentPosition(generateContext(t), futuresTradablePair)
@@ -2760,7 +2757,7 @@ func TestGetFuturesRiskLimit(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	result, err := e.GetFuturesRiskLimit(t.Context(), futuresTradablePair, "", 0)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	result, err = e.GetFuturesRiskLimit(t.Context(), futuresTradablePair, "CROSS", 1)

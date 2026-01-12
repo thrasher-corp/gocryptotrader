@@ -41,6 +41,7 @@ var (
 	ErrClientOrderIDMustBeSet      = errors.New("client order ID must be set")
 	ErrUnknownSubmissionAmountType = errors.New("unknown submission amount type")
 	ErrUnrecognisedOrderType       = errors.New("unrecognised order type")
+	ErrPositionSideUnsupported     = errors.New("position side unsupported")
 )
 
 var (
@@ -787,15 +788,15 @@ func (s Side) IsLong() bool {
 }
 
 // Position converts a spot side to a futures position; eg BUY => LONG
-// Returns UnknownSide unless s.IsLong or s.IsShort
-func (s Side) Position() Side {
+// Returns UnknownSide with an ErrPositionSideUnsupported error unless s.IsLong or s.IsShort
+func (s Side) Position() (Side, error) {
 	switch {
 	case s.IsLong():
-		return Long
+		return Long, nil
 	case s.IsShort():
-		return Short
+		return Short, nil
 	}
-	return UnknownSide
+	return UnknownSide, ErrPositionSideUnsupported
 }
 
 // String implements the stringer interface

@@ -1770,14 +1770,17 @@ func TestPosition(t *testing.T) {
 	input := []struct {
 		sides []Side
 		side  Side
+		err   error
 	}{
-		{[]Side{Short, Sell, Ask}, Short},
-		{[]Side{Long, Buy, Bid}, Long},
-		{[]Side{Side(123)}, UnknownSide},
+		{[]Side{Short, Sell, Ask}, Short, nil},
+		{[]Side{Long, Buy, Bid}, Long, nil},
+		{[]Side{Side(123)}, UnknownSide, ErrPositionSideUnsupported},
 	}
 	for _, a := range input {
 		for _, sd := range a.sides {
-			assert.Equal(t, a.side, sd.Position())
+			side, err := sd.Position()
+			assert.Equal(t, a.side, side)
+			assert.ErrorIs(t, err, a.err)
 		}
 	}
 }

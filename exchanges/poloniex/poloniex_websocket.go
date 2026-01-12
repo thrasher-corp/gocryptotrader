@@ -82,9 +82,6 @@ func setupPingHandler(conn websocket.Connection) {
 
 // wsConnect checks if websocket is enabled and initiates a websocket connection
 func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
-		return websocket.ErrWebsocketNotEnabled
-	}
 	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}

@@ -1040,7 +1040,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	return nil
 }
 
-func (e *Exchange) sendAuthenticatedRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, path string, values url.Values, body, result any) error {
+func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, path string, values url.Values, body, result any) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -1109,17 +1109,9 @@ func (e *Exchange) sendAuthenticatedRequest(ctx context.Context, ep exchange.URL
 	return nil
 }
 
-// SendAuthenticatedHTTPRequest sends an authenticated HTTP request
-func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, path string, values url.Values, body, result any) error {
-	if err := e.sendAuthenticatedRequest(ctx, ep, epl, method, path, values, body, result); err != nil {
-		return err
-	}
-	return nil
-}
-
 // SendBatchValidatedAuthenticatedHTTPRequest sends an authenticated V3 HTTP request and returns a slice response after validating errors on each batch item.
 func SendBatchValidatedAuthenticatedHTTPRequest[T hasError](ctx context.Context, e *Exchange, ep exchange.URL, epl request.EndpointLimit, method, path string, values url.Values, body any) (result []T, err error) {
-	if err := e.sendAuthenticatedRequest(ctx, ep, epl, method, path, values, body, &result); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, ep, epl, method, path, values, body, &result); err != nil {
 		return nil, err
 	}
 	// Return result,  which contains the full response including both

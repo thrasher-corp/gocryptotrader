@@ -671,7 +671,10 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	}
 	var positionSide order.Side
 	if s.MarginType != margin.Unset {
-		positionSide = s.Side.Position()
+		positionSide, err = s.Side.Position()
+		if err != nil {
+			return nil, err
+		}
 	}
 	response, err := e.PlaceFuturesOrder(ctx, &FuturesOrderRequest{
 		ClientOrderID:           s.ClientOrderID,
@@ -1482,12 +1485,13 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 		timeSeries := make([]kline.Candle, len(resp))
 		for i, candleData := range resp {
 			timeSeries[i] = kline.Candle{
-				Time:   candleData.StartTime.Time(),
-				Open:   candleData.Open.Float64(),
-				High:   candleData.High.Float64(),
-				Low:    candleData.Low.Float64(),
-				Close:  candleData.Close.Float64(),
-				Volume: candleData.Quantity.Float64(),
+				Time:        candleData.StartTime.Time(),
+				Open:        candleData.Open.Float64(),
+				High:        candleData.High.Float64(),
+				Low:         candleData.Low.Float64(),
+				Close:       candleData.Close.Float64(),
+				Volume:      candleData.Quantity.Float64(),
+				QuoteVolume: candleData.Amount.Float64(),
 			}
 		}
 		return req.ProcessResponse(timeSeries)
@@ -1499,12 +1503,13 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 		timeSeries := make([]kline.Candle, len(resp))
 		for i, fCandle := range resp {
 			timeSeries[i] = kline.Candle{
-				Time:   fCandle.StartTime.Time(),
-				Open:   fCandle.OpeningPrice.Float64(),
-				Close:  fCandle.ClosingPrice.Float64(),
-				High:   fCandle.HighestPrice.Float64(),
-				Low:    fCandle.LowestPrice.Float64(),
-				Volume: fCandle.BaseAmount.Float64(),
+				Time:        fCandle.StartTime.Time(),
+				Open:        fCandle.OpeningPrice.Float64(),
+				Close:       fCandle.ClosingPrice.Float64(),
+				High:        fCandle.HighestPrice.Float64(),
+				Low:         fCandle.LowestPrice.Float64(),
+				Volume:      fCandle.BaseAmount.Float64(),
+				QuoteVolume: fCandle.QuoteAmount.Float64(),
 			}
 		}
 		return req.ProcessResponse(timeSeries)
@@ -1535,12 +1540,13 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 			}
 			for _, candleData := range resp {
 				timeSeries = append(timeSeries, kline.Candle{
-					Time:   candleData.StartTime.Time(),
-					Open:   candleData.Open.Float64(),
-					High:   candleData.High.Float64(),
-					Low:    candleData.Low.Float64(),
-					Close:  candleData.Close.Float64(),
-					Volume: candleData.Quantity.Float64(),
+					Time:        candleData.StartTime.Time(),
+					Open:        candleData.Open.Float64(),
+					High:        candleData.High.Float64(),
+					Low:         candleData.Low.Float64(),
+					Close:       candleData.Close.Float64(),
+					Volume:      candleData.Quantity.Float64(),
+					QuoteVolume: candleData.Amount.Float64(),
 				})
 			}
 		}
@@ -1558,12 +1564,13 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 			}
 			for _, fCandle := range resp {
 				timeSeries = append(timeSeries, kline.Candle{
-					Time:   fCandle.StartTime.Time().UTC(),
-					Open:   fCandle.OpeningPrice.Float64(),
-					Close:  fCandle.ClosingPrice.Float64(),
-					High:   fCandle.HighestPrice.Float64(),
-					Low:    fCandle.LowestPrice.Float64(),
-					Volume: fCandle.BaseAmount.Float64(),
+					Time:        fCandle.StartTime.Time().UTC(),
+					Open:        fCandle.OpeningPrice.Float64(),
+					Close:       fCandle.ClosingPrice.Float64(),
+					High:        fCandle.HighestPrice.Float64(),
+					Low:         fCandle.LowestPrice.Float64(),
+					Volume:      fCandle.BaseAmount.Float64(),
+					QuoteVolume: fCandle.QuoteAmount.Float64(),
 				})
 			}
 		}

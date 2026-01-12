@@ -52,11 +52,10 @@ const (
 
 var (
 	futuresDefaultSubscriptions = subscription.List{
-		// {Enabled: true, Asset: asset.Futures, Channel: subscription.CandlesChannel, Interval: kline.FiveMin},
-		// {Enabled: true, Asset: asset.Futures, Channel: subscription.AllTradesChannel},
-		// {Enabled: true, Asset: asset.Futures, Channel: subscription.TickerChannel},
-		// {Enabled: true, Asset: asset.Futures, Channel: subscription.OrderbookChannel},
-		{Enabled: true, Asset: asset.Futures, Channel: channelFuturesCandles, Interval: kline.FiveMin},
+		{Enabled: true, Asset: asset.Futures, Channel: subscription.CandlesChannel, Interval: kline.FiveMin},
+		{Enabled: true, Asset: asset.Futures, Channel: subscription.AllTradesChannel},
+		{Enabled: true, Asset: asset.Futures, Channel: subscription.TickerChannel},
+		{Enabled: true, Asset: asset.Futures, Channel: subscription.OrderbookChannel},
 	}
 
 	futuresPrivateDefaultSubscriptions = subscription.List{
