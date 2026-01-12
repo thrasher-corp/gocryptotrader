@@ -1040,6 +1040,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	return nil
 }
 
+// SendAuthenticatedHTTPRequest sends an authenticated HTTP request
 func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, path string, values url.Values, body, result any) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
