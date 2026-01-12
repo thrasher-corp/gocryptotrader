@@ -198,7 +198,7 @@ func StringSliceContainsInsensitive(haystack []string, needle string) bool {
 	})
 }
 
-// IsEnabled takes in a boolean param  and returns a string if it is enabled
+// IsEnabled takes in a boolean param and returns a string if it is enabled
 // or disabled
 func IsEnabled(isEnabled bool) string {
 	if isEnabled {

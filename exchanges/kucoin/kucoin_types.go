@@ -89,23 +89,34 @@ func (e Error) GetError() error {
 
 // SymbolInfo stores symbol information
 type SymbolInfo struct {
-	Symbol          string  `json:"symbol"`
-	Name            string  `json:"name"`
-	BaseCurrency    string  `json:"baseCurrency"`
-	QuoteCurrency   string  `json:"quoteCurrency"`
-	FeeCurrency     string  `json:"feeCurrency"`
-	Market          string  `json:"market"`
-	BaseMinSize     float64 `json:"baseMinSize,string"`
-	QuoteMinSize    float64 `json:"quoteMinSize,string"`
-	BaseMaxSize     float64 `json:"baseMaxSize,string"`
-	QuoteMaxSize    float64 `json:"quoteMaxSize,string"`
-	BaseIncrement   float64 `json:"baseIncrement,string"`
-	QuoteIncrement  float64 `json:"quoteIncrement,string"`
-	PriceIncrement  float64 `json:"priceIncrement,string"`
-	PriceLimitRate  float64 `json:"priceLimitRate,string"`
-	MinFunds        float64 `json:"minFunds,string"`
-	IsMarginEnabled bool    `json:"isMarginEnabled"`
-	EnableTrading   bool    `json:"enableTrading"`
+	Symbol                          currency.Pair `json:"symbol"`
+	Name                            currency.Pair `json:"name"`
+	BaseCurrency                    currency.Code `json:"baseCurrency"`
+	QuoteCurrency                   currency.Code `json:"quoteCurrency"`
+	FeeCurrency                     currency.Code `json:"feeCurrency"`
+	Market                          string        `json:"market"`
+	BaseMinSize                     types.Number  `json:"baseMinSize"`
+	QuoteMinSize                    types.Number  `json:"quoteMinSize"`
+	BaseMaxSize                     types.Number  `json:"baseMaxSize"`
+	QuoteMaxSize                    types.Number  `json:"quoteMaxSize"`
+	BaseIncrement                   types.Number  `json:"baseIncrement"`
+	QuoteIncrement                  types.Number  `json:"quoteIncrement"`
+	PriceIncrement                  types.Number  `json:"priceIncrement"`
+	PriceLimitRate                  types.Number  `json:"priceLimitRate"`
+	MinFunds                        types.Number  `json:"minFunds"`
+	IsMarginEnabled                 bool          `json:"isMarginEnabled"`
+	EnableTrading                   bool          `json:"enableTrading"`
+	FeeCategory                     int64         `json:"feeCategory"`
+	MakerFeeCoefficient             types.Number  `json:"makerFeeCoefficient"`
+	TakerFeeCoefficient             types.Number  `json:"takerFeeCoefficient"`
+	SpecialTreatment                bool          `json:"st"`
+	CallAuctionIsEnabled            bool          `json:"callauctionIsEnabled"`
+	CallAuctionPriceFloor           types.Number  `json:"callauctionPriceFloor"`
+	CallAuctionPriceCeiling         types.Number  `json:"callauctionPriceCeiling"`
+	CallAuctionFirstStageStartTime  types.Time    `json:"callauctionFirstStageStartTime"`
+	CallAuctionSecondStageStartTime types.Time    `json:"callauctionSecondStageStartTime"`
+	CallAuctionThirdStageStartTime  types.Time    `json:"callauctionThirdStageStartTime"`
+	TradingStartTime                types.Time    `json:"tradingStartTime"`
 }
 
 // Ticker stores ticker data

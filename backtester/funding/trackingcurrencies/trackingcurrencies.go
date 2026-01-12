@@ -13,15 +13,15 @@ import (
 var (
 	// ErrCurrencyContainsUSD is raised when the currency already contains a USD equivalent
 	ErrCurrencyContainsUSD = errors.New("currency already contains a USD equivalent")
-	// ErrCurrencyDoesNotContainsUSD is raised when the currency does not contain a USD equivalent
-	ErrCurrencyDoesNotContainsUSD = errors.New("currency does not contains a USD equivalent")
-	errNilPairs                   = errors.New("cannot assess with nil available pairs")
-	errNoMatchingPairUSDFound     = errors.New("currency pair has no USD backed equivalent, cannot track price")
-	errCurrencyNotFoundInPairs    = errors.New("currency does not exist in available pairs")
-	errNoMatchingBaseUSDFound     = errors.New("base currency has no USD back equivalent, cannot track price")
-	errNoMatchingQuoteUSDFound    = errors.New("quote currency has no USD back equivalent, cannot track price")
-	errNilPairsReceived           = errors.New("nil tracking pairs received")
-	errExchangeManagerRequired    = errors.New("exchange manager required")
+	// ErrCurrencyDoesNotContainUSD is raised when the currency does not contain a USD equivalent
+	ErrCurrencyDoesNotContainUSD = errors.New("currency does not contain a USD equivalent")
+	errNilPairs                  = errors.New("cannot assess with nil available pairs")
+	errNoMatchingPairUSDFound    = errors.New("currency pair has no USD backed equivalent, cannot track price")
+	errCurrencyNotFoundInPairs   = errors.New("currency does not exist in available pairs")
+	errNoMatchingBaseUSDFound    = errors.New("base currency has no USD back equivalent, cannot track price")
+	errNoMatchingQuoteUSDFound   = errors.New("quote currency has no USD back equivalent, cannot track price")
+	errNilPairsReceived          = errors.New("nil tracking pairs received")
+	errExchangeManagerRequired   = errors.New("exchange manager required")
 )
 
 // rankedUSDs is a slice of USD tracked currencies
