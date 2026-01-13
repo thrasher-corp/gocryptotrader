@@ -297,16 +297,6 @@ func (c *CustomEx) SupportsWebsocket() bool {
 	return false
 }
 
-// SubscribeToWebsocketChannels is a mock method for CustomEx
-func (c *CustomEx) SubscribeToWebsocketChannels(subscription.List) error {
-	return nil
-}
-
-// UnsubscribeToWebsocketChannels is a mock method for CustomEx
-func (c *CustomEx) UnsubscribeToWebsocketChannels(subscription.List) error {
-	return nil
-}
-
 // IsAssetWebsocketSupported is a mock method for CustomEx
 func (c *CustomEx) IsAssetWebsocketSupported(asset.Item) bool {
 	return false

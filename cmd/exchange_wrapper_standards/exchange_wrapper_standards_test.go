@@ -559,24 +559,22 @@ type assetPair struct {
 // currently tested under this suite due to irrelevance
 // or not worth checking yet
 var excludedMethodNames = map[string]struct{}{
-	"Setup":                          {}, // Is run via test setup
-	"Start":                          {}, // Is run via test setup
-	"SetDefaults":                    {}, // Is run via test setup
-	"UpdateTradablePairs":            {}, // Is run via test setup
-	"GetDefaultConfig":               {}, // Is run via test setup
-	"FetchTradablePairs":             {}, // Is run via test setup
-	"AuthenticateWebsocket":          {}, // Unnecessary websocket test
-	"FlushWebsocketChannels":         {}, // Unnecessary websocket test
-	"UnsubscribeToWebsocketChannels": {}, // Unnecessary websocket test
-	"SubscribeToWebsocketChannels":   {}, // Unnecessary websocket test
-	"UpdateCurrencyStates":           {}, // Not widely supported/implemented feature
-	"CanTradePair":                   {}, // Not widely supported/implemented feature
-	"CanTrade":                       {}, // Not widely supported/implemented feature
-	"CanWithdraw":                    {}, // Not widely supported/implemented feature
-	"CanDeposit":                     {}, // Not widely supported/implemented feature
-	"GetCurrencyStateSnapshot":       {}, // Not widely supported/implemented feature
-	"SetHTTPClientUserAgent":         {}, // standard base implementation
-	"SetClientProxyAddress":          {}, // standard base implementation
+	"Setup":                    {}, // Is run via test setup
+	"Start":                    {}, // Is run via test setup
+	"SetDefaults":              {}, // Is run via test setup
+	"UpdateTradablePairs":      {}, // Is run via test setup
+	"GetDefaultConfig":         {}, // Is run via test setup
+	"FetchTradablePairs":       {}, // Is run via test setup
+	"AuthenticateWebsocket":    {}, // Unnecessary websocket test
+	"FlushWebsocketChannels":   {}, // Unnecessary websocket test
+	"UpdateCurrencyStates":     {}, // Not widely supported/implemented feature
+	"CanTradePair":             {}, // Not widely supported/implemented feature
+	"CanTrade":                 {}, // Not widely supported/implemented feature
+	"CanWithdraw":              {}, // Not widely supported/implemented feature
+	"CanDeposit":               {}, // Not widely supported/implemented feature
+	"GetCurrencyStateSnapshot": {}, // Not widely supported/implemented feature
+	"SetHTTPClientUserAgent":   {}, // standard base implementation
+	"SetClientProxyAddress":    {}, // standard base implementation
 	// Not widely supported/implemented futures endpoints
 	"GetCollateralCurrencyForContract": {},
 	"GetCurrencyForRealisedPNL":        {},
