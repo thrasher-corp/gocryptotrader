@@ -21,6 +21,7 @@ var (
 // Public subscription errors
 var (
 	errSubscriptionsExceedsLimit = errors.New("subscriptions exceeds limit")
+	errConnectionNotFound        = errors.New("connection not found")
 )
 
 // UnsubscribeChannels unsubscribes from a list of websocket channel
@@ -28,7 +29,15 @@ func (m *Manager) UnsubscribeChannels(conn Connection, channels subscription.Lis
 	if len(channels) == 0 {
 		return nil // No channels to unsubscribe from is not an error
 	}
-	if ws, ok := m.connections[conn]; ok && conn != nil {
+
+	if m.useMultiConnectionManagement {
+		if err := common.NilGuard(conn); err != nil {
+			return err
+		}
+		ws, ok := m.connections[conn]
+		if !ok {
+			return fmt.Errorf("%w: %q", errConnectionNotFound, conn.GetURL())
+		}
 		return m.unsubscribe(ws.subscriptions, channels, func(channels subscription.List) error {
 			return ws.setup.Unsubscriber(context.TODO(), conn, channels)
 		})
@@ -250,7 +259,7 @@ func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) er
 	}
 
 	if m.MaxSubscriptionsPerConnection > 0 && usedCapacity+len(subs) > m.MaxSubscriptionsPerConnection {
-		return fmt.Errorf("%w: current subscriptions: %v, incoming subscriptions: %v, max subscriptions per connection: %v - please reduce enabled pairs",
+		return fmt.Errorf("%w: current subscriptions: %v, incoming subscriptions: %v, max subscriptions per connection: %v",
 			errSubscriptionsExceedsLimit,
 			usedCapacity,
 			len(subs),

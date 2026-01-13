@@ -84,10 +84,13 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 		amazingConn: multi.connectionManager[0],
 	}
 
+	multiEmpty := NewManager()
+	multiEmpty.useMultiConnectionManagement = true
+
 	subs, err = amazingCandidate.GenerateSubscriptions()
 	require.NoError(t, err, "Generating test subscriptions must not error")
-	assert.ErrorIs(t, new(Manager).UnsubscribeChannels(nil, subs), common.ErrNilPointer, "Should error when unsubscribing with nil unsubscribe function")
-	assert.ErrorIs(t, new(Manager).UnsubscribeChannels(amazingConn, subs), common.ErrNilPointer, "Should error when unsubscribing with nil unsubscribe function")
+	assert.ErrorIs(t, multiEmpty.UnsubscribeChannels(nil, subs), common.ErrNilPointer, "Should error with nil connection")
+	assert.ErrorIs(t, multiEmpty.UnsubscribeChannels(amazingConn, subs), errConnectionNotFound, "Should error when connection not loaded in connections")
 	assert.NoError(t, multi.UnsubscribeChannels(amazingConn, nil), "Unsubscribing from nil should not error")
 	assert.ErrorIs(t, multi.UnsubscribeChannels(amazingConn, subs), subscription.ErrNotFound, "Unsubscribing should error when not subscribed")
 	assert.Nil(t, multi.GetSubscription(42), "GetSubscription on empty internal map should return")
@@ -476,9 +479,10 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 	t.Parallel()
 
 	// Common setup helper
-	setup := func() (*Manager, *websocket, *httptest.Server) {
+	setup := func(isMultiConn bool) (*Manager, *websocket, *httptest.Server) {
 		m := NewManager()
 		m.MaxSubscriptionsPerConnection = 2
+		m.useMultiConnectionManagement = isMultiConn
 
 		// Mock server for dialing
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -506,7 +510,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 
 	t.Run("Nil ws", func(t *testing.T) {
 		t.Parallel()
-		m, _, srv := setup()
+		m, _, srv := setup(false)
 		defer srv.Close()
 		err := m.scaleConnectionsToSubscriptions(t.Context(), nil, nil)
 		require.ErrorIs(t, err, common.ErrNilPointer)
@@ -514,7 +518,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 
 	t.Run("No Changes", func(t *testing.T) {
 		t.Parallel()
-		m, ws, srv := setup()
+		m, ws, srv := setup(false)
 		defer srv.Close()
 		err := m.scaleConnectionsToSubscriptions(t.Context(), ws, nil)
 		require.NoError(t, err)
@@ -522,7 +526,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 
 	t.Run("Scale Up (Add Subs)", func(t *testing.T) {
 		t.Parallel()
-		m, ws, srv := setup()
+		m, ws, srv := setup(false)
 		defer srv.Close()
 
 		subs := subscription.List{{Channel: "A"}, {Channel: "B"}, {Channel: "C"}}
@@ -535,7 +539,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 
 	t.Run("Scale Down (Remove Subs)", func(t *testing.T) {
 		t.Parallel()
-		m, ws, srv := setup()
+		m, ws, srv := setup(true)
 		defer srv.Close()
 
 		// Add subs first
@@ -553,7 +557,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 
 	t.Run("Unsubscribe Error", func(t *testing.T) {
 		t.Parallel()
-		m, ws, srv := setup()
+		m, ws, srv := setup(true)
 		defer srv.Close()
 
 		// Add sub first
@@ -570,7 +574,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 
 	t.Run("Subscribe Error (Existing Connection)", func(t *testing.T) {
 		t.Parallel()
-		m, ws, srv := setup()
+		m, ws, srv := setup(false)
 		defer srv.Close()
 
 		// Add one sub (capacity 2)
@@ -587,7 +591,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 	})
 
 	t.Run("Subscribe Error (New Connection)", func(t *testing.T) {
-		m, ws, srv := setup()
+		m, ws, srv := setup(false)
 		defer srv.Close()
 
 		// Set connector error
@@ -601,7 +605,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 
 	t.Run("Global Unsubscribe Fallback Success", func(t *testing.T) {
 		t.Parallel()
-		m, ws, srv := setup()
+		m, ws, srv := setup(false)
 		defer srv.Close()
 
 		s1 := &subscription.Subscription{Channel: "A"}
@@ -616,7 +620,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 
 	t.Run("Missing Subscriptions After Subscribe", func(t *testing.T) {
 		t.Parallel()
-		m, ws, srv := setup()
+		m, ws, srv := setup(false)
 		defer srv.Close()
 
 		s1 := &subscription.Subscription{Channel: "A"}
@@ -634,7 +638,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 
 	t.Run("Multi-batch ConnectAndSubscribe Success", func(t *testing.T) {
 		t.Parallel()
-		m, ws, srv := setup()
+		m, ws, srv := setup(false)
 		defer srv.Close()
 
 		m.MaxSubscriptionsPerConnection = 2

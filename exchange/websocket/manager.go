@@ -944,7 +944,7 @@ type ClosureFrame func() func() bool
 // is optional and is used to signal when the monitor has finished.
 func (m *Manager) monitorFrame(wg *sync.WaitGroup, fn ClosureFrame) {
 	if wg != nil {
-		defer m.Wg.Done()
+		defer wg.Done()
 	}
 	observe := fn()
 	for {
@@ -969,7 +969,7 @@ func (m *Manager) observeData(dropped *int) (exit bool) {
 		select {
 		case m.ToRoutine <- d:
 			if *dropped != 0 {
-				log.Infof(log.WebsocketMgr, "%s exchange websocket ToRoutine channel buffer recovered; %d messages were dropped", m.exchangeName, dropped)
+				log.Infof(log.WebsocketMgr, "%s exchange websocket ToRoutine channel buffer recovered; %d messages were dropped", m.exchangeName, *dropped)
 				*dropped = 0
 			}
 		default:
@@ -1082,7 +1082,7 @@ func signalReceived(ch chan struct{}) bool {
 	}
 }
 
-// GetConnection returns a connection by message filter (defined in exchange package _wrapper.go websocket connection)
+// GetConnection returns the first available connection for a websocket by message filter (defined in exchange package _wrapper.go websocket connection)
 // for request and response handling in a multi connection context.
 func (m *Manager) GetConnection(messageFilter any) (Connection, error) {
 	if err := common.NilGuard(m); err != nil {
