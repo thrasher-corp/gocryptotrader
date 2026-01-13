@@ -480,7 +480,7 @@ func (m *Manager) connect() error {
 	for i, c := range m.connectionManager {
 		connSubs, err := c.generateSubscriptions(subs)
 		if err != nil {
-			fatalErr = fmt.Errorf("%s websocket: %w", m.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
+			fatalErr = fmt.Errorf("%s websocket [conn:%d] [URL:%s]: %w", m.exchangeName, i+1, c.setup.URL, common.AppendError(ErrSubscriptionFailure, err))
 			break
 		}
 

@@ -255,6 +255,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
 			return e.wsHandleData(conn, asset.Spot, resp)
 		},
+		MessageFilter: websocket.AssetFilter(asset.Spot),
 	}); err != nil {
 		return err
 	}
@@ -276,6 +277,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
 			return e.wsHandleData(conn, asset.Options, resp)
 		},
+		MessageFilter: websocket.AssetFilter(asset.Options),
 	}); err != nil {
 		return err
 	}
@@ -303,7 +305,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
 			return e.wsHandleData(conn, asset.USDTMarginedFutures, resp)
 		},
-		MessageFilter: websocket.AssetFilter(asset.USDTMarginedFutures), // Unused but it allows us to differentiate between the two linear futures types.
+		MessageFilter: websocket.AssetFilter(asset.USDTMarginedFutures),
 	}); err != nil {
 		return err
 	}
@@ -331,7 +333,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
 			return e.wsHandleData(conn, asset.USDCMarginedFutures, resp)
 		},
-		MessageFilter: websocket.AssetFilter(asset.USDCMarginedFutures), // Unused but it allows us to differentiate between the two linear futures types.
+		MessageFilter: websocket.AssetFilter(asset.USDCMarginedFutures),
 	}); err != nil {
 		return err
 	}
@@ -353,6 +355,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
 			return e.wsHandleData(conn, asset.CoinMarginedFutures, resp)
 		},
+		MessageFilter: websocket.AssetFilter(asset.CoinMarginedFutures),
 	}); err != nil {
 		return err
 	}
