@@ -2463,7 +2463,7 @@ func TestSetSubscriptionsFromConfig(t *testing.T) {
 			Features: &config.FeaturesConfig{},
 		},
 	}
-	assert.NotPanics(t, func() { b.setSubscriptionsFromConfig() }, "should not panic with a nil Websocket")
+	assert.NotPanics(t, b.setSubscriptionsFromConfig, "should not panic with a nil Websocket")
 
 	subs := subscription.List{
 		{Channel: subscription.CandlesChannel, Interval: kline.OneDay, Enabled: true},
