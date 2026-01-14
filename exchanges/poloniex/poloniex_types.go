@@ -897,7 +897,7 @@ type WsCandles struct {
 
 // WsTrade represents websocket trade data
 type WsTrade struct {
-	ID         uint64        `json:"id"`
+	ID         types.Number  `json:"id"`
 	Symbol     currency.Pair `json:"symbol"`
 	Amount     types.Number  `json:"amount"`
 	Quantity   types.Number  `json:"quantity"`

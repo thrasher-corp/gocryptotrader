@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"text/template"
@@ -350,7 +349,7 @@ func (e *Exchange) processTrades(result *SubscriptionResponse) error {
 	trades := make([]trade.Data, len(resp))
 	for x, r := range resp {
 		trades[x] = trade.Data{
-			TID:          strconv.FormatUint(r.ID, 10),
+			TID:          r.ID.String(),
 			Exchange:     e.Name,
 			CurrencyPair: r.Symbol,
 			Side:         r.TakerSide,

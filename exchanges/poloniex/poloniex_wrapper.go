@@ -267,7 +267,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Connector:             e.wsConnect,
 		MessageFilter:         connFuturesPrivate,
 		Authenticate:          e.authenticateFuturesAuthConn,
-		Authenticated:         true,
 	})
 }
 
