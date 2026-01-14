@@ -674,12 +674,12 @@ func (e *Exchange) GetOCOOrders(ctx context.Context, orderListID, origiClientOrd
 
 // GetAllOCOOrders retrieves all OCO based on provided optional parameters
 func (e *Exchange) GetAllOCOOrders(ctx context.Context, fromID string, startTime, endTime time.Time, limit int64) ([]*OCOOrder, error) {
-	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
 	}
+	params := url.Values{}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -826,15 +826,15 @@ func (e *Exchange) GetAccountTradeList(ctx context.Context, symbol currency.Pair
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	params := url.Values{}
-	params.Set("symbol", symbol.String())
-	if orderID != "" {
-		params.Set("orderId", orderID)
-	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol.String())
+	if orderID != "" {
+		params.Set("orderId", orderID)
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -891,13 +891,13 @@ func (e *Exchange) GetAllocations(ctx context.Context, symbol currency.Pair, sta
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	params := url.Values{}
-	params.Set("symbol", symbol.String())
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
 	}
+	params := url.Values{}
+	params.Set("symbol", symbol.String())
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -961,6 +961,11 @@ func (e *Exchange) MarginAccountBorrowRepay(ctx context.Context, assetName curre
 // GetBorrowOrRepayRecordsInMarginAccount retrieves borrow/repay records in Margin account.
 // tranId in POST /sapi/v1/margin/loan
 func (e *Exchange) GetBorrowOrRepayRecordsInMarginAccount(ctx context.Context, assetName currency.Code, isolatedSymbol, lendingType string, transactionID, current, size int64, startTime, endTime time.Time) (*MarginAccountBorrowRepayRecords, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if !assetName.IsEmpty() {
 		params.Set("asset", assetName.String())
@@ -970,11 +975,6 @@ func (e *Exchange) GetBorrowOrRepayRecordsInMarginAccount(ctx context.Context, a
 	}
 	if transactionID != 0 {
 		params.Set("txId", strconv.FormatInt(transactionID, 10))
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -1120,6 +1120,11 @@ func (e *Exchange) GetCrossMarginTransferHistory(ctx context.Context, assetName 
 }
 
 func fillMarginInterestAndTransferHistoryParams(assetName currency.Code, transferType string, isolatedSymbol currency.Pair, startTime, endTime time.Time, current, size int64) (url.Values, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if !assetName.IsEmpty() {
 		params.Set("asset", assetName.String())
@@ -1129,11 +1134,6 @@ func fillMarginInterestAndTransferHistoryParams(assetName currency.Code, transfe
 	}
 	if !isolatedSymbol.IsEmpty() {
 		params.Set("isolatedSymbol", isolatedSymbol.String())
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -1162,14 +1162,14 @@ func (e *Exchange) GetUserMarginInterestHistory(ctx context.Context, assetName c
 
 // GetForceLiquidiationRecord retrieves force liquidiation records
 func (e *Exchange) GetForceLiquidiationRecord(ctx context.Context, startTime, endTime time.Time, isolatedSymbol currency.Pair, current, size int64) (*LiquidiationRecord, error) {
-	params := url.Values{}
-	if !isolatedSymbol.IsEmpty() {
-		params.Set("isolatedSymbol", isolatedSymbol.String())
-	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if !isolatedSymbol.IsEmpty() {
+		params.Set("isolatedSymbol", isolatedSymbol.String())
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -1239,15 +1239,15 @@ func (e *Exchange) GetMarginAccountAllOrders(ctx context.Context, symbol currenc
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	params := url.Values{}
-	params.Set("symbol", symbol.String())
-	if isIsolated {
-		params.Set("isIsolated", "TRUE")
-	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol.String())
+	if isIsolated {
+		params.Set("isIsolated", "TRUE")
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -1342,6 +1342,11 @@ func (e *Exchange) GetMarginAccountOCOOrder(ctx context.Context, symbol currency
 }
 
 func ocoOrdersAndTradeParams(symbol currency.Pair, isIsolated bool, startTime, endTime time.Time, orderID, fromID, limit int64) (url.Values, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		params.Set("symbol", symbol.String())
@@ -1351,11 +1356,6 @@ func ocoOrdersAndTradeParams(symbol currency.Pair, isIsolated bool, startTime, e
 	}
 	if fromID > 0 {
 		params.Set("fromId", strconv.FormatInt(fromID, 10))
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -1522,15 +1522,15 @@ func (e *Exchange) GetMarginInterestRateHistory(ctx context.Context, assetName c
 	if assetName.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	params := url.Values{}
-	params.Set("asset", assetName.String())
-	if vipLevel > 0 {
-		params.Set("vipLevel", strconv.FormatInt(vipLevel, 10))
-	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	params.Set("asset", assetName.String())
+	if vipLevel > 0 {
+		params.Set("vipLevel", strconv.FormatInt(vipLevel, 10))
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -1631,14 +1631,14 @@ func (e *Exchange) GetSmallLiabilityExchangeHistory(ctx context.Context, current
 	if size <= 0 {
 		return nil, errPageSizeRequired
 	}
-	params := url.Values{}
-	params.Set("current", strconv.FormatInt(current, 10))
-	params.Set("size", strconv.FormatInt(size, 10))
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
 	}
+	params := url.Values{}
+	params.Set("current", strconv.FormatInt(current, 10))
+	params.Set("size", strconv.FormatInt(size, 10))
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -1686,6 +1686,11 @@ func (e *Exchange) GetFutureHourlyInterestRate(ctx context.Context, assets []str
 //	COMMISSION_RETURN("Commission Return")
 //	SMALL_CONVERT("Small Convert")
 func (e *Exchange) GetCrossOrIsolatedMarginCapitalFlow(ctx context.Context, assetName currency.Code, symbol currency.Pair, flowType string, startTime, endTime time.Time, fromID, limit int64) ([]*MarginCapitalFlow, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if !assetName.IsEmpty() {
 		params.Set("asset", assetName.String())
@@ -1695,11 +1700,6 @@ func (e *Exchange) GetCrossOrIsolatedMarginCapitalFlow(ctx context.Context, asse
 	}
 	if flowType != "" {
 		params.Set("type", flowType)
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -2005,13 +2005,13 @@ func (e *Exchange) GetDailyAccountSnapshot(ctx context.Context, tradeType string
 	if tradeType == "" {
 		return nil, fmt.Errorf("%w type: %s", asset.ErrInvalidAsset, tradeType)
 	}
-	params := url.Values{}
-	params.Set("type", tradeType)
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
 	}
+	params := url.Values{}
+	params.Set("type", tradeType)
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -2078,6 +2078,11 @@ func (e *Exchange) WithdrawCrypto(ctx context.Context, cryptoAsset currency.Code
 // DepositHistory returns the deposit history based on the supplied params
 // status `param` used as string to prevent default value 0 (for int) interpreting as EmailSent status
 func (e *Exchange) DepositHistory(ctx context.Context, c currency.Code, status string, startTime, endTime time.Time, offset, limit int) ([]*DepositHistory, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if status != "" {
 		i, err := strconv.Atoi(status)
@@ -2093,11 +2098,6 @@ func (e *Exchange) DepositHistory(ctx context.Context, c currency.Code, status s
 	}
 	if !c.IsEmpty() {
 		params.Set("coin", c.String())
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -2121,6 +2121,11 @@ func (e *Exchange) DepositHistory(ctx context.Context, c currency.Code, status s
 // WithdrawHistory gets the status of recent withdrawals
 // status `param` used as string to prevent default value 0 (for int) interpreting as EmailSent status
 func (e *Exchange) WithdrawHistory(ctx context.Context, c currency.Code, status string, startTime, endTime time.Time, offset, limit int) ([]*WithdrawStatusResponse, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if !c.IsEmpty() {
 		params.Set("coin", c.String())
@@ -2140,11 +2145,6 @@ func (e *Exchange) WithdrawHistory(ctx context.Context, c currency.Code, status 
 		params.Set("status", status)
 	}
 
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
-	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -2207,13 +2207,13 @@ func (e *Exchange) GetAssetDevidendRecords(ctx context.Context, ccy currency.Cod
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	params := url.Values{}
-	params.Set("asset", ccy.String())
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
 	}
+	params := url.Values{}
+	params.Set("asset", ccy.String())
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -2281,14 +2281,14 @@ func (e *Exchange) GetUserUniversalTransferHistory(ctx context.Context, transfer
 	if size <= 0 {
 		return nil, fmt.Errorf("%w: 'size' is required", limits.ErrAmountBelowMin)
 	}
-	params := url.Values{}
-	params.Set("type", transferType.String())
-	params.Set("size", strconv.FormatInt(size, 10))
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
 	}
+	params := url.Values{}
+	params.Set("type", transferType.String())
+	params.Set("size", strconv.FormatInt(size, 10))
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -2564,17 +2564,17 @@ func (e *Exchange) GetSubAccountList(ctx context.Context, email string, isFreeze
 
 // GetSubAccountSpotAssetTransferHistory represents sub-account spot asset transfer history for master account
 func (e *Exchange) GetSubAccountSpotAssetTransferHistory(ctx context.Context, fromEmail, toEmail string, startTime, endTime time.Time, page, limit int64) ([]*SubAccountSpotAsset, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if common.MatchesEmailPattern(fromEmail) {
 		params.Set("fromEmail", fromEmail)
 	}
 	if common.MatchesEmailPattern(toEmail) {
 		params.Set("toEmail", toEmail)
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -2600,14 +2600,14 @@ func (e *Exchange) GetSubAccountFuturesAssetTransferHistory(ctx context.Context,
 	if futuresType != 1 && futuresType != 2 {
 		return nil, errInvalidFuturesType
 	}
-	params := url.Values{}
-	params.Set("email", email)
-	params.Set("futuresType", strconv.FormatInt(futuresType, 10))
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
 	}
+	params := url.Values{}
+	params.Set("email", email)
+	params.Set("futuresType", strconv.FormatInt(futuresType, 10))
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -2791,13 +2791,13 @@ func (e *Exchange) GetSubAccountDepositHistory(ctx context.Context, email, coin 
 	if !common.MatchesEmailPattern(email) {
 		return nil, errValidEmailRequired
 	}
-	params := url.Values{}
-	params.Set("email", email)
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
 	}
+	params := url.Values{}
+	params.Set("email", email)
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -3046,14 +3046,14 @@ func (e *Exchange) GetManagedSubAccountSnapshot(ctx context.Context, email, asse
 	if assetType == "" {
 		return nil, asset.ErrInvalidAsset
 	}
-	params := url.Values{}
-	params.Set("email", email)
-	params.Set("type", assetType)
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
 	}
+	params := url.Values{}
+	params.Set("email", email)
+	params.Set("type", assetType)
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -3223,17 +3223,17 @@ func (e *Exchange) FromSubAccountTransferToMaster(ctx context.Context, ccy curre
 
 // SubAccountTransferHistory retrieves Sub-account Transfer History (For Sub-account)
 func (e *Exchange) SubAccountTransferHistory(ctx context.Context, ccy currency.Code, transferType, limit int64, startTime, endTime time.Time) (*SubAccountTransferHistory, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("asset", ccy.String())
 	}
 	if transferType != 1 && transferType != 2 {
 		params.Set("type", strconv.FormatInt(transferType, 10))
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -3250,17 +3250,17 @@ func (e *Exchange) SubAccountTransferHistory(ctx context.Context, ccy currency.C
 
 // SubAccountTransferHistoryForSubAccount represents a sub-account transfer history for sub accounts.
 func (e *Exchange) SubAccountTransferHistoryForSubAccount(ctx context.Context, ccy currency.Code, transferType, limit int64, startTime, endTime time.Time, returnFailHistory bool) (*SubAccountTransferHistoryItem, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("asset", ccy.String())
 	}
 	if transferType != 0 {
 		params.Set("type", strconv.FormatInt(transferType, 10))
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -3318,6 +3318,11 @@ func (e *Exchange) UniversalTransferForMasterAccount(ctx context.Context, arg *U
 
 // GetUniversalTransferHistoryForMasterAccount retrieves universal transfer history for master account.
 func (e *Exchange) GetUniversalTransferHistoryForMasterAccount(ctx context.Context, fromEmail, toEmail, clientTransactionID string, startTime, endTime time.Time, page, limit int64) (*UniversalTransfersDetail, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if fromEmail != "" {
 		params.Set("fromEmail", fromEmail)
@@ -3327,11 +3332,6 @@ func (e *Exchange) GetUniversalTransferHistoryForMasterAccount(ctx context.Conte
 	}
 	if clientTransactionID != "" {
 		params.Set("clientTranId", clientTransactionID)
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -3397,14 +3397,14 @@ func (e *Exchange) GetAccountTradingAPIStatus(ctx context.Context) (*TradingAPIA
 
 // GetDustLog retrieves record of small or fractional amounts of assets that accumulate in a user's account
 func (e *Exchange) GetDustLog(ctx context.Context, accountType string, startTime, endTime time.Time) (*DustLog, error) {
-	params := url.Values{}
-	if accountType == "" {
-		params.Set("accountType", accountType)
-	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if accountType == "" {
+		params.Set("accountType", accountType)
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -3555,6 +3555,11 @@ func (e *Exchange) FetchExchangeLimits(ctx context.Context, a asset.Item) ([]lim
 
 // CryptoLoanIncomeHistory returns crypto loan income history
 func (e *Exchange) CryptoLoanIncomeHistory(ctx context.Context, curr currency.Code, loanType string, startTime, endTime time.Time, limit int64) ([]*CryptoLoansIncomeHistory, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if !curr.IsEmpty() {
 		params.Set("asset", curr.String())
@@ -3562,11 +3567,10 @@ func (e *Exchange) CryptoLoanIncomeHistory(ctx context.Context, curr currency.Co
 	if loanType != "" {
 		params.Set("type", loanType)
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit != 0 {
@@ -4265,9 +4269,9 @@ func (e *Exchange) SetFlexibleAutoSusbcribe(ctx context.Context, productID strin
 	} else {
 		params.Set("autoSubscribe", "false")
 	}
-	resp := &struct {
+	var resp struct {
 		Success bool `json:"success"`
-	}{}
+	}
 	return resp.Success, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/simple-earn/flexible/setAutoSubscribe", params, setAutoSubscribeRate, nil, &resp)
 }
 
@@ -4283,9 +4287,9 @@ func (e *Exchange) SetLockedAutoSubscribe(ctx context.Context, positionID string
 	} else {
 		params.Set("autoSubscribe", "false")
 	}
-	resp := &struct {
+	var resp struct {
 		Success bool `json:"success"`
-	}{}
+	}
 	return resp.Success, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/simple-earn/locked/setAutoSubscribe", params, setAutoSubscribeRate, nil, &resp)
 }
 
@@ -4355,9 +4359,9 @@ func (e *Exchange) SetLockedProductRedeemOption(ctx context.Context, positionID,
 	params := url.Values{}
 	params.Set("positionId", positionID)
 	params.Set("redeemTo", redeemTo)
-	resp := &struct {
+	var resp struct {
 		Success bool `json:"success"`
-	}{}
+	}
 	return resp.Success, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/simple-earn/locked/setRedeemOption", params, request.Auth, nil, &resp)
 }
 
@@ -4772,9 +4776,9 @@ func (e *Exchange) IndexLinkedPlanRedemption(ctx context.Context, indexID, redem
 	if requestID != "" {
 		params.Set("requestId", requestID)
 	}
-	resp := &struct {
+	var resp struct {
 		RedemptionID int64 `json:"redemptionId"`
-	}{}
+	}
 	return resp.RedemptionID, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/lending/auto-invest/redeem", params, sapiDefaultRate, nil, &resp)
 }
 
@@ -4815,9 +4819,9 @@ func (e *Exchange) GetSubscribeETHStaking(ctx context.Context, amount float64) (
 	}
 	params := url.Values{}
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	resp := &struct {
+	var resp struct {
 		Success bool `json:"success"`
-	}{}
+	}
 	return resp.Success, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/eth-staking/eth/stake", params, subscribeETHStakingRate, nil, &resp)
 }
 
@@ -4893,12 +4897,12 @@ func (e *Exchange) GetWBETHRateHistory(ctx context.Context, startTime, endTime t
 }
 
 func fillHistoryParams(startTime, endTime time.Time, current, size int64) (url.Values, error) {
-	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
 	}
+	params := url.Values{}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -5149,17 +5153,17 @@ func fillMiningParams(transferAlgorithm, userName string, coin currency.Code, st
 	if userName == "" {
 		return nil, errUsernameRequired
 	}
-	params := url.Values{}
-	params.Set("algo", transferAlgorithm)
-	params.Set("userName", userName)
-	if !coin.IsEmpty() {
-		params.Set("coin", coin.String())
-	}
 	if !startDate.IsZero() && !endDate.IsZero() {
 		err := common.StartEndTimeCheck(startDate, endDate)
 		if err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	params.Set("algo", transferAlgorithm)
+	params.Set("userName", userName)
+	if !coin.IsEmpty() {
+		params.Set("coin", coin.String())
 	}
 	if !startDate.IsZero() {
 		params.Set("startDate", strconv.FormatInt(startDate.UnixMilli(), 10))
@@ -5312,13 +5316,13 @@ func (e *Exchange) GetMiningAccountEarningRate(ctx context.Context, algorithm st
 	if algorithm == "" {
 		return nil, errTransferAlgorithmRequired
 	}
-	params := url.Values{}
-	params.Set("algo", algorithm)
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
 	}
+	params := url.Values{}
+	params.Set("algo", algorithm)
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -5389,17 +5393,22 @@ func (e *Exchange) GetFutureTickLevelOrderbookHistoricalDataDownloadLink(ctx con
 	if dataType == "" {
 		return nil, errors.New("dataType is required, possible values are 'T_DEPTH', and 'S_DEPTH'")
 	}
-	params := url.Values{}
-	params.Set("symbol", symbol.String())
-	params.Set("dataType", dataType)
+	if startTime.IsZero() && endTime.IsZero() {
+		return nil, fmt.Errorf("%w: start time and end time are required", errStartTimeRequired)
+	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol.String())
+	params.Set("dataType", dataType)
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
-	} else {
-		return nil, fmt.Errorf("%w: start time and end time are required", errStartTimeRequired)
 	}
 	var resp *HistoricalOrderbookDownloadLink
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/futures/histDataLink", params, futureTickLevelOrderbookHistoricalDataDownloadLinkRate, nil, &resp)
@@ -5490,17 +5499,17 @@ func (e *Exchange) GetFuturesHistoricalAlgoOrders(ctx context.Context, symbol cu
 }
 
 func (e *Exchange) getHistoricalAlgoOrders(ctx context.Context, symbol currency.Pair, side, path string, startTime, endTime time.Time, page, pageSize int64) (*AlgoOrders, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		params.Set("symbol", symbol.String())
 	}
 	if side != "" {
 		params.Set("side", side)
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -5625,14 +5634,14 @@ func (e *Exchange) RepayClassicPMBankruptacyLoan(ctx context.Context, from strin
 
 // GetClassicPMNegativeBalanceInterestHistory query interest history of negative balance for portfolio margin.
 func (e *Exchange) GetClassicPMNegativeBalanceInterestHistory(ctx context.Context, assetName currency.Code, startTime, endTime time.Time, size int64) ([]*PMNegativeBalaceInterestHistory, error) {
-	params := url.Values{}
-	if !assetName.IsEmpty() {
-		params.Set("asset", assetName.String())
-	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if !assetName.IsEmpty() {
+		params.Set("asset", assetName.String())
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -5698,9 +5707,9 @@ func (e *Exchange) GetAutoRepayFuturesStatusClassic(ctx context.Context) (*AutoR
 
 // RepayFuturesNegativeBalanceClassic represents a classic repay futures negative balance
 func (e *Exchange) RepayFuturesNegativeBalanceClassic(ctx context.Context) (string, error) {
-	resp := &struct {
+	var resp struct {
 		Message string `json:"msg"`
-	}{}
+	}
 	return resp.Message, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/portfolio/repay-futures-negative-balance", nil, repayFuturesNegativeBalanceRate, nil, &resp)
 }
 
@@ -5712,15 +5721,20 @@ func (e *Exchange) GetPortfolioMarginAssetLeverage(ctx context.Context) ([]*PMAs
 
 // GetUserNegativeBalanceAutoExchangeRecord retrieves user negative balance auto exchange record
 func (e *Exchange) GetUserNegativeBalanceAutoExchangeRecord(ctx context.Context, startTime, endTime time.Time) (*UserNegativeBalanceRecord, error) {
-	params := url.Values{}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		return nil, errStartAndEndTimeRequired
+	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
-	} else {
-		return nil, errStartAndEndTimeRequired
 	}
 	var resp *UserNegativeBalanceRecord
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/papi/v1/portfolio/negative-balance-exchange-record", params, request.UnAuth, nil, &resp)
@@ -5755,17 +5769,17 @@ func (e *Exchange) SubscribeBLVT(ctx context.Context, tokenName string, cost flo
 
 // GetSusbcriptionRecords retrieves BLVT tokens subscriptions
 func (e *Exchange) GetSusbcriptionRecords(ctx context.Context, tokenName string, startTime, endTime time.Time, id, limit int64) ([]*BLVTTokenSubscriptionItem, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if tokenName != "" {
 		params.Set("tokenName", tokenName)
 	}
 	if id > 0 {
 		params.Set("id", strconv.FormatInt(id, 10))
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -5798,14 +5812,14 @@ func (e *Exchange) RedeemBLVT(ctx context.Context, symbol currency.Pair, amount 
 
 // GetRedemptionRecord retrieves BLVT redemption records
 func (e *Exchange) GetRedemptionRecord(ctx context.Context, tokenName string, startTime, endTime time.Time, id, limit int64) ([]*BLVTRedemptionItem, error) {
-	params := url.Values{}
-	if tokenName != "" {
-		params.Set("tokenName", tokenName)
-	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if tokenName != "" {
+		params.Set("tokenName", tokenName)
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -5906,13 +5920,13 @@ func (e *Exchange) GetC2CTradeHistory(ctx context.Context, tradeType string, sta
 	if tradeType == "" {
 		return nil, errTradeTypeRequired
 	}
-	params := url.Values{}
-	params.Set("tradeType", tradeType)
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
 	}
+	params := url.Values{}
+	params.Set("tradeType", tradeType)
 	if !startTime.IsZero() {
 		params.Set("startTimestamp", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -6143,12 +6157,12 @@ func (e *Exchange) GetVIPLoanInterestRateHistory(ctx context.Context, coin curre
 // GetPayTradeHistory retrieves pay trade history
 // Detail found here: https://binance-docs.github.io/apidocs/spot/en/#pay-endpoints
 func (e *Exchange) GetPayTradeHistory(ctx context.Context, startTime, endTime time.Time, limit int64) (*PayTradeHistory, error) {
-	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
 	}
+	params := url.Values{}
 	if !startTime.IsZero() {
 		params.Set("startTimestamp", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -6286,12 +6300,12 @@ func (e *Exchange) GetLimitOpenOrders(ctx context.Context) (*LimitOrderHistory, 
 
 // GetConvertTradeHistory represents a convert trade history
 func (e *Exchange) GetConvertTradeHistory(ctx context.Context, startTime, endTime time.Time, limit int64) (*ConvertTradeHistory, error) {
-	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
 	}
+	params := url.Values{}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -6309,12 +6323,12 @@ func (e *Exchange) GetConvertTradeHistory(ctx context.Context, startTime, endTim
 
 // GetSpotRebateHistoryRecords represents a rebate history records
 func (e *Exchange) GetSpotRebateHistoryRecords(ctx context.Context, startTime, endTime time.Time, page int64) (*RebateHistory, error) {
-	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
 	}
+	params := url.Values{}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -6331,12 +6345,12 @@ func (e *Exchange) GetSpotRebateHistoryRecords(ctx context.Context, startTime, e
 // -----------------------------------------  NFT Endpoints ------------------------------------------------
 
 func fillNFTFetchParams(startTime, endTime time.Time, limit, page int64) (url.Values, error) {
-	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
 	}
+	params := url.Values{}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -6609,6 +6623,11 @@ func (e *Exchange) GetOnboardedVASPList(ctx context.Context) ([]*VASPItemInfo, e
 }
 
 func (e *Exchange) withdrawalHistory(ctx context.Context, travelRuleRecordIDs, transactionIDs, withdrawalOrderIDs []string, network, travelRuleStatus, path string, offset, limit int64, startTime, endTime time.Time) ([]*LocalEntityWithdrawalDetail, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if len(travelRuleRecordIDs) != 0 {
 		params.Set("trId", strings.Join(travelRuleRecordIDs, ","))
@@ -6630,11 +6649,6 @@ func (e *Exchange) withdrawalHistory(ctx context.Context, travelRuleRecordIDs, t
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -6669,6 +6683,11 @@ func (e *Exchange) SubmitDepositQuestionnaire(ctx context.Context, walletTransac
 
 // GetLocalEntitiesDepositHistory fetch deposit history for local entities that required travel rule.
 func (e *Exchange) GetLocalEntitiesDepositHistory(ctx context.Context, travelRuleRecordIDs, transactionIDs, walletTransactionIDs []string, network string, coin currency.Code, travelRuleStatus string, pendingQuestionnaire bool, startTime, endTime time.Time, offset, limit int64) ([]*LocalEntityDepositDetail, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if len(travelRuleRecordIDs) != 0 {
 		params.Set("trId", strings.Join(travelRuleRecordIDs, ","))
@@ -6693,11 +6712,6 @@ func (e *Exchange) GetLocalEntitiesDepositHistory(ctx context.Context, travelRul
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -6950,6 +6964,11 @@ func (e *Exchange) SubAccountTransferWithSpotBroker(ctx context.Context, ccy cur
 
 // GetSpotBrokerSubAccountTransferHistory retrieves sub-account assets transfers of spot account through a broker account
 func (e *Exchange) GetSpotBrokerSubAccountTransferHistory(ctx context.Context, fromID, toID, clientTransferID string, showAllStatus bool, startTime, endTime time.Time, page, limit int64) ([]*SubAccountTransferRecord, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if fromID != "" {
 		params.Set("fromId", fromID)
@@ -6962,11 +6981,6 @@ func (e *Exchange) GetSpotBrokerSubAccountTransferHistory(ctx context.Context, f
 	}
 	if showAllStatus {
 		params.Set("showAllStatus", "true")
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -7029,7 +7043,11 @@ func (e *Exchange) GetFuturesBrokerSubAccountTransferHistory(ctx context.Context
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
@@ -7044,6 +7062,11 @@ func (e *Exchange) GetFuturesBrokerSubAccountTransferHistory(ctx context.Context
 
 // GetSubAccountDepositHistoryWithBroker holds a sub-account deposit history through broker
 func (e *Exchange) GetSubAccountDepositHistoryWithBroker(ctx context.Context, subAccountID string, coin currency.Code, startTime, endTime time.Time, status, limit, offset int64) ([]*SubAccountTransferWithBroker, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if subAccountID != "" {
 		params.Set("subAccountId", subAccountID)
@@ -7054,11 +7077,10 @@ func (e *Exchange) GetSubAccountDepositHistoryWithBroker(ctx context.Context, su
 	if status >= 0 {
 		params.Set("status", strconv.FormatInt(status, 10))
 	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
+	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
@@ -7158,6 +7180,11 @@ func (e *Exchange) UniversalTransferWithBroker(ctx context.Context, fromAccountT
 
 // GetUniversalTransferHistoryThroughBroker retrieves a universal asset transfer history thought broker
 func (e *Exchange) GetUniversalTransferHistoryThroughBroker(ctx context.Context, fromID, toID, clientTransferID string, startTime, endTime time.Time, page, limit int64) ([]*AssetUniversalTransferDetail, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if fromID != "" {
 		params.Set("fromId", fromID)
@@ -7167,11 +7194,6 @@ func (e *Exchange) GetUniversalTransferHistoryThroughBroker(ctx context.Context,
 	}
 	if clientTransferID != "" {
 		params.Set("clientTranId", clientTransferID)
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -7315,14 +7337,14 @@ func (e *Exchange) GetSubAccountCoinMarginedFuturesCommissionAdjustment(ctx cont
 
 // GetSpotBrokerCommissionRebateRecentRecord retrieves broker commission rebate recent records spot
 func (e *Exchange) GetSpotBrokerCommissionRebateRecentRecord(ctx context.Context, subAccountID string, startTime, endTime time.Time, page, limit int64) ([]*CommissionRebateRecord, error) {
-	params := url.Values{}
-	if subAccountID != "" {
-		params.Set("subAccountId", subAccountID)
-	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if subAccountID != "" {
+		params.Set("subAccountId", subAccountID)
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -7342,16 +7364,16 @@ func (e *Exchange) GetSpotBrokerCommissionRebateRecentRecord(ctx context.Context
 
 // GetFuturesBrokerCommissionRebateRecentRecord retrieves a broker futures commission rebate record
 func (e *Exchange) GetFuturesBrokerCommissionRebateRecentRecord(ctx context.Context, coinMargined, filterResult bool, startTime, endTime time.Time, page, size int64) ([]*CommissionRebateRecord, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if coinMargined {
 		params.Set("futuresType", "2")
 	} else {
 		params.Set("futuresType", "1")
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -7459,13 +7481,13 @@ func (e *Exchange) GetSpotOthersRebateRecentRecord(ctx context.Context, customer
 	if customerID == "" {
 		return nil, fmt.Errorf("%w: customerID required", order.ErrOrderIDNotSet)
 	}
-	params := url.Values{}
-	params.Set("customerId", customerID)
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
 	}
+	params := url.Values{}
+	params.Set("customerId", customerID)
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -7481,12 +7503,12 @@ func (e *Exchange) GetSpotOthersRebateRecentRecord(ctx context.Context, customer
 
 // GetSpotOwnRebateRecentRecords retrieves own recent rebate records
 func (e *Exchange) GetSpotOwnRebateRecentRecords(ctx context.Context, startTime, endTime time.Time, limit int64) ([]*CustomerRabateRecord, error) {
-	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
 	}
+	params := url.Values{}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -7542,17 +7564,17 @@ func (e *Exchange) GetFuturesUsersCustomizedID(ctx context.Context, brokerID str
 
 // GetFuturesUserIncomeHistory retrieves a futures user's income history
 func (e *Exchange) GetFuturesUserIncomeHistory(ctx context.Context, symbol currency.Pair, incomeType string, startTime, endTime time.Time, limit int64) (interface{}, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		params.Set("symbol", symbol.String())
 	}
 	if incomeType != "" {
 		params.Set("incomeType", incomeType)
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -7570,14 +7592,14 @@ func (e *Exchange) GetFuturesUserIncomeHistory(ctx context.Context, symbol curre
 // GetFuturesReferredTradersNumber retrieve the number of new and existing traders associated with their referral program over specific time periods.
 // coinMargined is true if the type coin margined futures and false if it is usdt margined futures
 func (e *Exchange) GetFuturesReferredTradersNumber(ctx context.Context, coinMargined bool, startTime, endTime time.Time, limit int64) ([]*BrokerTradersNumber, error) {
-	params := url.Values{}
-	if coinMargined {
-		params.Set("type", "2")
-	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if coinMargined {
+		params.Set("type", "2")
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -7604,14 +7626,14 @@ func (e *Exchange) GetFuturesRebateDataOverview(ctx context.Context, coinMargine
 
 // GetUserTradeVolume retrieves user's trade volume at different timestamps
 func (e *Exchange) GetUserTradeVolume(ctx context.Context, coinMargined bool, startTime, endTime time.Time, limit int64) ([]*UserTradeVolume, error) {
-	params := url.Values{}
-	if coinMargined {
-		params.Set("type", "2")
-	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if coinMargined {
+		params.Set("type", "2")
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -7628,14 +7650,14 @@ func (e *Exchange) GetUserTradeVolume(ctx context.Context, coinMargined bool, st
 
 // GetRebateVolume retrieve rebate volume data for a user's futures trading account
 func (e *Exchange) GetRebateVolume(ctx context.Context, coinMargined bool, startTime, endTime time.Time, limit int64) (interface{}, error) {
-	params := url.Values{}
-	if coinMargined {
-		params.Set("type", "2")
-	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if coinMargined {
+		params.Set("type", "2")
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -7652,17 +7674,17 @@ func (e *Exchange) GetRebateVolume(ctx context.Context, coinMargined bool, start
 
 // GetTraderDetail retrieves detailed trading and rebate volume data for referred traders under the Binance Futures Referral Program
 func (e *Exchange) GetTraderDetail(ctx context.Context, customerID string, coinMargined bool, startTime, endTime time.Time, limit int64) ([]*TradingAndRebateVolumeData, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if customerID != "" {
 		params.Set("customerId", customerID)
 	}
 	if coinMargined {
 		params.Set("type", "2")
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))

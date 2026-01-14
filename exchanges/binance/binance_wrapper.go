@@ -540,7 +540,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			}
 		}
 	case asset.Options:
-		tick, err := e.GetEOptions24hrTickerPriceChangeStatistics(ctx, "")
+		tick, err := e.GetEOptions24hrTickerPriceChangeStatistics(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return err
 		}
@@ -622,7 +622,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			}
 		}
 	case asset.USDTMarginedFutures:
-		var tick []U24HrPriceChangeStats
+		var tick []*U24HrPriceChangeStats
 		tick, err = e.U24HTickerPriceChangeStats(ctx, p)
 		if err != nil {
 			return nil, err
@@ -643,7 +643,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			return nil, err
 		}
 	case asset.CoinMarginedFutures:
-		var tick []PriceChangeStats
+		var tick []*PriceChangeStats
 		tick, err = e.GetFuturesSwapTickerChangeStats(ctx, p, "")
 		if err != nil {
 			return nil, err
@@ -666,7 +666,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			}
 		}
 	case asset.Options:
-		tick, err := e.GetEOptions24hrTickerPriceChangeStatistics(ctx, p.String())
+		tick, err := e.GetEOptions24hrTickerPriceChangeStatistics(ctx, p)
 		if err != nil {
 			return nil, err
 		}
@@ -755,7 +755,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset
 		orderbookNew, err = e.GetFuturesOrderbook(ctx, p, 1000)
 	case asset.Options:
 		var resp *EOptionsOrderbook
-		resp, err = e.GetEOptionsOrderbook(ctx, p.String(), 1000)
+		resp, err = e.GetEOptionsOrderbook(ctx, p, 1000)
 		if err != nil {
 			return nil, err
 		}
@@ -1007,7 +1007,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 			resp = append(resp, td)
 		}
 	case asset.Options:
-		tradeData, err := e.GetEOptionsRecentTrades(ctx, p.String(), limit)
+		tradeData, err := e.GetEOptionsRecentTrades(ctx, p, limit)
 		if err != nil {
 			return nil, err
 		}
@@ -1087,7 +1087,7 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, a ass
 		}
 		return result, nil
 	case asset.USDTMarginedFutures, asset.CoinMarginedFutures:
-		var trades []UPublicTradesData
+		var trades []*UPublicTradesData
 		if a == asset.USDTMarginedFutures {
 			trades, err = e.UFuturesHistoricalTrades(ctx, pFmt, "", 0)
 		} else {
@@ -1111,7 +1111,7 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, a ass
 		}
 		return result, nil
 	case asset.Options:
-		trades, err := e.GetEOptionsTradeHistory(ctx, pFmt.String(), 0, 0)
+		trades, err := e.GetEOptionsTradeHistory(ctx, pFmt, 0, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -1434,7 +1434,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 		if !reg.MatchString(o.OrderID) {
 			return fmt.Errorf("%w, invalid orderID", order.ErrOrderIDNotSet)
 		}
-		_, err := e.CancelOptionsOrder(ctx, o.Pair.String(), o.ClientOrderID, o.OrderID)
+		_, err := e.CancelOptionsOrder(ctx, o.Pair, o.ClientOrderID, o.OrderID)
 		return err
 	}
 	return nil
@@ -1523,9 +1523,9 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (orde
 		}
 	case asset.Options:
 		if req.Pair.IsEmpty() {
-			err = e.CancelAllOptionOrdersOnSpecificSymbol(ctx, "")
+			err = e.CancelAllOptionOrdersOnSpecificSymbol(ctx, currency.EMPTYPAIR)
 		} else {
-			err = e.CancelAllOptionOrdersOnSpecificSymbol(ctx, req.Pair.String())
+			err = e.CancelAllOptionOrdersOnSpecificSymbol(ctx, req.Pair)
 		}
 		if err != nil {
 			return cancelAllOrdersResponse, err
@@ -2102,7 +2102,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		}
 	case asset.CoinMarginedFutures:
 		for i := range req.Pairs {
-			var orderHistory []FuturesOrderData
+			var orderHistory []*FuturesOrderData
 			var err error
 			switch {
 			case !req.StartTime.IsZero() && !req.EndTime.IsZero() && req.FromOrderID == "":
@@ -2164,7 +2164,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		}
 	case asset.USDTMarginedFutures:
 		for i := range req.Pairs {
-			var orderHistory []UFuturesOrderData
+			var orderHistory []*UFuturesOrderData
 			var err error
 			switch {
 			case !req.StartTime.IsZero() && !req.EndTime.IsZero() && req.FromOrderID == "":
@@ -2330,7 +2330,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 			})
 		}
 	case asset.USDTMarginedFutures:
-		var candles []UFuturesCandleStick
+		var candles []*UFuturesCandleStick
 		candles, err = e.UKlineData(ctx,
 			req.RequestFormatted,
 			e.FormatExchangeKlineInterval(interval),
@@ -2371,7 +2371,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 			})
 		}
 	case asset.Options:
-		candles, err := e.GetEOptionsCandlesticks(ctx, req.RequestFormatted.String(),
+		candles, err := e.GetEOptionsCandlesticks(ctx, req.RequestFormatted,
 			interval, req.Start, req.End, req.RequestLimit)
 		if err != nil {
 			return nil, err
@@ -2436,7 +2436,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 				})
 			}
 		case asset.USDTMarginedFutures:
-			var candles []UFuturesCandleStick
+			var candles []*UFuturesCandleStick
 			candles, err = e.UKlineData(ctx,
 				req.RequestFormatted,
 				e.FormatExchangeKlineInterval(interval),
@@ -2457,7 +2457,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 				})
 			}
 		case asset.CoinMarginedFutures:
-			var candles []CFuturesCandleStick
+			var candles []*CFuturesCandleStick
 			candles, err = e.GetFuturesKlineData(ctx,
 				req.RequestFormatted,
 				e.FormatExchangeKlineInterval(interval),
@@ -2478,7 +2478,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 				})
 			}
 		case asset.Options:
-			candles, err := e.GetEOptionsCandlesticks(ctx, req.RequestFormatted.String(),
+			candles, err := e.GetEOptionsCandlesticks(ctx, req.RequestFormatted,
 				interval, req.RangeHolder.Ranges[x].Start.Time,
 				req.RangeHolder.Ranges[x].End.Time,
 				req.RangeHolder.Limit)
@@ -2667,8 +2667,8 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	switch r.Asset {
 	case asset.Spot:
 	case asset.USDTMarginedFutures:
-		var mp []UMarkPrice
-		var fri []FundingRateInfoResponse
+		var mp []*UMarkPrice
+		var fri []*FundingRateInfoResponse
 		fri, err = e.UGetFundingRateInfo(ctx)
 		if err != nil {
 			return nil, err
@@ -2727,12 +2727,12 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		}
 		return resp, nil
 	case asset.CoinMarginedFutures:
-		var fri []FundingRateInfoResponse
+		var fri []*FundingRateInfoResponse
 		fri, err = e.GetFundingRateInfo(ctx)
 		if err != nil {
 			return nil, err
 		}
-		var mp []IndexMarkPrice
+		var mp []*IndexMarkPrice
 		mp, err = e.GetIndexAndMarkPrice(ctx, fPair.String(), "")
 		if err != nil {
 			return nil, err
@@ -2815,7 +2815,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 	case asset.USDTMarginedFutures:
 		requestLimit := 1000
 		sd := r.StartDate
-		var fri []FundingRateInfoResponse
+		var fri []*FundingRateInfoResponse
 		fri, err = e.UGetFundingRateInfo(ctx)
 		if err != nil {
 			return nil, err
@@ -2830,7 +2830,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 			break
 		}
 		for {
-			var frh []FundingRateHistory
+			var frh []*FundingRateHistory
 			frh, err = e.UGetFundingHistory(ctx, fPair, int64(requestLimit), sd, r.EndDate)
 			if err != nil {
 				return nil, err
@@ -2846,7 +2846,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 			}
 			sd = frh[len(frh)-1].FundingTime.Time()
 		}
-		var mp []UMarkPrice
+		var mp []*UMarkPrice
 		mp, err = e.UGetMarkPrice(ctx, fPair)
 		if err != nil {
 			return nil, err
@@ -2857,7 +2857,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		}
 		pairRate.TimeOfNextRate = mp[len(mp)-1].NextFundingTime.Time()
 		if r.IncludePayments {
-			var income []UAccountIncomeHistory
+			var income []*UAccountIncomeHistory
 			income, err = e.UAccountIncomeHistory(ctx, fPair, "FUNDING_FEE", int64(requestLimit), r.StartDate, r.EndDate)
 			if err != nil {
 				return nil, err
@@ -2881,7 +2881,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 	case asset.CoinMarginedFutures:
 		requestLimit := 1000
 		sd := r.StartDate
-		var fri []FundingRateInfoResponse
+		var fri []*FundingRateInfoResponse
 		fri, err = e.GetFundingRateInfo(ctx)
 		if err != nil {
 			return nil, err
@@ -2896,7 +2896,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 			break
 		}
 		for {
-			var frh []FundingRateHistory
+			var frh []*FundingRateHistory
 			frh, err = e.FuturesGetFundingHistory(ctx, fPair, requestLimit, sd, r.EndDate)
 			if err != nil {
 				return nil, err
@@ -2909,7 +2909,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 			}
 			sd = frh[len(frh)-1].FundingTime.Time()
 		}
-		var mp []IndexMarkPrice
+		var mp []*IndexMarkPrice
 		mp, err = e.GetIndexAndMarkPrice(ctx, fPair.String(), "")
 		if err != nil {
 			return nil, err
@@ -2920,7 +2920,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		}
 		pairRate.TimeOfNextRate = mp[len(mp)-1].NextFundingTime.Time()
 		if r.IncludePayments {
-			var income []FuturesIncomeHistoryData
+			var income []*FuturesIncomeHistoryData
 			income, err = e.FuturesIncomeHistory(ctx, fPair, "FUNDING_FEE", r.StartDate, r.EndDate, int64(requestLimit))
 			if err != nil {
 				return nil, err
@@ -3192,7 +3192,7 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 			if positionsInfo[i].Symbol != fps {
 				continue
 			}
-			relevantPosition = &positionsInfo[i]
+			relevantPosition = positionsInfo[i]
 		}
 		if relevantPosition == nil {
 			return nil, fmt.Errorf("%w %v %v", futures.ErrNoPositionsFound, req.Asset, req.Pair)
@@ -3289,7 +3289,7 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 			if positionsInfo[i].Symbol != fps {
 				continue
 			}
-			relevantPosition = &positionsInfo[i]
+			relevantPosition = positionsInfo[i]
 		}
 		if relevantPosition == nil {
 			return nil, fmt.Errorf("%w %v %v", futures.ErrNoPositionsFound, req.Asset, req.Pair)
@@ -3384,7 +3384,7 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 					Pair:  req.Pairs[x],
 				}
 				for {
-					var orders []UFuturesOrderData
+					var orders []*UFuturesOrderData
 					orders, err = e.UAllAccountOrders(ctx, fPair, 0, int64(orderLimit), sd, req.EndDate)
 					if err != nil {
 						return nil, err
@@ -3458,7 +3458,7 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, req *futures.Po
 					continue
 				}
 				for {
-					var orders []FuturesOrderData
+					var orders []*FuturesOrderData
 					orders, err = e.GetAllFuturesOrders(ctx, fPair, currency.EMPTYPAIR, sd, req.EndDate, 0, orderLimit)
 					if err != nil {
 						return nil, err

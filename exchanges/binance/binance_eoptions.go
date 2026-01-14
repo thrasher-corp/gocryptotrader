@@ -39,12 +39,12 @@ func (e *Exchange) GetOptionsExchangeInformation(ctx context.Context) (*EOptionE
 }
 
 // GetEOptionsOrderbook retrieves european options orderbook information for specific symbol
-func (e *Exchange) GetEOptionsOrderbook(ctx context.Context, symbol string, limit int64) (*EOptionsOrderbook, error) {
-	if symbol == "" {
+func (e *Exchange) GetEOptionsOrderbook(ctx context.Context, symbol currency.Pair, limit int64) (*EOptionsOrderbook, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
@@ -53,12 +53,12 @@ func (e *Exchange) GetEOptionsOrderbook(ctx context.Context, symbol string, limi
 }
 
 // GetEOptionsRecentTrades retrieves recent market trades
-func (e *Exchange) GetEOptionsRecentTrades(ctx context.Context, symbol string, limit int64) ([]*EOptionsTradeItem, error) {
-	if symbol == "" {
+func (e *Exchange) GetEOptionsRecentTrades(ctx context.Context, symbol currency.Pair, limit int64) ([]*EOptionsTradeItem, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
@@ -67,12 +67,12 @@ func (e *Exchange) GetEOptionsRecentTrades(ctx context.Context, symbol string, l
 }
 
 // GetEOptionsTradeHistory retrieves older market historical trades.
-func (e *Exchange) GetEOptionsTradeHistory(ctx context.Context, symbol string, fromID, limit int64) ([]*EOptionsTradeItem, error) {
-	if symbol == "" {
+func (e *Exchange) GetEOptionsTradeHistory(ctx context.Context, symbol currency.Pair, fromID, limit int64) ([]*EOptionsTradeItem, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	if fromID > 0 {
 		params.Set("fromId", strconv.FormatInt(fromID, 10))
 	}
@@ -84,15 +84,15 @@ func (e *Exchange) GetEOptionsTradeHistory(ctx context.Context, symbol string, f
 }
 
 // GetEOptionsCandlesticks retrieves kline/candlestick bars for an option symbol. Klines are uniquely identified by their open time.
-func (e *Exchange) GetEOptionsCandlesticks(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]*EOptionsCandlestick, error) {
-	if symbol == "" {
+func (e *Exchange) GetEOptionsCandlesticks(ctx context.Context, symbol currency.Pair, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]*EOptionsCandlestick, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if interval == 0 || interval.String() == "" {
 		return nil, kline.ErrInvalidInterval
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	params.Set("interval", e.FormatExchangeKlineInterval(interval))
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
@@ -107,20 +107,20 @@ func (e *Exchange) GetEOptionsCandlesticks(ctx context.Context, symbol string, i
 }
 
 // GetOptionMarkPrice option mark price and greek info.
-func (e *Exchange) GetOptionMarkPrice(ctx context.Context, symbol string) ([]*OptionMarkPrice, error) {
+func (e *Exchange) GetOptionMarkPrice(ctx context.Context, symbol currency.Pair) ([]*OptionMarkPrice, error) {
 	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if !symbol.IsEmpty() {
+		params.Set("symbol", symbol.String())
 	}
 	var resp []*OptionMarkPrice
 	return resp, e.SendHTTPRequest(ctx, exchange.RestOptions, common.EncodeURLValues("/eapi/v1/mark", params), optionsMarkPriceRate, &resp)
 }
 
 // GetEOptions24hrTickerPriceChangeStatistics 24 hour rolling window price change statistics.
-func (e *Exchange) GetEOptions24hrTickerPriceChangeStatistics(ctx context.Context, symbol string) ([]*EOptionTicker, error) {
+func (e *Exchange) GetEOptions24hrTickerPriceChangeStatistics(ctx context.Context, symbol currency.Pair) ([]*EOptionTicker, error) {
 	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if !symbol.IsEmpty() {
+		params.Set("symbol", symbol.String())
 	}
 	var resp []*EOptionTicker
 	return resp, e.SendHTTPRequest(ctx, exchange.RestOptions, common.EncodeURLValues("/eapi/v1/ticker", params), optionsAllTickerPriceStatistics, &resp)
@@ -289,15 +289,15 @@ func (e *Exchange) GetSingleEOptionsOrder(ctx context.Context, symbol currency.P
 }
 
 // CancelOptionsOrder represents an options order instance
-func (e *Exchange) CancelOptionsOrder(ctx context.Context, symbol, clientOrderID, orderID string) (*OptionOrder, error) {
-	if symbol == "" {
+func (e *Exchange) CancelOptionsOrder(ctx context.Context, symbol currency.Pair, clientOrderID, orderID string) (*OptionOrder, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if orderID == "" && clientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	if clientOrderID != "" {
 		params.Set("clientOrderId", clientOrderID)
 	}
@@ -309,15 +309,15 @@ func (e *Exchange) CancelOptionsOrder(ctx context.Context, symbol, clientOrderID
 }
 
 // CancelBatchOptionsOrders cancel an active orders
-func (e *Exchange) CancelBatchOptionsOrders(ctx context.Context, symbol string, orderIDs []int64, clientOrderIDs []string) ([]*OptionOrder, error) {
-	if symbol == "" {
+func (e *Exchange) CancelBatchOptionsOrders(ctx context.Context, symbol currency.Pair, orderIDs []int64, clientOrderIDs []string) ([]*OptionOrder, error) {
+	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if len(orderIDs) == 0 && len(clientOrderIDs) == 0 {
 		return nil, order.ErrOrderIDNotSet
 	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
+	params.Set("symbol", symbol.String())
 	if len(orderIDs) > 0 {
 		vals, err := json.Marshal(orderIDs)
 		if err != nil {
@@ -337,10 +337,10 @@ func (e *Exchange) CancelBatchOptionsOrders(ctx context.Context, symbol string, 
 }
 
 // CancelAllOptionOrdersOnSpecificSymbol cancels all active order on a symbol
-func (e *Exchange) CancelAllOptionOrdersOnSpecificSymbol(ctx context.Context, symbol string) error {
+func (e *Exchange) CancelAllOptionOrdersOnSpecificSymbol(ctx context.Context, symbol currency.Pair) error {
 	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if !symbol.IsEmpty() {
+		params.Set("symbol", symbol.String())
 	}
 	return e.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodDelete, "/eapi/v1/allOpenOrders", params, optionsDefaultOrderRate, nil, nil)
 }
@@ -408,10 +408,10 @@ func (e *Exchange) GetOptionPositionInformation(ctx context.Context, symbol curr
 }
 
 // GetEOptionsAccountTradeList retrieves trades for a specific account and symbol
-func (e *Exchange) GetEOptionsAccountTradeList(ctx context.Context, symbol string, fromID, limit int64, startTime, endTime time.Time) ([]*OptionsAccountTradeItem, error) {
+func (e *Exchange) GetEOptionsAccountTradeList(ctx context.Context, symbol currency.Pair, fromID, limit int64, startTime, endTime time.Time) ([]*OptionsAccountTradeItem, error) {
 	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if !symbol.IsEmpty() {
+		params.Set("symbol", symbol.String())
 	}
 	if fromID > 0 {
 		params.Set("fromId", strconv.FormatInt(fromID, 10))
@@ -435,10 +435,10 @@ func (e *Exchange) GetEOptionsAccountTradeList(ctx context.Context, symbol strin
 }
 
 // GetUserOptionsExerciseRecord retrieves account exercise records
-func (e *Exchange) GetUserOptionsExerciseRecord(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) ([]*UserOptionsExerciseRecord, error) {
+func (e *Exchange) GetUserOptionsExerciseRecord(ctx context.Context, symbol currency.Pair, startTime, endTime time.Time, limit int64) ([]*UserOptionsExerciseRecord, error) {
 	params := url.Values{}
-	if symbol != "" {
-		params.Set("symbol", symbol)
+	if !symbol.IsEmpty() {
+		params.Set("symbol", symbol.String())
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {

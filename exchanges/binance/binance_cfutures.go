@@ -54,7 +54,7 @@ func (e *Exchange) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair
 }
 
 // GetFuturesPublicTrades gets recent public trades for CoinMarginedFutures,
-func (e *Exchange) GetFuturesPublicTrades(ctx context.Context, symbol currency.Pair, limit uint64) ([]FuturesPublicTradesData, error) {
+func (e *Exchange) GetFuturesPublicTrades(ctx context.Context, symbol currency.Pair, limit uint64) ([]*FuturesPublicTradesData, error) {
 	symbolValue, err := e.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return nil, err
@@ -64,12 +64,12 @@ func (e *Exchange) GetFuturesPublicTrades(ctx context.Context, symbol currency.P
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var resp []FuturesPublicTradesData
+	var resp []*FuturesPublicTradesData
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/trades", params), cFuturesDefaultRate, &resp)
 }
 
 // GetFuturesHistoricalTrades gets historical public trades for CoinMarginedFutures,
-func (e *Exchange) GetFuturesHistoricalTrades(ctx context.Context, symbol currency.Pair, fromID string, limit uint64) ([]UPublicTradesData, error) {
+func (e *Exchange) GetFuturesHistoricalTrades(ctx context.Context, symbol currency.Pair, fromID string, limit uint64) ([]*UPublicTradesData, error) {
 	symbolValue, err := e.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return nil, err
@@ -82,12 +82,12 @@ func (e *Exchange) GetFuturesHistoricalTrades(ctx context.Context, symbol curren
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var resp []UPublicTradesData
+	var resp []*UPublicTradesData
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/historicalTrades", params, cFuturesHistoricalTradesRate, nil, &resp)
 }
 
 // GetPastPublicTrades gets past public trades for CoinMarginedFutures,
-func (e *Exchange) GetPastPublicTrades(ctx context.Context, symbol currency.Pair, limit, fromID uint64) ([]FuturesPublicTradesData, error) {
+func (e *Exchange) GetPastPublicTrades(ctx context.Context, symbol currency.Pair, limit, fromID uint64) ([]*FuturesPublicTradesData, error) {
 	symbolValue, err := e.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return nil, err
@@ -100,12 +100,12 @@ func (e *Exchange) GetPastPublicTrades(ctx context.Context, symbol currency.Pair
 	if fromID != 0 {
 		params.Set("fromID", strconv.FormatUint(fromID, 10))
 	}
-	var resp []FuturesPublicTradesData
+	var resp []*FuturesPublicTradesData
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/trades", params), cFuturesDefaultRate, &resp)
 }
 
 // GetFuturesAggregatedTradesList gets aggregated trades list for CoinMarginedFutures,
-func (e *Exchange) GetFuturesAggregatedTradesList(ctx context.Context, symbol currency.Pair, fromID, limit uint64, startTime, endTime time.Time) ([]AggregatedTrade, error) {
+func (e *Exchange) GetFuturesAggregatedTradesList(ctx context.Context, symbol currency.Pair, fromID, limit uint64, startTime, endTime time.Time) ([]*AggregatedTrade, error) {
 	symbolValue, err := e.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return nil, err
@@ -129,12 +129,12 @@ func (e *Exchange) GetFuturesAggregatedTradesList(ctx context.Context, symbol cu
 	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
-	var resp []AggregatedTrade
+	var resp []*AggregatedTrade
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/aggTrades", params), cFuturesHistoricalTradesRate, &resp)
 }
 
 // GetIndexAndMarkPrice gets index and mark prices  for CoinMarginedFutures,
-func (e *Exchange) GetIndexAndMarkPrice(ctx context.Context, symbol, pair string) ([]IndexMarkPrice, error) {
+func (e *Exchange) GetIndexAndMarkPrice(ctx context.Context, symbol, pair string) ([]*IndexMarkPrice, error) {
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -142,18 +142,18 @@ func (e *Exchange) GetIndexAndMarkPrice(ctx context.Context, symbol, pair string
 	if pair != "" {
 		params.Set("pair", pair)
 	}
-	var resp []IndexMarkPrice
+	var resp []*IndexMarkPrice
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/premiumIndex", params), cFuturesIndexMarkPriceRate, &resp)
 }
 
 // GetFundingRateInfo retrieves funding rate info for symbols that had FundingRateCap/ FundingRateFloor / fundingIntervalHours adjustment
-func (e *Exchange) GetFundingRateInfo(ctx context.Context) ([]FundingRateInfoResponse, error) {
-	var resp []FundingRateInfoResponse
+func (e *Exchange) GetFundingRateInfo(ctx context.Context) ([]*FundingRateInfoResponse, error) {
+	var resp []*FundingRateInfoResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, "/dapi/v1/fundingInfo", uFuturesDefaultRate, &resp)
 }
 
 // GetFuturesKlineData gets futures kline data for CoinMarginedFutures,
-func (e *Exchange) GetFuturesKlineData(ctx context.Context, symbol currency.Pair, interval string, limit uint64, startTime, endTime time.Time) ([]CFuturesCandleStick, error) {
+func (e *Exchange) GetFuturesKlineData(ctx context.Context, symbol currency.Pair, interval string, limit uint64, startTime, endTime time.Time) ([]*CFuturesCandleStick, error) {
 	if !slices.Contains(validFuturesIntervals, interval) {
 		return nil, kline.ErrInvalidInterval
 	}
@@ -180,13 +180,13 @@ func (e *Exchange) GetFuturesKlineData(ctx context.Context, symbol currency.Pair
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	params.Set("interval", interval)
-	var data []CFuturesCandleStick
+	var data []*CFuturesCandleStick
 	rateBudget := getKlineRateBudget(limit)
 	return data, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/klines", params), rateBudget, &data)
 }
 
 // GetContinuousKlineData gets continuous kline data
-func (e *Exchange) GetContinuousKlineData(ctx context.Context, pair string, contractType, interval string, limit uint64, startTime, endTime time.Time) ([]CFuturesCandleStick, error) {
+func (e *Exchange) GetContinuousKlineData(ctx context.Context, pair string, contractType, interval string, limit uint64, startTime, endTime time.Time) ([]*CFuturesCandleStick, error) {
 	if pair == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -215,12 +215,12 @@ func (e *Exchange) GetContinuousKlineData(ctx context.Context, pair string, cont
 	params.Set("contractType", contractType)
 	params.Set("interval", interval)
 	rateBudget := getKlineRateBudget(limit)
-	var data []CFuturesCandleStick
+	var data []*CFuturesCandleStick
 	return data, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/continuousKlines", params), rateBudget, &data)
 }
 
 // GetIndexPriceKlines gets continuous kline data
-func (e *Exchange) GetIndexPriceKlines(ctx context.Context, pair, interval string, limit uint64, startTime, endTime time.Time) ([]CFuturesCandleStick, error) {
+func (e *Exchange) GetIndexPriceKlines(ctx context.Context, pair, interval string, limit uint64, startTime, endTime time.Time) ([]*CFuturesCandleStick, error) {
 	if !slices.Contains(validFuturesIntervals, interval) {
 		return nil, kline.ErrInvalidInterval
 	}
@@ -242,22 +242,22 @@ func (e *Exchange) GetIndexPriceKlines(ctx context.Context, pair, interval strin
 	}
 	params.Set("pair", pair)
 	rateBudget := getKlineRateBudget(limit)
-	var data []CFuturesCandleStick
+	var data []*CFuturesCandleStick
 	return data, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/indexPriceKlines", params), rateBudget, &data)
 }
 
 // GetMarkPriceKline gets mark price kline data
-func (e *Exchange) GetMarkPriceKline(ctx context.Context, symbol currency.Pair, interval string, limit uint64, startTime, endTime time.Time) ([]CFuturesCandleStick, error) {
+func (e *Exchange) GetMarkPriceKline(ctx context.Context, symbol currency.Pair, interval string, limit uint64, startTime, endTime time.Time) ([]*CFuturesCandleStick, error) {
 	return e.getKline(ctx, symbol, interval, "/dapi/v1/markPriceKlines", limit, startTime, endTime)
 }
 
 // GetPremiumIndexKlineData premium index kline bars of a symbol.
 // Klines are uniquely identified by their open time.
-func (e *Exchange) GetPremiumIndexKlineData(ctx context.Context, symbol currency.Pair, interval string, limit uint64, startTime, endTime time.Time) ([]CFuturesCandleStick, error) {
+func (e *Exchange) GetPremiumIndexKlineData(ctx context.Context, symbol currency.Pair, interval string, limit uint64, startTime, endTime time.Time) ([]*CFuturesCandleStick, error) {
 	return e.getKline(ctx, symbol, interval, "/dapi/v1/premiumIndexKlines", limit, startTime, endTime)
 }
 
-func (e *Exchange) getKline(ctx context.Context, symbol currency.Pair, interval, path string, limit uint64, startTime, endTime time.Time) ([]CFuturesCandleStick, error) {
+func (e *Exchange) getKline(ctx context.Context, symbol currency.Pair, interval, path string, limit uint64, startTime, endTime time.Time) ([]*CFuturesCandleStick, error) {
 	symbolValue, err := e.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return nil, err
@@ -284,7 +284,7 @@ func (e *Exchange) getKline(ctx context.Context, symbol currency.Pair, interval,
 	}
 	params.Set("symbol", symbolValue)
 	rateBudget := getKlineRateBudget(limit)
-	var data []CFuturesCandleStick
+	var data []*CFuturesCandleStick
 	return data, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues(path, params), rateBudget, &data)
 }
 
@@ -304,7 +304,7 @@ func getKlineRateBudget(limit uint64) request.EndpointLimit {
 }
 
 // GetFuturesSwapTickerChangeStats gets 24hr ticker change stats for CoinMarginedFutures,
-func (e *Exchange) GetFuturesSwapTickerChangeStats(ctx context.Context, symbol currency.Pair, pair string) ([]PriceChangeStats, error) {
+func (e *Exchange) GetFuturesSwapTickerChangeStats(ctx context.Context, symbol currency.Pair, pair string) ([]*PriceChangeStats, error) {
 	params := url.Values{}
 	rateLimit := cFuturesTickerPriceHistoryRate
 	if !symbol.IsEmpty() {
@@ -318,12 +318,12 @@ func (e *Exchange) GetFuturesSwapTickerChangeStats(ctx context.Context, symbol c
 	if pair != "" {
 		params.Set("pair", pair)
 	}
-	var resp []PriceChangeStats
+	var resp []*PriceChangeStats
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/ticker/24hr", params), rateLimit, &resp)
 }
 
 // FuturesGetFundingHistory gets funding history for CoinMarginedFutures,
-func (e *Exchange) FuturesGetFundingHistory(ctx context.Context, symbol currency.Pair, limit int, startTime, endTime time.Time) ([]FundingRateHistory, error) {
+func (e *Exchange) FuturesGetFundingHistory(ctx context.Context, symbol currency.Pair, limit int, startTime, endTime time.Time) ([]*FundingRateHistory, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		symbolValue, err := e.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -346,12 +346,12 @@ func (e *Exchange) FuturesGetFundingHistory(ctx context.Context, symbol currency
 	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
-	var resp []FundingRateHistory
+	var resp []*FundingRateHistory
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/fundingRate", params), cFuturesDefaultRate, &resp)
 }
 
 // GetFuturesSymbolPriceTicker gets price ticker for symbol
-func (e *Exchange) GetFuturesSymbolPriceTicker(ctx context.Context, symbol currency.Pair, pair string) ([]SymbolPriceTicker, error) {
+func (e *Exchange) GetFuturesSymbolPriceTicker(ctx context.Context, symbol currency.Pair, pair string) ([]*SymbolPriceTicker, error) {
 	params := url.Values{}
 	rateLimit := cFuturesOrderbookTickerAllRate
 	if !symbol.IsEmpty() {
@@ -365,12 +365,12 @@ func (e *Exchange) GetFuturesSymbolPriceTicker(ctx context.Context, symbol curre
 	if pair != "" {
 		params.Set("pair", pair)
 	}
-	var resp []SymbolPriceTicker
+	var resp []*SymbolPriceTicker
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/ticker/price", params), rateLimit, &resp)
 }
 
 // GetFuturesOrderbookTicker gets orderbook ticker for symbol
-func (e *Exchange) GetFuturesOrderbookTicker(ctx context.Context, symbol currency.Pair, pair string) ([]SymbolOrderBookTicker, error) {
+func (e *Exchange) GetFuturesOrderbookTicker(ctx context.Context, symbol currency.Pair, pair string) ([]*SymbolOrderBookTicker, error) {
 	params := url.Values{}
 	rateLimit := cFuturesOrderbookTickerAllRate
 	if !symbol.IsEmpty() {
@@ -384,7 +384,7 @@ func (e *Exchange) GetFuturesOrderbookTicker(ctx context.Context, symbol currenc
 	if pair != "" {
 		params.Set("pair", pair)
 	}
-	var resp []SymbolOrderBookTicker
+	var resp []*SymbolOrderBookTicker
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/ticker/bookTicker", params), rateLimit, &resp)
 }
 
@@ -410,16 +410,16 @@ func (e *Exchange) OpenInterest(ctx context.Context, symbol currency.Pair) (*Ope
 }
 
 // CFuturesQuarterlyContractSettlementPrice retrieves coin margined futures quarterly contract settlement price
-func (e *Exchange) CFuturesQuarterlyContractSettlementPrice(ctx context.Context, pair currency.Pair) ([]SettlementPrice, error) {
+func (e *Exchange) CFuturesQuarterlyContractSettlementPrice(ctx context.Context, pair currency.Pair) ([]*SettlementPrice, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	var resp []SettlementPrice
+	var resp []*SettlementPrice
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, "/futures/data/delivery-price?pair="+pair.String(), cFuturesDefaultRate, &resp)
 }
 
 // GetOpenInterestStats gets open interest stats for a symbol
-func (e *Exchange) GetOpenInterestStats(ctx context.Context, pair, contractType, period string, limit uint64, startTime, endTime time.Time) ([]OpenInterestStats, error) {
+func (e *Exchange) GetOpenInterestStats(ctx context.Context, pair, contractType, period string, limit uint64, startTime, endTime time.Time) ([]*OpenInterestStats, error) {
 	if !slices.Contains(validContractType, contractType) {
 		return nil, fmt.Errorf("%w: invalid interval %s", errContractTypeIsRequired, contractType)
 	}
@@ -446,12 +446,12 @@ func (e *Exchange) GetOpenInterestStats(ctx context.Context, pair, contractType,
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var resp []OpenInterestStats
+	var resp []*OpenInterestStats
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/futures/data/openInterestHist", params), cFuturesDefaultRate, &resp)
 }
 
 // GetTraderFuturesAccountRatio gets a traders futures account long/short ratio
-func (e *Exchange) GetTraderFuturesAccountRatio(ctx context.Context, pair currency.Pair, period string, limit uint64, startTime, endTime time.Time) ([]TopTraderAccountRatio, error) {
+func (e *Exchange) GetTraderFuturesAccountRatio(ctx context.Context, pair currency.Pair, period string, limit uint64, startTime, endTime time.Time) ([]*TopTraderAccountRatio, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -475,12 +475,12 @@ func (e *Exchange) GetTraderFuturesAccountRatio(ctx context.Context, pair curren
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var resp []TopTraderAccountRatio
+	var resp []*TopTraderAccountRatio
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/futures/data/topLongShortAccountRatio", params), cFuturesDefaultRate, &resp)
 }
 
 // GetTraderFuturesPositionsRatio gets a traders futures positions' long/short ratio
-func (e *Exchange) GetTraderFuturesPositionsRatio(ctx context.Context, pair currency.Pair, period string, limit uint64, startTime, endTime time.Time) ([]TopTraderPositionRatio, error) {
+func (e *Exchange) GetTraderFuturesPositionsRatio(ctx context.Context, pair currency.Pair, period string, limit uint64, startTime, endTime time.Time) ([]*TopTraderPositionRatio, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -504,12 +504,12 @@ func (e *Exchange) GetTraderFuturesPositionsRatio(ctx context.Context, pair curr
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var resp []TopTraderPositionRatio
+	var resp []*TopTraderPositionRatio
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/futures/data/topLongShortPositionRatio", params), cFuturesDefaultRate, &resp)
 }
 
 // GetMarketRatio gets global long/short ratio
-func (e *Exchange) GetMarketRatio(ctx context.Context, pair currency.Pair, period string, limit uint64, startTime, endTime time.Time) ([]TopTraderPositionRatio, error) {
+func (e *Exchange) GetMarketRatio(ctx context.Context, pair currency.Pair, period string, limit uint64, startTime, endTime time.Time) ([]*TopTraderPositionRatio, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -533,12 +533,12 @@ func (e *Exchange) GetMarketRatio(ctx context.Context, pair currency.Pair, perio
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var resp []TopTraderPositionRatio
+	var resp []*TopTraderPositionRatio
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/futures/data/globalLongShortAccountRatio", params), cFuturesDefaultRate, &resp)
 }
 
 // GetFuturesTakerVolume gets futures taker buy/sell volumes
-func (e *Exchange) GetFuturesTakerVolume(ctx context.Context, pair currency.Pair, contractType, period string, limit uint64, startTime, endTime time.Time) ([]TakerBuySellVolume, error) {
+func (e *Exchange) GetFuturesTakerVolume(ctx context.Context, pair currency.Pair, contractType, period string, limit uint64, startTime, endTime time.Time) ([]*TakerBuySellVolume, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -566,12 +566,12 @@ func (e *Exchange) GetFuturesTakerVolume(ctx context.Context, pair currency.Pair
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	params.Set("period", period)
-	var resp []TakerBuySellVolume
+	var resp []*TakerBuySellVolume
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/futures/data/takerBuySellVol", params), cFuturesDefaultRate, &resp)
 }
 
 // GetFuturesBasisData gets futures basis data
-func (e *Exchange) GetFuturesBasisData(ctx context.Context, pair currency.Pair, contractType, period string, limit uint64, startTime, endTime time.Time) ([]FuturesBasisData, error) {
+func (e *Exchange) GetFuturesBasisData(ctx context.Context, pair currency.Pair, contractType, period string, limit uint64, startTime, endTime time.Time) ([]*FuturesBasisData, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -599,7 +599,7 @@ func (e *Exchange) GetFuturesBasisData(ctx context.Context, pair currency.Pair, 
 	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
-	var resp []FuturesBasisData
+	var resp []*FuturesBasisData
 	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/futures/data/basis", params), cFuturesDefaultRate, &resp)
 }
 
@@ -624,7 +624,7 @@ func (e *Exchange) FuturesNewOrder(ctx context.Context, x *FuturesNewOrderReques
 }
 
 // FuturesBatchOrder sends a batch order request
-func (e *Exchange) FuturesBatchOrder(ctx context.Context, data []PlaceBatchOrderData) ([]FuturesOrderPlaceData, error) {
+func (e *Exchange) FuturesBatchOrder(ctx context.Context, data []*PlaceBatchOrderData) ([]*FuturesOrderPlaceData, error) {
 	if len(data) == 0 {
 		return nil, common.ErrEmptyParams
 	}
@@ -650,12 +650,12 @@ func (e *Exchange) FuturesBatchOrder(ctx context.Context, data []PlaceBatchOrder
 	}
 	params := url.Values{}
 	params.Set("batchOrders", string(jsonData))
-	var resp []FuturesOrderPlaceData
+	var resp []*FuturesOrderPlaceData
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodPost, "/dapi/v1/batchOrders", params, cFuturesBatchOrdersRate, nil, &resp)
 }
 
 // FuturesBatchCancelOrders sends a batch request to cancel orders
-func (e *Exchange) FuturesBatchCancelOrders(ctx context.Context, symbol currency.Pair, orderList, origClientOrderIDList []string) ([]BatchCancelOrderData, error) {
+func (e *Exchange) FuturesBatchCancelOrders(ctx context.Context, symbol currency.Pair, orderList, origClientOrderIDList []string) ([]*BatchCancelOrderData, error) {
 	symbolValue, err := e.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return nil, err
@@ -676,7 +676,7 @@ func (e *Exchange) FuturesBatchCancelOrders(ctx context.Context, symbol currency
 		}
 		params.Set("origClientOrderIdList", string(jsonCliOrdIDList))
 	}
-	var resp []BatchCancelOrderData
+	var resp []*BatchCancelOrderData
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodDelete, "/dapi/v1/batchOrders", params, cFuturesOrdersDefaultRate, nil, &resp)
 }
 
@@ -761,7 +761,7 @@ func (e *Exchange) FuturesOpenOrderData(ctx context.Context, symbol currency.Pai
 }
 
 // GetFuturesAllOpenOrders gets all open orders data for CoinMarginedFutures,
-func (e *Exchange) GetFuturesAllOpenOrders(ctx context.Context, symbol currency.Pair, pair string) ([]FuturesOrderData, error) {
+func (e *Exchange) GetFuturesAllOpenOrders(ctx context.Context, symbol currency.Pair, pair string) ([]*FuturesOrderData, error) {
 	var (
 		p   string
 		err error
@@ -782,12 +782,12 @@ func (e *Exchange) GetFuturesAllOpenOrders(ctx context.Context, symbol currency.
 	if pair != "" {
 		params.Set("pair", pair)
 	}
-	var resp []FuturesOrderData
+	var resp []*FuturesOrderData
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/openOrders", params, rateLimit, nil, &resp)
 }
 
 // GetAllFuturesOrders gets all orders active cancelled or filled
-func (e *Exchange) GetAllFuturesOrders(ctx context.Context, symbol, pair currency.Pair, startTime, endTime time.Time, orderID, limit uint64) ([]FuturesOrderData, error) {
+func (e *Exchange) GetAllFuturesOrders(ctx context.Context, symbol, pair currency.Pair, startTime, endTime time.Time, orderID, limit uint64) ([]*FuturesOrderData, error) {
 	params := url.Values{}
 	rateLimit := cFuturesPairOrdersRate
 	if !symbol.IsEmpty() {
@@ -818,13 +818,13 @@ func (e *Exchange) GetAllFuturesOrders(ctx context.Context, symbol, pair currenc
 	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
-	var resp []FuturesOrderData
+	var resp []*FuturesOrderData
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/allOrders", params, rateLimit, nil, &resp)
 }
 
 // GetFuturesAccountBalance gets account balance data for CoinMarginedFutures, account
-func (e *Exchange) GetFuturesAccountBalance(ctx context.Context) ([]FuturesAccountBalanceData, error) {
-	var resp []FuturesAccountBalanceData
+func (e *Exchange) GetFuturesAccountBalance(ctx context.Context) ([]*FuturesAccountBalanceData, error) {
+	var resp []*FuturesAccountBalanceData
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/balance", nil, cFuturesDefaultRate, nil, &resp)
 }
 
@@ -893,7 +893,7 @@ func (e *Exchange) ModifyIsolatedPositionMargin(ctx context.Context, symbol curr
 }
 
 // FuturesMarginChangeHistory gets past margin changes for positions
-func (e *Exchange) FuturesMarginChangeHistory(ctx context.Context, symbol currency.Pair, changeType string, startTime, endTime time.Time, limit int64) ([]GetPositionMarginChangeHistoryData, error) {
+func (e *Exchange) FuturesMarginChangeHistory(ctx context.Context, symbol currency.Pair, changeType string, startTime, endTime time.Time, limit int64) ([]*GetPositionMarginChangeHistoryData, error) {
 	symbolValue, err := e.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return nil, err
@@ -919,14 +919,14 @@ func (e *Exchange) FuturesMarginChangeHistory(ctx context.Context, symbol curren
 	if limit != 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []GetPositionMarginChangeHistoryData
+	var resp []*GetPositionMarginChangeHistoryData
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/positionMargin/history", params, cFuturesDefaultRate, nil, &resp)
 }
 
 // FuturesPositionsInfo gets futures positions info
 // "pair" for coinmarginedfutures in GCT terms is the pair base
 // eg ADAUSD_PERP the "pair" parameter is ADAUSD
-func (e *Exchange) FuturesPositionsInfo(ctx context.Context, marginAsset, pair string) ([]FuturesPositionInformation, error) {
+func (e *Exchange) FuturesPositionsInfo(ctx context.Context, marginAsset, pair string) ([]*FuturesPositionInformation, error) {
 	params := url.Values{}
 	if marginAsset != "" {
 		params.Set("marginAsset", marginAsset)
@@ -934,12 +934,12 @@ func (e *Exchange) FuturesPositionsInfo(ctx context.Context, marginAsset, pair s
 	if pair != "" {
 		params.Set("pair", pair)
 	}
-	var resp []FuturesPositionInformation
+	var resp []*FuturesPositionInformation
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/positionRisk", params, cFuturesDefaultRate, nil, &resp)
 }
 
 // FuturesTradeHistory gets trade history for CoinMarginedFutures, account
-func (e *Exchange) FuturesTradeHistory(ctx context.Context, symbol currency.Pair, pair string, startTime, endTime time.Time, limit, fromID int64) ([]FuturesAccountTradeList, error) {
+func (e *Exchange) FuturesTradeHistory(ctx context.Context, symbol currency.Pair, pair string, startTime, endTime time.Time, limit, fromID int64) ([]*FuturesAccountTradeList, error) {
 	params := url.Values{}
 	rateLimit := cFuturesPairOrdersRate
 	if !symbol.IsEmpty() {
@@ -970,12 +970,12 @@ func (e *Exchange) FuturesTradeHistory(ctx context.Context, symbol currency.Pair
 	if fromID != 0 {
 		params.Set("fromId", strconv.FormatInt(fromID, 10))
 	}
-	var resp []FuturesAccountTradeList
+	var resp []*FuturesAccountTradeList
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/userTrades", params, rateLimit, nil, &resp)
 }
 
 // FuturesIncomeHistory gets income history for CoinMarginedFutures,
-func (e *Exchange) FuturesIncomeHistory(ctx context.Context, symbol currency.Pair, incomeType string, startTime, endTime time.Time, limit int64) ([]FuturesIncomeHistoryData, error) {
+func (e *Exchange) FuturesIncomeHistory(ctx context.Context, symbol currency.Pair, incomeType string, startTime, endTime time.Time, limit int64) ([]*FuturesIncomeHistoryData, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		symbolValue, err := e.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -1004,22 +1004,22 @@ func (e *Exchange) FuturesIncomeHistory(ctx context.Context, symbol currency.Pai
 	if limit != 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []FuturesIncomeHistoryData
+	var resp []*FuturesIncomeHistoryData
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/income", params, cFuturesIncomeHistoryRate, nil, &resp)
 }
 
 // FuturesNotionalBracket gets futures notional bracket
-func (e *Exchange) FuturesNotionalBracket(ctx context.Context, pair string) ([]NotionalBracketData, error) {
+func (e *Exchange) FuturesNotionalBracket(ctx context.Context, pair string) ([]*NotionalBracketData, error) {
 	params := url.Values{}
 	if pair != "" {
 		params.Set("pair", pair)
 	}
-	var resp []NotionalBracketData
+	var resp []*NotionalBracketData
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/leverageBracket", params, cFuturesDefaultRate, nil, &resp)
 }
 
 // FuturesForceOrders gets futures forced orders
-func (e *Exchange) FuturesForceOrders(ctx context.Context, symbol currency.Pair, autoCloseType string, startTime, endTime time.Time) ([]ForcedOrdersData, error) {
+func (e *Exchange) FuturesForceOrders(ctx context.Context, symbol currency.Pair, autoCloseType string, startTime, endTime time.Time) ([]*ForcedOrdersData, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		symbolValue, err := e.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -1045,12 +1045,12 @@ func (e *Exchange) FuturesForceOrders(ctx context.Context, symbol currency.Pair,
 	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
-	var resp []ForcedOrdersData
+	var resp []*ForcedOrdersData
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/forceOrders", params, cFuturesDefaultRate, nil, &resp)
 }
 
 // FuturesPositionsADLEstimate estimates ADL on positions
-func (e *Exchange) FuturesPositionsADLEstimate(ctx context.Context, symbol currency.Pair) ([]ADLEstimateData, error) {
+func (e *Exchange) FuturesPositionsADLEstimate(ctx context.Context, symbol currency.Pair) ([]*ADLEstimateData, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		symbolValue, err := e.FormatSymbol(symbol, asset.CoinMarginedFutures)
@@ -1059,7 +1059,7 @@ func (e *Exchange) FuturesPositionsADLEstimate(ctx context.Context, symbol curre
 		}
 		params.Set("symbol", symbolValue)
 	}
-	var resp []ADLEstimateData
+	var resp []*ADLEstimateData
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/adlQuantile", params, cFuturesAccountInformationRate, nil, &resp)
 }
 
