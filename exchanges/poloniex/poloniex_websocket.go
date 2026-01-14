@@ -351,12 +351,12 @@ func (e *Exchange) processTrades(result *SubscriptionResponse) error {
 	for x, r := range resp {
 		trades[x] = trade.Data{
 			TID:          strconv.FormatUint(r.ID, 10),
-			Side:         r.TakerSide,
 			Exchange:     e.Name,
 			CurrencyPair: r.Symbol,
+			Side:         r.TakerSide,
 			Price:        r.Price.Float64(),
-			Amount:       r.Quantity.Float64(),
 			Timestamp:    r.Timestamp.Time(),
+			Amount:       r.Quantity.Float64(),
 		}
 	}
 	return trade.AddTradesToBuffer(trades...)

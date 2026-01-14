@@ -11098,7 +11098,7 @@
                         ],
                         "msg": "Success"
                     },
-                    "queryString": "eT=1743702190295\u0026limit=100\u0026sT=1743615790295\u0026symbol=BTC_USDT_PERP",
+                    "queryString": "eTime=1743702190295\u0026limit=100\u0026sTime=1743615790295\u0026symbol=BTC_USDT_PERP",
                     "bodyParams": "",
                     "headers": {}
                 },

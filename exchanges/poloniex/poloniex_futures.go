@@ -720,10 +720,10 @@ func (e *Exchange) GetFuturesHistoricalFundingRates(ctx context.Context, symbol 
 	params := url.Values{}
 	params.Set("symbol", symbol.String())
 	if !startTime.IsZero() {
-		params.Set("sT", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
 	if !endTime.IsZero() {
-		params.Set("eT", strconv.FormatInt(endTime.UnixMilli(), 10))
+		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
