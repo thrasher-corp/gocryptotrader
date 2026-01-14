@@ -1400,6 +1400,6 @@ func (*mockEx) GetPairFormat(asset.Item, bool) (currency.PairFormat, error) {
 }
 
 func (*mockEx) GetSubscriptionTemplate(*subscription.Subscription) (*template.Template, error) {
-	return nil, nil
+	return nil, errors.New("GetSubsTemplateBlows")
 }
 func (*mockEx) GetSubscriptions() (subscription.List, error) { return nil, nil }

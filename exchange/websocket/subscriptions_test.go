@@ -8,8 +8,47 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
+
+func TestManagerGenerateSubscriptions(t *testing.T) {
+	t.Parallel()
+	_, err := (*Manager)(nil).GenerateSubscriptions()
+	assert.ErrorContains(t, err, "nil pointer: *websocket.Manager")
+	_, err = new(Manager).GenerateSubscriptions()
+	assert.ErrorContains(t, err, "m.Exchange: nil pointer")
+	m := NewManager()
+	m.Exchange = &mockEx{}
+	m.Subscriptions = subscription.List{{Channel: "tunnel"}}
+	_, err = m.GenerateSubscriptions()
+	assert.ErrorContains(t, err, "tunnel  : GetSubsTemplateBlows")
+}
+
+func TestConnectionGenerateSubscriptions(t *testing.T) {
+	t.Parallel()
+	expErr := errors.New("GenerateSubscriptionsBlows")
+	cw := &connectionWrapper{
+		setup: &ConnectionSetup{
+			GenerateSubscriptions: func() (subscription.List, error) {
+				return nil, expErr
+			},
+		},
+	}
+	_, err := cw.generateSubscriptions(subscription.List{})
+	assert.ErrorIs(t, err, expErr)
+	cw.setup.GenerateSubscriptions = nil
+	_, err = cw.generateSubscriptions(subscription.List{})
+	assert.ErrorIs(t, err, errNoMessageFilter)
+	cw.setup.MessageFilter = AssetFilter(asset.Options)
+	s, err := cw.generateSubscriptions(subscription.List{
+		{Channel: "quick", Asset: asset.Spot},
+		{Channel: "ducks", Asset: asset.Options},
+	})
+	require.NoError(t, err)
+	require.Len(t, s, 1, "Must just have one sub matching the filter")
+	assert.Equal(t, "ducks", s[0].Channel, "sub channel should be correct")
+}
 
 // TestSubscribe logic test
 func TestSubscribeUnsubscribe(t *testing.T) {
