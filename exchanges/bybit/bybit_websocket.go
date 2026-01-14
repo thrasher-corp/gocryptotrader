@@ -88,7 +88,7 @@ var (
 
 // WsConnect connects to a websocket feed
 func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) error {
-	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil); err != nil {
 		return err
 	}
 	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
