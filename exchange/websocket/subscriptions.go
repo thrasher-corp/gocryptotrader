@@ -428,7 +428,7 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, ws *webso
 	return nil
 }
 
-// unsubscribeFromConnection unsubscribes from a connection and removes subscriptions from the store
+// unsubscribeFromConnection unsubscribes for a connection and removes subscriptions from the connection's store
 func (m *Manager) unsubscribeFromConnection(conn Connection, subs subscription.List) (subscription.List, error) {
 	store := conn.Subscriptions()
 	if err := common.NilGuard(store); err != nil {
