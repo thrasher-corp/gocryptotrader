@@ -3197,7 +3197,7 @@ type SubscriptionInfo struct {
 type WSSubscriptionInformationList struct {
 	Operation string             `json:"op"`
 	Arguments []SubscriptionInfo `json:"args"`
-	subs      subscription.List  `json:"-"`
+	subs      subscription.List
 }
 
 // SpreadOrderInfo holds spread order response information
