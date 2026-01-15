@@ -354,7 +354,7 @@ func (m *Manager) updateChannelSubscriptions(store *subscription.Store, incoming
 	return nil
 }
 
-// scaleConnectionsToSubscriptions scales connections to subscriptions based off current subscription list
+// scaleConnectionsToSubscriptions scales connections to subscriptions based off current subscription list and subscription limit
 func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, ws *websocket, incoming subscription.List) error {
 	if err := common.NilGuard(ws); err != nil {
 		return err
