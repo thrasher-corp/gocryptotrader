@@ -437,7 +437,7 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 	require.Len(t, ws.connections, 1, "connection must be tracked by websocket")
 	require.Len(t, mgr.connections, 1, "websocket connection association must be tracked by manager")
 	require.Equal(t, mgr.connections[ws.connections[0]], ws, "manager connections map must track the websocket owner")
-	require.Len(t, ws.connections[0].Subscriptions().List(), len(subs), "connection subscription store should mirror websocket store")
+	require.Len(t, ws.connections[0].Subscriptions().List(), len(subs), "connection subscription store must mirror websocket store")
 	require.NoError(t, ws.connections[0].Shutdown())
 	delete(mgr.connections, ws.connections[0])
 	ws.connections = nil
