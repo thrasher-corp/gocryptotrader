@@ -85,12 +85,12 @@ func (e *Exchange) WsUFuturesConnect(ctx context.Context, conn websocket.Connect
 }
 
 func (e *Exchange) wsHandleFuturesData(_ context.Context, respRaw []byte, assetType asset.Item) error {
-	result := struct {
+	var result struct {
 		Result json.RawMessage `json:"result"`
 		ID     int64           `json:"id"`
 		Stream string          `json:"stream"`
 		Data   json.RawMessage `json:"data"`
-	}{}
+	}
 	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
 	}

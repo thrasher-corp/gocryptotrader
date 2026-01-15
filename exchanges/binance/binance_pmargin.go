@@ -111,9 +111,9 @@ func (e *Exchange) marginAccountBorrowRepay(ctx context.Context, ccy currency.Co
 	params := url.Values{}
 	params.Set("asset", ccy.String())
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	resp := &struct {
+	var resp struct {
 		TransactionID string `json:"tranId"`
-	}{}
+	}
 	return resp.TransactionID, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, path, params, pmMarginAccountLoanAndRepayRate, nil, &resp)
 }
 
@@ -373,14 +373,14 @@ func (e *Exchange) GetAllUMOrders(ctx context.Context, symbol currency.Pair, sta
 }
 
 func (e *Exchange) getUMOrders(ctx context.Context, symbol currency.Pair, path string, startTime, endTime time.Time, startingOrderID, limit int64, endpointLimit request.EndpointLimit) ([]*UMCMOrder, error) {
-	params := url.Values{}
-	if !symbol.IsEmpty() {
-		params.Set("symbol", symbol.String())
-	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if !symbol.IsEmpty() {
+		params.Set("symbol", symbol.String())
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -437,17 +437,17 @@ func (e *Exchange) getCMOrders(ctx context.Context, symbol currency.Pair, pair, 
 	if symbol.IsEmpty() && pair == "" {
 		return nil, fmt.Errorf("%w either symbol or pair is required", currency.ErrCurrencyPairEmpty)
 	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		params.Set("symbol", symbol.String())
 	}
 	if pair == "" {
 		params.Set("pair", pair)
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -510,6 +510,11 @@ func (e *Exchange) GetAllUMConditionalOrders(ctx context.Context, symbol currenc
 }
 
 func (e *Exchange) getAllUMCMOrders(ctx context.Context, symbol currency.Pair, path, newClientStrategyID string, startTime, endTime time.Time, strategyID, limit int64, endpointLimit request.EndpointLimit) ([]*ConditionalOrder, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		params.Set("symbol", symbol.String())
@@ -519,11 +524,6 @@ func (e *Exchange) getAllUMCMOrders(ctx context.Context, symbol currency.Pair, p
 	}
 	if newClientStrategyID != "" {
 		params.Set("newClientStrategyId", newClientStrategyID)
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -602,15 +602,15 @@ func (e *Exchange) GetAllMarginAccountOrders(ctx context.Context, symbol currenc
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	params := url.Values{}
-	params.Set("symbol", symbol.String())
-	if orderID != 0 {
-		params.Set("orderId", strconv.FormatInt(orderID, 10))
-	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol.String())
+	if orderID != 0 {
+		params.Set("orderId", strconv.FormatInt(orderID, 10))
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -640,14 +640,14 @@ func (e *Exchange) GetMarginAccountOCO(ctx context.Context, orderListID int64, o
 
 // GetPMMarginAccountAllOCO a portfolio margin method to retrieve all OCO for a specific margin account based on provided optional parameters
 func (e *Exchange) GetPMMarginAccountAllOCO(ctx context.Context, startTime, endTime time.Time, fromID, limit int64) ([]*OCOOrder, error) {
-	params := url.Values{}
-	if fromID > 0 {
-		params.Set("fromId", strconv.FormatInt(fromID, 10))
-	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if fromID > 0 {
+		params.Set("fromId", strconv.FormatInt(fromID, 10))
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -715,11 +715,11 @@ func (e *Exchange) GetMarginMaxWithdrawal(ctx context.Context, assetName currenc
 	if assetName.IsEmpty() {
 		return 0, fmt.Errorf("%w, assetName is required", currency.ErrCurrencyCodeEmpty)
 	}
-	resp := &struct {
-		Amount float64 `json:"amount"`
-	}{}
 	params := url.Values{}
 	params.Set("amount", assetName.String())
+	var resp struct {
+		Amount float64 `json:"amount"`
+	}
 	return resp.Amount, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/maxWithdraw", params, pmGetMarginMaxWithdrawalRate, nil, &resp)
 }
 
@@ -836,13 +836,13 @@ func (e *Exchange) getUMCMAccountTradeList(ctx context.Context, symbol currency.
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	params := url.Values{}
-	params.Set("symbol", symbol.String())
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
 	}
+	params := url.Values{}
+	params.Set("symbol", symbol.String())
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -881,12 +881,12 @@ func (e *Exchange) GetCMNotionalAndLeverageBrackets(ctx context.Context, symbol 
 
 // GetUsersMarginForceOrders query user's margin force orders
 func (e *Exchange) GetUsersMarginForceOrders(ctx context.Context, startTime, endTime time.Time, current, size int64) (*MarginForceOrder, error) {
-	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
 	}
+	params := url.Values{}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -922,14 +922,14 @@ func (e *Exchange) GetUsersCMForceOrders(ctx context.Context, symbol currency.Pa
 }
 
 func (e *Exchange) getUsersUMCMForceOrders(ctx context.Context, symbol currency.Pair, autoCloseType, path string, startTime, endTime time.Time, limit int64, endpointLimit request.EndpointLimit) ([]*ForceOrder, error) {
-	params := url.Values{}
-	if !symbol.IsEmpty() {
-		params.Set("symbol", symbol.String())
-	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if !symbol.IsEmpty() {
+		params.Set("symbol", symbol.String())
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -1047,14 +1047,14 @@ func (e *Exchange) GetMarginBorrowOrLoanInterestHistory(ctx context.Context, ass
 
 // GetPortfolioMarginNegativeBalanceInterestHistory retrieves interest history of negative balance for portfolio margin.
 func (e *Exchange) GetPortfolioMarginNegativeBalanceInterestHistory(ctx context.Context, assetName currency.Code, startTime, endTime time.Time, size int64) (*PortfolioMarginNegativeBalanceInterest, error) {
-	params := url.Values{}
-	if !assetName.IsEmpty() {
-		params.Set("asset", assetName.String())
-	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if !assetName.IsEmpty() {
+		params.Set("asset", assetName.String())
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -1071,9 +1071,9 @@ func (e *Exchange) GetPortfolioMarginNegativeBalanceInterestHistory(ctx context.
 
 // FundAutoCollection fund collection for Portfolio Margin
 func (e *Exchange) FundAutoCollection(ctx context.Context) (string, error) {
-	resp := &struct {
+	var resp struct {
 		Message string `json:"msg"`
-	}{}
+	}
 	return resp.Message, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/auto-collection", nil, pmFundAutoCollectionRate, nil, &resp)
 }
 
@@ -1085,9 +1085,9 @@ func (e *Exchange) FundCollectionByAsset(ctx context.Context, assetName currency
 	}
 	params := url.Values{}
 	params.Set("asset", assetName.String())
-	resp := &struct {
+	var resp struct {
 		Message string `json:"msg"`
-	}{}
+	}
 	return resp.Message, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/asset-collection", params, pmFundCollectionByAssetRate, nil, &resp)
 }
 
@@ -1105,9 +1105,9 @@ func (e *Exchange) bnbTransfer(ctx context.Context, amount float64, transferSide
 	if transferSide != "" {
 		params.Set("transferSide", transferSide)
 	}
-	resp := &struct {
+	var resp struct {
 		TransactionID int64 `json:"transId"`
-	}{}
+	}
 	return resp.TransactionID, e.SendAuthHTTPRequest(ctx, exchangeURL, http.MethodPost, path, params, endpointLimit, nil, &resp)
 }
 
@@ -1123,17 +1123,17 @@ func (e *Exchange) GetCMIncomeHistory(ctx context.Context, symbol currency.Pair,
 }
 
 func (e *Exchange) getUMCMIncomeHistory(ctx context.Context, symbol currency.Pair, incomeType, path string, startTime, endTime time.Time, limit int64, endpointLimit request.EndpointLimit) ([]*IncomeItem, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		params.Set("symbol", symbol.String())
 	}
 	if incomeType == "" {
 		params.Set("incomeType", incomeType)
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -1175,9 +1175,9 @@ func (e *Exchange) changeAutoRepayFuturesStatus(ctx context.Context, autoRepay b
 	} else {
 		params.Set("autoRepay", "false")
 	}
-	resp := &struct {
+	var resp struct {
 		Message string `json:"msg"`
-	}{}
+	}
 	return resp.Message, e.SendAuthHTTPRequest(ctx, exchURL, http.MethodPost, path, params, epl, nil, &resp)
 }
 
@@ -1189,9 +1189,9 @@ func (e *Exchange) GetAutoRepayFuturesStatus(ctx context.Context) (*AutoRepaySta
 
 // RepayFuturesNegativeBalance repay futures Negative Balance
 func (e *Exchange) RepayFuturesNegativeBalance(ctx context.Context) (string, error) {
-	resp := &struct {
+	var resp struct {
 		Message string `json:"msg"`
-	}{}
+	}
 	return resp.Message, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/repay-futures-negative-balance", nil, pmRepayFuturesNegativeBalanceRate, nil, &resp)
 }
 

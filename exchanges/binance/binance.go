@@ -3383,9 +3383,9 @@ func (e *Exchange) GetSummaryOfSubAccountsFuturesAccountV2(ctx context.Context, 
 
 // GetAccountStatus fetch account status detail.
 func (e *Exchange) GetAccountStatus(ctx context.Context) (string, error) {
-	resp := &struct {
+	var resp struct {
 		Data string `json:"data"`
-	}{}
+	}
 	return resp.Data, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/account/status", nil, sapiDefaultRate, nil, &resp)
 }
 
@@ -4551,8 +4551,8 @@ func (e *Exchange) GetSourceAssetList(ctx context.Context, targetAsset currency.
 
 // InvestmentPlanCreation creates an investment plan
 func (e *Exchange) InvestmentPlanCreation(ctx context.Context, arg *InvestmentPlanParams) (*InvestmentPlanResponse, error) {
-	if arg == nil {
-		return nil, common.ErrEmptyParams
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if arg.SourceType == "" {
 		return nil, errSourceTypeRequired
@@ -4592,8 +4592,8 @@ func (e *Exchange) InvestmentPlanCreation(ctx context.Context, arg *InvestmentPl
 
 // InvestmentPlanAdjustment query Source Asset to be used for investment
 func (e *Exchange) InvestmentPlanAdjustment(ctx context.Context, arg *AdjustInvestmentPlan) (*InvestmentPlanResponse, error) {
-	if arg == nil {
-		return nil, common.ErrEmptyParams
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if arg.PlanID == 0 {
 		return nil, errPlanIDRequired
@@ -4714,8 +4714,8 @@ func (e *Exchange) GetIndexLinkedPlanPositionDetails(ctx context.Context, indexI
 // OneTimeTransaction posts one time transactions
 // sourceType possible values are "MAIN_SITE" for Binance,“TR" for Binance Turkey
 func (e *Exchange) OneTimeTransaction(ctx context.Context, arg *OneTimeTransactionParams) (*OneTimeTransactionResponse, error) {
-	if arg == nil {
-		return nil, common.ErrEmptyParams
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if arg.SourceType == "" {
 		return nil, errSourceTypeRequired
@@ -5007,10 +5007,10 @@ func (e *Exchange) RedeemSOL(ctx context.Context, amount float64) (*SOLRedemptio
 
 // ClaimBoostRewards claim boost APR airdrop rewards
 func (e *Exchange) ClaimBoostRewards(ctx context.Context) (bool, error) {
-	resp := &struct {
+	var resp struct {
 		Success bool `json:"success"`
-	}{}
-	return resp.Success, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sol-staking/sol/claim", nil, claimbBoostReqardsRate, nil, &resp)
+	}
+	return resp.Success, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/sol-staking/sol/claim", nil, claimbBoostRewardsRate, nil, &resp)
 }
 
 // GetSOLStakingHistory retrieves SOL staking history
@@ -5722,9 +5722,6 @@ func (e *Exchange) GetPortfolioMarginAssetLeverage(ctx context.Context) ([]*PMAs
 // GetUserNegativeBalanceAutoExchangeRecord retrieves user negative balance auto exchange record
 func (e *Exchange) GetUserNegativeBalanceAutoExchangeRecord(ctx context.Context, startTime, endTime time.Time) (*UserNegativeBalanceRecord, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
-		return nil, errStartAndEndTimeRequired
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
@@ -5853,14 +5850,13 @@ func (e *Exchange) GetBLVTUserLimitInfo(ctx context.Context, tokenName string) (
 // --------------------------------------------  Fiat Endpoints  ----------------------------------------------
 
 func fillFiatFetchParams(beginTime, endTime time.Time, transactionType, page, rows int64) (url.Values, error) {
-	params := url.Values{}
-	params.Set("transactionType", strconv.FormatInt(transactionType, 10))
 	if !beginTime.IsZero() && !endTime.IsZero() {
-		err := common.StartEndTimeCheck(beginTime, endTime)
-		if err != nil {
+		if err := common.StartEndTimeCheck(beginTime, endTime); err != nil {
 			return nil, err
 		}
 	}
+	params := url.Values{}
+	params.Set("transactionType", strconv.FormatInt(transactionType, 10))
 	if !beginTime.IsZero() {
 		params.Set("beginTime", strconv.FormatInt(beginTime.UnixMilli(), 10))
 	}
@@ -6259,8 +6255,8 @@ func (e *Exchange) GetConvertOrderStatus(ctx context.Context, orderID, quoteID s
 
 // PlaceLimitOrder enable users to place a limit order
 func (e *Exchange) PlaceLimitOrder(ctx context.Context, arg *ConvertPlaceLimitOrderParam) (*OrderStatusResponse, error) {
-	if *arg == (ConvertPlaceLimitOrderParam{}) {
-		return nil, common.ErrEmptyParams
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if arg.BaseAsset.IsEmpty() {
 		return nil, fmt.Errorf("%w: baseAsset is required", currency.ErrCurrencyCodeEmpty)
@@ -6896,10 +6892,10 @@ func (e *Exchange) LinkAccountInformation(ctx context.Context) (*LinkAccountInfo
 
 // EnableOrDisableBNBBurnForSubAccountSpotAndMargin enables or disables BNB burn for spot and margin subaccounts
 func (e *Exchange) EnableOrDisableBNBBurnForSubAccountSpotAndMargin(ctx context.Context, subAccountID string, spotBNBBurn bool) (*BNBBurnToggleSpot, error) {
-	params := url.Values{}
 	if subAccountID == "" {
 		return nil, errSubAccountIDMissing
 	}
+	params := url.Values{}
 	params.Set("subAccountId", subAccountID)
 	if spotBNBBurn {
 		params.Set("spotBNBBurn", "true")
@@ -7030,6 +7026,11 @@ func (e *Exchange) GetFuturesBrokerSubAccountTransferHistory(ctx context.Context
 	if subAccountID == "" {
 		return nil, errSubAccountIDMissing
 	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if coinMargined {
 		params.Set("futuresType", "2")
@@ -7038,11 +7039,6 @@ func (e *Exchange) GetFuturesBrokerSubAccountTransferHistory(ctx context.Context
 	}
 	if clientTransferID != "" {
 		params.Set("clientTranId", clientTransferID)
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))

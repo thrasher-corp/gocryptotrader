@@ -172,7 +172,7 @@ const (
 	solStakingQuotaDetailsRate
 	subscribeSOLStakingRate
 	redeemSOLRate
-	claimbBoostReqardsRate
+	claimbBoostRewardsRate
 	solStakingHistoryRate
 	solRedemptionHistoryRate
 	bnsolRewardsHistoryRate
@@ -726,7 +726,7 @@ func GetRateLimits() request.RateLimitDefinitions {
 		solStakingQuotaDetailsRate: request.GetRateLimiterWithWeight(stakingLimiter, 150),
 		subscribeSOLStakingRate:    request.GetRateLimiterWithWeight(stakingLimiter, 150),
 		redeemSOLRate:              request.GetRateLimiterWithWeight(stakingLimiter, 150),
-		claimbBoostReqardsRate:     request.GetRateLimiterWithWeight(stakingLimiter, 150),
+		claimbBoostRewardsRate:     request.GetRateLimiterWithWeight(stakingLimiter, 150),
 		solStakingHistoryRate:      request.GetRateLimiterWithWeight(stakingLimiter, 150),
 		solRedemptionHistoryRate:   request.GetRateLimiterWithWeight(stakingLimiter, 150),
 		bnsolRewardsHistoryRate:    request.GetRateLimiterWithWeight(stakingLimiter, 150),

@@ -15,12 +15,12 @@ type Response struct {
 
 // FuturesPublicTradesData stores recent public trades for futures
 type FuturesPublicTradesData struct {
-	ID           int64      `json:"id"`
-	Price        float64    `json:"price,string"`
-	Qty          float64    `json:"qty,string"`
-	QuoteQty     float64    `json:"quoteQty,string"`
-	Time         types.Time `json:"time"`
-	IsBuyerMaker bool       `json:"isBuyerMaker"`
+	ID            int64      `json:"id"`
+	Price         float64    `json:"price,string"`
+	Quantity      float64    `json:"qty,string"`
+	QuoteQuantity float64    `json:"quoteQty,string"`
+	Time          types.Time `json:"time"`
+	IsBuyerMaker  bool       `json:"isBuyerMaker"`
 }
 
 // CompressedTradesData stores futures trades data in a compressed format
@@ -74,8 +74,7 @@ type UFuturesCandleStick struct {
 
 // UnmarshalJSON deserializes byte data into a UFuturesCandleStick instance
 func (f *UFuturesCandleStick) UnmarshalJSON(data []byte) error {
-	target := [12]any{&f.OpenTime, &f.Open, &f.High, &f.Low, &f.Close, &f.Volume, &f.CloseTime, &f.QuoteAssetVolume, &f.NumberOfTrades, &f.TakerBuyVolume, &f.TakerBuyBaseAssetVolume, nil}
-	err := json.Unmarshal(data, &target)
+	err := json.Unmarshal(data, &[12]any{&f.OpenTime, &f.Open, &f.High, &f.Low, &f.Close, &f.Volume, &f.CloseTime, &f.QuoteAssetVolume, &f.NumberOfTrades, &f.TakerBuyVolume, &f.TakerBuyBaseAssetVolume, nil})
 	return err
 }
 

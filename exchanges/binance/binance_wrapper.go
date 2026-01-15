@@ -996,7 +996,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 				CurrencyPair: p,
 				AssetType:    a,
 				Price:        tradeData[i].Price,
-				Amount:       tradeData[i].Qty,
+				Amount:       tradeData[i].Quantity,
 				Timestamp:    tradeData[i].Time.Time(),
 			}
 			if tradeData[i].IsBuyerMaker { // Seller is Taker

@@ -390,7 +390,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"solStakingQuotaDetailsRate":                             solStakingQuotaDetailsRate,
 		"subscribeSOLStakingRate":                                subscribeSOLStakingRate,
 		"redeemSOLRate":                                          redeemSOLRate,
-		"claimbBoostReqardsRate":                                 claimbBoostReqardsRate,
+		"claimbBoostReqardsRate":                                 claimbBoostRewardsRate,
 		"solStakingHistoryRate":                                  solStakingHistoryRate,
 		"solRedemptionHistoryRate":                               solRedemptionHistoryRate,
 		"bnsolRewardsHistoryRate":                                bnsolRewardsHistoryRate,

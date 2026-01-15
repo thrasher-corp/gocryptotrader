@@ -26,9 +26,9 @@ var errUnderlyingIsRequired = errors.New("underlying is required")
 
 // CheckEOptionsServerTime retrieves the server time.
 func (e *Exchange) CheckEOptionsServerTime(ctx context.Context) (types.Time, error) {
-	resp := &struct {
+	var resp struct {
 		ServerTime types.Time `json:"serverTime"`
-	}{}
+	}
 	return resp.ServerTime, e.SendHTTPRequest(ctx, exchange.RestOptions, "/eapi/v1/time", optionsDefaultRate, &resp)
 }
 
@@ -91,14 +91,14 @@ func (e *Exchange) GetEOptionsCandlesticks(ctx context.Context, symbol currency.
 	if interval == 0 || interval.String() == "" {
 		return nil, kline.ErrInvalidInterval
 	}
-	params := url.Values{}
-	params.Set("symbol", symbol.String())
-	params.Set("interval", e.FormatExchangeKlineInterval(interval))
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
 	}
+	params := url.Values{}
+	params.Set("symbol", symbol.String())
+	params.Set("interval", e.FormatExchangeKlineInterval(interval))
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
@@ -139,14 +139,14 @@ func (e *Exchange) GetEOptionsSymbolPriceTicker(ctx context.Context, underlying 
 
 // GetEOptionsHistoricalExerciseRecords retrieves historical exercise records.
 func (e *Exchange) GetEOptionsHistoricalExerciseRecords(ctx context.Context, underlying string, startTime, endTime time.Time, limit int64) ([]*ExerciseHistoryItem, error) {
-	params := url.Values{}
-	if underlying != "" {
-		params.Set("underlying", underlying)
-	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if underlying != "" {
+		params.Set("underlying", underlying)
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -367,6 +367,11 @@ func (e *Exchange) GetOptionsOrdersHistory(ctx context.Context, symbol currency.
 }
 
 func (e *Exchange) getOptionsOrders(ctx context.Context, path string, symbol currency.Pair, startTime, endTime time.Time, orderID, limit int64) ([]*OptionOrder, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	ratelimit := optionsAllQueryOpenOrdersRate
 	if path == "/eapi/v1/historyOrders" {
 		ratelimit = optionsGetOrderHistory
@@ -375,11 +380,6 @@ func (e *Exchange) getOptionsOrders(ctx context.Context, path string, symbol cur
 	if !symbol.IsEmpty() {
 		ratelimit = optionsDefaultOrderRate
 		params.Set("symbol", symbol.String())
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -409,17 +409,17 @@ func (e *Exchange) GetOptionPositionInformation(ctx context.Context, symbol curr
 
 // GetEOptionsAccountTradeList retrieves trades for a specific account and symbol
 func (e *Exchange) GetEOptionsAccountTradeList(ctx context.Context, symbol currency.Pair, fromID, limit int64, startTime, endTime time.Time) ([]*OptionsAccountTradeItem, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		params.Set("symbol", symbol.String())
 	}
 	if fromID > 0 {
 		params.Set("fromId", strconv.FormatInt(fromID, 10))
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -436,14 +436,14 @@ func (e *Exchange) GetEOptionsAccountTradeList(ctx context.Context, symbol curre
 
 // GetUserOptionsExerciseRecord retrieves account exercise records
 func (e *Exchange) GetUserOptionsExerciseRecord(ctx context.Context, symbol currency.Pair, startTime, endTime time.Time, limit int64) ([]*UserOptionsExerciseRecord, error) {
-	params := url.Values{}
-	if !symbol.IsEmpty() {
-		params.Set("symbol", symbol.String())
-	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
+	}
+	params := url.Values{}
+	if !symbol.IsEmpty() {
+		params.Set("symbol", symbol.String())
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -463,12 +463,12 @@ func (e *Exchange) GetAccountFundingFlow(ctx context.Context, ccy currency.Code,
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	params := url.Values{}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
 	}
+	params := url.Values{}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -616,9 +616,9 @@ func (e *Exchange) GetOptionsAutoCancelAllOpenOrdersHeartbeat(ctx context.Contex
 	}
 	params := url.Values{}
 	params.Set("underlyings", strings.Join(underlyings, ","))
-	resp := &struct {
+	var resp struct {
 		Underlyings []*string `json:"underlyings"`
-	}{}
+	}
 	return resp.Underlyings, e.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodPost, "/eapi/v1/countdownCancelAllHeartBeat", params, optionsDefaultRate, nil, &resp)
 }
 
