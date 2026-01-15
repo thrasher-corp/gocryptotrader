@@ -363,17 +363,17 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 	}
 
 	if c.Authenticated {
-		m.AuthConn = m.getConnectionFromSetup(c)
+		m.AuthConn = m.createConnectionFromSetup(c)
 	} else {
-		m.Conn = m.getConnectionFromSetup(c)
+		m.Conn = m.createConnectionFromSetup(c)
 	}
 
 	return nil
 }
 
-// getConnectionFromSetup returns a websocket connection from a setup
+// createConnectionFromSetup returns a websocket connection from a setup
 // configuration. This is used for setting up new connections on the fly.
-func (m *Manager) getConnectionFromSetup(c *ConnectionSetup) *connection {
+func (m *Manager) createConnectionFromSetup(c *ConnectionSetup) *connection {
 	connectionURL := m.GetWebsocketURL()
 	if c.URL != "" {
 		connectionURL = c.URL
@@ -519,7 +519,7 @@ func (m *Manager) connect() error {
 		}
 
 		if m.connectionManager[i].setup.SubscriptionsNotRequired && len(subs) == 0 {
-			if err := m.connectAndSubscribe(context.TODO(), m.connectionManager[i], nil); err != nil {
+			if err := m.createConnectAndSubscribe(context.TODO(), m.connectionManager[i], nil); err != nil {
 				multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, m.connectionManager[i].setup.URL, err)
 				break
 			}
@@ -530,7 +530,7 @@ func (m *Manager) connect() error {
 		}
 
 		for _, batchedSubs := range common.Batch(subs, m.MaxSubscriptionsPerConnection) {
-			if err := m.connectAndSubscribe(context.TODO(), m.connectionManager[i], batchedSubs); err != nil {
+			if err := m.createConnectAndSubscribe(context.TODO(), m.connectionManager[i], batchedSubs); err != nil {
 				if errors.Is(err, common.ErrFatal) {
 					multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, m.connectionManager[i].setup.URL, err)
 					break
@@ -583,12 +583,12 @@ func (m *Manager) connect() error {
 	return subscriptionError
 }
 
-func (m *Manager) connectAndSubscribe(ctx context.Context, ws *websocket, subs subscription.List) error {
+func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, subs subscription.List) error {
 	if m.MaxSubscriptionsPerConnection > 0 && len(subs) > m.MaxSubscriptionsPerConnection {
 		return fmt.Errorf("%w %w: max subs allowed %d, requested %d", common.ErrFatal, errSubscriptionsExceedsLimit, m.MaxSubscriptionsPerConnection, len(subs))
 	}
 
-	conn := m.getConnectionFromSetup(ws.setup)
+	conn := m.createConnectionFromSetup(ws.setup)
 
 	if err := ws.setup.Connector(ctx, conn); err != nil {
 		return fmt.Errorf("%w: %w", common.ErrFatal, err)
@@ -611,6 +611,9 @@ func (m *Manager) connectAndSubscribe(ctx context.Context, ws *websocket, subs s
 	}
 
 	if ws.setup.SubscriptionsNotRequired {
+		if len(subs) != 0 {
+			return fmt.Errorf("%w %w: subscriptions were provided but not required", common.ErrFatal, ErrSubscriptionFailure)
+		}
 		return nil
 	}
 

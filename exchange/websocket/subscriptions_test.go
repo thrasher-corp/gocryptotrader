@@ -79,7 +79,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	}
 	require.NoError(t, multi.SetupNewConnection(amazingCandidate))
 
-	amazingConn := multi.getConnectionFromSetup(amazingCandidate)
+	amazingConn := multi.createConnectionFromSetup(amazingCandidate)
 	multi.connections = map[Connection]*websocket{
 		amazingConn: multi.connectionManager[0],
 	}

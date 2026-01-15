@@ -324,6 +324,126 @@ func TestConnectionMessageErrors(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrFatal, "must error on connect when no subscriptions are required")
 }
 
+func TestCreateConnectAndSubscribe(t *testing.T) {
+	t.Parallel()
+
+	mgr := NewManager()
+	mgr.MaxSubscriptionsPerConnection = 1
+
+	ws := &websocket{subscriptions: subscription.NewStore(), setup: &ConnectionSetup{}}
+	subs := subscription.List{{Channel: "one"}, {Channel: "two"}}
+	err := mgr.createConnectAndSubscribe(t.Context(), ws, subs)
+	require.ErrorIs(t, err, common.ErrFatal, "must return fatal error when exceeding max subscriptions")
+	assert.ErrorIs(t, err, errSubscriptionsExceedsLimit, "should return the subscriptions exceeds limit error")
+
+	mgr.MaxSubscriptionsPerConnection = 0
+	ws.setup.Connector = func(context.Context, Connection) error { return errConnectionFault }
+	err = mgr.createConnectAndSubscribe(t.Context(), ws, subs)
+	require.ErrorIs(t, err, common.ErrFatal, "must return fatal error when calling ws.setup.Connector")
+	assert.ErrorIs(t, err, errConnectionFault, "should return the correct error when calling ws.setup.Connector")
+
+	ws.setup.Connector = func(context.Context, Connection) error { return nil }
+	err = mgr.createConnectAndSubscribe(t.Context(), ws, subs)
+	require.ErrorIs(t, err, common.ErrFatal, "must return fatal error when not connected after a potential failed ws.setup.Connector call")
+	assert.ErrorIs(t, err, ErrNotConnected, "should signal connection not established")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+	}))
+	t.Cleanup(server.Close)
+
+	ws.setup.URL = "ws" + server.URL[len("http"):] + "/ws"
+	ws.setup.Handler = func(context.Context, Connection, []byte) error { return nil }
+	ws.setup.Connector = func(ctx context.Context, conn Connection) error {
+		return conn.Dial(ctx, gws.DefaultDialer, nil)
+	}
+	ws.setup.Authenticate = func(context.Context, Connection) error { return errConnectionFault }
+	mgr.SetCanUseAuthenticatedEndpoints(true)
+
+	err = mgr.createConnectAndSubscribe(t.Context(), ws, subs)
+	require.ErrorIs(t, err, common.ErrFatal, "authenticate failure must be fatal")
+	assert.ErrorIs(t, err, errConnectionFault, "should wrap authentication failure reason")
+	assert.ErrorIs(t, err, errFailedToAuthenticate, "should wrap authentication failure")
+	require.Len(t, ws.connections, 1, "connection must be tracked by websocket")
+	require.Len(t, mgr.connections, 1, "websocket connection association must be tracked by manager")
+	require.Equal(t, mgr.connections[ws.connections[0]], ws, "manager connections map must track the websocket owner")
+	require.NoError(t, ws.connections[0].Shutdown())
+	delete(mgr.connections, ws.connections[0])
+	ws.connections = nil
+	mgr.Wg.Wait()
+
+	ws.setup.Authenticate = func(context.Context, Connection) error { return nil }
+	ws.setup.SubscriptionsNotRequired = true
+	err = mgr.createConnectAndSubscribe(t.Context(), ws, subs)
+	require.ErrorIs(t, err, common.ErrFatal, "subscriptions not required must error when subscriptions are provided")
+	require.ErrorIs(t, err, ErrSubscriptionFailure, "subscriptions not required must error when subscriptions are provided")
+	require.Len(t, ws.connections, 1, "connection must be tracked by websocket")
+	require.Len(t, mgr.connections, 1, "websocket connection association must be tracked by manager")
+	require.Equal(t, mgr.connections[ws.connections[0]], ws, "manager connections map must track the websocket owner")
+	require.NoError(t, ws.connections[0].Shutdown())
+	delete(mgr.connections, ws.connections[0])
+	ws.connections = nil
+	mgr.Wg.Wait()
+
+	err = mgr.createConnectAndSubscribe(t.Context(), ws, nil)
+	require.NoError(t, err, "subscriptions not required with no subscriptions must not error")
+	require.Len(t, ws.connections, 1, "connection must be tracked by websocket")
+	require.Len(t, mgr.connections, 1, "websocket connection association must be tracked by manager")
+	require.Equal(t, mgr.connections[ws.connections[0]], ws, "manager connections map must track the websocket owner")
+	require.NoError(t, ws.connections[0].Shutdown())
+	delete(mgr.connections, ws.connections[0])
+	ws.connections = nil
+	mgr.Wg.Wait()
+
+	ws.setup.SubscriptionsNotRequired = false
+	ws.setup.Subscriber = func(context.Context, Connection, subscription.List) error {
+		return errConnectionFault
+	}
+	err = mgr.createConnectAndSubscribe(t.Context(), ws, subs)
+	require.ErrorIs(t, err, ErrSubscriptionFailure, "subscriber error must bubble as subscription failure")
+	assert.ErrorIs(t, err, errConnectionFault, "should include wrapped error")
+	require.Len(t, ws.connections, 1, "connection must be tracked by websocket")
+	require.Len(t, mgr.connections, 1, "websocket connection association must be tracked by manager")
+	require.Equal(t, mgr.connections[ws.connections[0]], ws, "manager connections map must track the websocket owner")
+	require.NoError(t, ws.connections[0].Shutdown())
+	delete(mgr.connections, ws.connections[0])
+	ws.connections = nil
+	mgr.Wg.Wait()
+
+	ws.setup.Subscriber = func(context.Context, Connection, subscription.List) error {
+		return nil
+	}
+	err = mgr.createConnectAndSubscribe(t.Context(), ws, subs)
+	require.ErrorIs(t, err, ErrSubscriptionFailure, "missing added subscriptions must return subscription failure error")
+	require.ErrorIs(t, err, ErrSubscriptionsNotAdded, "missing added subscriptions must return subs not added error")
+	require.Len(t, ws.connections, 1, "connection must be tracked by websocket")
+	require.Len(t, mgr.connections, 1, "websocket connection association must be tracked by manager")
+	require.Equal(t, mgr.connections[ws.connections[0]], ws, "manager connections map must track the websocket owner")
+	require.NoError(t, ws.connections[0].Shutdown())
+	delete(mgr.connections, ws.connections[0])
+	ws.connections = nil
+	mgr.Wg.Wait()
+
+	ws.setup.Subscriber = func(context.Context, Connection, subscription.List) error {
+		for _, sub := range subs {
+			if err := ws.subscriptions.Add(sub); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	err = mgr.createConnectAndSubscribe(t.Context(), ws, subs)
+	require.NoError(t, err, "createConnectAndSubscribe must succeed")
+	require.Len(t, ws.connections, 1, "connection must be tracked by websocket")
+	require.Len(t, mgr.connections, 1, "websocket connection association must be tracked by manager")
+	require.Equal(t, mgr.connections[ws.connections[0]], ws, "manager connections map must track the websocket owner")
+	require.Len(t, ws.connections[0].Subscriptions().List(), len(subs), "connection subscription store should mirror websocket store")
+	require.NoError(t, ws.connections[0].Shutdown())
+	delete(mgr.connections, ws.connections[0])
+	ws.connections = nil
+	mgr.Wg.Wait()
+}
+
 func TestManager(t *testing.T) {
 	t.Parallel()
 

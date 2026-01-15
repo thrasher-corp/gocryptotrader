@@ -402,7 +402,7 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, ws *webso
 
 		// Spawn new connections if there are still subscriptions left to process
 		for _, batch := range common.Batch(currentSubs, m.MaxSubscriptionsPerConnection) {
-			if err := m.connectAndSubscribe(ctx, ws, batch); err != nil {
+			if err := m.createConnectAndSubscribe(ctx, ws, batch); err != nil {
 				return err
 			}
 		}
