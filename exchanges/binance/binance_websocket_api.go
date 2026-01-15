@@ -813,15 +813,15 @@ func (e *Exchange) WsQueryAccountOCOOrderHistory(fromID, limit, recvWindow int64
 	if limit != 0 {
 		params["limit"] = limit
 	}
-	switch {
-	case !startTime.IsZero() && !endTime.IsZero():
-		if common.StartEndTimeCheck(startTime, endTime) == nil {
-			params["startTime"] = startTime.UnixMilli()
-			params["endTime"] = endTime.UnixMilli()
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
 		}
-	case !startTime.IsZero():
+	}
+	if !startTime.IsZero() {
 		params["startTime"] = startTime.UnixMilli()
-	case !endTime.IsZero():
+	}
+	if !endTime.IsZero() {
 		params["endTime"] = endTime.UnixMilli()
 	}
 	if recvWindow != 0 {
