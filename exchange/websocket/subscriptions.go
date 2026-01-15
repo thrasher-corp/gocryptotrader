@@ -453,7 +453,7 @@ func (m *Manager) unsubscribeFromConnection(conn Connection, subs subscription.L
 	return missing, nil
 }
 
-// subscribeToConnection subscribes to a connection and adds subscriptions to the store
+// subscribeToConnection subscribes for a connection and adds subscriptions to the connection's store
 func (m *Manager) subscribeToConnection(conn Connection, subs subscription.List) (subscription.List, error) {
 	store := conn.Subscriptions()
 	if err := common.NilGuard(store); err != nil {
