@@ -165,8 +165,7 @@ func (s *Strategy) selectTopAndBottomPerformers(mfiFundEvents []mfiFundEvent, re
 	if len(mfiFundEvents) == 0 {
 		return resp, nil
 	}
-	slices.SortFunc(mfiFundEvents, func(a, b mfiFundEvent) int { return a.mfi.Compare(b.mfi) })
-	slices.Reverse(mfiFundEvents)
+	slices.SortFunc(mfiFundEvents, func(a, b mfiFundEvent) int { return b.mfi.Compare(a.mfi) })
 	buyingOrSelling := false
 	for i := range mfiFundEvents {
 		if i < 2 && mfiFundEvents[i].mfi.GreaterThanOrEqual(s.mfiHigh) {
