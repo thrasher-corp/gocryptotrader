@@ -666,6 +666,8 @@ func (d *Detail) DeriveCancel() (*Cancel, error) {
 // String implements the stringer interface
 func (t Type) String() string {
 	switch t {
+	case LimitMaker:
+		return orderLimitMaker
 	case StopMarket:
 		return orderStopMarket
 	case StopLimit:
@@ -686,6 +688,8 @@ func (t Type) String() string {
 		return orderTakeProfit
 	case TakeProfitMarket:
 		return orderTakeProfitMarket
+	case TakeProfitLimit:
+		return orderTakeProfitLimit
 	case TrailingStop:
 		return orderTrailingStop
 	case IOS:
@@ -694,6 +698,10 @@ func (t Type) String() string {
 		return orderLiquidation
 	case Trigger:
 		return orderTrigger
+	case OTO:
+		return orderOTO
+	case SOR:
+		return orderSOR
 	case OCO:
 		return orderOCO
 	case Bracket:
@@ -1102,6 +1110,8 @@ func StringToOrderType(oType string) (Type, error) {
 	switch oType {
 	case orderLimit, "EXCHANGE LIMIT":
 		return Limit, nil
+	case orderLimitMaker, "LIMIT MAKER":
+		return LimitMaker, nil
 	case orderMarket, "EXCHANGE MARKET":
 		return Market, nil
 	case orderStop, "STOP LOSS", "STOP_LOSS", "EXCHANGE STOP":
@@ -1118,6 +1128,10 @@ func StringToOrderType(oType string) (Type, error) {
 		return AnyType, nil
 	case orderTrigger:
 		return Trigger, nil
+	case orderOTO:
+		return OTO, nil
+	case orderSOR:
+		return SOR, nil
 	case orderOptimalLimit:
 		return OptimalLimit, nil
 	case orderOCO:
@@ -1132,6 +1146,8 @@ func StringToOrderType(oType string) (Type, error) {
 		return Chase, nil
 	case orderTakeProfitMarket, "TAKE_PROFIT_MARKET":
 		return TakeProfitMarket, nil
+	case orderTakeProfitLimit, "TAKE_PROFIT_LIMIT":
+		return TakeProfitLimit, nil
 	case orderTakeProfit, "TAKE_PROFIT":
 		return TakeProfit, nil
 	case orderLiquidation:
