@@ -695,3 +695,58 @@ func SetIfZero[T comparable](p *T, def T) bool {
 	*p = def
 	return true
 }
+
+var (
+	contextKeys   []any
+	contextKeysMu sync.RWMutex
+)
+
+// RegisterContextKey registers a key to be captured by FreezeCtx
+func RegisterContextKey(key any) {
+	contextKeysMu.Lock()
+	defer contextKeysMu.Unlock()
+	if !slices.Contains(contextKeys, key) {
+		contextKeys = append(contextKeys, key)
+	}
+}
+
+// FrozenContext holds captured context values
+type FrozenContext map[any]any
+
+// FreezeCtx captures values from the context for registered keys
+func FreezeCtx(ctx context.Context) FrozenContext {
+	contextKeysMu.RLock()
+	defer contextKeysMu.RUnlock()
+
+	values := make(FrozenContext, len(contextKeys))
+	for _, key := range contextKeys {
+		if val := ctx.Value(key); val != nil {
+			values[key] = val
+		}
+	}
+	return values
+}
+
+// ThawCtx creates a new context from the frozen context using context.Background() as parent
+func ThawCtx(fc FrozenContext) context.Context {
+	return MergeCtx(context.Background(), fc)
+}
+
+// MergeCtx adds the frozen values to an existing context
+func MergeCtx(ctx context.Context, fc FrozenContext) context.Context {
+	return &mergeCtx{Context: ctx, frozen: fc}
+}
+
+// mergeCtx is a context that merges values from a frozen context and a parent context.
+// frozen values are stored in FrozenContext instead of nested context.WithValue because of the performance of calling WithValue N+ times on messages being frozen
+type mergeCtx struct {
+	context.Context //nolint:containedctx // mergeCtx implements context.Context
+	frozen          FrozenContext
+}
+
+func (m *mergeCtx) Value(key any) any {
+	if val, ok := m.frozen[key]; ok {
+		return val
+	}
+	return m.Context.Value(key)
+}

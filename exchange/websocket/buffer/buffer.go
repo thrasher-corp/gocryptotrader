@@ -2,13 +2,16 @@ package buffer
 
 import (
 	"cmp"
+	"context"
 	"errors"
 	"fmt"
 	"slices"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
@@ -16,26 +19,16 @@ import (
 const packageError = "websocket orderbook buffer error: %w"
 
 var (
-	errExchangeConfigNil            = errors.New("exchange config is nil")
-	errBufferConfigNil              = errors.New("buffer config is nil")
-	errUnsetDataHandler             = errors.New("datahandler unset")
 	errIssueBufferEnabledButNoLimit = errors.New("buffer enabled but no limit set")
 	errOrderbookFlushed             = errors.New("orderbook flushed")
 )
 
 // Setup sets private variables
-func (o *Orderbook) Setup(exchangeConfig *config.Exchange, c *Config, dataHandler chan<- any) error {
-	if exchangeConfig == nil { // exchange config fields are checked in websocket package prior to calling this, so further checks are not needed
-		return fmt.Errorf(packageError, errExchangeConfigNil)
+func (o *Orderbook) Setup(exchangeConfig *config.Exchange, c *Config, dataHandler *stream.Relay) error {
+	if err := common.NilGuard(exchangeConfig, c, dataHandler); err != nil {
+		return err
 	}
-	if c == nil {
-		return fmt.Errorf(packageError, errBufferConfigNil)
-	}
-	if dataHandler == nil {
-		return fmt.Errorf(packageError, errUnsetDataHandler)
-	}
-	if exchangeConfig.Orderbook.WebsocketBufferEnabled &&
-		exchangeConfig.Orderbook.WebsocketBufferLimit < 1 {
+	if exchangeConfig.Orderbook.WebsocketBufferEnabled && exchangeConfig.Orderbook.WebsocketBufferLimit < 1 {
 		return fmt.Errorf(packageError, errIssueBufferEnabledButNoLimit)
 	}
 
@@ -54,6 +47,7 @@ func (o *Orderbook) Setup(exchangeConfig *config.Exchange, c *Config, dataHandle
 
 // LoadSnapshot loads initial snapshot of orderbook data from websocket
 func (o *Orderbook) LoadSnapshot(book *orderbook.Book) error {
+	ctx := context.TODO()
 	if err := book.Validate(); err != nil {
 		return err
 	}
@@ -81,8 +75,7 @@ func (o *Orderbook) LoadSnapshot(book *orderbook.Book) error {
 	}
 
 	holder.ob.Publish()
-	o.dataHandler <- holder.ob
-	return nil
+	return o.dataHandler.Send(ctx, holder.ob)
 }
 
 // Update updates a stored pointer to an orderbook.Depth struct containing bid and ask Tranches, this switches between
@@ -107,8 +100,7 @@ func (o *Orderbook) Update(u *orderbook.Update) error {
 
 	// Publish all state changes, disregarding verbosity or sync requirements.
 	holder.ob.Publish()
-	o.dataHandler <- holder.ob
-	return nil
+	return o.dataHandler.Send(context.TODO(), holder.ob)
 }
 
 // processBufferUpdate stores update into buffer, when buffer at capacity as
