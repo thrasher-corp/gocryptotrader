@@ -41,11 +41,11 @@ func TestMain(m *testing.M) {
 			}
 		}
 	}
-	setupWs()
-	b.setupOrderbookManager(context.Background())
-	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	log.Printf(sharedtestvalues.LiveTesting, b.Name)
-	if err := b.populateTradablePairs(); err != nil {
+	// setupWs()
+	e.setupOrderbookManager(context.Background())
+	e.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	log.Printf(sharedtestvalues.LiveTesting, e.Name)
+	if err := e.populateTradablePairs(); err != nil {
 		log.Fatal(err)
 	}
 	if mockTests {
@@ -59,6 +59,7 @@ func TestMain(m *testing.M) {
 		asset.CoinMarginedFutures: coinmTradablePair,
 		asset.Margin:              spotTradablePair,
 	}
+	e.HTTPRecording = true
 	os.Exit(m.Run())
 }
 

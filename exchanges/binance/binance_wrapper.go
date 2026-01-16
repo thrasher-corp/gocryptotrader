@@ -2463,7 +2463,8 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 				e.FormatExchangeKlineInterval(interval),
 				req.RangeHolder.Limit,
 				req.RangeHolder.Ranges[x].Start.Time,
-				req.RangeHolder.Ranges[x].End.Time)
+				req.RangeHolder.Ranges[x].End.Time,
+			)
 			if err != nil {
 				return nil, err
 			}

@@ -70,12 +70,12 @@ func setFeeBuilder() *exchange.FeeBuilder {
 // this will default to time now with a window size of 30 days.
 // Mock details are unix seconds; start = 1577836800 and end = 1580515200
 func getTime() (startTime, endTime time.Time) {
-	if mockTests {
-		return time.Unix(1577836800, 0), time.Unix(1580515200, 0)
-	}
-	tn := time.Now()
-	offset := time.Hour * 24 * 6
-	return tn.Add(-offset), tn
+	// if mockTests {
+	return time.UnixMilli(1744103854944), time.UnixMilli(1744190254944)
+	// }
+	// tn := time.Now()
+	// offset := time.Hour * 24 * 6
+	// return tn.Add(-offset), tn
 }
 
 func TestUServerTime(t *testing.T) {
@@ -362,7 +362,7 @@ func TestUOpenInterestStats(t *testing.T) {
 
 	startTime, endTime := getTime()
 	_, err = e.UOpenInterestStats(t.Context(), usdtmTradablePair, "5m", 1, endTime, startTime)
-	require.ErrorIs(t, err, errInvalidPeriodOrInterval)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	result, err := e.UOpenInterestStats(t.Context(), usdtmTradablePair, "5m", 1, startTime, endTime)
 	require.NoError(t, err)
@@ -486,7 +486,7 @@ func TestGetHistoricalBLVTNAVCandlesticks(t *testing.T) {
 
 	startTime, endTime := getTime()
 	_, err = e.GetHistoricalBLVTNAVCandlesticks(t.Context(), spotTradablePair, "15m", endTime, startTime, 100)
-	require.NoError(t, err)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	result, err := e.GetHistoricalBLVTNAVCandlesticks(t.Context(), spotTradablePair, "15m", startTime, endTime, 100)
 	require.NoError(t, err)
@@ -841,9 +841,12 @@ func TestUModifyIsolatedPositionMarginReq(t *testing.T) {
 
 func TestUPositionMarginChangeHistory(t *testing.T) {
 	t.Parallel()
-	startTime, endTime := getTime()
-	_, err := e.UPositionMarginChangeHistory(t.Context(), usdtmTradablePair, "", 5, endTime, startTime)
+	_, err := e.UPositionMarginChangeHistory(t.Context(), usdtmTradablePair, "", 5, time.Time{}, time.Time{})
 	require.ErrorIs(t, err, errMarginChangeTypeInvalid)
+
+	startTime, endTime := getTime()
+	_, err = e.UPositionMarginChangeHistory(t.Context(), usdtmTradablePair, "", 5, endTime, startTime)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.UPositionMarginChangeHistory(t.Context(), usdtmTradablePair, "add", 5, startTime, endTime)
@@ -1543,8 +1546,8 @@ func TestFuturesPositionsInfo(t *testing.T) {
 func TestFuturesTradeHistory(t *testing.T) {
 	t.Parallel()
 	startTime, endTime := getTime()
-	_, err := e.FuturesTradeHistory(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "", startTime, endTime, 5, 0)
-	require.NoError(t, err)
+	_, err := e.FuturesTradeHistory(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "", endTime, startTime, 5, 0)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.FuturesTradeHistory(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "", startTime, endTime, 5, 0)
@@ -1556,7 +1559,7 @@ func TestFuturesIncomeHistory(t *testing.T) {
 	t.Parallel()
 	startTime, endTime := getTime()
 	_, err := e.FuturesIncomeHistory(t.Context(), currency.EMPTYPAIR, "TRANSFER", endTime, startTime, 5)
-	require.NoError(t, err)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.FuturesIncomeHistory(t.Context(), currency.EMPTYPAIR, "TRANSFER", startTime, endTime, 5)
@@ -1917,7 +1920,7 @@ func TestGetCloudMiningPaymentAndRefundHistory(t *testing.T) {
 	t.Parallel()
 	startTime, endTime := getTime()
 	_, err := e.GetCloudMiningPaymentAndRefundHistory(t.Context(), "1234", currency.BTC, endTime, startTime, 1232313, 0, 0)
-	require.NoError(t, err)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetCloudMiningPaymentAndRefundHistory(t.Context(), "1234", currency.BTC, startTime, endTime, 1232313, 0, 0)
@@ -2169,7 +2172,7 @@ func TestGetSubAccountDepositHistory(t *testing.T) {
 
 	startTime, endTime := getTime()
 	_, err = e.GetSubAccountDepositHistory(t.Context(), "someoneio", "BTC", endTime, startTime, 0, 0, 10)
-	require.ErrorIs(t, err, errValidEmailRequired)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetSubAccountDepositHistory(t.Context(), "someone@thrasher.io", "BTC", startTime, endTime, 1, 1, 100)
@@ -2531,7 +2534,7 @@ func TestSubAccountTransferHistoryForSubAccount(t *testing.T) {
 	t.Parallel()
 	startTime, endTime := getTime()
 	_, err := e.SubAccountTransferHistoryForSubAccount(t.Context(), currency.LTC, 2, 0, endTime, startTime, true)
-	require.NoError(t, err)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.SubAccountTransferHistoryForSubAccount(t.Context(), currency.LTC, 2, 0, startTime, endTime, true)
@@ -2581,7 +2584,7 @@ func TestGetUniversalTransferHistoryForMasterAccount(t *testing.T) {
 	t.Parallel()
 	startTime, endTime := getTime()
 	_, err := e.GetUniversalTransferHistoryForMasterAccount(t.Context(), "", "", "", endTime, startTime, 0, 10)
-	require.NoError(t, err)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetUniversalTransferHistoryForMasterAccount(t.Context(), "", "", "", startTime, endTime, 0, 10)
@@ -3346,7 +3349,7 @@ func TestDepositHistory(t *testing.T) {
 	t.Parallel()
 	startTime, endTime := getTime()
 	_, err := e.DepositHistory(t.Context(), currency.ETH, "", endTime, startTime, 0, 10000)
-	require.NoError(t, err)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.DepositHistory(t.Context(), currency.ETH, "", startTime, endTime, 0, 10000)
@@ -4384,7 +4387,7 @@ func TestCryptoLoanBorrowHistory(t *testing.T) {
 	t.Parallel()
 	startTime, endTime := getTime()
 	_, err := e.CryptoLoanBorrowHistory(t.Context(), 0, currency.USDT, currency.BTC, endTime, startTime, 0, 0)
-	require.NoError(t, err)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.CryptoLoanBorrowHistory(t.Context(), 0, currency.USDT, currency.BTC, startTime, endTime, 1, 100)
@@ -6752,7 +6755,7 @@ func TestGetAllMarginAccountOrders(t *testing.T) {
 
 	startTime, endTime := getTime()
 	_, err = e.GetAllMarginAccountOrders(t.Context(), currency.EMPTYPAIR, endTime, startTime, 0, 10)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetAllMarginAccountOrders(t.Context(), assetToTradablePairMap[asset.Margin], startTime, endTime, 0, 10)
@@ -8039,7 +8042,7 @@ func TestGetSubscriptionsTransactionHistory(t *testing.T) {
 	t.Parallel()
 	startTime, endTime := getTime()
 	_, err := e.GetSubscriptionsTransactionHistory(t.Context(), 1232, 20, 0, endTime, startTime, currency.BTC, "PORTFOLIO")
-	require.NoError(t, err)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetSubscriptionsTransactionHistory(t.Context(), 1232, 20, 0, startTime, endTime, currency.BTC, "PORTFOLIO")
@@ -8864,7 +8867,7 @@ func TestGetClassicPMNegativeBalanceInterestHistory(t *testing.T) {
 	t.Parallel()
 	startTime, endTime := getTime()
 	_, err := e.GetClassicPMNegativeBalanceInterestHistory(t.Context(), currency.ETH, endTime, startTime, 100)
-	require.NoError(t, err)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetClassicPMNegativeBalanceInterestHistory(t.Context(), currency.ETH, startTime, endTime, 100)
@@ -9080,7 +9083,7 @@ func TestGetPayTradeHistory(t *testing.T) {
 	t.Parallel()
 	startTime, endTime := getTime()
 	_, err := e.GetPayTradeHistory(t.Context(), endTime, startTime, 10)
-	require.NoError(t, err)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetPayTradeHistory(t.Context(), startTime, endTime, 10)
@@ -9652,7 +9655,7 @@ func TestWithdrawalHistory(t *testing.T) {
 	t.Parallel()
 	startTime, endTime := getTime()
 	_, err := e.WithdrawalHistoryV1(t.Context(), []string{"1234"}, []string{"0xb5ef8c13b968a406cc62a93a8bd80f9e9a906ef1b3fcf20a2e48573c17659268"}, []string{}, "", "0", 0, 100, endTime, startTime)
-	require.NoError(t, err)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.WithdrawalHistoryV1(t.Context(), []string{"1234"}, []string{"0xb5ef8c13b968a406cc62a93a8bd80f9e9a906ef1b3fcf20a2e48573c17659268"}, []string{}, "", "0", 0, 100, startTime, endTime)
@@ -9854,7 +9857,7 @@ func TestGetSpotBrokerSubAccountTransferHistory(t *testing.T) {
 	t.Parallel()
 	startTime, endTime := getTime()
 	_, err := e.GetSpotBrokerSubAccountTransferHistory(t.Context(), "", "", "", true, endTime, startTime, 1, 100)
-	require.NoError(t, err)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetSpotBrokerSubAccountTransferHistory(t.Context(), "", "", "", true, startTime, endTime, 1, 100)
@@ -9944,7 +9947,7 @@ func TestGetUniversalTransferHistoryThroughBroker(t *testing.T) {
 	t.Parallel()
 	startTime, endTime := getTime()
 	_, err := e.GetUniversalTransferHistoryThroughBroker(t.Context(), "", "", "", endTime, startTime, 0, 10)
-	require.NoError(t, err)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetUniversalTransferHistoryThroughBroker(t.Context(), "", "", "", startTime, endTime, 1, 100)
