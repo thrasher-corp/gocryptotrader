@@ -106,9 +106,9 @@ func TestWithdraw(t *testing.T) {
 	require.NotEmpty(t, cryptocurrencyChains, "GetAvailableTransferChains must return some chains")
 	withdrawCryptoRequest := withdraw.Request{
 		Exchange:    e.Name,
-		Amount:      1,
+		Amount:      -0.1,
 		Currency:    currency.BTC,
-		Description: "WITHDRAW IT ALL",
+		Description: "BROKEN TEST WITHDRAWAL",
 		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
 			Chain:   cryptocurrencyChains[0],

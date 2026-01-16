@@ -475,7 +475,7 @@ func TestWithdrawFiat(t *testing.T) {
 		},
 		Amount:      10,
 		Currency:    testPair.Quote,
-		Description: "WITHDRAW IT ALL",
+		Description: "BROKEN TEST WITHDRAWAL",
 	}
 
 	_, err := e.WithdrawFiatFunds(t.Context(), &withdrawFiatRequest)

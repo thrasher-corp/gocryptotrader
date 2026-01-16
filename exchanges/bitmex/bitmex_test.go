@@ -673,7 +673,7 @@ func TestWithdraw(t *testing.T) {
 		},
 		Amount:          -1,
 		Currency:        currency.BTC,
-		Description:     "WITHDRAW IT ALL",
+		Description:     "BROKEN TEST WITHDRAWAL",
 		OneTimePassword: 696969,
 	}
 
