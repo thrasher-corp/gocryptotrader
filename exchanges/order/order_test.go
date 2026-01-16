@@ -312,6 +312,8 @@ func TestOrderIs(t *testing.T) {
 		{Type: StopMarket, Targets: []Type{Stop, Market}},
 		{Type: TrailingStop, Targets: []Type{TrailingStop}},
 		{Type: UnknownType | Limit, Targets: []Type{Limit}},
+		{Type: TrailingStop | Limit, Targets: []Type{TrailingStopLimit, Limit}},
+		{Type: LimitMaker, Targets: []Type{LimitMaker}},
 		{Type: TakeProfitMarket, Targets: []Type{TakeProfit, Market}},
 	}
 	for _, oType := range orderComparisonList {
@@ -358,6 +360,9 @@ func TestOrderTypeToString(t *testing.T) {
 		{AnyType, "ANY"},
 		{UnknownType | Limit, "LIMIT"},
 		{StopMarket | ConditionalStop, "UNKNOWN"},
+		{TrailingStop | Limit, "TRAILING_STOP_LIMIT"},
+		{TrailingStopLimit, "TRAILING_STOP_LIMIT"},
+		{LimitMaker, "LIMIT_MAKER"},
 	}
 	for _, tt := range orderToToStringsList {
 		t.Run(tt.String, func(t *testing.T) {
@@ -846,6 +851,10 @@ func TestStringToOrderType(t *testing.T) {
 		{"TRIGGER_bracket", Bracket, nil},
 		{"optimal_limit", OptimalLimit, nil},
 		{"OPTIMAL_LIMIT", OptimalLimit, nil},
+		{"TRAILING_STOP_LIMIT", TrailingStopLimit, nil},
+		{"trailing_stop_limit", TrailingStopLimit, nil},
+		{"LIMIT_MAKER", LimitMaker, nil},
+		{"Limit Maker", LimitMaker, nil},
 	}
 	for i := range cases {
 		testData := &cases[i]
@@ -1754,4 +1763,24 @@ func TestAdd(t *testing.T) {
 	var c CancelAllResponse
 	c.Add("order1", "cancelled")
 	assert.Equal(t, "cancelled", c.Status["order1"])
+}
+
+func TestPosition(t *testing.T) {
+	t.Parallel()
+	input := []struct {
+		sides []Side
+		side  Side
+		err   error
+	}{
+		{[]Side{Short, Sell, Ask}, Short, nil},
+		{[]Side{Long, Buy, Bid}, Long, nil},
+		{[]Side{Side(123)}, UnknownSide, ErrPositionSideUnsupported},
+	}
+	for _, a := range input {
+		for _, sd := range a.sides {
+			side, err := sd.Position()
+			assert.Equal(t, a.side, side)
+			assert.ErrorIs(t, err, a.err)
+		}
+	}
 }
