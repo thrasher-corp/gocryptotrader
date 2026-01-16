@@ -130,9 +130,7 @@ func (e *Exchange) websocketLogin(ctx context.Context, conn websocket.Connection
 		Timestamp: strconv.FormatInt(tn, 10),
 	}
 
-	req := WebsocketRequest{Time: tn, Channel: channel, Event: "api", Payload: payload}
-
-	resp, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payload.RequestID, req)
+	resp, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payload.RequestID, &WebsocketRequest{Time: tn, Channel: channel, Event: "api", Payload: payload})
 	if err != nil {
 		return err
 	}
@@ -155,9 +153,8 @@ func (e *Exchange) websocketLogin(ctx context.Context, conn websocket.Connection
 }
 
 func (e *Exchange) generateWsSignature(secret, event, channel string, t int64) (string, error) {
-	msg := "channel=" + channel + "&event=" + event + "&time=" + strconv.FormatInt(t, 10)
 	mac := hmac.New(sha512.New, []byte(secret))
-	if _, err := mac.Write([]byte(msg)); err != nil {
+	if _, err := mac.Write([]byte("channel=" + channel + "&event=" + event + "&time=" + strconv.FormatInt(t, 10))); err != nil {
 		return "", err
 	}
 	return hex.EncodeToString(mac.Sum(nil)), nil
@@ -318,7 +315,7 @@ func (e *Exchange) processTrades(incoming []byte) error {
 }
 
 func (e *Exchange) processCandlestick(incoming []byte) error {
-	var data WsCandlesticks
+	var data *WsCandlesticks
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
@@ -337,9 +334,9 @@ func (e *Exchange) processCandlestick(incoming []byte) error {
 			out = append(out, websocket.KlineData{
 				Pair:       currencyPair,
 				AssetType:  a,
+				Interval:   icp[0],
 				Exchange:   e.Name,
 				StartTime:  data.Timestamp.Time(),
-				Interval:   icp[0],
 				OpenPrice:  data.OpenPrice.Float64(),
 				ClosePrice: data.ClosePrice.Float64(),
 				HighPrice:  data.HighestPrice.Float64(),
@@ -353,7 +350,7 @@ func (e *Exchange) processCandlestick(incoming []byte) error {
 }
 
 func (e *Exchange) processOrderbookTicker(incoming []byte, lastPushed time.Time) error {
-	var data WsOrderbookTickerData
+	var data *WsOrderbookTickerData
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
@@ -369,7 +366,7 @@ func (e *Exchange) processOrderbookTicker(incoming []byte, lastPushed time.Time)
 }
 
 func (e *Exchange) processOrderbookUpdate(ctx context.Context, incoming []byte, lastPushed time.Time) error {
-	var data WsOrderbookUpdate
+	var data *WsOrderbookUpdate
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
@@ -386,7 +383,7 @@ func (e *Exchange) processOrderbookUpdate(ctx context.Context, incoming []byte, 
 }
 
 func (e *Exchange) processOrderbookSnapshot(incoming []byte, lastPushed time.Time) error {
-	var data WsOrderbookSnapshot
+	var data *WsOrderbookSnapshot
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
@@ -411,13 +408,12 @@ func (e *Exchange) processOrderbookSnapshot(incoming []byte, lastPushed time.Tim
 
 func (e *Exchange) processSpotOrders(data []byte) error {
 	resp := struct {
-		Time    types.Time    `json:"time"`
-		Channel string        `json:"channel"`
-		Event   string        `json:"event"`
-		Result  []WsSpotOrder `json:"result"`
+		Time    types.Time     `json:"time"`
+		Channel string         `json:"channel"`
+		Event   string         `json:"event"`
+		Result  []*WsSpotOrder `json:"result"`
 	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	details := make([]order.Detail, len(resp.Result))
@@ -464,8 +460,7 @@ func (e *Exchange) processUserPersonalTrades(data []byte) error {
 		Event   string                `json:"event"`
 		Result  []WsUserPersonalTrade `json:"result"`
 	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	fills := make([]fill.Data, len(resp.Result))
@@ -542,13 +537,12 @@ func (e *Exchange) processMarginBalances(ctx context.Context, data []byte) error
 
 func (e *Exchange) processFundingBalances(data []byte) error {
 	resp := struct {
-		Time    types.Time         `json:"time"`
-		Channel string             `json:"channel"`
-		Event   string             `json:"event"`
-		Result  []WsFundingBalance `json:"result"`
+		Time    types.Time          `json:"time"`
+		Channel string              `json:"channel"`
+		Event   string              `json:"event"`
+		Result  []*WsFundingBalance `json:"result"`
 	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	e.Websocket.DataHandler <- resp
@@ -562,8 +556,7 @@ func (e *Exchange) processCrossMarginBalance(ctx context.Context, data []byte) e
 		Event   string                  `json:"event"`
 		Result  []*WsCrossMarginBalance `json:"result"`
 	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	subAccts := accounts.SubAccounts{}
@@ -590,8 +583,7 @@ func (e *Exchange) processCrossMarginLoans(data []byte) error {
 		Event   string            `json:"event"`
 		Result  WsCrossMarginLoan `json:"result"`
 	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	e.Websocket.DataHandler <- resp
@@ -872,7 +864,7 @@ const subTplText = `
 `
 
 // GeneratePayload returns the payload for a websocket message
-type GeneratePayload func(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]WsInput, error)
+type GeneratePayload func(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]*WsInput, error)
 
 // handleSubscription sends a websocket message to receive data from the channel
 func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List, generatePayload GeneratePayload) error {

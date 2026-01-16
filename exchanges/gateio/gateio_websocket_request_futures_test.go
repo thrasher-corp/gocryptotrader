@@ -20,20 +20,33 @@ func TestWebsocketFuturesSubmitOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.WebsocketFuturesSubmitOrder(t.Context(), asset.USDTMarginedFutures, &ContractOrderCreateParams{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
 	out := &ContractOrderCreateParams{Contract: BTCUSDT}
 	_, err = e.WebsocketFuturesSubmitOrder(t.Context(), asset.USDTMarginedFutures, out)
 	require.ErrorIs(t, err, errInvalidOrderSize)
+
+	out.Size = 2
+	_, err = e.WebsocketFuturesSubmitOrder(t.Context(), asset.USDTMarginedFutures, out)
+	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce)
+
+	out.TimeInForce = "gtc"
+	_, err = e.WebsocketFuturesSubmitOrder(t.Context(), asset.USDTMarginedFutures, out)
+	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce)
+
+	out.TimeInForce = iocTIF
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	_, err = e.WebsocketFuturesSubmitOrder(t.Context(), asset.USDTMarginedFutures, out)
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
+
 	out.Size = 1 // 1 lovely long contract
 	out.Price = 40000
 	out.AutoSize = "silly_billies"
 	_, err = e.WebsocketFuturesSubmitOrder(t.Context(), asset.USDTMarginedFutures, out)
 	require.ErrorIs(t, err, errInvalidAutoSize)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-
 	e := newExchangeWithWebsocket(t, asset.USDTMarginedFutures)
 	out.AutoSize = ""
-
 	got, err := e.WebsocketFuturesSubmitOrder(t.Context(), asset.USDTMarginedFutures, out)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
@@ -53,7 +66,15 @@ func TestWebsocketFuturesSubmitOrders(t *testing.T) {
 	_, err = e.WebsocketFuturesSubmitOrders(t.Context(), asset.USDTMarginedFutures, out)
 	require.ErrorIs(t, err, errInvalidOrderSize)
 
+	out.Price = 123
+	out.TimeInForce = "gtc"
 	out.Size = 1 // 1 lovely long contract
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	_, err = e.WebsocketFuturesSubmitOrders(t.Context(), asset.USDTMarginedFutures, out)
+	require.NoError(t, err)
+
+	out.Price = 40000
 	_, err = e.WebsocketFuturesSubmitOrders(t.Context(), asset.USDTMarginedFutures, out)
 	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce)
 
@@ -64,14 +85,12 @@ func TestWebsocketFuturesSubmitOrders(t *testing.T) {
 
 	out.AutoSize = "close_long"
 	_, err = e.WebsocketFuturesSubmitOrders(t.Context(), asset.USDTMarginedFutures, out)
-	require.ErrorIs(t, err, errInvalidOrderSize)
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
 
 	out.AutoSize = ""
 
 	_, err = e.WebsocketFuturesSubmitOrders(t.Context(), asset.Binary, out)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	e := newExchangeWithWebsocket(t, asset.USDTMarginedFutures)
 
@@ -145,7 +164,7 @@ func TestWebsocketFuturesAmendOrder(t *testing.T) {
 
 	amend.Asset = asset.USDTMarginedFutures
 	_, err = e.WebsocketFuturesAmendOrder(t.Context(), amend)
-	require.ErrorIs(t, err, errInvalidAmount)
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
 
 	amend.Size = 2
 
