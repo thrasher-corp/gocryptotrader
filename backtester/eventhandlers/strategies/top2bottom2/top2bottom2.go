@@ -3,7 +3,7 @@ package top2bottom2
 import (
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -67,22 +67,6 @@ type mfiFundEvent struct {
 	event signal.Event
 	mfi   decimal.Decimal
 	funds funding.IFundReader
-}
-
-// ByPrice used for sorting orders by order date
-type byMFI []mfiFundEvent
-
-func (b byMFI) Len() int           { return len(b) }
-func (b byMFI) Less(i, j int) bool { return b[i].mfi.LessThan(b[j].mfi) }
-func (b byMFI) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
-
-// sortOrdersByPrice the caller function to sort orders
-func sortByMFI(o *[]mfiFundEvent, reverse bool) {
-	if reverse {
-		sort.Sort(sort.Reverse(byMFI(*o)))
-	} else {
-		sort.Sort(byMFI(*o))
-	}
 }
 
 // OnSimultaneousSignals analyses multiple data points simultaneously, allowing flexibility
@@ -181,7 +165,7 @@ func (s *Strategy) selectTopAndBottomPerformers(mfiFundEvents []mfiFundEvent, re
 	if len(mfiFundEvents) == 0 {
 		return resp, nil
 	}
-	sortByMFI(&mfiFundEvents, true)
+	slices.SortFunc(mfiFundEvents, func(a, b mfiFundEvent) int { return b.mfi.Compare(a.mfi) })
 	buyingOrSelling := false
 	for i := range mfiFundEvents {
 		if i < 2 && mfiFundEvents[i].mfi.GreaterThanOrEqual(s.mfiHigh) {
@@ -191,7 +175,7 @@ func (s *Strategy) selectTopAndBottomPerformers(mfiFundEvents []mfiFundEvent, re
 			break
 		}
 	}
-	sortByMFI(&mfiFundEvents, false)
+	slices.Reverse(mfiFundEvents)
 	for i := range mfiFundEvents {
 		if i < 2 && mfiFundEvents[i].mfi.LessThanOrEqual(s.mfiLow) {
 			mfiFundEvents[i].event.SetDirection(order.Buy)
