@@ -992,7 +992,7 @@ func TestGetOrderbook(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = e.GetOrderbook(t.Context(), spotTradablePair, 1, 100)
+	result, err = e.GetOrderbook(t.Context(), spotTradablePair, .1, 100)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2043,7 +2043,10 @@ func TestWsHandleData(t *testing.T) {
 	for _, p := range pushMessages {
 		t.Run(p.label, func(t *testing.T) {
 			t.Parallel()
-			if p.auth && e.Websocket.CanUseAuthenticatedEndpoints() {
+			if p.auth {
+				if mockTests || !e.Websocket.CanUseAuthenticatedEndpoints() {
+					t.Skip(websocketMockTestsSkipped)
+				}
 				sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 			}
 			err := e.wsHandleData(generateContext(t), e.Websocket.Conn, []byte(p.payload))
@@ -2073,9 +2076,15 @@ var spotPrivatePushDataMap = []struct {
 
 func TestWsSpotPrivateHandleData(t *testing.T) {
 	t.Parallel()
-	if !e.Websocket.CanUseAuthenticatedEndpoints() || mockTests {
-		t.Skip()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	if mockTests {
+		t.Skip(websocketMockTestsSkipped)
 	}
+
+	e.setAPICredential(apiKey, apiSecret)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 
 	testexch.SetupWs(t, e)
 	conn, err := e.Websocket.GetConnection(connSpotPrivate)
