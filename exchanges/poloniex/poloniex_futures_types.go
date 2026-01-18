@@ -328,7 +328,7 @@ type FuturesLeverage struct {
 	Symbol       currency.Pair `json:"symbol"`
 }
 
-// FuturesOpenInterest represents futures open interest valud for symbol
+// FuturesOpenInterest represents futures open interest value for symbol
 type FuturesOpenInterest struct {
 	Symbol       currency.Pair `json:"s"`
 	OpenInterest types.Number  `json:"oInterest"`

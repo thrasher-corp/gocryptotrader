@@ -2066,7 +2066,7 @@ var spotPrivatePushDataMap = []struct {
 	{k: "Error", v: `{ "event": "error", "message": "Error Message" }`, signature: "subscription"},
 	{k: "Subscribe", v: `{"event": "subscribe", "channel": "exchange"}`, signature: "subscription"},
 	{k: "Unsubscription Response", v: `{ "channel": "orders", "event": "unsubscribe", "symbols": ["all"] }`, signature: "subscription"},
-	{k: "Auth Succesful", v: `{ "data":  { "success": true, "ts": 1645597033915 }, "channel": "auth" }`, signature: "auth"},
+	{k: "Auth Successful", v: `{ "data":  { "success": true, "ts": 1645597033915 }, "channel": "auth" }`, signature: "auth"},
 	{k: "Auth Failed", v: `{"data": { "success": false, "message": "Authentication failed!", "ts": 1646276295075 }, "channel": "auth"}`, signature: "auth"},
 	{k: "Order Subscription", v: `{ "channel": "orders", "event": "subscribe" }`, signature: "subscription"},
 }
