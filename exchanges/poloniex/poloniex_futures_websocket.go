@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -48,6 +49,10 @@ const (
 	channelFuturesPrivateOrders    = "orders"
 	channelFuturesPrivateTrades    = "trade"
 	channelFuturesAccount          = "account"
+
+	channelFuturesLimitPrice        = "limit_price"
+	channelFuturesLiquidiationPrice = "liquidation_orders"
+	channelFuturesOpenInterest      = "open_interest"
 )
 
 var (
@@ -175,7 +180,7 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 	case channelFuturesFundingRate:
 		return e.processFuturesFundingRate(result.Data)
 	case channelFuturesPrivatePositions:
-		var resp []*OpenFuturesPosition
+		var resp []*WsFuturesPosition
 		if err := json.Unmarshal(result.Data, &resp); err != nil {
 			return err
 		}
@@ -187,6 +192,27 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 		return e.processFuturesTradeFills(result.Data)
 	case channelFuturesAccount:
 		return e.processFuturesAccountData(result.Data)
+	case channelFuturesLimitPrice:
+		var resp []*FuturesLimitPrice
+		if err := json.Unmarshal(result.Data, &resp); err != nil {
+			return err
+		}
+		e.Websocket.DataHandler <- resp
+		return nil
+	case channelFuturesLiquidiationPrice:
+		var resp []*FuturesLiquidiationOrder
+		if err := json.Unmarshal(result.Data, &resp); err != nil {
+			return err
+		}
+		e.Websocket.DataHandler <- resp
+		return nil
+	case channelFuturesOpenInterest:
+		var resp []*FuturesOpenInterest
+		if err := json.Unmarshal(result.Data, &resp); err != nil {
+			return err
+		}
+		e.Websocket.DataHandler <- resp
+		return nil
 	default:
 		channel, interval, err := channelToIntervalSplit(result.Channel)
 		if err != nil {
@@ -267,7 +293,7 @@ func (e *Exchange) processFuturesTradeFills(data []byte) error {
 }
 
 func (e *Exchange) processFuturesOrders(data []byte) error {
-	var resp []*FuturesOrderDetails
+	var resp []*FuturesWebsocketOrderDetails
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -281,12 +307,17 @@ func (e *Exchange) processFuturesOrders(data []byte) error {
 		if err != nil {
 			return err
 		}
+		var marginMode margin.Type
+		if r.MarginMode != "" {
+			marginMode, err = margin.StringToMarginType(r.MarginMode)
+			if err != nil {
+				return err
+			}
+		}
 		orders[i] = order.Detail{
-			ReduceOnly:           r.ReduceOnly.Bool(),
-			Leverage:             r.Leverage.Float64(),
+			ReduceOnly:           r.ReduceOnly,
 			Price:                r.Price.Float64(),
 			Amount:               r.Size.Float64(),
-			TriggerPrice:         r.TakeProfitTriggerPrice.Float64(),
 			AverageExecutedPrice: r.AveragePrice.Float64(),
 			ExecutedAmount:       r.ExecutedQuantity.Float64(),
 			RemainingAmount:      r.Size.Float64() - r.ExecutedQuantity.Float64(),
@@ -300,6 +331,9 @@ func (e *Exchange) processFuturesOrders(data []byte) error {
 			Status:               oStatus,
 			AssetType:            asset.Futures,
 			Date:                 r.CreationTime.Time(),
+			LastUpdated:          r.UpdateTime.Time(),
+			TimeInForce:          r.TimeInForce,
+			MarginType:           marginMode,
 			Pair:                 r.Symbol,
 		}
 	}
@@ -456,7 +490,7 @@ func (e *Exchange) processFuturesTrades(data []byte) error {
 			AssetType:    asset.Futures,
 			CurrencyPair: r.Symbol,
 			Price:        r.Price.Float64(),
-			Amount:       r.Quantity.Float64(),
+			Amount:       r.BaseAmount.Float64(),
 			Timestamp:    r.Timestamp.Time(),
 		}
 	}
@@ -484,7 +518,7 @@ func (e *Exchange) processFuturesCandlesticks(data []byte, interval kline.Interv
 			ClosePrice: r.ClosePrice.Float64(),
 			HighPrice:  r.HighestPrice.Float64(),
 			LowPrice:   r.LowestPrice.Float64(),
-			Volume:     r.Amount.Float64(),
+			Volume:     r.QuoteAmount.Float64(),
 		}
 	}
 	e.Websocket.DataHandler <- candles

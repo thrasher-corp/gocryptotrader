@@ -46,6 +46,12 @@ var (
 // Exchange is the overarching type across the poloniex package
 type Exchange struct {
 	exchange.Base
+
+	/// The following mutexes exists to prevent concurrent `subscribe` and `unsubscribe` calls.
+	/// When both run asynchronously and fail, the server may return identical error
+	/// responses (e.g., `{ "event": "error", "message": "invalid symbol" }`), where
+	/// the exact message may vary. Such responses do not indicate which operation
+	/// failed, making synchronization necessary.
 	spotSubMtx    sync.Mutex
 	futuresSubMtx sync.Mutex
 }
@@ -611,11 +617,11 @@ func validateOrderRequest(arg *PlaceOrderRequest) error {
 	if !isMarket && arg.Price <= 0 {
 		return fmt.Errorf("%w: price is required for non-market orders", limits.ErrPriceBelowMin)
 	}
-	if (arg.Type == OrderType(order.Limit) && arg.Quantity <= 0) ||
-		(isMarket && arg.Side == order.Sell && arg.Quantity <= 0) {
+	if (arg.Type == OrderType(order.Limit) && arg.BaseAmount <= 0) ||
+		(isMarket && arg.Side == order.Sell && arg.BaseAmount <= 0) {
 		return fmt.Errorf("%w: base quantity is required for market sell or limit orders", limits.ErrAmountBelowMin)
 	}
-	if isMarket && arg.Side == order.Buy && arg.Amount <= 0 {
+	if isMarket && arg.Side == order.Buy && arg.QuoteAmount <= 0 {
 		return fmt.Errorf("%w: quote amount is required for market buy orders", limits.ErrAmountBelowMin)
 	}
 	return nil
@@ -749,7 +755,7 @@ func (e *Exchange) CancelTradeOrders(ctx context.Context, symbols []string, acco
 	return resp, nil
 }
 
-// KillSwitch sets a timer that cancels all regular and smartorders after the timeout has expired.
+// KillSwitch sets a timer that cancels all regular and smart orders after the timeout has expired.
 // Timeout can be reset by calling this command again with a new timeout value.
 // timeout value in seconds; range is 10 seconds to 10 minutes or 600 seconds
 func (e *Exchange) KillSwitch(ctx context.Context, timeout time.Duration) (*KillSwitchStatus, error) {
@@ -762,7 +768,7 @@ func (e *Exchange) KillSwitch(ctx context.Context, timeout time.Duration) (*Kill
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sKillSwitchEPL, http.MethodPost, "/orders/killSwitch", nil, map[string]any{"timeout": timeoutString}, &resp)
 }
 
-// DisableKillSwitch disables the timer to cancels all regular and smart orders
+// DisableKillSwitch disables the timer to cancel all regular and smart orders
 func (e *Exchange) DisableKillSwitch(ctx context.Context) (*KillSwitchStatus, error) {
 	var resp *KillSwitchStatus
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, sKillSwitchEPL, http.MethodPost, "/orders/killSwitch", nil, map[string]any{"timeout": "-1"}, &resp)
@@ -782,7 +788,7 @@ func (e *Exchange) CreateSmartOrder(ctx context.Context, arg *SmartOrderRequest)
 	if arg.Side != order.Buy && arg.Side != order.Sell {
 		return nil, order.ErrSideIsInvalid
 	}
-	if arg.Quantity <= 0 {
+	if arg.BaseAmount <= 0 {
 		return nil, fmt.Errorf("%w; base quantity is required", limits.ErrAmountBelowMin)
 	}
 	if arg.Type == OrderType(order.StopLimit) && arg.Price <= 0 {
@@ -812,7 +818,7 @@ func orderPath(orderID, idPath, clientOrderID, clientIDPath string) (string, err
 	}
 }
 
-// CancelReplaceSmartOrder cancel an existing untriggered smart order and places a new smart order on the same symbol with details from the existing smart order, unless amended by new parameters
+// CancelReplaceSmartOrder cancels an existing untriggered smart order and places a new smart order on the same symbol with details from the existing smart order, unless amended by new parameters
 func (e *Exchange) CancelReplaceSmartOrder(ctx context.Context, arg *CancelReplaceSmartOrderRequest) (*OrderIDResponse, error) {
 	path, err := orderPath(arg.OrderID, "/smartorders/", arg.OldClientOrderID, "/smartorders/cid:")
 	if err != nil {
@@ -1115,7 +1121,7 @@ func SendBatchValidatedAuthenticatedHTTPRequest[T hasError](ctx context.Context,
 	if err := e.SendAuthenticatedHTTPRequest(ctx, ep, epl, method, path, values, body, &result); err != nil {
 		return nil, err
 	}
-	// Return result,  which contains the full response including both
+	// Return result, which contains the full response including both
 	// successful and failed cancellation attempts.
 	return result, checkForErrorInSliceResponse(result)
 }

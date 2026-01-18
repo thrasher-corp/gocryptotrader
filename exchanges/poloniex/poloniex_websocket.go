@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"text/template"
@@ -222,10 +223,10 @@ func (e *Exchange) processOrders(result *SubscriptionResponse) error {
 		}
 		orderDetails[x] = order.Detail{
 			Price:           r.Price.Float64(),
-			Amount:          r.Quantity.Float64(),
+			Amount:          r.BaseAmount.Float64(),
 			QuoteAmount:     r.OrderAmount.Float64(),
 			ExecutedAmount:  r.FilledAmount.Float64(),
-			RemainingAmount: r.Quantity.Float64() - r.FilledQuantity.Float64(),
+			RemainingAmount: r.BaseAmount.Float64() - r.FilledQuantity.Float64(),
 			Fee:             r.TradeFee.Float64(),
 			FeeAsset:        r.FeeCurrency,
 			Exchange:        e.Name,
@@ -249,7 +250,7 @@ func (e *Exchange) processOrders(result *SubscriptionResponse) error {
 					Side:      r.Side,
 					Timestamp: r.Timestamp.Time(),
 					FeeAsset:  r.FeeCurrency.String(),
-					Total:     r.Quantity.Float64(),
+					Total:     r.BaseAmount.Float64(),
 				},
 			},
 		}
@@ -327,8 +328,8 @@ func (e *Exchange) processTicker(result *SubscriptionResponse) error {
 			MarkPrice:    r.MarkPrice.Float64(),
 			High:         r.High.Float64(),
 			Low:          r.Low.Float64(),
-			Volume:       r.Quantity.Float64(),
-			QuoteVolume:  r.Amount.Float64(),
+			Volume:       r.BaseAmount.Float64(),
+			QuoteVolume:  r.QuoteAmount.Float64(),
 			Open:         r.Open.Float64(),
 			Close:        r.Close.Float64(),
 			Pair:         r.Symbol,
@@ -349,13 +350,13 @@ func (e *Exchange) processTrades(result *SubscriptionResponse) error {
 	trades := make([]trade.Data, len(resp))
 	for x, r := range resp {
 		trades[x] = trade.Data{
-			TID:          r.ID.String(),
+			TID:          strconv.FormatUint(r.ID, 10),
 			Exchange:     e.Name,
 			CurrencyPair: r.Symbol,
 			Side:         r.TakerSide,
 			Price:        r.Price.Float64(),
 			Timestamp:    r.Timestamp.Time(),
-			Amount:       r.Quantity.Float64(),
+			Amount:       r.BaseAmount.Float64(),
 		}
 	}
 	return trade.AddTradesToBuffer(trades...)
@@ -378,7 +379,7 @@ func (e *Exchange) processCandlestickData(result *SubscriptionResponse) error {
 			ClosePrice: r.Close.Float64(),
 			HighPrice:  r.High.Float64(),
 			LowPrice:   r.Low.Float64(),
-			Volume:     r.Quantity.Float64(),
+			Volume:     r.BaseAmount.Float64(),
 		}
 	}
 	e.Websocket.DataHandler <- candles

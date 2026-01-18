@@ -337,8 +337,8 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				Ask:          tick.Ask.Float64(),
 				Bid:          tick.Bid.Float64(),
 				High:         tick.High.Float64(),
-				QuoteVolume:  tick.Amount.Float64(),
-				Volume:       tick.Quantity.Float64(),
+				QuoteVolume:  tick.QuoteAmount.Float64(),
+				Volume:       tick.BaseAmount.Float64(),
 			}); err != nil {
 				return err
 			}
@@ -544,7 +544,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, pair currency.Pair, asse
 				AssetType:    assetType,
 				Side:         side,
 				Price:        td.Price.Float64(),
-				Amount:       td.Amount.Float64(),
+				Amount:       td.QuoteAmount.Float64(),
 				Timestamp:    td.Timestamp.Time(),
 			})
 		}
@@ -565,7 +565,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, pair currency.Pair, asse
 				AssetType:    assetType,
 				Side:         side,
 				Price:        fExec.Price.Float64(),
-				Amount:       fExec.Amount.Float64(),
+				Amount:       fExec.QuoteAmount.Float64(),
 				Timestamp:    fExec.CreationTime.Time(),
 			})
 		}
@@ -619,8 +619,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				AccountType:    AccountType(s.AssetType),
 				Price:          s.Price,
 				StopPrice:      s.TriggerPrice,
-				Quantity:       s.Amount,
-				Amount:         s.QuoteAmount,
+				BaseAmount:     s.Amount,
+				QuoteAmount:    s.QuoteAmount,
 				ClientOrderID:  s.ClientOrderID,
 				TimeInForce:    TimeInForce(s.TimeInForce),
 				TrailingOffset: trackingDistance,
@@ -634,8 +634,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				AccountType:             AccountType(s.AssetType),
 				Symbol:                  s.Pair,
 				Price:                   s.Price,
-				Quantity:                s.Amount,
-				Amount:                  s.QuoteAmount,
+				BaseAmount:              s.Amount,
+				QuoteAmount:             s.QuoteAmount,
 				AllowBorrow:             false,
 				Type:                    OrderType(s.Type),
 				Side:                    s.Side,
@@ -708,7 +708,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			OrderID:           action.OrderID,
 			ClientOrderID:     action.ClientOrderID,
 			Price:             action.Price,
-			Quantity:          action.Amount,
+			BaseAmount:        action.Amount,
 			AmendedType:       action.Type.String(),
 			TimeInForce:       TimeInForce(action.TimeInForce),
 			SlippageTolerance: 0,
@@ -728,7 +728,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			NewClientOrderID: action.ClientOrderID,
 			Price:            action.Price,
 			StopPrice:        action.TriggerPrice,
-			Amount:           action.Amount,
+			QuoteAmount:      action.Amount,
 			AmendedType:      OrderType(action.Type),
 			ProceedOnFailure: !action.TimeInForce.Is(order.ImmediateOrCancel),
 			TimeInForce:      TimeInForce(action.TimeInForce),
@@ -961,9 +961,9 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 				TID:       td.ID,
 				FeeAsset:  td.FeeCurrency.String(),
 				Price:     td.Price.Float64(),
-				Total:     td.Amount.Float64(),
+				Total:     td.QuoteAmount.Float64(),
 				Timestamp: td.CreateTime.Time(),
-				Amount:    td.Quantity.Float64(),
+				Amount:    td.BaseAmount.Float64(),
 				Fee:       td.FeeAmount.Float64(),
 				Side:      td.Side,
 				Type:      oType,
@@ -994,10 +994,10 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 				TimeInForce:   s.TimeInForce,
 				ClientOrderID: s.ClientOrderID,
 				Price:         s.Price.Float64(),
-				QuoteAmount:   s.Amount.Float64(),
+				QuoteAmount:   s.QuoteAmount.Float64(),
 				Date:          s.CreateTime.Time(),
 				LastUpdated:   s.UpdateTime.Time(),
-				Amount:        s.Quantity.Float64(),
+				Amount:        s.BaseAmount.Float64(),
 				Type:          oType,
 				Status:        orderStateFromString(s.State),
 				AssetType:     stringToAccountType(s.AccountType),
@@ -1009,11 +1009,11 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		}
 		return &order.Detail{
 			Price:                resp.Price.Float64(),
-			Amount:               resp.Quantity.Float64(),
+			Amount:               resp.BaseAmount.Float64(),
 			AverageExecutedPrice: resp.AveragePrice.Float64(),
-			QuoteAmount:          resp.Amount.Float64(),
+			QuoteAmount:          resp.QuoteAmount.Float64(),
 			ExecutedAmount:       resp.FilledQuantity.Float64(),
-			RemainingAmount:      resp.Quantity.Float64() - resp.FilledAmount.Float64(),
+			RemainingAmount:      resp.BaseAmount.Float64() - resp.FilledAmount.Float64(),
 			Cost:                 resp.FilledQuantity.Float64() * resp.AveragePrice.Float64(),
 			Side:                 resp.Side,
 			Exchange:             e.Name,
@@ -1026,7 +1026,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			LastUpdated:          resp.UpdateTime.Time(),
 			Pair:                 pair,
 			Trades:               orderTrades,
-			TimeInForce:          resp.TimeInForce,
+			TimeInForce:          order.TimeInForce(resp.TimeInForce),
 		}, nil
 	case asset.Futures:
 		fResults, err := e.GetFuturesOrderHistory(ctx, pair, order.UnknownSide, "", "", orderID, "", "", time.Time{}, time.Time{}, 0, 0)
@@ -1218,12 +1218,12 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				Type:        oType,
 				OrderID:     td.ID,
 				Side:        td.Side,
-				Amount:      td.Amount.Float64(),
+				Amount:      td.QuoteAmount.Float64(),
 				Date:        td.CreateTime.Time(),
 				Price:       td.Price.Float64(),
 				Pair:        td.Symbol,
 				Exchange:    e.Name,
-				TimeInForce: td.TimeInForce,
+				TimeInForce: order.TimeInForce(td.TimeInForce),
 			})
 		}
 	case asset.Futures:
@@ -1346,21 +1346,21 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				detail := order.Detail{
 					OrderID:              strconv.FormatUint(tOrder.ID, 10),
 					Side:                 tOrder.Side,
-					Amount:               tOrder.Amount.Float64(),
+					Amount:               tOrder.QuoteAmount.Float64(),
 					ExecutedAmount:       tOrder.FilledAmount.Float64(),
 					Price:                tOrder.Price.Float64(),
 					AverageExecutedPrice: tOrder.AveragePrice.Float64(),
 					Pair:                 tOrder.Symbol,
 					Type:                 oType,
 					Exchange:             e.Name,
-					QuoteAmount:          tOrder.Amount.Float64() * tOrder.AveragePrice.Float64(),
-					RemainingAmount:      tOrder.Quantity.Float64() - tOrder.FilledQuantity.Float64(),
+					QuoteAmount:          tOrder.QuoteAmount.Float64() * tOrder.AveragePrice.Float64(),
+					RemainingAmount:      tOrder.BaseAmount.Float64() - tOrder.FilledQuantity.Float64(),
 					ClientOrderID:        tOrder.ClientOrderID,
 					Status:               orderStateFromString(tOrder.State),
 					AssetType:            assetType,
 					Date:                 tOrder.CreateTime.Time(),
 					LastUpdated:          tOrder.UpdateTime.Time(),
-					TimeInForce:          tOrder.TimeInForce,
+					TimeInForce:          order.TimeInForce(tOrder.TimeInForce),
 				}
 				detail.InferCostsAndTimes()
 				orders = append(orders, detail)
@@ -1400,7 +1400,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				}
 				detail := order.Detail{
 					Side:          smartOrder.Side,
-					Amount:        smartOrder.Amount.Float64(),
+					Amount:        smartOrder.QuoteAmount.Float64(),
 					Price:         smartOrder.Price.Float64(),
 					TriggerPrice:  smartOrder.StopPrice.Float64(),
 					Pair:          smartOrder.Symbol,
@@ -1412,7 +1412,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					AssetType:     assetType,
 					Date:          smartOrder.CreateTime.Time(),
 					LastUpdated:   smartOrder.UpdateTime.Time(),
-					TimeInForce:   smartOrder.TimeInForce,
+					TimeInForce:   order.TimeInForce(smartOrder.TimeInForce),
 				}
 				detail.InferCostsAndTimes()
 				orders = append(orders, detail)
@@ -1489,8 +1489,8 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 				High:        candleData.High.Float64(),
 				Low:         candleData.Low.Float64(),
 				Close:       candleData.Close.Float64(),
-				Volume:      candleData.Quantity.Float64(),
-				QuoteVolume: candleData.Amount.Float64(),
+				Volume:      candleData.BaseAmount.Float64(),
+				QuoteVolume: candleData.QuoteAmount.Float64(),
 			}
 		}
 		return req.ProcessResponse(timeSeries)
@@ -1544,8 +1544,8 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 					High:        candleData.High.Float64(),
 					Low:         candleData.Low.Float64(),
 					Close:       candleData.Close.Float64(),
-					Volume:      candleData.Quantity.Float64(),
-					QuoteVolume: candleData.Amount.Float64(),
+					Volume:      candleData.BaseAmount.Float64(),
+					QuoteVolume: candleData.QuoteAmount.Float64(),
 				})
 			}
 		}
@@ -1632,7 +1632,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, assetType asse
 			StartDate:          productInfo.ListingDate.Time(),
 			IsActive:           strings.EqualFold(productInfo.Status, "OPEN"),
 			Status:             productInfo.Status,
-			MaxLeverage:        productInfo.Leverage.Float64(),
+			MaxLeverage:        float64(productInfo.Leverage),
 			SettlementType:     futures.Linear,
 		}
 	}
@@ -1713,7 +1713,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				MaximumQuoteAmount:      symbolDetail.SymbolTradeLimit.MaxAmount.Float64(),
 				PriceStepIncrementSize:  priceScaleMultipliers[symbolDetail.SymbolTradeLimit.PriceScale],
 				AmountStepIncrementSize: priceScaleMultipliers[symbolDetail.SymbolTradeLimit.QuantityScale],
-				QuoteStepIncrementSize:  priceScaleMultipliers[symbolDetail.SymbolTradeLimit.AmountScale],
+				QuoteStepIncrementSize:  priceScaleMultipliers[symbolDetail.SymbolTradeLimit.QuoteAmountScale],
 			}
 		}
 		return limits.Load(l)
@@ -1730,10 +1730,10 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			MinPrice:                productInfo.MinPrice.Float64(),
 			MaxPrice:                productInfo.MaxPrice.Float64(),
 			PriceStepIncrementSize:  productInfo.TickSize.Float64(),
-			AmountStepIncrementSize: productInfo.LotSize.Float64(),
+			AmountStepIncrementSize: float64(productInfo.SizePrecision),
 			MinimumBaseAmount:       productInfo.MinQuantity.Float64(),
 			MaximumBaseAmount:       productInfo.MaxQuantity.Float64(),
-			MinimumQuoteAmount:      productInfo.MinSize.Float64(),
+			MinimumQuoteAmount:      float64(productInfo.MinSize),
 			MarketMinQty:            productInfo.MinQuantity.Float64(),
 			MarketMaxQty:            productInfo.MarketMaxQty.Float64(),
 		}
@@ -1789,8 +1789,8 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	response, err := e.WsCreateOrder(ctx, &PlaceOrderRequest{
 		Symbol:                  s.Pair,
 		Price:                   s.Price,
-		Quantity:                s.Amount,
-		Amount:                  s.QuoteAmount,
+		BaseAmount:              s.Amount,
+		QuoteAmount:             s.QuoteAmount,
 		AllowBorrow:             false,
 		Type:                    OrderType(s.Type),
 		Side:                    s.Side,

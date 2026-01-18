@@ -138,7 +138,7 @@ type FuturesTradeFill struct {
 	PositionSide   string        `json:"posSide"`
 	OrderType      string        `json:"ordType"`
 	Price          types.Number  `json:"px"`
-	Quantity       types.Number  `json:"qty"`
+	BaseAmount     types.Number  `json:"qty"`
 	Type           string        `json:"type"`
 	AccountType    string        `json:"actType"`
 	QuoteCurrency  currency.Code `json:"qCcy"`
@@ -201,6 +201,35 @@ type FuturesOrderDetails struct {
 	CancelReason               string            `json:"cancelReason"`
 }
 
+// FuturesWebsocketOrderDetails represents a futures websocket order detail
+type FuturesWebsocketOrderDetails struct {
+	Symbol           currency.Pair     `json:"symbol"`
+	Side             order.Side        `json:"side"`
+	OrderType        string            `json:"type"`
+	MarginMode       string            `json:"mgnMode"`
+	TimeInForce      order.TimeInForce `json:"timeInForce"`
+	ClientOrderID    string            `json:"clOrdId"`
+	Size             types.Number      `json:"sz"`
+	Price            types.Number      `json:"px"`
+	ReduceOnly       bool              `json:"reduceOnly"`
+	PositionSide     string            `json:"posSide"`
+	OrderID          string            `json:"ordId"`
+	State            string            `json:"state"`
+	CancelReason     string            `json:"cancelReason"`
+	Source           string            `json:"source"`
+	AveragePrice     types.Number      `json:"avgPx"`
+	ExecutedQuantity types.Number      `json:"execQty"`
+	ExecutedAmount   types.Number      `json:"execAmt"`
+	FeeCurrency      currency.Code     `json:"feeCcy"`
+	FeeAmount        types.Number      `json:"feeAmt"`
+	DeductCurrency   currency.Code     `json:"deductCcy"`
+	DeductAmount     types.Number      `json:"deductAmt"`
+	FillSize         types.Number      `json:"fillSz"`
+	CreationTime     types.Time        `json:"cTime"`
+	UpdateTime       types.Time        `json:"uTime"`
+	Timestamp        types.Time        `json:"ts"`
+}
+
 // FuturesPosition represents a v3 futures position detail
 type FuturesPosition struct {
 	ID                string        `json:"id"`
@@ -212,10 +241,10 @@ type FuturesPosition struct {
 	CloseAveragePrice string        `json:"closeAvgPx"`
 	ClosedQuantity    string        `json:"closedQty"`
 	AvailableQuantity types.Number  `json:"availQty"`
-	Quantity          types.Number  `json:"qty"`
+	BaseAmount        types.Number  `json:"qty"`
 	ProfitAndLoss     types.Number  `json:"pnl"`
 	Fee               string        `json:"fee"`
-	FFee              string        `json:"fFee"`
+	FundingFee        string        `json:"fFee"`
 	State             string        `json:"state"`
 	CreationTime      types.Time    `json:"cTime"`
 	UpdateTime        types.Time    `json:"uTime"`
@@ -223,28 +252,63 @@ type FuturesPosition struct {
 
 // OpenFuturesPosition represents a v3 futures open position detail
 type OpenFuturesPosition struct {
-	FuturesPosition
-	AutoDeleveraging       string       `json:"adl"`
-	AvailableQuantity      types.Number `json:"availQty"`
-	InitialMargin          types.Number `json:"im"`
-	Leverage               types.Number `json:"lever"`
-	LiquidationPrice       types.Number `json:"liqPx"`
-	MarkPrice              types.Number `json:"markPx"`
-	IsolatedPositionMargin string       `json:"mgn"`
-	MarginRatio            types.Number `json:"mgnRatio"`
-	MaintenanceMargin      string       `json:"mm"`
-	MaxWithdrawalAmount    types.Number `json:"maxWAmt"`
-	UnrealizedPNL          types.Number `json:"upl"`
-	UnrealizedPNLRatio     types.Number `json:"uplRatio"`
-	LastPrice              types.Number `json:"lastPx"`
-	IndexPrice             types.Number `json:"indexPx"`
-	AccountType            string       `json:"actType"`
-	TakeProfitTriggerPrice types.Number `json:"tpTrgPx"`
-	StopLossTriggerPrice   types.Number `json:"slTrgPx"`
-	OldQuantity            types.Number `json:"oldQty"`
-	FundingFee             types.Number `json:"ffee"`
-	FundingPNL             types.Number `json:"fpnl"`
-	Timestamp              types.Time   `json:"ts"`
+	Symbol                 currency.Pair `json:"symbol"`
+	Side                   string        `json:"side"`
+	MarginMode             string        `json:"mgnMode"`
+	PositionSide           string        `json:"posSide"`
+	OpenAveragePrice       string        `json:"openAvgPx"`
+	BaseAmount             string        `json:"qty"`
+	AvailableQuantity      types.Number  `json:"availQty"`
+	Leverage               types.Number  `json:"lever"`
+	AutoDeleveraging       string        `json:"adl"`
+	LiquidationPrice       types.Number  `json:"liqPx"`
+	InitialMargin          types.Number  `json:"im"`
+	MaintenanceMargin      types.Number  `json:"mm"`
+	IsolatedPositionMargin string        `json:"mgn"`
+	MaxWithdrawalAmount    types.Number  `json:"maxWAmt"`
+	UnrealizedPNL          types.Number  `json:"upl"`
+	UnrealizedPNLRatio     types.Number  `json:"uplRatio"`
+	ProfitAndLoss          types.Number  `json:"pnl"`
+	MarkPrice              types.Number  `json:"markPx"`
+	LastPrice              types.Number  `json:"lastPx"`
+	IndexPrice             types.Number  `json:"indexPx"`
+	MarginRatio            types.Number  `json:"mgnRatio"`
+	State                  string        `json:"state"`
+	AccountType            string        `json:"actType"`
+	TakeProfitTriggerPrice types.Number  `json:"tpTrgPx"`
+	StopLossTriggerPrice   types.Number  `json:"slTrgPx"`
+	CreateTime             types.Time    `json:"cTime"`
+	UpdateTime             types.Time    `json:"uTime"`
+}
+
+// WsFuturesPosition represents a futures websocket position
+type WsFuturesPosition struct {
+	Symbol                     currency.Pair `json:"symbol"`
+	PositionSide               string        `json:"posSide"`
+	Side                       string        `json:"side"`
+	MarginMode                 string        `json:"mgnMode"`
+	OpenAveragePrice           types.Number  `json:"openAvgPx"`
+	BaseAmount                 types.Number  `json:"qty"`
+	OldQuantity                types.Number  `json:"oldQty"`
+	AvailableQuantity          types.Number  `json:"availQty"`
+	Leverage                   uint16        `json:"lever"`
+	Fee                        types.Number  `json:"fee"`
+	AutoDeleveraging           string        `json:"adl"`
+	LiquidationPrice           types.Number  `json:"liqPx"`
+	IsolatedPositionMargin     types.Number  `json:"mgn"`
+	InitialMargin              types.Number  `json:"im"`
+	MaintenanceMargin          types.Number  `json:"mm"`
+	UnrealizedPNL              types.Number  `json:"upl"`
+	UnrealizedPNLRatio         types.Number  `json:"uplRatio"`
+	LatestClosingProfitAndLoss types.Number  `json:"fpnl"`
+	MarkPrice                  types.Number  `json:"markPx"`
+	MarginRatio                types.Number  `json:"mgnRatio"`
+	State                      string        `json:"state"`
+	CreateTime                 types.Time    `json:"cTime"`
+	UpdateTime                 types.Time    `json:"uTime"`
+	Timestamp                  types.Time    `json:"ts"`
+	ProfitAndLoss              types.Number  `json:"pnl"`
+	FundingFee                 types.Number  `json:"ffee"`
 }
 
 // AdjustFuturesMarginResponse represents a response data after adjusting futures margin positions
@@ -262,6 +326,32 @@ type FuturesLeverage struct {
 	MarginMode   string        `json:"mgnMode"`
 	PositionSide string        `json:"posSide"`
 	Symbol       currency.Pair `json:"symbol"`
+}
+
+// FuturesOpenInterest represents futures open interest valud for symbol
+type FuturesOpenInterest struct {
+	Symbol       currency.Pair `json:"s"`
+	OpenInterest types.Number  `json:"oInterest"`
+	Timestamp    types.Time    `json:"ts"`
+}
+
+// FuturesLiquidiationOrder represents a futures liquidiation price detail
+type FuturesLiquidiationOrder struct {
+	Symbol          currency.Pair `json:"s"`
+	Side            string        `json:"side"`
+	PositionSide    string        `json:"posSide"`
+	Size            types.Number  `json:"sz"`
+	BankruptcyPrice types.Number  `json:"bkPx"`
+	UpdateTime      types.Time    `json:"uTime"`
+	Timestamp       types.Time    `json:"ts"`
+}
+
+// FuturesLimitPrice represents a futures limit price info
+type FuturesLimitPrice struct {
+	Timestamp types.Time    `json:"ts"`
+	Symbol    currency.Pair `json:"s"`
+	BuyLimit  types.Number  `json:"buyLmt"`
+	SellLimit types.Number  `json:"sellLmt"`
 }
 
 // UserPositionRiskLimit represents a user position risk limit detail
@@ -317,8 +407,8 @@ func (v *FuturesCandle) UnmarshalJSON(data []byte) error {
 type FuturesExecutionInfo struct {
 	ID           int64        `json:"id"`
 	Price        types.Number `json:"px"`
-	Quantity     types.Number `json:"qty"`
-	Amount       types.Number `json:"amt"`
+	BaseAmount   types.Number `json:"qty"`
+	QuoteAmount  types.Number `json:"amt"`
 	Side         string       `json:"side"`
 	CreationTime types.Time   `json:"cT"`
 }
@@ -402,7 +492,7 @@ func (v *FuturesIndexPriceData) UnmarshalJSON(data []byte) error {
 // FuturesMarkPrice represents a mark price instance
 type FuturesMarkPrice struct {
 	MarkPrice types.Number  `json:"mPx"`
-	Symbol    currency.Pair `json:"symbol"`
+	Symbol    currency.Pair `json:"s"`
 	Timestamp types.Time    `json:"ts"`
 }
 
@@ -421,7 +511,7 @@ func (v *FuturesMarkPriceCandle) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[6]any{&v.LowestPrice, &v.HighestPrice, &v.OpeningPrice, &v.ClosingPrice, &v.StartTime, &v.EndTime})
 }
 
-// WSProductDetail represents websocket response of basic information of the all product
+// WSProductDetail represents websocket response of basic information of all products
 type WSProductDetail struct {
 	Symbol                string        `json:"s"`
 	VisibleStartTime      types.Time    `json:"visibleST"`
@@ -462,16 +552,16 @@ type ProductDetail struct {
 	ContractType          string        `json:"ctType"`
 	ContractValue         types.Number  `json:"ctVal"`
 	InitialMarginRate     types.Number  `json:"iM"`
-	Leverage              types.Number  `json:"lever"`
-	LotSize               types.Number  `json:"lotSz"`
+	Leverage              uint16        `json:"lever,string"`
+	MaxLeverage           uint16        `json:"maxLever,string"`
+	SizePrecision         uint16        `json:"lotSz"`
 	MaintenanceMarginRate types.Number  `json:"mM"`
 	MaximumRiskLimit      types.Number  `json:"mR"`
-	MaxLeverage           string        `json:"maxLever"`
 	MaxPrice              types.Number  `json:"maxPx"`
 	MaxQuantity           types.Number  `json:"maxQty"`
 	MinPrice              types.Number  `json:"minPx"`
 	MinQuantity           types.Number  `json:"minQty"`
-	MinSize               types.Number  `json:"minSz"`
+	MinSize               uint16        `json:"minSz"`
 	ListingDate           types.Time    `json:"oDate"`
 	PriceScale            string        `json:"pxScale"`
 	QuoteCurrency         currency.Code `json:"qCcy"`
@@ -536,8 +626,8 @@ type WsFuturesCandlesctick struct {
 	HighestPrice types.Number
 	OpenPrice    types.Number
 	ClosePrice   types.Number
-	Amount       types.Number
-	Quantity     types.Number
+	BaseAmount   types.Number
+	QuoteAmount  types.Number
 	Trades       uint64
 	StartTime    types.Time
 	EndTime      types.Time
@@ -546,7 +636,7 @@ type WsFuturesCandlesctick struct {
 
 // UnmarshalJSON deserializes byte data into futures candlesticks into *WsFuturesCandlesctick
 func (o *WsFuturesCandlesctick) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[11]any{&o.Symbol, &o.LowestPrice, &o.HighestPrice, &o.OpenPrice, &o.ClosePrice, &o.Amount, &o.Quantity, &o.Trades, &o.StartTime, &o.EndTime, &o.PushTime})
+	return json.Unmarshal(data, &[11]any{&o.Symbol, &o.LowestPrice, &o.HighestPrice, &o.OpenPrice, &o.ClosePrice, &o.QuoteAmount, &o.BaseAmount, &o.Trades, &o.StartTime, &o.EndTime, &o.PushTime})
 }
 
 // FuturesTrades represents a futures trades detail
@@ -555,8 +645,8 @@ type FuturesTrades struct {
 	Timestamp    types.Time    `json:"ts"`
 	Symbol       currency.Pair `json:"s"`
 	Price        types.Number  `json:"px"`
-	Quantity     types.Number  `json:"qty"`
-	Amount       types.Number  `json:"amt"`
+	BaseAmount   types.Number  `json:"qty"`
+	QuoteAmount  types.Number  `json:"amt"`
 	Side         string        `json:"side"`
 	CreationTime types.Time    `json:"cT"`
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 var (
@@ -66,7 +67,7 @@ func (e *Exchange) GetAccountBills(ctx context.Context, startTime, endTime time.
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fGetBillsDetailsEPL, http.MethodGet, accountPathV3+"bills", params, nil, &resp)
 }
 
-// PlaceFuturesOrder place an order in futures trading.
+// PlaceFuturesOrder places an order in futures trading.
 func (e *Exchange) PlaceFuturesOrder(ctx context.Context, arg *FuturesOrderRequest) (*FuturesOrderIDResponse, error) {
 	if err := arg.validate(); err != nil {
 		return nil, err
@@ -504,7 +505,7 @@ func (e *Exchange) GetFuturesKlineData(ctx context.Context, symbol currency.Pair
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fCandlestickEPL, common.EncodeURLValues(marketsPathV3+"candles", params), &resp)
 }
 
-// GetFuturesExecution get the latest execution information. The default limit is 500, with a maximum of 1,000.
+// GetFuturesExecution gets the latest execution information. The default limit is 500, with a maximum of 1,000.
 func (e *Exchange) GetFuturesExecution(ctx context.Context, symbol currency.Pair, limit uint64) ([]*FuturesExecutionInfo, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
@@ -600,6 +601,15 @@ func (e *Exchange) GetAllIndexPriceComponents(ctx context.Context) ([]*IndexPric
 
 // GetIndexPriceKlineData obtains the K-line data for the index price.
 func (e *Exchange) GetIndexPriceKlineData(ctx context.Context, symbol currency.Pair, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]*FuturesIndexPriceData, error) {
+	return e.getIndexPriceKlineData(ctx, symbol, interval, startTime, endTime, limit, "indexPriceCandlesticks", fCandlestickEPL)
+}
+
+// GetPremiumIndexKlineData retrieves the K-line information of the premium index.
+func (e *Exchange) GetPremiumIndexKlineData(ctx context.Context, symbol currency.Pair, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]*FuturesIndexPriceData, error) {
+	return e.getIndexPriceKlineData(ctx, symbol, interval, startTime, endTime, limit, "premiumIndexCandlesticks", fPremiumCandlestickEPL)
+}
+
+func (e *Exchange) getIndexPriceKlineData(ctx context.Context, symbol currency.Pair, interval kline.Interval, startTime, endTime time.Time, limit uint64, path string, epl request.EndpointLimit) ([]*FuturesIndexPriceData, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -625,7 +635,7 @@ func (e *Exchange) GetIndexPriceKlineData(ctx context.Context, symbol currency.P
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp []*FuturesIndexPriceData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fCandlestickEPL, common.EncodeURLValues(marketsPathV3+"indexPriceCandlesticks", params), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, epl, common.EncodeURLValues(marketsPathV3+path, params), &resp)
 }
 
 // GetFuturesMarkPrice get the current mark price.
@@ -645,7 +655,7 @@ func (e *Exchange) GetFuturesMarkPrices(ctx context.Context) ([]*FuturesMarkPric
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, marketsPathV3+"markPrice", &resp)
 }
 
-// GetMarkPriceKlineData obtain the K-line data for the mark price.
+// GetMarkPriceKlineData obtains the K-line data for the mark price.
 func (e *Exchange) GetMarkPriceKlineData(ctx context.Context, symbol currency.Pair, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]*FuturesMarkPriceCandle, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
@@ -696,7 +706,7 @@ func (e *Exchange) GetFuturesProduct(ctx context.Context, symbol currency.Pair) 
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, common.EncodeURLValues(marketsPathV3+"instruments", params), &resp)
 }
 
-// GetFuturesCurrentFundingRate retrieve the current funding rate of the contract.
+// GetFuturesCurrentFundingRate retrieves the current funding rate of the contract.
 func (e *Exchange) GetFuturesCurrentFundingRate(ctx context.Context, symbol currency.Pair) (*FuturesFundingRate, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
@@ -707,7 +717,7 @@ func (e *Exchange) GetFuturesCurrentFundingRate(ctx context.Context, symbol curr
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, common.EncodeURLValues(marketsPathV3+"fundingRate", params), &resp)
 }
 
-// GetFuturesHistoricalFundingRates retrieve the previous funding rates of a contract.
+// GetFuturesHistoricalFundingRates retrieves the previous funding rates of a contract.
 func (e *Exchange) GetFuturesHistoricalFundingRates(ctx context.Context, symbol currency.Pair, startTime, endTime time.Time, limit uint64) ([]*FuturesFundingRate, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty

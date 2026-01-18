@@ -73,6 +73,7 @@ const (
 	fGetBillsDetailsEPL
 	fMarketEPL
 	fCandlestickEPL
+	fPremiumCandlestickEPL
 )
 
 // rateLimits returns the rate limit for the exchange
@@ -106,6 +107,7 @@ var rateLimits = request.RateLimitDefinitions{
 	fGetBillsDetailsEPL:                 request.NewRateLimitWithWeight(time.Second, 10, 1),
 	fMarketEPL:                          request.NewRateLimitWithWeight(time.Second, 300, 1),
 	fCandlestickEPL:                     request.NewRateLimitWithWeight(time.Second, 20, 1),
+	fPremiumCandlestickEPL:              request.NewRateLimitWithWeight(time.Second, 20, 1),
 
 	sCreateOrderEPL:              request.NewRateLimitWithWeight(time.Second, 50, 1),
 	sBatchOrderEPL:               request.NewRateLimitWithWeight(time.Second, 10, 1),

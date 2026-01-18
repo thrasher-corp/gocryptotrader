@@ -10590,7 +10590,7 @@
                         "data": [],
                         "msg": ""
                     },
-                    "queryString": "direct=NEXT\u0026eTime=1765290174763\u0026sTime=1764930174763\u0026type=PNL",
+                    "queryString": "direct=NEXT\u0026eTime=1765290174763\u0026from=1\u0026limit=100\u0026sTime=1764930174763\u0026type=PNL",
                     "bodyParams": "",
                     "headers": {
                         "Content-Type": [
@@ -10770,6 +10770,47 @@
                                 "tSz": "0.0000001",
                                 "tradableStartTime": "1683549000000",
                                 "visibleStartTime": "1683549000000"
+                            }
+                        ],
+                        "msg": "Success"
+                    },
+                    "queryString": "",
+                    "bodyParams": "",
+                    "headers": {}
+                },
+                {
+                    "data": {
+                        "code": 200,
+                        "data": [
+                            {
+                                "alias": "",
+                                "bAsset": ".PBNBUSDT",
+                                "bCcy": "BTC",
+                                "ctType": "LINEAR",
+                                "ctVal": "0.1",
+                                "iM": "0.02",
+                                "lever": "10",
+                                "limitMaxQty": "1000000",
+                                "lotSz": 1,
+                                "mM": "0.0115",
+                                "mR": "2000",
+                                "marketMaxQty": "2800",
+                                "maxLever": "50",
+                                "maxPx": "1000000",
+                                "maxQty": "1000000",
+                                "minPx": "0.001",
+                                "minQty": "1",
+                                "minSz": 1,
+                                "oDate": "1620287590000",
+                                "ordPxRange": "0.05",
+                                "pxScale": "0.001,0.01,0.1,1,10",
+                                "qCcy": "USDT",
+                                "sCcy": "USDT",
+                                "status": "OPEN",
+                                "symbol": "BTC_USDT_PERP",
+                                "tSz": "0.001",
+                                "tradableStartTime": "1620390600000",
+                                "visibleStartTime": "1620390600000"
                             }
                         ],
                         "msg": "Success"
@@ -11169,6 +11210,71 @@
             ]
         },
         "/v3/market/indexPriceCandlesticks": {
+            "GET": [
+                {
+                    "data": {
+                        "code": 24102,
+                        "data": "",
+                        "msg": "Invalid K-line type!"
+                    },
+                    "queryString": "interval=HOUR_6\u0026limit=10\u0026symbol=BTC_USDT_PERP",
+                    "bodyParams": "",
+                    "headers": {}
+                },
+                {
+                    "data": {
+                        "code": 200,
+                        "data": [
+                            [
+                                "101583.66",
+                                "102688.38",
+                                "101731.3",
+                                "102668.12",
+                                "1734249600000",
+                                "1734263999999"
+                            ],
+                            [
+                                "102471.6",
+                                "103319.9",
+                                "102668.13",
+                                "102704.93",
+                                "1734264000000",
+                                "1734278399999"
+                            ],
+                            [
+                                "102584.34",
+                                "103482.19",
+                                "102704.94",
+                                "103253.49",
+                                "1734278400000",
+                                "1734292799999"
+                            ],
+                            [
+                                "102624.48",
+                                "105216.38",
+                                "103253.49",
+                                "104460.57",
+                                "1734292800000",
+                                "1734307199999"
+                            ],
+                            [
+                                "104283.98",
+                                "106623.84",
+                                "104463.68",
+                                "104582.66",
+                                "1734307200000",
+                                "1734321599999"
+                            ]
+                        ],
+                        "msg": "Success"
+                    },
+                    "queryString": "eTime=1765290174763\u0026interval=HOUR_4\u0026limit=10\u0026sTime=1764930174763\u0026symbol=BTC_USDT_PERP",
+                    "bodyParams": "",
+                    "headers": {}
+                }
+            ]
+        },
+        "/v3/market/premiumIndexCandlesticks": {
             "GET": [
                 {
                     "data": {

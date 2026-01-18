@@ -156,28 +156,28 @@ type SubscriptionResponse struct {
 
 // SymbolTradeLimit holds symbol's trade limit details
 type SymbolTradeLimit struct {
-	Symbol        currency.Pair `json:"symbol"`
-	PriceScale    uint8         `json:"priceScale"`
-	QuantityScale uint8         `json:"quantityScale"`
-	AmountScale   uint8         `json:"amountScale"`
-	MinQuantity   types.Number  `json:"minQuantity"`
-	MinAmount     types.Number  `json:"minAmount"`
-	MaxQuantity   types.Number  `json:"maxQuantity"`
-	MaxAmount     types.Number  `json:"maxAmount"`
-	HighestBid    types.Number  `json:"highestBid"`
-	LowestAsk     types.Number  `json:"lowestAsk"`
+	Symbol           currency.Pair `json:"symbol"`
+	PriceScale       uint8         `json:"priceScale"`
+	QuantityScale    uint8         `json:"quantityScale"`
+	QuoteAmountScale uint8         `json:"amountScale"`
+	MinQuantity      types.Number  `json:"minQuantity"`
+	MinAmount        types.Number  `json:"minAmount"`
+	MaxQuantity      types.Number  `json:"maxQuantity"`
+	MaxAmount        types.Number  `json:"maxAmount"`
+	HighestBid       types.Number  `json:"highestBid"`
+	LowestAsk        types.Number  `json:"lowestAsk"`
 }
 
 // WsSymbolTradeLimit holds a websocket symbol's trade limit details
 type WsSymbolTradeLimit struct {
-	Symbol        currency.Pair `json:"symbol"`
-	PriceScale    uint8         `json:"priceScale"`
-	QuantityScale uint8         `json:"quantityScale"`
-	AmountScale   uint8         `json:"amountScale"`
-	MinQuantity   types.Number  `json:"minQuantity"`
-	MinAmount     types.Number  `json:"minAmount"`
-	HighestBid    types.Number  `json:"highestBid"`
-	LowestAsk     types.Number  `json:"lowestAsk"`
+	Symbol           currency.Pair `json:"symbol"`
+	PriceScale       uint8         `json:"priceScale"`
+	QuantityScale    uint8         `json:"quantityScale"`
+	QuoteAmountScale uint8         `json:"amountScale"`
+	MinQuantity      types.Number  `json:"minQuantity"`
+	MinAmount        types.Number  `json:"minAmount"`
+	HighestBid       types.Number  `json:"highestBid"`
+	LowestAsk        types.Number  `json:"lowestAsk"`
 }
 
 // SymbolDetails represents a currency symbol
@@ -275,8 +275,8 @@ type CandlestickData struct {
 	High             types.Number
 	Open             types.Number
 	Close            types.Number
-	Amount           types.Number
-	Quantity         types.Number
+	BaseAmount       types.Number
+	QuoteAmount      types.Number
 	BuyTakerAmount   types.Number
 	BuyTakerQuantity types.Number
 	TradeCount       types.Number
@@ -289,18 +289,18 @@ type CandlestickData struct {
 
 // UnmarshalJSON deserializes byte data into CandlestickData structure
 func (c *CandlestickData) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &[14]any{&c.Low, &c.High, &c.Open, &c.Close, &c.Amount, &c.Quantity, &c.BuyTakerAmount, &c.BuyTakerQuantity, &c.TradeCount, &c.PushTimestamp, &c.WeightedAverage, &c.Interval, &c.StartTime, &c.EndTime})
+	return json.Unmarshal(data, &[14]any{&c.Low, &c.High, &c.Open, &c.Close, &c.QuoteAmount, &c.BaseAmount, &c.BuyTakerAmount, &c.BuyTakerQuantity, &c.TradeCount, &c.PushTimestamp, &c.WeightedAverage, &c.Interval, &c.StartTime, &c.EndTime})
 }
 
 // Trade represents a trade instance.
 type Trade struct {
-	ID         string       `json:"id"`
-	Price      types.Number `json:"price"`
-	Quantity   types.Number `json:"quantity"`
-	Amount     types.Number `json:"amount"`
-	TakerSide  string       `json:"takerSide"`
-	Timestamp  types.Time   `json:"ts"`
-	CreateTime types.Time   `json:"createTime"`
+	ID          string       `json:"id"`
+	Price       types.Number `json:"price"`
+	BaseAmount  types.Number `json:"quantity"`
+	QuoteAmount types.Number `json:"amount"`
+	TakerSide   string       `json:"takerSide"`
+	Timestamp   types.Time   `json:"ts"`
+	CreateTime  types.Time   `json:"createTime"`
 }
 
 // TickerData represents a price ticker information.
@@ -310,8 +310,8 @@ type TickerData struct {
 	Low         types.Number  `json:"low"`
 	High        types.Number  `json:"high"`
 	Close       types.Number  `json:"close"`
-	Quantity    types.Number  `json:"quantity"`
-	Amount      types.Number  `json:"amount"`
+	BaseAmount  types.Number  `json:"quantity"`
+	QuoteAmount types.Number  `json:"amount"`
 	TradeCount  uint64        `json:"tradeCount"`
 	StartTime   types.Time    `json:"startTime"`
 	CloseTime   types.Time    `json:"closeTime"`
@@ -575,11 +575,11 @@ type PlaceOrderRequest struct {
 	Type        OrderType     `json:"type,omitempty"`
 	AccountType AccountType   `json:"accountType,omitempty"`
 
-	// Quantity Base units for the order. Quantity is required for MARKET SELL or any LIMIT orders
-	Quantity float64 `json:"quantity,omitempty,string"`
+	// BaseAmount Base units for the order. BaseAmount is required for MARKET SELL or any LIMIT orders
+	BaseAmount float64 `json:"quantity,omitempty,string"`
 
-	// Amount Quote units for the order. Amount is required for MARKET BUY order
-	Amount float64 `json:"amount,omitempty,string"`
+	// QuoteAmount Quote units for the order. QuoteAmount is required for MARKET BUY order
+	QuoteAmount float64 `json:"amount,omitempty,string"`
 
 	// Price is required for non-market orders
 	Price float64 `json:"price,omitempty,string"`
@@ -613,8 +613,8 @@ type CancelReplaceOrderRequest struct {
 	OrderID           string      `json:"-"` // used in order path parameter.
 	ClientOrderID     string      `json:"clientOrderId"`
 	Price             float64     `json:"price,omitempty,string"`
-	Quantity          float64     `json:"quantity,omitempty,string"`
-	Amount            float64     `json:"amount,omitempty,string"`
+	BaseAmount        float64     `json:"quantity,omitempty,string"`
+	QuoteAmount       float64     `json:"amount,omitempty,string"`
 	AmendedType       string      `json:"type,omitempty,string"`
 	TimeInForce       TimeInForce `json:"timeInForce,omitempty"`
 	AllowBorrow       bool        `json:"allowBorrow,omitempty"`
@@ -656,49 +656,49 @@ type OrderHistoryItem struct {
 
 // TradeOrder represents a trade order
 type TradeOrder struct {
-	ID             string            `json:"id"`
-	ClientOrderID  string            `json:"clientOrderId"`
-	Symbol         currency.Pair     `json:"symbol"`
-	State          string            `json:"state"`
-	AccountType    string            `json:"accountType"`
-	Side           order.Side        `json:"side"`
-	Type           string            `json:"type"`
-	TimeInForce    order.TimeInForce `json:"timeInForce"`
-	Quantity       types.Number      `json:"quantity"`
-	Price          types.Number      `json:"price"`
-	AveragePrice   types.Number      `json:"avgPrice"`
-	Amount         types.Number      `json:"amount"`
-	FilledQuantity types.Number      `json:"filledQuantity"`
-	FilledAmount   types.Number      `json:"filledAmount"`
-	CreateTime     types.Time        `json:"createTime"`
-	UpdateTime     types.Time        `json:"updateTime"`
-	OrderSource    string            `json:"orderSource"`
-	Loan           bool              `json:"loan"`
-	CancelReason   uint64            `json:"cancelReason"`
+	ID             string        `json:"id"`
+	ClientOrderID  string        `json:"clientOrderId"`
+	Symbol         currency.Pair `json:"symbol"`
+	State          string        `json:"state"`
+	AccountType    string        `json:"accountType"`
+	Side           order.Side    `json:"side"`
+	Type           string        `json:"type"`
+	TimeInForce    TimeInForce   `json:"timeInForce"`
+	Price          types.Number  `json:"price"`
+	AveragePrice   types.Number  `json:"avgPrice"`
+	BaseAmount     types.Number  `json:"quantity"`
+	QuoteAmount    types.Number  `json:"amount"`
+	FilledQuantity types.Number  `json:"filledQuantity"`
+	FilledAmount   types.Number  `json:"filledAmount"`
+	CreateTime     types.Time    `json:"createTime"`
+	UpdateTime     types.Time    `json:"updateTime"`
+	OrderSource    string        `json:"orderSource"`
+	Loan           bool          `json:"loan"`
+	CancelReason   uint64        `json:"cancelReason"`
 
 	statusResponse
 }
 
 // SmartOrder represents a smart order detail.
 type SmartOrder struct {
-	ID              string            `json:"id"`
-	ClientOrderID   string            `json:"clientOrderId"`
-	Symbol          currency.Pair     `json:"symbol"`
-	State           string            `json:"state"`
-	AccountType     string            `json:"accountType"`
-	Side            order.Side        `json:"side"`
-	Type            string            `json:"type"`
-	TimeInForce     order.TimeInForce `json:"timeInForce"`
-	Quantity        types.Number      `json:"quantity"`
-	Price           types.Number      `json:"price"`
-	ActivationPrice types.Number      `json:"activationPrice"`
-	Amount          types.Number      `json:"amount"`
-	StopPrice       types.Number      `json:"stopPrice"`
-	CreateTime      types.Time        `json:"createTime"`
-	UpdateTime      types.Time        `json:"updateTime"`
-	TrailingOffset  string            `json:"trailingOffset"`
-	LimitOffset     string            `json:"limitOffset"`
-	Operator        string            `json:"operator"`
+	ID              string        `json:"id"`
+	ClientOrderID   string        `json:"clientOrderId"`
+	Symbol          currency.Pair `json:"symbol"`
+	State           string        `json:"state"`
+	AccountType     string        `json:"accountType"`
+	Side            order.Side    `json:"side"`
+	Type            string        `json:"type"`
+	TimeInForce     TimeInForce   `json:"timeInForce"`
+	Price           types.Number  `json:"price"`
+	ActivationPrice types.Number  `json:"activationPrice"`
+	BaseAmount      types.Number  `json:"quantity"`
+	QuoteAmount     types.Number  `json:"amount"`
+	StopPrice       types.Number  `json:"stopPrice"`
+	CreateTime      types.Time    `json:"createTime"`
+	UpdateTime      types.Time    `json:"updateTime"`
+	TrailingOffset  string        `json:"trailingOffset"`
+	LimitOffset     string        `json:"limitOffset"`
+	Operator        string        `json:"operator"`
 }
 
 // CancelOrderResponse represents a cancel order response instance.
@@ -738,8 +738,8 @@ type SmartOrderRequest struct {
 	Type           OrderType     `json:"type,omitempty"`
 	Price          float64       `json:"price,omitempty,string"`
 	StopPrice      float64       `json:"stopPrice,omitempty,string"`
-	Quantity       float64       `json:"quantity,omitempty,string"`
-	Amount         float64       `json:"amount,omitempty,string"`
+	BaseAmount     float64       `json:"quantity,omitempty,string"`
+	QuoteAmount    float64       `json:"amount,omitempty,string"`
 	ClientOrderID  string        `json:"clientOrderId,omitempty"`
 	TrailingOffset string        `json:"trailingOffset,omitempty"` // trailing stop offset; Append % to trail by percentage
 	LimitOffset    string        `json:"limitOffset,omitempty"`    // When trigger price is reached a limit order is placed. Append % for percentage
@@ -753,8 +753,8 @@ type CancelReplaceSmartOrderRequest struct {
 	NewClientOrderID string      `json:"clientOrderId,omitempty"`
 	Price            float64     `json:"price,omitempty,string"`
 	StopPrice        float64     `json:"stopPrice,omitempty,string"`
-	Quantity         float64     `json:"quantity,omitempty,string"`
-	Amount           float64     `json:"amount,omitempty,string"`
+	BaseAmount       float64     `json:"quantity,omitempty,string"`
+	QuoteAmount      float64     `json:"amount,omitempty,string"`
 	AmendedType      OrderType   `json:"type,omitempty,string"`
 	TimeInForce      TimeInForce `json:"timeInForce,omitempty"`
 	ProceedOnFailure bool        `json:"proceedOnFailure,omitempty,string"` // proceedOnFailure flag is intended to specify whether to continue with new smart order placement in case cancellation of the existing smart order fails.
@@ -784,9 +784,9 @@ type SmartOrderDetails struct {
 	Side            order.Side        `json:"side"`
 	Type            string            `json:"type"`
 	TimeInForce     order.TimeInForce `json:"timeInForce"`
-	Quantity        types.Number      `json:"quantity"`
 	Price           types.Number      `json:"price"`
-	Amount          types.Number      `json:"amount"`
+	BaseAmount      types.Number      `json:"quantity"`
+	QuoteAmount     types.Number      `json:"amount"`
 	StopPrice       types.Number      `json:"stopPrice"`
 	CreateTime      types.Time        `json:"createTime"`
 	UpdateTime      types.Time        `json:"updateTime"`
@@ -808,8 +808,8 @@ type TradeHistory struct {
 	Type          string        `json:"type"`
 	MatchRole     string        `json:"matchRole"`
 	Price         types.Number  `json:"price"`
-	Quantity      types.Number  `json:"quantity"`
-	Amount        types.Number  `json:"amount"`
+	BaseAmount    types.Number  `json:"quantity"`
+	QuoteAmount   types.Number  `json:"amount"`
 	FeeCurrency   currency.Code `json:"feeCurrency"`
 	FeeAmount     types.Number  `json:"feeAmount"`
 	PageID        string        `json:"pageId"`
@@ -882,29 +882,29 @@ type WsExchangeStatus struct {
 
 // WsCandles represents a candlestick data instance.
 type WsCandles struct {
-	Symbol     currency.Pair `json:"symbol"`
-	Open       types.Number  `json:"open"`
-	High       types.Number  `json:"high"`
-	Low        types.Number  `json:"low"`
-	Close      types.Number  `json:"close"`
-	Quantity   types.Number  `json:"quantity"`
-	Amount     types.Number  `json:"amount"`
-	TradeCount uint64        `json:"tradeCount"`
-	StartTime  types.Time    `json:"startTime"`
-	CloseTime  types.Time    `json:"closeTime"`
-	Timestamp  types.Time    `json:"ts"`
+	Symbol      currency.Pair `json:"symbol"`
+	Open        types.Number  `json:"open"`
+	High        types.Number  `json:"high"`
+	Low         types.Number  `json:"low"`
+	Close       types.Number  `json:"close"`
+	BaseAmount  types.Number  `json:"quantity"`
+	QuoteAmount types.Number  `json:"amount"`
+	TradeCount  uint64        `json:"tradeCount"`
+	StartTime   types.Time    `json:"startTime"`
+	CloseTime   types.Time    `json:"closeTime"`
+	Timestamp   types.Time    `json:"ts"`
 }
 
 // WsTrade represents websocket trade data
 type WsTrade struct {
-	ID         types.Number  `json:"id"`
-	Symbol     currency.Pair `json:"symbol"`
-	Amount     types.Number  `json:"amount"`
-	Quantity   types.Number  `json:"quantity"`
-	TakerSide  order.Side    `json:"takerSide"`
-	Price      types.Number  `json:"price"`
-	CreateTime types.Time    `json:"createTime"`
-	Timestamp  types.Time    `json:"ts"`
+	ID          uint64        `json:"id,string"`
+	Symbol      currency.Pair `json:"symbol"`
+	BaseAmount  types.Number  `json:"quantity"`
+	QuoteAmount types.Number  `json:"amount"`
+	TakerSide   order.Side    `json:"takerSide"`
+	Price       types.Number  `json:"price"`
+	CreateTime  types.Time    `json:"createTime"`
+	Timestamp   types.Time    `json:"ts"`
 }
 
 // WsTicker represents a websocket ticker information.
@@ -916,8 +916,8 @@ type WsTicker struct {
 	High        types.Number  `json:"high"`
 	Low         types.Number  `json:"low"`
 	Close       types.Number  `json:"close"`
-	Quantity    types.Number  `json:"quantity"`
-	Amount      types.Number  `json:"amount"`
+	BaseAmount  types.Number  `json:"quantity"`
+	QuoteAmount types.Number  `json:"amount"`
 	DailyChange types.Number  `json:"dailyChange"`
 	MarkPrice   types.Number  `json:"markPrice"`
 	CloseTime   types.Time    `json:"closeTime"`
@@ -955,7 +955,7 @@ type WebsocketAuthenticationResponse struct {
 type WebsocketTradeOrder struct {
 	Symbol         currency.Pair `json:"symbol"`
 	Type           string        `json:"type"`
-	Quantity       types.Number  `json:"quantity"`
+	BaseAmount     types.Number  `json:"quantity"`
 	OrderID        string        `json:"orderId"`
 	TradeFee       types.Number  `json:"tradeFee"`
 	ClientOrderID  string        `json:"clientOrderId"`

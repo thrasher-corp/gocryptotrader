@@ -24,7 +24,7 @@ func (e *Exchange) WsCreateOrder(ctx context.Context, arg *PlaceOrderRequest) (*
 	return resp[0], nil
 }
 
-// WsCancelMultipleOrdersByIDs batch cancel one or many active orders in an account by IDs through the websocket stream.
+// WsCancelMultipleOrdersByIDs batch cancels one or many active orders in an account by their IDs through the websocket stream.
 func (e *Exchange) WsCancelMultipleOrdersByIDs(ctx context.Context, orderIDs, clientOrderIDs []string) ([]*WsCancelOrderResponse, error) {
 	if len(clientOrderIDs) == 0 && len(orderIDs) == 0 {
 		return nil, order.ErrOrderIDNotSet
@@ -45,7 +45,7 @@ func (e *Exchange) WsCancelMultipleOrdersByIDs(ctx context.Context, orderIDs, cl
 	return resp, nil
 }
 
-// WsCancelTradeOrders batch cancel all orders in an account.
+// WsCancelTradeOrders batch cancels all orders in an account.
 func (e *Exchange) WsCancelTradeOrders(ctx context.Context, symbols []string, accountTypes []AccountType) ([]*WsCancelOrderResponse, error) {
 	args := make(map[string]any)
 	if len(symbols) > 0 {
@@ -84,6 +84,7 @@ func SendWebsocketRequest[T hasError](ctx context.Context,
 		Params: arg,
 	}
 
+	// Locks due to the endpoint not returning identifying packets so outbound subs and inbound responses can be matched.
 	e.spotSubMtx.Lock()
 	result, err := conn.SendMessageReturnResponse(ctx, sWebsocketPrivateEPL, input.ID, input)
 	e.spotSubMtx.Unlock()
