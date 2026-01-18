@@ -10815,7 +10815,7 @@
                         ],
                         "msg": "Success"
                     },
-                    "queryString": "",
+                    "queryString": "symbol=BTC_USDT_PERP",
                     "bodyParams": "",
                     "headers": {}
                 }

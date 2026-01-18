@@ -656,49 +656,49 @@ type OrderHistoryItem struct {
 
 // TradeOrder represents a trade order
 type TradeOrder struct {
-	ID             string        `json:"id"`
-	ClientOrderID  string        `json:"clientOrderId"`
-	Symbol         currency.Pair `json:"symbol"`
-	State          string        `json:"state"`
-	AccountType    string        `json:"accountType"`
-	Side           order.Side    `json:"side"`
-	Type           string        `json:"type"`
-	TimeInForce    TimeInForce   `json:"timeInForce"`
-	Price          types.Number  `json:"price"`
-	AveragePrice   types.Number  `json:"avgPrice"`
-	BaseAmount     types.Number  `json:"quantity"`
-	QuoteAmount    types.Number  `json:"amount"`
-	FilledQuantity types.Number  `json:"filledQuantity"`
-	FilledAmount   types.Number  `json:"filledAmount"`
-	CreateTime     types.Time    `json:"createTime"`
-	UpdateTime     types.Time    `json:"updateTime"`
-	OrderSource    string        `json:"orderSource"`
-	Loan           bool          `json:"loan"`
-	CancelReason   uint64        `json:"cancelReason"`
+	ID             string            `json:"id"`
+	ClientOrderID  string            `json:"clientOrderId"`
+	Symbol         currency.Pair     `json:"symbol"`
+	State          string            `json:"state"`
+	AccountType    string            `json:"accountType"`
+	Side           order.Side        `json:"side"`
+	Type           string            `json:"type"`
+	TimeInForce    order.TimeInForce `json:"timeInForce"`
+	Price          types.Number      `json:"price"`
+	AveragePrice   types.Number      `json:"avgPrice"`
+	BaseAmount     types.Number      `json:"quantity"`
+	QuoteAmount    types.Number      `json:"amount"`
+	FilledQuantity types.Number      `json:"filledQuantity"`
+	FilledAmount   types.Number      `json:"filledAmount"`
+	CreateTime     types.Time        `json:"createTime"`
+	UpdateTime     types.Time        `json:"updateTime"`
+	OrderSource    string            `json:"orderSource"`
+	Loan           bool              `json:"loan"`
+	CancelReason   uint64            `json:"cancelReason"`
 
 	statusResponse
 }
 
 // SmartOrder represents a smart order detail.
 type SmartOrder struct {
-	ID              string        `json:"id"`
-	ClientOrderID   string        `json:"clientOrderId"`
-	Symbol          currency.Pair `json:"symbol"`
-	State           string        `json:"state"`
-	AccountType     string        `json:"accountType"`
-	Side            order.Side    `json:"side"`
-	Type            string        `json:"type"`
-	TimeInForce     TimeInForce   `json:"timeInForce"`
-	Price           types.Number  `json:"price"`
-	ActivationPrice types.Number  `json:"activationPrice"`
-	BaseAmount      types.Number  `json:"quantity"`
-	QuoteAmount     types.Number  `json:"amount"`
-	StopPrice       types.Number  `json:"stopPrice"`
-	CreateTime      types.Time    `json:"createTime"`
-	UpdateTime      types.Time    `json:"updateTime"`
-	TrailingOffset  string        `json:"trailingOffset"`
-	LimitOffset     string        `json:"limitOffset"`
-	Operator        string        `json:"operator"`
+	ID              string            `json:"id"`
+	ClientOrderID   string            `json:"clientOrderId"`
+	Symbol          currency.Pair     `json:"symbol"`
+	State           string            `json:"state"`
+	AccountType     string            `json:"accountType"`
+	Side            order.Side        `json:"side"`
+	Type            string            `json:"type"`
+	TimeInForce     order.TimeInForce `json:"timeInForce"`
+	Price           types.Number      `json:"price"`
+	ActivationPrice types.Number      `json:"activationPrice"`
+	BaseAmount      types.Number      `json:"quantity"`
+	QuoteAmount     types.Number      `json:"amount"`
+	StopPrice       types.Number      `json:"stopPrice"`
+	CreateTime      types.Time        `json:"createTime"`
+	UpdateTime      types.Time        `json:"updateTime"`
+	TrailingOffset  string            `json:"trailingOffset"`
+	LimitOffset     string            `json:"limitOffset"`
+	Operator        string            `json:"operator"`
 }
 
 // CancelOrderResponse represents a cancel order response instance.
