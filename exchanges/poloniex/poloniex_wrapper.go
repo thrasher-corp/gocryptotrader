@@ -1026,7 +1026,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			LastUpdated:          resp.UpdateTime.Time(),
 			Pair:                 pair,
 			Trades:               orderTrades,
-			TimeInForce:          order.TimeInForce(resp.TimeInForce),
+			TimeInForce:          resp.TimeInForce,
 		}, nil
 	case asset.Futures:
 		fResults, err := e.GetFuturesOrderHistory(ctx, pair, order.UnknownSide, "", "", orderID, "", "", time.Time{}, time.Time{}, 0, 0)
@@ -1223,7 +1223,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				Price:       td.Price.Float64(),
 				Pair:        td.Symbol,
 				Exchange:    e.Name,
-				TimeInForce: order.TimeInForce(td.TimeInForce),
+				TimeInForce: td.TimeInForce,
 			})
 		}
 	case asset.Futures:
@@ -1360,7 +1360,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					AssetType:            assetType,
 					Date:                 tOrder.CreateTime.Time(),
 					LastUpdated:          tOrder.UpdateTime.Time(),
-					TimeInForce:          order.TimeInForce(tOrder.TimeInForce),
+					TimeInForce:          tOrder.TimeInForce,
 				}
 				detail.InferCostsAndTimes()
 				orders = append(orders, detail)
@@ -1412,7 +1412,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					AssetType:     assetType,
 					Date:          smartOrder.CreateTime.Time(),
 					LastUpdated:   smartOrder.UpdateTime.Time(),
-					TimeInForce:   order.TimeInForce(smartOrder.TimeInForce),
+					TimeInForce:   smartOrder.TimeInForce,
 				}
 				detail.InferCostsAndTimes()
 				orders = append(orders, detail)
