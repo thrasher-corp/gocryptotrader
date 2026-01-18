@@ -167,9 +167,10 @@ func TestFunctionsAndStructHandling(t *testing.T) {
 		}
 
 		err := app.Run(funcAndValue[a].args)
-		if funcAndValue[a].missingRequiredFlag != "" {
+		switch {
+		case funcAndValue[a].missingRequiredFlag != "":
 			require.ErrorContains(t, err, fmt.Sprintf("Required flag %q not set", funcAndValue[a].missingRequiredFlag))
-		} else if !errors.Is(err, os.ErrNotExist) {
+		case !errors.Is(err, os.ErrNotExist):
 			require.ErrorIs(t, err, funcAndValue[a].err)
 		}
 	}
