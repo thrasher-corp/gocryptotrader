@@ -3047,7 +3047,7 @@
                         "time": 1762186692324,
                         "ts": 1762186692370
                     },
-                    "queryString": "limit=100\u0026scale=1",
+                    "queryString": "limit=100\u0026scale=0.1",
                     "bodyParams": "",
                     "headers": {}
                 }

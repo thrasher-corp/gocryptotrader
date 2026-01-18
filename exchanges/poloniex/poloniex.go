@@ -47,11 +47,11 @@ var (
 type Exchange struct {
 	exchange.Base
 
-	/// The following mutexes exists to prevent concurrent `subscribe` and `unsubscribe` calls.
-	/// When both run asynchronously and fail, the server may return identical error
-	/// responses (e.g., `{ "event": "error", "message": "invalid symbol" }`), where
-	/// the exact message may vary. Such responses do not indicate which operation
-	/// failed, making synchronization necessary.
+	// The following mutexes exists to prevent concurrent `subscribe` and `unsubscribe` calls.
+	// When both run asynchronously and fail, the server may return identical error
+	// responses (e.g., `{ "event": "error", "message": "invalid symbol" }`), where
+	// the exact message may vary. Such responses do not indicate which operation
+	// failed, making synchronization necessary.
 	spotSubMtx    sync.Mutex
 	futuresSubMtx sync.Mutex
 }
