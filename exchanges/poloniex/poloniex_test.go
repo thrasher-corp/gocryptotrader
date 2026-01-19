@@ -988,11 +988,14 @@ func TestGetOrderbook(t *testing.T) {
 	_, err := e.GetOrderbook(t.Context(), currency.EMPTYPAIR, 0, 0)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	result, err := e.GetOrderbook(t.Context(), spotTradablePair, 0, 0)
+	spotPair, err := e.FormatExchangeCurrency(currency.NewPairWithDelimiter("BTC", "USDT", "_"), asset.Spot)
+	require.NoError(t, err)
+
+	result, err := e.GetOrderbook(t.Context(), spotPair, 0, 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = e.GetOrderbook(t.Context(), spotTradablePair, .1, 100)
+	result, err = e.GetOrderbook(t.Context(), spotPair, .0001, 100)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
