@@ -1135,8 +1135,8 @@ func TestWithdrawCrypto(t *testing.T) {
 	params.Crypto.Address = "1234567"
 	_, err = e.WithdrawCrypto(t.Context(), params)
 	assert.ErrorIs(t, err, errAmountValueMustBeGreaterThan0)
-	params.Amount = 1
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	params.Amount = -0.1
 	_, err = e.WithdrawCrypto(t.Context(), params)
 	assert.ErrorContains(t, err, "You are not authorized to execute this request.")
 }

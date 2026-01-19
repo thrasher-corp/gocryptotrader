@@ -1972,6 +1972,7 @@ func withdrawFiatFundsHelper(t *testing.T, fn withdrawFiatFunc) {
 	_, err = fn(t.Context(), &req)
 	assert.ErrorIs(t, err, errWalletIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	req.Amount = -0.1
 	req.WalletID = "meow"
 	req.Fiat.Bank.BankName = "GCT's Officially Fake and Not Real Test Bank"
 	_, err = fn(t.Context(), &req)

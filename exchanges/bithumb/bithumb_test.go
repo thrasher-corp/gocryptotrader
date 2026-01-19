@@ -473,7 +473,7 @@ func TestWithdrawFiat(t *testing.T) {
 			RequiresIntermediaryBank: false,
 			IsExpressWire:            false,
 		},
-		Amount:      10,
+		Amount:      -0.1,
 		Currency:    testPair.Quote,
 		Description: "BROKEN TEST WITHDRAWAL",
 	}

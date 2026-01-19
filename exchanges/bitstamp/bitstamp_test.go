@@ -581,7 +581,7 @@ func TestWithdraw(t *testing.T) {
 		Exchange:    e.Name,
 		Amount:      6,
 		Currency:    currency.BTC,
-		Description: "BROKEN TEST WITHDRAWAL",
+		Description: "WITHDRAW IT ALL",
 		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
 		},
@@ -619,9 +619,9 @@ func TestWithdrawFiat(t *testing.T) {
 			RequiresIntermediaryBank: false,
 			IsExpressWire:            false,
 		},
-		Amount:      10,
+		Amount:      -0.1,
 		Currency:    currency.USD,
-		Description: "WITHDRAW IT ALL",
+		Description: "BROKEN TEST WITHDRAWAL",
 	}
 
 	w, err := e.WithdrawFiatFunds(t.Context(), &withdrawFiatRequest)
@@ -668,9 +668,9 @@ func TestWithdrawInternationalBank(t *testing.T) {
 			IntermediaryBankName:          "Federal Reserve Bank",
 			IntermediaryBankPostalCode:    "2088",
 		},
-		Amount:      50,
+		Amount:      -0.1,
 		Currency:    currency.USD,
-		Description: "WITHDRAW IT ALL",
+		Description: "BROKEN TEST WITHDRAWAL",
 	}
 
 	w, err := e.WithdrawFiatFundsToInternationalBank(t.Context(),
