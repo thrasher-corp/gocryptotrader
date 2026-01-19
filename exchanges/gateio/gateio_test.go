@@ -108,7 +108,7 @@ func TestWithdraw(t *testing.T) {
 		Exchange:    e.Name,
 		Amount:      -0.1,
 		Currency:    currency.BTC,
-		Description: "BROKEN TEST WITHDRAWAL",
+		Description: "WITHDRAW IT ALL",
 		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
 			Chain:   cryptocurrencyChains[0],

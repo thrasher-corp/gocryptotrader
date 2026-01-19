@@ -469,7 +469,7 @@ func TestWithdraw(t *testing.T) {
 		},
 		Amount:        -1,
 		Currency:      currency.LTC,
-		Description:   "BROKEN TEST WITHDRAWAL",
+		Description:   "WITHDRAW IT ALL",
 		TradePassword: "Password",
 	}
 	if !mockTests {

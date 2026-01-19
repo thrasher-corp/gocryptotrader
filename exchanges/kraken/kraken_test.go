@@ -762,7 +762,7 @@ func TestWithdraw(t *testing.T) {
 		},
 		Amount:        -1,
 		Currency:      currency.XXBT,
-		Description:   "BROKEN TEST WITHDRAWAL",
+		Description:   "WITHDRAW IT ALL",
 		TradePassword: "Key",
 	}
 
@@ -783,7 +783,7 @@ func TestWithdrawFiat(t *testing.T) {
 	withdrawFiatRequest := withdraw.Request{
 		Amount:        -1,
 		Currency:      currency.EUR,
-		Description:   "BROKEN TEST WITHDRAWAL",
+		Description:   "WITHDRAW IT ALL",
 		TradePassword: "someBank",
 	}
 
@@ -803,7 +803,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	withdrawFiatRequest := withdraw.Request{
 		Amount:        -1,
 		Currency:      currency.EUR,
-		Description:   "BROKEN TEST WITHDRAWAL",
+		Description:   "WITHDRAW IT ALL",
 		TradePassword: "someBank",
 	}
 

@@ -1021,7 +1021,7 @@ func TestWithdraw(t *testing.T) {
 		Exchange:    e.Name,
 		Amount:      -1,
 		Currency:    currency.USDT,
-		Description: "BROKEN TEST WITHDRAWAL",
+		Description: "WITHDRAW IT ALL",
 		Crypto: withdraw.CryptoRequest{
 			Address: "0x1nv4l1d",
 			Chain:   "tetheruse",
@@ -1045,7 +1045,7 @@ func TestWithdrawFiat(t *testing.T) {
 	withdrawFiatRequest := withdraw.Request{
 		Amount:      -1,
 		Currency:    currency.USD,
-		Description: "BROKEN TEST WITHDRAWAL",
+		Description: "WITHDRAW IT ALL",
 		Fiat: withdraw.FiatRequest{
 			WireCurrency: currency.USD.String(),
 		},
@@ -1067,7 +1067,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 	withdrawFiatRequest := withdraw.Request{
 		Amount:      -1,
 		Currency:    currency.BTC,
-		Description: "BROKEN TEST WITHDRAWAL",
+		Description: "WITHDRAW IT ALL",
 		Fiat: withdraw.FiatRequest{
 			WireCurrency:                  currency.USD.String(),
 			RequiresIntermediaryBank:      true,
