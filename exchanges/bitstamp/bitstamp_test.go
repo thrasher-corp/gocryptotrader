@@ -623,6 +623,9 @@ func TestWithdrawFiat(t *testing.T) {
 		Currency:    currency.USD,
 		Description: "WITHDRAW IT ALL",
 	}
+	if mockTests {
+		withdrawFiatRequest.Amount = 10
+	}
 
 	w, err := e.WithdrawFiatFunds(t.Context(), &withdrawFiatRequest)
 	if mockTests {
