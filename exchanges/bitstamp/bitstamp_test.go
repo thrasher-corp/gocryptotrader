@@ -672,10 +672,14 @@ func TestWithdrawInternationalBank(t *testing.T) {
 		Currency:    currency.USD,
 		Description: "WITHDRAW IT ALL",
 	}
+	if mockTests {
+		withdrawFiatRequest.Amount = 50
+	}
 
 	w, err := e.WithdrawFiatFundsToInternationalBank(t.Context(),
 		&withdrawFiatRequest)
 	if mockTests {
+		require.NoError(t, err, "WithdrawFiatFundsToInternationalBank must not error")
 		assert.Equal(t, "1", w.ID, "Withdrawal ID should be correct")
 	} else {
 		require.NoError(t, err, "WithdrawFiatFundsToInternationalBank must not error")
