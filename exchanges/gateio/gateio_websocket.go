@@ -419,17 +419,6 @@ func (e *Exchange) processOrderbookUpdateWithSnapshot(conn websocket.Connection,
 		return err
 	}
 
-	asks := make([]orderbook.Level, len(data.Asks))
-	for x := range data.Asks {
-		asks[x].Price = data.Asks[x][0].Float64()
-		asks[x].Amount = data.Asks[x][1].Float64()
-	}
-	bids := make([]orderbook.Level, len(data.Bids))
-	for x := range data.Bids {
-		bids[x].Price = data.Bids[x][0].Float64()
-		bids[x].Amount = data.Bids[x][1].Float64()
-	}
-
 	channelParts := strings.Split(data.Channel, ".")
 	if len(channelParts) < 3 {
 		return fmt.Errorf("%w: %q", common.ErrMalformedData, data.Channel)
@@ -448,8 +437,8 @@ func (e *Exchange) processOrderbookUpdateWithSnapshot(conn websocket.Connection,
 			LastUpdated:  data.UpdateTime.Time(),
 			LastPushed:   lastPushed,
 			LastUpdateID: data.LastUpdateID,
-			Bids:         bids,
-			Asks:         asks,
+			Bids:         data.Bids.Levels(),
+			Asks:         data.Asks.Levels(),
 		}); err != nil {
 			return err
 		}
@@ -471,8 +460,8 @@ func (e *Exchange) processOrderbookUpdateWithSnapshot(conn websocket.Connection,
 		UpdateTime: data.UpdateTime.Time(),
 		LastPushed: lastPushed,
 		UpdateID:   data.LastUpdateID,
-		Bids:       bids,
-		Asks:       asks,
+		Bids:       data.Bids.Levels(),
+		Asks:       data.Asks.Levels(),
 		AllowEmpty: true,
 	})
 }

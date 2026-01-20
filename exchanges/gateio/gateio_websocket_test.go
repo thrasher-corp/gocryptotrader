@@ -298,6 +298,7 @@ func TestProcessOrderbookUpdateWithSnapshot(t *testing.T) {
 			payload: []byte(`{"t":1757377580073,"s":"ob.BTC_USDT.50","u":27053258987,"U":27053258982,"b":[["111666","0.146841"]],"a":[["111666.1","0.791633"],["111676.8","0.014"]]}`),
 		},
 	} {
+		// Sequential tests, do not use t.Parallel(); Some timestamps are deliberately identical from trading activity
 		err := e.processOrderbookUpdateWithSnapshot(conn, tc.payload, time.Now(), asset.Spot)
 		if tc.err != nil {
 			require.ErrorIs(t, err, tc.err)
