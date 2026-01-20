@@ -77,6 +77,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"fGetBillsDetails":                 fGetBillsDetailsEPL,
 		"fMarket":                          fMarketEPL,
 		"fCandlestick":                     fCandlestickEPL,
+		"fPremiumCandlestickEPL":           fPremiumCandlestickEPL,
 	}
 	rl, err := request.New("rateLimitTest2", http.DefaultClient, request.WithLimiter(rateLimits))
 	require.NoError(t, err, "request.New must not error")

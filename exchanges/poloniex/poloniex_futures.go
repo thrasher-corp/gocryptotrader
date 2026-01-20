@@ -549,7 +549,7 @@ func (e *Exchange) GetLiquidationOrder(ctx context.Context, symbol currency.Pair
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, common.EncodeURLValues(marketsPathV3+"liquidationOrder", params), &resp)
 }
 
-// GetFuturesMarket get the market information of trading pairs in the past 24 hours.
+// GetFuturesMarket gets the market information of trading pairs in the past 24 hours.
 func (e *Exchange) GetFuturesMarket(ctx context.Context, symbol currency.Pair) ([]*FuturesTickerDetails, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {
@@ -559,7 +559,7 @@ func (e *Exchange) GetFuturesMarket(ctx context.Context, symbol currency.Pair) (
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, common.EncodeURLValues(marketsPathV3+"tickers", params), &resp)
 }
 
-// GetFuturesIndexPrice get the current index price.
+// GetFuturesIndexPrice gets the current index price.
 func (e *Exchange) GetFuturesIndexPrice(ctx context.Context, symbol currency.Pair) (*InstrumentIndexPrice, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
@@ -570,13 +570,13 @@ func (e *Exchange) GetFuturesIndexPrice(ctx context.Context, symbol currency.Pai
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, common.EncodeURLValues(marketsPathV3+"indexPrice", params), &resp)
 }
 
-// GetFuturesIndexPrices get the current index price for all instruments
+// GetFuturesIndexPrices gets the current index price for all instruments
 func (e *Exchange) GetFuturesIndexPrices(ctx context.Context) ([]*InstrumentIndexPrice, error) {
 	var resp []*InstrumentIndexPrice
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, marketsPathV3+"indexPrice", &resp)
 }
 
-// GetIndexPriceComponents get the index price components for a trading pair.
+// GetIndexPriceComponents gets the index price components for a trading pair.
 func (e *Exchange) GetIndexPriceComponents(ctx context.Context, symbol currency.Pair) (*IndexPriceComponent, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
@@ -638,7 +638,7 @@ func (e *Exchange) getIndexPriceKlineData(ctx context.Context, symbol currency.P
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, epl, common.EncodeURLValues(marketsPathV3+path, params), &resp)
 }
 
-// GetFuturesMarkPrice get the current mark price.
+// GetFuturesMarkPrice gets the current mark price.
 func (e *Exchange) GetFuturesMarkPrice(ctx context.Context, symbol currency.Pair) (*FuturesMarkPrice, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
@@ -649,7 +649,7 @@ func (e *Exchange) GetFuturesMarkPrice(ctx context.Context, symbol currency.Pair
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, common.EncodeURLValues(marketsPathV3+"markPrice", params), &resp)
 }
 
-// GetFuturesMarkPrices get the current mark price for all instruments
+// GetFuturesMarkPrices gets the current mark price for all instruments
 func (e *Exchange) GetFuturesMarkPrices(ctx context.Context) ([]*FuturesMarkPrice, error) {
 	var resp []*FuturesMarkPrice
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, fMarketEPL, marketsPathV3+"markPrice", &resp)

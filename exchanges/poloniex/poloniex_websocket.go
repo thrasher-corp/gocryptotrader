@@ -175,7 +175,12 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		return e.processBalance(ctx, &result)
 	default:
 		if strings.HasPrefix(result.Channel, channelCandles) {
-			return e.processCandlestickData(&result)
+			splits := strings.Split(result.Channel, "_")
+			length := len(splits)
+			if length < 3 {
+				return fmt.Errorf("%w %q", kline.ErrInvalidInterval, result.Channel)
+			}
+			return e.processCandlestickData(&result, strings.Join(splits[length-2:], "_"))
 		}
 		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
 		return fmt.Errorf("%s unhandled message: %s", e.Name, string(respRaw))
@@ -362,7 +367,7 @@ func (e *Exchange) processTrades(result *SubscriptionResponse) error {
 	return trade.AddTradesToBuffer(trades...)
 }
 
-func (e *Exchange) processCandlestickData(result *SubscriptionResponse) error {
+func (e *Exchange) processCandlestickData(result *SubscriptionResponse, intervalString string) error {
 	var resp []*WsCandles
 	if err := json.Unmarshal(result.Data, &resp); err != nil {
 		return err
@@ -380,6 +385,7 @@ func (e *Exchange) processCandlestickData(result *SubscriptionResponse) error {
 			HighPrice:  r.High.Float64(),
 			LowPrice:   r.Low.Float64(),
 			Volume:     r.BaseAmount.Float64(),
+			Interval:   intervalString,
 		}
 	}
 	e.Websocket.DataHandler <- candles

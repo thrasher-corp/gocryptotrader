@@ -103,6 +103,7 @@ func (e *Exchange) SetDefaults() {
 				MultiChainWithdrawals: true,
 			},
 			WebsocketCapabilities: protocol.Features{
+				TickerBatching:         true,
 				TickerFetching:         true,
 				TradeFetching:          true,
 				OrderbookFetching:      true,
@@ -111,6 +112,8 @@ func (e *Exchange) SetDefaults() {
 				AuthenticatedEndpoints: true,
 				GetOrders:              true,
 				GetOrder:               true,
+				SubmitOrder:            true,
+				CancelOrder:            true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |
 				exchange.NoFiatWithdrawals,
@@ -234,7 +237,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	// Futures Public Connection
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                   wsFutures,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
@@ -254,7 +256,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	// Futures Private Connection
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                   wsFuturesPrivate,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
@@ -278,7 +279,6 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, assetType asset.Item)
 		if err != nil {
 			return nil, err
 		}
-
 		pairs := make([]currency.Pair, 0, len(resp))
 		for _, symbolDetail := range resp {
 			if !strings.EqualFold(symbolDetail.State, "NORMAL") {
@@ -371,8 +371,57 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
-func (e *Exchange) UpdateTicker(context.Context, currency.Pair, asset.Item) (*ticker.Price, error) {
-	return nil, common.ErrFunctionNotSupported
+func (e *Exchange) UpdateTicker(ctx context.Context, pair currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	switch assetType {
+	case asset.Spot:
+		tickerResult, err := e.GetTicker(ctx, pair)
+		if err != nil {
+			return nil, err
+		}
+		return &ticker.Price{
+			High:         tickerResult.High.Float64(),
+			Low:          tickerResult.Low.Float64(),
+			Bid:          tickerResult.Bid.Float64(),
+			BidSize:      tickerResult.BidQuantity.Float64(),
+			Ask:          tickerResult.Ask.Float64(),
+			AskSize:      tickerResult.AskQuantity.Float64(),
+			QuoteVolume:  tickerResult.QuoteAmount.Float64(),
+			Open:         tickerResult.Open.Float64(),
+			Close:        tickerResult.Close.Float64(),
+			MarkPrice:    tickerResult.MarkPrice.Float64(),
+			Pair:         tickerResult.Symbol,
+			ExchangeName: e.Name,
+			AssetType:    asset.Spot,
+			LastUpdated:  tickerResult.Timestamp.Time(),
+		}, nil
+	case asset.Futures:
+		tickerResult, err := e.GetFuturesMarket(ctx, pair)
+		if err != nil {
+			return nil, err
+		}
+		if len(tickerResult) != 1 {
+			return nil, common.ErrInvalidResponse
+		}
+		return &ticker.Price{
+			High:         tickerResult[0].HighPrice.Float64(),
+			Low:          tickerResult[0].LowPrice.Float64(),
+			Bid:          tickerResult[0].BestBidPrice.Float64(),
+			BidSize:      tickerResult[0].BestBidSize.Float64(),
+			Ask:          tickerResult[0].BestAskPrice.Float64(),
+			AskSize:      tickerResult[0].BestAskSize.Float64(),
+			Volume:       tickerResult[0].BaseAmount.Float64(),
+			QuoteVolume:  tickerResult[0].QuoteAmount.Float64(),
+			Open:         tickerResult[0].OpeningPrice.Float64(),
+			Close:        tickerResult[0].ClosingPrice.Float64(),
+			MarkPrice:    tickerResult[0].MarkPrice.Float64(),
+			Pair:         tickerResult[0].Symbol,
+			ExchangeName: e.Name,
+			AssetType:    asset.Futures,
+			LastUpdated:  tickerResult[0].Timestamp.Time(),
+		}, nil
+	default:
+		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, assetType)
+	}
 }
 
 func orderbookLevelFromSlice(data []types.Number) orderbook.Levels {

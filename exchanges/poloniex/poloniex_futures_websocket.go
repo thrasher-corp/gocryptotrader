@@ -31,28 +31,27 @@ const (
 
 const (
 	// Public channels
-	channelFuturesSymbol           = "symbol"
-	channelFuturesOrderbookLvl2    = "book_lv2"
-	channelFuturesOrderbook        = "book"
-	channelFuturesTickers          = "tickers"
-	channelFuturesTrades           = "trades"
-	channelFuturesIndexPrice       = "index_price"
-	channelFuturesMarkPrice        = "mark_price"
-	channelFuturesFundingRate      = "funding_rate"
-	channelFuturesMarkPriceCandles = "mark_price_candles"
-	channelFuturesMarkCandles      = "mark_candles"
-	channelFuturesCandles          = "candles"
-	channelFuturesIndexCandles     = "index_candles"
+	channelFuturesSymbol            = "symbol"
+	channelFuturesOrderbookLvl2     = "book_lv2"
+	channelFuturesOrderbook         = "book"
+	channelFuturesTickers           = "tickers"
+	channelFuturesTrades            = "trades"
+	channelFuturesIndexPrice        = "index_price"
+	channelFuturesMarkPrice         = "mark_price"
+	channelFuturesFundingRate       = "funding_rate"
+	channelFuturesMarkPriceCandles  = "mark_price_candles"
+	channelFuturesMarkCandles       = "mark_candles"
+	channelFuturesCandles           = "candles"
+	channelFuturesIndexCandles      = "index_candles"
+	channelFuturesLimitPrice        = "limit_price"
+	channelFuturesLiquidiationPrice = "liquidation_orders"
+	channelFuturesOpenInterest      = "open_interest"
 
 	// Authenticated channels
 	channelFuturesPrivatePositions = "positions"
 	channelFuturesPrivateOrders    = "orders"
 	channelFuturesPrivateTrades    = "trade"
 	channelFuturesAccount          = "account"
-
-	channelFuturesLimitPrice        = "limit_price"
-	channelFuturesLiquidiationPrice = "liquidation_orders"
-	channelFuturesOpenInterest      = "open_interest"
 )
 
 var (
@@ -171,7 +170,7 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 		e.Websocket.DataHandler <- resp
 		return nil
 	case channelFuturesMarkPrice:
-		var resp []*FuturesMarkPrice
+		var resp []*FuturesWebsocketMarkPrice
 		if err := json.Unmarshal(result.Data, &resp); err != nil {
 			return err
 		}
@@ -214,15 +213,17 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 		e.Websocket.DataHandler <- resp
 		return nil
 	default:
-		channel, interval, err := channelToIntervalSplit(result.Channel)
-		if err != nil {
-			return err
-		}
-		switch channel {
-		case channelFuturesMarkPriceCandles, channelFuturesMarkCandles, channelFuturesIndexCandles:
-			return e.processFuturesMarkAndIndexPriceCandlesticks(result.Data, interval)
-		case channelFuturesCandles:
-			return e.processFuturesCandlesticks(result.Data, interval)
+		if strings.Contains(result.Channel, "_") {
+			channel, interval, err := channelToIntervalSplit(result.Channel)
+			if err != nil {
+				return err
+			}
+			switch channel {
+			case channelFuturesMarkPriceCandles, channelFuturesMarkCandles, channelFuturesIndexCandles:
+				return e.processFuturesMarkAndIndexPriceCandlesticks(result.Data, interval)
+			case channelFuturesCandles:
+				return e.processFuturesCandlesticks(result.Data, interval)
+			}
 		}
 		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
 		return fmt.Errorf("%s unhandled message: %s", e.Name, string(respRaw))

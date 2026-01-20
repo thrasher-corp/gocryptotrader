@@ -493,6 +493,12 @@ func (v *FuturesIndexPriceData) UnmarshalJSON(data []byte) error {
 type FuturesMarkPrice struct {
 	MarkPrice types.Number  `json:"mPx"`
 	Symbol    currency.Pair `json:"s"`
+}
+
+// FuturesWebsocketMarkPrice represents a mark price instance for websocket response
+type FuturesWebsocketMarkPrice struct {
+	MarkPrice types.Number  `json:"mPx"`
+	Symbol    currency.Pair `json:"s"`
 	Timestamp types.Time    `json:"ts"`
 }
 
@@ -544,7 +550,7 @@ type WSProductDetail struct {
 	MaintenanceMarginRate types.Number  `json:"mM"`
 }
 
-// ProductDetail represents basic information of the all product
+// ProductDetail represents basic information of all products
 type ProductDetail struct {
 	Alias                 string        `json:"alias"`
 	BaseAsset             string        `json:"bAsset"`

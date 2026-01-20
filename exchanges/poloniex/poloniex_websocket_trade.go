@@ -38,7 +38,7 @@ func (e *Exchange) WsCancelMultipleOrdersByIDs(ctx context.Context, orderIDs, cl
 	}
 	resp, err := SendWebsocketRequest[*WsCancelOrderResponse](ctx, e, "cancelOrders", params)
 	if err != nil {
-		// Return resp,  which contains the full response including both
+		// Return resp, which contains the full response including both
 		// successful and failed cancellation attempts.
 		return resp, fmt.Errorf("%w: %w", order.ErrCancelFailed, err)
 	}
