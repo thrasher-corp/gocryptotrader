@@ -32,9 +32,7 @@ import (
 var deribitWebsocketAddress = "wss://www.deribit.com/ws" + deribitAPIVersion
 
 const (
-	rpcVersion    = "2.0"
-	rateLimit     = 20
-	errAuthFailed = 1002
+	rpcVersion = "2.0"
 
 	// public websocket channels
 	announcementsChannel                   = "announcements"
