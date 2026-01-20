@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"math"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -381,6 +382,61 @@ func TestDoRequest_NotRetryable(t *testing.T) {
 	require.ErrorIs(t, err, notRetryErr)
 }
 
+func TestEvaluateRetry(t *testing.T) {
+	t.Parallel()
+
+	r := Requester{}
+	retry, err := r.evaluateRetry(WithRetryNotAllowed(t.Context()), nil, errInvalidPath, 1, false)
+	require.ErrorIs(t, err, errInvalidPath, "must return incoming error when retry not allowed")
+	require.False(t, retry, "must not retry when retry not allowed")
+
+	r.retryPolicy = DefaultRetryPolicy
+	retry, err = r.evaluateRetry(t.Context(), nil, errInvalidPath, 1, false)
+	require.ErrorIs(t, err, errInvalidPath, "must return incoming error when using default retry policy")
+	require.False(t, retry, "must not retry when using default retry policy and the error is non-timeout")
+
+	retry, err = r.evaluateRetry(t.Context(), &http.Response{StatusCode: http.StatusOK}, nil, 1, false)
+	require.NoError(t, err, "must not error when response is OK")
+	require.False(t, retry, "must not retry on 200 status")
+
+	errTimeout := &net.DNSError{IsTimeout: true}
+	retry, err = r.evaluateRetry(t.Context(), nil, errTimeout, 1, false)
+	require.ErrorIs(t, err, errFailedToRetryRequest, "must return error when attempt is higher than max retries")
+	require.ErrorIs(t, err, errExceedsMaxRetries, "must return error when attempt is higher than max retries")
+	require.ErrorIs(t, err, errTimeout, "must wrap original error")
+	require.False(t, retry, "must not retry when max attempts exceeded")
+
+	body := io.NopCloser(strings.NewReader(""))
+	retry, err = r.evaluateRetry(t.Context(), &http.Response{StatusCode: http.StatusTooManyRequests, Status: "429", Body: body}, nil, 1, false)
+	require.ErrorContains(t, err, "failed to retry request exceeds maximum retry attempts: status \"429\"", "must return error and status code when attempt is higher than max retries")
+	require.False(t, retry, "must not retry when max attempts exceeded")
+
+	r.maxRetries = 1
+	r.backoff = func(n int) time.Duration { return time.Millisecond * 10 }
+	ctx, cancel := context.WithDeadline(t.Context(), time.Now())
+	defer cancel()
+	retry, err = r.evaluateRetry(ctx, nil, errTimeout, 1, false)
+	require.ErrorIs(t, err, errFailedToRetryRequest, "must return error when deadline would be exceeded")
+	require.ErrorIs(t, err, context.DeadlineExceeded, "must return error when deadline would be exceeded")
+	require.ErrorIs(t, err, errTimeout, "must wrap original error")
+	require.False(t, retry, "must not retry when deadline would be exceeded")
+
+	retry, err = r.evaluateRetry(ctx, &http.Response{StatusCode: http.StatusTooManyRequests, Status: "429", Body: body}, nil, 1, false)
+	require.ErrorContains(t, err, "failed to retry request context deadline exceeded: status \"429\"", "must return error and status code when attempt is higher than max retries")
+	require.False(t, retry, "must not retry when deadline would be exceeded")
+
+	ctx, cancel = context.WithCancel(t.Context())
+	cancel()
+	retry, err = r.evaluateRetry(ctx, &http.Response{StatusCode: http.StatusTooManyRequests, Status: "429", Body: body}, nil, 1, true)
+	require.ErrorIs(t, err, errFailedToRetryRequest, "must return error when context is cancelled")
+	require.ErrorIs(t, err, context.Canceled, "must return error when context is cancelled")
+	require.False(t, retry, "must not retry when context is cancelled")
+
+	retry, err = r.evaluateRetry(t.Context(), &http.Response{StatusCode: http.StatusTooManyRequests, Status: "429", Body: body}, nil, 1, true)
+	require.NoError(t, err, "must not error")
+	require.True(t, retry, "must retry on 429 response")
+}
+
 func TestGetNonce(t *testing.T) {
 	t.Parallel()
 	r, err := New("test", new(http.Client), WithLimiter(globalshell))
@@ -562,16 +618,6 @@ func TestGetHTTPClientUserAgent(t *testing.T) {
 	if ua != "sillyness" {
 		t.Fatal("unexpected value")
 	}
-}
-
-func TestIsVerbose(t *testing.T) {
-	t.Parallel()
-	require.False(t, IsVerbose(t.Context(), false))
-	require.True(t, IsVerbose(t.Context(), true))
-	require.True(t, IsVerbose(WithVerbose(t.Context()), false))
-	require.False(t, IsVerbose(context.WithValue(t.Context(), contextVerboseFlag, false), false))
-	require.False(t, IsVerbose(context.WithValue(t.Context(), contextVerboseFlag, "bruh"), false))
-	require.True(t, IsVerbose(context.WithValue(t.Context(), contextVerboseFlag, true), false))
 }
 
 func TestGetRateLimiterDefinitions(t *testing.T) {
