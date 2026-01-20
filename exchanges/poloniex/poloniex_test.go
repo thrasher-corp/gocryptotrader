@@ -1604,7 +1604,7 @@ func TestPlaceBatchOrders(t *testing.T) {
 		return pair
 	}
 
-	// sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.PlaceBatchOrders(t.Context(), []PlaceOrderRequest{
 		{
 			Symbol:        pair,
