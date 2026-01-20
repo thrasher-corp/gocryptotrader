@@ -463,8 +463,10 @@ func (e *Exchange) processOrderbookUpdateWithSnapshot(conn websocket.Connection,
 
 	lastUpdateID, err := e.Websocket.Orderbook.LastUpdateID(pair, a)
 
-	if lastUpdateID+1 == data.FirstUpdateID {
-		if err = e.Websocket.Orderbook.Update(&orderbook.Update{
+		if lastUpdateID+1 != data.FirstUpdateID {
+			return common.AppendError(err, e.wsOBResubMgr.Resubscribe(e, conn, data.Channel, pair, a))
+		}
+		return e.Websocket.Orderbook.Update(&orderbook.Update{
 			Pair:       pair,
 			Asset:      a,
 			UpdateTime: data.UpdateTime.Time(),
@@ -473,12 +475,7 @@ func (e *Exchange) processOrderbookUpdateWithSnapshot(conn websocket.Connection,
 			Bids:       bids,
 			Asks:       asks,
 			AllowEmpty: true,
-		}); err == nil {
-			return nil
-		}
-	}
-
-	return common.AppendError(err, e.wsOBResubMgr.Resubscribe(e, conn, data.Channel, pair, a))
+		})
 }
 
 func (e *Exchange) processSpotOrders(data []byte) error {
