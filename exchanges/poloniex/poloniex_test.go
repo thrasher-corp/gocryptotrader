@@ -2037,11 +2037,11 @@ func TestHandleSubscription(t *testing.T) {
 }
 
 var pushMessages = []*struct {
-	label     string
-	payload   string
-	auth      bool
-	err       error
-	errString string
+	label          string
+	payload        string
+	auth           bool
+	err            error
+	errExplanation string
 }{
 	{label: "Symbols", payload: `{"channel":"symbols","data":[{"symbol":"BTC_USDC","baseCurrencyName":"BTC","quoteCurrencyName":"USDT","displayName":"BTC/USDT","state":"NORMAL","visibleStartTime":1659018819512,"tradableStartTime":1659018819512,"crossMargin":{"supportCrossMargin":true,"maxLeverage":"3"},"symbolTradeLimit":{"symbol":"BTC_USDT","priceScale":2,"quantityScale":6,"amountScale":2,"minQuantity":"0.000001","minAmount":"1","highestBid":"0","lowestAsk":"0"}}],"action":"snapshot"}`},
 	{label: "Currencies", payload: `{"channel":"currencies","data":[{"currency":"BTC","id":28,"name":"Bitcoin","description":"BTC Clone","type":"address","withdrawalFee":"0.0008","minConf":2,"depositAddress":null,"blockchain":"BTC","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":true,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":["BTCTRON"]},{"currency":"XRP","id":243,"name":"XRP","description":"Payment ID","type":"address-payment-id","withdrawalFee":"0.2","minConf":2,"depositAddress":"rwU8rAiE2eyEPz3sikfbHuqCuiAtdXqa2v","blockchain":"XRP","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":false,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":[]},{"currency":"ETH","id":267,"name":"Ethereum","description":"Sweep to Main Account","type":"address","withdrawalFee":"0.00197556","minConf":64,"depositAddress":null,"blockchain":"ETH","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":true,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":["ETHTRON"]},{"currency":"USDT","id":214,"name":"Tether USD","description":"Sweep to Main Account","type":"address","withdrawalFee":"0","minConf":2,"depositAddress":null,"blockchain":"OMNI","delisted":false,"tradingState":"NORMAL","walletState":"DISABLED","parentChain":null,"isMultiChain":true,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":["USDTETH","USDTTRON"]},{"currency":"DOGE","id":59,"name":"Dogecoin","description":"BTC Clone","type":"address","withdrawalFee":"20","minConf":6,"depositAddress":null,"blockchain":"DOGE","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":true,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":["DOGETRON"]},{"currency":"LTC","id":125,"name":"Litecoin","description":"BTC Clone","type":"address","withdrawalFee":"0.001","minConf":4,"depositAddress":null,"blockchain":"LTC","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":true,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":["LTCTRON"]},{"currency":"DASH","id":60,"name":"Dash","description":"BTC Clone","type":"address","withdrawalFee":"0.01","minConf":20,"depositAddress":null,"blockchain":"DASH","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":false,"isChildChain":false,"supportCollateral":false,"supportBorrow":false,"childChains":[]}],"action":"snapshot"}`},
@@ -2053,8 +2053,8 @@ var pushMessages = []*struct {
 	{label: "Orders", payload: `{"channel": "orders", "data": [{"symbol": "BTC_USDC", "type": "LIMIT", "quantity": "1", "orderId": "32471407854219264", "tradeFee": "0", "clientOrderId": "", "accountType": "SPOT", "feeCurrency": "", "eventType": "place", "source": "API", "side": "BUY", "filledQuantity": "0", "filledAmount": "0", "matchRole": "MAKER", "state": "NEW", "tradeTime": 0, "tradeAmount": "0", "orderAmount": "0", "createTime": 1648708186922, "price": "47112.1", "tradeQty": "0", "tradePrice": "0", "tradeId": "0", "ts": 1648708187469}]}`, auth: true},
 	{label: "Account Balance", payload: `{ "channel": "balances", "data": [{ "changeTime": 1657312008411, "accountId": "1234", "accountType": "SPOT", "eventType": "place_order", "available": "9999999983.668", "currency": "BTC", "id": 60018450912695040, "userId": 12345, "hold": "16.332", "ts": 1657312008443 }] }`, auth: true},
 	{label: "Exchange", payload: `{"channel": "exchange", "action" : "snapshot", "data": [ { "MM"   :  "ON", "POM"  :  "OFF" } ] }`},
-	{label: "Unmarshal Error", payload: `{"channel":"abc","data":[]`, errString: "unexpected end of JSON input"},
-	{label: "Unhandled Channel", payload: `{"channel":"abc","data":[]}`, errString: "unhandled message"},
+	{label: "Unmarshal Error", payload: `{"channel":"abc","data":[]`, errExplanation: "Unexpected JSON input error"},
+	{label: "Unhandled Channel", payload: `{"channel":"abc","data":[]}`, errExplanation: "Unhandled channel message"},
 }
 
 func TestWsHandleData(t *testing.T) {
@@ -2069,10 +2069,10 @@ func TestWsHandleData(t *testing.T) {
 				sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 			}
 			err := e.wsHandleData(generateContext(t), e.Websocket.Conn, []byte(p.payload))
-			if p.errString == "" {
+			if p.errExplanation == "" {
 				assert.ErrorIs(t, err, p.err)
 			} else {
-				assert.ErrorContains(t, err, p.errString)
+				assert.Error(t, err, p.errExplanation)
 			}
 		})
 	}
@@ -2270,46 +2270,46 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 }
 
 var futuresPushDataMap = []struct {
-	k         string
-	v         string
-	err       error
-	errString string
+	label          string
+	payload        string
+	err            error
+	errExplanation string
 }{
-	{k: "Symbols", v: `{"channel": "symbol", "data": [ { "symbol": "BTC_USDT_PERP", "visibleStartTime": "1584721775000", "tradableStartTime": "1584721775000", "pxScale": "0.01,0.1,1,10,100", "lotSz": 1, "minSz": 1, "ctVal": "0.001", "status": "OPEN", "maxPx": "1000000", "minPx": "0.01", "marketMaxQty": 100000, "limitMaxQty": 100000, "maxQty": "1000000", "minQty": "1", "maxLever": "75", "lever": "20", "ctType": "LINEAR", "alias": "", "bAsset": ".PXBTUSDT", "bCcy": "BTC", "qCcy": "USDT", "sCcy": "USDT", "tSz": "0.01", "oDate": "1547435912000", "iM": "0.0133", "mR": "5000", "mM": "0.006" } ], "action": "snapshot" }`},
-	{k: "Product Info", v: `{"channel": "symbol", "data":[{"symbol": "BTC_USDT_PERP", "visibleStartTime": "1584721775000", "tradableStartTime": "1584721775000", "pxScale": "0.01,0.1,1,10,100", "lotSz": 1, "minSz": 1, "ctVal": "0.001", "status": "OPEN", "maxPx": "1000000", "minPx": "0.01", "marketMaxQty": 100000, "limitMaxQty": 100000, "maxQty": "1000000", "minQty": "1", "maxLever": "75", "lever": "20", "ctType": "LINEAR", "alias": "", "bAsset": ".PXBTUSDT", "bCcy": "BTC", "qCcy": "USDT", "sCcy": "USDT", "tSz": "0.01","oDate": "1547435912000", "iM": "0.0133", "mR": "5000", "mM": "0.006" } ], "action": "snapshot"}`},
-	{k: "Orderbook", v: `{"channel":"book","data":[{"asks":[["87854.92","9"],["87854.93","1"],["87861.31","1"],["87864.51","530"],["87866.84","21"]],"bids":[["87851.73","1"],["87851.72","1"],["87811.92","158"],["87810.84","9"],["87809.78","446"]],"id":3206990058,"ts":1765921966039,"s":"BTC_USDT_PERP","cT":1765921965951}]}`},
-	{k: "K-Line Data", v: `{"channel": "candles_minute_1", "data": [ ["BTC_USDT_PERP","91883.46","91958.73","91883.46","91958.73","367.68438","4",2,1741243200000,1741243259999,1741243218348]]}`},
-	{k: "K-Line Five Min Data", v: `{"channel": "candles_minute_5", "data": [ ["BTC_USDT_PERP","91883.46","91958.73","91883.46","91958.73","367.68438","4",2,1741243200000,1741243259999,1741243218348]]}`},
-	{k: "Err K-Line Five Min Data", v: `{"channel": "candles_minute5", "data": [ ["BTC_USDT_PERP","91883.46","91958.73","91883.46","91958.73","367.68438","4",2,1741243200000,1741243259999,1741243218348]]}`, err: kline.ErrInvalidInterval},
-	{k: "Tickers", v: `{"channel": "tickers", "data": [ { "s": "BTC_USDT_PERP", "o": "46000", "l": "26829.541", "h": "46100", "c": "46100", "qty": "18736", "amt": "8556118.81658", "tC": 44, "sT": 1718785800000, "cT": 1718872244268, "dC": "0.0022", "bPx": "46000", "bSz": "46000", "aPx": "46100", "aSz": "9279", "ts": 1718872247385}]}`},
-	{k: "Trades", v: `{"channel":"trades", "data": [ { "id": 291, "ts": 1718871802553, "s": "BTC_USDT_PERP", "px": "46100", "qty": "1", "amt": "461", "side": "buy", "cT": 1718871802534}]}`},
-	{k: "Index Price", v: `{"channel": "index_price", "data": [ { "ts": 1719226453000, "s": "BTC_USDT_PERP", "iPx": "34400"}]}`},
-	{k: "Mark Price", v: `{"channel":"mark_price", "data": [ { "ts": 1719226453000, "s": "BTC_USDT_PERP", "mPx": "34400"}]}`},
-	{k: "Mark Price K-line Data", v: `{"channel": "mark_price_candles_minute_1", "data": [["BTC_USDT_PERP","57800.17","57815.95","57809.65","57800.17",1725264900000,1725264959999,1725264919140]]}`},
-	{k: "Index Price K-line Data", v: `{"channel": "index_candles_minute_1", "data": [ ["BTC_USDT_PERP","57520.09","57614.9","57520.09","57609.89",1725248760000,1725248819999,1725248813187]]}`},
-	{k: "Funding Rate", v: `{"channel":"funding_rate", "data": [ { "ts": 1718874420000, "s": "BTC_USDT_PERP", "nFR": "0.000003", "fR": "0.000619", "fT": 1718874000000, "nFT": 1718874900000}]}`},
-	{k: "Positions", v: `{"channel":"positions", "data": [ { "symbol": "BTC_USDT_PERP", "posSide": "BOTH", "side": "buy", "mgnMode": "CROSS", "openAvgPx": "64999", "qty": "1", "oldQty": "0", "availQty": "1", "lever": 1, "fee": "-0.259996", "adl": "0", "liqPx": "-965678126.114070339063390145", "mgn": "604.99", "im": "604.99", "mm": "3.327445", "upl": "-45", "uplRatio": "-0.0743", "pnl": "0", "markPx": "60499", "mgnRatio": "0.000007195006959591", "state": "NORMAL", "ffee": "0", "fpnl": "0", "cTime": 1723459553457, "uTime": 1725330697439, "ts": 1725330697459}]}`},
-	{k: "Orders", v: `{"channel": "orders", "data": [ { "symbol": "BTC_USDT_PERP", "side": "BUY", "type": "LIMIT", "mgnMode": "CROSS", "timeInForce": "GTC", "clOrdId": "polo353849510130364416", "sz": "1", "px": "64999", "reduceOnly": false, "posSide": "BOTH", "ordId": "353849510130364416", "state": "NEW", "source": "WEB", "avgPx": "0", "execQty": "0", "execAmt": "0", "feeCcy": "", "feeAmt": "0", "deductCcy": "", "deductAmt": "0", "actType": "TRADING", "qCcy": "USDT", "cTime": 1725330697421, "uTime": 1725330697421, "ts": 1725330697451}]}`},
-	{k: "Trade", v: `{"channel": "trade", "data": [ { "symbol": "BTC_USDT_PERP", "side": "BUY", "ordId": "353849510130364416", "clOrdId": "polo353849510130364416", "role": "TAKER", "trdId": "48", "feeCcy": "USDT", "feeAmt": "0.259996", "deductCcy": "", "deductAmt": "0", "fpx": "64999", "fqty": "1", "uTime": 1725330697559, "ts": 1725330697579}]}`},
-	{k: "Account Change", v: `{"channel": "account", "data": [ { "state": "NORMAL", "eq": "9604385.495986629521985415", "isoEq": "0", "im": "281.27482", "mm": "65.7758462", "mmr": "0.000006848522086861", "upl": "702.005423182573616772", "availMgn": "9604104.221166629521985415", "details": [ { "ccy": "USDT", "eq": "9604385.495986629521985415", "isoEq": "0", "avail": "9603683.490563446948368643", "upl": "702.005423182573616772", "isoAvail": "0", "isoHold": "0", "isoUpl": "0", "im": "281.27482", "imr": "0.000029286081875569", "mm": "65.7758462", "mmr": "0.000006848522086861", "cTime": 1723431998599, "uTime": 1725329576649 } ], "cTime": 1689326308656, "uTime": 1725329576649, "ts": 1725329576659}]}`},
-	{k: "Open Interest", v: `{"channel": "open_interest", "data": [ { "s": "BTC_USDT_PERP", "oInterest": "19774.000000000000000000", "ts": 1747296831379 } ], "action": "snapshot"}`},
-	{k: "Liquidiation Price", v: `{"channel": "liquidation_orders", "data": [ { "s": "BTC_USDT_PERP", "side": "BUY", "posSide": "BOTH", "sz": "1", "bkPx": "94120.8368032", "uTime": 1739367328421, "ts": 1739367328446}]}`},
-	{k: "Limit Price", v: `{"channel": "limit_price", "data": [ { "ts": 1739346571315, "s": "BTC_USDT_PERP", "buyLmt": "100790.67", "sellLmt": "91191.57" } ], "action": "update" }`},
-	{k: "Unmarshal Error", v: `{"channel":"abc","data":[]`, errString: "unexpected end of JSON input"},
-	{k: "Unhandled Channel", v: `{"channel":"abc","data":[]}`, errString: "unhandled message"},
-	{k: "Ping", v: `{"event": "ping"}`},
+	{label: "Symbols", payload: `{"channel": "symbol", "data": [ { "symbol": "BTC_USDT_PERP", "visibleStartTime": "1584721775000", "tradableStartTime": "1584721775000", "pxScale": "0.01,0.1,1,10,100", "lotSz": 1, "minSz": 1, "ctVal": "0.001", "status": "OPEN", "maxPx": "1000000", "minPx": "0.01", "marketMaxQty": 100000, "limitMaxQty": 100000, "maxQty": "1000000", "minQty": "1", "maxLever": "75", "lever": "20", "ctType": "LINEAR", "alias": "", "bAsset": ".PXBTUSDT", "bCcy": "BTC", "qCcy": "USDT", "sCcy": "USDT", "tSz": "0.01", "oDate": "1547435912000", "iM": "0.0133", "mR": "5000", "mM": "0.006" } ], "action": "snapshot" }`},
+	{label: "Product Info", payload: `{"channel": "symbol", "data":[{"symbol": "BTC_USDT_PERP", "visibleStartTime": "1584721775000", "tradableStartTime": "1584721775000", "pxScale": "0.01,0.1,1,10,100", "lotSz": 1, "minSz": 1, "ctVal": "0.001", "status": "OPEN", "maxPx": "1000000", "minPx": "0.01", "marketMaxQty": 100000, "limitMaxQty": 100000, "maxQty": "1000000", "minQty": "1", "maxLever": "75", "lever": "20", "ctType": "LINEAR", "alias": "", "bAsset": ".PXBTUSDT", "bCcy": "BTC", "qCcy": "USDT", "sCcy": "USDT", "tSz": "0.01","oDate": "1547435912000", "iM": "0.0133", "mR": "5000", "mM": "0.006" } ], "action": "snapshot"}`},
+	{label: "Orderbook", payload: `{"channel":"book","data":[{"asks":[["87854.92","9"],["87854.93","1"],["87861.31","1"],["87864.51","530"],["87866.84","21"]],"bids":[["87851.73","1"],["87851.72","1"],["87811.92","158"],["87810.84","9"],["87809.78","446"]],"id":3206990058,"ts":1765921966039,"s":"BTC_USDT_PERP","cT":1765921965951}]}`},
+	{label: "K-Line Data", payload: `{"channel": "candles_minute_1", "data": [ ["BTC_USDT_PERP","91883.46","91958.73","91883.46","91958.73","367.68438","4",2,1741243200000,1741243259999,1741243218348]]}`},
+	{label: "K-Line Five Min Data", payload: `{"channel": "candles_minute_5", "data": [ ["BTC_USDT_PERP","91883.46","91958.73","91883.46","91958.73","367.68438","4",2,1741243200000,1741243259999,1741243218348]]}`},
+	{label: "Err K-Line Five Min Data", payload: `{"channel": "candles_minute5", "data": [ ["BTC_USDT_PERP","91883.46","91958.73","91883.46","91958.73","367.68438","4",2,1741243200000,1741243259999,1741243218348]]}`, err: kline.ErrInvalidInterval},
+	{label: "Tickers", payload: `{"channel": "tickers", "data": [ { "s": "BTC_USDT_PERP", "o": "46000", "l": "26829.541", "h": "46100", "c": "46100", "qty": "18736", "amt": "8556118.81658", "tC": 44, "sT": 1718785800000, "cT": 1718872244268, "dC": "0.0022", "bPx": "46000", "bSz": "46000", "aPx": "46100", "aSz": "9279", "ts": 1718872247385}]}`},
+	{label: "Trades", payload: `{"channel":"trades", "data": [ { "id": 291, "ts": 1718871802553, "s": "BTC_USDT_PERP", "px": "46100", "qty": "1", "amt": "461", "side": "buy", "cT": 1718871802534}]}`},
+	{label: "Index Price", payload: `{"channel": "index_price", "data": [ { "ts": 1719226453000, "s": "BTC_USDT_PERP", "iPx": "34400"}]}`},
+	{label: "Mark Price", payload: `{"channel":"mark_price", "data": [ { "ts": 1719226453000, "s": "BTC_USDT_PERP", "mPx": "34400"}]}`},
+	{label: "Mark Price K-line Data", payload: `{"channel": "mark_price_candles_minute_1", "data": [["BTC_USDT_PERP","57800.17","57815.95","57809.65","57800.17",1725264900000,1725264959999,1725264919140]]}`},
+	{label: "Index Price K-line Data", payload: `{"channel": "index_candles_minute_1", "data": [ ["BTC_USDT_PERP","57520.09","57614.9","57520.09","57609.89",1725248760000,1725248819999,1725248813187]]}`},
+	{label: "Funding Rate", payload: `{"channel":"funding_rate", "data": [ { "ts": 1718874420000, "s": "BTC_USDT_PERP", "nFR": "0.000003", "fR": "0.000619", "fT": 1718874000000, "nFT": 1718874900000}]}`},
+	{label: "Positions", payload: `{"channel":"positions", "data": [ { "symbol": "BTC_USDT_PERP", "posSide": "BOTH", "side": "buy", "mgnMode": "CROSS", "openAvgPx": "64999", "qty": "1", "oldQty": "0", "availQty": "1", "lever": 1, "fee": "-0.259996", "adl": "0", "liqPx": "-965678126.114070339063390145", "mgn": "604.99", "im": "604.99", "mm": "3.327445", "upl": "-45", "uplRatio": "-0.0743", "pnl": "0", "markPx": "60499", "mgnRatio": "0.000007195006959591", "state": "NORMAL", "ffee": "0", "fpnl": "0", "cTime": 1723459553457, "uTime": 1725330697439, "ts": 1725330697459}]}`},
+	{label: "Orders", payload: `{"channel": "orders", "data": [ { "symbol": "BTC_USDT_PERP", "side": "BUY", "type": "LIMIT", "mgnMode": "CROSS", "timeInForce": "GTC", "clOrdId": "polo353849510130364416", "sz": "1", "px": "64999", "reduceOnly": false, "posSide": "BOTH", "ordId": "353849510130364416", "state": "NEW", "source": "WEB", "avgPx": "0", "execQty": "0", "execAmt": "0", "feeCcy": "", "feeAmt": "0", "deductCcy": "", "deductAmt": "0", "actType": "TRADING", "qCcy": "USDT", "cTime": 1725330697421, "uTime": 1725330697421, "ts": 1725330697451}]}`},
+	{label: "Trade", payload: `{"channel": "trade", "data": [ { "symbol": "BTC_USDT_PERP", "side": "BUY", "ordId": "353849510130364416", "clOrdId": "polo353849510130364416", "role": "TAKER", "trdId": "48", "feeCcy": "USDT", "feeAmt": "0.259996", "deductCcy": "", "deductAmt": "0", "fpx": "64999", "fqty": "1", "uTime": 1725330697559, "ts": 1725330697579}]}`},
+	{label: "Account Change", payload: `{"channel": "account", "data": [ { "state": "NORMAL", "eq": "9604385.495986629521985415", "isoEq": "0", "im": "281.27482", "mm": "65.7758462", "mmr": "0.000006848522086861", "upl": "702.005423182573616772", "availMgn": "9604104.221166629521985415", "details": [ { "ccy": "USDT", "eq": "9604385.495986629521985415", "isoEq": "0", "avail": "9603683.490563446948368643", "upl": "702.005423182573616772", "isoAvail": "0", "isoHold": "0", "isoUpl": "0", "im": "281.27482", "imr": "0.000029286081875569", "mm": "65.7758462", "mmr": "0.000006848522086861", "cTime": 1723431998599, "uTime": 1725329576649 } ], "cTime": 1689326308656, "uTime": 1725329576649, "ts": 1725329576659}]}`},
+	{label: "Open Interest", payload: `{"channel": "open_interest", "data": [ { "s": "BTC_USDT_PERP", "oInterest": "19774.000000000000000000", "ts": 1747296831379 } ], "action": "snapshot"}`},
+	{label: "Liquidiation Price", payload: `{"channel": "liquidation_orders", "data": [ { "s": "BTC_USDT_PERP", "side": "BUY", "posSide": "BOTH", "sz": "1", "bkPx": "94120.8368032", "uTime": 1739367328421, "ts": 1739367328446}]}`},
+	{label: "Limit Price", payload: `{"channel": "limit_price", "data": [ { "ts": 1739346571315, "s": "BTC_USDT_PERP", "buyLmt": "100790.67", "sellLmt": "91191.57" } ], "action": "update" }`},
+	{label: "Unmarshal Error", payload: `{"channel":"abc","data":[]`, errExplanation: "Unexpected JSON input error"},
+	{label: "Unhandled Channel", payload: `{"channel":"abc","data":[]}`, errExplanation: "Unhandled channel message"},
+	{label: "Ping", payload: `{"event": "ping"}`},
 }
 
 func TestWsFuturesHandleData(t *testing.T) {
 	t.Parallel()
 	for _, data := range futuresPushDataMap {
-		t.Run(data.k, func(t *testing.T) {
+		t.Run(data.label, func(t *testing.T) {
 			t.Parallel()
-			err := e.wsFuturesHandleData(t.Context(), e.Websocket.Conn, []byte(data.v))
-			if data.errString == "" {
+			err := e.wsFuturesHandleData(t.Context(), e.Websocket.Conn, []byte(data.payload))
+			if data.errExplanation == "" {
 				assert.ErrorIs(t, err, data.err)
 			} else {
-				assert.ErrorContains(t, err, data.errString)
+				assert.Error(t, err, data.errExplanation)
 			}
 		})
 	}
