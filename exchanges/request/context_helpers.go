@@ -2,9 +2,7 @@ package request
 
 import "context"
 
-const (
-	contextVerboseFlag verbosity = "verbose"
-)
+const contextVerboseFlag verbosity = "verbose"
 
 type verbosity string
 

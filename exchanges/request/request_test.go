@@ -412,7 +412,7 @@ func TestEvaluateRetry(t *testing.T) {
 	require.False(t, retry, "must not retry when max attempts exceeded")
 
 	r.maxRetries = 1
-	r.backoff = func(n int) time.Duration { return time.Millisecond * 10 }
+	r.backoff = func(int) time.Duration { return time.Millisecond * 10 }
 	ctx, cancel := context.WithDeadline(t.Context(), time.Now())
 	defer cancel()
 	retry, err = r.evaluateRetry(ctx, nil, errTimeout, 1, false)
