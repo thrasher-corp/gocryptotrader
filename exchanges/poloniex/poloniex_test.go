@@ -585,7 +585,7 @@ func TestModifyOrder(t *testing.T) {
 
 	arg.TimeInForce = order.GoodTillTime
 	arg.Type = order.StopLimit
-	result, err = e.ModifyOrder(t.Context(), arg)
+	_, err = e.ModifyOrder(t.Context(), arg)
 	assert.ErrorIs(t, err, order.ErrInvalidTimeInForce)
 }
 
