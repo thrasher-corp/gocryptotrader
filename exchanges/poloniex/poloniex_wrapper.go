@@ -378,7 +378,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, pair currency.Pair, assetTy
 		if err != nil {
 			return nil, err
 		}
-		return &ticker.Price{
+		if err := ticker.ProcessTicker(&ticker.Price{
 			High:         tickerResult.High.Float64(),
 			Low:          tickerResult.Low.Float64(),
 			Bid:          tickerResult.Bid.Float64(),
@@ -393,7 +393,10 @@ func (e *Exchange) UpdateTicker(ctx context.Context, pair currency.Pair, assetTy
 			ExchangeName: e.Name,
 			AssetType:    asset.Spot,
 			LastUpdated:  tickerResult.Timestamp.Time(),
-		}, nil
+		}); err != nil {
+			return nil, err
+		}
+		return ticker.GetTicker(e.Name, pair, assetType)
 	case asset.Futures:
 		tickerResult, err := e.GetFuturesMarket(ctx, pair)
 		if err != nil {
@@ -402,7 +405,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, pair currency.Pair, assetTy
 		if len(tickerResult) != 1 {
 			return nil, common.ErrInvalidResponse
 		}
-		return &ticker.Price{
+		if err := ticker.ProcessTicker(&ticker.Price{
 			High:         tickerResult[0].HighPrice.Float64(),
 			Low:          tickerResult[0].LowPrice.Float64(),
 			Bid:          tickerResult[0].BestBidPrice.Float64(),
@@ -418,7 +421,10 @@ func (e *Exchange) UpdateTicker(ctx context.Context, pair currency.Pair, assetTy
 			ExchangeName: e.Name,
 			AssetType:    asset.Futures,
 			LastUpdated:  tickerResult[0].Timestamp.Time(),
-		}, nil
+		}); err != nil {
+			return nil, err
+		}
+		return ticker.GetTicker(e.Name, pair, assetType)
 	default:
 		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, assetType)
 	}
