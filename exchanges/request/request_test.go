@@ -406,8 +406,7 @@ func TestEvaluateRetry(t *testing.T) {
 	require.ErrorIs(t, err, errTimeout, "must wrap original error")
 	require.False(t, retry, "must not retry when max attempts exceeded")
 
-	body := io.NopCloser(strings.NewReader(""))
-	retry, err = r.evaluateRetry(t.Context(), &http.Response{StatusCode: http.StatusTooManyRequests, Status: "429", Body: body}, nil, 1, false)
+	retry, err = r.evaluateRetry(t.Context(), &http.Response{StatusCode: http.StatusTooManyRequests, Status: "429", Body: io.NopCloser(strings.NewReader(""))}, nil, 1, false)
 	require.ErrorContains(t, err, "failed to retry request exceeds maximum retry attempts: status \"429\"", "must return error and status code when attempt is higher than max retries")
 	require.False(t, retry, "must not retry when max attempts exceeded")
 
@@ -421,18 +420,18 @@ func TestEvaluateRetry(t *testing.T) {
 	require.ErrorIs(t, err, errTimeout, "must wrap original error")
 	require.False(t, retry, "must not retry when deadline would be exceeded")
 
-	retry, err = r.evaluateRetry(ctx, &http.Response{StatusCode: http.StatusTooManyRequests, Status: "429", Body: body}, nil, 1, false)
+	retry, err = r.evaluateRetry(ctx, &http.Response{StatusCode: http.StatusTooManyRequests, Status: "429", Body: io.NopCloser(strings.NewReader(""))}, nil, 1, false)
 	require.ErrorContains(t, err, "failed to retry request context deadline exceeded: status \"429\"", "must return error and status code when attempt is higher than max retries")
 	require.False(t, retry, "must not retry when deadline would be exceeded")
 
 	ctx, cancel = context.WithCancel(t.Context())
 	cancel()
-	retry, err = r.evaluateRetry(ctx, &http.Response{StatusCode: http.StatusTooManyRequests, Status: "429", Body: body}, nil, 1, true)
+	retry, err = r.evaluateRetry(ctx, &http.Response{StatusCode: http.StatusTooManyRequests, Status: "429", Body: io.NopCloser(strings.NewReader(""))}, nil, 1, true)
 	require.ErrorIs(t, err, errFailedToRetryRequest, "must return error when context is cancelled")
 	require.ErrorIs(t, err, context.Canceled, "must return error when context is cancelled")
 	require.False(t, retry, "must not retry when context is cancelled")
 
-	retry, err = r.evaluateRetry(t.Context(), &http.Response{StatusCode: http.StatusTooManyRequests, Status: "429", Body: body}, nil, 1, true)
+	retry, err = r.evaluateRetry(t.Context(), &http.Response{StatusCode: http.StatusTooManyRequests, Status: "429", Body: io.NopCloser(strings.NewReader(""))}, nil, 1, true)
 	require.NoError(t, err, "must not error")
 	require.True(t, retry, "must retry on 429 response")
 }
