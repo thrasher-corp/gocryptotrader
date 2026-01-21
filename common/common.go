@@ -701,7 +701,7 @@ var (
 	contextKeysMu sync.RWMutex
 )
 
-// RegisterContextKey registers a key to be captured by FreezeCtx
+// RegisterContextKey registers a key to be captured by FreezeContext
 func RegisterContextKey(key any) {
 	contextKeysMu.Lock()
 	defer contextKeysMu.Unlock()
@@ -713,8 +713,8 @@ func RegisterContextKey(key any) {
 // FrozenContext holds captured context values
 type FrozenContext map[any]any
 
-// FreezeCtx captures values from the context for registered keys
-func FreezeCtx(ctx context.Context) FrozenContext {
+// FreezeContext captures values from the context for registered keys
+func FreezeContext(ctx context.Context) FrozenContext {
 	contextKeysMu.RLock()
 	defer contextKeysMu.RUnlock()
 
@@ -727,24 +727,24 @@ func FreezeCtx(ctx context.Context) FrozenContext {
 	return values
 }
 
-// ThawCtx creates a new context from the frozen context using context.Background() as parent
-func ThawCtx(fc FrozenContext) context.Context {
-	return MergeCtx(context.Background(), fc)
+// ThawContext creates a new context from the frozen context using context.Background() as parent
+func ThawContext(fc FrozenContext) context.Context {
+	return MergeContext(context.Background(), fc)
 }
 
-// MergeCtx adds the frozen values to an existing context
-func MergeCtx(ctx context.Context, fc FrozenContext) context.Context {
-	return &mergeCtx{Context: ctx, frozen: fc}
+// MergeContext adds the frozen values to an existing context
+func MergeContext(ctx context.Context, fc FrozenContext) context.Context {
+	return &MergedContext{Context: ctx, frozen: fc}
 }
 
-// mergeCtx is a context that merges values from a frozen context and a parent context.
+// MergedContext is a context that has merged values from a frozen context and a parent context.
 // frozen values are stored in FrozenContext instead of nested context.WithValue because of the performance of calling WithValue N+ times on messages being frozen
-type mergeCtx struct {
-	context.Context //nolint:containedctx // mergeCtx implements context.Context
+type MergedContext struct {
+	context.Context //nolint:containedctx // MergedContext implements context.Context
 	frozen          FrozenContext
 }
 
-func (m *mergeCtx) Value(key any) any {
+func (m *MergedContext) Value(key any) any {
 	if val, ok := m.frozen[key]; ok {
 		return val
 	}
