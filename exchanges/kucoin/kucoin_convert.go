@@ -3,6 +3,7 @@ package kucoin
 import (
 	"fmt"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
@@ -23,5 +24,5 @@ func (a *SubAccountsResponse) UnmarshalJSON(data []byte) error {
 	} else if _, ok := result.([]any); ok {
 		return nil
 	}
-	return fmt.Errorf("%w can not unmarshal to SubAccountsResponse", errMalformedData)
+	return fmt.Errorf("%w can not unmarshal to SubAccountsResponse", common.ErrMalformedData)
 }

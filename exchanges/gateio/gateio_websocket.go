@@ -46,6 +46,7 @@ const (
 	spotOrderbookTickerChannel = "spot.book_ticker"       // Best bid or ask price
 	spotOrderbookUpdateChannel = "spot.order_book_update" // Changed order book levels
 	spotOrderbookChannel       = "spot.order_book"        // Limited-Level Full Order Book Snapshot
+	spotOrderbookV2            = "spot.obu"
 	spotOrdersChannel          = "spot.orders"
 	spotUserTradesChannel      = "spot.usertrades"
 	spotBalancesChannel        = "spot.balances"
@@ -64,6 +65,7 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds},
 	{Enabled: false, Channel: spotOrderbookTickerChannel, Asset: asset.Spot, Interval: kline.TenMilliseconds, Levels: 1},
 	{Enabled: false, Channel: spotOrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds, Levels: 100},
+	{Enabled: false, Channel: spotOrderbookV2, Asset: asset.Spot, Levels: 50},
 	{Enabled: true, Channel: spotBalancesChannel, Asset: asset.Spot, Authenticated: true},
 	{Enabled: true, Channel: crossMarginBalanceChannel, Asset: asset.CrossMargin, Authenticated: true},
 	{Enabled: true, Channel: marginBalancesChannel, Asset: asset.Margin, Authenticated: true},
@@ -191,6 +193,8 @@ func (e *Exchange) WsHandleSpotData(ctx context.Context, conn websocket.Connecti
 		return e.processOrderbookUpdate(ctx, push.Result, push.Time)
 	case spotOrderbookChannel:
 		return e.processOrderbookSnapshot(push.Result, push.Time)
+	case spotOrderbookV2:
+		return e.processOrderbookUpdateWithSnapshot(conn, push.Result, push.Time, asset.Spot)
 	case spotOrdersChannel:
 		return e.processSpotOrders(respRaw)
 	case spotUserTradesChannel:
@@ -324,7 +328,7 @@ func (e *Exchange) processCandlestick(incoming []byte) error {
 	}
 	icp := strings.Split(data.NameOfSubscription, currency.UnderscoreDelimiter)
 	if len(icp) < 3 {
-		return errors.New("malformed candlestick websocket push data")
+		return fmt.Errorf("%w: candlestick websocket", common.ErrMalformedData)
 	}
 	currencyPair, err := currency.NewPairFromString(strings.Join(icp[1:], currency.UnderscoreDelimiter))
 	if err != nil {
@@ -407,6 +411,59 @@ func (e *Exchange) processOrderbookSnapshot(incoming []byte, lastPushed time.Tim
 		}
 	}
 	return nil
+}
+
+func (e *Exchange) processOrderbookUpdateWithSnapshot(conn websocket.Connection, incoming []byte, lastPushed time.Time, a asset.Item) error {
+	var data WsOrderbookUpdateWithSnapshot
+	if err := json.Unmarshal(incoming, &data); err != nil {
+		return err
+	}
+
+	channelParts := strings.Split(data.Channel, ".")
+	if len(channelParts) < 3 {
+		return fmt.Errorf("%w: %q", common.ErrMalformedData, data.Channel)
+	}
+
+	pair, err := currency.NewPairFromString(channelParts[1])
+	if err != nil {
+		return err
+	}
+
+	if data.Full {
+		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			Exchange:     e.Name,
+			Pair:         pair,
+			Asset:        a,
+			LastUpdated:  data.UpdateTime.Time(),
+			LastPushed:   lastPushed,
+			LastUpdateID: data.LastUpdateID,
+			Bids:         data.Bids.Levels(),
+			Asks:         data.Asks.Levels(),
+		}); err != nil {
+			return err
+		}
+		e.wsOBResubMgr.CompletedResubscribe(pair, a)
+		return nil
+	}
+
+	if e.wsOBResubMgr.IsResubscribing(pair, a) {
+		return nil // Drop incremental updates; waiting for a fresh snapshot
+	}
+
+	lastUpdateID, err := e.Websocket.Orderbook.LastUpdateID(pair, a)
+	if err != nil || lastUpdateID+1 != data.FirstUpdateID {
+		return common.AppendError(err, e.wsOBResubMgr.Resubscribe(e, conn, data.Channel, pair, a))
+	}
+	return e.Websocket.Orderbook.Update(&orderbook.Update{
+		Pair:       pair,
+		Asset:      a,
+		UpdateTime: data.UpdateTime.Time(),
+		LastPushed: lastPushed,
+		UpdateID:   data.LastUpdateID,
+		Bids:       data.Bids.Levels(),
+		Asks:       data.Asks.Levels(),
+		AllowEmpty: true,
+	})
 }
 
 func (e *Exchange) processSpotOrders(data []byte) error {
@@ -608,11 +665,12 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 	return template.New("master.tmpl").
 		Funcs(sprig.FuncMap()).
 		Funcs(template.FuncMap{
-			"channelName":         channelName,
-			"singleSymbolChannel": singleSymbolChannel,
-			"orderbookInterval":   orderbookChannelInterval,
-			"candlesInterval":     candlesChannelInterval,
-			"levels":              channelLevels,
+			"channelName":             channelName,
+			"singleSymbolChannel":     singleSymbolChannel,
+			"orderbookInterval":       orderbookChannelInterval,
+			"candlesInterval":         candlesChannelInterval,
+			"levels":                  channelLevels,
+			"compactOrderbookPayload": isCompactOrderbookPayload,
 		}).Parse(subTplText)
 }
 
@@ -700,7 +758,7 @@ func channelName(s *subscription.Subscription) string {
 // singleSymbolChannel returns if the channel should be fanned out into single symbol requests
 func singleSymbolChannel(name string) bool {
 	switch name {
-	case spotCandlesticksChannel, spotOrderbookUpdateChannel, spotOrderbookChannel:
+	case spotCandlesticksChannel, spotOrderbookUpdateChannel, spotOrderbookChannel, spotOrderbookV2:
 		return true
 	}
 	return false
@@ -739,6 +797,7 @@ func isSingleOrderbookChannel(name string) bool {
 	case spotOrderbookUpdateChannel,
 		spotOrderbookChannel,
 		spotOrderbookTickerChannel,
+		spotOrderbookV2,
 		futuresOrderbookChannel,
 		futuresOrderbookTickerChannel,
 		futuresOrderbookUpdateChannel,
@@ -812,6 +871,7 @@ var channelLevelsMap = map[asset.Item]map[string][]int{
 		spotOrderbookTickerChannel: {},
 		spotOrderbookUpdateChannel: {},
 		spotOrderbookChannel:       {1, 5, 10, 20, 50, 100},
+		spotOrderbookV2:            {50, 400},
 	},
 	asset.Futures: {
 		futuresOrderbookChannel:       {1, 5, 10, 20, 50, 100},
@@ -852,16 +912,27 @@ func channelLevels(s *subscription.Subscription, a asset.Item) (string, error) {
 	return strconv.Itoa(s.Levels), nil
 }
 
+func isCompactOrderbookPayload(channel string) bool {
+	return channel == spotOrderbookV2
+}
+
 const subTplText = `
 {{- with $name := channelName $.S }}
 	{{- range $asset, $pairs := $.AssetPairs }}
 		{{- if singleSymbolChannel $name }}
 			{{- range $i, $p := $pairs -}}
-				{{- with $i := candlesInterval $.S }}{{ $i -}} , {{- end }}
-				{{- $p }}
-				{{- with $l := levels $.S $asset -}} , {{- $l }}{{ end }}
-				{{- with $i := orderbookInterval $.S $asset -}} , {{- $i }}{{- end }}
-				{{- $.PairSeparator }}
+				{{- if compactOrderbookPayload $name }}	
+					{{- with $l := levels $.S $asset -}}
+					ob.{{ $p }}.{{ $l }}
+					{{- end -}}
+					{{- $.PairSeparator }}
+				{{- else }}
+					{{- with $i := candlesInterval $.S }}{{ $i -}} , {{- end }}
+					{{- $p }}
+					{{- with $l := levels $.S $asset -}} , {{- $l }}{{ end }}
+					{{- with $i := orderbookInterval $.S $asset -}} , {{- $i }}{{- end }}
+					{{- $.PairSeparator }}
+				{{- end }}
 			{{- end }}
 			{{- $.AssetSeparator }}
 		{{- else }}
