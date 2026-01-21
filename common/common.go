@@ -734,17 +734,17 @@ func ThawContext(fc FrozenContext) context.Context {
 
 // MergeContext adds the frozen values to an existing context
 func MergeContext(ctx context.Context, fc FrozenContext) context.Context {
-	return &MergedContext{Context: ctx, frozen: fc}
+	return &mergedContext{Context: ctx, frozen: fc}
 }
 
-// MergedContext is a context that has merged values from a frozen context and a parent context.
+// mergedContext is a context that has merged values from a frozen context and a parent context.
 // frozen values are stored in FrozenContext instead of nested context.WithValue because of the performance of calling WithValue N+ times on messages being frozen
-type MergedContext struct {
-	context.Context //nolint:containedctx // MergedContext implements context.Context
+type mergedContext struct {
+	context.Context //nolint:containedctx // mergedContext implements context.Context
 	frozen          FrozenContext
 }
 
-func (m *MergedContext) Value(key any) any {
+func (m *mergedContext) Value(key any) any {
 	if val, ok := m.frozen[key]; ok {
 		return val
 	}
