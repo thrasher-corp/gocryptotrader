@@ -27,7 +27,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -144,10 +143,8 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		case "subscribe", "unsubscribe", "error":
 			return conn.RequireMatchWithData("subscription", respRaw)
 		default:
-			e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)})
-			log.Debugf(log.ExchangeSys, "Unexpected event message spot %s", string(respRaw))
+			return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)})
 		}
-		return nil
 	}
 	switch result.Channel {
 	case channelAuth:
@@ -182,8 +179,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 			}
 			return e.processCandlestickData(ctx, &result, strings.Join(splits[length-2:], "_"))
 		}
-		e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)})
-		return fmt.Errorf("%s unhandled message: %s", e.Name, string(respRaw))
+		return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)})
 	}
 }
 
@@ -259,8 +255,7 @@ func (e *Exchange) processOrders(ctx context.Context, result *SubscriptionRespon
 			},
 		}
 	}
-	e.Websocket.DataHandler.Send(ctx, orderDetails)
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, orderDetails)
 }
 
 func (e *Exchange) processBooks(result *SubscriptionResponse) error {
@@ -342,8 +337,7 @@ func (e *Exchange) processTicker(ctx context.Context, result *SubscriptionRespon
 			LastUpdated:  r.Timestamp.Time(),
 		}
 	}
-	e.Websocket.DataHandler.Send(ctx, tickerData)
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, tickerData)
 }
 
 func (e *Exchange) processTrades(result *SubscriptionResponse) error {
@@ -387,16 +381,14 @@ func (e *Exchange) processCandlestickData(ctx context.Context, result *Subscript
 			Interval:   intervalString,
 		}
 	}
-	e.Websocket.DataHandler.Send(ctx, candles)
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, candles)
 }
 
 func (e *Exchange) processResponse(ctx context.Context, result *SubscriptionResponse, instance any) error {
 	if err := json.Unmarshal(result.Data, instance); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler.Send(ctx, instance)
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, instance)
 }
 
 func (e *Exchange) handleSubscription(operation string, s *subscription.Subscription) (*SubscriptionPayload, error) {
