@@ -197,9 +197,9 @@ func TestProcessBalancePushData(t *testing.T) { //nolint:tparallel // Sequential
 func checkAccountChange(ctx context.Context, t *testing.T, exch *Exchange, tc *websocketBalancesTest) {
 	t.Helper()
 
-	require.Len(t, exch.Websocket.DataHandler, 1)
-	payload := <-exch.Websocket.DataHandler
-	received, ok := payload.(accounts.SubAccounts)
+	require.Len(t, exch.Websocket.DataHandler.C, 1)
+	payload := <-exch.Websocket.DataHandler.C
+	received, ok := payload.Data.(accounts.SubAccounts)
 	require.Truef(t, ok, "Expected account changes, got %T", payload)
 
 	require.Lenf(t, received, len(tc.expected), "Expected %d changes, got %d", len(tc.expected), len(received))
@@ -299,7 +299,7 @@ func TestProcessOrderbookUpdateWithSnapshot(t *testing.T) {
 		},
 	} {
 		// Sequential tests, do not use t.Parallel(); Some timestamps are deliberately identical from trading activity
-		err := e.processOrderbookUpdateWithSnapshot(conn, tc.payload, time.Now(), asset.Spot)
+		err := e.processOrderbookUpdateWithSnapshot(t.Context(), conn, tc.payload, time.Now(), asset.Spot)
 		if tc.err != nil {
 			require.ErrorIs(t, err, tc.err)
 			continue

@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -53,8 +54,7 @@ func GetWebsocketStructChannelOverride() chan struct{} {
 // NewTestWebsocket returns a test websocket object
 func NewTestWebsocket() *websocket.Manager {
 	w := websocket.NewManager()
-	w.DataHandler = make(chan any, WebsocketChannelOverrideCapacity)
-	w.ToRoutine = make(chan any, 1000)
+	w.DataHandler = stream.NewRelay(WebsocketChannelOverrideCapacity)
 	return w
 }
 
@@ -76,16 +76,16 @@ func SkipTestIfCredentialsUnset(t *testing.T, exch exchange.IBotExchange, canMan
 		return
 	}
 
-	message := []string{warningSkip}
+	out := []string{warningSkip}
 	if !areTestAPICredentialsSet {
-		message = append(message, warningKeys)
+		out = append(out, warningKeys)
 	}
 
 	if supportsManipulatingOrders && !allowedToManipulateOrders {
-		message = append(message, warningManipulateOrders)
+		out = append(out, warningManipulateOrders)
 	}
-	message = append(message, warningHowTo)
-	t.Skip(strings.Join(message, ", "))
+	out = append(out, warningHowTo)
+	t.Skip(strings.Join(out, ", "))
 }
 
 // SkipTestIfCannotManipulateOrders will only skip if the credentials are set

@@ -3020,7 +3020,7 @@ func TestWSHandleData(t *testing.T) {
 	keys := slices.Collect(maps.Keys(pushDataMap))
 	slices.Sort(keys)
 	for x := range keys {
-		err := e.wsHandleData(nil, asset.Spot, []byte(pushDataMap[keys[x]]))
+		err := e.wsHandleData(t.Context(), nil, asset.Spot, []byte(pushDataMap[keys[x]]))
 		if keys[x] == "unhandled" {
 			assert.ErrorIs(t, err, errUnhandledStreamData, "wsHandleData should error correctly for unhandled topics")
 		} else {
@@ -3054,15 +3054,15 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 		}
 		return e.wsHandleAuthenticatedData(ctx, &FixtureConnection{match: websocket.NewMatch()}, r)
 	})
-	close(e.Websocket.DataHandler)
-	require.Len(t, e.Websocket.DataHandler, 6, "Should see correct number of messages")
+	e.Websocket.DataHandler.Close()
+	require.Len(t, e.Websocket.DataHandler.C, 6, "Should see correct number of messages")
 	require.Len(t, fErrs, 1, "Must get exactly one error message")
 	assert.ErrorContains(t, fErrs[0].Err, "cannot save holdings: nil pointer: *accounts.Accounts")
 
 	i := 0
-	for data := range e.Websocket.DataHandler {
+	for data := range e.Websocket.DataHandler.C {
 		i++
-		switch v := data.(type) {
+		switch v := data.Data.(type) {
 		case WsPositions:
 			require.Len(t, v, 1, "must see 1 position")
 			assert.Zero(t, v[0].PositionIdx, "PositionIdx should be 0")
@@ -3194,16 +3194,16 @@ func TestWsTicker(t *testing.T) {
 	}
 	testexch.FixtureToDataHandler(t, "testdata/wsTicker.json", func(_ context.Context, r []byte) error {
 		defer slices.Delete(assetRouting, 0, 1)
-		return e.wsHandleData(nil, assetRouting[0], r)
+		return e.wsHandleData(t.Context(), nil, assetRouting[0], r)
 	})
-	close(e.Websocket.DataHandler)
+	e.Websocket.DataHandler.Close()
 	expected := 8
-	require.Len(t, e.Websocket.DataHandler, expected, "Should see correct number of tickers")
-	for resp := range e.Websocket.DataHandler {
-		switch v := resp.(type) {
+	require.Len(t, e.Websocket.DataHandler.C, expected, "Should see correct number of tickers")
+	for resp := range e.Websocket.DataHandler.C {
+		switch v := resp.Data.(type) {
 		case *ticker.Price:
 			assert.Equal(t, e.Name, v.ExchangeName, "ExchangeName should be correct")
-			switch expected - len(e.Websocket.DataHandler) {
+			switch expected - len(e.Websocket.DataHandler.C) {
 			case 1: // Spot
 				assert.Equal(t, currency.BTC, v.Pair.Base, "Pair base should be correct")
 				assert.Equal(t, currency.USDT, v.Pair.Quote, "Pair quote should be correct")
@@ -3443,7 +3443,7 @@ func TestFetchTradablePairs(t *testing.T) {
 func TestDeltaUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	data := []byte(`{"topic":"orderbook.50.WEMIXUSDT","ts":1697573183768,"type":"snapshot","data":{"s":"WEMIXUSDT","b":[["0.9511","260.703"],["0.9677","0"]],"a":[],"u":3119516,"seq":14126848493},"cts":1728966699481}`)
-	err := e.wsHandleData(nil, asset.Spot, data)
+	err := e.wsHandleData(t.Context(), nil, asset.Spot, data)
 	require.NoError(t, err, "wsHandleData must not error")
 	update := []byte(`{"topic":"orderbook.50.WEMIXUSDT","ts":1697573183768,"type":"delta","data":{"s":"WEMIXUSDT","b":[["0.9511","260.703"],["0.9677","0"]],"a":[],"u":3119516,"seq":14126848493},"cts":1728966699481}`)
 	var wsResponse WebsocketResponse
@@ -3883,7 +3883,7 @@ func TestHandleNoTopicWebsocketResponse(t *testing.T) {
 	} {
 		t.Run(fmt.Sprintf("operation: %s, requestID: %s", tc.operation, tc.requestID), func(t *testing.T) {
 			t.Parallel()
-			err := e.handleNoTopicWebsocketResponse(&FixtureConnection{match: websocket.NewMatch()}, &WebsocketResponse{Operation: tc.operation, RequestID: tc.requestID}, nil)
+			err := e.handleNoTopicWebsocketResponse(t.Context(), &FixtureConnection{match: websocket.NewMatch()}, &WebsocketResponse{Operation: tc.operation, RequestID: tc.requestID}, nil)
 			assert.ErrorIs(t, err, tc.error, "handleNoTopicWebsocketResponse should return expected error")
 		})
 	}

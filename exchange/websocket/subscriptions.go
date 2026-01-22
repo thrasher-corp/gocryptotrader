@@ -24,13 +24,13 @@ var (
 )
 
 // UnsubscribeChannels unsubscribes from a list of websocket channel
-func (m *Manager) UnsubscribeChannels(conn Connection, channels subscription.List) error {
+func (m *Manager) UnsubscribeChannels(ctx context.Context, conn Connection, channels subscription.List) error {
 	if len(channels) == 0 {
 		return nil // No channels to unsubscribe from is not an error
 	}
 	if wrapper, ok := m.connections[conn]; ok && conn != nil {
 		return m.unsubscribe(wrapper.subscriptions, channels, func(channels subscription.List) error {
-			return wrapper.setup.Unsubscriber(context.TODO(), conn, channels)
+			return wrapper.setup.Unsubscriber(ctx, conn, channels)
 		})
 	}
 
@@ -58,20 +58,20 @@ func (m *Manager) unsubscribe(store *subscription.Store, channels subscription.L
 // ResubscribeToChannel resubscribes to channel
 // Sets state to Resubscribing, and exchanges which want to maintain a lock on it can respect this state and not RemoveSubscription
 // Errors if subscription is already subscribing
-func (m *Manager) ResubscribeToChannel(conn Connection, s *subscription.Subscription) error {
+func (m *Manager) ResubscribeToChannel(ctx context.Context, conn Connection, s *subscription.Subscription) error {
 	l := subscription.List{s}
 	if err := s.SetState(subscription.ResubscribingState); err != nil {
 		return fmt.Errorf("%w: %s", err, s)
 	}
-	if err := m.UnsubscribeChannels(conn, l); err != nil {
+	if err := m.UnsubscribeChannels(ctx, conn, l); err != nil {
 		return err
 	}
-	return m.SubscribeToChannels(conn, l)
+	return m.SubscribeToChannels(ctx, conn, l)
 }
 
 // SubscribeToChannels subscribes to websocket channels using the exchange specific Subscriber method
 // Errors are returned for duplicates or exceeding max Subscriptions
-func (m *Manager) SubscribeToChannels(conn Connection, subs subscription.List) error {
+func (m *Manager) SubscribeToChannels(ctx context.Context, conn Connection, subs subscription.List) error {
 	if slices.Contains(subs, nil) {
 		return fmt.Errorf("%w: List parameter contains an nil element", common.ErrNilPointer)
 	}
@@ -80,7 +80,7 @@ func (m *Manager) SubscribeToChannels(conn Connection, subs subscription.List) e
 	}
 
 	if wrapper, ok := m.connections[conn]; ok && conn != nil {
-		return wrapper.setup.Subscriber(context.TODO(), conn, subs)
+		return wrapper.setup.Subscriber(ctx, conn, subs)
 	}
 
 	if m.Subscriber == nil {
@@ -255,7 +255,7 @@ func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) er
 }
 
 // FlushChannels flushes channel subscriptions when there is a pair/asset change
-func (m *Manager) FlushChannels() error {
+func (m *Manager) FlushChannels(ctx context.Context) error {
 	if !m.IsEnabled() {
 		return fmt.Errorf("%s %w", m.exchangeName, ErrWebsocketNotEnabled)
 	}
@@ -272,7 +272,7 @@ func (m *Manager) FlushChannels() error {
 		if err := m.shutdown(); err != nil {
 			return err
 		}
-		return m.connect()
+		return m.connect(ctx)
 	}
 
 	if !m.useMultiConnectionManagement {
@@ -280,7 +280,7 @@ func (m *Manager) FlushChannels() error {
 		if err != nil {
 			return err
 		}
-		return m.updateChannelSubscriptions(nil, m.subscriptions, newSubs)
+		return m.updateChannelSubscriptions(ctx, nil, m.subscriptions, newSubs)
 	}
 
 	for x := range m.connectionManager {
@@ -301,16 +301,16 @@ func (m *Manager) FlushChannels() error {
 		// If there are subscriptions to subscribe to but no connection to subscribe to, establish a new connection.
 		if m.connectionManager[x].connection == nil {
 			conn := m.getConnectionFromSetup(m.connectionManager[x].setup)
-			if err := m.connectionManager[x].setup.Connector(context.TODO(), conn); err != nil {
+			if err := m.connectionManager[x].setup.Connector(ctx, conn); err != nil {
 				return err
 			}
 			m.Wg.Add(1)
-			go m.Reader(context.TODO(), conn, m.connectionManager[x].setup.Handler)
+			go m.Reader(ctx, conn, m.connectionManager[x].setup.Handler)
 			m.connections[conn] = m.connectionManager[x]
 			m.connectionManager[x].connection = conn
 		}
 
-		if err := m.updateChannelSubscriptions(m.connectionManager[x].connection, m.connectionManager[x].subscriptions, newSubs); err != nil {
+		if err := m.updateChannelSubscriptions(ctx, m.connectionManager[x].connection, m.connectionManager[x].subscriptions, newSubs); err != nil {
 			return err
 		}
 
@@ -328,10 +328,10 @@ func (m *Manager) FlushChannels() error {
 
 // updateChannelSubscriptions subscribes or unsubscribes from channels and checks that the correct number of channels
 // have been subscribed to or unsubscribed from.
-func (m *Manager) updateChannelSubscriptions(c Connection, store *subscription.Store, incoming subscription.List) error {
+func (m *Manager) updateChannelSubscriptions(ctx context.Context, c Connection, store *subscription.Store, incoming subscription.List) error {
 	subs, unsubs := store.Diff(incoming)
 	if len(unsubs) != 0 {
-		if err := m.UnsubscribeChannels(c, unsubs); err != nil {
+		if err := m.UnsubscribeChannels(ctx, c, unsubs); err != nil {
 			return err
 		}
 
@@ -340,7 +340,7 @@ func (m *Manager) updateChannelSubscriptions(c Connection, store *subscription.S
 		}
 	}
 	if len(subs) != 0 {
-		if err := m.SubscribeToChannels(c, subs); err != nil {
+		if err := m.SubscribeToChannels(ctx, c, subs); err != nil {
 			return err
 		}
 

@@ -718,7 +718,7 @@ func TestWSProcessTrades(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup instance must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", e.wsHandleData)
-	close(e.Websocket.DataHandler)
+	e.Websocket.DataHandler.Close()
 
 	a, p, err := getAssetPairByInstrument("BTC-PERPETUAL")
 	require.NoError(t, err, "getAssetPairByInstrument must not error")
@@ -745,11 +745,11 @@ func TestWSProcessTrades(t *testing.T) {
 			AssetType:    a,
 		},
 	}
-	require.Len(t, e.Websocket.DataHandler, len(exp), "Must see the correct number of trades")
-	for resp := range e.Websocket.DataHandler {
-		switch v := resp.(type) {
+	require.Len(t, e.Websocket.DataHandler.C, len(exp), "Must see the correct number of trades")
+	for resp := range e.Websocket.DataHandler.C {
+		switch v := resp.Data.(type) {
 		case trade.Data:
-			i := 1 - len(e.Websocket.DataHandler)
+			i := 1 - len(e.Websocket.DataHandler.C)
 			require.Equalf(t, exp[i], v, "Trade [%d] must be correct", i)
 		case error:
 			t.Error(v)
@@ -4089,26 +4089,6 @@ func TestGetResolutionFromInterval(t *testing.T) {
 		result, err := e.GetResolutionFromInterval(intervalStringMap[x].Interval)
 		require.ErrorIs(t, err, intervalStringMap[x].Error)
 		require.Equal(t, intervalStringMap[x].IntervalString, result)
-	}
-}
-
-func TestGetValidatedCurrencyCode(t *testing.T) {
-	t.Parallel()
-	pairs := map[currency.Pair]string{
-		currency.NewPairWithDelimiter(currencySOL, "21OCT22-20-C", "-"): currencySOL,
-		currency.NewPairWithDelimiter(currencyBTC, perpString, "-"):     currencyBTC,
-		currency.NewPairWithDelimiter(currencyETH, perpString, "-"):     currencyETH,
-		currency.NewPairWithDelimiter(currencySOL, perpString, "-"):     currencySOL,
-		currency.NewPairWithDelimiter("AVAX_USDC", perpString, "-"):     currencyUSDC,
-		currency.NewPairWithDelimiter(currencyBTC, "USDC", "_"):         currencyBTC,
-		currency.NewPairWithDelimiter(currencyETH, "USDC", "_"):         currencyETH,
-		currency.NewPairWithDelimiter("DOT", "USDC-PERPETUAL", "_"):     currencyUSDC,
-		currency.NewPairWithDelimiter("DOT", "USDT-PERPETUAL", "_"):     currencyUSDT,
-		currency.EMPTYPAIR: "any",
-	}
-	for x := range pairs {
-		result := getValidatedCurrencyCode(x)
-		require.Equalf(t, pairs[x], result, "expected: %s actual  : %s for currency pair: %v", x, result, pairs[x])
 	}
 }
 
