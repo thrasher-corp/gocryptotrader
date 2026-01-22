@@ -178,7 +178,7 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 	case futuresOrderbookUpdateChannel:
 		return e.processFuturesOrderbookUpdate(ctx, push.Result, a, push.Time)
 	case futuresOrderbookUpdateWithSnapshotChannel:
-		return e.processOrderbookUpdateWithSnapshot(conn, push.Result, push.Time, a)
+		return e.processOrderbookUpdateWithSnapshot(ctx, conn, push.Result, push.Time, a)
 	case futuresCandlesticksChannel:
 		return e.processFuturesCandlesticks(ctx, respRaw, a)
 	case futuresOrdersChannel:
