@@ -2661,12 +2661,9 @@ func TestSubmitOrder(t *testing.T) {
 	assert.NotNil(t, result)
 
 	spotOrderSubmission.Type = order.StopLimit
-	spotOrderSubmission.RiskManagementModes = order.RiskManagementModes{
-		StopEntry: order.RiskManagement{
-			Enabled:          true,
-			Price:            1234,
-			TriggerPriceType: order.LastPrice,
-		},
+	spotOrderSubmission.StopLoss = order.RiskManagement{
+		Price:            1234,
+		TriggerPriceType: order.LastPrice,
 	}
 	result, err = e.SubmitOrder(t.Context(), spotOrderSubmission)
 	assert.NoError(t, err)
@@ -2674,13 +2671,11 @@ func TestSubmitOrder(t *testing.T) {
 
 	spotOrderSubmission.Type = order.OCO
 	spotOrderSubmission.Side = order.Sell
-	spotOrderSubmission.RiskManagementModes.TakeProfit = order.RiskManagement{
-		Enabled:          true,
+	spotOrderSubmission.TakeProfit = order.RiskManagement{
 		Price:            1334,
 		TriggerPriceType: order.LastPrice,
 	}
-	spotOrderSubmission.RiskManagementModes.StopLoss = order.RiskManagement{
-		Enabled:          true,
+	spotOrderSubmission.StopLoss = order.RiskManagement{
 		Price:            1234,
 		TriggerPriceType: order.LastPrice,
 	}
