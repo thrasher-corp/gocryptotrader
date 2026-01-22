@@ -3154,7 +3154,7 @@ func TestConnect(t *testing.T) {
 	if mockTests {
 		t.Skip(websocketMockTestsSkipped)
 	}
-	require.NoError(t, e.Websocket.Connect())
+	require.NoError(t, e.Websocket.Connect(t.Context()))
 	assert.True(t, e.Websocket.IsConnected(), "websocket should be connected")
 }
 

@@ -42,7 +42,7 @@ func TestResubscribe(t *testing.T) {
 	require.NoError(t, testexch.Setup(e))
 	e.Name = "Resubscribe"
 
-	err := m.Resubscribe(e, conn, "notfound", currency.NewBTCUSDT(), asset.Spot)
+	err := m.Resubscribe(t.Context(), e, conn, "notfound", currency.NewBTCUSDT(), asset.Spot)
 	require.ErrorIs(t, err, orderbook.ErrDepthNotFound)
 	require.False(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot))
 
@@ -55,7 +55,7 @@ func TestResubscribe(t *testing.T) {
 		LastUpdated: time.Now(),
 	})
 	require.NoError(t, err)
-	err = m.Resubscribe(e, conn, "notfound", currency.NewBTCUSDT(), asset.Spot)
+	err = m.Resubscribe(t.Context(), e, conn, "notfound", currency.NewBTCUSDT(), asset.Spot)
 	require.ErrorIs(t, err, subscription.ErrNotFound)
 
 	require.False(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot))
@@ -78,7 +78,7 @@ func TestResubscribe(t *testing.T) {
 		LastUpdated: time.Now(),
 	})
 	require.NoError(t, err)
-	err = m.Resubscribe(e, conn, "ob.BTC_USDT.50", currency.NewBTCUSDT(), asset.Spot)
+	err = m.Resubscribe(t.Context(), e, conn, "ob.BTC_USDT.50", currency.NewBTCUSDT(), asset.Spot)
 	require.NoError(t, err)
 	assert.True(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot))
 }

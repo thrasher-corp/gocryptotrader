@@ -128,7 +128,7 @@ func (e *Exchange) generateFuturesPrivateSubscriptions() (subscription.List, err
 	return futuresPrivateDefaultSubscriptions.ExpandTemplates(e)
 }
 
-func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connection, respRaw []byte) error {
+func (e *Exchange) wsFuturesHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	var result *SubscriptionResponse
 	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
@@ -139,7 +139,7 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 		case "subscribe", "unsubscribe", "error":
 			return conn.RequireMatchWithData("subscription", respRaw)
 		default:
-			e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
+			e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)})
 			log.Debugf(log.ExchangeSys, "Unexpected event message futures %s", string(respRaw))
 		}
 		return nil
@@ -152,65 +152,65 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 		if err := json.Unmarshal(result.Data, &resp); err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- resp
+		e.Websocket.DataHandler.Send(ctx, resp)
 		return nil
 	case channelFuturesOrderbookLvl2:
 		return e.processFuturesOrderbookLevel2(result.Data, result.Action)
 	case channelFuturesOrderbook:
-		return e.processFuturesOrderbook(result.Data)
+		return e.processFuturesOrderbook(ctx, result.Data)
 	case channelFuturesTickers:
-		return e.processFuturesTickers(result.Data)
+		return e.processFuturesTickers(ctx, result.Data)
 	case channelFuturesTrades:
-		return e.processFuturesTrades(result.Data)
+		return e.processFuturesTrades(ctx, result.Data)
 	case channelFuturesIndexPrice:
 		var resp []*WSInstrumentIndexPrice
 		if err := json.Unmarshal(result.Data, &resp); err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- resp
+		e.Websocket.DataHandler.Send(ctx, resp)
 		return nil
 	case channelFuturesMarkPrice:
 		var resp []*FuturesWebsocketMarkPrice
 		if err := json.Unmarshal(result.Data, &resp); err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- resp
+		e.Websocket.DataHandler.Send(ctx, resp)
 		return nil
 	case channelFuturesFundingRate:
-		return e.processFuturesFundingRate(result.Data)
+		return e.processFuturesFundingRate(ctx, result.Data)
 	case channelFuturesPrivatePositions:
 		var resp []*WsFuturesPosition
 		if err := json.Unmarshal(result.Data, &resp); err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- resp
+		e.Websocket.DataHandler.Send(ctx, resp)
 		return nil
 	case channelFuturesPrivateOrders:
-		return e.processFuturesOrders(result.Data)
+		return e.processFuturesOrders(ctx, result.Data)
 	case channelFuturesPrivateTrades:
-		return e.processFuturesTradeFills(result.Data)
+		return e.processFuturesTradeFills(ctx, result.Data)
 	case channelFuturesAccount:
-		return e.processFuturesAccountData(result.Data)
+		return e.processFuturesAccountData(ctx, result.Data)
 	case channelFuturesLimitPrice:
 		var resp []*FuturesLimitPrice
 		if err := json.Unmarshal(result.Data, &resp); err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- resp
+		e.Websocket.DataHandler.Send(ctx, resp)
 		return nil
 	case channelFuturesLiquidiationPrice:
 		var resp []*FuturesLiquidiationOrder
 		if err := json.Unmarshal(result.Data, &resp); err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- resp
+		e.Websocket.DataHandler.Send(ctx, resp)
 		return nil
 	case channelFuturesOpenInterest:
 		var resp []*FuturesOpenInterest
 		if err := json.Unmarshal(result.Data, &resp); err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- resp
+		e.Websocket.DataHandler.Send(ctx, resp)
 		return nil
 	default:
 		if strings.Contains(result.Channel, "_") {
@@ -220,12 +220,12 @@ func (e *Exchange) wsFuturesHandleData(_ context.Context, conn websocket.Connect
 			}
 			switch channel {
 			case channelFuturesMarkPriceCandles, channelFuturesMarkCandles, channelFuturesIndexCandles:
-				return e.processFuturesMarkAndIndexPriceCandlesticks(result.Data, interval)
+				return e.processFuturesMarkAndIndexPriceCandlesticks(ctx, result.Data, interval)
 			case channelFuturesCandles:
-				return e.processFuturesCandlesticks(result.Data, interval)
+				return e.processFuturesCandlesticks(ctx, result.Data, interval)
 			}
 		}
-		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
+		e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)})
 		return fmt.Errorf("%s unhandled message: %s", e.Name, string(respRaw))
 	}
 }
@@ -240,7 +240,7 @@ func channelToIntervalSplit(intervalString string) (string, kline.Interval, erro
 	return strings.Join(splits[:length-2], "_"), intervalValue, err
 }
 
-func (e *Exchange) processFuturesAccountData(data []byte) error {
+func (e *Exchange) processFuturesAccountData(ctx context.Context, data []byte) error {
 	var resp []*FuturesAccountBalance
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
@@ -260,11 +260,11 @@ func (e *Exchange) processFuturesAccountData(data []byte) error {
 			})
 		}
 	}
-	e.Websocket.DataHandler <- accChanges
+	e.Websocket.DataHandler.Send(ctx, accChanges)
 	return nil
 }
 
-func (e *Exchange) processFuturesTradeFills(data []byte) error {
+func (e *Exchange) processFuturesTradeFills(ctx context.Context, data []byte) error {
 	var resp []*WSTradeFill
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
@@ -289,11 +289,11 @@ func (e *Exchange) processFuturesTradeFills(data []byte) error {
 			Price:         r.FillPrice.Float64(),
 		}
 	}
-	e.Websocket.DataHandler <- tFills
+	e.Websocket.DataHandler.Send(ctx, tFills)
 	return nil
 }
 
-func (e *Exchange) processFuturesOrders(data []byte) error {
+func (e *Exchange) processFuturesOrders(ctx context.Context, data []byte) error {
 	var resp []*FuturesWebsocketOrderDetails
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
@@ -338,29 +338,29 @@ func (e *Exchange) processFuturesOrders(data []byte) error {
 			Pair:                 r.Symbol,
 		}
 	}
-	e.Websocket.DataHandler <- orders
+	e.Websocket.DataHandler.Send(ctx, orders)
 	return nil
 }
 
-func (e *Exchange) processFuturesFundingRate(data []byte) error {
+func (e *Exchange) processFuturesFundingRate(ctx context.Context, data []byte) error {
 	var resp []*WSFuturesFundingRate
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 
 	for _, r := range resp {
-		e.Websocket.DataHandler <- websocket.FundingData{
+		e.Websocket.DataHandler.Send(ctx, websocket.FundingData{
 			CurrencyPair: r.Symbol,
 			Timestamp:    r.PushTime.Time(),
 			AssetType:    asset.Futures,
 			Exchange:     e.Name,
 			Rate:         r.FundingRate.Float64(),
-		}
+		})
 	}
 	return nil
 }
 
-func (e *Exchange) processFuturesMarkAndIndexPriceCandlesticks(data []byte, interval kline.Interval) error {
+func (e *Exchange) processFuturesMarkAndIndexPriceCandlesticks(ctx context.Context, data []byte, interval kline.Interval) error {
 	var resp []*WsFuturesMarkAndIndexPriceCandle
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
@@ -382,11 +382,11 @@ func (e *Exchange) processFuturesMarkAndIndexPriceCandlesticks(data []byte, inte
 			LowPrice:   r.LowestPrice.Float64(),
 		}
 	}
-	e.Websocket.DataHandler <- candles
+	e.Websocket.DataHandler.Send(ctx, candles)
 	return nil
 }
 
-func (e *Exchange) processFuturesOrderbook(data []byte) error {
+func (e *Exchange) processFuturesOrderbook(ctx context.Context, data []byte) error {
 	var resp []*WSFuturesOrderbook
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
@@ -443,7 +443,7 @@ func (e *Exchange) processFuturesOrderbookLevel2(data []byte, action string) err
 	return nil
 }
 
-func (e *Exchange) processFuturesTickers(data []byte) error {
+func (e *Exchange) processFuturesTickers(ctx context.Context, data []byte) error {
 	var resp []*FuturesTickerDetails
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
@@ -468,12 +468,12 @@ func (e *Exchange) processFuturesTickers(data []byte) error {
 			LastUpdated:  r.Timestamp.Time(),
 		}
 	}
-	e.Websocket.DataHandler <- tickerPrices
+	e.Websocket.DataHandler.Send(ctx, tickerPrices)
 	return nil
 }
 
 // processFuturesTrades handles latest trading data for this product, including the latest price, trading volume, trading direction, etc.
-func (e *Exchange) processFuturesTrades(data []byte) error {
+func (e *Exchange) processFuturesTrades(ctx context.Context, data []byte) error {
 	var resp []*FuturesTrades
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
@@ -495,11 +495,11 @@ func (e *Exchange) processFuturesTrades(data []byte) error {
 			Timestamp:    r.Timestamp.Time(),
 		}
 	}
-	e.Websocket.DataHandler <- trades
+	e.Websocket.DataHandler.Send(ctx, trades)
 	return nil
 }
 
-func (e *Exchange) processFuturesCandlesticks(data []byte, interval kline.Interval) error {
+func (e *Exchange) processFuturesCandlesticks(ctx context.Context, data []byte, interval kline.Interval) error {
 	var resp []*WsFuturesCandlesctick
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
@@ -522,7 +522,7 @@ func (e *Exchange) processFuturesCandlesticks(data []byte, interval kline.Interv
 			Volume:     r.QuoteAmount.Float64(),
 		}
 	}
-	e.Websocket.DataHandler <- candles
+	e.Websocket.DataHandler.Send(ctx, candles)
 	return nil
 }
 

@@ -144,7 +144,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		case "subscribe", "unsubscribe", "error":
 			return conn.RequireMatchWithData("subscription", respRaw)
 		default:
-			e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
+			e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)})
 			log.Debugf(log.ExchangeSys, "Unexpected event message spot %s", string(respRaw))
 		}
 		return nil
@@ -154,23 +154,23 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		return conn.RequireMatchWithData(channelAuth, respRaw)
 	case channelSymbols:
 		var response []*WsSymbol
-		return e.processResponse(&result, &response)
+		return e.processResponse(ctx, &result, &response)
 	case channelCurrencies:
 		var response []*WsCurrency
-		return e.processResponse(&result, &response)
+		return e.processResponse(ctx, &result, &response)
 	case channelExchange:
 		var response []*WsExchangeStatus
-		return e.processResponse(&result, &response)
+		return e.processResponse(ctx, &result, &response)
 	case channelTrades:
 		return e.processTrades(&result)
 	case channelTicker:
-		return e.processTicker(&result)
+		return e.processTicker(ctx, &result)
 	case channelBookLevel2:
 		return e.processBooksLevel2(&result)
 	case channelBooks:
 		return e.processBooks(&result)
 	case channelOrders:
-		return e.processOrders(&result)
+		return e.processOrders(ctx, &result)
 	case channelBalances:
 		return e.processBalance(ctx, &result)
 	default:
@@ -180,9 +180,9 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 			if length < 3 {
 				return fmt.Errorf("%w %q", kline.ErrInvalidInterval, result.Channel)
 			}
-			return e.processCandlestickData(&result, strings.Join(splits[length-2:], "_"))
+			return e.processCandlestickData(ctx, &result, strings.Join(splits[length-2:], "_"))
 		}
-		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
+		e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)})
 		return fmt.Errorf("%s unhandled message: %s", e.Name, string(respRaw))
 	}
 }
@@ -207,11 +207,10 @@ func (e *Exchange) processBalance(ctx context.Context, result *SubscriptionRespo
 	if err := e.Accounts.Save(ctx, subAccts, true); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- subAccts
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, subAccts)
 }
 
-func (e *Exchange) processOrders(result *SubscriptionResponse) error {
+func (e *Exchange) processOrders(ctx context.Context, result *SubscriptionResponse) error {
 	response := []*WebsocketTradeOrder{}
 	if err := json.Unmarshal(result.Data, &response); err != nil {
 		return err
@@ -260,7 +259,7 @@ func (e *Exchange) processOrders(result *SubscriptionResponse) error {
 			},
 		}
 	}
-	e.Websocket.DataHandler <- orderDetails
+	e.Websocket.DataHandler.Send(ctx, orderDetails)
 	return nil
 }
 
@@ -322,7 +321,7 @@ func (e *Exchange) processBooksLevel2(result *SubscriptionResponse) error {
 	return nil
 }
 
-func (e *Exchange) processTicker(result *SubscriptionResponse) error {
+func (e *Exchange) processTicker(ctx context.Context, result *SubscriptionResponse) error {
 	var resp []*WsTicker
 	if err := json.Unmarshal(result.Data, &resp); err != nil {
 		return err
@@ -343,7 +342,7 @@ func (e *Exchange) processTicker(result *SubscriptionResponse) error {
 			LastUpdated:  r.Timestamp.Time(),
 		}
 	}
-	e.Websocket.DataHandler <- tickerData
+	e.Websocket.DataHandler.Send(ctx, tickerData)
 	return nil
 }
 
@@ -367,7 +366,7 @@ func (e *Exchange) processTrades(result *SubscriptionResponse) error {
 	return trade.AddTradesToBuffer(trades...)
 }
 
-func (e *Exchange) processCandlestickData(result *SubscriptionResponse, intervalString string) error {
+func (e *Exchange) processCandlestickData(ctx context.Context, result *SubscriptionResponse, intervalString string) error {
 	var resp []*WsCandles
 	if err := json.Unmarshal(result.Data, &resp); err != nil {
 		return err
@@ -388,15 +387,15 @@ func (e *Exchange) processCandlestickData(result *SubscriptionResponse, interval
 			Interval:   intervalString,
 		}
 	}
-	e.Websocket.DataHandler <- candles
+	e.Websocket.DataHandler.Send(ctx, candles)
 	return nil
 }
 
-func (e *Exchange) processResponse(result *SubscriptionResponse, instance any) error {
+func (e *Exchange) processResponse(ctx context.Context, result *SubscriptionResponse, instance any) error {
 	if err := json.Unmarshal(result.Data, instance); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- instance
+	e.Websocket.DataHandler.Send(ctx, instance)
 	return nil
 }
 
