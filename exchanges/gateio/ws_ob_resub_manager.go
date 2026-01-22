@@ -54,7 +54,7 @@ func (m *wsOBResubManager) Resubscribe(e *Exchange, conn websocket.Connection, q
 	return nil
 }
 
-// CompletedResubscribe marks a subscription as completed
+// CompletedResubscribe removes a subscription from the resubscribing map
 func (m *wsOBResubManager) CompletedResubscribe(pair currency.Pair, a asset.Item) {
 	m.m.Lock()
 	defer m.m.Unlock()

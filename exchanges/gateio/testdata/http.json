@@ -1,0 +1,113 @@
+{
+ "routes": {
+  "/api/v4/spot/order_book": {
+   "GET": [
+    {
+     "data": {
+      "asks": [
+       [
+        "112095.9",
+        "0.509926"
+       ],
+       [
+        "112096",
+        "0.0439"
+       ],
+       [
+        "112097",
+        "0.0439"
+       ],
+       [
+        "112097.9",
+        "0.044111"
+       ],
+       [
+        "112098",
+        "0.0439"
+       ]
+      ],
+      "bids": [
+       [
+        "112095.8",
+        "2.255276"
+       ],
+       [
+        "112095.7",
+        "1.490851"
+       ],
+       [
+        "112095",
+        "0.0439"
+       ],
+       [
+        "112094.2",
+        "0.08921"
+       ],
+       [
+        "112092.3",
+        "1.186865"
+       ]
+      ],
+      "current": 1759104757920,
+      "id": 27596272445,
+      "update": 1759104757919
+     },
+     "queryString": "currency_pair=BTC_USDT\u0026limit=20\u0026with_id=true",
+          "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/futures/usdt/risk_limit_table": {
+   "GET": [
+    {
+     "data": [
+      {
+       "deduction": "0",
+       "initial_rate": "0.008",
+       "leverage_max": "125",
+       "maintenance_rate": "0.004",
+       "risk_limit": "1000000",
+       "tier": 1
+      },
+      {
+       "deduction": "500",
+       "initial_rate": "0.009009",
+       "leverage_max": "111",
+       "maintenance_rate": "0.0045",
+       "risk_limit": "1500000",
+       "tier": 2
+      },
+      {
+       "deduction": "1250",
+       "initial_rate": "0.01",
+       "leverage_max": "100",
+       "maintenance_rate": "0.005",
+       "risk_limit": "2000000",
+       "tier": 3
+      },
+      {
+       "deduction": "5250",
+       "initial_rate": "0.013333",
+       "leverage_max": "75",
+       "maintenance_rate": "0.007",
+       "risk_limit": "3000000",
+       "tier": 4
+      },
+      {
+       "deduction": "6750",
+       "initial_rate": "0.01515",
+       "leverage_max": "66",
+       "maintenance_rate": "0.0075",
+       "risk_limit": "5000000",
+       "tier": 5
+      }
+     ],
+     "queryString": "table_id=BTC_USDT_202507040223",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  }
+ }
+}

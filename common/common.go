@@ -199,7 +199,7 @@ func StringSliceContainsInsensitive(haystack []string, needle string) bool {
 	})
 }
 
-// IsEnabled takes in a boolean param  and returns a string if it is enabled
+// IsEnabled takes in a boolean param and returns a string if it is enabled
 // or disabled
 func IsEnabled(isEnabled bool) string {
 	if isEnabled {
@@ -554,31 +554,33 @@ func ExcludeError(err, excl error) error {
 }
 
 // ErrorCollector allows collecting a stream of errors from concurrent go routines
-// Users should call e.Wg.Done and send errors to e.C
 type ErrorCollector struct {
-	C  chan error
-	Wg sync.WaitGroup
+	errs error
+	wg   sync.WaitGroup
+	m    sync.Mutex
 }
 
-// CollectErrors returns an ErrorCollector with WaitGroup and Channel buffer set to n
-func CollectErrors(n int) *ErrorCollector {
-	e := &ErrorCollector{
-		C: make(chan error, n),
-	}
-	e.Wg.Add(n)
-	return e
-}
-
-// Collect runs waits for e.Wg to be Done, closes the error channel, and return a error collection
+// Collect waits for the internal wait group to be done and returns an error collection
+// State is reset after each Collect, so successive calls are okay
 func (e *ErrorCollector) Collect() (errs error) {
-	e.Wg.Wait()
-	close(e.C)
-	for err := range e.C {
-		if err != nil {
-			errs = AppendError(errs, err)
-		}
+	e.wg.Wait()
+	e.m.Lock()
+	defer func() { e.errs = nil; e.m.Unlock() }()
+	return e.errs
+}
+
+// Go runs a function in a goroutine and collects any error it returns
+func (e *ErrorCollector) Go(f func() error) {
+	if err := NilGuard(f); err != nil {
+		panic(err)
 	}
-	return
+	e.wg.Go(func() {
+		if err := f(); err != nil {
+			e.m.Lock()
+			e.errs = AppendError(e.errs, err)
+			e.m.Unlock()
+		}
+	})
 }
 
 // StartEndTimeCheck provides some basic checks which occur

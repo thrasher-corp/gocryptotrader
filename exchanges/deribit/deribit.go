@@ -50,7 +50,6 @@ const (
 	getFundingRateHistory            = "public/get_funding_rate_history"
 	getFundingRateValue              = "public/get_funding_rate_value"
 	getHistoricalVolatility          = "public/get_historical_volatility"
-	getCurrencyIndexPrice            = "public/get_index"
 	getIndexPrice                    = "public/get_index_price"
 	getIndexPriceNames               = "public/get_index_price_names"
 	getInstrument                    = "public/get_instrument"
@@ -290,17 +289,6 @@ func (e *Exchange) GetHistoricalVolatility(ctx context.Context, ccy currency.Cod
 	params.Set("currency", ccy.String())
 	var data []HistoricalVolatilityData
 	return data, e.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getHistoricalVolatility, params), &data)
-}
-
-// GetCurrencyIndexPrice retrieves the current index price for the instruments, for the selected currency.
-func (e *Exchange) GetCurrencyIndexPrice(ctx context.Context, ccy currency.Code) (*IndexPrice, error) {
-	if ccy.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	params := url.Values{}
-	params.Set("currency", ccy.String())
-	var resp *IndexPrice
-	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getCurrencyIndexPrice, params), &resp)
 }
 
 // GetIndexPrice gets price data for the requested index
@@ -2726,4 +2714,27 @@ func optionComboPairToString(pair currency.Pair) string {
 	// * any length > 4
 	// * length == 4 with USDC as second token)
 	return parts[0] + "_" + strings.Join(parts[1:], "-")
+}
+
+// futureComboPairToString formats a future combo pair to deribit request format
+// e.g. ETH-USDC-FS-28NOV25_PERP -> ETH_USDC-FS-28NOV25_PERP (linear)
+// e.g. BTC-FS-28NOV25_PERP -> BTC-FS-28NOV25_PERP (inverse, unchanged)
+func futureComboPairToString(pair currency.Pair) string {
+	s := pair.String()
+	before, after, found := strings.Cut(s, "-")
+	if !found {
+		return s
+	}
+
+	// Must have "USDC-" immediately after first dash (linear combo)
+	if len(after) < 5 || after[:5] != "USDC-" {
+		return s
+	}
+
+	// Need at least one more dash after "USDC-" to have 4+ parts
+	if !strings.Contains(after[5:], "-") {
+		return s
+	}
+
+	return before + "_" + after
 }

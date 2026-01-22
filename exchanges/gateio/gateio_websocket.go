@@ -419,17 +419,6 @@ func (e *Exchange) processOrderbookUpdateWithSnapshot(conn websocket.Connection,
 		return err
 	}
 
-	asks := make([]orderbook.Level, len(data.Asks))
-	for x := range data.Asks {
-		asks[x].Price = data.Asks[x][0].Float64()
-		asks[x].Amount = data.Asks[x][1].Float64()
-	}
-	bids := make([]orderbook.Level, len(data.Bids))
-	for x := range data.Bids {
-		bids[x].Price = data.Bids[x][0].Float64()
-		bids[x].Amount = data.Bids[x][1].Float64()
-	}
-
 	channelParts := strings.Split(data.Channel, ".")
 	if len(channelParts) < 3 {
 		return fmt.Errorf("%w: %q", common.ErrMalformedData, data.Channel)
@@ -448,8 +437,8 @@ func (e *Exchange) processOrderbookUpdateWithSnapshot(conn websocket.Connection,
 			LastUpdated:  data.UpdateTime.Time(),
 			LastPushed:   lastPushed,
 			LastUpdateID: data.LastUpdateID,
-			Bids:         bids,
-			Asks:         asks,
+			Bids:         data.Bids.Levels(),
+			Asks:         data.Asks.Levels(),
 		}); err != nil {
 			return err
 		}
@@ -462,23 +451,19 @@ func (e *Exchange) processOrderbookUpdateWithSnapshot(conn websocket.Connection,
 	}
 
 	lastUpdateID, err := e.Websocket.Orderbook.LastUpdateID(pair, a)
-
-	if lastUpdateID+1 == data.FirstUpdateID {
-		if err = e.Websocket.Orderbook.Update(&orderbook.Update{
-			Pair:       pair,
-			Asset:      a,
-			UpdateTime: data.UpdateTime.Time(),
-			LastPushed: lastPushed,
-			UpdateID:   data.LastUpdateID,
-			Bids:       bids,
-			Asks:       asks,
-			AllowEmpty: true,
-		}); err == nil {
-			return nil
-		}
+	if err != nil || lastUpdateID+1 != data.FirstUpdateID {
+		return common.AppendError(err, e.wsOBResubMgr.Resubscribe(e, conn, data.Channel, pair, a))
 	}
-
-	return common.AppendError(err, e.wsOBResubMgr.Resubscribe(e, conn, data.Channel, pair, a))
+	return e.Websocket.Orderbook.Update(&orderbook.Update{
+		Pair:       pair,
+		Asset:      a,
+		UpdateTime: data.UpdateTime.Time(),
+		LastPushed: lastPushed,
+		UpdateID:   data.LastUpdateID,
+		Bids:       data.Bids.Levels(),
+		Asks:       data.Asks.Levels(),
+		AllowEmpty: true,
+	})
 }
 
 func (e *Exchange) processSpotOrders(data []byte) error {
@@ -1068,4 +1053,30 @@ func getWSPingHandler(channel string) (websocket.PingHandler, error) {
 		Message:     pingMessage,
 		MessageType: gws.TextMessage,
 	}, nil
+}
+
+// TODO: When subscription config is added for all assets update limits to use sub.Levels
+func (e *Exchange) extractOrderbookLimit(a asset.Item) (uint64, error) {
+	switch a {
+	case asset.Spot:
+		sub := e.Websocket.GetSubscription(spotOrderbookUpdateKey)
+		if sub == nil {
+			return 0, fmt.Errorf("%w for %q", subscription.ErrNotFound, spotOrderbookUpdateKey)
+		}
+		// There is no way to set levels when we subscribe for this specific channel
+		// Extract limit from interval e.g. 20ms == 20 limit book and 100ms == 100 limit book.
+		lim := uint64(sub.Interval.Duration().Milliseconds()) //nolint:gosec // No overflow risk
+		if lim != 20 && lim != 100 {
+			return 0, fmt.Errorf("%w: %d. Valid limits are 20 and 100", errInvalidOrderbookUpdateInterval, lim)
+		}
+		return lim, nil
+	case asset.USDTMarginedFutures, asset.CoinMarginedFutures:
+		return futuresOrderbookUpdateLimit, nil
+	case asset.DeliveryFutures:
+		return deliveryFuturesUpdateLimit, nil
+	case asset.Options:
+		return optionOrderbookUpdateLimit, nil
+	default:
+		return 0, fmt.Errorf("%w: %q", asset.ErrNotSupported, a)
+	}
 }

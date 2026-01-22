@@ -1026,15 +1026,6 @@ func TestUpdateFuturesPositionLeverage(t *testing.T) {
 	assert.NoError(t, err, "UpdateFuturesPositionLeverage should not error for USDTMarginedFutures")
 }
 
-func TestUpdateFuturesPositionRiskLimit(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.UpdateFuturesPositionRiskLimit(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), 10)
-	assert.NoError(t, err, "UpdateFuturesPositionRiskLimit should not error for CoinMarginedFutures")
-	_, err = e.UpdateFuturesPositionRiskLimit(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), 10)
-	assert.NoError(t, err, "UpdateFuturesPositionRiskLimit should not error for USDTMarginedFutures")
-}
-
 func TestPlaceDeliveryOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1186,15 +1177,6 @@ func TestUpdatePositionLeverageInDualMode(t *testing.T) {
 	assert.NoError(t, err, "UpdatePositionLeverageInDualMode should not error for CoinMarginedFutures")
 	_, err = e.UpdatePositionLeverageInDualMode(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), 0.001, 0.001)
 	assert.NoError(t, err, "UpdatePositionLeverageInDualMode should not error for USDTMarginedFutures")
-}
-
-func TestUpdatePositionRiskLimitInDualMode(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.UpdatePositionRiskLimitInDualMode(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), 10)
-	assert.NoError(t, err, "UpdatePositionRiskLimitInDualMode should not error for CoinMarginedFutures")
-	_, err = e.UpdatePositionRiskLimitInDualMode(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), 10)
-	assert.NoError(t, err, "UpdatePositionRiskLimitInDualMode should not error for USDTMarginedFutures")
 }
 
 func TestPlaceFuturesOrder(t *testing.T) {
@@ -1453,15 +1435,6 @@ func TestUpdateDeliveryPositionLeverage(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err = e.UpdateDeliveryPositionLeverage(t.Context(), currency.USDT, getPair(t, asset.DeliveryFutures), 0.001)
 	assert.NoError(t, err, "UpdateDeliveryPositionLeverage should not error")
-}
-
-func TestUpdateDeliveryPositionRiskLimit(t *testing.T) {
-	t.Parallel()
-	_, err := e.UpdateDeliveryPositionRiskLimit(t.Context(), currency.EMPTYCODE, currency.Pair{}, 0)
-	assert.ErrorIs(t, err, errEmptyOrInvalidSettlementCurrency)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err = e.UpdateDeliveryPositionRiskLimit(t.Context(), currency.USDT, getPair(t, asset.DeliveryFutures), 30)
-	assert.NoError(t, err, "UpdateDeliveryPositionRiskLimit should not error")
 }
 
 func TestGetAllOptionsUnderlyings(t *testing.T) {
@@ -1802,6 +1775,8 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
+	_, err := e.UpdateOrderbook(t.Context(), currency.EMPTYPAIR, 1336)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	for _, a := range e.GetAssetTypes(false) {
 		pair := getPair(t, a)
 		t.Run(a.String()+" "+pair.String(), func(t *testing.T) {
@@ -3706,4 +3681,36 @@ func TestUnmarshalJSONOrderbookLevels(t *testing.T) {
 	assert.Equal(t, 0.001, ob[0].Amount, "Amount should be correct")
 
 	require.Error(t, ob.UnmarshalJSON([]byte(`["p":"123.45","s":"0.001"]`)))
+}
+
+func TestGetEstimatedInterestRate(t *testing.T) {
+	t.Parallel()
+
+	_, err := e.GetEstimatedInterestRate(t.Context(), nil)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodesEmpty)
+
+	_, err = e.GetEstimatedInterestRate(t.Context(), currency.Currencies{currency.EMPTYCODE})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.GetEstimatedInterestRate(t.Context(), currency.Currencies{
+		currency.USDT,
+		currency.BTC,
+		currency.ETH,
+		currency.XRP,
+		currency.LTC,
+		currency.DOGE,
+		currency.BCH,
+		currency.SOL,
+		currency.ADA,
+		currency.DOT,
+		currency.MATIC,
+	})
+	require.ErrorIs(t, err, errTooManyCurrencyCodes)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	got, err := e.GetEstimatedInterestRate(t.Context(), currency.Currencies{currency.BTC})
+	require.NoError(t, err)
+	val, ok := got["BTC"]
+	require.True(t, ok, "result map must contain BTC key")
+	require.Positive(t, val.Float64(), "estimated interest rate must not be 0")
 }
