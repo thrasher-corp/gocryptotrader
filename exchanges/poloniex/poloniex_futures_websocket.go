@@ -157,7 +157,7 @@ func (e *Exchange) wsFuturesHandleData(ctx context.Context, conn websocket.Conne
 	case channelFuturesOrderbookLvl2:
 		return e.processFuturesOrderbookLevel2(result.Data, result.Action)
 	case channelFuturesOrderbook:
-		return e.processFuturesOrderbook(ctx, result.Data)
+		return e.processFuturesOrderbook(result.Data)
 	case channelFuturesTickers:
 		return e.processFuturesTickers(ctx, result.Data)
 	case channelFuturesTrades:
@@ -386,7 +386,7 @@ func (e *Exchange) processFuturesMarkAndIndexPriceCandlesticks(ctx context.Conte
 	return nil
 }
 
-func (e *Exchange) processFuturesOrderbook(ctx context.Context, data []byte) error {
+func (e *Exchange) processFuturesOrderbook(data []byte) error {
 	var resp []*WSFuturesOrderbook
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
