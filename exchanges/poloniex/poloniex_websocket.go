@@ -179,7 +179,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 			}
 			return e.processCandlestickData(ctx, &result, strings.Join(splits[length-2:], "_"))
 		}
-		return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)})
+		return fmt.Errorf("%s %s %s", e.Name, websocket.UnhandledMessage, string(respRaw))
 	}
 }
 

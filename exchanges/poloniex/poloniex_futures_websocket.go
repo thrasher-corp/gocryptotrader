@@ -215,7 +215,7 @@ func (e *Exchange) wsFuturesHandleData(ctx context.Context, conn websocket.Conne
 				return e.processFuturesCandlesticks(ctx, result.Data, interval)
 			}
 		}
-		return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)})
+		return fmt.Errorf("%s %s %s", e.Name, websocket.UnhandledMessage, string(respRaw))
 	}
 }
 
