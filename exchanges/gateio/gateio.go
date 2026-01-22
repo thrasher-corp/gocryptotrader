@@ -195,6 +195,7 @@ type Exchange struct {
 	exchange.Base
 
 	messageIDSeq  common.Counter
+	wsOBResubMgr  *wsOBResubManager
 	wsOBUpdateMgr *buffer.UpdateManager
 }
 

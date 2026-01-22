@@ -61,13 +61,11 @@ func (e *Exchange) WsConnect() error {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil)
-	if err != nil {
+	if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
 		return err
 	}
 
-	err = e.loadCurrencyDetails(ctx)
-	if err != nil {
+	if err := e.loadCurrencyDetails(ctx); err != nil {
 		return err
 	}
 
@@ -110,9 +108,10 @@ func (e *Exchange) wsReadData(ctx context.Context) {
 		if resp.Raw == nil {
 			return
 		}
-		err := e.wsHandleData(ctx, resp.Raw)
-		if err != nil {
-			e.Websocket.DataHandler <- fmt.Errorf("%s: %w", e.Name, err)
+		if err := e.wsHandleData(ctx, resp.Raw); err != nil {
+			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
+			}
 		}
 	}
 }
@@ -170,17 +169,17 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 
 			switch updateType {
 			case accountNotificationPendingOrder:
-				err = e.processAccountPendingOrder(notification)
+				err = e.processAccountPendingOrder(ctx, notification)
 				if err != nil {
 					return fmt.Errorf("account notification pending order: %w", err)
 				}
 			case accountNotificationOrderUpdate:
-				err = e.processAccountOrderUpdate(notification)
+				err = e.processAccountOrderUpdate(ctx, notification)
 				if err != nil {
 					return fmt.Errorf("account notification order update: %w", err)
 				}
 			case accountNotificationOrderLimitCreated:
-				err = e.processAccountOrderLimit(notification)
+				err = e.processAccountOrderLimit(ctx, notification)
 				if err != nil {
 					return fmt.Errorf("account notification limit order creation: %w", err)
 				}
@@ -190,17 +189,17 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 					return fmt.Errorf("account notification balance update: %w", err)
 				}
 			case accountNotificationTrades:
-				err = e.processAccountTrades(notification)
+				err = e.processAccountTrades(ctx, notification)
 				if err != nil {
 					return fmt.Errorf("account notification trades: %w", err)
 				}
 			case accountNotificationKilledOrder:
-				err = e.processAccountKilledOrder(notification)
+				err = e.processAccountKilledOrder(ctx, notification)
 				if err != nil {
 					return fmt.Errorf("account notification killed order: %w", err)
 				}
 			case accountNotificationMarginPosition:
-				err = e.processAccountMarginPosition(notification)
+				err = e.processAccountMarginPosition(ctx, notification)
 				if err != nil {
 					return fmt.Errorf("account notification margin position: %w", err)
 				}
@@ -210,7 +209,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		}
 		return nil
 	case wsTickerDataID:
-		err = e.wsHandleTickerData(data)
+		err = e.wsHandleTickerData(ctx, data)
 		if err != nil {
 			return fmt.Errorf("websocket ticker process: %w", err)
 		}
@@ -264,15 +263,17 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 				return fmt.Errorf("websocket process trades update: %w", err)
 			}
 		default:
-			e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+			if err := e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
 				Message: e.Name + websocket.UnhandledMessage + string(respRaw),
+			}); err != nil {
+				return err
 			}
 		}
 	}
 	return nil
 }
 
-func (e *Exchange) wsHandleTickerData(data []any) error {
+func (e *Exchange) wsHandleTickerData(ctx context.Context, data []any) error {
 	tickerData, ok := data[2].([]any)
 	if !ok {
 		return fmt.Errorf("%w ticker data is not []any",
@@ -360,7 +361,7 @@ func (e *Exchange) wsHandleTickerData(data []any) error {
 	// highestTradeIn24Hm, ok := tickerData[8].(string)
 	// lowestTradePrice24H, ok := tickerData[9].(string)
 
-	e.Websocket.DataHandler <- &ticker.Price{
+	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 		ExchangeName: e.Name,
 		Volume:       baseCurrencyVolume24H,
 		QuoteVolume:  quoteCurrencyVolume24H,
@@ -371,8 +372,7 @@ func (e *Exchange) wsHandleTickerData(data []any) error {
 		Last:         lastPrice,
 		AssetType:    asset.Spot,
 		Pair:         pair,
-	}
-	return nil
+	})
 }
 
 // WsProcessOrderbookSnapshot processes a new orderbook snapshot into a local
@@ -641,7 +641,7 @@ func (e *Exchange) wsSendAuthorisedCommand(ctx context.Context, secret, key stri
 	return e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req)
 }
 
-func (e *Exchange) processAccountMarginPosition(notification []any) error {
+func (e *Exchange) processAccountMarginPosition(ctx context.Context, notification []any) error {
 	if len(notification) < 5 {
 		return errNotEnoughData
 	}
@@ -674,7 +674,7 @@ func (e *Exchange) processAccountMarginPosition(notification []any) error {
 	clientOrderID, _ := notification[4].(string)
 
 	// Temp struct for margin position changes
-	e.Websocket.DataHandler <- struct {
+	return e.Websocket.DataHandler.Send(ctx, struct {
 		OrderID       string
 		Code          currency.Code
 		Amount        float64
@@ -684,12 +684,10 @@ func (e *Exchange) processAccountMarginPosition(notification []any) error {
 		Code:          code,
 		Amount:        amount,
 		ClientOrderID: clientOrderID,
-	}
-
-	return nil
+	})
 }
 
-func (e *Exchange) processAccountPendingOrder(notification []any) error {
+func (e *Exchange) processAccountPendingOrder(ctx context.Context, notification []any) error {
 	if len(notification) < 7 {
 		return errNotEnoughData
 	}
@@ -742,7 +740,7 @@ func (e *Exchange) processAccountPendingOrder(notification []any) error {
 	// null returned so ok check is not needed
 	clientOrderID, _ := notification[6].(string)
 
-	e.Websocket.DataHandler <- &order.Detail{
+	return e.Websocket.DataHandler.Send(ctx, &order.Detail{
 		Exchange:        e.Name,
 		OrderID:         strconv.FormatFloat(orderID, 'f', -1, 64),
 		Pair:            pair,
@@ -753,11 +751,10 @@ func (e *Exchange) processAccountPendingOrder(notification []any) error {
 		RemainingAmount: orderAmount,
 		ClientOrderID:   clientOrderID,
 		Status:          order.Pending,
-	}
-	return nil
+	})
 }
 
-func (e *Exchange) processAccountOrderUpdate(notification []any) error {
+func (e *Exchange) processAccountOrderUpdate(ctx context.Context, notification []any) error {
 	if len(notification) < 5 {
 		return errNotEnoughData
 	}
@@ -813,7 +810,7 @@ func (e *Exchange) processAccountOrderUpdate(notification []any) error {
 	// null returned so ok check is not needed
 	clientOrderID, _ := notification[4].(string)
 
-	e.Websocket.DataHandler <- &order.Detail{
+	return e.Websocket.DataHandler.Send(ctx, &order.Detail{
 		Exchange:        e.Name,
 		RemainingAmount: cancelledAmount,
 		Amount:          amount + cancelledAmount,
@@ -823,11 +820,10 @@ func (e *Exchange) processAccountOrderUpdate(notification []any) error {
 		Status:          oStatus,
 		AssetType:       asset.Spot,
 		ClientOrderID:   clientOrderID,
-	}
-	return nil
+	})
 }
 
-func (e *Exchange) processAccountOrderLimit(notification []any) error {
+func (e *Exchange) processAccountOrderLimit(ctx context.Context, notification []any) error {
 	if len(notification) != 9 {
 		return errNotEnoughData
 	}
@@ -900,7 +896,7 @@ func (e *Exchange) processAccountOrderLimit(notification []any) error {
 
 	// null returned so ok check is not needed
 	clientOrderID, _ := notification[8].(string)
-	e.Websocket.DataHandler <- &order.Detail{
+	return e.Websocket.DataHandler.Send(ctx, &order.Detail{
 		Exchange:        e.Name,
 		Price:           orderPrice,
 		RemainingAmount: orderAmount,
@@ -914,8 +910,7 @@ func (e *Exchange) processAccountOrderLimit(notification []any) error {
 		Date:            timeParse,
 		Pair:            pair,
 		ClientOrderID:   clientOrderID,
-	}
-	return nil
+	})
 }
 
 func (e *Exchange) processAccountBalanceUpdate(ctx context.Context, notification []any) error {
@@ -959,8 +954,7 @@ func (e *Exchange) processAccountBalanceUpdate(ctx context.Context, notification
 	if err := e.Accounts.Save(ctx, subAccts, true); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- subAccts
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, subAccts)
 }
 
 func deriveWalletType(s string) string {
@@ -976,7 +970,7 @@ func deriveWalletType(s string) string {
 	}
 }
 
-func (e *Exchange) processAccountTrades(notification []any) error {
+func (e *Exchange) processAccountTrades(ctx context.Context, notification []any) error {
 	if len(notification) < 11 {
 		return errNotEnoughData
 	}
@@ -1043,7 +1037,7 @@ func (e *Exchange) processAccountTrades(notification []any) error {
 		return err
 	}
 
-	e.Websocket.DataHandler <- &order.Detail{
+	return e.Websocket.DataHandler.Send(ctx, &order.Detail{
 		Exchange: e.Name,
 		OrderID:  strconv.FormatFloat(orderID, 'f', -1, 64),
 		Fee:      totalFee,
@@ -1058,11 +1052,10 @@ func (e *Exchange) processAccountTrades(notification []any) error {
 		}},
 		AssetType:     asset.Spot,
 		ClientOrderID: clientOrderID,
-	}
-	return nil
+	})
 }
 
-func (e *Exchange) processAccountKilledOrder(notification []any) error {
+func (e *Exchange) processAccountKilledOrder(ctx context.Context, notification []any) error {
 	if len(notification) < 3 {
 		return errNotEnoughData
 	}
@@ -1075,14 +1068,13 @@ func (e *Exchange) processAccountKilledOrder(notification []any) error {
 	// null returned so ok check is not needed
 	clientOrderID, _ := notification[2].(string)
 
-	e.Websocket.DataHandler <- &order.Detail{
+	return e.Websocket.DataHandler.Send(ctx, &order.Detail{
 		Exchange:      e.Name,
 		OrderID:       strconv.FormatFloat(orderID, 'f', -1, 64),
 		Status:        order.Cancelled,
 		AssetType:     asset.Spot,
 		ClientOrderID: clientOrderID,
-	}
-	return nil
+	})
 }
 
 func (e *Exchange) processTrades(currencyID float64, subData []any) error {
