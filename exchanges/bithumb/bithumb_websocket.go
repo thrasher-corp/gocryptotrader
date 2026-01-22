@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -51,14 +52,14 @@ func (e *Exchange) WsConnect() error {
 	}
 
 	e.Websocket.Wg.Add(1)
-	go e.wsReadData()
+	go e.wsReadData(ctx)
 
 	e.setupOrderbookManager(ctx)
 	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (e *Exchange) wsReadData() {
+func (e *Exchange) wsReadData(ctx context.Context) {
 	defer e.Websocket.Wg.Done()
 
 	for {
@@ -70,15 +71,16 @@ func (e *Exchange) wsReadData() {
 			if resp.Raw == nil {
 				return
 			}
-			err := e.wsHandleData(resp.Raw)
-			if err != nil {
-				e.Websocket.DataHandler <- err
+			if err := e.wsHandleData(ctx, resp.Raw); err != nil {
+				if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+					log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
+				}
 			}
 		}
 	}
 }
 
-func (e *Exchange) wsHandleData(respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	var resp WsResponse
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -106,7 +108,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- &ticker.Price{
+		return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 			ExchangeName: e.Name,
 			AssetType:    asset.Spot,
 			Last:         tick.PreviousClosePrice,
@@ -118,7 +120,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 			QuoteVolume:  tick.Value,
 			Volume:       tick.Volume,
 			LastUpdated:  lu,
-		}
+		})
 	case "transaction":
 		if !e.IsSaveTradeDataEnabled() {
 			return nil
