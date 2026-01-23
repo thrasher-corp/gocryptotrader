@@ -143,7 +143,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		case "subscribe", "unsubscribe", "error":
 			return conn.RequireMatchWithData("subscription", respRaw)
 		default:
-			return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)})
+			return fmt.Errorf("%s %s %s", e.Name, websocket.UnhandledMessage, string(respRaw))
 		}
 	}
 	switch result.Channel {

@@ -11,8 +11,8 @@ import (
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
@@ -26,8 +26,7 @@ func TestMain(m *testing.M) {
 
 	e.setAPICredential(apiKey, apiSecret)
 
-	e.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
-	e.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
+	e.Websocket.DataHandler = stream.NewRelay(10000)
 	if err := e.populateTradablePairs(); err != nil {
 		log.Fatal(err)
 	}

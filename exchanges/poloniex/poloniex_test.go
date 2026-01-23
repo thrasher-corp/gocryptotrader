@@ -2055,6 +2055,8 @@ var pushMessages = []*struct {
 	{label: "Exchange", payload: `{"channel": "exchange", "action" : "snapshot", "data": [ { "MM"   :  "ON", "POM"  :  "OFF" } ] }`},
 	{label: "Unmarshal Error", payload: `{"channel":"abc","data":[]`, errExplanation: "Unexpected JSON input error"},
 	{label: "Unhandled Channel", payload: `{"channel":"abc","data":[]}`, errExplanation: "Unhandled channel message"},
+	{label: "Unhandled Event", payload: `{"event": "abc"}`, errExplanation: "Unhandled event message"},
+	{label: "Pong Event", payload: `{"event": "pong"}`},
 }
 
 func TestWsHandleData(t *testing.T) {
@@ -2297,7 +2299,8 @@ var futuresPushDataMap = []struct {
 	{label: "Limit Price", payload: `{"channel": "limit_price", "data": [ { "ts": 1739346571315, "s": "BTC_USDT_PERP", "buyLmt": "100790.67", "sellLmt": "91191.57" } ], "action": "update" }`},
 	{label: "Unmarshal Error", payload: `{"channel":"abc","data":[]`, errExplanation: "Unexpected JSON input error"},
 	{label: "Unhandled Channel", payload: `{"channel":"abc","data":[]}`, errExplanation: "Unhandled channel message"},
-	{label: "Ping", payload: `{"event": "ping"}`},
+	{label: "Unhandled Event", payload: `{"event": "abc"}`, errExplanation: "Unhandled event message"},
+	{label: "Pong", payload: `{"event": "pong"}`},
 }
 
 func TestWsFuturesHandleData(t *testing.T) {

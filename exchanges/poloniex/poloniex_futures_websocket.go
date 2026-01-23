@@ -135,10 +135,11 @@ func (e *Exchange) wsFuturesHandleData(ctx context.Context, conn websocket.Conne
 	if result.Event != "" {
 		switch result.Event {
 		case "pong":
+			return nil
 		case "subscribe", "unsubscribe", "error":
 			return conn.RequireMatchWithData("subscription", respRaw)
 		default:
-			return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)})
+			return fmt.Errorf("%s %s %s", e.Name, websocket.UnhandledMessage, string(respRaw))
 		}
 	}
 	switch result.Channel {
