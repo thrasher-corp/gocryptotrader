@@ -39,7 +39,7 @@ func (m *Manager) UnsubscribeChannels(ctx context.Context, conn Connection, chan
 			return fmt.Errorf("%w: %q", errConnectionNotFound, conn.GetURL())
 		}
 		return m.unsubscribe(ws.subscriptions, channels, func(channels subscription.List) error {
-			return ws.setup.Unsubscriber(context.TODO(), conn, channels)
+			return ws.setup.Unsubscriber(ctx, conn, channels)
 		})
 	}
 

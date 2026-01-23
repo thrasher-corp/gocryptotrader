@@ -517,7 +517,7 @@ func (m *Manager) connect(ctx context.Context) error {
 		}
 
 		if m.connectionManager[i].setup.SubscriptionsNotRequired && len(subs) == 0 {
-			if err := m.createConnectAndSubscribe(context.TODO(), m.connectionManager[i], nil); err != nil {
+			if err := m.createConnectAndSubscribe(ctx, m.connectionManager[i], nil); err != nil {
 				multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, m.connectionManager[i].setup.URL, err)
 				break
 			}
@@ -528,7 +528,7 @@ func (m *Manager) connect(ctx context.Context) error {
 		}
 
 		for _, batchedSubs := range common.Batch(subs, m.MaxSubscriptionsPerConnection) {
-			if err := m.createConnectAndSubscribe(context.TODO(), m.connectionManager[i], batchedSubs); err != nil {
+			if err := m.createConnectAndSubscribe(ctx, m.connectionManager[i], batchedSubs); err != nil {
 				if errors.Is(err, common.ErrFatal) {
 					multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, m.connectionManager[i].setup.URL, err)
 					break

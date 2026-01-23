@@ -99,4 +99,5 @@ func TestNeedsOutboundSubscription(t *testing.T) {
 
 	needed, err = eval.NeedsOutboundSubscription(currency.NewBTCUSDT(), "trades", asset.Margin)
 	require.ErrorIs(t, err, subscription.ErrNotFound)
+	require.False(t, needed, "subscription must not be needed")
 }
