@@ -49,7 +49,7 @@ func (e *Exchange) SetDefaults() {
 
 	requestFmt := &currency.PairFormat{Delimiter: currency.UnderscoreDelimiter, Uppercase: true}
 	configFmt := &currency.PairFormat{Delimiter: currency.UnderscoreDelimiter, Uppercase: true}
-	if err := e.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Margin, asset.CrossMargin, asset.DeliveryFutures, asset.Options); err != nil {
+	if err := e.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Margin, asset.CrossMargin, asset.DeliveryFutures, asset.BTCMarginedDeliveryFutures, asset.Options); err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
@@ -156,7 +156,6 @@ func (e *Exchange) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	// TODO: Majority of margin REST endpoints are labelled as deprecated on the API docs. These will need to be removed.
 	if err := e.DisableAssetWebsocketSupport(asset.Margin); err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -259,7 +258,27 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	// TODO: Add BTC margined delivery futures.
+	// Futures connection - Delivery - BTC margined
+	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                  deliveryRealBTCTradingURL,
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
+			return e.WsHandleFuturesData(ctx, conn, incoming, asset.BTCMarginedDeliveryFutures)
+		},
+		Subscriber:   e.DeliveryFuturesSubscribe,
+		Unsubscriber: e.DeliveryFuturesUnsubscribe,
+		GenerateSubscriptions: func() (subscription.List, error) {
+			return e.GenerateDeliveryFuturesDefaultSubscriptions(asset.BTCMarginedDeliveryFutures)
+		},
+		Connector: func(ctx context.Context, conn websocket.Connection) error {
+			return e.WsDeliveryFuturesConnect(ctx, conn, asset.BTCMarginedDeliveryFutures)
+		},
+		MessageFilter: asset.BTCMarginedDeliveryFutures,
+	}); err != nil {
+		return err
+	}
+
 	// Futures connection - Delivery - USDT margined
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  deliveryRealUSDTTradingURL,
@@ -268,11 +287,15 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
 			return e.WsHandleFuturesData(ctx, conn, incoming, asset.DeliveryFutures)
 		},
-		Subscriber:            e.DeliveryFuturesSubscribe,
-		Unsubscriber:          e.DeliveryFuturesUnsubscribe,
-		GenerateSubscriptions: e.GenerateDeliveryFuturesDefaultSubscriptions,
-		Connector:             e.WsDeliveryFuturesConnect,
-		MessageFilter:         asset.DeliveryFutures,
+		Subscriber:   e.DeliveryFuturesSubscribe,
+		Unsubscriber: e.DeliveryFuturesUnsubscribe,
+		GenerateSubscriptions: func() (subscription.List, error) {
+			return e.GenerateDeliveryFuturesDefaultSubscriptions(asset.DeliveryFutures)
+		},
+		Connector: func(ctx context.Context, conn websocket.Connection) error {
+			return e.WsDeliveryFuturesConnect(ctx, conn, asset.DeliveryFutures)
+		},
+		MessageFilter: asset.DeliveryFutures,
 	}); err != nil {
 		return err
 	}
@@ -436,6 +459,24 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 				continue
 			}
 			pairs = append(pairs, fContract.Name)
+		}
+		return slices.Clip(pairs), nil
+	case asset.BTCMarginedDeliveryFutures:
+		contracts, err := e.GetAllDeliveryContracts(ctx, currency.BTC)
+		if err != nil {
+			return nil, err
+		}
+		pairs := make([]currency.Pair, 0, len(contracts))
+		for _, deliveryContract := range contracts {
+			if deliveryContract.InDelisting {
+				continue
+			}
+			p := strings.ToUpper(deliveryContract.Name)
+			cp, err := currency.NewPairFromString(p)
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, cp)
 		}
 		return slices.Clip(pairs), nil
 	case asset.DeliveryFutures:

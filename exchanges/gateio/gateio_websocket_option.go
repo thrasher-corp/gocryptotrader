@@ -392,14 +392,13 @@ func (e *Exchange) processOptionsTradesPushData(data []byte) error {
 		!e.IsTradeFeedEnabled() {
 		return nil
 	}
-	resp := struct {
+	var resp struct {
 		Time    types.Time        `json:"time"`
 		Channel string            `json:"channel"`
 		Event   string            `json:"event"`
 		Result  []WsOptionsTrades `json:"result"`
-	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	}
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	trades := make([]trade.Data, len(resp.Result))
@@ -425,12 +424,12 @@ func (e *Exchange) processResponse(ctx context.Context, incoming []byte, data an
 }
 
 func (e *Exchange) processOptionsCandlestickPushData(ctx context.Context, data []byte) error {
-	resp := struct {
+	var resp struct {
 		Time    types.Time                     `json:"time"`
 		Channel string                         `json:"channel"`
 		Event   string                         `json:"event"`
 		Result  []WsOptionsContractCandlestick `json:"result"`
-	}{}
+	}
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}

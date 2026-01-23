@@ -80,7 +80,6 @@ const (
 )
 
 var (
-	errInvalidAutoSizeValue      = errors.New("invalid \"auto_size\" value, only \"close_long\" and \"close_short\" are supported")
 	errInvalidOrderText          = errors.New("invalid text value, requires prefix `t-`")
 	errLoanTypeIsRequired        = errors.New("loan type is required")
 	errUserIDRequired            = errors.New("user id is required")

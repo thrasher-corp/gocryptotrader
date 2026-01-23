@@ -242,18 +242,11 @@ func TestGetSpotAccounts(t *testing.T) {
 
 func TestCreateBatchOrders(t *testing.T) {
 	t.Parallel()
-	arg := CreateOrderRequest{
-		Side:    order.Sell,
-		Amount:  0.001,
-		Price:   12349,
-		Account: asset.Spot,
-		Type:    "limit",
-	}
 	_, err := e.CreateBatchOrders(t.Context(), make([]CreateOrderRequest, 11))
 	require.ErrorIs(t, err, errMultipleOrders)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	arg = CreateOrderRequest{
+	arg := CreateOrderRequest{
 		Side:    order.Sell,
 		Amount:  0.001,
 		Price:   12349,
@@ -2892,7 +2885,7 @@ func TestSubscribe(t *testing.T) {
 
 func TestGenerateDeliveryFuturesDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
-	_, err := e.GenerateDeliveryFuturesDefaultSubscriptions()
+	_, err := e.GenerateDeliveryFuturesDefaultSubscriptions(asset.DeliveryFutures)
 	assert.NoError(t, err)
 }
 
@@ -3070,16 +3063,16 @@ func TestParseGateioMilliSecTimeUnmarshal(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, in.Time().Equal(tm), "found %v, but expected %v", in.Time(), tm)
 
-	inInteger := struct {
+	var inInteger struct {
 		Number types.Time `json:"number"`
-	}{}
+	}
 	err = json.Unmarshal([]byte(integerJSON), &inInteger)
 	require.NoError(t, err)
 	require.Truef(t, inInteger.Number.Time().Equal(tm), "found %v, but expected %v", inInteger.Number.Time(), tm)
 
-	inFloat64 := struct {
+	var inFloat64 struct {
 		Number types.Time `json:"number"`
-	}{}
+	}
 	err = json.Unmarshal([]byte(float64JSON), &inFloat64)
 	require.NoError(t, err)
 	require.True(t, inFloat64.Number.Time().Equal(tm), "found %v, but expected %v", inFloat64.Number.Time(), tm)
@@ -3099,16 +3092,16 @@ func TestParseTimeUnmarshal(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, in.Time().Equal(whenTime), "found %v, but expected %v", in.Time(), whenTime)
 
-	inInteger := struct {
+	var inInteger struct {
 		Number types.Time `json:"number"`
-	}{}
+	}
 	err = json.Unmarshal([]byte(integerJSON), &inInteger)
 	require.NoError(t, err)
 	require.True(t, inInteger.Number.Time().Equal(whenTime), "found %v, but expected %v", inInteger.Number.Time(), whenTime)
 
-	inFloat64 := struct {
+	var inFloat64 struct {
 		Number types.Time `json:"number"`
-	}{}
+	}
 	err = json.Unmarshal([]byte(float64JSON), &inFloat64)
 	require.NoError(t, err)
 
@@ -3618,7 +3611,6 @@ func TestParseWSHeader(t *testing.T) {
 
 func TestDeriveSpotWebsocketOrderResponse(t *testing.T) {
 	t.Parallel()
-
 	var resp *WebsocketOrderResponse
 	require.NoError(t, json.Unmarshal([]byte(`{"left":"0","update_time":"1735720637","amount":"0.0001","create_time":"1735720637","price":"0","finish_as":"filled","time_in_force":"ioc","currency_pair":"BTC_USDT","type":"market","account":"spot","side":"sell","amend_text":"-","text":"t-1735720637181634009","status":"closed","iceberg":"0","avg_deal_price":"93503.3","filled_total":"9.35033","id":"766075454481","fill_price":"9.35033","update_time_ms":1735720637188,"create_time_ms":1735720637188}`), &resp), "unmarshal must not error")
 
@@ -4304,20 +4296,22 @@ func TestOrderbookChannelIntervals(t *testing.T) {
 	assert.Equal(t, "20ms", i)
 
 	for s, exp := range map[*subscription.Subscription]error{
-		{Asset: asset.Binary, Channel: "unknown_channel", Interval: kline.OneYear}:                                   nil,
-		{Asset: asset.Spot, Channel: spotOrderbookTickerChannel, Interval: kline.OneDay}:                             subscription.ErrInvalidInterval,
-		{Asset: asset.Spot, Channel: spotOrderbookTickerChannel, Interval: 0}:                                        nil,
-		{Asset: asset.Spot, Channel: spotOrderbookChannel, Interval: kline.OneDay}:                                   subscription.ErrInvalidInterval,
-		{Asset: asset.Spot, Channel: spotOrderbookChannel, Interval: kline.HundredMilliseconds}:                      nil,
-		{Asset: asset.Spot, Channel: spotOrderbookChannel, Interval: kline.ThousandMilliseconds}:                     nil,
-		{Asset: asset.Spot, Channel: spotOrderbookUpdateChannel, Interval: kline.OneDay}:                             subscription.ErrInvalidInterval,
-		{Asset: asset.Spot, Channel: spotOrderbookUpdateChannel, Interval: kline.HundredMilliseconds}:                nil,
-		{Asset: asset.Futures, Channel: futuresOrderbookTickerChannel, Interval: kline.TenMilliseconds}:              subscription.ErrInvalidInterval,
-		{Asset: asset.Futures, Channel: futuresOrderbookTickerChannel, Interval: 0}:                                  nil,
-		{Asset: asset.Futures, Channel: futuresOrderbookChannel, Interval: kline.TenMilliseconds}:                    subscription.ErrInvalidInterval,
-		{Asset: asset.Futures, Channel: futuresOrderbookChannel, Interval: 0}:                                        nil,
-		{Asset: asset.Futures, Channel: futuresOrderbookUpdateChannel, Interval: kline.OneDay}:                       subscription.ErrInvalidInterval,
-		{Asset: asset.Futures, Channel: futuresOrderbookUpdateChannel, Interval: kline.HundredMilliseconds}:          nil,
+		{Asset: asset.Binary, Channel: "unknown_channel", Interval: kline.OneYear}:                    nil,
+		{Asset: asset.Spot, Channel: spotOrderbookTickerChannel, Interval: kline.OneDay}:              subscription.ErrInvalidInterval,
+		{Asset: asset.Spot, Channel: spotOrderbookTickerChannel, Interval: 0}:                         nil,
+		{Asset: asset.Spot, Channel: spotOrderbookChannel, Interval: kline.OneDay}:                    subscription.ErrInvalidInterval,
+		{Asset: asset.Spot, Channel: spotOrderbookChannel, Interval: kline.HundredMilliseconds}:       nil,
+		{Asset: asset.Spot, Channel: spotOrderbookChannel, Interval: kline.ThousandMilliseconds}:      nil,
+		{Asset: asset.Spot, Channel: spotOrderbookUpdateChannel, Interval: kline.OneDay}:              subscription.ErrInvalidInterval,
+		{Asset: asset.Spot, Channel: spotOrderbookUpdateChannel, Interval: kline.HundredMilliseconds}: nil,
+
+		{Asset: asset.Futures, Channel: futuresOrderbookTickerChannel, Interval: kline.TenMilliseconds}:     subscription.ErrInvalidInterval,
+		{Asset: asset.Futures, Channel: futuresOrderbookTickerChannel, Interval: 0}:                         nil,
+		{Asset: asset.Futures, Channel: futuresOrderbookChannel, Interval: kline.TenMilliseconds}:           subscription.ErrInvalidInterval,
+		{Asset: asset.Futures, Channel: futuresOrderbookChannel, Interval: 0}:                               nil,
+		{Asset: asset.Futures, Channel: futuresOrderbookUpdateChannel, Interval: kline.OneDay}:              subscription.ErrInvalidInterval,
+		{Asset: asset.Futures, Channel: futuresOrderbookUpdateChannel, Interval: kline.HundredMilliseconds}: nil,
+
 		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookTickerChannel, Interval: kline.TenMilliseconds}:      subscription.ErrInvalidInterval,
 		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookTickerChannel, Interval: 0}:                          nil,
 		{Asset: asset.DeliveryFutures, Channel: futuresOrderbookChannel, Interval: kline.TenMilliseconds}:            subscription.ErrInvalidInterval,
