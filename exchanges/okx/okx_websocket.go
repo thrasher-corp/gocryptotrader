@@ -397,7 +397,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		channelCandle3Mutc, channelCandle1Mutc, channelCandle1Wutc, channelCandle1Dutc,
 		channelCandle2Dutc, channelCandle3Dutc, channelCandle5Dutc, channelCandle12Hutc,
 		channelCandle6Hutc:
-		return e.wsProcessCandles(respRaw)
+		return e.wsProcessCandles(ctx, respRaw)
 	case channelIndexCandle1Y, channelIndexCandle6M, channelIndexCandle3M, channelIndexCandle1M,
 		channelIndexCandle1W, channelIndexCandle1D, channelIndexCandle2D, channelIndexCandle3D,
 		channelIndexCandle5D, channelIndexCandle12H, channelIndexCandle6H, channelIndexCandle4H,
@@ -406,78 +406,78 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		channelIndexCandle3Mutc, channelIndexCandle1Mutc, channelIndexCandle1Wutc,
 		channelIndexCandle1Dutc, channelIndexCandle2Dutc, channelIndexCandle3Dutc, channelIndexCandle5Dutc,
 		channelIndexCandle12Hutc, channelIndexCandle6Hutc:
-		return e.wsProcessIndexCandles(respRaw)
+		return e.wsProcessIndexCandles(ctx, respRaw)
 	case channelTickers:
-		return e.wsProcessTickers(respRaw)
+		return e.wsProcessTickers(ctx, respRaw)
 	case channelIndexTickers:
 		var response WsIndexTicker
-		return e.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelStatus:
 		var response WsSystemStatusResponse
-		return e.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelPublicStrucBlockTrades:
 		var response WsPublicTradesResponse
-		return e.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelPublicBlockTrades:
 		return e.wsProcessBlockPublicTrades(respRaw)
 	case channelBlockTickers:
 		var response WsBlockTicker
-		return e.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelAccountGreeks:
 		var response WsGreeks
-		return e.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelAccount:
 		var response WsAccountChannelPushData
-		return e.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelPositions,
 		channelLiquidationWarning:
 		var response WsPositionResponse
-		return e.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelBalanceAndPosition:
 		return e.wsProcessBalanceAndPosition(ctx, respRaw)
 	case channelOrders:
-		return e.wsProcessOrders(respRaw)
+		return e.wsProcessOrders(ctx, respRaw)
 	case channelAlgoOrders:
 		var response WsAlgoOrder
-		return e.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelAlgoAdvance:
 		var response WsAdvancedAlgoOrder
-		return e.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelRFQs:
 		var response WsRFQ
-		return e.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelQuotes:
 		var response WsQuote
-		return e.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelStructureBlockTrades:
 		var response WsStructureBlocTrade
-		return e.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelSpotGridOrder:
 		var response WsSpotGridAlgoOrder
-		return e.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelGridOrdersContract:
 		var response WsContractGridAlgoOrder
-		return e.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelGridPositions:
 		var response WsContractGridAlgoOrder
-		return e.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelGridSubOrders:
 		var response WsGridSubOrderData
-		return e.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelInstruments:
 		var response WSInstrumentResponse
-		return e.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelOpenInterest:
 		var response WSOpenInterestResponse
-		return e.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelTrades, channelAllTrades:
-		return e.wsProcessTrades(respRaw)
+		return e.wsProcessTrades(ctx, respRaw)
 	case channelEstimatedPrice:
 		var response WsDeliveryEstimatedPrice
-		return e.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelMarkPrice, channelPriceLimit:
 		var response WsMarkPrice
-		return e.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelOrderBooks5:
 		return e.wsProcessOrderbook5(respRaw)
 	case okxSpreadOrderbookLevel1,
@@ -486,17 +486,17 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	case okxSpreadPublicTrades:
 		return e.wsProcessPublicSpreadTrades(respRaw)
 	case okxSpreadPublicTicker:
-		return e.wsProcessPublicSpreadTicker(respRaw)
+		return e.wsProcessPublicSpreadTicker(ctx, respRaw)
 	case channelOrderBooks, channelOrderBooks50TBT, channelBBOTBT, channelOrderBooksTBT:
 		return e.wsProcessOrderBooks(ctx, conn, respRaw)
 	case channelOptionTrades:
 		return e.wsProcessOptionTrades(respRaw)
 	case channelOptSummary:
 		var response WsOptionSummary
-		return e.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelFundingRate:
 		var response WsFundingRate
-		return e.wsProcessPushData(respRaw, &response)
+		return e.wsProcessPushData(ctx, respRaw, &response)
 	case channelMarkPriceCandle1Y, channelMarkPriceCandle6M, channelMarkPriceCandle3M, channelMarkPriceCandle1M,
 		channelMarkPriceCandle1W, channelMarkPriceCandle1D, channelMarkPriceCandle2D, channelMarkPriceCandle3D,
 		channelMarkPriceCandle5D, channelMarkPriceCandle12H, channelMarkPriceCandle6H, channelMarkPriceCandle4H,
@@ -505,9 +505,9 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		channelMarkPriceCandle3Mutc, channelMarkPriceCandle1Mutc, channelMarkPriceCandle1Wutc, channelMarkPriceCandle1Dutc,
 		channelMarkPriceCandle2Dutc, channelMarkPriceCandle3Dutc, channelMarkPriceCandle5Dutc, channelMarkPriceCandle12Hutc,
 		channelMarkPriceCandle6Hutc:
-		return e.wsHandleMarkPriceCandles(respRaw)
+		return e.wsHandleMarkPriceCandles(ctx, respRaw)
 	case okxSpreadOrders:
-		return e.wsProcessSpreadOrders(respRaw)
+		return e.wsProcessSpreadOrders(ctx, respRaw)
 	case okxSpreadTrades:
 		return e.wsProcessSpreadTrades(respRaw)
 	case okxWithdrawalInfo:
@@ -515,34 +515,33 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 			Arguments SubscriptionInfo `json:"arg"`
 			Data      []WsDepositInfo  `json:"data"`
 		}{}
-		return e.wsProcessPushData(respRaw, resp)
+		return e.wsProcessPushData(ctx, respRaw, resp)
 	case okxDepositInfo:
 		resp := &struct {
 			Arguments SubscriptionInfo  `json:"arg"`
 			Data      []WsWithdrawlInfo `json:"data"`
 		}{}
-		return e.wsProcessPushData(respRaw, resp)
+		return e.wsProcessPushData(ctx, respRaw, resp)
 	case channelRecurringBuy:
 		resp := &struct {
 			Arguments SubscriptionInfo    `json:"arg"`
 			Data      []RecurringBuyOrder `json:"data"`
 		}{}
-		return e.wsProcessPushData(respRaw, resp)
+		return e.wsProcessPushData(ctx, respRaw, resp)
 	case liquidationOrders:
 		var resp *LiquidationOrder
-		return e.wsProcessPushData(respRaw, &resp)
+		return e.wsProcessPushData(ctx, respRaw, &resp)
 	case adlWarning:
 		var resp ADLWarning
-		return e.wsProcessPushData(respRaw, &resp)
+		return e.wsProcessPushData(ctx, respRaw, &resp)
 	case economicCalendar:
 		var resp EconomicCalendarResponse
-		return e.wsProcessPushData(respRaw, &resp)
+		return e.wsProcessPushData(ctx, respRaw, &resp)
 	case copyTrading:
 		var resp CopyTradingNotification
-		return e.wsProcessPushData(respRaw, &resp)
+		return e.wsProcessPushData(ctx, respRaw, &resp)
 	default:
-		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
-		return nil
+		return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)})
 	}
 }
 
@@ -583,7 +582,7 @@ func (e *Exchange) wsProcessSpreadTrades(respRaw []byte) error {
 // wsProcessSpreadOrders retrieve order information from the sprd-order Websocket channel.
 // Data will not be pushed when first subscribed.
 // Data will only be pushed when triggered by events such as placing/canceling order.
-func (e *Exchange) wsProcessSpreadOrders(respRaw []byte) error {
+func (e *Exchange) wsProcessSpreadOrders(ctx context.Context, respRaw []byte) error {
 	resp := &struct {
 		Argument SubscriptionInfo `json:"arg"`
 		Data     []WsSpreadOrder  `json:"data"`
@@ -633,12 +632,11 @@ func (e *Exchange) wsProcessSpreadOrders(respRaw []byte) error {
 			LastUpdated:          resp.Data[x].UpdateTime.Time(),
 		}
 	}
-	e.Websocket.DataHandler <- orderDetails
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, orderDetails)
 }
 
 // wsProcessIndexCandles processes index candlestick data
-func (e *Exchange) wsProcessIndexCandles(respRaw []byte) error {
+func (e *Exchange) wsProcessIndexCandles(ctx context.Context, respRaw []byte) error {
 	response := struct {
 		Argument SubscriptionInfo  `json:"arg"`
 		Data     [][5]types.Number `json:"data"`
@@ -679,14 +677,16 @@ func (e *Exchange) wsProcessIndexCandles(respRaw []byte) error {
 		}
 		for i := range assets {
 			myCandle.AssetType = assets[i]
-			e.Websocket.DataHandler <- myCandle
+			if err := e.Websocket.DataHandler.Send(ctx, myCandle); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
 }
 
 // wsProcessPublicSpreadTicker process spread order ticker push data.
-func (e *Exchange) wsProcessPublicSpreadTicker(respRaw []byte) error {
+func (e *Exchange) wsProcessPublicSpreadTicker(ctx context.Context, respRaw []byte) error {
 	var resp WsSpreadPushData
 	data := []WsSpreadPublicTicker{}
 	resp.Data = &data
@@ -710,8 +710,7 @@ func (e *Exchange) wsProcessPublicSpreadTicker(respRaw []byte) error {
 			LastUpdated:  data[x].Timestamp.Time(),
 		}
 	}
-	e.Websocket.DataHandler <- tickers
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, tickers)
 }
 
 // wsProcessPublicSpreadTrades retrieve the recent trades data from sprd-public-trades.
@@ -902,7 +901,7 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 					},
 				})
 				if err != nil {
-					e.Websocket.DataHandler <- err
+					return err
 				}
 			} else {
 				return err
@@ -1033,7 +1032,7 @@ func (e *Exchange) CalculateOrderbookChecksum(orderbookData *WsOrderBookData) (u
 }
 
 // wsHandleMarkPriceCandles processes candlestick mark price push data as a result of  subscription to "mark-price-candle*" channel.
-func (e *Exchange) wsHandleMarkPriceCandles(data []byte) error {
+func (e *Exchange) wsHandleMarkPriceCandles(ctx context.Context, data []byte) error {
 	m := &struct {
 		Argument SubscriptionInfo  `json:"arg"`
 		Data     [][5]types.Number `json:"data"`
@@ -1053,12 +1052,11 @@ func (e *Exchange) wsHandleMarkPriceCandles(data []byte) error {
 			ClosePrice:   m.Data[x][4].Float64(),
 		}
 	}
-	e.Websocket.DataHandler <- candles
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, candles)
 }
 
 // wsProcessTrades handles a list of trade information.
-func (e *Exchange) wsProcessTrades(data []byte) error {
+func (e *Exchange) wsProcessTrades(ctx context.Context, data []byte) error {
 	var response WsTradeOrder
 	err := json.Unmarshal(data, &response)
 	if err != nil {
@@ -1105,7 +1103,9 @@ func (e *Exchange) wsProcessTrades(data []byte) error {
 	}
 	if tradeFeed {
 		for i := range trades {
-			e.Websocket.DataHandler <- trades[i]
+			if err := e.Websocket.DataHandler.Send(ctx, trades[i]); err != nil {
+				return err
+			}
 		}
 	}
 	if saveTradeData {
@@ -1115,7 +1115,7 @@ func (e *Exchange) wsProcessTrades(data []byte) error {
 }
 
 // wsProcessOrders handles websocket order push data responses.
-func (e *Exchange) wsProcessOrders(respRaw []byte) error {
+func (e *Exchange) wsProcessOrders(ctx context.Context, respRaw []byte) error {
 	var response WsOrderResponse
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
@@ -1128,19 +1128,11 @@ func (e *Exchange) wsProcessOrders(respRaw []byte) error {
 	for x := range response.Data {
 		orderType, err := order.StringToOrderType(response.Data[x].OrderType)
 		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  response.Data[x].OrderID,
-				Err:      err,
-			}
+			return err
 		}
 		orderStatus, err := order.StringToOrderStatus(response.Data[x].State)
 		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  response.Data[x].OrderID,
-				Err:      err,
-			}
+			return err
 		}
 		pair, err := currency.NewPairFromString(response.Data[x].InstrumentID)
 		if err != nil {
@@ -1201,13 +1193,15 @@ func (e *Exchange) wsProcessOrders(respRaw []byte) error {
 				d.Amount = d.ExecutedAmount
 			}
 		}
-		e.Websocket.DataHandler <- d
+		if err := e.Websocket.DataHandler.Send(ctx, d); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 // wsProcessCandles handler to get a list of candlestick messages.
-func (e *Exchange) wsProcessCandles(respRaw []byte) error {
+func (e *Exchange) wsProcessCandles(ctx context.Context, respRaw []byte) error {
 	response := struct {
 		Argument SubscriptionInfo  `json:"arg"`
 		Data     [][7]types.Number `json:"data"`
@@ -1235,7 +1229,7 @@ func (e *Exchange) wsProcessCandles(respRaw []byte) error {
 	candleInterval := strings.TrimPrefix(response.Argument.Channel, candle)
 	for i := range response.Data {
 		for j := range assets {
-			e.Websocket.DataHandler <- websocket.KlineData{
+			if err := e.Websocket.DataHandler.Send(ctx, websocket.KlineData{
 				Timestamp:  time.UnixMilli(response.Data[i][0].Int64()),
 				Pair:       response.Argument.InstrumentID,
 				AssetType:  assets[j],
@@ -1246,6 +1240,8 @@ func (e *Exchange) wsProcessCandles(respRaw []byte) error {
 				HighPrice:  response.Data[i][2].Float64(),
 				LowPrice:   response.Data[i][3].Float64(),
 				Volume:     response.Data[i][5].Float64(),
+			}); err != nil {
+				return err
 			}
 		}
 	}
@@ -1253,7 +1249,7 @@ func (e *Exchange) wsProcessCandles(respRaw []byte) error {
 }
 
 // wsProcessTickers handles the trade ticker information.
-func (e *Exchange) wsProcessTickers(data []byte) error {
+func (e *Exchange) wsProcessTickers(ctx context.Context, data []byte) error {
 	var response WSTickerResponse
 	err := json.Unmarshal(data, &response)
 	if err != nil {
@@ -1299,7 +1295,9 @@ func (e *Exchange) wsProcessTickers(data []byte) error {
 				Pair:         response.Data[i].InstrumentID,
 				LastUpdated:  response.Data[i].TickerDataGenerationTime.Time(),
 			}
-			e.Websocket.DataHandler <- tickData
+			if err := e.Websocket.DataHandler.Send(ctx, tickData); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -1378,16 +1376,17 @@ func (e *Exchange) wsProcessBalanceAndPosition(ctx context.Context, data []byte)
 	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- subAccts
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, subAccts)
 }
 
 // wsProcessPushData processes push data coming through the websocket channel
-func (e *Exchange) wsProcessPushData(data []byte, resp any) error {
+func (e *Exchange) wsProcessPushData(ctx context.Context, data []byte, resp any) error {
 	if err := json.Unmarshal(data, resp); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- resp
+	if err := e.Websocket.DataHandler.Send(ctx, resp); err != nil {
+		return err
+	}
 	return nil
 }
 

@@ -202,10 +202,10 @@ func (e *Exchange) wsReadData(ctx context.Context) {
 		if resp.Raw == nil {
 			return
 		}
-
-		err := e.wsHandleData(ctx, resp.Raw)
-		if err != nil {
-			e.Websocket.DataHandler <- err
+		if err := e.wsHandleData(ctx, resp.Raw); err != nil {
+			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
+			}
 		}
 	}
 }
@@ -235,73 +235,72 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- announcement
+		return e.Websocket.DataHandler.Send(ctx, announcement)
 	case "book":
 		return e.processOrderbook(respRaw, channels)
 	case "chart":
-		return e.processCandleChart(respRaw, channels)
+		return e.processCandleChart(ctx, respRaw, channels)
 	case "deribit_price_index":
 		indexPrice := &wsIndexPrice{}
-		return e.processData(respRaw, indexPrice)
+		return e.processData(ctx, respRaw, indexPrice)
 	case "deribit_price_ranking":
 		priceRankings := &wsRankingPrices{}
-		return e.processData(respRaw, priceRankings)
+		return e.processData(ctx, respRaw, priceRankings)
 	case "deribit_price_statistics":
 		priceStatistics := &wsPriceStatistics{}
-		return e.processData(respRaw, priceStatistics)
+		return e.processData(ctx, respRaw, priceStatistics)
 	case "deribit_volatility_index":
 		volatilityIndex := &wsVolatilityIndex{}
-		return e.processData(respRaw, volatilityIndex)
+		return e.processData(ctx, respRaw, volatilityIndex)
 	case "estimated_expiration_price":
 		estimatedExpirationPrice := &wsEstimatedExpirationPrice{}
-		return e.processData(respRaw, estimatedExpirationPrice)
+		return e.processData(ctx, respRaw, estimatedExpirationPrice)
 	case "incremental_ticker":
-		return e.processIncrementalTicker(respRaw, channels)
+		return e.processIncrementalTicker(ctx, respRaw, channels)
 	case "instrument":
 		instrumentState := &wsInstrumentState{}
-		return e.processData(respRaw, instrumentState)
+		return e.processData(ctx, respRaw, instrumentState)
 	case "markprice":
 		markPriceOptions := []wsMarkPriceOptions{}
-		return e.processData(respRaw, markPriceOptions)
+		return e.processData(ctx, respRaw, markPriceOptions)
 	case "perpetual":
 		perpetualInterest := &wsPerpetualInterest{}
-		return e.processData(respRaw, perpetualInterest)
+		return e.processData(ctx, respRaw, perpetualInterest)
 	case platformStateChannel:
 		platformState := &wsPlatformState{}
-		return e.processData(respRaw, platformState)
+		return e.processData(ctx, respRaw, platformState)
 	case "quote": // Quote ticker information.
-		return e.processQuoteTicker(respRaw, channels)
+		return e.processQuoteTicker(ctx, respRaw, channels)
 	case "ticker":
-		return e.processInstrumentTicker(respRaw, channels)
+		return e.processInstrumentTicker(ctx, respRaw, channels)
 	case "trades":
-		return e.processTrades(respRaw, channels)
+		return e.processTrades(ctx, respRaw, channels)
 	case "user":
 		switch channels[1] {
 		case "access_log":
 			accessLog := &wsAccessLog{}
-			return e.processData(respRaw, accessLog)
+			return e.processData(ctx, respRaw, accessLog)
 		case "changes":
-			return e.processUserOrderChanges(respRaw, channels)
+			return e.processUserOrderChanges(ctx, respRaw, channels)
 		case "lock":
 			userLock := &WsUserLock{}
-			return e.processData(respRaw, userLock)
+			return e.processData(ctx, respRaw, userLock)
 		case "mmp_trigger":
 			data := &WsMMPTrigger{
 				Currency: channels[2],
 			}
-			return e.processData(respRaw, data)
+			return e.processData(ctx, respRaw, data)
 		case "orders":
-			return e.processUserOrders(respRaw, channels)
+			return e.processUserOrders(ctx, respRaw, channels)
 		case "portfolio":
 			portfolio := &wsUserPortfolio{}
-			return e.processData(respRaw, portfolio)
+			return e.processData(ctx, respRaw, portfolio)
 		case "trades":
-			return e.processTrades(respRaw, channels)
+			return e.processTrades(ctx, respRaw, channels)
 		default:
-			e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+			return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
 				Message: e.Name + websocket.UnhandledMessage + string(respRaw),
-			}
-			return nil
+			})
 		}
 	case "public/test", "public/set_heartbeat":
 	default:
@@ -311,10 +310,9 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 				return nil
 			}
 		default:
-			e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+			return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
 				Message: e.Name + websocket.UnhandledMessage + string(respRaw),
-			}
-			return nil
+			})
 		}
 	}
 	return nil
@@ -331,7 +329,7 @@ func (e *Exchange) wsSendHeartbeat(ctx context.Context) {
 	}
 }
 
-func (e *Exchange) processUserOrders(respRaw []byte, channels []string) error {
+func (e *Exchange) processUserOrders(ctx context.Context, respRaw []byte, channels []string) error {
 	if len(channels) != 4 && len(channels) != 5 {
 		return fmt.Errorf("%w, expected format 'user.orders.{instrument_name}.raw, user.orders.{instrument_name}.{interval}, user.orders.{kind}.{currency}.raw, or user.orders.{kind}.{currency}.{interval}', but found %s", common.ErrMalformedData, strings.Join(channels, "."))
 	}
@@ -376,11 +374,10 @@ func (e *Exchange) processUserOrders(respRaw []byte, channels []string) error {
 			Pair:            cp,
 		}
 	}
-	e.Websocket.DataHandler <- orderDetails
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, orderDetails)
 }
 
-func (e *Exchange) processUserOrderChanges(respRaw []byte, channels []string) error {
+func (e *Exchange) processUserOrderChanges(ctx context.Context, respRaw []byte, channels []string) error {
 	if len(channels) < 4 || len(channels) > 5 {
 		return fmt.Errorf("%w, expected format 'trades.{instrument_name}.{interval} or trades.{kind}.{currency}.{interval}', but found %s", common.ErrMalformedData, strings.Join(channels, "."))
 	}
@@ -454,12 +451,13 @@ func (e *Exchange) processUserOrderChanges(respRaw []byte, channels []string) er
 			Pair:            cp,
 		}
 	}
-	e.Websocket.DataHandler <- orders
-	e.Websocket.DataHandler <- changeData.Positions
-	return nil
+	if err := e.Websocket.DataHandler.Send(ctx, orders); err != nil {
+		return err
+	}
+	return e.Websocket.DataHandler.Send(ctx, changeData.Positions)
 }
 
-func (e *Exchange) processQuoteTicker(respRaw []byte, channels []string) error {
+func (e *Exchange) processQuoteTicker(ctx context.Context, respRaw []byte, channels []string) error {
 	a, cp, err := getAssetPairByInstrument(channels[1])
 	if err != nil {
 		return err
@@ -471,7 +469,7 @@ func (e *Exchange) processQuoteTicker(respRaw []byte, channels []string) error {
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- &ticker.Price{
+	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 		ExchangeName: e.Name,
 		Pair:         cp,
 		AssetType:    a,
@@ -480,11 +478,10 @@ func (e *Exchange) processQuoteTicker(respRaw []byte, channels []string) error {
 		Ask:          quoteTicker.BestAskPrice,
 		BidSize:      quoteTicker.BestBidAmount,
 		AskSize:      quoteTicker.BestAskAmount,
-	}
-	return nil
+	})
 }
 
-func (e *Exchange) processTrades(respRaw []byte, channels []string) error {
+func (e *Exchange) processTrades(ctx context.Context, respRaw []byte, channels []string) error {
 	tradeFeed := e.IsTradeFeedEnabled()
 	saveTradeData := e.IsSaveTradeDataEnabled()
 	if !tradeFeed && !saveTradeData {
@@ -525,7 +522,9 @@ func (e *Exchange) processTrades(respRaw []byte, channels []string) error {
 	}
 	if tradeFeed {
 		for i := range tradesData {
-			e.Websocket.DataHandler <- tradesData[i]
+			if err := e.Websocket.DataHandler.Send(ctx, tradesData[i]); err != nil {
+				return err
+			}
 		}
 	}
 	if saveTradeData {
@@ -534,7 +533,7 @@ func (e *Exchange) processTrades(respRaw []byte, channels []string) error {
 	return nil
 }
 
-func (e *Exchange) processIncrementalTicker(respRaw []byte, channels []string) error {
+func (e *Exchange) processIncrementalTicker(ctx context.Context, respRaw []byte, channels []string) error {
 	if len(channels) != 2 {
 		return fmt.Errorf("%w, expected format 'incremental_ticker.{instrument_name}', but found %s", common.ErrMalformedData, strings.Join(channels, "."))
 	}
@@ -549,7 +548,7 @@ func (e *Exchange) processIncrementalTicker(respRaw []byte, channels []string) e
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- &ticker.Price{
+	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 		ExchangeName: e.Name,
 		Pair:         cp,
 		AssetType:    a,
@@ -562,18 +561,17 @@ func (e *Exchange) processIncrementalTicker(respRaw []byte, channels []string) e
 		QuoteVolume:  incrementalTicker.Stats.VolumeUsd,
 		Ask:          incrementalTicker.ImpliedAsk,
 		Bid:          incrementalTicker.ImpliedBid,
-	}
-	return nil
+	})
 }
 
-func (e *Exchange) processInstrumentTicker(respRaw []byte, channels []string) error {
+func (e *Exchange) processInstrumentTicker(ctx context.Context, respRaw []byte, channels []string) error {
 	if len(channels) != 3 {
 		return fmt.Errorf("%w, expected format 'ticker.{instrument_name}.{interval}', but found %s", common.ErrMalformedData, strings.Join(channels, "."))
 	}
-	return e.processTicker(respRaw, channels)
+	return e.processTicker(ctx, respRaw, channels)
 }
 
-func (e *Exchange) processTicker(respRaw []byte, channels []string) error {
+func (e *Exchange) processTicker(ctx context.Context, respRaw []byte, channels []string) error {
 	a, cp, err := getAssetPairByInstrument(channels[1])
 	if err != nil {
 		return err
@@ -606,22 +604,20 @@ func (e *Exchange) processTicker(respRaw []byte, channels []string) error {
 		tickerPrice.Ask = tickerPriceResponse.ImpliedAsk
 		tickerPrice.Bid = tickerPriceResponse.ImpliedBid
 	}
-	e.Websocket.DataHandler <- tickerPrice
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, tickerPrice)
 }
 
-func (e *Exchange) processData(respRaw []byte, result any) error {
+func (e *Exchange) processData(ctx context.Context, respRaw []byte, result any) error {
 	var response wsResponse
 	response.Params.Data = result
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- result
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, result)
 }
 
-func (e *Exchange) processCandleChart(respRaw []byte, channels []string) error {
+func (e *Exchange) processCandleChart(ctx context.Context, respRaw []byte, channels []string) error {
 	if len(channels) != 4 {
 		return fmt.Errorf("%w, expected format 'chart.trades.{instrument_name}.{resolution}', but found %s", common.ErrInvalidResponse, strings.Join(channels, "."))
 	}
@@ -636,7 +632,7 @@ func (e *Exchange) processCandleChart(respRaw []byte, channels []string) error {
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- websocket.KlineData{
+	return e.Websocket.DataHandler.Send(ctx, websocket.KlineData{
 		Timestamp:  candleData.Tick.Time(),
 		Pair:       cp,
 		AssetType:  a,
@@ -646,8 +642,7 @@ func (e *Exchange) processCandleChart(respRaw []byte, channels []string) error {
 		LowPrice:   candleData.Low,
 		ClosePrice: candleData.Close,
 		Volume:     candleData.Volume,
-	}
-	return nil
+	})
 }
 
 func (e *Exchange) processOrderbook(respRaw []byte, channels []string) error {
@@ -867,24 +862,6 @@ func (e *Exchange) handleSubscription(ctx context.Context, method string, subs s
 	}
 
 	return err
-}
-
-func getValidatedCurrencyCode(pair currency.Pair) string {
-	currencyCode := pair.Base.Upper().String()
-	switch currencyCode {
-	case currencyBTC, currencyETH,
-		currencySOL, currencyUSDT,
-		currencyUSDC, currencyEURR:
-		return currencyCode
-	default:
-		switch {
-		case strings.Contains(pair.String(), currencyUSDC):
-			return currencyUSDC
-		case strings.Contains(pair.String(), currencyUSDT):
-			return currencyUSDT
-		}
-		return "any"
-	}
 }
 
 func channelName(s *subscription.Subscription) string {

@@ -1854,12 +1854,12 @@ func TestWithdrawal(t *testing.T) {
 	require.ErrorIs(t, err, errAddressRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.Withdrawal(contextGenerate(), &WithdrawalInput{Amount: 0.1, TransactionFee: 0.00005, Currency: currency.BTC, WithdrawalDestination: "4", ToAddress: core.BitcoinDonationAddress})
+	result, err := e.Withdrawal(contextGenerate(), &WithdrawalInput{Amount: -0.1, TransactionFee: 0.00005, Currency: currency.BTC, WithdrawalDestination: "4", ToAddress: core.BitcoinDonationAddress})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	result, err = e.Withdrawal(contextGenerate(), &WithdrawalInput{
-		Amount:                0.1,
+		Amount:                -0.1,
 		WithdrawalDestination: "4",
 		TransactionFee:        0.00005,
 		Currency:              currency.BTC,
@@ -3771,7 +3771,7 @@ func TestWithdraw(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	withdrawCryptoRequest := withdraw.Request{
 		Exchange: e.Name,
-		Amount:   0.00000000001,
+		Amount:   -0.1,
 		Currency: currency.BTC,
 		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
@@ -3913,12 +3913,12 @@ func TestOrderPushData(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsOrders.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, nil, b) })
-	close(e.Websocket.DataHandler)
-	require.Len(t, e.Websocket.DataHandler, 4, "Should see 4 orders")
-	for resp := range e.Websocket.DataHandler {
-		switch v := resp.(type) {
+	e.Websocket.DataHandler.Close()
+	require.Len(t, e.Websocket.DataHandler.C, 4, "Should see 4 orders")
+	for resp := range e.Websocket.DataHandler.C {
+		switch v := resp.Data.(type) {
 		case *order.Detail:
-			switch len(e.Websocket.DataHandler) {
+			switch len(e.Websocket.DataHandler.C) {
 			case 3:
 				assert.Equal(t, "452197707845865472", v.OrderID, "OrderID")
 				assert.Equal(t, "HamsterParty14", v.ClientOrderID, "ClientOrderID")
@@ -4099,13 +4099,13 @@ func TestWSProcessTrades(t *testing.T) {
 	}
 
 	total := len(assets) * len(exp)
-	require.Len(t, e.Websocket.DataHandler, total, "Must see correct number of trades")
+	require.Len(t, e.Websocket.DataHandler.C, total, "Must see correct number of trades")
 
 	trades := make(map[asset.Item][]trade.Data)
 
-	for len(e.Websocket.DataHandler) > 0 {
-		resp := <-e.Websocket.DataHandler
-		switch v := resp.(type) {
+	for len(e.Websocket.DataHandler.C) > 0 {
+		resp := <-e.Websocket.DataHandler.C
+		switch v := resp.Data.(type) {
 		case trade.Data:
 			trades[v.AssetType] = append(trades[v.AssetType], v)
 		case error:
@@ -6106,7 +6106,7 @@ func TestBusinessWSCandleSubscriptions(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
-	require.NoError(t, e.Websocket.Connect())
+	require.NoError(t, e.Websocket.Connect(t.Context()))
 
 	conn, err := e.Websocket.GetConnection(businessConnection)
 	require.NoError(t, err, "GetConnection must not error")
@@ -6127,8 +6127,8 @@ func TestBusinessWSCandleSubscriptions(t *testing.T) {
 
 	var got currency.Pairs
 	check := func() bool {
-		data := <-e.Websocket.ToRoutine
-		switch v := data.(type) {
+		data := <-e.Websocket.DataHandler.C
+		switch v := data.Data.(type) {
 		case websocket.KlineData:
 			got = got.Add(v.Pair)
 		case []CandlestickMarkPrice:
@@ -6166,13 +6166,13 @@ func TestWsProcessPublicSpreadTrades(t *testing.T) {
 
 func TestWsProcessPublicSpreadTicker(t *testing.T) {
 	t.Parallel()
-	err := e.wsProcessPublicSpreadTicker([]byte(okxSpreadPublicTickerJSON))
+	err := e.wsProcessPublicSpreadTicker(t.Context(), []byte(okxSpreadPublicTickerJSON))
 	assert.NoError(t, err)
 }
 
 func TestWsProcessSpreadOrders(t *testing.T) {
 	t.Parallel()
-	err := e.wsProcessSpreadOrders([]byte(wsProcessSpreadOrdersJSON))
+	err := e.wsProcessSpreadOrders(t.Context(), []byte(wsProcessSpreadOrdersJSON))
 	assert.NoError(t, err)
 }
 

@@ -1,6 +1,7 @@
 package gateio
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -29,7 +30,7 @@ func (m *wsOBResubManager) IsResubscribing(pair currency.Pair, a asset.Item) boo
 }
 
 // Resubscribe marks a subscription as resubscribing and starts the unsubscribe/resubscribe process
-func (m *wsOBResubManager) Resubscribe(e *Exchange, conn websocket.Connection, qualifiedChannel string, pair currency.Pair, a asset.Item) error {
+func (m *wsOBResubManager) Resubscribe(ctx context.Context, e *Exchange, conn websocket.Connection, qualifiedChannel string, pair currency.Pair, a asset.Item) error {
 	if err := e.Websocket.Orderbook.InvalidateOrderbook(pair, a); err != nil {
 		return err
 	}
@@ -45,7 +46,7 @@ func (m *wsOBResubManager) Resubscribe(e *Exchange, conn websocket.Connection, q
 	m.lookup[key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item, Asset: a}] = true
 
 	go func() { // Has to be called in routine to not impede websocket throughput
-		if err := e.Websocket.ResubscribeToChannel(conn, sub); err != nil {
+		if err := e.Websocket.ResubscribeToChannel(ctx, conn, sub); err != nil {
 			m.CompletedResubscribe(pair, a) // Ensure we clear the map entry on failure too
 			log.Errorf(log.ExchangeSys, "Failed to resubscribe to channel %q: %v", qualifiedChannel, err)
 		}
