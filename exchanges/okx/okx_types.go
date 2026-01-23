@@ -3686,10 +3686,12 @@ type PublicTrade struct {
 
 // WsOrderBookData represents a book order push data
 type WsOrderBookData struct {
-	Asks      [][4]types.Number `json:"asks"`
-	Bids      [][4]types.Number `json:"bids"`
-	Timestamp types.Time        `json:"ts"`
-	Checksum  int32             `json:"checksum,omitempty"`
+	Asks               [][4]types.Number `json:"asks"`
+	Bids               [][4]types.Number `json:"bids"`
+	Timestamp          types.Time        `json:"ts"`
+	Checksum           int32             `json:"checksum"`
+	PreviousSequenceID int64             `json:"prevSeqId"`
+	SequenceID         int64             `json:"seqId"`
 }
 
 // WsOptionSummary represents option summary

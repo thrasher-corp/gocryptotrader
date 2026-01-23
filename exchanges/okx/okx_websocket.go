@@ -304,14 +304,18 @@ func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, c
 // handleSubscription sends a subscription and unsubscription information through the websocket endpoint.
 // as of the okx, exchange this endpoint sends subscription and unsubscription messages but with a list of json objects.
 func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connection, operation string, subs subscription.List) error {
-	requests, err := chunkRequests(subs, operation)
+	requests, err := e.chunkRequests(subs, operation)
 	if err != nil {
 		return err
 	}
-
 	for _, req := range requests {
-		if err := conn.SendJSONMessage(ctx, websocketRequestEPL, req); err != nil {
-			return err
+		// Zero outbound arguments can happen for when margin or spot and a subscription already exists, this will
+		// still create a connection but will technically be a no-op for tracking subscriptions.
+		// TODO: Handle no-op subscription tracking more gracefully as we don't need a connection for it.
+		if len(req.Arguments) != 0 {
+			if err := conn.SendJSONMessage(ctx, websocketRequestEPL, req); err != nil {
+				return err
+			}
 		}
 		if operation == operationUnsubscribe {
 			err = e.Websocket.RemoveSubscriptions(conn, req.subs...)
@@ -326,7 +330,9 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 }
 
 // chunkRequests splits subscription requests into multiple requests if the total byte length exceeds maxConnByteLen.
-func chunkRequests(subs subscription.List, operation string) ([]WSSubscriptionInformationList, error) {
+func (e *Exchange) chunkRequests(subs subscription.List, operation string) ([]WSSubscriptionInformationList, error) {
+	eval := e.getSpotMarginEvaluator(subs)
+
 	var requests []WSSubscriptionInformationList
 	for len(subs) > 0 {
 		var arguments []SubscriptionInfo
@@ -336,7 +342,13 @@ func chunkRequests(subs subscription.List, operation string) ([]WSSubscriptionIn
 			if err := json.Unmarshal([]byte(sub.QualifiedChannel), &arg); err != nil {
 				return nil, err
 			}
-			arguments = append(arguments, arg)
+			isSubNeeded, err := eval.NeedsOutboundSubscription(sub.Pairs[0], sub.Channel, sub.Asset)
+			if err != nil {
+				return nil, err
+			}
+			if isSubNeeded {
+				arguments = append(arguments, arg)
+			}
 			channels = append(channels, sub)
 			chunk, err := json.Marshal(WSSubscriptionInformationList{Arguments: arguments, Operation: operation})
 			if err != nil {
@@ -475,10 +487,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		return e.wsProcessPublicSpreadTrades(respRaw)
 	case okxSpreadPublicTicker:
 		return e.wsProcessPublicSpreadTicker(respRaw)
-	case channelOrderBooks,
-		channelOrderBooks50TBT,
-		channelBBOTBT,
-		channelOrderBooksTBT:
+	case channelOrderBooks, channelOrderBooks50TBT, channelBBOTBT, channelOrderBooksTBT:
 		return e.wsProcessOrderBooks(ctx, conn, respRaw)
 	case channelOptionTrades:
 		return e.wsProcessOptionTrades(respRaw)
@@ -857,9 +866,7 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 	if err != nil {
 		return err
 	}
-	if response.Argument.Channel == channelOrderBooks &&
-		response.Action != wsOrderbookUpdate &&
-		response.Action != wsOrderbookSnapshot {
+	if response.Argument.Channel == channelOrderBooks && response.Action != wsOrderbookUpdate && response.Action != wsOrderbookSnapshot {
 		return fmt.Errorf("%w, %s", orderbook.ErrInvalidAction, response.Action)
 	}
 	var assets []asset.Item
@@ -883,9 +890,6 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 		if response.Action == wsOrderbookSnapshot {
 			err = e.WsProcessSnapshotOrderBook(&response.Data[i], response.Argument.InstrumentID, assets)
 		} else {
-			if len(response.Data[i].Asks) == 0 && len(response.Data[i].Bids) == 0 {
-				return nil
-			}
 			err = e.WsProcessUpdateOrderbook(&response.Data[i], response.Argument.InstrumentID, assets)
 		}
 		if err != nil {
@@ -915,15 +919,10 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
 	signedChecksum, err := e.CalculateOrderbookChecksum(data)
 	if err != nil {
-		return fmt.Errorf("%w %v: unable to calculate orderbook checksum: %s",
-			errInvalidChecksum,
-			pair,
-			err)
+		return fmt.Errorf("%w %v: unable to calculate orderbook checksum: %s", errInvalidChecksum, pair, err)
 	}
 	if signedChecksum != uint32(data.Checksum) { //nolint:gosec // Requires type casting
-		return fmt.Errorf("%w %v",
-			errInvalidChecksum,
-			pair)
+		return fmt.Errorf("%w %v", errInvalidChecksum, pair)
 	}
 
 	asks, err := e.AppendWsOrderbookItems(data.Asks)
@@ -935,7 +934,8 @@ func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curren
 		return err
 	}
 	for i := range assets {
-		newOrderBook := orderbook.Book{
+		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			LastUpdateID:      data.SequenceID,
 			Asset:             assets[i],
 			Asks:              asks,
 			Bids:              bids,
@@ -943,9 +943,7 @@ func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curren
 			Pair:              pair,
 			Exchange:          e.Name,
 			ValidateOrderbook: e.ValidateOrderbook,
-		}
-		err = e.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
-		if err != nil {
+		}); err != nil {
 			return err
 		}
 	}
@@ -966,13 +964,16 @@ func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency
 	}
 	for i := range assets {
 		if err := e.Websocket.Orderbook.Update(&orderbook.Update{
+			UpdateID:         data.SequenceID,
 			Pair:             pair,
 			Asset:            assets[i],
 			UpdateTime:       data.Timestamp.Time(),
+			LastPushed:       data.Timestamp.Time(),
 			GenerateChecksum: generateOrderbookChecksum,
 			ExpectedChecksum: uint32(data.Checksum), //nolint:gosec // Requires type casting
 			Asks:             asks,
 			Bids:             bids,
+			AllowEmpty:       true, // Allow empty levels to push forward sequence ID
 		}); err != nil {
 			return err
 		}
@@ -1019,19 +1020,12 @@ func (e *Exchange) CalculateOrderbookChecksum(orderbookData *WsOrderBookData) (u
 		if len(orderbookData.Bids)-1 >= i {
 			bidPrice := orderbookData.Bids[i][0].String()
 			bidAmount := orderbookData.Bids[i][1].String()
-			checksum.WriteString(
-				bidPrice +
-					wsOrderbookChecksumDelimiter +
-					bidAmount +
-					wsOrderbookChecksumDelimiter)
+			checksum.WriteString(bidPrice + wsOrderbookChecksumDelimiter + bidAmount + wsOrderbookChecksumDelimiter)
 		}
 		if len(orderbookData.Asks)-1 >= i {
 			askPrice := orderbookData.Asks[i][0].String()
 			askAmount := orderbookData.Asks[i][1].String()
-			checksum.WriteString(askPrice +
-				wsOrderbookChecksumDelimiter +
-				askAmount +
-				wsOrderbookChecksumDelimiter)
+			checksum.WriteString(askPrice + wsOrderbookChecksumDelimiter + askAmount + wsOrderbookChecksumDelimiter)
 		}
 	}
 	checksumStr := strings.TrimSuffix(checksum.String(), wsOrderbookChecksumDelimiter)
