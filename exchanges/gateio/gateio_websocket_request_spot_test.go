@@ -224,6 +224,6 @@ func newExchangeWithWebsocket(t *testing.T, a asset.Item) *Exchange {
 		}
 	}
 
-	require.NoError(t, e.Websocket.Connect())
+	require.NoError(t, e.Websocket.Connect(t.Context()))
 	return e
 }

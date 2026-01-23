@@ -3,12 +3,14 @@ package gateio
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	gws "github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -150,25 +152,24 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 
 	switch push.Channel {
 	case futuresTickersChannel:
-		return e.processFuturesTickers(respRaw, a)
+		return e.processFuturesTickers(ctx, respRaw, a)
 	case futuresTradesChannel:
 		return e.processFuturesTrades(respRaw, a)
 	case futuresOrderbookChannel:
 		return e.processFuturesOrderbookSnapshot(push.Event, push.Result, a, push.Time)
 	case futuresOrderbookTickerChannel:
 		var data *WsFuturesOrderbookTicker
-		return e.processResponse(push.Result, &data)
+		return e.processResponse(ctx, push.Result, &data)
 	case futuresOrderbookUpdateChannel:
 		return e.processFuturesOrderbookUpdate(ctx, push.Result, a, push.Time)
 	case futuresCandlesticksChannel:
-		return e.processFuturesCandlesticks(respRaw, a)
+		return e.processFuturesCandlesticks(ctx, respRaw, a)
 	case futuresOrdersChannel:
-		processed, err := e.processFuturesOrdersPushData(respRaw, a)
+		processed, err := e.processFuturesOrdersPushData(ctx, respRaw, a)
 		if err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- processed
-		return nil
+		return e.Websocket.DataHandler.Send(ctx, processed)
 	case futuresUserTradesChannel:
 		return e.procesFuturesUserTrades(respRaw, a)
 	case futuresLiquidatesChannel:
@@ -178,7 +179,7 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 			Event   string                             `json:"event"`
 			Result  []WsFuturesLiquidationNotification `json:"result"`
 		}
-		return e.processResponse(respRaw, &data)
+		return e.processResponse(ctx, respRaw, &data)
 	case futuresAutoDeleveragesChannel:
 		var data struct {
 			Time    types.Time                             `json:"time"`
@@ -186,7 +187,7 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 			Event   string                                 `json:"event"`
 			Result  []WsFuturesAutoDeleveragesNotification `json:"result"`
 		}
-		return e.processResponse(respRaw, &data)
+		return e.processResponse(ctx, respRaw, &data)
 	case futuresAutoPositionCloseChannel:
 		var data struct {
 			Time    types.Time        `json:"time"`
@@ -194,7 +195,7 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 			Event   string            `json:"event"`
 			Result  []WsPositionClose `json:"result"`
 		}
-		return e.processResponse(respRaw, &data)
+		return e.processResponse(ctx, respRaw, &data)
 	case futuresBalancesChannel:
 		return e.processBalancePushData(ctx, push.Result, a)
 	case futuresReduceRiskLimitsChannel:
@@ -204,7 +205,7 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 			Event   string                                 `json:"event"`
 			Result  []WsFuturesReduceRiskLimitNotification `json:"result"`
 		}
-		return e.processResponse(respRaw, &data)
+		return e.processResponse(ctx, respRaw, &data)
 	case futuresPositionsChannel:
 		var data struct {
 			Time    types.Time          `json:"time"`
@@ -212,7 +213,7 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 			Event   string              `json:"event"`
 			Result  []WsFuturesPosition `json:"result"`
 		}
-		return e.processResponse(respRaw, &data)
+		return e.processResponse(ctx, respRaw, &data)
 	case futuresAutoOrdersChannel:
 		var data struct {
 			Time    types.Time           `json:"time"`
@@ -220,14 +221,13 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 			Event   string               `json:"event"`
 			Result  []WsFuturesAutoOrder `json:"result"`
 		}
-		return e.processResponse(respRaw, &data)
+		return e.processResponse(ctx, respRaw, &data)
 	case "futures.pong":
 		return nil
 	default:
-		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+		return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
 			Message: e.Name + websocket.UnhandledMessage + string(respRaw),
-		}
-		return errors.New(websocket.UnhandledMessage)
+		})
 	}
 }
 
@@ -328,7 +328,7 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 	return outbound, nil
 }
 
-func (e *Exchange) processFuturesTickers(data []byte, assetType asset.Item) error {
+func (e *Exchange) processFuturesTickers(ctx context.Context, data []byte, assetType asset.Item) error {
 	resp := struct {
 		Time    types.Time       `json:"time"`
 		Channel string           `json:"channel"`
@@ -352,8 +352,7 @@ func (e *Exchange) processFuturesTickers(data []byte, assetType asset.Item) erro
 			LastUpdated:  resp.Time.Time(),
 		}
 	}
-	e.Websocket.DataHandler <- tickerPriceDatas
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, tickerPriceDatas)
 }
 
 func (e *Exchange) processFuturesTrades(data []byte, assetType asset.Item) error {
@@ -387,7 +386,7 @@ func (e *Exchange) processFuturesTrades(data []byte, assetType asset.Item) error
 	return e.Websocket.Trade.Update(saveTradeData, trades...)
 }
 
-func (e *Exchange) processFuturesCandlesticks(data []byte, assetType asset.Item) error {
+func (e *Exchange) processFuturesCandlesticks(ctx context.Context, data []byte, assetType asset.Item) error {
 	resp := struct {
 		Time    types.Time           `json:"time"`
 		Channel string               `json:"channel"`
@@ -401,7 +400,7 @@ func (e *Exchange) processFuturesCandlesticks(data []byte, assetType asset.Item)
 	for x := range resp.Result {
 		icp := strings.Split(resp.Result[x].Name, currency.UnderscoreDelimiter)
 		if len(icp) < 3 {
-			return errors.New("malformed futures candlestick websocket push data")
+			return fmt.Errorf("%w: futures candlestick websocket", common.ErrMalformedData)
 		}
 		currencyPair, err := currency.NewPairFromString(strings.Join(icp[1:], currency.UnderscoreDelimiter))
 		if err != nil {
@@ -420,8 +419,7 @@ func (e *Exchange) processFuturesCandlesticks(data []byte, assetType asset.Item)
 			Volume:     resp.Result[x].Volume,
 		}
 	}
-	e.Websocket.DataHandler <- klineDatas
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, klineDatas)
 }
 
 func (e *Exchange) processFuturesOrderbookUpdate(ctx context.Context, incoming []byte, a asset.Item, pushTime time.Time) error {
@@ -531,7 +529,7 @@ func (e *Exchange) processFuturesOrderbookSnapshot(event string, incoming []byte
 	return nil
 }
 
-func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Item) ([]order.Detail, error) {
+func (e *Exchange) processFuturesOrdersPushData(ctx context.Context, data []byte, assetType asset.Item) ([]order.Detail, error) {
 	resp := struct {
 		Time    types.Time       `json:"time"`
 		Channel string           `json:"channel"`
@@ -555,11 +553,7 @@ func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Ite
 			status, err = order.StringToOrderStatus(resp.Result[x].Status)
 		}
 		if err != nil {
-			e.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  strconv.FormatInt(resp.Result[x].ID, 10),
-				Err:      err,
-			}
+			return nil, err
 		}
 
 		orderDetails[x] = order.Detail{
@@ -577,7 +571,7 @@ func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Ite
 			CloseTime:      resp.Result[x].FinishTime.Time(),
 		}
 	}
-	e.Websocket.DataHandler <- orderDetails
+	e.Websocket.DataHandler.Send(ctx, orderDetails)
 	return orderDetails, nil
 }
 
@@ -634,6 +628,6 @@ func (e *Exchange) processBalancePushData(ctx context.Context, data []byte, asse
 	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- subAccts
+	e.Websocket.DataHandler.Send(ctx, subAccts)
 	return nil
 }

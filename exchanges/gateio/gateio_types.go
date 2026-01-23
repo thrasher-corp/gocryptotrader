@@ -2240,6 +2240,17 @@ type WsOrderbookUpdate struct {
 	Asks          orderbook.LevelsArrayPriceAmount `json:"a"`
 }
 
+// WsOrderbookUpdateWithSnapshot represents websocket orderbook update push data
+type WsOrderbookUpdateWithSnapshot struct {
+	UpdateTime    types.Time                       `json:"t"`
+	Full          bool                             `json:"full"`
+	Channel       string                           `json:"s"`
+	FirstUpdateID int64                            `json:"U"`
+	LastUpdateID  int64                            `json:"u"`
+	Bids          orderbook.LevelsArrayPriceAmount `json:"b"`
+	Asks          orderbook.LevelsArrayPriceAmount `json:"a"`
+}
+
 // WsOrderbookSnapshot represents a websocket orderbook snapshot push data
 type WsOrderbookSnapshot struct {
 	UpdateTime   types.Time                       `json:"t"`

@@ -102,7 +102,7 @@ func TestWithdraw(t *testing.T) {
 	require.NotEmpty(t, cryptocurrencyChains, "GetAvailableTransferChains must return some chains")
 	withdrawCryptoRequest := withdraw.Request{
 		Exchange:    e.Name,
-		Amount:      1,
+		Amount:      -0.1,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
 		Crypto: withdraw.CryptoRequest{
@@ -2770,11 +2770,11 @@ func TestFuturesDataHandler(t *testing.T) {
 		}
 		return e.WsHandleFuturesData(ctx, nil, m, asset.CoinMarginedFutures)
 	})
-	close(e.Websocket.DataHandler)
-	assert.Len(t, e.Websocket.DataHandler, 15, "Should see the correct number of messages")
-	for resp := range e.Websocket.DataHandler {
-		if err, isErr := resp.(error); isErr {
-			assert.NoError(t, err)
+	e.Websocket.DataHandler.Close()
+	assert.Len(t, e.Websocket.DataHandler.C, 15, "Should see the correct number of messages")
+	for resp := range e.Websocket.DataHandler.C {
+		if err, isErr := resp.Data.(error); isErr {
+			assert.NoError(t, err, "Should not get any errors down the data handler")
 		}
 	}
 }
@@ -3358,7 +3358,7 @@ func TestProcessFuturesOrdersPushData(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
-			processed, err := e.processFuturesOrdersPushData([]byte(tc.incoming), asset.CoinMarginedFutures)
+			processed, err := e.processFuturesOrdersPushData(t.Context(), []byte(tc.incoming), asset.CoinMarginedFutures)
 			require.NoError(t, err)
 			require.NotNil(t, processed)
 			for i := range processed {
