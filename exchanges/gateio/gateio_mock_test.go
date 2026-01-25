@@ -9,8 +9,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
@@ -29,19 +27,5 @@ func TestMain(m *testing.M) {
 	if err := testexch.MockHTTPInstance(e); err != nil {
 		log.Fatalf("Poloniex MockHTTPInstance error: %s", err)
 	}
-	e.HTTPRecording = true
 	os.Exit(m.Run())
-}
-
-func (e *Exchange) setEnabledPairs(spotTradablePair, futuresTradablePair currency.Pair) error {
-	if err := e.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair, currency.NewPairWithDelimiter("BTC", "ETH", "_")}, false); err != nil {
-		return err
-	}
-	if err := e.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair, currency.NewPairWithDelimiter("BTC", "ETH", "_")}, true); err != nil {
-		return err
-	}
-	if err := e.CurrencyPairs.StorePairs(asset.Futures, []currency.Pair{futuresTradablePair}, false); err != nil {
-		return err
-	}
-	return e.CurrencyPairs.StorePairs(asset.Futures, []currency.Pair{futuresTradablePair}, true)
 }

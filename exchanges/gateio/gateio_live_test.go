@@ -25,6 +25,5 @@ func TestMain(m *testing.M) {
 		e.API.AuthenticatedWebsocketSupport = true
 		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
-	e.HTTPRecording = true
 	os.Exit(m.Run())
 }

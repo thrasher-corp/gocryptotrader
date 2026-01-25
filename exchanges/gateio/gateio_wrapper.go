@@ -433,7 +433,6 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 	case asset.Margin, asset.CrossMargin:
 		tradables, err := e.GetMarginSupportedCurrencyPairs(ctx)
 		if err != nil {
-			panic(err)
 			return nil, err
 		}
 		pairs := make([]currency.Pair, 0, len(tradables))

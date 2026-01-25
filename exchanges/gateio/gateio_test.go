@@ -422,8 +422,8 @@ func TestGetMySpotTradingHistory(t *testing.T) {
 func TestGetServerTime(t *testing.T) {
 	t.Parallel()
 
-	// _, err := e.GetServerTime(t.Context(), asset.Spot)
-	// assert.NoError(t, err)
+	_, err := e.GetServerTime(t.Context(), asset.Spot)
+	assert.NoError(t, err)
 }
 
 func TestCountdownCancelorder(t *testing.T) {
@@ -1927,22 +1927,22 @@ func TestGetDeliveryTradingHistory(t *testing.T) {
 
 func TestGetDeliveryFuturesCandlesticks(t *testing.T) {
 	t.Parallel()
-	// _, err := e.GetDeliveryFuturesCandlesticks(t.Context(), currency.EMPTYCODE, getPair(t, asset.DeliveryFutures), time.Time{}, time.Time{}, 0, kline.OneWeek)
-	// require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err := e.GetDeliveryFuturesCandlesticks(t.Context(), currency.EMPTYCODE, getPair(t, asset.DeliveryFutures), time.Time{}, time.Time{}, 0, kline.OneWeek)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	// _, err = e.GetDeliveryFuturesCandlesticks(t.Context(), currency.USDT, currency.EMPTYPAIR, time.Time{}, time.Time{}, 0, kline.OneWeek)
-	// require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	_, err = e.GetDeliveryFuturesCandlesticks(t.Context(), currency.USDT, currency.EMPTYPAIR, time.Time{}, time.Time{}, 0, kline.OneWeek)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	// startTime, endTime := getTime()
-	// _, err = e.GetDeliveryFuturesCandlesticks(t.Context(), currency.USDT, getPair(t, asset.DeliveryFutures), endTime, startTime, 10, kline.OneWeek)
-	// require.ErrorIs(t, err, common.ErrStartAfterEnd)
+	startTime, endTime := getTime()
+	_, err = e.GetDeliveryFuturesCandlesticks(t.Context(), currency.USDT, getPair(t, asset.DeliveryFutures), endTime, startTime, 10, kline.OneWeek)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	// _, err = e.GetDeliveryFuturesCandlesticks(t.Context(), currency.USDT, getPair(t, asset.DeliveryFutures), startTime, endTime, 10, kline.Interval(5))
-	// require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
+	_, err = e.GetDeliveryFuturesCandlesticks(t.Context(), currency.USDT, getPair(t, asset.DeliveryFutures), startTime, endTime, 10, kline.Interval(5))
+	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
 
-	// deliveryFuturesPair := getPair(t, asset.DeliveryFutures)
-	// _, err = e.GetDeliveryFuturesCandlesticks(t.Context(), currency.USDT, deliveryFuturesPair, startTime, endTime, 0, kline.OneMin)
-	// assert.NoError(t, err)
+	deliveryFuturesPair := getPair(t, asset.DeliveryFutures)
+	_, err = e.GetDeliveryFuturesCandlesticks(t.Context(), currency.USDT, deliveryFuturesPair, startTime, endTime, 0, kline.OneMin)
+	assert.NoError(t, err)
 }
 
 func TestGetDeliveryFutureTickers(t *testing.T) {
@@ -3371,7 +3371,7 @@ func TestProcessFuturesOrdersPushData(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run("", func(t *testing.T) {
 			t.Parallel()
-			processed, err := e.processFuturesOrdersPushData(t.Context(), []byte(tc.incoming), asset.CoinMarginedFutures)
+			processed, err := e.processFuturesOrdersPushData([]byte(tc.incoming), asset.CoinMarginedFutures)
 			require.NoError(t, err)
 			require.NotNil(t, processed)
 			for i := range processed {

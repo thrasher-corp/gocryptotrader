@@ -165,7 +165,7 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 	case futuresCandlesticksChannel:
 		return e.processFuturesCandlesticks(ctx, respRaw, a)
 	case futuresOrdersChannel:
-		processed, err := e.processFuturesOrdersPushData(ctx, respRaw, a)
+		processed, err := e.processFuturesOrdersPushData(respRaw, a)
 		if err != nil {
 			return err
 		}
@@ -529,8 +529,8 @@ func (e *Exchange) processFuturesOrderbookSnapshot(event string, incoming []byte
 	return nil
 }
 
-func (e *Exchange) processFuturesOrdersPushData(ctx context.Context, data []byte, assetType asset.Item) ([]order.Detail, error) {
-	var resp  struct {
+func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Item) ([]order.Detail, error) {
+	var resp struct {
 		Time    types.Time       `json:"time"`
 		Channel string           `json:"channel"`
 		Event   string           `json:"event"`
