@@ -329,12 +329,12 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 }
 
 func (e *Exchange) processFuturesTickers(ctx context.Context, data []byte, assetType asset.Item) error {
-	resp := struct {
+	var resp struct {
 		Time    types.Time       `json:"time"`
 		Channel string           `json:"channel"`
 		Event   string           `json:"event"`
 		Result  []WsFutureTicker `json:"result"`
-	}{}
+	}
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -361,12 +361,12 @@ func (e *Exchange) processFuturesTrades(data []byte, assetType asset.Item) error
 		return nil
 	}
 
-	resp := struct {
+	var resp struct {
 		Time    types.Time        `json:"time"`
 		Channel string            `json:"channel"`
 		Event   string            `json:"event"`
 		Result  []WsFuturesTrades `json:"result"`
-	}{}
+	}
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -387,12 +387,12 @@ func (e *Exchange) processFuturesTrades(data []byte, assetType asset.Item) error
 }
 
 func (e *Exchange) processFuturesCandlesticks(ctx context.Context, data []byte, assetType asset.Item) error {
-	resp := struct {
+	var resp struct {
 		Time    types.Time           `json:"time"`
 		Channel string               `json:"channel"`
 		Event   string               `json:"event"`
 		Result  []FuturesCandlestick `json:"result"`
-	}{}
+	}
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -530,12 +530,12 @@ func (e *Exchange) processFuturesOrderbookSnapshot(event string, incoming []byte
 }
 
 func (e *Exchange) processFuturesOrdersPushData(ctx context.Context, data []byte, assetType asset.Item) ([]order.Detail, error) {
-	resp := struct {
+	var resp  struct {
 		Time    types.Time       `json:"time"`
 		Channel string           `json:"channel"`
 		Event   string           `json:"event"`
 		Result  []WsFuturesOrder `json:"result"`
-	}{}
+	}
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return nil, err
@@ -571,7 +571,6 @@ func (e *Exchange) processFuturesOrdersPushData(ctx context.Context, data []byte
 			CloseTime:      resp.Result[x].FinishTime.Time(),
 		}
 	}
-	e.Websocket.DataHandler.Send(ctx, orderDetails)
 	return orderDetails, nil
 }
 
@@ -579,12 +578,12 @@ func (e *Exchange) procesFuturesUserTrades(data []byte, assetType asset.Item) er
 	if !e.IsFillsFeedEnabled() {
 		return nil
 	}
-	resp := struct {
+	var resp struct {
 		Time    types.Time           `json:"time"`
 		Channel string               `json:"channel"`
 		Event   string               `json:"event"`
 		Result  []WsFuturesUserTrade `json:"result"`
-	}{}
+	}
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -628,6 +627,5 @@ func (e *Exchange) processBalancePushData(ctx context.Context, data []byte, asse
 	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler.Send(ctx, subAccts)
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, subAccts)
 }

@@ -461,12 +461,12 @@ func (e *Exchange) processOrderbookUpdateWithSnapshot(ctx context.Context, conn 
 }
 
 func (e *Exchange) processSpotOrders(ctx context.Context, data []byte) error {
-	resp := struct {
+	var resp struct {
 		Time    types.Time     `json:"time"`
 		Channel string         `json:"channel"`
 		Event   string         `json:"event"`
 		Result  []*WsSpotOrder `json:"result"`
-	}{}
+	}
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -507,12 +507,12 @@ func (e *Exchange) processUserPersonalTrades(data []byte) error {
 		return nil
 	}
 
-	resp := struct {
+	var resp struct {
 		Time    types.Time            `json:"time"`
 		Channel string                `json:"channel"`
 		Event   string                `json:"event"`
 		Result  []WsUserPersonalTrade `json:"result"`
-	}{}
+	}
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -560,12 +560,12 @@ func (e *Exchange) processSpotBalances(ctx context.Context, data []byte) error {
 }
 
 func (e *Exchange) processMarginBalances(ctx context.Context, data []byte) error {
-	resp := struct {
+	var resp struct {
 		Time    types.Time         `json:"time"`
 		Channel string             `json:"channel"`
 		Event   string             `json:"event"`
 		Result  []*WsMarginBalance `json:"result"`
-	}{}
+	}
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -587,12 +587,12 @@ func (e *Exchange) processMarginBalances(ctx context.Context, data []byte) error
 }
 
 func (e *Exchange) processFundingBalances(ctx context.Context, data []byte) error {
-	resp := struct {
+	var resp struct {
 		Time    types.Time          `json:"time"`
 		Channel string              `json:"channel"`
 		Event   string              `json:"event"`
 		Result  []*WsFundingBalance `json:"result"`
-	}{}
+	}
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -600,12 +600,12 @@ func (e *Exchange) processFundingBalances(ctx context.Context, data []byte) erro
 }
 
 func (e *Exchange) processCrossMarginBalance(ctx context.Context, data []byte) error {
-	resp := struct {
+	var resp struct {
 		Time    types.Time              `json:"time"`
 		Channel string                  `json:"channel"`
 		Event   string                  `json:"event"`
 		Result  []*WsCrossMarginBalance `json:"result"`
-	}{}
+	}
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -626,12 +626,12 @@ func (e *Exchange) processCrossMarginBalance(ctx context.Context, data []byte) e
 }
 
 func (e *Exchange) processCrossMarginLoans(ctx context.Context, data []byte) error {
-	resp := struct {
+	var resp struct {
 		Time    types.Time        `json:"time"`
 		Channel string            `json:"channel"`
 		Event   string            `json:"event"`
 		Result  WsCrossMarginLoan `json:"result"`
-	}{}
+	}
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}

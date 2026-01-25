@@ -2796,7 +2796,7 @@ type InterSubAccountTransferParams struct {
 
 // CreateAPIKeySubAccountParams represents subaccount new API key creation parameters.
 type CreateAPIKeySubAccountParams struct {
-	SubAccountUserID int64          `json:"user_id"`
+	SubAccountUserID uint64         `json:"user_id"`
 	Body             *SubAccountKey `json:"body"`
 }
 

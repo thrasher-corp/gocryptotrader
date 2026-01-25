@@ -49,7 +49,7 @@ func (e *Exchange) SetDefaults() {
 
 	requestFmt := &currency.PairFormat{Delimiter: currency.UnderscoreDelimiter, Uppercase: true}
 	configFmt := &currency.PairFormat{Delimiter: currency.UnderscoreDelimiter, Uppercase: true}
-	if err := e.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Margin, asset.CrossMargin, asset.DeliveryFutures, asset.BTCMarginedDeliveryFutures, asset.Options); err != nil {
+	if err := e.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Margin, asset.CrossMargin, asset.DeliveryFutures, asset.Options); err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
@@ -169,7 +169,6 @@ func (e *Exchange) SetDefaults() {
 		exchange.RestFutures:           gateioFuturesLiveTradingAlternative,
 		exchange.RestSpotSupplementary: gateioFuturesTestnetTrading,
 		exchange.WebsocketSpot:         gateioWebsocketEndpoint,
-		exchange.RestAlpha:             alphaLiveTradingURL,
 	}); err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -434,6 +433,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 	case asset.Margin, asset.CrossMargin:
 		tradables, err := e.GetMarginSupportedCurrencyPairs(ctx)
 		if err != nil {
+			panic(err)
 			return nil, err
 		}
 		pairs := make([]currency.Pair, 0, len(tradables))
@@ -486,7 +486,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 		pairs := make([]currency.Pair, 0, len(contracts))
 		for _, deliveryContract := range contracts {
-			if deliveryContract.InDelisting {
+			if deliveryContract.InDelisting || deliveryContract.Name == "" {
 				continue
 			}
 			p := strings.ToUpper(deliveryContract.Name)

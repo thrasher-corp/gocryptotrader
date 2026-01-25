@@ -27,22 +27,22 @@ import (
 )
 
 const (
-	gateioTradeURL                      = "https://api.gateio.ws/" + gateioAPIVersion
+	gateioTradeURL                      = "https://api.gateio.ws"
 	gateioFuturesTestnetTrading         = "https://fx-api-testnet.gateio.ws"
-	gateioFuturesLiveTradingAlternative = "https://fx-api.gateio.ws/" + gateioAPIVersion
-	gateioAPIVersion                    = "api/v4/"
-	tradeBaseURL                        = "https://www.gate.io/"
+	gateioFuturesLiveTradingAlternative = "https://fx-api.gateio.ws"
+	gateioAPIVersion                    = "/api/v4/"
+	tradeBaseURL                        = "https://www.gate.io"
 
 	// SubAccount Endpoints
 	subAccounts = "sub_accounts"
 
 	// Spot
-	gateioSpotCurrencies  = "spot/currencies"
-	gateioSpotOrders      = "spot/orders"
-	gateioSpotPriceOrders = "spot/price_orders"
+	gateioSpotCurrencies  = "/spot/currencies"
+	gateioSpotOrders      = "/spot/orders"
+	gateioSpotPriceOrders = "/spot/price_orders"
 
 	// Wallets
-	walletSubAccountTransfer = "wallet/sub_account_transfers"
+	walletSubAccountTransfer = "/wallet/sub_account_transfers"
 
 	// Margin
 	gateioMarginCurrencyPairs   = "margin/currency_pairs"
@@ -64,14 +64,14 @@ const (
 
 	futuresPath      = "futures/"
 	deliveryPath     = "delivery/"
-	ordersPath       = "/orders"
-	positionsPath    = "/positions/"
-	hedgeModePath    = "/dual_comp/positions/"
+	ordersPath       = "orders"
+	positionsPath    = "positions/"
+	hedgeModePath    = "dual_comp/positions/"
 	subAccountsPath  = "sub_accounts/"
-	priceOrdersPaths = "/price_orders"
+	priceOrdersPaths = "price_orders"
 
 	// Withdrawals
-	withdrawal = "withdrawals"
+	withdrawal = "/withdrawals"
 )
 
 const (
@@ -186,7 +186,7 @@ func (e *Exchange) CreateAPIKeysOfSubAccount(ctx context.Context, arg *CreateAPI
 		return nil, errors.New("sub-account key information is required")
 	}
 	var resp *APIDetailResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, subAccountEPL, http.MethodPost, subAccountsPath+strconv.FormatInt(arg.SubAccountUserID, 10)+"/keys", nil, &arg, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, subAccountEPL, http.MethodPost, subAccountsPath+strconv.FormatUint(arg.SubAccountUserID, 10)+"/keys", nil, &arg, &resp)
 }
 
 // GetAllAPIKeyOfSubAccount list all API Key of the sub-account
@@ -206,7 +206,7 @@ func (e *Exchange) UpdateAPIKeyOfSubAccount(ctx context.Context, subAccountAPIKe
 	if subAccountAPIKey == "" {
 		return errMissingAPIKey
 	}
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, subAccountEPL, http.MethodPut, subAccountsPath+strconv.FormatInt(arg.SubAccountUserID, 10)+"/keys/"+subAccountAPIKey, nil, &arg, nil)
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, subAccountEPL, http.MethodPut, subAccountsPath+strconv.FormatUint(arg.SubAccountUserID, 10)+"/keys/"+subAccountAPIKey, nil, &arg, nil)
 }
 
 // DeleteSubAccountAPIKeyPair deletes a subaccount API key pair
@@ -573,9 +573,9 @@ func (e *Exchange) BorrowOrRepay(ctx context.Context, arg *BorrowOrRepayParams) 
 	if arg.Amount <= 0 {
 		return "", fmt.Errorf("%w: borrow or repay amount is required", order.ErrAmountIsInvalid)
 	}
-	resp := &struct {
+	var resp struct {
 		TransactionID string `json:"tran_id"`
-	}{}
+	}
 	return resp.TransactionID, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, privateUnifiedSpotEPL, http.MethodPost, "unified/loans", nil, arg, &resp)
 }
 
@@ -4000,9 +4000,9 @@ func (e *Exchange) ConfigureGTFeeDeduction(ctx context.Context, setEnabled bool)
 // GetGTFeeDeductionConfiguration query GT fee deduction configuration
 // Query the GT fee deduction configuration for the current account
 func (e *Exchange) GetGTFeeDeductionConfiguration(ctx context.Context) (bool, error) {
-	resp := &struct {
+	var resp struct {
 		Enabled bool `json:"enabled"`
-	}{}
+	}
 	return resp.Enabled, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "account/debit_fee", nil, nil, &resp)
 }
 
@@ -4017,9 +4017,9 @@ func (e *Exchange) PlaceMultiCollateralLoanOrder(ctx context.Context, arg *Multi
 	if arg.BorrowAmount <= 0 {
 		return 0, order.ErrAmountIsInvalid
 	}
-	resp := &struct {
+	var resp struct {
 		OrderID uint64 `json:"order_id"`
-	}{}
+	}
 	return resp.OrderID, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "loan/multi_collateral/orders", nil, arg, &resp)
 }
 
@@ -4284,10 +4284,10 @@ func (e *Exchange) GetRebateBrokerTransactionHistory(ctx context.Context, userID
 
 // GetUserRebateInformation retrieves user obtains rebate information
 func (e *Exchange) GetUserRebateInformation(ctx context.Context) (uint64, error) {
-	resp := &struct {
+	var resp struct {
 		InviteUID uint64 `json:"invite_uid"`
-	}{}
-	return resp.InviteUID, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "rebate/user/info", nil, nil, resp)
+	}
+	return resp.InviteUID, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "rebate/user/info", nil, nil, &resp)
 }
 
 // GetUserSubordinateRelationship retrieves user subordinate relationships
@@ -4367,7 +4367,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers["TIMESTAMP"] = strconv.FormatInt(timestamp.Unix(), 10)
 		headers["Accept"] = "application/json"
 		headers["SIGN"] = sig
-		urlPath = ePoint + urlPath
+		urlPath = ePoint + gateioAPIVersion + urlPath
 		if param != nil {
 			urlPath = common.EncodeURLValues(urlPath, param)
 		}
@@ -4397,11 +4397,11 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	if result == nil {
 		return nil
 	}
-	errCap := struct {
+	var errCap struct {
 		Label   string `json:"label"`
 		Code    string `json:"code"`
 		Message string `json:"message"`
-	}{}
+	}
 	if err := json.Unmarshal(intermediary, &errCap); err == nil && errCap.Code != "" {
 		return fmt.Errorf("%s auth request error, code: %s message: %s",
 			e.Name,
@@ -4426,7 +4426,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	return e.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return &request.Item{
 			Method:                 http.MethodGet,
-			Path:                   endpoint + path,
+			Path:                   endpoint + gateioAPIVersion + path,
 			Result:                 result,
 			Verbose:                e.Verbose,
 			HTTPDebugging:          e.HTTPDebugging,

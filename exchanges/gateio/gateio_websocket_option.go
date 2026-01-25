@@ -564,12 +564,12 @@ func (e *Exchange) processOptionsOrderbookSnapshotPushData(event string, incomin
 }
 
 func (e *Exchange) processOptionsOrderPushData(ctx context.Context, data []byte) error {
-	resp := struct {
+	var resp struct {
 		Time    types.Time       `json:"time"`
 		Channel string           `json:"channel"`
 		Event   string           `json:"event"`
 		Result  []WsOptionsOrder `json:"result"`
-	}{}
+	}
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
@@ -604,12 +604,12 @@ func (e *Exchange) processOptionsUserTradesPushData(data []byte) error {
 	if !e.IsFillsFeedEnabled() {
 		return nil
 	}
-	resp := struct {
+	var resp struct {
 		Time    types.Time           `json:"time"`
 		Channel string               `json:"channel"`
 		Event   string               `json:"event"`
 		Result  []WsOptionsUserTrade `json:"result"`
-	}{}
+	}
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
