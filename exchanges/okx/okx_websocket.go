@@ -313,7 +313,7 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 		// still create a connection but will technically be a no-op for tracking subscriptions.
 		// TODO: Handle no-op subscription tracking more gracefully as we don't need a connection for it.
 		if len(req.Arguments) != 0 {
-			if err := conn.SendJSONMessage(ctx, websocketRequestEPL, req); err != nil {
+			if err := conn.SendJSONMessage(request.WithVerbose(ctx), websocketRequestEPL, req); err != nil {
 				return err
 			}
 		}
@@ -342,7 +342,11 @@ func (e *Exchange) chunkRequests(subs subscription.List, operation string) ([]WS
 			if err := json.Unmarshal([]byte(sub.QualifiedChannel), &arg); err != nil {
 				return nil, err
 			}
-			isSubNeeded, err := eval.NeedsOutboundSubscription(sub.Pairs[0], sub.Channel, sub.Asset)
+			var optionalPair currency.Pair
+			if len(sub.Pairs) > 0 {
+				optionalPair = sub.Pairs[0]
+			}
+			isSubNeeded, err := eval.NeedsOutboundSubscription(optionalPair, sub.Channel, sub.Asset)
 			if err != nil {
 				return nil, err
 			}
