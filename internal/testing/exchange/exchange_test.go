@@ -51,8 +51,8 @@ func TestSetupWs(t *testing.T) {
 		DefaultURL:     "wss://connect-me.com",
 		RunningURL:     "wss://connect-me.com",
 		Connector:      func() error { return nil },
-		Subscriber:     func(s subscription.List) error { return nil },
-		Unsubscriber:   func(s subscription.List) error { return nil },
+		Subscriber:     func(subscription.List) error { return nil },
+		Unsubscriber:   func(subscription.List) error { return nil },
 		GenerateSubscriptions: func() (subscription.List, error) {
 			return subscription.List{}, nil
 		},
