@@ -176,6 +176,7 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ws *websocket.Manager) e
 				m.mu.RLock()
 				for x := range m.dataHandlers {
 					m.wg.Go(func() {
+						x := x
 						if err := m.dataHandlers[x](ws.GetName(), payload.Data); err != nil {
 							log.Errorln(log.WebsocketMgr, err)
 						}
