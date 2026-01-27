@@ -816,7 +816,6 @@ func (g *GenSubs) UNSUBME(unsubs subscription.List) error {
 	return nil
 }
 
-// sneaky connect func
 func connect() error { return nil }
 
 func TestFlushChannels(t *testing.T) {

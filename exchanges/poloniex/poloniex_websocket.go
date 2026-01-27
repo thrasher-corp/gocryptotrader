@@ -77,6 +77,7 @@ func (e *Exchange) WsConnect() error {
 	return nil
 }
 
+// loadCurrencyDetails loads currency details for websocket usage
 // TODO: Create routine to refresh list every day/week(?) for production
 func (e *Exchange) loadCurrencyDetails(ctx context.Context) error {
 	if e.details.isInitial() {

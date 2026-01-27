@@ -76,7 +76,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// Spot asset test cases starts from here
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
 	symbols, err := e.GetSymbols(t.Context(), "")
@@ -1369,7 +1368,6 @@ func TestGetTradingFee(t *testing.T) {
 	assert.Len(t, got, 10)
 }
 
-// futures
 func TestGetFuturesOpenContracts(t *testing.T) {
 	t.Parallel()
 	result, err := e.GetFuturesOpenContracts(t.Context())

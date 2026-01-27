@@ -481,7 +481,7 @@ func (f *FundManager) GetFundingForEvent(ev common.Event) (IFundingPair, error) 
 	return f.getFundingForEAP(ev.GetExchange(), ev.GetAssetType(), ev.Pair())
 }
 
-// GetFundingForEAP This will construct a funding based on the exchange, asset, currency pair
+// getFundingForEAP constructs a funding based on the exchange, asset, currency pair
 func (f *FundManager) getFundingForEAP(exch string, a asset.Item, p currency.Pair) (IFundingPair, error) {
 	if a.IsFutures() {
 		var collat CollateralPair

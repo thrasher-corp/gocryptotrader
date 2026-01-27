@@ -92,8 +92,8 @@ func (n *Notice) Alert() {
 	n.toActuatorRoutine <- struct{}{}
 }
 
-// Actuate lock in a different routine, as alerting is a second order priority
-// compared to updating and releasing calling routine.
+// actuate locks in a different routine, as alerting is a second order priority
+// compared to updating and releasing calling routine
 func (n *Notice) actuate() {
 	for range n.toActuatorRoutine {
 		n.mu.Lock()

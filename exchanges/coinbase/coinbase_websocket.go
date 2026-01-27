@@ -405,7 +405,7 @@ func (e *Exchange) ProcessUpdate(update *WebsocketOrderbookDataHolder, timestamp
 	return nil
 }
 
-// GenerateSubscriptions adds default subscriptions to websocket to be handled by ManageSubscriptions()
+// generateSubscriptions adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 	return e.Features.Subscriptions.ExpandTemplates(e)
 }

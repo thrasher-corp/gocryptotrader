@@ -227,7 +227,7 @@ func (d *Dispatcher) publish(id uuid.UUID, data any) error {
 	}
 }
 
-// Subscribe subscribes a system and returns a communication chan, this does not ensure initial push.
+// subscribe subscribes a system and returns a communication chan, this does not ensure initial push
 func (d *Dispatcher) subscribe(id uuid.UUID) (chan any, error) {
 	if err := common.NilGuard(d); err != nil {
 		return nil, err
@@ -261,7 +261,7 @@ func (d *Dispatcher) subscribe(id uuid.UUID) (chan any, error) {
 	return ch, nil
 }
 
-// Unsubscribe unsubs a routine from the dispatcher.
+// unsubscribe unsubs a routine from the dispatcher
 func (d *Dispatcher) unsubscribe(id uuid.UUID, usedChan chan any) error {
 	if err := common.NilGuard(d); err != nil {
 		return err
@@ -314,7 +314,7 @@ func (d *Dispatcher) unsubscribe(id uuid.UUID, usedChan chan any) error {
 	return errChannelNotFoundInUUIDRef
 }
 
-// GetNewID returns a new ID.
+// getNewID returns a new ID
 func (d *Dispatcher) getNewID(genFn func() (uuid.UUID, error)) (uuid.UUID, error) {
 	if err := common.NilGuard(d); err != nil {
 		return uuid.Nil, err

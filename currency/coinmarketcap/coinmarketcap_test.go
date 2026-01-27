@@ -15,8 +15,6 @@ const (
 	apiAccountPlanLevel = ""
 )
 
-// Checks credentials but also checks to see if the function can take the
-// required account plan level
 func areAPICredtionalsSet(minAllowable uint8) bool {
 	if apiAccountPlanLevel != "" && apikey != "" {
 		if err := c.CheckAccountPlan(minAllowable); err != nil {

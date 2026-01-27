@@ -487,6 +487,7 @@ func TestLoadFromDatabase(t *testing.T) {
 	}
 }
 
+// seedDB seeds test data into the database
 // TODO: find a better way to handle this to remove duplication between candle test
 func seedDB(includeOHLCVData bool) error {
 	err := exchange.InsertMany(testExchanges)
@@ -695,8 +696,7 @@ func TestIntervalsPerYear(t *testing.T) {
 	}
 }
 
-// The purpose of this benchmark is to highlight that requesting
-// '.Unix()` frequently is a slow process
+// BenchmarkJustifyIntervalTimeStoringUnixValues1 highlights that calling .Unix() frequently is slow
 func BenchmarkJustifyIntervalTimeStoringUnixValues1(b *testing.B) {
 	tt1 := time.Now()
 	tt2 := time.Now().Add(-time.Hour)
@@ -708,10 +708,8 @@ func BenchmarkJustifyIntervalTimeStoringUnixValues1(b *testing.B) {
 	}
 }
 
-// The purpose of this benchmark is to highlight that storing the unix value
-// at time of creation is dramatically faster than frequently requesting `.Unix()`
-// at runtime at scale. When dealing with the backtester and comparing
-// tens of thousands of candle times
+// BenchmarkJustifyIntervalTimeStoringUnixValues2 highlights that storing unix values at creation
+// is faster than frequently calling .Unix() at runtime when comparing large datasets
 func BenchmarkJustifyIntervalTimeStoringUnixValues2(b *testing.B) {
 	tt1 := time.Now().Unix()
 	tt2 := time.Now().Add(-time.Hour).Unix()

@@ -701,6 +701,7 @@ func hasPotentialDelimiter(a asset.Item) bool {
 	return a == asset.Options || a == asset.USDCMarginedFutures
 }
 
+// submitDirectSubscription sends direct subscription payloads without template expansion
 // TODO: Remove this function when template expansion is across all assets
 func (e *Exchange) submitDirectSubscription(ctx context.Context, conn websocket.Connection, a asset.Item, operation string, channelsToSubscribe subscription.List) error {
 	payloads, err := e.directSubscriptionPayload(a, operation, channelsToSubscribe)
@@ -740,6 +741,7 @@ func (e *Exchange) submitDirectSubscription(ctx context.Context, conn websocket.
 	return nil
 }
 
+// directSubscriptionPayload builds subscription payloads without template expansion
 // TODO: Remove this function when template expansion is across all assets
 func (e *Exchange) directSubscriptionPayload(assetType asset.Item, operation string, channelsToSubscribe subscription.List) ([]SubscriptionArgument, error) {
 	var args []SubscriptionArgument

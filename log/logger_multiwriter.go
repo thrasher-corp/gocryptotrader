@@ -139,7 +139,7 @@ func multiWriter(writers ...io.Writer) (*multiWriterHolder, error) {
 	return mw, nil
 }
 
-// Add appends a new writer to the multiwriter slice
+// add appends a new writer to the multiwriter slice
 func (mw *multiWriterHolder) add(writer io.Writer) error {
 	if writer == nil {
 		return errWriterIsNil
