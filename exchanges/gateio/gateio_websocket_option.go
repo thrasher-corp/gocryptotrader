@@ -71,7 +71,7 @@ func (e *Exchange) WsOptionsConnect(ctx context.Context, conn websocket.Connecti
 	if err := e.CurrencyPairs.IsAssetEnabled(asset.Options); err != nil {
 		return err
 	}
-	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil); err != nil {
 		return err
 	}
 	pingHandler, err := getWSPingHandler(optionsPingChannel)
@@ -497,7 +497,7 @@ func (e *Exchange) processOptionsOrderbookUpdate(ctx context.Context, incoming [
 		bids[x].Price = data.Bids[x].Price.Float64()
 		bids[x].Amount = data.Bids[x].Size
 	}
-	return e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, e, data.FirstUpdatedID, &orderbook.Update{
+	return e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, data.FirstUpdatedID, &orderbook.Update{
 		UpdateID:   data.LastUpdatedID,
 		UpdateTime: data.Timestamp.Time(),
 		LastPushed: pushTime,

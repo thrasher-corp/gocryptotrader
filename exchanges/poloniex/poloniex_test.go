@@ -547,19 +547,16 @@ func TestWsAuth(t *testing.T) {
 		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
 	}
 	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	err := e.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{}, nil)
+	require.NoError(t, err)
+
 	go e.wsReadData(t.Context())
 	creds, err := e.GetCredentials(t.Context())
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
 	err = e.wsSendAuthorisedCommand(t.Context(), creds.Secret, creds.Key, "subscribe")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
 	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
 	case response := <-e.Websocket.DataHandler.C:
