@@ -492,14 +492,24 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 		subAccts := accounts.SubAccounts{}
 		for _, subAccountBalances := range accountBalance {
 			a := accounts.NewSubAccount(stringToAccountType(subAccountBalances.AccountType), subAccountBalances.AccountID)
-			for _, bal := range subAccountBalances.Balances {
-				a.Balances.Set(bal.Currency, accounts.Balance{
-					Currency:               bal.Currency,
-					Total:                  bal.AvailableBalance.Float64(),
-					Hold:                   bal.Hold.Float64(),
-					Free:                   bal.Available.Float64(),
-					AvailableWithoutBorrow: bal.AvailableBalance.Float64(),
-				})
+			if subAccountBalances.AccountType == "FUTURES" {
+				for _, bal := range subAccountBalances.Balances {
+					a.Balances.Set(bal.Currency, accounts.Balance{
+						Currency: bal.Currency,
+						Total:    bal.AccountEquity.Float64(),
+						Hold:     bal.FrozenFunds.Float64(),
+						Free:     bal.AvailableBalance.Float64(),
+					})
+				}
+			} else {
+				for _, bal := range subAccountBalances.Balances {
+					a.Balances.Set(bal.Currency, accounts.Balance{
+						Currency: bal.Currency,
+						Total:    bal.Available.Float64(),
+						Hold:     bal.Hold.Float64(),
+						Free:     bal.MaxAvailable.Float64(),
+					})
+				}
 			}
 			subAccts = subAccts.Merge(a)
 		}
