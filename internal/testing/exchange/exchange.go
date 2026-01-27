@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
+	streamLog "github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Setup takes an empty exchange instance and loads config for it from testdata/configtest and connects a NewTestWebsocket
@@ -206,6 +207,18 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 	err = w.Connect(context.TODO())
 	require.NoError(tb, err, "Connect must not error")
 
+	w.Wg.Go(func() {
+		for {
+			select {
+			case <-w.ShutdownC:
+				return
+			case payload := <-w.DataHandler.C:
+				if payload.Data == nil {
+					streamLog.Errorf(streamLog.WebsocketMgr, "exchange %s nil data sent to websocket", w.GetName())
+				}
+			}
+		}
+	})
 	setupWsOnce[e] = true
 }
 

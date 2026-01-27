@@ -171,6 +171,7 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ws *websocket.Manager) e
 			case payload := <-ws.DataHandler.C:
 				if payload.Data == nil {
 					log.Errorf(log.WebsocketMgr, "exchange %s nil data sent to websocket", ws.GetName())
+					continue
 				}
 				m.mu.RLock()
 				for x := range m.dataHandlers {
