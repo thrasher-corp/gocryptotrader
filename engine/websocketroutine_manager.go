@@ -175,9 +175,11 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ws *websocket.Manager) e
 				}
 				m.mu.RLock()
 				for x := range m.dataHandlers {
-					if err := m.dataHandlers[x](ws.GetName(), payload.Data); err != nil {
-						log.Errorln(log.WebsocketMgr, err)
-					}
+					m.wg.Go(func() {
+						if err := m.dataHandlers[x](ws.GetName(), payload.Data); err != nil {
+							log.Errorln(log.WebsocketMgr, err)
+						}
+					})
 				}
 				m.mu.RUnlock()
 			}
