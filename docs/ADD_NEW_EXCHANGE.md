@@ -663,7 +663,7 @@ func (e *Exchange) WsConnect() error {
         }
     }
 
-    if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}); err != nil {
+    if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
         return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", e.Name, err)
     }
 

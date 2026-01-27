@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"slices"
 	"strings"
 	"sync"
@@ -38,6 +39,7 @@ const (
 	marketTickerChannel           = "/market/ticker"            // /market/ticker:{symbol},...
 	marketSnapshotChannel         = "/market/snapshot"          // /market/snapshot:{symbol},...
 	marketOrderbookChannel        = "/market/level2"            // /market/level2:{symbol},...
+	marketOrderbookDepth1Channel  = "/spotMarket/level1"        // /spotMarket/level1:{symbol},...
 	marketOrderbookDepth5Channel  = "/spotMarket/level2Depth5"  // /spotMarket/level2Depth5:{symbol},...
 	marketOrderbookDepth50Channel = "/spotMarket/level2Depth50" // /spotMarket/level2Depth50:{symbol},...
 	marketCandlesChannel          = "/market/candles"           // /market/candles:{symbol}_{interval},...
@@ -70,6 +72,8 @@ const (
 	futuresAccountBalanceEventChannel      = "/contractAccount/wallet"
 
 	futuresLimitCandles = "/contractMarket/limitCandle"
+
+	wsConnection = "websocket_connection"
 )
 
 var (
@@ -111,51 +115,44 @@ var defaultSubscriptions = subscription.List{
 }
 
 // WsConnect creates a new websocket connection.
-func (e *Exchange) WsConnect() error {
-	ctx := context.TODO()
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
-		return websocket.ErrWebsocketNotEnabled
-	}
+func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) error {
 	e.fetchedFuturesOrderbookMutex.Lock()
 	e.fetchedFuturesOrderbook = map[string]bool{}
 	e.fetchedFuturesOrderbookMutex.Unlock()
-	var dialer gws.Dialer
-	dialer.HandshakeTimeout = e.Config.HTTPTimeout
-	dialer.Proxy = http.ProxyFromEnvironment
+
 	var instances *WSInstanceServers
-	_, err := e.GetCredentials(ctx)
-	if err != nil {
-		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-	}
+	var err error
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
 		instances, err = e.GetAuthenticatedInstanceServers(ctx)
-		if err != nil {
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			return err
-		}
-	}
-	if instances == nil {
+	} else {
 		instances, err = e.GetInstanceServers(ctx)
-		if err != nil {
-			return err
-		}
+	}
+	if err != nil {
+		return err
 	}
 	if len(instances.InstanceServers) == 0 {
 		return errors.New("no websocket instance server found")
 	}
-	e.Websocket.Conn.SetURL(instances.InstanceServers[0].Endpoint + "?token=" + instances.Token)
-	err = e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
-	if err != nil {
-		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", e.Name, err)
+
+	if conn.GetURL() != instances.InstanceServers[0].Endpoint {
+		log.Warnf(log.WebsocketMgr, "%s websocket endpoint has changed, overriding old: %s with new: %s", e.Name, conn.GetURL(), instances.InstanceServers[0].Endpoint)
+		conn.SetURL(instances.InstanceServers[0].Endpoint)
 	}
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(ctx)
-	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
-		Delay:       time.Millisecond * time.Duration(instances.InstanceServers[0].PingTimeout),
+
+	values := url.Values{}
+	values.Set("token", instances.Token)
+
+	var dialer gws.Dialer
+	dialer.HandshakeTimeout = e.Config.HTTPTimeout
+	dialer.Proxy = http.ProxyFromEnvironment
+	if err := conn.Dial(ctx, &dialer, nil, values); err != nil {
+		return err
+	}
+	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+		Delay:       time.Millisecond * time.Duration(instances.InstanceServers[0].PingInterval),
 		Message:     []byte(`{"type":"ping"}`),
 		MessageType: gws.TextMessage,
 	})
-
 	e.setupOrderbookManager(ctx)
 	return nil
 }
@@ -196,26 +193,9 @@ func (e *Exchange) GetAuthenticatedInstanceServers(ctx context.Context) (*WSInst
 	return response.Data, err
 }
 
-// wsReadData receives and passes on websocket messages for processing
-func (e *Exchange) wsReadData(ctx context.Context) {
-	defer e.Websocket.Wg.Done()
-	for {
-		resp := e.Websocket.Conn.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		err := e.wsHandleData(ctx, resp.Raw)
-		if err != nil {
-			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
-			}
-		}
-	}
-}
-
 // wsHandleData processes a websocket incoming data.
-func (e *Exchange) wsHandleData(ctx context.Context, respData []byte) error {
-	resp := WsPushData{}
+func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respData []byte) error {
+	var resp WsPushData
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
@@ -223,10 +203,10 @@ func (e *Exchange) wsHandleData(ctx context.Context, respData []byte) error {
 		return nil
 	}
 	if resp.ID != "" {
-		return e.Websocket.Match.RequireMatchWithData(resp.ID, respData)
+		return conn.RequireMatchWithData(resp.ID, respData)
 	}
-	topicInfo := strings.Split(resp.Topic, ":")
-	switch topicInfo[0] {
+
+	switch topicInfo := strings.Split(resp.Topic, ":"); topicInfo[0] {
 	case marketTickerChannel:
 		var instruments string
 		if topicInfo[1] == "all" {
@@ -239,7 +219,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respData []byte) error {
 		return e.processMarketSnapshot(ctx, resp.Data, topicInfo[0])
 	case marketOrderbookChannel:
 		return e.processOrderbookWithDepth(respData, topicInfo[1], topicInfo[0])
-	case marketOrderbookDepth5Channel, marketOrderbookDepth50Channel:
+	case marketOrderbookDepth1Channel, marketOrderbookDepth5Channel, marketOrderbookDepth50Channel:
 		return e.processOrderbook(resp.Data, topicInfo[1], topicInfo[0])
 	case marketCandlesChannel:
 		symbolAndInterval := strings.Split(topicInfo[1], currency.UnderscoreDelimiter)
@@ -281,11 +261,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respData []byte) error {
 			return err
 		}
 		return e.processFuturesOrderbookLevel2(ctx, resp.Data, topicInfo[1])
-	case futuresOrderbookDepth5Channel,
-		futuresOrderbookDepth50Channel:
-		if err := e.ensureFuturesOrderbookSnapshotLoaded(ctx, topicInfo[1]); err != nil {
-			return err
-		}
+	case futuresOrderbookDepth5Channel, futuresOrderbookDepth50Channel:
 		return e.processFuturesOrderbookSnapshot(resp.Data, topicInfo[1])
 	case futuresContractMarketDataChannel:
 		switch resp.Subject {
@@ -515,7 +491,7 @@ func (e *Exchange) ensureFuturesOrderbookSnapshotLoaded(ctx context.Context, sym
 
 // processFuturesOrderbookSnapshot processes a futures account orderbook websocket update.
 func (e *Exchange) processFuturesOrderbookSnapshot(respData []byte, instrument string) error {
-	var resp WsOrderbookLevel5Response
+	var resp WsFuturesOrderbookLevelResponse
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
@@ -523,14 +499,16 @@ func (e *Exchange) processFuturesOrderbookSnapshot(respData []byte, instrument s
 	if err != nil {
 		return err
 	}
-	return e.Websocket.Orderbook.Update(&orderbook.Update{
-		UpdateID:                   resp.Sequence,
-		UpdateTime:                 resp.Timestamp.Time(),
-		Asset:                      asset.Futures,
-		Bids:                       resp.Bids.Levels(),
-		Asks:                       resp.Asks.Levels(),
-		Pair:                       pair,
-		SkipOutOfOrderLastUpdateID: true,
+	// Note: KuCoin snapshot timestamps are all the same and each update is 100ms apart.
+	return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		Exchange:     e.Name,
+		LastUpdateID: resp.Sequence,
+		LastUpdated:  resp.Timestamp.Time(),
+		LastPushed:   resp.PushTimestamp.Time(),
+		Asset:        asset.Futures,
+		Bids:         resp.Bids.Levels(),
+		Asks:         resp.Asks.Levels(),
+		Pair:         pair,
 	})
 }
 
@@ -987,18 +965,16 @@ func (e *Exchange) processMarketSnapshot(ctx context.Context, respData []byte, t
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (e *Exchange) Subscribe(subscriptions subscription.List) error {
-	ctx := context.TODO()
-	return e.manageSubscriptions(ctx, subscriptions, "subscribe")
+func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, subscriptions subscription.List) error {
+	return e.manageSubscriptions(ctx, conn, subscriptions, "subscribe")
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (e *Exchange) Unsubscribe(subscriptions subscription.List) error {
-	ctx := context.TODO()
-	return e.manageSubscriptions(ctx, subscriptions, "unsubscribe")
+func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, subscriptions subscription.List) error {
+	return e.manageSubscriptions(ctx, conn, subscriptions, "unsubscribe")
 }
 
-func (e *Exchange) manageSubscriptions(ctx context.Context, subs subscription.List, operation string) error {
+func (e *Exchange) manageSubscriptions(ctx context.Context, conn websocket.Connection, subs subscription.List, operation string) error {
 	var errs error
 	for _, s := range subs {
 		req := WsSubscriptionInput{
@@ -1008,7 +984,7 @@ func (e *Exchange) manageSubscriptions(ctx context.Context, subs subscription.Li
 			PrivateChannel: s.Authenticated,
 			Response:       true,
 		}
-		if respRaw, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req); err != nil {
+		if respRaw, err := conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req); err != nil {
 			errs = common.AppendError(errs, err)
 		} else {
 			rType, err := jsonparser.GetUnsafeString(respRaw, "type")
@@ -1026,9 +1002,9 @@ func (e *Exchange) manageSubscriptions(ctx context.Context, subs subscription.Li
 				errs = common.AppendError(errs, fmt.Errorf("%w: %s from %s", errInvalidMsgType, rType, respRaw))
 			default:
 				if operation == "unsubscribe" {
-					err = e.Websocket.RemoveSubscriptions(e.Websocket.Conn, s)
+					err = e.Websocket.RemoveSubscriptions(conn, s)
 				} else {
-					err = e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, s)
+					err = e.Websocket.AddSuccessfulSubscriptions(conn, s)
 					if e.Verbose {
 						log.Debugf(log.ExchangeSys, "%s Subscribed to Channel: %s", e.Name, s.Channel)
 					}

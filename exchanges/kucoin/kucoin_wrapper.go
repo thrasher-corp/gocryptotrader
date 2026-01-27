@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
@@ -173,48 +172,44 @@ func (e *Exchange) SetDefaults() {
 
 // Setup takes in the supplied exchange configuration details and sets params
 func (e *Exchange) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
+	if err := exch.Validate(); err != nil {
 		return err
 	}
 	if !exch.Enabled {
 		e.SetEnabled(false)
 		return nil
 	}
-	err = e.SetupDefaults(exch)
-	if err != nil {
+	if err := e.SetupDefaults(exch); err != nil {
 		return err
 	}
 
 	e.checkSubscriptions()
 
+	if err := e.Websocket.Setup(&websocket.ManagerSetup{
+		ExchangeConfig:                         exch,
+		Features:                               &e.Features.Supports.WebsocketCapabilities,
+		TradeFeed:                              e.Features.Enabled.TradeFeed,
+		UseMultiConnectionManagement:           true,
+		MaxWebsocketSubscriptionsPerConnection: 400,
+	}); err != nil {
+		return err
+	}
+
 	wsRunningEndpoint, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
-	err = e.Websocket.Setup(
-		&websocket.ManagerSetup{
-			ExchangeConfig:        exch,
-			DefaultURL:            kucoinWebsocketURL,
-			RunningURL:            wsRunningEndpoint,
-			Connector:             e.WsConnect,
-			Subscriber:            e.Subscribe,
-			Unsubscriber:          e.Unsubscribe,
-			GenerateSubscriptions: e.generateSubscriptions,
-			Features:              &e.Features.Supports.WebsocketCapabilities,
-			OrderbookBufferConfig: buffer.Config{
-				SortBuffer:            true,
-				SortBufferByUpdateIDs: true,
-			},
-			TradeFeed: e.Features.Enabled.TradeFeed,
-		})
-	if err != nil {
-		return err
-	}
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             request.NewRateLimitWithWeight(time.Second*10, 100, 1), // See: https://www.kucoin.com/docs-new/rate-limit#websocket-rate-limit
+		URL:                   wsRunningEndpoint,
+		Connector:             e.WsConnect,
+		GenerateSubscriptions: e.generateSubscriptions,
+		Subscriber:            e.Subscribe,
+		Unsubscriber:          e.Unsubscribe,
+		Handler:               e.wsHandleData,
+		MessageFilter:         wsConnection,
 	})
 }
 

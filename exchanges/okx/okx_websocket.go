@@ -245,7 +245,7 @@ func (e *Exchange) WsConnect() error {
 	dialer.ReadBufferSize = 8192
 	dialer.WriteBufferSize = 8192
 
-	if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}); err != nil {
+	if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
 		return err
 	}
 	e.Websocket.Wg.Go(func() { e.wsReadData(ctx, e.Websocket.Conn) })
@@ -272,7 +272,7 @@ func (e *Exchange) WsAuth(ctx context.Context) error {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", e.Name)
 	}
 	var dialer gws.Dialer
-	if err := e.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{}); err != nil {
+	if err := e.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
 		return err
 	}
 	e.Websocket.Wg.Go(func() { e.wsReadData(ctx, e.Websocket.AuthConn) })
