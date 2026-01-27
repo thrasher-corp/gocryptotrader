@@ -71,5 +71,3 @@ type RequesterOption func(*Requester)
 // being outside the receive window if application rate limiting reduces outbound
 // requests.
 type Generate func() (*Item, error)
-
-type verbosity string

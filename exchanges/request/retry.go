@@ -7,9 +7,7 @@ import (
 	"time"
 )
 
-const (
-	headerRetryAfter = "Retry-After"
-)
+const headerRetryAfter = "Retry-After"
 
 // DefaultRetryPolicy determines whether the request should be retried, implemented with a default strategy.
 func DefaultRetryPolicy(resp *http.Response, err error) (bool, error) {
@@ -20,15 +18,7 @@ func DefaultRetryPolicy(resp *http.Response, err error) (bool, error) {
 		return false, err
 	}
 
-	if resp.StatusCode == http.StatusTooManyRequests {
-		return true, nil
-	}
-
-	if resp.Header.Get(headerRetryAfter) != "" {
-		return true, nil
-	}
-
-	return false, nil
+	return resp.StatusCode == http.StatusTooManyRequests || resp.Header.Get(headerRetryAfter) != "", nil
 }
 
 // RetryAfter parses the Retry-After header in the response to determine the minimum
