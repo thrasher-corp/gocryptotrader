@@ -6102,10 +6102,41 @@ func TestGenerateSubscriptions(t *testing.T) {
 	testsubs.EqualLists(t, exp, append(public, private...))
 }
 
+// TODO: Implement channel subscriptions for business ws and remove this test
 func TestBusinessWSCandleSubscriptions(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
+
+	e.Features.Subscriptions = nil // Subscriptions not needed for this test
+
+	finish := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Go(func() { // reader routine so nothing blocks
+		for {
+			select {
+			case <-finish:
+				return
+			case <-e.Websocket.DataHandler.C:
+			}
+		}
+	})
+
+	for _, a := range e.GetAssetTypes(true) { // Disable all assets except spread and spot so only those are tested and data handler isn't polluted
+		switch a {
+		case asset.Spread:
+			enabled, err := e.GetBase().CurrencyPairs.GetPairs(a, true)
+			require.NoError(t, err, "GetPairs must not error")
+			randomPair, err := enabled.GetRandomPair()
+			require.NoError(t, err, "GetRandomPair must not error")
+			require.NoError(t, e.GetBase().SetPairs(currency.Pairs{randomPair}, a, true), "SetPairs must not error")
+			continue
+		case asset.Spot:
+		default:
+			require.NoError(t, e.GetBase().CurrencyPairs.SetAssetEnabled(a, false), "SetAssetEnabled must not error")
+		}
+	}
+
 	require.NoError(t, e.Websocket.Connect(t.Context()))
 
 	conn, err := e.Websocket.GetConnection(businessConnection)
@@ -6119,6 +6150,9 @@ func TestBusinessWSCandleSubscriptions(t *testing.T) {
 		currency.NewPairWithDelimiter("ETH", "USDT", "-"),
 		currency.NewPairWithDelimiter("OKB", "USDT", "-"),
 	}
+
+	close(finish) // yield so that assertion below gets all data
+	wg.Wait()
 
 	for i, ch := range []string{channelCandle1D, channelMarkPriceCandle1M, channelIndexCandle1H} {
 		err := e.BusinessSubscribe(t.Context(), conn, subscription.List{{Channel: ch, Pairs: p[i : i+1]}})
@@ -6139,7 +6173,7 @@ func TestBusinessWSCandleSubscriptions(t *testing.T) {
 		}
 		return len(got) == 3
 	}
-	assert.Eventually(t, check, 5*time.Second, time.Millisecond)
+	assert.Eventually(t, check, 5*time.Second, time.Nanosecond)
 	require.Equal(t, 3, len(got), "must receive candles for all three subscriptions")
 	require.NoError(t, got.ContainsAll(p, true), "must receive candles for all subscribed pairs")
 }
