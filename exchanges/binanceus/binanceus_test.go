@@ -1325,7 +1325,7 @@ func TestWebsocketStreamTradeUpdate(t *testing.T) {
 	}
 }
 
-// TestWsDepthUpdate copied from the Binance Test
+// TestWebsocketOrderBookDepthDiffStream copied from the Binance Test
 func TestWebsocketOrderBookDepthDiffStream(t *testing.T) {
 	binanceusOrderBookLock.Lock()
 	defer binanceusOrderBookLock.Unlock()
