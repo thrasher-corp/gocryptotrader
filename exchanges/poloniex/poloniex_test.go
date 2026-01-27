@@ -540,7 +540,7 @@ func TestGenerateNewAddress(t *testing.T) {
 	}
 }
 
-// Will receive a message only on failure
+// TestWsAuth receives a message only on failure
 func TestWsAuth(t *testing.T) {
 	t.Parallel()
 	if !e.Websocket.IsEnabled() && !e.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(e) {
