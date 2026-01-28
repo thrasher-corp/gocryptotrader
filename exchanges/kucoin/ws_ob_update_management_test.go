@@ -24,12 +24,12 @@ func TestFetchWSOrderbookSnapshot(t *testing.T) {
 	_, err = e.fetchWSOrderbookSnapshot(t.Context(), xbtusdtm, asset.FutureCombo)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
-	got, err := e.fetchWSOrderbookSnapshot(t.Context(), xbtusdtm, asset.Futures)
+	got, err := e.fetchWSOrderbookSnapshot(t.Context(), currency.NewBTCUSDT(), asset.Spot)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	got, err = e.fetchWSOrderbookSnapshot(t.Context(), currency.NewBTCUSDT(), asset.Spot)
+	got, err = e.fetchWSOrderbookSnapshot(t.Context(), xbtusdtm, asset.Futures)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
@@ -44,18 +44,8 @@ func TestCheckPendingUpdate(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, skip, "must skip update that is before fetched snapshot")
 
-	bids := []orderbook.Level{
-		{ID: 2},
-		{ID: 4},
-		{ID: 6},
-	}
-
-	asks := []orderbook.Level{
-		{ID: 3},
-		{ID: 5},
-		{ID: 7},
-	}
-
+	bids := []orderbook.Level{{ID: 2}, {ID: 4}, {ID: 6}}
+	asks := []orderbook.Level{{ID: 3}, {ID: 5}, {ID: 7}}
 	updates := &orderbook.Update{UpdateID: 7, Bids: bids, Asks: asks}
 
 	skip, err = checkPendingUpdate(4, 2, updates)
@@ -63,14 +53,6 @@ func TestCheckPendingUpdate(t *testing.T) {
 	require.False(t, skip, "must not skip update that is in sequence")
 	require.Len(t, updates.Bids, 1, "must retain only relevant bid updates")
 	require.Len(t, updates.Asks, 2, "must retain only relevant ask updates")
-}
-
-func TestCanApplyUpdate(t *testing.T) {
-	t.Parallel()
-	require.True(t, canApplyUpdate(5, 6), "must be able to apply update with correct sequence")
-	require.False(t, canApplyUpdate(5, 5), "must not be able to apply update with same sequence")
-	require.False(t, canApplyUpdate(5, 4), "must not be able to apply update with lower sequence")
-	require.False(t, canApplyUpdate(5, 8), "must not be able to apply update with higher than expected sequence")
 }
 
 func TestOBManagerProcessOrderbookUpdateHTTPMocked(t *testing.T) {
@@ -86,12 +68,11 @@ func TestOBManagerProcessOrderbookUpdateHTTPMocked(t *testing.T) {
 		FetchDeadline:      buffer.DefaultWSOrderbookUpdateDeadline,
 		FetchOrderbook:     e.fetchWSOrderbookSnapshot,
 		CheckPendingUpdate: checkPendingUpdate,
-		CanApplyUpdate:     canApplyUpdate,
 		BufferInstance:     &e.Websocket.Orderbook,
 	})
 	xbtusdtm := currency.NewPair(currency.XBT, currency.USDTM)
-	err = m.ProcessOrderbookUpdate(t.Context(), 1729968414299, &orderbook.Update{
-		UpdateID:   1729968414299,
+	err = m.ProcessOrderbookUpdate(t.Context(), 1732973817560, &orderbook.Update{
+		UpdateID:   1732973817560,
 		Pair:       xbtusdtm,
 		Asset:      asset.Futures,
 		AllowEmpty: true,
@@ -105,8 +86,8 @@ func TestOBManagerProcessOrderbookUpdateHTTPMocked(t *testing.T) {
 		return err == nil
 	}, time.Second*5, time.Millisecond*50, "orderbook must eventually be synced")
 
-	err = m.ProcessOrderbookUpdate(t.Context(), 1729968414300, &orderbook.Update{
-		UpdateID:   1729968177090,
+	err = m.ProcessOrderbookUpdate(t.Context(), 1732973817561, &orderbook.Update{
+		UpdateID:   1732973817562,
 		Pair:       xbtusdtm,
 		Asset:      asset.Futures,
 		AllowEmpty: true,
@@ -116,5 +97,5 @@ func TestOBManagerProcessOrderbookUpdateHTTPMocked(t *testing.T) {
 
 	id, err := e.Websocket.Orderbook.LastUpdateID(xbtusdtm, asset.Futures)
 	require.NoError(t, err, "LastUpdateID must not error")
-	assert.Equal(t, int64(1729968177090), id, "LastUpdateID should be updated to orderbook.Update.UpdateID")
+	assert.Equal(t, int64(1732973817562), id, "LastUpdateID should be updated to orderbook.Update.UpdateID")
 }

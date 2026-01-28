@@ -174,7 +174,6 @@ func (e *Exchange) SetDefaults() {
 		FetchDeadline:      buffer.DefaultWSOrderbookUpdateDeadline,
 		FetchOrderbook:     e.fetchWSOrderbookSnapshot,
 		CheckPendingUpdate: checkPendingUpdate,
-		CanApplyUpdate:     canApplyUpdate,
 		BufferInstance:     &e.Websocket.Orderbook,
 	})
 }

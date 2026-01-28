@@ -12,7 +12,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/buger/jsonparser"
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -92,8 +91,8 @@ var subscriptionNames = map[asset.Item]map[string]string{
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},
 	{Enabled: true, Asset: asset.All, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
-	{Enabled: false, Asset: asset.Spot, Channel: marketOrderbookChannel, Authenticated: true}, // Full orderbook depth requires REST snapshot which is an authenticated request.
-	{Enabled: false, Asset: asset.Futures, Channel: futuresOrderbookChannel},
+	{Enabled: false, Asset: asset.Spot, Channel: marketOrderbookChannel},     // Full orderbook depth requires REST snapshot which is an authenticated request.
+	{Enabled: false, Asset: asset.Futures, Channel: futuresOrderbookChannel}, // Full orderbook depth requires REST snapshot which is an authenticated request.
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
 	{Enabled: true, Asset: asset.Margin, Channel: subscription.AllTradesChannel},
 	{Enabled: true, Asset: asset.Futures, Channel: futuresTradeOrderChannel, Authenticated: true},
@@ -203,7 +202,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	case marketSnapshotChannel:
 		return e.processMarketSnapshot(ctx, resp.Data, topicInfo[0])
 	case marketOrderbookChannel:
-		return e.processOrderbookWithDepth(ctx, respData, topicInfo[1], topicInfo[0])
+		return e.processOrderbookWithDepth(ctx, respData, topicInfo[1])
 	case marketOrderbookDepth1Channel, marketOrderbookDepth5Channel, marketOrderbookDepth50Channel:
 		return e.processOrderbook(resp.Data, topicInfo[1], topicInfo[0])
 	case marketCandlesChannel:
@@ -805,20 +804,15 @@ func (e *Exchange) processCandlesticks(ctx context.Context, respData []byte, ins
 }
 
 // processOrderbookWithDepth processes order book data with a specified depth for a particular symbol.
-func (e *Exchange) processOrderbookWithDepth(ctx context.Context, respData []byte, instrument, topic string) error {
+func (e *Exchange) processOrderbookWithDepth(ctx context.Context, respData []byte, instrument string) error {
 	pair, err := currency.NewPairFromString(instrument)
 	if err != nil {
 		return err
 	}
 	var resp struct {
-		Result *WsOrderbook `json:"data"`
+		Result WsOrderbook `json:"data"`
 	}
 	if err := json.Unmarshal(respData, &resp); err != nil {
-		return err
-	}
-
-	assets, err := e.CalculateAssets(topic, pair)
-	if err != nil {
 		return err
 	}
 
@@ -840,20 +834,15 @@ func (e *Exchange) processOrderbookWithDepth(ctx context.Context, respData []byt
 		}
 	}
 
-	for _, a := range assets {
-		if err := e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, resp.Result.SequenceStart, &orderbook.Update{
-			UpdateID:   resp.Result.SequenceEnd,
-			UpdateTime: resp.Result.TimeMS.Time(),
-			LastPushed: resp.Result.TimeMS.Time(), // Realtime so this is pushed when a change occurs
-			Asset:      a,
-			Bids:       bids,
-			Asks:       asks,
-			Pair:       pair,
-		}); err != nil {
-			return err
-		}
-	}
-	return nil
+	return e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, resp.Result.SequenceStart, &orderbook.Update{
+		UpdateID:   resp.Result.SequenceEnd,
+		UpdateTime: resp.Result.TimeMS.Time(),
+		LastPushed: resp.Result.TimeMS.Time(), // Realtime so this is pushed when a change occurs
+		Asset:      asset.Spot,
+		Bids:       bids,
+		Asks:       asks,
+		Pair:       pair,
+	})
 }
 
 // processOrderbook processes orderbook data for a specific symbol.
@@ -942,8 +931,10 @@ func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, s
 }
 
 func (e *Exchange) manageSubscriptions(ctx context.Context, conn websocket.Connection, subs subscription.List, operation string) error {
+	outbound := collapseSubscriptionList(subs)
+
 	var errs error
-	for _, s := range subs {
+	for assoc, s := range outbound {
 		req := WsSubscriptionInput{
 			ID:             e.MessageID(),
 			Type:           operation,
@@ -951,43 +942,92 @@ func (e *Exchange) manageSubscriptions(ctx context.Context, conn websocket.Conne
 			PrivateChannel: s.Authenticated,
 			Response:       true,
 		}
-		if respRaw, err := conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req); err != nil {
-			errs = common.AppendError(errs, err)
-		} else {
-			rType, err := jsonparser.GetUnsafeString(respRaw, "type")
-			switch {
-			case err != nil:
-				errs = common.AppendError(errs, err)
-			case rType == "error":
-				code, _ := jsonparser.GetUnsafeString(respRaw, "code")
-				msg, msgErr := jsonparser.GetUnsafeString(respRaw, "data")
-				if msgErr != nil {
-					msg = "unknown error"
-				}
-				errs = common.AppendError(errs, fmt.Errorf("%s (%s)", msg, code))
-			case rType != "ack":
-				errs = common.AppendError(errs, fmt.Errorf("%w: %s from %s", errInvalidMsgType, rType, respRaw))
-			default:
-				if operation == "unsubscribe" {
-					err = e.Websocket.RemoveSubscriptions(conn, s)
-				} else {
-					err = e.Websocket.AddSuccessfulSubscriptions(conn, s)
-					if e.Verbose {
-						log.Debugf(log.ExchangeSys, "%s Subscribed to Channel: %s", e.Name, s.Channel)
-					}
-				}
-				if err != nil {
-					errs = common.AppendError(errs, err)
+		respRaw, err := conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
+		if err != nil {
+			return err
+		}
+
+		capture := struct {
+			Type string `json:"type"`
+			Code int    `json:"code"`
+			Data any    `json:"data"`
+		}{}
+
+		if err := json.Unmarshal(respRaw, &capture); err != nil {
+			return err
+		}
+
+		switch capture.Type {
+		case "error":
+			msg, ok := capture.Data.(string)
+			if !ok {
+				msg = "unknown error"
+			}
+			errs = common.AppendError(errs, fmt.Errorf("%s (%d)", msg, capture.Code))
+		case "ack":
+			if operation == "unsubscribe" {
+				err = e.Websocket.RemoveSubscriptions(conn, *assoc...)
+			} else {
+				err = e.Websocket.AddSuccessfulSubscriptions(conn, *assoc...)
+				if e.Verbose {
+					log.Debugf(log.ExchangeSys, "%s Subscribed to Channel: %s", e.Name, s.Channel)
 				}
 			}
+			if err != nil {
+				errs = common.AppendError(errs, err)
+			}
+		default:
+			errs = common.AppendError(errs, fmt.Errorf("%w: %s from %s", errInvalidMsgType, capture.Type, respRaw))
 		}
 	}
 	return errs
 }
 
+// collects subscriptions into batches based on channel and limits to 100 pairs per subscription due to the incoming
+// subscription.List is individualised for connection scaling.
+func collapseSubscriptionList(subs subscription.List) map[*subscription.List]*subscription.Subscription {
+	m := make(map[string][]*subscription.Subscription)
+	for _, s := range subs {
+		parts := strings.Split(s.QualifiedChannel, ":")
+		m[parts[0]] = append(m[parts[0]], s)
+	}
+
+	result := make(map[*subscription.List]*subscription.Subscription)
+	for qChan, group := range m {
+		for _, batch := range common.Batch(group, 100) {
+			s := batch[0].Clone()
+			s.Pairs = nil
+			suffixes := make([]string, 0, len(batch))
+			for _, sub := range batch {
+				s.Pairs = append(s.Pairs, sub.Pairs...)
+				parts := strings.SplitN(sub.QualifiedChannel, ":", 2)
+				if len(parts) == 2 && parts[1] != "" {
+					suffixes = append(suffixes, parts[1])
+				}
+			}
+			s.QualifiedChannel = qChan
+			if len(suffixes) != 0 {
+				s.QualifiedChannel += ":" + strings.Join(suffixes, ",")
+			}
+			key := subscription.List(batch)
+			result[&key] = s
+		}
+	}
+	return result
+}
+
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
 func (e *Exchange) generateSubscriptions() (subscription.List, error) {
-	return e.Features.Subscriptions.ExpandTemplates(e)
+	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
+	if err != nil {
+		return nil, err
+	}
+	collapsed := collapseSubscriptionList(subs)
+	resp := make(subscription.List, 0, len(collapsed))
+	for _, sub := range collapsed {
+		resp = append(resp, sub)
+	}
+	return resp, nil
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
@@ -1207,11 +1247,11 @@ const subTplText = `
 				{{- with $i := channelInterval $.S }}_{{ $i }}{{ end }}
 				{{- $.BatchSize }} {{- len $pairs }}
 			{{- else }}
-				{{- range $b := batch $pairs 100 }}
+				{{- range $b := batch $pairs 1 }}
 					{{- $name -}} : {{- joinPairsWithInterval $b $.S }}
 					{{- $.PairSeparator }}
 				{{- end }}
-				{{- $.BatchSize -}} 100
+				{{- $.BatchSize -}} 1
 			{{- end }}
 		{{- end }}
 		{{- $.AssetSeparator }}

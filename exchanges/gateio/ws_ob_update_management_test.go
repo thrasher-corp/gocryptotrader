@@ -80,14 +80,6 @@ func TestCheckPendingUpdate(t *testing.T) {
 	require.False(t, skip)
 }
 
-func TestCanApplyUpdate(t *testing.T) {
-	t.Parallel()
-	require.True(t, canApplyUpdate(100, 101))
-	require.False(t, canApplyUpdate(100, 100))
-	require.False(t, canApplyUpdate(100, 99))
-	require.False(t, canApplyUpdate(100, 102))
-}
-
 func TestOBManagerProcessOrderbookUpdateHTTPMocked(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
@@ -105,7 +97,6 @@ func TestOBManagerProcessOrderbookUpdateHTTPMocked(t *testing.T) {
 		FetchDeadline:      buffer.DefaultWSOrderbookUpdateDeadline,
 		FetchOrderbook:     e.fetchWSOrderbookSnapshot,
 		CheckPendingUpdate: checkPendingUpdate,
-		CanApplyUpdate:     canApplyUpdate,
 		BufferInstance:     &e.Websocket.Orderbook,
 	})
 	err = m.ProcessOrderbookUpdate(t.Context(), 27596272446, &orderbook.Update{

@@ -2,7 +2,6 @@ package kucoin
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
@@ -21,18 +20,13 @@ func (e *Exchange) fetchWSOrderbookSnapshot(ctx context.Context, p currency.Pair
 		return nil, err
 	}
 
-	var ob *Orderbook
-	switch a {
-	case asset.Spot:
-		ob, err = e.GetOrderbook(ctx, out)
-	case asset.Futures:
-		ob, err = e.GetFuturesOrderbook(ctx, out)
-	default:
-		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
-	}
+	// The public limited endpoints are dynamically rate limited and may return 429s during high traffic so for this
+	// specific use-case we use the authenticated endpoint to avoid rate limiting issues.
+	ob, err := e.GetOrderbookAuthenticatedV1(ctx, out, a, "FULL")
 	if err != nil {
 		return nil, err
 	}
+
 	return &orderbook.Book{
 		Exchange:          e.Name,
 		Pair:              p,
@@ -64,6 +58,7 @@ func checkPendingUpdate(sequenceEndOld, sequenceStartNew int64, update *orderboo
 	for i := range update.Bids {
 		if update.Bids[i].ID >= target {
 			bids = append(bids, update.Bids[i])
+			continue
 		}
 	}
 	update.Bids = bids
@@ -71,12 +66,9 @@ func checkPendingUpdate(sequenceEndOld, sequenceStartNew int64, update *orderboo
 	for i := range update.Asks {
 		if update.Asks[i].ID >= target {
 			asks = append(asks, update.Asks[i])
+			continue
 		}
 	}
 	update.Asks = asks
 	return false, nil
-}
-
-func canApplyUpdate(lastUpdateID, firstUpdateID int64) bool {
-	return lastUpdateID+1 == firstUpdateID
 }

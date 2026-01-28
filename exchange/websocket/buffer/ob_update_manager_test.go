@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
@@ -18,11 +19,10 @@ import (
 var testParams = UpdateParams{
 	FetchDeadline:  time.Second,
 	FetchOrderbook: func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) { return nil, nil },
-	CanApplyUpdate: func(_, _ int64) bool { return true },
 	CheckPendingUpdate: func(_, _ int64, _ *orderbook.Update) (bool, error) {
 		return false, nil
 	},
-	BufferInstance: &Orderbook{exchangeName: "TestExchange", ob: make(map[key.PairAsset]*orderbookHolder), dataHandler: make(chan<- any, 1000), verbose: true},
+	BufferInstance: &Orderbook{exchangeName: "TestExchange", ob: make(map[key.PairAsset]*orderbookHolder), dataHandler: stream.NewRelay(1000), verbose: true},
 }
 
 func fetchOrderbookMock(_ context.Context, pair currency.Pair, a asset.Item) (*orderbook.Book, error) {
@@ -69,7 +69,6 @@ func TestNewUpdateManager(t *testing.T) {
 	params.CheckPendingUpdate = func(_, _ int64, _ *orderbook.Update) (bool, error) {
 		return false, nil
 	}
-	params.CanApplyUpdate = func(_, _ int64) bool { return false }
 	params.BufferInstance = &Orderbook{}
 	got := NewUpdateManager(params)
 	require.NotNil(t, got)
@@ -176,7 +175,6 @@ func TestApplyUpdate(t *testing.T) {
 
 	m := NewUpdateManager(&testParams)
 	m.fetchOrderbook = fetchOrderbookMock
-	m.canApplyUpdate = func(_, _ int64) bool { return false }
 	m.checkPendingUpdate = func(_, firstUpdateID int64, _ *orderbook.Update) (bool, error) {
 		return firstUpdateID != 1337, nil
 	}
@@ -210,7 +208,6 @@ func TestApplyUpdate(t *testing.T) {
 
 	require.Eventually(t, checkForRoutineRefresh, time.Second, time.Millisecond*50, "LastUpdateID must return to snapshot and update applied to state after invalidateCache is processed")
 
-	m.canApplyUpdate = func(_, _ int64) bool { return true }
 	m.deadline = time.Second * 5
 	badUpdate := *goodUpdate
 	badUpdate.UpdateTime = time.Time{}

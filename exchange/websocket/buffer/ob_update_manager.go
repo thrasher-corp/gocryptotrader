@@ -39,7 +39,6 @@ type UpdateManager struct {
 	delay              time.Duration
 	fetchOrderbook     func(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error)
 	checkPendingUpdate func(lastUpdateID int64, firstUpdateID int64, update *orderbook.Update) (skip bool, err error)
-	canApplyUpdate     func(lastUpdateID int64, firstUpdateID int64) bool
 	ob                 *Orderbook
 	m                  sync.RWMutex
 }
@@ -78,10 +77,7 @@ type UpdateParams struct {
 	// CheckPendingUpdate allows custom logic to determine if a pending update added to cache should be skipped or if an
 	// error has occurred.
 	CheckPendingUpdate func(lastUpdateID int64, firstUpdateID int64, update *orderbook.Update) (skip bool, err error)
-	// CanApplyUpdate allows custom logic to determine if an update can be applied to the orderbook, if false implies a
-	// desync event and the orderbook will be invalidated.
-	CanApplyUpdate func(lastUpdateID int64, firstUpdateID int64) bool
-	BufferInstance *Orderbook // TODO: Integrate directly with orderbook struct
+	BufferInstance     *Orderbook // TODO: Integrate directly with orderbook struct
 }
 
 // NewUpdateManager creates a new websocket orderbook update manager
@@ -92,7 +88,7 @@ func NewUpdateManager(params *UpdateParams) *UpdateManager {
 	if params.FetchDelay < 0 {
 		panic("fetch delay must be greater than or equal to zero")
 	}
-	if err := common.NilGuard(params.FetchOrderbook, params.CheckPendingUpdate, params.CanApplyUpdate, params.BufferInstance); err != nil {
+	if err := common.NilGuard(params.FetchOrderbook, params.CheckPendingUpdate, params.BufferInstance); err != nil {
 		panic(err)
 	}
 	return &UpdateManager{
@@ -101,7 +97,6 @@ func NewUpdateManager(params *UpdateParams) *UpdateManager {
 		delay:              params.FetchDelay,
 		fetchOrderbook:     params.FetchOrderbook,
 		checkPendingUpdate: params.CheckPendingUpdate,
-		canApplyUpdate:     params.CanApplyUpdate,
 		ob:                 params.BufferInstance,
 	}
 }
@@ -161,7 +156,7 @@ func (m *UpdateManager) applyUpdate(ctx context.Context, cache *updateCache, fir
 		log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", m.ob.exchangeName, update.Pair, update.Asset, err)
 		return m.invalidateCache(ctx, firstUpdateID, update, cache)
 	}
-	if !m.canApplyUpdate(lastUpdateID, firstUpdateID) {
+	if isOutOfSequence(lastUpdateID, firstUpdateID) {
 		if m.ob.verbose { // disconnection will pollute logs
 			log.Warnf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: desync detected", m.ob.exchangeName, update.Pair, update.Asset)
 		}
@@ -201,7 +196,7 @@ func (m *UpdateManager) syncOrderbook(ctx context.Context, cache *updateCache, p
 	// updates before we fetch the orderbook snapshot.
 	select {
 	case <-ctx.Done():
-		cache.clearWithLock()
+		cache.clearPreserveStateWithLock()
 		return ctx.Err()
 	case <-time.After(m.delay):
 	}
@@ -222,17 +217,23 @@ func (m *UpdateManager) syncOrderbook(ctx context.Context, cache *updateCache, p
 		return err
 	}
 
+	if err := m.ob.LoadSnapshot(book); err != nil {
+		cache.clearWithLock()
+		return err
+	}
+
 	cache.m.Lock() // Lock here to prevent ws handle data interference with REST request above.
 	defer func() {
 		cache.clearNoLock()
 		cache.m.Unlock()
 	}()
 
-	if err := m.ob.LoadSnapshot(book); err != nil {
-		return err
+	if err := m.applyPendingUpdates(cache); err != nil {
+		cache.resetStateNoLock()
+		return common.AppendError(err, m.ob.InvalidateOrderbook(pair, a))
 	}
 
-	return m.applyPendingUpdates(cache)
+	return nil
 }
 
 // applyPendingUpdates applies all pending updates to the orderbook
@@ -245,13 +246,16 @@ func (m *UpdateManager) applyPendingUpdates(cache *updateCache) error {
 			return err
 		}
 
-		skip, err := m.checkPendingUpdate(bookLastUpdateID, data.firstUpdateID, data.update)
-		if err != nil {
-			return err
-		}
-
-		if skip {
-			continue
+		if !updated {
+			skip, err := m.checkPendingUpdate(bookLastUpdateID, data.firstUpdateID, data.update)
+			if err != nil {
+				return err
+			}
+			if skip {
+				continue
+			}
+		} else if isOutOfSequence(bookLastUpdateID, data.firstUpdateID) {
+			return fmt.Errorf("apply pending updates %w: last update ID %d, first update ID %d", ErrOrderbookSnapshotOutdated, bookLastUpdateID, data.firstUpdateID)
 		}
 
 		if err := m.ob.Update(data.update); err != nil {
@@ -266,6 +270,11 @@ func (m *UpdateManager) applyPendingUpdates(cache *updateCache) error {
 	}
 	cache.state = cacheStateSynced
 	return nil
+}
+
+// isOutOfSequence checks if the update is out of sequence
+func isOutOfSequence(lastUpdateID int64, firstUpdateID int64) bool {
+	return lastUpdateID+1 != firstUpdateID
 }
 
 // waitForUpdate waits for an update with an ID >= nextUpdateID
@@ -292,9 +301,20 @@ func (c *updateCache) waitForUpdate(ctx context.Context, nextUpdateID int64) err
 func (c *updateCache) clearWithLock() {
 	c.m.Lock()
 	defer c.m.Unlock()
+	c.resetStateNoLock()
+	c.clearNoLock()
+}
+
+func (c *updateCache) clearPreserveStateWithLock() {
+	c.m.Lock()
+	defer c.m.Unlock()
 	c.clearNoLock()
 }
 
 func (c *updateCache) clearNoLock() {
 	c.updates = nil
+}
+
+func (c *updateCache) resetStateNoLock() {
+	c.state = cacheStateInitialised
 }

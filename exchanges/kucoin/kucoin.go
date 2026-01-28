@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -136,6 +137,41 @@ func (e *Exchange) GetOrderbook(ctx context.Context, symbol string) (*Orderbook,
 		return nil, err
 	}
 	return &Orderbook{Asks: o.Asks, Bids: o.Bids, Time: o.Time.Time(), Sequence: o.Sequence.Int64()}, nil
+}
+
+// GetOrderbookAuthenticatedV1 fetches a spot or futures orderbook using the authenticated V1 endpoint
+// For spot: limit options are 20, 50, FULL
+// For futures: limit options are 20, 100, FULL
+func (e *Exchange) GetOrderbookAuthenticatedV1(ctx context.Context, symbol string, a asset.Item, limit string) (*Orderbook, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+
+	var tradeType string
+	switch a {
+	case asset.Spot:
+		if limit != "20" && limit != "50" && limit != "FULL" {
+			return nil, fmt.Errorf("%w: %s", errors.New("invalid limit"), limit)
+		}
+		tradeType = "SPOT"
+	case asset.Futures:
+		if limit != "20" && limit != "100" && limit != "FULL" {
+			return nil, fmt.Errorf("%w: %s", errors.New("invalid limit"), limit)
+		}
+		tradeType = "FUTURES"
+	default:
+		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
+	}
+
+	params := url.Values{}
+	params.Set("tradeType", tradeType)
+	params.Set("symbol", symbol)
+	params.Set("limit", limit)
+	var o *orderbookResponse
+	if err := e.SendAuthHTTPRequest(ctx, exchange.RestSpot, spotFuturesOrderbookV1EPL, http.MethodGet, common.EncodeURLValues("/ua/v1/market/orderbook", params), nil, &o); err != nil {
+		return nil, err
+	}
+	return &Orderbook{Asks: o.Asks, Bids: o.Bids, Time: time.Now(), Sequence: o.Sequence.Int64()}, nil
 }
 
 // GetTradeHistory gets trade history of the specified pair

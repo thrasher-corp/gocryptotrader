@@ -1,6 +1,6 @@
 {
  "routes": {
-  "/api/v1/level2/snapshot": {
+  "/api/ua/v1/market/orderbook": {
    "GET": [
     {
      "data": {
@@ -8,56 +8,64 @@
       "data": {
        "asks": [
         [
-         92416,
-         1423
+         "89389.7",
+         "48"
         ],
         [
-         92419.1,
-         125
+         "89390.1",
+         "1"
         ],
         [
-         92419.2,
-         383
+         "89393.0",
+         "5"
         ],
         [
-         92419.5,
-         100
+         "89393.1",
+         "10"
         ],
         [
-         92420,
-         6
+         "89393.2",
+         "1"
         ]
        ],
        "bids": [
         [
-         92415.9,
-         129
+         "89389.6",
+         "1507"
         ],
         [
-         92411.4,
-         133
+         "89389.5",
+         "25"
         ],
         [
-         92411.3,
-         2
+         "89388.9",
+         "12"
         ],
         [
-         92411.2,
-         4
+         "89388.8",
+         "117"
         ],
         [
-         92410,
-         1
+         "89388.7",
+         "743"
         ]
        ],
-       "sequence": 1729968414298,
+       "sequence": 1732973817559,
        "symbol": "XBTUSDTM",
-       "ts": 1765337575629000000
+       "tradeType": "FUTURES",
+       "ts": 1768969154925000000
       }
      },
-     "queryString": "symbol=XBTUSDTM",
+     "queryString": "limit=FULL\u0026symbol=XBTUSDTM\u0026tradeType=FUTURES",
      "bodyParams": "",
-     "headers": {}
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Kc-Api-Timestamp": [
+       "1768969154853"
+      ]
+     }
     }
    ]
   }

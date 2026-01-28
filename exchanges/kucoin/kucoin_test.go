@@ -2491,8 +2491,8 @@ func TestGenerateMarginSubscriptions(t *testing.T) {
 	require.NoError(t, err, "StorePairs must not error storing spot pairs")
 
 	ku.Features.Subscriptions = subscription.List{{Channel: subscription.TickerChannel, Asset: asset.Margin}}
-	subs, err := ku.Features.Subscriptions.ExpandTemplates(ku)
-	require.NoError(t, err, "ExpandTemplates must not error")
+	subs, err := ku.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
 	require.Len(t, subs, 1, "Must generate just one sub")
 	assert.Equal(t, asset.Margin, subs[0].Asset, "Asset should be correct")
 	assert.Equal(t, "/market/ticker:"+avail[:6].Join(), subs[0].QualifiedChannel, "QualifiedChannel should be correct")
@@ -2500,17 +2500,17 @@ func TestGenerateMarginSubscriptions(t *testing.T) {
 	require.NoError(t, ku.CurrencyPairs.SetAssetEnabled(asset.Margin, false), "SetAssetEnabled Spot must not error")
 	require.NoError(t, err, "SetAssetEnabled must not error")
 	ku.Features.Subscriptions = subscription.List{{Channel: subscription.TickerChannel, Asset: asset.All}}
-	subs, err = ku.Features.Subscriptions.ExpandTemplates(ku)
+	subs, err = ku.generateSubscriptions()
 	require.NoError(t, err, "mergeMarginPairs must not cause errAssetRecords by adding an empty asset when Margin is disabled")
-	require.NotEmpty(t, subs, "ExpandTemplates must return some subs")
+	require.NotEmpty(t, subs, "generateSubscriptions must return some subs")
 
 	require.NoError(t, ku.CurrencyPairs.SetAssetEnabled(asset.Margin, true), "SetAssetEnabled Margin must not error")
 	require.NoError(t, ku.CurrencyPairs.SetAssetEnabled(asset.Spot, false), "SetAssetEnabled Spot must not error")
 	require.NoError(t, ku.CurrencyPairs.SetAssetEnabled(asset.Futures, false), "SetAssetEnabled Futures must not error")
 	ku.Features.Subscriptions = subscription.List{{Channel: subscription.TickerChannel, Asset: asset.All}}
-	subs, err = ku.Features.Subscriptions.ExpandTemplates(ku)
+	subs, err = ku.generateSubscriptions()
 	require.NoError(t, err, "mergeMarginPairs must not cause errAssetRecords by adding an empty asset when Spot is disabled")
-	require.NotEmpty(t, subs, "ExpandTemplates must return some subs")
+	require.NotEmpty(t, subs, "generateSubscriptions must return some subs")
 }
 
 // TestCheckSubscriptions ensures checkSubscriptions upgrades user config correctly

@@ -66,7 +66,3 @@ func checkPendingUpdate(lastUpdateID, firstUpdateID int64, update *orderbook.Upd
 
 	return false, nil
 }
-
-func canApplyUpdate(lastUpdateID, firstUpdateID int64) bool {
-	return lastUpdateID+1 == firstUpdateID
-}
