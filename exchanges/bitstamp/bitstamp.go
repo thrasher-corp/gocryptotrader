@@ -91,7 +91,7 @@ func (e *Exchange) GetFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) 
 	return fee, nil
 }
 
-// GetTradingFee returns a trading fee based on a currency
+// getTradingFee returns a trading fee based on a currency
 func (e *Exchange) getTradingFee(ctx context.Context, feeBuilder *exchange.FeeBuilder) (float64, error) {
 	tradingFees, err := e.GetAccountTradingFee(ctx, feeBuilder.Pair)
 	if err != nil {

@@ -712,7 +712,7 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 	return resp, nil
 }
 
-// GetAllOpenOrderID returns all open orders by currency pairs
+// getAllOpenOrderID returns all open orders by currency pairs
 func (e *Exchange) getAllOpenOrderID(ctx context.Context) (map[string][]string, error) {
 	allPairs, err := e.GetEnabledPairs(asset.Spot)
 	if err != nil {

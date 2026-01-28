@@ -215,7 +215,6 @@ func TestGetRiskLimit(t *testing.T) {
 	assert.ErrorIs(t, err, errInvalidCategory)
 }
 
-// test cases for Wrapper
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	_, err := e.UpdateTicker(t.Context(), spotTradablePair, asset.Spot)

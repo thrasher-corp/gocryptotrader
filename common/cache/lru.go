@@ -49,7 +49,7 @@ func (l *LRU) Get(key any) any {
 	return nil
 }
 
-// GetOldest returns the oldest entry
+// getOldest returns the oldest entry
 func (l *LRU) getOldest() (key, value any) {
 	if x := l.l.Back(); x != nil {
 		if v, ok := x.Value.(*item); ok {
@@ -59,7 +59,7 @@ func (l *LRU) getOldest() (key, value any) {
 	return
 }
 
-// GetNewest returns the newest entry
+// getNewest returns the newest entry
 func (l *LRU) getNewest() (key, value any) {
 	if x := l.l.Front(); x != nil {
 		if v, ok := x.Value.(*item); ok {

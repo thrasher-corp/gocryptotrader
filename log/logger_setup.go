@@ -227,7 +227,7 @@ func registerNewSubLogger(subLogger string) *SubLogger {
 	return temp
 }
 
-// register all loggers at package init()
+// init registers all loggers at package init()
 func init() {
 	// Start persistent worker to handle logs
 	go loggerWorker()

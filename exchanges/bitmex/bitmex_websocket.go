@@ -367,7 +367,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	return nil
 }
 
-// ProcessOrderbook processes orderbook updates
+// processOrderbook processes orderbook updates
 func (e *Exchange) processOrderbook(data []OrderBookL2, action string, p currency.Pair, a asset.Item) error {
 	if len(data) < 1 {
 		return errors.New("no orderbook data")
@@ -549,7 +549,6 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 	return errs
 }
 
-// WebsocketSendAuth sends an authenticated subscription
 func (e *Exchange) websocketSendAuth(ctx context.Context) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {

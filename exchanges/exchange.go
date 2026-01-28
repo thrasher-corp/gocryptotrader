@@ -1116,7 +1116,7 @@ func (b *Base) CanUseAuthenticatedWebsocketEndpoints() bool {
 	return b.Websocket != nil && b.Websocket.CanUseAuthenticatedEndpoints()
 }
 
-// KlineIntervalEnabled returns if requested interval is enabled on exchange
+// klineIntervalEnabled returns if requested interval is enabled on exchange
 func (b *Base) klineIntervalEnabled(in kline.Interval) bool {
 	// TODO: Add in the ability to use custom klines
 	return b.Features.Enabled.Kline.Intervals.ExchangeSupported(in)

@@ -22,7 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// Setup creates the trade processor if trading is supported
+// setup creates the trade processor if trading is supported
 func (p *Processor) setup(wg *sync.WaitGroup) {
 	p.mutex.Lock()
 	p.bufferProcessorInterval = BufferProcessorIntervalTime
