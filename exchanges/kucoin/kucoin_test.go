@@ -2311,12 +2311,11 @@ func TestGetFeeByType(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestValidateCredentials(t *testing.T) {
+func TestValidateAPICredentials(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	assetTypes := e.CurrencyPairs.GetAssetTypes(true)
-	for _, at := range assetTypes {
-		err := e.ValidateCredentials(t.Context(), at)
+	for _, at := range e.CurrencyPairs.GetAssetTypes(true) {
+		err := e.ValidateAPICredentials(t.Context(), at)
 		assert.NoError(t, err)
 	}
 }

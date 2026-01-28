@@ -708,17 +708,13 @@ func (bot *Engine) LoadExchange(name string) error {
 		return err
 	}
 
-	if bot.Settings.EnableAllPairs &&
-		exchCfg.CurrencyPairs != nil {
-		assets := exchCfg.CurrencyPairs.GetAssetTypes(false)
-		for x := range assets {
-			var pairs currency.Pairs
-			pairs, err = exchCfg.CurrencyPairs.GetPairs(assets[x], false)
+	if bot.Settings.EnableAllPairs && exchCfg.CurrencyPairs != nil {
+		for _, a := range exchCfg.CurrencyPairs.GetAssetTypes(false) {
+			pairs, err := exchCfg.CurrencyPairs.GetPairs(a, false)
 			if err != nil {
 				return err
 			}
-			err = exchCfg.CurrencyPairs.StorePairs(assets[x], pairs, true)
-			if err != nil {
+			if err := exchCfg.CurrencyPairs.StorePairs(a, pairs, true); err != nil {
 				return err
 			}
 		}
@@ -728,18 +724,14 @@ func (bot *Engine) LoadExchange(name string) error {
 		exchCfg.Verbose = true
 	}
 	if exchCfg.Features != nil {
-		if bot.Settings.EnableExchangeWebsocketSupport &&
-			exchCfg.Features.Supports.Websocket {
+		if bot.Settings.EnableExchangeWebsocketSupport && exchCfg.Features.Supports.Websocket {
 			exchCfg.Features.Enabled.Websocket = true
 		}
-		if bot.Settings.EnableExchangeAutoPairUpdates &&
-			exchCfg.Features.Supports.RESTCapabilities.AutoPairUpdates {
+		if bot.Settings.EnableExchangeAutoPairUpdates && exchCfg.Features.Supports.RESTCapabilities.AutoPairUpdates {
 			exchCfg.Features.Enabled.AutoPairUpdates = true
 		}
-		if bot.Settings.DisableExchangeAutoPairUpdates {
-			if exchCfg.Features.Supports.RESTCapabilities.AutoPairUpdates {
-				exchCfg.Features.Enabled.AutoPairUpdates = false
-			}
+		if bot.Settings.DisableExchangeAutoPairUpdates && exchCfg.Features.Supports.RESTCapabilities.AutoPairUpdates {
+			exchCfg.Features.Enabled.AutoPairUpdates = false
 		}
 	}
 	if bot.Settings.HTTPUserAgent != "" {
@@ -756,8 +748,7 @@ func (bot *Engine) LoadExchange(name string) error {
 	}
 
 	if !bot.Settings.EnableExchangeHTTPRateLimiter {
-		err = exch.DisableRateLimiter()
-		if err != nil {
+		if err := exch.DisableRateLimiter(); err != nil {
 			gctlog.Errorf(gctlog.ExchangeSys, "%s error disabling rate limiter: %v", exch.GetName(), err)
 		} else {
 			gctlog.Warnf(gctlog.ExchangeSys, "%s rate limiting has been turned off", exch.GetName())
@@ -768,26 +759,39 @@ func (bot *Engine) LoadExchange(name string) error {
 	exchCfg.Name = exch.GetName()
 
 	exchCfg.Enabled = true
-	err = exch.Setup(exchCfg)
-	if err != nil {
+	if err := exch.Setup(exchCfg); err != nil {
 		exchCfg.Enabled = false
 		return err
 	}
 
-	err = bot.ExchangeManager.Add(exch)
-	if err != nil {
+	if err := bot.ExchangeManager.Add(exch); err != nil {
 		return err
 	}
 
 	b := exch.GetBase()
 	if b.API.AuthenticatedSupport || b.API.AuthenticatedWebsocketSupport {
-		err = exch.ValidateAPICredentials(context.TODO(), asset.Spot)
-		if err != nil {
-			gctlog.Warnf(gctlog.ExchangeSys, "%s: Error validating credentials: %v", b.Name, err)
+		enabled := b.CurrencyPairs.GetAssetTypes(true)
+
+		var bias asset.Item
+		switch {
+		case enabled.Contains(asset.Spot): // prioritise spot due to wide usage across GCT
+			bias = asset.Spot
+		default:
+			for _, a := range enabled { // second priority to futures if spot isn't available
+				if a.IsFutures() {
+					bias = a
+					break
+				}
+			}
+			if bias == 0 {
+				bias = enabled[0] // last resort pick first available
+			}
+		}
+
+		if err := exch.ValidateAPICredentials(context.TODO(), bias); err != nil {
+			gctlog.Warnf(gctlog.ExchangeSys, "%s: Error validating credentials: %v for %s", b.Name, err, bias)
 			b.API.AuthenticatedSupport = false
 			b.API.AuthenticatedWebsocketSupport = false
-			exchCfg.API.AuthenticatedSupport = false
-			exchCfg.API.AuthenticatedWebsocketSupport = false
 			if b.Websocket != nil {
 				b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			}
