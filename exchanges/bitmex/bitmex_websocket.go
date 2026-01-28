@@ -549,7 +549,6 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 	return errs
 }
 
-// websocketSendAuth sends an authenticated subscription
 func (e *Exchange) websocketSendAuth(ctx context.Context) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
