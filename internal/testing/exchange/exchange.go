@@ -19,12 +19,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
-	streamLog "github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Setup takes an empty exchange instance and loads config for it from testdata/configtest and connects a NewTestWebsocket
@@ -207,19 +207,25 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 	err = w.Connect(context.TODO())
 	require.NoError(tb, err, "Connect must not error")
 
-	w.Wg.Go(func() {
-		for {
-			select {
-			case <-w.ShutdownC:
+	for range w.NumConnections() {
+		w.Wg.Add(1)
+		go streamDataConsumer(w)
+	}
+	setupWsOnce[e] = true
+}
+
+func streamDataConsumer(w *websocket.Manager) {
+	defer w.Wg.Done()
+	for {
+		select {
+		case <-w.ShutdownC:
+			return
+		case _, ok := <-w.DataHandler.C:
+			if !ok {
 				return
-			case payload := <-w.DataHandler.C:
-				if payload.Data == nil {
-					streamLog.Errorf(streamLog.WebsocketMgr, "exchange %s nil data sent to websocket", w.GetName())
-				}
 			}
 		}
-	})
-	setupWsOnce[e] = true
+	}
 }
 
 var (

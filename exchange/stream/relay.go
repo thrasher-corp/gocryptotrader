@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 )
@@ -35,12 +34,13 @@ func NewRelay(buffer uint) *Relay {
 // Send sends a message to the channel receiver
 // This is non-blocking and returns an error if the channel buffer is full
 func (r *Relay) Send(ctx context.Context, data any) error {
-	relayTimer := time.NewTimer(time.Millisecond * 10)
-	defer relayTimer.Stop()
+	if err := common.NilGuard(data); err != nil {
+		return err
+	}
 	select {
 	case r.comm <- Payload{Ctx: common.FreezeContext(ctx), Data: data}:
 		return nil
-	case <-relayTimer.C:
+	case <-ctx.Done():
 		return fmt.Errorf("%w: failed to relay <%T>", errChannelBufferFull, data)
 	}
 }

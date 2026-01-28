@@ -163,30 +163,29 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ws *websocket.Manager) e
 		return errRoutineManagerNotStarted
 	}
 
-	m.wg.Go(func() {
-		for {
-			select {
-			case <-m.shutdown:
-				return
-			case payload := <-ws.DataHandler.C:
-				if payload.Data == nil {
-					log.Errorf(log.WebsocketMgr, "exchange %s nil data sent to websocket", ws.GetName())
-					continue
-				}
-				m.mu.RLock()
-				for x := range m.dataHandlers {
-					m.wg.Go(func() {
-						x := x
-						if err := m.dataHandlers[x](ws.GetName(), payload.Data); err != nil {
-							log.Errorln(log.WebsocketMgr, err)
-						}
-					})
-				}
-				m.mu.RUnlock()
-			}
-		}
-	})
+	for range ws.NumConnections() {
+		m.wg.Add(1)
+		go m.streamDataConsumer(ws)
+	}
 	return nil
+}
+
+func (m *WebsocketRoutineManager) streamDataConsumer(ws *websocket.Manager) {
+	defer m.wg.Done()
+	for {
+		select {
+		case <-m.shutdown:
+			return
+		case payload := <-ws.DataHandler.C:
+			m.mu.RLock()
+			for x := range m.dataHandlers {
+				if err := m.dataHandlers[x](ws.GetName(), payload.Data); err != nil {
+					log.Errorln(log.WebsocketMgr, err)
+				}
+			}
+			m.mu.RUnlock()
+		}
+	}
 }
 
 // websocketDataHandler is the default central point for exchange websocket

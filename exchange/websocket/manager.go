@@ -1054,3 +1054,14 @@ func (m *Manager) GetConnection(messageFilter any) (Connection, error) {
 
 	return nil, fmt.Errorf("%s: %w associated with message filter: '%v'", m.exchangeName, ErrRequestRouteNotFound, messageFilter)
 }
+
+// NumConnections returns the number of websocket connections
+func (m *Manager) NumConnections() int {
+	if m.useMultiConnectionManagement {
+		return len(m.connectionManager)
+	}
+	if m.Conn != nil && m.AuthConn != nil {
+		return 2
+	}
+	return 1
+}

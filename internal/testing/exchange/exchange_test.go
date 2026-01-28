@@ -6,6 +6,7 @@ import (
 	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -76,7 +77,7 @@ func TestSetupWs(t *testing.T) {
 	SetupWs(t, e)
 
 	err = e.Websocket.DataHandler.Send(t.Context(), nil)
-	require.NoError(t, err)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 	err = e.Websocket.DataHandler.Send(t.Context(), 1336)
 	require.NoError(t, err)
 	err = e.Websocket.DataHandler.Send(t.Context(), "intercepted")
