@@ -1335,15 +1335,15 @@ func TestNumConnections(t *testing.T) {
 	web := NewManager()
 	err := web.Setup(newDefaultSetup())
 	assert.NoError(t, err, "Setup should not error")
-	assert.Equal(t, web.NumConnections(), 1)
+	assert.Equal(t, 1, web.NumConnections())
 
 	err = web.SetupNewConnection(&ConnectionSetup{URL: "urlstring"})
 	assert.NoError(t, err, "SetupNewConnection should not error")
-	assert.Equal(t, web.NumConnections(), 1)
+	assert.Equal(t, 1, web.NumConnections())
 
 	err = web.SetupNewConnection(&ConnectionSetup{URL: "urlstring", Authenticated: true})
 	assert.NoError(t, err, "SetupNewConnection should not error")
-	assert.Equal(t, web.NumConnections(), 2)
+	assert.Equal(t, 2, web.NumConnections())
 
 	// Test connection candidates for multi connection tracking.
 	multi := NewManager()
@@ -1366,5 +1366,5 @@ func TestNumConnections(t *testing.T) {
 		require.NoError(t, err)
 	}
 	require.Len(t, multi.connectionManager, len(websocketConnFilters))
-	require.Equal(t, multi.NumConnections(), len(websocketConnFilters))
+	require.Equal(t, len(websocketConnFilters), multi.NumConnections())
 }
