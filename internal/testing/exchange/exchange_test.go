@@ -1,6 +1,8 @@
 package exchange
 
 import (
+	"context"
+	"sync"
 	"testing"
 
 	gws "github.com/gorilla/websocket"
@@ -87,4 +89,24 @@ func TestSetupWs(t *testing.T) {
 
 	close(e.Websocket.ShutdownC)
 	e.Websocket.Wg.Wait()
+}
+
+func TestStreamDataConsumer(t *testing.T) {
+	t.Parallel()
+	wm := &websocket.Manager{
+		ShutdownC:   make(chan struct{}),
+		DataHandler: stream.NewRelay(1),
+		Wg:          sync.WaitGroup{},
+	}
+	wm.Wg.Add(1)
+	go streamDataConsumer(wm)
+
+	err := wm.DataHandler.Send(context.Background(), 1234)
+	require.NoError(t, err)
+	err = wm.DataHandler.Send(context.Background(), "1234")
+	require.NoError(t, err)
+
+	close(wm.ShutdownC)
+	wm.DataHandler.Close()
+	wm.Wg.Wait()
 }
