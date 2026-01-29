@@ -61,13 +61,11 @@ func (e *Exchange) WsConnect() error {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
-	if err != nil {
+	if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
 		return err
 	}
 
-	err = e.loadCurrencyDetails(ctx)
-	if err != nil {
+	if err := e.loadCurrencyDetails(ctx); err != nil {
 		return err
 	}
 
