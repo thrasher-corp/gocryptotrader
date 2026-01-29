@@ -313,7 +313,7 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 		// still create a connection but will technically be a no-op for tracking subscriptions.
 		// TODO: Handle no-op subscription tracking more gracefully as we don't need a connection for it.
 		if len(req.Arguments) != 0 {
-			if err := conn.SendJSONMessage(request.WithVerbose(ctx), websocketRequestEPL, req); err != nil {
+			if err := conn.SendJSONMessage(ctx, websocketRequestEPL, req); err != nil {
 				return err
 			}
 		}

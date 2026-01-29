@@ -6145,19 +6145,22 @@ func TestBusinessWSCandleSubscriptions(t *testing.T) {
 	err = e.BusinessSubscribe(t.Context(), conn, subscription.List{{Channel: channelCandle1D}})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
+	close(finish) // yield so that assertion below gets all data
+	wg.Wait()
+
 	p := currency.Pairs{
 		mainPair,
 		currency.NewPairWithDelimiter("ETH", "USDT", "-"),
 		currency.NewPairWithDelimiter("OKB", "USDT", "-"),
 	}
 
-	close(finish) // yield so that assertion below gets all data
-	wg.Wait()
-
+	var subs subscription.List
 	for i, ch := range []string{channelCandle1D, channelMarkPriceCandle1M, channelIndexCandle1H} {
-		err := e.BusinessSubscribe(t.Context(), conn, subscription.List{{Channel: ch, Pairs: p[i : i+1]}})
-		require.NoErrorf(t, err, "BusinessSubscribe %s-%s must not error", ch, p[i])
+		subs = append(subs, &subscription.Subscription{Channel: ch, Pairs: p[i : i+1]})
 	}
+
+	err = e.BusinessSubscribe(t.Context(), conn, subs)
+	require.NoError(t, err, "BusinessSubscribe must not error")
 
 	var got currency.Pairs
 	check := func() bool {
