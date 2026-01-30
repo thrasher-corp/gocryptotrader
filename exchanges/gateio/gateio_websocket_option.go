@@ -353,8 +353,8 @@ func (e *Exchange) processOptionsContractTickers(ctx context.Context, incoming [
 		Last:         data.LastPrice.Float64(),
 		Bid:          data.Bid1Price.Float64(),
 		Ask:          data.Ask1Price.Float64(),
-		AskSize:      data.Ask1Size,
-		BidSize:      data.Bid1Size,
+		AskSize:      data.Ask1Size.Float64(),
+		BidSize:      data.Bid1Size.Float64(),
 		ExchangeName: e.Name,
 		AssetType:    asset.Options,
 	})
@@ -392,8 +392,8 @@ func (e *Exchange) processOptionsTradesPushData(data []byte) error {
 			CurrencyPair: resp.Result[x].Contract,
 			AssetType:    asset.Options,
 			Exchange:     e.Name,
-			Price:        resp.Result[x].Price,
-			Amount:       resp.Result[x].Size,
+			Price:        resp.Result[x].Price.Float64(),
+			Amount:       resp.Result[x].Size.Float64(),
 			TID:          strconv.FormatInt(resp.Result[x].ID, 10),
 		}
 	}
@@ -490,12 +490,12 @@ func (e *Exchange) processOptionsOrderbookUpdate(ctx context.Context, incoming [
 	asks := make([]orderbook.Level, len(data.Asks))
 	for x := range data.Asks {
 		asks[x].Price = data.Asks[x].Price.Float64()
-		asks[x].Amount = data.Asks[x].Size
+		asks[x].Amount = data.Asks[x].Size.Float64()
 	}
 	bids := make([]orderbook.Level, len(data.Bids))
 	for x := range data.Bids {
 		bids[x].Price = data.Bids[x].Price.Float64()
-		bids[x].Amount = data.Bids[x].Size
+		bids[x].Amount = data.Bids[x].Size.Float64()
 	}
 	return e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, e, data.FirstUpdatedID, &orderbook.Update{
 		UpdateID:   data.LastUpdatedID,
@@ -526,12 +526,12 @@ func (e *Exchange) processOptionsOrderbookSnapshotPushData(event string, incomin
 		}
 		base.Asks = make([]orderbook.Level, len(data.Asks))
 		for x := range data.Asks {
-			base.Asks[x].Amount = data.Asks[x].Size
+			base.Asks[x].Amount = data.Asks[x].Size.Float64()
 			base.Asks[x].Price = data.Asks[x].Price.Float64()
 		}
 		base.Bids = make([]orderbook.Level, len(data.Bids))
 		for x := range data.Bids {
-			base.Bids[x].Amount = data.Bids[x].Size
+			base.Bids[x].Amount = data.Bids[x].Size.Float64()
 			base.Bids[x].Price = data.Bids[x].Price.Float64()
 		}
 		return e.Websocket.Orderbook.LoadSnapshot(&base)
@@ -549,11 +549,11 @@ func (e *Exchange) processOptionsOrderbookSnapshotPushData(event string, incomin
 		}
 		if data[x].Amount > 0 {
 			ab[1] = append(ab[1], orderbook.Level{
-				Price: data[x].Price.Float64(), Amount: data[x].Amount,
+				Price: data[x].Price.Float64(), Amount: data[x].Amount.Float64(),
 			})
 		} else {
 			ab[0] = append(ab[0], orderbook.Level{
-				Price: data[x].Price.Float64(), Amount: -data[x].Amount,
+				Price: data[x].Price.Float64(), Amount: -data[x].Amount.Float64(),
 			})
 		}
 		if !ok {
@@ -608,14 +608,14 @@ func (e *Exchange) processOptionsOrderPushData(ctx context.Context, data []byte)
 			return err
 		}
 		orderDetails[x] = order.Detail{
-			Amount:         resp.Result[x].Size,
+			Amount:         resp.Result[x].Size.Float64(),
 			Exchange:       e.Name,
 			OrderID:        strconv.FormatInt(resp.Result[x].ID, 10),
 			Status:         status,
 			Pair:           resp.Result[x].Contract,
 			Date:           resp.Result[x].CreationTime.Time(),
-			ExecutedAmount: resp.Result[x].Size - resp.Result[x].Left,
-			Price:          resp.Result[x].Price,
+			ExecutedAmount: resp.Result[x].Size.Float64() - resp.Result[x].Left.Float64(),
+			Price:          resp.Result[x].Price.Float64(),
 			AssetType:      asset.Options,
 			AccountID:      resp.Result[x].User,
 		}
@@ -646,7 +646,7 @@ func (e *Exchange) processOptionsUserTradesPushData(data []byte) error {
 			OrderID:      resp.Result[x].OrderID,
 			TradeID:      resp.Result[x].ID,
 			Price:        resp.Result[x].Price.Float64(),
-			Amount:       resp.Result[x].Size,
+			Amount:       resp.Result[x].Size.Float64(),
 		}
 	}
 	return e.Websocket.Fills.Update(fills...)
