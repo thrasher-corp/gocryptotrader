@@ -386,8 +386,8 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 				Last:         tickers[x].LastPrice.Float64(),
 				Bid:          tickers[x].Bid1Price.Float64(),
 				Ask:          tickers[x].Ask1Price.Float64(),
-				AskSize:      tickers[x].Ask1Size,
-				BidSize:      tickers[x].Bid1Size,
+				AskSize:      tickers[x].Ask1Size.Float64(),
+				BidSize:      tickers[x].Bid1Size.Float64(),
 				ExchangeName: e.Name,
 				AssetType:    a,
 			}
@@ -595,9 +595,9 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 				err = ticker.ProcessTicker(&ticker.Price{
 					Last:         tickers[x].LastPrice.Float64(),
 					Ask:          tickers[x].Ask1Price.Float64(),
-					AskSize:      tickers[x].Ask1Size,
+					AskSize:      tickers[x].Ask1Size.Float64(),
 					Bid:          tickers[x].Bid1Price.Float64(),
-					BidSize:      tickers[x].Bid1Size,
+					BidSize:      tickers[x].Bid1Size.Float64(),
 					Pair:         tickers[x].Name,
 					ExchangeName: e.Name,
 					AssetType:    a,
@@ -827,7 +827,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 				CurrencyPair: p,
 				AssetType:    a,
 				Price:        futuresTrades[i].Price.Float64(),
-				Amount:       futuresTrades[i].Size,
+				Amount:       futuresTrades[i].Size.Float64(),
 				Timestamp:    futuresTrades[i].CreateTime.Time(),
 			}
 		}
@@ -844,7 +844,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 				CurrencyPair: p,
 				AssetType:    a,
 				Price:        trades[i].Price.Float64(),
-				Amount:       trades[i].Size,
+				Amount:       trades[i].Size.Float64(),
 				Timestamp:    trades[i].CreateTime.Time(),
 			}
 		}
@@ -945,14 +945,14 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		}
 		resp.Date = o.CreateTime.Time()
 		resp.ClientOrderID = getClientOrderIDFromText(o.Text)
-		resp.Amount = math.Abs(o.Size)
+		resp.Amount = math.Abs(o.Size.Float64())
 		resp.Price = o.OrderPrice.Float64()
 		resp.AverageExecutedPrice = o.FillPrice.Float64()
 		return resp, nil
 	case asset.Options:
 		optionOrder, err := e.PlaceOptionOrder(ctx, &OptionOrderParam{
 			Contract:   s.Pair.String(),
-			OrderSize:  s.Amount,
+			OrderSize:  types.Number(s.Amount),
 			Price:      types.Number(s.Price),
 			ReduceOnly: s.ReduceOnly,
 			Text:       s.ClientOrderID,
@@ -1244,7 +1244,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			return nil, err
 		}
 
-		side, amount, remaining := getSideAndAmountFromSize(fOrder.Size, fOrder.RemainingAmount)
+		side, amount, remaining := getSideAndAmountFromSize(fOrder.Size.Float64(), fOrder.RemainingAmount.Float64())
 		tif, err := timeInForceFromString(fOrder.TimeInForce)
 		if err != nil {
 			return nil, err
@@ -1281,8 +1281,8 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			return nil, err
 		}
 		return &order.Detail{
-			Amount:         optionOrder.Size,
-			ExecutedAmount: optionOrder.Size - optionOrder.Left,
+			Amount:         optionOrder.Size.Float64(),
+			ExecutedAmount: optionOrder.Size.Float64() - optionOrder.Left.Float64(),
 			Exchange:       e.Name,
 			OrderID:        orderID,
 			Status:         orderStatus,
@@ -1450,7 +1450,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			if futuresOrders[i].Status != statusOpen || (len(req.Pairs) > 0 && !req.Pairs.Contains(pair, true)) {
 				continue
 			}
-			side, amount, remaining := getSideAndAmountFromSize(futuresOrders[i].Size, futuresOrders[i].RemainingAmount)
+			side, amount, remaining := getSideAndAmountFromSize(futuresOrders[i].Size.Float64(), futuresOrders[i].RemainingAmount.Float64())
 			tif, err := timeInForceFromString(futuresOrders[i].TimeInForce)
 			if err != nil {
 				return nil, err
@@ -1496,12 +1496,12 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			}
 			orders = append(orders, order.Detail{
 				Status:          status,
-				Amount:          optionsOrders[i].Size,
+				Amount:          optionsOrders[i].Size.Float64(),
 				Pair:            currencyPair,
 				OrderID:         strconv.FormatInt(optionsOrders[i].OptionOrderID, 10),
 				Price:           optionsOrders[i].Price.Float64(),
-				ExecutedAmount:  optionsOrders[i].Size - optionsOrders[i].Left,
-				RemainingAmount: optionsOrders[i].Left,
+				ExecutedAmount:  optionsOrders[i].Size.Float64() - optionsOrders[i].Left.Float64(),
+				RemainingAmount: optionsOrders[i].Left.Float64(),
 				LastUpdated:     optionsOrders[i].FinishTime.Time(),
 				Date:            optionsOrders[i].CreateTime.Time(),
 				Exchange:        e.Name,
@@ -1576,7 +1576,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			for o := range futuresOrder {
 				detail := order.Detail{
 					OrderID:   strconv.FormatInt(futuresOrder[o].ID, 10),
-					Amount:    futuresOrder[o].Size,
+					Amount:    futuresOrder[o].Size.Float64(),
 					Price:     futuresOrder[o].Price.Float64(),
 					Date:      futuresOrder[o].CreateTime.Time(),
 					Exchange:  e.Name,
@@ -1597,7 +1597,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			for o := range optionOrders {
 				detail := order.Detail{
 					OrderID:   strconv.FormatInt(optionOrders[o].OrderID, 10),
-					Amount:    optionOrders[o].Size,
+					Amount:    optionOrders[o].Size.Float64(),
 					Price:     optionOrders[o].Price.Float64(),
 					Date:      optionOrders[o].CreateTime.Time(),
 					Exchange:  e.Name,
@@ -1660,7 +1660,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 				High:   candles[i].HighestPrice.Float64(),
 				Low:    candles[i].LowestPrice.Float64(),
 				Close:  candles[i].ClosePrice.Float64(),
-				Volume: candles[i].Volume,
+				Volume: candles[i].Volume.Float64(),
 			}
 		}
 	default:
@@ -1714,7 +1714,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 					High:   candles[i].HighestPrice.Float64(),
 					Low:    candles[i].LowestPrice.Float64(),
 					Close:  candles[i].ClosePrice.Float64(),
-					Volume: candles[i].Volume,
+					Volume: candles[i].Volume.Float64(),
 				})
 			}
 		default:
@@ -2381,7 +2381,7 @@ func getFuturesOrderRequest(s *order.Submit) (*ContractOrderCreateParams, error)
 
 	return &ContractOrderCreateParams{
 		Contract:    s.Pair,
-		Size:        amountWithDirection,
+		Size:        types.Number(amountWithDirection),
 		Price:       number(s.Price),
 		ReduceOnly:  s.ReduceOnly,
 		TimeInForce: tif,
