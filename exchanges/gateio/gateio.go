@@ -1938,7 +1938,7 @@ func (e *Exchange) GetFuturesCandlesticks(ctx context.Context, settle currency.C
 		params.Set("interval", intervalString)
 	}
 	var candlesticks []FuturesCandlestick
-	return candlesticks, e.SendHTTPRequest(request.WithVerbose(ctx), exchange.RestFutures, publicCandleSticksFuturesEPL, common.EncodeURLValues(futuresPath+settle.Item.Lower+"/candlesticks", params), &candlesticks)
+	return candlesticks, e.SendHTTPRequest(ctx, exchange.RestFutures, publicCandleSticksFuturesEPL, common.EncodeURLValues(futuresPath+settle.Item.Lower+"/candlesticks", params), &candlesticks)
 }
 
 // PremiumIndexKLine retrieves premium Index K-Line
