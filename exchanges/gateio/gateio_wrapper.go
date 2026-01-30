@@ -180,7 +180,8 @@ func (e *Exchange) SetDefaults() {
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-	e.wsOBUpdateMgr = newWsOBUpdateManager(defaultWSSnapshotSyncDelay)
+	e.wsOBUpdateMgr = newWsOBUpdateManager(defaultWsOrderbookUpdateTimeDelay, defaultWSOrderbookUpdateDeadline)
+	e.wsOBResubMgr = newWSOBResubManager()
 }
 
 // Setup sets user configuration
@@ -619,21 +620,31 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset
 
 // UpdateOrderbookWithLimit updates and returns the orderbook for a currency pair with a set orderbook size limit
 func (e *Exchange) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair, a asset.Item, limit uint64) (*orderbook.Book, error) {
+	book, err := e.fetchOrderbook(ctx, p, a, limit)
+	if err != nil {
+		return nil, err
+	}
+	if err := book.Process(); err != nil {
+		return nil, err
+	}
+	return orderbook.Get(e.Name, book.Pair, a)
+}
+
+func (e *Exchange) fetchOrderbook(ctx context.Context, p currency.Pair, a asset.Item, limit uint64) (*orderbook.Book, error) {
 	p, err := e.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
 	}
 	var o *Orderbook
 	switch a {
-	case asset.Spot, asset.Margin, asset.CrossMargin:
-		var available bool
-		available, err = e.checkInstrumentAvailabilityInSpot(p)
-		if err != nil {
+	case asset.Margin, asset.CrossMargin:
+		if available, err := e.checkInstrumentAvailabilityInSpot(p); err != nil {
 			return nil, err
+		} else if !available {
+			return nil, fmt.Errorf("%w: %w for %q %q", errFetchingOrderbook, errNoSpotInstrument, a, p)
 		}
-		if a != asset.Spot && !available {
-			return nil, fmt.Errorf("%v instrument %v does not have orderbook data", a, p)
-		}
+		fallthrough
+	case asset.Spot:
 		o, err = e.GetOrderbook(ctx, p.String(), "", limit, true)
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
 		var settle currency.Code
@@ -653,7 +664,7 @@ func (e *Exchange) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair
 		return nil, err
 	}
 
-	ob := &orderbook.Book{
+	return &orderbook.Book{
 		Exchange:          e.Name,
 		Asset:             a,
 		ValidateOrderbook: e.ValidateOrderbook,
@@ -663,13 +674,7 @@ func (e *Exchange) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair
 		LastPushed:        o.Current.Time(),
 		Bids:              o.Bids.Levels(),
 		Asks:              o.Asks.Levels(),
-	}
-
-	if err := ob.Process(); err != nil {
-		return nil, err
-	}
-
-	return orderbook.Get(e.Name, p, a)
+	}, nil
 }
 
 // UpdateAccountBalances retrieves currency balances

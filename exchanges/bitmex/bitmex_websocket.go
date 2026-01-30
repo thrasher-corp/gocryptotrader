@@ -95,7 +95,7 @@ func (e *Exchange) WsConnect() error {
 	}
 
 	e.Websocket.Wg.Add(1)
-	go e.wsReadData()
+	go e.wsReadData(ctx)
 
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
 		if err := e.websocketSendAuth(ctx); err != nil {
@@ -113,7 +113,7 @@ const (
 )
 
 // wsReadData receives and passes on websocket messages for processing
-func (e *Exchange) wsReadData() {
+func (e *Exchange) wsReadData(ctx context.Context) {
 	defer e.Websocket.Wg.Done()
 
 	for {
@@ -121,14 +121,15 @@ func (e *Exchange) wsReadData() {
 		if resp.Raw == nil {
 			return
 		}
-		err := e.wsHandleData(resp.Raw)
-		if err != nil {
-			e.Websocket.DataHandler <- err
+		if err := e.wsHandleData(ctx, resp.Raw); err != nil {
+			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
+			}
 		}
 	}
 }
 
-func (e *Exchange) wsHandleData(respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	// We don't need to know about errors, since we're looking optimistically into the json
 	op, _ := jsonparser.GetString(respRaw, "request", "op")
 	errMsg, _ := jsonparser.GetString(respRaw, "error")
@@ -199,13 +200,13 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 			return nil
 		}
 
-		e.Websocket.DataHandler <- announcement.Data
+		return e.Websocket.DataHandler.Send(ctx, announcement.Data)
 	case bitmexWSAffiliate:
 		var response WsAffiliateResponse
 		if err := json.Unmarshal(respRaw, &response); err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- response
+		return e.Websocket.DataHandler.Send(ctx, response)
 	case bitmexWSInstrument:
 		// ticker
 	case bitmexWSExecution:
@@ -222,21 +223,13 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 			}
 			oStatus, err := order.StringToOrderStatus(response.Data[i].OrdStatus)
 			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  response.Data[i].OrderID,
-					Err:      err,
-				}
+				return err
 			}
 			oSide, err := order.StringToOrderSide(response.Data[i].Side)
 			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  response.Data[i].OrderID,
-					Err:      err,
-				}
+				return err
 			}
-			e.Websocket.DataHandler <- &order.Detail{
+			if err := e.Websocket.DataHandler.Send(ctx, &order.Detail{
 				Exchange:  e.Name,
 				OrderID:   response.Data[i].OrderID,
 				AccountID: strconv.FormatInt(response.Data[i].Account, 10),
@@ -254,6 +247,8 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 						IsMaker:   false,
 					},
 				},
+			}); err != nil {
+				return err
 			}
 		}
 	case bitmexWSOrder:
@@ -270,29 +265,17 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 				}
 				oSide, err := order.StringToOrderSide(response.Data[x].Side)
 				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  response.Data[x].OrderID,
-						Err:      err,
-					}
+					return err
 				}
 				oType, err := order.StringToOrderType(response.Data[x].OrderType)
 				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  response.Data[x].OrderID,
-						Err:      err,
-					}
+					return err
 				}
 				oStatus, err := order.StringToOrderStatus(response.Data[x].OrderStatus)
 				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  response.Data[x].OrderID,
-						Err:      err,
-					}
+					return err
 				}
-				e.Websocket.DataHandler <- &order.Detail{
+				if err := e.Websocket.DataHandler.Send(ctx, &order.Detail{
 					Price:     response.Data[x].Price,
 					Amount:    response.Data[x].OrderQuantity,
 					Exchange:  e.Name,
@@ -304,6 +287,8 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 					AssetType: a,
 					Date:      response.Data[x].TransactTime,
 					Pair:      p,
+				}); err != nil {
+					return err
 				}
 			}
 		case "delete":
@@ -315,31 +300,19 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 				var oSide order.Side
 				oSide, err = order.StringToOrderSide(response.Data[x].Side)
 				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  response.Data[x].OrderID,
-						Err:      err,
-					}
+					return err
 				}
 				var oType order.Type
 				oType, err = order.StringToOrderType(response.Data[x].OrderType)
 				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  response.Data[x].OrderID,
-						Err:      err,
-					}
+					return err
 				}
 				var oStatus order.Status
 				oStatus, err = order.StringToOrderStatus(response.Data[x].OrderStatus)
 				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  response.Data[x].OrderID,
-						Err:      err,
-					}
+					return err
 				}
-				e.Websocket.DataHandler <- &order.Detail{
+				if err := e.Websocket.DataHandler.Send(ctx, &order.Detail{
 					Price:     response.Data[x].Price,
 					Amount:    response.Data[x].OrderQuantity,
 					Exchange:  e.Name,
@@ -351,17 +324,19 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 					AssetType: a,
 					Date:      response.Data[x].TransactTime,
 					Pair:      p,
+				}); err != nil {
+					return err
 				}
 			}
 		default:
-			e.Websocket.DataHandler <- fmt.Errorf("%s - Unsupported order update %+v", e.Name, response)
+			return e.Websocket.DataHandler.Send(ctx, fmt.Errorf("%s - Unsupported order update %+v", e.Name, response))
 		}
 	case bitmexWSMargin:
 		var response WsMarginResponse
 		if err := json.Unmarshal(respRaw, &response); err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- response
+		return e.Websocket.DataHandler.Send(ctx, response)
 	case bitmexWSPosition:
 		var response WsPositionResponse
 		if err := json.Unmarshal(respRaw, &response); err != nil {
@@ -372,21 +347,21 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 		if err := json.Unmarshal(respRaw, &response); err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- response
+		return e.Websocket.DataHandler.Send(ctx, response)
 	case bitmexWSTransact:
 		var response WsTransactResponse
 		if err := json.Unmarshal(respRaw, &response); err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- response
+		return e.Websocket.DataHandler.Send(ctx, response)
 	case bitmexWSWallet:
 		var response WsWalletResponse
 		if err := json.Unmarshal(respRaw, &response); err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- response
+		return e.Websocket.DataHandler.Send(ctx, response)
 	default:
-		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
+		return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)})
 	}
 
 	return nil

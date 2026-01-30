@@ -106,7 +106,7 @@ func TestWithdraw(t *testing.T) {
 	require.NotEmpty(t, cryptocurrencyChains, "GetAvailableTransferChains must return some chains")
 	withdrawCryptoRequest := withdraw.Request{
 		Exchange:    e.Name,
-		Amount:      1,
+		Amount:      -0.1,
 		Currency:    currency.BTC,
 		Description: "WITHDRAW IT ALL",
 		Crypto: withdraw.CryptoRequest{
@@ -1026,15 +1026,6 @@ func TestUpdateFuturesPositionLeverage(t *testing.T) {
 	assert.NoError(t, err, "UpdateFuturesPositionLeverage should not error for USDTMarginedFutures")
 }
 
-func TestUpdateFuturesPositionRiskLimit(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.UpdateFuturesPositionRiskLimit(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), 10)
-	assert.NoError(t, err, "UpdateFuturesPositionRiskLimit should not error for CoinMarginedFutures")
-	_, err = e.UpdateFuturesPositionRiskLimit(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), 10)
-	assert.NoError(t, err, "UpdateFuturesPositionRiskLimit should not error for USDTMarginedFutures")
-}
-
 func TestPlaceDeliveryOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1186,15 +1177,6 @@ func TestUpdatePositionLeverageInDualMode(t *testing.T) {
 	assert.NoError(t, err, "UpdatePositionLeverageInDualMode should not error for CoinMarginedFutures")
 	_, err = e.UpdatePositionLeverageInDualMode(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), 0.001, 0.001)
 	assert.NoError(t, err, "UpdatePositionLeverageInDualMode should not error for USDTMarginedFutures")
-}
-
-func TestUpdatePositionRiskLimitInDualMode(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.UpdatePositionRiskLimitInDualMode(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), 10)
-	assert.NoError(t, err, "UpdatePositionRiskLimitInDualMode should not error for CoinMarginedFutures")
-	_, err = e.UpdatePositionRiskLimitInDualMode(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), 10)
-	assert.NoError(t, err, "UpdatePositionRiskLimitInDualMode should not error for USDTMarginedFutures")
 }
 
 func TestPlaceFuturesOrder(t *testing.T) {
@@ -1453,15 +1435,6 @@ func TestUpdateDeliveryPositionLeverage(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err = e.UpdateDeliveryPositionLeverage(t.Context(), currency.USDT, getPair(t, asset.DeliveryFutures), 0.001)
 	assert.NoError(t, err, "UpdateDeliveryPositionLeverage should not error")
-}
-
-func TestUpdateDeliveryPositionRiskLimit(t *testing.T) {
-	t.Parallel()
-	_, err := e.UpdateDeliveryPositionRiskLimit(t.Context(), currency.EMPTYCODE, currency.Pair{}, 0)
-	assert.ErrorIs(t, err, errEmptyOrInvalidSettlementCurrency)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err = e.UpdateDeliveryPositionRiskLimit(t.Context(), currency.USDT, getPair(t, asset.DeliveryFutures), 30)
-	assert.NoError(t, err, "UpdateDeliveryPositionRiskLimit should not error")
 }
 
 func TestGetAllOptionsUnderlyings(t *testing.T) {
@@ -1802,6 +1775,8 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
+	_, err := e.UpdateOrderbook(t.Context(), currency.EMPTYPAIR, 1336)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	for _, a := range e.GetAssetTypes(false) {
 		pair := getPair(t, a)
 		t.Run(a.String()+" "+pair.String(), func(t *testing.T) {
@@ -2096,10 +2071,10 @@ func TestFuturesDataHandler(t *testing.T) {
 		}
 		return e.WsHandleFuturesData(ctx, nil, m, asset.CoinMarginedFutures)
 	})
-	close(e.Websocket.DataHandler)
-	assert.Len(t, e.Websocket.DataHandler, 14, "Should see the correct number of messages")
-	for resp := range e.Websocket.DataHandler {
-		if err, isErr := resp.(error); isErr {
+	e.Websocket.DataHandler.Close()
+	assert.Len(t, e.Websocket.DataHandler.C, 14, "Should see the correct number of messages")
+	for resp := range e.Websocket.DataHandler.C {
+		if err, isErr := resp.Data.(error); isErr {
 			assert.NoError(t, err, "Should not get any errors down the data handler")
 		}
 	}

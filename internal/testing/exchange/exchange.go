@@ -124,7 +124,7 @@ func MockWsInstance[T any, PT interface {
 	// Exchanges which don't support subscription conf; Can be removed when all exchanges support sub conf
 	b.Websocket.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
 
-	err = b.Websocket.Connect()
+	err = b.Websocket.Connect(context.TODO())
 	require.NoError(tb, err, "Connect must not error")
 
 	return e
@@ -133,7 +133,7 @@ func MockWsInstance[T any, PT interface {
 // FixtureError contains an error and the message that caused it
 type FixtureError struct {
 	Err error
-	Msg []byte
+	Msg string
 }
 
 // FixtureToDataHandler squirts the contents of a file to a reader function (probably e.wsHandleData) and asserts no errors are returned
@@ -163,7 +163,7 @@ func FixtureToDataHandlerWithErrors(tb testing.TB, fixturePath string, reader fu
 		if err := reader(tb.Context(), msg); err != nil {
 			errs = append(errs, FixtureError{
 				Err: err,
-				Msg: msg,
+				Msg: string(msg),
 			})
 		}
 	}
@@ -203,7 +203,7 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 	// Exchanges which don't support subscription conf; Can be removed when all exchanges support sub conf
 	w.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
 
-	err = w.Connect()
+	err = w.Connect(context.TODO())
 	require.NoError(tb, err, "Connect must not error")
 
 	setupWsOnce[e] = true

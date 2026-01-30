@@ -181,7 +181,7 @@ type testCtxKey string
 
 func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchange.IBotExchange, assetParams []assetPair) {
 	t.Helper()
-	iExchange := reflect.TypeOf(&exch).Elem()
+	iExchange := reflect.TypeFor[exchange.IBotExchange]()
 	actualExchange := reflect.ValueOf(exch)
 	for x := range iExchange.NumMethod() {
 		methodName := iExchange.Method(x).Name
@@ -277,33 +277,33 @@ type MethodArgumentGenerator struct {
 }
 
 var (
-	currencyPairParam    = reflect.TypeOf((*currency.Pair)(nil)).Elem()
-	klineParam           = reflect.TypeOf((*kline.Interval)(nil)).Elem()
-	contextParam         = reflect.TypeOf((*context.Context)(nil)).Elem()
-	timeParam            = reflect.TypeOf((*time.Time)(nil)).Elem()
-	codeParam            = reflect.TypeOf((*currency.Code)(nil)).Elem()
-	currencyPairsParam   = reflect.TypeOf((*currency.Pairs)(nil)).Elem()
-	withdrawRequestParam = reflect.TypeOf((**withdraw.Request)(nil)).Elem()
-	stringParam          = reflect.TypeOf((*string)(nil)).Elem()
-	feeBuilderParam      = reflect.TypeOf((**exchange.FeeBuilder)(nil)).Elem()
-	credentialsParam     = reflect.TypeOf((**accounts.Credentials)(nil)).Elem()
-	orderSideParam       = reflect.TypeOf((*order.Side)(nil)).Elem()
-	collateralModeParam  = reflect.TypeOf((*collateral.Mode)(nil)).Elem()
-	marginTypeParam      = reflect.TypeOf((*margin.Type)(nil)).Elem()
-	int64Param           = reflect.TypeOf((*int64)(nil)).Elem()
-	float64Param         = reflect.TypeOf((*float64)(nil)).Elem()
+	currencyPairParam    = reflect.TypeFor[currency.Pair]()
+	klineParam           = reflect.TypeFor[kline.Interval]()
+	contextParam         = reflect.TypeFor[context.Context]()
+	timeParam            = reflect.TypeFor[time.Time]()
+	codeParam            = reflect.TypeFor[currency.Code]()
+	currencyPairsParam   = reflect.TypeFor[currency.Pairs]()
+	withdrawRequestParam = reflect.TypeFor[*withdraw.Request]()
+	stringParam          = reflect.TypeFor[string]()
+	feeBuilderParam      = reflect.TypeFor[*exchange.FeeBuilder]()
+	credentialsParam     = reflect.TypeFor[*accounts.Credentials]()
+	orderSideParam       = reflect.TypeFor[order.Side]()
+	collateralModeParam  = reflect.TypeFor[collateral.Mode]()
+	marginTypeParam      = reflect.TypeFor[margin.Type]()
+	int64Param           = reflect.TypeFor[int64]()
+	float64Param         = reflect.TypeFor[float64]()
 	// types with asset in params
-	assetParam                  = reflect.TypeOf((*asset.Item)(nil)).Elem()
-	orderSubmitParam            = reflect.TypeOf((**order.Submit)(nil)).Elem()
-	orderModifyParam            = reflect.TypeOf((**order.Modify)(nil)).Elem()
-	orderCancelParam            = reflect.TypeOf((**order.Cancel)(nil)).Elem()
-	orderCancelsParam           = reflect.TypeOf((*[]order.Cancel)(nil)).Elem()
-	getOrdersRequestParam       = reflect.TypeOf((**order.MultiOrderRequest)(nil)).Elem()
-	positionChangeRequestParam  = reflect.TypeOf((**margin.PositionChangeRequest)(nil)).Elem()
-	positionSummaryRequestParam = reflect.TypeOf((**futures.PositionSummaryRequest)(nil)).Elem()
-	positionsRequestParam       = reflect.TypeOf((**futures.PositionsRequest)(nil)).Elem()
-	latestRateRequest           = reflect.TypeOf((**fundingrate.LatestRateRequest)(nil)).Elem()
-	pairKeySliceParam           = reflect.TypeOf((*[]key.PairAsset)(nil)).Elem()
+	assetParam                  = reflect.TypeFor[asset.Item]()
+	orderSubmitParam            = reflect.TypeFor[*order.Submit]()
+	orderModifyParam            = reflect.TypeFor[*order.Modify]()
+	orderCancelParam            = reflect.TypeFor[*order.Cancel]()
+	orderCancelsParam           = reflect.TypeFor[[]order.Cancel]()
+	getOrdersRequestParam       = reflect.TypeFor[*order.MultiOrderRequest]()
+	positionChangeRequestParam  = reflect.TypeFor[*margin.PositionChangeRequest]()
+	positionSummaryRequestParam = reflect.TypeFor[*futures.PositionSummaryRequest]()
+	positionsRequestParam       = reflect.TypeFor[*futures.PositionsRequest]()
+	latestRateRequest           = reflect.TypeFor[*fundingrate.LatestRateRequest]()
+	pairKeySliceParam           = reflect.TypeFor[[]key.PairAsset]()
 )
 
 // generateMethodArg determines the argument type and returns a pre-made
@@ -614,8 +614,8 @@ var unsupportedAssets = []asset.Item{
 var unsupportedExchangeNames = []string{
 	"testexch",
 	"bitflyer", // Bitflyer has many "ErrNotYetImplemented, which is true, but not what we care to test for here
-	"btse",     // 	TODO rm once timeout issues resolved
-	"poloniex", // 	outdated API // TODO rm once updated
+	"btse",     // TODO rm once timeout issues resolved
+	"poloniex", // outdated API // TODO rm once updated
 }
 
 // cryptoChainPerExchange holds the deposit address chain per exchange

@@ -4,7 +4,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
 	"time"
 
@@ -33,16 +32,9 @@ func TestNewVM(t *testing.T) {
 	manager := GctScriptManager{
 		config: configHelper(true, true, maxTestVirtualMachines),
 	}
-	x := manager.New()
-	if x != nil {
-		t.Error("Should not create a VM when manager not started")
-	}
+	require.Nil(t, manager.New(), "New must not create a VM when manager not started")
 	manager.started = 1
-	x = manager.New()
-	xType := reflect.TypeOf(x).String()
-	if xType != "*vm.VM" {
-		t.Fatalf("vm.New should return pointer to VM instead received: %v", x)
-	}
+	require.NotNil(t, manager.New(), "New must create a VM when manager is started")
 }
 
 func TestVMLoad(t *testing.T) {

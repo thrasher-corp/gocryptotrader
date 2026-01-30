@@ -95,7 +95,7 @@ func (b *Base) SetClientProxyAddress(addr string) error {
 	}
 
 	if b.Websocket != nil {
-		err = b.Websocket.SetProxyAddress(addr)
+		err = b.Websocket.SetProxyAddress(context.TODO(), addr)
 		if err != nil {
 			return err
 		}
@@ -1072,7 +1072,7 @@ func (b *Base) FlushWebsocketChannels() error {
 	if b.Websocket == nil {
 		return nil
 	}
-	return b.Websocket.FlushChannels()
+	return b.Websocket.FlushChannels(context.TODO())
 }
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
@@ -1081,7 +1081,7 @@ func (b *Base) SubscribeToWebsocketChannels(channels subscription.List) error {
 	if b.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
-	return b.Websocket.SubscribeToChannels(b.Websocket.Conn, channels)
+	return b.Websocket.SubscribeToChannels(context.TODO(), b.Websocket.Conn, channels)
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
@@ -1090,7 +1090,7 @@ func (b *Base) UnsubscribeToWebsocketChannels(channels subscription.List) error 
 	if b.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
-	return b.Websocket.UnsubscribeChannels(b.Websocket.Conn, channels)
+	return b.Websocket.UnsubscribeChannels(context.TODO(), b.Websocket.Conn, channels)
 }
 
 // GetSubscriptions returns a copied list of subscriptions

@@ -72,7 +72,6 @@ func TestMain(m *testing.M) {
 		asset.Margin:  marginTradablePair,
 		asset.Futures: futuresTradablePair,
 	}
-	fetchedFuturesOrderbook = map[string]bool{}
 
 	os.Exit(m.Run())
 }
@@ -1929,7 +1928,7 @@ func TestRemoveMarginManually(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.RemoveMarginManually(t.Context(), &WithdrawMarginResponse{
 		Symbol:         "ADAUSDTM",
-		WithdrawAmount: 1,
+		WithdrawAmount: -1,
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2353,8 +2352,8 @@ func TestPushData(t *testing.T) {
 		}
 		return e.wsHandleData(ctx, r)
 	})
-	close(e.Websocket.DataHandler)
-	assert.Len(t, e.Websocket.DataHandler, 29, "Should see correct number of messages")
+	e.Websocket.DataHandler.Close()
+	assert.Len(t, e.Websocket.DataHandler.C, 29, "Should see correct number of messages")
 	require.Len(t, fErrs, 1, "Must get exactly one error message")
 	assert.ErrorContains(t, fErrs[0].Err, "cannot save holdings: nil pointer: *accounts.Accounts")
 }
@@ -2609,7 +2608,7 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.WithdrawCryptocurrencyFunds(t.Context(), &withdraw.Request{
 		Exchange: e.Name,
-		Amount:   0.00000000001,
+		Amount:   -0.1,
 		Currency: currency.BTC,
 		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
@@ -3005,13 +3004,13 @@ func TestProcessMarketSnapshot(t *testing.T) {
 	t.Parallel()
 	ku := testInstance(t)
 	testexch.FixtureToDataHandler(t, "testdata/wsMarketSnapshot.json", ku.wsHandleData)
-	close(ku.Websocket.DataHandler)
-	assert.Len(t, ku.Websocket.DataHandler, 4, "Should see 4 tickers")
+	ku.Websocket.DataHandler.Close()
+	assert.Len(t, ku.Websocket.DataHandler.C, 4, "Should see 4 tickers")
 	seenAssetTypes := map[asset.Item]int{}
-	for resp := range ku.Websocket.DataHandler {
-		switch v := resp.(type) {
+	for resp := range ku.Websocket.DataHandler.C {
+		switch v := resp.Data.(type) {
 		case *ticker.Price:
-			switch len(ku.Websocket.DataHandler) {
+			switch len(ku.Websocket.DataHandler.C) {
 			case 3:
 				assert.Equal(t, asset.Margin, v.AssetType, "AssetType")
 				assert.Equal(t, time.UnixMilli(1700555342007), v.LastUpdated, "datetime")
@@ -3119,6 +3118,11 @@ func TestSubscribeTickerAll(t *testing.T) {
 	t.Parallel()
 
 	ku := testInstance(t)
+	go func() { // drain websocket messages when subscribed to all tickers
+		for {
+			<-ku.Websocket.DataHandler.C
+		}
+	}()
 	ku.Features.Subscriptions = subscription.List{}
 	testexch.SetupWs(t, ku)
 
@@ -3288,22 +3292,6 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 	result, err := e.GetFuturesPositionOrders(t.Context(), req)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-}
-
-func TestUpdateOrderExecutionLimits(t *testing.T) {
-	t.Parallel()
-	testexch.UpdatePairsOnce(t, e)
-	for _, a := range e.GetAssetTypes(false) {
-		t.Run(a.String(), func(t *testing.T) {
-			t.Parallel()
-			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
-			pairs, err := e.CurrencyPairs.GetPairs(a, true)
-			require.NoError(t, err, "GetPairs must not error")
-			l, err := e.GetOrderExecutionLimits(a, pairs[0])
-			require.NoError(t, err, "GetOrderExecutionLimits must not error")
-			assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should not be zero")
-		})
-	}
 }
 
 func BenchmarkIntervalToString(b *testing.B) {
@@ -4088,13 +4076,14 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 // testInstance returns a local Kucoin for isolated testing
 func testInstance(tb testing.TB) *Exchange {
 	tb.Helper()
-	kucoin := new(Exchange)
-	require.NoError(tb, testexch.Setup(kucoin), "Test instance Setup must not error")
-	kucoin.obm = &orderbookManager{
+	e := new(Exchange)
+	require.NoError(tb, testexch.Setup(e), "Test instance Setup must not error")
+	e.obm = &orderbookManager{
 		state: make(map[currency.Code]map[currency.Code]map[asset.Item]*update),
 		jobs:  make(chan job, maxWSOrderbookJobs),
 	}
-	return kucoin
+	e.fetchedFuturesOrderbook = map[string]bool{}
+	return e
 }
 
 func TestGetTradingPairActualFees(t *testing.T) {
@@ -4437,7 +4426,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 func TestProcessFuturesKline(t *testing.T) {
 	t.Parallel()
 	data := fmt.Sprintf(`{"symbol":%q,"candles":["1714964400","63815.1","63890.8","63928.5","63797.8","17553.0","17553"],"time":1714964823722}`, futuresTradablePair.String())
-	err := e.processFuturesKline([]byte(data), "1hour")
+	err := e.processFuturesKline(t.Context(), []byte(data), "1hour")
 	assert.NoError(t, err)
 }
 
