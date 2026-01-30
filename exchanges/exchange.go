@@ -55,9 +55,10 @@ const (
 
 // Public Errors
 var (
-	ErrSettingProxyAddress  = errors.New("error setting proxy address")
-	ErrEndpointPathNotFound = errors.New("no endpoint path found for the given key")
-	ErrSymbolNotMatched     = errors.New("symbol cannot be matched")
+	ErrExchangeNameIsEmpty   = errors.New("exchange name is empty")
+	ErrSettingProxyAddress   = errors.New("error setting proxy address")
+	ErrSymbolCannotBeMatched = errors.New("symbol cannot be matched")
+	ErrEndpointPathNotFound  = errors.New("no endpoint path found for the given key")
 )
 
 var (
@@ -254,7 +255,7 @@ func (b *Base) GetPairAndAssetTypeRequestFormatted(symbol string) (currency.Pair
 			}
 		}
 	}
-	return currency.EMPTYPAIR, asset.Empty, ErrSymbolNotMatched
+	return currency.EMPTYPAIR, asset.Empty, ErrSymbolCannotBeMatched
 }
 
 // GetClientBankAccounts returns banking details associated with
@@ -1364,6 +1365,12 @@ func (u URL) String() string {
 		return websocketPrivateURL
 	case WebsocketSpotSupplementary:
 		return websocketSpotSupplementaryURL
+	case WebsocketSandbox:
+		return websocketSandboxURL
+	case WebsocketSandboxPublic:
+		return websocketSandboxPublicURL
+	case WebsocketSandboxPrivate:
+		return websocketSandboxPrivateURL
 	case ChainAnalysis:
 		return chainAnalysisURL
 	case EdgeCase1:
@@ -1414,6 +1421,12 @@ func getURLTypeFromString(ep string) (URL, error) {
 		return WebsocketPrivate, nil
 	case websocketSpotSupplementaryURL:
 		return WebsocketSpotSupplementary, nil
+	case websocketSandboxURL:
+		return WebsocketSandbox, nil
+	case websocketSandboxPublicURL:
+		return WebsocketSandboxPublic, nil
+	case websocketSandboxPrivateURL:
+		return WebsocketSandboxPrivate, nil
 	case chainAnalysisURL:
 		return ChainAnalysis, nil
 	case edgeCase1URL:
@@ -1467,11 +1480,6 @@ func (b *Base) GetAvailableTransferChains(_ context.Context, _ currency.Code) ([
 // types instead of just being denoted as spot holdings.
 func (b *Base) HasAssetTypeAccountSegregation() bool {
 	return b.Features.Supports.RESTCapabilities.HasAssetTypeAccountSegregation
-}
-
-// GetPositionSummary returns stats for a future position
-func (b *Base) GetPositionSummary(context.Context, *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
-	return nil, common.ErrNotYetImplemented
 }
 
 // GetKlineRequest returns a helper for the fetching of candle/kline data for
