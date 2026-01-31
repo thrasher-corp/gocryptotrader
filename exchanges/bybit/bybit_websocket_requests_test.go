@@ -205,6 +205,6 @@ func getWebsocketInstance(t *testing.T) *Exchange {
 
 	require.NoError(t, e.Setup(bConf), "Setup must not error")
 	e.CurrencyPairs.Load(pairs)
-	require.NoError(t, e.Websocket.Connect())
+	require.NoError(t, e.Websocket.Connect(t.Context()))
 	return e
 }
