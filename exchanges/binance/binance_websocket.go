@@ -139,7 +139,7 @@ func (e *Exchange) KeepAuthKeyAlive(ctx context.Context) {
 	}
 }
 
-func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	if id, err := jsonparser.GetInt(respRaw, "id"); err == nil {
 		if e.Websocket.Match.IncomingWithData(id, respRaw) {
 			return nil
@@ -216,17 +216,17 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 			var orderSide order.Side
 			orderSide, err = order.StringToOrderSide(data.Side)
 			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
+				return e.Websocket.DataHandler.Send(ctx, order.ClassificationError{
 					Exchange: e.Name,
 					OrderID:  orderID,
 					Err:      err,
-				}
+				})
 			}
 			tif, err := order.StringToTimeInForce(data.TimeInForce)
 			if err != nil {
 				return err
 			}
-			e.Websocket.DataHandler <- &order.Detail{
+			return e.Websocket.DataHandler.Send(ctx, &order.Detail{
 				Price:                data.Price,
 				Amount:               data.Quantity,
 				AverageExecutedPrice: avgPrice,
@@ -247,8 +247,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 				LastUpdated:          data.TransactionTime.Time(),
 				Pair:                 pair,
 				TimeInForce:          tif,
-			}
-			return nil
+			})
 		case "listStatus":
 			var data WsListStatusData
 			if err := json.Unmarshal(jsonData, &data); err != nil {
@@ -256,15 +255,13 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 					e.Name,
 					err)
 			}
-			e.Websocket.DataHandler <- data
-			return nil
+			return e.Websocket.DataHandler.Send(ctx, data)
 		case "outboundAccountInfo":
 			var data wsAccountInfo
 			if err := json.Unmarshal(respRaw, &data); err != nil {
 				return fmt.Errorf("%v - Could not convert to outboundAccountInfo structure %s", e.Name, err)
 			}
-			e.Websocket.DataHandler <- data
-			return nil
+			return e.Websocket.DataHandler.Send(ctx, data)
 		}
 	}
 

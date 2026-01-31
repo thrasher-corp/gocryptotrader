@@ -3398,12 +3398,17 @@ func BenchmarkWsHandleData(b *testing.B) {
 	require.Len(b, lines, 8)
 	go func() {
 		for {
-			<-e.Websocket.DataHandler
+			select {
+			case _, ok := <-e.Websocket.DataHandler.C:
+				if !ok {
+					return
+				}
+			}
 		}
 	}()
 	for b.Loop() {
 		for x := range lines {
-			assert.NoError(bb, e.wsHandleData(lines[x]))
+			assert.NoError(b, e.wsHandleData(b.Context(), lines[x]))
 		}
 	}
 }
@@ -3464,7 +3469,7 @@ func TestSubscribeBadResp(t *testing.T) {
 func TestWsTickerUpdate(t *testing.T) {
 	t.Parallel()
 	pressXToJSON := []byte(`{"stream":"btcusdt@ticker","data":{"e":"24hrTicker","E":1580254809477,"s":"ETHBTC","p":"420.97000000","P":"4.720","w":"9058.27981278","x":"8917.98000000","c":"9338.96000000","Q":"0.17246300","b":"9338.03000000","B":"0.18234600","a":"9339.70000000","A":"0.14097600","o":"8917.99000000","h":"9373.19000000","l":"8862.40000000","v":"72229.53692000","q":"654275356.16896672","O":1580168409456,"C":1580254809456,"F":235294268,"L":235894703,"n":600436}}`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -3496,7 +3501,7 @@ func TestWsKlineUpdate(t *testing.T) {
 		"B": "123456"   
 	  }
 	}}`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -3518,7 +3523,7 @@ func TestWsTradeUpdate(t *testing.T) {
 	  "m": true,        
 	  "M": true         
 	}}`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -3564,7 +3569,7 @@ func TestWsDepthUpdate(t *testing.T) {
 	err := e.SeedLocalCacheWithBook(p, &book)
 	require.NoError(t, err)
 
-	if err := e.wsHandleData(update1); err != nil {
+	if err := e.wsHandleData(t.Context(), update1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -3582,7 +3587,7 @@ func TestWsDepthUpdate(t *testing.T) {
 
 	update2 := []byte(`{"stream":"btcusdt@depth","data":{ "e": "depthUpdate", "E": 1234567892, "s": usdtmTradablePair, "U": 161, "u": 165, "b": [ ["6621.45", "0.163526"] ], "a": [ ["6622.46", "2.3"], ["6622.47", "1.9"] ] }}`)
 
-	if err = e.wsHandleData(update2); err != nil {
+	if err = e.wsHandleData(t.Context(), update2); err != nil {
 		t.Error(err)
 	}
 
@@ -3609,7 +3614,7 @@ func TestWsBalanceUpdate(t *testing.T) {
   "a": "BTC",                   
   "d": "100.00000000",          
   "T": 1573200697068}}`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -3641,7 +3646,7 @@ func TestWsOCO(t *testing.T) {
     }
   ]
 }}`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -3925,7 +3930,7 @@ drain:
 	}
 
 	payload = []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"executionReport","E":1616633041556,"s":"BTCUSDT","c":"YeULctvPAnHj5HXCQo9Mob","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00028600","p":"52436.85000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":5341783271,"l":"0.00028600","z":"0.00028600","L":"52436.85000000","n":"0.00000029","N":"BTC","T":1616633041555,"t":726946523,"I":11390206312,"w":false,"m":false,"M":true,"O":1616633041555,"Z":"14.99693910","Y":"14.99693910","Q":"0.00000000","W":1616633041555}}`)
-	err = e.wsHandleData(payload)
+	err = e.wsHandleData(t.Context(), payload)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3934,7 +3939,7 @@ drain:
 func TestWsOutboundAccountPosition(t *testing.T) {
 	t.Parallel()
 	payload := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"outboundAccountPosition","E":1616628815745,"u":1616628815745,"B":[{"a":"BTC","f":"0.00225109","l":"0.00123000"},{"a":"BNB","f":"0.00000000","l":"0.00000000"},{"a":"USDT","f":"54.43390661","l":"0.00000000"}]}}`)
-	if err := e.wsHandleData(payload); err != nil {
+	if err := e.wsHandleData(t.Context(), payload); err != nil {
 		t.Fatal(err)
 	}
 }

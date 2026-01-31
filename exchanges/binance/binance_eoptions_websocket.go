@@ -266,7 +266,7 @@ func (e *Exchange) GetEOptionsWsAuthStreamKey(ctx context.Context) (string, erro
 	}, request.AuthenticatedRequest)
 }
 
-func (e *Exchange) wsHandleEOptionsData(_ context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleEOptionsData(ctx context.Context, respRaw []byte) error {
 	var result WsOptionIncomingResps
 	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
@@ -279,26 +279,25 @@ func (e *Exchange) wsHandleEOptionsData(_ context.Context, respRaw []byte) error
 	}
 	switch result.Instances[0].Stream {
 	case cnlTrade:
-		return e.processOptionsTradeStream(respRaw)
+		return e.processOptionsTradeStream(ctx, respRaw)
 	case cnlIndex:
-		return e.processOptionsIndexPrice(respRaw)
+		return e.processOptionsIndexPrice(ctx, respRaw)
 	case "24hrTicker":
-		return e.processOptionsTicker(respRaw, result.IsSlice)
+		return e.processOptionsTicker(ctx, respRaw, result.IsSlice)
 	case "markPrice":
-		return e.processOptionsMarkPrices(respRaw)
+		return e.processOptionsMarkPrices(ctx, respRaw)
 	case "kline":
-		return e.processOptionsKline(respRaw)
+		return e.processOptionsKline(ctx, respRaw)
 	case "openInterest":
-		return e.processOptionsOpenInterest(respRaw)
+		return e.processOptionsOpenInterest(ctx, respRaw)
 	case "option_pair":
-		return e.processOptionsPair(respRaw)
+		return e.processOptionsPair(ctx, respRaw)
 	case "depth":
 		return e.processOptionsOrderbook(respRaw)
 	default:
-		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+		return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
 			Message: string(respRaw),
-		}
-		return fmt.Errorf("unhandled stream data %s", string(respRaw))
+		})
 	}
 }
 
@@ -340,25 +339,23 @@ func (e *Exchange) processOptionsOrderbook(data []byte) error {
 }
 
 // processOptionsPair new symbol listing stream
-func (e *Exchange) processOptionsPair(data []byte) error {
+func (e *Exchange) processOptionsPair(ctx context.Context, data []byte) error {
 	var resp WsOptionsNewPair
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- resp
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, resp)
 }
 
-func (e *Exchange) processOptionsOpenInterest(data []byte) error {
+func (e *Exchange) processOptionsOpenInterest(ctx context.Context, data []byte) error {
 	var resp []WsOpenInterest
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- resp
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, resp)
 }
 
-func (e *Exchange) processOptionsKline(data []byte) error {
+func (e *Exchange) processOptionsKline(ctx context.Context, data []byte) error {
 	var resp WsOptionsKlineData
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
@@ -367,7 +364,7 @@ func (e *Exchange) processOptionsKline(data []byte) error {
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- websocket.KlineData{
+	return e.Websocket.DataHandler.Send(ctx, websocket.KlineData{
 		Timestamp:  resp.EventTime.Time(),
 		Pair:       pair,
 		AssetType:  asset.Options,
@@ -380,29 +377,26 @@ func (e *Exchange) processOptionsKline(data []byte) error {
 		HighPrice:  resp.KlineData.High.Float64(),
 		LowPrice:   resp.KlineData.Low.Float64(),
 		Volume:     resp.KlineData.ContractVolume.Float64(),
-	}
-	return nil
+	})
 }
 
-func (e *Exchange) processOptionsMarkPrices(data []byte) error {
+func (e *Exchange) processOptionsMarkPrices(ctx context.Context, data []byte) error {
 	var resp []WsOptionsMarkPrice
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- resp
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, resp)
 }
 
-func (e *Exchange) processOptionsIndexPrice(data []byte) error {
+func (e *Exchange) processOptionsIndexPrice(ctx context.Context, data []byte) error {
 	var resp OptionsIndexInfo
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- resp
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, resp)
 }
 
-func (e *Exchange) processOptionsTicker(data []byte, isSlice bool) error {
+func (e *Exchange) processOptionsTicker(ctx context.Context, data []byte, isSlice bool) error {
 	var resp []OptionsTicker24Hr
 	if isSlice {
 		if err := json.Unmarshal(data, &resp); err != nil {
@@ -420,7 +414,7 @@ func (e *Exchange) processOptionsTicker(data []byte, isSlice bool) error {
 		if err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- ticker.Price{
+		if err := e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 			High:         resp[a].HightPrice.Float64(),
 			Low:          resp[a].LowPrice.Float64(),
 			Bid:          resp[a].BestBuyPrice.Float64(),
@@ -434,12 +428,14 @@ func (e *Exchange) processOptionsTicker(data []byte, isSlice bool) error {
 			ExchangeName: e.Name,
 			AssetType:    asset.Options,
 			LastUpdated:  resp[a].EventTime.Time(),
+		}); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-func (e *Exchange) processOptionsTradeStream(data []byte) error {
+func (e *Exchange) processOptionsTradeStream(ctx context.Context, data []byte) error {
 	var resp *EOptionsWsTrade
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
@@ -452,7 +448,7 @@ func (e *Exchange) processOptionsTradeStream(data []byte) error {
 	if resp.Direction == "-1" {
 		side = order.Sell
 	}
-	e.Websocket.DataHandler <- trade.Data{
+	return e.Websocket.DataHandler.Send(ctx, trade.Data{
 		TID:          strconv.FormatInt(resp.TradeID, 10),
 		Exchange:     e.Name,
 		CurrencyPair: pair,
@@ -461,8 +457,7 @@ func (e *Exchange) processOptionsTradeStream(data []byte) error {
 		Price:        resp.Price.Float64(),
 		Amount:       resp.Quantity.Float64(),
 		Timestamp:    resp.TradeCompletedTime.Time(),
-	}
-	return nil
+	})
 }
 
 var intervalsMap = map[kline.Interval]string{

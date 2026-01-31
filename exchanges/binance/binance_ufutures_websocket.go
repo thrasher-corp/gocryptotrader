@@ -84,7 +84,7 @@ func (e *Exchange) WsUFuturesConnect(ctx context.Context, conn websocket.Connect
 	return nil
 }
 
-func (e *Exchange) wsHandleFuturesData(_ context.Context, respRaw []byte, assetType asset.Item) error {
+func (e *Exchange) wsHandleFuturesData(ctx context.Context, respRaw []byte, assetType asset.Item) error {
 	var result struct {
 		Result json.RawMessage `json:"result"`
 		ID     int64           `json:"id"`
@@ -109,38 +109,38 @@ func (e *Exchange) wsHandleFuturesData(_ context.Context, respRaw []byte, assetT
 	}
 	switch stream {
 	case assetIndexAllChan, "assetIndex":
-		return e.processMultiAssetModeAssetIndexes(result.Data, true)
+		return e.processMultiAssetModeAssetIndexes(ctx, result.Data, true)
 	case contractInfoAllChan:
-		return e.processContractInfoStream(result.Data)
+		return e.processContractInfoStream(ctx, result.Data)
 	case forceOrderAllChan, "forceOrder":
-		return e.processForceOrder(result.Data, assetType)
+		return e.processForceOrder(ctx, result.Data, assetType)
 	case bookTickerAllChan, "bookTicker":
 		return e.processBookTicker(result.Data, assetType)
 	case tickerAllChan:
-		return e.processMarketTicker(result.Data, true, assetType)
+		return e.processMarketTicker(ctx, result.Data, true, assetType)
 	case "ticker":
-		return e.processMarketTicker(result.Data, false, assetType)
+		return e.processMarketTicker(ctx, result.Data, false, assetType)
 	case miniTickerAllChan:
-		return e.processMiniTickers(result.Data, true, assetType)
+		return e.processMiniTickers(ctx, result.Data, true, assetType)
 	case "miniTicker":
-		return e.processMiniTickers(result.Data, false, assetType)
+		return e.processMiniTickers(ctx, result.Data, false, assetType)
 	case "aggTrade":
-		return e.processAggregateTrade(result.Data, assetType)
+		return e.processAggregateTrade(ctx, result.Data, assetType)
 	case "markPrice":
-		return e.processMarkPriceUpdate(result.Data, false)
+		return e.processMarkPriceUpdate(ctx, result.Data, false)
 	case "!markPrice@arr":
-		return e.processMarkPriceUpdate(result.Data, true)
+		return e.processMarkPriceUpdate(ctx, result.Data, true)
 	case "depth":
 		return e.processOrderbookDepthUpdate(result.Data, assetType)
 	case "compositeIndex":
-		return e.processCompositeIndex(result.Data)
+		return e.processCompositeIndex(ctx, result.Data)
 	case continuousKline:
-		return e.processContinuousKlineUpdate(result.Data, assetType)
+		return e.processContinuousKlineUpdate(ctx, result.Data, assetType)
 	}
 	return fmt.Errorf("unhandled stream data %s", string(respRaw))
 }
 
-func (e *Exchange) processContinuousKlineUpdate(respRaw []byte, assetType asset.Item) error {
+func (e *Exchange) processContinuousKlineUpdate(ctx context.Context, respRaw []byte, assetType asset.Item) error {
 	var resp FutureContinuousKline
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
@@ -149,7 +149,7 @@ func (e *Exchange) processContinuousKlineUpdate(respRaw []byte, assetType asset.
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- websocket.KlineData{
+	return e.Websocket.DataHandler.Send(ctx, websocket.KlineData{
 		Timestamp:  resp.EventTime.Time(),
 		Pair:       cp,
 		AssetType:  assetType,
@@ -162,17 +162,15 @@ func (e *Exchange) processContinuousKlineUpdate(respRaw []byte, assetType asset.
 		HighPrice:  resp.KlineData.HighPrice.Float64(),
 		LowPrice:   resp.KlineData.LowPrice.Float64(),
 		Volume:     resp.KlineData.Volume.Float64(),
-	}
-	return nil
+	})
 }
 
-func (e *Exchange) processCompositeIndex(respRaw []byte) error {
+func (e *Exchange) processCompositeIndex(ctx context.Context, respRaw []byte) error {
 	var resp UFutureCompositeIndex
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- resp
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, resp)
 }
 
 // bookTickerSymbolsMap used to track symbols whose snapshot is recorded.
@@ -215,7 +213,7 @@ func (e *Exchange) processOrderbookDepthUpdate(respRaw []byte, assetType asset.I
 	})
 }
 
-func (e *Exchange) processAggregateTrade(respRaw []byte, assetType asset.Item) error {
+func (e *Exchange) processAggregateTrade(ctx context.Context, respRaw []byte, assetType asset.Item) error {
 	var resp FuturesAggTrade
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
@@ -224,7 +222,7 @@ func (e *Exchange) processAggregateTrade(respRaw []byte, assetType asset.Item) e
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- []trade.Data{
+	return e.Websocket.DataHandler.Send(ctx, []trade.Data{
 		{
 			TID:          strconv.FormatInt(resp.AggregateTradeID, 10),
 			Exchange:     e.Name,
@@ -234,8 +232,7 @@ func (e *Exchange) processAggregateTrade(respRaw []byte, assetType asset.Item) e
 			Amount:       resp.Quantity.Float64(),
 			Timestamp:    resp.TradeTime.Time(),
 		},
-	}
-	return nil
+	})
 }
 
 func extractStreamInfo(resultStream string) string {
@@ -260,7 +257,7 @@ func extractStreamInfo(resultStream string) string {
 	return resultStream
 }
 
-func (e *Exchange) processMiniTickers(respRaw []byte, array bool, assetType asset.Item) error {
+func (e *Exchange) processMiniTickers(ctx context.Context, respRaw []byte, array bool, assetType asset.Item) error {
 	if array {
 		var resp []FutureMiniTickerPrice
 		if err := json.Unmarshal(respRaw, &resp); err != nil {
@@ -270,8 +267,7 @@ func (e *Exchange) processMiniTickers(respRaw []byte, array bool, assetType asse
 		if err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- tickerPrices
-		return nil
+		return e.Websocket.DataHandler.Send(ctx, tickerPrices)
 	}
 	var resp FutureMiniTickerPrice
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
@@ -281,7 +277,7 @@ func (e *Exchange) processMiniTickers(respRaw []byte, array bool, assetType asse
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- &ticker.Price{
+	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 		Pair:         cp,
 		High:         resp.HighPrice.Float64(),
 		Low:          resp.LowPrice.Float64(),
@@ -291,8 +287,7 @@ func (e *Exchange) processMiniTickers(respRaw []byte, array bool, assetType asse
 		ExchangeName: e.Name,
 		AssetType:    assetType,
 		LastUpdated:  resp.EventTime.Time(),
-	}
-	return nil
+	})
 }
 
 func (e *Exchange) getMiniTickers(miniTickers []FutureMiniTickerPrice, assetType asset.Item) ([]ticker.Price, error) {
@@ -317,7 +312,7 @@ func (e *Exchange) getMiniTickers(miniTickers []FutureMiniTickerPrice, assetType
 	return tickerPrices, nil
 }
 
-func (e *Exchange) processMarketTicker(respRaw []byte, array bool, assetType asset.Item) error {
+func (e *Exchange) processMarketTicker(ctx context.Context, respRaw []byte, array bool, assetType asset.Item) error {
 	if array {
 		var resp []UFutureMarketTicker
 		if err := json.Unmarshal(respRaw, &resp); err != nil {
@@ -327,8 +322,7 @@ func (e *Exchange) processMarketTicker(respRaw []byte, array bool, assetType ass
 		if err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- tickerPrices
-		return nil
+		return e.Websocket.DataHandler.Send(ctx, tickerPrices)
 	}
 	var resp UFutureMarketTicker
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
@@ -338,7 +332,7 @@ func (e *Exchange) processMarketTicker(respRaw []byte, array bool, assetType ass
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- &ticker.Price{
+	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 		Pair:         cp,
 		Last:         resp.LastPrice.Float64(),
 		High:         resp.HighPrice.Float64(),
@@ -349,8 +343,7 @@ func (e *Exchange) processMarketTicker(respRaw []byte, array bool, assetType ass
 		ExchangeName: e.Name,
 		AssetType:    assetType,
 		LastUpdated:  resp.EventTime.Time(),
-	}
-	return nil
+	})
 }
 
 func (e *Exchange) getTickerInfos(marketTickers []UFutureMarketTicker) ([]ticker.Price, error) {
@@ -422,7 +415,7 @@ func (e *Exchange) processBookTicker(respRaw []byte, assetType asset.Item) error
 	})
 }
 
-func (e *Exchange) processForceOrder(respRaw []byte, assetType asset.Item) error {
+func (e *Exchange) processForceOrder(ctx context.Context, respRaw []byte, assetType asset.Item) error {
 	var resp MarketLiquidationOrder
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
@@ -443,7 +436,7 @@ func (e *Exchange) processForceOrder(respRaw []byte, assetType asset.Item) error
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- order.Detail{
+	return e.Websocket.DataHandler.Send(ctx, &order.Detail{
 		Price:                resp.Order.Price.Float64(),
 		Amount:               resp.Order.OriginalQuantity.Float64(),
 		AverageExecutedPrice: resp.Order.AveragePrice.Float64(),
@@ -457,44 +450,45 @@ func (e *Exchange) processForceOrder(respRaw []byte, assetType asset.Item) error
 		LastUpdated:          resp.Order.OrderTradeTime.Time(),
 		Pair:                 cp,
 		TimeInForce:          resp.Order.TimeInForce,
-	}
-	return nil
+	})
 }
 
-func (e *Exchange) processContractInfoStream(respRaw []byte) error {
+func (e *Exchange) processContractInfoStream(ctx context.Context, respRaw []byte) error {
 	var resp FuturesContractInfo
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- resp
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, resp)
 }
 
-func (e *Exchange) processMultiAssetModeAssetIndexes(respRaw []byte, array bool) error {
+func (e *Exchange) processMultiAssetModeAssetIndexes(ctx context.Context, respRaw []byte, array bool) error {
 	if array {
 		var resp []UFuturesAssetIndexUpdate
 		if err := json.Unmarshal(respRaw, &resp); err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- &resp
+		if err := e.Websocket.DataHandler.Send(ctx, resp); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func (e *Exchange) processMarkPriceUpdate(respRaw []byte, array bool) error {
+func (e *Exchange) processMarkPriceUpdate(ctx context.Context, respRaw []byte, array bool) error {
 	if array {
 		var resp []FuturesMarkPrice
 		if err := json.Unmarshal(respRaw, &resp); err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- resp
+		if err := e.Websocket.DataHandler.Send(ctx, resp); err != nil {
+			return err
+		}
 	}
 	var resp FuturesMarkPrice
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- resp
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, resp)
 }
 
 // SubscribeFutures subscribes to a set of channels
