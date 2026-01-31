@@ -1348,7 +1348,7 @@ func (t PriceType) StringToPriceType(priceType string) (PriceType, error) {
 	case "markprice":
 		return MarkPrice, nil
 	default:
-		return UnknownPriceType, ErrUnknownPriceType
+		return UnsetPriceType, ErrUnknownPriceType
 	}
 }
 
@@ -1370,10 +1370,25 @@ func StringToTrackingMode(mode string) TrackingMode {
 	switch mode {
 	case "distance":
 		return Distance
-	case "percentage":
+	case "percentage", "percent", "%":
 		return Percentage
 	default:
 		return UnknownTrackingMode
+	}
+}
+
+// StringToPriceType converts PriceType instance from string
+func StringToPriceType(priceType string) PriceType {
+	priceType = strings.ToUpper(priceType)
+	switch priceType {
+	case "LAST_PRICE", "LAST":
+		return LastPrice
+	case "INDEX_PRICE", "INDEX":
+		return IndexPrice
+	case "MARK_PRICE", "MARK":
+		return MarkPrice
+	default:
+		return UnsetPriceType
 	}
 }
 

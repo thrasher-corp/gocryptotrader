@@ -12,99 +12,102 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-var dataHistoryCommands = &cli.Command{
-	Name:      "datahistory",
-	Usage:     "manage data history jobs to retrieve historic trade or candle data over time",
-	ArgsUsage: "<command> <args>",
-	Subcommands: []*cli.Command{
-		{
-			Name:   "getactivejobs",
-			Usage:  "returns all jobs that are currently active",
-			Flags:  []cli.Flag{},
-			Action: getActiveDataHistoryJobs,
-		},
-		{
-			Name:  "getjobsbetweendates",
-			Usage: "returns all jobs with creation dates between the two provided dates",
-			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:  "start_date",
-					Usage: "formatted as: " + time.DateTime,
+var (
+	startTime, endTime  string
+	dataHistoryCommands = &cli.Command{
+		Name:      "datahistory",
+		Usage:     "manage data history jobs to retrieve historic trade or candle data over time",
+		ArgsUsage: "<command> <args>",
+		Subcommands: []*cli.Command{
+			{
+				Name:   "getactive",
+				Usage:  "returns all jobs that are currently active",
+				Flags:  []cli.Flag{},
+				Action: getActiveDataHistoryJobs,
+			},
+			{
+				Name:  "getjobsbetweendates",
+				Usage: "returns all jobs within creation date range",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:  "start_date",
+						Usage: "formatted as: " + time.DateTime,
+					},
+					&cli.StringFlag{
+						Name:  "end_date",
+						Usage: "formatted as: " + time.DateTime,
+					},
 				},
-				&cli.StringFlag{
-					Name:  "end_date",
-					Usage: "formatted as: " + time.DateTime,
+				Action: getDataHistoryJobsBetween,
+			},
+			{
+				Name:        "getajob",
+				Usage:       "returns a job by either its id or nickname",
+				Description: "na-na, why don't you get a job?",
+				ArgsUsage:   "<id> or <nickname>",
+				Action:      getDataHistoryJob,
+				Flags:       specificJobSubCommands,
+			},
+			{
+				Name:        "getjobwithdetailedresults",
+				Usage:       "returns a job and its results",
+				Description: "results may be large",
+				ArgsUsage:   "<nickname>",
+				Action:      getDataHistoryJob,
+				Flags: []cli.Flag{
+					nicknameFlag,
 				},
 			},
-			Action: getDataHistoryJobsBetween,
-		},
-		{
-			Name:        "getajob",
-			Usage:       "returns a job by either its id or nickname",
-			Description: "na-na, why don't you get a job?",
-			ArgsUsage:   "<id> or <nickname>",
-			Action:      getDataHistoryJob,
-			Flags:       specificJobSubCommands,
-		},
-		{
-			Name:        "getjobwithdetailedresults",
-			Usage:       "returns a job by either its nickname along with all its data retrieval results",
-			Description: "results may be large",
-			ArgsUsage:   "<nickname>",
-			Action:      getDataHistoryJob,
-			Flags: []cli.Flag{
-				nicknameFlag,
+			{
+				Name:      "getjobstatussummary",
+				Usage:     "returns a job status summary",
+				ArgsUsage: "<nickname>",
+				Action:    getDataHistoryJobSummary,
+				Flags: []cli.Flag{
+					nicknameFlag,
+				},
+			},
+			dataHistoryJobCommands,
+			{
+				Name:      "deletejob",
+				Usage:     "sets a jobs status to deleted so it is no longer processed",
+				ArgsUsage: "<id> or <nickname>",
+				Flags:     specificJobSubCommands,
+				Action:    setDataHistoryJobStatus,
+			},
+			{
+				Name:      "pausejob",
+				Usage:     "sets a jobs status to paused so it no longer is processed",
+				ArgsUsage: "<id> or <nickname>",
+				Flags:     specificJobSubCommands,
+				Action:    setDataHistoryJobStatus,
+			},
+			{
+				Name:      "unpausejob",
+				Usage:     "sets a jobs status to active so it can be processed",
+				ArgsUsage: "<id> or <nickname>",
+				Flags:     specificJobSubCommands,
+				Action:    setDataHistoryJobStatus,
+			},
+			{
+				Name:      "updateprerequisite",
+				Usage:     "adds or updates a prerequisite job to the job referenced - if the job is active, it will be set as 'paused'",
+				ArgsUsage: "<prerequisite> <nickname>",
+				Flags:     prerequisiteJobSubCommands,
+				Action:    setPrerequisiteJob,
+			},
+			{
+				Name:      "removeprerequisite",
+				Usage:     "removes a prerequisite job from the job referenced - if the job is 'paused', it will be set as 'active'",
+				ArgsUsage: "<nickname>",
+				Flags: []cli.Flag{
+					nicknameFlag,
+				},
+				Action: setPrerequisiteJob,
 			},
 		},
-		{
-			Name:      "getjobstatussummary",
-			Usage:     "returns a job with human readable summary of its status",
-			ArgsUsage: "<nickname>",
-			Action:    getDataHistoryJobSummary,
-			Flags: []cli.Flag{
-				nicknameFlag,
-			},
-		},
-		dataHistoryJobCommands,
-		{
-			Name:      "deletejob",
-			Usage:     "sets a jobs status to deleted so it no longer is processed",
-			ArgsUsage: "<id> or <nickname>",
-			Flags:     specificJobSubCommands,
-			Action:    setDataHistoryJobStatus,
-		},
-		{
-			Name:      "pausejob",
-			Usage:     "sets a jobs status to paused so it no longer is processed",
-			ArgsUsage: "<id> or <nickname>",
-			Flags:     specificJobSubCommands,
-			Action:    setDataHistoryJobStatus,
-		},
-		{
-			Name:      "unpausejob",
-			Usage:     "sets a jobs status to active so it can be processed",
-			ArgsUsage: "<id> or <nickname>",
-			Flags:     specificJobSubCommands,
-			Action:    setDataHistoryJobStatus,
-		},
-		{
-			Name:      "updateprerequisite",
-			Usage:     "adds or updates a prerequisite job to the job referenced - if the job is active, it will be set as 'paused'",
-			ArgsUsage: "<prerequisite> <nickname>",
-			Flags:     prerequisiteJobSubCommands,
-			Action:    setPrerequisiteJob,
-		},
-		{
-			Name:      "removeprerequisite",
-			Usage:     "removes a prerequisite job from the job referenced - if the job is 'paused', it will be set as 'active'",
-			ArgsUsage: "<nickname>",
-			Flags: []cli.Flag{
-				nicknameFlag,
-			},
-			Action: setPrerequisiteJob,
-		},
-	},
-}
+	}
+)
 
 var dataHistoryJobCommands = &cli.Command{
 	Name:      "addjob",
@@ -465,8 +468,10 @@ func upsertDataHistoryJob(c *cli.Context) error {
 		return errors.New("unrecognised command, cannot set data type")
 	}
 
-	var conversionInterval time.Duration
-	var overwriteExistingData bool
+	var (
+		conversionInterval    time.Duration
+		overwriteExistingData bool
+	)
 
 	switch dataType {
 	case 0, 1:
@@ -494,7 +499,6 @@ func upsertDataHistoryJob(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	request := &gctrpc.UpsertDataHistoryJobRequest{
 		Nickname: nickname,
 		Exchange: exchange,
@@ -521,7 +525,7 @@ func upsertDataHistoryJob(c *cli.Context) error {
 		ReplaceOnIssue:           replaceOnIssue,
 	}
 
-	result, err := client.UpsertDataHistoryJob(c.Context, request)
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).UpsertDataHistoryJob(c.Context, request)
 	if err != nil {
 		return err
 	}
@@ -563,12 +567,12 @@ func getDataHistoryJobsBetween(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.GetDataHistoryJobsBetween(c.Context,
-		&gctrpc.GetDataHistoryJobsBetweenRequest{
-			StartDate: s.Format(common.SimpleTimeFormatWithTimezone),
-			EndDate:   e.Format(common.SimpleTimeFormatWithTimezone),
-		})
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		GetDataHistoryJobsBetween(c.Context,
+			&gctrpc.GetDataHistoryJobsBetweenRequest{
+				StartDate: s.Format(common.SimpleTimeFormatWithTimezone),
+				EndDate:   e.Format(common.SimpleTimeFormatWithTimezone),
+			})
 	if err != nil {
 		return err
 	}
@@ -615,14 +619,13 @@ func setDataHistoryJobStatus(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	request := &gctrpc.SetDataHistoryJobStatusRequest{
 		Id:       id,
 		Nickname: nickname,
 		Status:   status,
 	}
 
-	result, err := client.SetDataHistoryJobStatus(c.Context, request)
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).SetDataHistoryJobStatus(c.Context, request)
 	if err != nil {
 		return err
 	}
@@ -648,12 +651,12 @@ func getDataHistoryJobSummary(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	request := &gctrpc.GetDataHistoryJobDetailsRequest{
 		Nickname: nickname,
 	}
 
-	result, err := client.GetDataHistoryJobSummary(c.Context, request)
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		GetDataHistoryJobSummary(c.Context, request)
 	if err != nil {
 		return err
 	}
@@ -690,13 +693,12 @@ func setPrerequisiteJob(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
 	request := &gctrpc.UpdateDataHistoryJobPrerequisiteRequest{
 		PrerequisiteJobNickname: prerequisite,
 		Nickname:                nickname,
 	}
 
-	result, err := client.UpdateDataHistoryJobPrerequisite(c.Context, request)
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).UpdateDataHistoryJobPrerequisite(c.Context, request)
 	if err != nil {
 		return err
 	}

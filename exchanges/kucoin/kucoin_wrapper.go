@@ -671,14 +671,14 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			var stopType string
 			var stopPrice float64
 			switch {
-			case s.RiskManagementModes.StopLoss.Enabled && s.RiskManagementModes.StopEntry.Enabled:
+			case s.StopLoss != (order.RiskManagement{}) && s.TakeProfit != (order.RiskManagement{}):
 				return nil, errors.New("can not enable more than one risk management")
-			case s.RiskManagementModes.StopEntry.Enabled:
+			case s.TakeProfit != (order.RiskManagement{}):
 				stopType = "entry"
-				stopPrice = s.RiskManagementModes.StopEntry.Price
-			case s.RiskManagementModes.StopLoss.Enabled:
+				stopPrice = s.TakeProfit.Price
+			case s.StopLoss != (order.RiskManagement{}):
 				stopType = "loss"
-				stopPrice = s.RiskManagementModes.StopLoss.Price
+				stopPrice = s.StopLoss.Price
 			}
 			var o string
 			if stopType != "" {
@@ -714,24 +714,24 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			return s.DeriveSubmitResponse(o)
 		case order.OCO:
 			switch {
-			case !s.RiskManagementModes.TakeProfit.Enabled || s.RiskManagementModes.TakeProfit.Price <= 0:
-				return nil, errors.New("take profit price is required")
-			case !s.RiskManagementModes.StopLoss.Enabled || s.RiskManagementModes.StopLoss.Price <= 0:
-				return nil, errors.New("stop loss price is required")
+			case s.TakeProfit != (order.RiskManagement{}) && s.TakeProfit.Price <= 0:
+				return nil, fmt.Errorf("%w: take profit price is required", limits.ErrPriceBelowMin)
+			case s.StopLoss != (order.RiskManagement{}) && s.StopLoss.Price <= 0:
+				return nil, fmt.Errorf("%w: stop loss price is required", limits.ErrPriceBelowMin)
 			}
 			switch s.Side {
 			case order.Sell:
-				if s.RiskManagementModes.TakeProfit.Price <= s.RiskManagementModes.StopLoss.Price {
+				if s.TakeProfit.Price <= s.StopLoss.Price {
 					return nil, errors.New("stop loss price must be below take profit trigger price for sell orders")
 				}
 			case order.Buy:
-				if s.RiskManagementModes.TakeProfit.Price >= s.RiskManagementModes.StopLoss.Price {
+				if s.TakeProfit.Price >= s.StopLoss.Price {
 					return nil, errors.New("stop loss price must be greater than take profit trigger price for buy orders")
 				}
 			}
 
-			limitPrice := s.RiskManagementModes.TakeProfit.Price
-			stopPrice := s.RiskManagementModes.StopLoss.Price
+			limitPrice := s.TakeProfit.Price
+			stopPrice := s.StopLoss.Price
 
 			var o string
 			o, err = e.PlaceOCOOrder(ctx, &OCOOrderParams{
