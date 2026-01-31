@@ -38,6 +38,7 @@ func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager
 		orderManager:    orderManager,
 		syncer:          syncer,
 		currencyConfig:  cfg,
+		logSequence:     make(chan logCaller, 100),
 	}
 	return man, man.registerWebsocketDataHandler(man.websocketDataHandler, false)
 }
@@ -107,6 +108,9 @@ func (m *WebsocketRoutineManager) websocketRoutine() {
 	if err != nil {
 		log.Errorf(log.WebsocketMgr, "websocket routine manager cannot get exchanges: %v", err)
 	}
+
+	m.wg.Go(m.handleLogs)
+
 	var wg sync.WaitGroup
 	for _, exch := range exchanges {
 		if !exch.SupportsWebsocket() {
@@ -162,28 +166,32 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ws *websocket.Manager) e
 	if atomic.LoadInt32(&m.state) == stoppedState {
 		return errRoutineManagerNotStarted
 	}
-
-	for range ws.NumConnections() {
-		m.wg.Add(1)
-		go m.streamDataConsumer(ws)
-	}
+	m.wg.Go(func() {
+		for {
+			select {
+			case <-m.shutdown:
+				return
+			case payload := <-ws.DataHandler.C:
+				m.mu.RLock()
+				for x := range m.dataHandlers {
+					if err := m.dataHandlers[x](ws.GetName(), payload.Data); err != nil {
+						log.Errorln(log.WebsocketMgr, err)
+					}
+				}
+				m.mu.RUnlock()
+			}
+		}
+	})
 	return nil
 }
 
-func (m *WebsocketRoutineManager) streamDataConsumer(ws *websocket.Manager) {
-	defer m.wg.Done()
+func (m *WebsocketRoutineManager) handleLogs() {
 	for {
 		select {
 		case <-m.shutdown:
 			return
-		case payload := <-ws.DataHandler.C:
-			m.mu.RLock()
-			for x := range m.dataHandlers {
-				if err := m.dataHandlers[x](ws.GetName(), payload.Data); err != nil {
-					log.Errorln(log.WebsocketMgr, err)
-				}
-			}
-			m.mu.RUnlock()
+		case caller := <-m.logSequence:
+			caller.Call()
 		}
 	}
 }
@@ -194,16 +202,12 @@ func (m *WebsocketRoutineManager) streamDataConsumer(ws *websocket.Manager) {
 func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any) error {
 	switch d := data.(type) {
 	case string:
-		log.Infoln(log.WebsocketMgr, d)
+		m.Logln(log.Infoln, log.WebsocketMgr, d)
 	case error:
 		return fmt.Errorf("exchange %s websocket error - %s", exchName, data)
 	case websocket.FundingData:
 		if m.verbose {
-			log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v",
-				exchName,
-				m.FormatCurrency(d.CurrencyPair),
-				d.AssetType,
-				d)
+			m.Logf(log.Infof, log.WebsocketMgr, "%s websocket %s %s funding updated %+v", exchName, m.FormatCurrency(d.CurrencyPair), d.AssetType, d)
 		}
 	case *ticker.Price:
 		if m.syncer.IsRunning() {
@@ -243,20 +247,12 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		return errUseAPointer
 	case websocket.KlineData:
 		if m.verbose {
-			log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",
-				exchName,
-				m.FormatCurrency(d.Pair),
-				d.AssetType,
-				d)
+			m.Logf(log.Infof, log.WebsocketMgr, "%s websocket %s %s kline updated %+v", exchName, m.FormatCurrency(d.Pair), d.AssetType, d)
 		}
 	case []websocket.KlineData:
 		for x := range d {
 			if m.verbose {
-				log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",
-					exchName,
-					m.FormatCurrency(d[x].Pair),
-					d[x].AssetType,
-					d)
+				m.Logf(log.Infof, log.WebsocketMgr, "%s websocket %s %s kline updated %+v", exchName, m.FormatCurrency(d[x].Pair), d[x].AssetType, d)
 			}
 		}
 	case *orderbook.Depth:
@@ -295,8 +291,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 				return err
 			}
 
-			err = m.orderManager.UpdateExistingOrder(od)
-			if err != nil {
+			if err := m.orderManager.UpdateExistingOrder(od); err != nil {
 				return err
 			}
 			m.printOrderSummary(od, true)
@@ -331,22 +326,22 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 	case order.ClassificationError:
 		return fmt.Errorf("%w %s", d.Err, d.Error())
 	case websocket.UnhandledMessageWarning:
-		log.Warnf(log.WebsocketMgr, "%s unhandled message - %s", exchName, d.Message)
+		m.Logf(log.Warnf, log.WebsocketMgr, "%s unhandled message - %s", exchName, d.Message)
 	case []accounts.Change, accounts.Change:
 		if m.verbose {
-			log.Debugf(log.WebsocketMgr, "%s %+v", exchName, d)
+			m.Logf(log.Debugf, log.WebsocketMgr, "%s %+v", exchName, d)
 		}
 	case []trade.Data, trade.Data:
 		if m.verbose {
-			log.Infof(log.Trade, "%+v", d)
+			m.Logf(log.Infof, log.Trade, "%+v", d)
 		}
 	case []fill.Data:
 		if m.verbose {
-			log.Infof(log.Fill, "%+v", d)
+			m.Logf(log.Infof, log.Fill, "%+v", d)
 		}
 	default:
 		if m.verbose {
-			log.Warnf(log.WebsocketMgr, "%s websocket Unknown type: %+v", exchName, d)
+			m.Logf(log.Warnf, log.WebsocketMgr, "%s websocket Unknown type: %+v", exchName, d)
 		}
 	}
 	return nil
@@ -373,7 +368,9 @@ func (m *WebsocketRoutineManager) printOrderSummary(o *order.Detail, isUpdate bo
 		orderNotif = "Order Change:"
 	}
 
-	log.Debugf(log.WebsocketMgr,
+	m.Logf(
+		log.Debugf,
+		log.WebsocketMgr,
 		"%s %s %s %s %s %s %s OrderID:%s ClientOrderID:%s Price:%f Amount:%f Executed Amount:%f Remaining Amount:%f",
 		orderNotif,
 		o.Exchange,

@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 func TestWebsocketRoutineManagerSetup(t *testing.T) {
@@ -56,6 +57,49 @@ func TestWebsocketRoutineManagerStart(t *testing.T) {
 
 	err = m.Start()
 	assert.ErrorIs(t, err, ErrSubSystemAlreadyStarted)
+}
+
+func TestHandleLogs(t *testing.T) {
+	var m *WebsocketRoutineManager
+	err := m.Start()
+	assert.ErrorIs(t, err, ErrNilSubsystem)
+
+	cfg := &currency.Config{CurrencyPairFormat: &currency.PairFormat{
+		Uppercase: false,
+		Delimiter: "-",
+	}}
+	m = &WebsocketRoutineManager{
+		verbose:         true,
+		exchangeManager: NewExchangeManager(),
+		orderManager:    &OrderManager{},
+		syncer:          &SyncManager{},
+		currencyConfig:  cfg,
+		logSequence:     make(chan logCaller, 1),
+	}
+	err = m.registerWebsocketDataHandler(m.websocketDataHandler, false)
+	require.NoError(t, err)
+
+	err = m.Start()
+	assert.NoError(t, err)
+
+	m.logSequence <- &formattedSubLogger{
+		Func:   log.Debugf,
+		Format: "Exchange: %s",
+		Args:   []any{"Binance"},
+	}
+	m.logSequence <- &formattedSubLogger{
+		Func:   log.Debugf,
+		Format: "Exchange: %s %d %f",
+		Args:   []any{"Binance", 100, 1234.567},
+	}
+	m.logSequence <- &newLineSubLogger{
+		Func: log.Debugln,
+		Args: []any{"Binance", 100, 1234.567},
+	}
+	m.logSequence <- &newLineSubLogger{
+		Func: log.Debugln,
+		Args: []any{"Connecting exchange websocket services..."},
+	}
 }
 
 func TestWebsocketRoutineManagerIsRunning(t *testing.T) {
