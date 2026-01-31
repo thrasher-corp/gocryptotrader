@@ -3042,7 +3042,7 @@ func (s *RPCServer) WebsocketGetInfo(_ context.Context, r *gctrpc.WebsocketGetIn
 }
 
 // WebsocketSetEnabled enables or disables the websocket client
-func (s *RPCServer) WebsocketSetEnabled(_ context.Context, r *gctrpc.WebsocketSetEnabledRequest) (*gctrpc.GenericResponse, error) {
+func (s *RPCServer) WebsocketSetEnabled(ctx context.Context, r *gctrpc.WebsocketSetEnabledRequest) (*gctrpc.GenericResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
@@ -3059,11 +3059,9 @@ func (s *RPCServer) WebsocketSetEnabled(_ context.Context, r *gctrpc.WebsocketSe
 	}
 
 	if r.Enable {
-		err = w.Enable()
-		if err != nil {
+		if err := w.Enable(context.WithoutCancel(ctx)); err != nil {
 			return nil, err
 		}
-
 		exchCfg.Features.Enabled.Websocket = true
 		return &gctrpc.GenericResponse{Status: MsgStatusSuccess, Data: "websocket enabled"}, nil
 	}
@@ -3108,7 +3106,7 @@ func (s *RPCServer) WebsocketGetSubscriptions(_ context.Context, r *gctrpc.Webso
 }
 
 // WebsocketSetProxy sets client websocket connection proxy
-func (s *RPCServer) WebsocketSetProxy(_ context.Context, r *gctrpc.WebsocketSetProxyRequest) (*gctrpc.GenericResponse, error) {
+func (s *RPCServer) WebsocketSetProxy(ctx context.Context, r *gctrpc.WebsocketSetProxyRequest) (*gctrpc.GenericResponse, error) {
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
@@ -3119,15 +3117,12 @@ func (s *RPCServer) WebsocketSetProxy(_ context.Context, r *gctrpc.WebsocketSetP
 		return nil, fmt.Errorf("websocket not supported for exchange %s", r.Exchange)
 	}
 
-	err = w.SetProxyAddress(r.Proxy)
-	if err != nil {
+	if err := w.SetProxyAddress(context.WithoutCancel(ctx), r.Proxy); err != nil {
 		return nil, err
 	}
 	return &gctrpc.GenericResponse{
 		Status: MsgStatusSuccess,
-		Data: fmt.Sprintf("new proxy has been set [%s] for %s websocket connection",
-			r.Exchange,
-			r.Proxy),
+		Data:   fmt.Sprintf("new proxy has been set [%s] for %s websocket connection", r.Exchange, r.Proxy),
 	}, nil
 }
 

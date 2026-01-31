@@ -560,15 +560,14 @@ func TestWsAuth(t *testing.T) {
 		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
 	}
 	var dialer gws.Dialer
-	go e.wsReadData()
 	err = e.WsAuth(t.Context(), &dialer)
 	if err != nil {
 		t.Error(err)
 	}
 	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
-	case resp := <-e.Websocket.DataHandler:
-		subAck, ok := resp.(WsSubscriptionAcknowledgementResponse)
+	case resp := <-e.Websocket.DataHandler.C:
+		subAck, ok := resp.Data.(WsSubscriptionAcknowledgementResponse)
 		if !ok {
 			t.Error("unable to type assert WsSubscriptionAcknowledgementResponse")
 		}
@@ -587,7 +586,7 @@ func TestWsMissingRole(t *testing.T) {
 		"reason":"MissingRole",
 		"message":"To access this endpoint, you need to log in to the website and go to the settings page to assign one of these roles [FundManager] to API key wujB3szN54gtJ4QDhqRJ which currently has roles [Trader]"
 	}`)
-	if err := e.wsHandleData(pressXToJSON); err == nil {
+	if err := e.wsHandleData(t.Context(), pressXToJSON); err == nil {
 		t.Error("Expected error")
 	}
 }
@@ -611,7 +610,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
   "original_amount" : "14.0296",
   "price" : "1059.54"
 } ]`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -633,7 +632,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
     "price": "3592.00",
     "socket_sequence": 13
 }]`)
-	err = e.wsHandleData(pressXToJSON)
+	err = e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -654,7 +653,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
     "total_spend": "200.00",
     "socket_sequence": 29
 }]`)
-	err = e.wsHandleData(pressXToJSON)
+	err = e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -675,7 +674,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
     "original_amount": "25",
     "socket_sequence": 26
 }]`)
-	err = e.wsHandleData(pressXToJSON)
+	err = e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -697,7 +696,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
   "original_amount" : "500",
   "socket_sequence" : 32307
 } ]`)
-	err = e.wsHandleData(pressXToJSON)
+	err = e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -719,7 +718,7 @@ func TestWsSubAck(t *testing.T) {
     "closed"
   ]
 }`)
-	if err := e.wsHandleData(pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
 		t.Error(err)
 	}
 }
@@ -732,7 +731,7 @@ func TestWsHeartbeat(t *testing.T) {
   "trace_id": "b8biknoqppr32kc7gfgg",
   "socket_sequence": 37
 }`)
-	if err := e.wsHandleData(pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
 		t.Error(err)
 	}
 }
@@ -753,7 +752,7 @@ func TestWsUnsubscribe(t *testing.T) {
         ]}
     ]
 }`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -776,7 +775,7 @@ func TestWsTradeData(t *testing.T) {
     }
   ]
 }`)
-	if err := e.wsHandleData(pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
 		t.Error(err)
 	}
 }
@@ -808,7 +807,7 @@ func TestWsAuctionData(t *testing.T) {
     ],
     "type": "update"
 }`)
-	if err := e.wsHandleData(pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
 		t.Error(err)
 	}
 }
@@ -829,7 +828,7 @@ func TestWsBlockTrade(t *testing.T) {
       }
    ]
 }`)
-	if err := e.wsHandleData(pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
 		t.Error(err)
 	}
 }
@@ -844,7 +843,7 @@ func TestWSTrade(t *testing.T) {
 		"quantity": "0.09110000",
 		"side": "buy"
 	}`)
-	if err := e.wsHandleData(pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
 		t.Error(err)
 	}
 }
@@ -872,7 +871,7 @@ func TestWsCandles(t *testing.T) {
     ]
   ]
 }`)
-	if err := e.wsHandleData(pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
 		t.Error(err)
 	}
 }
@@ -894,7 +893,7 @@ func TestWsAuctions(t *testing.T) {
     ],
     "type": "update"
 }`)
-	if err := e.wsHandleData(pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
 		t.Error(err)
 	}
 
@@ -918,7 +917,7 @@ func TestWsAuctions(t *testing.T) {
         }
     ]
 }`)
-	if err := e.wsHandleData(pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
 		t.Error(err)
 	}
 
@@ -949,7 +948,7 @@ func TestWsAuctions(t *testing.T) {
         }
     ]
 }`)
-	if err := e.wsHandleData(pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
 		t.Error(err)
 	}
 }
@@ -978,7 +977,7 @@ func TestWsMarketData(t *testing.T) {
     }
   ]
 }    `)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1006,7 +1005,7 @@ func TestWsMarketData(t *testing.T) {
     }
   ]
 }    `)
-	err = e.wsHandleData(pressXToJSON)
+	err = e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1028,7 +1027,7 @@ func TestWsMarketData(t *testing.T) {
     }
   ]
 }  `)
-	err = e.wsHandleData(pressXToJSON)
+	err = e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1066,7 +1065,7 @@ func TestWsError(t *testing.T) {
 	}
 
 	for x := range tt {
-		err := e.wsHandleData(tt[x].Data)
+		err := e.wsHandleData(t.Context(), tt[x].Data)
 		if tt[x].ErrorExpected && err != nil && !strings.Contains(err.Error(), tt[x].ErrorShouldContain) {
 			t.Errorf("expected error to contain: %s, got: %s",
 				tt[x].ErrorShouldContain, err.Error(),
@@ -1126,7 +1125,7 @@ func TestWsLevel2Update(t *testing.T) {
 			}
 		]
 	}`)
-	if err := e.wsHandleData(pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
 		t.Error(err)
 	}
 }
