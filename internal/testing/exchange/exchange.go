@@ -207,10 +207,8 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 	err = w.Connect(context.TODO())
 	require.NoError(tb, err, "Connect must not error")
 
-	for range w.NumConnections() {
-		w.Wg.Add(1)
-		go streamDataConsumer(w)
-	}
+	w.Wg.Add(1)
+	go streamDataConsumer(w)
 	setupWsOnce[e] = true
 }
 
@@ -218,12 +216,12 @@ func streamDataConsumer(w *websocket.Manager) {
 	defer w.Wg.Done()
 	for {
 		select {
-		case <-w.ShutdownC:
-			return
 		case _, ok := <-w.DataHandler.C:
 			if !ok {
 				return
 			}
+		case <-w.ShutdownC:
+			return
 		}
 	}
 }

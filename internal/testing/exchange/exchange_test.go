@@ -75,11 +75,11 @@ func TestSetupWs(t *testing.T) {
 	require.NoError(t, MockHTTPInstance(e), "MockHTTPInstance with no optional path must not error")
 	require.NoError(t, MockHTTPInstance(e, "api"), "MockHTTPInstance with optional path must not error")
 
-	e.Websocket.DataHandler = stream.NewRelay(1)
 	SetupWs(t, e)
 
 	err = e.Websocket.DataHandler.Send(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
+
 	err = e.Websocket.DataHandler.Send(t.Context(), 1336)
 	require.NoError(t, err)
 	err = e.Websocket.DataHandler.Send(t.Context(), "intercepted")
@@ -88,6 +88,7 @@ func TestSetupWs(t *testing.T) {
 	require.NoError(t, err)
 
 	close(e.Websocket.ShutdownC)
+	e.Websocket.DataHandler.Close()
 	e.Websocket.Wg.Wait()
 }
 
@@ -103,7 +104,7 @@ func TestStreamDataConsumer(t *testing.T) {
 
 	err := wm.DataHandler.Send(context.Background(), 1234)
 	require.NoError(t, err)
-	err = wm.DataHandler.Send(context.Background(), "1234")
+	err = wm.DataHandler.Send(context.Background(), "intercepted")
 	require.NoError(t, err)
 
 	close(wm.ShutdownC)
