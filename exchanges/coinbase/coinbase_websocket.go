@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -66,12 +67,12 @@ func (e *Exchange) WsConnect() error {
 		return err
 	}
 	e.Websocket.Wg.Add(1)
-	go e.wsReadData()
+	go e.wsReadData(ctx)
 	return nil
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (e *Exchange) wsReadData() {
+func (e *Exchange) wsReadData(ctx context.Context) {
 	defer e.Websocket.Wg.Done()
 	var seqCount uint64
 	for {
@@ -79,13 +80,18 @@ func (e *Exchange) wsReadData() {
 		if resp.Raw == nil {
 			return
 		}
-		sequence, err := e.wsHandleData(resp.Raw)
+		sequence, err := e.wsHandleData(ctx, resp.Raw)
 		if err != nil {
-			e.Websocket.DataHandler <- err
+			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
+			}
 		}
 		if sequence != nil {
 			if *sequence != seqCount {
-				e.Websocket.DataHandler <- fmt.Errorf("%w: received %v, expected %v", errOutOfSequence, sequence, seqCount)
+				err := fmt.Errorf("%w: received %v, expected %v", errOutOfSequence, sequence, seqCount)
+				if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+					log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
+				}
 				seqCount = *sequence
 			}
 			seqCount++
@@ -94,7 +100,7 @@ func (e *Exchange) wsReadData() {
 }
 
 // wsProcessTicker handles ticker data from the websocket
-func (e *Exchange) wsProcessTicker(resp *StandardWebsocketResponse) error {
+func (e *Exchange) wsProcessTicker(ctx context.Context, resp *StandardWebsocketResponse) error {
 	var wsTickers []WebsocketTickerHolder
 	if err := json.Unmarshal(resp.Events, &wsTickers); err != nil {
 		return err
@@ -129,12 +135,11 @@ func (e *Exchange) wsProcessTicker(resp *StandardWebsocketResponse) error {
 			}
 		}
 	}
-	e.Websocket.DataHandler <- allTickers
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, allTickers)
 }
 
 // wsProcessCandle handles candle data from the websocket
-func (e *Exchange) wsProcessCandle(resp *StandardWebsocketResponse) error {
+func (e *Exchange) wsProcessCandle(ctx context.Context, resp *StandardWebsocketResponse) error {
 	var wsCandles []WebsocketCandleHolder
 	if err := json.Unmarshal(resp.Events, &wsCandles); err != nil {
 		return err
@@ -156,12 +161,11 @@ func (e *Exchange) wsProcessCandle(resp *StandardWebsocketResponse) error {
 			})
 		}
 	}
-	e.Websocket.DataHandler <- allCandles
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, allCandles)
 }
 
 // wsProcessMarketTrades handles market trades data from the websocket
-func (e *Exchange) wsProcessMarketTrades(resp *StandardWebsocketResponse) error {
+func (e *Exchange) wsProcessMarketTrades(ctx context.Context, resp *StandardWebsocketResponse) error {
 	var wsTrades []WebsocketMarketTradeHolder
 	if err := json.Unmarshal(resp.Events, &wsTrades); err != nil {
 		return err
@@ -181,8 +185,7 @@ func (e *Exchange) wsProcessMarketTrades(resp *StandardWebsocketResponse) error 
 			})
 		}
 	}
-	e.Websocket.DataHandler <- allTrades
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, allTrades)
 }
 
 // wsProcessL2 handles l2 orderbook data from the websocket
@@ -209,7 +212,7 @@ func (e *Exchange) wsProcessL2(resp *StandardWebsocketResponse) error {
 }
 
 // wsProcessUser handles user data from the websocket
-func (e *Exchange) wsProcessUser(resp *StandardWebsocketResponse) error {
+func (e *Exchange) wsProcessUser(ctx context.Context, resp *StandardWebsocketResponse) error {
 	var wsUser []WebsocketOrderDataHolder
 	err := json.Unmarshal(resp.Events, &wsUser)
 	if err != nil {
@@ -220,24 +223,15 @@ func (e *Exchange) wsProcessUser(resp *StandardWebsocketResponse) error {
 		for j := range wsUser[i].Orders {
 			var oType order.Type
 			if oType, err = stringToStandardType(wsUser[i].Orders[j].OrderType); err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					Err:      err,
-				}
+				return err
 			}
 			var oSide order.Side
 			if oSide, err = order.StringToOrderSide(wsUser[i].Orders[j].OrderSide); err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					Err:      err,
-				}
+				return err
 			}
 			var oStatus order.Status
 			if oStatus, err = statusToStandardStatus(wsUser[i].Orders[j].Status); err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					Err:      err,
-				}
+				return err
 			}
 			price := wsUser[i].Orders[j].AveragePrice
 			if wsUser[i].Orders[j].LimitPrice != 0 {
@@ -245,17 +239,11 @@ func (e *Exchange) wsProcessUser(resp *StandardWebsocketResponse) error {
 			}
 			var assetType asset.Item
 			if assetType, err = stringToStandardAsset(wsUser[i].Orders[j].ProductType); err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					Err:      err,
-				}
+				return err
 			}
 			var tif order.TimeInForce
 			if tif, err = strategyDecoder(wsUser[i].Orders[j].TimeInForce); err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					Err:      err,
-				}
+				return err
 			}
 			if wsUser[i].Orders[j].PostOnly {
 				tif |= order.PostOnly
@@ -283,17 +271,11 @@ func (e *Exchange) wsProcessUser(resp *StandardWebsocketResponse) error {
 		for j := range wsUser[i].Positions.PerpetualFuturesPositions {
 			var oSide order.Side
 			if oSide, err = order.StringToOrderSide(wsUser[i].Positions.PerpetualFuturesPositions[j].PositionSide); err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					Err:      err,
-				}
+				return err
 			}
 			var mType margin.Type
 			if mType, err = margin.StringToMarginType(wsUser[i].Positions.PerpetualFuturesPositions[j].MarginType); err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					Err:      err,
-				}
+				return err
 			}
 			allOrders = append(allOrders, order.Detail{
 				Pair:       wsUser[i].Positions.PerpetualFuturesPositions[j].ProductID,
@@ -308,10 +290,7 @@ func (e *Exchange) wsProcessUser(resp *StandardWebsocketResponse) error {
 		for j := range wsUser[i].Positions.ExpiringFuturesPositions {
 			var oSide order.Side
 			if oSide, err = order.StringToOrderSide(wsUser[i].Positions.ExpiringFuturesPositions[j].Side); err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					Err:      err,
-				}
+				return err
 			}
 			allOrders = append(allOrders, order.Detail{
 				Pair:           wsUser[i].Positions.ExpiringFuturesPositions[j].ProductID,
@@ -321,12 +300,11 @@ func (e *Exchange) wsProcessUser(resp *StandardWebsocketResponse) error {
 			})
 		}
 	}
-	e.Websocket.DataHandler <- allOrders
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, allOrders)
 }
 
 // wsHandleData handles all the websocket data coming from the websocket connection
-func (e *Exchange) wsHandleData(respRaw []byte) (*uint64, error) {
+func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) (*uint64, error) {
 	var resp StandardWebsocketResponse
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return nil, err
@@ -342,17 +320,17 @@ func (e *Exchange) wsHandleData(respRaw []byte) (*uint64, error) {
 		if err := json.Unmarshal(resp.Events, &wsStatus); err != nil {
 			return &resp.Sequence, err
 		}
-		e.Websocket.DataHandler <- wsStatus
+		return &resp.Sequence, e.Websocket.DataHandler.Send(ctx, wsStatus)
 	case "ticker", "ticker_batch":
-		if err := e.wsProcessTicker(&resp); err != nil {
+		if err := e.wsProcessTicker(ctx, &resp); err != nil {
 			return &resp.Sequence, err
 		}
 	case "candles":
-		if err := e.wsProcessCandle(&resp); err != nil {
+		if err := e.wsProcessCandle(ctx, &resp); err != nil {
 			return &resp.Sequence, err
 		}
 	case "market_trades":
-		if err := e.wsProcessMarketTrades(&resp); err != nil {
+		if err := e.wsProcessMarketTrades(ctx, &resp); err != nil {
 			return &resp.Sequence, err
 		}
 	case "l2_data":
@@ -360,7 +338,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) (*uint64, error) {
 			return &resp.Sequence, err
 		}
 	case "user":
-		if err := e.wsProcessUser(&resp); err != nil {
+		if err := e.wsProcessUser(ctx, &resp); err != nil {
 			return &resp.Sequence, err
 		}
 	default:

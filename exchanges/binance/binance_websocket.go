@@ -124,17 +124,16 @@ func (e *Exchange) setupOrderbookManager(ctx context.Context) {
 func (e *Exchange) KeepAuthKeyAlive(ctx context.Context) {
 	e.Websocket.Wg.Add(1)
 	defer e.Websocket.Wg.Done()
-	ticks := time.NewTicker(time.Minute * 30)
 	for {
 		select {
 		case <-e.Websocket.ShutdownC:
-			ticks.Stop()
 			return
-		case <-ticks.C:
-			err := e.MaintainWsAuthStreamKey(ctx)
-			if err != nil {
-				e.Websocket.DataHandler <- err
-				log.Warnf(log.ExchangeSys, "%s - Unable to renew auth websocket token, may experience shutdown", e.Name)
+		case <-time.After(time.Minute * 30):
+			if err := e.MaintainWsAuthStreamKey(ctx); err != nil {
+				if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+					log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
+				}
+				log.Warnf(log.ExchangeSys, "%s %s: Unable to renew auth websocket token, may experience shutdown", e.Name, e.Websocket.Conn.GetURL())
 			}
 		}
 	}
@@ -166,8 +165,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 					e.Name,
 					err)
 			}
-			e.Websocket.DataHandler <- data
-			return nil
+			return e.Websocket.DataHandler.Send(ctx, data)
 		case "balanceUpdate":
 			var data WsBalanceUpdateData
 			err = json.Unmarshal(jsonData, &data)
@@ -176,8 +174,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 					e.Name,
 					err)
 			}
-			e.Websocket.DataHandler <- data
-			return nil
+			return e.Websocket.DataHandler.Send(ctx, data)
 		case "executionReport":
 			var data WsOrderUpdateData
 			err = json.Unmarshal(jsonData, &data)
@@ -205,11 +202,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 			var orderStatus order.Status
 			orderStatus, err = stringToOrderStatus(data.OrderStatus)
 			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  orderID,
-					Err:      err,
-				}
+				return err
 			}
 			clientOrderID := data.ClientOrderID
 			if orderStatus == order.Cancelled {
@@ -218,11 +211,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 			var orderType order.Type
 			orderType, err = order.StringToOrderType(data.OrderType)
 			if err != nil {
-				e.Websocket.DataHandler <- order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  orderID,
-					Err:      err,
-				}
+				return err
 			}
 			var orderSide order.Side
 			orderSide, err = order.StringToOrderSide(data.Side)
@@ -344,7 +333,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 				e.Name,
 				err.Error())
 		}
-		e.Websocket.DataHandler <- &ticker.Price{
+		return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 			ExchangeName: e.Name,
 			Open:         t.OpenPrice.Float64(),
 			Close:        t.ClosePrice.Float64(),
@@ -358,8 +347,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 			LastUpdated:  t.EventTime.Time(),
 			AssetType:    asset.Spot,
 			Pair:         pair,
-		}
-		return nil
+		})
 	case "kline_1m", "kline_3m", "kline_5m", "kline_15m", "kline_30m", "kline_1h", "kline_2h", "kline_4h",
 		"kline_6h", "kline_8h", "kline_12h", "kline_1d", "kline_3d", "kline_1w", "kline_1M":
 		var kline KlineStream
@@ -368,7 +356,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 				e.Name,
 				err)
 		}
-		e.Websocket.DataHandler <- websocket.KlineData{
+		return e.Websocket.DataHandler.Send(ctx, websocket.KlineData{
 			Timestamp:  kline.EventTime.Time(),
 			Pair:       pair,
 			AssetType:  asset.Spot,
@@ -381,8 +369,7 @@ func (e *Exchange) wsHandleData(_ context.Context, respRaw []byte) error {
 			HighPrice:  kline.Kline.HighPrice.Float64(),
 			LowPrice:   kline.Kline.LowPrice.Float64(),
 			Volume:     kline.Kline.Volume.Float64(),
-		}
-		return nil
+		})
 	case "depth":
 		var depth WebsocketDepthStream
 		if err := json.Unmarshal(jsonData, &depth); err != nil {
@@ -564,8 +551,6 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op
 
 	if err != nil {
 		err = fmt.Errorf("%w; Channels: %s", err, strings.Join(subs.QualifiedChannels(), ", "))
-		e.Websocket.DataHandler <- err
-
 		if op == wsSubscribeMethod {
 			if err2 := e.Websocket.RemoveSubscriptions(conn, subs...); err2 != nil {
 				err = common.AppendError(err, err2)
