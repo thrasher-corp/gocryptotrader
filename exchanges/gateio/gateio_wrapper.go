@@ -578,35 +578,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		}
 		return errs
 	case asset.Options:
-		pairs, err := e.GetEnabledPairs(a)
-		if err != nil {
-			return err
-		}
-		for i := range pairs {
-			underlying, err := e.GetUnderlyingFromCurrencyPair(pairs[i])
-			if err != nil {
-				return err
-			}
-			tickers, err := e.GetOptionsTickers(ctx, underlying.String())
-			if err != nil {
-				return err
-			}
-			for x := range tickers {
-				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         tickers[x].LastPrice.Float64(),
-					Ask:          tickers[x].Ask1Price.Float64(),
-					AskSize:      tickers[x].Ask1Size,
-					Bid:          tickers[x].Bid1Price.Float64(),
-					BidSize:      tickers[x].Bid1Size,
-					Pair:         tickers[x].Name,
-					ExchangeName: e.Name,
-					AssetType:    a,
-				})
-				if err != nil {
-					return err
-				}
-			}
-		}
+		return common.ErrFunctionNotSupported
 	default:
 		return fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 	}

@@ -161,17 +161,13 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		return err
 	}
 
-	var enabled bool
 	for symbol, tick := range result {
 		var pair currency.Pair
-		pair, enabled, err = e.MatchSymbolCheckEnabled(symbol, asset.Spot, true)
+		pair, _, err = e.MatchSymbolCheckEnabled(symbol, asset.Spot, true)
 		if err != nil {
 			if !errors.Is(err, currency.ErrPairNotFound) {
 				return err
 			}
-		}
-		if !enabled {
-			continue
 		}
 		err = ticker.ProcessTicker(&ticker.Price{
 			Pair:         pair,
