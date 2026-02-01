@@ -15,11 +15,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -50,9 +51,9 @@ func TestAllExchangeWrappers(t *testing.T) {
 	t.Parallel()
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		t.Fatal("load config error", err)
-	}
+	require.NoError(t, err, "LoadConfig must not error")
+	err = dispatch.EnsureRunning(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit)
+	require.NoError(t, err, "dispatch.EnsureRunning must not error")
 	for i := range cfg.Exchanges {
 		name := strings.ToLower(cfg.Exchanges[i].Name)
 		t.Run(name+" wrapper tests", func(t *testing.T) {
@@ -96,7 +97,8 @@ func setupExchange(ctx context.Context, t *testing.T, name string, cfg *config.C
 	if err != nil {
 		t.Fatalf("Cannot setup %v exchange Setup %v", name, err)
 	}
-	err = exch.UpdateTradablePairs(ctx, true)
+
+	err = exch.UpdateTradablePairs(ctx)
 	require.Truef(t, errors.Is(err, context.DeadlineExceeded) || err == nil, "Exchange %s UpdateTradablePairs must not error: %s", name, err)
 	b := exch.GetBase()
 	assets := b.CurrencyPairs.GetAssetTypes(false)
@@ -143,6 +145,7 @@ assets:
 		})
 	}
 	assetPairs = append(assetPairs, assetPair{})
+
 	return exch, assetPairs
 }
 
@@ -178,7 +181,7 @@ type testCtxKey string
 
 func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchange.IBotExchange, assetParams []assetPair) {
 	t.Helper()
-	iExchange := reflect.TypeOf(&exch).Elem()
+	iExchange := reflect.TypeFor[exchange.IBotExchange]()
 	actualExchange := reflect.ValueOf(exch)
 	for x := range iExchange.NumMethod() {
 		methodName := iExchange.Method(x).Name
@@ -274,33 +277,33 @@ type MethodArgumentGenerator struct {
 }
 
 var (
-	currencyPairParam    = reflect.TypeOf((*currency.Pair)(nil)).Elem()
-	klineParam           = reflect.TypeOf((*kline.Interval)(nil)).Elem()
-	contextParam         = reflect.TypeOf((*context.Context)(nil)).Elem()
-	timeParam            = reflect.TypeOf((*time.Time)(nil)).Elem()
-	codeParam            = reflect.TypeOf((*currency.Code)(nil)).Elem()
-	currencyPairsParam   = reflect.TypeOf((*currency.Pairs)(nil)).Elem()
-	withdrawRequestParam = reflect.TypeOf((**withdraw.Request)(nil)).Elem()
-	stringParam          = reflect.TypeOf((*string)(nil)).Elem()
-	feeBuilderParam      = reflect.TypeOf((**exchange.FeeBuilder)(nil)).Elem()
-	credentialsParam     = reflect.TypeOf((**account.Credentials)(nil)).Elem()
-	orderSideParam       = reflect.TypeOf((*order.Side)(nil)).Elem()
-	collateralModeParam  = reflect.TypeOf((*collateral.Mode)(nil)).Elem()
-	marginTypeParam      = reflect.TypeOf((*margin.Type)(nil)).Elem()
-	int64Param           = reflect.TypeOf((*int64)(nil)).Elem()
-	float64Param         = reflect.TypeOf((*float64)(nil)).Elem()
+	currencyPairParam    = reflect.TypeFor[currency.Pair]()
+	klineParam           = reflect.TypeFor[kline.Interval]()
+	contextParam         = reflect.TypeFor[context.Context]()
+	timeParam            = reflect.TypeFor[time.Time]()
+	codeParam            = reflect.TypeFor[currency.Code]()
+	currencyPairsParam   = reflect.TypeFor[currency.Pairs]()
+	withdrawRequestParam = reflect.TypeFor[*withdraw.Request]()
+	stringParam          = reflect.TypeFor[string]()
+	feeBuilderParam      = reflect.TypeFor[*exchange.FeeBuilder]()
+	credentialsParam     = reflect.TypeFor[*accounts.Credentials]()
+	orderSideParam       = reflect.TypeFor[order.Side]()
+	collateralModeParam  = reflect.TypeFor[collateral.Mode]()
+	marginTypeParam      = reflect.TypeFor[margin.Type]()
+	int64Param           = reflect.TypeFor[int64]()
+	float64Param         = reflect.TypeFor[float64]()
 	// types with asset in params
-	assetParam                  = reflect.TypeOf((*asset.Item)(nil)).Elem()
-	orderSubmitParam            = reflect.TypeOf((**order.Submit)(nil)).Elem()
-	orderModifyParam            = reflect.TypeOf((**order.Modify)(nil)).Elem()
-	orderCancelParam            = reflect.TypeOf((**order.Cancel)(nil)).Elem()
-	orderCancelsParam           = reflect.TypeOf((*[]order.Cancel)(nil)).Elem()
-	getOrdersRequestParam       = reflect.TypeOf((**order.MultiOrderRequest)(nil)).Elem()
-	positionChangeRequestParam  = reflect.TypeOf((**margin.PositionChangeRequest)(nil)).Elem()
-	positionSummaryRequestParam = reflect.TypeOf((**futures.PositionSummaryRequest)(nil)).Elem()
-	positionsRequestParam       = reflect.TypeOf((**futures.PositionsRequest)(nil)).Elem()
-	latestRateRequest           = reflect.TypeOf((**fundingrate.LatestRateRequest)(nil)).Elem()
-	pairKeySliceParam           = reflect.TypeOf((*[]key.PairAsset)(nil)).Elem()
+	assetParam                  = reflect.TypeFor[asset.Item]()
+	orderSubmitParam            = reflect.TypeFor[*order.Submit]()
+	orderModifyParam            = reflect.TypeFor[*order.Modify]()
+	orderCancelParam            = reflect.TypeFor[*order.Cancel]()
+	orderCancelsParam           = reflect.TypeFor[[]order.Cancel]()
+	getOrdersRequestParam       = reflect.TypeFor[*order.MultiOrderRequest]()
+	positionChangeRequestParam  = reflect.TypeFor[*margin.PositionChangeRequest]()
+	positionSummaryRequestParam = reflect.TypeFor[*futures.PositionSummaryRequest]()
+	positionsRequestParam       = reflect.TypeFor[*futures.PositionsRequest]()
+	latestRateRequest           = reflect.TypeFor[*fundingrate.LatestRateRequest]()
+	pairKeySliceParam           = reflect.TypeFor[[]key.PairAsset]()
 )
 
 // generateMethodArg determines the argument type and returns a pre-made
@@ -333,7 +336,7 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			Asset: argGenerator.AssetParams.Asset,
 		})
 	case argGenerator.MethodInputType.AssignableTo(credentialsParam):
-		input = reflect.ValueOf(&account.Credentials{
+		input = reflect.ValueOf(&accounts.Credentials{
 			Key:             "test",
 			Secret:          "test",
 			ClientID:        "test",
@@ -610,8 +613,8 @@ var unsupportedAssets = []asset.Item{
 var unsupportedExchangeNames = []string{
 	"testexch",
 	"bitflyer", // Bitflyer has many "ErrNotYetImplemented, which is true, but not what we care to test for here
-	"btse",     // 	TODO rm once timeout issues resolved
-	"poloniex", // 	outdated API // TODO rm once updated
+	"btse",     // TODO rm once timeout issues resolved
+	"poloniex", // outdated API // TODO rm once updated
 }
 
 // cryptoChainPerExchange holds the deposit address chain per exchange
@@ -642,7 +645,18 @@ var acceptableErrors = []error{
 	limits.ErrExchangeLimitNotLoaded,     // Is thrown when the limits aren't loaded for a particular exchange, asset, pair
 	limits.ErrOrderLimitNotFound,         // Is thrown when the order limit isn't found for a particular exchange, asset, pair
 	limits.ErrEmptyLevels,                // Is thrown if limits are not provided for the asset
-	account.ErrExchangeHoldingsNotFound,
+	limits.ErrPriceBelowMin,
+	limits.ErrPriceExceedsMax,
+	limits.ErrPriceExceedsStep,
+	limits.ErrAmountBelowMin,
+	limits.ErrAmountExceedsMax,
+	limits.ErrAmountExceedsStep,
+	limits.ErrNotionalValue,
+	limits.ErrMarketAmountBelowMin,
+	limits.ErrMarketAmountExceedsMax,
+	limits.ErrMarketAmountExceedsStep,
+	accounts.ErrNoBalances,
+	accounts.ErrNoSubAccounts,
 	ticker.ErrTickerNotFound,
 	orderbook.ErrOrderbookNotFound,
 	websocket.ErrNotConnected,

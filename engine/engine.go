@@ -33,7 +33,6 @@ import (
 // overarching type across this code base.
 type Engine struct {
 	Config                  *config.Config
-	apiServer               *apiServerManager
 	CommunicationsManager   *CommunicationManager
 	connectionManager       *connectionManager
 	currencyPairSyncer      *SyncManager
@@ -198,9 +197,6 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 		go b.waitForGPRCShutdown()
 	}
 
-	flagSet.WithBool("websocketrpc", &b.Settings.EnableWebsocketRPC, b.Config.RemoteControl.WebsocketRPC.Enabled)
-	flagSet.WithBool("deprecatedrpc", &b.Settings.EnableDeprecatedRPC, b.Config.RemoteControl.DeprecatedRPC.Enabled)
-
 	if flagSet["maxvirtualmachines"] {
 		maxMachines := b.Settings.MaxVirtualMachines
 		b.gctScriptManager.MaxVirtualMachines = &maxMachines
@@ -299,6 +295,12 @@ func (bot *Engine) Start() error {
 	}
 	newEngineMutex.Lock()
 	defer newEngineMutex.Unlock()
+
+	if bot.Config.Profiler.Enabled {
+		if err := StartPPROF(context.TODO(), &bot.Config.Profiler); err != nil {
+			gctlog.Errorf(gctlog.Global, "Failed to start pprof: %v", err)
+		}
+	}
 
 	if bot.Settings.EnableDatabaseManager {
 		if d, err := SetupDatabaseConnectionManager(&bot.Config.Database); err != nil {
@@ -437,28 +439,6 @@ func (bot *Engine) Start() error {
 		return err
 	} else { //nolint:revive // TODO: revive false positive, see https://github.com/mgechev/revive/pull/832 for more information
 		bot.WithdrawManager = w
-	}
-
-	if bot.Settings.EnableDeprecatedRPC || bot.Settings.EnableWebsocketRPC {
-		if filePath, err := config.GetAndMigrateDefaultPath(bot.Settings.ConfigFile); err != nil {
-			return err
-		} else { //nolint:revive // TODO: revive false positive, see https://github.com/mgechev/revive/pull/832 for more information
-			if a, err := setupAPIServerManager(&bot.Config.RemoteControl, &bot.Config.Profiler, bot.ExchangeManager, bot, bot.portfolioManager, filePath); err != nil {
-				gctlog.Errorf(gctlog.Global, "API Server unable to start: %s", err)
-			} else {
-				bot.apiServer = a
-				if bot.Settings.EnableDeprecatedRPC {
-					if err := bot.apiServer.StartRESTServer(); err != nil {
-						gctlog.Errorf(gctlog.Global, "could not start REST API server: %s", err)
-					}
-				}
-				if bot.Settings.EnableWebsocketRPC {
-					if err := bot.apiServer.StartWebsocketServer(); err != nil {
-						gctlog.Errorf(gctlog.Global, "could not start websocket API server: %s", err)
-					}
-				}
-			}
-		}
 	}
 
 	if bot.Settings.EnableDepositAddressManager {
@@ -622,16 +602,6 @@ func (bot *Engine) Stop() {
 	if bot.connectionManager.IsRunning() {
 		if err := bot.connectionManager.Stop(); err != nil {
 			gctlog.Errorf(gctlog.Global, "Connection manager unable to stop. Error: %v", err)
-		}
-	}
-	if bot.apiServer.IsRESTServerRunning() {
-		if err := bot.apiServer.StopRESTServer(); err != nil {
-			gctlog.Errorf(gctlog.Global, "API Server unable to stop REST server. Error: %s", err)
-		}
-	}
-	if bot.apiServer.IsWebsocketServerRunning() {
-		if err := bot.apiServer.StopWebsocketServer(); err != nil {
-			gctlog.Errorf(gctlog.Global, "API Server unable to stop websocket server. Error: %s", err)
 		}
 	}
 	if bot.dataHistoryManager.IsRunning() {

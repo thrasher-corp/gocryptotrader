@@ -21,8 +21,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -46,6 +46,7 @@ const (
 	spotOrderbookTickerChannel = "spot.book_ticker"       // Best bid or ask price
 	spotOrderbookUpdateChannel = "spot.order_book_update" // Changed order book levels
 	spotOrderbookChannel       = "spot.order_book"        // Limited-Level Full Order Book Snapshot
+	spotOrderbookV2            = "spot.obu"
 	spotOrdersChannel          = "spot.orders"
 	spotUserTradesChannel      = "spot.usertrades"
 	spotBalancesChannel        = "spot.balances"
@@ -64,6 +65,7 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds},
 	{Enabled: false, Channel: spotOrderbookTickerChannel, Asset: asset.Spot, Interval: kline.TenMilliseconds, Levels: 1},
 	{Enabled: false, Channel: spotOrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds, Levels: 100},
+	{Enabled: false, Channel: spotOrderbookV2, Asset: asset.Spot, Levels: 50},
 	{Enabled: true, Channel: spotBalancesChannel, Asset: asset.Spot, Authenticated: true},
 	{Enabled: true, Channel: crossMarginBalanceChannel, Asset: asset.CrossMargin, Authenticated: true},
 	{Enabled: true, Channel: marginBalancesChannel, Asset: asset.Margin, Authenticated: true},
@@ -124,7 +126,7 @@ func (e *Exchange) websocketLogin(ctx context.Context, conn websocket.Connection
 	signature := hex.EncodeToString(mac.Sum(nil))
 
 	payload := WebsocketPayload{
-		RequestID: strconv.FormatInt(conn.GenerateMessageID(false), 10),
+		RequestID: e.MessageID(),
 		APIKey:    creds.Key,
 		Signature: signature,
 		Timestamp: strconv.FormatInt(tn, 10),
@@ -180,19 +182,21 @@ func (e *Exchange) WsHandleSpotData(ctx context.Context, conn websocket.Connecti
 
 	switch push.Channel { // TODO: Convert function params below to only use push.Result
 	case spotTickerChannel:
-		return e.processTicker(push.Result, push.Time)
+		return e.processTicker(ctx, push.Result, push.Time)
 	case spotTradesChannel:
 		return e.processTrades(push.Result)
 	case spotCandlesticksChannel:
-		return e.processCandlestick(push.Result)
+		return e.processCandlestick(ctx, push.Result)
 	case spotOrderbookTickerChannel:
 		return e.processOrderbookTicker(push.Result, push.Time)
 	case spotOrderbookUpdateChannel:
 		return e.processOrderbookUpdate(ctx, push.Result, push.Time)
 	case spotOrderbookChannel:
 		return e.processOrderbookSnapshot(push.Result, push.Time)
+	case spotOrderbookV2:
+		return e.processOrderbookUpdateWithSnapshot(ctx, conn, push.Result, push.Time, asset.Spot)
 	case spotOrdersChannel:
-		return e.processSpotOrders(respRaw)
+		return e.processSpotOrders(ctx, respRaw)
 	case spotUserTradesChannel:
 		return e.processUserPersonalTrades(respRaw)
 	case spotBalancesChannel:
@@ -200,17 +204,16 @@ func (e *Exchange) WsHandleSpotData(ctx context.Context, conn websocket.Connecti
 	case marginBalancesChannel:
 		return e.processMarginBalances(ctx, respRaw)
 	case spotFundingBalanceChannel:
-		return e.processFundingBalances(respRaw)
+		return e.processFundingBalances(ctx, respRaw)
 	case crossMarginBalanceChannel:
 		return e.processCrossMarginBalance(ctx, respRaw)
 	case crossMarginLoanChannel:
-		return e.processCrossMarginLoans(respRaw)
+		return e.processCrossMarginLoans(ctx, respRaw)
 	case spotPongChannel:
 	default:
-		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+		return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
 			Message: e.Name + websocket.UnhandledMessage + string(respRaw),
-		}
-		return errors.New(websocket.UnhandledMessage)
+		})
 	}
 	return nil
 }
@@ -254,7 +257,7 @@ func parseWSHeader(msg []byte) (r *WSResponse, errs error) {
 	return r, errs
 }
 
-func (e *Exchange) processTicker(incoming []byte, pushTime time.Time) error {
+func (e *Exchange) processTicker(ctx context.Context, incoming []byte, pushTime time.Time) error {
 	var data WsTicker
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
@@ -277,8 +280,7 @@ func (e *Exchange) processTicker(incoming []byte, pushTime time.Time) error {
 			})
 		}
 	}
-	e.Websocket.DataHandler <- out
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, out)
 }
 
 func (e *Exchange) processTrades(incoming []byte) error {
@@ -317,14 +319,14 @@ func (e *Exchange) processTrades(incoming []byte) error {
 	return nil
 }
 
-func (e *Exchange) processCandlestick(incoming []byte) error {
+func (e *Exchange) processCandlestick(ctx context.Context, incoming []byte) error {
 	var data WsCandlesticks
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
 	icp := strings.Split(data.NameOfSubscription, currency.UnderscoreDelimiter)
 	if len(icp) < 3 {
-		return errors.New("malformed candlestick websocket push data")
+		return fmt.Errorf("%w: candlestick websocket", common.ErrMalformedData)
 	}
 	currencyPair, err := currency.NewPairFromString(strings.Join(icp[1:], currency.UnderscoreDelimiter))
 	if err != nil {
@@ -348,8 +350,7 @@ func (e *Exchange) processCandlestick(incoming []byte) error {
 			})
 		}
 	}
-	e.Websocket.DataHandler <- out
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, out)
 }
 
 func (e *Exchange) processOrderbookTicker(incoming []byte, lastPushed time.Time) error {
@@ -373,24 +374,14 @@ func (e *Exchange) processOrderbookUpdate(ctx context.Context, incoming []byte, 
 	if err := json.Unmarshal(incoming, &data); err != nil {
 		return err
 	}
-	asks := make([]orderbook.Level, len(data.Asks))
-	for x := range data.Asks {
-		asks[x].Price = data.Asks[x][0].Float64()
-		asks[x].Amount = data.Asks[x][1].Float64()
-	}
-	bids := make([]orderbook.Level, len(data.Bids))
-	for x := range data.Bids {
-		bids[x].Price = data.Bids[x][0].Float64()
-		bids[x].Amount = data.Bids[x][1].Float64()
-	}
 	return e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, e, data.FirstUpdateID, &orderbook.Update{
 		UpdateID:   data.LastUpdateID,
 		UpdateTime: data.UpdateTime.Time(),
 		LastPushed: lastPushed,
 		Pair:       data.Pair,
 		Asset:      asset.Spot,
-		Asks:       asks,
-		Bids:       bids,
+		Asks:       data.Asks.Levels(),
+		Bids:       data.Bids.Levels(),
 		AllowEmpty: true,
 	})
 }
@@ -401,17 +392,6 @@ func (e *Exchange) processOrderbookSnapshot(incoming []byte, lastPushed time.Tim
 		return err
 	}
 
-	asks := make([]orderbook.Level, len(data.Asks))
-	for x := range data.Asks {
-		asks[x].Price = data.Asks[x][0].Float64()
-		asks[x].Amount = data.Asks[x][1].Float64()
-	}
-	bids := make([]orderbook.Level, len(data.Bids))
-	for x := range data.Bids {
-		bids[x].Price = data.Bids[x][0].Float64()
-		bids[x].Amount = data.Bids[x][1].Float64()
-	}
-
 	for _, a := range standardMarginAssetTypes {
 		if enabled, _ := e.CurrencyPairs.IsPairEnabled(data.CurrencyPair, a); enabled {
 			if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
@@ -420,8 +400,8 @@ func (e *Exchange) processOrderbookSnapshot(incoming []byte, lastPushed time.Tim
 				Asset:       a,
 				LastUpdated: data.UpdateTime.Time(),
 				LastPushed:  lastPushed,
-				Bids:        bids,
-				Asks:        asks,
+				Bids:        data.Bids.Levels(),
+				Asks:        data.Asks.Levels(),
 			}); err != nil {
 				return err
 			}
@@ -430,7 +410,60 @@ func (e *Exchange) processOrderbookSnapshot(incoming []byte, lastPushed time.Tim
 	return nil
 }
 
-func (e *Exchange) processSpotOrders(data []byte) error {
+func (e *Exchange) processOrderbookUpdateWithSnapshot(ctx context.Context, conn websocket.Connection, incoming []byte, lastPushed time.Time, a asset.Item) error {
+	var data WsOrderbookUpdateWithSnapshot
+	if err := json.Unmarshal(incoming, &data); err != nil {
+		return err
+	}
+
+	channelParts := strings.Split(data.Channel, ".")
+	if len(channelParts) < 3 {
+		return fmt.Errorf("%w: %q", common.ErrMalformedData, data.Channel)
+	}
+
+	pair, err := currency.NewPairFromString(channelParts[1])
+	if err != nil {
+		return err
+	}
+
+	if data.Full {
+		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			Exchange:     e.Name,
+			Pair:         pair,
+			Asset:        a,
+			LastUpdated:  data.UpdateTime.Time(),
+			LastPushed:   lastPushed,
+			LastUpdateID: data.LastUpdateID,
+			Bids:         data.Bids.Levels(),
+			Asks:         data.Asks.Levels(),
+		}); err != nil {
+			return err
+		}
+		e.wsOBResubMgr.CompletedResubscribe(pair, a)
+		return nil
+	}
+
+	if e.wsOBResubMgr.IsResubscribing(pair, a) {
+		return nil // Drop incremental updates; waiting for a fresh snapshot
+	}
+
+	lastUpdateID, err := e.Websocket.Orderbook.LastUpdateID(pair, a)
+	if err != nil || lastUpdateID+1 != data.FirstUpdateID {
+		return common.AppendError(err, e.wsOBResubMgr.Resubscribe(ctx, e, conn, data.Channel, pair, a))
+	}
+	return e.Websocket.Orderbook.Update(&orderbook.Update{
+		Pair:       pair,
+		Asset:      a,
+		UpdateTime: data.UpdateTime.Time(),
+		LastPushed: lastPushed,
+		UpdateID:   data.LastUpdateID,
+		Bids:       data.Bids.Levels(),
+		Asks:       data.Asks.Levels(),
+		AllowEmpty: true,
+	})
+}
+
+func (e *Exchange) processSpotOrders(ctx context.Context, data []byte) error {
 	resp := struct {
 		Time    types.Time    `json:"time"`
 		Channel string        `json:"channel"`
@@ -470,8 +503,7 @@ func (e *Exchange) processSpotOrders(data []byte) error {
 			LastUpdated:    resp.Result[x].UpdateTime.Time(),
 		}
 	}
-	e.Websocket.DataHandler <- details
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, details)
 }
 
 func (e *Exchange) processUserPersonalTrades(data []byte) error {
@@ -510,68 +542,56 @@ func (e *Exchange) processUserPersonalTrades(data []byte) error {
 }
 
 func (e *Exchange) processSpotBalances(ctx context.Context, data []byte) error {
-	var resp []WsSpotBalance
+	var resp []*WsSpotBalance
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
-
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
+	subAccts := accounts.SubAccounts{}
+	for _, bal := range resp {
+		a := accounts.NewSubAccount(asset.Spot, bal.User)
+		a.Balances.Set(bal.Currency, accounts.Balance{
+			Total:                  bal.Total.Float64(),
+			Free:                   bal.Available.Float64(),
+			Hold:                   bal.Freeze.Float64(),
+			AvailableWithoutBorrow: bal.Available.Float64(),
+			UpdatedAt:              bal.Timestamp.Time(),
+		})
+		subAccts = subAccts.Merge(a)
+	}
+	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
 		return err
 	}
-
-	changes := make([]account.Change, len(resp))
-	for i := range resp {
-		changes[i] = account.Change{
-			Account:   resp[i].User,
-			AssetType: asset.Spot,
-			Balance: &account.Balance{
-				Currency:               resp[i].Currency,
-				Total:                  resp[i].Total.Float64(),
-				Free:                   resp[i].Available.Float64(),
-				Hold:                   resp[i].Freeze.Float64(),
-				AvailableWithoutBorrow: resp[i].Available.Float64(),
-				UpdatedAt:              resp[i].Timestamp.Time(),
-			},
-		}
-	}
-	e.Websocket.DataHandler <- changes
-	return account.ProcessChange(e.Name, changes, creds)
+	return e.Websocket.DataHandler.Send(ctx, subAccts)
 }
 
 func (e *Exchange) processMarginBalances(ctx context.Context, data []byte) error {
 	resp := struct {
-		Time    types.Time        `json:"time"`
-		Channel string            `json:"channel"`
-		Event   string            `json:"event"`
-		Result  []WsMarginBalance `json:"result"`
+		Time    types.Time         `json:"time"`
+		Channel string             `json:"channel"`
+		Event   string             `json:"event"`
+		Result  []*WsMarginBalance `json:"result"`
 	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
+	subAccts := accounts.SubAccounts{}
+	for _, bal := range resp.Result {
+		a := accounts.NewSubAccount(asset.Margin, bal.User)
+		a.Balances.Set(bal.Currency, accounts.Balance{
+			Total:     bal.Available.Float64() + bal.Freeze.Float64(),
+			Free:      bal.Available.Float64(),
+			Hold:      bal.Freeze.Float64(),
+			UpdatedAt: bal.Timestamp.Time(),
+		})
+		subAccts = subAccts.Merge(a)
+	}
+	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
 		return err
 	}
-	changes := make([]account.Change, len(resp.Result))
-	for x := range resp.Result {
-		changes[x] = account.Change{
-			AssetType: asset.Margin,
-			Balance: &account.Balance{
-				Currency:  currency.NewCode(resp.Result[x].Currency),
-				Total:     resp.Result[x].Available.Float64() + resp.Result[x].Freeze.Float64(),
-				Free:      resp.Result[x].Available.Float64(),
-				Hold:      resp.Result[x].Freeze.Float64(),
-				UpdatedAt: resp.Result[x].Timestamp.Time(),
-			},
-		}
-	}
-	e.Websocket.DataHandler <- changes
-	return account.ProcessChange(e.Name, changes, creds)
+	return e.Websocket.DataHandler.Send(ctx, subAccts)
 }
 
-func (e *Exchange) processFundingBalances(data []byte) error {
+func (e *Exchange) processFundingBalances(ctx context.Context, data []byte) error {
 	resp := struct {
 		Time    types.Time         `json:"time"`
 		Channel string             `json:"channel"`
@@ -582,43 +602,37 @@ func (e *Exchange) processFundingBalances(data []byte) error {
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- resp
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, resp)
 }
 
 func (e *Exchange) processCrossMarginBalance(ctx context.Context, data []byte) error {
 	resp := struct {
-		Time    types.Time             `json:"time"`
-		Channel string                 `json:"channel"`
-		Event   string                 `json:"event"`
-		Result  []WsCrossMarginBalance `json:"result"`
+		Time    types.Time              `json:"time"`
+		Channel string                  `json:"channel"`
+		Event   string                  `json:"event"`
+		Result  []*WsCrossMarginBalance `json:"result"`
 	}{}
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return err
 	}
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
+	subAccts := accounts.SubAccounts{}
+	for _, bal := range resp.Result {
+		a := accounts.NewSubAccount(asset.CrossMargin, bal.User)
+		a.Balances.Set(bal.Currency, accounts.Balance{
+			Total:     bal.Total.Float64(),
+			Free:      bal.Available.Float64(),
+			UpdatedAt: bal.Timestamp.Time(),
+		})
+		subAccts = subAccts.Merge(a)
+	}
+	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
 		return err
 	}
-	changes := make([]account.Change, len(resp.Result))
-	for x := range resp.Result {
-		changes[x] = account.Change{
-			Account:   resp.Result[x].User,
-			AssetType: asset.Margin,
-			Balance: &account.Balance{
-				Currency:  currency.NewCode(resp.Result[x].Currency),
-				Total:     resp.Result[x].Total.Float64(),
-				Free:      resp.Result[x].Available.Float64(),
-				UpdatedAt: resp.Result[x].Timestamp.Time(),
-			},
-		}
-	}
-	e.Websocket.DataHandler <- changes
-	return account.ProcessChange(e.Name, changes, creds)
+	return e.Websocket.DataHandler.Send(ctx, subAccts)
 }
 
-func (e *Exchange) processCrossMarginLoans(data []byte) error {
+func (e *Exchange) processCrossMarginLoans(ctx context.Context, data []byte) error {
 	resp := struct {
 		Time    types.Time        `json:"time"`
 		Channel string            `json:"channel"`
@@ -629,8 +643,7 @@ func (e *Exchange) processCrossMarginLoans(data []byte) error {
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- resp
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, resp)
 }
 
 // generateSubscriptionsSpot returns configured subscriptions
@@ -643,11 +656,12 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 	return template.New("master.tmpl").
 		Funcs(sprig.FuncMap()).
 		Funcs(template.FuncMap{
-			"channelName":         channelName,
-			"singleSymbolChannel": singleSymbolChannel,
-			"orderbookInterval":   orderbookChannelInterval,
-			"candlesInterval":     candlesChannelInterval,
-			"levels":              channelLevels,
+			"channelName":             channelName,
+			"singleSymbolChannel":     singleSymbolChannel,
+			"orderbookInterval":       orderbookChannelInterval,
+			"candlesInterval":         candlesChannelInterval,
+			"levels":                  channelLevels,
+			"compactOrderbookPayload": isCompactOrderbookPayload,
 		}).Parse(subTplText)
 }
 
@@ -661,7 +675,7 @@ func (e *Exchange) manageSubs(ctx context.Context, event string, conn websocket.
 
 	for _, s := range subs {
 		if err := func() error {
-			msg, err := e.manageSubReq(ctx, event, conn, s)
+			msg, err := e.manageSubReq(ctx, event, s)
 			if err != nil {
 				return err
 			}
@@ -688,9 +702,9 @@ func (e *Exchange) manageSubs(ctx context.Context, event string, conn websocket.
 }
 
 // manageSubReq constructs the subscription management message for a subscription
-func (e *Exchange) manageSubReq(ctx context.Context, event string, conn websocket.Connection, s *subscription.Subscription) (*WsInput, error) {
+func (e *Exchange) manageSubReq(ctx context.Context, event string, s *subscription.Subscription) (*WsInput, error) {
 	req := &WsInput{
-		ID:      conn.GenerateMessageID(false),
+		ID:      e.MessageSequence(),
 		Event:   event,
 		Channel: channelName(s),
 		Time:    time.Now().Unix(),
@@ -735,7 +749,7 @@ func channelName(s *subscription.Subscription) string {
 // singleSymbolChannel returns if the channel should be fanned out into single symbol requests
 func singleSymbolChannel(name string) bool {
 	switch name {
-	case spotCandlesticksChannel, spotOrderbookUpdateChannel, spotOrderbookChannel:
+	case spotCandlesticksChannel, spotOrderbookUpdateChannel, spotOrderbookChannel, spotOrderbookV2:
 		return true
 	}
 	return false
@@ -774,6 +788,7 @@ func isSingleOrderbookChannel(name string) bool {
 	case spotOrderbookUpdateChannel,
 		spotOrderbookChannel,
 		spotOrderbookTickerChannel,
+		spotOrderbookV2,
 		futuresOrderbookChannel,
 		futuresOrderbookTickerChannel,
 		futuresOrderbookUpdateChannel,
@@ -847,6 +862,7 @@ var channelLevelsMap = map[asset.Item]map[string][]int{
 		spotOrderbookTickerChannel: {},
 		spotOrderbookUpdateChannel: {},
 		spotOrderbookChannel:       {1, 5, 10, 20, 50, 100},
+		spotOrderbookV2:            {50, 400},
 	},
 	asset.Futures: {
 		futuresOrderbookChannel:       {1, 5, 10, 20, 50, 100},
@@ -887,16 +903,27 @@ func channelLevels(s *subscription.Subscription, a asset.Item) (string, error) {
 	return strconv.Itoa(s.Levels), nil
 }
 
+func isCompactOrderbookPayload(channel string) bool {
+	return channel == spotOrderbookV2
+}
+
 const subTplText = `
 {{- with $name := channelName $.S }}
 	{{- range $asset, $pairs := $.AssetPairs }}
 		{{- if singleSymbolChannel $name }}
 			{{- range $i, $p := $pairs -}}
-				{{- with $i := candlesInterval $.S }}{{ $i -}} , {{- end }}
-				{{- $p }}
-				{{- with $l := levels $.S $asset -}} , {{- $l }}{{ end }}
-				{{- with $i := orderbookInterval $.S $asset -}} , {{- $i }}{{- end }}
-				{{- $.PairSeparator }}
+				{{- if compactOrderbookPayload $name }}	
+					{{- with $l := levels $.S $asset -}}
+					ob.{{ $p }}.{{ $l }}
+					{{- end -}}
+					{{- $.PairSeparator }}
+				{{- else }}
+					{{- with $i := candlesInterval $.S }}{{ $i -}} , {{- end }}
+					{{- $p }}
+					{{- with $l := levels $.S $asset -}} , {{- $l }}{{ end }}
+					{{- with $i := orderbookInterval $.S $asset -}} , {{- $i }}{{- end }}
+					{{- $.PairSeparator }}
+				{{- end }}
 			{{- end }}
 			{{- $.AssetSeparator }}
 		{{- else }}
@@ -907,11 +934,11 @@ const subTplText = `
 `
 
 // GeneratePayload returns the payload for a websocket message
-type GeneratePayload func(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error)
+type GeneratePayload func(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]WsInput, error)
 
 // handleSubscription sends a websocket message to receive data from the channel
 func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List, generatePayload GeneratePayload) error {
-	payloads, err := generatePayload(ctx, conn, event, channelsToSubscribe)
+	payloads, err := generatePayload(ctx, event, channelsToSubscribe)
 	if err != nil {
 		return err
 	}
@@ -962,7 +989,7 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, epl request.Endpoin
 		Channel: channel,
 		Event:   "api",
 		Payload: WebsocketPayload{
-			RequestID:    strconv.FormatInt(conn.GenerateMessageID(false), 10),
+			RequestID:    e.MessageID(),
 			RequestParam: paramPayload,
 			Timestamp:    strconv.FormatInt(tn, 10),
 		},
@@ -1017,4 +1044,30 @@ func getWSPingHandler(channel string) (websocket.PingHandler, error) {
 		Message:     pingMessage,
 		MessageType: gws.TextMessage,
 	}, nil
+}
+
+// TODO: When subscription config is added for all assets update limits to use sub.Levels
+func (e *Exchange) extractOrderbookLimit(a asset.Item) (uint64, error) {
+	switch a {
+	case asset.Spot:
+		sub := e.Websocket.GetSubscription(spotOrderbookUpdateKey)
+		if sub == nil {
+			return 0, fmt.Errorf("%w for %q", subscription.ErrNotFound, spotOrderbookUpdateKey)
+		}
+		// There is no way to set levels when we subscribe for this specific channel
+		// Extract limit from interval e.g. 20ms == 20 limit book and 100ms == 100 limit book.
+		lim := uint64(sub.Interval.Duration().Milliseconds()) //nolint:gosec // No overflow risk
+		if lim != 20 && lim != 100 {
+			return 0, fmt.Errorf("%w: %d. Valid limits are 20 and 100", errInvalidOrderbookUpdateInterval, lim)
+		}
+		return lim, nil
+	case asset.USDTMarginedFutures, asset.CoinMarginedFutures:
+		return futuresOrderbookUpdateLimit, nil
+	case asset.DeliveryFutures:
+		return deliveryFuturesUpdateLimit, nil
+	case asset.Options:
+		return optionOrderbookUpdateLimit, nil
+	default:
+		return 0, fmt.Errorf("%w: %q", asset.ErrNotSupported, a)
+	}
 }

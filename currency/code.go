@@ -9,25 +9,27 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
+// Public errors
 var (
-	// ErrCurrencyCodeEmpty defines an error if the currency code is empty
-	ErrCurrencyCodeEmpty = errors.New("currency code is empty")
-	// ErrCurrencyNotFound returned when a currency is not found in a list
-	ErrCurrencyNotFound = errors.New("currency code not found in list")
-	// ErrCurrencyPairEmpty defines an error if the currency pair is empty
-	ErrCurrencyPairEmpty = errors.New("currency pair is empty")
-	// ErrCurrencyNotSupported defines an error if the currency pair is not supported
+	ErrCurrencyCodeEmpty    = errors.New("currency code is empty")
+	ErrCurrencyNotFound     = errors.New("currency code not found in list")
+	ErrCurrencyPairEmpty    = errors.New("currency pair is empty")
 	ErrCurrencyNotSupported = errors.New("currency not supported")
-	// ErrCurrencyPairsEmpty returns when a currency.Pairs has len == 0
-	ErrCurrencyPairsEmpty = errors.New("currency pairs is empty")
-	// EMPTYCODE is an empty currency code
-	EMPTYCODE = Code{}
-	// EMPTYPAIR is an empty currency pair
-	EMPTYPAIR = Pair{}
+	ErrCurrencyPairsEmpty   = errors.New("currency pairs is empty")
+	ErrCurrencyCodesEmpty   = errors.New("currency codes is empty")
+)
 
+var (
 	errItemIsNil   = errors.New("item is nil")
 	errItemIsEmpty = errors.New("item is empty")
 	errRoleUnset   = errors.New("role unset")
+)
+
+var (
+	// EMPTYCODE is an empty currency code
+	EMPTYCODE Code
+	// EMPTYPAIR is an empty currency pair
+	EMPTYPAIR Pair
 )
 
 // String implements the stringer interface and returns a string representation

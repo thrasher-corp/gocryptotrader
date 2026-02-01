@@ -1,8 +1,10 @@
 package kucoin
 
 import (
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -12,61 +14,86 @@ var validGranularity = []string{
 
 // Contract store contract details
 type Contract struct {
-	Symbol                  string       `json:"symbol"`
-	RootSymbol              string       `json:"rootSymbol"`
-	ContractType            string       `json:"type"`
-	FirstOpenDate           types.Time   `json:"firstOpenDate"`
-	ExpireDate              types.Time   `json:"expireDate"`
-	SettleDate              types.Time   `json:"settleDate"`
-	BaseCurrency            string       `json:"baseCurrency"`
-	QuoteCurrency           string       `json:"quoteCurrency"`
-	SettleCurrency          string       `json:"settleCurrency"`
-	MaxOrderQty             float64      `json:"maxOrderQty"`
-	MaxPrice                float64      `json:"maxPrice"`
-	LotSize                 float64      `json:"lotSize"`
-	TickSize                float64      `json:"tickSize"`
-	IndexPriceTickSize      float64      `json:"indexPriceTickSize"`
-	Multiplier              float64      `json:"multiplier"`
-	InitialMargin           float64      `json:"initialMargin"`
-	MaintainMargin          float64      `json:"maintainMargin"`
-	MaxRiskLimit            float64      `json:"maxRiskLimit"`
-	MinRiskLimit            float64      `json:"minRiskLimit"`
-	RiskStep                float64      `json:"riskStep"`
-	MakerFeeRate            float64      `json:"makerFeeRate"`
-	TakerFeeRate            float64      `json:"takerFeeRate"`
-	TakerFixFee             float64      `json:"takerFixFee"`
-	MakerFixFee             float64      `json:"makerFixFee"`
-	SettlementFee           float64      `json:"settlementFee"`
-	IsDeleverage            bool         `json:"isDeleverage"`
-	IsQuanto                bool         `json:"isQuanto"`
-	IsInverse               bool         `json:"isInverse"`
-	MarkMethod              string       `json:"markMethod"`
-	FairMethod              string       `json:"fairMethod"`
-	FundingBaseSymbol       string       `json:"fundingBaseSymbol"`
-	FundingQuoteSymbol      string       `json:"fundingQuoteSymbol"`
-	FundingRateSymbol       string       `json:"fundingRateSymbol"`
-	IndexSymbol             string       `json:"indexSymbol"`
-	SettlementSymbol        string       `json:"settlementSymbol"`
-	Status                  string       `json:"status"`
-	FundingFeeRate          float64      `json:"fundingFeeRate"`
-	PredictedFundingFeeRate float64      `json:"predictedFundingFeeRate"`
-	OpenInterest            types.Number `json:"openInterest"`
-	TurnoverOf24h           float64      `json:"turnoverOf24h"`
-	VolumeOf24h             float64      `json:"volumeOf24h"`
-	MarkPrice               float64      `json:"markPrice"`
-	IndexPrice              float64      `json:"indexPrice"`
-	LastTradePrice          float64      `json:"lastTradePrice"`
-	NextFundingRateTime     int64        `json:"nextFundingRateTime"`
-	MaxLeverage             float64      `json:"maxLeverage"`
-	SourceExchanges         []string     `json:"sourceExchanges"`
-	PremiumsSymbol1M        string       `json:"premiumsSymbol1M"`
-	PremiumsSymbol8H        string       `json:"premiumsSymbol8H"`
-	FundingBaseSymbol1M     string       `json:"fundingBaseSymbol1M"`
-	FundingQuoteSymbol1M    string       `json:"fundingQuoteSymbol1M"`
-	LowPrice                float64      `json:"lowPrice"`
-	HighPrice               float64      `json:"highPrice"`
-	PriceChgPct             float64      `json:"priceChgPct"`
-	PriceChg                float64      `json:"priceChg"`
+	Symbol                             string        `json:"symbol"`
+	RootSymbol                         currency.Code `json:"rootSymbol"`
+	ContractType                       string        `json:"type"`
+	FirstOpenDate                      types.Time    `json:"firstOpenDate"`
+	ExpireDate                         types.Time    `json:"expireDate"`
+	SettleDate                         types.Time    `json:"settleDate"`
+	BaseCurrency                       currency.Code `json:"baseCurrency"`
+	QuoteCurrency                      currency.Code `json:"quoteCurrency"`
+	SettleCurrency                     currency.Code `json:"settleCurrency"`
+	MaxOrderQty                        float64       `json:"maxOrderQty"`
+	MarketMaxOrderQty                  float64       `json:"marketMaxOrderQty"`
+	MaxPrice                           float64       `json:"maxPrice"`
+	LotSize                            float64       `json:"lotSize"`
+	TickSize                           float64       `json:"tickSize"`
+	IndexPriceTickSize                 float64       `json:"indexPriceTickSize"`
+	Multiplier                         float64       `json:"multiplier"`
+	InitialMargin                      float64       `json:"initialMargin"`
+	MaintainMargin                     float64       `json:"maintainMargin"`
+	MaxRiskLimit                       float64       `json:"maxRiskLimit"`
+	MinRiskLimit                       float64       `json:"minRiskLimit"`
+	RiskStep                           float64       `json:"riskStep"`
+	MakerFeeRate                       float64       `json:"makerFeeRate"`
+	TakerFeeRate                       float64       `json:"takerFeeRate"`
+	TakerFixFee                        float64       `json:"takerFixFee"`
+	MakerFixFee                        float64       `json:"makerFixFee"`
+	SettlementFee                      float64       `json:"settlementFee"`
+	IsDeleverage                       bool          `json:"isDeleverage"`
+	IsQuanto                           bool          `json:"isQuanto"`
+	IsInverse                          bool          `json:"isInverse"`
+	MarkMethod                         string        `json:"markMethod"`
+	FairMethod                         string        `json:"fairMethod"`
+	FundingBaseSymbol                  string        `json:"fundingBaseSymbol"`
+	FundingQuoteSymbol                 string        `json:"fundingQuoteSymbol"`
+	FundingRateSymbol                  string        `json:"fundingRateSymbol"`
+	IndexSymbol                        string        `json:"indexSymbol"`
+	SettlementSymbol                   string        `json:"settlementSymbol"`
+	Status                             string        `json:"status"`
+	FundingFeeRate                     float64       `json:"fundingFeeRate"`
+	PredictedFundingFeeRate            float64       `json:"predictedFundingFeeRate"`
+	DailyInterestRate                  float64       `json:"dailyInterestRate"`
+	FundingRateGranularity             int64         `json:"fundingRateGranularity"`
+	FundingRateCap                     float64       `json:"fundingRateCap"`
+	FundingRateFloor                   float64       `json:"fundingRateFloor"`
+	Period                             float64       `json:"period"`
+	EffectiveFundingRateCycleStartTime types.Time    `json:"effectiveFundingRateCycleStartTime"`
+	CurrentFundingRateGranularity      int64         `json:"currentFundingRateGranularity"`
+	OpenInterest                       types.Number  `json:"openInterest"`
+	TurnoverOf24h                      float64       `json:"turnoverOf24h"`
+	VolumeOf24h                        float64       `json:"volumeOf24h"`
+	MarkPrice                          float64       `json:"markPrice"`
+	IndexPrice                         float64       `json:"indexPrice"`
+	LastTradePrice                     float64       `json:"lastTradePrice"`
+	NextFundingRateTime                int64         `json:"nextFundingRateTime"` // Not a timestamp
+	NextFundingRateDateTime            types.Time    `json:"nextFundingRateDateTime"`
+	MaxLeverage                        float64       `json:"maxLeverage"`
+	SourceExchanges                    []string      `json:"sourceExchanges"`
+	PremiumsSymbol1M                   string        `json:"premiumsSymbol1M"`
+	PremiumsSymbol8H                   string        `json:"premiumsSymbol8H"`
+	FundingBaseSymbol1M                string        `json:"fundingBaseSymbol1M"`
+	FundingQuoteSymbol1M               string        `json:"fundingQuoteSymbol1M"`
+	LowPrice                           float64       `json:"lowPrice"`
+	HighPrice                          float64       `json:"highPrice"`
+	PriceChangePercentage              float64       `json:"priceChgPct"`
+	PriceChange                        float64       `json:"priceChg"`
+	K                                  float64       `json:"k"` // Max open size amplification factor
+	M                                  float64       `json:"m"` // Margin-curve slope/smoothing constant (affects MMR growth with size)
+	F                                  float64       `json:"f"` // IMR to MMR safety multiplier
+	MMRLimit                           float64       `json:"mmrLimit"`
+	MMRLeverageConstant                float64       `json:"mmrLevConstant"`
+	SupportCross                       bool          `json:"supportCross"`
+	BuyLimit                           float64       `json:"buyLimit"`
+	SellLimit                          float64       `json:"sellLimit"`
+	AdjustK                            types.Number  `json:"adjustK"`
+	AdjustM                            types.Number  `json:"adjustM"`
+	AdjustMMRLeverageConstant          types.Number  `json:"adjustMmrLevConstant"`
+	AdjustActiveTime                   types.Time    `json:"adjustActiveTime"`
+	CrossRiskLimit                     float64       `json:"crossRiskLimit"`
+	MarketStage                        string        `json:"marketStage"`
+	PreMarketToPerpDate                types.Time    `json:"preMarketToPerpDate"`
+	OrderPriceRange                    float64       `json:"orderPriceRange"`
 }
 
 // FuturesTicker stores ticker data
@@ -85,11 +112,11 @@ type FuturesTicker struct {
 }
 
 type futuresOrderbookResponse struct {
-	Asks     [][2]float64 `json:"asks"`
-	Bids     [][2]float64 `json:"bids"`
-	Time     types.Time   `json:"ts"`
-	Sequence int64        `json:"sequence"`
-	Symbol   string       `json:"symbol"`
+	Asks     orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Bids     orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Time     types.Time                       `json:"ts"`
+	Sequence int64                            `json:"sequence"`
+	Symbol   string                           `json:"symbol"`
 }
 
 // FuturesTrade stores trade data
@@ -329,14 +356,14 @@ type FuturesFundingHistory struct {
 
 // FuturesAccount holds futures account detail information
 type FuturesAccount struct {
-	AccountEquity    float64 `json:"accountEquity"` // marginBalance + Unrealised PNL
-	UnrealisedPNL    float64 `json:"unrealisedPNL"` // unrealised profit and loss
-	MarginBalance    float64 `json:"marginBalance"` // positionMargin + orderMargin + frozenFunds + availableBalance - unrealisedPNL
-	PositionMargin   float64 `json:"positionMargin"`
-	OrderMargin      float64 `json:"orderMargin"`
-	FrozenFunds      float64 `json:"frozenFunds"` // frozen funds for withdrawal and out-transfer
-	AvailableBalance float64 `json:"availableBalance"`
-	Currency         string  `json:"currency"`
+	AccountEquity    float64       `json:"accountEquity"` // marginBalance + Unrealised PNL
+	UnrealisedPNL    float64       `json:"unrealisedPNL"` // unrealised profit and loss
+	MarginBalance    float64       `json:"marginBalance"` // positionMargin + orderMargin + frozenFunds + availableBalance - unrealisedPNL
+	PositionMargin   float64       `json:"positionMargin"`
+	OrderMargin      float64       `json:"orderMargin"`
+	FrozenFunds      float64       `json:"frozenFunds"` // frozen funds for withdrawal and out-transfer
+	AvailableBalance float64       `json:"availableBalance"`
+	Currency         currency.Code `json:"currency"`
 }
 
 // FuturesTransactionHistory represents a transaction history

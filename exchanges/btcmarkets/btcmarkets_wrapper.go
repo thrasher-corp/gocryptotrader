@@ -13,11 +13,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -194,13 +194,12 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	pairs, err := e.FetchTradablePairs(ctx, asset.Spot)
 	if err != nil {
 		return err
 	}
-	err = e.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
-	if err != nil {
+	if err := e.UpdatePairs(pairs, asset.Spot, false); err != nil {
 		return err
 	}
 	return e.EnsureOnePairEnabled()
@@ -258,77 +257,47 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 		return nil, err
 	}
 
-	book := &orderbook.Book{
+	fPair, err := e.FormatExchangeCurrency(p, assetType)
+	if err != nil {
+		return nil, err
+	}
+	// Retrieve level one book which is the top 50 ask and bids, this is not
+	// cached.
+	resp, err := e.GetOrderbook(ctx, fPair.String(), 1)
+	if err != nil {
+		return nil, err
+	}
+
+	ob := &orderbook.Book{
 		Exchange:          e.Name,
 		Pair:              p,
 		Asset:             assetType,
 		PriceDuplication:  true,
 		ValidateOrderbook: e.ValidateOrderbook,
+		Asks:              resp.Asks,
+		Bids:              resp.Bids,
 	}
-
-	fPair, err := e.FormatExchangeCurrency(p, assetType)
-	if err != nil {
-		return book, err
-	}
-	// Retrieve level one book which is the top 50 ask and bids, this is not
-	// cached.
-	tempResp, err := e.GetOrderbook(ctx, fPair.String(), 1)
-	if err != nil {
-		return book, err
-	}
-
-	book.Bids = make(orderbook.Levels, len(tempResp.Bids))
-	for x := range tempResp.Bids {
-		book.Bids[x] = orderbook.Level{
-			Amount: tempResp.Bids[x].Volume,
-			Price:  tempResp.Bids[x].Price,
-		}
-	}
-
-	book.Asks = make(orderbook.Levels, len(tempResp.Asks))
-	for y := range tempResp.Asks {
-		book.Asks[y] = orderbook.Level{
-			Amount: tempResp.Asks[y].Volume,
-			Price:  tempResp.Asks[y].Price,
-		}
-	}
-	err = book.Process()
-	if err != nil {
-		return book, err
+	if err := ob.Process(); err != nil {
+		return nil, err
 	}
 	return orderbook.Get(e.Name, p, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies
-func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var resp account.Holdings
-	data, err := e.GetAccountBalance(ctx)
+// UpdateAccountBalances retrieves currency balances
+func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+	resp, err := e.GetAccountBalance(ctx)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	var acc account.SubAccount
-	acc.AssetType = assetType
-	for x := range data {
-		acc.Currencies = append(acc.Currencies, account.Balance{
-			Currency: currency.NewCode(data[x].AssetName),
-			Total:    data[x].Balance,
-			Hold:     data[x].Locked,
-			Free:     data[x].Available,
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+	for i := range resp {
+		subAccts[0].Balances.Set(resp[i].AssetName, accounts.Balance{
+			Total: resp[i].Balance,
+			Hold:  resp[i].Locked,
+			Free:  resp[i].Available,
 		})
 	}
-	resp.Accounts = append(resp.Accounts, acc)
-	resp.Exchange = e.Name
-
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	err = account.Process(&resp, creds)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-
-	return resp, nil
+	return subAccts, e.Accounts.Save(ctx, subAccts, true)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -479,8 +448,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	return submitResp, nil
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to
-// market conversion
+// ModifyOrder modifies an existing order
 func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	if err := action.Validate(); err != nil {
 		return nil, err
@@ -863,10 +831,9 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	return req.Filter(e.Name, resp), nil
 }
 
-// ValidateAPICredentials validates current credentials used for wrapper
-// functionality
+// ValidateAPICredentials validates current credentials used for wrapper functionality
 func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := e.UpdateAccountInfo(ctx, assetType)
+	_, err := e.UpdateAccountBalances(ctx, assetType)
 	if err != nil {
 		if e.CheckTransientError(err) == nil {
 			return nil

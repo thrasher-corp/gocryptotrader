@@ -9,8 +9,8 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -130,16 +130,16 @@ func (e Exchange) CancelOrder(ctx context.Context, exch, orderID string, cp curr
 	return true, nil
 }
 
-// AccountInformation returns account information (balance etc) for requested exchange
-func (e Exchange) AccountInformation(ctx context.Context, exch string, assetType asset.Item) (account.Holdings, error) {
+// AccountBalances returns account balances for requested exchange
+func (e Exchange) AccountBalances(ctx context.Context, exch string, assetType asset.Item) (accounts.SubAccounts, error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
 
-	accountInfo, err := ex.GetCachedAccountInfo(ctx, assetType)
+	accountInfo, err := ex.GetCachedSubAccounts(ctx, assetType)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
 
 	return accountInfo, nil

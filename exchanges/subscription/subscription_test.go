@@ -69,7 +69,7 @@ func TestEnsureKeyed(t *testing.T) {
 	assert.Equal(t, s.Key, k2, "Key should be the key provided")
 }
 
-// TestSubscriptionMarshalling ensures json Marshalling is clean and concise
+// TestSubscriptionMarshaling ensures json Marshalling is clean and concise
 // Since there is no UnmarshalJSON, this just exercises the json field tags of Subscription, and regressions in conciseness
 func TestSubscriptionMarshaling(t *testing.T) {
 	t.Parallel()

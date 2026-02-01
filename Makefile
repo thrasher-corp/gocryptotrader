@@ -43,7 +43,8 @@ gofumpt:
 
 modernise:
 	@command -v modernize >/dev/null 2>&1 || go install golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest
-	modernize -test ./...
+	@pkgs=$$(go list ./... | grep -vE '/gctrpc$$|/backtester/btrpc$$|/database/models/'); \
+		modernize -test $$pkgs
 
 update_deps:
 	go mod verify

@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -673,10 +674,10 @@ func (e *Exchange) orderCreationParamsFilter(ctx context.Context, arg *CreateOrd
 		return nil, order.ErrTypeIsInvalid
 	}
 	if arg.Size <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if arg.Price <= 0 {
-		return nil, order.ErrPriceBelowMin
+		return nil, limits.ErrPriceBelowMin
 	}
 	signature, err := e.ProcessOrderSignature(ctx, arg)
 	if err != nil {
@@ -754,7 +755,7 @@ func (e *Exchange) fillWithdrawalParams(arg *FastWithdrawalParams) error {
 		return common.ErrNilPointer
 	}
 	if arg.Amount <= 0 {
-		return order.ErrAmountBelowMin
+		return limits.ErrAmountBelowMin
 	}
 	if arg.Asset.IsEmpty() {
 		return currency.ErrCurrencyCodeEmpty
@@ -794,7 +795,7 @@ func (e *Exchange) getWorstPrice(ctx context.Context, symbol, side, path string,
 		return nil, order.ErrSideIsInvalid
 	}
 	if amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	params := url.Values{}
 	params.Set("size", strconv.FormatFloat(amount, 'f', -1, 64))
@@ -1185,7 +1186,7 @@ func (e *Exchange) GetRepaymentPrice(ctx context.Context, repaymentPriceTokens [
 			return nil, currency.ErrCurrencyCodeEmpty
 		}
 		if repaymentPriceTokens[a].Amount <= 0 {
-			return nil, order.ErrAmountBelowMin
+			return nil, limits.ErrAmountBelowMin
 		}
 		paramString += repaymentPriceTokens[a].Token.String() + "|" + strconv.FormatFloat(repaymentPriceTokens[a].Amount, 'f', -1, 64) + ","
 	}
@@ -1258,7 +1259,7 @@ func (e *Exchange) setInitialMarginRateInfo(ctx context.Context, symbol, path st
 // WithdrawAsset posts an asset withdrawal
 func (e *Exchange) WithdrawAsset(ctx context.Context, arg *AssetWithdrawalParams) (*WithdrawalResponse, error) {
 	if arg.Amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if arg.ClientWithdrawID == "" {
 		return nil, order.ErrClientOrderIDMustBeSet
@@ -1290,7 +1291,7 @@ func (e *Exchange) WithdrawAsset(ctx context.Context, arg *AssetWithdrawalParams
 		return nil, fmt.Errorf("%w, l1TargetTokenId is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if arg.Nonce == "" {
-		arg.Nonce = strconv.FormatInt(e.Websocket.Conn.GenerateMessageID(true), 10)
+		arg.Nonce = strconv.FormatInt(time.Now().UnixMilli(), 10)
 	}
 	params := url.Values{}
 	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
@@ -1325,7 +1326,7 @@ func (e *Exchange) WithdrawAsset(ctx context.Context, arg *AssetWithdrawalParams
 // UserWithdrawalV2 withdraws an asset
 func (e *Exchange) UserWithdrawalV2(ctx context.Context, arg *WithdrawalParams) (*WithdrawalResponse, error) {
 	if arg.Amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if arg.EthereumAddress == "" {
 		return nil, errEthereumAddressMissing
@@ -1363,7 +1364,7 @@ func (e *Exchange) withdrawalToAddress(ctx context.Context, arg *WithdrawalToAdd
 		return nil, common.ErrNilPointer
 	}
 	if arg.Amount <= 0 {
-		return nil, order.ErrAmountBelowMin
+		return nil, limits.ErrAmountBelowMin
 	}
 	if arg.Asset.IsEmpty() {
 		return nil, fmt.Errorf("%w, asset is required", currency.ErrCurrencyCodeEmpty)

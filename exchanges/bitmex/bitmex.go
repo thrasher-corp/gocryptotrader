@@ -43,7 +43,6 @@ const (
 	bitmexEndpointActiveIntervals           = "/instrument/activeIntervals"
 	bitmexEndpointCompositeIndex            = "/instrument/compositeIndex"
 	bitmexEndpointIndices                   = "/instrument/indices"
-	bitmexEndpointInsuranceHistory          = "/insurance"
 	bitmexEndpointLiquidation               = "/liquidation"
 	bitmexEndpointLeader                    = "/leaderboard"
 	bitmexEndpointAlias                     = "/leaderboard/name"
@@ -70,7 +69,6 @@ const (
 	bitmexEndpointCancelAllOrders       = "/order/all"
 	bitmexEndpointBulk                  = "/order/bulk"
 	bitmexEndpointCancelOrderAfter      = "/order/cancelAllAfter"
-	bitmexEndpointClosePosition         = "/order/closePosition"
 	bitmexEndpointPosition              = "/position"
 	bitmexEndpointIsolatePosition       = "/position/isolate"
 	bitmexEndpointLeveragePosition      = "/position/leverage"
@@ -82,7 +80,6 @@ const (
 	bitmexEndpointUserCommision         = "/user/commission"
 	bitmexEndpointUserConfirmEmail      = "/user/confirmEmail"
 	bitmexEndpointUserConfirmTFA        = "/user/confirmEnableTFA"
-	bitmexEndpointUserConfirmWithdrawal = "/user/confirmWithdrawal"
 	bitmexEndpointUserDepositAddress    = "/user/depositAddress"
 	bitmexEndpointUserDisableTFA        = "/user/disableTFA"
 	bitmexEndpointUserLogout            = "/user/logout"
@@ -96,15 +93,7 @@ const (
 	bitmexEndpointUserRequestWithdraw   = "/user/requestWithdrawal"
 
 	constSatoshiBTC = 1e-08
-
-	// ContractPerpetual perpetual contract type
-	ContractPerpetual = iota
-	// ContractFutures futures contract type
-	ContractFutures
-	// ContractDownsideProfit downside profit contract type
-	ContractDownsideProfit
-	// ContractUpsideProfit upside profit contract type
-	ContractUpsideProfit
+	countLimit      = uint32(1000)
 
 	perpetualContractID         = "FFWCSX"
 	spotID                      = "IFXXXP"
@@ -673,7 +662,7 @@ func (e *Exchange) ConfirmEmail(ctx context.Context, token string) (ConfirmEmail
 		&confirmation)
 }
 
-// ConfirmTwoFactorAuth confirms 2FA for this account.
+// ConfirmTwoFactorAuth confirms 2FA for this account
 func (e *Exchange) ConfirmTwoFactorAuth(ctx context.Context, token, typ string) (bool, error) {
 	var working bool
 
@@ -966,12 +955,14 @@ func calculateTradingFee(purchasePrice, amount float64, isMaker bool) float64 {
 	return fee * purchasePrice * amount
 }
 
+var xbtCurr = currency.NewCode("XBt")
+
 // normalizeWalletInfo converts any non-standard currencies (eg. XBt -> BTC)
 func normalizeWalletInfo(w *WalletInfo) {
-	if w.Currency != "XBt" {
+	if !w.Currency.Equal(xbtCurr) {
 		return
 	}
 
-	w.Currency = "BTC"
+	w.Currency = currency.BTC
 	w.Amount *= constSatoshiBTC
 }

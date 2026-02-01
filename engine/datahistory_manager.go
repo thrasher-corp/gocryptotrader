@@ -255,7 +255,7 @@ func (m *DataHistoryManager) runJobs() error {
 	}
 
 	if !atomic.CompareAndSwapInt32(&m.processing, 0, 1) {
-		return fmt.Errorf("cannot process jobs, %w", errAlreadyRunning)
+		return fmt.Errorf("cannot process jobs, %w", ErrSubSystemAlreadyStarted)
 	}
 	defer atomic.StoreInt32(&m.processing, 0)
 

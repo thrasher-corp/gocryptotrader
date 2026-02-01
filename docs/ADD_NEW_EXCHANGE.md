@@ -1,6 +1,6 @@
 # GoCryptoTrader ADD NEW EXCHANGE
 
-<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70" alt="GoCryptoTrader project logo">
+<img src="/docs/assets/page-logo.png" width="350px" height="350px" hspace="70" alt="GoCryptoTrader project logo">
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
 [![Software License](https://img.shields.io/badge/License-MIT-orange.svg?style=flat-square)](https://github.com/thrasher-corp/gocryptotrader/blob/master/LICENSE)
@@ -22,7 +22,7 @@ This document is from a perspective of adding a new exchange called Binance to t
 
 #### Linux/macOS
 
-GoCryptoTrader is built using [Go Modules](https://github.com/golang/go/wiki/Modules) and requires Go 1.11 or above
+GoCryptoTrader is built using [Go Modules](https://go.dev/wiki/Modules) and requires Go 1.11 or above
 Using Go Modules you now clone this repository **outside** your GOPATH
 
 ```console
@@ -90,48 +90,34 @@ go build && gocryptotrader.exe --config=config_example.json
 Similar to the configs, spot support is inbuilt but other asset types will need to be manually supported
 
 ```go
-    spot := currency.PairStore{
-        AssetEnabled:  true,
-        RequestFormat: &currency.PairFormat{
-            Uppercase: true,
-            Delimiter: "/",
-        },
-        ConfigFormat: &currency.PairFormat{
-            Uppercase: true,
-            Delimiter: "/",
-        },
-    }
-    futures := currency.PairStore{
-        AssetEnabled:  true,
-        RequestFormat: &currency.PairFormat{
-            Uppercase: true,
-            Delimiter: "-",
-        },
-        ConfigFormat: &currency.PairFormat{
-            Uppercase: true,
-            Delimiter: "-",
-        },
-    }
+    fmt1 := currency.PairStore{
+		AssetEnabled:  true,
+		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: "_"},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: "_"},
+	}
 
-    err := e.SetAssetPairStore(asset.Spot, spot)
-    if err != nil {
-        log.Errorf(log.ExchangeSys, "%s error storing `spot` default asset formats: %s", bi.Name, err)
-    }
+	fmt2 := currency.PairStore{
+		AssetEnabled:  true,
+		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: "-"},
+		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: "_"},
+	}
 
-    err = e.SetAssetPairStore(asset.Futures, futures)
-    if err != nil {
-        log.Errorf(log.ExchangeSys, "%s error storing `futures` default asset formats: %s", bi.Name, err)
-    }
+	if err := e.SetAssetPairStore(asset.Spot, fmt1); err != nil {
+		log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", e.Name, asset.Spot, err)
+	}
+	if err := e.SetAssetPairStore(asset.Futures, fmt2); err != nil {
+		log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", e.Name, asset.Futures, err)
+	}
 ```
 
 ### Document the addition of the new exchange (Binance exchange is used as an example below)
 
-**Yes** means supported, **No** means not yet implemented and **NA** means protocol unsupported
+**Yes** means supported, **No** means not yet implemented and **NA** means protocol unsupported by the exchange
 
 #### Add exchange to the [root README template](/cmd/documentation/root_templates/root_readme.tmpl) file
 
 ```go
-| Exchange | REST API | Streaming API | FIX API |
+| Exchange | REST API | Websocket API | FIX API |
 |----------|------|-----------|-----|
 | Binance| Yes  | Yes        | NA  | // <-------- new exchange
 | Bitfinex | Yes  | Yes        | NA  |
@@ -321,7 +307,7 @@ Modify existing constants or create new ones to define the API URL paths, as app
     apiURL = "https://api.binance.com"
 ```
 
-Create a get function in `rest.go` file and unmarshall the data in the created type:
+Create a get function in the `rest.go` file and unmarshal the data in the created type:
 
 ```go
 // GetExchangeInfo returns exchange information. Check types for more
@@ -337,11 +323,8 @@ Create a test function in `rest_test.go` to see if the data is received and unma
 ```go
 func TestGetExchangeInfo(t *testing.T) {
     t.Parallel() // adding t.Parallel() is preferred as it allows tests to run simultaneously, speeding up package test time
-    // Either set verbose to true for more detailed output as shown below:
     e.Verbose = true
-    // Or alternatively you can use:
-    // result, err := e.GetExchangeInfo(request.WithVerbose(context.Background()))
-    result, err := e.GetExchangeInfo(context.Background())
+    result, err := e.GetExchangeInfo(t.Context())
     require.NoError(t, err)
     t.Log(result)
     assert.NotNil(t, result)
@@ -350,10 +333,10 @@ func TestGetExchangeInfo(t *testing.T) {
 
 Set `Verbose` to `true` to view received data during unmarshalling errors.
 After testing, remove `Verbose`, the result variable, and `t.Log(result)`, or replace the log with `assert.NotNil(t, result)` to avoid unnecessary output when running GCT.
-Alternatively you can use `request.WithVerbose(context.Background())` as the `context` param to achieve the same result.
+Alternatively you can use `request.WithVerbose(t.Context())` as the `context` param to achieve the same result.
 
 ```go
-    result, err := e.GetExchangeInfo(context.Background())
+    result, err := e.GetExchangeInfo(t.Context())
     require.NoError(t, err)
     assert.NotNil(t, result)
 ```
@@ -362,8 +345,9 @@ Ensure each endpoint is implemented and has an associated test to improve test c
 
 #### Message IDs
 
-Use e.MessageID() to get a UUIDv7 if the exchange supports unique string IDs. Otherwise override MessageID with a suitable alternative.
-For example: Consider common.Counter for simple integer IDs if uniqueness isn't critical.
+* e.MessageID() to get a UUIDv7 if the exchange supports unique string IDs
+* e.MessageSequence() to get a simple integer ID if uniqueness is not critical
+* Otherwise override MessageID with a suitable alternative
 
 #### Authenticated functions
 
@@ -710,19 +694,17 @@ func (e *Exchange) WsConnect() error {
 // KeepAuthKeyAlive will continuously send messages to
 // keep the WS auth key active
 func (e *Exchange) KeepAuthKeyAlive(ctx context.Context) {
-    e.Websocket.Wg.Add(1)
     defer e.Websocket.Wg.Done()
-    ticks := time.NewTicker(time.Minute * 30)
     for {
         select {
         case <-e.Websocket.ShutdownC:
-            ticks.Stop()
             return
-        case <-ticks.C:
-            err := e.MaintainWsAuthStreamKey(ctx)
-            if err != nil {
-                e.Websocket.DataHandler <- err
-                log.Warnf(log.ExchangeSys, "%s - Unable to renew auth websocket token, may experience shutdown", e.Name)
+        case <-time.After(time.Minute * 30):
+            if err := e.MaintainWsAuthStreamKey(ctx); err != nil {
+                if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+                    log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
+                }
+                log.Warnf(log.ExchangeSys, "%s %s: Unable to renew auth websocket token, may experience shutdown", e.Name, e.Websocket.Conn.GetURL())
             }
         }
     }
@@ -834,9 +816,7 @@ Run gocryptotrader with the following settings enabled in config
 ```go
 // wsReadData gets and passes on websocket messages for processing
 func (e *Exchange) wsReadData() {
-    e.Websocket.Wg.Add(1)
     defer e.Websocket.Wg.Done()
-
     for {
         select {
         case <-e.Websocket.ShutdownC:
@@ -846,10 +826,10 @@ func (e *Exchange) wsReadData() {
             if resp.Raw == nil {
                 return
             }
-
-            err := e.wsHandleData(resp.Raw)
-            if err != nil {
-                e.Websocket.DataHandler <- err
+            if err := e.wsHandleData(ctx, resp.Raw); err != nil {
+                if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+                    log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
+                }
             }
         }
     }
@@ -892,7 +872,7 @@ If a suitable struct does not exist in wshandler, wrapper types are the next pre
         if err := json.Unmarshal(respRaw, &resultData);err != nil {
             return err
         }
-        e.Websocket.DataHandler <- &ticker.Price{
+        return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
             ExchangeName: e.Name,
             Bid:          resultData.Ticker.Bid,
             Ask:          resultData.Ticker.Ask,
@@ -900,7 +880,7 @@ If a suitable struct does not exist in wshandler, wrapper types are the next pre
             LastUpdated:  resultData.Ticker.Time,
             Pair:         p,
             AssetType:    a,
-        }
+        })
     }
 ```
 
@@ -913,7 +893,7 @@ If neither of those provide a suitable struct to store the data in, the data can
             if err != nil {
                 return err
             }
-      e.Websocket.DataHandler <- resultData.FillsData
+            return e.Websocket.DataHandler.Send(ctx, resultData.FillsData)
 ```
 
 - Data Handling can be tested offline similar to the following example:

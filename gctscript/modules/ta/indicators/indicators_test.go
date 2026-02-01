@@ -3,7 +3,6 @@ package indicators
 import (
 	"math/rand"
 	"os"
-	"reflect"
 	"testing"
 	"time"
 
@@ -394,42 +393,29 @@ func TestOBV(t *testing.T) {
 }
 
 func TestToFloat64(t *testing.T) {
-	value := 54.0
-	v, err := toFloat64(value)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if reflect.TypeOf(v).Kind() != reflect.Float64 {
-		t.Fatalf("expected toFloat to return kind float64 received: %v", reflect.TypeOf(v).Kind())
-	}
-
-	v, err = toFloat64(int(value))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if reflect.TypeOf(v).Kind() != reflect.Float64 {
-		t.Fatalf("expected toFloat to return kind float64 received: %v", reflect.TypeOf(v).Kind())
-	}
-
-	v, err = toFloat64(int32(value))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if reflect.TypeOf(v).Kind() != reflect.Float64 {
-		t.Fatalf("expected toFloat to return kind float64 received: %v", reflect.TypeOf(v).Kind())
-	}
-
-	v, err = toFloat64(int64(value))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if reflect.TypeOf(v).Kind() != reflect.Float64 {
-		t.Fatalf("expected toFloat to return kind float64 received: %v", reflect.TypeOf(v).Kind())
-	}
-
-	_, err = toFloat64("54")
-	if err == nil {
-		t.Fatalf("attempting to convert a string should fail but test passed")
+	t.Parallel()
+	for _, tc := range []struct {
+		name      string
+		input     any
+		expected  float64
+		expectErr bool
+	}{
+		{"float64", 45.67, 45.67, false},
+		{"int", int(45), 45.0, false},
+		{"int32", int32(45), 45.0, false},
+		{"int64", int64(45), 45.0, false},
+		{"string", "45.67", 0, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result, err := toFloat64(tc.input)
+			if tc.expectErr {
+				assert.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, result)
+		})
 	}
 }
 

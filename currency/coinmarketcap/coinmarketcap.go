@@ -300,7 +300,7 @@ func (c *Coinmarketcap) GetCryptocurrencyOHLCLatest(currencyID int64) (Cryptocur
 	return resp.Data, nil
 }
 
-// GetCryptocurrencyLatestQuotes returns  the latest market quote for 1 or more
+// GetCryptocurrencyLatestQuotes returns the latest market quote for 1 or more
 // cryptocurrencies.
 //
 // currencyID - refers to the coinmarketcap currency id

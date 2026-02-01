@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
 
 	objects "github.com/d5/tengo/v2"
@@ -72,11 +71,8 @@ func TestMain(m *testing.M) {
 }
 
 func TestSetup(t *testing.T) {
-	x := Setup()
-	xType := reflect.TypeOf(x).String()
-	if xType != "*gct.Wrapper" {
-		t.Fatalf("SetupCommunicationManager() should return pointer to Wrapper instead received: %v", x)
-	}
+	t.Parallel()
+	require.NotNil(t, Setup(), "Setup must not return nil")
 }
 
 var (
@@ -159,14 +155,14 @@ func TestExchangePairs(t *testing.T) {
 	assert.ErrorIs(t, err, objects.ErrWrongNumArguments)
 }
 
-func TestExchangeAccountInfo(t *testing.T) {
+func TestExchangeAccountBalances(t *testing.T) {
 	t.Parallel()
-	_, err := gct.ExchangeAccountInfo()
+	_, err := gct.ExchangeAccountBalances()
 	require.ErrorIs(t, err, objects.ErrWrongNumArguments)
-	obj, err := gct.ExchangeAccountInfo(ctx, exch, assetType)
+	obj, err := gct.ExchangeAccountBalances(ctx, exch, assetType)
 	require.NoError(t, err)
 	rString, ok := objects.ToString(obj)
-	require.True(t, ok, "ExchangeAccountInfo return value must return correctly from objects.ToString")
+	require.True(t, ok, "ExchangeAccountBalances return value must return correctly from objects.ToString")
 	require.Contains(t, rString, "Bitstamp REST or Websocket authentication support is not enabled")
 }
 

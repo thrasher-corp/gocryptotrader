@@ -11,7 +11,7 @@ import (
 
 func TestGenerateInverseDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	subs, err := e.GenerateInverseDefaultSubscriptions()
 	require.NoError(t, err, "GenerateInverseDefaultSubscriptions must not error")
@@ -31,7 +31,7 @@ func TestGenerateInverseDefaultSubscriptions(t *testing.T) {
 func TestInverseSubscribe(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	subs, err := e.GenerateInverseDefaultSubscriptions()
@@ -44,7 +44,7 @@ func TestInverseSubscribe(t *testing.T) {
 func TestInverseUnsubscribe(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	subs, err := e.GenerateInverseDefaultSubscriptions()

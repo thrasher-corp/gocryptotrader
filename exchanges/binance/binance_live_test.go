@@ -42,7 +42,7 @@ func TestMain(m *testing.M) {
 	}
 	e.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	log.Printf(sharedtestvalues.LiveTesting, e.Name)
-	if err := e.UpdateTradablePairs(context.Background(), true); err != nil {
+	if err := e.UpdateTradablePairs(context.Background()); err != nil {
 		log.Fatalf("Binance UpdateTradablePairs error: %s", err)
 	}
 	os.Exit(m.Run())

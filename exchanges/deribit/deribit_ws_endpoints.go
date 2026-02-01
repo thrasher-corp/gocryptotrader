@@ -12,7 +12,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -162,20 +161,6 @@ func (e *Exchange) WSRetrieveHistoricalVolatility(ctx context.Context, ccy curre
 	}
 	var data []HistoricalVolatilityData
 	return data, e.SendWSRequest(ctx, nonMatchingEPL, getHistoricalVolatility, input, &data, false)
-}
-
-// WSRetrieveCurrencyIndexPrice the current index price for the instruments, for the selected currency through the websocket connection.
-func (e *Exchange) WSRetrieveCurrencyIndexPrice(ctx context.Context, ccy currency.Code) (map[string]float64, error) {
-	if ccy.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	input := &struct {
-		Currency currency.Code `json:"currency"`
-	}{
-		Currency: ccy,
-	}
-	var resp map[string]float64
-	return resp, e.SendWSRequest(ctx, nonMatchingEPL, getCurrencyIndexPrice, input, &resp, false)
 }
 
 // WSRetrieveIndexPrice retrieves price data for the requested index through the websocket connection.
@@ -445,22 +430,6 @@ func (e *Exchange) WsRetrieveSupportedIndexNames(ctx context.Context, priceIndex
 	}
 	var resp []string
 	return resp, e.SendWSRequest(ctx, nonMatchingEPL, "public/get_supported_index_names", input, &resp, false)
-}
-
-// WSRetrieveRequestForQuote retrieves RFQ information.
-func (e *Exchange) WSRetrieveRequestForQuote(ctx context.Context, ccy currency.Code, kind string) ([]RequestForQuote, error) {
-	if ccy.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	input := &struct {
-		Currency currency.Code `json:"currency"`
-		Kind     string        `json:"kind,omitempty"`
-	}{
-		Currency: ccy,
-		Kind:     kind,
-	}
-	var resp []RequestForQuote
-	return resp, e.SendWSRequest(ctx, nonMatchingEPL, getRFQ, input, &resp, false)
 }
 
 // WSRetrieveTradeVolumes retrieves trade volumes' data of all instruments through the websocket connection.
@@ -1798,31 +1767,6 @@ func (e *Exchange) WSResetMMP(ctx context.Context, ccy currency.Code) error {
 	}
 	if resp != "ok" {
 		return fmt.Errorf("mmp could not be reset for %v", ccy.String())
-	}
-	return nil
-}
-
-// WSSendRequestForQuote sends RFQ on a given instrument through the websocket connection.
-func (e *Exchange) WSSendRequestForQuote(ctx context.Context, instrumentName string, amount float64, side order.Side) error {
-	if instrumentName == "" {
-		return errInvalidInstrumentName
-	}
-	input := &struct {
-		Instrument string  `json:"instrument_name"`
-		Amount     float64 `json:"amount,omitempty"`
-		Side       string  `json:"side,omitempty"`
-	}{
-		Instrument: instrumentName,
-		Amount:     amount,
-		Side:       side.String(),
-	}
-	var resp string
-	err := e.SendWSRequest(ctx, nonMatchingEPL, sendRFQ, input, &resp, true)
-	if err != nil {
-		return err
-	}
-	if resp != "ok" {
-		return fmt.Errorf("rfq couldn't send for %v", instrumentName)
 	}
 	return nil
 }

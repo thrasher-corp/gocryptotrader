@@ -52,6 +52,7 @@ type MinMaxLevel struct {
 	MinPrice                float64
 	MaxPrice                float64
 	PriceStepIncrementSize  float64
+	PriceDivisor            float64
 	MultiplierUp            float64
 	MultiplierDown          float64
 	MultiplierDecimal       float64
@@ -69,4 +70,8 @@ type MinMaxLevel struct {
 	MarketStepIncrementSize float64
 	MaxTotalOrders          int64
 	MaxAlgoOrders           int64
+	Listed                  time.Time
+	Delisting               time.Time
+	Delisted                time.Time
+	Expiry                  time.Time
 }

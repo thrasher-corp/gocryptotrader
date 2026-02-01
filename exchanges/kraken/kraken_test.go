@@ -117,7 +117,7 @@ func TestUpdateTicker(t *testing.T) {
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	testexch.UpdatePairsOnce(t, e)
@@ -729,17 +729,17 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	assert.Empty(t, resp.Status, "CancelAllOrders Status should not contain any failed order errors")
 }
 
-// TestUpdateAccountInfo exercises UpdateAccountInfo
-func TestUpdateAccountInfo(t *testing.T) {
+// TestUpdateAccountBalances exercises UpdateAccountBalances
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 
 	for _, a := range []asset.Item{asset.Spot, asset.Futures} {
-		_, err := e.UpdateAccountInfo(t.Context(), a)
+		_, err := e.UpdateAccountBalances(t.Context(), a)
 
 		if sharedtestvalues.AreAPICredentialsSet(e) {
-			assert.NoErrorf(t, err, "UpdateAccountInfo should not error for asset %s", a) // Note Well: Spot and Futures have separate api keys
+			assert.NoErrorf(t, err, "UpdateAccountBalances should not error for asset %s", a) // Note Well: Spot and Futures have separate api keys
 		} else {
-			assert.ErrorIsf(t, err, exchange.ErrAuthenticationSupportNotEnabled, "UpdateAccountInfo should error correctly for asset %s", a)
+			assert.ErrorIsf(t, err, exchange.ErrAuthenticationSupportNotEnabled, "UpdateAccountBalances should error correctly for asset %s", a)
 		}
 	}
 }
@@ -881,7 +881,7 @@ func TestWithdrawCancel(t *testing.T) {
 // single pass, single fail, mixed fail, multiple pass, all fail
 // No objection to this becoming a fixture test, so long as it integrates through Un/Subscribe roundtrip
 func TestWsSubscribe(t *testing.T) {
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
 	testexch.SetupWs(t, e)
 
@@ -981,7 +981,7 @@ func TestWsSubscribe(t *testing.T) {
 
 // TestWsResubscribe tests websocket resubscription
 func TestWsResubscribe(t *testing.T) {
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "TestInstance must not error")
 	testexch.SetupWs(t, e)
 
@@ -1003,7 +1003,7 @@ func TestWsResubscribe(t *testing.T) {
 	err = subs[0].SetState(subscription.UnsubscribingState)
 	require.NoError(t, err)
 
-	err = e.Websocket.ResubscribeToChannel(e.Websocket.Conn, subs[0])
+	err = e.Websocket.ResubscribeToChannel(t.Context(), e.Websocket.Conn, subs[0])
 	require.NoError(t, err, "Resubscribe must not error")
 	require.Equal(t, subscription.SubscribedState, subs[0].State(), "subscription must be subscribed again")
 }
@@ -1012,7 +1012,7 @@ func TestWsResubscribe(t *testing.T) {
 func TestWsOrderbookSub(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
 	testexch.SetupWs(t, e)
 
@@ -1044,7 +1044,7 @@ func TestWsOrderbookSub(t *testing.T) {
 func TestWsCandlesSub(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
 	testexch.SetupWs(t, e)
 
@@ -1078,7 +1078,7 @@ func TestWsOwnTradesSub(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
 	testexch.SetupWs(t, e)
 
@@ -1129,7 +1129,7 @@ func TestGetWSToken(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
 	testexch.SetupWs(t, e)
 
@@ -1180,7 +1180,7 @@ func TestWsCancelAllOrders(t *testing.T) {
 
 func TestWsHandleData(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
 	for _, l := range []int{10, 100} {
 		err := e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, &subscription.Subscription{
@@ -1197,30 +1197,30 @@ func TestWsHandleData(t *testing.T) {
 func TestWSProcessTrades(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{spotTestPair}, Channel: subscription.AllTradesChannel, Key: 18788})
 	require.NoError(t, err, "AddSubscriptions must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", e.wsHandleData)
-	close(e.Websocket.DataHandler)
+	e.Websocket.DataHandler.Close()
 
 	invalid := []any{"trades", []any{[]any{"95873.80000", "0.00051182", "1708731380.3791859"}}}
 	rawBytes, err := json.Marshal(invalid)
 	require.NoError(t, err, "Marshal must not error marshalling invalid trade data")
 
 	pair := currency.NewPair(currency.XBT, currency.USD)
-	err = e.wsProcessTrades(json.RawMessage(rawBytes), pair)
+	err = e.wsProcessTrades(t.Context(), json.RawMessage(rawBytes), pair)
 	require.ErrorContains(t, err, "error unmarshalling trade data")
 
 	expJSON := []string{
 		`{"AssetType":"spot","CurrencyPair":"XBT/USD","Side":"BUY","Price":95873.80000,"Amount":0.00051182,"Timestamp":"2025-02-23T23:29:40.379186Z"}`,
 		`{"AssetType":"spot","CurrencyPair":"XBT/USD","Side":"SELL","Price":95940.90000,"Amount":0.00011069,"Timestamp":"2025-02-24T02:01:12.853682Z"}`,
 	}
-	require.Len(t, e.Websocket.DataHandler, len(expJSON), "Must see correct number of trades")
-	for resp := range e.Websocket.DataHandler {
-		switch v := resp.(type) {
+	require.Len(t, e.Websocket.DataHandler.C, len(expJSON), "Must see correct number of trades")
+	for resp := range e.Websocket.DataHandler.C {
+		switch v := resp.Data.(type) {
 		case trade.Data:
-			i := 1 - len(e.Websocket.DataHandler)
+			i := 1 - len(e.Websocket.DataHandler.C)
 			exp := trade.Data{Exchange: e.Name, CurrencyPair: spotTestPair}
 			require.NoErrorf(t, json.Unmarshal([]byte(expJSON[i]), &exp), "Must not error unmarshalling json %d: %s", i, expJSON[i])
 			require.Equalf(t, exp, v, "Trade [%d] must be correct", i)
@@ -1234,16 +1234,16 @@ func TestWSProcessTrades(t *testing.T) {
 
 func TestWsOpenOrders(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	testexch.UpdatePairsOnce(t, e)
 	testexch.FixtureToDataHandler(t, "testdata/wsOpenTrades.json", e.wsHandleData)
-	close(e.Websocket.DataHandler)
-	assert.Len(t, e.Websocket.DataHandler, 7, "Should see 7 orders")
-	for resp := range e.Websocket.DataHandler {
-		switch v := resp.(type) {
+	e.Websocket.DataHandler.Close()
+	assert.Len(t, e.Websocket.DataHandler.C, 7, "Should see 7 orders")
+	for resp := range e.Websocket.DataHandler.C {
+		switch v := resp.Data.(type) {
 		case *order.Detail:
-			switch len(e.Websocket.DataHandler) {
+			switch len(e.Websocket.DataHandler.C) {
 			case 6:
 				assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
 				assert.Equal(t, order.Limit, v.Type, "order type")
@@ -1443,7 +1443,7 @@ var websocketGSTEUROrderbookUpdates = []string{
 
 func TestWsOrderbookMax10Depth(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
 	pairs := currency.Pairs{
 		currency.NewPairWithDelimiter("XDG", "USD", "/"),
@@ -1536,7 +1536,7 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	_, err := e.GetOpenInterest(t.Context(), key.PairAsset{

@@ -5,7 +5,7 @@ jobs:
     name: miscellaneous checks
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
     - name: Setup Go
       uses: actions/setup-go@v6
       with:
@@ -85,6 +85,7 @@ jobs:
         
     - name: Check Go modernise tool issues
       run: |
-        go run golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest -test ./...
+        pkgs=$(go list ./... | grep -vE '/gctrpc$|/backtester/btrpc$|/database/models/')
+        go run golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest -test $pkgs
     
 

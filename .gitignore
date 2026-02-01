@@ -1,8 +1,8 @@
 wrapperconfig.json
 config.json
 config.dat
-node_modules
 lib
+.DS_STORE
 
 # VS Code
 .vscode
@@ -36,10 +36,6 @@ backtester/btcli/btcli
 *.out
 sqlboiler.toml
 sqlboiler.json
-
-# GCT API Check
-backup.json
-.DS_STORE
 
 # Designated generated files dir
 target/

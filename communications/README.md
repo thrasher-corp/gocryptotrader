@@ -1,6 +1,6 @@
 # GoCryptoTrader package Comms
 
-<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/page-logo.png?raw=true" width="350px" height="350px" hspace="70">
+<img src="/docs/assets/page-logo.png" width="350px" height="350px" hspace="70">
 
 
 [![Build Status](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/thrasher-corp/gocryptotrader/actions/workflows/tests.yml)
@@ -39,7 +39,7 @@ to be exported out to a defined communication medium
 
 ## Donations
 
-<img src="https://github.com/thrasher-corp/gocryptotrader/blob/master/web/src/assets/donate.png?raw=true" hspace="70">
+<img src="/docs/assets/donate.png" hspace="70">
 
 If this framework helped you in any way, or you would like to support the developers working on it, please donate Bitcoin to:
 

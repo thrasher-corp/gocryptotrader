@@ -193,7 +193,7 @@ Run the following tool to check for Go modernise issues:
     make modernise
 ```
 
-Several other miscellaneous checks will be ran via [GitHub actions](/.github/workflows/misc.yml).
+Several other miscellaneous checks will be run via [GitHub actions](/.github/workflows/misc.yml).
 
 - All lint warnings and errors must be resolved before merging.
 - Use `//nolint:linter-name` sparingly and always explain the reason in a comment next to the code.

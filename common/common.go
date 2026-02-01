@@ -75,6 +75,7 @@ var (
 	ErrGettingField              = errors.New("error getting field")
 	ErrSettingField              = errors.New("error setting field")
 	ErrParsingWSField            = errors.New("error parsing websocket field")
+	ErrMalformedData             = errors.New("malformed data")
 )
 
 var (
@@ -198,7 +199,7 @@ func StringSliceContainsInsensitive(haystack []string, needle string) bool {
 	})
 }
 
-// IsEnabled takes in a boolean param  and returns a string if it is enabled
+// IsEnabled takes in a boolean param and returns a string if it is enabled
 // or disabled
 func IsEnabled(isEnabled bool) string {
 	if isEnabled {
@@ -553,31 +554,33 @@ func ExcludeError(err, excl error) error {
 }
 
 // ErrorCollector allows collecting a stream of errors from concurrent go routines
-// Users should call e.Wg.Done and send errors to e.C
 type ErrorCollector struct {
-	C  chan error
-	Wg sync.WaitGroup
+	errs error
+	wg   sync.WaitGroup
+	m    sync.Mutex
 }
 
-// CollectErrors returns an ErrorCollector with WaitGroup and Channel buffer set to n
-func CollectErrors(n int) *ErrorCollector {
-	e := &ErrorCollector{
-		C: make(chan error, n),
-	}
-	e.Wg.Add(n)
-	return e
-}
-
-// Collect runs waits for e.Wg to be Done, closes the error channel, and return a error collection
+// Collect waits for the internal wait group to be done and returns an error collection
+// State is reset after each Collect, so successive calls are okay
 func (e *ErrorCollector) Collect() (errs error) {
-	e.Wg.Wait()
-	close(e.C)
-	for err := range e.C {
-		if err != nil {
-			errs = AppendError(errs, err)
-		}
+	e.wg.Wait()
+	e.m.Lock()
+	defer func() { e.errs = nil; e.m.Unlock() }()
+	return e.errs
+}
+
+// Go runs a function in a goroutine and collects any error it returns
+func (e *ErrorCollector) Go(f func() error) {
+	if err := NilGuard(f); err != nil {
+		panic(err)
 	}
-	return
+	e.wg.Go(func() {
+		if err := f(); err != nil {
+			e.m.Lock()
+			e.errs = AppendError(e.errs, err)
+			e.m.Unlock()
+		}
+	})
 }
 
 // StartEndTimeCheck provides some basic checks which occur
@@ -682,4 +685,69 @@ func (c *Counter) IncrementAndGet() int64 {
 		return 1
 	}
 	return newID
+}
+
+// SetIfZero sets the value of p to def if p is the zero value for its type and returns true if it was set
+func SetIfZero[T comparable](p *T, def T) bool {
+	var zero T
+	if *p != zero {
+		return false
+	}
+	*p = def
+	return true
+}
+
+var (
+	contextKeys   []any
+	contextKeysMu sync.RWMutex
+)
+
+// RegisterContextKey registers a key to be captured by FreezeContext
+func RegisterContextKey(key any) {
+	contextKeysMu.Lock()
+	defer contextKeysMu.Unlock()
+	if !slices.Contains(contextKeys, key) {
+		contextKeys = append(contextKeys, key)
+	}
+}
+
+// FrozenContext holds captured context values
+type FrozenContext map[any]any
+
+// FreezeContext captures values from the context for registered keys
+func FreezeContext(ctx context.Context) FrozenContext {
+	contextKeysMu.RLock()
+	defer contextKeysMu.RUnlock()
+
+	values := make(FrozenContext, len(contextKeys))
+	for _, key := range contextKeys {
+		if val := ctx.Value(key); val != nil {
+			values[key] = val
+		}
+	}
+	return values
+}
+
+// ThawContext creates a new context from the frozen context using context.Background() as parent
+func ThawContext(fc FrozenContext) context.Context {
+	return MergeContext(context.Background(), fc)
+}
+
+// MergeContext adds the frozen values to an existing context
+func MergeContext(ctx context.Context, fc FrozenContext) context.Context {
+	return &mergedContext{Context: ctx, frozen: fc}
+}
+
+// mergedContext is a context that has merged values from a frozen context and a parent context.
+// frozen values are stored in FrozenContext instead of nested context.WithValue because of the performance of calling WithValue N+ times on messages being frozen
+type mergedContext struct {
+	context.Context //nolint:containedctx // mergedContext implements context.Context
+	frozen          FrozenContext
+}
+
+func (m *mergedContext) Value(key any) any {
+	if val, ok := m.frozen[key]; ok {
+		return val
+	}
+	return m.Context.Value(key)
 }

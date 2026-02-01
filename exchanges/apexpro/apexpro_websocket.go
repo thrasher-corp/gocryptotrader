@@ -243,7 +243,7 @@ func (e *Exchange) wsReadData(conn websocket.Connection) {
 		}
 		err := e.wsHandleData(response.Raw)
 		if err != nil {
-			e.Websocket.DataHandler <- err
+			log.Errorln(log.WebsocketMgr, err)
 		}
 	}
 }
@@ -270,7 +270,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 		var authResp *WsAuthResponse
 		err = json.Unmarshal(respRaw, &authResp)
 		if err != nil {
-			e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: string(respRaw)}
+			return err
 		}
 		switch authResp.Topic {
 		case chZKAccountV3:
@@ -293,7 +293,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			e.Websocket.DataHandler <- resp
+			e.Websocket.DataHandler.Send(context.Background(), resp)
 		}
 	}
 	return nil
@@ -365,7 +365,7 @@ func (e *Exchange) processAccountOrders(respOrders []OrderDetail) error {
 			Pair:               pair,
 			SettlementCurrency: pair.Quote,
 		}
-		e.Websocket.DataHandler <- &orders
+		return e.Websocket.DataHandler.Send(context.Background(), orders)
 	}
 	return nil
 }
@@ -394,8 +394,7 @@ func (e *Exchange) processAccountFills(orderFills []WsAccountOrderFill) error {
 			Amount:       orderFills[f].Size.Float64(),
 		}
 	}
-	e.Websocket.DataHandler <- fillsList
-	return nil
+	return e.Websocket.DataHandler.Send(context.Background(), fillsList)
 }
 
 func (e *Exchange) processOrderbook(respRaw []byte) error {
@@ -481,7 +480,7 @@ func (e *Exchange) processTickerData(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- ticker.Price{
+	return e.Websocket.DataHandler.Send(context.Background(), &ticker.Price{
 		Last:         resp.Data.LastPrice.Float64(),
 		High:         resp.Data.HighPrice24H.Float64(),
 		Low:          resp.Data.LowPrice24H.Float64(),
@@ -492,8 +491,7 @@ func (e *Exchange) processTickerData(respRaw []byte) error {
 		Pair:         cp,
 		ExchangeName: e.Name,
 		AssetType:    asset.Futures,
-	}
-	return nil
+	})
 }
 
 func (e *Exchange) processCandlestickData(respRaw []byte) error {
@@ -522,8 +520,7 @@ func (e *Exchange) processCandlestickData(respRaw []byte) error {
 			Volume:     resp.Data[a].Volume.Float64(),
 		}
 	}
-	e.Websocket.DataHandler <- klineData
-	return nil
+	return e.Websocket.DataHandler.Send(context.Background(), klineData)
 }
 
 func (e *Exchange) processAllTickers(respRaw []byte) error {
@@ -553,6 +550,5 @@ func (e *Exchange) processAllTickers(respRaw []byte) error {
 			LastUpdated:  resp.Timestamp.Time(),
 		}
 	}
-	e.Websocket.DataHandler <- tickerData
-	return nil
+	return e.Websocket.DataHandler.Send(context.Background(), tickerData)
 }

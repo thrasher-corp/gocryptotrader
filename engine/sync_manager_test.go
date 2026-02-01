@@ -201,12 +201,6 @@ func TestPrintOrderbookSummary(t *testing.T) {
 	m.PrintOrderbookSummary(nil, "REST", errors.New("test"))
 }
 
-func TestRelayWebsocketEvent(t *testing.T) {
-	t.Parallel()
-
-	relayWebsocketEvent(nil, "", "", "")
-}
-
 func TestWaitForInitialSync(t *testing.T) {
 	var m *SyncManager
 	err := m.WaitForInitialSync()

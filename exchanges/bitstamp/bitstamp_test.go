@@ -197,7 +197,7 @@ func TestGetOrderbook(t *testing.T) {
 	ob, err := e.GetOrderbook(t.Context(), currency.BTC.String()+currency.USD.String())
 	require.NoError(t, err, "GetOrderbook must not error")
 	assert.NotEmpty(t, ob.Timestamp, "Timestamp should not be empty")
-	for i, o := range [][]OrderbookBase{ob.Asks, ob.Bids} {
+	for i, o := range [][]orderbook.Level{ob.Asks, ob.Bids} {
 		s := []string{"Ask", "Bid"}[i]
 		if assert.NotEmptyf(t, o, "Should have items in %ss", s) {
 			a := o[0]
@@ -235,7 +235,7 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	err := e.UpdateTradablePairs(t.Context(), true)
+	err := e.UpdateTradablePairs(t.Context())
 	require.NoError(t, err, "UpdateTradablePairs must not error")
 }
 
@@ -619,9 +619,12 @@ func TestWithdrawFiat(t *testing.T) {
 			RequiresIntermediaryBank: false,
 			IsExpressWire:            false,
 		},
-		Amount:      10,
+		Amount:      -0.1,
 		Currency:    currency.USD,
 		Description: "WITHDRAW IT ALL",
+	}
+	if mockTests {
+		withdrawFiatRequest.Amount = 10
 	}
 
 	w, err := e.WithdrawFiatFunds(t.Context(), &withdrawFiatRequest)
@@ -668,14 +671,18 @@ func TestWithdrawInternationalBank(t *testing.T) {
 			IntermediaryBankName:          "Federal Reserve Bank",
 			IntermediaryBankPostalCode:    "2088",
 		},
-		Amount:      50,
+		Amount:      -0.1,
 		Currency:    currency.USD,
 		Description: "WITHDRAW IT ALL",
+	}
+	if mockTests {
+		withdrawFiatRequest.Amount = 50
 	}
 
 	w, err := e.WithdrawFiatFundsToInternationalBank(t.Context(),
 		&withdrawFiatRequest)
 	if mockTests {
+		require.NoError(t, err, "WithdrawFiatFundsToInternationalBank must not error")
 		assert.Equal(t, "1", w.ID, "Withdrawal ID should be correct")
 	} else {
 		require.NoError(t, err, "WithdrawFiatFundsToInternationalBank must not error")
@@ -741,15 +748,15 @@ func TestWsOrderbook2(t *testing.T) {
 func TestWsOrderUpdate(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsMyOrders.json", e.wsHandleData)
-	close(e.Websocket.DataHandler)
-	assert.Len(t, e.Websocket.DataHandler, 8, "Should see 8 orders")
-	for resp := range e.Websocket.DataHandler {
-		switch v := resp.(type) {
+	e.Websocket.DataHandler.Close()
+	assert.Len(t, e.Websocket.DataHandler.C, 8, "Should see 8 orders")
+	for resp := range e.Websocket.DataHandler.C {
+		switch v := resp.Data.(type) {
 		case *order.Detail:
-			switch len(e.Websocket.DataHandler) {
+			switch len(e.Websocket.DataHandler.C) {
 			case 7:
 				assert.Equal(t, "1658864794234880", v.OrderID, "OrderID")
 				assert.Equal(t, time.UnixMicro(1693831262313000), v.Date, "Date")

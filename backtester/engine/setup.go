@@ -158,7 +158,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				if err != nil {
 					return err
 				}
-				err = exch.UpdateTradablePairs(context.TODO(), true)
+				err = exch.UpdateTradablePairs(context.TODO())
 				if err != nil {
 					return err
 				}
@@ -499,7 +499,7 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (*exchange.Exchang
 		if bt.LiveDataHandler == nil {
 			err = bt.Funding.AddUSDTrackingData(klineData)
 			if err != nil &&
-				!errors.Is(err, trackingcurrencies.ErrCurrencyDoesNotContainsUSD) &&
+				!errors.Is(err, trackingcurrencies.ErrCurrencyDoesNotContainUSD) &&
 				!errors.Is(err, funding.ErrUSDTrackingDisabled) {
 				return nil, err
 			}

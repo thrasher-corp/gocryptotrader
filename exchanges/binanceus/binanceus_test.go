@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -114,19 +115,17 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	err := e.UpdateTradablePairs(t.Context(), false)
+	err := e.UpdateTradablePairs(t.Context())
 	if err != nil {
 		t.Error("Binanceus UpdateTradablePairs() error", err)
 	}
 }
 
-func TestUpdateAccountInfo(t *testing.T) {
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.UpdateAccountInfo(t.Context(), asset.Spot)
-	if err != nil {
-		t.Error("Binanceus UpdateAccountInfo() error", err)
-	}
+	_, err := e.UpdateAccountBalances(t.Context(), asset.Spot)
+	require.NoError(t, err)
 }
 
 func TestGetRecentTrades(t *testing.T) {
@@ -140,10 +139,14 @@ func TestGetRecentTrades(t *testing.T) {
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
-	pair := currency.Pair{Base: currency.BTC, Quote: currency.USD}
-	_, err := e.GetHistoricTrades(t.Context(), pair, asset.Spot, time.Time{}, time.Time{})
-	if err != nil {
-		t.Error("Binanceus GetHistoricTrades() error", err)
+	p := currency.NewBTCUSDT()
+	start := time.Now().Add(-time.Hour * 24 * 90).Truncate(time.Minute) // 3 months ago
+	end := start.Add(15 * time.Minute)
+	result, err := e.GetHistoricTrades(t.Context(), p, asset.Spot, start, end)
+	require.NoError(t, err, "GetHistoricTrades must not error")
+	assert.NotEmpty(t, result, "GetHistoricTrades should have trades")
+	for _, r := range result {
+		require.WithinRange(t, r.Timestamp, start, end, "All trades must be within time range")
 	}
 }
 
@@ -444,13 +447,8 @@ func TestGetAggregateTrades(t *testing.T) {
 
 func TestGetOrderBookDepth(t *testing.T) {
 	t.Parallel()
-	_, er := e.GetOrderBookDepth(t.Context(), &OrderBookDataRequestParams{
-		Symbol: currency.NewBTCUSDT(),
-		Limit:  1000,
-	})
-	if er != nil {
-		t.Error("Binanceus GetOrderBook() error", er)
-	}
+	_, err := e.GetOrderBookDepth(t.Context(), currency.NewBTCUSDT(), 1000)
+	assert.NoError(t, err)
 }
 
 func TestGetCandlestickData(t *testing.T) {
@@ -1137,8 +1135,8 @@ func TestWithdrawCrypto(t *testing.T) {
 	params.Crypto.Address = "1234567"
 	_, err = e.WithdrawCrypto(t.Context(), params)
 	assert.ErrorIs(t, err, errAmountValueMustBeGreaterThan0)
-	params.Amount = 1
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	params.Amount = -0.1
 	_, err = e.WithdrawCrypto(t.Context(), params)
 	assert.ErrorContains(t, err, "You are not authorized to execute this request.")
 }
@@ -1209,7 +1207,7 @@ func TestWebsocketSubscriptionHandling(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	rawData := []byte(subscriptionRequestString)
-	err := e.wsHandleData(rawData)
+	err := e.wsHandleData(t.Context(), rawData)
 	if err != nil {
 		t.Error("Binanceus wsHandleData() error", err)
 	}
@@ -1223,7 +1221,7 @@ func TestWebsocketUnsubscriptionHandling(t *testing.T) {
 	],
 	"id": 312
 	}`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1267,7 +1265,7 @@ var ticker24hourChangeStream = `{
 
 func TestWebsocketTickerUpdate(t *testing.T) {
 	t.Parallel()
-	if err := e.wsHandleData([]byte(ticker24hourChangeStream)); err != nil {
+	if err := e.wsHandleData(t.Context(), []byte(ticker24hourChangeStream)); err != nil {
 		t.Error("Binanceus wsHandleData() for Ticker 24h Change Stream", err)
 	}
 }
@@ -1302,7 +1300,7 @@ func TestWebsocketKlineUpdate(t *testing.T) {
 	  			}
 			}
 		}`)
-	if err := e.wsHandleData(pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
 		t.Error("Binanceus wsHandleData() btcusdt@kline_1m stream data conversion ", err)
 	}
 }
@@ -1322,7 +1320,7 @@ func TestWebsocketStreamTradeUpdate(t *testing.T) {
 	  "m": true,        
 	  "M": true         
 	}}`)
-	if err := e.wsHandleData(pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
 		t.Error("Binanceus wsHandleData() error", err)
 	}
 }
@@ -1334,29 +1332,29 @@ func TestWebsocketOrderBookDepthDiffStream(t *testing.T) {
 	e.setupOrderbookManager(t.Context())
 	seedLastUpdateID := int64(161)
 	book := OrderBook{
-		Asks: []OrderbookItem{
-			{Price: 6621.80000000, Quantity: 0.00198100},
-			{Price: 6622.14000000, Quantity: 4.00000000},
-			{Price: 6622.46000000, Quantity: 2.30000000},
-			{Price: 6622.47000000, Quantity: 1.18633300},
-			{Price: 6622.64000000, Quantity: 4.00000000},
-			{Price: 6622.73000000, Quantity: 0.02900000},
-			{Price: 6622.76000000, Quantity: 0.12557700},
-			{Price: 6622.81000000, Quantity: 2.08994200},
-			{Price: 6622.82000000, Quantity: 0.01500000},
-			{Price: 6623.17000000, Quantity: 0.16831300},
+		Asks: []orderbook.Level{
+			{Price: 6621.80000000, Amount: 0.00198100},
+			{Price: 6622.14000000, Amount: 4.00000000},
+			{Price: 6622.46000000, Amount: 2.30000000},
+			{Price: 6622.47000000, Amount: 1.18633300},
+			{Price: 6622.64000000, Amount: 4.00000000},
+			{Price: 6622.73000000, Amount: 0.02900000},
+			{Price: 6622.76000000, Amount: 0.12557700},
+			{Price: 6622.81000000, Amount: 2.08994200},
+			{Price: 6622.82000000, Amount: 0.01500000},
+			{Price: 6623.17000000, Amount: 0.16831300},
 		},
-		Bids: []OrderbookItem{
-			{Price: 6621.55000000, Quantity: 0.16356700},
-			{Price: 6621.45000000, Quantity: 0.16352600},
-			{Price: 6621.41000000, Quantity: 0.86091200},
-			{Price: 6621.25000000, Quantity: 0.16914100},
-			{Price: 6621.23000000, Quantity: 0.09193600},
-			{Price: 6621.22000000, Quantity: 0.00755100},
-			{Price: 6621.13000000, Quantity: 0.08432000},
-			{Price: 6621.03000000, Quantity: 0.00172000},
-			{Price: 6620.94000000, Quantity: 0.30506700},
-			{Price: 6620.93000000, Quantity: 0.00200000},
+		Bids: []orderbook.Level{
+			{Price: 6621.55000000, Amount: 0.16356700},
+			{Price: 6621.45000000, Amount: 0.16352600},
+			{Price: 6621.41000000, Amount: 0.86091200},
+			{Price: 6621.25000000, Amount: 0.16914100},
+			{Price: 6621.23000000, Amount: 0.09193600},
+			{Price: 6621.22000000, Amount: 0.00755100},
+			{Price: 6621.13000000, Amount: 0.08432000},
+			{Price: 6621.03000000, Amount: 0.00172000},
+			{Price: 6620.94000000, Amount: 0.30506700},
+			{Price: 6620.93000000, Amount: 0.00200000},
 		},
 		LastUpdateID: seedLastUpdateID,
 	}
@@ -1378,7 +1376,7 @@ func TestWebsocketOrderBookDepthDiffStream(t *testing.T) {
 	if err := e.SeedLocalCacheWithBook(p, &book); err != nil {
 		t.Fatal(err)
 	}
-	if err := e.wsHandleData(update1); err != nil {
+	if err := e.wsHandleData(t.Context(), update1); err != nil {
 		t.Fatal(err)
 	}
 	e.obm.state[currency.BTC][currency.USDT][asset.Spot].fetchingBook = false
@@ -1411,7 +1409,7 @@ func TestWebsocketOrderBookDepthDiffStream(t *testing.T) {
 			]
 		}
 	}`)
-	if err = e.wsHandleData(update2); err != nil {
+	if err = e.wsHandleData(t.Context(), update2); err != nil {
 		t.Error("Binanceus wshandlerData error", err)
 	}
 	ob, err = e.Websocket.Orderbook.GetOrderbook(p, asset.Spot)
@@ -1453,7 +1451,7 @@ func TestWebsocketPartialOrderBookDepthStream(t *testing.T) {
 		]
 	  }}`)
 	var err error
-	if err = e.wsHandleData(update1); err != nil {
+	if err = e.wsHandleData(t.Context(), update1); err != nil {
 		t.Error("Binanceus Partial Order Book Depth Sream error", err)
 	}
 	update2 := []byte(`{
@@ -1474,7 +1472,7 @@ func TestWebsocketPartialOrderBookDepthStream(t *testing.T) {
 			]
 		}
 	  }`)
-	if err = e.wsHandleData(update2); err != nil {
+	if err = e.wsHandleData(t.Context(), update2); err != nil {
 		t.Error("Binanceus Partial Order Book Depth Sream error", err)
 	}
 }
@@ -1493,7 +1491,7 @@ func TestWebsocketBookTicker(t *testing.T) {
 			"A":"40.66000000" 
 		}
 	  }`)
-	if err := e.wsHandleData(bookTickerJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), bookTickerJSON); err != nil {
 		t.Error("Binanceus Book Ticker error", err)
 	}
 	bookTickerForAllSymbols := []byte(`
@@ -1508,7 +1506,7 @@ func TestWebsocketBookTicker(t *testing.T) {
 			"A":"40.66000000" 
 		}
 	}`)
-	if err := e.wsHandleData(bookTickerForAllSymbols); err != nil {
+	if err := e.wsHandleData(t.Context(), bookTickerForAllSymbols); err != nil {
 		t.Error("Binanceus Web socket Book ticker for all symbols error", err)
 	}
 }
@@ -1532,7 +1530,7 @@ func TestWebsocketAggTrade(t *testing.T) {
 				"M": true         
 			}
 	   }`)
-	if err := e.wsHandleData(aggTradejson); err != nil {
+	if err := e.wsHandleData(t.Context(), aggTradejson); err != nil {
 		t.Error("Binanceus Aggregated Trade Order Json() error", err)
 	}
 }
@@ -1550,7 +1548,7 @@ var balanceUpdateInputJSON = `
 func TestWebsocketBalanceUpdate(t *testing.T) {
 	t.Parallel()
 	thejson := []byte(balanceUpdateInputJSON)
-	if err := e.wsHandleData(thejson); err != nil {
+	if err := e.wsHandleData(t.Context(), thejson); err != nil {
 		t.Error(err)
 	}
 }
@@ -1586,7 +1584,7 @@ var listStatusUserDataStreamPayload = `
 
 func TestWebsocketListStatus(t *testing.T) {
 	t.Parallel()
-	if err := e.wsHandleData([]byte(listStatusUserDataStreamPayload)); err != nil {
+	if err := e.wsHandleData(t.Context(), []byte(listStatusUserDataStreamPayload)); err != nil {
 		t.Error(err)
 	}
 }
@@ -1681,15 +1679,15 @@ func TestWebsocketOrderExecutionReport(t *testing.T) {
 		LastUpdated:     time.UnixMilli(1616627567900),
 		Pair:            currency.NewBTCUSDT(),
 	}
-	for len(e.Websocket.DataHandler) > 0 {
-		<-e.Websocket.DataHandler
+	for ch := e.Websocket.DataHandler.C; len(ch) > 0; {
+		<-ch
 	}
-	err := e.wsHandleData(payload)
+	err := e.wsHandleData(t.Context(), payload)
 	if err != nil {
 		t.Fatal(err)
 	}
-	res := <-e.Websocket.DataHandler
-	switch r := res.(type) {
+	res := <-e.Websocket.DataHandler.C
+	switch r := res.Data.(type) {
 	case *order.Detail:
 		if !reflects.DeepEqual(expectedResult, *r) {
 			t.Errorf("Binanceus Results do not match:\nexpected: %v\nreceived: %v", expectedResult, *r)
@@ -1698,7 +1696,7 @@ func TestWebsocketOrderExecutionReport(t *testing.T) {
 		t.Fatalf("Binanceus expected type order.Detail, found %T", res)
 	}
 	payload = []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"executionReport","E":1616633041556,"s":"BTCUSDT","c":"YeULctvPAnHj5HXCQo9Mob","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00028600","p":"52436.85000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":5341783271,"l":"0.00028600","z":"0.00028600","L":"52436.85000000","n":"0.00000029","N":"BTC","T":1616633041555,"t":726946523,"I":11390206312,"w":false,"m":false,"M":true,"O":1616633041555,"Z":"14.99693910","Y":"14.99693910","Q":"0.00000000"}}`)
-	err = e.wsHandleData(payload)
+	err = e.wsHandleData(t.Context(), payload)
 	if err != nil {
 		t.Fatal("Binanceus OrderExecutionReport json conversion error", err)
 	}
@@ -1707,7 +1705,7 @@ func TestWebsocketOrderExecutionReport(t *testing.T) {
 func TestWebsocketOutboundAccountPosition(t *testing.T) {
 	t.Parallel()
 	payload := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"outboundAccountPosition","E":1616628815745,"u":1616628815745,"B":[{"a":"BTC","f":"0.00225109","l":"0.00123000"},{"a":"BNB","f":"0.00000000","l":"0.00000000"},{"a":"USDT","f":"54.43390661","l":"0.00000000"}]}}`)
-	if err := e.wsHandleData(payload); err != nil {
+	if err := e.wsHandleData(t.Context(), payload); err != nil {
 		t.Fatal("Binanceus testing \"outboundAccountPosition\" data conversion error", err)
 	}
 }
@@ -1754,5 +1752,52 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		resp, err := e.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
+	}
+}
+
+// TestGetAggregatedTradesBatched exercises TestGetAggregatedTradesBatched to ensure our date and limit scanning works correctly
+// This test is susceptible to failure if volumes change a lot, during wash trading or zero-fee periods
+// In live tests, 6 hours is expected to return about 1000 records
+func TestGetAggregatedTradesBatched(t *testing.T) {
+	t.Parallel()
+	type testCase struct {
+		name    string
+		args    *AggregatedTradeRequestParams
+		expFunc func(*testing.T, []AggregatedTrade)
+	}
+
+	var tests []testCase
+	start := time.Now().Add(-time.Hour * 24 * 90).Truncate(time.Minute) // 3 months ago
+	tests = []testCase{
+		{
+			name: "batch with timerange",
+			args: &AggregatedTradeRequestParams{StartTime: start, EndTime: start.Add(6 * time.Hour)},
+			expFunc: func(t *testing.T, results []AggregatedTrade) {
+				t.Helper()
+				require.NotEmpty(t, results, "must have records")
+				assert.Less(t, len(results), 10000, "should return a quantity below a sane threshold of records")
+				assert.WithinDuration(t, results[len(results)-1].TimeStamp.Time(), start, 6*time.Hour, "last record should be within range of start time")
+			},
+		},
+		{
+			name: "custom limit with start time set, no end time",
+			args: &AggregatedTradeRequestParams{StartTime: start, Limit: 2042},
+			expFunc: func(t *testing.T, results []AggregatedTrade) {
+				t.Helper()
+				// 2000 records in was about 32 hours in 2025; Adjust if BinanceUS enters a phase of zero-fees or low-volume
+				require.Equal(t, 2042, len(results), "must return exactly the limit number of records")
+				assert.WithinDuration(t, results[len(results)-1].TimeStamp.Time(), start, 72*time.Hour, "last record should be within 72 hours of start time")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			tt.args.Symbol = currency.NewBTCUSDT()
+			results, err := e.GetAggregateTrades(t.Context(), tt.args)
+			require.NoError(t, err)
+			tt.expFunc(t, results)
+		})
 	}
 }

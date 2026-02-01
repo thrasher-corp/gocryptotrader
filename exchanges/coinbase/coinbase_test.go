@@ -111,7 +111,7 @@ func TestWsConnect(t *testing.T) {
 	assert.ErrorIs(t, err, websocket.ErrWebsocketNotEnabled)
 	err = exchangeBaseHelper(exch)
 	require.NoError(t, err)
-	err = exch.Websocket.Enable()
+	err = exch.Websocket.Enable(t.Context())
 	assert.NoError(t, err)
 }
 
@@ -121,13 +121,11 @@ func TestGetAccountByID(t *testing.T) {
 	assert.ErrorIs(t, err, errAccountIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	longResp, err := e.ListAccounts(t.Context(), 49, 0)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	require.True(t, longResp != nil && len(longResp.Accounts) > 0, errExpectedNonEmpty)
 	shortResp, err := e.GetAccountByID(t.Context(), longResp.Accounts[0].UUID)
-	assert.NoError(t, err)
-	if *shortResp != longResp.Accounts[0] {
-		t.Errorf(errExpectMismatch, shortResp, longResp.Accounts[0])
-	}
+	require.NoError(t, err)
+	assert.Equal(t, shortResp, longResp.Accounts[0])
 }
 
 func TestListAccounts(t *testing.T) {
@@ -1136,10 +1134,10 @@ func TestUpdateTradablePairs(t *testing.T) {
 	testexch.UpdatePairsOnce(t, e)
 }
 
-func TestUpdateAccountInfo(t *testing.T) {
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	resp, err := e.UpdateAccountInfo(t.Context(), asset.Spot)
+	resp, err := e.UpdateAccountBalances(t.Context(), asset.Spot)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
@@ -1298,6 +1296,7 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	_, err = e.WithdrawCryptocurrencyFunds(t.Context(), &req)
 	assert.ErrorIs(t, err, errWalletIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	req.Amount = -0.1
 	wallets, err := e.GetAllWallets(t.Context(), PaginationInp{})
 	assert.NoError(t, err)
 	if wallets == nil || len(wallets.Data) == 0 {
@@ -1517,7 +1516,7 @@ func TestWsAuth(t *testing.T) {
 	err := e.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{})
 	require.NoError(t, err)
 	e.Websocket.Wg.Add(1)
-	go e.wsReadData()
+	go e.wsReadData(t.Context())
 	err = e.Subscribe(subscription.List{
 		{
 			Channel:       "myAccount",
@@ -1529,7 +1528,7 @@ func TestWsAuth(t *testing.T) {
 	assert.NoError(t, err)
 	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
-	case badResponse := <-e.Websocket.DataHandler:
+	case badResponse := <-e.Websocket.DataHandler.C:
 		assert.IsType(t, []order.Detail{}, badResponse)
 	case <-timer.C:
 	}
@@ -1544,64 +1543,64 @@ func TestWsHandleData(t *testing.T) {
 	go func() {
 		for {
 			select {
-			case <-e.Websocket.DataHandler:
+			case <-e.Websocket.DataHandler.C:
 				continue
 			case <-done:
 				return
 			}
 		}
 	}()
-	_, err := e.wsHandleData(nil)
+	_, err := e.wsHandleData(t.Context(), nil)
 	var syntaxErr *json.SyntaxError
 	assert.True(t, errors.As(err, &syntaxErr) || strings.Contains(err.Error(), "Syntax error no sources available, the input json is empty"), errJSONUnmarshalUnexpected)
 	mockJSON := []byte(`{"type": "error"}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.Error(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "subscriptions"}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.NoError(t, err)
 	var unmarshalTypeErr *json.UnmarshalTypeError
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "status", "events": [{"type": 1234}]}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "status", "events": [{"type": "moo"}]}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "ticker", "events": [{"type": "moo", "tickers": false}]}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "candles", "events": [{"type": false}]}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "candles", "events": [{"type": "moo", "candles": [{"low": "1.1"}]}]}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "market_trades", "events": [{"type": false}]}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "market_trades", "events": [{"type": "moo", "trades": [{"price": "1.1"}]}]}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "events": [{"type": false, "updates": [{"price_level": "1.1"}]}]}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "moo", "updates": [{"price_level": "1.1"}]}]}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.ErrorIs(t, err, errUnknownL2DataType)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "snapshot", "product_id": "BTC-USD", "updates": [{"side": "bid", "price_level": "1.1", "new_quantity": "2.2"}]}]}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "update", "product_id": "BTC-USD", "updates": [{"side": "bid", "price_level": "1.1", "new_quantity": "2.2"}]}]}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": false}]}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": "moo", "orders": [{"limit_price": "2.2", "total_fees": "1.1", "post_only": true}], "positions": {"perpetual_futures_positions": [{"margin_type": "fakeMarginType"}], "expiring_futures_positions": [{}]}}]}`)
-	_, err = e.wsHandleData(mockJSON)
-	assert.NoError(t, err)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": "l", "orders": [{"limit_price": "2.2", "total_fees": "1.1", "post_only": true}], "positions": {"perpetual_futures_positions": [{"margin_type": "fakeMarginType"}], "expiring_futures_positions": [{}]}}]}`)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
+	assert.ErrorIs(t, err, order.ErrUnrecognisedOrderType)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "fakechan", "events": [{"type": ""}]}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.ErrorIs(t, err, errChannelNameUnknown)
 	p, err := e.FormatExchangeCurrency(currency.NewBTCUSD(), asset.Spot)
 	require.NoError(t, err)
@@ -1609,7 +1608,7 @@ func TestWsHandleData(t *testing.T) {
 		p: {p},
 	})
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "ticker", "events": [{"type": "moo", "tickers": [{"product_id": "BTC-USD", "price": "1.1"}]}]}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.NoError(t, err)
 }
 
@@ -1629,7 +1628,7 @@ func TestProcessSnapshotUpdate(t *testing.T) {
 
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	e := new(Exchange)
 	if err := testexch.Setup(e); err != nil {
 		log.Fatal(err)
 	}
@@ -1676,7 +1675,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 
 func TestCheckSubscriptions(t *testing.T) {
 	t.Parallel()
-	e := &Exchange{ //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	e := &Exchange{
 		Base: exchange.Base{
 			Config: &config.Exchange{
 				Features: &config.FeaturesConfig{
@@ -1880,7 +1879,7 @@ func exchangeBaseHelper(e *Exchange) error {
 		return err
 	}
 	if apiKey != "" {
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.SetCredentials(apiKey, apiSecret, "", "", "", "", "", "", "")
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
 	}
@@ -1916,10 +1915,10 @@ func convertTestHelper(t *testing.T) (fromAccID, toAccID string) {
 		t.Fatal(errExpectedNonEmpty)
 	}
 	for x := range accIDs.Accounts {
-		if accIDs.Accounts[x].Currency == testStable.String() {
+		if accIDs.Accounts[x].Currency == testStable {
 			fromAccID = accIDs.Accounts[x].UUID
 		}
-		if accIDs.Accounts[x].Currency == testFiat.String() {
+		if accIDs.Accounts[x].Currency == testFiat {
 			toAccID = accIDs.Accounts[x].UUID
 		}
 		if fromAccID != "" && toAccID != "" {
@@ -1973,6 +1972,7 @@ func withdrawFiatFundsHelper(t *testing.T, fn withdrawFiatFunc) {
 	_, err = fn(t.Context(), &req)
 	assert.ErrorIs(t, err, errWalletIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	req.Amount = -0.1
 	req.WalletID = "meow"
 	req.Fiat.Bank.BankName = "GCT's Officially Fake and Not Real Test Bank"
 	_, err = fn(t.Context(), &req)

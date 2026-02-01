@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -34,8 +35,7 @@ func Setup(e exchange.IBotExchange) error {
 		return err
 	}
 
-	err = cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true)
-	if err != nil {
+	if err = cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true); err != nil {
 		return fmt.Errorf("LoadConfig() error: %w", err)
 	}
 	e.SetDefaults()
@@ -47,10 +47,13 @@ func Setup(e exchange.IBotExchange) error {
 	e.SetDefaults()
 	b := e.GetBase()
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
-	err = e.Setup(exchConf)
-	if err != nil {
+
+	if err = e.Setup(exchConf); err != nil {
 		return fmt.Errorf("Setup() error: %w", err)
 	}
+
+	b.Accounts = accounts.MustNewAccounts(b)
+
 	return nil
 }
 
@@ -121,7 +124,7 @@ func MockWsInstance[T any, PT interface {
 	// Exchanges which don't support subscription conf; Can be removed when all exchanges support sub conf
 	b.Websocket.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
 
-	err = b.Websocket.Connect()
+	err = b.Websocket.Connect(context.TODO())
 	require.NoError(tb, err, "Connect must not error")
 
 	return e
@@ -130,7 +133,7 @@ func MockWsInstance[T any, PT interface {
 // FixtureError contains an error and the message that caused it
 type FixtureError struct {
 	Err error
-	Msg []byte
+	Msg string
 }
 
 // FixtureToDataHandler squirts the contents of a file to a reader function (probably e.wsHandleData) and asserts no errors are returned
@@ -160,7 +163,7 @@ func FixtureToDataHandlerWithErrors(tb testing.TB, fixturePath string, reader fu
 		if err := reader(tb.Context(), msg); err != nil {
 			errs = append(errs, FixtureError{
 				Err: err,
-				Msg: msg,
+				Msg: string(msg),
 			})
 		}
 	}
@@ -200,7 +203,7 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 	// Exchanges which don't support subscription conf; Can be removed when all exchanges support sub conf
 	w.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
 
-	err = w.Connect()
+	err = w.Connect(context.TODO())
 	require.NoError(tb, err, "Connect must not error")
 
 	setupWsOnce[e] = true
@@ -226,7 +229,7 @@ func UpdatePairsOnce(tb testing.TB, e exchange.IBotExchange) {
 		return
 	}
 
-	err := e.UpdateTradablePairs(tb.Context(), true)
+	err := e.UpdateTradablePairs(tb.Context())
 	require.NoError(tb, err, "UpdateTradablePairs must not error")
 
 	cache := new(currency.PairsManager)

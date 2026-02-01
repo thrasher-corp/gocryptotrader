@@ -8,11 +8,13 @@ import (
 
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -173,12 +175,12 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	pairs, err := e.FetchTradablePairs(ctx, asset.Futures)
 	if err != nil {
 		return err
 	}
-	return e.UpdatePairs(pairs, asset.Futures, true, forceUpdate)
+	return e.UpdatePairs(pairs, asset.Futures, true)
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -271,40 +273,46 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	return orderbook.Get(e.Name, pair, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies
-func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+// UpdateAccountBalances retrieves currency balances
+func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
 	accountInfo, err := e.GetUserAccountDataV3(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
-	spotSubAccount := account.SubAccount{
-		AssetType:  assetType,
-		Currencies: []account.Balance{},
+	switch assetType {
+	case asset.Spot:
+		spotSubAccounts := accounts.SubAccounts{}
+		for a := range accountInfo.SpotWallets {
+			subAcct := accounts.NewSubAccount(assetType, accountInfo.SpotWallets[a].UserID)
+			subAcct.Balances.Set(accountInfo.SpotWallets[a].TokenID, accounts.Balance{
+				Currency: accountInfo.SpotWallets[a].TokenID,
+				Total:    accountInfo.SpotWallets[a].Balance.Float64(),
+				Hold: accountInfo.SpotWallets[a].PendingDepositAmount.Float64() +
+					accountInfo.SpotWallets[a].PendingWithdrawAmount.Float64() +
+					accountInfo.SpotWallets[a].PendingTransferOutAmount.Float64() +
+					accountInfo.SpotWallets[a].PendingTransferInAmount.Float64(),
+			})
+			spotSubAccounts.Merge(subAcct)
+		}
+		return spotSubAccounts, nil
+	case asset.Futures:
+		futuresSubAccounts := accounts.SubAccounts{}
+		for a := range accountInfo.ContractWallets {
+			subAcct := accounts.NewSubAccount(assetType, accountInfo.ContractWallets[a].UserID)
+			subAcct.Balances.Set(accountInfo.ContractWallets[a].Asset, accounts.Balance{
+				Currency: accountInfo.ContractWallets[a].Asset,
+				Total:    accountInfo.ContractWallets[a].Balance.Float64(),
+				Hold: accountInfo.ContractWallets[a].PendingDepositAmount.Float64() +
+					accountInfo.ContractWallets[a].PendingWithdrawAmount.Float64() +
+					accountInfo.ContractWallets[a].PendingTransferOutAmount.Float64() +
+					accountInfo.ContractWallets[a].PendingTransferInAmount.Float64(),
+			})
+			futuresSubAccounts.Merge(subAcct)
+		}
+		return futuresSubAccounts, nil
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-	for a := range accountInfo.ContractWallets {
-		spotSubAccount.Currencies = append(spotSubAccount.Currencies, account.Balance{
-			Currency: currency.NewCode(accountInfo.ContractWallets[a].Asset),
-			Total:    accountInfo.ContractWallets[a].Balance.Float64(),
-			Hold:     accountInfo.ContractWallets[a].PendingWithdrawAmount.Float64(),
-		})
-	}
-	return account.Holdings{
-		Exchange: e.Name,
-		Accounts: []account.SubAccount{spotSubAccount},
-	}, nil
-}
-
-// FetchAccountInfo retrieves balances for all enabled currencies
-func (e *Exchange) FetchAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	acc, err := account.GetHoldings(e.Name, creds, assetType)
-	if err != nil {
-		return e.UpdateAccountInfo(ctx, assetType)
-	}
-	return acc, nil
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -714,7 +722,7 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 
 // ValidateAPICredentials validates current credentials used for wrapper
 func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := e.UpdateAccountInfo(ctx, assetType)
+	_, err := e.UpdateAccountBalances(ctx, assetType)
 	return e.CheckTransientError(err)
 }
 
@@ -809,15 +817,15 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, _ asset.Item) 
 			return nil, err
 		}
 		resp = append(resp, futures.Contract{
-			Exchange:             e.Name,
-			Name:                 cp,
-			Underlying:           underlying,
-			Asset:                asset.Futures,
-			StartDate:            result.ContractConfig.PerpetualContract[x].KlineStartTime.Time(),
-			SettlementType:       futures.Linear,
-			IsActive:             result.ContractConfig.PerpetualContract[x].EnableTrade,
-			Type:                 futures.Perpetual,
-			SettlementCurrencies: currency.Currencies{currency.USD},
+			Exchange:           e.Name,
+			Name:               cp,
+			Underlying:         underlying,
+			Asset:              asset.Futures,
+			StartDate:          result.ContractConfig.PerpetualContract[x].KlineStartTime.Time(),
+			SettlementType:     futures.Linear,
+			IsActive:           result.ContractConfig.PerpetualContract[x].EnableTrade,
+			Type:               futures.Perpetual,
+			SettlementCurrency: currency.USD,
 		})
 	}
 	return resp, nil
@@ -904,7 +912,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, _ asset.Item)
 	if err != nil {
 		return err
 	}
-	limits := make([]order.MinMaxLevel, 0, len(instrumentsInfo.ContractConfig.PerpetualContract))
+	ls := make([]limits.MinMaxLevel, 0, len(instrumentsInfo.ContractConfig.PerpetualContract))
 	for x := range instrumentsInfo.ContractConfig.PerpetualContract {
 		var pair currency.Pair
 		pair, err = e.MatchSymbolWithAvailablePairs(instrumentsInfo.ContractConfig.PerpetualContract[x].Symbol, asset.Futures, false)
@@ -912,9 +920,8 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, _ asset.Item)
 			log.Warnf(log.ExchangeSys, "%s unable to load limits for %v, pair data missing", e.Name, instrumentsInfo.ContractConfig.PerpetualContract[x].Symbol)
 			continue
 		}
-		limits = append(limits, order.MinMaxLevel{
-			Asset:                   asset.Futures,
-			Pair:                    pair,
+		ls = append(ls, limits.MinMaxLevel{
+			Key:                     key.NewExchangeAssetPair(e.Name, asset.Futures, pair),
 			MinimumBaseAmount:       instrumentsInfo.ContractConfig.PerpetualContract[x].MinOrderSize.Float64(),
 			MaximumBaseAmount:       instrumentsInfo.ContractConfig.PerpetualContract[x].MaxOrderSize.Float64(),
 			MaxTotalOrders:          instrumentsInfo.ContractConfig.PerpetualContract[x].MaxPositionSize.Int64(),
@@ -925,7 +932,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, _ asset.Item)
 			MaximumQuoteAmount:      instrumentsInfo.ContractConfig.PerpetualContract[x].MaxPositionValue.Float64(),
 		})
 	}
-	return e.LoadLimits(limits)
+	return limits.Load(ls)
 }
 
 func orderTypeString(oType order.Type) string {

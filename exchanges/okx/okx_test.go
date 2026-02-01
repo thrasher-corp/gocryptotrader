@@ -591,7 +591,7 @@ func TestGetInsuranceFundInformation(t *testing.T) {
 
 	arg.Underlying = mainPair.String()
 	r, err := e.GetInsuranceFundInformation(contextGenerate(), arg)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Positive(t, r.Total, "Total should be positive")
 	assert.NotEmpty(t, r.Details, "Should have some details")
 	for _, d := range r.Details {
@@ -605,7 +605,7 @@ func TestGetInsuranceFundInformation(t *testing.T) {
 		Underlying:     mainPair.String(),
 		Limit:          2,
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Positive(t, r.Total, "Total should be positive")
 	assert.NotEmpty(t, r.Details, "Should have some details")
 	for _, d := range r.Details {
@@ -1854,12 +1854,12 @@ func TestWithdrawal(t *testing.T) {
 	require.ErrorIs(t, err, errAddressRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.Withdrawal(contextGenerate(), &WithdrawalInput{Amount: 0.1, TransactionFee: 0.00005, Currency: currency.BTC, WithdrawalDestination: "4", ToAddress: core.BitcoinDonationAddress})
+	result, err := e.Withdrawal(contextGenerate(), &WithdrawalInput{Amount: -0.1, TransactionFee: 0.00005, Currency: currency.BTC, WithdrawalDestination: "4", ToAddress: core.BitcoinDonationAddress})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	result, err = e.Withdrawal(contextGenerate(), &WithdrawalInput{
-		Amount:                0.1,
+		Amount:                -0.1,
 		WithdrawalDestination: "4",
 		TransactionFee:        0.00005,
 		Currency:              currency.BTC,
@@ -3374,10 +3374,10 @@ func TestUpdateOrderbook(t *testing.T) {
 	}
 }
 
-func TestUpdateAccountInfo(t *testing.T) {
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.UpdateAccountInfo(contextGenerate(), asset.Spot)
+	result, err := e.UpdateAccountBalances(contextGenerate(), asset.Spot)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3771,7 +3771,7 @@ func TestWithdraw(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	withdrawCryptoRequest := withdraw.Request{
 		Exchange: e.Name,
-		Amount:   0.00000000001,
+		Amount:   -0.1,
 		Currency: currency.BTC,
 		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
@@ -3910,15 +3910,15 @@ func TestGenerateOrderbookChecksum(t *testing.T) {
 
 func TestOrderPushData(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsOrders.json", e.WsHandleData)
-	close(e.Websocket.DataHandler)
-	require.Len(t, e.Websocket.DataHandler, 4, "Should see 4 orders")
-	for resp := range e.Websocket.DataHandler {
-		switch v := resp.(type) {
+	e.Websocket.DataHandler.Close()
+	require.Len(t, e.Websocket.DataHandler.C, 4, "Should see 4 orders")
+	for resp := range e.Websocket.DataHandler.C {
+		switch v := resp.Data.(type) {
 		case *order.Detail:
-			switch len(e.Websocket.DataHandler) {
+			switch len(e.Websocket.DataHandler.C) {
 			case 3:
 				assert.Equal(t, "452197707845865472", v.OrderID, "OrderID")
 				assert.Equal(t, "HamsterParty14", v.ClientOrderID, "ClientOrderID")
@@ -4009,24 +4009,30 @@ var pushDataMap = map[string]string{
 	"Liquidation Orders":                    `{"arg": {"channel": "liquidation-orders", "instType": "SWAP" }, "data": [ { "details": [ { "bkLoss": "0", "bkPx": "0.007831", "ccy": "", "posSide": "short", "side": "buy", "sz": "13", "ts": "1692266434010" } ], "instFamily": "IOST-USDT", "instId": "IOST-USDT-SWAP", "instType": "SWAP", "uly": "IOST-USDT"}]}`,
 	"Economic Calendar":                     `{"arg": {"channel": "economic-calendar" }, "data": [ { "calendarId": "319275", "date": "1597026383085", "region": "United States", "category": "Manufacturing PMI", "event": "S&P Global Manufacturing PMI Final", "refDate": "1597026383085", "actual": "49.2", "previous": "47.3", "forecast": "49.3", "importance": "2", "prevInitial": "", "ccy": "", "unit": "", "ts": "1698648096590" } ] }`,
 	"Failure":                               `{ "event": "error", "code": "60012", "msg": "Invalid request: {\"op\": \"subscribe\", \"args\":[{ \"channel\" : \"block-tickers\", \"instId\" : \"LTC-USD-200327\"}]}", "connId": "a4d3ae55" }`,
+	"Balance Save Error":                    `{"arg": {"channel": "balance_and_position","uid": "77982378738415880"},"data": [{"pTime": "1597026383085","eventType": "snapshot","balData": [{"ccy": "BTC","cashBal": "1","uTime": "1597026383085"}],"posData": [{"posId": "1111111111","tradeId": "2","instId": "BTC-USD-191018","instType": "FUTURES","mgnMode": "cross","posSide": "long","pos": "10","ccy": "BTC","posCcy": "","avgPx": "3320","uTIme": "1597026383085"}]}]}`,
 }
 
-func TestPushData(t *testing.T) {
+func TestWsHandleData(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
 
-	for x := range pushDataMap {
-		if x == "Balance And Position" {
+	for name, msg := range pushDataMap {
+		switch name {
+		case "Balance And Position":
 			e.API.AuthenticatedSupport = true
 			e.API.AuthenticatedWebsocketSupport = true
 			e.SetCredentials("test", "test", "test", "", "", "", "", "", "")
-		} else {
+		default:
 			e.API.AuthenticatedSupport = false
 			e.API.AuthenticatedWebsocketSupport = false
 		}
-		err := e.WsHandleData(t.Context(), []byte(pushDataMap[x]))
-		require.NoErrorf(t, err, "Okx %s error %s", x, err)
+		err := e.WsHandleData(t.Context(), []byte(msg))
+		if name == "Balance Save Error" {
+			assert.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "wsProcessBalanceAndPosition Accounts.Save should error without credentials")
+		} else {
+			require.NoErrorf(t, err, "%s must not error", name)
+		}
 	}
 }
 
@@ -4057,7 +4063,7 @@ func TestGetHistoricTrades(t *testing.T) {
 func TestWSProcessTrades(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	assets, err := e.getAssetsFromInstrumentID(mainPair.String())
 	require.NoError(t, err, "getAssetsFromInstrumentID must not error")
@@ -4093,13 +4099,13 @@ func TestWSProcessTrades(t *testing.T) {
 	}
 
 	total := len(assets) * len(exp)
-	require.Len(t, e.Websocket.DataHandler, total, "Must see correct number of trades")
+	require.Len(t, e.Websocket.DataHandler.C, total, "Must see correct number of trades")
 
 	trades := make(map[asset.Item][]trade.Data)
 
-	for len(e.Websocket.DataHandler) > 0 {
-		resp := <-e.Websocket.DataHandler
-		switch v := resp.(type) {
+	for len(e.Websocket.DataHandler.C) > 0 {
+		resp := <-e.Websocket.DataHandler.C
+		switch v := resp.Data.(type) {
 		case trade.Data:
 			trades[v.AssetType] = append(trades[v.AssetType], v)
 		case error:
@@ -4280,7 +4286,7 @@ func TestIsPerpetualFutureCurrency(t *testing.T) {
 func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
 
 	_, err := e.getAssetsFromInstrumentID("")
@@ -6036,7 +6042,7 @@ func (e *Exchange) instrumentFamilyFromInstID(instrumentType, instID string) (st
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	subs, err := e.generateSubscriptions()
@@ -6092,7 +6098,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 
 func TestBusinessWSCandleSubscriptions(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
 
 	err := e.WsConnectBusiness(t.Context())
@@ -6115,8 +6121,8 @@ func TestBusinessWSCandleSubscriptions(t *testing.T) {
 	var got currency.Pairs
 	assert.Eventually(t, func() bool {
 		select {
-		case a := <-e.Websocket.DataHandler:
-			switch v := a.(type) {
+		case a := <-e.Websocket.DataHandler.C:
+			switch v := a.Data.(type) {
 			case websocket.KlineData:
 				got = got.Add(v.Pair)
 			case []CandlestickMarkPrice:
@@ -6152,13 +6158,13 @@ func TestWsProcessPublicSpreadTrades(t *testing.T) {
 
 func TestWsProcessPublicSpreadTicker(t *testing.T) {
 	t.Parallel()
-	err := e.wsProcessPublicSpreadTicker([]byte(okxSpreadPublicTickerJSON))
+	err := e.wsProcessPublicSpreadTicker(t.Context(), []byte(okxSpreadPublicTickerJSON))
 	assert.NoError(t, err)
 }
 
 func TestWsProcessSpreadOrders(t *testing.T) {
 	t.Parallel()
-	err := e.wsProcessSpreadOrders([]byte(wsProcessSpreadOrdersJSON))
+	err := e.wsProcessSpreadOrders(t.Context(), []byte(wsProcessSpreadOrdersJSON))
 	assert.NoError(t, err)
 }
 

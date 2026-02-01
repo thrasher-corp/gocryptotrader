@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
@@ -50,7 +51,7 @@ func TestMain(m *testing.M) {
 		e.SetCredentials(apiKey, apiSecret, clientID, ethereumAddress, "", "", starkKey, starkSecret, starkKeyYCoordinate)
 		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
-	if err := e.UpdateTradablePairs(context.Background(), true); err != nil {
+	if err := e.UpdateTradablePairs(context.Background()); err != nil {
 		log.Fatal(err)
 	}
 	os.Exit(m.Run())
@@ -538,7 +539,7 @@ func TestGetWorstPrice(t *testing.T) {
 	_, err = e.GetWorstPriceV3(t.Context(), "BTC-USDC", "", 1)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	_, err = e.GetWorstPriceV3(t.Context(), "BTC-USDC", "SELL", 0)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 }
 
 func TestGetWorstPriceV3(t *testing.T) {
@@ -548,7 +549,7 @@ func TestGetWorstPriceV3(t *testing.T) {
 	_, err = e.GetWorstPriceV3(t.Context(), "BTC-USDC", "", 1)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	_, err = e.GetWorstPriceV3(t.Context(), "BTC-USDC", "SELL", 0)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetWorstPriceV3(t.Context(), "BTC-USDC", "SELL", 1)
@@ -563,7 +564,7 @@ func TestGetWorstPriceV2(t *testing.T) {
 	_, err = e.GetWorstPriceV2(t.Context(), "BTC-USDC", "", 1)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	_, err = e.GetWorstPriceV2(t.Context(), "BTC-USDC", "SELL", 0)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetWorstPriceV2(t.Context(), "BTC-USDC", "SELL", 1)
@@ -578,7 +579,7 @@ func TestGetWorstPriceV1(t *testing.T) {
 	_, err = e.GetWorstPriceV2(t.Context(), "BTC-USDC", "", 1)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	_, err = e.GetWorstPriceV2(t.Context(), "BTC-USDC", "SELL", 0)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetWorstPriceV1(t.Context(), "BTC-USDC", "SELL", 1)
@@ -954,7 +955,7 @@ func TestWithdrawAsset(t *testing.T) {
 		L2SourceTokenID:  currency.USDC,
 		L1TargetTokenID:  currency.USDC,
 		IsFastWithdraw:   false})
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	_, err = e.WithdrawAsset(t.Context(), &AssetWithdrawalParams{
 		Amount:          1,
@@ -1012,7 +1013,7 @@ func TestWithdrawalToAddressV2(t *testing.T) {
 	_, err := e.WithdrawalToAddressV2(t.Context(), &WithdrawalToAddressParams{})
 	require.ErrorIs(t, err, common.ErrNilPointer)
 	_, err = e.WithdrawalToAddressV2(t.Context(), &WithdrawalToAddressParams{Asset: currency.ETH})
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	_, err = e.WithdrawalToAddressV2(t.Context(), &WithdrawalToAddressParams{
 		Amount: .1,
 	})
@@ -1062,10 +1063,10 @@ func TestOrderCreationParamsFilter(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 	arg.OrderType = order.Limit.String()
 	_, err = e.orderCreationParamsFilter(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	arg.Size = 2
 	_, err = e.orderCreationParamsFilter(t.Context(), arg)
-	require.ErrorIs(t, err, order.ErrPriceBelowMin)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 	arg.Price = 123
 	arg.LimitFee = -1
 	_, err = e.orderCreationParamsFilter(t.Context(), arg)
@@ -1225,7 +1226,7 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	err := e.UpdateTradablePairs(t.Context(), true)
+	err := e.UpdateTradablePairs(t.Context())
 	assert.NoError(t, err)
 }
 
@@ -1252,7 +1253,11 @@ func TestUpdateOrderbook(t *testing.T) {
 func TestUpdateAccountInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.UpdateAccountInfo(t.Context(), asset.Futures)
+	result, err := e.UpdateAccountBalances(t.Context(), asset.Futures)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = e.UpdateAccountBalances(t.Context(), asset.Spot)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1366,7 +1371,7 @@ func TestGetRepaymentPrice(t *testing.T) {
 	_, err = e.GetRepaymentPrice(t.Context(), []RepaymentTokenAndAmount{{
 		Token: currency.ETH,
 	}}, "client-id-here")
-	require.ErrorIs(t, err, order.ErrAmountBelowMin)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetRepaymentPrice(t.Context(), []RepaymentTokenAndAmount{

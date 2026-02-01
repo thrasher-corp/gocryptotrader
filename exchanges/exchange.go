@@ -10,7 +10,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"text/template"
 	"time"
 	"unicode"
@@ -20,9 +19,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
@@ -94,7 +94,7 @@ func (b *Base) SetClientProxyAddress(addr string) error {
 	}
 
 	if b.Websocket != nil {
-		err = b.Websocket.SetProxyAddress(addr)
+		err = b.Websocket.SetProxyAddress(context.TODO(), addr)
 		if err != nil {
 			return err
 		}
@@ -264,8 +264,7 @@ func (b *Base) GetClientBankAccounts(exchangeName, withdrawalCurrency string) (*
 	return cfg.GetClientBankAccounts(exchangeName, withdrawalCurrency)
 }
 
-// GetExchangeBankAccounts returns banking details associated with an
-// exchange for funding purposes
+// GetExchangeBankAccounts returns banking details associated with an exchange for funding purposes
 func (b *Base) GetExchangeBankAccounts(id, depositCurrency string) (*banking.Account, error) {
 	cfg := config.GetConfig()
 	return cfg.GetExchangeBankAccounts(b.Name, id, depositCurrency)
@@ -603,7 +602,15 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 		log.Warnf(log.ExchangeSys, "%s orderbook verification has been bypassed via config.", b.Name)
 	}
 
+	if b.Accounts == nil {
+		var err error
+		if b.Accounts, err = accounts.GetStore().GetExchangeAccounts(b); err != nil {
+			return err
+		}
+	}
+
 	b.ValidateOrderbook = !exch.Orderbook.VerificationBypass
+
 	b.States = currencystate.NewCurrencyStates()
 
 	return nil
@@ -647,9 +654,13 @@ func (b *Base) EnsureOnePairEnabled() error {
 	return nil
 }
 
-// UpdatePairs updates the exchange currency pairs for either enabledPairs or
-// availablePairs
-func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force bool) error {
+// UpdatePairs updates the exchange currency pairs for either enabledPairs or availablePairs
+func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled bool) error {
+	if len(incoming) == 0 && !enabled {
+		// Exchange reports a successful response (HTTP 200) but provides no currency pairs, so we preserve the existing
+		// available pairs.
+		return fmt.Errorf("%w: updating available pairs", currency.ErrCurrencyPairsEmpty)
+	}
 	pFmt, err := b.GetPairFormat(a, false)
 	if err != nil {
 		return err
@@ -670,50 +681,27 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 		return err
 	}
 
-	if force || len(diff.New) != 0 || len(diff.Remove) != 0 || diff.FormatDifference {
-		var updateType string
-		if enabled {
-			updateType = "enabled"
-		} else {
-			updateType = "available"
-		}
+	updateType := "enabled"
+	if !enabled {
+		updateType = "available"
+	}
 
-		if force {
-			log.Debugf(log.ExchangeSys,
-				"%s forced update of %s [%v] pairs.",
-				b.Name,
-				updateType,
-				strings.ToUpper(a.String()))
-		} else {
-			if len(diff.New) > 0 {
-				log.Debugf(log.ExchangeSys,
-					"%s Updating %s pairs [%v] - Added: %s.\n",
-					b.Name,
-					updateType,
-					strings.ToUpper(a.String()),
-					diff.New)
-			}
-			if len(diff.Remove) > 0 {
-				log.Debugf(log.ExchangeSys,
-					"%s Updating %s pairs [%v] - Removed: %s.\n",
-					b.Name,
-					updateType,
-					strings.ToUpper(a.String()),
-					diff.Remove)
-			}
-		}
-		err = common.NilGuard(b.Config, b.Config.CurrencyPairs)
-		if err != nil {
-			return err
-		}
-		err = b.Config.CurrencyPairs.StorePairs(a, incoming, enabled)
-		if err != nil {
-			return err
-		}
-		err = b.CurrencyPairs.StorePairs(a, incoming, enabled)
-		if err != nil {
-			return err
-		}
+	if len(diff.New) > 0 {
+		log.Debugf(log.ExchangeSys, "%s Updating %s pairs [%v] - Added: %s.\n", b.Name, updateType, strings.ToUpper(a.String()), diff.New)
+	}
+	if len(diff.Remove) > 0 {
+		log.Debugf(log.ExchangeSys, "%s Updating %s pairs [%v] - Removed: %s.\n", b.Name, updateType, strings.ToUpper(a.String()), diff.Remove)
+	}
+
+	if err := common.NilGuard(b.Config, b.Config.CurrencyPairs); err != nil {
+		return err
+	}
+
+	if err := b.Config.CurrencyPairs.StorePairs(a, incoming, enabled); err != nil {
+		return err
+	}
+	if err := b.CurrencyPairs.StorePairs(a, incoming, enabled); err != nil {
+		return err
 	}
 
 	if enabled {
@@ -779,21 +767,14 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 		if err != nil {
 			return err
 		}
-		log.Debugf(log.ExchangeSys, "%s Enabled pairs missing for %s. Added %s.\n",
-			b.Name,
-			strings.ToUpper(a.String()),
-			randomPair)
+		log.Debugf(log.ExchangeSys, "%s Enabled pairs missing for %s. Added %s.\n", b.Name, strings.ToUpper(a.String()), randomPair)
 		enabledPairs = currency.Pairs{randomPair}
 	}
 
 	if len(diff.Remove) > 0 {
-		log.Debugf(log.ExchangeSys, "%s Checked and updated enabled pairs [%v] - Removed: %s.\n",
-			b.Name,
-			strings.ToUpper(a.String()),
-			diff.Remove)
+		log.Debugf(log.ExchangeSys, "%s Checked and updated enabled pairs [%v] - Removed: %s.\n", b.Name, strings.ToUpper(a.String()), diff.Remove)
 	}
-	err = b.Config.CurrencyPairs.StorePairs(a, enabledPairs, true)
-	if err != nil {
+	if err := b.Config.CurrencyPairs.StorePairs(a, enabledPairs, true); err != nil {
 		return err
 	}
 	return b.CurrencyPairs.StorePairs(a, enabledPairs, true)
@@ -1093,7 +1074,7 @@ func (b *Base) FlushWebsocketChannels() error {
 	if b.Websocket == nil {
 		return nil
 	}
-	return b.Websocket.FlushChannels()
+	return b.Websocket.FlushChannels(context.TODO())
 }
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
@@ -1102,7 +1083,7 @@ func (b *Base) SubscribeToWebsocketChannels(channels subscription.List) error {
 	if b.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
-	return b.Websocket.SubscribeToChannels(b.Websocket.Conn, channels)
+	return b.Websocket.SubscribeToChannels(context.TODO(), b.Websocket.Conn, channels)
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
@@ -1111,7 +1092,7 @@ func (b *Base) UnsubscribeToWebsocketChannels(channels subscription.List) error 
 	if b.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
-	return b.Websocket.UnsubscribeChannels(b.Websocket.Conn, channels)
+	return b.Websocket.UnsubscribeChannels(context.TODO(), b.Websocket.Conn, channels)
 }
 
 // GetSubscriptions returns a copied list of subscriptions
@@ -1380,6 +1361,8 @@ func (u URL) String() string {
 		return websocketUSDCMarginedURL
 	case WebsocketOptions:
 		return websocketOptionsURL
+	case WebsocketTrade:
+		return websocketTradeURL
 	case WebsocketPrivate:
 		return websocketPrivateURL
 	case WebsocketSpotSupplementary:
@@ -1428,6 +1411,8 @@ func getURLTypeFromString(ep string) (URL, error) {
 		return WebsocketUSDCMargined, nil
 	case websocketOptionsURL:
 		return WebsocketOptions, nil
+	case websocketTradeURL:
+		return WebsocketTrade, nil
 	case websocketPrivateURL:
 		return WebsocketPrivate, nil
 	case websocketSpotSupplementaryURL:
@@ -1786,28 +1771,11 @@ func (b *Base) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.Ope
 
 // ParallelChanOp performs a single method call in parallel across streams and waits to return any errors
 func (b *Base) ParallelChanOp(ctx context.Context, channels subscription.List, m func(context.Context, subscription.List) error, batchSize int) error {
-	wg := sync.WaitGroup{}
-	errC := make(chan error, len(channels))
-
-	for _, b := range common.Batch(channels, batchSize) {
-		wg.Add(1)
-		go func(c subscription.List) {
-			defer wg.Done()
-			if err := m(ctx, c); err != nil {
-				errC <- err
-			}
-		}(b)
+	var errs common.ErrorCollector
+	for _, batchedSubs := range common.Batch(channels, batchSize) {
+		errs.Go(func() error { return m(ctx, batchedSubs) })
 	}
-
-	wg.Wait()
-	close(errC)
-
-	var errs error
-	for err := range errC {
-		errs = common.AppendError(errs, err)
-	}
-
-	return errs
+	return errs.Collect()
 }
 
 // Bootstrap function allows for exchange authors to supplement or override common startup actions
@@ -1837,32 +1805,21 @@ func Bootstrap(ctx context.Context, b IBotExchange) error {
 	}
 
 	if b.GetEnabledFeatures().AutoPairUpdates {
-		if err := b.UpdateTradablePairs(ctx, false); err != nil {
+		if err := b.UpdateTradablePairs(ctx); err != nil {
 			return fmt.Errorf("failed to update tradable pairs: %w", err)
 		}
 	}
 
-	a := b.GetAssetTypes(true)
-	var wg sync.WaitGroup
-	errC := make(chan error, len(a))
-	for i := range a {
-		wg.Add(1)
-		go func(a asset.Item) {
-			defer wg.Done()
+	var errs common.ErrorCollector
+	for _, a := range b.GetAssetTypes(true) {
+		errs.Go(func() error {
 			if err := b.UpdateOrderExecutionLimits(ctx, a); err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
-				errC <- fmt.Errorf("failed to set exchange order execution limits: %w", err)
+				return fmt.Errorf("failed to set exchange order execution limits: %w", err)
 			}
-		}(a[i])
+			return nil
+		})
 	}
-	wg.Wait()
-	close(errC)
-
-	var err error
-	for e := range errC {
-		err = common.AppendError(err, e)
-	}
-
-	return err
+	return errs.Collect()
 }
 
 // Bootstrap is a fallback method for exchange startup actions
@@ -1896,13 +1853,12 @@ func GetDefaultConfig(ctx context.Context, exch IBotExchange) (*config.Exchange,
 		return nil, err
 	}
 
-	err = b.SetupDefaults(exchCfg)
-	if err != nil {
+	if err := b.SetupDefaults(exchCfg); err != nil {
 		return nil, err
 	}
 
 	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = exch.UpdateTradablePairs(ctx, true)
+		err = exch.UpdateTradablePairs(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -1936,14 +1892,24 @@ func (b *Base) GetCachedOrderbook(p currency.Pair, assetType asset.Item) (*order
 	return orderbook.Get(b.Name, p, assetType)
 }
 
-// GetCachedAccountInfo retrieves balances for all enabled currencies
-// NOTE: UpdateAccountInfo method must be called first to update the account info map
-func (b *Base) GetCachedAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+// GetCachedSubAccounts retrieves all cached SubAccounts, filtered by credentials and asset
+// NOTE: Accounts.Save method should be called first to populate the local cache
+func (b *Base) GetCachedSubAccounts(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
-	return account.GetHoldings(b.Name, creds, assetType)
+	return b.Accounts.SubAccounts(creds, assetType)
+}
+
+// GetCachedCurrencyBalances retrieves cached balances for all SubAccounts grouped by currency
+// NOTE: Accounts.Save method should be called first to populate the local cache
+func (b *Base) GetCachedCurrencyBalances(ctx context.Context, assetType asset.Item) (accounts.CurrencyBalances, error) {
+	creds, err := b.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return b.Accounts.CurrencyBalances(creds, assetType)
 }
 
 // GetOrderExecutionLimits returns a limit based on the exchange, asset and pair from storage
@@ -1971,8 +1937,29 @@ func (*Base) WebsocketSubmitOrders(context.Context, []*order.Submit) (responses 
 	return nil, common.ErrFunctionNotSupported
 }
 
+// WebsocketModifyOrder modifies an order via the websocket connection
+func (*Base) WebsocketModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
+	return nil, common.ErrFunctionNotSupported
+}
+
+// WebsocketCancelOrder cancels an order via the websocket connection
+func (*Base) WebsocketCancelOrder(context.Context, *order.Cancel) error {
+	return common.ErrFunctionNotSupported
+}
+
 // MessageID returns a universally unique id using UUID V7
 // In the future additional params may be added to method signature to provide context for the message id for overriding exchange implementations
 func (b *Base) MessageID() string {
 	return uuid.Must(uuid.NewV7()).String()
+}
+
+// MessageSequence returns a sequential message sequence number from common.Counter
+// It is not universally unique but should be unique and sequential within each *Base instance
+func (b *Base) MessageSequence() int64 {
+	return b.messageSequence.IncrementAndGet()
+}
+
+// SubscribeAccountBalances returns a pipe to stream account holding updates
+func (b *Base) SubscribeAccountBalances() (dispatch.Pipe, error) {
+	return b.Accounts.Subscribe()
 }

@@ -12,10 +12,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -186,112 +186,49 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, _ asset.Item) (curren
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
-func (e *Exchange) UpdateTradablePairs(ctx context.Context, forceUpdate bool) error {
+func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	pairs, err := e.FetchTradablePairs(ctx, asset.Spot)
 	if err != nil {
 		return err
 	}
-	err = e.UpdatePairs(pairs, asset.Spot, false, forceUpdate)
-	if err != nil {
+	if err := e.UpdatePairs(pairs, asset.Spot, false); err != nil {
 		return err
 	}
 	return e.EnsureOnePairEnabled()
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies for the
-// COINUT exchange
-func (e *Exchange) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var info account.Holdings
+// UpdateAccountBalances retrieves currency balances
+func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
 	var bal *UserBalance
-	var err error
 	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		var resp *UserBalance
-		resp, err = e.wsGetAccountBalance(ctx)
-		if err != nil {
-			return info, err
+		if bal, err = e.wsGetAccountBalance(ctx); err != nil {
+			return nil, err
 		}
-		bal = resp
 	} else {
-		bal, err = e.GetUserBalance(ctx)
-		if err != nil {
-			return info, err
+		if bal, err = e.GetUserBalance(ctx); err != nil {
+			return nil, err
 		}
 	}
-
-	balances := []account.Balance{
-		{
-			Currency: currency.BCH,
-			Total:    bal.BCH,
+	subAccts = accounts.SubAccounts{&accounts.SubAccount{
+		AssetType: assetType,
+		Balances: accounts.CurrencyBalances{
+			currency.BCH:  {Currency: currency.BCH, Total: bal.BCH},
+			currency.BTC:  {Currency: currency.BTC, Total: bal.BTC},
+			currency.BTG:  {Currency: currency.BTG, Total: bal.BTG},
+			currency.CAD:  {Currency: currency.CAD, Total: bal.CAD},
+			currency.ETC:  {Currency: currency.ETC, Total: bal.ETC},
+			currency.ETH:  {Currency: currency.ETH, Total: bal.ETH},
+			currency.LCH:  {Currency: currency.LCH, Total: bal.LCH},
+			currency.LTC:  {Currency: currency.LTC, Total: bal.LTC},
+			currency.MYR:  {Currency: currency.MYR, Total: bal.MYR},
+			currency.SGD:  {Currency: currency.SGD, Total: bal.SGD},
+			currency.USD:  {Currency: currency.USD, Total: bal.USD},
+			currency.XMR:  {Currency: currency.XMR, Total: bal.XMR},
+			currency.ZEC:  {Currency: currency.ZEC, Total: bal.ZEC},
+			currency.USDT: {Currency: currency.USDT, Total: bal.USDT},
 		},
-		{
-			Currency: currency.BTC,
-			Total:    bal.BTC,
-		},
-		{
-			Currency: currency.BTG,
-			Total:    bal.BTG,
-		},
-		{
-			Currency: currency.CAD,
-			Total:    bal.CAD,
-		},
-		{
-			Currency: currency.ETC,
-			Total:    bal.ETC,
-		},
-		{
-			Currency: currency.ETH,
-			Total:    bal.ETH,
-		},
-		{
-			Currency: currency.LCH,
-			Total:    bal.LCH,
-		},
-		{
-			Currency: currency.LTC,
-			Total:    bal.LTC,
-		},
-		{
-			Currency: currency.MYR,
-			Total:    bal.MYR,
-		},
-		{
-			Currency: currency.SGD,
-			Total:    bal.SGD,
-		},
-		{
-			Currency: currency.USD,
-			Total:    bal.USD,
-		},
-		{
-			Currency: currency.USDT,
-			Total:    bal.USDT,
-		},
-		{
-			Currency: currency.XMR,
-			Total:    bal.XMR,
-		},
-		{
-			Currency: currency.ZEC,
-			Total:    bal.ZEC,
-		},
-	}
-	info.Exchange = e.Name
-	info.Accounts = append(info.Accounts, account.SubAccount{
-		AssetType:  assetType,
-		Currencies: balances,
-	})
-
-	creds, err := e.GetCredentials(ctx)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	err = account.Process(&info, creds)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-
-	return info, nil
+	}}
+	return subAccts, e.Accounts.Save(ctx, subAccts, true)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
@@ -553,9 +490,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 	return resp, nil
 }
 
-// ModifyOrder will allow of changing orderbook placement and limit to
-// market conversion
-func (e *Exchange) ModifyOrder(_ context.Context, _ *order.Modify) (*order.ModifyResponse, error) {
+// ModifyOrder modifies an existing order
+func (e *Exchange) ModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 
@@ -1037,10 +973,9 @@ func (e *Exchange) loadInstrumentsIfNotLoaded(ctx context.Context) error {
 	return nil
 }
 
-// ValidateAPICredentials validates current credentials used for wrapper
-// functionality
+// ValidateAPICredentials validates current credentials used for wrapper functionality
 func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := e.UpdateAccountInfo(ctx, assetType)
+	_, err := e.UpdateAccountBalances(ctx, assetType)
 	return e.CheckTransientError(err)
 }
 

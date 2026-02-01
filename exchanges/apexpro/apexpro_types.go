@@ -942,19 +942,7 @@ type UserAccountDetail struct {
 			ChangePubKeyStatus string `json:"changePubKeyStatus"`
 		} `json:"subAccounts"`
 	} `json:"spotAccount"`
-	SpotWallets []struct {
-		UserID                   string       `json:"userId"`
-		AccountID                string       `json:"accountId"`
-		SubAccountID             string       `json:"subAccountId"`
-		Balance                  types.Number `json:"balance"`
-		TokenID                  string       `json:"tokenId"`
-		PendingDepositAmount     types.Number `json:"pendingDepositAmount"`
-		PendingWithdrawAmount    types.Number `json:"pendingWithdrawAmount"`
-		PendingTransferOutAmount types.Number `json:"pendingTransferOutAmount"`
-		PendingTransferInAmount  types.Number `json:"pendingTransferInAmount"`
-		CreatedAt                types.Time   `json:"createdAt"`
-		UpdatedAt                types.Time   `json:"updatedAt"`
-	} `json:"spotWallets"`
+	SpotWallets     []*SpotWallet `json:"spotWallets"`
 	ExperienceMoney []struct {
 		AvailableAmount types.Number `json:"availableAmount"`
 		TotalNumber     types.Number `json:"totalNumber"`
@@ -962,18 +950,9 @@ type UserAccountDetail struct {
 		RecycledAmount  types.Number `json:"recycledAmount"`
 		Token           string       `json:"token"`
 	} `json:"experienceMoney"`
-	ContractAccount AccountInfo `json:"contractAccount"`
-	ContractWallets []struct {
-		UserID                   string       `json:"userId"`
-		AccountID                string       `json:"accountId"`
-		Asset                    string       `json:"asset"`
-		Balance                  types.Number `json:"balance"`
-		PendingDepositAmount     types.Number `json:"pendingDepositAmount"`
-		PendingWithdrawAmount    types.Number `json:"pendingWithdrawAmount"`
-		PendingTransferOutAmount types.Number `json:"pendingTransferOutAmount"`
-		PendingTransferInAmount  types.Number `json:"pendingTransferInAmount"`
-	} `json:"contractWallets"`
-	Positions []struct {
+	ContractAccount AccountInfo       `json:"contractAccount"`
+	ContractWallets []*ContractWallet `json:"contractWallets"`
+	Positions       []struct {
 		IsPrelaunch             bool         `json:"isPrelaunch"`
 		Symbol                  string       `json:"symbol"`
 		Status                  string       `json:"status"`
@@ -989,6 +968,33 @@ type UserAccountDetail struct {
 		CustomInitialMarginRate string       `json:"customInitialMarginRate"`
 	} `json:"positions"`
 	IsNewUser bool `json:"isNewUser"`
+}
+
+// SpotWallet represents a spot wallet detail
+type SpotWallet struct {
+	UserID                   string        `json:"userId"`
+	AccountID                string        `json:"accountId"`
+	SubAccountID             string        `json:"subAccountId"`
+	Balance                  types.Number  `json:"balance"`
+	TokenID                  currency.Code `json:"tokenId"`
+	PendingDepositAmount     types.Number  `json:"pendingDepositAmount"`
+	PendingWithdrawAmount    types.Number  `json:"pendingWithdrawAmount"`
+	PendingTransferOutAmount types.Number  `json:"pendingTransferOutAmount"`
+	PendingTransferInAmount  types.Number  `json:"pendingTransferInAmount"`
+	CreatedAt                types.Time    `json:"createdAt"`
+	UpdatedAt                types.Time    `json:"updatedAt"`
+}
+
+// ContractWallet represents a contract detail balance information
+type ContractWallet struct {
+	UserID                   string        `json:"userId"`
+	AccountID                string        `json:"accountId"`
+	Balance                  types.Number  `json:"balance"`
+	Asset                    currency.Code `json:"asset"`
+	PendingDepositAmount     types.Number  `json:"pendingDepositAmount"`
+	PendingWithdrawAmount    types.Number  `json:"pendingWithdrawAmount"`
+	PendingTransferOutAmount types.Number  `json:"pendingTransferOutAmount"`
+	PendingTransferInAmount  types.Number  `json:"pendingTransferInAmount"`
 }
 
 // UserAccountDetailV1 represents a user account detail through the v1 API endpoint.

@@ -173,6 +173,10 @@ linters:
           - govet
         text: 'shadow: declaration of "err" shadows declaration at'
       - linters:
+          - govet
+        path: _test\.go
+        text: 'shadow: declaration of "e" shadows declaration at'
+      - linters:
           - revive
         text: 'should have a package comment'
       - linters:

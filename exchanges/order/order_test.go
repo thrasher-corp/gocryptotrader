@@ -240,9 +240,9 @@ func TestSubmitValidate(t *testing.T) {
 		t.Run(strconv.Itoa(x), func(t *testing.T) {
 			t.Parallel()
 			requirements := protocol.TradingRequirements{
-				SpotMarketOrderAmountPurchaseQuotationOnly: tc.HasToPurchaseWithQuoteAmountSet,
-				SpotMarketOrderAmountSellBaseOnly:          tc.HasToSellWithBaseAmountSet,
-				ClientOrderID:                              tc.RequiresID,
+				SpotMarketBuyQuotation: tc.HasToPurchaseWithQuoteAmountSet,
+				SpotMarketSellBase:     tc.HasToSellWithBaseAmountSet,
+				ClientOrderID:          tc.RequiresID,
 			}
 			err := tc.Submit.Validate(requirements, tc.ValidOpts)
 			assert.ErrorIs(t, err, tc.ExpectedErr)
@@ -1693,14 +1693,14 @@ func TestGetTradeAmount(t *testing.T) {
 	s = &Submit{Amount: baseAmount, QuoteAmount: quoteAmount}
 	// below will default to base amount with nothing set
 	require.Equal(t, baseAmount, s.GetTradeAmount(protocol.TradingRequirements{}))
-	require.Equal(t, baseAmount, s.GetTradeAmount(protocol.TradingRequirements{SpotMarketOrderAmountPurchaseQuotationOnly: true}))
+	require.Equal(t, baseAmount, s.GetTradeAmount(protocol.TradingRequirements{SpotMarketBuyQuotation: true}))
 	s.AssetType = asset.Spot
 	s.Type = Market
 	s.Side = Buy
-	require.Equal(t, quoteAmount, s.GetTradeAmount(protocol.TradingRequirements{SpotMarketOrderAmountPurchaseQuotationOnly: true}))
-	require.Equal(t, baseAmount, s.GetTradeAmount(protocol.TradingRequirements{SpotMarketOrderAmountSellBaseOnly: true}))
+	require.Equal(t, quoteAmount, s.GetTradeAmount(protocol.TradingRequirements{SpotMarketBuyQuotation: true}))
+	require.Equal(t, baseAmount, s.GetTradeAmount(protocol.TradingRequirements{SpotMarketSellBase: true}))
 	s.Side = Sell
-	require.Equal(t, baseAmount, s.GetTradeAmount(protocol.TradingRequirements{SpotMarketOrderAmountSellBaseOnly: true}))
+	require.Equal(t, baseAmount, s.GetTradeAmount(protocol.TradingRequirements{SpotMarketSellBase: true}))
 }
 
 func TestStringToTrackingMode(t *testing.T) {
@@ -1747,4 +1747,11 @@ func TestMarshalOrder(t *testing.T) {
 	require.NoError(t, err, "Marshal must not error")
 	exp := []byte(`{"Exchange":"test","Type":4,"Side":"BUY","Pair":"BTC-USDT","AssetType":"spot","TimeInForce":"","ReduceOnly":false,"Leverage":0,"Price":1000,"Amount":1,"QuoteAmount":0,"TriggerPrice":0,"TriggerPriceType":0,"ClientID":"","ClientOrderID":"","AutoBorrow":false,"MarginType":"multi","RetrieveFees":false,"RetrieveFeeDelay":0,"RiskManagementModes":{"Mode":"","TakeProfit":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopLoss":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopEntry":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0}},"Hidden":false,"Iceberg":false,"EndTime":"0001-01-01T00:00:00Z","StopDirection":false,"TrackingMode":0,"TrackingValue":0,"RFQDisabled":false}`)
 	assert.Equal(t, exp, j)
+}
+
+func TestAdd(t *testing.T) {
+	t.Parallel()
+	var c CancelAllResponse
+	c.Add("order1", "cancelled")
+	assert.Equal(t, "cancelled", c.Status["order1"])
 }

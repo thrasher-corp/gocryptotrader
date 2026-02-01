@@ -21,9 +21,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -223,42 +223,41 @@ func TestGetWithdrawRecords(t *testing.T) {
 func TestLoadPrivKey(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	e.SetDefaults()
 	require.ErrorIs(t, e.loadPrivKey(t.Context()), exchange.ErrCredentialsAreEmpty)
 
-	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: "errortest"})
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test", Secret: "errortest"})
 	assert.ErrorIs(t, e.loadPrivKey(ctx), errPEMBlockIsNil)
 
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
 	der := x509.MarshalPKCS1PrivateKey(key)
-	ctx = account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: base64.StdEncoding.EncodeToString(der)})
+	ctx = accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test", Secret: base64.StdEncoding.EncodeToString(der)})
 	require.ErrorIs(t, e.loadPrivKey(ctx), errUnableToParsePrivateKey)
 
 	ecdsaKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 	der, err = x509.MarshalPKCS8PrivateKey(ecdsaKey)
 	require.NoError(t, err)
-	ctx = account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: base64.StdEncoding.EncodeToString(der)})
+	ctx = accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test", Secret: base64.StdEncoding.EncodeToString(der)})
 	require.ErrorIs(t, e.loadPrivKey(ctx), common.ErrTypeAssertFailure)
 
 	key, err = rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
 	der, err = x509.MarshalPKCS8PrivateKey(key)
 	require.NoError(t, err)
-	ctx = account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "test", Secret: base64.StdEncoding.EncodeToString(der)})
+	ctx = accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "test", Secret: base64.StdEncoding.EncodeToString(der)})
 	assert.NoError(t, e.loadPrivKey(ctx), "loadPrivKey should not error")
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-
 	assert.NoError(t, e.loadPrivKey(t.Context()), "loadPrivKey should not error")
 }
 
 func TestSign(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange) //nolint:govet // Intentional shadow
+	e := new(Exchange)
 	e.SetDefaults()
 	_, err := e.sign("hello123")
 	require.ErrorIs(t, err, errPrivateKeyNotLoaded)
@@ -350,8 +349,8 @@ func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	_, err := e.UpdateAccountInfo(t.Context(), asset.Spot)
-	assert.NoError(t, err, "UpdateAccountInfo should not error")
+	_, err := e.UpdateAccountBalances(t.Context(), asset.Spot)
+	assert.NoError(t, err, "UpdateAccountBalances should not error")
 }
 
 func TestGetActiveOrders(t *testing.T) {
