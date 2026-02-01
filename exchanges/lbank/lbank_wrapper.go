@@ -159,7 +159,14 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if err != nil {
 		return err
 	}
+	avail, err := e.GetAvailablePairs(a)
+	if err != nil {
+		return err
+	}
 	for j := range tickerInfo {
+		if !avail.Contains(tickerInfo[j].Symbol, true) {
+			continue
+		}
 		if err := ticker.ProcessTicker(&ticker.Price{
 			Last:         tickerInfo[j].Ticker.Latest,
 			High:         tickerInfo[j].Ticker.High,

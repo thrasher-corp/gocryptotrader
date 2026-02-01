@@ -308,13 +308,10 @@ instruments:
 			if tick[j].Typ != futuresID {
 				continue instruments
 			}
-			pair, _, err = e.MatchSymbolCheckEnabled(tick[j].Symbol, a, false)
+			pair, err = e.MatchSymbolWithAvailablePairs(tick[j].Symbol, a, false)
 		case asset.Index:
 			switch tick[j].Typ {
-			case bitMEXBasketIndexID,
-				bitMEXPriceIndexID,
-				bitMEXLendingPremiumIndexID,
-				bitMEXVolatilityIndexID:
+			case bitMEXBasketIndexID, bitMEXPriceIndexID, bitMEXLendingPremiumIndexID, bitMEXVolatilityIndexID:
 			default:
 				continue instruments
 			}
@@ -323,25 +320,28 @@ instruments:
 			// contain an underscore. Calling DeriveFrom will then error and
 			// the instruments will be missed.
 			tick[j].Symbol = strings.Replace(tick[j].Symbol, currency.UnderscoreDelimiter, "", 1)
-			pair, _, err = e.MatchSymbolCheckEnabled(tick[j].Symbol, a, false)
+			pair, err = e.MatchSymbolWithAvailablePairs(tick[j].Symbol, a, false)
 		case asset.PerpetualContract:
 			if tick[j].Typ != perpetualContractID {
 				continue instruments
 			}
-			pair, _, err = e.MatchSymbolCheckEnabled(tick[j].Symbol, a, false)
+			pair, err = e.MatchSymbolWithAvailablePairs(tick[j].Symbol, a, false)
 		case asset.Spot:
 			if tick[j].Typ != spotID {
 				continue instruments
 			}
 			tick[j].Symbol = strings.Replace(tick[j].Symbol, currency.UnderscoreDelimiter, "", 1)
-			pair, _, err = e.MatchSymbolCheckEnabled(tick[j].Symbol, a, false)
+			pair, err = e.MatchSymbolWithAvailablePairs(tick[j].Symbol, a, false)
 		}
 
-		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+		if err != nil {
+			if errors.Is(err, currency.ErrPairNotFound) {
+				continue
+			}
 			return err
 		}
 
-		err = ticker.ProcessTicker(&ticker.Price{
+		if err := ticker.ProcessTicker(&ticker.Price{
 			Last:         tick[j].LastPrice,
 			High:         tick[j].HighPrice,
 			Low:          tick[j].LowPrice,
@@ -354,8 +354,7 @@ instruments:
 			ExchangeName: e.Name,
 			OpenInterest: tick[j].OpenInterest,
 			AssetType:    a,
-		})
-		if err != nil {
+		}); err != nil {
 			return err
 		}
 	}

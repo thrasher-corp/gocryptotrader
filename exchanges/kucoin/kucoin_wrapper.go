@@ -289,7 +289,6 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 
 // UpdateTickers updates all currency pairs of a given asset type
 func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) error {
-	var errs error
 	switch assetType {
 	case asset.Futures:
 		ticks, err := e.GetFuturesOpenContracts(ctx)
@@ -297,9 +296,8 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			return err
 		}
 		for x := range ticks {
-			pair := currency.NewPair(ticks[x].BaseCurrency,
-				currency.NewCode(ticks[x].Symbol[len(ticks[x].BaseCurrency.String()):]))
-			err = ticker.ProcessTicker(&ticker.Price{
+			pair := currency.NewPair(ticks[x].BaseCurrency, currency.NewCode(ticks[x].Symbol[len(ticks[x].BaseCurrency.String()):]))
+			if err := ticker.ProcessTicker(&ticker.Price{
 				Last:         ticks[x].LastTradePrice,
 				High:         ticks[x].HighPrice,
 				Low:          ticks[x].LowPrice,
@@ -308,9 +306,8 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				Pair:         pair,
 				ExchangeName: e.Name,
 				AssetType:    assetType,
-			})
-			if err != nil {
-				errs = common.AppendError(errs, err)
+			}); err != nil {
+				return err
 			}
 		}
 	case asset.Spot, asset.Margin:
@@ -319,12 +316,14 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			return err
 		}
 		for t := range ticks.Tickers {
-			pair, _, err := e.MatchSymbolCheckEnabled(ticks.Tickers[t].Symbol, assetType, true)
-			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+			pair, err := e.MatchSymbolWithAvailablePairs(ticks.Tickers[t].Symbol, assetType, true)
+			if err != nil {
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
+				}
 				return err
 			}
-
-			err = ticker.ProcessTicker(&ticker.Price{
+			if err := ticker.ProcessTicker(&ticker.Price{
 				Last:         ticks.Tickers[t].Last,
 				High:         ticks.Tickers[t].High,
 				Low:          ticks.Tickers[t].Low,
@@ -335,15 +334,14 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				ExchangeName: e.Name,
 				AssetType:    assetType,
 				LastUpdated:  ticks.Time.Time(),
-			})
-			if err != nil {
-				errs = common.AppendError(errs, err)
+			}); err != nil {
+				return err
 			}
 		}
 	default:
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-	return errs
+	return nil
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
