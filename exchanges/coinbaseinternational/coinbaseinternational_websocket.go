@@ -76,7 +76,7 @@ func (e *Exchange) wsReadData(conn websocket.Connection) {
 				return
 			}
 			if err := e.wsHandleData(resp.Raw); err != nil {
-				e.Websocket.DataHandler <- err
+				log.Errorf(log.WebsocketMgr, "Received unexpected error: %v\n", err)
 			}
 		}
 	}
@@ -84,25 +84,18 @@ func (e *Exchange) wsReadData(conn websocket.Connection) {
 
 func (e *Exchange) wsHandleData(respRaw []byte) error {
 	var resp SubscriptionResponse
-	if err := json.Unmarshal(respRaw, &resp); err != nil {
+	err := json.Unmarshal(respRaw, &resp)
+	if err != nil {
 		return err
 	}
-	var (
-		pairs currency.Pairs
-		err   error
-	)
 	switch resp.Type {
 	case "SUBSCRIBE":
 		var subsccefulySubscribedChannels subscription.List
 		for x := range resp.Channels {
-			pairs, err = currency.NewPairsFromStrings(resp.Channels[x].ProductIDs)
-			if err != nil {
-				return err
-			}
 			subsccefulySubscribedChannels = append(subsccefulySubscribedChannels,
 				&subscription.Subscription{
 					Channel: resp.Channels[x].Name,
-					Pairs:   pairs,
+					Pairs:   resp.Channels[x].ProductIDs,
 				})
 		}
 		if err := e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, subsccefulySubscribedChannels...); err != nil {
@@ -111,14 +104,10 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 	case "UNSUBSCRIBE":
 		var subsccefulySubscribedChannels subscription.List
 		for x := range resp.Channels {
-			pairs, err = currency.NewPairsFromStrings(resp.Channels[x].ProductIDs)
-			if err != nil {
-				return err
-			}
 			subsccefulySubscribedChannels = append(subsccefulySubscribedChannels,
 				&subscription.Subscription{
 					Channel: resp.Channels[x].Name,
-					Pairs:   pairs,
+					Pairs:   resp.Channels[x].ProductIDs,
 				})
 		}
 		if err := e.Websocket.RemoveSubscriptions(e.Websocket.Conn, subsccefulySubscribedChannels...); err != nil {
@@ -142,9 +131,6 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 	case cnlOrderbookLevel2:
 		return e.processOrderbookLevel2(respRaw)
 	default:
-		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
-			Message: string(respRaw),
-		}
 		return fmt.Errorf("unhandled message: %s", string(respRaw))
 	}
 }
@@ -230,8 +216,7 @@ func (e *Exchange) processRisk(respRaw []byte) error {
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- resp
-	return nil
+	return e.Websocket.DataHandler.Send(context.Background(), resp)
 }
 
 func (e *Exchange) processFunding(respRaw []byte) error {
@@ -246,8 +231,7 @@ func (e *Exchange) processFunding(respRaw []byte) error {
 			Rate: decimal.NewFromFloat(resp[x].FundingRate.Float64()),
 		}
 	}
-	e.Websocket.DataHandler <- fundingInfos
-	return nil
+	return e.Websocket.DataHandler.Send(context.Background(), fundingInfos)
 }
 
 func (e *Exchange) processMatch(respRaw []byte) error {
@@ -255,8 +239,7 @@ func (e *Exchange) processMatch(respRaw []byte) error {
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- resp
-	return nil
+	return e.Websocket.DataHandler.Send(context.Background(), resp)
 }
 
 func (e *Exchange) processInstruments(respRaw []byte) error {
@@ -264,8 +247,7 @@ func (e *Exchange) processInstruments(respRaw []byte) error {
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- resp
-	return nil
+	return e.Websocket.DataHandler.Send(context.Background(), resp)
 }
 
 // handleSubscriptions generates a subscription payloads list.

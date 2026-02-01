@@ -759,8 +759,8 @@ type SubscriptionResponse struct {
 
 // SubscribedChannel represents a subscribed channel name and product ID(instrument) list.
 type SubscribedChannel struct {
-	Name       string   `json:"name"`
-	ProductIDs []string `json:"product_ids"`
+	Name       string         `json:"name"`
+	ProductIDs currency.Pairs `json:"product_ids"`
 }
 
 // WsInstrument holds response information to websocket
