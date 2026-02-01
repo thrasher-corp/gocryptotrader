@@ -75,6 +75,7 @@ var (
 	ErrGettingField              = errors.New("error getting field")
 	ErrSettingField              = errors.New("error setting field")
 	ErrParsingWSField            = errors.New("error parsing websocket field")
+	ErrMalformedData             = errors.New("malformed data")
 )
 
 var (
@@ -694,4 +695,59 @@ func SetIfZero[T comparable](p *T, def T) bool {
 	}
 	*p = def
 	return true
+}
+
+var (
+	contextKeys   []any
+	contextKeysMu sync.RWMutex
+)
+
+// RegisterContextKey registers a key to be captured by FreezeContext
+func RegisterContextKey(key any) {
+	contextKeysMu.Lock()
+	defer contextKeysMu.Unlock()
+	if !slices.Contains(contextKeys, key) {
+		contextKeys = append(contextKeys, key)
+	}
+}
+
+// FrozenContext holds captured context values
+type FrozenContext map[any]any
+
+// FreezeContext captures values from the context for registered keys
+func FreezeContext(ctx context.Context) FrozenContext {
+	contextKeysMu.RLock()
+	defer contextKeysMu.RUnlock()
+
+	values := make(FrozenContext, len(contextKeys))
+	for _, key := range contextKeys {
+		if val := ctx.Value(key); val != nil {
+			values[key] = val
+		}
+	}
+	return values
+}
+
+// ThawContext creates a new context from the frozen context using context.Background() as parent
+func ThawContext(fc FrozenContext) context.Context {
+	return MergeContext(context.Background(), fc)
+}
+
+// MergeContext adds the frozen values to an existing context
+func MergeContext(ctx context.Context, fc FrozenContext) context.Context {
+	return &mergedContext{Context: ctx, frozen: fc}
+}
+
+// mergedContext is a context that has merged values from a frozen context and a parent context.
+// frozen values are stored in FrozenContext instead of nested context.WithValue because of the performance of calling WithValue N+ times on messages being frozen
+type mergedContext struct {
+	context.Context //nolint:containedctx // mergedContext implements context.Context
+	frozen          FrozenContext
+}
+
+func (m *mergedContext) Value(key any) any {
+	if val, ok := m.frozen[key]; ok {
+		return val
+	}
+	return m.Context.Value(key)
 }

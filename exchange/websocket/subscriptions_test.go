@@ -21,11 +21,11 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 
 	subs, err := ws.GenerateSubs()
 	require.NoError(t, err, "Generating test subscriptions must not error")
-	assert.ErrorIs(t, new(Manager).UnsubscribeChannels(nil, subs), common.ErrNilPointer, "Should error when unsubscribing with nil unsubscribe function")
-	assert.NoError(t, ws.UnsubscribeChannels(nil, nil), "Unsubscribing from nil should not error")
-	assert.ErrorIs(t, ws.UnsubscribeChannels(nil, subs), subscription.ErrNotFound, "Unsubscribing should error when not subscribed")
+	assert.ErrorIs(t, new(Manager).UnsubscribeChannels(t.Context(), nil, subs), common.ErrNilPointer, "Should error when unsubscribing with nil unsubscribe function")
+	assert.NoError(t, ws.UnsubscribeChannels(t.Context(), nil, nil), "Unsubscribing from nil should not error")
+	assert.ErrorIs(t, ws.UnsubscribeChannels(t.Context(), nil, subs), subscription.ErrNotFound, "Unsubscribing should error when not subscribed")
 	assert.Nil(t, ws.GetSubscription(42), "GetSubscription on empty internal map should return")
-	assert.NoError(t, ws.SubscribeToChannels(nil, subs), "Basic Subscribing should not error")
+	assert.NoError(t, ws.SubscribeToChannels(t.Context(), nil, subs), "Basic Subscribing should not error")
 	assert.Len(t, ws.GetSubscriptions(), 4, "Should have 4 subscriptions")
 	bySub := ws.GetSubscription(subscription.Subscription{Channel: "TestSub"})
 	if assert.NotNil(t, bySub, "GetSubscription by subscription should find a channel") {
@@ -43,14 +43,14 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	}
 	assert.Nil(t, ws.GetSubscription(nil), "GetSubscription by nil should return nil")
 	assert.Nil(t, ws.GetSubscription(45), "GetSubscription by invalid key should return nil")
-	assert.ErrorIs(t, ws.SubscribeToChannels(nil, subs), subscription.ErrDuplicate, "Subscribe should error when already subscribed")
-	assert.NoError(t, ws.SubscribeToChannels(nil, nil), "Subscribe to an nil List should not error")
-	assert.NoError(t, ws.UnsubscribeChannels(nil, subs), "Unsubscribing should not error")
+	assert.ErrorIs(t, ws.SubscribeToChannels(t.Context(), nil, subs), subscription.ErrDuplicate, "Subscribe should error when already subscribed")
+	assert.NoError(t, ws.SubscribeToChannels(t.Context(), nil, nil), "Subscribe to an nil List should not error")
+	assert.NoError(t, ws.UnsubscribeChannels(t.Context(), nil, subs), "Unsubscribing should not error")
 
 	ws.Subscriber = func(subscription.List) error { return errDastardlyReason }
-	assert.ErrorIs(t, ws.SubscribeToChannels(nil, subs), errDastardlyReason, "Should error correctly when error returned from Subscriber")
+	assert.ErrorIs(t, ws.SubscribeToChannels(t.Context(), nil, subs), errDastardlyReason, "Should error correctly when error returned from Subscriber")
 
-	err = ws.SubscribeToChannels(nil, subscription.List{nil})
+	err = ws.SubscribeToChannels(t.Context(), nil, subscription.List{nil})
 	assert.ErrorIs(t, err, common.ErrNilPointer, "Should error correctly when list contains a nil subscription")
 
 	multi := NewManager()
@@ -79,15 +79,15 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 
 	subs, err = amazingCandidate.GenerateSubscriptions()
 	require.NoError(t, err, "Generating test subscriptions must not error")
-	assert.ErrorIs(t, new(Manager).UnsubscribeChannels(nil, subs), common.ErrNilPointer, "Should error when unsubscribing with nil unsubscribe function")
-	assert.ErrorIs(t, new(Manager).UnsubscribeChannels(amazingConn, subs), common.ErrNilPointer, "Should error when unsubscribing with nil unsubscribe function")
-	assert.NoError(t, multi.UnsubscribeChannels(amazingConn, nil), "Unsubscribing from nil should not error")
-	assert.ErrorIs(t, multi.UnsubscribeChannels(amazingConn, subs), subscription.ErrNotFound, "Unsubscribing should error when not subscribed")
+	assert.ErrorIs(t, new(Manager).UnsubscribeChannels(t.Context(), nil, subs), common.ErrNilPointer, "Should error when unsubscribing with nil unsubscribe function")
+	assert.ErrorIs(t, new(Manager).UnsubscribeChannels(t.Context(), amazingConn, subs), common.ErrNilPointer, "Should error when unsubscribing with nil unsubscribe function")
+	assert.NoError(t, multi.UnsubscribeChannels(t.Context(), amazingConn, nil), "Unsubscribing from nil should not error")
+	assert.ErrorIs(t, multi.UnsubscribeChannels(t.Context(), amazingConn, subs), subscription.ErrNotFound, "Unsubscribing should error when not subscribed")
 	assert.Nil(t, multi.GetSubscription(42), "GetSubscription on empty internal map should return")
 
-	assert.ErrorIs(t, multi.SubscribeToChannels(nil, subs), common.ErrNilPointer, "If no connection is set, Subscribe should error")
+	assert.ErrorIs(t, multi.SubscribeToChannels(t.Context(), nil, subs), common.ErrNilPointer, "If no connection is set, Subscribe should error")
 
-	assert.NoError(t, multi.SubscribeToChannels(amazingConn, subs), "Basic Subscribing should not error")
+	assert.NoError(t, multi.SubscribeToChannels(t.Context(), amazingConn, subs), "Basic Subscribing should not error")
 	assert.Len(t, multi.GetSubscriptions(), 4, "Should have 4 subscriptions")
 	bySub = multi.GetSubscription(subscription.Subscription{Channel: "TestSub"})
 	if assert.NotNil(t, bySub, "GetSubscription by subscription should find a channel") {
@@ -105,14 +105,14 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	}
 	assert.Nil(t, multi.GetSubscription(nil), "GetSubscription by nil should return nil")
 	assert.Nil(t, multi.GetSubscription(45), "GetSubscription by invalid key should return nil")
-	assert.ErrorIs(t, multi.SubscribeToChannels(amazingConn, subs), subscription.ErrDuplicate, "Subscribe should error when already subscribed")
-	assert.NoError(t, multi.SubscribeToChannels(amazingConn, nil), "Subscribe to an nil List should not error")
-	assert.NoError(t, multi.UnsubscribeChannels(amazingConn, subs), "Unsubscribing should not error")
+	assert.ErrorIs(t, multi.SubscribeToChannels(t.Context(), amazingConn, subs), subscription.ErrDuplicate, "Subscribe should error when already subscribed")
+	assert.NoError(t, multi.SubscribeToChannels(t.Context(), amazingConn, nil), "Subscribe to an nil List should not error")
+	assert.NoError(t, multi.UnsubscribeChannels(t.Context(), amazingConn, subs), "Unsubscribing should not error")
 
 	amazingCandidate.Subscriber = func(context.Context, Connection, subscription.List) error { return errDastardlyReason }
-	assert.ErrorIs(t, multi.SubscribeToChannels(amazingConn, subs), errDastardlyReason, "Should error correctly when error returned from Subscriber")
+	assert.ErrorIs(t, multi.SubscribeToChannels(t.Context(), amazingConn, subs), errDastardlyReason, "Should error correctly when error returned from Subscriber")
 
-	err = multi.SubscribeToChannels(amazingConn, subscription.List{nil})
+	err = multi.SubscribeToChannels(t.Context(), amazingConn, subscription.List{nil})
 	assert.ErrorIs(t, err, common.ErrNilPointer, "Should error correctly when list contains a nil subscription")
 }
 
@@ -134,9 +134,9 @@ func TestResubscribe(t *testing.T) {
 
 	channel := subscription.List{{Channel: "resubTest"}}
 
-	assert.ErrorIs(t, ws.ResubscribeToChannel(nil, channel[0]), subscription.ErrNotFound, "Resubscribe should error when channel isn't subscribed yet")
-	assert.NoError(t, ws.SubscribeToChannels(nil, channel), "Subscribe should not error")
-	assert.NoError(t, ws.ResubscribeToChannel(nil, channel[0]), "Resubscribe should not error now the channel is subscribed")
+	assert.ErrorIs(t, ws.ResubscribeToChannel(t.Context(), nil, channel[0]), subscription.ErrNotFound, "Resubscribe should error when channel isn't subscribed yet")
+	assert.NoError(t, ws.SubscribeToChannels(t.Context(), nil, channel), "Subscribe should not error")
+	assert.NoError(t, ws.ResubscribeToChannel(t.Context(), nil, channel[0]), "Resubscribe should not error now the channel is subscribed")
 }
 
 // TestSubscriptions tests adding, getting and removing subscriptions
@@ -245,7 +245,7 @@ func TestUpdateChannelSubscriptions(t *testing.T) {
 
 	ws := NewManager()
 	store := subscription.NewStore()
-	err := ws.updateChannelSubscriptions(nil, store, subscription.List{{Channel: "test"}})
+	err := ws.updateChannelSubscriptions(t.Context(), nil, store, subscription.List{{Channel: "test"}})
 	require.ErrorIs(t, err, common.ErrNilPointer)
 	require.Zero(t, store.Len())
 
@@ -259,11 +259,11 @@ func TestUpdateChannelSubscriptions(t *testing.T) {
 	}
 
 	ws.subscriptions = store
-	err = ws.updateChannelSubscriptions(nil, store, subscription.List{{Channel: "test"}})
+	err = ws.updateChannelSubscriptions(t.Context(), nil, store, subscription.List{{Channel: "test"}})
 	require.NoError(t, err)
 	require.Equal(t, 1, store.Len())
 
-	err = ws.updateChannelSubscriptions(nil, store, subscription.List{})
+	err = ws.updateChannelSubscriptions(t.Context(), nil, store, subscription.List{})
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	ws.Unsubscriber = func(subs subscription.List) error {
@@ -275,7 +275,7 @@ func TestUpdateChannelSubscriptions(t *testing.T) {
 		return nil
 	}
 
-	err = ws.updateChannelSubscriptions(nil, store, subscription.List{})
+	err = ws.updateChannelSubscriptions(t.Context(), nil, store, subscription.List{})
 	require.NoError(t, err)
 	require.Zero(t, store.Len())
 }
