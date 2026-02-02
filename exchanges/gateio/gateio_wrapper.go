@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -180,8 +181,14 @@ func (e *Exchange) SetDefaults() {
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
-	e.wsOBUpdateMgr = newWsOBUpdateManager(defaultWsOrderbookUpdateTimeDelay, defaultWSOrderbookUpdateDeadline)
 	e.wsOBResubMgr = newWSOBResubManager()
+	e.wsOBUpdateMgr = buffer.NewUpdateManager(&buffer.UpdateParams{
+		FetchDelay:         buffer.DefaultWSOrderbookUpdateTimeDelay,
+		FetchDeadline:      buffer.DefaultWSOrderbookUpdateDeadline,
+		FetchOrderbook:     e.fetchWSOrderbookSnapshot,
+		CheckPendingUpdate: checkPendingUpdate,
+		BufferInstance:     &e.Websocket.Orderbook,
+	})
 }
 
 // Setup sets user configuration

@@ -126,7 +126,7 @@ func (e *Exchange) WsConnect() error {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
+	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil)
 	if err != nil {
 		return fmt.Errorf("%v unable to connect to Websocket. Error: %s",
 			e.Name,
@@ -136,7 +136,7 @@ func (e *Exchange) WsConnect() error {
 	e.Websocket.Wg.Add(1)
 	go e.wsReadData(ctx, e.Websocket.Conn)
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		err = e.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{})
+		err = e.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{}, nil)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%v unable to connect to authenticated Websocket. Error: %s",

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"maps"
 	"net/http"
+	"net/url"
 	"slices"
 	"testing"
 	"time"
@@ -2967,7 +2968,9 @@ type FixtureConnection struct {
 }
 
 func (d *FixtureConnection) SetupPingHandler(request.EndpointLimit, websocket.PingHandler) {}
-func (d *FixtureConnection) Dial(context.Context, *gws.Dialer, http.Header) error          { return d.dialError }
+func (d *FixtureConnection) Dial(context.Context, *gws.Dialer, http.Header, url.Values) error {
+	return d.dialError
+}
 
 func (d *FixtureConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
 	if d.sendMessageReturnResponseOverride != nil {

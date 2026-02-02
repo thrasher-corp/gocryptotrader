@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -28,6 +29,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -51,6 +53,18 @@ var (
 	spotTradablePair, marginTradablePair, futuresTradablePair currency.Pair
 	assertToTradablePairMap                                   map[asset.Item]currency.Pair
 )
+
+// ConnectionFixture is a websocket connection mock, this is used in test that previously used the actual websocket connection.
+// The current design makes it difficult to connect and subscribe using the actual websocket connection in tests, so
+// this mock is used to simulate the connection behaviour.
+type ConnectionFixture struct {
+	websocket.Connection
+	messageResponse string
+}
+
+func (c ConnectionFixture) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
+	return []byte(c.messageResponse), nil
+}
 
 func TestMain(m *testing.M) {
 	e = new(Exchange)
@@ -2350,10 +2364,10 @@ func TestPushData(t *testing.T) {
 			e.Accounts = nil
 			defer func() { e.Accounts = hold }()
 		}
-		return e.wsHandleData(ctx, r)
+		return e.wsHandleData(ctx, nil, r)
 	})
 	e.Websocket.DataHandler.Close()
-	assert.Len(t, e.Websocket.DataHandler.C, 29, "Should see correct number of messages")
+	assert.Len(t, e.Websocket.DataHandler.C, 27, "Should see correct number of messages")
 	require.Len(t, fErrs, 1, "Must get exactly one error message")
 	assert.ErrorContains(t, fErrs[0].Err, "cannot save holdings: nil pointer: *accounts.Accounts")
 }
@@ -2477,8 +2491,8 @@ func TestGenerateMarginSubscriptions(t *testing.T) {
 	require.NoError(t, err, "StorePairs must not error storing spot pairs")
 
 	ku.Features.Subscriptions = subscription.List{{Channel: subscription.TickerChannel, Asset: asset.Margin}}
-	subs, err := ku.Features.Subscriptions.ExpandTemplates(ku)
-	require.NoError(t, err, "ExpandTemplates must not error")
+	subs, err := ku.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions must not error")
 	require.Len(t, subs, 1, "Must generate just one sub")
 	assert.Equal(t, asset.Margin, subs[0].Asset, "Asset should be correct")
 	assert.Equal(t, "/market/ticker:"+avail[:6].Join(), subs[0].QualifiedChannel, "QualifiedChannel should be correct")
@@ -2486,17 +2500,17 @@ func TestGenerateMarginSubscriptions(t *testing.T) {
 	require.NoError(t, ku.CurrencyPairs.SetAssetEnabled(asset.Margin, false), "SetAssetEnabled Spot must not error")
 	require.NoError(t, err, "SetAssetEnabled must not error")
 	ku.Features.Subscriptions = subscription.List{{Channel: subscription.TickerChannel, Asset: asset.All}}
-	subs, err = ku.Features.Subscriptions.ExpandTemplates(ku)
+	subs, err = ku.generateSubscriptions()
 	require.NoError(t, err, "mergeMarginPairs must not cause errAssetRecords by adding an empty asset when Margin is disabled")
-	require.NotEmpty(t, subs, "ExpandTemplates must return some subs")
+	require.NotEmpty(t, subs, "generateSubscriptions must return some subs")
 
 	require.NoError(t, ku.CurrencyPairs.SetAssetEnabled(asset.Margin, true), "SetAssetEnabled Margin must not error")
 	require.NoError(t, ku.CurrencyPairs.SetAssetEnabled(asset.Spot, false), "SetAssetEnabled Spot must not error")
 	require.NoError(t, ku.CurrencyPairs.SetAssetEnabled(asset.Futures, false), "SetAssetEnabled Futures must not error")
 	ku.Features.Subscriptions = subscription.List{{Channel: subscription.TickerChannel, Asset: asset.All}}
-	subs, err = ku.Features.Subscriptions.ExpandTemplates(ku)
+	subs, err = ku.generateSubscriptions()
 	require.NoError(t, err, "mergeMarginPairs must not cause errAssetRecords by adding an empty asset when Spot is disabled")
-	require.NotEmpty(t, subs, "ExpandTemplates must return some subs")
+	require.NotEmpty(t, subs, "generateSubscriptions must return some subs")
 }
 
 // TestCheckSubscriptions ensures checkSubscriptions upgrades user config correctly
@@ -2520,6 +2534,8 @@ func TestCheckSubscriptions(t *testing.T) {
 						{Enabled: true, Channel: "/contractMarket/tradeOrders", Authenticated: true},
 						{Enabled: true, Channel: "/contractMarket/advancedOrders", Authenticated: true},
 						{Enabled: true, Channel: "/contractAccount/wallet", Authenticated: true},
+						{Enabled: true, Channel: "/contractMarket/level2", Asset: asset.Futures},
+						{Enabled: true, Channel: "/market/level2", Asset: asset.Spot, Authenticated: true},
 					},
 				},
 			},
@@ -2978,32 +2994,10 @@ func TestUpdateAccountBalances(t *testing.T) {
 	}
 }
 
-const (
-	orderbookLevel5PushData = `{"type": "message","topic": "/spotMarket/level2Depth50:BTC-USDT","subject": "level2","data": {"asks": [["21621.7","3.03206193"],["21621.8","1.00048239"],["21621.9","0.29558803"],["21622","0.0049653"],["21622.4","0.06177582"],["21622.9","0.39664116"],["21623.7","0.00803466"],["21624.2","0.65405"],["21624.3","0.34661426"],["21624.6","0.00035589"],["21624.9","0.61282048"],["21625.2","0.16421424"],["21625.4","0.90107014"],["21625.5","0.73484442"],["21625.9","0.04"],["21626.2","0.28569324"],["21626.4","0.18403701"],["21627.1","0.06503999"],["21627.2","0.56105832"],["21627.7","0.10649999"],["21628.1","2.66459953"],["21628.2","0.32"],["21628.5","0.27605551"],["21628.6","1.59482596"],["21628.9","0.16"],["21629.8","0.08"],["21630","0.04"],["21631.6","0.1"],["21631.8","0.0920185"],["21633.6","0.00447983"],["21633.7","0.00015044"],["21634.3","0.32193346"],["21634.4","0.00004"],["21634.5","0.1"],["21634.6","0.0002865"],["21635.6","0.12069941"],["21635.8","0.00117158"],["21636","0.00072816"],["21636.5","0.98611492"],["21636.6","0.00007521"],["21637.2","0.00699999"],["21637.6","0.00017129"],["21638","0.00013035"],["21638.1","0.05"],["21638.5","0.92427"],["21639.2","1.84998696"],["21639.3","0.04827233"],["21640","0.56255996"],["21640.9","0.8"],["21641","0.12"]],"bids": [["21621.6","0.40949924"],["21621.5","0.27703279"],["21621.3","0.04"],["21621.1","0.0086"],["21621","0.6653104"],["21620.9","0.35435999"],["21620.8","0.37224309"],["21620.5","0.416184"],["21620.3","0.24"],["21619.6","0.13883999"],["21619.5","0.21053355"],["21618.7","0.2"],["21618.6","0.001"],["21618.5","0.2258151"],["21618.4","0.06503999"],["21618.3","0.00370056"],["21618","0.12067842"],["21617.7","0.34844131"],["21617.6","0.92845495"],["21617.5","0.66460535"],["21617","0.01"],["21616.7","0.0004624"],["21616.4","0.02"],["21615.6","0.04828251"],["21615","0.59065665"],["21614.4","0.00227"],["21614.3","0.1"],["21613","0.32193346"],["21612.9","0.0028638"],["21612.6","0.1"],["21612.5","0.92539"],["21610.7","0.08208616"],["21610.6","0.00967666"],["21610.3","0.12"],["21610.2","0.00611126"],["21609.9","0.00226344"],["21609.8","0.00315812"],["21609.1","0.00547218"],["21608.6","0.09793157"],["21608.5","0.00437793"],["21608.4","1.85013454"],["21608.1","0.00366647"],["21607.9","0.00611595"],["21607.7","0.83263561"],["21607.6","0.00368919"],["21607.5","0.00280702"],["21607.1","0.66610849"],["21606.8","0.00364164"],["21606.2","0.80351642"],["21605.7","0.075"]],"timestamp": 1676319280783}}`
-	wsOrderbookData         = `{"changes":{"asks":[["21621.7","3.03206193",""],["21621.8","1.00048239",""],["21621.9","0.29558803",""],["21622","0.0049653",""],["21622.4","0.06177582",""],["21622.9","0.39664116",""],["21623.7","0.00803466",""],["21624.2","0.65405",""],["21624.3","0.34661426",""],["21624.6","0.00035589",""],["21624.9","0.61282048",""],["21625.2","0.16421424",""],["21625.4","0.90107014",""],["21625.5","0.73484442",""],["21625.9","0.04",""],["21626.2","0.28569324",""],["21626.4","0.18403701",""],["21627.1","0.06503999",""],["21627.2","0.56105832",""],["21627.7","0.10649999",""],["21628.1","2.66459953",""],["21628.2","0.32",""],["21628.5","0.27605551",""],["21628.6","1.59482596",""],["21628.9","0.16",""],["21629.8","0.08",""],["21630","0.04",""],["21631.6","0.1",""],["21631.8","0.0920185",""],["21633.6","0.00447983",""],["21633.7","0.00015044",""],["21634.3","0.32193346",""],["21634.4","0.00004",""],["21634.5","0.1",""],["21634.6","0.0002865",""],["21635.6","0.12069941",""],["21635.8","0.00117158",""],["21636","0.00072816",""],["21636.5","0.98611492",""],["21636.6","0.00007521",""],["21637.2","0.00699999",""],["21637.6","0.00017129",""],["21638","0.00013035",""],["21638.1","0.05",""],["21638.5","0.92427",""],["21639.2","1.84998696",""],["21639.3","0.04827233",""],["21640","0.56255996",""],["21640.9","0.8",""],["21641","0.12",""]],"bids":[["21621.6","0.40949924",""],["21621.5","0.27703279",""],["21621.3","0.04",""],["21621.1","0.0086",""],["21621","0.6653104",""],["21620.9","0.35435999",""],["21620.8","0.37224309",""],["21620.5","0.416184",""],["21620.3","0.24",""],["21619.6","0.13883999",""],["21619.5","0.21053355",""],["21618.7","0.2",""],["21618.6","0.001",""],["21618.5","0.2258151",""],["21618.4","0.06503999",""],["21618.3","0.00370056",""],["21618","0.12067842",""],["21617.7","0.34844131",""],["21617.6","0.92845495",""],["21617.5","0.66460535",""],["21617","0.01",""],["21616.7","0.0004624",""],["21616.4","0.02",""],["21615.6","0.04828251",""],["21615","0.59065665",""],["21614.4","0.00227",""],["21614.3","0.1",""],["21613","0.32193346",""],["21612.9","0.0028638",""],["21612.6","0.1",""],["21612.5","0.92539",""],["21610.7","0.08208616",""],["21610.6","0.00967666",""],["21610.3","0.12",""],["21610.2","0.00611126",""],["21609.9","0.00226344",""],["21609.8","0.00315812",""],["21609.1","0.00547218",""],["21608.6","0.09793157",""],["21608.5","0.00437793",""],["21608.4","1.85013454",""],["21608.1","0.00366647",""],["21607.9","0.00611595",""],["21607.7","0.83263561",""],["21607.6","0.00368919",""],["21607.5","0.00280702",""],["21607.1","0.66610849",""],["21606.8","0.00364164",""],["21606.2","0.80351642",""],["21605.7","0.075",""]]},"sequenceEnd":1676319280783,"sequenceStart":0,"symbol":"BTC-USDT","time":1676319280783}`
-)
-
-func TestProcessOrderbook(t *testing.T) {
-	t.Parallel()
-	response := &WsOrderbook{}
-	err := json.Unmarshal([]byte(wsOrderbookData), &response)
-	assert.NoError(t, err)
-	e.setupOrderbookManager(t.Context())
-	result, err := e.updateLocalBuffer(response, asset.Spot)
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	err = e.processOrderbook([]byte(orderbookLevel5PushData), "BTC-USDT", "")
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	err = e.wsHandleData(t.Context(), []byte(orderbookLevel5PushData))
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
 func TestProcessMarketSnapshot(t *testing.T) {
 	t.Parallel()
 	ku := testInstance(t)
-	testexch.FixtureToDataHandler(t, "testdata/wsMarketSnapshot.json", ku.wsHandleData)
+	testexch.FixtureToDataHandler(t, "testdata/wsMarketSnapshot.json", func(ctx context.Context, b []byte) error { return ku.wsHandleData(ctx, nil, b) })
 	ku.Websocket.DataHandler.Close()
 	assert.Len(t, ku.Websocket.DataHandler.C, 4, "Should see 4 tickers")
 	seenAssetTypes := map[asset.Item]int{}
@@ -3067,7 +3061,7 @@ func TestSubscribeBatches(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	require.Len(t, subs, len(ku.Features.Subscriptions), "Must generate batched subscriptions")
 
-	err = ku.Subscribe(subs)
+	err = ku.Subscribe(t.Context(), &ConnectionFixture{messageResponse: `{"id":"019ae225-c584-7b71-a634-489c7249e000","type":"ack"}`}, subs)
 	assert.NoError(t, err, "Subscribe to small batches should not error")
 }
 
@@ -3095,10 +3089,10 @@ func TestSubscribeBatchLimit(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	require.Len(t, subs, 4, "Must get 4 subs")
 
-	err = ku.Subscribe(subs)
+	err = ku.Subscribe(t.Context(), &ConnectionFixture{messageResponse: `{"id":"019ae225-c584-7b71-a634-489c7249e000","type":"ack"}`}, subs)
 	require.NoError(t, err, "Subscribe must not error")
 
-	err = ku.Unsubscribe(subs)
+	err = ku.Unsubscribe(t.Context(), &ConnectionFixture{messageResponse: `{"id":"019ae225-c584-7b71-a634-489c7249e000","type":"ack"}`}, subs)
 	require.NoError(t, err, "Unsubscribe must not error")
 
 	err = ku.CurrencyPairs.StorePairs(asset.Spot, avail[:expectedLimit+20], true)
@@ -3109,7 +3103,7 @@ func TestSubscribeBatchLimit(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	require.Len(t, subs, 5, "Must get 5 subs")
 
-	err = ku.Subscribe(subs)
+	err = ku.Subscribe(t.Context(), &ConnectionFixture{messageResponse: `{"id":"019ae22f-4718-7da4-846d-999b085cc24a","type":"error","code":509,"data":"exceed max subscription count limitation of 400 per session"}`}, subs)
 	require.Error(t, err, "Subscribe must error")
 	assert.ErrorContains(t, err, "exceed max subscription count limitation of 400 per session", "Subscribe to MarketSnapshot should error above connection symbol limit")
 }
@@ -3129,6 +3123,7 @@ func TestSubscribeTickerAll(t *testing.T) {
 	avail, err := ku.GetAvailablePairs(asset.Spot)
 	require.NoError(t, err, "GetAvailablePairs must not error")
 
+	require.GreaterOrEqual(t, len(avail), 500)
 	err = ku.CurrencyPairs.StorePairs(asset.Spot, avail[:500], true)
 	require.NoError(t, err, "StorePairs must not error")
 
@@ -3139,14 +3134,8 @@ func TestSubscribeTickerAll(t *testing.T) {
 	require.Len(t, subs, 1, "Must generate one subscription")
 	assert.Equal(t, "/market/ticker:all", subs[0].QualifiedChannel, "QualifiedChannel should be correct")
 
-	err = ku.Subscribe(subs)
+	err = ku.Subscribe(t.Context(), &ConnectionFixture{messageResponse: `{"id":"019ae225-c584-7b71-a634-489c7249e000","type":"ack"}`}, subs)
 	assert.NoError(t, err, "Subscribe to should not error")
-}
-
-func TestSeedLocalCache(t *testing.T) {
-	t.Parallel()
-	err := e.SeedLocalCache(t.Context(), marginTradablePair, asset.Margin)
-	assert.NoError(t, err)
 }
 
 func TestGetFuturesContractDetails(t *testing.T) {
@@ -4078,11 +4067,6 @@ func testInstance(tb testing.TB) *Exchange {
 	tb.Helper()
 	e := new(Exchange)
 	require.NoError(tb, testexch.Setup(e), "Test instance Setup must not error")
-	e.obm = &orderbookManager{
-		state: make(map[currency.Code]map[currency.Code]map[asset.Item]*update),
-		jobs:  make(chan job, maxWSOrderbookJobs),
-	}
-	e.fetchedFuturesOrderbook = map[string]bool{}
 	return e
 }
 
