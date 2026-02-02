@@ -281,39 +281,35 @@ func (e *Exchange) processBooks(result *SubscriptionResponse) error {
 }
 
 func (e *Exchange) processBooksLevel2(result *SubscriptionResponse) error {
-	var resp []*WsBook
+	var resp []WsBook
 	if err := json.Unmarshal(result.Data, &resp); err != nil {
 		return err
 	}
-	for _, r := range resp {
-		if result.Action == "snapshot" {
-			if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-				Exchange:     e.Name,
-				Pair:         r.Symbol,
-				Asset:        asset.Spot,
-				Asks:         r.Asks.Levels(),
-				Bids:         r.Bids.Levels(),
-				LastUpdateID: r.LastID,
-				LastUpdated:  r.Timestamp.Time(),
-			}); err != nil {
-				return err
-			}
-			continue
-		}
-
-		if err := e.Websocket.Orderbook.Update(&orderbook.Update{
-			Pair:       r.Symbol,
-			UpdateTime: r.Timestamp.Time(),
-			UpdateID:   r.ID,
-			Asset:      asset.Spot,
-			Action:     orderbook.UpdateAction,
-			Asks:       r.Asks.Levels(),
-			Bids:       r.Bids.Levels(),
-		}); err != nil {
-			return err
-		}
+	if len(resp) != 1 {
+		return fmt.Errorf("expected 1 orderbook update, received %d", len(resp))
 	}
-	return nil
+
+	r := resp[0]
+	if result.Action == "snapshot" {
+		return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			Exchange:     e.Name,
+			Pair:         r.Symbol,
+			Asset:        asset.Spot,
+			Asks:         r.Asks.Levels(),
+			Bids:         r.Bids.Levels(),
+			LastUpdateID: r.LastID,
+			LastUpdated:  r.Timestamp.Time(),
+		})
+	}
+
+	return e.Websocket.Orderbook.Update(&orderbook.Update{
+		Pair:       r.Symbol,
+		UpdateTime: r.Timestamp.Time(),
+		UpdateID:   r.ID,
+		Asset:      asset.Spot,
+		Asks:       r.Asks.Levels(),
+		Bids:       r.Bids.Levels(),
+	})
 }
 
 func (e *Exchange) processTicker(ctx context.Context, result *SubscriptionResponse) error {
