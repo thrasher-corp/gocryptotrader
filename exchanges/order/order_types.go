@@ -107,8 +107,16 @@ type Submit struct {
 	TrackingMode  TrackingMode
 	TrackingValue float64
 
+	// LimitTrackingMode specifies the limit price offset used to place a limit order relative to the market price.
+	LimitTrackingMode  TrackingMode
+	LimitTrackingValue float64
+
 	// RFQDisabled, when set, attempts to route the order to the exchange CLOB. Currently only supported by Coinbase
 	RFQDisabled bool
+
+	// SlippageTolerance used to control the maximum slippage ratio, the value range is greater than 0 and less than 1
+	// https://api-docs.poloniex.com/spot/api/private/order
+	SlippageTolerance float64
 }
 
 // SubmitResponse is what is returned after submitting an order to an exchange
@@ -179,6 +187,10 @@ type Modify struct {
 	TriggerPriceType PriceType
 
 	RiskManagementModes RiskManagementModes
+
+	// SlippageTolerance used to control the maximum slippage ratio, the value range is greater than 0 and less than 1
+	// https://api-docs.poloniex.com/spot/api/private/order
+	SlippageTolerance float64
 }
 
 // ModifyResponse is an order modifying return type

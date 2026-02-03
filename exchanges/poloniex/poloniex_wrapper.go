@@ -83,6 +83,7 @@ func (e *Exchange) SetDefaults() {
 				TickerBatching:        true,
 				TickerFetching:        true,
 				KlineFetching:         true,
+				CandleHistory:         true,
 				TradeFetching:         true,
 				OrderbookFetching:     true,
 				AutoPairUpdates:       true,
@@ -106,6 +107,7 @@ func (e *Exchange) SetDefaults() {
 				TickerBatching:         true,
 				TickerFetching:         true,
 				TradeFetching:          true,
+				CandleHistory:          true,
 				OrderbookFetching:      true,
 				Subscribe:              true,
 				Unsubscribe:            true,
@@ -662,7 +664,8 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
-	if s.AssetType == asset.Spot {
+	switch s.AssetType {
+	case asset.Spot:
 		var stpMode string
 		switch s.TimeInForce {
 		case order.PostOnly:
@@ -673,9 +676,16 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		switch s.Type {
 		case order.Stop, order.StopLimit, order.TrailingStop, order.TrailingStopLimit:
 			var trackingDistance string
-			if s.Type|order.TrailingStop == order.TrailingStop {
+			if s.Type&order.TrailingStop == order.TrailingStop {
 				trackingDistance = strconv.FormatFloat(s.TrackingValue, 'f', -1, 64)
 				if s.TrackingMode == order.Percentage {
+					trackingDistance += "%"
+				}
+			}
+			var limitOffset string
+			if s.Type == order.TrailingStopLimit {
+				limitOffset = strconv.FormatFloat(s.LimitTrackingValue, 'f', -1, 64)
+				if s.LimitTrackingMode == order.Percentage {
 					trackingDistance += "%"
 				}
 			}
@@ -692,6 +702,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				ClientOrderID:  s.ClientOrderID,
 				TimeInForce:    TimeInForce(s.TimeInForce),
 				TrailingOffset: trackingDistance,
+				LimitOffset:    limitOffset,
 			})
 			if err != nil {
 				return nil, err
@@ -704,13 +715,13 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				Price:                   s.Price,
 				BaseAmount:              s.Amount,
 				QuoteAmount:             s.QuoteAmount,
-				AllowBorrow:             false,
+				AllowBorrow:             s.AutoBorrow,
 				Type:                    OrderType(s.Type),
 				Side:                    s.Side,
 				TimeInForce:             TimeInForce(s.TimeInForce),
 				ClientOrderID:           s.ClientOrderID,
 				SelfTradePreventionMode: stpMode,
-				SlippageTolerance:       "0",
+				SlippageTolerance:       strconv.FormatFloat(s.SlippageTolerance, 'f', -1, 64),
 			})
 			if err != nil {
 				return nil, err
@@ -719,47 +730,50 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		default:
 			return nil, fmt.Errorf("%w: %v", order.ErrUnsupportedOrderType, s.Type)
 		}
-	}
-	side := "BUY"
-	if s.Side.IsShort() {
-		side = "SELL"
-	}
-	var stpMode string
-	switch s.TimeInForce {
-	case order.PostOnly:
-		stpMode = "EXPIRE_MAKER"
-	case order.GoodTillCancel:
-		stpMode = "EXPIRE_TAKER"
-	}
-	switch s.Type {
-	case order.Market, order.Limit, order.LimitMaker:
-	default:
-		return nil, fmt.Errorf("%w: %v", order.ErrUnsupportedOrderType, s.Type)
-	}
-	var positionSide order.Side
-	if s.MarginType != margin.Unset {
-		positionSide, err = s.Side.Position()
+	case asset.Futures:
+		switch s.Type {
+		case order.Market, order.Limit, order.LimitMaker:
+		default:
+			return nil, fmt.Errorf("%w: %v", order.ErrUnsupportedOrderType, s.Type)
+		}
+		var positionSide order.Side
+		if s.MarginType != margin.Unset {
+			positionSide, err = s.Side.Position()
+			if err != nil {
+				return nil, err
+			}
+		}
+		side := "BUY"
+		if s.Side.IsShort() {
+			side = "SELL"
+		}
+		var stpMode string
+		switch s.TimeInForce {
+		case order.PostOnly:
+			stpMode = "EXPIRE_MAKER"
+		case order.GoodTillCancel:
+			stpMode = "EXPIRE_TAKER"
+		}
+		response, err := e.PlaceFuturesOrder(ctx, &FuturesOrderRequest{
+			ClientOrderID:           s.ClientOrderID,
+			Side:                    side,
+			MarginMode:              MarginMode(s.MarginType),
+			PositionSide:            positionSide,
+			Symbol:                  s.Pair,
+			OrderType:               OrderType(s.Type),
+			ReduceOnly:              s.ReduceOnly,
+			TimeInForce:             TimeInForce(s.TimeInForce),
+			Price:                   s.Price,
+			Size:                    s.Amount,
+			SelfTradePreventionMode: stpMode,
+		})
 		if err != nil {
 			return nil, err
 		}
+		return s.DeriveSubmitResponse(response.OrderID)
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, s.AssetType)
 	}
-	response, err := e.PlaceFuturesOrder(ctx, &FuturesOrderRequest{
-		ClientOrderID:           s.ClientOrderID,
-		Side:                    side,
-		MarginMode:              MarginMode(s.MarginType),
-		PositionSide:            positionSide,
-		Symbol:                  s.Pair,
-		OrderType:               OrderType(s.Type),
-		ReduceOnly:              s.ReduceOnly,
-		TimeInForce:             TimeInForce(s.TimeInForce),
-		Price:                   s.Price,
-		Size:                    s.Amount,
-		SelfTradePreventionMode: stpMode,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return s.DeriveSubmitResponse(response.OrderID)
 }
 
 // ModifyOrder modifies an existing order
@@ -779,7 +793,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			BaseAmount:        action.Amount,
 			AmendedType:       action.Type.String(),
 			TimeInForce:       TimeInForce(action.TimeInForce),
-			SlippageTolerance: 0,
+			SlippageTolerance: action.SlippageTolerance,
 		})
 		if err != nil {
 			return nil, err

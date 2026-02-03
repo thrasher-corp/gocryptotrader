@@ -39,8 +39,8 @@ var (
 	errInvalidTimeout         = errors.New("invalid timeout")
 	errAccountIDRequired      = errors.New("missing account ID")
 	errAccountTypeRequired    = errors.New("account type required")
-	errInvalidTrailingOffset  = errors.New("invalid trailing offset required for trailing stop orders")
-	errInvalidOffsetLimit     = errors.New("invalid offset required for trailing stop limit orders")
+	errInvalidTrailingOffset  = errors.New("invalid trailing offset")
+	errInvalidOffsetLimit     = errors.New("invalid trailing offset limit")
 )
 
 // Exchange is the overarching type across the poloniex package

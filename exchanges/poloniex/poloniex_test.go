@@ -272,15 +272,9 @@ func TestSubmitOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	arg.Side = order.Sell
+	arg.Amount = 0
 	_, err = e.SubmitOrder(t.Context(), arg)
-	require.ErrorIs(t, err, errInvalidTrailingOffset)
-
-	arg.Side = order.Sell
-	_, err = e.SubmitOrder(t.Context(), arg)
-	require.ErrorIs(t, err, errInvalidTrailingOffset)
-
-	arg.TrackingValue = 5
-	arg.TrackingMode = order.Percentage
+	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
 
 	// Futures place order
 	arg = &order.Submit{Exchange: e.Name, AssetType: asset.Futures, Type: order.Market, Amount: 1, TimeInForce: order.GoodTillCrossing, Pair: futuresTradablePair, MarginType: margin.Isolated}
@@ -727,6 +721,9 @@ func TestUpdateTicker(t *testing.T) {
 	_, err := e.UpdateTicker(t.Context(), spotTradablePair, asset.Options)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
+	_, err = e.UpdateTicker(t.Context(), currency.EMPTYPAIR, asset.Spot)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
 	result, err := e.UpdateTicker(t.Context(), spotTradablePair, asset.Spot)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -734,6 +731,12 @@ func TestUpdateTicker(t *testing.T) {
 	result, err = e.UpdateTicker(t.Context(), futuresTradablePair, asset.Futures)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+
+	if !mockTests {
+		t.Skip("The data below uses an intentionally added malformed test JSON data for testing")
+	}
+	result, err = e.UpdateTicker(t.Context(), currency.NewPairWithDelimiter("ABC", "DEF", currency.DashDelimiter), asset.Futures)
+	assert.ErrorIs(t, err, common.ErrInvalidResponse)
 }
 
 func TestGetAvailableTransferChains(t *testing.T) {
@@ -2052,7 +2055,7 @@ var pushMessages = []*struct {
 	{label: "Books", payload: `{"channel":"book","data":[{"symbol":"BTC_USDC","createTime":1694469187686,"asks":[["25157.24","0.444294"],["25157.25","0.024357"],["25157.26","0.003204"],["25163.39","0.039476"],["25163.4","0.110047"]],"bids":[["25148.8","0.00692"],["25148.61","0.021581"],["25148.6","0.034504"],["25148.59","0.065405"],["25145.52","0.79537"]],"id":598273384,"ts":1694469187733}]}`},
 	{label: "Orders", payload: `{"channel": "orders", "data": [{"symbol": "BTC_USDC", "type": "LIMIT", "quantity": "1", "orderId": "32471407854219264", "tradeFee": "0", "clientOrderId": "", "accountType": "SPOT", "feeCurrency": "", "eventType": "place", "source": "API", "side": "BUY", "filledQuantity": "0", "filledAmount": "0", "matchRole": "MAKER", "state": "NEW", "tradeTime": 0, "tradeAmount": "0", "orderAmount": "0", "createTime": 1648708186922, "price": "47112.1", "tradeQty": "0", "tradePrice": "0", "tradeId": "0", "ts": 1648708187469}]}`, auth: true},
 	{label: "Account Balance", payload: `{ "channel": "balances", "data": [{ "changeTime": 1657312008411, "accountId": "1234", "accountType": "SPOT", "eventType": "place_order", "available": "9999999983.668", "currency": "BTC", "id": 60018450912695040, "userId": 12345, "hold": "16.332", "ts": 1657312008443 }] }`, auth: true},
-	{label: "Orderbook Level Error", payload: `{"channel":"book_lv2","data":[{"symbol":"BTC_USDC","createTime":1694469187745,"asks":[],"bids":[["25148.81","0.02158"],["25088.11","0"]],"lastId":598273385,"id":598273386,"ts":1694469187760, {}],"action":"snapshot"}`, errExplanation: "expected 1 orderbook update"},
+	{label: "Orderbook Level Error", payload: `{"channel":"book_lv2","data":[{"symbol":"BTC_USDC","createTime":1694469187745,"asks":[],"bids":[["25148.81","0.02158"],["25088.11","0"]],"lastId":598273385,"id":598273386,"ts":1694469187760}, {}],"action":"snapshot"}`, errExplanation: "expected 1 orderbook snapshot payload"},
 	{label: "Exchange", payload: `{"channel": "exchange", "action" : "snapshot", "data": [ { "MM"   :  "ON", "POM"  :  "OFF" } ] }`},
 	{label: "Unmarshal Error", payload: `{"channel":"abc","data":[]`, errExplanation: "Unexpected JSON input error"},
 	{label: "Unhandled Channel", payload: `{"channel":"abc","data":[]}`, errExplanation: "Unhandled channel message"},
@@ -3196,4 +3199,28 @@ func TestSendBatchValidatedAuthenticatedHTTPRequest(t *testing.T) {
 	result, err := SendBatchValidatedAuthenticatedHTTPRequest[*OrderIDResponse](t.Context(), e, exchange.RestSpot, sBatchOrderEPL, http.MethodGet, "path", nil, nil)
 	require.Error(t, err)
 	assert.IsType(t, []*OrderIDResponse{}, result)
+}
+
+func TestUnmarshalWrapperError(t *testing.T) {
+	t.Parallel()
+	validResponse := []byte(`{ "code": 200, "data": [ { "amt": "103.86838", "cT": 1734354688285, "id": 105091009, "px": "103868.38", "qty": "1", "side": "sell" }, { "amt": "103.88358", "cT": 1734354660249, "id": 105091008, "px": "103883.58", "qty": "1", "side": "buy" }], "msg": "Success" }`)
+	var data []FuturesExecutionInfo
+	in := &V3ResponseWrapper{
+		Data: &data,
+	}
+	err := json.Unmarshal(validResponse, &in)
+	require.NoError(t, err)
+	assert.NoError(t, in.Error())
+	assert.Len(t, data, 2)
+
+	errorResponse := []byte(`{"code":24101,"msg":"Invalid symbol!","data":""}`)
+	err = json.Unmarshal(errorResponse, &in)
+	require.NoError(t, err)
+	assert.Error(t, in.Error())
+
+	in = &V3ResponseWrapper{}
+	validWithNoPayloadResponse := []byte(`{"code":200,"msg":"it's Ok","data":""}`)
+	err = json.Unmarshal(validWithNoPayloadResponse, &in)
+	require.NoError(t, err)
+	assert.NoError(t, in.Error())
 }

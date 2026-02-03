@@ -1031,4 +1031,24 @@ func (s *V3ResponseWrapper) Error() error {
 	return nil
 }
 
+// UnmarshalJSON conforms type to the umarshaler interface
+func (s *V3ResponseWrapper) UnmarshalJSON(data []byte) error {
+	type alias V3ResponseWrapper
+	t := &struct {
+		*alias
+		Data json.RawMessage `json:"data"`
+	}{
+		alias: (*alias)(s),
+	}
+	if err := json.Unmarshal(data, t); err != nil {
+		return err
+	}
+	s.Code = t.Code
+	s.Message = t.Message
+	if s.Code == 0 || s.Code == 200 {
+		return json.Unmarshal(t.Data, &s.Data)
+	}
+	return nil
+}
+
 type hasError interface{ Error() error }
