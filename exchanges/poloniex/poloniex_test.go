@@ -733,9 +733,9 @@ func TestUpdateTicker(t *testing.T) {
 	assert.NotNil(t, result)
 
 	if !mockTests {
-		t.Skip("The data below uses an intentionally added malformed test JSON data for testing")
+		t.Skip("skipped: downstream test data is intentionally malformed and only valid for mock tests")
 	}
-	result, err = e.UpdateTicker(t.Context(), currency.NewPairWithDelimiter("ABC", "DEF", currency.DashDelimiter), asset.Futures)
+	_, err = e.UpdateTicker(t.Context(), currency.NewPairWithDelimiter("ABC", "DEF", currency.DashDelimiter), asset.Futures)
 	assert.ErrorIs(t, err, common.ErrInvalidResponse)
 }
 
