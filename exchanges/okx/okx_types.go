@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -3196,6 +3197,7 @@ type SubscriptionInfo struct {
 type WSSubscriptionInformationList struct {
 	Operation string             `json:"op"`
 	Arguments []SubscriptionInfo `json:"args"`
+	subs      subscription.List
 }
 
 // SpreadOrderInfo holds spread order response information
@@ -3684,10 +3686,12 @@ type PublicTrade struct {
 
 // WsOrderBookData represents a book order push data
 type WsOrderBookData struct {
-	Asks      [][4]types.Number `json:"asks"`
-	Bids      [][4]types.Number `json:"bids"`
-	Timestamp types.Time        `json:"ts"`
-	Checksum  int32             `json:"checksum,omitempty"`
+	Asks               [][4]types.Number `json:"asks"`
+	Bids               [][4]types.Number `json:"bids"`
+	Timestamp          types.Time        `json:"ts"`
+	Checksum           int32             `json:"checksum"`
+	PreviousSequenceID int64             `json:"prevSeqId"`
+	SequenceID         int64             `json:"seqId"`
 }
 
 // WsOptionSummary represents option summary
