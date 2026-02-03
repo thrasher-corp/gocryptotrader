@@ -70,7 +70,6 @@ func TestGetTicker(t *testing.T) {
 	assert.Positive(t, tick.Date, "Date should be positive")
 }
 
-// TestGetAllTickers handles currencies without dates and fluctuation rates
 func TestGetAllTickers(t *testing.T) {
 	t.Parallel()
 	tick, err := e.GetAllTickers(t.Context())

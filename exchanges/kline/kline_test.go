@@ -696,31 +696,6 @@ func TestIntervalsPerYear(t *testing.T) {
 	}
 }
 
-// BenchmarkJustifyIntervalTimeStoringUnixValues1 highlights that calling .Unix() frequently is slow
-func BenchmarkJustifyIntervalTimeStoringUnixValues1(b *testing.B) {
-	tt1 := time.Now()
-	tt2 := time.Now().Add(-time.Hour)
-	tt3 := time.Now().Add(time.Hour)
-	for b.Loop() {
-		if tt1.Unix() == tt2.Unix() || (tt1.Unix() > tt2.Unix() && tt1.Unix() < tt3.Unix()) {
-			continue
-		}
-	}
-}
-
-// BenchmarkJustifyIntervalTimeStoringUnixValues2 highlights that storing unix values at creation
-// is faster than frequently calling .Unix() at runtime when comparing large datasets
-func BenchmarkJustifyIntervalTimeStoringUnixValues2(b *testing.B) {
-	tt1 := time.Now().Unix()
-	tt2 := time.Now().Add(-time.Hour).Unix()
-	tt3 := time.Now().Add(time.Hour).Unix()
-	for b.Loop() {
-		if tt1 >= tt2 && tt1 <= tt3 {
-			continue
-		}
-	}
-}
-
 func TestConvertToNewInterval(t *testing.T) {
 	_, err := (*Item)(nil).ConvertToNewInterval(OneMin)
 	assert.ErrorIs(t, err, errNilKline)
