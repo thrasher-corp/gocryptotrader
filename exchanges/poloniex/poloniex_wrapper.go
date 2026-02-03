@@ -386,6 +386,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, pair currency.Pair, assetTy
 			Ask:          tickerResult.Ask.Float64(),
 			AskSize:      tickerResult.AskQuantity.Float64(),
 			QuoteVolume:  tickerResult.QuoteAmount.Float64(),
+			Volume:       tickerResult.BaseAmount.Float64(),
 			Open:         tickerResult.Open.Float64(),
 			Close:        tickerResult.Close.Float64(),
 			MarkPrice:    tickerResult.MarkPrice.Float64(),
@@ -538,6 +539,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 			Currency:        walletDeposit.Currency.String(),
 			CryptoToAddress: walletDeposit.Address,
 			CryptoTxID:      walletDeposit.TransactionID,
+			TransferID:      strconv.FormatUint(walletDeposit.DepositNumber, 10),
 			TransferType:    "deposit",
 		}
 	}
@@ -552,6 +554,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 			Fee:             walletWithdrawal.Fee.Float64(),
 			CryptoToAddress: walletWithdrawal.Address,
 			CryptoTxID:      walletWithdrawal.TransactionID,
+			TransferID:      strconv.FormatUint(walletWithdrawal.WithdrawalRequestsID, 10),
 			TransferType:    "withdrawal",
 		}
 	}
@@ -609,7 +612,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, pair currency.Pair, asse
 				AssetType:    assetType,
 				Side:         side,
 				Price:        td.Price.Float64(),
-				Amount:       td.QuoteAmount.Float64(),
+				Amount:       td.BaseAmount.Float64(),
 				Timestamp:    td.Timestamp.Time(),
 			})
 		}
@@ -630,7 +633,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, pair currency.Pair, asse
 				AssetType:    assetType,
 				Side:         side,
 				Price:        fExec.Price.Float64(),
-				Amount:       fExec.QuoteAmount.Float64(),
+				Amount:       fExec.BaseAmount.Float64(),
 				Timestamp:    fExec.CreationTime.Time(),
 			})
 		}

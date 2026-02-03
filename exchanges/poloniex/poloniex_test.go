@@ -2052,6 +2052,7 @@ var pushMessages = []*struct {
 	{label: "Books", payload: `{"channel":"book","data":[{"symbol":"BTC_USDC","createTime":1694469187686,"asks":[["25157.24","0.444294"],["25157.25","0.024357"],["25157.26","0.003204"],["25163.39","0.039476"],["25163.4","0.110047"]],"bids":[["25148.8","0.00692"],["25148.61","0.021581"],["25148.6","0.034504"],["25148.59","0.065405"],["25145.52","0.79537"]],"id":598273384,"ts":1694469187733}]}`},
 	{label: "Orders", payload: `{"channel": "orders", "data": [{"symbol": "BTC_USDC", "type": "LIMIT", "quantity": "1", "orderId": "32471407854219264", "tradeFee": "0", "clientOrderId": "", "accountType": "SPOT", "feeCurrency": "", "eventType": "place", "source": "API", "side": "BUY", "filledQuantity": "0", "filledAmount": "0", "matchRole": "MAKER", "state": "NEW", "tradeTime": 0, "tradeAmount": "0", "orderAmount": "0", "createTime": 1648708186922, "price": "47112.1", "tradeQty": "0", "tradePrice": "0", "tradeId": "0", "ts": 1648708187469}]}`, auth: true},
 	{label: "Account Balance", payload: `{ "channel": "balances", "data": [{ "changeTime": 1657312008411, "accountId": "1234", "accountType": "SPOT", "eventType": "place_order", "available": "9999999983.668", "currency": "BTC", "id": 60018450912695040, "userId": 12345, "hold": "16.332", "ts": 1657312008443 }] }`, auth: true},
+	{label: "Orderbook Level Error", payload: `{"channel":"book_lv2","data":[{"symbol":"BTC_USDC","createTime":1694469187745,"asks":[],"bids":[["25148.81","0.02158"],["25088.11","0"]],"lastId":598273385,"id":598273386,"ts":1694469187760, {}],"action":"snapshot"}`, errExplanation: "expected 1 orderbook update"},
 	{label: "Exchange", payload: `{"channel": "exchange", "action" : "snapshot", "data": [ { "MM"   :  "ON", "POM"  :  "OFF" } ] }`},
 	{label: "Unmarshal Error", payload: `{"channel":"abc","data":[]`, errExplanation: "Unexpected JSON input error"},
 	{label: "Unhandled Channel", payload: `{"channel":"abc","data":[]}`, errExplanation: "Unhandled channel message"},
@@ -2563,7 +2564,11 @@ func TestGetCurrentFuturesOrders(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCurrentFuturesOrders(generateContext(t), futuresTradablePair, "SELL", "NEXT", "", 0, 0, 100)
+	result, err := e.GetCurrentFuturesOrders(generateContext(t), futuresTradablePair, "SELL", "1234123", "NEXT", 331382472929705985, 0, 0)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = e.GetCurrentFuturesOrders(generateContext(t), futuresTradablePair, "SELL", "client-given-order-id", "NEXT", 0, 331382472929705985, 100)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }

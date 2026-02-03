@@ -13181,10 +13181,45 @@
     {
      "data": {
       "code": 200,
-      "data": [],
+      "data": [
+        {
+            "avgPx": "0",
+            "cTime": "1719974138337",
+            "clOrdId": "11c033ce-8d86-49e2-9503-f21c61de51ee",
+            "deductAmt": "0",
+            "deductCcy": "0",
+            "execAmt": "0",
+            "execQty": "0",
+            "feeAmt": "0",
+            "feeCcy": "",
+            "posSide": "BOTH",
+            "lever": "20",
+            "mgnMode": "CROSS",
+            "ordId": "331382472938094592",
+            "px": "60000",
+            "reduceOnly": false,
+            "side": "SELL",
+            "slPx": "0",
+            "slTrgPx": "",
+            "slTrgPxType": "",
+            "source": "API",
+            "state": "NEW",
+            "stpMode": "EXPIRE_TAKER",
+            "symbol": "BTC_USDT_PERP",
+            "sz": "2",
+            "timeInForce": "GTC",
+            "tpPx": "",
+            "tpTrgPx": "",
+            "tpTrgPxType": "",
+            "actType": "TRADING",
+            "qCcy": "USDT",
+            "type": "LIMIT",
+            "uTime": "1719974161941"
+        }
+      ],
       "msg": ""
      },
-     "queryString": "direct=NEXT\u0026limit=100\u0026side=SELL\u0026symbol=1000SHIB_USDT_PERP",
+     "queryString": "clOrdId=client-given-order-id\u0026direct=NEXT\u0026from=331382472929705985\u0026limit=100\u0026side=SELL\u0026symbol=BTC_USDT_PERP",
      "bodyParams": "",
      "headers": {
       "Content-Type": [
@@ -13210,10 +13245,45 @@
     {
      "data": {
       "code": 200,
-      "data": [],
+      "data": [
+        {
+            "avgPx": "0",
+            "cTime": "1719974138337",
+            "clOrdId": "11c033ce-8d86-49e2-9503-f21c61de51ee",
+            "deductAmt": "0",
+            "deductCcy": "0",
+            "execAmt": "0",
+            "execQty": "0",
+            "feeAmt": "0",
+            "feeCcy": "",
+            "posSide": "BOTH",
+            "lever": "20",
+            "mgnMode": "CROSS",
+            "ordId": "331382472938094592",
+            "px": "60000",
+            "reduceOnly": false,
+            "side": "SELL",
+            "slPx": "0",
+            "slTrgPx": "",
+            "slTrgPxType": "",
+            "source": "API",
+            "state": "NEW",
+            "stpMode": "EXPIRE_TAKER",
+            "symbol": "BTC_USDT_PERP",
+            "sz": "2",
+            "timeInForce": "GTC",
+            "tpPx": "",
+            "tpTrgPx": "",
+            "tpTrgPxType": "",
+            "actType": "TRADING",
+            "qCcy": "USDT",
+            "type": "LIMIT",
+            "uTime": "1719974161941"
+        }
+      ],
       "msg": ""
      },
-     "queryString": "direct=NEXT\u0026limit=100\u0026side=SELL\u0026symbol=BNB_USDT_PERP",
+     "queryString": "clOrdId=1234123\u0026direct=NEXT\u0026ordId=331382472929705985\u0026side=SELL\u0026symbol=BTC_USDT_PERP",
      "bodyParams": "",
      "headers": {
       "Content-Type": [
@@ -13226,42 +13296,13 @@
        "1500"
       ],
       "Signature": [
-       "1AnQh1qkJnet3+daLrhOETD0nKX98GFtjIhHqmhK2Gw="
+       "INhUHS0L8ZbA4eOplgPBA5NAfu8TPOVgXy/ru/X9ZrM="
       ],
       "Signaturemethod": [
        "hmacSHA256"
       ],
       "Signtimestamp": [
-       "1742815628852"
-      ]
-     }
-    },
-    {
-     "data": {
-      "code": 200,
-      "data": [],
-      "msg": ""
-     },
-     "queryString": "direct=NEXT\u0026limit=100\u0026side=SELL\u0026symbol=BCH_USDT_PERP",
-     "bodyParams": "",
-     "headers": {
-      "Content-Type": [
-       "application/json"
-      ],
-      "Key": [
-       ""
-      ],
-      "Recvwindow": [
-       "1500"
-      ],
-      "Signature": [
-       "sa85IqzmC9gUoVcGqFmCZIU9EqKfo+z9O9l0lfSoN7A="
-      ],
-      "Signaturemethod": [
-       "hmacSHA256"
-      ],
-      "Signtimestamp": [
-       "1742815737015"
+       "1742815597964"
       ]
      }
     },
