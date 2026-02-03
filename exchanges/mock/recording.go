@@ -74,8 +74,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 	}
 
 	var m VCRMock
-	err = json.Unmarshal(contents, &m)
-	if err != nil {
+	if err := json.Unmarshal(contents, &m); err != nil {
 		return err
 	}
 
@@ -94,8 +93,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 		return err
 	}
 
-	err = json.Unmarshal(cleanedContents, &httpResponse.Data)
-	if err != nil {
+	if err := json.Unmarshal(cleanedContents, &httpResponse.Data); err != nil {
 		return err
 	}
 
@@ -158,8 +156,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 						break
 					}
 				}
-
-			case http.MethodPost:
+			case http.MethodPost, http.MethodDelete, http.MethodPut:
 				for i := range mockResponses {
 					cType, ok := mockResponses[i].Headers[contentType]
 
@@ -177,29 +174,49 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 							return urlErr
 						}
 
-						if MatchURLVals(respQueryVals, mockRespVals) {
+						if found = MatchURLVals(respQueryVals, mockRespVals); found {
 							// if found will delete instance and overwrite with new
 							// data
 							mockResponses = slices.Delete(mockResponses, i, i+1)
-							found = true
 						}
 
 					case applicationJSON, textPlain:
-						reqVals, jErr := DeriveURLValsFromJSONMap([]byte(body))
-						if jErr != nil {
-							return jErr
-						}
+						trimmedStoredBody := strings.TrimSpace(mockResponses[i].BodyParams)
+						trimmedRequestBody := strings.TrimSpace(body)
+						if strings.HasPrefix(trimmedStoredBody, "[") && strings.HasPrefix(trimmedRequestBody, "[") {
+							reqVals, jErr := DeriveURLValsFromJSONSlice([]byte(body))
+							if jErr != nil {
+								return jErr
+							}
 
-						mockVals, jErr := DeriveURLValsFromJSONMap([]byte(mockResponses[i].BodyParams))
-						if jErr != nil {
-							return jErr
-						}
+							mockVals, jErr := DeriveURLValsFromJSONSlice([]byte(mockResponses[i].BodyParams))
+							if jErr != nil {
+								return jErr
+							}
 
-						if MatchURLVals(reqVals, mockVals) {
-							// if found will delete instance and overwrite with new
-							// data
-							mockResponses = slices.Delete(mockResponses, i, i+1)
-							found = true
+							if len(reqVals) != len(mockVals) {
+								continue
+							}
+							if found = slices.EqualFunc(reqVals, mockVals, MatchURLVals); found {
+								// if found will delete instance and overwrite with new
+								// data
+								mockResponses = slices.Delete(mockResponses, i, i+1)
+							}
+						} else if strings.HasPrefix(trimmedStoredBody, "{") && strings.HasPrefix(trimmedRequestBody, "{") {
+							reqVals, jErr := DeriveURLValsFromJSONMap([]byte(body))
+							if jErr != nil {
+								return jErr
+							}
+
+							mockVals, jErr := DeriveURLValsFromJSONMap([]byte(mockResponses[i].BodyParams))
+							if jErr != nil {
+								return jErr
+							}
+
+							if found = MatchURLVals(reqVals, mockVals); found {
+								// if the incoming query matches an existing, we will delete the existing mock record and overwrite with new data
+								mockResponses = slices.Delete(mockResponses, i, i+1)
+							}
 						}
 					case "":
 						if !ok {
@@ -209,15 +226,12 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 								return urlErr
 							}
 
-							if MatchURLVals(mockQuery, res.Request.URL.Query()) {
-								// if found will delete instance and overwrite with new data
+							if found = MatchURLVals(mockQuery, res.Request.URL.Query()); found {
+								// if the incoming query matches an existing, we will delete the existing mock record and overwrite with new data
 								mockResponses = slices.Delete(mockResponses, i, i+1)
-								found = true
 							}
-
 							break
 						}
-
 						fallthrough
 					default:
 						return fmt.Errorf("unhandled content type %s", jCType)
@@ -295,7 +309,7 @@ const (
 // CheckJSON recursively parses json data to retract keywords, quite intensive.
 func CheckJSON(data any, excluded *Exclusion, limit int) (any, error) {
 	if value, ok := data.([]any); ok {
-		var sData []any
+		sData := []any{}
 		for i := range value {
 			switch subvalue := value[i].(type) {
 			case []any, map[string]any:
@@ -321,14 +335,13 @@ func CheckJSON(data any, excluded *Exclusion, limit int) (any, error) {
 	}
 
 	var contextValue map[string]any
-	err = json.Unmarshal(conv, &contextValue)
-	if err != nil {
+	if err := json.Unmarshal(conv, &contextValue); err != nil {
 		return nil, err
 	}
 
 	if len(contextValue) == 0 {
 		// Nil for some reason, should error out before in json.Unmarshal
-		return contextValue, nil
+		return map[string]any{}, nil
 	}
 
 	for key, val := range contextValue {
