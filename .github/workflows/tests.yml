@@ -118,6 +118,31 @@ jobs:
       uses: codecov/codecov-action@v5
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  backend-live-test-build:
+    name: GoCryptoTrader backend mock_test_off build (ubuntu-latest, amd64)
+    runs-on: ubuntu-latest
+    env:
+      GCT_SKIP_LIVE_TESTS: true
+
+    steps:
+    - name: Cancel previous workflow runs
+      uses: styfle/cancel-workflow-action@0.13.0
+      with:
+        access_token: ${{ github.token }}
+
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Setup Go
+      uses: actions/setup-go@v6
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Build tests with mock_test_off
+      run: |
+        go test -run=^$ -tags=mock_test_off ./...
+      shell: bash
   
   backend-docker:
     name: GoCryptoTrader backend docker (ubuntu-latest, amd64, psql=false, skip_wrapper_tests=true, sonic=false)
