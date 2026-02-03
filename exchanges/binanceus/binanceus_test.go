@@ -966,7 +966,6 @@ func TestCancelOCOOrder(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// OTC end Points test code.
 func TestGetSupportedCoinPairs(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -1325,7 +1324,6 @@ func TestWebsocketStreamTradeUpdate(t *testing.T) {
 	}
 }
 
-// TestWebsocketOrderBookDepthDiffStream copied from the Binance Test
 func TestWebsocketOrderBookDepthDiffStream(t *testing.T) {
 	binanceusOrderBookLock.Lock()
 	defer binanceusOrderBookLock.Unlock()

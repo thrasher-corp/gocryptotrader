@@ -1151,7 +1151,7 @@ func TestUpdateTicker(t *testing.T) {
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
-// Not parallel; being parallel causes intermittent errors with another test for no discernible reason
+// TestUpdateOrderbook does not run in parallel; being parallel causes intermittent errors with another test for no discernible reason
 func TestUpdateOrderbook(t *testing.T) {
 	testexch.UpdatePairsOnce(t, e)
 	_, err := e.UpdateOrderbook(t.Context(), currency.Pair{}, asset.Empty)

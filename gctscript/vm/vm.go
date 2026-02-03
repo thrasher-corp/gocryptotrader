@@ -208,7 +208,7 @@ func (vm *VM) Read() ([]byte, error) {
 	return vm.read()
 }
 
-// Read contents of script back
+// read contents of script back
 func (vm *VM) read() ([]byte, error) {
 	if vm.config.Verbose {
 		log.Debugf(log.GCTScriptMgr, "Read script: %s ID: %v", vm.ShortName(), vm.ID)
