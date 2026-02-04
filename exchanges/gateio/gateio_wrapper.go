@@ -1535,7 +1535,11 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	case asset.Spot, asset.Margin, asset.CrossMargin:
 		for i := range req.Pairs {
 			fPair := req.Pairs[i].Format(format)
-			spotOrders, err := e.GetMySpotTradingHistory(ctx, fPair, req.FromOrderID, "", 0, 0, req.StartTime, req.EndTime)
+			a := ""
+			if req.AssetType == asset.Margin || req.AssetType == asset.CrossMargin {
+				a = "margin"
+			}
+			spotOrders, err := e.GetMySpotTradingHistory(ctx, fPair, req.FromOrderID, a, 0, 0, req.StartTime, req.EndTime)
 			if err != nil {
 				return nil, err
 			}
