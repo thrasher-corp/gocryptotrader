@@ -232,29 +232,23 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		return err
 	}
 
-	enabledPairs, err := e.GetEnabledPairs(a)
-	if err != nil {
-		return err
-	}
-	for i := range enabledPairs {
-		fPair, err := e.FormatExchangeCurrency(enabledPairs[i], a)
+	for symbol, data := range tick {
+		pair, err := e.MatchSymbolWithAvailablePairs(symbol, a, true)
 		if err != nil {
-			return err
-		}
-		curr := fPair.String()
-		if _, ok := tick[curr]; !ok {
+			if !errors.Is(err, currency.ErrPairNotFound) {
+				return err
+			}
 			continue
 		}
-
 		err = ticker.ProcessTicker(&ticker.Price{
-			Pair:         enabledPairs[i],
-			Ask:          tick[curr].LowestAsk,
-			Bid:          tick[curr].HighestBid,
-			High:         tick[curr].High24Hr,
-			Last:         tick[curr].Last,
-			Low:          tick[curr].Low24Hr,
-			Volume:       tick[curr].BaseVolume,
-			QuoteVolume:  tick[curr].QuoteVolume,
+			Pair:         pair,
+			Ask:          data.LowestAsk,
+			Bid:          data.HighestBid,
+			High:         data.High24Hr,
+			Last:         data.Last,
+			Low:          data.Low24Hr,
+			Volume:       data.BaseVolume,
+			QuoteVolume:  data.QuoteVolume,
 			ExchangeName: e.Name,
 			AssetType:    a,
 		})

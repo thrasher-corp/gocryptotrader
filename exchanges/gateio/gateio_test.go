@@ -1769,6 +1769,10 @@ func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
 	for _, a := range e.GetAssetTypes(false) {
 		err := e.UpdateTickers(t.Context(), a)
+		if a == asset.Options {
+			assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
+			continue
+		}
 		assert.NoErrorf(t, err, "UpdateTickers should not error for %s", a)
 	}
 }

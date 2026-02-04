@@ -421,46 +421,8 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 	switch assetType {
 	case asset.Spread:
-		format, err := e.GetPairFormat(asset.Spread, true)
-		if err != nil {
-			return err
-		}
-		pairs, err := e.GetEnabledPairs(assetType)
-		if err != nil {
-			return err
-		}
-		for y := range pairs {
-			var spreadTickers []SpreadTicker
-			spreadTickers, err = e.GetPublicSpreadTickers(ctx, format.Format(pairs[y]))
-			if err != nil {
-				return err
-			}
-			for x := range spreadTickers {
-				pair, err := currency.NewPairDelimiter(spreadTickers[x].SpreadID, format.Delimiter)
-				if err != nil {
-					return err
-				}
-				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         spreadTickers[x].Last.Float64(),
-					Bid:          spreadTickers[x].BidPrice.Float64(),
-					BidSize:      spreadTickers[x].BidSize.Float64(),
-					Ask:          spreadTickers[x].AskPrice.Float64(),
-					AskSize:      spreadTickers[x].AskSize.Float64(),
-					Pair:         pair,
-					ExchangeName: e.Name,
-					AssetType:    assetType,
-				})
-				if err != nil {
-					return err
-				}
-			}
-		}
+		return common.ErrFunctionNotSupported
 	case asset.Spot, asset.PerpetualSwap, asset.Futures, asset.Options, asset.Margin:
-		pairs, err := e.GetEnabledPairs(assetType)
-		if err != nil {
-			return err
-		}
-
 		instrumentType := GetInstrumentTypeFromAssetItem(assetType)
 		if assetType == asset.Margin {
 			instrumentType = instTypeSpot
@@ -475,32 +437,23 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			if err != nil {
 				return err
 			}
-			for i := range pairs {
-				pairFmt, err := e.FormatExchangeCurrency(pairs[i], assetType)
-				if err != nil {
-					return err
-				}
-				if !pair.Equal(pairFmt) {
-					continue
-				}
-				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         ticks[y].LastTradePrice.Float64(),
-					High:         ticks[y].High24H.Float64(),
-					Low:          ticks[y].Low24H.Float64(),
-					Bid:          ticks[y].BestBidPrice.Float64(),
-					BidSize:      ticks[y].BestBidSize.Float64(),
-					Ask:          ticks[y].BestAskPrice.Float64(),
-					AskSize:      ticks[y].BestAskSize.Float64(),
-					Volume:       ticks[y].Vol24H.Float64(),
-					QuoteVolume:  ticks[y].VolCcy24H.Float64(),
-					Open:         ticks[y].Open24H.Float64(),
-					Pair:         pairFmt,
-					ExchangeName: e.Name,
-					AssetType:    assetType,
-				})
-				if err != nil {
-					return err
-				}
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         ticks[y].LastTradePrice.Float64(),
+				High:         ticks[y].High24H.Float64(),
+				Low:          ticks[y].Low24H.Float64(),
+				Bid:          ticks[y].BestBidPrice.Float64(),
+				BidSize:      ticks[y].BestBidSize.Float64(),
+				Ask:          ticks[y].BestAskPrice.Float64(),
+				AskSize:      ticks[y].BestAskSize.Float64(),
+				Volume:       ticks[y].Vol24H.Float64(),
+				QuoteVolume:  ticks[y].VolCcy24H.Float64(),
+				Open:         ticks[y].Open24H.Float64(),
+				Pair:         pair,
+				ExchangeName: e.Name,
+				AssetType:    assetType,
+			})
+			if err != nil {
+				return err
 			}
 		}
 	default:
