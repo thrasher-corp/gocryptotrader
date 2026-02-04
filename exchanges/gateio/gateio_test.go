@@ -1909,11 +1909,15 @@ func TestGetOrderHistory(t *testing.T) {
 				AssetType: a,
 			}
 			_, err := e.GetOrderHistory(t.Context(), &multiOrderRequest)
-			assert.NoErrorf(t, err, "GetOrderHistory should not error for %s", a)
+			assert.NoError(t, err)
 
 			multiOrderRequest.Pairs = nil
-			_, err = e.GetOrderHistory(t.Context(), &multiOrderRequest)
-			assert.NoErrorf(t, err, "GetOrderHistory should not error for %s", a)
+			_, err = e.GetOrderHistory(request.WithVerbose(t.Context()), &multiOrderRequest)
+			if a == asset.Options {
+				assert.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty)
+			} else {
+				assert.NoError(t, err)
+			}
 		})
 	}
 }

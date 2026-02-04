@@ -1527,12 +1527,11 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		return nil, err
 	}
 
-	if len(req.Pairs) == 0 {
-		req.Pairs = currency.Pairs{currency.EMPTYPAIR}
-	}
-
 	switch req.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
+		if len(req.Pairs) == 0 {
+			req.Pairs = currency.Pairs{currency.EMPTYPAIR}
+		}
 		for i := range req.Pairs {
 			fPair := req.Pairs[i].Format(format)
 			a := ""
@@ -1571,6 +1570,9 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			}
 		}
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
+		if len(req.Pairs) == 0 {
+			req.Pairs = currency.Pairs{currency.EMPTYPAIR}
+		}
 		for i := range req.Pairs {
 			fPair := req.Pairs[i].Format(format)
 			settle, err := getSettlementCurrency(fPair, req.AssetType)
@@ -1605,6 +1607,9 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			}
 		}
 	case asset.Options:
+		if len(req.Pairs) == 0 {
+			return nil, currency.ErrCurrencyPairsEmpty
+		}
 		for i := range req.Pairs {
 			fPair := req.Pairs[i].Format(format)
 			optionOrders, err := e.GetMyOptionsTradingHistory(ctx, fPair.String(), fPair.Upper(), 0, 0, req.StartTime, req.EndTime)
