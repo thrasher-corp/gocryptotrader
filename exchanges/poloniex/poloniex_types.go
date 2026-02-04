@@ -1033,21 +1033,21 @@ func (s *V3ResponseWrapper) Error() error {
 
 // UnmarshalJSON conforms type to the umarshaler interface
 func (s *V3ResponseWrapper) UnmarshalJSON(data []byte) error {
-	type alias V3ResponseWrapper
-	t := &struct {
-		*alias
-		Data json.RawMessage `json:"data"`
-	}{
-		alias: (*alias)(s),
+	var aux struct {
+		Code    int64           `json:"code"`
+		Message string          `json:"message"`
+		Data    json.RawMessage `json:"data"`
 	}
-	if err := json.Unmarshal(data, t); err != nil {
+	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-	s.Code = t.Code
-	s.Message = t.Message
+
+	s.Code = aux.Code
+	s.Message = aux.Message
 	if s.Code == 0 || s.Code == 200 {
-		return json.Unmarshal(t.Data, &s.Data)
+		return json.Unmarshal(aux.Data, &s.Data)
 	}
+
 	return nil
 }
 
