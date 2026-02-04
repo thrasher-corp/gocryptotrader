@@ -20,7 +20,7 @@ import (
 var mockTests = false
 
 func TestMain(m *testing.M) {
-	if livetest.ShouldSkipLiveTests() {
+	if livetest.ShouldSkip() {
 		log.Printf(livetest.LiveTestingSkipped, "Binance")
 		os.Exit(0)
 	}
@@ -47,7 +47,7 @@ func TestMain(m *testing.M) {
 			}
 		}
 	}
-	e.Websocket.DataHandler = stream.NewRelay(10000)
+	e.Websocket.DataHandler = stream.NewRelay(sharedtestvalues.WebsocketRelayBufferCapacity)
 	log.Printf(sharedtestvalues.LiveTesting, e.Name)
 	if err := e.UpdateTradablePairs(context.Background()); err != nil {
 		log.Fatalf("Binance UpdateTradablePairs error: %s", err)

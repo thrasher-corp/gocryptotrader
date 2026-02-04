@@ -19,7 +19,7 @@ import (
 var mockTests = false
 
 func TestMain(m *testing.M) {
-	if livetest.ShouldSkipLiveTests() {
+	if livetest.ShouldSkip() {
 		log.Printf(livetest.LiveTestingSkipped, "Bybit")
 		os.Exit(0)
 	}

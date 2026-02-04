@@ -30,7 +30,7 @@ func TestEnvIsTrue(t *testing.T) {
 	}
 }
 
-func TestShouldSkipLiveTests(t *testing.T) {
+func TestShouldSkip(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		gctSkip  string
@@ -43,8 +43,8 @@ func TestShouldSkipLiveTests(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Setenv("GCT_SKIP_LIVE_TESTS", tc.gctSkip)
-			got := ShouldSkipLiveTests()
-			assert.Equalf(t, tc.expected, got, "ShouldSkipLiveTests should be %v (GCT_SKIP_LIVE_TESTS=%q)", tc.expected, tc.gctSkip)
+			got := ShouldSkip()
+			assert.Equalf(t, tc.expected, got, "ShouldSkip should be %v (GCT_SKIP_LIVE_TESTS=%q)", tc.expected, tc.gctSkip)
 		})
 	}
 }

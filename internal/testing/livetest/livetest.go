@@ -8,8 +8,8 @@ import (
 // LiveTestingSkipped is the log message when live testing is skipped
 const LiveTestingSkipped = "Live testing skipped for %s exchange"
 
-// ShouldSkipLiveTests returns true when CI should avoid live endpoint testing
-func ShouldSkipLiveTests() bool {
+// ShouldSkip returns true when CI should avoid live endpoint testing
+func ShouldSkip() bool {
 	return envIsTrue("GCT_SKIP_LIVE_TESTS")
 }
 
