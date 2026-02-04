@@ -1526,40 +1526,49 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	if err != nil {
 		return nil, err
 	}
+
+	if len(req.Pairs) == 0 {
+		req.Pairs = currency.Pairs{currency.EMPTYPAIR}
+	}
+
 	switch req.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
-		for x := range req.Pairs {
-			fPair := req.Pairs[x].Format(format)
-			spotOrders, err := e.GetMySpotTradingHistory(ctx, fPair, req.FromOrderID, 0, 0, req.AssetType == asset.CrossMargin, req.StartTime, req.EndTime)
+		for i := range req.Pairs {
+			fPair := req.Pairs[i].Format(format)
+			spotOrders, err := e.GetMySpotTradingHistory(ctx, fPair, req.FromOrderID, "", 0, 0, req.StartTime, req.EndTime)
 			if err != nil {
 				return nil, err
 			}
-			for o := range spotOrders {
+			for j := range spotOrders {
 				var side order.Side
-				side, err = order.StringToOrderSide(spotOrders[o].Side)
+				side, err = order.StringToOrderSide(spotOrders[j].Side)
+				if err != nil {
+					return nil, err
+				}
+				p, _, err := e.MatchSymbolCheckEnabled(spotOrders[j].CurrencyPair, req.AssetType, true)
 				if err != nil {
 					return nil, err
 				}
 				detail := order.Detail{
-					OrderID:        spotOrders[o].OrderID,
-					Amount:         spotOrders[o].Amount.Float64(),
-					ExecutedAmount: spotOrders[o].Amount.Float64(),
-					Price:          spotOrders[o].Price.Float64(),
-					Date:           spotOrders[o].CreateTime.Time(),
+					OrderID:        spotOrders[j].OrderID,
+					Amount:         spotOrders[j].Amount.Float64(),
+					ExecutedAmount: spotOrders[j].Amount.Float64(),
+					Price:          spotOrders[j].Price.Float64(),
+					Date:           spotOrders[j].CreateTime.Time(),
 					Side:           side,
 					Exchange:       e.Name,
-					Pair:           fPair,
+					Pair:           p,
 					AssetType:      req.AssetType,
-					Fee:            spotOrders[o].Fee.Float64(),
-					FeeAsset:       currency.NewCode(spotOrders[o].FeeCurrency),
+					Fee:            spotOrders[j].Fee.Float64(),
+					FeeAsset:       currency.NewCode(spotOrders[j].FeeCurrency),
 				}
 				detail.InferCostsAndTimes()
 				orders = append(orders, detail)
 			}
 		}
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
-		for x := range req.Pairs {
-			fPair := req.Pairs[x].Format(format)
+		for i := range req.Pairs {
+			fPair := req.Pairs[i].Format(format)
 			settle, err := getSettlementCurrency(fPair, req.AssetType)
 			if err != nil {
 				return nil, err
@@ -1573,14 +1582,18 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			if err != nil {
 				return nil, err
 			}
-			for o := range futuresOrder {
+			for j := range futuresOrder {
+				p, _, err := e.MatchSymbolCheckEnabled(futuresOrder[j].Contract, req.AssetType, true)
+				if err != nil {
+					return nil, err
+				}
 				detail := order.Detail{
-					OrderID:   strconv.FormatInt(futuresOrder[o].ID, 10),
-					Amount:    futuresOrder[o].Size,
-					Price:     futuresOrder[o].Price.Float64(),
-					Date:      futuresOrder[o].CreateTime.Time(),
+					OrderID:   strconv.FormatInt(futuresOrder[j].ID, 10),
+					Amount:    futuresOrder[j].Size,
+					Price:     futuresOrder[j].Price.Float64(),
+					Date:      futuresOrder[j].CreateTime.Time(),
 					Exchange:  e.Name,
-					Pair:      fPair,
+					Pair:      p,
 					AssetType: req.AssetType,
 				}
 				detail.InferCostsAndTimes()
@@ -1588,20 +1601,24 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			}
 		}
 	case asset.Options:
-		for x := range req.Pairs {
-			fPair := req.Pairs[x].Format(format)
+		for i := range req.Pairs {
+			fPair := req.Pairs[i].Format(format)
 			optionOrders, err := e.GetMyOptionsTradingHistory(ctx, fPair.String(), fPair.Upper(), 0, 0, req.StartTime, req.EndTime)
 			if err != nil {
 				return nil, err
 			}
-			for o := range optionOrders {
+			for j := range optionOrders {
+				p, _, err := e.MatchSymbolCheckEnabled(optionOrders[j].Contract, req.AssetType, true)
+				if err != nil {
+					return nil, err
+				}
 				detail := order.Detail{
-					OrderID:   strconv.FormatInt(optionOrders[o].OrderID, 10),
-					Amount:    optionOrders[o].Size,
-					Price:     optionOrders[o].Price.Float64(),
-					Date:      optionOrders[o].CreateTime.Time(),
+					OrderID:   strconv.FormatInt(optionOrders[j].OrderID, 10),
+					Amount:    optionOrders[j].Size,
+					Price:     optionOrders[j].Price.Float64(),
+					Date:      optionOrders[j].CreateTime.Time(),
 					Exchange:  e.Name,
-					Pair:      fPair,
+					Pair:      p,
 					AssetType: req.AssetType,
 				}
 				detail.InferCostsAndTimes()

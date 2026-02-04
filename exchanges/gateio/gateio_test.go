@@ -367,7 +367,7 @@ func TestCancelSingleSpotOrder(t *testing.T) {
 func TestGetMySpotTradingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetMySpotTradingHistory(t.Context(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, "", 0, 0, false, time.Time{}, time.Time{})
+	_, err := e.GetMySpotTradingHistory(t.Context(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, "", "", 0, 0, time.Time{}, time.Time{})
 	require.NoError(t, err)
 }
 
@@ -1892,20 +1892,29 @@ func TestGetActiveOrders(t *testing.T) {
 }
 
 func TestGetOrderHistory(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, e)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	for _, a := range e.GetAssetTypes(false) {
-		enabledPairs := getPairs(t, a)
-		if len(enabledPairs) > 4 {
-			enabledPairs = enabledPairs[:4]
-		}
-		multiOrderRequest := order.MultiOrderRequest{
-			Type:      order.AnyType,
-			Side:      order.Buy,
-			Pairs:     enabledPairs,
-			AssetType: a,
-		}
-		_, err := e.GetOrderHistory(t.Context(), &multiOrderRequest)
-		assert.NoErrorf(t, err, "GetOrderHistory should not error for %s", a)
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			enabledPairs := getPairs(t, a)
+			if len(enabledPairs) > 4 {
+				enabledPairs = enabledPairs[:4]
+			}
+			multiOrderRequest := order.MultiOrderRequest{
+				Type:      order.AnyType,
+				Side:      order.Buy,
+				Pairs:     enabledPairs,
+				AssetType: a,
+			}
+			_, err := e.GetOrderHistory(t.Context(), &multiOrderRequest)
+			assert.NoErrorf(t, err, "GetOrderHistory should not error for %s", a)
+
+			multiOrderRequest.Pairs = nil
+			_, err = e.GetOrderHistory(t.Context(), &multiOrderRequest)
+			assert.NoErrorf(t, err, "GetOrderHistory should not error for %s", a)
+		})
 	}
 }
 
