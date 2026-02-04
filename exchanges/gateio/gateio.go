@@ -3308,10 +3308,11 @@ func (e *Exchange) CancelOptionSingleOrder(ctx context.Context, orderID string) 
 
 // GetMyOptionsTradingHistory retrieves authenticated account's option trading history
 func (e *Exchange) GetMyOptionsTradingHistory(ctx context.Context, underlying string, contract currency.Pair, offset, limit uint64, from, to time.Time) ([]OptionTradingHistory, error) {
-	params := url.Values{}
-	if underlying != "" {
-		params.Set("underlying", underlying)
+	if underlying == "" {
+		return nil, errInvalidUnderlying
 	}
+	params := url.Values{}
+	params.Set("underlying", underlying)
 	if contract.IsPopulated() {
 		params.Set("contract", contract.String())
 	}
