@@ -1521,7 +1521,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
-	var orders []order.Detail
+	var resp []order.Detail
 	format, err := e.GetPairFormat(req.AssetType, true)
 	if err != nil {
 		return nil, err
@@ -1533,40 +1533,40 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			req.Pairs = currency.Pairs{currency.EMPTYPAIR}
 		}
 		for i := range req.Pairs {
-			fPair := req.Pairs[i].Format(format)
+			fp := req.Pairs[i].Format(format)
 			a := ""
 			if req.AssetType == asset.Margin || req.AssetType == asset.CrossMargin {
 				a = "margin"
 			}
-			spotOrders, err := e.GetMySpotTradingHistory(ctx, fPair, req.FromOrderID, a, 0, 0, req.StartTime, req.EndTime)
+			o, err := e.GetMySpotTradingHistory(ctx, fp, req.FromOrderID, a, 0, 0, req.StartTime, req.EndTime)
 			if err != nil {
 				return nil, err
 			}
-			for j := range spotOrders {
+			for j := range o {
 				var side order.Side
-				side, err = order.StringToOrderSide(spotOrders[j].Side)
+				side, err = order.StringToOrderSide(o[j].Side)
 				if err != nil {
 					return nil, err
 				}
-				p, _, err := e.MatchSymbolCheckEnabled(spotOrders[j].CurrencyPair, req.AssetType, true)
+				p, _, err := e.MatchSymbolCheckEnabled(o[j].CurrencyPair, req.AssetType, true)
 				if err != nil {
 					return nil, err
 				}
-				detail := order.Detail{
-					OrderID:        spotOrders[j].OrderID,
-					Amount:         spotOrders[j].Amount.Float64(),
-					ExecutedAmount: spotOrders[j].Amount.Float64(),
-					Price:          spotOrders[j].Price.Float64(),
-					Date:           spotOrders[j].CreateTime.Time(),
+				od := order.Detail{
+					OrderID:        o[j].OrderID,
+					Amount:         o[j].Amount.Float64(),
+					ExecutedAmount: o[j].Amount.Float64(),
+					Price:          o[j].Price.Float64(),
+					Date:           o[j].CreateTime.Time(),
 					Side:           side,
 					Exchange:       e.Name,
 					Pair:           p,
 					AssetType:      req.AssetType,
-					Fee:            spotOrders[j].Fee.Float64(),
-					FeeAsset:       currency.NewCode(spotOrders[j].FeeCurrency),
+					Fee:            o[j].Fee.Float64(),
+					FeeAsset:       currency.NewCode(o[j].FeeCurrency),
 				}
-				detail.InferCostsAndTimes()
-				orders = append(orders, detail)
+				od.InferCostsAndTimes()
+				resp = append(resp, od)
 			}
 		}
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
@@ -1574,36 +1574,36 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			req.Pairs = currency.Pairs{currency.EMPTYPAIR}
 		}
 		for i := range req.Pairs {
-			fPair := req.Pairs[i].Format(format)
-			settle, err := getSettlementCurrency(fPair, req.AssetType)
+			fp := req.Pairs[i].Format(format)
+			settle, err := getSettlementCurrency(fp, req.AssetType)
 			if err != nil {
 				return nil, err
 			}
-			var futuresOrder []TradingHistoryItem
+			var o []TradingHistoryItem
 			if req.AssetType == asset.DeliveryFutures {
-				futuresOrder, err = e.GetMyDeliveryTradingHistory(ctx, settle, req.FromOrderID, fPair, 0, 0, 0, "")
+				o, err = e.GetMyDeliveryTradingHistory(ctx, settle, req.FromOrderID, fp, 0, 0, 0, "")
 			} else {
-				futuresOrder, err = e.GetMyFuturesTradingHistory(ctx, settle, "", req.FromOrderID, fPair, 0, 0, 0)
+				o, err = e.GetMyFuturesTradingHistory(ctx, settle, "", req.FromOrderID, fp, 0, 0, 0)
 			}
 			if err != nil {
 				return nil, err
 			}
-			for j := range futuresOrder {
-				p, _, err := e.MatchSymbolCheckEnabled(futuresOrder[j].Contract, req.AssetType, true)
+			for j := range o {
+				p, _, err := e.MatchSymbolCheckEnabled(o[j].Contract, req.AssetType, true)
 				if err != nil {
 					return nil, err
 				}
-				detail := order.Detail{
-					OrderID:   strconv.FormatInt(futuresOrder[j].ID, 10),
-					Amount:    futuresOrder[j].Size,
-					Price:     futuresOrder[j].Price.Float64(),
-					Date:      futuresOrder[j].CreateTime.Time(),
+				od := order.Detail{
+					OrderID:   strconv.FormatInt(o[j].ID, 10),
+					Amount:    o[j].Size,
+					Price:     o[j].Price.Float64(),
+					Date:      o[j].CreateTime.Time(),
 					Exchange:  e.Name,
 					Pair:      p,
 					AssetType: req.AssetType,
 				}
-				detail.InferCostsAndTimes()
-				orders = append(orders, detail)
+				od.InferCostsAndTimes()
+				resp = append(resp, od)
 			}
 		}
 	case asset.Options:
@@ -1611,33 +1611,33 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			return nil, currency.ErrCurrencyPairsEmpty
 		}
 		for i := range req.Pairs {
-			fPair := req.Pairs[i].Format(format)
-			optionOrders, err := e.GetMyOptionsTradingHistory(ctx, fPair.String(), fPair.Upper(), 0, 0, req.StartTime, req.EndTime)
+			fp := req.Pairs[i].Format(format)
+			o, err := e.GetMyOptionsTradingHistory(ctx, fp.String(), fp.Upper(), 0, 0, req.StartTime, req.EndTime)
 			if err != nil {
 				return nil, err
 			}
-			for j := range optionOrders {
-				p, _, err := e.MatchSymbolCheckEnabled(optionOrders[j].Contract, req.AssetType, true)
+			for j := range o {
+				p, _, err := e.MatchSymbolCheckEnabled(o[j].Contract, req.AssetType, true)
 				if err != nil {
 					return nil, err
 				}
-				detail := order.Detail{
-					OrderID:   strconv.FormatInt(optionOrders[j].OrderID, 10),
-					Amount:    optionOrders[j].Size,
-					Price:     optionOrders[j].Price.Float64(),
-					Date:      optionOrders[j].CreateTime.Time(),
+				od := order.Detail{
+					OrderID:   strconv.FormatInt(o[j].OrderID, 10),
+					Amount:    o[j].Size,
+					Price:     o[j].Price.Float64(),
+					Date:      o[j].CreateTime.Time(),
 					Exchange:  e.Name,
 					Pair:      p,
 					AssetType: req.AssetType,
 				}
-				detail.InferCostsAndTimes()
-				orders = append(orders, detail)
+				od.InferCostsAndTimes()
+				resp = append(resp, od)
 			}
 		}
 	default:
 		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, req.AssetType)
 	}
-	return req.Filter(e.Name, orders), nil
+	return req.Filter(e.Name, resp), nil
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
