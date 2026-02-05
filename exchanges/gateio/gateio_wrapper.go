@@ -1953,6 +1953,8 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 					MaximumBaseAmount:       float64(contractInfo[x].OrderSizeMax),
 					PriceStepIncrementSize:  contractInfo[x].OrderPriceRound.Float64(),
 					AmountStepIncrementSize: 1,
+					MultiplierDecimal:       contractInfo[x].QuantoMultiplier.Float64(),
+					PriceDivisor:            1,
 					Expiry:                  contractInfo[x].ExpireTime.Time(),
 				})
 			}
@@ -1962,11 +1964,13 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		if err != nil {
 			return err
 		}
+		l = make([]limits.MinMaxLevel, 0)
 		for x := range underlyings {
 			contracts, err := e.GetAllContractOfUnderlyingWithinExpiryDate(ctx, underlyings[x].Name, time.Time{})
 			if err != nil {
 				return err
 			}
+			l = slices.Grow(l, len(contracts))
 			for c := range contracts {
 				cp, err := currency.NewPairFromString(strings.ReplaceAll(contracts[c].Name, currency.DashDelimiter, currency.UnderscoreDelimiter))
 				if err != nil {
@@ -1979,6 +1983,8 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 					MaximumBaseAmount:       float64(contracts[c].OrderSizeMax),
 					PriceStepIncrementSize:  contracts[c].OrderPriceRound.Float64(),
 					AmountStepIncrementSize: 1,
+					MultiplierDecimal:       contracts[c].Multiplier.Float64(),
+					PriceDivisor:            1,
 				})
 			}
 		}
