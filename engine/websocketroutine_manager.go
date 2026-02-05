@@ -283,11 +283,13 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 			if err != nil {
 				return err
 			}
-			if err := od.UpdateOrderFromDetail(d); err != nil {
+			err = od.UpdateOrderFromDetail(d)
+			if err != nil {
 				return err
 			}
 
-			if err := m.orderManager.UpdateExistingOrder(od); err != nil {
+			err = m.orderManager.UpdateExistingOrder(od)
+			if err != nil {
 				return err
 			}
 			m.wg.Go(func() {
@@ -315,7 +317,8 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 				if err != nil {
 					return err
 				}
-				if err = m.orderManager.UpdateExistingOrder(od); err != nil {
+				err = m.orderManager.UpdateExistingOrder(od)
+				if err != nil {
 					return err
 				}
 				m.wg.Go(func() {
