@@ -467,7 +467,7 @@ func TestOpenPositions(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// TODO: Needs a positive test
+// TestGetLedgers TODO: needs a positive test
 func TestGetLedgers(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)

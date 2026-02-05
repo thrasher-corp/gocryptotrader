@@ -140,7 +140,7 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 	return req, nil
 }
 
-// DoRequest performs a HTTP/HTTPS request with the supplied params
+// doRequest performs a HTTP/HTTPS request with the supplied params
 func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRequest Generate) error {
 	for attempt := 1; ; attempt++ {
 		// Check if context has finished before executing new attempt.

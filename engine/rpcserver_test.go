@@ -429,7 +429,7 @@ func (f fExchange) CanDeposit(_ currency.Code, _ asset.Item) error {
 	return nil
 }
 
-// Sets up everything required to run any function inside rpcserver
+// RPCTestSetup sets up everything required to run any function inside rpcserver
 // Only use if you require a database, this makes tests slow
 func RPCTestSetup(t *testing.T) *Engine {
 	t.Helper()
