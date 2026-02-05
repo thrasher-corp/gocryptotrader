@@ -1548,7 +1548,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				if err != nil {
 					return nil, err
 				}
-				p, _, err := e.MatchSymbolCheckEnabled(o[j].CurrencyPair, req.AssetType, true)
+				p, err := e.MatchSymbolWithAvailablePairs(o[j].CurrencyPair, req.AssetType, true)
 				if err != nil {
 					return nil, err
 				}
