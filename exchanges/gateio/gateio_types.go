@@ -2911,7 +2911,7 @@ type STPUserGroup struct {
 	CreateTime uint64 `json:"create_time,omitempty"`
 }
 
-// STPUserGroupMember holds STP user group mamber detail
+// STPUserGroupMember holds STP user group member detail
 type STPUserGroupMember struct {
 	UserID     uint64     `json:"user_id"`
 	STPID      uint64     `json:"stp_id"`
@@ -3062,16 +3062,10 @@ type BrokerTransactionItem struct {
 	AmountAsset     string       `json:"amount_asset"`
 }
 
-// BrokerRebateTransactionHistory holds transaction history of recommended users
-type BrokerRebateTransactionHistory struct {
-	Total       int64                   `json:"total"`
-	Trasactions []BrokerTransactionItem `json:"list"`
-}
-
 // BrokerRebateHistory holds list of brokers rebate history
 type BrokerRebateHistory struct {
-	Total       int64              `json:"total"`
-	Trasactions []BrokerRebateItem `json:"list"`
+	Total        int64              `json:"total"`
+	Transactions []BrokerRebateItem `json:"list"`
 }
 
 // BrokerRebateItem holds a rebate history item
@@ -3432,7 +3426,7 @@ type UniLoanAssetData struct {
 	Value types.Number `json:"value"`
 }
 
-// CurrencyEstimatedAnnualInterestRate holds user's account currency and estimated annualized interest reate details
+// CurrencyEstimatedAnnualInterestRate holds user's account currency and estimated annualized interest create details
 type CurrencyEstimatedAnnualInterestRate struct {
 	Currency      currency.Code `json:"currency"`
 	EstimatedRate types.Number  `json:"est_rate"` // Estimated Annualized Rate

@@ -3078,21 +3078,21 @@ func TestParseGateioMilliSecTimeUnmarshal(t *testing.T) {
 	var in types.Time
 	err := json.Unmarshal([]byte(timeWhenTestingString), &in)
 	require.NoError(t, err)
-	require.True(t, in.Time().Equal(tm), "found %v, but expected %v", in.Time(), tm)
+	require.Equalf(t, tm, in.Time(), "found %v, but expected %v", in.Time(), tm)
 
 	var inInteger struct {
 		Number types.Time `json:"number"`
 	}
 	err = json.Unmarshal([]byte(integerJSON), &inInteger)
 	require.NoError(t, err)
-	require.Truef(t, inInteger.Number.Time().Equal(tm), "found %v, but expected %v", inInteger.Number.Time(), tm)
+	require.Equalf(t, tm, inInteger.Number.Time(), "found %v, but expected %v", inInteger.Number.Time(), tm)
 
 	var inFloat64 struct {
 		Number types.Time `json:"number"`
 	}
 	err = json.Unmarshal([]byte(float64JSON), &inFloat64)
 	require.NoError(t, err)
-	require.True(t, inFloat64.Number.Time().Equal(tm), "found %v, but expected %v", inFloat64.Number.Time(), tm)
+	require.Equalf(t, tm, inFloat64.Number.Time(), "found %v, but expected %v", inFloat64.Number.Time(), tm)
 }
 
 func TestParseTimeUnmarshal(t *testing.T) {
@@ -3107,14 +3107,14 @@ func TestParseTimeUnmarshal(t *testing.T) {
 	var in types.Time
 	err := json.Unmarshal([]byte(timeWhenTestingString), &in)
 	require.NoError(t, err)
-	require.True(t, in.Time().Equal(whenTime), "found %v, but expected %v", in.Time(), whenTime)
+	require.Equalf(t, whenTime, in.Time(), "found %v, but expected %v", in.Time(), whenTime)
 
 	var inInteger struct {
 		Number types.Time `json:"number"`
 	}
 	err = json.Unmarshal([]byte(integerJSON), &inInteger)
 	require.NoError(t, err)
-	require.True(t, inInteger.Number.Time().Equal(whenTime), "found %v, but expected %v", inInteger.Number.Time(), whenTime)
+	require.Equalf(t, whenTime, inInteger.Number.Time(), "found %v, but expected %v", inInteger.Number.Time(), whenTime)
 
 	var inFloat64 struct {
 		Number types.Time `json:"number"`
@@ -3123,12 +3123,12 @@ func TestParseTimeUnmarshal(t *testing.T) {
 	require.NoError(t, err)
 
 	msTime := time.UnixMilli(1684981731234)
-	require.Truef(t, inFloat64.Number.Time().Equal(time.UnixMilli(1684981731234)), "found %v, but expected %v", inFloat64.Number.Time(), msTime)
+	require.Equalf(t, time.UnixMilli(1684981731234), inFloat64.Number.Time(), "found %v, but expected %v", inFloat64.Number.Time(), msTime)
 
 	var microSeconds types.Time
 	err = json.Unmarshal([]byte(timeWhenTestingStringMicroSecond), &microSeconds)
 	require.NoError(t, err)
-	require.Truef(t, microSeconds.Time().Equal(time.UnixMicro(1691122380942173)), "found %v, but expected %v", microSeconds.Time(), time.UnixMicro(1691122380942173))
+	require.Equalf(t, time.UnixMicro(1691122380942173), microSeconds.Time(), "found %v, but expected %v", microSeconds.Time(), time.UnixMicro(1691122380942173))
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {

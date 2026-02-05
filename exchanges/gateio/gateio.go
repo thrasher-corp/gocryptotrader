@@ -4118,7 +4118,7 @@ func (e *Exchange) GetMultiCollateralAdjustmentRecords(ctx context.Context, page
 
 // GetBrokerTransactionHistory retrieves broker obtains transaction history of recommended users
 // Record query time range cannot exceed 30 days
-func (e *Exchange) GetBrokerTransactionHistory(ctx context.Context, currencyPair currency.Pair, userID uint64, from, to time.Time, offset, limit int) (*BrokerRebateTransactionHistory, error) {
+func (e *Exchange) GetBrokerTransactionHistory(ctx context.Context, currencyPair currency.Pair, userID uint64, from, to time.Time, offset, limit int) (*BrokerRebateHistory, error) {
 	if !from.IsZero() && !to.IsZero() {
 		if err := common.StartEndTimeCheck(from, to); err != nil {
 			return nil, err
@@ -4143,7 +4143,7 @@ func (e *Exchange) GetBrokerTransactionHistory(ctx context.Context, currencyPair
 	if offset > 0 {
 		params.Set("offset", strconv.Itoa(offset))
 	}
-	var resp *BrokerRebateTransactionHistory
+	var resp *BrokerRebateHistory
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "rebate/agency/transaction_history", params, nil, &resp)
 }
 
