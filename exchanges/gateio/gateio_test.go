@@ -1912,7 +1912,7 @@ func TestGetOrderHistory(t *testing.T) {
 			assert.NoError(t, err)
 
 			multiOrderRequest.Pairs = nil
-			_, err = e.GetOrderHistory(request.WithVerbose(t.Context()), &multiOrderRequest)
+			_, err = e.GetOrderHistory(t.Context(), &multiOrderRequest)
 			if a == asset.Options {
 				assert.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty)
 			} else {
