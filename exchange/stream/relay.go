@@ -34,9 +34,6 @@ func NewRelay(buffer uint) *Relay {
 // Send sends a message to the channel receiver
 // This is non-blocking and returns an error if the channel buffer is full
 func (r *Relay) Send(ctx context.Context, data any) error {
-	if data == nil {
-		return common.ErrNilPointer
-	}
 	select {
 	case r.comm <- Payload{Ctx: common.FreezeContext(ctx), Data: data}:
 		return nil
