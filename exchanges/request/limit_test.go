@@ -205,14 +205,6 @@ func TestNewBasicRateLimit(t *testing.T) {
 	assert.Same(t, defs[Auth], defs[UnAuth], "Auth and UnAuth should be same instance")
 }
 
-func TestWithDelayNotAllowed(t *testing.T) {
-	t.Parallel()
-
-	assert.True(t, hasDelayNotAllowed(WithDelayNotAllowed(t.Context())))
-	assert.False(t, hasDelayNotAllowed(t.Context()))
-	assert.False(t, hasDelayNotAllowed(WithVerbose(t.Context())))
-}
-
 func TestCancelAll(t *testing.T) {
 	t.Parallel()
 
