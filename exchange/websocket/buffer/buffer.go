@@ -148,7 +148,7 @@ func (o *Orderbook) GetOrderbook(p currency.Pair, a asset.Item) (*orderbook.Book
 	holder, ok := o.ob[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
 	o.m.RUnlock()
 	if !ok {
-		return nil, fmt.Errorf("%s %w: %s.%s", o.exchangeName, orderbook.ErrDepthNotFound, a, p)
+		return nil, fmt.Errorf("%s %w: %s.%s", o.exchangeName, orderbook.ErrEmptyUpdate, a, p)
 	}
 	return holder.ob.Retrieve()
 }
