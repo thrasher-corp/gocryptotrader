@@ -13,11 +13,17 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	"github.com/thrasher-corp/gocryptotrader/internal/testing/livetest"
 )
 
 var mockTests = false
 
 func TestMain(m *testing.M) {
+	if livetest.ShouldSkip() {
+		log.Printf(livetest.LiveTestingSkipped, "Bybit")
+		os.Exit(0)
+	}
+
 	e = testInstance()
 
 	if e.API.AuthenticatedSupport {
