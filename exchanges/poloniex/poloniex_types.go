@@ -1044,7 +1044,7 @@ func (s *V3ResponseWrapper) UnmarshalJSON(data []byte) error {
 
 	s.Code = aux.Code
 	s.Message = aux.Message
-	if s.Code == 0 || s.Code == 200 {
+	if (s.Code == 0 || s.Code == 200) && aux.Data != nil {
 		return json.Unmarshal(aux.Data, &s.Data)
 	}
 

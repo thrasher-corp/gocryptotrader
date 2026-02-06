@@ -3201,7 +3201,7 @@ func TestSendBatchValidatedAuthenticatedHTTPRequest(t *testing.T) {
 	assert.IsType(t, []*OrderIDResponse{}, result)
 }
 
-func TestUnmarshalWrapperError(t *testing.T) {
+func TestV3ResponseWrapperUnmarshal(t *testing.T) {
 	t.Parallel()
 	validResponse := []byte(`{ "code": 200, "data": [ { "amt": "103.86838", "cT": 1734354688285, "id": 105091009, "px": "103868.38", "qty": "1", "side": "sell" }, { "amt": "103.88358", "cT": 1734354660249, "id": 105091008, "px": "103883.58", "qty": "1", "side": "buy" }], "msg": "Success" }`)
 	var data []FuturesExecutionInfo
@@ -3219,8 +3219,14 @@ func TestUnmarshalWrapperError(t *testing.T) {
 	assert.Error(t, in.Error())
 
 	in = &V3ResponseWrapper{}
-	validWithNoPayloadResponse := []byte(`{"code":200,"msg":"it's Ok","data":""}`)
+	validWithNoPayloadResponse := []byte(`{ "code":200, "data":{ }, "msg":"Success" }`)
 	err = json.Unmarshal(validWithNoPayloadResponse, &in)
 	require.NoError(t, err)
 	assert.NoError(t, in.Error())
+
+	in = &V3ResponseWrapper{}
+	validWithNoPayloadResponse = []byte(`{"code":200,"msg":"it's Ok"}`)
+	err = json.Unmarshal(validWithNoPayloadResponse, &in)
+	require.NoError(t, err)
+	assert.ErrorIs(t, in.Error(), common.ErrNoResponse)
 }
