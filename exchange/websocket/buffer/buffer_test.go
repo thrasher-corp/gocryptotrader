@@ -122,7 +122,6 @@ func BenchmarkBufferSortingPerformance(b *testing.B) {
 	}
 }
 
-// BenchmarkBufferSortingPerformance benchmark
 // 914500	      1599 ns/op	     440 B/op	       4 allocs/op
 func BenchmarkBufferSortingByIDPerformance(b *testing.B) {
 	cp, err := getExclusivePair()

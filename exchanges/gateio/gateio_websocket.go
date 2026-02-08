@@ -1038,6 +1038,7 @@ func getWSPingHandler(channel string) (websocket.PingHandler, error) {
 	}, nil
 }
 
+// extractOrderbookLimit returns the orderbook limit for the asset type
 // TODO: When subscription config is added for all assets update limits to use sub.Levels
 func (e *Exchange) extractOrderbookLimit(a asset.Item) (uint64, error) {
 	switch a {

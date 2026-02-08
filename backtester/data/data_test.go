@@ -586,7 +586,6 @@ func TestLast(t *testing.T) {
 	assert.Equal(t, id3, last.GetOffset())
 }
 
-// methods that satisfy the common.Event interface
 func (f fakeEvent) GetOffset() int64 {
 	if f.secretID > 0 {
 		return f.secretID

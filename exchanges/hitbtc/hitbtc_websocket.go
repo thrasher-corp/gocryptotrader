@@ -519,7 +519,7 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 	return errs
 }
 
-// Unsubscribe sends a websocket message to stop receiving data from the channel
+// wsLogin authenticates the websocket connection
 func (e *Exchange) wsLogin(ctx context.Context) error {
 	if !e.IsWebsocketAuthenticationSupported() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", e.Name)
@@ -753,7 +753,7 @@ func (e *Exchange) wsGetSymbols(ctx context.Context, c currency.Pair) (*WsGetSym
 	return &response, nil
 }
 
-// wsGetSymbols sends a websocket message to get trading balance
+// wsGetTrades sends a websocket message to get trade data
 func (e *Exchange) wsGetTrades(ctx context.Context, c currency.Pair, limit int64, sort, by string) (*WsGetTradesResponse, error) {
 	fPair, err := e.FormatExchangeCurrency(c, asset.Spot)
 	if err != nil {
