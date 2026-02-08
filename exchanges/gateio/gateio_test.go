@@ -44,12 +44,21 @@ const (
 )
 
 var e *Exchange
+var enabledAssetPair map[asset.Item]currency.Pair
 
 func getTime() (startTime, endTime time.Time) {
 	if mockTests {
 		return time.UnixMilli(1744103854944), time.UnixMilli(1744190254944)
 	}
 	return time.Now().Add(-time.Hour * 48), time.Now()
+}
+func getTimeWithInterval(interval kline.Interval) (startTime, endTime time.Time) {
+	if mockTests {
+		startTime = time.UnixMilli(1744103854944)
+		return startTime, startTime.Add(time.Duration(interval))
+	}
+	startTime = time.Now()
+	return startTime.Add(-time.Hour * 48), startTime
 }
 
 func TestUpdateTradablePairs(t *testing.T) {
@@ -140,8 +149,9 @@ func TestGetCurrencyDetail(t *testing.T) {
 
 func TestListAllCurrencyPairs(t *testing.T) {
 	t.Parallel()
-	_, err := e.ListSpotCurrencyPairs(t.Context())
-	assert.NoError(t, err)
+	result, err := e.ListSpotCurrencyPairs(t.Context())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestGetCurrencyPairDetal(t *testing.T) {
@@ -150,7 +160,7 @@ func TestGetCurrencyPairDetal(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	result, err := e.GetCurrencyPairDetail(t.Context(), getPair(t, asset.Spot))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
@@ -165,8 +175,9 @@ func TestGetTicker(t *testing.T) {
 	_, err := e.GetTicker(t.Context(), currency.EMPTYPAIR, utc8TimeZone)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	_, err = e.GetTicker(t.Context(), getPair(t, asset.Spot), utc8TimeZone)
-	assert.NoError(t, err)
+	result, err := e.GetTicker(t.Context(), getPair(t, asset.Spot), utc8TimeZone)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestGetOrderbook(t *testing.T) {
@@ -174,14 +185,16 @@ func TestGetOrderbook(t *testing.T) {
 	_, err := e.GetOrderbook(t.Context(), currency.EMPTYPAIR, "0.1", 10, false)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	_, err = e.GetOrderbook(t.Context(), getPair(t, asset.Spot), "0.1", 10, false)
-	assert.NoError(t, err)
+	result, err := e.GetOrderbook(t.Context(), getPair(t, asset.Spot), "0.1", 10, false)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestGetMarketTrades(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMarketTrades(t.Context(), getPair(t, asset.Spot), 0, "", true, time.Time{}, time.Time{}, 1)
-	assert.NoError(t, err)
+	result, err := e.GetMarketTrades(t.Context(), getPair(t, asset.Spot), 0, "", true, time.Time{}, time.Time{}, 1)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestCandlestickUnmarshalJSON(t *testing.T) {
@@ -205,15 +218,17 @@ func TestCandlestickUnmarshalJSON(t *testing.T) {
 
 func TestGetCandlesticks(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetCandlesticks(t.Context(), getPair(t, asset.Spot), 0, time.Time{}, time.Time{}, kline.OneDay)
-	assert.NoError(t, err)
+	result, err := e.GetCandlesticks(t.Context(), getPair(t, asset.Spot), 0, time.Time{}, time.Time{}, kline.OneDay)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestGetTradingFeeRatio(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetTradingFeeRatio(t.Context(), getPair(t, asset.Spot))
-	assert.NoError(t, err)
+	result, err := e.GetTradingFeeRatio(t.Context(), getPair(t, asset.Spot))
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestGetAccountBatchFeeRates(t *testing.T) {
@@ -227,8 +242,9 @@ func TestGetAccountBatchFeeRates(t *testing.T) {
 func TestGetSpotAccounts(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetSpotAccounts(t.Context(), currency.BTC)
-	assert.NoError(t, err)
+	result, err := e.GetSpotAccounts(t.Context(), currency.BTC)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestCreateBatchOrders(t *testing.T) {
@@ -281,19 +297,21 @@ func TestCreateBatchOrders(t *testing.T) {
 func TestGetSpotOpenOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetSpotOpenOrders(t.Context(), 0, 0, false)
+	result, err := e.GetSpotOpenOrders(t.Context(), 0, 0, false)
 	assert.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestSpotClosePositionWhenCrossCurrencyDisabled(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.SpotClosePositionWhenCrossCurrencyDisabled(t.Context(), &ClosePositionRequestParam{
+	result, err := e.SpotClosePositionWhenCrossCurrencyDisabled(t.Context(), &ClosePositionRequestParam{
 		Amount:       0.1,
 		Price:        1234567384,
 		CurrencyPair: getPair(t, asset.Spot),
 	})
 	assert.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestCreateSpotOrder(t *testing.T) {
@@ -337,8 +355,9 @@ func TestGetSpotOrders(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err = e.GetSpotOrders(t.Context(), getPair(t, asset.Spot), statusOpen, 0, 0)
+	result, err := e.GetSpotOrders(t.Context(), getPair(t, asset.Spot), statusOpen, 0, 0)
 	assert.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestCancelAllOpenOrdersSpecifiedCurrencyPair(t *testing.T) {
@@ -1211,8 +1230,9 @@ func TestGetIndexConstituent(t *testing.T) {
 	_, err = e.GetIndexConstituent(t.Context(), currency.USDT, "")
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	_, err = e.GetIndexConstituent(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures).String())
-	assert.NoError(t, err)
+	result, err := e.GetIndexConstituent(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures).String())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestGetLiquidationHistory(t *testing.T) {
@@ -1223,7 +1243,7 @@ func TestGetLiquidationHistory(t *testing.T) {
 	_, err = e.GetLiquidationHistory(t.Context(), currency.USDT, currency.EMPTYPAIR, time.Time{}, time.Time{}, 0)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	startTime, endTime := getTime()
+	startTime, endTime := getTimeWithInterval(kline.OneHour)
 	_, err = e.GetLiquidationHistory(t.Context(), getPair(t, asset.USDTMarginedFutures).Quote, getPair(t, asset.USDTMarginedFutures), endTime, startTime, 0)
 	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
 
@@ -1884,6 +1904,7 @@ func TestCancelAllFuturesOpenOrders(t *testing.T) {
 
 func TestGetAllDeliveryContracts(t *testing.T) {
 	t.Parallel()
+	e.Verbose = true
 	r, err := e.GetAllDeliveryContracts(t.Context(), currency.USDT)
 	require.NoError(t, err, "GetAllDeliveryContracts must not error")
 	assert.NotEmpty(t, r, "GetAllDeliveryContracts should return data")
@@ -1950,8 +1971,13 @@ func TestGetDeliveryFutureTickers(t *testing.T) {
 	_, err := e.GetDeliveryFutureTickers(t.Context(), currency.EMPTYCODE, getPair(t, asset.DeliveryFutures))
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	_, err = e.GetDeliveryFutureTickers(t.Context(), currency.USDT, getPair(t, asset.DeliveryFutures))
-	assert.NoError(t, err)
+	results, err := e.GetDeliveryFutureTickers(t.Context(), currency.USDT, currency.EMPTYPAIR)
+	require.NoError(t, err)
+	assert.NotNil(t, results)
+
+	for _, P := range results {
+		print(P.Contract, ",")
+	}
 }
 
 func TestGetDeliveryInsuranceBalanceHistory(t *testing.T) {
@@ -2691,9 +2717,9 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	startTime := time.Now().Add(-time.Hour * 10)
+	startTime, endTime := getTime()
 	for _, a := range e.GetAssetTypes(false) {
-		_, err := e.GetHistoricCandles(t.Context(), getPair(t, a), a, kline.OneDay, startTime, time.Now())
+		_, err := e.GetHistoricCandles(t.Context(), getPair(t, a), a, kline.OneDay, startTime, endTime)
 		if a == asset.Options {
 			assert.ErrorIs(t, err, asset.ErrNotSupported, "GetHistoricCandles should error correctly for options")
 		} else {
@@ -4143,10 +4169,7 @@ var (
 
 func getPair(tb testing.TB, a asset.Item) currency.Pair {
 	tb.Helper()
-	if p := getPairs(tb, a); len(p) != 0 {
-		return p[0]
-	}
-	return currency.EMPTYPAIR
+	return enabledAssetPair[a]
 }
 
 func getPairs(tb testing.TB, a asset.Item) currency.Pairs {

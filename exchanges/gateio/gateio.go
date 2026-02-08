@@ -37,9 +37,9 @@ const (
 	subAccounts = "sub_accounts"
 
 	// Spot
-	gateioSpotCurrencies  = "/spot/currencies"
-	gateioSpotOrders      = "/spot/orders"
-	gateioSpotPriceOrders = "/spot/price_orders"
+	gateioSpotCurrencies  = "spot/currencies"
+	gateioSpotOrders      = "spot/orders"
+	gateioSpotPriceOrders = "spot/price_orders"
 
 	// Wallets
 	walletSubAccountTransfer = "/wallet/sub_account_transfers"

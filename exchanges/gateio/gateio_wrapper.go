@@ -49,7 +49,7 @@ func (e *Exchange) SetDefaults() {
 
 	requestFmt := &currency.PairFormat{Delimiter: currency.UnderscoreDelimiter, Uppercase: true}
 	configFmt := &currency.PairFormat{Delimiter: currency.UnderscoreDelimiter, Uppercase: true}
-	if err := e.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.Margin, asset.CrossMargin, asset.DeliveryFutures, asset.Options); err != nil {
+	if err := e.SetGlobalPairsManager(requestFmt, configFmt, asset.Spot, asset.Margin, asset.CrossMargin, asset.USDTMarginedFutures, asset.CoinMarginedFutures, asset.DeliveryFutures, asset.Options); err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
@@ -460,24 +460,6 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 			pairs = append(pairs, fContract.Name)
 		}
 		return slices.Clip(pairs), nil
-	case asset.BTCMarginedDeliveryFutures:
-		contracts, err := e.GetAllDeliveryContracts(ctx, currency.BTC)
-		if err != nil {
-			return nil, err
-		}
-		pairs := make([]currency.Pair, 0, len(contracts))
-		for _, deliveryContract := range contracts {
-			if deliveryContract.InDelisting {
-				continue
-			}
-			p := strings.ToUpper(deliveryContract.Name)
-			cp, err := currency.NewPairFromString(p)
-			if err != nil {
-				return nil, err
-			}
-			pairs = append(pairs, cp)
-		}
-		return slices.Clip(pairs), nil
 	case asset.DeliveryFutures:
 		contracts, err := e.GetAllDeliveryContracts(ctx, currency.USDT)
 		if err != nil {
@@ -529,9 +511,11 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	for x := range assets {
 		pairs, err := e.FetchTradablePairs(ctx, assets[x])
 		if err != nil {
+			panic(fmt.Errorf("%w %v", err, assets[x]))
 			return err
 		}
 		if err := e.UpdatePairs(pairs, assets[x], false); err != nil {
+			panic(fmt.Errorf("%w %v", err, assets[x]))
 			return err
 		}
 	}
