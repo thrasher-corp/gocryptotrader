@@ -17,7 +17,6 @@ import (
 	"time"
 
 	gws "github.com/gorilla/websocket"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -56,13 +55,17 @@ type Connection interface {
 	IncomingWithData(signature any, data []byte) bool
 	// MatchReturnResponses sets up a channel to listen for an expected number of responses.
 	MatchReturnResponses(ctx context.Context, signature any, expected int) (<-chan MatchedResponse, error)
+	// Subscriptions returns the subscription store for the connection
+	Subscriptions() *subscription.Store
 }
 
 // ConnectionSetup defines variables for an individual stream connection
 type ConnectionSetup struct {
-	ResponseCheckTimeout     time.Duration
-	ResponseMaxLimit         time.Duration
-	RateLimit                *request.RateLimiterWithWeight
+	ResponseCheckTimeout time.Duration
+	ResponseMaxLimit     time.Duration
+	RateLimit            *request.RateLimiterWithWeight
+	// ConnectionRateLimiter returns a new rate limiter for each connection instance
+	ConnectionRateLimiter    func() *request.RateLimiterWithWeight
 	Authenticated            bool // unused for multi-connection websocket
 	SubscriptionsNotRequired bool
 	ConnectionLevelReporter  Reporter
@@ -109,6 +112,7 @@ type Response struct {
 
 // connection contains all the data needed to send a message to a websocket connection
 type connection struct {
+	subscriptions        *subscription.Store
 	Verbose              bool
 	connected            int32
 	writeControl         sync.Mutex                     // Gorilla websocket does not allow more than one goroutine to utilise write methods
@@ -328,8 +332,8 @@ func (c *connection) parseBinaryResponse(resp []byte) ([]byte, error) {
 
 // Shutdown shuts down and closes specific connection
 func (c *connection) Shutdown() error {
-	if err := common.NilGuard(c, c.Connection); err != nil {
-		return err
+	if c == nil || c.Connection == nil {
+		return nil // Allow Shutdown to be called during early startup/teardown when the socket hasn't been created yet.
 	}
 	c.setConnectedStatus(false)
 	c.writeControl.Lock()
@@ -470,4 +474,9 @@ func (c *connection) RequireMatchWithData(signature any, incoming []byte) error 
 // IncomingWithData routes incoming data using the connection specific match system to the correct handler
 func (c *connection) IncomingWithData(signature any, data []byte) bool {
 	return c.Match.IncomingWithData(signature, data)
+}
+
+// Subscriptions returns the subscription store for the connection
+func (c *connection) Subscriptions() *subscription.Store {
+	return c.subscriptions
 }
