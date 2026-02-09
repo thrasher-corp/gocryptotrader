@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -206,7 +207,23 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 	err = w.Connect(context.TODO())
 	require.NoError(tb, err, "Connect must not error")
 
+	w.Wg.Add(1)
+	go streamDataConsumer(w)
 	setupWsOnce[e] = true
+}
+
+func streamDataConsumer(w *websocket.Manager) {
+	defer w.Wg.Done()
+	for {
+		select {
+		case _, ok := <-w.DataHandler.C:
+			if !ok {
+				return
+			}
+		case <-w.ShutdownC:
+			return
+		}
+	}
 }
 
 var (
