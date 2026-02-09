@@ -6173,7 +6173,7 @@ func TestBusinessWSCandleSubscriptions(t *testing.T) {
 		}
 		return len(got) == 3
 	}
-	assert.Eventually(t, check, 5*time.Second, time.Nanosecond)
+	assert.Eventually(t, check, 5*time.Second, time.Millisecond)
 	require.Equal(t, 3, len(got), "must receive candles for all three subscriptions")
 	require.NoError(t, got.ContainsAll(p, true), "must receive candles for all subscribed pairs")
 }
