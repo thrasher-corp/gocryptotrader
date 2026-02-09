@@ -413,7 +413,6 @@ func TestGetOpenInterestData(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-// Only being used for testing purposes and unexported
 func (e *Exchange) underlyingFromInstID(instrumentType, instID string) (string, error) {
 	e.instrumentsInfoMapLock.Lock()
 	defer e.instrumentsInfoMapLock.Unlock()
@@ -628,7 +627,6 @@ func TestCurrencyUnitConvert(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-// Trading related endpoints test functions.
 func TestGetSupportCoins(t *testing.T) {
 	t.Parallel()
 	result, err := e.GetSupportCoins(contextGenerate())
@@ -2880,7 +2878,6 @@ func TestPurcahseETHStaking(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// RedeemETHStaking
 func TestRedeemETHStaking(t *testing.T) {
 	t.Parallel()
 	err := e.RedeemETHStaking(contextGenerate(), 0)

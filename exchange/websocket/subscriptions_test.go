@@ -17,7 +17,6 @@ import (
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 )
 
-// TestSubscribe logic test
 func TestSubscribeUnsubscribe(t *testing.T) {
 	t.Parallel()
 	ws := NewManager()

@@ -5,7 +5,7 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 jobs:
   backend:
-    name: GoCryptoTrader backend (${{ matrix.os }}, ${{ matrix.goarch }}, psql=${{ matrix.psql }}, skip_wrapper_tests=${{ matrix.skip_wrapper_tests}}, sonic=${{ matrix.sonic }})
+    name: GoCryptoTrader (${{ matrix.os }}, ${{ matrix.goarch }}, psql=${{ matrix.psql }}, skip_wrapper_tests=${{ matrix.skip_wrapper_tests}}, sonic=${{ matrix.sonic }})
     strategy:
       fail-fast: false
       matrix:
@@ -118,9 +118,51 @@ jobs:
       uses: codecov/codecov-action@v5
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  backend-live-test-build:
+    name: GoCryptoTrader mock_test_off build (ubuntu-latest, amd64, psql=true, sonic=false)
+    runs-on: ubuntu-latest
+    env:
+      GCT_SKIP_LIVE_TESTS: true
+
+    steps:
+    - name: Cancel previous workflow runs
+      uses: styfle/cancel-workflow-action@0.13.0
+      with:
+        access_token: ${{ github.token }}
+
+    - name: Setup Postgres
+      uses: ikalnytskyi/action-setup-postgres@v8
+      with:
+        database: gct_dev_ci
+      id: postgres
+
+    - name: Set up Postgres environment
+      run: |
+        echo "PSQL_USER=postgres" >> $GITHUB_ENV
+        echo "PSQL_PASS=postgres" >> $GITHUB_ENV
+        echo "PSQL_HOST=localhost" >> $GITHUB_ENV
+        echo "PSQL_DBNAME=gct_dev_ci" >> $GITHUB_ENV
+        echo "PSQL_TESTDBNAME=gct_dev_ci" >> $GITHUB_ENV
+        echo "PSQL_SSLMODE=disable" >> $GITHUB_ENV
+        echo "PSQL_SKIPSQLCMD=true" >> $GITHUB_ENV
+      shell: bash
+
+    - name: Checkout code
+      uses: actions/checkout@v6
+
+    - name: Setup Go
+      uses: actions/setup-go@v6
+      with:
+        go-version: ${{ env.GO_VERSION }}
+
+    - name: Build tests with mock_test_off
+      run: |
+        go test -run=^$ -tags=mock_test_off ./...
+      shell: bash
   
   backend-docker:
-    name: GoCryptoTrader backend docker (ubuntu-latest, amd64, psql=false, skip_wrapper_tests=true, sonic=false)
+    name: GoCryptoTrader docker (ubuntu-latest, amd64, psql=false, skip_wrapper_tests=true, sonic=false)
     runs-on: ubuntu-latest
 
     steps:
