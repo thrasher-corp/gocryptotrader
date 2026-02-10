@@ -9376,6 +9376,34 @@
     },
     {
      "data": {
+       "id": "10000009",
+       "clientOrderId": "999999910"
+     },
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"BTC_USDT\",\"side\":\"BUY\",\"accountType\":\"SPOT\",\"type\":\"TRAILING_STOP\",\"price\":\"10\",\"stopPrice\":\"11\",\"quantity\":\"10000000\",\"clientOrderId\":\"999999910\",\"trailingOffset\":\"5%\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "dV4tXkbzo4ZvFnpDkMca2Z8patXhvwUEcmn/YEsqqjs="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1743968911176"
+      ]
+     }
+    },
+    {
+     "data": {
       "clientOrderId": "55667798abcd",
       "id": "502143097648869376"
      },
@@ -9408,7 +9436,35 @@
       "id": "502143097648869376"
      },
      "queryString": "",
-     "bodyParams": "{\"symbol\":\"BTC_USDT\",\"side\":\"BUY\",\"accountType\":\"SPOT\",\"type\":\"STOP_LIMIT\",\"price\":\"10\",\"stopPrice\":\"11\",\"quantity\":\"10000000\"}",
+     "bodyParams": "{\"symbol\":\"BTC_USDT\",\"side\":\"BUY\",\"accountType\":\"SPOT\",\"type\":\"STOP_LIMIT\",\"price\":\"10\",\"stopPrice\":\"11\",\"quantity\":\"10000000\",\"operator\":\"LTE\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "t9ziufRKQlrLUISTEUV5gAzRrwEFAxIJoy7zRCaHnb0="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1760686643056"
+      ]
+     }
+    },
+    {
+     "data": {
+      "clientOrderId": "55667798abcd",
+      "id": "502143097648869376"
+     },
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"BTC_USDT\",\"side\":\"BUY\",\"accountType\":\"SPOT\",\"type\":\"TRAILING_STOP\",\"price\":\"10\",\"stopPrice\":\"11\",\"quantity\":\"10000000\",\"clientOrderId\":\"999999910\",\"trailingOffset\":\"5%\",\"operator\":\"LTE\"}",
      "headers": {
       "Content-Type": [
        "application/json"
@@ -9891,33 +9947,105 @@
    "GET": [
     {
      "data": [
-      {
-       "accountId": "f406e865-c5cd-4757-91ea-45fb041c87ad",
-       "accountName": "Primary Account",
-       "accountType": "SPOT",
-       "balances": [],
-       "isPrimary": "true"
-      },
-      {
-       "accountId": "f406e865-c5cd-4757-91ea-45fb041c87ad",
-       "accountName": "Primary Account",
-       "accountType": "FUTURES",
-       "balances": [
         {
-         "accountEquity": "0",
-         "availableBalance": "0",
-         "currency": "USDT",
-         "frozenFunds": "0",
-         "marginBalance": "0",
-         "orderMargin": "0",
-         "pnl": "0",
-         "positionMargin": "0",
-         "unrealisedPNL": "0"
+            "accountId": "32b323201-e832-2270-78t4-e25ak408945",
+            "accountName": "primary Acct",
+            "accountType": "SPOT",
+            "isPrimary": "true",
+            "balances": [
+                {
+                    "currency": "USDT",
+                    "available": "100000233",
+                    "hold": "0",
+                    "maxAvailable": "100000233"
+                },
+                {
+                    "currency": "LTC",
+                    "available": "999899455.8625",
+                    "hold": "0",
+                    "maxAvailable": "999899455.8625"
+                }
+            ]
+        },
+        {
+            "accountId": "23422vdd1-e832-2270-78t4-2342cl2292",
+            "accountName": "sub1",
+            "accountType": "SPOT",
+            "isPrimary": "false",
+            "balances": [
+                {
+                    "currency": "USDT",
+                    "available": "500",
+                    "hold": "0",
+                    "maxAvailable": "500"
+                },
+                {
+                    "currency": "TRX",
+                    "available": "9991.234",
+                    "hold": "0",
+                    "maxAvailable": "9991.234"
+                }
+            ]
+        },
+        {
+            "accountId": "56322vdd1-e832-2270-jh45-2342cl6789",
+            "accountName": "sub2",
+            "accountType": "SPOT",
+            "isPrimary": "false",
+            "balances": [
+                {
+                    "currency": "BTC",
+                    "available": "20000.234",
+                    "hold": "0",
+                    "maxAvailable": "20000.234"
+                },
+                {
+                    "currency": "TRX",
+                    "available": "12991.234",
+                    "hold": "0",
+                    "maxAvailable": "129991.234"
+                }
+            ]
+        },
+        {
+            "accountId": "32b323201-e832-2270-78t4-e25ak408945",
+            "accountName": "string",
+            "accountType": "FUTURES",
+            "isPrimary": "true",
+            "balances": [
+                {
+                    "currency": "USDT",
+                    "accountEquity": "200017",
+                    "unrealisedPNL": "0",
+                    "marginBalance": "200017",
+                    "positionMargin": "0",
+                    "orderMargin": "0",
+                    "frozenFunds": "0",
+                    "availableBalance": "200017",
+                    "pnl": "0.0"
+                }
+            ]
+        },
+        {
+            "accountId": "23422vdd1-e832-2270-78t4-2342cl2292",
+            "accountName": "sub1",
+            "accountType": "FUTURES",
+            "isPrimary": "false",
+            "balances": [
+                {
+                    "currency": "USDT",
+                    "accountEquity": "100",
+                    "unrealisedPNL": "0",
+                    "marginBalance": "100",
+                    "positionMargin": "0",
+                    "orderMargin": "0",
+                    "frozenFunds": "0",
+                    "availableBalance": "100",
+                    "pnl": "0.0"
+                }
+            ]
         }
-       ],
-       "isPrimary": "true"
-      }
-     ],
+    ],
      "queryString": "",
      "bodyParams": "",
      "headers": {
@@ -12924,7 +13052,7 @@
       "msg": "Success"
      },
      "queryString": "",
-     "bodyParams": "{\"symbol\":\"BTC_USDT_PERP\",\"side\":\"BUY\",\"mgnMode\":\"\",\"posSide\":\"UNKNOWN\",\"type\":\"MARKET\",\"px\":\"10\",\"sz\":\"10000000\"}",
+     "bodyParams": "{\"symbol\":\"BTC_USDT_PERP\",\"side\":\"SELL\",\"mgnMode\":\"\",\"posSide\":\"UNKNOWN\",\"type\":\"MARKET\",\"px\":\"10\",\"sz\":\"10000000\"}",
      "headers": {
       "Content-Type": [
        "application/json"

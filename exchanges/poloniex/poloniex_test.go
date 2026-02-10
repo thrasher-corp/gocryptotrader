@@ -222,7 +222,6 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
-
 	_, err := e.SubmitOrder(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrSubmissionIsNil)
 
@@ -316,6 +315,22 @@ func TestSubmitOrder(t *testing.T) {
 	assert.NotNil(t, result)
 
 	result, err = e.SubmitOrder(generateContext(t), &order.Submit{
+		Exchange:      e.Name,
+		Pair:          spotTradablePair,
+		Side:          order.Buy,
+		Type:          order.TrailingStop,
+		TrackingMode:  order.Percentage,
+		TrackingValue: 5,
+		TriggerPrice:  11,
+		Price:         10,
+		Amount:        10000000,
+		ClientOrderID: "999999910",
+		AssetType:     asset.Spot,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = e.SubmitOrder(generateContext(t), &order.Submit{
 		Exchange:     e.Name,
 		Pair:         spotTradablePair,
 		Side:         order.Buy,
@@ -329,10 +344,11 @@ func TestSubmitOrder(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
+	e.Verbose = true
 	result, err = e.SubmitOrder(generateContext(t), &order.Submit{
 		Exchange:  e.Name,
 		Pair:      futuresTradablePair,
-		Side:      order.Buy,
+		Side:      order.Sell,
 		Type:      order.Market,
 		Price:     10,
 		Amount:    10000000,
@@ -688,6 +704,9 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetRecentTrades(t.Context(), currency.EMPTYPAIR, asset.Spot)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
 	result, err := e.GetRecentTrades(t.Context(), spotTradablePair, asset.Spot)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -788,6 +807,50 @@ func TestCancelBatchOrders(t *testing.T) {
 	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{{AssetType: asset.Futures, OrderID: "1233"}, {AssetType: asset.Futures}})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
+	_, err = e.CancelBatchOrders(generateContext(t), []order.Cancel{
+		{
+			Pair:      futuresTradablePair,
+			AssetType: asset.Futures,
+			OrderID:   "1233",
+		},
+		{
+			Pair:      futuresTradablePair,
+			AssetType: asset.Spot,
+			OrderID:   "123444",
+		},
+	})
+	require.ErrorIs(t, err, errAllMustBeEqual)
+
+	_, err = e.CancelBatchOrders(generateContext(t), []order.Cancel{
+		{
+			Pair:      futuresTradablePair,
+			AssetType: asset.Futures,
+			OrderID:   "1233",
+		},
+		{
+			Pair:      spotTradablePair,
+			AssetType: asset.Futures,
+			OrderID:   "123444",
+		},
+	})
+	require.ErrorIs(t, err, errAllMustBeEqual)
+
+	_, err = e.CancelBatchOrders(generateContext(t), []order.Cancel{
+		{
+			Pair:      spotTradablePair,
+			AssetType: asset.Spot,
+			OrderID:   "1233",
+			Type:      order.StopLimit,
+		},
+		{
+			Pair:      spotTradablePair,
+			AssetType: asset.Spot,
+			OrderID:   "123444",
+			Type:      order.Limit,
+		},
+	})
+	require.ErrorIs(t, err, errAllMustBeEqual)
+
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	}
@@ -818,8 +881,8 @@ func TestCancelBatchOrders(t *testing.T) {
 			Pair:      currency.NewBTCUSD(),
 		},
 		{
-			OrderID:   "234",
-			AssetType: asset.Spot,
+			ClientOrderID: "234",
+			AssetType:     asset.Spot,
 		},
 	})
 	assert.NoError(t, err)
@@ -2057,6 +2120,7 @@ var pushMessages = []*struct {
 	{label: "Account Balance", payload: `{ "channel": "balances", "data": [{ "changeTime": 1657312008411, "accountId": "1234", "accountType": "SPOT", "eventType": "place_order", "available": "9999999983.668", "currency": "BTC", "id": 60018450912695040, "userId": 12345, "hold": "16.332", "ts": 1657312008443 }] }`, auth: true},
 	{label: "Orderbook Level Error", payload: `{"channel":"book_lv2","data":[{"symbol":"BTC_USDC","createTime":1694469187745,"asks":[],"bids":[["25148.81","0.02158"],["25088.11","0"]],"lastId":598273385,"id":598273386,"ts":1694469187760}, {}],"action":"snapshot"}`, errExplanation: "expected 1 orderbook snapshot payload"},
 	{label: "Exchange", payload: `{"channel": "exchange", "action" : "snapshot", "data": [ { "MM"   :  "ON", "POM"  :  "OFF" } ] }`},
+	{label: "Unhandled Currencies Unmarshal Error", payload: `{"channel":"currencies","data":[{"currency":124,"id":28,"name":"Bitcoin","description":"BTC Clone","type":"address","withdrawalFee":"0.0008","minConf":2,"depositAddress":null,"blockchain":"BTC","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":true,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":["BTCTRON"]},{"currency":"XRP","id":243,"name":"XRP","description":"Payment ID","type":"address-payment-id","withdrawalFee":"0.2","minConf":2,"depositAddress":"rwU8rAiE2eyEPz3sikfbHuqCuiAtdXqa2v","blockchain":"XRP","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":false,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":[]},{"currency":"ETH","id":267,"name":"Ethereum","description":"Sweep to Main Account","type":"address","withdrawalFee":"0.00197556","minConf":64,"depositAddress":null,"blockchain":"ETH","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":true,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":["ETHTRON"]},{"currency":"USDT","id":214,"name":"Tether USD","description":"Sweep to Main Account","type":"address","withdrawalFee":"0","minConf":2,"depositAddress":null,"blockchain":"OMNI","delisted":false,"tradingState":"NORMAL","walletState":"DISABLED","parentChain":null,"isMultiChain":true,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":["USDTETH","USDTTRON"]},{"currency":"DOGE","id":59,"name":"Dogecoin","description":"BTC Clone","type":"address","withdrawalFee":"20","minConf":6,"depositAddress":null,"blockchain":"DOGE","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":true,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":["DOGETRON"]},{"currency":"LTC","id":125,"name":"Litecoin","description":"BTC Clone","type":"address","withdrawalFee":"0.001","minConf":4,"depositAddress":null,"blockchain":"LTC","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":true,"isChildChain":false,"supportCollateral":true,"supportBorrow":true,"childChains":["LTCTRON"]},{"currency":"DASH","id":60,"name":"Dash","description":"BTC Clone","type":"address","withdrawalFee":"0.01","minConf":20,"depositAddress":null,"blockchain":"DASH","delisted":false,"tradingState":"NORMAL","walletState":"ENABLED","parentChain":null,"isMultiChain":false,"isChildChain":false,"supportCollateral":false,"supportBorrow":false,"childChains":[]}],"action":"snapshot"}`, errExplanation: "Unhandled JSON unmarshal error"},
 	{label: "Unmarshal Error", payload: `{"channel":"abc","data":[]`, errExplanation: "Unexpected JSON input error"},
 	{label: "Unhandled Channel", payload: `{"channel":"abc","data":[]}`, errExplanation: "Unhandled channel message"},
 	{label: "Unhandled Event", payload: `{"event": "abc"}`, errExplanation: "Unhandled event message"},
@@ -2301,6 +2365,14 @@ var futuresPushDataMap = []struct {
 	{label: "Open Interest", payload: `{"channel": "open_interest", "data": [ { "s": "BTC_USDT_PERP", "oInterest": "19774.000000000000000000", "ts": 1747296831379 } ], "action": "snapshot"}`},
 	{label: "Liquidiation Price", payload: `{"channel": "liquidation_orders", "data": [ { "s": "BTC_USDT_PERP", "side": "BUY", "posSide": "BOTH", "sz": "1", "bkPx": "94120.8368032", "uTime": 1739367328421, "ts": 1739367328446}]}`},
 	{label: "Limit Price", payload: `{"channel": "limit_price", "data": [ { "ts": 1739346571315, "s": "BTC_USDT_PERP", "buyLmt": "100790.67", "sellLmt": "91191.57" } ], "action": "update" }`},
+	{label: "Unhandle Mark Price Unmarshal Error", payload: `{"channel":"mark_price", "data": [ { "ts": 1719226453000, "s": 123, "mPx": "34400"}]}`, errExplanation: "Unhandled event message"},
+	{label: "Unhandled Symbols Unmarshal Error", payload: `{"channel": "symbol", "data": [{"symbol": "BTC_USDT_PERP", "visibleStartTime": "1584721775000", "tradableStartTime": "1584721775000", "pxScale": "0.01,0.1,1,10,100", "lotSz": "1", "minSz": 1, "ctVal": "0.001", "status": "OPEN", "maxPx": "1000000", "minPx": "0.01", "marketMaxQty": 100000, "limitMaxQty": 100000, "maxQty": "1000000", "minQty": "1", "maxLever": "75", "lever": "20", "ctType": "LINEAR", "alias": "", "bAsset": ".PXBTUSDT", "bCcy": "BTC", "qCcy": "USDT", "sCcy": "USDT", "tSz": "0.01", "oDate": "1547435912000", "iM": "0.0133", "mR": "5000", "mM": "0.006" } ], "action": "snapshot" }`, errExplanation: "Unhandled event message"},
+	{label: "Unhandled Index Price Unmarshal Error", payload: `{"channel": "index_price", "data": [ { "ts": 1719226453000, "s": 123, "iPx": "34400"}]}`, errExplanation: "Unhandled event message"},
+	{label: "Unhandled Mark Price Unmarshal Error", payload: `{"channel":"mark_price", "data": [ { "ts": 1719226453000, "s": 123456, "mPx": "34400"}]}`, errExplanation: "Unhandled event message"},
+	{label: "Unhandled Positions Unmarshal Error", payload: `{"channel":"positions", "data": [ { "symbol": "BTC_USDT_PERP", "posSide": "BOTH", "side": 123, "mgnMode": "CROSS", "openAvgPx": "64999", "qty": "1", "oldQty": "0", "availQty": "1", "lever": 1, "fee": "-0.259996", "adl": "0", "liqPx": "-965678126.114070339063390145", "mgn": "604.99", "im": "604.99", "mm": "3.327445", "upl": "-45", "uplRatio": "-0.0743", "pnl": "0", "markPx": "60499", "mgnRatio": "0.000007195006959591", "state": 1, "ffee": "0", "fpnl": "0", "cTime": 1723459553457, "uTime": 1725330697439, "ts": 1725330697459}]}`, errExplanation: "Unhandled event message"},
+	{label: "Unhandled Limit Price Unmarshal Error", payload: `{"channel": "limit_price", "data": [ { "ts": 1739346571315, "s": 124, "buyLmt": "100790.67", "sellLmt": "91191.57" } ], "action": "update" }`, errExplanation: "Unhandled event message"},
+	{label: "Unhandled Open Interest Unmarshal Error", payload: `{"channel": "open_interest", "data": [ { "s": 123, "oInterest": "19774.000000000000000000", "ts": 1747296831379 } ], "action": "snapshot"}`, errExplanation: "Unhandled event message"},
+	{label: "Unhandled Liquidiation Price Unmarshal Error", payload: `{"channel": "liquidation_orders", "data": [ { "s": "BTC_USDT_PERP", "side": 123, "posSide": "BOTH", "sz": "1", "bkPx": "94120.8368032", "uTime": 1739367328421, "ts": 1739367328446}]}`, errExplanation: "Unhandled event message"},
 	{label: "Unmarshal Error", payload: `{"channel":"abc","data":[]`, errExplanation: "Unexpected JSON input error"},
 	{label: "Unhandled Channel", payload: `{"channel":"abc","data":[]}`, errExplanation: "Unhandled channel message"},
 	{label: "Unhandled Event", payload: `{"event": "abc"}`, errExplanation: "Unhandled event message"},

@@ -794,7 +794,7 @@ type SmartOrderDetails struct {
 	TrailingOffset  string            `json:"trailingOffset"`
 	LimitOffset     string            `json:"limitOffset"`
 	ActivationPrice types.Number      `json:"activationPrice"`
-	Operatir        string            `json:"operator"`
+	Operator        string            `json:"operator"`
 }
 
 // TradeHistory represents an order trade history instance.

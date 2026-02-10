@@ -88,6 +88,7 @@ func (e *Exchange) SetDefaults() {
 				OrderbookFetching:     true,
 				AutoPairUpdates:       true,
 				AccountInfo:           true,
+				AccountBalance:        true,
 				GetOrder:              true,
 				GetOrders:             true,
 				CancelOrder:           true,
@@ -583,6 +584,7 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 			Fee:             walletWithdrawal.Fee.Float64(),
 			CryptoToAddress: walletWithdrawal.Address,
 			CryptoTxID:      walletWithdrawal.TransactionID,
+			TransferID:      strconv.FormatUint(walletWithdrawal.WithdrawalRequestsID, 10),
 		})
 	}
 	return resp, nil
@@ -676,7 +678,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		switch s.Type {
 		case order.Stop, order.StopLimit, order.TrailingStop, order.TrailingStopLimit:
 			var trackingDistance string
-			if s.Type&order.TrailingStop == order.TrailingStop {
+			if s.Type.Is(order.TrailingStop) {
 				trackingDistance = strconv.FormatFloat(s.TrackingValue, 'f', -1, 64)
 				if s.TrackingMode == order.Percentage {
 					trackingDistance += "%"
@@ -689,7 +691,10 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 					trackingDistance += "%"
 				}
 			}
-
+			stopDirection := "GTC"
+			if s.StopDirection == order.StopDown {
+				stopDirection = "LTE"
+			}
 			sOrder, err := e.CreateSmartOrder(ctx, &SmartOrderRequest{
 				Symbol:         s.Pair,
 				Type:           OrderType(s.Type),
@@ -703,6 +708,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				TimeInForce:    TimeInForce(s.TimeInForce),
 				TrailingOffset: trackingDistance,
 				LimitOffset:    limitOffset,
+				Operator:       stopDirection,
 			})
 			if err != nil {
 				return nil, err
@@ -788,7 +794,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	case order.Market, order.Limit, order.LimitMaker:
 		resp, err := e.CancelReplaceOrder(ctx, &CancelReplaceOrderRequest{
 			OrderID:           action.OrderID,
-			ClientOrderID:     action.ClientOrderID,
+			ClientOrderID:     action.NewClientOrderID,
 			Price:             action.Price,
 			BaseAmount:        action.Amount,
 			AmendedType:       action.Type.String(),
@@ -807,7 +813,8 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	case order.Stop, order.StopLimit:
 		oResp, err := e.CancelReplaceSmartOrder(ctx, &CancelReplaceSmartOrderRequest{
 			OrderID:          action.OrderID,
-			NewClientOrderID: action.ClientOrderID,
+			OldClientOrderID: action.ClientOrderID,
+			NewClientOrderID: action.NewClientOrderID,
 			Price:            action.Price,
 			StopPrice:        action.TriggerPrice,
 			QuoteAmount:      action.Amount,
@@ -890,16 +897,12 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			}
 		}
 	}
-	type ordersToCancel struct {
-		orderIDs       []string
-		clientOrderIDs []string
-	}
-	var orderAndClientIDs ordersToCancel
+	var orderIDs, clientOrderIDs []string
 	for i := range o {
 		if o[i].OrderID != "" {
-			orderAndClientIDs.orderIDs = append(orderAndClientIDs.orderIDs, o[i].OrderID)
+			orderIDs = append(orderIDs, o[i].OrderID)
 		} else {
-			orderAndClientIDs.clientOrderIDs = append(orderAndClientIDs.clientOrderIDs, o[i].ClientOrderID)
+			clientOrderIDs = append(clientOrderIDs, o[i].ClientOrderID)
 		}
 	}
 	resp := &order.CancelBatchResponse{
@@ -907,18 +910,20 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	}
 	switch a {
 	case asset.Spot:
-		var r []*CancelOrderResponse
-		var err error
+		var (
+			r   []*CancelOrderResponse
+			err error
+		)
 		if isSmartOrder {
 			r, err = e.CancelMultipleSmartOrders(ctx, &CancelOrdersRequest{
-				OrderIDs:       orderAndClientIDs.orderIDs,
-				ClientOrderIDs: orderAndClientIDs.clientOrderIDs,
+				OrderIDs:       orderIDs,
+				ClientOrderIDs: clientOrderIDs,
 			})
 		} else {
-			r, err = e.CancelOrdersByIDs(ctx, orderAndClientIDs.orderIDs, orderAndClientIDs.clientOrderIDs)
+			r, err = e.CancelOrdersByIDs(ctx, orderIDs, clientOrderIDs)
 		}
 		for _, co := range r {
-			if slices.Contains(orderAndClientIDs.orderIDs, co.OrderID) {
+			if slices.Contains(orderIDs, co.OrderID) {
 				resp.Status[co.OrderID] = co.State + " " + co.Message
 			} else {
 				resp.Status[co.ClientOrderID] = co.State + " " + co.Message
@@ -930,15 +935,15 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 	case asset.Futures:
 		cancelledOrders, err := e.CancelMultipleFuturesOrders(ctx, &CancelFuturesOrdersRequest{
 			Symbol:         p,
-			OrderIDs:       orderAndClientIDs.orderIDs,
-			ClientOrderIDs: orderAndClientIDs.clientOrderIDs,
+			OrderIDs:       orderIDs,
+			ClientOrderIDs: clientOrderIDs,
 		})
 		for _, co := range cancelledOrders {
 			cancellationStatus := order.Cancelled.String()
 			if co.Code != 200 && co.Code != 0 {
 				cancellationStatus = "Failed"
 			}
-			if slices.Contains(orderAndClientIDs.orderIDs, co.OrderID) {
+			if slices.Contains(orderIDs, co.OrderID) {
 				resp.Status[co.OrderID] = cancellationStatus
 			} else {
 				resp.Status[co.ClientOrderID] = cancellationStatus
@@ -953,23 +958,22 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel) (order.CancelAllResponse, error) {
-	cancelAllOrdersResponse := order.CancelAllResponse{
-		Status: make(map[string]string),
-	}
 	if cancelOrd == nil {
-		return cancelAllOrdersResponse, common.ErrNilPointer
+		return order.CancelAllResponse{}, common.ErrNilPointer
 	}
 	var pairs currency.Pairs
 	if !cancelOrd.Pair.IsEmpty() {
 		fPair, err := e.FormatExchangeCurrency(cancelOrd.Pair, cancelOrd.AssetType)
 		if err != nil {
-			return cancelAllOrdersResponse, err
+			return order.CancelAllResponse{}, err
 		}
 		pairs = append(pairs, fPair)
 	}
+	cancelAllOrdersResponse := order.CancelAllResponse{
+		Status: make(map[string]string),
+	}
 	switch cancelOrd.AssetType {
 	case asset.Spot:
-
 		if IsSmartOrderType(cancelOrd.Type) {
 			var orderTypes []OrderType
 			if cancelOrd.Type != order.UnknownType {
@@ -1057,10 +1061,8 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			switch {
 			case err != nil:
 				return nil, err
-			case len(smartOrders) == 0:
-				return nil, order.ErrOrderNotFound
 			case len(smartOrders) != 1:
-				return nil, fmt.Errorf("%w: too may smart orders returned", common.ErrInvalidResponse)
+				return nil, fmt.Errorf("%w: expected smart order lenght must be 1", common.ErrInvalidResponse)
 			}
 			s := smartOrders[0]
 			oType, err := order.StringToOrderType(s.Type)
@@ -1083,6 +1085,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 				Type:          oType,
 				Status:        orderStateFromString(s.State),
 				AssetType:     stringToAccountType(s.AccountType),
+				TriggerPrice:  s.ActivationPrice.Float64(),
 			}, nil
 		}
 		oType, err := order.StringToOrderType(resp.Type)
@@ -1300,7 +1303,8 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				Type:        oType,
 				OrderID:     td.ID,
 				Side:        td.Side,
-				Amount:      td.QuoteAmount.Float64(),
+				Amount:      td.BaseAmount.Float64(),
+				QuoteAmount: td.QuoteAmount.Float64(),
 				Date:        td.CreateTime.Time(),
 				Price:       td.Price.Float64(),
 				Pair:        td.Symbol,
@@ -1428,14 +1432,14 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				detail := order.Detail{
 					OrderID:              strconv.FormatUint(tOrder.ID, 10),
 					Side:                 tOrder.Side,
-					Amount:               tOrder.QuoteAmount.Float64(),
+					Amount:               tOrder.BaseAmount.Float64(),
 					ExecutedAmount:       tOrder.FilledAmount.Float64(),
 					Price:                tOrder.Price.Float64(),
 					AverageExecutedPrice: tOrder.AveragePrice.Float64(),
 					Pair:                 tOrder.Symbol,
 					Type:                 oType,
 					Exchange:             e.Name,
-					QuoteAmount:          tOrder.QuoteAmount.Float64() * tOrder.AveragePrice.Float64(),
+					QuoteAmount:          tOrder.QuoteAmount.Float64(),
 					RemainingAmount:      tOrder.BaseAmount.Float64() - tOrder.FilledQuantity.Float64(),
 					ClientOrderID:        tOrder.ClientOrderID,
 					Status:               orderStateFromString(tOrder.State),
@@ -1482,7 +1486,8 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				}
 				detail := order.Detail{
 					Side:          smartOrder.Side,
-					Amount:        smartOrder.QuoteAmount.Float64(),
+					Amount:        smartOrder.BaseAmount.Float64(),
+					QuoteAmount:   smartOrder.QuoteAmount.Float64(),
 					Price:         smartOrder.Price.Float64(),
 					TriggerPrice:  smartOrder.StopPrice.Float64(),
 					Pair:          smartOrder.Symbol,
@@ -1873,7 +1878,7 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 		Price:                   s.Price,
 		BaseAmount:              s.Amount,
 		QuoteAmount:             s.QuoteAmount,
-		AllowBorrow:             false,
+		AllowBorrow:             s.AutoBorrow,
 		Type:                    OrderType(s.Type),
 		Side:                    s.Side,
 		TimeInForce:             TimeInForce(s.TimeInForce),

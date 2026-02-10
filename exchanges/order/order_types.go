@@ -168,13 +168,14 @@ const (
 // are required to be populated
 type Modify struct {
 	// Order Identifiers
-	Exchange      string
-	OrderID       string
-	ClientOrderID string
-	Type          Type
-	Side          Side
-	AssetType     asset.Item
-	Pair          currency.Pair
+	Exchange         string
+	OrderID          string
+	ClientOrderID    string
+	NewClientOrderID string
+	Type             Type
+	Side             Side
+	AssetType        asset.Item
+	Pair             currency.Pair
 
 	// Change fields
 	TimeInForce  TimeInForce
