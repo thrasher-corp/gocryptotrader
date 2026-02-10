@@ -1062,7 +1062,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			case err != nil:
 				return nil, err
 			case len(smartOrders) != 1:
-				return nil, fmt.Errorf("%w: expected smart order lenght must be 1", common.ErrInvalidResponse)
+				return nil, fmt.Errorf("%w: expected smart order length must be 1", common.ErrInvalidResponse)
 			}
 			s := smartOrders[0]
 			oType, err := order.StringToOrderType(s.Type)

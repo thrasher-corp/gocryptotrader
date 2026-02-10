@@ -2223,6 +2223,7 @@ func TestWsSpotPrivateHandleData(t *testing.T) {
 		require.NoError(t, err)
 
 		synctest.Test(t, func(t *testing.T) {
+			t.Helper()
 			dtimer := time.NewTimer(time.Millisecond * 10)
 			select {
 			case <-buf:
