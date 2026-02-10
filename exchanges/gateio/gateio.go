@@ -933,6 +933,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers["TIMESTAMP"] = strconv.FormatInt(timestamp.Unix(), 10)
 		headers["Accept"] = "application/json"
 		headers["SIGN"] = sig
+		headers["X-Gate-Size-Decimal"] = "1"
 		urlPath = ePoint + urlPath
 		if param != nil {
 			urlPath = common.EncodeURLValues(urlPath, param)
@@ -993,6 +994,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 		HTTPDebugging:          e.HTTPDebugging,
 		HTTPRecording:          e.HTTPRecording,
 		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
+		Headers:                map[string]string{"X-Gate-Size-Decimal": "1"},
 	}
 	return e.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return item, nil

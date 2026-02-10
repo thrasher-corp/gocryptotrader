@@ -344,7 +344,7 @@ func (e *Exchange) processFuturesTrades(data []byte, assetType asset.Item) error
 			AssetType:    assetType,
 			Exchange:     e.Name,
 			Price:        resp.Result[x].Price.Float64(),
-			Amount:       resp.Result[x].Size,
+			Amount:       resp.Result[x].Size.Float64(),
 			TID:          strconv.FormatInt(resp.Result[x].ID, 10),
 		}
 	}
@@ -382,7 +382,7 @@ func (e *Exchange) processFuturesCandlesticks(ctx context.Context, data []byte, 
 			ClosePrice: resp.Result[x].ClosePrice.Float64(),
 			HighPrice:  resp.Result[x].HighestPrice.Float64(),
 			LowPrice:   resp.Result[x].LowestPrice.Float64(),
-			Volume:     resp.Result[x].Volume,
+			Volume:     resp.Result[x].Volume.Float64(),
 		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, klineDatas)
@@ -405,12 +405,12 @@ func (e *Exchange) processFuturesOrderbookUpdate(ctx context.Context, incoming [
 	asks := make([]orderbook.Level, len(data.Asks))
 	for x := range data.Asks {
 		asks[x].Price = data.Asks[x].Price.Float64()
-		asks[x].Amount = data.Asks[x].Size
+		asks[x].Amount = data.Asks[x].Size.Float64()
 	}
 	bids := make([]orderbook.Level, len(data.Bids))
 	for x := range data.Bids {
 		bids[x].Price = data.Bids[x].Price.Float64()
-		bids[x].Amount = data.Bids[x].Size
+		bids[x].Amount = data.Bids[x].Size.Float64()
 	}
 
 	return e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, e, data.FirstUpdatedID, &orderbook.Update{
@@ -442,12 +442,12 @@ func (e *Exchange) processFuturesOrderbookSnapshot(event string, incoming []byte
 		}
 		base.Asks = make([]orderbook.Level, len(data.Asks))
 		for x := range data.Asks {
-			base.Asks[x].Amount = data.Asks[x].Size
+			base.Asks[x].Amount = data.Asks[x].Size.Float64()
 			base.Asks[x].Price = data.Asks[x].Price.Float64()
 		}
 		base.Bids = make([]orderbook.Level, len(data.Bids))
 		for x := range data.Bids {
-			base.Bids[x].Amount = data.Bids[x].Size
+			base.Bids[x].Amount = data.Bids[x].Size.Float64()
 			base.Bids[x].Price = data.Bids[x].Price.Float64()
 		}
 		return e.Websocket.Orderbook.LoadSnapshot(&base)
@@ -466,12 +466,12 @@ func (e *Exchange) processFuturesOrderbookSnapshot(event string, incoming []byte
 		if data[x].Amount > 0 {
 			ab[1] = append(ab[1], orderbook.Level{
 				Price:  data[x].Price.Float64(),
-				Amount: data[x].Amount,
+				Amount: data[x].Amount.Float64(),
 			})
 		} else {
 			ab[0] = append(ab[0], orderbook.Level{
 				Price:  data[x].Price.Float64(),
-				Amount: -data[x].Amount,
+				Amount: -data[x].Amount.Float64(),
 			})
 		}
 		if !ok {
@@ -531,15 +531,15 @@ func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Ite
 		}
 
 		orderDetails[x] = order.Detail{
-			Amount:         resp.Result[x].Size,
+			Amount:         resp.Result[x].Size.Float64(),
 			Exchange:       e.Name,
 			OrderID:        strconv.FormatInt(resp.Result[x].ID, 10),
 			Status:         status,
 			Pair:           resp.Result[x].Contract,
 			LastUpdated:    resp.Result[x].FinishTime.Time(),
 			Date:           resp.Result[x].CreateTime.Time(),
-			ExecutedAmount: resp.Result[x].Size - resp.Result[x].Left,
-			Price:          resp.Result[x].Price,
+			ExecutedAmount: resp.Result[x].Size.Float64() - resp.Result[x].Left.Float64(),
+			Price:          resp.Result[x].Price.Float64(),
 			AssetType:      assetType,
 			AccountID:      resp.Result[x].User,
 			CloseTime:      resp.Result[x].FinishTime.Time(),
@@ -572,7 +572,7 @@ func (e *Exchange) procesFuturesUserTrades(data []byte, assetType asset.Item) er
 			OrderID:      resp.Result[x].OrderID,
 			TradeID:      resp.Result[x].ID,
 			Price:        resp.Result[x].Price.Float64(),
-			Amount:       resp.Result[x].Size,
+			Amount:       resp.Result[x].Size.Float64(),
 			AssetType:    assetType,
 		}
 	}
@@ -635,9 +635,9 @@ func (e *Exchange) processBalancePushData(ctx context.Context, data []byte, asse
 		}
 		a := accounts.NewSubAccount(assetType, bal.User)
 		a.Balances.Set(c, accounts.Balance{
-			Total:                  bal.Balance,
-			Free:                   bal.Balance,
-			AvailableWithoutBorrow: bal.Balance,
+			Total:                  bal.Balance.Float64(),
+			Free:                   bal.Balance.Float64(),
+			AvailableWithoutBorrow: bal.Balance.Float64(),
 			UpdatedAt:              bal.Time.Time(),
 		})
 		subAccts = subAccts.Merge(a)
