@@ -9344,12 +9344,36 @@
    "POST": [
     {
      "data": {
-      "code": 200,
-      "message": "",
-      "data": {
        "id": "10000009",
        "clientOrderId": "999999910"
-      }
+     },
+     "queryString": "",
+     "bodyParams": "{\"symbol\":\"BTC_USDT\",\"side\":\"BUY\",\"accountType\":\"SPOT\",\"type\":\"TRAILING_STOP_LIMIT\",\"price\":\"10\",\"stopPrice\":\"11\",\"quantity\":\"10000000\",\"clientOrderId\":\"999999910\",\"trailingOffset\":\"5%\",\"limitOffset\":\"1%\",\"operator\":\"GTC\"}",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Recvwindow": [
+       "1500"
+      ],
+      "Signature": [
+       "dV4tXkbzo4ZvFnpDkMca2Z8patXhvwUEcmn/YEsqqjs="
+      ],
+      "Signaturemethod": [
+       "hmacSHA256"
+      ],
+      "Signtimestamp": [
+       "1743968911176"
+      ]
+     }
+    },
+    {
+     "data": {
+       "id": "10000009",
+       "clientOrderId": "999999910"
      },
      "queryString": "",
      "bodyParams": "{\"symbol\":\"BTC_USDT\",\"side\":\"BUY\",\"timeInForce\":\"GTC\",\"type\":\"STOP_LIMIT\",\"price\":\"100000.5\",\"quantity\":\"100\",\"clientOrderId\":\"1234Abc\"}",

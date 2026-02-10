@@ -688,7 +688,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			if s.Type == order.TrailingStopLimit {
 				limitOffset = strconv.FormatFloat(s.LimitTrackingValue, 'f', -1, 64)
 				if s.LimitTrackingMode == order.Percentage {
-					trackingDistance += "%"
+					limitOffset += "%"
 				}
 			}
 			stopDirection := "GTC"
@@ -930,7 +930,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			}
 		}
 		if err != nil {
-			return nil, err
+			return resp, err
 		}
 	case asset.Futures:
 		cancelledOrders, err := e.CancelMultipleFuturesOrders(ctx, &CancelFuturesOrdersRequest{
@@ -950,7 +950,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			}
 		}
 		if err != nil {
-			return nil, err
+			return resp, err
 		}
 	}
 	return resp, nil
@@ -961,69 +961,69 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancelOrd *order.Cancel)
 	if cancelOrd == nil {
 		return order.CancelAllResponse{}, common.ErrNilPointer
 	}
-	var pairs currency.Pairs
-	if !cancelOrd.Pair.IsEmpty() {
-		fPair, err := e.FormatExchangeCurrency(cancelOrd.Pair, cancelOrd.AssetType)
-		if err != nil {
-			return order.CancelAllResponse{}, err
-		}
-		pairs = append(pairs, fPair)
-	}
 	cancelAllOrdersResponse := order.CancelAllResponse{
 		Status: make(map[string]string),
 	}
 	switch cancelOrd.AssetType {
 	case asset.Spot:
-		if IsSmartOrderType(cancelOrd.Type) {
+		var pairs currency.Pairs
+		if !cancelOrd.Pair.IsEmpty() {
+			var err error
+			cancelOrd.Pair, err = e.FormatExchangeCurrency(cancelOrd.Pair, cancelOrd.AssetType)
+			if err != nil {
+				return order.CancelAllResponse{}, err
+			}
+			pairs = append(pairs, cancelOrd.Pair)
+		}
+		switch {
+		case IsSmartOrderType(cancelOrd.Type):
 			var orderTypes []OrderType
 			if cancelOrd.Type != order.UnknownType {
 				orderTypes = append(orderTypes, OrderType(cancelOrd.Type))
 			}
 			resp, err := e.CancelSmartOrders(ctx, pairs, nil, orderTypes)
-			if err != nil {
-				return cancelAllOrdersResponse, err
-			}
 			for _, co := range resp {
 				cancelAllOrdersResponse.Status[co.OrderID] = co.State
 			}
-		} else {
-			if e.Websocket.IsConnected() && e.Websocket.CanUseAuthenticatedEndpoints() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				wsResponse, err := e.WsCancelTradeOrders(ctx, pairs.Strings(), []AccountType{AccountType(cancelOrd.AssetType)})
-				for _, wco := range wsResponse {
-					cancelAllOrdersResponse.Status[strconv.FormatUint(wco.OrderID, 10)] = wco.State
-					if wco.Code != 0 && wco.Code != 200 {
-						cancelAllOrdersResponse.Status[strconv.FormatUint(wco.OrderID, 10)] = "Failed"
-					}
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
+		case e.Websocket.IsConnected() && e.Websocket.CanUseAuthenticatedEndpoints() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper():
+			wsResponse, err := e.WsCancelTradeOrders(ctx, pairs.Strings(), []AccountType{AccountType(cancelOrd.AssetType)})
+			for _, wco := range wsResponse {
+				cancelAllOrdersResponse.Status[strconv.FormatUint(wco.OrderID, 10)] = wco.State
+				if wco.Code != 0 && wco.Code != 200 {
+					cancelAllOrdersResponse.Status[strconv.FormatUint(wco.OrderID, 10)] = "Failed"
 				}
-				if err != nil {
-					return cancelAllOrdersResponse, err
+			}
+			if err != nil {
+				return cancelAllOrdersResponse, err
+			}
+		default:
+			resp, err := e.CancelTradeOrders(ctx, pairs.Strings(), []AccountType{AccountType(cancelOrd.AssetType)})
+			for _, co := range resp {
+				cancelAllOrdersResponse.Status[co.OrderID] = co.State
+				if co.Code != 0 && co.Code != 200 {
+					cancelAllOrdersResponse.Status[co.OrderID] = "Failed"
 				}
-			} else {
-				resp, err := e.CancelTradeOrders(ctx, pairs.Strings(), []AccountType{AccountType(cancelOrd.AssetType)})
-				for _, co := range resp {
-					cancelAllOrdersResponse.Status[co.OrderID] = co.State
-					if co.Code != 0 && co.Code != 200 {
-						cancelAllOrdersResponse.Status[co.OrderID] = "Failed"
-					}
-				}
-				if err != nil {
-					return cancelAllOrdersResponse, err
-				}
+			}
+			if err != nil {
+				return cancelAllOrdersResponse, err
 			}
 		}
 	case asset.Futures:
 		result, err := e.CancelFuturesOrders(ctx, cancelOrd.Pair, cancelOrd.Side.String())
-		if err != nil {
-			return cancelAllOrdersResponse, err
-		}
 		for _, co := range result {
 			cancelAllOrdersResponse.Status[co.OrderID] = order.Cancelled.String()
 			if co.Code != 0 && co.Code != 200 {
 				cancelAllOrdersResponse.Status[co.OrderID] = "Failed"
 			}
 		}
+		if err != nil {
+			return cancelAllOrdersResponse, err
+		}
 	default:
-		return cancelAllOrdersResponse, fmt.Errorf("%w: %q", asset.ErrNotSupported, cancelOrd.AssetType)
+		return order.CancelAllResponse{}, fmt.Errorf("%w: %q", asset.ErrNotSupported, cancelOrd.AssetType)
 	}
 	return cancelAllOrdersResponse, nil
 }
