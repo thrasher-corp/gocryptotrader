@@ -365,6 +365,7 @@ const (
 	UnknownType Type = 0
 	Limit       Type = 1 << iota
 	Market
+	LimitMaker
 	Stop
 	TakeProfit
 	TrailingStop
@@ -372,6 +373,8 @@ const (
 	AnyType
 	Liquidation
 	Trigger
+	SOR             // smart-order-routine(SOR) used in Binance
+	OTO             // one-trigger-other used in Binance: https://developers.binance.com/docs/binance-spot-api-docs/enums#contingencytype
 	OCO             // One-cancels-the-other order
 	ConditionalStop // One-way stop order
 	TWAP            // time-weighted average price
@@ -383,6 +386,7 @@ const (
 	StopLimit        = Stop | Limit
 	StopMarket       = Stop | Market
 	TakeProfitMarket = TakeProfit | Market
+	TakeProfitLimit  = TakeProfit | Limit
 	Bracket          = Stop | TakeProfit
 )
 
@@ -398,6 +402,7 @@ const (
 	orderChase                 = "CHASE"
 	orderTakeProfit            = "TAKE PROFIT"
 	orderTakeProfitMarket      = "TAKE PROFIT MARKET"
+	orderTakeProfitLimit       = "TAKE PROFIT LIMIT"
 	orderTrailingStop          = "TRAILING_STOP"
 	orderIOS                   = "IOS"
 	orderLiquidation           = "LIQUIDATION"
@@ -407,6 +412,9 @@ const (
 	orderMarketMakerProtection = "MMP"
 	orderBracket               = "BRACKET"
 	orderAnyType               = "ANY"
+	orderOTO                   = "OTO"
+	orderSOR                   = "SOR"
+	orderLimitMaker            = "LIMIT_MAKER"
 )
 
 // AllOrderTypes collects all order types for easy and consistent comparisons

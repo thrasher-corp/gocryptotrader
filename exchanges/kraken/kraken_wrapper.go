@@ -656,6 +656,15 @@ func (e *Exchange) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset
 	return nil, common.ErrFunctionNotSupported
 }
 
+func timeInForceString(tif order.TimeInForce) (string, error) {
+	switch {
+	case tif.Is(order.GoodTillCancel), tif.Is(order.GoodTillDay), tif.Is(order.ImmediateOrCancel), tif == order.UnknownTIF:
+		return tif.String(), nil
+	default:
+		return "", fmt.Errorf("%w: `%s`", order.ErrUnsupportedTimeInForce, tif.String())
+	}
+}
+
 // SubmitOrder submits a new order
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	err := s.Validate(e.GetTradingRequirements())
@@ -667,12 +676,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	status := order.New
 	switch s.AssetType {
 	case asset.Spot:
-		var timeInForce string
-		switch {
-		case s.TimeInForce.Is(order.GoodTillDay):
-			timeInForce = "GTD"
-		case s.TimeInForce.Is(order.ImmediateOrCancel):
-			timeInForce = "IOC"
+		timeInForce, err := timeInForceString(s.TimeInForce)
+		if err != nil {
+			return nil, err
 		}
 		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			orderID, err = e.wsAddOrder(ctx, &WsAddOrderRequest{

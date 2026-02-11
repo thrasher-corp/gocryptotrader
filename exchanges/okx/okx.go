@@ -450,7 +450,7 @@ func (e *Exchange) PlaceTWAPOrder(ctx context.Context, arg *AlgoOrderParams) (*A
 		return nil, errInvalidPriceLimit
 	}
 	if IntervalFromString(arg.TimeInterval, true) == "" {
-		return nil, errMissingIntervalValue
+		return nil, kline.ErrUnsupportedInterval
 	}
 	return e.PlaceAlgoOrder(ctx, arg)
 }
@@ -740,7 +740,7 @@ func (e *Exchange) CancelAllMMPOrders(ctx context.Context, instrumentType, instr
 		return nil, errInstrumentFamilyRequired
 	}
 	if lockInterval < 0 || lockInterval > 10000 {
-		return nil, fmt.Errorf("%w, LockInterval value range should be between 0 and 10000", errMissingIntervalValue)
+		return nil, fmt.Errorf("%w, LockInterval value range should be between 0 and 10000", kline.ErrUnsupportedInterval)
 	}
 	arg := &struct {
 		InstrumentType   string `json:"instType,omitempty"`
@@ -915,7 +915,7 @@ func (e *Exchange) CreateQuote(ctx context.Context, arg *CreateQuoteParams) (*Qu
 	arg.QuoteSide = strings.ToLower(arg.QuoteSide)
 	switch {
 	case arg.RFQID == "":
-		return nil, errMissingRFQID
+		return nil, fmt.Errorf("%w: rfq id is required", order.ErrOrderIDNotSet)
 	case arg.QuoteSide != order.Buy.Lower() && arg.QuoteSide != order.Sell.Lower():
 		return nil, order.ErrSideIsInvalid
 	case len(arg.Legs) == 0:
@@ -928,7 +928,7 @@ func (e *Exchange) CreateQuote(ctx context.Context, arg *CreateQuoteParams) (*Qu
 		case arg.Legs[x].SizeOfQuoteLeg <= 0:
 			return nil, errMissingSizeOfQuote
 		case arg.Legs[x].Price <= 0:
-			return nil, errMissingLegsQuotePrice
+			return nil, fmt.Errorf("%w: missing quote price", limits.ErrPriceBelowMin)
 		case arg.Legs[x].Side == order.UnknownSide:
 			return nil, order.ErrSideIsInvalid
 		}
@@ -2506,7 +2506,7 @@ func (e *Exchange) ManualBorrowOrRepay(ctx context.Context, ccy currency.Code, s
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if side == "" {
-		return nil, errLendingSideRequired
+		return nil, fmt.Errorf("%w: lending side is required", order.ErrSideIsInvalid)
 	}
 	if amount <= 0 {
 		return nil, limits.ErrAmountBelowMin
@@ -2984,7 +2984,7 @@ func (e *Exchange) AmendGridAlgoOrder(ctx context.Context, arg *GridAlgoOrderAme
 		return nil, common.ErrEmptyParams
 	}
 	if arg.AlgoID == "" {
-		return nil, errAlgoIDRequired
+		return nil, fmt.Errorf("%w: algo id is required", order.ErrOrderIDNotSet)
 	}
 	if arg.InstrumentID == "" {
 		return nil, errMissingInstrumentID
@@ -3011,7 +3011,7 @@ func (e *Exchange) StopGridAlgoOrder(ctx context.Context, arg []StopGridAlgoOrde
 			return nil, common.ErrEmptyParams
 		}
 		if arg[x].AlgoID == "" {
-			return nil, errAlgoIDRequired
+			return nil, fmt.Errorf("%w: algo id is required", order.ErrOrderIDNotSet)
 		}
 		if arg[x].InstrumentID == "" {
 			return nil, errMissingInstrumentID
@@ -3047,7 +3047,7 @@ func (e *Exchange) ClosePositionForContractID(ctx context.Context, arg *ClosePos
 		return nil, common.ErrEmptyParams
 	}
 	if arg.AlgoID == "" {
-		return nil, errAlgoIDRequired
+		return nil, fmt.Errorf("%w: algo id is required", order.ErrOrderIDNotSet)
 	}
 	if !arg.MarketCloseAllPositions && arg.Size <= 0 {
 		return nil, fmt.Errorf("%w 'size' is required", order.ErrAmountMustBeSet)
@@ -3065,7 +3065,7 @@ func (e *Exchange) CancelClosePositionOrderForContractGrid(ctx context.Context, 
 		return nil, common.ErrEmptyParams
 	}
 	if arg.AlgoID == "" {
-		return nil, errAlgoIDRequired
+		return nil, fmt.Errorf("%w: algo id is required", order.ErrOrderIDNotSet)
 	}
 	if arg.OrderID == "" {
 		return nil, order.ErrOrderIDNotSet
@@ -3144,7 +3144,7 @@ func (e *Exchange) GetGridAlgoOrderDetails(ctx context.Context, algoOrderType, a
 		return nil, errMissingAlgoOrderType
 	}
 	if algoID == "" {
-		return nil, errAlgoIDRequired
+		return nil, fmt.Errorf("%w: algo id is required", order.ErrOrderIDNotSet)
 	}
 	params := url.Values{}
 	params.Set("algoOrdType", algoOrderType)
@@ -3160,7 +3160,7 @@ func (e *Exchange) GetGridAlgoSubOrders(ctx context.Context, algoOrderType, algo
 		return nil, errMissingAlgoOrderType
 	}
 	if algoID == "" {
-		return nil, errAlgoIDRequired
+		return nil, fmt.Errorf("%w: algo id is required", order.ErrOrderIDNotSet)
 	}
 	if subOrderType != "live" && subOrderType != order.Filled.String() {
 		return nil, errMissingSubOrderType
@@ -3191,7 +3191,7 @@ func (e *Exchange) GetGridAlgoOrderPositions(ctx context.Context, algoOrderType,
 		return nil, errInvalidAlgoOrderType
 	}
 	if algoID == "" {
-		return nil, errAlgoIDRequired
+		return nil, fmt.Errorf("%w: algo id is required", order.ErrOrderIDNotSet)
 	}
 	params := url.Values{}
 	params.Set("algoOrdType", algoOrderType)
@@ -3203,7 +3203,7 @@ func (e *Exchange) GetGridAlgoOrderPositions(ctx context.Context, algoOrderType,
 // SpotGridWithdrawProfit returns the spot grid orders withdrawal profit given an instrument id
 func (e *Exchange) SpotGridWithdrawProfit(ctx context.Context, algoID string) (*AlgoOrderWithdrawalProfit, error) {
 	if algoID == "" {
-		return nil, errAlgoIDRequired
+		return nil, fmt.Errorf("%w: algo id is required", order.ErrOrderIDNotSet)
 	}
 	input := &struct {
 		AlgoID string `json:"algoId"`
@@ -3217,7 +3217,7 @@ func (e *Exchange) SpotGridWithdrawProfit(ctx context.Context, algoID string) (*
 // ComputeMarginBalance computes margin balance with 'add' and 'reduce' balance type
 func (e *Exchange) ComputeMarginBalance(ctx context.Context, arg MarginBalanceParam) (*ComputeMarginBalance, error) {
 	if arg.AlgoID == "" {
-		return nil, errAlgoIDRequired
+		return nil, fmt.Errorf("%w: algo id is required", order.ErrOrderIDNotSet)
 	}
 	if arg.AdjustMarginBalanceType != "add" && arg.AdjustMarginBalanceType != marginBalanceReduce {
 		return nil, errInvalidMarginTypeAdjust
@@ -3232,7 +3232,7 @@ func (e *Exchange) AdjustMarginBalance(ctx context.Context, arg *MarginBalancePa
 		return nil, common.ErrEmptyParams
 	}
 	if arg.AlgoID == "" {
-		return nil, errAlgoIDRequired
+		return nil, fmt.Errorf("%w: algo id is required", order.ErrOrderIDNotSet)
 	}
 	if arg.AdjustMarginBalanceType != "add" && arg.AdjustMarginBalanceType != marginBalanceReduce {
 		return nil, errInvalidMarginTypeAdjust
@@ -3353,7 +3353,7 @@ func (e *Exchange) GetSignalBotOrderDetail(ctx context.Context, algoOrderType, a
 		return nil, errInvalidAlgoOrderType
 	}
 	if algoID == "" {
-		return nil, errAlgoIDRequired
+		return nil, fmt.Errorf("%w: algo id is required", order.ErrOrderIDNotSet)
 	}
 	params := url.Values{}
 	params.Set("algoId", algoID)
@@ -3368,7 +3368,7 @@ func (e *Exchange) GetSignalOrderPositions(ctx context.Context, algoOrderType, a
 		return nil, errInvalidAlgoOrderType
 	}
 	if algoID == "" {
-		return nil, errAlgoIDRequired
+		return nil, fmt.Errorf("%w: algo id is required", order.ErrOrderIDNotSet)
 	}
 	params := url.Values{}
 	params.Set("algoId", algoID)
@@ -3380,7 +3380,7 @@ func (e *Exchange) GetSignalOrderPositions(ctx context.Context, algoOrderType, a
 // GetSignalBotSubOrders retrieves historical filled sub orders and designated sub orders
 func (e *Exchange) GetSignalBotSubOrders(ctx context.Context, algoID, algoOrderType, subOrderType, clientOrderID, afterPaginationID, beforePaginationID string, begin, end time.Time, limit int64) ([]SubOrder, error) {
 	if algoID == "" {
-		return nil, errAlgoIDRequired
+		return nil, fmt.Errorf("%w: algo id is required", order.ErrOrderIDNotSet)
 	}
 	if algoOrderType == "" {
 		return nil, errInvalidAlgoOrderType
@@ -3418,7 +3418,7 @@ func (e *Exchange) GetSignalBotSubOrders(ctx context.Context, algoID, algoOrderT
 // GetSignalBotEventHistory retrieves signal bot event history
 func (e *Exchange) GetSignalBotEventHistory(ctx context.Context, algoID string, after, before time.Time, limit int64) ([]SignalBotEventHistory, error) {
 	if algoID == "" {
-		return nil, errAlgoIDRequired
+		return nil, fmt.Errorf("%w: algo id is required", order.ErrOrderIDNotSet)
 	}
 	params := url.Values{}
 	params.Set("algoId", algoID)
@@ -3474,7 +3474,7 @@ func (e *Exchange) AmendRecurringBuyOrder(ctx context.Context, arg *AmendRecurri
 		return nil, common.ErrEmptyParams
 	}
 	if arg.AlgoID == "" {
-		return nil, errAlgoIDRequired
+		return nil, fmt.Errorf("%w: algo id is required", order.ErrOrderIDNotSet)
 	}
 	if arg.StrategyName == "" {
 		return nil, errStrategyNameRequired
@@ -3490,7 +3490,7 @@ func (e *Exchange) StopRecurringBuyOrder(ctx context.Context, arg []StopRecurrin
 	}
 	for x := range arg {
 		if arg[x].AlgoID == "" {
-			return nil, errAlgoIDRequired
+			return nil, fmt.Errorf("%w: algo id is required", order.ErrOrderIDNotSet)
 		}
 	}
 	var resp []RecurringOrderResponse
@@ -3541,7 +3541,7 @@ func (e *Exchange) GetRecurringBuyOrderHistory(ctx context.Context, algoID strin
 // GetRecurringOrderDetails retrieves a single recurring order detail
 func (e *Exchange) GetRecurringOrderDetails(ctx context.Context, algoID, algoOrderState string) (*RecurringOrderDeail, error) {
 	if algoID == "" {
-		return nil, errAlgoIDRequired
+		return nil, fmt.Errorf("%w: algo id is required", order.ErrOrderIDNotSet)
 	}
 	params := url.Values{}
 	params.Set("algoId", algoID)
@@ -3555,7 +3555,7 @@ func (e *Exchange) GetRecurringOrderDetails(ctx context.Context, algoID, algoOrd
 // GetRecurringSubOrders retrieves recurring buy sub orders
 func (e *Exchange) GetRecurringSubOrders(ctx context.Context, algoID, orderID string, after, before time.Time, limit int64) ([]RecurringBuySubOrder, error) {
 	if algoID == "" {
-		return nil, errAlgoIDRequired
+		return nil, fmt.Errorf("%w: algo id is required", order.ErrOrderIDNotSet)
 	}
 	params := url.Values{}
 	params.Set("algoId", algoID)
@@ -4028,7 +4028,7 @@ func (e *Exchange) Purchase(ctx context.Context, arg *PurchaseRequestParam) (*Or
 		return nil, common.ErrNilPointer
 	}
 	if arg.ProductID == "" {
-		return nil, fmt.Errorf("%w, missing product id", errMissingRequiredParameter)
+		return nil, fmt.Errorf("%w, missing product id", order.ErrOrderIDNotSet)
 	}
 	for x := range arg.InvestData {
 		if arg.InvestData[x].Currency.IsEmpty() {
@@ -4938,7 +4938,7 @@ func (e *Exchange) GetDeliveryHistory(ctx context.Context, instrumentType, under
 		}
 	}
 	if limit > 100 {
-		return nil, errLimitValueExceedsMaxOf100
+		return nil, errExceedLimit
 	}
 	params := url.Values{}
 	params.Set("instType", instrumentType)
@@ -5146,7 +5146,7 @@ func (e *Exchange) GetPositionTiers(ctx context.Context, instrumentType, tradeMo
 	switch tradeMode {
 	case TradeModeCross, TradeModeIsolated:
 	default:
-		return nil, errInvalidTradeMode
+		return nil, errInvalidTradeModeValue
 	}
 	params := url.Values{}
 	params.Set("instType", strings.ToUpper(instrumentType))
@@ -5255,7 +5255,7 @@ func (e *Exchange) CurrencyUnitConvert(ctx context.Context, instrumentID string,
 		return nil, errMissingInstrumentID
 	}
 	if quantity <= 0 {
-		return nil, errMissingQuantity
+		return nil, fmt.Errorf("%w: quantity is required", limits.ErrAmountBelowMin)
 	}
 	params := url.Values{}
 	params.Set("instId", instrumentID)
@@ -5481,7 +5481,7 @@ func (e *Exchange) GetTakerFlow(ctx context.Context, ccy currency.Code, period k
 // GetInviteesDetail retrieves affiliate invitees details
 func (e *Exchange) GetInviteesDetail(ctx context.Context, uid string) (*AffilateInviteesDetail, error) {
 	if uid == "" {
-		return nil, errUserIDRequired
+		return nil, fmt.Errorf("%w: uid is required", order.ErrOrderIDNotSet)
 	}
 	var resp *AffilateInviteesDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAffilateInviteesDetailEPL, http.MethodGet, "affiliate/invitee/detail?uid="+uid, nil, &resp, request.AuthenticatedRequest)
@@ -5818,7 +5818,7 @@ func (e *Exchange) CancelWithdrawalOrder(ctx context.Context, orderID string) (*
 // CreateWithdrawalOrder initiate a fiat withdrawal request (Authenticated endpoint, Only for API keys with "Withdrawal" access)
 func (e *Exchange) CreateWithdrawalOrder(ctx context.Context, ccy currency.Code, paymentAccountID, paymentMethod, clientID string, amount float64) (*FiatOrderDetail, error) {
 	if paymentAccountID == "" {
-		return nil, fmt.Errorf("%w, payment account ID is required", errIDNotSet)
+		return nil, fmt.Errorf("%w, payment account ID is required", order.ErrOrderIDNotSet)
 	}
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -5830,7 +5830,7 @@ func (e *Exchange) CreateWithdrawalOrder(ctx context.Context, ccy currency.Code,
 		return nil, errPaymentMethodRequired
 	}
 	if clientID == "" {
-		return nil, fmt.Errorf("%w, client ID is required", errIDNotSet)
+		return nil, fmt.Errorf("%w, client ID is required", order.ErrOrderIDNotSet)
 	}
 	arg := &struct {
 		PaymentMethod string  `json:"paymentMethod"`
