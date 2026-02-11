@@ -2364,7 +2364,7 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 		}
 		return e.deriveFuturesWebsocketOrderResponse(resp)
 	default:
-		return nil, common.ErrNotYetImplemented
+		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, s.AssetType)
 	}
 }
 
@@ -2643,8 +2643,21 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 			return nil, err
 		}
 		return e.deriveSpotWebsocketOrderResponses(resp)
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
+		reqs := make([]*ContractOrderCreateParams, len(orders))
+		for x := range orders {
+			var err error
+			if reqs[x], err = getFuturesOrderRequest(orders[x]); err != nil {
+				return nil, err
+			}
+		}
+		resp, err := e.WebsocketFuturesSubmitOrders(ctx, a, reqs...)
+		if err != nil {
+			return nil, err
+		}
+		return e.deriveFuturesWebsocketOrderResponses(resp)
 	default:
-		return nil, fmt.Errorf("%w for %s", common.ErrNotYetImplemented, a)
+		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
 	}
 }
 

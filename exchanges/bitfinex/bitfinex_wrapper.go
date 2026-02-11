@@ -10,6 +10,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -1156,15 +1157,96 @@ func (e *Exchange) GetFuturesContractDetails(context.Context, asset.Item) ([]fut
 }
 
 // GetLatestFundingRates returns the latest funding rates data
-func (e *Exchange) GetLatestFundingRates(context.Context, *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
-	// TODO: Add futures support for Bitfinex
-	return nil, common.ErrNotYetImplemented
+func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.LatestRateRequest) ([]fundingrate.LatestRateResponse, error) {
+	if r == nil {
+		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
+	}
+	if r.Asset != asset.Futures {
+		return nil, fmt.Errorf("%w %v", futures.ErrNotPerpetualFuture, r.Asset)
+	}
+
+	keys := "ALL"
+	if !r.Pair.IsEmpty() {
+		symbol := r.Pair.Upper().String()
+		if !strings.HasPrefix(strings.ToLower(symbol), "t") {
+			symbol = "t" + symbol
+		}
+		keys = symbol
+	}
+
+	data, err := e.GetDerivativeStatusInfo(ctx, keys, "", "", 0, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := make([]fundingrate.LatestRateResponse, 0, len(data))
+	for i := range data {
+		symbol := strings.TrimPrefix(data[i].Key, "t")
+		pair, err := currency.NewPairFromString(symbol)
+		if err != nil {
+			continue
+		}
+		if !r.Pair.IsEmpty() && !r.Pair.Equal(pair) {
+			continue
+		}
+
+		respData := fundingrate.LatestRateResponse{
+			Exchange:       e.Name,
+			Asset:          r.Asset,
+			Pair:           pair,
+			LatestRate:     fundingrate.Rate{Time: time.UnixMilli(int64(data[i].MTS)), Rate: decimal.NewFromFloat(data[i].CurrentFunding)},
+			TimeChecked:    time.Now(),
+			TimeOfNextRate: time.UnixMilli(int64(data[i].NextFundingEventTS)),
+		}
+		if r.IncludePredictedRate {
+			respData.PredictedUpcomingRate = fundingrate.Rate{
+				Time: respData.TimeOfNextRate,
+				Rate: decimal.NewFromFloat(data[i].NextFundingStep),
+			}
+		}
+		resp = append(resp, respData)
+	}
+	if len(resp) == 0 {
+		return nil, fundingrate.ErrNoFundingRatesFound
+	}
+	return resp, nil
 }
 
 // GetOpenInterest returns the open interest rate for a given asset pair
-func (e *Exchange) GetOpenInterest(context.Context, ...key.PairAsset) ([]futures.OpenInterest, error) {
-	// TODO: Add futures support for Bitfinex
-	return nil, common.ErrNotYetImplemented
+func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]futures.OpenInterest, error) {
+	for i := range k {
+		if k[i].Asset != asset.Futures {
+			return nil, fmt.Errorf("%w %v %v", asset.ErrNotSupported, k[i].Asset, k[i].Pair())
+		}
+	}
+	data, err := e.GetDerivativeStatusInfo(ctx, "ALL", "", "", 0, 0)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := make([]futures.OpenInterest, 0, len(data))
+	for i := range data {
+		symbol := strings.TrimPrefix(data[i].Key, "t")
+		pair, err := currency.NewPairFromString(symbol)
+		if err != nil {
+			continue
+		}
+		var appendData bool
+		for j := range k {
+			if k[j].Pair().Equal(pair) {
+				appendData = true
+				break
+			}
+		}
+		if len(k) > 0 && !appendData {
+			continue
+		}
+		resp = append(resp, futures.OpenInterest{
+			Key:          key.NewExchangeAssetPair(e.Name, asset.Futures, pair),
+			OpenInterest: data[i].OpenInterest,
+		})
+	}
+	return resp, nil
 }
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair

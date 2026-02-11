@@ -2388,16 +2388,20 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 		cp.Delimiter = currency.UnderscoreDelimiter
 		return tradeBaseURL + tradeSpot + cp.Lower().String(), nil
 	case asset.Futures:
-		if !cp.Quote.Equal(currency.USD) && !cp.Quote.Equal(currency.USDT) {
-			// todo: support long dated currencies
-			return "", fmt.Errorf("%w %v requires translating currency into static contracts eg 'weekly'", common.ErrNotYetImplemented, a)
+		if slices.Contains(validContractExpiryCodes, strings.ToUpper(cp.Quote.String())) {
+			cp, err = e.pairFromContractExpiryCode(cp)
+			if err != nil {
+				return "", err
+			}
 		}
 		cp.Delimiter = currency.DashDelimiter
 		return tradeBaseURL + tradeFutures + cp.Upper().String(), nil
 	case asset.CoinMarginedFutures:
-		if !cp.Quote.Equal(currency.USD) && !cp.Quote.Equal(currency.USDT) {
-			// todo: support long dated currencies
-			return "", fmt.Errorf("%w %v requires translating currency into static contracts eg 'weekly'", common.ErrNotYetImplemented, a)
+		if slices.Contains(validContractExpiryCodes, strings.ToUpper(cp.Quote.String())) {
+			cp, err = e.pairFromContractExpiryCode(cp)
+			if err != nil {
+				return "", err
+			}
 		}
 		return tradeBaseURL + tradeCoinMargined + cp.Base.Upper().String(), nil
 	default:

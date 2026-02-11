@@ -1914,12 +1914,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NoErrorf(t, err, "cannot get pairs for %s", a)
 		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		resp, err := e.GetCurrencyTradeURL(t.Context(), a, pairs[0])
-		if (a == asset.Futures || a == asset.CoinMarginedFutures) && !pairs[0].Quote.Equal(currency.USD) && !pairs[0].Quote.Equal(currency.USDT) {
-			require.ErrorIs(t, err, common.ErrNotYetImplemented)
-		} else {
-			require.NoError(t, err)
-			assert.NotEmpty(t, resp)
-		}
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
 	}
 }
 
