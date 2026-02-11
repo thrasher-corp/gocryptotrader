@@ -477,9 +477,9 @@ func TestMovementMethods(t *testing.T) {
 
 	callMethod := func(i any, name string, args []any) (*Movement, error) {
 		m := reflect.ValueOf(i).MethodByName(name)
-		valueArgs := []reflect.Value{}
-		for _, i := range args {
-			valueArgs = append(valueArgs, reflect.ValueOf(i))
+		valueArgs := make([]reflect.Value, len(args))
+		for i, v := range args {
+			valueArgs[i] = reflect.ValueOf(v)
 		}
 		r := m.Call(valueArgs)
 		movement, ok := r[0].Interface().(*Movement)

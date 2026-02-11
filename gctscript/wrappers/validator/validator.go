@@ -40,7 +40,7 @@ func (w Wrapper) Exchanges(enabledOnly bool) []string {
 // IsEnabled returns if requested exchange is enabled or disabled
 func (w Wrapper) IsEnabled(exch string) (v bool) {
 	if exch == exchError.String() {
-		return
+		return v
 	}
 	return true
 }

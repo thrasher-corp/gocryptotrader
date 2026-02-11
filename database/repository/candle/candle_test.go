@@ -220,7 +220,7 @@ func seedDB(includeOHLCVData bool) error {
 func genOHCLVData() (out Item, err error) {
 	exchangeUUID, err := exchange.UUIDByName(testExchanges[0].Name)
 	if err != nil {
-		return
+		return out, err
 	}
 	out.ExchangeID = exchangeUUID.String()
 	out.Base = currency.BTC.String()

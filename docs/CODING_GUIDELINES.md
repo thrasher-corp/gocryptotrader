@@ -187,12 +187,6 @@ Run the following to check for linting issues:
     golangci-lint run ./... (or make lint)
 ```
 
-Run the following tool to check for Go modernise issues:
-
-```console
-    make modernise
-```
-
 Several other miscellaneous checks will be run via [GitHub actions](/.github/workflows/misc.yml).
 
 - All lint warnings and errors must be resolved before merging.

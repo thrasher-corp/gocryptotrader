@@ -95,8 +95,8 @@ func testWrappers(e exchange.IBotExchange) ([]string, error) {
 	contextParam := reflect.TypeFor[context.Context]()
 
 	var funcs []string
-	for x := range iExchange.NumMethod() {
-		name := iExchange.Method(x).Name
+	for m := range iExchange.Methods() {
+		name := m.Name
 		method := actualExchange.MethodByName(name)
 		inputs := make([]reflect.Value, method.Type().NumIn())
 

@@ -120,7 +120,7 @@ func (c *client) do(request *http.Request) (resp *http.Response, err error) {
 	c.m.RLock()
 	resp, err = c.protected.Do(request)
 	c.m.RUnlock()
-	return
+	return resp, err
 }
 
 // release de-registers the underlying client

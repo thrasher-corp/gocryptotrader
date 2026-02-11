@@ -1,7 +1,7 @@
 on: [push, pull_request]
 name: CI
 env:
-  GO_VERSION: 1.25.x
+  GO_VERSION: 1.26.x
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 jobs:
   backend:

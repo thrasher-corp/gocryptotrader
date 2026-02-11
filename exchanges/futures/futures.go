@@ -503,7 +503,7 @@ func (p *PositionTracker) GetStats() *Position {
 	}
 	p.m.Lock()
 	defer p.m.Unlock()
-	var orders []order.Detail
+	orders := make([]order.Detail, 0, len(p.longPositions)+len(p.shortPositions))
 	orders = append(orders, p.longPositions...)
 	orders = append(orders, p.shortPositions...)
 	sort.Slice(orders, func(i, j int) bool {

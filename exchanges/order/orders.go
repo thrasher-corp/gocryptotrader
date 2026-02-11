@@ -1087,7 +1087,7 @@ func (s *Side) UnmarshalJSON(data []byte) (err error) {
 		return &json.UnmarshalTypeError{Value: string(data), Type: reflect.TypeFor[*Side]()}
 	}
 	*s, err = StringToOrderSide(string(data[1 : len(data)-1])) // Remove quotes
-	return
+	return err
 }
 
 // MarshalJSON returns the JSON-encoded order side

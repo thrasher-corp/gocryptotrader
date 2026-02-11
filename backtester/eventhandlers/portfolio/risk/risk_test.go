@@ -67,7 +67,7 @@ func TestEvaluateOrder(t *testing.T) {
 			CurrencyPair: p,
 		},
 	}
-	h := []holdings.Holding{}
+	h := make([]holdings.Holding, 0, 2)
 	r.CurrencySettings = make(map[key.ExchangeAssetPair]*CurrencySettings)
 	_, err = r.EvaluateOrder(o, h, compliance.Snapshot{})
 	assert.ErrorIs(t, err, errNoCurrencySettings)
