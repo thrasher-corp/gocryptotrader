@@ -189,7 +189,7 @@ func aesCFBEncrypt(t *testing.T, data, key []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	stream := cipher.NewCFBEncrypter(block, iv)
+	stream := cipher.NewCFBEncrypter(block, iv) //nolint:staticcheck // For testing purposes only
 	stream.XORKeyStream(ciphertext[aes.BlockSize:], data)
 	return ciphertext, nil
 }

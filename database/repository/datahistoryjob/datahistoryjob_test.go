@@ -112,7 +112,8 @@ func TestDataHistoryJob(t *testing.T) {
 
 			jerberinos := make([]*DataHistoryJob, 20)
 			for i := range jerberinos {
-				uu, _ := uuid.NewV4()
+				uu, err := uuid.NewV4()
+				require.NoError(t, err, "uuid.NewV4 must not error")
 				jerberinos[i] = &DataHistoryJob{
 					ID:           uu.String(),
 					Nickname:     fmt.Sprintf("TestDataHistoryJob%v", i),
@@ -132,7 +133,8 @@ func TestDataHistoryJob(t *testing.T) {
 			// insert the same jerbs to test conflict resolution
 			jerberoos := make([]*DataHistoryJob, 20)
 			for i := range jerberoos {
-				uu, _ := uuid.NewV4()
+				uu, err := uuid.NewV4()
+				require.NoError(t, err, "uuid.NewV4 must not error")
 				j := &DataHistoryJob{
 					ID:           uu.String(),
 					Nickname:     fmt.Sprintf("TestDataHistoryJob%v", i),

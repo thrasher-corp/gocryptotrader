@@ -708,8 +708,8 @@ func TestWithFields(t *testing.T) {
 	require.NoErrorf(t, err, "json.Unmarshal must not error: %s", string(bro))
 	checkCapture(t, &captured, id, "hello", "error")
 
-	ErrorfWithFieldsf(nil, ExtraFields{"id": id}, "%v", "nilerinos")
-	ErrorfWithFieldsf(sl, ExtraFields{"id": id}, "%v", "good")
+	ErrorWithFieldsf(nil, ExtraFields{"id": id}, "%v", "nilerinos")
+	ErrorWithFieldsf(sl, ExtraFields{"id": id}, "%v", "good")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
 	require.NoError(t, err, "json.Unmarshal must not error")
@@ -722,8 +722,8 @@ func TestWithFields(t *testing.T) {
 	require.NoError(t, err, "json.Unmarshal must not error")
 	checkCapture(t, &captured, id, "sir", "debug")
 
-	DebugfWithFieldsf(nil, ExtraFields{"id": id}, "%v", "nilerinos")
-	DebugfWithFieldsf(sl, ExtraFields{"id": id}, "%v", "how")
+	DebugWithFieldsf(nil, ExtraFields{"id": id}, "%v", "nilerinos")
+	DebugWithFieldsf(sl, ExtraFields{"id": id}, "%v", "how")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
 	require.NoError(t, err, "json.Unmarshal must not error")
@@ -736,8 +736,8 @@ func TestWithFields(t *testing.T) {
 	require.NoError(t, err, "json.Unmarshal must not error")
 	checkCapture(t, &captured, id, "are", "warn")
 
-	WarnfWithFieldsf(nil, ExtraFields{"id": id}, "%v", "nilerinos")
-	WarnfWithFieldsf(sl, ExtraFields{"id": id}, "%v", "you")
+	WarnWithFieldsf(nil, ExtraFields{"id": id}, "%v", "nilerinos")
+	WarnWithFieldsf(sl, ExtraFields{"id": id}, "%v", "you")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
 	require.NoError(t, err, "json.Unmarshal must not error")
@@ -750,16 +750,16 @@ func TestWithFields(t *testing.T) {
 	require.NoError(t, err, "json.Unmarshal must not error")
 	checkCapture(t, &captured, id, "today", "info")
 
-	InfofWithFieldsf(nil, ExtraFields{"id": id}, "%v", "nilerinos")
-	InfofWithFieldsf(sl, ExtraFields{"id": id}, "%v", "?")
+	InfoWithFieldsf(nil, ExtraFields{"id": id}, "%v", "nilerinos")
+	InfoWithFieldsf(sl, ExtraFields{"id": id}, "%v", "?")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
 	require.NoError(t, err, "json.Unmarshal must not error")
 	checkCapture(t, &captured, id, "?", "info")
 
 	// Conflicting fields
-	InfofWithFieldsf(nil, ExtraFields{botName: "lol"}, "%v", "nilerinos")
-	InfofWithFieldsf(sl, ExtraFields{botName: "lol"}, "%v", "?")
+	InfoWithFieldsf(nil, ExtraFields{botName: "lol"}, "%v", "nilerinos")
+	InfoWithFieldsf(sl, ExtraFields{botName: "lol"}, "%v", "?")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
 	require.NoError(t, err, "json.Unmarshal must not error")

@@ -228,7 +228,7 @@ func decryptAESCFBCiphertext(data, key []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	stream := cipher.NewCFBDecrypter(block, iv)
+	stream := cipher.NewCFBDecrypter(block, iv) //nolint:staticcheck // Deprecated CFB is used for legacy mode
 	plaintext := make([]byte, len(ciphertext))
 	stream.XORKeyStream(plaintext, ciphertext)
 	return plaintext, nil

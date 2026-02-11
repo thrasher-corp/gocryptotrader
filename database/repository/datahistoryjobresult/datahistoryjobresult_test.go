@@ -125,7 +125,8 @@ func TestDataHistoryJob(t *testing.T) {
 
 			resulterinos := make([]*DataHistoryJobResult, 20)
 			for i := range resulterinos {
-				uu, _ := uuid.NewV4()
+				uu, err := uuid.NewV4()
+				require.NoError(t, err, "uuid.NewV4 must not error")
 				resulterinos[i] = &DataHistoryJobResult{
 					ID:                uu.String(),
 					JobID:             id,
@@ -142,7 +143,8 @@ func TestDataHistoryJob(t *testing.T) {
 
 			resultaroos := make([]*DataHistoryJobResult, 20)
 			for i := range resultaroos {
-				uu, _ := uuid.NewV4()
+				uu, err := uuid.NewV4()
+				require.NoError(t, err, "uuid.NewV4 must not error")
 				j := &DataHistoryJobResult{
 					ID:                uu.String(),
 					JobID:             id,
