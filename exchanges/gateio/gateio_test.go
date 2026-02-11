@@ -3616,6 +3616,8 @@ func (d *FixtureConnection) SendMessageReturnResponse(context.Context, request.E
 	return []byte(`{"time":1726121320,"time_ms":1726121320745,"id":1,"conn_id":"f903779a148987ca","trace_id":"d8ee37cd14347e4ed298d44e69aedaa7","channel":"spot.tickers","event":"subscribe","payload":["BRETT_USDT"],"result":{"status":"success"},"requestId":"d8ee37cd14347e4ed298d44e69aedaa7"}`), nil
 }
 
+func (d *FixtureConnection) GetURL() string { return "wss://test" }
+
 func TestHandleSubscriptions(t *testing.T) {
 	t.Parallel()
 	subs := subscription.List{{Channel: subscription.OrderbookChannel}}
