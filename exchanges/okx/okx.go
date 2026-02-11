@@ -320,7 +320,7 @@ func (e *Exchange) GetTransactionDetailsLast3Months(ctx context.Context, arg *Tr
 	return e.getTransactionDetails(ctx, arg, "trade/fills-history", getTransactionDetail3MonthsEPL)
 }
 
-// GetTransactionDetails retrieves recently-filled transaction details
+// getTransactionDetails retrieves recently-filled transaction details
 func (e *Exchange) getTransactionDetails(ctx context.Context, arg *TransactionDetailRequestParams, route string, rateLimit request.EndpointLimit) ([]TransactionDetail, error) {
 	if *arg == (TransactionDetailRequestParams{}) {
 		return nil, common.ErrEmptyParams
@@ -3100,7 +3100,7 @@ func (e *Exchange) GetGridAlgoOrderHistory(ctx context.Context, algoOrderType, a
 		after, before, "tradingBot/grid/orders-algo-history", limit)
 }
 
-// getGridAlgoOrderList retrieves list of grid algo orders with the complete data
+// getGridAlgoOrders retrieves list of grid algo orders with the complete data
 func (e *Exchange) getGridAlgoOrders(ctx context.Context, algoOrderType, algoID,
 	instrumentID, instrumentType,
 	after, before, route string, limit int64,

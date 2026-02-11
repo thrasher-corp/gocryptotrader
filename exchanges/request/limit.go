@@ -191,15 +191,3 @@ func (r *Requester) EnableRateLimiter() error {
 	}
 	return nil
 }
-
-type delayNotAllowedKey struct{}
-
-// WithDelayNotAllowed adds a value to the context that indicates that no delay is allowed for rate limiting.
-func WithDelayNotAllowed(ctx context.Context) context.Context {
-	return context.WithValue(ctx, delayNotAllowedKey{}, struct{}{})
-}
-
-func hasDelayNotAllowed(ctx context.Context) bool {
-	_, ok := ctx.Value(delayNotAllowedKey{}).(struct{})
-	return ok
-}

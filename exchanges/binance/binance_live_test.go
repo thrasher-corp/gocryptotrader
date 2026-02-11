@@ -15,11 +15,17 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	"github.com/thrasher-corp/gocryptotrader/internal/testing/livetest"
 )
 
 var mockTests = false
 
 func TestMain(m *testing.M) {
+	if livetest.ShouldSkip() {
+		log.Printf(livetest.LiveTestingSkipped, "Binance")
+		os.Exit(0)
+	}
+
 	e = new(Exchange)
 	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("Binance Setup error: %s", err)
@@ -41,9 +47,9 @@ func TestMain(m *testing.M) {
 			}
 		}
 	}
-	// setupWs()
+	setupWs()
 	e.setupOrderbookManager(context.Background())
-	e.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	e.Websocket.DataHandler = stream.NewRelay(sharedtestvalues.WebsocketRelayBufferCapacity)
 	log.Printf(sharedtestvalues.LiveTesting, e.Name)
 	if err := e.populateTradablePairs(); err != nil {
 		log.Fatal(err)
