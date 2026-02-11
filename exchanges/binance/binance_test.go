@@ -406,19 +406,15 @@ func TestUFuturesNewOrder(t *testing.T) {
 func TestUPlaceBatchOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	var data []PlaceBatchOrderData
-	var tempData PlaceBatchOrderData
-	tempData.Symbol = "BTCUSDT"
-	tempData.Side = "BUY"
-	tempData.OrderType = "LIMIT"
-	tempData.Quantity = 4
-	tempData.Price = 1
-	tempData.TimeInForce = "GTC"
-	data = append(data, tempData)
-	_, err := e.UPlaceBatchOrders(t.Context(), data)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := e.UPlaceBatchOrders(t.Context(), []PlaceBatchOrderData{{
+		Symbol:      "BTCUSDT",
+		Side:        "BUY",
+		OrderType:   "LIMIT",
+		TimeInForce: "GTC",
+		Quantity:    4,
+		Price:       1,
+	}})
+	assert.NoError(t, err, "UPlaceBatchOrders should not error")
 }
 
 func TestUGetOrderData(t *testing.T) {
@@ -890,20 +886,15 @@ func TestFuturesNewOrder(t *testing.T) {
 func TestFuturesBatchOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	var data []PlaceBatchOrderData
-	var tempData PlaceBatchOrderData
-	tempData.Symbol = "BTCUSD_PERP"
-	tempData.Side = "BUY"
-	tempData.OrderType = "LIMIT"
-	tempData.Quantity = 1
-	tempData.Price = 1
-	tempData.TimeInForce = "GTC"
-
-	data = append(data, tempData)
-	_, err := e.FuturesBatchOrder(t.Context(), data)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := e.FuturesBatchOrder(t.Context(), []PlaceBatchOrderData{{
+		Symbol:      "BTCUSD_PERP",
+		Side:        "BUY",
+		OrderType:   "LIMIT",
+		Quantity:    1,
+		Price:       1,
+		TimeInForce: "GTC",
+	}})
+	assert.NoError(t, err, "FuturesBatchOrder should not error")
 }
 
 func TestFuturesBatchCancelOrders(t *testing.T) {

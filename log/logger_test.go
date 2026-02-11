@@ -193,31 +193,20 @@ func TestMultiWriterWrite(t *testing.T) {
 
 	var err error
 	f.output, err = multiWriter(io.Discard, buff)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "multiWriter must not error")
 
 	payload := "woooooooooooooooooooooooooooooooooooow"
 	f.output.StageLogEvent(func() string { return payload }, "", "", "", "", "", "", false, false, false, nil)
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	<-buff.Finished
-	if contents := buff.Read(); !strings.Contains(contents, payload) {
-		t.Errorf("received: '%v' but expected: '%v'", contents, payload)
-	}
+	assert.Contains(t, buff.Read(), payload, "buffer should contain the payload")
 
 	f.output, err = multiWriter(&WriteShorter{}, io.Discard)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "multiWriter must not error")
 	f.output.StageLogEvent(func() string { return payload }, "", "", "", "", "", "", false, false, false, nil) // Will display error: Logger write error: *log.WriteShorter short write
 
 	f.output, err = multiWriter(&WriteError{}, io.Discard)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "multiWriter must not error")
 	f.output.StageLogEvent(func() string { return payload }, "", "", "", "", "", "", false, false, false, nil) // Will display error: Logger write error: *log.WriteError write error
 }
 
@@ -701,20 +690,14 @@ func TestWithFields(t *testing.T) {
 	mwh := &multiWriterHolder{writers: []io.Writer{writer}}
 
 	sl, err := NewSubLogger("TESTSTRUCTUREDLOGGING")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "NewSubLogger must not error")
 	sl.structuredLogging = true
 	sl.setLevelsProtected(splitLevel("DEBUG|ERROR|INFO|WARN"))
 	err = sl.setOutputProtected(mwh)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "setOutputProtected must not error")
 
 	id, err := uuid.NewV4()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "uuid.NewV4 must not error")
 
 	ErrorlnWithFields(nil, ExtraFields{"id": id}, "nilerinos")
 	ErrorlnWithFields(sl, ExtraFields{"id": id}, "hello")
@@ -722,107 +705,73 @@ func TestWithFields(t *testing.T) {
 	var captured testCapture
 	bro := writer.ReadRaw()
 	err = json.Unmarshal(bro, &captured)
-	if err != nil {
-		t.Fatal(err, string(bro))
-	}
+	require.NoErrorf(t, err, "json.Unmarshal must not error: %s", string(bro))
 	checkCapture(t, &captured, id, "hello", "error")
 
-	ErrorfWithFields(nil, ExtraFields{"id": id}, "%v", "nilerinos")
-	ErrorfWithFields(sl, ExtraFields{"id": id}, "%v", "good")
+	ErrorfWithFieldsf(nil, ExtraFields{"id": id}, "%v", "nilerinos")
+	ErrorfWithFieldsf(sl, ExtraFields{"id": id}, "%v", "good")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "json.Unmarshal must not error")
 	checkCapture(t, &captured, id, "good", "error")
 
 	DebuglnWithFields(nil, ExtraFields{"id": id}, "nilerinos")
 	DebuglnWithFields(sl, ExtraFields{"id": id}, "sir")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "json.Unmarshal must not error")
 	checkCapture(t, &captured, id, "sir", "debug")
 
-	DebugfWithFields(nil, ExtraFields{"id": id}, "%v", "nilerinos")
-	DebugfWithFields(sl, ExtraFields{"id": id}, "%v", "how")
+	DebugfWithFieldsf(nil, ExtraFields{"id": id}, "%v", "nilerinos")
+	DebugfWithFieldsf(sl, ExtraFields{"id": id}, "%v", "how")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "json.Unmarshal must not error")
 	checkCapture(t, &captured, id, "how", "debug")
 
 	WarnlnWithFields(nil, ExtraFields{"id": id}, "nilerinos")
 	WarnlnWithFields(sl, ExtraFields{"id": id}, "are")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "json.Unmarshal must not error")
 	checkCapture(t, &captured, id, "are", "warn")
 
-	WarnfWithFields(nil, ExtraFields{"id": id}, "%v", "nilerinos")
-	WarnfWithFields(sl, ExtraFields{"id": id}, "%v", "you")
+	WarnfWithFieldsf(nil, ExtraFields{"id": id}, "%v", "nilerinos")
+	WarnfWithFieldsf(sl, ExtraFields{"id": id}, "%v", "you")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "json.Unmarshal must not error")
 	checkCapture(t, &captured, id, "you", "warn")
 
 	InfolnWithFields(nil, ExtraFields{"id": id}, "nilerinos")
 	InfolnWithFields(sl, ExtraFields{"id": id}, "today")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "json.Unmarshal must not error")
 	checkCapture(t, &captured, id, "today", "info")
 
-	InfofWithFields(nil, ExtraFields{"id": id}, "%v", "nilerinos")
-	InfofWithFields(sl, ExtraFields{"id": id}, "%v", "?")
+	InfofWithFieldsf(nil, ExtraFields{"id": id}, "%v", "nilerinos")
+	InfofWithFieldsf(sl, ExtraFields{"id": id}, "%v", "?")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "json.Unmarshal must not error")
 	checkCapture(t, &captured, id, "?", "info")
 
 	// Conflicting fields
-	InfofWithFields(nil, ExtraFields{botName: "lol"}, "%v", "nilerinos")
-	InfofWithFields(sl, ExtraFields{botName: "lol"}, "%v", "?")
+	InfofWithFieldsf(nil, ExtraFields{botName: "lol"}, "%v", "nilerinos")
+	InfofWithFieldsf(sl, ExtraFields{botName: "lol"}, "%v", "?")
 	<-writer.Finished
 	err = json.Unmarshal(writer.ReadRaw(), &captured)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if captured.BotName != "test" {
-		t.Fatalf("received: '%v' but expected: '%v'", captured.BotName, "test")
-	}
+	require.NoError(t, err, "json.Unmarshal must not error")
+	require.Equal(t, "test", captured.BotName, "BotName must match expected value")
 }
 
 func checkCapture(t *testing.T, c *testCapture, expID uuid.UUID, expMessage, expSeverity string) {
 	t.Helper()
 
-	if c.ID != expID {
-		t.Errorf("received: '%v' but expected: '%v'", c.ID, expID)
-	}
-
-	if c.Message != expMessage {
-		t.Errorf("received: '%v' but expected: '%v'", c.Message, expMessage)
-	}
-
-	if c.Severity != expSeverity {
-		t.Errorf("received: '%v' but expected: '%v'", c.Severity, expSeverity)
-	}
-
-	if c.SubLogger != "TESTSTRUCTUREDLOGGING" {
-		t.Errorf("received: '%v' but expected: '%v'", c.SubLogger, "TESTSTRUCTUREDLOGGING")
-	}
-
-	if c.BotName != "test" {
-		t.Errorf("received: '%v' but expected: '%v'", c.BotName, "test")
-	}
+	assert.Equal(t, expID, c.ID, "ID should match")
+	assert.Equal(t, expMessage, c.Message, "Message should match")
+	assert.Equal(t, expSeverity, c.Severity, "Severity should match")
+	assert.Equal(t, "TESTSTRUCTUREDLOGGING", c.SubLogger, "SubLogger should match")
+	assert.Equal(t, "test", c.BotName, "BotName should match")
 }

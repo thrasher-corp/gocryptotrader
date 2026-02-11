@@ -110,10 +110,10 @@ func TestDataHistoryJob(t *testing.T) {
 			db, err := Setup(dbConn)
 			require.NoError(t, err)
 
-			var jerberinos, jerberoos []*DataHistoryJob
-			for i := range 20 {
+			jerberinos := make([]*DataHistoryJob, 20)
+			for i := range jerberinos {
 				uu, _ := uuid.NewV4()
-				jerberinos = append(jerberinos, &DataHistoryJob{
+				jerberinos[i] = &DataHistoryJob{
 					ID:           uu.String(),
 					Nickname:     fmt.Sprintf("TestDataHistoryJob%v", i),
 					ExchangeID:   testExchanges[0].UUID.String(),
@@ -124,13 +124,14 @@ func TestDataHistoryJob(t *testing.T) {
 					StartDate:    time.Now().Add(time.Duration(i+1) * time.Second).UTC(),
 					EndDate:      time.Now().Add(time.Minute * time.Duration(i+1)).UTC(),
 					Interval:     int64(i),
-				})
+				}
 			}
 			err = db.Upsert(jerberinos...)
 			require.NoError(t, err)
 
 			// insert the same jerbs to test conflict resolution
-			for i := range 20 {
+			jerberoos := make([]*DataHistoryJob, 20)
+			for i := range jerberoos {
 				uu, _ := uuid.NewV4()
 				j := &DataHistoryJob{
 					ID:           uu.String(),
@@ -147,7 +148,7 @@ func TestDataHistoryJob(t *testing.T) {
 				if i == 19 {
 					j.Status = 1
 				}
-				jerberoos = append(jerberoos, j)
+				jerberoos[i] = j
 			}
 			err = db.Upsert(jerberoos...)
 			require.NoError(t, err)

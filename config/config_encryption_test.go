@@ -113,8 +113,7 @@ func TestEncryptConfigData(t *testing.T) {
 	require.ErrorIs(t, err, ErrSettingEncryptConfig)
 
 	_, err = c.encryptConfigData([]byte(`{"test":1}`))
-	require.Error(t, err)
-	require.IsType(t, aes.KeySizeError(1), err)
+	require.ErrorAs(t, err, new(aes.KeySizeError))
 
 	sessDk, salt, err := makeNewSessionDK([]byte("asdf"))
 	require.NoError(t, err, "makeNewSessionDK must not error")
@@ -190,7 +189,7 @@ func aesCFBEncrypt(t *testing.T, data, key []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	stream := cipher.NewCFBEncrypter(block, iv) //nolint:staticcheck // For testing purposes only
+	stream := cipher.NewCFBEncrypter(block, iv)
 	stream.XORKeyStream(ciphertext[aes.BlockSize:], data)
 	return ciphertext, nil
 }
