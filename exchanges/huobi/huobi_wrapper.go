@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"slices"
 	"sort"
 	"strconv"
@@ -16,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -2146,8 +2148,98 @@ func (e *Exchange) IsPerpetualFutureCurrency(a asset.Item, _ currency.Pair) (boo
 }
 
 // UpdateOrderExecutionLimits updates order execution limits
-func (e *Exchange) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
-	return common.ErrNotYetImplemented
+func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if !e.SupportsAsset(a) {
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
+	}
+	var l []limits.MinMaxLevel
+	switch a {
+	case asset.Spot:
+		symbols, err := e.GetSymbols(ctx)
+		if err != nil {
+			return err
+		}
+		l = make([]limits.MinMaxLevel, 0, len(symbols))
+		for i := range symbols {
+			if symbols[i].State != "online" {
+				continue
+			}
+			p, err := currency.NewPairFromStrings(symbols[i].BaseCurrency, symbols[i].QuoteCurrency)
+			if err != nil {
+				return err
+			}
+			minBaseAmt := symbols[i].LimitOrderMinOrderAmt
+			if minBaseAmt == 0 {
+				minBaseAmt = symbols[i].MinOrderAmt
+			}
+			l = append(l, limits.MinMaxLevel{
+				Key:                     key.NewExchangeAssetPair(e.Name, a, p),
+				MinimumBaseAmount:       minBaseAmt,
+				MaximumBaseAmount:       symbols[i].LimitOrderMaxOrderAmt,
+				MinimumQuoteAmount:      symbols[i].MinOrderValue,
+				AmountStepIncrementSize: math.Pow10(-int(symbols[i].AmountPrecision)),
+				PriceStepIncrementSize:  math.Pow10(-int(symbols[i].PricePrecision)),
+				QuoteStepIncrementSize:  math.Pow10(-int(symbols[i].ValuePrecision)),
+			})
+		}
+	case asset.Futures:
+		contracts, err := e.FGetContractInfo(ctx, "", "", currency.EMPTYPAIR)
+		if err != nil {
+			return err
+		}
+		l = make([]limits.MinMaxLevel, 0, len(contracts.Data))
+		for i := range contracts.Data {
+			if contracts.Data[i].ContractStatus != 1 {
+				continue
+			}
+			p, err := e.MatchSymbolWithAvailablePairs(contracts.Data[i].ContractCode, a, true)
+			if err != nil {
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
+				}
+				return err
+			}
+			l = append(l, limits.MinMaxLevel{
+				Key:                     key.NewExchangeAssetPair(e.Name, a, p),
+				MinimumBaseAmount:       1,
+				AmountStepIncrementSize: 1, // orders are in number of contracts
+				PriceStepIncrementSize:  contracts.Data[i].PriceTick,
+				MultiplierDecimal:       contracts.Data[i].ContractSize,
+				Listed:                  contracts.Data[i].SettlementTime.Time(),
+				Expiry:                  contracts.Data[i].DeliveryTime.Time(),
+			})
+		}
+	case asset.CoinMarginedFutures:
+		contracts, err := e.GetSwapMarkets(ctx, currency.EMPTYPAIR)
+		if err != nil {
+			return err
+		}
+		l = make([]limits.MinMaxLevel, 0, len(contracts))
+		for i := range contracts {
+			if contracts[i].ContractStatus != 1 {
+				continue
+			}
+			p, err := e.MatchSymbolWithAvailablePairs(contracts[i].ContractCode, a, true)
+			if err != nil {
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
+				}
+				return err
+			}
+			l = append(l, limits.MinMaxLevel{
+				Key:                     key.NewExchangeAssetPair(e.Name, a, p),
+				MinimumBaseAmount:       1,
+				AmountStepIncrementSize: 1, // orders are in number of contracts
+				PriceStepIncrementSize:  contracts[i].PriceTick,
+				MultiplierDecimal:       contracts[i].ContractSize,
+				Listed:                  contracts[i].SettlementDate.Time(),
+				Delisted:                contracts[i].DeliveryTime.Time(),
+			})
+		}
+	default:
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
+	}
+	return limits.Load(l)
 }
 
 // GetOpenInterest returns the open interest rate for a given asset pair

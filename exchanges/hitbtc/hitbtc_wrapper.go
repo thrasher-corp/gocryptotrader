@@ -10,9 +10,11 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -840,8 +842,29 @@ func (e *Exchange) GetLatestFundingRates(context.Context, *fundingrate.LatestRat
 }
 
 // UpdateOrderExecutionLimits updates order execution limits
-func (e *Exchange) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
-	return common.ErrNotYetImplemented
+func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if a != asset.Spot {
+		return fmt.Errorf("%w: %q", asset.ErrNotSupported, a)
+	}
+
+	symbols, err := e.GetSymbolsDetailed(ctx)
+	if err != nil {
+		return err
+	}
+	l := make([]limits.MinMaxLevel, 0, len(symbols))
+	for i := range symbols {
+		p, err := currency.NewPairFromStrings(symbols[i].BaseCurrency, strings.TrimPrefix(symbols[i].ID, symbols[i].BaseCurrency))
+		if err != nil {
+			return err
+		}
+		l = append(l, limits.MinMaxLevel{
+			Key:                     key.NewExchangeAssetPair(e.Name, a, p),
+			MinimumBaseAmount:       symbols[i].QuantityIncrement,
+			AmountStepIncrementSize: symbols[i].QuantityIncrement,
+			PriceStepIncrementSize:  symbols[i].TickSize,
+		})
+	}
+	return limits.Load(l)
 }
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair

@@ -269,12 +269,24 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 
 // UpdateOrderExecutionLimits sets exchange execution order limits for an asset type
 func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
-	if a != asset.Spot {
-		return common.ErrNotYetImplemented
+	var queryAsset asset.Item
+	switch a {
+	case asset.Spot, asset.Margin:
+		// Bitfinex margin and spot trade the same markets and share limits.
+		queryAsset = asset.Spot
+	case asset.Futures:
+		queryAsset = asset.Futures
+	default:
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
-	l, err := e.GetSiteInfoConfigData(ctx, a)
+	l, err := e.GetSiteInfoConfigData(ctx, queryAsset)
 	if err != nil {
 		return err
+	}
+	if a != queryAsset {
+		for i := range l {
+			l[i].Key.Asset = a
+		}
 	}
 	if err := limits.Load(l); err != nil {
 		return fmt.Errorf("%s Error loading exchange limits: %v", e.Name, err)
