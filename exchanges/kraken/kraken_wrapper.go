@@ -195,24 +195,25 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            krakenWSURL,
-		RunningURL:            wsRunningURL,
-		Connector:             e.WsConnect,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
-		GenerateSubscriptions: e.generateSubscriptions,
-		Features:              &e.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferConfig: buffer.Config{SortBuffer: true},
+		ExchangeConfig:               exch,
+		UseMultiConnectionManagement: true,
+		Features:                     &e.Features.Supports.WebsocketCapabilities,
+		OrderbookBufferConfig:        buffer.Config{SortBuffer: true},
 	})
 	if err != nil {
 		return err
 	}
 
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		RateLimit:            request.NewWeightedRateLimitByDuration(50 * time.Millisecond),
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL:                   wsRunningURL,
+		Connector:             e.wsConnectForConnection,
+		Subscriber:            e.subscribeForConnection,
+		Unsubscriber:          e.unsubscribeForConnection,
+		GenerateSubscriptions: e.generatePublicSubscriptions,
+		Handler:               e.wsHandleDataForConnection,
+		RateLimit:             request.NewWeightedRateLimitByDuration(50 * time.Millisecond),
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 	})
 	if err != nil {
 		return err
@@ -223,11 +224,16 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		RateLimit:            request.NewWeightedRateLimitByDuration(50 * time.Millisecond),
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Authenticated:        true,
-		URL:                  wsRunningAuthURL,
+		URL:                   wsRunningAuthURL,
+		Connector:             e.wsConnectForConnection,
+		Subscriber:            e.subscribeForConnection,
+		Unsubscriber:          e.unsubscribeForConnection,
+		GenerateSubscriptions: e.generatePrivateSubscriptions,
+		Handler:               e.wsHandleDataForConnection,
+		RateLimit:             request.NewWeightedRateLimitByDuration(50 * time.Millisecond),
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		Authenticated:         true,
 	})
 }
 
