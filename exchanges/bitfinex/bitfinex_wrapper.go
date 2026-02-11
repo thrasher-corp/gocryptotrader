@@ -188,39 +188,40 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	wsEndpoint, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
-
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            publicBitfinexWebsocketEndpoint,
-		RunningURL:            wsEndpoint,
-		Connector:             e.WsConnect,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
-		GenerateSubscriptions: e.generateSubscriptions,
-		Features:              &e.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:                         exch,
+		Features:                               &e.Features.Supports.WebsocketCapabilities,
+		UseMultiConnectionManagement:           true,
+		MaxWebsocketSubscriptionsPerConnection: 25, // https://docs.bitfinex.com/docs/requirements-and-limitations
 	})
 	if err != nil {
 		return err
 	}
 
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  publicBitfinexWebsocketEndpoint,
+		Connector:             e.wsConnectForConnection,
+		Subscriber:            e.subscribeForConnection,
+		Unsubscriber:          e.unsubscribeForConnection,
+		GenerateSubscriptions: e.generatePublicSubscriptions,
+		Handler:               e.wsHandleDataForConnection,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		URL:                   publicBitfinexWebsocketEndpoint,
 	})
 	if err != nil {
 		return err
 	}
 
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  authenticatedBitfinexWebsocketEndpoint,
-		Authenticated:        true,
+		Connector:             e.wsConnectForConnection,
+		Subscriber:            e.subscribeForConnection,
+		Unsubscriber:          e.unsubscribeForConnection,
+		GenerateSubscriptions: e.generatePrivateSubscriptions,
+		Handler:               e.wsHandleDataForConnection,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		URL:                   authenticatedBitfinexWebsocketEndpoint,
+		Authenticated:         true,
 	})
 }
 

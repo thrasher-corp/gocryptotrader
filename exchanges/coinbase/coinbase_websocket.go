@@ -62,6 +62,9 @@ func (e *Exchange) WsConnect() error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
+	if e.Websocket.Conn == nil {
+		return e.Websocket.Connect(ctx)
+	}
 	var dialer gws.Dialer
 	if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}); err != nil {
 		return err
@@ -69,6 +72,19 @@ func (e *Exchange) WsConnect() error {
 	e.Websocket.Wg.Add(1)
 	go e.wsReadData(ctx)
 	return nil
+}
+
+func (e *Exchange) wsConnectForConnection(ctx context.Context, conn websocket.Connection) error {
+	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
+		return websocket.ErrWebsocketNotEnabled
+	}
+	var dialer gws.Dialer
+	return conn.Dial(ctx, &dialer, http.Header{})
+}
+
+func (e *Exchange) wsHandleDataForConnection(ctx context.Context, _ websocket.Connection, respRaw []byte) error {
+	_, err := e.wsHandleData(ctx, respRaw)
+	return err
 }
 
 // wsReadData receives and passes on websocket messages for processing
@@ -417,16 +433,20 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 
 // Subscribe sends a websocket message to receive data from a list of channels
 func (e *Exchange) Subscribe(subs subscription.List) error {
-	return e.ParallelChanOp(context.TODO(), subs, func(ctx context.Context, subs subscription.List) error { return e.manageSubs(ctx, "subscribe", subs) }, 1)
+	return e.ParallelChanOp(context.TODO(), subs, func(ctx context.Context, subs subscription.List) error {
+		return e.manageSubs(ctx, e.Websocket.Conn, "subscribe", subs)
+	}, 1)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from a list of channels
 func (e *Exchange) Unsubscribe(subs subscription.List) error {
-	return e.ParallelChanOp(context.TODO(), subs, func(ctx context.Context, subs subscription.List) error { return e.manageSubs(ctx, "unsubscribe", subs) }, 1)
+	return e.ParallelChanOp(context.TODO(), subs, func(ctx context.Context, subs subscription.List) error {
+		return e.manageSubs(ctx, e.Websocket.Conn, "unsubscribe", subs)
+	}, 1)
 }
 
 // manageSubs subscribes or unsubscribes from a list of websocket channels
-func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.List) error {
+func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op string, subs subscription.List) error {
 	var errs error
 	subs, errs = subs.ExpandTemplates(e)
 	for _, s := range subs {
@@ -444,17 +464,25 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 				return err
 			}
 		}
-		if err = e.Websocket.Conn.SendJSONMessage(ctx, limitType, r); err == nil {
+		if err = conn.SendJSONMessage(ctx, limitType, r); err == nil {
 			switch op {
 			case "subscribe":
-				err = e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, s)
+				err = e.Websocket.AddSuccessfulSubscriptions(conn, s)
 			case "unsubscribe":
-				err = e.Websocket.RemoveSubscriptions(e.Websocket.Conn, s)
+				err = e.Websocket.RemoveSubscriptions(conn, s)
 			}
 		}
 		errs = common.AppendError(errs, err)
 	}
 	return errs
+}
+
+func (e *Exchange) subscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	return e.manageSubs(ctx, conn, "subscribe", subs)
+}
+
+func (e *Exchange) unsubscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	return e.manageSubs(ctx, conn, "unsubscribe", subs)
 }
 
 // GetWSJWT returns a JWT, using a stored one of it's provided, and generating a new one otherwise

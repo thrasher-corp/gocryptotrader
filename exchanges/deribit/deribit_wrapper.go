@@ -172,14 +172,9 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            deribitWebsocketAddress,
-		RunningURL:            deribitWebsocketAddress,
-		Connector:             e.WsConnect,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
-		GenerateSubscriptions: e.generateSubscriptions,
-		Features:              &e.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:               exch,
+		UseMultiConnectionManagement: true,
+		Features:                     &e.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
@@ -190,9 +185,15 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  e.Websocket.GetWebsocketURL(),
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL:                   deribitWebsocketAddress,
+		Connector:             e.wsConnectForConnection,
+		Authenticate:          e.wsAuthenticateForConnection,
+		Subscriber:            e.subscribeForConnection,
+		Unsubscriber:          e.unsubscribeForConnection,
+		GenerateSubscriptions: e.generateSubscriptions,
+		Handler:               e.wsHandleDataForConnection,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 	})
 }
 

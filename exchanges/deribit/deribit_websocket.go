@@ -109,6 +109,9 @@ func (e *Exchange) WsConnect() error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
+	if e.Websocket.Conn == nil {
+		return e.Websocket.Connect(ctx)
+	}
 	var dialer gws.Dialer
 	if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}); err != nil {
 		return err
@@ -123,6 +126,35 @@ func (e *Exchange) WsConnect() error {
 		}
 	}
 	return nil
+}
+
+func (e *Exchange) wsConnectForConnection(ctx context.Context, conn websocket.Connection) error {
+	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
+		return websocket.ErrWebsocketNotEnabled
+	}
+	var dialer gws.Dialer
+	if err := conn.Dial(ctx, &dialer, http.Header{}); err != nil {
+		return err
+	}
+	e.Websocket.Conn = conn
+	return nil
+}
+
+func (e *Exchange) wsAuthenticateForConnection(ctx context.Context, conn websocket.Connection) error {
+	e.Websocket.Conn = conn
+	e.wsStartHeartbeat(ctx)
+	if e.Websocket.CanUseAuthenticatedEndpoints() {
+		if err := e.wsLogin(ctx); err != nil {
+			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", e.Name, err)
+			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		}
+	}
+	return nil
+}
+
+func (e *Exchange) wsHandleDataForConnection(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
+	e.Websocket.Conn = conn
+	return e.wsHandleData(ctx, respRaw)
 }
 
 func (e *Exchange) wsStartHeartbeat(ctx context.Context) {
@@ -224,7 +256,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		if strings.HasPrefix(response.ID, "hb-") {
 			return nil
 		}
-		return e.Websocket.Match.RequireMatchWithData(response.ID, respRaw)
+		return e.Websocket.Conn.RequireMatchWithData(response.ID, respRaw)
 	}
 	channels := strings.Split(response.Params.Channel, ".")
 	switch channels[0] {
@@ -809,6 +841,18 @@ func (e *Exchange) Subscribe(subs subscription.List) error {
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (e *Exchange) Unsubscribe(subs subscription.List) error {
 	ctx := context.TODO()
+	errs := e.handleSubscription(ctx, "public/unsubscribe", subs.Public())
+	return common.AppendError(errs, e.handleSubscription(ctx, "private/unsubscribe", subs.Private()))
+}
+
+func (e *Exchange) subscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	e.Websocket.Conn = conn
+	errs := e.handleSubscription(ctx, "public/subscribe", subs.Public())
+	return common.AppendError(errs, e.handleSubscription(ctx, "private/subscribe", subs.Private()))
+}
+
+func (e *Exchange) unsubscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	e.Websocket.Conn = conn
 	errs := e.handleSubscription(ctx, "public/unsubscribe", subs.Public())
 	return common.AppendError(errs, e.handleSubscription(ctx, "private/unsubscribe", subs.Private()))
 }
