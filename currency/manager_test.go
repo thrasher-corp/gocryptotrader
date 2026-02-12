@@ -70,6 +70,74 @@ func TestGetAssetTypes(t *testing.T) {
 	}
 }
 
+func TestIgnoreEnabledCheckBypassPaths(t *testing.T) {
+	// test cannot be parallel due to t.Setenv
+	p := initTest(t)
+	futuresPair := NewPairWithDelimiter("BTC", "USD", "-")
+	spotPair := NewPairWithDelimiter("LTC", "USD", "-")
+	p.Pairs[asset.Futures].Enabled = nil
+
+	assets := p.GetAssetTypes(true)
+	assert.False(t, assets.Contains(asset.Futures))
+
+	pairs, err := p.GetPairs(asset.Futures, true)
+	require.NoError(t, err)
+	assert.Nil(t, pairs)
+
+	available, err := p.IsPairAvailable(futuresPair, asset.Futures)
+	require.NoError(t, err)
+	assert.False(t, available)
+
+	enabled, err := p.IsPairEnabled(futuresPair, asset.Futures)
+	require.NoError(t, err)
+	assert.False(t, enabled)
+
+	err = p.IsAssetEnabled(asset.Futures)
+	assert.ErrorIs(t, err, asset.ErrNotEnabled)
+
+	pm := &PairsManager{
+		Pairs: map[asset.Item]*PairStore{
+			asset.Futures: {
+				AssetEnabled: false,
+				Available:    []Pair{futuresPair},
+			},
+		},
+	}
+	pair, a, err := pm.EnsureOnePairEnabled()
+	assert.ErrorIs(t, err, ErrCurrencyPairsEmpty)
+	assert.Equal(t, EMPTYPAIR, pair)
+	assert.Equal(t, asset.Empty, a)
+
+	t.Setenv("ignore_enabled_check", "true")
+
+	assets = p.GetAssetTypes(true)
+	assert.True(t, assets.Contains(asset.Futures))
+
+	pairs, err = p.GetPairs(asset.Futures, true)
+	require.NoError(t, err)
+	assert.Equal(t, p.Pairs[asset.Futures].Available, pairs)
+
+	available, err = p.IsPairAvailable(futuresPair, asset.Futures)
+	require.NoError(t, err)
+	assert.True(t, available)
+
+	enabled, err = p.IsPairEnabled(futuresPair, asset.Futures)
+	require.NoError(t, err)
+	assert.True(t, enabled)
+
+	enabled, err = p.IsPairEnabled(spotPair, asset.Futures)
+	require.NoError(t, err)
+	assert.True(t, enabled)
+
+	err = p.IsAssetEnabled(asset.Futures)
+	assert.NoError(t, err)
+
+	pair, a, err = pm.EnsureOnePairEnabled()
+	assert.NoError(t, err)
+	assert.Equal(t, futuresPair, pair)
+	assert.Equal(t, asset.Futures, a)
+}
+
 func TestGet(t *testing.T) {
 	t.Parallel()
 	p := initTest(t)
