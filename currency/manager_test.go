@@ -108,7 +108,7 @@ func TestIgnoreEnabledCheckBypassPaths(t *testing.T) {
 	assert.Equal(t, EMPTYPAIR, pair)
 	assert.Equal(t, asset.Empty, a)
 
-	t.Setenv("ignore_enabled_check", "true")
+	t.Setenv("IGNORE_ENABLED_CHECK", "true")
 
 	assets = p.GetAssetTypes(true)
 	assert.True(t, assets.Contains(asset.Futures))
