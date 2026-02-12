@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
@@ -23,7 +22,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -58,24 +56,6 @@ var defaultSubscriptions = subscription.List{
 	*/
 }
 
-// WsConnect initiates a websocket connection
-func (e *Exchange) WsConnect() error {
-	ctx := context.TODO()
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
-		return websocket.ErrWebsocketNotEnabled
-	}
-	if e.Websocket.Conn == nil {
-		return e.Websocket.Connect(ctx)
-	}
-	var dialer gws.Dialer
-	if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
-		return err
-	}
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(ctx)
-	return nil
-}
-
 func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
@@ -87,34 +67,6 @@ func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) err
 func (e *Exchange) wsHandleDataForConnection(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	_, err := e.wsHandleData(ctx, conn, respRaw)
 	return err
-}
-
-// wsReadData receives and passes on websocket messages for processing
-func (e *Exchange) wsReadData(ctx context.Context) {
-	defer e.Websocket.Wg.Done()
-	var seqCount uint64
-	for {
-		resp := e.Websocket.Conn.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		sequence, err := e.wsHandleData(ctx, e.Websocket.Conn, resp.Raw)
-		if err != nil {
-			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
-			}
-		}
-		if sequence != nil {
-			if *sequence != seqCount {
-				err := fmt.Errorf("%w: received %v, expected %v", errOutOfSequence, sequence, seqCount)
-				if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-					log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
-				}
-				seqCount = *sequence
-			}
-			seqCount++
-		}
-	}
 }
 
 // wsProcessTicker handles ticker data from the websocket
@@ -433,42 +385,6 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 // GetSubscriptionTemplate returns a subscription channel template
 func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{"channelName": channelName}).Parse(subTplText)
-}
-
-// Subscribe sends a websocket message to receive data from a list of channels
-func (e *Exchange) Subscribe(subs subscription.List) error {
-	wsRunningURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
-	conn, err := e.Websocket.GetConnection(wsRunningURL)
-	if err != nil {
-		conn, err = e.Websocket.GetConnection(coinbaseWebsocketURL)
-		if err != nil {
-			return err
-		}
-	}
-	return e.ParallelChanOp(context.TODO(), subs, func(ctx context.Context, subs subscription.List) error {
-		return e.manageSubs(ctx, conn, "subscribe", subs)
-	}, 1)
-}
-
-// Unsubscribe sends a websocket message to stop receiving data from a list of channels
-func (e *Exchange) Unsubscribe(subs subscription.List) error {
-	wsRunningURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
-	conn, err := e.Websocket.GetConnection(wsRunningURL)
-	if err != nil {
-		conn, err = e.Websocket.GetConnection(coinbaseWebsocketURL)
-		if err != nil {
-			return err
-		}
-	}
-	return e.ParallelChanOp(context.TODO(), subs, func(ctx context.Context, subs subscription.List) error {
-		return e.manageSubs(ctx, conn, "unsubscribe", subs)
-	}, 1)
 }
 
 // manageSubs subscribes or unsubscribes from a list of websocket channels

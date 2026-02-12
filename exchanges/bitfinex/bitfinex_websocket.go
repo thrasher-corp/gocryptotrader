@@ -144,22 +144,6 @@ func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) err
 	return e.ConfigureWS(ctx, conn)
 }
 
-// wsReadData receives and passes on websocket messages for processing
-func (e *Exchange) wsReadData(ctx context.Context, ws websocket.Connection) {
-	defer e.Websocket.Wg.Done()
-	for {
-		resp := ws.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		if err := e.wsHandleData(ctx, ws, resp.Raw); err != nil {
-			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, ws.GetURL(), errSend, err)
-			}
-		}
-	}
-}
-
 func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	var result any
 	if err := json.Unmarshal(respRaw, &result); err != nil {
