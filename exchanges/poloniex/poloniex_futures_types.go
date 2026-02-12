@@ -3,6 +3,7 @@ package poloniex
 import (
 	"fmt"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
@@ -98,6 +99,9 @@ type FuturesOrderIDResponse struct {
 }
 
 func (s *FuturesOrderIDResponse) Error() error {
+	if s == nil {
+		return common.ErrNoResponse
+	}
 	if s.Code != 0 && s.Code != 200 {
 		return fmt.Errorf("error code: %d; message: %s", s.Code, s.Message)
 	}
@@ -335,8 +339,8 @@ type FuturesOpenInterest struct {
 	Timestamp    types.Time    `json:"ts"`
 }
 
-// FuturesLiquidiationOrder represents a futures liquidiation price detail
-type FuturesLiquidiationOrder struct {
+// FuturesLiquidationOrder represents a futures liquidiation price detail
+type FuturesLiquidationOrder struct {
 	Symbol          currency.Pair `json:"s"`
 	Side            string        `json:"side"`
 	PositionSide    string        `json:"posSide"`
@@ -625,8 +629,8 @@ type RiskLimit struct {
 	MinSize                types.Number  `json:"minSize"`
 }
 
-// WsFuturesCandlesctick represents a kline data for futures instrument
-type WsFuturesCandlesctick struct {
+// WsFuturesCandlestick represents a kline data for futures instrument
+type WsFuturesCandlestick struct {
 	Symbol       currency.Pair
 	LowestPrice  types.Number
 	HighestPrice types.Number
@@ -640,8 +644,8 @@ type WsFuturesCandlesctick struct {
 	PushTime     types.Time
 }
 
-// UnmarshalJSON deserializes byte data into futures candlesticks into *WsFuturesCandlesctick
-func (o *WsFuturesCandlesctick) UnmarshalJSON(data []byte) error {
+// UnmarshalJSON deserialises byte data into futures candlesticks into *WsFuturesCandlestick
+func (o *WsFuturesCandlestick) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[11]any{&o.Symbol, &o.LowestPrice, &o.HighestPrice, &o.OpenPrice, &o.ClosePrice, &o.QuoteAmount, &o.BaseAmount, &o.Trades, &o.StartTime, &o.EndTime, &o.PushTime})
 }
 

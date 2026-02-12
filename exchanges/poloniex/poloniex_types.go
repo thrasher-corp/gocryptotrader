@@ -935,7 +935,7 @@ type WsBook struct {
 	LastID     int64                            `json:"lastId"`
 }
 
-// AuthRequest represents websocket authenticaten parameters
+// AuthRequest represents websocket authentication parameters
 type AuthRequest struct {
 	Key              string `json:"key"`
 	SignTimestamp    int64  `json:"signTimestamp"`
@@ -1031,7 +1031,7 @@ func (s *V3ResponseWrapper) Error() error {
 	return nil
 }
 
-// UnmarshalJSON conforms type to the umarshaler interface
+// UnmarshalJSON conforms type to the unmarshaler interface
 func (s *V3ResponseWrapper) UnmarshalJSON(data []byte) error {
 	var aux struct {
 		Code    int64           `json:"code"`

@@ -1605,6 +1605,8 @@ func TestPlaceOrder(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	_, err = e.PlaceOrder(t.Context(), &PlaceOrderRequest{Symbol: spotTradablePair})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	_, err = e.PlaceOrder(t.Context(), &PlaceOrderRequest{Symbol: spotTradablePair, Side: order.Sell, Type: OrderType(order.Limit)})
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 	_, err = e.PlaceOrder(t.Context(), &PlaceOrderRequest{Symbol: spotTradablePair, Side: order.Sell})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 	_, err = e.PlaceOrder(t.Context(), &PlaceOrderRequest{
@@ -2284,9 +2286,13 @@ func TestWsCancelMultipleOrdersByIDs(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
+	_, err := e.WsCancelMultipleOrdersByIDs(t.Context(), []string{}, []string{})
+	assert.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
 	if mockTests {
 		t.Skip(websocketMockTestsSkipped)
 	}
+
 	e.setAPICredential(apiKey, apiSecret)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
@@ -3327,4 +3333,125 @@ func TestV3ResponseWrapperUnmarshal(t *testing.T) {
 	err = json.Unmarshal(validWithNoPayloadResponse, &in)
 	require.NoError(t, err)
 	assert.ErrorIs(t, in.Error(), common.ErrNoResponse)
+}
+
+func TestMarshalMarginMode(t *testing.T) {
+	t.Parallel()
+	marginModes := []MarginMode{MarginMode(margin.Multi), MarginMode(margin.Isolated), MarginMode(margin.Unset)}
+	data, err := json.Marshal(marginModes)
+	require.NoError(t, err)
+	assert.Equal(t, []byte(`["CROSS","ISOLATED",""]`), data)
+
+	type sample struct {
+		Mode MarginMode `json:"mgnMode,omitempty"`
+	}
+	inputs := []struct {
+		in   sample
+		data any
+		err  error
+	}{
+		{in: sample{}, data: []byte(`{}`)},
+		{in: sample{Mode: MarginMode(margin.Unset)}, data: []byte(`{}`)},
+		{in: sample{Mode: MarginMode(margin.Multi)}, data: []byte(`{"mgnMode":"CROSS"}`)},
+		{in: sample{Mode: MarginMode(8)}, data: []byte(nil), err: margin.ErrMarginTypeUnsupported},
+	}
+	for _, input := range inputs {
+		data, err = json.Marshal(&input.in)
+		require.ErrorIs(t, err, input.err)
+		assert.Equal(t, input.data, data)
+	}
+}
+
+func TestMarshalOrderType(t *testing.T) {
+	t.Parallel()
+	orderTypes := []OrderType{OrderType(order.Market), OrderType(order.Limit), OrderType(order.LimitMaker), OrderType(order.Stop), OrderType(order.StopLimit), OrderType(order.TrailingStop), OrderType(order.TrailingStopLimit), OrderType(order.AnyType), OrderType(order.UnknownType)}
+	data, err := json.Marshal(orderTypes)
+	require.NoError(t, err)
+	assert.Equal(t, []byte(`["MARKET","LIMIT","LIMIT_MAKER","STOP","STOP_LIMIT","TRAILING_STOP","TRAILING_STOP_LIMIT","",""]`), data)
+
+	type sample struct {
+		Type OrderType `json:"type,omitempty"`
+	}
+	inputs := []struct {
+		in   sample
+		data any
+		err  error
+	}{
+		{in: sample{}, data: []byte(`{}`)},
+		{in: sample{Type: OrderType(order.LimitMaker)}, data: []byte(`{"type":"LIMIT_MAKER"}`)},
+		{in: sample{Type: OrderType(order.UnknownType)}, data: []byte(`{}`)},
+		{in: sample{Type: OrderType(12345)}, data: []byte(nil), err: order.ErrUnsupportedOrderType},
+	}
+	for _, input := range inputs {
+		data, err = json.Marshal(&input.in)
+		require.ErrorIs(t, err, input.err)
+		assert.Equal(t, input.data, data)
+	}
+}
+
+func TestMarshalTimeInForce(t *testing.T) {
+	timeInForceValues := []TimeInForce{TimeInForce(order.GoodTillCancel), TimeInForce(order.FillOrKill), TimeInForce(order.ImmediateOrCancel), TimeInForce(order.UnknownTIF)}
+	data, err := json.Marshal(timeInForceValues)
+	require.NoError(t, err)
+	assert.Equal(t, []byte(`["GTC","FOK","IOC",""]`), data)
+
+	type sample struct {
+		TIF TimeInForce `json:"tif,omitempty"`
+	}
+	inputs := []struct {
+		in   sample
+		data any
+		err  error
+	}{
+		{in: sample{}, data: []byte(`{}`)},
+		{in: sample{TIF: TimeInForce(order.FillOrKill)}, data: []byte(`{"tif":"FOK"}`)},
+		{in: sample{TIF: TimeInForce(order.UnknownTIF)}, data: []byte(`{}`)},
+		{in: sample{TIF: TimeInForce(1)}, data: []byte(nil), err: order.ErrInvalidTimeInForce},
+	}
+	for _, input := range inputs {
+		data, err = json.Marshal(&input.in)
+		require.ErrorIs(t, err, input.err)
+		assert.Equal(t, input.data, data)
+	}
+}
+
+func TestUnmarshalStatusResponse(t *testing.T) {
+	t.Parallel()
+	var resp statusResponse
+	err := json.Unmarshal([]byte(`{"code":0 , "message": "congrats!"}`), &resp)
+	require.NoError(t, err)
+	assert.NoError(t, resp.Error())
+
+	err = json.Unmarshal([]byte(`{"code":4000 , "message": "something gone wrong"}`), &resp)
+	require.NoError(t, err)
+	assert.ErrorContains(t, resp.Error(), `error code: 4000; message: something gone wrong`)
+
+	var sample *struct {
+		*statusResponse
+		Name string `json:"name"`
+	}
+	err = json.Unmarshal([]byte(`{"name": "thrasher"}`), &sample)
+	require.NoError(t, err)
+	assert.NotNil(t, sample)
+	assert.ErrorIs(t, sample.Error(), common.ErrNoResponse)
+}
+
+func TestUnmarshalFuturesOrderIDResponse(t *testing.T) {
+	t.Parallel()
+	var resp FuturesOrderIDResponse
+	err := json.Unmarshal([]byte(`{"code":0 , "msg": "congrats!"}`), &resp)
+	require.NoError(t, err)
+	assert.NoError(t, resp.Error())
+
+	err = json.Unmarshal([]byte(`{"code":4000 , "msg": "something gone wrong"}`), &resp)
+	require.NoError(t, err)
+	assert.ErrorContains(t, resp.Error(), `error code: 4000; message: something gone wrong`)
+
+	var sample *FuturesOrderIDResponse
+	assert.ErrorIs(t, sample.Error(), common.ErrNoResponse)
+
+	err = json.Unmarshal([]byte(`{"ordId": "1234567890"}`), &sample)
+	require.NoError(t, err)
+	assert.NotNil(t, sample)
+	assert.NoError(t, sample.Error())
 }

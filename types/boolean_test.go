@@ -8,9 +8,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
-func TestBooleanMarshal(t *testing.T) {
+func TestBooleanUnmarshal(t *testing.T) {
 	t.Parallel()
-	data := []byte(`{"value": true, "another_value": "true", "third_value": "false", "fourth_value": 1, "fifth_value": 0}`)
+	data := []byte(`{"value": true, "another_value": "true", "third_value": "false", "fourth_value": 1, "fifth_value": 0, "sixth_value": "1"}`)
 	var result map[string]Boolean
 	err := json.Unmarshal(data, &result)
 	require.NoError(t, err)
@@ -19,6 +19,7 @@ func TestBooleanMarshal(t *testing.T) {
 	assert.False(t, result["third_value"].Bool())
 	assert.True(t, result["fourth_value"].Bool())
 	assert.False(t, result["fifth_value"].Bool())
+	assert.True(t, result["sixth_value"].Bool())
 
 	data = []byte(`{"value": "0"}`)
 	err = json.Unmarshal(data, &result)

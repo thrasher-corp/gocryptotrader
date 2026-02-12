@@ -30,21 +30,21 @@ const (
 
 const (
 	// Public channels
-	channelFuturesSymbol            = "symbol"
-	channelFuturesOrderbookLvl2     = "book_lv2"
-	channelFuturesOrderbook         = "book"
-	channelFuturesTickers           = "tickers"
-	channelFuturesTrades            = "trades"
-	channelFuturesIndexPrice        = "index_price"
-	channelFuturesMarkPrice         = "mark_price"
-	channelFuturesFundingRate       = "funding_rate"
-	channelFuturesMarkPriceCandles  = "mark_price_candles"
-	channelFuturesMarkCandles       = "mark_candles"
-	channelFuturesCandles           = "candles"
-	channelFuturesIndexCandles      = "index_candles"
-	channelFuturesLimitPrice        = "limit_price"
-	channelFuturesLiquidiationPrice = "liquidation_orders"
-	channelFuturesOpenInterest      = "open_interest"
+	channelFuturesSymbol           = "symbol"
+	channelFuturesOrderbookLvl2    = "book_lv2"
+	channelFuturesOrderbook        = "book"
+	channelFuturesTickers          = "tickers"
+	channelFuturesTrades           = "trades"
+	channelFuturesIndexPrice       = "index_price"
+	channelFuturesMarkPrice        = "mark_price"
+	channelFuturesFundingRate      = "funding_rate"
+	channelFuturesMarkPriceCandles = "mark_price_candles"
+	channelFuturesMarkCandles      = "mark_candles"
+	channelFuturesCandles          = "candles"
+	channelFuturesIndexCandles     = "index_candles"
+	channelFuturesLimitPrice       = "limit_price"
+	channelFuturesLiquidationPrice = "liquidation_orders"
+	channelFuturesOpenInterest     = "open_interest"
 
 	// Authenticated channels
 	channelFuturesPrivatePositions = "positions"
@@ -191,8 +191,8 @@ func (e *Exchange) wsFuturesHandleData(ctx context.Context, conn websocket.Conne
 			return err
 		}
 		return e.Websocket.DataHandler.Send(ctx, resp)
-	case channelFuturesLiquidiationPrice:
-		var resp []*FuturesLiquidiationOrder
+	case channelFuturesLiquidationPrice:
+		var resp []*FuturesLiquidationOrder
 		if err := json.Unmarshal(result.Data, &resp); err != nil {
 			return err
 		}
@@ -486,7 +486,7 @@ func (e *Exchange) processFuturesTrades(ctx context.Context, data []byte) error 
 }
 
 func (e *Exchange) processFuturesCandlesticks(ctx context.Context, data []byte, interval kline.Interval) error {
-	var resp []*WsFuturesCandlesctick
+	var resp []*WsFuturesCandlestick
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
