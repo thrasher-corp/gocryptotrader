@@ -2563,7 +2563,6 @@ func TestGetMarginRatesHistory(t *testing.T) {
 	assert.NoError(t, err)
 
 	request.GetBorrowRates = true
-	request.GetLendingPayments = true
 	request.GetBorrowCosts = true
 	request.GetPredictedRate = true
 	request.IncludeAllRates = true

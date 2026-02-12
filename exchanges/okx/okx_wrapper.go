@@ -2455,6 +2455,119 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, req *margin.Positio
 	}, nil
 }
 
+// GetCurrentMarginRates returns the latest margin rates for pairs.
+func (e *Exchange) GetCurrentMarginRates(ctx context.Context, req *margin.CurrentRatesRequest) ([]margin.CurrentRateResponse, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%w CurrentRatesRequest", common.ErrNilPointer)
+	}
+	if req.Asset != asset.Margin {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
+	}
+	pairs := req.Pairs
+	if len(pairs) == 0 {
+		var err error
+		pairs, err = e.GetEnabledPairs(req.Asset)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(pairs) == 0 {
+		return nil, currency.ErrCurrencyPairsEmpty
+	}
+
+	timeChecked := time.Now().UTC()
+	cache := make(map[currency.Code]margin.Rate)
+	resp := make([]margin.CurrentRateResponse, len(pairs))
+	for i := range pairs {
+		if pairs[i].IsEmpty() {
+			return nil, currency.ErrCurrencyPairEmpty
+		}
+		rate, ok := cache[pairs[i].Base]
+		if !ok {
+			interestRates, err := e.GetInterestRate(ctx, pairs[i].Base)
+			if err != nil {
+				return nil, err
+			}
+			if len(interestRates) == 0 {
+				return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotFound, pairs[i].Base)
+			}
+			hourlyRate := decimal.NewFromFloat(interestRates[0].InterestRate.Float64())
+			rate = margin.Rate{
+				Time:             timeChecked,
+				HourlyRate:       hourlyRate,
+				YearlyRate:       hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
+				HourlyBorrowRate: hourlyRate,
+				YearlyBorrowRate: hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
+			}
+			cache[pairs[i].Base] = rate
+		}
+		resp[i] = margin.CurrentRateResponse{
+			Exchange:    e.Name,
+			Asset:       req.Asset,
+			Pair:        pairs[i],
+			CurrentRate: rate,
+			TimeChecked: timeChecked,
+		}
+	}
+	return resp, nil
+}
+
+// GetMarginRatesHistory returns margin borrow rates and accrued borrow costs.
+func (e *Exchange) GetMarginRatesHistory(ctx context.Context, req *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%w RateHistoryRequest", common.ErrNilPointer)
+	}
+	if req.Asset != asset.Margin {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
+	}
+	if req.Currency.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if req.GetPredictedRate {
+		return nil, fmt.Errorf("%w GetPredictedRate", common.ErrFunctionNotSupported)
+	}
+	if !req.StartDate.IsZero() && !req.EndDate.IsZero() {
+		if err := common.StartEndTimeCheck(req.StartDate, req.EndDate); err != nil {
+			return nil, err
+		}
+	}
+
+	interestData, err := e.GetInterestAccruedData(ctx, 0, 0, req.Currency, "", "", req.StartDate, req.EndDate)
+	if err != nil {
+		return nil, err
+	}
+	resp := &margin.RateHistoryResponse{
+		Rates: make([]margin.Rate, len(interestData)),
+	}
+	for i := range interestData {
+		hourlyRate := decimal.NewFromFloat(interestData[i].InterestRate.Float64())
+		resp.Rates[i] = margin.Rate{
+			Time:       interestData[i].Timestamp.Time(),
+			HourlyRate: hourlyRate,
+			YearlyRate: hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
+		}
+		if req.GetBorrowRates {
+			resp.Rates[i].HourlyBorrowRate = hourlyRate
+			resp.Rates[i].YearlyBorrowRate = resp.Rates[i].YearlyRate
+		}
+		if req.GetBorrowCosts {
+			resp.Rates[i].BorrowCost = margin.BorrowCost{
+				Cost: decimal.NewFromFloat(interestData[i].Interest.Float64()),
+				Size: decimal.NewFromFloat(interestData[i].Liability.Float64()),
+			}
+			resp.SumBorrowCosts = resp.SumBorrowCosts.Add(resp.Rates[i].BorrowCost.Cost)
+			resp.AverageBorrowSize = resp.AverageBorrowSize.Add(resp.Rates[i].BorrowCost.Size)
+		}
+	}
+	sort.Slice(resp.Rates, func(i, j int) bool {
+		return resp.Rates[i].Time.Before(resp.Rates[j].Time)
+	})
+	if req.GetBorrowCosts && len(resp.Rates) > 0 {
+		resp.AverageBorrowSize = resp.AverageBorrowSize.Div(decimal.NewFromInt(int64(len(resp.Rates))))
+	}
+	return resp, nil
+}
+
 // GetFuturesPositionSummary returns position summary details for an active position
 func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
 	if req == nil {

@@ -2293,6 +2293,79 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, req *margin.Positio
 	}, nil
 }
 
+// GetMarginRatesHistory retrieves margin borrow rates and borrow costs.
+func (e *Exchange) GetMarginRatesHistory(ctx context.Context, req *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%w RateHistoryRequest", common.ErrNilPointer)
+	}
+	if req.Asset != asset.Margin {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
+	}
+	if req.Currency.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if req.GetPredictedRate {
+		return nil, fmt.Errorf("%w GetPredictedRate", common.ErrFunctionNotSupported)
+	}
+	if !req.StartDate.IsZero() && !req.EndDate.IsZero() {
+		if err := common.StartEndTimeCheck(req.StartDate, req.EndDate); err != nil {
+			return nil, err
+		}
+	}
+
+	const pageSize = int64(100)
+	page := int64(1)
+	rates := make([]margin.Rate, 0, pageSize)
+	for {
+		history, err := e.GetUserMarginInterestHistory(ctx, req.Currency, req.Pair, req.StartDate, req.EndDate, page, pageSize, false)
+		if err != nil {
+			return nil, err
+		}
+
+		for i := range history.Rows {
+			hourlyRate := decimal.NewFromFloat(history.Rows[i].InterestRate)
+			mr := margin.Rate{
+				Time:       history.Rows[i].InterestAccruedTime.Time(),
+				HourlyRate: hourlyRate,
+				YearlyRate: hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
+			}
+			if req.GetBorrowRates {
+				mr.HourlyBorrowRate = hourlyRate
+				mr.YearlyBorrowRate = mr.YearlyRate
+			}
+			if req.GetBorrowCosts {
+				mr.BorrowCost = margin.BorrowCost{
+					Cost: decimal.NewFromFloat(history.Rows[i].Interest),
+					Size: decimal.NewFromFloat(history.Rows[i].Principal),
+				}
+			}
+			rates = append(rates, mr)
+		}
+
+		if len(history.Rows) < int(pageSize) || history.Total <= int64(len(rates)) {
+			break
+		}
+		page++
+	}
+
+	sort.Slice(rates, func(i, j int) bool {
+		return rates[i].Time.Before(rates[j].Time)
+	})
+	resp := &margin.RateHistoryResponse{
+		Rates: rates,
+	}
+	if req.GetBorrowCosts {
+		for i := range rates {
+			resp.SumBorrowCosts = resp.SumBorrowCosts.Add(rates[i].BorrowCost.Cost)
+			resp.AverageBorrowSize = resp.AverageBorrowSize.Add(rates[i].BorrowCost.Size)
+		}
+		if len(rates) > 0 {
+			resp.AverageBorrowSize = resp.AverageBorrowSize.Div(decimal.NewFromInt(int64(len(rates))))
+		}
+	}
+	return resp, nil
+}
+
 // marginTypeToString converts the GCT margin type to Binance's string
 func (e *Exchange) marginTypeToString(mt margin.Type) (string, error) {
 	switch mt {

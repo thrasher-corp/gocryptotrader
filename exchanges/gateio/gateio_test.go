@@ -26,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -3715,4 +3716,22 @@ func TestGetEstimatedInterestRate(t *testing.T) {
 	val, ok := got["BTC"]
 	require.True(t, ok, "result map must contain BTC key")
 	require.Positive(t, val.Float64(), "estimated interest rate must not be 0")
+}
+
+func TestGetCurrentMarginRatesValidation(t *testing.T) {
+	t.Parallel()
+
+	_, err := e.GetCurrentMarginRates(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.GetCurrentMarginRates(t.Context(), &margin.CurrentRatesRequest{
+		Asset: asset.Spot,
+	})
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	_, err = e.GetCurrentMarginRates(t.Context(), &margin.CurrentRatesRequest{
+		Asset: asset.Margin,
+		Pairs: currency.Pairs{currency.EMPTYPAIR},
+	})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 }
