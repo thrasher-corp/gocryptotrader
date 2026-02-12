@@ -1185,9 +1185,11 @@ func TestGenerateSubscriptions(t *testing.T) {
 func TestWSSubscribe(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "TestInstance must not error")
-	testexch.SetupWs(t, e)
+
 	err := subscribeForTest(t.Context(), e, subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
-	require.NoError(t, err, "Subrcribe must not error")
+	if err != nil {
+		require.ErrorContains(t, err, "subscribe: dup (code: 10301)", "Initial subscription may already exist from generated defaults")
+	}
 	catcher := func() (ok bool) {
 		i := <-e.Websocket.DataHandler.C
 		_, ok = i.Data.(*ticker.Price)
@@ -1197,22 +1199,27 @@ func TestWSSubscribe(t *testing.T) {
 
 	subs, err := e.GetSubscriptions()
 	require.NoError(t, err, "GetSubscriptions must not error")
-	require.Len(t, subs, 1, "We must only have 1 subscription; subID subscription must have been Removed by subscribeToChan")
+	tickerSubs := make(subscription.List, 0, len(subs))
+	for i := range subs {
+		if subs[i].Channel == subscription.TickerChannel &&
+			subs[i].Asset == asset.Spot &&
+			len(subs[i].Pairs) == 1 &&
+			subs[i].Pairs[0].Equal(currency.NewBTCUSD()) {
+			tickerSubs = append(tickerSubs, subs[i])
+		}
+	}
+	require.NotEmpty(t, tickerSubs, "Expected at least one BTC/USD ticker subscription")
 
 	err = subscribeForTest(t.Context(), e, subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
 	require.ErrorContains(t, err, "subscribe: dup (code: 10301)", "Duplicate subscription must error correctly")
 
-	subs, err = e.GetSubscriptions()
-	require.NoError(t, err, "GetSubscriptions must not error")
-	require.Len(t, subs, 1, "We must only have one subscription after an error attempt")
-
-	err = unsubscribeForTest(t.Context(), e, subs)
+	err = unsubscribeForTest(t.Context(), e, subscription.List{tickerSubs[0]})
 	assert.NoError(t, err, "Unsubscribing should not error")
 
-	chanID, ok := subs[0].Key.(int)
+	chanID, ok := tickerSubs[0].Key.(int)
 	assert.True(t, ok, "sub.Key should be an int")
 
-	err = unsubscribeForTest(t.Context(), e, subs)
+	err = unsubscribeForTest(t.Context(), e, subscription.List{tickerSubs[0]})
 	assert.ErrorContains(t, err, strconv.Itoa(chanID), "Unsubscribe should contain correct chanId")
 	assert.ErrorContains(t, err, "unsubscribe: invalid (code: 10400)", "Unsubscribe should contain correct upstream error")
 

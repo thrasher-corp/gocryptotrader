@@ -172,9 +172,9 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:               exch,
-		UseMultiConnectionManagement: true,
-		Features:                     &e.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:                         exch,
+		UseMultiConnectionManagement:           true,
+		Features:                               &e.Features.Supports.WebsocketCapabilities,
 		MaxWebsocketSubscriptionsPerConnection: 500, // https://docs.deribit.com/ (max 500 channels per subscribe request)
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
@@ -1124,11 +1124,6 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 // GetServerTime returns the current exchange server time.
 func (e *Exchange) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
 	return e.GetTime(ctx)
-}
-
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (e *Exchange) AuthenticateWebsocket(ctx context.Context) error {
-	return e.wsLogin(ctx)
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type

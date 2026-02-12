@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -13,7 +12,6 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -1513,10 +1511,13 @@ func TestWsAuth(t *testing.T) {
 	if e.Websocket.IsEnabled() && !e.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(e) {
 		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
 	}
-	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{})
+	err := e.Websocket.Connect(t.Context())
 	require.NoError(t, err)
-	startWSReadLoop(t.Context(), e, e.Websocket.Conn)
+	wsRunningURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	require.NoError(t, err)
+	conn, err := e.Websocket.GetConnection(wsRunningURL)
+	require.NoError(t, err)
+	startWSReadLoop(t.Context(), e, conn)
 	err = subscribeForTest(t.Context(), e, subscription.List{
 		{
 			Channel:       "myAccount",

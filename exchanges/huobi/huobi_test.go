@@ -2,20 +2,13 @@ package huobi
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"log"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/buger/jsonparser"
-	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -1973,54 +1966,6 @@ func TestGenerateSubscriptions(t *testing.T) {
 		}
 	}
 	testsubs.EqualLists(t, exp, subs)
-}
-
-func wsFixture(tb testing.TB, msg []byte, w *gws.Conn) error {
-	tb.Helper()
-	action, _ := jsonparser.GetString(msg, "action")
-	ch, _ := jsonparser.GetString(msg, "ch")
-	if action == "req" && ch == "auth" {
-		return w.WriteMessage(gws.TextMessage, []byte(`{"action":"req","code":200,"ch":"auth","data":{}}`))
-	}
-	if action == "sub" {
-		return w.WriteMessage(gws.TextMessage, []byte(`{"action":"sub","code":200,"ch":"`+ch+`"}`))
-	}
-	id, _ := jsonparser.GetString(msg, "id")
-	sub, _ := jsonparser.GetString(msg, "sub")
-	if id != "" && sub != "" {
-		return w.WriteMessage(gws.TextMessage, []byte(`{"id":"`+id+`","status":"ok","subbed":"`+sub+`"}`))
-	}
-	return fmt.Errorf("%w: %s", errors.New("Unhandled mock websocket message"), msg)
-}
-
-func mockWsInstance(tb testing.TB, h http.HandlerFunc) *Exchange {
-	tb.Helper()
-
-	e := new(Exchange)
-	require.NoError(tb, testexch.Setup(e), "Test exchange Setup must not error")
-
-	s := httptest.NewServer(h)
-	tb.Cleanup(s.Close)
-	wsURL := "ws" + strings.TrimPrefix(s.URL, "http")
-	b := e.GetBase()
-	cfg := *b.Config
-	cfg.API.Endpoints = make(map[string]string, len(b.Config.API.Endpoints))
-	for k, v := range b.Config.API.Endpoints {
-		cfg.API.Endpoints[k] = v
-	}
-	cfg.API.Endpoints["RestSpotURL"] = s.URL
-	cfg.API.Endpoints["WebsocketSpotURL"] = wsURL + wsPublicPath
-	cfg.API.Endpoints["WebsocketSpotSupplementaryURL"] = wsURL + wsPrivatePath
-	e.Websocket = websocket.NewManager()
-	require.NoError(tb, e.Setup(&cfg), "Setup must not error")
-
-	b = e.GetBase()
-	b.SkipAuthCheck = true
-	b.API.AuthenticatedWebsocketSupport = true
-	b.Features.Subscriptions = subscription.List{}
-	b.Websocket.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
-	require.NoError(tb, b.Websocket.Connect(context.TODO()), "Connect must not error")
-	return e
 }
 
 func TestChannelName(t *testing.T) {

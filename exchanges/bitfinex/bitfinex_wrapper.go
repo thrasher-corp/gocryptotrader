@@ -955,11 +955,6 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	return req.Filter(e.Name, orders), nil
 }
 
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (e *Exchange) AuthenticateWebsocket(ctx context.Context) error {
-	return e.WsSendAuth(ctx)
-}
-
 // appendOptionalDelimiter ensures that a delimiter is present for long character currencies
 func (e *Exchange) appendOptionalDelimiter(p *currency.Pair) {
 	if (len(p.Base.String()) > 3 && !p.Quote.IsEmpty()) ||

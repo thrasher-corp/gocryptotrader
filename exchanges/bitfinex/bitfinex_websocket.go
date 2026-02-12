@@ -1746,11 +1746,6 @@ func (e *Exchange) getErrResp(resp []byte) error {
 	return fmt.Errorf("%w (code: %d)", apiErr, errCode)
 }
 
-// WsSendAuth sends a authenticated event payload
-func (e *Exchange) WsSendAuth(ctx context.Context) error {
-	return e.wsSendAuthConn(ctx, e.Websocket.AuthConn)
-}
-
 func (e *Exchange) wsSendAuthConn(ctx context.Context, conn websocket.Connection) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
@@ -1779,7 +1774,11 @@ func (e *Exchange) wsSendAuthConn(ctx context.Context, conn websocket.Connection
 func (e *Exchange) WsNewOrder(ctx context.Context, data *WsNewOrderRequest) (string, error) {
 	data.CustomID = e.MessageSequence()
 	req := makeRequestInterface(wsOrderNew, data)
-	resp, err := e.Websocket.AuthConn.SendMessageReturnResponse(ctx, request.Unset, data.CustomID, req)
+	conn, err := e.Websocket.GetConnection(authenticatedBitfinexWebsocketEndpoint)
+	if err != nil {
+		return "", err
+	}
+	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, data.CustomID, req)
 	if err != nil {
 		return "", err
 	}
@@ -1836,7 +1835,11 @@ func (e *Exchange) WsNewOrder(ctx context.Context, data *WsNewOrderRequest) (str
 // WsModifyOrder authenticated modify order request
 func (e *Exchange) WsModifyOrder(ctx context.Context, data *WsUpdateOrderRequest) error {
 	req := makeRequestInterface(wsOrderUpdate, data)
-	resp, err := e.Websocket.AuthConn.SendMessageReturnResponse(ctx, request.Unset, data.OrderID, req)
+	conn, err := e.Websocket.GetConnection(authenticatedBitfinexWebsocketEndpoint)
+	if err != nil {
+		return err
+	}
+	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, data.OrderID, req)
 	if err != nil {
 		return err
 	}
@@ -1881,7 +1884,11 @@ func (e *Exchange) WsCancelMultiOrders(ctx context.Context, orderIDs []int64) er
 		OrderID: orderIDs,
 	}
 	req := makeRequestInterface(wsCancelMultipleOrders, cancel)
-	return e.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, req)
+	conn, err := e.Websocket.GetConnection(authenticatedBitfinexWebsocketEndpoint)
+	if err != nil {
+		return err
+	}
+	return conn.SendJSONMessage(ctx, request.Unset, req)
 }
 
 // WsCancelOrder authenticated cancel order request
@@ -1890,7 +1897,11 @@ func (e *Exchange) WsCancelOrder(ctx context.Context, orderID int64) error {
 		OrderID: orderID,
 	}
 	req := makeRequestInterface(wsOrderCancel, cancel)
-	resp, err := e.Websocket.AuthConn.SendMessageReturnResponse(ctx, request.Unset, orderID, req)
+	conn, err := e.Websocket.GetConnection(authenticatedBitfinexWebsocketEndpoint)
+	if err != nil {
+		return err
+	}
+	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, orderID, req)
 	if err != nil {
 		return err
 	}
@@ -1932,13 +1943,21 @@ func (e *Exchange) WsCancelOrder(ctx context.Context, orderID int64) error {
 func (e *Exchange) WsCancelAllOrders(ctx context.Context) error {
 	cancelAll := WsCancelAllOrdersRequest{All: 1}
 	req := makeRequestInterface(wsCancelMultipleOrders, cancelAll)
-	return e.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, req)
+	conn, err := e.Websocket.GetConnection(authenticatedBitfinexWebsocketEndpoint)
+	if err != nil {
+		return err
+	}
+	return conn.SendJSONMessage(ctx, request.Unset, req)
 }
 
 // WsNewOffer authenticated new offer request
 func (e *Exchange) WsNewOffer(ctx context.Context, data *WsNewOfferRequest) error {
 	req := makeRequestInterface(wsFundingOfferNew, data)
-	return e.Websocket.AuthConn.SendJSONMessage(ctx, request.Unset, req)
+	conn, err := e.Websocket.GetConnection(authenticatedBitfinexWebsocketEndpoint)
+	if err != nil {
+		return err
+	}
+	return conn.SendJSONMessage(ctx, request.Unset, req)
 }
 
 // WsCancelOffer authenticated cancel offer request
@@ -1947,7 +1966,11 @@ func (e *Exchange) WsCancelOffer(ctx context.Context, orderID int64) error {
 		OrderID: orderID,
 	}
 	req := makeRequestInterface(wsFundingOfferCancel, cancel)
-	resp, err := e.Websocket.AuthConn.SendMessageReturnResponse(ctx, request.Unset, orderID, req)
+	conn, err := e.Websocket.GetConnection(authenticatedBitfinexWebsocketEndpoint)
+	if err != nil {
+		return err
+	}
+	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, orderID, req)
 	if err != nil {
 		return err
 	}
