@@ -195,10 +195,11 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:               exch,
-		UseMultiConnectionManagement: true,
-		Features:                     &e.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferConfig:        buffer.Config{SortBuffer: true},
+		ExchangeConfig:                         exch,
+		UseMultiConnectionManagement:           true,
+		Features:                               &e.Features.Supports.WebsocketCapabilities,
+		MaxWebsocketSubscriptionsPerConnection: 200, // https://docs.kraken.com/api/docs/websocket-v2/level3/ (200 symbols per connection)
+		OrderbookBufferConfig:                  buffer.Config{SortBuffer: true},
 	})
 	if err != nil {
 		return err
@@ -224,6 +225,10 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
+	if !exch.API.AuthenticatedWebsocketSupport {
+		return nil
+	}
+
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                      wsRunningAuthURL,
 		Connector:                e.wsConnect,

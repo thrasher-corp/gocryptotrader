@@ -161,9 +161,12 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Subscriber:            e.subscribeForConnection,
 		Unsubscriber:          e.unsubscribeForConnection,
 		GenerateSubscriptions: e.generateSubscriptions,
-		Handler:               e.wsHandleDataForConnection,
-		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		Handler: func(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
+			_, err := e.wsHandleData(ctx, conn, respRaw)
+			return err
+		},
+		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 	})
 }
 

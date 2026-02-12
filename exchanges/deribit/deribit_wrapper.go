@@ -175,6 +175,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		ExchangeConfig:               exch,
 		UseMultiConnectionManagement: true,
 		Features:                     &e.Features.Supports.WebsocketCapabilities,
+		MaxWebsocketSubscriptionsPerConnection: 500, // https://docs.deribit.com/ (max 500 channels per subscribe request)
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
