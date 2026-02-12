@@ -75,36 +75,7 @@ var subscriptionNames = map[string]string{
 	subscription.MyAccountChannel: wsMyAccountChannel,
 }
 
-// WsConnect initiates a new websocket connection
-func (e *Exchange) WsConnect() error {
-	ctx := context.TODO()
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
-		return websocket.ErrWebsocketNotEnabled
-	}
-	if e.Websocket.Conn == nil {
-		return e.Websocket.Connect(ctx)
-	}
-	if err := e.Websocket.Conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
-		return err
-	}
-
-	e.Websocket.Wg.Add(1)
-	go e.wsReadMsgs(ctx, e.Websocket.Conn)
-
-	if e.IsWebsocketAuthenticationSupported() {
-		if err := e.wsAuthConnect(ctx); err != nil {
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			return fmt.Errorf("error authenticating websocket: %w", err)
-		}
-		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-		e.Websocket.Wg.Add(1)
-		go e.wsReadMsgs(ctx, e.Websocket.AuthConn)
-	}
-
-	return nil
-}
-
-func (e *Exchange) wsConnectForConnection(ctx context.Context, conn websocket.Connection) error {
+func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -114,7 +85,7 @@ func (e *Exchange) wsConnectForConnection(ctx context.Context, conn websocket.Co
 	return nil
 }
 
-func (e *Exchange) wsAuthenticateForConnection(ctx context.Context, conn websocket.Connection) error {
+func (e *Exchange) wsAuth(ctx context.Context, conn websocket.Connection) error {
 	authURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
 	if err != nil {
 		authURL = wsSpotURL + wsPrivatePath
@@ -191,7 +162,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		if s == nil {
 			return fmt.Errorf("%w: %q", subscription.ErrNotFound, ch)
 		}
-		return e.wsHandleChannelMsgs(ctx, s, respRaw)
+		return e.wsHandleChannelMsgs(ctx, conn, s, respRaw)
 	}
 
 	return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
@@ -226,7 +197,7 @@ func (e *Exchange) wsHandleV2subResp(conn websocket.Connection, action string, r
 	return nil
 }
 
-func (e *Exchange) wsHandleChannelMsgs(ctx context.Context, s *subscription.Subscription, respRaw []byte) error {
+func (e *Exchange) wsHandleChannelMsgs(ctx context.Context, _ websocket.Connection, s *subscription.Subscription, respRaw []byte) error {
 	switch s.Channel {
 	case subscription.TickerChannel:
 		return e.wsHandleTickerMsg(ctx, s, respRaw)
@@ -544,14 +515,70 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 func (e *Exchange) Subscribe(subs subscription.List) error {
 	ctx := context.TODO()
 	subs, errs := subs.ExpandTemplates(e)
-	return common.AppendError(errs, e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error { return e.manageSubs(ctx, nil, wsSubOp, l) }, 1))
+	return common.AppendError(errs, e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error {
+		if len(l) != 1 {
+			return subscription.ErrBatchingNotSupported
+		}
+		s := l[0]
+		if s.Authenticated {
+			wsRunningAuthURL, authErr := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
+			if authErr != nil {
+				wsRunningAuthURL = wsSpotURL + wsPrivatePath
+			}
+			conn, err := e.Websocket.GetConnection(wsRunningAuthURL)
+			if err != nil {
+				conn, err = e.Websocket.GetConnection(wsSpotURL + wsPrivatePath)
+				if err != nil {
+					return err
+				}
+			}
+			return e.manageSubs(ctx, conn, wsSubOp, l)
+		}
+		wsRunningURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		if err != nil {
+			return err
+		}
+		conn, err := e.Websocket.GetConnection(wsRunningURL)
+		if err != nil {
+			return err
+		}
+		return e.manageSubs(ctx, conn, wsSubOp, l)
+	}, 1))
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (e *Exchange) Unsubscribe(subs subscription.List) error {
 	ctx := context.TODO()
 	subs, errs := subs.ExpandTemplates(e)
-	return common.AppendError(errs, e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error { return e.manageSubs(ctx, nil, wsUnsubOp, l) }, 1))
+	return common.AppendError(errs, e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error {
+		if len(l) != 1 {
+			return subscription.ErrBatchingNotSupported
+		}
+		s := l[0]
+		if s.Authenticated {
+			wsRunningAuthURL, authErr := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
+			if authErr != nil {
+				wsRunningAuthURL = wsSpotURL + wsPrivatePath
+			}
+			conn, err := e.Websocket.GetConnection(wsRunningAuthURL)
+			if err != nil {
+				conn, err = e.Websocket.GetConnection(wsSpotURL + wsPrivatePath)
+				if err != nil {
+					return err
+				}
+			}
+			return e.manageSubs(ctx, conn, wsUnsubOp, l)
+		}
+		wsRunningURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		if err != nil {
+			return err
+		}
+		conn, err := e.Websocket.GetConnection(wsRunningURL)
+		if err != nil {
+			return err
+		}
+		return e.manageSubs(ctx, conn, wsUnsubOp, l)
+	}, 1))
 }
 
 func (e *Exchange) subscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
@@ -568,31 +595,6 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op
 	}
 	s := subs[0]
 	var req any
-	var err error
-	c := conn
-	if c == nil && s.Authenticated {
-		wsRunningAuthURL, authErr := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
-		if authErr != nil {
-			wsRunningAuthURL = wsSpotURL + wsPrivatePath
-		}
-		c, err = e.Websocket.GetConnection(wsRunningAuthURL)
-		if err != nil {
-			c, err = e.Websocket.GetConnection(wsSpotURL + wsPrivatePath)
-			if err != nil {
-				return err
-			}
-		}
-	}
-	if c == nil {
-		wsRunningURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
-		if err != nil {
-			return err
-		}
-		c, err = e.Websocket.GetConnection(wsRunningURL)
-		if err != nil {
-			return err
-		}
-	}
 	if s.Authenticated {
 		req = wsReq{Action: op, Channel: s.QualifiedChannel}
 	} else {
@@ -603,22 +605,19 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op
 			req = wsSubReq{Unsub: s.QualifiedChannel}
 		}
 	}
-	if c == nil {
-		return websocket.ErrNotConnected
-	}
 	if op == wsSubOp {
 		s.SetKey(s.QualifiedChannel)
-		if err := e.Websocket.AddSubscriptions(c, s); err != nil {
+		if err := e.Websocket.AddSubscriptions(conn, s); err != nil {
 			return fmt.Errorf("%w: %s; error: %w", websocket.ErrSubscriptionFailure, s, err)
 		}
 	}
-	respRaw, err := c.SendMessageReturnResponse(ctx, request.Unset, wsSubOp+":"+s.QualifiedChannel, req)
+	respRaw, err := conn.SendMessageReturnResponse(ctx, request.Unset, wsSubOp+":"+s.QualifiedChannel, req)
 	if err == nil {
 		err = getErrResp(respRaw)
 	}
 	if err != nil {
 		if op == wsSubOp {
-			_ = e.Websocket.RemoveSubscriptions(c, s)
+			_ = e.Websocket.RemoveSubscriptions(conn, s)
 		}
 		return fmt.Errorf("%s: %w", s, err)
 	}
@@ -628,7 +627,7 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op
 			log.Debugf(log.ExchangeSys, "%s Subscribed to %s", e.Name, s)
 		}
 	} else {
-		err = e.Websocket.RemoveSubscriptions(c, s)
+		err = e.Websocket.RemoveSubscriptions(conn, s)
 	}
 	return err
 }

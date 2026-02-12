@@ -135,7 +135,7 @@ func (e *Exchange) WsConnect() error {
 	return nil
 }
 
-func (e *Exchange) wsConnectForConnection(ctx context.Context, conn websocket.Connection) error {
+func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -220,7 +220,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 			pair = p
 		}
 
-		return e.wsReadDataResponse(ctx, chanName, pair, msg)
+		return e.wsReadDataResponse(ctx, conn, chanName, pair, msg)
 	}
 
 	event, err := jsonparser.GetString(respRaw, "event")
@@ -266,7 +266,7 @@ func (e *Exchange) startWsPingHandler(conn websocket.Connection) {
 }
 
 // wsReadDataResponse classifies the WS response and sends to appropriate handler
-func (e *Exchange) wsReadDataResponse(ctx context.Context, c string, pair currency.Pair, response []json.RawMessage) error {
+func (e *Exchange) wsReadDataResponse(ctx context.Context, conn websocket.Connection, c string, pair currency.Pair, response []json.RawMessage) error {
 	switch c {
 	case krakenWsTicker:
 		return e.wsProcessTickers(ctx, response[1], pair)
@@ -285,7 +285,7 @@ func (e *Exchange) wsReadDataResponse(ctx context.Context, c string, pair curren
 	case krakenWsOHLC:
 		return e.wsProcessCandle(ctx, c, response[1], pair)
 	case krakenWsOrderbook:
-		return e.wsProcessOrderBook(ctx, c, response, pair)
+		return e.wsProcessOrderBook(ctx, conn, c, response, pair)
 	default:
 		return fmt.Errorf("received unidentified data for subscription %s: %+v", c, response)
 	}
@@ -501,7 +501,7 @@ func hasKey(raw json.RawMessage, key string) bool {
 }
 
 // wsProcessOrderBook handles both partial and full orderbook updates
-func (e *Exchange) wsProcessOrderBook(ctx context.Context, c string, response []json.RawMessage, pair currency.Pair) error {
+func (e *Exchange) wsProcessOrderBook(ctx context.Context, conn websocket.Connection, c string, response []json.RawMessage, pair currency.Pair) error {
 	key := &subscription.Subscription{
 		Channel: c,
 		Asset:   asset.Spot,
@@ -537,9 +537,8 @@ func (e *Exchange) wsProcessOrderBook(ctx context.Context, c string, response []
 		if errors.Is(err, errInvalidChecksum) {
 			log.Debugf(log.Global, "%s Resubscribing to invalid %s orderbook", e.Name, pair)
 			go func() {
-				conn, connErr := e.getPublicConnection()
-				if connErr != nil {
-					log.Errorf(log.ExchangeSys, "%s resubscription failure for %v: %v", e.Name, pair, connErr)
+				if conn == nil {
+					log.Errorf(log.ExchangeSys, "%s resubscription failure for %v: %v", e.Name, pair, websocket.ErrNotConnected)
 					return
 				}
 				if e2 := e.Websocket.ResubscribeToChannel(ctx, conn, s); e2 != nil && !errors.Is(e2, subscription.ErrInStateAlready) {
@@ -733,9 +732,16 @@ func (e *Exchange) Subscribe(in subscription.List) error {
 			return err
 		}
 	}
-	publicConn, err := e.getPublicConnection()
+	wsRunningURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
+	}
+	publicConn, err := e.Websocket.GetConnection(wsRunningURL)
+	if err != nil {
+		publicConn, err = e.Websocket.GetConnection(krakenWSURL)
+		if err != nil {
+			return err
+		}
 	}
 	in, errs := in.ExpandTemplates(e)
 
@@ -756,7 +762,25 @@ func (e *Exchange) Subscribe(in subscription.List) error {
 
 	errs = common.AppendError(errs,
 		e.ParallelChanOp(ctx, groupedSubs, func(ctx context.Context, s subscription.List) error {
-			return e.manageSubs(ctx, krakenWsSubscribe, s, nil)
+			if len(s) != 1 {
+				return subscription.ErrBatchingNotSupported
+			}
+			conn := publicConn
+			if s[0].Authenticated {
+				wsRunningAuthURL, urlErr := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
+				if urlErr != nil {
+					return urlErr
+				}
+				var connErr error
+				conn, connErr = e.Websocket.GetConnection(wsRunningAuthURL)
+				if connErr != nil {
+					conn, connErr = e.Websocket.GetConnection(krakenAuthWSURL)
+				}
+				if connErr != nil {
+					return connErr
+				}
+			}
+			return e.manageSubs(ctx, krakenWsSubscribe, s, conn)
 		}, 1),
 	)
 
@@ -801,7 +825,34 @@ func (e *Exchange) Unsubscribe(keys subscription.List) error {
 
 	return common.AppendError(errs,
 		e.ParallelChanOp(ctx, subs, func(ctx context.Context, s subscription.List) error {
-			return e.manageSubs(ctx, krakenWsUnsubscribe, s, nil)
+			if len(s) != 1 {
+				return subscription.ErrBatchingNotSupported
+			}
+			wsRunningURL, urlErr := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+			if urlErr != nil {
+				return urlErr
+			}
+			conn, connErr := e.Websocket.GetConnection(wsRunningURL)
+			if connErr != nil {
+				conn, connErr = e.Websocket.GetConnection(krakenWSURL)
+				if connErr != nil {
+					return connErr
+				}
+			}
+			if s[0].Authenticated {
+				wsRunningAuthURL, authURLErr := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
+				if authURLErr != nil {
+					return authURLErr
+				}
+				conn, connErr = e.Websocket.GetConnection(wsRunningAuthURL)
+				if connErr != nil {
+					conn, connErr = e.Websocket.GetConnection(krakenAuthWSURL)
+				}
+				if connErr != nil {
+					return connErr
+				}
+			}
+			return e.manageSubs(ctx, krakenWsUnsubscribe, s, conn)
 		}, 1),
 	)
 }
@@ -822,6 +873,9 @@ func (e *Exchange) unsubscribeForConnection(ctx context.Context, conn websocket.
 func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.List, conn websocket.Connection) error {
 	if len(subs) != 1 {
 		return subscription.ErrBatchingNotSupported
+	}
+	if conn == nil {
+		return websocket.ErrNotConnected
 	}
 
 	s := subs[0]
@@ -846,22 +900,8 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 		r.Subscription.Interval = int(time.Duration(s.Interval).Minutes())
 	}
 
-	var err error
-	if conn == nil {
-		if s.Authenticated {
-			conn, err = e.getAuthenticatedConnection()
-		} else {
-			conn, err = e.getPublicConnection()
-		}
-		if err != nil {
-			return err
-		}
-	}
 	if s.Authenticated {
 		r.Subscription.Token = e.websocketAuthToken()
-	}
-	if conn == nil {
-		return websocket.ErrNotConnected
 	}
 
 	resps, err := conn.SendMessageReturnResponses(ctx, request.Unset, r.RequestID, r, len(s.Pairs))
@@ -1072,9 +1112,16 @@ func (e *Exchange) wsAddOrder(ctx context.Context, req *WsAddOrderRequest) (stri
 	if req == nil {
 		return "", common.ErrNilPointer
 	}
-	conn, err := e.getAuthenticatedConnection()
+	wsRunningAuthURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
 	if err != nil {
 		return "", err
+	}
+	conn, err := e.Websocket.GetConnection(wsRunningAuthURL)
+	if err != nil {
+		conn, err = e.Websocket.GetConnection(krakenAuthWSURL)
+		if err != nil {
+			return "", err
+		}
 	}
 	req.RequestID = e.MessageSequence()
 	req.Event = krakenWsAddOrder
@@ -1104,18 +1151,28 @@ func (e *Exchange) wsAddOrder(ctx context.Context, req *WsAddOrderRequest) (stri
 // wsCancelOrders cancels open orders concurrently
 // It does not use the multiple txId facility of the cancelOrder API because the errors are not specific
 func (e *Exchange) wsCancelOrders(ctx context.Context, orderIDs []string) error {
+	wsRunningAuthURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
+	if err != nil {
+		return err
+	}
+	conn, err := e.Websocket.GetConnection(wsRunningAuthURL)
+	if err != nil {
+		conn, err = e.Websocket.GetConnection(krakenAuthWSURL)
+		if err != nil {
+			return err
+		}
+	}
 	var errs common.ErrorCollector
 	for _, id := range orderIDs {
-		errs.Go(func() error { return e.wsCancelOrder(ctx, id) })
+		errs.Go(func() error { return e.wsCancelOrder(ctx, conn, id) })
 	}
 	return errs.Collect()
 }
 
 // wsCancelOrder cancels an open order
-func (e *Exchange) wsCancelOrder(ctx context.Context, orderID string) error {
-	conn, err := e.getAuthenticatedConnection()
-	if err != nil {
-		return err
+func (e *Exchange) wsCancelOrder(ctx context.Context, conn websocket.Connection, orderID string) error {
+	if conn == nil {
+		return websocket.ErrNotConnected
 	}
 	id := e.MessageSequence()
 	req := WsCancelOrderRequest{
@@ -1148,9 +1205,16 @@ func (e *Exchange) wsCancelOrder(ctx context.Context, orderID string) error {
 // wsCancelAllOrders cancels all opened orders
 // Returns number (count param) of affected orders or 0 if no open orders found
 func (e *Exchange) wsCancelAllOrders(ctx context.Context) (*WsCancelOrderResponse, error) {
-	conn, err := e.getAuthenticatedConnection()
+	wsRunningAuthURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
 	if err != nil {
 		return &WsCancelOrderResponse{}, err
+	}
+	conn, err := e.Websocket.GetConnection(wsRunningAuthURL)
+	if err != nil {
+		conn, err = e.Websocket.GetConnection(krakenAuthWSURL)
+		if err != nil {
+			return &WsCancelOrderResponse{}, err
+		}
 	}
 	req := WsCancelOrderRequest{
 		Event:     krakenWsCancelAll,
@@ -1204,28 +1268,4 @@ func (e *Exchange) setWebsocketAuthToken(token string) {
 	e.wsAuthMtx.Lock()
 	e.wsAuthToken = token
 	e.wsAuthMtx.Unlock()
-}
-
-func (e *Exchange) getAuthenticatedConnection() (websocket.Connection, error) {
-	wsRunningAuthURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
-	if err != nil {
-		return nil, err
-	}
-	conn, err := e.Websocket.GetConnection(wsRunningAuthURL)
-	if err == nil {
-		return conn, nil
-	}
-	return e.Websocket.GetConnection(krakenAuthWSURL)
-}
-
-func (e *Exchange) getPublicConnection() (websocket.Connection, error) {
-	wsRunningURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return nil, err
-	}
-	conn, err := e.Websocket.GetConnection(wsRunningURL)
-	if err == nil {
-		return conn, nil
-	}
-	return e.Websocket.GetConnection(krakenWSURL)
 }

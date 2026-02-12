@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -74,7 +75,7 @@ func (e *Exchange) WsConnect() error {
 	return nil
 }
 
-func (e *Exchange) wsConnectForConnection(ctx context.Context, conn websocket.Connection) error {
+func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -82,8 +83,8 @@ func (e *Exchange) wsConnectForConnection(ctx context.Context, conn websocket.Co
 	return conn.Dial(ctx, &dialer, http.Header{})
 }
 
-func (e *Exchange) wsHandleDataForConnection(ctx context.Context, _ websocket.Connection, respRaw []byte) error {
-	_, err := e.wsHandleData(ctx, respRaw)
+func (e *Exchange) wsHandleDataForConnection(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
+	_, err := e.wsHandleData(ctx, conn, respRaw)
 	return err
 }
 
@@ -96,7 +97,7 @@ func (e *Exchange) wsReadData(ctx context.Context) {
 		if resp.Raw == nil {
 			return
 		}
-		sequence, err := e.wsHandleData(ctx, resp.Raw)
+		sequence, err := e.wsHandleData(ctx, e.Websocket.Conn, resp.Raw)
 		if err != nil {
 			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
 				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
@@ -320,7 +321,7 @@ func (e *Exchange) wsProcessUser(ctx context.Context, resp *StandardWebsocketRes
 }
 
 // wsHandleData handles all the websocket data coming from the websocket connection
-func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) (*uint64, error) {
+func (e *Exchange) wsHandleData(ctx context.Context, _ websocket.Connection, respRaw []byte) (*uint64, error) {
 	var resp StandardWebsocketResponse
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return nil, err
@@ -433,20 +434,45 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 
 // Subscribe sends a websocket message to receive data from a list of channels
 func (e *Exchange) Subscribe(subs subscription.List) error {
+	wsRunningURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+	conn, err := e.Websocket.GetConnection(wsRunningURL)
+	if err != nil {
+		conn, err = e.Websocket.GetConnection(coinbaseWebsocketURL)
+		if err != nil {
+			return err
+		}
+	}
 	return e.ParallelChanOp(context.TODO(), subs, func(ctx context.Context, subs subscription.List) error {
-		return e.manageSubs(ctx, e.Websocket.Conn, "subscribe", subs)
+		return e.manageSubs(ctx, conn, "subscribe", subs)
 	}, 1)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from a list of channels
 func (e *Exchange) Unsubscribe(subs subscription.List) error {
+	wsRunningURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+	conn, err := e.Websocket.GetConnection(wsRunningURL)
+	if err != nil {
+		conn, err = e.Websocket.GetConnection(coinbaseWebsocketURL)
+		if err != nil {
+			return err
+		}
+	}
 	return e.ParallelChanOp(context.TODO(), subs, func(ctx context.Context, subs subscription.List) error {
-		return e.manageSubs(ctx, e.Websocket.Conn, "unsubscribe", subs)
+		return e.manageSubs(ctx, conn, "unsubscribe", subs)
 	}, 1)
 }
 
 // manageSubs subscribes or unsubscribes from a list of websocket channels
 func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op string, subs subscription.List) error {
+	if conn == nil {
+		return websocket.ErrNotConnected
+	}
 	var errs error
 	subs, errs = subs.ExpandTemplates(e)
 	for _, s := range subs {

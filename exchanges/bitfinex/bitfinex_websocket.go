@@ -119,51 +119,7 @@ var subscriptionNames = map[string]string{
 	subscription.AllTradesChannel: wsTradesChannel,
 }
 
-// WsConnect starts a new websocket connection
-func (e *Exchange) WsConnect() error {
-	ctx := context.TODO()
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
-		return websocket.ErrWebsocketNotEnabled
-	}
-	if e.Websocket.Conn == nil {
-		return e.Websocket.Connect(ctx)
-	}
-	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
-	if err != nil {
-		return fmt.Errorf("%v unable to connect to Websocket. Error: %s",
-			e.Name,
-			err)
-	}
-
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(ctx, e.Websocket.Conn)
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		err = e.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{})
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%v unable to connect to authenticated Websocket. Error: %s",
-				e.Name,
-				err)
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		}
-		e.Websocket.Wg.Add(1)
-		go e.wsReadData(ctx, e.Websocket.AuthConn)
-		err = e.WsSendAuth(ctx)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%v - authentication failed: %v\n",
-				e.Name,
-				err)
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		}
-	}
-
-	e.Websocket.Wg.Add(1)
-	return e.ConfigureWS(ctx)
-}
-
-func (e *Exchange) wsConnectForConnection(ctx context.Context, conn websocket.Connection) error {
+func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -185,7 +141,7 @@ func (e *Exchange) wsConnectForConnection(ctx context.Context, conn websocket.Co
 			return err
 		}
 	}
-	return nil
+	return e.ConfigureWS(ctx, conn)
 }
 
 // wsReadData receives and passes on websocket messages for processing
@@ -223,7 +179,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 
 		if chanID != 0 {
 			if s := e.Websocket.GetSubscription(chanID); s != nil {
-				return e.handleWSChannelUpdate(ctx, s, respRaw, eventType, d)
+				return e.handleWSChannelUpdate(ctx, conn, s, respRaw, eventType, d)
 			}
 			if e.Verbose {
 				log.Warnf(log.ExchangeSys, "%s %s; dropped WS message: %s", e.Name, subscription.ErrNotFound, respRaw)
@@ -609,7 +565,7 @@ func (e *Exchange) handleWSSubscribed(conn websocket.Connection, respRaw []byte)
 	return e.Websocket.Match.RequireMatchWithData("subscribe:"+subID, respRaw)
 }
 
-func (e *Exchange) handleWSChannelUpdate(ctx context.Context, s *subscription.Subscription, respRaw []byte, eventType string, d []any) error {
+func (e *Exchange) handleWSChannelUpdate(ctx context.Context, conn websocket.Connection, s *subscription.Subscription, respRaw []byte, eventType string, d []any) error {
 	if s == nil {
 		return fmt.Errorf("%w: Subscription param", common.ErrNilPointer)
 	}
@@ -627,7 +583,7 @@ func (e *Exchange) handleWSChannelUpdate(ctx context.Context, s *subscription.Su
 
 	switch s.Channel {
 	case subscription.OrderbookChannel:
-		return e.handleWSBookUpdate(ctx, s, d)
+		return e.handleWSBookUpdate(ctx, conn, s, d)
 	case subscription.CandlesChannel:
 		return e.handleWSAllCandleUpdates(ctx, s, respRaw)
 	case subscription.TickerChannel:
@@ -673,7 +629,7 @@ func (e *Exchange) handleWSChecksum(c *subscription.Subscription, d []any) error
 	return nil
 }
 
-func (e *Exchange) handleWSBookUpdate(ctx context.Context, c *subscription.Subscription, d []any) error {
+func (e *Exchange) handleWSBookUpdate(ctx context.Context, conn websocket.Connection, c *subscription.Subscription, d []any) error {
 	if c == nil {
 		return fmt.Errorf("%w: Subscription param", common.ErrNilPointer)
 	}
@@ -769,7 +725,7 @@ func (e *Exchange) handleWSBookUpdate(ctx context.Context, c *subscription.Subsc
 			})
 		}
 
-		if err := e.WsUpdateOrderbook(ctx, c, c.Pairs[0], c.Asset, newOrderbook, int64(sequenceNo), fundingRate); err != nil {
+		if err := e.WsUpdateOrderbook(ctx, conn, c, c.Pairs[0], c.Asset, newOrderbook, int64(sequenceNo), fundingRate); err != nil {
 			return fmt.Errorf("updating orderbook error: %s",
 				err)
 		}
@@ -1520,7 +1476,7 @@ func (e *Exchange) WsInsertSnapshot(p currency.Pair, assetType asset.Item, books
 
 // WsUpdateOrderbook updates the orderbook list, removing and adding to the
 // orderbook sides
-func (e *Exchange) WsUpdateOrderbook(ctx context.Context, c *subscription.Subscription, p currency.Pair, assetType asset.Item, book []WebsocketBook, sequenceNo int64, fundingRate bool) error {
+func (e *Exchange) WsUpdateOrderbook(ctx context.Context, conn websocket.Connection, c *subscription.Subscription, p currency.Pair, assetType asset.Item, book []WebsocketBook, sequenceNo int64, fundingRate bool) error {
 	if c == nil {
 		return fmt.Errorf("%w: Subscription param", common.ErrNilPointer)
 	}
@@ -1609,7 +1565,7 @@ func (e *Exchange) WsUpdateOrderbook(ctx context.Context, c *subscription.Subscr
 
 		if err = validateCRC32(ob, checkme.Token); err != nil {
 			log.Errorf(log.WebsocketMgr, "%s websocket orderbook update error, will resubscribe orderbook: %v", e.Name, err)
-			if e2 := e.resubOrderbook(ctx, c); e2 != nil {
+			if e2 := e.resubOrderbook(ctx, conn, c); e2 != nil {
 				log.Errorf(log.WebsocketMgr, "%s error resubscribing orderbook: %v", e.Name, e2)
 			}
 			return err
@@ -1622,9 +1578,12 @@ func (e *Exchange) WsUpdateOrderbook(ctx context.Context, c *subscription.Subscr
 // resubOrderbook resubscribes the orderbook after a consistency error, probably a failed checksum,
 // which forces a fresh snapshot. If we don't do this the orderbook will keep erroring and drifting.
 // Flushing the orderbook happens immediately, but the ReSub itself is a go routine to avoid blocking the WS data channel
-func (e *Exchange) resubOrderbook(ctx context.Context, c *subscription.Subscription) error {
+func (e *Exchange) resubOrderbook(ctx context.Context, conn websocket.Connection, c *subscription.Subscription) error {
 	if c == nil {
 		return fmt.Errorf("%w: Subscription param", common.ErrNilPointer)
+	}
+	if conn == nil {
+		return websocket.ErrNotConnected
 	}
 	if len(c.Pairs) != 1 {
 		return subscription.ErrNotSinglePair
@@ -1636,7 +1595,7 @@ func (e *Exchange) resubOrderbook(ctx context.Context, c *subscription.Subscript
 
 	// Resub will block so we have to do this in a goro
 	go func() {
-		if err := e.Websocket.ResubscribeToChannel(ctx, e.Websocket.Conn, c); err != nil {
+		if err := e.Websocket.ResubscribeToChannel(ctx, conn, c); err != nil {
 			log.Errorf(log.ExchangeSys, "%s error resubscribing orderbook: %v", e.Name, err)
 		}
 	}()
@@ -1661,8 +1620,8 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 }
 
 // ConfigureWS to send checksums and sequence numbers
-func (e *Exchange) ConfigureWS(ctx context.Context) error {
-	return e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, map[string]any{
+func (e *Exchange) ConfigureWS(ctx context.Context, conn websocket.Connection) error {
+	return conn.SendJSONMessage(ctx, request.Unset, map[string]any{
 		"event": "conf",
 		"flags": bitfinexChecksumFlag + bitfinexWsSequenceFlag,
 	})
@@ -1682,48 +1641,6 @@ func (e *Exchange) generatePrivateSubscriptions() (subscription.List, error) {
 		return nil, err
 	}
 	return subs.Private(), nil
-}
-
-// Subscribe sends a websocket message to receive data from channels
-func (e *Exchange) Subscribe(subs subscription.List) error {
-	ctx := context.TODO()
-	publicConn, err := e.getPublicConnection()
-	if publicConn == nil && !e.Websocket.IsConnected() {
-		if err := e.Websocket.Connect(ctx); err != nil {
-			return err
-		}
-		publicConn, err = e.getPublicConnection()
-	}
-	if err != nil {
-		return err
-	}
-	if subs, err = subs.ExpandTemplates(e); err != nil {
-		return err
-	}
-	return e.ParallelChanOp(ctx, subs, func(ctx context.Context, s subscription.List) error {
-		return e.subscribeToChan(ctx, publicConn, s)
-	}, 1)
-}
-
-// Unsubscribe sends a websocket message to stop receiving data from channels
-func (e *Exchange) Unsubscribe(subs subscription.List) error {
-	ctx := context.TODO()
-	publicConn, err := e.getPublicConnection()
-	if publicConn == nil && !e.Websocket.IsConnected() {
-		if err := e.Websocket.Connect(ctx); err != nil {
-			return err
-		}
-		publicConn, err = e.getPublicConnection()
-	}
-	if err != nil {
-		return err
-	}
-	if subs, err = subs.ExpandTemplates(e); err != nil {
-		return err
-	}
-	return e.ParallelChanOp(ctx, subs, func(ctx context.Context, s subscription.List) error {
-		return e.unsubscribeFromChan(ctx, publicConn, s)
-	}, 1)
 }
 
 // subscribeToChan handles a single subscription and parses the result
@@ -1870,17 +1787,6 @@ func (e *Exchange) wsSendAuthConn(ctx context.Context, conn websocket.Connection
 		AuthNonce:     nonce,
 		DeadManSwitch: 0,
 	})
-}
-
-func (e *Exchange) getPublicConnection() (websocket.Connection, error) {
-	conn, err := e.Websocket.GetConnection(publicBitfinexWebsocketEndpoint)
-	if err == nil {
-		return conn, nil
-	}
-	if e.Websocket.Conn != nil {
-		return e.Websocket.Conn, nil
-	}
-	return nil, websocket.ErrNotConnected
 }
 
 // WsNewOrder authenticated new order request

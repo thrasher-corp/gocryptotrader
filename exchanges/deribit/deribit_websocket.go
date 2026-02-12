@@ -103,32 +103,7 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.All, Channel: subscription.MyTradesChannel, Interval: kline.HundredMilliseconds, Authenticated: true},
 }
 
-// WsConnect starts a new connection with the websocket API
-func (e *Exchange) WsConnect() error {
-	ctx := context.TODO()
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
-		return websocket.ErrWebsocketNotEnabled
-	}
-	if e.Websocket.Conn == nil {
-		return e.Websocket.Connect(ctx)
-	}
-	var dialer gws.Dialer
-	if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}); err != nil {
-		return err
-	}
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(ctx, e.Websocket.Conn)
-	go e.wsStartHeartbeat(ctx)
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		if err := e.wsLogin(ctx); err != nil {
-			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", e.Name, err)
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		}
-	}
-	return nil
-}
-
-func (e *Exchange) wsConnectForConnection(ctx context.Context, conn websocket.Connection) error {
+func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
@@ -136,21 +111,23 @@ func (e *Exchange) wsConnectForConnection(ctx context.Context, conn websocket.Co
 	if err := conn.Dial(ctx, &dialer, http.Header{}); err != nil {
 		return err
 	}
+	go e.wsStartHeartbeat(ctx, conn)
 	return nil
 }
 
-func (e *Exchange) wsAuthenticateForConnection(ctx context.Context, _ websocket.Connection) error {
-	e.wsStartHeartbeat(ctx)
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		if err := e.wsLogin(ctx); err != nil {
-			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", e.Name, err)
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		}
+func (e *Exchange) wsAuth(ctx context.Context, conn websocket.Connection) error {
+	e.wsStartHeartbeat(ctx, conn)
+	if !e.Websocket.CanUseAuthenticatedEndpoints() {
+		return nil
+	}
+	if err := e.wsLogin(ctx); err != nil {
+		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", e.Name, err)
+		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 	return nil
 }
 
-func (e *Exchange) wsStartHeartbeat(ctx context.Context) {
+func (e *Exchange) wsStartHeartbeat(ctx context.Context, conn websocket.Connection) {
 	msg := wsInput{
 		ID:             e.MessageID(),
 		JSONRPCVersion: rpcVersion,
@@ -159,7 +136,7 @@ func (e *Exchange) wsStartHeartbeat(ctx context.Context) {
 			"interval": 15,
 		},
 	}
-	respRaw, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, msg.ID, msg)
+	respRaw, err := conn.SendMessageReturnResponse(ctx, request.Unset, msg.ID, msg)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v %s: %s\n", e.Name, errStartingHeartbeat, err)
 		return
@@ -242,7 +219,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		return fmt.Errorf("%s - err %s could not parse websocket data: %s", e.Name, err, respRaw)
 	}
 	if response.Method == "heartbeat" {
-		go e.wsSendHeartbeat(ctx)
+		go e.wsSendHeartbeat(ctx, conn)
 		return nil
 	}
 	if response.ID != "" {
@@ -343,13 +320,13 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	return nil
 }
 
-func (e *Exchange) wsSendHeartbeat(ctx context.Context) {
+func (e *Exchange) wsSendHeartbeat(ctx context.Context, conn websocket.Connection) {
 	msg := WsSubscriptionInput{
 		ID:             "hb-" + e.MessageID(),
 		JSONRPCVersion: rpcVersion,
 		Method:         "public/test",
 	}
-	if err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, msg); err != nil {
+	if err := conn.SendJSONMessage(ctx, request.Unset, msg); err != nil {
 		log.Errorf(log.ExchangeSys, "%v %s: %s\n", e.Name, errSendingHeartbeat, err)
 	}
 }
