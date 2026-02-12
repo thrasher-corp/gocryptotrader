@@ -3,7 +3,9 @@ package currency
 import (
 	"errors"
 	"fmt"
+	"os"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -29,13 +31,22 @@ var (
 	errPairConfigFormatNil = errors.New("pair config format is nil")
 )
 
+// ignoreEnabledCheckEnv setting this environment variable to true will ignore the enabled check for assets and pairs and not return errors
+const ignoreEnabledCheckEnv = "IGNORE_ENABLED_CHECK"
+
+var ignoreEnabledCurrencyAssetCheck bool
+
+func init() {
+	ignoreEnabledCurrencyAssetCheck, _ = strconv.ParseBool(os.Getenv(ignoreEnabledCheckEnv))
+}
+
 // GetAssetTypes returns a list of stored asset types
 func (p *PairsManager) GetAssetTypes(enabled bool) asset.Items {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
 	assetTypes := make(asset.Items, 0, len(p.Pairs))
 	for k, ps := range p.Pairs {
-		if enabled && !ps.AssetEnabled {
+		if enabled && !ps.AssetEnabled && !ignoreEnabledCurrencyAssetCheck {
 			continue
 		}
 		assetTypes = append(assetTypes, k)
@@ -123,7 +134,7 @@ func (p *PairsManager) GetPairs(a asset.Item, enabled bool) (Pairs, error) {
 		return nil, nil
 	}
 
-	if !enabled {
+	if !enabled || ignoreEnabledCurrencyAssetCheck {
 		return slices.Clone(pairStore.Available), nil
 	}
 
@@ -250,7 +261,7 @@ func (p *PairsManager) EnsureOnePairEnabled() (Pair, asset.Item, error) {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 	for _, v := range p.Pairs {
-		if !v.AssetEnabled || len(v.Available) == 0 {
+		if (!ignoreEnabledCurrencyAssetCheck && !v.AssetEnabled) || len(v.Available) == 0 {
 			continue
 		}
 		if len(v.Enabled) > 0 {
@@ -258,7 +269,7 @@ func (p *PairsManager) EnsureOnePairEnabled() (Pair, asset.Item, error) {
 		}
 	}
 	for k, v := range p.Pairs {
-		if !v.AssetEnabled || len(v.Available) == 0 {
+		if (!ignoreEnabledCurrencyAssetCheck && !v.AssetEnabled) || len(v.Available) == 0 {
 			continue
 		}
 		rp, err := v.Available.GetRandomPair()
@@ -347,6 +358,9 @@ func (p *PairsManager) IsPairAvailable(pair Pair, a asset.Item) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	if ignoreEnabledCurrencyAssetCheck {
+		return pairStore.Available.Contains(pair, true), nil
+	}
 	return pairStore.AssetEnabled && pairStore.Available.Contains(pair, true), nil
 }
 
@@ -367,6 +381,9 @@ func (p *PairsManager) IsPairEnabled(pair Pair, a asset.Item) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	if ignoreEnabledCurrencyAssetCheck {
+		return pairStore.Available.Contains(pair, true), nil
+	}
 	return pairStore.AssetEnabled && pairStore.Enabled.Contains(pair, true), nil
 }
 
@@ -382,6 +399,10 @@ func (p *PairsManager) IsAssetEnabled(a asset.Item) error {
 	pairStore, err := p.getPairStoreRequiresLock(a)
 	if err != nil {
 		return err
+	}
+
+	if ignoreEnabledCurrencyAssetCheck {
+		return nil
 	}
 
 	if !pairStore.AssetEnabled {
