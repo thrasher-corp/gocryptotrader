@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -1187,8 +1188,68 @@ func (e *Exchange) IsPerpetualFutureCurrency(a asset.Item, _ currency.Pair) (boo
 }
 
 // UpdateOrderExecutionLimits updates order execution limits
-func (e *Exchange) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) error {
-	return common.ErrNotYetImplemented
+func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if !e.SupportsAsset(a) {
+		return fmt.Errorf("%w for [%v]", asset.ErrNotSupported, a)
+	}
+
+	instruments, err := e.GetActiveAndIndexInstruments(ctx)
+	if err != nil {
+		return err
+	}
+
+	l := make([]limits.MinMaxLevel, 0, len(instruments))
+	for i := range instruments {
+		var pair currency.Pair
+		var enabled bool
+		switch a {
+		case asset.Futures:
+			if instruments[i].Typ != futuresID {
+				continue
+			}
+			pair, enabled, err = e.MatchSymbolCheckEnabled(instruments[i].Symbol, a, false)
+		case asset.PerpetualContract:
+			if instruments[i].Typ != perpetualContractID {
+				continue
+			}
+			pair, enabled, err = e.MatchSymbolCheckEnabled(instruments[i].Symbol, a, false)
+		case asset.Spot:
+			if instruments[i].Typ != spotID {
+				continue
+			}
+			symbol := strings.Replace(instruments[i].Symbol, currency.UnderscoreDelimiter, "", 1)
+			pair, enabled, err = e.MatchSymbolCheckEnabled(symbol, a, false)
+		case asset.Index:
+			switch instruments[i].Typ {
+			case bitMEXBasketIndexID,
+				bitMEXPriceIndexID,
+				bitMEXLendingPremiumIndexID,
+				bitMEXVolatilityIndexID:
+			default:
+				continue
+			}
+			symbol := strings.Replace(instruments[i].Symbol, currency.UnderscoreDelimiter, "", 1)
+			pair, enabled, err = e.MatchSymbolCheckEnabled(symbol, a, false)
+		default:
+			return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
+		}
+		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+			return err
+		}
+		if !enabled {
+			continue
+		}
+
+		l = append(l, limits.MinMaxLevel{
+			Key:                     key.NewExchangeAssetPair(e.Name, a, pair),
+			MinimumBaseAmount:       instruments[i].LotSize,
+			MaximumBaseAmount:       instruments[i].MaxOrderQty,
+			MaxPrice:                instruments[i].MaxPrice,
+			PriceStepIncrementSize:  instruments[i].TickSize,
+			AmountStepIncrementSize: instruments[i].LotSize,
+		})
+	}
+	return limits.Load(l)
 }
 
 // GetOpenInterest returns the open interest rate for a given asset pair

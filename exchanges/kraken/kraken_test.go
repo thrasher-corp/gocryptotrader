@@ -82,18 +82,13 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	for _, a := range e.GetAssetTypes(false) {
 		t.Run(a.String(), func(t *testing.T) {
 			t.Parallel()
-			switch a {
-			case asset.Futures:
-				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), common.ErrNotYetImplemented)
-			default:
-				require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
-				pairs, err := e.CurrencyPairs.GetPairs(a, false)
-				require.NoError(t, err, "GetPairs must not error")
-				l, err := e.GetOrderExecutionLimits(a, pairs[0])
-				require.NoError(t, err, "GetOrderExecutionLimits must not error")
-				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
-				assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
-			}
+			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
+			pairs, err := e.CurrencyPairs.GetPairs(a, false)
+			require.NoError(t, err, "GetPairs must not error")
+			l, err := e.GetOrderExecutionLimits(a, pairs[0])
+			require.NoError(t, err, "GetOrderExecutionLimits must not error")
+			assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+			assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
 		})
 	}
 }

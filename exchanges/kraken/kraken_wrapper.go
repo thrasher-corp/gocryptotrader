@@ -244,36 +244,59 @@ func (e *Exchange) Bootstrap(ctx context.Context) (continueBootstrap bool, err e
 
 // UpdateOrderExecutionLimits sets exchange execution order limits for an asset type
 func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
-	if a != asset.Spot {
-		return common.ErrNotYetImplemented
-	}
-
-	if !assetTranslator.Seeded() {
-		if err := e.SeedAssets(ctx); err != nil {
-			return err
+	switch a {
+	case asset.Spot:
+		if !assetTranslator.Seeded() {
+			if err := e.SeedAssets(ctx); err != nil {
+				return err
+			}
 		}
+
+		pairInfo, err := e.fetchSpotPairInfo(ctx)
+		if err != nil {
+			return fmt.Errorf("%s failed to load %s pair execution limits. Err: %s", e.Name, a, err)
+		}
+
+		l := make([]limits.MinMaxLevel, 0, len(pairInfo))
+		for pair, info := range pairInfo {
+			l = append(l, limits.MinMaxLevel{
+				Key:                    key.NewExchangeAssetPair(e.Name, a, pair),
+				PriceStepIncrementSize: info.TickSize,
+				MinimumBaseAmount:      info.OrderMinimum,
+			})
+		}
+		if err := limits.Load(l); err != nil {
+			return fmt.Errorf("%s Error loading %s exchange limits: %w", e.Name, a, err)
+		}
+		return nil
+	case asset.Futures:
+		instruments, err := e.GetInstruments(ctx)
+		if err != nil {
+			return fmt.Errorf("%s failed to load %s pair execution limits. Err: %s", e.Name, a, err)
+		}
+		l := make([]limits.MinMaxLevel, 0, len(instruments.Instruments))
+		for i := range instruments.Instruments {
+			if !instruments.Instruments[i].Tradable {
+				continue
+			}
+			pair, err := currency.NewPairFromString(instruments.Instruments[i].Symbol)
+			if err != nil {
+				return err
+			}
+			l = append(l, limits.MinMaxLevel{
+				Key:                     key.NewExchangeAssetPair(e.Name, a, pair),
+				PriceStepIncrementSize:  instruments.Instruments[i].TickSize,
+				MinimumBaseAmount:       instruments.Instruments[i].ContractSize,
+				AmountStepIncrementSize: instruments.Instruments[i].ContractSize,
+			})
+		}
+		if err := limits.Load(l); err != nil {
+			return fmt.Errorf("%s Error loading %s exchange limits: %w", e.Name, a, err)
+		}
+		return nil
+	default:
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
-
-	pairInfo, err := e.fetchSpotPairInfo(ctx)
-	if err != nil {
-		return fmt.Errorf("%s failed to load %s pair execution limits. Err: %s", e.Name, a, err)
-	}
-
-	l := make([]limits.MinMaxLevel, 0, len(pairInfo))
-
-	for pair, info := range pairInfo {
-		l = append(l, limits.MinMaxLevel{
-			Key:                    key.NewExchangeAssetPair(e.Name, a, pair),
-			PriceStepIncrementSize: info.TickSize,
-			MinimumBaseAmount:      info.OrderMinimum,
-		})
-	}
-
-	if err := limits.Load(l); err != nil {
-		return fmt.Errorf("%s Error loading %s exchange limits: %w", e.Name, a, err)
-	}
-
-	return nil
 }
 
 func (e *Exchange) fetchSpotPairInfo(ctx context.Context) (map[currency.Pair]*AssetPairs, error) {

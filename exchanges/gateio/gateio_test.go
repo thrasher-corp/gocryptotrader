@@ -3581,7 +3581,7 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 	sub.AssetType = asset.USDTMarginedFutures
 	cpy.AssetType = asset.USDTMarginedFutures
 	_, err = e.WebsocketSubmitOrders(t.Context(), []*order.Submit{sub, &cpy})
-	require.ErrorIs(t, err, common.ErrNotYetImplemented)
+	require.ErrorIs(t, err, errInvalidOrderSize)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 

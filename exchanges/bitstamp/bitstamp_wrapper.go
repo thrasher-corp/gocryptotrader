@@ -210,7 +210,7 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 // UpdateOrderExecutionLimits sets exchange execution order limits for an asset type
 func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
 	if a != asset.Spot {
-		return common.ErrNotYetImplemented
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	symbols, err := e.GetTradingPairs(ctx)
 	if err != nil {
