@@ -142,33 +142,44 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            geminiWebsocketEndpoint,
-		RunningURL:            wsRunningURL,
-		Connector:             e.WsConnect,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
-		GenerateSubscriptions: e.generateSubscriptions,
-		Features:              &e.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:               exch,
+		UseMultiConnectionManagement: true,
+		Features:                     &e.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
 	}
 
+	publicWSURL := strings.TrimSuffix(wsRunningURL, "/") + "/v2/" + geminiWsMarketData
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  geminiWebsocketEndpoint + "/v2/" + geminiWsMarketData,
+		URL:                   publicWSURL,
+		Connector:             e.wsConnect,
+		Subscriber:            e.subscribeForConnection,
+		Unsubscriber:          e.unsubscribeForConnection,
+		GenerateSubscriptions: e.generatePublicSubscriptions,
+		Handler:               e.wsHandleData,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		MessageFilter:         publicWSURL,
 	})
 	if err != nil {
 		return err
+	}
+
+	authWSURL := strings.TrimSuffix(wsRunningURL, "/") + "/v1/" + geminiWsOrderEvents
+	if !exch.API.AuthenticatedWebsocketSupport {
+		return nil
 	}
 
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  geminiWebsocketEndpoint + "/v1/" + geminiWsOrderEvents,
-		Authenticated:        true,
+		URL:                      authWSURL,
+		Connector:                e.wsConnect,
+		SubscriptionsNotRequired: true,
+		Handler:                  e.wsHandleData,
+		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+		Authenticated:            true,
+		MessageFilter:            authWSURL,
 	})
 }
 

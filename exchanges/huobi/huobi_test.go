@@ -36,7 +36,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
-	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -2022,40 +2021,6 @@ func mockWsInstance(tb testing.TB, h http.HandlerFunc) *Exchange {
 	b.Websocket.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
 	require.NoError(tb, b.Websocket.Connect(context.TODO()), "Connect must not error")
 	return e
-}
-
-// TestSubscribe exercises live public subscriptions
-func TestSubscribe(t *testing.T) {
-	t.Parallel()
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
-	require.NoError(t, err, "ExpandTemplates must not error")
-	testexch.SetupWs(t, e)
-	err = e.Subscribe(subs)
-	require.NoError(t, err, "Subscribe must not error")
-	got := e.Websocket.GetSubscriptions()
-	require.Equal(t, 8, len(got), "Must get correct number of subscriptions")
-	for _, s := range got {
-		assert.Equal(t, subscription.SubscribedState, s.State())
-	}
-}
-
-// TestAuthSubscribe exercises mock subscriptions including private
-func TestAuthSubscribe(t *testing.T) {
-	t.Parallel()
-	subCfg := e.Features.Subscriptions
-	h := mockWsInstance(t, mockws.CurryWsMockUpgrader(t, wsFixture))
-	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := subCfg.ExpandTemplates(h)
-	require.NoError(t, err, "ExpandTemplates must not error")
-	err = h.Subscribe(subs)
-	require.NoError(t, err, "Subscribe must not error")
-	got := h.Websocket.GetSubscriptions()
-	require.Equal(t, 11, len(got), "Must get correct number of subscriptions")
-	for _, s := range got {
-		assert.Equal(t, subscription.SubscribedState, s.State())
-	}
 }
 
 func TestChannelName(t *testing.T) {

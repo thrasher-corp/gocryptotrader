@@ -666,143 +666,40 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 	return e.Features.Subscriptions.ExpandTemplates(e)
 }
 
-// Subscribe adds a channel subscription to the websocket
-func (e *Exchange) Subscribe(in subscription.List) error {
-	ctx := context.TODO()
-	if !e.Websocket.IsConnected() {
-		if err := e.Websocket.Connect(ctx); err != nil {
-			return err
-		}
-	}
-	wsRunningURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
-	publicConn, err := e.Websocket.GetConnection(wsRunningURL)
-	if err != nil {
-		publicConn, err = e.Websocket.GetConnection(krakenWSURL)
-		if err != nil {
-			return err
-		}
-	}
-	in, errs := in.ExpandTemplates(e)
+func (e *Exchange) subscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	var errs error
 
-	// Collect valid new subs and add to websocket in Subscribing state
-	subs := subscription.List{}
-	for _, s := range in {
-		if s.State() != subscription.ResubscribingState {
-			if err := e.Websocket.AddSubscriptions(publicConn, s); err != nil {
-				errs = common.AppendError(errs, fmt.Errorf("%w; Channel: %s Pairs: %s", err, s.Channel, s.Pairs.Join()))
-				continue
-			}
-		}
-		subs = append(subs, s)
-	}
-
-	// Merge subs by grouping pairs for request; We make a single request to subscribe to N+ pairs, but get N+ responses back
-	groupedSubs := subs.GroupPairs()
-
-	errs = common.AppendError(errs,
-		e.ParallelChanOp(ctx, groupedSubs, func(ctx context.Context, s subscription.List) error {
-			if len(s) != 1 {
-				return subscription.ErrBatchingNotSupported
-			}
-			conn := publicConn
-			if s[0].Authenticated {
-				wsRunningAuthURL, urlErr := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
-				if urlErr != nil {
-					return urlErr
-				}
-				var connErr error
-				conn, connErr = e.Websocket.GetConnection(wsRunningAuthURL)
-				if connErr != nil {
-					conn, connErr = e.Websocket.GetConnection(krakenAuthWSURL)
-				}
-				if connErr != nil {
-					return connErr
-				}
-			}
-			return e.manageSubs(ctx, krakenWsSubscribe, s, conn)
-		}, 1),
-	)
-
+	// Keep per-pair keys in the store so inbound status/data messages can match
+	// (Kraken emits `subscriptionStatus` and updates per pair, even when requests are grouped).
 	for _, s := range subs {
-		if s.State() != subscription.SubscribedState {
-			_ = s.SetState(subscription.InactiveState)
-			if err := e.Websocket.RemoveSubscriptions(publicConn, s); err != nil {
-				errs = common.AppendError(errs, fmt.Errorf("error removing failed subscription: %w; Channel: %s Pairs: %s", err, s.Channel, s.Pairs.Join()))
-			}
+		if s.State() == subscription.ResubscribingState {
+			continue
+		}
+		if err := e.Websocket.AddSubscriptions(conn, s); err != nil {
+			errs = common.AppendError(errs, fmt.Errorf("%w; Channel: %s Pairs: %s", err, s.Channel, s.Pairs.Join()))
 		}
 	}
 
+	errs = common.AppendError(errs, e.ParallelChanOp(ctx, subs.GroupPairs(), func(ctx context.Context, s subscription.List) error {
+		return e.manageSubs(ctx, krakenWsSubscribe, s, conn)
+	}, 1))
+
+	errs = common.AppendError(errs, e.cleanupUnsubscribedSubs(conn, subs))
 	return errs
 }
 
-// Unsubscribe removes a channel subscriptions from the websocket
-func (e *Exchange) Unsubscribe(keys subscription.List) error {
-	ctx := context.TODO()
-	if !e.Websocket.IsConnected() {
-		if err := e.Websocket.Connect(ctx); err != nil {
-			return err
-		}
-	}
+func (e *Exchange) cleanupUnsubscribedSubs(conn websocket.Connection, subs subscription.List) error {
 	var errs error
-	// Make sure we have the concrete subscriptions, since we will change the state
-	subs := make(subscription.List, 0, len(keys))
-	for _, key := range keys {
-		if s := e.Websocket.GetSubscription(key); s == nil {
-			errs = common.AppendError(errs, fmt.Errorf("%w; Channel: %s Pairs: %s", subscription.ErrNotFound, key.Channel, key.Pairs.Join()))
-		} else {
-			if s.State() != subscription.ResubscribingState {
-				if err := s.SetState(subscription.UnsubscribingState); err != nil {
-					errs = common.AppendError(errs, fmt.Errorf("%w; Channel: %s Pairs: %s", err, s.Channel, s.Pairs.Join()))
-					continue
-				}
-			}
-			subs = append(subs, s)
+	for _, s := range subs {
+		if s.State() == subscription.SubscribedState {
+			continue
+		}
+		_ = s.SetState(subscription.InactiveState)
+		if err := e.Websocket.RemoveSubscriptions(conn, s); err != nil {
+			errs = common.AppendError(errs, fmt.Errorf("error removing failed subscription: %w; Channel: %s Pairs: %s", err, s.Channel, s.Pairs.Join()))
 		}
 	}
-
-	subs = subs.GroupPairs()
-
-	return common.AppendError(errs,
-		e.ParallelChanOp(ctx, subs, func(ctx context.Context, s subscription.List) error {
-			if len(s) != 1 {
-				return subscription.ErrBatchingNotSupported
-			}
-			wsRunningURL, urlErr := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
-			if urlErr != nil {
-				return urlErr
-			}
-			conn, connErr := e.Websocket.GetConnection(wsRunningURL)
-			if connErr != nil {
-				conn, connErr = e.Websocket.GetConnection(krakenWSURL)
-				if connErr != nil {
-					return connErr
-				}
-			}
-			if s[0].Authenticated {
-				wsRunningAuthURL, authURLErr := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
-				if authURLErr != nil {
-					return authURLErr
-				}
-				conn, connErr = e.Websocket.GetConnection(wsRunningAuthURL)
-				if connErr != nil {
-					conn, connErr = e.Websocket.GetConnection(krakenAuthWSURL)
-				}
-				if connErr != nil {
-					return connErr
-				}
-			}
-			return e.manageSubs(ctx, krakenWsUnsubscribe, s, conn)
-		}, 1),
-	)
-}
-
-func (e *Exchange) subscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
-	return e.ParallelChanOp(ctx, subs.GroupPairs(), func(ctx context.Context, s subscription.List) error {
-		return e.manageSubs(ctx, krakenWsSubscribe, s, conn)
-	}, 1)
+	return errs
 }
 
 func (e *Exchange) unsubscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {

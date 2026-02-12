@@ -511,8 +511,11 @@ func (e *Exchange) handleWSEvent(ctx context.Context, conn websocket.Connection,
 	return nil
 }
 
-// handleWSSubscribed parses a subscription response and registers the chanID key immediately, before updating subscribeToChan via IncomingWithData chan
-// wsHandleData happens sequentially, so by rekeying on chanID immediately we ensure the first message is not dropped
+// handleWSSubscribed parses a subscription response and transitions a temporary
+// subID-keyed subscription to the final chanID key.
+// wsHandleData happens sequentially, so by rekeying on chanID immediately we
+// ensure the first message is not dropped and manager missing checks can
+// validate against the final key.
 func (e *Exchange) handleWSSubscribed(conn websocket.Connection, respRaw []byte) error {
 	subID, err := jsonparser.GetUnsafeString(respRaw, "subId")
 	if err != nil {
@@ -529,11 +532,13 @@ func (e *Exchange) handleWSSubscribed(conn websocket.Connection, respRaw []byte)
 		return fmt.Errorf("%w: %w 'chanId': %w; Channel: %s Pair: %s", websocket.ErrSubscriptionFailure, common.ErrParsingWSField, err, c.Channel, c.Pairs)
 	}
 
-	// Note: chanID's int type avoids conflicts with the string type subID key because of the type difference
-	c = c.Clone()
-	c.Key = int(chanID)
-
-	// subscribeToChan removes the old subID keyed Subscription
+	// Transition subID keyed subscription -> chanID keyed subscription.
+	// Remove sets unsubscribed state, AddSuccessful sets subscribed state.
+	err = e.Websocket.RemoveSubscriptions(conn, c)
+	if err != nil {
+		return fmt.Errorf("%w: %w subID: %s", websocket.ErrSubscriptionFailure, err, subID)
+	}
+	c.SetKey(int(chanID)) // chanID type avoids conflicts with string subID keys
 	err = e.Websocket.AddSuccessfulSubscriptions(conn, c)
 	if err != nil {
 		return fmt.Errorf("%w: %w subID: %s", websocket.ErrSubscriptionFailure, err, subID)
@@ -1657,17 +1662,14 @@ func (e *Exchange) subscribeToChan(ctx context.Context, conn websocket.Connectio
 		return fmt.Errorf("%w Channel: %s Pair: %s", err, s.Channel, s.Pairs)
 	}
 
-	// Always remove the temporary subscription keyed by subID
-	defer func() {
-		_ = e.Websocket.RemoveSubscriptions(conn, s)
-	}()
-
 	respRaw, err := conn.SendMessageReturnResponse(ctx, request.Unset, "subscribe:"+subID, req)
 	if err != nil {
+		_ = e.Websocket.RemoveSubscriptions(conn, s)
 		return fmt.Errorf("%w: Channel: %s Pair: %s", err, s.Channel, s.Pairs)
 	}
 
 	if err = e.getErrResp(respRaw); err != nil {
+		_ = e.Websocket.RemoveSubscriptions(conn, s)
 		return fmt.Errorf("%w: Channel: %s Pair: %s", err, s.Channel, s.Pairs)
 	}
 

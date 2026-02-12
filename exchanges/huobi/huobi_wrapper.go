@@ -233,6 +233,10 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
+	if !exch.API.AuthenticatedWebsocketSupport {
+		return nil
+	}
+
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                      wsRunningAuthURL,
 		Connector:                e.wsConnect,

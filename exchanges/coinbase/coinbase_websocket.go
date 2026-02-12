@@ -63,11 +63,6 @@ func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) err
 	return conn.Dial(ctx, &dialer, http.Header{})
 }
 
-func (e *Exchange) wsHandleDataForConnection(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
-	_, err := e.wsHandleData(ctx, conn, respRaw)
-	return err
-}
-
 // wsProcessTicker handles ticker data from the websocket
 func (e *Exchange) wsProcessTicker(ctx context.Context, resp *StandardWebsocketResponse) error {
 	var wsTickers []WebsocketTickerHolder

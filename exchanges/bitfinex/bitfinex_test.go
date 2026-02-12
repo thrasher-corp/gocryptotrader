@@ -1231,17 +1231,41 @@ func subscribeForTest(ctx context.Context, e *Exchange, subs subscription.List) 
 	if err != nil {
 		return err
 	}
+	if !e.Websocket.IsConnected() {
+		if err = e.Websocket.Connect(ctx); err != nil {
+			return err
+		}
+	}
 	conn, err := e.Websocket.GetConnection(publicBitfinexWebsocketEndpoint)
 	if err != nil {
-		return err
+		wsRunningURL, urlErr := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		if urlErr != nil {
+			return err
+		}
+		conn, err = e.Websocket.GetConnection(wsRunningURL)
+		if err != nil {
+			return err
+		}
 	}
 	return e.subscribeForConnection(ctx, conn, subs)
 }
 
 func unsubscribeForTest(ctx context.Context, e *Exchange, subs subscription.List) error {
+	if !e.Websocket.IsConnected() {
+		if err := e.Websocket.Connect(ctx); err != nil {
+			return err
+		}
+	}
 	conn, err := e.Websocket.GetConnection(publicBitfinexWebsocketEndpoint)
 	if err != nil {
-		return err
+		wsRunningURL, urlErr := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+		if urlErr != nil {
+			return err
+		}
+		conn, err = e.Websocket.GetConnection(wsRunningURL)
+		if err != nil {
+			return err
+		}
 	}
 	return e.unsubscribeForConnection(ctx, conn, subs)
 }
