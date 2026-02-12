@@ -117,22 +117,6 @@ func (e *Exchange) generatePrivateSubscriptions() (subscription.List, error) {
 	return subs.Private(), nil
 }
 
-// wsReadMsgs reads and processes messages from a websocket connection
-func (e *Exchange) wsReadMsgs(ctx context.Context, s websocket.Connection) {
-	defer e.Websocket.Wg.Done()
-	for {
-		msg := s.ReadMessage()
-		if msg.Raw == nil {
-			return
-		}
-		if err := e.wsHandleData(ctx, s, msg.Raw); err != nil {
-			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, s.GetURL(), errSend, err)
-			}
-		}
-	}
-}
-
 func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	if id, err := jsonparser.GetString(respRaw, "id"); err == nil {
 		if conn.IncomingWithData(id, respRaw) {
@@ -640,16 +624,6 @@ func (e *Exchange) wsGenerateSignature(creds *accounts.Credentials, timestamp st
 	values.Set("timestamp", timestamp)
 	payload := http.MethodGet + "\n" + wsSpotHost + "\n" + wsPrivatePath + "\n" + values.Encode()
 	return crypto.GetHMAC(crypto.HashSHA256, []byte(payload), []byte(creds.Secret))
-}
-
-func (e *Exchange) wsAuthConnect(ctx context.Context) error {
-	if err := e.Websocket.AuthConn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
-		return fmt.Errorf("authenticated dial failed: %w", err)
-	}
-	if err := e.wsLogin(ctx, e.Websocket.AuthConn); err != nil {
-		return fmt.Errorf("authentication failed: %w", err)
-	}
-	return nil
 }
 
 func (e *Exchange) wsLogin(ctx context.Context, c websocket.Connection) error {

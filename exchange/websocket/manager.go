@@ -567,43 +567,6 @@ func (m *Manager) connect(ctx context.Context) error {
 		return multiConnectFatalError
 	}
 
-	// Safety net: ensure required routes have at least one active connection.
-	// This prevents a false "connected" manager state with no outbound route.
-	for i := range m.connectionManager {
-		ws := m.connectionManager[i]
-		if len(ws.connections) != 0 {
-			continue
-		}
-		if ws.setup.Authenticated && !ws.setup.SubscriptionsNotRequired {
-			// Authenticated routes can be intentionally skipped when there are
-			// no private subscriptions to process.
-			continue
-		}
-		if err := m.createConnectAndSubscribe(ctx, ws, nil); err != nil {
-			multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err)
-			break
-		}
-		if m.verbose {
-			log.Debugf(log.WebsocketMgr, "%s websocket: [URL:%s] connected by route safety check", m.exchangeName, ws.setup.URL)
-		}
-	}
-	if multiConnectFatalError != nil {
-		for _, ws := range m.connectionManager {
-			for _, conn := range ws.connections {
-				if err := conn.Shutdown(); err != nil {
-					log.Errorln(log.WebsocketMgr, err)
-				}
-				conn.Subscriptions().Clear()
-			}
-			ws.connections = nil
-			ws.subscriptions.Clear()
-		}
-		clear(m.connections)
-		m.setState(disconnectedState)
-		drain(m.ReadMessageErrors)
-		return multiConnectFatalError
-	}
-
 	// Assume connected state here. All connections have been established.
 	// All subscriptions have been sent and stored. All data received is being
 	// handled by the appropriate data handler.
