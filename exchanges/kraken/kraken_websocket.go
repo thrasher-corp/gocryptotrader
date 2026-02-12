@@ -93,48 +93,6 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.MyTradesChannel, Authenticated: true},
 }
 
-// WsConnect initiates a websocket connection
-func (e *Exchange) WsConnect() error {
-	ctx := context.TODO()
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
-		return websocket.ErrWebsocketNotEnabled
-	}
-	if e.Websocket.Conn == nil {
-		return e.Websocket.Connect(ctx)
-	}
-
-	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
-	if err != nil {
-		return err
-	}
-
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(ctx, e.Websocket.Conn)
-
-	if e.IsWebsocketAuthenticationSupported() {
-		if authToken, err := e.GetWebsocketToken(ctx); err != nil {
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			log.Errorf(log.ExchangeSys, "%s - authentication failed: %v\n", e.Name, err)
-		} else {
-			if err := e.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{}); err != nil {
-				e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-				log.Errorf(log.ExchangeSys, "%s - failed to connect to authenticated endpoint: %v\n", e.Name, err)
-			} else {
-				e.setWebsocketAuthToken(authToken)
-				e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-				e.Websocket.Wg.Add(1)
-				go e.wsReadData(ctx, e.Websocket.AuthConn)
-				e.startWsPingHandler(e.Websocket.AuthConn)
-			}
-		}
-	}
-
-	e.startWsPingHandler(e.Websocket.Conn)
-
-	return nil
-}
-
 func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
@@ -176,22 +134,6 @@ func (e *Exchange) generatePrivateSubscriptions() (subscription.List, error) {
 		return nil, err
 	}
 	return subs.Private(), nil
-}
-
-// wsReadData funnels both auth and public ws data into one manageable place
-func (e *Exchange) wsReadData(ctx context.Context, ws websocket.Connection) {
-	defer e.Websocket.Wg.Done()
-	for {
-		resp := ws.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		if err := e.wsHandleData(ctx, ws, resp.Raw); err != nil {
-			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, ws.GetURL(), errSend, err)
-			}
-		}
-	}
 }
 
 func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {

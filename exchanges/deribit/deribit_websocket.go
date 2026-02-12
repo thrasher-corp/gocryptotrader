@@ -195,23 +195,6 @@ func (e *Exchange) wsLogin(ctx context.Context) error {
 	return nil
 }
 
-// wsReadData receives and passes on websocket messages for processing
-func (e *Exchange) wsReadData(ctx context.Context, conn websocket.Connection) {
-	defer e.Websocket.Wg.Done()
-
-	for {
-		resp := conn.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		if err := e.wsHandleData(ctx, conn, resp.Raw); err != nil {
-			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, conn.GetURL(), errSend, err)
-			}
-		}
-	}
-}
-
 func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	var response wsResponse
 	err := json.Unmarshal(respRaw, &response)
@@ -799,28 +782,6 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 		"fmt":             formatChannelPair,
 	}).
 		Parse(subTplText)
-}
-
-// Subscribe sends a websocket message to receive data from the channel
-func (e *Exchange) Subscribe(subs subscription.List) error {
-	ctx := context.TODO()
-	conn, err := e.Websocket.GetConnection(deribitWebsocketAddress)
-	if err != nil {
-		return err
-	}
-	errs := e.handleSubscription(ctx, conn, "public/subscribe", subs.Public())
-	return common.AppendError(errs, e.handleSubscription(ctx, conn, "private/subscribe", subs.Private()))
-}
-
-// Unsubscribe sends a websocket message to stop receiving data from the channel
-func (e *Exchange) Unsubscribe(subs subscription.List) error {
-	ctx := context.TODO()
-	conn, err := e.Websocket.GetConnection(deribitWebsocketAddress)
-	if err != nil {
-		return err
-	}
-	errs := e.handleSubscription(ctx, conn, "public/unsubscribe", subs.Public())
-	return common.AppendError(errs, e.handleSubscription(ctx, conn, "private/unsubscribe", subs.Private()))
 }
 
 func (e *Exchange) subscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {

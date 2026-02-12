@@ -1186,7 +1186,7 @@ func TestWSSubscribe(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "TestInstance must not error")
 	testexch.SetupWs(t, e)
-	err := e.Subscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
+	err := subscribeForTest(t.Context(), e, subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
 	require.NoError(t, err, "Subrcribe must not error")
 	catcher := func() (ok bool) {
 		i := <-e.Websocket.DataHandler.C
@@ -1199,30 +1199,51 @@ func TestWSSubscribe(t *testing.T) {
 	require.NoError(t, err, "GetSubscriptions must not error")
 	require.Len(t, subs, 1, "We must only have 1 subscription; subID subscription must have been Removed by subscribeToChan")
 
-	err = e.Subscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
+	err = subscribeForTest(t.Context(), e, subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
 	require.ErrorContains(t, err, "subscribe: dup (code: 10301)", "Duplicate subscription must error correctly")
 
 	subs, err = e.GetSubscriptions()
 	require.NoError(t, err, "GetSubscriptions must not error")
 	require.Len(t, subs, 1, "We must only have one subscription after an error attempt")
 
-	err = e.Unsubscribe(subs)
+	err = unsubscribeForTest(t.Context(), e, subs)
 	assert.NoError(t, err, "Unsubscribing should not error")
 
 	chanID, ok := subs[0].Key.(int)
 	assert.True(t, ok, "sub.Key should be an int")
 
-	err = e.Unsubscribe(subs)
+	err = unsubscribeForTest(t.Context(), e, subs)
 	assert.ErrorContains(t, err, strconv.Itoa(chanID), "Unsubscribe should contain correct chanId")
 	assert.ErrorContains(t, err, "unsubscribe: invalid (code: 10400)", "Unsubscribe should contain correct upstream error")
 
-	err = e.Subscribe(subscription.List{{
+	err = subscribeForTest(t.Context(), e, subscription.List{{
 		Channel: subscription.TickerChannel,
 		Pairs:   currency.Pairs{currency.NewBTCUSD()},
 		Asset:   asset.Spot,
 		Params:  map[string]any{"key": "tBTCUSD"},
 	}})
 	assert.ErrorIs(t, err, errParamNotAllowed, "Trying to use a 'key' param should error errParamNotAllowed")
+}
+
+func subscribeForTest(ctx context.Context, e *Exchange, subs subscription.List) error {
+	var err error
+	subs, err = subs.ExpandTemplates(e)
+	if err != nil {
+		return err
+	}
+	conn, err := e.Websocket.GetConnection(publicBitfinexWebsocketEndpoint)
+	if err != nil {
+		return err
+	}
+	return e.subscribeForConnection(ctx, conn, subs)
+}
+
+func unsubscribeForTest(ctx context.Context, e *Exchange, subs subscription.List) error {
+	conn, err := e.Websocket.GetConnection(publicBitfinexWebsocketEndpoint)
+	if err != nil {
+		return err
+	}
+	return e.unsubscribeForConnection(ctx, conn, subs)
 }
 
 // TestSubToMap tests the channel to request map marshalling

@@ -173,16 +173,15 @@ func (e *Exchange) WsAuth(ctx context.Context, dialer *gws.Dialer) error {
 	return nil
 }
 
-func (e *Exchange) wsReadData(ctx context.Context, ws websocket.Connection) {
-	defer e.Websocket.Wg.Done()
+func (e *Exchange) wsReadData(ctx context.Context, conn websocket.Connection) {
 	for {
-		resp := ws.ReadMessage()
+		resp := conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
 		if err := e.wsHandleData(ctx, resp.Raw); err != nil {
 			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, ws.GetURL(), errSend, err)
+				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, conn.GetURL(), errSend, err)
 			}
 		}
 	}

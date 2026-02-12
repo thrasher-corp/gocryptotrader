@@ -3,6 +3,7 @@ package coinbase
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -107,7 +108,7 @@ func TestWsConnect(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	exch := &Exchange{}
 	exch.Websocket = sharedtestvalues.NewTestWebsocket()
-	err := exch.WsConnect()
+	err := exch.Websocket.Connect(t.Context())
 	assert.ErrorIs(t, err, websocket.ErrWebsocketNotEnabled)
 	err = exchangeBaseHelper(exch)
 	require.NoError(t, err)
@@ -1515,9 +1516,8 @@ func TestWsAuth(t *testing.T) {
 	var dialer gws.Dialer
 	err := e.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{})
 	require.NoError(t, err)
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(t.Context())
-	err = e.Subscribe(subscription.List{
+	startWSReadLoop(t.Context(), e, e.Websocket.Conn)
+	err = subscribeForTest(t.Context(), e, subscription.List{
 		{
 			Channel:       "myAccount",
 			Asset:         asset.All,
@@ -1667,10 +1667,70 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	req := subscription.List{{Channel: "heartbeat", Asset: asset.Spot, Pairs: currency.Pairs{currency.NewPairWithDelimiter(testCrypto.String(), testFiat.String(), "-")}}}
-	err := e.Subscribe(req)
+	err := subscribeForTest(t.Context(), e, req)
 	assert.NoError(t, err)
-	err = e.Unsubscribe(req)
+	err = unsubscribeForTest(t.Context(), e, req)
 	assert.NoError(t, err)
+}
+
+func subscribeForTest(ctx context.Context, e *Exchange, subs subscription.List) error {
+	wsRunningURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+	conn, err := e.Websocket.GetConnection(wsRunningURL)
+	if err != nil {
+		conn, err = e.Websocket.GetConnection(coinbaseWebsocketURL)
+		if err != nil {
+			return err
+		}
+	}
+	return e.subscribeForConnection(ctx, conn, subs)
+}
+
+func unsubscribeForTest(ctx context.Context, e *Exchange, subs subscription.List) error {
+	wsRunningURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+	conn, err := e.Websocket.GetConnection(wsRunningURL)
+	if err != nil {
+		conn, err = e.Websocket.GetConnection(coinbaseWebsocketURL)
+		if err != nil {
+			return err
+		}
+	}
+	return e.unsubscribeForConnection(ctx, conn, subs)
+}
+
+func startWSReadLoop(ctx context.Context, e *Exchange, conn websocket.Connection) {
+	e.Websocket.Wg.Add(1)
+	go func() {
+		defer e.Websocket.Wg.Done()
+		var seqCount uint64
+		for {
+			resp := conn.ReadMessage()
+			if resp.Raw == nil {
+				return
+			}
+			sequence, err := e.wsHandleData(ctx, conn, resp.Raw)
+			if err != nil {
+				if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+					log.Printf("%s %s: %s %s", e.Name, conn.GetURL(), errSend, err)
+				}
+			}
+			if sequence != nil {
+				if *sequence != seqCount {
+					err = fmt.Errorf("%w: received %v, expected %v", errOutOfSequence, sequence, seqCount)
+					if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+						log.Printf("%s %s: %s %s", e.Name, conn.GetURL(), errSend, err)
+					}
+					seqCount = *sequence
+				}
+				seqCount++
+			}
+		}
+	}()
 }
 
 func TestCheckSubscriptions(t *testing.T) {
