@@ -117,7 +117,7 @@ func (e *Exchange) WsConnect() error {
 		return err
 	}
 	e.Websocket.Wg.Add(1)
-	go e.wsReadData(ctx)
+	go e.wsReadData(ctx, e.Websocket.Conn)
 	go e.wsStartHeartbeat(ctx)
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
 		if err := e.wsLogin(ctx); err != nil {
@@ -136,12 +136,10 @@ func (e *Exchange) wsConnectForConnection(ctx context.Context, conn websocket.Co
 	if err := conn.Dial(ctx, &dialer, http.Header{}); err != nil {
 		return err
 	}
-	e.Websocket.Conn = conn
 	return nil
 }
 
-func (e *Exchange) wsAuthenticateForConnection(ctx context.Context, conn websocket.Connection) error {
-	e.Websocket.Conn = conn
+func (e *Exchange) wsAuthenticateForConnection(ctx context.Context, _ websocket.Connection) error {
 	e.wsStartHeartbeat(ctx)
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
 		if err := e.wsLogin(ctx); err != nil {
@@ -150,11 +148,6 @@ func (e *Exchange) wsAuthenticateForConnection(ctx context.Context, conn websock
 		}
 	}
 	return nil
-}
-
-func (e *Exchange) wsHandleDataForConnection(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
-	e.Websocket.Conn = conn
-	return e.wsHandleData(ctx, respRaw)
 }
 
 func (e *Exchange) wsStartHeartbeat(ctx context.Context) {
@@ -226,23 +219,23 @@ func (e *Exchange) wsLogin(ctx context.Context) error {
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (e *Exchange) wsReadData(ctx context.Context) {
+func (e *Exchange) wsReadData(ctx context.Context, conn websocket.Connection) {
 	defer e.Websocket.Wg.Done()
 
 	for {
-		resp := e.Websocket.Conn.ReadMessage()
+		resp := conn.ReadMessage()
 		if resp.Raw == nil {
 			return
 		}
-		if err := e.wsHandleData(ctx, resp.Raw); err != nil {
+		if err := e.wsHandleData(ctx, conn, resp.Raw); err != nil {
 			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
+				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, conn.GetURL(), errSend, err)
 			}
 		}
 	}
 }
 
-func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	var response wsResponse
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
@@ -256,7 +249,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		if strings.HasPrefix(response.ID, "hb-") {
 			return nil
 		}
-		return e.Websocket.Conn.RequireMatchWithData(response.ID, respRaw)
+		return conn.RequireMatchWithData(response.ID, respRaw)
 	}
 	channels := strings.Split(response.Params.Channel, ".")
 	switch channels[0] {
@@ -834,30 +827,36 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 // Subscribe sends a websocket message to receive data from the channel
 func (e *Exchange) Subscribe(subs subscription.List) error {
 	ctx := context.TODO()
-	errs := e.handleSubscription(ctx, "public/subscribe", subs.Public())
-	return common.AppendError(errs, e.handleSubscription(ctx, "private/subscribe", subs.Private()))
+	conn, err := e.Websocket.GetConnection(deribitWebsocketAddress)
+	if err != nil {
+		return err
+	}
+	errs := e.handleSubscription(ctx, conn, "public/subscribe", subs.Public())
+	return common.AppendError(errs, e.handleSubscription(ctx, conn, "private/subscribe", subs.Private()))
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (e *Exchange) Unsubscribe(subs subscription.List) error {
 	ctx := context.TODO()
-	errs := e.handleSubscription(ctx, "public/unsubscribe", subs.Public())
-	return common.AppendError(errs, e.handleSubscription(ctx, "private/unsubscribe", subs.Private()))
+	conn, err := e.Websocket.GetConnection(deribitWebsocketAddress)
+	if err != nil {
+		return err
+	}
+	errs := e.handleSubscription(ctx, conn, "public/unsubscribe", subs.Public())
+	return common.AppendError(errs, e.handleSubscription(ctx, conn, "private/unsubscribe", subs.Private()))
 }
 
 func (e *Exchange) subscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
-	e.Websocket.Conn = conn
-	errs := e.handleSubscription(ctx, "public/subscribe", subs.Public())
-	return common.AppendError(errs, e.handleSubscription(ctx, "private/subscribe", subs.Private()))
+	errs := e.handleSubscription(ctx, conn, "public/subscribe", subs.Public())
+	return common.AppendError(errs, e.handleSubscription(ctx, conn, "private/subscribe", subs.Private()))
 }
 
 func (e *Exchange) unsubscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
-	e.Websocket.Conn = conn
-	errs := e.handleSubscription(ctx, "public/unsubscribe", subs.Public())
-	return common.AppendError(errs, e.handleSubscription(ctx, "private/unsubscribe", subs.Private()))
+	errs := e.handleSubscription(ctx, conn, "public/unsubscribe", subs.Public())
+	return common.AppendError(errs, e.handleSubscription(ctx, conn, "private/unsubscribe", subs.Private()))
 }
 
-func (e *Exchange) handleSubscription(ctx context.Context, method string, subs subscription.List) error {
+func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connection, method string, subs subscription.List) error {
 	var err error
 	subs, err = subs.ExpandTemplates(e)
 	if err != nil || len(subs) == 0 {
@@ -871,7 +870,7 @@ func (e *Exchange) handleSubscription(ctx context.Context, method string, subs s
 		Params:         map[string][]string{"channels": subs.QualifiedChannels()},
 	}
 
-	data, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, r.ID, r)
+	data, err := conn.SendMessageReturnResponse(ctx, request.Unset, r.ID, r)
 	if err != nil {
 		return err
 	}
@@ -892,9 +891,9 @@ func (e *Exchange) handleSubscription(ctx context.Context, method string, subs s
 		if _, ok := subAck[s.QualifiedChannel]; ok {
 			delete(subAck, s.QualifiedChannel)
 			if !strings.Contains(method, "unsubscribe") {
-				err = common.AppendError(err, e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, s))
+				err = common.AppendError(err, e.Websocket.AddSuccessfulSubscriptions(conn, s))
 			} else {
-				err = common.AppendError(err, e.Websocket.RemoveSubscriptions(e.Websocket.Conn, s))
+				err = common.AppendError(err, e.Websocket.RemoveSubscriptions(conn, s))
 			}
 		} else {
 			err = common.AppendError(err, errors.New(s.String()+" failed to "+method))

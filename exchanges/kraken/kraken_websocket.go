@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"hash/crc32"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"text/template"
@@ -19,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -145,26 +145,21 @@ func (e *Exchange) wsConnectForConnection(ctx context.Context, conn websocket.Co
 		return err
 	}
 
-	if e.isAuthConnection(conn) {
-		e.Websocket.AuthConn = conn
-		if e.IsWebsocketAuthenticationSupported() {
-			authToken, err := e.GetWebsocketToken(ctx)
-			if err != nil {
-				return err
-			}
-			e.setWebsocketAuthToken(authToken)
-			e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	authURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
+	if err != nil {
+		authURL = krakenAuthWSURL
+	}
+	if conn.GetURL() == authURL && e.IsWebsocketAuthenticationSupported() {
+		authToken, err := e.GetWebsocketToken(ctx)
+		if err != nil {
+			return err
 		}
-	} else {
-		e.Websocket.Conn = conn
+		e.setWebsocketAuthToken(authToken)
+		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 
 	e.startWsPingHandler(conn)
 	return nil
-}
-
-func (e *Exchange) wsHandleDataForConnection(ctx context.Context, _ websocket.Connection, respRaw []byte) error {
-	return e.wsHandleData(ctx, respRaw)
 }
 
 func (e *Exchange) generatePublicSubscriptions() (subscription.List, error) {
@@ -191,12 +186,7 @@ func (e *Exchange) wsReadData(ctx context.Context, ws websocket.Connection) {
 		if resp.Raw == nil {
 			return
 		}
-			if e.isAuthConnection(ws) {
-				e.Websocket.AuthConn = ws
-			} else {
-				e.Websocket.Conn = ws
-		}
-		if err := e.wsHandleData(ctx, resp.Raw); err != nil {
+		if err := e.wsHandleData(ctx, ws, resp.Raw); err != nil {
 			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
 				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, ws.GetURL(), errSend, err)
 			}
@@ -204,7 +194,7 @@ func (e *Exchange) wsReadData(ctx context.Context, ws websocket.Connection) {
 	}
 }
 
-func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	if strings.HasPrefix(string(respRaw), "[") {
 		var msg []json.RawMessage
 		if err := json.Unmarshal(respRaw, &msg); err != nil {
@@ -239,13 +229,11 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	}
 
 	if event == krakenWsSubscriptionStatus { // Must happen before IncomingWithData to avoid race
-		e.wsProcessSubStatus(respRaw)
+		e.wsProcessSubStatus(conn, respRaw)
 	}
 
 	reqID, err := jsonparser.GetInt(respRaw, "reqid")
-	if err == nil && reqID != 0 &&
-		((e.Websocket.Conn != nil && e.Websocket.Conn.IncomingWithData(reqID, respRaw)) ||
-			(e.Websocket.AuthConn != nil && e.Websocket.AuthConn.IncomingWithData(reqID, respRaw))) {
+	if err == nil && reqID != 0 && conn.IncomingWithData(reqID, respRaw) {
 		return nil
 	}
 
@@ -549,7 +537,12 @@ func (e *Exchange) wsProcessOrderBook(ctx context.Context, c string, response []
 		if errors.Is(err, errInvalidChecksum) {
 			log.Debugf(log.Global, "%s Resubscribing to invalid %s orderbook", e.Name, pair)
 			go func() {
-				if e2 := e.Websocket.ResubscribeToChannel(ctx, e.Websocket.Conn, s); e2 != nil && !errors.Is(e2, subscription.ErrInStateAlready) {
+				conn, connErr := e.getPublicConnection()
+				if connErr != nil {
+					log.Errorf(log.ExchangeSys, "%s resubscription failure for %v: %v", e.Name, pair, connErr)
+					return
+				}
+				if e2 := e.Websocket.ResubscribeToChannel(ctx, conn, s); e2 != nil && !errors.Is(e2, subscription.ErrInStateAlready) {
 					log.Errorf(log.ExchangeSys, "%s resubscription failure for %v: %v", e.Name, pair, e2)
 				}
 			}()
@@ -735,10 +728,14 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 // Subscribe adds a channel subscription to the websocket
 func (e *Exchange) Subscribe(in subscription.List) error {
 	ctx := context.TODO()
-	if e.Websocket.Conn == nil && !e.Websocket.IsConnected() {
+	if !e.Websocket.IsConnected() {
 		if err := e.Websocket.Connect(ctx); err != nil {
 			return err
 		}
+	}
+	publicConn, err := e.getPublicConnection()
+	if err != nil {
+		return err
 	}
 	in, errs := in.ExpandTemplates(e)
 
@@ -746,7 +743,7 @@ func (e *Exchange) Subscribe(in subscription.List) error {
 	subs := subscription.List{}
 	for _, s := range in {
 		if s.State() != subscription.ResubscribingState {
-			if err := e.Websocket.AddSubscriptions(e.Websocket.Conn, s); err != nil {
+			if err := e.Websocket.AddSubscriptions(publicConn, s); err != nil {
 				errs = common.AppendError(errs, fmt.Errorf("%w; Channel: %s Pairs: %s", err, s.Channel, s.Pairs.Join()))
 				continue
 			}
@@ -766,7 +763,7 @@ func (e *Exchange) Subscribe(in subscription.List) error {
 	for _, s := range subs {
 		if s.State() != subscription.SubscribedState {
 			_ = s.SetState(subscription.InactiveState)
-			if err := e.Websocket.RemoveSubscriptions(e.Websocket.Conn, s); err != nil {
+			if err := e.Websocket.RemoveSubscriptions(publicConn, s); err != nil {
 				errs = common.AppendError(errs, fmt.Errorf("error removing failed subscription: %w; Channel: %s Pairs: %s", err, s.Channel, s.Pairs.Join()))
 			}
 		}
@@ -778,7 +775,7 @@ func (e *Exchange) Subscribe(in subscription.List) error {
 // Unsubscribe removes a channel subscriptions from the websocket
 func (e *Exchange) Unsubscribe(keys subscription.List) error {
 	ctx := context.TODO()
-	if e.Websocket.Conn == nil && !e.Websocket.IsConnected() {
+	if !e.Websocket.IsConnected() {
 		if err := e.Websocket.Connect(ctx); err != nil {
 			return err
 		}
@@ -849,11 +846,15 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 		r.Subscription.Interval = int(time.Duration(s.Interval).Minutes())
 	}
 
+	var err error
 	if conn == nil {
 		if s.Authenticated {
-			conn = e.Websocket.AuthConn
+			conn, err = e.getAuthenticatedConnection()
 		} else {
-			conn = e.Websocket.Conn
+			conn, err = e.getPublicConnection()
+		}
+		if err != nil {
+			return err
 		}
 	}
 	if s.Authenticated {
@@ -971,7 +972,7 @@ func (e *Exchange) getRespErr(resp []byte) error {
 // wsProcessSubStatus handles creating or removing Subscriptions as soon as we receive a message
 // It's job is to ensure that subscription state is kept correct sequentially between WS messages
 // If this responsibility was moved to Subscribe then we would have a race due to the channel connecting IncomingWithData
-func (e *Exchange) wsProcessSubStatus(resp []byte) {
+func (e *Exchange) wsProcessSubStatus(conn websocket.Connection, resp []byte) {
 	pName, err := jsonparser.GetUnsafeString(resp, "pair")
 	if err != nil {
 		return
@@ -1009,7 +1010,7 @@ func (e *Exchange) wsProcessSubStatus(resp []byte) {
 	if status == krakenWsSubscribed {
 		err = s.SetState(subscription.SubscribedState)
 	} else if s.State() != subscription.ResubscribingState { // Do not remove a resubscribing sub which just unsubbed
-		err = e.Websocket.RemoveSubscriptions(e.Websocket.Conn, s)
+		err = e.Websocket.RemoveSubscriptions(conn, s)
 		if e2 := s.SetState(subscription.UnsubscribedState); e2 != nil {
 			err = common.AppendError(err, e2)
 		}
@@ -1071,14 +1072,14 @@ func (e *Exchange) wsAddOrder(ctx context.Context, req *WsAddOrderRequest) (stri
 	if req == nil {
 		return "", common.ErrNilPointer
 	}
+	conn, err := e.getAuthenticatedConnection()
+	if err != nil {
+		return "", err
+	}
 	req.RequestID = e.MessageSequence()
 	req.Event = krakenWsAddOrder
 	req.Token = e.websocketAuthToken()
-	authConn := e.Websocket.AuthConn
-	if authConn == nil {
-		return "", websocket.ErrNotConnected
-	}
-	jsonResp, err := authConn.SendMessageReturnResponse(ctx, request.Unset, req.RequestID, req)
+	jsonResp, err := conn.SendMessageReturnResponse(ctx, request.Unset, req.RequestID, req)
 	if err != nil {
 		return "", err
 	}
@@ -1112,6 +1113,10 @@ func (e *Exchange) wsCancelOrders(ctx context.Context, orderIDs []string) error 
 
 // wsCancelOrder cancels an open order
 func (e *Exchange) wsCancelOrder(ctx context.Context, orderID string) error {
+	conn, err := e.getAuthenticatedConnection()
+	if err != nil {
+		return err
+	}
 	id := e.MessageSequence()
 	req := WsCancelOrderRequest{
 		Event:          krakenWsCancelOrder,
@@ -1120,11 +1125,7 @@ func (e *Exchange) wsCancelOrder(ctx context.Context, orderID string) error {
 		RequestID:      id,
 	}
 
-	authConn := e.Websocket.AuthConn
-	if authConn == nil {
-		return fmt.Errorf("%w %s: %w", errCancellingOrder, orderID, websocket.ErrNotConnected)
-	}
-	resp, err := authConn.SendMessageReturnResponse(ctx, request.Unset, id, req)
+	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, id, req)
 	if err != nil {
 		return fmt.Errorf("%w %s: %w", errCancellingOrder, orderID, err)
 	}
@@ -1147,17 +1148,17 @@ func (e *Exchange) wsCancelOrder(ctx context.Context, orderID string) error {
 // wsCancelAllOrders cancels all opened orders
 // Returns number (count param) of affected orders or 0 if no open orders found
 func (e *Exchange) wsCancelAllOrders(ctx context.Context) (*WsCancelOrderResponse, error) {
+	conn, err := e.getAuthenticatedConnection()
+	if err != nil {
+		return &WsCancelOrderResponse{}, err
+	}
 	req := WsCancelOrderRequest{
 		Event:     krakenWsCancelAll,
 		Token:     e.websocketAuthToken(),
 		RequestID: e.MessageSequence(),
 	}
 
-	authConn := e.Websocket.AuthConn
-	if authConn == nil {
-		return &WsCancelOrderResponse{}, websocket.ErrNotConnected
-	}
-	jsonResp, err := authConn.SendMessageReturnResponse(ctx, request.Unset, req.RequestID, req)
+	jsonResp, err := conn.SendMessageReturnResponse(ctx, request.Unset, req.RequestID, req)
 	if err != nil {
 		return &WsCancelOrderResponse{}, err
 	}
@@ -1170,28 +1171,6 @@ func (e *Exchange) wsCancelAllOrders(ctx context.Context) (*WsCancelOrderRespons
 		return &WsCancelOrderResponse{}, errors.New(resp.ErrorMessage)
 	}
 	return &resp, nil
-}
-
-func (e *Exchange) isAuthConnection(conn websocket.Connection) bool {
-	if conn == nil {
-		return false
-	}
-	if e.Websocket.AuthConn == conn {
-		return true
-	}
-	if isAuthEndpointURL(conn.GetURL()) {
-		return true
-	}
-	// Fallback for tests that rewrite both public and auth URLs to the same host.
-	return e.Websocket.Conn != nil && e.Websocket.Conn != conn && e.Websocket.AuthConn == nil
-}
-
-func isAuthEndpointURL(rawURL string) bool {
-	u, err := url.Parse(rawURL)
-	if err == nil && strings.EqualFold(u.Hostname(), "ws-auth.kraken.com") {
-		return true
-	}
-	return strings.Contains(strings.ToLower(rawURL), "ws-auth.kraken.com")
 }
 
 /*
@@ -1225,4 +1204,28 @@ func (e *Exchange) setWebsocketAuthToken(token string) {
 	e.wsAuthMtx.Lock()
 	e.wsAuthToken = token
 	e.wsAuthMtx.Unlock()
+}
+
+func (e *Exchange) getAuthenticatedConnection() (websocket.Connection, error) {
+	wsRunningAuthURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
+	if err != nil {
+		return nil, err
+	}
+	conn, err := e.Websocket.GetConnection(wsRunningAuthURL)
+	if err == nil {
+		return conn, nil
+	}
+	return e.Websocket.GetConnection(krakenAuthWSURL)
+}
+
+func (e *Exchange) getPublicConnection() (websocket.Connection, error) {
+	wsRunningURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return nil, err
+	}
+	conn, err := e.Websocket.GetConnection(wsRunningURL)
+	if err == nil {
+		return conn, nil
+	}
+	return e.Websocket.GetConnection(krakenWSURL)
 }

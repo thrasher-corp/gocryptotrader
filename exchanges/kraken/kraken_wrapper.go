@@ -210,10 +210,11 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Subscriber:            e.subscribeForConnection,
 		Unsubscriber:          e.unsubscribeForConnection,
 		GenerateSubscriptions: e.generatePublicSubscriptions,
-		Handler:               e.wsHandleDataForConnection,
+		Handler:               e.wsHandleData,
 		RateLimit:             request.NewWeightedRateLimitByDuration(50 * time.Millisecond),
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		MessageFilter:         krakenWSURL,
 	})
 	if err != nil {
 		return err
@@ -224,16 +225,18 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                   wsRunningAuthURL,
-		Connector:             e.wsConnectForConnection,
-		Subscriber:            e.subscribeForConnection,
-		Unsubscriber:          e.unsubscribeForConnection,
-		GenerateSubscriptions: e.generatePrivateSubscriptions,
-		Handler:               e.wsHandleDataForConnection,
-		RateLimit:             request.NewWeightedRateLimitByDuration(50 * time.Millisecond),
-		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		Authenticated:         true,
+		URL:                      wsRunningAuthURL,
+		Connector:                e.wsConnectForConnection,
+		Subscriber:               e.subscribeForConnection,
+		Unsubscriber:             e.unsubscribeForConnection,
+		GenerateSubscriptions:    e.generatePrivateSubscriptions,
+		SubscriptionsNotRequired: true,
+		Handler:                  e.wsHandleData,
+		RateLimit:                request.NewWeightedRateLimitByDuration(50 * time.Millisecond),
+		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+		Authenticated:            true,
+		MessageFilter:            krakenAuthWSURL,
 	})
 }
 

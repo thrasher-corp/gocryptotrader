@@ -57,6 +57,7 @@ var (
 	errConnSetup                            = errors.New("error in connection setup")
 	errNoPendingConnections                 = errors.New("no pending connections, call SetupNewConnection first")
 	errDuplicateConnectionSetup             = errors.New("duplicate connection setup")
+	errCannotChangeConnectionURL            = errors.New("cannot change connection URL when using multi connection management")
 	errExchangeConfigEmpty                  = errors.New("exchange config is empty")
 	errCannotObtainOutboundConnection       = errors.New("cannot obtain outbound connection")
 	errMessageFilterNotComparable           = errors.New("message filter is not comparable")
@@ -493,10 +494,13 @@ func (m *Manager) connect(ctx context.Context) error {
 				break
 			}
 
-				if len(subs) == 0 {
-					// If no subscriptions are generated, we still establish the
-					// connection so on-demand subscriptions can be added later.
-					if err := m.createConnectAndSubscribe(ctx, m.connectionManager[i], nil); err != nil {
+			if len(subs) == 0 {
+				if m.connectionManager[i].setup.Authenticated {
+					// Skip private/authenticated connection when there are no
+					// subscriptions to process.
+					continue
+				}
+				if err := m.createConnectAndSubscribe(ctx, m.connectionManager[i], nil); err != nil {
 					multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, m.connectionManager[i].setup.URL, err)
 					break
 				}
@@ -619,10 +623,6 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 		}
 		return nil
 	}
-	if len(subs) == 0 {
-		return nil
-	}
-
 	if err := ws.setup.Subscriber(ctx, conn, subs); err != nil {
 		return fmt.Errorf("%w: %w", ErrSubscriptionFailure, err)
 	}
@@ -794,64 +794,19 @@ func (m *Manager) CanUseAuthenticatedWebsocketForWrapper() bool {
 
 // SetWebsocketURL sets websocket URL and can refresh underlying connections
 func (m *Manager) SetWebsocketURL(u string, auth, reconnect bool) error {
+	if m.useMultiConnectionManagement {
+		// TODO: Add functionality for multi-connection management to change URL
+		return fmt.Errorf("%s: %w", m.exchangeName, errCannotChangeConnectionURL)
+	}
 	defaultVals := u == "" || u == config.WebsocketURLNonDefaultMessage
 	if auth {
 		if defaultVals {
 			u = m.defaultURLAuth
 		}
-	} else if defaultVals {
-		u = m.defaultURL
-	}
-	err := checkWebsocketURL(u)
-	if err != nil {
-		return err
-	}
-
-	if m.useMultiConnectionManagement {
-		if auth {
-			m.runningURLAuth = u
-		} else {
-			m.runningURL = u
+		err := checkWebsocketURL(u)
+		if err != nil {
+			return err
 		}
-
-		if m.verbose {
-			if auth {
-				log.Debugf(log.WebsocketMgr, "%s websocket: setting authenticated websocket URL: %s\n", m.exchangeName, u)
-			} else {
-				log.Debugf(log.WebsocketMgr, "%s websocket: setting unauthenticated websocket URL: %s\n", m.exchangeName, u)
-			}
-		}
-
-		// Update all matching connection setups and any active connections.
-		for i := range m.connectionManager {
-			if m.connectionManager[i].setup.Authenticated != auth {
-				continue
-			}
-			connectionURL := u
-			if auth {
-				// Preserve existing auth-specific paths (if present) when callers override only host.
-				existing, errExisting := url.Parse(m.connectionManager[i].setup.URL)
-				override, errOverride := url.Parse(u)
-				if errExisting == nil && errOverride == nil &&
-					existing.Path != "" && existing.Path != "/" &&
-					(override.Path == "" || override.Path == "/") {
-					override.Path = existing.Path
-					connectionURL = override.String()
-				}
-			}
-			m.connectionManager[i].setup.URL = connectionURL
-			for j := range m.connectionManager[i].connections {
-				m.connectionManager[i].connections[j].SetURL(connectionURL)
-			}
-		}
-
-		if auth && m.AuthConn != nil {
-			m.AuthConn.SetURL(u)
-		}
-		if !auth && m.Conn != nil {
-			m.Conn.SetURL(u)
-		}
-	} else if auth {
 		m.runningURLAuth = u
 
 		if m.verbose {
@@ -862,6 +817,13 @@ func (m *Manager) SetWebsocketURL(u string, auth, reconnect bool) error {
 			m.AuthConn.SetURL(u)
 		}
 	} else {
+		if defaultVals {
+			u = m.defaultURL
+		}
+		err := checkWebsocketURL(u)
+		if err != nil {
+			return err
+		}
 		m.runningURL = u
 
 		if m.verbose {

@@ -173,11 +173,6 @@ func (e *Exchange) wsConnectForConnection(ctx context.Context, conn websocket.Co
 			e.Name,
 			err)
 	}
-	if e.isAuthConnection(conn) {
-		e.Websocket.AuthConn = conn
-	} else {
-		e.Websocket.Conn = conn
-	}
 	if err := conn.SendJSONMessage(ctx, request.Unset, map[string]any{
 		"event": "conf",
 		"flags": bitfinexChecksumFlag + bitfinexWsSequenceFlag,
@@ -185,16 +180,12 @@ func (e *Exchange) wsConnectForConnection(ctx context.Context, conn websocket.Co
 		return err
 	}
 
-	if e.isAuthConnection(conn) && e.IsWebsocketAuthenticationSupported() {
+	if conn.GetURL() == authenticatedBitfinexWebsocketEndpoint {
 		if err := e.wsSendAuthConn(ctx, conn); err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-func (e *Exchange) wsHandleDataForConnection(ctx context.Context, _ websocket.Connection, respRaw []byte) error {
-	return e.wsHandleData(ctx, respRaw)
 }
 
 // wsReadData receives and passes on websocket messages for processing
@@ -205,40 +196,22 @@ func (e *Exchange) wsReadData(ctx context.Context, ws websocket.Connection) {
 		if resp.Raw == nil {
 			return
 		}
-			if e.isAuthConnection(ws) {
-				e.Websocket.AuthConn = ws
-			} else {
-				e.Websocket.Conn = ws
-		}
-		if err := e.wsHandleData(ctx, resp.Raw); err != nil {
+		if err := e.wsHandleData(ctx, ws, resp.Raw); err != nil {
 			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
+				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, ws.GetURL(), errSend, err)
 			}
 		}
 	}
 }
 
-func (e *Exchange) isAuthConnection(conn websocket.Connection) bool {
-	if conn == nil {
-		return false
-	}
-	if e.Websocket.AuthConn == conn {
-		return true
-	}
-	if strings.EqualFold(conn.GetURL(), authenticatedBitfinexWebsocketEndpoint) {
-		return true
-	}
-	return e.Websocket.Conn != nil && e.Websocket.Conn != conn && e.Websocket.AuthConn == nil
-}
-
-func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	var result any
 	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
 	}
 	switch d := result.(type) {
 	case map[string]any:
-		return e.handleWSEvent(ctx, respRaw)
+		return e.handleWSEvent(ctx, conn, respRaw)
 	case []any:
 		chanIDFloat, ok := d[0].(float64)
 		if !ok {
@@ -269,7 +242,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		case wsHeartbeat, pong:
 			return nil
 		case wsNotification:
-			return e.handleWSNotification(ctx, d, respRaw)
+			return e.handleWSNotification(ctx, conn, d, respRaw)
 		case wsOrderSnapshot:
 			if snapBundle, ok := d[2].([]any); ok && len(snapBundle) > 0 {
 				if _, ok := snapBundle[0].([]any); ok {
@@ -531,31 +504,31 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	return nil
 }
 
-func (e *Exchange) handleWSEvent(ctx context.Context, respRaw []byte) error {
+func (e *Exchange) handleWSEvent(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	event, err := jsonparser.GetUnsafeString(respRaw, "event")
 	if err != nil {
 		return fmt.Errorf("%w 'event': %w from message: %s", common.ErrParsingWSField, err, respRaw)
 	}
 	switch event {
 	case wsEventSubscribed:
-		return e.handleWSSubscribed(respRaw)
+		return e.handleWSSubscribed(conn, respRaw)
 	case wsEventUnsubscribed:
 		chanID, err := jsonparser.GetUnsafeString(respRaw, "chanId")
 		if err != nil {
 			return fmt.Errorf("%w 'chanId': %w from message: %s", common.ErrParsingWSField, err, respRaw)
 		}
-		err = e.Websocket.Conn.RequireMatchWithData("unsubscribe:"+chanID, respRaw)
+		err = conn.RequireMatchWithData("unsubscribe:"+chanID, respRaw)
 		if err != nil {
 			return fmt.Errorf("%w: unsubscribe:%v", err, chanID)
 		}
 	case wsEventError:
 		if subID, err := jsonparser.GetUnsafeString(respRaw, "subId"); err == nil {
-			err = e.Websocket.Conn.RequireMatchWithData("subscribe:"+subID, respRaw)
+			err = conn.RequireMatchWithData("subscribe:"+subID, respRaw)
 			if err != nil {
 				return fmt.Errorf("%w: subscribe:%v", err, subID)
 			}
 		} else if chanID, err := jsonparser.GetUnsafeString(respRaw, "chanId"); err == nil {
-			err = e.Websocket.Conn.RequireMatchWithData("unsubscribe:"+chanID, respRaw)
+			err = conn.RequireMatchWithData("unsubscribe:"+chanID, respRaw)
 			if err != nil {
 				return fmt.Errorf("%w: unsubscribe:%v", err, chanID)
 			}
@@ -600,7 +573,7 @@ func (e *Exchange) handleWSEvent(ctx context.Context, respRaw []byte) error {
 
 // handleWSSubscribed parses a subscription response and registers the chanID key immediately, before updating subscribeToChan via IncomingWithData chan
 // wsHandleData happens sequentially, so by rekeying on chanID immediately we ensure the first message is not dropped
-func (e *Exchange) handleWSSubscribed(respRaw []byte) error {
+func (e *Exchange) handleWSSubscribed(conn websocket.Connection, respRaw []byte) error {
 	subID, err := jsonparser.GetUnsafeString(respRaw, "subId")
 	if err != nil {
 		return fmt.Errorf("%w 'subId': %w from message: %s", common.ErrParsingWSField, err, respRaw)
@@ -621,7 +594,7 @@ func (e *Exchange) handleWSSubscribed(respRaw []byte) error {
 	c.Key = int(chanID)
 
 	// subscribeToChan removes the old subID keyed Subscription
-	err = e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, c)
+	err = e.Websocket.AddSuccessfulSubscriptions(conn, c)
 	if err != nil {
 		return fmt.Errorf("%w: %w subID: %s", websocket.ErrSubscriptionFailure, err, subID)
 	}
@@ -630,8 +603,8 @@ func (e *Exchange) handleWSSubscribed(respRaw []byte) error {
 		log.Debugf(log.ExchangeSys, "%s Subscribed to Channel: %s Pair: %s ChannelID: %d\n", e.Name, c.Channel, c.Pairs, chanID)
 	}
 
-	if e.Websocket.Conn != nil {
-		return e.Websocket.Conn.RequireMatchWithData("subscribe:"+subID, respRaw)
+	if conn != nil {
+		return conn.RequireMatchWithData("subscribe:"+subID, respRaw)
 	}
 	return e.Websocket.Match.RequireMatchWithData("subscribe:"+subID, respRaw)
 }
@@ -999,7 +972,7 @@ func (e *Exchange) handleWSPublicTradeUpdate(respRaw []byte) (*Trade, error) {
 	return t, json.Unmarshal(v, t)
 }
 
-func (e *Exchange) handleWSNotification(ctx context.Context, d []any, respRaw []byte) error {
+func (e *Exchange) handleWSNotification(ctx context.Context, conn websocket.Connection, d []any, respRaw []byte) error {
 	notification, ok := d[2].([]any)
 	if !ok {
 		return errors.New("unable to type assert notification data")
@@ -1014,11 +987,10 @@ func (e *Exchange) handleWSNotification(ctx context.Context, d []any, respRaw []
 			strings.Contains(channelName, wsFundingOfferUpdateRequest),
 			strings.Contains(channelName, wsFundingOfferCancelRequest):
 			if data[0] != nil {
-					if id, ok := data[0].(float64); ok && id > 0 {
-						if (e.Websocket.Conn != nil && e.Websocket.Conn.IncomingWithData(int64(id), respRaw)) ||
-							e.Websocket.Match.IncomingWithData(int64(id), respRaw) {
-							return nil
-						}
+				if id, ok := data[0].(float64); ok && id > 0 {
+					if conn != nil && conn.IncomingWithData(int64(id), respRaw) {
+						return nil
+					}
 					offer, err := wsHandleFundingOffer(data, true /* include rate real */)
 					if err != nil {
 						return err
@@ -1030,11 +1002,10 @@ func (e *Exchange) handleWSNotification(ctx context.Context, d []any, respRaw []
 			if data[2] != nil {
 				if cid, ok := data[2].(float64); !ok {
 					return common.GetTypeAssertError("float64", data[2], channelName+" cid")
-					} else if cid > 0 {
-						if (e.Websocket.Conn != nil && e.Websocket.Conn.IncomingWithData(int64(cid), respRaw)) ||
-							e.Websocket.Match.IncomingWithData(int64(cid), respRaw) {
-							return nil
-						}
+				} else if cid > 0 {
+					if conn != nil && conn.IncomingWithData(int64(cid), respRaw) {
+						return nil
+					}
 					return e.wsHandleOrder(ctx, data)
 				}
 			}
@@ -1043,11 +1014,10 @@ func (e *Exchange) handleWSNotification(ctx context.Context, d []any, respRaw []
 			if data[0] != nil {
 				if id, ok := data[0].(float64); !ok {
 					return common.GetTypeAssertError("float64", data[0], channelName+" id")
-					} else if id > 0 {
-						if (e.Websocket.Conn != nil && e.Websocket.Conn.IncomingWithData(int64(id), respRaw)) ||
-							e.Websocket.Match.IncomingWithData(int64(id), respRaw) {
-							return nil
-						}
+				} else if id > 0 {
+					if conn != nil && conn.IncomingWithData(int64(id), respRaw) {
+						return nil
+					}
 					return e.wsHandleOrder(ctx, data)
 				}
 			}
@@ -1717,40 +1687,51 @@ func (e *Exchange) generatePrivateSubscriptions() (subscription.List, error) {
 // Subscribe sends a websocket message to receive data from channels
 func (e *Exchange) Subscribe(subs subscription.List) error {
 	ctx := context.TODO()
-	if e.Websocket.Conn == nil && !e.Websocket.IsConnected() {
+	publicConn, err := e.getPublicConnection()
+	if publicConn == nil && !e.Websocket.IsConnected() {
 		if err := e.Websocket.Connect(ctx); err != nil {
 			return err
 		}
+		publicConn, err = e.getPublicConnection()
 	}
-	var err error
+	if err != nil {
+		return err
+	}
 	if subs, err = subs.ExpandTemplates(e); err != nil {
 		return err
 	}
 	return e.ParallelChanOp(ctx, subs, func(ctx context.Context, s subscription.List) error {
-		return e.subscribeToChan(ctx, e.Websocket.Conn, s)
+		return e.subscribeToChan(ctx, publicConn, s)
 	}, 1)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from channels
 func (e *Exchange) Unsubscribe(subs subscription.List) error {
 	ctx := context.TODO()
-	if e.Websocket.Conn == nil && !e.Websocket.IsConnected() {
+	publicConn, err := e.getPublicConnection()
+	if publicConn == nil && !e.Websocket.IsConnected() {
 		if err := e.Websocket.Connect(ctx); err != nil {
 			return err
 		}
+		publicConn, err = e.getPublicConnection()
 	}
-	var err error
+	if err != nil {
+		return err
+	}
 	if subs, err = subs.ExpandTemplates(e); err != nil {
 		return err
 	}
 	return e.ParallelChanOp(ctx, subs, func(ctx context.Context, s subscription.List) error {
-		return e.unsubscribeFromChan(ctx, e.Websocket.Conn, s)
+		return e.unsubscribeFromChan(ctx, publicConn, s)
 	}, 1)
 }
 
 // subscribeToChan handles a single subscription and parses the result
 // on success it adds the subscription to the websocket
 func (e *Exchange) subscribeToChan(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	if conn == nil {
+		return websocket.ErrNotConnected
+	}
 	if len(subs) != 1 {
 		return subscription.ErrNotSinglePair
 	}
@@ -1794,6 +1775,9 @@ func (e *Exchange) subscribeToChan(ctx context.Context, conn websocket.Connectio
 
 // unsubscribeFromChan sends a websocket message to stop receiving data from a channel
 func (e *Exchange) unsubscribeFromChan(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	if conn == nil {
+		return websocket.ErrNotConnected
+	}
 	if len(subs) != 1 {
 		return errors.New("subscription batching limited to 1")
 	}
@@ -1886,6 +1870,17 @@ func (e *Exchange) wsSendAuthConn(ctx context.Context, conn websocket.Connection
 		AuthNonce:     nonce,
 		DeadManSwitch: 0,
 	})
+}
+
+func (e *Exchange) getPublicConnection() (websocket.Connection, error) {
+	conn, err := e.Websocket.GetConnection(publicBitfinexWebsocketEndpoint)
+	if err == nil {
+		return conn, nil
+	}
+	if e.Websocket.Conn != nil {
+		return e.Websocket.Conn, nil
+	}
+	return nil, websocket.ErrNotConnected
 }
 
 // WsNewOrder authenticated new order request
