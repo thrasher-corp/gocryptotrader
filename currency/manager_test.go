@@ -71,8 +71,9 @@ func TestGetAssetTypes(t *testing.T) {
 }
 
 func TestIgnoreEnabledCheckBypassPaths(t *testing.T) {
-	// test cannot be parallel due to t.Setenv
+	// test cannot be parallel due to package var
 	p := initTest(t)
+	ignoreEnabledCurrencyAssetCheck = false
 	futuresPair := NewPairWithDelimiter("BTC", "USD", "-")
 	spotPair := NewPairWithDelimiter("LTC", "USD", "-")
 	p.Pairs[asset.Futures].Enabled = nil
@@ -108,7 +109,7 @@ func TestIgnoreEnabledCheckBypassPaths(t *testing.T) {
 	assert.Equal(t, EMPTYPAIR, pair)
 	assert.Equal(t, asset.Empty, a)
 
-	t.Setenv("IGNORE_ENABLED_CHECK", "true")
+	ignoreEnabledCurrencyAssetCheck = true
 
 	assets = p.GetAssetTypes(true)
 	assert.True(t, assets.Contains(asset.Futures))
