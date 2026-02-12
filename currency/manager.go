@@ -31,9 +31,16 @@ var (
 	errPairConfigFormatNil = errors.New("pair config format is nil")
 )
 
+const ignoreEnabledCheckEnv = "IGNORE_ENABLED_CHECK"
+
+var ignoreEnabledCurrencyAssetCheck bool
+
+func init() {
+	ignoreEnabledCurrencyAssetCheck, _ = strconv.ParseBool(os.Getenv(ignoreEnabledCheckEnv))
+}
+
 func ignoreEnabledCheck() bool {
-	iec, _ := strconv.ParseBool(os.Getenv("IGNORE_ENABLED_CHECK"))
-	return iec
+	return ignoreEnabledCurrencyAssetCheck
 }
 
 // GetAssetTypes returns a list of stored asset types
