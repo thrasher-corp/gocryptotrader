@@ -1,9 +1,11 @@
 package kraken
 
 import (
+	"context"
 	"errors"
 	"log"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"sync"
@@ -17,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -1008,7 +1011,7 @@ func TestWsResubscribe(t *testing.T) {
 	err = subs[0].SetState(subscription.UnsubscribingState)
 	require.NoError(t, err)
 
-	err = e.Websocket.ResubscribeToChannel(t.Context(), e.Websocket.Conn, subs[0])
+	err = e.Websocket.ResubscribeToChannel(t.Context(), nil, subs[0])
 	require.NoError(t, err, "Resubscribe must not error")
 	require.Equal(t, subscription.SubscribedState, subs[0].State(), "subscription must be subscribed again")
 }
@@ -1152,7 +1155,7 @@ func TestWsProcessSubStatusAuthenticated(t *testing.T) {
 			s := &subscription.Subscription{Channel: tc.channel, QualifiedChannel: tc.qualifiedChannel, Authenticated: true}
 			require.NoError(t, ex.Websocket.AddSubscriptions(nil, s), "authenticated subscription must be added in subscribing state")
 
-			ex.wsProcessSubStatus([]byte(`{"channelName":"` + tc.qualifiedChannel + `","event":"subscriptionStatus","reqid":3,"status":"subscribed","subscription":{"name":"` + tc.qualifiedChannel + `"}}`))
+			ex.wsProcessSubStatus(nil, []byte(`{"channelName":"`+tc.qualifiedChannel+`","event":"subscriptionStatus","reqid":3,"status":"subscribed","subscription":{"name":"`+tc.qualifiedChannel+`"}}`))
 			assert.Equal(t, subscription.SubscribedState, s.State(), "authenticated subscription status should be updated without requiring a pair field")
 		})
 	}
@@ -1210,7 +1213,7 @@ func TestGetWSToken(t *testing.T) {
 func TestWsAddOrder(t *testing.T) {
 	t.Parallel()
 
-	k := testexch.MockWsInstance[Exchange](t, curryWsMockUpgrader(t, mockWsServer))
+	k := mockWsInstance(t, curryWsMockUpgrader(t, mockWsServer))
 	require.True(t, k.IsWebsocketAuthenticationSupported(), "WS must be authenticated")
 	id, err := k.wsAddOrder(t.Context(), &WsAddOrderRequest{
 		OrderType: order.Limit.Lower(),
@@ -1226,7 +1229,7 @@ func TestWsAddOrder(t *testing.T) {
 func TestWsCancelOrders(t *testing.T) {
 	t.Parallel()
 
-	k := testexch.MockWsInstance[Exchange](t, curryWsMockUpgrader(t, mockWsServer))
+	k := mockWsInstance(t, curryWsMockUpgrader(t, mockWsServer))
 	require.True(t, k.IsWebsocketAuthenticationSupported(), "WS must be authenticated")
 
 	err := k.wsCancelOrders(t.Context(), []string{"RABBIT", "BATFISH", "SQUIRREL", "CATFISH", "MOUSE"})
@@ -1254,7 +1257,7 @@ func TestWsHandleData(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
 	e.Name += "-WsHandleData"
 	for _, l := range []int{10, 100} {
-		err := e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, &subscription.Subscription{
+		err := e.Websocket.AddSuccessfulSubscriptions(nil, &subscription.Subscription{
 			Channel: subscription.OrderbookChannel,
 			Pairs:   currency.Pairs{spotTestPair},
 			Asset:   asset.Spot,
@@ -1262,7 +1265,7 @@ func TestWsHandleData(t *testing.T) {
 		})
 		require.NoError(t, err, "AddSuccessfulSubscriptions must not error")
 	}
-	testexch.FixtureToDataHandler(t, "testdata/wsHandleData.json", e.wsHandleData)
+	testexch.FixtureToDataHandler(t, "testdata/wsHandleData.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, nil, b) })
 }
 
 func TestWSProcessTrades(t *testing.T) {
@@ -1270,9 +1273,9 @@ func TestWSProcessTrades(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{spotTestPair}, Channel: subscription.AllTradesChannel, Key: 18788})
+	err := e.Websocket.AddSubscriptions(nil, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{spotTestPair}, Channel: subscription.AllTradesChannel, Key: 18788})
 	require.NoError(t, err, "AddSubscriptions must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", e.wsHandleData)
+	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, nil, b) })
 	e.Websocket.DataHandler.Close()
 
 	invalid := []any{"trades", []any{[]any{"95873.80000", "0.00051182", "1708731380.3791859"}}}
@@ -1308,7 +1311,7 @@ func TestWsOpenOrders(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	testexch.UpdatePairsOnce(t, e)
-	testexch.FixtureToDataHandler(t, "testdata/wsOpenTrades.json", e.wsHandleData)
+	testexch.FixtureToDataHandler(t, "testdata/wsOpenTrades.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, nil, b) })
 	e.Websocket.DataHandler.Close()
 	assert.Len(t, e.Websocket.DataHandler.C, 7, "Should see 7 orders")
 	for resp := range e.Websocket.DataHandler.C {
@@ -1522,7 +1525,7 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 		currency.NewPairWithDelimiter("GST", "EUR", "/"),
 	}
 	for _, p := range pairs {
-		err := e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, &subscription.Subscription{
+		err := e.Websocket.AddSuccessfulSubscriptions(nil, &subscription.Subscription{
 			Channel: subscription.OrderbookChannel,
 			Pairs:   currency.Pairs{p},
 			Asset:   asset.Spot,
@@ -1532,12 +1535,12 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 	}
 
 	for x := range websocketXDGUSDOrderbookUpdates {
-		err := e.wsHandleData(t.Context(), []byte(websocketXDGUSDOrderbookUpdates[x]))
+		err := e.wsHandleData(t.Context(), nil, []byte(websocketXDGUSDOrderbookUpdates[x]))
 		require.NoError(t, err, "wsHandleData must not error")
 	}
 
 	for x := range websocketLUNAEUROrderbookUpdates {
-		err := e.wsHandleData(t.Context(), []byte(websocketLUNAEUROrderbookUpdates[x]))
+		err := e.wsHandleData(t.Context(), nil, []byte(websocketLUNAEUROrderbookUpdates[x]))
 		// TODO: Known issue with LUNA pairs and big number float precision
 		// storage and checksum calc. Might need to store raw strings as fields
 		// in the orderbook.Level struct.
@@ -1549,7 +1552,7 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 
 	// This has less than 10 bids and still needs a checksum calc.
 	for x := range websocketGSTEUROrderbookUpdates {
-		err := e.wsHandleData(t.Context(), []byte(websocketGSTEUROrderbookUpdates[x]))
+		err := e.wsHandleData(t.Context(), nil, []byte(websocketGSTEUROrderbookUpdates[x]))
 		require.NoError(t, err, "wsHandleData must not error")
 	}
 }
@@ -1659,6 +1662,37 @@ func curryWsMockUpgrader(tb testing.TB, h mockws.WsMockFunc) http.HandlerFunc {
 		}
 		mockws.WsMockUpgrader(tb, w, r, h)
 	}
+}
+
+func mockWsInstance(tb testing.TB, h http.HandlerFunc) *Exchange {
+	tb.Helper()
+
+	e := new(Exchange)
+	require.NoError(tb, testexch.Setup(e), "Test exchange Setup must not error")
+
+	s := httptest.NewServer(h)
+	tb.Cleanup(s.Close)
+	wsURL := "ws" + strings.TrimPrefix(s.URL, "http")
+
+	b := e.GetBase()
+	cfg := *b.Config
+	cfg.API.Endpoints = make(map[string]string, len(b.Config.API.Endpoints))
+	for k, v := range b.Config.API.Endpoints {
+		cfg.API.Endpoints[k] = v
+	}
+	cfg.API.Endpoints["RestSpotURL"] = s.URL
+	cfg.API.Endpoints["WebsocketSpotURL"] = wsURL + "/public"
+	cfg.API.Endpoints["WebsocketSpotSupplementaryURL"] = wsURL + "/private"
+	e.Websocket = websocket.NewManager()
+	require.NoError(tb, e.Setup(&cfg), "Setup must not error")
+
+	b = e.GetBase()
+	b.SkipAuthCheck = true
+	b.API.AuthenticatedWebsocketSupport = true
+	b.Features.Subscriptions = subscription.List{}
+	b.Websocket.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
+	require.NoError(tb, b.Websocket.Connect(context.TODO()), "Connect must not error")
+	return e
 }
 
 func TestGetCurrencyTradeURL(t *testing.T) {

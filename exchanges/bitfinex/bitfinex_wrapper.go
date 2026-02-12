@@ -203,10 +203,11 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Subscriber:            e.subscribeForConnection,
 		Unsubscriber:          e.unsubscribeForConnection,
 		GenerateSubscriptions: e.generatePublicSubscriptions,
-		Handler:               e.wsHandleDataForConnection,
+		Handler:               e.wsHandleData,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 		URL:                   publicBitfinexWebsocketEndpoint,
+		MessageFilter:         publicBitfinexWebsocketEndpoint,
 	})
 	if err != nil {
 		return err
@@ -217,11 +218,12 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Subscriber:            e.subscribeForConnection,
 		Unsubscriber:          e.unsubscribeForConnection,
 		GenerateSubscriptions: e.generatePrivateSubscriptions,
-		Handler:               e.wsHandleDataForConnection,
+		Handler:               e.wsHandleData,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 		URL:                   authenticatedBitfinexWebsocketEndpoint,
 		Authenticated:         true,
+		MessageFilter:         authenticatedBitfinexWebsocketEndpoint,
 	})
 }
 
