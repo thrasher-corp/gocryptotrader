@@ -186,8 +186,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                   deribitWebsocketAddress,
-		Connector:             e.wsConnectForConnection,
-		Authenticate:          e.wsAuthenticateForConnection,
+		Connector:             e.wsConnect,
+		Authenticate:          e.wsAuth,
 		Subscriber:            e.subscribeForConnection,
 		Unsubscriber:          e.unsubscribeForConnection,
 		GenerateSubscriptions: e.generateSubscriptions,

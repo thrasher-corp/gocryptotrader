@@ -217,7 +217,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                   wsRunningURL,
-		Connector:             e.wsConnectForConnection,
+		Connector:             e.wsConnect,
 		Subscriber:            e.subscribeForConnection,
 		Unsubscriber:          e.unsubscribeForConnection,
 		GenerateSubscriptions: e.generatePublicSubscriptions,
@@ -237,8 +237,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                      wsRunningAuthURL,
-		Connector:                e.wsConnectForConnection,
-		Authenticate:             e.wsAuthenticateForConnection,
+		Connector:                e.wsConnect,
+		Authenticate:             e.wsAuth,
 		Subscriber:               e.subscribeForConnection,
 		Unsubscriber:             e.unsubscribeForConnection,
 		GenerateSubscriptions:    e.generatePrivateSubscriptions,
