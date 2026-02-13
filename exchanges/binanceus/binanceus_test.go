@@ -635,17 +635,15 @@ var subaccountItemJSON = `{
 func TestGetSubaccountInformation(t *testing.T) {
 	t.Parallel()
 	var resp SubAccount
-	if er := json.Unmarshal([]byte(subaccountItemJSON), &resp); er != nil {
-		t.Error("Binanceus decerializing to SubAccount error", er)
-	}
+	require.NoError(t, json.Unmarshal([]byte(subaccountItemJSON), &resp), "Unmarshal SubAccount must not error")
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, er := e.GetSubaccountInformation(t.Context(), 1, 100, "", "")
-	if er != nil && !strings.Contains(er.Error(), "Sub-account function is not enabled.") {
-		t.Error("Binanceus GetSubaccountInformation() error", er)
+	_, err := e.GetSubaccountInformation(t.Context(), 1, 100, "", "")
+	if err != nil {
+		assert.ErrorContains(t, err, "Sub-account function is not enabled.", "GetSubaccountInformation should only error for sub-account not enabled")
 	}
 }
 
-var referalRewardHistoryResponse = `{
+var referralRewardHistoryResponse = `{
     "total": 1,
     "rows": [
         {
@@ -660,7 +658,7 @@ var referalRewardHistoryResponse = `{
 func TestGetReferralRewardHistory(t *testing.T) {
 	t.Parallel()
 	var resp ReferralRewardHistoryResponse
-	require.NoError(t, json.Unmarshal([]byte(referalRewardHistoryResponse), &resp))
+	require.NoError(t, json.Unmarshal([]byte(referralRewardHistoryResponse), &resp))
 	_, err := e.GetReferralRewardHistory(t.Context(), 9, 5, 50)
 	assert.ErrorIs(t, err, errInvalidUserBusinessType)
 	_, err = e.GetReferralRewardHistory(t.Context(), 1, 0, 50)
@@ -736,9 +734,7 @@ var testNewOrderResponseJSON = `{
 func TestNewOrderTest(t *testing.T) {
 	t.Parallel()
 	var resp NewOrderResponse
-	if er := json.Unmarshal([]byte(testNewOrderResponseJSON), &resp); er != nil {
-		t.Error("Binanceus decerializing to Order error", er)
-	}
+	require.NoError(t, json.Unmarshal([]byte(testNewOrderResponseJSON), &resp), "Unmarshal Order must not error")
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	req := &NewOrderRequest{
 		Symbol:      currency.NewPair(currency.LTC, currency.BTC),
@@ -749,9 +745,7 @@ func TestNewOrderTest(t *testing.T) {
 		TimeInForce: order.GoodTillCancel.String(),
 	}
 	_, err := e.NewOrderTest(t.Context(), req)
-	if err != nil {
-		t.Error("Binanceus NewOrderTest() error", err)
-	}
+	assert.NoError(t, err, "NewOrderTest should not error for limit order")
 	req = &NewOrderRequest{
 		Symbol:        currency.NewPair(currency.LTC, currency.BTC),
 		Side:          order.Sell.String(),
@@ -760,9 +754,7 @@ func TestNewOrderTest(t *testing.T) {
 		QuoteOrderQty: 10,
 	}
 	_, err = e.NewOrderTest(t.Context(), req)
-	if err != nil {
-		t.Error("NewOrderTest() error", err)
-	}
+	assert.NoError(t, err, "NewOrderTest should not error for market order")
 }
 
 func TestNewOrder(t *testing.T) {
@@ -818,15 +810,10 @@ var openOrdersItemJSON = `{
 func TestGetAllOpenOrders(t *testing.T) {
 	t.Parallel()
 	var resp Order
-	if er := json.Unmarshal([]byte(openOrdersItemJSON), &resp); er != nil {
-		t.Error("Binanceus decerializing to Order error", er)
-	}
+	require.NoError(t, json.Unmarshal([]byte(openOrdersItemJSON), &resp), "Unmarshal Order must not error")
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-
-	_, er := e.GetAllOpenOrders(t.Context(), "")
-	if er != nil {
-		t.Error("Binanceus GetAllOpenOrders() error", er)
-	}
+	_, err := e.GetAllOpenOrders(t.Context(), "")
+	assert.NoError(t, err, "GetAllOpenOrders should not error")
 }
 
 func TestCancelExistingOrder(t *testing.T) {
@@ -1096,13 +1083,10 @@ var ocbsTradeOrderJSON = `
 func TestGetAllOCBSTradeOrders(t *testing.T) {
 	t.Parallel()
 	var orderDetail OCBSOrder
-	if er := json.Unmarshal([]byte(ocbsTradeOrderJSON), &orderDetail); er != nil {
-		t.Error("Binanceus decerializing to OCBSOrder error", er)
-	}
+	require.NoError(t, json.Unmarshal([]byte(ocbsTradeOrderJSON), &orderDetail), "Unmarshal OCBSOrder must not error")
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, er := e.GetAllOCBSTradeOrders(t.Context(), OCBSOrderRequestParams{}); er != nil {
-		t.Error("Binanceus GetAllOCBSTradeOrders() error", er)
-	}
+	_, err := e.GetAllOCBSTradeOrders(t.Context(), OCBSOrderRequestParams{})
+	assert.NoError(t, err, "GetAllOCBSTradeOrders should not error")
 }
 
 func TestGetAssetFeesAndWalletStatus(t *testing.T) {
@@ -1173,7 +1157,7 @@ func TestFiatDepositHistory(t *testing.T) {
 // Since both binance and Binance US has same websocket functions,
 // the tests functions are also similar
 
-// TestWebsocketStreamKey  this test mmethod handles the
+// TestWebsocketStreamKey  this test method handles the
 // creating, updating, and deleting of user stream key or "listenKey"
 // all the three methods in one test methods.
 func TestWebsocketStreamKey(t *testing.T) {
@@ -1449,9 +1433,8 @@ func TestWebsocketPartialOrderBookDepthStream(t *testing.T) {
 		]
 	  }}`)
 	var err error
-	if err = e.wsHandleData(t.Context(), update1); err != nil {
-		t.Error("Binanceus Partial Order Book Depth Sream error", err)
-	}
+	err = e.wsHandleData(t.Context(), update1)
+	require.NoError(t, err, "wsHandleData for partial orderbook update1 must not error")
 	update2 := []byte(`{
 		"stream":"btcusdt@depth10",
 		"data":{
@@ -1470,9 +1453,8 @@ func TestWebsocketPartialOrderBookDepthStream(t *testing.T) {
 			]
 		}
 	  }`)
-	if err = e.wsHandleData(t.Context(), update2); err != nil {
-		t.Error("Binanceus Partial Order Book Depth Sream error", err)
-	}
+	err = e.wsHandleData(t.Context(), update2)
+	require.NoError(t, err, "wsHandleData for partial orderbook update2 must not error")
 }
 
 func TestWebsocketBookTicker(t *testing.T) {

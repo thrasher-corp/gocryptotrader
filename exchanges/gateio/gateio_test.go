@@ -500,12 +500,11 @@ func TestMergeMultipleLendingLoans(t *testing.T) {
 	}
 }
 
-func TestRetriveOneSingleLoanDetail(t *testing.T) {
+func TestRetrieveOneSingleLoanDetail(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.RetriveOneSingleLoanDetail(t.Context(), "borrow", "123"); err != nil {
-		t.Errorf("%s RetriveOneSingleLoanDetail() error %v", e.Name, err)
-	}
+	_, err := e.RetrieveOneSingleLoanDetail(t.Context(), "borrow", "123")
+	assert.NoError(t, err, "RetrieveOneSingleLoanDetail should not error")
 }
 
 func TestModifyALoan(t *testing.T) {
@@ -1152,13 +1151,13 @@ func TestEnableOrDisableDualMode(t *testing.T) {
 	assert.NoError(t, err, "EnableOrDisableDualMode should not error")
 }
 
-func TestRetrivePositionDetailInDualMode(t *testing.T) {
+func TestRetrievePositionDetailInDualMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.RetrivePositionDetailInDualMode(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures))
-	assert.NoError(t, err, "RetrivePositionDetailInDualMode should not error for CoinMarginedFutures")
-	_, err = e.RetrivePositionDetailInDualMode(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures))
-	assert.NoError(t, err, "RetrivePositionDetailInDualMode should not error for USDTMarginedFutures")
+	_, err := e.RetrievePositionDetailInDualMode(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures))
+	assert.NoError(t, err, "RetrievePositionDetailInDualMode should not error for CoinMarginedFutures")
+	_, err = e.RetrievePositionDetailInDualMode(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures))
+	assert.NoError(t, err, "RetrievePositionDetailInDualMode should not error for USDTMarginedFutures")
 }
 
 func TestUpdatePositionMarginInDualMode(t *testing.T) {

@@ -5609,7 +5609,7 @@ func TestGetInviteesDetail(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetUserAffilateRebateInformation(t *testing.T) {
+func TestGetUserAffiliateRebateInformation(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetUserAffiliateRebateInformation(contextGenerate(), "")
 	require.ErrorIs(t, err, errInvalidAPIKey)

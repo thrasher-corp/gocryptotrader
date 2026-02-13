@@ -1002,7 +1002,7 @@ type TransferableBalanceInfo struct {
 type FundTransferFuturesParam struct {
 	Amount             float64       `json:"amount"`
 	Currency           currency.Code `json:"currency"`
-	RecieveAccountType string        `json:"recAccountType"` // possible values are: MAIN and TRADE
+	ReceiveAccountType string        `json:"recAccountType"` // possible values are: MAIN and TRADE
 }
 
 // FundTransferToFuturesParam holds request parameters to transfer funds to futures account

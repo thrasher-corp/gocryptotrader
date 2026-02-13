@@ -259,8 +259,8 @@ func (s *RPCServer) getRPCEndpoints() (map[string]*gctrpc.RPCEndpoint, error) {
 }
 
 // GetSubsystems returns a list of subsystems and their status
-func (s *RPCServer) GetSubsystems(_ context.Context, _ *gctrpc.GetSubsystemsRequest) (*gctrpc.GetSusbsytemsResponse, error) {
-	return &gctrpc.GetSusbsytemsResponse{SubsystemsStatus: s.GetSubsystemsStatus()}, nil
+func (s *RPCServer) GetSubsystems(_ context.Context, _ *gctrpc.GetSubsystemsRequest) (*gctrpc.GetSubsystemsResponse, error) {
+	return &gctrpc.GetSubsystemsResponse{SubsystemsStatus: s.GetSubsystemsStatus()}, nil
 }
 
 // EnableSubsystem enables a engine subsystem
@@ -1735,7 +1735,7 @@ func (s *RPCServer) WithdrawalEventByID(_ context.Context, r *gctrpc.WithdrawalE
 	resp := &gctrpc.WithdrawalEventByIDResponse{
 		Event: &gctrpc.WithdrawalEventResponse{
 			Id: v.ID.String(),
-			Exchange: &gctrpc.WithdrawlExchangeEvent{
+			Exchange: &gctrpc.WithdrawalExchangeEvent{
 				Name:   v.Exchange.Name,
 				Id:     v.Exchange.Name,
 				Status: v.Exchange.Status,
@@ -3564,7 +3564,7 @@ func parseMultipleEvents(ret []*withdraw.Response) *gctrpc.WithdrawalEventsByExc
 	for x := range ret {
 		tempEvent := &gctrpc.WithdrawalEventResponse{
 			Id: ret[x].ID.String(),
-			Exchange: &gctrpc.WithdrawlExchangeEvent{
+			Exchange: &gctrpc.WithdrawalExchangeEvent{
 				Name:   ret[x].Exchange.Name,
 				Id:     ret[x].Exchange.ID,
 				Status: ret[x].Exchange.Status,
@@ -3620,7 +3620,7 @@ func parseWithdrawalsHistory(ret []exchange.WithdrawalHistory, exchName string, 
 
 		tempEvent := &gctrpc.WithdrawalEventResponse{
 			Id: ret[x].TransferID,
-			Exchange: &gctrpc.WithdrawlExchangeEvent{
+			Exchange: &gctrpc.WithdrawalExchangeEvent{
 				Name:   exchName,
 				Status: ret[x].Status,
 			},
@@ -3650,7 +3650,7 @@ func parseWithdrawalsHistory(ret []exchange.WithdrawalHistory, exchName string, 
 func parseSingleEvents(ret *withdraw.Response) *gctrpc.WithdrawalEventsByExchangeResponse {
 	tempEvent := &gctrpc.WithdrawalEventResponse{
 		Id: ret.ID.String(),
-		Exchange: &gctrpc.WithdrawlExchangeEvent{
+		Exchange: &gctrpc.WithdrawalExchangeEvent{
 			Name:   ret.Exchange.Name,
 			Id:     ret.Exchange.Name,
 			Status: ret.Exchange.Status,

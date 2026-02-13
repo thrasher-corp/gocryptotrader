@@ -1111,7 +1111,7 @@ func TestWSAuth(t *testing.T) {
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	if !e.API.AuthenticatedWebsocketSupport {
-		t.Skip("Authentecated API support not enabled")
+		t.Skip("Authenticated API support not enabled")
 	}
 	testexch.SetupWs(t, e)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must be turned on")
@@ -1186,7 +1186,7 @@ func TestWSSubscribe(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "TestInstance must not error")
 	testexch.SetupWs(t, e)
 	err := e.Subscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
-	require.NoError(t, err, "Subrcribe must not error")
+	require.NoError(t, err, "Subscribe must not error")
 	catcher := func() (ok bool) {
 		i := <-e.Websocket.DataHandler.C
 		_, ok = i.Data.(*ticker.Price)
@@ -1822,31 +1822,28 @@ func TestGetAvailableTransferChains(t *testing.T) {
 	}
 }
 
-func TestAccetableMethodStore(t *testing.T) {
+func TestAcceptableMethodStore(t *testing.T) {
 	t.Parallel()
 	var a acceptableMethodStore
-	if a.loaded() {
-		t.Error("should be empty")
-	}
+	assert.False(t, a.loaded(), "acceptable method store should start empty")
 	data := map[string][]string{
 		"BITCOIN": {"BTC"},
 		"TETHER1": {"UST"},
 		"TETHER2": {"UST"},
 	}
 	a.load(data)
-	if !a.loaded() {
-		t.Error("data should be loaded")
-	}
-	if name := a.lookup(currency.NewCode("BTC")); len(name) != 1 && name[1] != "BITCOIN" {
-		t.Error("incorrect values")
-	}
-	if name := a.lookup(currency.NewCode("UST")); (name[0] != "TETHER1" && name[1] != "TETHER2") &&
-		(name[0] != "TETHER2" && name[1] != "TETHER1") {
-		t.Errorf("incorrect values")
-	}
-	if name := a.lookup(currency.NewCode("PANDA_HORSE")); len(name) != 0 {
-		t.Error("incorrect values")
-	}
+	assert.True(t, a.loaded(), "acceptable method store should be loaded after load call")
+
+	btcName := a.lookup(currency.NewCode("BTC"))
+	require.Len(t, btcName, 1, "BTC lookup must return exactly one value")
+	assert.Equal(t, "BITCOIN", btcName[0], "BTC lookup should map to BITCOIN")
+
+	ustName := a.lookup(currency.NewCode("UST"))
+	require.Len(t, ustName, 2, "UST lookup must return exactly two values")
+	assert.ElementsMatch(t, []string{"TETHER1", "TETHER2"}, ustName, "UST lookup should contain both tether aliases")
+
+	pandaHorseName := a.lookup(currency.NewCode("PANDA_HORSE"))
+	assert.Empty(t, pandaHorseName, "unknown lookup should return no values")
 }
 
 func TestGetSiteListConfigData(t *testing.T) {

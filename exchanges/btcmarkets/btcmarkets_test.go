@@ -363,14 +363,12 @@ func TestGetReport(t *testing.T) {
 	}
 }
 
-func TestRequestWithdaw(t *testing.T) {
+func TestRequestWithdraw(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	_, err := e.RequestWithdraw(t.Context(), "BTC", 1, "sdjflajdslfjld", "", "", "", "")
-	if err == nil {
-		t.Error("expected an error due to invalid toAddress")
-	}
+	assert.Error(t, err, "RequestWithdraw should error due to invalid toAddress")
 }
 
 func TestBatchPlaceCancelOrders(t *testing.T) {

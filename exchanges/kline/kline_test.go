@@ -94,7 +94,7 @@ func TestCreateKline(t *testing.T) {
 	trades := make([]order.TradeHistory, tradeTotal)
 	execution := time.Now()
 	for x := range tradeTotal {
-		price, rndTime := 1000+float64(rand.Intn(1000)), rand.Intn(10) //nolint:gosec // no need to import crypo/rand for testing
+		price, rndTime := 1000+float64(rand.Intn(1000)), rand.Intn(10) //nolint:gosec // no need to import crypto/rand for testing
 		execution = execution.Add(time.Duration(rndTime) * time.Second)
 		trades[x] = order.TradeHistory{
 			Timestamp: execution,
@@ -343,7 +343,7 @@ func TestItem_SortCandlesByTimestamp(t *testing.T) {
 	}
 
 	for x := range 100 {
-		y := rand.Float64() //nolint:gosec // used for generating test data, no need to import crypo/rand
+		y := rand.Float64() //nolint:gosec // used for generating test data, no need to import crypto/rand
 		tempKline.Candles = append(tempKline.Candles,
 			Candle{
 				Time:   time.Now().AddDate(0, 0, -x),

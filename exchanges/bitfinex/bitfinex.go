@@ -118,7 +118,7 @@ type Exchange struct {
 	exchange.Base
 }
 
-// GetPlatformStatus returns the Bifinex platform status
+// GetPlatformStatus returns the Bitfinex platform status
 func (e *Exchange) GetPlatformStatus(ctx context.Context) (int, error) {
 	var response []int
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot,

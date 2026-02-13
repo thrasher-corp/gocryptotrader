@@ -240,13 +240,13 @@ type Margin struct {
 
 // MarginPosition holds information about your current margin position
 type MarginPosition struct {
-	Amount            float64 `json:"amount,string"`
-	Total             float64 `json:"total,string"`
-	BasePrice         float64 `json:"basePrice,string"`
-	LiquidiationPrice float64 `json:"liquidiationPrice"`
-	ProfitLoss        float64 `json:"pl,string"`
-	LendingFees       float64 `json:"lendingFees,string"`
-	Type              string  `json:"type"`
+	Amount           float64 `json:"amount,string"`
+	Total            float64 `json:"total,string"`
+	BasePrice        float64 `json:"basePrice,string"`
+	LiquidationPrice float64 `json:"liquidationPrice"`
+	ProfitLoss       float64 `json:"pl,string"`
+	LendingFees      float64 `json:"lendingFees,string"`
+	Type             string  `json:"type"`
 }
 
 // LoanOffer holds information about your loan offers

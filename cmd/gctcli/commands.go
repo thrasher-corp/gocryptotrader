@@ -2749,7 +2749,7 @@ var withdrawalRequestCommand = &cli.Command{
 					Usage: "withdrawal id",
 				},
 			},
-			Action: withdrawlRequestByID,
+			Action: withdrawalRequestByID,
 		},
 		{
 			Name:      "byexchangeid",
@@ -2765,7 +2765,7 @@ var withdrawalRequestCommand = &cli.Command{
 					Usage: "withdrawal id",
 				},
 			},
-			Action: withdrawlRequestByExchangeID,
+			Action: withdrawalRequestByExchangeID,
 		},
 		{
 			Name:      "byexchange",
@@ -2789,7 +2789,7 @@ var withdrawalRequestCommand = &cli.Command{
 					Usage: "the asset type of the currency pair",
 				},
 			},
-			Action: withdrawlRequestByExchangeID,
+			Action: withdrawalRequestByExchangeID,
 		},
 		{
 			Name:      "bydate",
@@ -2817,12 +2817,12 @@ var withdrawalRequestCommand = &cli.Command{
 					Usage: "max number of withdrawals to return",
 				},
 			},
-			Action: withdrawlRequestByDate,
+			Action: withdrawalRequestByDate,
 		},
 	},
 }
 
-func withdrawlRequestByID(c *cli.Context) error {
+func withdrawalRequestByID(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
@@ -2858,7 +2858,7 @@ func withdrawlRequestByID(c *cli.Context) error {
 	return nil
 }
 
-func withdrawlRequestByExchangeID(c *cli.Context) error {
+func withdrawalRequestByExchangeID(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
@@ -2935,7 +2935,7 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 	return nil
 }
 
-func withdrawlRequestByDate(c *cli.Context) error {
+func withdrawalRequestByDate(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}

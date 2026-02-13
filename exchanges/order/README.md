@@ -25,7 +25,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 	- Deletion of order
 	- Order tracking
 
-+ For futures orders, this package also contains a futures position controller. It is responsible for tracking all futures orders that GoCryptoTrader processes. It keeps a running history of realised and unreaslied PNL to allow a trader to track their profits. Positions are closed once the exposure reaches zero, then upon a new futures order being processed, a new position is created. To view futures positions, see the GRPC command `getfuturesposition`
++ For futures orders, this package also contains a futures position controller. It is responsible for tracking all futures orders that GoCryptoTrader processes. It keeps a running history of realised and unrealised PNL to allow a trader to track their profits. Positions are closed once the exposure reaches zero, then upon a new futures order being processed, a new position is created. To view futures positions, see the GRPC command `getfuturesposition`
 
 ## Donations
 
