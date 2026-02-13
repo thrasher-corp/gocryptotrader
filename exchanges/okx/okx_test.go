@@ -4320,6 +4320,47 @@ func TestSetMarginType(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
+func TestGetMarginRatesHistoryValidation(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetMarginRatesHistory(contextGenerate(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.GetMarginRatesHistory(contextGenerate(), &margin.RateHistoryRequest{
+		Asset:    asset.Spot,
+		Currency: currency.USDT,
+	})
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	_, err = e.GetMarginRatesHistory(contextGenerate(), &margin.RateHistoryRequest{
+		Asset: asset.Margin,
+	})
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.GetMarginRatesHistory(contextGenerate(), &margin.RateHistoryRequest{
+		Asset:            asset.Margin,
+		Currency:         currency.USDT,
+		GetPredictedRate: true,
+	})
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
+
+func TestGetCurrentMarginRatesValidation(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetCurrentMarginRates(contextGenerate(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.GetCurrentMarginRates(contextGenerate(), &margin.CurrentRatesRequest{
+		Asset: asset.Spot,
+	})
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	_, err = e.GetCurrentMarginRates(contextGenerate(), &margin.CurrentRatesRequest{
+		Asset: asset.Margin,
+		Pairs: currency.Pairs{currency.EMPTYPAIR},
+	})
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+}
+
 func TestChangePositionMargin(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)

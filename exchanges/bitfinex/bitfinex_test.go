@@ -18,6 +18,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -1751,6 +1752,47 @@ func TestGetRecentTrades(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestGetMarginRatesHistoryValidation(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetMarginRatesHistory(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
+		Asset:    asset.Spot,
+		Currency: currency.USD,
+	})
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
+		Asset: asset.MarginFunding,
+	})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
+		Asset:          asset.MarginFunding,
+		Currency:       currency.USD,
+		GetBorrowRates: true,
+	})
+	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
+
+func TestGetCurrentMarginRatesValidation(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetCurrentMarginRates(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.GetCurrentMarginRates(t.Context(), &margin.CurrentRatesRequest{
+		Asset: asset.Spot,
+	})
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	_, err = e.GetCurrentMarginRates(t.Context(), &margin.CurrentRatesRequest{
+		Asset: asset.MarginFunding,
+		Pairs: currency.Pairs{currency.EMPTYPAIR},
+	})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 }
 
 func TestGetHistoricTrades(t *testing.T) {
