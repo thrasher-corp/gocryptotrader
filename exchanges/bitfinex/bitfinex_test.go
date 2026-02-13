@@ -4,12 +4,14 @@ import (
 	"bufio"
 	"context"
 	"log"
+	"net/http"
 	"os"
 	"strconv"
 	"testing"
 	"time"
 
 	"github.com/buger/jsonparser"
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -21,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -1377,18 +1380,19 @@ func TestWSCancelOffer(t *testing.T) {
 }
 
 func TestWSSubscribedResponse(t *testing.T) {
+	conn := &bitfinexTestWSConn{match: e.Websocket.Match}
 	ch, err := e.Websocket.Match.Set("subscribe:waiter1", 1)
 	assert.NoError(t, err, "Setting a matcher should not error")
-	err = e.wsHandleData(t.Context(), nil, []byte(`{"event":"subscribed","channel":"ticker","chanId":224555,"subId":"waiter1","symbol":"tBTCUSD","pair":"BTCUSD"}`))
+	err = e.wsHandleData(t.Context(), conn, []byte(`{"event":"subscribed","channel":"ticker","chanId":224555,"subId":"waiter1","symbol":"tBTCUSD","pair":"BTCUSD"}`))
 	if assert.Error(t, err, "Should error if sub is not registered yet") {
 		assert.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "Should error SubFailure if sub isn't registered yet")
 		assert.ErrorIs(t, err, subscription.ErrNotFound, "Should error SubNotFound if sub isn't registered yet")
 		assert.ErrorContains(t, err, "waiter1", "Should error containing subID if")
 	}
 
-	err = e.Websocket.AddSubscriptions(nil, &subscription.Subscription{Key: "waiter1"})
+	err = e.Websocket.AddSubscriptions(conn, &subscription.Subscription{Key: "waiter1"})
 	require.NoError(t, err, "AddSubscriptions must not error")
-	err = e.wsHandleData(t.Context(), nil, []byte(`{"event":"subscribed","channel":"ticker","chanId":224555,"subId":"waiter1","symbol":"tBTCUSD","pair":"BTCUSD"}`))
+	err = e.wsHandleData(t.Context(), conn, []byte(`{"event":"subscribed","channel":"ticker","chanId":224555,"subId":"waiter1","symbol":"tBTCUSD","pair":"BTCUSD"}`))
 	assert.NoError(t, err, "wsHandleData should not error")
 	if assert.NotEmpty(t, ch, "Matcher should have received a sub notification") {
 		msg := <-ch
@@ -1525,14 +1529,15 @@ func TestWSOrderSnapshot(t *testing.T) {
 }
 
 func TestWSNotifications(t *testing.T) {
+	conn := &bitfinexTestWSConn{match: e.Websocket.Match}
 	pressXToJSON := `[0,"n",[1575282446099,"fon-req",null,null,[41238905,null,null,null,-1000,null,null,null,null,null,null,null,null,null,0.002,2,null,null,null,null,null],null,"SUCCESS","Submitting funding bid of 1000.0 USD at 0.2000 for 2 days."]]`
-	err := e.wsHandleData(t.Context(), nil, []byte(pressXToJSON))
+	err := e.wsHandleData(t.Context(), conn, []byte(pressXToJSON))
 	if err != nil {
 		t.Error(err)
 	}
 
 	pressXToJSON = `[0,"n",[1575287438.515,"on-req",null,null,[1185815098,null,1575287436979,"tETHUSD",1575287438515,1575287438515,-2.5,-2.5,"LIMIT",null,null,null,0,"ACTIVE",null,null,230,0,0,0,null,null,null,0,null,null,null,null,"API>BFX",null,null,null],null,"SUCCESS","Submitting limit sell order for -2.5 ETH."]]`
-	err = e.wsHandleData(t.Context(), nil, []byte(pressXToJSON))
+	err = e.wsHandleData(t.Context(), conn, []byte(pressXToJSON))
 	if err != nil {
 		t.Error(err)
 	}
@@ -2068,3 +2073,50 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		assert.NotEmpty(t, resp)
 	}
 }
+
+type bitfinexTestWSConn struct {
+	match *websocket.Match
+	url   string
+}
+
+func (m *bitfinexTestWSConn) Dial(context.Context, *gws.Dialer, http.Header) error {
+	return nil
+}
+func (m *bitfinexTestWSConn) ReadMessage() websocket.Response { return websocket.Response{} }
+func (m *bitfinexTestWSConn) SetupPingHandler(request.EndpointLimit, websocket.PingHandler) {
+}
+func (m *bitfinexTestWSConn) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
+	return nil, nil
+}
+func (m *bitfinexTestWSConn) SendMessageReturnResponses(context.Context, request.EndpointLimit, any, any, int) ([][]byte, error) {
+	return nil, nil
+}
+func (m *bitfinexTestWSConn) SendMessageReturnResponsesWithInspector(context.Context, request.EndpointLimit, any, any, int, websocket.Inspector) ([][]byte, error) {
+	return nil, nil
+}
+func (m *bitfinexTestWSConn) SendRawMessage(context.Context, request.EndpointLimit, int, []byte) error {
+	return nil
+}
+func (m *bitfinexTestWSConn) SendJSONMessage(context.Context, request.EndpointLimit, any) error {
+	return nil
+}
+func (m *bitfinexTestWSConn) SetURL(url string) { m.url = url }
+func (m *bitfinexTestWSConn) SetProxy(string)   {}
+func (m *bitfinexTestWSConn) GetURL() string    { return m.url }
+func (m *bitfinexTestWSConn) Shutdown() error   { return nil }
+func (m *bitfinexTestWSConn) RequireMatchWithData(signature any, incoming []byte) error {
+	if m.match == nil {
+		return nil
+	}
+	return m.match.RequireMatchWithData(signature, incoming)
+}
+func (m *bitfinexTestWSConn) IncomingWithData(signature any, data []byte) bool {
+	if m.match == nil {
+		return false
+	}
+	return m.match.IncomingWithData(signature, data)
+}
+func (m *bitfinexTestWSConn) MatchReturnResponses(context.Context, any, int) (<-chan websocket.MatchedResponse, error) {
+	return nil, nil
+}
+func (m *bitfinexTestWSConn) Subscriptions() *subscription.Store { return nil }

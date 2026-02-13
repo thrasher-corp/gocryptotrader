@@ -937,21 +937,30 @@ func fqChannelNameSub(s *subscription.Subscription) error {
 	return nil
 }
 
+func (e *Exchange) wsAuthConnection() (websocket.Connection, error) {
+	wsRunningAuthURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
+	if err != nil {
+		return nil, err
+	}
+	conn, err := e.Websocket.GetConnection(wsRunningAuthURL)
+	if err == nil {
+		return conn, nil
+	}
+	conn, fallbackErr := e.Websocket.GetConnection(krakenAuthWSURL)
+	if fallbackErr != nil {
+		return nil, err
+	}
+	return conn, nil
+}
+
 // wsAddOrder creates an order, returned order ID if success
 func (e *Exchange) wsAddOrder(ctx context.Context, req *WsAddOrderRequest) (string, error) {
 	if req == nil {
 		return "", common.ErrNilPointer
 	}
-	wsRunningAuthURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
+	conn, err := e.wsAuthConnection()
 	if err != nil {
 		return "", err
-	}
-	conn, err := e.Websocket.GetConnection(wsRunningAuthURL)
-	if err != nil {
-		conn, err = e.Websocket.GetConnection(krakenAuthWSURL)
-		if err != nil {
-			return "", err
-		}
 	}
 	req.RequestID = e.MessageSequence()
 	req.Event = krakenWsAddOrder
@@ -981,16 +990,9 @@ func (e *Exchange) wsAddOrder(ctx context.Context, req *WsAddOrderRequest) (stri
 // wsCancelOrders cancels open orders concurrently
 // It does not use the multiple txId facility of the cancelOrder API because the errors are not specific
 func (e *Exchange) wsCancelOrders(ctx context.Context, orderIDs []string) error {
-	wsRunningAuthURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
+	conn, err := e.wsAuthConnection()
 	if err != nil {
 		return err
-	}
-	conn, err := e.Websocket.GetConnection(wsRunningAuthURL)
-	if err != nil {
-		conn, err = e.Websocket.GetConnection(krakenAuthWSURL)
-		if err != nil {
-			return err
-		}
 	}
 	var errs common.ErrorCollector
 	for _, id := range orderIDs {
@@ -1035,16 +1037,9 @@ func (e *Exchange) wsCancelOrder(ctx context.Context, conn websocket.Connection,
 // wsCancelAllOrders cancels all opened orders
 // Returns number (count param) of affected orders or 0 if no open orders found
 func (e *Exchange) wsCancelAllOrders(ctx context.Context) (*WsCancelOrderResponse, error) {
-	wsRunningAuthURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
+	conn, err := e.wsAuthConnection()
 	if err != nil {
 		return &WsCancelOrderResponse{}, err
-	}
-	conn, err := e.Websocket.GetConnection(wsRunningAuthURL)
-	if err != nil {
-		conn, err = e.Websocket.GetConnection(krakenAuthWSURL)
-		if err != nil {
-			return &WsCancelOrderResponse{}, err
-		}
 	}
 	req := WsCancelOrderRequest{
 		Event:     krakenWsCancelAll,

@@ -8,6 +8,7 @@ import (
 	"github.com/buger/jsonparser"
 	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
@@ -22,6 +23,47 @@ func mockWsServer(tb testing.TB, msg []byte, w *gws.Conn) error {
 		return mockWsCancelOrders(tb, msg, w)
 	case krakenWsAddOrder:
 		return mockWsAddOrder(tb, msg, w)
+	case krakenWsSubscribe, krakenWsUnsubscribe:
+		return mockWsSub(tb, msg, w, event)
+	}
+	return nil
+}
+
+func mockWsSub(tb testing.TB, msg []byte, w *gws.Conn, event string) error {
+	tb.Helper()
+	var req WebsocketSubRequest
+	if err := json.Unmarshal(msg, &req); err != nil {
+		return err
+	}
+	status := event + "d"
+	channelName := req.Subscription.Name
+	switch channelName {
+	case "book":
+		channelName += fmt.Sprintf("-%d", req.Subscription.Depth)
+	case "ohlc":
+		channelName += fmt.Sprintf("-%d", req.Subscription.Interval)
+	}
+
+	for _, p := range req.Pairs {
+		pair, err := currency.NewPairDelimiter(p, "/")
+		if err != nil {
+			return err
+		}
+		resp := WebsocketEventResponse{
+			Event:       krakenWsSubscriptionStatus,
+			Status:      status,
+			RequestID:   req.RequestID,
+			ChannelName: channelName,
+			Pair:        pair,
+		}
+		resp.Subscription.Name = req.Subscription.Name
+		raw, err := json.Marshal(resp)
+		if err != nil {
+			return err
+		}
+		if err = w.WriteMessage(gws.TextMessage, raw); err != nil {
+			return err
+		}
 	}
 	return nil
 }

@@ -125,13 +125,6 @@ func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) err
 			e.Name,
 			err)
 	}
-	if err := conn.SendJSONMessage(ctx, request.Unset, map[string]any{
-		"event": "conf",
-		"flags": bitfinexChecksumFlag + bitfinexWsSequenceFlag,
-	}); err != nil {
-		return err
-	}
-
 	return e.ConfigureWS(ctx, conn)
 }
 
@@ -543,10 +536,10 @@ func (e *Exchange) handleWSSubscribed(conn websocket.Connection, respRaw []byte)
 		log.Debugf(log.ExchangeSys, "%s Subscribed to Channel: %s Pair: %s ChannelID: %d\n", e.Name, c.Channel, c.Pairs, chanID)
 	}
 
-	if conn != nil {
-		return conn.RequireMatchWithData("subscribe:"+subID, respRaw)
+	if conn == nil {
+		return fmt.Errorf("%w: nil connection for subscription %s", websocket.ErrSubscriptionFailure, subID)
 	}
-	return e.Websocket.Match.RequireMatchWithData("subscribe:"+subID, respRaw)
+	return conn.RequireMatchWithData("subscribe:"+subID, respRaw)
 }
 
 func (e *Exchange) handleWSChannelUpdate(ctx context.Context, conn websocket.Connection, s *subscription.Subscription, respRaw []byte, eventType string, d []any) error {
@@ -928,7 +921,10 @@ func (e *Exchange) handleWSNotification(ctx context.Context, conn websocket.Conn
 			strings.Contains(channelName, wsFundingOfferCancelRequest):
 			if data[0] != nil {
 				if id, ok := data[0].(float64); ok && id > 0 {
-					if conn != nil && conn.IncomingWithData(int64(id), respRaw) {
+					if conn == nil {
+						return fmt.Errorf("%w: nil connection for %s id %d", websocket.ErrSubscriptionFailure, channelName, int64(id))
+					}
+					if conn.IncomingWithData(int64(id), respRaw) {
 						return nil
 					}
 					offer, err := wsHandleFundingOffer(data, true /* include rate real */)
@@ -943,7 +939,10 @@ func (e *Exchange) handleWSNotification(ctx context.Context, conn websocket.Conn
 				if cid, ok := data[2].(float64); !ok {
 					return common.GetTypeAssertError("float64", data[2], channelName+" cid")
 				} else if cid > 0 {
-					if conn != nil && conn.IncomingWithData(int64(cid), respRaw) {
+					if conn == nil {
+						return fmt.Errorf("%w: nil connection for %s cid %d", websocket.ErrSubscriptionFailure, channelName, int64(cid))
+					}
+					if conn.IncomingWithData(int64(cid), respRaw) {
 						return nil
 					}
 					return e.wsHandleOrder(ctx, data)
@@ -955,7 +954,10 @@ func (e *Exchange) handleWSNotification(ctx context.Context, conn websocket.Conn
 				if id, ok := data[0].(float64); !ok {
 					return common.GetTypeAssertError("float64", data[0], channelName+" id")
 				} else if id > 0 {
-					if conn != nil && conn.IncomingWithData(int64(id), respRaw) {
+					if conn == nil {
+						return fmt.Errorf("%w: nil connection for %s id %d", websocket.ErrSubscriptionFailure, channelName, int64(id))
+					}
+					if conn.IncomingWithData(int64(id), respRaw) {
 						return nil
 					}
 					return e.wsHandleOrder(ctx, data)
@@ -1765,11 +1767,15 @@ func (e *Exchange) wsSendAuthConn(ctx context.Context, conn websocket.Connection
 	})
 }
 
+func (e *Exchange) wsAuthConnection() (websocket.Connection, error) {
+	return e.Websocket.GetConnection(authenticatedBitfinexWebsocketEndpoint)
+}
+
 // WsNewOrder authenticated new order request
 func (e *Exchange) WsNewOrder(ctx context.Context, data *WsNewOrderRequest) (string, error) {
 	data.CustomID = e.MessageSequence()
 	req := makeRequestInterface(wsOrderNew, data)
-	conn, err := e.Websocket.GetConnection(authenticatedBitfinexWebsocketEndpoint)
+	conn, err := e.wsAuthConnection()
 	if err != nil {
 		return "", err
 	}
@@ -1830,7 +1836,7 @@ func (e *Exchange) WsNewOrder(ctx context.Context, data *WsNewOrderRequest) (str
 // WsModifyOrder authenticated modify order request
 func (e *Exchange) WsModifyOrder(ctx context.Context, data *WsUpdateOrderRequest) error {
 	req := makeRequestInterface(wsOrderUpdate, data)
-	conn, err := e.Websocket.GetConnection(authenticatedBitfinexWebsocketEndpoint)
+	conn, err := e.wsAuthConnection()
 	if err != nil {
 		return err
 	}
@@ -1879,7 +1885,7 @@ func (e *Exchange) WsCancelMultiOrders(ctx context.Context, orderIDs []int64) er
 		OrderID: orderIDs,
 	}
 	req := makeRequestInterface(wsCancelMultipleOrders, cancel)
-	conn, err := e.Websocket.GetConnection(authenticatedBitfinexWebsocketEndpoint)
+	conn, err := e.wsAuthConnection()
 	if err != nil {
 		return err
 	}
@@ -1892,7 +1898,7 @@ func (e *Exchange) WsCancelOrder(ctx context.Context, orderID int64) error {
 		OrderID: orderID,
 	}
 	req := makeRequestInterface(wsOrderCancel, cancel)
-	conn, err := e.Websocket.GetConnection(authenticatedBitfinexWebsocketEndpoint)
+	conn, err := e.wsAuthConnection()
 	if err != nil {
 		return err
 	}
@@ -1938,7 +1944,7 @@ func (e *Exchange) WsCancelOrder(ctx context.Context, orderID int64) error {
 func (e *Exchange) WsCancelAllOrders(ctx context.Context) error {
 	cancelAll := WsCancelAllOrdersRequest{All: 1}
 	req := makeRequestInterface(wsCancelMultipleOrders, cancelAll)
-	conn, err := e.Websocket.GetConnection(authenticatedBitfinexWebsocketEndpoint)
+	conn, err := e.wsAuthConnection()
 	if err != nil {
 		return err
 	}
@@ -1948,7 +1954,7 @@ func (e *Exchange) WsCancelAllOrders(ctx context.Context) error {
 // WsNewOffer authenticated new offer request
 func (e *Exchange) WsNewOffer(ctx context.Context, data *WsNewOfferRequest) error {
 	req := makeRequestInterface(wsFundingOfferNew, data)
-	conn, err := e.Websocket.GetConnection(authenticatedBitfinexWebsocketEndpoint)
+	conn, err := e.wsAuthConnection()
 	if err != nil {
 		return err
 	}
@@ -1961,7 +1967,7 @@ func (e *Exchange) WsCancelOffer(ctx context.Context, orderID int64) error {
 		OrderID: orderID,
 	}
 	req := makeRequestInterface(wsFundingOfferCancel, cancel)
-	conn, err := e.Websocket.GetConnection(authenticatedBitfinexWebsocketEndpoint)
+	conn, err := e.wsAuthConnection()
 	if err != nil {
 		return err
 	}

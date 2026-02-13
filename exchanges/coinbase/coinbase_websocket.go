@@ -314,21 +314,22 @@ func (e *Exchange) checkWSSequence(conn websocket.Connection, sequence uint64) e
 	if conn == nil {
 		return nil
 	}
+	connKey := conn.GetURL() + "|" + fmt.Sprintf("%p", conn)
 	e.wsSeqMu.Lock()
 	defer e.wsSeqMu.Unlock()
 	if e.wsSeqState == nil {
-		e.wsSeqState = make(map[websocket.Connection]uint64)
+		e.wsSeqState = make(map[string]uint64)
 	}
-	expected, ok := e.wsSeqState[conn]
+	expected, ok := e.wsSeqState[connKey]
 	if !ok {
-		e.wsSeqState[conn] = sequence + 1
+		e.wsSeqState[connKey] = sequence + 1
 		return nil
 	}
 	if sequence != expected {
-		e.wsSeqState[conn] = sequence + 1
+		e.wsSeqState[connKey] = sequence + 1
 		return fmt.Errorf("%w: received %v, expected %v", errOutOfSequence, sequence, expected)
 	}
-	e.wsSeqState[conn] = expected + 1
+	e.wsSeqState[connKey] = expected + 1
 	return nil
 }
 
