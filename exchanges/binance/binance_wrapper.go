@@ -2296,7 +2296,7 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, req *margin.Positio
 // GetMarginRatesHistory retrieves margin borrow rates and borrow costs.
 func (e *Exchange) GetMarginRatesHistory(ctx context.Context, req *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
 	if req == nil {
-		return nil, fmt.Errorf("%w RateHistoryRequest", common.ErrNilPointer)
+		return nil, common.ErrNilPointer
 	}
 	if req.Asset != asset.Margin {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
@@ -2314,6 +2314,9 @@ func (e *Exchange) GetMarginRatesHistory(ctx context.Context, req *margin.RateHi
 	}
 
 	const pageSize = int64(100)
+	const hoursPerDay = int64(24)
+	const daysPerYear = int64(365)
+	yearlyRateMultiplier := decimal.NewFromInt(hoursPerDay * daysPerYear)
 	page := int64(1)
 	rates := make([]margin.Rate, 0, pageSize)
 	for {
@@ -2327,7 +2330,7 @@ func (e *Exchange) GetMarginRatesHistory(ctx context.Context, req *margin.RateHi
 			mr := margin.Rate{
 				Time:       history.Rows[i].InterestAccruedTime.Time(),
 				HourlyRate: hourlyRate,
-				YearlyRate: hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
+				YearlyRate: hourlyRate.Mul(yearlyRateMultiplier),
 			}
 			if req.GetBorrowRates {
 				mr.HourlyBorrowRate = hourlyRate

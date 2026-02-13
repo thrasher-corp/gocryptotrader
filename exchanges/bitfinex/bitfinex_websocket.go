@@ -509,7 +509,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 func (e *Exchange) sendCurrentMarginRatesByCurrency(ctx context.Context, a asset.Item, c currency.Code, current, predicted margin.Rate) error {
 	pairs, err := e.GetEnabledPairs(a)
 	if err != nil {
-		return nil
+		return err
 	}
 	timeChecked := time.Now().UTC()
 	resp := make([]margin.CurrentRateResponse, 0, len(pairs))

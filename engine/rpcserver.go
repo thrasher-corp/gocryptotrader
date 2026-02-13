@@ -5212,7 +5212,7 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 		resp.LatestRate.HourlyBorrowRate = lendingResp.Rates[len(lendingResp.Rates)-1].HourlyBorrowRate.String()
 		resp.LatestRate.YearlyBorrowRate = lendingResp.Rates[len(lendingResp.Rates)-1].YearlyBorrowRate.String()
 	}
-	if r.GetBorrowRates {
+	if r.GetBorrowRates || r.GetLendingPayments {
 		resp.TakerFeeRate = lendingResp.TakerFeeRate.String()
 	}
 	resp.SumLendingPayments = lendingResp.SumLendingPayments.String()
