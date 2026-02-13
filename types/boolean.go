@@ -12,7 +12,7 @@ func (b *Boolean) UnmarshalJSON(data []byte) error {
 	switch string(data) {
 	case "1", `"1"`, "true", `"true"`:
 		*b = Boolean(true)
-	case "0", "false", `"false"`:
+	case "0", `"0"`, "false", `"false"`:
 		*b = Boolean(false)
 	default:
 		return errInvalidBooleanValue

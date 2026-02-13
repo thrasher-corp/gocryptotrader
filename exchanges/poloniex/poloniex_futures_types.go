@@ -339,7 +339,7 @@ type FuturesOpenInterest struct {
 	Timestamp    types.Time    `json:"ts"`
 }
 
-// FuturesLiquidationOrder represents a futures liquidiation price detail
+// FuturesLiquidationOrder represents a futures liquidation price detail
 type FuturesLiquidationOrder struct {
 	Symbol          currency.Pair `json:"s"`
 	Side            string        `json:"side"`
@@ -417,7 +417,7 @@ type FuturesExecutionInfo struct {
 	CreationTime types.Time   `json:"cT"`
 }
 
-// LiquidationPrice represents a liquidiation price detail for an instrument
+// LiquidationPrice represents a liquidation price detail for an instrument
 type LiquidationPrice struct {
 	Symbol                         currency.Pair `json:"symbol"`
 	PositionSide                   string        `json:"posSide"`

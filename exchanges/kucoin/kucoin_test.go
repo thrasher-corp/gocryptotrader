@@ -1167,16 +1167,16 @@ func TestTransferToMainOrTradeAccount(t *testing.T) {
 	t.Parallel()
 	_, err := e.TransferToMainOrTradeAccount(t.Context(), &FundTransferFuturesParam{})
 	require.ErrorIs(t, err, common.ErrNilPointer)
-	_, err = e.TransferToMainOrTradeAccount(t.Context(), &FundTransferFuturesParam{RecieveAccountType: "MAIN"})
+	_, err = e.TransferToMainOrTradeAccount(t.Context(), &FundTransferFuturesParam{ReceiveAccountType: "MAIN"})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
-	_, err = e.TransferToMainOrTradeAccount(t.Context(), &FundTransferFuturesParam{Amount: 1, RecieveAccountType: "MAIN"})
+	_, err = e.TransferToMainOrTradeAccount(t.Context(), &FundTransferFuturesParam{Amount: 1, ReceiveAccountType: "MAIN"})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.TransferToMainOrTradeAccount(t.Context(), &FundTransferFuturesParam{
 		Amount:             1,
 		Currency:           currency.USDT,
-		RecieveAccountType: SpotTradeType,
+		ReceiveAccountType: SpotTradeType,
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)

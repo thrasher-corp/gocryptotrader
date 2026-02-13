@@ -10,7 +10,7 @@ import (
 
 func TestBooleanUnmarshal(t *testing.T) {
 	t.Parallel()
-	data := []byte(`{"value": true, "another_value": "true", "third_value": "false", "fourth_value": 1, "fifth_value": 0, "sixth_value": "1"}`)
+	data := []byte(`{"value": true, "another_value": "true", "third_value": "false", "fourth_value": 1, "fifth_value": 0, "sixth_value": "1", "seventh_value": "0"}`)
 	var result map[string]Boolean
 	err := json.Unmarshal(data, &result)
 	require.NoError(t, err)
@@ -20,8 +20,9 @@ func TestBooleanUnmarshal(t *testing.T) {
 	assert.True(t, result["fourth_value"].Bool())
 	assert.False(t, result["fifth_value"].Bool())
 	assert.True(t, result["sixth_value"].Bool())
+	assert.False(t, result["seventh_value"].Bool())
 
-	data = []byte(`{"value": "0"}`)
+	data = []byte(`{"value": "3"}`)
 	err = json.Unmarshal(data, &result)
 	require.ErrorIs(t, err, errInvalidBooleanValue)
 }

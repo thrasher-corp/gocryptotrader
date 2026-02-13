@@ -636,7 +636,7 @@ func TestGetSubaccountInformation(t *testing.T) {
 	t.Parallel()
 	var resp SubAccount
 	if er := json.Unmarshal([]byte(subaccountItemJSON), &resp); er != nil {
-		t.Error("Binanceus decerializing to SubAccount error", er)
+		t.Error("Binanceus deserializing to SubAccount error", er)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, er := e.GetSubaccountInformation(t.Context(), 1, 100, "", "")
@@ -737,7 +737,7 @@ func TestNewOrderTest(t *testing.T) {
 	t.Parallel()
 	var resp NewOrderResponse
 	if er := json.Unmarshal([]byte(testNewOrderResponseJSON), &resp); er != nil {
-		t.Error("Binanceus decerializing to Order error", er)
+		t.Error("Binanceus deserializing to Order error", er)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	req := &NewOrderRequest{
@@ -819,7 +819,7 @@ func TestGetAllOpenOrders(t *testing.T) {
 	t.Parallel()
 	var resp Order
 	if er := json.Unmarshal([]byte(openOrdersItemJSON), &resp); er != nil {
-		t.Error("Binanceus decerializing to Order error", er)
+		t.Error("Binanceus deserializing to Order error", er)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
@@ -1097,7 +1097,7 @@ func TestGetAllOCBSTradeOrders(t *testing.T) {
 	t.Parallel()
 	var orderDetail OCBSOrder
 	if er := json.Unmarshal([]byte(ocbsTradeOrderJSON), &orderDetail); er != nil {
-		t.Error("Binanceus decerializing to OCBSOrder error", er)
+		t.Error("Binanceus deserializing to OCBSOrder error", er)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	if _, er := e.GetAllOCBSTradeOrders(t.Context(), OCBSOrderRequestParams{}); er != nil {

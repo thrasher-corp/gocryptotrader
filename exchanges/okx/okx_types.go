@@ -1814,7 +1814,7 @@ type AccountPositionHistory struct {
 	UPLLastPrice             types.Number `json:"uplLastPx"`
 	UPLRatioLastPrice        types.Number `json:"uplRatioLastPx"`
 	Leverage                 string       `json:"lever"`
-	LiquidiationPrice        types.Number `json:"liqPx"`
+	LiquidationPrice        types.Number `json:"liqPx"`
 	InitialMarginRequirement types.Number `json:"imr"`
 	Margin                   string       `json:"margin"`
 	MarginRatio              types.Number `json:"mgnRatio"`
@@ -5207,9 +5207,9 @@ type OrderPreCheckResponse struct {
 	Liab                       types.Number `json:"liab"`
 	LiabChg                    types.Number `json:"liabChg"`
 	LiabChgCurrency            string       `json:"liabChgCcy"`
-	LiquidiationPrice          types.Number `json:"liqPx"`
-	LiquidiationPriceDiff      string       `json:"liqPxDiff"`
-	LiquidiationPriceDiffRatio types.Number `json:"liqPxDiffRatio"`
+	LiquidationPrice          types.Number `json:"liqPx"`
+	LiquidationPriceDiff      string       `json:"liqPxDiff"`
+	LiquidationPriceDiffRatio types.Number `json:"liqPxDiffRatio"`
 	MgnRatio                   types.Number `json:"mgnRatio"`
 	MgnRatioChg                types.Number `json:"mgnRatioChg"`
 	MMR                        types.Number `json:"mmr"`
