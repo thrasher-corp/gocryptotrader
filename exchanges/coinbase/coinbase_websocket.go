@@ -264,10 +264,13 @@ func (e *Exchange) wsProcessUser(ctx context.Context, resp *StandardWebsocketRes
 }
 
 // wsHandleData handles all the websocket data coming from the websocket connection
-func (e *Exchange) wsHandleData(ctx context.Context, _ websocket.Connection, respRaw []byte) (*uint64, error) {
+func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) (*uint64, error) {
 	var resp StandardWebsocketResponse
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return nil, err
+	}
+	if err := e.checkWSSequence(conn, resp.Sequence); err != nil {
+		return &resp.Sequence, err
 	}
 	if resp.Error != "" {
 		return &resp.Sequence, errors.New(resp.Error)
@@ -305,6 +308,28 @@ func (e *Exchange) wsHandleData(ctx context.Context, _ websocket.Connection, res
 		return &resp.Sequence, errChannelNameUnknown
 	}
 	return &resp.Sequence, nil
+}
+
+func (e *Exchange) checkWSSequence(conn websocket.Connection, sequence uint64) error {
+	if conn == nil {
+		return nil
+	}
+	e.wsSeqMu.Lock()
+	defer e.wsSeqMu.Unlock()
+	if e.wsSeqState == nil {
+		e.wsSeqState = make(map[websocket.Connection]uint64)
+	}
+	expected, ok := e.wsSeqState[conn]
+	if !ok {
+		e.wsSeqState[conn] = sequence + 1
+		return nil
+	}
+	if sequence != expected {
+		e.wsSeqState[conn] = sequence + 1
+		return fmt.Errorf("%w: received %v, expected %v", errOutOfSequence, sequence, expected)
+	}
+	e.wsSeqState[conn] = expected + 1
+	return nil
 }
 
 // ProcessSnapshot processes the initial orderbook snap shot
