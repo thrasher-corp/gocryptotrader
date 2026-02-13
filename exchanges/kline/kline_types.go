@@ -147,6 +147,7 @@ type Candle struct {
 	Low              float64
 	Close            float64
 	Volume           float64
+	QuoteVolume      float64
 	ValidationIssues string
 }
 
