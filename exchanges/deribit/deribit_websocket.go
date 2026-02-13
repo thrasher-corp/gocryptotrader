@@ -104,11 +104,7 @@ var defaultSubscriptions = subscription.List{
 }
 
 func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
-		return websocket.ErrWebsocketNotEnabled
-	}
-	var dialer gws.Dialer
-	if err := conn.Dial(ctx, &dialer, http.Header{}); err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
 	go e.wsStartHeartbeat(ctx, conn)
@@ -116,7 +112,6 @@ func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) err
 }
 
 func (e *Exchange) wsAuth(ctx context.Context, conn websocket.Connection) error {
-	e.wsStartHeartbeat(ctx, conn)
 	if !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil
 	}

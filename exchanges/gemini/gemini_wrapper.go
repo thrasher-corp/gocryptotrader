@@ -173,7 +173,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                      authWSURL,
-		Connector:                e.wsConnect,
+		Connector:                e.wsAuthConnect,
 		SubscriptionsNotRequired: true,
 		Handler:                  e.wsHandleData,
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,

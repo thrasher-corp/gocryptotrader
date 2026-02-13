@@ -1031,50 +1031,50 @@ func TestWsOpenOrders(t *testing.T) {
 		case *order.Detail:
 			switch len(e.Websocket.DataHandler.C) {
 			case 6:
-				assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
-				assert.Equal(t, order.Limit, v.Type, "order type")
-				assert.Equal(t, order.Sell, v.Side, "order side")
-				assert.Equal(t, order.Open, v.Status, "order status")
-				assert.Equal(t, 34.5, v.Price, "price")
-				assert.Equal(t, 10.00345345, v.Amount, "amount")
+				assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID should match")
+				assert.Equal(t, order.Limit, v.Type, "order type should match")
+				assert.Equal(t, order.Sell, v.Side, "order side should match")
+				assert.Equal(t, order.Open, v.Status, "order status should match")
+				assert.Equal(t, 34.5, v.Price, "price should match")
+				assert.Equal(t, 10.00345345, v.Amount, "amount should match")
 			case 5:
-				assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
-				assert.Equal(t, order.Market, v.Type, "order type")
-				assert.Equal(t, order.Buy, v.Side, "order side")
-				assert.Equal(t, order.Pending, v.Status, "order status")
-				assert.Equal(t, 0.0, v.Price, "price")
-				assert.Equal(t, 0.0001, v.Amount, "amount")
-				assert.Equal(t, time.UnixMicro(1692851641361371).UTC(), v.Date.UTC(), "Date")
+				assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID should match")
+				assert.Equal(t, order.Market, v.Type, "order type should match")
+				assert.Equal(t, order.Buy, v.Side, "order side should match")
+				assert.Equal(t, order.Pending, v.Status, "order status should match")
+				assert.Equal(t, 0.0, v.Price, "price should match")
+				assert.Equal(t, 0.0001, v.Amount, "amount should match")
+				assert.Equal(t, time.UnixMicro(1692851641361371).UTC(), v.Date.UTC(), "Date should match")
 			case 4:
-				assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
-				assert.Equal(t, order.Open, v.Status, "order status")
+				assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID should match")
+				assert.Equal(t, order.Open, v.Status, "order status should match")
 			case 3:
-				assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
-				assert.Equal(t, order.UnknownStatus, v.Status, "order status")
-				assert.Equal(t, 26425.2, v.AverageExecutedPrice, "AverageExecutedPrice")
-				assert.Equal(t, 0.0001, v.ExecutedAmount, "ExecutedAmount")
-				assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount") // Not in the message; Testing regression to bad derivation
-				assert.Equal(t, 0.00687, v.Fee, "Fee")
+				assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID should match")
+				assert.Equal(t, order.UnknownStatus, v.Status, "order status should match")
+				assert.Equal(t, 26425.2, v.AverageExecutedPrice, "AverageExecutedPrice should match")
+				assert.Equal(t, 0.0001, v.ExecutedAmount, "ExecutedAmount should match")
+				assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount should match") // Not in the message; Testing regression to bad derivation
+				assert.Equal(t, 0.00687, v.Fee, "Fee should match")
 			case 2:
-				assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
-				assert.Equal(t, order.Closed, v.Status, "order status")
-				assert.Equal(t, 0.0001, v.ExecutedAmount, "ExecutedAmount")
-				assert.Equal(t, 26425.2, v.AverageExecutedPrice, "AverageExecutedPrice")
-				assert.Equal(t, 0.00687, v.Fee, "Fee")
-				assert.Equal(t, time.UnixMicro(1692851641361447).UTC(), v.LastUpdated.UTC(), "LastUpdated")
+				assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID should match")
+				assert.Equal(t, order.Closed, v.Status, "order status should match")
+				assert.Equal(t, 0.0001, v.ExecutedAmount, "ExecutedAmount should match")
+				assert.Equal(t, 26425.2, v.AverageExecutedPrice, "AverageExecutedPrice should match")
+				assert.Equal(t, 0.00687, v.Fee, "Fee should match")
+				assert.Equal(t, time.UnixMicro(1692851641361447).UTC(), v.LastUpdated.UTC(), "LastUpdated should match")
 			case 1:
-				assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
-				assert.Equal(t, order.UnknownStatus, v.Status, "order status")
-				assert.Equal(t, 10.00345345, v.ExecutedAmount, "ExecutedAmount")
-				assert.Equal(t, 0.001, v.Fee, "Fee")
-				assert.Equal(t, 34.5, v.AverageExecutedPrice, "AverageExecutedPrice")
+				assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID should match")
+				assert.Equal(t, order.UnknownStatus, v.Status, "order status should match")
+				assert.Equal(t, 10.00345345, v.ExecutedAmount, "ExecutedAmount should match")
+				assert.Equal(t, 0.001, v.Fee, "Fee should match")
+				assert.Equal(t, 34.5, v.AverageExecutedPrice, "AverageExecutedPrice should match")
 			case 0:
-				assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
-				assert.Equal(t, order.Closed, v.Status, "order status")
-				assert.Equal(t, time.UnixMicro(1692675961789052).UTC(), v.LastUpdated.UTC(), "LastUpdated")
-				assert.Equal(t, 10.00345345, v.ExecutedAmount, "ExecutedAmount")
-				assert.Equal(t, 0.001, v.Fee, "Fee")
-				assert.Equal(t, 34.5, v.AverageExecutedPrice, "AverageExecutedPrice")
+				assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID should match")
+				assert.Equal(t, order.Closed, v.Status, "order status should match")
+				assert.Equal(t, time.UnixMicro(1692675961789052).UTC(), v.LastUpdated.UTC(), "LastUpdated should match")
+				assert.Equal(t, 10.00345345, v.ExecutedAmount, "ExecutedAmount should match")
+				assert.Equal(t, 0.001, v.Fee, "Fee should match")
+				assert.Equal(t, 34.5, v.AverageExecutedPrice, "AverageExecutedPrice should match")
 			}
 		case error:
 			t.Error(v)
@@ -1416,7 +1416,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		if len(pairs) == 0 {
 			continue
 		}
-		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NoErrorf(t, err, "GetPairs must not error for asset %s", a)
 		resp, err := e.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		if a != asset.Spot && a != asset.Futures {
 			assert.ErrorIs(t, err, asset.ErrNotSupported)

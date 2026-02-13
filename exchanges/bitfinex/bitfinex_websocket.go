@@ -120,11 +120,9 @@ var subscriptionNames = map[string]string{
 }
 
 func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
-	var dialer gws.Dialer
-	if err := conn.Dial(ctx, &dialer, http.Header{}); err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return fmt.Errorf("%v unable to connect to Websocket. Error: %s",
 			e.Name,
 			err)
@@ -138,10 +136,10 @@ func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) err
 
 	if conn.GetURL() == authenticatedBitfinexWebsocketEndpoint {
 		if err := e.wsSendAuthConn(ctx, conn); err != nil {
-			return err
-		}
-	}
 	return e.ConfigureWS(ctx, conn)
+}
+
+	return e.wsSendAuthConn(ctx, conn)
 }
 
 func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
