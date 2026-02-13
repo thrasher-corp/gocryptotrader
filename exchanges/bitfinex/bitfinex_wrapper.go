@@ -214,18 +214,18 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		Connector:             e.wsConnect,
-		Authenticate:          e.wsAuthenticate,
-		Subscriber:            e.subscribeForConnection,
-		Unsubscriber:          e.unsubscribeForConnection,
-		GenerateSubscriptions: e.generatePrivateSubscriptions,
+		Connector:                e.wsConnect,
+		Authenticate:             e.wsAuthenticate,
+		Subscriber:               e.subscribeForConnection,
+		Unsubscriber:             e.unsubscribeForConnection,
+		GenerateSubscriptions:    e.generatePrivateSubscriptions,
 		SubscriptionsNotRequired: true,
-		Handler:               e.wsHandleData,
-		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		URL:                   authenticatedBitfinexWebsocketEndpoint,
-		Authenticated:         true,
-		MessageFilter:         authenticatedBitfinexWebsocketEndpoint,
+		Handler:                  e.wsHandleData,
+		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+		URL:                      authenticatedBitfinexWebsocketEndpoint,
+		Authenticated:            true,
+		MessageFilter:            authenticatedBitfinexWebsocketEndpoint,
 	})
 }
 
