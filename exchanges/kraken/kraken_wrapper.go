@@ -215,7 +215,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		RateLimit:             request.NewWeightedRateLimitByDuration(50 * time.Millisecond),
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		MessageFilter:         krakenWSURL,
+		MessageFilter:         wsRunningURL,
 	})
 	if err != nil {
 		return err
@@ -242,7 +242,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
 		Authenticated:            true,
-		MessageFilter:            krakenAuthWSURL,
+		MessageFilter:            wsRunningAuthURL,
 	})
 }
 
