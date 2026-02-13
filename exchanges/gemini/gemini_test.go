@@ -531,9 +531,7 @@ func TestWsMissingRole(t *testing.T) {
 		"reason":"MissingRole",
 		"message":"To access this endpoint, you need to log in to the website and go to the settings page to assign one of these roles [FundManager] to API key wujB3szN54gtJ4QDhqRJ which currently has roles [Trader]"
 	}`)
-	if err := e.wsHandleData(t.Context(), nil, pressXToJSON); err == nil {
-		assert.Error(t, err, "wsHandleData should return an error")
-	}
+	assert.Error(t, e.wsHandleData(t.Context(), nil, pressXToJSON), "wsHandleData should return an error")
 }
 
 func TestWsOrderEventSubscriptionResponse(t *testing.T) {
@@ -555,10 +553,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
   "original_amount" : "14.0296",
   "price" : "1059.54"
 } ]`)
-	err := e.wsHandleData(t.Context(), nil, pressXToJSON)
-	if err != nil {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), nil, pressXToJSON), "wsHandleData should not error")
 
 	pressXToJSON = []byte(`[{
     "type": "accepted",
@@ -577,10 +572,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
     "price": "3592.00",
     "socket_sequence": 13
 }]`)
-	err = e.wsHandleData(t.Context(), nil, pressXToJSON)
-	if err != nil {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), nil, pressXToJSON), "wsHandleData should not error")
 
 	pressXToJSON = []byte(`[{
     "type": "accepted",
@@ -598,10 +590,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
     "total_spend": "200.00",
     "socket_sequence": 29
 }]`)
-	err = e.wsHandleData(t.Context(), nil, pressXToJSON)
-	if err != nil {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), nil, pressXToJSON), "wsHandleData should not error")
 
 	pressXToJSON = []byte(`[{
     "type": "accepted",
@@ -619,10 +608,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
     "original_amount": "25",
     "socket_sequence": 26
 }]`)
-	err = e.wsHandleData(t.Context(), nil, pressXToJSON)
-	if err != nil {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), nil, pressXToJSON), "wsHandleData should not error")
 
 	pressXToJSON = []byte(`[ {
   "type" : "accepted",
@@ -641,10 +627,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
   "original_amount" : "500",
   "socket_sequence" : 32307
 } ]`)
-	err = e.wsHandleData(t.Context(), nil, pressXToJSON)
-	if err != nil {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), nil, pressXToJSON), "wsHandleData should not error")
 }
 
 func TestWsSubAck(t *testing.T) {
@@ -697,10 +680,7 @@ func TestWsUnsubscribe(t *testing.T) {
         ]}
     ]
 }`)
-	err := e.wsHandleData(t.Context(), nil, pressXToJSON)
-	if err != nil {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), nil, pressXToJSON), "wsHandleData should not error")
 }
 
 func TestWsTradeData(t *testing.T) {
@@ -922,10 +902,7 @@ func TestWsMarketData(t *testing.T) {
     }
   ]
 }    `)
-	err := e.wsHandleData(t.Context(), nil, pressXToJSON)
-	if err != nil {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), nil, pressXToJSON), "wsHandleData should not error")
 
 	pressXToJSON = []byte(`{
   "type": "update",
@@ -950,10 +927,7 @@ func TestWsMarketData(t *testing.T) {
     }
   ]
 }    `)
-	err = e.wsHandleData(t.Context(), nil, pressXToJSON)
-	if err != nil {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), nil, pressXToJSON), "wsHandleData should not error")
 
 	pressXToJSON = []byte(`{
   "type": "update",
@@ -972,10 +946,7 @@ func TestWsMarketData(t *testing.T) {
     }
   ]
 }  `)
-	err = e.wsHandleData(t.Context(), nil, pressXToJSON)
-	if err != nil {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), nil, pressXToJSON), "wsHandleData should not error")
 }
 
 func TestWsError(t *testing.T) {
@@ -1074,6 +1045,7 @@ func TestWsLevel2Update(t *testing.T) {
 }
 
 func TestResponseToStatus(t *testing.T) {
+	t.Parallel()
 	type TestCases struct {
 		Case   string
 		Result order.Status
@@ -1088,12 +1060,16 @@ func TestResponseToStatus(t *testing.T) {
 		{Case: "LOL", Result: order.UnknownStatus},
 	}
 	for i := range testCases {
-		result, _ := stringToOrderStatus(testCases[i].Case)
-		assert.Equal(t, testCases[i].Result, result)
+		t.Run(testCases[i].Case, func(t *testing.T) {
+			t.Parallel()
+			result, _ := stringToOrderStatus(testCases[i].Case)
+			assert.Equal(t, testCases[i].Result, result, "order status should match expected conversion")
+		})
 	}
 }
 
 func TestResponseToOrderType(t *testing.T) {
+	t.Parallel()
 	type TestCases struct {
 		Case   string
 		Result order.Type
@@ -1108,8 +1084,11 @@ func TestResponseToOrderType(t *testing.T) {
 		{Case: "LOL", Result: order.UnknownType},
 	}
 	for i := range testCases {
-		result, _ := stringToOrderType(testCases[i].Case)
-		assert.Equal(t, testCases[i].Result, result)
+		t.Run(testCases[i].Case, func(t *testing.T) {
+			t.Parallel()
+			result, _ := stringToOrderType(testCases[i].Case)
+			assert.Equal(t, testCases[i].Result, result, "order type should match expected conversion")
+		})
 	}
 }
 
@@ -1215,12 +1194,15 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
-		pairs, err := e.CurrencyPairs.GetPairs(a, false)
-		require.NoErrorf(t, err, "GetPairs must not error for asset %s", a)
-		require.NotEmptyf(t, pairs, "pairs must not be empty for asset %s", a)
-		resp, err := e.GetCurrencyTradeURL(t.Context(), a, pairs[0])
-		require.NoError(t, err)
-		assert.NotEmpty(t, resp)
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			pairs, err := e.CurrencyPairs.GetPairs(a, false)
+			require.NoErrorf(t, err, "GetPairs must not error for asset %s", a)
+			require.NotEmptyf(t, pairs, "pairs must not be empty for asset %s", a)
+			resp, err := e.GetCurrencyTradeURL(t.Context(), a, pairs[0])
+			require.NoError(t, err, "GetCurrencyTradeURL must not error")
+			assert.NotEmpty(t, resp, "GetCurrencyTradeURL should return a URL")
+		})
 	}
 }
 
@@ -1240,10 +1222,13 @@ func TestGenerateSubscriptions(t *testing.T) {
 	testsubs.EqualLists(t, exp, subs)
 
 	for _, i := range []kline.Interval{kline.OneMin, kline.FiveMin, kline.FifteenMin, kline.ThirtyMin, kline.OneHour, kline.SixHour} {
-		subs, err = subscription.List{{Asset: asset.Spot, Channel: subscription.CandlesChannel, Pairs: p, Interval: i}}.ExpandTemplates(e)
-		assert.NoErrorf(t, err, "ExpandTemplates should not error on interval %s", i)
-		require.NotEmpty(t, subs)
-		assert.Equal(t, "candles_"+i.Short(), subs[0].QualifiedChannel)
+		t.Run(i.String(), func(t *testing.T) {
+			t.Parallel()
+			subRes, err := subscription.List{{Asset: asset.Spot, Channel: subscription.CandlesChannel, Pairs: p, Interval: i}}.ExpandTemplates(e)
+			assert.NoErrorf(t, err, "ExpandTemplates should not error on interval %s", i)
+			require.NotEmpty(t, subRes, "ExpandTemplates result must not be empty")
+			assert.Equal(t, "candles_"+i.Short(), subRes[0].QualifiedChannel, "qualified channel should match expected interval")
+		})
 	}
 	_, err = subscription.List{{Asset: asset.Spot, Channel: subscription.CandlesChannel, Pairs: p, Interval: kline.FourHour}}.ExpandTemplates(e)
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "ExpandTemplates should error on invalid interval")
