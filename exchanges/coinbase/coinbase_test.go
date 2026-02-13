@@ -1553,57 +1553,57 @@ func TestWsHandleData(t *testing.T) {
 			}
 		}
 	}()
-	_, err := e.wsHandleData(t.Context(), nil, nil)
+	err := e.wsHandleData(t.Context(), nil, nil)
 	var syntaxErr *json.SyntaxError
 	assert.True(t, errors.As(err, &syntaxErr) || strings.Contains(err.Error(), "Syntax error no sources available, the input json is empty"), errJSONUnmarshalUnexpected)
 	mockJSON := []byte(`{"type": "error"}`)
-	_, err = e.wsHandleData(t.Context(), nil, mockJSON)
+	err = e.wsHandleData(t.Context(), nil, mockJSON)
 	assert.Error(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "subscriptions"}`)
-	_, err = e.wsHandleData(t.Context(), nil, mockJSON)
+	err = e.wsHandleData(t.Context(), nil, mockJSON)
 	assert.NoError(t, err)
 	var unmarshalTypeErr *json.UnmarshalTypeError
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "status", "events": [{"type": 1234}]}`)
-	_, err = e.wsHandleData(t.Context(), nil, mockJSON)
+	err = e.wsHandleData(t.Context(), nil, mockJSON)
 	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "status", "events": [{"type": "moo"}]}`)
-	_, err = e.wsHandleData(t.Context(), nil, mockJSON)
+	err = e.wsHandleData(t.Context(), nil, mockJSON)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "ticker", "events": [{"type": "moo", "tickers": false}]}`)
-	_, err = e.wsHandleData(t.Context(), nil, mockJSON)
+	err = e.wsHandleData(t.Context(), nil, mockJSON)
 	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "candles", "events": [{"type": false}]}`)
-	_, err = e.wsHandleData(t.Context(), nil, mockJSON)
+	err = e.wsHandleData(t.Context(), nil, mockJSON)
 	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "candles", "events": [{"type": "moo", "candles": [{"low": "1.1"}]}]}`)
-	_, err = e.wsHandleData(t.Context(), nil, mockJSON)
+	err = e.wsHandleData(t.Context(), nil, mockJSON)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "market_trades", "events": [{"type": false}]}`)
-	_, err = e.wsHandleData(t.Context(), nil, mockJSON)
+	err = e.wsHandleData(t.Context(), nil, mockJSON)
 	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "market_trades", "events": [{"type": "moo", "trades": [{"price": "1.1"}]}]}`)
-	_, err = e.wsHandleData(t.Context(), nil, mockJSON)
+	err = e.wsHandleData(t.Context(), nil, mockJSON)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "events": [{"type": false, "updates": [{"price_level": "1.1"}]}]}`)
-	_, err = e.wsHandleData(t.Context(), nil, mockJSON)
+	err = e.wsHandleData(t.Context(), nil, mockJSON)
 	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "moo", "updates": [{"price_level": "1.1"}]}]}`)
-	_, err = e.wsHandleData(t.Context(), nil, mockJSON)
+	err = e.wsHandleData(t.Context(), nil, mockJSON)
 	assert.ErrorIs(t, err, errUnknownL2DataType)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "snapshot", "product_id": "BTC-USD", "updates": [{"side": "bid", "price_level": "1.1", "new_quantity": "2.2"}]}]}`)
-	_, err = e.wsHandleData(t.Context(), nil, mockJSON)
+	err = e.wsHandleData(t.Context(), nil, mockJSON)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "update", "product_id": "BTC-USD", "updates": [{"side": "bid", "price_level": "1.1", "new_quantity": "2.2"}]}]}`)
-	_, err = e.wsHandleData(t.Context(), nil, mockJSON)
+	err = e.wsHandleData(t.Context(), nil, mockJSON)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": false}]}`)
-	_, err = e.wsHandleData(t.Context(), nil, mockJSON)
+	err = e.wsHandleData(t.Context(), nil, mockJSON)
 	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": "l", "orders": [{"limit_price": "2.2", "total_fees": "1.1", "post_only": true}], "positions": {"perpetual_futures_positions": [{"margin_type": "fakeMarginType"}], "expiring_futures_positions": [{}]}}]}`)
-	_, err = e.wsHandleData(t.Context(), nil, mockJSON)
+	err = e.wsHandleData(t.Context(), nil, mockJSON)
 	assert.ErrorIs(t, err, order.ErrUnrecognisedOrderType)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "fakechan", "events": [{"type": ""}]}`)
-	_, err = e.wsHandleData(t.Context(), nil, mockJSON)
+	err = e.wsHandleData(t.Context(), nil, mockJSON)
 	assert.ErrorIs(t, err, errChannelNameUnknown)
 	p, err := e.FormatExchangeCurrency(currency.NewBTCUSD(), asset.Spot)
 	require.NoError(t, err)
@@ -1611,7 +1611,7 @@ func TestWsHandleData(t *testing.T) {
 		p: {p},
 	})
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "ticker", "events": [{"type": "moo", "tickers": [{"product_id": "BTC-USD", "price": "1.1"}]}]}`)
-	_, err = e.wsHandleData(t.Context(), nil, mockJSON)
+	err = e.wsHandleData(t.Context(), nil, mockJSON)
 	assert.NoError(t, err)
 }
 
@@ -1623,19 +1623,19 @@ func TestWsHandleDataSequence(t *testing.T) {
 		return []byte(`{"sequence_num":` + strconv.FormatUint(seq, 10) + `,"channel":"subscriptions"}`)
 	}
 
-	_, err := e.wsHandleData(t.Context(), connA, buildSubMsg(7))
+	err := e.wsHandleData(t.Context(), connA, buildSubMsg(7))
 	assert.NoError(t, err, "wsHandleData should not error for initial sequence")
 
-	_, err = e.wsHandleData(t.Context(), connA, buildSubMsg(8))
+	err = e.wsHandleData(t.Context(), connA, buildSubMsg(8))
 	assert.NoError(t, err, "wsHandleData should not error for in-order sequence")
 
-	_, err = e.wsHandleData(t.Context(), connA, buildSubMsg(10))
+	err = e.wsHandleData(t.Context(), connA, buildSubMsg(10))
 	assert.ErrorIs(t, err, errOutOfSequence, "wsHandleData should error for out-of-order sequence")
 
-	_, err = e.wsHandleData(t.Context(), connA, buildSubMsg(11))
+	err = e.wsHandleData(t.Context(), connA, buildSubMsg(11))
 	assert.NoError(t, err, "wsHandleData should not error after sequence state is resynced")
 
-	_, err = e.wsHandleData(t.Context(), connB, buildSubMsg(3))
+	err = e.wsHandleData(t.Context(), connB, buildSubMsg(3))
 	assert.NoError(t, err, "wsHandleData should not error for a different connection sequence state")
 }
 
@@ -1739,7 +1739,7 @@ func startWSReadLoop(ctx context.Context, e *Exchange, conn websocket.Connection
 			if resp.Raw == nil {
 				return
 			}
-			_, err := e.wsHandleData(ctx, conn, resp.Raw)
+			err := e.wsHandleData(ctx, conn, resp.Raw)
 			if err != nil {
 				if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
 					log.Printf("%s %s: %s %s", e.Name, conn.GetURL(), errSend, err)

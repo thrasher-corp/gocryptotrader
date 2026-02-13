@@ -264,50 +264,50 @@ func (e *Exchange) wsProcessUser(ctx context.Context, resp *StandardWebsocketRes
 }
 
 // wsHandleData handles all the websocket data coming from the websocket connection
-func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) (*uint64, error) {
+func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	var resp StandardWebsocketResponse
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
-		return nil, err
+		return err
 	}
 	if err := e.checkWSSequence(conn, resp.Sequence); err != nil {
-		return &resp.Sequence, err
+		return err
 	}
 	if resp.Error != "" {
-		return &resp.Sequence, errors.New(resp.Error)
+		return errors.New(resp.Error)
 	}
 	switch resp.Channel {
 	case "subscriptions", "heartbeats":
-		return &resp.Sequence, nil
+		return nil
 	case "status":
 		var wsStatus []WebsocketProductHolder
 		if err := json.Unmarshal(resp.Events, &wsStatus); err != nil {
-			return &resp.Sequence, err
+			return err
 		}
-		return &resp.Sequence, e.Websocket.DataHandler.Send(ctx, wsStatus)
+		return e.Websocket.DataHandler.Send(ctx, wsStatus)
 	case "ticker", "ticker_batch":
 		if err := e.wsProcessTicker(ctx, &resp); err != nil {
-			return &resp.Sequence, err
+			return err
 		}
 	case "candles":
 		if err := e.wsProcessCandle(ctx, &resp); err != nil {
-			return &resp.Sequence, err
+			return err
 		}
 	case "market_trades":
 		if err := e.wsProcessMarketTrades(ctx, &resp); err != nil {
-			return &resp.Sequence, err
+			return err
 		}
 	case "l2_data":
 		if err := e.wsProcessL2(&resp); err != nil {
-			return &resp.Sequence, err
+			return err
 		}
 	case "user":
 		if err := e.wsProcessUser(ctx, &resp); err != nil {
-			return &resp.Sequence, err
+			return err
 		}
 	default:
-		return &resp.Sequence, errChannelNameUnknown
+		return errChannelNameUnknown
 	}
-	return &resp.Sequence, nil
+	return nil
 }
 
 func (e *Exchange) checkWSSequence(conn websocket.Connection, sequence uint64) error {
