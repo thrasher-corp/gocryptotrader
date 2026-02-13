@@ -124,17 +124,17 @@ func getOneMinute() []Candle {
 }
 
 var oneMinuteCandles = func() []Candle {
-	var candles []Candle
+	candles := make([]Candle, 1442) // two extra candles.
 	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	for x := range 1442 { // two extra candles.
-		candles = append(candles, Candle{
+	for x := range candles {
+		candles[x] = Candle{
 			Time:   start,
 			Volume: 1,
 			Open:   1,
 			High:   float64(1 + x),
 			Low:    float64(-(1 + x)),
 			Close:  1,
-		})
+		}
 		start = start.Add(time.Minute)
 	}
 	return candles
@@ -149,17 +149,17 @@ func getOneHour() []Candle {
 }
 
 var oneHourCandles = func() []Candle {
-	var candles []Candle
+	candles := make([]Candle, 24)
 	start := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	for x := range 24 {
-		candles = append(candles, Candle{
+	for x := range candles {
+		candles[x] = Candle{
 			Time:   start,
 			Volume: 1,
 			Open:   1,
 			High:   float64(1 + x),
 			Low:    float64(-(1 + x)),
 			Close:  1,
-		})
+		}
 		start = start.Add(time.Hour)
 	}
 	return candles

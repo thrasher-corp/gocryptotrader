@@ -139,7 +139,7 @@ func seedWithdrawData() {
 				},
 			},
 		}
-		rnd := rand.Intn(2) //nolint:gosec // used for generating test data, no need to import crypo/rand
+		rnd := rand.Intn(2) //nolint:gosec // used for generating test data, no need to import crypto/rand
 		if rnd == 0 {
 			resp.RequestDetails.Currency = currency.AUD
 			resp.RequestDetails.Type = 1

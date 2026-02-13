@@ -367,7 +367,7 @@ type SubAccountTransferRequestParams struct {
 	RecvWindow uint64
 }
 
-// SubAccountTransferResponse represents a suabccount transfer history
+// SubAccountTransferResponse represents a subaccount transfer history
 // having the transaction id which is to be returned due to the transfer
 type SubAccountTransferResponse struct {
 	Success bool   `json:"success"`
@@ -446,20 +446,19 @@ type NewOrderResponse struct {
 // CommonOrder instance holds the order information common to both
 // for Order and OrderReportItem
 type CommonOrder struct {
-	Symbol        string `json:"symbol"`
-	OrderID       uint64 `json:"orderId"`
-	OrderListID   int8   `json:"orderListId"`
-	ClientOrderID string `json:"clientOrderId"`
-
-	Price               float64 `json:"price,string"`
-	OrigQty             float64 `json:"origQty,string"`
-	ExecutedQty         float64 `json:"executedQty,string"`
-	CummulativeQuoteQty float64 `json:"cummulativeQuoteQty,string"`
-	Status              string  `json:"status"`
-	TimeInForce         string  `json:"timeInForce"`
-	Type                string  `json:"type"`
-	Side                string  `json:"side"`
-	StopPrice           float64 `json:"stopPrice,string"`
+	Symbol             string  `json:"symbol"`
+	OrderID            uint64  `json:"orderId"`
+	OrderListID        int8    `json:"orderListId"`
+	ClientOrderID      string  `json:"clientOrderId"`
+	Price              float64 `json:"price,string"`
+	OrigQty            float64 `json:"origQty,string"`
+	ExecutedQty        float64 `json:"executedQty,string"`
+	CumulativeQuoteQty float64 `json:"cummulativeQuoteQty,string"`
+	Status             string  `json:"status"`
+	TimeInForce        string  `json:"timeInForce"`
+	Type               string  `json:"type"`
+	Side               string  `json:"side"`
+	StopPrice          float64 `json:"stopPrice,string"`
 }
 
 // Order struct represents an ordinary order response.

@@ -268,8 +268,7 @@ func (s *Settings) PrintLoadedSettings() {
 	gctlog.Debugln(gctlog.Global)
 	gctlog.Debugf(gctlog.Global, "ENGINE SETTINGS")
 	settings := reflect.ValueOf(*s)
-	for x := range settings.NumField() {
-		field := settings.Field(x)
+	for _, field := range settings.Fields() {
 		if field.Kind() != reflect.Struct {
 			continue
 		}

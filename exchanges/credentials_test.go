@@ -92,25 +92,21 @@ func TestGetCredentials(t *testing.T) {
 	b.API.SetClientID("1337")
 
 	ctx = context.WithValue(t.Context(), accounts.ContextSubAccountFlag, "superaccount")
-	overridedSA, err := b.GetCredentials(ctx)
+	overriddenSA, err := b.GetCredentials(ctx)
 	require.NoError(t, err)
 
-	if overridedSA.Key != "hello" &&
-		overridedSA.Secret != "sir" &&
-		overridedSA.ClientID != "1337" &&
-		overridedSA.SubAccount != "superaccount" {
-		t.Fatal("unexpected values")
-	}
+	assert.Equal(t, "hello", overriddenSA.Key, "Key should match")
+	assert.Equal(t, "sir", overriddenSA.Secret, "Secret should match")
+	assert.Equal(t, "1337", overriddenSA.ClientID, "ClientID should match")
+	assert.Equal(t, "superaccount", overriddenSA.SubAccount, "SubAccount should match")
 
-	notOverrided, err := b.GetCredentials(t.Context())
+	notOverridden, err := b.GetCredentials(t.Context())
 	require.NoError(t, err)
 
-	if notOverrided.Key != "hello" &&
-		notOverrided.Secret != "sir" &&
-		notOverrided.ClientID != "1337" &&
-		notOverrided.SubAccount != "" {
-		t.Fatal("unexpected values")
-	}
+	assert.Equal(t, "hello", notOverridden.Key, "Key should match")
+	assert.Equal(t, "sir", notOverridden.Secret, "Secret should match")
+	assert.Equal(t, "1337", notOverridden.ClientID, "ClientID should match")
+	assert.Empty(t, notOverridden.SubAccount, "SubAccount should be empty")
 }
 
 func TestAreCredentialsValid(t *testing.T) {

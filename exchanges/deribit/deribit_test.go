@@ -1001,12 +1001,12 @@ func TestWSRetrieveTransfers(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-const cancelWithdrawlPushDataJSON = `{"address": "2NBqqD5GRJ8wHy1PYyCXTe9ke5226FhavBz", "amount": 0.5, "confirmed_timestamp": null, "created_timestamp": 1550571443070, "currency": "BTC", "fee": 0.0001, "id": 1, "priority": 0.15, "state": "cancelled", "transaction_id": null, "updated_timestamp": 1550571443070}`
+const cancelWithdrawalPushDataJSON = `{"address": "2NBqqD5GRJ8wHy1PYyCXTe9ke5226FhavBz", "amount": 0.5, "confirmed_timestamp": null, "created_timestamp": 1550571443070, "currency": "BTC", "fee": 0.0001, "id": 1, "priority": 0.15, "state": "cancelled", "transaction_id": null, "updated_timestamp": 1550571443070}`
 
 func TestCancelWithdrawal(t *testing.T) {
 	t.Parallel()
 	var resp *CancelWithdrawalData
-	err := json.Unmarshal([]byte(cancelWithdrawlPushDataJSON), &resp)
+	err := json.Unmarshal([]byte(cancelWithdrawalPushDataJSON), &resp)
 	require.NoError(t, err)
 	_, err = e.CancelWithdrawal(t.Context(), currency.EMPTYCODE, 123844)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
@@ -2608,24 +2608,24 @@ func TestWSSetMMPConfig(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestGetSettlementHistoryByCurency(t *testing.T) {
+func TestGetSettlementHistoryByCurrency(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetSettlementHistoryByCurency(t.Context(), currency.EMPTYCODE, "settlement", "", 10, time.Now().Add(-time.Hour))
+	_, err := e.GetSettlementHistoryByCurrency(t.Context(), currency.EMPTYCODE, "settlement", "", 10, time.Now().Add(-time.Hour))
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetSettlementHistoryByCurency(t.Context(), currency.BTC, "settlement", "", 10, time.Now().Add(-time.Hour))
+	result, err := e.GetSettlementHistoryByCurrency(t.Context(), currency.BTC, "settlement", "", 10, time.Now().Add(-time.Hour))
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
-func TestWSRetrieveSettlementHistoryByCurency(t *testing.T) {
+func TestWSRetrieveSettlementHistoryByCurrency(t *testing.T) {
 	t.Parallel()
-	_, err := e.WSRetrieveSettlementHistoryByCurency(t.Context(), currency.EMPTYCODE, "settlement", "", 10, time.Now().Add(-time.Hour))
+	_, err := e.WSRetrieveSettlementHistoryByCurrency(t.Context(), currency.EMPTYCODE, "settlement", "", 10, time.Now().Add(-time.Hour))
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.WSRetrieveSettlementHistoryByCurency(t.Context(), currency.BTC, "settlement", "", 10, time.Now().Add(-time.Hour))
+	result, err := e.WSRetrieveSettlementHistoryByCurrency(t.Context(), currency.BTC, "settlement", "", 10, time.Now().Add(-time.Hour))
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

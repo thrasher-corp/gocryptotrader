@@ -382,176 +382,33 @@ func TestGetSpecificAvailablePairs(t *testing.T) {
 
 func TestIsRelatablePairs(t *testing.T) {
 	t.Parallel()
-	CreateTestBot(t)
 
-	btcusd := currency.NewBTCUSD()
-	xbtusd := currency.NewPair(currency.XBT, currency.USD)
-	xbtusdt := currency.NewPair(currency.XBT, currency.USDT)
-
-	// Test relational pairs with similar names
-	result := IsRelatablePairs(xbtusd, btcusd, false)
-	if !result {
-		t.Fatal("Unexpected result")
-	}
-
-	// Test relational pairs with similar names reversed
-	result = IsRelatablePairs(btcusd, xbtusd, false)
-	if !result {
-		t.Fatal("Unexpected result")
-	}
-
-	// Test relational pairs with similar names but with Tether support disabled
-	result = IsRelatablePairs(xbtusd, currency.NewBTCUSDT(), false)
-	if result {
-		t.Fatal("Unexpected result")
-	}
-
-	// Test relational pairs with similar names but with Tether support enabled
-	result = IsRelatablePairs(xbtusdt, btcusd, true)
-	if !result {
-		t.Fatal("Unexpected result")
-	}
-
-	aeusdt, err := currency.NewPairFromStrings("AE", "USDT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	usdtae, err := currency.NewPairDelimiter("USDT-AE", "-")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Test relational pairs with different ordering, a delimiter and with
-	// Tether support enabled
-	result = IsRelatablePairs(aeusdt, usdtae, true)
-	if !result {
-		t.Fatal("Unexpected result")
-	}
-
-	// Test relational pairs with different ordering, a delimiter and with
-	// Tether support disabled
-	result = IsRelatablePairs(aeusdt, usdtae, false)
-	if !result {
-		t.Fatal("Unexpected result")
-	}
-
-	xbteur, err := currency.NewPairFromStrings("XBT", "EUR")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	btcaud, err := currency.NewPairFromStrings("BTC", "AUD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Test relationl pairs with similar names and different fiat currencies
-	result = IsRelatablePairs(xbteur, btcaud, false)
-	if !result {
-		t.Fatal("Unexpected result")
-	}
-
-	usdbtc, err := currency.NewPairFromStrings("USD", "BTC")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	btceur, err := currency.NewPairFromStrings("BTC", "EUR")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Test relationl pairs with similar names, different fiat currencies and
-	// with different ordering
-	result = IsRelatablePairs(usdbtc, btceur, false)
-	if !result { // Is this really expected result???
-		t.Fatal("Unexpected result")
-	}
-
-	// Test relationl pairs with similar names, different fiat currencies and
-	// with Tether enabled
-	result = IsRelatablePairs(usdbtc, currency.NewBTCUSDT(), true)
-	if !result {
-		t.Fatal("Unexpected result")
-	}
-
-	ltcbtc, err := currency.NewPairFromStrings("LTC", "BTC")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	btcltc, err := currency.NewPairFromStrings("BTC", "LTC")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Test relationl crypto pairs with similar names
-	result = IsRelatablePairs(ltcbtc, btcltc, false)
-	if !result {
-		t.Fatal("Unexpected result")
-	}
-
-	ltceth, err := currency.NewPairFromStrings("LTC", "ETH")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	btceth, err := currency.NewPairFromStrings("BTC", "ETH")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Test relationl crypto pairs with similar different pairs
-	result = IsRelatablePairs(ltceth, btceth, false)
-	if result {
-		t.Fatal("Unexpected result")
-	}
-
-	// Test relationl crypto pairs with similar different pairs and with USDT
-	// enabled
-	usdtusd, err := currency.NewPairFromStrings("USDT", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	result = IsRelatablePairs(usdtusd, btcusd, true)
-	if result {
-		t.Fatal("Unexpected result")
-	}
-
-	xbtltc, err := currency.NewPairFromStrings("XBT", "LTC")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Test relationl crypto pairs with similar names
-	result = IsRelatablePairs(xbtltc, btcltc, false)
-	if !result {
-		t.Fatal("Unexpected result")
-	}
-
-	ltcxbt, err := currency.NewPairFromStrings("LTC", "XBT")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Test relationl crypto pairs with different ordering and similar names
-	result = IsRelatablePairs(ltcxbt, btcltc, false)
-	if !result {
-		t.Fatal("Unexpected result")
-	}
-
-	// Test edge case between two pairs when currency translations were causing
-	// non-relational pairs to be relatable
-	eurusd, err := currency.NewPairFromStrings("EUR", "USD")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	result = IsRelatablePairs(eurusd, btcusd, false)
-	if result {
-		t.Fatal("Unexpected result")
+	for _, tc := range []struct {
+		name    string
+		p1, p2  currency.Pair
+		tether  bool
+		related bool
+	}{
+		{"similar names", currency.NewPair(currency.XBT, currency.USD), currency.NewBTCUSD(), false, true},
+		{"similar names reversed", currency.NewBTCUSD(), currency.NewPair(currency.XBT, currency.USD), false, true},
+		{"tether disabled", currency.NewPair(currency.XBT, currency.USD), currency.NewBTCUSDT(), false, false},
+		{"tether enabled", currency.NewPair(currency.XBT, currency.USDT), currency.NewBTCUSD(), true, true},
+		{"different ordering tether enabled", currency.NewPair(currency.AE, currency.USDT), currency.NewPair(currency.USDT, currency.AE), true, true},
+		{"different ordering tether disabled", currency.NewPair(currency.AE, currency.USDT), currency.NewPair(currency.USDT, currency.AE), false, true},
+		{"similar names different fiat", currency.NewPair(currency.XBT, currency.EUR), currency.NewPair(currency.BTC, currency.AUD), false, true},
+		{"different fiat different ordering", currency.NewPair(currency.USD, currency.BTC), currency.NewPair(currency.BTC, currency.EUR), false, true},
+		{"different fiat tether enabled", currency.NewPair(currency.USD, currency.BTC), currency.NewBTCUSDT(), true, true},
+		{"crypto pairs similar names", currency.NewPair(currency.LTC, currency.BTC), currency.NewPair(currency.BTC, currency.LTC), false, true},
+		{"crypto pairs different bases", currency.NewPair(currency.LTC, currency.ETH), currency.NewPair(currency.BTC, currency.ETH), false, false},
+		{"USDT/USD not relatable to BTC/USD", currency.NewPair(currency.USDT, currency.USD), currency.NewBTCUSD(), true, false},
+		{"XBT translation", currency.NewPair(currency.XBT, currency.LTC), currency.NewPair(currency.BTC, currency.LTC), false, true},
+		{"XBT translation reversed", currency.NewPair(currency.LTC, currency.XBT), currency.NewPair(currency.BTC, currency.LTC), false, true},
+		{"non-relatable fiat pair", currency.NewPair(currency.EUR, currency.USD), currency.NewBTCUSD(), false, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.related, IsRelatablePairs(tc.p1, tc.p2, tc.tether))
+		})
 	}
 }
 

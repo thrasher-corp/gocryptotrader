@@ -111,5 +111,5 @@ func (b *Account) ValidateForWithdrawal(exchange string, cur currency.Code) (err
 			err = append(err, ErrIBANSwiftNotSet)
 		}
 	}
-	return
+	return err
 }

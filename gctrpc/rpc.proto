@@ -36,7 +36,7 @@ message GenericSubsystemRequest {
 
 message GetSubsystemsRequest {}
 
-message GetSusbsytemsResponse {
+message GetSubsystemsResponse {
   map<string, bool> subsystems_status = 1;
 }
 
@@ -554,13 +554,13 @@ message WithdrawalEventsByExchangeResponse {
 
 message WithdrawalEventResponse {
   string id = 2;
-  WithdrawlExchangeEvent exchange = 3;
+  WithdrawalExchangeEvent exchange = 3;
   WithdrawalRequestEvent request = 4;
   google.protobuf.Timestamp created_at = 5;
   google.protobuf.Timestamp updated_at = 6;
 }
 
-message WithdrawlExchangeEvent {
+message WithdrawalExchangeEvent {
   string name = 1;
   string id = 2;
   string status = 3;
@@ -1536,7 +1536,7 @@ service GoCryptoTraderService {
     option (google.api.http) = {get: "/v1/getinfo"};
   }
 
-  rpc GetSubsystems(GetSubsystemsRequest) returns (GetSusbsytemsResponse) {
+  rpc GetSubsystems(GetSubsystemsRequest) returns (GetSubsystemsResponse) {
     option (google.api.http) = {get: "/v1/getsubsystems"};
   }
 

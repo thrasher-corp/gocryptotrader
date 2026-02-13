@@ -1111,7 +1111,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			Side:           side,
 			Type:           orderType,
 			Pair:           pair,
-			Cost:           resp.CummulativeQuoteQty,
+			Cost:           resp.CumulativeQuoteQty,
 			AssetType:      assetType,
 			Status:         status,
 			Price:          resp.Price,
@@ -1408,10 +1408,10 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				}
 
 				var cost float64
-				// For some historical orders cummulativeQuoteQty will be < 0,
+				// For some historical orders cumulativeQuoteQty will be < 0,
 				// meaning the data is not available at this time.
-				if resp[i].CummulativeQuoteQty > 0 {
-					cost = resp[i].CummulativeQuoteQty
+				if resp[i].CumulativeQuoteQty > 0 {
+					cost = resp[i].CumulativeQuoteQty
 				}
 				detail := order.Detail{
 					Amount:          resp[i].OrigQty,

@@ -2662,12 +2662,10 @@ func TestGetProductInfo(t *testing.T) {
 	}
 }
 
-func TestGetInstitutionalLengingMarginCoinInfo(t *testing.T) {
+func TestGetInstitutionalLendingMarginCoinInfo(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetInstitutionalLengingMarginCoinInfo(t.Context(), "")
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := e.GetInstitutionalLendingMarginCoinInfo(t.Context(), "")
+	assert.NoError(t, err, "GetInstitutionalLendingMarginCoinInfo should not error")
 }
 
 func TestGetInstitutionalLoanOrders(t *testing.T) {
@@ -3001,7 +2999,7 @@ var pushDataMap = map[string]string{
 	"Orderbook Update":     `{"topic":"orderbook.50.BTCUSDT","ts":1731035685345,"type":"delta","data":{"s":"BTCUSDT","b":[["75848.62","0.014895"],["75837.13","0"]],"a":[["75848.89","0.088149"],["75851.44","0.078379"],["75852.65","0"],["75855.23","0.260219"],["75857.74","0.049778"]],"u":2876701,"seq":47474967823},"cts":1731035685342}`,
 	"Public Trade":         `{"topic":"publicTrade.BTCUSDT","ts":1690720953113,"type":"snapshot","data":[{"i":"2200000000067341890","T":1690720953111,"p":"3.6279","v":"1.3637","S":"Sell","s":"BTCUSDT","BT":false}]}`,
 	"Public Kline":         `{ "topic": "kline.5.BTCUSDT", "data": [ { "start": 1672324800000, "end": 1672325099999, "interval": "5", "open": "16649.5", "close": "16677", "high": "16677", "low": "16608", "volume": "2.081", "turnover": "34666.4005", "confirm": false, "timestamp": 1672324988882} ], "ts": 1672324988882,"type": "snapshot"}`,
-	"Public Liquidiation":  `{ "data": { "price": "0.03803", "side": "Buy", "size": "1637", "symbol": "GALAUSDT", "updatedTime": 1673251091822}, "topic": "liquidation.GALAUSDT", "ts": 1673251091822, "type": "snapshot" }`,
+	"Public Liquidation":   `{ "data": { "price": "0.03803", "side": "Buy", "size": "1637", "symbol": "GALAUSDT", "updatedTime": 1673251091822}, "topic": "liquidation.GALAUSDT", "ts": 1673251091822, "type": "snapshot" }`,
 	"Public LT Kline":      `{ "type": "snapshot", "topic": "kline_lt.5.BTCUSDT", "data": [ { "start": 1672325100000, "end": 1672325399999, "interval": "5", "open": "0.416039541212402799", "close": "0.41477848043290448", "high": "0.416039541212402799", "low": "0.409734237314911206", "confirm": false, "timestamp": 1672325322393} ], "ts": 1672325322393}`,
 	"Public LT Ticker":     `{ "topic": "tickers_lt.BTCUSDT", "ts": 1672325446847, "type": "snapshot", "data": { "symbol": "BTCUSDT", "lastPrice": "0.41477848043290448", "highPrice24h": "0.435285472510871305", "lowPrice24h": "0.394601507960931382", "prevPrice24h": "0.431502290172376349", "price24hPcnt": "-0.0388" } }`,
 	"Public LT Navigation": `{ "topic": "lt.EOS3LUSDT", "ts": 1672325564669, "type": "snapshot", "data": { "symbol": "BTCUSDT", "time": 1672325564554, "nav": "0.413517419653406162", "basketPosition": "1.261060779498318641", "leverage": "2.656197506416192150", "basketLoan": "-0.684866519289629374", "circulation": "72767.309468460367138199", "basket": "91764.000000292013277472" } }`,

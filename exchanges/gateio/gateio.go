@@ -1495,9 +1495,9 @@ func (e *Exchange) MergeMultipleLendingLoans(ctx context.Context, ccy currency.C
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginMergeLendingLoansEPL, http.MethodPost, gateioMarginMergedLoans, params, nil, &response)
 }
 
-// RetriveOneSingleLoanDetail retrieve one single loan detail
+// RetrieveOneSingleLoanDetail retrieve one single loan detail
 // "side" represents loan side: Lend or Borrow
-func (e *Exchange) RetriveOneSingleLoanDetail(ctx context.Context, side, loanID string) (*MarginLoanResponse, error) {
+func (e *Exchange) RetrieveOneSingleLoanDetail(ctx context.Context, side, loanID string) (*MarginLoanResponse, error) {
 	if side != sideBorrow && side != sideLend {
 		return nil, errInvalidLoanSide
 	}
@@ -2179,8 +2179,8 @@ func (e *Exchange) EnableOrDisableDualMode(ctx context.Context, settle currency.
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualToggleDualModeEPL, http.MethodGet, futuresPath+settle.Item.Lower+"/dual_mode", params, nil, &response)
 }
 
-// RetrivePositionDetailInDualMode retrieve position detail in dual mode
-func (e *Exchange) RetrivePositionDetailInDualMode(ctx context.Context, settle currency.Code, contract currency.Pair) ([]Position, error) {
+// RetrievePositionDetailInDualMode retrieve position detail in dual mode
+func (e *Exchange) RetrievePositionDetailInDualMode(ctx context.Context, settle currency.Code, contract currency.Pair) ([]Position, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}

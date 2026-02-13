@@ -2242,9 +2242,9 @@ func (e *Exchange) GetProductInfo(ctx context.Context, productID string) (*Insti
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("ins-loan/product-infos", params), defaultEPL, &resp)
 }
 
-// GetInstitutionalLengingMarginCoinInfo retrieves institutional lending margin coin information.
+// GetInstitutionalLendingMarginCoinInfo retrieves institutional lending margin coin information.
 // ProductId. If not passed, then return all product margin coin. For spot, it returns coin that convertRation greater than 0.
-func (e *Exchange) GetInstitutionalLengingMarginCoinInfo(ctx context.Context, productID string) (*InstitutionalMarginCoinInfo, error) {
+func (e *Exchange) GetInstitutionalLendingMarginCoinInfo(ctx context.Context, productID string) (*InstitutionalMarginCoinInfo, error) {
 	params := url.Values{}
 	if productID != "" {
 		params.Set("productId", productID)

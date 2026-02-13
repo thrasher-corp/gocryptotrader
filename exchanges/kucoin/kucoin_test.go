@@ -1167,16 +1167,16 @@ func TestTransferToMainOrTradeAccount(t *testing.T) {
 	t.Parallel()
 	_, err := e.TransferToMainOrTradeAccount(t.Context(), &FundTransferFuturesParam{})
 	require.ErrorIs(t, err, common.ErrNilPointer)
-	_, err = e.TransferToMainOrTradeAccount(t.Context(), &FundTransferFuturesParam{RecieveAccountType: "MAIN"})
+	_, err = e.TransferToMainOrTradeAccount(t.Context(), &FundTransferFuturesParam{ReceiveAccountType: "MAIN"})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
-	_, err = e.TransferToMainOrTradeAccount(t.Context(), &FundTransferFuturesParam{Amount: 1, RecieveAccountType: "MAIN"})
+	_, err = e.TransferToMainOrTradeAccount(t.Context(), &FundTransferFuturesParam{Amount: 1, ReceiveAccountType: "MAIN"})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.TransferToMainOrTradeAccount(t.Context(), &FundTransferFuturesParam{
 		Amount:             1,
 		Currency:           currency.USDT,
-		RecieveAccountType: SpotTradeType,
+		ReceiveAccountType: SpotTradeType,
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -4240,15 +4240,15 @@ func TestGetInformationOnAccountInvolvedInOffExchangeLoans(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetAffilateUserRebateInformation(t *testing.T) {
+func TestGetAffiliateUserRebateInformation(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetAffilateUserRebateInformation(t.Context(), time.Time{}, "1234", 0)
+	_, err := e.GetAffiliateUserRebateInformation(t.Context(), time.Time{}, "1234", 0)
 	require.ErrorIs(t, err, errQueryDateIsRequired)
-	_, err = e.GetAffilateUserRebateInformation(t.Context(), time.Now(), "", 0)
+	_, err = e.GetAffiliateUserRebateInformation(t.Context(), time.Now(), "", 0)
 	require.ErrorIs(t, err, errOffsetIsRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetAffilateUserRebateInformation(t.Context(), time.Now(), "1234", 0)
+	result, err := e.GetAffiliateUserRebateInformation(t.Context(), time.Now(), "1234", 0)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }

@@ -3,6 +3,9 @@ package timeperiods
 import (
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFindTimeRangesContainingData(t *testing.T) {
@@ -13,13 +16,11 @@ func TestFindTimeRangesContainingData(t *testing.T) {
 		0,
 		nil,
 	)
-	if err != nil && err.Error() != "invalid start time, invalid end time, invalid period" {
-		t.Fatal(err)
-	}
+	require.EqualError(t, err, "invalid start time, invalid end time, invalid period", "FindTimeRangesContainingData must return correct validation error")
 	// empty trade times
 	searchStartTime := time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC)
 	searchEndTime := time.Date(2020, 1, 1, 10, 0, 0, 0, time.UTC)
-	var tradeTimes []time.Time
+	tradeTimes := make([]time.Time, 0, 5)
 	var ranges []TimeRange
 	ranges, err = FindTimeRangesContainingData(
 		searchStartTime,
@@ -27,12 +28,8 @@ func TestFindTimeRangesContainingData(t *testing.T) {
 		time.Hour,
 		tradeTimes,
 	)
-	if err != nil {
-		t.Error(err)
-	}
-	if len(ranges) != 1 {
-		t.Errorf("expected 1 time range, received %v", len(ranges))
-	}
+	require.NoError(t, err, "FindTimeRangesContainingData must not error with empty trade times")
+	assert.Len(t, ranges, 1, "ranges should have 1 time range")
 	// 1 trade with 3 periods
 	tradeTimes = append(tradeTimes, time.Date(2020, 1, 1, 2, 0, 0, 0, time.UTC))
 	ranges, err = FindTimeRangesContainingData(
@@ -41,12 +38,8 @@ func TestFindTimeRangesContainingData(t *testing.T) {
 		time.Hour,
 		tradeTimes,
 	)
-	if err != nil {
-		t.Error(err)
-	}
-	if len(ranges) != 3 {
-		t.Errorf("expected 3 time ranges, received %v", len(ranges))
-	}
+	require.NoError(t, err, "FindTimeRangesContainingData must not error")
+	assert.Len(t, ranges, 3, "ranges should have 3 time ranges")
 	// 2 trades with 3 periods
 	tradeTimes = append(tradeTimes, time.Date(2020, 1, 1, 3, 0, 0, 0, time.UTC))
 	ranges, err = FindTimeRangesContainingData(
@@ -55,12 +48,8 @@ func TestFindTimeRangesContainingData(t *testing.T) {
 		time.Hour,
 		tradeTimes,
 	)
-	if err != nil {
-		t.Error(err)
-	}
-	if len(ranges) != 3 {
-		t.Errorf("expected 3 time ranges, received %v", len(ranges))
-	}
+	require.NoError(t, err, "FindTimeRangesContainingData must not error")
+	assert.Len(t, ranges, 3, "ranges should have 3 time ranges")
 	// 3 trades with 5 periods
 	tradeTimes = append(tradeTimes, time.Date(2020, 1, 1, 5, 0, 0, 0, time.UTC))
 	ranges, err = FindTimeRangesContainingData(
@@ -69,12 +58,8 @@ func TestFindTimeRangesContainingData(t *testing.T) {
 		time.Hour,
 		tradeTimes,
 	)
-	if err != nil {
-		t.Error(err)
-	}
-	if len(ranges) != 5 {
-		t.Errorf("expected 5 time ranges, received %v", len(ranges))
-	}
+	require.NoError(t, err, "FindTimeRangesContainingData must not error")
+	assert.Len(t, ranges, 5, "ranges should have 5 time ranges")
 	// 4 trades with 5 periods
 	tradeTimes = append(tradeTimes, time.Date(2020, 1, 1, 6, 0, 0, 0, time.UTC))
 	ranges, err = FindTimeRangesContainingData(
@@ -83,12 +68,8 @@ func TestFindTimeRangesContainingData(t *testing.T) {
 		time.Hour,
 		tradeTimes,
 	)
-	if err != nil {
-		t.Error(err)
-	}
-	if len(ranges) != 5 {
-		t.Errorf("expected 5 time ranges, received %v", len(ranges))
-	}
+	require.NoError(t, err, "FindTimeRangesContainingData must not error")
+	assert.Len(t, ranges, 5, "ranges should have 5 time ranges")
 	// 5 trades with 6 periods
 	tradeTimes = append(tradeTimes, time.Date(2020, 1, 1, 9, 0, 0, 0, time.UTC))
 	ranges, err = FindTimeRangesContainingData(
@@ -97,12 +78,8 @@ func TestFindTimeRangesContainingData(t *testing.T) {
 		time.Hour,
 		tradeTimes,
 	)
-	if err != nil {
-		t.Error(err)
-	}
-	if len(ranges) != 6 {
-		t.Errorf("expected 6 time ranges, received %v", len(ranges))
-	}
+	require.NoError(t, err, "FindTimeRangesContainingData must not error")
+	assert.Len(t, ranges, 6, "ranges should have 6 time ranges")
 }
 
 func TestCalculateTimePeriodsInRange(t *testing.T) {

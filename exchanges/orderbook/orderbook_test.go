@@ -331,12 +331,12 @@ func TestProcessOrderbook(t *testing.T) {
 		}
 		m.Unlock()
 		wg.Go(func() {
-			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10) //nolint:gosec // no need to import crypo/rand for testing
+			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10) //nolint:gosec // no need to import crypto/rand for testing
 			newPairs := currency.NewPair(currency.NewCode("BTC"+strconv.FormatInt(rand.Int63(), 10)),
-				currency.NewCode("USD"+strconv.FormatInt(rand.Int63(), 10))) //nolint:gosec // no need to import crypo/rand for testing
+				currency.NewCode("USD"+strconv.FormatInt(rand.Int63(), 10))) //nolint:gosec // no need to import crypto/rand for testing
 
-			asks := []Level{{Price: rand.Float64(), Amount: rand.Float64()}} //nolint:gosec // no need to import crypo/rand for testing
-			bids := []Level{{Price: rand.Float64(), Amount: rand.Float64()}} //nolint:gosec // no need to import crypo/rand for testing
+			asks := []Level{{Price: rand.Float64(), Amount: rand.Float64()}} //nolint:gosec // no need to import crypto/rand for testing
+			bids := []Level{{Price: rand.Float64(), Amount: rand.Float64()}} //nolint:gosec // no need to import crypto/rand for testing
 			b := &Book{
 				Pair:     newPairs,
 				Asks:     asks,
