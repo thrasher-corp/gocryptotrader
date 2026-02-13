@@ -5479,20 +5479,20 @@ func (e *Exchange) GetTakerFlow(ctx context.Context, ccy currency.Code, period k
 // We will reach out to you through your BD to provide more comprehensive API support
 
 // GetInviteesDetail retrieves affiliate invitees details
-func (e *Exchange) GetInviteesDetail(ctx context.Context, uid string) (*AffilateInviteesDetail, error) {
+func (e *Exchange) GetInviteesDetail(ctx context.Context, uid string) (*AffiliateInviteesDetail, error) {
 	if uid == "" {
 		return nil, errUserIDRequired
 	}
-	var resp *AffilateInviteesDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAffilateInviteesDetailEPL, http.MethodGet, "affiliate/invitee/detail?uid="+uid, nil, &resp, request.AuthenticatedRequest)
+	var resp *AffiliateInviteesDetail
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAffiliateInviteesDetailEPL, http.MethodGet, "affiliate/invitee/detail?uid="+uid, nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetUserAffiliateRebateInformation this endpoint is used to get the user's affiliate rebate information for affiliate
-func (e *Exchange) GetUserAffiliateRebateInformation(ctx context.Context, apiKey string) (*AffilateRebateInfo, error) {
+func (e *Exchange) GetUserAffiliateRebateInformation(ctx context.Context, apiKey string) (*AffiliateRebateInfo, error) {
 	if apiKey == "" {
 		return nil, errInvalidAPIKey
 	}
-	var resp *AffilateRebateInfo
+	var resp *AffiliateRebateInfo
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getUserAffiliateRebateInformationEPL, http.MethodGet, "users/partner/if-rebate?apiKey="+apiKey, nil, &resp, request.AuthenticatedRequest)
 }
 

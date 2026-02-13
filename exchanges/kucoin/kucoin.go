@@ -2005,8 +2005,8 @@ func (e *Exchange) TransferToMainOrTradeAccount(ctx context.Context, arg *FundTr
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if arg.RecieveAccountType != "MAIN" && arg.RecieveAccountType != SpotTradeType {
-		return nil, fmt.Errorf("invalid receive account type %s, only TRADE and MAIN are supported", arg.RecieveAccountType)
+	if arg.ReceiveAccountType != "MAIN" && arg.ReceiveAccountType != SpotTradeType {
+		return nil, fmt.Errorf("invalid receive account type %s, only TRADE and MAIN are supported", arg.ReceiveAccountType)
 	}
 	var resp *InnerTransferToMainAndTradeResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFutures, toMainOrTradeAccountEPL, http.MethodPost, "/v3/transfer-out", arg, &resp)
@@ -2713,8 +2713,8 @@ func (e *Exchange) GetInformationOnAccountInvolvedInOffExchangeLoans(ctx context
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, vipLendingEPL, http.MethodGet, "/v1/otc-loan/accounts", nil, &resp)
 }
 
-// GetAffilateUserRebateInformation allows getting affiliate user rebate information.
-func (e *Exchange) GetAffilateUserRebateInformation(ctx context.Context, date time.Time, offset string, maxCount int64) ([]UserRebateInfo, error) {
+// GetAffiliateUserRebateInformation allows getting affiliate user rebate information.
+func (e *Exchange) GetAffiliateUserRebateInformation(ctx context.Context, date time.Time, offset string, maxCount int64) ([]UserRebateInfo, error) {
 	if date.IsZero() {
 		return nil, errQueryDateIsRequired
 	}
@@ -2729,7 +2729,7 @@ func (e *Exchange) GetAffilateUserRebateInformation(ctx context.Context, date ti
 		params.Set("maxCount", strconv.FormatInt(maxCount, 10))
 	}
 	var resp []UserRebateInfo
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, affilateUserRebateInfoEPL, http.MethodGet, common.EncodeURLValues("/v2/affiliate/inviter/statistics", params), nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, affiliateUserRebateInfoEPL, http.MethodGet, common.EncodeURLValues("/v2/affiliate/inviter/statistics", params), nil, &resp)
 }
 
 // GetMarginPairsConfigurations allows querying the configuration of cross margin trading pairs.

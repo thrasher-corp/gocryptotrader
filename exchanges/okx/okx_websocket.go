@@ -522,8 +522,8 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		return e.wsProcessPushData(ctx, respRaw, resp)
 	case okxDepositInfo:
 		resp := &struct {
-			Arguments SubscriptionInfo  `json:"arg"`
-			Data      []WsWithdrawlInfo `json:"data"`
+			Arguments SubscriptionInfo   `json:"arg"`
+			Data      []WsWithdrawalInfo `json:"data"`
 		}{}
 		return e.wsProcessPushData(ctx, respRaw, resp)
 	case channelRecurringBuy:

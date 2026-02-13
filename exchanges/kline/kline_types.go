@@ -163,7 +163,7 @@ type ExchangeCapabilitiesEnabled struct {
 	Intervals ExchangeIntervals
 	// GlobalResultLimit is the maximum amount of candles that can be returned
 	// across all intervals. This is used to determine if a request will exceed
-	// the exchange limits. Indivudal interval limits are stored in the
+	// the exchange limits. Individual interval limits are stored in the
 	// ExchangeIntervals struct. If this is set to 0, it will be ignored.
 	GlobalResultLimit uint64
 }

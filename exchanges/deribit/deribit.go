@@ -2127,8 +2127,8 @@ func (e *Exchange) GetSettlementHistoryByInstrument(ctx context.Context, instrum
 		getSettlementHistoryByInstrument, params, &resp)
 }
 
-// GetSettlementHistoryByCurency sends a request to fetch settlement history data sorted by currency
-func (e *Exchange) GetSettlementHistoryByCurency(ctx context.Context, ccy currency.Code, settlementType, continuation string, count int64, searchStartTimeStamp time.Time) (*PrivateSettlementsHistoryData, error) {
+// GetSettlementHistoryByCurrency sends a request to fetch settlement history data sorted by currency
+func (e *Exchange) GetSettlementHistoryByCurrency(ctx context.Context, ccy currency.Code, settlementType, continuation string, count int64, searchStartTimeStamp time.Time) (*PrivateSettlementsHistoryData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}

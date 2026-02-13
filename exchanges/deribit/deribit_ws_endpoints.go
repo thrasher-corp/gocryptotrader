@@ -1825,8 +1825,8 @@ func (e *Exchange) WSRetrieveSettlementHistoryByInstrument(ctx context.Context, 
 	return resp, e.SendWSRequest(ctx, nonMatchingEPL, getSettlementHistoryByInstrument, input, &resp, true)
 }
 
-// WSRetrieveSettlementHistoryByCurency sends a request to fetch settlement history data sorted by currency through the websocket connection.
-func (e *Exchange) WSRetrieveSettlementHistoryByCurency(ctx context.Context, ccy currency.Code, settlementType, continuation string, count int64, searchStartTimeStamp time.Time) (*PrivateSettlementsHistoryData, error) {
+// WSRetrieveSettlementHistoryByCurrency sends a request to fetch settlement history data sorted by currency through the websocket connection.
+func (e *Exchange) WSRetrieveSettlementHistoryByCurrency(ctx context.Context, ccy currency.Code, settlementType, continuation string, count int64, searchStartTimeStamp time.Time) (*PrivateSettlementsHistoryData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
