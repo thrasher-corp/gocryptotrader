@@ -61,7 +61,7 @@ func mockWsSub(tb testing.TB, msg []byte, w *gws.Conn, event string) error {
 		if err != nil {
 			return err
 		}
-		if err = w.WriteMessage(gws.TextMessage, raw); err != nil {
+		if err := w.WriteMessage(gws.TextMessage, raw); err != nil {
 			return err
 		}
 	}

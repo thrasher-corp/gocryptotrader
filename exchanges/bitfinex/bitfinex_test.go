@@ -1127,7 +1127,7 @@ func TestWSAuth(t *testing.T) {
 			resp, ok = v.Data.(map[string]any)
 		default:
 		}
-		return
+		return ok
 	}
 
 	if assert.Eventually(t, catcher, sharedtestvalues.WebsocketResponseDefaultTimeout, time.Millisecond*10, "Auth response should arrive") {
@@ -1196,7 +1196,7 @@ func TestWSSubscribe(t *testing.T) {
 	catcher := func() (ok bool) {
 		i := <-e.Websocket.DataHandler.C
 		_, ok = i.Data.(*ticker.Price)
-		return
+		return ok
 	}
 	assert.Eventually(t, catcher, sharedtestvalues.WebsocketResponseDefaultTimeout, time.Millisecond*10, "Ticker response should arrive")
 
@@ -1242,7 +1242,7 @@ func subscribeForTest(ctx context.Context, e *Exchange, subs subscription.List) 
 		return err
 	}
 	if !e.Websocket.IsConnected() {
-		if err = e.Websocket.Connect(ctx); err != nil {
+		if err := e.Websocket.Connect(ctx); err != nil {
 			return err
 		}
 	}
@@ -2085,18 +2085,23 @@ func (m *bitfinexTestWSConn) Dial(context.Context, *gws.Dialer, http.Header) err
 func (m *bitfinexTestWSConn) ReadMessage() websocket.Response { return websocket.Response{} }
 func (m *bitfinexTestWSConn) SetupPingHandler(request.EndpointLimit, websocket.PingHandler) {
 }
+
 func (m *bitfinexTestWSConn) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
 	return nil, nil
 }
+
 func (m *bitfinexTestWSConn) SendMessageReturnResponses(context.Context, request.EndpointLimit, any, any, int) ([][]byte, error) {
 	return nil, nil
 }
+
 func (m *bitfinexTestWSConn) SendMessageReturnResponsesWithInspector(context.Context, request.EndpointLimit, any, any, int, websocket.Inspector) ([][]byte, error) {
 	return nil, nil
 }
+
 func (m *bitfinexTestWSConn) SendRawMessage(context.Context, request.EndpointLimit, int, []byte) error {
 	return nil
 }
+
 func (m *bitfinexTestWSConn) SendJSONMessage(context.Context, request.EndpointLimit, any) error {
 	return nil
 }
@@ -2110,12 +2115,14 @@ func (m *bitfinexTestWSConn) RequireMatchWithData(signature any, incoming []byte
 	}
 	return m.match.RequireMatchWithData(signature, incoming)
 }
+
 func (m *bitfinexTestWSConn) IncomingWithData(signature any, data []byte) bool {
 	if m.match == nil {
 		return false
 	}
 	return m.match.IncomingWithData(signature, data)
 }
+
 func (m *bitfinexTestWSConn) MatchReturnResponses(context.Context, any, int) (<-chan websocket.MatchedResponse, error) {
 	return nil, nil
 }

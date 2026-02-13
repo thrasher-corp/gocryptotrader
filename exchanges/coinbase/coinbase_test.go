@@ -2128,15 +2128,19 @@ func (m *testWSConn) Dial(context.Context, *gws.Dialer, http.Header) error { ret
 func (m *testWSConn) ReadMessage() websocket.Response                      { return websocket.Response{} }
 func (m *testWSConn) SetupPingHandler(request.EndpointLimit, websocket.PingHandler) {
 }
+
 func (m *testWSConn) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
 	return nil, nil
 }
+
 func (m *testWSConn) SendMessageReturnResponses(context.Context, request.EndpointLimit, any, any, int) ([][]byte, error) {
 	return nil, nil
 }
+
 func (m *testWSConn) SendMessageReturnResponsesWithInspector(context.Context, request.EndpointLimit, any, any, int, websocket.Inspector) ([][]byte, error) {
 	return nil, nil
 }
+
 func (m *testWSConn) SendRawMessage(context.Context, request.EndpointLimit, int, []byte) error {
 	return nil
 }
