@@ -1814,7 +1814,7 @@ type AccountPositionHistory struct {
 	UPLLastPrice             types.Number `json:"uplLastPx"`
 	UPLRatioLastPrice        types.Number `json:"uplRatioLastPx"`
 	Leverage                 string       `json:"lever"`
-	LiquidationPrice         types.Number `json:"liqPx"`
+	LiquidiationPrice        types.Number `json:"liqPx"`
 	InitialMarginRequirement types.Number `json:"imr"`
 	Margin                   string       `json:"margin"`
 	MarginRatio              types.Number `json:"mgnRatio"`
@@ -5198,25 +5198,25 @@ type AlgoOrderInfo struct {
 
 // OrderPreCheckResponse represents an order pre-checks response of account information for placing orders
 type OrderPreCheckResponse struct {
-	AdjEq                     types.Number `json:"adjEq"`
-	AdjEqChg                  types.Number `json:"adjEqChg"`
-	AvailBal                  types.Number `json:"availBal"`
-	AvailBalChg               types.Number `json:"availBalChg"`
-	IMR                       types.Number `json:"imr"`
-	IMRChg                    types.Number `json:"imrChg"`
-	Liab                      types.Number `json:"liab"`
-	LiabChg                   types.Number `json:"liabChg"`
-	LiabChgCurrency           string       `json:"liabChgCcy"`
-	LiquidationPrice          types.Number `json:"liqPx"`
-	LiquidationPriceDiff      string       `json:"liqPxDiff"`
-	LiquidationPriceDiffRatio types.Number `json:"liqPxDiffRatio"`
-	MgnRatio                  types.Number `json:"mgnRatio"`
-	MgnRatioChg               types.Number `json:"mgnRatioChg"`
-	MMR                       types.Number `json:"mmr"`
-	MMRChange                 types.Number `json:"mmrChg"`
-	PosBalance                types.Number `json:"posBal"`
-	PosBalChange              types.Number `json:"posBalChg"`
-	Type                      string       `json:"type"`
+	AdjEq                      types.Number `json:"adjEq"`
+	AdjEqChg                   types.Number `json:"adjEqChg"`
+	AvailBal                   types.Number `json:"availBal"`
+	AvailBalChg                types.Number `json:"availBalChg"`
+	IMR                        types.Number `json:"imr"`
+	IMRChg                     types.Number `json:"imrChg"`
+	Liab                       types.Number `json:"liab"`
+	LiabChg                    types.Number `json:"liabChg"`
+	LiabChgCurrency            string       `json:"liabChgCcy"`
+	LiquidiationPrice          types.Number `json:"liqPx"`
+	LiquidiationPriceDiff      string       `json:"liqPxDiff"`
+	LiquidiationPriceDiffRatio types.Number `json:"liqPxDiffRatio"`
+	MgnRatio                   types.Number `json:"mgnRatio"`
+	MgnRatioChg                types.Number `json:"mgnRatioChg"`
+	MMR                        types.Number `json:"mmr"`
+	MMRChange                  types.Number `json:"mmrChg"`
+	PosBalance                 types.Number `json:"posBal"`
+	PosBalChange               types.Number `json:"posBalChg"`
+	Type                       string       `json:"type"`
 }
 
 // AnnouncementDetail represents an exchange's announcement detail

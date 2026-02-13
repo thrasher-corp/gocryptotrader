@@ -2005,8 +2005,8 @@ func (e *Exchange) TransferToMainOrTradeAccount(ctx context.Context, arg *FundTr
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if arg.ReceiveAccountType != "MAIN" && arg.ReceiveAccountType != SpotTradeType {
-		return nil, fmt.Errorf("invalid receive account type %s, only TRADE and MAIN are supported", arg.ReceiveAccountType)
+	if arg.RecieveAccountType != "MAIN" && arg.RecieveAccountType != SpotTradeType {
+		return nil, fmt.Errorf("invalid receive account type %s, only TRADE and MAIN are supported", arg.RecieveAccountType)
 	}
 	var resp *InnerTransferToMainAndTradeResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFutures, toMainOrTradeAccountEPL, http.MethodPost, "/v3/transfer-out", arg, &resp)

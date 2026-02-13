@@ -363,7 +363,7 @@ func TestGetReport(t *testing.T) {
 	}
 }
 
-func TestRequestWithdraw(t *testing.T) {
+func TestRequestWithdaw(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
