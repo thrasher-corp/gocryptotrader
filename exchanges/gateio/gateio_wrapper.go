@@ -1532,12 +1532,12 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		if len(req.Pairs) == 0 {
 			req.Pairs = currency.Pairs{currency.EMPTYPAIR}
 		}
+		a := ""
+		if req.AssetType == asset.Margin || req.AssetType == asset.CrossMargin { // cross margin not a supported account type
+			a = asset.Margin.String()
+		}
 		for i := range req.Pairs {
 			fp := req.Pairs[i].Format(format)
-			a := ""
-			if req.AssetType == asset.Margin || req.AssetType == asset.CrossMargin {
-				a = "margin"
-			}
 			o, err := e.GetMySpotTradingHistory(ctx, fp, req.FromOrderID, a, 0, 0, req.StartTime, req.EndTime)
 			if err != nil {
 				return nil, err
