@@ -1788,12 +1788,12 @@ func TestUpdateTickers(t *testing.T) {
 	updatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
 		err := e.UpdateTickers(t.Context(), a)
-		require.NoErrorf(t, err, "asset %s", a)
+		require.NoErrorf(t, err, "UpdateTicker must not error for asset %s", a)
 		avail, err := e.GetAvailablePairs(a)
 		require.NoError(t, err)
 		for _, p := range avail {
 			_, err = ticker.GetTicker(e.Name, p, a)
-			assert.NoErrorf(t, err, "Could not get ticker for %s %s", a, p)
+			assert.NoErrorf(t, err, "GetTicker should not error for %s %s", a, p)
 		}
 	}
 }
@@ -1907,8 +1907,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	updatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
 		pairs, err := e.CurrencyPairs.GetPairs(a, false)
-		require.NoErrorf(t, err, "cannot get pairs for %s", a)
-		require.NotEmptyf(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "GetPairs must not error for asset %s", a)
+		require.NotEmptyf(t, pairs, "pairs must not be empty for asset %s", a)
 		resp, err := e.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		if (a == asset.Futures || a == asset.CoinMarginedFutures) && !pairs[0].Quote.Equal(currency.USD) && !pairs[0].Quote.Equal(currency.USDT) {
 			require.ErrorIs(t, err, common.ErrNotYetImplemented)

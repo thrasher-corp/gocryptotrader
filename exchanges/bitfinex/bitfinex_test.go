@@ -504,7 +504,7 @@ func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 
 	_, err := e.UpdateTicker(t.Context(), btcusdPair, asset.Spot)
-	assert.NoError(t, common.ExcludeError(err, ticker.ErrBidEqualsAsk), "UpdateTicker may only error about locked markets")
+	assert.NoError(t, common.ExcludeError(err, ticker.ErrBidEqualsAsk), "UpdateTicker should only error about locked markets")
 }
 
 func TestUpdateTickers(t *testing.T) {
@@ -537,7 +537,7 @@ func TestUpdateTickers(t *testing.T) {
 			}
 		}
 		if !assert.Greaterf(t, okay/float64(len(avail))*100.0, acceptableThreshold, "At least %.f%% of %s tickers should not error", acceptableThreshold, a) {
-			assert.NoError(t, errs, "Collection of all the ticker errors")
+			assert.NoError(t, errs, "ticker error collection should be empty")
 		}
 	}
 }
@@ -1188,7 +1188,7 @@ func TestWSSubscribe(t *testing.T) {
 
 	err := subscribeForTest(t.Context(), e, subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
 	if err != nil {
-		require.ErrorContains(t, err, "subscribe: dup (code: 10301)", "Initial subscription may already exist from generated defaults")
+		require.ErrorContains(t, err, "subscribe: dup (code: 10301)", "initial subscription may already exist from generated defaults and must error as duplicate")
 	}
 	catcher := func() (ok bool) {
 		i := <-e.Websocket.DataHandler.C
@@ -1208,7 +1208,7 @@ func TestWSSubscribe(t *testing.T) {
 			tickerSubs = append(tickerSubs, subs[i])
 		}
 	}
-	require.NotEmpty(t, tickerSubs, "Expected at least one BTC/USD ticker subscription")
+	require.NotEmpty(t, tickerSubs, "there must be at least one BTC/USD ticker subscription")
 
 	err = subscribeForTest(t.Context(), e, subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
 	require.ErrorContains(t, err, "subscribe: dup (code: 10301)", "Duplicate subscription must error correctly")
@@ -2061,8 +2061,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	testexch.UpdatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
 		pairs, err := e.CurrencyPairs.GetPairs(a, false)
-		require.NoErrorf(t, err, "cannot get pairs for %s", a)
-		require.NotEmptyf(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "GetPairs must not error for asset %s", a)
+		require.NotEmptyf(t, pairs, "pairs must not be empty for asset %s", a)
 		resp, err := e.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)

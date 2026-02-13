@@ -54,17 +54,7 @@ var subscriptionNames = map[string]string{
 }
 
 func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
-		return websocket.ErrWebsocketNotEnabled
-	}
-	var dialer gws.Dialer
-	if strings.HasSuffix(conn.GetURL(), "/"+geminiWsOrderEvents) {
-		return e.wsAuth(ctx, conn)
-	}
-	if err := conn.Dial(ctx, &dialer, http.Header{}); err != nil {
-		return err
-	}
-	return nil
+	return conn.Dial(ctx, &gws.Dialer{}, http.Header{})
 }
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
@@ -119,7 +109,7 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, su
 	return e.Websocket.AddSuccessfulSubscriptions(conn, subs...)
 }
 
-func (e *Exchange) wsAuth(ctx context.Context, conn websocket.Connection) error {
+func (e *Exchange) wsAuthConnect(ctx context.Context, conn websocket.Connection) error {
 	if !e.IsWebsocketAuthenticationSupported() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", e.Name)
 	}

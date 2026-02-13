@@ -129,8 +129,8 @@ func TestUpdateTicker(t *testing.T) {
 
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err := e.UpdateTicker(t.Context(), cp, assetType)
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
-		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
+		require.NoErrorf(t, err, "request must not error for asset %s pair %s", assetType, cp)
+		require.NotNilf(t, result, "result must not be nil for asset %s pair %s", assetType, cp)
 	}
 }
 
@@ -138,7 +138,7 @@ func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err := e.UpdateOrderbook(t.Context(), cp, assetType)
-		require.NoErrorf(t, err, "asset type: %v", assetType)
+		require.NoErrorf(t, err, "request must not error for asset type %v", assetType)
 		require.NotNil(t, result)
 	}
 }
@@ -149,7 +149,7 @@ func TestGetHistoricTrades(t *testing.T) {
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 	for assetType, cp := range map[asset.Item]currency.Pair{asset.Spot: spotTradablePair, asset.Futures: futuresTradablePair} {
 		_, err = e.GetHistoricTrades(t.Context(), cp, assetType, time.Now().Add(-time.Minute*10), time.Now())
-		require.NoErrorf(t, err, "asset type: %v", assetType)
+		require.NoErrorf(t, err, "request must not error for asset type %v", assetType)
 	}
 }
 
@@ -157,8 +157,8 @@ func TestFetchRecentTrades(t *testing.T) {
 	t.Parallel()
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err := e.GetRecentTrades(t.Context(), cp, assetType)
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
-		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
+		require.NoErrorf(t, err, "request must not error for asset %s pair %s", assetType, cp)
+		require.NotNilf(t, result, "result must not be nil for asset %s pair %s", assetType, cp)
 	}
 }
 
@@ -221,8 +221,8 @@ func TestSubmitOrder(t *testing.T) {
 	var info *InstrumentData
 	for assetType, cp := range assetToPairStringMap {
 		info, err = e.GetInstrument(t.Context(), formatPairString(assetType, cp))
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
-		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
+		require.NoErrorf(t, err, "request must not error for asset %s pair %s", assetType, cp)
+		require.NotNilf(t, result, "result must not be nil for asset %s pair %s", assetType, cp)
 
 		result, err = e.SubmitOrder(
 			t.Context(),
@@ -236,8 +236,8 @@ func TestSubmitOrder(t *testing.T) {
 				Pair:      cp,
 			},
 		)
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
-		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
+		require.NoErrorf(t, err, "request must not error for asset %s pair %s", assetType, cp)
+		require.NotNilf(t, result, "result must not be nil for asset %s pair %s", assetType, cp)
 	}
 }
 
@@ -259,8 +259,8 @@ func TestGetMarkPriceHistory(t *testing.T) {
 		futureComboPairToString(futureComboTradablePair),
 	} {
 		result, err = e.GetMarkPriceHistory(t.Context(), ps, time.Now().Add(-5*time.Minute), time.Now())
-		require.NoErrorf(t, err, "expected nil, got %v for pair %s", err, ps)
-		require.NotNilf(t, result, "expected result not to be nil for pair %s", ps)
+		require.NoErrorf(t, err, "request must not error for pair %s", ps)
+		require.NotNilf(t, result, "result must not be nil for pair %s", ps)
 	}
 }
 
@@ -277,8 +277,8 @@ func TestWSRetrieveMarkPriceHistory(t *testing.T) {
 		futureComboPairToString(futureComboTradablePair),
 	} {
 		result, err = e.WSRetrieveMarkPriceHistory(t.Context(), ps, time.Now().Add(-4*time.Hour), time.Now())
-		require.NoErrorf(t, err, "expected %v, got %v currency pair %v", nil, err, ps)
-		require.NotNilf(t, result, "expected value not to be nil for pair: %v", ps)
+		require.NoErrorf(t, err, "request must not error for currency pair %v", ps)
+		require.NotNilf(t, result, "result must not be nil for pair %v", ps)
 	}
 }
 
@@ -341,8 +341,8 @@ func TestWSRetrieveBookSummaryByInstrument(t *testing.T) {
 		optionComboPairToString(optionComboTradablePair),
 	} {
 		result, err = e.WSRetrieveBookSummaryByInstrument(t.Context(), ps)
-		require.NoErrorf(t, err, "expected nil, got %v for pair %s", err, ps)
-		require.NotNilf(t, result, "expected result not to be nil for pair %s", ps)
+		require.NoErrorf(t, err, "request must not error for pair %s", ps)
+		require.NotNilf(t, result, "result must not be nil for pair %s", ps)
 	}
 }
 
@@ -534,8 +534,8 @@ func TestGetInstrumentData(t *testing.T) {
 	var result *InstrumentData
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err = e.GetInstrument(t.Context(), formatPairString(assetType, cp))
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
-		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
+		require.NoErrorf(t, err, "request must not error for asset %s pair %s", assetType, cp)
+		require.NotNilf(t, result, "result must not be nil for asset %s pair %s", assetType, cp)
 	}
 }
 
@@ -564,7 +564,7 @@ func TestGetInstruments(t *testing.T) {
 	result, err = e.GetInstruments(t.Context(), currency.BTC, "", true)
 	require.NoError(t, err)
 	for a := range result {
-		require.Falsef(t, result[a].IsActive, "expected expired instrument, but got active instrument %s", result[a].InstrumentName)
+		require.Falsef(t, result[a].IsActive, "instrument must be expired but was active: %s", result[a].InstrumentName)
 	}
 }
 
@@ -671,8 +671,8 @@ func TestGetLastTradesByInstrument(t *testing.T) {
 
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err := e.GetLastTradesByInstrument(t.Context(), formatPairString(assetType, cp), "30500", "31500", "desc", 0, true)
-		require.NoErrorf(t, err, "expected %v, got %v currency asset %v pair %v", nil, err, assetType, cp)
-		require.NotNilf(t, result, "expected value not to be nil for asset %v pair: %v", assetType, cp)
+		require.NoErrorf(t, err, "request must not error for asset %v pair %v", assetType, cp)
+		require.NotNilf(t, result, "result must not be nil for asset %v pair %v", assetType, cp)
 	}
 }
 
@@ -683,8 +683,8 @@ func TestWSRetrieveLastTradesByInstrument(t *testing.T) {
 
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err := e.WSRetrieveLastTradesByInstrument(t.Context(), formatPairString(assetType, cp), "30500", "31500", "desc", 0, true)
-		require.NoErrorf(t, err, "expected %v, got %v currency asset %v pair %v", nil, err, assetType, cp)
-		require.NotNilf(t, result, "expected value not to be nil for asset %v pair: %v", assetType, cp)
+		require.NoErrorf(t, err, "request must not error for asset %v pair %v", assetType, cp)
+		require.NotNilf(t, result, "result must not be nil for asset %v pair %v", assetType, cp)
 	}
 }
 
@@ -695,8 +695,8 @@ func TestGetLastTradesByInstrumentAndTime(t *testing.T) {
 
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err := e.GetLastTradesByInstrumentAndTime(t.Context(), formatPairString(assetType, cp), "", 0, time.Now().Add(-8*time.Hour), time.Now())
-		require.NoErrorf(t, err, "expected %v, got %v currency pair %v", nil, err, cp)
-		require.NotNilf(t, result, "expected value not to be nil for pair: %v", cp)
+		require.NoErrorf(t, err, "request must not error for currency pair %v", cp)
+		require.NotNilf(t, result, "result must not be nil for pair %v", cp)
 	}
 }
 
@@ -707,8 +707,8 @@ func TestWSRetrieveLastTradesByInstrumentAndTime(t *testing.T) {
 
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err := e.WSRetrieveLastTradesByInstrumentAndTime(t.Context(), formatPairString(assetType, cp), "", 0, true, time.Now().Add(-8*time.Hour), time.Now())
-		require.NoErrorf(t, err, "expected %v, got %v currency pair %v", nil, err, cp)
-		require.NotNilf(t, result, "expected value not to be nil for pair: %v", cp)
+		require.NoErrorf(t, err, "request must not error for currency pair %v", cp)
+		require.NotNilf(t, result, "result must not be nil for pair %v", cp)
 	}
 }
 
@@ -767,8 +767,8 @@ func TestGetOrderbookData(t *testing.T) {
 	var result *Orderbook
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err = e.GetOrderbook(t.Context(), formatPairString(assetType, cp), 0)
-		require.NoErrorf(t, err, "expected %v, got %v currency pair %v", nil, err, cp)
-		require.NotNilf(t, result, "expected value not to be nil for pair: %v", cp)
+		require.NoErrorf(t, err, "request must not error for currency pair %v", cp)
+		require.NotNilf(t, result, "result must not be nil for pair %v", cp)
 	}
 }
 
@@ -783,8 +783,8 @@ func TestWSRetrieveOrderbookData(t *testing.T) {
 	var result *Orderbook
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err = e.WSRetrieveOrderbookData(t.Context(), formatPairString(assetType, cp), 0)
-		require.NoErrorf(t, err, "expected %v, got %v currency pair %v", nil, err, cp)
-		require.NotNilf(t, result, "expected value not to be nil for pair: %v", cp)
+		require.NoErrorf(t, err, "request must not error for currency pair %v", cp)
+		require.NotNilf(t, result, "result must not be nil for pair %v", cp)
 	}
 }
 
@@ -3418,8 +3418,8 @@ func TestCancelAllOrders(t *testing.T) {
 		orderCancellation.AssetType = assetType
 		orderCancellation.Pair = cp
 		result, err = e.CancelAllOrders(t.Context(), orderCancellation)
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
-		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
+		require.NoErrorf(t, err, "request must not error for asset %s pair %s", assetType, cp)
+		require.NotNilf(t, result, "result must not be nil for asset %s pair %s", assetType, cp)
 	}
 }
 
@@ -3428,8 +3428,8 @@ func TestGetOrderInfo(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err := e.GetOrderInfo(t.Context(), "1234", cp, assetType)
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
-		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
+		require.NoErrorf(t, err, "request must not error for asset %s pair %s", assetType, cp)
+		require.NotNilf(t, result, "result must not be nil for asset %s pair %s", assetType, cp)
 	}
 }
 
@@ -3470,8 +3470,8 @@ func TestGetActiveOrders(t *testing.T) {
 		getOrdersRequest.Pairs = []currency.Pair{cp}
 		getOrdersRequest.AssetType = assetType
 		result, err := e.GetActiveOrders(t.Context(), &getOrdersRequest)
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
-		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
+		require.NoErrorf(t, err, "request must not error for asset %s pair %s", assetType, cp)
+		require.NotNilf(t, result, "result must not be nil for asset %s pair %s", assetType, cp)
 	}
 }
 
@@ -3483,8 +3483,8 @@ func TestGetOrderHistory(t *testing.T) {
 			Type: order.AnyType, AssetType: assetType,
 			Side: order.AnySide, Pairs: []currency.Pair{cp},
 		})
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
-		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
+		require.NoErrorf(t, err, "request must not error for asset %s pair %s", assetType, cp)
+		require.NotNilf(t, result, "result must not be nil for asset %s pair %s", assetType, cp)
 	}
 }
 
@@ -3492,8 +3492,8 @@ func TestGetAssetPairByInstrument(t *testing.T) {
 	t.Parallel()
 	for _, assetType := range []asset.Item{asset.Spot, asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo} {
 		availablePairs, err := e.GetAvailablePairs(assetType)
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %s", err, assetType)
-		require.NotNilf(t, availablePairs, "expected result not to be nil for asset type %s", assetType)
+		require.NoErrorf(t, err, "request must not error for asset type %s", assetType)
+		require.NotNilf(t, availablePairs, "available pairs must not be nil for asset type %s", assetType)
 		for _, cp := range availablePairs {
 			instrument := formatPairString(assetType, cp)
 			t.Run(fmt.Sprintf("%s %s", assetType, instrument), func(t *testing.T) {
@@ -3572,9 +3572,9 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	if !sharedtestvalues.AreAPICredentialsSet(e) {
-		assert.Equalf(t, exchange.OfflineTradeFee, feeBuilder.FeeType, "expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
+		assert.Equalf(t, exchange.OfflineTradeFee, feeBuilder.FeeType, "fee type should match expected value; expected %v, got %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
 	} else {
-		assert.Equalf(t, exchange.CryptocurrencyTradeFee, feeBuilder.FeeType, "expected %v, received %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
+		assert.Equalf(t, exchange.CryptocurrencyTradeFee, feeBuilder.FeeType, "fee type should match expected value; expected %v, got %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
 	}
 }
 
@@ -3591,14 +3591,14 @@ func TestCalculateTradingFee(t *testing.T) {
 	result, err := calculateTradingFee(feeBuilder)
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	require.Equalf(t, 1e-1, result, "expected result %f, got %f", 1e-1, result)
+	require.Equalf(t, 1e-1, result, "result must equal %f; got %f", 1e-1, result)
 	// futures
 	feeBuilder.Pair, err = currency.NewPairFromString("BTC-21OCT22")
 	require.NoError(t, err)
 	result, err = calculateTradingFee(feeBuilder)
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	require.Equalf(t, 0.1, result, "expected 0.1 but found %f", result)
+	require.Equalf(t, 0.1, result, "result must equal 0.1; got %f", result)
 	// options
 	feeBuilder.Pair, err = currency.NewPairFromString("SOL-21OCT22-20-C")
 	require.NoError(t, err)
@@ -3606,7 +3606,7 @@ func TestCalculateTradingFee(t *testing.T) {
 	result, err = calculateTradingFee(feeBuilder)
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	require.Equalf(t, 0.3, result, "expected 0.3 but found %f", result)
+	require.Equalf(t, 0.3, result, "result must equal 0.3; got %f", result)
 	// options
 	feeBuilder.Pair, err = currency.NewPairFromString("SOL-21OCT22-20-C,SOL-21OCT22-20-P")
 	require.NoError(t, err)
@@ -3614,7 +3614,7 @@ func TestCalculateTradingFee(t *testing.T) {
 	_, err = calculateTradingFee(feeBuilder)
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	require.Equalf(t, 0.3, result, "expected 0.3 but found %f", result)
+	require.Equalf(t, 0.3, result, "result must equal 0.3; got %f", result)
 	// option_combo
 	feeBuilder.Pair, err = currency.NewPairFromString("BTC-STRG-21OCT22-19000_21000")
 	require.NoError(t, err)
@@ -4100,8 +4100,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	for _, a := range e.GetAssetTypes(false) {
 		var pairs currency.Pairs
 		pairs, err = e.CurrencyPairs.GetPairs(a, false)
-		require.NoErrorf(t, err, "cannot get pairs for %s", a)
-		require.NotEmptyf(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "GetPairs must not error for asset %s", a)
+		require.NotEmptyf(t, pairs, "pairs must not be empty for asset %s", a)
 		var resp string
 		resp, err = e.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
@@ -4150,7 +4150,7 @@ func TestTimeInForceFromString(t *testing.T) {
 	t.Parallel()
 	for i := range timeInForceList {
 		result, err := timeInForceFromString(timeInForceList[i].String, timeInForceList[i].PostOnly)
-		assert.Equalf(t, timeInForceList[i].TIF, result, "expected  %s, got %s", timeInForceList[i].TIF.String(), result.String())
+		assert.Equalf(t, timeInForceList[i].TIF, result, "value should match expected TIF; expected %s, got %s", timeInForceList[i].TIF.String(), result.String())
 		require.ErrorIs(t, err, timeInForceList[i].Error)
 	}
 }

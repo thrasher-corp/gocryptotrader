@@ -56,11 +56,7 @@ var defaultSubscriptions = subscription.List{
 }
 
 func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
-		return websocket.ErrWebsocketNotEnabled
-	}
-	var dialer gws.Dialer
-	return conn.Dial(ctx, &dialer, http.Header{})
+	return conn.Dial(ctx, &gws.Dialer{}, http.Header{})
 }
 
 // wsProcessTicker handles ticker data from the websocket
