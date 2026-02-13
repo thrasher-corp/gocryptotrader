@@ -158,10 +158,11 @@ func (e *Exchange) SetDefaults() {
 	}
 	e.API.Endpoints = e.NewEndpoints()
 	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:         huobiAPIURL,
-		exchange.RestFutures:      huobiFuturesURL,
-		exchange.RestCoinMargined: huobiFuturesURL,
-		exchange.WebsocketSpot:    wsSpotURL + wsPublicPath,
+		exchange.RestSpot:                   huobiAPIURL,
+		exchange.RestFutures:                huobiFuturesURL,
+		exchange.RestCoinMargined:           huobiFuturesURL,
+		exchange.WebsocketSpot:              wsSpotURL + wsPublicPath,
+		exchange.WebsocketSpotSupplementary: wsSpotURL + wsPrivatePath,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -204,34 +205,52 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            wsSpotURL + wsPublicPath,
-		RunningURL:            wsRunningURL,
-		Connector:             e.WsConnect,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
-		GenerateSubscriptions: e.generateSubscriptions,
-		Features:              &e.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:               exch,
+		UseMultiConnectionManagement: true,
+		Features:                     &e.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
 	}
 
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		RateLimit:            request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL:                   wsRunningURL,
+		Connector:             e.wsConnect,
+		Subscriber:            e.subscribeForConnection,
+		Unsubscriber:          e.unsubscribeForConnection,
+		GenerateSubscriptions: e.generatePublicSubscriptions,
+		Handler:               e.wsHandleData,
+		RateLimit:             request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		MessageFilter:         wsRunningURL,
 	})
 	if err != nil {
 		return err
 	}
 
+	wsRunningAuthURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
+	if err != nil {
+		return err
+	}
+	if !exch.API.AuthenticatedWebsocketSupport {
+		return nil
+	}
+
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		RateLimit:            request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  wsSpotURL + wsPrivatePath,
-		Authenticated:        true,
+		URL:                      wsRunningAuthURL,
+		Connector:                e.wsConnect,
+		Authenticate:             e.wsAuth,
+		Subscriber:               e.subscribeForConnection,
+		Unsubscriber:             e.unsubscribeForConnection,
+		GenerateSubscriptions:    e.generatePrivateSubscriptions,
+		SubscriptionsNotRequired: true,
+		Handler:                  e.wsHandleData,
+		RateLimit:                request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
+		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+		Authenticated:            true,
+		MessageFilter:            wsRunningAuthURL,
 	})
 }
 
@@ -1707,7 +1726,15 @@ func setOrderSideStatusAndType(orderState, requestType string, orderDetail *orde
 
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (e *Exchange) AuthenticateWebsocket(ctx context.Context) error {
-	return e.wsLogin(ctx)
+	wsRunningAuthURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
+	if err != nil {
+		return err
+	}
+	conn, err := e.Websocket.GetConnection(wsRunningAuthURL)
+	if err != nil {
+		return err
+	}
+	return e.wsLogin(ctx, conn)
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper functionality

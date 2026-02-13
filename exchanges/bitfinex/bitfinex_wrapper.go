@@ -188,39 +188,44 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	wsEndpoint, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
-
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            publicBitfinexWebsocketEndpoint,
-		RunningURL:            wsEndpoint,
-		Connector:             e.WsConnect,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
-		GenerateSubscriptions: e.generateSubscriptions,
-		Features:              &e.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:                         exch,
+		Features:                               &e.Features.Supports.WebsocketCapabilities,
+		UseMultiConnectionManagement:           true,
+		MaxWebsocketSubscriptionsPerConnection: 25, // https://docs.bitfinex.com/docs/requirements-and-limitations
 	})
 	if err != nil {
 		return err
 	}
 
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  publicBitfinexWebsocketEndpoint,
+		Connector:             e.wsConnect,
+		Subscriber:            e.subscribeForConnection,
+		Unsubscriber:          e.unsubscribeForConnection,
+		GenerateSubscriptions: e.generatePublicSubscriptions,
+		Handler:               e.wsHandleData,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		URL:                   publicBitfinexWebsocketEndpoint,
+		MessageFilter:         publicBitfinexWebsocketEndpoint,
 	})
 	if err != nil {
 		return err
 	}
 
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  authenticatedBitfinexWebsocketEndpoint,
-		Authenticated:        true,
+		Connector:                e.wsConnect,
+		Authenticate:             e.wsAuthenticate,
+		Subscriber:               e.subscribeForConnection,
+		Unsubscriber:             e.unsubscribeForConnection,
+		GenerateSubscriptions:    e.generatePrivateSubscriptions,
+		SubscriptionsNotRequired: true,
+		Handler:                  e.wsHandleData,
+		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+		URL:                      authenticatedBitfinexWebsocketEndpoint,
+		Authenticated:            true,
+		MessageFilter:            authenticatedBitfinexWebsocketEndpoint,
 	})
 }
 
@@ -950,11 +955,6 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	}
 
 	return req.Filter(e.Name, orders), nil
-}
-
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (e *Exchange) AuthenticateWebsocket(ctx context.Context) error {
-	return e.WsSendAuth(ctx)
 }
 
 // appendOptionalDelimiter ensures that a delimiter is present for long character currencies

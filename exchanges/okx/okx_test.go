@@ -4068,7 +4068,7 @@ func TestWSProcessTrades(t *testing.T) {
 	p := currency.NewPairWithDelimiter("BTC", "USDT", currency.DashDelimiter)
 
 	for _, a := range assets {
-		err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{
+		err := e.Websocket.AddSubscriptions(nil, &subscription.Subscription{
 			Asset:   a,
 			Pairs:   currency.Pairs{p},
 			Channel: subscription.AllTradesChannel,

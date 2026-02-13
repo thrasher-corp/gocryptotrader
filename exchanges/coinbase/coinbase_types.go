@@ -29,6 +29,8 @@ type Exchange struct {
 	exchange.Base
 	jwt         jwtManager
 	pairAliases pairAliases
+	wsSeqState  map[string]uint64
+	wsSeqMu     sync.Mutex
 }
 
 // Version is used for the niche cases where the Version of the API must be specified and passed around for proper functionality
