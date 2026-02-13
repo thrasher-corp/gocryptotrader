@@ -1550,7 +1550,7 @@ var stableMap = map[key.PairAsset]bool{
 	{Base: currency.PAX.Item, Quote: currency.USD.Item}:   true,
 }
 
-// IsStablePair returns true if the currency pair is considered a "stable pair" by Coinbase
+// isStablePair returns true if the currency pair is considered a "stable pair" by Coinbase
 func isStablePair(pair currency.Pair) bool {
 	return stableMap[key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item}]
 }

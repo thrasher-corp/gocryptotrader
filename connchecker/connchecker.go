@@ -130,7 +130,7 @@ func (c *Checker) initialCheck() error {
 	return nil
 }
 
-// ConnectionTest determines if a connection to the internet is available by
+// connectionTest determines if a connection to the internet is available by
 // iterating over a set list of dns ip and popular domains
 func (c *Checker) connectionTest() {
 	for i := range c.DNSList {
