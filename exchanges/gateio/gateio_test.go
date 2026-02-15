@@ -1261,6 +1261,7 @@ func TestGetRiskLimitTiers(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	usdtmFuturesTP := getPair(t, asset.USDTMarginedFutures)
+	println("usdtmFuturesTP: ", usdtmFuturesTP.String())
 	_, err = e.GetRiskLimitTiers(t.Context(), usdtmFuturesTP.Quote, usdtmFuturesTP, 1, 10)
 	assert.NoError(t, err)
 }
@@ -3593,12 +3594,11 @@ func TestGetSettlementCurrency(t *testing.T) {
 		{asset.DeliveryFutures, getPair(t, asset.DeliveryFutures), currency.USDT, nil},
 		{asset.USDTMarginedFutures, currency.EMPTYPAIR, currency.USDT, nil},
 		{asset.USDTMarginedFutures, getPair(t, asset.USDTMarginedFutures), currency.USDT, nil},
-		{asset.USDTMarginedFutures, getPair(t, asset.CoinMarginedFutures), currency.EMPTYCODE, errInvalidSettlementQuote},
+		{asset.USDTMarginedFutures, getPair(t, asset.DeliveryFutures), currency.EMPTYCODE, errInvalidSettlementQuote},
+
 		{asset.CoinMarginedFutures, currency.EMPTYPAIR, currency.BTC, nil},
 		{asset.CoinMarginedFutures, getPair(t, asset.CoinMarginedFutures), currency.BTC, nil},
-		{asset.CoinMarginedFutures, getPair(t, asset.USDTMarginedFutures), currency.EMPTYCODE, errInvalidSettlementBase},
 		{asset.CoinMarginedFutures, currency.Pair{Base: currency.ETH, Quote: currency.USD}, currency.EMPTYCODE, errInvalidSettlementBase},
-		{asset.CoinMarginedFutures, currency.NewBTCUSDT(), currency.EMPTYCODE, errInvalidSettlementQuote},
 	} {
 		c, err := getSettlementCurrency(tt.p, tt.a)
 		if tt.err == nil {

@@ -357,16 +357,6 @@ func getIntervalString(interval kline.Interval) (string, error) {
 	return "", fmt.Errorf("%q: %w", interval.String(), kline.ErrUnsupportedInterval)
 }
 
-// GetIntervalFromString returns a kline.Interval representation of the interval string
-func (e *Exchange) GetIntervalFromString(interval string) (kline.Interval, error) {
-	for _, result := range intervalAndStringRepresentations {
-		if result.String == interval {
-			return result.Interval, nil
-		}
-	}
-	return kline.Interval(0), kline.ErrInvalidInterval
-}
-
 // GetOrderbook returns the orderbook data for a suppled currency pair
 func (e *Exchange) GetOrderbook(ctx context.Context, pairString currency.Pair, interval string, limit uint64, withOrderbookID bool) (*Orderbook, error) {
 	if pairString.IsEmpty() {
@@ -395,10 +385,10 @@ func (e *Exchange) GetMarketTrades(ctx context.Context, pairString currency.Pair
 			return nil, err
 		}
 	}
-	params := url.Values{}
 	if pairString.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
+	params := url.Values{}
 	params.Set("currency_pair", pairString.String())
 	if lastID != "" {
 		params.Set("last_id", lastID)
@@ -692,7 +682,58 @@ func (e *Exchange) GetUnifiedAccountTieredLoanMargin(ctx context.Context) ([]*Un
 
 // CalculatePortfolioMargin portfolio margin calculator
 func (e *Exchange) CalculatePortfolioMargin(ctx context.Context, arg *PortfolioMarginCalculatorParams) (*PortfolioMarginCalculationResponse, error) {
-	// TODO: ...
+	for _, sb := range arg.SpotBalances {
+		if sb.Currency.IsEmpty() {
+			return nil, currency.ErrCurrencyCodeEmpty
+		}
+		if sb.Equity <= 0 {
+			return nil, fmt.Errorf("%w: equity must be greater than 0", errInvalidOrderSize)
+		}
+	}
+	for _, so := range arg.SpotOrders {
+		if len(so.CurrencyPairs) == 0 {
+			return nil, currency.ErrCurrencyPairEmpty
+		}
+		if so.OrderPrice <= 0 {
+			return nil, fmt.Errorf("%w: order price must be greater than 0", limits.ErrPriceBelowMin)
+		}
+		if so.Left <= 0 {
+			return nil, fmt.Errorf("%w: left, unfilled quantity size must be greater than 0", errInvalidOrderSize)
+		}
+		if so.Type == order.UnknownType {
+			return nil, fmt.Errorf("%w: order type is required", order.ErrTypeIsInvalid)
+		}
+	}
+	for _, fo := range arg.FuturesOrders {
+		if fo.Contract.IsEmpty() {
+			return nil, currency.ErrCurrencyPairEmpty
+		}
+		if fo.Size <= 0 {
+			return nil, fmt.Errorf("%w: size must be greater than 0", errInvalidOrderSize)
+		}
+		if fo.Left <= 0 {
+			return nil, fmt.Errorf("%w: left, unfilled quantity size must be greater than 0", errInvalidOrderSize)
+		}
+	}
+	for _, op := range arg.OptionsPositions {
+		if op.OptionsName.IsEmpty() {
+			return nil, currency.ErrCurrencyPairEmpty
+		}
+		if op.Size <= 0 {
+			return nil, fmt.Errorf("%w: size must be greater than 0", errInvalidOrderSize)
+		}
+	}
+	for _, oo := range arg.OptionsOrders {
+		if oo.OptionsName.IsEmpty() {
+			return nil, currency.ErrCurrencyPairEmpty
+		}
+		if oo.Size <= 0 {
+			return nil, fmt.Errorf("%w: size must be greater than 0", errInvalidOrderSize)
+		}
+		if oo.Left <= 0 {
+			return nil, fmt.Errorf("%w: left, unfilled quantity size must be greater than 0", errInvalidOrderSize)
+		}
+	}
 	var resp *PortfolioMarginCalculationResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "unified/portfolio_calculator", nil, arg, &resp)
 }

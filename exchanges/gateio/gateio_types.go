@@ -3246,32 +3246,32 @@ type PortfolioMarginCalculatorParams struct {
 
 // SpotBalanceParams holds a spot balance parameters
 type SpotBalanceParams struct {
-	Currency string  `json:"currency"`
-	Equity   float64 `json:"equity,omitempty,string"`
-	Freeze   float64 `json:"freeze,omitempty,string"`
+	Currency currency.Code `json:"currency"`
+	Equity   float64       `json:"equity,omitempty,string"`
+	Freeze   float64       `json:"freeze,omitempty,string"`
 }
 
 // SpotOrderParams represents a unified account margin calculator spot order parameters
 type SpotOrderParams struct {
-	CurrencyPairs string  `json:"currency_pairs"`
-	OrderPrice    float64 `json:"order_price,omitempty,string"`
-	Size          float64 `json:"size,omitempty"`
-	Left          float64 `json:"left,omitempty"`
-	Type          string  `json:"type,omitempty"`
+	CurrencyPairs string     `json:"currency_pairs"`
+	OrderPrice    float64    `json:"order_price,omitempty,string"`
+	Size          float64    `json:"size,omitempty"`
+	Left          float64    `json:"left,omitempty"`
+	Type          order.Type `json:"type,omitempty"`
 }
 
 // FuturesOrderInfo holds option unified account margin calculator parameters
 type FuturesOrderInfo struct {
-	Contract string  `json:"contract,omitempty"`
-	Size     float64 `json:"size,omitempty,string"`
-	Left     float64 `json:"left,omitempty,string"`
+	Contract currency.Pair `json:"contract,omitempty"`
+	Size     float64       `json:"size,omitempty,string"`
+	Left     float64       `json:"left,omitempty,string"`
 }
 
 // OptionsOrderInfo holds option unified account margin calculator parameters
 type OptionsOrderInfo struct {
-	OptionsName string  `json:"options_name,omitempty"`
-	Size        float64 `json:"size,omitempty,string"`
-	Left        float64 `json:"left,omitempty,string"`
+	OptionsName currency.Pair `json:"options_name,omitempty"`
+	Size        float64       `json:"size,omitempty,string"`
+	Left        float64       `json:"left,omitempty,string"`
 }
 
 // SpotPortfolioBalanceCalculationParam spot portfolio balance calculation params

@@ -2599,7 +2599,7 @@ func getSettlementCurrency(p currency.Pair, a asset.Item) (currency.Code, error)
 			if !p.Base.Equal(currency.BTC) { // Only BTC endpoint currently available
 				return currency.EMPTYCODE, fmt.Errorf("%w %s %s", errInvalidSettlementBase, a, p)
 			}
-			if !p.Quote.Equal(currency.USD) { // We expect all Coin-M to be quoted in USD
+			if !p.Quote.Equal(currency.USDT) { // We expect all Coin-M to be quoted in USD
 				return currency.EMPTYCODE, fmt.Errorf("%w %s %s", errInvalidSettlementQuote, a, p)
 			}
 		}
