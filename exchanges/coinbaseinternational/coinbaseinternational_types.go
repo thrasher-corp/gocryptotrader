@@ -17,8 +17,8 @@ type AssetItemInfo struct {
 	Status                              string  `json:"status"`
 	CollateralWeight                    float64 `json:"collateral_weight"`
 	SupportedNetworksEnabled            bool    `json:"supported_networks_enabled"`
-	MinBorrowQty                        float64 `json:"min_borrow_qty"`
-	MaxBorrowQty                        float64 `json:"max_borrow_qty"`
+	MinBorrowQuantity                   float64 `json:"min_borrow_qty"`
+	MaxBorrowQuantity                   float64 `json:"max_borrow_qty"`
 	LoanCollateralRequirementMultiplier float64 `json:"loan_collateral_requirement_multiplier"`
 	EcosystemCollateralLimitBreached    bool    `json:"ecosystem_collateral_limit_breached"`
 	LoanInitialMargin                   float64 `json:"loan_initial_margin"`
@@ -27,17 +27,17 @@ type AssetItemInfo struct {
 
 // AssetInfoWithSupportedNetwork represents network information for a specific asset.
 type AssetInfoWithSupportedNetwork struct {
-	AssetID          int64   `json:"asset_id"`
-	AssetUUID        string  `json:"asset_uuid"`
-	AssetName        string  `json:"asset_name"`
-	NetworkArnID     string  `json:"network_arn_id"`
-	MinWithdrawalAmt float64 `json:"min_withdrawal_amt"`
-	MaxWithdrawalAmt float64 `json:"max_withdrawal_amt"`
-	NetworkConfirms  int64   `json:"network_confirms"`
-	ProcessingTime   int64   `json:"processing_time"` // Number of seconds estimated to process a transaction on the network
-	IsDefault        bool    `json:"is_default"`
-	NetworkName      string  `json:"network_name"`
-	DisplayName      string  `json:"display_name"`
+	AssetID             int64      `json:"asset_id"`
+	AssetUUID           string     `json:"asset_uuid"`
+	AssetName           string     `json:"asset_name"`
+	NetworkArnID        string     `json:"network_arn_id"`
+	MinWithdrawalAmount float64    `json:"min_withdrawal_amt"`
+	MaxWithdrawalAmount float64    `json:"max_withdrawal_amt"`
+	NetworkConfirms     int64      `json:"network_confirms"`
+	ProcessingTime      types.Time `json:"processing_time"` // Number of seconds estimated to process a transaction on the network
+	IsDefault           bool       `json:"is_default"`
+	NetworkName         string     `json:"network_name"`
+	DisplayName         string     `json:"display_name"`
 }
 
 // InstrumentInfo represents an instrument detail for specific instrument id.
@@ -56,11 +56,11 @@ type InstrumentInfo struct {
 	QuoteIncrement            types.Number        `json:"quote_increment"`
 	PriceBandPercent          float64             `json:"price_band_percent"`
 	MarketOrderPercent        float64             `json:"market_order_percent"`
-	Qty24Hr                   types.Number        `json:"qty_24hr"`
+	Quantity24Hr              types.Number        `json:"qty_24hr"`
 	Notional24Hr              types.Number        `json:"notional_24hr"`
-	AvgDailyQty               types.Number        `json:"avg_daily_qty"`
+	AvgDailyQuantity          types.Number        `json:"avg_daily_qty"`
 	AvgDailyNotional          types.Number        `json:"avg_daily_notional"`
-	PreviousDayQty            types.Number        `json:"previous_day_qty"`
+	PreviousDayQuantity       types.Number        `json:"previous_day_qty"`
 	OpenInterest              types.Number        `json:"open_interest"`
 	PositionLimitQty          types.Number        `json:"position_limit_qty"`
 	PositionLimitAdqPct       float64             `json:"position_limit_adq_pct"`
@@ -74,8 +74,8 @@ type InstrumentInfo struct {
 	PositionLimitAdv          float64             `json:"position_limit_adv"`
 	InitialMarginAdv          float64             `json:"initial_margin_adv"`
 	Mode                      string              `json:"mode"`
-	Avg30DayNotional          string              `json:"avg_30day_notional"`
-	Avg30DayQty               types.Number        `json:"avg_30day_qty"`
+	Average30DayNotional      string              `json:"avg_30day_notional"`
+	Average30DayQuantity      types.Number        `json:"avg_30day_qty"`
 	Quote                     ContractQuoteDetail `json:"quote,omitempty"`
 	DefaultImf                float64             `json:"default_imf,omitempty"`
 	BaseAssetMultiplier       string              `json:"base_asset_multiplier"`
@@ -595,9 +595,9 @@ type PortfolioFeeRate struct {
 type VolumeRankingInfo struct {
 	LastUpdated time.Time `json:"last_updated"`
 	Statistics  struct {
-		Maker RankingInfo `json:"maker"`
-		Taker RankingInfo `json:"taker"`
-		Total RankingInfo `json:"total"`
+		Maker *RankingInfo `json:"maker"`
+		Taker *RankingInfo `json:"taker"`
+		Total *RankingInfo `json:"total"`
 	} `json:"statistics"`
 }
 
@@ -765,28 +765,28 @@ type SubscribedChannel struct {
 
 // WsInstrument holds response information to websocket
 type WsInstrument struct {
-	Sequence            int64        `json:"sequence"`
-	ProductID           string       `json:"product_id"`
-	InstrumentType      string       `json:"instrument_type"`
-	BaseAssetName       string       `json:"base_asset_name"`
-	QuoteAssetName      string       `json:"quote_asset_name"`
-	BaseIncrement       types.Number `json:"base_increment"`
-	QuoteIncrement      types.Number `json:"quote_increment"`
-	AvgDailyQuantity    types.Number `json:"avg_daily_quantity"`
-	AvgDailyVolume      types.Number `json:"avg_daily_volume"`
-	Total30DayQuantity  types.Number `json:"total_30_day_quantity"`
-	Total30DayVolume    types.Number `json:"total_30_day_volume"`
-	Total24HourQuantity types.Number `json:"total_24_hour_quantity"`
-	Total24HourVolume   types.Number `json:"total_24_hour_volume"`
-	MinQuantity         types.Number `json:"min_quantity"`
-	PositionSizeLimit   types.Number `json:"position_size_limit"`
-	BaseImf             string       `json:"base_imf"`
-	FundingInterval     string       `json:"funding_interval"`
-	TradingState        string       `json:"trading_state"`
-	LastUpdateTime      time.Time    `json:"last_update_time"`
-	GatewayTime         time.Time    `json:"time"`
-	Channel             string       `json:"channel"`
-	Type                string       `json:"type"`
+	Sequence             int64        `json:"sequence"`
+	ProductID            string       `json:"product_id"`
+	InstrumentType       string       `json:"instrument_type"`
+	BaseAssetName        string       `json:"base_asset_name"`
+	QuoteAssetName       string       `json:"quote_asset_name"`
+	BaseIncrement        types.Number `json:"base_increment"`
+	QuoteIncrement       types.Number `json:"quote_increment"`
+	AverageDailyQuantity types.Number `json:"avg_daily_quantity"`
+	AverageDailyVolume   types.Number `json:"avg_daily_volume"`
+	Total30DayQuantity   types.Number `json:"total_30_day_quantity"`
+	Total30DayVolume     types.Number `json:"total_30_day_volume"`
+	Total24HourQuantity  types.Number `json:"total_24_hour_quantity"`
+	Total24HourVolume    types.Number `json:"total_24_hour_volume"`
+	MinQuantity          types.Number `json:"min_quantity"`
+	PositionSizeLimit    types.Number `json:"position_size_limit"`
+	BaseImf              string       `json:"base_imf"`
+	FundingInterval      string       `json:"funding_interval"`
+	TradingState         string       `json:"trading_state"`
+	LastUpdateTime       time.Time    `json:"last_update_time"`
+	GatewayTime          time.Time    `json:"time"`
+	Channel              string       `json:"channel"`
+	Type                 string       `json:"type"`
 }
 
 // WsMatch holds push data information through the channel MATCH.
@@ -828,15 +828,15 @@ type WsRisk struct {
 
 // WsOrderbookLevel1 holds Level-1 orderbook information
 type WsOrderbookLevel1 struct {
-	Sequence  int64        `json:"sequence"`
-	ProductID string       `json:"product_id"`
-	Time      time.Time    `json:"time"`
-	BidPrice  types.Number `json:"bid_price"`
-	BidQty    types.Number `json:"bid_qty"`
-	Channel   string       `json:"channel"`
-	Type      string       `json:"type"`
-	AskPrice  types.Number `json:"ask_price,omitempty"`
-	AskQty    types.Number `json:"ask_qty,omitempty"`
+	Sequence    int64        `json:"sequence"`
+	ProductID   string       `json:"product_id"`
+	Time        time.Time    `json:"time"`
+	BidPrice    types.Number `json:"bid_price"`
+	BidQuantity types.Number `json:"bid_qty"`
+	Channel     string       `json:"channel"`
+	Type        string       `json:"type"`
+	AskPrice    types.Number `json:"ask_price,omitempty"`
+	AskQty      types.Number `json:"ask_qty,omitempty"`
 }
 
 // WsOrderbookLevel2 holds Level-2 orderbook information.
@@ -861,7 +861,7 @@ type FeeRateInfo struct {
 	FeeTierName             string       `json:"fee_tier_name"`
 	MakerFeeRate            types.Number `json:"maker_fee_rate"`
 	TakerFeeRate            types.Number `json:"taker_fee_rate"`
-	RebateRate              string       `json:"rebate_rate"`
+	RebateRate              types.Number `json:"rebate_rate"`
 	MinBalance              types.Number `json:"min_balance"`
 	MinVolume               types.Number `json:"min_volume"`
 	RequireBalanceAndVolume types.Number `json:"require_balance_and_volume"`

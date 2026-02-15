@@ -861,9 +861,9 @@ func (e *Exchange) TransferFundsBetweenPortfolios(ctx context.Context, arg *Tran
 	if arg.Amount <= 0 {
 		return false, order.ErrAmountIsInvalid
 	}
-	resp := &struct {
+	var resp struct {
 		Success bool `json:"success"`
-	}{}
+	}
 	return resp.Success, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "portfolios/transfer", nil, arg, &resp, true)
 }
 
@@ -889,9 +889,9 @@ func (e *Exchange) TransferPositionsBetweenPortfolios(ctx context.Context, arg *
 	if arg.Side == "" {
 		return false, order.ErrSideIsInvalid
 	}
-	resp := &struct {
+	var resp struct {
 		Success bool `json:"success"`
-	}{}
+	}
 	return resp.Success, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "portfolios/transfer-position", nil, arg, &resp, true)
 }
 
@@ -1122,11 +1122,11 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, method,
 	}, requestType); err != nil {
 		return err
 	}
-	errorMessage := &struct {
+	var errorMessage struct {
 		Title  string `json:"title"`
 		Status int64  `json:"status"`
-	}{}
-	if err := json.Unmarshal(intrim, errorMessage); err != nil {
+	}
+	if err := json.Unmarshal(intrim, &errorMessage); err != nil {
 		return err
 	}
 	if errorMessage.Status != 0 {

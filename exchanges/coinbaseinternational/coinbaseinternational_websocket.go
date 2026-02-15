@@ -84,8 +84,7 @@ func (e *Exchange) wsReadData(conn websocket.Connection) {
 
 func (e *Exchange) wsHandleData(respRaw []byte) error {
 	var resp SubscriptionResponse
-	err := json.Unmarshal(respRaw, &resp)
-	if err != nil {
+	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
 	switch resp.Type {
@@ -98,9 +97,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 					Pairs:   resp.Channels[x].ProductIDs,
 				})
 		}
-		if err := e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, subsccefulySubscribedChannels...); err != nil {
-			return err
-		}
+		return e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, subsccefulySubscribedChannels...)
 	case "UNSUBSCRIBE":
 		var subsccefulySubscribedChannels subscription.List
 		for x := range resp.Channels {
@@ -110,9 +107,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 					Pairs:   resp.Channels[x].ProductIDs,
 				})
 		}
-		if err := e.Websocket.RemoveSubscriptions(e.Websocket.Conn, subsccefulySubscribedChannels...); err != nil {
-			return err
-		}
+		return e.Websocket.RemoveSubscriptions(e.Websocket.Conn, subsccefulySubscribedChannels...)
 	case "REJECT":
 		return fmt.Errorf("%s %v message: %s, reason: %s  ", resp.Channel, resp.Type, resp.Message, resp.Reason)
 	default: //  SNAPSHOT and UPDATE
@@ -191,7 +186,7 @@ func (e *Exchange) processOrderbookLevel1(respRaw []byte) error {
 				Action:     orderbook.UpdateAction,
 				UpdateID:   resp[x].Sequence,
 				Asks:       []orderbook.Level{{Price: resp[x].AskPrice.Float64(), Amount: resp[x].AskQty.Float64()}},
-				Bids:       []orderbook.Level{{Price: resp[x].BidPrice.Float64(), Amount: resp[x].BidQty.Float64()}},
+				Bids:       []orderbook.Level{{Price: resp[x].BidPrice.Float64(), Amount: resp[x].BidQuantity.Float64()}},
 			}); err != nil {
 				return err
 			}
@@ -203,7 +198,7 @@ func (e *Exchange) processOrderbookLevel1(respRaw []byte) error {
 			LastUpdated:  resp[x].Time,
 			LastUpdateID: resp[x].Sequence,
 			Asks:         []orderbook.Level{{Price: resp[x].AskPrice.Float64(), Amount: resp[x].AskQty.Float64()}},
-			Bids:         []orderbook.Level{{Price: resp[x].BidPrice.Float64(), Amount: resp[x].BidQty.Float64()}},
+			Bids:         []orderbook.Level{{Price: resp[x].BidPrice.Float64(), Amount: resp[x].BidQuantity.Float64()}},
 		}); err != nil {
 			return err
 		}
