@@ -2273,7 +2273,7 @@ func (e *Exchange) GetInterestRate(ctx context.Context, ccy currency.Code) ([]In
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	var resp []InterestRate
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, interestRateEPL, http.MethodGet, "/v3/project/marketInterestRate?currency="+ccy.String(), nil, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, interestRateEPL, "/v3/project/marketInterestRate?currency="+ccy.String(), &resp)
 }
 
 // MarginLendingSubscription retrieves margin lending subscription information.
