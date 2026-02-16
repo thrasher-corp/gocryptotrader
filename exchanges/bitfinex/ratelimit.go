@@ -15,7 +15,7 @@ const (
 	tradeReqRate              = 30
 	orderbookReqRate          = 30
 	statsReqRate              = 90
-	candleReqRate             = 60
+	candleReqRate             = 30
 	configsReqRate            = 15
 	statusReqRate             = 15 // This is not specified just inputted WCS
 	liquidReqRate             = 15 // This is not specified just inputted WCS
@@ -77,10 +77,10 @@ const (
 	// Account V1 endpoints
 	getAccountFeesReqRate    = 5
 	getWithdrawalFeesReqRate = 5
-	getAccountSummaryReqRate = 5 // This is not specified just inputted above
-	newDepositAddressReqRate = 5 // This is not specified just inputted above
-	getKeyPermissionsReqRate = 5 // This is not specified just inputted above
-	getMarginInfoReqRate     = 5 // This is not specified just inputted above
+	getAccountSummaryReqRate = 5  // This is not specified just inputted above
+	newDepositAddressReqRate = 5  // This is not specified just inputted above
+	getKeyPermissionsReqRate = 5  // This is not specified just inputted above
+	getMarginInfoReqRate     = 5  // This is not specified just inputted above
 	getAccountBalanceReqRate = 10
 	walletTransferReqRate    = 10 // This is not specified just inputted above
 	withdrawV1ReqRate        = 10 // This is not specified just inputted above
