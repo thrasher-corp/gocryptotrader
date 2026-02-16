@@ -37,7 +37,7 @@ func TestUnmarshalJSON(t *testing.T) {
 		{`"1606292218213.4578"`, time.Unix(0, 1606292218213457800), nil},
 		{`"1560516023.070651"`, time.Unix(0, 1560516023070651000), nil},
 		{`"1606292218213457800"`, time.Unix(0, 1606292218213457800), nil},
-		{`"blurp"`, time.Time{}, errInvalidTimestampFormat},
+		{`"blurp"`, time.Time{}, strconv.ErrSyntax},
 		{`"123456"`, time.Time{}, errInvalidTimestampFormat},
 		{`"2025-03-28T08:00:00Z"`, time.Time{}, strconv.ErrSyntax}, // RFC3339 format (currently unsupported)
 	} {
