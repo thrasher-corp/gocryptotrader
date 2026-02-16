@@ -285,29 +285,18 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		}
 		return e.Websocket.DataHandler.Send(ctx, wsStatus)
 	case "ticker", "ticker_batch":
-		if err := e.wsProcessTicker(ctx, &resp); err != nil {
-			return err
-		}
+		return e.wsProcessTicker(ctx, &resp)
 	case "candles":
-		if err := e.wsProcessCandle(ctx, &resp); err != nil {
-			return err
-		}
+		return e.wsProcessCandle(ctx, &resp)
 	case "market_trades":
-		if err := e.wsProcessMarketTrades(ctx, &resp); err != nil {
-			return err
-		}
+		return e.wsProcessMarketTrades(ctx, &resp)
 	case "l2_data":
-		if err := e.wsProcessL2(&resp); err != nil {
-			return err
-		}
+		return e.wsProcessL2(&resp)
 	case "user":
-		if err := e.wsProcessUser(ctx, &resp); err != nil {
-			return err
-		}
+		return e.wsProcessUser(ctx, &resp)
 	default:
 		return errChannelNameUnknown
 	}
-	return nil
 }
 
 func (e *Exchange) checkWSSequence(conn websocket.Connection, sequence uint64) error {

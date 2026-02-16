@@ -4,14 +4,12 @@ import (
 	"bufio"
 	"context"
 	"log"
-	"net/http"
 	"os"
 	"strconv"
 	"testing"
 	"time"
 
 	"github.com/buger/jsonparser"
-	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -23,7 +21,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -1380,7 +1377,10 @@ func TestWSCancelOffer(t *testing.T) {
 }
 
 func TestWSSubscribedResponse(t *testing.T) {
-	conn := &bitfinexTestWSConn{match: e.Websocket.Match}
+	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	conn := testexch.GetMockConn(t, e)
 	ch, err := e.Websocket.Match.Set("subscribe:waiter1", 1)
 	assert.NoError(t, err, "Setting a matcher should not error")
 	err = e.wsHandleData(t.Context(), conn, []byte(`{"event":"subscribed","channel":"ticker","chanId":224555,"subId":"waiter1","symbol":"tBTCUSD","pair":"BTCUSD"}`))
@@ -1529,7 +1529,10 @@ func TestWSOrderSnapshot(t *testing.T) {
 }
 
 func TestWSNotifications(t *testing.T) {
-	conn := &bitfinexTestWSConn{match: e.Websocket.Match}
+	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	conn := testexch.GetMockConn(t, e)
 	pressXToJSON := `[0,"n",[1575282446099,"fon-req",null,null,[41238905,null,null,null,-1000,null,null,null,null,null,null,null,null,null,0.002,2,null,null,null,null,null],null,"SUCCESS","Submitting funding bid of 1000.0 USD at 0.2000 for 2 days."]]`
 	err := e.wsHandleData(t.Context(), conn, []byte(pressXToJSON))
 	if err != nil {
@@ -2073,57 +2076,3 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		assert.NotEmpty(t, resp)
 	}
 }
-
-type bitfinexTestWSConn struct {
-	match *websocket.Match
-	url   string
-}
-
-func (m *bitfinexTestWSConn) Dial(context.Context, *gws.Dialer, http.Header) error {
-	return nil
-}
-func (m *bitfinexTestWSConn) ReadMessage() websocket.Response { return websocket.Response{} }
-func (m *bitfinexTestWSConn) SetupPingHandler(request.EndpointLimit, websocket.PingHandler) {
-}
-
-func (m *bitfinexTestWSConn) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
-	return nil, nil
-}
-
-func (m *bitfinexTestWSConn) SendMessageReturnResponses(context.Context, request.EndpointLimit, any, any, int) ([][]byte, error) {
-	return nil, nil
-}
-
-func (m *bitfinexTestWSConn) SendMessageReturnResponsesWithInspector(context.Context, request.EndpointLimit, any, any, int, websocket.Inspector) ([][]byte, error) {
-	return nil, nil
-}
-
-func (m *bitfinexTestWSConn) SendRawMessage(context.Context, request.EndpointLimit, int, []byte) error {
-	return nil
-}
-
-func (m *bitfinexTestWSConn) SendJSONMessage(context.Context, request.EndpointLimit, any) error {
-	return nil
-}
-func (m *bitfinexTestWSConn) SetURL(url string) { m.url = url }
-func (m *bitfinexTestWSConn) SetProxy(string)   {}
-func (m *bitfinexTestWSConn) GetURL() string    { return m.url }
-func (m *bitfinexTestWSConn) Shutdown() error   { return nil }
-func (m *bitfinexTestWSConn) RequireMatchWithData(signature any, incoming []byte) error {
-	if m.match == nil {
-		return nil
-	}
-	return m.match.RequireMatchWithData(signature, incoming)
-}
-
-func (m *bitfinexTestWSConn) IncomingWithData(signature any, data []byte) bool {
-	if m.match == nil {
-		return false
-	}
-	return m.match.IncomingWithData(signature, data)
-}
-
-func (m *bitfinexTestWSConn) MatchReturnResponses(context.Context, any, int) (<-chan websocket.MatchedResponse, error) {
-	return nil, nil
-}
-func (m *bitfinexTestWSConn) Subscriptions() *subscription.Store { return nil }
