@@ -1025,7 +1025,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	require.NoError(t, err, "GetOrderExecutionLimits must not error")
 	assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
 	assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
-	
+
 	require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported, "UpdateOrderExecutionLimits must error")
 }
 
