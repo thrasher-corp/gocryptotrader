@@ -6048,6 +6048,8 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp := subscription.List{
 		{Channel: subscription.MyAccountChannel, QualifiedChannel: `{"channel":"account"}`, Authenticated: true},
+		{Channel: channelBalanceAndPosition, QualifiedChannel: `{"channel":"balance_and_position"}`, Authenticated: true},
+		{Channel: channelAccountGreeks, QualifiedChannel: `{"channel":"account-greeks"}`, Authenticated: true},
 	}
 	var pairs currency.Pairs
 	for _, s := range e.Features.Subscriptions {

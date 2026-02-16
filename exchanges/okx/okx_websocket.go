@@ -224,6 +224,8 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},
 	{Enabled: true, Asset: asset.All, Channel: subscription.MyOrdersChannel, Authenticated: true},
 	{Enabled: true, Channel: subscription.MyAccountChannel, Authenticated: true},
+	{Enabled: true, Channel: channelBalanceAndPosition, Authenticated: true},
+	{Enabled: true, Channel: channelAccountGreeks, Authenticated: true},
 }
 
 var subscriptionNames = map[string]string{

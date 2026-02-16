@@ -3311,7 +3311,11 @@ func TestGenerateSubscriptions(t *testing.T) {
 			if isSymbolChannel(s) {
 				for i, p := range pairs {
 					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
-					s.QualifiedChannel = channelName(s) + "." + p.String()
+					s.QualifiedChannel = channelName(s)
+					if !strings.HasSuffix(s.QualifiedChannel, ".") {
+						s.QualifiedChannel += "."
+					}
+					s.QualifiedChannel += p.String()
 					if s.Interval != 0 {
 						s.QualifiedChannel += "." + channelInterval(s)
 					}

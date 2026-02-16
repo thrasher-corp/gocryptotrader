@@ -829,7 +829,7 @@ func (e *Exchange) generateAuthSubscriptions() (subscription.List, error) {
 
 	var subscriptions subscription.List
 	// TODO: Implement DCP (Disconnection Protect) subscription
-	for _, channel := range []string{chanPositions, chanExecution, chanOrder, chanWallet} {
+	for _, channel := range []string{chanPositions, chanExecution, chanOrder, chanWallet, chanGreeks} {
 		subscriptions = append(subscriptions, &subscription.Subscription{Channel: channel, Asset: asset.All})
 	}
 	return subscriptions, nil

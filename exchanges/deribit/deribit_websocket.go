@@ -72,6 +72,7 @@ var subscriptionNames = map[string]string{
 	subscription.AllTradesChannel:          tradesChannel,
 	subscription.MyTradesChannel:           userTradesChannel,
 	subscription.MyOrdersChannel:           userOrdersChannel,
+	subscription.MyAccountChannel:          userChangesInstrumentsChannel,
 	announcementsChannel:                   announcementsChannel,
 	priceIndexChannel:                      priceIndexChannel,
 	priceRankingChannel:                    priceRankingChannel,
@@ -101,6 +102,7 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.All, Channel: subscription.AllTradesChannel, Interval: kline.HundredMilliseconds},
 	{Enabled: true, Asset: asset.All, Channel: subscription.MyOrdersChannel, Interval: kline.HundredMilliseconds, Authenticated: true},
 	{Enabled: true, Asset: asset.All, Channel: subscription.MyTradesChannel, Interval: kline.HundredMilliseconds, Authenticated: true},
+	{Enabled: true, Asset: asset.All, Channel: subscription.MyAccountChannel, Interval: kline.HundredMilliseconds, Authenticated: true},
 }
 
 // WsConnect starts a new connection with the websocket API
@@ -795,6 +797,7 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 		"interval":        channelInterval,
 		"isSymbolChannel": isSymbolChannel,
 		"fmt":             formatChannelPair,
+		"symbolSep":       symbolChannelSeparator,
 	}).
 		Parse(subTplText)
 }
@@ -913,11 +916,18 @@ func formatChannelPair(pair currency.Pair) string {
 	return pair.String()
 }
 
+func symbolChannelSeparator(s *subscription.Subscription) string {
+	if strings.HasSuffix(channelName(s), ".") {
+		return ""
+	}
+	return "."
+}
+
 const subTplText = `
 {{- if isSymbolChannel $.S -}}
 	{{- range $asset, $pairs := $.AssetPairs }}
 		{{- range $p := $pairs }}
-			{{- channelName $.S -}} . {{- fmt $p }}
+			{{- channelName $.S -}}{{- symbolSep $.S -}}{{- fmt $p }}
 			{{- with $i := interval $.S -}} . {{- $i }}{{ end }}
 			{{- $.PairSeparator }}
 		{{- end }}
