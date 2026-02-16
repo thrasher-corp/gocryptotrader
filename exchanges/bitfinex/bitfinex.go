@@ -1202,7 +1202,7 @@ func (e *Exchange) GetKeyPermissions(ctx context.Context) (KeyPermissions, error
 		bitfinexKeyPermissions,
 		nil,
 		&response,
-		getAccountFees)
+		getKeyPermissions)
 }
 
 // GetMarginInfo shows your trading wallet information for margin trading

@@ -77,10 +77,10 @@ const (
 	// Account V1 endpoints
 	getAccountFeesReqRate    = 5
 	getWithdrawalFeesReqRate = 5
-	getAccountSummaryReqRate = 5  // This is not specified just inputted above
-	newDepositAddressReqRate = 5  // This is not specified just inputted above
-	getKeyPermissionsReqRate = 5  // This is not specified just inputted above
-	getMarginInfoReqRate     = 5  // This is not specified just inputted above
+	getAccountSummaryReqRate = 5 // This is not specified just inputted above
+	newDepositAddressReqRate = 5 // This is not specified just inputted above
+	getKeyPermissionsReqRate = 5 // This is not specified just inputted above
+	getMarginInfoReqRate     = 5 // This is not specified just inputted above
 	getAccountBalanceReqRate = 10
 	walletTransferReqRate    = 10 // This is not specified just inputted above
 	withdrawV1ReqRate        = 10 // This is not specified just inputted above
