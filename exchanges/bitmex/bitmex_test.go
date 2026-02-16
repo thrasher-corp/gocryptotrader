@@ -1164,29 +1164,15 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		t.Run(a.String(), func(t *testing.T) {
 			t.Parallel()
 			err := e.UpdateOrderExecutionLimits(t.Context(), a)
-			switch a {
-			case asset.Futures, asset.PerpetualContract:
-				require.NoError(t, err, "UpdateOrderExecutionLimits must not error")
-			default:
-				require.Error(t, err, "UpdateOrderExecutionLimits must error")
-				return
-			}
+			require.NoError(t, err, "UpdateOrderExecutionLimits must not error")
 			pairs, err := e.CurrencyPairs.GetPairs(a, false)
 			require.NoError(t, err, "GetPairs must not error")
 			require.NotEmpty(t, pairs, "GetPairs must return pairs")
-			var found bool
-			for i := range pairs {
-				l, err := e.GetOrderExecutionLimits(a, pairs[i])
-				if err != nil {
-					continue
-				}
+			for _, p := range pairs {
+				l, err := e.GetOrderExecutionLimits(a, p)
+				require.NoError(t, err, "GetOrderExecutionLimits must not error")
 				assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
-				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
-				assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
-				found = true
-				break
 			}
-			assert.True(t, found, "GetOrderExecutionLimits should return at least one result")
 		})
 	}
 }

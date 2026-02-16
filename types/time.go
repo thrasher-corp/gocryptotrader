@@ -38,9 +38,15 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 		}
 	}
 
-	// Expects a string of length 10 (seconds), 13 (milliseconds), 16 (microseconds), or 19 (nanoseconds) representing a Unix timestamp
 	switch len(s) {
-	case 12, 15, 18:
+	case 8:
+		parsed, err := time.Parse("20060102", s)
+		if err != nil {
+			return fmt.Errorf("error parsing %q into date: %w", s, err)
+		}
+		*t = Time(parsed)
+		return nil
+	case 12, 15, 18: // Expects a string of length 10 (seconds), 13 (milliseconds), 16 (microseconds), or 19 (nanoseconds) representing a Unix timestamp
 		s += "0"
 	case 11, 14, 17:
 		s += "00"
@@ -74,7 +80,7 @@ func (t Time) String() string {
 	return t.Time().String()
 }
 
-// MarshalJSON serializes the time to json.
+// MarshalJSON serializes the time to json using RFC 3339 format.
 func (t Time) MarshalJSON() ([]byte, error) {
 	return t.Time().MarshalJSON()
 }

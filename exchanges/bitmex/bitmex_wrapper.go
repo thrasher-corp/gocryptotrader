@@ -193,80 +193,83 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 	}
 
 	pairs := make([]currency.Pair, 0, len(marketInfo))
-	for x := range marketInfo {
-		if marketInfo[x].State != "Open" && a != asset.Index {
+	for i := range marketInfo {
+		if marketInfo[i].State != "Open" && a != asset.Index {
 			continue
 		}
 
 		var pair currency.Pair
 		switch a {
 		case asset.Spot:
-			if marketInfo[x].Typ == spotID {
-				pair, err = currency.NewPairFromString(marketInfo[x].Symbol)
-				if err != nil {
-					return nil, err
-				}
-				pairs = append(pairs, pair)
+			if marketInfo[i].Typ != spotID {
+				continue
 			}
+			pair, err = currency.NewPairFromString(marketInfo[i].Symbol)
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, pair)
 		case asset.PerpetualContract:
-			if marketInfo[x].Typ == perpetualContractID {
-				var settleTrail string
-				if strings.Contains(marketInfo[x].Symbol, currency.UnderscoreDelimiter) {
-					// Example: ETHUSD_ETH quoted in USD, paid out in ETH.
-					settlement := strings.Split(marketInfo[x].Symbol, currency.UnderscoreDelimiter)
-					if len(settlement) != 2 {
-						log.Warnf(log.ExchangeSys, "%s currency %s %s cannot be added to tradable pairs",
-							e.Name,
-							marketInfo[x].Symbol,
-							a)
-						break
-					}
-					settleTrail = currency.UnderscoreDelimiter + settlement[1]
-				}
-				pair, err = currency.NewPairFromStrings(marketInfo[x].Underlying,
-					marketInfo[x].QuoteCurrency+settleTrail)
-				if err != nil {
-					return nil, err
-				}
-				pairs = append(pairs, pair)
+			if marketInfo[i].Typ != perpetualContractID {
+				continue
 			}
-		case asset.Futures:
-			if marketInfo[x].Typ == futuresID {
-				isolate := strings.Split(marketInfo[x].Symbol, currency.UnderscoreDelimiter)
-				if len(isolate[0]) < 3 {
-					log.Warnf(log.ExchangeSys, "%s currency %s %s be cannot added to tradable pairs",
+			var settleTrail string
+			if strings.Contains(marketInfo[i].Symbol, currency.UnderscoreDelimiter) {
+				// Example: ETHUSD_ETH quoted in USD, paid out in ETH.
+				settlement := strings.Split(marketInfo[i].Symbol, currency.UnderscoreDelimiter)
+				if len(settlement) != 2 {
+					log.Warnf(log.ExchangeSys, "%s currency %s %s cannot be added to tradable pairs",
 						e.Name,
-						marketInfo[x].Symbol,
+						marketInfo[i].Symbol,
 						a)
 					break
 				}
-				var settleTrail string
-				if len(isolate) == 2 {
-					// Example: ETHUSDU22_ETH quoted in USD, paid out in ETH.
-					settleTrail = currency.UnderscoreDelimiter + isolate[1]
-				}
-
-				root := isolate[0][:len(isolate[0])-3]
-				contract := isolate[0][len(isolate[0])-3:]
-
-				pair, err = currency.NewPairFromStrings(root, contract+settleTrail)
-				if err != nil {
-					return nil, err
-				}
-				pairs = append(pairs, pair)
+				settleTrail = currency.UnderscoreDelimiter + settlement[1]
 			}
+			pair, err = currency.NewPairFromStrings(marketInfo[i].Underlying,
+				marketInfo[i].QuoteCurrency+settleTrail)
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, pair)
+		case asset.Futures:
+			if marketInfo[i].Typ != futuresID {
+				continue
+			}
+			isolate := strings.Split(marketInfo[i].Symbol, currency.UnderscoreDelimiter)
+			if len(isolate[0]) < 3 {
+				log.Warnf(log.ExchangeSys, "%s currency %s %s be cannot added to tradable pairs",
+					e.Name,
+					marketInfo[i].Symbol,
+					a)
+				break
+			}
+			var settleTrail string
+			if len(isolate) == 2 {
+				// Example: ETHUSDU22_ETH quoted in USD, paid out in ETH.
+				settleTrail = currency.UnderscoreDelimiter + isolate[1]
+			}
+
+			root := isolate[0][:len(isolate[0])-3]
+			contract := isolate[0][len(isolate[0])-3:]
+
+			pair, err = currency.NewPairFromStrings(root, contract+settleTrail)
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, pair)
 		case asset.Index:
 			// TODO: This can be expanded into individual assets later.
-			if marketInfo[x].Typ == bitMEXBasketIndexID ||
-				marketInfo[x].Typ == bitMEXPriceIndexID ||
-				marketInfo[x].Typ == bitMEXLendingPremiumIndexID ||
-				marketInfo[x].Typ == bitMEXVolatilityIndexID {
-				pair, err = currency.NewPairFromString(marketInfo[x].Symbol)
-				if err != nil {
-					return nil, err
-				}
-				pairs = append(pairs, pair)
+			switch marketInfo[i].Typ {
+			case bitMEXBasketIndexID, bitMEXPriceIndexID, bitMEXLendingPremiumIndexID, bitMEXVolatilityIndexID:
+			default:
+				continue
 			}
+			pair, err = currency.NewPairFromString(marketInfo[i].Symbol)
+			if err != nil {
+				return nil, err
+			}
+			pairs = append(pairs, pair)
 		default:
 			return nil, errors.New("unhandled asset type")
 		}
@@ -313,10 +316,7 @@ instruments:
 			pair, enabled, err = e.MatchSymbolCheckEnabled(tick[j].Symbol, a, false)
 		case asset.Index:
 			switch tick[j].Typ {
-			case bitMEXBasketIndexID,
-				bitMEXPriceIndexID,
-				bitMEXLendingPremiumIndexID,
-				bitMEXVolatilityIndexID:
+			case bitMEXBasketIndexID, bitMEXPriceIndexID, bitMEXLendingPremiumIndexID, bitMEXVolatilityIndexID:
 			default:
 				continue instruments
 			}
@@ -1200,44 +1200,38 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 
 	l := make([]limits.MinMaxLevel, 0, len(instruments))
 	for i := range instruments {
-		var pair currency.Pair
-		var enabled bool
+		if instruments[i].State != "Open" && a != asset.Index {
+			continue
+		}
+		var hasDelim bool
 		switch a {
 		case asset.Futures:
 			if instruments[i].Typ != futuresID {
 				continue
 			}
-			pair, enabled, err = e.MatchSymbolCheckEnabled(instruments[i].Symbol, a, false)
 		case asset.PerpetualContract:
 			if instruments[i].Typ != perpetualContractID {
 				continue
 			}
-			pair, enabled, err = e.MatchSymbolCheckEnabled(instruments[i].Symbol, a, false)
+
 		case asset.Spot:
 			if instruments[i].Typ != spotID {
 				continue
 			}
-			symbol := strings.Replace(instruments[i].Symbol, currency.UnderscoreDelimiter, "", 1)
-			pair, enabled, err = e.MatchSymbolCheckEnabled(symbol, a, false)
+			hasDelim = true
 		case asset.Index:
 			switch instruments[i].Typ {
-			case bitMEXBasketIndexID,
-				bitMEXPriceIndexID,
-				bitMEXLendingPremiumIndexID,
-				bitMEXVolatilityIndexID:
+			case bitMEXBasketIndexID, bitMEXPriceIndexID, bitMEXLendingPremiumIndexID, bitMEXVolatilityIndexID:
 			default:
 				continue
 			}
-			symbol := strings.Replace(instruments[i].Symbol, currency.UnderscoreDelimiter, "", 1)
-			pair, enabled, err = e.MatchSymbolCheckEnabled(symbol, a, false)
+			hasDelim = true
 		default:
 			return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 		}
-		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+		pair, err := e.MatchSymbolWithAvailablePairs(instruments[i].Symbol, a, hasDelim)
+		if err != nil {
 			return err
-		}
-		if !enabled {
-			continue
 		}
 
 		l = append(l, limits.MinMaxLevel{

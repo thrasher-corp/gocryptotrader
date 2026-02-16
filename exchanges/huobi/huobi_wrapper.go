@@ -1980,18 +1980,13 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			if err != nil {
 				return nil, err
 			}
-			var s time.Time
-			s, err = time.Parse("20060102", result[x].CreateDate)
-			if err != nil {
-				return nil, err
-			}
 
 			resp = append(resp, futures.Contract{
 				Exchange:           e.Name,
 				Name:               cp,
 				Underlying:         underlying,
 				Asset:              item,
-				StartDate:          s,
+				StartDate:          result[x].CreateDate.Time(),
 				SettlementType:     futures.Inverse,
 				IsActive:           result[x].ContractStatus == 1,
 				Type:               futures.Perpetual,
@@ -2017,17 +2012,13 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			if err != nil {
 				return nil, err
 			}
-			var startTime, endTime time.Time
-			startTime, err = time.Parse("20060102", result.Data[x].CreateDate)
-			if err != nil {
-				return nil, err
-			}
+			var endTime time.Time
 			if result.Data[x].DeliveryTime.Time().IsZero() {
 				endTime = result.Data[x].DeliveryTime.Time()
 			} else {
 				endTime = result.Data[x].SettlementTime.Time()
 			}
-			contractLength := endTime.Sub(startTime)
+			contractLength := endTime.Sub(result.Data[x].CreateDate.Time())
 			var ct futures.ContractType
 			switch {
 			case contractLength <= kline.OneWeek.Duration()+kline.ThreeDay.Duration():
@@ -2047,7 +2038,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				Name:               cp,
 				Underlying:         underlying,
 				Asset:              item,
-				StartDate:          startTime,
+				StartDate:          result.Data[x].CreateDate.Time(),
 				EndDate:            endTime,
 				SettlementType:     futures.Linear,
 				IsActive:           result.Data[x].ContractStatus == 1,
@@ -2194,10 +2185,13 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			}
 			p, err := e.MatchSymbolWithAvailablePairs(contracts.Data[i].ContractCode, a, true)
 			if err != nil {
-				if errors.Is(err, currency.ErrPairNotFound) {
-					continue
-				}
 				return err
+			}
+			var endTime time.Time
+			if contracts.Data[i].DeliveryTime.Time().IsZero() {
+				endTime = contracts.Data[i].DeliveryTime.Time()
+			} else {
+				endTime = contracts.Data[i].SettlementTime.Time()
 			}
 			l = append(l, limits.MinMaxLevel{
 				Key:                     key.NewExchangeAssetPair(e.Name, a, p),
@@ -2205,8 +2199,8 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				AmountStepIncrementSize: 1, // orders are in number of contracts
 				PriceStepIncrementSize:  contracts.Data[i].PriceTick,
 				MultiplierDecimal:       contracts.Data[i].ContractSize,
-				Listed:                  contracts.Data[i].SettlementTime.Time(),
-				Expiry:                  contracts.Data[i].DeliveryTime.Time(),
+				Listed:                  contracts.Data[i].CreateDate.Time(),
+				Expiry:                  endTime,
 			})
 		}
 	case asset.CoinMarginedFutures:
@@ -2226,13 +2220,14 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				}
 				return err
 			}
+
 			l = append(l, limits.MinMaxLevel{
 				Key:                     key.NewExchangeAssetPair(e.Name, a, p),
 				MinimumBaseAmount:       1,
 				AmountStepIncrementSize: 1, // orders are in number of contracts
 				PriceStepIncrementSize:  contracts[i].PriceTick,
 				MultiplierDecimal:       contracts[i].ContractSize,
-				Listed:                  contracts[i].SettlementDate.Time(),
+				Listed:                  contracts[i].CreateDate.Time(),
 				Delisted:                contracts[i].DeliveryTime.Time(),
 			})
 		}

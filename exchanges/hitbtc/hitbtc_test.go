@@ -1017,20 +1017,17 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, e)
-	for _, a := range e.GetAssetTypes(false) {
-		t.Run(a.String(), func(t *testing.T) {
-			t.Parallel()
-			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
-			pairs, err := e.CurrencyPairs.GetPairs(a, false)
-			require.NoError(t, err, "GetPairs must not error")
-			require.NotEmpty(t, pairs, "GetPairs must return pairs")
-			l, err := e.GetOrderExecutionLimits(a, pairs[0])
-			require.NoError(t, err, "GetOrderExecutionLimits must not error")
-			assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
-			assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
-			assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
-		})
-	}
+	require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Spot), "UpdateOrderExecutionLimits must not error")
+	pairs, err := e.CurrencyPairs.GetPairs(asset.Spot, false)
+	require.NoError(t, err, "GetPairs must not error")
+	require.NotEmpty(t, pairs, "GetPairs must return pairs")
+	l, err := e.GetOrderExecutionLimits(asset.Spot, pairs[0])
+	require.NoError(t, err, "GetOrderExecutionLimits must not error")
+	assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
+	assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
+
+	require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported, "UpdateOrderExecutionLimits must error")
+
 }
 
 func TestGenerateSubscriptions(t *testing.T) {

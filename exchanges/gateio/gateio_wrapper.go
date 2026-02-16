@@ -1863,20 +1863,17 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		if err != nil {
 			return err
 		}
-
 		l = make([]limits.MinMaxLevel, 0, len(pairsData))
 		for i := range pairsData {
 			if pairsData[i].TradeStatus == "untradable" {
 				continue
 			}
-
 			// Minimum base amounts are not always provided this will default to
 			// precision for base deployment. This can't be done for quote.
 			minBaseAmount := pairsData[i].MinBaseAmount.Float64()
 			if minBaseAmount == 0 {
 				minBaseAmount = math.Pow10(-int(pairsData[i].AmountPrecision))
 			}
-
 			l = append(l, limits.MinMaxLevel{
 				Key:                     key.NewExchangeAssetPair(e.Name, a, currency.NewPair(pairsData[i].Base, pairsData[i].Quote)),
 				QuoteStepIncrementSize:  math.Pow10(-int(pairsData[i].PricePrecision)),
@@ -1950,7 +1947,6 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			if err != nil {
 				return err
 			}
-			l = make([]limits.MinMaxLevel, 0, len(contracts))
 			for c := range contracts {
 				cp, err := currency.NewPairFromString(strings.ReplaceAll(contracts[c].Name, currency.DashDelimiter, currency.UnderscoreDelimiter))
 				if err != nil {
@@ -1966,6 +1962,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				})
 			}
 		}
+		return limits.Load(l)
 	default:
 		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
@@ -2631,12 +2628,12 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 	switch a {
 	case asset.Spot:
 		reqs := make([]*CreateOrderRequest, len(orders))
-		for x, s := range orders {
+		for i, s := range orders {
 			if err := e.formatClientOrderFormatCurrency(s); err != nil {
 				return nil, err
 			}
 			var err error
-			reqs[x], err = e.getSpotOrderRequest(s)
+			reqs[i], err = e.getSpotOrderRequest(s)
 			if err != nil {
 				return nil, err
 			}
@@ -2648,12 +2645,12 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 		return e.deriveSpotWebsocketOrderResponses(resp)
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
 		reqs := make([]*ContractOrderCreateParams, len(orders))
-		for x, s := range orders {
+		for i, s := range orders {
 			if err := e.formatClientOrderFormatCurrency(s); err != nil {
 				return nil, err
 			}
 			var err error
-			reqs[x], err = getFuturesOrderRequest(s)
+			reqs[i], err = getFuturesOrderRequest(s)
 			if err != nil {
 				return nil, err
 			}
