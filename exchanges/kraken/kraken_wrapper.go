@@ -265,10 +265,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				MinimumBaseAmount:      info.OrderMinimum,
 			})
 		}
-		if err := limits.Load(l); err != nil {
-			return fmt.Errorf("%s Error loading %s exchange limits: %w", e.Name, a, err)
-		}
-		return nil
+		return limits.Load(l)
 	case asset.Futures:
 		instruments, err := e.GetInstruments(ctx)
 		if err != nil {
@@ -290,10 +287,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				AmountStepIncrementSize: instruments.Instruments[i].ContractSize,
 			})
 		}
-		if err := limits.Load(l); err != nil {
-			return fmt.Errorf("%s Error loading %s exchange limits: %w", e.Name, a, err)
-		}
-		return nil
+		return limits.Load(l)
 	default:
 		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}

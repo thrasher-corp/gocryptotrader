@@ -871,14 +871,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
-
-	s.ClientOrderID = formatClientOrderID(s.ClientOrderID)
-
-	s.Pair, err = e.FormatExchangeCurrency(s.Pair, s.AssetType)
-	if err != nil {
+	if err := e.formatClientOrderFormatCurrency(s); err != nil {
 		return nil, err
 	}
-	s.Pair = s.Pair.Upper()
 
 	switch s.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
@@ -2259,13 +2254,6 @@ func getClientOrderIDFromText(text string) string {
 	return ""
 }
 
-func formatClientOrderID(clientOrderID string) string {
-	if clientOrderID == "" || strings.HasPrefix(clientOrderID, "t-") {
-		return clientOrderID
-	}
-	return "t-" + clientOrderID
-}
-
 // getTypeFromTimeInForce returns the order type and if the order is post only
 func getTypeFromTimeInForce(tif string, price float64) (orderType order.Type) {
 	switch tif {
@@ -2333,13 +2321,9 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 		return nil, err
 	}
 
-	s.ClientOrderID = formatClientOrderID(s.ClientOrderID)
-
-	s.Pair, err = e.FormatExchangeCurrency(s.Pair, s.AssetType)
-	if err != nil {
+	if err := e.formatClientOrderFormatCurrency(s); err != nil {
 		return nil, err
 	}
-	s.Pair = s.Pair.Upper()
 
 	switch s.AssetType {
 	case asset.Spot:
@@ -2368,12 +2352,29 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	}
 }
 
+func formatClientOrderID(clientOrderID string) string {
+	if clientOrderID == "" || strings.HasPrefix(clientOrderID, "t-") {
+		return clientOrderID
+	}
+	return "t-" + clientOrderID
+}
+
+func (e *Exchange) formatClientOrderFormatCurrency(s *order.Submit) error {
+	s.ClientOrderID = formatClientOrderID(s.ClientOrderID)
+	var err error
+	s.Pair, err = e.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return err
+	}
+	s.Pair = s.Pair.Upper()
+	return nil
+}
+
 func getFuturesOrderRequest(s *order.Submit) (*ContractOrderCreateParams, error) {
 	amountWithDirection, err := getFutureOrderSize(s)
 	if err != nil {
 		return nil, err
 	}
-
 	tif, err := toExchangeTIF(s.TimeInForce, s.Price)
 	if err != nil {
 		return nil, err
@@ -2610,18 +2611,16 @@ func getSettlementCurrency(p currency.Pair, a asset.Item) (currency.Code, error)
 // WebsocketSubmitOrders submits orders to the exchange through the websocket
 func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Submit) ([]*order.SubmitResponse, error) {
 	var a asset.Item
-	for x := range orders {
-		if err := orders[x].Validate(e.GetTradingRequirements()); err != nil {
+	for _, s := range orders {
+		if err := s.Validate(e.GetTradingRequirements()); err != nil {
 			return nil, err
 		}
-
 		if a == asset.Empty {
-			a = orders[x].AssetType
+			a = s.AssetType
 			continue
 		}
-
-		if a != orders[x].AssetType {
-			return nil, fmt.Errorf("%w; Passed %q and %q", errSingleAssetRequired, a, orders[x].AssetType)
+		if a != s.AssetType {
+			return nil, fmt.Errorf("%w; Passed %q and %q", errSingleAssetRequired, a, s.AssetType)
 		}
 	}
 
@@ -2632,9 +2631,13 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 	switch a {
 	case asset.Spot:
 		reqs := make([]*CreateOrderRequest, len(orders))
-		for x := range orders {
+		for x, s := range orders {
+			if err := e.formatClientOrderFormatCurrency(s); err != nil {
+				return nil, err
+			}
 			var err error
-			if reqs[x], err = e.getSpotOrderRequest(orders[x]); err != nil {
+			reqs[x], err = e.getSpotOrderRequest(s)
+			if err != nil {
 				return nil, err
 			}
 		}
@@ -2645,9 +2648,13 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 		return e.deriveSpotWebsocketOrderResponses(resp)
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
 		reqs := make([]*ContractOrderCreateParams, len(orders))
-		for x := range orders {
+		for x, s := range orders {
+			if err := e.formatClientOrderFormatCurrency(s); err != nil {
+				return nil, err
+			}
 			var err error
-			if reqs[x], err = getFuturesOrderRequest(orders[x]); err != nil {
+			reqs[x], err = getFuturesOrderRequest(s)
+			if err != nil {
 				return nil, err
 			}
 		}

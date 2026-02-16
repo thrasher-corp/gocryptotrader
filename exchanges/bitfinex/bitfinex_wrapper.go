@@ -289,10 +289,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			l[i].Key.Asset = a
 		}
 	}
-	if err := limits.Load(l); err != nil {
-		return fmt.Errorf("%s Error loading exchange limits: %v", e.Name, err)
-	}
-	return nil
+	return limits.Load(l)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
