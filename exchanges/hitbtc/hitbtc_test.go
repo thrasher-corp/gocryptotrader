@@ -1025,9 +1025,8 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	require.NoError(t, err, "GetOrderExecutionLimits must not error")
 	assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
 	assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
-
+	
 	require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported, "UpdateOrderExecutionLimits must error")
-
 }
 
 func TestGenerateSubscriptions(t *testing.T) {
@@ -1035,7 +1034,6 @@ func TestGenerateSubscriptions(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 	subs, err := e.generateSubscriptions()
