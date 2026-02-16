@@ -2189,9 +2189,9 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			}
 			var endTime time.Time
 			if contracts.Data[i].DeliveryTime.Time().IsZero() {
-				endTime = contracts.Data[i].DeliveryTime.Time()
-			} else {
 				endTime = contracts.Data[i].SettlementTime.Time()
+			} else {
+				endTime = contracts.Data[i].DeliveryTime.Time()
 			}
 			l = append(l, limits.MinMaxLevel{
 				Key:                     key.NewExchangeAssetPair(e.Name, a, p),
