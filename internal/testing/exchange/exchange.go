@@ -240,11 +240,12 @@ func UpdatePairsOnce(tb testing.TB, e exchange.IBotExchange) {
 	updatePairsOnce[e.GetName()] = cache
 }
 
-func GetMockConn(tb testing.TB, e exchange.IBotExchange) websocket.Connection {
+func GetMockConn(tb testing.TB, e exchange.IBotExchange, u string) websocket.Connection {
 	tb.Helper()
 	b := e.GetBase()
 	return &mockConn{
 		match: b.Websocket.Match,
+		url:   u,
 	}
 }
 

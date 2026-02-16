@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -12,7 +11,6 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
-	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -26,7 +24,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -1617,8 +1614,8 @@ func TestWsHandleData(t *testing.T) {
 
 func TestWsHandleDataSequence(t *testing.T) {
 	t.Parallel()
-	connA := &testWSConn{url: "ws://coinbase-seq-a"}
-	connB := &testWSConn{url: "ws://coinbase-seq-b"}
+	connA := testexch.GetMockConn(t, e, "ws://coinbase-seq-a")
+	connB := testexch.GetMockConn(t, e, "ws://coinbase-seq-b")
 	buildSubMsg := func(seq uint64) []byte {
 		return []byte(`{"sequence_num":` + strconv.FormatUint(seq, 10) + `,"channel":"subscriptions"}`)
 	}
@@ -2121,37 +2118,3 @@ func testGetOneArg[G getOneArgResp](t *testing.T, f getOneArgAssertNotEmpty[G], 
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
-
-type testWSConn struct{ url string }
-
-func (m *testWSConn) Dial(context.Context, *gws.Dialer, http.Header) error { return nil }
-func (m *testWSConn) ReadMessage() websocket.Response                      { return websocket.Response{} }
-func (m *testWSConn) SetupPingHandler(request.EndpointLimit, websocket.PingHandler) {
-}
-
-func (m *testWSConn) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
-	return nil, nil
-}
-
-func (m *testWSConn) SendMessageReturnResponses(context.Context, request.EndpointLimit, any, any, int) ([][]byte, error) {
-	return nil, nil
-}
-
-func (m *testWSConn) SendMessageReturnResponsesWithInspector(context.Context, request.EndpointLimit, any, any, int, websocket.Inspector) ([][]byte, error) {
-	return nil, nil
-}
-
-func (m *testWSConn) SendRawMessage(context.Context, request.EndpointLimit, int, []byte) error {
-	return nil
-}
-func (m *testWSConn) SendJSONMessage(context.Context, request.EndpointLimit, any) error { return nil }
-func (m *testWSConn) SetURL(url string)                                                 { m.url = url }
-func (m *testWSConn) SetProxy(string)                                                   {}
-func (m *testWSConn) GetURL() string                                                    { return m.url }
-func (m *testWSConn) Shutdown() error                                                   { return nil }
-func (m *testWSConn) RequireMatchWithData(any, []byte) error                            { return nil }
-func (m *testWSConn) IncomingWithData(any, []byte) bool                                 { return false }
-func (m *testWSConn) MatchReturnResponses(context.Context, any, int) (<-chan websocket.MatchedResponse, error) {
-	return nil, nil
-}
-func (m *testWSConn) Subscriptions() *subscription.Store { return nil }

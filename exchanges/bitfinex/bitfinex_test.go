@@ -1380,7 +1380,7 @@ func TestWSSubscribedResponse(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	conn := testexch.GetMockConn(t, e)
+	conn := testexch.GetMockConn(t, e, publicBitfinexWebsocketEndpoint)
 	ch, err := e.Websocket.Match.Set("subscribe:waiter1", 1)
 	assert.NoError(t, err, "Setting a matcher should not error")
 	err = e.wsHandleData(t.Context(), conn, []byte(`{"event":"subscribed","channel":"ticker","chanId":224555,"subId":"waiter1","symbol":"tBTCUSD","pair":"BTCUSD"}`))
@@ -1532,7 +1532,7 @@ func TestWSNotifications(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	conn := testexch.GetMockConn(t, e)
+	conn := testexch.GetMockConn(t, e, authenticatedBitfinexWebsocketEndpoint)
 	pressXToJSON := `[0,"n",[1575282446099,"fon-req",null,null,[41238905,null,null,null,-1000,null,null,null,null,null,null,null,null,null,0.002,2,null,null,null,null,null],null,"SUCCESS","Submitting funding bid of 1000.0 USD at 0.2000 for 2 days."]]`
 	err := e.wsHandleData(t.Context(), conn, []byte(pressXToJSON))
 	if err != nil {
