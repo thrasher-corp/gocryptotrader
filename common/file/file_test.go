@@ -103,7 +103,7 @@ func TestMove(t *testing.T) {
 		testTable{InFile: "in.txt", OutFile: "in.txt", Write: true, ErrExpected: false},
 	)
 
-	assert.False(t, Exists("non-existent"), "Exits should return false for a non-existent file")
+	assert.False(t, Exists("non-existent"), "Exists should return false for a non-existent file")
 	defer os.RemoveAll("non-existent")
 	defer os.Remove("in.txt")
 
