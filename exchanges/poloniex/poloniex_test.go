@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"sync"
 	"testing"
-	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -2160,11 +2159,11 @@ func TestWsHandleData(t *testing.T) {
 		t.Run(p.label, func(t *testing.T) {
 			t.Parallel()
 			if p.auth {
-				if mockTests || !e.Websocket.CanUseAuthenticatedEndpoints() {
-					t.Skip(websocketMockTestsSkipped)
+				if !mockTests {
+					sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 				}
-				sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 			}
+
 			err := e.wsHandleData(generateContext(t), e.Websocket.Conn, []byte(p.payload))
 			if p.errExplanation == "" {
 				assert.ErrorIs(t, err, p.err)
@@ -2215,27 +2214,19 @@ func TestWsSpotPrivateHandleData(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
-	var wg sync.WaitGroup
-	defer func() {
-		wg.Wait()
-	}()
-
 	for _, data := range spotPrivatePushDataMap {
 		buf, err := conn.MatchReturnResponses(t.Context(), data.signature, 1)
 		require.NoError(t, err)
 
-		synctest.Test(t, func(t *testing.T) {
-			t.Helper()
-			dtimer := time.NewTimer(time.Millisecond * 10)
-			select {
-			case <-buf:
-				break
-			case <-dtimer.C:
-				t.Error("timeout waiting for websocket stream data with signature ", data.signature)
-			}
-		})
 		err = e.wsHandleData(t.Context(), conn, []byte(data.v))
-		assert.NoError(t, err)
+		require.NoError(t, err)
+
+		select {
+		case <-buf:
+			// success
+		case <-time.After(10 * time.Millisecond):
+			t.Fatalf("timeout waiting for websocket stream data with signature %s", data.signature)
+		}
 	}
 }
 
