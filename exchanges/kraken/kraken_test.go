@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -1459,9 +1460,7 @@ func mockWsInstance(tb testing.TB, h http.HandlerFunc) *Exchange {
 	b := e.GetBase()
 	cfg := *b.Config
 	cfg.API.Endpoints = make(map[string]string, len(b.Config.API.Endpoints))
-	for k, v := range b.Config.API.Endpoints {
-		cfg.API.Endpoints[k] = v
-	}
+	maps.Copy(cfg.API.Endpoints, b.Config.API.Endpoints)
 	cfg.API.AuthenticatedWebsocketSupport = true
 	cfg.API.Endpoints["RestSpotURL"] = s.URL
 	cfg.API.Endpoints["WebsocketSpotURL"] = wsURL + "/public"
