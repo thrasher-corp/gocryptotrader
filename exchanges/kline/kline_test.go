@@ -509,7 +509,7 @@ func seedDB(includeOHLCVData bool) error {
 func genOHCLVData() (out candle.Item, outItem Item, err error) {
 	exchangeUUID, err := exchange.UUIDByName(testExchanges[0].Name)
 	if err != nil {
-		return
+		return out, outItem, err
 	}
 
 	out.ExchangeID = exchangeUUID.String()

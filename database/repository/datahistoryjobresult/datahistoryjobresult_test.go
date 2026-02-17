@@ -123,10 +123,11 @@ func TestDataHistoryJob(t *testing.T) {
 				assert.NoError(t, err)
 			}
 
-			var resulterinos, resultaroos []*DataHistoryJobResult
-			for range 20 {
-				uu, _ := uuid.NewV4()
-				resulterinos = append(resulterinos, &DataHistoryJobResult{
+			resulterinos := make([]*DataHistoryJobResult, 20)
+			for i := range resulterinos {
+				uu, err := uuid.NewV4()
+				require.NoError(t, err, "uuid.NewV4 must not error")
+				resulterinos[i] = &DataHistoryJobResult{
 					ID:                uu.String(),
 					JobID:             id,
 					IntervalStartDate: time.Now(),
@@ -134,13 +135,16 @@ func TestDataHistoryJob(t *testing.T) {
 					Status:            0,
 					Result:            "Yay",
 					Date:              time.Now(),
-				})
+				}
 			}
 			err = db.Upsert(resulterinos...)
 			require.NoError(t, err)
 			// insert the same results to test conflict resolution
-			for i := range 20 {
-				uu, _ := uuid.NewV4()
+
+			resultaroos := make([]*DataHistoryJobResult, 20)
+			for i := range resultaroos {
+				uu, err := uuid.NewV4()
+				require.NoError(t, err, "uuid.NewV4 must not error")
 				j := &DataHistoryJobResult{
 					ID:                uu.String(),
 					JobID:             id,
@@ -154,7 +158,7 @@ func TestDataHistoryJob(t *testing.T) {
 					j.Status = 1
 					j.Date = time.Now().Add(time.Hour * 24)
 				}
-				resultaroos = append(resultaroos, j)
+				resultaroos[i] = j
 			}
 			err = db.Upsert(resultaroos...)
 			require.NoError(t, err)
