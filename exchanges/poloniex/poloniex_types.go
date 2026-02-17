@@ -37,7 +37,7 @@ func (t TimeInForce) MarshalText() ([]byte, error) {
 	case tif == order.UnknownTIF:
 		return []byte(""), nil
 	}
-	return nil, fmt.Errorf("%w: %q", order.ErrInvalidTimeInForce, t)
+	return nil, fmt.Errorf("%w: %v", order.ErrInvalidTimeInForce, t)
 }
 
 // MarshalText implements the TextMarshaler interface for OrderType
@@ -61,7 +61,7 @@ func (o OrderType) MarshalText() ([]byte, error) {
 	case order.AnyType, order.UnknownType:
 		return nil, nil
 	}
-	return nil, fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, o)
+	return nil, fmt.Errorf("%w: %v", order.ErrUnsupportedOrderType, o)
 }
 
 // MarshalText implements the TextMarshaler interface for AccountType
