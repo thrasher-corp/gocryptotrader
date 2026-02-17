@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	gws "github.com/gorilla/websocket"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -184,4 +185,135 @@ func TestWebsocketCancelOrderMocked(t *testing.T) {
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	err = ex.WebsocketCancelOrder(t.Context(), cancel)
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+}
+
+func TestWebsocketSpreadRouting(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+
+	t.Run("submit spread does not fail as unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		_, err := ex.WebsocketSubmitOrder(t.Context(), &order.Submit{
+			Exchange:  ex.Name,
+			Pair:      spreadPair,
+			AssetType: asset.Spread,
+			Side:      order.Buy,
+			Type:      order.Limit,
+			Amount:    1,
+			Price:     1,
+		})
+		require.Error(t, err)
+		require.NotErrorIs(t, err, asset.ErrNotSupported)
+	})
+
+	t.Run("modify spread does not fail as unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		_, err := ex.WebsocketModifyOrder(t.Context(), &order.Modify{
+			OrderID:   "1",
+			AssetType: asset.Spread,
+			Pair:      spreadPair,
+			Amount:    1,
+			Price:     1,
+		})
+		require.Error(t, err)
+		require.NotErrorIs(t, err, asset.ErrNotSupported)
+	})
+
+	t.Run("cancel spread does not fail as unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		err := ex.WebsocketCancelOrder(t.Context(), &order.Cancel{
+			OrderID:   "1",
+			AssetType: asset.Spread,
+		})
+		require.Error(t, err)
+		require.NotErrorIs(t, err, asset.ErrNotSupported)
+	})
+}
+
+func TestDeriveSubmitOrderArguments(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+
+	t.Run("spot market quote amount", func(t *testing.T) {
+		t.Parallel()
+		arg, err := ex.deriveSubmitOrderArguments(&order.Submit{
+			Exchange:    ex.Name,
+			Pair:        mainPair,
+			AssetType:   asset.Spot,
+			Side:        order.Buy,
+			Type:        order.Market,
+			QuoteAmount: 10,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, order.Buy.Lower(), arg.Side)
+		assert.Equal(t, "quote_ccy", arg.TargetCurrency)
+		assert.Equal(t, 10.0, arg.Amount)
+	})
+
+	t.Run("futures leverage guard", func(t *testing.T) {
+		t.Parallel()
+		_, err := ex.deriveSubmitOrderArguments(&order.Submit{
+			Exchange:  ex.Name,
+			Pair:      mainPair,
+			AssetType: asset.Futures,
+			Side:      order.Long,
+			Type:      order.Limit,
+			Amount:    1,
+			Price:     1,
+			Leverage:  2,
+		})
+		require.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported)
+	})
+
+	t.Run("futures reduce only position side", func(t *testing.T) {
+		t.Parallel()
+		arg, err := ex.deriveSubmitOrderArguments(&order.Submit{
+			Exchange:   ex.Name,
+			Pair:       mainPair,
+			AssetType:  asset.Futures,
+			Side:       order.Buy,
+			Type:       order.Limit,
+			Amount:     1,
+			Price:      1,
+			ReduceOnly: true,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, order.Buy.Lower(), arg.Side)
+		assert.Equal(t, positionSideShort, arg.PositionSide)
+	})
+
+	t.Run("options side is set", func(t *testing.T) {
+		t.Parallel()
+		arg, err := ex.deriveSubmitOrderArguments(&order.Submit{
+			Exchange:  ex.Name,
+			Pair:      mainPair,
+			AssetType: asset.Options,
+			Side:      order.Sell,
+			Type:      order.Limit,
+			Amount:    1,
+			Price:     1,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, order.Sell.Lower(), arg.Side)
+		assert.Empty(t, arg.PositionSide)
+	})
+
+	t.Run("invalid side rejected", func(t *testing.T) {
+		t.Parallel()
+		_, err := ex.deriveSubmitOrderArguments(&order.Submit{
+			Exchange:  ex.Name,
+			Pair:      mainPair,
+			AssetType: asset.Spot,
+			Side:      order.AnySide,
+			Type:      order.Limit,
+			Amount:    1,
+			Price:     1,
+		})
+		require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	})
 }

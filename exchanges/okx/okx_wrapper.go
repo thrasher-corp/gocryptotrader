@@ -1244,6 +1244,24 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modif
 	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		return nil, common.ErrFunctionNotSupported
 	}
+	if err := action.Validate(); err != nil {
+		return nil, err
+	}
+	if math.Trunc(action.Amount) != action.Amount {
+		return nil, errors.New("contract amount can not be decimal")
+	}
+	if action.AssetType == asset.Spread {
+		_, err := e.WSAmendSpreadOrder(ctx, &AmendSpreadOrderParam{
+			OrderID:       action.OrderID,
+			ClientOrderID: action.ClientOrderID,
+			NewSize:       action.Amount,
+			NewPrice:      action.Price,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return action.DeriveModifyResponse()
+	}
 	arg, err := e.deriveAmendOrderArguments(action)
 	if err != nil {
 		return nil, err
@@ -1310,11 +1328,14 @@ func (e *Exchange) deriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderReque
 	if !e.SupportsAsset(s.AssetType) {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, s.AssetType)
 	}
-	if s.Amount <= 0 {
+	if s.Amount <= 0 && !isSpotMarketBuyWithQuoteAmount(s) {
 		return nil, limits.ErrAmountBelowMin
 	}
 	if s.AssetType == asset.Spread {
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, s.AssetType)
+	}
+	if s.AssetType.IsFutures() && s.Leverage != 0 && s.Leverage != 1 {
+		return nil, fmt.Errorf("%w received '%v'", order.ErrSubmitLeverageNotSupported, s.Leverage)
 	}
 	pairFormat, err := e.GetPairFormat(s.AssetType, true)
 	if err != nil {
@@ -1325,18 +1346,14 @@ func (e *Exchange) deriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderReque
 	}
 	pairString := pairFormat.Format(s.Pair)
 	tradeMode := e.marginTypeToString(s.MarginType)
-	var sideType, positionSide string
-	switch s.AssetType {
-	case asset.Spot, asset.Margin:
-		sideType = s.Side.String()
-	case asset.Futures, asset.PerpetualSwap, asset.Options:
-		positionSide = s.Side.Lower()
-	default:
-		sideType = s.Side.String()
+	sideType, err := deriveOKXSide(s.Side)
+	if err != nil {
+		return nil, err
 	}
+	positionSide := deriveOKXPositionSide(s)
 	amount := s.Amount
 	var targetCurrency string
-	if s.AssetType == asset.Spot && s.Type == order.Market {
+	if isSpotMarketOrder(s) {
 		targetCurrency = "base_ccy"
 		if s.QuoteAmount > 0 {
 			amount = s.QuoteAmount
@@ -1365,21 +1382,47 @@ func (e *Exchange) deriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderReque
 		TargetCurrency: targetCurrency,
 		AssetType:      s.AssetType,
 	}
-	if s.Type.Lower() == orderLimit || s.Type.Lower() == orderPostOnly || s.Type.Lower() == orderFOK || s.Type.Lower() == orderIOC {
-		orderRequest.Price = s.Price
-	}
-	if s.AssetType == asset.PerpetualSwap || s.AssetType == asset.Futures {
-		if s.Type.Lower() == "" {
-			orderRequest.OrderType = orderOptimalLimitIOC
-		}
-		if s.Side.IsLong() {
-			orderRequest.PositionSide = positionSideLong
-		} else {
-			orderRequest.PositionSide = positionSideShort
-		}
-	}
-
 	return orderRequest, nil
+}
+
+func isSpotMarketOrder(s *order.Submit) bool {
+	return s.AssetType == asset.Spot && s.Type == order.Market
+}
+
+func isSpotMarketBuyWithQuoteAmount(s *order.Submit) bool {
+	return isSpotMarketOrder(s) && s.Side.IsLong() && s.QuoteAmount > 0
+}
+
+func deriveOKXSide(side order.Side) (string, error) {
+	if !side.IsLong() && !side.IsShort() {
+		return "", fmt.Errorf("%w %s", order.ErrSideIsInvalid, side)
+	}
+	if side.IsLong() {
+		return order.Buy.Lower(), nil
+	}
+	return order.Sell.Lower(), nil
+}
+
+func deriveOKXPositionSide(s *order.Submit) string {
+	if s.AssetType != asset.Futures && s.AssetType != asset.PerpetualSwap {
+		return ""
+	}
+	switch s.Side {
+	case order.Long:
+		return positionSideLong
+	case order.Short:
+		return positionSideShort
+	}
+	if s.ReduceOnly {
+		if s.Side.IsLong() {
+			return positionSideShort
+		}
+		return positionSideLong
+	}
+	if s.Side.IsLong() {
+		return positionSideLong
+	}
+	return positionSideShort
 }
 
 func (e *Exchange) deriveAmendOrderArguments(action *order.Modify) (*AmendOrderRequestParams, error) {
@@ -1434,6 +1477,10 @@ func (e *Exchange) deriveCancelOrderArguments(ord *order.Cancel) (*CancelOrderRe
 func (e *Exchange) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) error {
 	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		return common.ErrFunctionNotSupported
+	}
+	if ord.AssetType == asset.Spread {
+		_, err := e.WSCancelSpreadOrder(ctx, ord.OrderID, ord.ClientOrderID)
+		return err
 	}
 	arg, err := e.deriveCancelOrderArguments(ord)
 	if err != nil {
@@ -1533,6 +1580,31 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
 	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		return nil, common.ErrFunctionNotSupported
+	}
+	if err := s.Validate(e.GetTradingRequirements()); err != nil {
+		return nil, err
+	}
+	if s.AssetType == asset.Spread {
+		pairFormat, err := e.GetPairFormat(s.AssetType, true)
+		if err != nil {
+			return nil, err
+		}
+		side, err := deriveOKXSide(s.Side)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := e.WSPlaceSpreadOrder(ctx, &SpreadOrderParam{
+			SpreadID:      pairFormat.Format(s.Pair),
+			ClientOrderID: s.ClientOrderID,
+			Side:          side,
+			OrderType:     s.Type.Lower(),
+			Size:          s.Amount,
+			Price:         s.Price,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return s.DeriveSubmitResponse(resp.OrderID)
 	}
 	arg, err := e.deriveSubmitOrderArguments(s)
 	if err != nil {
