@@ -1760,7 +1760,7 @@ func (b *Base) MatchSymbolCheckEnabled(symbol string, a asset.Item, hasDelimiter
 	}
 
 	enabled, err = b.IsPairEnabled(pair, a)
-	return
+	return pair, enabled, err
 }
 
 // IsPairEnabled checks if a pair is enabled for an enabled asset type.
@@ -1833,7 +1833,7 @@ func Bootstrap(ctx context.Context, b IBotExchange) error {
 // or false to signal that no further bootstrapping should occur
 func (b *Base) Bootstrap(_ context.Context) (continueBootstrap bool, err error) {
 	continueBootstrap = true
-	return
+	return continueBootstrap, err
 }
 
 // IsVerbose returns if the exchange is set to verbose

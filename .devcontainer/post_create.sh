@@ -19,17 +19,14 @@ install_go_tool github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gatewa
 install_go_tool github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@latest
 
 # Linting
-install_go_tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.4.0
+install_go_tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.9.0
 
 # Formatting
 install_go_tool mvdan.cc/gofumpt@latest
 
-# Go modernise enforcer
-install_go_tool golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest
-
 log "Installed tools:"
 
-for t in protoc-gen-go protoc-gen-go-grpc buf protoc-gen-grpc-gateway protoc-gen-openapiv2 golangci-lint gofumpt modernize; do
+for t in protoc-gen-go protoc-gen-go-grpc buf protoc-gen-grpc-gateway protoc-gen-openapiv2 golangci-lint gofumpt; do
   command -v "$t" || true
 done
 

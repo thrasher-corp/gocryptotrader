@@ -507,17 +507,18 @@ func BenchmarkFilterOrdersBySide(b *testing.B) {
 func TestFilterOrdersByTimeRange(t *testing.T) {
 	t.Parallel()
 
-	orders := []Detail{
-		{
+	orders := make([]Detail, 0, 4)
+	orders = append(orders,
+		Detail{
 			Date: time.Unix(100, 0),
 		},
-		{
+		Detail{
 			Date: time.Unix(110, 0),
 		},
-		{
+		Detail{
 			Date: time.Unix(111, 0),
 		},
-	}
+	)
 
 	err := FilterOrdersByTimeRange(&orders, time.Unix(0, 0), time.Unix(0, 0))
 	require.NoError(t, err)
@@ -608,7 +609,7 @@ func TestFilterOrdersByPairs(t *testing.T) {
 	FilterOrdersByPairs(&orders, currencies)
 	assert.Len(t, orders, 2, "Reverse Orders should be filtered correctly")
 
-	currencies = []currency.Pair{}
+	currencies = make([]currency.Pair, 0, 1)
 	FilterOrdersByPairs(&orders, currencies)
 	assert.Len(t, orders, 2, "Orders should be filtered correctly")
 
