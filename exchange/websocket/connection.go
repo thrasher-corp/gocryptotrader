@@ -2,7 +2,6 @@ package websocket
 
 import (
 	"bytes"
-	"compress/flate"
 	"compress/gzip"
 	"context"
 	"errors"
@@ -17,6 +16,7 @@ import (
 	"time"
 
 	gws "github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -320,14 +320,16 @@ func (c *connection) parseBinaryResponse(resp []byte) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		reader = flate.NewReader(bytes.NewReader(resp))
+		standardMessage, err := io.ReadAll(reader)
+		if err != nil {
+			return nil, err
+		}
+		return standardMessage, reader.Close()
 	}
-	standardMessage, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, err
+	if len(resp) == 0 {
+		return nil, fmt.Errorf("%w: empty binary response", common.ErrNoResponse)
 	}
-	return standardMessage, reader.Close()
+	return resp, nil
 }
 
 // Shutdown shuts down and closes specific connection
