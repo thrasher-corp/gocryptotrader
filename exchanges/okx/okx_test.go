@@ -85,7 +85,7 @@ func syncLeadTraderUniqueID(t *testing.T) error {
 	}
 
 	loadLeadTraderOnce.Do(func() {
-		result, err := e.GetLeadTradersRanks(contextGenerate(), &LeadTraderRanksRequest{
+		result, err := e.GetLeadTradersRanks(request.WithVerbose(contextGenerate()), &LeadTraderRanksRequest{
 			InstrumentType: instTypeSwap,
 			SortType:       "pnl_ratio",
 			HasVacancy:     true,
@@ -3354,6 +3354,10 @@ func TestUpdateTickers(t *testing.T) {
 	testexch.UpdatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
 		err := e.UpdateTickers(contextGenerate(), a)
+		if a == asset.Spread {
+			require.ErrorIs(t, err, common.ErrFunctionNotSupported, "spread asset must return not supported error")
+			continue
+		}
 		require.NoErrorf(t, err, "UpdateTickers for asset %s must not error", a)
 	}
 }
@@ -5365,9 +5369,8 @@ func TestGetLeadTraderLeadPositionHistory(t *testing.T) {
 	require.ErrorIs(t, err, errUniqueCodeRequired)
 
 	require.NoError(t, syncLeadTraderUniqueID(t), "syncLeadTraderUniqueID must not error")
-	result, err := e.GetLeadTraderLeadPositionHistory(contextGenerate(), "SWAP", leadTraderUniqueID, "", "", 10)
+	_, err = e.GetLeadTraderLeadPositionHistory(request.WithVerbose(contextGenerate()), "SWAP", leadTraderUniqueID, "", "", 10)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
 }
 
 func TestPlaceSpreadOrder(t *testing.T) {

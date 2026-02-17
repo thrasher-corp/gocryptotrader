@@ -289,18 +289,15 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		return err
 	}
 
-	var errs error
 	for key, val := range t {
-		pair, enabled, err := e.MatchSymbolCheckEnabled(key[1:], a, true)
-		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-			errs = common.AppendError(errs, err)
-			continue
+		pair, err := e.MatchSymbolWithAvailablePairs(key[1:], a, true)
+		if err != nil {
+			if errors.Is(err, currency.ErrPairNotFound) {
+				continue
+			}
+			return err
 		}
-		if !enabled {
-			continue
-		}
-
-		err = ticker.ProcessTicker(&ticker.Price{
+		if err := ticker.ProcessTicker(&ticker.Price{
 			Last:         val.Last,
 			High:         val.High,
 			Low:          val.Low,
@@ -310,12 +307,11 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Pair:         pair,
 			AssetType:    a,
 			ExchangeName: e.Name,
-		})
-		if err != nil {
-			errs = common.AppendError(errs, err)
+		}); err != nil {
+			return err
 		}
 	}
-	return errs
+	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
