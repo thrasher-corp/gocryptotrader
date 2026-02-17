@@ -240,6 +240,7 @@ func UpdatePairsOnce(tb testing.TB, e exchange.IBotExchange) {
 	updatePairsOnce[e.GetName()] = cache
 }
 
+// GetMockConn returns a mock websocket connection that can be used to test websocket handlers without needing to connect to a real websocket server
 func GetMockConn(tb testing.TB, e exchange.IBotExchange, u string) websocket.Connection {
 	tb.Helper()
 	b := e.GetBase()
@@ -280,10 +281,10 @@ func (m *mockConn) SendRawMessage(context.Context, request.EndpointLimit, int, [
 func (m *mockConn) SendJSONMessage(context.Context, request.EndpointLimit, any) error {
 	return nil
 }
-func (m *mockConn) SetURL(url string) { m.url = url }
-func (m *mockConn) SetProxy(string)   {}
-func (m *mockConn) GetURL() string    { return m.url }
-func (m *mockConn) Shutdown() error   { return nil }
+func (m *mockConn) SetURL(u string) { m.url = u }
+func (m *mockConn) SetProxy(string) {}
+func (m *mockConn) GetURL() string  { return m.url }
+func (m *mockConn) Shutdown() error { return nil }
 func (m *mockConn) RequireMatchWithData(signature any, incoming []byte) error {
 	if m.match == nil {
 		return nil
