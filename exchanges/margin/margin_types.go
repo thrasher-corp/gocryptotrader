@@ -54,8 +54,8 @@ type CurrentRateResponse struct {
 	Exchange      string
 	Asset         asset.Item
 	Pair          currency.Pair
-	CurrentRate   Rate
-	PredictedRate Rate
+	CurrentRate   *Rate
+	PredictedRate *Rate
 	TimeChecked   time.Time
 }
 

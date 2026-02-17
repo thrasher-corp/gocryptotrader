@@ -435,18 +435,32 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 						return err
 					}
 					if strings.HasPrefix(fundingInfo.Symbol, "f") {
-						ccy := currency.NewCode(strings.TrimPrefix(fundingInfo.Symbol, "f"))
+						a := currency.NewCode(strings.TrimPrefix(fundingInfo.Symbol, "f"))
+						_ = a
+						timeChecked := time.Now().UTC()
 						currentYearly := decimal.NewFromFloat(fundingInfo.YieldLend)
 						predictedYearly := decimal.NewFromFloat(fundingInfo.YieldLoan)
-						return e.sendCurrentMarginRatesByCurrency(ctx, asset.MarginFunding, ccy, margin.Rate{
-							Time:       time.Now().UTC(),
+						currentRate := &margin.Rate{
+							Time:       timeChecked,
 							HourlyRate: currentYearly.Div(decimal.NewFromInt(24 * 365)),
 							YearlyRate: currentYearly,
-						}, margin.Rate{
-							Time:       time.Now().UTC(),
+						}
+						predictedRate := &margin.Rate{
+							Time:       timeChecked,
 							HourlyRate: predictedYearly.Div(decimal.NewFromInt(24 * 365)),
 							YearlyRate: predictedYearly,
-						})
+						}
+							if err := e.Websocket.DataHandler.Send(ctx, margin.CurrentRateResponse{
+								Exchange:      e.Name,
+								Asset:         asset.MarginFunding,
+								//Pair:          pairs[i],
+								CurrentRate:   currentRate,
+								PredictedRate: predictedRate,
+								TimeChecked:   timeChecked,
+							});							 err != nil {
+								return err
+							}
+						}
 					}
 				}
 			}
@@ -488,12 +502,34 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 				}
 				if strings.HasPrefix(wsFundingTrade.Symbol, "f") {
 					ccy := currency.NewCode(strings.TrimPrefix(wsFundingTrade.Symbol, "f"))
+					pairs, err := e.GetEnabledPairs(asset.MarginFunding)
+					if err != nil {
+						return err
+					}
+					timeChecked := time.Now().UTC()
 					yearlyRate := decimal.NewFromFloat(wsFundingTrade.Rate)
-					return e.sendCurrentMarginRatesByCurrency(ctx, asset.MarginFunding, ccy, margin.Rate{
+					currentRate := &margin.Rate{
 						Time:       wsFundingTrade.MTSCreated,
 						HourlyRate: yearlyRate.Div(decimal.NewFromInt(24 * 365)),
 						YearlyRate: yearlyRate,
-					}, margin.Rate{})
+					}
+					for i := range pairs {
+						if !pairs[i].Base.Equal(ccy) {
+							continue
+						}
+						err = e.Websocket.DataHandler.Send(ctx, margin.CurrentRateResponse{
+							Exchange:    e.Name,
+							Asset:       asset.MarginFunding,
+							Pair:        pairs[i],
+							CurrentRate: currentRate,
+							// PredictedRate intentionally omitted for trade updates
+							TimeChecked: timeChecked,
+						})
+						if err != nil {
+							return err
+						}
+					}
+					return nil
 				}
 				return nil
 			}
@@ -504,32 +540,6 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		}
 	}
 	return nil
-}
-
-func (e *Exchange) sendCurrentMarginRatesByCurrency(ctx context.Context, a asset.Item, c currency.Code, current, predicted margin.Rate) error {
-	pairs, err := e.GetEnabledPairs(a)
-	if err != nil {
-		return err
-	}
-	timeChecked := time.Now().UTC()
-	resp := make([]margin.CurrentRateResponse, 0, len(pairs))
-	for i := range pairs {
-		if !pairs[i].Base.Equal(c) {
-			continue
-		}
-		resp = append(resp, margin.CurrentRateResponse{
-			Exchange:      e.Name,
-			Asset:         a,
-			Pair:          pairs[i],
-			CurrentRate:   current,
-			PredictedRate: predicted,
-			TimeChecked:   timeChecked,
-		})
-	}
-	if len(resp) == 0 {
-		return nil
-	}
-	return e.Websocket.DataHandler.Send(ctx, resp)
 }
 
 func (e *Exchange) handleWSEvent(ctx context.Context, respRaw []byte) error {
@@ -1737,7 +1747,7 @@ func (e *Exchange) subscribeToChan(ctx context.Context, subs subscription.List) 
 	// Otherwise we might drop the first messages after the subscribed resp
 	s.Key = subID // Note subID string type avoids conflicts with later chanID key
 	if err := e.Websocket.AddSubscriptions(e.Websocket.Conn, s); err != nil {
-		return fmt.Errorf("%w Channel: %s Pair: %s", err, s.Channel, s.Pairs)
+		return fmt.Errorf("%w Channel: %s.Channel, s.Pairs)
 	}
 
 	// Always remove the temporary subscription keyed by subID
