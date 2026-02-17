@@ -2012,10 +2012,8 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			if err != nil {
 				return nil, err
 			}
-			var endTime time.Time
-			if result.Data[x].DeliveryTime.Time().IsZero() {
-				endTime = result.Data[x].DeliveryTime.Time()
-			} else {
+			endTime := result.Data[x].DeliveryTime.Time()
+			if endTime.IsZero() {
 				endTime = result.Data[x].SettlementTime.Time()
 			}
 			contractLength := endTime.Sub(result.Data[x].CreateDate.Time())
@@ -2187,11 +2185,9 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			if err != nil {
 				return err
 			}
-			var endTime time.Time
-			if contracts.Data[i].DeliveryTime.Time().IsZero() {
+			endTime := contracts.Data[i].DeliveryTime.Time()
+			if endTime.IsZero() {
 				endTime = contracts.Data[i].SettlementTime.Time()
-			} else {
-				endTime = contracts.Data[i].DeliveryTime.Time()
 			}
 			l = append(l, limits.MinMaxLevel{
 				Key:                     key.NewExchangeAssetPair(e.Name, a, p),

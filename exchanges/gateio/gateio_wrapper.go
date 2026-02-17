@@ -871,7 +871,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
-	if err := e.formatClientOrderFormatCurrency(s); err != nil {
+	if err := e.formatOrderClientIDAndPair(s); err != nil {
 		return nil, err
 	}
 
@@ -2318,7 +2318,7 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 		return nil, err
 	}
 
-	if err := e.formatClientOrderFormatCurrency(s); err != nil {
+	if err := e.formatOrderClientIDAndPair(s); err != nil {
 		return nil, err
 	}
 
@@ -2356,7 +2356,7 @@ func formatClientOrderID(clientOrderID string) string {
 	return "t-" + clientOrderID
 }
 
-func (e *Exchange) formatClientOrderFormatCurrency(s *order.Submit) error {
+func (e *Exchange) formatOrderClientIDAndPair(s *order.Submit) error {
 	s.ClientOrderID = formatClientOrderID(s.ClientOrderID)
 	var err error
 	s.Pair, err = e.FormatExchangeCurrency(s.Pair, s.AssetType)
@@ -2629,7 +2629,7 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 	case asset.Spot:
 		reqs := make([]*CreateOrderRequest, len(orders))
 		for i, s := range orders {
-			if err := e.formatClientOrderFormatCurrency(s); err != nil {
+			if err := e.formatOrderClientIDAndPair(s); err != nil {
 				return nil, err
 			}
 			var err error
@@ -2646,7 +2646,7 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
 		reqs := make([]*ContractOrderCreateParams, len(orders))
 		for i, s := range orders {
-			if err := e.formatClientOrderFormatCurrency(s); err != nil {
+			if err := e.formatOrderClientIDAndPair(s); err != nil {
 				return nil, err
 			}
 			var err error

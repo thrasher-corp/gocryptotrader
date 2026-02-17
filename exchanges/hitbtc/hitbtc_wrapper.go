@@ -853,6 +853,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	}
 	l := make([]limits.MinMaxLevel, 0, len(symbols))
 	for i := range symbols {
+		// s.QuoteCurrency is actually settlement currency, so trim the base currency to get the real quote currency
 		p, err := currency.NewPairFromStrings(symbols[i].BaseCurrency, strings.TrimPrefix(symbols[i].ID, symbols[i].BaseCurrency))
 		if err != nil {
 			return err
