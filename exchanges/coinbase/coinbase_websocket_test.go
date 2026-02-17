@@ -40,158 +40,104 @@ func TestWsConnect(t *testing.T) {
 
 func TestWsHandleData(t *testing.T) {
 	t.Parallel()
-	tcs := []struct {
-		name string
-		run  func(t *testing.T)
-	}{
-		{
-			name: "nil message",
-			run: func(t *testing.T) {
-				t.Helper()
-				err := e.wsHandleData(t.Context(), nil, nil)
-				var syntaxErr *gctjson.SyntaxError
-				assert.True(t, stderrors.As(err, &syntaxErr) || strings.Contains(err.Error(), "Syntax error no sources available, the input json is empty"), errJSONUnmarshalUnexpected)
-			},
-		},
-		{
-			name: "error type message",
-			run: func(t *testing.T) {
-				t.Helper()
-				mockJSON := []byte(`{"type": "error"}`)
-				err := e.wsHandleData(t.Context(), nil, mockJSON)
-				assert.Error(t, err)
-			},
-		},
-		{
-			name: "subscriptions channel",
-			run: func(t *testing.T) {
-				t.Helper()
-				mockJSON := []byte(`{"sequence_num": 0, "channel": "subscriptions"}`)
-				err := e.wsHandleData(t.Context(), nil, mockJSON)
-				assert.NoError(t, err)
-			},
-		},
-		{
-			name: "heartbeats channel",
-			run: func(t *testing.T) {
-				t.Helper()
-				mockJSON := []byte(`{"sequence_num": 0, "channel": "heartbeats"}`)
-				err := e.wsHandleData(t.Context(), nil, mockJSON)
-				assert.NoError(t, err)
-			},
-		},
-		{
-			name: "status channel success",
-			run: func(t *testing.T) {
-				t.Helper()
-				mockJSON := []byte(`{"sequence_num": 0, "channel": "status", "events": [{"type": "status", "products": []}]}`)
-				err := e.wsHandleData(t.Context(), nil, mockJSON)
-				assert.NoError(t, err)
-			},
-		},
-		{
-			name: "status events type unmarshal",
-			run: func(t *testing.T) {
-				t.Helper()
-				var unmarshalTypeErr *gctjson.UnmarshalTypeError
-				mockJSON := []byte(`{"sequence_num": 0, "channel": "status", "events": [{"type": 1234}]}`)
-				err := e.wsHandleData(t.Context(), nil, mockJSON)
-				assert.True(t, stderrors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
-			},
-		},
-		{
-			name: "ticker tickers unmarshal",
-			run: func(t *testing.T) {
-				t.Helper()
-				var unmarshalTypeErr *gctjson.UnmarshalTypeError
-				mockJSON := []byte(`{"sequence_num": 0, "channel": "ticker", "events": [{"type": "moo", "tickers": false}]}`)
-				err := e.wsHandleData(t.Context(), nil, mockJSON)
-				assert.True(t, stderrors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
-			},
-		},
-		{
-			name: "candles events type unmarshal",
-			run: func(t *testing.T) {
-				t.Helper()
-				var unmarshalTypeErr *gctjson.UnmarshalTypeError
-				mockJSON := []byte(`{"sequence_num": 0, "channel": "candles", "events": [{"type": false}]}`)
-				err := e.wsHandleData(t.Context(), nil, mockJSON)
-				assert.True(t, stderrors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
-			},
-		},
-		{
-			name: "market_trades events type unmarshal",
-			run: func(t *testing.T) {
-				t.Helper()
-				var unmarshalTypeErr *gctjson.UnmarshalTypeError
-				mockJSON := []byte(`{"sequence_num": 0, "channel": "market_trades", "events": [{"type": false}]}`)
-				err := e.wsHandleData(t.Context(), nil, mockJSON)
-				assert.True(t, stderrors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
-			},
-		},
-		{
-			name: "l2_data updates unmarshal",
-			run: func(t *testing.T) {
-				t.Helper()
-				var unmarshalTypeErr *gctjson.UnmarshalTypeError
-				mockJSON := []byte(`{"sequence_num": 0, "channel": "l2_data", "events": [{"type": false, "updates": [{"price_level": "1.1"}]}]}`)
-				err := e.wsHandleData(t.Context(), nil, mockJSON)
-				assert.True(t, stderrors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
-			},
-		},
-		{
-			name: "user events type unmarshal",
-			run: func(t *testing.T) {
-				t.Helper()
-				var unmarshalTypeErr *gctjson.UnmarshalTypeError
-				mockJSON := []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": false}]}`)
-				err := e.wsHandleData(t.Context(), nil, mockJSON)
-				assert.True(t, stderrors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
-			},
-		},
-		{
-			name: "unknown channel",
-			run: func(t *testing.T) {
-				t.Helper()
-				mockJSON := []byte(`{"sequence_num": 0, "channel": "fakechan", "events": [{"type": ""}]}`)
-				err := e.wsHandleData(t.Context(), nil, mockJSON)
-				assert.ErrorIs(t, err, errChannelNameUnknown)
-			},
-		},
-		{
-			name: "sequence validation before payload error",
-			run: func(t *testing.T) {
-				t.Helper()
-				ex := new(Exchange)
-				require.NoError(t, testexch.Setup(ex))
-				conn := testexch.GetMockConn(t, ex, "ws://coinbase-wshandledata-seq")
-				assert.NoError(t, ex.wsHandleData(t.Context(), conn, []byte(`{"sequence_num": 1, "channel": "subscriptions"}`)))
-				err := ex.wsHandleData(t.Context(), conn, []byte(`{"sequence_num": 3, "channel": "subscriptions", "type": "error"}`))
-				assert.ErrorIs(t, err, errOutOfSequence)
-			},
-		},
-		{
-			name: "ticker with alias loaded",
-			run: func(t *testing.T) {
-				t.Helper()
-				p, err := e.FormatExchangeCurrency(currency.NewBTCUSD(), asset.Spot)
-				require.NoError(t, err)
-				e.pairAliases.Load(map[currency.Pair]currency.Pairs{p: {p}})
 
-				mockJSON := []byte(`{"sequence_num": 0, "channel": "ticker", "events": [{"type": "moo", "tickers": [{"product_id": "BTC-USD", "price": "1.1"}]}]}`)
-				err = e.wsHandleData(t.Context(), nil, mockJSON)
-				assert.NoError(t, err)
-			},
-		},
-	}
+	t.Run("nil message", func(t *testing.T) {
+		err := e.wsHandleData(t.Context(), nil, nil)
+		var syntaxErr *gctjson.SyntaxError
+		assert.True(t, stderrors.As(err, &syntaxErr) || strings.Contains(err.Error(), "Syntax error no sources available, the input json is empty"), errJSONUnmarshalUnexpected)
+	})
 
-	for i := range tcs {
-		tc := tcs[i]
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			tc.run(t)
-		})
-	}
+	t.Run("error type message", func(t *testing.T) {
+		mockJSON := []byte(`{"type": "error"}`)
+		err := e.wsHandleData(t.Context(), nil, mockJSON)
+		assert.Error(t, err)
+	})
+
+	t.Run("subscriptions channel", func(t *testing.T) {
+		mockJSON := []byte(`{"sequence_num": 0, "channel": "subscriptions"}`)
+		err := e.wsHandleData(t.Context(), nil, mockJSON)
+		assert.NoError(t, err)
+	})
+
+	t.Run("heartbeats channel", func(t *testing.T) {
+		mockJSON := []byte(`{"sequence_num": 0, "channel": "heartbeats"}`)
+		err := e.wsHandleData(t.Context(), nil, mockJSON)
+		assert.NoError(t, err)
+	})
+
+	t.Run("status channel success", func(t *testing.T) {
+		mockJSON := []byte(`{"sequence_num": 0, "channel": "status", "events": [{"type": "status", "products": []}]}`)
+		err := e.wsHandleData(t.Context(), nil, mockJSON)
+		assert.NoError(t, err)
+	})
+
+	t.Run("status events type unmarshal", func(t *testing.T) {
+		var unmarshalTypeErr *gctjson.UnmarshalTypeError
+		mockJSON := []byte(`{"sequence_num": 0, "channel": "status", "events": [{"type": 1234}]}`)
+		err := e.wsHandleData(t.Context(), nil, mockJSON)
+		assert.True(t, stderrors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
+	})
+
+	t.Run("ticker tickers unmarshal", func(t *testing.T) {
+		var unmarshalTypeErr *gctjson.UnmarshalTypeError
+		mockJSON := []byte(`{"sequence_num": 0, "channel": "ticker", "events": [{"type": "moo", "tickers": false}]}`)
+		err := e.wsHandleData(t.Context(), nil, mockJSON)
+		assert.True(t, stderrors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
+	})
+
+	t.Run("candles events type unmarshal", func(t *testing.T) {
+		var unmarshalTypeErr *gctjson.UnmarshalTypeError
+		mockJSON := []byte(`{"sequence_num": 0, "channel": "candles", "events": [{"type": false}]}`)
+		err := e.wsHandleData(t.Context(), nil, mockJSON)
+		assert.True(t, stderrors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
+	})
+
+	t.Run("market_trades events type unmarshal", func(t *testing.T) {
+		var unmarshalTypeErr *gctjson.UnmarshalTypeError
+		mockJSON := []byte(`{"sequence_num": 0, "channel": "market_trades", "events": [{"type": false}]}`)
+		err := e.wsHandleData(t.Context(), nil, mockJSON)
+		assert.True(t, stderrors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
+	})
+
+	t.Run("l2_data updates unmarshal", func(t *testing.T) {
+		var unmarshalTypeErr *gctjson.UnmarshalTypeError
+		mockJSON := []byte(`{"sequence_num": 0, "channel": "l2_data", "events": [{"type": false, "updates": [{"price_level": "1.1"}]}]}`)
+		err := e.wsHandleData(t.Context(), nil, mockJSON)
+		assert.True(t, stderrors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
+	})
+
+	t.Run("user events type unmarshal", func(t *testing.T) {
+		var unmarshalTypeErr *gctjson.UnmarshalTypeError
+		mockJSON := []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": false}]}`)
+		err := e.wsHandleData(t.Context(), nil, mockJSON)
+		assert.True(t, stderrors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
+	})
+
+	t.Run("unknown channel", func(t *testing.T) {
+		mockJSON := []byte(`{"sequence_num": 0, "channel": "fakechan", "events": [{"type": ""}]}`)
+		err := e.wsHandleData(t.Context(), nil, mockJSON)
+		assert.ErrorIs(t, err, errChannelNameUnknown)
+	})
+
+	t.Run("sequence validation before payload error", func(t *testing.T) {
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex))
+		conn := testexch.GetMockConn(t, ex, "ws://coinbase-wshandledata-seq")
+		assert.NoError(t, ex.wsHandleData(t.Context(), conn, []byte(`{"sequence_num": 1, "channel": "subscriptions"}`)))
+		err := ex.wsHandleData(t.Context(), conn, []byte(`{"sequence_num": 3, "channel": "subscriptions", "type": "error"}`))
+		assert.ErrorIs(t, err, errOutOfSequence)
+	})
+
+	t.Run("ticker with alias loaded", func(t *testing.T) {
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex))
+		p, err := ex.FormatExchangeCurrency(currency.NewBTCUSD(), asset.Spot)
+		require.NoError(t, err)
+		ex.pairAliases.Load(map[currency.Pair]currency.Pairs{p: {p}})
+		mockJSON := []byte(`{"sequence_num": 0, "channel": "ticker", "events": [{"type": "moo", "tickers": [{"product_id": "BTC-USD", "price": "1.1"}]}]}`)
+		err = ex.wsHandleData(t.Context(), nil, mockJSON)
+		assert.NoError(t, err)
+	})
 }
 
 func TestWsHandleDataSequence(t *testing.T) {
