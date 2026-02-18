@@ -343,10 +343,10 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			var cp currency.Pair
 			cp, err = e.MatchSymbolWithAvailablePairs(ticks.Data[i].Symbol, a, false)
 			if err != nil {
-				if !errors.Is(err, currency.ErrPairNotFound) {
-					errs = common.AppendError(errs, err)
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
 				}
-				continue
+				return err
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
 				High:         ticks.Data[i].High,
@@ -377,10 +377,10 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			var cp currency.Pair
 			cp, err = e.MatchSymbolWithAvailablePairs(ticks[i].ContractCode, a, true)
 			if err != nil {
-				if !errors.Is(err, currency.ErrPairNotFound) {
-					errs = common.AppendError(errs, err)
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
 				}
-				continue
+				return err
 			}
 			tt := ticks[i].Timestamp.Time()
 			err = ticker.ProcessTicker(&ticker.Price{
@@ -2089,11 +2089,11 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			rates[i].ContractCode = rates[i].Symbol + "-USD"
 		}
 		cp, err := e.MatchSymbolWithAvailablePairs(rates[i].ContractCode, r.Asset, true)
-		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-			return nil, err
-		}
 		if err != nil {
-			continue
+			if errors.Is(err, currency.ErrPairNotFound) {
+				continue
+			}
+			return nil, err
 		}
 		var isPerp bool
 		isPerp, err = e.IsPerpetualFutureCurrency(r.Asset, cp)
@@ -2232,11 +2232,11 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 				var p currency.Pair
 				var appendData bool
 				p, err = e.MatchSymbolWithAvailablePairs(allData[i].ContractCode, a, true)
-				if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-					return nil, err
-				}
 				if err != nil {
-					continue
+					if errors.Is(err, currency.ErrPairNotFound) {
+						continue
+					}
+					return nil, err
 				}
 				for j := range k {
 					if k[j].Pair().Equal(p) {
@@ -2259,11 +2259,11 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 			}
 			for i := range data.Data {
 				p, err := e.MatchSymbolWithAvailablePairs(data.Data[i].ContractCode, a, true)
-				if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-					return nil, err
-				}
 				if err != nil {
-					continue
+					if errors.Is(err, currency.ErrPairNotFound) {
+						continue
+					}
+					return nil, err
 				}
 				var appendData bool
 				for j := range k {

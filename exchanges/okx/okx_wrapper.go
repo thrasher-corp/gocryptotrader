@@ -2931,11 +2931,11 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 			for j := range oid {
 				var p currency.Pair
 				p, err = e.MatchSymbolWithAvailablePairs(oid[j].InstrumentID, v, true)
-				if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-					return nil, err
-				}
 				if err != nil {
-					continue
+					if errors.Is(err, currency.ErrPairNotFound) {
+						continue
+					}
+					return nil, err
 				}
 				var appendData bool
 				for j := range k {

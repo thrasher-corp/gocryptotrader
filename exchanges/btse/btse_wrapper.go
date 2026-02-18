@@ -1133,11 +1133,11 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	for i := range rates {
 		var cp currency.Pair
 		cp, err = e.MatchSymbolWithAvailablePairs(rates[i].Symbol, r.Asset, true)
-		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-			return nil, err
-		}
 		if err != nil {
-			continue
+			if errors.Is(err, currency.ErrPairNotFound) {
+				continue
+			}
+			return nil, err
 		}
 		var isPerp bool
 		isPerp, err = e.IsPerpetualFutureCurrency(r.Asset, cp)
@@ -1213,11 +1213,11 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 	for i := range tickers {
 		var symbol currency.Pair
 		symbol, err = e.MatchSymbolWithAvailablePairs(tickers[i].Symbol, asset.Futures, false)
-		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-			return nil, err
-		}
 		if err != nil {
-			continue
+			if errors.Is(err, currency.ErrPairNotFound) {
+				continue
+			}
+			return nil, err
 		}
 		var appendData bool
 		for j := range k {

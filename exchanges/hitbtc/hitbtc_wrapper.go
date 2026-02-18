@@ -221,10 +221,10 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		var pair currency.Pair
 		pair, err = e.MatchSymbolWithAvailablePairs(tick[x].Symbol, a, false)
 		if err != nil {
-			if !errors.Is(err, currency.ErrPairNotFound) {
-				return err
+			if errors.Is(err, currency.ErrPairNotFound) {
+				continue
 			}
-			continue
+			return err
 		}
 
 		err = ticker.ProcessTicker(&ticker.Price{

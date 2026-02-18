@@ -530,9 +530,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			var pair currency.Pair
 			pair, err = e.MatchSymbolWithAvailablePairs(ticks.List[x].Symbol, assetType, true)
 			if err != nil {
-				continue
-			}
-			if !availablePairs.Contains(pair, true) {
+
 				continue
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
@@ -562,9 +560,6 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				var pair currency.Pair
 				pair, err = e.MatchSymbolWithAvailablePairs(ticks.List[x].Symbol, assetType, true)
 				if err != nil {
-					continue
-				}
-				if !availablePairs.Contains(pair, true) {
 					continue
 				}
 				err = ticker.ProcessTicker(&ticker.Price{
@@ -2043,10 +2038,11 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		for i := range ticks.List {
 			var cp currency.Pair
 			cp, err = e.MatchSymbolWithAvailablePairs(ticks.List[i].Symbol, r.Asset, false)
-			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+			if err != nil {
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
+				}
 				return nil, err
-			} else if err != nil {
-				continue
 			}
 			var fundingInterval time.Duration
 			for j := range instrumentInfo.List {
