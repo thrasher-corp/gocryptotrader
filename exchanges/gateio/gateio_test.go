@@ -367,7 +367,7 @@ func TestCancelSingleSpotOrder(t *testing.T) {
 func TestGetMySpotTradingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetMySpotTradingHistory(t.Context(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, "", "", 0, 0, time.Time{}, time.Time{})
+	_, err := e.GetMySpotTradingHistory(t.Context(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, "", 0, 0, time.Time{}, time.Time{})
 	require.NoError(t, err)
 }
 
@@ -378,7 +378,7 @@ func TestGetServerTime(t *testing.T) {
 	}
 }
 
-func TestCountdownCancelorder(t *testing.T) {
+func TestCountdownCancelOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	if _, err := e.CountdownCancelorders(t.Context(), CountdownCancelOrderParam{

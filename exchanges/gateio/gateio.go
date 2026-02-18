@@ -729,7 +729,7 @@ func (e *Exchange) CancelSingleSpotOrder(ctx context.Context, orderID, currencyP
 }
 
 // GetMySpotTradingHistory retrieves personal trading history
-func (e *Exchange) GetMySpotTradingHistory(ctx context.Context, p currency.Pair, orderID, account string, page, limit uint64, from, to time.Time) ([]SpotPersonalTradeHistory, error) {
+func (e *Exchange) GetMySpotTradingHistory(ctx context.Context, p currency.Pair, orderID string, page, limit uint64, from, to time.Time) ([]SpotPersonalTradeHistory, error) {
 	params := url.Values{}
 	if p.IsPopulated() {
 		params.Set("currency_pair", p.String())
@@ -742,9 +742,6 @@ func (e *Exchange) GetMySpotTradingHistory(ctx context.Context, p currency.Pair,
 	}
 	if page > 0 {
 		params.Set("page", strconv.FormatUint(page, 10))
-	}
-	if account != "" {
-		params.Set("account", account)
 	}
 	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.Unix(), 10))

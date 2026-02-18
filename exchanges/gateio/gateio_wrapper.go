@@ -1532,25 +1532,19 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		if len(req.Pairs) == 0 {
 			req.Pairs = currency.Pairs{currency.EMPTYPAIR}
 		}
-		a := ""
-		if req.AssetType == asset.Margin || req.AssetType == asset.CrossMargin { // cross margin not a supported account type
-			a = asset.Margin.String()
-		}
 		for i := range req.Pairs {
 			fp := req.Pairs[i].Format(format)
-			o, err := e.GetMySpotTradingHistory(ctx, fp, req.FromOrderID, a, 0, 0, req.StartTime, req.EndTime)
+			o, err := e.GetMySpotTradingHistory(ctx, fp, req.FromOrderID, 0, 1000, req.StartTime, req.EndTime)
 			if err != nil {
 				return nil, err
 			}
 			for j := range o {
-				var side order.Side
-				side, err = order.StringToOrderSide(o[j].Side)
+				side, err := order.StringToOrderSide(o[j].Side)
 				if err != nil {
 					return nil, err
 				}
-				p, err := e.MatchSymbolWithAvailablePairs(o[j].CurrencyPair, req.AssetType, true)
-				if err != nil {
-					return nil, err
+				if isAvail, err := e.CurrencyPairs.IsPairAvailable(o[j].CurrencyPair, req.AssetType); !isAvail || err != nil {
+					continue
 				}
 				od := order.Detail{
 					OrderID:        o[j].OrderID,
@@ -1560,10 +1554,10 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					Date:           o[j].CreateTime.Time(),
 					Side:           side,
 					Exchange:       e.Name,
-					Pair:           p,
+					Pair:           o[j].CurrencyPair,
 					AssetType:      req.AssetType,
 					Fee:            o[j].Fee.Float64(),
-					FeeAsset:       currency.NewCode(o[j].FeeCurrency),
+					FeeAsset:       o[j].FeeCurrency,
 				}
 				od.InferCostsAndTimes()
 				resp = append(resp, od)

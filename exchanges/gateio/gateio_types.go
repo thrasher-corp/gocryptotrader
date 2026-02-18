@@ -1462,18 +1462,22 @@ type CancelOrderByIDResponse struct {
 
 // SpotPersonalTradeHistory represents personal trading history.
 type SpotPersonalTradeHistory struct {
-	TradeID      string       `json:"id"`
-	CreateTime   types.Time   `json:"create_time_ms"`
-	CurrencyPair string       `json:"currency_pair"`
-	OrderID      string       `json:"order_id"`
-	Side         string       `json:"side"`
-	Role         string       `json:"role"`
-	Amount       types.Number `json:"amount"`
-	Price        types.Number `json:"price"`
-	Fee          types.Number `json:"fee"`
-	FeeCurrency  string       `json:"fee_currency"`
-	PointFee     string       `json:"point_fee"`
-	GtFee        string       `json:"gt_fee"`
+	TradeID      string        `json:"id"`
+	CreateTime   types.Time    `json:"create_time_ms"`
+	CurrencyPair currency.Pair `json:"currency_pair"`
+	OrderID      string        `json:"order_id"`
+	Side         string        `json:"side"`
+	Role         string        `json:"role"`
+	Amount       types.Number  `json:"amount"`
+	Price        types.Number  `json:"price"`
+	Fee          types.Number  `json:"fee"`
+	FeeCurrency  currency.Code `json:"fee_currency"`
+	PointFee     types.Number  `json:"point_fee"`
+	GtFee        types.Number  `json:"gt_fee"`
+	AmendText    string        `json:"amend_text"`
+	SequenceID   string        `json:"sequence_id"`
+	Text         string        `json:"text"`
+	Deal         types.Number  `json:"deal"`
 }
 
 // CountdownCancelOrderParam represents countdown cancel order params
