@@ -691,7 +691,7 @@ func (e *Exchange) CalculatePortfolioMargin(ctx context.Context, arg *PortfolioM
 		}
 	}
 	for _, so := range arg.SpotOrders {
-		if len(so.CurrencyPairs) == 0 {
+		if so.CurrencyPairs == "" {
 			return nil, currency.ErrCurrencyPairEmpty
 		}
 		if so.OrderPrice <= 0 {
@@ -704,14 +704,14 @@ func (e *Exchange) CalculatePortfolioMargin(ctx context.Context, arg *PortfolioM
 			return nil, fmt.Errorf("%w: order type is required", order.ErrTypeIsInvalid)
 		}
 	}
-	for _, fo := range arg.FuturesOrders {
-		if fo.Contract.IsEmpty() {
+	for _, fOrder := range arg.FuturesOrders {
+		if fOrder.Contract.IsEmpty() {
 			return nil, currency.ErrCurrencyPairEmpty
 		}
-		if fo.Size <= 0 {
+		if fOrder.Size <= 0 {
 			return nil, fmt.Errorf("%w: size must be greater than 0", errInvalidOrderSize)
 		}
-		if fo.Left <= 0 {
+		if fOrder.Left <= 0 {
 			return nil, fmt.Errorf("%w: left, unfilled quantity size must be greater than 0", errInvalidOrderSize)
 		}
 	}

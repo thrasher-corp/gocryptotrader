@@ -43,8 +43,10 @@ const (
 	canManipulateRealOrders = false
 )
 
-var e *Exchange
-var enabledAssetPair map[asset.Item]currency.Pair
+var (
+	e                *Exchange
+	enabledAssetPair map[asset.Item]currency.Pair
+)
 
 func getTime() (startTime, endTime time.Time) {
 	if mockTests {
@@ -1261,7 +1263,6 @@ func TestGetRiskLimitTiers(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	usdtmFuturesTP := getPair(t, asset.USDTMarginedFutures)
-	println("usdtmFuturesTP: ", usdtmFuturesTP.String())
 	_, err = e.GetRiskLimitTiers(t.Context(), usdtmFuturesTP.Quote, usdtmFuturesTP, 1, 10)
 	assert.NoError(t, err)
 }
