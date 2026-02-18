@@ -3235,13 +3235,13 @@ type UnifiedAccountLoanMargin struct {
 
 // PortfolioMarginCalculatorParams holds a request parameters for a portfolio margin calculation
 type PortfolioMarginCalculatorParams struct {
-	SpotBalances     []SpotBalanceParams `json:"spot_balances,omitempty"`
-	SpotOrders       []SpotOrderParams   `json:"spot_orders,omitempty"`
-	FuturesPositions []FuturesOrderInfo  `json:"futures_positions,omitempty"`
-	FuturesOrders    []FuturesOrderInfo  `json:"futures_orders,omitempty"`
-	OptionsPositions []OptionsOrderInfo  `json:"options_positions,omitempty"`
-	OptionsOrders    []OptionsOrderInfo  `json:"options_orders,omitempty"`
-	SpotHedge        bool                `json:"spot_hedge,omitempty"`
+	SpotBalances     []*SpotBalanceParams `json:"spot_balances,omitempty"`
+	SpotOrders       []*SpotOrderParams   `json:"spot_orders,omitempty"`
+	FuturesPositions []*FuturesOrderInfo  `json:"futures_positions,omitempty"`
+	FuturesOrders    []*FuturesOrderInfo  `json:"futures_orders,omitempty"`
+	OptionsPositions []*OptionsOrderInfo  `json:"options_positions,omitempty"`
+	OptionsOrders    []*OptionsOrderInfo  `json:"options_orders,omitempty"`
+	SpotHedge        bool                 `json:"spot_hedge,omitempty"`
 }
 
 // SpotBalanceParams holds a spot balance parameters
@@ -3262,14 +3262,14 @@ type SpotOrderParams struct {
 
 // FuturesOrderInfo holds option unified account margin calculator parameters
 type FuturesOrderInfo struct {
-	Contract currency.Pair `json:"contract,omitempty"`
+	Contract currency.Pair `json:"contract"`
 	Size     float64       `json:"size,omitempty,string"`
 	Left     float64       `json:"left,omitempty,string"`
 }
 
 // OptionsOrderInfo holds option unified account margin calculator parameters
 type OptionsOrderInfo struct {
-	OptionsName currency.Pair `json:"options_name,omitempty"`
+	OptionsName currency.Pair `json:"options_name"`
 	Size        float64       `json:"size,omitempty,string"`
 	Left        float64       `json:"left,omitempty,string"`
 }
