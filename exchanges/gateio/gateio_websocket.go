@@ -264,8 +264,8 @@ func (e *Exchange) processTicker(ctx context.Context, incoming []byte, pushTime 
 	}
 	out := make([]ticker.Price, 0, len(standardMarginAssetTypes))
 	for _, a := range standardMarginAssetTypes {
-		if enabled, _ := e.CurrencyPairs.IsPairEnabled(data.CurrencyPair, a); enabled {
-			out = append(out, ticker.Price{
+		if isAvailable, _ := e.CurrencyPairs.IsPairAvailable(data.CurrencyPair, a); isAvailable {
+			tickPrice := ticker.Price{
 				ExchangeName: e.Name,
 				Volume:       data.BaseVolume.Float64(),
 				QuoteVolume:  data.QuoteVolume.Float64(),
@@ -277,7 +277,11 @@ func (e *Exchange) processTicker(ctx context.Context, incoming []byte, pushTime 
 				AssetType:    a,
 				Pair:         data.CurrencyPair,
 				LastUpdated:  pushTime,
-			})
+			}
+			if err := ticker.ProcessTicker(&tickPrice); err != nil {
+				return err
+			}
+			out = append(out, tickPrice)
 		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, out)
@@ -300,7 +304,7 @@ func (e *Exchange) processTrades(incoming []byte) error {
 	}
 
 	for _, a := range standardMarginAssetTypes {
-		if enabled, _ := e.CurrencyPairs.IsPairEnabled(data.CurrencyPair, a); enabled {
+		if isAvailable, _ := e.CurrencyPairs.IsPairAvailable(data.CurrencyPair, a); isAvailable {
 			if err := e.Websocket.Trade.Update(saveTradeData, trade.Data{
 				Timestamp:    data.CreateTime.Time(),
 				CurrencyPair: data.CurrencyPair,
@@ -335,7 +339,7 @@ func (e *Exchange) processCandlestick(ctx context.Context, incoming []byte) erro
 
 	out := make([]websocket.KlineData, 0, len(standardMarginAssetTypes))
 	for _, a := range standardMarginAssetTypes {
-		if enabled, _ := e.CurrencyPairs.IsPairEnabled(currencyPair, a); enabled {
+		if isAvailable, _ := e.CurrencyPairs.IsPairAvailable(currencyPair, a); isAvailable {
 			out = append(out, websocket.KlineData{
 				Pair:       currencyPair,
 				AssetType:  a,
@@ -393,7 +397,7 @@ func (e *Exchange) processOrderbookSnapshot(incoming []byte, lastPushed time.Tim
 	}
 
 	for _, a := range standardMarginAssetTypes {
-		if enabled, _ := e.CurrencyPairs.IsPairEnabled(data.CurrencyPair, a); enabled {
+		if isAvailable, _ := e.CurrencyPairs.IsPairAvailable(data.CurrencyPair, a); isAvailable {
 			if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 				Exchange:    e.Name,
 				Pair:        data.CurrencyPair,

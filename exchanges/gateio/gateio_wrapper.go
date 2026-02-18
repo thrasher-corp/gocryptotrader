@@ -578,7 +578,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		}
 		return errs
 	case asset.Options:
-		pairs, err := e.GetEnabledPairs(a)
+		pairs, err := e.GetAvailablePairs(a)
 		if err != nil {
 			return err
 		}
@@ -1173,7 +1173,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 
 // GetOrderInfo returns order information based on order ID
 func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, a asset.Item) (*order.Detail, error) {
-	if err := e.CurrencyPairs.IsAssetEnabled(a); err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(a); err != nil {
 		return nil, err
 	}
 
@@ -2087,7 +2087,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		}, nil
 	}
 
-	pairs, err := e.GetEnabledPairs(r.Asset)
+	pairs, err := e.GetAvailablePairs(r.Asset)
 	if err != nil {
 		return nil, err
 	}
@@ -2134,7 +2134,7 @@ func (e *Exchange) IsPerpetualFutureCurrency(a asset.Item, _ currency.Pair) (boo
 }
 
 // GetOpenInterest returns the open interest rate for a given asset pair
-// If no pairs are provided, all enabled assets and pairs will be used
+// If no pairs are provided, all available assets and pairs will be used
 // If keys are provided, those asset pairs only need to be available, not enabled
 func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]futures.OpenInterest, error) {
 	var errs error
@@ -2170,11 +2170,11 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) (
 					}
 					continue
 				}
-				if len(keys) == 0 { // No keys: All enabled pairs
-					if enabled, err := e.IsPairEnabled(p, a); err != nil {
+				if len(keys) == 0 { // No keys: All available pairs
+					if isAvailable, err := e.IsPairAvailable(p, a); err != nil {
 						errs = common.AppendError(errs, fmt.Errorf("%w: %s %s", err, a, p))
 						continue
-					} else if !enabled {
+					} else if !isAvailable {
 						continue
 					}
 				} else { // More than one key; Any available pair
@@ -2303,7 +2303,7 @@ func getFutureOrderSize(s *order.Submit) (float64, error) {
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := e.CurrencyPairs.IsPairEnabled(cp, a)
+	_, err := e.CurrencyPairs.IsPairAvailable(cp, a)
 	if err != nil {
 		return "", err
 	}

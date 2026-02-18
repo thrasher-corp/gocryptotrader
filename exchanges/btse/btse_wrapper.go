@@ -300,7 +300,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(assetType); err != nil {
 		return nil, err
 	}
 	book := &orderbook.Book{
@@ -794,7 +794,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 	var resp []order.Detail
 	if len(getOrdersRequest.Pairs) == 0 {
 		var err error
-		getOrdersRequest.Pairs, err = e.GetEnabledPairs(asset.Spot)
+		getOrdersRequest.Pairs, err = e.GetAvailablePairs(asset.Spot)
 		if err != nil {
 			return nil, err
 		}
@@ -1132,12 +1132,11 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	resp := make([]fundingrate.LatestRateResponse, 0, len(rates))
 	for i := range rates {
 		var cp currency.Pair
-		var isEnabled bool
-		cp, isEnabled, err = e.MatchSymbolCheckEnabled(rates[i].Symbol, r.Asset, true)
+		cp, err = e.MatchSymbolWithAvailablePairs(rates[i].Symbol, r.Asset, true)
 		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 			return nil, err
 		}
-		if !isEnabled {
+		if err != nil {
 			continue
 		}
 		var isPerp bool
@@ -1213,12 +1212,11 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 	resp := make([]futures.OpenInterest, 0, len(tickers))
 	for i := range tickers {
 		var symbol currency.Pair
-		var enabled bool
-		symbol, enabled, err = e.MatchSymbolCheckEnabled(tickers[i].Symbol, asset.Futures, false)
+		symbol, err = e.MatchSymbolWithAvailablePairs(tickers[i].Symbol, asset.Futures, false)
 		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 			return nil, err
 		}
-		if !enabled {
+		if err != nil {
 			continue
 		}
 		var appendData bool
@@ -1241,7 +1239,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := e.CurrencyPairs.IsPairEnabled(cp, a)
+	_, err := e.CurrencyPairs.IsPairAvailable(cp, a)
 	if err != nil {
 		return "", err
 	}

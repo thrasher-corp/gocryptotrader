@@ -866,6 +866,9 @@ func (e *Exchange) handleWSTickerUpdate(ctx context.Context, c *subscription.Sub
 			return errors.New("unable to type assert ticker flash return rate")
 		}
 	}
+	if err := ticker.ProcessTicker(t); err != nil {
+		return err
+	}
 	return e.Websocket.DataHandler.Send(ctx, t)
 }
 

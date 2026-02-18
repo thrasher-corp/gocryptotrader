@@ -1445,7 +1445,7 @@ func TestVerifyKlineParameters(t *testing.T) {
 
 	assert.ErrorIs(t, b.verifyKlineParameters(availablePairs[0], asset.Index, kline.OneYear), currency.ErrAssetNotFound)
 	assert.ErrorIs(t, b.verifyKlineParameters(currency.EMPTYPAIR, asset.Spot, kline.OneMin), currency.ErrCurrencyPairEmpty)
-	assert.ErrorIs(t, b.verifyKlineParameters(availablePairs[1], asset.Spot, kline.OneYear), currency.ErrPairNotEnabled)
+	assert.ErrorIs(t, b.verifyKlineParameters(availablePairs[1], asset.Spot, kline.OneYear), kline.ErrInvalidInterval)
 	assert.ErrorIs(t, b.verifyKlineParameters(availablePairs[0], asset.Spot, kline.OneYear), kline.ErrInvalidInterval)
 	assert.NoError(t, b.verifyKlineParameters(availablePairs[0], asset.Spot, kline.OneMin), "verifyKlineParameters should not error")
 }
@@ -2375,10 +2375,10 @@ func TestMatchSymbolCheckEnabled(t *testing.T) {
 	_, _, err = b.MatchSymbolCheckEnabled("sillBillies", asset.Futures, false)
 	require.ErrorIs(t, err, currency.ErrPairNotFound)
 
-	whatIGot, enabled, err := b.MatchSymbolCheckEnabled("btcusdT", asset.Spot, false)
+	whatIGot, isEnabled, err := b.MatchSymbolCheckEnabled("btcusdT", asset.Spot, false)
 	require.NoError(t, err)
 
-	if !enabled {
+	if !isEnabled {
 		t.Fatal("expected true")
 	}
 
@@ -2386,25 +2386,25 @@ func TestMatchSymbolCheckEnabled(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", whatIGot, whatIWant)
 	}
 
-	whatIGot, enabled, err = b.MatchSymbolCheckEnabled("btc-usdT", asset.Spot, true)
+	whatIGot, isEnabled, err = b.MatchSymbolCheckEnabled("btc-usdT", asset.Spot, true)
 	require.NoError(t, err)
 
 	if !whatIGot.Equal(whatIWant) {
 		t.Fatalf("received: '%v' but expected: '%v'", whatIGot, whatIWant)
 	}
 
-	if !enabled {
+	if !isEnabled {
 		t.Fatal("expected true")
 	}
 
-	whatIGot, enabled, err = b.MatchSymbolCheckEnabled("btc-AUD", asset.Spot, true)
+	whatIGot, isEnabled, err = b.MatchSymbolCheckEnabled("btc-AUD", asset.Spot, true)
 	require.NoError(t, err)
 
 	if !whatIGot.Equal(availButNoEnabled) {
 		t.Fatalf("received: '%v' but expected: '%v'", whatIGot, whatIWant)
 	}
 
-	if enabled {
+	if isEnabled {
 		t.Fatal("expected false")
 	}
 }

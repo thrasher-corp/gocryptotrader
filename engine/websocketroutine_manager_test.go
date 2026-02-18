@@ -142,6 +142,17 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 		AssetType:    asset.Spot,
 	})
 	assert.NoError(t, err)
+	testPair := currency.NewPair(currency.NewCode("AAA"), currency.NewCode("BBB"))
+	err = exch.GetBase().CurrencyPairs.SetAssetEnabled(asset.Spot, false)
+	require.NoError(t, err)
+	err = m.websocketDataHandler(exchName, &ticker.Price{
+		ExchangeName: exchName,
+		Pair:         testPair,
+		AssetType:    asset.Spot,
+	})
+	assert.NoError(t, err)
+	_, err = ticker.GetTicker(exchName, testPair, asset.Spot)
+	assert.ErrorIs(t, err, ticker.ErrTickerNotFound)
 
 	err = m.websocketDataHandler(exchName, websocket.KlineData{})
 	if err != nil {
@@ -202,17 +213,6 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-
-	classificationError := order.ClassificationError{
-		Exchange: "test",
-		OrderID:  "one",
-		Err:      errors.New("lol"),
-	}
-	err = m.websocketDataHandler(exchName, classificationError)
-	if err == nil {
-		t.Error("Expected error")
-	}
-	assert.ErrorIs(t, err, classificationError.Err)
 
 	err = m.websocketDataHandler(exchName, &orderbook.Book{
 		Exchange: "Bitstamp",

@@ -274,7 +274,7 @@ func (e *Exchange) wsHandleTickerMsg(ctx context.Context, s *subscription.Subscr
 	if err := json.Unmarshal(respRaw, &wsTicker); err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+	tickPrice := &ticker.Price{
 		ExchangeName: e.Name,
 		Open:         wsTicker.Tick.Open,
 		Close:        wsTicker.Tick.Close,
@@ -285,7 +285,11 @@ func (e *Exchange) wsHandleTickerMsg(ctx context.Context, s *subscription.Subscr
 		LastUpdated:  wsTicker.Timestamp.Time(),
 		AssetType:    s.Asset,
 		Pair:         s.Pairs[0],
-	})
+	}
+	if err := ticker.ProcessTicker(tickPrice); err != nil {
+		return err
+	}
+	return e.Websocket.DataHandler.Send(ctx, tickPrice)
 }
 
 func (e *Exchange) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []byte) error {
@@ -373,30 +377,18 @@ func (e *Exchange) wsHandleMyOrdersMsg(ctx context.Context, s *subscription.Subs
 		d.LastUpdated = o.TradeTime.Time()
 	}
 	if d.Status, err = order.StringToOrderStatus(o.OrderStatus); err != nil {
-		return &order.ClassificationError{
-			Exchange: e.Name,
-			OrderID:  d.OrderID,
-			Err:      err,
-		}
+		return err
 	}
 	if o.Side == order.UnknownSide {
 		d.Side, err = stringToOrderSide(o.OrderType)
 		if err != nil {
-			return &order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  d.OrderID,
-				Err:      err,
-			}
+			return err
 		}
 	}
 	if o.OrderType != "" {
 		d.Type, err = stringToOrderType(o.OrderType)
 		if err != nil {
-			return &order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  d.OrderID,
-				Err:      err,
-			}
+			return err
 		}
 	}
 	if err := e.Websocket.DataHandler.Send(ctx, d); err != nil {
@@ -431,30 +423,18 @@ func (e *Exchange) wsHandleMyTradesMsg(ctx context.Context, s *subscription.Subs
 		OrderID:       strconv.FormatInt(t.OrderID, 10),
 	}
 	if d.Status, err = order.StringToOrderStatus(t.OrderStatus); err != nil {
-		return &order.ClassificationError{
-			Exchange: e.Name,
-			OrderID:  d.OrderID,
-			Err:      err,
-		}
+		return err
 	}
 	if t.Side == order.UnknownSide {
 		d.Side, err = stringToOrderSide(t.OrderType)
 		if err != nil {
-			return &order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  d.OrderID,
-				Err:      err,
-			}
+			return err
 		}
 	}
 	if t.OrderType != "" {
 		d.Type, err = stringToOrderType(t.OrderType)
 		if err != nil {
-			return &order.ClassificationError{
-				Exchange: e.Name,
-				OrderID:  d.OrderID,
-				Err:      err,
-			}
+			return err
 		}
 	}
 	d.Trades = []order.TradeHistory{

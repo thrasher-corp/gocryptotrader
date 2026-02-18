@@ -364,7 +364,7 @@ func (e *Exchange) wsHandleTickerData(ctx context.Context, data []any) error {
 	// highestTradeIn24Hm, ok := tickerData[8].(string)
 	// lowestTradePrice24H, ok := tickerData[9].(string)
 
-	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+	tickPrice := &ticker.Price{
 		ExchangeName: e.Name,
 		Volume:       baseCurrencyVolume24H,
 		QuoteVolume:  quoteCurrencyVolume24H,
@@ -375,7 +375,11 @@ func (e *Exchange) wsHandleTickerData(ctx context.Context, data []any) error {
 		Last:         lastPrice,
 		AssetType:    asset.Spot,
 		Pair:         pair,
-	})
+	}
+	if err := ticker.ProcessTicker(tickPrice); err != nil {
+		return err
+	}
+	return e.Websocket.DataHandler.Send(ctx, tickPrice)
 }
 
 // WsProcessOrderbookSnapshot processes a new orderbook snapshot into a local

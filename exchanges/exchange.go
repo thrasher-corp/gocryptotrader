@@ -237,20 +237,20 @@ func (b *Base) GetPairAndAssetTypeRequestFormatted(symbol string) (currency.Pair
 	if symbol == "" {
 		return currency.EMPTYPAIR, asset.Empty, currency.ErrCurrencyPairEmpty
 	}
-	assetTypes := b.GetAssetTypes(true)
+	assetTypes := b.GetAssetTypes(false)
 	for i := range assetTypes {
 		pFmt, err := b.GetPairFormat(assetTypes[i], true)
 		if err != nil {
 			return currency.EMPTYPAIR, asset.Empty, err
 		}
 
-		enabled, err := b.GetEnabledPairs(assetTypes[i])
+		availablePairs, err := b.GetAvailablePairs(assetTypes[i])
 		if err != nil {
 			return currency.EMPTYPAIR, asset.Empty, err
 		}
-		for j := range enabled {
-			if pFmt.Format(enabled[j]) == symbol {
-				return enabled[j], assetTypes[i], nil
+		for j := range availablePairs {
+			if pFmt.Format(availablePairs[j]) == symbol {
+				return availablePairs[j], assetTypes[i], nil
 			}
 		}
 	}
@@ -335,7 +335,7 @@ func (b *Base) SetConfigPairs() error {
 		}
 
 		var enabledAsset bool
-		if b.Config.CurrencyPairs.IsAssetEnabled(a) == nil {
+		if b.Config.CurrencyPairs.IsAssetAvailable(a) == nil {
 			enabledAsset = true
 		}
 
@@ -409,7 +409,7 @@ func (b *Base) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
 // GetRequestFormattedPairAndAssetType is a method that returns the enabled currency pair of
 // along with its asset type. Only use when there is no chance of the same name crossing over
 func (b *Base) GetRequestFormattedPairAndAssetType(p string) (currency.Pair, asset.Item, error) {
-	assetTypes := b.GetAssetTypes(true)
+	assetTypes := b.GetAssetTypes(false)
 	for i := range assetTypes {
 		format, err := b.GetPairFormat(assetTypes[i], true)
 		if err != nil {
@@ -1128,16 +1128,16 @@ func (b *Base) FormatExchangeKlineInterval(in kline.Interval) string {
 	return strconv.FormatFloat(in.Duration().Seconds(), 'f', 0, 64)
 }
 
-// verifyKlineParameters verifies whether the pair, asset and interval are enabled on the exchange
+// verifyKlineParameters verifies whether the pair, asset and interval are available on the exchange
 func (b *Base) verifyKlineParameters(pair currency.Pair, a asset.Item, interval kline.Interval) error {
-	if err := b.CurrencyPairs.IsAssetEnabled(a); err != nil {
+	if err := b.CurrencyPairs.IsAssetAvailable(a); err != nil {
 		return err
 	}
 
-	if ok, err := b.IsPairEnabled(pair, a); err != nil {
+	if ok, err := b.IsPairAvailable(pair, a); err != nil {
 		return err
 	} else if !ok {
-		return fmt.Errorf("%w: %v", currency.ErrPairNotEnabled, pair)
+		return fmt.Errorf("%w: %v", currency.ErrCurrencyNotSupported, pair)
 	}
 
 	if !b.klineIntervalEnabled(interval) {
@@ -1743,8 +1743,8 @@ func (b *Base) MatchSymbolWithAvailablePairs(symbol string, a asset.Item, hasDel
 
 // MatchSymbolCheckEnabled returns a currency pair based on the supplied symbol
 // and asset type against the available pairs list. If the string is expected to
-// have a delimiter this will attempt to screen it out. It will also check if
-// the pair is enabled.
+// have a delimiter this will attempt to screen it out. It will also report
+// whether the pair is enabled for use by the exchange.
 func (b *Base) MatchSymbolCheckEnabled(symbol string, a asset.Item, hasDelimiter bool) (pair currency.Pair, enabled bool, err error) {
 	pair, err = b.MatchSymbolWithAvailablePairs(symbol, a, hasDelimiter)
 	if err != nil {
@@ -1753,6 +1753,11 @@ func (b *Base) MatchSymbolCheckEnabled(symbol string, a asset.Item, hasDelimiter
 
 	enabled, err = b.IsPairEnabled(pair, a)
 	return pair, enabled, err
+}
+
+// IsPairAvailable checks if a pair is available for the supplied asset type.
+func (b *Base) IsPairAvailable(pair currency.Pair, a asset.Item) (bool, error) {
+	return b.CurrencyPairs.IsPairAvailable(pair, a)
 }
 
 // IsPairEnabled checks if a pair is enabled for an enabled asset type.
@@ -1808,7 +1813,7 @@ func Bootstrap(ctx context.Context, b IBotExchange) error {
 	}
 
 	var errs common.ErrorCollector
-	for _, a := range b.GetAssetTypes(true) {
+	for _, a := range b.GetAssetTypes(false) {
 		errs.Go(func() error {
 			if err := b.UpdateOrderExecutionLimits(ctx, a); err != nil && !errors.Is(err, common.ErrNotYetImplemented) {
 				return fmt.Errorf("failed to set exchange order execution limits: %w", err)

@@ -471,14 +471,6 @@ type ByDate []Detail
 // ByOrderSide used for sorting orders by order side (buy sell)
 type ByOrderSide []Detail
 
-// ClassificationError returned when an order status
-// side or type cannot be recognised
-type ClassificationError struct {
-	Exchange string
-	OrderID  string
-	Err      error
-}
-
 // FilteredOrders defines orders that have been filtered at the wrapper level
 // forcing required filter operations when calling method Filter() on
 // MultiOrderRequest.
