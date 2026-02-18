@@ -302,6 +302,9 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 	for k, v := range t {
 		pair, err := e.MatchSymbolWithAvailablePairs(k[1:], a, true)
 		if err != nil {
+			if errors.Is(err, currency.ErrPairNotFound) {
+				continue
+			}
 			errs = common.AppendError(errs, err)
 			continue
 		}
