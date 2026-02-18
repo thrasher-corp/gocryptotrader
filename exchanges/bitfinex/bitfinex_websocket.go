@@ -883,6 +883,9 @@ func (e *Exchange) handleWSTickerUpdate(ctx context.Context, c *subscription.Sub
 	default:
 		return fmt.Errorf("%w for websocket ticker payload: %v", errTickerInvalidFieldCount, tickerData)
 	}
+	if err := ticker.ProcessTicker(t); err != nil {
+		return err
+	}
 	return e.Websocket.DataHandler.Send(ctx, t)
 }
 

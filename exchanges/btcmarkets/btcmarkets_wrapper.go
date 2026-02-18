@@ -207,7 +207,7 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
-	allPairs, err := e.GetEnabledPairs(a)
+	allPairs, err := e.GetAvailablePairs(a)
 	if err != nil {
 		return err
 	}
@@ -253,7 +253,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(assetType); err != nil {
 		return nil, err
 	}
 
@@ -691,7 +691,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 		return nil, err
 	}
 	if len(req.Pairs) == 0 {
-		allPairs, err := e.GetEnabledPairs(asset.Spot)
+		allPairs, err := e.GetAvailablePairs(asset.Spot)
 		if err != nil {
 			return nil, err
 		}
@@ -992,7 +992,7 @@ func (e *Exchange) GetLatestFundingRates(context.Context, *fundingrate.LatestRat
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := e.CurrencyPairs.IsPairEnabled(cp, a)
+	_, err := e.CurrencyPairs.IsPairAvailable(cp, a)
 	if err != nil {
 		return "", err
 	}

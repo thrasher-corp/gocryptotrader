@@ -752,6 +752,9 @@ func (e *Exchange) wsProcessPublicSpreadTicker(ctx context.Context, respRaw []by
 			AssetType:    asset.Spread,
 			LastUpdated:  data[x].Timestamp.Time(),
 		}
+		if err := ticker.ProcessTicker(&tickers[x]); err != nil {
+			return err
+		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, tickers)
 }
@@ -1342,6 +1345,9 @@ func (e *Exchange) wsProcessTickers(ctx context.Context, data []byte) error {
 				AssetType:    assets[j],
 				Pair:         response.Data[i].InstrumentID,
 				LastUpdated:  response.Data[i].TickerDataGenerationTime.Time(),
+			}
+			if err := ticker.ProcessTicker(tickData); err != nil {
+				return err
 			}
 			if err := e.Websocket.DataHandler.Send(ctx, tickData); err != nil {
 				return err

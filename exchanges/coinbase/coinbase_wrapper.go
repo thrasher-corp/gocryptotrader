@@ -262,7 +262,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	if err != nil {
 		return nil, err
 	}
-	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(assetType); err != nil {
 		return nil, err
 	}
 	book := &orderbook.Book{
@@ -293,12 +293,12 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	var errs error
 	var validPairs currency.Pairs
 	for i := range aliases {
-		isEnabled, err := e.CurrencyPairs.IsPairEnabled(aliases[i], assetType)
+		isAvailable, err := e.CurrencyPairs.IsPairAvailable(aliases[i], assetType)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		if isEnabled {
+		if isAvailable {
 			book.Pair = aliases[i]
 			if err := book.Process(); err != nil {
 				errs = common.AppendError(errs, err)
@@ -923,7 +923,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	if _, err := e.CurrencyPairs.IsPairEnabled(cp, a); err != nil {
+	if _, err := e.CurrencyPairs.IsPairAvailable(cp, a); err != nil {
 		return "", err
 	}
 	cp.Delimiter = currency.DashDelimiter

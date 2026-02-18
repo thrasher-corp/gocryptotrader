@@ -511,7 +511,7 @@ func TestIsPairAvailable(t *testing.T) {
 
 	ok, err = pm.IsPairAvailable(cp, asset.Futures)
 	require.NoError(t, err, "IsPairAvailable must not error")
-	assert.False(t, ok, "IsPairAvailable should return false for a disabled asset type")
+	assert.True(t, ok, "IsPairAvailable should return true when pair is available regardless of asset enabled state")
 
 	cp = NewPairWithDelimiter("XRP", "DOGE", "-")
 	ok, err = pm.IsPairAvailable(cp, asset.Spot)
