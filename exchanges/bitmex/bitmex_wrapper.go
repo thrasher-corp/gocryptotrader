@@ -337,12 +337,11 @@ instruments:
 			tick[j].Symbol = strings.Replace(tick[j].Symbol, currency.UnderscoreDelimiter, "", 1)
 			pair, err = e.MatchSymbolWithAvailablePairs(tick[j].Symbol, a, false)
 		}
-
-		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-			return err
-		}
 		if err != nil {
-			continue
+			if errors.Is(err, currency.ErrPairNotFound) {
+				continue
+			}
+			return err
 		}
 
 		err = ticker.ProcessTicker(&ticker.Price{
@@ -1151,11 +1150,11 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		}
 		var cp currency.Pair
 		cp, err = e.MatchSymbolWithAvailablePairs(rates[i].Symbol, r.Asset, false)
-		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-			return nil, err
-		}
 		if err != nil {
-			continue
+			if errors.Is(err, currency.ErrPairNotFound) {
+				continue
+			}
+			return nil, err
 		}
 		var isPerp bool
 		isPerp, err = e.IsPerpetualFutureCurrency(r.Asset, cp)
@@ -1262,11 +1261,11 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 			for _, a := range e.CurrencyPairs.GetAssetTypes(false) {
 				var symbol currency.Pair
 				symbol, err = e.MatchSymbolWithAvailablePairs(activeInstruments[i].Symbol, a, false)
-				if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-					return nil, err
-				}
 				if err != nil {
-					continue
+					if errors.Is(err, currency.ErrPairNotFound) {
+						continue
+					}
+					return nil, err
 				}
 				var appendData bool
 				for j := range k {
@@ -1287,11 +1286,8 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 		return resp, nil
 	}
 	_, err := e.MatchSymbolWithAvailablePairs(k[0].Pair().String(), k[0].Asset, false)
-	if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
-		return nil, err
-	}
 	if err != nil {
-		return nil, fmt.Errorf("%w %v %v", currency.ErrCurrencyNotSupported, k[0].Asset, k[0].Pair())
+		return nil, err
 	}
 	symbolStr, err := e.FormatSymbol(k[0].Pair(), k[0].Asset)
 	if err != nil {

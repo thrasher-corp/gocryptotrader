@@ -1918,13 +1918,12 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		resp := make([]fundingrate.LatestRateResponse, 0, len(mp))
 		for i := range mp {
 			var cp currency.Pair
-			var isEnabled bool
 			cp, err = e.MatchSymbolWithAvailablePairs(mp[i].Symbol, r.Asset, true)
-			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+			if err != nil {
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
+				}
 				return nil, err
-			}
-			if !isEnabled {
-				continue
 			}
 			var isPerp bool
 			isPerp, err = e.IsPerpetualFutureCurrency(r.Asset, cp)
