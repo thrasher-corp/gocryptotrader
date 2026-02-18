@@ -1143,14 +1143,28 @@ func TestGenerateSubscriptions(t *testing.T) {
 	subs, err := e.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp := subscription.List{}
+	spotEnabledPairs, err := e.GetEnabledPairs(asset.Spot)
+	require.NoError(t, err, "GetEnabledPairs spot must not error")
+	spotFmt, err := e.GetPairFormat(asset.Spot, true)
+	require.NoError(t, err, "GetPairFormat spot must not error")
+	spotEnabledPairs = spotEnabledPairs.Format(spotFmt)
 	for _, baseSub := range e.Features.Subscriptions {
 		for _, a := range e.GetAssetTypes(true) {
 			if baseSub.Asset != asset.All && baseSub.Asset != a {
 				continue
 			}
+			if !e.IsAssetWebsocketSupported(a) {
+				continue
+			}
 			pairs, err := e.GetEnabledPairs(a)
 			require.NoErrorf(t, err, "GetEnabledPairs %s must not error", a)
-			for _, p := range pairs.Format(currency.PairFormat{Uppercase: true}) {
+			pairFmt, err := e.GetPairFormat(a, true)
+			require.NoErrorf(t, err, "GetPairFormat %s must not error", a)
+			pairs = pairs.Format(pairFmt)
+			if a == asset.Margin {
+				pairs = pairs.Remove(spotEnabledPairs...)
+			}
+			for _, p := range pairs {
 				s := baseSub.Clone()
 				s.Asset = a
 				s.Pairs = currency.Pairs{p}

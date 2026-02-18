@@ -1474,14 +1474,17 @@ func TestCheckVars(t *testing.T) {
 
 	err = b.CurrencyPairs.StorePairs(asset.Spot, data, false)
 	require.NoError(t, err, "StorePairs must not error")
+	availablePairs, err := b.GetAvailablePairs(asset.Spot)
+	require.NoError(t, err, "GetAvailablePairs must not error")
+	require.NotEmpty(t, availablePairs, "GetAvailablePairs must return at least one pair")
 
-	err = checkParams("Binance", e, asset.Spot, currency.NewBTCUSDT())
-	require.ErrorIs(t, err, errCurrencyNotEnabled, "checkParams must error correctly")
+	err = checkParams("Binance", e, asset.Spot, availablePairs[0])
+	require.ErrorIs(t, err, errCurrencyPairInvalid, "checkParams must error correctly for unavailable request format")
 
 	err = b.CurrencyPairs.EnablePair(asset.Spot, currency.Pair{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.USDT})
 	require.NoError(t, err, "EnablePair must not error")
 
-	err = checkParams("Binance", e, asset.Spot, currency.NewBTCUSDT())
+	err = checkParams("Binance", e, asset.Spot, availablePairs[0])
 	require.NoError(t, err, "checkParams must not error")
 }
 

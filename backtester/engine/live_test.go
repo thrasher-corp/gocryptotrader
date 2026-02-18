@@ -366,7 +366,7 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 	f := &binanceus.Exchange{}
 	f.SetDefaults()
 	fb := f.GetBase()
-	err := fb.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{cp}, true)
+	err := fb.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{cp}, false)
 	require.NoError(t, err, "StorePairs must not error")
 	dataHandler.sourcesToCheck = []*liveDataSourceDataHandler{
 		{
@@ -403,7 +403,7 @@ func TestSetDataForClosingAllPositions(t *testing.T) {
 	}
 	dataHandler.dataHolder = &fakeDataHolder{}
 	_, err = dataHandler.FetchLatestData()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	err = dataHandler.SetDataForClosingAllPositions()
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)

@@ -582,23 +582,35 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		if err != nil {
 			return err
 		}
+
+		underlyingSet := make(map[string]struct{}, len(pairs))
 		for i := range pairs {
-			underlying, err := e.GetUnderlyingFromCurrencyPair(pairs[i])
+			underlyingPair, err := e.GetUnderlyingFromCurrencyPair(pairs[i])
 			if err != nil {
 				return err
 			}
-			tickers, err := e.GetOptionsTickers(ctx, underlying.String())
+			underlyingSet[underlyingPair.String()] = struct{}{}
+		}
+
+		underlyings := make([]string, 0, len(underlyingSet))
+		for underlying := range underlyingSet {
+			underlyings = append(underlyings, underlying)
+		}
+		slices.Sort(underlyings)
+
+		for i := range underlyings {
+			optionTickers, err := e.GetOptionsTickers(ctx, underlyings[i])
 			if err != nil {
 				return err
 			}
-			for x := range tickers {
+			for j := range optionTickers {
 				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         tickers[x].LastPrice.Float64(),
-					Ask:          tickers[x].Ask1Price.Float64(),
-					AskSize:      tickers[x].Ask1Size,
-					Bid:          tickers[x].Bid1Price.Float64(),
-					BidSize:      tickers[x].Bid1Size,
-					Pair:         tickers[x].Name,
+					Last:         optionTickers[j].LastPrice.Float64(),
+					Ask:          optionTickers[j].Ask1Price.Float64(),
+					AskSize:      optionTickers[j].Ask1Size,
+					Bid:          optionTickers[j].Bid1Price.Float64(),
+					BidSize:      optionTickers[j].Bid1Size,
+					Pair:         optionTickers[j].Name,
 					ExchangeName: e.Name,
 					AssetType:    a,
 				})
@@ -1908,10 +1920,14 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			if contractInfo[i].Name.Base.Equal(divCurrency) {
 				priceDiv = 1e6
 			}
+			minBaseAmount := contractInfo[i].OrderSizeMin.Float64()
+			if minBaseAmount == 0 {
+				minBaseAmount = 1 // Futures contracts are quantized in whole contracts.
+			}
 
 			l = append(l, limits.MinMaxLevel{
 				Key:                     key.NewExchangeAssetPair(e.Name, a, contractInfo[i].Name),
-				MinimumBaseAmount:       contractInfo[i].OrderSizeMin.Float64(),
+				MinimumBaseAmount:       minBaseAmount,
 				MaximumBaseAmount:       contractInfo[i].OrderSizeMax.Float64(),
 				PriceStepIncrementSize:  contractInfo[i].OrderPriceRound.Float64(),
 				AmountStepIncrementSize: 1, // 1 Contract
@@ -2170,14 +2186,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) (
 					}
 					continue
 				}
-				if len(keys) == 0 { // No keys: All available pairs
-					if isAvailable, err := e.IsPairAvailable(p, a); err != nil {
-						errs = common.AppendError(errs, fmt.Errorf("%w: %s %s", err, a, p))
-						continue
-					} else if !isAvailable {
-						continue
-					}
-				} else { // More than one key; Any available pair
+				if len(keys) > 0 { // More than one key; Any available pair
 					if !slices.ContainsFunc(keys, func(k key.PairAsset) bool { return a == k.Asset && k.Pair().Equal(p) }) {
 						continue
 					}
