@@ -111,13 +111,6 @@ func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) err
 	return nil
 }
 
-func (e *Exchange) wsAuth(ctx context.Context, conn websocket.Connection) error {
-	if !e.Websocket.CanUseAuthenticatedEndpoints() {
-		return nil
-	}
-	return e.wsLogin(ctx, conn)
-}
-
 func (e *Exchange) wsStartHeartbeat(ctx context.Context, conn websocket.Connection) {
 	msg := wsInput{
 		ID:             e.MessageID(),
@@ -141,10 +134,7 @@ func (e *Exchange) wsStartHeartbeat(ctx context.Context, conn websocket.Connecti
 	}
 }
 
-func (e *Exchange) wsLogin(ctx context.Context, conn websocket.Connection) error {
-	if !e.IsWebsocketAuthenticationSupported() {
-		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", e.Name)
-	}
+func (e *Exchange) wsAuthenticate(ctx context.Context, conn websocket.Connection) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
