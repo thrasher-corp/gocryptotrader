@@ -431,16 +431,13 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 		return pairs, nil
 	case asset.Margin, asset.CrossMargin:
-		tradables, err := e.GetMarginSupportedCurrencyPairs(ctx)
+		tradables, err := e.ListLendingMarkets(ctx)
 		if err != nil {
 			return nil, err
 		}
-		pairs := make([]currency.Pair, 0, len(tradables))
-		for _, mPairDetail := range tradables {
-			if mPairDetail.Status == 0 {
-				continue
-			}
-			pairs = append(pairs, mPairDetail.ID)
+		pairs := make(currency.Pairs, len(tradables))
+		for x, mPairDetail := range tradables {
+			pairs[x] = mPairDetail.CurrencyPair
 		}
 		return pairs, nil
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
@@ -511,9 +508,11 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	for x := range assets {
 		pairs, err := e.FetchTradablePairs(ctx, assets[x])
 		if err != nil {
+			panic(fmt.Errorf("%w %v", err, assets[x]))
 			return err
 		}
 		if err := e.UpdatePairs(pairs, assets[x], false); err != nil {
+			panic(fmt.Errorf("%w %v", err, assets[x]))
 			return err
 		}
 	}
@@ -699,7 +698,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 			})
 		}
 	case asset.Margin, asset.CrossMargin:
-		balances, err := e.GetMarginAccountList(ctx, currency.EMPTYPAIR)
+		balances, err := e.GetIsolatedMarginAccountList(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return nil, err
 		}

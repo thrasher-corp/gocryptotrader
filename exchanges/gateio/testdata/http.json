@@ -1936,6 +1936,62 @@
     }
    ]
   },
+  "/api/v4/margin/uni/currency_pairs": {
+   "GET": [
+    {
+     "data": [
+      {
+       "base_min_borrow_amount": "8",
+       "currency_pair": "1INCH_USDT",
+       "leverage": "3",
+       "quote_min_borrow_amount": "1"
+      },
+      {
+       "base_min_borrow_amount": "0.003",
+       "currency_pair": "AAVE_USDT",
+       "leverage": "5",
+       "quote_min_borrow_amount": "1"
+      },
+      {
+       "base_min_borrow_amount": "700",
+       "currency_pair": "ACA_USDT",
+       "leverage": "3",
+       "quote_min_borrow_amount": "1"
+      },
+      {
+       "base_min_borrow_amount": "22",
+       "currency_pair": "ACH_USDT",
+       "leverage": "3",
+       "quote_min_borrow_amount": "1"
+      },
+      {
+       "base_min_borrow_amount": "2",
+       "currency_pair": "ADA_USDT",
+       "leverage": "3",
+       "quote_min_borrow_amount": "1"
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/margin/uni/currency_pairs/BTC_USDT": {
+   "GET": [
+    {
+     "data": {
+      "base_min_borrow_amount": "0.00001",
+      "currency_pair": "BTC_USDT",
+      "leverage": "10",
+      "quote_min_borrow_amount": "1"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
   "/api/v4/options/candlesticks": {
    "GET": [
     {

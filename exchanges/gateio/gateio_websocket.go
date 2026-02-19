@@ -508,10 +508,10 @@ func (e *Exchange) processUserPersonalTrades(data []byte) error {
 	}
 
 	var resp struct {
-		Time    types.Time            `json:"time"`
-		Channel string                `json:"channel"`
-		Event   string                `json:"event"`
-		Result  []WsUserPersonalTrade `json:"result"`
+		Time    types.Time             `json:"time"`
+		Channel string                 `json:"channel"`
+		Event   string                 `json:"event"`
+		Result  []*WsUserPersonalTrade `json:"result"`
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err

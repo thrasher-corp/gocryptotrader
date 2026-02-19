@@ -23,10 +23,6 @@ const (
 	statusOpen     = "open"
 	statusLoaned   = "loaned"
 	statusFinished = "finished"
-
-	// Loan sides
-	sideLend   = "lend"
-	sideBorrow = "borrow"
 )
 
 // WithdrawalFees the large list of predefined withdrawal fees
@@ -642,25 +638,6 @@ type SmallCurrencyBalance struct {
 	Currency   string       `json:"currency"`
 	Amount     types.Number `json:"amount"`
 	GtAmount   types.Number `json:"gt_amount"`
-}
-
-// MarginCurrencyPairInfo represents margin currency pair detailed info.
-type MarginCurrencyPairInfo struct {
-	ID             currency.Pair `json:"id"`
-	Base           currency.Code `json:"base"`
-	Quote          currency.Code `json:"quote"`
-	Leverage       float64       `json:"leverage"`
-	MinBaseAmount  types.Number  `json:"min_base_amount"`
-	MinQuoteAmount types.Number  `json:"min_quote_amount"`
-	MaxQuoteAmount types.Number  `json:"max_quote_amount"`
-	Status         int32         `json:"status"`
-}
-
-// OrderbookOfLendingLoan represents order book of lending loans
-type OrderbookOfLendingLoan struct {
-	Rate   types.Number `json:"rate"`
-	Amount types.Number `json:"amount"`
-	Days   int64        `json:"days"`
 }
 
 // FuturesContract represents futures contract detailed data.
@@ -1293,42 +1270,6 @@ type MarginFundingAccountItem struct {
 	TotalLent    string       `json:"total_lent"` // Amount used for lending. total_lent = lent + locked
 }
 
-// MarginLoanRequestParam represents margin lend or borrow request param
-type MarginLoanRequestParam struct {
-	Side         string        `json:"side"`
-	Currency     currency.Code `json:"currency"`
-	Rate         types.Number  `json:"rate,omitempty"`
-	Amount       types.Number  `json:"amount,omitempty"`
-	Days         int64         `json:"days,omitempty"`
-	AutoRenew    bool          `json:"auto_renew,omitempty"`
-	CurrencyPair currency.Pair `json:"currency_pair,omitzero"`
-	FeeRate      types.Number  `json:"fee_rate,omitempty"`
-	OrigID       string        `json:"orig_id,omitempty"`
-	Text         string        `json:"text,omitempty"`
-}
-
-// MarginLoanResponse represents lending or borrow response.
-type MarginLoanResponse struct {
-	ID             string       `json:"id"`
-	OrigID         string       `json:"orig_id,omitempty"`
-	Side           string       `json:"side"`
-	Currency       string       `json:"currency"`
-	Amount         types.Number `json:"amount"`
-	Rate           types.Number `json:"rate"`
-	Days           int64        `json:"days,omitempty"`
-	AutoRenew      bool         `json:"auto_renew,omitempty"`
-	CurrencyPair   string       `json:"currency_pair,omitempty"`
-	FeeRate        types.Number `json:"fee_rate"`
-	Text           string       `json:"text,omitempty"`
-	CreateTime     types.Time   `json:"create_time"`
-	ExpireTime     types.Time   `json:"expire_time"`
-	Status         string       `json:"status"`
-	Left           types.Number `json:"left"`
-	Repaid         types.Number `json:"repaid"`
-	PaidInterest   types.Number `json:"paid_interest"`
-	UnpaidInterest types.Number `json:"unpaid_interest"`
-}
-
 // SubAccountCrossMarginInfo represents subaccount's cross_margin account info
 type SubAccountCrossMarginInfo struct {
 	UID       string `json:"uid"`
@@ -1585,49 +1526,6 @@ type SpotPriceTriggeredOrder struct {
 	Market       string           `json:"market"`
 }
 
-// ModifyLoanRequestParam represents request parameters for modify loan request
-type ModifyLoanRequestParam struct {
-	Currency     currency.Code `json:"currency"`
-	Side         string        `json:"side"`
-	CurrencyPair currency.Pair `json:"currency_pair"`
-	AutoRenew    bool          `json:"auto_renew"`
-	LoanID       string        `json:"loan_id"`
-}
-
-// RepayLoanRequestParam represents loan repay request parameters
-type RepayLoanRequestParam struct {
-	CurrencyPair currency.Pair `json:"currency_pair"`
-	Currency     currency.Code `json:"currency"`
-	Mode         string        `json:"mode"`
-	Amount       types.Number  `json:"amount"`
-}
-
-// LoanRepaymentRecord represents loan repayment history record item.
-type LoanRepaymentRecord struct {
-	ID         string     `json:"id"`
-	CreateTime types.Time `json:"create_time"`
-	Principal  string     `json:"principal"`
-	Interest   string     `json:"interest"`
-}
-
-// LoanRecord represents loan repayment specific record
-type LoanRecord struct {
-	ID             string       `json:"id"`
-	LoanID         string       `json:"loan_id"`
-	CreateTime     types.Time   `json:"create_time"`
-	ExpireTime     types.Time   `json:"expire_time"`
-	Status         string       `json:"status"`
-	BorrowUserID   string       `json:"borrow_user_id"`
-	Currency       string       `json:"currency"`
-	Rate           types.Number `json:"rate"`
-	Amount         types.Number `json:"amount"`
-	Days           int64        `json:"days"`
-	AutoRenew      bool         `json:"auto_renew"`
-	Repaid         types.Number `json:"repaid"`
-	PaidInterest   types.Number `json:"paid_interest"`
-	UnpaidInterest types.Number `json:"unpaid_interest"`
-}
-
 // OnOffStatus represents on or off status response status
 type OnOffStatus struct {
 	Status string `json:"status"`
@@ -1714,16 +1612,6 @@ type CrossMarginLoanResponse struct {
 type CurrencyAndAmount struct {
 	Currency currency.Code `json:"currency"`
 	Amount   types.Number  `json:"amount"`
-}
-
-// RepaymentHistoryItem represents an item in a repayment history.
-type RepaymentHistoryItem struct {
-	ID         string       `json:"id"`
-	CreateTime types.Time   `json:"create_time"`
-	LoanID     string       `json:"loan_id"`
-	Currency   string       `json:"currency"`
-	Principal  types.Number `json:"principal"`
-	Interest   types.Number `json:"interest"`
 }
 
 // FlashSwapOrderParams represents create flash swap order request parameters.
@@ -3004,13 +2892,13 @@ type MultiCollateralLoanRepayment struct {
 
 // MultiCurrencyCollateralRepayment holds a multi-currency collateral repayment detail
 type MultiCurrencyCollateralRepayment struct {
-	OrderID               int                   `json:"order_id"`
-	RecordID              int                   `json:"record_id"`
+	OrderID               int64                 `json:"order_id"`
+	RecordID              int64                 `json:"record_id"`
 	InitLtv               string                `json:"init_ltv"`
 	BeforeLtv             string                `json:"before_ltv"`
 	AfterLtv              string                `json:"after_ltv"`
-	BorrowTime            int                   `json:"borrow_time"`
-	RepayTime             int                   `json:"repay_time"`
+	BorrowTime            types.Time            `json:"borrow_time"`
+	RepayTime             types.Time            `json:"repay_time"`
 	BorrowCurrencies      []MultiCurrencyDetail `json:"borrow_currencies"`
 	CollateralCurrencies  []MultiCurrencyDetail `json:"collateral_currencies"`
 	RepaidCurrencies      []MultiCurrencyDetail `json:"repaid_currencies"`
@@ -3047,19 +2935,6 @@ type CollateralAddOrRemoveResponse struct {
 		Currency  string       `json:"currency"`
 		Amount    types.Number `json:"amount"`
 	} `json:"collateral_currencies"`
-}
-
-// BrokerTransactionItem broker obtains transaction history of recommended users
-type BrokerTransactionItem struct {
-	TransactionTime types.Time   `json:"transaction_time"`
-	UserID          uint64       `json:"user_id"`
-	GroupName       string       `json:"group_name"`
-	Fee             string       `json:"fee"`
-	FeeAsset        string       `json:"fee_asset"`
-	CurrencyPair    string       `json:"currency_pair"`
-	Amount          types.Number `json:"amount"`
-	Source          string       `json:"source"`
-	AmountAsset     string       `json:"amount_asset"`
 }
 
 // BrokerRebateHistory holds list of brokers rebate history
@@ -3272,59 +3147,6 @@ type OptionsOrderInfo struct {
 	OptionsName currency.Pair `json:"options_name"`
 	Size        float64       `json:"size,omitempty,string"`
 	Left        float64       `json:"left,omitempty,string"`
-}
-
-// SpotPortfolioBalanceCalculationParam spot portfolio balance calculation params
-type SpotPortfolioBalanceCalculationParam struct {
-	Currency string  `json:"currency"`
-	Equity   float64 `json:"equity,omitempty,string"`
-	Freeze   float64 `json:"freeze,omitempty,string"`
-}
-
-// SpotOrdersCalculationParam spot portfolio calculation params
-type SpotOrdersCalculationParam struct {
-	CurrencyPairs string  `json:"currency_pairs"`
-	OrderPrice    float64 `json:"order_price,omitempty,string"`
-	Size          float64 `json:"size,omitempty,string"`
-	Left          float64 `json:"left,omitempty,string"`
-	Type          string  `json:"type"`
-}
-
-// FuturesPositionCalculationParam futures portfolio position calculation params
-type FuturesPositionCalculationParam struct {
-	Contract string  `json:"contract"`
-	Size     float64 `json:"size,omitempty,string"`
-}
-
-// FuturesOrdersCalculationParam holds futures portfolio orders detail calculation params
-type FuturesOrdersCalculationParam struct {
-	Contract string  `json:"contract"`
-	Size     float64 `json:"size,omitempty,string"`
-	Left     float64 `json:"left,omitempty,string"`
-}
-
-// OptionsPositionCalculationParam holds an options portfolio positions calculation params
-type OptionsPositionCalculationParam struct {
-	OptionsName string  `json:"options_name,omitempty"`
-	Size        float64 `json:"size,omitempty,string"`
-}
-
-// OptionsOrdersCalculationParam holds an options portfolio orders detail calculation params
-type OptionsOrdersCalculationParam struct {
-	OptionsName string  `json:"options_name,omitempty"`
-	Size        float64 `json:"size,omitempty,string"`
-	Left        float64 `json:"left,omitempty,string"`
-}
-
-// PortfolioMarginCalculationRequest holds a portfolio margin calculation requests
-type PortfolioMarginCalculationRequest struct {
-	SpotBalances     []*SpotPortfolioBalanceCalculationParam `json:"spot_balances"`
-	SpotOrders       []*SpotOrdersCalculationParam           `json:"spot_orders"`
-	FuturesPositions []*FuturesPositionCalculationParam      `json:"futures_positions"`
-	FuturesOrders    []*FuturesOrdersCalculationParam        `json:"futures_orders"`
-	OptionsPositions []*OptionsPositionCalculationParam      `json:"options_positions"`
-	OptionsOrders    []*OptionsOrdersCalculationParam        `json:"options_orders"`
-	SpotHedge        bool                                    `json:"spot_hedge"`
 }
 
 // PortfolioMarginCalculationResponse holds a portfolio margin calculation response
@@ -3628,4 +3450,81 @@ type WebsocketFuturesOrderResponse struct {
 	BizInfo                   string        `json:"biz_info"`
 	UpdateTime                types.Time    `json:"update_time"`
 	Succeeded                 *bool         `json:"succeeded"` // Nil if not present in returned response.
+}
+
+// LendingMarketDetail represents a list of lending market instruments detail.
+type LendingMarketDetail struct {
+	CurrencyPair         currency.Pair `json:"currency_pair"`
+	BaseMinBorrowAmount  types.Number  `json:"base_min_borrow_amount"`
+	QuoteMinBorrowAmount types.Number  `json:"quote_min_borrow_amount"`
+	Leverage             uint16        `json:"leverage,string"`
+}
+
+// LendOrBorrowRequest represents a request parameters for lending and borrowing
+type LendOrBorrowRequest struct {
+	Currency     currency.Code `json:"currency"`
+	OrderType    string        `json:"type"`
+	Amount       float64       `json:"amount,string"`
+	RepaidAll    bool          `json:"repaid_all"`
+	CurrencyPair currency.Pair `json:"currency_pair"`
+}
+
+// LendOrBorrowDetail represents a lending or borrowing detail.
+type LendOrBorrowDetail struct {
+	Currency     currency.Code `json:"currency"`
+	Amount       types.Number  `json:"amount"`
+	OrderType    string        `json:"type"`
+	CurrencyPair currency.Pair `json:"currency_pair"`
+	RepaidAll    bool          `json:"repaid_all"`
+}
+
+// LoanDetail represents a loan detail
+type LoanDetail struct {
+	Currency     currency.Code `json:"currency"`
+	CurrencyPair currency.Pair `json:"currency_pair"`
+	Amount       types.Number  `json:"amount"`
+	LoanType     string        `json:"type"`
+	ChangeTime   types.Time    `json:"change_time"`
+	CreateTime   types.Time    `json:"create_time"`
+}
+
+// MaximumBorrowableAmount represents a maximum borrowable amount of a currency
+type MaximumBorrowableAmount struct {
+	Currency     currency.Code `json:"currency"`
+	Borrowable   types.Number  `json:"borrowable"`
+	CurrencyPair currency.Pair `json:"currency_pair"`
+}
+
+// LoanMarginTierDetail holds details of borrowing tier margin requirements of a specific spot market
+type LoanMarginTierDetail struct {
+	TierAmount            types.Number `json:"tier_amount"`
+	MaintenanceMarginRate types.Number `json:"mmr"`
+	Leverage              uint16       `json:"leverage,string"`
+}
+
+// UserMarketLeverageMultiplierResponse represents a response detail after setting a user's market leverage multiplier.
+type UserMarketLeverageMultiplierResponse struct {
+	CurrencyPair string `json:"currency_pair"`
+	Leverage     uint16 `json:"leverage,string"`
+}
+
+// IsolatedMarginAccountDetail represents an isolated margin account detail.
+type IsolatedMarginAccountDetail struct {
+	CurrencyPair          currency.Pair          `json:"currency_pair"`
+	AccountType           string                 `json:"account_type"`
+	Leverage              uint16                 `json:"leverage"`
+	Locked                bool                   `json:"locked"`
+	Risk                  string                 `json:"risk"`
+	MaintenanceMarginRate string                 `json:"mmr"`
+	Base                  *CurrencyBalanceDetail `json:"base"`
+	Quote                 *CurrencyBalanceDetail `json:"quote"`
+}
+
+// CurrencyBalanceDetail represents a currency balance detail
+type CurrencyBalanceDetail struct {
+	Currency  currency.Code `json:"currency"`
+	Available types.Number  `json:"available"`
+	Locked    types.Number  `json:"locked"`
+	Borrowed  types.Number  `json:"borrowed"`
+	Interest  types.Number  `json:"interest"`
 }

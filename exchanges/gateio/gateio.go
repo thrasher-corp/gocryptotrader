@@ -21,6 +21,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -45,9 +46,6 @@ const (
 	walletSubAccountTransfer = "/wallet/sub_account_transfers"
 
 	// Margin
-	gateioMarginCurrencyPairs   = "margin/currency_pairs"
-	gateioMarginLoans           = "margin/loans"
-	gateioMarginLoanRecords     = "margin/loan_records"
 	gateioMarginAutoRepay       = "margin/auto_repay"
 	gateioCrossMarginCurrencies = "margin/cross/currencies"
 	gateioCrossMarginLoans      = "margin/cross/loans"
@@ -96,10 +94,7 @@ var (
 	errNoValidParameterPassed    = errors.New("no valid parameter passed")
 	errInvalidCountdown          = errors.New("invalid countdown, Countdown time, in seconds At least 5 seconds, 0 means cancel the countdown")
 	errInvalidOrderStatus        = errors.New("invalid order status")
-	errInvalidLoanSide           = errors.New("invalid loan side, only 'lend' and 'borrow'")
-	errLoanRateIsRequired        = errors.New("loan rate is required for borrow side")
 	errInvalidLoanID             = errors.New("missing loan ID")
-	errInvalidRepayMode          = errors.New("invalid repay mode specified, must be 'all' or 'partial'")
 	errMissingPreviewID          = errors.New("missing required parameter: preview_id")
 	errChangeHasToBePositive     = errors.New("change has to be positive")
 	errInvalidAutoSize           = errors.New("invalid autoSize")
@@ -800,7 +795,7 @@ func (e *Exchange) SpotClosePositionWhenCrossCurrencyDisabled(ctx context.Contex
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if arg.Amount <= 0 {
-		return nil, order.ErrAmountIsInvalid
+		return nil, limits.ErrAmountBelowMin
 	}
 	if arg.Price <= 0 {
 		return nil, limits.ErrPriceBelowMin
@@ -1518,34 +1513,10 @@ func (e *Exchange) GetEstimatedInterestRate(ctx context.Context, currencies []cu
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginEstimateRateEPL, http.MethodGet, "margin/uni/estimate_rate", params, nil, &response)
 }
 
-// GetMarginSupportedCurrencyPairs retrieves margin supported currency pairs.
-func (e *Exchange) GetMarginSupportedCurrencyPairs(ctx context.Context) ([]*MarginCurrencyPairInfo, error) {
-	var resp []*MarginCurrencyPairInfo
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicCurrencyPairsMarginEPL, gateioMarginCurrencyPairs, &resp)
-}
-
-// GetSingleMarginSupportedCurrencyPair retrieves margin supported currency pair detail given the currency pair.
-func (e *Exchange) GetSingleMarginSupportedCurrencyPair(ctx context.Context, market currency.Pair) (*MarginCurrencyPairInfo, error) {
-	if market.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
-	}
-	var currencyPairInfo *MarginCurrencyPairInfo
-	return currencyPairInfo, e.SendHTTPRequest(ctx, exchange.RestSpot, publicCurrencyPairsMarginEPL, gateioMarginCurrencyPairs+"/"+market.String(), &currencyPairInfo)
-}
-
-// GetOrderbookOfLendingLoans retrieves order book of lending loans for specific currency
-func (e *Exchange) GetOrderbookOfLendingLoans(ctx context.Context, ccy currency.Code) ([]*OrderbookOfLendingLoan, error) {
-	if ccy.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	var lendingLoans []*OrderbookOfLendingLoan
-	return lendingLoans, e.SendHTTPRequest(ctx, exchange.RestSpot, publicOrderbookMarginEPL, "margin/funding_book?currency="+ccy.String(), &lendingLoans)
-}
-
-// GetMarginAccountList margin account list
-func (e *Exchange) GetMarginAccountList(ctx context.Context, currencyPair currency.Pair) ([]*MarginAccountItem, error) {
+// GetIsolatedMarginAccountList margin account list
+func (e *Exchange) GetIsolatedMarginAccountList(ctx context.Context, currencyPair currency.Pair) ([]*MarginAccountItem, error) {
 	params := url.Values{}
-	if currencyPair.IsPopulated() {
+	if !currencyPair.IsEmpty() {
 		params.Set("currency_pair", currencyPair.String())
 	}
 	var response []*MarginAccountItem
@@ -1562,10 +1533,15 @@ func (e *Exchange) ListMarginAccountBalanceChangeHistory(ctx context.Context, cc
 	if currencyPair.IsPopulated() {
 		params.Set("currency_pair", currencyPair.String())
 	}
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
+			return nil, err
+		}
+	}
 	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.Unix(), 10))
 	}
-	if !to.IsZero() && ((!from.IsZero() && to.After(from)) || from.IsZero()) {
+	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
 	if page > 0 {
@@ -1586,203 +1562,6 @@ func (e *Exchange) GetMarginFundingAccountList(ctx context.Context, ccy currency
 	}
 	var response []*MarginFundingAccountItem
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginFundingAccountListEPL, http.MethodGet, "margin/funding_accounts", params, nil, &response)
-}
-
-// MarginLoan represents lend or borrow request
-func (e *Exchange) MarginLoan(ctx context.Context, arg *MarginLoanRequestParam) (*MarginLoanResponse, error) {
-	if arg.Side != sideLend && arg.Side != sideBorrow {
-		return nil, errInvalidLoanSide
-	}
-	if arg.Side == sideBorrow && arg.Rate == 0 {
-		return nil, errLoanRateIsRequired
-	}
-	if arg.Currency.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	if arg.Amount <= 0 {
-		return nil, limits.ErrAmountBelowMin
-	}
-	var response *MarginLoanResponse
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginLendBorrowEPL, http.MethodPost, gateioMarginLoans, nil, &arg, &response)
-}
-
-// GetMarginAllLoans retrieves all loans (borrow and lending) orders.
-func (e *Exchange) GetMarginAllLoans(ctx context.Context, status, side, sortBy string, ccy currency.Code, currencyPair currency.Pair, reverseSort bool, page, limit uint64) ([]*MarginLoanResponse, error) {
-	if side != sideLend && side != sideBorrow {
-		return nil, fmt.Errorf("%w, only 'lend' and 'borrow' are supported", order.ErrSideIsInvalid)
-	}
-	if status == "" {
-		return nil, errInvalidLoanSide
-	}
-	params := url.Values{}
-	if !ccy.IsEmpty() {
-		params.Set("currency", ccy.String())
-	}
-	if currencyPair.IsPopulated() {
-		params.Set("currency_pair", currencyPair.String())
-	}
-	if sortBy == "create_time" || sortBy == "rate" {
-		params.Set("sort_by", sortBy)
-	}
-	if reverseSort {
-		params.Set("reverse_sort", strconv.FormatBool(reverseSort))
-	}
-	if page > 0 {
-		params.Set("page", strconv.FormatUint(page, 10))
-	}
-	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
-	}
-
-	params.Set("status", status)
-	var response []*MarginLoanResponse
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginAllLoansEPL, http.MethodGet, gateioMarginLoans, params, nil, &response)
-}
-
-// MergeMultipleLendingLoans merge multiple lending loans
-func (e *Exchange) MergeMultipleLendingLoans(ctx context.Context, ccy currency.Code, ids []string) (*MarginLoanResponse, error) {
-	if ccy.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	if len(ids) < 2 || len(ids) > 20 {
-		return nil, errors.New("number of loans to be merged must be between [2-20], inclusive")
-	}
-	params := url.Values{}
-	params.Set("currency", ccy.String())
-	params.Set("ids", strings.Join(ids, ","))
-	var response *MarginLoanResponse
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginMergeLendingLoansEPL, http.MethodPost, "margin/merged_loans", params, nil, &response)
-}
-
-// RetriveOneSingleLoanDetail retrieve one single loan detail
-// "side" represents loan side: Lend or Borrow
-func (e *Exchange) RetriveOneSingleLoanDetail(ctx context.Context, side, loanID string) (*MarginLoanResponse, error) {
-	if side != sideBorrow && side != sideLend {
-		return nil, errInvalidLoanSide
-	}
-	if loanID == "" {
-		return nil, errInvalidLoanID
-	}
-	params := url.Values{}
-	params.Set("side", side)
-	var response *MarginLoanResponse
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginGetLoanEPL, http.MethodGet, gateioMarginLoans+"/"+loanID+"/", params, nil, &response)
-}
-
-// ModifyALoan Modify a loan
-// only auto_renew modification is supported currently
-func (e *Exchange) ModifyALoan(ctx context.Context, loanID string, arg *ModifyLoanRequestParam) (*MarginLoanResponse, error) {
-	if loanID == "" {
-		return nil, fmt.Errorf("%w, %v", errInvalidLoanID, " loan_id is required")
-	}
-	if arg.Currency.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	if arg.Side != sideBorrow && arg.Side != sideLend {
-		return nil, errInvalidLoanSide
-	}
-	if arg.CurrencyPair.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
-	}
-	var response *MarginLoanResponse
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginModifyLoanEPL, http.MethodPatch, gateioMarginLoans+"/"+loanID, nil, &arg, &response)
-}
-
-// CancelLendingLoan cancels lending loans. only lent loans can be canceled.
-func (e *Exchange) CancelLendingLoan(ctx context.Context, ccy currency.Code, loanID string) (*MarginLoanResponse, error) {
-	if loanID == "" {
-		return nil, fmt.Errorf("%w, %s", errInvalidLoanID, " loan_id is required")
-	}
-	if ccy.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	params := url.Values{}
-	params.Set("currency", ccy.String())
-	var response *MarginLoanResponse
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginCancelLoanEPL, http.MethodDelete, gateioMarginLoans+"/"+loanID, params, nil, &response)
-}
-
-// RepayALoan execute a loan repay.
-func (e *Exchange) RepayALoan(ctx context.Context, loanID string, arg *RepayLoanRequestParam) (*MarginLoanResponse, error) {
-	if loanID == "" {
-		return nil, fmt.Errorf("%w, %v", errInvalidLoanID, " loan_id is required")
-	}
-	if arg.Currency.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	if arg.CurrencyPair.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
-	}
-	if arg.Mode != "all" && arg.Mode != "partial" {
-		return nil, errInvalidRepayMode
-	}
-	if arg.Mode == "partial" && arg.Amount <= 0 {
-		return nil, fmt.Errorf("%w, repay amount for partial repay mode must be greater than 0", order.ErrAmountIsInvalid)
-	}
-	var response *MarginLoanResponse
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginRepayLoanEPL, http.MethodPost, gateioMarginLoans+"/"+loanID+"/repayment", nil, &arg, &response)
-}
-
-// ListLoanRepaymentRecords retrieves loan repayment records for specified loan ID
-func (e *Exchange) ListLoanRepaymentRecords(ctx context.Context, loanID string) ([]*LoanRepaymentRecord, error) {
-	if loanID == "" {
-		return nil, fmt.Errorf("%w, %v", errInvalidLoanID, " loan_id is required")
-	}
-	var response []*LoanRepaymentRecord
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginListLoansEPL, http.MethodGet, gateioMarginLoans+"/"+loanID+"/repayment", nil, nil, &response)
-}
-
-// ListRepaymentRecordsOfSpecificLoan retrieves repayment records of specific loan
-func (e *Exchange) ListRepaymentRecordsOfSpecificLoan(ctx context.Context, loanID, status string, page, limit uint64) ([]*LoanRecord, error) {
-	if loanID == "" {
-		return nil, fmt.Errorf("%w, %v", errInvalidLoanID, " loan_id is required")
-	}
-	params := url.Values{}
-	params.Set("loan_id", loanID)
-	if status == statusLoaned || status == statusFinished {
-		params.Set("status", status)
-	}
-	if page > 0 {
-		params.Set("page", strconv.FormatUint(page, 10))
-	}
-	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
-	}
-	var response []*LoanRecord
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginRepaymentRecordEPL, http.MethodGet, gateioMarginLoanRecords, params, nil, &response)
-}
-
-// GetOneSingleLoanRecord get one single loan record
-func (e *Exchange) GetOneSingleLoanRecord(ctx context.Context, loanID, loanRecordID string) (*LoanRecord, error) {
-	if loanID == "" {
-		return nil, fmt.Errorf("%w, %v", errInvalidLoanID, " loan_id is required")
-	}
-	if loanRecordID == "" {
-		return nil, fmt.Errorf("%w, %v", errInvalidLoanID, " loan_record_id is required")
-	}
-	params := url.Values{}
-	params.Set("loan_id", loanID)
-	var response *LoanRecord
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginSingleRecordEPL, http.MethodGet, gateioMarginLoanRecords+"/"+loanRecordID, params, nil, &response)
-}
-
-// ModifyLoanRecord modify a loan record
-// Only auto_renew modification is supported currently
-func (e *Exchange) ModifyLoanRecord(ctx context.Context, loanRecordID string, arg *ModifyLoanRequestParam) (*LoanRecord, error) {
-	if loanRecordID == "" {
-		return nil, fmt.Errorf("%w, %v", errInvalidLoanID, " loan_record_id is required")
-	}
-	if arg.LoanID == "" {
-		return nil, fmt.Errorf("%w, %v", errInvalidLoanID, " loan_id is required")
-	}
-	if arg.Currency.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	if arg.Side != sideBorrow && arg.Side != sideLend {
-		return nil, errInvalidLoanSide
-	}
-	var response *LoanRecord
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginModifyLoanRecordEPL, http.MethodPatch, gateioMarginLoanRecords+"/"+loanRecordID, nil, &arg, &response)
 }
 
 // UpdateUsersAutoRepaymentSetting represents update user's auto repayment setting
@@ -1815,20 +1594,6 @@ func (e *Exchange) GetMaxTransferableAmountForSpecificMarginCurrency(ctx context
 	params.Set("currency", ccy.String())
 	var response *MaxTransferAndLoanAmount
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginGetMaxTransferEPL, http.MethodGet, "margin/transferable", params, nil, &response)
-}
-
-// GetMaxBorrowableAmountForSpecificMarginCurrency retrieves the max borrowble amount for specific currency
-func (e *Exchange) GetMaxBorrowableAmountForSpecificMarginCurrency(ctx context.Context, ccy currency.Code, currencyPair currency.Pair) (*MaxTransferAndLoanAmount, error) {
-	if ccy.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	params := url.Values{}
-	if currencyPair.IsPopulated() {
-		params.Set("currency_pair", currencyPair.String())
-	}
-	params.Set("currency", ccy.String())
-	var response *MaxTransferAndLoanAmount
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginGetMaxBorrowEPL, http.MethodGet, "margin/borrowable", params, nil, &response)
 }
 
 // CurrencySupportedByCrossMargin currencies supported by cross margin.
@@ -4829,4 +4594,171 @@ func (e *Exchange) GetSupportedBorrowingAndCollateralCurrencies(ctx context.Cont
 	params.Set("loan_currency", loanCurrency.String())
 	var resp []*SupportedBorrowingAndCollateralCurrencies
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "loan/collateral/currencies", params, nil, &resp)
+}
+
+// ListLendingMarkets retrieves lending markets
+func (e *Exchange) ListLendingMarkets(ctx context.Context) ([]*LendingMarketDetail, error) {
+	var resp []*LendingMarketDetail
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "margin/uni/currency_pairs", &resp)
+}
+
+// GetLendingMarketDetail holds a lending market detail.
+func (e *Exchange) GetLendingMarketDetail(ctx context.Context, currencyPair currency.Pair) (*LendingMarketDetail, error) {
+	if currencyPair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	var resp *LendingMarketDetail
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "margin/uni/currency_pairs/"+currencyPair.String(), &resp)
+}
+
+// IsolatedMarginLendOrBorrow posts a lend or borrow order.
+func (e *Exchange) IsolatedMarginLendOrBorrow(ctx context.Context, arg *LendOrBorrowRequest) (*LendOrBorrowDetail, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
+	if arg.Currency.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if arg.CurrencyPair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if arg.OrderType == "" {
+		return nil, fmt.Errorf("%w loan type is required", margin.ErrInvalidMarginType)
+	}
+	if arg.Amount <= 0 {
+		return nil, limits.ErrAmountBelowMin
+	}
+	var resp *LendOrBorrowDetail
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "margin/uni/loans", nil, arg, &resp)
+}
+
+// ListAllIsolatedMarginLoans retrieves all loans history of the account
+func (e *Exchange) ListAllIsolatedMarginLoans(ctx context.Context, currencyPair currency.Pair, ccy currency.Code, page, limit uint64) ([]*LoanDetail, error) {
+	params := url.Values{}
+	if !currencyPair.IsEmpty() {
+		params.Set("currency_pair", currencyPair.String())
+	}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatUint(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	var resp []*LoanDetail
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "margin/uni/loans", params, nil, &resp)
+}
+
+// GetIsolatedMarginLoanRecords get a margin account loan records
+func (e *Exchange) GetIsolatedMarginLoanRecords(ctx context.Context, loanType string, ccy currency.Code, currencyPair currency.Pair, page, limit uint64) ([]*LoanDetail, error) {
+	params := url.Values{}
+	if loanType != "" {
+		params.Set("type", loanType)
+	}
+	if !currencyPair.IsEmpty() {
+		params.Set("currency_pair", currencyPair.String())
+	}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatUint(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	var resp []*LoanDetail
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "margin/uni/loan_records", params, nil, &resp)
+}
+
+// GetIsolatedMarginAccountInterestDeductionRecords retrieves a margin account interest deduction records
+func (e *Exchange) GetIsolatedMarginAccountInterestDeductionRecords(ctx context.Context, currencyPair currency.Pair, ccy currency.Code, page, limit uint64, from, to time.Time) ([]*InterestDeductionRecord, error) {
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
+			return nil, err
+		}
+	}
+	params := url.Values{}
+	if !from.IsZero() {
+		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
+	}
+	if !to.IsZero() {
+		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
+	}
+	if !currencyPair.IsEmpty() {
+		params.Set("currency_pair", currencyPair.String())
+	}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatUint(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	var resp []*InterestDeductionRecord
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "margin/uni/interest_records", params, nil, &resp)
+}
+
+// GetIsolatedMarginAccountMaximumBorrowableAmountByCurrency retrieves a maximum borrowable amount if currency.Code for a currency pair market
+func (e *Exchange) GetIsolatedMarginAccountMaximumBorrowableAmountByCurrency(ctx context.Context, ccy currency.Code, currencyPair currency.Pair) ([]*MaximumBorrowableAmount, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if currencyPair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	params := url.Values{}
+	params.Set("currency", ccy.String())
+	params.Set("currency_pair", currencyPair.String())
+	var resp []*MaximumBorrowableAmount
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "margin/uni/borrowable", params, nil, &resp)
+}
+
+// GetUsersOwnLverageLendingTiersInCurrentMarket retrieves user's own leverage lending tiers in current market
+func (e *Exchange) GetUsersOwnLverageLendingTiersInCurrentMarket(ctx context.Context, currencyPair currency.Pair) ([]*LoanMarginTierDetail, error) {
+	if currencyPair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	params := url.Values{}
+	params.Set("currency_pair", currencyPair.String())
+	var resp []*LoanMarginTierDetail
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "margin/user/loan_margin_tiers", params, nil, &resp)
+}
+
+// GetIsolatedMarginCurrentMarketLeverageLendingTiers retrieves current market leverage lending tiers
+func (e *Exchange) GetIsolatedMarginCurrentMarketLeverageLendingTiers(ctx context.Context, currencyPair currency.Pair) ([]*LoanMarginTierDetail, error) {
+	if currencyPair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	params := url.Values{}
+	params.Set("currency_pair", currencyPair.String())
+	var resp []*LoanMarginTierDetail
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "margin/loan_margin_tiers", params, nil, &resp)
+}
+
+// SetUserIsolatedMarginAccountMarketLeverageMultiplier sets user's isolated margin account leverage multiplier for a market
+func (e *Exchange) SetUserIsolatedMarginAccountMarketLeverageMultiplier(ctx context.Context, currencyPair currency.Pair, leverage uint16) (*UserMarketLeverageMultiplierResponse, error) {
+	if leverage <= 0 {
+		return nil, order.ErrSubmitLeverageNotSupported
+	}
+	params := url.Values{}
+	if !currencyPair.IsEmpty() {
+		params.Set("currency_pair", currencyPair.String())
+	}
+	var resp *UserMarketLeverageMultiplierResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "margin/leverage/user_market_setting", params, nil, &resp)
+}
+
+// GetUserIsolatedMarginAccountList retrieves user's isolated margin account list
+func (e *Exchange) GetUserIsolatedMarginAccountList(ctx context.Context, currencyPair currency.Pair) ([]*IsolatedMarginAccountDetail, error) {
+	params := url.Values{}
+	if !currencyPair.IsEmpty() {
+		params.Set("currency_pair", currencyPair.String())
+	}
+	var resp []*IsolatedMarginAccountDetail
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "margin/user/account", params, nil, &resp)
 }
