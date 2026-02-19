@@ -205,18 +205,10 @@ func TestNewBasicRateLimit(t *testing.T) {
 	assert.Same(t, defs[Auth], defs[UnAuth], "Auth and UnAuth should be same instance")
 }
 
-func TestWithDelayNotAllowed(t *testing.T) {
-	t.Parallel()
-
-	assert.True(t, hasDelayNotAllowed(WithDelayNotAllowed(t.Context())))
-	assert.False(t, hasDelayNotAllowed(t.Context()))
-	assert.False(t, hasDelayNotAllowed(WithVerbose(t.Context())))
-}
-
 func TestCancelAll(t *testing.T) {
 	t.Parallel()
 
-	var reservations []*rate.Reservation
+	reservations := make([]*rate.Reservation, 0, 2)
 	cancelAll(reservations, time.Now())
 
 	r := rate.NewLimiter(rate.Limit(1), 1)

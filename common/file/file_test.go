@@ -82,37 +82,35 @@ func TestMove(t *testing.T) {
 		ErrExpected bool
 	}
 
-	var tests []testTable
+	tests := make([]testTable, 0, 6)
 	switch runtime.GOOS {
 	case "windows":
-		tests = []testTable{
-			{InFile: "*", OutFile: "gct.txt", Write: true, ErrExpected: true},
-			{InFile: "*", OutFile: "gct.txt", Write: false, ErrExpected: true},
-			{InFile: "in.txt", OutFile: "*", Write: true, ErrExpected: true},
-		}
+		tests = append(tests,
+			testTable{InFile: "*", OutFile: "gct.txt", Write: true, ErrExpected: true},
+			testTable{InFile: "*", OutFile: "gct.txt", Write: false, ErrExpected: true},
+			testTable{InFile: "in.txt", OutFile: "*", Write: true, ErrExpected: true},
+		)
 	default:
-		tests = []testTable{
-			{InFile: "", OutFile: "gct.txt", Write: true, ErrExpected: true},
-			{InFile: "", OutFile: "gct.txt", Write: false, ErrExpected: true},
-			{InFile: "in.txt", OutFile: "", Write: true, ErrExpected: true},
-		}
+		tests = append(tests,
+			testTable{InFile: "", OutFile: "gct.txt", Write: true, ErrExpected: true},
+			testTable{InFile: "", OutFile: "gct.txt", Write: false, ErrExpected: true},
+			testTable{InFile: "in.txt", OutFile: "", Write: true, ErrExpected: true},
+		)
 	}
-	tests = append(tests, []testTable{
-		{InFile: "in.txt", OutFile: "gct.txt", Write: true, ErrExpected: false},
-		{InFile: "in.txt", OutFile: "non-existing/gct.txt", Write: true, ErrExpected: false},
-		{InFile: "in.txt", OutFile: "in.txt", Write: true, ErrExpected: false},
-	}...)
+	tests = append(tests,
+		testTable{InFile: "in.txt", OutFile: "gct.txt", Write: true, ErrExpected: false},
+		testTable{InFile: "in.txt", OutFile: "non-existent/gct.txt", Write: true, ErrExpected: false},
+		testTable{InFile: "in.txt", OutFile: "in.txt", Write: true, ErrExpected: false},
+	)
 
-	if Exists("non-existing") {
-		t.Error("target 'non-existing' should not exist")
-	}
-	defer os.RemoveAll("non-existing")
+	assert.False(t, Exists("non-existent"), "Exists should return false for a non-existent file")
+	defer os.RemoveAll("non-existent")
 	defer os.Remove("in.txt")
 
 	for x := range tests {
 		err := tester(tests[x].InFile, tests[x].OutFile, tests[x].Write)
-		if err != nil && !tests[x].ErrExpected {
-			t.Errorf("Test %d failed, unexpected err %s\n", x, err)
+		if !tests[x].ErrExpected {
+			assert.NoErrorf(t, err, "Test %d should not error", x)
 		}
 	}
 }

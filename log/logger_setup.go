@@ -201,7 +201,7 @@ func splitLevel(level string) (l Levels) {
 			l.Error = true
 		}
 	}
-	return
+	return l
 }
 
 // registerNewSubLogger registers a new sub logger. Note: Calling function must
