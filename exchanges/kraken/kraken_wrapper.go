@@ -1384,17 +1384,6 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 	return getOrdersRequest.Filter(e.Name, orders), nil
 }
 
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (e *Exchange) AuthenticateWebsocket(ctx context.Context) error {
-	resp, err := e.GetWebsocketToken(ctx)
-	if err != nil {
-		return err
-	}
-
-	e.setWebsocketAuthToken(resp)
-	return nil
-}
-
 // ValidateAPICredentials validates current credentials used for wrapper functionality
 func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := e.UpdateAccountBalances(ctx, assetType)

@@ -1720,19 +1720,6 @@ func setOrderSideStatusAndType(orderState, requestType string, orderDetail *orde
 	}
 }
 
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (e *Exchange) AuthenticateWebsocket(ctx context.Context) error {
-	wsRunningAuthURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
-	if err != nil {
-		return err
-	}
-	conn, err := e.Websocket.GetConnection(wsRunningAuthURL)
-	if err != nil {
-		return err
-	}
-	return e.wsLogin(ctx, conn)
-}
-
 // ValidateAPICredentials validates current credentials used for wrapper functionality
 func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
 	_, err := e.UpdateAccountBalances(ctx, assetType)
