@@ -185,8 +185,13 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
+	wsRunningURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                   deribitWebsocketAddress,
+		URL:                   wsRunningURL,
 		Connector:             e.wsConnect,
 		Authenticate:          e.wsAuth,
 		Subscriber:            e.subscribeForConnection,
@@ -195,7 +200,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler:               e.wsHandleData,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		MessageFilter:         deribitWebsocketAddress,
+		MessageFilter:         wsRunningURL,
 	})
 }
 

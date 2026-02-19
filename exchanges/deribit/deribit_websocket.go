@@ -115,11 +115,7 @@ func (e *Exchange) wsAuth(ctx context.Context, conn websocket.Connection) error 
 	if !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return nil
 	}
-	if err := e.wsLogin(ctx, conn); err != nil {
-		log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", e.Name, err)
-		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-	}
-	return nil
+	return e.wsLogin(ctx, conn)
 }
 
 func (e *Exchange) wsStartHeartbeat(ctx context.Context, conn websocket.Connection) {
@@ -148,9 +144,6 @@ func (e *Exchange) wsStartHeartbeat(ctx context.Context, conn websocket.Connecti
 func (e *Exchange) wsLogin(ctx context.Context, conn websocket.Connection) error {
 	if !e.IsWebsocketAuthenticationSupported() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", e.Name)
-	}
-	if conn == nil {
-		return websocket.ErrNotConnected
 	}
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {

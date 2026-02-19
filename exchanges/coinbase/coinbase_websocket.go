@@ -300,25 +300,21 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 }
 
 func (e *Exchange) checkWSSequence(conn websocket.Connection, sequence uint64) error {
-	if conn == nil {
-		return nil
-	}
-	connKey := conn.GetURL() + "|" + fmt.Sprintf("%p", conn)
 	e.wsSeqMu.Lock()
 	defer e.wsSeqMu.Unlock()
 	if e.wsSeqState == nil {
-		e.wsSeqState = make(map[string]uint64)
+		e.wsSeqState = make(map[websocket.Connection]uint64)
 	}
-	expected, ok := e.wsSeqState[connKey]
+	expected, ok := e.wsSeqState[conn]
 	if !ok {
-		e.wsSeqState[connKey] = sequence + 1
+		e.wsSeqState[conn] = sequence + 1
 		return nil
 	}
 	if sequence != expected {
-		e.wsSeqState[connKey] = sequence + 1
+		e.wsSeqState[conn] = sequence + 1
 		return fmt.Errorf("%w: received %v, expected %v", errOutOfSequence, sequence, expected)
 	}
-	e.wsSeqState[connKey] = expected + 1
+	e.wsSeqState[conn] = expected + 1
 	return nil
 }
 
@@ -392,9 +388,6 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 
 // manageSubs subscribes or unsubscribes from a list of websocket channels
 func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op string, subs subscription.List) error {
-	if conn == nil {
-		return websocket.ErrNotConnected
-	}
 	var errs error
 	subs, errs = subs.ExpandTemplates(e)
 	for _, s := range subs {

@@ -470,10 +470,6 @@ func (e *Exchange) wsProcessOrderBook(ctx context.Context, conn websocket.Connec
 		if errors.Is(err, errInvalidChecksum) {
 			log.Debugf(log.Global, "%s Resubscribing to invalid %s orderbook", e.Name, pair)
 			go func() {
-				if conn == nil {
-					log.Errorf(log.ExchangeSys, "%s resubscription failure for %v: %v", e.Name, pair, websocket.ErrNotConnected)
-					return
-				}
 				if e2 := e.Websocket.ResubscribeToChannel(ctx, conn, s); e2 != nil && !errors.Is(e2, subscription.ErrInStateAlready) {
 					log.Errorf(log.ExchangeSys, "%s resubscription failure for %v: %v", e.Name, pair, e2)
 				}
@@ -704,10 +700,6 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 	if len(subs) != 1 {
 		return subscription.ErrBatchingNotSupported
 	}
-	if conn == nil {
-		return websocket.ErrNotConnected
-	}
-
 	s := subs[0]
 
 	if err := enforceStandardChannelNames(s); err != nil {
@@ -942,15 +934,7 @@ func (e *Exchange) wsAuthConnection() (websocket.Connection, error) {
 	if err != nil {
 		return nil, err
 	}
-	conn, err := e.Websocket.GetConnection(wsRunningAuthURL)
-	if err == nil {
-		return conn, nil
-	}
-	conn, fallbackErr := e.Websocket.GetConnection(krakenAuthWSURL)
-	if fallbackErr != nil {
-		return nil, err
-	}
-	return conn, nil
+	return e.Websocket.GetConnection(wsRunningAuthURL)
 }
 
 // wsAddOrder creates an order, returned order ID if success
@@ -1003,9 +987,6 @@ func (e *Exchange) wsCancelOrders(ctx context.Context, orderIDs []string) error 
 
 // wsCancelOrder cancels an open order
 func (e *Exchange) wsCancelOrder(ctx context.Context, conn websocket.Connection, orderID string) error {
-	if conn == nil {
-		return websocket.ErrNotConnected
-	}
 	id := e.MessageSequence()
 	req := WsCancelOrderRequest{
 		Event:          krakenWsCancelOrder,

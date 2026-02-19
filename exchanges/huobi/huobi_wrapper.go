@@ -233,9 +233,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	if !exch.API.AuthenticatedWebsocketSupport {
-		return nil
-	}
 
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                      wsRunningAuthURL,
@@ -249,7 +246,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		RateLimit:                request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-		Authenticated:            true,
 		MessageFilter:            wsRunningAuthURL,
 	})
 }

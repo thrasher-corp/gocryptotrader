@@ -8,6 +8,7 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -29,7 +30,7 @@ type Exchange struct {
 	exchange.Base
 	jwt         jwtManager
 	pairAliases pairAliases
-	wsSeqState  map[string]uint64
+	wsSeqState  map[websocket.Connection]uint64
 	wsSeqMu     sync.Mutex
 }
 

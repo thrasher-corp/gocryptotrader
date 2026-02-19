@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -62,7 +63,11 @@ var defaultFuturesSubscriptions = []string{
 // WsFuturesConnect initiates a websocket connection for futures account
 func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connection) error {
 	a := asset.USDTMarginedFutures
-	if conn.GetURL() == btcFuturesWebsocketURL {
+	wsCoinMarginedURL, err := e.API.Endpoints.GetURL(exchange.WebsocketCoinMargined)
+	if err != nil {
+		return err
+	}
+	if conn.GetURL() == wsCoinMarginedURL {
 		a = asset.CoinMarginedFutures
 	}
 	if err := e.CurrencyPairs.IsAssetEnabled(a); err != nil {

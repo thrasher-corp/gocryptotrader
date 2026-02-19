@@ -550,7 +550,7 @@ func (e *Exchange) wsGenerateSignature(creds *accounts.Credentials, timestamp st
 	return crypto.GetHMAC(crypto.HashSHA256, []byte(payload), []byte(creds.Secret))
 }
 
-func (e *Exchange) wsLogin(ctx context.Context, c websocket.Connection) error {
+func (e *Exchange) wsLogin(ctx context.Context, conn websocket.Connection) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -573,10 +573,10 @@ func (e *Exchange) wsLogin(ctx context.Context, c websocket.Connection) error {
 			Timestamp:        ts,
 		},
 	}
-	if err := c.SendJSONMessage(ctx, request.Unset, req); err != nil {
+	if err := conn.SendJSONMessage(ctx, request.Unset, req); err != nil {
 		return err
 	}
-	resp := c.ReadMessage()
+	resp := conn.ReadMessage()
 	if resp.Raw == nil {
 		return &gws.CloseError{Code: gws.CloseAbnormalClosure}
 	}

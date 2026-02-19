@@ -161,8 +161,9 @@ func (e *Exchange) SetDefaults() {
 	}
 	e.API.Endpoints = e.NewEndpoints()
 	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:      bitfinexAPIURLBase,
-		exchange.WebsocketSpot: publicBitfinexWebsocketEndpoint,
+		exchange.RestSpot:                   bitfinexAPIURLBase,
+		exchange.WebsocketSpot:              publicBitfinexWebsocketEndpoint,
+		exchange.WebsocketSpotSupplementary: authenticatedBitfinexWebsocketEndpoint,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -197,6 +198,14 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
+	wsPublicURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+	wsAuthURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
+	if err != nil {
+		return err
+	}
 
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		Connector:             e.wsConnect,
@@ -206,8 +215,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler:               e.wsHandleData,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		URL:                   publicBitfinexWebsocketEndpoint,
-		MessageFilter:         publicBitfinexWebsocketEndpoint,
+		URL:                   wsPublicURL,
+		MessageFilter:         wsPublicURL,
 	})
 	if err != nil {
 		return err
@@ -215,7 +224,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		Connector:                e.wsConnect,
-		Authenticate:             e.wsAuthenticate,
+		Authenticate:             e.wsSendAuthConn,
 		Subscriber:               e.subscribeForConnection,
 		Unsubscriber:             e.unsubscribeForConnection,
 		GenerateSubscriptions:    e.generatePrivateSubscriptions,
@@ -223,9 +232,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler:                  e.wsHandleData,
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-		URL:                      authenticatedBitfinexWebsocketEndpoint,
-		Authenticated:            true,
-		MessageFilter:            authenticatedBitfinexWebsocketEndpoint,
+		URL:                      wsAuthURL,
+		MessageFilter:            wsAuthURL,
 	})
 }
 
