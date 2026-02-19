@@ -122,9 +122,7 @@ var subscriptionNames = map[string]string{
 
 func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
 	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
-		return fmt.Errorf("%v unable to connect to Websocket. Error: %s",
-			e.Name,
-			err)
+		return fmt.Errorf("%v unable to connect to Websocket. Error: %s", e.Name, err)
 	}
 	return e.ConfigureWS(ctx, conn)
 }

@@ -110,9 +110,6 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, su
 }
 
 func (e *Exchange) wsAuthConnect(ctx context.Context, conn websocket.Connection) error {
-	if !e.IsWebsocketAuthenticationSupported() {
-		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", e.Name)
-	}
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
