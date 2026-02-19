@@ -80,37 +80,37 @@ type AlphaPlaceOrderResponse struct {
 // AlphaOrderDetail holds a alpha order details
 type AlphaOrderDetail struct {
 	alphaStatusError
-	OrderID         string       `json:"order_id"`
-	TransactionHash string       `json:"tx_hash"`
-	Side            string       `json:"side"`
-	USDTAmount      types.Number `json:"usdt_amount"`
-	Currency        string       `json:"currency"`
-	CurrencyAmount  types.Number `json:"currency_amount"`
-	Status          int64        `json:"status"`
-	GasMode         string       `json:"gas_mode"`
-	Chain           string       `json:"chain"`
-	GasFee          types.Number `json:"gas_fee"`
-	TransactionFee  string       `json:"transaction_fee"`
-	CreateTime      types.Time   `json:"create_time"`
-	FailedReason    string       `json:"failed_reason"`
+	OrderID         string        `json:"order_id"`
+	TransactionHash string        `json:"tx_hash"`
+	Side            string        `json:"side"`
+	USDTAmount      types.Number  `json:"usdt_amount"`
+	Currency        currency.Code `json:"currency"`
+	CurrencyAmount  types.Number  `json:"currency_amount"`
+	Status          int64         `json:"status"`
+	GasMode         string        `json:"gas_mode"`
+	Chain           string        `json:"chain"`
+	GasFee          types.Number  `json:"gas_fee"`
+	TransactionFee  string        `json:"transaction_fee"`
+	CreateTime      types.Time    `json:"create_time"`
+	FailedReason    string        `json:"failed_reason"`
 }
 
 // AlphaCurrencyDetail holds an alpha currency detail
 type AlphaCurrencyDetail struct {
-	Currency        string `json:"currency"`
-	Name            string `json:"name"`
-	Chain           string `json:"chain"`
-	Address         string `json:"address"`
-	Status          int32  `json:"status"`
-	Precision       int32  `json:"precision"`
-	AmountPrecision int32  `json:"amount_precision"`
+	Currency        currency.Code `json:"currency"`
+	Name            string        `json:"name"`
+	Chain           string        `json:"chain"`
+	Address         string        `json:"address"`
+	Status          int32         `json:"status"`
+	Precision       int32         `json:"precision"`
+	AmountPrecision int32         `json:"amount_precision"`
 }
 
 // AlphaCurrencyTickerInfo represents an alpha currency ticker detail
 type AlphaCurrencyTickerInfo struct {
-	Currency  string       `json:"currency"`
-	Change    string       `json:"change"`
-	Last      types.Number `json:"last"`
-	Volume    types.Number `json:"volume"`
-	MarketCap string       `json:"market_cap"`
+	Currency  currency.Code `json:"currency"`
+	Change    string        `json:"change"`
+	Last      types.Number  `json:"last"`
+	Volume    types.Number  `json:"volume"`
+	MarketCap string        `json:"market_cap"`
 }

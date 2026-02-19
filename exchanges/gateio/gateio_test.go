@@ -1800,10 +1800,6 @@ func TestGetDeliveryFutureTickers(t *testing.T) {
 	results, err := e.GetDeliveryFutureTickers(t.Context(), currency.USDT, currency.EMPTYPAIR)
 	require.NoError(t, err)
 	assert.NotNil(t, results)
-
-	for _, P := range results {
-		print(P.Contract, ",")
-	}
 }
 
 func TestGetDeliveryInsuranceBalanceHistory(t *testing.T) {
@@ -1936,8 +1932,9 @@ func TestGetOptionsSpecifiedContractDetail(t *testing.T) {
 	_, err := e.GetOptionsSpecifiedContractDetail(t.Context(), currency.EMPTYPAIR)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	_, err = e.GetOptionsSpecifiedContractDetail(t.Context(), getPair(t, asset.Options))
-	assert.NoError(t, err)
+	result, err := e.GetOptionsSpecifiedContractDetail(t.Context(), getPair(t, asset.Options))
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestGetSettlementHistory(t *testing.T) {
@@ -1968,8 +1965,9 @@ func TestGetOptionsSpecifiedSettlementHistory(t *testing.T) {
 
 func TestGetSupportedFlashSwapCurrencies(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetSupportedFlashSwapCurrencies(t.Context())
-	assert.NoError(t, err)
+	result, err := e.GetSupportedFlashSwapCurrencies(t.Context())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 const flashSwapOrderResponseJSON = `{"id": 54646,  "create_time": 1651116876378,  "update_time": 1651116876378,  "user_id": 11135567,  "sell_currency": "BTC",  "sell_amount": "0.01",  "buy_currency": "USDT",  "buy_amount": "10",  "price": "100",  "status": 1}`
@@ -2556,9 +2554,9 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	startTime := time.Now().Add(-time.Hour * 5)
+	startTime, endTime := getTime()
 	for _, a := range e.GetAssetTypes(false) {
-		_, err := e.GetHistoricCandlesExtended(t.Context(), getPair(t, a), a, kline.OneMin, startTime, time.Now())
+		_, err := e.GetHistoricCandlesExtended(t.Context(), getPair(t, a), a, kline.OneMin, startTime, endTime)
 		if a == asset.Options {
 			assert.ErrorIs(t, err, asset.ErrNotSupported, "GetHistoricCandlesExtended should error correctly for options")
 		} else {

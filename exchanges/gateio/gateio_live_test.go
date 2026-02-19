@@ -31,7 +31,6 @@ func TestMain(m *testing.M) {
 	if err := e.populateTradablePairs(); err != nil {
 		log.Fatal(err)
 	}
-	e.HTTPRecording = true
 	os.Exit(m.Run())
 }
 

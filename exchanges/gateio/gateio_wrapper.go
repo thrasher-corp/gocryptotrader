@@ -529,11 +529,6 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			return err
 		}
 		for _, sTicker := range tickers {
-			var currencyPair currency.Pair
-			currencyPair, err = currency.NewPairFromString(sTicker.CurrencyPair)
-			if err != nil {
-				return err
-			}
 			if err := ticker.ProcessTicker(&ticker.Price{
 				Last:         sTicker.Last.Float64(),
 				High:         sTicker.High24H.Float64(),
@@ -543,7 +538,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 				QuoteVolume:  sTicker.QuoteVolume.Float64(),
 				Volume:       sTicker.BaseVolume.Float64(),
 				ExchangeName: e.Name,
-				Pair:         currencyPair,
+				Pair:         sTicker.CurrencyPair,
 				AssetType:    a,
 			}); err != nil {
 				return err
@@ -561,11 +556,6 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			tickers, errs = e.GetFuturesTickers(ctx, settle, currency.EMPTYPAIR)
 		}
 		for _, tkr := range tickers {
-			currencyPair, err := currency.NewPairFromString(tkr.Contract)
-			if err != nil {
-				errs = common.AppendError(errs, err)
-				continue
-			}
 			if err := ticker.ProcessTicker(&ticker.Price{
 				Last:         tkr.Last.Float64(),
 				High:         tkr.High24H.Float64(),
@@ -573,7 +563,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 				Volume:       tkr.Volume24H.Float64(),
 				QuoteVolume:  tkr.Volume24HQuote.Float64(),
 				ExchangeName: e.Name,
-				Pair:         currencyPair,
+				Pair:         tkr.Contract,
 				AssetType:    a,
 			}); err != nil {
 				errs = common.AppendError(errs, err)
@@ -764,7 +754,7 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 		withdrawalHistories[x] = exchange.WithdrawalHistory{
 			Status:          withdrawalResp.Status,
 			TransferID:      withdrawalResp.ID,
-			Currency:        withdrawalResp.Currency,
+			Currency:        withdrawalResp.Currency.String(),
 			Amount:          withdrawalResp.Amount.Float64(),
 			CryptoTxID:      withdrawalResp.TransactionID,
 			CryptoToAddress: withdrawalResp.WithdrawalAddress,
@@ -1237,10 +1227,6 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 				return nil, err
 			}
 		}
-		pair, err = currency.NewPairFromString(fOrder.Contract)
-		if err != nil {
-			return nil, err
-		}
 
 		side, amount, remaining := getSideAndAmountFromSize(fOrder.Size, fOrder.RemainingAmount)
 		tif, err := timeInForceFromString(fOrder.TimeInForce)
@@ -1259,7 +1245,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 			AverageExecutedPrice: fOrder.FillPrice.Float64(),
 			Date:                 fOrder.CreateTime.Time(),
 			LastUpdated:          fOrder.FinishTime.Time(),
-			Pair:                 pair,
+			Pair:                 fOrder.Contract,
 			AssetType:            a,
 			Type:                 getTypeFromTimeInForce(fOrder.TimeInForce, fOrder.OrderPrice.Float64()),
 			TimeInForce:          tif,
@@ -1384,10 +1370,6 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			return nil, err
 		}
 		for _, sOrder := range spotOrders {
-			symbol, err := currency.NewPairDelimiter(sOrder.CurrencyPair, format.Delimiter)
-			if err != nil {
-				return nil, err
-			}
 			for _, sOrderDetail := range sOrder.Orders {
 				if sOrderDetail.Status != statusOpen {
 					continue
@@ -1408,7 +1390,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 					Side:                 side,
 					Type:                 oType,
 					Status:               status,
-					Pair:                 symbol,
+					Pair:                 sOrder.CurrencyPair.Format(format),
 					OrderID:              sOrderDetail.OrderID,
 					Amount:               sOrderDetail.Amount.Float64(),
 					ExecutedAmount:       sOrderDetail.Amount.Float64() - sOrderDetail.Left.Float64(),
@@ -1439,12 +1421,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 			return nil, err
 		}
 		for _, fOrder := range futuresOrders {
-			pair, err := currency.NewPairFromString(fOrder.Contract)
-			if err != nil {
-				return nil, err
-			}
-
-			if fOrder.Status != statusOpen || (len(req.Pairs) > 0 && !req.Pairs.Contains(pair, true)) {
+			if fOrder.Status != statusOpen || (len(req.Pairs) > 0 && !req.Pairs.Contains(fOrder.Contract, true)) {
 				continue
 			}
 			side, amount, remaining := getSideAndAmountFromSize(fOrder.Size, fOrder.RemainingAmount)
@@ -1456,7 +1433,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 				Status:               order.Open,
 				Amount:               amount,
 				ContractAmount:       amount,
-				Pair:                 pair,
+				Pair:                 fOrder.Contract.Format(format),
 				OrderID:              strconv.FormatInt(fOrder.ID, 10),
 				ClientOrderID:        getClientOrderIDFromText(fOrder.Text),
 				Price:                fOrder.OrderPrice.Float64(),
