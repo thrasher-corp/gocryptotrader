@@ -453,7 +453,7 @@ func (e *Exchange) GetCurrentMarginRates(ctx context.Context, req *margin.Curren
 	}
 
 	timeChecked := time.Now().UTC()
-	cache := make(map[currency.Code]margin.Rate)
+	cache := make(map[currency.Code]*margin.Rate)
 	resp := make([]margin.CurrentRateResponse, len(pairs))
 	for i := range pairs {
 		if pairs[i].IsEmpty() {
@@ -479,7 +479,7 @@ func (e *Exchange) GetCurrentMarginRates(ctx context.Context, req *margin.Curren
 				}
 			}
 			yearlyRate := decimal.NewFromFloat(latest.Rate)
-			rate = margin.Rate{
+			rate = &margin.Rate{
 				Time:       latest.Timestamp.Time(),
 				HourlyRate: yearlyRate.Div(decimal.NewFromInt(24 * 365)),
 				YearlyRate: yearlyRate,

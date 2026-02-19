@@ -435,8 +435,14 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 						return err
 					}
 					if strings.HasPrefix(fundingInfo.Symbol, "f") {
-						a := currency.NewCode(strings.TrimPrefix(fundingInfo.Symbol, "f"))
-						_ = a
+						ccy := currency.NewCode(strings.TrimPrefix(fundingInfo.Symbol, "f"))
+						pairs, err := e.GetEnabledPairs(asset.MarginFunding)
+						if err != nil {
+							if errors.Is(err, asset.ErrNotEnabled) {
+								return nil
+							}
+							return err
+						}
 						timeChecked := time.Now().UTC()
 						currentYearly := decimal.NewFromFloat(fundingInfo.YieldLend)
 						predictedYearly := decimal.NewFromFloat(fundingInfo.YieldLoan)
@@ -450,14 +456,18 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 							HourlyRate: predictedYearly.Div(decimal.NewFromInt(24 * 365)),
 							YearlyRate: predictedYearly,
 						}
+						for i := range pairs {
+							if !pairs[i].Base.Equal(ccy) {
+								continue
+							}
 							if err := e.Websocket.DataHandler.Send(ctx, margin.CurrentRateResponse{
 								Exchange:      e.Name,
 								Asset:         asset.MarginFunding,
-								//Pair:          pairs[i],
+								Pair:          pairs[i],
 								CurrentRate:   currentRate,
 								PredictedRate: predictedRate,
 								TimeChecked:   timeChecked,
-							});							 err != nil {
+							}); err != nil {
 								return err
 							}
 						}
@@ -504,6 +514,9 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 					ccy := currency.NewCode(strings.TrimPrefix(wsFundingTrade.Symbol, "f"))
 					pairs, err := e.GetEnabledPairs(asset.MarginFunding)
 					if err != nil {
+						if errors.Is(err, asset.ErrNotEnabled) {
+							return nil
+						}
 						return err
 					}
 					timeChecked := time.Now().UTC()
@@ -1747,7 +1760,7 @@ func (e *Exchange) subscribeToChan(ctx context.Context, subs subscription.List) 
 	// Otherwise we might drop the first messages after the subscribed resp
 	s.Key = subID // Note subID string type avoids conflicts with later chanID key
 	if err := e.Websocket.AddSubscriptions(e.Websocket.Conn, s); err != nil {
-		return fmt.Errorf("%w Channel: %s.Channel, s.Pairs)
+		return fmt.Errorf("%w: Channel: %s Pair: %s", err, s.Channel, s.Pairs)
 	}
 
 	// Always remove the temporary subscription keyed by subID
