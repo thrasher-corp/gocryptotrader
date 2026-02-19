@@ -2175,7 +2175,7 @@ func (e *Exchange) GetCurrentMarginRates(ctx context.Context, req *margin.Curren
 			Exchange:    e.Name,
 			Asset:       req.Asset,
 			Pair:        pair,
-			CurrentRate: rate,
+			CurrentRate: &rate,
 			TimeChecked: timeChecked,
 		}
 	}

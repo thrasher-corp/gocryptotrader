@@ -1384,14 +1384,13 @@ message GetMarginRatesHistoryRequest {
   string currency = 3;
   string start_date = 4;
   string end_date = 5;
-  bool get_predicted_rate = 6;
-  bool get_lending_payments = 7;
-  bool get_borrow_rates = 8;
-  bool get_borrow_costs = 9;
-  bool include_all_rates = 10;
-  bool calculate_offline = 11;
-  string taker_fee_rate = 12;
-  repeated MarginRate rates = 13;
+  bool get_lending_payments = 6;
+  bool get_borrow_rates = 7;
+  bool get_borrow_costs = 8;
+  bool include_all_rates = 9;
+  bool calculate_offline = 10;
+  string taker_fee_rate = 11;
+  repeated MarginRate rates = 12;
 }
 
 message LendingPayment {

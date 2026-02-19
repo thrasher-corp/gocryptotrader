@@ -2304,9 +2304,6 @@ func (e *Exchange) GetMarginRatesHistory(ctx context.Context, req *margin.RateHi
 	if req.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if req.GetPredictedRate {
-		return nil, fmt.Errorf("%w GetPredictedRate", common.ErrFunctionNotSupported)
-	}
 	if !req.StartDate.IsZero() && !req.EndDate.IsZero() {
 		if err := common.StartEndTimeCheck(req.StartDate, req.EndDate); err != nil {
 			return nil, err

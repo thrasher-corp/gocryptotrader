@@ -22,13 +22,12 @@ var (
 
 // RateHistoryRequest is used to request a funding rate
 type RateHistoryRequest struct {
-	Exchange         string
-	Asset            asset.Item
-	Currency         currency.Code
-	Pair             currency.Pair
-	StartDate        time.Time
-	EndDate          time.Time
-	GetPredictedRate bool
+	Exchange  string
+	Asset     asset.Item
+	Currency  currency.Code
+	Pair      currency.Pair
+	StartDate time.Time
+	EndDate   time.Time
 
 	GetBorrowRates bool
 	GetBorrowCosts bool

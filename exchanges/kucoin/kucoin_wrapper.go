@@ -2150,7 +2150,7 @@ func (e *Exchange) GetCurrentMarginRates(ctx context.Context, r *margin.CurrentR
 			Exchange:    e.Name,
 			Asset:       r.Asset,
 			Pair:        pairs[i],
-			CurrentRate: rate,
+			CurrentRate: &rate,
 			TimeChecked: timeChecked,
 		}
 	}
@@ -2167,9 +2167,6 @@ func (e *Exchange) GetMarginRatesHistory(ctx context.Context, r *margin.RateHist
 	}
 	if r.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	if r.GetPredictedRate {
-		return nil, fmt.Errorf("%w GetPredictedRate", common.ErrFunctionNotSupported)
 	}
 	if r.GetBorrowCosts {
 		return nil, fmt.Errorf("%w GetBorrowCosts", common.ErrFunctionNotSupported)

@@ -3049,12 +3049,6 @@ func TestGetMarginRatesHistoryValidation(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
-		Asset:            asset.Margin,
-		Currency:         currency.USDT,
-		GetPredictedRate: true,
-	})
-	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
 func TestGetLeverage(t *testing.T) {

@@ -5142,7 +5142,6 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 		Currency:         c,
 		StartDate:        start,
 		EndDate:          end,
-		GetPredictedRate: r.GetPredictedRate,
 		GetBorrowRates:   r.GetBorrowRates,
 		GetBorrowCosts:   r.GetBorrowCosts,
 		CalculateOffline: r.CalculateOffline,
@@ -5221,7 +5220,7 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 		resp.SumBorrowCosts = lendingResp.SumBorrowCosts.String()
 		resp.AvgBorrowSize = lendingResp.AverageBorrowSize.String()
 	}
-	if r.GetPredictedRate {
+	if !lendingResp.PredictedRate.Time.IsZero() {
 		resp.PredictedRate = &gctrpc.MarginRate{
 			Time:       lendingResp.PredictedRate.Time.Format(common.SimpleTimeFormatWithTimezone),
 			HourlyRate: lendingResp.PredictedRate.HourlyRate.String(),

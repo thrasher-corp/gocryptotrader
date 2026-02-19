@@ -508,9 +508,6 @@ func (e *Exchange) GetMarginRatesHistory(ctx context.Context, req *margin.RateHi
 	if req.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if req.GetPredictedRate {
-		return nil, fmt.Errorf("%w GetPredictedRate", common.ErrFunctionNotSupported)
-	}
 	if req.GetBorrowRates {
 		return nil, fmt.Errorf("%w GetBorrowRates", common.ErrFunctionNotSupported)
 	}
