@@ -51,14 +51,14 @@ func (e *Exchange) WebsocketSpotSubmitOrders(ctx context.Context, orders ...*Cre
 		if orders[i].CurrencyPair.IsEmpty() {
 			return nil, currency.ErrCurrencyPairEmpty
 		}
-		if orders[i].Side == "" {
+		if orders[i].Side != order.Buy && orders[i].Side != order.Sell {
 			return nil, order.ErrSideIsInvalid
 		}
 		if orders[i].Amount == 0 {
-			return nil, errInvalidAmount
+			return nil, order.ErrAmountIsInvalid
 		}
 		if orders[i].Type == "limit" && orders[i].Price == 0 {
-			return nil, errInvalidPrice
+			return nil, order.ErrPriceMustBeSetIfLimitOrder
 		}
 	}
 
@@ -79,14 +79,12 @@ func (e *Exchange) WebsocketSpotCancelOrder(ctx context.Context, orderID string,
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 
-	params := &WebsocketOrderRequest{OrderID: orderID, Pair: pair.String(), Account: account}
-
 	var resp WebsocketOrderResponse
-	return &resp, e.SendWebsocketRequest(ctx, spotCancelSingleOrderEPL, "spot.order_cancel", asset.Spot, params, &resp, 1)
+	return &resp, e.SendWebsocketRequest(ctx, spotCancelSingleOrderEPL, "spot.order_cancel", asset.Spot, &WebsocketOrderRequest{OrderID: orderID, Pair: pair.String(), Account: account}, &resp, 1)
 }
 
 // WebsocketSpotCancelAllOrdersByIDs cancels multiple orders via the websocket
-func (e *Exchange) WebsocketSpotCancelAllOrdersByIDs(ctx context.Context, o []WebsocketOrderBatchRequest) ([]WebsocketCancellAllResponse, error) {
+func (e *Exchange) WebsocketSpotCancelAllOrdersByIDs(ctx context.Context, o []WebsocketOrderBatchRequest) ([]*WebsocketCancellAllResponse, error) {
 	if len(o) == 0 {
 		return nil, errNoOrdersToCancel
 	}
@@ -100,12 +98,12 @@ func (e *Exchange) WebsocketSpotCancelAllOrdersByIDs(ctx context.Context, o []We
 		}
 	}
 
-	var resp []WebsocketCancellAllResponse
+	var resp []*WebsocketCancellAllResponse
 	return resp, e.SendWebsocketRequest(ctx, spotCancelBatchOrdersEPL, "spot.order_cancel_ids", asset.Spot, o, &resp, 2)
 }
 
 // WebsocketSpotCancelAllOrdersByPair cancels all orders for a specific pair
-func (e *Exchange) WebsocketSpotCancelAllOrdersByPair(ctx context.Context, pair currency.Pair, side order.Side, account string) ([]WebsocketOrderResponse, error) {
+func (e *Exchange) WebsocketSpotCancelAllOrdersByPair(ctx context.Context, pair currency.Pair, side order.Side, account string) ([]*WebsocketOrderResponse, error) {
 	if !pair.IsEmpty() && side == order.UnknownSide {
 		// This case will cancel all orders for every pair, this can be introduced later
 		return nil, fmt.Errorf("'%v' %w while pair is set", side, order.ErrSideIsInvalid)
@@ -116,14 +114,12 @@ func (e *Exchange) WebsocketSpotCancelAllOrdersByPair(ctx context.Context, pair 
 		sideStr = side.Lower()
 	}
 
-	params := &WebsocketCancelParam{
+	var resp []*WebsocketOrderResponse
+	return resp, e.SendWebsocketRequest(ctx, spotCancelAllOpenOrdersEPL, "spot.order_cancel_cp", asset.Spot, &WebsocketCancelParam{
 		Pair:    pair,
 		Side:    sideStr,
 		Account: account,
-	}
-
-	var resp []WebsocketOrderResponse
-	return resp, e.SendWebsocketRequest(ctx, spotCancelAllOpenOrdersEPL, "spot.order_cancel_cp", asset.Spot, params, &resp, 1)
+	}, &resp, 1)
 }
 
 // WebsocketSpotAmendOrder amends an order via the websocket connection
@@ -131,21 +127,17 @@ func (e *Exchange) WebsocketSpotAmendOrder(ctx context.Context, amend *Websocket
 	if amend == nil {
 		return nil, fmt.Errorf("%w: %T", common.ErrNilPointer, amend)
 	}
-
 	if amend.OrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-
 	if amend.Pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-
 	if amend.Amount == "" && amend.Price == "" {
-		return nil, fmt.Errorf("%w: amount or price must be set", errInvalidAmount)
+		return nil, fmt.Errorf("%w: amount or price must be set", order.ErrAmountIsInvalid)
 	}
-
-	var resp WebsocketOrderResponse
-	return &resp, e.SendWebsocketRequest(ctx, spotAmendOrderEPL, "spot.order_amend", asset.Spot, amend, &resp, 1)
+	var resp *WebsocketOrderResponse
+	return resp, e.SendWebsocketRequest(ctx, spotAmendOrderEPL, "spot.order_amend", asset.Spot, amend, &resp, 1)
 }
 
 // WebsocketSpotGetOrderStatus gets the status of an order via the websocket connection
@@ -156,9 +148,6 @@ func (e *Exchange) WebsocketSpotGetOrderStatus(ctx context.Context, orderID stri
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-
-	params := &WebsocketOrderRequest{OrderID: orderID, Pair: pair.String(), Account: account}
-
-	var resp WebsocketOrderResponse
-	return &resp, e.SendWebsocketRequest(ctx, spotGetOrdersEPL, "spot.order_status", asset.Spot, params, &resp, 1)
+	var resp *WebsocketOrderResponse
+	return resp, e.SendWebsocketRequest(ctx, spotGetOrdersEPL, "spot.order_status", asset.Spot, &WebsocketOrderRequest{OrderID: orderID, Pair: pair.String(), Account: account}, &resp, 1)
 }

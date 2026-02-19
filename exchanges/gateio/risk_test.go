@@ -36,7 +36,7 @@ func TestGetFuturesRiskTable(t *testing.T) {
 	require.NoError(t, testexch.Setup(e))
 	require.NoError(t, testexch.MockHTTPInstance(e, "/"))
 
-	got, err := e.GetFuturesRiskTable(t.Context(), currency.USDT, "BTC_USDT_202507040223")
+	got, err := e.GetFuturesRiskTable(t.Context(), currency.USDT, getPair(t, asset.DeliveryFutures).String())
 	require.NoError(t, err)
 	assert.NotEmpty(t, got)
 }
