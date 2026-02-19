@@ -906,7 +906,7 @@ func TestGetTransactionByID(t *testing.T) {
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
-func TestFiatCurrencies(t *testing.T) {
+func TestGetFiatCurrencies(t *testing.T) {
 	t.Parallel()
 	testGetNoArgs(t, e.GetFiatCurrencies)
 }
@@ -1485,8 +1485,6 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		assert.NotEmpty(t, resp)
 	}
 }
-
-// TestWsHandleData and related tests have been moved to coinbase_websocket_test.go
 
 func TestGetJWT(t *testing.T) {
 	t.Parallel()

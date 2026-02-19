@@ -125,11 +125,10 @@ func (e *Exchange) wsAuthConnect(ctx context.Context, conn websocket.Connection)
 	if err != nil {
 		return fmt.Errorf("%v sendAuthenticatedHTTPRequest: Unable to JSON request", e.Name)
 	}
-	wsEndpoint, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	endpoint, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
 	if err != nil {
 		return err
 	}
-	endpoint := strings.TrimSuffix(wsEndpoint, "/") + "/v1/" + geminiWsOrderEvents
 	payloadB64 := base64.StdEncoding.EncodeToString(payloadJSON)
 	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384, []byte(payloadB64), []byte(creds.Secret))
 	if err != nil {

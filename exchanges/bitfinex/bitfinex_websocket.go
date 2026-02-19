@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -126,10 +127,6 @@ func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) err
 			err)
 	}
 	return e.ConfigureWS(ctx, conn)
-}
-
-func (e *Exchange) wsAuthenticate(ctx context.Context, conn websocket.Connection) error {
-	return e.wsSendAuthConn(ctx, conn)
 }
 
 func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
@@ -531,13 +528,8 @@ func (e *Exchange) handleWSSubscribed(conn websocket.Connection, respRaw []byte)
 	if err != nil {
 		return fmt.Errorf("%w: %w subID: %s", websocket.ErrSubscriptionFailure, err, subID)
 	}
-
 	if e.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Subscribed to Channel: %s Pair: %s ChannelID: %d\n", e.Name, c.Channel, c.Pairs, chanID)
-	}
-
-	if conn == nil {
-		return fmt.Errorf("%w: nil connection for subscription %s", websocket.ErrSubscriptionFailure, subID)
 	}
 	return conn.RequireMatchWithData("subscribe:"+subID, respRaw)
 }
@@ -941,9 +933,6 @@ func (e *Exchange) handleWSNotification(ctx context.Context, conn websocket.Conn
 			strings.Contains(channelName, wsFundingOfferCancelRequest):
 			if data[0] != nil {
 				if id, ok := data[0].(float64); ok && id > 0 {
-					if conn == nil {
-						return fmt.Errorf("%w: nil connection for %s id %d", websocket.ErrSubscriptionFailure, channelName, int64(id))
-					}
 					if conn.IncomingWithData(int64(id), respRaw) {
 						return nil
 					}
@@ -959,9 +948,6 @@ func (e *Exchange) handleWSNotification(ctx context.Context, conn websocket.Conn
 				if cid, ok := data[2].(float64); !ok {
 					return common.GetTypeAssertError("float64", data[2], channelName+" cid")
 				} else if cid > 0 {
-					if conn == nil {
-						return fmt.Errorf("%w: nil connection for %s cid %d", websocket.ErrSubscriptionFailure, channelName, int64(cid))
-					}
 					if conn.IncomingWithData(int64(cid), respRaw) {
 						return nil
 					}
@@ -974,9 +960,6 @@ func (e *Exchange) handleWSNotification(ctx context.Context, conn websocket.Conn
 				if id, ok := data[0].(float64); !ok {
 					return common.GetTypeAssertError("float64", data[0], channelName+" id")
 				} else if id > 0 {
-					if conn == nil {
-						return fmt.Errorf("%w: nil connection for %s id %d", websocket.ErrSubscriptionFailure, channelName, int64(id))
-					}
 					if conn.IncomingWithData(int64(id), respRaw) {
 						return nil
 					}
@@ -1588,9 +1571,6 @@ func (e *Exchange) resubOrderbook(ctx context.Context, conn websocket.Connection
 	if c == nil {
 		return fmt.Errorf("%w: Subscription param", common.ErrNilPointer)
 	}
-	if conn == nil {
-		return websocket.ErrNotConnected
-	}
 	if len(c.Pairs) != 1 {
 		return subscription.ErrNotSinglePair
 	}
@@ -1652,9 +1632,6 @@ func (e *Exchange) generatePrivateSubscriptions() (subscription.List, error) {
 // subscribeToChan handles a single subscription and parses the result
 // on success it adds the subscription to the websocket
 func (e *Exchange) subscribeToChan(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
-	if conn == nil {
-		return websocket.ErrNotConnected
-	}
 	if len(subs) != 1 {
 		return subscription.ErrNotSinglePair
 	}
@@ -1695,9 +1672,6 @@ func (e *Exchange) subscribeToChan(ctx context.Context, conn websocket.Connectio
 
 // unsubscribeFromChan sends a websocket message to stop receiving data from a channel
 func (e *Exchange) unsubscribeFromChan(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
-	if conn == nil {
-		return websocket.ErrNotConnected
-	}
 	if len(subs) != 1 {
 		return errors.New("subscription batching limited to 1")
 	}
@@ -1788,7 +1762,11 @@ func (e *Exchange) wsSendAuthConn(ctx context.Context, conn websocket.Connection
 }
 
 func (e *Exchange) wsAuthConnection() (websocket.Connection, error) {
-	return e.Websocket.GetConnection(authenticatedBitfinexWebsocketEndpoint)
+	wsAuthURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
+	if err != nil {
+		return nil, err
+	}
+	return e.Websocket.GetConnection(wsAuthURL)
 }
 
 // WsNewOrder authenticated new order request

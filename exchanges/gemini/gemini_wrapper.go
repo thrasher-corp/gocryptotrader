@@ -102,8 +102,9 @@ func (e *Exchange) SetDefaults() {
 	}
 	e.API.Endpoints = e.NewEndpoints()
 	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:      geminiAPIURL,
-		exchange.WebsocketSpot: geminiWebsocketEndpoint,
+		exchange.RestSpot:                   geminiAPIURL,
+		exchange.WebsocketSpot:              geminiWebsocketEndpoint + "/v2/" + geminiWsMarketData,
+		exchange.WebsocketSpotSupplementary: geminiWebsocketEndpoint + "/v1/" + geminiWsOrderEvents,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -136,7 +137,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		}
 	}
 
-	wsRunningURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	wsPublicURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
@@ -150,9 +151,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	publicWSURL := strings.TrimSuffix(wsRunningURL, "/") + "/v2/" + geminiWsMarketData
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                   publicWSURL,
+		URL:                   wsPublicURL,
 		Connector:             e.wsConnect,
 		Subscriber:            e.subscribeForConnection,
 		Unsubscriber:          e.unsubscribeForConnection,
@@ -160,13 +160,16 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler:               e.wsHandleData,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		MessageFilter:         publicWSURL,
+		MessageFilter:         wsPublicURL,
 	})
 	if err != nil {
 		return err
 	}
 
-	authWSURL := strings.TrimSuffix(wsRunningURL, "/") + "/v1/" + geminiWsOrderEvents
+	authWSURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
+	if err != nil {
+		return err
+	}
 	if !exch.API.AuthenticatedWebsocketSupport {
 		return nil
 	}
@@ -178,7 +181,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler:                  e.wsHandleData,
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-		Authenticated:            true,
 		MessageFilter:            authWSURL,
 	})
 }

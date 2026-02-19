@@ -252,7 +252,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Unsubscriber:          e.Unsubscribe,
 		Handler:               e.wsHandleData,
 		Authenticate:          e.wsAuthenticateConnection,
-		MessageFilter:         privateConnection,
+		MessageFilter:         wsPrivate,
 	}); err != nil {
 		return err
 	}
@@ -273,7 +273,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Unsubscriber:          e.BusinessUnsubscribe,
 		Handler:               e.wsHandleData,
 		Authenticate:          e.wsAuthenticateConnection,
-		MessageFilter:         businessConnection,
+		MessageFilter:         wsBusiness,
 	})
 }
 
