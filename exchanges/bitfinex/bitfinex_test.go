@@ -1844,7 +1844,6 @@ func TestAcceptableMethodStore(t *testing.T) {
 	assert.Equal(t, "BITCOIN", btcName[0], "BTC lookup should map to BITCOIN")
 
 	ustName := a.lookup(currency.NewCode("UST"))
-	require.Len(t, ustName, 2, "UST lookup must return exactly two values")
 	assert.ElementsMatch(t, []string{"TETHER1", "TETHER2"}, ustName, "UST lookup should contain both tether aliases")
 
 	pandaHorseName := a.lookup(currency.NewCode("PANDA_HORSE"))

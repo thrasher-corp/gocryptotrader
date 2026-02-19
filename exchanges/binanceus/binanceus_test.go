@@ -1153,13 +1153,8 @@ func TestFiatDepositHistory(t *testing.T) {
 	}
 }
 
-// WEBSOCKET support testing
-// Since both binance and Binance US has same websocket functions,
-// the tests functions are also similar
-
-// TestWebsocketStreamKey  this test method handles the
-// creating, updating, and deleting of user stream key or "listenKey"
-// all the three methods in one test methods.
+// TestWebsocketStreamKey verifies the creation, renewal and deletion
+// of a user data stream key ("listenKey").
 func TestWebsocketStreamKey(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
