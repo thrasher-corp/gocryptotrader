@@ -508,11 +508,9 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	for x := range assets {
 		pairs, err := e.FetchTradablePairs(ctx, assets[x])
 		if err != nil {
-			panic(fmt.Errorf("%w %v", err, assets[x]))
 			return err
 		}
 		if err := e.UpdatePairs(pairs, assets[x], false); err != nil {
-			panic(fmt.Errorf("%w %v", err, assets[x]))
 			return err
 		}
 	}
