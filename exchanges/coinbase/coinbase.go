@@ -1414,19 +1414,19 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		Errors  []ManyErrors `json:"errors"`
 	}{}
 	if err := json.Unmarshal(interim, &manyErrCap); err == nil {
-		errMessage := ""
+		var errs error
 		for i := range manyErrCap.Errors {
 			if !manyErrCap.Errors[i].Success && (manyErrCap.Errors[i].EditFailureReason != "" || manyErrCap.Errors[i].PreviewFailureReason != "") {
-				errMessage += fmt.Sprintf("order id: %s, failure reason: %s, edit failure reason: %s, preview failure reason: %s", manyErrCap.Errors[i].OrderID, manyErrCap.Errors[i].FailureReason, manyErrCap.Errors[i].EditFailureReason, manyErrCap.Errors[i].PreviewFailureReason)
+				errs = common.AppendError(errs, fmt.Errorf("order id: %s, failure reason: %s, edit failure reason: %s, preview failure reason: %s", manyErrCap.Errors[i].OrderID, manyErrCap.Errors[i].FailureReason, manyErrCap.Errors[i].EditFailureReason, manyErrCap.Errors[i].PreviewFailureReason))
 			}
 		}
 		for i := range manyErrCap.Results {
 			if !manyErrCap.Results[i].Success && (manyErrCap.Results[i].EditFailureReason != "" || manyErrCap.Results[i].PreviewFailureReason != "") {
-				errMessage += fmt.Sprintf("order id: %s, failure reason: %s, edit failure reason: %s, preview failure reason: %s", manyErrCap.Results[i].OrderID, manyErrCap.Results[i].FailureReason, manyErrCap.Results[i].EditFailureReason, manyErrCap.Results[i].PreviewFailureReason)
+				errs = common.AppendError(errs, fmt.Errorf("order id: %s, failure reason: %s, edit failure reason: %s, preview failure reason: %s", manyErrCap.Results[i].OrderID, manyErrCap.Results[i].FailureReason, manyErrCap.Results[i].EditFailureReason, manyErrCap.Results[i].PreviewFailureReason))
 			}
 		}
-		if errMessage != "" {
-			return errors.New(errMessage)
+		if errs != nil {
+			return errs
 		}
 	}
 	if result == nil {
@@ -1550,7 +1550,7 @@ var stableMap = map[key.PairAsset]bool{
 	{Base: currency.PAX.Item, Quote: currency.USD.Item}:   true,
 }
 
-// IsStablePair returns true if the currency pair is considered a "stable pair" by Coinbase
+// isStablePair returns true if the currency pair is considered a "stable pair" by Coinbase
 func isStablePair(pair currency.Pair) bool {
 	return stableMap[key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item}]
 }

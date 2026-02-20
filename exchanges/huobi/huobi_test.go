@@ -298,31 +298,28 @@ func TestFOrder(t *testing.T) {
 func TestFPlaceBatchOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	var req []fBatchOrderData
-	order1 := fBatchOrderData{
-		Symbol:         "btc",
-		ContractType:   "quarter",
-		ClientOrderID:  "",
-		Price:          5,
-		Volume:         1,
-		Direction:      "buy",
-		Offset:         "open",
-		LeverageRate:   1,
-		OrderPriceType: "limit",
-	}
-	order2 := fBatchOrderData{
-		Symbol:         "xrp",
-		ContractType:   "this_week",
-		ClientOrderID:  "",
-		Price:          10000,
-		Volume:         1,
-		Direction:      "sell",
-		Offset:         "open",
-		LeverageRate:   1,
-		OrderPriceType: "limit",
-	}
-	req = append(req, order1, order2)
-	_, err := e.FPlaceBatchOrder(t.Context(), req)
+	_, err := e.FPlaceBatchOrder(t.Context(), []fBatchOrderData{
+		{
+			Symbol:         "btc",
+			ContractType:   "quarter",
+			Price:          5,
+			Volume:         1,
+			Direction:      "buy",
+			Offset:         "open",
+			LeverageRate:   1,
+			OrderPriceType: "limit",
+		},
+		{
+			Symbol:         "xrp",
+			ContractType:   "this_week",
+			Price:          10000,
+			Volume:         1,
+			Direction:      "sell",
+			Offset:         "open",
+			LeverageRate:   1,
+			OrderPriceType: "limit",
+		},
+	})
 	require.NoError(t, err)
 }
 
@@ -1156,8 +1153,7 @@ func TestGetActiveOrders(t *testing.T) {
 	}
 }
 
-// Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
-// ----------------------------------------------------------------------------------------------------------------------------
+// TestSubmitOrder and below can impact your orders on the exchange. Enable canManipulateRealOrders to run them
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)

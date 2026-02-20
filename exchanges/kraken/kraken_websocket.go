@@ -131,7 +131,7 @@ func (e *Exchange) WsConnect() error {
 	return nil
 }
 
-// wsFunnelConnectionData funnels both auth and public ws data into one manageable place
+// wsReadData funnels both auth and public ws data into one manageable place
 func (e *Exchange) wsReadData(ctx context.Context, ws websocket.Connection) {
 	defer e.Websocket.Wg.Done()
 	for {

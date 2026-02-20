@@ -11,7 +11,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
-// this doesn't need to be included in binary
 func (c *clientTracker) contains(check *http.Client) bool {
 	c.Lock()
 	defer c.Unlock()
