@@ -22,11 +22,9 @@ Refer to the [ADD_NEW_EXCHANGE.md](/docs/ADD_NEW_EXCHANGE.md) document for compr
 ### Type Usage
 
 - Use the most appropriate native Go types for struct fields:
-  - If the API returns numbers as strings, use float64 with the `json:",string"` tag.
-  - For timestamps, use `time.Time` if Go's JSON unmarshalling supports the format directly.
-- If native Go types are not supported directly, use the following built-in types:
-  - `types.Time` for Unix timestamps that require custom unmarshalling.
-  - `types.Number` for numerical float values where an exchange API may return either a `string` or `float64` value.
+  - If the API always returns a number as a bare JSON number, use `float64`.
+  - If the API returns a number as a quoted JSON string, or may return either a string or a bare number, use `types.Number` — **do not** use `float64` with the `json:",string"` tag.
+  - For timestamps, use `time.Time` if Go's JSON unmarshalling supports the format directly; otherwise use `types.Time` for Unix timestamps that require custom unmarshalling.
 - Always use full and descriptive field names for clarity and consistency. Avoid short API-provided aliases unless compatibility requires it.
 - Default to `uint64` for exchange API parameters and structs for integers where appropriate.
   - Avoid `int` (size varies by architecture) or `int64` (allows negatives where they don't make sense).
