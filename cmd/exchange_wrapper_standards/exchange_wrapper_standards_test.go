@@ -612,8 +612,7 @@ var unsupportedAssets = []asset.Item{
 var unsupportedExchangeNames = []string{
 	"testexch",
 	"bitflyer", // Bitflyer has many "ErrNotYetImplemented, which is true, but not what we care to test for here
-	"btse",     // TODO rm once timeout issues resolved
-	"poloniex", // outdated API // TODO rm once updated
+	"btse",     // 	TODO rm once timeout issues resolved
 }
 
 // cryptoChainPerExchange holds the deposit address chain per exchange
