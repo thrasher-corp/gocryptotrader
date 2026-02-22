@@ -41,6 +41,7 @@ func TestUnmarshalJSON(t *testing.T) {
 		{`"123456"`, time.Time{}, errInvalidTimestampFormat},
 		{`"12345678"`, time.Time{}, errInvalidTimestampFormat},
 		{`"2025-03-28T08:00:00Z"`, time.Time{}, strconv.ErrSyntax}, // RFC3339 format (currently unsupported)
+		{`"1606292218213.45.8"`, time.Time{}, strconv.ErrSyntax},   // parse int failure
 	} {
 		t.Run(tc.input, func(t *testing.T) {
 			t.Parallel()
