@@ -559,6 +559,10 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			}
 		})
 	}
+	t.Run("unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported)
+	})
 }
 
 func TestGetAmountMinimum(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
@@ -24,4 +25,8 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			}
 		})
 	}
+	t.Run("unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported)
+	})
 }

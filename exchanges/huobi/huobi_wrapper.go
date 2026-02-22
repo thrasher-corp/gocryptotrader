@@ -2227,8 +2227,6 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				Delisted:                contracts[i].DeliveryTime.Time(),
 			})
 		}
-	default:
-		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
 	return limits.Load(l)
 }

@@ -42,7 +42,7 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 	case 8:
 		parsed, err := time.Parse("20060102", s)
 		if err != nil {
-			return fmt.Errorf("error parsing %q into date: %w", s, err)
+			return fmt.Errorf("%w error parsing %q into date: %w", errInvalidTimestampFormat, s, err)
 		}
 		*t = Time(parsed)
 		return nil
