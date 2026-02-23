@@ -515,7 +515,7 @@ func (e *Exchange) GetUnifiedAccount(ctx context.Context, ccy currency.Code) (*U
 // maximum 10 orders each, are allowed in one request No mixture of spot orders and margin orders, i.e. account must be identical for all orders
 func (e *Exchange) CreateBatchOrders(ctx context.Context, args []CreateOrderRequest) ([]SpotOrder, error) {
 	if len(args) > 10 {
-		return nil, fmt.Errorf("%w only 10 orders are canceled at once", errMultipleOrders)
+		return nil, fmt.Errorf("%w only 10 orders are cancelled at once", errMultipleOrders)
 	}
 	for x := range args {
 		if (x != 0) && args[x-1].Account != args[x].Account {
@@ -1532,7 +1532,7 @@ func (e *Exchange) ModifyALoan(ctx context.Context, loanID string, arg *ModifyLo
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginModifyLoanEPL, http.MethodPatch, gateioMarginLoans+"/"+loanID, nil, &arg, &response)
 }
 
-// CancelLendingLoan cancels lending loans. only lent loans can be canceled.
+// CancelLendingLoan cancels lending loans. only lent loans can be cancelled.
 func (e *Exchange) CancelLendingLoan(ctx context.Context, ccy currency.Code, loanID string) (*MarginLoanResponse, error) {
 	if loanID == "" {
 		return nil, fmt.Errorf("%w, %s", errInvalidLoanID, " loan_id is required")

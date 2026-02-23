@@ -58,7 +58,7 @@ func TestRateLimit(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
 		cancel()
 		err = r.RateLimit(ctx)
-		assert.ErrorIs(t, err, context.Canceled, "should return correct error when context is canceled")
+		assert.ErrorIs(t, err, context.Canceled, "should return correct error when context is cancelled")
 
 		// Rate limit is 100ms. Set deadline for 50ms.
 		ctx, cancel = context.WithTimeout(t.Context(), 50*time.Millisecond)

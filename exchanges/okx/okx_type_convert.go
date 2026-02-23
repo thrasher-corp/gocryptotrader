@@ -23,7 +23,7 @@ func (a *OpenInterest) UnmarshalJSON(data []byte) error {
 	return err
 }
 
-// MarshalJSON serialized QuoteLeg instance into bytes
+// MarshalJSON serialised QuoteLeg instance into bytes
 func (a *QuoteLeg) MarshalJSON() ([]byte, error) {
 	type Alias QuoteLeg
 	chil := &struct {

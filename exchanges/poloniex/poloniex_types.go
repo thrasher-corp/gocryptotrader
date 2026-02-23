@@ -287,7 +287,7 @@ type CandlestickData struct {
 	EndTime          types.Time
 }
 
-// UnmarshalJSON deserializes byte data into CandlestickData structure
+// UnmarshalJSON deserialises byte data into CandlestickData structure
 func (c *CandlestickData) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[14]any{&c.Low, &c.High, &c.Open, &c.Close, &c.QuoteAmount, &c.BaseAmount, &c.BuyTakerAmount, &c.BuyTakerQuantity, &c.TradeCount, &c.PushTimestamp, &c.WeightedAverage, &c.Interval, &c.StartTime, &c.EndTime})
 }
@@ -588,7 +588,7 @@ type PlaceOrderRequest struct {
 	ClientOrderID string      `json:"clientOrderId,omitempty"`
 
 	AllowBorrow             bool   `json:"allowBorrow,omitempty"`
-	SelfTradePreventionMode string `json:"stpMode,omitempty"` // self-trade prevention. Defaults to EXPIRE_TAKER. None: enable self-trade; EXPIRE_TAKER: Taker order will be canceled when self-trade happens
+	SelfTradePreventionMode string `json:"stpMode,omitempty"` // self-trade prevention. Defaults to EXPIRE_TAKER. None: enable self-trade; EXPIRE_TAKER: Taker order will be cancelled when self-trade happens
 
 	SlippageTolerance string `json:"slippageTolerance,omitempty"` // Used to control the maximum slippage ratio, the value range is greater than 0 and less than 1
 }

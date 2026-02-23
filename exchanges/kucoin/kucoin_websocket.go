@@ -340,7 +340,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respData []byte) error {
 	return nil
 }
 
-// processData used to deserialize and forward the data to DataHandler.
+// processData used to deserialise and forward the data to DataHandler.
 func (e *Exchange) processData(ctx context.Context, respData []byte, resp any) error {
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err

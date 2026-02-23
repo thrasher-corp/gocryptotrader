@@ -1337,8 +1337,8 @@ func (e *Exchange) SetEmailLanguage(ctx context.Context, language string) error 
 	return nil
 }
 
-// SetSelfTradingConfig configure self trading behavior
-// mode: Self trading prevention behavior. Possible values: 'reject_taker', 'cancel_maker'
+// SetSelfTradingConfig configure self trading behaviour
+// mode: Self trading prevention behaviour. Possible values: 'reject_taker', 'cancel_maker'
 // extended_to_subaccounts: If value is true trading is prevented between subaccounts of given account
 func (e *Exchange) SetSelfTradingConfig(ctx context.Context, mode string, extendedToSubaccounts bool) (string, error) {
 	if mode == "" {

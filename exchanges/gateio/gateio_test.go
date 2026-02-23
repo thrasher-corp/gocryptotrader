@@ -655,7 +655,7 @@ func TestCreateCrossMarginBorrowLoan(t *testing.T) {
 	t.Parallel()
 	var response CrossMarginLoanResponse
 	if err := json.Unmarshal([]byte(createCrossMarginBorrowLoanJSON), &response); err != nil {
-		t.Errorf("%s error while deserializing to CrossMarginBorrowLoanResponse %v", e.Name, err)
+		t.Errorf("%s error while deserialising to CrossMarginBorrowLoanResponse %v", e.Name, err)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	if _, err := e.CreateCrossMarginBorrowLoan(t.Context(), CrossMarginBorrowLoanParams{
@@ -1501,7 +1501,7 @@ func TestCreateFlashSwapOrder(t *testing.T) {
 	t.Parallel()
 	var response FlashSwapOrderResponse
 	if err := json.Unmarshal([]byte(flashSwapOrderResponseJSON), &response); err != nil {
-		t.Errorf("%s error while deserializing to FlashSwapOrderResponse %v", e.Name, err)
+		t.Errorf("%s error while deserialising to FlashSwapOrderResponse %v", e.Name, err)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	if _, err := e.CreateFlashSwapOrder(t.Context(), FlashSwapOrderParams{

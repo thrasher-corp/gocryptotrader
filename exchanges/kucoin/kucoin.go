@@ -1385,7 +1385,7 @@ func (e *Exchange) SendPlaceMarginHFOrder(ctx context.Context, arg *PlaceMarginH
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeMarginOrderEPL, http.MethodPost, path, arg, &resp)
 }
 
-// CancelMarginHFOrderByOrderID cancels a single order by orderId. If the order cannot be canceled (sold or canceled),
+// CancelMarginHFOrderByOrderID cancels a single order by orderId. If the order cannot be cancelled (sold or cancelled),
 // an error message will be returned, and the reason can be obtained according to the returned msg.
 func (e *Exchange) CancelMarginHFOrderByOrderID(ctx context.Context, orderID, symbol string) (string, error) {
 	return e.CancelMarginHFOrderByID(ctx, orderID, symbol, "/v3/hf/margin/orders/")

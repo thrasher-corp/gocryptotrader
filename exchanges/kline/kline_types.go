@@ -168,7 +168,7 @@ type ExchangeCapabilitiesEnabled struct {
 	GlobalResultLimit uint64
 }
 
-// ExchangeIntervals stores the supported intervals in an optimized lookup table
+// ExchangeIntervals stores the supported intervals in an optimised lookup table
 // with a supplementary aligned retrieval list
 type ExchangeIntervals struct {
 	supported map[Interval]uint64
