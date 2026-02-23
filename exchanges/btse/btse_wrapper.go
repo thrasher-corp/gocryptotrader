@@ -1171,6 +1171,10 @@ func (e *Exchange) IsPerpetualFutureCurrency(a asset.Item, p currency.Pair) (boo
 
 // UpdateOrderExecutionLimits updates order execution limits
 func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	if !e.SupportsAsset(a) {
+		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
+	}
+
 	summary, err := e.GetMarketSummary(ctx, "", a == asset.Spot)
 	if err != nil {
 		return err
