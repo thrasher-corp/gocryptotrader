@@ -1624,11 +1624,8 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 // GetSubscriptionTemplate returns a subscription channel template
 func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(sprig.FuncMap()).Funcs(template.FuncMap{
-		"subToMap": subToMap,
-		"removeSpotFromMargin": func(ap map[asset.Item]currency.Pairs) string {
-			spotPairs, _ := e.GetEnabledPairs(asset.Spot)
-			return removeSpotFromMargin(ap, spotPairs)
-		},
+		"subToMap":             subToMap,
+		"removeSpotFromMargin": removeSpotFromMargin,
 	}).Parse(subTplText)
 }
 

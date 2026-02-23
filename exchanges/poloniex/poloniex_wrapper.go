@@ -326,11 +326,18 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 	switch assetType {
 	case asset.Spot:
+		availablePairs, err := e.GetAvailablePairs(assetType)
+		if err != nil {
+			return err
+		}
 		ticks, err := e.GetTickers(ctx)
 		if err != nil {
 			return err
 		}
 		for _, tick := range ticks {
+			if !availablePairs.Contains(tick.Symbol, true) {
+				continue
+			}
 			if err := ticker.ProcessTicker(&ticker.Price{
 				ExchangeName: e.Name,
 				AssetType:    assetType,
@@ -347,11 +354,18 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			}
 		}
 	case asset.Futures:
+		availablePairs, err := e.GetAvailablePairs(assetType)
+		if err != nil {
+			return err
+		}
 		ticks, err := e.GetFuturesMarket(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return err
 		}
 		for _, tick := range ticks {
+			if !availablePairs.Contains(tick.Symbol, true) {
+				continue
+			}
 			if err := ticker.ProcessTicker(&ticker.Price{
 				ExchangeName: e.Name,
 				AssetType:    assetType,
@@ -375,6 +389,19 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (e *Exchange) UpdateTicker(ctx context.Context, pair currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	var err error
+	pair, err = e.FormatExchangeCurrency(pair, assetType)
+	if err != nil {
+		return nil, err
+	}
+	isAvailable, err := e.IsPairAvailable(pair, assetType)
+	if err != nil {
+		return nil, err
+	}
+	if !isAvailable {
+		return nil, fmt.Errorf("%s %w in the list of available pairs", pair, currency.ErrPairNotFound)
+	}
+
 	switch assetType {
 	case asset.Spot:
 		tickerResult, err := e.GetTicker(ctx, pair)
