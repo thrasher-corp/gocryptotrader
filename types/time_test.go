@@ -25,7 +25,7 @@ func TestUnmarshalJSON(t *testing.T) {
 		{`"0.0"`, time.Time{}, nil},
 		{`"0.00000"`, time.Time{}, nil},
 		{`"0.0.0.0"`, time.Time{}, strconv.ErrSyntax},
-		{`"0.1"`, time.Time{}, errInvalidTimestampFormat},
+		{`"0.1"`, time.Time{}, ErrInvalidTimestampFormat},
 		{`"20200325"`, time.Date(2020, 3, 25, 0, 0, 0, 0, time.UTC), nil},
 		{`"1628736847"`, time.Unix(1628736847, 0), nil},
 		{`"1726104395.5"`, time.UnixMilli(1726104395500), nil},
@@ -38,8 +38,8 @@ func TestUnmarshalJSON(t *testing.T) {
 		{`"1560516023.070651"`, time.Unix(0, 1560516023070651000), nil},
 		{`"1606292218213457800"`, time.Unix(0, 1606292218213457800), nil},
 		{`"blurp"`, time.Time{}, strconv.ErrSyntax},
-		{`"123456"`, time.Time{}, errInvalidTimestampFormat},
-		{`"12345678"`, time.Time{}, errInvalidTimestampFormat},
+		{`"123456"`, time.Time{}, ErrInvalidTimestampFormat},
+		{`"12345678"`, time.Time{}, ErrInvalidTimestampFormat},
 		{`"2025-03-28T08:00:00Z"`, time.Time{}, strconv.ErrSyntax}, // RFC3339 format (currently unsupported)
 		{`"1606292218213.45.8"`, time.Time{}, strconv.ErrSyntax},   // parse int failure
 	} {
