@@ -1364,6 +1364,10 @@ func (u URL) String() string {
 		return websocketPrivateURL
 	case WebsocketSpotSupplementary:
 		return websocketSpotSupplementaryURL
+	case WebsocketFutures:
+		return websocketFuturesURL
+	case WebsocketFuturesPrivate:
+		return websocketFuturesPrivateURL
 	case ChainAnalysis:
 		return chainAnalysisURL
 	case EdgeCase1:
@@ -1414,6 +1418,10 @@ func getURLTypeFromString(ep string) (URL, error) {
 		return WebsocketPrivate, nil
 	case websocketSpotSupplementaryURL:
 		return WebsocketSpotSupplementary, nil
+	case websocketFuturesURL:
+		return WebsocketFutures, nil
+	case websocketFuturesPrivateURL:
+		return WebsocketFuturesPrivate, nil
 	case chainAnalysisURL:
 		return ChainAnalysis, nil
 	case edgeCase1URL:
