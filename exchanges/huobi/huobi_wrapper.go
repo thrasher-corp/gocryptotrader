@@ -182,7 +182,7 @@ func (e *Exchange) Bootstrap(ctx context.Context) (continueBootstrap bool, err e
 		_, err = e.FetchTradablePairs(ctx, asset.Futures)
 	}
 
-	return
+	return continueBootstrap, err
 }
 
 // Setup sets user configuration
