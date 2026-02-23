@@ -79,23 +79,26 @@ func TestWrapperGetServerTime(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
+	testexch.UpdatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
 		t.Run(a.String(), func(t *testing.T) {
 			t.Parallel()
-			switch a {
-			case asset.Futures:
-				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), common.ErrNotYetImplemented)
-			default:
-				require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
-				pairs, err := e.CurrencyPairs.GetPairs(a, false)
-				require.NoError(t, err, "GetPairs must not error")
-				l, err := e.GetOrderExecutionLimits(a, pairs[0])
+			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
+			pairs, err := e.CurrencyPairs.GetPairs(a, false)
+			require.NoError(t, err, "GetPairs must not error")
+			for _, p := range pairs {
+				l, err := e.GetOrderExecutionLimits(a, p)
 				require.NoError(t, err, "GetOrderExecutionLimits must not error")
 				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
 				assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
 			}
 		})
 	}
+
+	t.Run("unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported)
+	})
 }
 
 func TestFetchTradablePairs(t *testing.T) {
