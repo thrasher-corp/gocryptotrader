@@ -555,9 +555,9 @@ type PositionTiers struct {
 
 // InterestRateLoanQuotaBasic holds the basic Currency, loan,and interest rate information
 type InterestRateLoanQuotaBasic struct {
-	Currency     string       `json:"ccy"`
-	LoanQuota    string       `json:"quota"`
-	InterestRate types.Number `json:"rate"`
+	Currency     currency.Code `json:"ccy"`
+	LoanQuota    types.Number  `json:"quota"`
+	InterestRate types.Number  `json:"rate"`
 }
 
 // InterestRateLoanQuotaItem holds the basic Currency, loan,interest rate, and other level and VIP related information

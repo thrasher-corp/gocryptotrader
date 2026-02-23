@@ -2096,8 +2096,8 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, r *margin.PositionC
 
 // GetCurrentMarginRates returns the latest margin rates for pairs.
 func (e *Exchange) GetCurrentMarginRates(ctx context.Context, r *margin.CurrentRatesRequest) ([]margin.CurrentRateResponse, error) {
-	if r == nil {
-		return nil, fmt.Errorf("%w CurrentRatesRequest", common.ErrNilPointer)
+	if err := common.NilGuard(r); err != nil {
+		return nil, err
 	}
 	if r.Asset != asset.Margin {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)

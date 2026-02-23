@@ -2110,8 +2110,8 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 
 // GetCurrentMarginRates returns the latest estimated margin rates for pairs.
 func (e *Exchange) GetCurrentMarginRates(ctx context.Context, req *margin.CurrentRatesRequest) ([]margin.CurrentRateResponse, error) {
-	if req == nil {
-		return nil, fmt.Errorf("%w CurrentRatesRequest", common.ErrNilPointer)
+	if err := common.NilGuard(req); err != nil {
+		return nil, err
 	}
 	if req.Asset != asset.Margin {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)

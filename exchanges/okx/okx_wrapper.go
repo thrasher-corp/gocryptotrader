@@ -37,6 +37,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -2457,8 +2458,8 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, req *margin.Positio
 
 // GetCurrentMarginRates returns the latest margin rates for pairs.
 func (e *Exchange) GetCurrentMarginRates(ctx context.Context, req *margin.CurrentRatesRequest) ([]margin.CurrentRateResponse, error) {
-	if req == nil {
-		return nil, fmt.Errorf("%w CurrentRatesRequest", common.ErrNilPointer)
+	if err := common.NilGuard(req); err != nil {
+		return nil, err
 	}
 	if req.Asset != asset.Margin {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
@@ -2471,35 +2472,32 @@ func (e *Exchange) GetCurrentMarginRates(ctx context.Context, req *margin.Curren
 			return nil, err
 		}
 	}
-	if len(pairs) == 0 {
-		return nil, currency.ErrCurrencyPairsEmpty
-	}
 
 	timeChecked := time.Now().UTC()
-	cache := make(map[currency.Code]margin.Rate)
+	publicRates, err := e.GetInterestRateAndLoanQuota(ctx)
+	if err != nil {
+		return nil, err
+	}
+	ratesByCurrency := make(map[currency.Code]types.Number)
+	for i := range publicRates {
+		for j := range publicRates[i].Basic {
+			ratesByCurrency[publicRates[i].Basic[j].Currency] = publicRates[i].Basic[j].InterestRate
+		}
+	}
+
 	resp := make([]margin.CurrentRateResponse, len(pairs))
 	for i := range pairs {
-		if pairs[i].IsEmpty() {
-			return nil, currency.ErrCurrencyPairEmpty
-		}
-		rate, ok := cache[pairs[i].Base]
+		interestRate, ok := ratesByCurrency[pairs[i].Base]
 		if !ok {
-			interestRates, err := e.GetInterestRate(ctx, pairs[i].Base)
-			if err != nil {
-				return nil, err
-			}
-			if len(interestRates) == 0 {
-				return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotFound, pairs[i].Base)
-			}
-			hourlyRate := decimal.NewFromFloat(interestRates[0].InterestRate.Float64())
-			rate = margin.Rate{
-				Time:             timeChecked,
-				HourlyRate:       hourlyRate,
-				YearlyRate:       hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
-				HourlyBorrowRate: hourlyRate,
-				YearlyBorrowRate: hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
-			}
-			cache[pairs[i].Base] = rate
+			return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotFound, pairs[i].Base)
+		}
+		hourlyRate := decimal.NewFromFloat(interestRate.Float64())
+		rate := margin.Rate{
+			Time:             timeChecked,
+			HourlyRate:       hourlyRate,
+			YearlyRate:       hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
+			HourlyBorrowRate: hourlyRate,
+			YearlyBorrowRate: hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
 		}
 		resp[i] = margin.CurrentRateResponse{
 			Exchange:    e.Name,

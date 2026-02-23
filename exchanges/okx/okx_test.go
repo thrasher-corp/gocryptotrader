@@ -4337,21 +4337,81 @@ func TestGetMarginRatesHistoryValidation(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 }
 
-func TestGetCurrentMarginRatesValidation(t *testing.T) {
+func TestGetCurrentMarginRates(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetCurrentMarginRates(contextGenerate(), nil)
-	assert.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = e.GetCurrentMarginRates(contextGenerate(), &margin.CurrentRatesRequest{
-		Asset: asset.Spot,
-	})
-	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	t.Run("validation", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.GetCurrentMarginRates(contextGenerate(), nil)
+		assert.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = e.GetCurrentMarginRates(contextGenerate(), &margin.CurrentRatesRequest{
-		Asset: asset.Margin,
-		Pairs: currency.Pairs{currency.EMPTYPAIR},
+		_, err = e.GetCurrentMarginRates(contextGenerate(), &margin.CurrentRatesRequest{
+			Asset: asset.Spot,
+		})
+		assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+		_, err = e.GetCurrentMarginRates(contextGenerate(), &margin.CurrentRatesRequest{
+			Asset: asset.Margin,
+			Pairs: currency.Pairs{currency.EMPTYPAIR},
+		})
+		assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+		t.Run("empty pairs lookup error", func(t *testing.T) {
+			local := new(Exchange)
+			require.NoError(t, testexch.Setup(local))
+			require.NoError(t, local.CurrencyPairs.SetAssetEnabled(asset.Margin, false))
+			_, err := local.GetCurrentMarginRates(contextGenerate(), &margin.CurrentRatesRequest{
+				Asset: asset.Margin,
+			})
+			assert.ErrorIs(t, err, asset.ErrNotEnabled)
+		})
+
+		t.Run("empty pairs after lookup", func(t *testing.T) {
+			local := new(Exchange)
+			require.NoError(t, testexch.Setup(local))
+			ps, err := local.CurrencyPairs.Get(asset.Margin)
+			require.NoError(t, err)
+			ps.AssetEnabled = true
+			ps.Enabled = nil
+			require.NoError(t, local.CurrencyPairs.Store(asset.Margin, ps))
+			_, err = local.GetCurrentMarginRates(contextGenerate(), &margin.CurrentRatesRequest{
+				Asset: asset.Margin,
+			})
+			assert.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty)
+		})
 	})
-	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+		rates, err := e.GetCurrentMarginRates(contextGenerate(), &margin.CurrentRatesRequest{
+			Asset: asset.Margin,
+			Pairs: currency.Pairs{mainPair},
+		})
+		require.NoError(t, err)
+		require.Len(t, rates, 1)
+		assert.Equal(t, e.Name, rates[0].Exchange)
+		assert.Equal(t, asset.Margin, rates[0].Asset)
+		assert.Equal(t, mainPair, rates[0].Pair)
+		assert.NotNil(t, rates[0].CurrentRate)
+		assert.False(t, rates[0].CurrentRate.Time.IsZero())
+		assert.False(t, rates[0].TimeChecked.IsZero())
+
+		local := new(Exchange)
+		require.NoError(t, testexch.Setup(local))
+		enabled, err := local.GetEnabledPairs(asset.Margin)
+		require.NoError(t, err)
+		require.NotEmpty(t, enabled)
+		ps, err := local.CurrencyPairs.Get(asset.Margin)
+		require.NoError(t, err)
+		ps.AssetEnabled = true
+		ps.Enabled = currency.Pairs{enabled[0]}
+		require.NoError(t, local.CurrencyPairs.Store(asset.Margin, ps))
+		rates, err = local.GetCurrentMarginRates(contextGenerate(), &margin.CurrentRatesRequest{
+			Asset: asset.Margin,
+		})
+		require.NoError(t, err)
+		require.Len(t, rates, 1)
+	})
 }
 
 func TestChangePositionMargin(t *testing.T) {
