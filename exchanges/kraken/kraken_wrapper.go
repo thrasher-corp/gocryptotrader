@@ -250,7 +250,7 @@ func (e *Exchange) Bootstrap(ctx context.Context) (continueBootstrap bool, err e
 		err = fmt.Errorf("failed to Seed Assets: %w", err)
 	}
 
-	return
+	return continueBootstrap, err
 }
 
 // UpdateOrderExecutionLimits sets exchange execution order limits for an asset type

@@ -1642,119 +1642,56 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 
 func TestFixCasing(t *testing.T) {
 	ret, err := e.fixCasing(btcusdPair, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ret != "tBTCUSD" {
-		t.Errorf("unexpected result: %v", ret)
-	}
+	require.NoError(t, err, "fixCasing must not error")
+	assert.Equal(t, "tBTCUSD", ret, "fixCasing should return correct result")
 	pair, err := currency.NewPairFromString("TBTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "NewPairFromString must not error")
 	ret, err = e.fixCasing(pair, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ret != "tBTCUSD" {
-		t.Errorf("unexpected result: %v", ret)
-	}
+	require.NoError(t, err, "fixCasing must not error")
+	assert.Equal(t, "tBTCUSD", ret, "fixCasing should return correct result")
 	pair, err = currency.NewPairFromString("tBTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "NewPairFromString must not error")
 	ret, err = e.fixCasing(pair, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ret != "tBTCUSD" {
-		t.Errorf("unexpected result: %v", ret)
-	}
+	require.NoError(t, err, "fixCasing must not error")
+	assert.Equal(t, "tBTCUSD", ret, "fixCasing should return correct result")
 	ret, err = e.fixCasing(btcusdPair, asset.Margin)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ret != "tBTCUSD" {
-		t.Errorf("unexpected result: %v", ret)
-	}
+	require.NoError(t, err, "fixCasing must not error")
+	assert.Equal(t, "tBTCUSD", ret, "fixCasing should return correct result")
 	ret, err = e.fixCasing(btcusdPair, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ret != "tBTCUSD" {
-		t.Errorf("unexpected result: %v", ret)
-	}
+	require.NoError(t, err, "fixCasing must not error")
+	assert.Equal(t, "tBTCUSD", ret, "fixCasing should return correct result")
 	pair, err = currency.NewPairFromString("FUNETH")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "NewPairFromString must not error")
 	ret, err = e.fixCasing(pair, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ret != "tFUNETH" {
-		t.Errorf("unexpected result: %v", ret)
-	}
+	require.NoError(t, err, "fixCasing must not error")
+	assert.Equal(t, "tFUNETH", ret, "fixCasing should return correct result")
 	pair, err = currency.NewPairFromString("TNBUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "NewPairFromString must not error")
 	ret, err = e.fixCasing(pair, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ret != "tTNBUSD" {
-		t.Errorf("unexpected result: %v", ret)
-	}
+	require.NoError(t, err, "fixCasing must not error")
+	assert.Equal(t, "tTNBUSD", ret, "fixCasing should return correct result")
 
 	pair, err = currency.NewPairFromString("tTNBUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "NewPairFromString must not error")
 	ret, err = e.fixCasing(pair, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ret != "tTNBUSD" {
-		t.Errorf("unexpected result: %v", ret)
-	}
+	require.NoError(t, err, "fixCasing must not error")
+	assert.Equal(t, "tTNBUSD", ret, "fixCasing should return correct result")
 	pair, err = currency.NewPairFromStrings("fUSD", "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "NewPairFromStrings must not error")
 	ret, err = e.fixCasing(pair, asset.MarginFunding)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ret != "fUSD" {
-		t.Errorf("unexpected result: %v", ret)
-	}
+	require.NoError(t, err, "fixCasing must not error")
+	assert.Equal(t, "fUSD", ret, "fixCasing should return correct result")
 	pair, err = currency.NewPairFromStrings("USD", "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "NewPairFromStrings must not error")
 	ret, err = e.fixCasing(pair, asset.MarginFunding)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ret != "fUSD" {
-		t.Errorf("unexpected result: %v", ret)
-	}
+	require.NoError(t, err, "fixCasing must not error")
+	assert.Equal(t, "fUSD", ret, "fixCasing should return correct result")
 
 	pair, err = currency.NewPairFromStrings("FUSD", "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "NewPairFromStrings must not error")
 	ret, err = e.fixCasing(pair, asset.MarginFunding)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ret != "fUSD" {
-		t.Errorf("unexpected result: %v", ret)
-	}
+	require.NoError(t, err, "fixCasing must not error")
+	assert.Equal(t, "fUSD", ret, "fixCasing should return correct result")
 
 	_, err = e.fixCasing(currency.NewPair(currency.EMPTYCODE, currency.BTC), asset.MarginFunding)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)

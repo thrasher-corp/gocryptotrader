@@ -208,7 +208,7 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 
 	err = w.Connect(context.TODO())
 	require.NoError(tb, err, "Connect must not error")
-
+	w.DataHandler = stream.NewRelay(100000)
 	setupWsOnce[e] = true
 }
 
