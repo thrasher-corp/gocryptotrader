@@ -77,10 +77,10 @@ const (
 	// Account V1 endpoints
 	getAccountFeesReqRate    = 5
 	getWithdrawalFeesReqRate = 5
-	getAccountSummaryReqRate = 5 // This is not specified just inputted above
-	newDepositAddressReqRate = 5 // This is not specified just inputted above
-	getKeyPermissionsReqRate = 5 // This is not specified just inputted above
-	getMarginInfoReqRate     = 5 // This is not specified just inputted above
+	getAccountSummaryReqRate = 5  // This is not specified just inputted above
+	newDepositAddressReqRate = 5  // This is not specified just inputted above
+	getKeyPermissionsReqRate = 5  // This is not specified just inputted above
+	getMarginInfoReqRate     = 5  // This is not specified just inputted above
 	getAccountBalanceReqRate = 10
 	walletTransferReqRate    = 10 // This is not specified just inputted above
 	withdrawV1ReqRate        = 10 // This is not specified just inputted above
@@ -205,7 +205,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		getAccountMarginInfo:       request.NewRateLimitWithWeight(requestLimitInterval, getAccountMarginInfoReqRate, 1),
 		getActivePositions:         request.NewRateLimitWithWeight(requestLimitInterval, getActivePositionsReqRate, 1),
 		claimPosition:              request.NewRateLimitWithWeight(requestLimitInterval, claimPositionReqRate, 1),
-		getPositionHistory:         request.NewRateLimitWithWeight(requestLimitInterval, getPositionAuditReqRate, 1),
+		getPositionHistory:         request.NewRateLimitWithWeight(requestLimitInterval, getPositionHistoryReqRate, 1),
 		getPositionAudit:           request.NewRateLimitWithWeight(requestLimitInterval, getPositionAuditReqRate, 1),
 		updateCollateralOnPosition: request.NewRateLimitWithWeight(requestLimitInterval, updateCollateralOnPositionReqRate, 1),
 		// Margin funding -
@@ -217,7 +217,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		fundingAutoRenew:         request.NewRateLimitWithWeight(requestLimitInterval, fundingAutoRenewReqRate, 1),
 		keepFunding:              request.NewRateLimitWithWeight(requestLimitInterval, keepFundingReqRate, 1),
 		getOffersHistory:         request.NewRateLimitWithWeight(requestLimitInterval, getOffersHistoryReqRate, 1),
-		getFundingLoans:          request.NewRateLimitWithWeight(requestLimitInterval, getOffersHistoryReqRate, 1),
+		getFundingLoans:          request.NewRateLimitWithWeight(requestLimitInterval, getFundingLoansReqRate, 1),
 		getFundingLoanHistory:    request.NewRateLimitWithWeight(requestLimitInterval, getFundingLoanHistoryReqRate, 1),
 		getFundingCredits:        request.NewRateLimitWithWeight(requestLimitInterval, getFundingCreditsReqRate, 1),
 		getFundingCreditsHistory: request.NewRateLimitWithWeight(requestLimitInterval, getFundingCreditsHistoryReqRate, 1),
