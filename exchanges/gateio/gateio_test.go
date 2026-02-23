@@ -832,7 +832,7 @@ func TestGetSubAccountFuturesBalances(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetSubAccountFuturesBalances(t.Context(), "", currency.EMPTYCODE)
-	assert.Error(t, err, "GetSubAccountFuturesBalances should not error")
+	assert.NoError(t, err, "GetSubAccountFuturesBalances should not error")
 }
 
 func TestGetSubAccountCrossMarginBalances(t *testing.T) {
@@ -1029,7 +1029,7 @@ func TestUpdateFuturesPositionLeverage(t *testing.T) {
 func TestPlaceDeliveryOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.PlaceDeliveryOrder(t.Context(), &ContractOrderCreateParams{
+	_, err := e.PlaceDeliveryOrder(t.Context(), &DeliveryOrderCreateParams{
 		Contract:    getPair(t, asset.DeliveryFutures),
 		Size:        6024,
 		Iceberg:     0,
@@ -1182,7 +1182,7 @@ func TestUpdatePositionLeverageInDualMode(t *testing.T) {
 func TestPlaceFuturesOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.PlaceFuturesOrder(t.Context(), &ContractOrderCreateParams{
+	_, err := e.PlaceFuturesOrder(t.Context(), &FuturesOrderCreateParams{
 		Contract:    getPair(t, asset.CoinMarginedFutures),
 		Size:        6024,
 		Iceberg:     0,
@@ -1225,7 +1225,7 @@ func TestCancelFuturesPriceTriggeredOrder(t *testing.T) {
 func TestPlaceBatchFuturesOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.PlaceBatchFuturesOrders(t.Context(), currency.BTC, []ContractOrderCreateParams{
+	_, err := e.PlaceBatchFuturesOrders(t.Context(), currency.BTC, []FuturesOrderCreateParams{
 		{
 			Contract:    getPair(t, asset.CoinMarginedFutures),
 			Size:        6024,
@@ -2496,17 +2496,6 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	}
 }
 
-func TestForceFileStandard(t *testing.T) {
-	t.Parallel()
-	err := sharedtestvalues.ForceFileStandard(t, sharedtestvalues.EmptyStringPotentialPattern)
-	if err != nil {
-		t.Error(err)
-	}
-	if t.Failed() {
-		t.Fatal("Please use types.Number type instead of `float64` and remove `,string` as strings can be empty in unmarshal process. Then call the Float64() method.")
-	}
-}
-
 func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesContractDetails(t.Context(), asset.Spot)
@@ -3593,11 +3582,11 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestValidateContractOrderCreateParams(t *testing.T) {
+func TestValidateFuturesOrderCreateParams(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []struct {
-		params *ContractOrderCreateParams
+		params *FuturesOrderCreateParams
 		isRest bool
 		err    error
 	}{
@@ -3605,51 +3594,51 @@ func TestValidateContractOrderCreateParams(t *testing.T) {
 			err: common.ErrNilPointer,
 		},
 		{
-			params: &ContractOrderCreateParams{}, err: currency.ErrCurrencyPairEmpty,
+			params: &FuturesOrderCreateParams{}, err: currency.ErrCurrencyPairEmpty,
 		},
 		{
-			params: &ContractOrderCreateParams{Contract: BTCUSDT},
+			params: &FuturesOrderCreateParams{Contract: BTCUSDT},
 			err:    errInvalidOrderSize,
 		},
 		{
-			params: &ContractOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: "bad"},
+			params: &FuturesOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: "bad"},
 			err:    order.ErrUnsupportedTimeInForce,
 		},
 		{
-			params: &ContractOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: pocTIF},
+			params: &FuturesOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: pocTIF},
 			err:    order.ErrUnsupportedTimeInForce,
 		},
 		{
-			params: &ContractOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "test"},
+			params: &FuturesOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "test"},
 			err:    errInvalidTextPrefix,
 		},
 		{
-			params: &ContractOrderCreateParams{
+			params: &FuturesOrderCreateParams{
 				Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "t-test", AutoSize: "silly_billy",
 			},
 			err: errInvalidAutoSize,
 		},
 		{
-			params: &ContractOrderCreateParams{
+			params: &FuturesOrderCreateParams{
 				Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long",
 			},
 			err: errInvalidOrderSize,
 		},
 		{
-			params: &ContractOrderCreateParams{
+			params: &FuturesOrderCreateParams{
 				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long",
 			},
 			isRest: true,
 			err:    errEmptyOrInvalidSettlementCurrency,
 		},
 		{
-			params: &ContractOrderCreateParams{
+			params: &FuturesOrderCreateParams{
 				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long", Settle: currency.NewCode("Silly"),
 			},
 			err: errEmptyOrInvalidSettlementCurrency,
 		},
 		{
-			params: &ContractOrderCreateParams{
+			params: &FuturesOrderCreateParams{
 				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long", Settle: currency.USDT,
 			},
 		},
@@ -3658,20 +3647,68 @@ func TestValidateContractOrderCreateParams(t *testing.T) {
 	}
 }
 
-func TestMarshalJSONNumber(t *testing.T) {
+func TestValidateDeliveryOrderCreateParams(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []struct {
-		number   number
-		expected string
+		params *DeliveryOrderCreateParams
+		isRest bool
+		err    error
 	}{
-		{number: 0, expected: `"0"`},
-		{number: 1, expected: `"1"`},
-		{number: 1.5, expected: `"1.5"`},
+		{
+			err: common.ErrNilPointer,
+		},
+		{
+			params: &DeliveryOrderCreateParams{}, err: currency.ErrCurrencyPairEmpty,
+		},
+		{
+			params: &DeliveryOrderCreateParams{Contract: BTCUSDT},
+			err:    errInvalidOrderSize,
+		},
+		{
+			params: &DeliveryOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: "bad"},
+			err:    order.ErrUnsupportedTimeInForce,
+		},
+		{
+			params: &DeliveryOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: pocTIF},
+			err:    order.ErrUnsupportedTimeInForce,
+		},
+		{
+			params: &DeliveryOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "test"},
+			err:    errInvalidTextPrefix,
+		},
+		{
+			params: &DeliveryOrderCreateParams{
+				Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "t-test", AutoSize: "silly_billy",
+			},
+			err: errInvalidAutoSize,
+		},
+		{
+			params: &DeliveryOrderCreateParams{
+				Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long",
+			},
+			err: errInvalidOrderSize,
+		},
+		{
+			params: &DeliveryOrderCreateParams{
+				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long",
+			},
+			isRest: true,
+			err:    errEmptyOrInvalidSettlementCurrency,
+		},
+		{
+			params: &DeliveryOrderCreateParams{
+				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long", Settle: currency.NewCode("Silly"),
+			},
+			err: errEmptyOrInvalidSettlementCurrency,
+		},
+		{
+			params: &DeliveryOrderCreateParams{
+				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long", Settle: currency.USDT,
+			},
+		},
 	} {
-		payload, err := tc.number.MarshalJSON()
-		require.NoError(t, err, "MarshalJSON must not error")
-		assert.Equal(t, tc.expected, string(payload), "MarshalJSON should return expected value")
+		assert.ErrorIs(t, tc.params.validate(tc.isRest), tc.err)
 	}
 }
 

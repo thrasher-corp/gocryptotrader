@@ -36,7 +36,7 @@ const (
 	optionsTradesChannel                 = "options.trades"
 	optionsUnderlyingTradesChannel       = "options.ul_trades"
 	optionsUnderlyingPriceChannel        = "options.ul_price"
-	optionsMarkPriceChannel              = "options.mark_price"
+	optionsMarkPriceChannel              = "options.mark_prices"
 	optionsSettlementChannel             = "options.settlements"
 	optionsContractsChannel              = "options.contracts"
 	optionsContractCandlesticksChannel   = "options.contract_candlesticks"
@@ -613,7 +613,7 @@ func (e *Exchange) processOptionsOrderPushData(ctx context.Context, data []byte)
 			Status:         status,
 			Pair:           resp.Result[x].Contract,
 			Date:           resp.Result[x].CreationTime.Time(),
-			ExecutedAmount: resp.Result[x].Size.Float64() - resp.Result[x].Left.Float64(),
+			ExecutedAmount: resp.Result[x].Size.Float64() - resp.Result[x].RemainingAmount.Float64(),
 			Price:          resp.Result[x].Price.Float64(),
 			AssetType:      asset.Options,
 			AccountID:      resp.Result[x].User,

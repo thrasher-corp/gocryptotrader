@@ -20,7 +20,7 @@ func (e *Exchange) authenticateFutures(ctx context.Context, conn websocket.Conne
 }
 
 // WebsocketFuturesSubmitOrder submits an order via the websocket connection
-func (e *Exchange) WebsocketFuturesSubmitOrder(ctx context.Context, a asset.Item, o *ContractOrderCreateParams) (*WebsocketFuturesOrderResponse, error) {
+func (e *Exchange) WebsocketFuturesSubmitOrder(ctx context.Context, a asset.Item, o *FuturesOrderCreateParams) (*WebsocketFuturesOrderResponse, error) {
 	resps, err := e.WebsocketFuturesSubmitOrders(ctx, a, o)
 	if err != nil {
 		return nil, err
@@ -32,7 +32,7 @@ func (e *Exchange) WebsocketFuturesSubmitOrder(ctx context.Context, a asset.Item
 }
 
 // WebsocketFuturesSubmitOrders submits orders via the websocket connection. All orders must be for the same asset.
-func (e *Exchange) WebsocketFuturesSubmitOrders(ctx context.Context, a asset.Item, orders ...*ContractOrderCreateParams) ([]*WebsocketFuturesOrderResponse, error) {
+func (e *Exchange) WebsocketFuturesSubmitOrders(ctx context.Context, a asset.Item, orders ...*FuturesOrderCreateParams) ([]*WebsocketFuturesOrderResponse, error) {
 	if len(orders) == 0 {
 		return nil, errOrdersEmpty
 	}

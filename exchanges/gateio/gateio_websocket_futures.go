@@ -505,10 +505,10 @@ func (e *Exchange) processFuturesOrderbookSnapshot(event string, incoming []byte
 
 func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Item) ([]order.Detail, error) {
 	resp := struct {
-		Time    types.Time       `json:"time"`
-		Channel string           `json:"channel"`
-		Event   string           `json:"event"`
-		Result  []WsFuturesOrder `json:"result"`
+		Time    types.Time     `json:"time"`
+		Channel string         `json:"channel"`
+		Event   string         `json:"event"`
+		Result  []FuturesOrder `json:"result"`
 	}{}
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -538,7 +538,7 @@ func (e *Exchange) processFuturesOrdersPushData(data []byte, assetType asset.Ite
 			Pair:           resp.Result[x].Contract,
 			LastUpdated:    resp.Result[x].FinishTime.Time(),
 			Date:           resp.Result[x].CreateTime.Time(),
-			ExecutedAmount: resp.Result[x].Size.Float64() - resp.Result[x].Left.Float64(),
+			ExecutedAmount: resp.Result[x].Size.Float64() - resp.Result[x].RemainingAmount.Float64(),
 			Price:          resp.Result[x].Price.Float64(),
 			AssetType:      assetType,
 			AccountID:      resp.Result[x].User,

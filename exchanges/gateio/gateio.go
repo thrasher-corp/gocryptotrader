@@ -1222,12 +1222,12 @@ func (e *Exchange) GetWithdrawalStatus(ctx context.Context, ccy currency.Code) (
 }
 
 // GetSubAccountBalances retrieve sub account balances
-func (e *Exchange) GetSubAccountBalances(ctx context.Context, subAccountUserID string) ([]FuturesSubAccountBalance, error) {
+func (e *Exchange) GetSubAccountBalances(ctx context.Context, subAccountUserID string) ([]SubAccountBalance, error) {
 	params := url.Values{}
 	if subAccountUserID != "" {
 		params.Set("sub_uid", subAccountUserID)
 	}
-	var response []FuturesSubAccountBalance
+	var response []SubAccountBalance
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSubAccountBalancesEPL, http.MethodGet, walletSubAccountBalance, params, nil, &response)
 }
 
@@ -2238,17 +2238,17 @@ func (e *Exchange) UpdatePositionLeverageInDualMode(ctx context.Context, settle 
 // Set reduce_only to true can keep the position from changing side when reducing position size
 // In single position mode, to close a position, you need to set size to 0 and close to true
 // In dual position mode, to close one side position, you need to set auto_size side, reduce_only to true and size to 0
-func (e *Exchange) PlaceFuturesOrder(ctx context.Context, arg *ContractOrderCreateParams) (*Order, error) {
+func (e *Exchange) PlaceFuturesOrder(ctx context.Context, arg *FuturesOrderCreateParams) (*FuturesOrder, error) {
 	if err := arg.validate(true); err != nil {
 		return nil, err
 	}
-	var response *Order
+	var response *FuturesOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSubmitOrderEPL, http.MethodPost, futuresPath+arg.Settle.Item.Lower+ordersPath, nil, &arg, &response)
 }
 
 // GetFuturesOrders retrieves list of futures orders
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
-func (e *Exchange) GetFuturesOrders(ctx context.Context, contract currency.Pair, status, lastID string, settle currency.Code, limit, offset uint64, countTotal bool) ([]Order, error) {
+func (e *Exchange) GetFuturesOrders(ctx context.Context, contract currency.Pair, status, lastID string, settle currency.Code, limit, offset uint64, countTotal bool) ([]FuturesOrder, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2272,13 +2272,13 @@ func (e *Exchange) GetFuturesOrders(ctx context.Context, contract currency.Pair,
 	if countTotal && status != statusOpen {
 		params.Set("count_total", "1")
 	}
-	var response []Order
+	var response []FuturesOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualGetOrdersEPL, http.MethodGet, futuresPath+settle.Item.Lower+ordersPath, params, nil, &response)
 }
 
 // CancelMultipleFuturesOpenOrders ancel all open orders
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
-func (e *Exchange) CancelMultipleFuturesOpenOrders(ctx context.Context, contract currency.Pair, side string, settle currency.Code) ([]Order, error) {
+func (e *Exchange) CancelMultipleFuturesOpenOrders(ctx context.Context, contract currency.Pair, side string, settle currency.Code) ([]FuturesOrder, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2290,7 +2290,7 @@ func (e *Exchange) CancelMultipleFuturesOpenOrders(ctx context.Context, contract
 		params.Set("side", side)
 	}
 	params.Set("contract", contract.String())
-	var response []Order
+	var response []FuturesOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualGetOrdersEPL, http.MethodDelete, futuresPath+settle.Item.Lower+ordersPath, params, nil, &response)
 }
 
@@ -2302,7 +2302,7 @@ func (e *Exchange) CancelMultipleFuturesOpenOrders(ctx context.Context, contract
 // In the returned result, the succeeded field of type bool indicates whether the execution was successful or not
 // If the execution is successful, the normal order content is included; if the execution fails, the label field is included to indicate the cause of the error
 // In the rate limiting, each order is counted individually
-func (e *Exchange) PlaceBatchFuturesOrders(ctx context.Context, settle currency.Code, args []ContractOrderCreateParams) ([]Order, error) {
+func (e *Exchange) PlaceBatchFuturesOrders(ctx context.Context, settle currency.Code, args []FuturesOrderCreateParams) ([]FuturesOrder, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2317,36 +2317,36 @@ func (e *Exchange) PlaceBatchFuturesOrders(ctx context.Context, settle currency.
 			return nil, fmt.Errorf("%w: %q expected %q", errEmptyOrInvalidSettlementCurrency, args[x].Settle, settle)
 		}
 	}
-	var response []Order
+	var response []FuturesOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSubmitBatchOrdersEPL, http.MethodPost, futuresPath+settle.Item.Lower+"/batch_orders", nil, &args, &response)
 }
 
 // GetSingleFuturesOrder retrieves a single order by its identifier
-func (e *Exchange) GetSingleFuturesOrder(ctx context.Context, settle currency.Code, orderID string) (*Order, error) {
+func (e *Exchange) GetSingleFuturesOrder(ctx context.Context, settle currency.Code, orderID string) (*FuturesOrder, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
 	if orderID == "" {
 		return nil, fmt.Errorf("%w, 'order_id' cannot be empty", errInvalidOrderID)
 	}
-	var response *Order
+	var response *FuturesOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualFetchOrderEPL, http.MethodGet, futuresPath+settle.Item.Lower+"/orders/"+orderID, nil, nil, &response)
 }
 
 // CancelSingleFuturesOrder cancel a single order
-func (e *Exchange) CancelSingleFuturesOrder(ctx context.Context, settle currency.Code, orderID string) (*Order, error) {
+func (e *Exchange) CancelSingleFuturesOrder(ctx context.Context, settle currency.Code, orderID string) (*FuturesOrder, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
 	if orderID == "" {
 		return nil, fmt.Errorf("%w, 'order_id' cannot be empty", errInvalidOrderID)
 	}
-	var response *Order
+	var response *FuturesOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualCancelOrderEPL, http.MethodDelete, futuresPath+settle.Item.Lower+"/orders/"+orderID, nil, nil, &response)
 }
 
 // AmendFuturesOrder amends an existing futures order
-func (e *Exchange) AmendFuturesOrder(ctx context.Context, settle currency.Code, orderID string, arg AmendFuturesOrderParam) (*Order, error) {
+func (e *Exchange) AmendFuturesOrder(ctx context.Context, settle currency.Code, orderID string, arg AmendFuturesOrderParam) (*FuturesOrder, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2356,7 +2356,7 @@ func (e *Exchange) AmendFuturesOrder(ctx context.Context, settle currency.Code, 
 	if arg.Size <= 0 && arg.Price <= 0 {
 		return nil, errors.New("missing update 'size' or 'price', please specify 'size' or 'price' or both information")
 	}
-	var response *Order
+	var response *FuturesOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualAmendOrderEPL, http.MethodPut, futuresPath+settle.Item.Lower+"/orders/"+orderID, nil, &arg, &response)
 }
 
@@ -2758,17 +2758,17 @@ func (e *Exchange) UpdateDeliveryPositionLeverage(ctx context.Context, settle cu
 
 // PlaceDeliveryOrder create a futures order
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
-func (e *Exchange) PlaceDeliveryOrder(ctx context.Context, arg *ContractOrderCreateParams) (*Order, error) {
+func (e *Exchange) PlaceDeliveryOrder(ctx context.Context, arg *DeliveryOrderCreateParams) (*FuturesOrder, error) {
 	if err := arg.validate(true); err != nil {
 		return nil, err
 	}
-	var response *Order
+	var response *FuturesOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, deliverySubmitOrderEPL, http.MethodPost, deliveryPath+arg.Settle.Item.Lower+ordersPath, nil, &arg, &response)
 }
 
 // GetDeliveryOrders list futures orders
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
-func (e *Exchange) GetDeliveryOrders(ctx context.Context, contract currency.Pair, status string, settle currency.Code, lastID string, limit, offset uint64, countTotal bool) ([]Order, error) {
+func (e *Exchange) GetDeliveryOrders(ctx context.Context, contract currency.Pair, status string, settle currency.Code, lastID string, limit, offset uint64, countTotal bool) ([]FuturesOrder, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2792,13 +2792,13 @@ func (e *Exchange) GetDeliveryOrders(ctx context.Context, contract currency.Pair
 	if countTotal && status != statusOpen {
 		params.Set("count_total", "1")
 	}
-	var response []Order
+	var response []FuturesOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, deliveryGetOrdersEPL, http.MethodGet, deliveryPath+settle.Item.Lower+ordersPath, params, nil, &response)
 }
 
 // CancelMultipleDeliveryOrders cancel all open orders matched
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
-func (e *Exchange) CancelMultipleDeliveryOrders(ctx context.Context, contract currency.Pair, side string, settle currency.Code) ([]Order, error) {
+func (e *Exchange) CancelMultipleDeliveryOrders(ctx context.Context, contract currency.Pair, side string, settle currency.Code) ([]FuturesOrder, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
@@ -2810,32 +2810,32 @@ func (e *Exchange) CancelMultipleDeliveryOrders(ctx context.Context, contract cu
 		params.Set("side", side)
 	}
 	params.Set("contract", contract.String())
-	var response []Order
+	var response []FuturesOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, deliveryCancelOrdersEPL, http.MethodDelete, deliveryPath+settle.Item.Lower+ordersPath, params, nil, &response)
 }
 
 // GetSingleDeliveryOrder Get a single order
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
-func (e *Exchange) GetSingleDeliveryOrder(ctx context.Context, settle currency.Code, orderID string) (*Order, error) {
+func (e *Exchange) GetSingleDeliveryOrder(ctx context.Context, settle currency.Code, orderID string) (*FuturesOrder, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
 	if orderID == "" {
 		return nil, fmt.Errorf("%w, 'order_id' cannot be empty", errInvalidOrderID)
 	}
-	var response *Order
+	var response *FuturesOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, deliveryGetOrderEPL, http.MethodGet, deliveryPath+settle.Item.Lower+"/orders/"+orderID, nil, nil, &response)
 }
 
 // CancelSingleDeliveryOrder cancel a single order
-func (e *Exchange) CancelSingleDeliveryOrder(ctx context.Context, settle currency.Code, orderID string) (*Order, error) {
+func (e *Exchange) CancelSingleDeliveryOrder(ctx context.Context, settle currency.Code, orderID string) (*FuturesOrder, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
 	if orderID == "" {
 		return nil, fmt.Errorf("%w, 'order_id' cannot be empty", errInvalidOrderID)
 	}
-	var response *Order
+	var response *FuturesOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, deliveryCancelOrderEPL, http.MethodDelete, deliveryPath+settle.Item.Lower+"/orders/"+orderID, nil, nil, &response)
 }
 
@@ -3573,8 +3573,47 @@ func (e *Exchange) GetUserTransactionRateLimitInfo(ctx context.Context) ([]UserT
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "account/rate_limit", nil, nil, &resp)
 }
 
-// validate validates the ContractOrderCreateParams
-func (c *ContractOrderCreateParams) validate(isRest bool) error {
+// validate validates the FuturesOrderCreateParams
+func (c *FuturesOrderCreateParams) validate(isRest bool) error {
+	if err := common.NilGuard(c); err != nil {
+		return err
+	}
+	if c.Contract.IsEmpty() {
+		return currency.ErrCurrencyPairEmpty
+	}
+	if c.Size == 0 && c.AutoSize == "" {
+		return errInvalidOrderSize
+	}
+	if c.TimeInForce != "" {
+		if _, err := timeInForceFromString(c.TimeInForce); err != nil {
+			return err
+		}
+	}
+	if c.Price == 0 && c.TimeInForce != iocTIF && c.TimeInForce != fokTIF {
+		return fmt.Errorf("%w: %q; only 'ioc' and 'fok' allowed for market order", order.ErrUnsupportedTimeInForce, c.TimeInForce)
+	}
+	if c.Text != "" && !strings.HasPrefix(c.Text, "t-") {
+		return errInvalidTextPrefix
+	}
+	if c.AutoSize != "" {
+		if c.AutoSize != "close_long" && c.AutoSize != "close_short" {
+			return fmt.Errorf("%w: %q", errInvalidAutoSize, c.AutoSize)
+		}
+		if c.Size != 0 {
+			return fmt.Errorf("%w: size needs to be zero when auto size is set", errInvalidOrderSize)
+		}
+	}
+	// REST requests require a settlement currency, but it can be anything
+	// Websocket requests may have an empty settlement currency, or it must be BTC or USDT
+	if (isRest && c.Settle.IsEmpty()) ||
+		(!isRest && !c.Settle.IsEmpty() && !c.Settle.Equal(currency.BTC) && !c.Settle.Equal(currency.USDT)) {
+		return errEmptyOrInvalidSettlementCurrency
+	}
+	return nil
+}
+
+// validate validates the DeliveryOrderCreateParams
+func (c *DeliveryOrderCreateParams) validate(isRest bool) error {
 	if err := common.NilGuard(c); err != nil {
 		return err
 	}
