@@ -908,7 +908,7 @@ func (e *Exchange) GetFundingBook(ctx context.Context, symbol string) (FundingBo
 	response := FundingBook{}
 	path := bitfinexAPIVersion + bitfinexLendbook + symbol
 
-	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &response, fundingbook); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &response, fundingBook); err != nil {
 		return response, err
 	}
 
