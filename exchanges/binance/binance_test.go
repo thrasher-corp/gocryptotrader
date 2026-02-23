@@ -3039,7 +3039,6 @@ func TestGetMarginRatesHistoryValidation(t *testing.T) {
 		Asset: asset.Margin,
 	})
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-
 }
 
 func TestGetLeverage(t *testing.T) {

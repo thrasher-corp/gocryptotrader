@@ -419,6 +419,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 					if fundingInfo.Symbol, ok = data[1].(string); !ok {
 						return errors.New("unable to type assert symbol")
 					}
+
 					if fundingInfo.YieldLoan, ok = symbolData[0].(float64); !ok {
 						return errors.New("unable to type assert funding info update yield loan")
 					}
@@ -434,42 +435,43 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 					if err := e.Websocket.DataHandler.Send(ctx, fundingInfo); err != nil {
 						return err
 					}
-					if strings.HasPrefix(fundingInfo.Symbol, "f") {
-						ccy := currency.NewCode(strings.TrimPrefix(fundingInfo.Symbol, "f"))
-						pairs, err := e.GetEnabledPairs(asset.MarginFunding)
-						if err != nil {
-							if errors.Is(err, asset.ErrNotEnabled) {
-								return nil
-							}
+					if !strings.HasPrefix(fundingInfo.Symbol, "f") {
+						return nil
+					}
+					ccy := currency.NewCode(strings.TrimPrefix(fundingInfo.Symbol, "f"))
+					pairs, err := e.GetEnabledPairs(asset.MarginFunding)
+					if err != nil {
+						if errors.Is(err, asset.ErrNotEnabled) {
+							return nil
+						}
+						return err
+					}
+					timeChecked := time.Now().UTC()
+					currentYearly := decimal.NewFromFloat(fundingInfo.YieldLend)
+					predictedYearly := decimal.NewFromFloat(fundingInfo.YieldLoan)
+					currentRate := &margin.Rate{
+						Time:       timeChecked,
+						HourlyRate: currentYearly.Div(decimal.NewFromInt(24 * 365)),
+						YearlyRate: currentYearly,
+					}
+					predictedRate := &margin.Rate{
+						Time:       timeChecked,
+						HourlyRate: predictedYearly.Div(decimal.NewFromInt(24 * 365)),
+						YearlyRate: predictedYearly,
+					}
+					for i := range pairs {
+						if !pairs[i].Base.Equal(ccy) {
+							continue
+						}
+						if err := e.Websocket.DataHandler.Send(ctx, margin.CurrentRateResponse{
+							Exchange:      e.Name,
+							Asset:         asset.MarginFunding,
+							Pair:          pairs[i],
+							CurrentRate:   currentRate,
+							PredictedRate: predictedRate,
+							TimeChecked:   timeChecked,
+						}); err != nil {
 							return err
-						}
-						timeChecked := time.Now().UTC()
-						currentYearly := decimal.NewFromFloat(fundingInfo.YieldLend)
-						predictedYearly := decimal.NewFromFloat(fundingInfo.YieldLoan)
-						currentRate := &margin.Rate{
-							Time:       timeChecked,
-							HourlyRate: currentYearly.Div(decimal.NewFromInt(24 * 365)),
-							YearlyRate: currentYearly,
-						}
-						predictedRate := &margin.Rate{
-							Time:       timeChecked,
-							HourlyRate: predictedYearly.Div(decimal.NewFromInt(24 * 365)),
-							YearlyRate: predictedYearly,
-						}
-						for i := range pairs {
-							if !pairs[i].Base.Equal(ccy) {
-								continue
-							}
-							if err := e.Websocket.DataHandler.Send(ctx, margin.CurrentRateResponse{
-								Exchange:      e.Name,
-								Asset:         asset.MarginFunding,
-								Pair:          pairs[i],
-								CurrentRate:   currentRate,
-								PredictedRate: predictedRate,
-								TimeChecked:   timeChecked,
-							}); err != nil {
-								return err
-							}
 						}
 					}
 				}
@@ -510,39 +512,39 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 				if err := e.Websocket.DataHandler.Send(ctx, wsFundingTrade); err != nil {
 					return err
 				}
-				if strings.HasPrefix(wsFundingTrade.Symbol, "f") {
-					ccy := currency.NewCode(strings.TrimPrefix(wsFundingTrade.Symbol, "f"))
-					pairs, err := e.GetEnabledPairs(asset.MarginFunding)
+				if !strings.HasPrefix(wsFundingTrade.Symbol, "f") {
+					return nil
+				}
+				ccy := currency.NewCode(strings.TrimPrefix(wsFundingTrade.Symbol, "f"))
+				pairs, err := e.GetEnabledPairs(asset.MarginFunding)
+				if err != nil {
+					if errors.Is(err, asset.ErrNotEnabled) {
+						return nil
+					}
+					return err
+				}
+				timeChecked := time.Now().UTC()
+				yearlyRate := decimal.NewFromFloat(wsFundingTrade.Rate)
+				currentRate := &margin.Rate{
+					Time:       wsFundingTrade.MTSCreated,
+					HourlyRate: yearlyRate.Div(decimal.NewFromInt(24 * 365)),
+					YearlyRate: yearlyRate,
+				}
+				for i := range pairs {
+					if !pairs[i].Base.Equal(ccy) {
+						continue
+					}
+					err = e.Websocket.DataHandler.Send(ctx, margin.CurrentRateResponse{
+						Exchange:    e.Name,
+						Asset:       asset.MarginFunding,
+						Pair:        pairs[i],
+						CurrentRate: currentRate,
+						// PredictedRate intentionally omitted for trade updates
+						TimeChecked: timeChecked,
+					})
 					if err != nil {
-						if errors.Is(err, asset.ErrNotEnabled) {
-							return nil
-						}
 						return err
 					}
-					timeChecked := time.Now().UTC()
-					yearlyRate := decimal.NewFromFloat(wsFundingTrade.Rate)
-					currentRate := &margin.Rate{
-						Time:       wsFundingTrade.MTSCreated,
-						HourlyRate: yearlyRate.Div(decimal.NewFromInt(24 * 365)),
-						YearlyRate: yearlyRate,
-					}
-					for i := range pairs {
-						if !pairs[i].Base.Equal(ccy) {
-							continue
-						}
-						err = e.Websocket.DataHandler.Send(ctx, margin.CurrentRateResponse{
-							Exchange:    e.Name,
-							Asset:       asset.MarginFunding,
-							Pair:        pairs[i],
-							CurrentRate: currentRate,
-							// PredictedRate intentionally omitted for trade updates
-							TimeChecked: timeChecked,
-						})
-						if err != nil {
-							return err
-						}
-					}
-					return nil
 				}
 				return nil
 			}

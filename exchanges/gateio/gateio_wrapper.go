@@ -2143,10 +2143,7 @@ func (e *Exchange) GetCurrentMarginRates(ctx context.Context, req *margin.Curren
 	timeChecked := time.Now().UTC()
 	ratesByCurrency := make(map[currency.Code]margin.Rate, len(baseCurrencies))
 	for i := 0; i < len(baseCurrencies); i += maxCurrenciesPerReq {
-		end := i + maxCurrenciesPerReq
-		if end > len(baseCurrencies) {
-			end = len(baseCurrencies)
-		}
+		end := min(i+maxCurrenciesPerReq, len(baseCurrencies))
 		rates, err := e.GetEstimatedInterestRate(ctx, baseCurrencies[i:end])
 		if err != nil {
 			return nil, err

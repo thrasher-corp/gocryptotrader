@@ -4335,7 +4335,6 @@ func TestGetMarginRatesHistoryValidation(t *testing.T) {
 		Asset: asset.Margin,
 	})
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-
 }
 
 func TestGetCurrentMarginRatesValidation(t *testing.T) {
