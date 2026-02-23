@@ -7,9 +7,9 @@ crypo->crypto
 cummulative->cumulative
 curency->currency
 critcalbankingstuff->criticalbankingstuff
-decerialized->deserialized
-decerialize->deserialize
-decerializing->deserializing
+decerialized->deserialised
+decerialize->deserialise
+decerializing->deserialising
 serparated->separated
 indivudal->individual
 lenging->lending
