@@ -52,6 +52,7 @@ linters:
     - goconst
     - gocritic
 #   - gocyclo
+#   - godoclint
 #   - godot
 #   - godox
 #   - goheader
@@ -65,6 +66,7 @@ linters:
 #   - importas
 #   - inamedparam
 #   - interfacebloat
+#   - iotamixing
     - intrange
 #   - ireturn
 #   - lll
@@ -74,6 +76,7 @@ linters:
     - mirror
     - misspell
 #   - mnd
+    - modernize
 #   - musttag
 #   - nakedret
 #   - nestif
@@ -104,6 +107,7 @@ linters:
     - testableexamples
     - testifylint
 #   - testpackage
+#   - unqueryvet
     - thelper
     - tparallel
     - unconvert
@@ -132,6 +136,9 @@ linters:
               desc: Please use the custom JSON package github.com/thrasher-corp/gocryptotrader/encoding/json instead of encoding/json to allow sonic/json switching.
     goconst:
       min-occurrences: 6
+    gosec:
+      excludes:
+        - G602 # False positives, see https://github.com/golangci/golangci-lint/issues/6334
     gocritic:
       disabled-checks:
         - wrapperFunc
@@ -182,6 +189,9 @@ linters:
       - linters:
           - revive
         text: "var-naming: avoid meaningless package names"
+      - linters:
+          - revive
+        text: "var-naming: avoid package names that conflict with Go standard library package names"
     paths:
       - vendor
       - web/

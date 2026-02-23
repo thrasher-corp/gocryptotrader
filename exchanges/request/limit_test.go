@@ -208,7 +208,7 @@ func TestNewBasicRateLimit(t *testing.T) {
 func TestCancelAll(t *testing.T) {
 	t.Parallel()
 
-	var reservations []*rate.Reservation
+	reservations := make([]*rate.Reservation, 0, 2)
 	cancelAll(reservations, time.Now())
 
 	r := rate.NewLimiter(rate.Limit(1), 1)

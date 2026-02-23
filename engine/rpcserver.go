@@ -711,16 +711,14 @@ func (s *RPCServer) GetPortfolioSummary(_ context.Context, _ *gctrpc.GetPortfoli
 	var resp gctrpc.GetPortfolioSummaryResponse
 
 	p := func(coins []portfolio.Coin) []*gctrpc.Coin {
-		var c []*gctrpc.Coin
+		c := make([]*gctrpc.Coin, len(coins))
 		for x := range coins {
-			c = append(c,
-				&gctrpc.Coin{
-					Coin:       coins[x].Coin.String(),
-					Balance:    coins[x].Balance,
-					Address:    coins[x].Address,
-					Percentage: coins[x].Percentage,
-				},
-			)
+			c[x] = &gctrpc.Coin{
+				Coin:       coins[x].Coin.String(),
+				Balance:    coins[x].Balance,
+				Address:    coins[x].Address,
+				Percentage: coins[x].Percentage,
+			}
 		}
 		return c
 	}
@@ -729,15 +727,13 @@ func (s *RPCServer) GetPortfolioSummary(_ context.Context, _ *gctrpc.GetPortfoli
 	resp.CoinsOffline = p(result.Offline)
 	resp.CoinsOfflineSummary = make(map[string]*gctrpc.OfflineCoins)
 	for k, v := range result.OfflineSummary {
-		var o []*gctrpc.OfflineCoinSummary
+		o := make([]*gctrpc.OfflineCoinSummary, len(v))
 		for x := range v {
-			o = append(o,
-				&gctrpc.OfflineCoinSummary{
-					Address:    v[x].Address,
-					Balance:    v[x].Balance,
-					Percentage: v[x].Percentage,
-				},
-			)
+			o[x] = &gctrpc.OfflineCoinSummary{
+				Address:    v[x].Address,
+				Balance:    v[x].Balance,
+				Percentage: v[x].Percentage,
+			}
 		}
 		resp.CoinsOfflineSummary[k.String()] = &gctrpc.OfflineCoins{
 			Addresses: o,
