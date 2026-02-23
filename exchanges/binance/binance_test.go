@@ -2803,23 +2803,32 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 
 func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
-	cp := currency.NewBTCUSDT()
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Setup must not error for local exchange instance")
+	if mockTests {
+		require.NoError(t, testexch.MockHTTPInstance(e), "MockHTTPInstance must not error for local exchange instance")
+	}
+	require.NoError(t, e.UpdateTradablePairs(t.Context()), "UpdateTradablePairs must not error for local exchange instance")
+
+	usdtPerpetualPair := currency.NewBTCUSDT()
 	_, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset:                asset.USDTMarginedFutures,
-		Pair:                 cp,
+		Pair:                 usdtPerpetualPair,
 		IncludePredictedRate: true,
 	})
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 
-	err = e.CurrencyPairs.EnablePair(asset.USDTMarginedFutures, cp)
+	err = e.CurrencyPairs.EnablePair(asset.USDTMarginedFutures, usdtPerpetualPair)
 	require.Truef(t, err == nil || errors.Is(err, currency.ErrPairAlreadyEnabled),
-		"EnablePair for asset %s and pair %s must not error: %s", asset.USDTMarginedFutures, cp, err)
+		"EnablePair for asset %s and pair %s must not error: %s", asset.USDTMarginedFutures, usdtPerpetualPair, err)
 
 	_, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset: asset.USDTMarginedFutures,
-		Pair:  cp,
+		Pair:  usdtPerpetualPair,
 	})
 	assert.NoError(t, err, "GetLatestFundingRates should not error for USDTMarginedFutures")
+
 	_, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset: asset.CoinMarginedFutures,
 	})
