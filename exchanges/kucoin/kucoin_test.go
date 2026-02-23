@@ -3116,13 +3116,21 @@ func TestSubscribeTickerAll(t *testing.T) {
 	t.Parallel()
 
 	ku := testInstance(t)
-	go func() { // drain websocket messages when subscribed to all tickers
-		for {
-			<-ku.Websocket.DataHandler.C
-		}
-	}()
 	ku.Features.Subscriptions = subscription.List{}
 	testexch.SetupWs(t, ku)
+	done := make(chan struct{})
+	go func() { // drain websocket messages when subscribed to all tickers
+		for {
+			select {
+			case <-done:
+				return
+			case <-ku.Websocket.DataHandler.C:
+			}
+		}
+	}()
+	t.Cleanup(func() {
+		close(done)
+	})
 
 	avail, err := ku.GetAvailablePairs(asset.Spot)
 	require.NoError(t, err, "GetAvailablePairs must not error")

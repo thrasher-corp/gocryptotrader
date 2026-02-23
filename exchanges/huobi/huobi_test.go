@@ -298,31 +298,28 @@ func TestFOrder(t *testing.T) {
 func TestFPlaceBatchOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	var req []fBatchOrderData
-	order1 := fBatchOrderData{
-		Symbol:         "btc",
-		ContractType:   "quarter",
-		ClientOrderID:  "",
-		Price:          5,
-		Volume:         1,
-		Direction:      "buy",
-		Offset:         "open",
-		LeverageRate:   1,
-		OrderPriceType: "limit",
-	}
-	order2 := fBatchOrderData{
-		Symbol:         "xrp",
-		ContractType:   "this_week",
-		ClientOrderID:  "",
-		Price:          10000,
-		Volume:         1,
-		Direction:      "sell",
-		Offset:         "open",
-		LeverageRate:   1,
-		OrderPriceType: "limit",
-	}
-	req = append(req, order1, order2)
-	_, err := e.FPlaceBatchOrder(t.Context(), req)
+	_, err := e.FPlaceBatchOrder(t.Context(), []fBatchOrderData{
+		{
+			Symbol:         "btc",
+			ContractType:   "quarter",
+			Price:          5,
+			Volume:         1,
+			Direction:      "buy",
+			Offset:         "open",
+			LeverageRate:   1,
+			OrderPriceType: "limit",
+		},
+		{
+			Symbol:         "xrp",
+			ContractType:   "this_week",
+			Price:          10000,
+			Volume:         1,
+			Direction:      "sell",
+			Offset:         "open",
+			LeverageRate:   1,
+			OrderPriceType: "limit",
+		},
+	})
 	require.NoError(t, err)
 }
 
@@ -1914,13 +1911,34 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NoErrorf(t, err, "cannot get pairs for %s", a)
 		require.NotEmptyf(t, pairs, "no pairs for %s", a)
 		resp, err := e.GetCurrencyTradeURL(t.Context(), a, pairs[0])
-		if (a == asset.Futures || a == asset.CoinMarginedFutures) && !pairs[0].Quote.Equal(currency.USD) && !pairs[0].Quote.Equal(currency.USDT) {
-			require.ErrorIs(t, err, common.ErrNotYetImplemented)
-		} else {
-			require.NoError(t, err)
-			assert.NotEmpty(t, resp)
-		}
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
 	}
+}
+
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+	updatePairsOnce(t, e)
+	for _, a := range e.GetAssetTypes(false) {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
+			pairs, err := e.CurrencyPairs.GetPairs(a, false)
+			require.NoError(t, err, "GetPairs must not error")
+			require.NotEmpty(t, pairs, "GetPairs must return pairs")
+			for _, p := range pairs {
+				l, err := e.GetOrderExecutionLimits(a, p)
+				require.NoError(t, err, "GetOrderExecutionLimits must not error")
+				assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
+				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+				assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
+			}
+		})
+	}
+	t.Run("unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported)
+	})
 }
 
 func TestGenerateSubscriptions(t *testing.T) {

@@ -2458,37 +2458,42 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		t.Run(a.String(), func(t *testing.T) {
 			t.Parallel()
 			switch a {
-			case asset.Options:
-				return // Options not supported
 			case asset.CrossMargin, asset.Margin:
 				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), asset.ErrNotSupported)
 			default:
 				require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
-				avail, err := e.GetAvailablePairs(a)
+				pairs, err := e.GetAvailablePairs(a)
 				require.NoError(t, err, "GetAvailablePairs must not error")
-				for _, pair := range avail {
-					l, err := e.GetOrderExecutionLimits(a, pair)
-					require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s", pair)
-					require.NotNilf(t, l, "GetOrderExecutionLimits %s result cannot be nil", pair)
-					assert.Equalf(t, a, l.Key.Asset, "asset should equal for %s", pair)
-					assert.Truef(t, pair.Equal(l.Key.Pair()), "pair should equal for %s", pair)
-					assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", pair)
-					assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", pair)
-
+				for _, p := range pairs {
+					l, err := e.GetOrderExecutionLimits(a, p)
+					require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s", p)
+					require.NotNilf(t, l, "GetOrderExecutionLimits %s result cannot be nil", p)
+					assert.Equalf(t, a, l.Key.Asset, "asset should equal for %s", p)
+					assert.Truef(t, p.Equal(l.Key.Pair()), "pair should equal for %s", p)
 					switch a {
+					case asset.Options:
+						assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", p)
+						assert.Positivef(t, l.MaximumBaseAmount, "MaximumBaseAmount should be positive for %s", p)
+						assert.Positivef(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s", p)
+						assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
 					case asset.USDTMarginedFutures:
-						assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", pair)
-						assert.NotZerof(t, l.Listed, "Listed should be populated for %s", pair)
+						assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", p)
+						assert.NotZerof(t, l.Listed, "Listed should be populated for %s", p)
 						fallthrough
 					case asset.CoinMarginedFutures:
 						if !l.Delisted.IsZero() {
-							assert.Truef(t, l.Delisted.After(l.Delisting), "Delisted should be after Delisting for %s", pair)
+							assert.Truef(t, l.Delisted.After(l.Delisting), "Delisted should be after Delisting for %s", p)
 						}
+						assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
 					case asset.Spot:
-						assert.Positivef(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive for %s", pair)
-						assert.Positivef(t, l.QuoteStepIncrementSize, "QuoteStepIncrementSize should be positive for %s", pair)
+						assert.Positivef(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive for %s", p)
+						assert.Positivef(t, l.QuoteStepIncrementSize, "QuoteStepIncrementSize should be positive for %s", p)
+						assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", p)
+						assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
 					case asset.DeliveryFutures:
-						assert.NotZerof(t, l.Expiry, "Expiry should be populated for %s", pair)
+						assert.NotZerof(t, l.Expiry, "Expiry should be populated for %s", p)
+						assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", p)
+						assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
 					}
 				}
 			}
@@ -3581,7 +3586,7 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 	sub.AssetType = asset.USDTMarginedFutures
 	cpy.AssetType = asset.USDTMarginedFutures
 	_, err = e.WebsocketSubmitOrders(t.Context(), []*order.Submit{sub, &cpy})
-	require.ErrorIs(t, err, common.ErrNotYetImplemented)
+	require.ErrorIs(t, err, errInvalidOrderSize)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 

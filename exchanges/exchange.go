@@ -1364,6 +1364,10 @@ func (u URL) String() string {
 		return websocketPrivateURL
 	case WebsocketSpotSupplementary:
 		return websocketSpotSupplementaryURL
+	case WebsocketFutures:
+		return websocketFuturesURL
+	case WebsocketFuturesPrivate:
+		return websocketFuturesPrivateURL
 	case ChainAnalysis:
 		return chainAnalysisURL
 	case EdgeCase1:
@@ -1414,6 +1418,10 @@ func getURLTypeFromString(ep string) (URL, error) {
 		return WebsocketPrivate, nil
 	case websocketSpotSupplementaryURL:
 		return WebsocketSpotSupplementary, nil
+	case websocketFuturesURL:
+		return WebsocketFutures, nil
+	case websocketFuturesPrivateURL:
+		return WebsocketFuturesPrivate, nil
 	case chainAnalysisURL:
 		return ChainAnalysis, nil
 	case edgeCase1URL:
@@ -1752,7 +1760,7 @@ func (b *Base) MatchSymbolCheckEnabled(symbol string, a asset.Item, hasDelimiter
 	}
 
 	enabled, err = b.IsPairEnabled(pair, a)
-	return
+	return pair, enabled, err
 }
 
 // IsPairEnabled checks if a pair is enabled for an enabled asset type.
@@ -1825,7 +1833,7 @@ func Bootstrap(ctx context.Context, b IBotExchange) error {
 // or false to signal that no further bootstrapping should occur
 func (b *Base) Bootstrap(_ context.Context) (continueBootstrap bool, err error) {
 	continueBootstrap = true
-	return
+	return continueBootstrap, err
 }
 
 // IsVerbose returns if the exchange is set to verbose
