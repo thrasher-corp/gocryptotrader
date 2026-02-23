@@ -147,6 +147,7 @@ func (e *Exchange) SetDefaults() {
 		exchange.RestFutures:           "https://www.deribit.com",
 		exchange.RestSpot:              "https://www.deribit.com",
 		exchange.RestSpotSupplementary: "https://test.deribit.com",
+		exchange.WebsocketSpot:         "wss://www.deribit.com/ws/api/v2",
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)

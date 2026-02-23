@@ -717,7 +717,8 @@ func TestWSProcessTrades(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup instance must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, nil, b) })
+	conn := testexch.GetMockConn(t, e, "")
+	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, conn, b) })
 	e.Websocket.DataHandler.Close()
 
 	a, p, err := getAssetPairByInstrument("BTC-PERPETUAL")
@@ -3723,7 +3724,7 @@ func TestProcessPushData(t *testing.T) {
 	for k, v := range websocketPushData {
 		t.Run(k, func(t *testing.T) {
 			t.Parallel()
-			err := e.wsHandleData(t.Context(), nil, []byte(v))
+			err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), []byte(v))
 			require.NoError(t, err, "wsHandleData must not error")
 		})
 	}

@@ -1046,7 +1046,8 @@ func TestWsHandleData(t *testing.T) {
 		})
 		require.NoError(t, err, "AddSuccessfulSubscriptions must not error")
 	}
-	testexch.FixtureToDataHandler(t, "testdata/wsHandleData.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, nil, b) })
+	conn := testexch.GetMockConn(t, e, "")
+	testexch.FixtureToDataHandler(t, "testdata/wsHandleData.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, conn, b) })
 }
 
 func TestWSProcessTrades(t *testing.T) {
@@ -1056,7 +1057,8 @@ func TestWSProcessTrades(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	err := e.Websocket.AddSubscriptions(nil, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{spotTestPair}, Channel: subscription.AllTradesChannel, Key: 18788})
 	require.NoError(t, err, "AddSubscriptions must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, nil, b) })
+	conn := testexch.GetMockConn(t, e, "")
+	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, conn, b) })
 	e.Websocket.DataHandler.Close()
 
 	invalid := []any{"trades", []any{[]any{"95873.80000", "0.00051182", "1708731380.3791859"}}}
@@ -1092,7 +1094,8 @@ func TestWsOpenOrders(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	testexch.UpdatePairsOnce(t, e)
-	testexch.FixtureToDataHandler(t, "testdata/wsOpenTrades.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, nil, b) })
+	conn := testexch.GetMockConn(t, e, "")
+	testexch.FixtureToDataHandler(t, "testdata/wsOpenTrades.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, conn, b) })
 	e.Websocket.DataHandler.Close()
 	assert.Len(t, e.Websocket.DataHandler.C, 7, "Should see 7 orders")
 	for resp := range e.Websocket.DataHandler.C {
@@ -1314,14 +1317,15 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 		})
 		require.NoError(t, err, "AddSuccessfulSubscriptions must not error")
 	}
+	conn := testexch.GetMockConn(t, e, "")
 
 	for x := range websocketXDGUSDOrderbookUpdates {
-		err := e.wsHandleData(t.Context(), nil, []byte(websocketXDGUSDOrderbookUpdates[x]))
+		err := e.wsHandleData(t.Context(), conn, []byte(websocketXDGUSDOrderbookUpdates[x]))
 		require.NoError(t, err, "wsHandleData must not error")
 	}
 
 	for x := range websocketLUNAEUROrderbookUpdates {
-		err := e.wsHandleData(t.Context(), nil, []byte(websocketLUNAEUROrderbookUpdates[x]))
+		err := e.wsHandleData(t.Context(), conn, []byte(websocketLUNAEUROrderbookUpdates[x]))
 		// TODO: Known issue with LUNA pairs and big number float precision
 		// storage and checksum calc. Might need to store raw strings as fields
 		// in the orderbook.Level struct.
@@ -1333,7 +1337,7 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 
 	// This has less than 10 bids and still needs a checksum calc.
 	for x := range websocketGSTEUROrderbookUpdates {
-		err := e.wsHandleData(t.Context(), nil, []byte(websocketGSTEUROrderbookUpdates[x]))
+		err := e.wsHandleData(t.Context(), conn, []byte(websocketGSTEUROrderbookUpdates[x]))
 		require.NoError(t, err, "wsHandleData must not error")
 	}
 }

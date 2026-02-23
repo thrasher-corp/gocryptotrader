@@ -531,7 +531,7 @@ func TestWsMissingRole(t *testing.T) {
 		"reason":"MissingRole",
 		"message":"To access this endpoint, you need to log in to the website and go to the settings page to assign one of these roles [FundManager] to API key wujB3szN54gtJ4QDhqRJ which currently has roles [Trader]"
 	}`)
-	assert.Error(t, e.wsHandleData(t.Context(), nil, pressXToJSON), "wsHandleData should return an error")
+	assert.Error(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should return an error")
 }
 
 func TestWsOrderEventSubscriptionResponse(t *testing.T) {
@@ -553,7 +553,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
   "original_amount" : "14.0296",
   "price" : "1059.54"
 } ]`)
-	assert.NoError(t, e.wsHandleData(t.Context(), nil, pressXToJSON), "wsHandleData should not error")
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 
 	pressXToJSON = []byte(`[{
     "type": "accepted",
@@ -572,7 +572,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
     "price": "3592.00",
     "socket_sequence": 13
 }]`)
-	assert.NoError(t, e.wsHandleData(t.Context(), nil, pressXToJSON), "wsHandleData should not error")
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 
 	pressXToJSON = []byte(`[{
     "type": "accepted",
@@ -590,7 +590,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
     "total_spend": "200.00",
     "socket_sequence": 29
 }]`)
-	assert.NoError(t, e.wsHandleData(t.Context(), nil, pressXToJSON), "wsHandleData should not error")
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 
 	pressXToJSON = []byte(`[{
     "type": "accepted",
@@ -608,7 +608,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
     "original_amount": "25",
     "socket_sequence": 26
 }]`)
-	assert.NoError(t, e.wsHandleData(t.Context(), nil, pressXToJSON), "wsHandleData should not error")
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 
 	pressXToJSON = []byte(`[ {
   "type" : "accepted",
@@ -627,7 +627,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
   "original_amount" : "500",
   "socket_sequence" : 32307
 } ]`)
-	assert.NoError(t, e.wsHandleData(t.Context(), nil, pressXToJSON), "wsHandleData should not error")
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 }
 
 func TestWsSubAck(t *testing.T) {
@@ -646,7 +646,7 @@ func TestWsSubAck(t *testing.T) {
     "closed"
   ]
 }`)
-	if err := e.wsHandleData(t.Context(), nil, pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON); err != nil {
 		assert.NoError(t, err)
 	}
 }
@@ -659,7 +659,7 @@ func TestWsHeartbeat(t *testing.T) {
   "trace_id": "b8biknoqppr32kc7gfgg",
   "socket_sequence": 37
 }`)
-	if err := e.wsHandleData(t.Context(), nil, pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON); err != nil {
 		assert.NoError(t, err)
 	}
 }
@@ -680,7 +680,7 @@ func TestWsUnsubscribe(t *testing.T) {
         ]}
     ]
 }`)
-	assert.NoError(t, e.wsHandleData(t.Context(), nil, pressXToJSON), "wsHandleData should not error")
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 }
 
 func TestWsTradeData(t *testing.T) {
@@ -700,7 +700,7 @@ func TestWsTradeData(t *testing.T) {
     }
   ]
 }`)
-	if err := e.wsHandleData(t.Context(), nil, pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON); err != nil {
 		assert.NoError(t, err)
 	}
 }
@@ -732,7 +732,7 @@ func TestWsAuctionData(t *testing.T) {
     ],
     "type": "update"
 }`)
-	if err := e.wsHandleData(t.Context(), nil, pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON); err != nil {
 		assert.NoError(t, err)
 	}
 }
@@ -753,7 +753,7 @@ func TestWsBlockTrade(t *testing.T) {
       }
    ]
 }`)
-	if err := e.wsHandleData(t.Context(), nil, pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON); err != nil {
 		assert.NoError(t, err)
 	}
 }
@@ -768,7 +768,7 @@ func TestWSTrade(t *testing.T) {
 		"quantity": "0.09110000",
 		"side": "buy"
 	}`)
-	if err := e.wsHandleData(t.Context(), nil, pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON); err != nil {
 		assert.NoError(t, err)
 	}
 }
@@ -796,7 +796,7 @@ func TestWsCandles(t *testing.T) {
     ]
   ]
 }`)
-	if err := e.wsHandleData(t.Context(), nil, pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON); err != nil {
 		assert.NoError(t, err)
 	}
 }
@@ -818,7 +818,7 @@ func TestWsAuctions(t *testing.T) {
     ],
     "type": "update"
 }`)
-	if err := e.wsHandleData(t.Context(), nil, pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON); err != nil {
 		assert.NoError(t, err)
 	}
 
@@ -842,7 +842,7 @@ func TestWsAuctions(t *testing.T) {
         }
     ]
 }`)
-	if err := e.wsHandleData(t.Context(), nil, pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON); err != nil {
 		assert.NoError(t, err)
 	}
 
@@ -873,7 +873,7 @@ func TestWsAuctions(t *testing.T) {
         }
     ]
 }`)
-	if err := e.wsHandleData(t.Context(), nil, pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON); err != nil {
 		assert.NoError(t, err)
 	}
 }
@@ -902,7 +902,7 @@ func TestWsMarketData(t *testing.T) {
     }
   ]
 }    `)
-	assert.NoError(t, e.wsHandleData(t.Context(), nil, pressXToJSON), "wsHandleData should not error")
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 
 	pressXToJSON = []byte(`{
   "type": "update",
@@ -927,7 +927,7 @@ func TestWsMarketData(t *testing.T) {
     }
   ]
 }    `)
-	assert.NoError(t, e.wsHandleData(t.Context(), nil, pressXToJSON), "wsHandleData should not error")
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 
 	pressXToJSON = []byte(`{
   "type": "update",
@@ -946,34 +946,41 @@ func TestWsMarketData(t *testing.T) {
     }
   ]
 }  `)
-	assert.NoError(t, e.wsHandleData(t.Context(), nil, pressXToJSON), "wsHandleData should not error")
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 }
 
 func TestWsError(t *testing.T) {
+	t.Parallel()
 	tt := []struct {
+		Case               string
 		Data               []byte
 		ErrorExpected      bool
 		ErrorShouldContain string
 	}{
 		{
+			Case:          "no error payload type",
 			Data:          []byte(`{"type": "test"}`),
 			ErrorExpected: false,
 		},
 		{
+			Case:          "no error payload result",
 			Data:          []byte(`{"result": "bla"}`),
 			ErrorExpected: false,
 		},
 		{
+			Case:               "generic websocket error",
 			Data:               []byte(`{"result": "error"}`),
 			ErrorExpected:      true,
 			ErrorShouldContain: "Unhandled websocket error",
 		},
 		{
+			Case:               "invalid json reason",
 			Data:               []byte(`{"result": "error","reason": "InvalidJson"}`),
 			ErrorExpected:      true,
 			ErrorShouldContain: "InvalidJson",
 		},
 		{
+			Case:               "invalid json reason with message",
 			Data:               []byte(`{"result": "error","reason": "InvalidJson", "message": "WeAreGoingToTheMoonKirby"}`),
 			ErrorExpected:      true,
 			ErrorShouldContain: "InvalidJson - WeAreGoingToTheMoonKirby",
@@ -981,12 +988,19 @@ func TestWsError(t *testing.T) {
 	}
 
 	for x := range tt {
-		err := e.wsHandleData(t.Context(), nil, tt[x].Data)
-		if tt[x].ErrorExpected && err != nil && !strings.Contains(err.Error(), tt[x].ErrorShouldContain) {
-			assert.Contains(t, err.Error(), tt[x].ErrorShouldContain, "error should contain expected substring")
-		} else if !tt[x].ErrorExpected && err != nil {
-			assert.NoError(t, err, "wsHandleData should not error for this payload")
-		}
+		tc := tt[x]
+		t.Run(tc.Case, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+
+			err := ex.wsHandleData(t.Context(), testexch.GetMockConn(t, ex, ""), tc.Data)
+			if tc.ErrorExpected && err != nil && !strings.Contains(err.Error(), tc.ErrorShouldContain) {
+				assert.Contains(t, err.Error(), tc.ErrorShouldContain, "error should contain expected substring")
+			} else if !tc.ErrorExpected && err != nil {
+				assert.NoError(t, err, "wsHandleData should not error for this payload")
+			}
+		})
 	}
 }
 
@@ -1039,7 +1053,7 @@ func TestWsLevel2Update(t *testing.T) {
 			}
 		]
 	}`)
-	if err := e.wsHandleData(t.Context(), nil, pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON); err != nil {
 		assert.NoError(t, err)
 	}
 }
