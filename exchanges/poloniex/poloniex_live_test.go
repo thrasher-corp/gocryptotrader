@@ -39,7 +39,7 @@ func (e *Exchange) populateTradablePairs() error {
 	if err := e.UpdateTradablePairs(context.Background()); err != nil {
 		return err
 	}
-	tradablePairs, err := e.GetEnabledPairs(asset.Spot)
+	tradablePairs, err := e.GetAvailablePairs(asset.Spot)
 	if err != nil {
 		return err
 	} else if len(tradablePairs) == 0 {
@@ -49,7 +49,7 @@ func (e *Exchange) populateTradablePairs() error {
 	if err != nil {
 		return err
 	}
-	tradablePairs, err = e.GetEnabledPairs(asset.Futures)
+	tradablePairs, err = e.GetAvailablePairs(asset.Futures)
 	if err != nil {
 		return err
 	} else if len(tradablePairs) == 0 {
