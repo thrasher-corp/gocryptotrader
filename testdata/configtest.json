@@ -816,7 +816,7 @@
       "enabled": "BTC-USDT",
       "available": "BTC-USDT"
      },
-     "futures": {
+     "usdtmarginedfutures": {
       "assetEnabled": true,
       "enabled": "BTC-USDT",
       "available": "BTC-USDT"

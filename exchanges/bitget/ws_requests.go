@@ -214,11 +214,11 @@ func (e *Exchange) sendWebsocketTradeRequest(ctx context.Context, epl request.En
 	}
 
 	outbound := struct {
-		Operation string `json:"op"`
-		Args      []any  `json:"args"`
+		Operation string                   `json:"op"`
+		Args      []*WebsocketTradeRequest `json:"args"`
 	}{
 		Operation: "trade",
-		Args:      []any{arg}, // Batch requests are not currently supported
+		Args:      []*WebsocketTradeRequest{arg}, // Batch requests are not currently supported by the exchange
 	}
 
 	got, err := conn.SendMessageReturnResponse(ctx, epl, arg.ID, outbound)

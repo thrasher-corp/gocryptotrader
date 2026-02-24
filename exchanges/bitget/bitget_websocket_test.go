@@ -87,7 +87,7 @@ func TestWsAuth(t *testing.T) {
 // }
 
 func TestWsHandleData(t *testing.T) {
-	// Not sure what issues this is preventing. If you figure that out, add a comment about it
+	// // Not sure what issues this is preventing. If you figure that out, add a comment about it
 	// ch := make(chan struct{})
 	// t.Cleanup(func() {
 	// 	close(ch)
@@ -95,7 +95,7 @@ func TestWsHandleData(t *testing.T) {
 	// go func() {
 	// 	for {
 	// 		select {
-	// 		case <-e.Websocket.DataHandler:
+	// 		case <-e.Websocket.DataHandler.C:
 	// 			continue
 	// 		case <-ch:
 	// 			return
@@ -253,10 +253,10 @@ func TestAccountSnapshotDataHandler(t *testing.T) {
 	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"account","instType":"spot"},"data":[{}]}`)
 	err = e.wsHandleData(ctx, fixtureConnection{}, mockJSON)
 	assert.NoError(t, err)
-	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"account","instType":"futures"},"data":[[]]}`)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"account","instType":"USDT-FUTURES"},"data":[[]]}`)
 	err = e.wsHandleData(ctx, fixtureConnection{}, mockJSON)
 	assert.ErrorContains(t, err, errUnmarshalArray)
-	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"account","instType":"futures"},"data":[{}]}`)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"account","instType":"USDT-FUTURES"},"data":[{}]}`)
 	err = e.wsHandleData(ctx, fixtureConnection{}, mockJSON)
 	assert.NoError(t, err)
 }
@@ -274,13 +274,13 @@ func TestFillDataHandler(t *testing.T) {
 	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"fill","instType":"spot"},"data":[{"symbol":"BTCUSD"}]}`)
 	err = e.wsHandleData(t.Context(), fixtureConnection{}, mockJSON)
 	assert.NoError(t, err)
-	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"fill","instType":"futures"},"data":[[]]}`)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"fill","instType":"USDT-FUTURES"},"data":[[]]}`)
 	err = e.wsHandleData(t.Context(), fixtureConnection{}, mockJSON)
 	assert.ErrorContains(t, err, errUnmarshalArray)
-	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"fill","instType":"futures"},"data":[{}]}`)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"fill","instType":"USDT-FUTURES"},"data":[{}]}`)
 	err = e.wsHandleData(t.Context(), fixtureConnection{}, mockJSON)
 	assert.ErrorIs(t, err, errUnknownPairQuote)
-	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"fill","instType":"futures"},"data":[{"symbol":"BTCUSD"}]}`)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"fill","instType":"USDT-FUTURES"},"data":[{"symbol":"BTCUSD"}]}`)
 	err = e.wsHandleData(t.Context(), fixtureConnection{}, mockJSON)
 	assert.NoError(t, err)
 }
@@ -302,10 +302,10 @@ func TestGenOrderDataHandler(t *testing.T) {
 	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders","instType":"spot"},"data":[{"instId":"BTCUSD","side":"sell"}]}`)
 	err = e.wsHandleData(t.Context(), fixtureConnection{}, mockJSON)
 	assert.NoError(t, err)
-	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders","instType":"futures"},"data":[{"instId":"BTCUSD","side":"buy","orderType":"limit","feeDetail":[{}]}]}`)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders","instType":"USDT-FUTURES"},"data":[{"instId":"BTCUSD","side":"buy","orderType":"limit","feeDetail":[{}]}]}`)
 	err = e.wsHandleData(t.Context(), fixtureConnection{}, mockJSON)
 	assert.NoError(t, err)
-	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders","instType":"futures"},"data":[{"instId":"BTCUSD","side":"sell"}]}`)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders","instType":"USDT-FUTURES"},"data":[{"instId":"BTCUSD","side":"sell"}]}`)
 	err = e.wsHandleData(t.Context(), fixtureConnection{}, mockJSON)
 	assert.NoError(t, err)
 }
@@ -324,13 +324,13 @@ func TestTriggerOrderDatHandler(t *testing.T) {
 	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders-algo","instType":"spot"},"data":[{"instId":"BTCUSD"}]}`)
 	err = e.wsHandleData(t.Context(), fixtureConnection{}, mockJSON)
 	assert.NoError(t, err)
-	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders-algo","instType":"futures"},"data":[[]]}`)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders-algo","instType":"USDT-FUTURES"},"data":[[]]}`)
 	err = e.wsHandleData(t.Context(), fixtureConnection{}, mockJSON)
 	assert.ErrorContains(t, err, errUnmarshalArray)
-	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders-algo","instType":"futures"},"data":[{}]}`)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders-algo","instType":"USDT-FUTURES"},"data":[{}]}`)
 	err = e.wsHandleData(t.Context(), fixtureConnection{}, mockJSON)
 	assert.ErrorIs(t, err, errUnknownPairQuote)
-	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders-algo","instType":"futures"},"data":[{"instId":"BTCUSD"}]}`)
+	mockJSON = []byte(`{"event":"snapshot","arg":{"channel":"orders-algo","instType":"USDT-FUTURES"},"data":[{"instId":"BTCUSD"}]}`)
 	err = e.wsHandleData(t.Context(), fixtureConnection{}, mockJSON)
 	assert.NoError(t, err)
 }
@@ -428,10 +428,10 @@ func TestAccountUpdateDataHandler(t *testing.T) {
 	mockJSON = []byte(`{"event":"update","arg":{"channel":"account","instType":"spot"},"data":[{"uTime":"1750142570"}]}`)
 	err = e.wsHandleData(t.Context(), fixtureConnection{}, mockJSON)
 	assert.NoError(t, err)
-	mockJSON = []byte(`{"event":"update","arg":{"channel":"account","instType":"futures"},"data":[[]]}`)
+	mockJSON = []byte(`{"event":"update","arg":{"channel":"account","instType":"USDT-FUTURES"},"data":[[]]}`)
 	err = e.wsHandleData(t.Context(), fixtureConnection{}, mockJSON)
 	assert.ErrorContains(t, err, errUnmarshalArray)
-	mockJSON = []byte(`{"event":"update","arg":{"channel":"account","instType":"futures"},"data":[{}]}`)
+	mockJSON = []byte(`{"event":"update","arg":{"channel":"account","instType":"USDT-FUTURES"},"data":[{}]}`)
 	err = e.wsHandleData(t.Context(), fixtureConnection{}, mockJSON)
 	assert.NoError(t, err)
 }

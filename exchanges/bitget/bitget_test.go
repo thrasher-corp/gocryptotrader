@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -97,6 +98,7 @@ func TestMain(m *testing.M) {
 	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("Bybit Setup error: %s", err)
 	}
+	e.Websocket.DataHandler = stream.NewRelay(sharedtestvalues.WebsocketRelayBufferCapacity)
 	if apiKey != "" && apiSecret != "" && clientID != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
@@ -108,6 +110,15 @@ func TestMain(m *testing.M) {
 	case "encoding/json":
 		errUnmarshalArray = "cannot unmarshal array"
 	}
+	// stream.Fr.Start()
+	go func() {
+		for {
+			select {
+			case <-e.Websocket.DataHandler.C:
+				continue
+			}
+		}
+	}()
 	os.Exit(m.Run())
 }
 
@@ -2767,9 +2778,9 @@ func TestUpdateTicker(t *testing.T) {
 	assert.Error(t, err)
 	_, err = e.UpdateTicker(t.Context(), testPair, asset.Spot)
 	assert.NoError(t, err)
-	_, err = e.UpdateTicker(t.Context(), fakePair, asset.USDTMarginedFutures)
+	_, err = e.UpdateTicker(t.Context(), fakePair, asset.CoinMarginedFutures)
 	assert.Error(t, err)
-	_, err = e.UpdateTicker(t.Context(), testPair, asset.CoinMarginedFutures)
+	_, err = e.UpdateTicker(t.Context(), testPair, asset.USDTMarginedFutures)
 	assert.NoError(t, err)
 	_, err = e.UpdateTicker(t.Context(), fakePair, asset.Margin)
 	assert.Error(t, err)
@@ -3058,13 +3069,13 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	_, err = e.GetHistoricCandlesExtended(t.Context(), testPair, asset.Spot, kline.OneHour, time.Now().Add(-time.Hour*24), time.Now())
 	assert.NoError(t, err)
-	_, err = e.GetHistoricCandlesExtended(t.Context(), testPair, asset.CoinMarginedFutures, kline.OneHour, time.Now().Add(-time.Hour*24), time.Now())
+	_, err = e.GetHistoricCandlesExtended(t.Context(), testPair, asset.USDTMarginedFutures, kline.OneHour, time.Now().Add(-time.Hour*24), time.Now())
 	assert.NoError(t, err)
 }
 
 func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
-	testGetOneArg(t, e.GetFuturesContractDetails, asset.Empty, asset.Empty, nil, false, false, true)
+	testGetOneArg(t, e.GetFuturesContractDetails, asset.Empty, asset.USDTMarginedFutures, errProductTypeEmpty, false, false, true)
 }
 
 func TestGetLatestFundingRates(t *testing.T) {
@@ -3145,7 +3156,8 @@ func TestGetFuturesPositionOrders(t *testing.T) {
 func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
 	req := &fundingrate.HistoricalRatesRequest{
-		Pair: testPair,
+		Pair:  testPair,
+		Asset: asset.USDTMarginedFutures,
 	}
 	testGetOneArg(t, e.GetHistoricalFundingRates, nil, req, common.ErrNilPointer, false, false, false)
 }

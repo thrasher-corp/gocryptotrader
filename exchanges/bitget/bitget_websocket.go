@@ -52,6 +52,8 @@ const (
 	bitgetOrdersCrossedChannel    = "orders-crossed"
 	bitgetAccountIsolatedChannel  = "account-isolated"
 	bitgetOrdersIsolatedChannel   = "orders-isolated"
+
+	loginErrorCode = 30005
 )
 
 var subscriptionNames = map[asset.Item]map[string]string{
@@ -206,17 +208,14 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 			log.Debugf(log.ExchangeSys, "%v - Websocket %v succeeded for %v\n", e.Name, wsResponse.Event, wsResponse.Arg)
 		}
 	case "error":
-		if conn.IncomingWithData("login-response", respRaw) {
+		if wsResponse.Code == loginErrorCode && conn.IncomingWithData("login-response", respRaw) {
 			return nil
 		}
-		var args []map[string]any
-		if err := json.Unmarshal(wsResponse.Arg, &args); err != nil {
-			return err
-		}
-		if len(args) == 1 {
-			if id, ok := args[0]["id"]; ok {
-				if idStr, ok := id.(string); ok {
-					return conn.RequireMatchWithData(idStr, respRaw)
+		var args []WsOrderResponse
+		if err := json.Unmarshal(wsResponse.Arg, &args); err == nil {
+			if len(args) == 1 {
+				if id := args[0].ID; id != "" {
+					return conn.RequireMatchWithData(id, respRaw)
 				}
 			}
 		}
@@ -254,7 +253,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		case bitgetAccountCrossedChannel:
 			return e.crossAccountDataHandler(ctx, wsResponse)
 		case bitgetOrdersCrossedChannel, bitgetOrdersIsolatedChannel:
-			return e.marginOrderDataHandler(ctx, wsResponse, arg.InstrumentType, arg.Channel)
+			return e.marginOrderDataHandler(ctx, wsResponse, arg.InstrumentID, arg.Channel)
 		case bitgetAccountIsolatedChannel:
 			return e.isolatedAccountDataHandler(ctx, wsResponse)
 		default:
@@ -278,15 +277,13 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 			return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)})
 		}
 	case "trade":
-		var args []map[string]any
+		var args []WsOrderResponse
 		if err := json.Unmarshal(wsResponse.Arg, &args); err != nil {
 			return err
 		}
 		if len(args) == 1 {
-			if id, ok := args[0]["id"]; ok {
-				if idStr, ok := id.(string); ok {
-					return conn.RequireMatchWithData(idStr, respRaw)
-				}
+			if id := args[0].ID; id != "" {
+				return conn.RequireMatchWithData(id, respRaw)
 			}
 		}
 		return errors.New("unable to correlate trade response")
@@ -883,13 +880,13 @@ func (e *Exchange) crossAccountDataHandler(ctx context.Context, wsResponse *WsRe
 }
 
 // MarginOrderDataHandler handles margin order data
-func (e *Exchange) marginOrderDataHandler(ctx context.Context, wsResponse *WsResponse, instrumentType, channel string) error {
+func (e *Exchange) marginOrderDataHandler(ctx context.Context, wsResponse *WsResponse, instrumentID, channel string) error {
 	var orders []WsOrderMarginResponse
 	if err := json.Unmarshal(wsResponse.Data, &orders); err != nil {
 		return err
 	}
 	resp := make([]order.Detail, len(orders))
-	pair, err := pairFromStringHelper(instrumentType)
+	pair, err := pairFromStringHelper(instrumentID)
 	if err != nil {
 		return err
 	}
@@ -1095,7 +1092,7 @@ func (e *Exchange) reqBuilder(req *WsRequest, sub *subscription.Subscription) er
 		req.Arguments = append(req.Arguments, WsArgument{
 			Channel:        sub.Channel,
 			InstrumentType: itemEncoder(sub.Asset),
-			Coin:           currency.NewCode("default"),
+			Coin:           currency.NewCode("default"), // TODO: Because of this field, split its host type off into its own unique type
 			InstrumentID:   "default",
 		})
 	}

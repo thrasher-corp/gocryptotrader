@@ -2798,13 +2798,22 @@ type WsArgument struct {
 	InstrumentType string        `json:"instType"`
 	Channel        string        `json:"channel"`
 	InstrumentID   string        `json:"instId,omitempty"`
-	Coin           currency.Code `json:"coin,omitzero"`
+	Coin           currency.Code `json:"coin,omitzero"` // TODO: Delete this and split it off into its own requests type
 }
 
 // WsRequest contains information on a websocket request
 type WsRequest struct {
 	Operation string       `json:"op"`
 	Arguments []WsArgument `json:"args"`
+}
+
+// WsOrderResponse contains information on an order placed or cancelled through the websocket
+type WsOrderResponse struct {
+	ID             string          `json:"id"`
+	InstrumentType string          `json:"instType"`
+	InstrumentID   string          `json:"instId"`
+	Channel        string          `json:"channel"`
+	Params         json.RawMessage `json:"params"`
 }
 
 // WsLoginArgument contains information used in a websocket login request
