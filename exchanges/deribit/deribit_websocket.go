@@ -103,29 +103,15 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.All, Channel: subscription.MyTradesChannel, Interval: kline.HundredMilliseconds, Authenticated: true},
 }
 
-// WsConnect starts a new connection with the websocket API
-func (e *Exchange) WsConnect() error {
-	ctx := context.TODO()
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
-		return websocket.ErrWebsocketNotEnabled
-	}
-	var dialer gws.Dialer
-	if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}); err != nil {
+func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
+	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(ctx)
-	go e.wsStartHeartbeat(ctx)
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		if err := e.wsLogin(ctx); err != nil {
-			log.Errorf(log.ExchangeSys, "%v - authentication failed: %v\n", e.Name, err)
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		}
-	}
+	go e.wsStartHeartbeat(ctx, conn)
 	return nil
 }
 
-func (e *Exchange) wsStartHeartbeat(ctx context.Context) {
+func (e *Exchange) wsStartHeartbeat(ctx context.Context, conn websocket.Connection) {
 	msg := wsInput{
 		ID:             e.MessageID(),
 		JSONRPCVersion: rpcVersion,
@@ -134,7 +120,7 @@ func (e *Exchange) wsStartHeartbeat(ctx context.Context) {
 			"interval": 15,
 		},
 	}
-	respRaw, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, msg.ID, msg)
+	respRaw, err := conn.SendMessageReturnResponse(ctx, request.Unset, msg.ID, msg)
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%v %s: %s\n", e.Name, errStartingHeartbeat, err)
 		return
@@ -148,10 +134,7 @@ func (e *Exchange) wsStartHeartbeat(ctx context.Context) {
 	}
 }
 
-func (e *Exchange) wsLogin(ctx context.Context) error {
-	if !e.IsWebsocketAuthenticationSupported() {
-		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", e.Name)
-	}
+func (e *Exchange) wsAuthenticate(ctx context.Context, conn websocket.Connection) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -177,7 +160,7 @@ func (e *Exchange) wsLogin(ctx context.Context) error {
 			"signature":  hex.EncodeToString(hmac),
 		},
 	}
-	resp, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
+	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
 	if err != nil {
 		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -193,38 +176,21 @@ func (e *Exchange) wsLogin(ctx context.Context) error {
 	return nil
 }
 
-// wsReadData receives and passes on websocket messages for processing
-func (e *Exchange) wsReadData(ctx context.Context) {
-	defer e.Websocket.Wg.Done()
-
-	for {
-		resp := e.Websocket.Conn.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		if err := e.wsHandleData(ctx, resp.Raw); err != nil {
-			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
-			}
-		}
-	}
-}
-
-func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	var response wsResponse
 	err := json.Unmarshal(respRaw, &response)
 	if err != nil {
 		return fmt.Errorf("%s - err %s could not parse websocket data: %s", e.Name, err, respRaw)
 	}
 	if response.Method == "heartbeat" {
-		go e.wsSendHeartbeat(ctx)
+		go e.wsSendHeartbeat(ctx, conn)
 		return nil
 	}
 	if response.ID != "" {
 		if strings.HasPrefix(response.ID, "hb-") {
 			return nil
 		}
-		return e.Websocket.Match.RequireMatchWithData(response.ID, respRaw)
+		return conn.RequireMatchWithData(response.ID, respRaw)
 	}
 	channels := strings.Split(response.Params.Channel, ".")
 	switch channels[0] {
@@ -318,13 +284,13 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	return nil
 }
 
-func (e *Exchange) wsSendHeartbeat(ctx context.Context) {
+func (e *Exchange) wsSendHeartbeat(ctx context.Context, conn websocket.Connection) {
 	msg := WsSubscriptionInput{
 		ID:             "hb-" + e.MessageID(),
 		JSONRPCVersion: rpcVersion,
 		Method:         "public/test",
 	}
-	if err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, msg); err != nil {
+	if err := conn.SendJSONMessage(ctx, request.Unset, msg); err != nil {
 		log.Errorf(log.ExchangeSys, "%v %s: %s\n", e.Name, errSendingHeartbeat, err)
 	}
 }
@@ -799,21 +765,17 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 		Parse(subTplText)
 }
 
-// Subscribe sends a websocket message to receive data from the channel
-func (e *Exchange) Subscribe(subs subscription.List) error {
-	ctx := context.TODO()
-	errs := e.handleSubscription(ctx, "public/subscribe", subs.Public())
-	return common.AppendError(errs, e.handleSubscription(ctx, "private/subscribe", subs.Private()))
+func (e *Exchange) subscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	errs := e.handleSubscription(ctx, conn, "public/subscribe", subs.Public())
+	return common.AppendError(errs, e.handleSubscription(ctx, conn, "private/subscribe", subs.Private()))
 }
 
-// Unsubscribe sends a websocket message to stop receiving data from the channel
-func (e *Exchange) Unsubscribe(subs subscription.List) error {
-	ctx := context.TODO()
-	errs := e.handleSubscription(ctx, "public/unsubscribe", subs.Public())
-	return common.AppendError(errs, e.handleSubscription(ctx, "private/unsubscribe", subs.Private()))
+func (e *Exchange) unsubscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	errs := e.handleSubscription(ctx, conn, "public/unsubscribe", subs.Public())
+	return common.AppendError(errs, e.handleSubscription(ctx, conn, "private/unsubscribe", subs.Private()))
 }
 
-func (e *Exchange) handleSubscription(ctx context.Context, method string, subs subscription.List) error {
+func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connection, method string, subs subscription.List) error {
 	var err error
 	subs, err = subs.ExpandTemplates(e)
 	if err != nil || len(subs) == 0 {
@@ -827,7 +789,7 @@ func (e *Exchange) handleSubscription(ctx context.Context, method string, subs s
 		Params:         map[string][]string{"channels": subs.QualifiedChannels()},
 	}
 
-	data, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, r.ID, r)
+	data, err := conn.SendMessageReturnResponse(ctx, request.Unset, r.ID, r)
 	if err != nil {
 		return err
 	}
@@ -848,9 +810,9 @@ func (e *Exchange) handleSubscription(ctx context.Context, method string, subs s
 		if _, ok := subAck[s.QualifiedChannel]; ok {
 			delete(subAck, s.QualifiedChannel)
 			if !strings.Contains(method, "unsubscribe") {
-				err = common.AppendError(err, e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, s))
+				err = common.AppendError(err, e.Websocket.AddSuccessfulSubscriptions(conn, s))
 			} else {
-				err = common.AppendError(err, e.Websocket.RemoveSubscriptions(e.Websocket.Conn, s))
+				err = common.AppendError(err, e.Websocket.RemoveSubscriptions(conn, s))
 			}
 		} else {
 			err = common.AppendError(err, errors.New(s.String()+" failed to "+method))

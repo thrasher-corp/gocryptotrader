@@ -3915,7 +3915,8 @@ func TestOrderPushData(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsOrders.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, nil, b) })
+	conn := testexch.GetMockConn(t, e, "")
+	testexch.FixtureToDataHandler(t, "testdata/wsOrders.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, conn, b) })
 	e.Websocket.DataHandler.Close()
 	require.Len(t, e.Websocket.DataHandler.C, 4, "Should see 4 orders")
 	for resp := range e.Websocket.DataHandler.C {
@@ -4019,6 +4020,7 @@ func TestWsHandleData(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
+	conn := testexch.GetMockConn(t, e, "")
 
 	for name, msg := range pushDataMap {
 		switch name {
@@ -4030,7 +4032,7 @@ func TestWsHandleData(t *testing.T) {
 			e.API.AuthenticatedSupport = false
 			e.API.AuthenticatedWebsocketSupport = false
 		}
-		err := e.wsHandleData(t.Context(), nil, []byte(msg))
+		err := e.wsHandleData(t.Context(), conn, []byte(msg))
 		if name == "Balance Save Error" {
 			assert.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "wsProcessBalanceAndPosition Accounts.Save should error without credentials")
 		} else {
@@ -4047,8 +4049,9 @@ func TestPushDataDynamic(t *testing.T) {
 		"Snapshot OrderBook": `{"arg":{"channel":"books","instId":"BTC-USD-SWAP"},"action":"snapshot","data":[{"asks":[["0.07026","5","0","1"],["0.07027","765","0","3"],["0.07028","110","0","1"],["0.0703","1264","0","1"],["0.07034","280","0","1"],["0.07035","2255","0","1"],["0.07036","28","0","1"],["0.07037","63","0","1"],["0.07039","137","0","2"],["0.0704","48","0","1"],["0.07041","32","0","1"],["0.07043","3985","0","1"],["0.07057","257","0","1"],["0.07058","7870","0","1"],["0.07059","161","0","1"],["0.07061","4539","0","1"],["0.07068","1438","0","3"],["0.07088","3162","0","1"],["0.07104","99","0","1"],["0.07108","5018","0","1"],["0.07115","1540","0","1"],["0.07129","5080","0","1"],["0.07145","1512","0","1"],["0.0715","5016","0","1"],["0.07171","5026","0","1"],["0.07192","5062","0","1"],["0.07197","1517","0","1"],["0.0726","1511","0","1"],["0.07314","10376","0","1"],["0.07354","1","0","1"],["0.07466","10277","0","1"],["0.07626","269","0","1"],["0.07636","269","0","1"],["0.0809","1","0","1"],["0.08899","1","0","1"],["0.09789","1","0","1"],["0.10768","1","0","1"]],"bids":[["0.07014","56","0","2"],["0.07011","608","0","1"],["0.07009","110","0","1"],["0.07006","1264","0","1"],["0.07004","2347","0","3"],["0.07003","279","0","1"],["0.07001","52","0","1"],["0.06997","91","0","1"],["0.06996","4242","0","2"],["0.06995","486","0","1"],["0.06992","161","0","1"],["0.06991","63","0","1"],["0.06988","7518","0","1"],["0.06976","186","0","1"],["0.06975","71","0","1"],["0.06973","1086","0","1"],["0.06961","513","0","2"],["0.06959","4603","0","1"],["0.0695","186","0","1"],["0.06946","3043","0","1"],["0.06939","103","0","1"],["0.0693","5053","0","1"],["0.06909","5039","0","1"],["0.06888","5037","0","1"],["0.06886","1526","0","1"],["0.06867","5008","0","1"],["0.06846","5065","0","1"],["0.06826","1572","0","1"],["0.06801","1565","0","1"],["0.06748","67","0","1"],["0.0674","111","0","1"],["0.0672","10038","0","1"],["0.06652","1","0","1"],["0.06625","1526","0","1"],["0.06619","10924","0","1"],["0.05986","1","0","1"],["0.05387","1","0","1"],["0.04848","1","0","1"],["0.04363","1","0","1"]],"ts":"1659792392540","checksum":-1462286744}]}`,
 	}
 	var err error
+	conn := testexch.GetMockConn(t, e, "")
 	for x := range dataMap {
-		err = e.wsHandleData(t.Context(), nil, []byte(dataMap[x]))
+		err = e.wsHandleData(t.Context(), conn, []byte(dataMap[x]))
 		require.NoError(t, err)
 	}
 }
@@ -4074,7 +4077,7 @@ func TestWSProcessTrades(t *testing.T) {
 	p := currency.NewPairWithDelimiter("BTC", "USDT", currency.DashDelimiter)
 
 	for _, a := range assets {
-		err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{
+		err := e.Websocket.AddSubscriptions(nil, &subscription.Subscription{
 			Asset:   a,
 			Pairs:   currency.Pairs{p},
 			Channel: subscription.AllTradesChannel,
@@ -4082,7 +4085,8 @@ func TestWSProcessTrades(t *testing.T) {
 		})
 		require.NoError(t, err, "AddSubscriptions must not error")
 	}
-	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, nil, b) })
+	conn := testexch.GetMockConn(t, e, "")
+	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, conn, b) })
 
 	exp := []trade.Data{
 		{
@@ -6142,7 +6146,9 @@ func TestBusinessWSCandleSubscriptions(t *testing.T) {
 
 	require.NoError(t, e.Websocket.Connect(t.Context()))
 
-	conn, err := e.Websocket.GetConnection(businessConnection)
+	wsBusinessURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
+	require.NoError(t, err)
+	conn, err := e.Websocket.GetConnection(wsBusinessURL)
 	require.NoError(t, err, "GetConnection must not error")
 
 	err = e.BusinessSubscribe(t.Context(), conn, subscription.List{{Channel: channelCandle1D}})

@@ -14,14 +14,17 @@ import (
 	"sync"
 	"testing"
 
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
@@ -237,3 +240,64 @@ func UpdatePairsOnce(tb testing.TB, e exchange.IBotExchange) {
 	cache.Load(&b.CurrencyPairs)
 	updatePairsOnce[e.GetName()] = cache
 }
+
+// GetMockConn returns a mock websocket connection that can be used to test websocket handlers without needing to connect to a real websocket server
+func GetMockConn(tb testing.TB, e exchange.IBotExchange, u string) websocket.Connection {
+	tb.Helper()
+	b := e.GetBase()
+	return &mockConn{
+		match: b.Websocket.Match,
+		url:   u,
+	}
+}
+
+type mockConn struct {
+	match *websocket.Match
+	url   string
+}
+
+func (m *mockConn) Dial(context.Context, *gws.Dialer, http.Header) error {
+	return nil
+}
+func (m *mockConn) ReadMessage() websocket.Response { return websocket.Response{} }
+func (m *mockConn) SetupPingHandler(request.EndpointLimit, websocket.PingHandler) {
+}
+
+func (m *mockConn) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
+	return nil, nil
+}
+
+func (m *mockConn) SendMessageReturnResponses(context.Context, request.EndpointLimit, any, any, int) ([][]byte, error) {
+	return nil, nil
+}
+
+func (m *mockConn) SendMessageReturnResponsesWithInspector(context.Context, request.EndpointLimit, any, any, int, websocket.Inspector) ([][]byte, error) {
+	return nil, nil
+}
+
+func (m *mockConn) SendRawMessage(context.Context, request.EndpointLimit, int, []byte) error {
+	return nil
+}
+
+func (m *mockConn) SendJSONMessage(context.Context, request.EndpointLimit, any) error {
+	return nil
+}
+func (m *mockConn) SetURL(u string) { m.url = u }
+func (m *mockConn) SetProxy(string) {}
+func (m *mockConn) GetURL() string  { return m.url }
+func (m *mockConn) Shutdown() error { return nil }
+func (m *mockConn) RequireMatchWithData(signature any, incoming []byte) error {
+	if m.match == nil {
+		return nil
+	}
+	return m.match.RequireMatchWithData(signature, incoming)
+}
+
+func (m *mockConn) IncomingWithData(signature any, data []byte) bool {
+	return m.match != nil && m.match.IncomingWithData(signature, data)
+}
+
+func (m *mockConn) MatchReturnResponses(context.Context, any, int) (<-chan websocket.MatchedResponse, error) {
+	return nil, nil
+}
+func (m *mockConn) Subscriptions() *subscription.Store { return nil }

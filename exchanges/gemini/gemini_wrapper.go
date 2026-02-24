@@ -102,8 +102,9 @@ func (e *Exchange) SetDefaults() {
 	}
 	e.API.Endpoints = e.NewEndpoints()
 	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:      geminiAPIURL,
-		exchange.WebsocketSpot: geminiWebsocketEndpoint,
+		exchange.RestSpot:                   geminiAPIURL,
+		exchange.WebsocketSpot:              geminiWebsocketEndpoint + "/v2/" + geminiWsMarketData,
+		exchange.WebsocketSpotSupplementary: geminiWebsocketEndpoint + "/v1/" + geminiWsOrderEvents,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -136,39 +137,51 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		}
 	}
 
-	wsRunningURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	wsPublicURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
 
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            geminiWebsocketEndpoint,
-		RunningURL:            wsRunningURL,
-		Connector:             e.WsConnect,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
-		GenerateSubscriptions: e.generateSubscriptions,
-		Features:              &e.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:               exch,
+		UseMultiConnectionManagement: true,
+		Features:                     &e.Features.Supports.WebsocketCapabilities,
 	})
 	if err != nil {
 		return err
 	}
 
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  geminiWebsocketEndpoint + "/v2/" + geminiWsMarketData,
+		URL:                   wsPublicURL,
+		Connector:             e.wsConnect,
+		Subscriber:            e.subscribeForConnection,
+		Unsubscriber:          e.unsubscribeForConnection,
+		GenerateSubscriptions: e.generatePublicSubscriptions,
+		Handler:               e.wsHandleData,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		MessageFilter:         wsPublicURL,
 	})
 	if err != nil {
 		return err
 	}
 
+	authWSURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
+	if err != nil {
+		return err
+	}
+	if !exch.API.AuthenticatedWebsocketSupport {
+		return nil
+	}
+
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  geminiWebsocketEndpoint + "/v1/" + geminiWsOrderEvents,
-		Authenticated:        true,
+		URL:                      authWSURL,
+		Connector:                e.wsAuthConnect,
+		SubscriptionsNotRequired: true,
+		Handler:                  e.wsHandleData,
+		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+		MessageFilter:            authWSURL,
 	})
 }
 

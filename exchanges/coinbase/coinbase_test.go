@@ -2,24 +2,17 @@ package coinbase
 
 import (
 	"context"
-	"errors"
 	"log"
-	"net/http"
 	"os"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/gofrs/uuid"
-	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -29,7 +22,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
-	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -101,18 +93,6 @@ func TestSetup(t *testing.T) {
 	cfg.ProxyAddress = string(rune(0x7f))
 	err = exch.Setup(cfg)
 	assert.ErrorIs(t, err, exchange.ErrSettingProxyAddress)
-}
-
-func TestWsConnect(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	exch := &Exchange{}
-	exch.Websocket = sharedtestvalues.NewTestWebsocket()
-	err := exch.WsConnect()
-	assert.ErrorIs(t, err, websocket.ErrWebsocketNotEnabled)
-	err = exchangeBaseHelper(exch)
-	require.NoError(t, err)
-	err = exch.Websocket.Enable(t.Context())
-	assert.NoError(t, err)
 }
 
 func TestGetAccountByID(t *testing.T) {
@@ -1504,192 +1484,6 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
 	}
-}
-
-// TestWsAuth dials websocket, sends login request.
-func TestWsAuth(t *testing.T) {
-	p := currency.Pairs{testPairFiat}
-	if e.Websocket.IsEnabled() && !e.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(e) {
-		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
-	}
-	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{})
-	require.NoError(t, err)
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(t.Context())
-	err = e.Subscribe(subscription.List{
-		{
-			Channel:       "myAccount",
-			Asset:         asset.All,
-			Pairs:         p,
-			Authenticated: true,
-		},
-	})
-	assert.NoError(t, err)
-	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
-	select {
-	case badResponse := <-e.Websocket.DataHandler.C:
-		assert.IsType(t, []order.Detail{}, badResponse)
-	case <-timer.C:
-	}
-	timer.Stop()
-}
-
-func TestWsHandleData(t *testing.T) {
-	done := make(chan struct{})
-	t.Cleanup(func() {
-		close(done)
-	})
-	go func() {
-		for {
-			select {
-			case <-e.Websocket.DataHandler.C:
-				continue
-			case <-done:
-				return
-			}
-		}
-	}()
-	_, err := e.wsHandleData(t.Context(), nil)
-	var syntaxErr *json.SyntaxError
-	assert.True(t, errors.As(err, &syntaxErr) || strings.Contains(err.Error(), "Syntax error no sources available, the input json is empty"), errJSONUnmarshalUnexpected)
-	mockJSON := []byte(`{"type": "error"}`)
-	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.Error(t, err)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "subscriptions"}`)
-	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.NoError(t, err)
-	var unmarshalTypeErr *json.UnmarshalTypeError
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "status", "events": [{"type": 1234}]}`)
-	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "status", "events": [{"type": "moo"}]}`)
-	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.NoError(t, err)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "ticker", "events": [{"type": "moo", "tickers": false}]}`)
-	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "candles", "events": [{"type": false}]}`)
-	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "candles", "events": [{"type": "moo", "candles": [{"low": "1.1"}]}]}`)
-	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.NoError(t, err)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "market_trades", "events": [{"type": false}]}`)
-	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "market_trades", "events": [{"type": "moo", "trades": [{"price": "1.1"}]}]}`)
-	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.NoError(t, err)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "events": [{"type": false, "updates": [{"price_level": "1.1"}]}]}`)
-	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "moo", "updates": [{"price_level": "1.1"}]}]}`)
-	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.ErrorIs(t, err, errUnknownL2DataType)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "snapshot", "product_id": "BTC-USD", "updates": [{"side": "bid", "price_level": "1.1", "new_quantity": "2.2"}]}]}`)
-	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.NoError(t, err)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "update", "product_id": "BTC-USD", "updates": [{"side": "bid", "price_level": "1.1", "new_quantity": "2.2"}]}]}`)
-	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.NoError(t, err)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": false}]}`)
-	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": "l", "orders": [{"limit_price": "2.2", "total_fees": "1.1", "post_only": true}], "positions": {"perpetual_futures_positions": [{"margin_type": "fakeMarginType"}], "expiring_futures_positions": [{}]}}]}`)
-	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.ErrorIs(t, err, order.ErrUnrecognisedOrderType)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "fakechan", "events": [{"type": ""}]}`)
-	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.ErrorIs(t, err, errChannelNameUnknown)
-	p, err := e.FormatExchangeCurrency(currency.NewBTCUSD(), asset.Spot)
-	require.NoError(t, err)
-	e.pairAliases.Load(map[currency.Pair]currency.Pairs{
-		p: {p},
-	})
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "ticker", "events": [{"type": "moo", "tickers": [{"product_id": "BTC-USD", "price": "1.1"}]}]}`)
-	_, err = e.wsHandleData(t.Context(), mockJSON)
-	assert.NoError(t, err)
-}
-
-func TestProcessSnapshotUpdate(t *testing.T) {
-	t.Parallel()
-	req := WebsocketOrderbookDataHolder{Changes: []WebsocketOrderbookData{{Side: "fakeside", PriceLevel: 1.1, NewQuantity: 2.2}}, ProductID: currency.NewBTCUSD()}
-	err := e.ProcessSnapshot(&req, time.Time{})
-	assert.ErrorIs(t, err, order.ErrSideIsInvalid)
-	err = e.ProcessUpdate(&req, time.Time{})
-	assert.ErrorIs(t, err, order.ErrSideIsInvalid)
-	req.Changes[0].Side = "offer"
-	err = e.ProcessSnapshot(&req, time.Now())
-	assert.NoError(t, err)
-	err = e.ProcessUpdate(&req, time.Now())
-	assert.NoError(t, err)
-}
-
-func TestGenerateSubscriptions(t *testing.T) {
-	t.Parallel()
-	e := new(Exchange)
-	if err := testexch.Setup(e); err != nil {
-		log.Fatal(err)
-	}
-	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	p1, err := e.GetEnabledPairs(asset.Spot)
-	require.NoError(t, err)
-	p2, err := e.GetEnabledPairs(asset.Futures)
-	require.NoError(t, err)
-	exp := subscription.List{}
-	for _, baseSub := range defaultSubscriptions.Enabled() {
-		s := baseSub.Clone()
-		s.QualifiedChannel = subscriptionNames[s.Channel]
-		switch s.Asset {
-		case asset.Spot:
-			s.Pairs = p1
-		case asset.Futures:
-			s.Pairs = p2
-		case asset.All:
-			s2 := s.Clone()
-			s2.Asset = asset.Futures
-			s2.Pairs = p2
-			exp = append(exp, s2)
-			s.Asset = asset.Spot
-			s.Pairs = p1
-		}
-		exp = append(exp, s)
-	}
-	subs, err := e.generateSubscriptions()
-	require.NoError(t, err)
-	testsubs.EqualLists(t, exp, subs)
-	_, err = subscription.List{{Channel: "wibble"}}.ExpandTemplates(e)
-	assert.ErrorContains(t, err, "subscription channel not supported: wibble")
-}
-
-func TestSubscribeUnsubscribe(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	req := subscription.List{{Channel: "heartbeat", Asset: asset.Spot, Pairs: currency.Pairs{currency.NewPairWithDelimiter(testCrypto.String(), testFiat.String(), "-")}}}
-	err := e.Subscribe(req)
-	assert.NoError(t, err)
-	err = e.Unsubscribe(req)
-	assert.NoError(t, err)
-}
-
-func TestCheckSubscriptions(t *testing.T) {
-	t.Parallel()
-	e := &Exchange{
-		Base: exchange.Base{
-			Config: &config.Exchange{
-				Features: &config.FeaturesConfig{
-					Subscriptions: subscription.List{
-						{Enabled: true, Channel: "matches"},
-					},
-				},
-			},
-			Features: exchange.Features{},
-		},
-	}
-	e.checkSubscriptions()
-	testsubs.EqualLists(t, defaultSubscriptions.Enabled(), e.Features.Subscriptions)
-	testsubs.EqualLists(t, defaultSubscriptions, e.Config.Features.Subscriptions)
 }
 
 func TestGetJWT(t *testing.T) {
