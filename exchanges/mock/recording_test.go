@@ -102,7 +102,7 @@ var testVal = []TestStructLevel0{
 		StructVal: TestStructLevel1{
 			OkayVal:  "stuff",
 			OkayVal2: 120938,
-			BadVal:   "CritcalBankingStuff",
+			BadVal:   "CriticalBankingStuff",
 			BadVal2:  1337,
 			OtherData: TestStructLevel2{
 				OkayVal:  "stuff",
@@ -160,7 +160,7 @@ func TestCheckJSON(t *testing.T) {
 
 	newStruct := []TestStructLevel0{}
 	err = json.Unmarshal(payload, &newStruct)
-	require.NoError(t, err, "Umarshal must not error")
+	require.NoError(t, err, "Unmarshal must not error")
 
 	assert.Len(t, newStruct, 4)
 	assert.Empty(t, newStruct[0].StructVal.BadVal, "Value not wiped correctly")

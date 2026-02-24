@@ -364,17 +364,17 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 		}
 
 		wg.Go(func() {
-			//nolint:gosec // no need to import crypo/rand for testing
+			//nolint:gosec // no need to import crypto/rand for testing
 			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10)
-			newPairs, err := currency.NewPairFromStrings("BTC"+strconv.FormatInt(rand.Int63(), 10), //nolint:gosec // no need to import crypo/rand for testing
-				"USD"+strconv.FormatInt(rand.Int63(), 10)) //nolint:gosec // no need to import crypo/rand for testing
+			newPairs, err := currency.NewPairFromStrings("BTC"+strconv.FormatInt(rand.Int63(), 10), //nolint:gosec // no need to import crypto/rand for testing
+				"USD"+strconv.FormatInt(rand.Int63(), 10)) //nolint:gosec // no need to import crypto/rand for testing
 			if err != nil {
 				log.Fatal(err)
 			}
 
 			tp := Price{
 				Pair:         newPairs,
-				Last:         rand.Float64(), //nolint:gosec // no need to import crypo/rand for testing
+				Last:         rand.Float64(), //nolint:gosec // no need to import crypto/rand for testing
 				ExchangeName: newName,
 				AssetType:    asset.Spot,
 			}
