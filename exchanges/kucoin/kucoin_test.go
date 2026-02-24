@@ -4092,6 +4092,15 @@ func TestGetInterestRate(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestGetBorrowInterestRate(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+
+	result, err := e.GetBorrowInterestRate(t.Context())
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestMarginLendingSubscription(t *testing.T) {
 	t.Parallel()
 	_, err := e.MarginLendingSubscription(t.Context(), currency.EMPTYCODE, 1, 0.22)

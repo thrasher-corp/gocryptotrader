@@ -130,6 +130,8 @@ type Rate struct {
 	MarketBorrowSize decimal.Decimal
 	HourlyRate       decimal.Decimal
 	YearlyRate       decimal.Decimal
+	HourlyBorrowRate decimal.Decimal
+	YearlyBorrowRate decimal.Decimal
 	BorrowCost       BorrowCost
 }
 

@@ -2276,6 +2276,12 @@ func (e *Exchange) GetInterestRate(ctx context.Context, ccy currency.Code) ([]In
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, interestRateEPL, "/v3/project/marketInterestRate?currency="+ccy.String(), &resp)
 }
 
+// GetBorrowInterestRate retrieves current borrow interest rates for margin currencies.
+func (e *Exchange) GetBorrowInterestRate(ctx context.Context) ([]BorrowInterestRate, error) {
+	var resp []BorrowInterestRate
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, borrowInterestRateEPL, http.MethodGet, "/v3/margin/borrowRate", nil, &resp)
+}
+
 // MarginLendingSubscription retrieves margin lending subscription information.
 func (e *Exchange) MarginLendingSubscription(ctx context.Context, ccy currency.Code, size, interestRate float64) (*OrderNumberResponse, error) {
 	if ccy.IsEmpty() {

@@ -2116,6 +2116,16 @@ func (e *Exchange) GetCurrentMarginRates(ctx context.Context, r *margin.CurrentR
 
 	timeChecked := time.Now().UTC()
 	cache := make(map[currency.Code]margin.Rate)
+	borrowRatesByCurrency := make(map[currency.Code]BorrowInterestRate)
+	if e.IsRESTAuthenticationSupported() {
+		borrowRates, err := e.GetBorrowInterestRate(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for i := range borrowRates {
+			borrowRatesByCurrency[borrowRates[i].Currency.Upper()] = borrowRates[i]
+		}
+	}
 	resp := make([]margin.CurrentRateResponse, len(pairs))
 	for i := range pairs {
 		if pairs[i].IsEmpty() {
@@ -2141,6 +2151,10 @@ func (e *Exchange) GetCurrentMarginRates(ctx context.Context, r *margin.CurrentR
 				Time:       latest.Time.Time(),
 				HourlyRate: hourlyRate,
 				YearlyRate: hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
+			}
+			if borrowRate, ok := borrowRatesByCurrency[pairs[i].Base.Upper()]; ok {
+				rate.HourlyBorrowRate = borrowRate.HourlyBorrowRate.Decimal()
+				rate.YearlyBorrowRate = borrowRate.AnnualizedBorrowRate.Decimal()
 			}
 			cache[pairs[i].Base] = rate
 		}
