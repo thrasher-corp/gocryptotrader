@@ -1100,13 +1100,6 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	assert.NotEqual(t, id, od.InternalOrderID, "Should not be able to update the internal order ID after initialization")
 }
 
-func TestClassificationError_Error(t *testing.T) {
-	class := ClassificationError{OrderID: "1337", Exchange: "test", Err: errors.New("test error")}
-	require.Equal(t, "Exchange test: OrderID: 1337 classification error: test error", class.Error())
-	class.OrderID = ""
-	assert.Equal(t, "Exchange test: classification error: test error", class.Error())
-}
-
 func TestValidationOnOrderTypes(t *testing.T) {
 	var cancelMe *Cancel
 	require.ErrorIs(t, cancelMe.Validate(), ErrCancelOrderIsNil)

@@ -370,7 +370,7 @@ func (e *Exchange) wsProcessTickers(ctx context.Context, dataRaw json.RawMessage
 		return fmt.Errorf("error unmarshalling ticker data: %w", err)
 	}
 
-	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+	tickPrice := &ticker.Price{
 		ExchangeName: e.Name,
 		Ask:          t.Ask[0].Float64(),
 		Bid:          t.Bid[0].Float64(),
@@ -381,7 +381,11 @@ func (e *Exchange) wsProcessTickers(ctx context.Context, dataRaw json.RawMessage
 		Open:         t.Open[0].Float64(),
 		AssetType:    asset.Spot,
 		Pair:         pair,
-	})
+	}
+	if err := ticker.ProcessTicker(tickPrice); err != nil {
+		return err
+	}
+	return e.Websocket.DataHandler.Send(ctx, tickPrice)
 }
 
 // wsProcessSpread converts spread/orderbook data and sends it to the datahandler

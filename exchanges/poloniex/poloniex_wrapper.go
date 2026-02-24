@@ -326,11 +326,18 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) error {
 	switch assetType {
 	case asset.Spot:
+		availablePairs, err := e.GetAvailablePairs(assetType)
+		if err != nil {
+			return err
+		}
 		ticks, err := e.GetTickers(ctx)
 		if err != nil {
 			return err
 		}
 		for _, tick := range ticks {
+			if !availablePairs.Contains(tick.Symbol, true) {
+				continue
+			}
 			if err := ticker.ProcessTicker(&ticker.Price{
 				ExchangeName: e.Name,
 				AssetType:    assetType,
@@ -347,11 +354,18 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			}
 		}
 	case asset.Futures:
+		availablePairs, err := e.GetAvailablePairs(assetType)
+		if err != nil {
+			return err
+		}
 		ticks, err := e.GetFuturesMarket(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return err
 		}
 		for _, tick := range ticks {
+			if !availablePairs.Contains(tick.Symbol, true) {
+				continue
+			}
 			if err := ticker.ProcessTicker(&ticker.Price{
 				ExchangeName: e.Name,
 				AssetType:    assetType,
@@ -375,6 +389,19 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (e *Exchange) UpdateTicker(ctx context.Context, pair currency.Pair, assetType asset.Item) (*ticker.Price, error) {
+	var err error
+	pair, err = e.FormatExchangeCurrency(pair, assetType)
+	if err != nil {
+		return nil, err
+	}
+	isAvailable, err := e.IsPairAvailable(pair, assetType)
+	if err != nil {
+		return nil, err
+	}
+	if !isAvailable {
+		return nil, fmt.Errorf("%s %w in the list of available pairs", pair, currency.ErrPairNotFound)
+	}
+
 	switch assetType {
 	case asset.Spot:
 		tickerResult, err := e.GetTicker(ctx, pair)
@@ -448,7 +475,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(assetType); err != nil {
 		return nil, err
 	}
 	fPair, err := e.FormatExchangeCurrency(pair, assetType)
@@ -1830,7 +1857,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := e.CurrencyPairs.IsPairEnabled(cp, a)
+	_, err := e.CurrencyPairs.IsPairAvailable(cp, a)
 	if err != nil {
 		return "", err
 	}

@@ -221,16 +221,12 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 	for x := range tick {
 		var pair currency.Pair
-		var enabled bool
-		pair, enabled, err = e.MatchSymbolCheckEnabled(tick[x].Symbol, a, false)
+		pair, err = e.MatchSymbolWithAvailablePairs(tick[x].Symbol, a, false)
 		if err != nil {
-			if !errors.Is(err, currency.ErrPairNotFound) {
-				return err
+			if errors.Is(err, currency.ErrPairNotFound) {
+				continue
 			}
-		}
-
-		if !enabled {
-			continue
+			return err
 		}
 
 		err = ticker.ProcessTicker(&ticker.Price{
@@ -267,7 +263,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, c currency.Pair, assetTy
 	if c.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(assetType); err != nil {
 		return nil, err
 	}
 	book := &orderbook.Book{
@@ -516,7 +512,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(assetType); err != nil {
 		return nil, err
 	}
 
@@ -869,7 +865,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := e.CurrencyPairs.IsPairEnabled(cp, a)
+	_, err := e.CurrencyPairs.IsPairAvailable(cp, a)
 	if err != nil {
 		return "", err
 	}

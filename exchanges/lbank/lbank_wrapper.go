@@ -159,7 +159,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if err != nil {
 		return err
 	}
-	pairs, err := e.GetEnabledPairs(a)
+	pairs, err := e.GetAvailablePairs(a)
 	if err != nil {
 		return err
 	}
@@ -255,7 +255,7 @@ func (e *Exchange) GetAccountFundingHistory(_ context.Context) ([]exchange.Fundi
 
 // GetWithdrawalsHistory returns previous withdrawals data
 func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
-	if err := e.CurrencyPairs.IsAssetEnabled(a); err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(a); err != nil {
 		return nil, err
 	}
 	withdrawalRecords, err := e.GetWithdrawalRecords(ctx, c.String(), 1, 0, 100)
@@ -625,7 +625,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 	var tempCurr currency.Pairs
 	if len(getOrdersRequest.Pairs) == 0 {
 		var err error
-		tempCurr, err = e.GetEnabledPairs(asset.Spot)
+		tempCurr, err = e.GetAvailablePairs(asset.Spot)
 		if err != nil {
 			return nil, err
 		}
@@ -714,7 +714,7 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 
 // getAllOpenOrderID returns all open orders by currency pairs
 func (e *Exchange) getAllOpenOrderID(ctx context.Context) (map[string][]string, error) {
-	allPairs, err := e.GetEnabledPairs(asset.Spot)
+	allPairs, err := e.GetAvailablePairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
@@ -887,7 +887,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) e
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := e.CurrencyPairs.IsPairEnabled(cp, a)
+	_, err := e.CurrencyPairs.IsPairAvailable(cp, a)
 	if err != nil {
 		return "", err
 	}

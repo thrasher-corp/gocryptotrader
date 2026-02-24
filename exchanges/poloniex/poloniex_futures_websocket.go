@@ -455,6 +455,9 @@ func (e *Exchange) processFuturesTickers(ctx context.Context, data []byte) error
 			AssetType:    asset.Futures,
 			LastUpdated:  r.Timestamp.Time(),
 		}
+		if err := ticker.ProcessTicker(&tickerPrices[i]); err != nil {
+			return err
+		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, tickerPrices)
 }

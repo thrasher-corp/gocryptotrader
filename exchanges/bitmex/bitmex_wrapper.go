@@ -304,7 +304,6 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		return err
 	}
 
-	var enabled bool
 instruments:
 	for j := range tick {
 		var pair currency.Pair
@@ -313,7 +312,7 @@ instruments:
 			if tick[j].Typ != futuresID {
 				continue instruments
 			}
-			pair, enabled, err = e.MatchSymbolCheckEnabled(tick[j].Symbol, a, false)
+			pair, err = e.MatchSymbolWithAvailablePairs(tick[j].Symbol, a, false)
 		case asset.Index:
 			switch tick[j].Typ {
 			case bitMEXBasketIndexID, bitMEXPriceIndexID, bitMEXLendingPremiumIndexID, bitMEXVolatilityIndexID:
@@ -325,25 +324,24 @@ instruments:
 			// contain an underscore. Calling DeriveFrom will then error and
 			// the instruments will be missed.
 			tick[j].Symbol = strings.Replace(tick[j].Symbol, currency.UnderscoreDelimiter, "", 1)
-			pair, enabled, err = e.MatchSymbolCheckEnabled(tick[j].Symbol, a, false)
+			pair, err = e.MatchSymbolWithAvailablePairs(tick[j].Symbol, a, false)
 		case asset.PerpetualContract:
 			if tick[j].Typ != perpetualContractID {
 				continue instruments
 			}
-			pair, enabled, err = e.MatchSymbolCheckEnabled(tick[j].Symbol, a, false)
+			pair, err = e.MatchSymbolWithAvailablePairs(tick[j].Symbol, a, false)
 		case asset.Spot:
 			if tick[j].Typ != spotID {
 				continue instruments
 			}
 			tick[j].Symbol = strings.Replace(tick[j].Symbol, currency.UnderscoreDelimiter, "", 1)
-			pair, enabled, err = e.MatchSymbolCheckEnabled(tick[j].Symbol, a, false)
+			pair, err = e.MatchSymbolWithAvailablePairs(tick[j].Symbol, a, false)
 		}
-
-		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+		if err != nil {
+			if errors.Is(err, currency.ErrPairNotFound) {
+				continue
+			}
 			return err
-		}
-		if !enabled {
-			continue
 		}
 
 		err = ticker.ProcessTicker(&ticker.Price{
@@ -386,7 +384,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(assetType); err != nil {
 		return nil, err
 	}
 	book := &orderbook.Book{
@@ -729,7 +727,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(assetType); err != nil {
 		return nil, err
 	}
 
@@ -1151,13 +1149,12 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			return nil, err
 		}
 		var cp currency.Pair
-		var isEnabled bool
-		cp, isEnabled, err = e.MatchSymbolCheckEnabled(rates[i].Symbol, r.Asset, false)
-		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+		cp, err = e.MatchSymbolWithAvailablePairs(rates[i].Symbol, r.Asset, false)
+		if err != nil {
+			if errors.Is(err, currency.ErrPairNotFound) {
+				continue
+			}
 			return nil, err
-		}
-		if !isEnabled {
-			continue
 		}
 		var isPerp bool
 		isPerp, err = e.IsPerpetualFutureCurrency(r.Asset, cp)
@@ -1261,15 +1258,14 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 		}
 		resp := make([]futures.OpenInterest, 0, len(activeInstruments))
 		for i := range activeInstruments {
-			for _, a := range e.CurrencyPairs.GetAssetTypes(true) {
+			for _, a := range e.CurrencyPairs.GetAssetTypes(false) {
 				var symbol currency.Pair
-				var enabled bool
-				symbol, enabled, err = e.MatchSymbolCheckEnabled(activeInstruments[i].Symbol, a, false)
-				if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+				symbol, err = e.MatchSymbolWithAvailablePairs(activeInstruments[i].Symbol, a, false)
+				if err != nil {
+					if errors.Is(err, currency.ErrPairNotFound) {
+						continue
+					}
 					return nil, err
-				}
-				if !enabled {
-					continue
 				}
 				var appendData bool
 				for j := range k {
@@ -1289,12 +1285,9 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 		}
 		return resp, nil
 	}
-	_, isEnabled, err := e.MatchSymbolCheckEnabled(k[0].Pair().String(), k[0].Asset, false)
-	if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+	_, err := e.MatchSymbolWithAvailablePairs(k[0].Pair().String(), k[0].Asset, false)
+	if err != nil {
 		return nil, err
-	}
-	if !isEnabled {
-		return nil, fmt.Errorf("%w %v %v", currency.ErrPairNotEnabled, k[0].Asset, k[0].Pair())
 	}
 	symbolStr, err := e.FormatSymbol(k[0].Pair(), k[0].Asset)
 	if err != nil {
@@ -1317,7 +1310,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := e.CurrencyPairs.IsPairEnabled(cp, a)
+	_, err := e.CurrencyPairs.IsPairAvailable(cp, a)
 	if err != nil {
 		return "", err
 	}

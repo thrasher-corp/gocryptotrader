@@ -338,7 +338,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 						return err
 					}
 
-					return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+					tickPrice := &ticker.Price{
 						ExchangeName: e.Name,
 						Open:         t.OpenPrice,
 						Close:        t.ClosePrice,
@@ -352,7 +352,11 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 						LastUpdated:  t.EventTime.Time(),
 						AssetType:    asset.Spot,
 						Pair:         pair,
-					})
+					}
+					if err := ticker.ProcessTicker(tickPrice); err != nil {
+						return err
+					}
+					return e.Websocket.DataHandler.Send(ctx, tickPrice)
 				case "kline_1m", "kline_3m", "kline_5m", "kline_15m", "kline_30m", "kline_1h", "kline_2h", "kline_4h",
 					"kline_6h", "kline_8h", "kline_12h", "kline_1d", "kline_3d", "kline_1w", "kline_1M":
 					var kline KlineStream

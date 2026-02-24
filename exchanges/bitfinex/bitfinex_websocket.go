@@ -866,6 +866,9 @@ func (e *Exchange) handleWSTickerUpdate(ctx context.Context, c *subscription.Sub
 			return errors.New("unable to type assert ticker flash return rate")
 		}
 	}
+	if err := ticker.ProcessTicker(t); err != nil {
+		return err
+	}
 	return e.Websocket.DataHandler.Send(ctx, t)
 }
 
@@ -1623,7 +1626,10 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 	return template.New("master.tmpl").Funcs(sprig.FuncMap()).Funcs(template.FuncMap{
 		"subToMap": subToMap,
 		"removeSpotFromMargin": func(ap map[asset.Item]currency.Pairs) string {
-			spotPairs, _ := e.GetEnabledPairs(asset.Spot)
+			spotPairs, err := e.GetEnabledPairs(asset.Spot)
+			if err != nil {
+				panic(fmt.Sprintf("error getting enabled spot pairs: %v", err))
+			}
 			return removeSpotFromMargin(ap, spotPairs)
 		},
 	}).Parse(subTplText)

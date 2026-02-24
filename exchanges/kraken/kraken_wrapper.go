@@ -470,7 +470,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(assetType); err != nil {
 		return nil, err
 	}
 	book := &orderbook.Book{
@@ -855,7 +855,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (orde
 
 // GetOrderInfo returns information on a current open order
 func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.Pair, assetType asset.Item) (*order.Detail, error) {
-	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(assetType); err != nil {
 		return nil, err
 	}
 
@@ -1139,7 +1139,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 		if len(req.Pairs) > 0 {
 			pairs = req.Pairs
 		} else {
-			pairs, err = e.GetEnabledPairs(asset.Futures)
+			pairs, err = e.GetAvailablePairs(asset.Futures)
 			if err != nil {
 				return orders, err
 			}
@@ -1271,7 +1271,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 		if len(getOrdersRequest.Pairs) > 0 {
 			pairs = getOrdersRequest.Pairs
 		} else {
-			pairs, err = e.GetEnabledPairs(asset.Futures)
+			pairs, err = e.GetAvailablePairs(asset.Futures)
 			if err != nil {
 				return orders, err
 			}
@@ -1679,12 +1679,11 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) (
 	resp := make([]futures.OpenInterest, 0, len(futuresTickersData.Tickers))
 	for i := range futuresTickersData.Tickers {
 		var p currency.Pair
-		var isEnabled bool
-		p, isEnabled, err = e.MatchSymbolCheckEnabled(futuresTickersData.Tickers[i].Symbol.String(), asset.Futures, true)
+		p, err = e.MatchSymbolWithAvailablePairs(futuresTickersData.Tickers[i].Symbol.String(), asset.Futures, true)
 		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 			return nil, err
 		}
-		if !isEnabled {
+		if err != nil {
 			continue
 		}
 		var appendData bool
@@ -1707,7 +1706,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) (
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := e.CurrencyPairs.IsPairEnabled(cp, a)
+	_, err := e.CurrencyPairs.IsPairAvailable(cp, a)
 	if err != nil {
 		return "", err
 	}

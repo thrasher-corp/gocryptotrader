@@ -213,7 +213,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 				return err
 			}
 
-			enabledPairs, err := e.GetAvailablePairs(asset.Spot)
+			enabledPairs, err := e.GetEnabledPairs(asset.Spot)
 			if err != nil {
 				return err
 			}

@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -753,6 +754,23 @@ func TestUpdateTickers(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestUpdateTickersUsesAvailablePairs(t *testing.T) {
+	t.Parallel()
+	testExchange := new(Exchange)
+	require.NoError(t, testexch.Setup(testExchange))
+	require.NoError(t, testexch.MockHTTPInstance(testExchange))
+
+	nonTradablePair := currency.NewPairWithDelimiter("ABC", "USDT", currency.UnderscoreDelimiter)
+	require.NoError(t, testExchange.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{nonTradablePair}, false))
+	require.NoError(t, testExchange.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{nonTradablePair}, true))
+
+	err := testExchange.UpdateTickers(t.Context(), asset.Spot)
+	require.NoError(t, err)
+
+	_, err = ticker.GetTicker(testExchange.Name, nonTradablePair, asset.Spot)
+	require.ErrorIs(t, err, ticker.ErrTickerNotFound)
+}
+
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	_, err := e.UpdateTicker(t.Context(), spotTradablePair, asset.Options)
@@ -773,7 +791,21 @@ func TestUpdateTicker(t *testing.T) {
 		t.Skip("skipped: downstream test data is intentionally malformed and only valid for mock tests")
 	}
 	_, err = e.UpdateTicker(t.Context(), currency.NewPairWithDelimiter("ABC", "DEF", currency.DashDelimiter), asset.Futures)
-	assert.ErrorIs(t, err, common.ErrInvalidResponse)
+	assert.ErrorIs(t, err, currency.ErrPairNotFound)
+}
+
+func TestUpdateTickerUsesAvailablePairs(t *testing.T) {
+	t.Parallel()
+	testExchange := new(Exchange)
+	require.NoError(t, testexch.Setup(testExchange))
+	require.NoError(t, testexch.MockHTTPInstance(testExchange))
+
+	nonTradablePair := currency.NewPairWithDelimiter("ABC", "USDT", currency.UnderscoreDelimiter)
+	require.NoError(t, testExchange.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{nonTradablePair}, false))
+	require.NoError(t, testExchange.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{nonTradablePair}, true))
+
+	_, err := testExchange.UpdateTicker(t.Context(), spotTradablePair, asset.Spot)
+	require.ErrorIs(t, err, currency.ErrPairNotFound)
 }
 
 func TestGetAvailableTransferChains(t *testing.T) {
