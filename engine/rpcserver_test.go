@@ -272,11 +272,6 @@ func (f fExchange) GetMarginRatesHistory(context.Context, *margin.RateHistoryReq
 			Time:             time.Now(),
 			MarketBorrowSize: leet,
 			HourlyRate:       leet,
-			HourlyBorrowRate: leet,
-			LendingPayment: margin.LendingPayment{
-				Payment: leet,
-				Size:    leet,
-			},
 			BorrowCost: margin.BorrowCost{
 				Cost: leet,
 				Size: leet,
@@ -2562,7 +2557,7 @@ func TestGetMarginRatesHistory(t *testing.T) {
 	_, err = s.GetMarginRatesHistory(t.Context(), request)
 	assert.NoError(t, err)
 
-	request.GetBorrowRates = true
+	request.GetLendingPayments = true
 	request.GetBorrowCosts = true
 	request.IncludeAllRates = true
 	resp, err := s.GetMarginRatesHistory(t.Context(), request)

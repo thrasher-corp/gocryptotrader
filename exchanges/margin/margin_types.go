@@ -29,7 +29,6 @@ type RateHistoryRequest struct {
 	StartDate time.Time
 	EndDate   time.Time
 
-	GetBorrowRates bool
 	GetBorrowCosts bool
 	// CalculateOffline allows for the borrow rate and borrow costs to be
 	// calculated offline. It requires the taker fee rate and existing rates.
@@ -131,9 +130,6 @@ type Rate struct {
 	MarketBorrowSize decimal.Decimal
 	HourlyRate       decimal.Decimal
 	YearlyRate       decimal.Decimal
-	HourlyBorrowRate decimal.Decimal
-	YearlyBorrowRate decimal.Decimal
-	LendingPayment   LendingPayment
 	BorrowCost       BorrowCost
 }
 

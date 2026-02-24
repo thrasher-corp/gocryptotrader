@@ -2850,12 +2850,6 @@
             "type": "boolean"
           },
           {
-            "name": "getBorrowRates",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          },
-          {
             "name": "getBorrowCosts",
             "in": "query",
             "required": false,

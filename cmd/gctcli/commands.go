@@ -4324,7 +4324,7 @@ func shutdown(c *cli.Context) error {
 var getMarginRatesHistoryCommand = &cli.Command{
 	Name:      "getmarginrateshistory",
 	Usage:     "returns margin lending/borrow rates for a period",
-	ArgsUsage: "<exchange> <asset> <currency> <start> <end> <getborrowrates> <getborrowcosts> <includeallrates>",
+	ArgsUsage: "<exchange> <asset> <currency> <start> <end> <getborrowcosts> <includeallrates>",
 	Action:    getMarginRatesHistory,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
@@ -4355,11 +4355,6 @@ var getMarginRatesHistoryCommand = &cli.Command{
 			Usage:       "<end>",
 			Value:       time.Now().Format(time.DateTime),
 			Destination: &endTime,
-		},
-		&cli.BoolFlag{
-			Name:    "getborrowrates",
-			Aliases: []string{"br"},
-			Usage:   "retrieve borrowing rates",
 		},
 		&cli.BoolFlag{
 			Name:    "getborrowcosts",
@@ -4417,21 +4412,11 @@ func getMarginRatesHistory(c *cli.Context) error {
 	}
 
 	var err error
-	var getBorrowRates bool
-	if c.IsSet("getborrowrates") {
-		getBorrowRates = c.Bool("getborrowrates")
-	} else if c.Args().Get(5) != "" {
-		getBorrowRates, err = strconv.ParseBool(c.Args().Get(5))
-		if err != nil {
-			return err
-		}
-	}
-
 	var getBorrowCosts bool
 	if c.IsSet("getborrowcosts") {
 		getBorrowCosts = c.Bool("getborrowcosts")
-	} else if c.Args().Get(6) != "" {
-		getBorrowCosts, err = strconv.ParseBool(c.Args().Get(6))
+	} else if c.Args().Get(5) != "" {
+		getBorrowCosts, err = strconv.ParseBool(c.Args().Get(5))
 		if err != nil {
 			return err
 		}
@@ -4440,8 +4425,8 @@ func getMarginRatesHistory(c *cli.Context) error {
 	var includeAllRates bool
 	if c.IsSet("includeallrates") {
 		includeAllRates = c.Bool("includeallrates")
-	} else if c.Args().Get(7) != "" {
-		includeAllRates, err = strconv.ParseBool(c.Args().Get(7))
+	} else if c.Args().Get(6) != "" {
+		includeAllRates, err = strconv.ParseBool(c.Args().Get(6))
 		if err != nil {
 			return err
 		}
@@ -4476,7 +4461,6 @@ func getMarginRatesHistory(c *cli.Context) error {
 			Currency:        curr,
 			StartDate:       s.Format(common.SimpleTimeFormatWithTimezone),
 			EndDate:         e.Format(common.SimpleTimeFormatWithTimezone),
-			GetBorrowRates:  getBorrowRates,
 			GetBorrowCosts:  getBorrowCosts,
 			IncludeAllRates: includeAllRates,
 		})

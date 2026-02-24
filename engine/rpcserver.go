@@ -5138,7 +5138,6 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 		Currency:         c,
 		StartDate:        start,
 		EndDate:          end,
-		GetBorrowRates:   r.GetBorrowRates,
 		GetBorrowCosts:   r.GetBorrowCosts,
 		CalculateOffline: r.CalculateOffline,
 	}
@@ -5176,12 +5175,6 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 					return nil, err
 				}
 			}
-			if r.Rates[i].LendingPayment != nil {
-				offlineRate.LendingPayment.Size, err = decimal.NewFromString(r.Rates[i].LendingPayment.Size)
-				if err != nil {
-					return nil, err
-				}
-			}
 
 			req.Rates[i] = offlineRate
 		}
@@ -5203,11 +5196,7 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 		},
 		TotalRates: int64(len(lendingResp.Rates)),
 	}
-	if r.GetBorrowRates {
-		resp.LatestRate.HourlyBorrowRate = lendingResp.Rates[len(lendingResp.Rates)-1].HourlyBorrowRate.String()
-		resp.LatestRate.YearlyBorrowRate = lendingResp.Rates[len(lendingResp.Rates)-1].YearlyBorrowRate.String()
-	}
-	if r.GetBorrowRates || r.GetLendingPayments {
+	if r.GetLendingPayments {
 		resp.TakerFeeRate = lendingResp.TakerFeeRate.String()
 	}
 	resp.SumLendingPayments = lendingResp.SumLendingPayments.String()
@@ -5222,10 +5211,6 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 			HourlyRate: lendingResp.PredictedRate.HourlyRate.String(),
 			YearlyRate: lendingResp.PredictedRate.YearlyRate.String(),
 		}
-		if r.GetBorrowRates {
-			resp.PredictedRate.HourlyBorrowRate = lendingResp.PredictedRate.HourlyBorrowRate.String()
-			resp.PredictedRate.YearlyBorrowRate = lendingResp.PredictedRate.YearlyBorrowRate.String()
-		}
 	}
 	if r.IncludeAllRates {
 		resp.Rates = make([]*gctrpc.MarginRate, len(lendingResp.Rates))
@@ -5236,19 +5221,11 @@ func (s *RPCServer) GetMarginRatesHistory(ctx context.Context, r *gctrpc.GetMarg
 				YearlyRate:       lendingResp.Rates[i].YearlyRate.String(),
 				MarketBorrowSize: lendingResp.Rates[i].MarketBorrowSize.String(),
 			}
-			if r.GetBorrowRates {
-				rate.HourlyBorrowRate = lendingResp.Rates[i].HourlyBorrowRate.String()
-				rate.YearlyBorrowRate = lendingResp.Rates[i].YearlyBorrowRate.String()
-			}
 			if r.GetBorrowCosts {
 				rate.BorrowCost = &gctrpc.BorrowCost{
 					Cost: lendingResp.Rates[i].BorrowCost.Cost.String(),
 					Size: lendingResp.Rates[i].BorrowCost.Size.String(),
 				}
-			}
-			rate.LendingPayment = &gctrpc.LendingPayment{
-				Payment: lendingResp.Rates[i].LendingPayment.Payment.String(),
-				Size:    lendingResp.Rates[i].LendingPayment.Size.String(),
 			}
 			resp.Rates[i] = rate
 		}
