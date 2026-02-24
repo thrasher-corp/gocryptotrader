@@ -34,6 +34,9 @@ var (
 	ErrCannotLiquidate = errors.New("cannot liquidate position")
 
 	ErrUnknownTrackingMode = errors.New("unknown tracking mode")
+	ErrGetFailed           = errors.New("get order failed")
+	ErrPlaceFailed         = errors.New("place order failed")
+	ErrCancelFailed        = errors.New("cancel order failed")
 )
 
 // Submit contains all properties of an order that may be required
@@ -106,8 +109,16 @@ type Submit struct {
 	TrackingMode  TrackingMode
 	TrackingValue float64
 
+	// LimitTrackingMode specifies the limit price offset used to place a limit order relative to the market price.
+	LimitTrackingMode  TrackingMode
+	LimitTrackingValue float64
+
 	// RFQDisabled, when set, attempts to route the order to the exchange CLOB. Currently only supported by Coinbase
 	RFQDisabled bool
+
+	// SlippageTolerance used to control the maximum slippage ratio, the value range is greater than 0 and less than 1
+	// https://api-docs.poloniex.com/spot/api/private/order
+	SlippageTolerance float64
 }
 
 // SubmitResponse is what is returned after submitting an order to an exchange
@@ -159,13 +170,14 @@ const (
 // are required to be populated
 type Modify struct {
 	// Order Identifiers
-	Exchange      string
-	OrderID       string
-	ClientOrderID string
-	Type          Type
-	Side          Side
-	AssetType     asset.Item
-	Pair          currency.Pair
+	Exchange         string
+	OrderID          string
+	ClientOrderID    string
+	NewClientOrderID string
+	Type             Type
+	Side             Side
+	AssetType        asset.Item
+	Pair             currency.Pair
 
 	// Change fields
 	TimeInForce  TimeInForce
@@ -178,6 +190,10 @@ type Modify struct {
 	TriggerPriceType PriceType
 
 	RiskManagementModes RiskManagementModes
+
+	// SlippageTolerance used to control the maximum slippage ratio, the value range is greater than 0 and less than 1
+	// https://api-docs.poloniex.com/spot/api/private/order
+	SlippageTolerance float64
 }
 
 // ModifyResponse is an order modifying return type
@@ -375,6 +391,7 @@ const (
 	AnyType
 	Liquidation
 	Trigger
+	LimitMaker
 	OCO             // One-cancels-the-other order
 	ConditionalStop // One-way stop order
 	TWAP            // time-weighted average price
@@ -383,10 +400,11 @@ const (
 	MarketMakerProtection
 
 	// Hybrid order types
-	StopLimit        = Stop | Limit
-	StopMarket       = Stop | Market
-	TakeProfitMarket = TakeProfit | Market
-	Bracket          = Stop | TakeProfit
+	StopLimit         = Stop | Limit
+	StopMarket        = Stop | Market
+	TakeProfitMarket  = TakeProfit | Market
+	TrailingStopLimit = TrailingStop | Limit
+	Bracket           = Stop | TakeProfit
 )
 
 // order-type string representations
@@ -402,9 +420,11 @@ const (
 	orderTakeProfit            = "TAKE PROFIT"
 	orderTakeProfitMarket      = "TAKE PROFIT MARKET"
 	orderTrailingStop          = "TRAILING_STOP"
+	orderTrailingStopLimit     = "TRAILING_STOP_LIMIT"
 	orderIOS                   = "IOS"
 	orderLiquidation           = "LIQUIDATION"
 	orderTrigger               = "TRIGGER"
+	orderLimitMaker            = "LIMIT_MAKER"
 	orderOCO                   = "OCO"
 	orderOptimalLimit          = "OPTIMAL_LIMIT"
 	orderMarketMakerProtection = "MMP"
@@ -416,22 +436,19 @@ const (
 var AllOrderTypes = Limit |
 	Market |
 	Stop |
-	StopLimit |
-	StopMarket |
 	TakeProfit |
-	TakeProfitMarket |
 	TrailingStop |
 	IOS |
 	AnyType |
 	Liquidation |
 	Trigger |
+	LimitMaker |
 	OCO |
 	ConditionalStop |
 	TWAP |
 	Chase |
 	OptimalLimit |
-	MarketMakerProtection |
-	Bracket
+	MarketMakerProtection
 
 // Side enforces a standard for order sides across the code base
 type Side uint32

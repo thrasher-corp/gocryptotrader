@@ -503,7 +503,7 @@ func (p *PositionTracker) GetStats() *Position {
 	}
 	p.m.Lock()
 	defer p.m.Unlock()
-	var orders []order.Detail
+	orders := make([]order.Detail, 0, len(p.longPositions)+len(p.shortPositions))
 	orders = append(orders, p.longPositions...)
 	orders = append(orders, p.shortPositions...)
 	sort.Slice(orders, func(i, j int) bool {
@@ -991,7 +991,7 @@ func (p *PNLCalculator) CalculatePNL(_ context.Context, calc *PNLCalculatorReque
 		unrealisedPNL = currentExposure.Mul(first.Sub(second))
 		realisedPNL = calc.Amount.Mul(first.Sub(second))
 	default:
-		return nil, fmt.Errorf("%w openinig direction: '%v' order direction: '%v' exposure: '%v'", errCannotCalculateUnrealisedPNL, calc.OpeningDirection, calc.OrderDirection, currentExposure)
+		return nil, fmt.Errorf("%w opening direction: '%v' order direction: '%v' exposure: '%v'", errCannotCalculateUnrealisedPNL, calc.OpeningDirection, calc.OrderDirection, currentExposure)
 	}
 	totalFees := calc.Fee
 	for i := range calc.PNLHistory {

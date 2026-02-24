@@ -173,7 +173,7 @@ func (e *Exchange) GetAuthenticationPayload(ctx context.Context, requestID strin
 func (e *Exchange) handleSubscriptions(_ websocket.Connection, operation string, subs subscription.List) (args []SubscriptionArgument, err error) {
 	subs, err = subs.ExpandTemplates(e)
 	if err != nil {
-		return
+		return args, err
 	}
 
 	for _, list := range []subscription.List{subs.Public(), subs.Private()} {
@@ -187,7 +187,7 @@ func (e *Exchange) handleSubscriptions(_ websocket.Connection, operation string,
 			})
 		}
 	}
-	return
+	return args, err
 }
 
 // generateSubscriptions generates default subscription
@@ -701,6 +701,7 @@ func hasPotentialDelimiter(a asset.Item) bool {
 	return a == asset.Options || a == asset.USDCMarginedFutures
 }
 
+// submitDirectSubscription sends direct subscription payloads without template expansion
 // TODO: Remove this function when template expansion is across all assets
 func (e *Exchange) submitDirectSubscription(ctx context.Context, conn websocket.Connection, a asset.Item, operation string, channelsToSubscribe subscription.List) error {
 	payloads, err := e.directSubscriptionPayload(a, operation, channelsToSubscribe)
@@ -740,6 +741,7 @@ func (e *Exchange) submitDirectSubscription(ctx context.Context, conn websocket.
 	return nil
 }
 
+// directSubscriptionPayload builds subscription payloads without template expansion
 // TODO: Remove this function when template expansion is across all assets
 func (e *Exchange) directSubscriptionPayload(assetType asset.Item, operation string, channelsToSubscribe subscription.List) ([]SubscriptionArgument, error) {
 	var args []SubscriptionArgument

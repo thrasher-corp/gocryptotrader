@@ -83,7 +83,7 @@ func addPSQLEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err 
 		if err != nil {
 			log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
 		}
-		return
+		return err
 	}
 
 	if res.RequestDetails.Type == withdraw.Fiat {
@@ -103,7 +103,7 @@ func addPSQLEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err 
 			if err != nil {
 				log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
 			}
-			return
+			return err
 		}
 	}
 
@@ -122,7 +122,7 @@ func addPSQLEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (err 
 			if err != nil {
 				log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
 			}
-			return
+			return err
 		}
 	}
 
@@ -140,7 +140,7 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 		if err != nil {
 			log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
 		}
-		return
+		return err
 	}
 
 	tempEvent := modelSQLite.WithdrawalHistory{
@@ -164,7 +164,7 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 		if err != nil {
 			log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
 		}
-		return
+		return err
 	}
 
 	if res.RequestDetails.Type == withdraw.Fiat {
@@ -185,7 +185,7 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 			if err != nil {
 				log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
 			}
-			return
+			return err
 		}
 	}
 
@@ -206,7 +206,7 @@ func addSQLiteEvent(ctx context.Context, tx *sql.Tx, res *withdraw.Response) (er
 			if err != nil {
 				log.Errorf(log.DatabaseMgr, "Rollback failed: %v", err)
 			}
-			return
+			return err
 		}
 	}
 

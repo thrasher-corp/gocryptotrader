@@ -1117,7 +1117,7 @@ func (b *Base) CanUseAuthenticatedWebsocketEndpoints() bool {
 	return b.Websocket != nil && b.Websocket.CanUseAuthenticatedEndpoints()
 }
 
-// KlineIntervalEnabled returns if requested interval is enabled on exchange
+// klineIntervalEnabled returns if requested interval is enabled on exchange
 func (b *Base) klineIntervalEnabled(in kline.Interval) bool {
 	// TODO: Add in the ability to use custom klines
 	return b.Features.Enabled.Kline.Intervals.ExchangeSupported(in)
@@ -1371,6 +1371,10 @@ func (u URL) String() string {
 		return websocketSandboxPublicURL
 	case WebsocketSandboxPrivate:
 		return websocketSandboxPrivateURL
+	case WebsocketFutures:
+		return websocketFuturesURL
+	case WebsocketFuturesPrivate:
+		return websocketFuturesPrivateURL
 	case ChainAnalysis:
 		return chainAnalysisURL
 	case EdgeCase1:
@@ -1427,6 +1431,10 @@ func getURLTypeFromString(ep string) (URL, error) {
 		return WebsocketSandboxPublic, nil
 	case websocketSandboxPrivateURL:
 		return WebsocketSandboxPrivate, nil
+	case websocketFuturesURL:
+		return WebsocketFutures, nil
+	case websocketFuturesPrivateURL:
+		return WebsocketFuturesPrivate, nil
 	case chainAnalysisURL:
 		return ChainAnalysis, nil
 	case edgeCase1URL:
@@ -1760,7 +1768,7 @@ func (b *Base) MatchSymbolCheckEnabled(symbol string, a asset.Item, hasDelimiter
 	}
 
 	enabled, err = b.IsPairEnabled(pair, a)
-	return
+	return pair, enabled, err
 }
 
 // IsPairEnabled checks if a pair is enabled for an enabled asset type.
@@ -1833,7 +1841,7 @@ func Bootstrap(ctx context.Context, b IBotExchange) error {
 // or false to signal that no further bootstrapping should occur
 func (b *Base) Bootstrap(_ context.Context) (continueBootstrap bool, err error) {
 	continueBootstrap = true
-	return
+	return continueBootstrap, err
 }
 
 // IsVerbose returns if the exchange is set to verbose

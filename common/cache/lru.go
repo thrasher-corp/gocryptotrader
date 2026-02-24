@@ -49,30 +49,30 @@ func (l *LRU) Get(key any) any {
 	return nil
 }
 
-// GetOldest returns the oldest entry
+// getOldest returns the oldest entry
 func (l *LRU) getOldest() (key, value any) {
 	if x := l.l.Back(); x != nil {
 		if v, ok := x.Value.(*item); ok {
 			return v.key, v.value
 		}
 	}
-	return
+	return key, value
 }
 
-// GetNewest returns the newest entry
+// getNewest returns the newest entry
 func (l *LRU) getNewest() (key, value any) {
 	if x := l.l.Front(); x != nil {
 		if v, ok := x.Value.(*item); ok {
 			return v.key, v.value
 		}
 	}
-	return
+	return key, value
 }
 
 // Contains check if key is in cache this does not update LRU
 func (l *LRU) Contains(key any) (f bool) {
 	_, f = l.items[key]
-	return
+	return f
 }
 
 // Remove removes key from the cache, if the key was removed.

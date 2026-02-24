@@ -149,7 +149,7 @@ func (m *WebsocketRoutineManager) websocketRoutine() {
 	wg.Wait()
 }
 
-// WebsocketDataReceiver handles websocket data coming from a websocket feed
+// websocketDataReceiver handles websocket data coming from a websocket feed
 // associated with an exchange
 func (m *WebsocketRoutineManager) websocketDataReceiver(ws *websocket.Manager) error {
 	if m == nil {

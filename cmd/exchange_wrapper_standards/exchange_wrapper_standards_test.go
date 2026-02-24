@@ -183,15 +183,14 @@ func executeExchangeWrapperTests(ctx context.Context, t *testing.T, exch exchang
 	t.Helper()
 	iExchange := reflect.TypeFor[exchange.IBotExchange]()
 	actualExchange := reflect.ValueOf(exch)
-	for x := range iExchange.NumMethod() {
-		methodName := iExchange.Method(x).Name
+	for m := range iExchange.Methods() {
+		methodName := m.Name
 		if _, ok := excludedMethodNames[methodName]; ok {
 			continue
 		}
 		method := actualExchange.MethodByName(methodName)
 		var assetLen int
-		for y := range method.Type().NumIn() {
-			input := method.Type().In(y)
+		for input := range method.Type().Ins() {
 			if slices.ContainsFunc(validWrapperParams, func(t reflect.Type) bool {
 				return input.AssignableTo(t)
 			}) {
@@ -614,8 +613,7 @@ var unsupportedAssets = []asset.Item{
 var unsupportedExchangeNames = []string{
 	"testexch",
 	"bitflyer", // Bitflyer has many "ErrNotYetImplemented, which is true, but not what we care to test for here
-	"btse",     // TODO rm once timeout issues resolved
-	"poloniex", // outdated API // TODO rm once updated
+	"btse",     // 	TODO rm once timeout issues resolved
 }
 
 // cryptoChainPerExchange holds the deposit address chain per exchange
