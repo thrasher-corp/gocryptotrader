@@ -69,7 +69,7 @@ var websocketManagerCommand = &cli.Command{
 				},
 				&cli.StringFlag{
 					Name:  "proxy",
-					Usage: "proxy address to change to, if proxy string is not set, this will stop the utilization of the prior set proxy.",
+					Usage: "proxy address to change to, if proxy string is not set, this will stop the utilisation of the prior set proxy.",
 				},
 			},
 			Action: setProxy,

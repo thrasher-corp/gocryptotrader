@@ -11,7 +11,7 @@ import (
 )
 
 // Time represents a time.Time object that can be unmarshalled from a float64 or string.
-// MarshalJSON serializes the time to JSON using RFC 3339 format.
+// MarshalJSON serialises the time to JSON using RFC 3339 format.
 // Note: Not all exchanges may support RFC 3339 for outbound requests, so ensure compatibility with each exchange's time
 // format requirements.
 type Time time.Time
@@ -19,7 +19,7 @@ type Time time.Time
 // ErrInvalidTimestampFormat indicates that a timestamp cannot be parsed into a supported format.
 var ErrInvalidTimestampFormat = errors.New("invalid timestamp format")
 
-// UnmarshalJSON deserializes json, and timestamp information.
+// UnmarshalJSON deserialises json and timestamp information.
 func (t *Time) UnmarshalJSON(data []byte) error {
 	s := string(data)
 
@@ -81,7 +81,7 @@ func (t Time) String() string {
 	return t.Time().String()
 }
 
-// MarshalJSON serializes the time to json using RFC 3339 format.
+// MarshalJSON serialises the time to json using RFC 3339 format.
 func (t Time) MarshalJSON() ([]byte, error) {
 	return t.Time().MarshalJSON()
 }

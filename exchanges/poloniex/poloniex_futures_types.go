@@ -15,7 +15,7 @@ import (
 // MarginMode represents margin mode type for futures orders
 type MarginMode margin.Type
 
-// MarshalText implements encoding.TextMarshaler and serializes MarginMode to a string
+// MarshalText implements encoding.TextMarshaler and serialises MarginMode to a string
 func (m MarginMode) MarshalText() ([]byte, error) {
 	switch margin.Type(m) {
 	case margin.Multi:
@@ -402,7 +402,7 @@ type FuturesCandle struct {
 	EndTime      types.Time
 }
 
-// UnmarshalJSON deserializes JSON data into a kline.Candle instance
+// UnmarshalJSON deserialises JSON data into a kline.Candle instance
 func (v *FuturesCandle) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[9]any{&v.LowestPrice, &v.HighestPrice, &v.OpeningPrice, &v.ClosingPrice, &v.QuoteAmount, &v.BaseAmount, &v.Trades, &v.StartTime, &v.EndTime})
 }
@@ -488,7 +488,7 @@ type FuturesIndexPriceData struct {
 	EndTime      types.Time
 }
 
-// UnmarshalJSON deserializes candlestick data into a FuturesIndexPriceData instance
+// UnmarshalJSON deserialises candlestick data into a FuturesIndexPriceData instance
 func (v *FuturesIndexPriceData) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[6]any{&v.LowestPrice, &v.HighPrice, &v.OpenPrice, &v.ClosingPrice, &v.StartTime, &v.EndTime})
 }
@@ -516,7 +516,7 @@ type FuturesMarkPriceCandle struct {
 	EndTime      types.Time
 }
 
-// UnmarshalJSON deserializes byte data into FuturesMarkPriceCandle instance
+// UnmarshalJSON deserialises byte data into FuturesMarkPriceCandle instance
 func (v *FuturesMarkPriceCandle) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[6]any{&v.LowestPrice, &v.HighestPrice, &v.OpeningPrice, &v.ClosingPrice, &v.StartTime, &v.EndTime})
 }
@@ -673,7 +673,7 @@ type WsFuturesMarkAndIndexPriceCandle struct {
 	PushTimestamp types.Time
 }
 
-// UnmarshalJSON deserializes byte data into WsFuturesMarkAndIndexPriceCandle instance
+// UnmarshalJSON deserialises byte data into WsFuturesMarkAndIndexPriceCandle instance
 func (v *WsFuturesMarkAndIndexPriceCandle) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[8]any{&v.Symbol, &v.LowestPrice, &v.HighestPrice, &v.OpeningPrice, &v.ClosingPrice, &v.StartTime, &v.EndTime, &v.PushTimestamp})
 }

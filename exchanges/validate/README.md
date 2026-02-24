@@ -39,9 +39,9 @@ type Critical struct {
 }
 
 // define validation and add a variadic param
-func (supercritcalinfo *Critical) Validate(opt ...validate.Checker) error {
+func (superCriticalInfo *Critical) Validate(opt ...validate.Checker) error {
 	// define base level validation
-	if supercritcalinfo != nil {
+	if superCriticalInfo != nil {
 			// oh no this is nil, could panic program!
 	}
 
@@ -62,10 +62,10 @@ func (supercritcalinfo *Critical) Validate(opt ...validate.Checker) error {
 
 // define an exchange or package level check that returns a validate.Checker 
 // interface
-func (supercritcalinfo *Critical) PleaseDontSendMoneyToParents() validate.Checker {
+func (superCriticalInfo *Critical) PleaseDontSendMoneyToParents() validate.Checker {
 	return validate.Check(func() error {
-		if supercritcalinfo.Person == "Mother Dearest" ||
-			supercritcalinfo.Person == "Father Dearest" {
+		if superCriticalInfo.Person == "Mother Dearest" ||
+			superCriticalInfo.Person == "Father Dearest" {
 			return errors.New("nope")
 		}
 	return nil
