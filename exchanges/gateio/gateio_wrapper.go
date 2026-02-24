@@ -2152,11 +2152,9 @@ func (e *Exchange) GetCurrentMarginRates(ctx context.Context, req *margin.Curren
 			code := currency.NewCode(c).Upper()
 			hourly := v.Decimal()
 			ratesByCurrency[code] = margin.Rate{
-				Time:             timeChecked,
-				HourlyRate:       hourly,
-				YearlyRate:       hourly.Mul(decimal.NewFromInt(24 * 365)),
-				HourlyBorrowRate: hourly,
-				YearlyBorrowRate: hourly.Mul(decimal.NewFromInt(24 * 365)),
+				Time:       timeChecked,
+				HourlyRate: hourly,
+				YearlyRate: hourly.Mul(decimal.NewFromInt(24 * 365)),
 			}
 		}
 	}

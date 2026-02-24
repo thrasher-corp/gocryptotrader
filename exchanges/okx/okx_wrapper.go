@@ -2493,11 +2493,9 @@ func (e *Exchange) GetCurrentMarginRates(ctx context.Context, req *margin.Curren
 		}
 		hourlyRate := decimal.NewFromFloat(interestRate.Float64())
 		rate := margin.Rate{
-			Time:             timeChecked,
-			HourlyRate:       hourlyRate,
-			YearlyRate:       hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
-			HourlyBorrowRate: hourlyRate,
-			YearlyBorrowRate: hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
+			Time:       timeChecked,
+			HourlyRate: hourlyRate,
+			YearlyRate: hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
 		}
 		resp[i] = margin.CurrentRateResponse{
 			Exchange:    e.Name,
@@ -2561,17 +2559,12 @@ func (e *Exchange) GetMarginRatesHistory(ctx context.Context, req *margin.RateHi
 				}
 				yearlyRate := decimal.NewFromFloat(history[i].Rate.Float64())
 				hourlyRate := yearlyRate.Div(decimal.NewFromInt(24 * 365))
-				entry := margin.Rate{
-					Time:       ts,
-					HourlyRate: hourlyRate,
-					YearlyRate: yearlyRate,
-				}
-				if req.GetBorrowRates {
-					entry.HourlyBorrowRate = hourlyRate
-					entry.YearlyBorrowRate = yearlyRate
-					entry.MarketBorrowSize = decimal.NewFromFloat(history[i].Amount.Float64())
-				}
-				resp.Rates = append(resp.Rates, entry)
+				resp.Rates = append(resp.Rates, margin.Rate{
+					Time:             ts,
+					HourlyRate:       hourlyRate,
+					YearlyRate:       yearlyRate,
+					MarketBorrowSize: decimal.NewFromFloat(history[i].Amount.Float64()),
+				})
 			}
 			if chunkStart.Equal(start) {
 				break
@@ -2590,10 +2583,6 @@ func (e *Exchange) GetMarginRatesHistory(ctx context.Context, req *margin.RateHi
 				Time:       interestData[i].Timestamp.Time(),
 				HourlyRate: hourlyRate,
 				YearlyRate: hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
-			}
-			if req.GetBorrowRates {
-				resp.Rates[i].HourlyBorrowRate = hourlyRate
-				resp.Rates[i].YearlyBorrowRate = resp.Rates[i].YearlyRate
 			}
 			resp.Rates[i].BorrowCost = margin.BorrowCost{
 				Cost: decimal.NewFromFloat(interestData[i].Interest.Float64()),

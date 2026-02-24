@@ -2138,11 +2138,9 @@ func (e *Exchange) GetCurrentMarginRates(ctx context.Context, r *margin.CurrentR
 			}
 			hourlyRate := decimal.NewFromFloat(latest.MarketInterestRate.Float64())
 			rate = margin.Rate{
-				Time:             latest.Time.Time(),
-				HourlyRate:       hourlyRate,
-				YearlyRate:       hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
-				HourlyBorrowRate: hourlyRate,
-				YearlyBorrowRate: hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
+				Time:       latest.Time.Time(),
+				HourlyRate: hourlyRate,
+				YearlyRate: hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
 			}
 			cache[pairs[i].Base] = rate
 		}
@@ -2198,10 +2196,6 @@ func (e *Exchange) GetMarginRatesHistory(ctx context.Context, r *margin.RateHist
 			Time:       t,
 			HourlyRate: hourlyRate,
 			YearlyRate: hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
-		}
-		if r.GetBorrowRates {
-			entry.HourlyBorrowRate = hourlyRate
-			entry.YearlyBorrowRate = entry.YearlyRate
 		}
 		resp.Rates = append(resp.Rates, entry)
 	}
