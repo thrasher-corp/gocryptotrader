@@ -2809,7 +2809,7 @@ func TestGetLatestFundingRates(t *testing.T) {
 	if mockTests {
 		require.NoError(t, testexch.MockHTTPInstance(e), "MockHTTPInstance must not error for local exchange instance")
 	}
-	require.NoError(t, e.UpdateTradablePairs(t.Context()), "UpdateTradablePairs must not error for local exchange instance")
+	testexch.UpdatePairsOnce(t, e)
 
 	usdtPerpetualPair := currency.NewBTCUSDT()
 	_, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
