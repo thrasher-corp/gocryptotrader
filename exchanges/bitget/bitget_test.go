@@ -19,7 +19,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
-	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -52,9 +51,10 @@ const (
 	// Test values used with live data, with the goal of never letting an order be executed
 	testAmount = 0.001
 	testPrice  = 1e10 - 3
-	// Test values used with demo functionality, with the goal of lining up with the relatively strict currency limits present there
+	// Test values used with the goal of lining up with endpoints that have stricter currency limits
 	testAmount2 = 0.003
 	testPrice2  = 1667
+	testAmount3 = 1
 )
 
 // User-defined variables to aid testing
@@ -98,7 +98,6 @@ func TestMain(m *testing.M) {
 	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("Bybit Setup error: %s", err)
 	}
-	e.Websocket.DataHandler = stream.NewRelay(sharedtestvalues.WebsocketRelayBufferCapacity)
 	if apiKey != "" && apiSecret != "" && clientID != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
@@ -110,15 +109,6 @@ func TestMain(m *testing.M) {
 	case "encoding/json":
 		errUnmarshalArray = "cannot unmarshal array"
 	}
-	// stream.Fr.Start()
-	go func() {
-		for {
-			select {
-			case <-e.Websocket.DataHandler.C:
-				continue
-			}
-		}
-	}()
 	os.Exit(m.Run())
 }
 
@@ -515,7 +505,7 @@ func TestCreateVirtualSubaccounts(t *testing.T) {
 
 func TestModifyVirtualSubaccount(t *testing.T) {
 	t.Parallel()
-	perms := []string{}
+	perms := make([]string, 0, 1)
 	_, err := e.ModifyVirtualSubaccount(t.Context(), "", "", perms)
 	assert.ErrorIs(t, err, errSubaccountEmpty)
 	_, err = e.ModifyVirtualSubaccount(t.Context(), meow, "", perms)
@@ -532,7 +522,7 @@ func TestModifyVirtualSubaccount(t *testing.T) {
 
 func TestCreateSubaccountAndAPIKey(t *testing.T) {
 	t.Parallel()
-	ipL := []string{}
+	ipL := make([]string, 0, 1)
 	_, err := e.CreateSubaccountAndAPIKey(t.Context(), "", "", "", ipL, ipL)
 	assert.ErrorIs(t, err, errSubaccountEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -554,7 +544,7 @@ func TestGetVirtualSubaccounts(t *testing.T) {
 
 func TestCreateAPIKey(t *testing.T) {
 	t.Parallel()
-	ipL := []string{}
+	ipL := make([]string, 0, 1)
 	_, err := e.CreateAPIKey(t.Context(), "", "", "", ipL, ipL)
 	assert.ErrorIs(t, err, errSubaccountEmpty)
 	_, err = e.CreateAPIKey(t.Context(), woof, "", "", ipL, ipL)
@@ -636,9 +626,9 @@ func TestGetQuotedPrice(t *testing.T) {
 	_, err = e.GetQuotedPrice(t.Context(), currency.NewCode(meow), currency.NewCode(woof), 0, 0)
 	assert.ErrorIs(t, err, errFromToMutex)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err = e.GetQuotedPrice(t.Context(), testCrypto, testFiat, 0, 1)
+	_, err = e.GetQuotedPrice(t.Context(), testCrypto, testFiat, 0, testPrice2)
 	assert.NoError(t, err)
-	resp, err := e.GetQuotedPrice(t.Context(), testCrypto, testFiat, 0.1, 0)
+	resp, err := e.GetQuotedPrice(t.Context(), testCrypto, testFiat, testAmount3, 0)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
@@ -808,7 +798,7 @@ func TestCancelAndPlaceSpotOrder(t *testing.T) {
 
 func TestBatchCancelAndPlaceSpotOrders(t *testing.T) {
 	t.Parallel()
-	var req []ReplaceSpotOrderParams
+	req := make([]ReplaceSpotOrderParams, 0, 1)
 	_, err := e.BatchCancelAndPlaceSpotOrders(t.Context(), req)
 	assert.ErrorIs(t, err, errOrdersEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -848,7 +838,7 @@ func TestCancelSpotOrderByID(t *testing.T) {
 
 func TestBatchPlaceSpotOrders(t *testing.T) {
 	t.Parallel()
-	var req []PlaceSpotOrderParams
+	req := make([]PlaceSpotOrderParams, 0, 1)
 	_, err := e.BatchPlaceSpotOrders(t.Context(), currency.Pair{}, false, false, req)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	_, err = e.BatchPlaceSpotOrders(t.Context(), testPair, false, false, req)
@@ -869,7 +859,7 @@ func TestBatchPlaceSpotOrders(t *testing.T) {
 
 func TestBatchCancelOrders(t *testing.T) {
 	t.Parallel()
-	var req []CancelSpotOrderParams
+	req := make([]CancelSpotOrderParams, 0, 1)
 	_, err := e.BatchCancelOrders(t.Context(), currency.Pair{}, false, req)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	_, err = e.BatchCancelOrders(t.Context(), testPair, false, req)
@@ -1587,7 +1577,7 @@ func TestPlaceFuturesOrder(t *testing.T) {
 	assert.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	resp, err := e.PlaceFuturesOrder(t.Context(), &PlaceSingleFuturesOrderParams{Pair: testPair2, ProductType: testFiat2.String() + "-FUTURES", MarginMode: "isolated", Side: "buy", TradeSide: "open", OrderType: order.Limit.Lower(), Strategy: "GTC", ClientOrderID: "a", MarginCoin: testFiat2, StopSurplusPrice: testPrice2 + 1, StopLossPrice: testPrice2 - 1, Amount: testAmount2, Price: testPrice2, ReduceOnly: true}, true)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
 }
 
@@ -3128,8 +3118,10 @@ func TestGetFuturesPositionSummary(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNilPointer)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err = e.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{})
+	assert.ErrorIs(t, err, errProductTypeEmpty)
+	_, err = e.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Asset: asset.USDTMarginedFutures})
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = e.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Pair: testPair})
+	_, err = e.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{Pair: testPair, Asset: asset.USDTMarginedFutures})
 	assert.NoError(t, err)
 }
 
@@ -3139,7 +3131,8 @@ func TestGetFuturesPositions(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNilPointer)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	req := &futures.PositionsRequest{
-		Pairs: currency.Pairs{testPair, currency.NewPair(currency.BTC, currency.ETH)},
+		Pairs: currency.Pairs{testPair},
+		Asset: asset.USDTMarginedFutures,
 	}
 	_, err = e.GetFuturesPositions(t.Context(), req)
 	assert.NoError(t, err)
@@ -3147,10 +3140,12 @@ func TestGetFuturesPositions(t *testing.T) {
 
 func TestGetFuturesPositionOrders(t *testing.T) {
 	t.Parallel()
-	req := new(futures.PositionsRequest)
-	testGetOneArg(t, e.GetFuturesPositionOrders, nil, req, common.ErrNilPointer, false, true, true)
+	req := futures.PositionsRequest{
+		Asset: asset.USDTMarginedFutures,
+	}
+	testGetOneArg(t, e.GetFuturesPositionOrders, nil, &req, common.ErrNilPointer, false, true, true)
 	req.Pairs = currency.Pairs{testPair}
-	testGetOneArg(t, e.GetFuturesPositionOrders, nil, req, nil, false, true, true)
+	testGetOneArg(t, e.GetFuturesPositionOrders, new(futures.PositionsRequest), &req, errProductTypeEmpty, false, true, true)
 }
 
 func TestGetHistoricalFundingRates(t *testing.T) {
@@ -3322,7 +3317,7 @@ func TestModifyOrder(t *testing.T) {
 }
 
 func TestCancelTriggerFuturesOrders(t *testing.T) {
-	var ordList []OrderIDStruct
+	ordList := make([]OrderIDStruct, 0, 1)
 	_, err := e.CancelTriggerFuturesOrders(t.Context(), ordList, currency.Pair{}, "", "", currency.Code{})
 	assert.ErrorIs(t, err, errProductTypeEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -3499,38 +3494,38 @@ func TestBatchCancelCrossOrders(t *testing.T) {
 }
 
 func TestCancelBatchOrders(t *testing.T) {
-	var orders []order.Cancel
-	orders = append(orders, order.Cancel{
+	orders := []order.Cancel{{
 		AssetType: asset.Empty,
-	})
+	}}
 	_, err := e.CancelBatchOrders(t.Context(), orders)
 	assert.ErrorIs(t, err, strconv.ErrSyntax)
 	orders[0].OrderID = "0"
 	_, err = e.CancelBatchOrders(t.Context(), orders)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	orders = nil
-	orders = append(orders, order.Cancel{
-		AssetType:     asset.Spot,
-		OrderID:       "1",
-		ClientOrderID: "a",
-		Pair:          testPair,
-	}, order.Cancel{
-		AssetType:     asset.CoinMarginedFutures,
-		OrderID:       "2",
-		ClientOrderID: "b",
-		Pair:          testPair2,
-	}, order.Cancel{
-		AssetType:     asset.Margin,
-		OrderID:       "3",
-		ClientOrderID: "c",
-		Pair:          testPair,
-	}, order.Cancel{
-		AssetType:     asset.CrossMargin,
-		OrderID:       "4",
-		ClientOrderID: "d",
-		Pair:          testPair,
-	})
+	orders = []order.Cancel{
+		{
+			AssetType:     asset.Spot,
+			OrderID:       "1",
+			ClientOrderID: "a",
+			Pair:          testPair,
+		}, {
+			AssetType:     asset.CoinMarginedFutures,
+			OrderID:       "2",
+			ClientOrderID: "b",
+			Pair:          testPair2,
+		}, {
+			AssetType:     asset.Margin,
+			OrderID:       "3",
+			ClientOrderID: "c",
+			Pair:          testPair,
+		}, {
+			AssetType:     asset.CrossMargin,
+			OrderID:       "4",
+			ClientOrderID: "d",
+			Pair:          testPair,
+		},
+	}
 	_, err = e.CancelBatchOrders(t.Context(), orders)
 	assert.NoError(t, err)
 }

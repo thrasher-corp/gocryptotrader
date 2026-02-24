@@ -421,7 +421,7 @@ func TestAccountUpdateDataHandler(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	mockJSON := []byte(`{"event":"update","arg":{"channel":"account"},"data":[]}`)
 	err := e.wsHandleData(t.Context(), fixtureConnection{}, mockJSON)
-	assert.NoError(t, err)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 	mockJSON = []byte(`{"event":"update","arg":{"channel":"account","instType":"spot"},"data":[[]]}`)
 	err = e.wsHandleData(t.Context(), fixtureConnection{}, mockJSON)
 	assert.ErrorContains(t, err, errUnmarshalArray)

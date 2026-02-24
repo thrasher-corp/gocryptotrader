@@ -1688,14 +1688,13 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
 func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) ([]futures.Contract, error) {
-	var contracts []futures.Contract
 	resp, err := e.GetContractConfig(ctx, currency.Pair{}, itemEncoder(a))
 	if err != nil {
 		return nil, err
 	}
-	temp := make([]futures.Contract, len(resp))
+	contracts := make([]futures.Contract, len(resp))
 	for x := range resp {
-		temp[x] = futures.Contract{
+		contracts[x] = futures.Contract{
 			Exchange:    e.Name,
 			Name:        currency.NewPair(resp[x].BaseCoin, resp[x].QuoteCoin),
 			Multiplier:  resp[x].SizeMultiplier.Float64(),
@@ -1711,16 +1710,15 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) 
 			set[y] = currency.NewCode(resp[x].SupportMarginCoins[y])
 		}
 		if len(set) > 0 {
-			temp[x].SettlementCurrency = set[0]
+			contracts[x].SettlementCurrency = set[0]
 			if len(set) > 1 {
-				temp[x].AdditionalSettlementCurrencies = set[1:]
+				contracts[x].AdditionalSettlementCurrencies = set[1:]
 			}
 		}
 		if resp[x].SymbolStatus == "listed" || resp[x].SymbolStatus == "normal" {
-			temp[x].IsActive = true
+			contracts[x].IsActive = true
 		}
 	}
-	contracts = append(contracts, temp...)
 	return contracts, nil
 }
 

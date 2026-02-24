@@ -2064,7 +2064,7 @@ type PlaceMarginOrderParams struct {
 	OrderType     string        `json:"orderType"`
 	LoanType      string        `json:"loanType"`
 	Strategy      string        `json:"force"`
-	ClientOrderID string        `json:"clientOid"`
+	ClientOrderID string        `json:"clientOid,omitempty"`
 	Side          string        `json:"side"`
 	STPMode       string        `json:"stpMode"`
 	Price         float64       `json:"price,string"`
@@ -2081,7 +2081,7 @@ type MarginOrderData struct {
 	BaseAmount    types.Number `json:"baseSize"`
 	QuoteAmount   types.Number `json:"quoteSize"`
 	LoanType      string       `json:"loanType"`
-	ClientOrderID string       `json:"clientOid"`
+	ClientOrderID string       `json:"clientOid,omitempty"`
 	STPMode       string       `json:"stpMode"`
 }
 
