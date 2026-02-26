@@ -771,24 +771,24 @@ func (bot *Engine) LoadExchange(name string) error {
 	if b.API.AuthenticatedSupport || b.API.AuthenticatedWebsocketSupport {
 		enabled := b.CurrencyPairs.GetAssetTypes(true)
 
-		var bias asset.Item
+		var preferredAsset asset.Item
 		switch {
 		case enabled.Contains(asset.Spot): // prioritise spot due to wide usage across GCT
-			bias = asset.Spot
+			preferredAsset = asset.Spot
 		default:
 			for _, a := range enabled { // second priority to futures if spot isn't available
 				if a.IsFutures() {
-					bias = a
+					preferredAsset = a
 					break
 				}
 			}
-			if bias == 0 {
-				bias = enabled[0] // last resort pick first available
+			if preferredAsset == 0 {
+				preferredAsset = enabled[0] // last resort pick first available
 			}
 		}
 
-		if err := exch.ValidateAPICredentials(context.TODO(), bias); err != nil {
-			gctlog.Warnf(gctlog.ExchangeSys, "%s: Error validating credentials: %v for %s", b.Name, err, bias)
+		if err := exch.ValidateAPICredentials(context.TODO(), preferredAsset); err != nil {
+			gctlog.Warnf(gctlog.ExchangeSys, "%s: Error validating credentials: %v for %s", b.Name, err, preferredAsset)
 			b.API.AuthenticatedSupport = false
 			b.API.AuthenticatedWebsocketSupport = false
 			if b.Websocket != nil {
