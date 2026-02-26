@@ -110,13 +110,27 @@ Use `require` and `assert` appropriately:
 
 - Use when test flow depends on the result.
 - Messages must contain **"must"** (e.g., "response must not be nil").
-- Use the *f* variants when using format specifiers (e.g., `require.Equalf`).
 
 #### assert
 
 - Use when the test can proceed regardless of the check.
 - Messages must contain **"should"** (e.g., "status code should be 200").
-- Use `assert.Equalf`, etc., when applicable.
+
+#### `f` variants (`assert.ErrorIsf`, `require.NoErrorf`, etc.)
+
+- Only use `f` variants when the message contains **format verbs** (e.g., `%s`, `%d`, `%v`).
+- If the message is a plain string with no format verbs, use the non-`f` variant.
+
+```go
+    // Correct — format verb %s requires the f variant:
+    assert.NoErrorf(t, err, "UpdateAccountInfo should not error for asset %s", a)
+
+    // Correct — plain message, no format verbs:
+    assert.ErrorIs(t, err, errInvalidOrderSize, "validate should return expected error")
+
+    // Wrong — f variant used without format verbs:
+    assert.ErrorIsf(t, err, errInvalidOrderSize, "validate should return expected error")
+```
 
 ### Test Coverage
 
