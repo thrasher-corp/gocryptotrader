@@ -118,7 +118,7 @@ type Exchange struct {
 	exchange.Base
 }
 
-// GetPlatformStatus returns the Bifinex platform status
+// GetPlatformStatus returns the Bitfinex platform status
 func (e *Exchange) GetPlatformStatus(ctx context.Context) (int, error) {
 	var response []int
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot,
@@ -908,7 +908,7 @@ func (e *Exchange) GetFundingBook(ctx context.Context, symbol string) (FundingBo
 	response := FundingBook{}
 	path := bitfinexAPIVersion + bitfinexLendbook + symbol
 
-	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &response, fundingbook); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &response, fundingBook); err != nil {
 		return response, err
 	}
 
@@ -1202,7 +1202,7 @@ func (e *Exchange) GetKeyPermissions(ctx context.Context) (KeyPermissions, error
 		bitfinexKeyPermissions,
 		nil,
 		&response,
-		getAccountFees)
+		getKeyPermissions)
 }
 
 // GetMarginInfo shows your trading wallet information for margin trading

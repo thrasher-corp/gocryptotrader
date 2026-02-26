@@ -174,7 +174,7 @@ func (e *Exchange) GetAuthenticationPayload(ctx context.Context, requestID strin
 func (e *Exchange) handleSubscriptions(_ websocket.Connection, operation string, subs subscription.List) (args []SubscriptionArgument, err error) {
 	subs, err = subs.ExpandTemplates(e)
 	if err != nil {
-		return
+		return args, err
 	}
 
 	for _, list := range []subscription.List{subs.Public(), subs.Private()} {
@@ -188,7 +188,7 @@ func (e *Exchange) handleSubscriptions(_ websocket.Connection, operation string,
 			})
 		}
 	}
-	return
+	return args, err
 }
 
 // generateSubscriptions generates default subscription

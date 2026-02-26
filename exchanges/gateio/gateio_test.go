@@ -500,12 +500,11 @@ func TestMergeMultipleLendingLoans(t *testing.T) {
 	}
 }
 
-func TestRetriveOneSingleLoanDetail(t *testing.T) {
+func TestRetrieveOneSingleLoanDetail(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.RetriveOneSingleLoanDetail(t.Context(), "borrow", "123"); err != nil {
-		t.Errorf("%s RetriveOneSingleLoanDetail() error %v", e.Name, err)
-	}
+	_, err := e.RetrieveOneSingleLoanDetail(t.Context(), "borrow", "123")
+	assert.NoError(t, err, "RetrieveOneSingleLoanDetail should not error")
 }
 
 func TestModifyALoan(t *testing.T) {
@@ -656,7 +655,7 @@ func TestCreateCrossMarginBorrowLoan(t *testing.T) {
 	t.Parallel()
 	var response CrossMarginLoanResponse
 	if err := json.Unmarshal([]byte(createCrossMarginBorrowLoanJSON), &response); err != nil {
-		t.Errorf("%s error while deserializing to CrossMarginBorrowLoanResponse %v", e.Name, err)
+		t.Errorf("%s error while deserialising to CrossMarginBorrowLoanResponse %v", e.Name, err)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	if _, err := e.CreateCrossMarginBorrowLoan(t.Context(), CrossMarginBorrowLoanParams{
@@ -1152,13 +1151,13 @@ func TestEnableOrDisableDualMode(t *testing.T) {
 	assert.NoError(t, err, "EnableOrDisableDualMode should not error")
 }
 
-func TestRetrivePositionDetailInDualMode(t *testing.T) {
+func TestRetrievePositionDetailInDualMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.RetrivePositionDetailInDualMode(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures))
-	assert.NoError(t, err, "RetrivePositionDetailInDualMode should not error for CoinMarginedFutures")
-	_, err = e.RetrivePositionDetailInDualMode(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures))
-	assert.NoError(t, err, "RetrivePositionDetailInDualMode should not error for USDTMarginedFutures")
+	_, err := e.RetrievePositionDetailInDualMode(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures))
+	assert.NoError(t, err, "RetrievePositionDetailInDualMode should not error for CoinMarginedFutures")
+	_, err = e.RetrievePositionDetailInDualMode(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures))
+	assert.NoError(t, err, "RetrievePositionDetailInDualMode should not error for USDTMarginedFutures")
 }
 
 func TestUpdatePositionMarginInDualMode(t *testing.T) {
@@ -1502,7 +1501,7 @@ func TestCreateFlashSwapOrder(t *testing.T) {
 	t.Parallel()
 	var response FlashSwapOrderResponse
 	if err := json.Unmarshal([]byte(flashSwapOrderResponseJSON), &response); err != nil {
-		t.Errorf("%s error while deserializing to FlashSwapOrderResponse %v", e.Name, err)
+		t.Errorf("%s error while deserialising to FlashSwapOrderResponse %v", e.Name, err)
 	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	if _, err := e.CreateFlashSwapOrder(t.Context(), FlashSwapOrderParams{
@@ -2458,40 +2457,43 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		t.Run(a.String(), func(t *testing.T) {
 			t.Parallel()
 			switch a {
-			case asset.Options:
-				return // Options not supported
 			case asset.CrossMargin, asset.Margin:
 				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), asset.ErrNotSupported)
 			default:
 				require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
-				avail, err := e.GetAvailablePairs(a)
+				pairs, err := e.GetAvailablePairs(a)
 				require.NoError(t, err, "GetAvailablePairs must not error")
-				for _, pair := range avail {
-					l, err := e.GetOrderExecutionLimits(a, pair)
-					require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s", pair)
-					require.NotNilf(t, l, "GetOrderExecutionLimits %s result cannot be nil", pair)
-					assert.Equalf(t, a, l.Key.Asset, "asset should equal for %s", pair)
-					assert.Truef(t, pair.Equal(l.Key.Pair()), "pair should equal for %s", pair)
-					assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", pair)
-
+				for _, p := range pairs {
+					l, err := e.GetOrderExecutionLimits(a, p)
+					require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s", p)
+					require.NotNilf(t, l, "GetOrderExecutionLimits %s result cannot be nil", p)
+					assert.Equalf(t, a, l.Key.Asset, "asset should equal for %s", p)
+					assert.Truef(t, p.Equal(l.Key.Pair()), "pair should equal for %s", p)
 					switch a {
+					case asset.Options:
+						assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", p)
+						assert.Positivef(t, l.MaximumBaseAmount, "MaximumBaseAmount should be positive for %s", p)
+						assert.Positivef(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s", p)
+						assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
 					case asset.USDTMarginedFutures:
-						assert.GreaterOrEqualf(t, l.MinimumBaseAmount, 0.0, "MinimumBaseAmount should be non-negative for %s", pair)
-						assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", pair)
-						assert.NotZerof(t, l.Listed, "Listed should be populated for %s", pair)
+						assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", p)
+						assert.NotZerof(t, l.Listed, "Listed should be populated for %s", p)
 						fallthrough
 					case asset.CoinMarginedFutures:
 						assert.GreaterOrEqualf(t, l.MinimumBaseAmount, 0.0, "MinimumBaseAmount should be non-negative for %s", pair)
 						if !l.Delisted.IsZero() {
-							assert.Truef(t, l.Delisted.After(l.Delisting), "Delisted should be after Delisting for %s", pair)
+							assert.Truef(t, l.Delisted.After(l.Delisting), "Delisted should be after Delisting for %s", p)
 						}
+						assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
 					case asset.Spot:
-						assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", pair)
-						assert.Positivef(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive for %s", pair)
-						assert.Positivef(t, l.QuoteStepIncrementSize, "QuoteStepIncrementSize should be positive for %s", pair)
+						assert.Positivef(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive for %s", p)
+						assert.Positivef(t, l.QuoteStepIncrementSize, "QuoteStepIncrementSize should be positive for %s", p)
+						assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", p)
+						assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
 					case asset.DeliveryFutures:
-						assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", pair)
-						assert.NotZerof(t, l.Expiry, "Expiry should be populated for %s", pair)
+						assert.NotZerof(t, l.Expiry, "Expiry should be populated for %s", p)
+						assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", p)
+						assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
 					}
 				}
 			}
@@ -3584,7 +3586,7 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 	sub.AssetType = asset.USDTMarginedFutures
 	cpy.AssetType = asset.USDTMarginedFutures
 	_, err = e.WebsocketSubmitOrders(t.Context(), []*order.Submit{sub, &cpy})
-	require.ErrorIs(t, err, common.ErrNotYetImplemented)
+	require.ErrorIs(t, err, errInvalidOrderSize)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 

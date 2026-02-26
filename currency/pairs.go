@@ -69,7 +69,7 @@ func (p Pairs) Format(pairFmt PairFormat) Pairs {
 	return pairs
 }
 
-// UnmarshalJSON conforms type to the umarshaler interface
+// UnmarshalJSON conforms type to the unmarshaler interface
 func (p *Pairs) UnmarshalJSON(d []byte) error {
 	var pairs string
 	err := json.Unmarshal(d, &pairs)
@@ -292,7 +292,7 @@ func (p Pairs) GetRandomPair() (Pair, error) {
 	if len(p) == 0 {
 		return EMPTYPAIR, ErrCurrencyPairsEmpty
 	}
-	return p[rand.Intn(len(p))], nil //nolint:gosec // basic number generation required, no need for crypo/rand
+	return p[rand.Intn(len(p))], nil //nolint:gosec // basic number generation required, no need for crypto/rand
 }
 
 // DeriveFrom matches symbol string to the available pairs list when no

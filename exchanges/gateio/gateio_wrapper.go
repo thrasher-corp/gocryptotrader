@@ -871,14 +871,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
-
-	s.ClientOrderID = formatClientOrderID(s.ClientOrderID)
-
-	s.Pair, err = e.FormatExchangeCurrency(s.Pair, s.AssetType)
-	if err != nil {
+	if err := e.formatOrderClientIDAndPair(s); err != nil {
 		return nil, err
 	}
-	s.Pair = s.Pair.Upper()
 
 	switch s.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
@@ -1971,20 +1966,17 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		if err != nil {
 			return err
 		}
-
 		l = make([]limits.MinMaxLevel, 0, len(pairsData))
 		for i := range pairsData {
 			if pairsData[i].TradeStatus == "untradable" {
 				continue
 			}
-
 			// Minimum base amounts are not always provided this will default to
 			// precision for base deployment. This can't be done for quote.
 			minBaseAmount := pairsData[i].MinBaseAmount.Float64()
 			if minBaseAmount == 0 {
 				minBaseAmount = math.Pow10(-int(pairsData[i].AmountPrecision))
 			}
-
 			l = append(l, limits.MinMaxLevel{
 				Key:                     key.NewExchangeAssetPair(e.Name, a, currency.NewPair(pairsData[i].Base, pairsData[i].Quote)),
 				QuoteStepIncrementSize:  math.Pow10(-int(pairsData[i].PricePrecision)),
@@ -2058,7 +2050,6 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			if err != nil {
 				return err
 			}
-			l = make([]limits.MinMaxLevel, 0, len(contracts))
 			for c := range contracts {
 				cp, err := currency.NewPairFromString(strings.ReplaceAll(contracts[c].Name, currency.DashDelimiter, currency.UnderscoreDelimiter))
 				if err != nil {
@@ -2074,6 +2065,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				})
 			}
 		}
+		return limits.Load(l)
 	default:
 		return fmt.Errorf("%w %q", asset.ErrNotSupported, a)
 	}
@@ -2362,13 +2354,6 @@ func getClientOrderIDFromText(text string) string {
 	return ""
 }
 
-func formatClientOrderID(clientOrderID string) string {
-	if clientOrderID == "" || strings.HasPrefix(clientOrderID, "t-") {
-		return clientOrderID
-	}
-	return "t-" + clientOrderID
-}
-
 // getTypeFromTimeInForce returns the order type and if the order is post only
 func getTypeFromTimeInForce(tif string, price float64) (orderType order.Type) {
 	switch tif {
@@ -2436,13 +2421,9 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 		return nil, err
 	}
 
-	s.ClientOrderID = formatClientOrderID(s.ClientOrderID)
-
-	s.Pair, err = e.FormatExchangeCurrency(s.Pair, s.AssetType)
-	if err != nil {
+	if err := e.formatOrderClientIDAndPair(s); err != nil {
 		return nil, err
 	}
-	s.Pair = s.Pair.Upper()
 
 	switch s.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
@@ -2469,8 +2450,26 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	case asset.Options:
 		return nil, common.ErrFunctionNotSupported
 	default:
-		return nil, common.ErrNotYetImplemented
+		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, s.AssetType)
 	}
+}
+
+func formatClientOrderID(clientOrderID string) string {
+	if clientOrderID == "" || strings.HasPrefix(clientOrderID, "t-") {
+		return clientOrderID
+	}
+	return "t-" + clientOrderID
+}
+
+func (e *Exchange) formatOrderClientIDAndPair(s *order.Submit) error {
+	s.ClientOrderID = formatClientOrderID(s.ClientOrderID)
+	var err error
+	s.Pair, err = e.FormatExchangeCurrency(s.Pair, s.AssetType)
+	if err != nil {
+		return err
+	}
+	s.Pair = s.Pair.Upper()
+	return nil
 }
 
 func getFuturesOrderRequest(s *order.Submit) (*ContractOrderCreateParams, error) {
@@ -2478,7 +2477,6 @@ func getFuturesOrderRequest(s *order.Submit) (*ContractOrderCreateParams, error)
 	if err != nil {
 		return nil, err
 	}
-
 	tif, err := toExchangeTIF(s.TimeInForce, s.Price)
 	if err != nil {
 		return nil, err
@@ -2715,18 +2713,16 @@ func getSettlementCurrency(p currency.Pair, a asset.Item) (currency.Code, error)
 // WebsocketSubmitOrders submits orders to the exchange through the websocket
 func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Submit) ([]*order.SubmitResponse, error) {
 	var a asset.Item
-	for x := range orders {
-		if err := orders[x].Validate(e.GetTradingRequirements()); err != nil {
+	for _, s := range orders {
+		if err := s.Validate(e.GetTradingRequirements()); err != nil {
 			return nil, err
 		}
-
 		if a == asset.Empty {
-			a = orders[x].AssetType
+			a = s.AssetType
 			continue
 		}
-
-		if a != orders[x].AssetType {
-			return nil, fmt.Errorf("%w; Passed %q and %q", errSingleAssetRequired, a, orders[x].AssetType)
+		if a != s.AssetType {
+			return nil, fmt.Errorf("%w; Passed %q and %q", errSingleAssetRequired, a, s.AssetType)
 		}
 	}
 
@@ -2737,9 +2733,13 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 	switch a {
 	case asset.Spot:
 		reqs := make([]*CreateOrderRequest, len(orders))
-		for x := range orders {
+		for i, s := range orders {
+			if err := e.formatOrderClientIDAndPair(s); err != nil {
+				return nil, err
+			}
 			var err error
-			if reqs[x], err = e.getSpotOrderRequest(orders[x]); err != nil {
+			reqs[i], err = e.getSpotOrderRequest(s)
+			if err != nil {
 				return nil, err
 			}
 		}
@@ -2748,8 +2748,25 @@ func (e *Exchange) WebsocketSubmitOrders(ctx context.Context, orders []*order.Su
 			return nil, err
 		}
 		return e.deriveSpotWebsocketOrderResponses(resp)
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
+		reqs := make([]*ContractOrderCreateParams, len(orders))
+		for i, s := range orders {
+			if err := e.formatOrderClientIDAndPair(s); err != nil {
+				return nil, err
+			}
+			var err error
+			reqs[i], err = getFuturesOrderRequest(s)
+			if err != nil {
+				return nil, err
+			}
+		}
+		resp, err := e.WebsocketFuturesSubmitOrders(ctx, a, reqs...)
+		if err != nil {
+			return nil, err
+		}
+		return e.deriveFuturesWebsocketOrderResponses(resp)
 	default:
-		return nil, fmt.Errorf("%w for %s", common.ErrNotYetImplemented, a)
+		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
 	}
 }
 

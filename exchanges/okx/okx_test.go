@@ -3324,12 +3324,18 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
 			pairs, err := e.CurrencyPairs.GetPairs(a, true)
 			require.NoError(t, err, "GetPairs must not error")
-			l, err := e.GetOrderExecutionLimits(a, pairs[0])
-			require.NoError(t, err, "GetOrderExecutionLimits must not error")
-			assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
-			assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+			for _, p := range pairs {
+				l, err := e.GetOrderExecutionLimits(a, p)
+				require.NoError(t, err, "GetOrderExecutionLimits must not error")
+				assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
+				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+			}
 		})
 	}
+	t.Run("unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported)
+	})
 }
 
 func TestUpdateTicker(t *testing.T) {
@@ -3882,8 +3888,8 @@ func TestGetHistoricCandles(t *testing.T) {
 		require.NoErrorf(t, err, "GetEnabledPairs for asset %s must not error", a)
 		require.NotEmptyf(t, pairs, "GetEnabledPairs for asset %s must not return empty pairs", a)
 		result, err := e.GetHistoricCandles(contextGenerate(), pairs[0], a, kline.OneMin, time.Now().Add(-time.Hour), time.Now())
-		if (a == asset.Spread || a == asset.Options) && err != nil { // Options and spread candles sometimes returns no data
-			continue
+		if (a == asset.Spread || a == asset.Options || a == asset.Futures) && errors.Is(err, kline.ErrNoTimeSeriesDataToConvert) {
+			continue // These market types can legitimately return no candles for some windows.
 		}
 		require.NoErrorf(t, err, "GetHistoricCandles for asset %s and pair %s must not error", a, pairs[0])
 		assert.NotNilf(t, result, "GetHistoricCandles for asset %s and pair %s should not return nil", a, pairs[0])
@@ -5609,7 +5615,7 @@ func TestGetInviteesDetail(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetUserAffilateRebateInformation(t *testing.T) {
+func TestGetUserAffiliateRebateInformation(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetUserAffiliateRebateInformation(contextGenerate(), "")
 	require.ErrorIs(t, err, errInvalidAPIKey)
