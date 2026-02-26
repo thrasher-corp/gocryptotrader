@@ -268,8 +268,7 @@ func (s *Settings) PrintLoadedSettings() {
 	gctlog.Debugln(gctlog.Global)
 	gctlog.Debugf(gctlog.Global, "ENGINE SETTINGS")
 	settings := reflect.ValueOf(*s)
-	for x := range settings.NumField() {
-		field := settings.Field(x)
+	for _, field := range settings.Fields() {
 		if field.Kind() != reflect.Struct {
 			continue
 		}
@@ -708,17 +707,13 @@ func (bot *Engine) LoadExchange(name string) error {
 		return err
 	}
 
-	if bot.Settings.EnableAllPairs &&
-		exchCfg.CurrencyPairs != nil {
-		assets := exchCfg.CurrencyPairs.GetAssetTypes(false)
-		for x := range assets {
-			var pairs currency.Pairs
-			pairs, err = exchCfg.CurrencyPairs.GetPairs(assets[x], false)
+	if bot.Settings.EnableAllPairs && exchCfg.CurrencyPairs != nil {
+		for _, a := range exchCfg.CurrencyPairs.GetAssetTypes(false) {
+			pairs, err := exchCfg.CurrencyPairs.GetPairs(a, false)
 			if err != nil {
 				return err
 			}
-			err = exchCfg.CurrencyPairs.StorePairs(assets[x], pairs, true)
-			if err != nil {
+			if err := exchCfg.CurrencyPairs.StorePairs(a, pairs, true); err != nil {
 				return err
 			}
 		}
@@ -728,18 +723,14 @@ func (bot *Engine) LoadExchange(name string) error {
 		exchCfg.Verbose = true
 	}
 	if exchCfg.Features != nil {
-		if bot.Settings.EnableExchangeWebsocketSupport &&
-			exchCfg.Features.Supports.Websocket {
+		if bot.Settings.EnableExchangeWebsocketSupport && exchCfg.Features.Supports.Websocket {
 			exchCfg.Features.Enabled.Websocket = true
 		}
-		if bot.Settings.EnableExchangeAutoPairUpdates &&
-			exchCfg.Features.Supports.RESTCapabilities.AutoPairUpdates {
+		if bot.Settings.EnableExchangeAutoPairUpdates && exchCfg.Features.Supports.RESTCapabilities.AutoPairUpdates {
 			exchCfg.Features.Enabled.AutoPairUpdates = true
 		}
-		if bot.Settings.DisableExchangeAutoPairUpdates {
-			if exchCfg.Features.Supports.RESTCapabilities.AutoPairUpdates {
-				exchCfg.Features.Enabled.AutoPairUpdates = false
-			}
+		if bot.Settings.DisableExchangeAutoPairUpdates && exchCfg.Features.Supports.RESTCapabilities.AutoPairUpdates {
+			exchCfg.Features.Enabled.AutoPairUpdates = false
 		}
 	}
 	if bot.Settings.HTTPUserAgent != "" {
@@ -756,8 +747,7 @@ func (bot *Engine) LoadExchange(name string) error {
 	}
 
 	if !bot.Settings.EnableExchangeHTTPRateLimiter {
-		err = exch.DisableRateLimiter()
-		if err != nil {
+		if err := exch.DisableRateLimiter(); err != nil {
 			gctlog.Errorf(gctlog.ExchangeSys, "%s error disabling rate limiter: %v", exch.GetName(), err)
 		} else {
 			gctlog.Warnf(gctlog.ExchangeSys, "%s rate limiting has been turned off", exch.GetName())
@@ -768,26 +758,38 @@ func (bot *Engine) LoadExchange(name string) error {
 	exchCfg.Name = exch.GetName()
 
 	exchCfg.Enabled = true
-	err = exch.Setup(exchCfg)
-	if err != nil {
+	if err := exch.Setup(exchCfg); err != nil {
 		exchCfg.Enabled = false
 		return err
 	}
 
-	err = bot.ExchangeManager.Add(exch)
-	if err != nil {
+	if err := bot.ExchangeManager.Add(exch); err != nil {
 		return err
 	}
 
 	b := exch.GetBase()
 	if b.API.AuthenticatedSupport || b.API.AuthenticatedWebsocketSupport {
-		err = exch.ValidateAPICredentials(context.TODO(), asset.Spot)
-		if err != nil {
-			gctlog.Warnf(gctlog.ExchangeSys, "%s: Error validating credentials: %v", b.Name, err)
+		enabledAssets := b.CurrencyPairs.GetAssetTypes(true)
+		var preferredAsset asset.Item
+		switch {
+		case enabledAssets.Contains(asset.Spot): // prioritise validating credentials with spot due to wide usage across GCT
+			preferredAsset = asset.Spot
+		default:
+			for _, a := range enabledAssets { // second priority to futures if spot isn't available
+				if a.IsFutures() {
+					preferredAsset = a
+					break
+				}
+			}
+			if preferredAsset == 0 {
+				preferredAsset = enabledAssets[0] // last resort pick first available
+			}
+		}
+
+		if err := exch.ValidateAPICredentials(context.TODO(), preferredAsset); err != nil {
+			gctlog.Warnf(gctlog.ExchangeSys, "%s: Error validating credentials: %v for %s", b.Name, err, preferredAsset)
 			b.API.AuthenticatedSupport = false
 			b.API.AuthenticatedWebsocketSupport = false
-			exchCfg.API.AuthenticatedSupport = false
-			exchCfg.API.AuthenticatedWebsocketSupport = false
 			if b.Websocket != nil {
 				b.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			}

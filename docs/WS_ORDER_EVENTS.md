@@ -15,10 +15,10 @@ out of reported trades.
 |----------------------|-------------------------------------------------------------------|---------------------------------------------------------|-----------|
 | Price                | Original price assigned to order                                  | Depends on order type (e.g. limit orders have prices)   | Mandatory |
 | Amount               | Original quantity assigned to order                               |                                                         | Mandatory |
-| AverageExecutedPrice | Average price of what's traded thus far                           | Order is filled, partially filled or partially canceled | Desirable |
-| ExecutedAmount       | How much of the original order quantity is filled                 | Order is filled, partially filled or partially canceled | Mandatory |
+| AverageExecutedPrice | Average price of what's traded thus far                           | Order is filled, partially filled or partially cancelled | Desirable |
+| ExecutedAmount       | How much of the original order quantity is filled                 | Order is filled, partially filled or partially cancelled | Mandatory |
 | RemainingAmount      | Amount - ExecutedAmount                                           |                                                         | Mandatory |
-| Cost                 | How much is spent thus far (cumulative transacted quote currency) | Order is filled, partially filled or partially canceled | Mandatory |
+| Cost                 | How much is spent thus far (cumulative transacted quote currency) | Order is filled, partially filled or partially cancelled | Mandatory |
 | CostAsset            | Deprecated, cost currency is always pair.Quote                    |                                                         | -         |
 | Fee                  | How much last trade was charged by the exchange                   | Reported event is a trade                               | Optional  |
 | FeeAsset             | Asset of the taken fee                                            |                                                         | Optional  |

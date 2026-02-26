@@ -177,7 +177,7 @@ func (s *Store) match(key MatchableKey) *Subscription {
 // The new store is assumed to be a new instance and enjoys no locking protection
 func (s *Store) Diff(compare List) (added, removed List) {
 	if s == nil || s.m == nil {
-		return
+		return added, removed
 	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -194,7 +194,7 @@ func (s *Store) Diff(compare List) (added, removed List) {
 		removed = append(removed, c)
 	}
 
-	return
+	return added, removed
 }
 
 // Len returns the number of subscriptions

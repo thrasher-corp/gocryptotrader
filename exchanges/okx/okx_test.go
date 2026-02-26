@@ -3324,12 +3324,18 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
 			pairs, err := e.CurrencyPairs.GetPairs(a, true)
 			require.NoError(t, err, "GetPairs must not error")
-			l, err := e.GetOrderExecutionLimits(a, pairs[0])
-			require.NoError(t, err, "GetOrderExecutionLimits must not error")
-			assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
-			assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+			for _, p := range pairs {
+				l, err := e.GetOrderExecutionLimits(a, p)
+				require.NoError(t, err, "GetOrderExecutionLimits must not error")
+				assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
+				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+			}
 		})
 	}
+	t.Run("unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported)
+	})
 }
 
 func TestUpdateTicker(t *testing.T) {
@@ -3882,8 +3888,8 @@ func TestGetHistoricCandles(t *testing.T) {
 		require.NoErrorf(t, err, "GetEnabledPairs for asset %s must not error", a)
 		require.NotEmptyf(t, pairs, "GetEnabledPairs for asset %s must not return empty pairs", a)
 		result, err := e.GetHistoricCandles(contextGenerate(), pairs[0], a, kline.OneMin, time.Now().Add(-time.Hour), time.Now())
-		if (a == asset.Spread || a == asset.Options) && err != nil { // Options and spread candles sometimes returns no data
-			continue
+		if (a == asset.Spread || a == asset.Options || a == asset.Futures) && errors.Is(err, kline.ErrNoTimeSeriesDataToConvert) {
+			continue // These market types can legitimately return no candles for some windows.
 		}
 		require.NoErrorf(t, err, "GetHistoricCandles for asset %s and pair %s must not error", a, pairs[0])
 		assert.NotNilf(t, result, "GetHistoricCandles for asset %s and pair %s should not return nil", a, pairs[0])
@@ -3909,7 +3915,7 @@ func TestOrderPushData(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsOrders.json", e.WsHandleData)
+	testexch.FixtureToDataHandler(t, "testdata/wsOrders.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, nil, b) })
 	e.Websocket.DataHandler.Close()
 	require.Len(t, e.Websocket.DataHandler.C, 4, "Should see 4 orders")
 	for resp := range e.Websocket.DataHandler.C {
@@ -4024,7 +4030,7 @@ func TestWsHandleData(t *testing.T) {
 			e.API.AuthenticatedSupport = false
 			e.API.AuthenticatedWebsocketSupport = false
 		}
-		err := e.WsHandleData(t.Context(), []byte(msg))
+		err := e.wsHandleData(t.Context(), nil, []byte(msg))
 		if name == "Balance Save Error" {
 			assert.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "wsProcessBalanceAndPosition Accounts.Save should error without credentials")
 		} else {
@@ -4042,7 +4048,7 @@ func TestPushDataDynamic(t *testing.T) {
 	}
 	var err error
 	for x := range dataMap {
-		err = e.WsHandleData(t.Context(), []byte(dataMap[x]))
+		err = e.wsHandleData(t.Context(), nil, []byte(dataMap[x]))
 		require.NoError(t, err)
 	}
 }
@@ -4076,7 +4082,7 @@ func TestWSProcessTrades(t *testing.T) {
 		})
 		require.NoError(t, err, "AddSubscriptions must not error")
 	}
-	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", e.WsHandleData)
+	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, nil, b) })
 
 	exp := []trade.Data{
 		{
@@ -5609,7 +5615,7 @@ func TestGetInviteesDetail(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetUserAffilateRebateInformation(t *testing.T) {
+func TestGetUserAffiliateRebateInformation(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetUserAffiliateRebateInformation(contextGenerate(), "")
 	require.ErrorIs(t, err, errInvalidAPIKey)
@@ -6042,7 +6048,9 @@ func TestGenerateSubscriptions(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := e.generateSubscriptions()
+	public, err := e.generateSubscriptions(true)
+	require.NoError(t, err, "generateSubscriptions must not error")
+	private, err := e.generateSubscriptions(false)
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp := subscription.List{
 		{Channel: subscription.MyAccountChannel, QualifiedChannel: `{"channel":"account"}`, Authenticated: true},
@@ -6078,31 +6086,70 @@ func TestGenerateSubscriptions(t *testing.T) {
 			}
 		}
 	}
-	testsubs.EqualLists(t, exp, subs)
+	testsubs.EqualLists(t, exp, append(public, private...))
 
 	e.Features.Subscriptions = subscription.List{{Channel: channelGridPositions, Params: map[string]any{"algoId": "42"}}}
-	subs, err = e.generateSubscriptions()
+	public, err = e.generateSubscriptions(true)
+	require.NoError(t, err, "generateSubscriptions must not error")
+	private, err = e.generateSubscriptions(false)
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp = subscription.List{{Channel: channelGridPositions, Params: map[string]any{"algoId": "42"}, QualifiedChannel: `{"channel":"grid-positions","algoId":"42"}`}}
-	testsubs.EqualLists(t, exp, subs)
+	testsubs.EqualLists(t, exp, append(public, private...))
 
 	e.Features.Subscriptions = subscription.List{{Channel: channelGridPositions}}
-	subs, err = e.generateSubscriptions()
+	public, err = e.generateSubscriptions(true)
+	require.NoError(t, err, "generateSubscriptions must not error")
+	private, err = e.generateSubscriptions(false)
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp = subscription.List{{Channel: channelGridPositions, QualifiedChannel: `{"channel":"grid-positions"}`}}
-	testsubs.EqualLists(t, exp, subs)
+	testsubs.EqualLists(t, exp, append(public, private...))
 }
 
+// TODO: Implement channel subscriptions for business ws and remove this test
 func TestBusinessWSCandleSubscriptions(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
 
-	err := e.WsConnectBusiness(t.Context())
-	require.NoError(t, err, "WsConnectBusiness must not error")
+	e.Features.Subscriptions = nil // Subscriptions not needed for this test
 
-	err = e.BusinessSubscribe(t.Context(), subscription.List{{Channel: channelCandle1D}})
+	finish := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Go(func() { // reader routine so nothing blocks
+		for {
+			select {
+			case <-finish:
+				return
+			case <-e.Websocket.DataHandler.C:
+			}
+		}
+	})
+
+	for _, a := range e.GetAssetTypes(true) { // Disable all assets except spread and spot so only those are tested and data handler isn't polluted
+		switch a {
+		case asset.Spread:
+			enabled, err := e.GetBase().CurrencyPairs.GetPairs(a, true)
+			require.NoError(t, err, "GetPairs must not error")
+			randomPair, err := enabled.GetRandomPair()
+			require.NoError(t, err, "GetRandomPair must not error")
+			require.NoError(t, e.GetBase().SetPairs(currency.Pairs{randomPair}, a, true), "SetPairs must not error")
+			continue
+		case asset.Spot:
+		default:
+			require.NoError(t, e.GetBase().CurrencyPairs.SetAssetEnabled(a, false), "SetAssetEnabled must not error")
+		}
+	}
+
+	require.NoError(t, e.Websocket.Connect(t.Context()))
+
+	conn, err := e.Websocket.GetConnection(businessConnection)
+	require.NoError(t, err, "GetConnection must not error")
+
+	err = e.BusinessSubscribe(t.Context(), conn, subscription.List{{Channel: channelCandle1D}})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	close(finish) // yield so that assertion below gets all data
+	wg.Wait()
 
 	p := currency.Pairs{
 		mainPair,
@@ -6110,27 +6157,31 @@ func TestBusinessWSCandleSubscriptions(t *testing.T) {
 		currency.NewPairWithDelimiter("OKB", "USDT", "-"),
 	}
 
+	var subs subscription.List
 	for i, ch := range []string{channelCandle1D, channelMarkPriceCandle1M, channelIndexCandle1H} {
-		err := e.BusinessSubscribe(t.Context(), subscription.List{{Channel: ch, Pairs: p[i : i+1]}})
-		require.NoErrorf(t, err, "BusinessSubscribe %s-%s must not error", ch, p[i])
+		subs = append(subs, &subscription.Subscription{Channel: ch, Pairs: p[i : i+1]})
 	}
 
+	err = e.BusinessSubscribe(t.Context(), conn, subs)
+	require.NoError(t, err, "BusinessSubscribe must not error")
+
 	var got currency.Pairs
-	assert.Eventually(t, func() bool {
-		select {
-		case a := <-e.Websocket.DataHandler.C:
-			switch v := a.Data.(type) {
-			case websocket.KlineData:
-				got = got.Add(v.Pair)
-			case []CandlestickMarkPrice:
-				if len(v) > 0 {
-					got = got.Add(v[0].Pair)
-				}
+	check := func() bool {
+		data := <-e.Websocket.DataHandler.C
+		switch v := data.Data.(type) {
+		case websocket.KlineData:
+			got = got.Add(v.Pair)
+		case []CandlestickMarkPrice:
+			if len(v) > 0 {
+				got = got.Add(v[0].Pair)
 			}
 		default:
 		}
 		return len(got) == 3
-	}, 4*time.Second, 100*time.Millisecond, "Should eventually get candles from the datahandler")
+	}
+	assert.Eventually(t, check, 5*time.Second, time.Millisecond)
+	require.Equal(t, 3, len(got), "must receive candles for all three subscriptions")
+	require.NoError(t, got.ContainsAll(p, true), "must receive candles for all subscribed pairs")
 }
 
 const (

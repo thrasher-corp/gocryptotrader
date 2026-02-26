@@ -776,7 +776,7 @@ type ContractStat struct {
 	MarkPrice              float64    `json:"mark_price"`
 	TopLongShortSize       float64    `json:"top_lsr_size"`
 	ShortLiquidationAmount float64    `json:"short_liq_amount"`
-	LongLiquidiationAmount float64    `json:"long_liq_amount"`
+	LongLiquidationAmount  float64    `json:"long_liq_amount"`
 	OpenInterestUsd        float64    `json:"open_interest_usd"`
 	TopLongShortAccount    float64    `json:"top_lsr_account"`
 	LongLiquidationUSD     float64    `json:"long_liq_usd"`
@@ -1418,7 +1418,7 @@ type SpotOrder struct {
 	AverageFillPrice   types.Number `json:"avg_deal_price"`
 	FeeDeducted        types.Number `json:"fee"`
 	FeeCurrency        string       `json:"fee_currency"`
-	FillPrice          types.Number `json:"fill_price"`   // Total filled in quote currency. Deprecated in favor of filled_total
+	FillPrice          types.Number `json:"fill_price"`   // Total filled in quote currency. Deprecated in favour of filled_total
 	FilledTotal        types.Number `json:"filled_total"` // Total filled in quote currency
 	PointFee           types.Number `json:"point_fee"`
 	GtFee              string       `json:"gt_fee,omitempty"`
@@ -2031,7 +2031,7 @@ type WsEventResponse struct {
 	}
 }
 
-// WSResponse represents generalized websocket push data from the server.
+// WSResponse represents generalised websocket push data from the server.
 type WSResponse struct {
 	ID        int64           `json:"id"`
 	Time      time.Time       `json:"time"`

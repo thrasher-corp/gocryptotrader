@@ -174,7 +174,7 @@ func (a Item) IsOptions() bool {
 	return a >= Options && a < All
 }
 
-// UnmarshalJSON conforms type to the umarshaler interface
+// UnmarshalJSON conforms type to the unmarshaler interface
 func (a *Item) UnmarshalJSON(d []byte) error {
 	var assetString string
 	err := json.Unmarshal(d, &assetString)

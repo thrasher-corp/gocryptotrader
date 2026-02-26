@@ -16,7 +16,7 @@ const (
 )
 
 const (
-	placeOrderEPL request.EndpointLimit = iota
+	placeOrderEPL request.EndpointLimit = iota + 1
 	placeMultipleOrdersEPL
 	cancelOrderEPL
 	cancelMultipleOrdersEPL
@@ -296,7 +296,7 @@ const (
 	getEconomicCalendarEPL
 	getEstimatedDeliveryPriceEPL
 
-	getAffilateInviteesDetailEPL
+	getAffiliateInviteesDetailEPL
 	getUserAffiliateRebateInformationEPL
 
 	placeLendingOrderEPL
@@ -323,6 +323,8 @@ const (
 	createWithdrawalOrderEPL
 	getWithdrawalPaymentMethodsEPL
 	getFiatDepositPaymentMethodsEPL
+
+	websocketRequestEPL
 )
 
 var rateLimits = func() request.RateLimitDefinitions {
@@ -637,7 +639,7 @@ var rateLimits = func() request.RateLimitDefinitions {
 		// Status Endpoints
 
 		getEventStatusEPL:                    request.NewRateLimitWithWeight(fiveSecondsInterval, 1, 1),
-		getAffilateInviteesDetailEPL:         request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
+		getAffiliateInviteesDetailEPL:        request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getUserAffiliateRebateInformationEPL: request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 
 		placeLendingOrderEPL:   request.NewRateLimitWithWeight(oneSecondInterval, 2, 1),
@@ -663,5 +665,8 @@ var rateLimits = func() request.RateLimitDefinitions {
 		createWithdrawalOrderEPL:         request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
 		getWithdrawalPaymentMethodsEPL:   request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
 		getFiatDepositPaymentMethodsEPL:  request.NewRateLimitWithWeight(oneSecondInterval, 3, 1),
+
+		// This will fallback to the websocket connection specific rate limit
+		websocketRequestEPL: request.RateLimitNotRequired,
 	}
 }()

@@ -11,14 +11,15 @@ import (
 )
 
 // Time represents a time.Time object that can be unmarshalled from a float64 or string.
-// MarshalJSON serializes the time to JSON using RFC 3339 format.
+// MarshalJSON serialises the time to JSON using RFC 3339 format.
 // Note: Not all exchanges may support RFC 3339 for outbound requests, so ensure compatibility with each exchange's time
 // format requirements.
 type Time time.Time
 
-var errInvalidTimestampFormat = errors.New("invalid timestamp format")
+// ErrInvalidTimestampFormat indicates that a timestamp cannot be parsed into a supported format.
+var ErrInvalidTimestampFormat = errors.New("invalid timestamp format")
 
-// UnmarshalJSON deserializes json, and timestamp information.
+// UnmarshalJSON deserialises json and timestamp information.
 func (t *Time) UnmarshalJSON(data []byte) error {
 	s := string(data)
 
@@ -38,9 +39,15 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 		}
 	}
 
-	// Expects a string of length 10 (seconds), 13 (milliseconds), 16 (microseconds), or 19 (nanoseconds) representing a Unix timestamp
 	switch len(s) {
-	case 12, 15, 18:
+	case 8:
+		parsed, err := time.Parse("20060102", s)
+		if err != nil {
+			return fmt.Errorf("%w error parsing %q into date: %w", ErrInvalidTimestampFormat, s, err)
+		}
+		*t = Time(parsed)
+		return nil
+	case 12, 15, 18: // Expects a string of length 10 (seconds), 13 (milliseconds), 16 (microseconds), or 19 (nanoseconds) representing a Unix timestamp
 		s += "0"
 	case 11, 14, 17:
 		s += "00"
@@ -61,7 +68,7 @@ func (t *Time) UnmarshalJSON(data []byte) error {
 	case 19:
 		*t = Time(time.Unix(0, unixTS))
 	default:
-		return fmt.Errorf("%w: %q", errInvalidTimestampFormat, data)
+		return fmt.Errorf("%w: %q", ErrInvalidTimestampFormat, data)
 	}
 	return nil
 }
@@ -74,7 +81,7 @@ func (t Time) String() string {
 	return t.Time().String()
 }
 
-// MarshalJSON serializes the time to json.
+// MarshalJSON serialises the time to json using RFC 3339 format.
 func (t Time) MarshalJSON() ([]byte, error) {
 	return t.Time().MarshalJSON()
 }
