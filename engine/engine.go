@@ -772,7 +772,7 @@ func (bot *Engine) LoadExchange(name string) error {
 		enabledAssets := b.CurrencyPairs.GetAssetTypes(true)
 		var preferredAsset asset.Item
 		switch {
-		case enabledAssets.Contains(asset.Spot): // prioritise spot due to wide usage across GCT
+		case enabledAssets.Contains(asset.Spot): // prioritise validating credentials with spot due to wide usage across GCT
 			preferredAsset = asset.Spot
 		default:
 			for _, a := range enabledAssets { // second priority to futures if spot isn't available
