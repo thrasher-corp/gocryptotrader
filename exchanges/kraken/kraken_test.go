@@ -79,23 +79,26 @@ func TestWrapperGetServerTime(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
+	testexch.UpdatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
 		t.Run(a.String(), func(t *testing.T) {
 			t.Parallel()
-			switch a {
-			case asset.Futures:
-				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), common.ErrNotYetImplemented)
-			default:
-				require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
-				pairs, err := e.CurrencyPairs.GetPairs(a, false)
-				require.NoError(t, err, "GetPairs must not error")
-				l, err := e.GetOrderExecutionLimits(a, pairs[0])
+			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
+			pairs, err := e.CurrencyPairs.GetPairs(a, false)
+			require.NoError(t, err, "GetPairs must not error")
+			for _, p := range pairs {
+				l, err := e.GetOrderExecutionLimits(a, p)
 				require.NoError(t, err, "GetOrderExecutionLimits must not error")
 				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
 				assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
 			}
 		})
 	}
+
+	t.Run("unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported)
+	})
 }
 
 func TestFetchTradablePairs(t *testing.T) {
@@ -158,19 +161,18 @@ func TestUpdateOrderbook(t *testing.T) {
 
 func TestFuturesBatchOrder(t *testing.T) {
 	t.Parallel()
-	var data []PlaceBatchOrderData
-	var tempData PlaceBatchOrderData
-	tempData.PlaceOrderType = "meow"
-	tempData.OrderID = "test123"
-	tempData.Symbol = futuresTestPair.Lower().String()
-	data = append(data, tempData)
-	_, err := e.FuturesBatchOrder(t.Context(), data)
+	req := []PlaceBatchOrderData{{
+		PlaceOrderType: "meow",
+		OrderID:        "test123",
+		Symbol:         futuresTestPair.Lower().String(),
+	}}
+	_, err := e.FuturesBatchOrder(t.Context(), req)
 	assert.ErrorIs(t, err, errInvalidBatchOrderType, "FuturesBatchOrder should error correctly")
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	data[0].PlaceOrderType = "cancel"
-	_, err = e.FuturesBatchOrder(t.Context(), data)
+	req[0].PlaceOrderType = "cancel"
+	_, err = e.FuturesBatchOrder(t.Context(), req)
 	assert.NoError(t, err, "FuturesBatchOrder should not error")
 }
 
@@ -467,7 +469,7 @@ func TestOpenPositions(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// TODO: Needs a positive test
+// TestGetLedgers TODO: needs a positive test
 func TestGetLedgers(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -699,12 +701,11 @@ func TestCancelBatchExchangeOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
-	var ordersCancellation []order.Cancel
-	ordersCancellation = append(ordersCancellation, order.Cancel{
+	ordersCancellation := []order.Cancel{{
 		Pair:      currency.NewPairWithDelimiter(currency.BTC.String(), currency.USD.String(), "/"),
 		OrderID:   "OGEX6P-B5Q74-IGZ72R,OGEX6P-B5Q74-IGZ722",
 		AssetType: asset.Spot,
-	})
+	}}
 
 	_, err := e.CancelBatchOrders(t.Context(), ordersCancellation)
 	if sharedtestvalues.AreAPICredentialsSet(e) {

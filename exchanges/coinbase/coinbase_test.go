@@ -74,7 +74,7 @@ const (
 	errInvalidProductID        = `Coinbase unsuccessful HTTP status code: 404 raw response: {"error":"NOT_FOUND","error_details":"valid product_id is required","message":"valid product_id is required"}`
 	errExpectedFeeRange        = "expected fee range of %v and %v, received %v"
 	errOptionInvalid           = `Coinbase unsuccessful HTTP status code: 400 raw response: {"error":"unknown","error_details":"parsing field \"product_type\": \"OPTIONS\" is not a valid value","message":"parsing field \"product_type\": \"OPTIONS\" is not a valid value"}`
-	errJSONUnmarshalUnexpected = "JSON umarshalling did not return expected error"
+	errJSONUnmarshalUnexpected = "JSON unmarshalling did not return expected error"
 )
 
 func TestMain(m *testing.M) {
@@ -1151,7 +1151,7 @@ func TestUpdateTicker(t *testing.T) {
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
-// Not parallel; being parallel causes intermittent errors with another test for no discernible reason
+// TestUpdateOrderbook does not run in parallel; being parallel causes intermittent errors with another test for no discernible reason
 func TestUpdateOrderbook(t *testing.T) {
 	testexch.UpdatePairsOnce(t, e)
 	_, err := e.UpdateOrderbook(t.Context(), currency.Pair{}, asset.Empty)

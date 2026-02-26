@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func TestGetWSPingHandler(t *testing.T) {
@@ -277,7 +278,7 @@ func TestProcessOrderbookUpdateWithSnapshot(t *testing.T) {
 		payload []byte
 		err     error
 	}{
-		{payload: []byte(`{"t":"bingbong"}`), err: strconv.ErrSyntax},
+		{payload: []byte(`{"t":"bingbong"}`), err: types.ErrInvalidTimestampFormat},
 		{payload: []byte(`{"s":"ob.50"}`), err: common.ErrMalformedData},
 		{payload: []byte(`{"s":"ob..50"}`), err: currency.ErrCreatingPair},
 		{payload: []byte(`{"s":"ob.BTC_USDT.50","full":true}`), err: orderbook.ErrLastUpdatedNotSet},

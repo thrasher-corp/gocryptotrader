@@ -48,12 +48,12 @@ func (c Currencies) Contains(check Code) bool {
 	return false
 }
 
-// Join returns a comma serparated string
+// Join returns a comma separated string
 func (c Currencies) Join() string {
 	return strings.Join(c.Strings(), ",")
 }
 
-// UnmarshalJSON conforms type to the umarshaler interface
+// UnmarshalJSON conforms type to the unmarshaler interface
 func (c *Currencies) UnmarshalJSON(d []byte) error {
 	if d[0] != '[' {
 		d = []byte(`[` + string(d) + `]`)

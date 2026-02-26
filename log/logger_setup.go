@@ -201,7 +201,7 @@ func splitLevel(level string) (l Levels) {
 			l.Error = true
 		}
 	}
-	return
+	return l
 }
 
 // registerNewSubLogger registers a new sub logger. Note: Calling function must
@@ -227,7 +227,7 @@ func registerNewSubLogger(subLogger string) *SubLogger {
 	return temp
 }
 
-// register all loggers at package init()
+// init registers all loggers at package init()
 func init() {
 	// Start persistent worker to handle logs
 	go loggerWorker()

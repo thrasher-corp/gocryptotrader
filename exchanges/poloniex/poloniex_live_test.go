@@ -5,10 +5,14 @@
 package poloniex
 
 import (
+	"context"
 	"log"
 	"os"
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
@@ -18,14 +22,39 @@ var mockTests = false
 func TestMain(m *testing.M) {
 	e = new(Exchange)
 	if err := testexch.Setup(e); err != nil {
-		log.Fatalf("Poloniex Setup error: %s", err)
+		log.Fatal(err)
 	}
-	if apiKey != "" && apiSecret != "" {
-		e.API.AuthenticatedSupport = true
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+
+	e.setAPICredential(apiKey, apiSecret)
+	if err := e.populateTradablePairs(); err != nil {
+		log.Fatal(err)
 	}
 	log.Printf(sharedtestvalues.LiveTesting, e.Name)
-	e.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
+	e.Websocket.DataHandler = stream.NewRelay(sharedtestvalues.WebsocketRelayBufferCapacity)
 	e.Websocket.TrafficAlert = sharedtestvalues.GetWebsocketStructChannelOverride()
 	os.Exit(m.Run())
+}
+
+func (e *Exchange) populateTradablePairs() error {
+	if err := e.UpdateTradablePairs(context.Background()); err != nil {
+		return err
+	}
+	tradablePairs, err := e.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return err
+	} else if len(tradablePairs) == 0 {
+		return currency.ErrCurrencyPairsEmpty
+	}
+	spotTradablePair, err = e.FormatExchangeCurrency(tradablePairs[0], asset.Spot)
+	if err != nil {
+		return err
+	}
+	tradablePairs, err = e.GetEnabledPairs(asset.Futures)
+	if err != nil {
+		return err
+	} else if len(tradablePairs) == 0 {
+		return currency.ErrCurrencyPairsEmpty
+	}
+	futuresTradablePair, err = e.FormatExchangeCurrency(tradablePairs[0], asset.Futures)
+	return err
 }

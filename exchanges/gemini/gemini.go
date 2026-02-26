@@ -215,7 +215,7 @@ func (e *Exchange) Transfers(ctx context.Context, curr currency.Code, start time
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, geminiTransfers, req, &response)
 }
 
-// CancelExistingOrder will cancel an order. If the order is already canceled, the
+// CancelExistingOrder will cancel an order. If the order is already cancelled, the
 // message will succeed but have no effect.
 func (e *Exchange) CancelExistingOrder(ctx context.Context, orderID int64) (Order, error) {
 	req := make(map[string]any)

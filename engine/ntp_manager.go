@@ -95,7 +95,7 @@ func (m *ntpManager) Stop() error {
 	return nil
 }
 
-// continuously checks the internet connection at intervals
+// run continuously checks the internet connection at intervals
 func (m *ntpManager) run() {
 	t := time.NewTicker(m.checkInterval)
 	defer func() {

@@ -169,7 +169,7 @@ func TestCheckLimit(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// No parallel, working with global var
+// TestPublicLoadLimits does not run in parallel because it uses a global var
 func TestPublicLoadLimits(t *testing.T) {
 	err := Load(nil)
 	assert.ErrorIs(t, err, ErrEmptyLevels)
@@ -187,7 +187,7 @@ func TestPublicLoadLimits(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// No parallel, working with global var
+// TestPublicGetOrderExecutionLimits does not run in parallel because it uses a global var
 func TestPublicGetOrderExecutionLimits(t *testing.T) {
 	newLimits := []MinMaxLevel{
 		{
@@ -206,7 +206,7 @@ func TestPublicGetOrderExecutionLimits(t *testing.T) {
 	assert.Equal(t, newLimits[0], resp)
 }
 
-// No parallel, working with global var
+// TestPublicCheckOrderExecutionLimits does not run in parallel because it uses a global var
 func TestPublicCheckOrderExecutionLimits(t *testing.T) {
 	newLimits := []MinMaxLevel{
 		{

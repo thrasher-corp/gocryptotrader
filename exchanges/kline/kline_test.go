@@ -94,7 +94,7 @@ func TestCreateKline(t *testing.T) {
 	trades := make([]order.TradeHistory, tradeTotal)
 	execution := time.Now()
 	for x := range tradeTotal {
-		price, rndTime := 1000+float64(rand.Intn(1000)), rand.Intn(10) //nolint:gosec // no need to import crypo/rand for testing
+		price, rndTime := 1000+float64(rand.Intn(1000)), rand.Intn(10) //nolint:gosec // no need to import crypto/rand for testing
 		execution = execution.Add(time.Duration(rndTime) * time.Second)
 		trades[x] = order.TradeHistory{
 			Timestamp: execution,
@@ -343,7 +343,7 @@ func TestItem_SortCandlesByTimestamp(t *testing.T) {
 	}
 
 	for x := range 100 {
-		y := rand.Float64() //nolint:gosec // used for generating test data, no need to import crypo/rand
+		y := rand.Float64() //nolint:gosec // used for generating test data, no need to import crypto/rand
 		tempKline.Candles = append(tempKline.Candles,
 			Candle{
 				Time:   time.Now().AddDate(0, 0, -x),
@@ -487,6 +487,7 @@ func TestLoadFromDatabase(t *testing.T) {
 	}
 }
 
+// seedDB seeds test data into the database
 // TODO: find a better way to handle this to remove duplication between candle test
 func seedDB(includeOHLCVData bool) error {
 	err := exchange.InsertMany(testExchanges)
@@ -508,7 +509,7 @@ func seedDB(includeOHLCVData bool) error {
 func genOHCLVData() (out candle.Item, outItem Item, err error) {
 	exchangeUUID, err := exchange.UUIDByName(testExchanges[0].Name)
 	if err != nil {
-		return
+		return out, outItem, err
 	}
 
 	out.ExchangeID = exchangeUUID.String()
@@ -692,34 +693,6 @@ func TestIntervalsPerYear(t *testing.T) {
 	i = TwoHour + FifteenSecond
 	if i.IntervalsPerYear() != 4370.893970893971 {
 		t.Error("expected 4370...")
-	}
-}
-
-// The purpose of this benchmark is to highlight that requesting
-// '.Unix()` frequently is a slow process
-func BenchmarkJustifyIntervalTimeStoringUnixValues1(b *testing.B) {
-	tt1 := time.Now()
-	tt2 := time.Now().Add(-time.Hour)
-	tt3 := time.Now().Add(time.Hour)
-	for b.Loop() {
-		if tt1.Unix() == tt2.Unix() || (tt1.Unix() > tt2.Unix() && tt1.Unix() < tt3.Unix()) {
-			continue
-		}
-	}
-}
-
-// The purpose of this benchmark is to highlight that storing the unix value
-// at time of creation is dramatically faster than frequently requesting `.Unix()`
-// at runtime at scale. When dealing with the backtester and comparing
-// tens of thousands of candle times
-func BenchmarkJustifyIntervalTimeStoringUnixValues2(b *testing.B) {
-	tt1 := time.Now().Unix()
-	tt2 := time.Now().Add(-time.Hour).Unix()
-	tt3 := time.Now().Add(time.Hour).Unix()
-	for b.Loop() {
-		if tt1 >= tt2 && tt1 <= tt3 {
-			continue
-		}
 	}
 }
 

@@ -172,9 +172,7 @@ func (e *Exchange) CancelExistingOrder(ctx context.Context, instrumentID, orderI
 func (e *Exchange) CancelOrders(ctx context.Context, orders []CancelOrders) (CancelOrdersResponse, error) {
 	var result CancelOrdersResponse
 	params := make(map[string]any)
-	var entries []CancelOrders
-	entries = append(entries, orders...)
-	params["entries"] = entries
+	params["entries"] = orders
 
 	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, coinutOrdersCancel, params, true, &result)
 }
@@ -472,5 +470,5 @@ func (i *instrumentMap) GetInstrumentIDs() []int64 {
 }
 
 func getNonce() int64 {
-	return rand.Int63n(coinutMaxNonce-1) + 1 //nolint:gosec // basic number generation required, no need for crypo/rand
+	return rand.Int63n(coinutMaxNonce-1) + 1 //nolint:gosec // basic number generation required, no need for crypto/rand
 }
