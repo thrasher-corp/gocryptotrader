@@ -61,7 +61,14 @@ const (
 	fakeExchangeName      = "fake"
 )
 
-var errExpectedTestError = errors.New("expected test error")
+var (
+	errExpectedTestError = errors.New("expected test error")
+	testExchangeCounter  common.Counter
+)
+
+func newUniqueFakeExchangeName() string {
+	return fmt.Sprintf("%s-%d", fakeExchangeName, testExchangeCounter.IncrementAndGet())
+}
 
 // fExchange is a fake exchange with function overrides
 // we're not testing an actual exchange's implemented functions
@@ -3141,7 +3148,7 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 
 	exch.SetDefaults()
 	b := exch.GetBase()
-	uniqueFakeExchangeName := fmt.Sprintf("%s-%d", fakeExchangeName, time.Now().UnixNano())
+	uniqueFakeExchangeName := newUniqueFakeExchangeName()
 	b.Name = uniqueFakeExchangeName
 	b.Enabled = true
 
@@ -3226,7 +3233,7 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 
 	exch.SetDefaults()
 	b := exch.GetBase()
-	uniqueFakeExchangeName := fmt.Sprintf("%s-%d", fakeExchangeName, time.Now().UnixNano())
+	uniqueFakeExchangeName := newUniqueFakeExchangeName()
 	b.Name = uniqueFakeExchangeName
 	b.Enabled = true
 
