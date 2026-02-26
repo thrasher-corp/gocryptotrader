@@ -1656,16 +1656,6 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 	}
 }
 
-// ValidateCredentials validates current credentials used for wrapper
-func (e *Exchange) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
-	err := e.CurrencyPairs.IsAssetEnabled(assetType)
-	if err != nil {
-		return err
-	}
-	_, err = e.UpdateAccountBalances(ctx, assetType)
-	return e.CheckTransientError(err)
-}
-
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	req, err := e.GetKlineRequest(pair, a, interval, start, end, false)
