@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	exchangeoptions "github.com/thrasher-corp/gocryptotrader/exchange/options"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
@@ -537,7 +538,25 @@ func (e *Exchange) wsProcessPublicTicker(ctx context.Context, assetType asset.It
 	if err := ticker.ProcessTicker(tick); err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, tick)
+	if err := e.Websocket.DataHandler.Send(ctx, tick); err != nil {
+		return err
+	}
+	if assetType != asset.Options {
+		return nil
+	}
+	return e.Websocket.DataHandler.Send(ctx, &exchangeoptions.Option{
+		ExchangeName: e.Name,
+		Pair:         p,
+		AssetType:    assetType,
+		LastUpdated:  resp.PushTimestamp.Time(),
+		Delta:        tickResp.Delta.Float64(),
+		Gamma:        tickResp.Gamma.Float64(),
+		Vega:         tickResp.Vega.Float64(),
+		Theta:        tickResp.Theta.Float64(),
+		BidIV:        tickResp.BidIv.Float64(),
+		AskIV:        tickResp.AskIv.Float64(),
+		MarkIV:       tickResp.MarkIv.Float64(),
+	})
 }
 
 func updateTicker(tick *ticker.Price, resp *TickerWebsocket) {
@@ -829,7 +848,7 @@ func (e *Exchange) generateAuthSubscriptions() (subscription.List, error) {
 
 	var subscriptions subscription.List
 	// TODO: Implement DCP (Disconnection Protect) subscription
-	for _, channel := range []string{chanPositions, chanExecution, chanOrder, chanWallet} {
+	for _, channel := range []string{chanPositions, chanExecution, chanOrder, chanWallet, chanGreeks} {
 		subscriptions = append(subscriptions, &subscription.Subscription{Channel: channel, Asset: asset.All})
 	}
 	return subscriptions, nil

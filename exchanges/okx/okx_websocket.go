@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	exchangeoptions "github.com/thrasher-corp/gocryptotrader/exchange/options"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -224,6 +225,8 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},
 	{Enabled: true, Asset: asset.All, Channel: subscription.MyOrdersChannel, Authenticated: true},
 	{Enabled: true, Channel: subscription.MyAccountChannel, Authenticated: true},
+	{Enabled: true, Channel: channelBalanceAndPosition, Authenticated: true},
+	{Enabled: true, Channel: channelAccountGreeks, Authenticated: true},
 }
 
 var subscriptionNames = map[string]string{
@@ -332,6 +335,7 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 // chunkRequests splits subscription requests into multiple requests if the total byte length exceeds maxConnByteLen.
 func (e *Exchange) chunkRequests(subs subscription.List, operation string) ([]WSSubscriptionInformationList, error) {
 	eval := e.getSpotMarginEvaluator(subs)
+	sentArgs := make(map[string]struct{})
 
 	var requests []WSSubscriptionInformationList
 	for len(subs) > 0 {
@@ -350,8 +354,19 @@ func (e *Exchange) chunkRequests(subs subscription.List, operation string) ([]WS
 			if err != nil {
 				return nil, err
 			}
+			argKey := ""
+			addedArgument := false
 			if isSubNeeded {
-				arguments = append(arguments, arg)
+				argKeyBytes, err := json.Marshal(arg)
+				if err != nil {
+					return nil, err
+				}
+				argKey = string(argKeyBytes)
+				if _, alreadyAdded := sentArgs[argKey]; !alreadyAdded {
+					arguments = append(arguments, arg)
+					sentArgs[argKey] = struct{}{}
+					addedArgument = true
+				}
 			}
 			channels = append(channels, sub)
 			chunk, err := json.Marshal(WSSubscriptionInformationList{Arguments: arguments, Operation: operation})
@@ -361,7 +376,10 @@ func (e *Exchange) chunkRequests(subs subscription.List, operation string) ([]WS
 			if len(chunk) > maxConnByteLen {
 				// Remove last added channel and argument as they exceed max byte length
 				channels = channels[:len(channels)-1]
-				arguments = arguments[:len(arguments)-1]
+				if addedArgument {
+					arguments = arguments[:len(arguments)-1]
+					delete(sentArgs, argKey)
+				}
 				subs = subs[i:]
 				break
 			}
@@ -496,8 +514,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	case channelOptionTrades:
 		return e.wsProcessOptionTrades(respRaw)
 	case channelOptSummary:
-		var response WsOptionSummary
-		return e.wsProcessPushData(ctx, respRaw, &response)
+		return e.wsProcessOptionSummary(ctx, respRaw)
 	case channelFundingRate:
 		var response WsFundingRate
 		return e.wsProcessPushData(ctx, respRaw, &response)
@@ -1302,6 +1319,38 @@ func (e *Exchange) wsProcessTickers(ctx context.Context, data []byte) error {
 			if err := e.Websocket.DataHandler.Send(ctx, tickData); err != nil {
 				return err
 			}
+		}
+	}
+	return nil
+}
+
+func (e *Exchange) wsProcessOptionSummary(ctx context.Context, respRaw []byte) error {
+	var response WsOptionSummary
+	if err := json.Unmarshal(respRaw, &response); err != nil {
+		return err
+	}
+	if err := e.Websocket.DataHandler.Send(ctx, &response); err != nil {
+		return err
+	}
+	for i := range response.Data {
+		pair, err := e.GetPairFromInstrumentID(response.Data[i].InstrumentID)
+		if err != nil {
+			return err
+		}
+		if err := e.Websocket.DataHandler.Send(ctx, &exchangeoptions.Option{
+			ExchangeName: e.Name,
+			Pair:         pair,
+			AssetType:    asset.Options,
+			LastUpdated:  response.Data[i].Timestamp.Time(),
+			Delta:        response.Data[i].Delta.Float64(),
+			Gamma:        response.Data[i].Gamma.Float64(),
+			Vega:         response.Data[i].Vega.Float64(),
+			Theta:        response.Data[i].Theta.Float64(),
+			BidIV:        response.Data[i].BidVolatility.Float64(),
+			AskIV:        response.Data[i].AskVolatility.Float64(),
+			MarkIV:       response.Data[i].MarkVolatility.Float64(),
+		}); err != nil {
+			return err
 		}
 	}
 	return nil
