@@ -13,3 +13,41 @@
 	currency.SHFT:     84,
 		TotalIn  float64 `json:"totalIn"`
 		TotalIn        int64  `json:"totalIn"`
+  behavior: default
+	loanCustomiseMarginCall      = "/sapi/v1/loan/customize/margin_call"
+	assert.ErrorIs(t, b.StartPortfolioWatcher(ctx, 0), context.Canceled, "StartPortfolioWatcher should return context.Canceled")
+	assert.ErrorIs(t, <-doneCh, context.Canceled, "StartPortfolioWatcher should return a context cancelled error")
+		{Case: "CANCELED", Result: order.Cancelled},
+	case "CANCELED":
+	if algoOrderID == "" && !slices.Contains([]string{"effective", "order_failed", "canceled"}, state) {
+// GetCompletedSpreadOrdersLast7Days retrieve the completed order data for the last 7 days, and the incomplete orders (filledSz =0 & state = canceled) that have been cancelled are only reserved for 2 hours. Results are returned in counter chronological order
+		"70200": errors.New("the RFQ with {0} status cannot be canceled"),
+		"70400": errors.New("the quote with {0} status cannot be canceled"),
+		"58220": errors.New("the withdrawal order is already canceled"),
+		"51401": errors.New("cancellation failed as the order is already canceled"),
+		"51406": errors.New("canceled - order count exceeds the limit {0}"),
+		"51509": errors.New("modification failed as the order has been canceled"),
+	result, err := e.GetCompletedSpreadOrdersLast7Days(contextGenerate(), "", "limit", "canceled", "", "", time.Time{}, time.Time{}, 10)
+		{Case: "canceled", Result: order.Cancelled},
+	case "canceled":
+		states := "partial-canceled,filled,canceled"
+	require.ErrorIs(t, err, context.Canceled)
+	case "CANCELED", "CANCELLED":
+    "status": "canceled",
+    "reportType": "canceled"
+	Status      string `json:"status"`      // new, suspended, partiallyFilled, filled, canceled, expired
+	case "replaced", "canceled", "new":
+	o.Status = strings.Replace(o.Status, "canceled", "cancelled", 1)
+		if resp[i].Status != "canceled" {
+		"CANCELED":           order.Cancelled,
+		Status:             "CANCELED",
+	case PartiallyCancelled.String(), "PARTIAL-CANCELED", "PARTIALLY CANCELLED", "ORDER_PARTIALLY_TRANSACTED":
+	case Cancelled.String(), "CANCELED", "ORDER_CANCELLED":
+		assert.ErrorIs(t, err, context.Canceled, "should return correct error when context is cancelled")
+	require.ErrorIs(t, err, context.Canceled, "must return error when context is cancelled")
+	Type             string     `json:"type"`       // Message Type: "open", "match", "filled", "canceled", "update"
+	case "partial-canceled":
+		{Case: "partial-canceled", Result: order.PartiallyCancelled},
+	withdrawal := []byte(`[13293039,"ETH","ETHEREUM",null,null,1574175052000,1574181326000,null,null,"CANCELED",null,null,-0.24,-0.00135,null,null,"DESTINATION_ADDRESS",null,null,null,"TRANSACTION_ID","Purchase of 100 pizzas"]`)
+	pressXToJSON = `[0,"oc",[34930659963,null,1574955083558,"tETHUSD",1574955083558,1574955354487,0.201104,0.201104,"EXCHANGE LIMIT",null,null,null,0,"CANCELED",null,null,120,0,0,0,null,null,null,0,0,null,null,null,"BFX",null,null,null]]`
+	"Quotes":                                `{"arg": {"channel":"quotes"},"data":[{"validUntil":"1608997227854","uTime":"1608267227834","cTime":"1608267227834","legs":[{"px":"0.0023","sz":"25.0","instId":"BTC-USD-220114-25000-C","side":"sell","tgtCcy":""},{"px":"0.0045","sz":"25","instId":"BTC-USD-220114-35000-C","side":"buy","tgtCcy":""}],"quoteId":"25092","rfqId":"18753","traderCode":"SATS","quoteSide":"sell","state":"canceled","clQuoteId":""}]}`,

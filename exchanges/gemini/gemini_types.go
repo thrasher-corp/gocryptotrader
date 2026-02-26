@@ -72,7 +72,7 @@ type Trade struct {
 	Type        string     `json:"type"`
 }
 
-// Auction is generalized response type
+// Auction is generalised response type
 type Auction struct {
 	LastAuctionEID               int64   `json:"last_auction_eid"`
 	ClosedUntilMs                int64   `json:"closed_until_ms"`
@@ -247,7 +247,7 @@ type WithdrawalAddress struct {
 	Reason  string  `json:"reason"`
 }
 
-// ErrorCapture is a generalized error response from the server
+// ErrorCapture is a generalised error response from the server
 type ErrorCapture struct {
 	Result  string `json:"result"`
 	Reason  string `json:"reason"`

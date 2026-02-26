@@ -373,7 +373,7 @@ func TestStartPortfolioWatcher(t *testing.T) {
 	}, 10*time.Second, time.Second, "GetPersonalPortfolio should return a balance greater than 0.02")
 
 	cancel2()
-	assert.ErrorIs(t, <-doneCh, context.Canceled, "StartPortfolioWatcher should return a context canceled error")
+	assert.ErrorIs(t, <-doneCh, context.Canceled, "StartPortfolioWatcher should return a context cancelled error")
 }
 
 func TestGetProvider(t *testing.T) {

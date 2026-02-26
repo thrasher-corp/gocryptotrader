@@ -277,14 +277,14 @@ type BatchCancelResponse struct {
 	UnprocessedRequests []UnprocessedBatchResp `json:"unprocessedRequests"`
 }
 
-// WithdrawRequestCrypto is a generalized withdraw request type
+// WithdrawRequestCrypto is a generalised withdraw request type
 type WithdrawRequestCrypto struct {
 	Amount   int64  `json:"amount"`
 	Currency string `json:"currency"`
 	Address  string `json:"address"`
 }
 
-// WithdrawRequestAUD is a generalized withdraw request type
+// WithdrawRequestAUD is a generalised withdraw request type
 type WithdrawRequestAUD struct {
 	Amount        int64  `json:"amount"`
 	Currency      string `json:"currency"`
