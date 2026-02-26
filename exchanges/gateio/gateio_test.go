@@ -3627,7 +3627,7 @@ func TestValidateOrderCreateParams(t *testing.T) {
 				Contract: tc.contract, Size: tc.size, TimeInForce: tc.timeInForce,
 				Text: tc.text, AutoSize: tc.autoSize, Settle: tc.settle,
 			}
-			assert.ErrorIsf(t, dp.validate(tc.isRest), tc.err, "DeliveryOrderCreateParams validate should return expected error")
+			assert.ErrorIs(t, dp.validate(tc.isRest), tc.err, "DeliveryOrderCreateParams validate should return expected error")
 		})
 	}
 }
