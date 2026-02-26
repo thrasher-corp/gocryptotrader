@@ -3578,38 +3578,7 @@ func (c *FuturesOrderCreateParams) validate(isRest bool) error {
 	if err := common.NilGuard(c); err != nil {
 		return err
 	}
-	if c.Contract.IsEmpty() {
-		return currency.ErrCurrencyPairEmpty
-	}
-	if c.Size == 0 && c.AutoSize == "" {
-		return errInvalidOrderSize
-	}
-	if c.TimeInForce != "" {
-		if _, err := timeInForceFromString(c.TimeInForce); err != nil {
-			return err
-		}
-	}
-	if c.Price == 0 && c.TimeInForce != iocTIF && c.TimeInForce != fokTIF {
-		return fmt.Errorf("%w: %q; only 'ioc' and 'fok' allowed for market order", order.ErrUnsupportedTimeInForce, c.TimeInForce)
-	}
-	if c.Text != "" && !strings.HasPrefix(c.Text, "t-") {
-		return errInvalidTextPrefix
-	}
-	if c.AutoSize != "" {
-		if c.AutoSize != "close_long" && c.AutoSize != "close_short" {
-			return fmt.Errorf("%w: %q", errInvalidAutoSize, c.AutoSize)
-		}
-		if c.Size != 0 {
-			return fmt.Errorf("%w: size needs to be zero when auto size is set", errInvalidOrderSize)
-		}
-	}
-	// REST requests require a settlement currency, but it can be anything
-	// Websocket requests may have an empty settlement currency, or it must be BTC or USDT
-	if (isRest && c.Settle.IsEmpty()) ||
-		(!isRest && !c.Settle.IsEmpty() && !c.Settle.Equal(currency.BTC) && !c.Settle.Equal(currency.USDT)) {
-		return errEmptyOrInvalidSettlementCurrency
-	}
-	return nil
+	return validateOrderCreateParams(c.Contract, c.Size, c.Price, c.AutoSize, c.TimeInForce, c.Text, c.Settle, isRest)
 }
 
 // validate validates the DeliveryOrderCreateParams
@@ -3617,35 +3586,40 @@ func (c *DeliveryOrderCreateParams) validate(isRest bool) error {
 	if err := common.NilGuard(c); err != nil {
 		return err
 	}
-	if c.Contract.IsEmpty() {
+	return validateOrderCreateParams(c.Contract, c.Size, c.Price, c.AutoSize, c.TimeInForce, c.Text, c.Settle, isRest)
+}
+
+// validateOrderCreateParams validates common order creation parameters shared by futures and delivery orders.
+func validateOrderCreateParams(contract currency.Pair, size, price float64, autoSize, timeInForce, text string, settle currency.Code, isRest bool) error {
+	if contract.IsEmpty() {
 		return currency.ErrCurrencyPairEmpty
 	}
-	if c.Size == 0 && c.AutoSize == "" {
+	if size == 0 && autoSize == "" {
 		return errInvalidOrderSize
 	}
-	if c.TimeInForce != "" {
-		if _, err := timeInForceFromString(c.TimeInForce); err != nil {
+	if timeInForce != "" {
+		if _, err := timeInForceFromString(timeInForce); err != nil {
 			return err
 		}
 	}
-	if c.Price == 0 && c.TimeInForce != iocTIF && c.TimeInForce != fokTIF {
-		return fmt.Errorf("%w: %q; only 'ioc' and 'fok' allowed for market order", order.ErrUnsupportedTimeInForce, c.TimeInForce)
+	if price == 0 && timeInForce != iocTIF && timeInForce != fokTIF {
+		return fmt.Errorf("%w: %q; only 'ioc' and 'fok' allowed for market order", order.ErrUnsupportedTimeInForce, timeInForce)
 	}
-	if c.Text != "" && !strings.HasPrefix(c.Text, "t-") {
+	if text != "" && !strings.HasPrefix(text, "t-") {
 		return errInvalidTextPrefix
 	}
-	if c.AutoSize != "" {
-		if c.AutoSize != "close_long" && c.AutoSize != "close_short" {
-			return fmt.Errorf("%w: %q", errInvalidAutoSize, c.AutoSize)
+	if autoSize != "" {
+		if autoSize != "close_long" && autoSize != "close_short" {
+			return fmt.Errorf("%w: %q", errInvalidAutoSize, autoSize)
 		}
-		if c.Size != 0 {
+		if size != 0 {
 			return fmt.Errorf("%w: size needs to be zero when auto size is set", errInvalidOrderSize)
 		}
 	}
 	// REST requests require a settlement currency, but it can be anything
 	// Websocket requests may have an empty settlement currency, or it must be BTC or USDT
-	if (isRest && c.Settle.IsEmpty()) ||
-		(!isRest && !c.Settle.IsEmpty() && !c.Settle.Equal(currency.BTC) && !c.Settle.Equal(currency.USDT)) {
+	if (isRest && settle.IsEmpty()) ||
+		(!isRest && !settle.IsEmpty() && !settle.Equal(currency.BTC) && !settle.Equal(currency.USDT)) {
 		return errEmptyOrInvalidSettlementCurrency
 	}
 	return nil

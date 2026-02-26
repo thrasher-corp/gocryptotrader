@@ -3587,133 +3587,45 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestValidateFuturesOrderCreateParams(t *testing.T) {
+func TestValidateOrderCreateParams(t *testing.T) {
 	t.Parallel()
 
-	for _, tc := range []struct {
-		params *FuturesOrderCreateParams
-		isRest bool
-		err    error
-	}{
-		{
-			err: common.ErrNilPointer,
-		},
-		{
-			params: &FuturesOrderCreateParams{}, err: currency.ErrCurrencyPairEmpty,
-		},
-		{
-			params: &FuturesOrderCreateParams{Contract: BTCUSDT},
-			err:    errInvalidOrderSize,
-		},
-		{
-			params: &FuturesOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: "bad"},
-			err:    order.ErrUnsupportedTimeInForce,
-		},
-		{
-			params: &FuturesOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: pocTIF},
-			err:    order.ErrUnsupportedTimeInForce,
-		},
-		{
-			params: &FuturesOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "test"},
-			err:    errInvalidTextPrefix,
-		},
-		{
-			params: &FuturesOrderCreateParams{
-				Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "t-test", AutoSize: "silly_billy",
-			},
-			err: errInvalidAutoSize,
-		},
-		{
-			params: &FuturesOrderCreateParams{
-				Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long",
-			},
-			err: errInvalidOrderSize,
-		},
-		{
-			params: &FuturesOrderCreateParams{
-				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long",
-			},
-			isRest: true,
-			err:    errEmptyOrInvalidSettlementCurrency,
-		},
-		{
-			params: &FuturesOrderCreateParams{
-				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long", Settle: currency.NewCode("Silly"),
-			},
-			err: errEmptyOrInvalidSettlementCurrency,
-		},
-		{
-			params: &FuturesOrderCreateParams{
-				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long", Settle: currency.USDT,
-			},
-		},
-	} {
-		assert.ErrorIs(t, tc.params.validate(tc.isRest), tc.err)
-	}
-}
-
-func TestValidateDeliveryOrderCreateParams(t *testing.T) {
-	t.Parallel()
+	// Test nil pointer cases separately since they can't be constructed from shared fields.
+	assert.ErrorIs(t, (*FuturesOrderCreateParams)(nil).validate(false), common.ErrNilPointer, "nil FuturesOrderCreateParams should error")
+	assert.ErrorIs(t, (*DeliveryOrderCreateParams)(nil).validate(false), common.ErrNilPointer, "nil DeliveryOrderCreateParams should error")
 
 	for _, tc := range []struct {
-		params *DeliveryOrderCreateParams
-		isRest bool
-		err    error
+		contract    currency.Pair
+		size        float64
+		timeInForce string
+		text        string
+		autoSize    string
+		settle      currency.Code
+		isRest      bool
+		err         error
 	}{
-		{
-			err: common.ErrNilPointer,
-		},
-		{
-			params: &DeliveryOrderCreateParams{}, err: currency.ErrCurrencyPairEmpty,
-		},
-		{
-			params: &DeliveryOrderCreateParams{Contract: BTCUSDT},
-			err:    errInvalidOrderSize,
-		},
-		{
-			params: &DeliveryOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: "bad"},
-			err:    order.ErrUnsupportedTimeInForce,
-		},
-		{
-			params: &DeliveryOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: pocTIF},
-			err:    order.ErrUnsupportedTimeInForce,
-		},
-		{
-			params: &DeliveryOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "test"},
-			err:    errInvalidTextPrefix,
-		},
-		{
-			params: &DeliveryOrderCreateParams{
-				Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "t-test", AutoSize: "silly_billy",
-			},
-			err: errInvalidAutoSize,
-		},
-		{
-			params: &DeliveryOrderCreateParams{
-				Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long",
-			},
-			err: errInvalidOrderSize,
-		},
-		{
-			params: &DeliveryOrderCreateParams{
-				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long",
-			},
-			isRest: true,
-			err:    errEmptyOrInvalidSettlementCurrency,
-		},
-		{
-			params: &DeliveryOrderCreateParams{
-				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long", Settle: currency.NewCode("Silly"),
-			},
-			err: errEmptyOrInvalidSettlementCurrency,
-		},
-		{
-			params: &DeliveryOrderCreateParams{
-				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long", Settle: currency.USDT,
-			},
-		},
+		{err: currency.ErrCurrencyPairEmpty},
+		{contract: BTCUSDT, err: errInvalidOrderSize},
+		{contract: BTCUSDT, size: 1, timeInForce: "bad", err: order.ErrUnsupportedTimeInForce},
+		{contract: BTCUSDT, size: 1, timeInForce: pocTIF, err: order.ErrUnsupportedTimeInForce},
+		{contract: BTCUSDT, size: 1, timeInForce: iocTIF, text: "test", err: errInvalidTextPrefix},
+		{contract: BTCUSDT, size: 1, timeInForce: iocTIF, text: "t-test", autoSize: "silly_billy", err: errInvalidAutoSize},
+		{contract: BTCUSDT, size: 1, timeInForce: iocTIF, text: "t-test", autoSize: "close_long", err: errInvalidOrderSize},
+		{contract: BTCUSDT, timeInForce: iocTIF, text: "t-test", autoSize: "close_long", isRest: true, err: errEmptyOrInvalidSettlementCurrency},
+		{contract: BTCUSDT, timeInForce: iocTIF, text: "t-test", autoSize: "close_long", settle: currency.NewCode("Silly"), err: errEmptyOrInvalidSettlementCurrency},
+		{contract: BTCUSDT, timeInForce: iocTIF, text: "t-test", autoSize: "close_long", settle: currency.USDT},
 	} {
-		assert.ErrorIs(t, tc.params.validate(tc.isRest), tc.err)
+		fp := &FuturesOrderCreateParams{
+			Contract: tc.contract, Size: tc.size, TimeInForce: tc.timeInForce,
+			Text: tc.text, AutoSize: tc.autoSize, Settle: tc.settle,
+		}
+		assert.ErrorIsf(t, fp.validate(tc.isRest), tc.err, "FuturesOrderCreateParams validate should return expected error for %+v", tc)
+
+		dp := &DeliveryOrderCreateParams{
+			Contract: tc.contract, Size: tc.size, TimeInForce: tc.timeInForce,
+			Text: tc.text, AutoSize: tc.autoSize, Settle: tc.settle,
+		}
+		assert.ErrorIsf(t, dp.validate(tc.isRest), tc.err, "DeliveryOrderCreateParams validate should return expected error for %+v", tc)
 	}
 }
 
