@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
@@ -57,9 +58,10 @@ func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *E
 	}))
 
 	require.NoError(t, ex.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  wsURL,
-		ResponseCheckTimeout: exchCfg.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exchCfg.WebsocketResponseMaxLimit,
+		URL:                      wsURL,
+		ResponseCheckTimeout:     exchCfg.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         exchCfg.WebsocketResponseMaxLimit,
+		SubscriptionsNotRequired: true,
 		Connector: func(ctx context.Context, conn websocket.Connection) error {
 			return conn.Dial(ctx, &gws.Dialer{}, http.Header{})
 		},
@@ -84,6 +86,10 @@ func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *E
 	}))
 
 	require.NoError(t, ex.Websocket.Connect(t.Context()))
+	require.Eventually(t, func() bool {
+		_, err := ex.Websocket.GetConnection(privateConnection)
+		return err == nil
+	}, time.Second, 10*time.Millisecond, "private websocket connection was not ready")
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	t.Cleanup(func() {
 		_ = ex.Websocket.Shutdown()

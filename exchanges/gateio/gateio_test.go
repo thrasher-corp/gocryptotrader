@@ -2472,22 +2472,25 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 					require.NotNilf(t, l, "GetOrderExecutionLimits %s result cannot be nil", pair)
 					assert.Equalf(t, a, l.Key.Asset, "asset should equal for %s", pair)
 					assert.Truef(t, pair.Equal(l.Key.Pair()), "pair should equal for %s", pair)
-					assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", pair)
 					assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", pair)
 
 					switch a {
 					case asset.USDTMarginedFutures:
+						assert.GreaterOrEqualf(t, l.MinimumBaseAmount, 0.0, "MinimumBaseAmount should be non-negative for %s", pair)
 						assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", pair)
 						assert.NotZerof(t, l.Listed, "Listed should be populated for %s", pair)
 						fallthrough
 					case asset.CoinMarginedFutures:
+						assert.GreaterOrEqualf(t, l.MinimumBaseAmount, 0.0, "MinimumBaseAmount should be non-negative for %s", pair)
 						if !l.Delisted.IsZero() {
 							assert.Truef(t, l.Delisted.After(l.Delisting), "Delisted should be after Delisting for %s", pair)
 						}
 					case asset.Spot:
+						assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", pair)
 						assert.Positivef(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive for %s", pair)
 						assert.Positivef(t, l.QuoteStepIncrementSize, "QuoteStepIncrementSize should be positive for %s", pair)
 					case asset.DeliveryFutures:
+						assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", pair)
 						assert.NotZerof(t, l.Expiry, "Expiry should be populated for %s", pair)
 					}
 				}

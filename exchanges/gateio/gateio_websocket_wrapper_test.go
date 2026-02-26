@@ -61,9 +61,10 @@ func connectGateioWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc)
 
 	setupConn := func(filter any) {
 		require.NoError(t, ex.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-			URL:                  wsURL,
-			ResponseCheckTimeout: exchCfg.WebsocketResponseCheckTimeout,
-			ResponseMaxLimit:     exchCfg.WebsocketResponseMaxLimit,
+			URL:                      wsURL,
+			ResponseCheckTimeout:     exchCfg.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:         exchCfg.WebsocketResponseMaxLimit,
+			SubscriptionsNotRequired: true,
 			Connector: func(ctx context.Context, conn websocket.Connection) error {
 				return conn.Dial(ctx, &gws.Dialer{}, http.Header{})
 			},
