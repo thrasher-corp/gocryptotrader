@@ -3590,14 +3590,8 @@ func TestValidateOrderCreateParams(t *testing.T) {
 	t.Parallel()
 
 	// Test nil pointer cases separately since they can't be constructed from shared fields.
-	t.Run("nil-futures", func(t *testing.T) {
-		t.Parallel()
-		assert.ErrorIs(t, (*FuturesOrderCreateParams)(nil).validate(false), common.ErrNilPointer, "nil FuturesOrderCreateParams should error")
-	})
-	t.Run("nil-delivery", func(t *testing.T) {
-		t.Parallel()
-		assert.ErrorIs(t, (*DeliveryOrderCreateParams)(nil).validate(false), common.ErrNilPointer, "nil DeliveryOrderCreateParams should error")
-	})
+	assert.ErrorIs(t, (*FuturesOrderCreateParams)(nil).validate(false), common.ErrNilPointer, "nil FuturesOrderCreateParams should error")
+	assert.ErrorIs(t, (*DeliveryOrderCreateParams)(nil).validate(false), common.ErrNilPointer, "nil DeliveryOrderCreateParams should error")
 
 	for _, tc := range []struct {
 		name        string
