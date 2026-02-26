@@ -769,21 +769,20 @@ func (bot *Engine) LoadExchange(name string) error {
 
 	b := exch.GetBase()
 	if b.API.AuthenticatedSupport || b.API.AuthenticatedWebsocketSupport {
-		enabled := b.CurrencyPairs.GetAssetTypes(true)
-
+		enabledAssets := b.CurrencyPairs.GetAssetTypes(true)
 		var preferredAsset asset.Item
 		switch {
-		case enabled.Contains(asset.Spot): // prioritise spot due to wide usage across GCT
+		case enabledAssets.Contains(asset.Spot): // prioritise spot due to wide usage across GCT
 			preferredAsset = asset.Spot
 		default:
-			for _, a := range enabled { // second priority to futures if spot isn't available
+			for _, a := range enabledAssets { // second priority to futures if spot isn't available
 				if a.IsFutures() {
 					preferredAsset = a
 					break
 				}
 			}
 			if preferredAsset == 0 {
-				preferredAsset = enabled[0] // last resort pick first available
+				preferredAsset = enabledAssets[0] // last resort pick first available
 			}
 		}
 
