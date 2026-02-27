@@ -367,7 +367,7 @@ func TestCancelSingleSpotOrder(t *testing.T) {
 func TestGetMySpotTradingHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetMySpotTradingHistory(t.Context(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, "", 0, 0, false, time.Time{}, time.Time{})
+	_, err := e.GetMySpotTradingHistory(t.Context(), currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter}, "", 0, 0, time.Time{}, time.Time{})
 	require.NoError(t, err)
 }
 
@@ -378,10 +378,10 @@ func TestGetServerTime(t *testing.T) {
 	}
 }
 
-func TestCountdownCancelorder(t *testing.T) {
+func TestCountdownCancelSpotOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	if _, err := e.CountdownCancelorders(t.Context(), CountdownCancelOrderParam{
+	if _, err := e.CountdownCancelSpotOrders(t.Context(), CountdownCancelOrderParam{
 		Timeout:      10,
 		CurrencyPair: currency.Pair{Base: currency.BTC, Quote: currency.ETH, Delimiter: currency.UnderscoreDelimiter},
 	}); err != nil {
@@ -1291,13 +1291,13 @@ func TestGetFuturesLiquidationHistory(t *testing.T) {
 	assert.NoError(t, err, "GetFuturesLiquidationHistory should not error")
 }
 
-func TestCountdownCancelOrders(t *testing.T) {
+func TestCountdownCancelFuturesOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.CountdownCancelOrders(t.Context(), currency.BTC, CountdownParams{
+	_, err := e.CountdownCancelFuturesOrders(t.Context(), currency.BTC, CountdownParams{
 		Timeout: 8,
 	})
-	assert.NoError(t, err, "CountdownCancelOrders should not error")
+	assert.NoError(t, err, "CountdownCancelFuturesOrders should not error")
 }
 
 func TestCreatePriceTriggeredFuturesOrder(t *testing.T) {
@@ -1891,20 +1891,33 @@ func TestGetActiveOrders(t *testing.T) {
 }
 
 func TestGetOrderHistory(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, e)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	for _, a := range e.GetAssetTypes(false) {
-		enabledPairs := getPairs(t, a)
-		if len(enabledPairs) > 4 {
-			enabledPairs = enabledPairs[:4]
-		}
-		multiOrderRequest := order.MultiOrderRequest{
-			Type:      order.AnyType,
-			Side:      order.Buy,
-			Pairs:     enabledPairs,
-			AssetType: a,
-		}
-		_, err := e.GetOrderHistory(t.Context(), &multiOrderRequest)
-		assert.NoErrorf(t, err, "GetOrderHistory should not error for %s", a)
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			enabledPairs := getPairs(t, a)
+			if len(enabledPairs) > 4 {
+				enabledPairs = enabledPairs[:4]
+			}
+			multiOrderRequest := order.MultiOrderRequest{
+				Type:      order.AnyType,
+				Side:      order.Buy,
+				Pairs:     enabledPairs,
+				AssetType: a,
+			}
+			_, err := e.GetOrderHistory(t.Context(), &multiOrderRequest)
+			assert.NoError(t, err)
+
+			multiOrderRequest.Pairs = nil
+			_, err = e.GetOrderHistory(t.Context(), &multiOrderRequest)
+			if a == asset.Options {
+				assert.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
 	}
 }
 
