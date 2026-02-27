@@ -764,17 +764,6 @@ func (e *Exchange) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, 
 	return resp.ServerTime.Time(), nil
 }
 
-// CountdownCancelorders Countdown cancel orders
-// When the timeout set by the user is reached, if there is no cancel or set a new countdown, the related pending orders will be automatically cancelled.
-// This endpoint can be called repeatedly to set a new countdown or cancel the countdown.
-func (e *Exchange) CountdownCancelorders(ctx context.Context, arg CountdownCancelOrderParam) (*TriggerTimeResponse, error) {
-	if arg.Timeout <= 0 {
-		return nil, errInvalidCountdown
-	}
-	var response *TriggerTimeResponse
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotCountdownCancelEPL, http.MethodPost, gateioSpotAllCountdown, nil, &arg, &response)
-}
-
 // CreatePriceTriggeredOrder create a price-triggered order
 func (e *Exchange) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTriggeredOrderParam) (*OrderID, error) {
 	if arg == nil {
@@ -2427,16 +2416,30 @@ func (e *Exchange) GetFuturesLiquidationHistory(ctx context.Context, settle curr
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualLiquidationHistoryEPL, http.MethodGet, futuresPath+settle.Item.Lower+"/liquidates", params, nil, &response)
 }
 
-// CountdownCancelOrders represents a trigger time response
-func (e *Exchange) CountdownCancelOrders(ctx context.Context, settle currency.Code, arg CountdownParams) (*TriggerTimeResponse, error) {
+// CountdownCancelFuturesOrders represents a trigger time response
+func (e *Exchange) CountdownCancelFuturesOrders(ctx context.Context, settle currency.Code, arg CountdownParams) (*TriggerTimeResponse, error) {
 	if settle.IsEmpty() {
 		return nil, errEmptyOrInvalidSettlementCurrency
 	}
 	if arg.Timeout < 0 {
 		return nil, errInvalidTimeout
 	}
+	return e.sendCountdownCancelOrdersRequest(ctx, perpetualCancelTriggerOrdersEPL, futuresPath+settle.Item.Lower+"/countdown_cancel_all", &arg)
+}
+
+// CountdownCancelSpotOrders Countdown cancel orders
+// When the timeout set by the user is reached, if there is no cancel or set a new countdown, the related pending orders will be automatically cancelled.
+// This endpoint can be called repeatedly to set a new countdown or cancel the countdown.
+func (e *Exchange) CountdownCancelSpotOrders(ctx context.Context, arg CountdownCancelOrderParam) (*TriggerTimeResponse, error) {
+	if arg.Timeout <= 0 {
+		return nil, errInvalidCountdown
+	}
+	return e.sendCountdownCancelOrdersRequest(ctx, spotCountdownCancelEPL, gateioSpotAllCountdown, &arg)
+}
+
+func (e *Exchange) sendCountdownCancelOrdersRequest(ctx context.Context, epl request.EndpointLimit, path string, arg any) (*TriggerTimeResponse, error) {
 	var response *TriggerTimeResponse
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualCancelTriggerOrdersEPL, http.MethodPost, futuresPath+settle.Item.Lower+"/countdown_cancel_all", nil, &arg, &response)
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, epl, http.MethodPost, path, nil, arg, &response)
 }
 
 // CreatePriceTriggeredFuturesOrder create a price-triggered order

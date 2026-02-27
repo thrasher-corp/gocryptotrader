@@ -378,10 +378,10 @@ func TestGetServerTime(t *testing.T) {
 	}
 }
 
-func TestCountdownCancelOrder(t *testing.T) {
+func TestCountdownCancelSpotOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	if _, err := e.CountdownCancelorders(t.Context(), CountdownCancelOrderParam{
+	if _, err := e.CountdownCancelSpotOrders(t.Context(), CountdownCancelOrderParam{
 		Timeout:      10,
 		CurrencyPair: currency.Pair{Base: currency.BTC, Quote: currency.ETH, Delimiter: currency.UnderscoreDelimiter},
 	}); err != nil {
@@ -1291,13 +1291,13 @@ func TestGetFuturesLiquidationHistory(t *testing.T) {
 	assert.NoError(t, err, "GetFuturesLiquidationHistory should not error")
 }
 
-func TestCountdownCancelOrders(t *testing.T) {
+func TestCountdownCancelFuturesOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.CountdownCancelOrders(t.Context(), currency.BTC, CountdownParams{
+	_, err := e.CountdownCancelFuturesOrders(t.Context(), currency.BTC, CountdownParams{
 		Timeout: 8,
 	})
-	assert.NoError(t, err, "CountdownCancelOrders should not error")
+	assert.NoError(t, err, "CountdownCancelFuturesOrders should not error")
 }
 
 func TestCreatePriceTriggeredFuturesOrder(t *testing.T) {
