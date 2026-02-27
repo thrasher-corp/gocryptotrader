@@ -461,7 +461,7 @@ func TestManager(t *testing.T) {
 	require.NoError(t, err, "Setup may not error")
 
 	err = ws.Setup(defaultSetup)
-	assert.ErrorIs(t, err, errWebsocketAlreadyInitialised, "Setup should error correctly if called twice")
+	assert.ErrorIs(t, err, ErrWebsocketAlreadyInitialised, "Setup should error correctly if called twice")
 
 	assert.Equal(t, "GTX", ws.GetName(), "GetName should return correctly")
 	assert.True(t, ws.IsEnabled(), "Websocket should be enabled by Setup")

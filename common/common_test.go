@@ -497,10 +497,10 @@ func TestParseStartEndDate(t *testing.T) {
 	err = StartEndTimeCheck(et, nt)
 	assert.ErrorIs(t, err, ErrDateUnset)
 
-	err = StartEndTimeCheck(et, zeroValueUnix)
+	err = StartEndTimeCheck(et, ZeroValueUnix)
 	assert.ErrorIs(t, err, ErrDateUnset)
 
-	err = StartEndTimeCheck(zeroValueUnix, et)
+	err = StartEndTimeCheck(ZeroValueUnix, et)
 	assert.ErrorIs(t, err, ErrDateUnset)
 
 	err = StartEndTimeCheck(et, et)
