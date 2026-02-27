@@ -99,14 +99,14 @@ type WebsocketFuturesOrderResponse struct {
 	FinishAs                  string        `json:"finish_as"`
 	Status                    string        `json:"status"`
 	Contract                  currency.Pair `json:"contract"`
-	Size                      float64       `json:"size"`
+	Size                      types.Number  `json:"size"`
 	Iceberg                   int64         `json:"iceberg"`
 	Price                     types.Number  `json:"price"`
 	IsClose                   bool          `json:"is_close"`
 	IsReduceOnly              bool          `json:"is_reduce_only"`
 	IsForLiquidation          bool          `json:"is_liq"`
 	TimeInForce               string        `json:"tif"`
-	Left                      float64       `json:"left"`
+	Left                      types.Number  `json:"left"`
 	FillPrice                 types.Number  `json:"fill_price"`
 	Text                      string        `json:"text"`
 	TakerFee                  types.Number  `json:"tkfr"`

@@ -3,7 +3,6 @@ package gateio
 import (
 	"context"
 	"errors"
-	"net/http"
 	"strconv"
 	"time"
 
@@ -40,7 +39,7 @@ func (e *Exchange) WsDeliveryFuturesConnect(ctx context.Context, conn websocket.
 	if err := e.CurrencyPairs.IsAssetEnabled(asset.DeliveryFutures); err != nil {
 		return err
 	}
-	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{}, nil); err != nil {
 		return err
 	}
 	pingHandler, err := getWSPingHandler(futuresPingChannel)
