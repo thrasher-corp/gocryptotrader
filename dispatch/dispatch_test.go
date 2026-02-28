@@ -2,6 +2,7 @@ package dispatch
 
 import (
 	"errors"
+	"fmt"
 	"runtime"
 	"testing"
 	"time"
@@ -202,14 +203,19 @@ func TestPublishReceive(t *testing.T) {
 	incoming, err := d.subscribe(id)
 	require.NoError(t, err, "subscribe must not error")
 
+	publishResult := make(chan error, 1)
 	go func(d *Dispatcher, id uuid.UUID) {
 		for range 10 {
-			err := d.publish(id, "WOW")
-			assert.NoError(t, err, "publish should not error")
+			if err := d.publish(id, "WOW"); err != nil {
+				publishResult <- err
+				return
+			}
 		}
+		publishResult <- nil
 	}(d, id)
 
 	data, ok := (<-incoming).(string)
+	assert.NoError(t, <-publishResult, "publish should not error")
 	assert.True(t, ok, "Should get a string type from the pipe")
 	assert.Equal(t, "WOW", data, "Should get correct value from the pipe")
 }
@@ -279,17 +285,26 @@ func TestMux(t *testing.T) {
 
 	payload := "string"
 
+	readErr := make(chan error, 1)
 	go func() {
 		close(ready)
 		response, ok := (<-pipe.c).(string)
-		assert.True(t, ok, "Should get a string type value from Publish")
-		assert.Equal(t, payload, response, "Should get correct value from Publish")
+		if !ok {
+			readErr <- errors.New("Should get a string type value from Publish")
+			return
+		}
+		if response != payload {
+			readErr <- fmt.Errorf("Should get correct value from Publish: expected %q got %q", payload, response)
+			return
+		}
+		readErr <- nil
 	}()
 
 	<-ready
 
 	err = mux.Publish(payload, id)
 	assert.NoError(t, err, "Publish should not error")
+	assert.NoError(t, <-readErr, "pipe read should not error")
 
 	err = pipe.Release()
 	assert.NoError(t, err, "Release should not error")
@@ -349,17 +364,20 @@ func TestMuxPublish(t *testing.T) {
 		close(demux)
 	}()
 
+	publishWithinLimitsErr := make(chan error, 1)
 	go func() {
 		<-ready // Ensure listener is ready before starting
 		for i := range 100 {
-			errMux := mux.Publish(i, itemID)
-			if !assert.NoError(t, errMux, "Publish should not error within limits") {
+			if errMux := mux.Publish(i, itemID); errMux != nil {
+				publishWithinLimitsErr <- errMux
 				return
 			}
 		}
+		publishWithinLimitsErr <- nil
 	}()
 
 	assert.Eventually(t, func() bool { return len(demux) >= 1 }, time.Second, time.Millisecond*10, "Subscriber should eventually get at least one message")
+	assert.NoError(t, <-publishWithinLimitsErr, "Publish should not error within limits")
 
 	// demonstrate that jobs can be limited when subscribed
 	// Published data gets consumed from .jobs to the worker channels, so we're looking to push more than it's consumed and prevent the select reading them too quickly
