@@ -885,15 +885,13 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, cfg *Config) []E
 		})
 
 		marginRateHistoryRequest := &margin.RateHistoryRequest{
-			Exchange:           e.GetName(),
-			Asset:              assetTypes[i],
-			Currency:           p.Base,
-			StartDate:          time.Now().Add(-time.Hour * 24),
-			EndDate:            time.Now(),
-			GetPredictedRate:   true,
-			GetLendingPayments: true,
-			GetBorrowRates:     true,
-			GetBorrowCosts:     true,
+			Exchange:       e.GetName(),
+			Asset:          assetTypes[i],
+			Currency:       p.Base,
+			StartDate:      time.Now().Add(-time.Hour * 24),
+			EndDate:        time.Now(),
+			GetBorrowRates: true,
+			GetBorrowCosts: true,
 		}
 		marginRateHistoryResponse, err := e.GetMarginRatesHistory(context.TODO(), marginRateHistoryRequest)
 		msg = ""

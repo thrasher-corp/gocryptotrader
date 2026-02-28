@@ -37,6 +37,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -2453,6 +2454,151 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, req *margin.Positio
 		AllocatedMargin: resp.Amount.Float64(),
 		MarginType:      req.MarginType,
 	}, nil
+}
+
+// GetCurrentMarginRates returns the latest margin rates for pairs.
+func (e *Exchange) GetCurrentMarginRates(ctx context.Context, req *margin.CurrentRatesRequest) ([]margin.CurrentRateResponse, error) {
+	if err := common.NilGuard(req); err != nil {
+		return nil, err
+	}
+	if req.Asset != asset.Margin {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
+	}
+	pairs := req.Pairs
+	if len(pairs) == 0 {
+		var err error
+		pairs, err = e.GetEnabledPairs(req.Asset)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	timeChecked := time.Now().UTC()
+	publicRates, err := e.GetInterestRateAndLoanQuota(ctx)
+	if err != nil {
+		return nil, err
+	}
+	ratesByCurrency := make(map[currency.Code]types.Number)
+	for i := range publicRates {
+		for j := range publicRates[i].Basic {
+			ratesByCurrency[publicRates[i].Basic[j].Currency] = publicRates[i].Basic[j].InterestRate
+		}
+	}
+
+	resp := make([]margin.CurrentRateResponse, len(pairs))
+	for i := range pairs {
+		interestRate, ok := ratesByCurrency[pairs[i].Base]
+		if !ok {
+			return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotFound, pairs[i].Base)
+		}
+		hourlyRate := decimal.NewFromFloat(interestRate.Float64())
+		rate := margin.Rate{
+			Time:       timeChecked,
+			HourlyRate: hourlyRate,
+			YearlyRate: hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
+		}
+		resp[i] = margin.CurrentRateResponse{
+			Exchange:    e.Name,
+			Asset:       req.Asset,
+			Pair:        pairs[i],
+			CurrentRate: &rate,
+			TimeChecked: timeChecked,
+		}
+	}
+	return resp, nil
+}
+
+// GetMarginRatesHistory returns margin borrow rates and accrued borrow costs.
+func (e *Exchange) GetMarginRatesHistory(ctx context.Context, req *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%w RateHistoryRequest", common.ErrNilPointer)
+	}
+	if req.Asset != asset.Margin {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
+	}
+	if req.Currency.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if !req.StartDate.IsZero() && !req.EndDate.IsZero() {
+		if err := common.StartEndTimeCheck(req.StartDate, req.EndDate); err != nil {
+			return nil, err
+		}
+	}
+
+	resp := &margin.RateHistoryResponse{}
+	// Prefer unauthenticated public borrow history when borrow costs are not requested.
+	// This allows history backfills to run without API credentials.
+	if !req.GetBorrowCosts {
+		start := req.StartDate
+		end := req.EndDate
+		if end.IsZero() {
+			end = time.Now().UTC()
+		}
+		if start.IsZero() {
+			start = end.Add(-90 * 24 * time.Hour)
+		}
+		const (
+			window = 72 * time.Hour
+			limit  = int64(100)
+		)
+		cursor := end
+		resp.Rates = make([]margin.Rate, 0, 1024)
+		for cursor.After(start) {
+			chunkStart := cursor.Add(-window)
+			if chunkStart.Before(start) {
+				chunkStart = start
+			}
+			history, err := e.GetPublicBorrowHistory(ctx, req.Currency, cursor, chunkStart, limit)
+			if err != nil {
+				return nil, err
+			}
+			for i := range history {
+				ts := history[i].Timestamp.Time()
+				if ts.IsZero() || ts.Before(start) || ts.After(end) {
+					continue
+				}
+				yearlyRate := decimal.NewFromFloat(history[i].Rate.Float64())
+				hourlyRate := yearlyRate.Div(decimal.NewFromInt(24 * 365))
+				resp.Rates = append(resp.Rates, margin.Rate{
+					Time:             ts,
+					HourlyRate:       hourlyRate,
+					YearlyRate:       yearlyRate,
+					MarketBorrowSize: decimal.NewFromFloat(history[i].Amount.Float64()),
+				})
+			}
+			if chunkStart.Equal(start) {
+				break
+			}
+			cursor = chunkStart
+		}
+	} else {
+		interestData, err := e.GetInterestAccruedData(ctx, 0, 0, req.Currency, "", "", req.StartDate, req.EndDate)
+		if err != nil {
+			return nil, err
+		}
+		resp.Rates = make([]margin.Rate, len(interestData))
+		for i := range interestData {
+			hourlyRate := decimal.NewFromFloat(interestData[i].InterestRate.Float64())
+			resp.Rates[i] = margin.Rate{
+				Time:       interestData[i].Timestamp.Time(),
+				HourlyRate: hourlyRate,
+				YearlyRate: hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
+			}
+			resp.Rates[i].BorrowCost = margin.BorrowCost{
+				Cost: decimal.NewFromFloat(interestData[i].Interest.Float64()),
+				Size: decimal.NewFromFloat(interestData[i].Liability.Float64()),
+			}
+			resp.SumBorrowCosts = resp.SumBorrowCosts.Add(resp.Rates[i].BorrowCost.Cost)
+			resp.AverageBorrowSize = resp.AverageBorrowSize.Add(resp.Rates[i].BorrowCost.Size)
+		}
+	}
+	sort.Slice(resp.Rates, func(i, j int) bool {
+		return resp.Rates[i].Time.Before(resp.Rates[j].Time)
+	})
+	if req.GetBorrowCosts && len(resp.Rates) > 0 {
+		resp.AverageBorrowSize = resp.AverageBorrowSize.Div(decimal.NewFromInt(int64(len(resp.Rates))))
+	}
+	return resp, nil
 }
 
 // GetFuturesPositionSummary returns position summary details for an active position

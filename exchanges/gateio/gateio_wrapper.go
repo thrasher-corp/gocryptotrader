@@ -27,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -2114,6 +2115,75 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	}
 
 	return slices.Clip(resp), nil
+}
+
+// GetCurrentMarginRates returns the latest estimated margin rates for pairs.
+func (e *Exchange) GetCurrentMarginRates(ctx context.Context, req *margin.CurrentRatesRequest) ([]margin.CurrentRateResponse, error) {
+	if err := common.NilGuard(req); err != nil {
+		return nil, err
+	}
+	if req.Asset != asset.Margin {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
+	}
+	pairs := req.Pairs
+	if len(pairs) == 0 {
+		var err error
+		pairs, err = e.GetEnabledPairs(req.Asset)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(pairs) == 0 {
+		return nil, currency.ErrCurrencyPairsEmpty
+	}
+
+	baseCurrencies := make(currency.Currencies, 0, len(pairs))
+	for i := range pairs {
+		if pairs[i].IsEmpty() {
+			return nil, currency.ErrCurrencyPairEmpty
+		}
+		b := pairs[i].Base.Upper()
+		if !baseCurrencies.Contains(b) {
+			baseCurrencies = append(baseCurrencies, b)
+		}
+	}
+
+	const maxCurrenciesPerReq = 10
+	timeChecked := time.Now().UTC()
+	ratesByCurrency := make(map[currency.Code]margin.Rate, len(baseCurrencies))
+	for i := 0; i < len(baseCurrencies); i += maxCurrenciesPerReq {
+		end := min(i+maxCurrenciesPerReq, len(baseCurrencies))
+		rates, err := e.GetEstimatedInterestRate(ctx, baseCurrencies[i:end])
+		if err != nil {
+			return nil, err
+		}
+		for c, v := range rates {
+			code := currency.NewCode(c).Upper()
+			hourly := v.Decimal()
+			ratesByCurrency[code] = margin.Rate{
+				Time:       timeChecked,
+				HourlyRate: hourly,
+				YearlyRate: hourly.Mul(decimal.NewFromInt(24 * 365)),
+			}
+		}
+	}
+
+	resp := make([]margin.CurrentRateResponse, len(pairs))
+	for i := range pairs {
+		pair := pairs[i]
+		rate, ok := ratesByCurrency[pair.Base.Upper()]
+		if !ok {
+			return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotFound, pair.Base)
+		}
+		resp[i] = margin.CurrentRateResponse{
+			Exchange:    e.Name,
+			Asset:       req.Asset,
+			Pair:        pair,
+			CurrentRate: &rate,
+			TimeChecked: timeChecked,
+		}
+	}
+	return resp, nil
 }
 
 func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, contract *FuturesContract, includeUpcomingRate bool) fundingrate.LatestRateResponse {
