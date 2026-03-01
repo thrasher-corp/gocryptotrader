@@ -1,6 +1,8 @@
 package ticker
 
 import (
+	"errors"
+	"fmt"
 	"log"
 	"math/rand"
 	"os"
@@ -398,28 +400,27 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 
 	wg.Wait()
 
+	errCh := make(chan error, len(testArray))
 	for _, test := range testArray {
 		wg.Add(1)
-		fatalErr := false
 		go func(test quick) {
+			defer wg.Done()
 			result, err := GetTicker(test.Name, test.P, asset.Spot)
 			if err != nil {
-				fatalErr = true
+				errCh <- fmt.Errorf("TestProcessTicker failed to retrieve new ticker: %w", err)
 				return
 			}
 
 			if result.Last != test.TP.Last {
-				t.Error("TestProcessTicker failed bad values")
+				errCh <- errors.New("TestProcessTicker failed bad values")
 			}
-
-			wg.Done()
 		}(test)
-
-		if fatalErr {
-			t.Fatal("TestProcessTicker failed to retrieve new ticker")
-		}
 	}
 	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		require.NoError(t, err)
+	}
 }
 
 func TestGetAssociation(t *testing.T) {

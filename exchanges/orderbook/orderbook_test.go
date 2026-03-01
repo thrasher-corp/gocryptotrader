@@ -1,6 +1,8 @@
 package orderbook
 
 import (
+	"errors"
+	"fmt"
 	"log"
 	"math/rand"
 	"os"
@@ -363,32 +365,33 @@ func TestProcessOrderbook(t *testing.T) {
 		t.Fatal("Process() error", err)
 	}
 
+	errCh := make(chan error, len(testArray))
 	for _, test := range testArray {
 		wg.Add(1)
-		fatalErr := false
 		go func(q quick) {
+			defer wg.Done()
 			result, err := Get(q.Name, q.P, asset.Spot)
 			if err != nil {
-				fatalErr = true
+				errCh <- fmt.Errorf("TestProcessOrderbook failed to retrieve new orderbook: %w", err)
 				return
 			}
 
 			if result.Asks[0] != q.Asks[0] {
-				t.Error("TestProcessOrderbook failed bad values")
+				errCh <- errors.New("TestProcessOrderbook failed bad ask values")
+				return
 			}
 
 			if result.Bids[0] != q.Bids[0] {
-				t.Error("TestProcessOrderbook failed bad values")
+				errCh <- errors.New("TestProcessOrderbook failed bad bid values")
+				return
 			}
-
-			wg.Done()
 		}(test)
-
-		if fatalErr {
-			t.Fatal("TestProcessOrderbook failed to retrieve new orderbook")
-		}
 	}
 	wg.Wait()
+	close(errCh)
+	for err := range errCh {
+		require.NoError(t, err)
+	}
 }
 
 func levelsFixtureRandom() Levels {

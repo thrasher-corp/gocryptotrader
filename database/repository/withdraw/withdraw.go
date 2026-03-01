@@ -21,7 +21,8 @@ import (
 
 // Event stores Withdrawal Response details in database
 func Event(res *withdraw.Response) {
-	if database.DB.SQL == nil {
+	sqlDB, err := database.DB.GetSQL()
+	if err != nil {
 		return
 	}
 
@@ -35,7 +36,7 @@ func Event(res *withdraw.Response) {
 	}
 
 	res.Exchange.Name = exchangeUUID.String()
-	tx, err := database.DB.SQL.BeginTx(ctx, nil)
+	tx, err := sqlDB.BeginTx(ctx, nil)
 	if err != nil {
 		log.Errorf(log.DatabaseMgr, "Event transaction being failed: %v", err)
 		return

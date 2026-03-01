@@ -5877,7 +5877,7 @@ func (e *Exchange) GetFiatDepositPaymentMethods(ctx context.Context, ccy currenc
 SendHTTPRequest sends an http request, optionally with a JSON payload
 URL arguments must be encoded in the request path
 result must be a pointer
-The response will be unmarshalled first into []any{result}, which matches most APIs, and fallback to directly into result
+The response data is unmarshalled directly into result first and then (if needed) from the first array element
 */
 func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, httpMethod, requestPath string, data, result any, requestType request.AuthType) (err error) {
 	endpoint, err := e.API.Endpoints.GetURL(ep)
@@ -5946,14 +5946,23 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f reque
 		return common.AppendError(err, fmt.Errorf("error code: `%d`", resp.Code.Int64()))
 	}
 
-	// First see if resp.Data can unmarshal into a slice of result, which is true for most APIs
-	if sliceErr := json.Unmarshal(resp.Data, &[]any{result}); sliceErr != nil {
-		// Otherwise, resp.Data should unmarshal directly into result; e.g. index-components, support-coin, and taker-block-volume
-		if directErr := json.Unmarshal(resp.Data, result); directErr != nil {
-			return fmt.Errorf("cannot unmarshal as a slice of result (error: %w) or as a reference to result (error: %w)", sliceErr, directErr)
-		}
+	// Most endpoints can be unmarshalled directly (objects and full arrays).
+	directErr := json.Unmarshal(resp.Data, result)
+	if directErr == nil {
+		return nil
 	}
 
+	// Some endpoints return a single item wrapped in data:[{...}] for a non-slice result.
+	var dataSlice []json.RawMessage
+	if sliceErr := json.Unmarshal(resp.Data, &dataSlice); sliceErr != nil {
+		return fmt.Errorf("cannot unmarshal response data directly (error: %w) or as an array (error: %w)", directErr, sliceErr)
+	}
+	if len(dataSlice) == 0 {
+		return nil
+	}
+	if firstErr := json.Unmarshal(dataSlice[0], result); firstErr != nil {
+		return fmt.Errorf("cannot unmarshal response data directly (error: %w) or as the first array item (error: %w)", directErr, firstErr)
+	}
 	return nil
 }
 
