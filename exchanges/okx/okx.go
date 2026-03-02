@@ -5957,8 +5957,8 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f reque
 	if sliceErr := json.Unmarshal(resp.Data, &dataSlice); sliceErr != nil {
 		return fmt.Errorf("cannot unmarshal response data directly (error: %w) or as an array (error: %w)", directErr, sliceErr)
 	}
-	if len(dataSlice) == 0 {
-		return nil
+	if len(dataSlice) != 1 {
+		return fmt.Errorf("cannot unmarshal response data directly (error: %w) or as a single-item array (got %d items)", directErr, len(dataSlice))
 	}
 	if firstErr := json.Unmarshal(dataSlice[0], result); firstErr != nil {
 		return fmt.Errorf("cannot unmarshal response data directly (error: %w) or as the first array item (error: %w)", directErr, firstErr)

@@ -214,8 +214,8 @@ func TestPublishReceive(t *testing.T) {
 		publishResult <- nil
 	}(d, id)
 
-	data, ok := (<-incoming).(string)
 	assert.NoError(t, <-publishResult, "publish should not error")
+	data, ok := (<-incoming).(string)
 	assert.True(t, ok, "Should get a string type from the pipe")
 	assert.Equal(t, "WOW", data, "Should get correct value from the pipe")
 }

@@ -365,33 +365,25 @@ func TestProcessOrderbook(t *testing.T) {
 		t.Fatal("Process() error", err)
 	}
 
-	errCh := make(chan error, len(testArray))
+	var collector common.ErrorCollector
 	for _, test := range testArray {
-		wg.Add(1)
-		go func(q quick) {
-			defer wg.Done()
-			result, err := Get(q.Name, q.P, asset.Spot)
+		collector.Go(func() error {
+			result, err := Get(test.Name, test.P, asset.Spot)
 			if err != nil {
-				errCh <- fmt.Errorf("TestProcessOrderbook failed to retrieve new orderbook: %w", err)
-				return
+				return fmt.Errorf("TestProcessOrderbook failed to retrieve new orderbook: %w", err)
 			}
 
-			if result.Asks[0] != q.Asks[0] {
-				errCh <- errors.New("TestProcessOrderbook failed bad ask values")
-				return
+			if result.Asks[0] != test.Asks[0] {
+				return errors.New("TestProcessOrderbook failed bad ask values")
 			}
 
-			if result.Bids[0] != q.Bids[0] {
-				errCh <- errors.New("TestProcessOrderbook failed bad bid values")
-				return
+			if result.Bids[0] != test.Bids[0] {
+				return errors.New("TestProcessOrderbook failed bad bid values")
 			}
-		}(test)
+			return nil
+		})
 	}
-	wg.Wait()
-	close(errCh)
-	for err := range errCh {
-		require.NoError(t, err)
-	}
+	require.NoError(t, collector.Collect())
 }
 
 func levelsFixtureRandom() Levels {

@@ -163,15 +163,13 @@ func (m *ExchangeManager) Shutdown(shutdownTimeout time.Duration) error {
 
 	var wg sync.WaitGroup
 	for _, exch := range exchanges {
-		wg.Add(1)
-		go func(exch exchange.IBotExchange) {
-			defer wg.Done()
+		wg.Go(func() {
 			result := shutdownResult{name: exch.GetName(), key: strings.ToLower(exch.GetName()), err: exch.Shutdown()}
 			select {
 			case results <- result:
 			case <-abort:
 			}
-		}(exch)
+		})
 	}
 
 	done := make(chan struct{})
