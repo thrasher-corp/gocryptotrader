@@ -340,12 +340,12 @@ var unsupportedDefaultConfigExchanges = []string{
 }
 
 func TestGetDefaultConfigurations(t *testing.T) {
-	t.Parallel()
+	// Intentionally serial: exchange default setup mutates shared globals in some
+	// implementations, and parallel subtests can trigger race-detector failures.
 	em := NewExchangeManager()
 	for i := range exchange.Exchanges {
 		name := strings.ToLower(exchange.Exchanges[i])
 		t.Run(name, func(t *testing.T) {
-			t.Parallel()
 			exch, err := em.NewExchangeByName(name)
 			require.NoError(t, err, "NewExchangeByName must not error")
 
