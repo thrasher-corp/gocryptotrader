@@ -400,27 +400,21 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 
 	wg.Wait()
 
-	errCh := make(chan error, len(testArray))
+	var e common.ErrorCollector
 	for _, test := range testArray {
-		wg.Add(1)
-		go func(test quick) {
-			defer wg.Done()
+		e.Go(func() error {
 			result, err := GetTicker(test.Name, test.P, asset.Spot)
 			if err != nil {
-				errCh <- fmt.Errorf("TestProcessTicker failed to retrieve new ticker: %w", err)
-				return
+				return fmt.Errorf("TestProcessTicker failed to retrieve new ticker: %w", err)
 			}
 
 			if result.Last != test.TP.Last {
-				errCh <- errors.New("TestProcessTicker failed bad values")
+				return errors.New("TestProcessTicker failed bad values")
 			}
-		}(test)
+			return nil
+		})
 	}
-	wg.Wait()
-	close(errCh)
-	for err := range errCh {
-		require.NoError(t, err)
-	}
+	require.NoError(t, e.Collect())
 }
 
 func TestGetAssociation(t *testing.T) {
