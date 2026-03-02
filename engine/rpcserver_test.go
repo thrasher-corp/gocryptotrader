@@ -61,7 +61,14 @@ const (
 	fakeExchangeName      = "fake"
 )
 
-var errExpectedTestError = errors.New("expected test error")
+var (
+	errExpectedTestError = errors.New("expected test error")
+	testExchangeCounter  common.Counter
+)
+
+func newUniqueFakeExchangeName() string {
+	return fmt.Sprintf("%s-%d", fakeExchangeName, testExchangeCounter.IncrementAndGet())
+}
 
 // fExchange is a fake exchange with function overrides
 // we're not testing an actual exchange's implemented functions
@@ -3141,7 +3148,8 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 
 	exch.SetDefaults()
 	b := exch.GetBase()
-	b.Name = fakeExchangeName
+	uniqueFakeExchangeName := newUniqueFakeExchangeName()
+	b.Name = uniqueFakeExchangeName
 	b.Enabled = true
 
 	cp := currency.NewPairWithDelimiter("btc", "meme", "-")
@@ -3167,7 +3175,7 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 	_, err = s.GetOrderbookAmountByNominal(t.Context(), req)
 	require.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
-	req.Exchange = "fake"
+	req.Exchange = uniqueFakeExchangeName
 	_, err = s.GetOrderbookAmountByNominal(t.Context(), req)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
@@ -3181,9 +3189,7 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 		Quote: currency.MEME.String(),
 	}
 	_, err = s.GetOrderbookAmountByNominal(t.Context(), req)
-	if !strings.Contains(err.Error(), "cannot find orderbook") {
-		t.Fatalf("received: '%+v' but expected: '%v'", err, "cannot find orderbook")
-	}
+	require.ErrorIs(t, err, orderbook.ErrOrderbookNotFound)
 
 	depth, err := orderbook.DeployDepth(req.Exchange, currency.NewPair(currency.BTC, currency.MEME), asset.Spot)
 	require.NoError(t, err, "orderbook.DeployDepth must not error")
@@ -3227,7 +3233,8 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 
 	exch.SetDefaults()
 	b := exch.GetBase()
-	b.Name = fakeExchangeName
+	uniqueFakeExchangeName := newUniqueFakeExchangeName()
+	b.Name = uniqueFakeExchangeName
 	b.Enabled = true
 
 	cp := currency.NewPairWithDelimiter("btc", "mad", "-")
@@ -3253,7 +3260,7 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 	_, err = s.GetOrderbookAmountByImpact(t.Context(), req)
 	require.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
-	req.Exchange = "fake"
+	req.Exchange = uniqueFakeExchangeName
 	_, err = s.GetOrderbookAmountByImpact(t.Context(), req)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
@@ -3267,9 +3274,7 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 		Quote: currency.MAD.String(),
 	}
 	_, err = s.GetOrderbookAmountByImpact(t.Context(), req)
-	if !strings.Contains(err.Error(), "cannot find orderbook") {
-		t.Fatalf("received: '%+v' but expected: '%v'", err, "cannot find orderbook")
-	}
+	require.ErrorIs(t, err, orderbook.ErrOrderbookNotFound)
 
 	depth, err := orderbook.DeployDepth(req.Exchange, currency.NewPair(currency.BTC, currency.MAD), asset.Spot)
 	require.NoError(t, err, "orderbook.DeployDepth must not error")
