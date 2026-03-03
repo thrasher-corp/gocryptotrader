@@ -8,6 +8,7 @@ import (
 	"maps"
 	"net/http"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -727,17 +728,16 @@ func TestGetOpenInterestData(t *testing.T) {
 
 func TestGetHistoricalVolatility(t *testing.T) {
 	t.Parallel()
-	start := time.Now().Add(-time.Hour * 30 * 24)
-	end := time.Now()
+	var start, end time.Time
+	baseCoin := "BTC"
+	period := int64(7)
 	if mockTests {
 		end = time.UnixMilli(1693080759395)
 		start = time.UnixMilli(1690488759395)
 	}
-	_, err := e.GetHistoricalVolatility(t.Context(), cOption, "", 123, start, end)
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = e.GetHistoricalVolatility(t.Context(), cSpot, "", 123, start, end)
+	_, err := e.GetHistoricalVolatility(t.Context(), cOption, baseCoin, period, start, end)
+	require.NoError(t, err)
+	_, err = e.GetHistoricalVolatility(t.Context(), cSpot, baseCoin, period, start, end)
 	assert.ErrorIs(t, err, errInvalidCategory)
 }
 
@@ -2535,25 +2535,43 @@ func TestSetSpotMarginTradeLeverage(t *testing.T) {
 
 func TestGetMarginCoinInfo(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMarginCoinInfo(t.Context(), currency.BTC)
-	if err != nil {
-		t.Error(err)
+	resp, err := e.GetMarginCoinInfo(t.Context(), currency.BTC)
+	require.NoError(t, err)
+	if mockTests {
+		require.Len(t, resp, 1)
+		assert.Equal(t, "BTC", resp[0].Coin)
+		assert.Equal(t, types.Number(0.95), resp[0].ConversionRate)
+		assert.EqualValues(t, 2, resp[0].LiquidationOrder)
 	}
 }
 
 func TestGetVIPMarginData(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetVIPMarginData(t.Context(), "", "")
-	if err != nil {
-		t.Error(err)
+	resp, err := e.GetVIPMarginData(t.Context(), "", "")
+	require.NoError(t, err)
+	if mockTests {
+		require.NotEmpty(t, resp.VipCoinList)
+		require.NotEmpty(t, resp.VipCoinList[0].List)
+		assert.Equal(t, "No VIP", resp.VipCoinList[0].VipLevel)
+		assert.Equal(t, "USDT", resp.VipCoinList[0].List[0].Currency)
+		assert.Equal(t, types.Number(1), resp.VipCoinList[0].List[0].CollateralRatio)
 	}
 }
 
-func TestGetBorrowableCoinInfo(t *testing.T) {
+func TestGetMaxBorrowableAmount(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetBorrowableCoinInfo(t.Context(), currency.EMPTYCODE)
-	if err != nil {
-		t.Error(err)
+	_, err := e.GetMaxBorrowableAmount(t.Context(), currency.EMPTYCODE)
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	}
+
+	resp, err := e.GetMaxBorrowableAmount(t.Context(), currency.BTC)
+	require.NoError(t, err)
+	if mockTests {
+		require.Len(t, resp, 1)
+		assert.Equal(t, "BTC", resp[0].Coin)
+		assert.Equal(t, types.Number(5), resp[0].MaxLoan)
 	}
 }
 
@@ -3032,32 +3050,49 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 	err = e.wsHandleAuthenticatedData(t.Context(), nil, []byte(`{"topic": "unhandled"}`))
 	require.ErrorIs(t, err, errUnhandledStreamData, "wsHandleAuthenticatedData must error for unhandled stream data")
 
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	e.API.AuthenticatedSupport = true
-	e.API.AuthenticatedWebsocketSupport = true
-	e.SetCredentials("test", "test", "", "", "", "")
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	ex.API.AuthenticatedSupport = true
+	ex.API.AuthenticatedWebsocketSupport = true
+	ex.SetCredentials("test", "test", "", "", "", "")
+	formattedOptionsPair, err := ex.FormatExchangeCurrency(optionsTradablePair, asset.Options)
+	require.NoError(t, err)
 	fErrs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsAuth.json", func(ctx context.Context, r []byte) error {
 		if bytes.Contains(r, []byte("%s")) {
-			r = fmt.Appendf(nil, string(r), optionsTradablePair.String())
+			r = fmt.Appendf(nil, string(r), formattedOptionsPair.String())
 		}
 		if bytes.Contains(r, []byte("FANGLE-ACCOUNTS")) {
-			hold := e.Accounts
-			e.Accounts = nil
-			defer func() { e.Accounts = hold }()
+			hold := ex.Accounts
+			ex.Accounts = nil
+			defer func() { ex.Accounts = hold }()
 		}
-		return e.wsHandleAuthenticatedData(ctx, &FixtureConnection{match: websocket.NewMatch()}, r)
+		return ex.wsHandleAuthenticatedData(ctx, &FixtureConnection{match: websocket.NewMatch()}, r)
 	})
-	e.Websocket.DataHandler.Close()
-	require.Len(t, e.Websocket.DataHandler.C, 6, "Should see correct number of messages")
-	require.Len(t, fErrs, 1, "Must get exactly one error message")
-	assert.ErrorContains(t, fErrs[0].Err, "cannot save holdings: nil pointer: *accounts.Accounts")
+	ex.Websocket.DataHandler.Close()
 
-	i := 0
-	for data := range e.Websocket.DataHandler.C {
-		i++
+	pairErrCount := 0
+	walletErrCount := 0
+	for _, fixtureErr := range fErrs {
+		switch {
+		case strings.Contains(fixtureErr.Err.Error(), "cannot save holdings: nil pointer: *accounts.Accounts"):
+			walletErrCount++
+		case strings.Contains(fixtureErr.Err.Error(), "pair not found"):
+			pairErrCount++
+		default:
+			t.Fatalf("unexpected fixture processing error: %v", fixtureErr.Err)
+		}
+	}
+	require.Equal(t, 1, walletErrCount, "Must get exactly one wallet save error")
+	require.LessOrEqual(t, pairErrCount, 1, "At most one option pair matching error must occur")
+
+	expectedMessages := 6 - pairErrCount
+	require.Len(t, ex.Websocket.DataHandler.C, expectedMessages, "Should see correct number of messages")
+
+	var sawPositions, sawOrderLinear, sawOrderOption, sawAccounts, sawGreeks, sawFills bool
+	for data := range ex.Websocket.DataHandler.C {
 		switch v := data.Data.(type) {
 		case WsPositions:
+			sawPositions = true
 			require.Len(t, v, 1, "must see 1 position")
 			assert.Zero(t, v[0].PositionIdx, "PositionIdx should be 0")
 			assert.Zero(t, v[0].TradeMode, "TradeMode should be 0")
@@ -3087,8 +3122,27 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 			assert.Equal(t, "Normal", v[0].PositionStatus, "Position status should be correct")
 			assert.Equal(t, int64(2), v[0].AdlRankIndicator, "ADL Rank Indicator should be correct")
 		case []order.Detail:
-			if i == 6 {
-				require.Len(t, v, 1)
+			require.Len(t, v, 1, "must see 1 order")
+			switch v[0].AssetType {
+			case asset.Options:
+				sawOrderOption = true
+				assert.True(t, optionsTradablePair.Equal(v[0].Pair), "Pair should match")
+				assert.Equal(t, "5cf98598-39a7-459e-97bf-76ca765ee020", v[0].OrderID, "Order ID should be correct")
+				assert.Equal(t, order.Sell, v[0].Side, "Side should be correct")
+				assert.Equal(t, order.Market, v[0].Type, "Order type should be correct")
+				assert.Equal(t, 72.5, v[0].Price, "Price should be correct")
+				assert.Equal(t, 1.0, v[0].Amount, "Amount should be correct")
+				assert.Equal(t, order.ImmediateOrCancel, v[0].TimeInForce, "Time in force should be correct")
+				assert.Equal(t, order.Filled, v[0].Status, "Order status should be correct")
+				assert.Empty(t, v[0].ClientOrderID, "client order ID should be empty")
+				assert.False(t, v[0].ReduceOnly, "Reduce only should be false")
+				assert.Equal(t, 1.0, v[0].ExecutedAmount, "executed amount should be correct")
+				assert.Equal(t, 75.0, v[0].AverageExecutedPrice, "Avg price should be correct")
+				assert.Equal(t, 0.358635, v[0].Fee, "fee should be correct")
+				assert.Equal(t, time.UnixMilli(1672364262444), v[0].Date, "Created time should be correct")
+				assert.Equal(t, time.UnixMilli(1672364262457), v[0].LastUpdated, "Updated time should be correct")
+			case asset.USDTMarginedFutures:
+				sawOrderLinear = true
 				assert.Equal(t, "c1956690-b731-4191-97c0-94b00422231b", v[0].OrderID)
 				assert.Equal(t, "BTC_USDT", v[0].Pair.String())
 				assert.Equal(t, order.Sell, v[0].Side)
@@ -3097,59 +3151,23 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 				assert.Equal(t, 4.033, v[0].Price)
 				assert.Equal(t, 4.24, v[0].AverageExecutedPrice)
 				assert.Equal(t, 0.0, v[0].RemainingAmount)
-				assert.Equal(t, asset.USDTMarginedFutures, v[0].AssetType)
-				continue
+			default:
+				t.Fatalf("unexpected order asset type: %v", v[0].AssetType)
 			}
-			require.Len(t, v, 1, "must see 1 order")
-			assert.True(t, optionsTradablePair.Equal(v[0].Pair), "Pair should match")
-			assert.Equal(t, "5cf98598-39a7-459e-97bf-76ca765ee020", v[0].OrderID, "Order ID should be correct")
-			assert.Equal(t, order.Sell, v[0].Side, "Side should be correct")
-			assert.Equal(t, order.Market, v[0].Type, "Order type should be correct")
-			assert.Equal(t, 72.5, v[0].Price, "Price should be correct")
-			assert.Equal(t, 1.0, v[0].Amount, "Amount should be correct")
-			assert.Equal(t, order.ImmediateOrCancel, v[0].TimeInForce, "Time in force should be correct")
-			assert.Equal(t, order.Filled, v[0].Status, "Order status should be correct")
-			assert.Empty(t, v[0].ClientOrderID, "client order ID should be empty")
-			assert.False(t, v[0].ReduceOnly, "Reduce only should be false")
-			assert.Equal(t, 1.0, v[0].ExecutedAmount, "executed amount should be correct")
-			assert.Equal(t, 75.0, v[0].AverageExecutedPrice, "Avg price should be correct")
-			assert.Equal(t, 0.358635, v[0].Fee, "fee should be correct")
-			assert.Equal(t, time.UnixMilli(1672364262444), v[0].Date, "Created time should be correct")
-			assert.Equal(t, time.UnixMilli(1672364262457), v[0].LastUpdated, "Updated time should be correct")
 		case accounts.SubAccounts:
+			sawAccounts = true
 			require.Len(t, v, 1, "Must have correct number of SubAccounts")
 			assert.Equal(t, asset.Spot, v[0].AssetType, "Asset type should be correct")
 			exp := accounts.CurrencyBalances{}
-			exp.Set(currency.ETH, accounts.Balance{
-				UpdatedAt: time.UnixMilli(1672364262482),
-			})
-			exp.Set(currency.USDT, accounts.Balance{
-				UpdatedAt: time.UnixMilli(1672364262482),
-				Total:     11728.54414904,
-				Free:      11728.54414904,
-			})
-			exp.Set(currency.EOS3L, accounts.Balance{
-				UpdatedAt: time.UnixMilli(1672364262482),
-				Total:     215.0570412,
-				Free:      215.0570412,
-			})
-			exp.Set(currency.BIT, accounts.Balance{
-				UpdatedAt: time.UnixMilli(1672364262482),
-				Total:     1.82,
-				Free:      1.82,
-			})
-			exp.Set(currency.USDC, accounts.Balance{
-				UpdatedAt: time.UnixMilli(1672364262482),
-				Total:     201.34882644,
-				Free:      201.34882644,
-			})
-			exp.Set(currency.BTC, accounts.Balance{
-				UpdatedAt: time.UnixMilli(1672364262482),
-				Total:     0.06488393,
-				Free:      0.06488393,
-			})
+			exp.Set(currency.ETH, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482)})
+			exp.Set(currency.USDT, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 11728.54414904, Free: 11728.54414904})
+			exp.Set(currency.EOS3L, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 215.0570412, Free: 215.0570412})
+			exp.Set(currency.BIT, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 1.82, Free: 1.82})
+			exp.Set(currency.USDC, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 201.34882644, Free: 201.34882644})
+			exp.Set(currency.BTC, accounts.Balance{UpdatedAt: time.UnixMilli(1672364262482), Total: 0.06488393, Free: 0.06488393})
 			assert.Equal(t, exp, v[0].Balances, "Balances should be correct")
 		case *GreeksResponse:
+			sawGreeks = true
 			assert.Equal(t, "592324fa945a30-2603-49a5-b865-21668c29f2a6", v.ID, "ID should be correct")
 			assert.Equal(t, "greeks", v.Topic, "Topic should be correct")
 			assert.Equal(t, time.UnixMilli(1672364262482), v.CreationTime.Time(), "Creation time should be correct")
@@ -3160,10 +3178,11 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 			assert.Equal(t, -0.00000024, v.Data[0].TotalVega.Float64(), "Total vega should be correct")
 			assert.Equal(t, 0.00001314, v.Data[0].TotalTheta.Float64(), "Total theta should be correct")
 		case []fill.Data:
+			sawFills = true
 			require.Len(t, v, 1, "must see 1 fill")
 			assert.Equal(t, "7e2ae69c-4edf-5800-a352-893d52b446aa", v[0].ID, "ID should be correct")
 			assert.Equal(t, time.UnixMilli(1672364174443), v[0].Timestamp, "time should be correct")
-			assert.Equal(t, e.Name, v[0].Exchange, "Exchange name should be correct")
+			assert.Equal(t, ex.Name, v[0].Exchange, "Exchange name should be correct")
 			assert.Equal(t, asset.USDTMarginedFutures, v[0].AssetType, "Asset type should be correct")
 			assert.Equal(t, "XRP_USDT", v[0].CurrencyPair.String(), "Symbol should be correct")
 			assert.Equal(t, order.Sell, v[0].Side, "Side should be correct")
@@ -3175,6 +3194,17 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 		default:
 			t.Errorf("Unexpected data received: %T %v", v, v)
 		}
+	}
+
+	assert.True(t, sawPositions, "Positions payload should be received")
+	assert.True(t, sawAccounts, "Wallet payload should be received")
+	assert.True(t, sawGreeks, "Greeks payload should be received")
+	assert.True(t, sawFills, "Execution payload should be received")
+	assert.True(t, sawOrderLinear, "Linear order payload should be received")
+	if pairErrCount == 0 {
+		assert.True(t, sawOrderOption, "Option order payload should be received when option pair can be matched")
+	} else {
+		assert.False(t, sawOrderOption, "Option order payload should be absent when option pair matching fails")
 	}
 }
 

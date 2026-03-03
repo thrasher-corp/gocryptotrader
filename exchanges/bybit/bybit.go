@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Bybit
@@ -2088,7 +2089,7 @@ func (e *Exchange) SetSpotMarginTradeLeverage(ctx context.Context, leverage floa
 	return e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-margin-trade/set-leverage", nil, &map[string]string{"leverage": strconv.FormatFloat(leverage, 'f', -1, 64)}, &struct{}{}, defaultEPL)
 }
 
-// GetVIPMarginData retrieves public VIP Margin data
+// GetVIPMarginData retrieves public VIP margin data.
 func (e *Exchange) GetVIPMarginData(ctx context.Context, vipLevel, ccy string) (*VIPMarginData, error) {
 	params := url.Values{}
 	if vipLevel != "" {
@@ -2097,32 +2098,55 @@ func (e *Exchange) GetVIPMarginData(ctx context.Context, vipLevel, ccy string) (
 	if ccy != "" {
 		params.Set("currency", ccy)
 	}
+
 	var resp *VIPMarginData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, "spot-cross-margin-trade/data", defaultEPL, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("spot-margin-trade/data", params), defaultEPL, &resp)
 }
 
-// GetMarginCoinInfo retrieves margin coin information.
+// GetMarginCoinInfo retrieves spot margin collateral information.
 func (e *Exchange) GetMarginCoinInfo(ctx context.Context, coin currency.Code) ([]MarginCoinInfo, error) {
 	params := url.Values{}
 	if !coin.IsEmpty() {
-		params.Set("coin", coin.String())
+		params.Set("currency", coin.String())
 	}
-	resp := struct {
-		List []MarginCoinInfo `json:"list"`
+
+	newResp := struct {
+		List []struct {
+			Coin             string       `json:"currency"`
+			ConversionRate   types.Number `json:"collateralRatio"`
+			LiquidationOrder int64        `json:"liquidationOrder"`
+		} `json:"list"`
 	}{}
-	return resp.List, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("spot-cross-margin-trade/pledge-token", params), defaultEPL, &resp)
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("spot-margin-trade/collateral", params), defaultEPL, &newResp); err != nil {
+		return nil, err
+	}
+
+	resp := make([]MarginCoinInfo, 0, len(newResp.List))
+	for i := range newResp.List {
+		resp = append(resp, MarginCoinInfo{
+			Coin:             newResp.List[i].Coin,
+			ConversionRate:   newResp.List[i].ConversionRate,
+			LiquidationOrder: newResp.List[i].LiquidationOrder,
+		})
+	}
+	return resp, nil
 }
 
-// GetBorrowableCoinInfo retrieves borrowable coin info list.
-func (e *Exchange) GetBorrowableCoinInfo(ctx context.Context, coin currency.Code) ([]BorrowableCoinInfo, error) {
-	params := url.Values{}
-	if !coin.IsEmpty() {
-		params.Set("coin", coin.String())
+// GetMaxBorrowableAmount retrieves max borrowable amount by currency.
+func (e *Exchange) GetMaxBorrowableAmount(ctx context.Context, coin currency.Code) ([]MaxBorrowableAmount, error) {
+	if coin.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
 	}
+	params := url.Values{}
+	params.Set("currency", coin.String())
+
 	resp := struct {
-		List []BorrowableCoinInfo `json:"list"`
+		List []MaxBorrowableAmount `json:"list"`
 	}{}
-	return resp.List, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("spot-cross-margin-trade/borrow-token", params), defaultEPL, &resp)
+	if err := e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-margin-trade/max-borrowable", params, nil, &resp, getSpotCrossMarginTradeLoanInfoEPL); err != nil {
+		return nil, err
+	}
+	return resp.List, nil
 }
 
 // GetInterestAndQuota retrieves interest and quota information.

@@ -102,15 +102,38 @@ type InstrumentInfo struct {
 	SettleCoin         currency.Code `json:"settleCoin"`
 }
 
+type retExtInfo struct {
+	List []ErrorMessage `json:"list"`
+}
+
+func (r *retExtInfo) UnmarshalJSON(data []byte) error {
+	if string(data) == "\"\"" || string(data) == "null" {
+		*r = retExtInfo{}
+		return nil
+	}
+	type alias retExtInfo
+	var parsed alias
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		// Some Bybit responses can return retExtInfo as a raw string. Treat this
+		// shape as empty metadata so callers can still process successful payloads.
+		var ignored string
+		if errString := json.Unmarshal(data, &ignored); errString == nil {
+			*r = retExtInfo{}
+			return nil
+		}
+		return err
+	}
+	*r = retExtInfo(parsed)
+	return nil
+}
+
 // RestResponse represents a REST response instance.
 type RestResponse struct {
-	RetCode    int64  `json:"retCode"`
-	RetMsg     string `json:"retMsg"`
-	Result     any    `json:"result"`
-	RetExtInfo struct {
-		List []ErrorMessage `json:"list"`
-	} `json:"retExtInfo"`
-	Time types.Time `json:"time"`
+	RetCode    int64      `json:"retCode"`
+	RetMsg     string     `json:"retMsg"`
+	Result     any        `json:"result"`
+	RetExtInfo retExtInfo `json:"retExtInfo"`
+	Time       types.Time `json:"time"`
 }
 
 // KlineResponse represents a kline item list instance as an array of string.
@@ -1493,11 +1516,10 @@ type MarginCoinInfo struct {
 	LiquidationOrder int64        `json:"liquidationOrder"`
 }
 
-// BorrowableCoinInfo represents borrowable coin information.
-type BorrowableCoinInfo struct {
-	Coin               string `json:"coin"`
-	BorrowingPrecision int64  `json:"borrowingPrecision"`
-	RepaymentPrecision int64  `json:"repaymentPrecision"`
+// MaxBorrowableAmount represents max borrowable amount information.
+type MaxBorrowableAmount struct {
+	Coin    string       `json:"currency"`
+	MaxLoan types.Number `json:"maxLoan"`
 }
 
 // InterestAndQuota represents interest and quota information.
