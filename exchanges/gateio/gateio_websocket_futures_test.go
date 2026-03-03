@@ -161,7 +161,7 @@ func TestGenerateFuturesPayload(t *testing.T) {
 		})
 		require.NoError(t, err, "generateFuturesPayload must not error")
 		require.Len(t, got, 1)
-		require.Nil(t, got[0].Auth, "Auth should be nil when GetCredentials fails")
+		require.Nil(t, got[0].Auth, "Auth must be nil when GetCredentials fails")
 		require.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "authenticated endpoints must be disabled on GetCredentials error")
 	})
 
