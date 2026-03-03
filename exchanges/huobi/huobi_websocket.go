@@ -80,7 +80,7 @@ func (e *Exchange) WsConnect() error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
-	if err := e.Websocket.Conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
+	if err := e.Websocket.Conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil); err != nil {
 		return err
 	}
 
@@ -566,7 +566,7 @@ func (e *Exchange) wsGenerateSignature(creds *accounts.Credentials, timestamp st
 }
 
 func (e *Exchange) wsAuthConnect(ctx context.Context) error {
-	if err := e.Websocket.AuthConn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
+	if err := e.Websocket.AuthConn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil); err != nil {
 		return fmt.Errorf("authenticated dial failed: %w", err)
 	}
 	if err := e.wsLogin(ctx); err != nil {
