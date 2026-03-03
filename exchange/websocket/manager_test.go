@@ -1120,11 +1120,13 @@ func TestWriteToConn(t *testing.T) {
 	// No rate limits set
 	require.NoError(t, wc.writeToConn(t.Context(), request.Unset, func() error { return nil }))
 	// connection rate limit set
-	wc.RateLimit = request.NewWeightedRateLimitByDuration(time.Millisecond)
+	// Use a longer interval so the second call always requires delay and hits ctx deadline checks deterministically.
+	wc.RateLimit = request.NewWeightedRateLimitByDuration(time.Second)
 	require.NoError(t, wc.writeToConn(t.Context(), request.Unset, func() error { return nil }))
 	ctx, cancel := context.WithTimeout(t.Context(), 0) // deadline exceeded
 	cancel()
 	require.ErrorIs(t, wc.writeToConn(ctx, request.Unset, func() error { return nil }), context.DeadlineExceeded)
+	wc.RateLimit = request.NewWeightedRateLimitByDuration(time.Millisecond)
 	// definitions set but with fallover
 	wc.RateLimitDefinitions = request.RateLimitDefinitions{
 		request.Auth: request.NewWeightedRateLimitByDuration(time.Millisecond),

@@ -700,6 +700,164 @@ func TestLoad(t *testing.T) {
 	assert.Equal(t, p, found, "Should find the right pair")
 }
 
+func TestSortAvailablePairs(t *testing.T) {
+	t.Parallel()
+
+	sentinelKey := key{Symbol: "sentinel", Asset: asset.Spot}
+	sentinelPair := NewPairWithDelimiter("SENT", "INEL", "-")
+	futuresKey := key{Symbol: "btcusd", Asset: asset.Futures}
+
+	for _, tc := range []struct {
+		name            string
+		setup           func() *PairsManager
+		nilReceiver     bool
+		checkAvailable  bool
+		wantAvailable   string
+		checkMatch      bool
+		wantMatch       string
+		checkSentinel   bool
+		wantSentinel    bool
+		checkFuturesKey bool
+		wantFuturesKey  bool
+		checkMatcherLen bool
+		wantMatcherLen  int
+	}{
+		{
+			name: "sorts and reindexes unsorted available pairs",
+			setup: func() *PairsManager {
+				pm := &PairsManager{
+					Pairs: FullStore{
+						asset.Spot: {
+							Available: Pairs{
+								NewPairWithDelimiter("ETH", "USD", "-"),
+								NewPairWithDelimiter("ADA", "USD", "-"),
+								NewPairWithDelimiter("BTC", "USD", "-"),
+							},
+						},
+					},
+				}
+				pm.reindex()
+				return pm
+			},
+			checkAvailable: true,
+			wantAvailable:  "ADA-USD,BTC-USD,ETH-USD",
+			checkMatch:     true,
+			wantMatch:      "BTC-USD",
+		},
+		{
+			name: "noop when no store has more than one available pair",
+			setup: func() *PairsManager {
+				return &PairsManager{
+					Pairs: FullStore{
+						asset.Spot:    nil,
+						asset.Futures: {Available: Pairs{NewBTCUSD()}},
+					},
+					matcher: map[key]*Pair{
+						sentinelKey: &sentinelPair,
+					},
+				}
+			},
+			checkSentinel:   true,
+			wantSentinel:    true,
+			checkFuturesKey: true,
+			wantFuturesKey:  false,
+		},
+		{
+			name: "already sorted available pairs do not reindex",
+			setup: func() *PairsManager {
+				return &PairsManager{
+					Pairs: FullStore{
+						asset.Spot: {
+							Available: Pairs{
+								NewPairWithDelimiter("ADA", "USD", "-"),
+								NewPairWithDelimiter("BTC", "USD", "-"),
+							},
+						},
+					},
+					matcher: map[key]*Pair{
+						sentinelKey: &sentinelPair,
+					},
+				}
+			},
+			checkAvailable:  true,
+			wantAvailable:   "ADA-USD,BTC-USD",
+			checkSentinel:   true,
+			wantSentinel:    true,
+			checkMatcherLen: true,
+			wantMatcherLen:  1,
+		},
+		{
+			name: "nil receiver does not panic",
+			setup: func() *PairsManager {
+				return nil
+			},
+			nilReceiver: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			pm := tc.setup()
+			if tc.nilReceiver {
+				assert.NotPanics(t, func() {
+					pm.SortAvailablePairs()
+				}, "SortAvailablePairs should not panic for nil receivers")
+				return
+			}
+
+			pm.SortAvailablePairs()
+
+			if tc.checkAvailable {
+				got, err := pm.GetPairs(asset.Spot, false)
+				require.NoError(t, err, "GetPairs must not error for sorted available pairs")
+				assert.Equal(t, tc.wantAvailable, got.Join(), "Available pairs should match expected ordering")
+			}
+
+			if tc.checkMatch {
+				matched, err := pm.Match("btcusd", asset.Spot)
+				require.NoError(t, err, "Match must not error after sorting and reindexing available pairs")
+				assert.Equal(t, tc.wantMatch, matched.String(), "Match should return the expected pair after sorting")
+			}
+
+			if tc.checkSentinel {
+				_, ok := pm.matcher[sentinelKey]
+				assert.Equal(t, tc.wantSentinel, ok, "SortAvailablePairs should not alter sentinel matcher entries unexpectedly")
+			}
+
+			if tc.checkFuturesKey {
+				_, ok := pm.matcher[futuresKey]
+				assert.Equal(t, tc.wantFuturesKey, ok, "SortAvailablePairs should only adjust matcher entries when reindexing is required")
+			}
+
+			if tc.checkMatcherLen {
+				assert.Len(t, pm.matcher, tc.wantMatcherLen, "Matcher length should remain unchanged when no reindex is required")
+			}
+		})
+	}
+}
+
+func TestPairsManagerMarshalJSON(t *testing.T) {
+	t.Parallel()
+
+	var nilPM *PairsManager
+	data, err := nilPM.MarshalJSON()
+	require.NoError(t, err, "MarshalJSON must not error for nil receiver")
+	assert.Equal(t, "null", string(data), "MarshalJSON should return null for nil receiver")
+
+	pm := initTest(t)
+	pm.UseGlobalFormat = true
+	pm.LastUpdated = 1700000000
+
+	data, err = pm.MarshalJSON()
+	require.NoError(t, err, "MarshalJSON must not error for populated manager")
+
+	var decoded PairsManager
+	require.NoError(t, json.Unmarshal(data, &decoded), "Unmarshal must not error for MarshalJSON output")
+	assert.True(t, decoded.UseGlobalFormat, "UseGlobalFormat should be preserved")
+	assert.Equal(t, pm.LastUpdated, decoded.LastUpdated, "LastUpdated should be preserved")
+	assert.Equal(t, pm.Pairs, decoded.Pairs, "Pairs should be preserved")
+}
+
 func checkPairDelimiter(tb testing.TB, p *PairsManager, err error, d, msg string) {
 	tb.Helper()
 	if assert.NoError(tb, err, "UnmarshalJSON should not error") {
