@@ -1,6 +1,8 @@
 package ticker
 
 import (
+	"errors"
+	"fmt"
 	"log"
 	"math/rand"
 	"os"
@@ -364,17 +366,17 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 		}
 
 		wg.Go(func() {
-			//nolint:gosec // no need to import crypo/rand for testing
+			//nolint:gosec // no need to import crypto/rand for testing
 			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10)
-			newPairs, err := currency.NewPairFromStrings("BTC"+strconv.FormatInt(rand.Int63(), 10), //nolint:gosec // no need to import crypo/rand for testing
-				"USD"+strconv.FormatInt(rand.Int63(), 10)) //nolint:gosec // no need to import crypo/rand for testing
+			newPairs, err := currency.NewPairFromStrings("BTC"+strconv.FormatInt(rand.Int63(), 10), //nolint:gosec // no need to import crypto/rand for testing
+				"USD"+strconv.FormatInt(rand.Int63(), 10)) //nolint:gosec // no need to import crypto/rand for testing
 			if err != nil {
 				log.Fatal(err)
 			}
 
 			tp := Price{
 				Pair:         newPairs,
-				Last:         rand.Float64(), //nolint:gosec // no need to import crypo/rand for testing
+				Last:         rand.Float64(), //nolint:gosec // no need to import crypto/rand for testing
 				ExchangeName: newName,
 				AssetType:    asset.Spot,
 			}
@@ -398,28 +400,21 @@ func TestProcessTicker(t *testing.T) { // non-appending function to tickers
 
 	wg.Wait()
 
+	var e common.ErrorCollector
 	for _, test := range testArray {
-		wg.Add(1)
-		fatalErr := false
-		go func(test quick) {
+		e.Go(func() error {
 			result, err := GetTicker(test.Name, test.P, asset.Spot)
 			if err != nil {
-				fatalErr = true
-				return
+				return fmt.Errorf("TestProcessTicker failed to retrieve new ticker: %w", err)
 			}
 
 			if result.Last != test.TP.Last {
-				t.Error("TestProcessTicker failed bad values")
+				return errors.New("TestProcessTicker failed bad values")
 			}
-
-			wg.Done()
-		}(test)
-
-		if fatalErr {
-			t.Fatal("TestProcessTicker failed to retrieve new ticker")
-		}
+			return nil
+		})
 	}
-	wg.Wait()
+	require.NoError(t, e.Collect())
 }
 
 func TestGetAssociation(t *testing.T) {

@@ -22,7 +22,7 @@ func NewSubLogger(name string) (*SubLogger, error) {
 	return registerNewSubLogger(name), nil
 }
 
-// SetOutput overrides the default output with a new writer
+// setOutput overrides the default output with a new writer
 func (sl *SubLogger) setOutput(o *multiWriterHolder) error {
 	if o == nil {
 		return errMultiWriterHolderIsNil
@@ -31,7 +31,7 @@ func (sl *SubLogger) setOutput(o *multiWriterHolder) error {
 	return nil
 }
 
-// SetLevels overrides the default levels with new levels; levelception
+// setLevels overrides the default levels with new levels; levelception
 func (sl *SubLogger) setLevels(newLevels Levels) {
 	sl.levels = newLevels
 }

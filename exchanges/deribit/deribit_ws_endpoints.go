@@ -1172,8 +1172,8 @@ func (e *Exchange) WSSetEmailLanguage(ctx context.Context, language string) erro
 	return nil
 }
 
-// WsSetSelfTradingConfig configure self trading behavior through the websocket connection.
-// mode: Self trading prevention behavior. Possible values: 'reject_taker', 'cancel_maker'
+// WsSetSelfTradingConfig configure self trading behaviour through the websocket connection.
+// mode: Self trading prevention behaviour. Possible values: 'reject_taker', 'cancel_maker'
 // extended_to_subaccounts: If value is true trading is prevented between subaccounts of given account
 func (e *Exchange) WsSetSelfTradingConfig(ctx context.Context, mode string, extendedToSubaccounts bool) (string, error) {
 	if mode == "" {
@@ -1825,8 +1825,8 @@ func (e *Exchange) WSRetrieveSettlementHistoryByInstrument(ctx context.Context, 
 	return resp, e.SendWSRequest(ctx, nonMatchingEPL, getSettlementHistoryByInstrument, input, &resp, true)
 }
 
-// WSRetrieveSettlementHistoryByCurency sends a request to fetch settlement history data sorted by currency through the websocket connection.
-func (e *Exchange) WSRetrieveSettlementHistoryByCurency(ctx context.Context, ccy currency.Code, settlementType, continuation string, count int64, searchStartTimeStamp time.Time) (*PrivateSettlementsHistoryData, error) {
+// WSRetrieveSettlementHistoryByCurrency sends a request to fetch settlement history data sorted by currency through the websocket connection.
+func (e *Exchange) WSRetrieveSettlementHistoryByCurrency(ctx context.Context, ccy currency.Code, settlementType, continuation string, count int64, searchStartTimeStamp time.Time) (*PrivateSettlementsHistoryData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}

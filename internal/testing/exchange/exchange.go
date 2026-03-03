@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -205,7 +206,7 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 
 	err = w.Connect(context.TODO())
 	require.NoError(tb, err, "Connect must not error")
-
+	w.DataHandler = stream.NewRelay(100000)
 	setupWsOnce[e] = true
 }
 

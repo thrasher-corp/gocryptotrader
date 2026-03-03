@@ -27,7 +27,7 @@ func init() {
 func UnZip(src, dest string) (fileList []string, err error) {
 	z, err := zip.OpenReader(src)
 	if err != nil {
-		return
+		return fileList, err
 	}
 
 	for x := range z.File {
@@ -40,26 +40,26 @@ func UnZip(src, dest string) (fileList []string, err error) {
 				log.Errorf(log.Global, ErrUnableToCloseFile, z, err)
 			}
 			err = fmt.Errorf("%s: illegal file path", fPath)
-			return
+			return fileList, err
 		}
 
 		if z.File[x].FileInfo().IsDir() {
 			err = os.MkdirAll(fPath, os.ModePerm)
 			if err != nil {
-				return
+				return fileList, err
 			}
 			continue
 		}
 
 		err = os.MkdirAll(filepath.Dir(fPath), file.DefaultPermissionOctal)
 		if err != nil {
-			return
+			return fileList, err
 		}
 
 		var outFile *os.File
 		outFile, err = os.OpenFile(fPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, z.File[x].Mode())
 		if err != nil {
-			return
+			return fileList, err
 		}
 
 		var eFile io.ReadCloser
@@ -69,7 +69,7 @@ func UnZip(src, dest string) (fileList []string, err error) {
 			if errCls != nil {
 				log.Errorf(log.Global, ErrUnableToCloseFile, outFile, errCls)
 			}
-			return
+			return fileList, err
 		}
 
 		_, errIOCopy := io.Copy(outFile, eFile)
@@ -97,7 +97,7 @@ func UnZip(src, dest string) (fileList []string, err error) {
 			log.Errorf(log.Global, ErrUnableToCloseFile, eFile, err)
 		}
 		if err != nil {
-			return
+			return fileList, err
 		}
 
 		fileList = append(fileList, fPath)

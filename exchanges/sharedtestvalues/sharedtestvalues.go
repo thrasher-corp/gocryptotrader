@@ -29,6 +29,8 @@ const (
 	// WebsocketChannelOverrideCapacity used in websocket testing
 	// Defines channel capacity as defaults size can block tests
 	WebsocketChannelOverrideCapacity = 500
+	// WebsocketRelayBufferCapacity used for relay buffer sizing in tests
+	WebsocketRelayBufferCapacity = 10000
 
 	MockTesting = "Mock testing framework in use for %s exchange on REST endpoints only"
 	LiveTesting = "Mock testing bypassed; live testing of REST endpoints in use for %s exchange"
@@ -38,12 +40,6 @@ const (
 	warningManipulateOrders = "variable `canManipulateRealOrders` is false"
 	warningHowTo            = "these values can be set at the top of the test file."
 )
-
-// GetWebsocketInterfaceChannelOverride returns a new interface based channel
-// with the capacity set to WebsocketChannelOverrideCapacity
-func GetWebsocketInterfaceChannelOverride() chan any {
-	return make(chan any, WebsocketChannelOverrideCapacity)
-}
 
 // GetWebsocketStructChannelOverride returns a new struct based channel
 // with the capacity set to WebsocketChannelOverrideCapacity

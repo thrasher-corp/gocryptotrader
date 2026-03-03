@@ -24,11 +24,11 @@ func TestFetchWSOrderbookSnapshot(t *testing.T) {
 	_, err = e.fetchWSOrderbookSnapshot(t.Context(), xbtusdtm, asset.FutureCombo)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	got, err := e.fetchWSOrderbookSnapshot(t.Context(), currency.NewBTCUSDT(), asset.Spot)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	got, err = e.fetchWSOrderbookSnapshot(t.Context(), xbtusdtm, asset.Futures)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)

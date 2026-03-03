@@ -276,8 +276,7 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 }
 
-// Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
-// ----------------------------------------------------------------------------------------------------------------------------
+// TestSubmitOrder and below can impact your orders on the exchange. Enable canManipulateRealOrders to run them
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
@@ -1015,12 +1014,26 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	}
 }
 
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, e)
+	require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Spot), "UpdateOrderExecutionLimits must not error")
+	pairs, err := e.CurrencyPairs.GetPairs(asset.Spot, false)
+	require.NoError(t, err, "GetPairs must not error")
+	require.NotEmpty(t, pairs, "GetPairs must return pairs")
+	l, err := e.GetOrderExecutionLimits(asset.Spot, pairs[0])
+	require.NoError(t, err, "GetOrderExecutionLimits must not error")
+	assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
+	assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
+
+	require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported, "UpdateOrderExecutionLimits must error")
+}
+
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 	subs, err := e.generateSubscriptions()
