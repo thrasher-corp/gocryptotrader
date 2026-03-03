@@ -3,7 +3,6 @@ package engine
 import (
 	"path/filepath"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -1320,41 +1319,41 @@ func TestLiveLoop(t *testing.T) {
 	bt.LiveDataHandler = dc
 
 	// dataUpdated case
-	var wg sync.WaitGroup
-	wg.Go(func() {
-		assert.NoError(t, bt.liveCheck())
-	})
+	liveCheckErr := make(chan error, 1)
+	go func() {
+		liveCheckErr <- bt.liveCheck()
+	}()
 	dc.dataUpdated <- true
 	dc.shutdown <- true
-	wg.Wait()
+	assert.NoError(t, <-liveCheckErr)
 
 	// shutdown from error case
 	dc.started = 0
-	wg.Go(func() {
-		assert.NoError(t, bt.liveCheck())
-	})
+	liveCheckErr = make(chan error, 1)
+	go func() {
+		liveCheckErr <- bt.liveCheck()
+	}()
 	dc.shutdownErr <- true
-	wg.Wait()
+	assert.NoError(t, <-liveCheckErr)
 
 	// shutdown case
 	dc.started = 1
 	bt.shutdown = make(chan struct{})
-	wg.Go(func() {
-		assert.NoError(t, bt.liveCheck())
-	})
+	liveCheckErr = make(chan error, 1)
+	go func() {
+		liveCheckErr <- bt.liveCheck()
+	}()
 	dc.shutdown <- true
-	wg.Wait()
+	assert.NoError(t, <-liveCheckErr)
 
 	// backtester has shutdown
-	wg.Add(1)
 	bt.shutdown = make(chan struct{})
+	liveCheckErr = make(chan error, 1)
 	go func() {
-		defer wg.Done()
-		err = bt.liveCheck()
-		assert.NoError(t, err)
+		liveCheckErr <- bt.liveCheck()
 	}()
 	close(bt.shutdown)
-	wg.Wait()
+	assert.NoError(t, <-liveCheckErr)
 }
 
 func TestSetExchangeCredentials(t *testing.T) {

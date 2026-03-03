@@ -1,6 +1,8 @@
 package orderbook
 
 import (
+	"errors"
+	"fmt"
 	"log"
 	"math/rand"
 	"os"
@@ -331,12 +333,12 @@ func TestProcessOrderbook(t *testing.T) {
 		}
 		m.Unlock()
 		wg.Go(func() {
-			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10) //nolint:gosec // no need to import crypo/rand for testing
+			newName := "Exchange" + strconv.FormatInt(rand.Int63(), 10) //nolint:gosec // no need to import crypto/rand for testing
 			newPairs := currency.NewPair(currency.NewCode("BTC"+strconv.FormatInt(rand.Int63(), 10)),
-				currency.NewCode("USD"+strconv.FormatInt(rand.Int63(), 10))) //nolint:gosec // no need to import crypo/rand for testing
+				currency.NewCode("USD"+strconv.FormatInt(rand.Int63(), 10))) //nolint:gosec // no need to import crypto/rand for testing
 
-			asks := []Level{{Price: rand.Float64(), Amount: rand.Float64()}} //nolint:gosec // no need to import crypo/rand for testing
-			bids := []Level{{Price: rand.Float64(), Amount: rand.Float64()}} //nolint:gosec // no need to import crypo/rand for testing
+			asks := []Level{{Price: rand.Float64(), Amount: rand.Float64()}} //nolint:gosec // no need to import crypto/rand for testing
+			bids := []Level{{Price: rand.Float64(), Amount: rand.Float64()}} //nolint:gosec // no need to import crypto/rand for testing
 			b := &Book{
 				Pair:     newPairs,
 				Asks:     asks,
@@ -363,32 +365,25 @@ func TestProcessOrderbook(t *testing.T) {
 		t.Fatal("Process() error", err)
 	}
 
+	var collector common.ErrorCollector
 	for _, test := range testArray {
-		wg.Add(1)
-		fatalErr := false
-		go func(q quick) {
-			result, err := Get(q.Name, q.P, asset.Spot)
+		collector.Go(func() error {
+			result, err := Get(test.Name, test.P, asset.Spot)
 			if err != nil {
-				fatalErr = true
-				return
+				return fmt.Errorf("TestProcessOrderbook failed to retrieve new orderbook: %w", err)
 			}
 
-			if result.Asks[0] != q.Asks[0] {
-				t.Error("TestProcessOrderbook failed bad values")
+			if result.Asks[0] != test.Asks[0] {
+				return errors.New("TestProcessOrderbook failed bad ask values")
 			}
 
-			if result.Bids[0] != q.Bids[0] {
-				t.Error("TestProcessOrderbook failed bad values")
+			if result.Bids[0] != test.Bids[0] {
+				return errors.New("TestProcessOrderbook failed bad bid values")
 			}
-
-			wg.Done()
-		}(test)
-
-		if fatalErr {
-			t.Fatal("TestProcessOrderbook failed to retrieve new orderbook")
-		}
+			return nil
+		})
 	}
-	wg.Wait()
+	require.NoError(t, collector.Collect())
 }
 
 func levelsFixtureRandom() Levels {

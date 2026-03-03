@@ -75,11 +75,11 @@ func (i *Instance) CloseConnection() error {
 	if i == nil {
 		return ErrNilInstance
 	}
+	i.m.Lock()
+	defer i.m.Unlock()
 	if i.SQL == nil {
 		return errNilSQL
 	}
-	i.m.Lock()
-	defer i.m.Unlock()
 
 	return i.SQL.Close()
 }
@@ -126,11 +126,10 @@ func (i *Instance) GetSQL() (*sql.DB, error) {
 	if i == nil {
 		return nil, ErrNilInstance
 	}
+	i.m.RLock()
+	defer i.m.RUnlock()
 	if i.SQL == nil {
 		return nil, errNilSQL
 	}
-	i.m.Lock()
-	defer i.m.Unlock()
-	resp := i.SQL
-	return resp, nil
+	return i.SQL, nil
 }

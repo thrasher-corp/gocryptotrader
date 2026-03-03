@@ -739,7 +739,6 @@ func TestConverters(t *testing.T) {
 	}
 }
 
-// test helper functions
 func createDHM(t *testing.T) (*DataHistoryManager, *datahistoryjob.DataHistoryJob) {
 	t.Helper()
 	em := NewExchangeManager()

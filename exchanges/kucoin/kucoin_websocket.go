@@ -316,7 +316,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	return nil
 }
 
-// processData used to deserialize and forward the data to DataHandler.
+// processData used to deserialise and forward the data to DataHandler.
 func (e *Exchange) processData(ctx context.Context, respData []byte, resp any) error {
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
@@ -512,7 +512,7 @@ func (e *Exchange) processFuturesOrderbookSnapshot(respData []byte, instrument s
 	})
 }
 
-// ProcessFuturesOrderbookLevel2 processes a V2 futures account orderbook data.
+// processFuturesOrderbookLevel2 processes a V2 futures account orderbook data
 func (e *Exchange) processFuturesOrderbookLevel2(ctx context.Context, respData []byte, instrument string) error {
 	resp := WsFuturesOrderbookInfo{}
 	if err := json.Unmarshal(respData, &resp); err != nil {

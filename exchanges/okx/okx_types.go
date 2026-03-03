@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -231,7 +232,7 @@ type OrderbookItemDetail struct {
 	NumberOfOrders    types.Number
 }
 
-// UnmarshalJSON deserializes byte data into OrderbookItemDetail instance
+// UnmarshalJSON deserialises byte data into OrderbookItemDetail instance
 func (o *OrderbookItemDetail) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[4]any{&o.DepthPrice, &o.Amount, &o.LiquidationOrders, &o.NumberOfOrders})
 }
@@ -271,7 +272,7 @@ type CandleStick struct {
 	QuoteAssetVolume types.Number
 }
 
-// UnmarshalJSON deserializes slice of data into Candlestick structure
+// UnmarshalJSON deserialises slice of data into Candlestick structure
 func (c *CandleStick) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[7]any{&c.OpenTime, &c.OpenPrice, &c.HighestPrice, &c.LowestPrice, &c.ClosePrice, &c.Volume, &c.QuoteAssetVolume})
 }
@@ -630,7 +631,7 @@ type TakerVolume struct {
 	BuyVolume  types.Number
 }
 
-// UnmarshalJSON deserializes a slice of data into TakerVolume
+// UnmarshalJSON deserialises a slice of data into TakerVolume
 func (t *TakerVolume) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[3]any{&t.Timestamp, &t.SellVolume, &t.BuyVolume})
 }
@@ -641,7 +642,7 @@ type MarginLendRatioItem struct {
 	MarginLendRatio types.Number
 }
 
-// UnmarshalJSON deserializes a slice of data into MarginLendRatio
+// UnmarshalJSON deserialises a slice of data into MarginLendRatio
 func (m *MarginLendRatioItem) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[2]any{&m.Timestamp, &m.MarginLendRatio})
 }
@@ -652,7 +653,7 @@ type LongShortRatio struct {
 	MarginLendRatio types.Number
 }
 
-// UnmarshalJSON deserializes a slice of data into LongShortRatio
+// UnmarshalJSON deserialises a slice of data into LongShortRatio
 func (l *LongShortRatio) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[2]any{&l.Timestamp, &l.MarginLendRatio})
 }
@@ -664,7 +665,7 @@ type OpenInterestVolume struct {
 	Volume       types.Number
 }
 
-// UnmarshalJSON deserializes json data into OpenInterestVolume struct
+// UnmarshalJSON deserialises json data into OpenInterestVolume struct
 func (p *OpenInterestVolume) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[3]any{&p.Timestamp, &p.OpenInterest, &p.Volume})
 }
@@ -676,7 +677,7 @@ type OpenInterestVolumeRatio struct {
 	VolumeRatio       types.Number
 }
 
-// UnmarshalJSON deserializes json data into OpenInterestVolumeRatio
+// UnmarshalJSON deserialises json data into OpenInterestVolumeRatio
 func (o *OpenInterestVolumeRatio) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[3]any{&o.Timestamp, &o.OpenInterestRatio, &o.VolumeRatio})
 }
@@ -691,7 +692,7 @@ type ExpiryOpenInterestAndVolume struct {
 	PutVolume        types.Number
 }
 
-// UnmarshalJSON deserializes slice of data into ExpiryOpenInterestAndVolume structure
+// UnmarshalJSON deserialises slice of data into ExpiryOpenInterestAndVolume structure
 func (e *ExpiryOpenInterestAndVolume) UnmarshalJSON(data []byte) error {
 	var expiryTimeString string
 	err := json.Unmarshal(data, &[6]any{&e.Timestamp, &expiryTimeString, &e.CallOpenInterest, &e.PutOpenInterest, &e.CallVolume, &e.PutVolume})
@@ -741,7 +742,7 @@ type StrikeOpenInterestAndVolume struct {
 	PutVolume        types.Number
 }
 
-// UnmarshalJSON deserializes slice of byte data into StrikeOpenInterestAndVolume
+// UnmarshalJSON deserialises slice of byte data into StrikeOpenInterestAndVolume
 func (s *StrikeOpenInterestAndVolume) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[6]any{&s.Timestamp, &s.Strike, &s.CallOpenInterest, &s.PutOpenInterest, &s.CallVolume, &s.PutVolume})
 }
@@ -757,7 +758,7 @@ type CurrencyTakerFlow struct {
 	PutBlockVolume  types.Number
 }
 
-// UnmarshalJSON deserializes a slice of byte data into CurrencyTakerFlow
+// UnmarshalJSON deserialises a slice of byte data into CurrencyTakerFlow
 func (c *CurrencyTakerFlow) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[7]any{&c.Timestamp, &c.CallBuyVolume, &c.CallSellVolume, &c.PutBuyVolume, &c.PutSellVolume, &c.CallBlockVolume, &c.PutBlockVolume})
 }
@@ -1156,7 +1157,7 @@ type AmendAlgoOrderParam struct {
 	InstrumentID              string  `json:"instId"`
 	AlgoID                    string  `json:"algoId,omitempty"`
 	ClientSuppliedAlgoOrderID string  `json:"algoClOrdId,omitempty"`
-	CancelOrderWhenFail       bool    `json:"cxlOnFail,omitempty"` // Whether the order needs to be automatically canceled when the order amendment fails Valid options: false or true, the default is false.
+	CancelOrderWhenFail       bool    `json:"cxlOnFail,omitempty"` // Whether the order needs to be automatically cancelled when the order amendment fails Valid options: false or true, the default is false.
 	RequestID                 string  `json:"reqId,omitempty"`
 	NewSize                   float64 `json:"newSz,omitempty,string"`
 
@@ -1813,7 +1814,7 @@ type AccountPositionHistory struct {
 	UPLLastPrice             types.Number `json:"uplLastPx"`
 	UPLRatioLastPrice        types.Number `json:"uplRatioLastPx"`
 	Leverage                 string       `json:"lever"`
-	LiquidiationPrice        types.Number `json:"liqPx"`
+	LiquidationPrice         types.Number `json:"liqPx"`
 	InitialMarginRequirement types.Number `json:"imr"`
 	Margin                   string       `json:"margin"`
 	MarginRatio              types.Number `json:"mgnRatio"`
@@ -3196,6 +3197,7 @@ type SubscriptionInfo struct {
 type WSSubscriptionInformationList struct {
 	Operation string             `json:"op"`
 	Arguments []SubscriptionInfo `json:"args"`
+	subs      subscription.List
 }
 
 // SpreadOrderInfo holds spread order response information
@@ -3684,10 +3686,12 @@ type PublicTrade struct {
 
 // WsOrderBookData represents a book order push data
 type WsOrderBookData struct {
-	Asks      [][4]types.Number `json:"asks"`
-	Bids      [][4]types.Number `json:"bids"`
-	Timestamp types.Time        `json:"ts"`
-	Checksum  int32             `json:"checksum,omitempty"`
+	Asks               [][4]types.Number `json:"asks"`
+	Bids               [][4]types.Number `json:"bids"`
+	Timestamp          types.Time        `json:"ts"`
+	Checksum           int32             `json:"checksum"`
+	PreviousSequenceID int64             `json:"prevSeqId"`
+	SequenceID         int64             `json:"seqId"`
 }
 
 // WsOptionSummary represents option summary
@@ -4312,7 +4316,7 @@ type ActiveFundingOrder struct {
 	Tag                               string     `json:"tag"`
 }
 
-// BETHAssetsBalance balance is a snapshot summarized all BETH assets
+// BETHAssetsBalance balance is a snapshot summarised all BETH assets
 type BETHAssetsBalance struct {
 	Currency              string       `json:"ccy"`
 	Amount                types.Number `json:"amt"`
@@ -4496,8 +4500,8 @@ type WsSpreadOrderbookData struct {
 	Data     []WsSpreadOrderbookItem
 }
 
-// AffilateInviteesDetail represents affiliate invitee's detail
-type AffilateInviteesDetail struct {
+// AffiliateInviteesDetail represents affiliate invitee's detail
+type AffiliateInviteesDetail struct {
 	InviteeLevel             types.Number `json:"inviteeLv"`
 	JoinTime                 types.Time   `json:"joinTime"`
 	InviteeRebateRate        types.Number `json:"inviteeRebateRate"`
@@ -4512,8 +4516,8 @@ type AffilateInviteesDetail struct {
 	AffiliateCode            string       `json:"affiliateCode"`
 }
 
-// AffilateRebateInfo represents rebate information
-type AffilateRebateInfo struct {
+// AffiliateRebateInfo represents rebate information
+type AffiliateRebateInfo struct {
 	Result bool   `json:"result"`
 	Type   string `json:"type"`
 }
@@ -4537,8 +4541,8 @@ type WsDepositInfo struct {
 	UID                  string       `json:"uid"`
 }
 
-// WsWithdrawlInfo represents push notification is triggered when a withdrawal is initiated or the withdrawal status changes
-type WsWithdrawlInfo struct {
+// WsWithdrawalInfo represents push notification is triggered when a withdrawal is initiated or the withdrawal status changes
+type WsWithdrawalInfo struct {
 	AddrEx           any          `json:"addrEx"`
 	Amount           types.Number `json:"amt"`
 	AreaCodeFrom     string       `json:"areaCodeFrom"`
@@ -4955,7 +4959,7 @@ type ContractTakerVolume struct {
 	TakerBuyVolume  types.Number
 }
 
-// UnmarshalJSON deserializes a slice data into ContractTakerVolume
+// UnmarshalJSON deserialises a slice data into ContractTakerVolume
 func (c *ContractTakerVolume) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[3]any{&c.Timestamp, &c.TakerSellVolume, &c.TakerBuyVolume})
 }
@@ -4968,7 +4972,7 @@ type ContractOpenInterestHistoryItem struct {
 	OpenInterestInUSD      types.Number
 }
 
-// UnmarshalJSON deserializes slice data into ContractOpenInterestHistoryItem instance
+// UnmarshalJSON deserialises slice data into ContractOpenInterestHistoryItem instance
 func (c *ContractOpenInterestHistoryItem) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[4]any{&c.Timestamp, &c.OpenInterestInContract, &c.OpenInterestInCurrency, &c.OpenInterestInUSD})
 }
@@ -4979,7 +4983,7 @@ type TopTraderContractsLongShortRatio struct {
 	Ratio     types.Number
 }
 
-// UnmarshalJSON deserializes slice data into TopTraderContractsLongShortRatio instance
+// UnmarshalJSON deserialises slice data into TopTraderContractsLongShortRatio instance
 func (t *TopTraderContractsLongShortRatio) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[2]any{&t.Timestamp, &t.Ratio})
 }
@@ -5194,25 +5198,25 @@ type AlgoOrderInfo struct {
 
 // OrderPreCheckResponse represents an order pre-checks response of account information for placing orders
 type OrderPreCheckResponse struct {
-	AdjEq                      types.Number `json:"adjEq"`
-	AdjEqChg                   types.Number `json:"adjEqChg"`
-	AvailBal                   types.Number `json:"availBal"`
-	AvailBalChg                types.Number `json:"availBalChg"`
-	IMR                        types.Number `json:"imr"`
-	IMRChg                     types.Number `json:"imrChg"`
-	Liab                       types.Number `json:"liab"`
-	LiabChg                    types.Number `json:"liabChg"`
-	LiabChgCurrency            string       `json:"liabChgCcy"`
-	LiquidiationPrice          types.Number `json:"liqPx"`
-	LiquidiationPriceDiff      string       `json:"liqPxDiff"`
-	LiquidiationPriceDiffRatio types.Number `json:"liqPxDiffRatio"`
-	MgnRatio                   types.Number `json:"mgnRatio"`
-	MgnRatioChg                types.Number `json:"mgnRatioChg"`
-	MMR                        types.Number `json:"mmr"`
-	MMRChange                  types.Number `json:"mmrChg"`
-	PosBalance                 types.Number `json:"posBal"`
-	PosBalChange               types.Number `json:"posBalChg"`
-	Type                       string       `json:"type"`
+	AdjEq                     types.Number `json:"adjEq"`
+	AdjEqChg                  types.Number `json:"adjEqChg"`
+	AvailBal                  types.Number `json:"availBal"`
+	AvailBalChg               types.Number `json:"availBalChg"`
+	IMR                       types.Number `json:"imr"`
+	IMRChg                    types.Number `json:"imrChg"`
+	Liab                      types.Number `json:"liab"`
+	LiabChg                   types.Number `json:"liabChg"`
+	LiabChgCurrency           string       `json:"liabChgCcy"`
+	LiquidationPrice          types.Number `json:"liqPx"`
+	LiquidationPriceDiff      string       `json:"liqPxDiff"`
+	LiquidationPriceDiffRatio types.Number `json:"liqPxDiffRatio"`
+	MgnRatio                  types.Number `json:"mgnRatio"`
+	MgnRatioChg               types.Number `json:"mgnRatioChg"`
+	MMR                       types.Number `json:"mmr"`
+	MMRChange                 types.Number `json:"mmrChg"`
+	PosBalance                types.Number `json:"posBal"`
+	PosBalChange              types.Number `json:"posBalChg"`
+	Type                      string       `json:"type"`
 }
 
 // AnnouncementDetail represents an exchange's announcement detail

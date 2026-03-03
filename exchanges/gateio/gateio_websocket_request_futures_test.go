@@ -18,9 +18,9 @@ var (
 
 func TestWebsocketFuturesSubmitOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.WebsocketFuturesSubmitOrder(t.Context(), asset.USDTMarginedFutures, &ContractOrderCreateParams{})
+	_, err := e.WebsocketFuturesSubmitOrder(t.Context(), asset.USDTMarginedFutures, &FuturesOrderCreateParams{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	out := &ContractOrderCreateParams{Contract: BTCUSDT}
+	out := &FuturesOrderCreateParams{Contract: BTCUSDT}
 	_, err = e.WebsocketFuturesSubmitOrder(t.Context(), asset.USDTMarginedFutures, out)
 	require.ErrorIs(t, err, errInvalidOrderSize)
 	out.Size = 1 // 1 lovely long contract
@@ -44,7 +44,7 @@ func TestWebsocketFuturesSubmitOrders(t *testing.T) {
 	_, err := e.WebsocketFuturesSubmitOrders(t.Context(), asset.USDTMarginedFutures)
 	require.ErrorIs(t, err, errOrdersEmpty)
 
-	out := &ContractOrderCreateParams{}
+	out := &FuturesOrderCreateParams{}
 	_, err = e.WebsocketFuturesSubmitOrders(t.Context(), asset.USDTMarginedFutures, out)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 

@@ -90,7 +90,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// Spot asset test cases starts from here
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
 	symbols, err := e.GetSymbols(t.Context(), "")
@@ -1182,16 +1181,16 @@ func TestTransferToMainOrTradeAccount(t *testing.T) {
 	t.Parallel()
 	_, err := e.TransferToMainOrTradeAccount(t.Context(), &FundTransferFuturesParam{})
 	require.ErrorIs(t, err, common.ErrNilPointer)
-	_, err = e.TransferToMainOrTradeAccount(t.Context(), &FundTransferFuturesParam{RecieveAccountType: "MAIN"})
+	_, err = e.TransferToMainOrTradeAccount(t.Context(), &FundTransferFuturesParam{ReceiveAccountType: "MAIN"})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
-	_, err = e.TransferToMainOrTradeAccount(t.Context(), &FundTransferFuturesParam{Amount: 1, RecieveAccountType: "MAIN"})
+	_, err = e.TransferToMainOrTradeAccount(t.Context(), &FundTransferFuturesParam{Amount: 1, ReceiveAccountType: "MAIN"})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.TransferToMainOrTradeAccount(t.Context(), &FundTransferFuturesParam{
 		Amount:             1,
 		Currency:           currency.USDT,
-		RecieveAccountType: SpotTradeType,
+		ReceiveAccountType: SpotTradeType,
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1383,7 +1382,6 @@ func TestGetTradingFee(t *testing.T) {
 	assert.Len(t, got, 10)
 }
 
-// futures
 func TestGetFuturesOpenContracts(t *testing.T) {
 	t.Parallel()
 	result, err := e.GetFuturesOpenContracts(t.Context())
@@ -2325,12 +2323,11 @@ func TestGetFeeByType(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestValidateCredentials(t *testing.T) {
+func TestValidateAPICredentials(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	assetTypes := e.CurrencyPairs.GetAssetTypes(true)
-	for _, at := range assetTypes {
-		err := e.ValidateCredentials(t.Context(), at)
+	for _, at := range e.CurrencyPairs.GetAssetTypes(true) {
+		err := e.ValidateAPICredentials(t.Context(), at)
 		assert.NoError(t, err)
 	}
 }
@@ -3132,13 +3129,21 @@ func TestSubscribeTickerAll(t *testing.T) {
 	t.Parallel()
 
 	ku := testInstance(t)
-	go func() { // drain websocket messages when subscribed to all tickers
-		for {
-			<-ku.Websocket.DataHandler.C
-		}
-	}()
 	ku.Features.Subscriptions = subscription.List{}
 	testexch.SetupWs(t, ku)
+	done := make(chan struct{})
+	go func() { // drain websocket messages when subscribed to all tickers
+		for {
+			select {
+			case <-done:
+				return
+			case <-ku.Websocket.DataHandler.C:
+			}
+		}
+	}()
+	t.Cleanup(func() {
+		close(done)
+	})
 
 	avail, err := ku.GetAvailablePairs(asset.Spot)
 	require.NoError(t, err, "GetAvailablePairs must not error")
@@ -4257,15 +4262,15 @@ func TestGetInformationOnAccountInvolvedInOffExchangeLoans(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetAffilateUserRebateInformation(t *testing.T) {
+func TestGetAffiliateUserRebateInformation(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetAffilateUserRebateInformation(t.Context(), time.Time{}, "1234", 0)
+	_, err := e.GetAffiliateUserRebateInformation(t.Context(), time.Time{}, "1234", 0)
 	require.ErrorIs(t, err, errQueryDateIsRequired)
-	_, err = e.GetAffilateUserRebateInformation(t.Context(), time.Now(), "", 0)
+	_, err = e.GetAffiliateUserRebateInformation(t.Context(), time.Now(), "", 0)
 	require.ErrorIs(t, err, errOffsetIsRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetAffilateUserRebateInformation(t.Context(), time.Now(), "1234", 0)
+	result, err := e.GetAffiliateUserRebateInformation(t.Context(), time.Now(), "1234", 0)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
