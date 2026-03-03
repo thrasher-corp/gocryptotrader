@@ -2112,9 +2112,10 @@ func (e *Exchange) GetMarginCoinInfo(ctx context.Context, coin currency.Code) ([
 
 	newResp := struct {
 		List []struct {
-			Coin             string       `json:"currency"`
-			ConversionRate   types.Number `json:"collateralRatio"`
-			LiquidationOrder int64        `json:"liquidationOrder"`
+			Coin                string `json:"currency"`
+			CollateralRatioList []struct {
+				CollateralRatio types.Number `json:"collateralRatio"`
+			} `json:"collateralRatioList"`
 		} `json:"list"`
 	}{}
 	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("spot-margin-trade/collateral", params), defaultEPL, &newResp); err != nil {
@@ -2123,10 +2124,13 @@ func (e *Exchange) GetMarginCoinInfo(ctx context.Context, coin currency.Code) ([
 
 	resp := make([]MarginCoinInfo, 0, len(newResp.List))
 	for i := range newResp.List {
+		conversionRate := types.Number(0)
+		if len(newResp.List[i].CollateralRatioList) > 0 {
+			conversionRate = newResp.List[i].CollateralRatioList[0].CollateralRatio
+		}
 		resp = append(resp, MarginCoinInfo{
-			Coin:             newResp.List[i].Coin,
-			ConversionRate:   newResp.List[i].ConversionRate,
-			LiquidationOrder: newResp.List[i].LiquidationOrder,
+			Coin:           newResp.List[i].Coin,
+			ConversionRate: conversionRate,
 		})
 	}
 	return resp, nil

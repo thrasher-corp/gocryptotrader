@@ -2541,7 +2541,7 @@ func TestGetMarginCoinInfo(t *testing.T) {
 		require.Len(t, resp, 1)
 		assert.Equal(t, "BTC", resp[0].Coin)
 		assert.Equal(t, types.Number(0.95), resp[0].ConversionRate)
-		assert.EqualValues(t, 2, resp[0].LiquidationOrder)
+		assert.Zero(t, resp[0].LiquidationOrder)
 	}
 }
 
