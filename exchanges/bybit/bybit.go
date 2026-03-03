@@ -2147,7 +2147,7 @@ func (e *Exchange) GetMaxBorrowableAmount(ctx context.Context, coin currency.Cod
 	resp := struct {
 		List []MaxBorrowableAmount `json:"list"`
 	}{}
-	if err := e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-margin-trade/max-borrowable", params, nil, &resp, getSpotCrossMarginTradeLoanInfoEPL); err != nil {
+	if err := e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-margin-trade/max-borrowable", params, nil, &resp, getSpotMarginTradeMaxBorrowableEPL); err != nil {
 		return nil, err
 	}
 	return resp.List, nil
@@ -2539,10 +2539,20 @@ func (e *Exchange) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL
 			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.AuthenticatedRequest)
-	if response.RetCode != 0 && response.RetMsg != "" {
+	if authErr := getAuthV5Error(response); authErr != nil {
+		return authErr
+	}
+	return err
+}
+
+func getAuthV5Error(response *RestResponse) error {
+	if response.RetCode == 0 {
+		return nil
+	}
+	if response.RetMsg != "" {
 		return fmt.Errorf("%w code: %d message: %s", request.ErrAuthRequestFailed, response.RetCode, response.RetMsg)
 	}
-	if len(response.RetExtInfo.List) > 0 && response.RetCode != 0 {
+	if len(response.RetExtInfo.List) > 0 {
 		var errMessage strings.Builder
 		var failed bool
 		for i := range response.RetExtInfo.List {
@@ -2552,10 +2562,10 @@ func (e *Exchange) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL
 			}
 		}
 		if failed {
-			return fmt.Errorf("%w %s", request.ErrAuthRequestFailed, errMessage.String())
+			return fmt.Errorf("%w %s", request.ErrAuthRequestFailed, strings.TrimSpace(errMessage.String()))
 		}
 	}
-	return err
+	return fmt.Errorf("%w code: %d", request.ErrAuthRequestFailed, response.RetCode)
 }
 
 func getSide(side string) order.Side {
