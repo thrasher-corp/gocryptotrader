@@ -696,7 +696,7 @@ var errCode = map[string]string{
 func (e *Exchange) GetCandleStick(ctx context.Context, symbol, interval string) (resp *OHLCVResponse, err error) {
 	path := publicCandleStick + symbol + "/" + interval
 	err = e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
-	return
+	return resp, err
 }
 
 // FetchExchangeLimits fetches spot order execution limits

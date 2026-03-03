@@ -91,7 +91,7 @@ func (e *Exchange) WsConnectSpot(ctx context.Context, conn websocket.Connection)
 	if err := e.CurrencyPairs.IsAssetEnabled(asset.Spot); err != nil {
 		return err
 	}
-	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{}, nil); err != nil {
 		return err
 	}
 	pingHandler, err := getWSPingHandler(spotPingChannel)
@@ -1046,6 +1046,7 @@ func getWSPingHandler(channel string) (websocket.PingHandler, error) {
 	}, nil
 }
 
+// extractOrderbookLimit returns the orderbook limit for the asset type
 // TODO: When subscription config is added for all assets update limits to use sub.Levels
 func (e *Exchange) extractOrderbookLimit(a asset.Item) (uint64, error) {
 	switch a {

@@ -76,6 +76,7 @@ var (
 	ErrSettingField              = errors.New("error setting field")
 	ErrParsingWSField            = errors.New("error parsing websocket field")
 	ErrMalformedData             = errors.New("malformed data")
+	ErrFatal                     = errors.New("fatal error")
 )
 
 var (
@@ -91,7 +92,7 @@ func NilGuard(ptrs ...any) (errs error) {
 		Obviously can't compare to nil, since the types won't match, so we look into the interface
 		eface is the internal representation of any; e(mpty-inter)face
 		See: https://cs.opensource.google/go/go/+/refs/tags/go1.24.1:src/runtime/runtime2.go;l=184-187
-		We optimize here by converting to [2]uintptr and just checking the address, instead of casting to a local eface type
+		We optimise here by converting to [2]uintptr and just checking the address, instead of casting to a local eface type
 		*/
 		if (*[2]uintptr)(unsafe.Pointer(&p))[1] == 0 {
 			errs = AppendError(errs, fmt.Errorf("%w: %T", ErrNilPointer, p))

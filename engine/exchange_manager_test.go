@@ -179,15 +179,9 @@ func TestNewCustomExchangeByName(t *testing.T) {
 	m.Builder = ExchangeBuilder{}
 	name := "customex"
 	exch, err := m.NewExchangeByName(name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err == nil {
-		exch.SetDefaults()
-		if !strings.EqualFold(exch.GetName(), name) {
-			t.Error("did not load expected exchange")
-		}
-	}
+	require.NoError(t, err, "NewExchangeByName must not error")
+	exch.SetDefaults()
+	assert.Equal(t, name, exch.GetName(), "GetName should return the same name")
 }
 
 func TestExchangeManagerShutdown(t *testing.T) {

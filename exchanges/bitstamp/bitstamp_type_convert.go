@@ -9,7 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// UnmarshalJSON deserializes JSON, and timestamp information.
+// UnmarshalJSON deserialises JSON and parses the minimum order value
 func (p *TradingPair) UnmarshalJSON(data []byte) error {
 	type Alias TradingPair
 	t := &struct {

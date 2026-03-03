@@ -92,10 +92,11 @@ func (m *mockEx) GetSubscriptionTemplate(s *Subscription) (*template.Template, e
 				return ""
 			},
 			"batch": func(pairs currency.Pairs, size int) []string {
-				s := []string{}
-				for _, p := range common.Batch(pairs, size) {
-					p = p.Format(currency.PairFormat{Uppercase: true})
-					s = append(s, p.Join())
+				batches := common.Batch(pairs, size)
+				s := make([]string, len(batches))
+
+				for i, p := range batches {
+					s[i] = p.Format(currency.PairFormat{Uppercase: true}).Join()
 				}
 				return s
 			},
