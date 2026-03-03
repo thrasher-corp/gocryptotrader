@@ -2123,13 +2123,13 @@ func (e *Exchange) GetMarginCoinInfo(ctx context.Context, coin currency.Code) ([
 	}
 
 	resp := make([]MarginCoinInfo, 0, len(newResp.List))
-	for i := range newResp.List {
+	for _, item := range newResp.List {
 		conversionRate := types.Number(0)
-		if len(newResp.List[i].CollateralRatioList) > 0 {
-			conversionRate = newResp.List[i].CollateralRatioList[0].CollateralRatio
+		if len(item.CollateralRatioList) > 0 {
+			conversionRate = item.CollateralRatioList[0].CollateralRatio
 		}
 		resp = append(resp, MarginCoinInfo{
-			Coin:           newResp.List[i].Coin,
+			Coin:           item.Coin,
 			ConversionRate: conversionRate,
 		})
 	}
