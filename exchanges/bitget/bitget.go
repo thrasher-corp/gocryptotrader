@@ -297,7 +297,9 @@ func (e *Exchange) QueryAnnouncements(ctx context.Context, annType string, start
 	}
 	url.Values(params).Set("annType", annType)
 	url.Values(params).Set("language", "en_US")
-	url.Values(params).Set("idLessThan", strconv.FormatUint(pagination, 10))
+	if pagination != 0 {
+		url.Values(params).Set("cursor", strconv.FormatUint(pagination, 10))
+	}
 	if limit > 0 {
 		url.Values(params).Set("limit", strconv.FormatUint(uint64(limit), 10))
 	}
@@ -440,7 +442,6 @@ func (e *Exchange) GetMerchantInfo(ctx context.Context) (*P2PMerInfoResp, error)
 // GetMerchantP2POrders returns information on the user's P2P orders
 func (e *Exchange) GetMerchantP2POrders(ctx context.Context, startTime, endTime time.Time, limit, pagination, adNum, ordNum uint64, status, side string, cryptoCurrency, fiatCurrency currency.Code) (*P2POrdersResp, error) {
 	params := Params{}
-	// Documentation incorrectly marks startTime, language, and advNo as required
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
 	}
@@ -466,6 +467,9 @@ func (e *Exchange) GetMerchantP2POrders(ctx context.Context, startTime, endTime 
 // GetMerchantAdvertisementList returns information on a variety of merchant advertisements
 func (e *Exchange) GetMerchantAdvertisementList(ctx context.Context, startTime, endTime time.Time, limit, pagination, adNum, payMethodID uint64, status, side, orderBy, sourceType string, cryptoCurrency, fiatCurrency currency.Code) (*P2PAdListResp, error) {
 	params := Params{}
+	if side == "" {
+		return nil, errSideEmpty
+	}
 	// Documentation incorrectly marks startTime, status, coin, and fiat as required
 	if err := params.prepareDateString(startTime, endTime, true, true); err != nil {
 		return nil, err
@@ -708,7 +712,7 @@ func (e *Exchange) GetVirtualSubaccounts(ctx context.Context, limit, pagination 
 	vals.Set("status", status)
 	path := bitgetUser + bitgetVirtualSubaccount + "-" + bitgetList
 	var resp *GetVirSubResp
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate10, http.MethodGet, path, vals, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rate1, http.MethodGet, path, vals, nil, &resp)
 }
 
 // CreateAPIKey creates an API key for the selected virtual sub-account
@@ -942,9 +946,7 @@ func (e *Exchange) GetCoinInfo(ctx context.Context, cur currency.Code) ([]CoinIn
 // GetSymbolInfo returns information on all supported spot trading pairs, or a single pair of the user's choice
 func (e *Exchange) GetSymbolInfo(ctx context.Context, pair currency.Pair) ([]SymbolInfoResp, error) {
 	vals := url.Values{}
-	if !pair.IsEmpty() {
-		vals.Set("symbol", pair.String())
-	}
+	vals.Set("symbol", pair.String())
 	path := bitgetSpot + bitgetPublic + bitgetSymbols
 	var resp []SymbolInfoResp
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, rate20, path, vals, &resp)

@@ -54,6 +54,8 @@ const (
 	bitgetOrdersIsolatedChannel   = "orders-isolated"
 
 	loginErrorCode = 30005
+
+	subRequestLimit = (4096 - 32) / 89 // The exchange has a 4096 byte limit on sub/unsub requests. Currently operates off of 32 bytes of mandatory overhead, and a worst case of 89 bytes per additional argument
 )
 
 var subscriptionNames = map[asset.Item]map[string]string{
@@ -1061,15 +1063,15 @@ func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, s
 
 // ReqSplitter splits a request into multiple requests to avoid going over the byte limit
 func reqSplitter(req *WsRequest) []WsRequest {
-	capacity := (len(req.Arguments) / 47) + 1
+	capacity := (len(req.Arguments) / subRequestLimit) + 1
 	reqs := make([]WsRequest, capacity)
 	for i := range capacity {
 		reqs[i].Operation = req.Operation
 		if i == capacity-1 {
-			reqs[i].Arguments = req.Arguments[i*47:]
+			reqs[i].Arguments = req.Arguments[i*subRequestLimit:]
 			break
 		}
-		reqs[i].Arguments = req.Arguments[i*47 : (i+1)*47]
+		reqs[i].Arguments = req.Arguments[i*subRequestLimit : (i+1)*subRequestLimit]
 	}
 	return reqs
 }

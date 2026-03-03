@@ -281,7 +281,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		if err != nil {
 			return nil, err
 		}
-		pairs := make(currency.Pairs, len(resp))
+		pairs := make(currency.Pairs, len(resp)) //nolint:prealloc // It's requesting a preallocation, but this is one
 		var filter int
 		for x := range resp {
 			if (resp[x].PricePrecision == 0 && resp[x].QuantityPrecision == 0 && resp[x].QuotePrecision == 0) || resp[x].OpenTime.Time().After(time.Now().Add(time.Hour*24*365)) {
@@ -1688,6 +1688,9 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
 func (e *Exchange) GetFuturesContractDetails(ctx context.Context, a asset.Item) ([]futures.Contract, error) {
+	if !a.IsFutures() {
+		return nil, futures.ErrNotFuturesAsset
+	}
 	resp, err := e.GetContractConfig(ctx, currency.Pair{}, itemEncoder(a))
 	if err != nil {
 		return nil, err
@@ -1766,7 +1769,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		if err != nil {
 			return err
 		}
-		lim = make([]limits.MinMaxLevel, len(resp))
+		lim = make([]limits.MinMaxLevel, len(resp)) //nolint:prealloc // It's requesting a preallocation involving limitsTemp, but that's in a different execution branch entirely
 		for i := range resp {
 			lim[i] = limits.MinMaxLevel{
 				Key:                     key.NewExchangeAssetPair(e.Name, a, currency.NewPair(resp[i].BaseCoin, resp[i].QuoteCoin)),
@@ -2168,6 +2171,9 @@ func (e *Exchange) GetLeverage(ctx context.Context, a asset.Item, p currency.Pai
 func (e *Exchange) GetOpenInterest(ctx context.Context, pairs ...key.PairAsset) ([]futures.OpenInterest, error) {
 	openInterest := make([]futures.OpenInterest, len(pairs))
 	for i := range pairs {
+		if !pairs[i].Asset.IsFutures() {
+			return nil, futures.ErrNotFuturesAsset
+		}
 		resp, err := e.GetOpenPositions(ctx, pairs[i].Pair(), itemEncoder(pairs[i].Asset))
 		if err != nil {
 			return nil, err

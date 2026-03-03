@@ -61,7 +61,7 @@ const (
 var (
 	testCrypto  = currency.BTC   // Used for endpoints which don't support demo trading
 	testCrpyto2 = currency.SBTC  // Used for endpoints which support demo trading
-	testCrypto3 = currency.DOGE  // Used for endpoints which consume all available funds
+	testCrypto3 = currency.EOS   // Used for endpoints which consume all available funds
 	testFiat    = currency.USDT  // Used for endpoints which don't support demo trading
 	testFiat2   = currency.SUSDT // Used for endpoints which support demo trading
 	testPair    = currency.NewPair(testCrypto, testFiat)
@@ -144,9 +144,8 @@ func TestQueryAnnouncements(t *testing.T) {
 	t.Parallel()
 	_, err := e.QueryAnnouncements(t.Context(), "", time.Now().Add(time.Hour), time.Time{}, 0, 0)
 	assert.ErrorIs(t, err, common.ErrStartAfterTimeNow)
-	resp, err := e.QueryAnnouncements(t.Context(), "latest_news", time.Time{}, time.Time{}, 0, 10)
-	require.NoError(t, err)
-	assert.NotEmpty(t, resp)
+	_, err = e.QueryAnnouncements(t.Context(), "latest_news", time.Time{}, time.Time{}, 12560603859072, 10)
+	assert.NoError(t, err)
 }
 
 func TestGetTime(t *testing.T) {
@@ -238,6 +237,8 @@ func TestGetMerchantP2POrders(t *testing.T) {
 func TestGetMerchantAdvertisementList(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetMerchantAdvertisementList(t.Context(), time.Now().Add(time.Second), time.Now(), 0, 0, 0, 0, "", "", "", "", currency.Code{}, currency.Code{})
+	assert.ErrorIs(t, err, errSideEmpty)
+	_, err = e.GetMerchantAdvertisementList(t.Context(), time.Now().Add(time.Second), time.Now(), 0, 0, 0, 0, "", "sell", "", "", currency.Code{}, currency.Code{})
 	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err = e.GetMerchantAdvertisementList(t.Context(), time.Now().Add(-time.Hour*24*7), time.Now(), 5, 1<<62, 0, 0, "", "sell", "", "", testCrypto, currency.USD)
@@ -253,7 +254,7 @@ func TestGetFuturesActiveVolume(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesActiveVolume(t.Context(), currency.Pair{}, "")
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	e := new(Exchange)
+	e := new(Exchange) // The endpoint intermittently returns "The data fetched by BTCUSDT is empty", while otherwise accepting that valid request. Mocking to avoid that flakiness.
 	err = testexch.Setup(e)
 	require.NoError(t, err)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -312,7 +313,7 @@ func TestGetFuturesPositionRatios(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesPositionRatios(t.Context(), currency.Pair{}, "")
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	e := new(Exchange)
+	e := new(Exchange) // The endpoint intermittently returns "The data fetched by BTCUSDT is empty", while otherwise accepting that valid request. Mocking to avoid that flakiness.
 	err = testexch.Setup(e)
 	require.NoError(t, err)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -387,7 +388,7 @@ func TestGetFuturesRatios(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesRatios(t.Context(), currency.Pair{}, "")
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	e := new(Exchange)
+	e := new(Exchange) // The endpoint intermittently returns "The data fetched by BTCUSDT is empty", while otherwise accepting that valid request. Mocking to avoid that flakiness.
 	err = testexch.Setup(e)
 	require.NoError(t, err)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -454,7 +455,7 @@ func TestGetFuturesAccountRatios(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesAccountRatios(t.Context(), currency.Pair{}, "")
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	e := new(Exchange)
+	e := new(Exchange) // The endpoint intermittently returns "The data fetched by BTCUSDT is empty", while otherwise accepting that valid request. Mocking to avoid that flakiness.
 	err = testexch.Setup(e)
 	require.NoError(t, err)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -3065,7 +3066,7 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 
 func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
-	testGetOneArg(t, e.GetFuturesContractDetails, asset.Empty, asset.USDTMarginedFutures, errProductTypeEmpty, false, false, true)
+	testGetOneArg(t, e.GetFuturesContractDetails, asset.Empty, asset.USDTMarginedFutures, futures.ErrNotFuturesAsset, false, false, true)
 }
 
 func TestGetLatestFundingRates(t *testing.T) {
@@ -3224,7 +3225,9 @@ func TestGetLeverage(t *testing.T) {
 
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetOpenInterest(t.Context(), key.PairAsset{Base: testCrypto.Item, Quote: testFiat.Item, Asset: asset.USDTMarginedFutures})
+	_, err := e.GetOpenInterest(t.Context(), key.PairAsset{Base: testCrypto.Item, Quote: testFiat.Item, Asset: asset.Empty})
+	assert.ErrorIs(t, err, futures.ErrNotFuturesAsset)
+	_, err = e.GetOpenInterest(t.Context(), key.PairAsset{Base: testCrypto.Item, Quote: testFiat.Item, Asset: asset.USDTMarginedFutures})
 	assert.NoError(t, err)
 }
 

@@ -49,13 +49,14 @@ type AllTradeRatesResp struct {
 
 // SpotTrResp holds information on spot transactions
 type SpotTrResp struct {
-	ID          int64         `json:"id,string"`
-	Coin        currency.Code `json:"coin"`
-	SpotTaxType string        `json:"spotTaxType"`
-	Amount      types.Number  `json:"amount"`
-	Fee         types.Number  `json:"fee"`
-	Balance     types.Number  `json:"balance"`
-	Timestamp   types.Time    `json:"ts"`
+	ID              int64         `json:"id,string"`
+	Coin            currency.Code `json:"coin"`
+	SpotTaxType     string        `json:"spotTaxType"`
+	Amount          types.Number  `json:"amount"`
+	Fee             types.Number  `json:"fee"`
+	Balance         types.Number  `json:"balance"`
+	Timestamp       types.Time    `json:"ts"`
+	BusinessOrderID int64         `json:"bizOrderId,string"`
 }
 
 // FutureTrResp holds information on futures transactions
@@ -217,7 +218,7 @@ type AdvertisementList struct {
 	AdvertisementID       int64                   `json:"advId,string"`
 	AdvertisementNumber   int64                   `json:"advNo,string"`
 	Side                  string                  `json:"side"`
-	AdvertisementSize     types.Number            `json:"adSize"`
+	AdvertisementSize     types.Number            `json:"advSize"`
 	Size                  types.Number            `json:"size"`
 	CryptoCurrency        currency.Code           `json:"coin"`
 	Price                 types.Number            `json:"price"`
