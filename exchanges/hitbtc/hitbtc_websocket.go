@@ -352,33 +352,6 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	return nil
 }
 
-func formatKlineInterval(interval string) string {
-	switch interval {
-	case "M1":
-		return kline.OneMin.String()
-	case "M3":
-		return kline.ThreeMin.String()
-	case "M5":
-		return kline.FiveMin.String()
-	case "M15":
-		return kline.FifteenMin.String()
-	case "M30":
-		return kline.ThirtyMin.String()
-	case "H1":
-		return kline.OneHour.String()
-	case "H4":
-		return kline.FourHour.String()
-	case "D1":
-		return kline.OneDay.String()
-	case "D7":
-		return kline.OneWeek.String()
-	case "1M":
-		return kline.OneMonth.String()
-	default:
-		return interval
-	}
-}
-
 func candlePeriodToInterval(period string) (kline.Interval, error) {
 	switch period {
 	case "M1":

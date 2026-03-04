@@ -1053,32 +1053,6 @@ func TestFormatExchangeKlineInterval(t *testing.T) {
 	}
 }
 
-func TestFormatKlineInterval(t *testing.T) {
-	t.Parallel()
-	for _, tc := range []struct {
-		name   string
-		input  string
-		output string
-	}{
-		{name: "OneMin", input: "M1", output: kline.OneMin.String()},
-		{name: "ThreeMin", input: "M3", output: kline.ThreeMin.String()},
-		{name: "FiveMin", input: "M5", output: kline.FiveMin.String()},
-		{name: "FifteenMin", input: "M15", output: kline.FifteenMin.String()},
-		{name: "ThirtyMin", input: "M30", output: kline.ThirtyMin.String()},
-		{name: "OneHour", input: "H1", output: kline.OneHour.String()},
-		{name: "FourHour", input: "H4", output: kline.FourHour.String()},
-		{name: "OneDay", input: "D1", output: kline.OneDay.String()},
-		{name: "OneWeek", input: "D7", output: kline.OneWeek.String()},
-		{name: "OneMonth", input: "1M", output: kline.OneMonth.String()},
-		{name: "PassthroughUnknown", input: "X1337", output: "X1337"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tc.output, formatKlineInterval(tc.input), "formatKlineInterval should map interval directly")
-		})
-	}
-}
-
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetRecentTrades(t.Context(), spotPair, asset.Spot)

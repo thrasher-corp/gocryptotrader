@@ -254,7 +254,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 					exchName,
 					m.FormatCurrency(d[x].Pair),
 					d[x].Asset,
-					d)
+					d[x])
 			}
 		}
 	case *orderbook.Depth:

@@ -461,7 +461,7 @@ func (e *Exchange) wsProcessLeverageTokenKline(ctx context.Context, assetType as
 			Exchange: e.Name,
 			Interval: interval,
 			Candles: []kline.Candle{{
-				Time:  result[x].Timestamp.Time(),
+				Time:  result[x].Start.Time(),
 				Open:  result[x].Open.Float64(),
 				Close: result[x].Close.Float64(),
 				High:  result[x].High.Float64(),
@@ -501,7 +501,7 @@ func (e *Exchange) wsProcessKline(ctx context.Context, assetType asset.Item, res
 			Exchange: e.Name,
 			Interval: interval,
 			Candles: []kline.Candle{{
-				Time:   result[x].Timestamp.Time(),
+				Time:   result[x].Start.Time(),
 				Open:   result[x].Open.Float64(),
 				Close:  result[x].Close.Float64(),
 				High:   result[x].High.Float64(),
