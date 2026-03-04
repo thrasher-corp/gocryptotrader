@@ -454,7 +454,7 @@ func (e *Exchange) wsProcessLeverageTokenKline(ctx context.Context, assetType as
 		if err != nil {
 			return err
 		}
-		err = e.Websocket.DataHandler.Send(ctx, kline.Item{
+		if err := e.Websocket.DataHandler.Send(ctx, kline.Item{
 			Pair:     cp,
 			Asset:    assetType,
 			Exchange: e.Name,
@@ -466,8 +466,7 @@ func (e *Exchange) wsProcessLeverageTokenKline(ctx context.Context, assetType as
 				High:  result[x].High.Float64(),
 				Low:   result[x].Low.Float64(),
 			}},
-		})
-		if err != nil {
+		}); err != nil {
 			return err
 		}
 	}
@@ -496,7 +495,7 @@ func (e *Exchange) wsProcessKline(ctx context.Context, assetType asset.Item, res
 		if err != nil {
 			return err
 		}
-		err = e.Websocket.DataHandler.Send(ctx, kline.Item{
+		if err := e.Websocket.DataHandler.Send(ctx, kline.Item{
 			Pair:     cp,
 			Asset:    assetType,
 			Exchange: e.Name,
@@ -509,8 +508,7 @@ func (e *Exchange) wsProcessKline(ctx context.Context, assetType asset.Item, res
 				Low:    result[x].Low.Float64(),
 				Volume: result[x].Volume.Float64(),
 			}},
-		})
-		if err != nil {
+		}); err != nil {
 			return err
 		}
 	}
