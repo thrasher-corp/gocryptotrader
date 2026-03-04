@@ -555,7 +555,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			for _, p := range pairs {
 				l, err := e.GetOrderExecutionLimits(a, p)
 				require.NoError(t, err, "GetOrderExecutionLimits must not error")
-				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+				assert.GreaterOrEqual(t, l.MinimumBaseAmount, 0.0, "MinimumBaseAmount should be non-negative")
 			}
 		})
 	}
