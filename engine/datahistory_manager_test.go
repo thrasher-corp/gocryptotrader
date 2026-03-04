@@ -508,7 +508,23 @@ func TestCompareJobsToData(t *testing.T) {
 	t.Run("no existing candle data for primary interval", func(t *testing.T) {
 		t.Parallel()
 		mgr, _ := createDHM(t)
-		mgr.candleLoader = func(string, currency.Pair, asset.Item, kline.Interval, time.Time, time.Time) (*kline.Item, error) {
+		calls := 0
+		var gotInterval kline.Interval
+		mgr.candleLoader = func(
+			exchangeName string,
+			pair currency.Pair,
+			assetType asset.Item,
+			interval kline.Interval,
+			start time.Time,
+			end time.Time,
+		) (*kline.Item, error) {
+			_ = exchangeName
+			_ = pair
+			_ = assetType
+			_ = start
+			_ = end
+			calls++
+			gotInterval = interval
 			return nil, candle.ErrNoCandleDataFound
 		}
 		tt := time.Now().Truncate(kline.OneHour.Duration())
@@ -522,14 +538,40 @@ func TestCompareJobsToData(t *testing.T) {
 			Interval:           kline.OneMin,
 			ConversionInterval: kline.FiveMin,
 		}
+		// ErrNoCandleDataFound is recoverable and should mark intervals as missing.
 		err := mgr.compareJobsToData(job)
-		require.NoError(t, err)
+		require.NoError(t, err, "ErrNoCandleDataFound must be non-fatal for primary interval")
+		require.Equal(t, 1, calls)
+		require.Equal(t, kline.OneMin, gotInterval)
+		require.NotNil(t, job.rangeHolder)
+		require.NotEmpty(t, job.rangeHolder.Ranges)
+		for i := range job.rangeHolder.Ranges {
+			for j := range job.rangeHolder.Ranges[i].Intervals {
+				assert.False(t, job.rangeHolder.Ranges[i].Intervals[j].HasData)
+			}
+		}
 	})
 
 	t.Run("no existing candle data for conversion interval", func(t *testing.T) {
 		t.Parallel()
 		mgr, _ := createDHM(t)
-		mgr.candleLoader = func(string, currency.Pair, asset.Item, kline.Interval, time.Time, time.Time) (*kline.Item, error) {
+		calls := 0
+		var gotInterval kline.Interval
+		mgr.candleLoader = func(
+			exchangeName string,
+			pair currency.Pair,
+			assetType asset.Item,
+			interval kline.Interval,
+			start time.Time,
+			end time.Time,
+		) (*kline.Item, error) {
+			_ = exchangeName
+			_ = pair
+			_ = assetType
+			_ = start
+			_ = end
+			calls++
+			gotInterval = interval
 			return nil, candle.ErrNoCandleDataFound
 		}
 		tt := time.Now().Truncate(kline.OneHour.Duration())
@@ -545,7 +587,16 @@ func TestCompareJobsToData(t *testing.T) {
 			ConversionInterval: kline.FiveMin,
 		}
 		err := mgr.compareJobsToData(job)
-		require.NoError(t, err)
+		require.NoError(t, err, "ErrNoCandleDataFound must be non-fatal for conversion interval")
+		require.Equal(t, 1, calls)
+		require.Equal(t, kline.FiveMin, gotInterval)
+		require.NotNil(t, job.rangeHolder)
+		require.NotEmpty(t, job.rangeHolder.Ranges)
+		for i := range job.rangeHolder.Ranges {
+			for j := range job.rangeHolder.Ranges[i].Intervals {
+				assert.False(t, job.rangeHolder.Ranges[i].Intervals[j].HasData)
+			}
+		}
 	})
 
 	m.started = 0
