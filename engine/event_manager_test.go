@@ -469,23 +469,47 @@ func TestProcessOrderbookTruncation(t *testing.T) {
 	assert.NoError(t, err, "processOrderbook should not error when matching levels exceed debug threshold")
 }
 
-func TestExecuteEventVerboseNoTrigger(t *testing.T) {
+func TestExecuteEventVerbose(t *testing.T) {
 	t.Parallel()
-	exchangeName := newUniqueFakeExchangeName()
 
-	seedTicker(t, exchangeName, currency.NewBTCUSD(), asset.Spot, 1500, 1499, 1501)
+	for _, tc := range []struct {
+		name            string
+		threshold       float64
+		wantExecuted    bool
+		wantCommsEvents int
+	}{
+		{
+			name:            "trigger",
+			threshold:       1000,
+			wantExecuted:    true,
+			wantCommsEvents: 1,
+		},
+		{
+			name:            "no trigger",
+			threshold:       2000,
+			wantExecuted:    false,
+			wantCommsEvents: 0,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	comms := &testCommsManager{}
-	m := &eventManager{
-		verbose: true,
-		comms:   comms,
+			exchangeName := newUniqueFakeExchangeName()
+			seedTicker(t, exchangeName, currency.NewBTCUSD(), asset.Spot, 1500, 1499, 1501)
+
+			comms := &testCommsManager{}
+			m := &eventManager{
+				verbose: true,
+				comms:   comms,
+			}
+			atomic.StoreInt32(&m.started, 1)
+			event := newPriceEvent(exchangeName, tc.threshold)
+			event.ID = 1
+			m.events = []Event{event}
+
+			m.executeEvent(0)
+			assert.Equal(t, tc.wantExecuted, m.events[0].Executed, "executeEvent executed state should match expected outcome")
+			assert.Len(t, comms.events, tc.wantCommsEvents, "executeEvent communication event count should match expected outcome")
+		})
 	}
-	atomic.StoreInt32(&m.started, 1)
-	event := newPriceEvent(exchangeName, 1000)
-	event.ID = 1
-	m.events = []Event{event}
-
-	m.executeEvent(0)
-	assert.False(t, m.events[0].Executed, "executeEvent should keep event unexecuted when condition check does not error")
-	assert.Empty(t, comms.events, "executeEvent should not push communication events when condition check does not error")
 }
