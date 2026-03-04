@@ -38,7 +38,7 @@ type UpdateManager struct {
 	deadline           time.Duration
 	delay              time.Duration
 	fetchOrderbook     func(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error)
-	checkPendingUpdate func(lastUpdateID int64, firstUpdateID int64, update *orderbook.Update) (skip bool, err error)
+	checkPendingUpdate func(lastUpdateID, firstUpdateID int64, update *orderbook.Update) (skip bool, err error)
 	ob                 *Orderbook
 	m                  sync.RWMutex
 }
@@ -76,7 +76,7 @@ type UpdateParams struct {
 	FetchOrderbook func(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error)
 	// CheckPendingUpdate allows custom logic to determine if a pending update added to cache should be skipped or if an
 	// error has occurred.
-	CheckPendingUpdate func(lastUpdateID int64, firstUpdateID int64, update *orderbook.Update) (skip bool, err error)
+	CheckPendingUpdate func(lastUpdateID, firstUpdateID int64, update *orderbook.Update) (skip bool, err error)
 	BufferInstance     *Orderbook // TODO: Integrate directly with orderbook struct
 }
 
@@ -273,7 +273,7 @@ func (m *UpdateManager) applyPendingUpdates(cache *updateCache) error {
 }
 
 // isOutOfSequence checks if the update is out of sequence
-func isOutOfSequence(lastUpdateID int64, firstUpdateID int64) bool {
+func isOutOfSequence(lastUpdateID, firstUpdateID int64) bool {
 	return lastUpdateID+1 != firstUpdateID
 }
 
