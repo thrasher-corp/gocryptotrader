@@ -2542,6 +2542,13 @@ func TestGetMarginCoinInfo(t *testing.T) {
 		require.Len(t, resp, 1)
 		assert.Equal(t, "BTC", resp[0].Coin)
 		assert.Equal(t, types.Number(0.95), resp[0].ConversionRate)
+		require.Len(t, resp[0].CollateralRatioList, 2)
+		assert.Equal(t, types.Number(0), resp[0].CollateralRatioList[0].MinQuantity)
+		assert.Equal(t, types.Number(1000000), resp[0].CollateralRatioList[0].MaxQuantity)
+		assert.Equal(t, types.Number(0.95), resp[0].CollateralRatioList[0].CollateralRatio)
+		assert.Equal(t, types.Number(1000000), resp[0].CollateralRatioList[1].MinQuantity)
+		assert.Zero(t, resp[0].CollateralRatioList[1].MaxQuantity)
+		assert.Zero(t, resp[0].CollateralRatioList[1].CollateralRatio)
 		assert.Zero(t, resp[0].LiquidationOrder)
 	}
 }
@@ -3060,6 +3067,15 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 	ex.SetCredentials("test", "test", "", "", "", "")
 	formattedOptionsPair, err := ex.FormatExchangeCurrency(optionsTradablePair, asset.Options)
 	require.NoError(t, err)
+	storeFixturePairs := func(a asset.Item, pairs currency.Pairs) {
+		require.NoError(t, ex.CurrencyPairs.StorePairs(a, pairs, false), "StorePairs must not error for available fixture pairs")
+		require.NoError(t, ex.CurrencyPairs.StorePairs(a, pairs, true), "StorePairs must not error for enabled fixture pairs")
+	}
+	storeFixturePairs(asset.USDTMarginedFutures, currency.Pairs{
+		currency.NewPair(currency.XRP, currency.USDT),
+		currency.NewBTCUSDT(),
+	})
+	storeFixturePairs(asset.Options, currency.Pairs{optionsTradablePair})
 	fErrs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsAuth.json", func(ctx context.Context, r []byte) error {
 		if bytes.Contains(r, []byte("%s")) {
 			r = fmt.Appendf(nil, string(r), formattedOptionsPair.String())
@@ -3125,9 +3141,21 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 			assert.Equal(t, "Normal", v[0].PositionStatus, "Position status should be correct")
 			assert.Equal(t, int64(2), v[0].AdlRankIndicator, "ADL Rank Indicator should be correct")
 		case []order.Detail:
-			require.Len(t, v, 1, "must see 1 order")
-			switch v[0].AssetType {
-			case asset.Options:
+			require.Len(t, v, 1, "Order payload must contain exactly one order item")
+			switch v[0].OrderID {
+			case "c1956690-b731-4191-97c0-94b00422231b":
+				sawOrderLinear = true
+				assert.Equal(t, currency.BTC, v[0].Pair.Base, "Pair base should be correct")
+				assert.Equal(t, currency.USDT, v[0].Pair.Quote, "Pair quote should be correct")
+				assert.Equal(t, "BTCUSDT", v[0].Pair.String(), "Pair should be correct")
+				assert.Equal(t, order.Sell, v[0].Side, "Side should be correct")
+				assert.Equal(t, order.Filled, v[0].Status, "Order status should be correct")
+				assert.Equal(t, 1.7, v[0].Amount, "Amount should be correct")
+				assert.Equal(t, 4.033, v[0].Price, "Price should be correct")
+				assert.Equal(t, 4.24, v[0].AverageExecutedPrice, "AverageExecutedPrice should be correct")
+				assert.Equal(t, 0.0, v[0].RemainingAmount, "RemainingAmount should be correct")
+				assert.Equal(t, asset.USDTMarginedFutures, v[0].AssetType, "AssetType should be correct")
+			case "5cf98598-39a7-459e-97bf-76ca765ee020":
 				sawOrderOption = true
 				assert.True(t, optionsTradablePair.Equal(v[0].Pair), "Pair should match")
 				assert.Equal(t, "5cf98598-39a7-459e-97bf-76ca765ee020", v[0].OrderID, "Order ID should be correct")
@@ -3144,18 +3172,8 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 				assert.Equal(t, 0.358635, v[0].Fee, "fee should be correct")
 				assert.Equal(t, time.UnixMilli(1672364262444), v[0].Date, "Created time should be correct")
 				assert.Equal(t, time.UnixMilli(1672364262457), v[0].LastUpdated, "Updated time should be correct")
-			case asset.USDTMarginedFutures:
-				sawOrderLinear = true
-				assert.Equal(t, "c1956690-b731-4191-97c0-94b00422231b", v[0].OrderID)
-				assert.Equal(t, "BTC_USDT", v[0].Pair.String())
-				assert.Equal(t, order.Sell, v[0].Side)
-				assert.Equal(t, order.Filled, v[0].Status)
-				assert.Equal(t, 1.7, v[0].Amount)
-				assert.Equal(t, 4.033, v[0].Price)
-				assert.Equal(t, 4.24, v[0].AverageExecutedPrice)
-				assert.Equal(t, 0.0, v[0].RemainingAmount)
 			default:
-				t.Fatalf("unexpected order asset type: %v", v[0].AssetType)
+				t.Fatalf("unexpected order ID: %v", v[0].OrderID)
 			}
 		case accounts.SubAccounts:
 			sawAccounts = true
@@ -3187,7 +3205,9 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 			assert.Equal(t, time.UnixMilli(1672364174443), v[0].Timestamp, "time should be correct")
 			assert.Equal(t, ex.Name, v[0].Exchange, "Exchange name should be correct")
 			assert.Equal(t, asset.USDTMarginedFutures, v[0].AssetType, "Asset type should be correct")
-			assert.Equal(t, "XRP_USDT", v[0].CurrencyPair.String(), "Symbol should be correct")
+			assert.Equal(t, currency.XRP, v[0].CurrencyPair.Base, "CurrencyPair base should be correct")
+			assert.Equal(t, currency.USDT, v[0].CurrencyPair.Quote, "CurrencyPair quote should be correct")
+			assert.Equal(t, "XRPUSDT", v[0].CurrencyPair.String(), "CurrencyPair should be correct")
 			assert.Equal(t, order.Sell, v[0].Side, "Side should be correct")
 			assert.Equal(t, "f6e324ff-99c2-4e89-9739-3086e47f9381", v[0].OrderID, "Order ID should be correct")
 			assert.Empty(t, v[0].ClientOrderID, "Client order ID should be empty")
@@ -3215,13 +3235,31 @@ func TestWsTicker(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	optionTickerPair := currency.Pair{
+		Base:      currency.BTC,
+		Quote:     currency.NewCode("28JUN24-60000-P"),
+		Delimiter: currency.DashDelimiter,
+	}
+	storeFixturePairs := func(a asset.Item, pairs currency.Pairs) {
+		require.NoError(t, e.CurrencyPairs.StorePairs(a, pairs, false), "StorePairs must not error for available fixture pairs")
+		require.NoError(t, e.CurrencyPairs.StorePairs(a, pairs, true), "StorePairs must not error for enabled fixture pairs")
+	}
+	storeFixturePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()})
+	storeFixturePairs(asset.Options, currency.Pairs{optionTickerPair})
+	storeFixturePairs(asset.USDTMarginedFutures, currency.Pairs{currency.NewBTCUSDT()})
+	storeFixturePairs(asset.USDCMarginedFutures, currency.Pairs{currency.NewPair(currency.BTC, currency.PERP)})
+	storeFixturePairs(asset.CoinMarginedFutures, currency.Pairs{currency.NewBTCUSD()})
+
 	assetRouting := []asset.Item{
 		asset.Spot, asset.Options, asset.USDTMarginedFutures, asset.USDTMarginedFutures,
 		asset.USDCMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.CoinMarginedFutures,
 	}
+	routingIndex := 0
 	testexch.FixtureToDataHandler(t, "testdata/wsTicker.json", func(_ context.Context, r []byte) error {
-		defer slices.Delete(assetRouting, 0, 1)
-		return e.wsHandleData(t.Context(), nil, assetRouting[0], r)
+		require.Less(t, routingIndex, len(assetRouting), "routingIndex must stay within ticker fixture asset routing bounds")
+		a := assetRouting[routingIndex]
+		routingIndex++
+		return e.wsHandleData(t.Context(), nil, a, r)
 	})
 	e.Websocket.DataHandler.Close()
 	expected := 8
@@ -3234,11 +3272,11 @@ func TestWsTicker(t *testing.T) {
 			case 1: // Spot
 				assert.Equal(t, currency.BTC, v.Pair.Base, "Pair base should be correct")
 				assert.Equal(t, currency.USDT, v.Pair.Quote, "Pair quote should be correct")
+				assert.Equal(t, "BTCUSDT", v.Pair.String(), "Pair should be correct")
 				assert.Equal(t, 21109.77, v.Last, "Last should be correct")
 				assert.Equal(t, 21426.99, v.High, "High should be correct")
 				assert.Equal(t, 20575.00, v.Low, "Low should be correct")
 				assert.Equal(t, 6780.866843, v.Volume, "Volume should be correct")
-				assert.Equal(t, "BTC_USDT", v.Pair.String(), "Pair should be correct")
 				assert.Equal(t, asset.Spot, v.AssetType, "AssetType should be correct")
 				assert.Equal(t, int64(1715742949283), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
 			case 2: // Option
@@ -3701,44 +3739,95 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
+	intervalLabel := func(t *testing.T, i kline.Interval) string {
+		t.Helper()
+
+		switch i {
+		case kline.OneHour:
+			return "60"
+		default:
+			require.Failf(t, "unsupported interval", "Interval must be explicitly handled in this test, got %s", i)
+			return ""
+		}
+	}
+
+	expectedChannel := func(t *testing.T, channel string) string {
+		t.Helper()
+
+		switch channel {
+		case subscription.TickerChannel:
+			return chanPublicTicker
+		case subscription.OrderbookChannel:
+			return chanOrderbook
+		case subscription.AllTradesChannel:
+			return chanPublicTrade
+		case subscription.CandlesChannel:
+			return chanKline
+		default:
+			require.Failf(t, "unsupported channel", "Channel must be explicitly handled in this test, got %s", channel)
+			return ""
+		}
+	}
+
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	subs, err := e.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
+	require.NotEmpty(t, subs, "generateSubscriptions must return subscriptions")
+
+	seenQualifiedChannels := make(map[string]struct{}, len(subs))
+	for _, sub := range subs {
+		assert.NotEmpty(t, sub.QualifiedChannel, "QualifiedChannel should not be empty")
+		assert.Len(t, sub.Pairs, 1, "Pairs should contain a single symbol per generated subscription")
+		_, found := seenQualifiedChannels[sub.QualifiedChannel]
+		assert.Falsef(t, found, "QualifiedChannel should be unique, got duplicate %q", sub.QualifiedChannel)
+		seenQualifiedChannels[sub.QualifiedChannel] = struct{}{}
+	}
+
+	expectedBaseSubscriptions := subscription.List{
+		{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
+		{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 50},
+		{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
+		{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneHour},
+	}
+
 	exp := subscription.List{}
-	for _, s := range e.Features.Subscriptions {
+	for _, baseSub := range expectedBaseSubscriptions {
 		for _, a := range e.GetAssetTypes(true) {
-			if s.Asset != asset.All && s.Asset != a {
+			if !e.IsAssetWebsocketSupported(a) {
 				continue
 			}
+			if baseSub.Asset != asset.All && baseSub.Asset != a {
+				continue
+			}
+
 			pairs, err := e.GetEnabledPairs(a)
-			require.NoErrorf(t, err, "GetEnabledPairs %s must not error", a)
-			pairs = common.SortStrings(pairs).Format(currency.PairFormat{Uppercase: true, Delimiter: ""})
-			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+			require.NoErrorf(t, err, "GetEnabledPairs must not error for asset %s", a)
+			pairFmt, err := e.GetPairFormat(a, true)
+			require.NoErrorf(t, err, "GetPairFormat must not error for asset %s", a)
+			pairs = common.SortStrings(pairs.Format(pairFmt))
+
+			s := baseSub.Clone()
 			s.Asset = a
-			if isSymbolChannel(channelName(s)) {
-				for i, p := range pairs {
-					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
-					switch s.Channel {
-					case subscription.CandlesChannel:
-						s.QualifiedChannel = fmt.Sprintf("%s.%.f.%s", channelName(s), s.Interval.Duration().Minutes(), p)
-					case subscription.OrderbookChannel:
-						s.QualifiedChannel = fmt.Sprintf("%s.%d.%s", channelName(s), s.Levels, p)
-					default:
-						s.QualifiedChannel = channelName(s) + "." + p.String()
-					}
-					s.Pairs = pairs[i : i+1]
-					exp = append(exp, s)
+
+			for i, p := range pairs {
+				sub := s.Clone()
+				switch sub.Channel {
+				case subscription.CandlesChannel:
+					sub.QualifiedChannel = fmt.Sprintf("%s.%s.%s", expectedChannel(t, sub.Channel), intervalLabel(t, sub.Interval), p)
+				case subscription.OrderbookChannel:
+					sub.QualifiedChannel = fmt.Sprintf("%s.%d.%s", expectedChannel(t, sub.Channel), sub.Levels, p)
+				default:
+					sub.QualifiedChannel = expectedChannel(t, sub.Channel) + "." + p.String()
 				}
-			} else {
-				s.Pairs = pairs
-				s.QualifiedChannel = channelName(s)
-				exp = append(exp, s)
+				sub.Pairs = pairs[i : i+1]
+				exp = append(exp, sub)
 			}
 		}
 	}
+
 	testsubs.EqualLists(t, exp, subs)
 }
 

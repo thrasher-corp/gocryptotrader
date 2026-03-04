@@ -1509,11 +1509,19 @@ type VIPMarginData struct {
 	} `json:"vipCoinList"`
 }
 
+// MarginCollateralRatioTier represents a collateral ratio tier and associated quantity bounds
+type MarginCollateralRatioTier struct {
+	MinQuantity     types.Number `json:"minQty"`
+	MaxQuantity     types.Number `json:"maxQty"`
+	CollateralRatio types.Number `json:"collateralRatio"`
+}
+
 // MarginCoinInfo represents margin coin information.
 type MarginCoinInfo struct {
-	Coin             string       `json:"coin"`
-	ConversionRate   types.Number `json:"conversionRate"`
-	LiquidationOrder int64        `json:"liquidationOrder"`
+	Coin                string                      `json:"coin"`
+	ConversionRate      types.Number                `json:"conversionRate"`
+	CollateralRatioList []MarginCollateralRatioTier `json:"collateralRatioList"`
+	LiquidationOrder    int64                       `json:"liquidationOrder"`
 }
 
 // MaxBorrowableAmount represents max borrowable amount information.

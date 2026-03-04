@@ -1187,35 +1187,85 @@ func TestGenerateSubscriptions(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
-	p := currency.Pairs{
-		currency.NewPair(currency.ETH, currency.USD),
-		currency.NewPair(currency.BCH, currency.NewCode("Z19")),
-	}
-
-	exp := subscription.List{
-		{QualifiedChannel: bitmexWSOrderbookL2 + ":" + p[1].String(), Channel: bitmexWSOrderbookL2, Asset: asset.Futures, Pairs: p[1:2]},
-		{QualifiedChannel: bitmexWSOrderbookL2 + ":" + p[0].String(), Channel: bitmexWSOrderbookL2, Asset: asset.PerpetualContract, Pairs: p[:1]},
-		{QualifiedChannel: bitmexWSTrade + ":" + p[1].String(), Channel: bitmexWSTrade, Asset: asset.Futures, Pairs: p[1:2]},
-		{QualifiedChannel: bitmexWSTrade + ":" + p[0].String(), Channel: bitmexWSTrade, Asset: asset.PerpetualContract, Pairs: p[:1]},
-		{QualifiedChannel: bitmexWSAffiliate, Channel: bitmexWSAffiliate, Authenticated: true},
-		{QualifiedChannel: bitmexWSOrder, Channel: bitmexWSOrder, Authenticated: true},
-		{QualifiedChannel: bitmexWSMargin, Channel: bitmexWSMargin, Authenticated: true},
-		{QualifiedChannel: bitmexWSTransact, Channel: bitmexWSTransact, Authenticated: true},
-		{QualifiedChannel: bitmexWSWallet, Channel: bitmexWSWallet, Authenticated: true},
-		{QualifiedChannel: bitmexWSExecution + ":" + p[0].String(), Channel: bitmexWSExecution, Authenticated: true, Asset: asset.PerpetualContract, Pairs: p[:1]},
-		{QualifiedChannel: bitmexWSPosition + ":" + p[0].String(), Channel: bitmexWSPosition, Authenticated: true, Asset: asset.PerpetualContract, Pairs: p[:1]},
-	}
-
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	subs, err := e.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
+	require.NotEmpty(t, subs, "generateSubscriptions must return subscriptions")
+
+	seenQualifiedChannels := make(map[string]struct{}, len(subs))
+	for _, s := range subs {
+		assert.NotEmpty(t, s.QualifiedChannel, "QualifiedChannel should not be empty")
+		_, found := seenQualifiedChannels[s.QualifiedChannel]
+		assert.Falsef(t, found, "QualifiedChannel should be unique, got duplicate %q", s.QualifiedChannel)
+		seenQualifiedChannels[s.QualifiedChannel] = struct{}{}
+
+		if s.Asset == asset.Index {
+			assert.NotContainsf(t, s.QualifiedChannel, bitmexWSOrderbookL2+":", "Index subscriptions should not include %s", bitmexWSOrderbookL2)
+		}
+	}
+
+	expectedBaseSubscriptions := subscription.List{
+		{Enabled: true, Channel: bitmexWSOrderbookL2, Asset: asset.All},
+		{Enabled: true, Channel: bitmexWSTrade, Asset: asset.All},
+		{Enabled: true, Channel: bitmexWSAffiliate, Authenticated: true},
+		{Enabled: true, Channel: bitmexWSOrder, Authenticated: true},
+		{Enabled: true, Channel: bitmexWSMargin, Authenticated: true},
+		{Enabled: true, Channel: bitmexWSTransact, Authenticated: true},
+		{Enabled: true, Channel: bitmexWSWallet, Authenticated: true},
+		{Enabled: true, Channel: bitmexWSExecution, Authenticated: true, Asset: asset.PerpetualContract},
+		{Enabled: true, Channel: bitmexWSPosition, Authenticated: true, Asset: asset.PerpetualContract},
+	}
+
+	exp := subscription.List{}
+	for _, baseSub := range expectedBaseSubscriptions {
+		if baseSub.Asset == asset.Empty {
+			s := baseSub.Clone()
+			s.QualifiedChannel = s.Channel
+			exp = append(exp, s)
+			continue
+		}
+
+		for _, a := range e.GetAssetTypes(true) {
+			if !e.IsAssetWebsocketSupported(a) {
+				continue
+			}
+			if baseSub.Asset != asset.All && baseSub.Asset != a {
+				continue
+			}
+			if a == asset.Index && baseSub.Channel == bitmexWSOrderbookL2 {
+				continue
+			}
+
+			pairs, err := e.GetEnabledPairs(a)
+			require.NoErrorf(t, err, "GetEnabledPairs must not error for asset %s", a)
+			pairFmt, err := e.GetPairFormat(a, true)
+			require.NoErrorf(t, err, "GetPairFormat must not error for asset %s", a)
+			pairs = common.SortStrings(pairs.Format(pairFmt))
+
+			for _, p := range pairs {
+				s := baseSub.Clone()
+				s.Asset = a
+				s.Pairs = currency.Pairs{p}
+				s.QualifiedChannel = s.Channel + ":" + p.String()
+				exp = append(exp, s)
+			}
+		}
+	}
+
 	testsubs.EqualLists(t, exp, subs)
 
 	for _, a := range e.GetAssetTypes(true) {
 		require.NoErrorf(t, e.CurrencyPairs.SetAssetEnabled(a, false), "SetAssetEnabled must not error for %s", a)
 	}
-	_, err = e.generateSubscriptions()
+	subs, err = e.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error when no assets are enabled")
+	testsubs.EqualLists(t, subscription.List{
+		{QualifiedChannel: bitmexWSAffiliate, Channel: bitmexWSAffiliate, Authenticated: true},
+		{QualifiedChannel: bitmexWSOrder, Channel: bitmexWSOrder, Authenticated: true},
+		{QualifiedChannel: bitmexWSMargin, Channel: bitmexWSMargin, Authenticated: true},
+		{QualifiedChannel: bitmexWSTransact, Channel: bitmexWSTransact, Authenticated: true},
+		{QualifiedChannel: bitmexWSWallet, Channel: bitmexWSWallet, Authenticated: true},
+	}, subs)
 }
 
 func TestSubscribe(t *testing.T) {
