@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/candle"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjob"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjobresult"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -503,6 +504,49 @@ func TestCompareJobsToData(t *testing.T) {
 	dhj.DataType = dataHistoryConvertCandlesDataType
 	err = m.compareJobsToData(dhj)
 	assert.NoError(t, err)
+
+	t.Run("no existing candle data for primary interval", func(t *testing.T) {
+		t.Parallel()
+		mgr, _ := createDHM(t)
+		mgr.candleLoader = func(string, currency.Pair, asset.Item, kline.Interval, time.Time, time.Time) (*kline.Item, error) {
+			return nil, candle.ErrNoCandleDataFound
+		}
+		tt := time.Now().Truncate(kline.OneHour.Duration())
+		job := &DataHistoryJob{
+			Nickname:           "TestCompareJobsToDataNoPrimaryCandleData",
+			Exchange:           testExchange,
+			Asset:              asset.Spot,
+			Pair:               currency.NewBTCUSD(),
+			StartDate:          tt.Add(-time.Minute * 5),
+			EndDate:            tt,
+			Interval:           kline.OneMin,
+			ConversionInterval: kline.FiveMin,
+		}
+		err := mgr.compareJobsToData(job)
+		require.NoError(t, err)
+	})
+
+	t.Run("no existing candle data for conversion interval", func(t *testing.T) {
+		t.Parallel()
+		mgr, _ := createDHM(t)
+		mgr.candleLoader = func(string, currency.Pair, asset.Item, kline.Interval, time.Time, time.Time) (*kline.Item, error) {
+			return nil, candle.ErrNoCandleDataFound
+		}
+		tt := time.Now().Truncate(kline.OneHour.Duration())
+		job := &DataHistoryJob{
+			Nickname:           "TestCompareJobsToDataNoConversionCandleData",
+			Exchange:           testExchange,
+			Asset:              asset.Spot,
+			Pair:               currency.NewBTCUSD(),
+			StartDate:          tt.Add(-time.Minute * 5),
+			EndDate:            tt,
+			Interval:           kline.OneMin,
+			DataType:           dataHistoryConvertCandlesDataType,
+			ConversionInterval: kline.FiveMin,
+		}
+		err := mgr.compareJobsToData(job)
+		require.NoError(t, err)
+	})
 
 	m.started = 0
 	err = m.compareJobsToData(dhj)

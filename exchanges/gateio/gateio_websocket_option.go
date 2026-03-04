@@ -446,27 +446,33 @@ func (e *Exchange) processOptionsCandlestickPushData(ctx context.Context, data [
 	if err != nil {
 		return err
 	}
-	klineDatas := make([]websocket.KlineData, len(resp.Result))
+	klineDatas := make([]kline.Item, len(resp.Result))
 	for x := range resp.Result {
 		icp := strings.Split(resp.Result[x].NameOfSubscription, currency.UnderscoreDelimiter)
 		if len(icp) < 3 {
 			return errors.New("malformed options candlestick websocket push data")
 		}
+		interval, err := e.GetIntervalFromString(icp[0])
+		if err != nil {
+			return err
+		}
 		currencyPair, err := currency.NewPairFromString(strings.Join(icp[1:], currency.UnderscoreDelimiter))
 		if err != nil {
 			return err
 		}
-		klineDatas[x] = websocket.KlineData{
-			Pair:       currencyPair,
-			AssetType:  asset.Options,
-			Exchange:   e.Name,
-			StartTime:  resp.Result[x].Timestamp.Time(),
-			Interval:   icp[0],
-			OpenPrice:  resp.Result[x].OpenPrice.Float64(),
-			ClosePrice: resp.Result[x].ClosePrice.Float64(),
-			HighPrice:  resp.Result[x].HighestPrice.Float64(),
-			LowPrice:   resp.Result[x].LowestPrice.Float64(),
-			Volume:     resp.Result[x].Amount.Float64(),
+		klineDatas[x] = kline.Item{
+			Pair:     currencyPair,
+			Asset:    asset.Options,
+			Exchange: e.Name,
+			Interval: interval,
+			Candles: []kline.Candle{{
+				Time:   resp.Result[x].Timestamp.Time(),
+				Open:   resp.Result[x].OpenPrice.Float64(),
+				Close:  resp.Result[x].ClosePrice.Float64(),
+				High:   resp.Result[x].HighestPrice.Float64(),
+				Low:    resp.Result[x].LowestPrice.Float64(),
+				Volume: resp.Result[x].Amount.Float64(),
+			}},
 		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, klineDatas)

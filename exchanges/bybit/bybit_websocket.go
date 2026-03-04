@@ -449,24 +449,24 @@ func (e *Exchange) wsProcessLeverageTokenKline(ctx context.Context, assetType as
 	if err != nil {
 		return err
 	}
-	ltKline := make([]websocket.KlineData, len(result))
+	ltKline := make([]kline.Item, len(result))
 	for x := range result {
 		interval, err := stringToInterval(result[x].Interval)
 		if err != nil {
 			return err
 		}
-		ltKline[x] = websocket.KlineData{
-			Timestamp:  result[x].Timestamp.Time(),
-			Pair:       cp,
-			AssetType:  assetType,
-			Exchange:   e.Name,
-			StartTime:  result[x].Start.Time(),
-			CloseTime:  result[x].End.Time(),
-			Interval:   interval.String(),
-			OpenPrice:  result[x].Open.Float64(),
-			ClosePrice: result[x].Close.Float64(),
-			HighPrice:  result[x].High.Float64(),
-			LowPrice:   result[x].Low.Float64(),
+		ltKline[x] = kline.Item{
+			Pair:     cp,
+			Asset:    assetType,
+			Exchange: e.Name,
+			Interval: interval,
+			Candles: []kline.Candle{{
+				Time:  result[x].Timestamp.Time(),
+				Open:  result[x].Open.Float64(),
+				Close: result[x].Close.Float64(),
+				High:  result[x].High.Float64(),
+				Low:   result[x].Low.Float64(),
+			}},
 		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, ltKline)
@@ -489,25 +489,25 @@ func (e *Exchange) wsProcessKline(ctx context.Context, assetType asset.Item, res
 	if err != nil {
 		return err
 	}
-	spotCandlesticks := make([]websocket.KlineData, len(result))
+	spotCandlesticks := make([]kline.Item, len(result))
 	for x := range result {
 		interval, err := stringToInterval(result[x].Interval)
 		if err != nil {
 			return err
 		}
-		spotCandlesticks[x] = websocket.KlineData{
-			Timestamp:  result[x].Timestamp.Time(),
-			Pair:       cp,
-			AssetType:  assetType,
-			Exchange:   e.Name,
-			StartTime:  result[x].Start.Time(),
-			CloseTime:  result[x].End.Time(),
-			Interval:   interval.String(),
-			OpenPrice:  result[x].Open.Float64(),
-			ClosePrice: result[x].Close.Float64(),
-			HighPrice:  result[x].High.Float64(),
-			LowPrice:   result[x].Low.Float64(),
-			Volume:     result[x].Volume.Float64(),
+		spotCandlesticks[x] = kline.Item{
+			Pair:     cp,
+			Asset:    assetType,
+			Exchange: e.Name,
+			Interval: interval,
+			Candles: []kline.Candle{{
+				Time:   result[x].Timestamp.Time(),
+				Open:   result[x].Open.Float64(),
+				Close:  result[x].Close.Float64(),
+				High:   result[x].High.Float64(),
+				Low:    result[x].Low.Float64(),
+				Volume: result[x].Volume.Float64(),
+			}},
 		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, spotCandlesticks)

@@ -2513,6 +2513,16 @@ func IntervalToString(interval kline.Interval) (string, error) {
 	return "", fmt.Errorf("%w interval: %v", kline.ErrUnsupportedInterval, interval)
 }
 
+// IntervalFromString returns a kline.Interval from string input.
+func IntervalFromString(interval string) (kline.Interval, error) {
+	for k, v := range intervalMap {
+		if v == interval {
+			return k, nil
+		}
+	}
+	return 0, fmt.Errorf("%w interval: %v", kline.ErrInvalidInterval, interval)
+}
+
 // StringToOrderStatus returns an order.Status instance from string.
 func (e *Exchange) StringToOrderStatus(status string) (order.Status, error) {
 	switch status {

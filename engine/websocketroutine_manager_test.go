@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -143,7 +144,7 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	err = m.websocketDataHandler(exchName, websocket.KlineData{})
+	err = m.websocketDataHandler(exchName, kline.Item{})
 	if err != nil {
 		t.Error(err)
 	}
