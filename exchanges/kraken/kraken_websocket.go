@@ -100,7 +100,7 @@ func (e *Exchange) WsConnect() error {
 	}
 
 	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
+	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil)
 	if err != nil {
 		return err
 	}
@@ -113,7 +113,7 @@ func (e *Exchange) WsConnect() error {
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys, "%s - authentication failed: %v\n", e.Name, err)
 		} else {
-			if err := e.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{}); err != nil {
+			if err := e.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
 				e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 				log.Errorf(log.ExchangeSys, "%s - failed to connect to authenticated endpoint: %v\n", e.Name, err)
 			} else {
@@ -131,7 +131,7 @@ func (e *Exchange) WsConnect() error {
 	return nil
 }
 
-// wsFunnelConnectionData funnels both auth and public ws data into one manageable place
+// wsReadData funnels both auth and public ws data into one manageable place
 func (e *Exchange) wsReadData(ctx context.Context, ws websocket.Connection) {
 	defer e.Websocket.Wg.Done()
 	for {

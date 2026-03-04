@@ -100,7 +100,7 @@ func (l Levels) amount() (liquidity, value float64) {
 		liquidity += l[x].Amount
 		value += l[x].Amount * l[x].Price
 	}
-	return
+	return liquidity, value
 }
 
 // retrieve returns a slice of contents from the stored Levels up to the

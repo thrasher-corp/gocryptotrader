@@ -8,86 +8,92 @@ import (
 
 const (
 	// Bitfinex rate limits - Public
-	requestLimitInterval      = time.Minute
+	requestLimitInterval = time.Minute
+
+	undocumentedFallback5ReqRate  = 5  // Fallback for undocumented legacy V1 endpoints that have historically used 5 req/min.
+	undocumentedFallback10ReqRate = 10 // Fallback for undocumented legacy V1 endpoints that have historically used 10 req/min.
+	undocumentedFallback15ReqRate = 15 // Fallback for undocumented legacy V1 endpoints that have historically used 15 req/min.
+	undocumentedFallback45ReqRate = 45 // Fallback for endpoints with no explicit per-endpoint value in current Bitfinex docs.
+
 	platformStatusReqRate     = 15
 	tickerBatchReqRate        = 30
 	tickerReqRate             = 30
 	tradeReqRate              = 30
 	orderbookReqRate          = 30
 	statsReqRate              = 90
-	candleReqRate             = 60
+	candleReqRate             = 30
 	configsReqRate            = 15
-	statusReqRate             = 15 // This is not specified just inputted WCS
-	liquidReqRate             = 15 // This is not specified just inputted WCS
+	statusReqRate             = undocumentedFallback15ReqRate
+	liquidReqRate             = undocumentedFallback15ReqRate
 	leaderBoardReqRate        = 90
 	marketAveragePriceReqRate = 20
-	fxReqRate                 = 20
+	fxReqRate                 = 90
 
 	// Bitfinex rate limits - Authenticated
 	// Wallets -
-	accountWalletBalanceReqRate = 45
-	accountWalletHistoryReqRate = 45
+	accountWalletBalanceReqRate = undocumentedFallback45ReqRate
+	accountWalletHistoryReqRate = undocumentedFallback45ReqRate
 	// Orders -
-	retrieveOrderReqRate  = 45
-	submitOrderReqRate    = 45 // This is not specified just inputted above
-	updateOrderReqRate    = 45 // This is not specified just inputted above
-	cancelOrderReqRate    = 45 // This is not specified just inputted above
-	orderBatchReqRate     = 45 // This is not specified just inputted above
-	cancelBatchReqRate    = 45 // This is not specified just inputted above
-	orderHistoryReqRate   = 45
-	getOrderTradesReqRate = 45
-	getTradesReqRate      = 45
-	getLedgersReqRate     = 45
+	retrieveOrderReqRate  = undocumentedFallback45ReqRate
+	submitOrderReqRate    = undocumentedFallback45ReqRate
+	updateOrderReqRate    = undocumentedFallback45ReqRate
+	cancelOrderReqRate    = undocumentedFallback45ReqRate
+	orderBatchReqRate     = undocumentedFallback45ReqRate
+	cancelBatchReqRate    = undocumentedFallback45ReqRate
+	orderHistoryReqRate   = undocumentedFallback45ReqRate
+	getOrderTradesReqRate = undocumentedFallback45ReqRate
+	getTradesReqRate      = undocumentedFallback45ReqRate
+	getLedgersReqRate     = undocumentedFallback45ReqRate
 	// Positions -
-	getAccountMarginInfoReqRate       = 45
-	getActivePositionsReqRate         = 45
-	claimPositionReqRate              = 45 // This is not specified just inputted above
-	getPositionHistoryReqRate         = 45
-	getPositionAuditReqRate           = 45
-	updateCollateralOnPositionReqRate = 45 // This is not specified just inputted above
+	getAccountMarginInfoReqRate       = undocumentedFallback45ReqRate
+	getActivePositionsReqRate         = undocumentedFallback45ReqRate
+	claimPositionReqRate              = undocumentedFallback45ReqRate
+	getPositionHistoryReqRate         = undocumentedFallback45ReqRate
+	getPositionAuditReqRate           = undocumentedFallback45ReqRate
+	updateCollateralOnPositionReqRate = undocumentedFallback45ReqRate
 	// Margin funding -
 	getMarginInfoRate               = 90
-	getActiveFundingOffersReqRate   = 45
-	submitFundingOfferReqRate       = 45 // This is not specified just inputted above
-	cancelFundingOfferReqRate       = 45
-	cancelAllFundingOfferReqRate    = 45 // This is not specified just inputted above
-	closeFundingReqRate             = 45 // This is not specified just inputted above
-	fundingAutoRenewReqRate         = 45 // This is not specified just inputted above
-	keepFundingReqRate              = 45 // This is not specified just inputted above
-	getOffersHistoryReqRate         = 45
-	getFundingLoansReqRate          = 45
-	getFundingLoanHistoryReqRate    = 45
-	getFundingCreditsReqRate        = 45
-	getFundingCreditsHistoryReqRate = 45
-	getFundingTradesReqRate         = 45
-	getFundingInfoReqRate           = 45
+	getActiveFundingOffersReqRate   = undocumentedFallback45ReqRate
+	submitFundingOfferReqRate       = undocumentedFallback45ReqRate
+	cancelFundingOfferReqRate       = undocumentedFallback45ReqRate
+	cancelAllFundingOfferReqRate    = undocumentedFallback45ReqRate
+	closeFundingReqRate             = undocumentedFallback45ReqRate
+	fundingAutoRenewReqRate         = undocumentedFallback45ReqRate
+	keepFundingReqRate              = undocumentedFallback45ReqRate
+	getOffersHistoryReqRate         = undocumentedFallback45ReqRate
+	getFundingLoansReqRate          = undocumentedFallback45ReqRate
+	getFundingLoanHistoryReqRate    = undocumentedFallback45ReqRate
+	getFundingCreditsReqRate        = undocumentedFallback45ReqRate
+	getFundingCreditsHistoryReqRate = undocumentedFallback45ReqRate
+	getFundingTradesReqRate         = undocumentedFallback45ReqRate
+	getFundingInfoReqRate           = undocumentedFallback45ReqRate
 	// Account actions
-	getUserInfoReqRate               = 45
-	transferBetweenWalletsReqRate    = 45 // This is not specified just inputted above
-	getDepositAddressReqRate         = 45 // This is not specified just inputted above
-	withdrawalReqRate                = 45 // This is not specified just inputted above
-	getMovementsReqRate              = 45
-	getAlertListReqRate              = 45
-	setPriceAlertReqRate             = 45 // This is not specified just inputted above
-	deletePriceAlertReqRate          = 45 // This is not specified just inputted above
-	getBalanceForOrdersOffersReqRate = 30
-	userSettingsWriteReqRate         = 45 // This is not specified just inputted general count
-	userSettingsReadReqRate          = 45
-	userSettingsDeleteReqRate        = 45 // This is not specified just inputted above
+	getUserInfoReqRate               = undocumentedFallback45ReqRate
+	transferBetweenWalletsReqRate    = undocumentedFallback45ReqRate
+	getDepositAddressReqRate         = undocumentedFallback45ReqRate
+	withdrawalReqRate                = undocumentedFallback45ReqRate
+	getMovementsReqRate              = undocumentedFallback45ReqRate
+	getAlertListReqRate              = undocumentedFallback45ReqRate
+	setPriceAlertReqRate             = 90
+	deletePriceAlertReqRate          = 90
+	getBalanceForOrdersOffersReqRate = 90
+	userSettingsWriteReqRate         = 90
+	userSettingsReadReqRate          = 90
+	userSettingsDeleteReqRate        = 90
 	// Account V1 endpoints
 	getAccountFeesReqRate    = 5
 	getWithdrawalFeesReqRate = 5
-	getAccountSummaryReqRate = 5 // This is not specified just inputted above
-	newDepositAddressReqRate = 5 // This is not specified just inputted above
-	getKeyPermissionsReqRate = 5 // This is not specified just inputted above
-	getMarginInfoReqRate     = 5 // This is not specified just inputted above
+	getAccountSummaryReqRate = undocumentedFallback5ReqRate
+	newDepositAddressReqRate = undocumentedFallback5ReqRate
+	getKeyPermissionsReqRate = undocumentedFallback5ReqRate
+	getMarginInfoReqRate     = undocumentedFallback5ReqRate
 	getAccountBalanceReqRate = 10
-	walletTransferReqRate    = 10 // This is not specified just inputted above
-	withdrawV1ReqRate        = 10 // This is not specified just inputted above
-	orderV1ReqRate           = 10 // This is not specified just inputted above
-	orderMultiReqRate        = 10 // This is not specified just inputted above
+	walletTransferReqRate    = undocumentedFallback10ReqRate
+	withdrawV1ReqRate        = undocumentedFallback10ReqRate
+	orderV1ReqRate           = undocumentedFallback10ReqRate
+	orderMultiReqRate        = undocumentedFallback10ReqRate
 	statsV1ReqRate           = 10
-	fundingbookReqRate       = 15
+	fundingBookReqRate       = 15
 	lendsReqRate             = 30
 
 	// Rate limit endpoint functionality declaration
@@ -168,7 +174,7 @@ const (
 	orderV1
 	orderMulti
 	statsV1
-	fundingbook
+	fundingBook
 	lends
 )
 
@@ -205,7 +211,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		getAccountMarginInfo:       request.NewRateLimitWithWeight(requestLimitInterval, getAccountMarginInfoReqRate, 1),
 		getActivePositions:         request.NewRateLimitWithWeight(requestLimitInterval, getActivePositionsReqRate, 1),
 		claimPosition:              request.NewRateLimitWithWeight(requestLimitInterval, claimPositionReqRate, 1),
-		getPositionHistory:         request.NewRateLimitWithWeight(requestLimitInterval, getPositionAuditReqRate, 1),
+		getPositionHistory:         request.NewRateLimitWithWeight(requestLimitInterval, getPositionHistoryReqRate, 1),
 		getPositionAudit:           request.NewRateLimitWithWeight(requestLimitInterval, getPositionAuditReqRate, 1),
 		updateCollateralOnPosition: request.NewRateLimitWithWeight(requestLimitInterval, updateCollateralOnPositionReqRate, 1),
 		// Margin funding -
@@ -217,7 +223,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		fundingAutoRenew:         request.NewRateLimitWithWeight(requestLimitInterval, fundingAutoRenewReqRate, 1),
 		keepFunding:              request.NewRateLimitWithWeight(requestLimitInterval, keepFundingReqRate, 1),
 		getOffersHistory:         request.NewRateLimitWithWeight(requestLimitInterval, getOffersHistoryReqRate, 1),
-		getFundingLoans:          request.NewRateLimitWithWeight(requestLimitInterval, getOffersHistoryReqRate, 1),
+		getFundingLoans:          request.NewRateLimitWithWeight(requestLimitInterval, getFundingLoansReqRate, 1),
 		getFundingLoanHistory:    request.NewRateLimitWithWeight(requestLimitInterval, getFundingLoanHistoryReqRate, 1),
 		getFundingCredits:        request.NewRateLimitWithWeight(requestLimitInterval, getFundingCreditsReqRate, 1),
 		getFundingCreditsHistory: request.NewRateLimitWithWeight(requestLimitInterval, getFundingCreditsHistoryReqRate, 1),
@@ -249,7 +255,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		orderV1:           request.NewRateLimitWithWeight(requestLimitInterval, orderV1ReqRate, 1),
 		orderMulti:        request.NewRateLimitWithWeight(requestLimitInterval, orderMultiReqRate, 1),
 		statsV1:           request.NewRateLimitWithWeight(requestLimitInterval, statsV1ReqRate, 1),
-		fundingbook:       request.NewRateLimitWithWeight(requestLimitInterval, fundingbookReqRate, 1),
+		fundingBook:       request.NewRateLimitWithWeight(requestLimitInterval, fundingBookReqRate, 1),
 		lends:             request.NewRateLimitWithWeight(requestLimitInterval, lendsReqRate, 1),
 	}
 }

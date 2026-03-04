@@ -34,10 +34,10 @@ func CalculateSlippageByOrderbook(ob *orderbook.Book, side gctorder.Side, alloca
 	var result *orderbook.WhaleBombResult
 	result, err = ob.SimulateOrder(allocatedFunds.InexactFloat64(), side == gctorder.Buy)
 	if err != nil {
-		return
+		return price, amount, err
 	}
 	rate := (result.MinimumPrice - result.MaximumPrice) / result.MaximumPrice
 	price = decimal.NewFromFloat(result.MinimumPrice * (rate + 1))
 	amount = decimal.NewFromFloat(result.Amount * (1 - feeRate.InexactFloat64()))
-	return
+	return price, amount, err
 }

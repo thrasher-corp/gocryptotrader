@@ -1478,7 +1478,7 @@ func (m *DataHistoryManager) GenerateJobSummary(nickname string) (*DataHistoryJo
 	}, nil
 }
 
-// ----------------------------Lovely-converters----------------------------
+// convertDBModelToJob converts a database model into a data history job
 func (m *DataHistoryManager) convertDBModelToJob(dbModel *datahistoryjob.DataHistoryJob) (*DataHistoryJob, error) {
 	if !m.IsRunning() {
 		return nil, ErrSubSystemNotStarted

@@ -360,24 +360,18 @@ func TestStandardDeviation2(t *testing.T) {
 	t.Parallel()
 	r := []float64{9, 2, 5, 4, 12, 7}
 	mean, err := ArithmeticMean(r)
-	if err != nil {
-		t.Error(err)
-	}
-	superMean := []float64{}
+	require.NoError(t, err, "ArithmeticMean must not error")
+	superMean := make([]float64, len(r))
 	for i := range r {
 		result := math.Pow(r[i]-mean, 2)
-		superMean = append(superMean, result)
+		superMean[i] = result
 	}
 	superMeany := (superMean[0] + superMean[1] + superMean[2] + superMean[3] + superMean[4] + superMean[5]) / 5
 	manualCalculation := math.Sqrt(superMeany)
 	var codeCalcu float64
 	codeCalcu, err = SampleStandardDeviation(r)
-	if err != nil {
-		t.Error(err)
-	}
-	if manualCalculation != codeCalcu && codeCalcu != 3.619 {
-		t.Error("expected 3.619")
-	}
+	require.NoError(t, err, "SampleStandardDeviation must not error")
+	assert.Truef(t, manualCalculation == codeCalcu || codeCalcu == 3.619, "SampleStandardDeviation should equal manual calculation or 3.619, got %v", codeCalcu)
 }
 
 func TestGeometricAverage(t *testing.T) {

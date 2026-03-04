@@ -15,7 +15,7 @@ type FContractInfoData struct {
 		PriceTick      float64    `json:"price_tick"`
 		DeliveryDate   string     `json:"delivery_date"`
 		DeliveryTime   types.Time `json:"delivery_time"`
-		CreateDate     string     `json:"create_date"`
+		CreateDate     types.Time `json:"create_date"`
 		ContractStatus int64      `json:"contract_status"`
 		SettlementTime types.Time `json:"settlement_time"`
 	}

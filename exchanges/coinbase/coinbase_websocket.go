@@ -63,7 +63,7 @@ func (e *Exchange) WsConnect() error {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}); err != nil {
+	if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
 		return err
 	}
 	e.Websocket.Wg.Add(1)
@@ -405,7 +405,7 @@ func (e *Exchange) ProcessUpdate(update *WebsocketOrderbookDataHolder, timestamp
 	return nil
 }
 
-// GenerateSubscriptions adds default subscriptions to websocket to be handled by ManageSubscriptions()
+// generateSubscriptions adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 	return e.Features.Subscriptions.ExpandTemplates(e)
 }
