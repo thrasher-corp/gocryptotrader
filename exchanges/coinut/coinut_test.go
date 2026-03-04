@@ -69,7 +69,7 @@ func setupWSTestAuth(t *testing.T) {
 	}
 
 	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{})
+	err := e.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

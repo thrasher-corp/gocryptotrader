@@ -236,7 +236,7 @@ var subscriptionNames = map[string]string{
 
 // WsConnect initiates a websocket connection
 func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
-	if err := conn.Dial(ctx, &gws.Dialer{ReadBufferSize: 8192, WriteBufferSize: 8192}, nil); err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{ReadBufferSize: 8192, WriteBufferSize: 8192}, nil, nil); err != nil {
 		return err
 	}
 	conn.SetupPingHandler(request.Unset, websocket.PingHandler{

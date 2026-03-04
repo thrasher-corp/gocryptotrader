@@ -1545,8 +1545,8 @@ type WsOrderbookLevel5 struct {
 	Timestamp     types.Time        `json:"timestamp"`
 }
 
-// WsOrderbookLevel5Response represents a response data for an orderbook push data with depth level 5
-type WsOrderbookLevel5Response struct {
+// WsFuturesOrderbookLevelResponse represents a response data for an orderbook push data with depth level 5 or 50
+type WsFuturesOrderbookLevelResponse struct {
 	Sequence      int64                            `json:"sequence"`
 	Bids          orderbook.LevelsArrayPriceAmount `json:"bids"`
 	Asks          orderbook.LevelsArrayPriceAmount `json:"asks"`

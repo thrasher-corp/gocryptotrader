@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"net/http"
 	"slices"
 	"strconv"
 	"strings"
@@ -81,7 +80,7 @@ func setupPingHandler(conn websocket.Connection) {
 
 // wsConnect checks if websocket is enabled and initiates a websocket connection
 func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
-	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{}, nil, nil); err != nil {
 		return err
 	}
 	setupPingHandler(conn)
