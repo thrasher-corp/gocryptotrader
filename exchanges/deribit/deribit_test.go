@@ -4169,6 +4169,10 @@ func TestFormatChannelPair(t *testing.T) {
 
 	pair = currency.NewPair(currency.NewCode("PAXG"), currency.NewCode("USDC-30MAY25"))
 	assert.Equal(t, "PAXG-USDC-30MAY25", formatChannelPair(pair))
+
+	pair = currency.NewPair(currency.NewCode("ETH"), currency.NewCode("USDC-30MAY25"))
+	pair.Delimiter = "_"
+	assert.Equal(t, "ETH_USDC-30MAY25", formatChannelPair(pair))
 }
 
 var timeInForceList = []struct {

@@ -953,7 +953,7 @@ func formatChannelPair(pair currency.Pair) string {
 		pair.Delimiter = "_"
 		return pair.String()
 	}
-	if strings.Contains(pair.Quote.String(), "-") {
+	if strings.Contains(pair.Quote.String(), "-") && pair.Delimiter == "" {
 		pair.Delimiter = "-"
 	}
 	return pair.String()
