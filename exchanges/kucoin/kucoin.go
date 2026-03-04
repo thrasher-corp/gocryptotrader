@@ -2504,6 +2504,14 @@ var intervalMap = map[kline.Interval]string{
 	kline.OneMin: "1min", kline.ThreeMin: "3min", kline.FiveMin: "5min", kline.FifteenMin: "15min", kline.ThirtyMin: "30min", kline.OneHour: "1hour", kline.TwoHour: "2hour", kline.FourHour: "4hour", kline.SixHour: "6hour", kline.EightHour: "8hour", kline.TwelveHour: "12hour", kline.OneDay: "1day", kline.OneWeek: "1week",
 }
 
+var intervalMapReverseLookup = func() map[string]kline.Interval {
+	m := make(map[string]kline.Interval, len(intervalMap))
+	for k, v := range intervalMap {
+		m[v] = k
+	}
+	return m
+}()
+
 // IntervalToString returns a string from kline.Interval input.
 func IntervalToString(interval kline.Interval) (string, error) {
 	intervalString, okay := intervalMap[interval]
@@ -2515,10 +2523,9 @@ func IntervalToString(interval kline.Interval) (string, error) {
 
 // IntervalFromString returns a kline.Interval from string input.
 func IntervalFromString(interval string) (kline.Interval, error) {
-	for k, v := range intervalMap {
-		if v == interval {
-			return k, nil
-		}
+	klineInterval, ok := intervalMapReverseLookup[interval]
+	if ok {
+		return klineInterval, nil
 	}
 	return 0, fmt.Errorf("%w interval: %v", kline.ErrInvalidInterval, interval)
 }
