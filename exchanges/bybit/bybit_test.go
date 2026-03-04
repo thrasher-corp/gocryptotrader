@@ -729,7 +729,7 @@ func TestGetOpenInterestData(t *testing.T) {
 func TestGetHistoricalVolatility(t *testing.T) {
 	t.Parallel()
 	var start, end time.Time
-	baseCoin := "BTC"
+	baseCoin := currency.BTC
 	period := int64(7)
 	if mockTests {
 		end = time.UnixMilli(1693080759395)

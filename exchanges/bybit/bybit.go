@@ -379,7 +379,7 @@ func (e *Exchange) GetOpenInterestData(ctx context.Context, category, symbol, in
 // If both 'startTime' and 'endTime' are not specified, it will return the most recent 1 hours worth of data.
 // 'startTime' and 'endTime' are a pair of params. Either both are passed or they are not passed at all.
 // This endpoint can query the last 2 years worth of data, but make sure [endTime - startTime] <= 30 days.
-func (e *Exchange) GetHistoricalVolatility(ctx context.Context, category, baseCoin string, period int64, startTime, endTime time.Time) ([]HistoricVolatility, error) {
+func (e *Exchange) GetHistoricalVolatility(ctx context.Context, category string, baseCoin currency.Code, period int64, startTime, endTime time.Time) ([]HistoricVolatility, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
 	} else if category != cOption {
@@ -387,8 +387,8 @@ func (e *Exchange) GetHistoricalVolatility(ctx context.Context, category, baseCo
 	}
 	params := url.Values{}
 	params.Set("category", category)
-	if baseCoin != "" {
-		params.Set("baseCoin", baseCoin)
+	if !baseCoin.IsEmpty() {
+		params.Set("baseCoin", baseCoin.String())
 	}
 	if period > 0 {
 		params.Set("period", strconv.FormatInt(period, 10))
