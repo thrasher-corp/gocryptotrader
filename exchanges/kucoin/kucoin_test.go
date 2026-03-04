@@ -2479,12 +2479,18 @@ func TestGenerateMarginSubscriptions(t *testing.T) {
 
 	ku := testInstance(t)
 
-	avail, err := ku.GetAvailablePairs(asset.Spot)
-	require.NoError(t, err, "GetAvailablePairs must not error storing spot pairs")
-	avail = common.SortStrings(avail)
-	err = ku.CurrencyPairs.StorePairs(asset.Margin, avail[:6], true)
+	spotAvail, err := ku.GetAvailablePairs(asset.Spot)
+	require.NoError(t, err, "GetAvailablePairs must not error for spot pairs")
+	spotAvail = common.SortStrings(spotAvail)
+	marginAvail, err := ku.GetAvailablePairs(asset.Margin)
+	require.NoError(t, err, "GetAvailablePairs must not error for margin pairs")
+	marginAvail = common.SortStrings(marginAvail)
+	require.GreaterOrEqual(t, len(marginAvail), 6, "Margin available pairs must include at least 6 pairs")
+	require.GreaterOrEqual(t, len(spotAvail), 3, "Spot available pairs must include at least 3 pairs")
+
+	err = ku.CurrencyPairs.StorePairs(asset.Margin, marginAvail[:6], true)
 	require.NoError(t, err, "StorePairs must not error storing margin pairs")
-	err = ku.CurrencyPairs.StorePairs(asset.Spot, avail[:3], true)
+	err = ku.CurrencyPairs.StorePairs(asset.Spot, spotAvail[:3], true)
 	require.NoError(t, err, "StorePairs must not error storing spot pairs")
 
 	ku.Features.Subscriptions = subscription.List{{Channel: subscription.TickerChannel, Asset: asset.Margin}}
@@ -2492,7 +2498,7 @@ func TestGenerateMarginSubscriptions(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	require.Len(t, subs, 1, "Must generate just one sub")
 	assert.Equal(t, asset.Margin, subs[0].Asset, "Asset should be correct")
-	assert.Equal(t, "/market/ticker:"+avail[:6].Join(), subs[0].QualifiedChannel, "QualifiedChannel should be correct")
+	assert.Equal(t, "/market/ticker:"+marginAvail[:6].Join(), subs[0].QualifiedChannel, "QualifiedChannel should be correct")
 
 	require.NoError(t, ku.CurrencyPairs.SetAssetEnabled(asset.Margin, false), "SetAssetEnabled Spot must not error")
 	require.NoError(t, err, "SetAssetEnabled must not error")

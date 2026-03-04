@@ -63,6 +63,7 @@ const (
 	getSpotLeverageTokenOrderRecordsEPL
 	spotLeverageTokenPurchaseEPL
 	spotLeverTokenRedeemEPL
+	getSpotMarginTradeMaxBorrowableEPL
 	getSpotCrossMarginTradeLoanInfoEPL
 	getSpotCrossMarginTradeAccountEPL
 	getSpotCrossMarginTradeOrdersEPL
@@ -131,6 +132,7 @@ var rateLimits = request.RateLimitDefinitions{
 	getSpotLeverageTokenOrderRecordsEPL:      request.NewRateLimitWithWeight(time.Second, 50, 50),
 	spotLeverageTokenPurchaseEPL:             request.NewRateLimitWithWeight(time.Second, 20, 20),
 	spotLeverTokenRedeemEPL:                  request.NewRateLimitWithWeight(time.Second, 20, 20),
+	getSpotMarginTradeMaxBorrowableEPL:       request.NewRateLimitWithWeight(time.Second, 50, 50),
 	getSpotCrossMarginTradeLoanInfoEPL:       request.NewRateLimitWithWeight(time.Second, 50, 50),
 	getSpotCrossMarginTradeAccountEPL:        request.NewRateLimitWithWeight(time.Second, 50, 50),
 	getSpotCrossMarginTradeOrdersEPL:         request.NewRateLimitWithWeight(time.Second, 50, 50),
