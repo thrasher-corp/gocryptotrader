@@ -848,7 +848,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to bitmex
-func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, verb, path string, params Parameter, result any) error {
+func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, params Parameter, result any) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -873,7 +873,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			if err := params.VerifyData(); err != nil {
 				return nil, err
 			}
-			if strings.EqualFold(verb, http.MethodGet) {
+			if method == http.MethodGet {
 				requestPath, err = paramsToRequestPath(params, requestPath)
 				if err != nil {
 					return nil, err
@@ -887,7 +887,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			}
 		}
 
-		hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte(verb+"/api/v1"+requestPath+ts+payload), []byte(creds.Secret))
+		hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte(method+"/api/v1"+requestPath+ts+payload), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
@@ -895,7 +895,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers["api-signature"] = hex.EncodeToString(hmac)
 
 		return &request.Item{
-			Method:                 verb,
+			Method:                 method,
 			Path:                   endpoint + requestPath,
 			Headers:                headers,
 			Body:                   strings.NewReader(payload),
@@ -922,7 +922,15 @@ func paramsToRequestPath(params Parameter, path string) (string, error) {
 	if len(values) == 0 {
 		return path, nil
 	}
-	return path + "?" + values.Encode(), nil
+	sep := "?"
+	if strings.Contains(path, "?") {
+		if strings.HasSuffix(path, "?") || strings.HasSuffix(path, "&") {
+			sep = ""
+		} else {
+			sep = "&"
+		}
+	}
+	return path + sep + values.Encode(), nil
 }
 
 func paramsToURLValues(params Parameter) (url.Values, error) {

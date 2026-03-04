@@ -11,9 +11,10 @@ func TestFormatToInterval(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name     string
-		input    string
-		expected kline.Interval
+		name      string
+		input     string
+		expected  kline.Interval
+		expectErr bool
 	}{
 		{name: "one minute", input: "1m", expected: kline.OneMin},
 		{name: "three minute", input: "3m", expected: kline.ThreeMin},
@@ -30,15 +31,22 @@ func TestFormatToInterval(t *testing.T) {
 		{name: "three day", input: "3d", expected: kline.ThreeDay},
 		{name: "one week", input: "1w", expected: kline.OneWeek},
 		{name: "one month", input: "1M", expected: kline.OneMonth},
-		{name: "invalid empty", input: "", expected: 0},
-		{name: "invalid casing", input: "1H", expected: 0},
-		{name: "invalid value", input: "10m", expected: 0},
+		{name: "invalid empty", input: "", expected: 0, expectErr: true},
+		{name: "invalid casing", input: "1H", expected: 0, expectErr: true},
+		{name: "invalid value", input: "10m", expected: 0, expectErr: true},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tc.expected, formatToInterval(tc.input))
+			got, err := formatToInterval(tc.input)
+			if tc.expectErr {
+				assert.ErrorIs(t, err, kline.ErrInvalidInterval)
+				assert.Zero(t, got)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tc.expected, got)
 		})
 	}
 }

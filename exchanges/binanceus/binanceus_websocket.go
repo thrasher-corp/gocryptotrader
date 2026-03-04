@@ -369,11 +369,15 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 						return err
 					}
 
+					interval, err := formatToInterval(ks.Kline.Interval)
+					if err != nil {
+						return err
+					}
 					return e.Websocket.DataHandler.Send(ctx, kline.Item{
 						Pair:     pair,
 						Asset:    asset.Spot,
 						Exchange: e.Name,
-						Interval: formatToInterval(ks.Kline.Interval),
+						Interval: interval,
 						Candles: []kline.Candle{{
 							Time:   ks.Kline.StartTime.Time(),
 							Open:   ks.Kline.OpenPrice,
@@ -1005,39 +1009,39 @@ func (o *orderbookManager) checkIsInitialSync(pair currency.Pair) (bool, error) 
 	return state.initialSync, nil
 }
 
-func formatToInterval(interval string) kline.Interval {
+func formatToInterval(interval string) (kline.Interval, error) {
 	switch interval {
 	case "1m":
-		return kline.OneMin
+		return kline.OneMin, nil
 	case "3m":
-		return kline.ThreeMin
+		return kline.ThreeMin, nil
 	case "5m":
-		return kline.FiveMin
+		return kline.FiveMin, nil
 	case "15m":
-		return kline.FifteenMin
+		return kline.FifteenMin, nil
 	case "30m":
-		return kline.ThirtyMin
+		return kline.ThirtyMin, nil
 	case "1h":
-		return kline.OneHour
+		return kline.OneHour, nil
 	case "2h":
-		return kline.TwoHour
+		return kline.TwoHour, nil
 	case "4h":
-		return kline.FourHour
+		return kline.FourHour, nil
 	case "6h":
-		return kline.SixHour
+		return kline.SixHour, nil
 	case "8h":
-		return kline.EightHour
+		return kline.EightHour, nil
 	case "12h":
-		return kline.TwelveHour
+		return kline.TwelveHour, nil
 	case "1d":
-		return kline.OneDay
+		return kline.OneDay, nil
 	case "3d":
-		return kline.ThreeDay
+		return kline.ThreeDay, nil
 	case "1w":
-		return kline.OneWeek
+		return kline.OneWeek, nil
 	case "1M":
-		return kline.OneMonth
+		return kline.OneMonth, nil
 	default:
-		return 0
+		return 0, fmt.Errorf("%w: %q", kline.ErrInvalidInterval, interval)
 	}
 }

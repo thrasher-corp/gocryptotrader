@@ -449,13 +449,12 @@ func (e *Exchange) wsProcessLeverageTokenKline(ctx context.Context, assetType as
 	if err != nil {
 		return err
 	}
-	ltKline := make([]kline.Item, len(result))
 	for x := range result {
 		interval, err := stringToInterval(result[x].Interval)
 		if err != nil {
 			return err
 		}
-		ltKline[x] = kline.Item{
+		err = e.Websocket.DataHandler.Send(ctx, kline.Item{
 			Pair:     cp,
 			Asset:    assetType,
 			Exchange: e.Name,
@@ -467,9 +466,12 @@ func (e *Exchange) wsProcessLeverageTokenKline(ctx context.Context, assetType as
 				High:  result[x].High.Float64(),
 				Low:   result[x].Low.Float64(),
 			}},
+		})
+		if err != nil {
+			return err
 		}
 	}
-	return e.Websocket.DataHandler.Send(ctx, ltKline)
+	return nil
 }
 
 func (e *Exchange) wsProcessLiquidation(ctx context.Context, resp *WebsocketResponse) error {
@@ -489,13 +491,12 @@ func (e *Exchange) wsProcessKline(ctx context.Context, assetType asset.Item, res
 	if err != nil {
 		return err
 	}
-	spotCandlesticks := make([]kline.Item, len(result))
 	for x := range result {
 		interval, err := stringToInterval(result[x].Interval)
 		if err != nil {
 			return err
 		}
-		spotCandlesticks[x] = kline.Item{
+		err = e.Websocket.DataHandler.Send(ctx, kline.Item{
 			Pair:     cp,
 			Asset:    assetType,
 			Exchange: e.Name,
@@ -508,9 +509,12 @@ func (e *Exchange) wsProcessKline(ctx context.Context, assetType asset.Item, res
 				Low:    result[x].Low.Float64(),
 				Volume: result[x].Volume.Float64(),
 			}},
+		})
+		if err != nil {
+			return err
 		}
 	}
-	return e.Websocket.DataHandler.Send(ctx, spotCandlesticks)
+	return nil
 }
 
 func (e *Exchange) wsProcessPublicTicker(ctx context.Context, assetType asset.Item, resp *WebsocketResponse) error {

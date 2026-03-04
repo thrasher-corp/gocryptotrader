@@ -1094,12 +1094,13 @@ func TestWsProcessCandleIntervalMapping(t *testing.T) {
 			Exchange: ex.Name,
 			Interval: kline.FiveMin,
 			Candles: []kline.Candle{{
-				Time:   time.Unix(1542057314, 0),
-				Open:   3586.7,
-				High:   3586.7,
-				Low:    3586.6,
-				Close:  3586.6,
-				Volume: 0.03373,
+				Time:        time.Unix(1542057314, 0),
+				Open:        3586.7,
+				High:        3586.7,
+				Low:         3586.6,
+				Close:       3586.6,
+				Volume:      0.03373,
+				QuoteVolume: 120.97871640000001,
 			}},
 		}, got)
 	default:

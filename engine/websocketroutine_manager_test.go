@@ -145,9 +145,7 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	assert.NoError(t, err)
 
 	err = m.websocketDataHandler(exchName, kline.Item{})
-	if err != nil {
-		t.Error(err)
-	}
+	require.NoError(t, err)
 	origOrder := &order.Detail{
 		Exchange: exchName,
 		OrderID:  orderID,
