@@ -1591,7 +1591,7 @@ func (c *Config) sortAvailablePairsRequiresLock() {
 }
 
 func closeWriteCloser(writer io.WriteCloser) {
-	if err := common.NilGuard(writer); err != nil {
+	if writer == nil {
 		return
 	}
 	if err := writer.Close(); err != nil {

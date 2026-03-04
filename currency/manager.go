@@ -439,6 +439,9 @@ func (p *PairsManager) Load(seed *PairsManager) {
 func (p *PairsManager) reindex() {
 	p.matcher = make(map[key]*Pair)
 	for a, fs := range p.Pairs {
+		if fs == nil {
+			continue
+		}
 		for i, pair := range fs.Available {
 			k := key{Symbol: pair.Base.Lower().String() + pair.Quote.Lower().String(), Asset: a}
 			p.matcher[k] = &fs.Available[i]

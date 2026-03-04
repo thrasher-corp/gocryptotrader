@@ -700,6 +700,112 @@ func TestLoad(t *testing.T) {
 	assert.Equal(t, p, found, "Should find the right pair")
 }
 
+func TestReindex(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name           string
+		setup          func() *PairsManager
+		wantKeys       []key
+		wantAbsentKeys []key
+	}{
+		{
+			name: "indexes available pairs across multiple assets",
+			setup: func() *PairsManager {
+				return &PairsManager{
+					Pairs: FullStore{
+						asset.Spot: {
+							Available: Pairs{
+								NewPairWithDelimiter("BTC", "USD", "-"),
+								NewPairWithDelimiter("ETH", "USD", "-"),
+							},
+						},
+						asset.Futures: {
+							Available: Pairs{
+								NewPairWithDelimiter("BTC", "USD", "-"),
+							},
+						},
+					},
+				}
+			},
+			wantKeys: []key{
+				{Symbol: "btcusd", Asset: asset.Spot},
+				{Symbol: "ethusd", Asset: asset.Spot},
+				{Symbol: "btcusd", Asset: asset.Futures},
+			},
+		},
+		{
+			name: "skips nil pair stores without panic",
+			setup: func() *PairsManager {
+				return &PairsManager{
+					Pairs: FullStore{
+						asset.Spot:    nil,
+						asset.Futures: {Available: Pairs{NewBTCUSD()}},
+					},
+				}
+			},
+			wantKeys: []key{
+				{Symbol: "btcusd", Asset: asset.Futures},
+			},
+			wantAbsentKeys: []key{
+				{Symbol: "btcusd", Asset: asset.Spot},
+			},
+		},
+		{
+			name: "empty store produces empty matcher",
+			setup: func() *PairsManager {
+				return &PairsManager{
+					Pairs: FullStore{
+						asset.Spot: {Available: Pairs{}},
+					},
+				}
+			},
+		},
+		{
+			name: "replaces stale matcher entries on reindex",
+			setup: func() *PairsManager {
+				stale := NewPairWithDelimiter("OLD", "PAIR", "-")
+				return &PairsManager{
+					Pairs: FullStore{
+						asset.Spot: {
+							Available: Pairs{NewPairWithDelimiter("BTC", "USD", "-")},
+						},
+					},
+					matcher: map[key]*Pair{
+						{Symbol: "oldpair", Asset: asset.Spot}: &stale,
+					},
+				}
+			},
+			wantKeys: []key{
+				{Symbol: "btcusd", Asset: asset.Spot},
+			},
+			wantAbsentKeys: []key{
+				{Symbol: "oldpair", Asset: asset.Spot},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			pm := tc.setup()
+			assert.NotPanics(t, pm.reindex, "reindex should not panic")
+
+			for _, k := range tc.wantKeys {
+				p, ok := pm.matcher[k]
+				assert.Truef(t, ok, "matcher should contain key %v", k)
+				if ok {
+					assert.NotNilf(t, p, "matcher entry for key %v should not be nil", k)
+				}
+			}
+
+			for _, k := range tc.wantAbsentKeys {
+				_, ok := pm.matcher[k]
+				assert.Falsef(t, ok, "matcher should not contain key %v", k)
+			}
+		})
+	}
+}
+
 func TestSortAvailablePairs(t *testing.T) {
 	t.Parallel()
 

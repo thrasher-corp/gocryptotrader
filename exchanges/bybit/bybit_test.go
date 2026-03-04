@@ -3141,9 +3141,21 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 			assert.Equal(t, "Normal", v[0].PositionStatus, "Position status should be correct")
 			assert.Equal(t, int64(2), v[0].AdlRankIndicator, "ADL Rank Indicator should be correct")
 		case []order.Detail:
-			require.Len(t, v, 1, "must see 1 order")
-			switch v[0].AssetType {
-			case asset.Options:
+			require.Len(t, v, 1, "Order payload must contain exactly one order item")
+			switch v[0].OrderID {
+			case "c1956690-b731-4191-97c0-94b00422231b":
+				sawOrderLinear = true
+				assert.Equal(t, currency.BTC, v[0].Pair.Base, "Pair base should be correct")
+				assert.Equal(t, currency.USDT, v[0].Pair.Quote, "Pair quote should be correct")
+				assert.Equal(t, "BTCUSDT", v[0].Pair.String(), "Pair should be correct")
+				assert.Equal(t, order.Sell, v[0].Side, "Side should be correct")
+				assert.Equal(t, order.Filled, v[0].Status, "Order status should be correct")
+				assert.Equal(t, 1.7, v[0].Amount, "Amount should be correct")
+				assert.Equal(t, 4.033, v[0].Price, "Price should be correct")
+				assert.Equal(t, 4.24, v[0].AverageExecutedPrice, "AverageExecutedPrice should be correct")
+				assert.Equal(t, 0.0, v[0].RemainingAmount, "RemainingAmount should be correct")
+				assert.Equal(t, asset.USDTMarginedFutures, v[0].AssetType, "AssetType should be correct")
+			case "5cf98598-39a7-459e-97bf-76ca765ee020":
 				sawOrderOption = true
 				assert.True(t, optionsTradablePair.Equal(v[0].Pair), "Pair should match")
 				assert.Equal(t, "5cf98598-39a7-459e-97bf-76ca765ee020", v[0].OrderID, "Order ID should be correct")
@@ -3160,19 +3172,8 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 				assert.Equal(t, 0.358635, v[0].Fee, "fee should be correct")
 				assert.Equal(t, time.UnixMilli(1672364262444), v[0].Date, "Created time should be correct")
 				assert.Equal(t, time.UnixMilli(1672364262457), v[0].LastUpdated, "Updated time should be correct")
-			case asset.USDTMarginedFutures:
-				sawOrderLinear = true
-				assert.Equal(t, "c1956690-b731-4191-97c0-94b00422231b", v[0].OrderID)
-				assert.Equal(t, currency.BTC, v[0].Pair.Base)
-				assert.Equal(t, currency.USDT, v[0].Pair.Quote)
-				assert.Equal(t, order.Sell, v[0].Side)
-				assert.Equal(t, order.Filled, v[0].Status)
-				assert.Equal(t, 1.7, v[0].Amount)
-				assert.Equal(t, 4.033, v[0].Price)
-				assert.Equal(t, 4.24, v[0].AverageExecutedPrice)
-				assert.Equal(t, 0.0, v[0].RemainingAmount)
 			default:
-				t.Fatalf("unexpected order asset type: %v", v[0].AssetType)
+				t.Fatalf("unexpected order ID: %v", v[0].OrderID)
 			}
 		case accounts.SubAccounts:
 			sawAccounts = true
@@ -3206,6 +3207,7 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 			assert.Equal(t, asset.USDTMarginedFutures, v[0].AssetType, "Asset type should be correct")
 			assert.Equal(t, currency.XRP, v[0].CurrencyPair.Base, "CurrencyPair base should be correct")
 			assert.Equal(t, currency.USDT, v[0].CurrencyPair.Quote, "CurrencyPair quote should be correct")
+			assert.Equal(t, "XRPUSDT", v[0].CurrencyPair.String(), "CurrencyPair should be correct")
 			assert.Equal(t, order.Sell, v[0].Side, "Side should be correct")
 			assert.Equal(t, "f6e324ff-99c2-4e89-9739-3086e47f9381", v[0].OrderID, "Order ID should be correct")
 			assert.Empty(t, v[0].ClientOrderID, "Client order ID should be empty")
@@ -3270,6 +3272,7 @@ func TestWsTicker(t *testing.T) {
 			case 1: // Spot
 				assert.Equal(t, currency.BTC, v.Pair.Base, "Pair base should be correct")
 				assert.Equal(t, currency.USDT, v.Pair.Quote, "Pair quote should be correct")
+				assert.Equal(t, "BTCUSDT", v.Pair.String(), "Pair should be correct")
 				assert.Equal(t, 21109.77, v.Last, "Last should be correct")
 				assert.Equal(t, 21426.99, v.High, "High should be correct")
 				assert.Equal(t, 20575.00, v.Low, "Low should be correct")
