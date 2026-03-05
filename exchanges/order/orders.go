@@ -477,12 +477,11 @@ func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
 	}
 
 	return &SubmitResponse{
-		Exchange:  s.Exchange,
-		Type:      s.Type,
-		Side:      s.Side,
-		Pair:      s.Pair,
-		AssetType: s.AssetType,
-
+		Exchange:      s.Exchange,
+		Type:          s.Type,
+		Side:          s.Side,
+		Pair:          s.Pair,
+		AssetType:     s.AssetType,
 		TimeInForce:   s.TimeInForce,
 		ReduceOnly:    s.ReduceOnly,
 		Leverage:      s.Leverage,
@@ -493,11 +492,10 @@ func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
 		ClientID:      s.ClientID,
 		ClientOrderID: s.ClientOrderID,
 		MarginType:    s.MarginType,
-
-		LastUpdated: time.Now(),
-		Date:        time.Now(),
-		Status:      status,
-		OrderID:     orderID,
+		LastUpdated:   time.Now(),
+		Date:          time.Now(),
+		Status:        status,
+		OrderID:       orderID,
 	}, nil
 }
 

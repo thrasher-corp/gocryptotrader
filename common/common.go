@@ -50,7 +50,7 @@ var (
 	_HTTPClient    *http.Client
 	_HTTPUserAgent string
 	m              sync.RWMutex
-	zeroValueUnix  = time.Unix(0, 0)
+	ZeroValueUnix  = time.Unix(0, 0)
 )
 
 // Public common Errors
@@ -587,10 +587,10 @@ func (e *ErrorCollector) Go(f func() error) {
 // StartEndTimeCheck provides some basic checks which occur
 // frequently in the codebase
 func StartEndTimeCheck(start, end time.Time) error {
-	if start.IsZero() || start.Equal(zeroValueUnix) {
+	if start.IsZero() || start.Equal(ZeroValueUnix) {
 		return fmt.Errorf("start %w", ErrDateUnset)
 	}
-	if end.IsZero() || end.Equal(zeroValueUnix) {
+	if end.IsZero() || end.Equal(ZeroValueUnix) {
 		return fmt.Errorf("end %w", ErrDateUnset)
 	}
 	if start.After(end) {

@@ -2949,7 +2949,7 @@ func TestChangePositionMargin(t *testing.T) {
 	}
 }
 
-func TestGetPositionSummary(t *testing.T) {
+func TestGetFuturesPositionSummary(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
