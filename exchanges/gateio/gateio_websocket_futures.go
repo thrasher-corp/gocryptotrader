@@ -67,8 +67,6 @@ var defaultCoinMarginedFuturesSubscriptions = []string{
 	futuresCandlesticksChannel,
 }
 
-var errParameterRequired = errors.New("parameter is required")
-
 // WsFuturesConnect initiates a websocket connection for futures account
 func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connection) error {
 	a := asset.USDTMarginedFutures
@@ -299,14 +297,14 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 		case futuresOrderbookUpdateWithSnapshotChannel:
 			level, ok := channelsToSubscribe[i].Params["level"]
 			if !ok {
-				return nil, fmt.Errorf("%w: %q for %q", errParameterRequired, "level", futuresOrderbookUpdateWithSnapshotChannel)
+				return nil, fmt.Errorf("%w: %q for %q", common.ErrParameterRequired, "level", futuresOrderbookUpdateWithSnapshotChannel)
 			}
 			uintLvl, ok := level.(uint64)
 			if !ok {
 				return nil, common.GetTypeAssertError("uint64", level, "level must be of type uint64")
 			}
 			if len(params) != 1 || params[0] == "" {
-				return nil, fmt.Errorf("%w: currency pair for %q", errParameterRequired, futuresOrderbookUpdateWithSnapshotChannel)
+				return nil, fmt.Errorf("%w: currency pair for %q", common.ErrParameterRequired, futuresOrderbookUpdateWithSnapshotChannel)
 			}
 			params[0] = "ob." + params[0] + "." + strconv.FormatUint(uintLvl, 10)
 		}

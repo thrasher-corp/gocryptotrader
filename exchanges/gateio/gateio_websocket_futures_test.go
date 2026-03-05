@@ -65,7 +65,7 @@ func TestGenerateFuturesPayload(t *testing.T) {
 		_, err := e.generateFuturesPayload(t.Context(), subscribeEvent, subscription.List{
 			&subscription.Subscription{Channel: futuresOrderbookUpdateWithSnapshotChannel, Pairs: currency.Pairs{BTCUSDT}, Params: map[string]any{}},
 		})
-		require.ErrorIs(t, err, errParameterRequired)
+		require.ErrorIs(t, err, common.ErrParameterRequired)
 	})
 
 	t.Run("orderbook update with snapshot bad level type", func(t *testing.T) {
@@ -83,8 +83,7 @@ func TestGenerateFuturesPayload(t *testing.T) {
 		_, err := e.generateFuturesPayload(t.Context(), subscribeEvent, subscription.List{
 			&subscription.Subscription{Channel: futuresOrderbookUpdateWithSnapshotChannel, Pairs: currency.Pairs{currency.EMPTYPAIR}, Params: map[string]any{"level": uint64(50)}},
 		})
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "params must be populated with only the currency pair")
+		require.ErrorIs(t, err, common.ErrParameterRequired)
 	})
 
 	t.Run("happy path unauthenticated - params", func(t *testing.T) {
