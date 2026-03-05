@@ -306,7 +306,7 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 				return nil, common.GetTypeAssertError("uint64", level, "level must be of type uint64")
 			}
 			if len(params) != 1 || params[0] == "" {
-				return nil, errors.New("params must be populated with only the currency pair")
+				return nil, fmt.Errorf("%w: currency pair for %q", errParameterRequired, futuresOrderbookUpdateWithSnapshotChannel)
 			}
 			params[0] = "ob." + params[0] + "." + strconv.FormatUint(uintLvl, 10)
 		}
