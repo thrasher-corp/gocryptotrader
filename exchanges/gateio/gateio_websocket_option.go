@@ -161,7 +161,7 @@ getEnabledPairs:
 
 func (e *Exchange) generateOptionsPayload(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
-		return nil, errors.New("cannot generate payload, no channels supplied")
+		return nil, errNoChannelsSupplied
 	}
 	var err error
 	var intervalString string

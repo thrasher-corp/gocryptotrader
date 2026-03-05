@@ -36,6 +36,7 @@ const (
 	futuresOrderbookChannel       = "futures.order_book"
 	futuresOrderbookTickerChannel = "futures.book_ticker"
 	futuresOrderbookUpdateChannel = "futures.order_book_update"
+	futuresOrderbookV2            = "futures.obu"
 	futuresCandlesticksChannel    = "futures.candlesticks"
 	futuresOrdersChannel          = "futures.orders"
 
@@ -55,9 +56,18 @@ const (
 var defaultFuturesSubscriptions = []string{
 	futuresTickersChannel,
 	futuresTradesChannel,
+	futuresOrderbookV2,
+	futuresCandlesticksChannel,
+}
+
+var defaultCoinMarginedFuturesSubscriptions = []string{
+	futuresTickersChannel,
+	futuresTradesChannel,
 	futuresOrderbookUpdateChannel,
 	futuresCandlesticksChannel,
 }
+
+var errNoChannelsSupplied = errors.New("no channels supplied")
 
 // WsFuturesConnect initiates a websocket connection for futures account
 func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connection) error {
@@ -83,6 +93,9 @@ func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connecti
 // TODO: Update to use the new subscription template system
 func (e *Exchange) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscription.List, error) {
 	channelsToSubscribe := defaultFuturesSubscriptions
+	if a == asset.CoinMarginedFutures {
+		channelsToSubscribe = defaultCoinMarginedFuturesSubscriptions
+	}
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
 		channelsToSubscribe = append(channelsToSubscribe, futuresOrdersChannel, futuresUserTradesChannel, futuresBalancesChannel)
 	}
@@ -109,6 +122,9 @@ func (e *Exchange) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscripti
 				// This is the fastest frequency available for futures orderbook updates 20 levels every 20ms
 				params["frequency"] = kline.TwentyMilliseconds
 				params["level"] = strconv.FormatUint(futuresOrderbookUpdateLimit, 10)
+			case futuresOrderbookV2:
+				// Fastest frequency available. 50 levels which defaults to 20ms frequency
+				params["level"] = uint64(50)
 			}
 			fPair, err := e.FormatExchangeCurrency(pairs[j], a)
 			if err != nil {
@@ -161,6 +177,8 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 		return e.processFuturesOrderbookTicker(ctx, push.Result)
 	case futuresOrderbookUpdateChannel:
 		return e.processFuturesOrderbookUpdate(ctx, push.Result, a, push.Time)
+	case futuresOrderbookV2:
+		return e.processOrderbookUpdateWithSnapshot(ctx, conn, push.Result, push.Time, a)
 	case futuresCandlesticksChannel:
 		return e.processFuturesCandlesticks(ctx, respRaw, a)
 	case futuresOrdersChannel:
@@ -196,8 +214,9 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 
 func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
-		return nil, errors.New("cannot generate payload, no channels supplied")
+		return nil, errNoChannelsSupplied
 	}
+
 	var creds *accounts.Credentials
 	var err error
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
@@ -278,6 +297,19 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 			if okay {
 				params = append(params, intervalString)
 			}
+		case futuresOrderbookV2:
+			level, ok := channelsToSubscribe[i].Params["level"]
+			if !ok {
+				return nil, fmt.Errorf("%w: %q for %q", common.ErrParameterRequired, "level", futuresOrderbookV2)
+			}
+			uintLvl, ok := level.(uint64)
+			if !ok {
+				return nil, common.GetTypeAssertError("uint64", level, "level must be of type uint64")
+			}
+			if len(params) != 1 || params[0] == "" {
+				return nil, fmt.Errorf("%w: currency pair for %q", common.ErrParameterRequired, futuresOrderbookV2)
+			}
+			params[0] = "ob." + params[0] + "." + strconv.FormatUint(uintLvl, 10)
 		}
 		outbound = append(outbound, WsInput{
 			ID:      e.MessageSequence(),

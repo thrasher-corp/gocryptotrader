@@ -792,6 +792,7 @@ func isSingleOrderbookChannel(name string) bool {
 		futuresOrderbookChannel,
 		futuresOrderbookTickerChannel,
 		futuresOrderbookUpdateChannel,
+		futuresOrderbookV2,
 		optionsOrderbookChannel,
 		optionsOrderbookTickerChannel,
 		optionsOrderbookUpdateChannel:
