@@ -2071,7 +2071,7 @@ func TestFuturesDataHandler(t *testing.T) {
 		return e.WsHandleFuturesData(ctx, nil, m, asset.CoinMarginedFutures)
 	})
 	e.Websocket.DataHandler.Close()
-	assert.Len(t, e.Websocket.DataHandler.C, 14, "Should see the correct number of messages")
+	assert.Len(t, e.Websocket.DataHandler.C, 15, "Should see the correct number of messages")
 	for resp := range e.Websocket.DataHandler.C {
 		if err, isErr := resp.Data.(error); isErr {
 			assert.NoError(t, err, "Should not get any errors down the data handler")
