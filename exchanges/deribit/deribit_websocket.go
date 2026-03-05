@@ -948,22 +948,18 @@ func isSymbolChannel(s *subscription.Subscription) bool {
 	return false
 }
 
-func formatChannelPair(pair currency.Pair) string {
-	if str := pair.Quote.String(); strings.Contains(str, "PERPETUAL") && strings.Contains(str, "-") {
-		pair.Delimiter = "_"
-		return pair.String()
-	}
-	if strings.Contains(pair.Quote.String(), "-") && pair.Delimiter == "" {
+func formatChannelPair(assetType asset.Item, pair currency.Pair) string {
+	if pair.Delimiter == "" {
 		pair.Delimiter = "-"
 	}
-	return pair.String()
+	return formatPairString(assetType, pair)
 }
 
 const subTplText = `
 {{- if isSymbolChannel $.S -}}
 	{{- range $asset, $pairs := $.AssetPairs }}
 		{{- range $p := $pairs }}
-			{{- channelName $.S -}} . {{- fmt $p }}
+			{{- channelName $.S -}} . {{- fmt $asset $p }}
 			{{- with $i := interval $.S -}} . {{- $i }}{{ end }}
 			{{- $.PairSeparator }}
 		{{- end }}

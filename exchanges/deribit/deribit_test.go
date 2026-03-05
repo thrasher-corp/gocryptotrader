@@ -4159,20 +4159,51 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 
 func TestFormatChannelPair(t *testing.T) {
 	t.Parallel()
-	pair := currency.NewPair(currency.BTC, currency.NewCode("USDC-PERPETUAL"))
-	pair.Delimiter = "-"
-	assert.Equal(t, "BTC_USDC-PERPETUAL", formatChannelPair(pair))
 
-	pair = currency.NewPair(currency.BTC, currency.NewCode("PERPETUAL"))
-	pair.Delimiter = "-"
-	assert.Equal(t, "BTC-PERPETUAL", formatChannelPair(pair))
+	tests := []struct {
+		name      string
+		assetType asset.Item
+		pair      currency.Pair
+		exp       string
+	}{
+		{
+			name:      "linear perpetual futures",
+			assetType: asset.Futures,
+			pair:      currency.NewPair(currency.BTC, currency.NewCode("USDC-PERPETUAL")),
+			exp:       "BTC_USDC-PERPETUAL",
+		},
+		{
+			name:      "inverse perpetual futures",
+			assetType: asset.Futures,
+			pair:      currency.NewPair(currency.BTC, currency.NewCode("PERPETUAL")),
+			exp:       "BTC-PERPETUAL",
+		},
+		{
+			name:      "dated linear futures",
+			assetType: asset.Futures,
+			pair:      currency.NewPair(currency.BTC, currency.NewCode("USDC-27MAR26")),
+			exp:       "BTC_USDC-27MAR26",
+		},
+		{
+			name:      "linear options",
+			assetType: asset.Options,
+			pair:      currency.NewPair(currency.NewCode("PAXG"), currency.NewCode("USDC-30MAY25")),
+			exp:       "PAXG_USDC-30MAY25",
+		},
+		{
+			name:      "inverse options",
+			assetType: asset.Options,
+			pair:      currency.NewPair(currency.BTC, currency.NewCode("14JUN24-62000-C")),
+			exp:       "BTC-14JUN24-62000-C",
+		},
+	}
 
-	pair = currency.NewPair(currency.NewCode("PAXG"), currency.NewCode("USDC-30MAY25"))
-	assert.Equal(t, "PAXG-USDC-30MAY25", formatChannelPair(pair))
-
-	pair = currency.NewPair(currency.NewCode("ETH"), currency.NewCode("USDC-30MAY25"))
-	pair.Delimiter = "_"
-	assert.Equal(t, "ETH_USDC-30MAY25", formatChannelPair(pair))
+	for i := range tests {
+		t.Run(tests[i].name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tests[i].exp, formatChannelPair(tests[i].assetType, tests[i].pair))
+		})
+	}
 }
 
 var timeInForceList = []struct {
