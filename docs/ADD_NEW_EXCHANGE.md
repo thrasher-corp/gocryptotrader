@@ -218,7 +218,7 @@ if err != nil {
 - Run documentation.go to generate readme file for the exchange:
 
 ```console
-cd gocryptotrader\cmd\documentation
+cd gocryptotrader/cmd/documentation
 go run documentation.go
 ```
 
