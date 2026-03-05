@@ -4157,7 +4157,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	assert.NotEmpty(t, resp)
 }
 
-func TestFormatChannelPair(t *testing.T) {
+func TestFormatPairString(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -4166,6 +4166,12 @@ func TestFormatChannelPair(t *testing.T) {
 		pair      currency.Pair
 		exp       string
 	}{
+		{
+			name:      "spot",
+			assetType: asset.Spot,
+			pair:      currency.NewPair(currency.BTC, currency.USDC),
+			exp:       "BTC_USDC",
+		},
 		{
 			name:      "linear perpetual futures",
 			assetType: asset.Futures,
@@ -4196,12 +4202,24 @@ func TestFormatChannelPair(t *testing.T) {
 			pair:      currency.NewPair(currency.BTC, currency.NewCode("14JUN24-62000-C")),
 			exp:       "BTC-14JUN24-62000-C",
 		},
+		{
+			name:      "linear option combo",
+			assetType: asset.OptionCombo,
+			pair:      currency.NewPair(currency.BTC, currency.NewCode("USDC-PCOND-7MAR26-65500_66000_70000_70500")),
+			exp:       "BTC_USDC-PCOND-7MAR26-65500_66000_70000_70500",
+		},
+		{
+			name:      "future combo",
+			assetType: asset.FutureCombo,
+			pair:      currency.NewPair(currency.BTC, currency.NewCode("USDC-FS-27MAR26_PERP")),
+			exp:       "BTC_USDC-FS-27MAR26_PERP",
+		},
 	}
 
 	for i := range tests {
 		t.Run(tests[i].name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tests[i].exp, formatChannelPair(tests[i].assetType, tests[i].pair))
+			assert.Equal(t, tests[i].exp, formatPairString(tests[i].assetType, tests[i].pair))
 		})
 	}
 }

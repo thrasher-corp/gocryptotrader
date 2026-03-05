@@ -836,7 +836,7 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 		"channelName":     channelName,
 		"interval":        channelInterval,
 		"isSymbolChannel": isSymbolChannel,
-		"fmt":             formatChannelPair,
+		"fmt":             formatPairString,
 	}).
 		Parse(subTplText)
 }
@@ -946,13 +946,6 @@ func isSymbolChannel(s *subscription.Subscription) bool {
 		return true
 	}
 	return false
-}
-
-func formatChannelPair(assetType asset.Item, pair currency.Pair) string {
-	if pair.Delimiter == "" {
-		pair.Delimiter = "-"
-	}
-	return formatPairString(assetType, pair)
 }
 
 const subTplText = `
