@@ -174,17 +174,17 @@ func FixtureToDataHandlerWithErrors(tb testing.TB, fixturePath string, reader fu
 
 // SkipTestIfCannotUseAuthenticatedWebsocket checks the common requirements for
 // authenticated websocket tests.
-func SkipTestIfCannotUseAuthenticatedWebsocket(t *testing.T, e exchange.IBotExchange) {
-	t.Helper()
+func SkipTestIfCannotUseAuthenticatedWebsocket(tb testing.TB, e exchange.IBotExchange) {
+	tb.Helper()
 
 	if !e.GetBase().Websocket.IsEnabled() {
-		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
+		tb.Skip(websocket.ErrWebsocketNotEnabled.Error())
 	}
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	sharedtestvalues.SkipTestIfCredentialsUnset(tb, e)
 
 	if !e.GetBase().API.AuthenticatedWebsocketSupport {
-		t.Skip("Authenticated API support not enabled")
+		tb.Skip("Authenticated websocket API support not enabled")
 	}
 }
 
