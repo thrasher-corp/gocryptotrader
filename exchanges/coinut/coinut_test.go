@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -61,12 +60,8 @@ func setupWSTestAuth(t *testing.T) {
 		return
 	}
 
-	if !e.Websocket.IsEnabled() && !e.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(e) {
-		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
-	}
-	if sharedtestvalues.AreAPICredentialsSet(e) {
-		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	}
+	testexch.SkipTestIfCannotUseAuthenticatedWebsocket(t, e)
+	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 
 	var dialer gws.Dialer
 	err := e.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{}, nil)

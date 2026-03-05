@@ -1111,13 +1111,7 @@ func TestGetDepositAddress(t *testing.T) {
 }
 
 func TestWSAuth(t *testing.T) {
-	if !e.Websocket.IsEnabled() {
-		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
-	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if !e.API.AuthenticatedWebsocketSupport {
-		t.Skip("Authenticated API support not enabled")
-	}
+	testexch.SkipTestIfCannotUseAuthenticatedWebsocket(t, e)
 	testexch.SetupWs(t, e)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must be turned on")
 
