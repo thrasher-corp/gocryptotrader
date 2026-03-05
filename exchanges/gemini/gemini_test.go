@@ -848,6 +848,11 @@ func TestWSTrade(t *testing.T) {
 }
 
 func TestWsCandles(t *testing.T) {
+	t.Parallel()
+
+	g := new(Exchange)
+	require.NoError(t, testexch.Setup(g), "Test instance Setup must not error")
+
 	pressXToJSON := []byte(`{
   "type": "candles_15m_updates",
   "symbol": "BTCUSD",
@@ -870,8 +875,59 @@ func TestWsCandles(t *testing.T) {
     ]
   ]
 }`)
-	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
-		t.Error(err)
+	require.NoError(t, g.wsHandleData(t.Context(), pressXToJSON))
+
+	for _, exp := range []kline.Candle{
+		{
+			Time:   time.UnixMilli(1561054500000),
+			Open:   9350.18,
+			High:   9358.35,
+			Low:    9350.18,
+			Close:  9355.51,
+			Volume: 2.07,
+		},
+		{
+			Time:   time.UnixMilli(1561053600000),
+			Open:   9357.33,
+			High:   9357.33,
+			Low:    9350.18,
+			Close:  9350.18,
+			Volume: 1.5900161,
+		},
+	} {
+		select {
+		case msg := <-g.Websocket.DataHandler.C:
+			k, ok := msg.Data.(kline.Item)
+			require.True(t, ok, "expected kline item")
+			assert.Equal(t, kline.FifteenMin, k.Interval)
+			assert.Equal(t, exp, k.Candles[0])
+		default:
+			require.Fail(t, "expected websocket candle payload")
+		}
+	}
+}
+
+func TestCandleTypeToInterval(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		candleType string
+		interval   kline.Interval
+		hasErr     bool
+	}{
+		{candleType: "candles_1m_updates", interval: kline.OneMin},
+		{candleType: "candles_5m_updates", interval: kline.FiveMin},
+		{candleType: "candles_1h_updates", interval: kline.OneHour},
+		{candleType: "candles_1d_updates", interval: kline.OneDay},
+		{candleType: "bad", hasErr: true},
+	}
+	for _, tt := range tests {
+		got, err := candleTypeToInterval(tt.candleType)
+		if tt.hasErr {
+			require.ErrorIs(t, err, kline.ErrInvalidInterval)
+			continue
+		}
+		require.NoError(t, err)
+		assert.Equal(t, tt.interval, got)
 	}
 }
 

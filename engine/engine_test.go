@@ -100,7 +100,10 @@ func TestStartStopDoesNotCausePanic(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	botOne.Settings.EnableGRPC = false
 	botOne.Settings.EnableGRPCProxy = false
+	botOne.Config.RemoteControl.GRPC.Enabled = false
+	botOne.Config.RemoteControl.GRPC.GRPCProxyEnabled = false
 	for i := range botOne.Config.Exchanges {
 		if botOne.Config.Exchanges[i].Name != testExchange {
 			// there is no need to load all exchanges for this test
@@ -131,7 +134,10 @@ func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	botOne.Settings.EnableGRPC = false
 	botOne.Settings.EnableGRPCProxy = false
+	botOne.Config.RemoteControl.GRPC.Enabled = false
+	botOne.Config.RemoteControl.GRPC.GRPCProxyEnabled = false
 
 	botTwo, err := NewFromSettings(&Settings{
 		ConfigFile:   config.TestFile,
@@ -141,7 +147,10 @@ func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	botTwo.Settings.EnableGRPC = false
 	botTwo.Settings.EnableGRPCProxy = false
+	botTwo.Config.RemoteControl.GRPC.Enabled = false
+	botTwo.Config.RemoteControl.GRPC.GRPCProxyEnabled = false
 
 	if err = botOne.Start(); err != nil {
 		t.Error(err)
@@ -340,12 +349,12 @@ var unsupportedDefaultConfigExchanges = []string{
 }
 
 func TestGetDefaultConfigurations(t *testing.T) {
-	// Intentionally serial: exchange default setup mutates shared globals in some
-	// implementations, and parallel subtests can trigger race-detector failures.
+	t.Parallel()
 	em := NewExchangeManager()
 	for i := range exchange.Exchanges {
 		name := strings.ToLower(exchange.Exchanges[i])
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			exch, err := em.NewExchangeByName(name)
 			require.NoError(t, err, "NewExchangeByName must not error")
 

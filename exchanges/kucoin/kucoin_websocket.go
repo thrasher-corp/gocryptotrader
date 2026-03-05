@@ -553,23 +553,28 @@ func (e *Exchange) processFuturesKline(ctx context.Context, respData []byte, int
 	if err != nil {
 		return err
 	}
+	interval, err := IntervalFromString(intervalStr)
+	if err != nil {
+		return err
+	}
 	var pair currency.Pair
 	pair, err = currency.NewPairFromString(resp.Symbol)
 	if err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &websocket.KlineData{
-		Timestamp:  resp.Time.Time(),
-		AssetType:  asset.Futures,
-		Exchange:   e.Name,
-		StartTime:  time.Unix(resp.Candles[0].Int64(), 0),
-		Interval:   intervalStr,
-		OpenPrice:  resp.Candles[1].Float64(),
-		ClosePrice: resp.Candles[2].Float64(),
-		HighPrice:  resp.Candles[3].Float64(),
-		LowPrice:   resp.Candles[4].Float64(),
-		Volume:     resp.Candles[6].Float64(),
-		Pair:       pair,
+	return e.Websocket.DataHandler.Send(ctx, &kline.Item{
+		Asset:    asset.Futures,
+		Exchange: e.Name,
+		Pair:     pair,
+		Interval: interval,
+		Candles: []kline.Candle{{
+			Time:   time.Unix(resp.Candles[0].Int64(), 0),
+			Open:   resp.Candles[1].Float64(),
+			Close:  resp.Candles[2].Float64(),
+			High:   resp.Candles[3].Float64(),
+			Low:    resp.Candles[4].Float64(),
+			Volume: resp.Candles[6].Float64(),
+		}},
 	})
 }
 
@@ -767,7 +772,11 @@ func (e *Exchange) processTicker(ctx context.Context, respData []byte, instrumen
 }
 
 // processCandlesticks processes a candlestick data for an instrument with a particular interval
-func (e *Exchange) processCandlesticks(ctx context.Context, respData []byte, instrument, intervalString, topic string) error {
+func (e *Exchange) processCandlesticks(ctx context.Context, respData []byte, instrument, intervalStr, topic string) error {
+	interval, err := IntervalFromString(intervalStr)
+	if err != nil {
+		return err
+	}
 	pair, err := currency.NewPairFromString(instrument)
 	if err != nil {
 		return err
@@ -784,18 +793,19 @@ func (e *Exchange) processCandlesticks(ctx context.Context, respData []byte, ins
 		if !e.AssetWebsocketSupport.IsAssetWebsocketSupported(assets[x]) {
 			continue
 		}
-		if err := e.Websocket.DataHandler.Send(ctx, &websocket.KlineData{
-			Timestamp:  resp.Time.Time(),
-			Pair:       pair,
-			AssetType:  assets[x],
-			Exchange:   e.Name,
-			StartTime:  resp.Candles.StartTime.Time(),
-			Interval:   intervalString,
-			OpenPrice:  resp.Candles.OpenPrice.Float64(),
-			ClosePrice: resp.Candles.ClosePrice.Float64(),
-			HighPrice:  resp.Candles.HighPrice.Float64(),
-			LowPrice:   resp.Candles.LowPrice.Float64(),
-			Volume:     resp.Candles.TransactionVolume.Float64(),
+		if err := e.Websocket.DataHandler.Send(ctx, &kline.Item{
+			Pair:     pair,
+			Asset:    assets[x],
+			Exchange: e.Name,
+			Interval: interval,
+			Candles: []kline.Candle{{
+				Time:   resp.Candles.StartTime.Time(),
+				Open:   resp.Candles.OpenPrice.Float64(),
+				Close:  resp.Candles.ClosePrice.Float64(),
+				High:   resp.Candles.HighPrice.Float64(),
+				Low:    resp.Candles.LowPrice.Float64(),
+				Volume: resp.Candles.TransactionVolume.Float64(),
+			}},
 		}); err != nil {
 			return err
 		}

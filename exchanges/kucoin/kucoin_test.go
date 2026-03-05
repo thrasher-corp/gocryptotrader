@@ -4420,9 +4420,60 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 
 func TestProcessFuturesKline(t *testing.T) {
 	t.Parallel()
+
+	ku := new(Exchange)
+	require.NoError(t, testexch.Setup(ku), "Test instance Setup must not error")
+
 	data := fmt.Sprintf(`{"symbol":%q,"candles":["1714964400","63815.1","63890.8","63928.5","63797.8","17553.0","17553"],"time":1714964823722}`, futuresTradablePair.String())
-	err := e.processFuturesKline(t.Context(), []byte(data), "1hour")
-	assert.NoError(t, err)
+	err := ku.processFuturesKline(t.Context(), []byte(data), "1hour")
+	require.NoError(t, err)
+
+	select {
+	case msg := <-ku.Websocket.DataHandler.C:
+		got, ok := msg.Data.(*kline.Item)
+		require.True(t, ok, "expected *kline.Item")
+		assert.Equal(t, &kline.Item{
+			Asset:    asset.Futures,
+			Exchange: ku.Name,
+			Pair:     futuresTradablePair,
+			Interval: kline.OneHour,
+			Candles: []kline.Candle{{
+				Time:   time.Unix(1714964400, 0),
+				Open:   63815.1,
+				Close:  63890.8,
+				High:   63928.5,
+				Low:    63797.8,
+				Volume: 17553,
+			}},
+		}, got)
+	default:
+		require.Fail(t, "expected websocket kline payload")
+	}
+}
+
+func TestIntervalFromString(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		interval string
+		expected kline.Interval
+		hasErr   bool
+	}{
+		{interval: "1min", expected: kline.OneMin},
+		{interval: "15min", expected: kline.FifteenMin},
+		{interval: "1hour", expected: kline.OneHour},
+		{interval: "1day", expected: kline.OneDay},
+		{interval: "1week", expected: kline.OneWeek},
+		{interval: "bad", hasErr: true},
+	}
+	for _, tt := range tests {
+		got, err := IntervalFromString(tt.interval)
+		if tt.hasErr {
+			require.ErrorIs(t, err, kline.ErrInvalidInterval)
+			continue
+		}
+		require.NoError(t, err)
+		assert.Equal(t, tt.expected, got)
+	}
 }
 
 func TestWithdrawInternationalBank(t *testing.T) {

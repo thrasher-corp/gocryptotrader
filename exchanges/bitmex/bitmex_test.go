@@ -1,6 +1,7 @@
 package bitmex
 
 import (
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -148,6 +149,52 @@ func TestGetFundingHistory(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetAccountFundingHistory(t.Context())
 	require.Error(t, err)
+}
+
+func TestUserMarginGETUsesQueryNotBody(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	err := testexch.Setup(ex)
+	require.NoError(t, err, "Setup must not error")
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials("test-key", "test-secret", "", "", "", "")
+
+	call := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		call++
+		assert.Equal(t, http.MethodGet, r.Method, "Request method should be GET")
+		assert.Equal(t, "/api/v1/user/margin", r.URL.Path, "Request path should be correct")
+
+		body, err := io.ReadAll(r.Body)
+		assert.NoError(t, err, "Reading request body should not error")
+		assert.Empty(t, body, "GET requests should not include a JSON body")
+
+		switch call {
+		case 1:
+			assert.Equal(t, "currency=XBt", r.URL.RawQuery, "GetUserMargin should use currency query param")
+			_, err = w.Write([]byte(`{"currency":"XBt","walletBalance":1}`))
+			assert.NoError(t, err, "Writing response should not error")
+		case 2:
+			assert.Equal(t, "currency=all", r.URL.RawQuery, "GetAllUserMargin should use currency query param")
+			_, err = w.Write([]byte(`[{"currency":"XBt","walletBalance":1}]`))
+			assert.NoError(t, err, "Writing response should not error")
+		default:
+			t.Fatalf("unexpected request call count: %d", call)
+		}
+	}))
+	defer server.Close()
+
+	err = ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v1")
+	require.NoError(t, err, "SetRunningURL must not error")
+
+	_, err = ex.GetUserMargin(t.Context(), "XBt")
+	require.NoError(t, err, "GetUserMargin must not error")
+
+	_, err = ex.GetAllUserMargin(t.Context())
+	require.NoError(t, err, "GetAllUserMargin must not error")
+
+	require.Equal(t, 2, call, "Expected exactly two requests")
 }
 
 func TestGetInstruments(t *testing.T) {

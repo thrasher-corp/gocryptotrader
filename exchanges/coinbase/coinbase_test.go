@@ -1612,6 +1612,40 @@ func TestWsHandleData(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestWsProcessCandleIntervalMapping(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup instance must not error")
+
+	resp := &StandardWebsocketResponse{
+		Channel: "candles",
+		Events:  json.RawMessage(`[{"type":"snapshot","candles":[{"start":1704067200,"low":"99.5","high":"101.0","open":"100.0","close":"100.5","volume":"12.3","product_id":"BTC-USD"}]}]`),
+	}
+	require.NoError(t, ex.wsProcessCandle(t.Context(), resp))
+
+	select {
+	case msg := <-ex.Websocket.DataHandler.C:
+		got, ok := msg.Data.([]kline.Item)
+		require.True(t, ok, "expected []kline.Item")
+		assert.Equal(t, []kline.Item{{
+			Pair:     currency.NewPairWithDelimiter("BTC", "USD", "-"),
+			Asset:    asset.Spot,
+			Exchange: ex.Name,
+			Interval: kline.FiveMin,
+			Candles: []kline.Candle{{
+				Time:   time.Unix(1704067200, 0),
+				Open:   100,
+				Close:  100.5,
+				High:   101,
+				Low:    99.5,
+				Volume: 12.3,
+			}},
+		}}, got)
+	default:
+		require.Fail(t, "expected websocket candle payload")
+	}
+}
+
 func TestProcessSnapshotUpdate(t *testing.T) {
 	t.Parallel()
 	req := WebsocketOrderbookDataHolder{Changes: []WebsocketOrderbookData{{Side: "fakeside", PriceLevel: 1.1, NewQuantity: 2.2}}, ProductID: currency.NewBTCUSD()}
