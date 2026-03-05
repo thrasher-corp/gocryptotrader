@@ -93,7 +93,6 @@ func TestGenerateFuturesPayload(t *testing.T) {
 		ex := new(Exchange)
 		ex.SetDefaults()
 		ex.Name = "generateFuturesPayloadTest"
-		ex.Websocket = e.Websocket
 		ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
 
 		got, err := ex.generateFuturesPayload(context.Background(), subscribeEvent, subscription.List{
@@ -150,7 +149,6 @@ func TestGenerateFuturesPayload(t *testing.T) {
 
 		// Force path into GetCredentials() by allowing authenticated endpoints.
 		ex.API.AuthenticatedWebsocketSupport = true
-		ex.Websocket = e.Websocket
 		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 
 		got, err := ex.generateFuturesPayload(t.Context(), subscribeEvent, subscription.List{
@@ -172,7 +170,6 @@ func TestGenerateFuturesPayload(t *testing.T) {
 		ex.SetDefaults()
 		ex.Name = "generateFuturesPayloadAuthTest"
 		ex.API.AuthenticatedWebsocketSupport = true
-		ex.Websocket = e.Websocket
 		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 		ex.SetCredentials("key", "secret", "", "", "", "")
 
