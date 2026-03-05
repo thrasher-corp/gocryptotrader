@@ -3055,7 +3055,8 @@ func TestGetOrderbookMovement(t *testing.T) {
 
 	exch.SetDefaults()
 	b := exch.GetBase()
-	b.Name = fakeExchangeName
+	uniqueFakeExchangeName := newUniqueFakeExchangeName()
+	b.Name = uniqueFakeExchangeName
 	b.Enabled = true
 
 	cp := currency.NewPairWithDelimiter("btc", "metal", "-")
@@ -3081,7 +3082,7 @@ func TestGetOrderbookMovement(t *testing.T) {
 	_, err = s.GetOrderbookMovement(t.Context(), req)
 	require.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
-	req.Exchange = "fake"
+	req.Exchange = uniqueFakeExchangeName
 	_, err = s.GetOrderbookMovement(t.Context(), req)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 

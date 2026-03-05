@@ -646,21 +646,26 @@ func (e *Exchange) wsProcessCandle(ctx context.Context, c string, resp json.RawM
 	if len(parts) != 2 {
 		return errBadChannelSuffix
 	}
-	interval := parts[1]
-
-	return e.Websocket.DataHandler.Send(ctx, websocket.KlineData{
-		AssetType:  asset.Spot,
-		Pair:       pair,
-		Timestamp:  time.Now(),
-		Exchange:   e.Name,
-		StartTime:  data.LastUpdateTime.Time(),
-		CloseTime:  data.LastUpdateTime.Time(),
-		OpenPrice:  data.Open.Float64(),
-		HighPrice:  data.High.Float64(),
-		LowPrice:   data.Low.Float64(),
-		ClosePrice: data.Close.Float64(),
-		Volume:     data.Volume.Float64(),
-		Interval:   interval,
+	intervalMinutes, err := strconv.ParseInt(parts[1], 10, 64)
+	if err != nil {
+		return fmt.Errorf("%w: %s", kline.ErrInvalidInterval, c)
+	}
+	volume := data.Volume.Float64()
+	vwap := data.VWAP.Float64()
+	return e.Websocket.DataHandler.Send(ctx, kline.Item{
+		Asset:    asset.Spot,
+		Pair:     pair,
+		Exchange: e.Name,
+		Interval: kline.Interval(time.Minute * time.Duration(intervalMinutes)),
+		Candles: []kline.Candle{{
+			Time:        data.LastUpdateTime.Time(),
+			Open:        data.Open.Float64(),
+			High:        data.High.Float64(),
+			Low:         data.Low.Float64(),
+			Close:       data.Close.Float64(),
+			Volume:      volume,
+			QuoteVolume: volume * vwap,
+		}},
 	})
 }
 

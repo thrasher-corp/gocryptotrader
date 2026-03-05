@@ -1973,8 +1973,31 @@ const wsCandlestickPushDataJSON = `{"time": 1606292600,	"channel": "spot.candles
 
 func TestWsCandlestickPushData(t *testing.T) {
 	t.Parallel()
-	if err := e.WsHandleSpotData(t.Context(), nil, []byte(wsCandlestickPushDataJSON)); err != nil {
-		t.Errorf("%s websocket candlestick push data error: %v", e.Name, err)
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	require.NoError(t, ex.WsHandleSpotData(t.Context(), nil, []byte(wsCandlestickPushDataJSON)))
+
+	select {
+	case msg := <-ex.Websocket.DataHandler.C:
+		got, ok := msg.Data.([]kline.Item)
+		require.True(t, ok, "expected []kline.Item")
+		require.NotEmpty(t, got, "expected at least one candle")
+		for _, item := range got {
+			assert.Equal(t, kline.OneMin, item.Interval)
+			assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "_"), item.Pair)
+			assert.Equal(t, ex.Name, item.Exchange)
+			require.Len(t, item.Candles, 1)
+			assert.Equal(t, kline.Candle{
+				Time:   time.Unix(1606292580, 0),
+				Open:   19128.1,
+				Close:  19128.1,
+				High:   19128.1,
+				Low:    19128.1,
+				Volume: 2362.32035,
+			}, item.Candles[0])
+		}
+	default:
+		require.Fail(t, "expected websocket candlestick payload")
 	}
 }
 
@@ -2079,6 +2102,37 @@ func TestFuturesDataHandler(t *testing.T) {
 	}
 }
 
+func TestProcessFuturesCandlesticksIntervalMapping(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+
+	payload := []byte(`{"time":1606292600,"channel":"futures.candlesticks","event":"update","result":[{"t":1606292580,"v":"2362.32035","c":"19128.1","h":"19128.1","l":"19128.1","o":"19128.1","n":"1m_BTC_USDT"}]}`)
+	require.NoError(t, ex.processFuturesCandlesticks(t.Context(), payload, asset.CoinMarginedFutures))
+
+	select {
+	case msg := <-ex.Websocket.DataHandler.C:
+		got, ok := msg.Data.([]kline.Item)
+		require.True(t, ok, "expected []kline.Item")
+		assert.Equal(t, []kline.Item{{
+			Pair:     currency.NewPairWithDelimiter("BTC", "USDT", "_"),
+			Asset:    asset.CoinMarginedFutures,
+			Exchange: ex.Name,
+			Interval: kline.OneMin,
+			Candles: []kline.Candle{{
+				Time:   time.Unix(1606292580, 0),
+				Open:   19128.1,
+				Close:  19128.1,
+				High:   19128.1,
+				Low:    19128.1,
+				Volume: 2362.32035,
+			}},
+		}}, got)
+	default:
+		require.Fail(t, "expected futures websocket candle payload")
+	}
+}
+
 // ******************************************** Options web-socket unit test funcs ********************
 
 const optionsContractTickerPushDataJSON = `{"time": 1630576352,	"channel": "options.contract_tickers",	"event": "update",	"result": {    "name": "BTC_USDT-20211231-59800-P",    "last_price": "11349.5",    "mark_price": "11170.19",    "index_price": "",    "position_size": 993,    "bid1_price": "10611.7",    "bid1_size": 100,    "ask1_price": "11728.7",    "ask1_size": 100,    "vega": "34.8731",    "theta": "-72.80588",    "rho": "-28.53331",    "gamma": "0.00003",    "delta": "-0.78311",    "mark_iv": "0.86695",    "bid_iv": "0.65481",    "ask_iv": "0.88145",    "leverage": "3.5541112718136"	}}`
@@ -2160,11 +2214,37 @@ const (
 
 func TestOptionsCandlesticksPushData(t *testing.T) {
 	t.Parallel()
-	if err := e.WsHandleOptionsData(t.Context(), nil, []byte(optionsContractCandlesticksPushDataJSON)); err != nil {
-		t.Errorf("%s websocket options contracts candlestick push data error: %v", e.Name, err)
-	}
-	if err := e.WsHandleOptionsData(t.Context(), nil, []byte(optionsUnderlyingCandlesticksPushDataJSON)); err != nil {
-		t.Errorf("%s websocket options underlying candlestick push data error: %v", e.Name, err)
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	require.NoError(t, ex.WsHandleOptionsData(t.Context(), nil, []byte(optionsContractCandlesticksPushDataJSON)))
+	require.NoError(t, ex.WsHandleOptionsData(t.Context(), nil, []byte(optionsUnderlyingCandlesticksPushDataJSON)))
+
+	for _, expPair := range []currency.Pair{
+		currency.NewPairWithDelimiter("BTC", "USDT-20211231-59800-C", "_"),
+		currency.NewPairWithDelimiter("BTC", "USDT", "_"),
+	} {
+		select {
+		case msg := <-ex.Websocket.DataHandler.C:
+			got, ok := msg.Data.([]kline.Item)
+			require.True(t, ok, "expected []kline.Item")
+			require.Len(t, got, 1)
+			assert.Equal(t, []kline.Item{{
+				Pair:     expPair,
+				Asset:    asset.Options,
+				Exchange: ex.Name,
+				Interval: kline.TenSecond,
+				Candles: []kline.Candle{{
+					Time:   time.Unix(1639039260, 0),
+					Open:   1041.4,
+					Close:  1041.4,
+					High:   1041.4,
+					Low:    1041.4,
+					Volume: 0,
+				}},
+			}}, got)
+		default:
+			require.Fail(t, "expected websocket options candle payload")
+		}
 	}
 }
 
