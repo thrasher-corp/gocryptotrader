@@ -56,7 +56,7 @@ func TestGenerateFuturesPayload(t *testing.T) {
 				Params:  map[string]any{"interval": kline.Interval(time.Duration(-1))},
 			},
 		})
-		require.Error(t, err, kline.ErrUnsupportedInterval)
+		require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
 	})
 
 	t.Run("orderbook update with snapshot missing level", func(t *testing.T) {
