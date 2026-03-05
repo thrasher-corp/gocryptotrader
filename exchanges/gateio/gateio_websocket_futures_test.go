@@ -2,7 +2,6 @@ package gateio
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -20,8 +19,7 @@ func TestGenerateFuturesPayload(t *testing.T) {
 		t.Parallel()
 
 		_, err := e.generateFuturesPayload(t.Context(), subscribeEvent, nil)
-		require.Error(t, err)
-		require.Contains(t, fmt.Sprint(err), "cannot generate payload, no channels supplied")
+		require.ErrorIs(t, err, errNoChannelsSupplied)
 	})
 
 	t.Run("not single pair", func(t *testing.T) {

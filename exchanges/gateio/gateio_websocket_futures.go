@@ -67,6 +67,8 @@ var defaultCoinMarginedFuturesSubscriptions = []string{
 	futuresCandlesticksChannel,
 }
 
+var errNoChannelsSupplied = errors.New("no channels supplied")
+
 // WsFuturesConnect initiates a websocket connection for futures account
 func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connection) error {
 	a := asset.USDTMarginedFutures
@@ -212,8 +214,9 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 
 func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
-		return nil, errors.New("cannot generate payload, no channels supplied")
+		return nil, errNoChannelsSupplied
 	}
+
 	var creds *accounts.Credentials
 	var err error
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
