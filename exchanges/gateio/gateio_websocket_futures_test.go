@@ -63,7 +63,7 @@ func TestGenerateFuturesPayload(t *testing.T) {
 		t.Parallel()
 
 		_, err := e.generateFuturesPayload(t.Context(), subscribeEvent, subscription.List{
-			&subscription.Subscription{Channel: futuresOrderbookUpdateWithSnapshotChannel, Pairs: currency.Pairs{BTCUSDT}, Params: map[string]any{}},
+			&subscription.Subscription{Channel: futuresOrderbookV2, Pairs: currency.Pairs{BTCUSDT}, Params: map[string]any{}},
 		})
 		require.ErrorIs(t, err, common.ErrParameterRequired)
 	})
@@ -72,7 +72,7 @@ func TestGenerateFuturesPayload(t *testing.T) {
 		t.Parallel()
 
 		_, err := e.generateFuturesPayload(t.Context(), subscribeEvent, subscription.List{
-			&subscription.Subscription{Channel: futuresOrderbookUpdateWithSnapshotChannel, Pairs: currency.Pairs{BTCUSDT}, Params: map[string]any{"level": 50}},
+			&subscription.Subscription{Channel: futuresOrderbookV2, Pairs: currency.Pairs{BTCUSDT}, Params: map[string]any{"level": 50}},
 		})
 		require.ErrorIs(t, err, common.ErrTypeAssertFailure)
 	})
@@ -81,7 +81,7 @@ func TestGenerateFuturesPayload(t *testing.T) {
 		t.Parallel()
 
 		_, err := e.generateFuturesPayload(t.Context(), subscribeEvent, subscription.List{
-			&subscription.Subscription{Channel: futuresOrderbookUpdateWithSnapshotChannel, Pairs: currency.Pairs{currency.EMPTYPAIR}, Params: map[string]any{"level": uint64(50)}},
+			&subscription.Subscription{Channel: futuresOrderbookV2, Pairs: currency.Pairs{currency.EMPTYPAIR}, Params: map[string]any{"level": uint64(50)}},
 		})
 		require.ErrorIs(t, err, common.ErrParameterRequired)
 	})
@@ -116,7 +116,7 @@ func TestGenerateFuturesPayload(t *testing.T) {
 				Params:  map[string]any{"interval": "0", "limit": 100},
 			},
 			&subscription.Subscription{
-				Channel: futuresOrderbookUpdateWithSnapshotChannel,
+				Channel: futuresOrderbookV2,
 				Pairs:   currency.Pairs{BTCUSDT},
 				Params:  map[string]any{"level": uint64(50)},
 			},
