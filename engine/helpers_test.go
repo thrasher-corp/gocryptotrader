@@ -207,6 +207,15 @@ func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() u
 	}
 }
 
+func TestSetSubsystemEnableDeniedAfterShutdownRequest(t *testing.T) {
+	t.Parallel()
+	bot := &Engine{Config: &config.Config{}}
+	bot.RequestShutdown()
+
+	err := bot.SetSubsystem(ConnectionManagerName, true)
+	require.ErrorIs(t, err, errRuntimeShutdownRequest)
+}
+
 func TestGetExchangeOTPs(t *testing.T) {
 	t.Parallel()
 	bot := CreateTestBot(t)

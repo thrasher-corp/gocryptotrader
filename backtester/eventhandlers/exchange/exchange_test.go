@@ -192,7 +192,7 @@ func TestPlaceOrder(t *testing.T) {
 	require.NoError(t, err, "Add exchange must not error")
 	bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &bot.ServicesWG, &gctconfig.OrderManager{})
 	require.NoError(t, err, "SetupOrderManager must not error")
-	err = bot.OrderManager.Start()
+	err = bot.OrderManager.Start(t.Context())
 	require.NoError(t, err, "Start must not error")
 
 	e := Exchange{}
@@ -234,7 +234,7 @@ func TestExecuteOrder(t *testing.T) {
 	require.NoError(t, err, "ExchangeManager.Add exchange must not error")
 	bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &bot.ServicesWG, &gctconfig.OrderManager{})
 	require.NoError(t, err, "engine.SetupOrderManager must not error")
-	err = bot.OrderManager.Start()
+	err = bot.OrderManager.Start(t.Context())
 	require.NoError(t, err, "OrderManager.Start must not error")
 
 	p := currency.NewBTCUSDT()
@@ -347,7 +347,7 @@ func TestExecuteOrderBuySellSizeLimit(t *testing.T) {
 	require.NoError(t, err, "Add exchange must not error")
 	bot.OrderManager, err = engine.SetupOrderManager(em, &engine.CommunicationManager{}, &bot.ServicesWG, &gctconfig.OrderManager{})
 	require.NoError(t, err, "SetupOrderManager must not error")
-	err = bot.OrderManager.Start()
+	err = bot.OrderManager.Start(t.Context())
 	require.NoError(t, err, "Start must not error")
 
 	p := currency.NewPair(currency.BTC, currency.AUD)

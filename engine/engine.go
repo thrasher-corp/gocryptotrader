@@ -32,26 +32,30 @@ import (
 // Engine contains configuration, portfolio manager, exchange & ticker data and is the
 // overarching type across this code base.
 type Engine struct {
-	Config                  *config.Config
-	CommunicationsManager   *CommunicationManager
-	connectionManager       *connectionManager
-	currencyPairSyncer      *SyncManager
-	DatabaseManager         *DatabaseConnectionManager
-	DepositAddressManager   *DepositAddressManager
-	eventManager            *eventManager
-	ExchangeManager         *ExchangeManager
-	ntpManager              *ntpManager
-	OrderManager            *OrderManager
-	portfolioManager        *portfolioManager
-	gctScriptManager        *gctscript.GctScriptManager
-	WebsocketRoutineManager *WebsocketRoutineManager
-	WithdrawManager         *WithdrawManager
-	dataHistoryManager      *DataHistoryManager
-	currencyStateManager    *CurrencyStateManager
-	Settings                Settings
-	uptime                  time.Time
-	GRPCShutdownSignal      chan struct{}
-	ServicesWG              sync.WaitGroup
+	Config                   *config.Config
+	CommunicationsManager    *CommunicationManager
+	connectionManager        *connectionManager
+	currencyPairSyncer       *SyncManager
+	DatabaseManager          *DatabaseConnectionManager
+	DepositAddressManager    *DepositAddressManager
+	eventManager             *eventManager
+	ExchangeManager          *ExchangeManager
+	ntpManager               *ntpManager
+	OrderManager             *OrderManager
+	portfolioManager         *portfolioManager
+	gctScriptManager         *gctscript.GctScriptManager
+	WebsocketRoutineManager  *WebsocketRoutineManager
+	WithdrawManager          *WithdrawManager
+	dataHistoryManager       *DataHistoryManager
+	currencyStateManager     *CurrencyStateManager
+	Settings                 Settings
+	uptime                   time.Time
+	GRPCShutdownSignal       chan struct{}
+	runtimeCtx               context.Context //nolint:containedctx // runtime-scoped cancellation context for startup + subsystem propagation
+	runtimeCancel            context.CancelFunc
+	runtimeShutdownRequested bool
+	runtimeMu                sync.RWMutex
+	ServicesWG               sync.WaitGroup
 }
 
 // Bot is a happy global engine to allow various areas of the application
@@ -193,7 +197,7 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 
 	flagSet.WithBool("grpcshutdown", &b.Settings.EnableGRPCShutdown, b.Config.RemoteControl.GRPC.GRPCAllowBotShutdown)
 	if b.Settings.EnableGRPCShutdown {
-		b.GRPCShutdownSignal = make(chan struct{})
+		b.GRPCShutdownSignal = make(chan struct{}, 1)
 		go b.waitForGPRCShutdown()
 	}
 
@@ -295,8 +299,23 @@ func (bot *Engine) Start() error {
 	newEngineMutex.Lock()
 	defer newEngineMutex.Unlock()
 
+	bot.setRuntimeShutdownRequested(false)
+	runtimeCtx := bot.EnsureRuntimeContext()
+	startSuccessful := false
+	defer func() {
+		if startSuccessful {
+			return
+		}
+		bot.cancelRuntimeContext()
+		bot.clearRuntimeContext()
+	}()
+
+	if err := runtimeCtx.Err(); err != nil {
+		return err
+	}
+
 	if bot.Config.Profiler.Enabled {
-		if err := StartPPROF(context.TODO(), &bot.Config.Profiler); err != nil {
+		if err := StartPPROF(runtimeCtx, &bot.Config.Profiler); err != nil {
 			gctlog.Errorf(gctlog.Global, "Failed to start pprof: %v", err)
 		}
 	}
@@ -405,7 +424,7 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableGRPC {
-		go StartRPCServer(bot)
+		go StartRPCServer(runtimeCtx, bot)
 	}
 
 	if bot.Settings.EnablePortfolioManager {
@@ -414,7 +433,7 @@ func (bot *Engine) Start() error {
 				gctlog.Errorf(gctlog.Global, "portfolio manager unable to setup: %s", err)
 			} else {
 				bot.portfolioManager = p
-				if err := bot.portfolioManager.Start(&bot.ServicesWG); err != nil {
+				if err := bot.portfolioManager.Start(runtimeCtx, &bot.ServicesWG); err != nil {
 					gctlog.Errorf(gctlog.Global, "portfolio manager unable to start: %s", err)
 				}
 			}
@@ -427,7 +446,7 @@ func (bot *Engine) Start() error {
 				gctlog.Errorf(gctlog.Global, "database history manager unable to setup: %s", err)
 			} else {
 				bot.dataHistoryManager = d
-				if err := bot.dataHistoryManager.Start(); err != nil {
+				if err := bot.dataHistoryManager.Start(runtimeCtx); err != nil {
 					gctlog.Errorf(gctlog.Global, "database history manager unable to start: %s", err)
 				}
 			}
@@ -458,7 +477,7 @@ func (bot *Engine) Start() error {
 			gctlog.Errorf(gctlog.Global, "Order manager unable to setup: %s", err)
 		} else {
 			bot.OrderManager = o
-			if err = bot.OrderManager.Start(); err != nil {
+			if err = bot.OrderManager.Start(runtimeCtx); err != nil {
 				gctlog.Errorf(gctlog.Global, "Order manager unable to start: %s", err)
 			}
 		}
@@ -494,7 +513,7 @@ func (bot *Engine) Start() error {
 		} else {
 			bot.currencyPairSyncer = s
 			go func() {
-				if err := bot.currencyPairSyncer.Start(); err != nil {
+				if err := bot.currencyPairSyncer.Start(runtimeCtx); err != nil {
 					gctlog.Errorf(gctlog.Global, "failed to start exchange currency pair manager. Err: %s", err)
 				}
 			}()
@@ -517,7 +536,7 @@ func (bot *Engine) Start() error {
 			gctlog.Errorf(gctlog.Global, "Unable to initialise websocket routine manager. Err: %s", err)
 		} else {
 			bot.WebsocketRoutineManager = w
-			if err = bot.WebsocketRoutineManager.Start(); err != nil {
+			if err = bot.WebsocketRoutineManager.Start(runtimeCtx); err != nil {
 				gctlog.Errorf(gctlog.Global, "failed to start websocket routine manager. Err: %s", err)
 			}
 		}
@@ -545,7 +564,7 @@ func (bot *Engine) Start() error {
 				err)
 		} else {
 			bot.currencyStateManager = c
-			if err := bot.currencyStateManager.Start(); err != nil {
+			if err := bot.currencyStateManager.Start(runtimeCtx); err != nil {
 				gctlog.Errorf(gctlog.Global,
 					"%s unable to start: %s",
 					CurrencyStateManagementName,
@@ -554,7 +573,104 @@ func (bot *Engine) Start() error {
 		}
 	}
 
+	startSuccessful = true
 	return nil
+}
+
+func (bot *Engine) getRuntimeContext() context.Context {
+	if bot == nil {
+		return context.Background()
+	}
+	bot.runtimeMu.RLock()
+	ctx := bot.runtimeCtx
+	bot.runtimeMu.RUnlock()
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
+}
+
+func (bot *Engine) getRuntimeCancel() context.CancelFunc {
+	if bot == nil {
+		return nil
+	}
+	bot.runtimeMu.RLock()
+	cancel := bot.runtimeCancel
+	bot.runtimeMu.RUnlock()
+	return cancel
+}
+
+func (bot *Engine) cancelRuntimeContext() {
+	if cancel := bot.getRuntimeCancel(); cancel != nil {
+		cancel()
+	}
+}
+
+func (bot *Engine) clearRuntimeContext() {
+	if bot == nil {
+		return
+	}
+	bot.runtimeMu.Lock()
+	bot.runtimeCtx = nil
+	bot.runtimeCancel = nil
+	bot.runtimeMu.Unlock()
+}
+
+func (bot *Engine) setRuntimeShutdownRequested(requested bool) {
+	if bot == nil {
+		return
+	}
+	bot.runtimeMu.Lock()
+	bot.runtimeShutdownRequested = requested
+	bot.runtimeMu.Unlock()
+}
+
+func (bot *Engine) isRuntimeShutdownRequested() bool {
+	if bot == nil {
+		return false
+	}
+	bot.runtimeMu.RLock()
+	requested := bot.runtimeShutdownRequested
+	bot.runtimeMu.RUnlock()
+	return requested
+}
+
+// EnsureRuntimeContext ensures a cancellable runtime context exists and returns it.
+func (bot *Engine) EnsureRuntimeContext() context.Context {
+	if bot == nil {
+		return context.Background()
+	}
+
+	bot.runtimeMu.Lock()
+	defer bot.runtimeMu.Unlock()
+
+	if bot.runtimeShutdownRequested {
+		if bot.runtimeCtx != nil {
+			return bot.runtimeCtx
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		return ctx
+	}
+
+	if bot.runtimeCancel != nil {
+		if bot.runtimeCtx != nil {
+			return bot.runtimeCtx
+		}
+		return context.Background()
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	bot.runtimeCtx = ctx
+	bot.runtimeCancel = cancel
+	return ctx
+}
+
+// RequestShutdown cancels runtime-scoped work (startup, RPC, websockets, and
+// context-aware exchange calls) without forcing immediate full subsystem stop.
+func (bot *Engine) RequestShutdown() {
+	bot.setRuntimeShutdownRequested(true)
+	bot.cancelRuntimeContext()
 }
 
 // Stop correctly shuts down engine saving configuration files
@@ -564,7 +680,11 @@ func (bot *Engine) Stop() {
 
 	gctlog.Debugln(gctlog.Global, "Engine shutting down..")
 
-	if len(bot.portfolioManager.GetAddresses()) != 0 {
+	bot.setRuntimeShutdownRequested(true)
+	bot.cancelRuntimeContext()
+	bot.clearRuntimeContext()
+
+	if bot.portfolioManager != nil && len(bot.portfolioManager.GetAddresses()) != 0 {
 		bot.Config.Portfolio = bot.portfolioManager.GetPortfolio()
 	}
 
@@ -618,8 +738,8 @@ func (bot *Engine) Stop() {
 			gctlog.Errorf(gctlog.DispatchMgr, "Dispatch system unable to stop. Error: %v", err)
 		}
 	}
-	if bot.WebsocketRoutineManager.IsRunning() {
-		if err := bot.WebsocketRoutineManager.Stop(); err != nil {
+	if bot.WebsocketRoutineManager != nil {
+		if err := bot.WebsocketRoutineManager.Stop(); err != nil && !errors.Is(err, ErrSubSystemNotStarted) {
 			gctlog.Errorf(gctlog.Global, "websocket routine manager unable to stop. Error: %v", err)
 		}
 	}
@@ -767,6 +887,8 @@ func (bot *Engine) LoadExchange(name string) error {
 		return err
 	}
 
+	ctx := bot.getRuntimeContext()
+
 	b := exch.GetBase()
 	if b.API.AuthenticatedSupport || b.API.AuthenticatedWebsocketSupport {
 		enabledAssets := b.CurrencyPairs.GetAssetTypes(true)
@@ -786,7 +908,7 @@ func (bot *Engine) LoadExchange(name string) error {
 			}
 		}
 
-		if err := exch.ValidateAPICredentials(context.TODO(), preferredAsset); err != nil {
+		if err := exch.ValidateAPICredentials(ctx, preferredAsset); err != nil {
 			gctlog.Warnf(gctlog.ExchangeSys, "%s: Error validating credentials: %v for %s", b.Name, err, preferredAsset)
 			b.API.AuthenticatedSupport = false
 			b.API.AuthenticatedWebsocketSupport = false
@@ -796,7 +918,7 @@ func (bot *Engine) LoadExchange(name string) error {
 		}
 	}
 
-	return exchange.Bootstrap(context.TODO(), exch)
+	return exchange.Bootstrap(ctx, exch)
 }
 
 func (bot *Engine) dryRunParamInteraction(param string) {
@@ -932,5 +1054,9 @@ func (bot *Engine) SetDefaultWebsocketDataHandler() error {
 func (bot *Engine) waitForGPRCShutdown() {
 	<-bot.GRPCShutdownSignal
 	gctlog.Warnln(gctlog.Global, "Captured gRPC shutdown request.")
-	bot.Settings.Shutdown <- struct{}{}
+	bot.RequestShutdown()
+	select {
+	case bot.Settings.Shutdown <- struct{}{}:
+	default:
+	}
 }

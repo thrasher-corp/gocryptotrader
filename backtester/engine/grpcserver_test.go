@@ -1,8 +1,10 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"net"
 	"path/filepath"
 	"testing"
 	"time"
@@ -23,6 +25,43 @@ import (
 )
 
 var dcaConfigPath = filepath.Join("..", "config", "strategyexamples", "dca-api-candles.strat")
+
+func TestStartRPCServerStopsListenerOnContextCancel(t *testing.T) {
+	t.Parallel()
+	cfg, err := config.GenerateDefaultConfig()
+	require.NoError(t, err, "GenerateDefaultConfig must not error")
+
+	listenConfig := net.ListenConfig{}
+	portListener, err := listenConfig.Listen(t.Context(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err, "Listen must not error")
+	listenAddress := portListener.Addr().String()
+	require.NoError(t, portListener.Close(), "Close must not error")
+
+	cfg.GRPC.ListenAddress = listenAddress
+	cfg.GRPC.TLSDir = t.TempDir()
+	cfg.GRPC.GRPCProxyEnabled = false
+
+	manager := NewTaskManager()
+	server, err := SetupRPCServer(cfg, manager)
+	require.NoError(t, err, "SetupRPCServer must not error")
+
+	rpcCtx, cancel := context.WithCancel(context.Background())
+	require.NoError(t, StartRPCServer(rpcCtx, server), "StartRPCServer must not error")
+
+	canDial := func() bool {
+		dialer := net.Dialer{Timeout: 100 * time.Millisecond}
+		conn, dialErr := dialer.DialContext(t.Context(), "tcp", listenAddress)
+		if dialErr != nil {
+			return false
+		}
+		_ = conn.Close()
+		return true
+	}
+
+	assert.Eventually(t, canDial, 5*time.Second, 100*time.Millisecond, "GRPC listener should accept TCP connections after startup")
+	cancel()
+	assert.Eventually(t, func() bool { return !canDial() }, 5*time.Second, 100*time.Millisecond, "GRPC listener should close after context cancellation")
+}
 
 func TestExecuteStrategyFromFile(t *testing.T) {
 	t.Parallel()

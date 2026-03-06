@@ -136,10 +136,10 @@ func TestCurrencyStateManagerIsRunning(t *testing.T) {
 	err = (&CurrencyStateManager{started: 1, shutdown: make(chan struct{})}).Stop()
 	require.NoError(t, err)
 
-	err = (*CurrencyStateManager)(nil).Start()
+	err = (*CurrencyStateManager)(nil).Start(t.Context())
 	require.ErrorIs(t, err, ErrNilSubsystem)
 
-	err = (&CurrencyStateManager{started: 1}).Start()
+	err = (&CurrencyStateManager{started: 1}).Start(t.Context())
 	require.ErrorIs(t, err, ErrSubSystemAlreadyStarted)
 
 	man := &CurrencyStateManager{
@@ -147,7 +147,7 @@ func TestCurrencyStateManagerIsRunning(t *testing.T) {
 		iExchangeManager: &fakeExchangeManagerino{ErrorMeOne: true},
 		sleep:            time.Minute,
 	}
-	err = man.Start()
+	err = man.Start(t.Context())
 	require.NoError(t, err)
 
 	time.Sleep(time.Millisecond)
@@ -156,7 +156,7 @@ func TestCurrencyStateManagerIsRunning(t *testing.T) {
 	require.NoError(t, err)
 
 	man.iExchangeManager = &fakeExchangeManagerino{ErrorMeOne: true}
-	err = man.Start()
+	err = man.Start(t.Context())
 	require.NoError(t, err)
 
 	time.Sleep(time.Millisecond)
@@ -165,7 +165,7 @@ func TestCurrencyStateManagerIsRunning(t *testing.T) {
 	require.NoError(t, err)
 
 	man.iExchangeManager = &fakeExchangeManagerino{ErrorMeOne: true}
-	err = man.Start()
+	err = man.Start(t.Context())
 	require.NoError(t, err)
 
 	time.Sleep(time.Millisecond)
@@ -302,11 +302,11 @@ func TestCanTradePairRPC(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestUpdate(_ *testing.T) {
+func TestUpdate(t *testing.T) {
 	man := &CurrencyStateManager{}
 	var wg sync.WaitGroup
 	wg.Add(3)
-	man.update(&fakerino{errorMe: true, GetAvailablePairsError: true}, &wg, asset.Items{asset.Spot})
-	man.update(&fakerino{errorMe: true, GetBaseError: true}, &wg, asset.Items{asset.Spot})
-	man.update(&fakerino{errorMe: true}, &wg, asset.Items{asset.Spot})
+	man.update(t.Context(), &fakerino{errorMe: true, GetAvailablePairsError: true}, &wg, asset.Items{asset.Spot})
+	man.update(t.Context(), &fakerino{errorMe: true, GetBaseError: true}, &wg, asset.Items{asset.Spot})
+	man.update(t.Context(), &fakerino{errorMe: true}, &wg, asset.Items{asset.Spot})
 }

@@ -60,7 +60,7 @@ func (m *portfolioManager) IsRunning() bool {
 }
 
 // Start runs the subsystem
-func (m *portfolioManager) Start(wg *sync.WaitGroup) error {
+func (m *portfolioManager) Start(ctx context.Context, wg *sync.WaitGroup) error {
 	if m == nil {
 		return fmt.Errorf("portfolio manager %w", ErrNilSubsystem)
 	}
@@ -74,7 +74,7 @@ func (m *portfolioManager) Start(wg *sync.WaitGroup) error {
 	log.Debugf(log.PortfolioMgr, "Portfolio manager %s", MsgSubSystemStarting)
 	m.shutdown = make(chan struct{})
 	wg.Add(1)
-	go m.run(wg)
+	go m.run(ctx, wg)
 	return nil
 }
 
@@ -96,7 +96,7 @@ func (m *portfolioManager) Stop() error {
 }
 
 // run periodically will check and update portfolio holdings
-func (m *portfolioManager) run(wg *sync.WaitGroup) {
+func (m *portfolioManager) run(ctx context.Context, wg *sync.WaitGroup) {
 	log.Debugln(log.PortfolioMgr, "Portfolio manager started.")
 	timer := time.NewTimer(0)
 	for {
@@ -111,26 +111,26 @@ func (m *portfolioManager) run(wg *sync.WaitGroup) {
 		case <-timer.C:
 			// This is run in a go-routine to not prevent the application from
 			// shutting down.
-			go m.processPortfolio()
+			go m.processPortfolio(ctx)
 			timer.Reset(m.portfolioManagerDelay)
 		}
 	}
 }
 
 // processPortfolio updates portfolio holdings
-func (m *portfolioManager) processPortfolio() {
+func (m *portfolioManager) processPortfolio(ctx context.Context) {
 	if !atomic.CompareAndSwapInt32(&m.processing, 0, 1) {
 		return
 	}
 	m.m.Lock()
 	defer m.m.Unlock()
-	if err := m.updateExchangeBalances(); err != nil {
+	if err := m.updateExchangeBalances(ctx); err != nil {
 		log.Errorf(log.PortfolioMgr, "Portfolio updateExchangeBalances error: %v", err)
 	}
 
 	data := m.base.GetPortfolioAddressesGroupedByCoin()
 	for key, value := range data {
-		if err := m.base.UpdatePortfolio(context.TODO(), value, key); err != nil {
+		if err := m.base.UpdatePortfolio(ctx, value, key); err != nil {
 			log.Errorf(log.PortfolioMgr, "Portfolio manager: UpdatePortfolio error: %s for currency %s", err, key)
 			continue
 		}
@@ -141,7 +141,7 @@ func (m *portfolioManager) processPortfolio() {
 }
 
 // updateExchangeBalances calls UpdateAccountBalance on each exchange, and transfers the account balances into portfolio
-func (m *portfolioManager) updateExchangeBalances() error {
+func (m *portfolioManager) updateExchangeBalances(ctx context.Context) error {
 	if err := common.NilGuard(m); err != nil {
 		return err
 	}
@@ -165,7 +165,7 @@ func (m *portfolioManager) updateExchangeBalances() error {
 		}
 
 		for _, a := range assetTypes {
-			if _, err := e.UpdateAccountBalances(context.TODO(), a); err != nil {
+			if _, err := e.UpdateAccountBalances(ctx, a); err != nil {
 				errs = common.AppendError(errs, fmt.Errorf("error updating %s %s account balances: %w", e.GetName(), a, err))
 			}
 		}

@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -130,7 +131,7 @@ func main() {
 		settings.ConfigFile = ""
 	}
 
-	settings.Shutdown = make(chan struct{})
+	settings.Shutdown = make(chan struct{}, 1)
 	engine.Bot, err = engine.NewFromSettings(&settings, flagSet)
 	if engine.Bot == nil || err != nil {
 		log.Fatalf("Unable to initialise bot engine. Error: %s\n", err)
@@ -143,7 +144,16 @@ func main() {
 
 	engine.Bot.Settings.PrintLoadedSettings()
 
+	engine.Bot.EnsureRuntimeContext()
+	var shutdownRequested atomic.Bool
+	go waitForInterrupt(settings.Shutdown, engine.Bot, &shutdownRequested)
+
 	if err = engine.Bot.Start(); err != nil {
+		if shutdownRequested.Load() {
+			// Startup may have been interrupted before full subsystem initialisation.
+			// Avoid calling Stop() on a partially-initialized engine.
+			return
+		}
 		errClose := gctlog.CloseLogger()
 		if errClose != nil {
 			log.Printf("Unable to close logger. Error: %s\n", errClose)
@@ -151,13 +161,21 @@ func main() {
 		log.Fatalf("Unable to start bot engine. Error: %s\n", err)
 	}
 
-	go waitForInterrupt(settings.Shutdown)
 	<-settings.Shutdown
 	engine.Bot.Stop()
 }
 
-func waitForInterrupt(waiter chan<- struct{}) {
+func waitForInterrupt(waiter chan<- struct{}, bot *engine.Engine, requested *atomic.Bool) {
 	interrupt := <-signaler.WaitForInterrupt()
 	gctlog.Infof(gctlog.Global, "Captured %v, shutdown requested.\n", interrupt)
-	waiter <- struct{}{}
+	if requested != nil {
+		requested.Store(true)
+	}
+	if bot != nil {
+		bot.RequestShutdown()
+	}
+	select {
+	case waiter <- struct{}{}:
+	default:
+	}
 }

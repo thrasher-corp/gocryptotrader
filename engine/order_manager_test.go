@@ -29,6 +29,22 @@ type omfExchange struct {
 	exchange.IBotExchange
 }
 
+type gracefulShutdownCtxObservation struct {
+	err         error
+	hasDeadline bool
+}
+
+type gracefulShutdownCtxExchange struct {
+	omfExchange
+	seenCtx chan gracefulShutdownCtxObservation
+}
+
+func (f gracefulShutdownCtxExchange) CancelOrder(ctx context.Context, _ *order.Cancel) error {
+	_, hasDeadline := ctx.Deadline()
+	f.seenCtx <- gracefulShutdownCtxObservation{err: ctx.Err(), hasDeadline: hasDeadline}
+	return ctx.Err()
+}
+
 var btcusdPair = currency.NewBTCUSD()
 
 // CancelOrder overrides testExchange's cancel order function
@@ -182,17 +198,17 @@ func TestSetupOrderManager(t *testing.T) {
 
 func TestOrderManagerStart(t *testing.T) {
 	var m *OrderManager
-	err := m.Start()
+	err := m.Start(t.Context())
 	assert.ErrorIs(t, err, ErrNilSubsystem)
 
 	var wg sync.WaitGroup
 	m, err = SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, &wg, &config.OrderManager{})
 	assert.NoError(t, err)
 
-	err = m.Start()
+	err = m.Start(t.Context())
 	assert.NoError(t, err)
 
-	err = m.Start()
+	err = m.Start(t.Context())
 	assert.ErrorIs(t, err, ErrSubSystemAlreadyStarted)
 }
 
@@ -210,7 +226,7 @@ func TestOrderManagerIsRunning(t *testing.T) {
 		t.Error("expected false")
 	}
 
-	err = m.Start()
+	err = m.Start(t.Context())
 	assert.NoError(t, err)
 
 	if !m.IsRunning() {
@@ -230,7 +246,7 @@ func TestOrderManagerStop(t *testing.T) {
 	err = m.Stop()
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
-	err = m.Start()
+	err = m.Start(t.Context())
 	assert.NoError(t, err)
 
 	err = m.Stop()
@@ -531,6 +547,106 @@ func TestCancelAllOrders(t *testing.T) {
 	if checkDeets.Status != order.Cancelled {
 		t.Error("Order should be cancelled", checkDeets.Status)
 	}
+}
+
+func TestOrderManagerGracefulShutdownUsesBoundedContextWhenRuntimeCancelled(t *testing.T) {
+	var wg sync.WaitGroup
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	require.NoError(t, err)
+
+	cfg, err := exchange.GetDefaultConfig(t.Context(), exch)
+	require.NoError(t, err)
+	require.NoError(t, exch.Setup(cfg))
+
+	seenCtx := make(chan gracefulShutdownCtxObservation, 1)
+	fakeExchange := gracefulShutdownCtxExchange{
+		omfExchange: omfExchange{IBotExchange: exch},
+		seenCtx:     seenCtx,
+	}
+	require.NoError(t, em.Add(fakeExchange))
+
+	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{CancelOrdersOnShutdown: true})
+	require.NoError(t, err)
+	m.started = 1
+
+	require.NoError(t, m.orderStore.add(&order.Detail{
+		Exchange:  testExchange,
+		OrderID:   "shutdown-context-cancel",
+		Status:    order.New,
+		Pair:      btcusdPair,
+		AssetType: asset.Spot,
+	}))
+
+	runtimeCtx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	m.gracefulShutdown(runtimeCtx)
+
+	select {
+	case obs := <-seenCtx:
+		require.NoError(t, obs.err)
+		assert.True(t, obs.hasDeadline)
+	default:
+		t.Fatal("expected cancel order to be called with shutdown context")
+	}
+}
+
+func TestOrderManagerStopCancelsOrdersOnShutdown(t *testing.T) {
+	var wg sync.WaitGroup
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName(testExchange)
+	require.NoError(t, err)
+
+	cfg, err := exchange.GetDefaultConfig(t.Context(), exch)
+	require.NoError(t, err)
+	require.NoError(t, exch.Setup(cfg))
+
+	seenCtx := make(chan gracefulShutdownCtxObservation, 1)
+	fakeExchange := gracefulShutdownCtxExchange{
+		omfExchange: omfExchange{IBotExchange: exch},
+		seenCtx:     seenCtx,
+	}
+	require.NoError(t, em.Add(fakeExchange))
+
+	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{CancelOrdersOnShutdown: true})
+	require.NoError(t, err)
+	require.NoError(t, m.Start(t.Context()))
+
+	const orderID = "shutdown-stop-cancel"
+	require.NoError(t, m.orderStore.add(&order.Detail{
+		Exchange:  testExchange,
+		OrderID:   orderID,
+		Status:    order.New,
+		Pair:      btcusdPair,
+		AssetType: asset.Spot,
+	}))
+
+	require.NoError(t, m.Stop())
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for order manager shutdown")
+	}
+
+	select {
+	case obs := <-seenCtx:
+		require.NoError(t, obs.err)
+		assert.True(t, obs.hasDeadline)
+	default:
+		t.Fatal("expected cancel order to be called during Stop")
+	}
+
+	checkDeets, err := m.orderStore.getByExchangeAndID(testExchange, orderID)
+	require.NoError(t, err)
+	assert.Equal(t, order.Cancelled, checkDeets.Status)
 }
 
 func TestSubmit(t *testing.T) {
@@ -864,7 +980,7 @@ func TestProcessOrders(t *testing.T) {
 		t.Error(err)
 	}
 
-	m.processOrders()
+	m.processOrders(t.Context())
 
 	// Order1 is not returned by exch.GetActiveOrders()
 	// It will be fetched by exch.GetOrderInfo(), which will say it is active
@@ -1034,7 +1150,7 @@ func TestProcessMatchingOrders(t *testing.T) {
 	}
 	var wg sync.WaitGroup
 	wg.Add(1)
-	go m.processMatchingOrders(exch, orders, &wg)
+	go m.processMatchingOrders(t.Context(), exch, orders, &wg)
 	wg.Wait()
 	res, err := m.GetOrdersFiltered(&order.Filter{Exchange: testExchange})
 	if err != nil {
@@ -1054,7 +1170,7 @@ func TestFetchAndUpdateExchangeOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = m.FetchAndUpdateExchangeOrder(exch, nil, asset.Spot)
+	err = m.FetchAndUpdateExchangeOrder(t.Context(), exch, nil, asset.Spot)
 	if err == nil {
 		t.Error("Error expected when order is nil")
 	}
@@ -1065,7 +1181,7 @@ func TestFetchAndUpdateExchangeOrder(t *testing.T) {
 		Status:   order.Active,
 		OrderID:  "Test",
 	}
-	err = m.FetchAndUpdateExchangeOrder(exch, o, asset.Spot)
+	err = m.FetchAndUpdateExchangeOrder(t.Context(), exch, o, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1081,7 +1197,7 @@ func TestFetchAndUpdateExchangeOrder(t *testing.T) {
 	}
 
 	o.Status = order.PartiallyCancelled
-	err = m.FetchAndUpdateExchangeOrder(exch, o, asset.Spot)
+	err = m.FetchAndUpdateExchangeOrder(t.Context(), exch, o, asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1496,7 +1612,7 @@ func TestGetOpenFuturesPosition(t *testing.T) {
 func TestProcessFuturesPositions(t *testing.T) {
 	t.Parallel()
 	o := &OrderManager{}
-	err := o.processFuturesPositions(nil, nil)
+	err := o.processFuturesPositions(t.Context(), nil, nil)
 	assert.ErrorIs(t, err, errFuturesTrackingDisabled)
 
 	em := NewExchangeManager()
@@ -1545,7 +1661,7 @@ func TestProcessFuturesPositions(t *testing.T) {
 
 	o.started = 1
 
-	err = o.processFuturesPositions(fakeExchange, nil)
+	err = o.processFuturesPositions(t.Context(), fakeExchange, nil)
 	assert.ErrorIs(t, err, common.ErrNilPointer)
 
 	position := &futures.PositionResponse{
@@ -1553,7 +1669,7 @@ func TestProcessFuturesPositions(t *testing.T) {
 		Pair:   cp,
 		Orders: nil,
 	}
-	err = o.processFuturesPositions(fakeExchange, position)
+	err = o.processFuturesPositions(t.Context(), fakeExchange, position)
 	assert.ErrorIs(t, err, errNilOrder)
 
 	od := &order.Detail{
@@ -1569,16 +1685,16 @@ func TestProcessFuturesPositions(t *testing.T) {
 	position.Orders = []order.Detail{
 		*od,
 	}
-	err = o.processFuturesPositions(fakeExchange, position)
+	err = o.processFuturesPositions(t.Context(), fakeExchange, position)
 	assert.ErrorIs(t, err, futures.ErrNotFuturesAsset)
 
 	position.Orders[0].AssetType = asset.Futures
 	position.Asset = asset.Futures
-	err = o.processFuturesPositions(fakeExchange, position)
+	err = o.processFuturesPositions(t.Context(), fakeExchange, position)
 	assert.NoError(t, err)
 
 	b.Features.Supports.FuturesCapabilities.FundingRates = true
-	err = o.processFuturesPositions(fakeExchange, position)
+	err = o.processFuturesPositions(t.Context(), fakeExchange, position)
 	assert.NoError(t, err)
 }
 

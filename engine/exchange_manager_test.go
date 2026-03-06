@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,6 +19,27 @@ type broken struct {
 }
 
 func (b *broken) Shutdown() error { return errExpectedTestError }
+
+type delayedShutdownExchange struct {
+	bitfinex.Exchange
+	name        string
+	delay       time.Duration
+	shutdownErr error
+}
+
+func (d *delayedShutdownExchange) GetName() string {
+	if d.name != "" {
+		return d.name
+	}
+	return d.Exchange.GetName()
+}
+
+func (d *delayedShutdownExchange) Shutdown() error {
+	if d.delay > 0 {
+		time.Sleep(d.delay)
+	}
+	return d.shutdownErr
+}
 
 func TestNewExchangeManager(t *testing.T) {
 	t.Parallel()
@@ -201,5 +223,40 @@ func TestExchangeManagerShutdown(t *testing.T) {
 	require.NoError(t, err)
 
 	err = m.Shutdown(-1)
+	require.NoError(t, err)
+}
+
+func TestExchangeManagerShutdownTimeoutKeepsUnfinishedExchange(t *testing.T) {
+	m := NewExchangeManager()
+	slow := &delayedShutdownExchange{name: "slowex", delay: 500 * time.Millisecond}
+	slow.SetDefaults()
+	require.NoError(t, m.Add(slow))
+
+	start := time.Now()
+	require.NoError(t, m.Shutdown(50*time.Millisecond))
+	assert.Less(t, time.Since(start), 400*time.Millisecond)
+
+	_, err := m.GetExchangeByName("slowex")
+	require.NoError(t, err)
+}
+
+func TestExchangeManagerShutdownRemovesSuccessfulExchangeAndKeepsFailures(t *testing.T) {
+	t.Parallel()
+	m := NewExchangeManager()
+
+	success := &delayedShutdownExchange{name: "successex", delay: time.Millisecond}
+	success.SetDefaults()
+	require.NoError(t, m.Add(success))
+
+	failed := &delayedShutdownExchange{name: "errorex", delay: time.Millisecond, shutdownErr: errExpectedTestError}
+	failed.SetDefaults()
+	require.NoError(t, m.Add(failed))
+
+	require.NoError(t, m.Shutdown(time.Second))
+
+	_, err := m.GetExchangeByName("successex")
+	require.ErrorIs(t, err, ErrExchangeNotFound)
+
+	_, err = m.GetExchangeByName("errorex")
 	require.NoError(t, err)
 }

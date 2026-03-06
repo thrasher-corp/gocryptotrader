@@ -1,9 +1,12 @@
 package engine
 
 import (
+	"context"
 	"errors"
+	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -11,10 +14,27 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
+
+type syncTickerContextExchange struct {
+	exchange.IBotExchange
+	updateTickerFn func(context.Context, currency.Pair, asset.Item) (*ticker.Price, error)
+}
+
+func (s syncTickerContextExchange) SupportsRESTTickerBatchUpdates() bool {
+	return false
+}
+
+func (s syncTickerContextExchange) UpdateTicker(ctx context.Context, pair currency.Pair, item asset.Item) (*ticker.Price, error) {
+	if s.updateTickerFn != nil {
+		return s.updateTickerFn(ctx, pair, item)
+	}
+	return nil, nil
+}
 
 func TestSetupSyncManager(t *testing.T) {
 	t.Parallel()
@@ -63,14 +83,14 @@ func TestSyncManagerStart(t *testing.T) {
 
 	m.exchangeManager = em
 	m.config.SynchronizeContinuously = true
-	err = m.Start()
+	err = m.Start(t.Context())
 	assert.NoError(t, err)
 
-	err = m.Start()
+	err = m.Start(t.Context())
 	assert.ErrorIs(t, err, ErrSubSystemAlreadyStarted)
 
 	m = nil
-	err = m.Start()
+	err = m.Start(t.Context())
 	assert.ErrorIs(t, err, ErrNilSubsystem)
 }
 
@@ -95,11 +115,72 @@ func TestSyncManagerStop(t *testing.T) {
 	err = m.Stop()
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
-	err = m.Start()
+	err = m.Start(t.Context())
 	assert.NoError(t, err)
 
 	err = m.Stop()
 	assert.NoError(t, err)
+}
+
+func TestSyncManagerSyncTickerUsesRuntimeContextCancellation(t *testing.T) {
+	em := NewExchangeManager()
+	exch, err := em.NewExchangeByName("Bitstamp")
+	require.NoError(t, err)
+	exch.SetDefaults()
+
+	started := make(chan context.Context, 1)
+	wrapped := syncTickerContextExchange{
+		IBotExchange: exch,
+		updateTickerFn: func(ctx context.Context, _ currency.Pair, _ asset.Item) (*ticker.Price, error) {
+			started <- ctx
+			<-ctx.Done()
+			return nil, ctx.Err()
+		},
+	}
+
+	m, err := SetupSyncManager(&config.SyncManagerConfig{
+		SynchronizeTicker:   true,
+		FiatDisplayCurrency: currency.USD,
+		PairFormatDisplay:   &currency.EMPTYFORMAT,
+		TimeoutREST:         time.Millisecond,
+		TimeoutWebsocket:    time.Second,
+	}, em, &config.RemoteControlConfig{}, false)
+	require.NoError(t, err)
+	atomic.StoreInt32(&m.started, 1)
+	atomic.StoreInt32(&m.initSyncCompleted, 1)
+
+	runtimeCtx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	pair := currency.NewBTCUSD()
+	agent := &currencyPairSyncAgent{
+		Key:      key.NewExchangeAssetPair(wrapped.GetName(), asset.Spot, pair),
+		Pair:     pair,
+		Created:  time.Now().Add(-time.Minute),
+		trackers: make([]*syncBase, 3),
+		locks:    make([]sync.Mutex, 3),
+	}
+	agent.trackers[SyncItemTicker] = &syncBase{IsUsingREST: true}
+
+	done := make(chan struct{})
+	go func() {
+		m.syncTicker(runtimeCtx, agent, wrapped)
+		close(done)
+	}()
+
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("expected update ticker call to start")
+	}
+
+	cancel()
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("expected syncTicker to return after runtime context cancellation")
+	}
 }
 
 func TestPrintCurrencyFormat(t *testing.T) {

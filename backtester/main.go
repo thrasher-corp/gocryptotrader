@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net/http"
@@ -218,51 +219,71 @@ func main() {
 	btCfg.Report.GenerateReport = generateReport
 
 	runManager := backtest.NewTaskManager()
+	rpcCtx, cancelRPC := context.WithCancel(context.Background())
+	rpcErr := make(chan error, 1)
 
-	go func(c *config.BacktesterConfig) {
+	go func(ctx context.Context, c *config.BacktesterConfig) {
 		log.Infoln(log.GRPCSys, "Starting RPC server")
-		var s *backtest.GRPCServer
-		s, err = backtest.SetupRPCServer(c, runManager)
-		err = backtest.StartRPCServer(s)
-		if err != nil {
-			fmt.Printf("Could not start RPC server. Error: %v\n", err)
-			os.Exit(1)
+		s, setupErr := backtest.SetupRPCServer(c, runManager)
+		if setupErr != nil {
+			rpcErr <- fmt.Errorf("could not setup RPC server: %w", setupErr)
+			return
 		}
-		log.Infoln(log.GRPCSys, "Ready to receive commands")
-	}(btCfg)
-	interrupt := <-signaler.WaitForInterrupt()
-	log.Infof(log.Global, "Captured %v, shutdown requested\n", interrupt)
-	if btCfg.StopAllTasksOnClose {
-		log.Infoln(log.Global, "Stopping all running tasks on close")
-		var stopped []*backtest.TaskSummary
-		stopped, err = runManager.StopAllTasks()
-		if err != nil {
-			log.Errorln(common.Backtester, err)
+		startErr := backtest.StartRPCServer(ctx, s)
+		if startErr != nil && ctx.Err() == nil {
+			rpcErr <- fmt.Errorf("could not start RPC server: %w", startErr)
+			return
 		}
-		for i := range stopped {
-			log.Infof(common.Backtester, "Task %v %v was stopped", stopped[i].MetaData.ID, stopped[i].MetaData.Strategy)
+		if startErr == nil {
+			log.Infoln(log.GRPCSys, "Ready to receive commands")
 		}
-	} else {
-		var tasks []*backtest.TaskSummary
-		tasks, err = runManager.List()
-		if err != nil {
-			log.Errorln(common.Backtester, err)
-		}
-		for i := range tasks {
-			if tasks[i].MetaData.ClosePositionsOnStop && !tasks[i].MetaData.Closed {
-				err = runManager.StopTask(tasks[i].MetaData.ID)
-				if err != nil {
-					log.Errorln(common.Backtester, err)
-					continue
+	}(rpcCtx, btCfg)
+
+	select {
+	case interrupt := <-signaler.WaitForInterrupt():
+		cancelRPC()
+		log.Infof(log.Global, "Captured %v, shutdown requested\n", interrupt)
+		if btCfg.StopAllTasksOnClose {
+			log.Infoln(log.Global, "Stopping all running tasks on close")
+			var stopped []*backtest.TaskSummary
+			stopped, err = runManager.StopAllTasks()
+			if err != nil {
+				log.Errorln(common.Backtester, err)
+			}
+			for i := range stopped {
+				log.Infof(common.Backtester, "Task %v %v was stopped", stopped[i].MetaData.ID, stopped[i].MetaData.Strategy)
+			}
+		} else {
+			var tasks []*backtest.TaskSummary
+			tasks, err = runManager.List()
+			if err != nil {
+				log.Errorln(common.Backtester, err)
+			}
+			for i := range tasks {
+				if tasks[i].MetaData.ClosePositionsOnStop && !tasks[i].MetaData.Closed {
+					err = runManager.StopTask(tasks[i].MetaData.ID)
+					if err != nil {
+						log.Errorln(common.Backtester, err)
+						continue
+					}
+					log.Infof(common.Backtester, "Task %v %v was stopped", tasks[i].MetaData.ID, tasks[i].MetaData.Strategy)
 				}
-				log.Infof(common.Backtester, "Task %v %v was stopped", tasks[i].MetaData.ID, tasks[i].MetaData.Strategy)
 			}
 		}
-	}
-	log.Infoln(log.Global, "Exiting. Have a nice day")
-	err = log.CloseLogger()
-	if err != nil {
-		fmt.Println(err)
+		log.Infoln(log.Global, "Exiting. Have a nice day")
+		err = log.CloseLogger()
+		if err != nil {
+			fmt.Println(err)
+		}
+	case rpcStartErr := <-rpcErr:
+		cancelRPC()
+		fmt.Printf("%v\n", rpcStartErr)
+		log.Infoln(log.Global, "Exiting.")
+		err = log.CloseLogger()
+		if err != nil {
+			fmt.Println(err)
+		}
+		os.Exit(1)
 	}
 }
 
