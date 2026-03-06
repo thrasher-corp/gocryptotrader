@@ -34,6 +34,8 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+const grpcServerGracefulStopTimeout = 5 * time.Second
+
 var (
 	errBadPort             = errors.New("received bad port")
 	errCannotHandleRequest = errors.New("cannot handle request")
@@ -61,19 +63,21 @@ func SetupRPCServer(cfg *config.BacktesterConfig, manager *TaskManager) (*GRPCSe
 }
 
 // StartRPCServer starts a gRPC server with TLS auth
-func StartRPCServer(server *GRPCServer) error {
+func StartRPCServer(ctx context.Context, server *GRPCServer) error {
 	targetDir := utils.GetTLSDir(server.config.GRPC.TLSDir)
 	if err := gctengine.CheckCerts(targetDir); err != nil {
 		return err
 	}
 	log.Debugf(log.GRPCSys, "Backtester GRPC server enabled. Starting GRPC server on https://%v.\n", server.config.GRPC.ListenAddress)
-	lis, err := net.Listen("tcp", server.config.GRPC.ListenAddress) //nolint:noctx // TODO: #2006 Replace net.Listen with (*net.ListenConfig).Listen
+	listenConfig := net.ListenConfig{}
+	lis, err := listenConfig.Listen(ctx, "tcp", server.config.GRPC.ListenAddress)
 	if err != nil {
 		return err
 	}
 
 	creds, err := credentials.NewServerTLSFromFile(filepath.Join(targetDir, "cert.pem"), filepath.Join(targetDir, "key.pem"))
 	if err != nil {
+		_ = lis.Close()
 		return err
 	}
 
@@ -86,8 +90,27 @@ func StartRPCServer(server *GRPCServer) error {
 	btrpc.RegisterBacktesterServiceServer(s, server)
 
 	go func() {
-		if err = s.Serve(lis); err != nil {
-			log.Errorln(log.GRPCSys, err)
+		<-ctx.Done()
+
+		done := make(chan struct{})
+		go func() {
+			s.GracefulStop()
+			close(done)
+		}()
+
+		select {
+		case <-done:
+		case <-time.After(grpcServerGracefulStopTimeout):
+			s.Stop()
+			<-done
+		}
+
+		_ = lis.Close()
+	}()
+
+	go func() {
+		if serveErr := s.Serve(lis); serveErr != nil && !errors.Is(serveErr, net.ErrClosed) && !errors.Is(serveErr, grpc.ErrServerStopped) {
+			log.Errorln(log.GRPCSys, serveErr)
 			return
 		}
 	}()
@@ -95,13 +118,12 @@ func StartRPCServer(server *GRPCServer) error {
 	log.Debugln(log.GRPCSys, "GRPC server started!")
 
 	if server.config.GRPC.GRPCProxyEnabled {
-		return server.StartRPCRESTProxy()
+		return server.startRPCRESTProxy(ctx)
 	}
 	return nil
 }
 
-// StartRPCRESTProxy starts a gRPC proxy
-func (s *GRPCServer) StartRPCRESTProxy() error {
+func (s *GRPCServer) startRPCRESTProxy(ctx context.Context) error {
 	log.Debugf(log.GRPCSys, "GRPC proxy server support enabled. Starting gRPC proxy server on %v\n", s.config.GRPC.GRPCProxyListenAddress)
 	targetDir := utils.GetTLSDir(s.config.GRPC.TLSDir)
 	creds, err := credentials.NewClientTLSFromFile(filepath.Join(targetDir, "cert.pem"), "")
@@ -123,15 +145,25 @@ func (s *GRPCServer) StartRPCRESTProxy() error {
 		return fmt.Errorf("failed to register gRPC proxy. Err: %w", err)
 	}
 
-	go func() {
-		server := &http.Server{
-			Addr:              s.config.GRPC.GRPCProxyListenAddress,
-			ReadHeaderTimeout: time.Minute,
-			ReadTimeout:       time.Minute,
-		}
+	server := &http.Server{
+		Addr:              s.config.GRPC.GRPCProxyListenAddress,
+		ReadHeaderTimeout: time.Minute,
+		ReadTimeout:       time.Minute,
+		Handler:           mux,
+	}
 
-		if err = server.ListenAndServe(); err != nil {
-			log.Errorf(log.GRPCSys, "GRPC proxy failed to server: %s\n", err)
+	go func() {
+		<-ctx.Done()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+		defer cancel()
+		if shutdownErr := server.Shutdown(shutdownCtx); shutdownErr != nil && !errors.Is(shutdownErr, http.ErrServerClosed) {
+			log.Errorf(log.GRPCSys, "GRPC proxy server shutdown failed: %s\n", shutdownErr)
+		}
+	}()
+
+	go func() {
+		if serveErr := server.ListenAndServe(); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
+			log.Errorf(log.GRPCSys, "GRPC proxy failed to server: %s\n", serveErr)
 		}
 	}()
 

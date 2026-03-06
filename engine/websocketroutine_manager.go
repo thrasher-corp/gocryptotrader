@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -44,7 +45,7 @@ func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager
 }
 
 // Start runs the subsystem
-func (m *WebsocketRoutineManager) Start() error {
+func (m *WebsocketRoutineManager) Start(ctx context.Context) error {
 	if m == nil {
 		return fmt.Errorf("websocket routine manager %w", ErrNilSubsystem)
 	}
@@ -57,14 +58,20 @@ func (m *WebsocketRoutineManager) Start() error {
 		return errNilCurrencyPairFormat
 	}
 
+	connectionCtx, connectionCancel := context.WithCancel(ctx)
+
+	m.mu.Lock()
 	if !atomic.CompareAndSwapInt32(&m.state, stoppedState, startingState) {
+		m.mu.Unlock()
+		connectionCancel()
 		return ErrSubSystemAlreadyStarted
 	}
-
+	m.connectionCancel = connectionCancel
 	m.shutdown = make(chan struct{})
+	m.mu.Unlock()
 
 	go func() {
-		m.websocketRoutine()
+		m.websocketRoutine(connectionCtx)
 		// It's okay for this to fail, just means shutdown has started
 		atomic.CompareAndSwapInt32(&m.state, startingState, readyState)
 	}()
@@ -91,16 +98,24 @@ func (m *WebsocketRoutineManager) Stop() error {
 		return fmt.Errorf("websocket routine manager %w", ErrSubSystemNotStarted)
 	}
 	atomic.StoreInt32(&m.state, stoppedState)
+	if m.connectionCancel != nil {
+		m.connectionCancel()
+		m.connectionCancel = nil
+	}
+	shutdown := m.shutdown
+	m.shutdown = nil
 	m.mu.Unlock()
 
-	close(m.shutdown)
+	if shutdown != nil {
+		close(shutdown)
+	}
 	m.wg.Wait()
 
 	return nil
 }
 
 // websocketRoutine Initial routine management system for websocket
-func (m *WebsocketRoutineManager) websocketRoutine() {
+func (m *WebsocketRoutineManager) websocketRoutine(ctx context.Context) {
 	if m.verbose {
 		log.Debugln(log.WebsocketMgr, "Connecting exchange websocket services...")
 	}
@@ -138,10 +153,16 @@ func (m *WebsocketRoutineManager) websocketRoutine() {
 
 		wg.Go(func() {
 			if err := m.websocketDataReceiver(ws); err != nil {
+				if errors.Is(err, errRoutineManagerNotStarted) && ctx.Err() != nil {
+					return
+				}
 				log.Errorf(log.WebsocketMgr, "%v", err)
 			}
 
-			if err := ws.Connect(context.TODO()); err != nil {
+			if err := ws.Connect(ctx); err != nil {
+				if ctx.Err() != nil {
+					return
+				}
 				log.Errorf(log.WebsocketMgr, "%v", err)
 			}
 		})
@@ -164,10 +185,17 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ws *websocket.Manager) e
 		return errRoutineManagerNotStarted
 	}
 
+	m.mu.RLock()
+	shutdown := m.shutdown
+	m.mu.RUnlock()
+	if shutdown == nil {
+		return errRoutineManagerNotStarted
+	}
+
 	m.wg.Go(func() {
 		for {
 			select {
-			case <-m.shutdown:
+			case <-shutdown:
 				return
 			case payload := <-ws.DataHandler.C:
 				if payload.Data == nil {

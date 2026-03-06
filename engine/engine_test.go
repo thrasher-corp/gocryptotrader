@@ -117,6 +117,43 @@ func TestStartStopDoesNotCausePanic(t *testing.T) {
 	botOne.Stop()
 }
 
+func TestEnsureRuntimeContextAndRequestShutdown(t *testing.T) {
+	t.Parallel()
+	bot := &Engine{}
+	ctx := bot.EnsureRuntimeContext()
+	require.NotNil(t, ctx)
+	require.NoError(t, ctx.Err())
+
+	bot.RequestShutdown()
+	assert.Error(t, ctx.Err())
+
+	ctxAfterShutdown := bot.EnsureRuntimeContext()
+	assert.Same(t, ctx, ctxAfterShutdown)
+	assert.Error(t, ctxAfterShutdown.Err())
+}
+
+func TestWaitForGPRCShutdownDoesNotBlockWithoutShutdownReceiver(t *testing.T) {
+	t.Parallel()
+	bot := &Engine{
+		GRPCShutdownSignal: make(chan struct{}, 1),
+		Settings:           Settings{Shutdown: make(chan struct{})},
+	}
+
+	done := make(chan struct{})
+	go func() {
+		bot.waitForGPRCShutdown()
+		close(done)
+	}()
+
+	bot.GRPCShutdownSignal <- struct{}{}
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("waitForGPRCShutdown blocked without shutdown receiver")
+	}
+}
+
 var enableExperimentalTest = false
 
 func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
