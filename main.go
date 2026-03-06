@@ -150,7 +150,7 @@ func main() {
 
 	if err = engine.Bot.Start(); err != nil {
 		if shutdownRequested.Load() {
-			// Startup may have been interrupted before full subsystem initialization.
+			// Startup may have been interrupted before full subsystem initialisation.
 			// Avoid calling Stop() on a partially-initialized engine.
 			return
 		}

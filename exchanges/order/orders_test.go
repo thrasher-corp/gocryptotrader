@@ -1097,7 +1097,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 
 	err = od.UpdateOrderFromDetail(om)
 	require.NoError(t, err)
-	assert.NotEqual(t, id, od.InternalOrderID, "Should not be able to update the internal order ID after initialization")
+	assert.NotEqual(t, id, od.InternalOrderID, "Should not be able to update the internal order ID after initialisation")
 }
 
 func TestClassificationError_Error(t *testing.T) {

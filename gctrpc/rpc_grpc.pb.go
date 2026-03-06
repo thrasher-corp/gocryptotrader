@@ -1956,7 +1956,7 @@ type UnsafeGoCryptoTraderServiceServer interface {
 func RegisterGoCryptoTraderServiceServer(s grpc.ServiceRegistrar, srv GoCryptoTraderServiceServer) {
 	// If the following call panics, it indicates UnimplementedGoCryptoTraderServiceServer was
 	// embedded by pointer and is nil.  This will cause panics if an
-	// unimplemented method is ever invoked, so we test this at initialization
+	// unimplemented method is ever invoked, so we test this at initialisation
 	// time to prevent it from happening at runtime later due to I/O.
 	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
 		t.testEmbeddedByValue()

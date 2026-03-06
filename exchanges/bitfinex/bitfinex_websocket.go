@@ -143,20 +143,20 @@ func (e *Exchange) WsConnect() error {
 				e.Name,
 				err)
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		}
-		e.Websocket.Wg.Add(1)
-		go e.wsReadData(ctx, e.Websocket.AuthConn)
-		err = e.WsSendAuth(ctx)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%v - authentication failed: %v\n",
-				e.Name,
-				err)
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		} else {
+			e.Websocket.Wg.Add(1)
+			go e.wsReadData(ctx, e.Websocket.AuthConn)
+			err = e.WsSendAuth(ctx)
+			if err != nil {
+				log.Errorf(log.ExchangeSys,
+					"%v - authentication failed: %v\n",
+					e.Name,
+					err)
+				e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			}
 		}
 	}
 
-	e.Websocket.Wg.Add(1)
 	return e.ConfigureWS(ctx)
 }
 
