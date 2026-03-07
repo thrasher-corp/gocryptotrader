@@ -22,26 +22,39 @@ var (
 
 // RateHistoryRequest is used to request a funding rate
 type RateHistoryRequest struct {
-	Exchange         string
-	Asset            asset.Item
-	Currency         currency.Code
-	Pair             currency.Pair
-	StartDate        time.Time
-	EndDate          time.Time
-	GetPredictedRate bool
+	Exchange  string
+	Asset     asset.Item
+	Currency  currency.Code
+	Pair      currency.Pair
+	StartDate time.Time
+	EndDate   time.Time
 
-	GetLendingPayments bool
-	GetBorrowRates     bool
-	GetBorrowCosts     bool
-
-	// CalculateOffline allows for the borrow rate, lending payment amount
-	// and borrow costs to be calculated offline. It requires the takerfeerate
-	// and existing rates
+	GetBorrowCosts bool
+	// CalculateOffline allows for the borrow rate and borrow costs to be
+	// calculated offline. It requires the taker fee rate and existing rates.
 	CalculateOffline bool
 	TakeFeeRate      decimal.Decimal
-	// Rates is used when calculating offline and determiningPayments
+	// Rates is used when calculating offline.
 	// Each Rate must have the Rate and Size fields populated
 	Rates []Rate
+}
+
+// CurrentRatesRequest is used to request the latest margin rates.
+// If Pairs is empty, all enabled pairs for the supplied asset are used.
+type CurrentRatesRequest struct {
+	Asset asset.Item
+	Pairs currency.Pairs
+}
+
+// CurrentRateResponse returns current margin rates for a given pair.
+// PredictedRate can be zero-valued if the exchange does not provide it.
+type CurrentRateResponse struct {
+	Exchange      string
+	Asset         asset.Item
+	Pair          currency.Pair
+	CurrentRate   *Rate
+	PredictedRate *Rate
+	TimeChecked   time.Time
 }
 
 // PositionChangeRequest used for wrapper functions to change margin fields for a position
@@ -119,7 +132,6 @@ type Rate struct {
 	YearlyRate       decimal.Decimal
 	HourlyBorrowRate decimal.Decimal
 	YearlyBorrowRate decimal.Decimal
-	LendingPayment   LendingPayment
 	BorrowCost       BorrowCost
 }
 

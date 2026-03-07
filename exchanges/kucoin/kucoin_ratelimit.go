@@ -138,6 +138,7 @@ const (
 	marginRepaymentHistoryEPL
 	lendingCurrencyInfoEPL
 	interestRateEPL
+	borrowInterestRateEPL
 	marginLendingSubscriptionEPL
 	redemptionEPL
 	modifySubscriptionEPL
@@ -347,6 +348,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		marginRepaymentHistoryEPL:                     request.GetRateLimiterWithWeight(spotRate, 15),
 		lendingCurrencyInfoEPL:                        request.GetRateLimiterWithWeight(spotRate, 10),
 		interestRateEPL:                               request.GetRateLimiterWithWeight(publicRate, 5),
+		borrowInterestRateEPL:                         request.GetRateLimiterWithWeight(spotRate, 5),
 		marginLendingSubscriptionEPL:                  request.GetRateLimiterWithWeight(spotRate, 15),
 		redemptionEPL:                                 request.GetRateLimiterWithWeight(spotRate, 15),
 		modifySubscriptionEPL:                         request.GetRateLimiterWithWeight(spotRate, 10),
