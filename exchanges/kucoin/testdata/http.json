@@ -1,0 +1,73 @@
+{
+ "routes": {
+  "/api/ua/v1/market/orderbook": {
+   "GET": [
+    {
+     "data": {
+      "code": "200000",
+      "data": {
+       "asks": [
+        [
+         "89389.7",
+         "48"
+        ],
+        [
+         "89390.1",
+         "1"
+        ],
+        [
+         "89393.0",
+         "5"
+        ],
+        [
+         "89393.1",
+         "10"
+        ],
+        [
+         "89393.2",
+         "1"
+        ]
+       ],
+       "bids": [
+        [
+         "89389.6",
+         "1507"
+        ],
+        [
+         "89389.5",
+         "25"
+        ],
+        [
+         "89388.9",
+         "12"
+        ],
+        [
+         "89388.8",
+         "117"
+        ],
+        [
+         "89388.7",
+         "743"
+        ]
+       ],
+       "sequence": 1732973817559,
+       "symbol": "XBTUSDTM",
+       "tradeType": "FUTURES",
+       "ts": 1768969154925000000
+      }
+     },
+     "queryString": "limit=FULL\u0026symbol=XBTUSDTM\u0026tradeType=FUTURES",
+     "bodyParams": "",
+     "headers": {
+      "Content-Type": [
+       "application/json"
+      ],
+      "Kc-Api-Timestamp": [
+       "1768969154853"
+      ]
+     }
+    }
+   ]
+  }
+ }
+}
