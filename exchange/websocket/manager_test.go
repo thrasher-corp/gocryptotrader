@@ -30,14 +30,83 @@ import (
 )
 
 const (
-	Ping          = "ping"
-	useProxyTests = false                     // Disabled by default. Freely available proxy servers that work all the time are difficult to find
-	proxyURL      = "http://212.186.171.4:80" // Replace with a usable proxy server
+	Ping               = "ping"
+	useProxyTests      = false                     // Disabled by default. Freely available proxy servers that work all the time are difficult to find
+	proxyURL           = "http://212.186.171.4:80" // Replace with a usable proxy server
+	testTrafficTimeout = time.Second
 )
 
 var errDastardlyReason = errors.New("some dastardly reason")
 
 func noopConnect() error { return nil }
+
+func closeChanNoPanic(ch chan struct{}) {
+	if ch == nil {
+		return
+	}
+	defer func() { _ = recover() }()
+	close(ch)
+}
+
+func restoreShutdownChannel(ws *Manager) {
+	if ws == nil {
+		return
+	}
+	ws.m.Lock()
+	defer ws.m.Unlock()
+	ws.ShutdownC = make(chan struct{})
+	for i := range ws.connectionManager {
+		for j := range ws.connectionManager[i].connections {
+			if conn, ok := ws.connectionManager[i].connections[j].(*connection); ok {
+				conn.shutdown = ws.ShutdownC
+			}
+		}
+	}
+}
+
+// resetManagerForNextConnectAttempt waits for monitor goroutines to drain during test cleanup.
+// It intentionally avoids mutating ShutdownC directly.
+func resetManagerForNextConnectAttempt(t *testing.T, ws *Manager) {
+	t.Helper()
+	if ws == nil {
+		return
+	}
+	waitDone := make(chan struct{})
+	go func() {
+		defer close(waitDone)
+		ws.Wg.Wait()
+	}()
+	select {
+	case <-waitDone:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("manager cleanup timed out waiting for monitor goroutines")
+	}
+}
+
+func cleanupManagerMonitors(t *testing.T, ws *Manager) {
+	t.Helper()
+	if ws == nil {
+		return
+	}
+	ws.setEnabled(false)
+	err := ws.Shutdown()
+	if err != nil {
+		if errors.Is(err, ErrNotConnected) || errors.Is(err, errAlreadyReconnecting) {
+			closeChanNoPanic(ws.ShutdownC)
+			resetManagerForNextConnectAttempt(t, ws)
+			require.Eventually(t, func() bool {
+				return !ws.connectionMonitorRunning.Load()
+			}, 5*time.Second, 20*time.Millisecond, "connection monitor should stop during cleanup")
+			restoreShutdownChannel(ws)
+			return
+		}
+		t.Fatalf("manager shutdown cleanup failed: %v", err)
+	}
+	resetManagerForNextConnectAttempt(t, ws)
+	require.Eventually(t, func() bool {
+		return !ws.connectionMonitorRunning.Load()
+	}, 5*time.Second, 20*time.Millisecond, "connection monitor should stop during cleanup")
+}
 
 type testStruct struct {
 	Error error
@@ -75,7 +144,7 @@ func newDefaultSetup() *ManagerSetup {
 			API: config.APIConfig{
 				AuthenticatedWebsocketSupport: true,
 			},
-			WebsocketTrafficTimeout: time.Second * 5,
+			WebsocketTrafficTimeout: testTrafficTimeout,
 			Name:                    "GTX",
 		},
 		DefaultURL:   "testDefaultURL",
@@ -192,9 +261,10 @@ func TestConnectionMessageErrors(t *testing.T) {
 	require.ErrorIs(t, err, errDastardlyReason, "Connect must error correctly")
 
 	ws := NewManager()
+	t.Cleanup(func() { cleanupManagerMonitors(t, ws) })
 	err = ws.Setup(newDefaultSetup())
 	require.NoError(t, err, "Setup must not error")
-	ws.trafficTimeout = time.Minute
+	ws.trafficTimeout = time.Second
 	ws.connector = noopConnect
 
 	require.ErrorIs(t, ws.Connect(t.Context()), ErrSubscriptionsNotAdded)
@@ -586,7 +656,7 @@ func TestManager(t *testing.T) {
 	assert.NoError(t, err, "SetProxyAddress should not error")
 	assert.Equal(t, "http://localhost:1337", ws.GetProxyAddress(), "GetProxyAddress should return correctly")
 	assert.Equal(t, "wss://testRunningURL", ws.GetWebsocketURL(), "GetWebsocketURL should return correctly")
-	assert.Equal(t, time.Second*5, ws.trafficTimeout, "trafficTimeout should default correctly")
+	assert.Equal(t, testTrafficTimeout, ws.trafficTimeout, "trafficTimeout should default correctly")
 
 	assert.ErrorIs(t, ws.Shutdown(), ErrNotConnected)
 	ws.setState(connectedState)
@@ -1138,6 +1208,54 @@ func TestSetupNewConnection(t *testing.T) {
 	require.ErrorIs(t, err, errDuplicateConnectionSetup)
 }
 
+func TestGetConfiguredWebsocketURLs(t *testing.T) {
+	t.Parallel()
+
+	var nilManager *Manager
+	assert.Nil(t, nilManager.GetConfiguredWebsocketURLs())
+
+	single := NewManager()
+	require.NoError(t, single.Setup(newDefaultSetup()))
+	single.runningURL = "wss://single-running"
+	assert.Equal(t, []string{"wss://single-running"}, single.GetConfiguredWebsocketURLs())
+
+	single.runningURL = ""
+	assert.Equal(t, []string{single.defaultURL}, single.GetConfiguredWebsocketURLs())
+
+	single.defaultURL = ""
+	assert.Nil(t, single.GetConfiguredWebsocketURLs(), "Configured websocket URLs should be nil when no URLs are set")
+
+	multi := NewManager()
+	setup := newDefaultSetup()
+	setup.UseMultiConnectionManagement = true
+	require.NoError(t, multi.Setup(setup))
+
+	connSetupOne := &ConnectionSetup{
+		URL:                   "wss://one.example/ws",
+		Connector:             func(context.Context, Connection) error { return nil },
+		GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
+		Subscriber:            func(context.Context, Connection, subscription.List) error { return nil },
+		Unsubscriber:          func(context.Context, Connection, subscription.List) error { return nil },
+		Handler:               func(context.Context, Connection, []byte) error { return nil },
+		MessageFilter:         "one",
+	}
+	require.NoError(t, multi.SetupNewConnection(connSetupOne))
+
+	connSetupTwo := &ConnectionSetup{
+		URL:                   "wss://two.example/ws",
+		Connector:             func(context.Context, Connection) error { return nil },
+		GenerateSubscriptions: func() (subscription.List, error) { return nil, nil },
+		Subscriber:            func(context.Context, Connection, subscription.List) error { return nil },
+		Unsubscriber:          func(context.Context, Connection, subscription.List) error { return nil },
+		Handler:               func(context.Context, Connection, []byte) error { return nil },
+		MessageFilter:         "two",
+	}
+	require.NoError(t, multi.SetupNewConnection(connSetupTwo))
+
+	urls := multi.GetConfiguredWebsocketURLs()
+	assert.ElementsMatch(t, []string{"wss://one.example/ws", "wss://two.example/ws"}, urls)
+}
+
 func TestConnectionShutdown(t *testing.T) {
 	t.Parallel()
 	wc := connection{shutdown: make(chan struct{})}
@@ -1285,6 +1403,14 @@ func TestMonitorConnection(t *testing.T) {
 	err, ok := payload.Data.(error)
 	require.True(t, ok)
 	require.ErrorIs(t, err, errConnectionFault)
+
+	// Handle error while still in connecting state; state should be reset so reconnect can proceed.
+	ws.setState(connectingState)
+	ws.ReadMessageErrors <- errConnectionFault
+	timer = time.NewTimer(time.Second)
+	require.False(t, ws.observeConnection(t.Context(), timer))
+	require.Equal(t, disconnectedState, ws.state.Load())
+
 	// Handle outta closure shell
 	innerShell := ws.monitorConnection(t.Context())
 	ws.setState(connectedState)

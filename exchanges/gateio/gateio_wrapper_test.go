@@ -108,9 +108,18 @@ func TestFetchOrderbook(t *testing.T) {
 
 	availOptions, err := e.GetAvailablePairs(asset.Options)
 	require.NoError(t, err, "GetAvailablePairs must not error")
+	require.NotEmpty(t, availOptions, "options pairs must not be empty")
 
-	optionsPair, err := availOptions.GetRandomPair()
-	require.NoError(t, err, "GetRandomPair must not error")
+	enabledOptions, err := e.GetEnabledPairs(asset.Options)
+	require.NoError(t, err, "GetEnabledPairs must not error")
+
+	optionsPair := availOptions[0]
+	for _, candidate := range enabledOptions {
+		if availOptions.Contains(candidate, true) {
+			optionsPair = candidate
+			break
+		}
+	}
 
 	availDelivery, err := e.GetAvailablePairs(asset.DeliveryFutures)
 	require.NoError(t, err, "GetAvailablePairs must not error")

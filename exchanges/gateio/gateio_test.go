@@ -26,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -1023,6 +1024,39 @@ func TestUpdateFuturesPositionLeverage(t *testing.T) {
 	assert.NoError(t, err, "UpdateFuturesPositionLeverage should not error for CoinMarginedFutures")
 	_, err = e.UpdateFuturesPositionLeverage(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), 1, 0)
 	assert.NoError(t, err, "UpdateFuturesPositionLeverage should not error for USDTMarginedFutures")
+}
+
+func TestSetLeverage(t *testing.T) {
+	t.Parallel()
+
+	err := e.SetLeverage(t.Context(), asset.Spot, getPair(t, asset.Spot), margin.Isolated, 1, order.UnknownSide)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	err = e.SetLeverage(t.Context(), asset.CoinMarginedFutures, getPair(t, asset.CoinMarginedFutures), margin.NoMargin, 1, order.UnknownSide)
+	assert.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
+
+	err = e.SetLeverage(t.Context(), asset.CoinMarginedFutures, getPair(t, asset.CoinMarginedFutures), margin.Isolated, 0, order.UnknownSide)
+	assert.ErrorIs(t, err, errInvalidLeverage)
+
+	err = e.SetLeverage(t.Context(), asset.CoinMarginedFutures, currency.EMPTYPAIR, margin.Isolated, 1, order.UnknownSide)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	err = e.SetLeverage(t.Context(), asset.DeliveryFutures, getPair(t, asset.DeliveryFutures), margin.Isolated, 0, order.UnknownSide)
+	assert.ErrorIs(t, err, errInvalidLeverage)
+
+	err = e.SetLeverage(t.Context(), asset.DeliveryFutures, getPair(t, asset.DeliveryFutures), margin.Multi, 1, order.UnknownSide)
+	assert.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+
+	err = e.SetLeverage(t.Context(), asset.CoinMarginedFutures, getPair(t, asset.CoinMarginedFutures), margin.Isolated, 1, order.UnknownSide)
+	assert.NoError(t, err)
+
+	err = e.SetLeverage(t.Context(), asset.USDTMarginedFutures, getPair(t, asset.USDTMarginedFutures), margin.Multi, 5, order.UnknownSide)
+	assert.NoError(t, err)
+
+	err = e.SetLeverage(t.Context(), asset.DeliveryFutures, getPair(t, asset.DeliveryFutures), margin.Isolated, 1, order.UnknownSide)
+	assert.NoError(t, err)
 }
 
 func TestPlaceDeliveryOrder(t *testing.T) {

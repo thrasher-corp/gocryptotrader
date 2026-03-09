@@ -374,13 +374,15 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset
 		return nil, err
 	}
 
+	asks := mergeRoundedOrderbookLevels(ordBook.Asks)
+	bids := mergeRoundedOrderbookLevels(ordBook.Bids)
 	ob := &orderbook.Book{
 		Exchange:          e.Name,
 		Pair:              p,
 		Asset:             a,
 		ValidateOrderbook: e.ValidateOrderbook,
-		Asks:              ordBook.Asks,
-		Bids:              ordBook.Bids,
+		Asks:              asks,
+		Bids:              bids,
 	}
 
 	if err := ob.Process(); err != nil {
@@ -388,6 +390,27 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset
 	}
 
 	return orderbook.Get(e.Name, p, a)
+}
+
+func mergeRoundedOrderbookLevels(levels []orderbook.Level) []orderbook.Level {
+	if len(levels) < 2 {
+		return levels
+	}
+
+	merged := make([]orderbook.Level, 0, len(levels))
+	for i := range levels {
+		if len(merged) == 0 {
+			merged = append(merged, levels[i])
+			continue
+		}
+
+		if merged[len(merged)-1].Price == levels[i].Price {
+			merged[len(merged)-1].Amount += levels[i].Amount
+			continue
+		}
+		merged = append(merged, levels[i])
+	}
+	return merged
 }
 
 // UpdateAccountBalances retrieves currency balances

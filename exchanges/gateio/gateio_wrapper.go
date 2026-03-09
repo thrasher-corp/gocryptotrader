@@ -27,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -2138,6 +2139,53 @@ func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, co
 		}
 	}
 	return resp
+}
+
+// SetLeverage sets the account's initial leverage for the asset type and pair
+func (e *Exchange) SetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, marginType margin.Type, amount float64, _ order.Side) error {
+	switch item {
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
+		if pair.IsEmpty() {
+			return currency.ErrCurrencyPairEmpty
+		}
+		if amount <= 0 {
+			return fmt.Errorf("%w: %f", errInvalidLeverage, amount)
+		}
+		fPair, err := e.FormatExchangeCurrency(pair, item)
+		if err != nil {
+			return err
+		}
+		settle, err := getSettlementCurrency(fPair, item)
+		if err != nil {
+			return err
+		}
+		if item == asset.DeliveryFutures {
+			switch marginType {
+			case margin.Isolated, margin.Unset:
+				_, err = e.UpdateDeliveryPositionLeverage(ctx, settle, fPair, amount)
+				return err
+			default:
+				return fmt.Errorf("%w %v", margin.ErrMarginTypeUnsupported, marginType)
+			}
+		}
+
+		leverage := amount
+		crossLeverageLimit := 0.0
+		switch marginType {
+		case margin.Multi:
+			leverage = 0
+			crossLeverageLimit = amount
+		case margin.Isolated, margin.Unset:
+			// defaults already set
+		default:
+			return fmt.Errorf("%w %v", margin.ErrMarginTypeUnsupported, marginType)
+		}
+
+		_, err = e.UpdateFuturesPositionLeverage(ctx, settle, fPair, leverage, crossLeverageLimit)
+		return err
+	default:
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
 }
 
 // IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
