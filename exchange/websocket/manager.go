@@ -512,9 +512,8 @@ func (m *Manager) connect(ctx context.Context) error {
 	var subscriptionError error
 
 	// TODO: Implement concurrency below.
-	for i := range connectionManager {
+	for i, ws := range connectionManager {
 		var subs subscription.List
-		ws := connectionManager[i]
 		if !ws.setup.SubscriptionsNotRequired {
 			if ws.setup.GenerateSubscriptions == nil {
 				multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, errWebsocketSubscriptionsGeneratorUnset)
@@ -880,7 +879,7 @@ func (m *Manager) GetWebsocketURL() string {
 
 // GetConfiguredWebsocketURLs returns known websocket connection URLs.
 func (m *Manager) GetConfiguredWebsocketURLs() []string {
-	if err := common.NilGuard(m); err != nil {
+	if m == nil {
 		return nil
 	}
 

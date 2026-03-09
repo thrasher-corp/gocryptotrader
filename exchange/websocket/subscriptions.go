@@ -209,11 +209,11 @@ func (m *Manager) GetSubscription(key any) *subscription.Subscription {
 	for _, ws := range m.snapshotConnectionManager() {
 		m.subscriptionsMu.RLock()
 		store := ws.subscriptions
-		m.subscriptionsMu.RUnlock()
-		if store == nil {
-			continue
+		var sub *subscription.Subscription
+		if store != nil {
+			sub = store.Get(key)
 		}
-		sub := store.Get(key)
+		m.subscriptionsMu.RUnlock()
 		if sub != nil {
 			return sub
 		}
@@ -233,10 +233,10 @@ func (m *Manager) GetSubscriptions() subscription.List {
 	for _, ws := range m.snapshotConnectionManager() {
 		m.subscriptionsMu.RLock()
 		store := ws.subscriptions
-		m.subscriptionsMu.RUnlock()
 		if store != nil {
 			subs = append(subs, store.List()...)
 		}
+		m.subscriptionsMu.RUnlock()
 	}
 	if store := m.subscriptionStore(nil); store != nil {
 		subs = append(subs, store.List()...)
