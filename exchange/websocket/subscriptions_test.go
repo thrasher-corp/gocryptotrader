@@ -429,7 +429,7 @@ func TestFlushChannels(t *testing.T) {
 	amazingCandidate := &ConnectionSetup{
 		URL: "ws" + mock.URL[len("http"):] + "/ws",
 		Connector: func(ctx context.Context, conn Connection) error {
-			return conn.Dial(ctx, gws.DefaultDialer, nil)
+			return conn.Dial(ctx, gws.DefaultDialer, nil, nil)
 		},
 		GenerateSubscriptions: newgen.generateSubs,
 		Subscriber:            func(context.Context, Connection, subscription.List) error { return nil },
@@ -491,7 +491,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 			setup: &ConnectionSetup{
 				URL: "ws" + srv.URL[len("http"):] + "/ws",
 				Connector: func(ctx context.Context, c Connection) error {
-					return c.Dial(ctx, gws.DefaultDialer, nil)
+					return c.Dial(ctx, gws.DefaultDialer, nil, nil)
 				},
 				Subscriber: func(_ context.Context, c Connection, s subscription.List) error {
 					return m.AddSuccessfulSubscriptions(c, s...)

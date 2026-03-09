@@ -117,11 +117,12 @@ func AddTradesToBuffer(data ...Data) error {
 
 // Run will save trade data to the database in batches
 func (p *Processor) Run(wg *sync.WaitGroup) {
-	wg.Done()
 	if !atomic.CompareAndSwapInt32(&p.started, 0, 1) {
+		wg.Done()
 		log.Errorln(log.Trade, "trade processor already started")
 		return
 	}
+	wg.Done()
 	defer func() {
 		atomic.CompareAndSwapInt32(&p.started, 1, 0)
 	}()

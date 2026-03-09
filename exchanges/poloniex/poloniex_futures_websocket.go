@@ -355,20 +355,20 @@ func (e *Exchange) processFuturesMarkAndIndexPriceCandlesticks(ctx context.Conte
 		return err
 	}
 
-	candles := make([]websocket.KlineData, len(resp))
+	candles := make([]kline.Item, len(resp))
 	for i, r := range resp {
-		candles[i] = websocket.KlineData{
-			Timestamp:  r.PushTimestamp.Time(),
-			Pair:       r.Symbol,
-			AssetType:  asset.Futures,
-			Exchange:   e.Name,
-			StartTime:  r.StartTime.Time(),
-			CloseTime:  r.EndTime.Time(),
-			Interval:   interval.String(),
-			OpenPrice:  r.OpeningPrice.Float64(),
-			ClosePrice: r.ClosingPrice.Float64(),
-			HighPrice:  r.HighestPrice.Float64(),
-			LowPrice:   r.LowestPrice.Float64(),
+		candles[i] = kline.Item{
+			Pair:     r.Symbol,
+			Asset:    asset.Futures,
+			Exchange: e.Name,
+			Interval: interval,
+			Candles: []kline.Candle{{
+				Time:  r.StartTime.Time(),
+				Open:  r.OpeningPrice.Float64(),
+				Close: r.ClosingPrice.Float64(),
+				High:  r.HighestPrice.Float64(),
+				Low:   r.LowestPrice.Float64(),
+			}},
 		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, candles)
@@ -491,21 +491,21 @@ func (e *Exchange) processFuturesCandlesticks(ctx context.Context, data []byte, 
 		return err
 	}
 
-	candles := make([]websocket.KlineData, len(resp))
+	candles := make([]kline.Item, len(resp))
 	for i, r := range resp {
-		candles[i] = websocket.KlineData{
-			Timestamp:  r.PushTime.Time(),
-			Pair:       r.Symbol,
-			AssetType:  asset.Futures,
-			Exchange:   e.Name,
-			StartTime:  r.StartTime.Time(),
-			CloseTime:  r.EndTime.Time(),
-			Interval:   interval.String(),
-			OpenPrice:  r.OpenPrice.Float64(),
-			ClosePrice: r.ClosePrice.Float64(),
-			HighPrice:  r.HighestPrice.Float64(),
-			LowPrice:   r.LowestPrice.Float64(),
-			Volume:     r.QuoteAmount.Float64(),
+		candles[i] = kline.Item{
+			Pair:     r.Symbol,
+			Asset:    asset.Futures,
+			Exchange: e.Name,
+			Interval: interval,
+			Candles: []kline.Candle{{
+				Time:   r.StartTime.Time(),
+				Open:   r.OpenPrice.Float64(),
+				Close:  r.ClosePrice.Float64(),
+				High:   r.HighestPrice.Float64(),
+				Low:    r.LowestPrice.Float64(),
+				Volume: r.QuoteAmount.Float64(),
+			}},
 		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, candles)
