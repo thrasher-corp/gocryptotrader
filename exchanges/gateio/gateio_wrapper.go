@@ -1537,23 +1537,31 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		return nil, err
 	}
 	var resp []order.Detail
-	format, err := e.GetPairFormat(req.AssetType, true)
-	if err != nil {
-		return nil, err
-	}
 
 	switch req.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
-		if len(req.Pairs) == 0 {
-			req.Pairs = currency.Pairs{currency.EMPTYPAIR}
+		format, err := e.GetPairFormat(req.AssetType, true)
+		if err != nil {
+			return nil, err
 		}
-		for i := range req.Pairs {
-			fp := req.Pairs[i].Format(format)
+		pairs := req.Pairs
+		if len(pairs) == 0 {
+			pairs = currency.Pairs{currency.EMPTYPAIR}
+		}
+		for i := range pairs {
+			fp := pairs[i]
+			if fp.IsPopulated() {
+				fp = pairs[i].Format(format)
+			}
 			o, err := e.GetMySpotTradingHistory(ctx, fp, req.FromOrderID, 0, 1000, req.StartTime, req.EndTime)
 			if err != nil {
 				return nil, err
 			}
 			for j := range o {
+				fp, err = e.MatchSymbolWithAvailablePairs(o[j].CurrencyPair.String(), req.AssetType, true)
+				if err != nil {
+					return nil, err
+				}
 				side, err := order.StringToOrderSide(o[j].Side)
 				if err != nil {
 					return nil, err
@@ -1579,11 +1587,19 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			}
 		}
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
-		if len(req.Pairs) == 0 {
-			req.Pairs = currency.Pairs{currency.EMPTYPAIR}
+		format, err := e.GetPairFormat(req.AssetType, true)
+		if err != nil {
+			return nil, err
 		}
-		for i := range req.Pairs {
-			fp := req.Pairs[i].Format(format)
+		pairs := req.Pairs
+		if len(pairs) == 0 {
+			pairs = currency.Pairs{currency.EMPTYPAIR}
+		}
+		for i := range pairs {
+			fp := pairs[i]
+			if fp.IsPopulated() {
+				fp = pairs[i].Format(format)
+			}
 			settle, err := getSettlementCurrency(fp, req.AssetType)
 			if err != nil {
 				return nil, err
@@ -1598,6 +1614,10 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				return nil, err
 			}
 			for j := range o {
+				fp, err = e.MatchSymbolWithAvailablePairs(o[j].Contract, req.AssetType, true)
+				if err != nil {
+					return nil, err
+				}
 				od := order.Detail{
 					OrderID:   strconv.FormatInt(o[j].ID, 10),
 					Amount:    o[j].Size.Float64(),
@@ -1614,6 +1634,10 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	case asset.Options:
 		if len(req.Pairs) == 0 {
 			return nil, currency.ErrCurrencyPairsEmpty
+		}
+		format, err := e.GetPairFormat(req.AssetType, true)
+		if err != nil {
+			return nil, err
 		}
 		for i := range req.Pairs {
 			fp := req.Pairs[i].Format(format)

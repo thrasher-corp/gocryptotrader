@@ -1893,30 +1893,122 @@ func TestGetActiveOrders(t *testing.T) {
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, e)
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	type testCase struct {
+		name         string
+		requiresAuth bool
+		request      order.MultiOrderRequest
+		expectedErr  error
+	}
+
+	testCases := make([]testCase, 0, len(e.GetAssetTypes(false))*2+1)
 	for _, a := range e.GetAssetTypes(false) {
-		t.Run(a.String(), func(t *testing.T) {
-			t.Parallel()
-			enabledPairs := getPairs(t, a)
-			if len(enabledPairs) > 4 {
-				enabledPairs = enabledPairs[:4]
-			}
-			multiOrderRequest := order.MultiOrderRequest{
+		enabledPairs := getPairs(t, a)
+		if len(enabledPairs) > 4 {
+			enabledPairs = enabledPairs[:4]
+		}
+
+		withPairs := testCase{
+			name:         a.String() + "/with_pairs",
+			requiresAuth: true,
+			request: order.MultiOrderRequest{
 				Type:      order.AnyType,
 				Side:      order.Buy,
 				Pairs:     enabledPairs,
 				AssetType: a,
-			}
-			_, err := e.GetOrderHistory(t.Context(), &multiOrderRequest)
-			assert.NoError(t, err)
+			},
+		}
+		testCases = append(testCases, withPairs)
 
-			multiOrderRequest.Pairs = nil
-			_, err = e.GetOrderHistory(t.Context(), &multiOrderRequest)
-			if a == asset.Options {
-				assert.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty)
-			} else {
-				assert.NoError(t, err)
+		noPairs := testCase{
+			name:         a.String() + "/without_pairs",
+			requiresAuth: true,
+			request: order.MultiOrderRequest{
+				Type:      order.AnyType,
+				Side:      order.Buy,
+				AssetType: a,
+			},
+		}
+		if a == asset.Options {
+			noPairs.requiresAuth = false
+			noPairs.expectedErr = currency.ErrCurrencyPairsEmpty
+		}
+		testCases = append(testCases, noPairs)
+	}
+
+	testCases = append(testCases, testCase{
+		name:         "unsupported/default_case_binary",
+		requiresAuth: false,
+		request: order.MultiOrderRequest{
+			Type:      order.AnyType,
+			Side:      order.Buy,
+			AssetType: asset.Binary,
+		},
+		expectedErr: asset.ErrNotSupported,
+	})
+
+	for i := range testCases {
+		t.Run(testCases[i].name, func(t *testing.T) {
+			t.Parallel()
+			if testCases[i].requiresAuth {
+				sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 			}
+			orders, err := e.GetOrderHistory(t.Context(), &testCases[i].request)
+			if testCases[i].expectedErr != nil {
+				assert.ErrorIs(t, err, testCases[i].expectedErr)
+				return
+			}
+			assert.NoError(t, err)
+			for j := range orders {
+				assert.Equal(t, testCases[i].request.AssetType, orders[j].AssetType)
+				assert.Equal(t, e.Name, orders[j].Exchange)
+				assert.True(t, orders[j].Pair.IsPopulated(), "pair should be populated for order history response")
+			}
+		})
+	}
+}
+
+func TestGetOrderHistoryRequestImmutability(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, e)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	enabledPairs := getPairs(t, asset.Spot)
+	if len(enabledPairs) > 2 {
+		enabledPairs = enabledPairs[:2]
+	}
+
+	type testCase struct {
+		name    string
+		request order.MultiOrderRequest
+	}
+
+	testCases := []testCase{
+		{
+			name: "nil_pairs",
+			request: order.MultiOrderRequest{
+				Type:      order.AnyType,
+				Side:      order.Buy,
+				AssetType: asset.Spot,
+			},
+		},
+		{
+			name: "provided_pairs",
+			request: order.MultiOrderRequest{
+				Type:      order.AnyType,
+				Side:      order.Buy,
+				Pairs:     append(currency.Pairs(nil), enabledPairs...),
+				AssetType: asset.Spot,
+			},
+		},
+	}
+
+	for i := range testCases {
+		tc := testCases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			expectedPairs := append(currency.Pairs(nil), tc.request.Pairs...)
+			_, err := e.GetOrderHistory(t.Context(), &tc.request)
+			assert.NoError(t, err)
+			assert.Equal(t, expectedPairs, tc.request.Pairs)
 		})
 	}
 }
