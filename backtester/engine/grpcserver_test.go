@@ -45,7 +45,7 @@ func TestStartRPCServerStopsListenerOnContextCancel(t *testing.T) {
 	server, err := SetupRPCServer(cfg, manager)
 	require.NoError(t, err, "SetupRPCServer must not error")
 
-	rpcCtx, cancel := context.WithCancel(context.Background())
+	rpcCtx, cancel := context.WithCancel(t.Context())
 	require.NoError(t, StartRPCServer(rpcCtx, server), "StartRPCServer must not error")
 
 	canDial := func() bool {
@@ -90,7 +90,7 @@ func TestStartRPCServerProxyFailureStopsListener(t *testing.T) {
 	server, err := SetupRPCServer(cfg, manager)
 	require.NoError(t, err, "SetupRPCServer must not error")
 
-	rpcCtx, cancel := context.WithCancel(context.Background())
+	rpcCtx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	err = StartRPCServer(rpcCtx, server)
 	require.Error(t, err, "StartRPCServer must error when proxy setup fails")

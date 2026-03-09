@@ -133,7 +133,8 @@ func StartRPCServer(ctx context.Context, server *GRPCServer) error {
 
 func (s *GRPCServer) startRPCRESTProxy(ctx context.Context) error {
 	log.Debugf(log.GRPCSys, "GRPC proxy server support enabled. Starting gRPC proxy server on %v", s.config.GRPC.GRPCProxyListenAddress)
-	proxyListener, err := net.Listen("tcp", s.config.GRPC.GRPCProxyListenAddress)
+	listenConfig := net.ListenConfig{}
+	proxyListener, err := listenConfig.Listen(ctx, "tcp", s.config.GRPC.GRPCProxyListenAddress)
 	if err != nil {
 		return fmt.Errorf("gRPC proxy listener failed to bind: %w", err)
 	}
