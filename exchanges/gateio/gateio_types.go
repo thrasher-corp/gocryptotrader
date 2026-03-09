@@ -2123,22 +2123,20 @@ type SettlementHistoryItem struct {
 type SubAccountParams struct {
 	SubAccountName string `json:"login_name"`
 	Remark         string `json:"remark,omitempty"`
-	Email          string `json:"email,omitempty"`    // The sub-account's password.
-	Password       string `json:"password,omitempty"` // The sub-account's email address.
+	Email          string `json:"email,omitempty"`
+	Password       string `json:"password,omitempty"`
 }
 
 // SubAccount represents a subaccount response
 type SubAccount struct {
-	Remark          string     `json:"remark"`     // custom text
-	LoginName       string     `json:"login_name"` // SubAccount login name
-	Password        string     `json:"password"`   // The sub-account's password
-	SubAccountEmail string     `json:"email"`      // The sub-account's email
+	Remark          string     `json:"remark"`
+	LoginName       string     `json:"login_name"`
+	Password        string     `json:"password"`
+	SubAccountEmail string     `json:"email"`
 	UserID          int64      `json:"user_id"`
 	State           int64      `json:"state"`
 	CreateTime      types.Time `json:"create_time"`
 }
-
-// **************************************************************************************************
 
 // WsInput represents general structure for websocket requests
 type WsInput struct {

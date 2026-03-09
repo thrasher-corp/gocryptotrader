@@ -441,6 +441,9 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 		return pairs, nil
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
+		if a == asset.USDTMarginedFutures {
+			e.Verbose = true
+		}
 		settle, err := getSettlementCurrency(currency.EMPTYPAIR, a)
 		if err != nil {
 			return nil, err
@@ -451,7 +454,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 		pairs := make([]currency.Pair, 0, len(contracts))
 		for _, fContract := range contracts {
-			if !fContract.DelistedTime.Time().IsZero() && fContract.DelistedTime.Time().Before(time.Now()) {
+			if fContract.Name.IsEmpty() {
 				continue
 			}
 			pairs = append(pairs, fContract.Name)
@@ -508,10 +511,10 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	for x := range assets {
 		pairs, err := e.FetchTradablePairs(ctx, assets[x])
 		if err != nil {
-			return err
+			return fmt.Errorf("%v: %w", assets[x], err)
 		}
 		if err := e.UpdatePairs(pairs, assets[x], false); err != nil {
-			return err
+			return fmt.Errorf("%v: %w", assets[x], err)
 		}
 	}
 	return e.EnsureOnePairEnabled()
@@ -1080,7 +1083,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			if err != nil {
 				return nil, err
 			}
-			var resp []FuturesOrder
+			var resp []*FuturesOrder
 			if a == asset.DeliveryFutures {
 				resp, err = e.CancelMultipleDeliveryOrders(ctx, o[i].Pair, o[i].Side.Lower(), settle)
 			} else {
@@ -1149,7 +1152,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 		if err != nil {
 			return resp, err
 		}
-		var cancel []FuturesOrder
+		var cancel []*FuturesOrder
 		if o.AssetType == asset.DeliveryFutures {
 			cancel, err = e.CancelMultipleDeliveryOrders(ctx, fmtPair, futuresSide, settle)
 		} else {
@@ -1435,7 +1438,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 		if err != nil {
 			return nil, err
 		}
-		var futuresOrders []FuturesOrder
+		var futuresOrders []*FuturesOrder
 		if req.AssetType == asset.DeliveryFutures {
 			futuresOrders, err = e.GetDeliveryOrders(ctx, currency.EMPTYPAIR, statusOpen, settle, "", 0, 0, false)
 		} else {

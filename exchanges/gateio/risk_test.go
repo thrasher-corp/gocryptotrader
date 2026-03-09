@@ -24,7 +24,7 @@ func TestGetUnifiedUserRiskUnitDetails(t *testing.T) {
 
 func TestGetFuturesRiskTable(t *testing.T) {
 	t.Parallel()
-
+	e.Verbose = true
 	_, err := e.GetFuturesRiskTable(t.Context(), currency.EMPTYCODE, "")
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 

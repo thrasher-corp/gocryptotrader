@@ -26,7 +26,7 @@ func TestMain(m *testing.M) {
 		e.API.AuthenticatedWebsocketSupport = true
 		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
-	if err := testexch.MockHTTPInstance(e); err != nil {
+	if err := testexch.MockHTTPInstance(e, gateioAPIVersion); err != nil {
 		log.Fatalf("Poloniex MockHTTPInstance error: %s", err)
 	}
 	if err := e.enablePairs(); err != nil {

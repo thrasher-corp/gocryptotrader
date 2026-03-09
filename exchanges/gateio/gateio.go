@@ -28,11 +28,11 @@ import (
 )
 
 const (
-	gateioTradeURL                      = "https://api.gateio.ws"
-	gateioFuturesTestnetTrading         = "https://fx-api-testnet.gateio.ws"
-	gateioFuturesLiveTradingAlternative = "https://fx-api.gateio.ws"
 	gateioAPIVersion                    = "/api/v4/"
-	tradeBaseURL                        = "https://www.gate.io"
+	gateioTradeURL                      = "https://api.gateio.ws" + gateioAPIVersion
+	gateioFuturesTestnetTrading         = "https://fx-api-testnet.gateio.ws" + gateioAPIVersion
+	gateioFuturesLiveTradingAlternative = "https://fx-api.gateio.ws" + gateioAPIVersion
+	tradeBaseURL                        = "https://www.gate.io" + gateioAPIVersion
 
 	// SubAccount Endpoints
 	subAccounts = "sub_accounts"
@@ -78,44 +78,43 @@ const (
 )
 
 var (
-	errEmptyOrInvalidSettlementCurrency = errors.New("empty or invalid settlement currency")
-	errInvalidOrderText                 = errors.New("invalid text value, requires prefix `t-`")
-	errLoanTypeIsRequired               = errors.New("loan type is required")
-	errUserIDRequired                   = errors.New("user id is required")
-	errSTPGroupNameRequired             = errors.New("self-trade prevention group name required")
-	errSTPGroupIDRequired               = errors.New("self-trade prevention group id required")
-	errPlanIDRequired                   = errors.New("plan ID required")
-	errInvalidCurrencyChain             = errors.New("name of the chain used for withdrawal must be specified")
-	errNoValidResponseFromServer        = errors.New("no valid response from server")
-	errInvalidUnderlying                = errors.New("missing underlying")
-	errInvalidOrderSize                 = errors.New("invalid order size")
-	errInvalidSubAccount                = errors.New("invalid or empty subaccount")
-	errInvalidTransferDirection         = errors.New("invalid transfer direction")
-	errDifferentAccount                 = errors.New("account type must be identical for all orders")
-	errNoValidParameterPassed           = errors.New("no valid parameter passed")
-	errInvalidCountdown                 = errors.New("invalid countdown, Countdown time, in seconds At least 5 seconds, 0 means cancel the countdown")
-	errInvalidOrderStatus               = errors.New("invalid order status")
-	errInvalidLoanID                    = errors.New("missing loan ID")
-	errMissingPreviewID                 = errors.New("missing required parameter: preview_id")
-	errChangeHasToBePositive            = errors.New("change has to be positive")
-	errInvalidAutoSize                  = errors.New("invalid autoSize")
-	errTooManyOrderRequest              = errors.New("too many order creation request")
-	errInvalidTimeout                   = errors.New("invalid timeout, should be in seconds At least 5 seconds, 0 means cancel the countdown")
-	errNoTickerData                     = errors.New("no ticker data available")
-	errInvalidTimezone                  = errors.New("invalid timezone")
-	errMultipleOrders                   = errors.New("multiple orders passed")
-	errMissingWithdrawalID              = errors.New("missing withdrawal ID")
-	errInvalidSubAccountUserID          = errors.New("sub-account user id is required")
-	errInvalidSettlementQuote           = errors.New("symbol quote currency does not match asset settlement currency")
-	errInvalidSettlementBase            = errors.New("symbol base currency does not match asset settlement currency")
-	errMissingAPIKey                    = errors.New("missing API key information")
-	errInvalidTextPrefix                = errors.New("invalid text value, requires prefix `t-`")
-	errSingleAssetRequired              = errors.New("single asset type required")
-	errMissingUnifiedAccountMode        = errors.New("unified account mode is required")
-	errTooManyCurrencyCodes             = errors.New("too many currency codes supplied")
-	errFetchingOrderbook                = errors.New("error fetching orderbook")
-	errNoSpotInstrument                 = errors.New("no spot instrument available")
-	errOperationTypeRequired            = errors.New("operation type required")
+	errInvalidOrderText          = errors.New("invalid text value, requires prefix `t-`")
+	errLoanTypeIsRequired        = errors.New("loan type is required")
+	errUserIDRequired            = errors.New("user id is required")
+	errSTPGroupNameRequired      = errors.New("self-trade prevention group name required")
+	errSTPGroupIDRequired        = errors.New("self-trade prevention group id required")
+	errPlanIDRequired            = errors.New("plan ID required")
+	errInvalidCurrencyChain      = errors.New("name of the chain used for withdrawal must be specified")
+	errNoValidResponseFromServer = errors.New("no valid response from server")
+	errInvalidUnderlying         = errors.New("missing underlying")
+	errInvalidOrderSize          = errors.New("invalid order size")
+	errInvalidSubAccount         = errors.New("invalid or empty subaccount")
+	errInvalidTransferDirection  = errors.New("invalid transfer direction")
+	errDifferentAccount          = errors.New("account type must be identical for all orders")
+	errNoValidParameterPassed    = errors.New("no valid parameter passed")
+	errInvalidCountdown          = errors.New("invalid countdown, Countdown time, in seconds At least 5 seconds, 0 means cancel the countdown")
+	errInvalidOrderStatus        = errors.New("invalid order status")
+	errInvalidLoanID             = errors.New("missing loan ID")
+	errMissingPreviewID          = errors.New("missing required parameter: preview_id")
+	errChangeHasToBePositive     = errors.New("change has to be positive")
+	errInvalidAutoSize           = errors.New("invalid autoSize")
+	errTooManyOrderRequest       = errors.New("too many order creation request")
+	errInvalidTimeout            = errors.New("invalid timeout, should be in seconds At least 5 seconds, 0 means cancel the countdown")
+	errNoTickerData              = errors.New("no ticker data available")
+	errInvalidTimezone           = errors.New("invalid timezone")
+	errMultipleOrders            = errors.New("multiple orders passed")
+	errMissingWithdrawalID       = errors.New("missing withdrawal ID")
+	errInvalidSubAccountUserID   = errors.New("sub-account user id is required")
+	errInvalidSettlementQuote    = errors.New("symbol quote currency does not match asset settlement currency")
+	errInvalidSettlementBase     = errors.New("symbol base currency does not match asset settlement currency")
+	errMissingAPIKey             = errors.New("missing API key information")
+	errInvalidTextPrefix         = errors.New("invalid text value, requires prefix `t-`")
+	errSingleAssetRequired       = errors.New("single asset type required")
+	errMissingUnifiedAccountMode = errors.New("unified account mode is required")
+	errTooManyCurrencyCodes      = errors.New("too many currency codes supplied")
+	errFetchingOrderbook         = errors.New("error fetching orderbook")
+	errNoSpotInstrument          = errors.New("no spot instrument available")
+	errOperationTypeRequired     = errors.New("operation type required")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
@@ -2242,7 +2241,7 @@ func (e *Exchange) PlaceFuturesOrder(ctx context.Context, arg *FuturesOrderCreat
 
 // GetFuturesOrders retrieves list of futures orders
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
-func (e *Exchange) GetFuturesOrders(ctx context.Context, contract currency.Pair, status, lastID string, settle currency.Code, limit, offset uint64, countTotal bool) ([]FuturesOrder, error) {
+func (e *Exchange) GetFuturesOrders(ctx context.Context, contract currency.Pair, status, lastID string, settle currency.Code, limit, offset uint64, countTotal bool) ([]*FuturesOrder, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2266,13 +2265,13 @@ func (e *Exchange) GetFuturesOrders(ctx context.Context, contract currency.Pair,
 	if countTotal && status != statusOpen {
 		params.Set("count_total", "1")
 	}
-	var response []FuturesOrder
+	var response []*FuturesOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualGetOrdersEPL, http.MethodGet, futuresPath+settle.Item.Lower+ordersPath, params, nil, &response)
 }
 
 // CancelMultipleFuturesOpenOrders ancel all open orders
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
-func (e *Exchange) CancelMultipleFuturesOpenOrders(ctx context.Context, contract currency.Pair, side string, settle currency.Code) ([]FuturesOrder, error) {
+func (e *Exchange) CancelMultipleFuturesOpenOrders(ctx context.Context, contract currency.Pair, side string, settle currency.Code) ([]*FuturesOrder, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2284,7 +2283,7 @@ func (e *Exchange) CancelMultipleFuturesOpenOrders(ctx context.Context, contract
 		params.Set("side", side)
 	}
 	params.Set("contract", contract.String())
-	var response []FuturesOrder
+	var response []*FuturesOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualGetOrdersEPL, http.MethodDelete, futuresPath+settle.Item.Lower+ordersPath, params, nil, &response)
 }
 
@@ -2296,7 +2295,7 @@ func (e *Exchange) CancelMultipleFuturesOpenOrders(ctx context.Context, contract
 // In the returned result, the succeeded field of type bool indicates whether the execution was successful or not
 // If the execution is successful, the normal order content is included; if the execution fails, the label field is included to indicate the cause of the error
 // In the rate limiting, each order is counted individually
-func (e *Exchange) PlaceBatchFuturesOrders(ctx context.Context, settle currency.Code, args []FuturesOrderCreateParams) ([]FuturesOrder, error) {
+func (e *Exchange) PlaceBatchFuturesOrders(ctx context.Context, settle currency.Code, args []FuturesOrderCreateParams) ([]*FuturesOrder, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2308,7 +2307,7 @@ func (e *Exchange) PlaceBatchFuturesOrders(ctx context.Context, settle currency.
 			return nil, err
 		}
 	}
-	var response []FuturesOrder
+	var response []*FuturesOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualSubmitBatchOrdersEPL, http.MethodPost, futuresPath+settle.Item.Lower+"/batch_orders", nil, &args, &response)
 }
 
@@ -2780,7 +2779,7 @@ func (e *Exchange) PlaceDeliveryOrder(ctx context.Context, arg *DeliveryOrderCre
 
 // GetDeliveryOrders list futures orders
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
-func (e *Exchange) GetDeliveryOrders(ctx context.Context, contract currency.Pair, status string, settle currency.Code, lastID string, limit, offset uint64, countTotal bool) ([]FuturesOrder, error) {
+func (e *Exchange) GetDeliveryOrders(ctx context.Context, contract currency.Pair, status string, settle currency.Code, lastID string, limit, offset uint64, countTotal bool) ([]*FuturesOrder, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2803,13 +2802,13 @@ func (e *Exchange) GetDeliveryOrders(ctx context.Context, contract currency.Pair
 	if countTotal && status != statusOpen {
 		params.Set("count_total", "1")
 	}
-	var response []FuturesOrder
+	var response []*FuturesOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, deliveryGetOrdersEPL, http.MethodGet, deliveryPath+settle.Item.Lower+ordersPath, params, nil, &response)
 }
 
 // CancelMultipleDeliveryOrders cancel all open orders matched
 // Zero-filled order cannot be retrieved 10 minutes after order cancellation
-func (e *Exchange) CancelMultipleDeliveryOrders(ctx context.Context, contract currency.Pair, side string, settle currency.Code) ([]FuturesOrder, error) {
+func (e *Exchange) CancelMultipleDeliveryOrders(ctx context.Context, contract currency.Pair, side string, settle currency.Code) ([]*FuturesOrder, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -2821,7 +2820,7 @@ func (e *Exchange) CancelMultipleDeliveryOrders(ctx context.Context, contract cu
 		params.Set("side", side)
 	}
 	params.Set("contract", contract.String())
-	var response []FuturesOrder
+	var response []*FuturesOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, deliveryCancelOrdersEPL, http.MethodDelete, deliveryPath+settle.Item.Lower+ordersPath, params, nil, &response)
 }
 
@@ -4189,7 +4188,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			paramValue = param.Encode()
 		}
 		var sig string
-		sig, err = e.GenerateSignature(creds.Secret, method, "/"+gateioAPIVersion+endpoint, paramValue, data, timestamp)
+		sig, err = e.GenerateSignature(creds.Secret, method, endpoint, paramValue, data, timestamp)
 		if err != nil {
 			return nil, err
 		}
@@ -4198,7 +4197,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers["TIMESTAMP"] = strconv.FormatInt(timestamp.Unix(), 10)
 		headers["Accept"] = "application/json"
 		headers["SIGN"] = sig
-		urlPath = ePoint + gateioAPIVersion + urlPath
+		urlPath = ePoint + urlPath
 		if param != nil {
 			urlPath = common.EncodeURLValues(urlPath, param)
 		}
@@ -4257,7 +4256,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	return e.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return &request.Item{
 			Method:                 http.MethodGet,
-			Path:                   endpoint + gateioAPIVersion + path,
+			Path:                   endpoint + path,
 			Result:                 result,
 			Verbose:                e.Verbose,
 			HTTPDebugging:          e.HTTPDebugging,
