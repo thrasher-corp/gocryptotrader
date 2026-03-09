@@ -1,6 +1,7 @@
 package bitmex
 
 import (
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -15,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -148,6 +148,52 @@ func TestGetFundingHistory(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetAccountFundingHistory(t.Context())
 	require.Error(t, err)
+}
+
+func TestUserMarginGETUsesQueryNotBody(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	err := testexch.Setup(ex)
+	require.NoError(t, err, "Setup must not error")
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials("test-key", "test-secret", "", "", "", "")
+
+	call := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		call++
+		assert.Equal(t, http.MethodGet, r.Method, "Request method should be GET")
+		assert.Equal(t, "/api/v1/user/margin", r.URL.Path, "Request path should be correct")
+
+		body, err := io.ReadAll(r.Body)
+		assert.NoError(t, err, "Reading request body should not error")
+		assert.Empty(t, body, "GET requests should not include a JSON body")
+
+		switch call {
+		case 1:
+			assert.Equal(t, "currency=XBt", r.URL.RawQuery, "GetUserMargin should use currency query param")
+			_, err = w.Write([]byte(`{"currency":"XBt","walletBalance":1}`))
+			assert.NoError(t, err, "Writing response should not error")
+		case 2:
+			assert.Equal(t, "currency=all", r.URL.RawQuery, "GetAllUserMargin should use currency query param")
+			_, err = w.Write([]byte(`[{"currency":"XBt","walletBalance":1}]`))
+			assert.NoError(t, err, "Writing response should not error")
+		default:
+			t.Fatalf("unexpected request call count: %d", call)
+		}
+	}))
+	defer server.Close()
+
+	err = ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v1")
+	require.NoError(t, err, "SetRunningURL must not error")
+
+	_, err = ex.GetUserMargin(t.Context(), "XBt")
+	require.NoError(t, err, "GetUserMargin must not error")
+
+	_, err = ex.GetAllUserMargin(t.Context())
+	require.NoError(t, err, "GetAllUserMargin must not error")
+
+	require.Equal(t, 2, call, "Expected exactly two requests")
 }
 
 func TestGetInstruments(t *testing.T) {
@@ -717,11 +763,9 @@ func TestGetDepositAddress(t *testing.T) {
 
 func TestWsAuth(t *testing.T) {
 	t.Parallel()
-	if !e.Websocket.IsEnabled() && !e.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(e) {
-		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
-	}
+	testexch.SkipTestIfCannotUseAuthenticatedWebsocket(t, e)
 	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{})
+	err := e.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{}, nil)
 	require.NoError(t, err)
 
 	go e.wsReadData(t.Context())
@@ -1157,41 +1201,115 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	}
 }
 
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, e)
+	for _, a := range e.GetAssetTypes(false) {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			err := e.UpdateOrderExecutionLimits(t.Context(), a)
+			require.NoError(t, err, "UpdateOrderExecutionLimits must not error")
+			pairs, err := e.CurrencyPairs.GetPairs(a, false)
+			require.NoError(t, err, "GetPairs must not error")
+			require.NotEmpty(t, pairs, "GetPairs must return pairs")
+			for _, p := range pairs {
+				l, err := e.GetOrderExecutionLimits(a, p)
+				require.NoError(t, err, "GetOrderExecutionLimits must not error")
+				assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
+			}
+		})
+	}
+	t.Run("unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported)
+	})
+}
+
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
-	p := currency.Pairs{
-		currency.NewPair(currency.ETH, currency.USD),
-		currency.NewPair(currency.BCH, currency.NewCode("Z19")),
-	}
-
-	exp := subscription.List{
-		{QualifiedChannel: bitmexWSOrderbookL2 + ":" + p[1].String(), Channel: bitmexWSOrderbookL2, Asset: asset.Futures, Pairs: p[1:2]},
-		{QualifiedChannel: bitmexWSOrderbookL2 + ":" + p[0].String(), Channel: bitmexWSOrderbookL2, Asset: asset.PerpetualContract, Pairs: p[:1]},
-		{QualifiedChannel: bitmexWSTrade + ":" + p[1].String(), Channel: bitmexWSTrade, Asset: asset.Futures, Pairs: p[1:2]},
-		{QualifiedChannel: bitmexWSTrade + ":" + p[0].String(), Channel: bitmexWSTrade, Asset: asset.PerpetualContract, Pairs: p[:1]},
-		{QualifiedChannel: bitmexWSAffiliate, Channel: bitmexWSAffiliate, Authenticated: true},
-		{QualifiedChannel: bitmexWSOrder, Channel: bitmexWSOrder, Authenticated: true},
-		{QualifiedChannel: bitmexWSMargin, Channel: bitmexWSMargin, Authenticated: true},
-		{QualifiedChannel: bitmexWSTransact, Channel: bitmexWSTransact, Authenticated: true},
-		{QualifiedChannel: bitmexWSWallet, Channel: bitmexWSWallet, Authenticated: true},
-		{QualifiedChannel: bitmexWSExecution + ":" + p[0].String(), Channel: bitmexWSExecution, Authenticated: true, Asset: asset.PerpetualContract, Pairs: p[:1]},
-		{QualifiedChannel: bitmexWSPosition + ":" + p[0].String(), Channel: bitmexWSPosition, Authenticated: true, Asset: asset.PerpetualContract, Pairs: p[:1]},
-	}
-
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	subs, err := e.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
+	require.NotEmpty(t, subs, "generateSubscriptions must return subscriptions")
+
+	seenQualifiedChannels := make(map[string]struct{}, len(subs))
+	for _, s := range subs {
+		assert.NotEmpty(t, s.QualifiedChannel, "QualifiedChannel should not be empty")
+		_, found := seenQualifiedChannels[s.QualifiedChannel]
+		assert.Falsef(t, found, "QualifiedChannel should be unique, got duplicate %q", s.QualifiedChannel)
+		seenQualifiedChannels[s.QualifiedChannel] = struct{}{}
+
+		if s.Asset == asset.Index {
+			assert.NotContainsf(t, s.QualifiedChannel, bitmexWSOrderbookL2+":", "Index subscriptions should not include %s", bitmexWSOrderbookL2)
+		}
+	}
+
+	expectedBaseSubscriptions := subscription.List{
+		{Enabled: true, Channel: bitmexWSOrderbookL2, Asset: asset.All},
+		{Enabled: true, Channel: bitmexWSTrade, Asset: asset.All},
+		{Enabled: true, Channel: bitmexWSAffiliate, Authenticated: true},
+		{Enabled: true, Channel: bitmexWSOrder, Authenticated: true},
+		{Enabled: true, Channel: bitmexWSMargin, Authenticated: true},
+		{Enabled: true, Channel: bitmexWSTransact, Authenticated: true},
+		{Enabled: true, Channel: bitmexWSWallet, Authenticated: true},
+		{Enabled: true, Channel: bitmexWSExecution, Authenticated: true, Asset: asset.PerpetualContract},
+		{Enabled: true, Channel: bitmexWSPosition, Authenticated: true, Asset: asset.PerpetualContract},
+	}
+
+	exp := subscription.List{}
+	for _, baseSub := range expectedBaseSubscriptions {
+		if baseSub.Asset == asset.Empty {
+			s := baseSub.Clone()
+			s.QualifiedChannel = s.Channel
+			exp = append(exp, s)
+			continue
+		}
+
+		for _, a := range e.GetAssetTypes(true) {
+			if !e.IsAssetWebsocketSupported(a) {
+				continue
+			}
+			if baseSub.Asset != asset.All && baseSub.Asset != a {
+				continue
+			}
+			if a == asset.Index && baseSub.Channel == bitmexWSOrderbookL2 {
+				continue
+			}
+
+			pairs, err := e.GetEnabledPairs(a)
+			require.NoErrorf(t, err, "GetEnabledPairs must not error for asset %s", a)
+			pairFmt, err := e.GetPairFormat(a, true)
+			require.NoErrorf(t, err, "GetPairFormat must not error for asset %s", a)
+			pairs = common.SortStrings(pairs.Format(pairFmt))
+
+			for _, p := range pairs {
+				s := baseSub.Clone()
+				s.Asset = a
+				s.Pairs = currency.Pairs{p}
+				s.QualifiedChannel = s.Channel + ":" + p.String()
+				exp = append(exp, s)
+			}
+		}
+	}
+
 	testsubs.EqualLists(t, exp, subs)
 
 	for _, a := range e.GetAssetTypes(true) {
 		require.NoErrorf(t, e.CurrencyPairs.SetAssetEnabled(a, false), "SetAssetEnabled must not error for %s", a)
 	}
-	_, err = e.generateSubscriptions()
+	subs, err = e.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error when no assets are enabled")
+	testsubs.EqualLists(t, subscription.List{
+		{QualifiedChannel: bitmexWSAffiliate, Channel: bitmexWSAffiliate, Authenticated: true},
+		{QualifiedChannel: bitmexWSOrder, Channel: bitmexWSOrder, Authenticated: true},
+		{QualifiedChannel: bitmexWSMargin, Channel: bitmexWSMargin, Authenticated: true},
+		{QualifiedChannel: bitmexWSTransact, Channel: bitmexWSTransact, Authenticated: true},
+		{QualifiedChannel: bitmexWSWallet, Channel: bitmexWSWallet, Authenticated: true},
+	}, subs)
 }
 
 func TestSubscribe(t *testing.T) {

@@ -439,6 +439,9 @@ func (p *PairsManager) Load(seed *PairsManager) {
 func (p *PairsManager) reindex() {
 	p.matcher = make(map[key]*Pair)
 	for a, fs := range p.Pairs {
+		if fs == nil {
+			continue
+		}
 		for i, pair := range fs.Available {
 			k := key{Symbol: pair.Base.Lower().String() + pair.Quote.Lower().String(), Asset: a}
 			p.matcher[k] = &fs.Available[i]
@@ -488,6 +491,49 @@ func (p *PairsManager) SetDelimitersFromConfig() error {
 		}
 	}
 	return nil
+}
+
+// SortAvailablePairs sorts available pairs per asset to ensure deterministic output
+func (p *PairsManager) SortAvailablePairs() {
+	if p == nil {
+		return
+	}
+
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+
+	cmp := func(a, b Pair) int {
+		return strings.Compare(a.Lower().String(), b.Lower().String())
+	}
+
+	needsReindex := false
+	for _, pairStore := range p.Pairs {
+		if pairStore == nil || len(pairStore.Available) < 2 {
+			continue
+		}
+		if slices.IsSortedFunc(pairStore.Available, cmp) {
+			continue
+		}
+		slices.SortFunc(pairStore.Available, cmp)
+		needsReindex = true
+	}
+
+	if needsReindex {
+		p.reindex()
+	}
+}
+
+type pairsManagerJSON PairsManager
+
+// MarshalJSON returns a stable JSON snapshot of pair manager data under read lock.
+func (p *PairsManager) MarshalJSON() ([]byte, error) {
+	if p == nil {
+		return []byte("null"), nil
+	}
+
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+	return json.Marshal((*pairsManagerJSON)(p))
 }
 
 // UnmarshalJSON implements the unmarshal json interface so that the key can be

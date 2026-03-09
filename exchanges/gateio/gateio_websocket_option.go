@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -36,7 +35,7 @@ const (
 	optionsTradesChannel                 = "options.trades"
 	optionsUnderlyingTradesChannel       = "options.ul_trades"
 	optionsUnderlyingPriceChannel        = "options.ul_price"
-	optionsMarkPriceChannel              = "options.mark_price"
+	optionsMarkPriceChannel              = "options.mark_prices"
 	optionsSettlementChannel             = "options.settlements"
 	optionsContractsChannel              = "options.contracts"
 	optionsContractCandlesticksChannel   = "options.contract_candlesticks"
@@ -70,7 +69,7 @@ func (e *Exchange) WsOptionsConnect(ctx context.Context, conn websocket.Connecti
 	if err := e.CurrencyPairs.IsAssetEnabled(asset.Options); err != nil {
 		return err
 	}
-	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{}, nil, nil); err != nil {
 		return err
 	}
 	pingHandler, err := getWSPingHandler(optionsPingChannel)
@@ -159,7 +158,7 @@ getEnabledPairs:
 
 func (e *Exchange) generateOptionsPayload(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]*WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
-		return nil, errors.New("cannot generate payload, no channels supplied")
+		return nil, errNoChannelsSupplied
 	}
 	var err error
 	var intervalString string
@@ -379,8 +378,8 @@ func (e *Exchange) processOptionsContractTickers(ctx context.Context, incoming [
 		Last:         data.LastPrice.Float64(),
 		Bid:          data.Bid1Price.Float64(),
 		Ask:          data.Ask1Price.Float64(),
-		AskSize:      data.Ask1Size,
-		BidSize:      data.Bid1Size,
+		AskSize:      data.Ask1Size.Float64(),
+		BidSize:      data.Bid1Size.Float64(),
 		ExchangeName: e.Name,
 		AssetType:    asset.Options,
 	})
@@ -408,8 +407,8 @@ func (e *Exchange) processOptionsTradesPushData(data []byte) error {
 			CurrencyPair: resp.Result[x].Contract,
 			AssetType:    asset.Options,
 			Exchange:     e.Name,
-			Price:        resp.Result[x].Price,
-			Amount:       resp.Result[x].Size,
+			Price:        resp.Result[x].Price.Float64(),
+			Amount:       resp.Result[x].Size.Float64(),
 			TID:          strconv.FormatInt(resp.Result[x].ID, 10),
 		}
 	}
@@ -433,27 +432,33 @@ func (e *Exchange) processOptionsCandlestickPushData(ctx context.Context, data [
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
-	klineDatas := make([]websocket.KlineData, len(resp.Result))
+	klineDatas := make([]kline.Item, len(resp.Result))
 	for x := range resp.Result {
 		icp := strings.Split(resp.Result[x].NameOfSubscription, currency.UnderscoreDelimiter)
 		if len(icp) < 3 {
 			return errors.New("malformed options candlestick websocket push data")
 		}
+		interval, err := e.GetIntervalFromString(icp[0])
+		if err != nil {
+			return err
+		}
 		currencyPair, err := currency.NewPairFromString(strings.Join(icp[1:], currency.UnderscoreDelimiter))
 		if err != nil {
 			return err
 		}
-		klineDatas[x] = websocket.KlineData{
-			Pair:       currencyPair,
-			AssetType:  asset.Options,
-			Exchange:   e.Name,
-			StartTime:  resp.Result[x].Timestamp.Time(),
-			Interval:   icp[0],
-			OpenPrice:  resp.Result[x].OpenPrice.Float64(),
-			ClosePrice: resp.Result[x].ClosePrice.Float64(),
-			HighPrice:  resp.Result[x].HighestPrice.Float64(),
-			LowPrice:   resp.Result[x].LowestPrice.Float64(),
-			Volume:     resp.Result[x].Amount.Float64(),
+		klineDatas[x] = kline.Item{
+			Pair:     currencyPair,
+			Asset:    asset.Options,
+			Exchange: e.Name,
+			Interval: interval,
+			Candles: []kline.Candle{{
+				Time:   resp.Result[x].Timestamp.Time(),
+				Open:   resp.Result[x].OpenPrice.Float64(),
+				Close:  resp.Result[x].ClosePrice.Float64(),
+				High:   resp.Result[x].HighestPrice.Float64(),
+				Low:    resp.Result[x].LowestPrice.Float64(),
+				Volume: resp.Result[x].Amount.Float64(),
+			}},
 		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, klineDatas)
@@ -466,17 +471,13 @@ func (e *Exchange) processOptionsOrderbookUpdate(ctx context.Context, incoming [
 	}
 	asks := make([]orderbook.Level, len(data.Asks))
 	for x := range data.Asks {
-		asks[x] = orderbook.Level{
-			Amount: data.Asks[x].Size,
-			Price:  data.Asks[x].Price.Float64(),
-		}
+		asks[x].Price = data.Asks[x].Price.Float64()
+		asks[x].Amount = data.Asks[x].Size.Float64()
 	}
 	bids := make([]orderbook.Level, len(data.Bids))
 	for x := range data.Bids {
-		bids[x] = orderbook.Level{
-			Amount: data.Bids[x].Size,
-			Price:  data.Bids[x].Price.Float64(),
-		}
+		bids[x].Price = data.Bids[x].Price.Float64()
+		bids[x].Amount = data.Bids[x].Size.Float64()
 	}
 	return e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, e, data.FirstUpdatedID, &orderbook.Update{
 		Asset:      a,
@@ -528,11 +529,11 @@ func (e *Exchange) processOptionsOrderbookSnapshotPushData(event string, incomin
 		}
 		if data[x].Amount > 0 {
 			ab[1] = append(ab[1], orderbook.Level{
-				Price: data[x].Price.Float64(), Amount: data[x].Amount,
+				Price: data[x].Price.Float64(), Amount: data[x].Amount.Float64(),
 			})
 		} else {
 			ab[0] = append(ab[0], orderbook.Level{
-				Price: data[x].Price.Float64(), Amount: -data[x].Amount,
+				Price: data[x].Price.Float64(), Amount: -data[x].Amount.Float64(),
 			})
 		}
 		if !ok {
@@ -585,14 +586,14 @@ func (e *Exchange) processOptionsOrderPushData(ctx context.Context, data []byte)
 			return err
 		}
 		orderDetails[x] = order.Detail{
-			Amount:         resp.Result[x].Size,
+			Amount:         resp.Result[x].Size.Float64(),
 			Exchange:       e.Name,
 			OrderID:        strconv.FormatInt(resp.Result[x].ID, 10),
 			Status:         status,
 			Pair:           resp.Result[x].Contract,
 			Date:           resp.Result[x].CreationTime.Time(),
-			ExecutedAmount: resp.Result[x].Size - resp.Result[x].Left,
-			Price:          resp.Result[x].Price,
+			ExecutedAmount: resp.Result[x].Size.Float64() - resp.Result[x].RemainingAmount.Float64(),
+			Price:          resp.Result[x].Price.Float64(),
 			AssetType:      asset.Options,
 			AccountID:      resp.Result[x].User,
 		}
@@ -622,7 +623,7 @@ func (e *Exchange) processOptionsUserTradesPushData(data []byte) error {
 			OrderID:      resp.Result[x].OrderID,
 			TradeID:      resp.Result[x].ID,
 			Price:        resp.Result[x].Price.Float64(),
-			Amount:       resp.Result[x].Size,
+			Amount:       resp.Result[x].Size.Float64(),
 		}
 	}
 	return e.Websocket.Fills.Update(fills...)

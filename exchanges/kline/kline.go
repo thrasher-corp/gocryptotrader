@@ -237,7 +237,7 @@ func (k *Item) addPadding(start, exclusiveEnd time.Time, purgeOnPartial bool) er
 }
 
 // RemoveDuplicates removes any duplicate candles. NOTE: Filter-in-place is used
-// in this function for optimization and to keep the slice reference pointer the
+// in this function for optimisation and to keep the slice reference pointer the
 // same, if changed ExtendedRequest ConvertCandles functionality will break.
 func (k *Item) RemoveDuplicates() {
 	lookup := make(map[int64]bool)
@@ -253,7 +253,7 @@ func (k *Item) RemoveDuplicates() {
 }
 
 // RemoveOutsideRange removes any candles outside the start and end date.
-// NOTE: Filter-in-place is used in this function for optimization and to keep
+// NOTE: Filter-in-place is used in this function for optimisation and to keep
 // the slice reference pointer the same, if changed ExtendedRequest
 // ConvertCandles functionality will break.
 func (k *Item) RemoveOutsideRange(start, end time.Time) {

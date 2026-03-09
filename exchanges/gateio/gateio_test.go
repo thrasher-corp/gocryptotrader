@@ -1188,7 +1188,7 @@ func TestUpdateFuturesPositionRiskLimit(t *testing.T) {
 func TestPlaceDeliveryOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.PlaceDeliveryOrder(t.Context(), &ContractOrderCreateParams{
+	_, err := e.PlaceDeliveryOrder(t.Context(), &DeliveryOrderCreateParams{
 		Contract:    getPair(t, asset.DeliveryFutures),
 		Size:        6024,
 		Iceberg:     0,
@@ -1202,14 +1202,14 @@ func TestPlaceDeliveryOrder(t *testing.T) {
 
 func TestGetDeliveryOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetDeliveryOrders(t.Context(), currency.EMPTYPAIR, currency.EMPTYCODE, statusOpen, "", 0, 0, true)
+	_, err := e.GetDeliveryOrders(t.Context(), currency.EMPTYPAIR, statusOpen, currency.EMPTYCODE, "", 0, 0, true)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	_, err = e.GetDeliveryOrders(t.Context(), getPair(t, asset.DeliveryFutures), currency.USDT, "", "", 0, 0, true)
+	_, err = e.GetDeliveryOrders(t.Context(), getPair(t, asset.DeliveryFutures), "", currency.USDT, "", 0, 0, true)
 	require.ErrorIs(t, err, errInvalidOrderStatus)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err = e.GetDeliveryOrders(t.Context(), getPair(t, asset.DeliveryFutures), currency.USDT, statusOpen, "", 0, 0, true)
+	_, err = e.GetDeliveryOrders(t.Context(), getPair(t, asset.DeliveryFutures), statusOpen, currency.USDT, "", 0, 0, true)
 	assert.NoError(t, err, "GetDeliveryOrders should not error")
 }
 
@@ -1372,7 +1372,7 @@ func TestEnableOrDisableDualMode(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestRetrivePositionDetailInDualMode(t *testing.T) {
+func TestRetrievePositionDetailInDualMode(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetPositionDetailInDualMode(t.Context(), currency.EMPTYCODE, getPair(t, asset.CoinMarginedFutures))
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
@@ -1447,7 +1447,7 @@ func TestUpdatePositionRiskLimitInDualMode(t *testing.T) {
 
 func TestPlaceFuturesOrder(t *testing.T) {
 	t.Parallel()
-	arg := &ContractOrderCreateParams{}
+	arg := &FuturesOrderCreateParams{}
 	_, err := e.PlaceFuturesOrder(t.Context(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
@@ -1474,7 +1474,7 @@ func TestPlaceFuturesOrder(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidAutoSize)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err = e.PlaceFuturesOrder(t.Context(), &ContractOrderCreateParams{
+	_, err = e.PlaceFuturesOrder(t.Context(), &FuturesOrderCreateParams{
 		Contract:    getPair(t, asset.CoinMarginedFutures),
 		Size:        6024,
 		Iceberg:     0,
@@ -1540,37 +1540,37 @@ func TestCancelFuturesPriceTriggeredOrder(t *testing.T) {
 
 func TestPlaceBatchFuturesOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.PlaceBatchFuturesOrders(t.Context(), currency.EMPTYCODE, []ContractOrderCreateParams{{}})
+	_, err := e.PlaceBatchFuturesOrders(t.Context(), currency.EMPTYCODE, []FuturesOrderCreateParams{{}})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	arg := ContractOrderCreateParams{}
-	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, []ContractOrderCreateParams{arg})
+	arg := FuturesOrderCreateParams{}
+	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, []FuturesOrderCreateParams{arg})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	arg.Contract = getPair(t, asset.USDTMarginedFutures)
-	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, []ContractOrderCreateParams{arg})
+	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, []FuturesOrderCreateParams{arg})
 	require.ErrorIs(t, err, errInvalidOrderSize)
 
 	arg.Size = 1
-	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, []ContractOrderCreateParams{arg})
+	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, []FuturesOrderCreateParams{arg})
 	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce)
 
 	arg.TimeInForce = order.GoodTillCancel.Lower()
-	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, []ContractOrderCreateParams{arg})
+	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, []FuturesOrderCreateParams{arg})
 	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce)
 
 	arg.Price = 123
 	arg.Text = "client-order-id"
-	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, []ContractOrderCreateParams{arg})
+	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, []FuturesOrderCreateParams{arg})
 	require.ErrorIs(t, err, errInvalidOrderText)
 
 	arg.Text = "t-client-order-id"
 	arg.AutoSize = "long"
-	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, []ContractOrderCreateParams{arg})
+	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, []FuturesOrderCreateParams{arg})
 	require.ErrorIs(t, err, errInvalidAutoSize)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.BTC, []ContractOrderCreateParams{
+	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.BTC, []FuturesOrderCreateParams{
 		{
 			Contract:    getPair(t, asset.CoinMarginedFutures),
 			Size:        6024,
@@ -2631,11 +2631,42 @@ func TestFuturesDataHandler(t *testing.T) {
 		return e.WsHandleFuturesData(ctx, nil, m, asset.CoinMarginedFutures)
 	})
 	e.Websocket.DataHandler.Close()
-	assert.Len(t, e.Websocket.DataHandler.C, 14, "Should see the correct number of messages")
+	assert.Len(t, e.Websocket.DataHandler.C, 15, "Should see the correct number of messages")
 	for resp := range e.Websocket.DataHandler.C {
 		if err, isErr := resp.Data.(error); isErr {
 			assert.NoError(t, err, "Should not get any errors down the data handler")
 		}
+	}
+}
+
+func TestProcessFuturesCandlesticksIntervalMapping(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+
+	payload := []byte(`{"time":1606292600,"channel":"futures.candlesticks","event":"update","result":[{"t":1606292580,"v":"2362.32035","c":"19128.1","h":"19128.1","l":"19128.1","o":"19128.1","n":"1m_BTC_USDT"}]}`)
+	require.NoError(t, ex.processFuturesCandlesticks(t.Context(), payload, asset.CoinMarginedFutures))
+
+	select {
+	case msg := <-ex.Websocket.DataHandler.C:
+		got, ok := msg.Data.([]kline.Item)
+		require.True(t, ok, "expected []kline.Item")
+		assert.Equal(t, []kline.Item{{
+			Pair:     currency.NewPairWithDelimiter("BTC", "USDT", "_"),
+			Asset:    asset.CoinMarginedFutures,
+			Exchange: ex.Name,
+			Interval: kline.OneMin,
+			Candles: []kline.Candle{{
+				Time:   time.Unix(1606292580, 0),
+				Open:   19128.1,
+				Close:  19128.1,
+				High:   19128.1,
+				Low:    19128.1,
+				Volume: 2362.32035,
+			}},
+		}}, got)
+	default:
+		require.Fail(t, "expected futures websocket candle payload")
 	}
 }
 
@@ -2989,37 +3020,42 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		t.Run(a.String(), func(t *testing.T) {
 			t.Parallel()
 			switch a {
-			case asset.Options:
-				return // Options not supported
 			case asset.CrossMargin, asset.Margin:
 				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), asset.ErrNotSupported)
 			default:
 				require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
-				avail, err := e.GetAvailablePairs(a)
+				pairs, err := e.GetAvailablePairs(a)
 				require.NoError(t, err, "GetAvailablePairs must not error")
-				for _, pair := range avail {
-					l, err := e.GetOrderExecutionLimits(a, pair)
-					require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s", pair)
-					require.NotNilf(t, l, "GetOrderExecutionLimits %s result cannot be nil", pair)
-					assert.Equalf(t, a, l.Key.Asset, "asset should equal for %s", pair)
-					assert.Truef(t, pair.Equal(l.Key.Pair()), "pair should equal for %s", pair)
-					assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", pair)
-					assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", pair)
-
+				for _, p := range pairs {
+					l, err := e.GetOrderExecutionLimits(a, p)
+					require.NoErrorf(t, err, "GetOrderExecutionLimits must not error for %s", p)
+					require.NotNilf(t, l, "GetOrderExecutionLimits %s result cannot be nil", p)
+					assert.Equalf(t, a, l.Key.Asset, "asset should equal for %s", p)
+					assert.Truef(t, p.Equal(l.Key.Pair()), "pair should equal for %s", p)
 					switch a {
+					case asset.Options:
+						assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", p)
+						assert.Positivef(t, l.MaximumBaseAmount, "MaximumBaseAmount should be positive for %s", p)
+						assert.Positivef(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s", p)
+						assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
 					case asset.USDTMarginedFutures:
-						assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", pair)
-						assert.NotZerof(t, l.Listed, "Listed should be populated for %s", pair)
+						assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", p)
+						assert.NotZerof(t, l.Listed, "Listed should be populated for %s", p)
 						fallthrough
 					case asset.CoinMarginedFutures:
 						if !l.Delisted.IsZero() {
-							assert.Truef(t, l.Delisted.After(l.Delisting), "Delisted should be after Delisting for %s", pair)
+							assert.Truef(t, l.Delisted.After(l.Delisting), "Delisted should be after Delisting for %s", p)
 						}
+						assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
 					case asset.Spot:
-						assert.Positivef(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive for %s", pair)
-						assert.Positivef(t, l.QuoteStepIncrementSize, "QuoteStepIncrementSize should be positive for %s", pair)
+						assert.Positivef(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive for %s", p)
+						assert.Positivef(t, l.QuoteStepIncrementSize, "QuoteStepIncrementSize should be positive for %s", p)
+						assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", p)
+						assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
 					case asset.DeliveryFutures:
-						assert.NotZerof(t, l.Expiry, "Expiry should be populated for %s", pair)
+						assert.NotZerof(t, l.Expiry, "Expiry should be populated for %s", p)
+						assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", p)
+						assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
 					}
 				}
 			}
@@ -4437,7 +4473,7 @@ func TestWebsocketSubmitOrders(t *testing.T) {
 	sub.AssetType = asset.USDTMarginedFutures
 	cpy.AssetType = asset.USDTMarginedFutures
 	_, err = e.WebsocketSubmitOrders(t.Context(), []*order.Submit{sub, &cpy})
-	require.ErrorIs(t, err, common.ErrNotYetImplemented)
+	require.ErrorIs(t, err, errInvalidOrderSize)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	e := newExchangeWithWebsocket(t, asset.Spot)
@@ -4532,87 +4568,6 @@ func TestGetUserSubordinateRelationship(t *testing.T) {
 	result, err := e.GetUserSubordinateRelationship(t.Context(), []string{"12342", "21312312312"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
-}
-
-func TestValidateContractOrderCreateParams(t *testing.T) {
-	t.Parallel()
-
-	for _, tc := range []struct {
-		params *ContractOrderCreateParams
-		isRest bool
-		err    error
-	}{
-		{
-			err: common.ErrNilPointer,
-		},
-		{
-			params: &ContractOrderCreateParams{}, err: currency.ErrCurrencyPairEmpty,
-		},
-		{
-			params: &ContractOrderCreateParams{Contract: BTCUSDT},
-			err:    errInvalidOrderSize,
-		},
-		{
-			params: &ContractOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: "bad"},
-			err:    order.ErrUnsupportedTimeInForce,
-		},
-		{
-			params: &ContractOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: pocTIF},
-			err:    order.ErrUnsupportedTimeInForce,
-		},
-		{
-			params: &ContractOrderCreateParams{Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "test"},
-			err:    errInvalidOrderText,
-		},
-		{
-			params: &ContractOrderCreateParams{
-				Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "t-test", AutoSize: "silly_billy",
-			},
-			err: errInvalidAutoSize,
-		},
-		{
-			params: &ContractOrderCreateParams{
-				Contract: BTCUSDT, Size: 1, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long",
-			},
-		},
-		{
-			params: &ContractOrderCreateParams{
-				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long",
-			},
-			isRest: true,
-			err:    currency.ErrCurrencyCodeEmpty,
-		},
-		{
-			params: &ContractOrderCreateParams{
-				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long", Settle: currency.NewCode("Silly"),
-			},
-			err: currency.ErrCurrencyCodeEmpty,
-		},
-		{
-			params: &ContractOrderCreateParams{
-				Contract: BTCUSDT, TimeInForce: iocTIF, Text: "t-test", AutoSize: "close_long", Settle: currency.USDT,
-			},
-		},
-	} {
-		assert.ErrorIs(t, tc.params.validate(tc.isRest), tc.err)
-	}
-}
-
-func TestMarshalJSONNumber(t *testing.T) {
-	t.Parallel()
-
-	for _, tc := range []struct {
-		number   number
-		expected string
-	}{
-		{number: 0, expected: `"0"`},
-		{number: 1, expected: `"1"`},
-		{number: 1.5, expected: `"1.5"`},
-	} {
-		payload, err := tc.number.MarshalJSON()
-		require.NoError(t, err, "MarshalJSON must not error")
-		assert.Equal(t, tc.expected, string(payload), "MarshalJSON should return expected value")
-	}
 }
 
 func TestUnmarshalJSONOrderbookLevels(t *testing.T) {
