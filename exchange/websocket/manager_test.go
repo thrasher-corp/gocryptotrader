@@ -1212,18 +1212,26 @@ func TestGetConfiguredWebsocketURLs(t *testing.T) {
 	t.Parallel()
 
 	var nilManager *Manager
-	assert.Nil(t, nilManager.GetConfiguredWebsocketURLs())
+	urls, err := nilManager.GetConfiguredWebsocketURLs()
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+	assert.Nil(t, urls)
 
 	single := NewManager()
 	require.NoError(t, single.Setup(newDefaultSetup()))
 	single.runningURL = "wss://single-running"
-	assert.Equal(t, []string{"wss://single-running"}, single.GetConfiguredWebsocketURLs())
+	urls, err = single.GetConfiguredWebsocketURLs()
+	require.NoError(t, err)
+	assert.Equal(t, []string{"wss://single-running"}, urls)
 
 	single.runningURL = ""
-	assert.Equal(t, []string{single.defaultURL}, single.GetConfiguredWebsocketURLs())
+	urls, err = single.GetConfiguredWebsocketURLs()
+	require.NoError(t, err)
+	assert.Equal(t, []string{single.defaultURL}, urls)
 
 	single.defaultURL = ""
-	assert.Nil(t, single.GetConfiguredWebsocketURLs(), "Configured websocket URLs should be nil when no URLs are set")
+	urls, err = single.GetConfiguredWebsocketURLs()
+	require.NoError(t, err)
+	assert.Nil(t, urls, "Configured websocket URLs should be nil when no URLs are set")
 
 	multi := NewManager()
 	setup := newDefaultSetup()
@@ -1252,7 +1260,8 @@ func TestGetConfiguredWebsocketURLs(t *testing.T) {
 	}
 	require.NoError(t, multi.SetupNewConnection(connSetupTwo))
 
-	urls := multi.GetConfiguredWebsocketURLs()
+	urls, err = multi.GetConfiguredWebsocketURLs()
+	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{"wss://one.example/ws", "wss://two.example/ws"}, urls)
 }
 

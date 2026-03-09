@@ -878,9 +878,9 @@ func (m *Manager) GetWebsocketURL() string {
 }
 
 // GetConfiguredWebsocketURLs returns known websocket connection URLs.
-func (m *Manager) GetConfiguredWebsocketURLs() []string {
+func (m *Manager) GetConfiguredWebsocketURLs() ([]string, error) {
 	if m == nil {
-		return nil
+		return nil, fmt.Errorf("%w: Manager", common.ErrNilPointer)
 	}
 
 	m.m.Lock()
@@ -901,16 +901,16 @@ func (m *Manager) GetConfiguredWebsocketURLs() []string {
 			seen[ws.setup.URL] = struct{}{}
 			urls = append(urls, ws.setup.URL)
 		}
-		return urls
+		return urls, nil
 	}
 
 	if m.runningURL != "" {
-		return []string{m.runningURL}
+		return []string{m.runningURL}, nil
 	}
 	if m.defaultURL != "" {
-		return []string{m.defaultURL}
+		return []string{m.defaultURL}, nil
 	}
-	return nil
+	return nil, nil
 }
 
 // SetProxyAddress sets websocket proxy address

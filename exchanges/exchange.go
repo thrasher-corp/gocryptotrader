@@ -1801,7 +1801,10 @@ func Bootstrap(ctx context.Context, b IBotExchange) error {
 			if w, err := b.GetWebsocket(); err == nil {
 				wsURL = w.GetWebsocketURL()
 				if wsURL == "" {
-					wsURL = strings.Join(w.GetConfiguredWebsocketURLs(), ",")
+					urls, getErr := w.GetConfiguredWebsocketURLs()
+					if getErr == nil {
+						wsURL = strings.Join(urls, ",")
+					}
 				}
 				wsEnabled = w.IsEnabled()
 			}
