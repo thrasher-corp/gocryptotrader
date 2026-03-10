@@ -546,35 +546,16 @@ func TestGetDepositAddress(t *testing.T) {
 }
 
 func TestWsAuth(t *testing.T) {
-	if !e.Websocket.IsEnabled() &&
+	t.Parallel()
+	if !e.Websocket.IsEnabled() ||
 		!e.API.AuthenticatedWebsocketSupport ||
 		!sharedtestvalues.AreAPICredentialsSet(e) {
-		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
+		t.Skip("authenticated websocket is not available for this test")
 	}
-	if !e.Websocket.IsConnected() {
-		if err := e.Websocket.Connect(t.Context()); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
-	defer timer.Stop()
-
-	for {
-		select {
-		case resp := <-e.Websocket.DataHandler.C:
-			subAck, ok := resp.Data.(WsSubscriptionAcknowledgementResponse)
-			if !ok {
-				continue
-			}
-			if subAck.Type != "subscription_ack" {
-				continue
-			}
-			return
-		case <-timer.C:
-			t.Fatal("Expected auth subscription_ack response")
-		}
-	}
+	testexch.SkipTestIfCannotUseAuthenticatedWebsocket(t, e)
+	require.NoError(t, e.API.Endpoints.SetRunningURL(exchange.WebsocketSpotSupplementary.String(), geminiWebsocketSandboxEndpoint+geminiWsOrderEvents))
+	conn := testexch.GetMockConn(t, e, geminiWebsocketSandboxEndpoint+geminiWsOrderEvents)
+	require.NoError(t, e.wsAuthConnect(t.Context(), conn))
 }
 
 func TestWsMissingRole(t *testing.T) {

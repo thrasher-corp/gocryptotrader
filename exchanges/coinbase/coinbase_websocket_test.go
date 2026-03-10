@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -421,11 +422,11 @@ func TestWSProcessCandle(t *testing.T) {
 	require.NoError(t, ex.wsProcessCandle(t.Context(), resp))
 
 	data := receiveDataHandlerPayload(t, ex)
-	candles, ok := data.([]websocket.KlineData)
+	candles, ok := data.([]kline.Item)
 	require.True(t, ok)
 	require.Len(t, candles, 1)
 	assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USD", "-"), candles[0].Pair)
-	assert.Equal(t, asset.Spot, candles[0].AssetType)
+	assert.Equal(t, asset.Spot, candles[0].Asset)
 
 	resp.Events = []byte(`[{"type":false}]`)
 	assert.Error(t, ex.wsProcessCandle(t.Context(), resp))

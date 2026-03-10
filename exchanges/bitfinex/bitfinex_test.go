@@ -1439,11 +1439,9 @@ func TestGenerateSubscriptions(t *testing.T) {
 func TestWSSubscribe(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "TestInstance must not error")
-
+	testexch.SetupWs(t, e)
 	err := subscribeForTest(t.Context(), e, subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
-	if err != nil {
-		require.ErrorContains(t, err, "subscribe: dup (code: 10301)", "Initial subscription may already exist from generated defaults")
-	}
+	require.NoError(t, err, "Subscribe must not error")
 	catcher := func() (ok bool) {
 		i := <-e.Websocket.DataHandler.C
 		_, ok = i.Data.(*ticker.Price)
