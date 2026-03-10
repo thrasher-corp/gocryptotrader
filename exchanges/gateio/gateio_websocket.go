@@ -982,8 +982,7 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, epl request.Endpoin
 		return err
 	}
 	if a, ok := connSignature.(asset.Item); ok {
-		connSignature, err = e.websocketConnectionSignature(a)
-		if err != nil {
+		if connSignature, err = e.websocketConnectionSignature(a); err != nil {
 			return err
 		}
 	}

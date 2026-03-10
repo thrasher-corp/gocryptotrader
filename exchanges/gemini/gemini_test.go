@@ -1023,8 +1023,7 @@ func TestWsError(t *testing.T) {
 		},
 	}
 
-	for x := range tt {
-		tc := tt[x]
+	for _, tc := range tt {
 		t.Run(tc.Case, func(t *testing.T) {
 			t.Parallel()
 			ex := new(Exchange)
