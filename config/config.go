@@ -1530,26 +1530,22 @@ func (c *Config) SaveConfigToFile(configPath string) error {
 	if err != nil {
 		return err
 	}
-	var writer *os.File
+	var writer io.WriteCloser
 	provider := func() (io.Writer, error) {
 		writer, err = file.Writer(defaultPath)
 		return writer, err
 	}
-	defer func() {
-		if writer != nil {
-			err = writer.Close()
-			if err != nil {
-				log.Errorln(log.ConfigMgr, err)
-			}
-		}
-	}()
+	defer func() { closeWriteCloser(writer) }()
 	return c.Save(provider)
 }
 
 // Save saves your configuration to the writer as a JSON object with encryption, if configured
 // If there is an error when preparing the data to store, the writer is never requested
 func (c *Config) Save(writerProvider func() (io.Writer, error)) error {
+	m.Lock()
+	c.sortAvailablePairsRequiresLock()
 	payload, err := json.MarshalIndent(c, "", " ")
+	m.Unlock()
 	if err != nil {
 		return err
 	}
@@ -1581,6 +1577,30 @@ func (c *Config) Save(writerProvider func() (io.Writer, error)) error {
 	}
 	_, err = io.Copy(configWriter, bytes.NewReader(payload))
 	return err
+}
+
+func (c *Config) sortAvailablePairs() {
+	m.Lock()
+	defer m.Unlock()
+	c.sortAvailablePairsRequiresLock()
+}
+
+func (c *Config) sortAvailablePairsRequiresLock() {
+	for i := range c.Exchanges {
+		if c.Exchanges[i].CurrencyPairs == nil {
+			continue
+		}
+		c.Exchanges[i].CurrencyPairs.SortAvailablePairs()
+	}
+}
+
+func closeWriteCloser(writer io.WriteCloser) {
+	if writer == nil {
+		return
+	}
+	if err := writer.Close(); err != nil {
+		log.Errorln(log.ConfigMgr, err)
+	}
 }
 
 func setDefaultIfZeroWarn[T comparable](scope, name string, p *T, def T) {

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -123,14 +124,20 @@ func TestWithdrawEventByID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	requestID, err := uuid.NewV4()
+	require.NoError(t, err)
+
 	tempResp := &withdraw.Response{
-		ID: withdraw.DryRunID,
+		ID: requestID,
 	}
-	_, err = m.WithdrawalEventByID(withdraw.DryRunID.String())
+	_, err = m.WithdrawalEventByID(requestID.String())
 	assert.ErrorIs(t, err, ErrWithdrawRequestNotFound)
 
-	withdraw.Cache.Add(withdraw.DryRunID.String(), tempResp)
-	v, err := m.WithdrawalEventByID(withdraw.DryRunID.String())
+	withdraw.Cache.Add(requestID.String(), tempResp)
+	t.Cleanup(func() {
+		withdraw.Cache.Remove(requestID.String())
+	})
+	v, err := m.WithdrawalEventByID(requestID.String())
 	assert.NoError(t, err)
 
 	if v == nil {

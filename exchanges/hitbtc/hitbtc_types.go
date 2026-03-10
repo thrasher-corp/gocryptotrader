@@ -355,6 +355,15 @@ type WsTrade struct {
 	} `json:"params"`
 }
 
+// WsCandles defines websocket candle feed return params
+type WsCandles struct {
+	Params struct {
+		Data   []ChartData `json:"data"`
+		Symbol string      `json:"symbol"`
+		Period string      `json:"period"`
+	} `json:"params"`
+}
+
 // WsLoginRequest defines login requirements for ws
 type WsLoginRequest struct {
 	Method string      `json:"method"`

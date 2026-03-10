@@ -1133,12 +1133,15 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 		return resp, err
 	}
 
-	var side string
+	spotSide := order.UnknownSide
+	futuresSide := ""
 	switch {
 	case o.Side.IsLong():
-		side = order.Bid.Lower()
+		spotSide = order.Buy
+		futuresSide = order.Bid.Lower()
 	case o.Side.IsShort():
-		side = order.Ask.Lower()
+		spotSide = order.Sell
+		futuresSide = order.Ask.Lower()
 	case o.Side == order.UnknownSide, o.Side == order.AnySide:
 	default:
 		return resp, fmt.Errorf("%w: %q", order.ErrSideIsInvalid, o.Side)
@@ -1146,12 +1149,12 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 
 	switch o.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
-		cancel, err := e.CancelMultipleSpotOpenOrders(ctx, fmtPair, o.AssetType)
+		cancel, err := e.CancelAllOpenOrdersSpecifiedCurrencyPair(ctx, fmtPair, spotSide, o.AssetType)
 		if err != nil {
 			return resp, err
 		}
 		for x := range cancel {
-			resp.Add(strconv.FormatInt(cancel[x].AutoOrderID, 10), cancel[x].Status)
+			resp.Add(cancel[x].OrderID, cancel[x].Status)
 		}
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
 		settle, err := getSettlementCurrency(fmtPair, o.AssetType)
@@ -1160,9 +1163,9 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 		}
 		var cancel []FuturesOrder
 		if o.AssetType == asset.DeliveryFutures {
-			cancel, err = e.CancelMultipleDeliveryOrders(ctx, fmtPair, side, settle)
+			cancel, err = e.CancelMultipleDeliveryOrders(ctx, fmtPair, futuresSide, settle)
 		} else {
-			cancel, err = e.CancelMultipleFuturesOpenOrders(ctx, fmtPair, side, settle)
+			cancel, err = e.CancelMultipleFuturesOpenOrders(ctx, fmtPair, futuresSide, settle)
 		}
 		if err != nil {
 			return resp, err
@@ -1178,7 +1181,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 				return resp, err
 			}
 		}
-		cancel, err := e.CancelMultipleOptionOpenOrders(ctx, fmtPair, underlying.String(), side)
+		cancel, err := e.CancelMultipleOptionOpenOrders(ctx, fmtPair, underlying.String(), futuresSide)
 		if err != nil {
 			return resp, err
 		}

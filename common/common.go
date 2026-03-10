@@ -66,6 +66,7 @@ var (
 	ErrStartAfterTimeNow         = errors.New("start date is after current time")
 	ErrNilPointer                = errors.New("nil pointer")
 	ErrEmptyParams               = errors.New("empty parameters")
+	ErrParameterRequired         = errors.New("parameter is required")
 	ErrCannotCalculateOffline    = errors.New("cannot calculate offline, unsupported")
 	ErrNoResponse                = errors.New("no response")
 	ErrInvalidResponse           = errors.New("invalid response")

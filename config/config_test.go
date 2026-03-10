@@ -1,6 +1,11 @@
 package config
 
 import (
+	"bytes"
+	"errors"
+	"io"
+	stdlog "log"
+	"math"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -15,9 +20,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
+	"github.com/thrasher-corp/gocryptotrader/config/versions"
 	"github.com/thrasher-corp/gocryptotrader/connchecker"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -30,6 +37,32 @@ const (
 	testString           = "test"
 	bfx                  = "Bitfinex"
 )
+
+type failingWriter struct{}
+
+func (f failingWriter) Write(_ []byte) (int, error) {
+	return 0, io.ErrClosedPipe
+}
+
+type noopWriteCloser struct{}
+
+func (n noopWriteCloser) Write(p []byte) (int, error) {
+	return len(p), nil
+}
+
+func (n noopWriteCloser) Close() error {
+	return nil
+}
+
+type closeErrorWriteCloser struct{}
+
+func (e closeErrorWriteCloser) Write(p []byte) (int, error) {
+	return len(p), nil
+}
+
+func (e closeErrorWriteCloser) Close() error {
+	return io.ErrClosedPipe
+}
 
 func TestGetNonExistentDefaultFilePathDoesNotCreateDefaultDir(t *testing.T) {
 	dir := common.GetDefaultDataDir(runtime.GOOS)
@@ -1475,6 +1508,26 @@ func TestReadConfigFromFile(t *testing.T) {
 	}
 }
 
+func TestReadVersion0ConfigFromFile(t *testing.T) {
+	origWriter := stdlog.Writer()
+	stdlog.SetOutput(io.Discard)
+	t.Cleanup(func() {
+		stdlog.SetOutput(origWriter)
+	})
+
+	legacy := &Config{}
+	require.NoError(t, legacy.ReadConfigFromFile(TestFileV0, true), "ReadConfigFromFile must not error for version 0 fixture")
+
+	latestCfg, err := versions.Manager.Deploy(t.Context(), []byte(`{}`), versions.UseLatestVersion)
+	require.NoError(t, err, "Deploy must not error when resolving latest config version")
+
+	var latest struct {
+		Version int `json:"version"`
+	}
+	require.NoError(t, json.Unmarshal(latestCfg, &latest), "json.Unmarshal must not error when reading latest config version")
+	assert.Equal(t, latest.Version, legacy.Version, "Version 0 fixture should upgrade to the latest registered version")
+}
+
 func TestReadConfigFromReader(t *testing.T) {
 	t.Parallel()
 	c := &Config{}
@@ -1500,15 +1553,258 @@ func TestLoadConfig(t *testing.T) {
 	}
 }
 
-func TestSaveConfigToFile(t *testing.T) {
-	cfg := &Config{}
-	err := cfg.LoadConfig(TestFile, true)
-	require.NoError(t, err, "LoadConfig must not error")
-	f, err := os.CreateTemp(t.TempDir(), "")
-	require.NoError(t, err, "CreateTemp must not error")
-	require.NoError(t, f.Close(), "Close must not error")
-	err = cfg.SaveConfigToFile(f.Name())
-	require.NoError(t, err, "SaveConfigToFile must not error")
+func TestSave(t *testing.T) {
+	t.Parallel()
+
+	newConfigWithPairs := func(exchangeName string, available currency.Pairs) *Config {
+		return &Config{
+			Exchanges: []Exchange{
+				{
+					Name: exchangeName,
+					CurrencyPairs: &currency.PairsManager{
+						Pairs: currency.FullStore{
+							asset.Spot: {
+								Available: available,
+							},
+						},
+					},
+				},
+			},
+		}
+	}
+
+	t.Run("SaveConfigToFile", func(t *testing.T) {
+		cfg := &Config{}
+		err := cfg.LoadConfig(TestFile, true)
+		require.NoError(t, err, "LoadConfig must not error")
+
+		f, err := os.CreateTemp(t.TempDir(), "")
+		require.NoError(t, err, "CreateTemp must not error")
+		require.NoError(t, f.Close(), "Close must not error")
+
+		err = cfg.SaveConfigToFile(f.Name())
+		require.NoError(t, err, "SaveConfigToFile must not error")
+	})
+
+	t.Run("SaveConfigToFile returns error when default path is missing", func(t *testing.T) {
+		if _, _, err := GetFilePath(""); err == nil {
+			t.Skip("Default config path exists; cannot test missing default path error path")
+		}
+
+		cfg := &Config{}
+		err := cfg.SaveConfigToFile("")
+		require.Error(t, err, "SaveConfigToFile must error when no default config path exists")
+	})
+
+	expectedWriterProviderErr := errors.New("writer provider should error")
+
+	for _, tc := range []struct {
+		name               string
+		config             func() *Config
+		writerFactory      func(*bytes.Buffer) io.Writer
+		writerErr          error
+		wantProviderCalled bool
+		wantErr            error
+		wantAnyErr         bool
+		wantSortedPairs    string
+		checkSavedPayload  bool
+		checkInMemoryPairs bool
+	}{
+		{
+			name: "Save sorts available pairs before persisting",
+			config: func() *Config {
+				return newConfigWithPairs("deterministic-pairs-test", currency.Pairs{
+					currency.NewPairWithDelimiter("ETH", "USD", "-"),
+					currency.NewPairWithDelimiter("ADA", "USD", "-"),
+					currency.NewPairWithDelimiter("BTC", "USD", "-"),
+				})
+			},
+			wantProviderCalled: true,
+			wantSortedPairs:    "ADA-USD,BTC-USD,ETH-USD",
+			checkSavedPayload:  true,
+		},
+		{
+			name: "Save sorts pairs before writer provider errors",
+			config: func() *Config {
+				return newConfigWithPairs("sort-before-writer-provider-error", currency.Pairs{
+					currency.NewPairWithDelimiter("ETH", "USD", "-"),
+					currency.NewPairWithDelimiter("ADA", "USD", "-"),
+				})
+			},
+			writerErr:          expectedWriterProviderErr,
+			wantProviderCalled: true,
+			wantErr:            expectedWriterProviderErr,
+			wantSortedPairs:    "ADA-USD,ETH-USD",
+			checkInMemoryPairs: true,
+		},
+		{
+			name: "Save returns write errors",
+			config: func() *Config {
+				return &Config{}
+			},
+			writerFactory: func(_ *bytes.Buffer) io.Writer {
+				return failingWriter{}
+			},
+			wantProviderCalled: true,
+			wantErr:            io.ErrClosedPipe,
+		},
+		{
+			name: "Save returns encryption errors before requesting writer",
+			config: func() *Config {
+				return &Config{
+					EncryptConfig: fileEncryptionEnabled,
+					sessionDK:     []byte("short-key"),
+				}
+			},
+			wantAnyErr: true,
+		},
+		{
+			name: "Save returns encryption key provider errors before requesting writer",
+			config: func() *Config {
+				return &Config{
+					EncryptConfig: fileEncryptionEnabled,
+					EncryptionKeyProvider: func(_ bool) ([]byte, error) {
+						return nil, io.EOF
+					},
+				}
+			},
+			wantErr: io.EOF,
+		},
+		{
+			name: "Save returns marshal errors before requesting writer",
+			config: func() *Config {
+				return &Config{
+					BankAccounts: []banking.Account{
+						{
+							BankCode: math.NaN(),
+						},
+					},
+				}
+			},
+			wantAnyErr: true,
+		},
+		{
+			name: "Save returns key derivation errors before requesting writer",
+			config: func() *Config {
+				return &Config{
+					EncryptConfig: fileEncryptionEnabled,
+					EncryptionKeyProvider: func(_ bool) ([]byte, error) {
+						return nil, nil
+					},
+				}
+			},
+			wantAnyErr: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := tc.config()
+			var payload bytes.Buffer
+			providerCalled := false
+
+			writerFactory := tc.writerFactory
+			if writerFactory == nil {
+				writerFactory = func(p *bytes.Buffer) io.Writer { return p }
+			}
+
+			err := cfg.Save(func() (io.Writer, error) {
+				providerCalled = true
+				return writerFactory(&payload), tc.writerErr
+			})
+
+			switch {
+			case tc.wantErr != nil:
+				require.ErrorIs(t, err, tc.wantErr, "Save must return the expected error")
+			case tc.wantAnyErr:
+				require.Error(t, err, "Save must return an error")
+			default:
+				require.NoError(t, err, "Save must not error")
+			}
+
+			assert.Equal(t, tc.wantProviderCalled, providerCalled, "Writer provider invocation should match expectations")
+
+			if tc.checkSavedPayload {
+				var persisted Config
+				err = json.Unmarshal(payload.Bytes(), &persisted)
+				require.NoError(t, err, "json.Unmarshal must not error when reading saved config payload")
+
+				got := persisted.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Available.Join()
+				assert.Equal(t, tc.wantSortedPairs, got, "Saved config should contain sorted available pairs")
+			}
+
+			if tc.checkInMemoryPairs {
+				got := cfg.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Available.Join()
+				assert.Equal(t, tc.wantSortedPairs, got, "Save should sort available pairs before requesting a writer")
+			}
+		})
+	}
+}
+
+func TestSortAvailablePairs(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name          string
+		cfg           *Config
+		checkSorted   bool
+		exchangeIdx   int
+		wantAvailable string
+	}{
+		{
+			name: "sorts exchanges with pair managers and skips nil managers",
+			cfg: &Config{
+				Exchanges: []Exchange{
+					{Name: "skip-nil-manager"},
+					{
+						Name: "sort-manager",
+						CurrencyPairs: &currency.PairsManager{
+							Pairs: currency.FullStore{
+								asset.Spot: {
+									Available: currency.Pairs{
+										currency.NewPairWithDelimiter("ETH", "USD", "-"),
+										currency.NewPairWithDelimiter("ADA", "USD", "-"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			checkSorted:   true,
+			exchangeIdx:   1,
+			wantAvailable: "ADA-USD,ETH-USD",
+		},
+		{
+			name: "no exchanges is a noop",
+			cfg:  &Config{},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.NotPanics(t, tc.cfg.sortAvailablePairs, "sortAvailablePairs should not panic")
+
+			if tc.checkSorted {
+				got := tc.cfg.Exchanges[tc.exchangeIdx].CurrencyPairs.Pairs[asset.Spot].Available.Join()
+				assert.Equal(t, tc.wantAvailable, got, "sortAvailablePairs should sort available pairs")
+			}
+		})
+	}
+}
+
+func TestCloseWriteCloser(t *testing.T) {
+	t.Parallel()
+
+	assert.NotPanics(t, func() {
+		closeWriteCloser(nil)
+	}, "closeWriteCloser should not panic with nil writers")
+	assert.NotPanics(t, func() {
+		closeWriteCloser(noopWriteCloser{})
+	}, "closeWriteCloser should not panic with closers returning nil")
+	assert.NotPanics(t, func() {
+		closeWriteCloser(closeErrorWriteCloser{})
+	}, "closeWriteCloser should not panic with closers returning errors")
 }
 
 func TestCheckConnectionMonitorConfig(t *testing.T) {
@@ -1620,9 +1916,14 @@ func TestCheckConfig(t *testing.T) {
 
 func TestUpdateConfig(t *testing.T) {
 	var c Config
-	require.NoError(t, c.LoadConfig(TestFile, true), "LoadConfig must not error")
+	fixture, err := os.ReadFile(TestFile)
+	require.NoError(t, err, "ReadFile must not error for config fixture")
+	configCopy := filepath.Join(t.TempDir(), "configtest.json")
+	require.NoError(t, os.WriteFile(configCopy, fixture, 0o600), "WriteFile must not error for copied config fixture")
+
+	require.NoError(t, c.LoadConfig(configCopy, true), "LoadConfig must not error")
 	newCfg := c
-	require.NoError(t, c.UpdateConfig(TestFile, &newCfg, true), "UpdateConfig must not error")
+	require.NoError(t, c.UpdateConfig(configCopy, &newCfg, true), "UpdateConfig must not error")
 
 	if isGCTDocker := os.Getenv("GCT_DOCKER_CI"); isGCTDocker != "true" {
 		require.Error(t, c.UpdateConfig("//non-existentpath\\", &newCfg, false), "UpdateConfig must error on non-existent path")

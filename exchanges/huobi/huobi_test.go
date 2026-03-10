@@ -18,7 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -1293,19 +1292,22 @@ func TestWSCandles(t *testing.T) {
 	e.Websocket.DataHandler.Close()
 	require.Len(t, e.Websocket.DataHandler.C, 1, "Must see correct number of records")
 	cAny := <-e.Websocket.DataHandler.C
-	c, ok := cAny.Data.(websocket.KlineData)
+	c, ok := cAny.Data.(kline.Item)
 	require.True(t, ok, "Must get the correct type from DataHandler")
-	exp := websocket.KlineData{
-		Timestamp:  time.UnixMilli(1489474082831),
-		Pair:       btcusdtPair,
-		AssetType:  asset.Spot,
-		Exchange:   e.Name,
-		OpenPrice:  7962.62,
-		ClosePrice: 8014.56,
-		HighPrice:  14962.77,
-		LowPrice:   5110.14,
-		Volume:     4.4,
-		Interval:   "0s",
+	require.Len(t, c.Candles, 1, "Candles must contain a single candle")
+	exp := kline.Item{
+		Exchange: e.Name,
+		Asset:    asset.Spot,
+		Pair:     btcusdtPair,
+		Interval: 0,
+		Candles: []kline.Candle{{
+			Time:   time.UnixMilli(1489474082831),
+			Open:   7962.62,
+			Close:  8014.56,
+			High:   14962.77,
+			Low:    5110.14,
+			Volume: 4.4,
+		}},
 	}
 	assert.Equal(t, exp, c)
 }

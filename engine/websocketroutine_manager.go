@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -239,22 +240,22 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		}
 	case order.Detail, ticker.Price, orderbook.Depth:
 		return errUseAPointer
-	case websocket.KlineData:
+	case kline.Item:
 		if m.verbose {
 			log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",
 				exchName,
 				m.FormatCurrency(d.Pair),
-				d.AssetType,
+				d.Asset,
 				d)
 		}
-	case []websocket.KlineData:
+	case []kline.Item:
 		for x := range d {
 			if m.verbose {
 				log.Infof(log.WebsocketMgr, "%s websocket %s %s kline updated %+v",
 					exchName,
 					m.FormatCurrency(d[x].Pair),
-					d[x].AssetType,
-					d)
+					d[x].Asset,
+					d[x])
 			}
 		}
 	case *orderbook.Depth:

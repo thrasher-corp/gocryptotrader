@@ -91,7 +91,7 @@ func (e *Exchange) WsConnectSpot(ctx context.Context, conn websocket.Connection)
 	if err := e.CurrencyPairs.IsAssetEnabled(asset.Spot); err != nil {
 		return err
 	}
-	if err := conn.Dial(ctx, &gws.Dialer{}, nil); err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{}, nil, nil); err != nil {
 		return err
 	}
 	pingHandler, err := getWSPingHandler(spotPingChannel)
@@ -328,25 +328,31 @@ func (e *Exchange) processCandlestick(ctx context.Context, incoming []byte) erro
 	if len(icp) < 3 {
 		return fmt.Errorf("%w: candlestick websocket", common.ErrMalformedData)
 	}
+	interval, err := e.GetIntervalFromString(icp[0])
+	if err != nil {
+		return err
+	}
 	currencyPair, err := currency.NewPairFromString(strings.Join(icp[1:], currency.UnderscoreDelimiter))
 	if err != nil {
 		return err
 	}
 
-	out := make([]websocket.KlineData, 0, len(standardMarginAssetTypes))
+	out := make([]kline.Item, 0, len(standardMarginAssetTypes))
 	for _, a := range standardMarginAssetTypes {
 		if enabled, _ := e.CurrencyPairs.IsPairEnabled(currencyPair, a); enabled {
-			out = append(out, websocket.KlineData{
-				Pair:       currencyPair,
-				AssetType:  a,
-				Exchange:   e.Name,
-				StartTime:  data.Timestamp.Time(),
-				Interval:   icp[0],
-				OpenPrice:  data.OpenPrice.Float64(),
-				ClosePrice: data.ClosePrice.Float64(),
-				HighPrice:  data.HighestPrice.Float64(),
-				LowPrice:   data.LowestPrice.Float64(),
-				Volume:     data.TotalVolume.Float64(),
+			out = append(out, kline.Item{
+				Pair:     currencyPair,
+				Asset:    a,
+				Exchange: e.Name,
+				Interval: interval,
+				Candles: []kline.Candle{{
+					Time:   data.Timestamp.Time(),
+					Open:   data.OpenPrice.Float64(),
+					Close:  data.ClosePrice.Float64(),
+					High:   data.HighestPrice.Float64(),
+					Low:    data.LowestPrice.Float64(),
+					Volume: data.TotalVolume.Float64(),
+				}},
 			})
 		}
 	}
@@ -792,6 +798,7 @@ func isSingleOrderbookChannel(name string) bool {
 		futuresOrderbookChannel,
 		futuresOrderbookTickerChannel,
 		futuresOrderbookUpdateChannel,
+		futuresOrderbookV2,
 		optionsOrderbookChannel,
 		optionsOrderbookTickerChannel,
 		optionsOrderbookUpdateChannel:

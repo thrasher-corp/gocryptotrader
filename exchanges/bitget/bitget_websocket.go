@@ -21,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -145,7 +146,7 @@ var defaultSubscriptions = subscription.List{
 
 // wsConnect connects to a websocket feed
 func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
-	if err := conn.Dial(ctx, &gws.Dialer{}, nil); err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{}, nil, nil); err != nil {
 		return err
 	}
 	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
@@ -371,7 +372,13 @@ func (e *Exchange) candleDataHandler(ctx context.Context, wsResponse *WsResponse
 	if err != nil {
 		return err
 	}
-	resp := make([]websocket.KlineData, len(candles))
+	resp := kline.Item{
+		Pair:     pair,
+		Asset:    itemDecoder(instrumentType),
+		Exchange: e.Name,
+		Interval: kline.OneDay,
+	}
+	resp.Candles = make([]kline.Candle, len(candles))
 	for i := range candles {
 		ts, err := strconv.ParseInt(candles[i][0], 10, 64)
 		if err != nil {
@@ -397,19 +404,13 @@ func (e *Exchange) candleDataHandler(ctx context.Context, wsResponse *WsResponse
 		if err != nil {
 			return err
 		}
-		resp[i] = websocket.KlineData{
-			Timestamp:  wsResponse.Timestamp.Time(),
-			Pair:       pair,
-			AssetType:  itemDecoder(instrumentType),
-			Exchange:   e.Name,
-			StartTime:  time.UnixMilli(ts),
-			CloseTime:  time.UnixMilli(ts).Add(time.Hour * 24),
-			Interval:   "1d",
-			OpenPrice:  open,
-			ClosePrice: closePrice,
-			HighPrice:  high,
-			LowPrice:   low,
-			Volume:     volume,
+		resp.Candles[i] = kline.Candle{
+			Time:   time.UnixMilli(ts),
+			Open:   open,
+			Close:  closePrice,
+			High:   high,
+			Low:    low,
+			Volume: volume,
 		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, resp)
