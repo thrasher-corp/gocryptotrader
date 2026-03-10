@@ -94,7 +94,7 @@ var defaultSubscriptions = subscription.List{
 }
 
 func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
-	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil); err != nil {
 		return err
 	}
 	e.startWsPingHandler(conn)
