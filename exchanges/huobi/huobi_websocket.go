@@ -80,7 +80,7 @@ func (e *Exchange) WsConnect() error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
-	if err := e.Websocket.Conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
+	if err := e.Websocket.Conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil); err != nil {
 		return err
 	}
 
@@ -209,17 +209,19 @@ func (e *Exchange) wsHandleCandleMsg(ctx context.Context, s *subscription.Subscr
 	if err := json.Unmarshal(respRaw, &c); err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, websocket.KlineData{
-		Timestamp:  c.Timestamp.Time(),
-		Exchange:   e.Name,
-		AssetType:  s.Asset,
-		Pair:       s.Pairs[0],
-		OpenPrice:  c.Tick.Open,
-		ClosePrice: c.Tick.Close,
-		HighPrice:  c.Tick.High,
-		LowPrice:   c.Tick.Low,
-		Volume:     c.Tick.Volume,
-		Interval:   s.Interval.String(),
+	return e.Websocket.DataHandler.Send(ctx, kline.Item{
+		Exchange: e.Name,
+		Asset:    s.Asset,
+		Pair:     s.Pairs[0],
+		Interval: s.Interval,
+		Candles: []kline.Candle{{
+			Time:   c.Timestamp.Time(),
+			Open:   c.Tick.Open,
+			Close:  c.Tick.Close,
+			High:   c.Tick.High,
+			Low:    c.Tick.Low,
+			Volume: c.Tick.Volume,
+		}},
 	})
 }
 
@@ -546,7 +548,7 @@ func (e *Exchange) wsGenerateSignature(creds *accounts.Credentials, timestamp st
 }
 
 func (e *Exchange) wsAuthConnect(ctx context.Context) error {
-	if err := e.Websocket.AuthConn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
+	if err := e.Websocket.AuthConn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil); err != nil {
 		return fmt.Errorf("authenticated dial failed: %w", err)
 	}
 	if err := e.wsLogin(ctx); err != nil {

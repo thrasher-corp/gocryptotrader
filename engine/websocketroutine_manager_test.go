@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -154,10 +155,8 @@ func TestWebsocketRoutineManagerHandleData(t *testing.T) {
 	_, err = ticker.GetTicker(exchName, testPair, asset.Spot)
 	assert.ErrorIs(t, err, ticker.ErrTickerNotFound)
 
-	err = m.websocketDataHandler(exchName, websocket.KlineData{})
-	if err != nil {
-		t.Error(err)
-	}
+	err = m.websocketDataHandler(exchName, kline.Item{})
+	require.NoError(t, err)
 	origOrder := &order.Detail{
 		Exchange: exchName,
 		OrderID:  orderID,

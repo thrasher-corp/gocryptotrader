@@ -79,23 +79,26 @@ func TestWrapperGetServerTime(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
+	testexch.UpdatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
 		t.Run(a.String(), func(t *testing.T) {
 			t.Parallel()
-			switch a {
-			case asset.Futures:
-				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), common.ErrNotYetImplemented)
-			default:
-				require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
-				pairs, err := e.CurrencyPairs.GetPairs(a, false)
-				require.NoError(t, err, "GetPairs must not error")
-				l, err := e.GetOrderExecutionLimits(a, pairs[0])
+			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
+			pairs, err := e.CurrencyPairs.GetPairs(a, false)
+			require.NoError(t, err, "GetPairs must not error")
+			for _, p := range pairs {
+				l, err := e.GetOrderExecutionLimits(a, p)
 				require.NoError(t, err, "GetOrderExecutionLimits must not error")
 				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
 				assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
 			}
 		})
 	}
+
+	t.Run("unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported)
+	})
 }
 
 func TestFetchTradablePairs(t *testing.T) {
@@ -1068,6 +1071,41 @@ func TestWsCandlesSub(t *testing.T) {
 		Interval: kline.Interval(time.Minute * time.Duration(127)),
 	}})
 	assert.ErrorContains(t, err, "Subscription ohlc interval not supported", "Bad subscription should error about interval")
+}
+
+func TestWsProcessCandleIntervalMapping(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup Instance must not error")
+
+	err := ex.wsProcessCandle(t.Context(),
+		"ohlc-5",
+		json.RawMessage(`[1542057314,1542057360,3586.7,3586.7,3586.6,3586.6,3586.68,0.03373,2]`),
+		currency.NewPairWithDelimiter("XBT", "USD", "/"))
+	require.NoError(t, err)
+
+	select {
+	case msg := <-ex.Websocket.DataHandler.C:
+		got, ok := msg.Data.(kline.Item)
+		require.True(t, ok, "expected kline item")
+		assert.Equal(t, kline.Item{
+			Asset:    asset.Spot,
+			Pair:     currency.NewPairWithDelimiter("XBT", "USD", "/"),
+			Exchange: ex.Name,
+			Interval: kline.FiveMin,
+			Candles: []kline.Candle{{
+				Time:        time.Unix(1542057314, 0),
+				Open:        3586.7,
+				High:        3586.7,
+				Low:         3586.6,
+				Close:       3586.6,
+				Volume:      0.03373,
+				QuoteVolume: 120.97871640000001,
+			}},
+		}, got)
+	default:
+		require.Fail(t, "expected websocket candle payload")
+	}
 }
 
 // TestWsOwnTradesSub tests the authenticated WS subscription channel for trades

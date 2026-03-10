@@ -621,7 +621,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		Side:           orderSide,
 		Type:           orderType,
 		Pair:           pair,
-		Cost:           resp.CummulativeQuoteQty,
+		Cost:           resp.CumulativeQuoteQty,
 		AssetType:      assetType,
 		Status:         status,
 		Price:          resp.Price,

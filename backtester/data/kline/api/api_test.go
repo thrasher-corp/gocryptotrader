@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
 const testExchange = "binanceus"
@@ -63,6 +65,9 @@ func TestLoadTrades(t *testing.T) {
 	tt2 := time.Now().Round(interval.Duration())
 	a := asset.Spot
 	data, err := LoadData(t.Context(), common.DataTrade, tt1, tt2, interval.Duration(), exch, cp, a)
+	if errors.Is(err, trade.ErrNoTradesSupplied) {
+		t.Skip("exchange returned no trades for selected window")
+	}
 	require.NoError(t, err, "LoadData must not error")
 	assert.NotEmpty(t, data.Candles, "Candles should not be empty")
 }

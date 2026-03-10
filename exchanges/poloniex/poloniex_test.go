@@ -2212,6 +2212,40 @@ func TestWsHandleData(t *testing.T) {
 	assert.NoError(t, err, "book_lv2 update should not error")
 }
 
+func TestProcessCandlestickDataIntervalMapping(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex))
+
+	resp := &SubscriptionResponse{
+		Data: json.RawMessage(`[{"symbol":"BTC_USDT","open":"25143.19","high":"25148.58","low":"25138.76","close":"25144.55","quantity":"0.860454","amount":"21635.20983974","tradeCount":20,"startTime":1694469000000,"closeTime":1694469299999,"ts":1694469049867}]`),
+	}
+	err := ex.processCandlestickData(t.Context(), resp, "minute_5")
+	require.NoError(t, err)
+
+	select {
+	case msg := <-ex.Websocket.DataHandler.C:
+		got, ok := msg.Data.([]kline.Item)
+		require.True(t, ok, "expected []kline.Item")
+		assert.Equal(t, []kline.Item{{
+			Pair:     currency.NewPairWithDelimiter("BTC", "USDT", "_"),
+			Exchange: ex.Name,
+			Asset:    asset.Spot,
+			Interval: kline.FiveMin,
+			Candles: []kline.Candle{{
+				Time:   time.UnixMilli(1694469000000),
+				Open:   25143.19,
+				Close:  25144.55,
+				High:   25148.58,
+				Low:    25138.76,
+				Volume: 0.860454,
+			}},
+		}}, got)
+	default:
+		require.Fail(t, "expected websocket candle payload")
+	}
+}
+
 var spotPrivatePushDataMap = []struct {
 	k         string
 	v         string

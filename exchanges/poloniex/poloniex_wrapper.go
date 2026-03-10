@@ -404,7 +404,11 @@ func (e *Exchange) UpdateTicker(ctx context.Context, pair currency.Pair, assetTy
 
 	switch assetType {
 	case asset.Spot:
-		tickerResult, err := e.GetTicker(ctx, pair)
+		formattedPair, err := e.FormatExchangeCurrency(pair, assetType)
+		if err != nil {
+			return nil, err
+		}
+		tickerResult, err := e.GetTicker(ctx, formattedPair)
 		if err != nil {
 			return nil, err
 		}
@@ -420,7 +424,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, pair currency.Pair, assetTy
 			Open:         tickerResult.Open.Float64(),
 			Close:        tickerResult.Close.Float64(),
 			MarkPrice:    tickerResult.MarkPrice.Float64(),
-			Pair:         tickerResult.Symbol,
+			Pair:         pair,
 			ExchangeName: e.Name,
 			AssetType:    asset.Spot,
 			LastUpdated:  tickerResult.Timestamp.Time(),
@@ -429,7 +433,11 @@ func (e *Exchange) UpdateTicker(ctx context.Context, pair currency.Pair, assetTy
 		}
 		return ticker.GetTicker(e.Name, pair, assetType)
 	case asset.Futures:
-		tickerResult, err := e.GetFuturesMarket(ctx, pair)
+		formattedPair, err := e.FormatExchangeCurrency(pair, assetType)
+		if err != nil {
+			return nil, err
+		}
+		tickerResult, err := e.GetFuturesMarket(ctx, formattedPair)
 		if err != nil {
 			return nil, err
 		}
@@ -448,7 +456,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, pair currency.Pair, assetTy
 			Open:         tickerResult[0].OpeningPrice.Float64(),
 			Close:        tickerResult[0].ClosingPrice.Float64(),
 			MarkPrice:    tickerResult[0].MarkPrice.Float64(),
-			Pair:         tickerResult[0].Symbol,
+			Pair:         pair,
 			ExchangeName: e.Name,
 			AssetType:    asset.Futures,
 			LastUpdated:  tickerResult[0].Timestamp.Time(),

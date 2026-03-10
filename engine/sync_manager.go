@@ -193,13 +193,13 @@ func (m *SyncManager) Start() error {
 	}
 
 	if atomic.CompareAndSwapInt32(&m.initSyncStarted, 0, 1) {
-			if m.config.LogInitialSyncEvents {
-				log.Debugf(log.SyncMgr,
-					"Exchange CurrencyPairSyncer initial sync started. %d items to process.",
-					atomic.LoadInt64(&createdCounter))
-			}
-			m.initSyncStartTime = time.Now()
+		if m.config.LogInitialSyncEvents {
+			log.Debugf(log.SyncMgr,
+				"Exchange CurrencyPairSyncer initial sync started. %d items to process.",
+				atomic.LoadInt64(&createdCounter))
 		}
+		m.initSyncStartTime = time.Now()
+	}
 
 	go func() {
 		m.initSyncWG.Wait()
@@ -420,15 +420,14 @@ func (m *SyncManager) update(c *currencyPairSyncAgent, syncType syncItemType, er
 	}
 	s.HaveData = true
 	if atomic.LoadInt32(&m.initSyncCompleted) != 1 && !origHadData {
-		removed := atomic.AddInt64(&removedCounter, 1)
-		created := atomic.LoadInt64(&createdCounter)
+		removedCount := atomic.AddInt64(&removedCounter, 1)
 		if m.config.LogInitialSyncEvents {
 			log.Debugf(log.SyncMgr, "%s %s sync complete %v [%d/%d].",
 				c.Key.Exchange,
 				syncType,
 				m.FormatCurrency(c.Pair),
-				removed,
-				created)
+				removedCount,
+				atomic.LoadInt64(&createdCounter))
 		}
 		m.initSyncWG.Done()
 	}

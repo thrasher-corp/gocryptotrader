@@ -149,7 +149,7 @@ func (e *Exchange) GetTrades(ctx context.Context, currencyPair, by, sort string,
 }
 
 // GetOrderbook an order book is an electronic list of buy and sell orders for a
-// specific symbol, organized by price level.
+// specific symbol, organised by price level.
 func (e *Exchange) GetOrderbook(ctx context.Context, currencyPair string, limit int) (*Orderbook, error) {
 	// limit Limit of orderbook levels, default 100. Set 0 to view full orderbook levels
 	vals := url.Values{}
