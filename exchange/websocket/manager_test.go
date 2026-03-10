@@ -447,6 +447,66 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 	mgr.Wg.Wait()
 }
 
+func TestSetSubscriptionsNotRequired(t *testing.T) {
+	t.Parallel()
+
+	singleConn := NewManager()
+	singleConn.GenerateSubs = func() (subscription.List, error) {
+		return subscription.List{{Channel: "single"}}, nil
+	}
+
+	singleConn.SetSubscriptionsNotRequired()
+
+	subs, err := singleConn.GenerateSubs()
+	require.NoError(t, err, "GenerateSubs must not error after subscriptions are disabled")
+	assert.Empty(t, subs, "GenerateSubs should return no subscriptions after subscriptions are disabled")
+
+	multiConn := NewManager()
+	multiConn.useMultiConnectionManagement = true
+	multiConn.connectionManager = []*websocket{
+		{setup: &ConnectionSetup{}},
+		{setup: &ConnectionSetup{SubscriptionsNotRequired: true}},
+	}
+
+	multiConn.SetSubscriptionsNotRequired()
+
+	for i := range multiConn.connectionManager {
+		assert.True(t,
+			multiConn.connectionManager[i].setup.SubscriptionsNotRequired,
+			"connection setup should not require subscriptions after override")
+	}
+}
+
+func TestSetAllConnectionURLs(t *testing.T) {
+	t.Parallel()
+
+	singleConn := NewManager()
+	singleConn.Conn = &connection{URL: "ws://old-public.example.com"}
+	singleConn.AuthConn = &connection{URL: "ws://old-auth.example.com"}
+
+	err := singleConn.SetAllConnectionURLs("ws://mock.example.com/ws")
+	require.NoError(t, err, "SetAllConnectionURLs must not error for single-connection managers")
+	assert.Equal(t, "ws://mock.example.com/ws", singleConn.runningURL, "runningURL should be updated for single-connection managers")
+	assert.Equal(t, "ws://mock.example.com/ws", singleConn.runningURLAuth, "runningURLAuth should be updated for single-connection managers")
+	assert.Equal(t, "ws://mock.example.com/ws", singleConn.Conn.GetURL(), "Conn URL should be updated for single-connection managers")
+	assert.Equal(t, "ws://mock.example.com/ws", singleConn.AuthConn.GetURL(), "AuthConn URL should be updated for single-connection managers")
+
+	multiConn := NewManager()
+	multiConn.useMultiConnectionManagement = true
+	multiConn.connectionManager = []*websocket{
+		{setup: &ConnectionSetup{URL: "ws://first.example.com"}, connections: []Connection{&connection{URL: "ws://first.example.com"}}},
+		{setup: &ConnectionSetup{URL: "ws://second.example.com"}, connections: []Connection{&connection{URL: "ws://second.example.com"}}},
+	}
+
+	err = multiConn.SetAllConnectionURLs("ws://mock.example.com/ws")
+	require.NoError(t, err, "SetAllConnectionURLs must not error for multi-connection managers")
+
+	for i := range multiConn.connectionManager {
+		assert.Equal(t, "ws://mock.example.com/ws", multiConn.connectionManager[i].setup.URL, "connection setup URL should be updated for each multi-connection setup")
+		assert.Equal(t, "ws://mock.example.com/ws", multiConn.connectionManager[i].connections[0].GetURL(), "live connection URL should be updated for each multi-connection setup")
+	}
+}
+
 func TestManager(t *testing.T) {
 	t.Parallel()
 
