@@ -271,7 +271,7 @@ type mockConn struct {
 	url   string
 }
 
-func (m *mockConn) Dial(context.Context, *gws.Dialer, http.Header) error {
+func (m *mockConn) Dial(context.Context, *gws.Dialer, http.Header, url.Values) error {
 	return nil
 }
 func (m *mockConn) ReadMessage() websocket.Response { return websocket.Response{} }

@@ -140,7 +140,7 @@ func (e *Exchange) wsAuthConnect(ctx context.Context, conn websocket.Connection)
 	headers.Add("X-GEMINI-SIGNATURE", hex.EncodeToString(hmac))
 	headers.Add("Cache-Control", "no-cache")
 
-	err = conn.Dial(ctx,  &gws.Dialer{}, headers, nil)
+	err = conn.Dial(ctx, &gws.Dialer{}, headers, nil)
 	if err != nil {
 		return fmt.Errorf("%v Websocket connection %v error. Error %v", e.Name, endpoint, err)
 	}

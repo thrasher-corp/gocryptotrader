@@ -1261,7 +1261,7 @@ func TestWSSubscribe(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "TestInstance must not error")
 	testexch.SetupWs(t, e)
-	err := e.Subscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
+	err := subscribeForTest(t.Context(), e, subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
 	require.NoError(t, err, "Subscribe must not error")
 	catcher := func() (ok bool) {
 		i := <-e.Websocket.DataHandler.C
