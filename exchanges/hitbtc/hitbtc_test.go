@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -276,8 +275,7 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 }
 
-// Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
-// ----------------------------------------------------------------------------------------------------------------------------
+// TestSubmitOrder and below can impact your orders on the exchange. Enable canManipulateRealOrders to run them
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
@@ -428,12 +426,10 @@ func setupWsAuth(t *testing.T) {
 	if wsSetupRan {
 		return
 	}
-	if !e.Websocket.IsEnabled() && !e.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(e) {
-		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
-	}
+	testexch.SkipTestIfCannotUseAuthenticatedWebsocket(t, e)
 
 	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{})
+	err := e.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -923,6 +919,105 @@ func TestWsTrades(t *testing.T) {
 	}
 }
 
+func TestWsCandles(t *testing.T) {
+	t.Parallel()
+
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "Test instance Setup must not error")
+
+	pressXToJSON := []byte(`{
+  "jsonrpc": "2.0",
+  "method": "snapshotCandles",
+  "params": {
+    "symbol": "BTCUSD",
+    "period": "M30",
+    "data": [
+      {
+        "timestamp": "2017-10-19T16:30:00.000Z",
+        "open": "0.054614",
+        "close": "0.054465",
+        "min": "0.054339",
+        "max": "0.054724",
+        "volume": "141.268",
+        "volumeQuote": "7.70935"
+      }
+    ]
+  }
+}`)
+	err := h.wsHandleData(t.Context(), pressXToJSON)
+	require.NoError(t, err)
+
+	select {
+	case msg := <-h.Websocket.DataHandler.C:
+		klineData, ok := msg.Data.(kline.Item)
+		require.True(t, ok, "Expected kline data payload")
+		exp := kline.Item{
+			Exchange: h.Name,
+			Asset:    asset.Spot,
+			Pair:     currency.NewPairWithDelimiter("BTC", "USD", "-"),
+			Interval: kline.ThirtyMin,
+			Candles: []kline.Candle{{
+				Time:   time.Date(2017, time.October, 19, 16, 30, 0, 0, time.UTC),
+				Open:   0.054614,
+				Close:  0.054465,
+				High:   0.054724,
+				Low:    0.054339,
+				Volume: 141.268,
+			}},
+		}
+		assert.Equal(t, exp, klineData, "Kline payload should match expected struct")
+	default:
+		require.Fail(t, "Expected websocket kline payload to be emitted")
+	}
+
+	pressXToJSON = []byte(`{
+  "jsonrpc": "2.0",
+  "method": "updateCandles",
+  "params": {
+    "symbol": "BTCUSD",
+    "period": "M30",
+    "data": [
+      {
+        "timestamp": "2017-10-19T17:00:00.000Z",
+        "open": "0.054465",
+        "close": "0.054500",
+        "min": "0.054400",
+        "max": "0.054520",
+        "volume": "42.100",
+        "volumeQuote": "2.29345"
+      }
+    ]
+  }
+}`)
+	err = h.wsHandleData(t.Context(), pressXToJSON)
+	require.NoError(t, err)
+}
+
+func TestCandlePeriodToInterval(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		period   string
+		expected kline.Interval
+		hasErr   bool
+	}{
+		{period: "M1", expected: kline.OneMin},
+		{period: "M30", expected: kline.ThirtyMin},
+		{period: "H4", expected: kline.FourHour},
+		{period: "D7", expected: kline.OneWeek},
+		{period: "1M", expected: kline.OneMonth},
+		{period: "bad", hasErr: true},
+	}
+	for _, tt := range tests {
+		got, err := candlePeriodToInterval(tt.period)
+		if tt.hasErr {
+			require.ErrorIs(t, err, kline.ErrInvalidInterval)
+			continue
+		}
+		require.NoError(t, err)
+		assert.Equal(t, tt.expected, got)
+	}
+}
+
 func TestFormatExchangeKlineInterval(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
@@ -1015,12 +1110,26 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	}
 }
 
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, e)
+	require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Spot), "UpdateOrderExecutionLimits must not error")
+	pairs, err := e.CurrencyPairs.GetPairs(asset.Spot, false)
+	require.NoError(t, err, "GetPairs must not error")
+	require.NotEmpty(t, pairs, "GetPairs must return pairs")
+	l, err := e.GetOrderExecutionLimits(asset.Spot, pairs[0])
+	require.NoError(t, err, "GetOrderExecutionLimits must not error")
+	assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
+	assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
+
+	require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported, "UpdateOrderExecutionLimits must error")
+}
+
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
 	subs, err := e.generateSubscriptions()

@@ -1921,21 +1921,21 @@ var withdrawalRequestCommand = &cli.Command{
 					Usage: "withdrawal id",
 				},
 			},
-			Action: withdrawlRequestByID,
+			Action: withdrawalRequestByID,
 		},
 		{
 			Name:      "byexchangeid",
 			Usage:     "exchange id",
 			ArgsUsage: "<id>",
 			Flags:     FlagsFromStruct(&WithdrawlRequestByExchangeIDParams{}),
-			Action:    withdrawlRequestByExchangeID,
+			Action:    withdrawalRequestByExchangeID,
 		},
 		{
 			Name:      "byexchange",
 			Usage:     "exchange limit",
 			ArgsUsage: "<id>",
 			Flags:     FlagsFromStruct(&WithdrawlRequestByExchangeParams{}),
-			Action:    withdrawlRequestByExchangeID,
+			Action:    withdrawalRequestByExchangeID,
 		},
 		{
 			Name:      "bydate",
@@ -1945,12 +1945,12 @@ var withdrawalRequestCommand = &cli.Command{
 				Start: time.Now().AddDate(0, -1, 0).Format(time.DateTime),
 				End:   time.Now().Format(time.DateTime),
 			}),
-			Action: withdrawlRequestByDate,
+			Action: withdrawalRequestByDate,
 		},
 	},
 }
 
-func withdrawlRequestByID(c *cli.Context) error {
+func withdrawalRequestByID(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
@@ -1985,7 +1985,7 @@ func withdrawlRequestByID(c *cli.Context) error {
 	return nil
 }
 
-func withdrawlRequestByExchangeID(c *cli.Context) error {
+func withdrawalRequestByExchangeID(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
@@ -2038,7 +2038,7 @@ func withdrawlRequestByExchangeID(c *cli.Context) error {
 	return nil
 }
 
-func withdrawlRequestByDate(c *cli.Context) error {
+func withdrawalRequestByDate(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}

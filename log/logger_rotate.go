@@ -116,7 +116,7 @@ func (r *Rotate) Close() error {
 func (r *Rotate) rotateFile() (err error) {
 	err = r.close()
 	if err != nil {
-		return
+		return err
 	}
 	return r.openNew()
 }
