@@ -48,7 +48,7 @@ func (e *Exchange) WsCFutureConnect(ctx context.Context, conn websocket.Connecti
 			e.Name,
 			err)
 	}
-	if err := conn.Dial(ctx, &dialer, http.Header{}); err != nil {
+	if err := conn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", e.Name, err)
 	}
 	conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
@@ -235,18 +235,20 @@ func (e *Exchange) processKlineData(ctx context.Context, respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &websocket.KlineData{
+	interval, := kline.EightHour // resp.Kline.Interval
+	return e.Websocket.DataHandler.Send(ctx, &kline.Item{
 		Pair:       cp,
 		Exchange:   e.Name,
-		Interval:   resp.KlineData.Interval,
-		AssetType:  asset.CoinMarginedFutures,
-		StartTime:  resp.KlineData.StartTime.Time(),
-		CloseTime:  resp.KlineData.CloseTime.Time(),
-		OpenPrice:  resp.KlineData.OpenPrice.Float64(),
-		ClosePrice: resp.KlineData.ClosePrice.Float64(),
-		HighPrice:  resp.KlineData.HighPrice.Float64(),
-		LowPrice:   resp.KlineData.LowPrice.Float64(),
+		Interval:   interval,
+		Asset:  asset.CoinMarginedFutures,
+		Candles: []kline.Candle{{
+		Time:  resp.KlineData.CloseTime.Time(),
+		Open:  resp.KlineData.OpenPrice.Float64(),
+		Close: resp.KlineData.ClosePrice.Float64(),
+		High:  resp.KlineData.HighPrice.Float64(),
+		Low:   resp.KlineData.LowPrice.Float64(),
 		Volume:     resp.KlineData.Volume.Float64(),
+		}},
 	})
 }
 

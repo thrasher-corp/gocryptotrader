@@ -551,7 +551,7 @@ func (e *Exchange) CancelAllOpenOrderOnSymbol(ctx context.Context, symbol curren
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "/api/v3/openOrders", params, spotOrderRate, nil, &resp)
 }
 
-// AllOrders Get all account orders; active, canceled, or filled.
+// AllOrders Get all account orders; active, cancelled, or filled.
 // orderId optional param
 // limit optional param, default 500; max 500
 func (e *Exchange) AllOrders(ctx context.Context, symbol currency.Pair, orderID, limit string) ([]*TradeOrder, error) {

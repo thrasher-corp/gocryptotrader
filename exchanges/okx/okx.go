@@ -113,7 +113,7 @@ func (e *Exchange) CancelSingleOrder(ctx context.Context, arg *CancelOrderReques
 	return resp, nil
 }
 
-// CancelMultipleOrders cancel incomplete orders in batches. Maximum 20 orders can be canceled at a time.
+// CancelMultipleOrders cancel incomplete orders in batches. Maximum 20 orders can be cancelled at a time.
 // Request parameters should be passed in the form of an array
 func (e *Exchange) CancelMultipleOrders(ctx context.Context, args []CancelOrderRequestParam) ([]*OrderData, error) {
 	if len(args) == 0 {
@@ -511,7 +511,7 @@ func (e *Exchange) PlaceTriggerAlgoOrder(ctx context.Context, arg *AlgoOrderPara
 }
 
 // CancelAdvanceAlgoOrder Cancel unfilled algo orders
-// A maximum of 10 orders can be canceled at a time.
+// A maximum of 10 orders can be cancelled at a time.
 // Request parameters should be passed in the form of an array
 func (e *Exchange) CancelAdvanceAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams) (*AlgoOrder, error) {
 	if len(args) == 0 {
@@ -521,7 +521,7 @@ func (e *Exchange) CancelAdvanceAlgoOrder(ctx context.Context, args []AlgoOrderC
 }
 
 // CancelAlgoOrder to cancel unfilled algo orders (not including Iceberg order, TWAP order, Trailing Stop order).
-// A maximum of 10 orders can be canceled at a time.
+// A maximum of 10 orders can be cancelled at a time.
 // Request parameters should be passed in the form of an array
 func (e *Exchange) CancelAlgoOrder(ctx context.Context, args []AlgoOrderCancelParams) (*AlgoOrder, error) {
 	if len(args) == 0 {
@@ -836,7 +836,7 @@ func (e *Exchange) CancelRFQ(ctx context.Context, rfqID, clientRFQID string) (*C
 	}, &resp, request.AuthenticatedRequest)
 }
 
-// CancelMultipleRFQs cancel multiple active RFQs in a single batch. Maximum 100 RFQ orders can be canceled at a time
+// CancelMultipleRFQs cancel multiple active RFQs in a single batch. Maximum 100 RFQ orders can be cancelled at a time
 func (e *Exchange) CancelMultipleRFQs(ctx context.Context, arg *CancelRFQRequestsParam) ([]CancelRFQResponse, error) {
 	if arg == nil {
 		return nil, common.ErrNilPointer
@@ -874,7 +874,7 @@ func (e *Exchange) GetQuoteProducts(ctx context.Context) ([]QuoteProduct, error)
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getQuoteProductsEPL, http.MethodGet, "rfq/maker-instrument-settings", nil, &resp, request.AuthenticatedRequest)
 }
 
-// SetQuoteProducts customize the products which makers want to quote and receive RFQs for, and the corresponding price and size limit
+// SetQuoteProducts customise the products which makers want to quote and receive RFQs for, and the corresponding price and size limit
 func (e *Exchange) SetQuoteProducts(ctx context.Context, args []SetQuoteProductParam) (*SetQuoteProductsResult, error) {
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
@@ -3001,7 +3001,7 @@ func (e *Exchange) AmendGridAlgoOrder(ctx context.Context, arg *GridAlgoOrderAme
 }
 
 // StopGridAlgoOrder stop a batch of grid algo orders.
-// A maximum of 10 orders can be canceled per request
+// A maximum of 10 orders can be cancelled per request
 func (e *Exchange) StopGridAlgoOrder(ctx context.Context, arg []StopGridAlgoOrderRequest) ([]GridAlgoOrderIDResponse, error) {
 	if len(arg) == 0 {
 		return nil, common.ErrEmptyParams
@@ -3346,7 +3346,7 @@ func (e *Exchange) RSIBackTesting(ctx context.Context, instrumentID, triggerCond
 
 // ****************************************** Signal bot trading **************************************************
 
-// GetSignalBotOrderDetail create and customize your own signals while gaining access to a diverse selection of signals from top providers.
+// GetSignalBotOrderDetail create and customise your own signals while gaining access to a diverse selection of signals from top providers.
 // Empower your trading strategies and stay ahead of the game with our comprehensive signal trading platform
 func (e *Exchange) GetSignalBotOrderDetail(ctx context.Context, algoOrderType, algoID string) (*SignalBotOrderDetail, error) {
 	if algoOrderType == "" {
@@ -4152,7 +4152,7 @@ func (e *Exchange) RedeemETHStaking(ctx context.Context, amount float64) error {
 		map[string]string{"amt": strconv.FormatFloat(amount, 'f', -1, 64)}, &resp, request.AuthenticatedRequest)
 }
 
-// GetBETHAssetsBalance balance is a snapshot summarized all BETH assets in trading and funding accounts. Also, the snapshot updates hourly
+// GetBETHAssetsBalance balance is a snapshot summarised all BETH assets in trading and funding accounts. Also, the snapshot updates hourly
 func (e *Exchange) GetBETHAssetsBalance(ctx context.Context) (*BETHAssetsBalance, error) {
 	var resp *BETHAssetsBalance
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getBETHBalanceEPL, http.MethodGet,
@@ -4722,7 +4722,7 @@ func (e *Exchange) GetActiveSpreadOrders(ctx context.Context, spreadID, orderTyp
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getActiveSpreadOrdersEPL, http.MethodGet, common.EncodeURLValues("sprd/orders-pending", params), nil, &resp, request.AuthenticatedRequest)
 }
 
-// GetCompletedSpreadOrdersLast7Days retrieve the completed order data for the last 7 days, and the incomplete orders (filledSz =0 & state = canceled) that have been canceled are only reserved for 2 hours. Results are returned in counter chronological order
+// GetCompletedSpreadOrdersLast7Days retrieve the completed order data for the last 7 days, and the incomplete orders (filledSz =0 & state = canceled) that have been cancelled are only reserved for 2 hours. Results are returned in counter chronological order
 func (e *Exchange) GetCompletedSpreadOrdersLast7Days(ctx context.Context, spreadID, orderType, state, beginID, endID string, begin, end time.Time, limit int64) ([]SpreadOrder, error) {
 	params := url.Values{}
 	if spreadID != "" {
@@ -5479,27 +5479,27 @@ func (e *Exchange) GetTakerFlow(ctx context.Context, ccy currency.Code, period k
 // We will reach out to you through your BD to provide more comprehensive API support
 
 // GetInviteesDetail retrieves affiliate invitees details
-func (e *Exchange) GetInviteesDetail(ctx context.Context, uid string) (*AffilateInviteesDetail, error) {
+func (e *Exchange) GetInviteesDetail(ctx context.Context, uid string) (*AffiliateInviteesDetail, error) {
 	if uid == "" {
 		return nil, fmt.Errorf("%w: uid is required", order.ErrOrderIDNotSet)
 	}
-	var resp *AffilateInviteesDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAffilateInviteesDetailEPL, http.MethodGet, "affiliate/invitee/detail?uid="+uid, nil, &resp, request.AuthenticatedRequest)
+	var resp *AffiliateInviteesDetail
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAffiliateInviteesDetailEPL, http.MethodGet, "affiliate/invitee/detail?uid="+uid, nil, &resp, request.AuthenticatedRequest)
 }
 
 // GetUserAffiliateRebateInformation this endpoint is used to get the user's affiliate rebate information for affiliate
-func (e *Exchange) GetUserAffiliateRebateInformation(ctx context.Context, apiKey string) (*AffilateRebateInfo, error) {
+func (e *Exchange) GetUserAffiliateRebateInformation(ctx context.Context, apiKey string) (*AffiliateRebateInfo, error) {
 	if apiKey == "" {
 		return nil, errInvalidAPIKey
 	}
-	var resp *AffilateRebateInfo
+	var resp *AffiliateRebateInfo
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getUserAffiliateRebateInformationEPL, http.MethodGet, "users/partner/if-rebate?apiKey="+apiKey, nil, &resp, request.AuthenticatedRequest)
 }
 
 // Status
 
 // SystemStatusResponse retrieves the system status.
-// state supports valid values 'scheduled', 'ongoing', 'pre_open', 'completed', and 'canceled'
+// state supports valid values 'scheduled', 'ongoing', 'pre_open', 'completed', and 'cancelled'
 func (e *Exchange) SystemStatusResponse(ctx context.Context, state string) ([]SystemStatusResponse, error) {
 	params := url.Values{}
 	if state != "" {
@@ -5877,7 +5877,7 @@ func (e *Exchange) GetFiatDepositPaymentMethods(ctx context.Context, ccy currenc
 SendHTTPRequest sends an http request, optionally with a JSON payload
 URL arguments must be encoded in the request path
 result must be a pointer
-The response will be unmarshalled first into []any{result}, which matches most APIs, and fallback to directly into result
+The response data is unmarshalled directly into result first and then (if needed) from the first array element
 */
 func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, httpMethod, requestPath string, data, result any, requestType request.AuthType) (err error) {
 	endpoint, err := e.API.Endpoints.GetURL(ep)
@@ -5946,14 +5946,23 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f reque
 		return common.AppendError(err, fmt.Errorf("error code: `%d`", resp.Code.Int64()))
 	}
 
-	// First see if resp.Data can unmarshal into a slice of result, which is true for most APIs
-	if sliceErr := json.Unmarshal(resp.Data, &[]any{result}); sliceErr != nil {
-		// Otherwise, resp.Data should unmarshal directly into result; e.g. index-components, support-coin, and taker-block-volume
-		if directErr := json.Unmarshal(resp.Data, result); directErr != nil {
-			return fmt.Errorf("cannot unmarshal as a slice of result (error: %w) or as a reference to result (error: %w)", sliceErr, directErr)
-		}
+	// Most endpoints can be unmarshalled directly (objects and full arrays).
+	directErr := json.Unmarshal(resp.Data, result)
+	if directErr == nil {
+		return nil
 	}
 
+	// Some endpoints return a single item wrapped in data:[{...}] for a non-slice result.
+	var dataSlice []json.RawMessage
+	if sliceErr := json.Unmarshal(resp.Data, &dataSlice); sliceErr != nil {
+		return fmt.Errorf("cannot unmarshal response data directly (error: %w) or as an array (error: %w)", directErr, sliceErr)
+	}
+	if len(dataSlice) != 1 {
+		return fmt.Errorf("cannot unmarshal response data directly (error: %w) or as a single-item array (got %d items)", directErr, len(dataSlice))
+	}
+	if firstErr := json.Unmarshal(dataSlice[0], result); firstErr != nil {
+		return fmt.Errorf("cannot unmarshal response data directly (error: %w) or as the first array item (error: %w)", directErr, firstErr)
+	}
 	return nil
 }
 

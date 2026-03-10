@@ -70,12 +70,12 @@ func setFeeBuilder() *exchange.FeeBuilder {
 // this will default to time now with a window size of 30 days.
 // Mock details are unix seconds; start = 1577836800 and end = 1580515200
 func getTime() (startTime, endTime time.Time) {
-	// if mockTests {
-	return time.UnixMilli(1744103854944), time.UnixMilli(1744190254944)
-	// }
-	// tn := time.Now()
-	// offset := time.Hour * 24 * 6
-	// return tn.Add(-offset), tn
+	if mockTests {
+		return time.UnixMilli(1744103854944), time.UnixMilli(1744190254944)
+	}
+	tn := time.Now()
+	offset := time.Hour * 24 * 6
+	return tn.Add(-offset), tn
 }
 
 func TestUServerTime(t *testing.T) {
@@ -4090,31 +4090,37 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
 			pairs, err := e.CurrencyPairs.GetPairs(a, false)
 			require.NoError(t, err, "GetPairs must not error")
-			l, err := e.GetOrderExecutionLimits(a, pairs[0])
-			require.NoError(t, err, "GetOrderExecutionLimits must not error")
-			assert.Positive(t, l.MinPrice, "MinPrice should be positive")
-			assert.Positive(t, l.MaxPrice, "MaxPrice should be positive")
-			assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
-			assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
-			assert.Positive(t, l.MaximumBaseAmount, "MaximumBaseAmount should be positive")
-			assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
-			assert.Positive(t, l.MarketMaxQty, "MarketMaxQty should be positive")
-			assert.Positive(t, l.MaxTotalOrders, "MaxTotalOrders should be positive")
-			switch a {
-			case asset.Spot, asset.Margin:
-				assert.Positive(t, l.MaxIcebergParts, "MaxIcebergParts should be positive")
-			case asset.USDTMarginedFutures:
-				assert.Positive(t, l.MinNotional, "MinNotional should be positive")
-				fallthrough
-			case asset.CoinMarginedFutures:
-				assert.Positive(t, l.MultiplierUp, "MultiplierUp should be positive")
-				assert.Positive(t, l.MultiplierDown, "MultiplierDown should be positive")
-				assert.Positive(t, l.MarketMinQty, "MarketMinQty should be positive")
-				assert.Positive(t, l.MarketStepIncrementSize, "MarketStepIncrementSize should be positive")
-				assert.Positive(t, l.MaxAlgoOrders, "MaxAlgoOrders should be positive")
+			for _, p := range pairs {
+				l, err := e.GetOrderExecutionLimits(a, p)
+				require.NoError(t, err, "GetOrderExecutionLimits must not error")
+				assert.Positive(t, l.MinPrice, "MinPrice should be positive")
+				assert.Positive(t, l.MaxPrice, "MaxPrice should be positive")
+				assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
+				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+				assert.Positive(t, l.MaximumBaseAmount, "MaximumBaseAmount should be positive")
+				assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
+				assert.Positive(t, l.MarketMaxQty, "MarketMaxQty should be positive")
+				assert.Positive(t, l.MaxTotalOrders, "MaxTotalOrders should be positive")
+				switch a {
+				case asset.Spot, asset.Margin:
+					assert.Positive(t, l.MaxIcebergParts, "MaxIcebergParts should be positive")
+				case asset.USDTMarginedFutures:
+					assert.Positive(t, l.MinNotional, "MinNotional should be positive")
+					fallthrough
+				case asset.CoinMarginedFutures:
+					assert.Positive(t, l.MultiplierUp, "MultiplierUp should be positive")
+					assert.Positive(t, l.MultiplierDown, "MultiplierDown should be positive")
+					assert.Positive(t, l.MarketMinQty, "MarketMinQty should be positive")
+					assert.Positive(t, l.MarketStepIncrementSize, "MarketStepIncrementSize should be positive")
+					assert.Positive(t, l.MaxAlgoOrders, "MaxAlgoOrders should be positive")
+				}
 			}
 		})
 	}
+	t.Run("unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported)
+	})
 }
 
 func TestGetHistoricalFundingRates(t *testing.T) {
@@ -4163,19 +4169,27 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 
 func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
-	cp := currency.NewBTCUSDT()
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Setup must not error for local exchange instance")
+	if mockTests {
+		require.NoError(t, testexch.MockHTTPInstance(e), "MockHTTPInstance must not error for local exchange instance")
+	}
+	testexch.UpdatePairsOnce(t, e)
+
+	usdtPerpetualPair := currency.NewBTCUSDT()
 	_, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset:                asset.USDTMarginedFutures,
-		Pair:                 cp,
+		Pair:                 usdtPerpetualPair,
 		IncludePredictedRate: true,
 	})
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
-	err = e.CurrencyPairs.EnablePair(asset.USDTMarginedFutures, cp)
+	err = e.CurrencyPairs.EnablePair(asset.USDTMarginedFutures, usdtPerpetualPair)
 	require.True(t, err == nil || errors.Is(err, currency.ErrPairAlreadyEnabled), err)
 
 	result, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset: asset.USDTMarginedFutures,
-		Pair:  cp,
+		Pair:  usdtPerpetualPair,
 	})
 	require.NoError(t, err)
 	assert.NotNil(t, result)

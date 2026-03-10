@@ -92,18 +92,14 @@ func (m *eventManager) executeEvent(i int) {
 		if m.verbose {
 			log.Debugf(log.EventMgr, "Events: Processing event %s.\n", m.events[i].String())
 		}
-		err := m.checkEventCondition(&m.events[i])
-		if err != nil {
-			msg := fmt.Sprintf(
-				"Events: ID: %d triggered on %s successfully [%v]\n", m.events[i].ID,
-				m.events[i].Exchange, m.events[i].String(),
-			)
-			log.Infoln(log.EventMgr, msg)
-			m.comms.PushEvent(base.Event{Type: "event", Message: msg})
-			m.events[i].Executed = true
-		} else if m.verbose {
-			log.Debugf(log.EventMgr, "%v", err)
+		if err := m.checkEventCondition(&m.events[i]); err != nil {
+			log.Debugf(log.EventMgr, "Events: Failed to check event condition: %v", err)
+			return
 		}
+		msg := fmt.Sprintf("Events: ID: %d triggered on %s successfully [%v]\n", m.events[i].ID, m.events[i].Exchange, m.events[i].String())
+		log.Infoln(log.EventMgr, msg)
+		m.comms.PushEvent(base.Event{Type: "event", Message: msg})
+		m.events[i].Executed = true
 	}
 }
 

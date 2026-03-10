@@ -73,7 +73,7 @@ func (e *Exchange) WsUFuturesConnect(ctx context.Context, conn websocket.Connect
 			conn.SetURL(wsURL)
 		}
 	}
-	if err := conn.Dial(ctx, &dialer, http.Header{}); err != nil {
+	if err := conn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", e.Name, err)
 	}
 	conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
@@ -149,19 +149,22 @@ func (e *Exchange) processContinuousKlineUpdate(ctx context.Context, respRaw []b
 	if err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, websocket.KlineData{
-		Timestamp:  resp.EventTime.Time(),
-		Pair:       cp,
-		AssetType:  assetType,
-		Exchange:   e.Name,
-		StartTime:  resp.KlineData.StartTime.Time(),
-		CloseTime:  resp.KlineData.EndTime.Time(),
-		Interval:   resp.KlineData.Interval,
-		OpenPrice:  resp.KlineData.OpenPrice.Float64(),
-		ClosePrice: resp.KlineData.ClosePrice.Float64(),
-		HighPrice:  resp.KlineData.HighPrice.Float64(),
-		LowPrice:   resp.KlineData.LowPrice.Float64(),
-		Volume:     resp.KlineData.Volume.Float64(),
+	interval := kline.FiveMin // resp.KlineData.Interval
+	return e.Websocket.DataHandler.Send(ctx, kline.Item{
+		Pair:     cp,
+		Exchange: e.Name,
+		Interval: interval,
+		Asset:    assetType,
+		Candles: []kline.Candle{
+			{
+				Time:   resp.EventTime.Time(),
+				Open:   resp.KlineData.OpenPrice.Float64(),
+				Close:  resp.KlineData.ClosePrice.Float64(),
+				High:   resp.KlineData.HighPrice.Float64(),
+				Low:    resp.KlineData.LowPrice.Float64(),
+				Volume: resp.KlineData.Volume.Float64(),
+			},
+		},
 	})
 }
 

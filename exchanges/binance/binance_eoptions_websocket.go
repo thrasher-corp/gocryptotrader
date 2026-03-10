@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	gws "github.com/gorilla/websocket"
@@ -75,7 +74,7 @@ func (e *Exchange) WsOptionsConnect(ctx context.Context, conn websocket.Connecti
 		}
 	}
 	conn.SetURL(wsURL)
-	if err := conn.Dial(ctx, &dialer, http.Header{}); err != nil {
+	if err := conn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", e.Name, err)
 	}
 
@@ -364,19 +363,20 @@ func (e *Exchange) processOptionsKline(ctx context.Context, data []byte) error {
 	if err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, websocket.KlineData{
-		Timestamp:  resp.EventTime.Time(),
-		Pair:       pair,
-		AssetType:  asset.Options,
-		Exchange:   e.Name,
-		StartTime:  resp.KlineData.StartTime.Time(),
-		CloseTime:  resp.KlineData.EndTime.Time(),
-		Interval:   strings.Split(resp.EventType, "_")[1],
-		OpenPrice:  resp.KlineData.Open.Float64(),
-		ClosePrice: resp.KlineData.Close.Float64(),
-		HighPrice:  resp.KlineData.High.Float64(),
-		LowPrice:   resp.KlineData.Low.Float64(),
-		Volume:     resp.KlineData.ContractVolume.Float64(),
+	interval := kline.FiveMin // strings.Split(resp.EventType, "_")[1]
+	return e.Websocket.DataHandler.Send(ctx, kline.Item{
+		Pair:     pair,
+		Exchange: e.Name,
+		Asset:    asset.Options,
+		Interval: interval,
+		Candles: []kline.Candle{{
+			Time:   resp.EventTime.Time(),
+			Open:   resp.KlineData.Open.Float64(),
+			Close:  resp.KlineData.Close.Float64(),
+			High:   resp.KlineData.High.Float64(),
+			Low:    resp.KlineData.Low.Float64(),
+			Volume: resp.KlineData.ContractVolume.Float64(),
+		}},
 	})
 }
 

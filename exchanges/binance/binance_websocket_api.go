@@ -55,7 +55,7 @@ func (e *Exchange) WsConnectAPI(ctx context.Context, conn websocket.Connection) 
 		HandshakeTimeout: e.Config.HTTPTimeout,
 		Proxy:            http.ProxyFromEnvironment,
 	}
-	if err = conn.Dial(ctx, &dialer, http.Header{}); err != nil {
+	if err = conn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", e.Name, err)
 	}
 
