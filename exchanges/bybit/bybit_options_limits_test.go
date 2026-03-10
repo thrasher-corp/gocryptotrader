@@ -28,7 +28,7 @@ func TestFetchTradablePairsFiltersNonTradingOptions(t *testing.T) {
 	preLaunchInstrument := newOptionInstrumentInfo("BTC14MAR26-85000-C", "PreLaunch")
 
 	var queries []url.Values
-	ex := newOptionsInstrumentInfoTestExchange(t, "BybitOptionsFetchTradablePairsTest", map[string][]optionInstrumentInfoResponse{
+	ex := newInstrumentInfoTestExchange(t, "BybitOptionsFetchTradablePairsTest", cOption, map[string][]optionInstrumentInfoResponse{
 		"BTC": {tradingInstrument, settlingInstrument, preLaunchInstrument},
 	}, &queries)
 
@@ -65,7 +65,7 @@ func TestUpdateOrderExecutionLimitsFiltersNonTradingOptions(t *testing.T) {
 	closedInstrument := newOptionInstrumentInfo("BTC14MAR26-85000-C", "Closed")
 
 	var queries []url.Values
-	ex := newOptionsInstrumentInfoTestExchange(t, "BybitOptionsUpdateLimitsTest", map[string][]optionInstrumentInfoResponse{
+	ex := newInstrumentInfoTestExchange(t, "BybitOptionsUpdateLimitsTest", cOption, map[string][]optionInstrumentInfoResponse{
 		"BTC": {tradingInstrument, settlingInstrument, closedInstrument},
 	}, &queries)
 
@@ -108,12 +108,6 @@ func TestUpdateOrderExecutionLimitsLeavesNonOptionsStatusHandlingUnchanged(t *te
 	assert.Equal(t, cSpot, queries[0].Get("category"), "UpdateOrderExecutionLimits should request the spot category")
 	assert.Empty(t, queries[0].Get("status"), "UpdateOrderExecutionLimits should not filter non-options instrument status")
 	assert.Equal(t, "1000", queries[0].Get("limit"), "UpdateOrderExecutionLimits should request the expected page size")
-}
-
-func newOptionsInstrumentInfoTestExchange(t *testing.T, name string, responses map[string][]optionInstrumentInfoResponse, queries *[]url.Values) *Exchange {
-	t.Helper()
-
-	return newInstrumentInfoTestExchange(t, name, cOption, responses, queries)
 }
 
 func newInstrumentInfoTestExchange(t *testing.T, name, category string, responses map[string][]optionInstrumentInfoResponse, queries *[]url.Values) *Exchange {

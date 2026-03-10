@@ -2109,7 +2109,7 @@ func TestMergeRoundedOrderbookLevels(t *testing.T) {
 			},
 		},
 		{
-			name: "adjacentduplicatesmerge",
+			name: "adjacentDuplicatesMerge",
 			levels: []orderbook.Level{
 				{Price: 1e18, Amount: 0.00001405},
 				{Price: 1e18, Amount: 0.00064},
@@ -2121,7 +2121,7 @@ func TestMergeRoundedOrderbookLevels(t *testing.T) {
 			},
 		},
 		{
-			name: "nonadjacentduplicatesremainseparate",
+			name: "nonAdjacentDuplicatesRemainSeparate",
 			levels: []orderbook.Level{
 				{Price: 1.0, Amount: 1.0},
 				{Price: 2.0, Amount: 2.0},
