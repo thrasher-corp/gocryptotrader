@@ -789,6 +789,7 @@ func (m *Manager) SetSubscriptionsNotRequired() {
 
 	for _, ws := range m.connectionManager {
 		if ws.setup == nil {
+			log.Warnf(log.WebsocketMgr, "%s websocket: missing connection setup while disabling required subscriptions; creating empty setup", m.exchangeName)
 			ws.setup = &ConnectionSetup{}
 		}
 		ws.setup.SubscriptionsNotRequired = true
@@ -797,7 +798,8 @@ func (m *Manager) SetSubscriptionsNotRequired() {
 
 // SetAllConnectionURLs configures every managed websocket connection to use the
 // same URL. This is primarily used by test helpers that need to redirect all
-// websocket traffic through a single mock server before connecting.
+// websocket traffic through a single mock server before connecting. Calling
+// this after Connect has started returns an error.
 func (m *Manager) SetAllConnectionURLs(u string) error {
 	if err := common.NilGuard(m); err != nil {
 		return err
@@ -808,6 +810,13 @@ func (m *Manager) SetAllConnectionURLs(u string) error {
 
 	m.m.Lock()
 	defer m.m.Unlock()
+
+	if m.IsConnecting() {
+		return fmt.Errorf("%v %w: SetAllConnectionURLs must be called before Connect", m.exchangeName, errAlreadyReconnecting)
+	}
+	if m.IsConnected() {
+		return fmt.Errorf("%v %w: SetAllConnectionURLs must be called before Connect", m.exchangeName, errAlreadyConnected)
+	}
 
 	if !m.useMultiConnectionManagement {
 		m.runningURL = u
@@ -823,12 +832,10 @@ func (m *Manager) SetAllConnectionURLs(u string) error {
 
 	for _, ws := range m.connectionManager {
 		if ws.setup == nil {
+			log.Warnf(log.WebsocketMgr, "%s websocket: missing connection setup while updating connection URLs; creating empty setup", m.exchangeName)
 			ws.setup = &ConnectionSetup{}
 		}
 		ws.setup.URL = u
-		for _, conn := range ws.connections {
-			conn.SetURL(u)
-		}
 	}
 	return nil
 }

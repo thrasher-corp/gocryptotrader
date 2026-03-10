@@ -464,6 +464,7 @@ func TestSetSubscriptionsNotRequired(t *testing.T) {
 	multiConn := NewManager()
 	multiConn.useMultiConnectionManagement = true
 	multiConn.connectionManager = []*websocket{
+		{setup: nil},
 		{setup: &ConnectionSetup{}},
 		{setup: &ConnectionSetup{SubscriptionsNotRequired: true}},
 	}
@@ -471,6 +472,9 @@ func TestSetSubscriptionsNotRequired(t *testing.T) {
 	multiConn.SetSubscriptionsNotRequired()
 
 	for i := range multiConn.connectionManager {
+		require.NotNil(t,
+			multiConn.connectionManager[i].setup,
+			"connection setup should be initialised when missing")
 		assert.True(t,
 			multiConn.connectionManager[i].setup.SubscriptionsNotRequired,
 			"connection setup should not require subscriptions after override")
@@ -494,17 +498,46 @@ func TestSetAllConnectionURLs(t *testing.T) {
 	multiConn := NewManager()
 	multiConn.useMultiConnectionManagement = true
 	multiConn.connectionManager = []*websocket{
-		{setup: &ConnectionSetup{URL: "ws://first.example.com"}, connections: []Connection{&connection{URL: "ws://first.example.com"}}},
-		{setup: &ConnectionSetup{URL: "ws://second.example.com"}, connections: []Connection{&connection{URL: "ws://second.example.com"}}},
+		{setup: nil},
+		{setup: &ConnectionSetup{URL: "ws://first.example.com"}},
+		{setup: &ConnectionSetup{URL: "ws://second.example.com"}, connections: []Connection{&connection{URL: "ws://live.example.com"}}},
 	}
 
 	err = multiConn.SetAllConnectionURLs("ws://mock.example.com/ws")
 	require.NoError(t, err, "SetAllConnectionURLs must not error for multi-connection managers")
 
 	for i := range multiConn.connectionManager {
-		assert.Equal(t, "ws://mock.example.com/ws", multiConn.connectionManager[i].setup.URL, "connection setup URL should be updated for each multi-connection setup")
-		assert.Equal(t, "ws://mock.example.com/ws", multiConn.connectionManager[i].connections[0].GetURL(), "live connection URL should be updated for each multi-connection setup")
+		require.NotNil(t,
+			multiConn.connectionManager[i].setup,
+			"connection setup should be initialised when missing")
+		assert.Equal(t,
+			"ws://mock.example.com/ws",
+			multiConn.connectionManager[i].setup.URL,
+			"connection setup URL should be updated for each multi-connection setup")
 	}
+	assert.Equal(t,
+		"ws://live.example.com",
+		multiConn.connectionManager[2].connections[0].GetURL(),
+		"existing live connection URL should not be mutated by the pre-connect helper")
+}
+
+func TestSetAllConnectionURLsErrorsAfterConnect(t *testing.T) {
+	t.Parallel()
+
+	ws := NewManager()
+
+	err := ws.SetAllConnectionURLs("ws://mock.example.com/ws")
+	require.NoError(t, err, "SetAllConnectionURLs must allow pre-connect configuration")
+
+	ws.setState(connectingState)
+	err = ws.SetAllConnectionURLs("ws://mock.example.com/ws")
+	require.ErrorIs(t, err, errAlreadyReconnecting, "SetAllConnectionURLs must error once Connect has started")
+	require.ErrorContains(t, err, "SetAllConnectionURLs must be called before Connect")
+
+	ws.setState(connectedState)
+	err = ws.SetAllConnectionURLs("ws://mock.example.com/ws")
+	require.ErrorIs(t, err, errAlreadyConnected, "SetAllConnectionURLs must error after connect")
+	require.ErrorContains(t, err, "SetAllConnectionURLs must be called before Connect")
 }
 
 func TestManager(t *testing.T) {
