@@ -96,23 +96,23 @@ type MarginOrderResp struct {
 // MarginAccOrdersList represents a list of margin account order details.
 type MarginAccOrdersList []struct {
 	Symbol              string            `json:"symbol"`
-	OrigClientOrderID   string            `json:"origClientOrderId,omitempty"`
-	OrderID             int64             `json:"orderId,omitempty"`
+	OrigClientOrderID   string            `json:"origClientOrderId"`
+	OrderID             int64             `json:"orderId"`
 	OrderListID         int64             `json:"orderListId"`
-	ClientOrderID       string            `json:"clientOrderId,omitempty"`
-	Price               types.Number      `json:"price,omitempty"`
-	OrigQty             types.Number      `json:"origQty,omitempty"`
-	ExecutedQty         types.Number      `json:"executedQty,omitempty"`
-	CummulativeQuoteQty types.Number      `json:"cummulativeQuoteQty,omitempty"`
-	Status              string            `json:"status,omitempty"`
-	TimeInForce         order.TimeInForce `json:"timeInForce,omitempty"`
-	Type                string            `json:"type,omitempty"`
-	Side                string            `json:"side,omitempty"`
-	ContingencyType     string            `json:"contingencyType,omitempty"`
-	ListStatusType      string            `json:"listStatusType,omitempty"`
-	ListOrderStatus     string            `json:"listOrderStatus,omitempty"`
-	ListClientOrderID   string            `json:"listClientOrderId,omitempty"`
-	TransactionTime     types.Time        `json:"transactionTime,omitempty"`
+	ClientOrderID       string            `json:"clientOrderId"`
+	Price               types.Number      `json:"price"`
+	OrigQty             types.Number      `json:"origQty"`
+	ExecutedQty         types.Number      `json:"executedQty"`
+	CummulativeQuoteQty types.Number      `json:"cummulativeQuoteQty"`
+	Status              string            `json:"status"`
+	TimeInForce         order.TimeInForce `json:"timeInForce"`
+	Type                string            `json:"type"`
+	Side                string            `json:"side"`
+	ContingencyType     string            `json:"contingencyType"`
+	ListStatusType      string            `json:"listStatusType"`
+	ListOrderStatus     string            `json:"listOrderStatus"`
+	ListClientOrderID   string            `json:"listClientOrderId"`
+	TransactionTime     types.Time        `json:"transactionTime"`
 	Orders              []struct {
 		Symbol        string `json:"symbol"`
 		OrderID       int64  `json:"orderId"`
@@ -504,7 +504,7 @@ type ADLQuantileEstimation struct {
 		Long  float64 `json:"LONG"`  // adl quantile for "LONG" position in hedge mode
 		Short float64 `json:"SHORT"` // adl qauntile for "SHORT" position in hedge mode
 		Hedge float64 `json:"HEDGE"` // only a sign, ignore the value
-	} `json:"adlQuantile,omitempty"` // adl qunatile for position in one-way mode
+	} `json:"adlQuantile"` // adl qunatile for position in one-way mode
 }
 
 // PortfolioMarginAssetIndexPrice holds a portfolio margin asset index price in usd

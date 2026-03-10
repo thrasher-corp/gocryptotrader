@@ -282,10 +282,10 @@ func TestUGetMarkPrice(t *testing.T) {
 func TestUGetFundingHistory(t *testing.T) {
 	t.Parallel()
 	startTime, endTime := getTime()
-	result, err := e.UGetFundingHistory(t.Context(), usdtmTradablePair, 1000, endTime, startTime)
+	_, err := e.UGetFundingHistory(t.Context(), usdtmTradablePair, 1000, endTime, startTime)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	result, err = e.UGetFundingHistory(t.Context(), usdtmTradablePair, 1000, startTime, endTime)
+	result, err := e.UGetFundingHistory(t.Context(), usdtmTradablePair, 1000, startTime, endTime)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3397,12 +3397,15 @@ func BenchmarkWsHandleData(b *testing.B) {
 	lines := bytes.Split(data, []byte("\n"))
 	require.Len(b, lines, 8)
 	go func() {
+		timer := time.NewTimer(time.Second * 5)
 		for {
 			select {
 			case _, ok := <-e.Websocket.DataHandler.C:
 				if !ok {
 					return
 				}
+			case <-timer.C:
+				return
 			}
 		}
 	}()
@@ -5111,7 +5114,7 @@ func TestSignRequest(t *testing.T) {
 	if !e.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
-	_, signature, err := e.SignRequest(map[string]interface{}{
+	_, signature, err := e.SignRequest(map[string]any{
 		"name": "nameValue",
 	})
 	require.NoError(t, err)
@@ -9778,7 +9781,7 @@ func TestWithdrawalHistoryV2(t *testing.T) {
 func TestSubmitDepositQuestionnaire(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.SubmitDepositQuestionnaire(t.Context(), "765127651", map[string]interface{}{
+	result, err := e.SubmitDepositQuestionnaire(t.Context(), "765127651", map[string]any{
 		"isAddressOwner": 2,
 		"sendTo":         1,
 		"vaspCountry":    "cn",

@@ -51,7 +51,8 @@ func getKlineIntervalString(interval kline.Interval) string {
 
 // WsUFuturesConnect initiates a websocket connection
 func (e *Exchange) WsUFuturesConnect(ctx context.Context, conn websocket.Connection) error {
-	if err := e.CurrencyPairs.IsAssetEnabled(asset.USDTMarginedFutures); err != nil {
+	err := e.CurrencyPairs.IsAssetEnabled(asset.USDTMarginedFutures)
+	if err != nil {
 		return err
 	}
 
@@ -63,7 +64,8 @@ func (e *Exchange) WsUFuturesConnect(ctx context.Context, conn websocket.Connect
 	conn.SetURL(wsURL)
 
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		listenKey, err := e.GetWsAuthStreamKey(context.TODO())
+		var listenKey string
+		listenKey, err = e.GetWsAuthStreamKey(context.TODO())
 		switch {
 		case err != nil:
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -73,7 +75,8 @@ func (e *Exchange) WsUFuturesConnect(ctx context.Context, conn websocket.Connect
 			conn.SetURL(wsURL)
 		}
 	}
-	if err := conn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
+	err = conn.Dial(ctx, &dialer, http.Header{}, nil)
+	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", e.Name, err)
 	}
 	conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{

@@ -523,7 +523,7 @@ type USDTOrderUpdateParams struct {
 	OrigClientOrderID string        `json:"origClientOrderID,omitempty"`
 	Side              string        `json:"side,omitempty"`
 	PriceMatch        string        `json:"priceMatch,omitempty"`
-	Symbol            currency.Pair `json:"symbol,omitempty"`
+	Symbol            currency.Pair `json:"symbol"`
 	Amount            float64       `json:"amount,omitempty"`
 	Price             float64       `json:"price,omitempty"`
 }

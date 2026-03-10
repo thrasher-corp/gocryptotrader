@@ -82,7 +82,7 @@ func (a *WsOptionIncomingResps) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &resp); err != nil {
 		isSlice = false
 		var newResp *WsOptionIncomingResp
-		if err = json.Unmarshal(data, &newResp); err != nil {
+		if err := json.Unmarshal(data, &newResp); err != nil {
 			return err
 		}
 		resp = append(resp, newResp)

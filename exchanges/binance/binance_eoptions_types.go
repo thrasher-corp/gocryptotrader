@@ -217,22 +217,22 @@ type OptionOrder struct {
 	Quantity              types.Number      `json:"quantity"`
 	Side                  string            `json:"side"`
 	Type                  string            `json:"type"`
-	CreateDate            types.Time        `json:"createDate,omitempty"`
+	CreateDate            types.Time        `json:"createDate"`
 	UpdateTime            types.Time        `json:"updateTime"`
-	ExecutedQty           types.Number      `json:"executedQty,omitempty"`
-	Fee                   types.Number      `json:"fee,omitempty"`
-	TimeInForce           order.TimeInForce `json:"timeInForce,omitempty"`
-	ReduceOnly            bool              `json:"reduceOnly,omitempty"`
-	PostOnly              bool              `json:"postOnly,omitempty"`
+	ExecutedQty           types.Number      `json:"executedQty"`
+	Fee                   types.Number      `json:"fee"`
+	TimeInForce           order.TimeInForce `json:"timeInForce"`
+	ReduceOnly            bool              `json:"reduceOnly"`
+	PostOnly              bool              `json:"postOnly"`
 	Source                string            `json:"source"`
-	CreateTime            types.Time        `json:"createTime,omitempty"`
-	Status                string            `json:"status,omitempty"`
-	AvgPrice              types.Number      `json:"avgPrice,omitempty"`
-	PriceScale            int64             `json:"priceScale,omitempty"`
-	QuantityScale         int64             `json:"quantityScale,omitempty"`
-	OptionSide            string            `json:"optionSide,omitempty"`
-	QuoteAsset            string            `json:"quoteAsset,omitempty"`
-	MarketMakerProtection bool              `json:"mmp,omitempty"` // is market maker protection order, true/false
+	CreateTime            types.Time        `json:"createTime"`
+	Status                string            `json:"status"`
+	AvgPrice              types.Number      `json:"avgPrice"`
+	PriceScale            int64             `json:"priceScale"`
+	QuantityScale         int64             `json:"quantityScale"`
+	OptionSide            string            `json:"optionSide"`
+	QuoteAsset            string            `json:"quoteAsset"`
+	MarketMakerProtection bool              `json:"mmp"` // is market maker protection order, true/false
 }
 
 // OptionPosition represents current position information.
@@ -395,8 +395,8 @@ type EOptionsOperationResponse struct {
 		Code    int64  `json:"code"`
 		Message string `json:"message"`
 	} `json:"error"`
-	Result interface{} `json:"result"`
-	ID     int64       `json:"id"`
+	Result any   `json:"result"`
+	ID     int64 `json:"id"`
 }
 
 // OptionsTicker24Hr represents 24-hour ticker data

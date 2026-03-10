@@ -74,7 +74,6 @@ var (
 	errUsernameRequired             = errors.New("user name is required")
 	errTransferTypeRequired         = errors.New("transfer type is required")
 	errNameRequired                 = errors.New("name is required")
-	errStartAndEndTimeRequired      = errors.New("startTime and endTime must be specified")
 	errTradeTypeRequired            = errors.New("trade type is required")
 	errPositionIDRequired           = errors.New("position ID is required")
 	errRedemptionAccountRequired    = errors.New("redemption account not specified")
@@ -296,7 +295,7 @@ type ExchangeInfo struct {
 	Timezone        string           `json:"timezone"`
 	ServerTime      types.Time       `json:"serverTime"`
 	RateLimits      []*RateLimitItem `json:"rateLimits"`
-	ExchangeFilters interface{}      `json:"exchangeFilters"`
+	ExchangeFilters any              `json:"exchangeFilters"`
 	Symbols         []*struct {
 		Symbol                          string        `json:"symbol"`
 		Status                          string        `json:"status"`
@@ -524,10 +523,10 @@ type AggregatedTradeRequestParams struct {
 // WsAggregateTradeRequestParams holds request parameters for aggregate trades
 type WsAggregateTradeRequestParams struct {
 	Symbol    currency.Pair `json:"symbol"`
-	FromID    int64  `json:"fromId,omitempty"`
-	Limit     int64  `json:"limit,omitempty"`
-	StartTime int64  `json:"startTime,omitempty"`
-	EndTime   int64  `json:"endTime,omitempty"`
+	FromID    int64         `json:"fromId,omitempty"`
+	Limit     int64         `json:"limit,omitempty"`
+	StartTime int64         `json:"startTime,omitempty"`
+	EndTime   int64         `json:"endTime,omitempty"`
 }
 
 // AggregatedTrade holds aggregated trade information
@@ -734,7 +733,7 @@ type SymbolOrders struct {
 	OrderID                 int64             `json:"orderId,omitempty"`
 	OrderListID             int64             `json:"orderListId"`
 	ClientOrderID           string            `json:"clientOrderId,omitempty"`
-	TransactTime            types.Time        `json:"transactTime,omitempty"`
+	TransactTime            types.Time        `json:"transactTime"`
 	Price                   types.Number      `json:"price,omitempty"`
 	OrigQty                 types.Number      `json:"origQty,omitempty"`
 	ExecutedQty             types.Number      `json:"executedQty,omitempty"`
@@ -748,7 +747,7 @@ type SymbolOrders struct {
 	ListStatusType          string            `json:"listStatusType,omitempty"`
 	ListOrderStatus         string            `json:"listOrderStatus,omitempty"`
 	ListClientOrderID       string            `json:"listClientOrderId,omitempty"`
-	TransactionTime         types.Time        `json:"transactionTime,omitempty"`
+	TransactionTime         types.Time        `json:"transactionTime"`
 	Orders                  []struct {
 		Symbol        string `json:"symbol"`
 		OrderID       int64  `json:"orderId"`
@@ -2097,7 +2096,7 @@ type TradeOrderRequestParam struct {
 // QueryOrderParam represents an order querying parameters
 type QueryOrderParam struct {
 	APISignatureInfo
-	Symbol            currency.Pair `json:"symbol,omitempty"`
+	Symbol            currency.Pair `json:"symbol"`
 	OrderID           int64         `json:"orderId,omitempty"`
 	OrigClientOrderID string        `json:"origClientOrderId,omitempty"`
 	RecvWindow        int64         `json:"recvWindow,omitempty"`
@@ -2109,7 +2108,7 @@ type QueryOrderParam struct {
 // WsCancelAndReplaceParam represents a cancel and replace request parameters
 type WsCancelAndReplaceParam struct {
 	APISignatureInfo
-	Symbol        currency.Pair `json:"symbol,omitempty"`
+	Symbol        currency.Pair `json:"symbol"`
 	CancelOrderID string        `json:"cancelOrderId,omitempty"`
 
 	// CancelReplaceMode possible values are 'STOP_ON_FAILURE', 'ALLOW_FAILURE'
@@ -2147,7 +2146,7 @@ type WsCancelAndReplaceParam struct {
 // PlaceOCOOrderParam holds a request parameters for one-cancel-other orders
 type PlaceOCOOrderParam struct {
 	APISignatureInfo
-	Symbol               currency.Pair `json:"symbol,omitempty"`
+	Symbol               currency.Pair `json:"symbol"`
 	Side                 string        `json:"side,omitempty"`
 	Price                float64       `json:"price,omitempty"`
 	Quantity             float64       `json:"quantity,omitempty"`
@@ -2227,7 +2226,7 @@ type WsCancelOrder struct {
 	OrderID                 int64             `json:"orderId,omitempty"`
 	OrderListID             int64             `json:"orderListId"`
 	ClientOrderID           string            `json:"clientOrderId,omitempty"`
-	TransactTime            types.Time        `json:"transactTime,omitempty"`
+	TransactTime            types.Time        `json:"transactTime"`
 	Price                   types.Number      `json:"price,omitempty"`
 	OrigQty                 types.Number      `json:"origQty,omitempty"`
 	ExecutedQty             types.Number      `json:"executedQty,omitempty"`
@@ -2245,7 +2244,7 @@ type WsCancelOrder struct {
 	ListStatusType          string            `json:"listStatusType,omitempty"`
 	ListOrderStatus         string            `json:"listOrderStatus,omitempty"`
 	ListClientOrderID       string            `json:"listClientOrderId,omitempty"`
-	TransactionTime         types.Time        `json:"transactionTime,omitempty"`
+	TransactionTime         types.Time        `json:"transactionTime"`
 	Orders                  []struct {
 		Symbol        string `json:"symbol"`
 		OrderID       int64  `json:"orderId"`
@@ -2315,7 +2314,7 @@ type OCOOrderInfo struct {
 // WsOSRPlaceOrderParams holds request parameters for placing OSR orders.
 type WsOSRPlaceOrderParams struct {
 	APISignatureInfo
-	Symbol           currency.Pair `json:"symbol,omitempty"`
+	Symbol           currency.Pair `json:"symbol"`
 	Side             string        `json:"side,omitempty"`
 	OrderType        string        `json:"type,omitempty"`
 	TimeInForce      string        `json:"timeInForce,omitempty"`
@@ -2886,7 +2885,7 @@ type AccountSummary struct {
 			TotalWalletBalance          types.Number `json:"totalWalletBalance"`
 			Asset                       string       `json:"asset"`
 		} `json:"subAccountList"`
-	} `json:"futureAccountSummaryResp,omitempty"`
+	} `json:"futureAccountSummaryResp"`
 	DeliveryAccountSummaryResp struct {
 		TotalMarginBalanceOfBTC    types.Number `json:"totalMarginBalanceOfBTC"`
 		TotalUnrealizedProfitOfBTC types.Number `json:"totalUnrealizedProfitOfBTC"`
@@ -2899,7 +2898,7 @@ type AccountSummary struct {
 			TotalWalletBalance    types.Number `json:"totalWalletBalance"`
 			Asset                 string       `json:"asset"`
 		} `json:"subAccountList"`
-	} `json:"deliveryAccountSummaryResp,omitempty"`
+	} `json:"deliveryAccountSummaryResp"`
 }
 
 // LeverageToken represents leveraged tokens for sub-accounts.
@@ -3301,7 +3300,7 @@ type CrossMarginPairInfo struct {
 	IsSellAllowed bool       `json:"isSellAllowed"`
 	Quote         string     `json:"quote"`
 	Symbol        string     `json:"symbol"`
-	DelistTime    types.Time `json:"delistTime,omitempty"`
+	DelistTime    types.Time `json:"delistTime"`
 }
 
 // MarginPriceIndex represents margin account price index
@@ -3357,7 +3356,7 @@ type MarginAccountOrderDetail struct {
 	ListStatusType    string     `json:"listStatusType,omitempty"`
 	ListOrderStatus   string     `json:"listOrderStatus,omitempty"`
 	ListClientOrderID string     `json:"listClientOrderId,omitempty"`
-	TransactionTime   types.Time `json:"transactionTime,omitempty"`
+	TransactionTime   types.Time `json:"transactionTime"`
 	Orders            []struct {
 		Symbol        string `json:"symbol"`
 		OrderID       int    `json:"orderId"`
@@ -3512,7 +3511,7 @@ type IsolatedMarginAccount struct {
 	IsSellAllowed bool       `json:"isSellAllowed"`
 	Quote         string     `json:"quote"`
 	Symbol        string     `json:"symbol"`
-	DelistTime    types.Time `json:"delistTime,omitempty"`
+	DelistTime    types.Time `json:"delistTime"`
 }
 
 // BNBBurnOnSpotAndMarginInterest represents a response of spot trade and margin interest
@@ -4019,7 +4018,7 @@ type InvestmentPlanParams struct {
 	SubscriptionStartDay     int64             `json:"subscriptionStartDay,omitempty"`
 	SubscriptionStartWeekday string            `json:"subscriptionStartWeekday,omitempty"` // “MON”,”TUE”,”WED”,”THU”,”FRI”,”SAT”,”SUN”; Mandatory if “subscriptionCycleNumberUnit” = “WEEKLY” or “BI_WEEKLY”, Must be sent in form of UTC+0
 	SubscriptionStartTime    int64             `json:"subscriptionStartTime"`              // “0,1,2,3,4,5,6,7,8,..23”;Must be sent in form of UTC+0
-	SourceAsset              currency.Code     `json:"sourceAsset,omitempty"`
+	SourceAsset              currency.Code     `json:"sourceAsset"`
 	FlexibleAllowedToUse     bool              `json:"flexibleAllowedToUse"`
 	Details                  []PortfolioDetail `json:"details,omitempty"`
 }
@@ -4044,7 +4043,7 @@ type AdjustInvestmentPlan struct {
 	SubscriptionStartDay     int64             `json:"subscriptionStartDay,omitempty"`
 	SubscriptionStartWeekday string            `json:"subscriptionStartWeekday,omitempty"` // “MON”,”TUE”,”WED”,”THU”,”FRI”,”SAT”,”SUN”; Mandatory if “subscriptionCycleNumberUnit” = “WEEKLY” or “BI_WEEKLY”, Must be sent in form of UTC+0
 	SubscriptionStartTime    int64             `json:"subscriptionStartTime"`              // “0,1,2,3,4,5,6,7,8,..23”;Must be sent in form of UTC+0
-	SourceAsset              currency.Code     `json:"sourceAsset,omitempty"`
+	SourceAsset              currency.Code     `json:"sourceAsset"`
 	FlexibleAllowedToUse     bool              `json:"flexibleAllowedToUse"`
 	Details                  []PortfolioDetail `json:"-"`
 }

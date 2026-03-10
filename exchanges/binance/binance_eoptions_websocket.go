@@ -52,7 +52,8 @@ var defaultEOptionsSubscriptions = []string{
 
 // WsOptionsConnect initiates a websocket connection to coin margined futures websocket
 func (e *Exchange) WsOptionsConnect(ctx context.Context, conn websocket.Connection) error {
-	if err := e.CurrencyPairs.IsAssetEnabled(asset.Options); err != nil {
+	err := e.CurrencyPairs.IsAssetEnabled(asset.Options)
+	if err != nil {
 		return err
 	}
 
@@ -64,7 +65,8 @@ func (e *Exchange) WsOptionsConnect(ctx context.Context, conn websocket.Connecti
 	conn.SetURL(wsURL)
 
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		listenKey, err := e.GetEOptionsWsAuthStreamKey(ctx)
+		var listenKey string
+		listenKey, err = e.GetEOptionsWsAuthStreamKey(ctx)
 		switch {
 		case err != nil:
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -75,7 +77,8 @@ func (e *Exchange) WsOptionsConnect(ctx context.Context, conn websocket.Connecti
 		}
 	}
 	conn.SetURL(wsURL)
-	if err := conn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
+	err = conn.Dial(ctx, &dialer, http.Header{}, nil)
+	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", e.Name, err)
 	}
 
@@ -453,7 +456,6 @@ func (e *Exchange) processOptionsTradeStream(ctx context.Context, data []byte) e
 		side = order.Sell
 	}
 	return e.Websocket.DataHandler.Send(ctx, trade.Data{
-		TID:          strconv.FormatInt(resp.TradeID, 10),
 		Exchange:     e.Name,
 		CurrencyPair: pair,
 		AssetType:    asset.Options,
@@ -461,6 +463,7 @@ func (e *Exchange) processOptionsTradeStream(ctx context.Context, data []byte) e
 		Price:        resp.Price.Float64(),
 		Amount:       resp.Quantity.Float64(),
 		Timestamp:    resp.TradeCompletedTime.Time(),
+		TID:          strconv.FormatInt(resp.TradeID, 10),
 	})
 }
 

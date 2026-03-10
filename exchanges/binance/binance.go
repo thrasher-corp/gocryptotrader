@@ -1806,7 +1806,7 @@ var errorCodeToErrorMap = map[int64]error{
 
 // SendAPIKeyHTTPRequest is a special API request where the api key is
 // appended to the headers without a secret
-func (e *Exchange) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, f request.EndpointLimit, result interface{}) error {
+func (e *Exchange) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, f request.EndpointLimit, result any) error {
 	endpointPath, err := e.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
@@ -1851,7 +1851,7 @@ func interfaceToParams(val any) (url.Values, error) {
 }
 
 // SendAuthHTTPRequest sends an authenticated HTTP request
-func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, f request.EndpointLimit, arg, result interface{}) error {
+func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, f request.EndpointLimit, arg, result any) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -1881,7 +1881,7 @@ func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, 
 	}
 
 	interim := json.RawMessage{}
-	if err = e.SendPayload(ctx, f, func() (*request.Item, error) {
+	if err := e.SendPayload(ctx, f, func() (*request.Item, error) {
 		params.Set("timestamp", strconv.FormatInt(time.Now().UnixMilli(), 10))
 		hmacSigned, err := crypto.GetHMAC(crypto.HashSHA256, []byte(params.Encode()), []byte(creds.Secret))
 		if err != nil {
@@ -1922,10 +1922,8 @@ func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, 
 
 // CheckLimit checks value against a variable list
 func (e *Exchange) CheckLimit(limit uint64) error {
-	for x := range e.validLimits {
-		if e.validLimits[x] == limit {
-			return nil
-		}
+	if slices.Contains(e.validLimits, limit) {
+		return nil
 	}
 	return fmt.Errorf("%w: incorrect limit values - valid values are 5, 10, 20, 50, 100, 500, 1000", errLimitNumberRequired)
 }
@@ -2419,7 +2417,7 @@ func (e *Exchange) GetCloudMiningPaymentAndRefundHistory(ctx context.Context, cl
 }
 
 // GetUserAccountInfo retrieves users account information
-func (e *Exchange) GetUserAccountInfo(ctx context.Context) (interface{}, error) {
+func (e *Exchange) GetUserAccountInfo(ctx context.Context) (any, error) {
 	var resp *AccountInfo
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/account/info", nil, request.Auth, nil, &resp)
 }
@@ -3441,7 +3439,7 @@ func (e *Exchange) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 		HTTPRecording:          e.HTTPRecording,
 		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
-	if err = e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	if err := e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
 	}, request.AuthenticatedRequest); err != nil {
 		return "", err
@@ -4349,7 +4347,7 @@ func (e *Exchange) GetLockedSubscriptionPreview(ctx context.Context, projectID s
 }
 
 // SetLockedProductRedeemOption possible values of redeemTo are 'SPOT' and 'FLEXIBLE'.
-func (e *Exchange) SetLockedProductRedeemOption(ctx context.Context, positionID, redeemTo string) (interface{}, error) {
+func (e *Exchange) SetLockedProductRedeemOption(ctx context.Context, positionID, redeemTo string) (any, error) {
 	if positionID == "" {
 		return nil, errPositionIDRequired
 	}
@@ -7559,7 +7557,7 @@ func (e *Exchange) GetFuturesUsersCustomizedID(ctx context.Context, brokerID str
 }
 
 // GetFuturesUserIncomeHistory retrieves a futures user's income history
-func (e *Exchange) GetFuturesUserIncomeHistory(ctx context.Context, symbol currency.Pair, incomeType string, startTime, endTime time.Time, limit int64) (interface{}, error) {
+func (e *Exchange) GetFuturesUserIncomeHistory(ctx context.Context, symbol currency.Pair, incomeType string, startTime, endTime time.Time, limit int64) (any, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
@@ -7645,7 +7643,7 @@ func (e *Exchange) GetUserTradeVolume(ctx context.Context, coinMargined bool, st
 }
 
 // GetRebateVolume retrieve rebate volume data for a user's futures trading account
-func (e *Exchange) GetRebateVolume(ctx context.Context, coinMargined bool, startTime, endTime time.Time, limit int64) (interface{}, error) {
+func (e *Exchange) GetRebateVolume(ctx context.Context, coinMargined bool, startTime, endTime time.Time, limit int64) (any, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err

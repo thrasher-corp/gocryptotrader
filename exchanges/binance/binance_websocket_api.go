@@ -356,7 +356,7 @@ func (e *Exchange) SignRequest(params map[string]any) (apiKey, signature string,
 	keys := SortMap(params)
 	payloadString := fmt.Sprintf("%s=%v", keys[0], params[keys[0]])
 	for i := 1; i < len(keys); i++ {
-		payloadString += fmt.Sprintf("&%s=%v", keys[i], params[keys[i]])
+		payloadString = fmt.Sprintf("%s&%s=%v", payloadString, keys[i], params[keys[i]])
 	}
 	var hmacSigned []byte
 	hmacSigned, err = crypto.GetHMAC(crypto.HashSHA256,

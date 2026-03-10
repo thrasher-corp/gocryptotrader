@@ -186,7 +186,7 @@ func (e *Exchange) GetFuturesKlineData(ctx context.Context, symbol currency.Pair
 }
 
 // GetContinuousKlineData gets continuous kline data
-func (e *Exchange) GetContinuousKlineData(ctx context.Context, pair string, contractType, interval string, limit uint64, startTime, endTime time.Time) ([]*CFuturesCandleStick, error) {
+func (e *Exchange) GetContinuousKlineData(ctx context.Context, pair, contractType, interval string, limit uint64, startTime, endTime time.Time) ([]*CFuturesCandleStick, error) {
 	if pair == "" {
 		return nil, currency.ErrCurrencyPairEmpty
 	}

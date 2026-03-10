@@ -184,7 +184,7 @@ func (e *Exchange) UKlineData(ctx context.Context, symbol currency.Pair, interva
 
 // GetUFuturesContinuousKlineData kline/candlestick bars for a specific contract type.
 // Klines are uniquely identified by their open time.
-func (e *Exchange) GetUFuturesContinuousKlineData(ctx context.Context, pair currency.Pair, contractType, interval string, startTime, endTime time.Time, limit int64) (interface{}, error) {
+func (e *Exchange) GetUFuturesContinuousKlineData(ctx context.Context, pair currency.Pair, contractType, interval string, startTime, endTime time.Time, limit int64) ([]*UFuturesCandleStick, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -578,7 +578,7 @@ func (e *Exchange) UTakerBuySellVol(ctx context.Context, symbol currency.Pair, p
 }
 
 // GetBasis retrieves the basis price difference between the index price and futures trading of pairs.
-func (e *Exchange) GetBasis(ctx context.Context, pair currency.Pair, contractType, period string, startTime, endTime time.Time, limit int64) (interface{}, error) {
+func (e *Exchange) GetBasis(ctx context.Context, pair currency.Pair, contractType, period string, startTime, endTime time.Time, limit int64) ([]*BasisInfo, error) {
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
