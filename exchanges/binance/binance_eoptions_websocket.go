@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	gws "github.com/gorilla/websocket"
@@ -363,7 +364,10 @@ func (e *Exchange) processOptionsKline(ctx context.Context, data []byte) error {
 	if err != nil {
 		return err
 	}
-	interval := kline.FiveMin // strings.Split(resp.EventType, "_")[1]
+	interval, err := formatToInterval(strings.Split(resp.EventType, "_")[1])
+	if err != nil {
+		return err
+	}
 	return e.Websocket.DataHandler.Send(ctx, kline.Item{
 		Pair:     pair,
 		Exchange: e.Name,

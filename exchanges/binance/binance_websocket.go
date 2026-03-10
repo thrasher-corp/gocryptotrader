@@ -944,41 +944,36 @@ func (o *orderbookManager) stopNeedsFetchingBook(pair currency.Pair) error {
 	return nil
 }
 
-func formatToInterval(interval string) (kline.Interval, error) {
-	switch interval {
-	case "1m":
-		return kline.OneMin, nil
-	case "3m":
-		return kline.ThreeMin, nil
-	case "5m":
-		return kline.FiveMin, nil
-	case "15m":
-		return kline.FifteenMin, nil
-	case "30m":
-		return kline.ThirtyMin, nil
-	case "1h":
-		return kline.OneHour, nil
-	case "2h":
-		return kline.TwoHour, nil
-	case "4h":
-		return kline.FourHour, nil
-	case "6h":
-		return kline.SixHour, nil
-	case "8h":
-		return kline.EightHour, nil
-	case "12h":
-		return kline.TwelveHour, nil
-	case "1d":
-		return kline.OneDay, nil
-	case "3d":
-		return kline.ThreeDay, nil
-	case "1w":
-		return kline.OneWeek, nil
-	case "1M":
-		return kline.OneMonth, nil
-	default:
-		return 0, fmt.Errorf("%w: %q", kline.ErrInvalidInterval, interval)
+var klineIntervalList = []*struct {
+	Interval kline.Interval
+	String   string
+}{
+	{String: "1s", Interval: kline.ThousandMilliseconds},
+	{String: "1m", Interval: kline.OneMin},
+	{String: "3m", Interval: kline.ThreeMin},
+	{String: "5m", Interval: kline.FiveMin},
+	{String: "15m", Interval: kline.FifteenMin},
+	{String: "30m", Interval: kline.ThirtyMin},
+	{String: "1h", Interval: kline.OneHour},
+	{String: "2h", Interval: kline.TwoHour},
+	{String: "4h", Interval: kline.FourHour},
+	{String: "6h", Interval: kline.SixHour},
+	{String: "8h", Interval: kline.EightHour},
+	{String: "12h", Interval: kline.TwelveHour},
+	{String: "1d", Interval: kline.OneDay},
+	{String: "3d", Interval: kline.ThreeDay},
+	{String: "1w", Interval: kline.OneWeek},
+	{String: "1M", Interval: kline.OneMonth},
+}
+
+// stringToInterval returns interval from string
+func formatToInterval(intervalString string) (kline.Interval, error) {
+	for _, interval := range klineIntervalList {
+		if interval.String == intervalString {
+			return interval.Interval, nil
+		}
 	}
+	return 0, fmt.Errorf("%w: %q", kline.ErrInvalidInterval, intervalString)
 }
 
 const subTplText = `

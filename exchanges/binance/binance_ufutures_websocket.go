@@ -149,7 +149,10 @@ func (e *Exchange) processContinuousKlineUpdate(ctx context.Context, respRaw []b
 	if err != nil {
 		return err
 	}
-	interval := kline.FiveMin // resp.KlineData.Interval
+	interval, err := formatToInterval(resp.KlineData.Interval)
+	if err != nil {
+		return err
+	}
 	return e.Websocket.DataHandler.Send(ctx, kline.Item{
 		Pair:     cp,
 		Exchange: e.Name,

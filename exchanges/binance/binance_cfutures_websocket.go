@@ -235,19 +235,22 @@ func (e *Exchange) processKlineData(ctx context.Context, respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	interval, := kline.EightHour // resp.Kline.Interval
+	interval, err := formatToInterval(resp.KlineData.Interval)
+	if err != nil {
+		return err
+	}
 	return e.Websocket.DataHandler.Send(ctx, &kline.Item{
-		Pair:       cp,
-		Exchange:   e.Name,
-		Interval:   interval,
-		Asset:  asset.CoinMarginedFutures,
+		Pair:     cp,
+		Exchange: e.Name,
+		Interval: interval,
+		Asset:    asset.CoinMarginedFutures,
 		Candles: []kline.Candle{{
-		Time:  resp.KlineData.CloseTime.Time(),
-		Open:  resp.KlineData.OpenPrice.Float64(),
-		Close: resp.KlineData.ClosePrice.Float64(),
-		High:  resp.KlineData.HighPrice.Float64(),
-		Low:   resp.KlineData.LowPrice.Float64(),
-		Volume:     resp.KlineData.Volume.Float64(),
+			Time:   resp.KlineData.CloseTime.Time(),
+			Open:   resp.KlineData.OpenPrice.Float64(),
+			Close:  resp.KlineData.ClosePrice.Float64(),
+			High:   resp.KlineData.HighPrice.Float64(),
+			Low:    resp.KlineData.LowPrice.Float64(),
+			Volume: resp.KlineData.Volume.Float64(),
 		}},
 	})
 }
@@ -315,15 +318,20 @@ func (e *Exchange) processMarkPriceKline(ctx context.Context, respRaw []byte) er
 	if err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &websocket.KlineData{
-		Pair:       cp,
-		AssetType:  asset.CoinMarginedFutures,
-		Interval:   resp.Kline.Interval,
-		StartTime:  resp.Kline.StartTime.Time(),
-		CloseTime:  resp.Kline.CloseTime.Time(),
-		OpenPrice:  resp.Kline.OpenPrice.Float64(),
-		ClosePrice: resp.Kline.ClosePrice.Float64(),
-		HighPrice:  resp.Kline.HighPrice.Float64(),
-		LowPrice:   resp.Kline.LowPrice.Float64(),
+	interval, err := formatToInterval(resp.Kline.Interval)
+	if err != nil {
+		return err
+	}
+	return e.Websocket.DataHandler.Send(ctx, &kline.Item{
+		Pair:     cp,
+		Asset:    asset.CoinMarginedFutures,
+		Interval: interval,
+		Candles: []kline.Candle{{
+			Time:  resp.Kline.CloseTime.Time(),
+			Open:  resp.Kline.OpenPrice.Float64(),
+			Close: resp.Kline.ClosePrice.Float64(),
+			High:  resp.Kline.HighPrice.Float64(),
+			Low:   resp.Kline.LowPrice.Float64(),
+		}},
 	})
 }
