@@ -239,7 +239,7 @@ var subscriptionNames = map[string]string{
 
 // WsConnect initiates a websocket connection
 func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
-	if err := conn.Dial(ctx, &gws.Dialer{ReadBufferSize: 8192, WriteBufferSize: 8192}, nil); err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{ReadBufferSize: 8192, WriteBufferSize: 8192}, nil, nil); err != nil {
 		return err
 	}
 	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
@@ -656,6 +656,40 @@ func (e *Exchange) wsProcessSpreadOrders(ctx context.Context, respRaw []byte) er
 	return e.Websocket.DataHandler.Send(ctx, orderDetails)
 }
 
+func wsCandlestickChannelToInterval(channel, prefix string) (kline.Interval, error) {
+	intervalString := strings.TrimPrefix(channel, prefix)
+	if intervalString == channel || intervalString == "" {
+		return 0, fmt.Errorf("%w: %s", kline.ErrInvalidInterval, channel)
+	}
+
+	for _, interval := range []kline.Interval{
+		kline.OneMin,
+		kline.ThreeMin,
+		kline.FiveMin,
+		kline.FifteenMin,
+		kline.ThirtyMin,
+		kline.OneHour,
+		kline.TwoHour,
+		kline.FourHour,
+		kline.SixHour,
+		kline.TwelveHour,
+		kline.OneDay,
+		kline.TwoDay,
+		kline.ThreeDay,
+		kline.FiveDay,
+		kline.OneWeek,
+		kline.OneMonth,
+		kline.ThreeMonth,
+		kline.SixMonth,
+		kline.OneYear,
+	} {
+		if intervalString == IntervalFromString(interval, false) || intervalString == IntervalFromString(interval, true) {
+			return interval, nil
+		}
+	}
+	return 0, fmt.Errorf("%w: %s", kline.ErrInvalidInterval, channel)
+}
+
 // wsProcessIndexCandles processes index candlestick data
 func (e *Exchange) wsProcessIndexCandles(ctx context.Context, respRaw []byte) error {
 	response := struct {
@@ -668,6 +702,10 @@ func (e *Exchange) wsProcessIndexCandles(ctx context.Context, respRaw []byte) er
 	}
 	if len(response.Data) == 0 {
 		return kline.ErrNoTimeSeriesDataToConvert
+	}
+	interval, err := wsCandlestickChannelToInterval(response.Argument.Channel, indexCandlestick+candle)
+	if err != nil {
+		return err
 	}
 
 	var assets []asset.Item
@@ -683,21 +721,22 @@ func (e *Exchange) wsProcessIndexCandles(ctx context.Context, respRaw []byte) er
 			return err
 		}
 	}
-	candleInterval := strings.TrimPrefix(response.Argument.Channel, candle)
 	for i := range response.Data {
 		candlesData := response.Data[i]
-		myCandle := websocket.KlineData{
-			Pair:       response.Argument.InstrumentID,
-			Exchange:   e.Name,
-			Timestamp:  time.UnixMilli(candlesData[0].Int64()),
-			Interval:   candleInterval,
-			OpenPrice:  candlesData[1].Float64(),
-			HighPrice:  candlesData[2].Float64(),
-			LowPrice:   candlesData[3].Float64(),
-			ClosePrice: candlesData[4].Float64(),
+		myCandle := kline.Item{
+			Pair:     response.Argument.InstrumentID,
+			Exchange: e.Name,
+			Interval: interval,
+			Candles: []kline.Candle{{
+				Time:  time.UnixMilli(candlesData[0].Int64()),
+				Open:  candlesData[1].Float64(),
+				High:  candlesData[2].Float64(),
+				Low:   candlesData[3].Float64(),
+				Close: candlesData[4].Float64(),
+			}},
 		}
 		for i := range assets {
-			myCandle.AssetType = assets[i]
+			myCandle.Asset = assets[i]
 			if err := e.Websocket.DataHandler.Send(ctx, myCandle); err != nil {
 				return err
 			}
@@ -1234,6 +1273,10 @@ func (e *Exchange) wsProcessCandles(ctx context.Context, respRaw []byte) error {
 	if len(response.Data) == 0 {
 		return kline.ErrNoTimeSeriesDataToConvert
 	}
+	interval, err := wsCandlestickChannelToInterval(response.Argument.Channel, candle)
+	if err != nil {
+		return err
+	}
 	var assets []asset.Item
 	if response.Argument.InstrumentType != "" {
 		assetType, err := assetTypeFromInstrumentType(response.Argument.InstrumentType)
@@ -1247,20 +1290,21 @@ func (e *Exchange) wsProcessCandles(ctx context.Context, respRaw []byte) error {
 			return err
 		}
 	}
-	candleInterval := strings.TrimPrefix(response.Argument.Channel, candle)
 	for i := range response.Data {
 		for j := range assets {
-			if err := e.Websocket.DataHandler.Send(ctx, websocket.KlineData{
-				Timestamp:  time.UnixMilli(response.Data[i][0].Int64()),
-				Pair:       response.Argument.InstrumentID,
-				AssetType:  assets[j],
-				Exchange:   e.Name,
-				Interval:   candleInterval,
-				OpenPrice:  response.Data[i][1].Float64(),
-				ClosePrice: response.Data[i][4].Float64(),
-				HighPrice:  response.Data[i][2].Float64(),
-				LowPrice:   response.Data[i][3].Float64(),
-				Volume:     response.Data[i][5].Float64(),
+			if err := e.Websocket.DataHandler.Send(ctx, kline.Item{
+				Pair:     response.Argument.InstrumentID,
+				Asset:    assets[j],
+				Exchange: e.Name,
+				Interval: interval,
+				Candles: []kline.Candle{{
+					Time:   time.UnixMilli(response.Data[i][0].Int64()),
+					Open:   response.Data[i][1].Float64(),
+					Close:  response.Data[i][4].Float64(),
+					High:   response.Data[i][2].Float64(),
+					Low:    response.Data[i][3].Float64(),
+					Volume: response.Data[i][5].Float64(),
+				}},
 			}); err != nil {
 				return err
 			}

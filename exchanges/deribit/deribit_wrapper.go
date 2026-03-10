@@ -1631,6 +1631,14 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 }
 
 func formatPairString(assetType asset.Item, pair currency.Pair) string {
+	if pair.Delimiter == "" {
+		if assetType == asset.Spot {
+			pair.Delimiter = currency.UnderscoreDelimiter
+		} else {
+			pair.Delimiter = currency.DashDelimiter
+		}
+	}
+
 	switch assetType {
 	case asset.Futures:
 		return formatFuturesTradablePair(pair)

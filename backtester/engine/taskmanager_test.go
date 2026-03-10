@@ -6,6 +6,7 @@ import (
 
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/eventholder"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventhandlers/statistics"
@@ -185,48 +186,73 @@ func TestStopAllRuns(t *testing.T) {
 
 func TestStartRun(t *testing.T) {
 	t.Parallel()
-	rm := NewTaskManager()
-	list, err := rm.List()
-	assert.NoError(t, err)
 
-	if len(list) != 0 {
-		t.Errorf("received '%v' expected '%v'", len(list), 0)
+	newTask := func() *BackTest {
+		return &BackTest{
+			Strategy:   &binancecashandcarry.Strategy{},
+			EventQueue: &eventholder.Holder{},
+			DataHolder: &data.HandlerHolder{},
+			Statistic:  &statistics.Statistic{},
+			shutdown:   make(chan struct{}),
+		}
 	}
 
-	id, err := uuid.NewV4()
-	assert.NoError(t, err)
+	t.Run("task not found", func(t *testing.T) {
+		t.Parallel()
+		rm := NewTaskManager()
+		id, err := uuid.NewV4()
+		require.NoError(t, err)
+		err = rm.StartTask(id)
+		assert.ErrorIs(t, err, errTaskNotFound)
+	})
 
-	err = rm.StartTask(id)
-	assert.ErrorIs(t, err, errTaskNotFound)
+	t.Run("start success path", func(t *testing.T) {
+		t.Parallel()
+		rm := NewTaskManager()
+		bt := newTask()
+		require.NoError(t, rm.AddTask(bt))
+		require.NoError(t, rm.StartTask(bt.MetaData.ID))
+	})
 
-	bt := &BackTest{
-		Strategy:   &binancecashandcarry.Strategy{},
-		EventQueue: &eventholder.Holder{},
-		DataHolder: &data.HandlerHolder{},
-		Statistic:  &statistics.Statistic{},
-		shutdown:   make(chan struct{}),
-	}
-	err = rm.AddTask(bt)
-	assert.NoError(t, err)
+	t.Run("running path", func(t *testing.T) {
+		t.Parallel()
+		rm := NewTaskManager()
+		bt := newTask()
+		require.NoError(t, rm.AddTask(bt))
 
-	err = rm.StartTask(bt.MetaData.ID)
-	assert.NoError(t, err)
+		bt.m.Lock()
+		bt.MetaData.DateStarted = time.Now()
+		bt.MetaData.Closed = false
+		bt.m.Unlock()
 
-	err = rm.StartTask(bt.MetaData.ID)
-	assert.ErrorIs(t, err, errTaskIsRunning)
+		err := rm.StartTask(bt.MetaData.ID)
+		assert.ErrorIs(t, err, errTaskIsRunning)
+	})
 
-	bt.m.Lock()
-	bt.MetaData.DateEnded = time.Now()
-	bt.MetaData.Closed = true
-	bt.shutdown = make(chan struct{})
-	bt.m.Unlock()
+	t.Run("already ran path", func(t *testing.T) {
+		t.Parallel()
+		rm := NewTaskManager()
+		bt := newTask()
+		require.NoError(t, rm.AddTask(bt))
 
-	err = rm.StartTask(bt.MetaData.ID)
-	assert.ErrorIs(t, err, errAlreadyRan)
+		bt.m.Lock()
+		bt.MetaData.DateEnded = time.Now()
+		bt.MetaData.Closed = true
+		bt.shutdown = make(chan struct{})
+		bt.m.Unlock()
 
-	rm = nil
-	err = rm.StartTask(id)
-	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
+		err := rm.StartTask(bt.MetaData.ID)
+		assert.ErrorIs(t, err, errAlreadyRan)
+	})
+
+	t.Run("nil manager", func(t *testing.T) {
+		t.Parallel()
+		id, err := uuid.NewV4()
+		require.NoError(t, err)
+		var rm *TaskManager
+		err = rm.StartTask(id)
+		assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
+	})
 }
 
 func TestStartAllRuns(t *testing.T) {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"net/http"
 	"slices"
 	"strconv"
 	"strings"
@@ -81,7 +80,7 @@ func setupPingHandler(conn websocket.Connection) {
 
 // wsConnect checks if websocket is enabled and initiates a websocket connection
 func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
-	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{}, nil, nil); err != nil {
 		return err
 	}
 	setupPingHandler(conn)
@@ -361,20 +360,25 @@ func (e *Exchange) processCandlestickData(ctx context.Context, result *Subscript
 	if err := json.Unmarshal(result.Data, &resp); err != nil {
 		return err
 	}
-	candles := make([]websocket.KlineData, len(resp))
+	interval, err := stringToInterval(intervalString)
+	if err != nil {
+		return err
+	}
+	candles := make([]kline.Item, len(resp))
 	for x, r := range resp {
-		candles[x] = websocket.KlineData{
-			Pair:       r.Symbol,
-			Exchange:   e.Name,
-			Timestamp:  r.Timestamp.Time(),
-			StartTime:  r.StartTime.Time(),
-			CloseTime:  r.CloseTime.Time(),
-			OpenPrice:  r.Open.Float64(),
-			ClosePrice: r.Close.Float64(),
-			HighPrice:  r.High.Float64(),
-			LowPrice:   r.Low.Float64(),
-			Volume:     r.BaseAmount.Float64(),
-			Interval:   intervalString,
+		candles[x] = kline.Item{
+			Pair:     r.Symbol,
+			Exchange: e.Name,
+			Asset:    asset.Spot,
+			Interval: interval,
+			Candles: []kline.Candle{{
+				Time:   r.StartTime.Time(),
+				Open:   r.Open.Float64(),
+				Close:  r.Close.Float64(),
+				High:   r.High.Float64(),
+				Low:    r.Low.Float64(),
+				Volume: r.BaseAmount.Float64(),
+			}},
 		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, candles)

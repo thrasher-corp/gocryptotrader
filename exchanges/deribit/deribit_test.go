@@ -3733,6 +3733,37 @@ func TestProcessPushData(t *testing.T) {
 	}
 }
 
+func TestProcessCandleChartIntervalMapping(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+
+	payload := []byte(`{"params":{"data":{"volume":0.05219351,"tick":1573645080000,"open":8869.79,"low":8788.25,"high":8870.31,"cost":460,"close":8791.25},"channel":"chart.trades.BTC-PERPETUAL.1"},"method":"subscription","jsonrpc":"2.0"}`)
+	require.NoError(t, ex.processCandleChart(t.Context(), payload, []string{"chart", "trades", "BTC-PERPETUAL", "1"}))
+
+	select {
+	case msg := <-ex.Websocket.DataHandler.C:
+		got, ok := msg.Data.(kline.Item)
+		require.True(t, ok, "expected kline item")
+		assert.Equal(t, kline.Item{
+			Pair:     currency.NewPairWithDelimiter("BTC", "PERPETUAL", "-"),
+			Asset:    asset.Futures,
+			Exchange: ex.Name,
+			Interval: kline.OneMin,
+			Candles: []kline.Candle{{
+				Time:   time.UnixMilli(1573645080000),
+				Open:   8869.79,
+				High:   8870.31,
+				Low:    8788.25,
+				Close:  8791.25,
+				Volume: 0.05219351,
+			}},
+		}, got)
+	default:
+		require.Fail(t, "expected websocket candle payload")
+	}
+}
+
 func TestFormatFuturesTradablePair(t *testing.T) {
 	t.Parallel()
 	futuresInstrumentsOutputList := map[currency.Pair]string{
@@ -4130,15 +4161,71 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	assert.NotEmpty(t, resp)
 }
 
-func TestFormatChannelPair(t *testing.T) {
+func TestFormatPairString(t *testing.T) {
 	t.Parallel()
-	pair := currency.NewPair(currency.BTC, currency.NewCode("USDC-PERPETUAL"))
-	pair.Delimiter = "-"
-	assert.Equal(t, "BTC_USDC-PERPETUAL", formatChannelPair(pair))
 
-	pair = currency.NewPair(currency.BTC, currency.NewCode("PERPETUAL"))
-	pair.Delimiter = "-"
-	assert.Equal(t, "BTC-PERPETUAL", formatChannelPair(pair))
+	tests := []struct {
+		name      string
+		assetType asset.Item
+		pair      currency.Pair
+		exp       string
+	}{
+		{
+			name:      "spot",
+			assetType: asset.Spot,
+			pair:      currency.NewPair(currency.BTC, currency.USDC),
+			exp:       "BTC_USDC",
+		},
+		{
+			name:      "linear perpetual futures",
+			assetType: asset.Futures,
+			pair:      currency.NewPair(currency.BTC, currency.NewCode("USDC-PERPETUAL")),
+			exp:       "BTC_USDC-PERPETUAL",
+		},
+		{
+			name:      "inverse perpetual futures",
+			assetType: asset.Futures,
+			pair:      currency.NewPair(currency.BTC, currency.NewCode("PERPETUAL")),
+			exp:       "BTC-PERPETUAL",
+		},
+		{
+			name:      "dated linear futures",
+			assetType: asset.Futures,
+			pair:      currency.NewPair(currency.BTC, currency.NewCode("USDC-27MAR26")),
+			exp:       "BTC_USDC-27MAR26",
+		},
+		{
+			name:      "linear options",
+			assetType: asset.Options,
+			pair:      currency.NewPair(currency.NewCode("PAXG"), currency.NewCode("USDC-30MAY25")),
+			exp:       "PAXG_USDC-30MAY25",
+		},
+		{
+			name:      "inverse options",
+			assetType: asset.Options,
+			pair:      currency.NewPair(currency.BTC, currency.NewCode("14JUN24-62000-C")),
+			exp:       "BTC-14JUN24-62000-C",
+		},
+		{
+			name:      "linear option combo",
+			assetType: asset.OptionCombo,
+			pair:      currency.NewPair(currency.BTC, currency.NewCode("USDC-PCOND-7MAR26-65500_66000_70000_70500")),
+			exp:       "BTC_USDC-PCOND-7MAR26-65500_66000_70000_70500",
+		},
+		{
+			name:      "future combo",
+			assetType: asset.FutureCombo,
+			pair:      currency.NewPair(currency.BTC, currency.NewCode("USDC-FS-27MAR26_PERP")),
+			exp:       "BTC_USDC-FS-27MAR26_PERP",
+		},
+	}
+
+	for i := range tests {
+		t.Run(tests[i].name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tests[i].exp, formatPairString(tests[i].assetType, tests[i].pair))
+		})
+	}
 }
 
 var timeInForceList = []struct {
