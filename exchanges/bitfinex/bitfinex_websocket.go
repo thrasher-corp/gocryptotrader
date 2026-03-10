@@ -121,7 +121,7 @@ var subscriptionNames = map[string]string{
 }
 
 func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
-	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil); err != nil {
 		return fmt.Errorf("%v unable to connect to Websocket. Error: %s", e.Name, err)
 	}
 	return e.ConfigureWS(ctx, conn)
@@ -728,18 +728,21 @@ func (e *Exchange) handleWSAllCandleUpdates(ctx context.Context, c *subscription
 		wsCandles = []Candle{wsCandle}
 	}
 
-	klines := make([]websocket.KlineData, len(wsCandles))
+	klines := make([]kline.Item, len(wsCandles))
 	for i := range wsCandles {
-		klines[i] = websocket.KlineData{
-			Exchange:   e.Name,
-			AssetType:  c.Asset,
-			Pair:       c.Pairs[0],
-			Timestamp:  wsCandles[i].Timestamp.Time(),
-			OpenPrice:  wsCandles[i].Open.Float64(),
-			ClosePrice: wsCandles[i].Close.Float64(),
-			HighPrice:  wsCandles[i].High.Float64(),
-			LowPrice:   wsCandles[i].Low.Float64(),
-			Volume:     wsCandles[i].Volume.Float64(),
+		klines[i] = kline.Item{
+			Exchange: e.Name,
+			Asset:    c.Asset,
+			Pair:     c.Pairs[0],
+			Interval: c.Interval,
+			Candles: []kline.Candle{{
+				Time:   wsCandles[i].Timestamp.Time(),
+				Open:   wsCandles[i].Open.Float64(),
+				Close:  wsCandles[i].Close.Float64(),
+				High:   wsCandles[i].High.Float64(),
+				Low:    wsCandles[i].Low.Float64(),
+				Volume: wsCandles[i].Volume.Float64(),
+			}},
 		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, klines)

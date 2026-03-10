@@ -15,7 +15,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -1290,19 +1289,22 @@ func TestWSCandles(t *testing.T) {
 	e.Websocket.DataHandler.Close()
 	require.Len(t, e.Websocket.DataHandler.C, 1, "Must see correct number of records")
 	cAny := <-e.Websocket.DataHandler.C
-	c, ok := cAny.Data.(websocket.KlineData)
+	c, ok := cAny.Data.(kline.Item)
 	require.True(t, ok, "Must get the correct type from DataHandler")
-	exp := websocket.KlineData{
-		Timestamp:  time.UnixMilli(1489474082831),
-		Pair:       btcusdtPair,
-		AssetType:  asset.Spot,
-		Exchange:   e.Name,
-		OpenPrice:  7962.62,
-		ClosePrice: 8014.56,
-		HighPrice:  14962.77,
-		LowPrice:   5110.14,
-		Volume:     4.4,
-		Interval:   "0s",
+	require.Len(t, c.Candles, 1, "Candles must contain a single candle")
+	exp := kline.Item{
+		Exchange: e.Name,
+		Asset:    asset.Spot,
+		Pair:     btcusdtPair,
+		Interval: 0,
+		Candles: []kline.Candle{{
+			Time:   time.UnixMilli(1489474082831),
+			Open:   7962.62,
+			Close:  8014.56,
+			High:   14962.77,
+			Low:    5110.14,
+			Volume: 4.4,
+		}},
 	}
 	assert.Equal(t, exp, c)
 }
@@ -1914,13 +1916,34 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		require.NoErrorf(t, err, "GetPairs must not error for asset %s", a)
 		require.NotEmptyf(t, pairs, "pairs must not be empty for asset %s", a)
 		resp, err := e.GetCurrencyTradeURL(t.Context(), a, pairs[0])
-		if (a == asset.Futures || a == asset.CoinMarginedFutures) && !pairs[0].Quote.Equal(currency.USD) && !pairs[0].Quote.Equal(currency.USDT) {
-			require.ErrorIs(t, err, common.ErrNotYetImplemented)
-		} else {
-			require.NoError(t, err)
-			assert.NotEmpty(t, resp)
-		}
+		require.NoError(t, err)
+		assert.NotEmpty(t, resp)
 	}
+}
+
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+	updatePairsOnce(t, e)
+	for _, a := range e.GetAssetTypes(false) {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
+			pairs, err := e.CurrencyPairs.GetPairs(a, false)
+			require.NoError(t, err, "GetPairs must not error")
+			require.NotEmpty(t, pairs, "GetPairs must return pairs")
+			for _, p := range pairs {
+				l, err := e.GetOrderExecutionLimits(a, p)
+				require.NoError(t, err, "GetOrderExecutionLimits must not error")
+				assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
+				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+				assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
+			}
+		})
+	}
+	t.Run("unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported)
+	})
 }
 
 func TestGenerateSubscriptions(t *testing.T) {

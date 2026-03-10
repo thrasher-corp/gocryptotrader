@@ -11,7 +11,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -503,6 +502,16 @@ func TestWsAuth(t *testing.T) {
 		if err := e.Websocket.Connect(t.Context()); err != nil {
 			require.NoError(t, err)
 		}
+	t.Parallel()
+	err := e.API.Endpoints.SetRunningURL(exchange.WebsocketSpot.String(), geminiWebsocketSandboxEndpoint)
+	if err != nil {
+		t.Error(err)
+	}
+	testexch.SkipTestIfCannotUseAuthenticatedWebsocket(t, e)
+	var dialer gws.Dialer
+	err = e.WsAuth(t.Context(), &dialer)
+	if err != nil {
+		t.Error(err)
 	}
 
 	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
@@ -774,6 +783,11 @@ func TestWSTrade(t *testing.T) {
 }
 
 func TestWsCandles(t *testing.T) {
+	t.Parallel()
+
+	g := new(Exchange)
+	require.NoError(t, testexch.Setup(g), "Test instance Setup must not error")
+
 	pressXToJSON := []byte(`{
   "type": "candles_15m_updates",
   "symbol": "BTCUSD",
@@ -796,8 +810,59 @@ func TestWsCandles(t *testing.T) {
     ]
   ]
 }`)
-	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON); err != nil {
-		assert.NoError(t, err)
+	require.NoError(t, g.wsHandleData(t.Context(), pressXToJSON))
+
+	for _, exp := range []kline.Candle{
+		{
+			Time:   time.UnixMilli(1561054500000),
+			Open:   9350.18,
+			High:   9358.35,
+			Low:    9350.18,
+			Close:  9355.51,
+			Volume: 2.07,
+		},
+		{
+			Time:   time.UnixMilli(1561053600000),
+			Open:   9357.33,
+			High:   9357.33,
+			Low:    9350.18,
+			Close:  9350.18,
+			Volume: 1.5900161,
+		},
+	} {
+		select {
+		case msg := <-g.Websocket.DataHandler.C:
+			k, ok := msg.Data.(kline.Item)
+			require.True(t, ok, "expected kline item")
+			assert.Equal(t, kline.FifteenMin, k.Interval)
+			assert.Equal(t, exp, k.Candles[0])
+		default:
+			require.Fail(t, "expected websocket candle payload")
+		}
+	}
+}
+
+func TestCandleTypeToInterval(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		candleType string
+		interval   kline.Interval
+		hasErr     bool
+	}{
+		{candleType: "candles_1m_updates", interval: kline.OneMin},
+		{candleType: "candles_5m_updates", interval: kline.FiveMin},
+		{candleType: "candles_1h_updates", interval: kline.OneHour},
+		{candleType: "candles_1d_updates", interval: kline.OneDay},
+		{candleType: "bad", hasErr: true},
+	}
+	for _, tt := range tests {
+		got, err := candleTypeToInterval(tt.candleType)
+		if tt.hasErr {
+			require.ErrorIs(t, err, kline.ErrInvalidInterval)
+			continue
+		}
+		require.NoError(t, err)
+		assert.Equal(t, tt.interval, got)
 	}
 }
 
@@ -1191,17 +1256,24 @@ func TestGetSymbolDetails(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
+	testexch.UpdatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
 		t.Run(a.String(), func(t *testing.T) {
 			t.Parallel()
 			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
 			pairs, err := e.CurrencyPairs.GetPairs(a, false)
 			require.NoError(t, err, "GetPairs must not error")
-			l, err := e.GetOrderExecutionLimits(a, pairs[0])
-			require.NoError(t, err, "GetOrderExecutionLimits must not error")
-			assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+			for _, p := range pairs {
+				l, err := e.GetOrderExecutionLimits(a, p)
+				require.NoError(t, err, "GetOrderExecutionLimits must not error")
+				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+			}
 		})
 	}
+	t.Run("unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported)
+	})
 }
 
 func TestGetCurrencyTradeURL(t *testing.T) {

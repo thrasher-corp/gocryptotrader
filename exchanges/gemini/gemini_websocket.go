@@ -54,7 +54,7 @@ var subscriptionNames = map[string]string{
 }
 
 func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
-	return conn.Dial(ctx, &gws.Dialer{}, http.Header{})
+	return conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil)
 }
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
@@ -140,7 +140,7 @@ func (e *Exchange) wsAuthConnect(ctx context.Context, conn websocket.Connection)
 	headers.Add("X-GEMINI-SIGNATURE", hex.EncodeToString(hmac))
 	headers.Add("Cache-Control", "no-cache")
 
-	err = conn.Dial(ctx, &gws.Dialer{}, headers)
+	err = conn.Dial(ctx,  &gws.Dialer{}, headers, nil)
 	if err != nil {
 		return fmt.Errorf("%v Websocket connection %v error. Error %v", e.Name, endpoint, err)
 	}
@@ -292,6 +292,10 @@ func (e *Exchange) wsHandleData(ctx context.Context, _ websocket.Connection, res
 			if err != nil {
 				return err
 			}
+			interval, err := candleTypeToInterval(candle.Type)
+			if err != nil {
+				return err
+			}
 			enabledPairs, err := e.GetEnabledPairs(asset.Spot)
 			if err != nil {
 				return err
@@ -311,21 +315,19 @@ func (e *Exchange) wsHandleData(ctx context.Context, _ websocket.Connection, res
 				if len(candle.Changes[i]) != 6 {
 					continue
 				}
-				interval, ok := result["type"].(string)
-				if !ok {
-					return errors.New("unable to type assert interval")
-				}
-				if err := e.Websocket.DataHandler.Send(ctx, websocket.KlineData{
-					Timestamp:  time.UnixMilli(int64(candle.Changes[i][0])),
-					Pair:       pair,
-					AssetType:  asset.Spot,
-					Exchange:   e.Name,
-					Interval:   interval,
-					OpenPrice:  candle.Changes[i][1],
-					HighPrice:  candle.Changes[i][2],
-					LowPrice:   candle.Changes[i][3],
-					ClosePrice: candle.Changes[i][4],
-					Volume:     candle.Changes[i][5],
+				if err := e.Websocket.DataHandler.Send(ctx, kline.Item{
+					Pair:     pair,
+					Asset:    asset.Spot,
+					Exchange: e.Name,
+					Interval: interval,
+					Candles: []kline.Candle{{
+						Time:   time.UnixMilli(int64(candle.Changes[i][0])),
+						Open:   candle.Changes[i][1],
+						High:   candle.Changes[i][2],
+						Low:    candle.Changes[i][3],
+						Close:  candle.Changes[i][4],
+						Volume: candle.Changes[i][5],
+					}},
 				}); err != nil {
 					return err
 				}
@@ -497,6 +499,29 @@ func channelInterval(i kline.Interval) string {
 		return "1d"
 	}
 	panic(fmt.Errorf("%w: %s", kline.ErrUnsupportedInterval, i.Short()))
+}
+
+func candleTypeToInterval(candleType string) (kline.Interval, error) {
+	suffix := strings.TrimPrefix(candleType, "candles_")
+	suffix = strings.TrimSuffix(suffix, "_updates")
+	switch suffix {
+	case "1m":
+		return kline.OneMin, nil
+	case "5m":
+		return kline.FiveMin, nil
+	case "15m":
+		return kline.FifteenMin, nil
+	case "30m":
+		return kline.ThirtyMin, nil
+	case "1h":
+		return kline.OneHour, nil
+	case "6h":
+		return kline.SixHour, nil
+	case "1d":
+		return kline.OneDay, nil
+	default:
+		return 0, fmt.Errorf("%w: %s", kline.ErrInvalidInterval, candleType)
+	}
 }
 
 const subTplText = `

@@ -12428,7 +12428,7 @@
         "mPx": "104271.54",
         "o": "102850.98",
         "qty": "161306",
-        "s": "ABC-DEF",
+        "s": "ABC_DEF",
         "sT": 1734272820000,
         "tC": 8527
        },
@@ -12447,14 +12447,14 @@
         "mPx": "104271.54",
         "o": "102850.98",
         "qty": "161306",
-        "s": "ABC-DEF",
+        "s": "ABC_DEF",
         "sT": 1734272820000,
         "tC": 8527
        }
       ],
       "msg": "Success"
      },
-     "queryString": "symbol=ABC-DEF",
+     "queryString": "symbol=ABC_DEF",
      "bodyParams": "",
      "headers": {}
     },

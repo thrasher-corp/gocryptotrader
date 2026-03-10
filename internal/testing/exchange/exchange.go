@@ -48,7 +48,6 @@ func Setup(e exchange.IBotExchange) error {
 	if err != nil {
 		return fmt.Errorf("GetExchangeConfig(%q) error: %w", eName, err)
 	}
-	e.SetDefaults()
 	b := e.GetBase()
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
 
@@ -173,6 +172,22 @@ func FixtureToDataHandlerWithErrors(tb testing.TB, fixturePath string, reader fu
 	}
 	assert.NoError(tb, s.Err(), "Fixture Scanner should not error")
 	return errs
+}
+
+// SkipTestIfCannotUseAuthenticatedWebsocket checks the common requirements for
+// authenticated websocket tests.
+func SkipTestIfCannotUseAuthenticatedWebsocket(tb testing.TB, e exchange.IBotExchange) {
+	tb.Helper()
+
+	if !e.GetBase().Websocket.IsEnabled() {
+		tb.Skip(websocket.ErrWebsocketNotEnabled.Error())
+	}
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(tb, e)
+
+	if !e.GetBase().API.AuthenticatedWebsocketSupport {
+		tb.Skip("Authenticated websocket API support not enabled")
+	}
 }
 
 var (

@@ -88,7 +88,7 @@ func BenchmarkBufferPerformance(b *testing.B) {
 		Asset:      asset.Spot,
 	}
 	for b.Loop() {
-		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypo/rand for testing
+		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypto/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
 		require.NoError(b, holder.Update(update))
@@ -115,7 +115,7 @@ func BenchmarkBufferSortingPerformance(b *testing.B) {
 		Asset:      asset.Spot,
 	}
 	for b.Loop() {
-		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypo/rand for testing
+		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypto/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
 		require.NoError(b, holder.Update(update))
@@ -142,7 +142,7 @@ func BenchmarkBufferSortingByIDPerformance(b *testing.B) {
 	}
 
 	for b.Loop() {
-		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypo/rand for testing
+		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypto/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
 		require.NoError(b, holder.Update(update))
@@ -170,7 +170,7 @@ func BenchmarkNoBufferPerformance(b *testing.B) {
 	}
 
 	for b.Loop() {
-		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypo/rand for testing
+		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypto/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
 		require.NoError(b, obl.Update(update))
@@ -737,7 +737,7 @@ func TestInvalidateOrderbook(t *testing.T) {
 	require.NoError(t, err)
 
 	var snapShot1 orderbook.Book
-	snapShot1.Exchange = "Snapshooooot"
+	snapShot1.Exchange = "Snapshot"
 	asks := []orderbook.Level{{Price: 4000, Amount: 1, ID: 8}}
 	bids := []orderbook.Level{{Price: 4000, Amount: 1, ID: 9}}
 	snapShot1.Asks = asks

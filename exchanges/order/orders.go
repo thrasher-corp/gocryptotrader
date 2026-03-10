@@ -461,7 +461,7 @@ func (d *Detail) Copy() Detail {
 // submission has occurred. NOTE: order status is populated as order.Filled for a
 // market order else order.New if an order is accepted as default, date and
 // lastupdated fields have been populated as time.Now(). All fields can be
-// customized in caller scope if needed.
+// customised in caller scope if needed.
 func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
 	if s == nil {
 		return nil, errOrderSubmitIsNil
