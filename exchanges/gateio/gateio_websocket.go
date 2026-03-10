@@ -673,13 +673,12 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 
 // manageSubs sends a websocket message to subscribe or unsubscribe from a list of channel
 func (e *Exchange) manageSubs(ctx context.Context, event string, conn websocket.Connection, subs subscription.List) error {
-	var errs error
-	subs, errs = subs.ExpandTemplates(e)
-	if errs != nil {
-		return errs
+	subs, err := subs.ExpandTemplates(e)
+	if err != nil {
+		return err
 	}
 
-	return common.AppendError(errs, e.ParallelChanOp(ctx, subs, func(ctx context.Context, batch subscription.List) error {
+	return e.ParallelChanOp(ctx, subs, func(ctx context.Context, batch subscription.List) error {
 		for _, s := range batch {
 			if err := func() error {
 				msg, err := e.manageSubReq(ctx, event, s)
@@ -706,7 +705,7 @@ func (e *Exchange) manageSubs(ctx context.Context, event string, conn websocket.
 			}
 		}
 		return nil
-	}, 1))
+	}, 1)
 }
 
 // manageSubReq constructs the subscription management message for a subscription
@@ -956,34 +955,32 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 		index[s] = i
 	}
 	return e.ParallelChanOp(ctx, channelsToSubscribe, func(ctx context.Context, batch subscription.List) error {
-		var errs error
 		for _, s := range batch {
-			k, ok := index[s]
-			if !ok {
-				errs = common.AppendError(errs, fmt.Errorf("subscription not found for %s %s", s.Channel, s.Asset))
-				continue
-			}
-			result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payloads[k].ID, payloads[k])
-			if err != nil {
-				errs = common.AppendError(errs, err)
-				continue
-			}
-			var resp WsEventResponse
-			if err = json.Unmarshal(result, &resp); err != nil {
-				errs = common.AppendError(errs, err)
-				continue
-			}
-			if resp.Error != nil && resp.Error.Code != 0 {
-				errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message))
-				continue
-			}
-			if event == subscribeEvent {
-				errs = common.AppendError(errs, e.Websocket.AddSuccessfulSubscriptions(conn, s))
-			} else {
-				errs = common.AppendError(errs, e.Websocket.RemoveSubscriptions(conn, s))
+			if err := func() error {
+				k, ok := index[s]
+				if !ok {
+					return fmt.Errorf("subscription not found for %s %s", s.Channel, s.Asset)
+				}
+				result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payloads[k].ID, payloads[k])
+				if err != nil {
+					return err
+				}
+				var resp WsEventResponse
+				if err := json.Unmarshal(result, &resp); err != nil {
+					return err
+				}
+				if resp.Error != nil && resp.Error.Code != 0 {
+					return fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message)
+				}
+				if event == subscribeEvent {
+					return e.Websocket.AddSuccessfulSubscriptions(conn, s)
+				}
+				return e.Websocket.RemoveSubscriptions(conn, s)
+			}(); err != nil {
+				return fmt.Errorf("%s %s %s: %w", s.Channel, s.Asset, s.Pairs, err)
 			}
 		}
-		return errs
+		return nil
 	}, 1)
 }
 
