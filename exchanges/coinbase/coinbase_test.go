@@ -1509,9 +1509,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 // TestWsAuth dials websocket, sends login request.
 func TestWsAuth(t *testing.T) {
 	p := currency.Pairs{testPairFiat}
-	if e.Websocket.IsEnabled() && !e.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(e) {
-		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
-	}
+	testexch.SkipTestIfCannotUseAuthenticatedWebsocket(t, e)
 	var dialer gws.Dialer
 	err := e.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{}, nil)
 	require.NoError(t, err)
