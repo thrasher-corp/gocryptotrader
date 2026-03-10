@@ -2287,7 +2287,7 @@ func TestMigrateConfig(t *testing.T) {
 
 func TestExchangeConfigValidate(t *testing.T) {
 	err := (*Exchange)(nil).Validate()
-	require.ErrorIs(t, err, errExchangeConfigIsNil)
+	require.ErrorIs(t, err, ErrExchangeConfigIsNil)
 
 	err = (&Exchange{}).Validate()
 	require.NoError(t, err)
