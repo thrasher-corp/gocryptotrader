@@ -100,7 +100,7 @@ func (e *Exchange) WsConnect() error {
 	}
 
 	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
+	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil)
 	if err != nil {
 		return err
 	}
@@ -113,7 +113,7 @@ func (e *Exchange) WsConnect() error {
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys, "%s - authentication failed: %v\n", e.Name, err)
 		} else {
-			if err := e.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{}); err != nil {
+			if err := e.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
 				e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 				log.Errorf(log.ExchangeSys, "%s - failed to connect to authenticated endpoint: %v\n", e.Name, err)
 			} else {
@@ -131,7 +131,7 @@ func (e *Exchange) WsConnect() error {
 	return nil
 }
 
-// wsFunnelConnectionData funnels both auth and public ws data into one manageable place
+// wsReadData funnels both auth and public ws data into one manageable place
 func (e *Exchange) wsReadData(ctx context.Context, ws websocket.Connection) {
 	defer e.Websocket.Wg.Done()
 	for {
@@ -646,21 +646,26 @@ func (e *Exchange) wsProcessCandle(ctx context.Context, c string, resp json.RawM
 	if len(parts) != 2 {
 		return errBadChannelSuffix
 	}
-	interval := parts[1]
-
-	return e.Websocket.DataHandler.Send(ctx, websocket.KlineData{
-		AssetType:  asset.Spot,
-		Pair:       pair,
-		Timestamp:  time.Now(),
-		Exchange:   e.Name,
-		StartTime:  data.LastUpdateTime.Time(),
-		CloseTime:  data.LastUpdateTime.Time(),
-		OpenPrice:  data.Open.Float64(),
-		HighPrice:  data.High.Float64(),
-		LowPrice:   data.Low.Float64(),
-		ClosePrice: data.Close.Float64(),
-		Volume:     data.Volume.Float64(),
-		Interval:   interval,
+	intervalMinutes, err := strconv.ParseInt(parts[1], 10, 64)
+	if err != nil {
+		return fmt.Errorf("%w: %s", kline.ErrInvalidInterval, c)
+	}
+	volume := data.Volume.Float64()
+	vwap := data.VWAP.Float64()
+	return e.Websocket.DataHandler.Send(ctx, kline.Item{
+		Asset:    asset.Spot,
+		Pair:     pair,
+		Exchange: e.Name,
+		Interval: kline.Interval(time.Minute * time.Duration(intervalMinutes)),
+		Candles: []kline.Candle{{
+			Time:        data.LastUpdateTime.Time(),
+			Open:        data.Open.Float64(),
+			High:        data.High.Float64(),
+			Low:         data.Low.Float64(),
+			Close:       data.Close.Float64(),
+			Volume:      volume,
+			QuoteVolume: volume * vwap,
+		}},
 	})
 }
 

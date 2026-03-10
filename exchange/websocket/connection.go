@@ -33,7 +33,7 @@ var (
 
 // Connection defines the interface for websocket connections
 type Connection interface {
-	Dial(context.Context, *gws.Dialer, http.Header) error
+	Dial(context.Context, *gws.Dialer, http.Header, url.Values) error
 	ReadMessage() Response
 	SetupPingHandler(request.EndpointLimit, PingHandler)
 	// SendMessageReturnResponse will send a WS message to the connection and wait for response
@@ -56,13 +56,17 @@ type Connection interface {
 	IncomingWithData(signature any, data []byte) bool
 	// MatchReturnResponses sets up a channel to listen for an expected number of responses.
 	MatchReturnResponses(ctx context.Context, signature any, expected int) (<-chan MatchedResponse, error)
+	// Subscriptions returns the subscription store for the connection
+	Subscriptions() *subscription.Store
 }
 
 // ConnectionSetup defines variables for an individual stream connection
 type ConnectionSetup struct {
-	ResponseCheckTimeout     time.Duration
-	ResponseMaxLimit         time.Duration
-	RateLimit                *request.RateLimiterWithWeight
+	ResponseCheckTimeout time.Duration
+	ResponseMaxLimit     time.Duration
+	RateLimit            *request.RateLimiterWithWeight
+	// ConnectionRateLimiter returns a new rate limiter for each connection instance
+	ConnectionRateLimiter    func() *request.RateLimiterWithWeight
 	Authenticated            bool // unused for multi-connection websocket
 	SubscriptionsNotRequired bool
 	ConnectionLevelReporter  Reporter
@@ -109,6 +113,7 @@ type Response struct {
 
 // connection contains all the data needed to send a message to a websocket connection
 type connection struct {
+	subscriptions        *subscription.Store
 	Verbose              bool
 	connected            int32
 	writeControl         sync.Mutex                     // Gorilla websocket does not allow more than one goroutine to utilise write methods
@@ -128,7 +133,7 @@ type connection struct {
 }
 
 // Dial sets proxy urls and then connects to the websocket
-func (c *connection) Dial(ctx context.Context, dialer *gws.Dialer, headers http.Header) error {
+func (c *connection) Dial(ctx context.Context, dialer *gws.Dialer, headers http.Header, values url.Values) error {
 	if c.ProxyURL != "" {
 		proxy, err := url.Parse(c.ProxyURL)
 		if err != nil {
@@ -137,20 +142,20 @@ func (c *connection) Dial(ctx context.Context, dialer *gws.Dialer, headers http.
 		dialer.Proxy = http.ProxyURL(proxy)
 	}
 
-	var err error
-	var conStatus *http.Response
-	c.Connection, conStatus, err = dialer.DialContext(ctx, c.URL, headers)
+	path := common.EncodeURLValues(c.URL, values)
+	conn, resp, err := dialer.DialContext(ctx, path, headers)
 	if err != nil {
-		if conStatus != nil {
-			_ = conStatus.Body.Close()
-			return fmt.Errorf("%s websocket connection: %v %v %v Error: %w", c.ExchangeName, c.URL, conStatus, conStatus.StatusCode, err)
+		if resp != nil {
+			_ = resp.Body.Close()
+			return fmt.Errorf("%s websocket connection: %v %v %v Error: %w", c.ExchangeName, path, resp, resp.StatusCode, err)
 		}
-		return fmt.Errorf("%s websocket connection: %v Error: %w", c.ExchangeName, c.URL, err)
+		return fmt.Errorf("%s websocket connection: %v Error: %w", c.ExchangeName, path, err)
 	}
-	_ = conStatus.Body.Close()
+	_ = resp.Body.Close()
+	c.Connection = conn
 
 	if c.Verbose {
-		log.Infof(log.WebsocketMgr, "%v Websocket connected to %s\n", c.ExchangeName, c.URL)
+		log.Infof(log.WebsocketMgr, "%v Websocket connected to %s\n", c.ExchangeName, path)
 	}
 	select {
 	case c.Traffic <- struct{}{}:
@@ -328,8 +333,8 @@ func (c *connection) parseBinaryResponse(resp []byte) ([]byte, error) {
 
 // Shutdown shuts down and closes specific connection
 func (c *connection) Shutdown() error {
-	if err := common.NilGuard(c, c.Connection); err != nil {
-		return err
+	if c == nil || c.Connection == nil {
+		return nil // Allow Shutdown to be called during early startup/teardown when the socket hasn't been created yet.
 	}
 	c.setConnectedStatus(false)
 	c.writeControl.Lock()
@@ -470,4 +475,9 @@ func (c *connection) RequireMatchWithData(signature any, incoming []byte) error 
 // IncomingWithData routes incoming data using the connection specific match system to the correct handler
 func (c *connection) IncomingWithData(signature any, data []byte) bool {
 	return c.Match.IncomingWithData(signature, data)
+}
+
+// Subscriptions returns the subscription store for the connection
+func (c *connection) Subscriptions() *subscription.Store {
+	return c.subscriptions
 }

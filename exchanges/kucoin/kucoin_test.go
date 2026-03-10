@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -28,6 +29,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -51,6 +53,18 @@ var (
 	spotTradablePair, marginTradablePair, futuresTradablePair currency.Pair
 	assertToTradablePairMap                                   map[asset.Item]currency.Pair
 )
+
+// ConnectionFixture is a websocket connection mock, this is used in test that previously used the actual websocket connection.
+// The current design makes it difficult to connect and subscribe using the actual websocket connection in tests, so
+// this mock is used to simulate the connection behaviour.
+type ConnectionFixture struct {
+	websocket.Connection
+	messageResponse string
+}
+
+func (c ConnectionFixture) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
+	return []byte(c.messageResponse), nil
+}
 
 func TestMain(m *testing.M) {
 	e = new(Exchange)
@@ -76,7 +90,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// Spot asset test cases starts from here
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
 	symbols, err := e.GetSymbols(t.Context(), "")
@@ -1168,16 +1181,16 @@ func TestTransferToMainOrTradeAccount(t *testing.T) {
 	t.Parallel()
 	_, err := e.TransferToMainOrTradeAccount(t.Context(), &FundTransferFuturesParam{})
 	require.ErrorIs(t, err, common.ErrNilPointer)
-	_, err = e.TransferToMainOrTradeAccount(t.Context(), &FundTransferFuturesParam{RecieveAccountType: "MAIN"})
+	_, err = e.TransferToMainOrTradeAccount(t.Context(), &FundTransferFuturesParam{ReceiveAccountType: "MAIN"})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
-	_, err = e.TransferToMainOrTradeAccount(t.Context(), &FundTransferFuturesParam{Amount: 1, RecieveAccountType: "MAIN"})
+	_, err = e.TransferToMainOrTradeAccount(t.Context(), &FundTransferFuturesParam{Amount: 1, ReceiveAccountType: "MAIN"})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.TransferToMainOrTradeAccount(t.Context(), &FundTransferFuturesParam{
 		Amount:             1,
 		Currency:           currency.USDT,
-		RecieveAccountType: SpotTradeType,
+		ReceiveAccountType: SpotTradeType,
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1369,7 +1382,6 @@ func TestGetTradingFee(t *testing.T) {
 	assert.Len(t, got, 10)
 }
 
-// futures
 func TestGetFuturesOpenContracts(t *testing.T) {
 	t.Parallel()
 	result, err := e.GetFuturesOpenContracts(t.Context())
@@ -2311,12 +2323,11 @@ func TestGetFeeByType(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestValidateCredentials(t *testing.T) {
+func TestValidateAPICredentials(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	assetTypes := e.CurrencyPairs.GetAssetTypes(true)
-	for _, at := range assetTypes {
-		err := e.ValidateCredentials(t.Context(), at)
+	for _, at := range e.CurrencyPairs.GetAssetTypes(true) {
+		err := e.ValidateAPICredentials(t.Context(), at)
 		assert.NoError(t, err)
 	}
 }
@@ -2350,7 +2361,7 @@ func TestPushData(t *testing.T) {
 			e.Accounts = nil
 			defer func() { e.Accounts = hold }()
 		}
-		return e.wsHandleData(ctx, r)
+		return e.wsHandleData(ctx, nil, r)
 	})
 	e.Websocket.DataHandler.Close()
 	assert.Len(t, e.Websocket.DataHandler.C, 29, "Should see correct number of messages")
@@ -2468,12 +2479,18 @@ func TestGenerateMarginSubscriptions(t *testing.T) {
 
 	ku := testInstance(t)
 
-	avail, err := ku.GetAvailablePairs(asset.Spot)
-	require.NoError(t, err, "GetAvailablePairs must not error storing spot pairs")
-	avail = common.SortStrings(avail)
-	err = ku.CurrencyPairs.StorePairs(asset.Margin, avail[:6], true)
+	spotAvail, err := ku.GetAvailablePairs(asset.Spot)
+	require.NoError(t, err, "GetAvailablePairs must not error for spot pairs")
+	spotAvail = common.SortStrings(spotAvail)
+	marginAvail, err := ku.GetAvailablePairs(asset.Margin)
+	require.NoError(t, err, "GetAvailablePairs must not error for margin pairs")
+	marginAvail = common.SortStrings(marginAvail)
+	require.GreaterOrEqual(t, len(marginAvail), 6, "Margin available pairs must include at least 6 pairs")
+	require.GreaterOrEqual(t, len(spotAvail), 3, "Spot available pairs must include at least 3 pairs")
+
+	err = ku.CurrencyPairs.StorePairs(asset.Margin, marginAvail[:6], true)
 	require.NoError(t, err, "StorePairs must not error storing margin pairs")
-	err = ku.CurrencyPairs.StorePairs(asset.Spot, avail[:3], true)
+	err = ku.CurrencyPairs.StorePairs(asset.Spot, spotAvail[:3], true)
 	require.NoError(t, err, "StorePairs must not error storing spot pairs")
 
 	ku.Features.Subscriptions = subscription.List{{Channel: subscription.TickerChannel, Asset: asset.Margin}}
@@ -2481,7 +2498,7 @@ func TestGenerateMarginSubscriptions(t *testing.T) {
 	require.NoError(t, err, "ExpandTemplates must not error")
 	require.Len(t, subs, 1, "Must generate just one sub")
 	assert.Equal(t, asset.Margin, subs[0].Asset, "Asset should be correct")
-	assert.Equal(t, "/market/ticker:"+avail[:6].Join(), subs[0].QualifiedChannel, "QualifiedChannel should be correct")
+	assert.Equal(t, "/market/ticker:"+marginAvail[:6].Join(), subs[0].QualifiedChannel, "QualifiedChannel should be correct")
 
 	require.NoError(t, ku.CurrencyPairs.SetAssetEnabled(asset.Margin, false), "SetAssetEnabled Spot must not error")
 	require.NoError(t, err, "SetAssetEnabled must not error")
@@ -2995,7 +3012,7 @@ func TestProcessOrderbook(t *testing.T) {
 	err = e.processOrderbook([]byte(orderbookLevel5PushData), "BTC-USDT", "")
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
-	err = e.wsHandleData(t.Context(), []byte(orderbookLevel5PushData))
+	err = e.wsHandleData(t.Context(), nil, []byte(orderbookLevel5PushData))
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3003,7 +3020,7 @@ func TestProcessOrderbook(t *testing.T) {
 func TestProcessMarketSnapshot(t *testing.T) {
 	t.Parallel()
 	ku := testInstance(t)
-	testexch.FixtureToDataHandler(t, "testdata/wsMarketSnapshot.json", ku.wsHandleData)
+	testexch.FixtureToDataHandler(t, "testdata/wsMarketSnapshot.json", func(ctx context.Context, b []byte) error { return ku.wsHandleData(ctx, nil, b) })
 	ku.Websocket.DataHandler.Close()
 	assert.Len(t, ku.Websocket.DataHandler.C, 4, "Should see 4 tickers")
 	seenAssetTypes := map[asset.Item]int{}
@@ -3067,7 +3084,7 @@ func TestSubscribeBatches(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	require.Len(t, subs, len(ku.Features.Subscriptions), "Must generate batched subscriptions")
 
-	err = ku.Subscribe(subs)
+	err = ku.Subscribe(t.Context(), &ConnectionFixture{messageResponse: `{"id":"019ae225-c584-7b71-a634-489c7249e000","type":"ack"}`}, subs)
 	assert.NoError(t, err, "Subscribe to small batches should not error")
 }
 
@@ -3095,10 +3112,10 @@ func TestSubscribeBatchLimit(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	require.Len(t, subs, 4, "Must get 4 subs")
 
-	err = ku.Subscribe(subs)
+	err = ku.Subscribe(t.Context(), &ConnectionFixture{messageResponse: `{"id":"019ae225-c584-7b71-a634-489c7249e000","type":"ack"}`}, subs)
 	require.NoError(t, err, "Subscribe must not error")
 
-	err = ku.Unsubscribe(subs)
+	err = ku.Unsubscribe(t.Context(), &ConnectionFixture{messageResponse: `{"id":"019ae225-c584-7b71-a634-489c7249e000","type":"ack"}`}, subs)
 	require.NoError(t, err, "Unsubscribe must not error")
 
 	err = ku.CurrencyPairs.StorePairs(asset.Spot, avail[:expectedLimit+20], true)
@@ -3109,7 +3126,7 @@ func TestSubscribeBatchLimit(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	require.Len(t, subs, 5, "Must get 5 subs")
 
-	err = ku.Subscribe(subs)
+	err = ku.Subscribe(t.Context(), &ConnectionFixture{messageResponse: `{"id":"019ae22f-4718-7da4-846d-999b085cc24a","type":"error","code":509,"data":"exceed max subscription count limitation of 400 per session"}`}, subs)
 	require.Error(t, err, "Subscribe must error")
 	assert.ErrorContains(t, err, "exceed max subscription count limitation of 400 per session", "Subscribe to MarketSnapshot should error above connection symbol limit")
 }
@@ -3118,17 +3135,26 @@ func TestSubscribeTickerAll(t *testing.T) {
 	t.Parallel()
 
 	ku := testInstance(t)
-	go func() { // drain websocket messages when subscribed to all tickers
-		for {
-			<-ku.Websocket.DataHandler.C
-		}
-	}()
 	ku.Features.Subscriptions = subscription.List{}
 	testexch.SetupWs(t, ku)
+	done := make(chan struct{})
+	go func() { // drain websocket messages when subscribed to all tickers
+		for {
+			select {
+			case <-done:
+				return
+			case <-ku.Websocket.DataHandler.C:
+			}
+		}
+	}()
+	t.Cleanup(func() {
+		close(done)
+	})
 
 	avail, err := ku.GetAvailablePairs(asset.Spot)
 	require.NoError(t, err, "GetAvailablePairs must not error")
 
+	require.GreaterOrEqual(t, len(avail), 500)
 	err = ku.CurrencyPairs.StorePairs(asset.Spot, avail[:500], true)
 	require.NoError(t, err, "StorePairs must not error")
 
@@ -3139,7 +3165,7 @@ func TestSubscribeTickerAll(t *testing.T) {
 	require.Len(t, subs, 1, "Must generate one subscription")
 	assert.Equal(t, "/market/ticker:all", subs[0].QualifiedChannel, "QualifiedChannel should be correct")
 
-	err = ku.Subscribe(subs)
+	err = ku.Subscribe(t.Context(), &ConnectionFixture{messageResponse: `{"id":"019ae225-c584-7b71-a634-489c7249e000","type":"ack"}`}, subs)
 	assert.NoError(t, err, "Subscribe to should not error")
 }
 
@@ -4242,15 +4268,15 @@ func TestGetInformationOnAccountInvolvedInOffExchangeLoans(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetAffilateUserRebateInformation(t *testing.T) {
+func TestGetAffiliateUserRebateInformation(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetAffilateUserRebateInformation(t.Context(), time.Time{}, "1234", 0)
+	_, err := e.GetAffiliateUserRebateInformation(t.Context(), time.Time{}, "1234", 0)
 	require.ErrorIs(t, err, errQueryDateIsRequired)
-	_, err = e.GetAffilateUserRebateInformation(t.Context(), time.Now(), "", 0)
+	_, err = e.GetAffiliateUserRebateInformation(t.Context(), time.Now(), "", 0)
 	require.ErrorIs(t, err, errOffsetIsRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetAffilateUserRebateInformation(t.Context(), time.Now(), "1234", 0)
+	result, err := e.GetAffiliateUserRebateInformation(t.Context(), time.Now(), "1234", 0)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -4425,9 +4451,60 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 
 func TestProcessFuturesKline(t *testing.T) {
 	t.Parallel()
+
+	ku := new(Exchange)
+	require.NoError(t, testexch.Setup(ku), "Test instance Setup must not error")
+
 	data := fmt.Sprintf(`{"symbol":%q,"candles":["1714964400","63815.1","63890.8","63928.5","63797.8","17553.0","17553"],"time":1714964823722}`, futuresTradablePair.String())
-	err := e.processFuturesKline(t.Context(), []byte(data), "1hour")
-	assert.NoError(t, err)
+	err := ku.processFuturesKline(t.Context(), []byte(data), "1hour")
+	require.NoError(t, err)
+
+	select {
+	case msg := <-ku.Websocket.DataHandler.C:
+		got, ok := msg.Data.(*kline.Item)
+		require.True(t, ok, "expected *kline.Item")
+		assert.Equal(t, &kline.Item{
+			Asset:    asset.Futures,
+			Exchange: ku.Name,
+			Pair:     futuresTradablePair,
+			Interval: kline.OneHour,
+			Candles: []kline.Candle{{
+				Time:   time.Unix(1714964400, 0),
+				Open:   63815.1,
+				Close:  63890.8,
+				High:   63928.5,
+				Low:    63797.8,
+				Volume: 17553,
+			}},
+		}, got)
+	default:
+		require.Fail(t, "expected websocket kline payload")
+	}
+}
+
+func TestIntervalFromString(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		interval string
+		expected kline.Interval
+		hasErr   bool
+	}{
+		{interval: "1min", expected: kline.OneMin},
+		{interval: "15min", expected: kline.FifteenMin},
+		{interval: "1hour", expected: kline.OneHour},
+		{interval: "1day", expected: kline.OneDay},
+		{interval: "1week", expected: kline.OneWeek},
+		{interval: "bad", hasErr: true},
+	}
+	for _, tt := range tests {
+		got, err := IntervalFromString(tt.interval)
+		if tt.hasErr {
+			require.ErrorIs(t, err, kline.ErrInvalidInterval)
+			continue
+		}
+		require.NoError(t, err)
+		assert.Equal(t, tt.expected, got)
+	}
 }
 
 func TestWithdrawInternationalBank(t *testing.T) {

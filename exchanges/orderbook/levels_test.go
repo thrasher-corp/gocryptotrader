@@ -55,7 +55,6 @@ var bid = Levels{
 	{Price: 1317, Amount: 1},
 }
 
-// Display displays depth content for tests
 func (l Levels) display() {
 	for x := range l {
 		fmt.Printf("Level: %+v %p \n", l[x], &l[x])

@@ -58,7 +58,7 @@ func (e *Exchange) WsConnect() error {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
+	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil)
 	if err != nil {
 		return err
 	}
@@ -215,6 +215,49 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		if err != nil {
 			return err
 		}
+	case "snapshotCandles", "updateCandles":
+		var candlesResponse WsCandles
+		err := json.Unmarshal(respRaw, &candlesResponse)
+		if err != nil {
+			return err
+		}
+		interval, err := candlePeriodToInterval(candlesResponse.Params.Period)
+		if err != nil {
+			return err
+		}
+
+		pairs, err := e.GetEnabledPairs(asset.Spot)
+		if err != nil {
+			return err
+		}
+		format, err := e.GetPairFormat(asset.Spot, true)
+		if err != nil {
+			return err
+		}
+		p, err := currency.NewPairFromFormattedPairs(candlesResponse.Params.Symbol, pairs, format)
+		if err != nil {
+			return err
+		}
+
+		for i := range candlesResponse.Params.Data {
+			err = e.Websocket.DataHandler.Send(ctx, kline.Item{
+				Pair:     p,
+				Asset:    asset.Spot,
+				Exchange: e.Name,
+				Interval: interval,
+				Candles: []kline.Candle{{
+					Time:   candlesResponse.Params.Data[i].Timestamp,
+					Open:   candlesResponse.Params.Data[i].Open,
+					Close:  candlesResponse.Params.Data[i].Close,
+					High:   candlesResponse.Params.Data[i].Max,
+					Low:    candlesResponse.Params.Data[i].Min,
+					Volume: candlesResponse.Params.Data[i].Volume,
+				}},
+			})
+			if err != nil {
+				return err
+			}
+		}
 	case "snapshotTrades", "updateTrades":
 		if !e.IsSaveTradeDataEnabled() {
 			return nil
@@ -307,6 +350,33 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)})
 	}
 	return nil
+}
+
+func candlePeriodToInterval(period string) (kline.Interval, error) {
+	switch period {
+	case "M1":
+		return kline.OneMin, nil
+	case "M3":
+		return kline.ThreeMin, nil
+	case "M5":
+		return kline.FiveMin, nil
+	case "M15":
+		return kline.FifteenMin, nil
+	case "M30":
+		return kline.ThirtyMin, nil
+	case "H1":
+		return kline.OneHour, nil
+	case "H4":
+		return kline.FourHour, nil
+	case "D1":
+		return kline.OneDay, nil
+	case "D7":
+		return kline.OneWeek, nil
+	case "1M":
+		return kline.OneMonth, nil
+	default:
+		return 0, fmt.Errorf("%w %s", kline.ErrInvalidInterval, period)
+	}
 }
 
 // WsProcessOrderbookSnapshot processes a full orderbook snapshot to a local cache
@@ -519,7 +589,7 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 	return errs
 }
 
-// Unsubscribe sends a websocket message to stop receiving data from the channel
+// wsLogin authenticates the websocket connection
 func (e *Exchange) wsLogin(ctx context.Context) error {
 	if !e.IsWebsocketAuthenticationSupported() {
 		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", e.Name)
@@ -753,7 +823,7 @@ func (e *Exchange) wsGetSymbols(ctx context.Context, c currency.Pair) (*WsGetSym
 	return &response, nil
 }
 
-// wsGetSymbols sends a websocket message to get trading balance
+// wsGetTrades sends a websocket message to get trade data
 func (e *Exchange) wsGetTrades(ctx context.Context, c currency.Pair, limit int64, sort, by string) (*WsGetTradesResponse, error) {
 	fPair, err := e.FormatExchangeCurrency(c, asset.Spot)
 	if err != nil {

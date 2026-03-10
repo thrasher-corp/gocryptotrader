@@ -19,6 +19,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -44,7 +46,6 @@ func Setup(e exchange.IBotExchange) error {
 	if err != nil {
 		return fmt.Errorf("GetExchangeConfig(%q) error: %w", eName, err)
 	}
-	e.SetDefaults()
 	b := e.GetBase()
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
 
@@ -171,6 +172,22 @@ func FixtureToDataHandlerWithErrors(tb testing.TB, fixturePath string, reader fu
 	return errs
 }
 
+// SkipTestIfCannotUseAuthenticatedWebsocket checks the common requirements for
+// authenticated websocket tests.
+func SkipTestIfCannotUseAuthenticatedWebsocket(tb testing.TB, e exchange.IBotExchange) {
+	tb.Helper()
+
+	if !e.GetBase().Websocket.IsEnabled() {
+		tb.Skip(websocket.ErrWebsocketNotEnabled.Error())
+	}
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(tb, e)
+
+	if !e.GetBase().API.AuthenticatedWebsocketSupport {
+		tb.Skip("Authenticated websocket API support not enabled")
+	}
+}
+
 var (
 	setupWsMutex sync.Mutex
 	setupWsOnce  = make(map[exchange.IBotExchange]bool)
@@ -205,7 +222,7 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 
 	err = w.Connect(context.TODO())
 	require.NoError(tb, err, "Connect must not error")
-
+	w.DataHandler = stream.NewRelay(100000)
 	setupWsOnce[e] = true
 }
 
