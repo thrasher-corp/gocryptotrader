@@ -475,6 +475,10 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			}
 			p, err := e.MatchSymbolWithAvailablePairs(tick[x].Symbol, assetType, false)
 			if err != nil {
+				if errors.Is(err, currency.ErrPairNotFound) {
+					// Sometimes the exchange returns tickers for pairs that cannot be traded right now; we're electing to skip those
+					continue
+				}
 				return err
 			}
 			if err := ticker.ProcessTicker(&ticker.Price{

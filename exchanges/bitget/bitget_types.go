@@ -671,6 +671,15 @@ type OneSpotCandle struct {
 	USDTVolume  types.Number
 }
 
+// CallAuctionResponse contains information on a call auction
+type CallAuctionResponse struct {
+	Stage                 string       `json:"stage"`
+	StageEndTime          types.Time   `json:"stageEndTime"`
+	EstimatedOpeningPrice types.Number `json:"estOpeningPrice"`
+	MatchedVolume         types.Number `json:"matchedVolume"`
+	AuctionEndTime        types.Time   `json:"auctionEndTime"`
+}
+
 // OneFuturesCandle contains a single candle
 type OneFuturesCandle struct {
 	Timestamp   types.Time

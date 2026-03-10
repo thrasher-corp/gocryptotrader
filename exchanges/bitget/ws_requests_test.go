@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
@@ -60,7 +61,7 @@ func TestWebsocketSpotPlaceOrder(t *testing.T) {
 
 	e := newExchangeWithWebsocket(t, asset.Spot)
 
-	got, err := e.WebsocketSpotPlaceOrder(request.WithVerbose(t.Context()), &WebsocketSpotPlaceOrderRequest{
+	got, err := e.WebsocketSpotPlaceOrder(t.Context(), &WebsocketSpotPlaceOrderRequest{
 		Pair:        testPair,
 		OrderType:   "limit",
 		Side:        "buy",
@@ -134,7 +135,7 @@ func TestWebsocketFuturesPlaceOrder(t *testing.T) {
 
 	e := newExchangeWithWebsocket(t, asset.Futures)
 
-	_, err = e.WebsocketFuturesPlaceOrder(request.WithVerbose(t.Context()), &WebsocketFuturesOrderRequest{
+	_, err = e.WebsocketFuturesPlaceOrder(t.Context(), &WebsocketFuturesOrderRequest{
 		Contract: testPair, InstrumentType: "USDT-FUTURES", OrderType: "limit", Side: "buy", ContractSize: 1,
 		TimeInForce: "gtc", Price: 50, MarginCoin: currency.USDT, MarginMode: "isolated", TradeSide: "open",
 	})
@@ -152,7 +153,7 @@ func TestWebsocketSpotCancelOrder(t *testing.T) {
 
 	e := newExchangeWithWebsocket(t, asset.Spot)
 
-	got, err := e.WebsocketSpotCancelOrder(request.WithVerbose(t.Context()), testPair, "1376695893517410304", "")
+	got, err := e.WebsocketSpotCancelOrder(t.Context(), testPair, "1376695893517410304", "")
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
@@ -169,7 +170,7 @@ func TestWebsocketFuturesCancelOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	e := newExchangeWithWebsocket(t, asset.Futures)
-	_, err = e.WebsocketFuturesCancelOrder(request.WithVerbose(t.Context()), testPair, "USDT-FUTURES", "1376999173366317057", "")
+	_, err = e.WebsocketFuturesCancelOrder(t.Context(), testPair, "USDT-FUTURES", "1376999173366317057", "")
 	require.NoError(t, err)
 }
 
@@ -236,6 +237,7 @@ func newExchangeWithWebsocket(t *testing.T, a asset.Item) *Exchange {
 	e.API.AuthenticatedWebsocketSupport = true
 	e.SetCredentials(apiKey, apiSecret, clientID, "", "", "")
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	e.Features.Subscriptions = subscription.List{}
 
 	// Disable all other asset types to ensure only the specified asset type is used for websocket tests.
 	for _, enabled := range e.GetAssetTypes(true) {
@@ -244,6 +246,12 @@ func newExchangeWithWebsocket(t *testing.T, a asset.Item) *Exchange {
 		}
 	}
 
-	require.NoError(t, e.Websocket.Connect(t.Context()), "Test instance Websocket Connect must not error")
+	connectCtx := request.WithCallerName(t.Context(), t.Name())
+	require.NoError(t, e.Websocket.Connect(connectCtx), "Test instance Websocket Connect must not error")
+	t.Cleanup(func() {
+		if e.Websocket.IsConnected() {
+			require.NoError(t, e.Websocket.Shutdown(), "Test instance Websocket Shutdown must not error")
+		}
+	})
 	return e
 }

@@ -59,6 +59,7 @@ const (
 	bitgetMergeDepth               = "merge-depth"
 	bitgetOrderbook                = "orderbook"
 	bitgetCandles                  = "candles"
+	bitgetAuction                  = "auction"
 	bitgetHistoryCandles           = "history-candles"
 	bitgetFillsHistory             = "fills-history"
 	bitgetTicker                   = "ticker"
@@ -985,6 +986,9 @@ func (e *Exchange) GetSpotMergeDepth(ctx context.Context, pair currency.Pair, pr
 // GetOrderbookDepth returns the orderbook for a given trading pair, with options to merge orders of similar price levels together, and to change how many results are returned.
 func (e *Exchange) GetOrderbookDepth(ctx context.Context, pair currency.Pair, step string, limit uint8) (*OrderbookResp, error) {
 	vals := url.Values{}
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
 	vals.Set("symbol", pair.String())
 	if step != "" {
 		vals.Set("type", step)
@@ -1024,6 +1028,18 @@ func (e *Exchange) GetSpotCandlestickData(ctx context.Context, pair currency.Pai
 	}
 	var resp []OneSpotCandle
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, rate20, path, url.Values(params), &resp)
+}
+
+// GetCallAuctionInformation returns details on the call auction for a given trading pair
+func (e *Exchange) GetCallAuctionInformation(ctx context.Context, pair currency.Pair) (*CallAuctionResponse, error) {
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	vals := url.Values{}
+	vals.Set("symbol", pair.String())
+	path := bitgetSpot + bitgetMarket + bitgetAuction
+	var resp *CallAuctionResponse
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, rate20, path, vals, &resp)
 }
 
 // GetRecentSpotFills returns the most recent trades for a given pair

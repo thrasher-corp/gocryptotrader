@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -103,6 +104,7 @@ func TestMain(m *testing.M) {
 		e.API.AuthenticatedWebsocketSupport = true
 		e.SetCredentials(apiKey, apiSecret, clientID, "", "", "")
 	}
+	e.Websocket.DataHandler = stream.NewRelay(sharedtestvalues.WebsocketRelayBufferCapacity)
 	switch json.Implementation {
 	case "bytedance/sonic":
 		errUnmarshalArray = "mismatched type with"
@@ -695,6 +697,8 @@ func TestGetSpotMergeDepth(t *testing.T) {
 
 func TestGetOrderbookDepth(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetOrderbookDepth(t.Context(), currency.Pair{}, "", 0)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	resp, err := e.GetOrderbookDepth(t.Context(), testPair, "step0", 5)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
@@ -715,6 +719,11 @@ func TestGetSpotCandlestickData(t *testing.T) {
 	resp, err := e.GetSpotCandlestickData(t.Context(), testPair, "1min", time.Time{}, time.Now(), 5, true)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp)
+}
+
+func TestGetCallAuctionInformation(t *testing.T) {
+	t.Parallel()
+	testGetOneArg(t, e.GetCallAuctionInformation, currency.Pair{}, testPair, currency.ErrCurrencyPairEmpty, false, false, false)
 }
 
 func TestGetRecentSpotFills(t *testing.T) {
@@ -3571,7 +3580,7 @@ func testGetNoArgs[G getNoArgsResp](t *testing.T, f getNoArgsAssertNotEmpty[G]) 
 }
 
 type getOneArgResp interface {
-	[]WhaleNetFlowResp | *FundFlowResp | []WhaleFundFlowResp | *CrVirSubResp | []GetAPIKeyResp | []FundingAssetsResp | []BotAccAssetsResp | []ConvertBGBResp | []CoinInfoResp | []SymbolInfoResp | []TickerResp | string | *SubOrderResp | *BatchOrderResp | bool | *InterestRateResp | []FutureTickerResp | []FutureAccDetails | []SubaccountFuturesResp | []CrossAssetResp | *MaxBorrowCross | *MaxTransferCross | []IntRateMaxBorrowCross | []TierConfigCross | *FlashRepayCross | []IsoAssetResp | []IntRateMaxBorrowIso | []TierConfigIso | *MaxBorrowIso | *MaxTransferIso | []FlashRepayIso | []EarnAssets | *LoanCurList | currency.Pairs | time.Time | []futures.Contract | []fundingrate.LatestRateResponse | []string | *margin.RateHistoryResponse | *fundingrate.HistoricalRates | []futures.PositionResponse | *withdraw.ExchangeResponse | collateral.Mode | *margin.PositionChangeResponse | *LoanInfo | *MarginCoinRatio | *SpotSymbols
+	[]WhaleNetFlowResp | *FundFlowResp | []WhaleFundFlowResp | *CrVirSubResp | []GetAPIKeyResp | []FundingAssetsResp | []BotAccAssetsResp | []ConvertBGBResp | []CoinInfoResp | []SymbolInfoResp | []TickerResp | string | *SubOrderResp | *BatchOrderResp | bool | *InterestRateResp | []FutureTickerResp | []FutureAccDetails | []SubaccountFuturesResp | []CrossAssetResp | *MaxBorrowCross | *MaxTransferCross | []IntRateMaxBorrowCross | []TierConfigCross | *FlashRepayCross | []IsoAssetResp | []IntRateMaxBorrowIso | []TierConfigIso | *MaxBorrowIso | *MaxTransferIso | []FlashRepayIso | []EarnAssets | *LoanCurList | currency.Pairs | time.Time | []futures.Contract | []fundingrate.LatestRateResponse | []string | *margin.RateHistoryResponse | *fundingrate.HistoricalRates | []futures.PositionResponse | *withdraw.ExchangeResponse | collateral.Mode | *margin.PositionChangeResponse | *LoanInfo | *MarginCoinRatio | *SpotSymbols | *CallAuctionResponse
 }
 
 type getOneArgParam interface {
