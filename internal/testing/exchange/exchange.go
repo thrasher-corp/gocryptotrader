@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -169,6 +170,22 @@ func FixtureToDataHandlerWithErrors(tb testing.TB, fixturePath string, reader fu
 	}
 	assert.NoError(tb, s.Err(), "Fixture Scanner should not error")
 	return errs
+}
+
+// SkipTestIfCannotUseAuthenticatedWebsocket checks the common requirements for
+// authenticated websocket tests.
+func SkipTestIfCannotUseAuthenticatedWebsocket(tb testing.TB, e exchange.IBotExchange) {
+	tb.Helper()
+
+	if !e.GetBase().Websocket.IsEnabled() {
+		tb.Skip(websocket.ErrWebsocketNotEnabled.Error())
+	}
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(tb, e)
+
+	if !e.GetBase().API.AuthenticatedWebsocketSupport {
+		tb.Skip("Authenticated websocket API support not enabled")
+	}
 }
 
 var (

@@ -1073,6 +1073,41 @@ func TestWsCandlesSub(t *testing.T) {
 	assert.ErrorContains(t, err, "Subscription ohlc interval not supported", "Bad subscription should error about interval")
 }
 
+func TestWsProcessCandleIntervalMapping(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup Instance must not error")
+
+	err := ex.wsProcessCandle(t.Context(),
+		"ohlc-5",
+		json.RawMessage(`[1542057314,1542057360,3586.7,3586.7,3586.6,3586.6,3586.68,0.03373,2]`),
+		currency.NewPairWithDelimiter("XBT", "USD", "/"))
+	require.NoError(t, err)
+
+	select {
+	case msg := <-ex.Websocket.DataHandler.C:
+		got, ok := msg.Data.(kline.Item)
+		require.True(t, ok, "expected kline item")
+		assert.Equal(t, kline.Item{
+			Asset:    asset.Spot,
+			Pair:     currency.NewPairWithDelimiter("XBT", "USD", "/"),
+			Exchange: ex.Name,
+			Interval: kline.FiveMin,
+			Candles: []kline.Candle{{
+				Time:        time.Unix(1542057314, 0),
+				Open:        3586.7,
+				High:        3586.7,
+				Low:         3586.6,
+				Close:       3586.6,
+				Volume:      0.03373,
+				QuoteVolume: 120.97871640000001,
+			}},
+		}, got)
+	default:
+		require.Fail(t, "expected websocket candle payload")
+	}
+}
+
 // TestWsOwnTradesSub tests the authenticated WS subscription channel for trades
 func TestWsOwnTradesSub(t *testing.T) {
 	t.Parallel()

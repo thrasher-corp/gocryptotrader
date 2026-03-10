@@ -14,7 +14,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -427,9 +426,7 @@ func setupWsAuth(t *testing.T) {
 	if wsSetupRan {
 		return
 	}
-	if !e.Websocket.IsEnabled() && !e.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(e) {
-		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
-	}
+	testexch.SkipTestIfCannotUseAuthenticatedWebsocket(t, e)
 
 	var dialer gws.Dialer
 	err := e.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{}, nil)
@@ -919,6 +916,105 @@ func TestWsTrades(t *testing.T) {
 	err = e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestWsCandles(t *testing.T) {
+	t.Parallel()
+
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "Test instance Setup must not error")
+
+	pressXToJSON := []byte(`{
+  "jsonrpc": "2.0",
+  "method": "snapshotCandles",
+  "params": {
+    "symbol": "BTCUSD",
+    "period": "M30",
+    "data": [
+      {
+        "timestamp": "2017-10-19T16:30:00.000Z",
+        "open": "0.054614",
+        "close": "0.054465",
+        "min": "0.054339",
+        "max": "0.054724",
+        "volume": "141.268",
+        "volumeQuote": "7.70935"
+      }
+    ]
+  }
+}`)
+	err := h.wsHandleData(t.Context(), pressXToJSON)
+	require.NoError(t, err)
+
+	select {
+	case msg := <-h.Websocket.DataHandler.C:
+		klineData, ok := msg.Data.(kline.Item)
+		require.True(t, ok, "Expected kline data payload")
+		exp := kline.Item{
+			Exchange: h.Name,
+			Asset:    asset.Spot,
+			Pair:     currency.NewPairWithDelimiter("BTC", "USD", "-"),
+			Interval: kline.ThirtyMin,
+			Candles: []kline.Candle{{
+				Time:   time.Date(2017, time.October, 19, 16, 30, 0, 0, time.UTC),
+				Open:   0.054614,
+				Close:  0.054465,
+				High:   0.054724,
+				Low:    0.054339,
+				Volume: 141.268,
+			}},
+		}
+		assert.Equal(t, exp, klineData, "Kline payload should match expected struct")
+	default:
+		require.Fail(t, "Expected websocket kline payload to be emitted")
+	}
+
+	pressXToJSON = []byte(`{
+  "jsonrpc": "2.0",
+  "method": "updateCandles",
+  "params": {
+    "symbol": "BTCUSD",
+    "period": "M30",
+    "data": [
+      {
+        "timestamp": "2017-10-19T17:00:00.000Z",
+        "open": "0.054465",
+        "close": "0.054500",
+        "min": "0.054400",
+        "max": "0.054520",
+        "volume": "42.100",
+        "volumeQuote": "2.29345"
+      }
+    ]
+  }
+}`)
+	err = h.wsHandleData(t.Context(), pressXToJSON)
+	require.NoError(t, err)
+}
+
+func TestCandlePeriodToInterval(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		period   string
+		expected kline.Interval
+		hasErr   bool
+	}{
+		{period: "M1", expected: kline.OneMin},
+		{period: "M30", expected: kline.ThirtyMin},
+		{period: "H4", expected: kline.FourHour},
+		{period: "D7", expected: kline.OneWeek},
+		{period: "1M", expected: kline.OneMonth},
+		{period: "bad", hasErr: true},
+	}
+	for _, tt := range tests {
+		got, err := candlePeriodToInterval(tt.period)
+		if tt.hasErr {
+			require.ErrorIs(t, err, kline.ErrInvalidInterval)
+			continue
+		}
+		require.NoError(t, err)
+		assert.Equal(t, tt.expected, got)
 	}
 }
 

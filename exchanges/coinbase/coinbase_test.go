@@ -1509,9 +1509,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 // TestWsAuth dials websocket, sends login request.
 func TestWsAuth(t *testing.T) {
 	p := currency.Pairs{testPairFiat}
-	if e.Websocket.IsEnabled() && !e.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(e) {
-		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
-	}
+	testexch.SkipTestIfCannotUseAuthenticatedWebsocket(t, e)
 	var dialer gws.Dialer
 	err := e.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{}, nil)
 	require.NoError(t, err)
@@ -1610,6 +1608,40 @@ func TestWsHandleData(t *testing.T) {
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "ticker", "events": [{"type": "moo", "tickers": [{"product_id": "BTC-USD", "price": "1.1"}]}]}`)
 	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.NoError(t, err)
+}
+
+func TestWsProcessCandleIntervalMapping(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup instance must not error")
+
+	resp := &StandardWebsocketResponse{
+		Channel: "candles",
+		Events:  json.RawMessage(`[{"type":"snapshot","candles":[{"start":1704067200,"low":"99.5","high":"101.0","open":"100.0","close":"100.5","volume":"12.3","product_id":"BTC-USD"}]}]`),
+	}
+	require.NoError(t, ex.wsProcessCandle(t.Context(), resp))
+
+	select {
+	case msg := <-ex.Websocket.DataHandler.C:
+		got, ok := msg.Data.([]kline.Item)
+		require.True(t, ok, "expected []kline.Item")
+		assert.Equal(t, []kline.Item{{
+			Pair:     currency.NewPairWithDelimiter("BTC", "USD", "-"),
+			Asset:    asset.Spot,
+			Exchange: ex.Name,
+			Interval: kline.FiveMin,
+			Candles: []kline.Candle{{
+				Time:   time.Unix(1704067200, 0),
+				Open:   100,
+				Close:  100.5,
+				High:   101,
+				Low:    99.5,
+				Volume: 12.3,
+			}},
+		}}, got)
+	default:
+		require.Fail(t, "expected websocket candle payload")
+	}
 }
 
 func TestProcessSnapshotUpdate(t *testing.T) {

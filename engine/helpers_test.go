@@ -1036,17 +1036,30 @@ func TestNewExchangeByNameWithDefaults(t *testing.T) {
 	}
 }
 
+func TestResolvePPROFListenAddress(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, defaultPPROFListenAddress, resolvePPROFListenAddress(""), "Empty listen address should default to localhost:8085")
+	assert.Equal(t, "127.0.0.1:0", resolvePPROFListenAddress("127.0.0.1:0"), "Explicit listen address should be preserved")
+}
+
 func TestStartPPROF(t *testing.T) {
 	t.Parallel()
 	assert.NoError(t, StartPPROF(t.Context(), &config.Profiler{Enabled: false}), "StartPPROF with a disabled config should not error")
+	var listenCfg net.ListenConfig
+	freeAddr, err := listenCfg.Listen(t.Context(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err, "Finding a free port must not error")
+	listenAddr := freeAddr.Addr().String()
+	require.NoError(t, freeAddr.Close(), "Releasing temporary listener must not error")
+
 	pprofConfig := &config.Profiler{
 		Enabled:              true,
-		ListenAddress:        "",
+		ListenAddress:        listenAddr,
 		MutexProfileFraction: 1,
 		BlockProfileRate:     1,
 	}
 	require.NoError(t, StartPPROF(t.Context(), pprofConfig), "StartPPROF with a valid config must not error")
-	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://localhost:8085/debug/pprof/mutex", http.NoBody)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://"+listenAddr+"/debug/pprof/mutex", http.NoBody)
 	require.NoError(t, err, "NewRequestWithContext must not error")
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err, "Do must not error")
