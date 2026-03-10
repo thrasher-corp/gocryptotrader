@@ -191,9 +191,8 @@ type Modify struct {
 	// https://bybit-exchange.github.io/docs/v5/order/create-order
 	TriggerPriceType PriceType
 
-	StopLoss            RiskManagement
-	TakeProfit          RiskManagement
-	RiskManagementModes RiskManagementModes
+	StopLoss   RiskManagement
+	TakeProfit RiskManagement
 
 	// SlippageTolerance used to control the maximum slippage ratio, the value range is greater than 0 and less than 1
 	// https://api-docs.poloniex.com/spot/api/private/order
