@@ -392,25 +392,24 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset
 	return orderbook.Get(e.Name, p, a)
 }
 
+// KuCoin's rounded books can emit adjacent levels that collapse to the same
+// price, so we consolidate them before loading the local book to avoid
+// duplicate-price levels downstream.
 func mergeRoundedOrderbookLevels(levels []orderbook.Level) []orderbook.Level {
 	if len(levels) < 2 {
 		return levels
 	}
 
-	merged := make([]orderbook.Level, 0, len(levels))
-	for i := range levels {
-		if len(merged) == 0 {
-			merged = append(merged, levels[i])
+	writeIndex := 1
+	for i := 1; i < len(levels); i++ {
+		if levels[writeIndex-1].Price == levels[i].Price {
+			levels[writeIndex-1].Amount += levels[i].Amount
 			continue
 		}
-
-		if merged[len(merged)-1].Price == levels[i].Price {
-			merged[len(merged)-1].Amount += levels[i].Amount
-			continue
-		}
-		merged = append(merged, levels[i])
+		levels[writeIndex] = levels[i]
+		writeIndex++
 	}
-	return merged
+	return levels[:writeIndex]
 }
 
 // UpdateAccountBalances retrieves currency balances

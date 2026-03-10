@@ -879,8 +879,8 @@ func (m *Manager) GetWebsocketURL() string {
 
 // GetConfiguredWebsocketURLs returns known websocket connection URLs.
 func (m *Manager) GetConfiguredWebsocketURLs() ([]string, error) {
-	if m == nil {
-		return nil, fmt.Errorf("%w: Manager", common.ErrNilPointer)
+	if err := common.NilGuard(m); err != nil {
+		return nil, err
 	}
 
 	m.m.Lock()
