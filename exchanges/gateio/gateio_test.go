@@ -445,8 +445,13 @@ func TestCancelPriceTriggeredOrder(t *testing.T) {
 func TestGetMarginAccountList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.GetMarginAccountList(t.Context(), currency.EMPTYPAIR); err != nil {
-		t.Errorf("%s GetMarginAccountList() error %v", e.Name, err)
+	result, err := e.GetMarginAccountList(t.Context(), currency.EMPTYPAIR)
+	require.NoError(t, err, "GetMarginAccountList should not error")
+	for i := range result {
+		assert.NotEmpty(t, result[i].CurrencyPair, "CurrencyPair should not be empty")
+		// AccountType is a new field from GET /margin/user/account; valid values are
+		// "risk", "mmr", or "inactive".
+		assert.NotEmpty(t, result[i].AccountType, "AccountType should not be empty")
 	}
 }
 
@@ -545,6 +550,49 @@ func TestRepayALoan(t *testing.T) {
 	}); err != nil {
 		t.Errorf("%s RepayALoan() error %v", e.Name, err)
 	}
+}
+
+func TestUniLoanBorrowOrRepay(t *testing.T) {
+	t.Parallel()
+	assert.ErrorIs(t, e.UniLoanBorrowOrRepay(t.Context(), nil), errNilArgument)
+	assert.ErrorIs(t, e.UniLoanBorrowOrRepay(t.Context(), &UniLoanBorrowRepayParam{
+		Currency: currency.BTC,
+		Type:     "borrow",
+		Amount:   1,
+	}), currency.ErrCurrencyPairEmpty)
+	assert.ErrorIs(t, e.UniLoanBorrowOrRepay(t.Context(), &UniLoanBorrowRepayParam{
+		CurrencyPair: currency.NewBTCUSDT(),
+		Type:         "borrow",
+		Amount:       1,
+	}), currency.ErrCurrencyCodeEmpty)
+	assert.ErrorContains(t, e.UniLoanBorrowOrRepay(t.Context(), &UniLoanBorrowRepayParam{
+		CurrencyPair: currency.NewBTCUSDT(),
+		Currency:     currency.BTC,
+		Type:         "invalid",
+		Amount:       1,
+	}), "invalid uni loan type")
+	assert.ErrorIs(t, e.UniLoanBorrowOrRepay(t.Context(), &UniLoanBorrowRepayParam{
+		CurrencyPair: currency.NewBTCUSDT(),
+		Currency:     currency.BTC,
+		Type:         "borrow",
+		Amount:       0,
+	}), errInvalidAmount)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	assert.NoError(t, e.UniLoanBorrowOrRepay(t.Context(), &UniLoanBorrowRepayParam{
+		CurrencyPair: currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter},
+		Currency:     currency.BTC,
+		Type:         "borrow",
+		Amount:       0.001,
+	}))
+}
+
+func TestGetUniLoanInterestRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	records, err := e.GetUniLoanInterestRecords(t.Context(), currency.NewBTCUSDT(), currency.BTC, 0, 0)
+	assert.NoError(t, err)
+	assert.NotNil(t, records)
 }
 
 func TestListLoanRepaymentRecords(t *testing.T) {
@@ -2537,8 +2585,6 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		t.Run(a.String(), func(t *testing.T) {
 			t.Parallel()
 			switch a {
-			case asset.CrossMargin, asset.Margin:
-				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), asset.ErrNotSupported)
 			default:
 				require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
 				pairs, err := e.GetAvailablePairs(a)
@@ -2564,7 +2610,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 							assert.Truef(t, l.Delisted.After(l.Delisting), "Delisted should be after Delisting for %s", p)
 						}
 						assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
-					case asset.Spot:
+					case asset.Spot, asset.Margin, asset.CrossMargin:
 						assert.Positivef(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive for %s", p)
 						assert.Positivef(t, l.QuoteStepIncrementSize, "QuoteStepIncrementSize should be positive for %s", p)
 						assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", p)

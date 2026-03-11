@@ -94,6 +94,9 @@ func TestMain(m *testing.M) {
 			log.Fatal(err)
 		}
 	})
+	sm.HandleFunc("/nocontent", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
 
 	server := httptest.NewServer(sm)
 	testURL = server.URL
@@ -305,6 +308,36 @@ func TestDoRequest(t *testing.T) {
 	}
 
 	require.NoError(t, ec.Collect(), "Collect must return no errors")
+}
+
+func TestDoRequest_NoContent(t *testing.T) {
+	t.Parallel()
+
+	r, err := New("test", new(http.Client), WithLimiter(globalshell))
+	require.NoError(t, err, "New requester must not error")
+
+	// 204 with a non-nil Result must not error and must leave Result as zero value
+	var resp struct {
+		Response bool `json:"response"`
+	}
+	err = r.SendPayload(t.Context(), UnAuth, func() (*Item, error) {
+		return &Item{
+			Method: http.MethodPost,
+			Path:   testURL + "/nocontent",
+			Result: &resp,
+		}, nil
+	}, UnauthenticatedRequest)
+	require.NoError(t, err, "SendPayload must not error on 204 No Content")
+	require.False(t, resp.Response, "Result must be unchanged (zero value) on empty body")
+
+	// 204 with a nil Result must also not error
+	err = r.SendPayload(t.Context(), UnAuth, func() (*Item, error) {
+		return &Item{
+			Method: http.MethodPost,
+			Path:   testURL + "/nocontent",
+		}, nil
+	}, UnauthenticatedRequest)
+	require.NoError(t, err, "SendPayload must not error on 204 No Content with nil Result")
 }
 
 func TestDoRequest_Retries(t *testing.T) {

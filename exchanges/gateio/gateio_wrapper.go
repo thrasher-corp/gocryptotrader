@@ -430,7 +430,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 		pairs := make([]currency.Pair, 0, len(tradables))
 		for x := range tradables {
-			if tradables[x].Status == 0 {
+			if tradables[x].Status == 0 || tradables[x].MinBaseAmount.Float64() == 0 { // Pairs with min_base_amount == 0 are effectively dead and skipped.
 				continue
 			}
 			pairs = append(pairs, tradables[x].ID)
@@ -1903,6 +1903,84 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				Delisted:                pairsData[i].DelistingTime.Time(),
 			})
 		}
+	case asset.Margin, asset.CrossMargin:
+		marginPairs, err := e.GetMarginSupportedCurrencyPairs(ctx)
+		if err != nil {
+			return err
+		}
+
+		// Build lookup of active margin-supported pairs with their limits.
+		// Pairs with min_base_amount == 0 are effectively dead and skipped.
+		type marginInfo struct {
+			pair     currency.Pair
+			minBase  float64
+			minQuote float64
+		}
+		supported := make(map[string]marginInfo, len(marginPairs))
+		for i := range marginPairs {
+			if marginPairs[i].Status == 0 || marginPairs[i].MinBaseAmount.Float64() == 0 {
+				continue
+			}
+			p := currency.NewPair(marginPairs[i].Base, marginPairs[i].Quote)
+			supported[p.String()] = marginInfo{
+				pair:     p,
+				minBase:  marginPairs[i].MinBaseAmount.Float64(),
+				minQuote: marginPairs[i].MinQuoteAmount.Float64(),
+			}
+		}
+
+		// Spot data provides precision and step size; filter to margin-supported pairs only.
+		// Note: we do NOT skip "untradable" spot pairs here because margin availability
+		// is determined by the margin API status, not the spot trade status.
+		pairsData, err := e.ListSpotCurrencyPairs(ctx)
+		if err != nil {
+			return err
+		}
+
+		l = make([]limits.MinMaxLevel, 0, len(supported))
+		for i := range pairsData {
+			p := currency.NewPair(pairsData[i].Base, pairsData[i].Quote)
+			pKey := p.String()
+			mInfo, ok := supported[pKey]
+			if !ok {
+				continue
+			}
+			delete(supported, pKey) // Track coverage; remainder handled below.
+
+			minBaseAmount := mInfo.minBase
+			if minBaseAmount == 0 {
+				minBaseAmount = pairsData[i].MinBaseAmount.Float64()
+				if minBaseAmount == 0 {
+					minBaseAmount = math.Pow10(-int(pairsData[i].AmountPrecision))
+				}
+			}
+
+			minQuoteAmount := mInfo.minQuote
+			if minQuoteAmount == 0 {
+				minQuoteAmount = pairsData[i].MinQuoteAmount.Float64()
+			}
+
+			l = append(l, limits.MinMaxLevel{
+				Key:                     key.NewExchangeAssetPair(e.Name, a, p),
+				QuoteStepIncrementSize:  math.Pow10(-int(pairsData[i].PricePrecision)),
+				AmountStepIncrementSize: math.Pow10(-int(pairsData[i].AmountPrecision)),
+				MinimumBaseAmount:       minBaseAmount,
+				MinimumQuoteAmount:      minQuoteAmount,
+				Delisted:                pairsData[i].DelistingTime.Time(),
+			})
+		}
+
+		// Any margin pairs that weren't found in spot data still need limits
+		// (e.g. pairs only listable on margin). Use margin data with defaults.
+		for _, mInfo := range supported {
+			l = append(l, limits.MinMaxLevel{
+				Key:                     key.NewExchangeAssetPair(e.Name, a, mInfo.pair),
+				AmountStepIncrementSize: 1,
+				QuoteStepIncrementSize:  1,
+				MinimumBaseAmount:       mInfo.minBase,
+				MinimumQuoteAmount:      mInfo.minQuote,
+			})
+		}
 	case asset.USDTMarginedFutures, asset.CoinMarginedFutures:
 		settlement := currency.USDT
 		if a == asset.CoinMarginedFutures {
@@ -2343,7 +2421,7 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	}
 
 	switch s.AssetType {
-	case asset.Spot:
+	case asset.Spot, asset.Margin, asset.CrossMargin:
 		req, err := e.getSpotOrderRequest(s)
 		if err != nil {
 			return nil, err
@@ -2617,6 +2695,8 @@ func (e *Exchange) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequest, er
 		CurrencyPair: s.Pair,
 		Text:         s.ClientOrderID,
 		TimeInForce:  tif,
+		AutoBorrow:   s.AutoBorrow,
+		AutoRepay:    s.AutoRepay,
 	}, nil
 }
 
