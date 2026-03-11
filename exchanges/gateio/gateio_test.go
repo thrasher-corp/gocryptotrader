@@ -3818,3 +3818,31 @@ func TestGetCurrentMarginRates(t *testing.T) {
 		assert.False(t, rates[0].TimeChecked.IsZero())
 	})
 }
+
+func TestGetMarginRatesHistory(t *testing.T) {
+	t.Parallel()
+
+	_, err := e.GetMarginRatesHistory(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
+		Asset:    asset.Spot,
+		Currency: currency.USDT,
+	})
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
+		Asset: asset.Margin,
+	})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	pair := getPair(t, asset.Margin)
+	resp, err := e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
+		Asset:    asset.Margin,
+		Currency: pair.Base,
+		Pair:     pair,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+}

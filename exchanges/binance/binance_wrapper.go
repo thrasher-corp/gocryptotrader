@@ -2293,6 +2293,70 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, req *margin.Positio
 	}, nil
 }
 
+// GetCurrentMarginRates retrieves the latest margin borrow rates.
+func (e *Exchange) GetCurrentMarginRates(ctx context.Context, req *margin.CurrentRatesRequest) ([]margin.CurrentRateResponse, error) {
+	if err := common.NilGuard(req); err != nil {
+		return nil, err
+	}
+	if req.Asset != asset.Margin {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
+	}
+	pairs := req.Pairs
+	if len(pairs) == 0 {
+		var err error
+		pairs, err = e.GetEnabledPairs(req.Asset)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(pairs) == 0 {
+		return nil, currency.ErrCurrencyPairsEmpty
+	}
+
+	const hoursPerDay = int64(24)
+	const daysPerYear = int64(365)
+	yearlyRateMultiplier := decimal.NewFromInt(hoursPerDay * daysPerYear)
+	timeChecked := time.Now().UTC()
+	cache := make(map[string]margin.Rate, len(pairs))
+	resp := make([]margin.CurrentRateResponse, len(pairs))
+	for i := range pairs {
+		if pairs[i].IsEmpty() {
+			return nil, currency.ErrCurrencyPairEmpty
+		}
+	}
+	if !e.IsRESTAuthenticationSupported() {
+		return nil, exchange.ErrAuthenticationSupportNotEnabled
+	}
+	for i := range pairs {
+		key := pairs[i].String()
+		rate, ok := cache[key]
+		if !ok {
+			history, err := e.GetUserMarginInterestHistory(ctx, pairs[i].Base, pairs[i], time.Time{}, time.Time{}, 1, 1, false)
+			if err != nil {
+				return nil, err
+			}
+			if len(history.Rows) == 0 {
+				return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotFound, pairs[i].Base)
+			}
+			hourlyRate := decimal.NewFromFloat(history.Rows[0].InterestRate)
+			rate = margin.Rate{
+				Time:             history.Rows[0].InterestAccruedTime.Time(),
+				HourlyBorrowRate: hourlyRate,
+				YearlyBorrowRate: hourlyRate.Mul(yearlyRateMultiplier),
+			}
+			cache[key] = rate
+		}
+		resp[i] = margin.CurrentRateResponse{
+			Exchange:    e.Name,
+			Asset:       req.Asset,
+			Pair:        pairs[i],
+			CurrentRate: &rate,
+			TimeChecked: timeChecked,
+		}
+	}
+	return resp, nil
+}
+
 // GetMarginRatesHistory retrieves margin borrow rates and borrow costs.
 func (e *Exchange) GetMarginRatesHistory(ctx context.Context, req *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
 	if req == nil {
@@ -2309,39 +2373,50 @@ func (e *Exchange) GetMarginRatesHistory(ctx context.Context, req *margin.RateHi
 			return nil, err
 		}
 	}
+	if !e.IsRESTAuthenticationSupported() {
+		return nil, exchange.ErrAuthenticationSupportNotEnabled
+	}
 
 	const pageSize = int64(100)
 	const hoursPerDay = int64(24)
 	const daysPerYear = int64(365)
 	yearlyRateMultiplier := decimal.NewFromInt(hoursPerDay * daysPerYear)
-	page := int64(1)
 	rates := make([]margin.Rate, 0, pageSize)
-	for {
-		history, err := e.GetUserMarginInterestHistory(ctx, req.Currency, req.Pair, req.StartDate, req.EndDate, page, pageSize, false)
-		if err != nil {
-			return nil, err
-		}
-
-		for i := range history.Rows {
-			hourlyRate := decimal.NewFromFloat(history.Rows[i].InterestRate)
-			mr := margin.Rate{
-				Time:       history.Rows[i].InterestAccruedTime.Time(),
-				HourlyRate: hourlyRate,
-				YearlyRate: hourlyRate.Mul(yearlyRateMultiplier),
+	seenRows := make(map[string]struct{})
+	for _, archived := range []bool{false, true} {
+		page := int64(1)
+		var loaded int64
+		for {
+			history, err := e.GetUserMarginInterestHistory(ctx, req.Currency, req.Pair, req.StartDate, req.EndDate, page, pageSize, archived)
+			if err != nil {
+				return nil, err
 			}
-			if req.GetBorrowCosts {
-				mr.BorrowCost = margin.BorrowCost{
-					Cost: decimal.NewFromFloat(history.Rows[i].Interest),
-					Size: decimal.NewFromFloat(history.Rows[i].Principal),
+
+			for i := range history.Rows {
+				rowKey := fmt.Sprintf("%d:%s:%s", history.Rows[i].TxID, history.Rows[i].Asset, history.Rows[i].InterestAccruedTime.Time().UTC())
+				if _, ok := seenRows[rowKey]; ok {
+					continue
 				}
+				seenRows[rowKey] = struct{}{}
+				hourlyRate := decimal.NewFromFloat(history.Rows[i].InterestRate)
+				mr := margin.Rate{
+					Time:             history.Rows[i].InterestAccruedTime.Time(),
+					HourlyBorrowRate: hourlyRate,
+					YearlyBorrowRate: hourlyRate.Mul(yearlyRateMultiplier),
+					BorrowCost: margin.BorrowCost{
+						Cost: decimal.NewFromFloat(history.Rows[i].Interest),
+						Size: decimal.NewFromFloat(history.Rows[i].Principal),
+					},
+				}
+				rates = append(rates, mr)
 			}
-			rates = append(rates, mr)
-		}
 
-		if len(history.Rows) < int(pageSize) || history.Total <= int64(len(rates)) {
-			break
+			loaded += int64(len(history.Rows))
+			if len(history.Rows) < int(pageSize) || history.Total <= loaded {
+				break
+			}
+			page++
 		}
-		page++
 	}
 
 	sort.Slice(rates, func(i, j int) bool {
@@ -2350,14 +2425,12 @@ func (e *Exchange) GetMarginRatesHistory(ctx context.Context, req *margin.RateHi
 	resp := &margin.RateHistoryResponse{
 		Rates: rates,
 	}
-	if req.GetBorrowCosts {
-		for i := range rates {
-			resp.SumBorrowCosts = resp.SumBorrowCosts.Add(rates[i].BorrowCost.Cost)
-			resp.AverageBorrowSize = resp.AverageBorrowSize.Add(rates[i].BorrowCost.Size)
-		}
-		if len(rates) > 0 {
-			resp.AverageBorrowSize = resp.AverageBorrowSize.Div(decimal.NewFromInt(int64(len(rates))))
-		}
+	for i := range rates {
+		resp.SumBorrowCosts = resp.SumBorrowCosts.Add(rates[i].BorrowCost.Cost)
+		resp.AverageBorrowSize = resp.AverageBorrowSize.Add(rates[i].BorrowCost.Size)
+	}
+	if len(rates) > 0 {
+		resp.AverageBorrowSize = resp.AverageBorrowSize.Div(decimal.NewFromInt(int64(len(rates))))
 	}
 	return resp, nil
 }

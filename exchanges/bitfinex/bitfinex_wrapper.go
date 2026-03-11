@@ -517,42 +517,69 @@ func (e *Exchange) GetMarginRatesHistory(ctx context.Context, req *margin.RateHi
 	if req.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if req.GetBorrowCosts {
-		return nil, fmt.Errorf("%w GetBorrowCosts", common.ErrFunctionNotSupported)
-	}
 	if !req.StartDate.IsZero() && !req.EndDate.IsZero() {
 		if err := common.StartEndTimeCheck(req.StartDate, req.EndDate); err != nil {
 			return nil, err
 		}
 	}
-	params := url.Values{}
-	if !req.StartDate.IsZero() {
-		params.Set("start", strconv.FormatInt(req.StartDate.Unix(), 10))
-	}
-	if !req.EndDate.IsZero() {
-		params.Set("end", strconv.FormatInt(req.EndDate.Unix(), 10))
-	}
-	lends, err := e.GetLends(ctx, req.Currency.String(), params)
-	if err != nil {
-		return nil, err
+	const pageSize = 250
+	cursorEnd := req.EndDate
+	if cursorEnd.IsZero() {
+		cursorEnd = time.Now().UTC()
 	}
 	resp := &margin.RateHistoryResponse{
-		Rates: make([]margin.Rate, 0, len(lends)),
+		Rates: make([]margin.Rate, 0, pageSize),
 	}
-	for i := range lends {
-		t := lends[i].Timestamp.Time()
-		if !req.StartDate.IsZero() && t.Before(req.StartDate) {
-			continue
+	seen := make(map[string]struct{})
+	for {
+		params := url.Values{}
+		params.Set("limit", strconv.Itoa(pageSize))
+		params.Set("end", strconv.FormatInt(cursorEnd.Unix(), 10))
+		if !req.StartDate.IsZero() {
+			params.Set("start", strconv.FormatInt(req.StartDate.Unix(), 10))
 		}
-		if !req.EndDate.IsZero() && t.After(req.EndDate) {
-			continue
+		lends, err := e.GetLends(ctx, req.Currency.String(), params)
+		if err != nil {
+			return nil, err
 		}
-		yearlyRate := decimal.NewFromFloat(lends[i].Rate)
-		resp.Rates = append(resp.Rates, margin.Rate{
-			Time:       t,
-			HourlyRate: yearlyRate.Div(decimal.NewFromInt(24 * 365)),
-			YearlyRate: yearlyRate,
-		})
+		if len(lends) == 0 {
+			break
+		}
+		oldest := lends[0].Timestamp.Time()
+		for i := range lends {
+			t := lends[i].Timestamp.Time()
+			if t.Before(oldest) {
+				oldest = t
+			}
+			if !req.StartDate.IsZero() && t.Before(req.StartDate) {
+				continue
+			}
+			if !req.EndDate.IsZero() && t.After(req.EndDate) {
+				continue
+			}
+			rowKey := fmt.Sprintf("%s:%f:%f", t.UTC(), lends[i].Rate, lends[i].AmountLent)
+			if _, ok := seen[rowKey]; ok {
+				continue
+			}
+			seen[rowKey] = struct{}{}
+			yearlyRate := decimal.NewFromFloat(lends[i].Rate)
+			resp.Rates = append(resp.Rates, margin.Rate{
+				Time:       t,
+				HourlyRate: yearlyRate.Div(decimal.NewFromInt(24 * 365)),
+				YearlyRate: yearlyRate,
+			})
+		}
+		if len(lends) < pageSize || oldest.IsZero() {
+			break
+		}
+		if !req.StartDate.IsZero() && !oldest.After(req.StartDate) {
+			break
+		}
+		nextCursor := oldest.Add(-time.Second)
+		if !nextCursor.Before(cursorEnd) {
+			break
+		}
+		cursorEnd = nextCursor
 	}
 	sort.Slice(resp.Rates, func(i, j int) bool {
 		return resp.Rates[i].Time.Before(resp.Rates[j].Time)

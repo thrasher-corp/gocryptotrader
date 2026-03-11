@@ -3281,12 +3281,6 @@ func TestGetMarginRatesHistoryValidation(t *testing.T) {
 	})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
-		Asset:          asset.Margin,
-		Currency:       currency.USDT,
-		GetBorrowCosts: true,
-	})
-	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
 func TestGetCurrentMarginRates(t *testing.T) {

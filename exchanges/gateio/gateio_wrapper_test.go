@@ -103,8 +103,13 @@ func TestFetchOrderbook(t *testing.T) {
 	availMargin, err := e.GetAvailablePairs(asset.Margin)
 	require.NoError(t, err, "GetAvailablePairs must not error")
 
-	marginPairNotInSpot, err := availMargin.Remove(availSpot...).GetRandomPair()
-	require.NoError(t, err, "GetRandomPair must not error")
+	marginPairNotInSpot := currency.EMPTYPAIR
+	marginOnlyPairs := availMargin.Remove(availSpot...)
+	if len(marginOnlyPairs) > 0 {
+		var err error
+		marginPairNotInSpot, err = marginOnlyPairs.GetRandomPair()
+		require.NoError(t, err, "GetRandomPair must not error")
+	}
 
 	availOptions, err := e.GetAvailablePairs(asset.Options)
 	require.NoError(t, err, "GetAvailablePairs must not error")
@@ -118,19 +123,32 @@ func TestFetchOrderbook(t *testing.T) {
 	deliveryPair, err := availDelivery.GetRandomPair()
 	require.NoError(t, err, "GetRandomPair must not error")
 
-	for _, tc := range []struct {
+	testCases := []struct {
 		pair currency.Pair
 		a    asset.Item
 		err  error
 	}{
 		{pair: currency.EMPTYPAIR, a: asset.Spot, err: currency.ErrCurrencyPairEmpty},
-		{pair: marginPairNotInSpot, a: asset.Margin, err: errNoSpotInstrument},
-		{pair: marginPairNotInSpot, a: asset.Binary, err: asset.ErrNotSupported},
 		{pair: currency.NewBTCUSDT(), a: asset.Spot},
 		{pair: currency.NewBTCUSDT(), a: asset.USDTMarginedFutures},
 		{pair: deliveryPair, a: asset.DeliveryFutures},
 		{pair: optionsPair, a: asset.Options},
-	} {
+	}
+	if !marginPairNotInSpot.IsEmpty() {
+		testCases = append(testCases,
+			struct {
+				pair currency.Pair
+				a    asset.Item
+				err  error
+			}{pair: marginPairNotInSpot, a: asset.Margin, err: errNoSpotInstrument},
+			struct {
+				pair currency.Pair
+				a    asset.Item
+				err  error
+			}{pair: marginPairNotInSpot, a: asset.Binary, err: asset.ErrNotSupported},
+		)
+	}
+	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%s-%s: expected err:%v", tc.pair, tc.a, tc.err), func(t *testing.T) {
 			t.Parallel()
 			got, err := e.fetchOrderbook(t.Context(), tc.pair, tc.a, 1)

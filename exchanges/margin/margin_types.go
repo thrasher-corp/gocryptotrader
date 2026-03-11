@@ -29,6 +29,8 @@ type RateHistoryRequest struct {
 	StartDate time.Time
 	EndDate   time.Time
 
+	// TODO: Deprecate GetBorrowCosts. Wrappers should always populate borrow
+	// costs when the exchange provides authoritative cost data.
 	GetBorrowCosts bool
 	// CalculateOffline allows for the borrow rate and borrow costs to be
 	// calculated offline. It requires the taker fee rate and existing rates.

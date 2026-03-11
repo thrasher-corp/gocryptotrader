@@ -2472,6 +2472,9 @@ func (e *Exchange) GetCurrentMarginRates(ctx context.Context, req *margin.Curren
 			return nil, err
 		}
 	}
+	if len(pairs) == 0 {
+		return nil, currency.ErrCurrencyPairsEmpty
+	}
 
 	timeChecked := time.Now().UTC()
 	publicRates, err := e.GetInterestRateAndLoanQuota(ctx)
@@ -2481,13 +2484,33 @@ func (e *Exchange) GetCurrentMarginRates(ctx context.Context, req *margin.Curren
 	ratesByCurrency := make(map[currency.Code]types.Number)
 	for i := range publicRates {
 		for j := range publicRates[i].Basic {
-			ratesByCurrency[publicRates[i].Basic[j].Currency] = publicRates[i].Basic[j].InterestRate
+			ratesByCurrency[publicRates[i].Basic[j].Currency.Upper()] = publicRates[i].Basic[j].InterestRate
+		}
+	}
+	borrowRatesByCurrency := make(map[currency.Code]types.Number)
+	if !e.IsRESTAuthenticationSupported() {
+		// Borrow interest endpoint is authenticated; keep returning public
+		// market rates when credentials are unavailable.
+	} else {
+		borrowRates, err := e.GetInterestRate(ctx, currency.EMPTYCODE)
+		if err != nil {
+			return nil, err
+		}
+		for i := range borrowRates {
+			ccy := currency.NewCode(borrowRates[i].Currency).Upper()
+			borrowRatesByCurrency[ccy] = borrowRates[i].InterestRate
 		}
 	}
 
 	resp := make([]margin.CurrentRateResponse, len(pairs))
 	for i := range pairs {
-		interestRate, ok := ratesByCurrency[pairs[i].Base]
+		if pairs[i].IsEmpty() {
+			return nil, currency.ErrCurrencyPairEmpty
+		}
+		if pairs[i].Base.IsEmpty() {
+			return nil, currency.ErrCurrencyCodeEmpty
+		}
+		interestRate, ok := ratesByCurrency[pairs[i].Base.Upper()]
 		if !ok {
 			return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotFound, pairs[i].Base)
 		}
@@ -2496,6 +2519,11 @@ func (e *Exchange) GetCurrentMarginRates(ctx context.Context, req *margin.Curren
 			Time:       timeChecked,
 			HourlyRate: hourlyRate,
 			YearlyRate: hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
+		}
+		if borrowRate, ok := borrowRatesByCurrency[pairs[i].Base.Upper()]; ok {
+			hourlyBorrowRate := decimal.NewFromFloat(borrowRate.Float64())
+			rate.HourlyBorrowRate = hourlyBorrowRate
+			rate.YearlyBorrowRate = hourlyBorrowRate.Mul(decimal.NewFromInt(24 * 365))
 		}
 		resp[i] = margin.CurrentRateResponse{
 			Exchange:    e.Name,
@@ -2524,78 +2552,128 @@ func (e *Exchange) GetMarginRatesHistory(ctx context.Context, req *margin.RateHi
 			return nil, err
 		}
 	}
-
 	resp := &margin.RateHistoryResponse{}
-	// Prefer unauthenticated public borrow history when borrow costs are not requested.
-	// This allows history backfills to run without API credentials.
-	if !req.GetBorrowCosts {
+	// Prefer unauthenticated public borrow history when authenticated
+	// credentials are unavailable.
+	if !e.IsRESTAuthenticationSupported() {
 		start := req.StartDate
 		end := req.EndDate
 		if end.IsZero() {
 			end = time.Now().UTC()
 		}
-		if start.IsZero() {
-			start = end.Add(-90 * 24 * time.Hour)
-		}
-		const (
-			window = 72 * time.Hour
-			limit  = int64(100)
-		)
+		const limit = int64(100)
 		cursor := end
 		resp.Rates = make([]margin.Rate, 0, 1024)
-		for cursor.After(start) {
-			chunkStart := cursor.Add(-window)
-			if chunkStart.Before(start) {
-				chunkStart = start
-			}
-			history, err := e.GetPublicBorrowHistory(ctx, req.Currency, cursor, chunkStart, limit)
+		seen := make(map[string]struct{})
+		for {
+			history, err := e.GetPublicBorrowHistory(ctx, req.Currency, cursor, start, limit)
 			if err != nil {
 				return nil, err
 			}
+			if len(history) == 0 {
+				break
+			}
+			oldest := history[0].Timestamp.Time()
 			for i := range history {
 				ts := history[i].Timestamp.Time()
 				if ts.IsZero() || ts.Before(start) || ts.After(end) {
 					continue
 				}
+				if ts.Before(oldest) {
+					oldest = ts
+				}
+				rowKey := fmt.Sprintf("%s:%s:%f:%f", history[i].Currency, ts.UTC(), history[i].Rate.Float64(), history[i].Amount.Float64())
+				if _, ok := seen[rowKey]; ok {
+					continue
+				}
+				seen[rowKey] = struct{}{}
 				yearlyRate := decimal.NewFromFloat(history[i].Rate.Float64())
 				hourlyRate := yearlyRate.Div(decimal.NewFromInt(24 * 365))
 				resp.Rates = append(resp.Rates, margin.Rate{
 					Time:             ts,
-					HourlyRate:       hourlyRate,
-					YearlyRate:       yearlyRate,
+					HourlyBorrowRate: hourlyRate,
+					YearlyBorrowRate: yearlyRate,
 					MarketBorrowSize: decimal.NewFromFloat(history[i].Amount.Float64()),
 				})
 			}
-			if chunkStart.Equal(start) {
+			if len(history) < int(limit) {
 				break
 			}
-			cursor = chunkStart
+			if !start.IsZero() && !oldest.After(start) {
+				break
+			}
+			nextCursor := oldest.Add(-time.Millisecond)
+			if !nextCursor.Before(cursor) {
+				break
+			}
+			cursor = nextCursor
 		}
 	} else {
-		interestData, err := e.GetInterestAccruedData(ctx, 0, 0, req.Currency, "", "", req.StartDate, req.EndDate)
-		if err != nil {
-			return nil, err
+		const limit = int64(100)
+		start := req.StartDate
+		end := req.EndDate
+		if end.IsZero() {
+			end = time.Now().UTC()
 		}
-		resp.Rates = make([]margin.Rate, len(interestData))
-		for i := range interestData {
-			hourlyRate := decimal.NewFromFloat(interestData[i].InterestRate.Float64())
-			resp.Rates[i] = margin.Rate{
-				Time:       interestData[i].Timestamp.Time(),
-				HourlyRate: hourlyRate,
-				YearlyRate: hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
+		cursor := end
+		resp.Rates = make([]margin.Rate, 0, 1024)
+		seen := make(map[string]struct{})
+		for {
+			interestData, err := e.GetInterestAccruedData(ctx, 0, limit, req.Currency, "", "", start, cursor)
+			if err != nil {
+				return nil, err
 			}
-			resp.Rates[i].BorrowCost = margin.BorrowCost{
-				Cost: decimal.NewFromFloat(interestData[i].Interest.Float64()),
-				Size: decimal.NewFromFloat(interestData[i].Liability.Float64()),
+			if len(interestData) == 0 {
+				break
 			}
-			resp.SumBorrowCosts = resp.SumBorrowCosts.Add(resp.Rates[i].BorrowCost.Cost)
-			resp.AverageBorrowSize = resp.AverageBorrowSize.Add(resp.Rates[i].BorrowCost.Size)
+			oldest := interestData[0].Timestamp.Time()
+			for i := range interestData {
+				ts := interestData[i].Timestamp.Time()
+				if !start.IsZero() && ts.Before(start) {
+					continue
+				}
+				if !end.IsZero() && ts.After(end) {
+					continue
+				}
+				if ts.Before(oldest) {
+					oldest = ts
+				}
+				rowKey := fmt.Sprintf("%s:%s:%f:%f:%f", interestData[i].Currency, ts.UTC(), interestData[i].InterestRate.Float64(), interestData[i].Interest.Float64(), interestData[i].Liability.Float64())
+				if _, ok := seen[rowKey]; ok {
+					continue
+				}
+				seen[rowKey] = struct{}{}
+				hourlyRate := decimal.NewFromFloat(interestData[i].InterestRate.Float64())
+				entry := margin.Rate{
+					Time:             ts,
+					HourlyBorrowRate: hourlyRate,
+					YearlyBorrowRate: hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
+					BorrowCost: margin.BorrowCost{
+						Cost: decimal.NewFromFloat(interestData[i].Interest.Float64()),
+						Size: decimal.NewFromFloat(interestData[i].Liability.Float64()),
+					},
+				}
+				resp.SumBorrowCosts = resp.SumBorrowCosts.Add(entry.BorrowCost.Cost)
+				resp.AverageBorrowSize = resp.AverageBorrowSize.Add(entry.BorrowCost.Size)
+				resp.Rates = append(resp.Rates, entry)
+			}
+			if len(interestData) < int(limit) {
+				break
+			}
+			if !start.IsZero() && !oldest.After(start) {
+				break
+			}
+			nextCursor := oldest.Add(-time.Millisecond)
+			if !nextCursor.Before(cursor) {
+				break
+			}
+			cursor = nextCursor
 		}
 	}
 	sort.Slice(resp.Rates, func(i, j int) bool {
 		return resp.Rates[i].Time.Before(resp.Rates[j].Time)
 	})
-	if req.GetBorrowCosts && len(resp.Rates) > 0 {
+	if len(resp.Rates) > 0 {
 		resp.AverageBorrowSize = resp.AverageBorrowSize.Div(decimal.NewFromInt(int64(len(resp.Rates))))
 	}
 	return resp, nil

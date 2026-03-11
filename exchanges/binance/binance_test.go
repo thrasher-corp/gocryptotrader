@@ -3056,6 +3056,23 @@ func TestGetMarginRatesHistoryValidation(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 }
 
+func TestGetCurrentMarginRatesValidation(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetCurrentMarginRates(t.Context(), nil)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.GetCurrentMarginRates(t.Context(), &margin.CurrentRatesRequest{
+		Asset: asset.Spot,
+	})
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	_, err = e.GetCurrentMarginRates(t.Context(), &margin.CurrentRatesRequest{
+		Asset: asset.Margin,
+		Pairs: currency.Pairs{currency.EMPTYPAIR},
+	})
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+}
+
 func TestGetLeverage(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
