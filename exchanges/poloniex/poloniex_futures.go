@@ -264,7 +264,7 @@ func (e *Exchange) GetOrderExecutionDetails(ctx context.Context, side order.Side
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, fGetFillsV2EPL, http.MethodGet, tradePathV3+"order/trades", params, nil, &resp)
 }
 
-// GetFuturesOrderHistory retrieves previous futures orders. Orders initiated through the API that are completely canceled (no transaction has occurred) can only be queried for 4 hours.
+// GetFuturesOrderHistory retrieves previous futures orders. Orders initiated through the API that are completely cancelled (no transaction has occurred) can only be queried for 4 hours.
 func (e *Exchange) GetFuturesOrderHistory(ctx context.Context, symbol currency.Pair, side order.Side, orderType, orderState, orderID, clientOrderID, direction string, startTime, endTime time.Time, offset, limit uint64) ([]*FuturesOrderDetails, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {

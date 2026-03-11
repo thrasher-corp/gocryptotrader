@@ -1002,7 +1002,7 @@ type TransferableBalanceInfo struct {
 type FundTransferFuturesParam struct {
 	Amount             float64       `json:"amount"`
 	Currency           currency.Code `json:"currency"`
-	RecieveAccountType string        `json:"recAccountType"` // possible values are: MAIN and TRADE
+	ReceiveAccountType string        `json:"recAccountType"` // possible values are: MAIN and TRADE
 }
 
 // FundTransferToFuturesParam holds request parameters to transfer funds to futures account
@@ -1552,8 +1552,8 @@ type WsOrderbookLevel5 struct {
 	Timestamp     types.Time        `json:"timestamp"`
 }
 
-// WsOrderbookLevel5Response represents a response data for an orderbook push data with depth level 5
-type WsOrderbookLevel5Response struct {
+// WsFuturesOrderbookLevelResponse represents a response data for an orderbook push data with depth level 5 or 50
+type WsFuturesOrderbookLevelResponse struct {
 	Sequence      int64                            `json:"sequence"`
 	Bids          orderbook.LevelsArrayPriceAmount `json:"bids"`
 	Asks          orderbook.LevelsArrayPriceAmount `json:"asks"`

@@ -1385,7 +1385,7 @@ func (e *Exchange) SendPlaceMarginHFOrder(ctx context.Context, arg *PlaceMarginH
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, placeMarginOrderEPL, http.MethodPost, path, arg, &resp)
 }
 
-// CancelMarginHFOrderByOrderID cancels a single order by orderId. If the order cannot be canceled (sold or canceled),
+// CancelMarginHFOrderByOrderID cancels a single order by orderId. If the order cannot be cancelled (sold or cancelled),
 // an error message will be returned, and the reason can be obtained according to the returned msg.
 func (e *Exchange) CancelMarginHFOrderByOrderID(ctx context.Context, orderID, symbol string) (string, error) {
 	return e.CancelMarginHFOrderByID(ctx, orderID, symbol, "/v3/hf/margin/orders/")
@@ -2005,8 +2005,8 @@ func (e *Exchange) TransferToMainOrTradeAccount(ctx context.Context, arg *FundTr
 	if arg.Currency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	if arg.RecieveAccountType != "MAIN" && arg.RecieveAccountType != SpotTradeType {
-		return nil, fmt.Errorf("invalid receive account type %s, only TRADE and MAIN are supported", arg.RecieveAccountType)
+	if arg.ReceiveAccountType != "MAIN" && arg.ReceiveAccountType != SpotTradeType {
+		return nil, fmt.Errorf("invalid receive account type %s, only TRADE and MAIN are supported", arg.ReceiveAccountType)
 	}
 	var resp *InnerTransferToMainAndTradeResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFutures, toMainOrTradeAccountEPL, http.MethodPost, "/v3/transfer-out", arg, &resp)
@@ -2510,6 +2510,14 @@ var intervalMap = map[kline.Interval]string{
 	kline.OneMin: "1min", kline.ThreeMin: "3min", kline.FiveMin: "5min", kline.FifteenMin: "15min", kline.ThirtyMin: "30min", kline.OneHour: "1hour", kline.TwoHour: "2hour", kline.FourHour: "4hour", kline.SixHour: "6hour", kline.EightHour: "8hour", kline.TwelveHour: "12hour", kline.OneDay: "1day", kline.OneWeek: "1week",
 }
 
+var intervalMapReverseLookup = func() map[string]kline.Interval {
+	m := make(map[string]kline.Interval, len(intervalMap))
+	for k, v := range intervalMap {
+		m[v] = k
+	}
+	return m
+}()
+
 // IntervalToString returns a string from kline.Interval input.
 func IntervalToString(interval kline.Interval) (string, error) {
 	intervalString, okay := intervalMap[interval]
@@ -2517,6 +2525,15 @@ func IntervalToString(interval kline.Interval) (string, error) {
 		return intervalString, nil
 	}
 	return "", fmt.Errorf("%w interval: %v", kline.ErrUnsupportedInterval, interval)
+}
+
+// IntervalFromString returns a kline.Interval from string input.
+func IntervalFromString(interval string) (kline.Interval, error) {
+	klineInterval, ok := intervalMapReverseLookup[interval]
+	if ok {
+		return klineInterval, nil
+	}
+	return 0, fmt.Errorf("%w interval: %v", kline.ErrInvalidInterval, interval)
 }
 
 // StringToOrderStatus returns an order.Status instance from string.
@@ -2719,8 +2736,8 @@ func (e *Exchange) GetInformationOnAccountInvolvedInOffExchangeLoans(ctx context
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, vipLendingEPL, http.MethodGet, "/v1/otc-loan/accounts", nil, &resp)
 }
 
-// GetAffilateUserRebateInformation allows getting affiliate user rebate information.
-func (e *Exchange) GetAffilateUserRebateInformation(ctx context.Context, date time.Time, offset string, maxCount int64) ([]UserRebateInfo, error) {
+// GetAffiliateUserRebateInformation allows getting affiliate user rebate information.
+func (e *Exchange) GetAffiliateUserRebateInformation(ctx context.Context, date time.Time, offset string, maxCount int64) ([]UserRebateInfo, error) {
 	if date.IsZero() {
 		return nil, errQueryDateIsRequired
 	}
@@ -2735,7 +2752,7 @@ func (e *Exchange) GetAffilateUserRebateInformation(ctx context.Context, date ti
 		params.Set("maxCount", strconv.FormatInt(maxCount, 10))
 	}
 	var resp []UserRebateInfo
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, affilateUserRebateInfoEPL, http.MethodGet, common.EncodeURLValues("/v2/affiliate/inviter/statistics", params), nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, affiliateUserRebateInfoEPL, http.MethodGet, common.EncodeURLValues("/v2/affiliate/inviter/statistics", params), nil, &resp)
 }
 
 // GetMarginPairsConfigurations allows querying the configuration of cross margin trading pairs.

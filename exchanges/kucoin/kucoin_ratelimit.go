@@ -206,7 +206,7 @@ const (
 	earnStakingProductEPL
 
 	vipLendingEPL
-	affilateUserRebateInfoEPL
+	affiliateUserRebateInfoEPL
 	marginPairsConfigurationEPL
 	modifyLeverageMultiplierEPL
 	marginActiveHFOrdersEPL
@@ -417,7 +417,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		earnStakingProductEPL:    request.GetRateLimiterWithWeight(spotRate, 5),
 
 		vipLendingEPL:               request.GetRateLimiterWithWeight(spotRate, 1),
-		affilateUserRebateInfoEPL:   request.GetRateLimiterWithWeight(spotRate, 30),
+		affiliateUserRebateInfoEPL:  request.GetRateLimiterWithWeight(spotRate, 30),
 		marginPairsConfigurationEPL: request.GetRateLimiterWithWeight(spotRate, 5),
 		modifyLeverageMultiplierEPL: request.GetRateLimiterWithWeight(spotRate, 5),
 		marginActiveHFOrdersEPL:     request.GetRateLimiterWithWeight(spotRate, 2),
