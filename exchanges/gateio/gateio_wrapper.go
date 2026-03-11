@@ -2004,7 +2004,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	return limits.Load(l)
 }
 
-// MBABYDOGE price is 1e6 x spot price for futures contracts
+// MBABYDOGE price is 1e6 x spot price for futures contracts. This is the only currency that has this characteristic.
 var divisorCurrency = currency.NewCode("MBABYDOGE")
 
 // priceDivisor returns the price divisor for a given asset and currency pair
