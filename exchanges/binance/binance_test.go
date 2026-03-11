@@ -3039,21 +3039,61 @@ func TestSetMarginType(t *testing.T) {
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 }
 
-func TestGetMarginRatesHistoryValidation(t *testing.T) {
+func TestGetMarginRatesHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMarginRatesHistory(t.Context(), nil)
-	assert.ErrorIs(t, err, common.ErrNilPointer)
-
-	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
-		Asset:    asset.Spot,
-		Currency: currency.USDT,
-	})
-	assert.ErrorIs(t, err, asset.ErrNotSupported)
-
-	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
-		Asset: asset.Margin,
-	})
-	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	testCases := []struct {
+		name    string
+		req     *margin.RateHistoryRequest
+		errIs   error
+		success bool
+	}{
+		{
+			name:  "nil request",
+			req:   nil,
+			errIs: common.ErrNilPointer,
+		},
+		{
+			name: "unsupported asset",
+			req: &margin.RateHistoryRequest{
+				Asset:    asset.Spot,
+				Currency: currency.USDT,
+			},
+			errIs: asset.ErrNotSupported,
+		},
+		{
+			name: "missing currency",
+			req: &margin.RateHistoryRequest{
+				Asset: asset.Margin,
+			},
+			errIs: currency.ErrCurrencyCodeEmpty,
+		},
+		{
+			name: "success",
+			req: &margin.RateHistoryRequest{
+				Asset:     asset.Margin,
+				Currency:  currency.USDT,
+				StartDate: time.Now().Add(-30 * 24 * time.Hour),
+				EndDate:   time.Now(),
+			},
+			success: true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if tc.success {
+				sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+			}
+			resp, err := e.GetMarginRatesHistory(t.Context(), tc.req)
+			if tc.success {
+				require.NoError(t, err)
+				require.NotNil(t, resp)
+				require.NotEmpty(t, resp.Rates)
+				return
+			}
+			require.ErrorIs(t, err, tc.errIs)
+		})
+	}
 }
 
 func TestGetCurrentMarginRatesValidation(t *testing.T) {

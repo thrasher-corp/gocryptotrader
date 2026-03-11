@@ -3265,21 +3265,60 @@ func TestChangePositionMargin(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetMarginRatesHistoryValidation(t *testing.T) {
+func TestGetMarginRatesHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMarginRatesHistory(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer)
-
-	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
-		Asset:    asset.Spot,
-		Currency: currency.USDT,
-	})
-	require.ErrorIs(t, err, asset.ErrNotSupported)
-
-	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
-		Asset: asset.Margin,
-	})
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	ccy := currency.USDT
+	if !marginTradablePair.IsEmpty() && !marginTradablePair.Base.IsEmpty() {
+		ccy = marginTradablePair.Base
+	}
+	testCases := []struct {
+		name    string
+		req     *margin.RateHistoryRequest
+		errIs   error
+		success bool
+	}{
+		{
+			name:  "nil request",
+			req:   nil,
+			errIs: common.ErrNilPointer,
+		},
+		{
+			name: "unsupported asset",
+			req: &margin.RateHistoryRequest{
+				Asset:    asset.Spot,
+				Currency: currency.USDT,
+			},
+			errIs: asset.ErrNotSupported,
+		},
+		{
+			name: "missing currency",
+			req: &margin.RateHistoryRequest{
+				Asset: asset.Margin,
+			},
+			errIs: currency.ErrCurrencyCodeEmpty,
+		},
+		{
+			name: "success",
+			req: &margin.RateHistoryRequest{
+				Asset:    asset.Margin,
+				Currency: ccy,
+			},
+			success: true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			resp, err := e.GetMarginRatesHistory(t.Context(), tc.req)
+			if tc.success {
+				require.NoError(t, err)
+				require.NotNil(t, resp)
+				require.NotEmpty(t, resp.Rates)
+				return
+			}
+			require.ErrorIs(t, err, tc.errIs)
+		})
+	}
 }
 
 func TestGetCurrentMarginRates(t *testing.T) {
@@ -3361,6 +3400,8 @@ func TestGetCurrentMarginRates(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.Len(t, rates, 1)
+		require.NotNil(t, rates[0].CurrentRate)
+		assert.False(t, rates[0].CurrentRate.Time.IsZero())
 	})
 }
 

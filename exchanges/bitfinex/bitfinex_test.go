@@ -1766,21 +1766,58 @@ func TestGetRecentTrades(t *testing.T) {
 	}
 }
 
-func TestGetMarginRatesHistoryValidation(t *testing.T) {
+func TestGetMarginRatesHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMarginRatesHistory(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer)
-
-	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
-		Asset:    asset.Spot,
-		Currency: currency.USD,
-	})
-	require.ErrorIs(t, err, asset.ErrNotSupported)
-
-	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
-		Asset: asset.MarginFunding,
-	})
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	testCases := []struct {
+		name    string
+		req     *margin.RateHistoryRequest
+		errIs   error
+		success bool
+	}{
+		{
+			name:  "nil request",
+			req:   nil,
+			errIs: common.ErrNilPointer,
+		},
+		{
+			name: "unsupported asset",
+			req: &margin.RateHistoryRequest{
+				Asset:    asset.Spot,
+				Currency: currency.USD,
+			},
+			errIs: asset.ErrNotSupported,
+		},
+		{
+			name: "missing currency",
+			req: &margin.RateHistoryRequest{
+				Asset: asset.MarginFunding,
+			},
+			errIs: currency.ErrCurrencyCodeEmpty,
+		},
+		{
+			name: "success",
+			req: &margin.RateHistoryRequest{
+				Asset:     asset.MarginFunding,
+				Currency:  currency.USD,
+				StartDate: time.Now().Add(-30 * 24 * time.Hour),
+				EndDate:   time.Now(),
+			},
+			success: true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			resp, err := e.GetMarginRatesHistory(t.Context(), tc.req)
+			if tc.success {
+				require.NoError(t, err)
+				require.NotNil(t, resp)
+				require.NotEmpty(t, resp.Rates)
+				return
+			}
+			require.ErrorIs(t, err, tc.errIs)
+		})
+	}
 }
 
 func TestGetCurrentMarginRates(t *testing.T) {
@@ -1863,6 +1900,8 @@ func TestGetCurrentMarginRates(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.NotEmpty(t, rates)
+		require.NotNil(t, rates[0].CurrentRate)
+		assert.False(t, rates[0].CurrentRate.Time.IsZero())
 	})
 }
 

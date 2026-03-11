@@ -2313,9 +2313,6 @@ func (e *Exchange) GetCurrentMarginRates(ctx context.Context, req *margin.Curren
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
 
-	const hoursPerDay = int64(24)
-	const daysPerYear = int64(365)
-	yearlyRateMultiplier := decimal.NewFromInt(hoursPerDay * daysPerYear)
 	timeChecked := time.Now().UTC()
 	cache := make(map[string]margin.Rate, len(pairs))
 	resp := make([]margin.CurrentRateResponse, len(pairs))
@@ -2342,7 +2339,7 @@ func (e *Exchange) GetCurrentMarginRates(ctx context.Context, req *margin.Curren
 			rate = margin.Rate{
 				Time:             history.Rows[0].InterestAccruedTime.Time(),
 				HourlyBorrowRate: hourlyRate,
-				YearlyBorrowRate: hourlyRate.Mul(yearlyRateMultiplier),
+				YearlyBorrowRate: hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
 			}
 			cache[pairKey] = rate
 		}

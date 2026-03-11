@@ -4386,21 +4386,60 @@ func TestSetMarginType(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
-func TestGetMarginRatesHistoryValidation(t *testing.T) {
+func TestGetMarginRatesHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMarginRatesHistory(contextGenerate(), nil)
-	assert.ErrorIs(t, err, common.ErrNilPointer)
-
-	_, err = e.GetMarginRatesHistory(contextGenerate(), &margin.RateHistoryRequest{
-		Asset:    asset.Spot,
-		Currency: currency.USDT,
+	currencies := []currency.Code{currency.USDT, currency.BTC, currency.ETH}
+	if !mainPair.IsEmpty() && !mainPair.Base.IsEmpty() {
+		currencies = append([]currency.Code{mainPair.Base}, currencies...)
+	}
+	testCases := []struct {
+		name  string
+		req   *margin.RateHistoryRequest
+		errIs error
+	}{
+		{
+			name:  "nil request",
+			req:   nil,
+			errIs: common.ErrNilPointer,
+		},
+		{
+			name: "unsupported asset",
+			req: &margin.RateHistoryRequest{
+				Asset:    asset.Spot,
+				Currency: currency.USDT,
+			},
+			errIs: asset.ErrNotSupported,
+		},
+		{
+			name: "missing currency",
+			req: &margin.RateHistoryRequest{
+				Asset: asset.Margin,
+			},
+			errIs: currency.ErrCurrencyCodeEmpty,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := e.GetMarginRatesHistory(contextGenerate(), tc.req)
+			require.ErrorIs(t, err, tc.errIs)
+		})
+	}
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+		for i := range currencies {
+			resp, err := e.GetMarginRatesHistory(contextGenerate(), &margin.RateHistoryRequest{
+				Asset:    asset.Margin,
+				Currency: currencies[i],
+			})
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			if len(resp.Rates) > 0 {
+				return
+			}
+		}
+		t.Skip("OKX returned empty public borrow history for tested currencies")
 	})
-	assert.ErrorIs(t, err, asset.ErrNotSupported)
-
-	_, err = e.GetMarginRatesHistory(contextGenerate(), &margin.RateHistoryRequest{
-		Asset: asset.Margin,
-	})
-	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 }
 
 func TestGetCurrentMarginRates(t *testing.T) {
@@ -4477,6 +4516,8 @@ func TestGetCurrentMarginRates(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.Len(t, rates, 1)
+		require.NotNil(t, rates[0].CurrentRate)
+		assert.False(t, rates[0].CurrentRate.Time.IsZero())
 	})
 }
 
