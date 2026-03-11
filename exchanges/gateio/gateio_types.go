@@ -2839,3 +2839,10 @@ type UserTransactionRateLimitInfo struct {
 	MainRatio types.Number `json:"main_ratio"`
 	UpdatedAt types.Time   `json:"updated_at"`
 }
+
+// MaxBorrowableAmount represents the max borrowable amount for specific margin currency
+type MaxBorrowableAmount struct {
+	Currency   currency.Code `json:"currency"`
+	Borrowable types.Number  `json:"borrowable"`
+	Pair       currency.Pair `json:"currency_pair"`
+}

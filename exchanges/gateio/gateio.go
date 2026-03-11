@@ -1720,13 +1720,6 @@ func (e *Exchange) GetMaxTransferableAmountForSpecificMarginCurrency(ctx context
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginGetMaxTransferEPL, http.MethodGet, gateioMarginTransfer, params, nil, &response)
 }
 
-// MaxBorrowableAmount represents the max borrowable amount for specific margin currency
-type MaxBorrowableAmount struct {
-	Currency   currency.Code `json:"currency"`
-	Borrowable types.Number  `json:"borrowable"`
-	Pair       currency.Pair `json:"currency_pair"`
-}
-
 // GetMaxBorrowableAmountForSpecificMarginCurrency retrieves the max borrowble amount for specific currency
 func (e *Exchange) GetMaxBorrowableAmountForSpecificMarginCurrency(ctx context.Context, ccy currency.Code, pair currency.Pair) (*MaxBorrowableAmount, error) {
 	if ccy.IsEmpty() {
