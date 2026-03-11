@@ -7,8 +7,10 @@ import (
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -166,6 +168,123 @@ func TestFetchOrderbook(t *testing.T) {
 			assert.NotZero(t, got.LastUpdateID, "Last update ID should be set")
 			assert.NotZero(t, got.LastPushed, "Last pushed timestamp should be set")
 			assert.LessOrEqual(t, got.LastUpdated, got.LastPushed, "Last updated timestamp should be before last pushed timestamp")
+		})
+	}
+}
+
+func TestGetCurrentMarginRates(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name          string
+		req           *margin.CurrentRatesRequest
+		errIs         error
+		useLocal      bool
+		disableAsset  bool
+		clearEnabled  bool
+		expectSuccess bool
+		skipCreds     bool
+	}{
+		{
+			name:  "nil request",
+			req:   nil,
+			errIs: common.ErrNilPointer,
+		},
+		{
+			name: "unsupported asset",
+			req: &margin.CurrentRatesRequest{
+				Asset: asset.Spot,
+			},
+			errIs: asset.ErrNotSupported,
+		},
+		{
+			name: "empty pair",
+			req: &margin.CurrentRatesRequest{
+				Asset: asset.Margin,
+				Pairs: currency.Pairs{currency.EMPTYPAIR},
+			},
+			errIs: currency.ErrCurrencyPairEmpty,
+		},
+		{
+			name: "empty pairs lookup error",
+			req: &margin.CurrentRatesRequest{
+				Asset: asset.Margin,
+			},
+			useLocal:     true,
+			disableAsset: true,
+			errIs:        asset.ErrNotEnabled,
+		},
+		{
+			name: "empty pairs after lookup",
+			req: &margin.CurrentRatesRequest{
+				Asset: asset.Margin,
+			},
+			useLocal:     true,
+			clearEnabled: true,
+			errIs:        currency.ErrCurrencyPairsEmpty,
+		},
+		{
+			name: "success",
+			req: &margin.CurrentRatesRequest{
+				Asset: asset.Margin,
+				Pairs: currency.Pairs{currency.EMPTYPAIR},
+			},
+			expectSuccess: true,
+			skipCreds:     true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if tc.skipCreds {
+				sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+			}
+			target := e
+			if tc.useLocal {
+				local := new(Exchange)
+				require.NoError(t, testexch.Setup(local))
+				if tc.disableAsset {
+					require.NoError(t, local.CurrencyPairs.SetAssetEnabled(asset.Margin, false))
+				}
+				if tc.clearEnabled {
+					ps, err := local.CurrencyPairs.Get(asset.Margin)
+					require.NoError(t, err)
+					ps.AssetEnabled = true
+					ps.Enabled = nil
+					require.NoError(t, local.CurrencyPairs.Store(asset.Margin, ps))
+				}
+				target = local
+			}
+
+			req := tc.req
+			if tc.expectSuccess && req != nil && len(req.Pairs) == 1 && req.Pairs[0].IsEmpty() {
+				req = &margin.CurrentRatesRequest{
+					Asset: asset.Margin,
+					Pairs: currency.Pairs{getPair(t, asset.Margin)},
+				}
+			}
+
+			rates, err := target.GetCurrentMarginRates(t.Context(), req)
+			if tc.errIs != nil {
+				require.ErrorIs(t, err, tc.errIs)
+				return
+			}
+			require.NoError(t, err)
+			if tc.expectSuccess {
+				require.NotEmpty(t, rates)
+				for i := range rates {
+					assert.Equal(t, target.Name, rates[i].Exchange)
+					assert.Equal(t, asset.Margin, rates[i].Asset)
+					assert.NotNil(t, rates[i].CurrentRate)
+					assert.False(t, rates[i].CurrentRate.Time.IsZero())
+					assert.False(t, rates[i].TimeChecked.IsZero())
+					assert.False(t,
+						rates[i].CurrentRate.HourlyRate.IsZero() &&
+							rates[i].CurrentRate.YearlyRate.IsZero() &&
+							rates[i].CurrentRate.HourlyBorrowRate.IsZero() &&
+							rates[i].CurrentRate.YearlyBorrowRate.IsZero(),
+					)
+				}
+			}
 		})
 	}
 }
