@@ -528,6 +528,10 @@ type RiskManagement struct {
 	LimitPrice float64
 	// OrderType order type when stop-loss or take-profit risk management method is triggered.
 	OrderType Type
+
+	// Added to support the iceberg quantity and time-in-force requirement of binance OCO orders.
+	IcebergQuantity float64
+	TimeInForce     TimeInForce
 }
 
 // RiskManagementModes represents take-profit and stop-loss risk management methods.

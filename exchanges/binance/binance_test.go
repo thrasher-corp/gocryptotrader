@@ -4260,13 +4260,13 @@ func TestGetCrossMarginAccountDetail(t *testing.T) {
 
 func TestGetMarginAccountsOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMarginAccountsOrder(t.Context(), currency.EMPTYPAIR, "", false, 112233424)
+	_, err := e.GetMarginAccountsOrder(t.Context(), currency.EMPTYPAIR, "", "112233424", false)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = e.GetMarginAccountsOrder(t.Context(), usdtmTradablePair, "", false, 0)
+	_, err = e.GetMarginAccountsOrder(t.Context(), usdtmTradablePair, "", "", false)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetMarginAccountsOrder(t.Context(), usdtmTradablePair, "", false, 112233424)
+	result, err := e.GetMarginAccountsOrder(t.Context(), usdtmTradablePair, "", "112233424", false)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -5723,24 +5723,24 @@ func TestPostMarginAccountOrder(t *testing.T) {
 
 func TestCancelMarginAccountOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelMarginAccountOrder(t.Context(), currency.EMPTYPAIR, "", "", true, 12314234)
+	_, err := e.CancelMarginAccountOrder(t.Context(), currency.EMPTYPAIR, "", "", "12314234", true)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = e.CancelMarginAccountOrder(t.Context(), usdtmTradablePair, "", "", true, 0)
+	_, err = e.CancelMarginAccountOrder(t.Context(), usdtmTradablePair, "", "", "", true)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.CancelMarginAccountOrder(t.Context(), usdtmTradablePair, "", "", true, 12314234)
+	result, err := e.CancelMarginAccountOrder(t.Context(), usdtmTradablePair, "", "", "12314234", true)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestMarginAccountCancelAllOpenOrdersOnSymbol(t *testing.T) {
 	t.Parallel()
-	_, err := e.MarginAccountCancelAllOpenOrdersOnSymbol(t.Context(), currency.EMPTYPAIR, true)
+	_, err := e.CancelAllOpenMarginAccountOrdersOnSymbol(t.Context(), currency.EMPTYPAIR, true)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.MarginAccountCancelAllOpenOrdersOnSymbol(t.Context(), usdtmTradablePair, true)
+	result, err := e.CancelAllOpenMarginAccountOrdersOnSymbol(t.Context(), usdtmTradablePair, true)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -6345,7 +6345,7 @@ func TestNewMarginOrder(t *testing.T) {
 	_, err = e.NewMarginOrder(t.Context(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	arg.Symbol = spotTradablePair.String()
+	arg.Symbol = spotTradablePair
 	_, err = e.NewMarginOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
@@ -6530,27 +6530,27 @@ func TestNewCMConditionalOrder(t *testing.T) {
 
 func TestCancelUMOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelUMOrder(t.Context(), currency.EMPTYPAIR, "", 1234132)
+	_, err := e.CancelUMOrder(t.Context(), currency.EMPTYPAIR, "", "1234132")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = e.CancelUMOrder(t.Context(), usdtmTradablePair, "", 0)
+	_, err = e.CancelUMOrder(t.Context(), usdtmTradablePair, "", "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.CancelUMOrder(t.Context(), usdtmTradablePair, "", 1234132)
+	result, err := e.CancelUMOrder(t.Context(), usdtmTradablePair, "", "1234132")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestCancelCMOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelCMOrder(t.Context(), currency.EMPTYPAIR, "", 21321312)
+	_, err := e.CancelCMOrder(t.Context(), currency.EMPTYPAIR, "", "21321312")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	_, err = e.CancelCMOrder(t.Context(), usdtmTradablePair, "", 0)
+	_, err = e.CancelCMOrder(t.Context(), usdtmTradablePair, "", "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.CancelCMOrder(t.Context(), usdtmTradablePair, "", 21321312)
+	result, err := e.CancelCMOrder(t.Context(), usdtmTradablePair, "", "21321312")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -6580,13 +6580,13 @@ func TestCancelAllCMOrders(t *testing.T) {
 
 func TestPMCancelMarginAccountOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.PMCancelMarginAccountOrder(t.Context(), currency.EMPTYPAIR, "", 12314)
+	_, err := e.PMCancelMarginAccountOrder(t.Context(), currency.EMPTYPAIR, "", "12314")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = e.PMCancelMarginAccountOrder(t.Context(), assetToTradablePairMap[asset.Margin], "", 0)
+	_, err = e.PMCancelMarginAccountOrder(t.Context(), assetToTradablePairMap[asset.Margin], "", "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.PMCancelMarginAccountOrder(t.Context(), assetToTradablePairMap[asset.Margin], "", 12314)
+	result, err := e.PMCancelMarginAccountOrder(t.Context(), assetToTradablePairMap[asset.Margin], "", "12314")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -6664,27 +6664,27 @@ func TestCancelAllCMOpenConditionalOrders(t *testing.T) {
 
 func TestGetUMOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetUMOrder(t.Context(), currency.EMPTYPAIR, "", 1234)
+	_, err := e.GetUMOrder(t.Context(), currency.EMPTYPAIR, "", "1234")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	_, err = e.GetUMOrder(t.Context(), usdtmTradablePair, "", 0)
+	_, err = e.GetUMOrder(t.Context(), usdtmTradablePair, "", "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetUMOrder(t.Context(), usdtmTradablePair, "", 1234)
+	result, err := e.GetUMOrder(t.Context(), usdtmTradablePair, "", "1234")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetUMOpenOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetUMOpenOrder(t.Context(), currency.EMPTYPAIR, "", 1234)
+	_, err := e.GetUMOpenOrder(t.Context(), currency.EMPTYPAIR, "", "1234")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = e.GetUMOpenOrder(t.Context(), usdtmTradablePair, "", 0)
+	_, err = e.GetUMOpenOrder(t.Context(), usdtmTradablePair, "", "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetUMOpenOrder(t.Context(), usdtmTradablePair, "", 1234)
+	result, err := e.GetUMOpenOrder(t.Context(), usdtmTradablePair, "", "1234")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -6711,25 +6711,25 @@ func TestGetAllUMOrders(t *testing.T) {
 
 func TestGetCMOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetCMOrder(t.Context(), currency.EMPTYPAIR, "", 1234)
+	_, err := e.GetCMOrder(t.Context(), currency.EMPTYPAIR, "", "1234")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetCMOrder(t.Context(), coinmTradablePair, "", 1234)
+	result, err := e.GetCMOrder(t.Context(), coinmTradablePair, "", "1234")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetCMOpenOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetCMOpenOrder(t.Context(), currency.EMPTYPAIR, "", 1234)
+	_, err := e.GetCMOpenOrder(t.Context(), currency.EMPTYPAIR, "", "1234")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	_, err = e.GetCMOpenOrder(t.Context(), coinmTradablePair, "", 0)
+	_, err = e.GetCMOpenOrder(t.Context(), coinmTradablePair, "", "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetCMOpenOrder(t.Context(), coinmTradablePair, "", 1234)
+	result, err := e.GetCMOpenOrder(t.Context(), coinmTradablePair, "", "1234")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -6832,13 +6832,13 @@ func TestGetAllCMConditionalOrders(t *testing.T) {
 
 func TestGetMarginAccountOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMarginAccountOrder(t.Context(), currency.EMPTYPAIR, "", 12434)
+	_, err := e.GetMarginAccountOrder(t.Context(), currency.EMPTYPAIR, "", "12434")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = e.GetMarginAccountOrder(t.Context(), assetToTradablePairMap[asset.Margin], "", 0)
+	_, err = e.GetMarginAccountOrder(t.Context(), assetToTradablePairMap[asset.Margin], "", "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetMarginAccountOrder(t.Context(), assetToTradablePairMap[asset.Margin], "", 12434)
+	result, err := e.GetMarginAccountOrder(t.Context(), assetToTradablePairMap[asset.Margin], "", "12434")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -6846,7 +6846,7 @@ func TestGetMarginAccountOrder(t *testing.T) {
 func TestGetCurrentMarginOpenOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetCurrentMarginOpenOrder(t.Context(), assetToTradablePairMap[asset.Margin])
+	result, err := e.GetCurrentMarginOpenOrders(t.Context(), assetToTradablePairMap[asset.Margin])
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

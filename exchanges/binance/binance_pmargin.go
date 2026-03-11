@@ -52,7 +52,7 @@ func (e *Exchange) newUMCMOrder(ctx context.Context, arg *UMOrderParam, path str
 	}
 	arg.OrderType = strings.ToUpper(arg.OrderType)
 	switch arg.OrderType {
-	case "limit", order.Limit.String():
+	case order.Limit.String():
 		if arg.TimeInForce == "" {
 			return nil, errTimeInForceRequired
 		}
@@ -78,7 +78,7 @@ func (e *Exchange) NewMarginOrder(ctx context.Context, arg *MarginOrderParam) (*
 	if *arg == (MarginOrderParam{}) {
 		return nil, common.ErrEmptyParams
 	}
-	if arg.Symbol == "" {
+	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	if arg.Side == "" {
@@ -171,26 +171,26 @@ func (e *Exchange) placeConditionalOrder(ctx context.Context, arg *ConditionalOr
 // -------------------------------------------- Cancel Order Endpoints  ----------------------------------------------------
 
 // CancelCMOrder cancels an active Coin Margined Futures limit order.
-func (e *Exchange) CancelCMOrder(ctx context.Context, symbol currency.Pair, origClientOrderID string, orderID int64) (*UMCMOrder, error) {
+func (e *Exchange) CancelCMOrder(ctx context.Context, symbol currency.Pair, origClientOrderID, orderID string) (*UMCMOrder, error) {
 	return e.cancelOrder(ctx, symbol, origClientOrderID, "/papi/v1/cm/order", orderID)
 }
 
 // CancelUMOrder cancels an active USDT Margined Futures limit order.
-func (e *Exchange) CancelUMOrder(ctx context.Context, symbol currency.Pair, origClientOrderID string, orderID int64) (*UMCMOrder, error) {
+func (e *Exchange) CancelUMOrder(ctx context.Context, symbol currency.Pair, origClientOrderID, orderID string) (*UMCMOrder, error) {
 	return e.cancelOrder(ctx, symbol, origClientOrderID, "/papi/v1/um/order", orderID)
 }
 
-func (e *Exchange) cancelOrder(ctx context.Context, symbol currency.Pair, origClientOrderID, path string, orderID int64) (*UMCMOrder, error) {
+func (e *Exchange) cancelOrder(ctx context.Context, symbol currency.Pair, origClientOrderID, path, orderID string) (*UMCMOrder, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if orderID == 0 && origClientOrderID == "" {
+	if orderID == "" && origClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol.String())
-	if orderID != 0 {
-		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	if orderID != "" {
+		params.Set("orderId", orderID)
 	}
 	if origClientOrderID != "" {
 		params.Set("origClientOrderId", origClientOrderID)
@@ -220,17 +220,17 @@ func (e *Exchange) cancelAllUMCMOrders(ctx context.Context, symbol currency.Pair
 }
 
 // PMCancelMarginAccountOrder cancels margin account order
-func (e *Exchange) PMCancelMarginAccountOrder(ctx context.Context, symbol currency.Pair, origClientOrderID string, orderID int64) (*MarginOrderResp, error) {
+func (e *Exchange) PMCancelMarginAccountOrder(ctx context.Context, symbol currency.Pair, origClientOrderID, orderID string) (*MarginOrderResp, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if orderID == 0 && origClientOrderID == "" {
+	if orderID == "" && origClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol.String())
-	if orderID != 0 {
-		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	if orderID != "" {
+		params.Set("orderId", orderID)
 	}
 	if origClientOrderID != "" {
 		params.Set("origClientOrderId", origClientOrderID)
@@ -323,26 +323,26 @@ func (e *Exchange) cancelAllUMCMOpenConditionalOrders(ctx context.Context, symbo
 
 // GetUMOrder check an USDT Margined order's status
 // Orders can not be found if the order status is CANCELED or EXPIRED
-func (e *Exchange) GetUMOrder(ctx context.Context, symbol currency.Pair, origClientOrderID string, orderID int64) (*UMCMOrder, error) {
+func (e *Exchange) GetUMOrder(ctx context.Context, symbol currency.Pair, origClientOrderID, orderID string) (*UMCMOrder, error) {
 	return e.getUMCMOrder(ctx, symbol, origClientOrderID, "/papi/v1/um/order", orderID)
 }
 
 // GetUMOpenOrder get current UM open order
-func (e *Exchange) GetUMOpenOrder(ctx context.Context, symbol currency.Pair, origClientOrderID string, orderID int64) (*UMCMOrder, error) {
+func (e *Exchange) GetUMOpenOrder(ctx context.Context, symbol currency.Pair, origClientOrderID, orderID string) (*UMCMOrder, error) {
 	return e.getUMCMOrder(ctx, symbol, origClientOrderID, "/papi/v1/um/openOrder", orderID)
 }
 
-func (e *Exchange) getUMCMOrder(ctx context.Context, symbol currency.Pair, origClientOrderID, path string, orderID int64) (*UMCMOrder, error) {
+func (e *Exchange) getUMCMOrder(ctx context.Context, symbol currency.Pair, origClientOrderID, path, orderID string) (*UMCMOrder, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if orderID == 0 && origClientOrderID == "" {
+	if orderID == "" && origClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol.String())
-	if orderID != 0 {
-		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	if orderID != "" {
+		params.Set("orderId", orderID)
 	}
 	if origClientOrderID != "" {
 		params.Set("origClientOrderId", origClientOrderID)
@@ -399,12 +399,12 @@ func (e *Exchange) getUMOrders(ctx context.Context, symbol currency.Pair, path s
 }
 
 // GetCMOrder retrieves Coin Margined order instance.
-func (e *Exchange) GetCMOrder(ctx context.Context, symbol currency.Pair, origClientOrderID string, orderID int64) (*UMCMOrder, error) {
+func (e *Exchange) GetCMOrder(ctx context.Context, symbol currency.Pair, origClientOrderID, orderID string) (*UMCMOrder, error) {
 	return e.getUMCMOrder(ctx, symbol, origClientOrderID, "/papi/v1/cm/order", orderID)
 }
 
 // GetCMOpenOrder retrieves Coin Margined open order instance.
-func (e *Exchange) GetCMOpenOrder(ctx context.Context, symbol currency.Pair, origClientOrderID string, orderID int64) (*UMCMOrder, error) {
+func (e *Exchange) GetCMOpenOrder(ctx context.Context, symbol currency.Pair, origClientOrderID, orderID string) (*UMCMOrder, error) {
 	return e.getUMCMOrder(ctx, symbol, origClientOrderID, "/papi/v1/cm/openOrder", orderID)
 }
 
@@ -567,17 +567,17 @@ func (e *Exchange) GetAllCMConditionalOrders(ctx context.Context, symbol currenc
 }
 
 // GetMarginAccountOrder retrieves margin account order.
-func (e *Exchange) GetMarginAccountOrder(ctx context.Context, symbol currency.Pair, origClientOrderID string, orderID int64) (*MarginOrder, error) {
+func (e *Exchange) GetMarginAccountOrder(ctx context.Context, symbol currency.Pair, origClientOrderID, orderID string) (*MarginOrder, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if orderID == 0 && origClientOrderID == "" {
+	if orderID == "" && origClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol.String())
-	if orderID != 0 {
-		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	if orderID != "" {
+		params.Set("orderId", orderID)
 	}
 	if origClientOrderID != "" {
 		params.Set("origClientOrderId", origClientOrderID)
@@ -586,9 +586,9 @@ func (e *Exchange) GetMarginAccountOrder(ctx context.Context, symbol currency.Pa
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/margin/order", params, pmGetMarginAccountOrderRate, nil, &resp)
 }
 
-// GetCurrentMarginOpenOrder retrieves an open order.
+// GetCurrentMarginOpenOrders retrieves an open order.
 // If the symbol is not sent, orders for all symbols will be returned in an array.
-func (e *Exchange) GetCurrentMarginOpenOrder(ctx context.Context, symbol currency.Pair) ([]*MarginOrder, error) {
+func (e *Exchange) GetCurrentMarginOpenOrders(ctx context.Context, symbol currency.Pair) ([]*MarginOrder, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		params.Set("symbol", symbol.String())

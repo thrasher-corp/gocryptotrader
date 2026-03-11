@@ -3087,11 +3087,11 @@ type OCOOrderParam struct {
 	SelfTradePreventionMode string        `json:"selfTradePreventionMode,omitempty"` // NONE:No STP / EXPIRE_TAKER:expire taker order when STP triggers/ EXPIRE_MAKER:expire taker order when STP triggers/ EXPIRE_BOTH:expire both orders when STP triggers
 
 	// Only used with rest endpoint call
-	TrailingDelta     int64  `json:"trailingDelta,omitempty"`
-	LimitStrategyID   string `json:"limitStrategyId,omitempty"`
-	LimitStrategyType string `json:"limitStrategyType,omitempty"`
-	StopStrategyID    int64  `json:"stopStrategyId,omitempty"`
-	StopStrategyType  int64  `json:"stopStrategyType,omitempty"`
+	TrailingDelta     float64 `json:"trailingDelta,omitempty"`
+	LimitStrategyID   string  `json:"limitStrategyId,omitempty"`
+	LimitStrategyType string  `json:"limitStrategyType,omitempty"`
+	StopStrategyID    int64   `json:"stopStrategyId,omitempty"`
+	StopStrategyType  int64   `json:"stopStrategyType,omitempty"`
 }
 
 // OCOOrderListParams represents an order parameter of OCO order as a list.
@@ -3293,8 +3293,8 @@ type MarginAsset struct {
 
 // CrossMarginPairInfo holds cross margin symbols and detail.
 type CrossMarginPairInfo struct {
-	Base          string     `json:"base"`
 	ID            int64      `json:"id"`
+	Base          string     `json:"base"`
 	IsBuyAllowed  bool       `json:"isBuyAllowed"`
 	IsMarginTrade bool       `json:"isMarginTrade"`
 	IsSellAllowed bool       `json:"isSellAllowed"`
@@ -3312,22 +3312,21 @@ type MarginPriceIndex struct {
 
 // MarginAccountOrderParam represents a margin account order.
 type MarginAccountOrderParam struct {
-	Symbol     currency.Pair `json:"symbol"`
-	IsIsolated bool          `json:"isIsolated,string"`
-	Side       string        `json:"side"`
-	OrderType  string        `json:"type"`
-
-	Quantity                float64 `json:"quantity,omitempty"`
-	QuoteOrderQuantity      float64 `json:"quoteOrderQty,omitempty"`
-	Price                   float64 `json:"price,omitempty"`
-	StopPrice               float64 `json:"stopPrice,omitempty"` // Used with STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, and TAKE_PROFIT_LIMIT orders.
-	NewClientOrderID        string  `json:"newClientOrderId,omitempty"`
-	IcebergQuantity         float64 `json:"icebergQty,omitempty"` // Used with LIMIT, STOP_LOSS_LIMIT, and TAKE_PROFIT_LIMIT to create an iceberg order.
-	NewOrderResponseType    string  `json:"newOrderRespType,omitempty"`
-	SideEffectType          string  `json:"sideEffectType,omitempty"` // NO_SIDE_EFFECT, MARGIN_BUY, AUTO_REPAY,AUTO_BORROW_REPAY; default NO_SIDE_EFFECT.
-	TimeInForce             string  `json:"timeInForce,omitempty"`
-	SelfTradePreventionMode string  `json:"selfTradePreventionMode,omitempty"`
-	AutoRepayAtCancel       bool    `json:"autoRepayAtCancel,omitempty"`
+	Symbol                  currency.Pair `json:"symbol"`
+	IsIsolated              bool          `json:"isIsolated,string"`
+	Side                    string        `json:"side"`
+	OrderType               string        `json:"type"`
+	Quantity                float64       `json:"quantity,omitempty"`
+	QuoteOrderQuantity      float64       `json:"quoteOrderQty,omitempty"`
+	Price                   float64       `json:"price,omitempty"`
+	StopPrice               float64       `json:"stopPrice,omitempty"` // Used with STOP_LOSS, STOP_LOSS_LIMIT, TAKE_PROFIT, and TAKE_PROFIT_LIMIT orders.
+	NewClientOrderID        string        `json:"newClientOrderId,omitempty"`
+	IcebergQuantity         float64       `json:"icebergQty,omitempty"` // Used with LIMIT, STOP_LOSS_LIMIT, and TAKE_PROFIT_LIMIT to create an iceberg order.
+	NewOrderResponseType    string        `json:"newOrderRespType,omitempty"`
+	SideEffectType          string        `json:"sideEffectType,omitempty"` // NO_SIDE_EFFECT, MARGIN_BUY, AUTO_REPAY,AUTO_BORROW_REPAY; default NO_SIDE_EFFECT.
+	TimeInForce             string        `json:"timeInForce,omitempty"`
+	SelfTradePreventionMode string        `json:"selfTradePreventionMode,omitempty"`
+	AutoRepayAtCancel       bool          `json:"autoRepayAtCancel,omitempty"`
 }
 
 // MarginAccountOrder represents a margin account order.
@@ -3430,23 +3429,23 @@ type CrossMarginAccount struct {
 
 // MarginOCOOrderParam represents an OCO order parameters.
 type MarginOCOOrderParam struct {
-	Symbol                  currency.Pair `json:"symbol"`
-	IsIsolated              bool          `json:"isIsolated,omitempty,string"`
-	ListClientOrderID       string        `json:"listClientOrderId,omitempty"`
-	Side                    string        `json:"side"`
-	Quantity                float64       `json:"quantity"`
-	LimitClientOrderID      string        `json:"limitClientOrderId,omitempty"`
-	Price                   float64       `json:"price"`
-	LimitIcebergQuantity    float64       `json:"limitIcebergQty,omitempty"`
-	StopClientOrderID       string        `json:"stopClientOrderId"`
-	StopPrice               float64       `json:"stopPrice,omitempty"`
-	StopLimitPrice          float64       `json:"stopLimitPrice,omitempty"` // If provided, stopLimitTimeInForce is required.
-	StopIcebergQuantity     float64       `json:"stopIcebergQty,omitempty"`
-	StopLimitTimeInForce    float64       `json:"stopLimitTimeInForce,omitempty"` // Valid values are GTC/FOK/IOC
-	NewOrderRespType        string        `json:"newOrderRespType,omitempty"`
-	SideEffectType          string        `json:"sideEffectType,omitempty"` // NO_SIDE_EFFECT, MARGIN_BUY, AUTO_REPAY,AUTO_BORROW_REPAY; default NO_SIDE_EFFECT.
-	SelfTradePreventionMode string        `json:"selfTradePreventionMode,omitempty"`
-	AutoRepayAtCancel       string        `json:"autoRepayAtCancel,omitempty"`
+	Symbol                  currency.Pair     `json:"symbol"`
+	IsIsolated              bool              `json:"isIsolated,omitempty,string"`
+	ListClientOrderID       string            `json:"listClientOrderId,omitempty"`
+	Side                    string            `json:"side"`
+	Quantity                float64           `json:"quantity"`
+	LimitClientOrderID      string            `json:"limitClientOrderId,omitempty"`
+	Price                   float64           `json:"price"`
+	LimitIcebergQuantity    float64           `json:"limitIcebergQty,omitempty"`
+	StopClientOrderID       string            `json:"stopClientOrderId"`
+	StopPrice               float64           `json:"stopPrice,omitempty"`
+	StopLimitPrice          float64           `json:"stopLimitPrice,omitempty"` // If provided, stopLimitTimeInForce is required.
+	StopIcebergQuantity     float64           `json:"stopIcebergQty,omitempty"`
+	StopLimitTimeInForce    order.TimeInForce `json:"stopLimitTimeInForce,omitempty"` // Valid values are GTC/FOK/IOC
+	NewOrderRespType        string            `json:"newOrderRespType,omitempty"`
+	SideEffectType          string            `json:"sideEffectType,omitempty"` // NO_SIDE_EFFECT, MARGIN_BUY, AUTO_REPAY,AUTO_BORROW_REPAY; default NO_SIDE_EFFECT.
+	SelfTradePreventionMode string            `json:"selfTradePreventionMode,omitempty"`
+	AutoRepayAtCancel       string            `json:"autoRepayAtCancel,omitempty"`
 }
 
 // MarginAccountSummary represents a margin account summary information.
@@ -4801,8 +4800,8 @@ type FundAutoCollectionResponse struct {
 
 // PMAssetLeverage represents an asset leverage
 type PMAssetLeverage struct {
-	Asset    string `json:"asset"`
-	Leverage int64  `json:"leverage"`
+	Asset    string  `json:"asset"`
+	Leverage float64 `json:"leverage"`
 }
 
 // BLVTTokenDetail represents a binance leverage token detail

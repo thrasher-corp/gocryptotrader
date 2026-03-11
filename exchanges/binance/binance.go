@@ -1047,11 +1047,11 @@ func (e *Exchange) PostMarginAccountOrder(ctx context.Context, arg *MarginAccoun
 }
 
 // CancelMarginAccountOrder cancels an active order for margin account.
-func (e *Exchange) CancelMarginAccountOrder(ctx context.Context, symbol currency.Pair, origClientOrderID, newClientOrderID string, isIsolated bool, orderID int64) (*MarginAccountOrder, error) {
+func (e *Exchange) CancelMarginAccountOrder(ctx context.Context, symbol currency.Pair, origClientOrderID, newClientOrderID string, orderID string, isIsolated bool) (*MarginAccountOrder, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if orderID == 0 && origClientOrderID == "" {
+	if orderID == "" && origClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
 	params := url.Values{}
@@ -1059,8 +1059,8 @@ func (e *Exchange) CancelMarginAccountOrder(ctx context.Context, symbol currency
 	if isIsolated {
 		params.Set("isIsolated", "TRUE")
 	}
-	if orderID > 0 {
-		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	if orderID != "" {
+		params.Set("orderId", orderID)
 	}
 	if newClientOrderID != "" {
 		params.Set("newClientOrderId", newClientOrderID)
@@ -1072,9 +1072,9 @@ func (e *Exchange) CancelMarginAccountOrder(ctx context.Context, symbol currency
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, "/sapi/v1/margin/order", params, marginAccountCancelOrderRate, nil, &resp)
 }
 
-// MarginAccountCancelAllOpenOrdersOnSymbol cancels all active orders on a symbol for margin account.
+// CancelAllOpenMarginAccountOrdersOnSymbol cancels all active orders on a symbol for margin account.
 // This includes OCO orders.
-func (e *Exchange) MarginAccountCancelAllOpenOrdersOnSymbol(ctx context.Context, symbol currency.Pair, isIsolated bool) ([]*MarginAccountOrderDetail, error) {
+func (e *Exchange) CancelAllOpenMarginAccountOrdersOnSymbol(ctx context.Context, symbol currency.Pair, isIsolated bool) ([]*MarginAccountOrderDetail, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -1093,15 +1093,15 @@ func (e *Exchange) MarginAccountCancelAllOpenOrdersOnSymbol(ctx context.Context,
 // maxLeverage = 5 or 3 for Cross Margin Classic
 // The margin level need higher than the initial risk ratio of adjusted leverage, the initial risk ratio of 3x is 1.5 ,
 // the initial risk ratio of 5x is 1.25, the initial risk ratio of 10x is 2.5.
-func (e *Exchange) AdjustCrossMarginMaxLeverage(ctx context.Context, maxLeverage int64) (bool, error) {
+func (e *Exchange) AdjustCrossMarginMaxLeverage(ctx context.Context, maxLeverage float64) (bool, error) {
 	if maxLeverage <= 0 {
 		return false, fmt.Errorf("%w: possible leverage values are 3, 5 are 10", order.ErrSubmitLeverageNotSupported)
 	}
 	params := url.Values{}
-	params.Set("maxLeverage", strconv.FormatInt(maxLeverage, 10))
-	resp := &struct {
+	params.Set("maxLeverage", strconv.FormatFloat(maxLeverage, 'f', -1, 64))
+	var resp struct {
 		Success bool `json:"success"`
-	}{}
+	}
 	return resp.Success, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/margin/max-leverage", params, adjustCrossMarginMaxLeverageRate, nil, &resp)
 }
 
@@ -1199,11 +1199,11 @@ func (e *Exchange) GetCrossMarginAccountDetail(ctx context.Context) (*CrossMargi
 //
 // Either orderId or origClientOrderId must be sent.
 // For some historical orders cummulativeQuoteQty will be < 0, meaning the data is not available at this time.
-func (e *Exchange) GetMarginAccountsOrder(ctx context.Context, symbol currency.Pair, origClientOrderID string, isIsolated bool, orderID int64) (*TradeOrder, error) {
+func (e *Exchange) GetMarginAccountsOrder(ctx context.Context, symbol currency.Pair, origClientOrderID, orderID string, isIsolated bool) (*TradeOrder, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if orderID == 0 && origClientOrderID == "" {
+	if orderID == "" && origClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
 	params := url.Values{}
@@ -1211,8 +1211,8 @@ func (e *Exchange) GetMarginAccountsOrder(ctx context.Context, symbol currency.P
 	if isIsolated {
 		params.Set("isIsolated", "true")
 	}
-	if orderID > 0 {
-		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	if orderID != "" {
+		params.Set("orderId", orderID)
 	}
 	if origClientOrderID != "" {
 		params.Set("origClientOrderId", origClientOrderID)
