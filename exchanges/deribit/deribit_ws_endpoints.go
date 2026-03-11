@@ -2664,7 +2664,7 @@ func (e *Exchange) WsSimulateBlockTrade(ctx context.Context, role string, trades
 		Trades: trades,
 	}
 	var resp bool
-	return resp, e.SendWSRequest(ctx, matchingEPL, "private/simulate_block_trade", input, resp, true)
+	return resp, e.SendWSRequest(ctx, matchingEPL, "private/simulate_block_trade", input, &resp, true)
 }
 
 // SendWSRequest sends a request through the websocket connection.

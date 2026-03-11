@@ -3897,7 +3897,7 @@ func TestSimulateBlockTrade(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	assert.NotNil(t, result)
+	assert.True(t, result)
 }
 
 func TestWsSimulateBlockTrade(t *testing.T) {
@@ -3956,7 +3956,7 @@ func TestWsSimulateBlockTrade(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	assert.NotNil(t, result)
+	assert.True(t, result)
 }
 
 func setupWs() {
