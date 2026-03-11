@@ -72,26 +72,26 @@ const (
 	walletTotalBalance                  = "wallet/total_balance"
 
 	// Margin
-	gateioMarginCurrencyPairs     = "margin/currency_pairs"
-	gateioMarginFundingBook       = "margin/funding_book"
-	gateioMarginUserAccount       = "margin/user/account"
-	gateioMarginAccountBook       = "margin/account_book"
-	gateioMarginFundingAccounts   = "margin/funding_accounts"
-	gateioMarginLoans             = "margin/loans"
-	gateioMarginMergedLoans       = "margin/merged_loans"
-	gateioMarginLoanRecords       = "margin/loan_records"
-	gateioMarginAutoRepay         = "margin/auto_repay"
-	gateioMarginTransfer          = "margin/transferable"
-	gateioMarginBorrowable            = "margin/uni/borrowable"
-	gateioMarginUniLoans              = "margin/uni/loans"
-	gateioMarginUniInterestRecords    = "margin/uni/interest_records"
-	gateioCrossMarginCurrencies   = "margin/cross/currencies"
-	gateioCrossMarginAccounts     = "margin/cross/accounts"
-	gateioCrossMarginAccountBook  = "margin/cross/account_book"
-	gateioCrossMarginLoans        = "margin/cross/loans"
-	gateioCrossMarginRepayments   = "margin/cross/repayments"
-	gateioCrossMarginTransferable = "margin/cross/transferable"
-	gateioCrossMarginBorrowable   = "margin/cross/borrowable"
+	gateioMarginCurrencyPairs      = "margin/currency_pairs"
+	gateioMarginFundingBook        = "margin/funding_book"
+	gateioMarginUserAccount        = "margin/user/account"
+	gateioMarginAccountBook        = "margin/account_book"
+	gateioMarginFundingAccounts    = "margin/funding_accounts"
+	gateioMarginLoans              = "margin/loans"
+	gateioMarginMergedLoans        = "margin/merged_loans"
+	gateioMarginLoanRecords        = "margin/loan_records"
+	gateioMarginAutoRepay          = "margin/auto_repay"
+	gateioMarginTransfer           = "margin/transferable"
+	gateioMarginBorrowable         = "margin/uni/borrowable"
+	gateioMarginUniLoans           = "margin/uni/loans"
+	gateioMarginUniInterestRecords = "margin/uni/interest_records"
+	gateioCrossMarginCurrencies    = "margin/cross/currencies"
+	gateioCrossMarginAccounts      = "margin/cross/accounts"
+	gateioCrossMarginAccountBook   = "margin/cross/account_book"
+	gateioCrossMarginLoans         = "margin/cross/loans"
+	gateioCrossMarginRepayments    = "margin/cross/repayments"
+	gateioCrossMarginTransferable  = "margin/cross/transferable"
+	gateioCrossMarginBorrowable    = "margin/cross/borrowable"
 
 	// Options
 	gateioOptionUnderlyings            = "options/underlyings"
@@ -964,20 +964,20 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	if err != nil {
 		return err
 	}
-	if result == nil {
-		return nil
+	if len(intermediary) == 0 { // 204 No Content is returned with empty body, so intermediary will be empty but it is not an error
+		if result == nil {
+			return nil
+		}
+		return fmt.Errorf("%s %w, empty response body with non-nil result", e.Name, request.ErrAuthRequestFailed)
 	}
+
 	errCap := struct {
 		Label   string `json:"label"`
 		Code    string `json:"code"`
 		Message string `json:"message"`
 	}{}
-
 	if err := json.Unmarshal(intermediary, &errCap); err == nil && errCap.Code != "" {
-		return fmt.Errorf("%s auth request error, code: %s message: %s",
-			e.Name,
-			errCap.Label,
-			errCap.Message)
+		return fmt.Errorf("%s auth request error, code: %s message: %s", e.Name, errCap.Label, errCap.Message)
 	}
 	return json.Unmarshal(intermediary, result)
 }
