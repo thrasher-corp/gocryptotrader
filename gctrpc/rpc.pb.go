@@ -13674,12 +13674,12 @@ type GetMarginRatesHistoryRequest struct {
 	Currency           string                 `protobuf:"bytes,3,opt,name=currency,proto3" json:"currency,omitempty"`
 	StartDate          string                 `protobuf:"bytes,4,opt,name=start_date,json=startDate,proto3" json:"start_date,omitempty"`
 	EndDate            string                 `protobuf:"bytes,5,opt,name=end_date,json=endDate,proto3" json:"end_date,omitempty"`
-	GetLendingPayments bool                   `protobuf:"varint,6,opt,name=get_lending_payments,json=getLendingPayments,proto3" json:"get_lending_payments,omitempty"`
-	GetBorrowCosts     bool                   `protobuf:"varint,7,opt,name=get_borrow_costs,json=getBorrowCosts,proto3" json:"get_borrow_costs,omitempty"`
-	IncludeAllRates    bool                   `protobuf:"varint,8,opt,name=include_all_rates,json=includeAllRates,proto3" json:"include_all_rates,omitempty"`
-	CalculateOffline   bool                   `protobuf:"varint,9,opt,name=calculate_offline,json=calculateOffline,proto3" json:"calculate_offline,omitempty"`
-	TakerFeeRate       string                 `protobuf:"bytes,10,opt,name=taker_fee_rate,json=takerFeeRate,proto3" json:"taker_fee_rate,omitempty"`
-	Rates              []*MarginRate          `protobuf:"bytes,11,rep,name=rates,proto3" json:"rates,omitempty"`
+	GetLendingPayments bool                   `protobuf:"varint,7,opt,name=get_lending_payments,json=getLendingPayments,proto3" json:"get_lending_payments,omitempty"`
+	GetBorrowCosts     bool                   `protobuf:"varint,8,opt,name=get_borrow_costs,json=getBorrowCosts,proto3" json:"get_borrow_costs,omitempty"`
+	IncludeAllRates    bool                   `protobuf:"varint,9,opt,name=include_all_rates,json=includeAllRates,proto3" json:"include_all_rates,omitempty"`
+	CalculateOffline   bool                   `protobuf:"varint,10,opt,name=calculate_offline,json=calculateOffline,proto3" json:"calculate_offline,omitempty"`
+	TakerFeeRate       string                 `protobuf:"bytes,11,opt,name=taker_fee_rate,json=takerFeeRate,proto3" json:"taker_fee_rate,omitempty"`
+	Rates              []*MarginRate          `protobuf:"bytes,12,rep,name=rates,proto3" json:"rates,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -16225,13 +16225,13 @@ const file_rpc_proto_rawDesc = "" +
 	"\n" +
 	"start_date\x18\x04 \x01(\tR\tstartDate\x12\x19\n" +
 	"\bend_date\x18\x05 \x01(\tR\aendDate\x120\n" +
-	"\x14get_lending_payments\x18\x06 \x01(\bR\x12getLendingPayments\x12(\n" +
-	"\x10get_borrow_costs\x18\a \x01(\bR\x0egetBorrowCosts\x12*\n" +
-	"\x11include_all_rates\x18\b \x01(\bR\x0fincludeAllRates\x12+\n" +
-	"\x11calculate_offline\x18\t \x01(\bR\x10calculateOffline\x12$\n" +
-	"\x0etaker_fee_rate\x18\n" +
-	" \x01(\tR\ftakerFeeRate\x12(\n" +
-	"\x05rates\x18\v \x03(\v2\x12.gctrpc.MarginRateR\x05rates\">\n" +
+	"\x14get_lending_payments\x18\a \x01(\bR\x12getLendingPayments\x12(\n" +
+	"\x10get_borrow_costs\x18\b \x01(\bR\x0egetBorrowCosts\x12*\n" +
+	"\x11include_all_rates\x18\t \x01(\bR\x0fincludeAllRates\x12+\n" +
+	"\x11calculate_offline\x18\n" +
+	" \x01(\bR\x10calculateOffline\x12$\n" +
+	"\x0etaker_fee_rate\x18\v \x01(\tR\ftakerFeeRate\x12(\n" +
+	"\x05rates\x18\f \x03(\v2\x12.gctrpc.MarginRateR\x05rates\">\n" +
 	"\x0eLendingPayment\x12\x18\n" +
 	"\apayment\x18\x01 \x01(\tR\apayment\x12\x12\n" +
 	"\x04size\x18\x02 \x01(\tR\x04size\"4\n" +
