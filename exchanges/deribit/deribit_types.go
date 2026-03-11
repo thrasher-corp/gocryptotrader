@@ -3,6 +3,7 @@ package deribit
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"regexp"
 	"strconv"
 	"time"
@@ -62,6 +63,8 @@ var (
 	errMissingBlockTradeID                 = errors.New("missing block trade id")
 	errMissingBlockRFQID                   = errors.New("missing block rfq id")
 	errMissingBlockRFQQuoteIdentifier      = errors.New("block_rfq_quote_id required, or both block_rfq_id and label")
+	errEmptyBlockRFQQuoteCancelResponse    = errors.New("empty block rfq quote cancel response")
+	errInvalidBrokerTradeUserID            = errors.New("invalid broker trade user_id")
 	errMissingSubAccountID                 = errors.New("missing subaccount id")
 	errUnsupportedInstrumentFormat         = errors.New("unsupported instrument type format")
 	errSessionNameRequired                 = errors.New("session_name is required")
@@ -1112,7 +1115,7 @@ type BlockRFQQuoteCancelResponse struct {
 func (a *BlockRFQQuoteCancelResponse) UnmarshalJSON(data []byte) error {
 	trimmed := bytes.TrimSpace(data)
 	if len(trimmed) == 0 {
-		return errors.New("empty block rfq quote cancel response")
+		return fmt.Errorf("%w: %q", errEmptyBlockRFQQuoteCancelResponse, string(data))
 	}
 
 	if trimmed[0] == '[' {
@@ -1173,7 +1176,7 @@ type BlockRFQTradeData struct {
 	Timestamp   types.Time         `json:"timestamp"`
 	Direction   string             `json:"direction"`
 	Amount      float64            `json:"amount"`
-	Price       float64            `json:"price,omitempty"`
+	Price       float64            `json:"price"`
 	MarkPrice   float64            `json:"mark_price"`
 	Legs        []BlockRFQLeg      `json:"legs"`
 	ComboID     string             `json:"combo_id"`
@@ -1283,7 +1286,7 @@ func (b *BrokerTradeUserID) UnmarshalJSON(data []byte) error {
 		*b = BrokerTradeUserID(strconv.FormatUint(integerValue, 10))
 		return nil
 	}
-	return errors.New("invalid broker trade user_id")
+	return fmt.Errorf("%w: %q", errInvalidBrokerTradeUserID, string(data))
 }
 
 // BrokerTradeParty describes a maker or taker party in a broker trade request or history entry.

@@ -3424,6 +3424,22 @@ func TestBlockRFQQuoteCancelResponseUnmarshalQuotes(t *testing.T) {
 	require.Equal(t, uint64(21), response.Quotes[0].BlockRFQID)
 }
 
+func TestBlockRFQQuoteCancelResponseUnmarshalEmpty(t *testing.T) {
+	t.Parallel()
+	var response BlockRFQQuoteCancelResponse
+	err := response.UnmarshalJSON([]byte(" \t\n"))
+	require.ErrorIs(t, err, errEmptyBlockRFQQuoteCancelResponse)
+	assert.ErrorContains(t, err, "\" \\t\\n\"")
+}
+
+func TestBrokerTradeUserIDUnmarshalError(t *testing.T) {
+	t.Parallel()
+	var userID BrokerTradeUserID
+	err := json.Unmarshal([]byte(`{}`), &userID)
+	require.ErrorIs(t, err, errInvalidBrokerTradeUserID)
+	assert.ErrorContains(t, err, "\"{}\"")
+}
+
 func TestCreateBlockRFQ(t *testing.T) {
 	t.Parallel()
 	_, err := e.CreateBlockRFQ(t.Context(), nil)
@@ -3500,9 +3516,8 @@ func TestEditBlockRFQQuote(t *testing.T) {
 	require.ErrorIs(t, err, errMissingBlockRFQQuoteIdentifier)
 	_, err = e.EditBlockRFQQuote(t.Context(), &EditBlockRFQQuoteRequest{BlockRFQQuoteID: 1, Amount: 1, Price: -1})
 	require.ErrorIs(t, err, errInvalidPrice)
-	// Identify via block_rfq_id + label instead of quote ID
 	_, err = e.EditBlockRFQQuote(t.Context(), &EditBlockRFQQuoteRequest{BlockRFQID: 1, Label: "test", Amount: -1})
-	require.ErrorIs(t, err, errInvalidAmount)
+	require.ErrorIs(t, err, errInvalidAmount, "request must support identification via block_rfq_id + label without quote ID")
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err = e.EditBlockRFQQuote(t.Context(), &EditBlockRFQQuoteRequest{BlockRFQQuoteID: 1 << 62, Amount: 1, Price: 10, Label: "gct-block-rfq-quote"})
@@ -3517,9 +3532,8 @@ func TestWSEditBlockRFQQuote(t *testing.T) {
 	require.ErrorIs(t, err, errMissingBlockRFQQuoteIdentifier)
 	_, err = e.WSEditBlockRFQQuote(t.Context(), &EditBlockRFQQuoteRequest{BlockRFQQuoteID: 1, Amount: 1, Price: -1})
 	require.ErrorIs(t, err, errInvalidPrice)
-	// Identify via block_rfq_id + label instead of quote ID
 	_, err = e.WSEditBlockRFQQuote(t.Context(), &EditBlockRFQQuoteRequest{BlockRFQID: 1, Label: "test", Amount: -1})
-	require.ErrorIs(t, err, errInvalidAmount)
+	require.ErrorIs(t, err, errInvalidAmount, "request must support identification via block_rfq_id + label without quote ID")
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err = e.WSEditBlockRFQQuote(t.Context(), &EditBlockRFQQuoteRequest{BlockRFQQuoteID: 1 << 62, Amount: 1, Price: 10, Label: "gct-block-rfq-quote"})
