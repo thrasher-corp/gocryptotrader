@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -3096,21 +3097,81 @@ func TestGetMarginRatesHistory(t *testing.T) {
 	}
 }
 
-func TestGetCurrentMarginRatesValidation(t *testing.T) {
+func TestGetCurrentMarginRates(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetCurrentMarginRates(t.Context(), nil)
-	assert.ErrorIs(t, err, common.ErrNilPointer)
-
-	_, err = e.GetCurrentMarginRates(t.Context(), &margin.CurrentRatesRequest{
-		Asset: asset.Spot,
-	})
-	assert.ErrorIs(t, err, asset.ErrNotSupported)
-
-	_, err = e.GetCurrentMarginRates(t.Context(), &margin.CurrentRatesRequest{
-		Asset: asset.Margin,
-		Pairs: currency.Pairs{currency.EMPTYPAIR},
-	})
-	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	testCases := []struct {
+		name           string
+		req            *margin.CurrentRatesRequest
+		errIs          error
+		useEnabledPair bool
+		skipCreds      bool
+	}{
+		{
+			name:  "nil request",
+			req:   nil,
+			errIs: common.ErrNilPointer,
+		},
+		{
+			name: "unsupported asset",
+			req: &margin.CurrentRatesRequest{
+				Asset: asset.Spot,
+			},
+			errIs: asset.ErrNotSupported,
+		},
+		{
+			name: "empty pair",
+			req: &margin.CurrentRatesRequest{
+				Asset: asset.Margin,
+				Pairs: currency.Pairs{currency.EMPTYPAIR},
+			},
+			errIs: currency.ErrCurrencyPairEmpty,
+		},
+		{
+			name:           "success",
+			req:            &margin.CurrentRatesRequest{Asset: asset.Margin},
+			useEnabledPair: true,
+			skipCreds:      true,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if tc.skipCreds {
+				sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+			}
+			req := tc.req
+			if tc.useEnabledPair {
+				pairs, err := e.GetEnabledPairs(asset.Margin)
+				require.NoError(t, err)
+				require.NotEmpty(t, pairs)
+				req = &margin.CurrentRatesRequest{
+					Asset: asset.Margin,
+					Pairs: currency.Pairs{pairs[0]},
+				}
+			}
+			rates, err := e.GetCurrentMarginRates(t.Context(), req)
+			if tc.errIs != nil {
+				require.ErrorIs(t, err, tc.errIs)
+				return
+			}
+			if err != nil && (strings.Contains(err.Error(), "REQUEST_FORBIDDEN") || strings.Contains(err.Error(), "not authorized")) {
+				t.Skipf("credentials do not have access to current margin rates endpoint: %v", err)
+			}
+			require.NoError(t, err)
+			require.NotEmpty(t, rates)
+			for i := range rates {
+				require.NotNil(t, rates[i].CurrentRate)
+				assert.False(t, rates[i].CurrentRate.Time.IsZero())
+				assert.False(t, rates[i].TimeChecked.IsZero())
+				assert.False(t,
+					rates[i].CurrentRate.HourlyRate.IsZero() &&
+						rates[i].CurrentRate.YearlyRate.IsZero() &&
+						rates[i].CurrentRate.HourlyBorrowRate.IsZero() &&
+						rates[i].CurrentRate.YearlyBorrowRate.IsZero(),
+				)
+			}
+		})
+	}
 }
 
 func TestGetLeverage(t *testing.T) {

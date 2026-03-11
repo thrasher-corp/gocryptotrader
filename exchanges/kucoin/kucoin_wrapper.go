@@ -2190,7 +2190,7 @@ func (e *Exchange) GetMarginRatesHistory(ctx context.Context, r *margin.RateHist
 		if !r.EndDate.IsZero() && ts.After(r.EndDate) {
 			continue
 		}
-		rowKey := fmt.Sprintf("%s:%s", r.Currency, ts.UTC())
+		rowKey := fmt.Sprintf("%s:%s:%s", r.Currency, ts.UTC(), interestRates[i].MarketInterestRate.String())
 		if _, ok := seen[rowKey]; ok {
 			continue
 		}
