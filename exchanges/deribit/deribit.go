@@ -2399,8 +2399,7 @@ func (e *Exchange) GetBlockTradeRequests(ctx context.Context, brokerCode string)
 	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, blockTradeReadEPL, http.MethodGet, "private/get_block_trade_requests", params, &resp)
 }
 
-// ApproveBlockTrade approves a pending block trade.
-func (e *Exchange) ApproveBlockTrade(ctx context.Context, timestampMS time.Time, tradeNonce, role string) error {
+func validatePendingBlockTradeAction(timestampMS time.Time, tradeNonce, role string) error {
 	if tradeNonce == "" {
 		return errMissingNonce
 	}
@@ -2409,6 +2408,14 @@ func (e *Exchange) ApproveBlockTrade(ctx context.Context, timestampMS time.Time,
 	}
 	if role != roleMaker && role != roleTaker {
 		return errInvalidTradeRole
+	}
+	return nil
+}
+
+// ApproveBlockTrade approves a pending block trade.
+func (e *Exchange) ApproveBlockTrade(ctx context.Context, timestampMS time.Time, tradeNonce, role string) error {
+	if err := validatePendingBlockTradeAction(timestampMS, tradeNonce, role); err != nil {
+		return err
 	}
 	params := url.Values{}
 	params.Set("timestamp", strconv.FormatInt(timestampMS.UnixMilli(), 10))
@@ -2427,14 +2434,8 @@ func (e *Exchange) ApproveBlockTrade(ctx context.Context, timestampMS time.Time,
 
 // RejectBlockTrade rejects a pending block trade.
 func (e *Exchange) RejectBlockTrade(ctx context.Context, timestampMS time.Time, tradeNonce, role string) error {
-	if tradeNonce == "" {
-		return errMissingNonce
-	}
-	if timestampMS.IsZero() {
-		return errZeroTimestamp
-	}
-	if role != roleMaker && role != roleTaker {
-		return errInvalidTradeRole
+	if err := validatePendingBlockTradeAction(timestampMS, tradeNonce, role); err != nil {
+		return err
 	}
 	params := url.Values{}
 	params.Set("timestamp", strconv.FormatInt(timestampMS.UnixMilli(), 10))
@@ -2558,6 +2559,9 @@ func validateCreateBlockRFQLegs(legs []CreateBlockRFQLeg) ([]CreateBlockRFQLeg, 
 		}
 		if checkedLegs[i].Amount <= 0 {
 			return nil, errInvalidAmount
+		}
+		if checkedLegs[i].Direction == "" {
+			return nil, errInvalidOrderSideOrDirection
 		}
 		normalisedDirection, err := validateBlockRFQDirection(checkedLegs[i].Direction)
 		if err != nil {

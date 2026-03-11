@@ -1056,7 +1056,7 @@ type BlockRFQData struct {
 	BlockRFQID            uint64               `json:"block_rfq_id"`
 	Role                  string               `json:"role"`
 	State                 string               `json:"state"`
-	TakerRating           string               `json:"taker_rating"`
+	TakerRating           types.Number         `json:"taker_rating"`
 	Makers                []string             `json:"makers"`
 	Amount                float64              `json:"amount"`
 	MinTradeAmount        float64              `json:"min_trade_amount"`
@@ -1149,10 +1149,10 @@ type BlockRFQAcceptResponse struct {
 
 // BlockRFQUserIdentity contains identity details for a single account.
 type BlockRFQUserIdentity struct {
-	UserID      uint64  `json:"user_id"`
-	TakerRating float64 `json:"taker_rating"`
-	Identity    string  `json:"identity"`
-	IsMaker     bool    `json:"is_maker"`
+	UserID      uint64       `json:"user_id"`
+	TakerRating types.Number `json:"taker_rating"`
+	Identity    string       `json:"identity"`
+	IsMaker     bool         `json:"is_maker"`
 }
 
 // BlockRFQParentIdentity describes group identity information.

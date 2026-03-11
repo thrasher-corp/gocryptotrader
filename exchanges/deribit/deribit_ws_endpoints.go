@@ -2161,14 +2161,8 @@ func (e *Exchange) WSRetrieveBlockTradeRequests(ctx context.Context, brokerCode 
 
 // WSApproveBlockTrade approves a pending block trade through the websocket connection.
 func (e *Exchange) WSApproveBlockTrade(ctx context.Context, timestampMS time.Time, nonce, role string) error {
-	if nonce == "" {
-		return errMissingNonce
-	}
-	if timestampMS.IsZero() {
-		return errZeroTimestamp
-	}
-	if role != roleMaker && role != roleTaker {
-		return errInvalidTradeRole
+	if err := validatePendingBlockTradeAction(timestampMS, nonce, role); err != nil {
+		return err
 	}
 	input := map[string]any{
 		"timestamp": timestampMS.UnixMilli(),
@@ -2188,14 +2182,8 @@ func (e *Exchange) WSApproveBlockTrade(ctx context.Context, timestampMS time.Tim
 
 // WSRejectBlockTrade rejects a pending block trade through the websocket connection.
 func (e *Exchange) WSRejectBlockTrade(ctx context.Context, timestampMS time.Time, nonce, role string) error {
-	if nonce == "" {
-		return errMissingNonce
-	}
-	if timestampMS.IsZero() {
-		return errZeroTimestamp
-	}
-	if role != roleMaker && role != roleTaker {
-		return errInvalidTradeRole
+	if err := validatePendingBlockTradeAction(timestampMS, nonce, role); err != nil {
+		return err
 	}
 	input := map[string]any{
 		"timestamp": timestampMS.UnixMilli(),

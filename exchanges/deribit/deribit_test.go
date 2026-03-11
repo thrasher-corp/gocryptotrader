@@ -3049,60 +3049,53 @@ func TestWSRetrieveBlockTradeRequests(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestApproveBlockTrade(t *testing.T) {
+func TestValidatePendingBlockTradeAction(t *testing.T) {
 	t.Parallel()
-	err := e.ApproveBlockTrade(t.Context(), time.Now(), "", roleMaker)
+
+	err := validatePendingBlockTradeAction(time.Now(), "", roleMaker)
 	require.ErrorIs(t, err, errMissingNonce)
-	err = e.ApproveBlockTrade(t.Context(), time.Time{}, "nonce", roleMaker)
+
+	err = validatePendingBlockTradeAction(time.Time{}, "nonce", roleMaker)
 	require.ErrorIs(t, err, errZeroTimestamp)
-	err = e.ApproveBlockTrade(t.Context(), time.Now(), "nonce", "")
+
+	err = validatePendingBlockTradeAction(time.Now(), "nonce", "")
 	require.ErrorIs(t, err, errInvalidTradeRole)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	err = e.ApproveBlockTrade(t.Context(), time.Now(), "nonce", roleMaker)
-	assert.NoError(t, err)
+	err = validatePendingBlockTradeAction(time.Now(), "nonce", roleMaker)
+	require.NoError(t, err)
 }
 
-func TestWSApproveBlockTrade(t *testing.T) {
+func TestBlockTradeActionMethods(t *testing.T) {
 	t.Parallel()
-	err := e.WSApproveBlockTrade(t.Context(), time.Now(), "", roleMaker)
-	require.ErrorIs(t, err, errMissingNonce)
-	err = e.WSApproveBlockTrade(t.Context(), time.Time{}, "nonce", roleMaker)
-	require.ErrorIs(t, err, errZeroTimestamp)
-	err = e.WSApproveBlockTrade(t.Context(), time.Now(), "nonce", "")
-	require.ErrorIs(t, err, errInvalidTradeRole)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	err = e.WSApproveBlockTrade(t.Context(), time.Now(), "nonce", roleMaker)
-	assert.NoError(t, err)
-}
+	tests := []struct {
+		name string
+		fn   func(context.Context, time.Time, string, string) error
+	}{
+		{name: "ApproveBlockTrade", fn: e.ApproveBlockTrade},
+		{name: "WSApproveBlockTrade", fn: e.WSApproveBlockTrade},
+		{name: "RejectBlockTrade", fn: e.RejectBlockTrade},
+		{name: "WSRejectBlockTrade", fn: e.WSRejectBlockTrade},
+	}
 
-func TestRejectBlockTrade(t *testing.T) {
-	t.Parallel()
-	err := e.RejectBlockTrade(t.Context(), time.Now(), "", roleMaker)
-	require.ErrorIs(t, err, errMissingNonce)
-	err = e.RejectBlockTrade(t.Context(), time.Time{}, "nonce", roleMaker)
-	require.ErrorIs(t, err, errZeroTimestamp)
-	err = e.RejectBlockTrade(t.Context(), time.Now(), "nonce", "")
-	require.ErrorIs(t, err, errInvalidTradeRole)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	err = e.RejectBlockTrade(t.Context(), time.Now(), "nonce", roleMaker)
-	assert.NoError(t, err)
-}
+			err := tc.fn(t.Context(), time.Now(), "", roleMaker)
+			require.ErrorIs(t, err, errMissingNonce)
 
-func TestWSRejectBlockTrade(t *testing.T) {
-	t.Parallel()
-	err := e.WSRejectBlockTrade(t.Context(), time.Now(), "", roleMaker)
-	require.ErrorIs(t, err, errMissingNonce)
-	err = e.WSRejectBlockTrade(t.Context(), time.Time{}, "nonce", roleMaker)
-	require.ErrorIs(t, err, errZeroTimestamp)
-	err = e.WSRejectBlockTrade(t.Context(), time.Now(), "nonce", "")
-	require.ErrorIs(t, err, errInvalidTradeRole)
+			err = tc.fn(t.Context(), time.Time{}, "nonce", roleMaker)
+			require.ErrorIs(t, err, errZeroTimestamp)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	err = e.WSRejectBlockTrade(t.Context(), time.Now(), "nonce", roleMaker)
-	assert.NoError(t, err)
+			err = tc.fn(t.Context(), time.Now(), "nonce", "")
+			require.ErrorIs(t, err, errInvalidTradeRole)
+
+			sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+			err = tc.fn(t.Context(), time.Now(), "nonce", roleMaker)
+			require.NoError(t, err)
+		})
+	}
 }
 
 func TestGetBlockTrades(t *testing.T) {
@@ -3249,6 +3242,29 @@ func TestBlockRFQTradeAllocationResponseUnmarshal(t *testing.T) {
 	assert.Equal(t, "desk-a", resp[0].ClientInfo.Name)
 }
 
+func TestBlockRFQDataTakerRatingUnmarshal(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		payload string
+		exp     float64
+	}{
+		{name: "string", payload: `{"taker_rating":"0.75"}`, exp: 0.75},
+		{name: "number", payload: `{"taker_rating":0.5}`, exp: 0.5},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var resp BlockRFQData
+			err := json.Unmarshal([]byte(tc.payload), &resp)
+			require.NoError(t, err)
+			assert.Equal(t, tc.exp, resp.TakerRating.Float64())
+		})
+	}
+}
+
 func TestValidateBlockRFQDirection(t *testing.T) {
 	t.Parallel()
 
@@ -3316,6 +3332,9 @@ func TestValidateCreateBlockRFQLegs(t *testing.T) {
 
 	_, err = validateCreateBlockRFQLegs([]CreateBlockRFQLeg{{InstrumentName: btcPerpInstrument, Amount: 0, Direction: sideBUY}})
 	require.ErrorIs(t, err, errInvalidAmount)
+
+	_, err = validateCreateBlockRFQLegs([]CreateBlockRFQLeg{{InstrumentName: btcPerpInstrument, Amount: 1}})
+	require.ErrorIs(t, err, errInvalidOrderSideOrDirection)
 
 	_, err = validateCreateBlockRFQLegs([]CreateBlockRFQLeg{{InstrumentName: btcPerpInstrument, Amount: 1, Direction: "sideways"}})
 	require.ErrorIs(t, err, errInvalidOrderSideOrDirection)
