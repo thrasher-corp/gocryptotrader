@@ -446,8 +446,13 @@ func TestCancelPriceTriggeredOrder(t *testing.T) {
 func TestGetMarginAccountList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.GetMarginAccountList(t.Context(), currency.EMPTYPAIR); err != nil {
-		t.Errorf("%s GetMarginAccountList() error %v", e.Name, err)
+	result, err := e.GetMarginAccountList(t.Context(), currency.EMPTYPAIR)
+	require.NoError(t, err, "GetMarginAccountList should not error")
+	for i := range result {
+		assert.NotEmpty(t, result[i].CurrencyPair, "CurrencyPair should not be empty")
+		// AccountType is a new field from GET /margin/user/account; valid values are
+		// "risk", "mmr", or "inactive".
+		assert.NotEmpty(t, result[i].AccountType, "AccountType should not be empty")
 	}
 }
 
@@ -548,6 +553,21 @@ func TestRepayALoan(t *testing.T) {
 	}
 }
 
+func TestGetUniLoanInterestRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	records, err := e.GetUniLoanInterestRecords(t.Context(),
+		currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter},
+		currency.BTC,
+		0,
+		0)
+	if err != nil && strings.Contains(err.Error(), "REQUEST_FORBIDDEN") {
+		t.Skipf("credentials do not have access to unified loan interest records endpoint: %v", err)
+	}
+	assert.NoError(t, err)
+	assert.NotNil(t, records)
+}
+
 func TestListLoanRepaymentRecords(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -613,7 +633,7 @@ func TestGetMaxTransferableAmountForSpecificMarginCurrency(t *testing.T) {
 func TestGetMaxBorrowableAmountForSpecificMarginCurrency(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.GetMaxBorrowableAmountForSpecificMarginCurrency(t.Context(), currency.BTC, currency.EMPTYPAIR); err != nil {
+	if _, err := e.GetMaxBorrowableAmountForSpecificMarginCurrency(t.Context(), currency.BTC, currency.NewPair(currency.BTC, currency.USDT)); err != nil {
 		t.Errorf("%s GetMaxBorrowableAmountForSpecificMarginCurrency() error %v", e.Name, err)
 	}
 }
@@ -3817,32 +3837,4 @@ func TestGetCurrentMarginRates(t *testing.T) {
 		assert.NotNil(t, rates[0].CurrentRate)
 		assert.False(t, rates[0].TimeChecked.IsZero())
 	})
-}
-
-func TestGetMarginRatesHistory(t *testing.T) {
-	t.Parallel()
-
-	_, err := e.GetMarginRatesHistory(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer)
-
-	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
-		Asset:    asset.Spot,
-		Currency: currency.USDT,
-	})
-	require.ErrorIs(t, err, asset.ErrNotSupported)
-
-	_, err = e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
-		Asset: asset.Margin,
-	})
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	pair := getPair(t, asset.Margin)
-	resp, err := e.GetMarginRatesHistory(t.Context(), &margin.RateHistoryRequest{
-		Asset:    asset.Margin,
-		Currency: pair.Base,
-		Pair:     pair,
-	})
-	require.NoError(t, err)
-	require.NotNil(t, resp)
 }

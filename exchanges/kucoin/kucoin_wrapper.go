@@ -2105,6 +2105,7 @@ func (e *Exchange) GetCurrentMarginRates(ctx context.Context, r *margin.CurrentR
 	if !e.IsRESTAuthenticationSupported() {
 		// Borrow endpoint is authenticated; keep returning market rates when
 		// credentials are unavailable.
+		borrowRatesByCurrency = map[currency.Code]BorrowInterestRate{}
 	} else {
 		borrowRates, err := e.GetBorrowInterestRate(ctx)
 		if err != nil {
@@ -2173,74 +2174,33 @@ func (e *Exchange) GetMarginRatesHistory(ctx context.Context, r *margin.RateHist
 			return nil, err
 		}
 	}
-	if !e.IsRESTAuthenticationSupported() {
-		return nil, exchange.ErrAuthenticationSupportNotEnabled
-	}
-
 	resp := &margin.RateHistoryResponse{
-		Rates: make([]margin.Rate, 0, 256),
-	}
-	const pageSize = int64(100)
-	symbol := ""
-	if !r.Pair.IsEmpty() {
-		fPair, err := e.FormatExchangeCurrency(r.Pair, r.Asset)
-		if err != nil {
-			return nil, err
-		}
-		symbol = fPair.String()
+		Rates: make([]margin.Rate, 0, 128),
 	}
 	seen := make(map[string]struct{})
-	fetchRecords := func(isIsolated bool, isolatedSymbol string) error {
-		page := int64(1)
-		for {
-			records, err := e.GetCrossIsolatedMarginInterestRecords(ctx, isIsolated, isolatedSymbol, r.Currency, r.StartDate, r.EndDate, page, pageSize)
-			if err != nil {
-				return err
-			}
-			if records == nil || len(records.Items) == 0 {
-				break
-			}
-			for i := range records.Items {
-				ts := records.Items[i].CreatedAt.Time()
-				if !r.StartDate.IsZero() && ts.Before(r.StartDate) {
-					continue
-				}
-				if !r.EndDate.IsZero() && ts.After(r.EndDate) {
-					continue
-				}
-				if !strings.EqualFold(records.Items[i].Currency, r.Currency.String()) {
-					continue
-				}
-				rowKey := fmt.Sprintf("%t:%s:%s:%s", isIsolated, records.Items[i].Currency, ts.UTC(), records.Items[i].InterestAmount.String())
-				if _, ok := seen[rowKey]; ok {
-					continue
-				}
-				seen[rowKey] = struct{}{}
-				dailyBorrowRate := records.Items[i].DayRatio.Decimal()
-				hourlyBorrowRate := dailyBorrowRate.Div(decimal.NewFromInt(24))
-				entry := margin.Rate{
-					Time:             ts,
-					HourlyBorrowRate: hourlyBorrowRate,
-					YearlyBorrowRate: dailyBorrowRate.Mul(decimal.NewFromInt(365)),
-					BorrowCost: margin.BorrowCost{
-						Cost: records.Items[i].InterestAmount.Decimal(),
-					},
-				}
-				resp.SumBorrowCosts = resp.SumBorrowCosts.Add(entry.BorrowCost.Cost)
-				resp.Rates = append(resp.Rates, entry)
-			}
-			if records.CurrentPage >= records.TotalPage {
-				break
-			}
-			page++
+	interestRates, err := e.GetInterestRate(ctx, r.Currency)
+	if err != nil {
+		return nil, err
+	}
+	for i := range interestRates {
+		ts := interestRates[i].Time.Time()
+		if !r.StartDate.IsZero() && ts.Before(r.StartDate) {
+			continue
 		}
-		return nil
-	}
-	if err := fetchRecords(false, ""); err != nil {
-		return nil, err
-	}
-	if err := fetchRecords(true, symbol); err != nil {
-		return nil, err
+		if !r.EndDate.IsZero() && ts.After(r.EndDate) {
+			continue
+		}
+		rowKey := fmt.Sprintf("%s:%s", r.Currency, ts.UTC())
+		if _, ok := seen[rowKey]; ok {
+			continue
+		}
+		seen[rowKey] = struct{}{}
+		hourlyRate := interestRates[i].MarketInterestRate.Decimal()
+		resp.Rates = append(resp.Rates, margin.Rate{
+			Time:             ts,
+			HourlyBorrowRate: hourlyRate,
+			YearlyBorrowRate: hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
+		})
 	}
 	sort.Slice(resp.Rates, func(i, j int) bool {
 		return resp.Rates[i].Time.Before(resp.Rates[j].Time)

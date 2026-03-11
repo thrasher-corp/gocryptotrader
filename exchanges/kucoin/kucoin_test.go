@@ -3280,7 +3280,6 @@ func TestGetMarginRatesHistoryValidation(t *testing.T) {
 		Asset: asset.Margin,
 	})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-
 }
 
 func TestGetCurrentMarginRates(t *testing.T) {
