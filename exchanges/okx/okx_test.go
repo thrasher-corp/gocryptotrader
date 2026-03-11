@@ -4385,7 +4385,7 @@ func TestSetMarginType(t *testing.T) {
 	err := e.SetMarginType(contextGenerate(), asset.Spot, mainPair, margin.Isolated)
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
- 
+
 func TestChangePositionMargin(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)

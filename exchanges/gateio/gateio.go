@@ -964,9 +964,6 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	if err != nil {
 		return err
 	}
-	if result == nil {
-		return nil
-	}
 	errCap := struct {
 		Label   string `json:"label"`
 		Code    string `json:"code"`
@@ -978,6 +975,9 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			e.Name,
 			errCap.Label,
 			errCap.Message)
+	}
+	if result == nil {
+		return nil
 	}
 	return json.Unmarshal(intermediary, result)
 }
