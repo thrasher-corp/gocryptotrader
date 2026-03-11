@@ -358,7 +358,7 @@ func (e *Exchange) GetAllUMOpenOrders(ctx context.Context, symbol currency.Pair)
 	if symbol.IsEmpty() {
 		endpointLimit = pmRetrieveAllUMOpenOrdersForAllSymbolRate
 	}
-	return e.getUMOrders(ctx, symbol, "/papi/v1/um/openOrders", time.Time{}, time.Time{}, 0, 0, endpointLimit)
+	return e.getUMOrders(ctx, symbol, time.Time{}, time.Time{}, "/papi/v1/um/openOrders", "", 0, endpointLimit)
 }
 
 // GetAllUMOrders retrieves all USDT margined orders except for
@@ -368,11 +368,11 @@ func (e *Exchange) GetAllUMOpenOrders(ctx context.Context, symbol currency.Pair)
 //
 // If orderId is set, it will get orders >= that orderId. Otherwise most recent orders are returned.
 // The query time period must be less then 7 days.
-func (e *Exchange) GetAllUMOrders(ctx context.Context, symbol currency.Pair, startTime, endTime time.Time, startingOrderID, limit int64) ([]*UMCMOrder, error) {
-	return e.getUMOrders(ctx, symbol, "/papi/v1/um/allOrders", startTime, endTime, startingOrderID, limit, pmGetAllUMOrdersRate)
+func (e *Exchange) GetAllUMOrders(ctx context.Context, symbol currency.Pair, startTime, endTime time.Time, startingOrderID string, limit int64) ([]*UMCMOrder, error) {
+	return e.getUMOrders(ctx, symbol, startTime, endTime, "/papi/v1/um/allOrders", startingOrderID, limit, pmGetAllUMOrdersRate)
 }
 
-func (e *Exchange) getUMOrders(ctx context.Context, symbol currency.Pair, path string, startTime, endTime time.Time, startingOrderID, limit int64, endpointLimit request.EndpointLimit) ([]*UMCMOrder, error) {
+func (e *Exchange) getUMOrders(ctx context.Context, symbol currency.Pair, startTime, endTime time.Time, path, startingOrderID string, limit int64, endpointLimit request.EndpointLimit) ([]*UMCMOrder, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
@@ -388,8 +388,8 @@ func (e *Exchange) getUMOrders(ctx context.Context, symbol currency.Pair, path s
 	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
-	if startingOrderID > 0 {
-		params.Set("orderId", strconv.FormatInt(startingOrderID, 10))
+	if startingOrderID != "" {
+		params.Set("orderId", startingOrderID)
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -414,7 +414,7 @@ func (e *Exchange) GetAllCMOpenOrders(ctx context.Context, symbol currency.Pair,
 	if symbol.IsEmpty() {
 		endpointLimit = pmRetrieveAllCMOpenOrdersForAllSymbolRate
 	}
-	return e.getCMOrders(ctx, symbol, pair, "/papi/v1/cm/openOrders", time.Time{}, time.Time{}, 0, 0, endpointLimit)
+	return e.getCMOrders(ctx, symbol, pair, "/papi/v1/cm/openOrders", "", time.Time{}, time.Time{}, 0, endpointLimit)
 }
 
 // GetAllCMOrders get all account CM orders; active, canceled, or filled.
@@ -425,15 +425,15 @@ func (e *Exchange) GetAllCMOpenOrders(ctx context.Context, symbol currency.Pair,
 // - order status is CANCELED or EXPIRED, AND
 // - order has NO filled trade, AND
 // - created time + 3 days < current time
-func (e *Exchange) GetAllCMOrders(ctx context.Context, symbol currency.Pair, pair string, startTime, endTime time.Time, startingOrderID, limit int64) ([]*UMCMOrder, error) {
+func (e *Exchange) GetAllCMOrders(ctx context.Context, symbol currency.Pair, startTime, endTime time.Time, pair, startingOrderID string, limit int64) ([]*UMCMOrder, error) {
 	endpointLimit := pmAllCMOrderWithSymbolRate
 	if symbol.IsEmpty() {
 		endpointLimit = pmAllCMOrderWithoutSymbolRate
 	}
-	return e.getCMOrders(ctx, symbol, pair, "/papi/v1/cm/allOrders", startTime, endTime, startingOrderID, limit, endpointLimit)
+	return e.getCMOrders(ctx, symbol, pair, "/papi/v1/cm/allOrders", startingOrderID, startTime, endTime, limit, endpointLimit)
 }
 
-func (e *Exchange) getCMOrders(ctx context.Context, symbol currency.Pair, pair, path string, startTime, endTime time.Time, startingOrderID, limit int64, endpointLimit request.EndpointLimit) ([]*UMCMOrder, error) {
+func (e *Exchange) getCMOrders(ctx context.Context, symbol currency.Pair, pair, path, startingOrderID string, startTime, endTime time.Time, limit int64, endpointLimit request.EndpointLimit) ([]*UMCMOrder, error) {
 	if symbol.IsEmpty() && pair == "" {
 		return nil, fmt.Errorf("%w either symbol or pair is required", currency.ErrCurrencyPairEmpty)
 	}
@@ -455,8 +455,8 @@ func (e *Exchange) getCMOrders(ctx context.Context, symbol currency.Pair, pair, 
 	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
-	if startingOrderID > 0 {
-		params.Set("orderId", strconv.FormatInt(startingOrderID, 10))
+	if startingOrderID != "" {
+		params.Set("orderId", startingOrderID)
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -598,7 +598,7 @@ func (e *Exchange) GetCurrentMarginOpenOrders(ctx context.Context, symbol curren
 }
 
 // GetAllMarginAccountOrders retrieves all margin account orders
-func (e *Exchange) GetAllMarginAccountOrders(ctx context.Context, symbol currency.Pair, startTime, endTime time.Time, orderID, limit int64) ([]*MarginOrder, error) {
+func (e *Exchange) GetAllMarginAccountOrders(ctx context.Context, symbol currency.Pair, startTime, endTime time.Time, orderID string, limit int64) ([]*MarginOrder, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -609,8 +609,8 @@ func (e *Exchange) GetAllMarginAccountOrders(ctx context.Context, symbol currenc
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol.String())
-	if orderID != 0 {
-		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	if orderID != "" {
+		params.Set("orderId", orderID)
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))

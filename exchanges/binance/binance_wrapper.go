@@ -2590,7 +2590,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	}
 	var orders []order.Detail
 	switch req.AssetType {
-	case asset.Spot, asset.Margin:
+	case asset.Spot:
 		if req.Type == order.OCO {
 			resp, err := e.GetAllOCOOrders(ctx, req.FromOrderID, req.StartTime, req.EndTime, 0)
 			if err != nil {
@@ -2684,6 +2684,52 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					detail.InferCostsAndTimes()
 					orders = append(orders, detail)
 				}
+			}
+		}
+	case asset.Margin:
+		for i := range req.Pairs {
+			resp, err := e.GetMarginAccountAllOrders(ctx, req.Pairs[i], req.MarginType == margin.Isolated, req.StartTime, req.EndTime, req.FromOrderID, 0)
+			if err != nil {
+				return nil, err
+			}
+			for _, r := range resp {
+				oType, err := order.StringToOrderType(r.Type)
+				if err != nil {
+					return nil, err
+				}
+				oSide, err := order.StringToOrderSide(r.Side)
+				if err != nil {
+					return nil, err
+				}
+				oStatus, err := order.StringToOrderStatus(r.Status)
+				if err != nil {
+					return nil, err
+				}
+				marginType := margin.Multi
+				if r.IsIsolated {
+					marginType = margin.Isolated
+				}
+				orders = append(orders, order.Detail{
+					TimeInForce:          r.TimeInForce,
+					Price:                r.Price.Float64(),
+					Amount:               r.OrigQty.Float64(),
+					ContractAmount:       r.CummulativeQuoteQty.Float64(),
+					TriggerPrice:         r.StopPrice.Float64(),
+					AverageExecutedPrice: r.Price.Float64(),
+					QuoteAmount:          r.CummulativeQuoteQty.Float64(),
+					ExecutedAmount:       r.ExecutedQty.Float64(),
+					RemainingAmount:      r.OrigQty.Float64() - r.ExecutedQty.Float64(),
+					Exchange:             e.Name,
+					OrderID:              strconv.FormatInt(r.OrderID, 10),
+					ClientOrderID:        r.ClientOrderID,
+					Type:                 oType,
+					Side:                 oSide,
+					Status:               oStatus,
+					AssetType:            req.AssetType,
+					LastUpdated:          r.UpdateTime.Time(),
+					Pair:                 req.Pairs[i],
+					MarginType:           marginType,
+				})
 			}
 		}
 	case asset.CoinMarginedFutures:
@@ -2810,6 +2856,140 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				})
 			}
 		}
+	case asset.MarginUnified:
+		for i := range req.Pairs {
+			resp, err := e.GetAllMarginAccountOrders(ctx, req.Pairs[i], req.StartTime, req.EndTime, req.FromOrderID, 0)
+			if err != nil {
+				return nil, err
+			}
+			for _, r := range resp {
+				oType, err := order.StringToOrderType(r.Type)
+				if err != nil {
+					return nil, err
+				}
+				oSide, err := order.StringToOrderSide(r.Side)
+				if err != nil {
+					return nil, err
+				}
+				oStatus, err := order.StringToOrderStatus(r.Status)
+				if err != nil {
+					return nil, err
+				}
+				cp, err := currency.NewPairFromString(r.Symbol)
+				if err != nil {
+					return nil, err
+				}
+				orders = append(orders, order.Detail{
+					TimeInForce:          r.TimeInForce,
+					Price:                r.Price.Float64(),
+					Amount:               r.OrigQty.Float64(),
+					ContractAmount:       r.CummulativeQuoteQty.Float64(),
+					TriggerPrice:         r.StopPrice.Float64(),
+					AverageExecutedPrice: r.Price.Float64(),
+					QuoteAmount:          r.CummulativeQuoteQty.Float64(),
+					ExecutedAmount:       r.ExecutedQty.Float64(),
+					RemainingAmount:      r.OrigQty.Float64() - r.ExecutedQty.Float64(),
+					Exchange:             e.Name,
+					OrderID:              strconv.FormatUint(r.OrderID, 10),
+					ClientOrderID:        r.ClientOrderID,
+					AccountID:            strconv.FormatInt(r.AccountID, 10),
+					Type:                 oType,
+					Side:                 oSide,
+					Status:               oStatus,
+					AssetType:            req.AssetType,
+					LastUpdated:          r.UpdateTime.Time(),
+					Pair:                 cp,
+				})
+			}
+		}
+	case asset.USDTMarginedFuturesUnified:
+		for i := range req.Pairs {
+			resp, err := e.GetAllUMOrders(ctx, req.Pairs[i], req.StartTime, req.EndTime, req.FromOrderID, 0)
+			if err != nil {
+				return nil, err
+			}
+			for _, r := range resp {
+				oType, err := order.StringToOrderType(r.Type)
+				if err != nil {
+					return nil, err
+				}
+				oSide, err := order.StringToOrderSide(r.Side)
+				if err != nil {
+					return nil, err
+				}
+				oStatus, err := order.StringToOrderStatus(r.Status)
+				if err != nil {
+					return nil, err
+				}
+				cp, err := currency.NewPairFromString(r.Symbol)
+				if err != nil {
+					return nil, err
+				}
+				orders = append(orders, order.Detail{
+					TimeInForce:          r.TimeInForce,
+					Price:                r.Price.Float64(),
+					Amount:               r.OrigQty.Float64(),
+					ContractAmount:       r.CumQty.Float64(),
+					AverageExecutedPrice: r.AvgPrice.Float64(),
+					QuoteAmount:          r.CumQty.Float64(),
+					ExecutedAmount:       r.ExecutedQty.Float64(),
+					RemainingAmount:      r.OrigQty.Float64() - r.ExecutedQty.Float64(),
+					Exchange:             e.Name,
+					OrderID:              strconv.FormatInt(r.OrderID, 10),
+					ClientOrderID:        r.ClientOrderID,
+					Type:                 oType,
+					Side:                 oSide,
+					Status:               oStatus,
+					AssetType:            req.AssetType,
+					LastUpdated:          r.UpdateTime.Time(),
+					Pair:                 cp,
+				})
+			}
+		}
+	case asset.CoinMarginedFuturesUnified:
+		for i := range req.Pairs {
+			resp, err := e.GetAllCMOrders(ctx, req.Pairs[i], req.StartTime, req.EndTime, "", req.FromOrderID, 0)
+			if err != nil {
+				return nil, err
+			}
+			for _, r := range resp {
+				oType, err := order.StringToOrderType(r.Type)
+				if err != nil {
+					return nil, err
+				}
+				oSide, err := order.StringToOrderSide(r.Side)
+				if err != nil {
+					return nil, err
+				}
+				oStatus, err := order.StringToOrderStatus(r.Status)
+				if err != nil {
+					return nil, err
+				}
+				cp, err := currency.NewPairFromString(r.Symbol)
+				if err != nil {
+					return nil, err
+				}
+				orders = append(orders, order.Detail{
+					TimeInForce:          r.TimeInForce,
+					Price:                r.Price.Float64(),
+					Amount:               r.OrigQty.Float64(),
+					ContractAmount:       r.CumQty.Float64(),
+					AverageExecutedPrice: r.AvgPrice.Float64(),
+					QuoteAmount:          r.CumQty.Float64(),
+					ExecutedAmount:       r.ExecutedQty.Float64(),
+					RemainingAmount:      r.OrigQty.Float64() - r.ExecutedQty.Float64(),
+					Exchange:             e.Name,
+					OrderID:              strconv.FormatInt(r.OrderID, 10),
+					ClientOrderID:        r.ClientOrderID,
+					Type:                 oType,
+					Side:                 oSide,
+					Status:               oStatus,
+					AssetType:            req.AssetType,
+					LastUpdated:          r.UpdateTime.Time(),
+					Pair:                 cp,
+				})
+			}
+		}
 	case asset.Options:
 		if len(req.Pairs) == 0 {
 			req.Pairs = append(req.Pairs, currency.EMPTYPAIR)
@@ -2883,7 +3063,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	switch a {
-	case asset.Spot, asset.Margin:
+	case asset.Spot, asset.Margin, asset.MarginUnified:
 		var candles []*CandleStick
 		if e.IsAPIStreamConnected() {
 			candles, err = e.GetWsOptimizedCandlestick(&KlinesRequestParams{
@@ -2915,7 +3095,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 				Volume: candles[i].Volume.Float64(),
 			})
 		}
-	case asset.USDTMarginedFutures:
+	case asset.USDTMarginedFutures, asset.USDTMarginedFuturesUnified:
 		var candles []*UFuturesCandleStick
 		candles, err = e.UKlineData(ctx,
 			req.RequestFormatted,
@@ -2936,7 +3116,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 				Volume: candles[i].Volume.Float64(),
 			})
 		}
-	case asset.CoinMarginedFutures:
+	case asset.CoinMarginedFutures, asset.CoinMarginedFuturesUnified:
 		candles, err := e.GetFuturesKlineData(ctx,
 			req.RequestFormatted,
 			e.FormatExchangeKlineInterval(interval),
@@ -2989,7 +3169,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	for x := range req.RangeHolder.Ranges {
 		switch a {
-		case asset.Spot, asset.Margin:
+		case asset.Spot, asset.Margin, asset.MarginUnified:
 			var candles []*CandleStick
 			if e.IsAPIStreamConnected() {
 				candles, err = e.GetWsCandlestick(&KlinesRequestParams{
@@ -3021,7 +3201,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 					Volume: candles[i].Volume.Float64(),
 				})
 			}
-		case asset.USDTMarginedFutures:
+		case asset.USDTMarginedFutures, asset.USDTMarginedFuturesUnified:
 			var candles []*UFuturesCandleStick
 			candles, err = e.UKlineData(ctx,
 				req.RequestFormatted,
@@ -3042,7 +3222,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 					Volume: candles[i].Volume.Float64(),
 				})
 			}
-		case asset.CoinMarginedFutures:
+		case asset.CoinMarginedFutures, asset.CoinMarginedFuturesUnified:
 			var candles []*CFuturesCandleStick
 			candles, err = e.GetFuturesKlineData(ctx,
 				req.RequestFormatted,
@@ -3253,7 +3433,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 
 	switch r.Asset {
 	case asset.Spot:
-	case asset.USDTMarginedFutures:
+	case asset.USDTMarginedFutures, asset.USDTMarginedFuturesUnified:
 		var mp []*UMarkPrice
 		var fri []*FundingRateInfoResponse
 		fri, err = e.UGetFundingRateInfo(ctx)
@@ -3313,7 +3493,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			return nil, fmt.Errorf("%w %v %v", futures.ErrNotPerpetualFuture, r.Asset, r.Pair)
 		}
 		return resp, nil
-	case asset.CoinMarginedFutures:
+	case asset.CoinMarginedFutures, asset.CoinMarginedFuturesUnified:
 		var fri []*FundingRateInfoResponse
 		fri, err = e.GetFundingRateInfo(ctx)
 		if err != nil {
@@ -3399,7 +3579,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		EndDate:   r.EndDate,
 	}
 	switch r.Asset {
-	case asset.USDTMarginedFutures:
+	case asset.USDTMarginedFutures, asset.USDTMarginedFuturesUnified:
 		requestLimit := 1000
 		sd := r.StartDate
 		var fri []*FundingRateInfoResponse
@@ -3465,7 +3645,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 				}
 			}
 		}
-	case asset.CoinMarginedFutures:
+	case asset.CoinMarginedFutures, asset.CoinMarginedFuturesUnified:
 		requestLimit := 1000
 		sd := r.StartDate
 		var fri []*FundingRateInfoResponse

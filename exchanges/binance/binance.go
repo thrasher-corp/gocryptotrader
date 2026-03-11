@@ -1235,7 +1235,7 @@ func (e *Exchange) GetMarginAccountsOpenOrders(ctx context.Context, symbol curre
 }
 
 // GetMarginAccountAllOrders retrieves all margin account's orders.
-func (e *Exchange) GetMarginAccountAllOrders(ctx context.Context, symbol currency.Pair, isIsolated bool, startTime, endTime time.Time, orderID, limit int64) ([]*TradeOrder, error) {
+func (e *Exchange) GetMarginAccountAllOrders(ctx context.Context, symbol currency.Pair, isIsolated bool, startTime, endTime time.Time, orderID string, limit int64) ([]*TradeOrder, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -1255,8 +1255,8 @@ func (e *Exchange) GetMarginAccountAllOrders(ctx context.Context, symbol currenc
 	if !endTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
-	if orderID > 0 {
-		params.Set("orderId", strconv.FormatInt(orderID, 10))
+	if orderID != "" {
+		params.Set("orderId", orderID)
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))

@@ -4281,15 +4281,15 @@ func TestGetMarginAccountsOpenOrders(t *testing.T) {
 
 func TestGetMarginAccountAllOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMarginAccountAllOrders(t.Context(), currency.EMPTYPAIR, true, time.Time{}, time.Time{}, 0, 20)
+	_, err := e.GetMarginAccountAllOrders(t.Context(), currency.EMPTYPAIR, true, time.Time{}, time.Time{}, "", 20)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	startTime, endTime := getTime()
-	_, err = e.GetMarginAccountAllOrders(t.Context(), assetToTradablePairMap[asset.Margin], true, endTime, startTime, 0, 20)
+	_, err = e.GetMarginAccountAllOrders(t.Context(), assetToTradablePairMap[asset.Margin], true, endTime, startTime, "", 20)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetMarginAccountAllOrders(t.Context(), assetToTradablePairMap[asset.Margin], true, startTime, endTime, 1, 20)
+	result, err := e.GetMarginAccountAllOrders(t.Context(), assetToTradablePairMap[asset.Margin], true, startTime, endTime, "1", 20)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -6700,11 +6700,11 @@ func TestGetAllUMOpenOrders(t *testing.T) {
 func TestGetAllUMOrders(t *testing.T) {
 	t.Parallel()
 	startTime, endTime := getTime()
-	_, err := e.GetAllUMOrders(t.Context(), usdtmTradablePair, endTime, startTime, 1, 100)
+	_, err := e.GetAllUMOrders(t.Context(), usdtmTradablePair, endTime, startTime, "1", 100)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetAllUMOrders(t.Context(), usdtmTradablePair, startTime, endTime, 1, 100)
+	result, err := e.GetAllUMOrders(t.Context(), usdtmTradablePair, startTime, endTime, "1", 100)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -6747,15 +6747,15 @@ func TestGetAllCMOpenOrders(t *testing.T) {
 
 func TestGetAllCMOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetAllCMOrders(t.Context(), currency.EMPTYPAIR, "", time.Time{}, time.Time{}, 0, 20)
+	_, err := e.GetAllCMOrders(t.Context(), currency.EMPTYPAIR, time.Time{}, time.Time{}, "", "", 20)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	startTime, endTime := getTime()
-	_, err = e.GetAllCMOrders(t.Context(), coinmTradablePair, "BTCUSD", endTime, startTime, 0, 20)
+	_, err = e.GetAllCMOrders(t.Context(), coinmTradablePair, endTime, startTime, "BTCUSD", "", 20)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetAllCMOrders(t.Context(), coinmTradablePair, "BTCUSD", startTime, endTime, 0, 20)
+	result, err := e.GetAllCMOrders(t.Context(), coinmTradablePair, startTime, endTime, "BTCUSD", "", 20)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -6853,15 +6853,15 @@ func TestGetCurrentMarginOpenOrder(t *testing.T) {
 
 func TestGetAllMarginAccountOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetAllMarginAccountOrders(t.Context(), currency.EMPTYPAIR, time.Time{}, time.Time{}, 0, 10)
+	_, err := e.GetAllMarginAccountOrders(t.Context(), currency.EMPTYPAIR, time.Time{}, time.Time{}, "", 10)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	startTime, endTime := getTime()
-	_, err = e.GetAllMarginAccountOrders(t.Context(), currency.EMPTYPAIR, endTime, startTime, 0, 10)
+	_, err = e.GetAllMarginAccountOrders(t.Context(), currency.EMPTYPAIR, endTime, startTime, "", 10)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetAllMarginAccountOrders(t.Context(), assetToTradablePairMap[asset.Margin], startTime, endTime, 0, 10)
+	result, err := e.GetAllMarginAccountOrders(t.Context(), assetToTradablePairMap[asset.Margin], startTime, endTime, "1234", 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
