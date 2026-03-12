@@ -213,7 +213,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 		// response to caller. Skip unmarshalling if there is no body content
 		// (e.g. HTTP 204 No Content) to avoid a spurious syntax error.
 		var unmarshallError error
-		if p.Result != nil && len(contents) > 0 {
+		if p.Result != nil && resp.StatusCode != http.StatusNoContent {
 			unmarshallError = json.Unmarshal(contents, p.Result)
 		}
 

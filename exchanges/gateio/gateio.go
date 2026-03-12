@@ -970,7 +970,6 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		}
 		return fmt.Errorf("%s %w, empty response body with non-nil result", e.Name, request.ErrAuthRequestFailed)
 	}
-
 	errCap := struct {
 		Label   string `json:"label"`
 		Code    string `json:"code"`
@@ -978,6 +977,9 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	}{}
 	if err := json.Unmarshal(intermediary, &errCap); err == nil && errCap.Code != "" {
 		return fmt.Errorf("%s auth request error, code: %s message: %s", e.Name, errCap.Label, errCap.Message)
+	}
+	if result == nil {
+		return nil
 	}
 	return json.Unmarshal(intermediary, result)
 }

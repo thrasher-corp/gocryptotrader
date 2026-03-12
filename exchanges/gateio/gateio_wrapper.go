@@ -1975,8 +1975,8 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		for _, mInfo := range supported {
 			l = append(l, limits.MinMaxLevel{
 				Key:                     key.NewExchangeAssetPair(e.Name, a, mInfo.pair),
-				AmountStepIncrementSize: mInfo.minBase,  // Margin API doesn't provide step size; default to min base amount.
-				QuoteStepIncrementSize:  mInfo.minQuote, // Margin API doesn't provide step size; default to min quote amount.
+				AmountStepIncrementSize: 0, // Margin API doesn't provide step size; leave step increments as 0 to avoid incorrectly treating minimum amounts as step sizes in validation.
+				QuoteStepIncrementSize:  0, // As above
 				MinimumBaseAmount:       mInfo.minBase,
 				MinimumQuoteAmount:      mInfo.minQuote,
 			})
