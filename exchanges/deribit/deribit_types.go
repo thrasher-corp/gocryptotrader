@@ -64,6 +64,7 @@ var (
 	errMissingBlockRFQID                   = errors.New("missing block rfq id")
 	errMissingBlockRFQQuoteIdentifier      = errors.New("block_rfq_quote_id required, or both block_rfq_id and label")
 	errEmptyBlockRFQQuoteCancelResponse    = errors.New("empty block rfq quote cancel response")
+	errInvalidBlockRFQQuoteCancelResponse  = errors.New("invalid block rfq quote cancel response")
 	errInvalidBrokerTradeUserID            = errors.New("invalid broker trade user_id")
 	errMissingSubAccountID                 = errors.New("missing subaccount id")
 	errUnsupportedInstrumentFormat         = errors.New("unsupported instrument type format")
@@ -1121,7 +1122,7 @@ func (a *BlockRFQQuoteCancelResponse) UnmarshalJSON(data []byte) error {
 	if trimmed[0] == '[' {
 		var quotes []BlockRFQQuote
 		if err := json.Unmarshal(trimmed, &quotes); err != nil {
-			return err
+			return fmt.Errorf("%w: %q: %v", errInvalidBlockRFQQuoteCancelResponse, string(data), err)
 		}
 		a.Quotes = quotes
 		a.CancelCount = uint64(len(quotes))
@@ -1130,7 +1131,7 @@ func (a *BlockRFQQuoteCancelResponse) UnmarshalJSON(data []byte) error {
 
 	var cancelCount uint64
 	if err := json.Unmarshal(trimmed, &cancelCount); err != nil {
-		return err
+		return fmt.Errorf("%w: %q: %v", errInvalidBlockRFQQuoteCancelResponse, string(data), err)
 	}
 	a.CancelCount = cancelCount
 	a.Quotes = nil

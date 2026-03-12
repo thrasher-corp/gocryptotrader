@@ -3431,6 +3431,14 @@ func TestBlockRFQQuoteCancelResponseUnmarshalEmpty(t *testing.T) {
 	assert.ErrorContains(t, err, "\" \\t\\n\"")
 }
 
+func TestBlockRFQQuoteCancelResponseUnmarshalInvalid(t *testing.T) {
+	t.Parallel()
+	var response BlockRFQQuoteCancelResponse
+	err := json.Unmarshal([]byte(`{"unexpected":true}`), &response)
+	require.ErrorIs(t, err, errInvalidBlockRFQQuoteCancelResponse)
+	assert.ErrorContains(t, err, `"{\"unexpected\":true}"`)
+}
+
 func TestBrokerTradeUserIDUnmarshalError(t *testing.T) {
 	t.Parallel()
 	var userID BrokerTradeUserID
