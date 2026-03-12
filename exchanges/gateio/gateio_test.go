@@ -587,6 +587,9 @@ func TestUniLoanBorrowOrRepay(t *testing.T) {
 
 func TestGetUniLoanInterestRecords(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetUniLoanInterestRecords(t.Context(), currency.NewBTCUSDT(), currency.BTC, 0, 101)
+	require.ErrorIs(t, err, errInvalidLimit)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	records, err := e.GetUniLoanInterestRecords(t.Context(), currency.NewBTCUSDT(), currency.BTC, 0, 0)
 	assert.NoError(t, err)

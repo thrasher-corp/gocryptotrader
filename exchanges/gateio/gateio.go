@@ -171,6 +171,7 @@ var (
 	errTooManyCurrencyCodes             = errors.New("too many currency codes supplied")
 	errFetchingOrderbook                = errors.New("error fetching orderbook")
 	errNoSpotInstrument                 = errors.New("no spot instrument available")
+	errInvalidLimit                     = errors.New("invalid limit")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
@@ -1385,7 +1386,7 @@ func (e *Exchange) UniLoanBorrowOrRepay(ctx context.Context, arg *UniLoanBorrowR
 // GetUniLoanInterestRecords retrieves interest deduction records for unified
 // margin loans. Filters by currency pair and optionally by currency code.
 // Pagination: page starts at 1, limit defaults to 100 (max 100).
-func (e *Exchange) GetUniLoanInterestRecords(ctx context.Context, currencyPair currency.Pair, ccy currency.Code, page, limit int64) ([]UniLoanInterestRecord, error) {
+func (e *Exchange) GetUniLoanInterestRecords(ctx context.Context, currencyPair currency.Pair, ccy currency.Code, page, limit uint64) ([]UniLoanInterestRecord, error) {
 	params := url.Values{}
 	if currencyPair.IsPopulated() {
 		params.Set("currency_pair", currencyPair.String())
@@ -1394,10 +1395,13 @@ func (e *Exchange) GetUniLoanInterestRecords(ctx context.Context, currencyPair c
 		params.Set("currency", ccy.String())
 	}
 	if page > 0 {
-		params.Set("page", strconv.FormatInt(page, 10))
+		params.Set("page", strconv.FormatUint(page, 10))
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		if limit > 100 {
+			return nil, fmt.Errorf("%w: maximum 100", errInvalidLimit)
+		}
+		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var response []UniLoanInterestRecord
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginUniInterestRecordsEPL, http.MethodGet, gateioMarginUniInterestRecords, params, nil, &response)
@@ -1722,7 +1726,7 @@ func (e *Exchange) GetMaxTransferableAmountForSpecificMarginCurrency(ctx context
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginGetMaxTransferEPL, http.MethodGet, gateioMarginTransfer, params, nil, &response)
 }
 
-// GetMaxBorrowableAmountForSpecificMarginCurrency retrieves the max borrowble amount for specific currency
+// GetMaxBorrowableAmountForSpecificMarginCurrency retrieves the max borrowable amount for specific currency
 func (e *Exchange) GetMaxBorrowableAmountForSpecificMarginCurrency(ctx context.Context, ccy currency.Code, pair currency.Pair) (*MaxBorrowableAmount, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
