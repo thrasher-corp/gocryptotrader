@@ -1566,9 +1566,6 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 				if err != nil {
 					return nil, err
 				}
-				if isAvail, err := e.CurrencyPairs.IsPairAvailable(o[j].CurrencyPair, req.AssetType); !isAvail || err != nil {
-					continue
-				}
 				od := order.Detail{
 					OrderID:        o[j].OrderID,
 					Amount:         o[j].Amount.Float64(),
@@ -1577,7 +1574,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 					Date:           o[j].CreateTime.Time(),
 					Side:           side,
 					Exchange:       e.Name,
-					Pair:           o[j].CurrencyPair,
+					Pair:           fp,
 					AssetType:      req.AssetType,
 					Fee:            o[j].Fee.Float64(),
 					FeeAsset:       o[j].FeeCurrency,

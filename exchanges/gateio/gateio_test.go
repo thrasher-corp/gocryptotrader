@@ -380,12 +380,49 @@ func TestGetServerTime(t *testing.T) {
 
 func TestCountdownCancelSpotOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	if _, err := e.CountdownCancelSpotOrders(t.Context(), CountdownCancelOrderParam{
-		Timeout:      10,
-		CurrencyPair: currency.Pair{Base: currency.BTC, Quote: currency.ETH, Delimiter: currency.UnderscoreDelimiter},
-	}); err != nil {
-		t.Errorf("%s CountdownCancelorder() error %v", e.Name, err)
+	for _, tc := range []struct {
+		name         string
+		requiresAuth bool
+		arg          CountdownCancelOrderParam
+		expectedErr  error
+	}{
+		{
+			name:         "valid",
+			requiresAuth: true,
+			arg: CountdownCancelOrderParam{
+				Timeout:      10,
+				CurrencyPair: currency.Pair{Base: currency.BTC, Quote: currency.ETH, Delimiter: currency.UnderscoreDelimiter},
+			},
+		},
+		{
+			name: "timeout_zero",
+			arg: CountdownCancelOrderParam{
+				Timeout:      0,
+				CurrencyPair: currency.Pair{Base: currency.BTC, Quote: currency.ETH, Delimiter: currency.UnderscoreDelimiter},
+			},
+			expectedErr: errInvalidCountdown,
+		},
+		{
+			name: "timeout_negative",
+			arg: CountdownCancelOrderParam{
+				Timeout:      -1,
+				CurrencyPair: currency.Pair{Base: currency.BTC, Quote: currency.ETH, Delimiter: currency.UnderscoreDelimiter},
+			},
+			expectedErr: errInvalidCountdown,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if tc.requiresAuth {
+				sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+			}
+			_, err := e.CountdownCancelSpotOrders(t.Context(), tc.arg)
+			if tc.expectedErr != nil {
+				assert.ErrorIs(t, err, tc.expectedErr)
+				return
+			}
+			require.NoError(t, err)
+		})
 	}
 }
 
@@ -1293,11 +1330,51 @@ func TestGetFuturesLiquidationHistory(t *testing.T) {
 
 func TestCountdownCancelFuturesOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.CountdownCancelFuturesOrders(t.Context(), currency.BTC, CountdownParams{
-		Timeout: 8,
-	})
-	assert.NoError(t, err, "CountdownCancelFuturesOrders should not error")
+	for _, tc := range []struct {
+		name         string
+		requiresAuth bool
+		settle       currency.Code
+		arg          CountdownParams
+		expectedErr  error
+	}{
+		{
+			name:         "valid",
+			requiresAuth: true,
+			settle:       currency.BTC,
+			arg: CountdownParams{
+				Timeout: 8,
+			},
+		},
+		{
+			name:   "empty_settlement",
+			settle: currency.EMPTYCODE,
+			arg: CountdownParams{
+				Timeout: 8,
+			},
+			expectedErr: errEmptyOrInvalidSettlementCurrency,
+		},
+		{
+			name:   "negative_timeout",
+			settle: currency.BTC,
+			arg: CountdownParams{
+				Timeout: -1,
+			},
+			expectedErr: errInvalidTimeout,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if tc.requiresAuth {
+				sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+			}
+			_, err := e.CountdownCancelFuturesOrders(t.Context(), tc.settle, tc.arg)
+			if tc.expectedErr != nil {
+				assert.ErrorIs(t, err, tc.expectedErr)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
 }
 
 func TestCreatePriceTriggeredFuturesOrder(t *testing.T) {
@@ -1903,9 +1980,7 @@ func TestGetOrderHistory(t *testing.T) {
 	testCases := make([]testCase, 0, len(e.GetAssetTypes(false))*2+1)
 	for _, a := range e.GetAssetTypes(false) {
 		enabledPairs := getPairs(t, a)
-		if len(enabledPairs) > 4 {
-			enabledPairs = enabledPairs[:4]
-		}
+		enabledPairs = enabledPairs[:min(4, len(enabledPairs))]
 
 		withPairs := testCase{
 			name:         a.String() + "/with_pairs",
@@ -1946,20 +2021,20 @@ func TestGetOrderHistory(t *testing.T) {
 		expectedErr: asset.ErrNotSupported,
 	})
 
-	for i := range testCases {
-		t.Run(testCases[i].name, func(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			if testCases[i].requiresAuth {
+			if tc.requiresAuth {
 				sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 			}
-			orders, err := e.GetOrderHistory(t.Context(), &testCases[i].request)
-			if testCases[i].expectedErr != nil {
-				assert.ErrorIs(t, err, testCases[i].expectedErr)
+			orders, err := e.GetOrderHistory(t.Context(), &tc.request)
+			if tc.expectedErr != nil {
+				assert.ErrorIs(t, err, tc.expectedErr)
 				return
 			}
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			for j := range orders {
-				assert.Equal(t, testCases[i].request.AssetType, orders[j].AssetType)
+				assert.Equal(t, tc.request.AssetType, orders[j].AssetType)
 				assert.Equal(t, e.Name, orders[j].Exchange)
 				assert.True(t, orders[j].Pair.IsPopulated(), "pair should be populated for order history response")
 			}
@@ -1972,9 +2047,7 @@ func TestGetOrderHistoryRequestImmutability(t *testing.T) {
 	testexch.UpdatePairsOnce(t, e)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	enabledPairs := getPairs(t, asset.Spot)
-	if len(enabledPairs) > 2 {
-		enabledPairs = enabledPairs[:2]
-	}
+	enabledPairs = enabledPairs[:min(2, len(enabledPairs))]
 
 	type testCase struct {
 		name    string
@@ -1995,19 +2068,18 @@ func TestGetOrderHistoryRequestImmutability(t *testing.T) {
 			request: order.MultiOrderRequest{
 				Type:      order.AnyType,
 				Side:      order.Buy,
-				Pairs:     append(currency.Pairs(nil), enabledPairs...),
+				Pairs:     slices.Clone(enabledPairs),
 				AssetType: asset.Spot,
 			},
 		},
 	}
 
-	for i := range testCases {
-		tc := testCases[i]
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			expectedPairs := append(currency.Pairs(nil), tc.request.Pairs...)
+			expectedPairs := slices.Clone(tc.request.Pairs)
 			_, err := e.GetOrderHistory(t.Context(), &tc.request)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, expectedPairs, tc.request.Pairs)
 		})
 	}
