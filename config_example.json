@@ -609,11 +609,13 @@
      "requiresSecret": true
     },
     "urlEndpoints": {
-     "EdgeCase1URL": "https://www.binance.com",
-     "RestCoinMarginedFuturesURL": "https://dapi.binance.com",
-     "RestSpotSupplementaryURL": "https://api.binance.com",
-     "RestSpotURL": "https://sapi.binance.com",
+     "RestSpotURL": "https://api4.binance.com",
+     "RestOptionsURL": "https://eapi.binance.com",
      "RestUSDTMarginedFuturesURL": "https://fapi.binance.com",
+     "RestCoinMarginedFuturesURL": "https://dapi.binance.com",
+     "RestFuturesSupplementaryURL": "https://papi.binance.com",
+     "RestSpotSupplementaryURL": "https://api.binance.com",
+     "EdgeCase1URL": "https://api.binance.com",
      "WebsocketSpotURL": "wss://stream.binance.com:9443/stream"
     }
    },

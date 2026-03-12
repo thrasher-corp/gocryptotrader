@@ -39,6 +39,28 @@ type Exchange struct {
 	isAPIStreamConnected bool
 
 	isAPIStreamConnectionLock sync.Mutex
+
+	accountType *AccountTypeHolder
+}
+
+// FetchAccountType if not set fetches the account type from the API, stores it and returns it. Else returns the stored account type.
+func (e *Exchange) FetchAccountType(ctx context.Context) (bool, error) {
+	e.accountType.m.Lock()
+	defer e.accountType.m.Unlock()
+	if e.accountType == nil {
+		accInfo, err := e.GetCrossMarginAccountDetail(ctx)
+		if err != nil {
+			return false, err
+		}
+		e.accountType.isUnified = accInfo.AccountType == "MARGIN_2"
+	}
+	return e.accountType.isUnified, nil
+}
+
+// AccountTypeHolder holds the account type associated with the loaded API key.
+type AccountTypeHolder struct {
+	isUnified bool
+	m         sync.Mutex
 }
 
 const (
@@ -1218,7 +1240,7 @@ func (e *Exchange) GetMarginAccountsOrder(ctx context.Context, symbol currency.P
 		params.Set("origClientOrderId", origClientOrderID)
 	}
 	var resp *TradeOrder
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/margin/order ", params, getCrossMarginAccountOrderRate, nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/margin/order", params, getCrossMarginAccountOrderRate, nil, &resp)
 }
 
 // GetMarginAccountsOpenOrders retrieves margin account's open orders
@@ -5572,7 +5594,7 @@ func (e *Exchange) SpotTWAPNewOrder(ctx context.Context, arg *SpotTWAPOrderParam
 		return nil, fmt.Errorf("%w: duration for TWAP orders in seconds. [300, 86400]", errDurationRequired)
 	}
 	var resp *AlgoOrderResponse
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/algo/spot/newOrderTwap", nil, spotTwapNewOrderRate, arg, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/algo/spot/newOrderTwap", nil, spotTwapNewOrderRate, arg, &resp)
 }
 
 // CancelSpotAlgoOrder cancels an open spot TWAP order
@@ -5732,7 +5754,7 @@ func (e *Exchange) GetUserNegativeBalanceAutoExchangeRecord(ctx context.Context,
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp *UserNegativeBalanceRecord
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/papi/v1/portfolio/negative-balance-exchange-record", params, request.UnAuth, nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/portfolio/negative-balance-exchange-record", params, request.UnAuth, nil, &resp)
 }
 
 // ----------------------------------  Binance Leverate Token(BLVT) Endpoints  ------------------------------
@@ -7704,7 +7726,7 @@ func (e *Exchange) GetFuturesClientifNewUser(ctx context.Context, brokerID strin
 		params.Set("type", "2")
 	}
 	var resp *FuturesClientIfNewUser
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/papi/v1/apiReferral/ifNewUser", params, request.Auth, nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/apiReferral/ifNewUser", params, request.Auth, nil, &resp)
 }
 
 // CustomizeIDForClientToReferredUser allows a broker (referrer) to assign a custom unique identifier (customerId) to a referred user.
@@ -7719,7 +7741,7 @@ func (e *Exchange) CustomizeIDForClientToReferredUser(ctx context.Context, custo
 	params.Set("customerId", customerID)
 	params.Set("brokerId", brokerID)
 	var resp *BrokerAndCustomerID
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/papi/v1/apiReferral/userCustomization", params, request.Auth, nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/apiReferral/userCustomization", params, request.Auth, nil, &resp)
 }
 
 // GetUsersCustomizeIDs retrieves user's customize ID
@@ -7730,7 +7752,7 @@ func (e *Exchange) GetUsersCustomizeIDs(ctx context.Context, brokerID string) (*
 	params := url.Values{}
 	params.Set("brokerId", brokerID)
 	var resp *BrokerAndCustomerID
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/papi/v1/apiReferral/userCustomization", params, request.Auth, nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/apiReferral/userCustomization", params, request.Auth, nil, &resp)
 }
 
 // GetFastAPIUserStatus retrieves whether user's futures account is new or existing

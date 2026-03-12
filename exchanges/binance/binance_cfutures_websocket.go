@@ -16,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -41,13 +40,7 @@ func (e *Exchange) WsCFutureConnect(ctx context.Context, conn websocket.Connecti
 		Proxy:            http.ProxyFromEnvironment,
 	}
 	wsURL := binanceCFuturesWebsocketURL + "/stream"
-	if err := e.Websocket.SetWebsocketURL(wsURL, false, false); err != nil {
-		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		log.Errorf(log.ExchangeSys,
-			"%v unable to connect to authenticated Websocket. Error: %s",
-			e.Name,
-			err)
-	}
+	conn.SetURL(wsURL)
 	if err := conn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", e.Name, err)
 	}

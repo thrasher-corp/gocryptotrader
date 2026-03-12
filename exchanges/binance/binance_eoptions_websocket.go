@@ -69,8 +69,7 @@ func (e *Exchange) WsOptionsConnect(ctx context.Context, conn websocket.Connecti
 		listenKey, err = e.GetEOptionsWsAuthStreamKey(ctx)
 		switch {
 		case err != nil:
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			log.Errorf(log.ExchangeSys, "%v unable to connect to authenticated Websocket. Error: %s", e.Name, err)
+			log.Errorf(log.ExchangeSys, "%v unable to connect to authenticated options Websocket. Error: %s", e.Name, err)
 		default:
 			wsURL = wsURL + "ws/" + listenKey
 			conn.SetURL(wsURL)
@@ -279,6 +278,9 @@ func (e *Exchange) wsHandleEOptionsData(ctx context.Context, respRaw []byte) err
 			return errors.New("Unhandled data: " + string(respRaw))
 		}
 		return nil
+	}
+	if len(result.Instances) == 0 {
+		return errors.New("empty options websocket response instances")
 	}
 	switch result.Instances[0].Stream {
 	case cnlTrade:

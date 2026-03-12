@@ -1220,7 +1220,7 @@ func (e *Exchange) getUMCMPositionADLQuantileEstimation(ctx context.Context, sym
 // GetUserRateLimits retrieves list of user's account rate-limit information
 func (e *Exchange) GetUserRateLimits(ctx context.Context) ([]*RateLimitInfo, error) {
 	var resp []*RateLimitInfo
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpotSupplementary, http.MethodGet, "/papi/v1/rateLimit/order", nil, request.UnAuth, nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/rateLimit/order", nil, request.UnAuth, nil, &resp)
 }
 
 // GetPortfolioMarginAssetIndexPrice query portfolio margin asset index price

@@ -28,7 +28,6 @@ const (
 	Spot
 	Margin
 	CrossMargin
-	MarginUnified
 	MarginFunding
 	Index
 	Binary
@@ -40,9 +39,7 @@ const (
 	UpsideProfitContract
 	DownsideProfitContract
 	CoinMarginedFutures
-	CoinMarginedFuturesUnified
 	USDTMarginedFutures
-	USDTMarginedFuturesUnified
 	USDCMarginedFutures
 	FutureCombo
 	LinearContract
@@ -57,7 +54,6 @@ const (
 const (
 	spot                   = "spot"
 	margin                 = "margin"
-	marginUnified          = "margin_unified"
 	crossMargin            = "cross_margin"
 	marginFunding          = "marginfunding"
 	index                  = "index"
@@ -80,7 +76,7 @@ const (
 	all                    = "all"
 )
 
-var supportedList = Items{Spot, Margin, MarginUnified, CrossMargin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Options, LinearContract, OptionCombo, FutureCombo, Spread}
+var supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Options, LinearContract, OptionCombo, FutureCombo, Spread}
 
 // Supported returns a list of supported asset types
 func Supported() Items {
@@ -94,8 +90,6 @@ func (a Item) String() string {
 		return spot
 	case Margin:
 		return margin
-	case MarginUnified:
-		return marginUnified
 	case CrossMargin:
 		return crossMargin
 	case MarginFunding:
@@ -218,8 +212,6 @@ func New(input string) (Item, error) {
 		return MarginFunding, nil
 	case crossMargin:
 		return CrossMargin, nil
-	case marginUnified:
-		return MarginUnified, nil
 	case deliveryFutures:
 		return DeliveryFutures, nil
 	case index:
