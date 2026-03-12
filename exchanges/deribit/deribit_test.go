@@ -3371,9 +3371,8 @@ func TestValidateBlockRFQTradeAllocations(t *testing.T) {
 func TestValidateBlockRFQHedge(t *testing.T) {
 	t.Parallel()
 
-	hedge, err := validateBlockRFQHedge(nil)
-	require.NoError(t, err)
-	assert.Nil(t, hedge)
+	_, err := validateBlockRFQHedge(nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	_, err = validateBlockRFQHedge(&BlockRFQHedgeLeg{Amount: 1, Direction: sideBUY, Price: 10})
 	require.ErrorIs(t, err, errInvalidInstrumentName)

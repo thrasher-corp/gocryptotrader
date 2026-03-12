@@ -2270,9 +2270,12 @@ func (e *Exchange) WSCreateBlockRFQ(ctx context.Context, req *CreateBlockRFQRequ
 	if err != nil {
 		return nil, err
 	}
-	checkedHedge, err := validateBlockRFQHedge(req.Hedge)
-	if err != nil {
-		return nil, err
+	var checkedHedge *BlockRFQHedgeLeg
+	if req.Hedge != nil {
+		checkedHedge, err = validateBlockRFQHedge(req.Hedge)
+		if err != nil {
+			return nil, err
+		}
 	}
 	input := map[string]any{
 		"legs": checkedLegs,
@@ -2312,9 +2315,12 @@ func (e *Exchange) WSAddBlockRFQQuote(ctx context.Context, req *AddBlockRFQQuote
 	if err != nil {
 		return nil, err
 	}
-	checkedHedge, err := validateBlockRFQHedge(req.Hedge)
-	if err != nil {
-		return nil, err
+	var checkedHedge *BlockRFQHedgeLeg
+	if req.Hedge != nil {
+		checkedHedge, err = validateBlockRFQHedge(req.Hedge)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if req.Amount < 0 {
 		return nil, errInvalidAmount
@@ -2365,9 +2371,12 @@ func (e *Exchange) WSEditBlockRFQQuote(ctx context.Context, req *EditBlockRFQQuo
 	if err != nil {
 		return nil, err
 	}
-	checkedHedge, err := validateBlockRFQHedge(req.Hedge)
-	if err != nil {
-		return nil, err
+	var checkedHedge *BlockRFQHedgeLeg
+	if req.Hedge != nil {
+		checkedHedge, err = validateBlockRFQHedge(req.Hedge)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if req.Amount < 0 {
 		return nil, errInvalidAmount
@@ -2473,9 +2482,12 @@ func (e *Exchange) WSAcceptBlockRFQ(ctx context.Context, req *AcceptBlockRFQRequ
 	if err != nil {
 		return nil, err
 	}
-	checkedHedge, err := validateBlockRFQHedge(req.Hedge)
-	if err != nil {
-		return nil, err
+	var checkedHedge *BlockRFQHedgeLeg
+	if req.Hedge != nil {
+		checkedHedge, err = validateBlockRFQHedge(req.Hedge)
+		if err != nil {
+			return nil, err
+		}
 	}
 	input := map[string]any{
 		"block_rfq_id": req.BlockRFQID,

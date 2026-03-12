@@ -2588,7 +2588,7 @@ func validateBlockRFQTradeAllocations(tradeAllocations []BlockRFQTradeAllocation
 
 func validateBlockRFQHedge(hedge *BlockRFQHedgeLeg) (*BlockRFQHedgeLeg, error) {
 	if hedge == nil {
-		return nil, nil
+		return nil, common.ErrNilPointer
 	}
 	checkedHedge := *hedge
 	if checkedHedge.InstrumentName == "" {
@@ -2630,9 +2630,12 @@ func (e *Exchange) CreateBlockRFQ(ctx context.Context, req *CreateBlockRFQReques
 	if err != nil {
 		return nil, err
 	}
-	checkedHedge, err := validateBlockRFQHedge(req.Hedge)
-	if err != nil {
-		return nil, err
+	var checkedHedge *BlockRFQHedgeLeg
+	if req.Hedge != nil {
+		checkedHedge, err = validateBlockRFQHedge(req.Hedge)
+		if err != nil {
+			return nil, err
+		}
 	}
 	params := url.Values{}
 	err = setJSONParam(params, "legs", checkedLegs)
@@ -2683,9 +2686,12 @@ func (e *Exchange) AddBlockRFQQuote(ctx context.Context, req *AddBlockRFQQuoteRe
 	if err != nil {
 		return nil, err
 	}
-	checkedHedge, err := validateBlockRFQHedge(req.Hedge)
-	if err != nil {
-		return nil, err
+	var checkedHedge *BlockRFQHedgeLeg
+	if req.Hedge != nil {
+		checkedHedge, err = validateBlockRFQHedge(req.Hedge)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if req.Amount < 0 {
 		return nil, errInvalidAmount
@@ -2741,9 +2747,12 @@ func (e *Exchange) EditBlockRFQQuote(ctx context.Context, req *EditBlockRFQQuote
 	if err != nil {
 		return nil, err
 	}
-	checkedHedge, err := validateBlockRFQHedge(req.Hedge)
-	if err != nil {
-		return nil, err
+	var checkedHedge *BlockRFQHedgeLeg
+	if req.Hedge != nil {
+		checkedHedge, err = validateBlockRFQHedge(req.Hedge)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if req.Amount < 0 {
 		return nil, errInvalidAmount
@@ -2859,9 +2868,12 @@ func (e *Exchange) AcceptBlockRFQ(ctx context.Context, req *AcceptBlockRFQReques
 	if err != nil {
 		return nil, err
 	}
-	checkedHedge, err := validateBlockRFQHedge(req.Hedge)
-	if err != nil {
-		return nil, err
+	var checkedHedge *BlockRFQHedgeLeg
+	if req.Hedge != nil {
+		checkedHedge, err = validateBlockRFQHedge(req.Hedge)
+		if err != nil {
+			return nil, err
+		}
 	}
 	params := url.Values{}
 	params.Set("block_rfq_id", strconv.FormatUint(req.BlockRFQID, 10))
