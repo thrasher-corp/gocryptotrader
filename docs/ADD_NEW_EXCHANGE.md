@@ -80,7 +80,7 @@ config.GetDefaultFilePath()
 Check to make sure that the command does not override the NTP client and encrypt config default settings:
 
 ```console
-go build && gocryptotrader.exe --config=config_example.json
+go run . --config=config_example.json
 ```
 
 ### Add the currency pair format structs in wrapper.go
@@ -218,7 +218,7 @@ if err != nil {
 - Run documentation.go to generate readme file for the exchange:
 
 ```console
-cd gocryptotrader\cmd\documentation
+cd gocryptotrader/cmd/documentation
 go run documentation.go
 ```
 
