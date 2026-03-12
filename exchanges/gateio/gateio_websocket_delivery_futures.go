@@ -35,8 +35,8 @@ var defaultDeliveryFuturesSubscriptions = []string{
 }
 
 // WsDeliveryFuturesConnect initiates a websocket connection for delivery futures account
-func (e *Exchange) WsDeliveryFuturesConnect(ctx context.Context, conn websocket.Connection) error {
-	if err := e.CurrencyPairs.IsAssetEnabled(asset.DeliveryFutures); err != nil {
+func (e *Exchange) WsDeliveryFuturesConnect(ctx context.Context, conn websocket.Connection, assetType asset.Item) error {
+	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return err
 	}
 	if err := conn.Dial(ctx, &gws.Dialer{}, nil, nil); err != nil {
@@ -52,10 +52,9 @@ func (e *Exchange) WsDeliveryFuturesConnect(ctx context.Context, conn websocket.
 
 // GenerateDeliveryFuturesDefaultSubscriptions returns delivery futures default subscriptions params.
 // TODO: Update to use the new subscription template system
-func (e *Exchange) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.List, error) {
+func (e *Exchange) GenerateDeliveryFuturesDefaultSubscriptions(assetType asset.Item) (subscription.List, error) {
 	ctx := context.TODO()
-	_, err := e.GetCredentials(ctx)
-	if err != nil {
+	if _, err := e.GetCredentials(ctx); err != nil {
 		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
 	channelsToSubscribe := defaultDeliveryFuturesSubscriptions
@@ -63,7 +62,7 @@ func (e *Exchange) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.L
 		channelsToSubscribe = append(channelsToSubscribe, futuresOrdersChannel, futuresUserTradesChannel, futuresBalancesChannel)
 	}
 
-	pairs, err := e.GetEnabledPairs(asset.DeliveryFutures)
+	pairs, err := e.GetEnabledPairs(assetType)
 	if err != nil {
 		if errors.Is(err, asset.ErrNotEnabled) {
 			return nil, nil // no enabled pairs, subscriptions require an associated pair.
@@ -85,7 +84,7 @@ func (e *Exchange) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.L
 				params["frequency"] = kline.HundredMilliseconds
 				params["level"] = strconv.FormatUint(deliveryFuturesUpdateLimit, 10)
 			}
-			fPair, err := e.FormatExchangeCurrency(pairs[j], asset.DeliveryFutures)
+			fPair, err := e.FormatExchangeCurrency(pairs[j], assetType)
 			if err != nil {
 				return nil, err
 			}
@@ -93,7 +92,7 @@ func (e *Exchange) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.L
 				Channel: channelsToSubscribe[i],
 				Pairs:   currency.Pairs{fPair.Upper()},
 				Params:  params,
-				Asset:   asset.DeliveryFutures,
+				Asset:   assetType,
 			})
 		}
 	}
@@ -110,19 +109,21 @@ func (e *Exchange) DeliveryFuturesUnsubscribe(ctx context.Context, conn websocke
 	return e.handleSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe, e.generateDeliveryFuturesPayload)
 }
 
-func (e *Exchange) generateDeliveryFuturesPayload(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
+func (e *Exchange) generateDeliveryFuturesPayload(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]*WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errNoChannelsSupplied
 	}
-	var creds *accounts.Credentials
-	var err error
+	var (
+		creds *accounts.Credentials
+		err   error
+	)
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
 		creds, err = e.GetCredentials(ctx)
 		if err != nil {
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	outbound := make([]WsInput, 0, len(channelsToSubscribe))
+	outbound := make([]*WsInput, 0, len(channelsToSubscribe))
 	for i := range channelsToSubscribe {
 		if len(channelsToSubscribe[i].Pairs) != 1 {
 			return nil, subscription.ErrNotSinglePair
@@ -192,7 +193,7 @@ func (e *Exchange) generateDeliveryFuturesPayload(ctx context.Context, event str
 				params = append(params, intervalString)
 			}
 		}
-		outbound = append(outbound, WsInput{
+		outbound = append(outbound, &WsInput{
 			ID:      e.MessageSequence(),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,

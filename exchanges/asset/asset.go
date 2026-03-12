@@ -36,6 +36,7 @@ const (
 	PerpetualContract
 	PerpetualSwap
 	DeliveryFutures
+	BTCMarginedDeliveryFutures
 	UpsideProfitContract
 	DownsideProfitContract
 	CoinMarginedFutures
@@ -52,31 +53,32 @@ const (
 )
 
 const (
-	spot                   = "spot"
-	margin                 = "margin"
-	crossMargin            = "cross_margin"
-	marginFunding          = "marginfunding"
-	index                  = "index"
-	binary                 = "binary"
-	perpetualContract      = "perpetualcontract"
-	perpetualSwap          = "perpetualswap"
-	swap                   = "swap"
-	spread                 = "spread"
-	futures                = "futures"
-	deliveryFutures        = "delivery"
-	upsideProfitContract   = "upsideprofitcontract"
-	downsideProfitContract = "downsideprofitcontract"
-	coinMarginedFutures    = "coinmarginedfutures"
-	usdtMarginedFutures    = "usdtmarginedfutures"
-	usdcMarginedFutures    = "usdcmarginedfutures"
-	options                = "options"
-	optionCombo            = "option_combo"
-	futureCombo            = "future_combo"
-	linearContract         = "linearcontract"
-	all                    = "all"
+	spot                       = "spot"
+	margin                     = "margin"
+	crossMargin                = "cross_margin"
+	marginFunding              = "marginfunding"
+	index                      = "index"
+	binary                     = "binary"
+	perpetualContract          = "perpetualcontract"
+	perpetualSwap              = "perpetualswap"
+	swap                       = "swap"
+	spread                     = "spread"
+	futures                    = "futures"
+	deliveryFutures            = "delivery"
+	btcMarginedDeliveryFutures = "btcmargineddelivery"
+	upsideProfitContract       = "upsideprofitcontract"
+	downsideProfitContract     = "downsideprofitcontract"
+	coinMarginedFutures        = "coinmarginedfutures"
+	usdtMarginedFutures        = "usdtmarginedfutures"
+	usdcMarginedFutures        = "usdcmarginedfutures"
+	options                    = "options"
+	optionCombo                = "option_combo"
+	futureCombo                = "future_combo"
+	linearContract             = "linearcontract"
+	all                        = "all"
 )
 
-var supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Options, LinearContract, OptionCombo, FutureCombo, Spread}
+var supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, BTCMarginedDeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Options, LinearContract, OptionCombo, FutureCombo, Spread}
 
 // Supported returns a list of supported asset types
 func Supported() Items {
@@ -108,6 +110,8 @@ func (a Item) String() string {
 		return futures
 	case DeliveryFutures:
 		return deliveryFutures
+	case BTCMarginedDeliveryFutures:
+		return btcMarginedDeliveryFutures
 	case UpsideProfitContract:
 		return upsideProfitContract
 	case DownsideProfitContract:
@@ -214,6 +218,8 @@ func New(input string) (Item, error) {
 		return CrossMargin, nil
 	case deliveryFutures:
 		return DeliveryFutures, nil
+	case btcMarginedDeliveryFutures:
+		return BTCMarginedDeliveryFutures, nil
 	case index:
 		return Index, nil
 	case binary:

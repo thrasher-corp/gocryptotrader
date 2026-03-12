@@ -2035,6 +2035,16 @@
      "delimiter": "_"
     },
     "useGlobalFormat": true,
+    "assetTypes": [
+     "spot",
+     "option",
+     "coinmarginedfutures",
+     "usdtmarginedfutures",
+     "margin",
+     "cross_margin",
+     "delivery",
+     "option"
+    ],
     "pairs": {
      "coinmarginedfutures": {
       "assetEnabled": true,
