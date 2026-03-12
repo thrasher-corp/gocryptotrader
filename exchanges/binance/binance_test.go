@@ -575,7 +575,7 @@ func TestUModifyOrder(t *testing.T) {
 	_, err = e.UModifyOrder(t.Context(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	arg.Symbol = currency.NewPair(currency.BTC, currency.USD)
+	arg.Symbol = usdtmTradablePair
 	_, err = e.UModifyOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
@@ -593,7 +593,7 @@ func TestUModifyOrder(t *testing.T) {
 		OrigClientOrderID: "",
 		Side:              order.Sell.String(),
 		PriceMatch:        "TAKE_PROFIT",
-		Symbol:            currency.NewPair(currency.BTC, currency.USD),
+		Symbol:            usdtmTradablePair,
 		Amount:            0.0000001,
 		Price:             123455554,
 	})
@@ -1187,7 +1187,7 @@ func TestGetCFuturesIndexPriceConstituents(t *testing.T) {
 	_, err := e.GetCFuturesIndexPriceConstituents(t.Context(), currency.EMPTYPAIR)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	result, err := e.GetCFuturesIndexPriceConstituents(t.Context(), currency.NewPair(currency.BTC, currency.USD))
+	result, err := e.GetCFuturesIndexPriceConstituents(t.Context(), coinmTradablePair)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1204,7 +1204,7 @@ func TestCFuturesQuarterlyContractSettlementPrice(t *testing.T) {
 	_, err := e.CFuturesQuarterlyContractSettlementPrice(t.Context(), currency.EMPTYPAIR)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	result, err := e.CFuturesQuarterlyContractSettlementPrice(t.Context(), currency.NewPair(currency.BTC, currency.USD))
+	result, err := e.CFuturesQuarterlyContractSettlementPrice(t.Context(), coinmTradablePair)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

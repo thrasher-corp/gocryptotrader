@@ -64,7 +64,10 @@ func (e *Exchange) WsUFuturesConnect(ctx context.Context, conn websocket.Connect
 	conn.SetURL(wsURL)
 
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		var listenKey string
+		var (
+			listenKey string
+			err       error
+		)
 		listenKey, err = e.GetWsAuthStreamKey(context.TODO())
 		switch {
 		case err != nil:

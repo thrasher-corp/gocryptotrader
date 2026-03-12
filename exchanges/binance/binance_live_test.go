@@ -48,7 +48,7 @@ func TestMain(m *testing.M) {
 			}
 		}
 	}
-	// setupWs()
+	setupWs()
 	e.setupOrderbookManager(context.Background())
 	e.Websocket.DataHandler = stream.NewRelay(sharedtestvalues.WebsocketRelayBufferCapacity)
 	log.Printf(sharedtestvalues.LiveTesting, e.Name)
@@ -62,7 +62,6 @@ func TestMain(m *testing.M) {
 		asset.CoinMarginedFutures: coinmTradablePair,
 		asset.Margin:              spotTradablePair,
 	}
-	e.HTTPRecording = true
 	os.Exit(m.Run())
 }
 

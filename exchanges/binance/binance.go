@@ -2223,7 +2223,7 @@ func (e *Exchange) DustTransfer(ctx context.Context, assets []string, accountTyp
 }
 
 // GetAssetDevidendRecords query asset dividend record.
-func (e *Exchange) GetAssetDevidendRecords(ctx context.Context, ccy currency.Code, startTime, endTime time.Time, limit int64) (interface{}, error) {
+func (e *Exchange) GetAssetDevidendRecords(ctx context.Context, ccy currency.Code, startTime, endTime time.Time, limit int64) (any, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}

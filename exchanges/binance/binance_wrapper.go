@@ -1179,21 +1179,6 @@ func timeInForceString(tif order.TimeInForce, oType order.Type) string {
 	}
 }
 
-func orderTypeString(oType order.Type) string {
-	switch oType {
-	case order.StopMarket:
-		return "STOP_MARKET"
-	case order.TakeProfit:
-		return "TAKE_PROFIT"
-	case order.TakeProfitMarket:
-		return "TAKE PROFIT MARKET"
-	case order.TrailingStop:
-		return "TRAILING_STOP_MARKET"
-	default:
-		return oType.String()
-	}
-}
-
 func getSOROrderType(s *order.Submit) (string, error) {
 	if s == nil {
 		return "", common.ErrNilPointer
@@ -1215,8 +1200,10 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if s.Leverage != 0 && s.Leverage != 1 {
 		return nil, fmt.Errorf("%w received '%v'", order.ErrSubmitLeverageNotSupported, s.Leverage)
 	}
-	var oTypeString string
-	var err error
+	var (
+		oTypeString string
+		err         error
+	)
 	if s.Type == order.SOR {
 		oTypeString, err = getSOROrderType(s)
 	} else {
@@ -1237,10 +1224,6 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				stopClientOrderID = s.ClientOrderID
 			default:
 				clientOrderID = s.ClientOrderID
-			}
-			trailingDelta := strconv.FormatFloat(s.TrackingValue, 'f', -1, 64)
-			if s.TrackingMode == order.Percentage {
-				trailingDelta += "%"
 			}
 			if s.Type == order.OCO {
 				result, err := e.MarginAccountNewOCO(ctx, &OCOOrderParam{
@@ -1455,7 +1438,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 					e.NewCMConditionalOrder(ctx, &ConditionalOrderParam{
 						Symbol:              s.Pair,
 						Side:                s.Side.Lower(),
-						StrategyType:        orderTypeString(s.Type),
+						StrategyType:        oTypeString,
 						TimeInForce:         timeInForceString(s.TimeInForce, s.Type),
 						Quantity:            s.Amount,
 						ReduceOnly:          s.ReduceOnly,
@@ -1469,7 +1452,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 					result, err := e.NewCMOrder(ctx, &UMOrderParam{
 						Symbol:           s.Pair,
 						Side:             s.Side.Lower(),
-						OrderType:        s.Type.String(),
+						OrderType:        oTypeString,
 						TimeInForce:      timeInForceString(s.TimeInForce, s.Type),
 						Quantity:         s.Amount,
 						ReduceOnly:       s.ReduceOnly,
@@ -1506,10 +1489,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 						callbackRate = s.TrackingValue
 					}
 					e.NewUMConditionalOrder(ctx, &ConditionalOrderParam{
-						Symbol: s.Pair,
-						Side:   s.Side.Lower(),
-						// PositionSide: s.
-						StrategyType:        orderTypeString(s.Type),
+						Symbol:              s.Pair,
+						Side:                s.Side.Lower(),
+						StrategyType:        oTypeString,
 						TimeInForce:         timeInForceString(s.TimeInForce, s.Type),
 						Quantity:            s.Amount,
 						ReduceOnly:          s.ReduceOnly,
@@ -1523,7 +1505,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 					result, err := e.NewUMOrder(ctx, &UMOrderParam{
 						Symbol:           s.Pair,
 						Side:             s.Side.Lower(),
-						OrderType:        s.Type.String(),
+						OrderType:        oTypeString,
 						TimeInForce:      timeInForceString(s.TimeInForce, s.Type),
 						Quantity:         s.Amount,
 						ReduceOnly:       s.ReduceOnly,
@@ -4345,7 +4327,7 @@ func (e *Exchange) SetLeverage(ctx context.Context, item asset.Item, pair curren
 }
 
 // GetLeverage gets the account's initial leverage for the asset type and pair
-func (e *Exchange) GetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, marginType margin.Type, _ order.Side) (float64, error) {
+func (e *Exchange) GetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, _ margin.Type, _ order.Side) (float64, error) {
 	if pair.IsEmpty() {
 		return -1, currency.ErrCurrencyPairEmpty
 	}
