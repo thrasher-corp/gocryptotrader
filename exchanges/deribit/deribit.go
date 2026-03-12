@@ -2510,7 +2510,7 @@ func (e *Exchange) GetBrokerTrades(ctx context.Context, req *GetBrokerTradesRequ
 
 func validateBlockRFQDirection(direction string) (string, error) {
 	if direction == "" {
-		return "", nil
+		return "", errInvalidOrderSideOrDirection
 	}
 	normalisedDirection := strings.ToLower(direction)
 	if normalisedDirection != sideBUY && normalisedDirection != sideSELL {
@@ -2534,6 +2534,9 @@ func validateBlockRFQLegs(legs []BlockRFQLeg, required bool) ([]BlockRFQLeg, err
 		}
 		if checkedLegs[i].Ratio <= 0 {
 			return nil, errInvalidAmount
+		}
+		if checkedLegs[i].Direction == "" {
+			return nil, errInvalidOrderSideOrDirection
 		}
 		normalisedDirection, err := validateBlockRFQDirection(checkedLegs[i].Direction)
 		if err != nil {
@@ -2593,6 +2596,9 @@ func validateBlockRFQHedge(hedge *BlockRFQHedgeLeg) (*BlockRFQHedgeLeg, error) {
 	checkedHedge := *hedge
 	if checkedHedge.InstrumentName == "" {
 		return nil, fmt.Errorf("%w, empty string", errInvalidInstrumentName)
+	}
+	if checkedHedge.Direction == "" {
+		return nil, errInvalidOrderSideOrDirection
 	}
 	normalisedDirection, err := validateBlockRFQDirection(checkedHedge.Direction)
 	if err != nil {
@@ -2678,9 +2684,13 @@ func (e *Exchange) AddBlockRFQQuote(ctx context.Context, req *AddBlockRFQQuoteRe
 	if req.BlockRFQID <= 0 {
 		return nil, errMissingBlockRFQID
 	}
-	normalisedDirection, err := validateBlockRFQDirection(req.Direction)
-	if err != nil {
-		return nil, err
+	var normalisedDirection string
+	if req.Direction != "" {
+		validatedDirection, err := validateBlockRFQDirection(req.Direction)
+		if err != nil {
+			return nil, err
+		}
+		normalisedDirection = validatedDirection
 	}
 	checkedLegs, err := validateBlockRFQLegs(req.Legs, false)
 	if err != nil {
@@ -2860,9 +2870,13 @@ func (e *Exchange) AcceptBlockRFQ(ctx context.Context, req *AcceptBlockRFQReques
 	if req.Price < 0 {
 		return nil, errInvalidPrice
 	}
-	normalisedDirection, err := validateBlockRFQDirection(req.Direction)
-	if err != nil {
-		return nil, err
+	var normalisedDirection string
+	if req.Direction != "" {
+		validatedDirection, err := validateBlockRFQDirection(req.Direction)
+		if err != nil {
+			return nil, err
+		}
+		normalisedDirection = validatedDirection
 	}
 	checkedLegs, err := validateBlockRFQLegs(req.Legs, false)
 	if err != nil {

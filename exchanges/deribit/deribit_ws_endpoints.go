@@ -2307,9 +2307,13 @@ func (e *Exchange) WSAddBlockRFQQuote(ctx context.Context, req *AddBlockRFQQuote
 	if req.BlockRFQID <= 0 {
 		return nil, errMissingBlockRFQID
 	}
-	normalisedDirection, err := validateBlockRFQDirection(req.Direction)
-	if err != nil {
-		return nil, err
+	var normalisedDirection string
+	if req.Direction != "" {
+		validatedDirection, err := validateBlockRFQDirection(req.Direction)
+		if err != nil {
+			return nil, err
+		}
+		normalisedDirection = validatedDirection
 	}
 	checkedLegs, err := validateBlockRFQLegs(req.Legs, false)
 	if err != nil {
@@ -2474,9 +2478,13 @@ func (e *Exchange) WSAcceptBlockRFQ(ctx context.Context, req *AcceptBlockRFQRequ
 	if req.Price < 0 {
 		return nil, errInvalidPrice
 	}
-	normalisedDirection, err := validateBlockRFQDirection(req.Direction)
-	if err != nil {
-		return nil, err
+	var normalisedDirection string
+	if req.Direction != "" {
+		validatedDirection, err := validateBlockRFQDirection(req.Direction)
+		if err != nil {
+			return nil, err
+		}
+		normalisedDirection = validatedDirection
 	}
 	checkedLegs, err := validateBlockRFQLegs(req.Legs, false)
 	if err != nil {

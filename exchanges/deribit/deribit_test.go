@@ -3268,11 +3268,10 @@ func TestBlockRFQDataTakerRatingUnmarshal(t *testing.T) {
 func TestValidateBlockRFQDirection(t *testing.T) {
 	t.Parallel()
 
-	normalisedDirection, err := validateBlockRFQDirection("")
-	require.NoError(t, err)
-	assert.Empty(t, normalisedDirection)
+	_, err := validateBlockRFQDirection("")
+	require.ErrorIs(t, err, errInvalidOrderSideOrDirection)
 
-	normalisedDirection, err = validateBlockRFQDirection(strings.ToUpper(sideBUY))
+	normalisedDirection, err := validateBlockRFQDirection(strings.ToUpper(sideBUY))
 	require.NoError(t, err)
 	assert.Equal(t, sideBUY, normalisedDirection)
 
@@ -3303,6 +3302,9 @@ func TestValidateBlockRFQLegs(t *testing.T) {
 
 	_, err = validateBlockRFQLegs([]BlockRFQLeg{{Ratio: 0, InstrumentName: btcPerpInstrument, Direction: sideBUY, Price: 10}}, true)
 	require.ErrorIs(t, err, errInvalidAmount)
+
+	_, err = validateBlockRFQLegs([]BlockRFQLeg{{Ratio: 1, InstrumentName: btcPerpInstrument, Price: 10}}, true)
+	require.ErrorIs(t, err, errInvalidOrderSideOrDirection)
 
 	_, err = validateBlockRFQLegs([]BlockRFQLeg{{Ratio: 1, InstrumentName: btcPerpInstrument, Direction: "sideways", Price: 10}}, true)
 	require.ErrorIs(t, err, errInvalidOrderSideOrDirection)
@@ -3376,6 +3378,9 @@ func TestValidateBlockRFQHedge(t *testing.T) {
 
 	_, err = validateBlockRFQHedge(&BlockRFQHedgeLeg{Amount: 1, Direction: sideBUY, Price: 10})
 	require.ErrorIs(t, err, errInvalidInstrumentName)
+
+	_, err = validateBlockRFQHedge(&BlockRFQHedgeLeg{Amount: 1, InstrumentName: btcPerpInstrument, Price: 10})
+	require.ErrorIs(t, err, errInvalidOrderSideOrDirection)
 
 	_, err = validateBlockRFQHedge(&BlockRFQHedgeLeg{Amount: 1, InstrumentName: btcPerpInstrument, Direction: "sideways", Price: 10})
 	require.ErrorIs(t, err, errInvalidOrderSideOrDirection)
@@ -3489,6 +3494,8 @@ func TestAddBlockRFQQuote(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidAmount)
 	_, err = e.AddBlockRFQQuote(t.Context(), &AddBlockRFQQuoteRequest{BlockRFQID: 1, Amount: 1, Price: 10, Direction: "sideways"})
 	require.ErrorIs(t, err, errInvalidOrderSideOrDirection)
+	_, err = e.AddBlockRFQQuote(t.Context(), &AddBlockRFQQuoteRequest{BlockRFQID: 1, Amount: 1, Price: -1})
+	require.ErrorIs(t, err, errInvalidPrice)
 	_, err = e.AddBlockRFQQuote(t.Context(), &AddBlockRFQQuoteRequest{BlockRFQID: 1, Amount: 1, Price: -1, Direction: order.Buy.Lower()})
 	require.ErrorIs(t, err, errInvalidPrice)
 
@@ -3507,6 +3514,8 @@ func TestWSAddBlockRFQQuote(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidAmount)
 	_, err = e.WSAddBlockRFQQuote(t.Context(), &AddBlockRFQQuoteRequest{BlockRFQID: 1, Amount: 1, Price: 10, Direction: "sideways"})
 	require.ErrorIs(t, err, errInvalidOrderSideOrDirection)
+	_, err = e.WSAddBlockRFQQuote(t.Context(), &AddBlockRFQQuoteRequest{BlockRFQID: 1, Amount: 1, Price: -1})
+	require.ErrorIs(t, err, errInvalidPrice)
 	_, err = e.WSAddBlockRFQQuote(t.Context(), &AddBlockRFQQuoteRequest{BlockRFQID: 1, Amount: 1, Price: -1, Direction: order.Buy.Lower()})
 	require.ErrorIs(t, err, errInvalidPrice)
 
