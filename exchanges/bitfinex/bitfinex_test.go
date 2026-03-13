@@ -1219,11 +1219,6 @@ func TestGenerateSubscriptions(t *testing.T) {
 	}
 
 	exp := subscription.List{}
-	spotEnabledPairs, err := e.GetEnabledPairs(asset.Spot)
-	require.NoError(t, err, "GetEnabledPairs spot must not error")
-	spotFmt, err := e.GetPairFormat(asset.Spot, true)
-	require.NoError(t, err, "GetPairFormat spot must not error")
-	spotEnabledPairs = spotEnabledPairs.Format(spotFmt)
 	for _, baseSub := range e.Features.Subscriptions {
 		for _, a := range e.GetAssetTypes(true) {
 			if !e.IsAssetWebsocketSupported(a) {
