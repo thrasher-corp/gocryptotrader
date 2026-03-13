@@ -118,7 +118,6 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	e.Verbose = true
 	for assetType, tp := range assetToTradablePairMap {
 		result, err := e.UpdateOrderbook(t.Context(), tp, assetType)
 		require.NoErrorf(t, err, "%w: %v", err, assetType)
@@ -128,7 +127,6 @@ func TestUpdateOrderbook(t *testing.T) {
 
 func TestUExchangeInfo(t *testing.T) {
 	t.Parallel()
-	e.Verbose = true
 	result, err := e.UExchangeInfo(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -439,7 +437,7 @@ func TestUTakerBuySellVol(t *testing.T) {
 	_, err = e.UTakerBuySellVol(t.Context(), usdtmTradablePair, "", 10, startTime, endTime)
 	require.ErrorIs(t, err, errInvalidPeriodOrInterval)
 
-	_, err = e.UTakerBuySellVol(t.Context(), usdtmTradablePair, "", 10, endTime, startTime)
+	_, err = e.UTakerBuySellVol(t.Context(), usdtmTradablePair, "5m", 10, endTime, startTime)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	result, err := e.UTakerBuySellVol(t.Context(), usdtmTradablePair, "5m", 10, startTime, endTime)
@@ -1018,21 +1016,21 @@ func TestGetFuturesExchangeInfo(t *testing.T) {
 
 func TestGetFuturesOrderbook(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetFuturesOrderbook(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), 1000)
+	result, err := e.GetFuturesOrderbook(t.Context(), coinmTradablePair, 1000)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetFuturesPublicTrades(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetFuturesPublicTrades(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), 5)
+	result, err := e.GetFuturesPublicTrades(t.Context(), coinmTradablePair, 5)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetPastPublicTrades(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetPastPublicTrades(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), 5, 0)
+	result, err := e.GetPastPublicTrades(t.Context(), coinmTradablePair, 5, 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1040,10 +1038,10 @@ func TestGetPastPublicTrades(t *testing.T) {
 func TestGetAggregatedTradesList(t *testing.T) {
 	t.Parallel()
 	startTime, endTime := getTime()
-	_, err := e.GetFuturesAggregatedTradesList(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), 0, 5, endTime, startTime)
+	_, err := e.GetFuturesAggregatedTradesList(t.Context(), coinmTradablePair, 0, 5, endTime, startTime)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	result, err := e.GetFuturesAggregatedTradesList(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), 0, 5, startTime, endTime)
+	result, err := e.GetFuturesAggregatedTradesList(t.Context(), coinmTradablePair, 0, 5, startTime, endTime)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1064,18 +1062,18 @@ func TestGetIndexAndMarkPrice(t *testing.T) {
 
 func TestGetFuturesKlineData(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetFuturesKlineData(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "1Mo", 5, time.Time{}, time.Time{})
+	_, err := e.GetFuturesKlineData(t.Context(), coinmTradablePair, "1Mo", 5, time.Time{}, time.Time{})
 	require.ErrorIs(t, err, kline.ErrInvalidInterval)
 
 	startTime, endTime := getTime()
-	_, err = e.GetFuturesKlineData(t.Context(), currency.NewPairWithDelimiter("LTCUSD", "PERP", "_"), "5m", 5, endTime, startTime)
+	_, err = e.GetFuturesKlineData(t.Context(), coinmTradablePair, "5m", 5, endTime, startTime)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	result, err := e.GetFuturesKlineData(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "1M", 5, startTime, endTime)
+	result, err := e.GetFuturesKlineData(t.Context(), coinmTradablePair, "1M", 5, startTime, endTime)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = e.GetFuturesKlineData(t.Context(), currency.NewPairWithDelimiter("LTCUSD", "PERP", "_"), "5m", 5, startTime, endTime)
+	result, err = e.GetFuturesKlineData(t.Context(), coinmTradablePair, "5m", 5, startTime, endTime)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1119,10 +1117,10 @@ func TestGetIndexPriceKlines(t *testing.T) {
 
 func TestGetFuturesSwapTickerChangeStats(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetFuturesSwapTickerChangeStats(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "")
+	result, err := e.GetFuturesSwapTickerChangeStats(t.Context(), coinmTradablePair, "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
-	result, err = e.GetFuturesSwapTickerChangeStats(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "")
+	result, err = e.GetFuturesSwapTickerChangeStats(t.Context(), coinmTradablePair, "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 	result, err = e.GetFuturesSwapTickerChangeStats(t.Context(), currency.EMPTYPAIR, "")
@@ -1133,15 +1131,15 @@ func TestGetFuturesSwapTickerChangeStats(t *testing.T) {
 func TestFuturesGetFundingHistory(t *testing.T) {
 	t.Parallel()
 	startTime, endTime := getTime()
-	_, err := e.FuturesGetFundingHistory(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), 5, endTime, startTime)
+	_, err := e.FuturesGetFundingHistory(t.Context(), coinmTradablePair, 5, endTime, startTime)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.FuturesGetFundingHistory(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), 5, startTime, endTime)
+	result, err := e.FuturesGetFundingHistory(t.Context(), coinmTradablePair, 5, startTime, endTime)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = e.FuturesGetFundingHistory(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), 50, startTime, endTime)
+	result, err = e.FuturesGetFundingHistory(t.Context(), coinmTradablePair, 50, startTime, endTime)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1149,18 +1147,18 @@ func TestFuturesGetFundingHistory(t *testing.T) {
 func TestGetFuturesHistoricalTrades(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetFuturesHistoricalTrades(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "", 5)
+	result, err := e.GetFuturesHistoricalTrades(t.Context(), coinmTradablePair, "", 5)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = e.GetFuturesHistoricalTrades(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "", 0)
+	result, err = e.GetFuturesHistoricalTrades(t.Context(), coinmTradablePair, "", 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetFuturesSymbolPriceTicker(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetFuturesSymbolPriceTicker(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "")
+	result, err := e.GetFuturesSymbolPriceTicker(t.Context(), coinmTradablePair, "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1171,7 +1169,7 @@ func TestGetFuturesOrderbookTicker(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = e.GetFuturesOrderbookTicker(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"), "")
+	result, err = e.GetFuturesOrderbookTicker(t.Context(), coinmTradablePair, "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1188,7 +1186,7 @@ func TestGetCFuturesIndexPriceConstituents(t *testing.T) {
 
 func TestOpenInterest(t *testing.T) {
 	t.Parallel()
-	result, err := e.OpenInterest(t.Context(), currency.NewPairWithDelimiter("BTCUSD", "PERP", "_"))
+	result, err := e.OpenInterest(t.Context(), coinmTradablePair)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1860,7 +1858,7 @@ func TestGetUserUniversalTransferHistory(t *testing.T) {
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	startTime, endTime := getTime()
-	_, err = e.GetUserUniversalTransferHistory(t.Context(), ttUMFutureMargin, endTime, startTime, 0, 0, currency.BTC, currency.USDT)
+	_, err = e.GetUserUniversalTransferHistory(t.Context(), ttUMFutureMargin, endTime, startTime, 1, 1234, currency.BTC, currency.USDT)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)

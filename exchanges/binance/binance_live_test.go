@@ -51,50 +51,15 @@ func TestMain(m *testing.M) {
 	e.setupOrderbookManager(context.Background())
 	e.Websocket.DataHandler = stream.NewRelay(sharedtestvalues.WebsocketRelayBufferCapacity)
 	log.Printf(sharedtestvalues.LiveTesting, e.Name)
-	// if err := e.populateTradablePairs(); err != nil {
-	// 	log.Fatal(err)
-	// }
-	spotTradablePair = currency.NewPair(currency.NewCode("BTC"), currency.NewCode("USDT"))
-	marginTradablePair = currency.NewPair(currency.NewCode("BTC"), currency.NewCode("USDT"))
-	usdtmTradablePair = currency.NewPair(currency.NewCode("BTC"), currency.NewCode("USDT"))
-	coinmTradablePair = currency.NewPair(currency.NewCode("BTC"), currency.NewCode("USD_PERP"))
-	optionsTradablePair = currency.Pair{Base: currency.NewCode("BTC"), Quote: currency.NewCode("260327-100000-C"), Delimiter: currency.DashDelimiter}
+	if err := e.populateTradablePairs(); err != nil {
+		log.Fatal(err)
+	}
 	assetToTradablePairMap = map[asset.Item]currency.Pair{
 		asset.Spot:                spotTradablePair,
 		asset.Margin:              marginTradablePair,
 		asset.Options:             optionsTradablePair,
 		asset.USDTMarginedFutures: usdtmTradablePair,
 		asset.CoinMarginedFutures: coinmTradablePair,
-	}
-	if err := e.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair}, false); err != nil {
-		log.Fatal(err)
-	}
-	if err := e.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{spotTradablePair}, true); err != nil {
-		log.Fatal(err)
-	}
-	if err := e.CurrencyPairs.StorePairs(asset.Margin, []currency.Pair{marginTradablePair}, false); err != nil {
-		log.Fatal(err)
-	}
-	if err := e.CurrencyPairs.StorePairs(asset.Margin, []currency.Pair{marginTradablePair}, true); err != nil {
-		log.Fatal(err)
-	}
-	if err := e.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, []currency.Pair{usdtmTradablePair}, false); err != nil {
-		log.Fatal(err)
-	}
-	if err := e.CurrencyPairs.StorePairs(asset.USDTMarginedFutures, []currency.Pair{usdtmTradablePair}, true); err != nil {
-		log.Fatal(err)
-	}
-	if err := e.CurrencyPairs.StorePairs(asset.CoinMarginedFutures, []currency.Pair{coinmTradablePair}, false); err != nil {
-		log.Fatal(err)
-	}
-	if err := e.CurrencyPairs.StorePairs(asset.CoinMarginedFutures, []currency.Pair{coinmTradablePair}, true); err != nil {
-		log.Fatal(err)
-	}
-	if err := e.CurrencyPairs.StorePairs(asset.Options, []currency.Pair{optionsTradablePair}, false); err != nil {
-		log.Fatal(err)
-	}
-	if err := e.CurrencyPairs.StorePairs(asset.Options, []currency.Pair{optionsTradablePair}, true); err != nil {
-		log.Fatal(err)
 	}
 
 	// setupWs()
@@ -106,12 +71,10 @@ func setupWs() {
 	conn, err := e.Websocket.GetConnection(asset.Spot)
 	if err != nil {
 		log.Fatal(err)
-		panic(err)
 	}
 
 	err = e.WsConnect(context.Background(), conn)
 	if err != nil {
-		panic(err)
 		log.Fatal(err)
 	}
 }

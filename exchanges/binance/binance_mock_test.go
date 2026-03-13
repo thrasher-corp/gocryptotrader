@@ -39,8 +39,8 @@ func TestMain(m *testing.M) {
 	spotTradablePair = currency.NewPair(currency.NewCode("BTC"), currency.NewCode("USDT"))
 	marginTradablePair = currency.NewPair(currency.NewCode("BTC"), currency.NewCode("USDT"))
 	usdtmTradablePair = currency.NewPair(currency.NewCode("BTC"), currency.NewCode("USDT"))
-	coinmTradablePair = currency.NewPair(currency.NewCode("BTC"), currency.NewCode("USDT_PERP"))
-	optionsTradablePair = currency.Pair{Base: currency.NewCode("ETH"), Quote: currency.NewCode("240927-3800-P"), Delimiter: currency.DashDelimiter}
+	coinmTradablePair = currency.NewPair(currency.NewCode("BTC"), currency.NewCode("USD_PERP"))
+	optionsTradablePair = currency.Pair{Base: currency.NewCode("BTC"), Quote: currency.NewCode("260327-100000-C"), Delimiter: currency.DashDelimiter}
 
 	assetToTradablePairMap = map[asset.Item]currency.Pair{
 		asset.Spot:                spotTradablePair,
