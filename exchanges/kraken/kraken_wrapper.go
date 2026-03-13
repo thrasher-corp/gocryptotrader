@@ -195,24 +195,27 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            krakenWSURL,
-		RunningURL:            wsRunningURL,
-		Connector:             e.WsConnect,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
-		GenerateSubscriptions: e.generateSubscriptions,
-		Features:              &e.Features.Supports.WebsocketCapabilities,
-		OrderbookBufferConfig: buffer.Config{SortBuffer: true},
+		ExchangeConfig:                         exch,
+		UseMultiConnectionManagement:           true,
+		Features:                               &e.Features.Supports.WebsocketCapabilities,
+		MaxWebsocketSubscriptionsPerConnection: 200, // https://docs.kraken.com/api/docs/websocket-v2/level3/ (200 symbols per connection)
+		OrderbookBufferConfig:                  buffer.Config{SortBuffer: true},
 	})
 	if err != nil {
 		return err
 	}
 
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		RateLimit:            request.NewWeightedRateLimitByDuration(50 * time.Millisecond),
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL:                   wsRunningURL,
+		Connector:             e.wsConnect,
+		Subscriber:            e.subscribeForConnection,
+		Unsubscriber:          e.unsubscribeForConnection,
+		GenerateSubscriptions: e.generatePublicSubscriptions,
+		Handler:               e.wsHandleData,
+		RateLimit:             request.NewWeightedRateLimitByDuration(50 * time.Millisecond),
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		MessageFilter:         wsRunningURL,
 	})
 	if err != nil {
 		return err
@@ -222,12 +225,20 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
+
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		RateLimit:            request.NewWeightedRateLimitByDuration(50 * time.Millisecond),
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Authenticated:        true,
-		URL:                  wsRunningAuthURL,
+		URL:                      wsRunningAuthURL,
+		Connector:                e.wsConnect,
+		Authenticate:             e.wsAuthenticate,
+		Subscriber:               e.subscribeForConnection,
+		Unsubscriber:             e.unsubscribeForConnection,
+		GenerateSubscriptions:    e.generatePrivateSubscriptions,
+		SubscriptionsNotRequired: true,
+		Handler:                  e.wsHandleData,
+		RateLimit:                request.NewWeightedRateLimitByDuration(50 * time.Millisecond),
+		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+		MessageFilter:            wsRunningAuthURL,
 	})
 }
 
@@ -1388,17 +1399,6 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 		}
 	}
 	return getOrdersRequest.Filter(e.Name, orders), nil
-}
-
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (e *Exchange) AuthenticateWebsocket(ctx context.Context) error {
-	resp, err := e.GetWebsocketToken(ctx)
-	if err != nil {
-		return err
-	}
-
-	e.setWebsocketAuthToken(resp)
-	return nil
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper functionality

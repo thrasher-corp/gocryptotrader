@@ -8,6 +8,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -19,8 +20,6 @@ var (
 	errMassCancelFailed            = errors.New("mass cancel failed")
 	errCancelAllSpreadOrdersFailed = errors.New("cancel all spread orders failed")
 	errMultipleItemsReturned       = errors.New("multiple items returned")
-
-	privateConnection = "private"
 )
 
 // WSPlaceOrder submits an order
@@ -255,7 +254,11 @@ func (e *Exchange) SendAuthenticatedWebsocketRequest(ctx context.Context, epl re
 		return errInvalidWebsocketRequest
 	}
 
-	conn, err := e.Websocket.GetConnection(privateConnection)
+	wsPrivateURL, err := e.API.Endpoints.GetURL(exchange.WebsocketPrivate)
+	if err != nil {
+		return err
+	}
+	conn, err := e.Websocket.GetConnection(wsPrivateURL)
 	if err != nil {
 		return err
 	}

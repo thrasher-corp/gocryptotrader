@@ -303,7 +303,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler: func(ctx context.Context, conn websocket.Connection, resp []byte) error {
 			return e.wsHandleData(ctx, conn, asset.USDTMarginedFutures, resp)
 		},
-		MessageFilter: asset.USDTMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
+		MessageFilter: asset.USDTMarginedFutures, // Required to differentiate linear futures connections sharing the same endpoint URL.
 	}); err != nil {
 		return err
 	}
@@ -331,7 +331,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler: func(ctx context.Context, conn websocket.Connection, resp []byte) error {
 			return e.wsHandleData(ctx, conn, asset.USDCMarginedFutures, resp)
 		},
-		MessageFilter: asset.USDCMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
+		MessageFilter: asset.USDCMarginedFutures, // Required to differentiate linear futures connections sharing the same endpoint URL.
 	}); err != nil {
 		return err
 	}
@@ -372,7 +372,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			return e.wsHandleTradeData(conn, resp)
 		},
 		Authenticate:             e.WebsocketAuthenticateTradeConnection,
-		MessageFilter:            OutboundTradeConnection,
+		MessageFilter:            wsTradeURL,
 		SubscriptionsNotRequired: true,
 	}); err != nil {
 		return err
@@ -395,7 +395,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Unsubscriber:          e.authUnsubscribe,
 		Handler:               e.wsHandleAuthenticatedData,
 		Authenticate:          e.WebsocketAuthenticatePrivateConnection,
-		MessageFilter:         InboundPrivateConnection,
+		MessageFilter:         wsPrivateURL,
 	})
 }
 

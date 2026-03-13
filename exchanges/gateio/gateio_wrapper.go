@@ -168,10 +168,14 @@ func (e *Exchange) SetDefaults() {
 	}
 	e.API.Endpoints = e.NewEndpoints()
 	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:              gateioTradeURL,
-		exchange.RestFutures:           gateioFuturesLiveTradingAlternative,
-		exchange.RestSpotSupplementary: gateioFuturesTestnetTrading,
-		exchange.WebsocketSpot:         gateioWebsocketEndpoint,
+		exchange.RestSpot:                   gateioTradeURL,
+		exchange.RestFutures:                gateioFuturesLiveTradingAlternative,
+		exchange.RestSpotSupplementary:      gateioFuturesTestnetTrading,
+		exchange.WebsocketSpot:              gateioWebsocketEndpoint,
+		exchange.WebsocketUSDTMargined:      usdtFuturesWebsocketURL,
+		exchange.WebsocketCoinMargined:      btcFuturesWebsocketURL,
+		exchange.WebsocketSpotSupplementary: deliveryRealUSDTTradingURL,
+		exchange.WebsocketOptions:           optionsWebsocketURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -210,9 +214,30 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
+	wsSpotURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+	wsUSDTFuturesURL, err := e.API.Endpoints.GetURL(exchange.WebsocketUSDTMargined)
+	if err != nil {
+		return err
+	}
+	wsCoinFuturesURL, err := e.API.Endpoints.GetURL(exchange.WebsocketCoinMargined)
+	if err != nil {
+		return err
+	}
+	wsDeliveryURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
+	if err != nil {
+		return err
+	}
+	wsOptionsURL, err := e.API.Endpoints.GetURL(exchange.WebsocketOptions)
+	if err != nil {
+		return err
+	}
+
 	// Spot connection
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                   gateioWebsocketEndpoint,
+		URL:                   wsSpotURL,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 		Handler:               e.WsHandleSpotData,
@@ -221,14 +246,14 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: e.generateSubscriptionsSpot,
 		Connector:             e.WsConnectSpot,
 		Authenticate:          e.authenticateSpot,
-		MessageFilter:         asset.Spot,
+		MessageFilter:         wsSpotURL,
 	})
 	if err != nil {
 		return err
 	}
 	// Futures connection - USDT margined
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  usdtFuturesWebsocketURL,
+		URL:                  wsUSDTFuturesURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
@@ -241,7 +266,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		},
 		Connector:     e.WsFuturesConnect,
 		Authenticate:  e.authenticateFutures,
-		MessageFilter: asset.USDTMarginedFutures,
+		MessageFilter: wsUSDTFuturesURL,
 	})
 	if err != nil {
 		return err
@@ -249,7 +274,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 
 	// Futures connection - BTC margined
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  btcFuturesWebsocketURL,
+		URL:                  wsCoinFuturesURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
@@ -261,7 +286,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			return e.GenerateFuturesDefaultSubscriptions(asset.CoinMarginedFutures)
 		},
 		Connector:     e.WsFuturesConnect,
-		MessageFilter: asset.CoinMarginedFutures,
+		MessageFilter: wsCoinFuturesURL,
 	})
 	if err != nil {
 		return err
@@ -270,7 +295,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	// TODO: Add BTC margined delivery futures.
 	// Futures connection - Delivery - USDT margined
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  deliveryRealUSDTTradingURL,
+		URL:                  wsDeliveryURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
@@ -280,7 +305,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Unsubscriber:          e.DeliveryFuturesUnsubscribe,
 		GenerateSubscriptions: e.GenerateDeliveryFuturesDefaultSubscriptions,
 		Connector:             e.WsDeliveryFuturesConnect,
-		MessageFilter:         asset.DeliveryFutures,
+		MessageFilter:         wsDeliveryURL,
 	})
 	if err != nil {
 		return err
@@ -288,7 +313,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 
 	// Futures connection - Options
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                   optionsWebsocketURL,
+		URL:                   wsOptionsURL,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 		Handler:               e.WsHandleOptionsData,
@@ -296,7 +321,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Unsubscriber:          e.OptionsUnsubscribe,
 		GenerateSubscriptions: e.GenerateOptionsDefaultSubscriptions,
 		Connector:             e.WsOptionsConnect,
-		MessageFilter:         asset.Options,
+		MessageFilter:         wsOptionsURL,
 	})
 }
 

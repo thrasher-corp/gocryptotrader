@@ -147,6 +147,7 @@ func (e *Exchange) SetDefaults() {
 		exchange.RestFutures:           "https://www.deribit.com",
 		exchange.RestSpot:              "https://www.deribit.com",
 		exchange.RestSpotSupplementary: "https://test.deribit.com",
+		exchange.WebsocketSpot:         "wss://www.deribit.com/ws/api/v2",
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -172,14 +173,10 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            deribitWebsocketAddress,
-		RunningURL:            deribitWebsocketAddress,
-		Connector:             e.WsConnect,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
-		GenerateSubscriptions: e.generateSubscriptions,
-		Features:              &e.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:                         exch,
+		UseMultiConnectionManagement:           true,
+		Features:                               &e.Features.Supports.WebsocketCapabilities,
+		MaxWebsocketSubscriptionsPerConnection: 500, // https://docs.deribit.com/ (max 500 channels per subscribe request)
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
@@ -189,10 +186,22 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
+	wsRunningURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  e.Websocket.GetWebsocketURL(),
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL:                   wsRunningURL,
+		Connector:             e.wsConnect,
+		Authenticate:          e.wsAuthenticate,
+		Subscriber:            e.subscribeForConnection,
+		Unsubscriber:          e.unsubscribeForConnection,
+		GenerateSubscriptions: e.generateSubscriptions,
+		Handler:               e.wsHandleData,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		MessageFilter:         wsRunningURL,
 	})
 }
 
@@ -1121,11 +1130,6 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 // GetServerTime returns the current exchange server time.
 func (e *Exchange) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, error) {
 	return e.GetTime(ctx)
-}
-
-// AuthenticateWebsocket sends an authentication message to the websocket
-func (e *Exchange) AuthenticateWebsocket(ctx context.Context) error {
-	return e.wsLogin(ctx)
 }
 
 // GetFuturesContractDetails returns all contracts from the exchange by asset type
