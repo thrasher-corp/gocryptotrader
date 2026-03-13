@@ -2614,11 +2614,20 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 						assert.Truef(t, l.Delisted.After(l.Delisting), "Delisted should be after Delisting for %s", p)
 					}
 					assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
-				case asset.Spot, asset.Margin, asset.CrossMargin:
+				case asset.Spot:
 					assert.Positivef(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive for %s", p)
 					assert.Positivef(t, l.QuoteStepIncrementSize, "QuoteStepIncrementSize should be positive for %s", p)
 					assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", p)
 					assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
+				case asset.Margin, asset.CrossMargin:
+					assert.Positivef(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive for %s", p)
+					assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", p)
+					if l.QuoteStepIncrementSize != 0 {
+						assert.Positivef(t, l.QuoteStepIncrementSize, "QuoteStepIncrementSize should be positive for %s when set", p)
+					}
+					if l.AmountStepIncrementSize != 0 {
+						assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s when set", p)
+					}
 				case asset.DeliveryFutures:
 					assert.NotZerof(t, l.Expiry, "Expiry should be populated for %s", p)
 					assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", p)
