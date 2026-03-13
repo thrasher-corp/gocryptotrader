@@ -65,7 +65,7 @@ func (a *PriceChangesWrapper) UnmarshalJSON(data []byte) error {
 	var singlePriceChange *PriceChangeStats
 	if err := json.Unmarshal(data, &singlePriceChange); err != nil {
 		var resp []*PriceChangeStats
-		if err = json.Unmarshal(data, a); err != nil {
+		if err = json.Unmarshal(data, &resp); err != nil {
 			return err
 		}
 		*a = resp

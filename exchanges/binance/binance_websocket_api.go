@@ -89,8 +89,7 @@ func (e *Exchange) wsHandleSpotAPIData(_ context.Context, respRaw []byte) error 
 		ID     string          `json:"id"`
 		Data   json.RawMessage `json:"data"`
 	}{}
-	err := json.Unmarshal(respRaw, &result)
-	if err != nil {
+	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
 	}
 	if result.ID != "" {

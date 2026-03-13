@@ -52,7 +52,7 @@ var (
 	e *Exchange
 
 	// enabled and active tradable pairs used to test endpoints.
-	spotTradablePair, usdtmTradablePair, coinmTradablePair, optionsTradablePair currency.Pair
+	spotTradablePair, marginTradablePair, usdtmTradablePair, coinmTradablePair, optionsTradablePair currency.Pair
 
 	assetToTradablePairMap map[asset.Item]currency.Pair
 )
@@ -118,29 +118,17 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	assetPairMapTempo := map[asset.Item]currency.Pair{}
-	if mockTests {
-		cp, err := currency.NewPairFromString("BTCUSDT")
-		require.NoError(t, err)
-		assetPairMapTempo[asset.Spot], assetPairMapTempo[asset.Margin], assetPairMapTempo[asset.USDTMarginedFutures] = cp, cp, cp
-		cp, err = currency.NewPairFromString("BTCUSD_PERP")
-		require.NoError(t, err)
-		assetPairMapTempo[asset.CoinMarginedFutures] = cp
-		cp, err = currency.NewPairFromString("ETH-240927-3800-P")
-		require.NoError(t, err)
-		assetPairMapTempo[asset.Options] = cp
-	} else {
-		assetPairMapTempo = assetToTradablePairMap
-	}
-	for assetType, tp := range assetPairMapTempo {
+	e.Verbose = true
+	for assetType, tp := range assetToTradablePairMap {
 		result, err := e.UpdateOrderbook(t.Context(), tp, assetType)
-		require.NoError(t, err)
+		require.NoErrorf(t, err, "%w: %v", err, assetType)
 		assert.NotNil(t, result)
 	}
 }
 
 func TestUExchangeInfo(t *testing.T) {
 	t.Parallel()
+	e.Verbose = true
 	result, err := e.UExchangeInfo(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -189,8 +177,11 @@ func TestUKlineData(t *testing.T) {
 	_, err = e.UKlineData(t.Context(), usdtmTradablePair, "", 5, time.Time{}, time.Time{})
 	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
 
+	_, err = e.UKlineData(t.Context(), usdtmTradablePair, "", 5, time.Time{}, time.Time{})
+	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
+
 	startTime, endTime := getTime()
-	_, err = e.UKlineData(t.Context(), usdtmTradablePair, "", 5, endTime, startTime)
+	_, err = e.UKlineData(t.Context(), usdtmTradablePair, "5m", 5, endTime, startTime)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	result, err := e.UKlineData(t.Context(), usdtmTradablePair, "1d", 5, startTime, endTime)
@@ -213,8 +204,11 @@ func TestGetUFuturesContinuousKlineData(t *testing.T) {
 	_, err = e.GetUFuturesContinuousKlineData(t.Context(), usdtmTradablePair, "CURRENT_QUARTER", "", time.Time{}, time.Time{}, 10)
 	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
 
+	_, err = e.GetUFuturesContinuousKlineData(t.Context(), usdtmTradablePair, "CURRENT_QUARTER", "", time.Time{}, time.Time{}, 10)
+	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
+
 	startTime, endTime := getTime()
-	_, err = e.GetUFuturesContinuousKlineData(t.Context(), usdtmTradablePair, "CURRENT_QUARTER", "", endTime, startTime, 10)
+	_, err = e.GetUFuturesContinuousKlineData(t.Context(), usdtmTradablePair, "CURRENT_QUARTER", "5m", endTime, startTime, 10)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	result, err := e.GetUFuturesContinuousKlineData(t.Context(), usdtmTradablePair, "CURRENT_QUARTER", "1d", startTime, endTime, 10)
@@ -1722,7 +1716,11 @@ func TestGetAveragePrice(t *testing.T) {
 
 func TestGetPriceChangeStats(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetPriceChangeStats(t.Context(), usdtmTradablePair, currency.Pairs{})
+	result, err := e.GetPriceChangeStats(t.Context(), spotTradablePair, currency.Pairs{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = e.GetPriceChangeStats(t.Context(), marginTradablePair, currency.Pairs{})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -9680,6 +9678,17 @@ func (e *Exchange) populateTradablePairs() error {
 	if err != nil {
 		return err
 	}
+	tradablePairs, err = e.GetEnabledPairs(asset.Margin)
+	if err != nil {
+		return err
+	}
+	if len(tradablePairs) == 0 {
+		return fmt.Errorf("%w for %v", currency.ErrCurrencyPairsEmpty, asset.Margin)
+	}
+	marginTradablePair, err = e.FormatExchangeCurrency(tradablePairs[0], asset.Margin)
+	if err != nil {
+		return err
+	}
 	tradablePairs, err = e.GetEnabledPairs(asset.USDTMarginedFutures)
 	if err != nil {
 		return err
@@ -10526,4 +10535,26 @@ func TestTimeInForceString(t *testing.T) {
 		result := timeInForceString(val.TIF, val.OType)
 		assert.Equal(t, val.String, result)
 	}
+}
+
+func TestUnmarshalPriceChangesWrapper(t *testing.T) {
+	t.Parallel()
+	var resp PriceChangesWrapper
+	singleData := []byte(`{"symbol":"BTCUSDT","priceChange":"2052.57000000","priceChangePercent":"2.945","weightedAvgPrice":"70776.81187089","prevClosePrice":"69702.22000000","lastPrice":"71754.78000000","lastQty":"0.01186000","bidPrice":"71754.78000000","bidQty":"1.97544000","askPrice":"71754.79000000","askQty":"1.32504000","openPrice":"69702.21000000","highPrice":"72142.85000000","lowPrice":"69355.34000000","volume":"27290.78951000","quoteVolume":"1931555074.95738370","openTime":1773306926009,"closeTime":1773393326009,"firstId":6096753380,"lastId":6101660146,"count":4906767}`)
+	err := json.Unmarshal(singleData, &resp)
+	require.NoError(t, err)
+	assert.Len(t, resp, 1)
+
+	sliceData := []byte(`[
+	{"symbol":"ETHBTC","priceChange":"0.00000000","priceChangePercent":"0.000","weightedAvgPrice":"0.02948963","prevClosePrice":"0.02930000","lastPrice":"0.02929000","lastQty":"0.89620000","bidPrice":"0.02928000","bidQty":"65.66220000","askPrice":"0.02929000","askQty":"93.13020000","openPrice":"0.02929000","highPrice":"0.02993000","lowPrice":"0.02923000","volume":"28031.22050000","quoteVolume":"826.63045976","openTime":1773307470501,"closeTime":1773393870501,"firstId":526397489,"lastId":526464632,"count":67144},
+	{"symbol":"LTCBTC","priceChange":"-0.00000500","priceChangePercent":"-0.644","weightedAvgPrice":"0.00077285","prevClosePrice":"0.00077700","lastPrice":"0.00077200","lastQty":"25.82500000","bidPrice":"0.00077200","bidQty":"186.78100000","askPrice":"0.00077300","askQty":"498.79500000","openPrice":"0.00077700","highPrice":"0.00077800","lowPrice":"0.00076800","volume":"8871.84900000","quoteVolume":"6.85662767","openTime":1773307470366,"closeTime":1773393870366,"firstId":106805656,"lastId":106807708,"count":2053}]`)
+	err = json.Unmarshal(sliceData, &resp)
+	require.NoError(t, err)
+	assert.Len(t, resp, 2)
+}
+
+func TestWsConnect(t *testing.T) {
+	t.Parallel()
+	err := e.Websocket.Connect(context.Background())
+	require.NoError(t, err)
 }

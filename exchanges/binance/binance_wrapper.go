@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -49,12 +50,12 @@ var defaultAssetPairStores = map[asset.Item]currency.PairStore{
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 		ConfigFormat:  &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true},
 	},
-	asset.CoinMarginedFutures: {
+	asset.USDTMarginedFutures: {
 		AssetEnabled:  true,
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
 	},
-	asset.USDTMarginedFutures: {
+	asset.CoinMarginedFutures: {
 		AssetEnabled:  true,
 		RequestFormat: &currency.PairFormat{Uppercase: true},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
@@ -332,7 +333,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 	tradingStatus := "TRADING"
 	var pairs currency.Pairs
 	switch a {
-	case asset.Spot:
+	case asset.Spot, asset.Margin:
 		info, err := e.GetExchangeInfo(ctx)
 		if err != nil {
 			return nil, err
@@ -340,6 +341,9 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		pairs = make([]currency.Pair, 0, len(info.Symbols))
 		for x := range info.Symbols {
 			if info.Symbols[x].Status != tradingStatus {
+				continue
+			}
+			if len(info.Symbols[x].PermissionSets) == 0 || !slices.Contains(info.Symbols[x].PermissionSets[0], a.Upper()) {
 				continue
 			}
 			pair, err := currency.NewPairFromStrings(info.Symbols[x].BaseAsset,
@@ -353,29 +357,6 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 			if a == asset.Margin && info.Symbols[x].IsMarginTradingAllowed {
 				pairs = append(pairs, pair)
 			}
-		}
-	case asset.Margin:
-		result, err := e.GetAllIsolatedMarginSymbols(ctx, currency.EMPTYPAIR)
-		if err != nil {
-			return nil, err
-		}
-		for _, sy := range result {
-			cp, err := currency.NewPairFromString(sy.Symbol)
-			if err != nil {
-				return nil, err
-			}
-			pairs = append(pairs, cp)
-		}
-		crossMarginResult, err := e.GetAllCrossMarginPairs(ctx, currency.EMPTYPAIR)
-		if err != nil {
-			return nil, err
-		}
-		for _, sy := range crossMarginResult {
-			cp, err := currency.NewPairFromString(sy.Symbol)
-			if err != nil {
-				return nil, err
-			}
-			pairs = append(pairs, cp)
 		}
 	case asset.CoinMarginedFutures:
 		cInfo, err := e.FuturesExchangeInfo(ctx)
@@ -442,10 +423,10 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 	for i := range assetTypes {
 		pairs, err := e.FetchTradablePairs(ctx, assetTypes[i])
 		if err != nil {
-			return err
+			return fmt.Errorf("%v: %w", assetTypes[i], err)
 		}
 		if err := e.UpdatePairs(pairs, assetTypes[i], false); err != nil {
-			return err
+			return fmt.Errorf("%v: %w", assetTypes[i], err)
 		}
 	}
 	return e.EnsureOnePairEnabled()

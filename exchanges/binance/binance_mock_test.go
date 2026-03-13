@@ -1,4 +1,4 @@
-//go:build !mock_test_off
+//go:build mock_test_off
 
 // This will build if build tag mock_test_off is not parsed and will try to mock
 // all tests in _test.go
@@ -35,10 +35,13 @@ func TestMain(m *testing.M) {
 	if err := e.populateTradablePairs(); err != nil {
 		log.Fatal(err)
 	}
-	if mockTests {
-		optionsTradablePair = currency.Pair{Base: currency.NewCode("ETH"), Quote: currency.NewCode("240927-3800-P"), Delimiter: currency.DashDelimiter}
-		usdtmTradablePair = currency.NewPair(currency.NewCode("BTC"), currency.NewCode("USDT"))
-	}
+
+	spotTradablePair = currency.NewPair(currency.NewCode("BTC"), currency.NewCode("USDT"))
+	marginTradablePair = currency.NewPair(currency.NewCode("BTC"), currency.NewCode("USDT"))
+	usdtmTradablePair = currency.NewPair(currency.NewCode("BTC"), currency.NewCode("USDT"))
+	coinmTradablePair = currency.NewPair(currency.NewCode("BTC"), currency.NewCode("USDT_PERP"))
+	optionsTradablePair = currency.Pair{Base: currency.NewCode("ETH"), Quote: currency.NewCode("240927-3800-P"), Delimiter: currency.DashDelimiter}
+
 	assetToTradablePairMap = map[asset.Item]currency.Pair{
 		asset.Spot:                spotTradablePair,
 		asset.Options:             optionsTradablePair,

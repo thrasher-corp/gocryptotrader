@@ -928,12 +928,12 @@ func OrderTypeString(oType order.Type) (string, error) {
 		return "TAKE_PROFIT", nil
 	case order.TakeProfitMarket:
 		return "TAKE_PROFIT_MARKET", nil
+	case order.TakeProfitLimit:
+		return "TAKE_PROFIT_LIMIT", nil
 	case order.TrailingStop:
 		return "TRAILING_STOP_MARKET", nil
 	case order.StopLimit:
 		return "STOP_LOSS_LIMIT", nil
-	case order.TakeProfitLimit:
-		return "TAKE_PROFIT_LIMIT", nil
 	case order.LimitMaker:
 		return "LIMIT_MAKER", nil
 	default:
