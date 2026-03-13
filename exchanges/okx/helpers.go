@@ -106,18 +106,18 @@ func (e *Exchange) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item,
 	switch {
 	case len(splitSymbol) == 2:
 		resp := make([]asset.Item, 0, 2)
-		enabled, err := e.IsPairEnabled(pair, asset.Spot)
+		isAvailable, err := e.IsPairAvailable(pair, asset.Spot)
 		if err != nil {
 			return nil, err
 		}
-		if enabled {
+		if isAvailable {
 			resp = append(resp, asset.Spot)
 		}
-		enabled, err = e.IsPairEnabled(pair, asset.Margin)
+		isAvailable, err = e.IsPairAvailable(pair, asset.Margin)
 		if err != nil {
 			return nil, err
 		}
-		if enabled {
+		if isAvailable {
 			resp = append(resp, asset.Margin)
 		}
 		if len(resp) > 0 {
@@ -133,14 +133,14 @@ func (e *Exchange) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item,
 		default:
 			aType = asset.Futures
 		}
-		enabled, err := e.IsPairEnabled(pair, aType)
+		isAvailable, err := e.IsPairAvailable(pair, aType)
 		if err != nil {
 			return nil, err
-		} else if enabled {
+		} else if isAvailable {
 			return []asset.Item{aType}, nil
 		}
 	}
-	return nil, fmt.Errorf("%w: no asset enabled with instrument ID `%v`", asset.ErrNotEnabled, instrumentID)
+	return nil, fmt.Errorf("%w: no available asset found for instrument ID `%v`", asset.ErrNotEnabled, instrumentID)
 }
 
 // assetTypeFromInstrumentType returns an asset Item instance given and Instrument Type string

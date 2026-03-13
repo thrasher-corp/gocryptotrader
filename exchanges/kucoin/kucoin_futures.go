@@ -56,7 +56,7 @@ func (e *Exchange) GetFuturesTicker(ctx context.Context, symbol string) (*Future
 
 // GetFuturesTickers does n * REST requests based on enabled pairs of the futures asset type
 func (e *Exchange) GetFuturesTickers(ctx context.Context) ([]*ticker.Price, error) {
-	pairs, err := e.GetEnabledPairs(asset.Futures)
+	pairs, err := e.GetAvailablePairs(asset.Futures)
 	if err != nil {
 		return nil, err
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
@@ -150,4 +151,23 @@ func TestFetchOrderbook(t *testing.T) {
 			assert.LessOrEqual(t, got.LastUpdated, got.LastPushed, "Last updated timestamp should be before last pushed timestamp")
 		})
 	}
+}
+
+func TestUpdateTickersOptionsWithMockTickers(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex))
+	require.NoError(t, testexch.MockHTTPInstance(ex, "/"))
+	ex.Name = "GateIOMockOptionsTickers"
+
+	pair, err := currency.NewPairFromString("BTC_USDT-20211130-50000-C")
+	require.NoError(t, err)
+	require.NoError(t, ex.SetPairs(currency.Pairs{pair}, asset.Options, false))
+	require.NoError(t, ex.SetPairs(currency.Pairs{pair}, asset.Options, true))
+
+	require.NoError(t, ex.UpdateTickers(t.Context(), asset.Options))
+
+	_, err = ticker.GetTicker(ex.Name, pair, asset.Options)
+	require.NoError(t, err)
 }

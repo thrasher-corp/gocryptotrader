@@ -335,7 +335,6 @@ func (p *PairsManager) IsPairAvailable(pair Pair, a asset.Item) (bool, error) {
 	if !a.IsValid() {
 		return false, fmt.Errorf("%s %w", a, asset.ErrNotSupported)
 	}
-
 	if pair.IsEmpty() {
 		return false, ErrCurrencyPairEmpty
 	}
@@ -347,7 +346,7 @@ func (p *PairsManager) IsPairAvailable(pair Pair, a asset.Item) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return pairStore.AssetEnabled && pairStore.Available.Contains(pair, true), nil
+	return pairStore.Available.Contains(pair, true), nil
 }
 
 // IsPairEnabled checks if a pair is enabled for an enabled asset type
@@ -368,6 +367,19 @@ func (p *PairsManager) IsPairEnabled(pair Pair, a asset.Item) (bool, error) {
 		return false, err
 	}
 	return pairStore.AssetEnabled && pairStore.Enabled.Contains(pair, true), nil
+}
+
+// IsAssetAvailable checks to see if an asset exists in the pair store
+func (p *PairsManager) IsAssetAvailable(a asset.Item) error {
+	if !a.IsValid() {
+		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
+	}
+
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+
+	_, err := p.getPairStoreRequiresLock(a)
+	return err
 }
 
 // IsAssetEnabled checks to see if an asset is enabled

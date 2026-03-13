@@ -1216,18 +1216,6 @@ func StringToOrderStatus(status string) (Status, error) {
 	}
 }
 
-func (o *ClassificationError) Error() string {
-	if o.OrderID != "" {
-		return fmt.Sprintf("Exchange %s: OrderID: %s classification error: %v",
-			o.Exchange,
-			o.OrderID,
-			o.Err)
-	}
-	return fmt.Sprintf("Exchange %s: classification error: %v",
-		o.Exchange,
-		o.Err)
-}
-
 // StandardCancel defines an option in the validator to make sure an ID is set
 // for a standard cancel
 func (c *Cancel) StandardCancel() validate.Checker {
