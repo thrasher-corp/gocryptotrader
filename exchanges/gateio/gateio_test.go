@@ -482,8 +482,11 @@ func TestCancelPriceTriggeredOrder(t *testing.T) {
 func TestGetMarginAccountList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.GetMarginAccountList(t.Context(), currency.EMPTYPAIR); err != nil {
-		t.Errorf("%s GetMarginAccountList() error %v", e.Name, err)
+	result, err := e.GetMarginAccountList(t.Context(), currency.EMPTYPAIR)
+	require.NoError(t, err, "GetMarginAccountList must not error")
+	for i := range result {
+		assert.NotEmpty(t, result[i].CurrencyPair, "CurrencyPair should not be empty")
+		assert.NotEmpty(t, result[i].AccountType, "AccountType should not be empty")
 	}
 }
 
@@ -584,6 +587,21 @@ func TestRepayALoan(t *testing.T) {
 	}
 }
 
+func TestGetUniLoanInterestRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	records, err := e.GetUniLoanInterestRecords(t.Context(),
+		currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter},
+		currency.BTC,
+		0,
+		0)
+	if err != nil && strings.Contains(err.Error(), "REQUEST_FORBIDDEN") {
+		t.Skipf("credentials do not have access to unified loan interest records endpoint: %v", err)
+	}
+	assert.NoError(t, err)
+	assert.NotNil(t, records)
+}
+
 func TestListLoanRepaymentRecords(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -649,7 +667,7 @@ func TestGetMaxTransferableAmountForSpecificMarginCurrency(t *testing.T) {
 func TestGetMaxBorrowableAmountForSpecificMarginCurrency(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.GetMaxBorrowableAmountForSpecificMarginCurrency(t.Context(), currency.BTC, currency.EMPTYPAIR); err != nil {
+	if _, err := e.GetMaxBorrowableAmountForSpecificMarginCurrency(t.Context(), currency.BTC, currency.NewBTCUSDT()); err != nil {
 		t.Errorf("%s GetMaxBorrowableAmountForSpecificMarginCurrency() error %v", e.Name, err)
 	}
 }

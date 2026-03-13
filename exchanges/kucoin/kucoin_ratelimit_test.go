@@ -130,6 +130,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"margin Repayment History":                         marginRepaymentHistoryEPL,
 		"lending Currency Info":                            lendingCurrencyInfoEPL,
 		"interest Rate":                                    interestRateEPL,
+		"borrow Interest Rate":                             borrowInterestRateEPL,
 		"margin Lending Subscription":                      marginLendingSubscriptionEPL,
 		"redemption":                                       redemptionEPL,
 		"modify Subscription":                              modifySubscriptionEPL,

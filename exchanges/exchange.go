@@ -1678,6 +1678,11 @@ func (b *Base) GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest
 	return nil, common.ErrNotYetImplemented
 }
 
+// GetCurrentMarginRates returns the latest margin rates for the supplied pairs.
+func (b *Base) GetCurrentMarginRates(context.Context, *margin.CurrentRatesRequest) ([]margin.CurrentRateResponse, error) {
+	return nil, common.ErrNotYetImplemented
+}
+
 // GetFuturesPositionSummary returns stats for a future position
 func (b *Base) GetFuturesPositionSummary(context.Context, *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
 	return nil, common.ErrNotYetImplemented
