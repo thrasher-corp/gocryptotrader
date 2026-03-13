@@ -341,39 +341,31 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			return err
 		}
 
-		pairs, err := e.GetEnabledPairs(a)
-		if err != nil {
-			return err
-		}
-
-		for i := range pairs {
-			for y := range tick {
-				pairFmt, err := e.FormatExchangeCurrency(pairs[i], a)
-				if err != nil {
+		for y := range tick {
+			pair, err := e.MatchSymbolWithAvailablePairs(tick[y].Symbol, a, true)
+			if err != nil {
+				if !errors.Is(err, currency.ErrPairNotFound) {
 					return err
 				}
+				continue
+			}
 
-				if tick[y].Symbol != pairFmt.String() {
-					continue
-				}
-
-				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         tick[y].LastPrice.Float64(),
-					High:         tick[y].HighPrice.Float64(),
-					Low:          tick[y].LowPrice.Float64(),
-					Bid:          tick[y].BidPrice.Float64(),
-					Ask:          tick[y].AskPrice.Float64(),
-					Volume:       tick[y].Volume.Float64(),
-					QuoteVolume:  tick[y].QuoteVolume.Float64(),
-					Open:         tick[y].OpenPrice.Float64(),
-					Close:        tick[y].PrevClosePrice.Float64(),
-					Pair:         pairFmt,
-					ExchangeName: e.Name,
-					AssetType:    a,
-				})
-				if err != nil {
-					return err
-				}
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         tick[y].LastPrice.Float64(),
+				High:         tick[y].HighPrice.Float64(),
+				Low:          tick[y].LowPrice.Float64(),
+				Bid:          tick[y].BidPrice.Float64(),
+				Ask:          tick[y].AskPrice.Float64(),
+				Volume:       tick[y].Volume.Float64(),
+				QuoteVolume:  tick[y].QuoteVolume.Float64(),
+				Open:         tick[y].OpenPrice.Float64(),
+				Close:        tick[y].PrevClosePrice.Float64(),
+				Pair:         pair,
+				ExchangeName: e.Name,
+				AssetType:    a,
+			})
+			if err != nil {
+				return err
 			}
 		}
 	case asset.USDTMarginedFutures:
