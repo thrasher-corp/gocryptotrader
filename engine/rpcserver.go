@@ -2026,7 +2026,7 @@ func (s *RPCServer) GetOrderbookStream(r *gctrpc.GetOrderbookStreamRequest, stre
 		return err
 	}
 
-	depth, err := orderbook.GetDepth(r.Exchange, p, a)
+	depth, err := orderbook.GetDepth(exch.GetName(), p, a)
 	if err != nil {
 		return err
 	}
