@@ -347,7 +347,7 @@ func (e *Exchange) processOptionsContractTickers(ctx context.Context, incoming [
 	if err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+	tick := &ticker.Price{
 		Pair:         data.Name,
 		Last:         data.LastPrice.Float64(),
 		Bid:          data.Bid1Price.Float64(),
@@ -356,7 +356,11 @@ func (e *Exchange) processOptionsContractTickers(ctx context.Context, incoming [
 		BidSize:      data.Bid1Size.Float64(),
 		ExchangeName: e.Name,
 		AssetType:    asset.Options,
-	})
+	}
+	if err := ticker.ProcessTicker(tick); err != nil {
+		return err
+	}
+	return e.Websocket.DataHandler.Send(ctx, tick)
 }
 
 func (e *Exchange) processOptionsUnderlyingTicker(ctx context.Context, incoming []byte) error {

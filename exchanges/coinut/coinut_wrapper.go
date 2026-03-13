@@ -785,7 +785,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 		}
 
 		var pairs currency.Pairs
-		pairs, err = e.GetAvailablePairs(asset.Spot)
+		pairs, err = e.GetEnabledPairs(asset.Spot)
 		if err != nil {
 			return nil, err
 		}
@@ -905,7 +905,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 		}
 
 		var pairs currency.Pairs
-		pairs, err = e.GetAvailablePairs(asset.Spot)
+		pairs, err = e.GetEnabledPairs(asset.Spot)
 		if err != nil {
 			return nil, err
 		}

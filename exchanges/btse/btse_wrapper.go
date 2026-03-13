@@ -794,7 +794,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 	var resp []order.Detail
 	if len(getOrdersRequest.Pairs) == 0 {
 		var err error
-		getOrdersRequest.Pairs, err = e.GetAvailablePairs(asset.Spot)
+		getOrdersRequest.Pairs, err = e.GetEnabledPairs(asset.Spot)
 		if err != nil {
 			return nil, err
 		}
