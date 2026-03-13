@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -65,6 +66,7 @@ func TestNTPManagerStart(t *testing.T) {
 	cfg := &config.NTPClientConfig{
 		AllowedDifference:         &sec,
 		AllowedNegativeDifference: &sec,
+		Pool:                      []string{"0.pool.ntp.org:123"},
 	}
 	m, err = setupNTPManager(cfg, true)
 	assert.NoError(t, err)
@@ -114,6 +116,7 @@ func TestFetchNTPTime(t *testing.T) {
 		AllowedDifference:         &sec,
 		AllowedNegativeDifference: &sec,
 		Level:                     1,
+		Pool:                      []string{"0.pool.ntp.org:123"},
 	}
 	m, err = setupNTPManager(cfg, true)
 	assert.NoError(t, err)
@@ -125,14 +128,6 @@ func TestFetchNTPTime(t *testing.T) {
 	assert.NoError(t, err)
 
 	tt, err := m.FetchNTPTime()
-	assert.NoError(t, err)
-
-	if tt.IsZero() {
-		t.Error("expected time")
-	}
-
-	m.pools = []string{"0.pool.ntp.org:123"}
-	tt, err = m.FetchNTPTime()
 	assert.NoError(t, err)
 
 	if tt.IsZero() {
@@ -151,17 +146,17 @@ func TestProcessTime(t *testing.T) {
 	m, err := setupNTPManager(cfg, true)
 	assert.NoError(t, err)
 
-	err = m.processTime()
+	err = m.processTime(context.Background())
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
 	err = m.Start()
 	assert.NoError(t, err)
 
-	err = m.processTime()
+	err = m.processTime(context.Background())
 	assert.NoError(t, err)
 
 	m.allowedDifference = time.Duration(1)
 	m.allowedNegativeDifference = time.Duration(1)
-	err = m.processTime()
+	err = m.processTime(context.Background())
 	assert.NoError(t, err)
 }

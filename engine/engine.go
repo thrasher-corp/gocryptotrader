@@ -332,11 +332,28 @@ func (bot *Engine) Start() error {
 
 	if bot.Settings.EnableNTPClient {
 		if bot.Config.NTPClient.Level == 0 {
-			responseMessage, err := bot.Config.SetNTPCheck(os.Stdin)
+			// Check NTP config and ensure pools are configured
+			bot.Config.CheckNTPConfig()
+
+			// Perform actual NTP check before prompting user
+			offset, err := CheckNTPOffset(context.Background(), bot.Config.NTPClient.Pool)
 			if err != nil {
-				return fmt.Errorf("unable to set NTP check: %w", err)
+				gctlog.Warnf(gctlog.TimeMgr, "Unable to check NTP time: %v", err)
+			} else {
+				// Prompt user if time is actually out of sync
+				allowedDiff := *bot.Config.NTPClient.AllowedDifference
+				allowedNegDiff := -*bot.Config.NTPClient.AllowedNegativeDifference
+				if offset > allowedDiff || offset < allowedNegDiff {
+					gctlog.Warnf(gctlog.TimeMgr, "System time offset detected: %v (allowed: +%v / %v)", offset, allowedDiff, allowedNegDiff)
+					responseMessage, err := bot.Config.SetNTPCheck(os.Stdin)
+					if err != nil {
+						return fmt.Errorf("unable to set NTP check: %w", err)
+					}
+					gctlog.Infoln(gctlog.TimeMgr, responseMessage)
+				} else {
+					gctlog.Debugf(gctlog.TimeMgr, "System time is in sync (offset: %v)", offset)
+				}
 			}
-			gctlog.Infoln(gctlog.TimeMgr, responseMessage)
 		}
 		if n, err := setupNTPManager(&bot.Config.NTPClient, *bot.Config.Logging.Enabled); err != nil {
 			gctlog.Errorf(gctlog.Global, "NTP manager unable to start: %s", err)
