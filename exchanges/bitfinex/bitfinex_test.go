@@ -1398,11 +1398,6 @@ func TestGenerateSubscriptions(t *testing.T) {
 	}
 
 	exp := subscription.List{}
-	spotEnabledPairs, err := e.GetEnabledPairs(asset.Spot)
-	require.NoError(t, err, "GetEnabledPairs spot must not error")
-	spotFmt, err := e.GetPairFormat(asset.Spot, true)
-	require.NoError(t, err, "GetPairFormat spot must not error")
-	spotEnabledPairs = spotEnabledPairs.Format(spotFmt)
 	for _, baseSub := range e.Features.Subscriptions {
 		for _, a := range e.GetAssetTypes(true) {
 			if !e.IsAssetWebsocketSupported(a) {
@@ -1411,14 +1406,20 @@ func TestGenerateSubscriptions(t *testing.T) {
 			if baseSub.Asset != asset.All && baseSub.Asset != a {
 				continue
 			}
+
 			pairs, err := e.GetEnabledPairs(a)
 			require.NoErrorf(t, err, "GetEnabledPairs must not error for asset %s", a)
+
 			pairFmt, err := e.GetPairFormat(a, true)
 			require.NoErrorf(t, err, "GetPairFormat must not error for asset %s", a)
 			pairs = common.SortStrings(pairs.Format(pairFmt))
+
 			if a == asset.Margin {
-				pairs = pairs.Remove(spotEnabledPairs...)
+				spotPairs, err := e.GetEnabledPairs(asset.Spot)
+				require.NoError(t, err, "GetEnabledPairs must not error for spot asset")
+				pairs = pairs.Remove(spotPairs...)
 			}
+
 			for _, p := range pairs {
 				s := baseSub.Clone()
 				s.Asset = a
