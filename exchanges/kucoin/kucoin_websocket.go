@@ -350,12 +350,7 @@ func (e *Exchange) processFuturesStopOrderLifecycleEvent(ctx context.Context, re
 	if err != nil {
 		return err
 	}
-	var enabledPairs currency.Pairs
-	enabledPairs, err = e.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		return err
-	}
-	pair, err := enabledPairs.DeriveFrom(resp.Symbol)
+	pair, err := e.MatchSymbolWithAvailablePairs(resp.Symbol, asset.Futures, false)
 	if err != nil {
 		return err
 	}
@@ -396,12 +391,7 @@ func (e *Exchange) processFuturesPrivateTradeOrders(ctx context.Context, respDat
 	if err != nil {
 		return err
 	}
-	var enabledPairs currency.Pairs
-	enabledPairs, err = e.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		return err
-	}
-	pair, err := enabledPairs.DeriveFrom(resp.Symbol)
+	pair, err := e.MatchSymbolWithAvailablePairs(resp.Symbol, asset.Futures, false)
 	if err != nil {
 		return err
 	}
@@ -474,11 +464,7 @@ func (e *Exchange) ensureFuturesOrderbookSnapshotLoaded(ctx context.Context, sym
 		return nil
 	}
 	e.fetchedFuturesOrderbook[symbol] = true
-	enabledPairs, err := e.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		return err
-	}
-	cp, err := enabledPairs.DeriveFrom(symbol)
+	cp, err := e.MatchSymbolWithAvailablePairs(symbol, asset.Futures, false)
 	if err != nil {
 		return err
 	}
@@ -522,11 +508,7 @@ func (e *Exchange) processFuturesOrderbookLevel2(ctx context.Context, respData [
 	if err != nil {
 		return err
 	}
-	enabledPairs, err := e.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		return err
-	}
-	pair, err := enabledPairs.DeriveFrom(instrument)
+	pair, err := e.MatchSymbolWithAvailablePairs(instrument, asset.Futures, false)
 	if err != nil {
 		return err
 	}
@@ -546,11 +528,7 @@ func (e *Exchange) processFuturesTickerV2(ctx context.Context, respData []byte) 
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
-	enabledPairs, err := e.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		return err
-	}
-	pair, err := enabledPairs.DeriveFrom(resp.Symbol)
+	pair, err := e.MatchSymbolWithAvailablePairs(resp.Symbol, asset.Futures, false)
 	if err != nil {
 		return err
 	}
@@ -876,17 +854,7 @@ func (e *Exchange) processOrderbookWithDepth(respData []byte, instrument, topic 
 // updateLocalBuffer updates orderbook buffer and checks status if the book is Initial Sync being via the REST
 // protocol.
 func (e *Exchange) updateLocalBuffer(wsdp *WsOrderbook, assetType asset.Item) (bool, error) {
-	enabledPairs, err := e.GetEnabledPairs(assetType)
-	if err != nil {
-		return false, err
-	}
-
-	format, err := e.GetPairFormat(assetType, true)
-	if err != nil {
-		return false, err
-	}
-
-	currencyPair, err := currency.NewPairFromFormattedPairs(wsdp.Symbol, enabledPairs, format)
+	currencyPair, err := e.MatchSymbolWithAvailablePairs(wsdp.Symbol, assetType, strings.ContainsAny(wsdp.Symbol, "_-"))
 	if err != nil {
 		return false, err
 	}
@@ -1545,18 +1513,26 @@ func (o *orderbookManager) StopNeedsFetchingBook(pair currency.Pair, assetType a
 func (e *Exchange) CalculateAssets(topic string, cp currency.Pair) ([]asset.Item, error) {
 	switch {
 	case cp.Quote.Equal(currency.USDTM), strings.HasPrefix(topic, "/contract"):
-		if err := e.CurrencyPairs.IsAssetEnabled(asset.Futures); err != nil {
-			if !errors.Is(err, asset.ErrNotSupported) {
-				return nil, err
+		futuresAvailable, err := e.IsPairAvailable(cp, asset.Futures)
+		if err != nil {
+			if errors.Is(err, currency.ErrCurrencyNotFound) {
+				return nil, nil
 			}
+			return nil, err
+		}
+		if !futuresAvailable {
 			return nil, nil
 		}
 		return []asset.Item{asset.Futures}, nil
 	case strings.HasPrefix(topic, "/margin"), strings.HasPrefix(topic, "/index"):
-		if err := e.CurrencyPairs.IsAssetEnabled(asset.Margin); err != nil {
-			if !errors.Is(err, asset.ErrNotSupported) {
-				return nil, err
+		marginAvailable, err := e.IsPairAvailable(cp, asset.Margin)
+		if err != nil {
+			if errors.Is(err, currency.ErrCurrencyNotFound) {
+				return nil, nil
 			}
+			return nil, err
+		}
+		if !marginAvailable {
 			return nil, nil
 		}
 		return []asset.Item{asset.Margin}, nil

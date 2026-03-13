@@ -453,7 +453,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	}
 
 	var allOrders []OrderData
-	currs, err := e.GetAvailablePairs(asset.Spot)
+	currs, err := e.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}

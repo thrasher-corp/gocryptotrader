@@ -373,14 +373,14 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.
 		Status: make(map[string]string),
 	}
 
-	availablePairs, err := e.GetAvailablePairs(asset.Spot)
+	enabledPairs, err := e.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return cancelAllOrdersResponse, err
 	}
 
-	allActiveOrders := make([]map[string]ActiveOrders, len(availablePairs))
-	for i := range availablePairs {
-		fCurr, err := e.FormatExchangeCurrency(availablePairs[i], asset.Spot)
+	allActiveOrders := make([]map[string]ActiveOrders, len(enabledPairs))
+	for i := range enabledPairs {
+		fCurr, err := e.FormatExchangeCurrency(enabledPairs[i], asset.Spot)
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}

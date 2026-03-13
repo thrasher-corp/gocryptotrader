@@ -1029,12 +1029,12 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (orde
 		}
 	case asset.CoinMarginedFutures:
 		if req.Pair.IsEmpty() {
-			availablePairs, err := e.GetAvailablePairs(asset.CoinMarginedFutures)
+			enabledPairs, err := e.GetEnabledPairs(asset.CoinMarginedFutures)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
-			for i := range availablePairs {
-				_, err = e.FuturesCancelAllOpenOrders(ctx, availablePairs[i])
+			for i := range enabledPairs {
+				_, err = e.FuturesCancelAllOpenOrders(ctx, enabledPairs[i])
 				if err != nil {
 					return cancelAllOrdersResponse, err
 				}
@@ -1047,12 +1047,12 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (orde
 		}
 	case asset.USDTMarginedFutures:
 		if req.Pair.IsEmpty() {
-			availablePairs, err := e.GetAvailablePairs(asset.USDTMarginedFutures)
+			enabledPairs, err := e.GetEnabledPairs(asset.USDTMarginedFutures)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
-			for i := range availablePairs {
-				_, err = e.UCancelAllOpenOrders(ctx, availablePairs[i])
+			for i := range enabledPairs {
+				_, err = e.UCancelAllOpenOrders(ctx, enabledPairs[i])
 				if err != nil {
 					return cancelAllOrdersResponse, err
 				}

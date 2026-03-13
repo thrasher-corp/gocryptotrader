@@ -343,7 +343,7 @@ func (e *Exchange) processCandlestick(ctx context.Context, incoming []byte) erro
 
 	out := make([]kline.Item, 0, len(standardMarginAssetTypes))
 	for _, a := range standardMarginAssetTypes {
-		if enabled, _ := e.CurrencyPairs.IsPairEnabled(currencyPair, a); enabled {
+		if isAvailable, _ := e.CurrencyPairs.IsPairAvailable(currencyPair, a); isAvailable {
 			out = append(out, kline.Item{
 				Pair:     currencyPair,
 				Asset:    a,

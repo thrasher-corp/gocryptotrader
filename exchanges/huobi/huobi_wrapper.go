@@ -1115,14 +1115,14 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	cancelAllOrdersResponse.Status = make(map[string]string)
 	switch orderCancellation.AssetType {
 	case asset.Spot:
-		availablePairs, err := e.GetAvailablePairs(asset.Spot)
+		enabledPairs, err := e.GetEnabledPairs(asset.Spot)
 		if err != nil {
 			return cancelAllOrdersResponse, err
 		}
-		for i := range availablePairs {
+		for i := range enabledPairs {
 			resp, err := e.CancelOpenOrdersBatch(ctx,
 				orderCancellation.AccountID,
-				availablePairs[i])
+				enabledPairs[i])
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
@@ -1137,12 +1137,12 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		}
 	case asset.CoinMarginedFutures:
 		if orderCancellation.Pair.IsEmpty() {
-			availablePairs, err := e.GetAvailablePairs(asset.CoinMarginedFutures)
+			enabledPairs, err := e.GetEnabledPairs(asset.CoinMarginedFutures)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
-			for i := range availablePairs {
-				a, err := e.CancelAllSwapOrders(ctx, availablePairs[i])
+			for i := range enabledPairs {
+				a, err := e.CancelAllSwapOrders(ctx, enabledPairs[i])
 				if err != nil {
 					return cancelAllOrdersResponse, err
 				}
@@ -1169,12 +1169,12 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		}
 	case asset.Futures:
 		if orderCancellation.Pair.IsEmpty() {
-			availablePairs, err := e.GetAvailablePairs(asset.Futures)
+			enabledPairs, err := e.GetEnabledPairs(asset.Futures)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}
-			for i := range availablePairs {
-				a, err := e.FCancelAllOrders(ctx, availablePairs[i], "", "")
+			for i := range enabledPairs {
+				a, err := e.FCancelAllOrders(ctx, enabledPairs[i], "", "")
 				if err != nil {
 					return cancelAllOrdersResponse, err
 				}
