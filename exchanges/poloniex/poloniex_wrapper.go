@@ -501,34 +501,41 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 		if err != nil {
 			return nil, err
 		}
-		subAccts := accounts.SubAccounts{}
-		for _, subAccountBalances := range accountBalance {
-			a := accounts.NewSubAccount(stringToAccountType(subAccountBalances.AccountType), subAccountBalances.AccountID)
-			if subAccountBalances.AccountType == "FUTURES" {
-				for _, bal := range subAccountBalances.Balances {
-					a.Balances.Set(bal.Currency, accounts.Balance{
-						Currency: bal.Currency,
-						Total:    bal.AccountEquity.Float64(),
-						Hold:     bal.FrozenFunds.Float64(),
-						Free:     bal.AvailableBalance.Float64(),
-					})
-				}
-			} else {
-				for _, bal := range subAccountBalances.Balances {
-					a.Balances.Set(bal.Currency, accounts.Balance{
-						Currency: bal.Currency,
-						Total:    bal.Available.Float64(),
-						Hold:     bal.Hold.Float64(),
-						Free:     bal.MaxAvailable.Float64(),
-					})
-				}
-			}
-			subAccts = subAccts.Merge(a)
-		}
+		subAccts := mapSubAccountBalances(accountBalance)
 		return subAccts, e.Accounts.Save(ctx, subAccts, true)
 	default:
 		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, assetType)
 	}
+}
+
+func mapSubAccountBalances(accountBalance []*SubAccountBalances) accounts.SubAccounts {
+	subAccts := accounts.SubAccounts{}
+	for _, subAccountBalances := range accountBalance {
+		a := accounts.NewSubAccount(stringToAccountType(subAccountBalances.AccountType), subAccountBalances.AccountID)
+		if subAccountBalances.AccountType == "FUTURES" {
+			for _, bal := range subAccountBalances.Balances {
+				a.Balances.Set(bal.Currency, accounts.Balance{
+					Currency: bal.Currency,
+					Total:    bal.AccountEquity.Float64(),
+					Hold:     bal.FrozenFunds.Float64(),
+					Free:     bal.AvailableBalance.Float64(),
+				})
+			}
+		} else {
+			for _, bal := range subAccountBalances.Balances {
+				available := bal.Available.Float64()
+				hold := bal.Hold.Float64()
+				a.Balances.Set(bal.Currency, accounts.Balance{
+					Currency: bal.Currency,
+					Total:    available + hold,
+					Hold:     hold,
+					Free:     available,
+				})
+			}
+		}
+		subAccts = subAccts.Merge(a)
+	}
+	return subAccts
 }
 
 // GetAccountFundingHistory returns funding history, deposits and

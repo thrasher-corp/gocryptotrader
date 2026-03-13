@@ -80,7 +80,14 @@ func TestResubscribe(t *testing.T) {
 	require.NoError(t, err)
 	err = m.Resubscribe(t.Context(), e, conn, "ob.BTC_USDT.50", currency.NewBTCUSDT(), asset.Spot)
 	require.NoError(t, err)
-	assert.True(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot))
+	assert.Eventually(t,
+		func() bool {
+			return !m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot)
+		},
+		time.Second,
+		10*time.Millisecond,
+		"Resubscription state should clear after the resubscribe routine exits",
+	)
 }
 
 func TestCompletedResubscribe(t *testing.T) {
