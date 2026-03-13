@@ -335,7 +335,7 @@ func (b *Base) SetConfigPairs() error {
 		}
 
 		var enabledAsset bool
-		if b.Config.CurrencyPairs.IsAssetAvailable(a) == nil {
+		if b.Config.CurrencyPairs.IsAssetEnabled(a) == nil {
 			enabledAsset = true
 		}
 

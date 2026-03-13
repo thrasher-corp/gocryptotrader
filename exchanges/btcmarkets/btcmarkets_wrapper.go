@@ -707,7 +707,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 		return nil, err
 	}
 	if len(req.Pairs) == 0 {
-		allPairs, err := e.GetAvailablePairs(asset.Spot)
+		allPairs, err := e.GetEnabledPairs(asset.Spot)
 		if err != nil {
 			return nil, err
 		}
