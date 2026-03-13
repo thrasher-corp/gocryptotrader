@@ -8,6 +8,7 @@ package gctrpc
 
 import (
 	context "context"
+
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -1746,6 +1747,9 @@ func (UnimplementedGoCryptoTraderServiceServer) SetExchangePair(context.Context,
 	return nil, status.Error(codes.Unimplemented, "method SetExchangePair not implemented")
 }
 func (UnimplementedGoCryptoTraderServiceServer) GetOrderbookStream(*GetOrderbookStreamRequest, grpc.ServerStreamingServer[OrderbookResponse]) error {
+	return status.Errorf(codes.Unimplemented, "method GetOrderbookStream not implemented")
+}
+func (UnimplementedGoCryptoTraderServiceServer) GetExchangeTickerStream(*GetExchangeTickerStreamRequest, grpc.ServerStreamingServer[TickerResponse]) error {
 	return status.Error(codes.Unimplemented, "method GetOrderbookStream not implemented")
 }
 func (UnimplementedGoCryptoTraderServiceServer) GetExchangeOrderbookStream(*GetExchangeOrderbookStreamRequest, grpc.ServerStreamingServer[OrderbookResponse]) error {
@@ -1753,9 +1757,6 @@ func (UnimplementedGoCryptoTraderServiceServer) GetExchangeOrderbookStream(*GetE
 }
 func (UnimplementedGoCryptoTraderServiceServer) GetTickerStream(*GetTickerStreamRequest, grpc.ServerStreamingServer[TickerResponse]) error {
 	return status.Error(codes.Unimplemented, "method GetTickerStream not implemented")
-}
-func (UnimplementedGoCryptoTraderServiceServer) GetExchangeTickerStream(*GetExchangeTickerStreamRequest, grpc.ServerStreamingServer[TickerResponse]) error {
-	return status.Error(codes.Unimplemented, "method GetExchangeTickerStream not implemented")
 }
 func (UnimplementedGoCryptoTraderServiceServer) GetAuditEvent(context.Context, *GetAuditEventRequest) (*GetAuditEventResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetAuditEvent not implemented")

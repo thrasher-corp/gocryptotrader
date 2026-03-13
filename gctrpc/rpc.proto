@@ -339,16 +339,39 @@ message GetOrderRequest {
   string asset = 4;
 }
 
+message RiskManagement {
+  double price = 1;
+  double limit_price = 2;
+  string price_type = 3;
+}
+
 message SubmitOrderRequest {
   string exchange = 1;
   CurrencyPair pair = 2;
   string side = 3;
   string order_type = 4;
   double amount = 5;
-  double price = 6;
-  string client_id = 7;
-  string asset_type = 8;
-  string margin_type = 9;
+  string asset_type = 6;
+  double price = 7;
+  double leverage = 8;
+  string client_order_id = 9;
+  string margin_type = 10;
+  string time_in_force = 11;
+  double quote_amount = 12;
+  string client_id = 13;
+  double trigger_price = 14;
+  double trigger_limit_price = 15;
+  string trigger_price_type = 16;
+  RiskManagement take_profit = 17;
+  RiskManagement stop_loss = 18;
+  string tracking_mode = 19;
+  double tracking_value = 20;
+  bool hidden = 21;
+  bool iceberg = 22;
+  bool auto_borrow = 23;
+  bool reduce_only = 24;
+  bool retrieve_fees = 25;
+  int64 retrieve_fee_delay_ms = 26;
 }
 
 message Trades {
@@ -396,6 +419,11 @@ message CancelOrderRequest {
   CurrencyPair pair = 4;
   string asset_type = 5;
   string side = 6;
+  string type = 7;
+  string margin_type = 8;
+  string time_in_force = 9;
+  string client_id = 10;
+  string client_order_id = 11;
 }
 
 message CancelBatchOrdersRequest {
@@ -405,6 +433,11 @@ message CancelBatchOrdersRequest {
   CurrencyPair pair = 4;
   string asset_type = 5;
   string side = 6;
+  string order_type = 7;
+  string margin_type = 8;
+  string time_in_force = 9;
+  string client_id = 10;
+  string client_order_id = 11;
 }
 
 message Orders {
@@ -984,6 +1017,15 @@ message ModifyOrderRequest {
   string asset = 4;
   double amount = 5;
   double price = 6;
+  string type = 7;
+  string side = 8;
+  string time_in_force = 9;
+  string client_order_id = 10;
+  double trigger_price = 11;
+  double trigger_limit_price = 12;
+  string trigger_price_type = 13;
+  RiskManagement take_profit = 14;
+  RiskManagement stop_loss = 15;
 }
 
 message ModifyOrderResponse {
