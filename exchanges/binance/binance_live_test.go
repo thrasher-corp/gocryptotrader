@@ -1,4 +1,4 @@
-//go:build mock_test_off
+//go:build !mock_test_off
 
 // This will build if build tag mock_test_off is parsed and will do live testing
 // using all tests in (exchange)_test.go
@@ -10,8 +10,10 @@ import (
 	"os"
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/internal/testing/livetest"
@@ -35,22 +37,44 @@ func TestMain(m *testing.M) {
 		e.API.CredentialsValidator.RequiresBase64DecodeSecret = false
 		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
-
 	if useTestNet {
 		for k, v := range map[exchange.URL]string{
-			exchange.RestUSDTMargined: testnetFutures,
-			exchange.RestCoinMargined: testnetFutures,
-			exchange.RestSpot:         testnetSpotURL,
+			exchange.RestUSDTMargined: "https://testnet.binancefuture.com",
+			exchange.RestCoinMargined: "https://testnet.binancefuture.com",
+			exchange.RestSpot:         "https://testnet.binance.vision/api",
 		} {
 			if err := e.API.Endpoints.SetRunningURL(k.String(), v); err != nil {
 				log.Fatalf("Binance SetRunningURL error: %s", err)
 			}
 		}
 	}
+	e.setupOrderbookManager(context.Background())
 	e.Websocket.DataHandler = stream.NewRelay(sharedtestvalues.WebsocketRelayBufferCapacity)
 	log.Printf(sharedtestvalues.LiveTesting, e.Name)
-	if err := e.UpdateTradablePairs(context.Background()); err != nil {
-		log.Fatalf("Binance UpdateTradablePairs error: %s", err)
+	if err := e.populateTradablePairs(); err != nil {
+		log.Fatal(err)
 	}
+	assetToTradablePairMap = map[asset.Item]currency.Pair{
+		asset.Spot:                spotTradablePair,
+		asset.Margin:              marginTradablePair,
+		asset.Options:             optionsTradablePair,
+		asset.USDTMarginedFutures: usdtmTradablePair,
+		asset.CoinMarginedFutures: coinmTradablePair,
+	}
+
+	// setupWs()
+	e.HTTPRecording = true
 	os.Exit(m.Run())
+}
+
+func setupWs() {
+	conn, err := e.Websocket.GetConnection(asset.Spot)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = e.WsConnect(context.Background(), conn)
+	if err != nil {
+		log.Fatal(err)
+	}
 }

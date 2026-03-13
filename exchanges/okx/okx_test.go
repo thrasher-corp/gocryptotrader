@@ -384,7 +384,7 @@ func TestGetDeliveryHistory(t *testing.T) {
 	require.ErrorIs(t, err, errInstrumentFamilyOrUnderlyingRequired)
 
 	_, err = e.GetDeliveryHistory(contextGenerate(), instTypeFutures, mainPair.String(), "", time.Time{}, time.Time{}, 345)
-	require.ErrorIs(t, err, errLimitValueExceedsMaxOf100)
+	require.ErrorIs(t, err, errExceedLimit)
 
 	result, err := e.GetDeliveryHistory(contextGenerate(), instTypeFutures, mainPair.String(), "", time.Time{}, time.Time{}, 3)
 	require.NoError(t, err)
@@ -536,7 +536,7 @@ func TestGetPositionTiers(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidInstrumentType)
 
 	_, err = e.GetPositionTiers(contextGenerate(), instTypeFutures, "", mainPair.String(), "", "", "", currency.ETH)
-	require.ErrorIs(t, err, errInvalidTradeMode)
+	require.ErrorIs(t, err, errInvalidTradeModeValue)
 
 	_, err = e.GetPositionTiers(contextGenerate(), instTypeFutures, "cross", "", "", "", "", currency.EMPTYCODE)
 	require.ErrorIs(t, err, errInstrumentFamilyOrUnderlyingRequired)
@@ -619,7 +619,7 @@ func TestCurrencyUnitConvert(t *testing.T) {
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
 	_, err = e.CurrencyUnitConvert(contextGenerate(), perpetualSwapPair.String(), 0, 3500, 1, currency.EMPTYCODE, false)
-	require.ErrorIs(t, err, errMissingQuantity)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	result, err := e.CurrencyUnitConvert(contextGenerate(), perpetualSwapPair.String(), 1, 3500, 1, currency.EMPTYCODE, false)
 	require.NoError(t, err)
@@ -1156,7 +1156,7 @@ func TestPlaceTWAPOrder(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidPriceLimit)
 
 	_, err = e.PlaceTWAPOrder(contextGenerate(), &AlgoOrderParams{SizeLimit: 2, OrderType: "twap", LimitPrice: 1234.5})
-	require.ErrorIs(t, err, errMissingIntervalValue)
+	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
 
 	// Offline error handling unit tests for the base function PlaceAlgoOrder are already covered within unit test TestPlaceAlgoOrder.
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1584,7 +1584,7 @@ func TestCreateQuote(t *testing.T) {
 
 	arg := &CreateQuoteParams{}
 	_, err = e.CreateQuote(contextGenerate(), arg)
-	require.ErrorIs(t, err, errMissingRFQID)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	arg.RFQID = "123456789"
 	_, err = e.CreateQuote(contextGenerate(), arg)
@@ -1607,7 +1607,7 @@ func TestCreateQuote(t *testing.T) {
 	subArg.SizeOfQuoteLeg = 2
 	arg.Legs = []QuoteLeg{subArg}
 	_, err = e.CreateQuote(contextGenerate(), arg)
-	require.ErrorIs(t, err, errMissingLegsQuotePrice)
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
 
 	subArg.Price = 1234
 	arg.Legs = []QuoteLeg{subArg}
@@ -2572,7 +2572,7 @@ func TestManualBorrowOrRepay(t *testing.T) {
 	_, err := e.ManualBorrowOrRepay(contextGenerate(), currency.EMPTYCODE, "borrow", 1)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.ManualBorrowOrRepay(contextGenerate(), currency.USDT, "", 1)
-	require.ErrorIs(t, err, errLendingSideRequired)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	_, err = e.ManualBorrowOrRepay(contextGenerate(), currency.USDT, "borrow", 0)
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
@@ -2982,7 +2982,7 @@ func TestAmendGridAlgoOrder(t *testing.T) {
 
 	arg.TakeProfitTriggerPrice = 1234.5
 	_, err = e.AmendGridAlgoOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	arg.AlgoID = "560472804207104000"
 	_, err = e.AmendGridAlgoOrder(contextGenerate(), arg)
@@ -3011,7 +3011,7 @@ func TestStopGridAlgoOrder(t *testing.T) {
 
 	arg.StopType = 20
 	_, err = e.StopGridAlgoOrder(contextGenerate(), []StopGridAlgoOrderRequest{arg})
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	arg.AlgoID = "algo_id"
 	_, err = e.StopGridAlgoOrder(contextGenerate(), []StopGridAlgoOrderRequest{arg})
@@ -3056,7 +3056,7 @@ func TestGetGridAlgoOrderHistory(t *testing.T) {
 func TestGetGridAlgoOrderDetails(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetGridAlgoOrderDetails(contextGenerate(), "grid", "")
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetGridAlgoOrderDetails(contextGenerate(), "grid", "7878")
@@ -3069,7 +3069,7 @@ func TestGetGridAlgoSubOrders(t *testing.T) {
 	_, err := e.GetGridAlgoSubOrders(contextGenerate(), "", "", "", "", "", "", 2)
 	require.ErrorIs(t, err, errMissingAlgoOrderType)
 	_, err = e.GetGridAlgoSubOrders(contextGenerate(), "grid", "", "", "", "", "", 2)
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	_, err = e.GetGridAlgoSubOrders(contextGenerate(), "grid", "1234", "", "", "", "", 2)
 	require.ErrorIs(t, err, errMissingSubOrderType)
 
@@ -3089,7 +3089,7 @@ func TestGetGridAlgoOrderPositions(t *testing.T) {
 	_, err = e.GetGridAlgoOrderPositions(contextGenerate(), "", "")
 	require.ErrorIs(t, err, errInvalidAlgoOrderType)
 	_, err = e.GetGridAlgoOrderPositions(contextGenerate(), "contract_grid", "")
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetGridAlgoOrderPositions(contextGenerate(), "contract_grid", "448965992920907776")
@@ -3100,7 +3100,7 @@ func TestGetGridAlgoOrderPositions(t *testing.T) {
 func TestSpotGridWithdrawProfit(t *testing.T) {
 	t.Parallel()
 	_, err := e.SpotGridWithdrawProfit(contextGenerate(), "")
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.SpotGridWithdrawProfit(contextGenerate(), "1234")
@@ -3114,7 +3114,7 @@ func TestComputeMarginBalance(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidMarginTypeAdjust)
 
 	_, err = e.ComputeMarginBalance(contextGenerate(), MarginBalanceParam{AdjustMarginBalanceType: "other"})
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.ComputeMarginBalance(contextGenerate(), MarginBalanceParam{
@@ -3133,7 +3133,7 @@ func TestAdjustMarginBalance(t *testing.T) {
 
 	arg.Amount = 12345
 	_, err = e.AdjustMarginBalance(contextGenerate(), arg)
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	arg.AlgoID = "1234"
 	_, err = e.AdjustMarginBalance(contextGenerate(), arg)
@@ -3190,7 +3190,7 @@ func TestPurchase(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	_, err = e.Purchase(contextGenerate(), &PurchaseRequestParam{Term: 2})
-	require.ErrorIs(t, err, errMissingRequiredParameter)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	_, err = e.Purchase(contextGenerate(), &PurchaseRequestParam{ProductID: "1234", Term: 2, InvestData: []PurchaseInvestDataItem{{Amount: 1}}})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.Purchase(contextGenerate(), &PurchaseRequestParam{ProductID: "1234", Term: 2, InvestData: []PurchaseInvestDataItem{{Currency: currency.USDT}}})
@@ -4721,7 +4721,7 @@ func TestMassCancelOrder(t *testing.T) {
 	_, err = e.CancelAllMMPOrders(contextGenerate(), "OPTION", "", 2000)
 	require.ErrorIs(t, err, errInstrumentFamilyRequired)
 	_, err = e.CancelAllMMPOrders(contextGenerate(), "OPTION", "BTC-USD", -1)
-	require.ErrorIs(t, err, errMissingIntervalValue)
+	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.CancelAllMMPOrders(contextGenerate(), "OPTION", "BTC-USD", 2000)
@@ -4828,7 +4828,7 @@ func TestClosePositionForContractID(t *testing.T) {
 	_, err := e.ClosePositionForContractID(contextGenerate(), &ClosePositionParams{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 	_, err = e.ClosePositionForContractID(contextGenerate(), &ClosePositionParams{AlgoID: "", MarketCloseAllPositions: true})
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	_, err = e.ClosePositionForContractID(contextGenerate(), &ClosePositionParams{AlgoID: "448965992920907776", MarketCloseAllPositions: false})
 	require.ErrorIs(t, err, order.ErrAmountMustBeSet)
 	_, err = e.ClosePositionForContractID(contextGenerate(), &ClosePositionParams{AlgoID: "448965992920907776", MarketCloseAllPositions: false, Size: 123})
@@ -4848,7 +4848,7 @@ func TestCancelClosePositionOrderForContractGrid(t *testing.T) {
 	_, err := e.CancelClosePositionOrderForContractGrid(contextGenerate(), &CancelClosePositionOrder{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 	_, err = e.CancelClosePositionOrderForContractGrid(contextGenerate(), &CancelClosePositionOrder{OrderID: "570627699870375936"})
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	_, err = e.CancelClosePositionOrderForContractGrid(contextGenerate(), &CancelClosePositionOrder{AlgoID: "448965992920907776"})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
@@ -4950,7 +4950,7 @@ func TestSignalBotTrading(t *testing.T) {
 	_, err := e.GetSignalBotOrderDetail(contextGenerate(), "", "623833708424069120")
 	require.ErrorIs(t, err, errInvalidAlgoOrderType)
 	_, err = e.GetSignalBotOrderDetail(contextGenerate(), "contract", "")
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.GetSignalBotOrderDetail(contextGenerate(), "contract", "623833708424069120")
@@ -4963,7 +4963,7 @@ func TestGetSignalOrderPositions(t *testing.T) {
 	_, err := e.GetSignalOrderPositions(contextGenerate(), "", "623833708424069120")
 	require.ErrorIs(t, err, errInvalidAlgoOrderType)
 	_, err = e.GetSignalOrderPositions(contextGenerate(), "contract", "")
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetSignalOrderPositions(contextGenerate(), "contract", "623833708424069120")
@@ -4974,7 +4974,7 @@ func TestGetSignalOrderPositions(t *testing.T) {
 func TestGetSignalBotSubOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetSignalBotSubOrders(contextGenerate(), "", "contract", "filled", "", "", "", time.Time{}, time.Time{}, 0)
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	_, err = e.GetSignalBotSubOrders(contextGenerate(), "623833708424069120", "", "filled", "", "", "", time.Time{}, time.Time{}, 0)
 	require.ErrorIs(t, err, errInvalidAlgoOrderType)
 	_, err = e.GetSignalBotSubOrders(contextGenerate(), "623833708424069120", "contract", "", "", "", "", time.Time{}, time.Time{}, 0)
@@ -4989,7 +4989,7 @@ func TestGetSignalBotSubOrders(t *testing.T) {
 func TestGetSignalBotEventHistory(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetSignalBotEventHistory(contextGenerate(), "", time.Time{}, time.Now(), 50)
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetSignalBotEventHistory(contextGenerate(), "12345", time.Time{}, time.Now(), 50)
@@ -5059,7 +5059,7 @@ func TestAmendRecurringBuyOrder(t *testing.T) {
 	_, err := e.AmendRecurringBuyOrder(contextGenerate(), &AmendRecurringOrderParam{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 	_, err = e.AmendRecurringBuyOrder(contextGenerate(), &AmendRecurringOrderParam{StrategyName: "stg1"})
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	_, err = e.AmendRecurringBuyOrder(contextGenerate(), &AmendRecurringOrderParam{AlgoID: "448965992920907776"})
 	require.ErrorIs(t, err, errStrategyNameRequired)
 
@@ -5077,7 +5077,7 @@ func TestStopRecurringBuyOrder(t *testing.T) {
 	_, err := e.StopRecurringBuyOrder(contextGenerate(), []StopRecurringBuyOrder{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 	_, err = e.StopRecurringBuyOrder(contextGenerate(), []StopRecurringBuyOrder{{}})
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.StopRecurringBuyOrder(contextGenerate(), []StopRecurringBuyOrder{{AlgoID: "1232323434234"}})
@@ -5104,7 +5104,7 @@ func TestGetRecurringBuyOrderHistory(t *testing.T) {
 func TestGetRecurringOrderDetails(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetRecurringOrderDetails(contextGenerate(), "", "")
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetRecurringOrderDetails(contextGenerate(), "560473220642766848", "")
@@ -5115,7 +5115,7 @@ func TestGetRecurringOrderDetails(t *testing.T) {
 func TestGetRecurringSubOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetRecurringSubOrders(contextGenerate(), "", "123422", time.Time{}, time.Now(), 0)
-	require.ErrorIs(t, err, errAlgoIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetRecurringSubOrders(contextGenerate(), "560473220642766848", "123422", time.Time{}, time.Now(), 0)
@@ -5667,7 +5667,7 @@ func TestGetPublicExchangeList(t *testing.T) {
 func TestGetInviteesDetail(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetInviteesDetail(contextGenerate(), "")
-	require.ErrorIs(t, err, errUserIDRequired)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetInviteesDetail(contextGenerate(), "1234")
@@ -6039,7 +6039,7 @@ func TestCancelWithdrawalOrder(t *testing.T) {
 func TestCreateWithdrawalOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.CreateWithdrawalOrder(contextGenerate(), currency.BTC, "", "SEPA", "194a6975e98246538faeb0fab0d502df", 1000)
-	require.ErrorIs(t, err, errIDNotSet)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 	_, err = e.CreateWithdrawalOrder(contextGenerate(), currency.EMPTYCODE, "1231312312", "SEPA", "194a6975e98246538faeb0fab0d502df", 1000)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.CreateWithdrawalOrder(contextGenerate(), currency.BTC, "1231312312", "SEPA", "194a6975e98246538faeb0fab0d502df", 0)
@@ -6047,7 +6047,7 @@ func TestCreateWithdrawalOrder(t *testing.T) {
 	_, err = e.CreateWithdrawalOrder(contextGenerate(), currency.BTC, "1231312312", "", "194a6975e98246538faeb0fab0d502df", 1000)
 	require.ErrorIs(t, err, errPaymentMethodRequired)
 	_, err = e.CreateWithdrawalOrder(contextGenerate(), currency.BTC, "1231312312", "SEPA", "", 1000)
-	require.ErrorIs(t, err, errIDNotSet)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.CreateWithdrawalOrder(contextGenerate(), currency.BTC, "1231312312", "SEPA", "194a6975e98246538faeb0fab0d502df", 1000)
