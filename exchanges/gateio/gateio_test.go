@@ -587,11 +587,11 @@ func TestUniLoanBorrowOrRepay(t *testing.T) {
 
 func TestGetUniLoanInterestRecords(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetUniLoanInterestRecords(t.Context(), currency.NewBTCUSDT(), currency.BTC, 0, 101)
+	_, err := e.GetUniLoanInterestRecords(t.Context(), BTCUSDT, currency.BTC, 0, 101)
 	require.ErrorIs(t, err, errInvalidLimit)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	records, err := e.GetUniLoanInterestRecords(t.Context(), currency.NewBTCUSDT(), currency.BTC, 0, 0)
+	records, err := e.GetUniLoanInterestRecords(t.Context(), BTCUSDT, currency.BTC, 0, 0)
 	assert.NoError(t, err)
 	assert.NotNil(t, records)
 }
@@ -660,14 +660,14 @@ func TestGetMaxTransferableAmountForSpecificMarginCurrency(t *testing.T) {
 
 func TestGetMaxBorrowableAmountForSpecificMarginCurrency(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetMaxBorrowableAmountForSpecificMarginCurrency(t.Context(), currency.EMPTYCODE, currency.NewBTCUSDT())
+	_, err := e.GetMaxBorrowableAmountForSpecificMarginCurrency(t.Context(), currency.EMPTYCODE, BTCUSDT)
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	_, err = e.GetMaxBorrowableAmountForSpecificMarginCurrency(t.Context(), currency.BTC, currency.EMPTYPAIR)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err = e.GetMaxBorrowableAmountForSpecificMarginCurrency(t.Context(), currency.BTC, currency.NewBTCUSDT())
+	_, err = e.GetMaxBorrowableAmountForSpecificMarginCurrency(t.Context(), currency.BTC, BTCUSDT)
 	assert.NoError(t, err, "GetMaxBorrowableAmountForSpecificMarginCurrency should not error")
 }
 
