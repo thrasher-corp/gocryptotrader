@@ -65,7 +65,7 @@ func (e *Exchange) WsOptionsConnect(ctx context.Context, conn websocket.Connecti
 	conn.SetURL(wsURL)
 
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		listenKey, err := e.GetEOptionsWsAuthStreamKey(ctx)
+		listenKey, err = e.GetEOptionsWsAuthStreamKey(ctx)
 		switch {
 		case err != nil:
 			log.Errorf(log.ExchangeSys, "%v unable to connect to authenticated options Websocket. Error: %s", e.Name, err)

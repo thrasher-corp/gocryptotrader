@@ -495,7 +495,7 @@ func (e *Exchange) WsCancelOrder(arg *QueryOrderParam) (*TradeOrder, error) {
 	return resp, e.SendWsRequest("order.cancel", &arg, &resp)
 }
 
-// WsCancelAndReplaceTradeOrder cancel an existing order and immediately place a new order instead of the canceled one.
+// WsCancelAndReplaceTradeOrder cancel an existing order and immediately place a new order instead of the cancelled one.
 func (e *Exchange) WsCancelAndReplaceTradeOrder(arg *WsCancelAndReplaceParam) (*WsCancelAndReplaceTradeOrderResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
@@ -782,7 +782,7 @@ func (e *Exchange) WsQueryAccountOrderRateLimits(recvWindow int64) ([]*RateLimit
 	return resp, e.SendWsRequest("account.rateLimits.orders", params, &resp)
 }
 
-// WsQueryAccountOrderHistory query information about all your orders – active, canceled, filled – filtered by time range.
+// WsQueryAccountOrderHistory query information about all your orders – active, cancelled, filled – filtered by time range.
 // Status reports for orders are identical to order.status.
 func (e *Exchange) WsQueryAccountOrderHistory(arg *AccountOrderRequestParam) ([]*TradeOrder, error) {
 	if err := common.NilGuard(arg); err != nil {

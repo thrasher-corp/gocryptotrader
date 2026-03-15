@@ -582,7 +582,7 @@ type CandleStick struct {
 	TakerBuyQuoteAssetVolume types.Number
 }
 
-// UnmarshalJSON deserializes a byte data into CandleStick instance
+// UnmarshalJSON deserialises a byte data into CandleStick instance
 func (c *CandleStick) UnmarshalJSON(data []byte) error {
 	target := [12]any{&c.OpenTime, &c.Open, &c.High, &c.Low, &c.Close, &c.Volume, &c.CloseTime, &c.QuoteAssetVolume, &c.TradeCount, &c.TakerBuyAssetVolume, &c.TakerBuyQuoteAssetVolume, nil}
 	return json.Unmarshal(data, &target)
@@ -3400,7 +3400,7 @@ type CrossMarginTransferHistory struct {
 	Total int64 `json:"total"`
 }
 
-// LiquidiationRecord represents a liquidiation record history
+// LiquidiationRecord represents a liquidation record history
 type LiquidiationRecord struct {
 	Rows []struct {
 		AveragePrice     types.Number      `json:"avgPrice"`
@@ -4989,7 +4989,7 @@ type VIPLoanRepayResponse struct {
 // WalletAssetCosts represents a wallet asset cost list.
 type WalletAssetCosts []map[string]types.Number
 
-// UnmarshalJSON deserializes a wallet asset cost object or list of objects into slice of map.
+// UnmarshalJSON deserialises a wallet asset cost object or list of objects into slice of map.
 func (a *WalletAssetCosts) UnmarshalJSON(data []byte) error {
 	var resp []map[string]types.Number
 	err := json.Unmarshal(data, &resp)
@@ -5880,7 +5880,7 @@ type FuturesClientIfNewUser struct {
 	IfNewUser     bool   `json:"ifNewUser"`
 }
 
-// BrokerAndCustomerID holds customized client ids information
+// BrokerAndCustomerID holds customised client ids information
 type BrokerAndCustomerID struct {
 	BrokerID   string `json:"brokerId"`
 	CustomerID string `json:"customerId"`

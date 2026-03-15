@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -286,7 +287,7 @@ func (e *Exchange) GetSpotKline(ctx context.Context, arg *KlinesRequestParams) (
 	return e.retrieveSpotKline(ctx, arg, "/api/v3/klines")
 }
 
-// GetUIKline return modified kline data, optimized for presentation of candlestick charts.
+// GetUIKline return modified kline data, optimised for presentation of candlestick charts.
 func (e *Exchange) GetUIKline(ctx context.Context, arg *KlinesRequestParams) ([]*CandleStick, error) {
 	return e.retrieveSpotKline(ctx, arg, "/api/v3/uiKlines")
 }
@@ -1182,7 +1183,7 @@ func (e *Exchange) GetUserMarginInterestHistory(ctx context.Context, assetName c
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/margin/interestHistory", params, sapiDefaultRate, nil, &resp)
 }
 
-// GetForceLiquidiationRecord retrieves force liquidiation records
+// GetForceLiquidiationRecord retrieves force liquidation records
 func (e *Exchange) GetForceLiquidiationRecord(ctx context.Context, startTime, endTime time.Time, isolatedSymbol currency.Pair, current, size int64) (*LiquidiationRecord, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
@@ -3443,9 +3444,9 @@ func (e *Exchange) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 		return "", err
 	}
 
-	creds, err := e.GetCredentials(ctx)
+	var creds *accounts.Credentials
+	creds, err = e.GetCredentials(ctx)
 	if err != nil {
-
 		return "", err
 	}
 
@@ -3959,7 +3960,7 @@ func (e *Exchange) CheckCollateralRepayRate(ctx context.Context, loanCoin, colla
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v2/loan/flexible/repay/rate", params, checkCollateralRepayRate, nil, &resp)
 }
 
-// GetFlexibleLoanLiquidiationHistory retrieves flexible loan liquidiation history of an account
+// GetFlexibleLoanLiquidiationHistory retrieves flexible loan liquidation history of an account
 func (e *Exchange) GetFlexibleLoanLiquidiationHistory(ctx context.Context, loanCoin, collateralCoin currency.Code, startTime, endTime time.Time, current, limit int64) (*FlexibleLoanLiquidiationhistory, error) {
 	params, err := fillHistoryParams(startTime, endTime, current, 0)
 	if err != nil {
@@ -5621,7 +5622,7 @@ func (e *Exchange) GetSpotSubOrders(ctx context.Context, algoID, page, pageSize 
 
 // -------------------------------------- Classic Portfolio Margin Endpoints -------------------------------------------
 // The Binance Classic Portfolio Margin Program is a cross-asset margin program supporting consolidated margin balance across trading products with over 200+ effective crypto collaterals.
-// It is designed for professional traders, market makers, and institutional users looking to actively trade & hedge cross-asset and optimize risk-management in a consolidated setup.
+// It is designed for professional traders, market makers, and institutional users looking to actively trade & hedge cross-asset and optimise risk-management in a consolidated setup.
 // Only Classic Portfolio Margin Account is accessible to these endpoints.
 
 // GetClassicPortfolioMarginAccountInfo retrieves classic portfolio margin account information.
@@ -7427,12 +7428,12 @@ func (e *Exchange) GetSpotInfoAboutIfUserIsNew(ctx context.Context, apiAgentCode
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/apiReferral/ifNewUser", params, request.Auth, nil, &resp)
 }
 
-// CustomizeSpotPartnerClientID customizes partner's customer ID by user email
+// CustomizeSpotPartnerClientID customises partner's customer ID by user email
 func (e *Exchange) CustomizeSpotPartnerClientID(ctx context.Context, customerID, email string) (*CustomerIDResult, error) {
-	return e.customizePartnerClientID(ctx, customerID, email, "/sapi/v1/apiReferral/customization")
+	return e.customisePartnerClientID(ctx, customerID, email, "/sapi/v1/apiReferral/customization")
 }
 
-func (e *Exchange) customizePartnerClientID(ctx context.Context, customerID, email, path string) (*CustomerIDResult, error) {
+func (e *Exchange) customisePartnerClientID(ctx context.Context, customerID, email, path string) (*CustomerIDResult, error) {
 	if customerID == "" {
 		return nil, fmt.Errorf("%w: customerID required", order.ErrOrderIDNotSet)
 	}
@@ -7446,7 +7447,7 @@ func (e *Exchange) customizePartnerClientID(ctx context.Context, customerID, ema
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, params, request.Auth, nil, &resp)
 }
 
-// GetSpotClientEmailCustomizedID retrieves client email customized ID details
+// GetSpotClientEmailCustomizedID retrieves client email customised ID details
 func (e *Exchange) GetSpotClientEmailCustomizedID(ctx context.Context, customerID, email string) ([]*CustomerIDResult, error) {
 	return e.getClientEmailCustomizedID(ctx, customerID, email, "/sapi/v1/apiReferral/customization")
 }
@@ -7463,12 +7464,12 @@ func (e *Exchange) getClientEmailCustomizedID(ctx context.Context, customerID, e
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, request.Auth, nil, &resp)
 }
 
-// CustomizeSpotOwnClientID customize your own customer ID by broker ID
+// CustomizeSpotOwnClientID customise your own customer ID by broker ID
 func (e *Exchange) CustomizeSpotOwnClientID(ctx context.Context, customerID, apiAgentCode string) (*CustomerIDResult, error) {
-	return e.customizeOwnClientID(ctx, customerID, apiAgentCode, "/sapi/v1/apiReferral/userCustomization")
+	return e.customiseOwnClientID(ctx, customerID, apiAgentCode, "/sapi/v1/apiReferral/userCustomization")
 }
 
-func (e *Exchange) customizeOwnClientID(ctx context.Context, customerID, apiAgentCode, path string) (*CustomerIDResult, error) {
+func (e *Exchange) customiseOwnClientID(ctx context.Context, customerID, apiAgentCode, path string) (*CustomerIDResult, error) {
 	if customerID == "" {
 		return nil, fmt.Errorf("%w: customerID required", order.ErrOrderIDNotSet)
 	}
@@ -7482,7 +7483,7 @@ func (e *Exchange) customizeOwnClientID(ctx context.Context, customerID, apiAgen
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, params, request.Auth, nil, &resp)
 }
 
-// GetSpotUsersCustomizedID retrieves user's customized ID
+// GetSpotUsersCustomizedID retrieves user's customised ID
 func (e *Exchange) GetSpotUsersCustomizedID(ctx context.Context, apiAgentCode string) (*CustomerIDResult, error) {
 	if apiAgentCode == "" {
 		return nil, fmt.Errorf("%w: apiAgentCode is required", errCodeRequired)
@@ -7553,22 +7554,22 @@ func (e *Exchange) GetFuturesClientIfNewUser(ctx context.Context, brokerID strin
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/fapi/v1/apiReferral/ifNewUser", params, request.Auth, nil, &resp)
 }
 
-// CustomizeFuturesPartnerClientID customizes partner's customer ID by user email
+// CustomizeFuturesPartnerClientID customises partner's customer ID by user email
 func (e *Exchange) CustomizeFuturesPartnerClientID(ctx context.Context, customerID, email string) (*CustomerIDResult, error) {
-	return e.customizePartnerClientID(ctx, customerID, email, "/fapi/v1/apiReferral/customization")
+	return e.customisePartnerClientID(ctx, customerID, email, "/fapi/v1/apiReferral/customization")
 }
 
-// GetFuturesClientEmailCustomizedID retrieves client email customized ID details for futures account
+// GetFuturesClientEmailCustomizedID retrieves client email customised ID details for futures account
 func (e *Exchange) GetFuturesClientEmailCustomizedID(ctx context.Context, customerID, email string) ([]*CustomerIDResult, error) {
 	return e.getClientEmailCustomizedID(ctx, customerID, email, "/fapi/v1/apiReferral/customization")
 }
 
-// CustomizeFuturesOwnClientID customize your own customer ID by broker ID for futures account
+// CustomizeFuturesOwnClientID customise your own customer ID by broker ID for futures account
 func (e *Exchange) CustomizeFuturesOwnClientID(ctx context.Context, customerID, apiAgentCode string) (*CustomerIDResult, error) {
-	return e.customizeOwnClientID(ctx, customerID, apiAgentCode, "/fapi/v1/apiReferral/userCustomization")
+	return e.customiseOwnClientID(ctx, customerID, apiAgentCode, "/fapi/v1/apiReferral/userCustomization")
 }
 
-// GetFuturesUsersCustomizedID retrieves user's customized ID for futures account
+// GetFuturesUsersCustomizedID retrieves user's customised ID for futures account
 func (e *Exchange) GetFuturesUsersCustomizedID(ctx context.Context, brokerID string) (*FuturesCustomerID, error) {
 	if brokerID == "" {
 		return nil, fmt.Errorf("%w: brokerId is required", order.ErrOrderIDNotSet)
@@ -7745,7 +7746,7 @@ func (e *Exchange) CustomizeIDForClientToReferredUser(ctx context.Context, custo
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/apiReferral/userCustomization", params, request.Auth, nil, &resp)
 }
 
-// GetUsersCustomizeIDs retrieves user's customize ID
+// GetUsersCustomizeIDs retrieves user's customise ID
 func (e *Exchange) GetUsersCustomizeIDs(ctx context.Context, brokerID string) (*BrokerAndCustomerID, error) {
 	if brokerID == "" {
 		return nil, fmt.Errorf("%w: brokerID is required", order.ErrOrderIDNotSet)

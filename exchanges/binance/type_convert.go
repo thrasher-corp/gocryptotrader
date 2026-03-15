@@ -12,7 +12,7 @@ func timeString(t time.Time) string {
 	return strconv.FormatInt(t.UnixMilli(), 10)
 }
 
-// UnmarshalJSON deserializes the data to unmarshal into WsTickerPriceChange or []WsTickerPriceChange
+// UnmarshalJSON deserialises the data to unmarshal into WsTickerPriceChange or []WsTickerPriceChange
 func (a *PriceChanges) UnmarshalJSON(data []byte) error {
 	var resp []*PriceChangeStats
 	err := json.Unmarshal(data, &resp)
@@ -29,7 +29,7 @@ func (a *PriceChanges) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// UnmarshalJSON deserializes the data to unmarshal into SymbolTickerItem or []SymbolTickerItem
+// UnmarshalJSON deserialises the data to unmarshal into SymbolTickerItem or []SymbolTickerItem
 func (a *SymbolTickers) UnmarshalJSON(data []byte) error {
 	var resp []*SymbolTickerItem
 	err := json.Unmarshal(data, &resp)
@@ -46,7 +46,7 @@ func (a *SymbolTickers) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// UnmarshalJSON deserializes the data to unmarshal into WsOrderbookTicker or []WsOrderbookTicker
+// UnmarshalJSON deserialises the data to unmarshal into WsOrderbookTicker or []WsOrderbookTicker
 func (a *WsOrderbookTickers) UnmarshalJSON(data []byte) error {
 	var resp []*WsOrderbookTicker
 	err := json.Unmarshal(data, &resp)
@@ -79,7 +79,7 @@ func (a *PriceChangesWrapper) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// UnmarshalJSON deserializes incoming object or slice into WsOptionIncomingResps([]WsOptionIncomingResp) instance.
+// UnmarshalJSON deserialises incoming object or slice into WsOptionIncomingResps([]WsOptionIncomingResp) instance.
 func (a *WsOptionIncomingResps) UnmarshalJSON(data []byte) error {
 	var resp []*WsOptionIncomingResp
 	isSlice := true

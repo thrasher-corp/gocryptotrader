@@ -66,7 +66,7 @@ func (e *Exchange) WsUFuturesConnect(ctx context.Context, conn websocket.Connect
 		Proxy:            http.ProxyFromEnvironment,
 	}
 	if conn.GetURL() == usdtmFuturesPrivateURL {
-		listenKey, err := e.GetWsAuthStreamKey(context.TODO())
+		listenKey, err = e.GetWsAuthStreamKey(context.TODO())
 		switch {
 		case err != nil:
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)

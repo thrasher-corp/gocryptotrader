@@ -110,7 +110,7 @@ type EOptionsCandlestick struct {
 	CloseTime   types.Time   `json:"closeTime"`
 }
 
-// UnmarshalJSON deserializes incoming object or slice into EOptionsCandlestick instance.
+// UnmarshalJSON deserialises incoming object or slice into EOptionsCandlestick instance.
 func (a *EOptionsCandlestick) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[12]any{&a.OpenTime, &a.Open, &a.High, &a.Low, &a.Close, &a.Volume, &a.CloseTime, &a.Amount, &a.TradeCount, &a.TakerVolume, &a.TakerAmount, nil})
 }

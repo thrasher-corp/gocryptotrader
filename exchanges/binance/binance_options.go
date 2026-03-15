@@ -521,7 +521,7 @@ func (e *Exchange) GetOptionMarginAccountInformation(ctx context.Context) (*Opti
 // SetOptionsMarketMakerProtectionConfig a sets config for market maker protection(MMP) is a set of protection mechanism for option market maker,
 // this mechanism is able to prevent mass trading in short period time.
 // Once market maker's account branches the threshold, the Market Maker Protection will be triggered.
-// When Market Maker Protection triggers, all the current MMP orders will be canceled, new MMP orders will be rejected.
+// When Market Maker Protection triggers, all the current MMP orders will be cancelled new MMP orders will be rejected.
 // Market maker can use this time to reevaluate market and modify order price.
 func (e *Exchange) SetOptionsMarketMakerProtectionConfig(ctx context.Context, arg *MarketMakerProtectionConfig) (*MarketMakerProtection, error) {
 	if err := common.NilGuard(arg); err != nil {

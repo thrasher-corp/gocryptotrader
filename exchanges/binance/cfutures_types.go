@@ -72,7 +72,7 @@ type UFuturesCandleStick struct {
 	QuoteAssetVolume types.Number
 }
 
-// UnmarshalJSON deserializes byte data into a UFuturesCandleStick instance
+// UnmarshalJSON deserialises byte data into a UFuturesCandleStick instance
 func (f *UFuturesCandleStick) UnmarshalJSON(data []byte) error {
 	err := json.Unmarshal(data, &[12]any{&f.OpenTime, &f.Open, &f.High, &f.Low, &f.Close, &f.Volume, &f.CloseTime, &f.QuoteAssetVolume, &f.NumberOfTrades, &f.TakerBuyVolume, &f.TakerBuyBaseAssetVolume, nil})
 	return err
@@ -84,7 +84,7 @@ type CFuturesCandleStick struct {
 	BaseAssetVolume types.Number
 }
 
-// UnmarshalJSON deserializes byte data into a CFuturesCandleStick instance
+// UnmarshalJSON deserialises byte data into a CFuturesCandleStick instance
 func (f *CFuturesCandleStick) UnmarshalJSON(data []byte) error {
 	target := [12]any{&f.OpenTime, &f.Open, &f.High, &f.Low, &f.Close, &f.Volume, &f.CloseTime, &f.BaseAssetVolume, &f.NumberOfTrades, &f.TakerBuyVolume, &f.TakerBuyBaseAssetVolume, nil}
 	err := json.Unmarshal(data, &target)

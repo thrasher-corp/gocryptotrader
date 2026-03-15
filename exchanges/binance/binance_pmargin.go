@@ -322,7 +322,7 @@ func (e *Exchange) cancelAllUMCMOpenConditionalOrders(ctx context.Context, symbo
 // --------------------------------------------------------   Query Order Endpoints  --------------------------------------------------------
 
 // GetUMOrder check an USDT Margined order's status
-// Orders can not be found if the order status is CANCELED or EXPIRED
+// Orders can not be found if the order status is CANCELLED or EXPIRED
 func (e *Exchange) GetUMOrder(ctx context.Context, symbol currency.Pair, origClientOrderID, orderID string) (*UMCMOrder, error) {
 	return e.getUMCMOrder(ctx, symbol, origClientOrderID, "/papi/v1/um/order", orderID)
 }
@@ -362,7 +362,7 @@ func (e *Exchange) GetAllUMOpenOrders(ctx context.Context, symbol currency.Pair)
 }
 
 // GetAllUMOrders retrieves all USDT margined orders except for
-// 1. CANCELED or EXPIRED orders.
+// 1. CANCELLED or EXPIRED orders.
 // 2. Orders with not fill.
 //  3. Order Created later earlier than three days from now.
 //
@@ -417,12 +417,12 @@ func (e *Exchange) GetAllCMOpenOrders(ctx context.Context, symbol currency.Pair,
 	return e.getCMOrders(ctx, symbol, pair, "/papi/v1/cm/openOrders", "", time.Time{}, time.Time{}, 0, endpointLimit)
 }
 
-// GetAllCMOrders get all account CM orders; active, canceled, or filled.
+// GetAllCMOrders get all account CM orders; active, cancelled, or filled.
 //
 // Either symbol or pair must be sent.
 // If orderId is set, it will get orders >= that orderId. Otherwise most recent orders are returned.
 // These orders will not be found:
-// - order status is CANCELED or EXPIRED, AND
+// - order status is CANCELLED or EXPIRED, AND
 // - order has NO filled trade, AND
 // - created time + 3 days < current time
 func (e *Exchange) GetAllCMOrders(ctx context.Context, symbol currency.Pair, startTime, endTime time.Time, pair, startingOrderID string, limit int64) ([]*UMCMOrder, error) {
