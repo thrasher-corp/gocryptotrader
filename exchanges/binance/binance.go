@@ -1835,7 +1835,6 @@ func (e *Exchange) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.URL
 	}
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
-		panic(err)
 		return err
 	}
 	headers := make(map[string]string)
@@ -1877,7 +1876,6 @@ func interfaceToParams(val any) (url.Values, error) {
 func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, params url.Values, f request.EndpointLimit, arg, result any) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
-		panic(err)
 		return err
 	}
 
@@ -3447,7 +3445,7 @@ func (e *Exchange) GetWsAuthStreamKey(ctx context.Context) (string, error) {
 
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
-		panic(err)
+
 		return "", err
 	}
 
@@ -3484,7 +3482,6 @@ func (e *Exchange) MaintainWsAuthStreamKey(ctx context.Context) error {
 	}
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
-		panic(err)
 		return err
 	}
 	path := endpointPath + "/api/v3/userDataStream"
