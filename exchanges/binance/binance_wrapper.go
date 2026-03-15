@@ -295,7 +295,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		MessageFilter: usdtmPublicFilter,
 		URL:           usdtmFuturesPublicURL,
 		Handler: func(ctx context.Context, _ websocket.Connection, respRaw []byte) error {
-			return e.wsHandleFuturesData(ctx, respRaw, asset.USDTMarginedFutures)
+			return e.wsHandleFuturesData(ctx, respRaw)
 		},
 		Connector:             e.WsUFuturesConnect,
 		Subscriber:            e.SubscribeFutures,
@@ -313,7 +313,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		MessageFilter: usdtmMarketFilter,
 		URL:           usdtmFuturesMarketURL,
 		Handler: func(ctx context.Context, _ websocket.Connection, respRaw []byte) error {
-			return e.wsHandleFuturesData(ctx, respRaw, asset.USDTMarginedFutures)
+			return e.wsHandleFuturesData(ctx, respRaw)
 		},
 		Connector:             e.WsUFuturesConnect,
 		Subscriber:            e.SubscribeFutures,
@@ -331,7 +331,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		MessageFilter: usdtmPrivateFilter,
 		URL:           usdtmFuturesPrivateURL,
 		Handler: func(ctx context.Context, _ websocket.Connection, respRaw []byte) error {
-			return e.wsHandleFuturesData(ctx, respRaw, asset.USDTMarginedFutures)
+			return e.wsHandleFuturesData(ctx, respRaw)
 		},
 		Connector:                e.WsUFuturesConnect,
 		GenerateSubscriptions:    func() (subscription.List, error) { return e.GenerateUFuturesDefaultSubscriptions(usdtmPrivateFilter) },
@@ -1226,6 +1226,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	} else {
 		oTypeString, err = OrderTypeString(s.Type)
 	}
+	if err != nil {
+		return nil, err
+	}
 	isAccountTypeUnified, err := e.FetchAccountType(ctx)
 	if err != nil {
 		return nil, err
@@ -1296,7 +1299,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				}
 				orderID = strconv.FormatInt(result.OrderListID, 10)
 			} else {
-				e.PostMarginAccountOrder(ctx, &MarginAccountOrderParam{
+				result, err := e.PostMarginAccountOrder(ctx, &MarginAccountOrderParam{
 					Symbol:             s.Pair,
 					IsIsolated:         s.MarginType == margin.Isolated,
 					Side:               s.Side.String(),
@@ -1308,6 +1311,10 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 					NewClientOrderID:   s.ClientOrderID,
 					TimeInForce:        s.TimeInForce.String(),
 				})
+				if err != nil {
+					return nil, err
+				}
+				orderID = strconv.FormatInt(result.OrderListID, 10)
 			}
 		}
 	case asset.Spot:
@@ -1452,7 +1459,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 					if s.TrackingMode == order.Percentage {
 						callbackRate = s.TrackingValue
 					}
-					e.NewCMConditionalOrder(ctx, &ConditionalOrderParam{
+					result, err := e.NewCMConditionalOrder(ctx, &ConditionalOrderParam{
 						Symbol:              s.Pair,
 						Side:                s.Side.Lower(),
 						StrategyType:        oTypeString,
@@ -1465,6 +1472,10 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 						ActivationPrice:     s.TriggerPrice,
 						CallbackRate:        callbackRate,
 					})
+					if err != nil {
+						return nil, err
+					}
+					orderID = strconv.FormatUint(result.StrategyID, 10)
 				default:
 					result, err := e.NewCMOrder(ctx, &UMOrderParam{
 						Symbol:           s.Pair,
@@ -1505,7 +1516,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 					if s.TrackingMode == order.Percentage {
 						callbackRate = s.TrackingValue
 					}
-					e.NewUMConditionalOrder(ctx, &ConditionalOrderParam{
+					result, err := e.NewUMConditionalOrder(ctx, &ConditionalOrderParam{
 						Symbol:              s.Pair,
 						Side:                s.Side.Lower(),
 						StrategyType:        oTypeString,
@@ -1518,6 +1529,10 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 						ActivationPrice:     s.TriggerPrice,
 						CallbackRate:        callbackRate,
 					})
+					if err != nil {
+						return nil, err
+					}
+					orderID = strconv.FormatUint(result.StrategyID, 10)
 				default:
 					result, err := e.NewUMOrder(ctx, &UMOrderParam{
 						Symbol:           s.Pair,

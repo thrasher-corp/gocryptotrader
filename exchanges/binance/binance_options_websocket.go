@@ -338,8 +338,8 @@ func (e *Exchange) processOptionsOrderbook(data []byte) error {
 		Bids:       resp.Bids.Levels(),
 		Asset:      asset.Options,
 		UpdateID:   resp.UpdateID,
-		UpdateTime: resp.TransactionTime.Time()},
-	)
+		UpdateTime: resp.TransactionTime.Time(),
+	})
 }
 
 // processOptionsPair new symbol listing stream

@@ -94,37 +94,12 @@ type MarginOrderResp struct {
 }
 
 // MarginAccOrdersList represents a list of margin account order details.
-type MarginAccOrdersList []struct {
-	Symbol              string       `json:"symbol"`
-	OrigClientOrderID   string       `json:"origClientOrderId"`
-	OrderID             int64        `json:"orderId"`
-	OrderListID         int64        `json:"orderListId"`
-	ClientOrderID       string       `json:"clientOrderId"`
-	Price               types.Number `json:"price"`
-	OrigQty             types.Number `json:"origQty"`
-	ExecutedQty         types.Number `json:"executedQty"`
-	CummulativeQuoteQty types.Number `json:"cummulativeQuoteQty"`
-	Status              string       `json:"status"`
-	TimeInForce         string       `json:"timeInForce"`
-	Type                string       `json:"type"`
-	Side                string       `json:"side"`
-	ContingencyType     string       `json:"contingencyType"`
-	ListStatusType      string       `json:"listStatusType"`
-	ListOrderStatus     string       `json:"listOrderStatus"`
-	ListClientOrderID   string       `json:"listClientOrderId"`
-	TransactionTime     types.Time   `json:"transactionTime"`
-	Orders              []struct {
-		Symbol        string `json:"symbol"`
-		OrderID       int64  `json:"orderId"`
-		ClientOrderID string `json:"clientOrderId"`
-	} `json:"orders,omitempty"`
-	OrderReports []OrderResponse `json:"orderReports,omitempty"`
-}
+type MarginAccOrdersList []*MarginAccountOrder
 
 // ConditionalOrder represents a USDT/Coin margined conditional order instance.
 type ConditionalOrder struct {
 	NewClientStrategyID string       `json:"newClientStrategyId"`
-	StrategyID          int          `json:"strategyId"`
+	StrategyID          uint64       `json:"strategyId"`
 	StrategyStatus      string       `json:"strategyStatus"`
 	StrategyType        string       `json:"strategyType"`
 	OrigQty             types.Number `json:"origQty"`

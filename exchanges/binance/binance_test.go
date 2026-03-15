@@ -120,7 +120,7 @@ func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	for assetType, tp := range assetToTradablePairMap {
 		result, err := e.UpdateOrderbook(t.Context(), tp, assetType)
-		require.NoErrorf(t, err, "%w: %v", err, assetType)
+		require.NoErrorf(t, err, "%v: %v", err, assetType)
 		assert.NotNil(t, result)
 	}
 }
@@ -4102,7 +4102,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 				case asset.Spot, asset.Margin:
 					assert.Positive(t, l.MaxIcebergParts, "MaxIcebergParts should be positive")
 				case asset.USDTMarginedFutures:
-					assert.True(t, l.MinNotional >= 0, "MinNotional should be positive")
+					assert.GreaterOrEqual(t, l.MinNotional, "MinNotional should be positive")
 					fallthrough
 				case asset.CoinMarginedFutures:
 					assert.Positive(t, l.MultiplierUp >= 0, "MultiplierUp should be positive")
@@ -4796,7 +4796,7 @@ func TestHandleData(t *testing.T) {
 	} {
 		t.Run(k, func(t *testing.T) {
 			t.Parallel()
-			err := e.wsHandleFuturesData(t.Context(), []byte(v), asset.USDTMarginedFutures)
+			err := e.wsHandleFuturesData(t.Context(), []byte(v))
 			assert.NoError(t, err)
 		})
 	}

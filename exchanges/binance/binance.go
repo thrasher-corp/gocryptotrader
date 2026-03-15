@@ -1069,7 +1069,7 @@ func (e *Exchange) PostMarginAccountOrder(ctx context.Context, arg *MarginAccoun
 }
 
 // CancelMarginAccountOrder cancels an active order for margin account.
-func (e *Exchange) CancelMarginAccountOrder(ctx context.Context, symbol currency.Pair, origClientOrderID, newClientOrderID string, orderID string, isIsolated bool) (*MarginAccountOrder, error) {
+func (e *Exchange) CancelMarginAccountOrder(ctx context.Context, symbol currency.Pair, origClientOrderID, newClientOrderID, orderID string, isIsolated bool) (*MarginAccountOrder, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}

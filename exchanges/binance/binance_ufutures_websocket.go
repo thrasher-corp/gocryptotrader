@@ -24,11 +24,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// const (
-// 	binanceUFuturesWebsocketURL     = "wss://fstream.binance.com"
-// 	binanceUFuturesAuthWebsocketURL = "wss://fstream-auth.binance.com"
-// )
-
 const (
 	usdtmFuturesPublicURL  = "wss://fstream.binance.com/public"
 	usdtmFuturesMarketURL  = "wss://fstream.binance.com/market"
@@ -71,11 +66,7 @@ func (e *Exchange) WsUFuturesConnect(ctx context.Context, conn websocket.Connect
 		Proxy:            http.ProxyFromEnvironment,
 	}
 	if conn.GetURL() == usdtmFuturesPrivateURL {
-		var (
-			listenKey string
-			err       error
-		)
-		listenKey, err = e.GetWsAuthStreamKey(context.TODO())
+		listenKey, err := e.GetWsAuthStreamKey(context.TODO())
 		switch {
 		case err != nil:
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -96,7 +87,7 @@ func (e *Exchange) WsUFuturesConnect(ctx context.Context, conn websocket.Connect
 	return nil
 }
 
-func (e *Exchange) wsHandleFuturesData(ctx context.Context, respRaw []byte, assetType asset.Item) error {
+func (e *Exchange) wsHandleFuturesData(ctx context.Context, respRaw []byte) error {
 	var result struct {
 		Result json.RawMessage `json:"result"`
 		ID     int64           `json:"id"`
@@ -125,29 +116,29 @@ func (e *Exchange) wsHandleFuturesData(ctx context.Context, respRaw []byte, asse
 	case contractInfoAllChan:
 		return e.processContractInfoStream(ctx, result.Data)
 	case forceOrderAllChan, "forceOrder":
-		return e.processForceOrder(ctx, result.Data, assetType)
+		return e.processForceOrder(ctx, result.Data, asset.USDTMarginedFutures)
 	case bookTickerAllChan, "bookTicker":
-		return e.processBookTicker(result.Data, assetType)
+		return e.processBookTicker(result.Data, asset.USDTMarginedFutures)
 	case tickerAllChan:
-		return e.processMarketTicker(ctx, result.Data, true, assetType)
+		return e.processMarketTicker(ctx, result.Data, true, asset.USDTMarginedFutures)
 	case "ticker":
-		return e.processMarketTicker(ctx, result.Data, false, assetType)
+		return e.processMarketTicker(ctx, result.Data, false, asset.USDTMarginedFutures)
 	case miniTickerAllChan:
-		return e.processMiniTickers(ctx, result.Data, true, assetType)
+		return e.processMiniTickers(ctx, result.Data, true, asset.USDTMarginedFutures)
 	case "miniTicker":
-		return e.processMiniTickers(ctx, result.Data, false, assetType)
+		return e.processMiniTickers(ctx, result.Data, false, asset.USDTMarginedFutures)
 	case "aggTrade":
-		return e.processAggregateTrade(ctx, result.Data, assetType)
+		return e.processAggregateTrade(ctx, result.Data, asset.USDTMarginedFutures)
 	case "markPrice":
 		return e.processMarkPriceUpdate(ctx, result.Data, false)
 	case "!markPrice@arr":
 		return e.processMarkPriceUpdate(ctx, result.Data, true)
 	case "depth":
-		return e.processOrderbookDepthUpdate(result.Data, assetType)
+		return e.processOrderbookDepthUpdate(result.Data, asset.USDTMarginedFutures)
 	case "compositeIndex":
 		return e.processCompositeIndex(ctx, result.Data)
 	case continuousKline:
-		return e.processContinuousKlineUpdate(ctx, result.Data, assetType)
+		return e.processContinuousKlineUpdate(ctx, result.Data, asset.USDTMarginedFutures)
 	}
 	return fmt.Errorf("unhandled stream data %s", string(respRaw))
 }

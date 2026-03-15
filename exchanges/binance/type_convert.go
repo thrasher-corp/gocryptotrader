@@ -18,7 +18,8 @@ func (a *PriceChanges) UnmarshalJSON(data []byte) error {
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		var singleResp *PriceChangeStats
-		if err := json.Unmarshal(data, &singleResp); err != nil {
+		err = json.Unmarshal(data, &singleResp)
+		if err != nil {
 			return err
 		}
 		*a = []*PriceChangeStats{singleResp}
@@ -34,7 +35,8 @@ func (a *SymbolTickers) UnmarshalJSON(data []byte) error {
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		var singleResp *SymbolTickerItem
-		if err := json.Unmarshal(data, &singleResp); err != nil {
+		err = json.Unmarshal(data, &singleResp)
+		if err != nil {
 			return err
 		}
 		*a = []*SymbolTickerItem{singleResp}
@@ -50,7 +52,8 @@ func (a *WsOrderbookTickers) UnmarshalJSON(data []byte) error {
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		var singleResp *WsOrderbookTicker
-		if err := json.Unmarshal(data, &singleResp); err != nil {
+		err = json.Unmarshal(data, &singleResp)
+		if err != nil {
 			return err
 		}
 		*a = []*WsOrderbookTicker{singleResp}
@@ -65,7 +68,8 @@ func (a *PriceChangesWrapper) UnmarshalJSON(data []byte) error {
 	var singlePriceChange *PriceChangeStats
 	if err := json.Unmarshal(data, &singlePriceChange); err != nil {
 		var resp []*PriceChangeStats
-		if err = json.Unmarshal(data, &resp); err != nil {
+		err = json.Unmarshal(data, &resp)
+		if err != nil {
 			return err
 		}
 		*a = resp
@@ -82,7 +86,8 @@ func (a *WsOptionIncomingResps) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &resp); err != nil {
 		isSlice = false
 		var newResp *WsOptionIncomingResp
-		if err := json.Unmarshal(data, &newResp); err != nil {
+		err = json.Unmarshal(data, &newResp)
+		if err != nil {
 			return err
 		}
 		resp = append(resp, newResp)
@@ -97,7 +102,8 @@ func (a *AssetIndexResponse) UnmarshalJSON(data []byte) error {
 	var resp []*AssetIndex
 	if err := json.Unmarshal(data, &resp); err != nil {
 		resp = make([]*AssetIndex, 1)
-		if err := json.Unmarshal(data, &resp[0]); err != nil {
+		err = json.Unmarshal(data, &resp[0])
+		if err != nil {
 			return err
 		}
 	}

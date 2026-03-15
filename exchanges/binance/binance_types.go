@@ -3346,6 +3346,18 @@ type MarginAccountOrder struct {
 	IsIsolated              bool              `json:"isIsolated"`
 	Side                    string            `json:"side"`
 	SelfTradePreventionMode string            `json:"selfTradePreventionMode"`
+	OrderListID             int64             `json:"orderListId"`
+	ContingencyType         string            `json:"contingencyType"`
+	ListStatusType          string            `json:"listStatusType"`
+	ListOrderStatus         string            `json:"listOrderStatus"`
+	ListClientOrderID       string            `json:"listClientOrderId"`
+	TransactionTime         types.Time        `json:"transactionTime"`
+	Orders                  []struct {
+		Symbol        string `json:"symbol"`
+		OrderID       int64  `json:"orderId"`
+		ClientOrderID string `json:"clientOrderId"`
+	} `json:"orders,omitempty"`
+	OrderReports []OrderResponse `json:"orderReports,omitempty"`
 }
 
 // MarginAccountOrderDetail represents orders on symbol for margin account.
