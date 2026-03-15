@@ -54,6 +54,7 @@ func TestMain(m *testing.M) {
 	if err := e.populateTradablePairs(); err != nil {
 		log.Fatal(err)
 	}
+
 	assetToTradablePairMap = map[asset.Item]currency.Pair{
 		asset.Spot:                spotTradablePair,
 		asset.Margin:              marginTradablePair,
@@ -62,19 +63,5 @@ func TestMain(m *testing.M) {
 		asset.CoinMarginedFutures: coinmTradablePair,
 	}
 
-	// setupWs()
-	e.HTTPRecording = true
 	os.Exit(m.Run())
-}
-
-func setupWs() {
-	conn, err := e.Websocket.GetConnection(asset.Spot)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = e.WsConnect(context.Background(), conn)
-	if err != nil {
-		log.Fatal(err)
-	}
 }

@@ -24,9 +24,19 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
+// const (
+// 	binanceUFuturesWebsocketURL     = "wss://fstream.binance.com"
+// 	binanceUFuturesAuthWebsocketURL = "wss://fstream-auth.binance.com"
+// )
+
 const (
-	binanceUFuturesWebsocketURL     = "wss://fstream.binance.com"
-	binanceUFuturesAuthWebsocketURL = "wss://fstream-auth.binance.com"
+	usdtmFuturesPublicURL  = "wss://fstream.binance.com/public"
+	usdtmFuturesMarketURL  = "wss://fstream.binance.com/market"
+	usdtmFuturesPrivateURL = "wss://fstream.binance.com/private"
+
+	usdtmPublicFilter  = "usd-m-public"
+	usdtmMarketFilter  = "usd-m-market"
+	usdtmPrivateFilter = "usd-m-private"
 )
 
 var defaultSubscriptions = []string{
@@ -60,10 +70,7 @@ func (e *Exchange) WsUFuturesConnect(ctx context.Context, conn websocket.Connect
 		HandshakeTimeout: e.Config.HTTPTimeout,
 		Proxy:            http.ProxyFromEnvironment,
 	}
-	wsURL := binanceUFuturesWebsocketURL + "/stream"
-	conn.SetURL(wsURL)
-
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
+	if conn.GetURL() == usdtmFuturesPrivateURL {
 		var (
 			listenKey string
 			err       error
@@ -74,8 +81,7 @@ func (e *Exchange) WsUFuturesConnect(ctx context.Context, conn websocket.Connect
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys, "%v unable to connect to authenticated Websocket. Error: %s", e.Name, err)
 		default:
-			wsURL = binanceUFuturesAuthWebsocketURL + "?streams=" + listenKey
-			conn.SetURL(wsURL)
+			conn.SetURL(fmt.Sprintf(conn.GetURL()+"/stream?listenKey=%s&events=%s", listenKey, "ORDER_TRADE_UPDATE/ACCOUNT_UPDATE"))
 		}
 	}
 	err = conn.Dial(ctx, &dialer, http.Header{}, nil)
@@ -495,6 +501,7 @@ func (e *Exchange) processMarkPriceUpdate(ctx context.Context, respRaw []byte, a
 		if err := e.Websocket.DataHandler.Send(ctx, resp); err != nil {
 			return err
 		}
+		return nil
 	}
 	var resp FuturesMarkPrice
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
@@ -545,7 +552,7 @@ func (e *Exchange) handleSubscriptions(ctx context.Context, conn websocket.Conne
 }
 
 // GenerateUFuturesDefaultSubscriptions generates the default subscription set
-func (e *Exchange) GenerateUFuturesDefaultSubscriptions() (subscription.List, error) {
+func (e *Exchange) GenerateUFuturesDefaultSubscriptions(messageFilter string) (subscription.List, error) {
 	var subscriptions subscription.List
 	pairs, err := e.FetchTradablePairs(context.Background(), asset.USDTMarginedFutures)
 	if err != nil {
@@ -554,7 +561,23 @@ func (e *Exchange) GenerateUFuturesDefaultSubscriptions() (subscription.List, er
 	if len(pairs) > 4 {
 		pairs = pairs[:3]
 	}
-	channels := defaultSubscriptions
+	var channels []string
+	for _, ch := range defaultSubscriptions {
+		switch messageFilter {
+		case usdtmPublicFilter:
+			switch ch {
+			case bookTickerAllChan, bookTickersChan, depthChan:
+				channels = append(channels, ch)
+			}
+		case usdtmMarketFilter:
+			switch ch {
+			case aggTradeChan, markPriceChan, markPriceAllChan, continuousKline, miniTickerChan, miniTickerAllChan, tickerChan, tickerAllChan, forceOrderChan, forceOrderAllChan, compositeIndexChan, contractInfoAllChan, assetIndexChan, assetIndexAllChan:
+				channels = append(channels, ch)
+			}
+		case usdtmPrivateFilter:
+			return subscription.List{}, nil
+		}
+	}
 	for z := range channels {
 		var chSubscription *subscription.Subscription
 		switch channels[z] {
@@ -618,9 +641,9 @@ func (e *Exchange) ListSubscriptions(ctx context.Context, conn websocket.Connect
 func (e *Exchange) SetProperty(ctx context.Context, conn websocket.Connection, property string, value any) error {
 	// Currently, the only property can be set is to set whether "combined" stream payloads are enabled are not.
 	req := &struct {
-		ID     int64  `json:"method"`
-		Method string `json:"params"`
-		Params []any  `json:"id"`
+		ID     int64  `json:"id"`
+		Method string `json:"method"`
+		Params []any  `json:"params"`
 	}{
 		ID:     e.MessageSequence(),
 		Method: "SET_PROPERTY",

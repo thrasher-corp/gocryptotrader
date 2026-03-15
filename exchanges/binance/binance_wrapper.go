@@ -290,17 +290,17 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	// USDT Margined Futures connection
+	// USD-Margined Futures public stream connection
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		MessageFilter: asset.USDTMarginedFutures,
-		URL:           binanceUFuturesWebsocketURL,
+		MessageFilter: usdtmPublicFilter,
+		URL:           usdtmFuturesPublicURL,
 		Handler: func(ctx context.Context, _ websocket.Connection, respRaw []byte) error {
 			return e.wsHandleFuturesData(ctx, respRaw, asset.USDTMarginedFutures)
 		},
 		Connector:             e.WsUFuturesConnect,
 		Subscriber:            e.SubscribeFutures,
 		Unsubscriber:          e.UnsubscribeFutures,
-		GenerateSubscriptions: e.GenerateUFuturesDefaultSubscriptions,
+		GenerateSubscriptions: func() (subscription.List, error) { return e.GenerateUFuturesDefaultSubscriptions(usdtmPublicFilter) },
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 		RateLimit:             request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
@@ -308,7 +308,43 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	// European Options Margined Futures connection
+	// USD-Margined Futures market stream connection
+	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		MessageFilter: usdtmMarketFilter,
+		URL:           usdtmFuturesMarketURL,
+		Handler: func(ctx context.Context, _ websocket.Connection, respRaw []byte) error {
+			return e.wsHandleFuturesData(ctx, respRaw, asset.USDTMarginedFutures)
+		},
+		Connector:             e.WsUFuturesConnect,
+		Subscriber:            e.SubscribeFutures,
+		Unsubscriber:          e.UnsubscribeFutures,
+		GenerateSubscriptions: func() (subscription.List, error) { return e.GenerateUFuturesDefaultSubscriptions(usdtmMarketFilter) },
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
+	}); err != nil {
+		return err
+	}
+
+	// USD-Margined Futures private stream connection
+	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		MessageFilter: usdtmPrivateFilter,
+		URL:           usdtmFuturesPrivateURL,
+		Handler: func(ctx context.Context, _ websocket.Connection, respRaw []byte) error {
+			return e.wsHandleFuturesData(ctx, respRaw, asset.USDTMarginedFutures)
+		},
+		Connector:                e.WsUFuturesConnect,
+		GenerateSubscriptions:    func() (subscription.List, error) { return e.GenerateUFuturesDefaultSubscriptions(usdtmPrivateFilter) },
+		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+		RateLimit:                request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
+		SubscriptionsNotRequired: true,
+		Authenticated:            true,
+	}); err != nil {
+		return err
+	}
+
+	// Options Margined Futures connection
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		MessageFilter: asset.Options,
 		URL:           eoptionsWebsocketURL,
@@ -4497,23 +4533,27 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 	}
 	result := make([]futures.OpenInterest, len(k))
 	for i := range k {
+		pairFormat, err := e.GetPairFormat(k[i].Asset, true)
+		if err != nil {
+			return nil, err
+		}
 		switch k[i].Asset {
 		case asset.USDTMarginedFutures:
-			oi, err := e.UOpenInterest(ctx, k[i].Pair())
+			oi, err := e.UOpenInterest(ctx, k[i].Pair().Format(pairFormat))
 			if err != nil {
 				return nil, err
 			}
 			result[i] = futures.OpenInterest{
-				Key:          key.NewExchangeAssetPair(e.Name, k[i].Asset, k[i].Pair()),
+				Key:          key.NewExchangeAssetPair(e.Name, k[i].Asset, k[i].Pair().Format(pairFormat)),
 				OpenInterest: oi.OpenInterest,
 			}
 		case asset.CoinMarginedFutures:
-			oi, err := e.OpenInterest(ctx, k[i].Pair())
+			oi, err := e.OpenInterest(ctx, k[i].Pair().Format(pairFormat))
 			if err != nil {
 				return nil, err
 			}
 			result[i] = futures.OpenInterest{
-				Key:          key.NewExchangeAssetPair(e.Name, k[i].Asset, k[i].Pair()),
+				Key:          key.NewExchangeAssetPair(e.Name, k[i].Asset, k[i].Pair().Format(pairFormat)),
 				OpenInterest: oi.OpenInterest,
 			}
 		}

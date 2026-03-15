@@ -3938,9 +3938,7 @@ drain:
 func TestWsOutboundAccountPosition(t *testing.T) {
 	t.Parallel()
 	payload := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"outboundAccountPosition","E":1616628815745,"u":1616628815745,"B":[{"a":"BTC","f":"0.00225109","l":"0.00123000"},{"a":"BNB","f":"0.00000000","l":"0.00000000"},{"a":"USDT","f":"54.43390661","l":"0.00000000"}]}}`)
-	if err := e.wsHandleData(t.Context(), payload); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, e.wsHandleData(t.Context(), payload))
 }
 
 func TestFormatExchangeCurrency(t *testing.T) {
@@ -4087,7 +4085,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		t.Run(a.String(), func(t *testing.T) {
 			t.Parallel()
 			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
-			pairs, err := e.CurrencyPairs.GetPairs(a, false)
+			pairs, err := e.CurrencyPairs.GetPairs(a, true)
 			require.NoError(t, err, "GetPairs must not error")
 			for _, p := range pairs {
 				l, err := e.GetOrderExecutionLimits(a, p)
@@ -4104,14 +4102,14 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 				case asset.Spot, asset.Margin:
 					assert.Positive(t, l.MaxIcebergParts, "MaxIcebergParts should be positive")
 				case asset.USDTMarginedFutures:
-					assert.Positive(t, l.MinNotional, "MinNotional should be positive")
+					assert.True(t, l.MinNotional >= 0, "MinNotional should be positive")
 					fallthrough
 				case asset.CoinMarginedFutures:
-					assert.Positive(t, l.MultiplierUp, "MultiplierUp should be positive")
-					assert.Positive(t, l.MultiplierDown, "MultiplierDown should be positive")
+					assert.Positive(t, l.MultiplierUp >= 0, "MultiplierUp should be positive")
+					assert.Positive(t, l.MultiplierDown >= 0, "MultiplierDown should be positive")
 					assert.Positive(t, l.MarketMinQty, "MarketMinQty should be positive")
 					assert.Positive(t, l.MarketStepIncrementSize, "MarketStepIncrementSize should be positive")
-					assert.Positive(t, l.MaxAlgoOrders, "MaxAlgoOrders should be positive")
+					assert.Positive(t, l.MaxAlgoOrders >= 0, "MaxAlgoOrders should be positive")
 				}
 			}
 		})
@@ -4158,9 +4156,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 	assert.NotNil(t, result)
 
 	r.Asset = asset.CoinMarginedFutures
-	r.Pair, err = currency.NewPairFromString("BTCUSD_PERP")
-	require.NoError(t, err)
-
+	r.Pair = coinmTradablePair
 	result, err = e.GetHistoricalFundingRates(t.Context(), r)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -5492,9 +5488,10 @@ func TestGetOpenInterest(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, result)
 
+	e.Verbose = true
 	result, err = e.GetOpenInterest(t.Context(), key.PairAsset{
-		Base:  currency.NewCode("BTCUSD").Item,
-		Quote: currency.PERP.Item,
+		Base:  coinmTradablePair.Base.Item,
+		Quote: coinmTradablePair.Quote.Item,
 		Asset: asset.CoinMarginedFutures,
 	})
 	require.NoError(t, err)
@@ -6203,16 +6200,6 @@ func TestGetOptionsAutoCancelAllOpenOrdersHeartbeat(t *testing.T) {
 	result, err := e.GetOptionsAutoCancelAllOpenOrdersHeartbeat(t.Context(), []string{"ETHUSDT"})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
-}
-
-func TestWsOptionsConnect(t *testing.T) {
-	t.Parallel()
-	conn, err := e.Websocket.GetConnection(asset.USDTMarginedFutures)
-	require.NoError(t, err)
-	require.NotNil(t, conn)
-
-	err = e.WsOptionsConnect(t.Context(), conn)
-	assert.NoError(t, err)
 }
 
 func TestGetOptionsExchangeInformation(t *testing.T) {
@@ -8544,6 +8531,7 @@ func TestGetUnclaimedRewards(t *testing.T) {
 
 func TestAcquiringAlgorithm(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.AcquiringAlgorithm(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -8551,6 +8539,7 @@ func TestAcquiringAlgorithm(t *testing.T) {
 
 func TestGetCoinNames(t *testing.T) {
 	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetCoinNames(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)

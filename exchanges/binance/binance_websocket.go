@@ -31,9 +31,8 @@ const (
 	binanceDefaultWebsocketURL = "wss://stream.binance.com:9443/stream"
 	pingDelay                  = time.Minute * 9
 
-	wsSubscribeMethod         = "SUBSCRIBE"
-	wsUnsubscribeMethod       = "UNSUBSCRIBE"
-	wsListSubscriptionsMethod = "LIST_SUBSCRIPTIONS"
+	wsSubscribeMethod   = "SUBSCRIBE"
+	wsUnsubscribeMethod = "UNSUBSCRIBE"
 )
 
 var listenKey string
