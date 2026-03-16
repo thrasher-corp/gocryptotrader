@@ -684,13 +684,13 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled bool) 
 	}
 
 	if len(diff.New) > 0 || len(diff.Remove) > 0 {
-		log.Debugf(log.ExchangeSys, "%s Updating %s pairs [%v] - Added: %d Removed: %d.\n", b.Name, updateType, strings.ToUpper(a.String()), len(diff.New), len(diff.Remove))
+		log.Debugf(log.ExchangeSys, "%s Updating %s pairs [%v] - Added: %d Removed: %d.", b.Name, updateType, strings.ToUpper(a.String()), len(diff.New), len(diff.Remove))
 		if b.IsVerbose() {
 			if len(diff.New) > 0 {
-				log.Debugf(log.ExchangeSys, "%s %s pairs [%v] new: %s.\n", b.Name, updateType, strings.ToUpper(a.String()), diff.New)
+				log.Debugf(log.ExchangeSys, "%s %s pairs [%v] new: %s.", b.Name, updateType, strings.ToUpper(a.String()), diff.New)
 			}
 			if len(diff.Remove) > 0 {
-				log.Debugf(log.ExchangeSys, "%s %s pairs [%v] removed: %s.\n", b.Name, updateType, strings.ToUpper(a.String()), diff.Remove)
+				log.Debugf(log.ExchangeSys, "%s %s pairs [%v] removed: %s.", b.Name, updateType, strings.ToUpper(a.String()), diff.Remove)
 			}
 		}
 	}
@@ -769,14 +769,14 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled bool) 
 		if err != nil {
 			return err
 		}
-		log.Debugf(log.ExchangeSys, "%s Enabled pairs missing for %s. Added %s.\n", b.Name, strings.ToUpper(a.String()), randomPair)
+		log.Debugf(log.ExchangeSys, "%s Enabled pairs missing for %s. Added %s.", b.Name, strings.ToUpper(a.String()), randomPair)
 		enabledPairs = currency.Pairs{randomPair}
 	}
 
 	if len(diff.Remove) > 0 {
-		log.Debugf(log.ExchangeSys, "%s Checked and updated enabled pairs [%v] - Removed: %d.\n", b.Name, strings.ToUpper(a.String()), len(diff.Remove))
+		log.Debugf(log.ExchangeSys, "%s Checked and updated enabled pairs [%v] - Removed: %d.", b.Name, strings.ToUpper(a.String()), len(diff.Remove))
 		if b.IsVerbose() {
-			log.Debugf(log.ExchangeSys, "%s Checked and updated enabled pairs [%v] - removed: %s.\n", b.Name, strings.ToUpper(a.String()), diff.Remove)
+			log.Debugf(log.ExchangeSys, "%s Checked and updated enabled pairs [%v] - removed: %s.", b.Name, strings.ToUpper(a.String()), diff.Remove)
 		}
 	}
 	if err := b.Config.CurrencyPairs.StorePairs(a, enabledPairs, true); err != nil {
