@@ -301,6 +301,33 @@ func TestUpdateChannelSubscriptions(t *testing.T) {
 	require.Zero(t, store.Len())
 }
 
+func TestInitSubscriptionStore(t *testing.T) {
+	t.Parallel()
+
+	t.Run("GlobalStore", func(t *testing.T) {
+		t.Parallel()
+
+		manager := &Manager{}
+		store := manager.initSubscriptionStore(nil)
+
+		require.NotNil(t, store, "global subscription store must be initialised")
+		assert.Same(t, store, manager.subscriptions, "global subscription store should be retained on the manager")
+	})
+
+	t.Run("ManagedConnectionStore", func(t *testing.T) {
+		t.Parallel()
+
+		manager, conn := newManagedSubscriptionTestManagerWithStore(t, nil)
+		require.Nil(t, manager.connectionManager[0].subscriptions, "managed websocket store must start nil for this test")
+
+		store := manager.initSubscriptionStore(conn)
+
+		require.NotNil(t, store, "managed connection store must be initialised")
+		assert.Same(t, store, manager.connectionManager[0].subscriptions, "managed websocket should retain the initialised store")
+		assert.NotSame(t, store, manager.subscriptions, "managed connection should keep an isolated subscription store")
+	})
+}
+
 func currySimpleSub(w *Manager) func(subscription.List) error {
 	return func(subs subscription.List) error {
 		return w.AddSuccessfulSubscriptions(nil, subs...)

@@ -76,11 +76,14 @@ func resetManagerForNextConnectAttempt(t *testing.T, ws *Manager) {
 		defer close(waitDone)
 		ws.Wg.Wait()
 	}()
-	select {
-	case <-waitDone:
-	case <-time.After(5 * time.Second):
-		t.Fatalf("manager cleanup timed out waiting for monitor goroutines")
-	}
+	require.Eventually(t, func() bool {
+		select {
+		case <-waitDone:
+			return true
+		default:
+			return false
+		}
+	}, 5*time.Second, 20*time.Millisecond, "manager cleanup must wait for monitor goroutines")
 }
 
 func cleanupManagerMonitors(t *testing.T, ws *Manager) {
@@ -515,6 +518,31 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 	delete(mgr.connections, ws.connections[0])
 	ws.connections = nil
 	mgr.Wg.Wait()
+}
+
+func TestTrackConnection(t *testing.T) {
+	t.Parallel()
+
+	mgr := NewManager()
+	conn := &connection{}
+	first := &websocket{}
+	second := &websocket{}
+
+	mgr.trackConnection(conn, first)
+	mgr.trackConnection(conn, first)
+
+	require.Len(t, mgr.connections, 1, "manager connection association must stay deduplicated")
+	require.Len(t, first.connections, 1, "websocket connection list must not append duplicates")
+	assert.Same(t, first, mgr.connections[conn], "manager connection association should stay with the original websocket")
+	assert.Same(t, conn, first.connections[0], "websocket should retain the tracked connection")
+
+	mgr.trackConnection(conn, second)
+
+	require.Len(t, mgr.connections, 1, "manager connection association must still contain one tracked connection")
+	assert.Empty(t, first.connections, "previous websocket should drop the moved connection")
+	require.Len(t, second.connections, 1, "new websocket must contain the tracked connection once")
+	assert.Same(t, second, mgr.connections[conn], "manager connection association should update to the new websocket")
+	assert.Same(t, conn, second.connections[0], "new websocket should retain the tracked connection")
 }
 
 func TestSetSubscriptionsNotRequired(t *testing.T) {

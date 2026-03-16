@@ -69,6 +69,7 @@ func TestResubscribe(t *testing.T) {
 	err = e.Websocket.AddSubscriptions(conn, expanded...)
 	require.NoError(t, err)
 
+	qualifiedChannel := "ob.BTC_USDT.50"
 	err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 		Asks:        []orderbook.Level{{Price: 50000, Amount: 0.1}},
 		Bids:        []orderbook.Level{{Price: 49000, Amount: 0.2}},
@@ -78,15 +79,27 @@ func TestResubscribe(t *testing.T) {
 		LastUpdated: time.Now(),
 	})
 	require.NoError(t, err)
-	err = m.Resubscribe(t.Context(), e, conn, "ob.BTC_USDT.50", currency.NewBTCUSDT(), asset.Spot)
+	err = m.Resubscribe(t.Context(), e, conn, qualifiedChannel, currency.NewBTCUSDT(), asset.Spot)
 	require.NoError(t, err)
+	assert.True(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot), "manager should mark the pair as resubscribing immediately")
+	assert.Eventually(t,
+		func() bool {
+			sub := e.Websocket.GetSubscription(qualifiedChannelKey{&subscription.Subscription{QualifiedChannel: qualifiedChannel}})
+			return sub != nil && sub.State() == subscription.SubscribedState
+		},
+		time.Second,
+		10*time.Millisecond,
+		"subscription should be resubscribed by the background routine",
+	)
+
+	m.CompletedResubscribe(currency.NewBTCUSDT(), asset.Spot)
 	assert.Eventually(t,
 		func() bool {
 			return !m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot)
 		},
 		time.Second,
 		10*time.Millisecond,
-		"Resubscription state should clear after the resubscribe routine exits",
+		"resubscription state should clear after completion is signalled",
 	)
 }
 

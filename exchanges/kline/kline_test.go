@@ -165,6 +165,166 @@ func TestCreateKline_OneMonth(t *testing.T) {
 	assert.Equal(t, 4.0, k.Candles[2].Volume, "Third candle volume should reflect the March trades")
 }
 
+func TestAlignIntervalStart(t *testing.T) {
+	t.Parallel()
+
+	offset := time.FixedZone("UTC+10", 10*60*60)
+	for _, tc := range []struct {
+		name     string
+		input    time.Time
+		interval Interval
+		expected time.Time
+	}{
+		{
+			name:     "DurationInterval",
+			input:    time.Date(2024, 5, 15, 10, 45, 59, 123, offset),
+			interval: OneHour,
+			expected: time.Date(2024, 5, 15, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:     "OneMonth",
+			input:    time.Date(2024, 5, 15, 10, 45, 59, 123, offset),
+			interval: OneMonth,
+			expected: time.Date(2024, 5, 1, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:     "ThreeMonth",
+			input:    time.Date(2024, 5, 15, 10, 45, 59, 123, offset),
+			interval: ThreeMonth,
+			expected: time.Date(2024, 4, 1, 0, 0, 0, 0, time.UTC),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, alignIntervalStart(tc.input, tc.interval), "alignIntervalStart should return the expected UTC boundary")
+		})
+	}
+}
+
+func TestNextIntervalStart(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		input    time.Time
+		interval Interval
+		expected time.Time
+	}{
+		{
+			name:     "DurationInterval",
+			input:    time.Date(2024, 5, 15, 0, 0, 0, 0, time.UTC),
+			interval: OneHour,
+			expected: time.Date(2024, 5, 15, 1, 0, 0, 0, time.UTC),
+		},
+		{
+			name:     "OneMonth",
+			input:    time.Date(2024, 5, 15, 10, 45, 59, 0, time.UTC),
+			interval: OneMonth,
+			expected: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:     "ThreeMonth",
+			input:    time.Date(2024, 5, 15, 10, 45, 59, 0, time.UTC),
+			interval: ThreeMonth,
+			expected: time.Date(2024, 7, 1, 0, 0, 0, 0, time.UTC),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, nextIntervalStart(tc.input, tc.interval), "nextIntervalStart should return the expected boundary")
+		})
+	}
+}
+
+func TestIntervalCount(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		start    time.Time
+		end      time.Time
+		interval Interval
+		expected uint64
+	}{
+		{
+			name:     "InvalidWindow",
+			start:    time.Date(2024, 1, 1, 3, 0, 0, 0, time.UTC),
+			end:      time.Date(2024, 1, 1, 3, 0, 0, 0, time.UTC),
+			interval: OneHour,
+			expected: 0,
+		},
+		{
+			name:     "DurationInterval",
+			start:    time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+			end:      time.Date(2024, 1, 1, 3, 0, 0, 0, time.UTC),
+			interval: OneHour,
+			expected: 3,
+		},
+		{
+			name:     "CalendarInterval",
+			start:    time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+			end:      time.Date(2024, 4, 1, 0, 0, 0, 0, time.UTC),
+			interval: OneMonth,
+			expected: 3,
+		},
+		{
+			name:     "QuarterlyCalendarInterval",
+			start:    time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+			end:      time.Date(2024, 10, 1, 0, 0, 0, 0, time.UTC),
+			interval: ThreeMonth,
+			expected: 3,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, intervalCount(tc.start, tc.end, tc.interval), "intervalCount should return the expected interval total")
+		})
+	}
+}
+
+func TestIntervalCountAsInt(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		start    time.Time
+		end      time.Time
+		interval Interval
+		expected int
+	}{
+		{
+			name:     "InvalidWindow",
+			start:    time.Date(2024, 1, 1, 3, 0, 0, 0, time.UTC),
+			end:      time.Date(2024, 1, 1, 3, 0, 0, 0, time.UTC),
+			interval: OneHour,
+			expected: 0,
+		},
+		{
+			name:     "DurationInterval",
+			start:    time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+			end:      time.Date(2024, 1, 1, 3, 0, 0, 0, time.UTC),
+			interval: OneHour,
+			expected: 3,
+		},
+		{
+			name:     "CalendarInterval",
+			start:    time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+			end:      time.Date(2024, 4, 1, 0, 0, 0, 0, time.UTC),
+			interval: OneMonth,
+			expected: 3,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			count, err := intervalCountAsInt(tc.start, tc.end, tc.interval)
+
+			require.NoError(t, err, "intervalCountAsInt must not error for supported ranges")
+			assert.Equal(t, tc.expected, count, "intervalCountAsInt should return the expected interval total")
+		})
+	}
+}
+
 func TestKlineWord(t *testing.T) {
 	t.Parallel()
 	if OneDay.Word() != "oneday" {

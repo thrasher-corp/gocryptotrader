@@ -433,8 +433,18 @@ func (m *Manager) trackConnection(conn Connection, ws *websocket) {
 	if m.connections == nil {
 		m.connections = make(map[Connection]*websocket)
 	}
+	if existing, ok := m.connections[conn]; ok {
+		if existing == ws {
+			return
+		}
+		existing.connections = slices.DeleteFunc(existing.connections, func(each Connection) bool {
+			return each == conn
+		})
+	}
 	m.connections[conn] = ws
-	ws.connections = append(ws.connections, conn)
+	if !slices.Contains(ws.connections, conn) {
+		ws.connections = append(ws.connections, conn)
+	}
 }
 
 // Connect initiates a websocket connection by using a package defined connection
