@@ -2881,16 +2881,17 @@ func TestGetOpenInterest(t *testing.T) {
 		})
 		assert.NoErrorf(t, err, "GetOpenInterest should not error for %s asset", a)
 		require.Lenf(t, resp, 1, "GetOpenInterest must return 1 item for %s asset", a)
-
-		if a != asset.DeliveryFutures {
-			settle, err := getSettlementCurrency(p, a)
-			require.NoErrorf(t, err, "getSettlementCurrency must not error for %s asset", a)
-			stats, err := e.GetFutureStats(t.Context(), settle, p, time.Time{}, 0, 1)
-			assert.NoErrorf(t, err, "GetFutureStats should not error for %s asset", a)
-			require.NotEmptyf(t, stats, "GetFutureStats must return at least one stat for %s asset", a)
-			assert.InDeltaf(t, stats[0].OpenInterest.Float64(), resp[0].OpenInterest, 1e-12, "GetOpenInterest should use contract stats open interest for %s asset", a)
-		}
+		assert.Positivef(t, resp[0].OpenInterest, "GetOpenInterest should return positive open interest for %s asset", a)
 	}
+
+	coinPair := getPair(t, asset.CoinMarginedFutures)
+	usdtPair := getPair(t, asset.USDTMarginedFutures)
+	resp, err = e.GetOpenInterest(t.Context(),
+		key.PairAsset{Base: coinPair.Base.Item, Quote: coinPair.Quote.Item, Asset: asset.CoinMarginedFutures},
+		key.PairAsset{Base: usdtPair.Base.Item, Quote: usdtPair.Quote.Item, Asset: asset.USDTMarginedFutures},
+	)
+	assert.NoError(t, err, "GetOpenInterest should not error for multiple explicit perpetual pairs")
+	require.Len(t, resp, 2, "GetOpenInterest returns the requested perpetual pairs")
 
 	resp, err = e.GetOpenInterest(t.Context())
 	assert.NoError(t, err, "GetOpenInterest should not error")

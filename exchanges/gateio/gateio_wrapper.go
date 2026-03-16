@@ -2195,8 +2195,9 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) (
 		}
 	}
 	for _, a := range assets {
+		useStats := useOpenInterestStats(keys, a)
 		var requestedPair currency.Pair
-		if len(keys) == 1 && a == keys[0].Asset {
+		if useStats {
 			if requestedPair, errs = e.MatchSymbolWithAvailablePairs(keys[0].Pair().String(), a, false); errs != nil {
 				return nil, errs
 			}
@@ -2230,10 +2231,13 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) (
 				}
 			}
 
-			openInterest, err := e.getOpenInterest(ctx, a, pair, c)
-			if err != nil {
-				errs = common.AppendError(errs, fmt.Errorf("%w from %s contract %s", err, a, c.contractName()))
-				continue
+			openInterest := c.openInterest()
+			if useStats {
+				openInterest, err = e.getOpenInterestFromStats(ctx, a, pair)
+				if err != nil {
+					errs = common.AppendError(errs, fmt.Errorf("%w from %s contract %s", err, a, c.contractName()))
+					continue
+				}
 			}
 			resp = append(resp, futures.OpenInterest{
 				Key: key.ExchangeAssetPair{
@@ -2287,11 +2291,8 @@ func openInterestFromStats(stats []ContractStat) (float64, error) {
 	return latest.OpenInterest.Float64(), nil
 }
 
-func (e *Exchange) getOpenInterest(ctx context.Context, a asset.Item, p currency.Pair, contract openInterestContract) (float64, error) {
-	if a == asset.DeliveryFutures {
-		return contract.openInterest(), nil
-	}
-	return e.getOpenInterestFromStats(ctx, a, p)
+func useOpenInterestStats(keys []key.PairAsset, a asset.Item) bool {
+	return a != asset.DeliveryFutures && len(keys) == 1 && keys[0].Asset == a
 }
 
 func (e *Exchange) getOpenInterestFromStats(ctx context.Context, a asset.Item, p currency.Pair) (float64, error) {
