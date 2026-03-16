@@ -6,6 +6,7 @@ package binance
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -63,4 +64,66 @@ func TestMain(m *testing.M) {
 		asset.CoinMarginedFutures: coinmTradablePair,
 	}
 	os.Exit(m.Run())
+}
+
+func (e *Exchange) populateTradablePairs() error {
+	if err := e.UpdateTradablePairs(context.Background()); err != nil {
+		return err
+	}
+	tradablePairs, err := e.GetEnabledPairs(asset.Spot)
+	if err != nil {
+		return err
+	}
+	if len(tradablePairs) == 0 {
+		return fmt.Errorf("%w for %v", currency.ErrCurrencyPairsEmpty, asset.Spot)
+	}
+	spotTradablePair, err = e.FormatExchangeCurrency(tradablePairs[0], asset.Spot)
+	if err != nil {
+		return err
+	}
+	tradablePairs, err = e.GetEnabledPairs(asset.Margin)
+	if err != nil {
+		return err
+	}
+	if len(tradablePairs) == 0 {
+		return fmt.Errorf("%w for %v", currency.ErrCurrencyPairsEmpty, asset.Margin)
+	}
+	marginTradablePair, err = e.FormatExchangeCurrency(tradablePairs[0], asset.Margin)
+	if err != nil {
+		return err
+	}
+	tradablePairs, err = e.GetEnabledPairs(asset.USDTMarginedFutures)
+	if err != nil {
+		return err
+	}
+	if len(tradablePairs) != 0 {
+		usdtmTradablePair, err = e.FormatExchangeCurrency(tradablePairs[0], asset.USDTMarginedFutures)
+		if err != nil {
+			return err
+		}
+	}
+	tradablePairs, err = e.GetEnabledPairs(asset.CoinMarginedFutures)
+	if err != nil {
+		return err
+	}
+	if len(tradablePairs) == 0 {
+		coinmTradablePair, err = currency.NewPairFromString("ETHUSD_PERP")
+		if err != nil {
+			return err
+		}
+	} else {
+		coinmTradablePair, err = e.FormatExchangeCurrency(tradablePairs[0], asset.CoinMarginedFutures)
+		if err != nil {
+			return err
+		}
+	}
+	tradablePairs, err = e.GetEnabledPairs(asset.Options)
+	if err != nil {
+		return err
+	}
+	if len(tradablePairs) == 0 {
+		return fmt.Errorf("%w for %v", currency.ErrCurrencyPairsEmpty, asset.Options)
+	}
+	optionsTradablePair, err = e.FormatExchangeCurrency(tradablePairs[0], asset.Options)
+	return err
 }

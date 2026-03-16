@@ -2,7 +2,6 @@ package binance
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -3542,9 +3541,9 @@ func TestWsDepthUpdate(t *testing.T) {
 	expAmnt, gotAmnt = 2.3, ob.Asks[2].Amount
 	require.Equalf(t, expAmnt, gotAmnt, "Unexpected Ask amount. Exp: %f, got %f", expAmnt, gotAmnt)
 	expAmnt, gotAmnt = 1.9, ob.Asks[3].Amount
-	require.Equal(t, expAmnt, gotAmnt, "Unexpected Ask amount. Exp: %f, got %f", exp, got)
+	require.Equalf(t, expAmnt, gotAmnt, "Unexpected Ask amount. Exp: %f, got %f", exp, got)
 	expAmnt, gotAmnt = 0.163526, ob.Bids[1].Amount
-	require.Equal(t, expAmnt, gotAmnt, "Unexpected Bid amount. Exp: %f, got %f", exp, got)
+	require.Equalf(t, expAmnt, gotAmnt, "Unexpected Bid amount. Exp: %f, got %f", exp, got)
 
 	// reset order book sync status
 	e.obm.state[currency.BTC][currency.USDT][asset.Spot].lastUpdateID = 0
@@ -3580,7 +3579,7 @@ func TestExecutionTypeToOrderStatus(t *testing.T) {
 	}
 	for i := range testCases {
 		result, _ := stringToOrderStatus(testCases[i].Case)
-		require.Equal(t, result, testCases[i].Result, "Expected: %v, received: %v", testCases[i].Result, result)
+		require.Equalf(t, result, testCases[i].Result, "Expected: %v, received: %v", testCases[i].Result, result)
 	}
 }
 
@@ -3630,7 +3629,7 @@ func TestFormatExchangeKlineInterval(t *testing.T) {
 		t.Run(tc.output, func(t *testing.T) {
 			t.Parallel()
 			ret := e.FormatExchangeKlineInterval(tc.interval)
-			require.Equal(t, ret, tc.output, "unexpected result return expected: %v received: %v", tc.output, ret)
+			require.Equalf(t, ret, tc.output, "unexpected result return expected: %v received: %v", tc.output, ret)
 		})
 	}
 }
@@ -3822,7 +3821,7 @@ drain:
 		if r.AssetType == asset.Margin {
 			expectedResult.AssetType = asset.Margin
 		}
-		require.True(t, reflect.DeepEqual(expectedResult, *r), "results do not match:\nexpected: %v\nreceived: %v", expectedResult, *r)
+		require.Truef(t, reflect.DeepEqual(expectedResult, *r), "results do not match:\nexpected: %v\nreceived: %v", expectedResult, *r)
 	default:
 		t.Fatalf("expected type order.Detail, found %T", res)
 	}
@@ -3863,7 +3862,7 @@ func TestFormatExchangeCurrency(t *testing.T) {
 		},
 		{
 			name:              "coinmarginedfutures-btcusd_211231",
-			pair:              currency.NewPairWithDelimiter("BTCUSD", "211231", currency.DashDelimiter),
+			pair:              currency.NewPairWithDelimiter("BTCUSD", "211231", currency.UnderscoreDelimiter),
 			asset:             asset.CoinMarginedFutures,
 			expectedDelimiter: currency.UnderscoreDelimiter,
 		},
@@ -3878,12 +3877,6 @@ func TestFormatExchangeCurrency(t *testing.T) {
 			pair:              currency.NewPairWithDelimiter("btc", "usdt", currency.DashDelimiter),
 			asset:             asset.USDTMarginedFutures,
 			expectedDelimiter: "",
-		},
-		{
-			name:              "usdtmarginedfutures-btcusdt_211231",
-			pair:              usdtmTradablePair,
-			asset:             asset.USDTMarginedFutures,
-			expectedDelimiter: currency.UnderscoreDelimiter,
 		},
 	}
 	for i := range testerinos {
@@ -3937,10 +3930,10 @@ func TestFormatSymbol(t *testing.T) {
 			expectedString: "BTCUSDT",
 		},
 		{
-			name:           "usdtmarginedfutures-BTCUSDT_211231",
+			name:           "usdtmarginedfutures-BTCUSDT",
 			pair:           usdtmTradablePair,
 			asset:          asset.USDTMarginedFutures,
-			expectedString: "BTCUSDT_211231",
+			expectedString: "BTCUSDT",
 		},
 	}
 	for _, tt := range testerinos {
@@ -9543,68 +9536,6 @@ func TestUnmarshalJSON(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 0.6, resp.Data[0]["1"].Float64())
 	assert.Equal(t, 0.6, resp.Data[1]["2"].Float64())
-}
-
-func (e *Exchange) populateTradablePairs() error {
-	if err := e.UpdateTradablePairs(context.Background()); err != nil {
-		return err
-	}
-	tradablePairs, err := e.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return err
-	}
-	if len(tradablePairs) == 0 {
-		return fmt.Errorf("%w for %v", currency.ErrCurrencyPairsEmpty, asset.Spot)
-	}
-	spotTradablePair, err = e.FormatExchangeCurrency(tradablePairs[0], asset.Spot)
-	if err != nil {
-		return err
-	}
-	tradablePairs, err = e.GetEnabledPairs(asset.Margin)
-	if err != nil {
-		return err
-	}
-	if len(tradablePairs) == 0 {
-		return fmt.Errorf("%w for %v", currency.ErrCurrencyPairsEmpty, asset.Margin)
-	}
-	marginTradablePair, err = e.FormatExchangeCurrency(tradablePairs[0], asset.Margin)
-	if err != nil {
-		return err
-	}
-	tradablePairs, err = e.GetEnabledPairs(asset.USDTMarginedFutures)
-	if err != nil {
-		return err
-	}
-	if len(tradablePairs) != 0 {
-		usdtmTradablePair, err = e.FormatExchangeCurrency(tradablePairs[0], asset.USDTMarginedFutures)
-		if err != nil {
-			return err
-		}
-	}
-	tradablePairs, err = e.GetEnabledPairs(asset.CoinMarginedFutures)
-	if err != nil {
-		return err
-	}
-	if len(tradablePairs) == 0 {
-		coinmTradablePair, err = currency.NewPairFromString("ETHUSD_PERP")
-		if err != nil {
-			return err
-		}
-	} else {
-		coinmTradablePair, err = e.FormatExchangeCurrency(tradablePairs[0], asset.CoinMarginedFutures)
-		if err != nil {
-			return err
-		}
-	}
-	tradablePairs, err = e.GetEnabledPairs(asset.Options)
-	if err != nil {
-		return err
-	}
-	if len(tradablePairs) == 0 {
-		return fmt.Errorf("%w for %v", currency.ErrCurrencyPairsEmpty, asset.Options)
-	}
-	optionsTradablePair, err = e.FormatExchangeCurrency(tradablePairs[0], asset.Options)
-	return err
 }
 
 func TestGetCurrencyTradeURL(t *testing.T) {
