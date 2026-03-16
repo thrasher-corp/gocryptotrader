@@ -204,12 +204,21 @@ func intervalCount(start, end time.Time, interval Interval) uint64 {
 	return count
 }
 
-func intervalCountAsInt(start, end time.Time, interval Interval) (int, error) {
-	count := intervalCount(start, end, interval)
-	if count > uint64(^uint(0)>>1) {
-		return 0, fmt.Errorf("interval count exceeds max int: %d", count)
+var errIntervalCountExceedsMaxInt = errors.New("interval count exceeds max int")
+
+func countAsInt(count uint64) (int, error) {
+	if count > uint64(int(^uint(0)>>1)) {
+		return 0, fmt.Errorf("%w: %d", errIntervalCountExceedsMaxInt, count)
 	}
 	return int(count), nil
+}
+
+func intervalCountAsInt(start, end time.Time, interval Interval) (int, error) {
+	count, err := intervalCount(start, end, interval)
+	if err != nil {
+		return 0, err
+	}
+	return countAsInt(count)
 }
 
 // Short returns short string version of interval
