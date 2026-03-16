@@ -392,7 +392,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset
 	return orderbook.Get(e.Name, p, a)
 }
 
-// KuCoin's rounded books can emit adjacent levels that collapse to the same
+// KuCoin's rounded books can emit adjacent levels that can be collapsed to the same
 // price, so we consolidate them before loading the local book to avoid
 // duplicate-price levels downstream.
 func mergeRoundedOrderbookLevels(levels []orderbook.Level) []orderbook.Level {

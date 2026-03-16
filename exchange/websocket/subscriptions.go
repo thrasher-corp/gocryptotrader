@@ -68,15 +68,15 @@ func (m *Manager) managedWebsocket(conn Connection) (*websocket, bool) {
 	if conn == nil {
 		return nil, false
 	}
-	m.subscriptionsMu.RLock()
-	defer m.subscriptionsMu.RUnlock()
-	ws, ok := m.connections[conn]
-	return ws, ok
+	m.connectionManagerMu.RLock()
+	defer m.connectionManagerMu.RUnlock()
+	ws := m.connections[conn]
+	return ws, ws != nil
 }
 
 func (m *Manager) subscriptionStore(conn Connection) *subscription.Store {
-	m.subscriptionsMu.RLock()
-	defer m.subscriptionsMu.RUnlock()
+	m.connectionManagerMu.RLock()
+	defer m.connectionManagerMu.RUnlock()
 	if ws, ok := m.connections[conn]; ok && conn != nil {
 		return ws.subscriptions
 	}
@@ -84,8 +84,8 @@ func (m *Manager) subscriptionStore(conn Connection) *subscription.Store {
 }
 
 func (m *Manager) initSubscriptionStore(conn Connection) *subscription.Store {
-	m.subscriptionsMu.Lock()
-	defer m.subscriptionsMu.Unlock()
+	m.connectionManagerMu.Lock()
+	defer m.connectionManagerMu.Unlock()
 	if ws, ok := m.connections[conn]; ok && conn != nil {
 		if ws.subscriptions == nil {
 			ws.subscriptions = subscription.NewStore()
@@ -207,13 +207,13 @@ func (m *Manager) GetSubscription(key any) *subscription.Subscription {
 		return nil
 	}
 	for _, ws := range m.snapshotConnectionManager() {
-		m.subscriptionsMu.RLock()
+		m.connectionManagerMu.RLock()
 		store := ws.subscriptions
 		var sub *subscription.Subscription
 		if store != nil {
 			sub = store.Get(key)
 		}
-		m.subscriptionsMu.RUnlock()
+		m.connectionManagerMu.RUnlock()
 		if sub != nil {
 			return sub
 		}
@@ -231,12 +231,12 @@ func (m *Manager) GetSubscriptions() subscription.List {
 	}
 	var subs subscription.List
 	for _, ws := range m.snapshotConnectionManager() {
-		m.subscriptionsMu.RLock()
+		m.connectionManagerMu.RLock()
 		store := ws.subscriptions
 		if store != nil {
 			subs = append(subs, store.List()...)
 		}
-		m.subscriptionsMu.RUnlock()
+		m.connectionManagerMu.RUnlock()
 	}
 	if store := m.subscriptionStore(nil); store != nil {
 		subs = append(subs, store.List()...)
@@ -449,7 +449,7 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, ws *webso
 	for _, conn := range stale {
 		staleSet[conn] = struct{}{}
 	}
-	m.subscriptionsMu.Lock()
+	m.connectionManagerMu.Lock()
 	for _, conn := range stale {
 		delete(m.connections, conn)
 	}
@@ -461,7 +461,7 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, ws *webso
 		clean = append(clean, conn)
 	}
 	ws.connections = clean
-	m.subscriptionsMu.Unlock()
+	m.connectionManagerMu.Unlock()
 	for _, conn := range stale {
 		if err := conn.Shutdown(); err != nil {
 			log.Warnf(log.WebsocketMgr, "%v websocket: failed to shutdown connection: %v", m.exchangeName, err)

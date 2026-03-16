@@ -36,13 +36,16 @@ func TestResubscribe(t *testing.T) {
 
 	m := newWSOBResubManager()
 
-	conn := &FixtureConnection{}
-
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e))
 	e.Name = "Resubscribe"
 
-	err := m.Resubscribe(t.Context(), e, conn, "notfound", currency.NewBTCUSDT(), asset.Spot)
+	baseConn, err := e.Websocket.CreateTestConnection(asset.Spot)
+	require.NoError(t, err)
+	conn := &FixtureConnection{Connection: baseConn}
+	require.NoError(t, e.Websocket.TrackTestConnection(asset.Spot, conn))
+
+	err = m.Resubscribe(t.Context(), e, conn, "notfound", currency.NewBTCUSDT(), asset.Spot)
 	require.ErrorIs(t, err, orderbook.ErrDepthNotFound)
 	require.False(t, m.IsResubscribing(currency.NewBTCUSDT(), asset.Spot))
 

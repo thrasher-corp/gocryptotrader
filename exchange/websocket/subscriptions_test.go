@@ -377,11 +377,11 @@ func newManagedSubscriptionTestManagerWithStore(t *testing.T, store *subscriptio
 		subscriptions: subscription.NewStore(),
 	}
 
-	manager.subscriptionsMu.Lock()
+	manager.connectionManagerMu.Lock()
 	manager.connectionManager = append(manager.connectionManager, ws)
 	manager.connections[conn] = ws
 	ws.connections = []Connection{conn}
-	manager.subscriptionsMu.Unlock()
+	manager.connectionManagerMu.Unlock()
 
 	return manager, conn
 }
@@ -1021,10 +1021,10 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 		var addFreshOnce sync.Once
 		emptyConn.subscriptionsHook = func() {
 			addFreshOnce.Do(func() {
-				m.subscriptionsMu.Lock()
+				m.connectionManagerMu.Lock()
 				m.connections[freshConn] = ws
 				ws.connections = append(ws.connections, freshConn)
-				m.subscriptionsMu.Unlock()
+				m.connectionManagerMu.Unlock()
 			})
 		}
 

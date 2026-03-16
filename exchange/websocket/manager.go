@@ -95,7 +95,7 @@ type Manager struct {
 	exchangeName                  string
 	features                      *protocol.Features
 	m                             sync.Mutex
-	subscriptionsMu               sync.RWMutex
+	connectionManagerMu           sync.RWMutex
 	connections                   map[Connection]*websocket
 	subscriptions                 *subscription.Store
 	connector                     func() error
@@ -354,8 +354,8 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 			return errMessageFilterNotComparable
 		}
 
-		m.subscriptionsMu.Lock()
-		defer m.subscriptionsMu.Unlock()
+		m.connectionManagerMu.Lock()
+		defer m.connectionManagerMu.Unlock()
 		for x := range m.connectionManager {
 			// Below allows for multiple connections to the same URL with different outbound request signatures. This
 			// allows for easier determination of inbound and outbound messages. e.g. Gateio cross_margin, margin on
@@ -413,8 +413,8 @@ func (m *Manager) createConnectionFromSetup(c *ConnectionSetup) *connection {
 }
 
 func (m *Manager) snapshotConnectionManager() []*websocket {
-	m.subscriptionsMu.RLock()
-	defer m.subscriptionsMu.RUnlock()
+	m.connectionManagerMu.RLock()
+	defer m.connectionManagerMu.RUnlock()
 	return slices.Clone(m.connectionManager)
 }
 
@@ -422,14 +422,14 @@ func (m *Manager) snapshotManagedConnections(ws *websocket) []Connection {
 	if ws == nil {
 		return nil
 	}
-	m.subscriptionsMu.RLock()
-	defer m.subscriptionsMu.RUnlock()
+	m.connectionManagerMu.RLock()
+	defer m.connectionManagerMu.RUnlock()
 	return slices.Clone(ws.connections)
 }
 
 func (m *Manager) trackConnection(conn Connection, ws *websocket) {
-	m.subscriptionsMu.Lock()
-	defer m.subscriptionsMu.Unlock()
+	m.connectionManagerMu.Lock()
+	defer m.connectionManagerMu.Unlock()
 	if m.connections == nil {
 		m.connections = make(map[Connection]*websocket)
 	}
@@ -591,7 +591,7 @@ func (m *Manager) connect(ctx context.Context) error {
 	if multiConnectFatalError != nil {
 		// Roll back any successful connections and flush subscriptions
 		connectionManager = m.snapshotConnectionManager()
-		m.subscriptionsMu.Lock()
+		m.connectionManagerMu.Lock()
 		for _, ws := range connectionManager {
 			for _, conn := range ws.connections {
 				if err := conn.Shutdown(); err != nil {
@@ -603,7 +603,7 @@ func (m *Manager) connect(ctx context.Context) error {
 			ws.subscriptions.Clear()
 		}
 		clear(m.connections)
-		m.subscriptionsMu.Unlock()
+		m.connectionManagerMu.Unlock()
 		m.setState(disconnectedState) // Flip from connecting to disconnected.
 
 		// Drain residual error in the single buffered channel, this mitigates
@@ -730,7 +730,7 @@ func (m *Manager) shutdown() error {
 	var nonFatalCloseConnectionErrors error
 
 	// Shutdown managed connections
-	m.subscriptionsMu.Lock()
+	m.connectionManagerMu.Lock()
 	for _, ws := range m.connectionManager {
 		for _, conn := range ws.connections {
 			if err := conn.Shutdown(); err != nil {
@@ -744,7 +744,7 @@ func (m *Manager) shutdown() error {
 	}
 	// Clean map of old connections
 	clear(m.connections)
-	m.subscriptionsMu.Unlock()
+	m.connectionManagerMu.Unlock()
 
 	if m.Conn != nil {
 		if err := m.Conn.Shutdown(); err != nil {
@@ -897,8 +897,8 @@ func (m *Manager) GetConfiguredWebsocketURLs() ([]string, error) {
 	defer m.m.Unlock()
 
 	if m.useMultiConnectionManagement {
-		m.subscriptionsMu.RLock()
-		defer m.subscriptionsMu.RUnlock()
+		m.connectionManagerMu.RLock()
+		defer m.connectionManagerMu.RUnlock()
 		urls := make([]string, 0, len(m.connectionManager))
 		seen := make(map[string]struct{}, len(m.connectionManager))
 		for _, ws := range m.connectionManager {
@@ -941,13 +941,13 @@ func (m *Manager) SetProxyAddress(ctx context.Context, proxyAddr string) error {
 		log.Debugf(log.ExchangeSys, "%s websocket: removing websocket proxy", m.exchangeName)
 	}
 
-	m.subscriptionsMu.RLock()
+	m.connectionManagerMu.RLock()
 	for _, ws := range m.connectionManager {
 		for _, conn := range ws.connections {
 			conn.SetProxy(proxyAddr)
 		}
 	}
-	m.subscriptionsMu.RUnlock()
+	m.connectionManagerMu.RUnlock()
 	if m.Conn != nil {
 		m.Conn.SetProxy(proxyAddr)
 	}
@@ -1164,8 +1164,8 @@ func (m *Manager) GetConnection(messageFilter any) (Connection, error) {
 		return nil, ErrNotConnected
 	}
 
-	m.subscriptionsMu.RLock()
-	defer m.subscriptionsMu.RUnlock()
+	m.connectionManagerMu.RLock()
+	defer m.connectionManagerMu.RUnlock()
 	for _, ws := range m.connectionManager {
 		if ws.setup.MessageFilter != messageFilter {
 			continue
