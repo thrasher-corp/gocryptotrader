@@ -94,7 +94,7 @@ func syncLeadTraderUniqueID(t *testing.T) error {
 			Limit:          10,
 		})
 		if err != nil {
-			errSyncLeadTrader = fmt.Errorf("GetLeadTradersRanks failed: %s", err)
+			errSyncLeadTrader = fmt.Errorf("GetLeadTradersRanks failed: %w", err)
 			return
 		}
 		if len(result) == 0 {
@@ -127,7 +127,7 @@ func syncLeadTraderSubPositionsUniqueID(t *testing.T) error {
 			Limit:          10,
 		})
 		if err != nil {
-			errSyncLeadTraderSubPositions = fmt.Errorf("GetLeadTradersRanks failed: %s", err)
+			errSyncLeadTraderSubPositions = fmt.Errorf("GetLeadTradersRanks failed: %w", err)
 			return
 		}
 		if len(result) == 0 {
