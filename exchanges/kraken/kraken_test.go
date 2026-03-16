@@ -1,6 +1,7 @@
 package kraken
 
 import (
+	"context"
 	"errors"
 	"log"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -24,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -1127,6 +1130,71 @@ func TestWsOwnTradesSub(t *testing.T) {
 	err = e.Unsubscribe(subs)
 	assert.NoError(t, err, "Unsubscribing an auth channel should not error")
 	assert.Empty(t, e.Websocket.GetSubscriptions(), "Should have successfully removed channel")
+}
+
+type mockAuthSubConnection struct {
+	websocket.Connection
+	responses [][]byte
+	expected  int
+}
+
+func (m *mockAuthSubConnection) SendMessageReturnResponses(_ context.Context, _ request.EndpointLimit, _, _ any, expected int) ([][]byte, error) {
+	m.expected = expected
+	return m.responses, nil
+}
+
+func TestManageSubsAuthenticatedNoPairs(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name, channel, qualifiedChannel string
+		response                        []byte
+	}{
+		{name: "own trades", channel: subscription.MyTradesChannel, qualifiedChannel: krakenWsOwnTrades, response: []byte(`{"channelName":"ownTrades","event":"subscriptionStatus","status":"subscribed","subscription":{"name":"ownTrades"}}`)},
+		{name: "open orders", channel: subscription.MyOrdersChannel, qualifiedChannel: krakenWsOpenOrders, response: []byte(`{"channelName":"openOrders","event":"subscriptionStatus","status":"subscribed","subscription":{"name":"openOrders"}}`)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup Instance must not error")
+			conn := &mockAuthSubConnection{responses: [][]byte{tc.response}}
+			ex.Websocket.AuthConn = conn
+
+			err := ex.manageSubs(t.Context(), krakenWsSubscribe, subscription.List{{
+				Channel:          tc.channel,
+				QualifiedChannel: tc.qualifiedChannel,
+				Authenticated:    true,
+			}})
+			require.NoError(t, err, "auth subscription without pairs must not error")
+			assert.Equal(t, 1, conn.expected, "auth subscription without pairs should wait for one response")
+		})
+	}
+}
+
+func TestWsProcessSubStatusAuthenticated(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name             string
+		channel          string
+		qualifiedChannel string
+	}{
+		{name: "own trades", channel: subscription.MyTradesChannel, qualifiedChannel: krakenWsOwnTrades},
+		{name: "open orders", channel: subscription.MyOrdersChannel, qualifiedChannel: krakenWsOpenOrders},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup Instance must not error")
+			s := &subscription.Subscription{Channel: tc.channel, QualifiedChannel: tc.qualifiedChannel, Authenticated: true}
+			require.NoError(t, ex.Websocket.AddSubscriptions(nil, s), "authenticated subscription must be added in subscribing state")
+
+			ex.wsProcessSubStatus([]byte(`{"channelName":"` + tc.qualifiedChannel + `","event":"subscriptionStatus","status":"subscribed","subscription":{"name":"` + tc.qualifiedChannel + `"}}`))
+			assert.Equal(t, subscription.SubscribedState, s.State(), "authenticated subscription status should be updated without requiring a pair field")
+		})
+	}
 }
 
 // TestGenerateSubscriptions tests the subscriptions generated from configuration

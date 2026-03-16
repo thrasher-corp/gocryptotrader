@@ -775,7 +775,11 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 		conn = e.Websocket.AuthConn
 	}
 
-	resps, err := conn.SendMessageReturnResponses(ctx, request.Unset, r.RequestID, r, len(s.Pairs))
+	expectedResponses := len(s.Pairs)
+	if expectedResponses == 0 {
+		expectedResponses = 1
+	}
+	resps, err := conn.SendMessageReturnResponses(ctx, request.Unset, r.RequestID, r, expectedResponses)
 
 	// Ignore an overall timeout, because we'll track individual subscriptions in handleSubResps
 	err = common.ExcludeError(err, websocket.ErrSignatureTimeout)
@@ -791,6 +795,16 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 // Returns an error collection of unique errors and its pairs
 func (e *Exchange) handleSubResps(s *subscription.Subscription, resps [][]byte, op string) error {
 	reqFmt := currency.PairFormat{Uppercase: true, Delimiter: "/"}
+
+	if len(s.Pairs) == 0 {
+		var errs error
+		for _, resp := range resps {
+			if err := e.getSubRespErr(resp, op); err != nil {
+				errs = common.AppendError(errs, fmt.Errorf("%w; Channel: %s", err, s.Channel))
+			}
+		}
+		return errs
+	}
 
 	errMap := map[string]error{}
 	pairErrs := map[currency.Pair]error{}
@@ -884,14 +898,6 @@ func (e *Exchange) getRespErr(resp []byte) error {
 // It's job is to ensure that subscription state is kept correct sequentially between WS messages
 // If this responsibility was moved to Subscribe then we would have a race due to the channel connecting IncomingWithData
 func (e *Exchange) wsProcessSubStatus(resp []byte) {
-	pName, err := jsonparser.GetUnsafeString(resp, "pair")
-	if err != nil {
-		return
-	}
-	pair, err := currency.NewPairFromString(pName)
-	if err != nil {
-		return
-	}
 	c, err := jsonparser.GetUnsafeString(resp, "channelName")
 	if err != nil {
 		return
@@ -903,18 +909,25 @@ func (e *Exchange) wsProcessSubStatus(resp []byte) {
 	if err != nil {
 		return
 	}
-	key := &subscription.Subscription{
-		// We don't use asset because it's either Empty or Spot, but not both
-		Channel: c,
-		Pairs:   currency.Pairs{pair},
+
+	keySub := &subscription.Subscription{Channel: c}
+	lookupKey := any(subscription.ChannelKey{Subscription: keySub})
+	pName, err := jsonparser.GetUnsafeString(resp, "pair")
+	if err == nil {
+		pair, err := currency.NewPairFromString(pName)
+		if err != nil {
+			return
+		}
+		keySub.Pairs = currency.Pairs{pair}
+		lookupKey = &subscription.IgnoringAssetKey{Subscription: keySub}
 	}
 
-	if err = fqChannelNameSub(key); err != nil {
+	if err = fqChannelNameSub(keySub); err != nil {
 		return
 	}
-	s := e.Websocket.GetSubscription(&subscription.IgnoringAssetKey{Subscription: key})
+	s := e.Websocket.GetSubscription(lookupKey)
 	if s == nil {
-		log.Errorf(log.ExchangeSys, "%s %s Channel: %s Pairs: %s", e.Name, subscription.ErrNotFound, key.Channel, key.Pairs.Join())
+		log.Errorf(log.ExchangeSys, "%s %s Channel: %s Pairs: %s", e.Name, subscription.ErrNotFound, keySub.Channel, keySub.Pairs.Join())
 		return
 	}
 
