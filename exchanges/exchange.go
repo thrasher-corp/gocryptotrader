@@ -684,7 +684,11 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled bool) 
 	}
 
 	if len(diff.New) > 0 || len(diff.Remove) > 0 {
-		log.Debugf(log.ExchangeSys, "%s Updating %s pairs [%v] - Added: %d Removed: %d.", b.Name, updateType, strings.ToUpper(a.String()), len(diff.New), len(diff.Remove))
+		if enabled {
+			log.Debugf(log.ExchangeSys, "%s Updating %s pairs [%v] - Added: %d Removed: %d.", b.Name, updateType, strings.ToUpper(a.String()), len(diff.New), len(diff.Remove))
+		} else {
+			log.Debugf(log.ExchangeSys, "%s Updating %s pairs [%v] - Added: %d Removed: %d Total: %d.", b.Name, updateType, strings.ToUpper(a.String()), len(diff.New), len(diff.Remove), len(incoming))
+		}
 		if b.IsVerbose() {
 			if len(diff.New) > 0 {
 				log.Debugf(log.ExchangeSys, "%s %s pairs [%v] new: %s.", b.Name, updateType, strings.ToUpper(a.String()), diff.New)
