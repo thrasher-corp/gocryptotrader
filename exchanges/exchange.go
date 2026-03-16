@@ -775,6 +775,9 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled bool) 
 
 	if len(diff.Remove) > 0 {
 		log.Debugf(log.ExchangeSys, "%s Checked and updated enabled pairs [%v] - Removed: %d.\n", b.Name, strings.ToUpper(a.String()), len(diff.Remove))
+		if b.IsVerbose() {
+			log.Debugf(log.ExchangeSys, "%s Checked and updated enabled pairs [%v] - removed: %s.\n", b.Name, strings.ToUpper(a.String()), diff.Remove)
+		}
 	}
 	if err := b.Config.CurrencyPairs.StorePairs(a, enabledPairs, true); err != nil {
 		return err
