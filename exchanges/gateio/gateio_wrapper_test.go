@@ -3,6 +3,7 @@ package gateio
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
@@ -12,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func TestCancelAllOrders(t *testing.T) {
@@ -73,6 +75,21 @@ func TestCancelAllOrders(t *testing.T) {
 			assert.NoError(t, err)
 		})
 	}
+}
+
+func TestOpenInterestFromStats(t *testing.T) {
+	t.Parallel()
+
+	_, err := openInterestFromStats(nil)
+	require.ErrorIs(t, err, errNoValidResponseFromServer)
+
+	openInterest, err := openInterestFromStats([]ContractStat{
+		{Time: types.Time(time.Unix(100, 0)), OpenInterest: types.Number(2)},
+		{Time: types.Time(time.Unix(300, 0)), OpenInterest: types.Number(4)},
+		{Time: types.Time(time.Unix(200, 0)), OpenInterest: types.Number(3)},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 4.0, openInterest)
 }
 
 func TestMessageID(t *testing.T) {

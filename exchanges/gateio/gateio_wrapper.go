@@ -2195,20 +2195,21 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) (
 		}
 	}
 	for _, a := range assets {
-		var p currency.Pair
+		var requestedPair currency.Pair
 		if len(keys) == 1 && a == keys[0].Asset {
-			if p, errs = e.MatchSymbolWithAvailablePairs(keys[0].Pair().String(), a, false); errs != nil {
+			if requestedPair, errs = e.MatchSymbolWithAvailablePairs(keys[0].Pair().String(), a, false); errs != nil {
 				return nil, errs
 			}
 		}
-		contracts, err := e.getOpenInterestContracts(ctx, a, p)
+		contracts, err := e.getOpenInterestContracts(ctx, a, requestedPair)
 		if err != nil {
 			errs = common.AppendError(errs, fmt.Errorf("%w fetching %s", err, a))
 			continue
 		}
 		for _, c := range contracts {
-			if p.IsEmpty() { // If not exactly one key provided
-				p, err = e.MatchSymbolWithAvailablePairs(c.contractName(), a, true)
+			pair := requestedPair
+			if pair.IsEmpty() { // If not exactly one key provided
+				pair, err = e.MatchSymbolWithAvailablePairs(c.contractName(), a, true)
 				if err != nil {
 					if err := common.ExcludeError(err, currency.ErrPairNotFound); err != nil {
 						errs = common.AppendError(errs, fmt.Errorf("%w from %s contract %s", err, a, c.contractName()))
@@ -2216,26 +2217,32 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) (
 					continue
 				}
 				if len(keys) == 0 { // No keys: All enabled pairs
-					if enabled, err := e.IsPairEnabled(p, a); err != nil {
-						errs = common.AppendError(errs, fmt.Errorf("%w: %s %s", err, a, p))
+					if enabled, err := e.IsPairEnabled(pair, a); err != nil {
+						errs = common.AppendError(errs, fmt.Errorf("%w: %s %s", err, a, pair))
 						continue
 					} else if !enabled {
 						continue
 					}
 				} else { // More than one key; Any available pair
-					if !slices.ContainsFunc(keys, func(k key.PairAsset) bool { return a == k.Asset && k.Pair().Equal(p) }) {
+					if !slices.ContainsFunc(keys, func(k key.PairAsset) bool { return a == k.Asset && k.Pair().Equal(pair) }) {
 						continue
 					}
 				}
 			}
+
+			openInterest, err := e.getOpenInterest(ctx, a, pair, c)
+			if err != nil {
+				errs = common.AppendError(errs, fmt.Errorf("%w from %s contract %s", err, a, c.contractName()))
+				continue
+			}
 			resp = append(resp, futures.OpenInterest{
 				Key: key.ExchangeAssetPair{
 					Exchange: e.Name,
-					Base:     p.Base.Item,
-					Quote:    p.Quote.Item,
+					Base:     pair.Base.Item,
+					Quote:    pair.Quote.Item,
 					Asset:    a,
 				},
-				OpenInterest: c.openInterest(),
+				OpenInterest: openInterest,
 			})
 		}
 	}
@@ -2265,6 +2272,38 @@ func (c *DeliveryContract) openInterest() float64 {
 
 func (c *DeliveryContract) contractName() string {
 	return c.Name
+}
+
+func openInterestFromStats(stats []ContractStat) (float64, error) {
+	if len(stats) == 0 {
+		return 0, errNoValidResponseFromServer
+	}
+	latest := stats[0]
+	for i := range stats[1:] {
+		if stats[i+1].Time.Time().After(latest.Time.Time()) {
+			latest = stats[i+1]
+		}
+	}
+	return latest.OpenInterest.Float64(), nil
+}
+
+func (e *Exchange) getOpenInterest(ctx context.Context, a asset.Item, p currency.Pair, contract openInterestContract) (float64, error) {
+	if a == asset.DeliveryFutures {
+		return contract.openInterest(), nil
+	}
+	return e.getOpenInterestFromStats(ctx, a, p)
+}
+
+func (e *Exchange) getOpenInterestFromStats(ctx context.Context, a asset.Item, p currency.Pair) (float64, error) {
+	settle, err := getSettlementCurrency(p, a)
+	if err != nil {
+		return 0, err
+	}
+	stats, err := e.GetFutureStats(ctx, settle, p, time.Time{}, 0, 1)
+	if err != nil {
+		return 0, err
+	}
+	return openInterestFromStats(stats)
 }
 
 func (e *Exchange) getOpenInterestContracts(ctx context.Context, a asset.Item, p currency.Pair) ([]openInterestContract, error) {
