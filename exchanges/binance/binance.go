@@ -297,6 +297,11 @@ func (e *Exchange) retrieveSpotKline(ctx context.Context, arg *KlinesRequestPara
 	if err != nil {
 		return nil, err
 	}
+	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
+		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("interval", arg.Interval)

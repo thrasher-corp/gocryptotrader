@@ -432,10 +432,10 @@ func (e *Exchange) GetOpenInterestStats(ctx context.Context, pair, contractType,
 	}
 	params := url.Values{}
 	if !startTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
 	if !endTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	params.Set("contractType", contractType)
 	params.Set("period", period)
@@ -464,10 +464,10 @@ func (e *Exchange) GetTraderFuturesAccountRatio(ctx context.Context, pair curren
 	}
 	params := url.Values{}
 	if !startTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
 	if !endTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	params.Set("pair", pair.String())
 	params.Set("period", period)
@@ -493,10 +493,10 @@ func (e *Exchange) GetTraderFuturesPositionsRatio(ctx context.Context, pair curr
 	}
 	params := url.Values{}
 	if !startTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
 	if !endTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	params.Set("pair", pair.String())
 	params.Set("period", period)
@@ -522,10 +522,10 @@ func (e *Exchange) GetMarketRatio(ctx context.Context, pair currency.Pair, perio
 	}
 	params := url.Values{}
 	if !startTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
 	if !endTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	params.Set("pair", pair.String())
 	params.Set("period", period)
@@ -554,10 +554,10 @@ func (e *Exchange) GetFuturesTakerVolume(ctx context.Context, pair currency.Pair
 	}
 	params := url.Values{}
 	if !startTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
 	if !endTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	params.Set("pair", pair.String())
 	params.Set("contractType", contractType)
