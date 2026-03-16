@@ -15,6 +15,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func TestFetchTradablePairsFiltersNonTradingOptions(t *testing.T) {
@@ -28,7 +29,7 @@ func TestFetchTradablePairsFiltersNonTradingOptions(t *testing.T) {
 	preLaunchInstrument := newOptionInstrumentInfo("BTC14MAR26-85000-C", "PreLaunch")
 
 	var queries []url.Values
-	ex := newInstrumentInfoTestExchange(t, "BybitOptionsFetchTradablePairsTest", cOption, map[string][]optionInstrumentInfoResponse{
+	ex := newInstrumentInfoTestExchange(t, "BybitOptionsFetchTradablePairsTest", cOption, map[string][]InstrumentInfo{
 		"BTC": {tradingInstrument, settlingInstrument, preLaunchInstrument},
 	}, &queries)
 
@@ -65,7 +66,7 @@ func TestUpdateOrderExecutionLimitsFiltersNonTradingOptions(t *testing.T) {
 	closedInstrument := newOptionInstrumentInfo("BTC14MAR26-85000-C", "Closed")
 
 	var queries []url.Values
-	ex := newInstrumentInfoTestExchange(t, "BybitOptionsUpdateLimitsTest", cOption, map[string][]optionInstrumentInfoResponse{
+	ex := newInstrumentInfoTestExchange(t, "BybitOptionsUpdateLimitsTest", cOption, map[string][]InstrumentInfo{
 		"BTC": {tradingInstrument, settlingInstrument, closedInstrument},
 	}, &queries)
 
@@ -93,7 +94,7 @@ func TestUpdateOrderExecutionLimitsLeavesNonOptionsStatusHandlingUnchanged(t *te
 	closedInstrument := newOptionInstrumentInfo("BTCUSDT", "Closed")
 
 	var queries []url.Values
-	ex := newInstrumentInfoTestExchange(t, "BybitSpotUpdateLimitsTest", cSpot, map[string][]optionInstrumentInfoResponse{
+	ex := newInstrumentInfoTestExchange(t, "BybitSpotUpdateLimitsTest", cSpot, map[string][]InstrumentInfo{
 		"": {closedInstrument},
 	}, &queries)
 
@@ -110,7 +111,7 @@ func TestUpdateOrderExecutionLimitsLeavesNonOptionsStatusHandlingUnchanged(t *te
 	assert.Equal(t, "1000", queries[0].Get("limit"), "UpdateOrderExecutionLimits should request the expected page size")
 }
 
-func newInstrumentInfoTestExchange(t *testing.T, name, category string, responses map[string][]optionInstrumentInfoResponse, queries *[]url.Values) *Exchange {
+func newInstrumentInfoTestExchange(t *testing.T, name, category string, responses map[string][]InstrumentInfo, queries *[]url.Values) *Exchange {
 	t.Helper()
 
 	ex := new(Exchange)
@@ -128,18 +129,18 @@ func newInstrumentInfoTestExchange(t *testing.T, name, category string, response
 			RetCode int64  `json:"retCode"`
 			RetMsg  string `json:"retMsg"`
 			Result  *struct {
-				Category       string                         `json:"category"`
-				List           []optionInstrumentInfoResponse `json:"list"`
-				NextPageCursor string                         `json:"nextPageCursor"`
+				Category       string           `json:"category"`
+				List           []InstrumentInfo `json:"list"`
+				NextPageCursor string           `json:"nextPageCursor"`
 			} `json:"result"`
 			Time int64 `json:"time"`
 		}{
 			RetCode: 0,
 			RetMsg:  "OK",
 			Result: &struct {
-				Category       string                         `json:"category"`
-				List           []optionInstrumentInfoResponse `json:"list"`
-				NextPageCursor string                         `json:"nextPageCursor"`
+				Category       string           `json:"category"`
+				List           []InstrumentInfo `json:"list"`
+				NextPageCursor string           `json:"nextPageCursor"`
 			}{
 				Category:       category,
 				List:           responses[query.Get("baseCoin")],

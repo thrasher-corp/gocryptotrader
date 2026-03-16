@@ -156,6 +156,8 @@ func calendarIntervalMonths(interval Interval) int {
 
 // alignIntervalStart keeps calendar-based intervals pinned to real UTC month
 // boundaries instead of Unix epoch duration buckets.
+var errIntervalCountExceedsMaxInt = errors.New("interval count exceeds max int")
+
 func alignIntervalStart(t time.Time, interval Interval) time.Time {
 	t = t.UTC().Round(0)
 	months := calendarIntervalMonths(interval)
