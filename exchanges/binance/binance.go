@@ -3821,7 +3821,7 @@ func (e *Exchange) CryptoLoanCustomiseMarginCall(ctx context.Context, orderID in
 	}
 	params.Set("marginCall", strconv.FormatFloat(marginCallValue, 'f', -1, 64))
 	var resp *CustomiseMarginCall
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/loan/customize/margin_call", params, cryptoLoanCustomizeMarginRate, nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/loan/customize/margin_call", params, cryptoLoanCustomiseMarginRate, nil, &resp)
 }
 
 // FlexibleLoanBorrow creates a flexible loan
@@ -7433,8 +7433,8 @@ func (e *Exchange) GetSpotInfoAboutIfUserIsNew(ctx context.Context, apiAgentCode
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/sapi/v1/apiReferral/ifNewUser", params, request.Auth, nil, &resp)
 }
 
-// CustomizeSpotPartnerClientID customises partner's customer ID by user email
-func (e *Exchange) CustomizeSpotPartnerClientID(ctx context.Context, customerID, email string) (*CustomerIDResult, error) {
+// CustomiseSpotPartnerClientID customises partner's customer ID by user email
+func (e *Exchange) CustomiseSpotPartnerClientID(ctx context.Context, customerID, email string) (*CustomerIDResult, error) {
 	return e.customisePartnerClientID(ctx, customerID, email, "/sapi/v1/apiReferral/customization")
 }
 
@@ -7452,12 +7452,12 @@ func (e *Exchange) customisePartnerClientID(ctx context.Context, customerID, ema
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, params, request.Auth, nil, &resp)
 }
 
-// GetSpotClientEmailCustomizedID retrieves client email customised ID details
-func (e *Exchange) GetSpotClientEmailCustomizedID(ctx context.Context, customerID, email string) ([]*CustomerIDResult, error) {
-	return e.getClientEmailCustomizedID(ctx, customerID, email, "/sapi/v1/apiReferral/customization")
+// GetSpotClientEmailCustomisedID retrieves client email customised ID details
+func (e *Exchange) GetSpotClientEmailCustomisedID(ctx context.Context, customerID, email string) ([]*CustomerIDResult, error) {
+	return e.getClientEmailCustomisedID(ctx, customerID, email, "/sapi/v1/apiReferral/customization")
 }
 
-func (e *Exchange) getClientEmailCustomizedID(ctx context.Context, customerID, email, path string) ([]*CustomerIDResult, error) {
+func (e *Exchange) getClientEmailCustomisedID(ctx context.Context, customerID, email, path string) ([]*CustomerIDResult, error) {
 	params := url.Values{}
 	if customerID != "" {
 		params.Set("customerId", customerID)
@@ -7469,8 +7469,8 @@ func (e *Exchange) getClientEmailCustomizedID(ctx context.Context, customerID, e
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, request.Auth, nil, &resp)
 }
 
-// CustomizeSpotOwnClientID customise your own customer ID by broker ID
-func (e *Exchange) CustomizeSpotOwnClientID(ctx context.Context, customerID, apiAgentCode string) (*CustomerIDResult, error) {
+// CustomiseSpotOwnClientID customise your own customer ID by broker ID
+func (e *Exchange) CustomiseSpotOwnClientID(ctx context.Context, customerID, apiAgentCode string) (*CustomerIDResult, error) {
 	return e.customiseOwnClientID(ctx, customerID, apiAgentCode, "/sapi/v1/apiReferral/userCustomization")
 }
 
@@ -7488,8 +7488,8 @@ func (e *Exchange) customiseOwnClientID(ctx context.Context, customerID, apiAgen
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, params, request.Auth, nil, &resp)
 }
 
-// GetSpotUsersCustomizedID retrieves user's customised ID
-func (e *Exchange) GetSpotUsersCustomizedID(ctx context.Context, apiAgentCode string) (*CustomerIDResult, error) {
+// GetSpotUsersCustomisedID retrieves user's customised ID
+func (e *Exchange) GetSpotUsersCustomisedID(ctx context.Context, apiAgentCode string) (*CustomerIDResult, error) {
 	if apiAgentCode == "" {
 		return nil, fmt.Errorf("%w: apiAgentCode is required", errCodeRequired)
 	}
@@ -7559,23 +7559,23 @@ func (e *Exchange) GetFuturesClientIfNewUser(ctx context.Context, brokerID strin
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/fapi/v1/apiReferral/ifNewUser", params, request.Auth, nil, &resp)
 }
 
-// CustomizeFuturesPartnerClientID customises partner's customer ID by user email
-func (e *Exchange) CustomizeFuturesPartnerClientID(ctx context.Context, customerID, email string) (*CustomerIDResult, error) {
+// CustomiseFuturesPartnerClientID customises partner's customer ID by user email
+func (e *Exchange) CustomiseFuturesPartnerClientID(ctx context.Context, customerID, email string) (*CustomerIDResult, error) {
 	return e.customisePartnerClientID(ctx, customerID, email, "/fapi/v1/apiReferral/customization")
 }
 
-// GetFuturesClientEmailCustomizedID retrieves client email customised ID details for futures account
-func (e *Exchange) GetFuturesClientEmailCustomizedID(ctx context.Context, customerID, email string) ([]*CustomerIDResult, error) {
-	return e.getClientEmailCustomizedID(ctx, customerID, email, "/fapi/v1/apiReferral/customization")
+// GetFuturesClientEmailCustomisedID retrieves client email customised ID details for futures account
+func (e *Exchange) GetFuturesClientEmailCustomisedID(ctx context.Context, customerID, email string) ([]*CustomerIDResult, error) {
+	return e.getClientEmailCustomisedID(ctx, customerID, email, "/fapi/v1/apiReferral/customization")
 }
 
-// CustomizeFuturesOwnClientID customise your own customer ID by broker ID for futures account
-func (e *Exchange) CustomizeFuturesOwnClientID(ctx context.Context, customerID, apiAgentCode string) (*CustomerIDResult, error) {
+// CustomiseFuturesOwnClientID customise your own customer ID by broker ID for futures account
+func (e *Exchange) CustomiseFuturesOwnClientID(ctx context.Context, customerID, apiAgentCode string) (*CustomerIDResult, error) {
 	return e.customiseOwnClientID(ctx, customerID, apiAgentCode, "/fapi/v1/apiReferral/userCustomization")
 }
 
-// GetFuturesUsersCustomizedID retrieves user's customised ID for futures account
-func (e *Exchange) GetFuturesUsersCustomizedID(ctx context.Context, brokerID string) (*FuturesCustomerID, error) {
+// GetFuturesUsersCustomisedID retrieves user's customised ID for futures account
+func (e *Exchange) GetFuturesUsersCustomisedID(ctx context.Context, brokerID string) (*FuturesCustomerID, error) {
 	if brokerID == "" {
 		return nil, fmt.Errorf("%w: brokerId is required", order.ErrOrderIDNotSet)
 	}
@@ -7736,8 +7736,8 @@ func (e *Exchange) GetFuturesClientifNewUser(ctx context.Context, brokerID strin
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, "/papi/v1/apiReferral/ifNewUser", params, request.Auth, nil, &resp)
 }
 
-// CustomizeIDForClientToReferredUser allows a broker (referrer) to assign a custom unique identifier (customerId) to a referred user.
-func (e *Exchange) CustomizeIDForClientToReferredUser(ctx context.Context, customerID, brokerID string) (*BrokerAndCustomerID, error) {
+// CustomiseIDForClientToReferredUser allows a broker (referrer) to assign a custom unique identifier (customerId) to a referred user.
+func (e *Exchange) CustomiseIDForClientToReferredUser(ctx context.Context, customerID, brokerID string) (*BrokerAndCustomerID, error) {
 	if customerID == "" {
 		return nil, fmt.Errorf("%w: customerID is required", order.ErrOrderIDNotSet)
 	}
@@ -7751,8 +7751,8 @@ func (e *Exchange) CustomizeIDForClientToReferredUser(ctx context.Context, custo
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodPost, "/papi/v1/apiReferral/userCustomization", params, request.Auth, nil, &resp)
 }
 
-// GetUsersCustomizeIDs retrieves user's customise ID
-func (e *Exchange) GetUsersCustomizeIDs(ctx context.Context, brokerID string) (*BrokerAndCustomerID, error) {
+// GetUsersCustomiseIDs retrieves user's customise ID
+func (e *Exchange) GetUsersCustomiseIDs(ctx context.Context, brokerID string) (*BrokerAndCustomerID, error) {
 	if brokerID == "" {
 		return nil, fmt.Errorf("%w: brokerID is required", order.ErrOrderIDNotSet)
 	}

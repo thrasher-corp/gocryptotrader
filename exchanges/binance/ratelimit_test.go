@@ -374,7 +374,7 @@ func TestRateLimit_LimitStatic(t *testing.T) {
 		"getLoanableAssetsDataRate":                              getLoanableAssetsDataRate,
 		"collateralAssetsDataRate":                               collateralAssetsDataRate,
 		"checkCollateralRepayRate":                               checkCollateralRepayRate,
-		"cryptoLoanCustomizeMarginRate":                          cryptoLoanCustomizeMarginRate,
+		"cryptoLoanCustomiseMarginRate":                          cryptoLoanCustomiseMarginRate,
 		"borrowFlexibleRate":                                     borrowFlexibleRate,
 		"getFlexibleLoanOngoingOrdersRate":                       getFlexibleLoanOngoingOrdersRate,
 		"flexibleBorrowHistoryRate":                              flexibleBorrowHistoryRate,

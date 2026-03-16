@@ -2,7 +2,6 @@ package binance
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -66,10 +65,6 @@ func (e *Exchange) WsUFuturesConnect(ctx context.Context, conn websocket.Connect
 	dialer := gws.Dialer{
 		HandshakeTimeout: e.Config.HTTPTimeout,
 		Proxy:            http.ProxyFromEnvironment,
-		TLSClientConfig: &tls.Config{
-			MinVersion:         tls.VersionTLS12,
-			InsecureSkipVerify: true,
-		},
 	}
 	if conn.GetURL() == usdtmFuturesPrivateURL {
 		listenKey, err = e.GetWsAuthStreamKey(context.TODO())

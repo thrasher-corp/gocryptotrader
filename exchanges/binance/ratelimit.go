@@ -383,7 +383,7 @@ const (
 	getLoanableAssetsDataRate
 	collateralAssetsDataRate
 	checkCollateralRepayRate
-	cryptoLoanCustomizeMarginRate
+	cryptoLoanCustomiseMarginRate
 	borrowFlexibleRate
 	getFlexibleLoanOngoingOrdersRate
 	flexibleLoanLiquidiationHistoryRate
@@ -800,7 +800,7 @@ func GetRateLimits() request.RateLimitDefinitions {
 		cryptoRepayLoanRate:                 request.GetRateLimiterWithWeight(cryptoLoanLimiter, 6000),
 		adjustLTVRate:                       request.GetRateLimiterWithWeight(cryptoLoanLimiter, 6000),
 		checkCollateralRepayRate:            request.GetRateLimiterWithWeight(cryptoLoanLimiter, 6000),
-		cryptoLoanCustomizeMarginRate:       request.GetRateLimiterWithWeight(cryptoLoanLimiter, 6000),
+		cryptoLoanCustomiseMarginRate:       request.GetRateLimiterWithWeight(cryptoLoanLimiter, 6000),
 		borrowFlexibleRate:                  request.GetRateLimiterWithWeight(cryptoLoanLimiter, 6000),
 		repayFlexibleLoanHistoryRate:        request.GetRateLimiterWithWeight(cryptoLoanLimiter, 6000),
 		adjustFlexibleLoanRate:              request.GetRateLimiterWithWeight(cryptoLoanLimiter, 6000),

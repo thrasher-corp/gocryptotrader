@@ -2,7 +2,6 @@ package binance
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -52,16 +51,12 @@ func (e *Exchange) WsConnectAPI(ctx context.Context, conn websocket.Connection) 
 		return err
 	}
 
-	// The connection is not being established within the default 15 second timeout. Therefore, we neede to extend it to double the default timeout.
+	// The connection is not being established within the default 15 second timeout. Therefore, we needed to extend it to double the default timeout.
 	extendedTimeout := e.Config.HTTPTimeout * 2
 
 	dialer := gws.Dialer{
 		HandshakeTimeout: extendedTimeout,
 		Proxy:            http.ProxyFromEnvironment,
-		TLSClientConfig: &tls.Config{
-			MinVersion:         tls.VersionTLS12,
-			InsecureSkipVerify: true,
-		},
 	}
 	if err = conn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", e.Name, err)

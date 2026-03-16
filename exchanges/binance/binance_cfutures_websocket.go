@@ -2,7 +2,6 @@ package binance
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"net/http"
 
@@ -38,10 +37,6 @@ func (e *Exchange) WsCFutureConnect(ctx context.Context, conn websocket.Connecti
 	dialer := gws.Dialer{
 		HandshakeTimeout: e.Config.HTTPTimeout,
 		Proxy:            http.ProxyFromEnvironment,
-		TLSClientConfig: &tls.Config{
-			MinVersion:         tls.VersionTLS12,
-			InsecureSkipVerify: true,
-		},
 	}
 	wsURL := binanceCFuturesWebsocketURL + "/stream"
 	conn.SetURL(wsURL)

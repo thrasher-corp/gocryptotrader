@@ -1230,14 +1230,14 @@ func TestGetTraderFuturesAccountRatio(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidPeriodOrInterval)
 
 	startTime, endTime := getTime()
-	_, err = e.GetTraderFuturesAccountRatio(t.Context(), currency.NewPair(currency.BTC, currency.USD), "5m", 0, endTime, startTime)
+	_, err = e.GetTraderFuturesAccountRatio(t.Context(), usdtmTradablePair, "5m", 0, endTime, startTime)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	result, err := e.GetTraderFuturesAccountRatio(t.Context(), currency.NewPair(currency.BTC, currency.USD), "5m", 0, startTime, endTime)
+	result, err := e.GetTraderFuturesAccountRatio(t.Context(), usdtmTradablePair, "5m", 0, startTime, endTime)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = e.GetTraderFuturesAccountRatio(t.Context(), currency.NewPair(currency.BTC, currency.USD), "5m", 0, startTime, endTime)
+	result, err = e.GetTraderFuturesAccountRatio(t.Context(), usdtmTradablePair, "5m", 0, startTime, endTime)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1268,18 +1268,18 @@ func TestGetMarketRatio(t *testing.T) {
 	_, err := e.GetMarketRatio(t.Context(), currency.EMPTYPAIR, "5m", 0, time.Time{}, time.Time{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	_, err = e.GetMarketRatio(t.Context(), currency.NewPair(currency.BTC, currency.USD), "5mo", 0, time.Time{}, time.Time{})
+	_, err = e.GetMarketRatio(t.Context(), coinmTradablePair, "5mo", 0, time.Time{}, time.Time{})
 	require.ErrorIs(t, err, errInvalidPeriodOrInterval)
 
 	startTime, endTime := getTime()
-	_, err = e.GetMarketRatio(t.Context(), currency.NewPair(currency.BTC, currency.USD), "5m", 0, endTime, startTime)
+	_, err = e.GetMarketRatio(t.Context(), coinmTradablePair, "5m", 0, endTime, startTime)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	result, err := e.GetMarketRatio(t.Context(), currency.NewPair(currency.BTC, currency.USD), "5m", 0, startTime, endTime)
+	result, err := e.GetMarketRatio(t.Context(), coinmTradablePair, "5m", 0, startTime, endTime)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = e.GetMarketRatio(t.Context(), currency.NewPair(currency.BTC, currency.USD), "5m", 0, startTime, endTime)
+	result, err = e.GetMarketRatio(t.Context(), coinmTradablePair, "5m", 0, startTime, endTime)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1312,20 +1312,20 @@ func TestFuturesBasisData(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesBasisData(t.Context(), currency.EMPTYPAIR, "CURRENT_QUARTER", "5m", 0, time.Time{}, time.Time{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = e.GetFuturesBasisData(t.Context(), currency.NewPair(currency.BTC, currency.USD), "QUARTER", "5m", 0, time.Time{}, time.Time{})
+	_, err = e.GetFuturesBasisData(t.Context(), coinmTradablePair, "QUARTER", "5m", 0, time.Time{}, time.Time{})
 	require.ErrorIs(t, err, errContractTypeIsRequired)
-	_, err = e.GetFuturesBasisData(t.Context(), currency.NewPair(currency.BTC, currency.USD), "CURRENT_QUARTER", "5mo", 0, time.Time{}, time.Time{})
+	_, err = e.GetFuturesBasisData(t.Context(), coinmTradablePair, "CURRENT_QUARTER", "5mo", 0, time.Time{}, time.Time{})
 	require.ErrorIs(t, err, errInvalidPeriodOrInterval)
 
-	result, err := e.GetFuturesBasisData(t.Context(), currency.NewPair(currency.BTC, currency.USD), "CURRENT_QUARTER", "5m", 0, time.Time{}, time.Time{})
+	result, err := e.GetFuturesBasisData(t.Context(), currency.NewBTCUSD(), "CURRENT_QUARTER", "5m", 0, time.Time{}, time.Time{})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	startTime, endTime := getTime()
-	_, err = e.GetFuturesBasisData(t.Context(), currency.NewPair(currency.BTC, currency.USD), "CURRENT_QUARTER", "5m", 0, endTime, startTime)
+	_, err = e.GetFuturesBasisData(t.Context(), currency.NewBTCUSD(), "CURRENT_QUARTER", "5m", 0, endTime, startTime)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	result, err = e.GetFuturesBasisData(t.Context(), currency.NewPair(currency.BTC, currency.USD), "CURRENT_QUARTER", "5m", 0, startTime, endTime)
+	result, err = e.GetFuturesBasisData(t.Context(), currency.NewBTCUSD(), "CURRENT_QUARTER", "5m", 0, startTime, endTime)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1429,7 +1429,7 @@ func TestAutoCancelAllOpenOrders(t *testing.T) {
 func TestFuturesOpenOrderData(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.FuturesOpenOrderData(t.Context(), currency.NewPair(currency.BTC, currency.USD), "", "")
+	result, err := e.FuturesOpenOrderData(t.Context(), currency.NewBTCUSD(), "", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -4255,7 +4255,7 @@ func TestGetPositionSummary(t *testing.T) {
 	_, err = e.GetFuturesPositionSummary(t.Context(), &futures.PositionSummaryRequest{
 		Asset:          asset.Spot,
 		Pair:           p,
-		UnderlyingPair: currency.NewPair(currency.BTC, currency.USD),
+		UnderlyingPair: currency.NewBTCUSD(),
 	})
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
@@ -10088,79 +10088,79 @@ func TestGetInfoAboutIfUserIsNew(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestCustomizeIDForClient(t *testing.T) {
+func TestCustomiseIDForClient(t *testing.T) {
 	t.Parallel()
-	_, err := e.CustomizeSpotPartnerClientID(t.Context(), "", "someone@thrasher.io")
+	_, err := e.CustomiseSpotPartnerClientID(t.Context(), "", "someone@thrasher.io")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
-	_, err = e.CustomizeSpotPartnerClientID(t.Context(), "1233", "")
+	_, err = e.CustomiseSpotPartnerClientID(t.Context(), "1233", "")
 	require.ErrorIs(t, err, errValidEmailRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.CustomizeSpotPartnerClientID(t.Context(), "1233", "someone@thrasher.io")
+	result, err := e.CustomiseSpotPartnerClientID(t.Context(), "1233", "someone@thrasher.io")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
-func TestGetClientEmailCustomizedID(t *testing.T) {
+func TestGetClientEmailCustomisedID(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetSpotClientEmailCustomizedID(t.Context(), "", "")
+	result, err := e.GetSpotClientEmailCustomisedID(t.Context(), "", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
-func TestGetFuturesClientEmailCustomizedID(t *testing.T) {
+func TestGetFuturesClientEmailCustomisedID(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetFuturesClientEmailCustomizedID(t.Context(), "", "")
+	result, err := e.GetFuturesClientEmailCustomisedID(t.Context(), "", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
-func TestCustomizeOwnClientID(t *testing.T) {
+func TestCustomiseOwnClientID(t *testing.T) {
 	t.Parallel()
-	_, err := e.CustomizeSpotOwnClientID(t.Context(), "", "ABCDEFG")
+	_, err := e.CustomiseSpotOwnClientID(t.Context(), "", "ABCDEFG")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
-	_, err = e.CustomizeSpotOwnClientID(t.Context(), "the-unique-id", "")
+	_, err = e.CustomiseSpotOwnClientID(t.Context(), "the-unique-id", "")
 	require.ErrorIs(t, err, errCodeRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.CustomizeSpotOwnClientID(t.Context(), "the-unique-id", "ABCDEFG")
+	result, err := e.CustomiseSpotOwnClientID(t.Context(), "the-unique-id", "ABCDEFG")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
-func TestCustomizeFuturesOwnClientID(t *testing.T) {
+func TestCustomiseFuturesOwnClientID(t *testing.T) {
 	t.Parallel()
-	_, err := e.CustomizeFuturesOwnClientID(t.Context(), "", "ABCDEFG")
+	_, err := e.CustomiseFuturesOwnClientID(t.Context(), "", "ABCDEFG")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
-	_, err = e.CustomizeFuturesOwnClientID(t.Context(), "the-unique-id", "")
+	_, err = e.CustomiseFuturesOwnClientID(t.Context(), "the-unique-id", "")
 	require.ErrorIs(t, err, errCodeRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.CustomizeFuturesOwnClientID(t.Context(), "the-unique-id", "ABCDEFG")
+	result, err := e.CustomiseFuturesOwnClientID(t.Context(), "the-unique-id", "ABCDEFG")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
-func TestGetUsersCustomizedID(t *testing.T) {
+func TestGetUsersCustomisedID(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetSpotUsersCustomizedID(t.Context(), "")
+	_, err := e.GetSpotUsersCustomisedID(t.Context(), "")
 	require.ErrorIs(t, err, errCodeRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetSpotUsersCustomizedID(t.Context(), "1234ABCD")
+	result, err := e.GetSpotUsersCustomisedID(t.Context(), "1234ABCD")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
-func TestGetFuturesUsersCustomizedID(t *testing.T) {
+func TestGetFuturesUsersCustomisedID(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetFuturesUsersCustomizedID(t.Context(), "")
+	_, err := e.GetFuturesUsersCustomisedID(t.Context(), "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetFuturesUsersCustomizedID(t.Context(), "1234ABCD")
+	result, err := e.GetFuturesUsersCustomisedID(t.Context(), "1234ABCD")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -10203,15 +10203,15 @@ func TestGetFuturesClientIfNewUser(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestCustomizeFuturesPartnerClientID(t *testing.T) {
+func TestCustomiseFuturesPartnerClientID(t *testing.T) {
 	t.Parallel()
-	_, err := e.CustomizeFuturesPartnerClientID(t.Context(), "", "someone@thrasher.io")
+	_, err := e.CustomiseFuturesPartnerClientID(t.Context(), "", "someone@thrasher.io")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
-	_, err = e.CustomizeFuturesPartnerClientID(t.Context(), "1233", "")
+	_, err = e.CustomiseFuturesPartnerClientID(t.Context(), "1233", "")
 	require.ErrorIs(t, err, errValidEmailRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.CustomizeFuturesPartnerClientID(t.Context(), "1233", "someone@thrasher.io")
+	result, err := e.CustomiseFuturesPartnerClientID(t.Context(), "1233", "someone@thrasher.io")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -10295,26 +10295,26 @@ func TestGetFuturesClientifNewUser(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestCustomizeIDForClientToReferredUser(t *testing.T) {
+func TestCustomiseIDForClientToReferredUser(t *testing.T) {
 	t.Parallel()
-	_, err := e.CustomizeIDForClientToReferredUser(t.Context(), "", "1234")
+	_, err := e.CustomiseIDForClientToReferredUser(t.Context(), "", "1234")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
-	_, err = e.CustomizeIDForClientToReferredUser(t.Context(), "1234", "")
+	_, err = e.CustomiseIDForClientToReferredUser(t.Context(), "1234", "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.CustomizeIDForClientToReferredUser(t.Context(), "", "")
+	result, err := e.CustomiseIDForClientToReferredUser(t.Context(), "", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
-func TestGetUsersCustomizeIDs(t *testing.T) {
+func TestGetUsersCustomiseIDs(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetUsersCustomizeIDs(t.Context(), "")
+	_, err := e.GetUsersCustomiseIDs(t.Context(), "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetUsersCustomizeIDs(t.Context(), "1234")
+	result, err := e.GetUsersCustomiseIDs(t.Context(), "1234")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -10433,11 +10433,4 @@ func TestUnmarshalPriceChangesWrapper(t *testing.T) {
 	err = json.Unmarshal(sliceData, &resp)
 	require.NoError(t, err)
 	assert.Len(t, resp, 2)
-}
-
-func TestWsConnect(t *testing.T) {
-	t.Parallel()
-	err := e.Websocket.Connect(context.Background())
-	require.NoError(t, err)
-	time.Sleep(time.Second * 20)
 }
