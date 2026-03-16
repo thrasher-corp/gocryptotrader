@@ -80,6 +80,20 @@ func (e *Exchange) UFuturesOrderbook(ctx context.Context, symbol currency.Pair, 
 	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/fapi/v1/depth", params), rateBudget, &resp)
 }
 
+// GetURPIOrderbook retrieves RPI(Retail Price Improvement) orders orderbook data
+func (e *Exchange) GetURPIOrderbook(ctx context.Context, symbol currency.Pair, limit uint64) (*RPIResponse, error) {
+	if symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	params := url.Values{}
+	params.Set("symbol", symbol.String())
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	var resp *RPIResponse
+	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/fapi/v1/rpiDepth", params), uFuturesRPIOrderbookRate, &resp)
+}
+
 // URecentTrades gets recent trades for usdt margined futures
 func (e *Exchange) URecentTrades(ctx context.Context, symbol currency.Pair, fromID string, limit int64) ([]*UPublicTradesData, error) {
 	if symbol.IsEmpty() {
@@ -456,10 +470,10 @@ func (e *Exchange) UOpenInterestStats(ctx context.Context, symbol currency.Pair,
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
 	if !endTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []*UOpenInterestStats
 	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/futures/data/openInterestHist", params), uFuturesDefaultRate, &resp)
@@ -485,10 +499,10 @@ func (e *Exchange) UTopAcccountsLongShortRatio(ctx context.Context, symbol curre
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
 	if !endTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []*ULongShortRatio
 	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/futures/data/topLongShortAccountRatio", params), uFuturesDefaultRate, &resp)
@@ -514,10 +528,10 @@ func (e *Exchange) UTopPostionsLongShortRatio(ctx context.Context, symbol curren
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	if !startTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
 	if !endTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp []*ULongShortRatio
 	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/futures/data/topLongShortPositionRatio", params), uFuturesDefaultRate, &resp)
@@ -542,8 +556,8 @@ func (e *Exchange) UGlobalLongShortRatio(ctx context.Context, symbol currency.Pa
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	var resp []*ULongShortRatio
 	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/futures/data/globalLongShortAccountRatio", params), uFuturesDefaultRate, &resp)
 }
@@ -563,10 +577,10 @@ func (e *Exchange) UTakerBuySellVol(ctx context.Context, symbol currency.Pair, p
 	}
 	params := url.Values{}
 	if !startTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
 	if !endTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	params.Set("symbol", symbol.String())
 	params.Set("period", period)
@@ -595,10 +609,10 @@ func (e *Exchange) GetBasis(ctx context.Context, pair currency.Pair, contractTyp
 	}
 	params := url.Values{}
 	if !startTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("sTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
 	if !endTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+		params.Set("eTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	params.Set("pair", pair.String())
 	params.Set("contractType", contractType)
@@ -610,52 +624,10 @@ func (e *Exchange) GetBasis(ctx context.Context, pair currency.Pair, contractTyp
 	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/futures/data/basis", params), uFuturesDefaultRate, &resp)
 }
 
-// GetHistoricalBLVTNAVCandlesticks retrieves BLVT (Exchange Leveraged Tokens) NAV (Net Asset Value) leveraged tokens candlestic data.
-func (e *Exchange) GetHistoricalBLVTNAVCandlesticks(ctx context.Context, symbol currency.Pair, interval string, startTime, endTime time.Time, limit int64) ([]*UFuturesCandleStick, error) {
-	if symbol.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
-	}
-	if !slices.Contains(validFuturesIntervals, interval) {
-		return nil, kline.ErrUnsupportedInterval
-	}
-	if !startTime.IsZero() && !endTime.IsZero() {
-		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-			return nil, err
-		}
-	}
-	params := url.Values{}
-	params.Set("symbol", symbol.String())
-	params.Set("interval", interval)
-	if !startTime.IsZero() {
-		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
-	}
-	if !endTime.IsZero() {
-		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
-	}
-	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	var resp []*UFuturesCandleStick
-	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/fapi/v1/lvtKlines", params), uFuturesDefaultRate, &resp)
-}
-
-// UCompositeIndexInfo stores composite indexs' info for usdt margined futures
-func (e *Exchange) UCompositeIndexInfo(ctx context.Context, symbol currency.Pair) ([]*UCompositeIndexInfoData, error) {
-	params := url.Values{}
-	if !symbol.IsEmpty() {
-		symbolValue, err := e.FormatSymbol(symbol, asset.USDTMarginedFutures)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("symbol", symbolValue)
-		var tempResp UCompositeIndexInfoData
-		if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(ufuturesCompositeIndexInfo, params), uFuturesDefaultRate, &tempResp); err != nil {
-			return nil, err
-		}
-		return []*UCompositeIndexInfoData{&tempResp}, err
-	}
+// UCompositeIndexesInfo stores composite indexs' info for usd-margined futures
+func (e *Exchange) UCompositeIndexesInfo(ctx context.Context) ([]*UCompositeIndexInfoData, error) {
 	var resp []*UCompositeIndexInfoData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(ufuturesCompositeIndexInfo, params), uFuturesDefaultRate, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, ufuturesCompositeIndexInfo, uFuturesDefaultRate, &resp)
 }
 
 // GetMultiAssetModeAssetIndex asset index for multi-asset mode

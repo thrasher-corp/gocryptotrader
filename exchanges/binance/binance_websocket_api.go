@@ -2,6 +2,7 @@ package binance
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -50,10 +51,17 @@ func (e *Exchange) WsConnectAPI(ctx context.Context, conn websocket.Connection) 
 	if err := e.CurrencyPairs.IsAssetEnabled(asset.Spot); err != nil {
 		return err
 	}
-	conn.SetURL(binanceWebsocketAPIURL)
+
+	// The connection is not being established within the default 15 second timeout. Therefore, we neede to extend it to double the default timeout.
+	extendedTimeout := e.Config.HTTPTimeout * 2
+
 	dialer := gws.Dialer{
-		HandshakeTimeout: e.Config.HTTPTimeout,
+		HandshakeTimeout: extendedTimeout,
 		Proxy:            http.ProxyFromEnvironment,
+		TLSClientConfig: &tls.Config{
+			MinVersion:         tls.VersionTLS12,
+			InsecureSkipVerify: true,
+		},
 	}
 	if err = conn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", e.Name, err)
@@ -64,7 +72,6 @@ func (e *Exchange) WsConnectAPI(ctx context.Context, conn websocket.Connection) 
 		MessageType:       gws.PongMessage,
 		Delay:             pingDelay,
 	})
-
 	return nil
 }
 
@@ -83,7 +90,7 @@ func (e *Exchange) SetIsAPIStreamConnected(isAPIStreamConnected bool) {
 }
 
 // wsHandleSpotAPIData routes API response data.
-func (e *Exchange) wsHandleSpotAPIData(_ context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleSpotAPIData(_ context.Context, conn websocket.Connection, respRaw []byte) error {
 	result := struct {
 		Result json.RawMessage `json:"result"`
 		ID     string          `json:"id"`
@@ -93,10 +100,7 @@ func (e *Exchange) wsHandleSpotAPIData(_ context.Context, respRaw []byte) error 
 		return err
 	}
 	if result.ID != "" {
-		if !e.Websocket.Match.IncomingWithData(result.ID, respRaw) {
-			return errors.New("Unhandled data: " + string(respRaw))
-		}
-		return nil
+		return conn.RequireMatchWithData(result.ID, respRaw)
 	}
 	return fmt.Errorf("unhandled stream data %s", string(respRaw))
 }

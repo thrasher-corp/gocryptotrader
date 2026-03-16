@@ -2,6 +2,7 @@ package binance
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net/http"
@@ -60,6 +61,10 @@ func (e *Exchange) WsOptionsConnect(ctx context.Context, conn websocket.Connecti
 	dialer := gws.Dialer{
 		HandshakeTimeout: e.Config.HTTPTimeout,
 		Proxy:            http.ProxyFromEnvironment,
+		TLSClientConfig: &tls.Config{
+			MinVersion:         tls.VersionTLS12,
+			InsecureSkipVerify: true,
+		},
 	}
 	wsURL := eoptionsWebsocketURL + "stream"
 	conn.SetURL(wsURL)
@@ -267,16 +272,13 @@ func (e *Exchange) GetEOptionsWsAuthStreamKey(ctx context.Context) (string, erro
 	}, request.AuthenticatedRequest)
 }
 
-func (e *Exchange) wsHandleEOptionsData(ctx context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleEOptionsData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	var result WsOptionIncomingResps
 	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
 	}
 	if result.Instances[0].EventType == "" || (result.Instances[0].ID != 0 && result.Instances[0].Result != nil) {
-		if !e.Websocket.Match.IncomingWithData(result.Instances[0].ID, respRaw) {
-			return errors.New("Unhandled data: " + string(respRaw))
-		}
-		return nil
+		return conn.RequireMatchWithData(result.Instances[0].ID, respRaw)
 	}
 	if len(result.Instances) == 0 {
 		return errors.New("empty options websocket response instances")

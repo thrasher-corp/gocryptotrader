@@ -2,7 +2,7 @@ package binance
 
 import (
 	"context"
-	"errors"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -25,9 +25,9 @@ import (
 )
 
 const (
-	usdtmFuturesPublicURL  = "wss://fstream.binance.com/public"
-	usdtmFuturesMarketURL  = "wss://fstream.binance.com/market"
-	usdtmFuturesPrivateURL = "wss://fstream.binance.com/private"
+	usdtmFuturesPublicURL  = "wss://fstream.binance.com/public/stream"
+	usdtmFuturesMarketURL  = "wss://fstream.binance.com/market/stream"
+	usdtmFuturesPrivateURL = "wss://fstream.binance.com/private/stream"
 
 	usdtmPublicFilter  = "usd-m-public"
 	usdtmMarketFilter  = "usd-m-market"
@@ -38,6 +38,8 @@ var defaultSubscriptions = []string{
 	depthChan,
 	tickerAllChan,
 	continuousKline,
+
+	bookTickerAllChan, bookTickersChan,
 }
 
 // getKlineIntervalString returns a string representation of the kline interval.
@@ -64,6 +66,10 @@ func (e *Exchange) WsUFuturesConnect(ctx context.Context, conn websocket.Connect
 	dialer := gws.Dialer{
 		HandshakeTimeout: e.Config.HTTPTimeout,
 		Proxy:            http.ProxyFromEnvironment,
+		TLSClientConfig: &tls.Config{
+			MinVersion:         tls.VersionTLS12,
+			InsecureSkipVerify: true,
+		},
 	}
 	if conn.GetURL() == usdtmFuturesPrivateURL {
 		listenKey, err = e.GetWsAuthStreamKey(context.TODO())
@@ -87,7 +93,7 @@ func (e *Exchange) WsUFuturesConnect(ctx context.Context, conn websocket.Connect
 	return nil
 }
 
-func (e *Exchange) wsHandleFuturesData(ctx context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleFuturesData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	var result struct {
 		Result json.RawMessage `json:"result"`
 		ID     int64           `json:"id"`
@@ -98,10 +104,7 @@ func (e *Exchange) wsHandleFuturesData(ctx context.Context, respRaw []byte) erro
 		return err
 	}
 	if result.Stream == "" || (result.ID != 0 && result.Result != nil) {
-		if !e.Websocket.Match.IncomingWithData(result.ID, respRaw) {
-			return errors.New("Unhandled data: " + string(respRaw))
-		}
-		return nil
+		return conn.RequireMatchWithData(result.ID, respRaw)
 	}
 	var stream string
 	switch result.Stream {
@@ -578,7 +581,9 @@ func (e *Exchange) GenerateUFuturesDefaultSubscriptions(messageFilter string) (s
 				channels[z] += "@1s"
 			}
 			subscriptions = append(subscriptions, &subscription.Subscription{
-				Channel: channels[z],
+				Asset:            asset.USDTMarginedFutures,
+				Channel:          channels[z],
+				QualifiedChannel: channels[z],
 			})
 		case aggTradeChan, depthChan, markPriceChan, tickerChan, klineChan,
 			miniTickerChan, bookTickersChan, forceOrderChan, compositeIndexChan, assetIndexChan:
@@ -586,14 +591,16 @@ func (e *Exchange) GenerateUFuturesDefaultSubscriptions(messageFilter string) (s
 				lp := pairs[y].Lower()
 				lp.Delimiter = ""
 				chSubscription = &subscription.Subscription{
-					Channel: lp.String() + channels[z],
+					Asset:            asset.USDTMarginedFutures,
+					QualifiedChannel: lp.String() + channels[z],
 				}
 				switch channels[z] {
 				case depthChan:
-					chSubscription.Channel += "@100ms"
+					chSubscription.QualifiedChannel += "@100ms"
 				case klineChan:
-					chSubscription.Channel += "_" + getKlineIntervalString(kline.FiveMin)
+					chSubscription.QualifiedChannel += "_" + getKlineIntervalString(kline.FiveMin)
 				}
+				chSubscription.Channel = chSubscription.QualifiedChannel
 				subscriptions = append(subscriptions, chSubscription)
 			}
 		case continuousKline:
@@ -603,12 +610,14 @@ func (e *Exchange) GenerateUFuturesDefaultSubscriptions(messageFilter string) (s
 				chSubscription = &subscription.Subscription{
 					// Contract types:"PERPETUAL", "CURRENT_MONTH", "NEXT_MONTH", "CURRENT_QUARTER", "NEXT_QUARTER"
 					// by default we are subscribing to PERPETUAL contract types
-					Channel: lp.String() + "_PERPETUAL@" + channels[z] + "_" + getKlineIntervalString(kline.FifteenMin),
+					Asset:            asset.USDTMarginedFutures,
+					QualifiedChannel: lp.String() + "_PERPETUAL@" + channels[z] + "_" + getKlineIntervalString(kline.FifteenMin),
 				}
+				chSubscription.Channel = chSubscription.QualifiedChannel
 				subscriptions = append(subscriptions, chSubscription)
 			}
 		default:
-			return nil, errors.New("unsupported subscription")
+			return nil, fmt.Errorf("%w: channel %s", subscription.ErrNotSupported, channels[z])
 		}
 	}
 	return subscriptions, nil

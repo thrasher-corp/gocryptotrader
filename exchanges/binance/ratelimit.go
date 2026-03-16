@@ -260,6 +260,7 @@ const (
 	uFuturesOrderbook100Rate
 	uFuturesOrderbook500Rate
 	uFuturesOrderbook1000Rate
+	uFuturesRPIOrderbookRate
 	uFuturesKline100Rate
 	uFuturesKline500Rate
 	uFuturesKline1000Rate
@@ -490,6 +491,7 @@ func GetRateLimits() request.RateLimitDefinitions {
 		uFuturesOrderbook500Rate:        request.GetRateLimiterWithWeight(uFuturesLimiter, 10),
 		uFuturesKlineMaxRate:            request.GetRateLimiterWithWeight(uFuturesLimiter, 10),
 		uFuturesOrderbook1000Rate:       request.GetRateLimiterWithWeight(uFuturesLimiter, 20),
+		uFuturesRPIOrderbookRate:        request.GetRateLimiterWithWeight(uFuturesLimiter, 20),
 		uFuturesHistoricalTradesRate:    request.GetRateLimiterWithWeight(uFuturesLimiter, 20),
 		uFuturesTickerPriceHistoryRate:  request.GetRateLimiterWithWeight(uFuturesLimiter, 40),
 		uFuturesOrdersDefaultRate:       request.GetRateLimiterWithWeight(uFuturesOrdersLimiter, 1),

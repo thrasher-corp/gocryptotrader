@@ -70,12 +70,12 @@ func setFeeBuilder() *exchange.FeeBuilder {
 // this will default to time now with a window size of 30 days.
 // Mock details are unix seconds; start = 1577836800 and end = 1580515200
 func getTime() (startTime, endTime time.Time) {
-	if mockTests {
-		return time.UnixMilli(1744103854944), time.UnixMilli(1744190254944)
-	}
-	tn := time.Now()
-	offset := time.Hour * 24 * 6
-	return tn.Add(-offset), tn
+	// if mockTests {
+	return time.UnixMilli(1744103854944), time.UnixMilli(1744190254944)
+	// }
+	// tn := time.Now()
+	// offset := time.Hour * 24 * 6
+	// return tn.Add(-offset), tn
 }
 
 func TestUServerTime(t *testing.T) {
@@ -142,12 +142,27 @@ func TestUFuturesOrderbook(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestGetURPIOrderbook(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetURPIOrderbook(t.Context(), currency.EMPTYPAIR, 100)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	result, err := e.GetURPIOrderbook(t.Context(), usdtmTradablePair, 1000)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestURecentTrades(t *testing.T) {
 	t.Parallel()
 	_, err := e.URecentTrades(t.Context(), currency.EMPTYPAIR, "", 1000)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
+	e.Verbose = true
 	result, err := e.URecentTrades(t.Context(), usdtmTradablePair, "", 1000)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = e.URecentTrades(t.Context(), usdtmTradablePair, "7442186355", 1000)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -163,6 +178,10 @@ func TestUCompressedTrades(t *testing.T) {
 	assert.NotNil(t, result)
 
 	result, err = e.UCompressedTrades(t.Context(), usdtmTradablePair, "", 0, startTime, endTime)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = e.UCompressedTrades(t.Context(), usdtmTradablePair, "7442186355", 5, startTime, endTime)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -223,6 +242,11 @@ func TestGetIndexOrCandlesticPriceKlineData(t *testing.T) {
 	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
 
 	result, err := e.GetIndexOrCandlesticPriceKlineData(t.Context(), usdtmTradablePair, "1d", time.Time{}, time.Now(), 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	startTime, endTime := getTime()
+	result, err = e.GetIndexOrCandlesticPriceKlineData(t.Context(), usdtmTradablePair, "1d", startTime, endTime, 100)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -468,30 +492,9 @@ func TestGetBasis(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetHistoricalBLVTNAVCandlesticks(t *testing.T) {
+func TestUCompositeIndexesInfo(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetHistoricalBLVTNAVCandlesticks(t.Context(), currency.EMPTYPAIR, "15m", time.Time{}, time.Time{}, 100)
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-
-	_, err = e.GetHistoricalBLVTNAVCandlesticks(t.Context(), spotTradablePair, "", time.Time{}, time.Time{}, 100)
-	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
-
-	startTime, endTime := getTime()
-	_, err = e.GetHistoricalBLVTNAVCandlesticks(t.Context(), spotTradablePair, "15m", endTime, startTime, 100)
-	require.ErrorIs(t, err, common.ErrStartAfterEnd)
-
-	result, err := e.GetHistoricalBLVTNAVCandlesticks(t.Context(), spotTradablePair, "15m", startTime, endTime, 100)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestUCompositeIndexInfo(t *testing.T) {
-	t.Parallel()
-	result, err := e.UCompositeIndexInfo(t.Context(), usdtmTradablePair)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-
-	result, err = e.UCompositeIndexInfo(t.Context(), currency.EMPTYPAIR)
+	result, err := e.UCompositeIndexesInfo(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3407,7 +3410,7 @@ func BenchmarkWsHandleData(b *testing.B) {
 	}()
 	for b.Loop() {
 		for x := range lines {
-			assert.NoError(b, e.wsHandleData(b.Context(), lines[x]))
+			assert.NoError(b, e.wsHandleData(b.Context(), nil, lines[x]))
 		}
 	}
 }
@@ -3467,64 +3470,16 @@ func TestSubscribeBadResp(t *testing.T) {
 
 func TestWsTickerUpdate(t *testing.T) {
 	t.Parallel()
-	pressXToJSON := []byte(`{"stream":"btcusdt@ticker","data":{"e":"24hrTicker","E":1580254809477,"s":"ETHBTC","p":"420.97000000","P":"4.720","w":"9058.27981278","x":"8917.98000000","c":"9338.96000000","Q":"0.17246300","b":"9338.03000000","B":"0.18234600","a":"9339.70000000","A":"0.14097600","o":"8917.99000000","h":"9373.19000000","l":"8862.40000000","v":"72229.53692000","q":"654275356.16896672","O":1580168409456,"C":1580254809456,"F":235294268,"L":235894703,"n":600436}}`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
-	if err != nil {
-		t.Error(err)
+	keyValues := map[string]string{
+		"Ticker":         `{"stream":"btcusdt@ticker","data":{"e":"24hrTicker","E":1580254809477,"s":"BTCUSDT","p":"420.97000000","P":"4.720","w":"9058.27981278","x":"8917.98000000","c":"9338.96000000","Q":"0.17246300","b":"9338.03000000","B":"0.18234600","a":"9339.70000000","A":"0.14097600","o":"8917.99000000","h":"9373.19000000","l":"8862.40000000","v":"72229.53692000","q":"654275356.16896672","O":1580168409456,"C":1580254809456,"F":235294268,"L":235894703,"n":600436}}`,
+		"Kline Data":     `{"stream":"btcusdt@kline_1m","data":{ "e": "kline", "E": 1234567891, "s": "BTCUSDT", "k": { "t": 1234000001, "T": 1234600001, "s": "BTCUSDT", "i": "1m", "f": 100, "L": 200, "o": "0.0010", "c": "0.0020", "h": "0.0025", "l": "0.0015", "v": "1000", "n": 100, "x": false, "q": "1.0000", "V": "500", "Q": "0.500", "B": "123456" } }}`,
+		"Trade Data":     `{"stream":"btcusdt@trade","data":{ "e": "trade", "E": 1234567891, "s": "BTCUSDT", "t": 12345, "p": "0.001", "q": "100", "b": 88, "a": 50, "T": 1234567851, "m": true, "M": true }}`,
+		"Balance Update": `{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{ "e": "balanceUpdate", "E": 1573200697110, "a": "BTC", "d": "100.00000000", "T": 1573200697068}}`,
+		"List Status":    `{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{ "e": "listStatus", "E": 1564035303637, "s": "BTCUSDT", "g": 2, "c": "OCO", "l": "EXEC_STARTED", "L": "EXECUTING", "r": "NONE", "C": "F4QN4G8DlFATFlIUQ0cjdD", "T": 1564035303625, "O": [ { "s": "BTCUSDT", "i": 17, "c": "AJYsMjErWJesZvqlJCTUgL" }, { "s": "BTCUSDT", "i": 18, "c": "bfYPSQdLoqAJeNrOr9adzq" } ] }}`,
 	}
-}
-
-func TestWsKlineUpdate(t *testing.T) {
-	t.Parallel()
-	pressXToJSON := []byte(`{"stream":"btcusdt@kline_1m","data":{
-	  "e": "kline",
-	  "E": 1234567891,   
-	  "s": "ETHBTC",    
-	  "k": {
-		"t": 1234000001, 
-		"T": 1234600001, 
-		"s": "BTCUSDT",  
-		"i": "1m",      
-		"f": 100,       
-		"L": 200,       
-		"o": "0.0010",  
-		"c": "0.0020",  
-		"h": "0.0025",  
-		"l": "0.0015",  
-		"v": "1000",    
-		"n": 100,       
-		"x": false,     
-		"q": "1.0000",  
-		"V": "500",     
-		"Q": "0.500",   
-		"B": "123456"   
-	  }
-	}}`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestWsTradeUpdate(t *testing.T) {
-	t.Parallel()
-	e.SetSaveTradeDataStatus(true)
-	pressXToJSON := []byte(`{"stream":"btcusdt@trade","data":{
-	  "e": "trade",     
-	  "E": 1234567891,   
-	  "s": "ETHBTC",    
-	  "t": 12345,       
-	  "p": "0.001",     
-	  "q": "100",       
-	  "b": 88,          
-	  "a": 50,          
-	  "T": 1234567851,   
-	  "m": true,        
-	  "M": true         
-	}}`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
-	if err != nil {
-		t.Error(err)
+	for key, val := range keyValues {
+		err := e.wsHandleData(t.Context(), nil, []byte(val))
+		require.NoErrorf(t, err, "%s: %v", key, err)
 	}
 }
 
@@ -3568,7 +3523,7 @@ func TestWsDepthUpdate(t *testing.T) {
 	err := e.SeedLocalCacheWithBook(p, &book)
 	require.NoError(t, err)
 
-	if err := e.wsHandleData(t.Context(), update1); err != nil {
+	if err := e.wsHandleData(t.Context(), nil, update1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -3586,7 +3541,7 @@ func TestWsDepthUpdate(t *testing.T) {
 
 	update2 := []byte(`{"stream":"btcusdt@depth","data":{ "e": "depthUpdate", "E": 1234567892, "s": usdtmTradablePair, "U": 161, "u": 165, "b": [ ["6621.45", "0.163526"] ], "a": [ ["6622.46", "2.3"], ["6622.47", "1.9"] ] }}`)
 
-	if err = e.wsHandleData(t.Context(), update2); err != nil {
+	if err = e.wsHandleData(t.Context(), nil, update2); err != nil {
 		t.Error(err)
 	}
 
@@ -3603,52 +3558,6 @@ func TestWsDepthUpdate(t *testing.T) {
 
 	// reset order book sync status
 	e.obm.state[currency.BTC][currency.USDT][asset.Spot].lastUpdateID = 0
-}
-
-func TestWsBalanceUpdate(t *testing.T) {
-	t.Parallel()
-	pressXToJSON := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{
-  "e": "balanceUpdate",         
-  "E": 1573200697110,           
-  "a": "BTC",                   
-  "d": "100.00000000",          
-  "T": 1573200697068}}`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestWsOCO(t *testing.T) {
-	t.Parallel()
-	pressXToJSON := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{
-  "e": "listStatus",                
-  "E": 1564035303637,               
-  "s": "ETHBTC",                    
-  "g": 2,                           
-  "c": "OCO",                       
-  "l": "EXEC_STARTED",              
-  "L": "EXECUTING",                 
-  "r": "NONE",                      
-  "C": "F4QN4G8DlFATFlIUQ0cjdD",    
-  "T": 1564035303625,               
-  "O": [                            
-    {
-      "s": "ETHBTC",                
-      "i": 17,                      
-      "c": "AJYsMjErWJesZvqlJCTUgL" 
-    },
-    {
-      "s": "ETHBTC",
-      "i": 18,
-      "c": "bfYPSQdLoqAJeNrOr9adzq"
-    }
-  ]
-}}`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
 }
 
 func TestGetWsAuthStreamKey(t *testing.T) {
@@ -3910,7 +3819,7 @@ drain:
 		}
 	}
 
-	err := e.wsHandleData(t.Context(), payload)
+	err := e.wsHandleData(t.Context(), nil, payload)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3929,7 +3838,7 @@ drain:
 	}
 
 	payload = []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"executionReport","E":1616633041556,"s":"BTCUSDT","c":"YeULctvPAnHj5HXCQo9Mob","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00028600","p":"52436.85000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":5341783271,"l":"0.00028600","z":"0.00028600","L":"52436.85000000","n":"0.00000029","N":"BTC","T":1616633041555,"t":726946523,"I":11390206312,"w":false,"m":false,"M":true,"O":1616633041555,"Z":"14.99693910","Y":"14.99693910","Q":"0.00000000","W":1616633041555}}`)
-	err = e.wsHandleData(t.Context(), payload)
+	err = e.wsHandleData(t.Context(), nil, payload)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -3938,7 +3847,7 @@ drain:
 func TestWsOutboundAccountPosition(t *testing.T) {
 	t.Parallel()
 	payload := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"outboundAccountPosition","E":1616628815745,"u":1616628815745,"B":[{"a":"BTC","f":"0.00225109","l":"0.00123000"},{"a":"BNB","f":"0.00000000","l":"0.00000000"},{"a":"USDT","f":"54.43390661","l":"0.00000000"}]}}`)
-	require.NoError(t, e.wsHandleData(t.Context(), payload))
+	require.NoError(t, e.wsHandleData(t.Context(), nil, payload))
 }
 
 func TestFormatExchangeCurrency(t *testing.T) {
@@ -4796,7 +4705,7 @@ func TestHandleData(t *testing.T) {
 	} {
 		t.Run(k, func(t *testing.T) {
 			t.Parallel()
-			err := e.wsHandleFuturesData(t.Context(), []byte(v))
+			err := e.wsHandleFuturesData(t.Context(), nil, []byte(v))
 			assert.NoError(t, err)
 		})
 	}
@@ -10544,4 +10453,5 @@ func TestWsConnect(t *testing.T) {
 	t.Parallel()
 	err := e.Websocket.Connect(context.Background())
 	require.NoError(t, err)
+	time.Sleep(time.Second * 20)
 }

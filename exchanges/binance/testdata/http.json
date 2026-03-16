@@ -241,49 +241,49 @@
      "data": {
       "asks": [
        [
-        "72105.76000000",
-        "1.86940000"
+        "73211.13000000",
+        "1.80834000"
        ],
        [
-        "72105.77000000",
-        "0.00016000"
+        "73211.14000000",
+        "0.00025000"
        ],
        [
-        "72105.79000000",
-        "0.25956000"
+        "73212.00000000",
+        "0.00120000"
        ],
        [
-        "72105.80000000",
-        "0.11317000"
+        "73212.25000000",
+        "0.00272000"
        ],
        [
-        "72105.81000000",
-        "0.38931000"
+        "73212.31000000",
+        "0.00007000"
        ]
       ],
       "bids": [
        [
-        "72105.75000000",
-        "0.25229000"
+        "73211.12000000",
+        "0.46858000"
        ],
        [
-        "72105.74000000",
-        "0.00056000"
+        "73211.11000000",
+        "0.00085000"
        ],
        [
-        "72104.45000000",
+        "73209.99000000",
         "0.00007000"
        ],
        [
-        "72104.44000000",
-        "0.00079000"
+        "73208.01000000",
+        "0.00007000"
        ],
        [
-        "72104.43000000",
-        "0.00632000"
+        "73208.00000000",
+        "0.00007000"
        ]
       ],
-      "lastUpdateId": 90168942242
+      "lastUpdateId": 90227691191
      },
      "queryString": "limit=1000\u0026symbol=BTCUSDT",
      "bodyParams": "",
@@ -322,7 +322,7 @@
         "rateLimitType": "RAW_REQUESTS"
        }
       ],
-      "serverTime": 1773612072785,
+      "serverTime": 1773658474996,
       "symbols": [
        {
         "allowTrailingStop": true,
@@ -357,7 +357,7 @@
          },
          {
           "filterType": "MARKET_LOT_SIZE",
-          "maxQty": "2052.38407866",
+          "maxQty": "1835.36522050",
           "minQty": "0.00000000",
           "stepSize": "0.00000000"
          },
@@ -683,7 +683,7 @@
          },
          {
           "filterType": "MARKET_LOT_SIZE",
-          "maxQty": "3005.30541422",
+          "maxQty": "2159.95412133",
           "minQty": "0.00000000",
           "stepSize": "0.00000000"
          },
@@ -1009,7 +1009,7 @@
          },
          {
           "filterType": "MARKET_LOT_SIZE",
-          "maxQty": "1863.32400418",
+          "maxQty": "1656.64395815",
           "minQty": "0.00000000",
           "stepSize": "0.00000000"
          },
@@ -1335,7 +1335,7 @@
          },
          {
           "filterType": "MARKET_LOT_SIZE",
-          "maxQty": "1576.20489539",
+          "maxQty": "4344.91443514",
           "minQty": "0.00000000",
           "stepSize": "0.00000000"
          },
@@ -2138,27 +2138,27 @@
    "GET": [
     {
      "data": {
-      "askPrice": "71400.01000000",
-      "askQty": "1.64770000",
-      "bidPrice": "71400.00000000",
-      "bidQty": "3.55494000",
-      "closeTime": 1773435013013,
-      "count": 5340587,
-      "firstId": 6099593324,
-      "highPrice": "73913.74000000",
-      "lastId": 6104933910,
-      "lastPrice": "71400.00000000",
-      "lastQty": "0.00806000",
-      "lowPrice": "70013.17000000",
-      "openPrice": "70231.11000000",
-      "openTime": 1773348613013,
-      "prevClosePrice": "70231.11000000",
-      "priceChange": "1168.89000000",
-      "priceChangePercent": "1.664",
-      "quoteVolume": "2524011362.08338120",
+      "askPrice": "73696.01000000",
+      "askQty": "2.45611000",
+      "bidPrice": "73696.00000000",
+      "bidQty": "0.95376000",
+      "closeTime": 1773660049001,
+      "count": 3834464,
+      "firstId": 6107826383,
+      "highPrice": "74451.03000000",
+      "lastId": 6111660846,
+      "lastPrice": "73696.01000000",
+      "lastQty": "0.02044000",
+      "lowPrice": "71263.99000000",
+      "openPrice": "71786.33000000",
+      "openTime": 1773573649001,
+      "prevClosePrice": "71786.33000000",
+      "priceChange": "1909.68000000",
+      "priceChangePercent": "2.660",
+      "quoteVolume": "1560069014.32370270",
       "symbol": "BTCUSDT",
-      "volume": "35056.08736000",
-      "weightedAvgPrice": "71999.23186417"
+      "volume": "21367.53797000",
+      "weightedAvgPrice": "73011.17314096"
      },
      "queryString": "symbol=BTCUSDT",
      "bodyParams": "",
@@ -2397,62 +2397,53 @@
    "GET": [
     {
      "data": {
-      "code": -1121,
-      "msg": "Invalid symbol."
-     },
-     "queryString": "limit=1000\u0026symbol=BTCUSDPERP",
-     "bodyParams": "",
-     "headers": {}
-    },
-    {
-     "data": {
-      "E": 1773434248480,
-      "T": 1773434248468,
+      "E": 1773660088476,
+      "T": 1773660088462,
       "asks": [
        [
-        "71267.5",
-        "3326"
+        "73610.1",
+        "1654"
        ],
        [
-        "71267.6",
+        "73610.2",
         "3"
        ],
        [
-        "71267.7",
+        "73610.3",
         "3"
        ],
        [
-        "71270.4",
-        "10"
-       ],
-       [
-        "71270.5",
+        "73610.8",
         "1"
+       ],
+       [
+        "73611.2",
+        "84"
        ]
       ],
       "bids": [
        [
-        "71267.4",
-        "997"
+        "73610.0",
+        "16"
        ],
        [
-        "71267.3",
-        "3"
+        "73609.7",
+        "11"
        ],
        [
-        "71267.2",
-        "3"
-       ],
-       [
-        "71266.8",
+        "73608.5",
         "1"
        ],
        [
-        "71266.6",
-        "12"
+        "73607.9",
+        "10"
+       ],
+       [
+        "73607.8",
+        "1"
        ]
       ],
-      "lastUpdateId": 1624239586471,
+      "lastUpdateId": 1625756338030,
       "pair": "BTCUSD",
       "symbol": "BTCUSD_PERP"
      },
@@ -2481,7 +2472,7 @@
         "rateLimitType": "ORDERS"
        }
       ],
-      "serverTime": 1773612013652,
+      "serverTime": 1773669613725,
       "symbols": [
        {
         "baseAsset": "BTC",
@@ -3191,6 +3182,19 @@
     }
    ]
   },
+  "/dapi/v1/premiumIndexKlines": {
+   "GET": [
+    {
+     "data": {
+      "code": -1121,
+      "msg": "Invalid symbol."
+     },
+     "queryString": "endTime=1773658480796\u0026interval=1M\u0026limit=5\u0026startTime=1773140080796\u0026symbol=BTCUSDPERP",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
   "/dapi/v1/ticker/24hr": {
    "GET": [
     {
@@ -3205,23 +3209,23 @@
     {
      "data": [
       {
-       "baseVolume": "24686.46907553",
-       "closeTime": 1773434453843,
-       "count": 725536,
-       "firstId": 1103788276,
-       "highPrice": "73874.1",
-       "lastId": 1104513811,
-       "lastPrice": "71270.0",
-       "lastQty": "203",
-       "lowPrice": "69989.0",
-       "openPrice": "70185.5",
-       "openTime": 1773348000000,
+       "baseVolume": "14911.72043501",
+       "closeTime": 1773659954373,
+       "count": 433660,
+       "firstId": 1104806737,
+       "highPrice": "74433.7",
+       "lastId": 1105240396,
+       "lastPrice": "73694.3",
+       "lastQty": "10",
+       "lowPrice": "71228.8",
+       "openPrice": "71735.4",
+       "openTime": 1773573540000,
        "pair": "BTCUSD",
-       "priceChange": "1084.5",
-       "priceChangePercent": "1.545",
+       "priceChange": "1958.9",
+       "priceChangePercent": "2.731",
        "symbol": "BTCUSD_PERP",
-       "volume": "17775504",
-       "weightedAvgPrice": "72005.04837534"
+       "volume": "10876983",
+       "weightedAvgPrice": "72942.50886346"
       }
      ],
      "queryString": "symbol=BTCUSD_PERP",
@@ -3231,99 +3235,99 @@
     {
      "data": [
       {
-       "baseVolume": "24686.46907553",
-       "closeTime": 1773434453843,
-       "count": 725536,
-       "firstId": 1103788276,
-       "highPrice": "73874.1",
-       "lastId": 1104513811,
-       "lastPrice": "71270.0",
-       "lastQty": "203",
-       "lowPrice": "69989.0",
-       "openPrice": "70185.5",
-       "openTime": 1773348000000,
-       "pair": "BTCUSD",
-       "priceChange": "1084.5",
-       "priceChangePercent": "1.545",
-       "symbol": "BTCUSD_PERP",
-       "volume": "17775504",
-       "weightedAvgPrice": "72005.04837534"
-      },
-      {
-       "baseVolume": "897204.84557010",
-       "closeTime": 1773434427027,
-       "count": 26090,
-       "firstId": 85511733,
-       "highPrice": "4.209",
-       "lastId": 85537822,
-       "lastPrice": "4.021",
-       "lastQty": "5",
-       "lowPrice": "3.882",
-       "openPrice": "3.891",
-       "openTime": 1773348060000,
-       "pair": "UNIUSD",
-       "priceChange": "0.130",
-       "priceChangePercent": "3.341",
-       "symbol": "UNIUSD_PERP",
-       "volume": "364336",
-       "weightedAvgPrice": "4.06078948"
-      },
-      {
-       "baseVolume": "23905892.24748903",
-       "closeTime": 1773434411402,
-       "count": 33266,
-       "firstId": 55773922,
-       "highPrice": "0.16811",
-       "lastId": 55807187,
-       "lastPrice": "0.16367",
-       "lastQty": "4",
-       "lowPrice": "0.15902",
-       "openPrice": "0.15925",
-       "openTime": 1773348000000,
-       "pair": "XLMUSD",
-       "priceChange": "0.00442",
-       "priceChangePercent": "2.776",
-       "symbol": "XLMUSD_PERP",
-       "volume": "390538",
-       "weightedAvgPrice": "0.16336475"
-      },
-      {
-       "baseVolume": "4197502.66719915",
-       "closeTime": 1773434450540,
-       "count": 4788,
-       "firstId": 45449739,
-       "highPrice": "0.29219",
-       "lastId": 45454526,
-       "lastPrice": "0.29165",
-       "lastQty": "37",
-       "lowPrice": "0.28830",
-       "openPrice": "0.28875",
-       "openTime": 1773348420000,
+       "baseVolume": "2888729.96298629",
+       "closeTime": 1773659921483,
+       "count": 3458,
+       "firstId": 45461388,
+       "highPrice": "0.29899",
+       "lastId": 45464845,
+       "lastPrice": "0.29798",
+       "lastQty": "42",
+       "lowPrice": "0.29611",
+       "openPrice": "0.29664",
+       "openTime": 1773573480000,
        "pair": "TRXUSD",
-       "priceChange": "0.00290",
-       "priceChangePercent": "1.004",
+       "priceChange": "0.00134",
+       "priceChangePercent": "0.452",
        "symbol": "TRXUSD_PERP",
-       "volume": "121593",
-       "weightedAvgPrice": "0.28967939"
+       "volume": "86003",
+       "weightedAvgPrice": "0.29771907"
       },
       {
-       "baseVolume": "621266.00672452",
-       "closeTime": 1773434076403,
-       "count": 3015,
-       "firstId": 868518,
-       "highPrice": "1.4469",
-       "lastId": 871532,
-       "lastPrice": "1.4009",
-       "lastQty": "116",
-       "lowPrice": "1.3701",
-       "openPrice": "1.3727",
-       "openTime": 1773349440000,
-       "pair": "XRPUSD",
-       "priceChange": "0.0282",
-       "priceChangePercent": "2.054",
-       "symbol": "XRPUSD_260327",
-       "volume": "87698",
-       "weightedAvgPrice": "1.41160146"
+       "baseVolume": "1204214.65730348",
+       "closeTime": 1773660042295,
+       "count": 21770,
+       "firstId": 85552981,
+       "highPrice": "4.174",
+       "lastId": 85574750,
+       "lastPrice": "4.073",
+       "lastQty": "2",
+       "lowPrice": "3.931",
+       "openPrice": "3.984",
+       "openTime": 1773573600000,
+       "pair": "UNIUSD",
+       "priceChange": "0.089",
+       "priceChangePercent": "2.234",
+       "symbol": "UNIUSD_PERP",
+       "volume": "486981",
+       "weightedAvgPrice": "4.04397170"
+      },
+      {
+       "baseVolume": "7728.51950625",
+       "closeTime": 1773660040809,
+       "count": 19106,
+       "firstId": 94942973,
+       "highPrice": "475.54",
+       "lastId": 94962078,
+       "lastPrice": "473.69",
+       "lastQty": "1",
+       "lowPrice": "459.47",
+       "openPrice": "468.37",
+       "openTime": 1773573600000,
+       "pair": "BCHUSD",
+       "priceChange": "5.32",
+       "priceChangePercent": "1.136",
+       "symbol": "BCHUSD_PERP",
+       "volume": "362173",
+       "weightedAvgPrice": "468.61885993"
+      },
+      {
+       "baseVolume": "80826.87344402",
+       "closeTime": 1773659966616,
+       "count": 1522,
+       "firstId": 40347335,
+       "highPrice": "1.909",
+       "lastId": 40348856,
+       "lastPrice": "1.893",
+       "lastQty": "9",
+       "lowPrice": "1.842",
+       "openPrice": "1.866",
+       "openTime": 1773573540000,
+       "pair": "ATOMUSD",
+       "priceChange": "0.027",
+       "priceChangePercent": "1.447",
+       "symbol": "ATOMUSD_PERP",
+       "volume": "15144",
+       "weightedAvgPrice": "1.87363427"
+      },
+      {
+       "baseVolume": "30428.72499220",
+       "closeTime": 1773660009027,
+       "count": 25728,
+       "firstId": 50175660,
+       "highPrice": "120.100",
+       "lastId": 50201387,
+       "lastPrice": "119.140",
+       "lastQty": "9",
+       "lowPrice": "112.140",
+       "openPrice": "113.260",
+       "openTime": 1773573600000,
+       "pair": "AAVEUSD",
+       "priceChange": "5.880",
+       "priceChangePercent": "5.192",
+       "symbol": "AAVEUSD_PERP",
+       "volume": "354452",
+       "weightedAvgPrice": "116.48598490"
       }
      ],
      "queryString": "",
@@ -3491,55 +3495,6 @@
    "GET": [
     {
      "data": {
-      "T": 1773405785365,
-      "asks": [
-       [
-        "25.000",
-        "16.00"
-       ],
-       [
-        "30.000",
-        "6.54"
-       ],
-       [
-        "40.000",
-        "2.60"
-       ],
-       [
-        "60.000",
-        "0.40"
-       ],
-       [
-        "300.000",
-        "0.49"
-       ]
-      ],
-      "bids": [
-       [
-        "20.000",
-        "19.52"
-       ],
-       [
-        "15.000",
-        "6.54"
-       ],
-       [
-        "10.000",
-        "9.17"
-       ],
-       [
-        "5.000",
-        "2.91"
-       ]
-      ],
-      "lastUpdateId": 10035913517
-     },
-     "queryString": "limit=1000\u0026symbol=BTC-260327-100000-C",
-     "bodyParams": "",
-     "headers": {}
-    },
-    {
-     "data": {
       "T": 1773611122138,
       "asks": [
        [
@@ -3580,6 +3535,51 @@
       "lastUpdateId": 10352339786
      },
      "queryString": "limit=10\u0026symbol=BTC-260327-100000-C",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "T": 1773660078990,
+      "asks": [
+       [
+        "25.000",
+        "16.00"
+       ],
+       [
+        "35.000",
+        "1.00"
+       ],
+       [
+        "40.000",
+        "0.20"
+       ],
+       [
+        "100.000",
+        "0.44"
+       ],
+       [
+        "300.000",
+        "0.05"
+       ]
+      ],
+      "bids": [
+       [
+        "15.000",
+        "18.39"
+       ],
+       [
+        "10.000",
+        "16.70"
+       ],
+       [
+        "5.000",
+        "0.31"
+       ]
+      ],
+      "lastUpdateId": 10469351873
+     },
+     "queryString": "limit=1000\u0026symbol=BTC-260327-100000-C",
      "bodyParams": "",
      "headers": {}
     }
@@ -3951,27 +3951,134 @@
     {
      "data": [
       {
-       "amount": "514.45",
-       "askPrice": "20",
+       "amount": "257.05",
+       "askPrice": "25",
        "bidPrice": "15",
-       "closeTime": 1773475466585,
-       "exercisePrice": "71976.7576087",
-       "firstTradeId": 708,
+       "closeTime": 1773647349168,
+       "exercisePrice": "73728.40913043",
+       "firstTradeId": 714,
        "high": "30",
-       "lastPrice": "10",
-       "lastQty": "0.01",
+       "lastPrice": "30",
+       "lastQty": "0.56",
        "low": "10",
-       "open": "25",
-       "openTime": 1773235560000,
-       "priceChange": "-15",
-       "priceChangePercent": "-0.6",
+       "open": "10",
+       "openTime": 1773475440000,
+       "priceChange": "20",
+       "priceChangePercent": "2",
        "strikePrice": "100000",
        "symbol": "BTC-260327-100000-C",
-       "tradeCount": 6,
-       "volume": "17.19"
+       "tradeCount": 3,
+       "volume": "8.57"
       }
      ],
      "queryString": "symbol=BTC-260327-100000-C",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "amount": "257.05",
+       "askPrice": "25",
+       "bidPrice": "15",
+       "closeTime": 1773647349168,
+       "exercisePrice": "73707.32086957",
+       "firstTradeId": 714,
+       "high": "30",
+       "lastPrice": "30",
+       "lastQty": "0.56",
+       "low": "10",
+       "open": "10",
+       "openTime": 1773475440000,
+       "priceChange": "20",
+       "priceChangePercent": "2",
+       "strikePrice": "100000",
+       "symbol": "BTC-260327-100000-C",
+       "tradeCount": 3,
+       "volume": "8.57"
+      },
+      {
+       "amount": "205.8",
+       "askPrice": "965",
+       "bidPrice": "5",
+       "closeTime": 1773651211987,
+       "exercisePrice": "73707.32086957",
+       "firstTradeId": 396,
+       "high": "15",
+       "lastPrice": "10",
+       "lastQty": "7",
+       "low": "5",
+       "open": "10",
+       "openTime": 1773279420000,
+       "priceChange": "0",
+       "priceChangePercent": "0",
+       "strikePrice": "120000",
+       "symbol": "BTC-260327-120000-C",
+       "tradeCount": 4,
+       "volume": "16.96"
+      },
+      {
+       "amount": "242.85",
+       "askPrice": "60",
+       "bidPrice": "55",
+       "closeTime": 1773659640366,
+       "exercisePrice": "73707.32086957",
+       "firstTradeId": 852,
+       "high": "85",
+       "lastPrice": "85",
+       "lastQty": "0.01",
+       "low": "50",
+       "open": "60",
+       "openTime": 1773634800000,
+       "priceChange": "25",
+       "priceChangePercent": "0.417",
+       "strikePrice": "90000",
+       "symbol": "BTC-260327-90000-C",
+       "tradeCount": 5,
+       "volume": "4.41"
+      },
+      {
+       "amount": "10.35",
+       "askPrice": "5",
+       "bidPrice": "0",
+       "closeTime": 1773601938492,
+       "exercisePrice": "73707.32086957",
+       "firstTradeId": 30,
+       "high": "5",
+       "lastPrice": "5",
+       "lastQty": "0.92",
+       "low": "5",
+       "open": "5",
+       "openTime": 1772498940000,
+       "priceChange": "0",
+       "priceChangePercent": "0",
+       "strikePrice": "200000",
+       "symbol": "BTC-260327-200000-C",
+       "tradeCount": 4,
+       "volume": "2.07"
+      },
+      {
+       "amount": "1239.15",
+       "askPrice": "29565",
+       "bidPrice": "22340",
+       "closeTime": 1771078944199,
+       "exercisePrice": "73707.32086957",
+       "firstTradeId": 52,
+       "high": "32400",
+       "lastPrice": "30300",
+       "lastQty": "0.01",
+       "low": "21550",
+       "open": "32400",
+       "openTime": 1770307620000,
+       "priceChange": "-2100",
+       "priceChangePercent": "-0.065",
+       "strikePrice": "100000",
+       "symbol": "BTC-260327-100000-P",
+       "tradeCount": 2,
+       "volume": "0.04"
+      }
+     ],
+     "queryString": "",
      "bodyParams": "",
      "headers": {}
     }
@@ -4104,6 +4211,126 @@
      "queryString": "endTime=1773405847318\u0026startTime=1772887447318\u0026symbol=BTCUSDT",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": [
+      {
+       "T": 1744103855083,
+       "a": 2670004007,
+       "f": 6188139936,
+       "l": 6188139936,
+       "m": true,
+       "nq": "0.000",
+       "p": "79011.80",
+       "q": "0.001"
+      },
+      {
+       "T": 1744103855098,
+       "a": 2670004008,
+       "f": 6188139937,
+       "l": 6188139937,
+       "m": false,
+       "nq": "0.000",
+       "p": "79011.90",
+       "q": "0.004"
+      },
+      {
+       "T": 1744103855164,
+       "a": 2670004009,
+       "f": 6188139938,
+       "l": 6188139938,
+       "m": true,
+       "nq": "0.000",
+       "p": "79011.80",
+       "q": "0.020"
+      },
+      {
+       "T": 1744103855290,
+       "a": 2670004010,
+       "f": 6188139939,
+       "l": 6188139966,
+       "m": false,
+       "nq": "0.000",
+       "p": "79011.90",
+       "q": "1.066"
+      },
+      {
+       "T": 1744103855294,
+       "a": 2670004011,
+       "f": 6188139967,
+       "l": 6188139967,
+       "m": false,
+       "nq": "0.000",
+       "p": "79012.40",
+       "q": "0.002"
+      }
+     ],
+     "queryString": "endTime=1744190254944\u0026limit=5\u0026startTime=1744103854944\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "T": 1744103855083,
+       "a": 2670004007,
+       "f": 6188139936,
+       "l": 6188139936,
+       "m": true,
+       "nq": "0.000",
+       "p": "79011.80",
+       "q": "0.001"
+      },
+      {
+       "T": 1744103855098,
+       "a": 2670004008,
+       "f": 6188139937,
+       "l": 6188139937,
+       "m": false,
+       "nq": "0.000",
+       "p": "79011.90",
+       "q": "0.004"
+      },
+      {
+       "T": 1744103855164,
+       "a": 2670004009,
+       "f": 6188139938,
+       "l": 6188139938,
+       "m": true,
+       "nq": "0.000",
+       "p": "79011.80",
+       "q": "0.020"
+      },
+      {
+       "T": 1744103855290,
+       "a": 2670004010,
+       "f": 6188139939,
+       "l": 6188139966,
+       "m": false,
+       "nq": "0.000",
+       "p": "79011.90",
+       "q": "1.066"
+      },
+      {
+       "T": 1744103855294,
+       "a": 2670004011,
+       "f": 6188139967,
+       "l": 6188139967,
+       "m": false,
+       "nq": "0.000",
+       "p": "79012.40",
+       "q": "0.002"
+      }
+     ],
+     "queryString": "endTime=1744190254944\u0026startTime=1744103854944\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": null,
+     "queryString": "endTime=1744190254944\u0026fromID=7442186355\u0026limit=5\u0026startTime=1744103854944\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -4113,68 +4340,68 @@
      "data": [
       {
        "askBuffer": "0.01000000",
-       "askRate": "1.01017459",
+       "askRate": "1.01013669",
        "autoExchangeAskBuffer": "0.01000000",
-       "autoExchangeAskRate": "1.01017459",
+       "autoExchangeAskRate": "1.01013669",
        "autoExchangeBidBuffer": "0.01000000",
-       "autoExchangeBidRate": "0.99017113",
+       "autoExchangeBidRate": "0.99013399",
        "bidBuffer": "0.01000000",
-       "bidRate": "0.99017113",
-       "index": "1.00017286",
+       "bidRate": "0.99013399",
+       "index": "1.00013534",
        "symbol": "UUSD",
-       "time": 1773434085002
+       "time": 1773667810005
       },
       {
        "askBuffer": "0.00100000",
-       "askRate": "1.00117202",
+       "askRate": "1.00111277",
        "autoExchangeAskBuffer": "0.00100000",
-       "autoExchangeAskRate": "1.00117202",
+       "autoExchangeAskRate": "1.00111277",
        "autoExchangeBidBuffer": "0.00100000",
-       "autoExchangeBidRate": "0.99917168",
+       "autoExchangeBidRate": "0.99911254",
        "bidBuffer": "0.00100000",
-       "bidRate": "0.99917168",
-       "index": "1.00017185",
+       "bidRate": "0.99911254",
+       "index": "1.00011265",
        "symbol": "BFUSDUSD",
-       "time": 1773434085002
+       "time": 1773667810005
       },
       {
        "askBuffer": "0.01000000",
-       "askRate": "1.01017459",
+       "askRate": "1.01013669",
        "autoExchangeAskBuffer": "0.01000000",
-       "autoExchangeAskRate": "1.01017459",
+       "autoExchangeAskRate": "1.01013669",
        "autoExchangeBidBuffer": "0.01000000",
-       "autoExchangeBidRate": "0.99017113",
+       "autoExchangeBidRate": "0.99013399",
        "bidBuffer": "0.01000000",
-       "bidRate": "0.99017113",
-       "index": "1.00017286",
+       "bidRate": "0.99013399",
+       "index": "1.00013534",
        "symbol": "USD1USD",
-       "time": 1773434085002
+       "time": 1773667810005
       },
       {
        "askBuffer": "0.00010000",
-       "askRate": "1.00012233",
+       "askRate": "1.00008611",
        "autoExchangeAskBuffer": "0.00010000",
-       "autoExchangeAskRate": "1.00012233",
+       "autoExchangeAskRate": "1.00008611",
        "autoExchangeBidBuffer": "0.00010000",
-       "autoExchangeBidRate": "0.99992233",
+       "autoExchangeBidRate": "0.99988611",
        "bidBuffer": "0.00010000",
-       "bidRate": "0.99992233",
-       "index": "1.00002233",
+       "bidRate": "0.99988611",
+       "index": "0.99998611",
        "symbol": "USDCUSD",
-       "time": 1773434085002
+       "time": 1773667810005
       },
       {
        "askBuffer": "0.10000000",
-       "askRate": "1.54511688",
+       "askRate": "1.62693691",
        "autoExchangeAskBuffer": "0.05000000",
-       "autoExchangeAskRate": "1.47488429",
+       "autoExchangeAskRate": "1.55298524",
        "autoExchangeBidBuffer": "0.05000000",
-       "autoExchangeBidRate": "1.33441912",
+       "autoExchangeBidRate": "1.40508188",
        "bidBuffer": "0.10000000",
-       "bidRate": "1.26418654",
-       "index": "1.40465171",
+       "bidRate": "1.33113020",
+       "index": "1.47903356",
        "symbol": "XRPUSD",
-       "time": 1773434085002
+       "time": 1773667810005
       }
      ],
      "queryString": "",
@@ -4199,37 +4426,37 @@
       "constituents": [
        {
         "exchange": "binance_cross",
-        "price": "71305.46869965",
+        "price": "73917.71910041",
         "symbol": "BTCUSDT*uindex(USDTUSD)",
         "weight": "0.17142857"
        },
        {
         "exchange": "okex",
-        "price": "71304.22855480",
+        "price": "73913.16848052",
         "symbol": "BTC-USDT*uindex(USDTUSD)",
         "weight": "0.17142857"
        },
        {
         "exchange": "bitfinex",
-        "price": "71238.00000000",
+        "price": "73876.00000000",
         "symbol": "BTCUSD",
         "weight": "0.08571429"
        },
        {
         "exchange": "coinbase",
-        "price": "71310.01000000",
+        "price": "73919.49000000",
         "symbol": "BTC-USD",
         "weight": "0.17142857"
        },
        {
         "exchange": "gateio",
-        "price": "71300.12807585",
+        "price": "73910.06805818",
         "symbol": "BTC_USDT*uindex(USDTUSD)",
         "weight": "0.05714286"
        }
       ],
       "symbol": "BTCUSD",
-      "time": 1773434072872
+      "time": 1773667791042
      },
      "queryString": "symbol=BTCUSD",
      "bodyParams": "",
@@ -4315,6 +4542,27 @@
      "queryString": "contractType=CURRENT_QUARTER\u0026endTime=1773407429120\u0026interval=1d\u0026limit=10\u0026pair=BTCUSDT\u0026startTime=1772889029120",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": [
+      [
+       1744156800000,
+       "77325.8",
+       "84674.1",
+       "75629.7",
+       "83705.4",
+       "1127.023",
+       1744243199999,
+       "90074242.6381",
+       51718,
+       "552.519",
+       "44188840.2153",
+       "0"
+      ]
+     ],
+     "queryString": "contractType=CURRENT_QUARTER\u0026endTime=1744190254944\u0026interval=1d\u0026limit=10\u0026pair=BTCUSDT\u0026startTime=1744103854944",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -4322,53 +4570,53 @@
    "GET": [
     {
      "data": {
-      "E": 1773405839083,
-      "T": 1773405839056,
+      "E": 1773660142776,
+      "T": 1773660142764,
       "asks": [
        [
-        "72329.30",
-        "10.058"
+        "73574.90",
+        "3.822"
        ],
        [
-        "72329.40",
-        "0.009"
+        "73575.00",
+        "0.003"
        ],
        [
-        "72329.50",
+        "73575.60",
+        "0.003"
+       ],
+       [
+        "73575.70",
         "0.002"
        ],
        [
-        "72329.60",
-        "1.202"
-       ],
-       [
-        "72329.70",
-        "0.002"
+        "73576.00",
+        "0.001"
        ]
       ],
       "bids": [
        [
-        "72329.20",
-        "0.585"
+        "73574.80",
+        "4.590"
        ],
        [
-        "72328.80",
-        "0.002"
+        "73574.70",
+        "0.101"
        ],
        [
-        "72328.50",
+        "73574.60",
         "0.004"
        ],
        [
-        "72328.30",
-        "0.002"
+        "73574.40",
+        "0.001"
        ],
        [
-        "72328.00",
-        "0.001"
+        "73574.30",
+        "0.026"
        ]
       ],
-      "lastUpdateId": 10103162504726
+      "lastUpdateId": 10121489556722
      },
      "queryString": "limit=1000\u0026symbol=BTCUSDT",
      "bodyParams": "",
@@ -4429,7 +4677,7 @@
         "rateLimitType": "ORDERS"
        }
       ],
-      "serverTime": 1773612013787,
+      "serverTime": 1773669613822,
       "symbols": [
        {
         "baseAsset": "BTC",
@@ -4942,17 +5190,405 @@
      "queryString": "endTime=1773611801137\u0026limit=1000\u0026startTime=1773093401137\u0026symbol=BTCUSDT",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": [
+      {
+       "fundingRate": "0.00003134",
+       "fundingTime": 1744128000000,
+       "markPrice": "78462.82929630",
+       "symbol": "BTCUSDT"
+      },
+      {
+       "fundingRate": "0.00009568",
+       "fundingTime": 1744156800000,
+       "markPrice": "76297.90000000",
+       "symbol": "BTCUSDT"
+      },
+      {
+       "fundingRate": "-0.00002252",
+       "fundingTime": 1744185600001,
+       "markPrice": "77645.50000000",
+       "symbol": "BTCUSDT"
+      }
+     ],
+     "queryString": "endTime=1744190254944\u0026limit=1000\u0026startTime=1744103854944\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
   "/fapi/v1/indexInfo": {
    "GET": [
     {
+     "data": [
+      {
+       "baseAssetList": [
+        {
+         "baseAsset": "BTC",
+         "quoteAsset": "AAVE",
+         "weightInPercentage": "0.00294600",
+         "weightInQuantity": "0.02390888"
+        },
+        {
+         "baseAsset": "BTC",
+         "quoteAsset": "ADA",
+         "weightInPercentage": "0.01648600",
+         "weightInQuantity": "0.00032039"
+        },
+        {
+         "baseAsset": "BTC",
+         "quoteAsset": "AVAX",
+         "weightInPercentage": "0.00717500",
+         "weightInQuantity": "0.00511817"
+        },
+        {
+         "baseAsset": "BTC",
+         "quoteAsset": "BCH",
+         "weightInPercentage": "0.01585800",
+         "weightInQuantity": "0.53744351"
+        },
+        {
+         "baseAsset": "BTC",
+         "quoteAsset": "BNB",
+         "weightInPercentage": "0.15458100",
+         "weightInQuantity": "7.43361740"
+        }
+       ],
+       "component": "quoteAsset",
+       "symbol": "BTCDOMUSDT",
+       "time": 1773667124002
+      },
+      {
+       "baseAssetList": [
+        {
+         "baseAsset": "1000000BOB",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.01000000",
+         "weightInQuantity": "0.48332459"
+        },
+        {
+         "baseAsset": "1000CAT",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.01000000",
+         "weightInQuantity": "3.24317702"
+        },
+        {
+         "baseAsset": "4",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.01000000",
+         "weightInQuantity": "0.76671533"
+        },
+        {
+         "baseAsset": "A2Z",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.01000000",
+         "weightInQuantity": "7.30889253"
+        },
+        {
+         "baseAsset": "ACE",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.01000000",
+         "weightInQuantity": "0.04116310"
+        }
+       ],
+       "component": "baseAsset",
+       "symbol": "SMALLUSDT",
+       "time": 1773667124002
+      },
+      {
+       "baseAssetList": [
+        {
+         "baseAsset": "0G",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.00186220",
+         "weightInQuantity": "0.00159702"
+        },
+        {
+         "baseAsset": "1000000BOB",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.00186220",
+         "weightInQuantity": "0.07368560"
+        },
+        {
+         "baseAsset": "1000000MOG",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.00186220",
+         "weightInQuantity": "0.00554150"
+        },
+        {
+         "baseAsset": "1000BONK",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.00186220",
+         "weightInQuantity": "0.13722954"
+        },
+        {
+         "baseAsset": "1000CAT",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.00186220",
+         "weightInQuantity": "0.49295874"
+        }
+       ],
+       "component": "baseAsset",
+       "symbol": "ALLUSDT",
+       "time": 1773667124002
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
      "data": {
       "code": -1121,
       "msg": "Invalid symbol."
      },
      "queryString": "symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "baseAssetList": [
+        {
+         "baseAsset": "1000000BOB",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.01000000",
+         "weightInQuantity": "0.48332459"
+        },
+        {
+         "baseAsset": "1000CAT",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.01000000",
+         "weightInQuantity": "3.24317702"
+        },
+        {
+         "baseAsset": "4",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.01000000",
+         "weightInQuantity": "0.76671533"
+        },
+        {
+         "baseAsset": "A2Z",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.01000000",
+         "weightInQuantity": "7.30889253"
+        },
+        {
+         "baseAsset": "ACE",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.01000000",
+         "weightInQuantity": "0.04116310"
+        }
+       ],
+       "component": "baseAsset",
+       "symbol": "SMALLUSDT",
+       "time": 1773667545007
+      },
+      {
+       "baseAssetList": [
+        {
+         "baseAsset": "BTC",
+         "quoteAsset": "AAVE",
+         "weightInPercentage": "0.00294600",
+         "weightInQuantity": "0.02390888"
+        },
+        {
+         "baseAsset": "BTC",
+         "quoteAsset": "ADA",
+         "weightInPercentage": "0.01648600",
+         "weightInQuantity": "0.00032039"
+        },
+        {
+         "baseAsset": "BTC",
+         "quoteAsset": "AVAX",
+         "weightInPercentage": "0.00717500",
+         "weightInQuantity": "0.00511817"
+        },
+        {
+         "baseAsset": "BTC",
+         "quoteAsset": "BCH",
+         "weightInPercentage": "0.01585800",
+         "weightInQuantity": "0.53744351"
+        },
+        {
+         "baseAsset": "BTC",
+         "quoteAsset": "BNB",
+         "weightInPercentage": "0.15458100",
+         "weightInQuantity": "7.43361740"
+        }
+       ],
+       "component": "quoteAsset",
+       "symbol": "BTCDOMUSDT",
+       "time": 1773667545007
+      },
+      {
+       "baseAssetList": [
+        {
+         "baseAsset": "0G",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.00186220",
+         "weightInQuantity": "0.00159702"
+        },
+        {
+         "baseAsset": "1000000BOB",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.00186220",
+         "weightInQuantity": "0.07368560"
+        },
+        {
+         "baseAsset": "1000000MOG",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.00186220",
+         "weightInQuantity": "0.00554150"
+        },
+        {
+         "baseAsset": "1000BONK",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.00186220",
+         "weightInQuantity": "0.13722954"
+        },
+        {
+         "baseAsset": "1000CAT",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.00186220",
+         "weightInQuantity": "0.49295874"
+        }
+       ],
+       "component": "baseAsset",
+       "symbol": "ALLUSDT",
+       "time": 1773667545007
+      }
+     ],
+     "queryString": "s=DEFIUSDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "baseAssetList": [
+        {
+         "baseAsset": "1000000BOB",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.01000000",
+         "weightInQuantity": "0.48332459"
+        },
+        {
+         "baseAsset": "1000CAT",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.01000000",
+         "weightInQuantity": "3.24317702"
+        },
+        {
+         "baseAsset": "4",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.01000000",
+         "weightInQuantity": "0.76671533"
+        },
+        {
+         "baseAsset": "A2Z",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.01000000",
+         "weightInQuantity": "7.30889253"
+        },
+        {
+         "baseAsset": "ACE",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.01000000",
+         "weightInQuantity": "0.04116310"
+        }
+       ],
+       "component": "baseAsset",
+       "symbol": "SMALLUSDT",
+       "time": 1773667635005
+      },
+      {
+       "baseAssetList": [
+        {
+         "baseAsset": "BTC",
+         "quoteAsset": "AAVE",
+         "weightInPercentage": "0.00294600",
+         "weightInQuantity": "0.02390888"
+        },
+        {
+         "baseAsset": "BTC",
+         "quoteAsset": "ADA",
+         "weightInPercentage": "0.01648600",
+         "weightInQuantity": "0.00032039"
+        },
+        {
+         "baseAsset": "BTC",
+         "quoteAsset": "AVAX",
+         "weightInPercentage": "0.00717500",
+         "weightInQuantity": "0.00511817"
+        },
+        {
+         "baseAsset": "BTC",
+         "quoteAsset": "BCH",
+         "weightInPercentage": "0.01585800",
+         "weightInQuantity": "0.53744351"
+        },
+        {
+         "baseAsset": "BTC",
+         "quoteAsset": "BNB",
+         "weightInPercentage": "0.15458100",
+         "weightInQuantity": "7.43361740"
+        }
+       ],
+       "component": "quoteAsset",
+       "symbol": "BTCDOMUSDT",
+       "time": 1773667635005
+      },
+      {
+       "baseAssetList": [
+        {
+         "baseAsset": "0G",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.00186220",
+         "weightInQuantity": "0.00159702"
+        },
+        {
+         "baseAsset": "1000000BOB",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.00186220",
+         "weightInQuantity": "0.07368560"
+        },
+        {
+         "baseAsset": "1000000MOG",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.00186220",
+         "weightInQuantity": "0.00554150"
+        },
+        {
+         "baseAsset": "1000BONK",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.00186220",
+         "weightInQuantity": "0.13722954"
+        },
+        {
+         "baseAsset": "1000CAT",
+         "quoteAsset": "USDT",
+         "weightInPercentage": "0.00186220",
+         "weightInQuantity": "0.49295874"
+        }
+       ],
+       "component": "baseAsset",
+       "symbol": "ALLUSDT",
+       "time": 1773667635005
+      }
+     ],
+     "queryString": "symbols=DEFIUSDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": -1121,
+      "msg": "Invalid symbol."
+     },
+     "queryString": "symbol=DEFIUSDT",
      "bodyParams": "",
      "headers": {}
     }
@@ -5034,6 +5670,104 @@
       ]
      ],
      "queryString": "endTime=1773407434878\u0026interval=1d\u0026pair=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      [
+       1730505600000,
+       "69499.96234043",
+       "69910.34531915",
+       "69031.25744681",
+       "69368.95553191",
+       "0",
+       1730591999999,
+       "0",
+       86400,
+       "0",
+       "0",
+       "0"
+      ],
+      [
+       1730592000000,
+       "69369.02212766",
+       "69386.17765957",
+       "67490.85489362",
+       "68769.61595745",
+       "0",
+       1730678399999,
+       "0",
+       86400,
+       "0",
+       "0",
+       "0"
+      ],
+      [
+       1730678400000,
+       "68770.00191489",
+       "69490.08957447",
+       "66838.93042553",
+       "67849.10191489",
+       "0",
+       1730764799999,
+       "0",
+       86400,
+       "0",
+       "0",
+       "0"
+      ],
+      [
+       1730764800000,
+       "67849.04425532",
+       "70539.91723404",
+       "67480.30000000",
+       "69374.69851064",
+       "0",
+       1730851199999,
+       "0",
+       86400,
+       "0",
+       "0",
+       "0"
+      ],
+      [
+       1730851200000,
+       "69374.69914894",
+       "76386.92936170",
+       "69305.92829787",
+       "75574.67638298",
+       "0",
+       1730937599999,
+       "0",
+       86400,
+       "0",
+       "0",
+       "0"
+      ]
+     ],
+     "queryString": "endTime=1773660975122\u0026interval=1d\u0026pair=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      [
+       1744156800000,
+       "76322.96800000",
+       "83567.47466667",
+       "74626.60222222",
+       "82611.44511111",
+       "0",
+       1744243199999,
+       "0",
+       86399,
+       "0",
+       "0",
+       "0"
+      ]
+     ],
+     "queryString": "endTime=1744190254944\u0026interval=1d\u0026pair=BTCUSDT\u0026startTime=1744103854944",
      "bodyParams": "",
      "headers": {}
     }
@@ -5271,6 +6005,129 @@
      "queryString": "endTime=1773619200000\u0026interval=1d\u0026limit=1000\u0026startTime=1773014400000\u0026symbol=BTCUSDT",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": [
+      [
+       1744156800000,
+       "76298.00",
+       "83554.90",
+       "74578.50",
+       "82588.00",
+       "560649.862",
+       1744243199999,
+       "44072322884.09750",
+       8799174,
+       "279060.371",
+       "21941548090.15170",
+       "0"
+      ]
+     ],
+     "queryString": "endTime=1744190254944\u0026interval=1d\u0026limit=5\u0026startTime=1744103854944\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      [
+       1744104000000,
+       "78966.30",
+       "79061.60",
+       "78964.10",
+       "79014.40",
+       "324.734",
+       1744104299999,
+       "25659455.72410",
+       9663,
+       "167.358",
+       "13223691.09530",
+       "0"
+      ],
+      [
+       1744104300000,
+       "79014.30",
+       "79014.30",
+       "78841.60",
+       "78848.60",
+       "731.011",
+       1744104599999,
+       "57669955.92550",
+       13569,
+       "299.749",
+       "23646539.94610",
+       "0"
+      ],
+      [
+       1744104600000,
+       "78848.60",
+       "78896.00",
+       "78827.50",
+       "78858.30",
+       "463.353",
+       1744104899999,
+       "36539354.36670",
+       10072,
+       "226.273",
+       "17843818.97500",
+       "0"
+      ],
+      [
+       1744104900000,
+       "78858.20",
+       "79041.80",
+       "78832.00",
+       "78977.60",
+       "643.459",
+       1744105199999,
+       "50797762.06400",
+       12540,
+       "319.257",
+       "25200393.06610",
+       "0"
+      ],
+      [
+       1744105200000,
+       "78977.50",
+       "79126.60",
+       "78965.70",
+       "79096.00",
+       "538.638",
+       1744105499999,
+       "42594257.39250",
+       9932,
+       "328.598",
+       "25983096.69640",
+       "0"
+      ]
+     ],
+     "queryString": "endTime=1744190254944\u0026interval=5m\u0026startTime=1744103854944\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/fapi/v1/markPriceKlines": {
+   "GET": [
+    {
+     "data": [
+      [
+       1744156800000,
+       "76297.90000000",
+       "83553.40000000",
+       "74588.10000000",
+       "82587.90000000",
+       "0",
+       1744243199999,
+       "0",
+       86398,
+       "0",
+       "0",
+       "0"
+      ]
+     ],
+     "queryString": "endTime=1744190254944\u0026interval=1d\u0026limit=10\u0026startTime=1744103854944\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -5278,9 +6135,9 @@
    "GET": [
     {
      "data": {
-      "openInterest": "82277.599",
+      "openInterest": "86639.075",
       "symbol": "BTCUSDT",
-      "time": 1773611536347
+      "time": 1773661078062
      },
      "queryString": "symbol=BTCUSDT",
      "bodyParams": "",
@@ -5291,74 +6148,74 @@
   "/fapi/v1/premiumIndex": {
    "GET": [
     {
-     "data": [
-      {
-       "estimatedSettlePrice": "0.52549314",
-       "indexPrice": "0.52797130",
-       "interestRate": "0.00010000",
-       "lastFundingRate": "0.00070694",
-       "markPrice": "0.52880000",
-       "nextFundingTime": 1773446400000,
-       "symbol": "PIEVERSEUSDT",
-       "time": 1773432863000
-      },
-      {
-       "estimatedSettlePrice": "0.00000000",
-       "indexPrice": "0.61205294",
-       "interestRate": "0.00010000",
-       "lastFundingRate": "0.00000000",
-       "markPrice": "0.61249318",
-       "nextFundingTime": 1773446400000,
-       "symbol": "RAYUSDT",
-       "time": 1773432863000
-      },
-      {
-       "estimatedSettlePrice": "0.28366340",
-       "indexPrice": "0.28415138",
-       "interestRate": "0.00010000",
-       "lastFundingRate": "0.00005000",
-       "markPrice": "0.28416474",
-       "nextFundingTime": 1773446400000,
-       "symbol": "THEUSDT",
-       "time": 1773432863000
-      },
-      {
-       "estimatedSettlePrice": "0.07956407",
-       "indexPrice": "0.07960072",
-       "interestRate": "0.00010000",
-       "lastFundingRate": "0.00005000",
-       "markPrice": "0.07951071",
-       "nextFundingTime": 1773446400000,
-       "symbol": "WALUSDT",
-       "time": 1773432863000
-      },
-      {
-       "estimatedSettlePrice": "0.01621915",
-       "indexPrice": "0.01619731",
-       "interestRate": "0.00010000",
-       "lastFundingRate": "0.00005000",
-       "markPrice": "0.01623000",
-       "nextFundingTime": 1773446400000,
-       "symbol": "RAREUSDT",
-       "time": 1773432863000
-      }
-     ],
-     "queryString": "",
+     "data": {
+      "estimatedSettlePrice": "73631.33918433",
+      "indexPrice": "73556.27434783",
+      "interestRate": "0.00010000",
+      "lastFundingRate": "0.00004105",
+      "markPrice": "73514.90000000",
+      "nextFundingTime": 1773676800000,
+      "symbol": "BTCUSDT",
+      "time": 1773660964001
+     },
+     "queryString": "symbol=BTCUSDT",
      "bodyParams": "",
      "headers": {}
     },
     {
-     "data": {
-      "estimatedSettlePrice": "72008.03571447",
-      "indexPrice": "72063.16847826",
-      "interestRate": "0.00010000",
-      "lastFundingRate": "0.00000095",
-      "markPrice": "72025.82638406",
-      "nextFundingTime": 1773619200000,
-      "symbol": "BTCUSDT",
-      "time": 1773611802000
-     },
-     "queryString": "symbol=BTCUSDT",
+     "data": [
+      {
+       "estimatedSettlePrice": "0.09871699",
+       "indexPrice": "0.09859375",
+       "interestRate": "0.00010000",
+       "lastFundingRate": "0.00005000",
+       "markPrice": "0.09845013",
+       "nextFundingTime": 1773662400000,
+       "symbol": "STORJUSDT",
+       "time": 1773660964001
+      },
+      {
+       "estimatedSettlePrice": "0.00448140",
+       "indexPrice": "0.00447249",
+       "interestRate": "0.00010000",
+       "lastFundingRate": "0.00010000",
+       "markPrice": "0.00447261",
+       "nextFundingTime": 1773676800000,
+       "symbol": "ANKRUSDT",
+       "time": 1773660964001
+      },
+      {
+       "estimatedSettlePrice": "2641.34315572",
+       "indexPrice": "2640.05457143",
+       "interestRate": "0.00010000",
+       "lastFundingRate": "0.00009950",
+       "markPrice": "2637.00000000",
+       "nextFundingTime": 1773676800000,
+       "symbol": "YFIUSDT",
+       "time": 1773660964001
+      },
+      {
+       "estimatedSettlePrice": "0.11779438",
+       "indexPrice": "0.11797686",
+       "interestRate": "0.00010000",
+       "lastFundingRate": "0.00038887",
+       "markPrice": "0.11822095",
+       "nextFundingTime": 1773662400000,
+       "symbol": "POWERUSDT",
+       "time": 1773660964001
+      },
+      {
+       "estimatedSettlePrice": "0.01624681",
+       "indexPrice": "0.01625819",
+       "interestRate": "0.00010000",
+       "lastFundingRate": "0.00005000",
+       "markPrice": "0.01627476",
+       "nextFundingTime": 1773662400000,
+       "symbol": "NFPUSDT",
+       "time": 1773660964001
+      }
+     ],
+     "queryString": "",
      "bodyParams": "",
      "headers": {}
     }
@@ -5442,6 +6299,85 @@
      "queryString": "endTime=1773432816494\u0026interval=1d\u0026limit=10\u0026startTime=1772914416494\u0026symbol=BTCUSDT",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": [
+      [
+       1744156800000,
+       "-0.00032714",
+       "0.00180625",
+       "-0.00253650",
+       "-0.00028604",
+       "0",
+       1744243199999,
+       "0",
+       17279,
+       "0",
+       "0",
+       "0"
+      ]
+     ],
+     "queryString": "endTime=1744190254944\u0026interval=1d\u0026limit=10\u0026startTime=1744103854944\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/fapi/v1/rpiDepth": {
+   "GET": [
+    {
+     "data": {
+      "E": 1773666319198,
+      "T": 1773666319187,
+      "asks": [
+       [
+        "73940.60",
+        "3.942"
+       ],
+       [
+        "73940.70",
+        "0.001"
+       ],
+       [
+        "73941.00",
+        "0.003"
+       ],
+       [
+        "73941.10",
+        "0.004"
+       ],
+       [
+        "73941.20",
+        "0.008"
+       ]
+      ],
+      "bids": [
+       [
+        "73940.50",
+        "14.210"
+       ],
+       [
+        "73940.40",
+        "0.007"
+       ],
+       [
+        "73940.30",
+        "0.001"
+       ],
+       [
+        "73940.20",
+        "0.003"
+       ],
+       [
+        "73939.60",
+        "0.002"
+       ]
+      ],
+      "lastUpdateId": 10122021342579
+     },
+     "queryString": "limit=1000\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -5449,22 +6385,22 @@
    "GET": [
     {
      "data": {
-      "closeTime": 1773432898658,
-      "count": 6384204,
-      "firstId": 7427644139,
-      "highPrice": "73870.00",
-      "lastId": 7434034831,
-      "lastPrice": "71313.00",
-      "lastQty": "0.009",
-      "lowPrice": "69974.70",
-      "openPrice": "70328.10",
-      "openTime": 1773346440000,
-      "priceChange": "984.90",
-      "priceChangePercent": "1.400",
-      "quoteVolume": "21171665478.02",
+      "closeTime": 1773660996212,
+      "count": 4670797,
+      "firstId": 7437541912,
+      "highPrice": "74444.00",
+      "lastId": 7442217651,
+      "lastPrice": "73523.00",
+      "lastQty": "0.062",
+      "lowPrice": "71220.10",
+      "openPrice": "71659.30",
+      "openTime": 1773574560000,
+      "priceChange": "1863.70",
+      "priceChangePercent": "2.601",
+      "quoteVolume": "15823997323.08",
       "symbol": "BTCUSDT",
-      "volume": "294410.521",
-      "weightedAvgPrice": "71912.05"
+      "volume": "216909.831",
+      "weightedAvgPrice": "72951.96"
      },
      "queryString": "symbol=BTCUSDT",
      "bodyParams": "",
@@ -5473,94 +6409,94 @@
     {
      "data": [
       {
-       "closeTime": 1773432936288,
-       "count": 74876,
-       "firstId": 426328983,
-       "highPrice": "0.0424200",
-       "lastId": 426403862,
-       "lastPrice": "0.0419800",
-       "lastQty": "5",
-       "lowPrice": "0.0408000",
-       "openPrice": "0.0410700",
-       "openTime": 1773346500000,
-       "priceChange": "0.0009100",
-       "priceChangePercent": "2.216",
-       "quoteVolume": "4956060.9551900",
-       "symbol": "1000LUNCUSDT",
-       "volume": "118805779",
-       "weightedAvgPrice": "0.0417157"
+       "closeTime": 1773661038863,
+       "count": 14406,
+       "firstId": 12829601,
+       "highPrice": "0.0222300",
+       "lastId": 12844007,
+       "lastPrice": "0.0219300",
+       "lastQty": "458",
+       "lowPrice": "0.0208500",
+       "openPrice": "0.0211600",
+       "openTime": 1773574740000,
+       "priceChange": "0.0007700",
+       "priceChangePercent": "3.639",
+       "quoteVolume": "730560.4866200",
+       "symbol": "BIOUSDC",
+       "volume": "33946980",
+       "weightedAvgPrice": "0.0215206"
       },
       {
-       "closeTime": 1773432936123,
-       "count": 154899,
-       "firstId": 133500597,
-       "highPrice": "1.054600",
-       "lastId": 133655566,
-       "lastPrice": "1.001300",
-       "lastQty": "16.5",
-       "lowPrice": "0.970500",
-       "openPrice": "0.975800",
-       "openTime": 1773346500000,
-       "priceChange": "0.025500",
-       "priceChangePercent": "2.613",
-       "quoteVolume": "27232187.980090",
-       "symbol": "SUIUSDC",
-       "volume": "26616342.2",
-       "weightedAvgPrice": "1.023138"
+       "closeTime": 1773661021661,
+       "count": 26600,
+       "firstId": 216731587,
+       "highPrice": "0.0200400",
+       "lastId": 216758188,
+       "lastPrice": "0.0190500",
+       "lastQty": "290",
+       "lowPrice": "0.0182900",
+       "openPrice": "0.0185800",
+       "openTime": 1773574620000,
+       "priceChange": "0.0004700",
+       "priceChangePercent": "2.530",
+       "quoteVolume": "1742000.5225200",
+       "symbol": "GOATUSDT",
+       "volume": "91368375",
+       "weightedAvgPrice": "0.0190657"
       },
       {
-       "closeTime": 1773432927550,
-       "count": 73514,
-       "firstId": 259124966,
-       "highPrice": "0.0070000",
-       "lastId": 259198479,
-       "lastPrice": "0.0068210",
-       "lastQty": "676",
-       "lowPrice": "0.0067260",
-       "openPrice": "0.0068160",
-       "openTime": 1773346500000,
-       "priceChange": "0.0000050",
-       "priceChangePercent": "0.073",
-       "quoteVolume": "3267165.0106990",
-       "symbol": "ACHUSDT",
-       "volume": "476346056",
-       "weightedAvgPrice": "0.0068588"
+       "closeTime": 1773661045074,
+       "count": 50494,
+       "firstId": 26968698,
+       "highPrice": "0.0038570",
+       "lastId": 27019193,
+       "lastPrice": "0.0037100",
+       "lastQty": "3",
+       "lowPrice": "0.0036270",
+       "openPrice": "0.0037980",
+       "openTime": 1773574620000,
+       "priceChange": "-0.0000880",
+       "priceChangePercent": "-2.317",
+       "quoteVolume": "2162707.5173950",
+       "symbol": "FIGHTUSDT",
+       "volume": "579153142",
+       "weightedAvgPrice": "0.0037343"
       },
       {
-       "closeTime": 1773432929742,
-       "count": 62212,
-       "firstId": 450693263,
-       "highPrice": "0.0004278",
-       "lastId": 450755478,
-       "lastPrice": "0.0004035",
-       "lastQty": "12392",
-       "lowPrice": "0.0004026",
-       "openPrice": "0.0004141",
-       "openTime": 1773346500000,
-       "priceChange": "-0.0000106",
-       "priceChangePercent": "-2.560",
-       "quoteVolume": "3793453.4280882",
-       "symbol": "NOTUSDT",
-       "volume": "9131723135",
-       "weightedAvgPrice": "0.0004154"
+       "closeTime": 1768986012869,
+       "count": 59747,
+       "firstId": 36773842,
+       "highPrice": "0.0010110",
+       "lastId": 36833593,
+       "lastPrice": "0.0006980",
+       "lastQty": "5570",
+       "lowPrice": "0.0006740",
+       "openPrice": "0.0009470",
+       "openTime": 1768899600000,
+       "priceChange": "-0.0002490",
+       "priceChangePercent": "-26.294",
+       "quoteVolume": "3249038.3067190",
+       "symbol": "DMCUSDT",
+       "volume": "4029963313",
+       "weightedAvgPrice": "0.0008062"
       },
       {
-       "closeTime": 1773432929721,
-       "count": 56743,
-       "firstId": 247229734,
-       "highPrice": "0.0004429",
-       "lastId": 247286477,
-       "lastPrice": "0.0004244",
-       "lastQty": "14141",
-       "lowPrice": "0.0004227",
-       "openPrice": "0.0004359",
-       "openTime": 1773346500000,
-       "priceChange": "-0.0000115",
-       "priceChangePercent": "-2.638",
-       "quoteVolume": "3610493.5584787",
-       "symbol": "1MBABYDOGEUSDT",
-       "volume": "8375677925",
-       "weightedAvgPrice": "0.0004311"
+       "closeTime": 1773661044216,
+       "count": 83777,
+       "firstId": 51604598,
+       "highPrice": "0.0219800",
+       "lastId": 51688378,
+       "lastPrice": "0.0216800",
+       "lastQty": "277",
+       "lowPrice": "0.0212200",
+       "openPrice": "0.0215200",
+       "openTime": 1773574620000,
+       "priceChange": "0.0001600",
+       "priceChangePercent": "0.743",
+       "quoteVolume": "6087290.2543000",
+       "symbol": "SENTUSDT",
+       "volume": "282724007",
+       "weightedAvgPrice": "0.0215309"
       }
      ],
      "queryString": "",
@@ -5573,13 +6509,13 @@
    "GET": [
     {
      "data": {
-      "askPrice": "71297.50",
-      "askQty": "1.163",
-      "bidPrice": "71297.40",
-      "bidQty": "4.481",
-      "lastUpdateId": 10105998950084,
+      "askPrice": "73518.80",
+      "askQty": "0.863",
+      "bidPrice": "73518.70",
+      "bidQty": "13.557",
+      "lastUpdateId": 10121563290222,
       "symbol": "BTCUSDT",
-      "time": 1773432937474
+      "time": 1773661046853
      },
      "queryString": "symbol=BTCUSDT",
      "bodyParams": "",
@@ -5591,9 +6527,9 @@
    "GET": [
     {
      "data": {
-      "price": "71301.10",
+      "price": "73533.90",
       "symbol": "BTCUSDT",
-      "time": 1773432916822
+      "time": 1773660999984
      },
      "queryString": "symbol=BTCUSDT",
      "bodyParams": "",
@@ -5602,29 +6538,29 @@
     {
      "data": [
       {
-       "price": "2.620000",
-       "symbol": "ICPUSDT",
-       "time": 1773432914893
+       "price": "0.530300",
+       "symbol": "TWTUSDT",
+       "time": 1773660996862
       },
       {
-       "price": "0.0565300",
-       "symbol": "FLOCKUSDT",
-       "time": 1773432870660
+       "price": "0.28510",
+       "symbol": "ADAUSDT",
+       "time": 1773661001061
       },
       {
-       "price": "0.0961",
-       "symbol": "STORJUSDT",
-       "time": 1773432904900
-      },
-      {
-       "price": "1.4008",
-       "symbol": "XRPUSDC",
-       "time": 1773432903552
+       "price": "0.0153000",
+       "symbol": "KATUSDT",
+       "time": 1773661000585
       },
       {
        "price": "0.0313000",
        "symbol": "NULSUSDT",
        "time": 1744621276136
+      },
+      {
+       "price": "0.0882700",
+       "symbol": "AIAUSDT",
+       "time": 1773660986075
       }
      ],
      "queryString": "",
@@ -5637,7 +6573,7 @@
    "GET": [
     {
      "data": {
-      "serverTime": 1773432794996
+      "serverTime": 1773658487848
      },
      "queryString": "",
      "bodyParams": "",
@@ -5650,52 +6586,104 @@
     {
      "data": [
       {
-       "id": 7438710635,
+       "id": 7442547914,
        "isBuyerMaker": false,
        "isRPITrade": false,
-       "price": "72157.40",
-       "qty": "0.042",
-       "quoteQty": "3030.61",
-       "time": 1773612153736
+       "price": "73819.20",
+       "qty": "0.001",
+       "quoteQty": "73.81",
+       "time": 1773666607938
       },
       {
-       "id": 7438710636,
+       "id": 7442547915,
        "isBuyerMaker": false,
        "isRPITrade": false,
-       "price": "72157.40",
-       "qty": "0.056",
-       "quoteQty": "4040.81",
-       "time": 1773612153736
+       "price": "73819.60",
+       "qty": "0.001",
+       "quoteQty": "73.81",
+       "time": 1773666607938
       },
       {
-       "id": 7438710637,
+       "id": 7442547916,
        "isBuyerMaker": false,
        "isRPITrade": false,
-       "price": "72157.40",
-       "qty": "0.207",
-       "quoteQty": "14936.58",
-       "time": 1773612153736
+       "price": "73819.70",
+       "qty": "0.001",
+       "quoteQty": "73.81",
+       "time": 1773666607938
       },
       {
-       "id": 7438710638,
+       "id": 7442547917,
        "isBuyerMaker": false,
        "isRPITrade": false,
-       "price": "72157.40",
-       "qty": "0.007",
-       "quoteQty": "505.10",
-       "time": 1773612153736
+       "price": "73819.90",
+       "qty": "0.002",
+       "quoteQty": "147.63",
+       "time": 1773666607938
       },
       {
-       "id": 7438710639,
+       "id": 7442547918,
        "isBuyerMaker": false,
        "isRPITrade": false,
-       "price": "72157.40",
-       "qty": "0.025",
-       "quoteQty": "1803.93",
-       "time": 1773612153736
+       "price": "73820.00",
+       "qty": "0.002",
+       "quoteQty": "147.64",
+       "time": 1773666607938
       }
      ],
      "queryString": "limit=1000\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "id": 7442547949,
+       "isBuyerMaker": false,
+       "isRPITrade": false,
+       "price": "73820.10",
+       "qty": "0.002",
+       "quoteQty": "147.64",
+       "time": 1773666608496
+      },
+      {
+       "id": 7442547950,
+       "isBuyerMaker": false,
+       "isRPITrade": false,
+       "price": "73820.20",
+       "qty": "0.004",
+       "quoteQty": "295.28",
+       "time": 1773666608498
+      },
+      {
+       "id": 7442547951,
+       "isBuyerMaker": false,
+       "isRPITrade": false,
+       "price": "73820.20",
+       "qty": "0.008",
+       "quoteQty": "590.56",
+       "time": 1773666608498
+      },
+      {
+       "id": 7442547952,
+       "isBuyerMaker": false,
+       "isRPITrade": false,
+       "price": "73820.20",
+       "qty": "0.014",
+       "quoteQty": "1033.48",
+       "time": 1773666608499
+      },
+      {
+       "id": 7442547953,
+       "isBuyerMaker": false,
+       "isRPITrade": false,
+       "price": "73820.20",
+       "qty": "0.014",
+       "quoteQty": "1033.48",
+       "time": 1773666608499
+      }
+     ],
+     "queryString": "fromID=7442186355\u0026limit=1000\u0026symbol=BTCUSDT",
      "bodyParams": "",
      "headers": {}
     }
@@ -5705,9 +6693,9 @@
    "GET": [
     {
      "data": {
-      "price": "71298.30",
+      "price": "73518.70",
       "symbol": "BTCUSDT",
-      "time": 1773432930246
+      "time": 1773661049454
      },
      "queryString": "symbol=BTCUSDT",
      "bodyParams": "",
@@ -5716,29 +6704,29 @@
     {
      "data": [
       {
-       "price": "0.0352200",
-       "symbol": "MAVIAUSDT",
-       "time": 1773432926465
+       "price": "0.0146200",
+       "symbol": "BROCCOLI714USDT",
+       "time": 1773661020428
       },
       {
-       "price": "0.03092",
-       "symbol": "LRCUSDT",
-       "time": 1773432931111
+       "price": "0.933",
+       "symbol": "QTUMUSDT",
+       "time": 1773661049159
       },
       {
-       "price": "0.0677500",
-       "symbol": "INUSDT",
-       "time": 1773432929637
+       "price": "0.0107190",
+       "symbol": "PIXELUSDT",
+       "time": 1773661051171
       },
       {
-       "price": "0.0001648",
-       "symbol": "HMSTRUSDT",
-       "time": 1773432919578
+       "price": "0.17061",
+       "symbol": "XLMUSDT",
+       "time": 1773661051848
       },
       {
-       "price": "0.0458100",
-       "symbol": "SCRUSDT",
-       "time": 1773432917663
+       "price": "0.0063580",
+       "symbol": "BOBUSDT",
+       "time": 1773661037074
       }
      ],
      "queryString": "",
@@ -5993,11 +6981,302 @@
      "queryString": "contractType=CURRENT_QUARTER\u0026endTime=1773434718994\u0026pair=BTCUSD\u0026period=5m\u0026startTime=1773434478994",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": [
+      {
+       "annualizedBasisRate": "0.0118",
+       "basis": "899.31955556",
+       "basisRate": "0.0114",
+       "contractType": "CURRENT_QUARTER",
+       "futuresPrice": "79779.5",
+       "indexPrice": "78880.18044444",
+       "pair": "BTCUSDT",
+       "timestamp": 1744104600000
+      },
+      {
+       "annualizedBasisRate": "0.0119",
+       "basis": "913.05422222",
+       "basisRate": "0.0115",
+       "contractType": "CURRENT_QUARTER",
+       "futuresPrice": "80035.0",
+       "indexPrice": "79121.94577778",
+       "pair": "BTCUSDT",
+       "timestamp": 1744105500000
+      },
+      {
+       "annualizedBasisRate": "0.0118",
+       "basis": "900.63111111",
+       "basisRate": "0.0114",
+       "contractType": "CURRENT_QUARTER",
+       "futuresPrice": "79799.8",
+       "indexPrice": "78899.16888889",
+       "pair": "BTCUSDT",
+       "timestamp": 1744106400000
+      },
+      {
+       "annualizedBasisRate": "0.0116",
+       "basis": "887.02733333",
+       "basisRate": "0.0112",
+       "contractType": "CURRENT_QUARTER",
+       "futuresPrice": "79788.8",
+       "indexPrice": "78901.77266667",
+       "pair": "BTCUSDT",
+       "timestamp": 1744107300000
+      },
+      {
+       "annualizedBasisRate": "0.0121",
+       "basis": "922.00377778",
+       "basisRate": "0.0117",
+       "contractType": "CURRENT_QUARTER",
+       "futuresPrice": "79914.8",
+       "indexPrice": "78992.79622222",
+       "pair": "BTCUSDT",
+       "timestamp": 1744108200000
+      }
+     ],
+     "queryString": "contractType=CURRENT_QUARTER\u0026endTime=1744190254944\u0026limit=20\u0026pair=BTCUSDT\u0026period=15m\u0026startTime=1744103854944",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "annualizedBasisRate": "0.0230",
+       "basis": "2210.11955556",
+       "basisRate": "0.0280",
+       "contractType": "NEXT_QUARTER",
+       "futuresPrice": "81090.3",
+       "indexPrice": "78880.18044444",
+       "pair": "BTCUSDT",
+       "timestamp": 1744104600000
+      },
+      {
+       "annualizedBasisRate": "0.0227",
+       "basis": "2186.15422222",
+       "basisRate": "0.0276",
+       "contractType": "NEXT_QUARTER",
+       "futuresPrice": "81308.1",
+       "indexPrice": "79121.94577778",
+       "pair": "BTCUSDT",
+       "timestamp": 1744105500000
+      },
+      {
+       "annualizedBasisRate": "0.0229",
+       "basis": "2204.83111111",
+       "basisRate": "0.0279",
+       "contractType": "NEXT_QUARTER",
+       "futuresPrice": "81104.0",
+       "indexPrice": "78899.16888889",
+       "pair": "BTCUSDT",
+       "timestamp": 1744106400000
+      },
+      {
+       "annualizedBasisRate": "0.0227",
+       "basis": "2174.92733333",
+       "basisRate": "0.0276",
+       "contractType": "NEXT_QUARTER",
+       "futuresPrice": "81076.7",
+       "indexPrice": "78901.77266667",
+       "pair": "BTCUSDT",
+       "timestamp": 1744107300000
+      },
+      {
+       "annualizedBasisRate": "0.0228",
+       "basis": "2190.10377778",
+       "basisRate": "0.0277",
+       "contractType": "NEXT_QUARTER",
+       "futuresPrice": "81182.9",
+       "indexPrice": "78992.79622222",
+       "pair": "BTCUSDT",
+       "timestamp": 1744108200000
+      }
+     ],
+     "queryString": "contractType=NEXT_QUARTER\u0026endTime=1744190254944\u0026limit=20\u0026pair=BTCUSDT\u0026period=15m\u0026startTime=1744103854944",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "annualizedBasisRate": "0.0364",
+       "basis": "81.14630435",
+       "basisRate": "0.0011",
+       "contractType": "CURRENT_QUARTER",
+       "futuresPrice": "73800.9",
+       "indexPrice": "73719.75369565",
+       "pair": "BTCUSDT",
+       "timestamp": 1773644400000
+      },
+      {
+       "annualizedBasisRate": "0.0298",
+       "basis": "68.67065217",
+       "basisRate": "0.0009",
+       "contractType": "CURRENT_QUARTER",
+       "futuresPrice": "73924.1",
+       "indexPrice": "73855.42934783",
+       "pair": "BTCUSDT",
+       "timestamp": 1773645300000
+      },
+      {
+       "annualizedBasisRate": "0.0397",
+       "basis": "89.46391304",
+       "basisRate": "0.0012",
+       "contractType": "CURRENT_QUARTER",
+       "futuresPrice": "73919.1",
+       "indexPrice": "73829.63608696",
+       "pair": "BTCUSDT",
+       "timestamp": 1773646200000
+      },
+      {
+       "annualizedBasisRate": "0.0365",
+       "basis": "83.51586957",
+       "basisRate": "0.0011",
+       "contractType": "CURRENT_QUARTER",
+       "futuresPrice": "73574.4",
+       "indexPrice": "73490.88413043",
+       "pair": "BTCUSDT",
+       "timestamp": 1773647100000
+      },
+      {
+       "annualizedBasisRate": "0.0564",
+       "basis": "125.18434783",
+       "basisRate": "0.0017",
+       "contractType": "CURRENT_QUARTER",
+       "futuresPrice": "73580.7",
+       "indexPrice": "73455.51565217",
+       "pair": "BTCUSDT",
+       "timestamp": 1773648000000
+      }
+     ],
+     "queryString": "contractType=CURRENT_QUARTER\u0026eTime=1744190254944\u0026limit=20\u0026pair=BTCUSDT\u0026period=15m\u0026sTime=1744103854944",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "annualizedBasisRate": "0.0229",
+       "basis": "475.44630435",
+       "basisRate": "0.0064",
+       "contractType": "NEXT_QUARTER",
+       "futuresPrice": "74195.2",
+       "indexPrice": "73719.75369565",
+       "pair": "BTCUSDT",
+       "timestamp": 1773644400000
+      },
+      {
+       "annualizedBasisRate": "0.0225",
+       "basis": "467.57065217",
+       "basisRate": "0.0063",
+       "contractType": "NEXT_QUARTER",
+       "futuresPrice": "74323.0",
+       "indexPrice": "73855.42934783",
+       "pair": "BTCUSDT",
+       "timestamp": 1773645300000
+      },
+      {
+       "annualizedBasisRate": "0.0243",
+       "basis": "503.36391304",
+       "basisRate": "0.0068",
+       "contractType": "NEXT_QUARTER",
+       "futuresPrice": "74333.0",
+       "indexPrice": "73829.63608696",
+       "pair": "BTCUSDT",
+       "timestamp": 1773646200000
+      },
+      {
+       "annualizedBasisRate": "0.0243",
+       "basis": "497.61586957",
+       "basisRate": "0.0068",
+       "contractType": "NEXT_QUARTER",
+       "futuresPrice": "73988.5",
+       "indexPrice": "73490.88413043",
+       "pair": "BTCUSDT",
+       "timestamp": 1773647100000
+      },
+      {
+       "annualizedBasisRate": "0.0240",
+       "basis": "495.68434783",
+       "basisRate": "0.0067",
+       "contractType": "NEXT_QUARTER",
+       "futuresPrice": "73951.2",
+       "indexPrice": "73455.51565217",
+       "pair": "BTCUSDT",
+       "timestamp": 1773648000000
+      }
+     ],
+     "queryString": "contractType=NEXT_QUARTER\u0026eTime=1744190254944\u0026limit=20\u0026pair=BTCUSDT\u0026period=15m\u0026sTime=1744103854944",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "annualizedBasisRate": "",
+       "basis": "-39.15369565",
+       "basisRate": "-0.0005",
+       "contractType": "PERPETUAL",
+       "futuresPrice": "73680.60",
+       "indexPrice": "73719.75369565",
+       "pair": "BTCUSDT",
+       "timestamp": 1773644400000
+      },
+      {
+       "annualizedBasisRate": "",
+       "basis": "-35.52934783",
+       "basisRate": "-0.0005",
+       "contractType": "PERPETUAL",
+       "futuresPrice": "73819.90",
+       "indexPrice": "73855.42934783",
+       "pair": "BTCUSDT",
+       "timestamp": 1773645300000
+      },
+      {
+       "annualizedBasisRate": "",
+       "basis": "-29.63608696",
+       "basisRate": "-0.0004",
+       "contractType": "PERPETUAL",
+       "futuresPrice": "73800.00",
+       "indexPrice": "73829.63608696",
+       "pair": "BTCUSDT",
+       "timestamp": 1773646200000
+      },
+      {
+       "annualizedBasisRate": "",
+       "basis": "-42.98413043",
+       "basisRate": "-0.0006",
+       "contractType": "PERPETUAL",
+       "futuresPrice": "73447.90",
+       "indexPrice": "73490.88413043",
+       "pair": "BTCUSDT",
+       "timestamp": 1773647100000
+      },
+      {
+       "annualizedBasisRate": "",
+       "basis": "-27.71565217",
+       "basisRate": "-0.0004",
+       "contractType": "PERPETUAL",
+       "futuresPrice": "73427.80",
+       "indexPrice": "73455.51565217",
+       "pair": "BTCUSDT",
+       "timestamp": 1773648000000
+      }
+     ],
+     "queryString": "contractType=PERPETUAL\u0026eTime=1744190254944\u0026limit=20\u0026pair=BTCUSDT\u0026period=15m\u0026sTime=1744103854944",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
   "/futures/data/delivery-price": {
    "GET": [
+    {
+     "data": null,
+     "queryString": "pair=BTCUSD_PERP",
+     "bodyParams": "",
+     "headers": {}
+    },
     {
      "data": [
       {
@@ -6022,12 +7301,6 @@
       }
      ],
      "queryString": "pair=BTCUSDT",
-     "bodyParams": "",
-     "headers": {}
-    },
-    {
-     "data": null,
-     "queryString": "pair=BTCUSD_PERP",
      "bodyParams": "",
      "headers": {}
     }
@@ -6146,6 +7419,85 @@
      "queryString": "endTime=1773434694660\u0026pair=BTCUSD\u0026period=5m\u0026startTime=1772916294660",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": {
+      "code": -1130,
+      "msg": "parameter 'startTime' is invalid."
+     },
+     "queryString": "endTime=1744190254944\u0026limit=3\u0026period=5m\u0026startTime=1744103854944\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "longAccount": "0.4737",
+       "longShortRatio": "0.9001",
+       "shortAccount": "0.5263",
+       "symbol": "BTCUSDT",
+       "timestamp": 1773660600000
+      },
+      {
+       "longAccount": "0.4736",
+       "longShortRatio": "0.8997",
+       "shortAccount": "0.5264",
+       "symbol": "BTCUSDT",
+       "timestamp": 1773660900000
+      },
+      {
+       "longAccount": "0.4735",
+       "longShortRatio": "0.8993",
+       "shortAccount": "0.5265",
+       "symbol": "BTCUSDT",
+       "timestamp": 1773661200000
+      }
+     ],
+     "queryString": "eTime=1744190254944\u0026limit=3\u0026period=5m\u0026sTime=1744103854944\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "longAccount": "0.5528",
+       "longShortRatio": "1.2361",
+       "shortAccount": "0.4472",
+       "symbol": "BTCUSDT",
+       "timestamp": 1773230400000
+      },
+      {
+       "longAccount": "0.5482",
+       "longShortRatio": "1.2134",
+       "shortAccount": "0.4518",
+       "symbol": "BTCUSDT",
+       "timestamp": 1773244800000
+      },
+      {
+       "longAccount": "0.5335",
+       "longShortRatio": "1.1436",
+       "shortAccount": "0.4665",
+       "symbol": "BTCUSDT",
+       "timestamp": 1773259200000
+      },
+      {
+       "longAccount": "0.5293",
+       "longShortRatio": "1.1245",
+       "shortAccount": "0.4707",
+       "symbol": "BTCUSDT",
+       "timestamp": 1773273600000
+      },
+      {
+       "longAccount": "0.5571",
+       "longShortRatio": "1.2578",
+       "shortAccount": "0.4429",
+       "symbol": "BTCUSDT",
+       "timestamp": 1773288000000
+      }
+     ],
+     "queryString": "eTime=1744190254944\u0026period=4h\u0026sTime=1744103854944\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -6248,6 +7600,71 @@
      "queryString": "contractType=CURRENT_QUARTER\u0026endTime=1773434627179\u0026pair=BTCUSD\u0026period=5m\u0026startTime=1772916227179",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": {
+      "code": -1130,
+      "msg": "parameter 'startTime' is invalid."
+     },
+     "queryString": "endTime=1744190254944\u0026limit=1\u0026period=5m\u0026startTime=1744103854944\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "CMCCirculatingSupply": "20002546.00000000",
+       "sumOpenInterest": "86619.49300000",
+       "sumOpenInterestValue": "6373678843.67250000",
+       "symbol": "BTCUSDT",
+       "timestamp": 1773661200000
+      }
+     ],
+     "queryString": "eTime=1744190254944\u0026limit=1\u0026period=5m\u0026sTime=1744103854944\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "CMCCirculatingSupply": "19998406.00000000",
+       "sumOpenInterest": "83334.53900000",
+       "sumOpenInterestValue": "5674898107.46461600",
+       "symbol": "BTCUSDT",
+       "timestamp": 1772841600000
+      },
+      {
+       "CMCCirculatingSupply": "19998862.00000000",
+       "sumOpenInterest": "83750.58000000",
+       "sumOpenInterestValue": "5630727369.61800000",
+       "symbol": "BTCUSDT",
+       "timestamp": 1772928000000
+      },
+      {
+       "CMCCirculatingSupply": "19999281.00000000",
+       "sumOpenInterest": "82092.11000000",
+       "sumOpenInterestValue": "5412771325.09000000",
+       "symbol": "BTCUSDT",
+       "timestamp": 1773014400000
+      },
+      {
+       "CMCCirculatingSupply": "19999696.00000000",
+       "sumOpenInterest": "81593.01100000",
+       "sumOpenInterestValue": "5580886459.35348800",
+       "symbol": "BTCUSDT",
+       "timestamp": 1773100800000
+      },
+      {
+       "CMCCirculatingSupply": "20000118.00000000",
+       "sumOpenInterest": "80589.96200000",
+       "sumOpenInterestValue": "5633753832.23585600",
+       "symbol": "BTCUSDT",
+       "timestamp": 1773187200000
+      }
+     ],
+     "queryString": "eTime=1744190254944\u0026limit=10\u0026period=1d\u0026sTime=1744103854944\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -6343,6 +7760,43 @@
       }
      ],
      "queryString": "endTime=1773433019467\u0026limit=10\u0026period=5m\u0026startTime=1772914619467\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "buySellRatio": "1.9376",
+       "buyVol": "1328.0870",
+       "sellVol": "685.4270",
+       "timestamp": 1773658500000
+      },
+      {
+       "buySellRatio": "1.7618",
+       "buyVol": "874.4480",
+       "sellVol": "496.3320",
+       "timestamp": 1773658800000
+      },
+      {
+       "buySellRatio": "0.5613",
+       "buyVol": "189.6470",
+       "sellVol": "337.8610",
+       "timestamp": 1773659100000
+      },
+      {
+       "buySellRatio": "0.9809",
+       "buyVol": "174.6270",
+       "sellVol": "178.0200",
+       "timestamp": 1773659400000
+      },
+      {
+       "buySellRatio": "1.1469",
+       "buyVol": "185.4760",
+       "sellVol": "161.7260",
+       "timestamp": 1773659700000
+      }
+     ],
+     "queryString": "eTime=1744190254944\u0026limit=10\u0026period=5m\u0026sTime=1744103854944\u0026symbol=BTCUSDT",
      "bodyParams": "",
      "headers": {}
     }
@@ -6452,6 +7906,36 @@
       }
      ],
      "queryString": "endTime=1773434668976\u0026pair=BTCUSD\u0026period=5m\u0026startTime=1772916268976",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": -1130,
+      "msg": "parameter 'startTime' is invalid."
+     },
+     "queryString": "endTime=1744190254944\u0026limit=2\u0026period=5m\u0026startTime=1744103854944\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "longAccount": "0.5005",
+       "longShortRatio": "1.0020",
+       "shortAccount": "0.4995",
+       "symbol": "BTCUSDT",
+       "timestamp": 1773660900000
+      },
+      {
+       "longAccount": "0.5004",
+       "longShortRatio": "1.0016",
+       "shortAccount": "0.4996",
+       "symbol": "BTCUSDT",
+       "timestamp": 1773661200000
+      }
+     ],
+     "queryString": "eTime=1744190254944\u0026limit=2\u0026period=5m\u0026sTime=1744103854944\u0026symbol=BTCUSDT",
      "bodyParams": "",
      "headers": {}
     }
@@ -6568,6 +8052,85 @@
       }
      ],
      "queryString": "endTime=1773434669340\u0026pair=BTCUSD\u0026period=5m\u0026startTime=1772916269340",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": -1130,
+      "msg": "parameter 'startTime' is invalid."
+     },
+     "queryString": "endTime=1744190254944\u0026limit=3\u0026period=5m\u0026startTime=1744103854944\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "longAccount": "0.5123",
+       "longShortRatio": "1.0504",
+       "shortAccount": "0.4877",
+       "symbol": "BTCUSDT",
+       "timestamp": 1773661200000
+      },
+      {
+       "longAccount": "0.5120",
+       "longShortRatio": "1.0492",
+       "shortAccount": "0.4880",
+       "symbol": "BTCUSDT",
+       "timestamp": 1773661500000
+      },
+      {
+       "longAccount": "0.5121",
+       "longShortRatio": "1.0497",
+       "shortAccount": "0.4879",
+       "symbol": "BTCUSDT",
+       "timestamp": 1773661800000
+      }
+     ],
+     "queryString": "eTime=1744190254944\u0026limit=3\u0026period=5m\u0026sTime=1744103854944\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "longAccount": "0.5685",
+       "longShortRatio": "1.3173",
+       "shortAccount": "0.4315",
+       "symbol": "BTCUSDT",
+       "timestamp": 1771286400000
+      },
+      {
+       "longAccount": "0.5869",
+       "longShortRatio": "1.4207",
+       "shortAccount": "0.4131",
+       "symbol": "BTCUSDT",
+       "timestamp": 1771372800000
+      },
+      {
+       "longAccount": "0.5865",
+       "longShortRatio": "1.4185",
+       "shortAccount": "0.4135",
+       "symbol": "BTCUSDT",
+       "timestamp": 1771459200000
+      },
+      {
+       "longAccount": "0.5629",
+       "longShortRatio": "1.2877",
+       "shortAccount": "0.4371",
+       "symbol": "BTCUSDT",
+       "timestamp": 1771545600000
+      },
+      {
+       "longAccount": "0.5724",
+       "longShortRatio": "1.3389",
+       "shortAccount": "0.4276",
+       "symbol": "BTCUSDT",
+       "timestamp": 1771632000000
+      }
+     ],
+     "queryString": "eTime=1744190254944\u0026period=1d\u0026sTime=1744103854944\u0026symbol=BTCUSDT",
      "bodyParams": "",
      "headers": {}
     }

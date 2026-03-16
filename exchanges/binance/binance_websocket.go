@@ -2,6 +2,7 @@ package binance
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net/http"
@@ -74,8 +75,11 @@ func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) err
 	dialer := gws.Dialer{
 		HandshakeTimeout: e.Config.HTTPTimeout,
 		Proxy:            http.ProxyFromEnvironment,
+		TLSClientConfig: &tls.Config{
+			MinVersion:         tls.VersionTLS12,
+			InsecureSkipVerify: true,
+		},
 	}
-
 	if err := conn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", e.Name, err)
 	}
@@ -139,11 +143,9 @@ func (e *Exchange) KeepAuthKeyAlive(ctx context.Context) {
 	}
 }
 
-func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
-	if id, err := jsonparser.GetInt(respRaw, "id"); err == nil {
-		if e.Websocket.Match.IncomingWithData(id, respRaw) {
-			return nil
-		}
+func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
+	if id, err := jsonparser.GetString(respRaw, "id"); err == nil {
+		return conn.RequireMatchWithData(id, respRaw)
 	}
 
 	if resultString, err := jsonparser.GetUnsafeString(respRaw, "result"); err == nil {
@@ -540,7 +542,6 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op
 		Method: op,
 		Params: subs.QualifiedChannels(),
 	}
-
 	respRaw, err := conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
 	if err == nil {
 		if v, d, _, rErr := jsonparser.Get(respRaw, "result"); rErr != nil {

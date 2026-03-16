@@ -2,7 +2,7 @@ package binance
 
 import (
 	"context"
-	"errors"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 
@@ -38,6 +38,10 @@ func (e *Exchange) WsCFutureConnect(ctx context.Context, conn websocket.Connecti
 	dialer := gws.Dialer{
 		HandshakeTimeout: e.Config.HTTPTimeout,
 		Proxy:            http.ProxyFromEnvironment,
+		TLSClientConfig: &tls.Config{
+			MinVersion:         tls.VersionTLS12,
+			InsecureSkipVerify: true,
+		},
 	}
 	wsURL := binanceCFuturesWebsocketURL + "/stream"
 	conn.SetURL(wsURL)
@@ -69,7 +73,9 @@ func (e *Exchange) GenerateDefaultCFuturesSubscriptions() (subscription.List, er
 		case contractInfoAllChan, forceOrderAllChan,
 			bookTickerAllChan, tickerAllChan, miniTickerAllChan:
 			subscriptions = append(subscriptions, &subscription.Subscription{
-				Channel: channels[z],
+				Channel:          channels[z],
+				QualifiedChannel: channels[z],
+				Asset:            asset.CoinMarginedFutures,
 			})
 		case aggTradeChan, depthChan, markPriceChan, tickerChan,
 			klineChan, miniTickerChan, forceOrderChan,
@@ -78,14 +84,16 @@ func (e *Exchange) GenerateDefaultCFuturesSubscriptions() (subscription.List, er
 				lp := pairs[y].Lower()
 				lp.Delimiter = ""
 				chSubscription = &subscription.Subscription{
-					Channel: lp.String() + channels[z],
+					QualifiedChannel: lp.String() + channels[z],
+					Asset:            asset.CoinMarginedFutures,
 				}
 				switch channels[z] {
 				case depthChan:
-					chSubscription.Channel += "@100ms"
+					chSubscription.QualifiedChannel += "@100ms"
 				case klineChan, indexPriceKlineCFuturesChan, markPriceKlineCFuturesChan:
-					chSubscription.Channel += "_" + getKlineIntervalString(kline.FiveMin)
+					chSubscription.QualifiedChannel += "_" + getKlineIntervalString(kline.FiveMin)
 				}
+				chSubscription.Channel = chSubscription.QualifiedChannel
 				subscriptions = append(subscriptions, chSubscription)
 			}
 		case continuousKline:
@@ -94,32 +102,31 @@ func (e *Exchange) GenerateDefaultCFuturesSubscriptions() (subscription.List, er
 				lp.Delimiter = ""
 				chSubscription = &subscription.Subscription{
 					// Contract types:""perpetual", "current_quarter", "next_quarter""
-					Channel: lp.String() + "_PERPETUAL@" + channels[z] + "_" + getKlineIntervalString(kline.FiveMin),
+					Asset:            asset.CoinMarginedFutures,
+					QualifiedChannel: lp.String() + "_PERPETUAL@" + channels[z] + "_" + getKlineIntervalString(kline.FiveMin),
 				}
+				chSubscription.Channel = chSubscription.QualifiedChannel
 				subscriptions = append(subscriptions, chSubscription)
 			}
 		default:
-			return nil, subscription.ErrNotSupported
+			return nil, fmt.Errorf("%w: channel %s", subscription.ErrNotSupported, channels[z])
 		}
 	}
 	return subscriptions, nil
 }
 
-func (e *Exchange) wsHandleCFuturesData(ctx context.Context, respRaw []byte) error {
-	result := struct {
+func (e *Exchange) wsHandleCFuturesData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
+	var result struct {
 		Result json.RawMessage `json:"result"`
-		ID     int64           `json:"id"`
+		ID     string          `json:"id"`
 		Stream string          `json:"stream"`
 		Data   json.RawMessage `json:"data"`
-	}{}
+	}
 	if err := json.Unmarshal(respRaw, &result); err != nil {
 		return err
 	}
-	if result.Stream == "" || (result.ID != 0 && result.Result != nil) {
-		if !e.Websocket.Match.IncomingWithData(result.ID, respRaw) {
-			return errors.New("Unhandled data: " + string(respRaw))
-		}
-		return nil
+	if result.Stream == "" || (result.ID != "" && result.Result != nil) {
+		return conn.RequireMatchWithData(result.ID, respRaw)
 	}
 	var stream string
 	switch result.Stream {

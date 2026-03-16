@@ -391,6 +391,15 @@ type OrderBook struct {
 	Asks         orderbook.LevelsArrayPriceAmount `json:"asks"`
 }
 
+// RPIResponse represents USD-Margined futures retail price improvement detail
+type RPIResponse struct {
+	LastUpdateID      uint64                           `json:"lastUpdateId"`
+	MessageOutputTime types.Time                       `json:"E"`
+	TransactionTime   types.Time                       `json:"T"`
+	Bids              orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Asks              orderbook.LevelsArrayPriceAmount `json:"asks"`
+}
+
 // DepthUpdateParams is used as an embedded type for WebsocketDepthStream
 type DepthUpdateParams []struct {
 	PriceLevel float64
