@@ -2279,9 +2279,9 @@ func openInterestFromStats(stats []ContractStat) (float64, error) {
 		return 0, errNoValidResponseFromServer
 	}
 	latest := stats[0]
-	for i := range stats[1:] {
-		if stats[i+1].Time.Time().After(latest.Time.Time()) {
-			latest = stats[i+1]
+	for i := 1; i < len(stats); i++ {
+		if stats[i].Time.Time().After(latest.Time.Time()) {
+			latest = stats[i]
 		}
 	}
 	return latest.OpenInterest.Float64(), nil
