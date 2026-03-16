@@ -15,7 +15,6 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
-	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func TestFetchTradablePairsFiltersNonTradingOptions(t *testing.T) {
@@ -76,7 +75,7 @@ func TestUpdateOrderExecutionLimitsFiltersNonTradingOptions(t *testing.T) {
 	loadedLimit, err := ex.GetOrderExecutionLimits(asset.Options, tradingPair)
 	require.NoError(t, err, "GetOrderExecutionLimits must not error for a trading option pair")
 	require.True(t, loadedLimit.Key.Pair().Equal(tradingPair), "Loaded limit pair must match the trading option pair")
-	assert.Equal(t, tradingInstrument.LotSizeFilter.MinOrderQuantity, loadedLimit.MinimumBaseAmount, "MinimumBaseAmount should match the trading option instrument")
+	assert.Equal(t, tradingInstrument.LotSizeFilter.MinOrderQuantity.Float64(), loadedLimit.MinimumBaseAmount, "MinimumBaseAmount should match the trading option instrument")
 
 	_, err = ex.GetOrderExecutionLimits(asset.Options, settlingPair)
 	require.ErrorIs(t, err, limits.ErrOrderLimitNotFound, "GetOrderExecutionLimits must error for a settling option pair")
@@ -103,7 +102,7 @@ func TestUpdateOrderExecutionLimitsLeavesNonOptionsStatusHandlingUnchanged(t *te
 
 	loadedLimit, err := ex.GetOrderExecutionLimits(asset.Spot, spotPair)
 	require.NoError(t, err, "GetOrderExecutionLimits must not error for a closed spot pair")
-	assert.Equal(t, closedInstrument.LotSizeFilter.MinOrderQuantity, loadedLimit.MinimumBaseAmount, "MinimumBaseAmount should match the closed spot instrument")
+	assert.Equal(t, closedInstrument.LotSizeFilter.MinOrderQuantity.Float64(), loadedLimit.MinimumBaseAmount, "MinimumBaseAmount should match the closed spot instrument")
 
 	require.Len(t, queries, 1, "UpdateOrderExecutionLimits must query spot instruments once")
 	assert.Equal(t, cSpot, queries[0].Get("category"), "UpdateOrderExecutionLimits should request the spot category")
@@ -130,7 +129,7 @@ func newInstrumentInfoTestExchange(t *testing.T, name, category string, response
 			RetMsg  string `json:"retMsg"`
 			Result  *struct {
 				Category       string           `json:"category"`
-				List           []InstrumentInfo `json:"list"`
+				List           []map[string]any `json:"list"`
 				NextPageCursor string           `json:"nextPageCursor"`
 			} `json:"result"`
 			Time int64 `json:"time"`
@@ -139,11 +138,11 @@ func newInstrumentInfoTestExchange(t *testing.T, name, category string, response
 			RetMsg:  "OK",
 			Result: &struct {
 				Category       string           `json:"category"`
-				List           []InstrumentInfo `json:"list"`
+				List           []map[string]any `json:"list"`
 				NextPageCursor string           `json:"nextPageCursor"`
 			}{
 				Category:       category,
-				List:           responses[query.Get("baseCoin")],
+				List:           instrumentInfoResponseList(responses[query.Get("baseCoin")]),
 				NextPageCursor: "",
 			},
 			Time: time.Now().UnixMilli(),
@@ -161,30 +160,8 @@ func newInstrumentInfoTestExchange(t *testing.T, name, category string, response
 	return ex
 }
 
-type optionInstrumentInfoResponse struct {
-	Symbol       string `json:"symbol"`
-	OptionsType  string `json:"optionsType"`
-	Status       string `json:"status"`
-	BaseCoin     string `json:"baseCoin"`
-	LaunchTime   int64  `json:"launchTime"`
-	DeliveryTime int64  `json:"deliveryTime"`
-	PriceFilter  struct {
-		MinPrice float64 `json:"minPrice"`
-		MaxPrice float64 `json:"maxPrice"`
-		TickSize float64 `json:"tickSize"`
-	} `json:"priceFilter"`
-	LotSizeFilter struct {
-		MinOrderQuantity float64 `json:"minOrderQty"`
-		MaxOrderQuantity float64 `json:"maxOrderQty"`
-		QuantityStep     float64 `json:"qtyStep"`
-		QuotePrecision   float64 `json:"quotePrecision"`
-		MaxOrderAmount   float64 `json:"maxOrderAmt"`
-		MinNotionalValue float64 `json:"minNotionalValue"`
-	} `json:"lotSizeFilter"`
-}
-
-func newOptionInstrumentInfo(symbol, status string) optionInstrumentInfoResponse {
-	info := optionInstrumentInfoResponse{
+func newOptionInstrumentInfo(symbol, status string) InstrumentInfo {
+	info := InstrumentInfo{
 		Symbol:      symbol,
 		BaseCoin:    "BTC",
 		Status:      status,
@@ -196,10 +173,40 @@ func newOptionInstrumentInfo(symbol, status string) optionInstrumentInfoResponse
 	info.LotSizeFilter.MinOrderQuantity = 0.1
 	info.LotSizeFilter.MaxOrderQuantity = 10
 	info.LotSizeFilter.QuantityStep = 0.1
+	info.LotSizeFilter.BasePrecision = 0.1
 	info.LotSizeFilter.QuotePrecision = 0.1
+	info.LotSizeFilter.MinOrderAmount = 1
 	info.LotSizeFilter.MaxOrderAmount = 1_000_000
 	info.LotSizeFilter.MinNotionalValue = 1
 	return info
+}
+
+func instrumentInfoResponseList(infos []InstrumentInfo) []map[string]any {
+	response := make([]map[string]any, 0, len(infos))
+	for i := range infos {
+		response = append(response, map[string]any{
+			"symbol":      infos[i].Symbol,
+			"optionsType": infos[i].OptionsType,
+			"status":      infos[i].Status,
+			"baseCoin":    infos[i].BaseCoin,
+			"priceFilter": map[string]any{
+				"minPrice": infos[i].PriceFilter.MinPrice.Float64(),
+				"maxPrice": infos[i].PriceFilter.MaxPrice.Float64(),
+				"tickSize": infos[i].PriceFilter.TickSize.Float64(),
+			},
+			"lotSizeFilter": map[string]any{
+				"minOrderQty":      infos[i].LotSizeFilter.MinOrderQuantity.Float64(),
+				"maxOrderQty":      infos[i].LotSizeFilter.MaxOrderQuantity.Float64(),
+				"qtyStep":          infos[i].LotSizeFilter.QuantityStep.Float64(),
+				"basePrecision":    infos[i].LotSizeFilter.BasePrecision.Float64(),
+				"quotePrecision":   infos[i].LotSizeFilter.QuotePrecision.Float64(),
+				"minOrderAmt":      infos[i].LotSizeFilter.MinOrderAmount.Float64(),
+				"maxOrderAmt":      infos[i].LotSizeFilter.MaxOrderAmount.Float64(),
+				"minNotionalValue": infos[i].LotSizeFilter.MinNotionalValue.Float64(),
+			},
+		})
+	}
+	return response
 }
 
 func assertOptionsInstrumentQueries(t *testing.T, queries []url.Values, caller string) {
