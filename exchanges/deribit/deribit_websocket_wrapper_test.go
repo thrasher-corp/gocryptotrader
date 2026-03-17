@@ -1,10 +1,8 @@
 package deribit
 
 import (
-	"context"
-	"errors"
-	"fmt"
-	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	gws "github.com/gorilla/websocket"
@@ -12,72 +10,67 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 )
 
-type deribitMockConn struct {
-	websocket.Connection
-	subscriptions *subscription.Store
-	errByMethod   map[string]error
-	respByMethod  map[string][]byte
-}
-
-func newDeribitMockConn() *deribitMockConn {
-	return &deribitMockConn{
-		subscriptions: subscription.NewStore(),
-		errByMethod:   make(map[string]error),
-		respByMethod:  make(map[string][]byte),
-	}
-}
-
-func (m *deribitMockConn) Dial(context.Context, *gws.Dialer, http.Header) error { return nil }
-func (m *deribitMockConn) ReadMessage() websocket.Response                      { return websocket.Response{} }
-func (m *deribitMockConn) SetupPingHandler(request.EndpointLimit, websocket.PingHandler) {
-}
-func (m *deribitMockConn) Subscriptions() *subscription.Store { return m.subscriptions }
-func (m *deribitMockConn) Shutdown() error                    { return nil }
-func (m *deribitMockConn) GetURL() string                     { return "mock://deribit" }
-func (m *deribitMockConn) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _,
-	req any,
-) ([]byte, error) {
-	switch r := req.(type) {
-	case wsInput:
-		return []byte(`{"jsonrpc":"2.0","id":"` + r.ID + `","result":"ok"}`), nil
-	case WsSubscriptionInput:
-		out := wsSubscriptionResponse{
-			JSONRPCVersion: rpcVersion,
-			ID:             r.ID,
-			Method:         r.Method,
-			Result:         r.Params["channels"],
-		}
-		return json.Marshal(out)
-	case *WsRequest:
-		if err := m.errByMethod[r.Method]; err != nil {
-			return nil, err
-		}
-		if raw, ok := m.respByMethod[r.Method]; ok {
-			return raw, nil
-		}
-		return []byte(`{"jsonrpc":"2.0","id":"` + r.ID + `","result":{}}`), nil
+func defaultDeribitOrderWSResponse(method string) string {
+	switch method {
+	case submitBuy:
+		return `{"jsonrpc":"2.0","id":"{{id}}","result":{"order":{"order_id":"buy-order"}}}`
+	case submitSell:
+		return `{"jsonrpc":"2.0","id":"{{id}}","result":{"order":{"order_id":"sell-order"}}}`
+	case submitEdit:
+		return `{"jsonrpc":"2.0","id":"{{id}}","result":{"order":{"order_id":"edited-order"}}}`
+	case submitCancel:
+		return `{"jsonrpc":"2.0","id":"{{id}}","result":{"order_id":"1"}}`
 	default:
-		return nil, fmt.Errorf("unsupported request type %T", req)
+		return `{"jsonrpc":"2.0","id":"{{id}}","result":{}}`
 	}
 }
 
-func connectWithMockedWebsocket(t *testing.T, ex *Exchange, conn websocket.Connection) {
+func deribitOrderWSMock(overrides map[string]string) mockws.WsMockFunc {
+	return func(_ testing.TB, p []byte, c *gws.Conn) error {
+		var req struct {
+			ID     string `json:"id"`
+			Method string `json:"method"`
+		}
+		if err := json.Unmarshal(p, &req); err != nil {
+			return err
+		}
+
+		response, ok := overrides[req.Method]
+		if !ok {
+			response = defaultDeribitOrderWSResponse(req.Method)
+		}
+		response = strings.ReplaceAll(response, "{{id}}", req.ID)
+		return c.WriteMessage(gws.TextMessage, []byte(response))
+	}
+}
+
+func connectDeribitWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *Exchange {
 	t.Helper()
-	ex.Websocket.Conn = conn
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex))
+
+	server := httptest.NewServer(mockws.CurryWsMockUpgrader(t, wsHandler))
+	t.Cleanup(server.Close)
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
+
+	require.NoError(t, ex.Websocket.SetAllConnectionURLs(wsURL))
+	ex.Features.Subscriptions = subscription.List{}
+	ex.Websocket.SetSubscriptionsNotRequired()
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	require.NoError(t, ex.Websocket.Connect(t.Context()))
 	t.Cleanup(func() {
 		_ = ex.Websocket.Shutdown()
 	})
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	return ex
 }
 
 func TestWebsocketSubmitOrder(t *testing.T) {
@@ -153,10 +146,9 @@ func TestSymbolChannelSeparator(t *testing.T) {
 }
 
 func TestWebsocketSubmitOrderMocked(t *testing.T) {
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex))
-	mockConn := newDeribitMockConn()
-	connectWithMockedWebsocket(t, ex, mockConn)
+	t.Parallel()
+
+	ex := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(nil))
 
 	sub := &order.Submit{
 		Exchange:  ex.Name,
@@ -181,16 +173,18 @@ func TestWebsocketSubmitOrderMocked(t *testing.T) {
 	_, err = ex.WebsocketSubmitOrder(t.Context(), &badSide)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
-	mockConn.errByMethod[submitBuy] = errors.New("ws buy failed")
-	_, err = ex.WebsocketSubmitOrder(t.Context(), sub)
-	require.EqualError(t, err, "ws buy failed")
-	delete(mockConn.errByMethod, submitBuy)
+	exError := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(map[string]string{
+		submitBuy: `{"jsonrpc":"2.0","id":"{{id}}","error":{"code":13009,"message":"ws buy failed"}}`,
+	}))
+	_, err = exError.WebsocketSubmitOrder(t.Context(), sub)
+	require.ErrorContains(t, err, "ws buy failed")
 
-	mockConn.respByMethod[submitBuy] = []byte(`{"jsonrpc":"2.0","id":"x","result":null}`)
-	_, err = ex.WebsocketSubmitOrder(t.Context(), sub)
+	exNoResp := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(map[string]string{
+		submitBuy: `{"jsonrpc":"2.0","id":"{{id}}","result":null}`,
+	}))
+	_, err = exNoResp.WebsocketSubmitOrder(t.Context(), sub)
 	require.ErrorIs(t, err, common.ErrNoResponse)
 
-	mockConn.respByMethod[submitBuy] = []byte(`{"jsonrpc":"2.0","id":"x","result":{"order":{"order_id":"buy-order"}}}`)
 	resp, err := ex.WebsocketSubmitOrder(t.Context(), sub)
 	require.NoError(t, err)
 	require.Equal(t, "buy-order", resp.OrderID)
@@ -198,17 +192,15 @@ func TestWebsocketSubmitOrderMocked(t *testing.T) {
 
 	sell := *sub
 	sell.Side = order.Sell
-	mockConn.respByMethod[submitSell] = []byte(`{"jsonrpc":"2.0","id":"x","result":{"order":{"order_id":"sell-order"}}}`)
 	resp, err = ex.WebsocketSubmitOrder(t.Context(), &sell)
 	require.NoError(t, err)
 	require.Equal(t, "sell-order", resp.OrderID)
 }
 
 func TestWebsocketModifyOrderMocked(t *testing.T) {
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex))
-	mockConn := newDeribitMockConn()
-	connectWithMockedWebsocket(t, ex, mockConn)
+	t.Parallel()
+
+	ex := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(nil))
 
 	mod := &order.Modify{
 		OrderID:   "1",
@@ -225,22 +217,21 @@ func TestWebsocketModifyOrderMocked(t *testing.T) {
 	_, err = ex.WebsocketModifyOrder(t.Context(), &unsupported)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
-	mockConn.errByMethod[submitEdit] = errors.New("ws edit failed")
-	_, err = ex.WebsocketModifyOrder(t.Context(), mod)
-	require.EqualError(t, err, "ws edit failed")
-	delete(mockConn.errByMethod, submitEdit)
+	exError := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(map[string]string{
+		submitEdit: `{"jsonrpc":"2.0","id":"{{id}}","error":{"code":13010,"message":"ws edit failed"}}`,
+	}))
+	_, err = exError.WebsocketModifyOrder(t.Context(), mod)
+	require.ErrorContains(t, err, "ws edit failed")
 
-	mockConn.respByMethod[submitEdit] = []byte(`{"jsonrpc":"2.0","id":"x","result":{"order":{"order_id":"edited-order"}}}`)
 	resp, err := ex.WebsocketModifyOrder(t.Context(), mod)
 	require.NoError(t, err)
 	require.Equal(t, "edited-order", resp.OrderID)
 }
 
 func TestWebsocketCancelOrderMocked(t *testing.T) {
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex))
-	mockConn := newDeribitMockConn()
-	connectWithMockedWebsocket(t, ex, mockConn)
+	t.Parallel()
+
+	ex := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(nil))
 
 	cancel := &order.Cancel{
 		OrderID:   "1",
@@ -258,12 +249,12 @@ func TestWebsocketCancelOrderMocked(t *testing.T) {
 	err = ex.WebsocketCancelOrder(t.Context(), &invalid)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
-	mockConn.errByMethod[submitCancel] = errors.New("ws cancel failed")
-	err = ex.WebsocketCancelOrder(t.Context(), cancel)
-	require.EqualError(t, err, "ws cancel failed")
-	delete(mockConn.errByMethod, submitCancel)
+	exError := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(map[string]string{
+		submitCancel: `{"jsonrpc":"2.0","id":"{{id}}","error":{"code":13011,"message":"ws cancel failed"}}`,
+	}))
+	err = exError.WebsocketCancelOrder(t.Context(), cancel)
+	require.ErrorContains(t, err, "ws cancel failed")
 
-	mockConn.respByMethod[submitCancel] = []byte(`{"jsonrpc":"2.0","id":"x","result":{"order_id":"1"}}`)
 	err = ex.WebsocketCancelOrder(t.Context(), cancel)
 	require.NoError(t, err)
 }

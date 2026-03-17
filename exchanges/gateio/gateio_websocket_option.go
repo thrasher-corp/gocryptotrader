@@ -401,8 +401,6 @@ func (e *Exchange) processOptionsContractTickers(ctx context.Context, incoming [
 	})
 }
 
-
-
 func (e *Exchange) processOptionsUnderlyingTicker(ctx context.Context, incoming []byte) error {
 	var data WsOptionUnderlyingTicker
 	err := json.Unmarshal(incoming, &data)

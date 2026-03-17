@@ -2,7 +2,6 @@ package gateio
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -15,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -61,12 +61,11 @@ func connectGateioWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc)
 
 	setupConn := func(filter any) {
 		require.NoError(t, ex.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-			URL:                      wsURL,
-			ResponseCheckTimeout:     exchCfg.WebsocketResponseCheckTimeout,
-			ResponseMaxLimit:         exchCfg.WebsocketResponseMaxLimit,
-			SubscriptionsNotRequired: true,
+			URL:                  wsURL,
+			ResponseCheckTimeout: exchCfg.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exchCfg.WebsocketResponseMaxLimit,
 			Connector: func(ctx context.Context, conn websocket.Connection) error {
-				return conn.Dial(ctx, &gws.Dialer{}, http.Header{})
+				return conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil)
 			},
 			Subscriber: func(context.Context, websocket.Connection, subscription.List) error { return nil },
 			Unsubscriber: func(context.Context, websocket.Connection, subscription.List) error {
@@ -98,6 +97,8 @@ func connectGateioWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc)
 	setupConn(asset.CoinMarginedFutures)
 	setupConn(asset.DeliveryFutures)
 
+	ex.Websocket.SetSubscriptionsNotRequired()
+	require.NoError(t, ex.Websocket.SetAllConnectionURLs(wsURL))
 	require.NoError(t, ex.Websocket.Connect(t.Context()))
 	t.Cleanup(func() {
 		_ = ex.Websocket.Shutdown()
