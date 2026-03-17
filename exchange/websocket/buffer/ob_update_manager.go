@@ -21,7 +21,7 @@ var (
 )
 
 // time settings
-var (
+const (
 	DefaultWSOrderbookUpdateTimeDelay = time.Second * 2
 	DefaultWSOrderbookUpdateDeadline  = time.Minute * 2
 )
@@ -149,7 +149,7 @@ func (m *UpdateManager) loadCache(p currency.Pair, a asset.Item) (*updateCache, 
 
 // applyUpdate verifies and applies an orderbook update
 // Invalidates the cache on error
-// Does not benefit from concurrent lock protection
+// assumes lock already active on cache
 func (m *UpdateManager) applyUpdate(ctx context.Context, cache *updateCache, firstUpdateID int64, update *orderbook.Update) error {
 	lastUpdateID, err := m.ob.LastUpdateID(update.Pair, update.Asset)
 	if err != nil {
