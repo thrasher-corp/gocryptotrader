@@ -1373,9 +1373,6 @@ func (e *Exchange) wsProcessOptionSummary(ctx context.Context, respRaw []byte) e
 	if err := json.Unmarshal(respRaw, &response); err != nil {
 		return err
 	}
-	if err := e.Websocket.DataHandler.Send(ctx, &response); err != nil {
-		return err
-	}
 	for i := range response.Data {
 		pair, err := e.GetPairFromInstrumentID(response.Data[i].InstrumentID)
 		if err != nil {
