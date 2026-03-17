@@ -536,13 +536,14 @@ func TestTrackConnection(t *testing.T) {
 	assert.Same(t, first, mgr.connections[conn], "manager connection association should stay with the original websocket")
 	assert.Same(t, conn, first.connections[0], "websocket should retain the tracked connection")
 
-	mgr.trackConnection(conn, second)
-
-	require.Len(t, mgr.connections, 1, "manager connection association must still contain one tracked connection")
-	assert.Empty(t, first.connections, "previous websocket should drop the moved connection")
-	require.Len(t, second.connections, 1, "new websocket must contain the tracked connection once")
-	assert.Same(t, second, mgr.connections[conn], "manager connection association should update to the new websocket")
-	assert.Same(t, conn, second.connections[0], "new websocket should retain the tracked connection")
+	assert.PanicsWithValue(t,
+		"trackConnection called with connection already associated with a different websocket",
+		func() { mgr.trackConnection(conn, second) },
+		"trackConnection must panic when the same connection is associated with a different websocket")
+	assert.Same(t, first, mgr.connections[conn], "manager connection association should remain unchanged after panic")
+	require.Len(t, first.connections, 1, "original websocket must retain the tracked connection after panic")
+	assert.Same(t, conn, first.connections[0], "original websocket should still retain the tracked connection")
+	assert.Empty(t, second.connections, "new websocket should not gain the tracked connection after panic")
 }
 
 func TestSetSubscriptionsNotRequired(t *testing.T) {

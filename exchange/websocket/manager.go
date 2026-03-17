@@ -437,9 +437,7 @@ func (m *Manager) trackConnection(conn Connection, ws *websocket) {
 		if existing == ws {
 			return
 		}
-		existing.connections = slices.DeleteFunc(existing.connections, func(each Connection) bool {
-			return each == conn
-		})
+		panic("trackConnection called with connection already associated with a different websocket")
 	}
 	m.connections[conn] = ws
 	if !slices.Contains(ws.connections, conn) {
