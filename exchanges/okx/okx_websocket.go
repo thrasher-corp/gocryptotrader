@@ -1409,13 +1409,36 @@ func (e *Exchange) generateSubscriptions(public bool) (subscription.List, error)
 	return list.Private(), nil
 }
 
+func optionInstrumentFamilyFromPair(pair currency.Pair) string {
+	raw := strings.ToUpper(strings.TrimSpace(pair.String()))
+	if raw == "" {
+		return ""
+	}
+	parts := strings.Split(raw, "-")
+	if len(parts) == 0 {
+		return ""
+	}
+	if strings.Contains(parts[0], "/") {
+		baseQuote := strings.Split(parts[0], "/")
+		if len(baseQuote) == 2 && baseQuote[0] != "" && baseQuote[1] != "" {
+			return baseQuote[0] + "-" + baseQuote[1]
+		}
+	}
+	if len(parts) >= 2 && parts[0] != "" && parts[1] != "" {
+		return parts[0] + "-" + parts[1]
+	}
+	return ""
+}
+
 // GetSubscriptionTemplate returns a subscription channel template
 func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{
 		"channelName":     channelName,
 		"isSymbolChannel": isSymbolChannel,
 		"isAssetChannel":  isAssetChannel,
+		"isInstFamily":    isInstFamilyChannel,
 		"instType":        GetInstrumentTypeFromAssetItem,
+		"instFamily":      optionInstrumentFamilyFromPair,
 	}).Parse(subTplText)
 }
 
@@ -1486,6 +1509,14 @@ func (e *Exchange) wsProcessPushData(ctx context.Context, data []byte, resp any)
 
 // channelName converts global subscription channel names to exchange specific names
 func channelName(s *subscription.Subscription) string {
+	if s.Asset == asset.Options {
+		switch s.Channel {
+		case subscription.AllTradesChannel:
+			return channelOptionTrades
+		case subscription.TickerChannel:
+			return channelOptSummary
+		}
+	}
 	if s, ok := subscriptionNames[s.Channel]; ok {
 		return s
 	}
@@ -1497,8 +1528,15 @@ func isAssetChannel(s *subscription.Subscription) bool {
 	return s.Channel == subscription.MyOrdersChannel
 }
 
+func isInstFamilyChannel(s *subscription.Subscription) bool {
+	return (s.Asset == asset.Options && s.Channel == subscription.AllTradesChannel) || channelName(s) == channelOptSummary
+}
+
 // isSymbolChannel returns if the channel expects one Symbol per subscription
 func isSymbolChannel(s *subscription.Subscription) bool {
+	if isInstFamilyChannel(s) {
+		return false
+	}
 	switch s.Channel {
 	case subscription.CandlesChannel, subscription.TickerChannel, subscription.OrderbookChannel, subscription.AllTradesChannel, channelFundingRate:
 		return true
@@ -1511,6 +1549,13 @@ const subTplText = `
 	{{- range $asset, $pairs := $.AssetPairs }}
 		{{- if isAssetChannel $.S -}}
 			{"channel":"{{ $name }}","instType":"{{ instType $asset }}"}
+		{{- else if isInstFamily $.S }}
+			{{- range $p := $pairs -}}
+				{"channel":"{{ $name }}"
+				,"instFamily":"{{ instFamily $p }}"
+				,"instType":"{{ instType $asset }}"}
+				{{ $.PairSeparator }}
+			{{- end -}}
 		{{- else if isSymbolChannel $.S }}
 			{{- range $p := $pairs -}}
 				{"channel":"{{ $name }}","instID":"{{ $p }}"}
