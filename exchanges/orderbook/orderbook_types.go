@@ -23,13 +23,13 @@ const (
 // Public errors
 var (
 	ErrOrderbookNotFound = errors.New("cannot find orderbook(s)")
+	ErrAssetTypeNotSet   = errors.New("orderbook asset type not set")
 	ErrPriceZero         = errors.New("price cannot be zero")
 	ErrExchangeNameEmpty = errors.New("empty orderbook exchange name")
 )
 
 var (
 	errPairNotSet           = errors.New("orderbook currency pair not set")
-	errAssetTypeNotSet      = errors.New("orderbook asset type not set")
 	errAmountInvalid        = errors.New("amount cannot be less or equal to zero")
 	errPriceOutOfOrder      = errors.New("pricing out of order")
 	errIDOutOfOrder         = errors.New("ID out of order")

@@ -24,18 +24,18 @@ import (
 
 // Public websocket errors
 var (
-	ErrWebsocketNotEnabled     = errors.New("websocket not enabled")
-	ErrAlreadyDisabled         = errors.New("websocket already disabled")
-	ErrWebsocketAlreadyEnabled = errors.New("websocket already enabled")
-	ErrNotConnected            = errors.New("websocket is not connected")
-	ErrSignatureTimeout        = errors.New("websocket timeout waiting for response with signature")
-	ErrRequestRouteNotFound    = errors.New("request route not found")
-	ErrSignatureNotSet         = errors.New("signature not set")
+	ErrWebsocketNotEnabled         = errors.New("websocket not enabled")
+	ErrAlreadyDisabled             = errors.New("websocket already disabled")
+	ErrWebsocketAlreadyEnabled     = errors.New("websocket already enabled")
+	ErrNotConnected                = errors.New("websocket is not connected")
+	ErrSignatureTimeout            = errors.New("websocket timeout waiting for response with signature")
+	ErrRequestRouteNotFound        = errors.New("request route not found")
+	ErrSignatureNotSet             = errors.New("signature not set")
+	ErrWebsocketAlreadyInitialised = errors.New("websocket already initialised")
 )
 
 // Private websocket errors
 var (
-	errWebsocketAlreadyInitialised          = errors.New("websocket already initialised")
 	errDefaultURLIsEmpty                    = errors.New("default url is empty")
 	errRunningURLIsEmpty                    = errors.New("running url cannot be empty")
 	errInvalidWebsocketURL                  = errors.New("invalid websocket url")
@@ -94,6 +94,7 @@ type Manager struct {
 	exchangeName                  string
 	features                      *protocol.Features
 	m                             sync.Mutex
+	shutdownMu                    sync.RWMutex
 	connections                   map[Connection]*websocket
 	subscriptions                 *subscription.Store
 	connector                     func() error
@@ -104,7 +105,7 @@ type Manager struct {
 	useMultiConnectionManagement  bool
 	DataHandler                   *stream.Relay
 	Match                         *Match
-	ShutdownC                     chan struct{}
+	shutdownC                     chan struct{}
 	Wg                            sync.WaitGroup
 	Orderbook                     buffer.Orderbook
 	Trade                         trade.Trade // Trade is a notifier for trades
@@ -175,7 +176,7 @@ func SetupGlobalReporter(r Reporter) {
 func NewManager() *Manager {
 	return &Manager{
 		DataHandler:  stream.NewRelay(jobBuffer),
-		ShutdownC:    make(chan struct{}),
+		shutdownC:    make(chan struct{}),
 		TrafficAlert: make(chan struct{}, 1),
 		// ReadMessageErrors is buffered for an edge case when `Connect` fails
 		// after subscriptions are made but before the connectionMonitor has
@@ -209,7 +210,7 @@ func (m *Manager) Setup(s *ManagerSetup) error {
 	defer m.m.Unlock()
 
 	if m.IsInitialised() {
-		return fmt.Errorf("%s %w", m.exchangeName, errWebsocketAlreadyInitialised)
+		return fmt.Errorf("%s %w", m.exchangeName, ErrWebsocketAlreadyInitialised)
 	}
 
 	if s.ExchangeConfig.Name == "" {
@@ -395,7 +396,7 @@ func (m *Manager) createConnectionFromSetup(c *ConnectionSetup) *connection {
 		ResponseMaxLimit:     c.ResponseMaxLimit,
 		Traffic:              m.TrafficAlert,
 		readMessageErrors:    m.ReadMessageErrors,
-		shutdown:             m.ShutdownC,
+		shutdown:             m.ShutdownSignal(),
 		Wg:                   &m.Wg,
 		Match:                match,
 		RateLimit:            rateLimit,
@@ -712,10 +713,10 @@ func (m *Manager) shutdown() error {
 	// flush any subscriptions from last connection if needed
 	m.subscriptions.Clear()
 
-	close(m.ShutdownC)
+	m.closeShutdownSignal()
 	m.setState(disconnectedState)
 	m.Wg.Wait()
-	m.ShutdownC = make(chan struct{})
+	m.resetShutdownSignal()
 
 	for _, conn := range []Connection{m.Conn, m.AuthConn} {
 		if conn == nil {
@@ -725,7 +726,7 @@ func (m *Manager) shutdown() error {
 		if !ok {
 			return fmt.Errorf("%s websocket: %w", m.exchangeName, common.GetTypeAssertError("*connection", conn))
 		}
-		conn.shutdown = m.ShutdownC
+		conn.shutdown = m.ShutdownSignal()
 	}
 
 	if m.verbose {
@@ -746,6 +747,25 @@ func (m *Manager) shutdown() error {
 
 func (m *Manager) setState(s uint32) {
 	m.state.Store(s)
+}
+
+// ShutdownSignal returns a channel that is closed when the websocket is shutting down
+func (m *Manager) ShutdownSignal() chan struct{} {
+	m.shutdownMu.RLock()
+	defer m.shutdownMu.RUnlock()
+	return m.shutdownC
+}
+
+func (m *Manager) closeShutdownSignal() {
+	m.shutdownMu.Lock()
+	defer m.shutdownMu.Unlock()
+	close(m.shutdownC)
+}
+
+func (m *Manager) resetShutdownSignal() {
+	m.shutdownMu.Lock()
+	defer m.shutdownMu.Unlock()
+	m.shutdownC = make(chan struct{})
 }
 
 // IsInitialised returns whether the websocket has been Setup() already
@@ -967,6 +987,20 @@ func (m *Manager) monitorConnection(ctx context.Context) func() bool {
 // observeConnection observes the connection and attempts to reconnect if the connection is lost
 func (m *Manager) observeConnection(ctx context.Context, t *time.Timer) (exit bool) {
 	select {
+	case <-ctx.Done():
+		if m.verbose {
+			log.Debugf(log.WebsocketMgr, "%v websocket: connection monitor context cancelled", m.exchangeName)
+		}
+		t.Stop()
+		m.connectionMonitorRunning.Store(false)
+		return true
+	case <-m.ShutdownSignal():
+		if m.verbose {
+			log.Debugf(log.WebsocketMgr, "%v websocket: connection monitor shutdown message received", m.exchangeName)
+		}
+		t.Stop()
+		m.connectionMonitorRunning.Store(false)
+		return true
 	case err := <-m.ReadMessageErrors:
 		if errors.Is(err, errConnectionFault) {
 			log.Warnf(log.WebsocketMgr, "%v websocket has been disconnected. Reason: %v", m.exchangeName, err)
@@ -1018,13 +1052,17 @@ func (m *Manager) observeConnection(ctx context.Context, t *time.Timer) (exit bo
 
 // monitorTraffic monitors to see if there has been traffic within the trafficTimeout time window. If there is no traffic
 // the connection is shutdown and will be reconnected by the connectionMonitor routine.
-func (m *Manager) monitorTraffic(context.Context) func() bool {
-	return func() bool { return m.observeTraffic(m.trafficTimeout) }
+func (m *Manager) monitorTraffic(ctx context.Context) func() bool {
+	return func() bool { return m.observeTraffic(ctx, m.trafficTimeout) }
 }
 
-func (m *Manager) observeTraffic(timeout time.Duration) bool {
+func (m *Manager) observeTraffic(ctx context.Context, timeout time.Duration) bool {
 	select {
-	case <-m.ShutdownC:
+	case <-ctx.Done():
+		if m.verbose {
+			log.Debugf(log.WebsocketMgr, "%v websocket: trafficMonitor context cancelled", m.exchangeName)
+		}
+	case <-m.ShutdownSignal():
 		if m.verbose {
 			log.Debugf(log.WebsocketMgr, "%v websocket: trafficMonitor shutdown message received", m.exchangeName)
 		}

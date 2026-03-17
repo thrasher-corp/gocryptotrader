@@ -1651,6 +1651,9 @@ func TestString(t *testing.T) {
 		{WebsocketSpotSupplementary, websocketSpotSupplementaryURL},
 		{WebsocketFutures, websocketFuturesURL},
 		{WebsocketFuturesPrivate, websocketFuturesPrivateURL},
+		{WebsocketSandbox, websocketSandboxURL},
+		{WebsocketSandboxPublic, websocketSandboxPublicURL},
+		{WebsocketSandboxPrivate, websocketSandboxPrivateURL},
 		{ChainAnalysis, chainAnalysisURL},
 		{EdgeCase1, edgeCase1URL},
 		{EdgeCase2, edgeCase2URL},
@@ -1817,6 +1820,9 @@ func TestGetGetURLTypeFromString(t *testing.T) {
 		{Endpoint: websocketSpotSupplementaryURL, Expected: WebsocketSpotSupplementary},
 		{Endpoint: websocketFuturesURL, Expected: WebsocketFutures},
 		{Endpoint: websocketFuturesPrivateURL, Expected: WebsocketFuturesPrivate},
+		{Endpoint: websocketSandboxURL, Expected: WebsocketSandbox},
+		{Endpoint: websocketSandboxPublicURL, Expected: WebsocketSandboxPublic},
+		{Endpoint: websocketSandboxPrivateURL, Expected: WebsocketSandboxPrivate},
 		{Endpoint: chainAnalysisURL, Expected: ChainAnalysis},
 		{Endpoint: edgeCase1URL, Expected: EdgeCase1},
 		{Endpoint: edgeCase2URL, Expected: EdgeCase2},
@@ -1915,13 +1921,6 @@ func TestGetMarginRateHistory(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
-func TestGetPositionSummary(t *testing.T) {
-	t.Parallel()
-	var b Base
-	_, err := b.GetFuturesPositionSummary(t.Context(), nil)
-	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
-}
-
 func TestGetFuturesPositions(t *testing.T) {
 	t.Parallel()
 	var b Base
@@ -1985,10 +1984,10 @@ func TestGetPairAndAssetTypeRequestFormatted(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	_, _, err = b.GetPairAndAssetTypeRequestFormatted("BTCAUD")
-	require.ErrorIs(t, err, ErrSymbolNotMatched)
+	require.ErrorIs(t, err, ErrSymbolCannotBeMatched)
 
 	_, _, err = b.GetPairAndAssetTypeRequestFormatted("BTCUSDT")
-	require.ErrorIs(t, err, ErrSymbolNotMatched)
+	require.ErrorIs(t, err, ErrSymbolCannotBeMatched)
 
 	p, a, err := b.GetPairAndAssetTypeRequestFormatted("BTC-USDT")
 	require.NoError(t, err)

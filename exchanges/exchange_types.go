@@ -282,6 +282,9 @@ const (
 	WebsocketTrade
 	WebsocketPrivate
 	WebsocketSpotSupplementary
+	WebsocketSandbox
+	WebsocketSandboxPublic
+	WebsocketSandboxPrivate
 	WebsocketFutures
 	WebsocketFuturesPrivate
 	ChainAnalysis
@@ -306,6 +309,9 @@ const (
 	websocketTradeURL             = "WebsocketTradeURL"
 	websocketPrivateURL           = "WebsocketPrivateURL"
 	websocketSpotSupplementaryURL = "WebsocketSpotSupplementaryURL"
+	websocketSandboxURL           = "WebsocketSandboxURL"
+	websocketSandboxPublicURL     = "WebsocketSandboxPublicURL"
+	websocketSandboxPrivateURL    = "WebsocketSandboxPrivateURL"
 	websocketFuturesURL           = "WebsocketFuturesURL"
 	websocketFuturesPrivateURL    = "WebsocketFuturesPrivateURL"
 	chainAnalysisURL              = "ChainAnalysisURL"
@@ -332,6 +338,9 @@ var keyURLs = []URL{
 	WebsocketTrade,
 	WebsocketPrivate,
 	WebsocketSpotSupplementary,
+	WebsocketSandbox,
+	WebsocketSandboxPublic,
+	WebsocketSandboxPrivate,
 	WebsocketFutures,
 	WebsocketFuturesPrivate,
 	ChainAnalysis,
