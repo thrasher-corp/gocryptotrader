@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -2351,9 +2353,44 @@ func TestPushData(t *testing.T) {
 	t.Parallel()
 
 	e := testInstance(t)
+	e.Name = "TestPushData"
 	e.SetCredentials("mock", "test", "test", "", "", "")
 	e.API.AuthenticatedSupport = true
 	e.API.AuthenticatedWebsocketSupport = true
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	e.wsOBUpdateMgr = buffer.NewUpdateManager(&buffer.UpdateManagerParams{
+		BufferInstance: &e.Websocket.Orderbook,
+		CheckPendingUpdate: func(_, _ int64, _ *orderbook.Update) (skip bool, err error) {
+			return false, nil
+		},
+		FetchDeadline: buffer.DefaultWSOrderbookUpdateDeadline,
+		FetchOrderbook: func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+			defer wg.Done()
+			if p.Equal(currency.NewPair(currency.BTC, currency.USDT)) && a == asset.Spot {
+				return &orderbook.Book{
+					Pair:        p,
+					Asset:       a,
+					Exchange:    e.Name,
+					Bids:        []orderbook.Level{{Amount: 1, Price: 100}},
+					Asks:        []orderbook.Level{{Amount: 1, Price: 100}},
+					LastUpdated: time.Now(),
+				}, nil
+			}
+			if p.Equal(currency.NewPair(currency.ETH, currency.USDCM)) && a == asset.Futures {
+				return &orderbook.Book{
+					Pair:        p,
+					Asset:       a,
+					Exchange:    e.Name,
+					Bids:        []orderbook.Level{{Amount: 1, Price: 100}},
+					Asks:        []orderbook.Level{{Amount: 1, Price: 100}},
+					LastUpdated: time.Now(),
+				}, nil
+			}
+			panic("test update manager unexpected pair or asset")
+		},
+	})
 
 	fErrs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsHandleData.json", func(ctx context.Context, r []byte) error {
 		if bytes.Contains(r, []byte("FANGLE-ACCOUNTS")) {
@@ -2363,8 +2400,9 @@ func TestPushData(t *testing.T) {
 		}
 		return e.wsHandleData(ctx, nil, r)
 	})
+	wg.Wait()
 	e.Websocket.DataHandler.Close()
-	assert.Len(t, e.Websocket.DataHandler.C, 27, "Should see correct number of messages")
+	assert.Len(t, e.Websocket.DataHandler.C, 31, "Should see correct number of messages")
 	require.Len(t, fErrs, 1, "Must get exactly one error message")
 	assert.ErrorContains(t, fErrs[0].Err, "cannot save holdings: nil pointer: *accounts.Accounts")
 }

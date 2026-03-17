@@ -16,7 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
-var testParams = UpdateParams{
+var testParams = UpdateManagerParams{
 	FetchDeadline:  time.Second,
 	FetchOrderbook: func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) { return nil, nil },
 	CheckPendingUpdate: func(_, _ int64, _ *orderbook.Update) (bool, error) {
@@ -58,7 +58,7 @@ func TestNewUpdateManager(t *testing.T) {
 
 	require.Panics(t, func() { NewUpdateManager(nil) })
 
-	params := &UpdateParams{FetchDelay: -time.Second, FetchDeadline: -time.Second}
+	params := &UpdateManagerParams{FetchDelay: -time.Second, FetchDeadline: -time.Second}
 	require.Panics(t, func() { NewUpdateManager(params) })
 	params.FetchDeadline = time.Second
 	require.Panics(t, func() { NewUpdateManager(params) })

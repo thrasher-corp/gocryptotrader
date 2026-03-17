@@ -92,7 +92,7 @@ func TestOBManagerProcessOrderbookUpdateHTTPMocked(t *testing.T) {
 	err = e.Websocket.AddSubscriptions(nil, &subscription.Subscription{Channel: subscription.OrderbookChannel, Interval: kline.TwentyMilliseconds})
 	require.NoError(t, err)
 
-	m := buffer.NewUpdateManager(&buffer.UpdateParams{
+	m := buffer.NewUpdateManager(&buffer.UpdateManagerParams{
 		FetchDelay:         0,
 		FetchDeadline:      buffer.DefaultWSOrderbookUpdateDeadline,
 		FetchOrderbook:     e.fetchWSOrderbookSnapshot,

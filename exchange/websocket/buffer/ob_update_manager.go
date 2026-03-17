@@ -31,7 +31,7 @@ var (
 	errUnhandledCacheState      = errors.New("unhandled cache state")
 )
 
-// UpdateManager manages orderbook updates for websocket connections
+// UpdateManager manages order book REST snapshots to queued websocket order book updates
 // TODO: Directly couple with orderbook struct and optimise locking paths.
 type UpdateManager struct {
 	lookup             map[key.PairAsset]*updateCache
@@ -64,8 +64,8 @@ type pendingUpdate struct {
 	firstUpdateID int64
 }
 
-// UpdateParams contains parameters used to create a new UpdateManager
-type UpdateParams struct {
+// UpdateManagerParams contains parameters used to create a new UpdateManager
+type UpdateManagerParams struct {
 	// FetchDelay defines the delay before the REST orderbook is retrieved. In some cases REST requests can be behind
 	// websocket updates by a large margin, this allows the cache to fill with updates before we fetch the orderbook so
 	// they can be correctly applied.
@@ -81,7 +81,7 @@ type UpdateParams struct {
 }
 
 // NewUpdateManager creates a new websocket orderbook update manager
-func NewUpdateManager(params *UpdateParams) *UpdateManager {
+func NewUpdateManager(params *UpdateManagerParams) *UpdateManager {
 	if params.FetchDeadline <= 0 {
 		panic("fetch deadline must be greater than zero")
 	}

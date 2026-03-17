@@ -993,8 +993,10 @@ func (e *Exchange) manageSubscriptions(ctx context.Context, conn websocket.Conne
 	return errs
 }
 
-// collects subscriptions into batches based on channel and limits to 100 pairs per subscription due to the incoming
-// subscription.List is individualised for connection scaling.
+// collapseSubscriptionList merges per-pair subscriptions into KuCoin-compatible
+// channel batches, capped at 100 entries per request. The returned map preserves
+// the original subscriptions in each batch so subscribe and unsubscribe handling
+// can still update connection state for the individual inputs.
 func collapseSubscriptionList(subs subscription.List) map[*subscription.List]*subscription.Subscription {
 	m := make(map[string][]*subscription.Subscription)
 	for _, s := range subs {
