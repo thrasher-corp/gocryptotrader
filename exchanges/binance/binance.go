@@ -41,13 +41,14 @@ type Exchange struct {
 
 	isAPIStreamConnectionLock sync.Mutex
 
-	accountType *AccountTypeHolder
+	accountType      *AccountTypeHolder
+	accountTypeMutex sync.Mutex
 }
 
 // FetchAccountType if not set fetches the account type from the API, stores it and returns it. Else returns the stored account type.
 func (e *Exchange) FetchAccountType(ctx context.Context) (bool, error) {
-	e.accountType.m.Lock()
-	defer e.accountType.m.Unlock()
+	e.accountTypeMutex.Lock()
+	defer e.accountTypeMutex.Unlock()
 	if e.accountType == nil {
 		accInfo, err := e.GetCrossMarginAccountDetail(ctx)
 		if err != nil {
@@ -61,7 +62,6 @@ func (e *Exchange) FetchAccountType(ctx context.Context) (bool, error) {
 // AccountTypeHolder holds the account type associated with the loaded API key.
 type AccountTypeHolder struct {
 	isUnified bool
-	m         sync.Mutex
 }
 
 const (
@@ -603,8 +603,8 @@ func (e *Exchange) AllOrders(ctx context.Context, symbol currency.Pair, orderID,
 
 // NewOCOOrder places a new one-cancel-other trade order.
 func (e *Exchange) NewOCOOrder(ctx context.Context, arg *OCOOrderParam) (*OCOOrder, error) {
-	if *arg == (OCOOrderParam{}) {
-		return nil, common.ErrEmptyParams
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -744,8 +744,8 @@ func (e *Exchange) NewOrderUsingSORTest(ctx context.Context, arg *SOROrderReques
 }
 
 func (e *Exchange) newOrderUsingSOR(ctx context.Context, arg *SOROrderRequestParams, path string) (*SOROrderResponse, error) {
-	if *arg == (SOROrderRequestParams{}) {
-		return nil, common.ErrEmptyParams
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -1057,8 +1057,8 @@ func (e *Exchange) GetMarginPriceIndex(ctx context.Context, symbol currency.Pair
 // PostMarginAccountOrder post a new order for margin account.
 // autoRepayAtCancel is suggested to set as “FALSE" to keep liability unrepaid under high frequent new order/cancel order execution
 func (e *Exchange) PostMarginAccountOrder(ctx context.Context, arg *MarginAccountOrderParam) (*MarginAccountOrder, error) {
-	if *arg == (MarginAccountOrderParam{}) {
-		return nil, common.ErrEmptyParams
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -1305,8 +1305,8 @@ func (e *Exchange) GetMarginAccountAllOrders(ctx context.Context, symbol currenc
 // OCO counts as 2 orders against the order rate limit.
 // autoRepayAtCancel is suggested to set as “FALSE" to keep liability unrepaid under high frequent new order/cancel order execution
 func (e *Exchange) NewMarginAccountOCOOrder(ctx context.Context, arg *MarginOCOOrderParam) (*OCOOrder, error) {
-	if *arg == (MarginOCOOrderParam{}) {
-		return nil, common.ErrEmptyParams
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -3306,8 +3306,8 @@ func (e *Exchange) SubAccountTransferHistoryForSubAccount(ctx context.Context, c
 
 // UniversalTransferForMasterAccount submits a universal transfer using the master account.
 func (e *Exchange) UniversalTransferForMasterAccount(ctx context.Context, arg *UniversalTransferParams) (*UniversalTransferResponse, error) {
-	if *arg == (UniversalTransferParams{}) {
-		return nil, common.ErrEmptyParams
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if arg.FromAccountType == "" {
 		return nil, fmt.Errorf("%w: fromAccountType=%s", errInvalidAccountType, arg.FromAccountType)
@@ -5452,8 +5452,8 @@ func (e *Exchange) GetFutureTickLevelOrderbookHistoricalDataDownloadLink(ctx con
 // You need to enable Futures Trading Permission for the api key which requests this endpoint.
 // Base URL: https://api.binance.com
 func (e *Exchange) VolumeParticipationNewOrder(ctx context.Context, arg *VolumeParticipationOrderParams) (*AlgoOrderResponse, error) {
-	if *arg == (VolumeParticipationOrderParams{}) {
-		return nil, common.ErrEmptyParams
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -5474,8 +5474,8 @@ func (e *Exchange) VolumeParticipationNewOrder(ctx context.Context, arg *VolumeP
 
 // FuturesTWAPOrder placed futures time-weighted average price(TWAP) order.
 func (e *Exchange) FuturesTWAPOrder(ctx context.Context, arg *TWAPOrderParams) (*AlgoOrderResponse, error) {
-	if *arg == (TWAPOrderParams{}) {
-		return nil, common.ErrEmptyParams
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -5585,8 +5585,8 @@ func (e *Exchange) getSubOrders(ctx context.Context, algoID, page, pageSize int6
 
 // SpotTWAPNewOrder puts spot Time-Weighted Average Price(TWAP) orders
 func (e *Exchange) SpotTWAPNewOrder(ctx context.Context, arg *SpotTWAPOrderParam) (*AlgoOrderResponse, error) {
-	if *arg == (SpotTWAPOrderParam{}) {
-		return nil, common.ErrEmptyParams
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty

@@ -159,8 +159,8 @@ func (e *Exchange) SendWsRequest(method string, param, result any) error {
 // symbol: string of currency pair
 // limit: returned limit amount
 func (e *Exchange) GetWsOrderbook(obd *OrderBookDataRequestParams) (*OrderBook, error) {
-	if obd == nil || *obd == (OrderBookDataRequestParams{}) {
-		return nil, common.ErrEmptyParams
+	if err := common.NilGuard(obd); err != nil {
+		return nil, err
 	}
 	if err := e.CheckLimit(obd.Limit); err != nil {
 		return nil, err
@@ -172,8 +172,8 @@ func (e *Exchange) GetWsOrderbook(obd *OrderBookDataRequestParams) (*OrderBook, 
 // GetWsMostRecentTrades returns recent trade activity through the websocket connection
 // limit: Up to 500 results returned
 func (e *Exchange) GetWsMostRecentTrades(rtr *RecentTradeRequestParams) ([]*RecentTrade, error) {
-	if rtr == nil || *rtr == (RecentTradeRequestParams{}) {
-		return nil, common.ErrEmptyParams
+	if err := common.NilGuard(rtr); err != nil {
+		return nil, err
 	}
 	if rtr.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty

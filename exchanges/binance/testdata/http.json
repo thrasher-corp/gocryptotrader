@@ -6239,7 +6239,7 @@
    "GET": [
     {
      "data": {
-      "serverTime": 1773611201946
+      "serverTime": 1773785219912
      },
      "queryString": "",
      "bodyParams": "",
@@ -6630,7 +6630,7 @@
         "rateLimitType": "ORDERS"
        }
       ],
-      "serverTime": 1773756013713,
+      "serverTime": 1773777613786,
       "symbols": [
        {
         "baseAsset": "BTC",
@@ -7109,6 +7109,12 @@
      "queryString": "endTime=1773762785826\u0026limit=1000\u0026startTime=1773244385826\u0026symbol=BTC_USD_PERP",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": null,
+     "queryString": "endTime=1773777051483\u0026limit=1000\u0026startTime=1773258651483\u0026symbol=BTC_USD_PERP",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -7456,6 +7462,15 @@
      "queryString": "symbol=BTCUSD_PERP",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": {
+      "code": -1121,
+      "msg": "Invalid symbol."
+     },
+     "queryString": "symbol=BTC_USD_PERP",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -7532,15 +7547,15 @@
     {
      "data": [
       {
-       "estimatedSettlePrice": "73959.44389262",
-       "indexPrice": "74021.47317944",
+       "estimatedSettlePrice": "74660.21067667",
+       "indexPrice": "74505.91844518",
        "interestRate": "0.00010000",
-       "lastFundingRate": "-0.00001198",
-       "markPrice": "73986.42497576",
-       "nextFundingTime": 1773763200000,
+       "lastFundingRate": "-0.00000819",
+       "markPrice": "74467.20467795",
+       "nextFundingTime": 1773792000000,
        "pair": "BTCUSD",
        "symbol": "BTCUSD_PERP",
-       "time": 1773762789003
+       "time": 1773777059000
       }
      ],
      "queryString": "symbol=BTCUSD_PERP",
@@ -7915,51 +7930,6 @@
    "GET": [
     {
      "data": {
-      "T": 1773611122138,
-      "asks": [
-       [
-        "25.000",
-        "16.00"
-       ],
-       [
-        "40.000",
-        "2.60"
-       ],
-       [
-        "60.000",
-        "0.40"
-       ],
-       [
-        "300.000",
-        "0.49"
-       ],
-       [
-        "680.000",
-        "0.01"
-       ]
-      ],
-      "bids": [
-       [
-        "15.000",
-        "16.00"
-       ],
-       [
-        "10.000",
-        "7.21"
-       ],
-       [
-        "5.000",
-        "0.31"
-       ]
-      ],
-      "lastUpdateId": 10352339786
-     },
-     "queryString": "limit=10\u0026symbol=BTC-260327-100000-C",
-     "bodyParams": "",
-     "headers": {}
-    },
-    {
-     "data": {
       "T": 1773660078990,
       "asks": [
        [
@@ -8000,6 +7970,51 @@
       "lastUpdateId": 10469351873
      },
      "queryString": "limit=1000\u0026symbol=BTC-260327-100000-C",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "T": 1773785318565,
+      "asks": [
+       [
+        "25.000",
+        "2.60"
+       ],
+       [
+        "40.000",
+        "0.20"
+       ],
+       [
+        "50.000",
+        "0.44"
+       ],
+       [
+        "300.000",
+        "0.05"
+       ],
+       [
+        "680.000",
+        "0.01"
+       ]
+      ],
+      "bids": [
+       [
+        "15.000",
+        "16.00"
+       ],
+       [
+        "10.000",
+        "9.18"
+       ],
+       [
+        "5.000",
+        "0.31"
+       ]
+      ],
+      "lastUpdateId": 10787545247
+     },
+     "queryString": "limit=10\u0026symbol=BTC-260327-100000-C",
      "bodyParams": "",
      "headers": {}
     }
@@ -8123,7 +8138,7 @@
         "filters": [
          {
           "filterType": "PRICE_FILTER",
-          "maxPrice": "70.000",
+          "maxPrice": "75.000",
           "minPrice": "10.000",
           "tickSize": "5.000"
          },
@@ -8189,8 +8204,8 @@
         "filters": [
          {
           "filterType": "PRICE_FILTER",
-          "maxPrice": "47140.000",
-          "minPrice": "5240.000",
+          "maxPrice": "45910.000",
+          "minPrice": "5105.000",
           "tickSize": "5.000"
          },
          {
@@ -8238,7 +8253,7 @@
         "rateLimitType": "ORDERS"
        }
       ],
-      "serverTime": 1773761882066,
+      "serverTime": 1773786472917,
       "timezone": "UTC"
      },
      "queryString": "",
@@ -8254,6 +8269,48 @@
      "queryString": "endTime=1744190254944\u0026limit=10\u0026startTime=1744103854944\u0026underlying=BTCUSDT",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": [
+      {
+       "expiryDate": 1773734400000,
+       "realStrikePrice": "74324.714",
+       "strikePrice": "74000",
+       "strikeResult": "REALISTIC_VALUE_STRICKEN",
+       "symbol": "BTC-260317-74000-P"
+      },
+      {
+       "expiryDate": 1773734400000,
+       "realStrikePrice": "74324.714",
+       "strikePrice": "74500",
+       "strikeResult": "REALISTIC_VALUE_STRICKEN",
+       "symbol": "BTC-260317-74500-C"
+      },
+      {
+       "expiryDate": 1773734400000,
+       "realStrikePrice": "74324.714",
+       "strikePrice": "70000",
+       "strikeResult": "REALISTIC_VALUE_STRICKEN",
+       "symbol": "BTC-260317-70000-P"
+      },
+      {
+       "expiryDate": 1773734400000,
+       "realStrikePrice": "74324.714",
+       "strikePrice": "69000",
+       "strikeResult": "REALISTIC_VALUE_STRICKEN",
+       "symbol": "BTC-260317-69000-P"
+      },
+      {
+       "expiryDate": 1773734400000,
+       "realStrikePrice": "74324.714",
+       "strikePrice": "70500",
+       "strikeResult": "REALISTIC_VALUE_STRICKEN",
+       "symbol": "BTC-260317-70500-P"
+      }
+     ],
+     "queryString": "endTime=1773785342162\u0026limit=10\u0026startTime=1773266942162\u0026underlying=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -8261,8 +8318,8 @@
    "GET": [
     {
      "data": {
-      "indexPrice": "74236.1023913",
-      "time": 1773694800270
+      "indexPrice": "74588.10152174",
+      "time": 1773785336271
      },
      "queryString": "underlying=BTCUSDT",
      "bodyParams": "",
@@ -8356,18 +8413,18 @@
     {
      "data": [
       {
-       "askIV": "0.71945369",
-       "bidIV": "0.70105612",
-       "delta": "0.00647591",
-       "gamma": "0.00000204",
-       "highPriceLimit": "31.666",
+       "askIV": "0.74620545",
+       "bidIV": "0.70413411",
+       "delta": "0.00437958",
+       "gamma": "0.00000148",
+       "highPriceLimit": "19.425",
        "lowPriceLimit": "5",
-       "markIV": "0.691",
-       "markPrice": "17.592",
-       "riskFreeInterest": "0.0311",
+       "markIV": "0.68",
+       "markPrice": "10.791",
+       "riskFreeInterest": "0.0393",
        "symbol": "BTC-260327-100000-C",
-       "theta": "-7.75871796",
-       "vega": "2.28489227"
+       "theta": "-5.92862408",
+       "vega": "1.53870944"
       }
      ],
      "queryString": "symbol=BTC-260327-100000-C",
@@ -8379,20 +8436,15 @@
   "/eapi/v1/openInterest": {
    "GET": [
     {
-     "data": {
-      "code": -6010,
-      "msg": "open interest error data."
-     },
+     "data": [
+      {
+       "symbol": "ETH-221119-1175-P",
+       "sumOpenInterest": "4.01",
+       "sumOpenInterestUsd": "4880.2985615624",
+       "timestamp": "1668754020000"
+      }
+     ],
      "queryString": "expiration=180326\u0026underlyingAsset=ETH",
-     "bodyParams": "",
-     "headers": {}
-    },
-    {
-     "data": {
-      "code": -6010,
-      "msg": "open interest error data."
-     },
-     "queryString": "expiration=090425\u0026underlyingAsset=ETH",
      "bodyParams": "",
      "headers": {}
     }
@@ -8510,24 +8562,24 @@
     {
      "data": [
       {
-       "amount": "257.05",
+       "amount": "3",
        "askPrice": "25",
-       "bidPrice": "20",
-       "closeTime": 1773647349168,
-       "exercisePrice": "74235.86304348",
-       "firstTradeId": 714,
+       "bidPrice": "15",
+       "closeTime": 1773776752128,
+       "exercisePrice": "74588.31304348",
+       "firstTradeId": 718,
        "high": "30",
-       "lastPrice": "30",
-       "lastQty": "0.56",
-       "low": "10",
-       "open": "10",
-       "openTime": 1773475440000,
-       "priceChange": "20",
-       "priceChangePercent": "2",
+       "lastPrice": "15",
+       "lastQty": "0.2",
+       "low": "15",
+       "open": "30",
+       "openTime": 1773647340000,
+       "priceChange": "-15",
+       "priceChangePercent": "-0.5",
        "strikePrice": "100000",
        "symbol": "BTC-260327-100000-C",
-       "tradeCount": 3,
-       "volume": "8.57"
+       "tradeCount": 1,
+       "volume": "0.2"
       }
      ],
      "queryString": "symbol=BTC-260327-100000-C",
@@ -8540,7 +8592,7 @@
    "GET": [
     {
      "data": {
-      "serverTime": 1773611171359
+      "serverTime": 1773785320235
      },
      "queryString": "",
      "bodyParams": "",
@@ -9129,7 +9181,7 @@
         "rateLimitType": "ORDERS"
        }
       ],
-      "serverTime": 1773757119275,
+      "serverTime": 1773777613880,
       "symbols": [
        {
         "baseAsset": "BTC",
@@ -9739,6 +9791,43 @@
       }
      ],
      "queryString": "endTime=1773762308194\u0026limit=1000\u0026startTime=1773243908194\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "fundingRate": "-0.00007802",
+       "fundingTime": 1773273600000,
+       "markPrice": "70150.00000000",
+       "symbol": "BTCUSDT"
+      },
+      {
+       "fundingRate": "-0.00005392",
+       "fundingTime": 1773302400000,
+       "markPrice": "69793.59004348",
+       "symbol": "BTCUSDT"
+      },
+      {
+       "fundingRate": "-0.00007381",
+       "fundingTime": 1773331200000,
+       "markPrice": "70285.70086232",
+       "symbol": "BTCUSDT"
+      },
+      {
+       "fundingRate": "-0.00002789",
+       "fundingTime": 1773360000006,
+       "markPrice": "70487.01187681",
+       "symbol": "BTCUSDT"
+      },
+      {
+       "fundingRate": "0.00004263",
+       "fundingTime": 1773388800001,
+       "markPrice": "71585.20000000",
+       "symbol": "BTCUSDT"
+      }
+     ],
+     "queryString": "endTime=1773777051483\u0026limit=1000\u0026startTime=1773258651483\u0026symbol=BTCUSDT",
      "bodyParams": "",
      "headers": {}
     }
@@ -10787,9 +10876,9 @@
    "GET": [
     {
      "data": {
-      "openInterest": "88750.945",
+      "openInterest": "92820.809",
       "symbol": "BTCUSDT",
-      "time": 1773684938390
+      "time": 1773786111958
      },
      "queryString": "symbol=BTCUSDT",
      "bodyParams": "",
@@ -10858,14 +10947,14 @@
     },
     {
      "data": {
-      "estimatedSettlePrice": "74016.26175133",
-      "indexPrice": "73878.50695652",
+      "estimatedSettlePrice": "74637.06212389",
+      "indexPrice": "74474.60630435",
       "interestRate": "0.00010000",
-      "lastFundingRate": "-0.00000944",
-      "markPrice": "73835.15293103",
-      "nextFundingTime": 1773763200000,
+      "lastFundingRate": "-0.00007172",
+      "markPrice": "74440.00000000",
+      "nextFundingTime": 1773792000000,
       "symbol": "BTCUSDT",
-      "time": 1773762317001
+      "time": 1773777055001
      },
      "queryString": "symbol=BTCUSDT",
      "bodyParams": "",

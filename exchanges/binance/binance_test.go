@@ -518,7 +518,7 @@ func TestGetIndexPriceConstituents(t *testing.T) {
 func TestUFuturesNewOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.UFuturesNewOrder(t.Context(), &UFuturesNewOrderRequest{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	arg := &UFuturesNewOrderRequest{
 		ReduceOnly:   true,
@@ -555,7 +555,7 @@ func TestUFuturesNewOrder(t *testing.T) {
 func TestUModifyOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.UModifyOrder(t.Context(), &USDTOrderUpdateParams{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	arg := &USDTOrderUpdateParams{PriceMatch: "1234"}
 	_, err = e.UModifyOrder(t.Context(), arg)
@@ -593,28 +593,28 @@ func TestUModifyOrder(t *testing.T) {
 
 func TestUPlaceBatchOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.UPlaceBatchOrders(t.Context(), []PlaceBatchOrderData{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	_, err := e.UPlaceBatchOrders(t.Context(), []*PlaceBatchOrderData{})
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	arg := PlaceBatchOrderData{
+	arg := &PlaceBatchOrderData{
 		TimeInForce:  "GTC",
 		PositionSide: "abc",
 	}
-	_, err = e.UPlaceBatchOrders(t.Context(), []PlaceBatchOrderData{arg})
+	_, err = e.UPlaceBatchOrders(t.Context(), []*PlaceBatchOrderData{arg})
 	require.ErrorIs(t, err, errInvalidPositionSide)
 
 	arg.PositionSide = "SHORT"
 	arg.WorkingType = "abc"
-	_, err = e.UPlaceBatchOrders(t.Context(), []PlaceBatchOrderData{arg})
+	_, err = e.UPlaceBatchOrders(t.Context(), []*PlaceBatchOrderData{arg})
 	require.ErrorIs(t, err, errInvalidWorkingType)
 
 	arg.WorkingType = "CONTRACT_TYPE"
 	arg.NewOrderRespType = "abc"
-	_, err = e.UPlaceBatchOrders(t.Context(), []PlaceBatchOrderData{arg})
+	_, err = e.UPlaceBatchOrders(t.Context(), []*PlaceBatchOrderData{arg})
 	require.ErrorIs(t, err, errInvalidNewOrderResponseType)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	tempData := PlaceBatchOrderData{
+	tempData := &PlaceBatchOrderData{
 		Symbol:      currency.Pair{Base: currency.BTC, Quote: currency.USDT},
 		Side:        "BUY",
 		OrderType:   order.Limit.String(),
@@ -622,7 +622,7 @@ func TestUPlaceBatchOrders(t *testing.T) {
 		Price:       1,
 		TimeInForce: "GTC",
 	}
-	result, err := e.UPlaceBatchOrders(t.Context(), []PlaceBatchOrderData{tempData})
+	result, err := e.UPlaceBatchOrders(t.Context(), []*PlaceBatchOrderData{tempData})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -630,7 +630,7 @@ func TestUPlaceBatchOrders(t *testing.T) {
 func TestModifyMultipleOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.UModifyMultipleOrders(t.Context(), []USDTOrderUpdateParams{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	arg := USDTOrderUpdateParams{}
 	_, err = e.UModifyMultipleOrders(t.Context(), []USDTOrderUpdateParams{arg})
@@ -1649,7 +1649,7 @@ func TestGetOrderBook(t *testing.T) {
 func TestGetMostRecentTrades(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetMostRecentTrades(t.Context(), &RecentTradeRequestParams{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	result, err := e.GetMostRecentTrades(t.Context(), &RecentTradeRequestParams{Symbol: usdtmTradablePair, Limit: 15})
 	require.NoError(t, err)
@@ -2534,7 +2534,7 @@ func TestSubAccountTransferHistoryForSubAccount(t *testing.T) {
 func TestUniversalTransferForMasterAccount(t *testing.T) {
 	t.Parallel()
 	_, err := e.UniversalTransferForMasterAccount(t.Context(), &UniversalTransferParams{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	arg := &UniversalTransferParams{
 		ClientTransactionID: "transaction-id",
@@ -2617,7 +2617,7 @@ func TestQueryOrder(t *testing.T) {
 func TestCancelExistingOrderAndSendNewOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelExistingOrderAndSendNewOrder(t.Context(), &CancelReplaceOrderParams{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	arg := &CancelReplaceOrderParams{
 		TimeInForce: "GTC",
@@ -2683,7 +2683,7 @@ func TestAllOrders(t *testing.T) {
 func TestNewOCOOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.NewOCOOrder(t.Context(), &OCOOrderParam{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	arg := &OCOOrderParam{
 		TrailingDelta: 1,
@@ -2768,7 +2768,7 @@ func TestGetOpenOCOList(t *testing.T) {
 func TestNewOrderUsingSOR(t *testing.T) {
 	t.Parallel()
 	_, err := e.NewOrderUsingSOR(t.Context(), &SOROrderRequestParams{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	arg := &SOROrderRequestParams{
 		TimeInForce: "GTC",
@@ -2802,7 +2802,7 @@ func TestNewOrderUsingSOR(t *testing.T) {
 func TestNewOrderUsingSORTest(t *testing.T) {
 	t.Parallel()
 	_, err := e.NewOrderUsingSORTest(t.Context(), &SOROrderRequestParams{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.NewOrderUsingSORTest(t.Context(), &SOROrderRequestParams{
@@ -4228,6 +4228,31 @@ func TestSetCollateralMode(t *testing.T) {
 
 func TestChangePositionMargin(t *testing.T) {
 	t.Parallel()
+	_, err := e.ChangePositionMargin(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	arg := &margin.PositionChangeRequest{}
+	_, err = e.ChangePositionMargin(t.Context(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	arg.Pair = currency.NewBTCUSDT()
+	_, err = e.ChangePositionMargin(t.Context(), arg)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	arg.Asset = asset.USDTMarginedFutures
+	_, err = e.ChangePositionMargin(t.Context(), arg)
+	require.ErrorIs(t, err, margin.ErrNewAllocatedMarginRequired)
+
+	arg.NewAllocatedMargin = 1333337
+	_, err = e.ChangePositionMargin(t.Context(), arg)
+	require.ErrorIs(t, err, margin.ErrOriginalPositionMarginRequired)
+
+	arg.OriginalAllocatedMargin = 1337
+	arg.MarginType = margin.Multi
+	_, err = e.ChangePositionMargin(t.Context(), arg)
+	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
+
+	arg.MarginType = margin.Isolated
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{
 		Pair:                    currency.NewBTCUSDT(),
@@ -4281,6 +4306,19 @@ func TestGetPositionSummary(t *testing.T) {
 
 func TestGetFuturesPositionOrders(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetFuturesPositionOrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	arg := &futures.PositionsRequest{
+		RespectOrderHistoryLimits: true,
+	}
+	_, err = e.GetFuturesPositionOrders(t.Context(), arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty)
+
+	arg.Pairs = []currency.Pair{currency.NewBTCUSDT()}
+	_, err = e.GetFuturesPositionOrders(t.Context(), arg)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetFuturesPositionOrders(t.Context(), &futures.PositionsRequest{
 		Asset:                     asset.USDTMarginedFutures,
@@ -4316,9 +4354,6 @@ func TestSetMarginType(t *testing.T) {
 
 func TestGetLeverage(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetLeverage(t.Context(), asset.Spot, currency.NewBTCUSDT(), 0, order.UnknownSide)
-	require.ErrorIs(t, err, asset.ErrNotSupported)
-
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetLeverage(t.Context(), asset.USDTMarginedFutures, currency.NewBTCUSDT(), 0, order.UnknownSide)
 	require.NoError(t, err)
@@ -4331,11 +4366,8 @@ func TestGetLeverage(t *testing.T) {
 
 func TestSetLeverage(t *testing.T) {
 	t.Parallel()
-	err := e.SetLeverage(t.Context(), asset.Spot, spotTradablePair, margin.Multi, 5, order.UnknownSide)
-	require.ErrorIs(t, err, asset.ErrNotSupported)
-
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	err = e.SetLeverage(t.Context(), asset.USDTMarginedFutures, currency.NewBTCUSDT(), margin.Multi, 5, order.UnknownSide)
+	err := e.SetLeverage(t.Context(), asset.USDTMarginedFutures, currency.NewBTCUSDT(), margin.Multi, 5, order.UnknownSide)
 	require.NoError(t, err)
 	err = e.SetLeverage(t.Context(), asset.CoinMarginedFutures, coinmTradablePair, margin.Multi, 5, order.UnknownSide)
 	require.NoError(t, err)
@@ -4659,7 +4691,7 @@ func TestUGetFundingRateInfo(t *testing.T) {
 
 func TestWsUFuturesConnect(t *testing.T) {
 	t.Parallel()
-	if mockTests {
+	if mockTests || !e.Websocket.IsConnected() {
 		t.SkipNow()
 	}
 	conn, err := e.Websocket.GetConnection(asset.USDTMarginedFutures)
@@ -4696,7 +4728,7 @@ func TestHandleData(t *testing.T) {
 
 func TestListSubscriptions(t *testing.T) {
 	t.Parallel()
-	if mockTests {
+	if mockTests || !e.Websocket.IsConnected() {
 		t.SkipNow()
 	}
 	conn, err := e.Websocket.GetConnection(usdtmPublicFilter)
@@ -4714,7 +4746,7 @@ func TestListSubscriptions(t *testing.T) {
 
 func TestSetProperty(t *testing.T) {
 	t.Parallel()
-	if mockTests {
+	if mockTests || !e.Websocket.IsConnected() {
 		t.SkipNow()
 	}
 	conn, err := e.Websocket.GetConnection(usdtmPrivateFilter)
@@ -4732,7 +4764,7 @@ func TestSetProperty(t *testing.T) {
 
 func TestGetWsOrderbook(t *testing.T) {
 	t.Parallel()
-	if mockTests {
+	if mockTests || !e.Websocket.IsConnected() {
 		t.SkipNow()
 	}
 	if !e.IsAPIStreamConnected() {
@@ -4745,7 +4777,7 @@ func TestGetWsOrderbook(t *testing.T) {
 
 func TestGetWsMostRecentTrades(t *testing.T) {
 	t.Parallel()
-	if mockTests {
+	if mockTests || !e.Websocket.IsConnected() {
 		t.SkipNow()
 	}
 	if !e.IsAPIStreamConnected() {
@@ -4761,7 +4793,7 @@ func TestGetWsMostRecentTrades(t *testing.T) {
 
 func TestGetWsAggregatedTrades(t *testing.T) {
 	t.Parallel()
-	if mockTests {
+	if mockTests || !e.Websocket.IsConnected() {
 		t.SkipNow()
 	}
 	if !e.IsAPIStreamConnected() {
@@ -4777,7 +4809,7 @@ func TestGetWsAggregatedTrades(t *testing.T) {
 
 func TestGetWsKlines(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetWsCandlestick(&KlinesRequestParams{})
+	_, err := e.GetWsCandlestick(nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	arg := &KlinesRequestParams{Timezone: "GMT+2"}
@@ -4788,7 +4820,7 @@ func TestGetWsKlines(t *testing.T) {
 	_, err = e.GetWsCandlestick(arg)
 	require.ErrorIs(t, err, kline.ErrInvalidInterval)
 
-	if mockTests {
+	if mockTests || !e.Websocket.IsConnected() {
 		t.SkipNow()
 	}
 	startTime, endTime := getTime()
@@ -4808,7 +4840,7 @@ func TestGetWsKlines(t *testing.T) {
 
 func TestGetWsOptimizedCandlestick(t *testing.T) {
 	t.Parallel()
-	if mockTests {
+	if mockTests || !e.Websocket.IsConnected() {
 		t.SkipNow()
 	}
 	startTime, endTime := getTime()
@@ -4831,7 +4863,7 @@ func TestGetCurrenctAveragePrice(t *testing.T) {
 	_, err := e.GetWsCurrenctAveragePrice(currency.EMPTYPAIR)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	if mockTests {
+	if mockTests || !e.Websocket.IsConnected() {
 		t.SkipNow()
 	}
 	if !e.IsAPIStreamConnected() {
@@ -4850,7 +4882,7 @@ func TestGetWs24HourPriceChanges(t *testing.T) {
 	_, err = e.GetWs24HourPriceChanges(&PriceChangeRequestParam{})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty)
 
-	if mockTests {
+	if mockTests || !e.Websocket.IsConnected() {
 		t.SkipNow()
 	}
 	if !e.IsAPIStreamConnected() {
@@ -4869,7 +4901,7 @@ func TestGetWsTradingDayTickers(t *testing.T) {
 	_, err = e.GetWsTradingDayTickers(&PriceChangeRequestParam{Timezone: "GMT+3"})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty)
 
-	if mockTests {
+	if mockTests || !e.Websocket.IsConnected() {
 		t.SkipNow()
 	}
 	if !e.IsAPIStreamConnected() {
@@ -4887,7 +4919,7 @@ func TestGetSymbolPriceTicker(t *testing.T) {
 	_, err := e.GetSymbolPriceTicker(currency.EMPTYPAIR)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty)
 
-	if mockTests {
+	if mockTests || !e.Websocket.IsConnected() {
 		t.SkipNow()
 	}
 	if !e.IsAPIStreamConnected() {
@@ -4903,7 +4935,7 @@ func TestGetWsSymbolOrderbookTicker(t *testing.T) {
 	_, err := e.GetWsSymbolOrderbookTicker([]currency.Pair{currency.EMPTYPAIR})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty)
 
-	if mockTests {
+	if mockTests || !e.Websocket.IsConnected() {
 		t.SkipNow()
 	}
 	if !e.IsAPIStreamConnected() {
@@ -4945,6 +4977,21 @@ func TestGetLogOutOfSession(t *testing.T) {
 
 func TestPlaceNewOrder(t *testing.T) {
 	t.Parallel()
+	_, err := e.WsPlaceNewOrder(nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	arg := &TradeOrderRequestParam{}
+	_, err = e.WsPlaceNewOrder(arg)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	arg.Symbol = usdtmTradablePair
+	_, err = e.WsPlaceNewOrder(arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+
+	arg.Side = order.Sell.String()
+	_, err = e.WsPlaceNewOrder(arg)
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	if !e.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
@@ -5050,7 +5097,7 @@ func TestWsCancelOpenOrders(t *testing.T) {
 func TestWsPlaceOCOOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.WsPlaceOCOOrder(nil)
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	arg := &PlaceOCOOrderParam{StopLimitTimeInForce: "GTC"}
 	_, err = e.WsPlaceOCOOrder(arg)
@@ -5128,7 +5175,7 @@ func TestWsCurrentOpenOCOOrders(t *testing.T) {
 func TestWsPlaceNewSOROrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.WsPlaceNewSOROrder(nil)
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	arg := &WsOSRPlaceOrderParams{TimeInForce: "GTC"}
 	_, err = e.WsPlaceNewSOROrder(arg)
@@ -5230,7 +5277,7 @@ func TestWsQueryAccountOrderRateLimits(t *testing.T) {
 func TestWsQueryAccountOrderHistory(t *testing.T) {
 	t.Parallel()
 	_, err := e.WsQueryAccountOrderHistory(nil)
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	_, err = e.WsQueryAccountOrderHistory(&AccountOrderRequestParam{Limit: 5})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
@@ -5267,7 +5314,7 @@ func TestWsQueryAccountOCOOrderHistory(t *testing.T) {
 func TestWsAccountTradeHistory(t *testing.T) {
 	t.Parallel()
 	_, err := e.WsAccountTradeHistory(nil)
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	_, err = e.WsAccountTradeHistory(&AccountOrderRequestParam{OrderID: 1234})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
@@ -5581,7 +5628,7 @@ func TestGetMarginPriceIndex(t *testing.T) {
 func TestPostMarginAccountOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.PostMarginAccountOrder(t.Context(), &MarginAccountOrderParam{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	arg := &MarginAccountOrderParam{AutoRepayAtCancel: true}
 	_, err = e.PostMarginAccountOrder(t.Context(), arg)
@@ -5754,7 +5801,7 @@ func TestGetEOptionsOpenInterests(t *testing.T) {
 	_, err = e.GetEOptionsOpenInterests(t.Context(), currency.ETH, time.Time{})
 	require.ErrorIs(t, err, errExpirationTimeRequired)
 
-	result, err := e.GetEOptionsOpenInterests(t.Context(), currency.ETH, endTIme)
+	result, err := e.GetEOptionsOpenInterests(t.Context(), currency.ETH, time.Time{})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -5769,11 +5816,12 @@ func TestGetOptionsAccountInformation(t *testing.T) {
 
 func TestNewOptionsOrder(t *testing.T) {
 	t.Parallel()
-	arg := &OptionsOrderParams{}
-	_, err := e.NewOptionsOrder(t.Context(), arg)
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	_, err := e.NewOptionsOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	arg.PostOnly = true
+	arg := &OptionsOrderParams{
+		PostOnly: true,
+	}
 	_, err = e.NewOptionsOrder(t.Context(), arg)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
@@ -5810,8 +5858,6 @@ func TestPlaceEOptionsOrder(t *testing.T) {
 	t.Parallel()
 	arg := &OptionsOrderParams{}
 	_, err := e.PlaceBatchEOptionsOrder(t.Context(), []*OptionsOrderParams{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
-	_, err = e.PlaceBatchEOptionsOrder(t.Context(), []*OptionsOrderParams{arg})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 
 	arg.PostOnly = true
@@ -5974,7 +6020,7 @@ func TestGetAccountFundingFlow(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	startTime, endTime := getTime()
-	_, err = e.GetAccountFundingFlow(t.Context(), currency.EMPTYCODE, 0, 0, endTime, startTime)
+	_, err = e.GetAccountFundingFlow(t.Context(), currency.ETH, 0, 0, endTime, startTime)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -6017,7 +6063,7 @@ func TestGetOptionMarginAccountInformation(t *testing.T) {
 func TestSetMarketMakerProtectionConfig(t *testing.T) {
 	t.Parallel()
 	_, err := e.SetOptionsMarketMakerProtectionConfig(t.Context(), &MarketMakerProtectionConfig{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 	_, err = e.SetOptionsMarketMakerProtectionConfig(t.Context(), &MarketMakerProtectionConfig{
 		WindowTimeInMilliseconds: 3000,
 		FrozenTimeInMilliseconds: 300000,
@@ -6102,7 +6148,7 @@ func TestGetOptionsExchangeInformation(t *testing.T) {
 func TestNewUMOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.NewUMOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	arg := &UMOrderParam{ReduceOnly: true}
 	_, err = e.NewUMOrder(t.Context(), arg)
@@ -6154,7 +6200,7 @@ func TestNewUMOrder(t *testing.T) {
 func TestNewCMOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.NewCMOrder(t.Context(), &UMOrderParam{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	arg := &UMOrderParam{
 		ReduceOnly: true,
@@ -6208,7 +6254,7 @@ func TestNewCMOrder(t *testing.T) {
 func TestNewMarginOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.NewMarginOrder(t.Context(), &MarginOrderParam{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	arg := &MarginOrderParam{
 		TimeInForce: "GTC",
@@ -6260,8 +6306,8 @@ func TestMarginAccountRepay(t *testing.T) {
 
 func TestMarginAccountNewOCO(t *testing.T) {
 	t.Parallel()
-	_, err := e.MarginAccountNewOCO(t.Context(), &OCOOrderParam{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	_, err := e.MarginAccountNewOCO(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	arg := &OCOOrderParam{
 		TrailingDelta: 1,
@@ -6301,8 +6347,8 @@ func TestMarginAccountNewOCO(t *testing.T) {
 
 func TestNewOCOOrderList(t *testing.T) {
 	t.Parallel()
-	_, err := e.NewOCOOrderList(t.Context(), &OCOOrderListParams{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	_, err := e.NewOCOOrderList(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	arg := &OCOOrderListParams{
 		AboveTimeInForce: "GTC",
@@ -6343,7 +6389,7 @@ func TestNewOCOOrderList(t *testing.T) {
 func TestNewUMConditionalOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.NewUMConditionalOrder(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	arg := &ConditionalOrderParam{PriceProtect: true}
 	_, err = e.NewUMConditionalOrder(t.Context(), arg)
@@ -6371,8 +6417,8 @@ func TestNewUMConditionalOrder(t *testing.T) {
 
 func TestNewCMConditionalOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.NewCMConditionalOrder(t.Context(), &ConditionalOrderParam{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	_, err := e.NewCMConditionalOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	arg := &ConditionalOrderParam{
 		PositionSide: "LONG",
@@ -6728,7 +6774,7 @@ func TestGetAllMarginAccountOrders(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	startTime, endTime := getTime()
-	_, err = e.GetAllMarginAccountOrders(t.Context(), currency.EMPTYPAIR, endTime, startTime, "", 10)
+	_, err = e.GetAllMarginAccountOrders(t.Context(), assetToTradablePairMap[asset.Margin], endTime, startTime, "", 10)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -6771,7 +6817,7 @@ func TestGetPMMarginAccountTradeList(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	startTime, endTime := getTime()
-	_, err = e.GetPMMarginAccountTradeList(t.Context(), assetToTradablePairMap[asset.Margin], startTime, endTime, 0, 0, 0)
+	_, err = e.GetPMMarginAccountTradeList(t.Context(), assetToTradablePairMap[asset.Margin], endTime, startTime, 0, 0, 0)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -7165,8 +7211,8 @@ func TestGetCrossMarginTransferHistory(t *testing.T) {
 
 func TestNewMarginAccountOCOOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.NewMarginAccountOCOOrder(t.Context(), &MarginOCOOrderParam{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	_, err := e.NewMarginAccountOCOOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	arg := &MarginOCOOrderParam{
 		IsIsolated: true,
@@ -7250,7 +7296,7 @@ func TestGetMarginAccountTradeList(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	startTime, endTime := getTime()
-	_, err = e.GetMarginAccountTradeList(t.Context(), currency.EMPTYPAIR, true, endTime, startTime, 0, 0, 0)
+	_, err = e.GetMarginAccountTradeList(t.Context(), assetToTradablePairMap[asset.Margin], true, endTime, startTime, 0, 0, 0)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -7861,7 +7907,7 @@ func TestGetSourceAssetList(t *testing.T) {
 func TestInvestmentPlanCreation(t *testing.T) {
 	t.Parallel()
 	_, err := e.InvestmentPlanCreation(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	arg := &InvestmentPlanParams{}
 	_, err = e.InvestmentPlanCreation(t.Context(), arg)
@@ -7922,7 +7968,7 @@ func TestInvestmentPlanCreation(t *testing.T) {
 func TestInvestmentPlanAdjustment(t *testing.T) {
 	t.Parallel()
 	_, err := e.InvestmentPlanAdjustment(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	arg := &AdjustInvestmentPlan{}
 	_, err = e.InvestmentPlanAdjustment(t.Context(), arg)
@@ -8049,7 +8095,7 @@ func TestGetIndexLinkedPlanPositionDetails(t *testing.T) {
 func TestOneTimeTransaction(t *testing.T) {
 	t.Parallel()
 	_, err := e.OneTimeTransaction(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	arg := &OneTimeTransactionParams{}
 	_, err = e.OneTimeTransaction(t.Context(), arg)
@@ -8635,7 +8681,7 @@ func TestGetFutureTickLevelOrderbookHistoricalDataDownloadLink(t *testing.T) {
 func TestVolumeParticipationNewOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.VolumeParticipationNewOrder(t.Context(), &VolumeParticipationOrderParams{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 	_, err = e.VolumeParticipationNewOrder(t.Context(), &VolumeParticipationOrderParams{Urgency: "HIGH"})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	_, err = e.VolumeParticipationNewOrder(t.Context(), &VolumeParticipationOrderParams{
@@ -8672,7 +8718,7 @@ func TestVolumeParticipationNewOrder(t *testing.T) {
 func TestTWAPOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.FuturesTWAPOrder(t.Context(), &TWAPOrderParams{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 	_, err = e.FuturesTWAPOrder(t.Context(), &TWAPOrderParams{
 		Duration: 1000,
 	})
@@ -8750,7 +8796,7 @@ func TestGetSubOrders(t *testing.T) {
 func TestTWAPNewOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.SpotTWAPNewOrder(t.Context(), &SpotTWAPOrderParam{})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 	_, err = e.SpotTWAPNewOrder(t.Context(), &SpotTWAPOrderParam{Duration: 86400})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	_, err = e.SpotTWAPNewOrder(t.Context(), &SpotTWAPOrderParam{Symbol: usdtmTradablePair})
@@ -9123,7 +9169,7 @@ func TestPlaceLimitOrder(t *testing.T) {
 	t.Parallel()
 	arg := &ConvertPlaceLimitOrderParam{}
 	_, err := e.PlaceLimitOrder(t.Context(), arg)
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	arg.ExpiredType = "7_D"
 	_, err = e.PlaceLimitOrder(t.Context(), arg)

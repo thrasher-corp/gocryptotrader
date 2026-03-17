@@ -711,7 +711,7 @@ func (e *Exchange) UModifyOrder(ctx context.Context, arg *USDTOrderUpdateParams)
 }
 
 // UPlaceBatchOrders places batch orders
-func (e *Exchange) UPlaceBatchOrders(ctx context.Context, data []PlaceBatchOrderData) ([]*UOrderData, error) {
+func (e *Exchange) UPlaceBatchOrders(ctx context.Context, data []*PlaceBatchOrderData) ([]*UOrderData, error) {
 	if len(data) == 0 {
 		return nil, common.ErrEmptyParams
 	}

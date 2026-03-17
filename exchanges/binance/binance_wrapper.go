@@ -3819,6 +3819,9 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, req *margin.Positio
 	if req == nil {
 		return nil, fmt.Errorf("%w PositionChangeRequest", common.ErrNilPointer)
 	}
+	if req.Pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
 	if req.Asset != asset.USDTMarginedFutures && req.Asset != asset.CoinMarginedFutures {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
 	}

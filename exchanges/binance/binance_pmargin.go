@@ -75,8 +75,8 @@ func (e *Exchange) newUMCMOrder(ctx context.Context, arg *UMOrderParam, path str
 
 // NewMarginOrder places a new cross margin order
 func (e *Exchange) NewMarginOrder(ctx context.Context, arg *MarginOrderParam) (*MarginOrderResp, error) {
-	if *arg == (MarginOrderParam{}) {
-		return nil, common.ErrEmptyParams
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -119,8 +119,8 @@ func (e *Exchange) marginAccountBorrowRepay(ctx context.Context, ccy currency.Co
 
 // MarginAccountNewOCO sends a new OCO order for a margin account.
 func (e *Exchange) MarginAccountNewOCO(ctx context.Context, arg *OCOOrderParam) (*OCOOrder, error) {
-	if *arg == (OCOOrderParam{}) {
-		return nil, common.ErrEmptyParams
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
@@ -152,8 +152,8 @@ func (e *Exchange) NewCMConditionalOrder(ctx context.Context, arg *ConditionalOr
 }
 
 func (e *Exchange) placeConditionalOrder(ctx context.Context, arg *ConditionalOrderParam, path string) (*ConditionalOrder, error) {
-	if arg == nil || *arg == (ConditionalOrderParam{}) {
-		return nil, common.ErrEmptyParams
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
