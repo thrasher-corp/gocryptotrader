@@ -3604,20 +3604,21 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 	if err := common.StartEndTimeCheck(r.StartDate, r.EndDate); err != nil {
 		return nil, err
 	}
-	format, err := e.GetPairFormat(r.Asset, true)
-	if err != nil {
-		return nil, err
-	}
-	fPair := r.Pair.Format(format)
 	pairRate := fundingrate.HistoricalRates{
 		Exchange:  e.Name,
 		Asset:     r.Asset,
-		Pair:      fPair,
+		Pair:      r.Pair,
 		StartDate: r.StartDate,
 		EndDate:   r.EndDate,
 	}
 	switch r.Asset {
 	case asset.USDTMarginedFutures:
+		format, err := e.GetPairFormat(r.Asset, true)
+		if err != nil {
+			return nil, err
+		}
+		fPair := r.Pair.Format(format)
+		pairRate.Pair = fPair
 		requestLimit := 1000
 		sd := r.StartDate
 		var fri []*FundingRateInfoResponse
@@ -3687,12 +3688,12 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		requestLimit := 1000
 		sd := r.StartDate
 		var fri []*FundingRateInfoResponse
-		fri, err = e.GetFundingRateInfo(ctx)
+		fri, err := e.GetFundingRateInfo(ctx)
 		if err != nil {
 			return nil, err
 		}
 		var fundingRateFrequency int64 = 8
-		fps := fPair.String()
+		fps := r.Pair.String()
 		for x := range fri {
 			if fri[x].Symbol != fps {
 				continue
@@ -3702,7 +3703,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		}
 		for {
 			var frh []*FundingRateHistory
-			frh, err = e.FuturesGetFundingHistory(ctx, fPair, requestLimit, sd, r.EndDate)
+			frh, err = e.FuturesGetFundingHistory(ctx, r.Pair, requestLimit, sd, r.EndDate)
 			if err != nil {
 				return nil, err
 			}
@@ -3715,7 +3716,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 			sd = frh[len(frh)-1].FundingTime.Time()
 		}
 		var mp []*IndexMarkPrice
-		mp, err = e.GetIndexAndMarkPrice(ctx, fPair.String(), "")
+		mp, err = e.GetIndexAndMarkPrice(ctx, r.Pair.String(), "")
 		if err != nil {
 			return nil, err
 		}
@@ -3726,7 +3727,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		pairRate.TimeOfNextRate = mp[len(mp)-1].NextFundingTime.Time()
 		if r.IncludePayments {
 			var income []*FuturesIncomeHistoryData
-			income, err = e.FuturesIncomeHistory(ctx, fPair, "FUNDING_FEE", r.StartDate, r.EndDate, int64(requestLimit))
+			income, err = e.FuturesIncomeHistory(ctx, r.Pair, "FUNDING_FEE", r.StartDate, r.EndDate, int64(requestLimit))
 			if err != nil {
 				return nil, err
 			}

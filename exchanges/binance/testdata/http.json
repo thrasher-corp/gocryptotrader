@@ -6630,7 +6630,7 @@
         "rateLimitType": "ORDERS"
        }
       ],
-      "serverTime": 1773691213683,
+      "serverTime": 1773756013713,
       "symbols": [
        {
         "baseAsset": "BTC",
@@ -7079,6 +7079,36 @@
      "queryString": "endTime=1744190254944\u0026limit=1000\u0026startTime=1744103854944\u0026symbol=BTCUSD_PERP",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": null,
+     "queryString": "endTime=1773762032301\u0026limit=1000\u0026startTime=1773243632301\u0026symbol=BTC_USD_PERP",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": null,
+     "queryString": "endTime=1773762308194\u0026limit=1000\u0026startTime=1773243908194\u0026symbol=BTC_USD_PERP",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": null,
+     "queryString": "endTime=1773762510138\u0026limit=1000\u0026startTime=1773244110138\u0026symbol=BTC_USD_PERP",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": null,
+     "queryString": "endTime=1773762556313\u0026limit=1000\u0026startTime=1773244156313\u0026symbol=BTC_USD_PERP",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": null,
+     "queryString": "endTime=1773762785826\u0026limit=1000\u0026startTime=1773244385826\u0026symbol=BTC_USD_PERP",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -7494,17 +7524,23 @@
      "headers": {}
     },
     {
+     "data": null,
+     "queryString": "symbol=BTC_USD_PERP",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
      "data": [
       {
-       "estimatedSettlePrice": "74143.66666832",
-       "indexPrice": "74156.14422002",
+       "estimatedSettlePrice": "73959.44389262",
+       "indexPrice": "74021.47317944",
        "interestRate": "0.00010000",
-       "lastFundingRate": "-0.00000402",
-       "markPrice": "74122.80000000",
-       "nextFundingTime": 1773705600000,
+       "lastFundingRate": "-0.00001198",
+       "markPrice": "73986.42497576",
+       "nextFundingTime": 1773763200000,
        "pair": "BTCUSD",
        "symbol": "BTCUSD_PERP",
-       "time": 1773690279000
+       "time": 1773762789003
       }
      ],
      "queryString": "symbol=BTCUSD_PERP",
@@ -8021,7 +8057,7 @@
         "filters": [
          {
           "filterType": "PRICE_FILTER",
-          "maxPrice": "30.000",
+          "maxPrice": "20.000",
           "minPrice": "5.000",
           "tickSize": "5.000"
          },
@@ -8087,8 +8123,8 @@
         "filters": [
          {
           "filterType": "PRICE_FILTER",
-          "maxPrice": "100.000",
-          "minPrice": "15.000",
+          "maxPrice": "70.000",
+          "minPrice": "10.000",
           "tickSize": "5.000"
          },
          {
@@ -8153,8 +8189,8 @@
         "filters": [
          {
           "filterType": "PRICE_FILTER",
-          "maxPrice": "46520.000",
-          "minPrice": "5170.000",
+          "maxPrice": "47140.000",
+          "minPrice": "5240.000",
           "tickSize": "5.000"
          },
          {
@@ -8202,7 +8238,7 @@
         "rateLimitType": "ORDERS"
        }
       ],
-      "serverTime": 1773693930931,
+      "serverTime": 1773761882066,
       "timezone": "UTC"
      },
      "queryString": "",
@@ -9093,7 +9129,7 @@
         "rateLimitType": "ORDERS"
        }
       ],
-      "serverTime": 1773691213801,
+      "serverTime": 1773757119275,
       "symbols": [
        {
         "baseAsset": "BTC",
@@ -9629,6 +9665,80 @@
       }
      ],
      "queryString": "endTime=1744190254944\u0026limit=1000\u0026startTime=1744103854944\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "fundingRate": "-0.00005824",
+       "fundingTime": 1773244800010,
+       "markPrice": "70186.90000000",
+       "symbol": "BTCUSDT"
+      },
+      {
+       "fundingRate": "-0.00007802",
+       "fundingTime": 1773273600000,
+       "markPrice": "70150.00000000",
+       "symbol": "BTCUSDT"
+      },
+      {
+       "fundingRate": "-0.00005392",
+       "fundingTime": 1773302400000,
+       "markPrice": "69793.59004348",
+       "symbol": "BTCUSDT"
+      },
+      {
+       "fundingRate": "-0.00007381",
+       "fundingTime": 1773331200000,
+       "markPrice": "70285.70086232",
+       "symbol": "BTCUSDT"
+      },
+      {
+       "fundingRate": "-0.00002789",
+       "fundingTime": 1773360000006,
+       "markPrice": "70487.01187681",
+       "symbol": "BTCUSDT"
+      }
+     ],
+     "queryString": "endTime=1773762032301\u0026limit=1000\u0026startTime=1773243632301\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "fundingRate": "-0.00005824",
+       "fundingTime": 1773244800010,
+       "markPrice": "70186.90000000",
+       "symbol": "BTCUSDT"
+      },
+      {
+       "fundingRate": "-0.00007802",
+       "fundingTime": 1773273600000,
+       "markPrice": "70150.00000000",
+       "symbol": "BTCUSDT"
+      },
+      {
+       "fundingRate": "-0.00005392",
+       "fundingTime": 1773302400000,
+       "markPrice": "69793.59004348",
+       "symbol": "BTCUSDT"
+      },
+      {
+       "fundingRate": "-0.00007381",
+       "fundingTime": 1773331200000,
+       "markPrice": "70285.70086232",
+       "symbol": "BTCUSDT"
+      },
+      {
+       "fundingRate": "-0.00002789",
+       "fundingTime": 1773360000006,
+       "markPrice": "70487.01187681",
+       "symbol": "BTCUSDT"
+      }
+     ],
+     "queryString": "endTime=1773762308194\u0026limit=1000\u0026startTime=1773243908194\u0026symbol=BTCUSDT",
      "bodyParams": "",
      "headers": {}
     }
@@ -10748,14 +10858,14 @@
     },
     {
      "data": {
-      "estimatedSettlePrice": "74139.85383357",
-      "indexPrice": "74158.64978261",
+      "estimatedSettlePrice": "74016.26175133",
+      "indexPrice": "73878.50695652",
       "interestRate": "0.00010000",
-      "lastFundingRate": "0.00004679",
-      "markPrice": "74125.72852899",
-      "nextFundingTime": 1773705600000,
+      "lastFundingRate": "-0.00000944",
+      "markPrice": "73835.15293103",
+      "nextFundingTime": 1773763200000,
       "symbol": "BTCUSDT",
-      "time": 1773690277000
+      "time": 1773762317001
      },
      "queryString": "symbol=BTCUSDT",
      "bodyParams": "",

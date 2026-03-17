@@ -14,18 +14,19 @@ const (
 	spotRequestRate = 6000
 	// Order related limits which are segregated from the global rate limits
 	// 100 requests per 10 seconds and max 100000 requests per day.
-	spotOrderInterval        = 10 * time.Second
-	spotOrderRequestRate     = 100
-	cFuturesInterval         = time.Minute
-	cFuturesRequestRate      = 2400
-	cFuturesOrderInterval    = time.Minute
-	cFuturesOrderRequestRate = 1200
-	uFuturesInterval         = time.Minute
-	uFuturesRequestRate      = 2400
-	portfolioMarginRate      = 1200
-	portfolioMarginInterval  = time.Minute
-	uFuturesOrderInterval    = time.Second * 10
-	uFuturesOrderRequestRate = 300
+	spotOrderInterval             = 10 * time.Second
+	spotOrderRequestRate          = 100
+	cFuturesInterval              = time.Minute
+	cFuturesRequestRate           = 2400
+	cFuturesOrderInterval         = time.Minute
+	cFuturesOrderRequestRate      = 1200
+	uFuturesInterval              = time.Minute
+	uFuturesRequestRate           = 2400
+	portfolioMarginRate           = 6000
+	portfolioMarginOrderLimitRate = 1200
+	portfolioMarginInterval       = time.Minute
+	uFuturesOrderInterval         = time.Second * 10
+	uFuturesOrderRequestRate      = 300
 )
 
 // Binance Spot rate limits
@@ -408,6 +409,7 @@ func GetRateLimits() request.RateLimitDefinitions {
 	eOptionsLimiter := request.NewRateLimit(time.Minute, 400)
 	eOptionsOrderLimiter := request.NewRateLimit(time.Minute, 100)
 	portfolioMarginLimiter := request.NewRateLimit(portfolioMarginInterval, portfolioMarginRate)
+	portfolioMarginOrderLimiter := request.NewRateLimit(portfolioMarginInterval, portfolioMarginRate)
 
 	// Sapi Endpoints
 	//
@@ -551,14 +553,14 @@ func GetRateLimits() request.RateLimitDefinitions {
 		optionsAutoCancelAllOpenOrdersHeartbeatRate:            request.GetRateLimiterWithWeight(eOptionsLimiter, 10),
 		pmDefaultRate:                                          request.GetRateLimiterWithWeight(portfolioMarginLimiter, 1),
 		pmMarginAccountLoanAndRepayRate:                        request.GetRateLimiterWithWeight(portfolioMarginLimiter, 100),
-		pmAllMarginAccountOrdersRate:                           request.GetRateLimiterWithWeight(portfolioMarginLimiter, 100),
-		pmGetMarginAccountsAllOCOOrdersRate:                    request.GetRateLimiterWithWeight(portfolioMarginLimiter, 100),
-		pmCancelMarginAccountOpenOrdersOnSymbolRate:            request.GetRateLimiterWithWeight(portfolioMarginLimiter, 5),
-		pmGetAllUMOrdersRate:                                   request.GetRateLimiterWithWeight(portfolioMarginLimiter, 5),
-		pmGetMarginAccountOrderRate:                            request.GetRateLimiterWithWeight(portfolioMarginLimiter, 5),
-		pmCurrentMarginOpenOrderRate:                           request.GetRateLimiterWithWeight(portfolioMarginLimiter, 5),
-		pmGetMarginAccountOCORate:                              request.GetRateLimiterWithWeight(portfolioMarginLimiter, 5),
-		pmGetMarginAccountsOpenOCOOrdersRate:                   request.GetRateLimiterWithWeight(portfolioMarginLimiter, 5),
+		pmAllMarginAccountOrdersRate:                           request.GetRateLimiterWithWeight(portfolioMarginOrderLimiter, 100),
+		pmGetMarginAccountsAllOCOOrdersRate:                    request.GetRateLimiterWithWeight(portfolioMarginOrderLimiter, 100),
+		pmCancelMarginAccountOpenOrdersOnSymbolRate:            request.GetRateLimiterWithWeight(portfolioMarginOrderLimiter, 5),
+		pmGetAllUMOrdersRate:                                   request.GetRateLimiterWithWeight(portfolioMarginOrderLimiter, 5),
+		pmGetMarginAccountOrderRate:                            request.GetRateLimiterWithWeight(portfolioMarginOrderLimiter, 5),
+		pmCurrentMarginOpenOrderRate:                           request.GetRateLimiterWithWeight(portfolioMarginOrderLimiter, 5),
+		pmGetMarginAccountOCORate:                              request.GetRateLimiterWithWeight(portfolioMarginOrderLimiter, 5),
+		pmGetMarginAccountsOpenOCOOrdersRate:                   request.GetRateLimiterWithWeight(portfolioMarginOrderLimiter, 5),
 		pmGetMarginAccountTradeListRate:                        request.GetRateLimiterWithWeight(portfolioMarginLimiter, 5),
 		pmMarginMaxBorrowRate:                                  request.GetRateLimiterWithWeight(portfolioMarginLimiter, 5),
 		pmGetMarginMaxWithdrawalRate:                           request.GetRateLimiterWithWeight(portfolioMarginLimiter, 5),
@@ -577,12 +579,12 @@ func GetRateLimits() request.RateLimitDefinitions {
 		pmAllCMOpenConditionalOrdersWithoutSymbolRate:          request.GetRateLimiterWithWeight(portfolioMarginLimiter, 40),
 		pmAllCMConditionalOrderWithoutSymbolRate:               request.GetRateLimiterWithWeight(portfolioMarginLimiter, 40),
 		pmGetCMAccountTradeListWithPairRate:                    request.GetRateLimiterWithWeight(portfolioMarginLimiter, 40),
-		pmAllCMOrderWithSymbolRate:                             request.GetRateLimiterWithWeight(portfolioMarginLimiter, 20),
+		pmAllCMOrderWithSymbolRate:                             request.GetRateLimiterWithWeight(portfolioMarginOrderLimiter, 20),
 		pmGetAccountBalancesRate:                               request.GetRateLimiterWithWeight(portfolioMarginLimiter, 20),
 		pmGetAccountInformationRate:                            request.GetRateLimiterWithWeight(portfolioMarginLimiter, 20),
 		pmGetCMAccountTradeListWithSymbolRate:                  request.GetRateLimiterWithWeight(portfolioMarginLimiter, 20),
-		pmGetUserUMForceOrdersWithSymbolRate:                   request.GetRateLimiterWithWeight(portfolioMarginLimiter, 20),
-		pmGetUserCMForceOrdersWithSymbolRate:                   request.GetRateLimiterWithWeight(portfolioMarginLimiter, 20),
+		pmGetUserUMForceOrdersWithSymbolRate:                   request.GetRateLimiterWithWeight(portfolioMarginOrderLimiter, 20),
+		pmGetUserCMForceOrdersWithSymbolRate:                   request.GetRateLimiterWithWeight(portfolioMarginOrderLimiter, 20),
 		pmGetUMUserCommissionRate:                              request.GetRateLimiterWithWeight(portfolioMarginLimiter, 20),
 		pmGetCMUserCommissionRate:                              request.GetRateLimiterWithWeight(portfolioMarginLimiter, 20),
 		pmGetUMCurrentPositionModeRate:                         request.GetRateLimiterWithWeight(portfolioMarginLimiter, 30),
