@@ -95,10 +95,10 @@ var e *Exchange
 
 func TestMain(m *testing.M) {
 	e = new(Exchange)
-	e.IsDemoTrading = testingInSandbox // called before setup for websocket connection testing
 	if err := testexch.Setup(e); err != nil {
-		log.Fatalf("Bybit Setup error: %s", err)
+		log.Fatalf("Bitget Setup error: %s", err)
 	}
+	e.Config.UseSandbox = testingInSandbox
 	if apiKey != "" && apiSecret != "" && clientID != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
@@ -748,8 +748,10 @@ func TestGetSpotMarketTrades(t *testing.T) {
 
 func TestPlaceSpotOrder(t *testing.T) {
 	t.Parallel()
+	_, err := e.PlaceSpotOrder(t.Context(), nil, false)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
 	p := &PlaceSingleSpotOrderParams{}
-	_, err := e.PlaceSpotOrder(t.Context(), p, false)
+	_, err = e.PlaceSpotOrder(t.Context(), p, false)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	p.Pair = testPair
 	_, err = e.PlaceSpotOrder(t.Context(), p, false)

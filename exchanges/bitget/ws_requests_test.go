@@ -230,8 +230,8 @@ func newExchangeWithWebsocket(t *testing.T, a asset.Item) *Exchange {
 	t.Helper()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	e := new(Exchange)
-	e.IsDemoTrading = testingInSandbox // called before setup for websocket connection testing
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e.Config.UseSandbox = testingInSandbox
 	testexch.UpdatePairsOnce(t, e)
 	e.API.AuthenticatedSupport = true
 	e.API.AuthenticatedWebsocketSupport = true

@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/buger/jsonparser"
@@ -27,7 +28,8 @@ import (
 // Exchange is the overarching type across this package
 type Exchange struct {
 	exchange.Base
-	IsDemoTrading bool
+	channelAPICode  string
+	channelAPIMutex sync.RWMutex
 }
 
 const (
@@ -4573,7 +4575,8 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers["ACCESS-PASSPHRASE"] = creds.ClientID
 		headers["Content-Type"] = "application/json"
 		headers["locale"] = "en-US"
-		if e.IsDemoTrading {
+		headers["X-CHANNEL-API-CODE"] = e.GetChannelAPICode() // API broker rebate; may want to refactor this if other exchanges have something similar
+		if e.Config.UseSandbox {
 			headers["paptrading"] = "1"
 		}
 		return &request.Item{
@@ -4794,4 +4797,18 @@ func (c *OneSpotCandle) UnmarshalJSON(data []byte) error {
 // UnmarshalJSON deserializes kline data from a JSON array into OneFuturesCandle fields
 func (c *OneFuturesCandle) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[7]any{&c.Timestamp, &c.Entry, &c.High, &c.Low, &c.Exit, &c.BaseVolume, &c.QuoteVolume})
+}
+
+// SetChannelAPICode sets the channel API code, enabling API broker rebates on certain endpoints
+func (e *Exchange) SetChannelAPICode(s string) {
+	e.channelAPIMutex.Lock()
+	e.channelAPICode = s
+	e.channelAPIMutex.Unlock()
+}
+
+// GetChannelAPICode retrieves the channel API code
+func (e *Exchange) GetChannelAPICode() string {
+	e.channelAPIMutex.RLock()
+	defer e.channelAPIMutex.RUnlock()
+	return e.channelAPICode
 }

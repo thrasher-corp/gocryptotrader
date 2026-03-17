@@ -229,7 +229,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 	var wsPub, wsPriv string
 	var err error
-	if !e.IsDemoTrading {
+	if !e.Config.UseSandbox {
 		if wsPub, err = e.API.Endpoints.GetURL(exchange.WebsocketSpot); err != nil {
 			return err
 		}
