@@ -1150,8 +1150,8 @@ func TestManageSubsAuthenticatedNoPairs(t *testing.T) {
 		name, channel, qualifiedChannel string
 		response                        []byte
 	}{
-		{name: "own trades", channel: subscription.MyTradesChannel, qualifiedChannel: krakenWsOwnTrades, response: []byte(`{"channelName":"ownTrades","event":"subscriptionStatus","status":"subscribed","subscription":{"name":"ownTrades"}}`)},
-		{name: "open orders", channel: subscription.MyOrdersChannel, qualifiedChannel: krakenWsOpenOrders, response: []byte(`{"channelName":"openOrders","event":"subscriptionStatus","status":"subscribed","subscription":{"name":"openOrders"}}`)},
+		{name: "own trades", channel: subscription.MyTradesChannel, qualifiedChannel: krakenWsOwnTrades, response: []byte(`{"channelName":"ownTrades","event":"subscriptionStatus","reqid":3,"status":"subscribed","subscription":{"name":"ownTrades"}}`)},
+		{name: "open orders", channel: subscription.MyOrdersChannel, qualifiedChannel: krakenWsOpenOrders, response: []byte(`{"channelName":"openOrders","event":"subscriptionStatus","reqid":3,"status":"subscribed","subscription":{"name":"openOrders"}}`)},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -1170,6 +1170,23 @@ func TestManageSubsAuthenticatedNoPairs(t *testing.T) {
 			assert.Equal(t, 1, conn.expected, "auth subscription without pairs should wait for one response")
 		})
 	}
+}
+
+func TestManageSubsAuthenticatedNoPairsRequiresSingleResponse(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup Instance must not error")
+	conn := &mockAuthSubConnection{}
+	ex.Websocket.AuthConn = conn
+
+	err := ex.manageSubs(t.Context(), krakenWsSubscribe, subscription.List{{
+		Channel:          subscription.MyTradesChannel,
+		QualifiedChannel: krakenWsOwnTrades,
+		Authenticated:    true,
+	}})
+	require.EqualError(t, err, "expected 1 subscription response; got 0; Channel: myTrades")
+	assert.Equal(t, 1, conn.expected, "auth subscription without pairs should still wait for one response")
 }
 
 func TestWsProcessSubStatusAuthenticated(t *testing.T) {
@@ -1191,7 +1208,7 @@ func TestWsProcessSubStatusAuthenticated(t *testing.T) {
 			s := &subscription.Subscription{Channel: tc.channel, QualifiedChannel: tc.qualifiedChannel, Authenticated: true}
 			require.NoError(t, ex.Websocket.AddSubscriptions(nil, s), "authenticated subscription must be added in subscribing state")
 
-			ex.wsProcessSubStatus([]byte(`{"channelName":"` + tc.qualifiedChannel + `","event":"subscriptionStatus","status":"subscribed","subscription":{"name":"` + tc.qualifiedChannel + `"}}`))
+			ex.wsProcessSubStatus([]byte(`{"channelName":"` + tc.qualifiedChannel + `","event":"subscriptionStatus","reqid":3,"status":"subscribed","subscription":{"name":"` + tc.qualifiedChannel + `"}}`))
 			assert.Equal(t, subscription.SubscribedState, s.State(), "authenticated subscription status should be updated without requiring a pair field")
 		})
 	}

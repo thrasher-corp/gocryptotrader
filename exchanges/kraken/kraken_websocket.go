@@ -797,13 +797,13 @@ func (e *Exchange) handleSubResps(s *subscription.Subscription, resps [][]byte, 
 	reqFmt := currency.PairFormat{Uppercase: true, Delimiter: "/"}
 
 	if len(s.Pairs) == 0 {
-		var errs error
-		for _, resp := range resps {
-			if err := e.getSubRespErr(resp, op); err != nil {
-				errs = common.AppendError(errs, fmt.Errorf("%w; Channel: %s", err, s.Channel))
-			}
+		if len(resps) != 1 {
+			return fmt.Errorf("expected 1 subscription response; got %d; Channel: %s", len(resps), s.Channel)
 		}
-		return errs
+		if err := e.getSubRespErr(resps[0], op); err != nil {
+			return fmt.Errorf("%w; Channel: %s", err, s.Channel)
+		}
+		return nil
 	}
 
 	errMap := map[string]error{}
