@@ -78,9 +78,10 @@ func init() {
 }
 
 var (
-	errCancellingOrder = errors.New("error cancelling order")
-	errSubPairMissing  = errors.New("pair missing from subscription response")
-	errInvalidChecksum = errors.New("invalid checksum")
+	errCancellingOrder        = errors.New("error cancelling order")
+	errSubPairMissing         = errors.New("pair missing from subscription response")
+	errInvalidChecksum        = errors.New("invalid checksum")
+	errExpectedOneSubResponse = errors.New("expected 1 subscription response")
 )
 
 var defaultSubscriptions = subscription.List{
@@ -798,7 +799,7 @@ func (e *Exchange) handleSubResps(s *subscription.Subscription, resps [][]byte, 
 
 	if len(s.Pairs) == 0 {
 		if len(resps) != 1 {
-			return fmt.Errorf("expected 1 subscription response; got %d; Channel: %s", len(resps), s.Channel)
+			return fmt.Errorf("%w; got %d; Channel: %s", errExpectedOneSubResponse, len(resps), s.Channel)
 		}
 		if err := e.getSubRespErr(resps[0], op); err != nil {
 			return fmt.Errorf("%w; Channel: %s", err, s.Channel)

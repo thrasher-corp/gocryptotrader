@@ -1185,7 +1185,8 @@ func TestManageSubsAuthenticatedNoPairsRequiresSingleResponse(t *testing.T) {
 		QualifiedChannel: krakenWsOwnTrades,
 		Authenticated:    true,
 	}})
-	require.EqualError(t, err, "expected 1 subscription response; got 0; Channel: myTrades")
+	require.ErrorIs(t, err, errExpectedOneSubResponse)
+	require.ErrorContains(t, err, "got 0; Channel: myTrades")
 	assert.Equal(t, 1, conn.expected, "auth subscription without pairs should still wait for one response")
 }
 
