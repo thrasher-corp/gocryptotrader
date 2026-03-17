@@ -2368,7 +2368,7 @@ func TestPushData(t *testing.T) {
 		FetchDeadline: buffer.DefaultWSOrderbookUpdateDeadline,
 		FetchOrderbook: func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
 			defer wg.Done()
-			if p.Equal(currency.NewPair(currency.BTC, currency.USDT)) && a == asset.Spot {
+			if p.Equal(currency.NewBTCUSDT()) && a == asset.Spot {
 				return &orderbook.Book{
 					Pair:        p,
 					Asset:       a,
