@@ -124,48 +124,49 @@ func (c *subscriptionRecorderConnection) SendJSONMessage(_ context.Context, _ re
 func (c *subscriptionRecorderConnection) Subscriptions() *subscription.Store { return c.subscriptions }
 
 func TestTrackEquivalentSubscriptionsOnExistingConnection(t *testing.T) {
-	tracked := new(Exchange)
-	require.NoError(t, testexch.Setup(tracked))
+	newEquivalentSubs := func() (*subscription.Subscription, *subscription.Subscription) {
+		pair := currency.NewBTCUSDT()
+		marginSub := &subscription.Subscription{Asset: asset.Margin, Pairs: []currency.Pair{pair}, Channel: subscription.TickerChannel}
+		spotSub := &subscription.Subscription{Asset: asset.Spot, Pairs: []currency.Pair{pair}, Channel: subscription.TickerChannel}
+		marginSub.QualifiedChannel = `{"channel":"tickers","instID":"BTC-USDT"}`
+		spotSub.QualifiedChannel = marginSub.QualifiedChannel
+		return marginSub, spotSub
+	}
 
-	pair := currency.NewBTCUSDT()
-	marginSub := &subscription.Subscription{Asset: asset.Margin, Pairs: []currency.Pair{pair}, Channel: subscription.TickerChannel}
-	spotSub := &subscription.Subscription{Asset: asset.Spot, Pairs: []currency.Pair{pair}, Channel: subscription.TickerChannel}
-	marginSub.QualifiedChannel = `{"channel":"tickers","instID":"BTC-USDT"}`
-	spotSub.QualifiedChannel = marginSub.QualifiedChannel
+	t.Run("TracksEquivalentOnOwningConnection", func(t *testing.T) {
+		tracked := new(Exchange)
+		require.NoError(t, testexch.Setup(tracked))
+		marginSub, spotSub := newEquivalentSubs()
 
-	existingConn := &subscriptionRecorderConnection{subscriptions: subscription.NewStore()}
-	require.NoError(t, tracked.Websocket.AddSuccessfulSubscriptions(existingConn, marginSub))
-	require.NoError(t, existingConn.subscriptions.Add(marginSub))
+		existingConn := &subscriptionRecorderConnection{subscriptions: subscription.NewStore()}
+		require.NoError(t, tracked.Websocket.AddSuccessfulSubscriptions(existingConn, marginSub))
+		require.NoError(t, existingConn.subscriptions.Add(marginSub))
 
-	remaining, err := tracked.trackEquivalentSubscriptionsOnExistingConnection(t.Context(), existingConn, subscription.List{spotSub})
-	require.NoError(t, err)
-	require.Empty(t, remaining, "equivalent spot subscription must be tracked on the existing connection")
-	require.Empty(t, existingConn.requests, "tracking on an existing connection must not emit a new outbound subscribe request")
-	require.NotNil(t, tracked.Websocket.GetSubscription(spotSub), "spot subscription must be tracked logically")
-	require.Len(t, existingConn.subscriptions.List(), 2, "existing connection store must track both logical subscriptions")
-}
+		remaining, err := tracked.trackEquivalentSubscriptionsOnExistingConnection(t.Context(), existingConn, subscription.List{spotSub})
+		require.NoError(t, err)
+		require.Empty(t, remaining, "equivalent spot subscription must be tracked on the existing connection")
+		require.Empty(t, existingConn.requests, "tracking on an existing connection must not emit a new outbound subscribe request")
+		require.NotNil(t, tracked.Websocket.GetSubscription(spotSub), "spot subscription must be tracked logically")
+		require.Len(t, existingConn.subscriptions.List(), 2, "existing connection store must track both logical subscriptions")
+	})
 
-func TestTrackEquivalentSkipsConnectionWithoutInverse(t *testing.T) {
-	tracked := new(Exchange)
-	require.NoError(t, testexch.Setup(tracked))
+	t.Run("SkipsConnectionWithoutInverse", func(t *testing.T) {
+		tracked := new(Exchange)
+		require.NoError(t, testexch.Setup(tracked))
+		marginSub, spotSub := newEquivalentSubs()
 
-	pair := currency.NewBTCUSDT()
-	marginSub := &subscription.Subscription{Asset: asset.Margin, Pairs: []currency.Pair{pair}, Channel: subscription.TickerChannel}
-	spotSub := &subscription.Subscription{Asset: asset.Spot, Pairs: []currency.Pair{pair}, Channel: subscription.TickerChannel}
-	marginSub.QualifiedChannel = `{"channel":"tickers","instID":"BTC-USDT"}`
-	spotSub.QualifiedChannel = marginSub.QualifiedChannel
+		// The inverse (margin sub) lives in the manager-level store via a
+		// different connection, but NOT on wrongConn's own subscription store.
+		otherConn := &subscriptionRecorderConnection{subscriptions: subscription.NewStore()}
+		require.NoError(t, tracked.Websocket.AddSuccessfulSubscriptions(otherConn, marginSub))
+		require.NoError(t, otherConn.subscriptions.Add(marginSub))
 
-	// The inverse (margin sub) lives in the manager-level store via a
-	// different connection, but NOT on wrongConn's own subscription store.
-	otherConn := &subscriptionRecorderConnection{subscriptions: subscription.NewStore()}
-	require.NoError(t, tracked.Websocket.AddSuccessfulSubscriptions(otherConn, marginSub))
-	require.NoError(t, otherConn.subscriptions.Add(marginSub))
+		wrongConn := &subscriptionRecorderConnection{subscriptions: subscription.NewStore()}
 
-	wrongConn := &subscriptionRecorderConnection{subscriptions: subscription.NewStore()}
-
-	remaining, err := tracked.trackEquivalentSubscriptionsOnExistingConnection(t.Context(), wrongConn, subscription.List{spotSub})
-	require.NoError(t, err)
-	require.Len(t, remaining, 1, "spot sub must NOT be tracked on a connection that doesn't own the inverse")
-	require.Same(t, spotSub, remaining[0])
-	require.Empty(t, wrongConn.subscriptions.List(), "wrongConn must not gain any subscriptions")
+		remaining, err := tracked.trackEquivalentSubscriptionsOnExistingConnection(t.Context(), wrongConn, subscription.List{spotSub})
+		require.NoError(t, err)
+		require.Len(t, remaining, 1, "spot sub must NOT be tracked on a connection that doesn't own the inverse")
+		require.Same(t, spotSub, remaining[0])
+		require.Empty(t, wrongConn.subscriptions.List(), "wrongConn must not gain any subscriptions")
+	})
 }

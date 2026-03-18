@@ -796,6 +796,76 @@ func (f *fakeConnection) Subscriptions() *subscription.Store {
 	return f.subscriptions
 }
 
+func TestTrackOnExistingConnection(t *testing.T) {
+	t.Parallel()
+
+	t.Run("PassthroughWithoutTrackHook", func(t *testing.T) {
+		t.Parallel()
+
+		m := NewManager()
+		subs := subscription.List{{Channel: "A"}}
+		ws := &websocket{
+			setup:       &ConnectionSetup{},
+			connections: []Connection{&fakeConnection{subscriptions: subscription.NewStore()}},
+		}
+
+		remaining, err := m.trackOnExistingConnection(t.Context(), ws, subs)
+		require.NoError(t, err)
+		assert.Equal(t, subs, remaining)
+	})
+
+	t.Run("TracksAcrossConnectionsUntilEmpty", func(t *testing.T) {
+		t.Parallel()
+
+		m := NewManager()
+		tracked := &subscription.Subscription{Channel: "tracked"}
+		conn0 := &fakeConnection{subscriptions: subscription.NewStore()}
+		conn1 := &fakeConnection{subscriptions: subscription.NewStore()}
+		ws := &websocket{
+			setup: &ConnectionSetup{
+				TrackOnExistingConnection: func(_ context.Context, conn Connection, subs subscription.List) (subscription.List, error) {
+					if conn != conn1 {
+						return subs, nil
+					}
+					require.NoError(t, m.AddSuccessfulSubscriptions(conn, tracked))
+					require.NoError(t, conn.Subscriptions().Add(tracked))
+					return nil, nil
+				},
+			},
+			subscriptions: subscription.NewStore(),
+			connections:   []Connection{conn0, conn1},
+		}
+		m.connections[conn0] = ws
+		m.connections[conn1] = ws
+
+		remaining, err := m.trackOnExistingConnection(t.Context(), ws, subscription.List{tracked})
+		require.NoError(t, err)
+		require.Nil(t, remaining)
+		require.NotNil(t, ws.subscriptions.Get(tracked))
+		require.NotNil(t, conn1.subscriptions.Get(tracked))
+		assert.Nil(t, conn0.subscriptions.Get(tracked))
+	})
+
+	t.Run("PropagatesErrors", func(t *testing.T) {
+		t.Parallel()
+
+		m := NewManager()
+		expectedErr := errors.New("track failed")
+		ws := &websocket{
+			setup: &ConnectionSetup{
+				TrackOnExistingConnection: func(context.Context, Connection, subscription.List) (subscription.List, error) {
+					return nil, expectedErr
+				},
+			},
+			connections: []Connection{&fakeConnection{subscriptions: subscription.NewStore()}},
+		}
+
+		remaining, err := m.trackOnExistingConnection(t.Context(), ws, subscription.List{{Channel: "A"}})
+		require.ErrorIs(t, err, expectedErr)
+		assert.Nil(t, remaining)
+	})
+}
+
 func TestScaleConnectionsToSubscriptions(t *testing.T) {
 	t.Parallel()
 
