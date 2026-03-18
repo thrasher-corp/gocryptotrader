@@ -400,6 +400,40 @@ func TestConnectionMessageErrors(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrFatal, "must error on connect when no subscriptions are required")
 }
 
+func TestConnectTrackOnExistingConnectionRequiresTrackedSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	mgr := NewManager()
+	setup := newDefaultSetup()
+	setup.UseMultiConnectionManagement = true
+	require.NoError(t, mgr.Setup(setup))
+
+	require.NoError(t, mgr.SetupNewConnection(&ConnectionSetup{
+		URL: "wss://tracked-only.example/ws",
+		Connector: func(context.Context, Connection) error {
+			return errors.New("connector should not be called for tracked-only batch")
+		},
+		GenerateSubscriptions: func() (subscription.List, error) {
+			return subscription.List{{Channel: "tracked-only"}}, nil
+		},
+		Subscriber:   func(context.Context, Connection, subscription.List) error { return nil },
+		Unsubscriber: func(context.Context, Connection, subscription.List) error { return nil },
+		Handler:      func(context.Context, Connection, []byte) error { return nil },
+		TrackOnExistingConnection: func(context.Context, Connection, subscription.List) (subscription.List, error) {
+			return nil, nil
+		},
+	}))
+
+	mgr.connectionManager[0].connections = []Connection{&fakeConnection{subscriptions: subscription.NewStore()}}
+
+	err := mgr.Connect(t.Context())
+	require.ErrorIs(t, err, ErrSubscriptionFailure, "tracked-only path must surface subscription failure when subscriptions are not recorded")
+	require.ErrorIs(t, err, ErrSubscriptionsNotAdded, "tracked-only path must validate that tracked subscriptions were added")
+
+	mgr.setEnabled(false)
+	require.NoError(t, mgr.Shutdown())
+}
+
 func TestCreateConnectAndSubscribe(t *testing.T) {
 	t.Parallel()
 
