@@ -1,10 +1,12 @@
 package okx
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
@@ -84,4 +86,49 @@ incoming:
 		eval.add(s.Pairs[0], s.Channel, s.Asset, e.Websocket.GetSubscription(inverse) == nil)
 	}
 	return eval
+}
+
+func inverseSpotMarginSubscription(sub *subscription.Subscription) (*subscription.Subscription, bool) {
+	if sub == nil || (sub.Asset != asset.Spot && sub.Asset != asset.Margin) {
+		return nil, false
+	}
+	inverse := sub.Clone()
+	switch sub.Asset {
+	case asset.Spot:
+		inverse.Asset = asset.Margin
+	case asset.Margin:
+		inverse.Asset = asset.Spot
+	}
+	return inverse, true
+}
+
+func (e *Exchange) trackEquivalentSubscriptionsOnExistingConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) (subscription.List, error) {
+	if conn == nil || len(subs) == 0 {
+		return subs, nil
+	}
+
+	var tracked subscription.List
+	remaining := make(subscription.List, 0, len(subs))
+	for _, sub := range subs {
+		inverse, ok := inverseSpotMarginSubscription(sub)
+		if !ok || conn.Subscriptions().Get(inverse) == nil {
+			remaining = append(remaining, sub)
+			continue
+		}
+		tracked = append(tracked, sub)
+	}
+	if len(tracked) == 0 {
+		return remaining, nil
+	}
+	if err := e.handleSubscription(ctx, conn, operationSubscribe, tracked); err != nil {
+		return nil, err
+	}
+
+	connSubsStore := conn.Subscriptions()
+	for _, sub := range tracked {
+		if err := connSubsStore.Add(sub); err != nil {
+			return nil, err
+		}
+	}
+	return remaining, nil
 }

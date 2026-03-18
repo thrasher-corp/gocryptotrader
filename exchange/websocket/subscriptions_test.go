@@ -971,6 +971,163 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 		assert.Len(t, ws.connections, 3)
 	})
 
+	t.Run("Track On Existing Connection Prevents New Connection", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.MaxSubscriptionsPerConnection = 1
+		m.connections = make(map[Connection]*websocket)
+
+		existing := &subscription.Subscription{Channel: "A"}
+		logical := &subscription.Subscription{Channel: "B"}
+		activeConn := &fakeConnection{subscriptions: subscription.NewStore()}
+		require.NoError(t, activeConn.subscriptions.Add(existing))
+
+		ws := &websocket{
+			setup: &ConnectionSetup{
+				Connector: func(context.Context, Connection) error {
+					return errors.New("should not create a new connection")
+				},
+				TrackOnExistingConnection: func(_ context.Context, conn Connection, subs subscription.List) (subscription.List, error) {
+					if len(subs) != 1 || subs[0].Channel != logical.Channel {
+						return subs, nil
+					}
+					require.NoError(t, m.AddSuccessfulSubscriptions(conn, logical))
+					require.NoError(t, conn.Subscriptions().Add(logical))
+					return nil, nil
+				},
+			},
+			subscriptions: subscription.NewStore(),
+			connections:   []Connection{activeConn},
+		}
+		require.NoError(t, ws.subscriptions.Add(existing))
+		m.connections[activeConn] = ws
+
+		incoming := subscription.List{existing, logical}
+		require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), ws, incoming))
+		assert.Len(t, ws.connections, 1)
+		assert.Equal(t, 2, ws.subscriptions.Len())
+		assert.Equal(t, 2, activeConn.subscriptions.Len())
+	})
+
+	t.Run("Track On Existing Connection Targets Owning Connection", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.MaxSubscriptionsPerConnection = 1
+		m.connections = make(map[Connection]*websocket)
+
+		// conn0 owns subA, conn1 owns subB. A logical sub "C" whose inverse
+		// lives on conn1 must be tracked on conn1, not conn0.
+		subA := &subscription.Subscription{Channel: "A"}
+		subB := &subscription.Subscription{Channel: "B"}
+		logical := &subscription.Subscription{Channel: "C"}
+
+		conn0 := &fakeConnection{subscriptions: subscription.NewStore()}
+		require.NoError(t, conn0.subscriptions.Add(subA))
+
+		conn1 := &fakeConnection{subscriptions: subscription.NewStore()}
+		require.NoError(t, conn1.subscriptions.Add(subB))
+
+		var trackedOnConn Connection
+		ws := &websocket{
+			setup: &ConnectionSetup{
+				Connector: func(context.Context, Connection) error {
+					return errors.New("should not create a new connection")
+				},
+				TrackOnExistingConnection: func(_ context.Context, conn Connection, subs subscription.List) (subscription.List, error) {
+					// Only track when the connection owns subB (the inverse).
+					if conn.Subscriptions().Get(subB) == nil {
+						return subs, nil
+					}
+					trackedOnConn = conn
+					require.NoError(t, m.AddSuccessfulSubscriptions(conn, logical))
+					require.NoError(t, conn.Subscriptions().Add(logical))
+					return nil, nil
+				},
+			},
+			subscriptions: subscription.NewStore(),
+			connections:   []Connection{conn0, conn1},
+		}
+		require.NoError(t, ws.subscriptions.Add(subA))
+		require.NoError(t, ws.subscriptions.Add(subB))
+		m.connections[conn0] = ws
+		m.connections[conn1] = ws
+
+		incoming := subscription.List{subA, subB, logical}
+		require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), ws, incoming))
+
+		assert.Len(t, ws.connections, 2, "no new connections should be created")
+		assert.Same(t, conn1, trackedOnConn, "logical sub should be tracked on the connection owning the inverse, not connections[0]")
+		assert.Equal(t, 1, conn0.subscriptions.Len(), "conn0 should not gain the logical sub")
+		assert.Equal(t, 2, conn1.subscriptions.Len(), "conn1 should own both subB and logical")
+	})
+
+	t.Run("Track Before Generic Subscribe Prevents Misrouting", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.MaxSubscriptionsPerConnection = 2
+		m.connections = make(map[Connection]*websocket)
+
+		// conn0 has subA and spare capacity (max=2, used=1).
+		// conn1 has subB (the inverse of logical sub C).
+		// Without the pre-subscribe tracking pass, the generic
+		// subscribeToConnection loop would route C to conn0 because
+		// it has capacity. The fix ensures trackOnExistingConnection
+		// runs first, absorbing C onto conn1.
+		subA := &subscription.Subscription{Channel: "A"}
+		subB := &subscription.Subscription{Channel: "B"}
+		logical := &subscription.Subscription{Channel: "C"}
+
+		conn0 := &fakeConnection{subscriptions: subscription.NewStore()}
+		require.NoError(t, conn0.subscriptions.Add(subA))
+
+		conn1 := &fakeConnection{subscriptions: subscription.NewStore()}
+		require.NoError(t, conn1.subscriptions.Add(subB))
+
+		var trackedOnConn Connection
+		ws := &websocket{
+			setup: &ConnectionSetup{
+				Subscriber: func(_ context.Context, c Connection, s subscription.List) error {
+					return m.AddSuccessfulSubscriptions(c, s...)
+				},
+				Connector: func(context.Context, Connection) error {
+					return errors.New("should not create a new connection")
+				},
+				TrackOnExistingConnection: func(_ context.Context, conn Connection, subs subscription.List) (subscription.List, error) {
+					// Only track when the connection owns subB (the inverse).
+					if conn.Subscriptions().Get(subB) == nil {
+						return subs, nil
+					}
+					var remaining subscription.List
+					for _, s := range subs {
+						if s.Channel != logical.Channel {
+							remaining = append(remaining, s)
+							continue
+						}
+						trackedOnConn = conn
+						require.NoError(t, m.AddSuccessfulSubscriptions(conn, s))
+						require.NoError(t, conn.Subscriptions().Add(s))
+					}
+					return remaining, nil
+				},
+				Handler: func(context.Context, Connection, []byte) error { return nil },
+			},
+			subscriptions: subscription.NewStore(),
+			connections:   []Connection{conn0, conn1},
+		}
+		require.NoError(t, ws.subscriptions.Add(subA))
+		require.NoError(t, ws.subscriptions.Add(subB))
+		m.connections[conn0] = ws
+		m.connections[conn1] = ws
+
+		incoming := subscription.List{subA, subB, logical}
+		require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), ws, incoming))
+
+		assert.Len(t, ws.connections, 2, "no new connections should be created")
+		assert.Same(t, conn1, trackedOnConn, "logical sub should be tracked on the connection owning the inverse, not conn0 which has spare capacity")
+		assert.Equal(t, 1, conn0.subscriptions.Len(), "conn0 should not gain the logical sub")
+		assert.Equal(t, 2, conn1.subscriptions.Len(), "conn1 should own both subB and logical")
+	})
+
 	t.Run("Cleanup Removes Empty Connections", func(t *testing.T) {
 		t.Parallel()
 		m := NewManager()
@@ -1055,6 +1212,61 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 	})
 }
 
+func TestConnectTracksOnExistingConnectionBeforeNewConnection(t *testing.T) {
+	t.Parallel()
+
+	m := NewManager()
+	m.exchangeName = "test"
+	m.useMultiConnectionManagement = true
+	m.MaxSubscriptionsPerConnection = 1
+	m.setEnabled(true)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+	}))
+	defer srv.Close()
+
+	subA := &subscription.Subscription{Channel: "A"}
+	subB := &subscription.Subscription{Channel: "B"}
+	var connectorCalls int
+	var trackCalls int
+	require.NoError(t, m.SetupNewConnection(&ConnectionSetup{
+		URL: "ws" + srv.URL[len("http"):] + "/ws",
+		Connector: func(ctx context.Context, conn Connection) error {
+			connectorCalls++
+			return conn.Dial(ctx, gws.DefaultDialer, nil, nil)
+		},
+		GenerateSubscriptions: func() (subscription.List, error) {
+			return subscription.List{subA, subB}, nil
+		},
+		Subscriber: func(_ context.Context, c Connection, s subscription.List) error {
+			return m.AddSuccessfulSubscriptions(c, s...)
+		},
+		TrackOnExistingConnection: func(_ context.Context, conn Connection, subs subscription.List) (subscription.List, error) {
+			if len(subs) != 1 || subs[0] != subB {
+				return subs, nil
+			}
+			trackCalls++
+			if err := m.AddSuccessfulSubscriptions(conn, subB); err != nil {
+				return nil, err
+			}
+			if err := conn.Subscriptions().Add(subB); err != nil {
+				return nil, err
+			}
+			return nil, nil
+		},
+		Handler: func(context.Context, Connection, []byte) error { return nil },
+	}))
+
+	require.NoError(t, m.Connect(t.Context()))
+
+	require.Len(t, m.connectionManager, 1)
+	assert.Equal(t, 1, connectorCalls, "connect path should only dial once when later subscriptions are tracked on the existing connection")
+	assert.Equal(t, 1, trackCalls, "later subscription batch should be handled by TrackOnExistingConnection")
+	assert.NotNil(t, m.connectionManager[0].subscriptions.Get(subA), "first subscription should be tracked logically")
+	assert.NotNil(t, m.connectionManager[0].subscriptions.Get(subB), "later tracked subscription should be tracked logically")
+}
+
 func TestUnsubscribeFromConnection(t *testing.T) {
 	t.Parallel()
 	m := NewManager()
@@ -1120,6 +1332,18 @@ func TestSubscribeToConnection(t *testing.T) {
 	remaining, err := m.subscribeToConnection(t.Context(), &connection{subscriptions: store}, subs)
 	require.NoError(t, err, "subscribeToConnection must not error when full capacity")
 	assert.Equal(t, subs, remaining, "remaining should equal input subs when capacity full")
+
+	m = NewManager()
+	m.subscriptions = subscription.NewStore()
+	m.Subscriber = func(subscription.List) error { return nil }
+	store = subscription.NewStore()
+	require.NoError(t, store.Add(&subscription.Subscription{Channel: "existing-1"}))
+	require.NoError(t, store.Add(&subscription.Subscription{Channel: "existing-2"}))
+	m.MaxSubscriptionsPerConnection = 1
+
+	remaining, err = m.subscribeToConnection(t.Context(), &connection{subscriptions: store}, subs)
+	require.NoError(t, err, "subscribeToConnection must not error when connection is already over logical capacity")
+	assert.Equal(t, subs, remaining, "remaining should equal input subs when used capacity exceeds the limit")
 
 	m = NewManager()
 	m.subscriptions = subscription.NewStore()

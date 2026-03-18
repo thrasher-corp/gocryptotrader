@@ -373,6 +373,24 @@ func (m *Manager) updateChannelSubscriptions(ctx context.Context, store *subscri
 	return nil
 }
 
+func (m *Manager) trackOnExistingConnection(ctx context.Context, ws *websocket, subs subscription.List) (subscription.List, error) {
+	if len(subs) == 0 || ws == nil || ws.setup == nil || ws.setup.TrackOnExistingConnection == nil || len(ws.connections) == 0 {
+		return subs, nil
+	}
+	remaining := subs
+	for _, conn := range ws.connections {
+		var err error
+		remaining, err = ws.setup.TrackOnExistingConnection(ctx, conn, remaining)
+		if err != nil {
+			return nil, err
+		}
+		if len(remaining) == 0 {
+			return nil, nil
+		}
+	}
+	return remaining, nil
+}
+
 // scaleConnectionsToSubscriptions scales connections to subscriptions based off current subscription list and subscription limit
 func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, ws *websocket, incoming subscription.List) error {
 	if err := common.NilGuard(ws); err != nil {
@@ -406,8 +424,15 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, ws *webso
 		}
 	}
 	if len(subs) != 0 {
+		// First, absorb subscriptions that should be tracked on existing
+		// connections (e.g. OKX spot/margin equivalents) before the
+		// generic capacity-based routing can misplace them.
+		currentSubs, err := m.trackOnExistingConnection(ctx, ws, subs)
+		if err != nil {
+			return err
+		}
+
 		// Subscribe to existing connections to use up existing capacity
-		currentSubs := slices.Clone(subs)
 		for _, conn := range m.snapshotManagedConnections(ws) {
 			leftOver, err := m.subscribeToConnection(ctx, conn, currentSubs)
 			if err != nil {
@@ -421,7 +446,14 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, ws *webso
 
 		// Spawn new connections if there are still subscriptions left to process
 		for _, batch := range common.Batch(currentSubs, m.MaxSubscriptionsPerConnection) {
-			if err := m.createConnectAndSubscribe(ctx, ws, batch); err != nil {
+			toConnect, err := m.trackOnExistingConnection(ctx, ws, batch)
+			if err != nil {
+				return err
+			}
+			if len(toConnect) == 0 {
+				continue
+			}
+			if err := m.createConnectAndSubscribe(ctx, ws, toConnect); err != nil {
 				return err
 			}
 		}
@@ -503,7 +535,7 @@ func (m *Manager) subscribeToConnection(ctx context.Context, conn Connection, su
 	}
 
 	usedCap := store.Len()
-	if m.MaxSubscriptionsPerConnection > 0 && usedCap == m.MaxSubscriptionsPerConnection {
+	if m.MaxSubscriptionsPerConnection > 0 && usedCap >= m.MaxSubscriptionsPerConnection {
 		return subs, nil // No capacity left for this connection
 	}
 
