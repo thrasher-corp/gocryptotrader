@@ -87,7 +87,7 @@ func StoreInDatabase(in *Item, force bool) (uint64, error) {
 
 	for x := range in.Candles {
 		can := candle.Candle{
-			Timestamp: in.Candles[x].Time.Truncate(in.Interval.Duration()),
+			Timestamp: alignIntervalStart(in.Candles[x].Time, in.Interval),
 			Open:      in.Candles[x].Open,
 			High:      in.Candles[x].High,
 			Low:       in.Candles[x].Low,
