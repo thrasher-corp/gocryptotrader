@@ -1120,28 +1120,32 @@ func (m *Manager) observeConnection(ctx context.Context, t *time.Timer) (exit bo
 // monitorTraffic monitors to see if there has been traffic within the trafficTimeout time window. If there is no traffic
 // the connection is shutdown and will be reconnected by the connectionMonitor routine.
 func (m *Manager) monitorTraffic(context.Context) func() bool {
-	return func() bool { return m.observeTraffic(m.trafficTimeout) }
+	return func() bool {
+		return m.observeTraffic(time.After(m.trafficTimeout), func() {
+			go func() {
+				if err := m.Shutdown(); err != nil {
+					log.Errorf(log.WebsocketMgr, "%v websocket: trafficMonitor shutdown err: %s", m.exchangeName, err)
+				}
+			}()
+		})
+	}
 }
 
-func (m *Manager) observeTraffic(timeout time.Duration) bool {
+func (m *Manager) observeTraffic(timeout <-chan time.Time, onTimeout func()) bool {
 	select {
 	case <-m.ShutdownC:
 		if m.verbose {
 			log.Debugf(log.WebsocketMgr, "%v websocket: trafficMonitor shutdown message received", m.exchangeName)
 		}
-	case <-time.After(timeout):
+	case <-timeout:
 		if m.IsConnecting() || signalReceived(m.TrafficAlert) {
 			return false
 		}
 		if m.verbose {
-			log.Warnf(log.WebsocketMgr, "%v websocket: has not received a traffic alert in %v. Reconnecting", m.exchangeName, timeout)
+			log.Warnf(log.WebsocketMgr, "%v websocket: has not received a traffic alert in %v. Reconnecting", m.exchangeName, m.trafficTimeout)
 		}
-		if m.IsConnected() {
-			go func() { // Without this the m.Shutdown() call below will deadlock
-				if err := m.Shutdown(); err != nil {
-					log.Errorf(log.WebsocketMgr, "%v websocket: trafficMonitor shutdown err: %s", m.exchangeName, err)
-				}
-			}()
+		if m.IsConnected() && onTimeout != nil {
+			onTimeout()
 		}
 	}
 	return true
