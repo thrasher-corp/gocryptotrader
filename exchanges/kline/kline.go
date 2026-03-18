@@ -32,16 +32,16 @@ func CreateKline(trades []order.TradeHistory, interval Interval, pair currency.P
 	// open time of 12:00 and a close time of 17:59.9999 (17:00 open time). This
 	// means that the first and last candles in this 6-hour window will have
 	// half an hour of trading activity missing.
-	timeSeriesStart := trades[0].Timestamp.Truncate(interval.Duration())
+	timeSeriesStart := alignIntervalStart(trades[0].Timestamp, interval)
 
 	// Assuming the last trade is *actually* the last trade executed via
 	// matching engine within this candle.
-	timeSeriesEnd := trades[len(trades)-1].Timestamp.Truncate(interval.Duration()).Add(interval.Duration())
+	timeSeriesEnd := nextIntervalStart(alignIntervalStart(trades[len(trades)-1].Timestamp, interval), interval)
 
-	// Full duration window or block for which all trades will occur.
-	window := timeSeriesEnd.Sub(timeSeriesStart)
-
-	count := int64(window) / int64(interval)
+	count, err := intervalCountAsInt(timeSeriesStart, timeSeriesEnd, interval)
+	if err != nil {
+		return nil, err
+	}
 
 	// Opted to create blanks in memory so that if no trading occurs we don't
 	// need to insert a blank candle later.
@@ -52,16 +52,20 @@ func CreateKline(trades []order.TradeHistory, interval Interval, pair currency.P
 	// candles but for future custom candles we can open up a <=100ms heartbeat
 	// if needed.
 	candleWindowNs := interval.Duration().Nanoseconds()
+	calendarWindow := calendarIntervalMonths(interval) > 0
 
 	var offset int
 	for x := range candles {
 		if candles[x].Time.IsZero() {
 			candles[x].Time = timeSeriesStart
-			timeSeriesStart = timeSeriesStart.Add(interval.Duration())
+			timeSeriesStart = nextIntervalStart(timeSeriesStart, interval)
 		}
-		candleStartNs := candles[x].Time.UnixNano()
+		candleEndNs := candles[x].Time.UnixNano() + candleWindowNs
+		if calendarWindow {
+			candleEndNs = nextIntervalStart(candles[x].Time, interval).UnixNano()
+		}
 		for y := offset; y < len(trades); y++ {
-			if (trades[y].Timestamp.UnixNano() - candleStartNs) >= candleWindowNs {
+			if trades[y].Timestamp.UnixNano() >= candleEndNs {
 				// Push forward offset
 				offset = y
 				break
@@ -133,6 +137,79 @@ func (i Interval) Duration() time.Duration {
 	return time.Duration(i)
 }
 
+func calendarIntervalMonths(interval Interval) int {
+	switch interval {
+	case OneMonth:
+		return 1
+	case ThreeMonth:
+		return 3
+	case SixMonth:
+		return 6
+	case NineMonth:
+		return 9
+	case OneYear:
+		return 12
+	default:
+		return 0
+	}
+}
+
+// alignIntervalStart keeps calendar-based intervals pinned to real UTC month
+// boundaries instead of Unix epoch duration buckets.
+func alignIntervalStart(t time.Time, interval Interval) time.Time {
+	t = t.UTC().Round(0)
+	months := calendarIntervalMonths(interval)
+	if months == 0 {
+		return t.Truncate(interval.Duration())
+	}
+
+	year, month, _ := t.Date()
+	monthIndex := int(month) - 1
+	monthIndex -= monthIndex % months
+
+	return time.Date(year, time.Month(monthIndex+1), 1, 0, 0, 0, 0, time.UTC)
+}
+
+func nextIntervalStart(t time.Time, interval Interval) time.Time {
+	months := calendarIntervalMonths(interval)
+	if months == 0 {
+		return t.UTC().Round(0).Add(interval.Duration())
+	}
+	return alignIntervalStart(t, interval).AddDate(0, months, 0)
+}
+
+func intervalCount(start, end time.Time, interval Interval) uint64 {
+	if interval <= 0 || !start.Before(end) {
+		return 0
+	}
+
+	if calendarIntervalMonths(interval) == 0 {
+		window := end.Sub(start)
+		if window <= 0 {
+			return 0
+		}
+		steps := int64(window) / int64(interval.Duration())
+		if steps == 0 {
+			return 0
+		}
+		return uint64(steps) //nolint:gosec // safe conversion; steps is guaranteed positive by checks above
+	}
+
+	var count uint64
+	for current := start; current.Before(end); current = nextIntervalStart(current, interval) {
+		count++
+	}
+	return count
+}
+
+func intervalCountAsInt(start, end time.Time, interval Interval) (int, error) {
+	count := intervalCount(start, end, interval)
+	if count > uint64(int(^uint(0)>>1)) {
+		return 0, fmt.Errorf("interval count exceeds max int: %d", count)
+	}
+	return int(count), nil
+}
+
 // Short returns short string version of interval
 func (i Interval) Short() string {
 	if i == Raw {
@@ -197,7 +274,11 @@ func (k *Item) addPadding(start, exclusiveEnd time.Time, purgeOnPartial bool) er
 		return errCannotEstablishTimeWindow
 	}
 
-	padded := make([]Candle, int(window/k.Interval.Duration()))
+	count, err := intervalCountAsInt(start, exclusiveEnd, k.Interval)
+	if err != nil {
+		return err
+	}
+	padded := make([]Candle, count)
 	var target int
 	for x := range padded {
 		switch {
@@ -208,7 +289,7 @@ func (k *Item) addPadding(start, exclusiveEnd time.Time, purgeOnPartial bool) er
 				return fmt.Errorf("%w %q should be %q at %q interval",
 					errCandleOpenTimeIsNotUTCAligned,
 					k.Candles[target].Time,
-					start.Add(k.Interval.Duration()),
+					nextIntervalStart(start, k.Interval),
 					k.Interval)
 			}
 			padded[x].Time = start
@@ -216,7 +297,7 @@ func (k *Item) addPadding(start, exclusiveEnd time.Time, purgeOnPartial bool) er
 			padded[x] = k.Candles[target]
 			target++
 		}
-		start = start.Add(k.Interval.Duration())
+		start = nextIntervalStart(start, k.Interval)
 	}
 
 	// NOTE: This checks if the end time exceeds time.Now() and we are capturing
@@ -361,8 +442,7 @@ func TotalCandlesPerInterval(start, end time.Time, interval Interval) uint64 {
 		return 0
 	}
 
-	window := end.Sub(start)
-	return uint64(window) / uint64(interval) //nolint:gosec // No overflow risk
+	return intervalCount(start, end, interval)
 }
 
 // IntervalsPerYear helps determine the number of intervals in a year
@@ -480,19 +560,25 @@ func CalculateCandleDateRanges(start, end time.Time, interval Interval, limit ui
 		return nil, ErrInvalidInterval
 	}
 
-	start = start.Round(interval.Duration())
-	end = end.Round(interval.Duration())
+	if calendarIntervalMonths(interval) == 0 {
+		start = start.Round(interval.Duration())
+		end = end.Round(interval.Duration())
+	} else {
+		start = alignIntervalStart(start, interval)
+		end = alignIntervalStart(end, interval)
+	}
 
-	count := uint64(end.Sub(start) / interval.Duration()) //nolint:gosec // No overflow risk
+	count := intervalCount(start, end, interval)
 	if count == 0 {
 		return nil, common.ErrStartEqualsEnd
 	}
 
 	intervals := make([]IntervalData, 0, count)
-	for iStart := start; iStart.Before(end); iStart = iStart.Add(interval.Duration()) {
+	for iStart := start; iStart.Before(end); iStart = nextIntervalStart(iStart, interval) {
+		intervalEnd := nextIntervalStart(iStart, interval)
 		intervals = append(intervals, IntervalData{
 			Start: CreateIntervalTime(iStart),
-			End:   CreateIntervalTime(iStart.Add(interval.Duration())),
+			End:   CreateIntervalTime(intervalEnd),
 		})
 	}
 

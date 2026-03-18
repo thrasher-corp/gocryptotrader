@@ -91,6 +91,8 @@ func CreateKlineRequest(name string, pair, formatted currency.Pair, a asset.Item
 		return nil, errInvalidSpecificEndpointLimit
 	}
 
+	now := time.Now().UTC().Round(0)
+
 	// Force UTC alignment
 	start = start.UTC()
 	end = end.UTC()
@@ -99,21 +101,21 @@ func CreateKlineRequest(name string, pair, formatted currency.Pair, a asset.Item
 	// 1hr required as opposed to 1min request/outbound interval used to
 	// construct the higher time value candle. This is to make sure there are
 	// minimal missing candles which is used to create the bigger candle.
-	start = start.Truncate(clientRequired.Duration())
+	start = alignIntervalStart(start, clientRequired)
 
 	// Strip future time to current time so there is no extra padding.
-	if end.After(time.Now()) {
-		end = time.Now().UTC()
+	if end.After(now) {
+		end = now
 	}
 
 	// Strip monotonic clock reading for comparison
 	end = end.Round(0)
 
-	endTrunc := end.Truncate(clientRequired.Duration())
+	endTrunc := alignIntervalStart(end, clientRequired)
 	// Check to see if truncation moves end time and if so we want to make sure
 	// the candle period is included on the end.
 	if !endTrunc.Equal(end) {
-		end = endTrunc.Add(clientRequired.Duration())
+		end = nextIntervalStart(endTrunc, clientRequired)
 	}
 
 	return &Request{
@@ -125,7 +127,7 @@ func CreateKlineRequest(name string, pair, formatted currency.Pair, a asset.Item
 		ClientRequired:   clientRequired,
 		Start:            start,
 		End:              end,
-		PartialCandle:    end.After(time.Now()),
+		PartialCandle:    end.After(now),
 		RequestLimit:     specificEndpointLimit,
 	}, nil
 }
@@ -184,7 +186,7 @@ func (r *Request) ProcessResponse(timeSeries []Candle) (*Item, error) {
 		// NOTE: Some endpoints do not return incomplete candles, verify for
 		// incomplete candle.
 		recentCandle := &holder.Candles[len(holder.Candles)-1]
-		if recentCandle.Time.Add(r.ClientRequired.Duration()).After(time.Now()) {
+		if nextIntervalStart(recentCandle.Time, r.ClientRequired).After(time.Now()) {
 			recentCandle.ValidationIssues = PartialCandle
 		}
 	}
