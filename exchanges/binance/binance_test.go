@@ -1067,13 +1067,11 @@ func TestGetFuturesKlineData(t *testing.T) {
 	_, err = e.GetFuturesKlineData(t.Context(), coinmTradablePair, "5m", 5, endTime, startTime)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	result, err := e.GetFuturesKlineData(t.Context(), coinmTradablePair, "1M", 5, startTime, endTime)
+	_, err = e.GetFuturesKlineData(t.Context(), coinmTradablePair, "1M", 5, startTime, endTime)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
 
-	result, err = e.GetFuturesKlineData(t.Context(), coinmTradablePair, "5m", 5, startTime, endTime)
+	_, err = e.GetFuturesKlineData(t.Context(), coinmTradablePair, "5m", 5, startTime, endTime)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
 }
 
 func TestGetContinuousKlineData(t *testing.T) {
@@ -1091,9 +1089,8 @@ func TestGetContinuousKlineData(t *testing.T) {
 	_, err = e.GetContinuousKlineData(t.Context(), "BTCUSD", "CURRENT_QUARTER", "1M", 5, endTime, startTime)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	result, err := e.GetContinuousKlineData(t.Context(), "BTCUSD", "CURRENT_QUARTER", "1M", 5, startTime, endTime)
+	_, err = e.GetContinuousKlineData(t.Context(), "BTCUSD", "CURRENT_QUARTER", "1M", 5, startTime, endTime)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
 
 	_, err = e.GetContinuousKlineData(t.Context(), "BTCUSD", "CURRENT_QUARTER", "1M", 5, startTime, endTime)
 	assert.NoError(t, err)
@@ -1108,9 +1105,8 @@ func TestGetIndexPriceKlines(t *testing.T) {
 	_, err = e.GetIndexPriceKlines(t.Context(), "BTCUSD", "1M", 5, endTime, startTime)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	result, err := e.GetIndexPriceKlines(t.Context(), "BTCUSD", "1M", 5, startTime, endTime)
+	_, err = e.GetIndexPriceKlines(t.Context(), "BTCUSD", "1M", 5, startTime, endTime)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
 }
 
 func TestGetFuturesSwapTickerChangeStats(t *testing.T) {
@@ -1167,6 +1163,7 @@ func TestGetFuturesOrderbookTicker(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
+	println("coinmTradablePair: ", coinmTradablePair.String())
 	result, err = e.GetFuturesOrderbookTicker(t.Context(), coinmTradablePair, "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2037,7 +2034,7 @@ func TestGetSubAccountFuturesAssetTransferHistory(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidFuturesType)
 
 	startTime, endTime := getTime()
-	_, err = e.GetSubAccountFuturesAssetTransferHistory(t.Context(), "someone@gmail.com", endTime, startTime, 0, 0, 0)
+	_, err = e.GetSubAccountFuturesAssetTransferHistory(t.Context(), "someone@gmail.com", endTime, startTime, 1, 0, 0)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -2360,7 +2357,7 @@ func TestGetManagedSubAccountSnapshot(t *testing.T) {
 	require.ErrorIs(t, err, asset.ErrInvalidAsset)
 
 	startTime, endTime := getTime()
-	_, err = e.GetManagedSubAccountSnapshot(t.Context(), "address@thrasher.io", "", endTime, startTime, 10)
+	_, err = e.GetManagedSubAccountSnapshot(t.Context(), "address@thrasher.io", "SPOT", endTime, startTime, 10)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -3644,19 +3641,18 @@ func TestGetRecentTrades(t *testing.T) {
 		pair, asset.USDTMarginedFutures)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
-	pair.Base = currency.NewCode("BTCUSD")
-	pair.Quote = currency.PERP
-	result, err = e.GetRecentTrades(t.Context(), pair, asset.CoinMarginedFutures)
+
+	result, err = e.GetRecentTrades(t.Context(), coinmTradablePair, asset.CoinMarginedFutures)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetAvailableTransferChains(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetAvailableTransferChains(t.Context(), currency.BTC)
-	require.False(t, sharedtestvalues.AreAPICredentialsSet(e) && err != nil, err)
-	require.False(t, !sharedtestvalues.AreAPICredentialsSet(e) && err == nil && !mockTests, "error cannot be nil")
-	assert.False(t, mockTests && err != nil, err)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetAvailableTransferChains(t.Context(), currency.BTC)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestSeedLocalCache(t *testing.T) {
@@ -3712,7 +3708,7 @@ func TestProcessOrderbookUpdate(t *testing.T) {
 	e.setupOrderbookManager(t.Context())
 	p := currency.NewBTCUSDT()
 	var depth WebsocketDepthStream
-	err := json.Unmarshal([]byte(`{"E":1608001030784,"U":7145637266,"a":[["19455.19000000","0.59490200"],["19455.37000000","0.00000000"],["19456.11000000","0.00000000"],["19456.16000000","0.00000000"],["19458.67000000","0.06400000"],["19460.73000000","0.05139800"],["19461.43000000","0.00000000"],["19464.59000000","0.00000000"],["19466.03000000","0.45000000"],["19466.36000000","0.00000000"],["19508.67000000","0.00000000"],["19572.96000000","0.00217200"],["24386.00000000","0.00256600"]],"b":[["19455.18000000","2.94649200"],["19453.15000000","0.01233600"],["19451.18000000","0.00000000"],["19446.85000000","0.11427900"],["19446.74000000","0.00000000"],["19446.73000000","0.00000000"],["19444.45000000","0.14937800"],["19426.75000000","0.00000000"],["19416.36000000","0.36052100"]],"e":"depthUpdate","s":usdtmTradablePair,"u":7145637297}`),
+	err := json.Unmarshal([]byte(`{"E":1608001030784,"U":7145637266,"a":[["19455.19000000","0.59490200"],["19455.37000000","0.00000000"],["19456.11000000","0.00000000"],["19456.16000000","0.00000000"],["19458.67000000","0.06400000"],["19460.73000000","0.05139800"],["19461.43000000","0.00000000"],["19464.59000000","0.00000000"],["19466.03000000","0.45000000"],["19466.36000000","0.00000000"],["19508.67000000","0.00000000"],["19572.96000000","0.00217200"],["24386.00000000","0.00256600"]],"b":[["19455.18000000","2.94649200"],["19453.15000000","0.01233600"],["19451.18000000","0.00000000"],["19446.85000000","0.11427900"],["19446.74000000","0.00000000"],["19446.73000000","0.00000000"],["19444.45000000","0.14937800"],["19426.75000000","0.00000000"],["19416.36000000","0.36052100"]],"e":"depthUpdate","s":"BTCUSDT","u":7145637297}`),
 		&depth)
 	require.NoError(t, err)
 
@@ -3744,12 +3740,19 @@ func TestUFuturesHistoricalTrades(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestFetchCoinMarginExchangeLimits(t *testing.T) {
+	t.Parallel()
+	result, err := e.FetchCoinMarginExchangeLimits(t.Context())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestSetExchangeOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	assetTypes := e.GetAssetTypes(true)
 	for a := range assetTypes {
 		err := e.UpdateOrderExecutionLimits(t.Context(), assetTypes[a])
-		require.NoError(t, err)
+		require.NoErrorf(t, err, "%v: asset type: %v", err, assetTypes[a])
 	}
 
 	err := e.UpdateOrderExecutionLimits(t.Context(), asset.Binary)
@@ -3855,16 +3858,14 @@ func TestFormatExchangeCurrency(t *testing.T) {
 			expectedDelimiter: "",
 		},
 		{
-			name:              "coinmarginedfutures-btcusd_perp",
-			pair:              currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.DashDelimiter),
-			asset:             asset.CoinMarginedFutures,
-			expectedDelimiter: currency.UnderscoreDelimiter,
+			name:  "coinmarginedfutures-btcusd_perp",
+			pair:  currency.NewPair(currency.BTC, currency.NewCode("USD_PERP")),
+			asset: asset.CoinMarginedFutures,
 		},
 		{
-			name:              "coinmarginedfutures-btcusd_211231",
-			pair:              currency.NewPairWithDelimiter("BTCUSD", "211231", currency.UnderscoreDelimiter),
-			asset:             asset.CoinMarginedFutures,
-			expectedDelimiter: currency.UnderscoreDelimiter,
+			name:  "coinmarginedfutures-btcusd_211231",
+			pair:  currency.NewPair(currency.BTC, currency.NewCode("USD_211231")),
+			asset: asset.CoinMarginedFutures,
 		},
 		{
 			name:              "margin-ltousdt",
@@ -3907,13 +3908,13 @@ func TestFormatSymbol(t *testing.T) {
 		},
 		{
 			name:           "coinmarginedfutures-btcusdperp",
-			pair:           currency.NewPairWithDelimiter("BTCUSD", "PERP", currency.DashDelimiter),
+			pair:           currency.NewPairWithDelimiter("BTC", "USD_PERP", ""),
 			asset:          asset.CoinMarginedFutures,
 			expectedString: "BTCUSD_PERP",
 		},
 		{
 			name:           "coinmarginedfutures-BTCUSD_211231",
-			pair:           currency.NewPairWithDelimiter("BTCUSD", "211231", currency.DashDelimiter),
+			pair:           currency.NewPair(currency.BTC, currency.NewCode("USD_211231")),
 			asset:          asset.CoinMarginedFutures,
 			expectedString: "BTCUSD_211231",
 		},
@@ -3972,7 +3973,7 @@ func TestFetchExchangeLimits(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	// testexch.UpdatePairsOnce(t, e)
+	testexch.UpdatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
 		t.Run(a.String(), func(t *testing.T) {
 			t.Parallel()

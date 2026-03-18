@@ -59,7 +59,7 @@ var defaultAssetPairStores = map[asset.Item]currency.PairStore{
 	},
 	asset.CoinMarginedFutures: {
 		AssetEnabled:  true,
-		RequestFormat: &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
+		RequestFormat: &currency.PairFormat{Uppercase: true}, // Delimiter: currency.UnderscoreDelimiter},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
 	},
 	asset.Options: {
@@ -401,7 +401,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 			if cInfo.Symbols[z].ContractStatus != tradingStatus {
 				continue
 			}
-			pair, err := currency.NewPairDelimiter(cInfo.Symbols[z].Symbol, currency.UnderscoreDelimiter)
+			pair, err := currency.NewPairFromString(cInfo.Symbols[z].Symbol)
 			if err != nil {
 				return nil, err
 			}
@@ -687,7 +687,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			return nil, err
 		}
 		for t := range tick {
-			cp, err := currency.NewPairDelimiter(tick[t].Symbol, currency.UnderscoreDelimiter)
+			cp, err := currency.NewPairFromString(tick[t].Symbol)
 			if err != nil {
 				return nil, err
 			}

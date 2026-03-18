@@ -63,6 +63,7 @@ func TestMain(m *testing.M) {
 		asset.USDTMarginedFutures: usdtmTradablePair,
 		asset.CoinMarginedFutures: coinmTradablePair,
 	}
+	e.HTTPRecording = true
 	os.Exit(m.Run())
 }
 
