@@ -657,7 +657,11 @@ func TestFlushChannels(t *testing.T) {
 	}}
 
 	w := NewManager()
-	t.Cleanup(func() { cleanupManagerMonitors(t, w) })
+	var cleanupMonitors sync.Once
+	cleanupW := func() {
+		cleanupMonitors.Do(func() { cleanupManagerMonitors(t, w) })
+	}
+	t.Cleanup(cleanupW)
 	w.exchangeName = "test"
 	w.connector = noopConnect
 	w.Subscriber = newgen.SUBME
@@ -739,7 +743,8 @@ func TestFlushChannels(t *testing.T) {
 	// Multi connection management
 	w.useMultiConnectionManagement = true
 	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
-	defer mock.Close()
+	t.Cleanup(mock.Close)
+	t.Cleanup(cleanupW)
 
 	w.subscriptions = subscription.NewStore()
 
@@ -794,6 +799,17 @@ func (f *fakeConnection) Subscriptions() *subscription.Store {
 		f.subscriptionsHook()
 	}
 	return f.subscriptions
+}
+
+func cleanupManagedConnectionReaders(t *testing.T, m *Manager, ws *websocket) {
+	t.Helper()
+	if m == nil || ws == nil {
+		return
+	}
+	for _, conn := range m.snapshotManagedConnections(ws) {
+		_ = conn.Shutdown()
+	}
+	resetManagerForNextConnectAttempt(t, m)
 }
 
 func TestTrackOnExistingConnection(t *testing.T) {
@@ -867,7 +883,8 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 	t.Parallel()
 
 	// Common setup helper
-	setup := func(isMultiConn bool) (*Manager, *websocket, *httptest.Server) {
+	setup := func(t *testing.T, isMultiConn bool) (*Manager, *websocket) {
+		t.Helper()
 		m := NewManager()
 		m.MaxSubscriptionsPerConnection = 2
 		m.useMultiConnectionManagement = isMultiConn
@@ -876,6 +893,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
 		}))
+		t.Cleanup(srv.Close)
 
 		ws := &websocket{
 			setup: &ConnectionSetup{
@@ -893,29 +911,27 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 			},
 			subscriptions: subscription.NewStore(),
 		}
-		return m, ws, srv
+		t.Cleanup(func() { cleanupManagedConnectionReaders(t, m, ws) })
+		return m, ws
 	}
 
 	t.Run("Nil ws", func(t *testing.T) {
 		t.Parallel()
-		m, _, srv := setup(false)
-		defer srv.Close()
+		m, _ := setup(t, false)
 		err := m.scaleConnectionsToSubscriptions(t.Context(), nil, nil)
 		require.ErrorIs(t, err, common.ErrNilPointer)
 	})
 
 	t.Run("No Changes", func(t *testing.T) {
 		t.Parallel()
-		m, ws, srv := setup(false)
-		defer srv.Close()
+		m, ws := setup(t, false)
 		err := m.scaleConnectionsToSubscriptions(t.Context(), ws, nil)
 		require.NoError(t, err)
 	})
 
 	t.Run("Scale Up (Add Subs)", func(t *testing.T) {
 		t.Parallel()
-		m, ws, srv := setup(false)
-		defer srv.Close()
+		m, ws := setup(t, false)
 
 		subs := subscription.List{{Channel: "A"}, {Channel: "B"}, {Channel: "C"}}
 		err := m.scaleConnectionsToSubscriptions(t.Context(), ws, subs)
@@ -927,8 +943,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 
 	t.Run("Scale Down (Remove Subs)", func(t *testing.T) {
 		t.Parallel()
-		m, ws, srv := setup(true)
-		defer srv.Close()
+		m, ws := setup(t, true)
 
 		// Add subs first
 		subs := subscription.List{{Channel: "A"}, {Channel: "B"}}
@@ -945,8 +960,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 
 	t.Run("Unsubscribe Error", func(t *testing.T) {
 		t.Parallel()
-		m, ws, srv := setup(true)
-		defer srv.Close()
+		m, ws := setup(t, true)
 
 		// Add sub first
 		sub := subscription.List{{Channel: "A"}}
@@ -962,8 +976,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 
 	t.Run("Subscribe Error (Existing Connection)", func(t *testing.T) {
 		t.Parallel()
-		m, ws, srv := setup(false)
-		defer srv.Close()
+		m, ws := setup(t, false)
 
 		// Add one sub (capacity 2)
 		require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), ws, subscription.List{{Channel: "A"}}))
@@ -979,8 +992,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 	})
 
 	t.Run("Subscribe Error (New Connection)", func(t *testing.T) {
-		m, ws, srv := setup(false)
-		defer srv.Close()
+		m, ws := setup(t, false)
 
 		// Set connector error
 		ws.setup.Connector = func(context.Context, Connection) error {
@@ -993,8 +1005,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 
 	t.Run("Global Unsubscribe Fallback Success", func(t *testing.T) {
 		t.Parallel()
-		m, ws, srv := setup(false)
-		defer srv.Close()
+		m, ws := setup(t, false)
 
 		s1 := &subscription.Subscription{Channel: "A"}
 		s2 := &subscription.Subscription{Channel: "B"}
@@ -1008,8 +1019,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 
 	t.Run("Missing Subscriptions After Subscribe", func(t *testing.T) {
 		t.Parallel()
-		m, ws, srv := setup(false)
-		defer srv.Close()
+		m, ws := setup(t, false)
 
 		s1 := &subscription.Subscription{Channel: "A"}
 		s2 := &subscription.Subscription{Channel: "B"}
@@ -1026,8 +1036,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 
 	t.Run("Multi-batch ConnectAndSubscribe Success", func(t *testing.T) {
 		t.Parallel()
-		m, ws, srv := setup(false)
-		defer srv.Close()
+		m, ws := setup(t, false)
 
 		m.MaxSubscriptionsPerConnection = 2
 
@@ -1291,7 +1300,8 @@ func TestConnectTracksOnExistingConnectionBeforeNewConnection(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
 	}))
-	defer srv.Close()
+	t.Cleanup(srv.Close)
+	t.Cleanup(func() { cleanupManagerMonitors(t, m) })
 
 	subA := &subscription.Subscription{Channel: "A"}
 	subB := &subscription.Subscription{Channel: "B"}
