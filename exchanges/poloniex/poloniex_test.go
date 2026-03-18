@@ -678,6 +678,60 @@ func TestUpdateAccountBalances(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestMapSubAccountBalances(t *testing.T) {
+	t.Parallel()
+
+	result := mapSubAccountBalances([]*SubAccountBalances{
+		{
+			AccountID:   "spot-account",
+			AccountType: "SPOT",
+			Balances: []*SubAccountBalance{{
+				Currency:     currency.BTC,
+				Available:    types.Number(3),
+				Hold:         types.Number(2),
+				MaxAvailable: types.Number(999),
+			}},
+		},
+		{
+			AccountID:   "futures-account",
+			AccountType: "FUTURES",
+			Balances: []*SubAccountBalance{{
+				Currency:         currency.USDT,
+				AccountEquity:    types.Number(10),
+				FrozenFunds:      types.Number(4),
+				AvailableBalance: types.Number(6),
+			}},
+		},
+	})
+
+	require.Len(t, result, 2)
+
+	var spotSub, futuresSub *accounts.SubAccount
+	for i := range result {
+		switch {
+		case result[i].AssetType == asset.Spot && result[i].ID == "spot-account":
+			spotSub = result[i]
+		case result[i].AssetType == asset.Futures && result[i].ID == "futures-account":
+			futuresSub = result[i]
+		}
+	}
+
+	require.NotNil(t, spotSub)
+	require.NotNil(t, futuresSub)
+
+	spotBal, ok := spotSub.Balances[currency.BTC]
+	require.True(t, ok)
+	assert.Equal(t, 5.0, spotBal.Total)
+	assert.Equal(t, 2.0, spotBal.Hold)
+	assert.Equal(t, 3.0, spotBal.Free)
+
+	futuresBal, ok := futuresSub.Balances[currency.USDT]
+	require.True(t, ok)
+	assert.Equal(t, 10.0, futuresBal.Total)
+	assert.Equal(t, 4.0, futuresBal.Hold)
+	assert.Equal(t, 6.0, futuresBal.Free)
+}
+
 func TestWithdrawFiat(t *testing.T) {
 	t.Parallel()
 	var withdrawFiatRequest withdraw.Request

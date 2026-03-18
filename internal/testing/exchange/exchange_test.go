@@ -80,6 +80,12 @@ func TestSetup(t *testing.T) {
 	assert.ErrorIs(t, Setup(e), config.ErrExchangeNotFound, "Setup should error correctly on a missing exchange")
 }
 
+func TestSetupVerbose(t *testing.T) {
+	b := new(binance.Exchange)
+	require.NoError(t, Setup(b, true), "Setup must not error when verbose is overridden")
+	assert.True(t, b.IsVerbose(), "Setup should honour the verbose override")
+}
+
 // TestMockHTTPInstance exercises MockHTTPInstance
 func TestMockHTTPInstance(t *testing.T) {
 	b := new(binance.Exchange)
@@ -92,6 +98,12 @@ func TestMockHTTPInstance(t *testing.T) {
 func TestMockWsInstance(t *testing.T) {
 	b := MockWsInstance[binance.Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *gws.Conn) error { return nil }))
 	require.NotNil(t, b, "MockWsInstance must not be nil")
+}
+
+func TestMockWsInstanceVerbose(t *testing.T) {
+	b := MockWsInstance[binance.Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *gws.Conn) error { return nil }), true)
+	require.NotNil(t, b, "MockWsInstance must not be nil when verbose is overridden")
+	assert.True(t, b.IsVerbose(), "MockWsInstance should honour the verbose override")
 }
 
 func TestMockWsInstanceSupportsMultiConnectionManagement(t *testing.T) {

@@ -190,12 +190,14 @@ func (e *Exchange) processBalance(ctx context.Context, result *SubscriptionRespo
 	subAccts := accounts.SubAccounts{}
 	for _, r := range resp {
 		subAcct := accounts.NewSubAccount(stringToAccountType(r.AccountType), r.AccountID)
+		available := r.Available.Float64()
+		hold := r.Hold.Float64()
 		subAcct.Balances.Set(r.Currency, accounts.Balance{
 			Currency:  r.Currency,
-			Hold:      r.Hold.Float64(),
-			Total:     r.Available.Float64(),
+			Hold:      hold,
+			Total:     available + hold,
 			UpdatedAt: r.Timestamp.Time(),
-			Free:      r.Available.Float64() - r.Hold.Float64(),
+			Free:      available,
 		})
 		subAccts = subAccts.Merge(subAcct)
 	}

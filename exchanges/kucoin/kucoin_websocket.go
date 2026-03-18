@@ -485,6 +485,8 @@ func (e *Exchange) processFuturesOrderbookSnapshot(respData []byte, instrument s
 	if err != nil {
 		return err
 	}
+	bids := mergeRoundedOrderbookLevels(resp.Bids.Levels())
+	asks := mergeRoundedOrderbookLevels(resp.Asks.Levels())
 	// Note: KuCoin snapshot timestamps are all the same and each update is 100ms apart.
 	return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 		Exchange:     e.Name,
@@ -492,8 +494,8 @@ func (e *Exchange) processFuturesOrderbookSnapshot(respData []byte, instrument s
 		LastUpdated:  resp.Timestamp.Time(),
 		LastPushed:   resp.PushTimestamp.Time(),
 		Asset:        asset.Futures,
-		Bids:         resp.Bids.Levels(),
-		Asks:         resp.Asks.Levels(),
+		Bids:         bids,
+		Asks:         asks,
 		Pair:         pair,
 	})
 }
@@ -896,11 +898,13 @@ func (e *Exchange) processOrderbook(respData []byte, symbol, topic string) error
 	if lastUpdatedTime.IsZero() {
 		lastUpdatedTime = time.Now()
 	}
+	asks := mergeRoundedOrderbookLevels(resp.Asks.Levels())
+	bids := mergeRoundedOrderbookLevels(resp.Bids.Levels())
 	for x := range assets {
 		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			Exchange:    e.Name,
-			Asks:        resp.Asks.Levels(),
-			Bids:        resp.Bids.Levels(),
+			Asks:        asks,
+			Bids:        bids,
 			Pair:        pair,
 			Asset:       assets[x],
 			LastUpdated: lastUpdatedTime,
@@ -1207,6 +1211,8 @@ func (e *Exchange) SeedLocalCache(ctx context.Context, p currency.Pair, assetTyp
 
 // SeedLocalCacheWithBook seeds the local orderbook cache
 func (e *Exchange) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *Orderbook, assetType asset.Item) error {
+	bids := mergeRoundedOrderbookLevels(orderbookNew.Bids)
+	asks := mergeRoundedOrderbookLevels(orderbookNew.Asks)
 	return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 		Pair:              p,
 		Asset:             assetType,
@@ -1214,8 +1220,8 @@ func (e *Exchange) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *Orderbo
 		LastUpdated:       orderbookNew.Time,
 		LastUpdateID:      orderbookNew.Sequence,
 		ValidateOrderbook: e.ValidateOrderbook,
-		Bids:              orderbookNew.Bids,
-		Asks:              orderbookNew.Asks,
+		Bids:              bids,
+		Asks:              asks,
 	})
 }
 
