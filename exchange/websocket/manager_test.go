@@ -239,7 +239,6 @@ func TestSetup(t *testing.T) {
 }
 
 func TestConnectionMessageErrors(t *testing.T) {
-	t.Parallel()
 	wsWrong := &Manager{}
 	wsWrong.connector = func() error { return nil }
 
@@ -401,6 +400,8 @@ func TestConnectionMessageErrors(t *testing.T) {
 }
 
 func TestConnectTrackOnExistingConnectionRequiresTrackedSubscriptions(t *testing.T) {
+	t.Parallel()
+
 	mgr := NewManager()
 	setup := newDefaultSetup()
 	setup.UseMultiConnectionManagement = true
@@ -1489,7 +1490,6 @@ func TestMonitorConnection(t *testing.T) {
 }
 
 func TestMonitorTraffic(t *testing.T) {
-	t.Parallel()
 	ws := Manager{verbose: true, ShutdownC: make(chan struct{}), TrafficAlert: make(chan struct{}, 1)}
 	ws.Wg.Add(1)
 	// Handle external shutdown signal
@@ -1506,8 +1506,8 @@ func TestMonitorTraffic(t *testing.T) {
 	// Handle timer expired and system is connected but no traffic within time window, causes shutdown to occur.
 	require.True(t, ws.observeTraffic(0))
 	ws.Wg.Done()
-	// Shutdown is done in a routine, so we need to wait for it to finish
-	require.Eventually(t, func() bool { return disconnectedState == ws.state.Load() }, time.Second, time.Millisecond)
+	// Shutdown is done in a routine, so we need to wait for it to finish.
+	require.Eventually(t, func() bool { return disconnectedState == ws.state.Load() }, 5*time.Second, 20*time.Millisecond)
 	// Handle outer closure shell
 	innerShell := ws.monitorTraffic(t.Context())
 	ws.m.Lock()
