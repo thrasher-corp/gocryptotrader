@@ -798,7 +798,6 @@ func (f *fakeConnection) Subscriptions() *subscription.Store {
 
 func TestTrackOnExistingConnection(t *testing.T) {
 	t.Run("PassthroughWithoutTrackHook", func(t *testing.T) {
-
 		m := NewManager()
 		subs := subscription.List{{Channel: "A"}}
 		ws := &websocket{
