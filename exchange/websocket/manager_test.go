@@ -99,7 +99,7 @@ func cleanupManagerMonitors(t *testing.T, ws *Manager) {
 			resetManagerForNextConnectAttempt(t, ws)
 			require.Eventually(t, func() bool {
 				return !ws.connectionMonitorRunning.Load()
-			}, 5*time.Second, 20*time.Millisecond, "connection monitor should stop during cleanup")
+			}, 5*time.Second, 20*time.Millisecond, "connection monitor must stop during cleanup")
 			restoreShutdownChannel(ws)
 			return
 		}
@@ -108,7 +108,7 @@ func cleanupManagerMonitors(t *testing.T, ws *Manager) {
 	resetManagerForNextConnectAttempt(t, ws)
 	require.Eventually(t, func() bool {
 		return !ws.connectionMonitorRunning.Load()
-	}, 5*time.Second, 20*time.Millisecond, "connection monitor should stop during cleanup")
+	}, 5*time.Second, 20*time.Millisecond, "connection monitor must stop during cleanup")
 }
 
 type testStruct struct {
@@ -539,7 +539,7 @@ func TestTrackConnection(t *testing.T) {
 	assert.PanicsWithValue(t,
 		"trackConnection called with connection already associated with a different websocket",
 		func() { mgr.trackConnection(conn, second) },
-		"trackConnection must panic when the same connection is associated with a different websocket")
+		"trackConnection should panic when the same connection is associated with a different websocket")
 	assert.Same(t, first, mgr.connections[conn], "manager connection association should remain unchanged after panic")
 	require.Len(t, first.connections, 1, "original websocket must retain the tracked connection after panic")
 	assert.Same(t, conn, first.connections[0], "original websocket should still retain the tracked connection")
@@ -573,7 +573,7 @@ func TestSetSubscriptionsNotRequired(t *testing.T) {
 	for i := range multiConn.connectionManager {
 		require.NotNil(t,
 			multiConn.connectionManager[i].setup,
-			"connection setup should be initialised when missing")
+			"connection setup must be initialised when missing")
 		assert.True(t,
 			multiConn.connectionManager[i].setup.SubscriptionsNotRequired,
 			"connection setup should not require subscriptions after override")
@@ -608,7 +608,7 @@ func TestSetAllConnectionURLs(t *testing.T) {
 	for i := range multiConn.connectionManager {
 		require.NotNil(t,
 			multiConn.connectionManager[i].setup,
-			"connection setup should be initialised when missing")
+			"connection setup must be initialised when missing")
 		assert.Equal(t,
 			"ws://mock.example.com/ws",
 			multiConn.connectionManager[i].setup.URL,
