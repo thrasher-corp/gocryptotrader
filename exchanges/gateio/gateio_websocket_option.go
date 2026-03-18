@@ -398,6 +398,7 @@ func (e *Exchange) processOptionsContractTickers(ctx context.Context, incoming [
 		BidIV:        data.BidImpliedVolatility.Float64(),
 		AskIV:        data.AskImpliedVolatility.Float64(),
 		MarkIV:       data.MarkImpliedVolatility.Float64(),
+		LastUpdated:  time.Now(),
 	})
 }
 

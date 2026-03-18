@@ -768,11 +768,11 @@ func (e *Exchange) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) 
 	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		return common.ErrFunctionNotSupported
 	}
-	if !e.SupportsAsset(ord.AssetType) {
-		return fmt.Errorf("%s: %w - %s", e.Name, asset.ErrNotSupported, ord.AssetType)
-	}
 	if err := ord.Validate(ord.StandardCancel()); err != nil {
 		return err
+	}
+	if !e.SupportsAsset(ord.AssetType) {
+		return fmt.Errorf("%s: %w - %s", e.Name, asset.ErrNotSupported, ord.AssetType)
 	}
 	_, err := e.WSSubmitCancel(ctx, ord.OrderID)
 	return err
