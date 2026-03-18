@@ -1800,6 +1800,12 @@ func Bootstrap(ctx context.Context, b IBotExchange) error {
 			wsEnabled := false
 			if w, err := b.GetWebsocket(); err == nil {
 				wsURL = w.GetWebsocketURL()
+				if wsURL == "" {
+					urls, getErr := w.GetConfiguredWebsocketURLs()
+					if getErr == nil {
+						wsURL = strings.Join(urls, ",")
+					}
+				}
 				wsEnabled = w.IsEnabled()
 			}
 			log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s)", b.GetName(), common.IsEnabled(wsEnabled), wsURL)

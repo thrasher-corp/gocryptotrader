@@ -97,20 +97,35 @@ func TestFetchOrderbook(t *testing.T) {
 
 	testexch.UpdatePairsOnce(t, e)
 
-	availSpot, err := e.GetAvailablePairs(asset.Spot)
-	require.NoError(t, err, "GetAvailablePairs must not error")
-
 	availMargin, err := e.GetAvailablePairs(asset.Margin)
 	require.NoError(t, err, "GetAvailablePairs must not error")
+	require.NotEmpty(t, availMargin, "margin pairs must not be empty")
 
-	marginPairNotInSpot, err := availMargin.Remove(availSpot...).GetRandomPair()
-	require.NoError(t, err, "GetRandomPair must not error")
+	enabledMargin, err := e.GetEnabledPairs(asset.Margin)
+	require.NoError(t, err, "GetEnabledPairs must not error")
+
+	marginPair := availMargin[0]
+	for _, candidate := range enabledMargin {
+		if availMargin.Contains(candidate, true) {
+			marginPair = candidate
+			break
+		}
+	}
 
 	availOptions, err := e.GetAvailablePairs(asset.Options)
 	require.NoError(t, err, "GetAvailablePairs must not error")
+	require.NotEmpty(t, availOptions, "options pairs must not be empty")
 
-	optionsPair, err := availOptions.GetRandomPair()
-	require.NoError(t, err, "GetRandomPair must not error")
+	enabledOptions, err := e.GetEnabledPairs(asset.Options)
+	require.NoError(t, err, "GetEnabledPairs must not error")
+
+	optionsPair := availOptions[0]
+	for _, candidate := range enabledOptions {
+		if availOptions.Contains(candidate, true) {
+			optionsPair = candidate
+			break
+		}
+	}
 
 	availDelivery, err := e.GetAvailablePairs(asset.DeliveryFutures)
 	require.NoError(t, err, "GetAvailablePairs must not error")
@@ -124,9 +139,9 @@ func TestFetchOrderbook(t *testing.T) {
 		err  error
 	}{
 		{pair: currency.EMPTYPAIR, a: asset.Spot, err: currency.ErrCurrencyPairEmpty},
-		{pair: marginPairNotInSpot, a: asset.Margin, err: errNoSpotInstrument},
-		{pair: marginPairNotInSpot, a: asset.Binary, err: asset.ErrNotSupported},
+		{pair: marginPair, a: asset.Binary, err: asset.ErrNotSupported},
 		{pair: currency.NewBTCUSDT(), a: asset.Spot},
+		{pair: marginPair, a: asset.Margin},
 		{pair: currency.NewBTCUSDT(), a: asset.USDTMarginedFutures},
 		{pair: deliveryPair, a: asset.DeliveryFutures},
 		{pair: optionsPair, a: asset.Options},
@@ -150,4 +165,18 @@ func TestFetchOrderbook(t *testing.T) {
 			assert.LessOrEqual(t, got.LastUpdated, got.LastPushed, "Last updated timestamp should be before last pushed timestamp")
 		})
 	}
+}
+
+func TestFetchOrderbookNoSpotInstrument(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	ex.SetDefaults()
+	ex.Name = t.Name()
+
+	require.NoError(t, ex.Base.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, false))
+
+	fakePair := currency.NewPair(currency.NewCode("ZZFAKE"), currency.USDT)
+	_, err := ex.fetchOrderbook(t.Context(), fakePair, asset.Margin, 1)
+	require.ErrorIs(t, err, errNoSpotInstrument)
 }
