@@ -1,7 +1,6 @@
 package okx
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -123,6 +122,44 @@ func TestOptionFamilyChannels(t *testing.T) {
 	}), "option summary should be an instrument family channel")
 }
 
+func TestOptionInstrumentFamilyFromPair(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		pair     currency.Pair
+		expected string
+	}{
+		{
+			name:     "standard option pair",
+			pair:     currency.NewPairWithDelimiter("BTC", "USD-230224-18000-C", "-"),
+			expected: "BTC-USD",
+		},
+		{
+			name:     "spot-like pair",
+			pair:     currency.NewPairWithDelimiter("ETH", "USDT", "/"),
+			expected: "ETH-USDT",
+		},
+		{
+			name:     "empty pair",
+			pair:     currency.EMPTYPAIR,
+			expected: "",
+		},
+		{
+			name:     "missing quote family",
+			pair:     currency.NewPairWithDelimiter("BTC", "-230224-18000-C", "-"),
+			expected: "",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tc.expected, optionInstrumentFamilyFromPair(tc.pair))
+		})
+	}
+}
+
 func TestGenerateSubscriptionsOptionTradesUseInstrumentFamily(t *testing.T) {
 	t.Parallel()
 
@@ -147,7 +184,7 @@ func TestGenerateSubscriptionsOptionTradesUseInstrumentFamily(t *testing.T) {
 	require.Contains(t, subs[0].QualifiedChannel, `"channel":"option-trades"`)
 	require.Contains(t, subs[0].QualifiedChannel, `"instFamily":"BTC-USD"`)
 	require.Contains(t, subs[0].QualifiedChannel, `"instType":"OPTION"`)
-	require.False(t, strings.Contains(subs[0].QualifiedChannel, `"instID"`), "option-trades should use instFamily instead of instID")
+	require.NotContains(t, subs[0].QualifiedChannel, `"instID"`, "option-trades should use instFamily instead of instID")
 }
 
 func TestGenerateSubscriptionsOptionSummaryUseInstrumentFamily(t *testing.T) {
@@ -174,7 +211,7 @@ func TestGenerateSubscriptionsOptionSummaryUseInstrumentFamily(t *testing.T) {
 	require.Contains(t, subs[0].QualifiedChannel, `"channel":"opt-summary"`)
 	require.Contains(t, subs[0].QualifiedChannel, `"instFamily":"BTC-USD"`)
 	require.Contains(t, subs[0].QualifiedChannel, `"instType":"OPTION"`)
-	require.False(t, strings.Contains(subs[0].QualifiedChannel, `"uly"`), "opt-summary should use instFamily instead of uly")
+	require.NotContains(t, subs[0].QualifiedChannel, `"uly"`, "opt-summary should use instFamily instead of uly")
 }
 
 func TestChunkRequestsDeduplicatesOptionFamilyArguments(t *testing.T) {

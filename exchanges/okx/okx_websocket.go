@@ -1410,24 +1410,21 @@ func (e *Exchange) generateSubscriptions(public bool) (subscription.List, error)
 }
 
 func optionInstrumentFamilyFromPair(pair currency.Pair) string {
-	raw := strings.ToUpper(strings.TrimSpace(pair.String()))
-	if raw == "" {
+	if !pair.IsPopulated() {
 		return ""
 	}
-	parts := strings.Split(raw, "-")
-	if len(parts) == 0 {
+
+	b := pair.Base.Upper().String()
+	q := pair.Quote.Upper().String()
+	// Options quote can include expiry/strike/type suffixes (e.g. USD-230224-18000-C).
+	// OKX instFamily expects just BASE-QUOTE.
+	if idx := strings.Index(q, currency.DashDelimiter); idx >= 0 {
+		q = q[:idx]
+	}
+	if q == "" {
 		return ""
 	}
-	if strings.Contains(parts[0], "/") {
-		baseQuote := strings.Split(parts[0], "/")
-		if len(baseQuote) == 2 && baseQuote[0] != "" && baseQuote[1] != "" {
-			return baseQuote[0] + "-" + baseQuote[1]
-		}
-	}
-	if len(parts) >= 2 && parts[0] != "" && parts[1] != "" {
-		return parts[0] + "-" + parts[1]
-	}
-	return ""
+	return b + currency.DashDelimiter + q
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
