@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 )
@@ -15,7 +16,14 @@ var (
 )
 
 func validPair(pair string) bool {
-	return strings.Contains(pair, pairDelimiter)
+	if !strings.ContainsAny(pair, "-_/:.") {
+		return false
+	}
+	p, err := currency.NewPairFromString(pair)
+	if err != nil {
+		return false
+	}
+	return p.Base.String() != "" && p.Quote.String() != ""
 }
 
 func validAsset(i string) bool {

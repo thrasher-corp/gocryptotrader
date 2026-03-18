@@ -539,7 +539,7 @@ func (s *RPCServer) GetOrderbook(_ context.Context, r *gctrpc.GetOrderbookReques
 }
 
 // GetOrderbooks returns a list of orderbooks for all enabled exchanges and all
-// available currency pairs
+// enabled currency pairs
 func (s *RPCServer) GetOrderbooks(_ context.Context, _ *gctrpc.GetOrderbooksRequest) (*gctrpc.GetOrderbooksResponse, error) {
 	exchanges, err := s.ExchangeManager.GetExchanges()
 	if err != nil {
@@ -551,10 +551,10 @@ func (s *RPCServer) GetOrderbooks(_ context.Context, _ *gctrpc.GetOrderbooksRequ
 		if !e.IsEnabled() {
 			continue
 		}
-		for _, a := range e.GetAssetTypes(false) {
-			pairs, err := e.GetAvailablePairs(a)
+		for _, a := range e.GetAssetTypes(true) {
+			pairs, err := e.GetEnabledPairs(a)
 			if err != nil {
-				log.Errorf(log.RESTSys, "Exchange %s could not retrieve available currencies. Err: %s\n", e.GetName(), err)
+				log.Errorf(log.RESTSys, "Exchange %s could not retrieve enabled currencies. Err: %s\n", e.GetName(), err)
 				continue
 			}
 			for _, pair := range pairs {
@@ -625,7 +625,7 @@ func (s *RPCServer) UpdateAccountBalances(ctx context.Context, r *gctrpc.GetAcco
 		return nil, err
 	}
 
-	if err := checkParams(r.Exchange, e, assetType, currency.EMPTYPAIR); err != nil {
+	if err := checkParamsWithAvailable(r.Exchange, e, assetType, currency.EMPTYPAIR); err != nil {
 		return nil, err
 	}
 
@@ -1178,7 +1178,7 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 
 	p := currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter)
 
-	err = checkParams(r.Exchange, exch, a, p)
+	err = checkParamsWithAvailable(r.Exchange, exch, a, p)
 	if err != nil {
 		return nil, err
 	}
@@ -1244,7 +1244,7 @@ func (s *RPCServer) SimulateOrder(_ context.Context, r *gctrpc.SimulateOrderRequ
 
 	p := currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter)
 
-	err = checkParams(r.Exchange, exch, asset.Spot, p)
+	err = checkParamsWithAvailable(r.Exchange, exch, asset.Spot, p)
 	if err != nil {
 		return nil, err
 	}
@@ -1347,7 +1347,7 @@ func (s *RPCServer) CancelOrder(ctx context.Context, r *gctrpc.CancelOrderReques
 
 	p := currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter)
 
-	err = checkParams(r.Exchange, exch, a, p)
+	err = checkParamsWithAvailable(r.Exchange, exch, a, p)
 	if err != nil {
 		return nil, err
 	}
@@ -1390,7 +1390,7 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 
 	pair := currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter)
 
-	err = checkParams(r.Exchange, exch, assetType, pair)
+	err = checkParamsWithAvailable(r.Exchange, exch, assetType, pair)
 	if err != nil {
 		return nil, err
 	}
@@ -1464,7 +1464,7 @@ func (s *RPCServer) ModifyOrder(ctx context.Context, r *gctrpc.ModifyOrderReques
 
 	pair := currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter)
 
-	err = checkParams(r.Exchange, exch, assetType, pair)
+	err = checkParamsWithAvailable(r.Exchange, exch, assetType, pair)
 	if err != nil {
 		return nil, err
 	}
@@ -1512,7 +1512,7 @@ func (s *RPCServer) AddEvent(_ context.Context, r *gctrpc.AddEventRequest) (*gct
 		return nil, err
 	}
 
-	err = checkParams(r.Exchange, exch, a, p)
+	err = checkParamsWithAvailable(r.Exchange, exch, a, p)
 	if err != nil {
 		return nil, err
 	}
@@ -1969,7 +1969,7 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 		return nil, err
 	}
 
-	err = checkParams(r.Exchange, exch, a, currency.EMPTYPAIR)
+	err = checkParamsWithAvailable(r.Exchange, exch, a, currency.EMPTYPAIR)
 	if err != nil {
 		return nil, err
 	}
@@ -3176,7 +3176,7 @@ func (s *RPCServer) ConvertTradesToCandles(_ context.Context, r *gctrpc.ConvertT
 
 	p := currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter)
 
-	err = checkParams(r.Exchange, exch, a, p)
+	err = checkParamsWithAvailable(r.Exchange, exch, a, p)
 	if err != nil {
 		return nil, err
 	}
@@ -3556,36 +3556,6 @@ func (s *RPCServer) GetRecentTrades(ctx context.Context, r *gctrpc.GetSavedTrade
 	return resp, nil
 }
 
-func checkParams(exchName string, e exchange.IBotExchange, a asset.Item, p currency.Pair) error {
-	if e == nil {
-		return fmt.Errorf("%s %w", exchName, errExchangeNotLoaded)
-	}
-	if !e.IsEnabled() {
-		return fmt.Errorf("%s %w", exchName, errExchangeNotEnabled)
-	}
-	if a.IsValid() {
-		b := e.GetBase()
-		if b == nil {
-			return fmt.Errorf("%s %w", exchName, errExchangeBaseNotFound)
-		}
-		err := b.CurrencyPairs.IsAssetAvailable(a)
-		if err != nil {
-			return err
-		}
-	}
-	if p.IsEmpty() {
-		return nil
-	}
-	enabledPairs, err := e.GetEnabledPairs(a)
-	if err != nil {
-		return err
-	}
-	if !enabledPairs.Contains(p, true) {
-		return fmt.Errorf("%v %w", p, errCurrencyPairInvalid)
-	}
-	return nil
-}
-
 func checkParamsWithAvailable(exchName string, e exchange.IBotExchange, a asset.Item, p currency.Pair) error {
 	if e == nil {
 		return fmt.Errorf("%s %w", exchName, errExchangeNotLoaded)
@@ -3770,7 +3740,7 @@ func (s *RPCServer) UpsertDataHistoryJob(_ context.Context, r *gctrpc.UpsertData
 
 	p := currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter)
 
-	err = checkParams(r.Exchange, e, a, p)
+	err = checkParamsWithAvailable(r.Exchange, e, a, p)
 	if err != nil {
 		return nil, err
 	}
@@ -4138,7 +4108,7 @@ func (s *RPCServer) CurrencyStateTradingPair(_ context.Context, r *gctrpc.Curren
 		return nil, err
 	}
 
-	err = checkParams(r.Exchange, exch, ai, cp)
+	err = checkParamsWithAvailable(r.Exchange, exch, ai, cp)
 	if err != nil {
 		return nil, err
 	}
@@ -5591,7 +5561,7 @@ func (s *RPCServer) SetCollateralMode(ctx context.Context, r *gctrpc.SetCollater
 	if b == nil {
 		return nil, fmt.Errorf("%s %w", exch.GetName(), errExchangeBaseNotFound)
 	}
-	err = b.CurrencyPairs.IsAssetEnabled(item)
+	err = b.CurrencyPairs.IsAssetAvailable(item)
 	if err != nil {
 		return nil, fmt.Errorf("%v %w", item, err)
 	}
@@ -5629,11 +5599,11 @@ func (s *RPCServer) SetMarginType(ctx context.Context, r *gctrpc.SetMarginTypeRe
 	if err != nil {
 		return nil, err
 	}
-	enabledPairs, err := exch.GetEnabledPairs(ai)
+	err = checkParamsWithAvailable(r.Exchange, exch, ai, currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter))
 	if err != nil {
 		return nil, err
 	}
-	cp, err := enabledPairs.DeriveFrom(r.Pair.Base + r.Pair.Quote)
+	cp, err := exch.MatchSymbolWithAvailablePairs(r.Pair.Base+r.Pair.Quote, ai, false)
 	if err != nil {
 		return nil, err
 	}
@@ -5679,11 +5649,11 @@ func (s *RPCServer) GetLeverage(ctx context.Context, r *gctrpc.GetLeverageReques
 	if err != nil {
 		return nil, err
 	}
-	enabledPairs, err := exch.GetEnabledPairs(ai)
+	err = checkParamsWithAvailable(r.Exchange, exch, ai, currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter))
 	if err != nil {
 		return nil, err
 	}
-	cp, err := enabledPairs.DeriveFrom(r.Pair.Base + r.Pair.Quote)
+	cp, err := exch.MatchSymbolWithAvailablePairs(r.Pair.Base+r.Pair.Quote, ai, false)
 	if err != nil {
 		return nil, err
 	}
@@ -5739,11 +5709,11 @@ func (s *RPCServer) SetLeverage(ctx context.Context, r *gctrpc.SetLeverageReques
 	if err != nil {
 		return nil, err
 	}
-	enabledPairs, err := exch.GetEnabledPairs(ai)
+	err = checkParamsWithAvailable(r.Exchange, exch, ai, currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter))
 	if err != nil {
 		return nil, err
 	}
-	cp, err := enabledPairs.DeriveFrom(r.Pair.Base + r.Pair.Quote)
+	cp, err := exch.MatchSymbolWithAvailablePairs(r.Pair.Base+r.Pair.Quote, ai, false)
 	if err != nil {
 		return nil, err
 	}
@@ -5795,11 +5765,11 @@ func (s *RPCServer) ChangePositionMargin(ctx context.Context, r *gctrpc.ChangePo
 	if err != nil {
 		return nil, err
 	}
-	enabledPairs, err := exch.GetEnabledPairs(ai)
+	err = checkParamsWithAvailable(r.Exchange, exch, ai, currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter))
 	if err != nil {
 		return nil, err
 	}
-	cp, err := enabledPairs.DeriveFrom(r.Pair.Base + r.Pair.Quote)
+	cp, err := exch.MatchSymbolWithAvailablePairs(r.Pair.Base+r.Pair.Quote, ai, false)
 	if err != nil {
 		return nil, err
 	}

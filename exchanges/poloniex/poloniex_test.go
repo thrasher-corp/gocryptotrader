@@ -814,14 +814,17 @@ func TestUpdateTickersUsesAvailablePairs(t *testing.T) {
 	require.NoError(t, testexch.Setup(testExchange))
 	require.NoError(t, testexch.MockHTTPInstance(testExchange))
 
-	nonTradablePair := currency.NewPairWithDelimiter("ABC", "USDT", currency.UnderscoreDelimiter)
-	require.NoError(t, testExchange.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{nonTradablePair}, false))
-	require.NoError(t, testExchange.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{nonTradablePair}, true))
+	availableButDisabled := currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter)
+	excludedFromAvailable := currency.NewPairWithDelimiter("DOGE", "BTC", currency.UnderscoreDelimiter)
+	require.NoError(t, testExchange.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{availableButDisabled}, false))
+	require.NoError(t, testExchange.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{excludedFromAvailable}, true))
 
 	err := testExchange.UpdateTickers(t.Context(), asset.Spot)
 	require.NoError(t, err)
 
-	_, err = ticker.GetTicker(testExchange.Name, nonTradablePair, asset.Spot)
+	_, err = ticker.GetTicker(testExchange.Name, availableButDisabled, asset.Spot)
+	require.NoError(t, err)
+	_, err = ticker.GetTicker(testExchange.Name, excludedFromAvailable, asset.Spot)
 	require.ErrorIs(t, err, ticker.ErrTickerNotFound)
 }
 

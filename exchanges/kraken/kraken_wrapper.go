@@ -1139,7 +1139,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 		if len(req.Pairs) > 0 {
 			pairs = req.Pairs
 		} else {
-			pairs, err = e.GetAvailablePairs(asset.Futures)
+			pairs, err = e.GetEnabledPairs(asset.Futures)
 			if err != nil {
 				return orders, err
 			}
@@ -1271,7 +1271,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 		if len(getOrdersRequest.Pairs) > 0 {
 			pairs = getOrdersRequest.Pairs
 		} else {
-			pairs, err = e.GetAvailablePairs(asset.Futures)
+			pairs, err = e.GetEnabledPairs(asset.Futures)
 			if err != nil {
 				return orders, err
 			}

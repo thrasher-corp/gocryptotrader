@@ -140,7 +140,7 @@ func (e *Exchange) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item,
 			return []asset.Item{aType}, nil
 		}
 	}
-	return nil, fmt.Errorf("%w: no available asset found for instrument ID `%v`", asset.ErrNotEnabled, instrumentID)
+	return nil, fmt.Errorf("%w: no available asset found for instrument ID `%v`", asset.ErrNotSupported, instrumentID)
 }
 
 // assetTypeFromInstrumentType returns an asset Item instance given and Instrument Type string
