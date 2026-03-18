@@ -797,10 +797,7 @@ func (f *fakeConnection) Subscriptions() *subscription.Store {
 }
 
 func TestTrackOnExistingConnection(t *testing.T) {
-	t.Parallel()
-
 	t.Run("PassthroughWithoutTrackHook", func(t *testing.T) {
-		t.Parallel()
 
 		m := NewManager()
 		subs := subscription.List{{Channel: "A"}}
@@ -815,8 +812,6 @@ func TestTrackOnExistingConnection(t *testing.T) {
 	})
 
 	t.Run("TracksAcrossConnectionsUntilEmpty", func(t *testing.T) {
-		t.Parallel()
-
 		m := NewManager()
 		tracked := &subscription.Subscription{Channel: "tracked"}
 		conn0 := &fakeConnection{subscriptions: subscription.NewStore()}
@@ -847,8 +842,6 @@ func TestTrackOnExistingConnection(t *testing.T) {
 	})
 
 	t.Run("PropagatesErrors", func(t *testing.T) {
-		t.Parallel()
-
 		m := NewManager()
 		expectedErr := errors.New("track failed")
 		ws := &websocket{

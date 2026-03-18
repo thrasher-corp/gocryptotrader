@@ -401,8 +401,6 @@ func TestConnectionMessageErrors(t *testing.T) {
 }
 
 func TestConnectTrackOnExistingConnectionRequiresTrackedSubscriptions(t *testing.T) {
-	t.Parallel()
-
 	mgr := NewManager()
 	setup := newDefaultSetup()
 	setup.UseMultiConnectionManagement = true
