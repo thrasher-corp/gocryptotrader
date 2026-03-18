@@ -70,7 +70,7 @@ func TestMain(m *testing.M) {
 
 	missingPSQLConfig := missingPSQLConfigKeys()
 	if len(missingPSQLConfig) != 0 {
-		// TODO(#567): Replace this hard exit skip once sqlboiler-generated postgres tests support explicit runtime skip handling.
+		// TODO(#1818): Replace this hard exit skip once sqlboiler-generated postgres tests support explicit runtime skip handling.
 		fmt.Printf("Skipping postgres ORM tests due to missing config: %s (see https://github.com/thrasher-corp/gocryptotrader/issues/567)\n", strings.Join(missingPSQLConfig, ", "))
 		os.Exit(0)
 	}
