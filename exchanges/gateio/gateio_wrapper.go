@@ -2149,7 +2149,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		}, nil
 	}
 
-	pairs, err := e.GetAvailablePairs(r.Asset)
+	pairs, err := e.GetEnabledPairs(r.Asset)
 	if err != nil {
 		return nil, err
 	}
@@ -2243,7 +2243,7 @@ func (e *Exchange) IsPerpetualFutureCurrency(a asset.Item, _ currency.Pair) (boo
 }
 
 // GetOpenInterest returns the open interest rate for a given asset pair
-// If no pairs are provided, all available assets and pairs will be used
+// If no pairs are provided, all available assets and enabled pairs will be used
 // If keys are provided, those asset pairs only need to be available, not enabled
 func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]futures.OpenInterest, error) {
 	var errs error
@@ -2279,7 +2279,14 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) (
 					}
 					continue
 				}
-				if len(keys) > 0 { // More than one key; Any available pair
+				if len(keys) == 0 { // No keys: default fan-out scope is enabled pairs.
+					if enabled, err := e.IsPairEnabled(p, a); err != nil {
+						errs = common.AppendError(errs, fmt.Errorf("%w: %s %s", err, a, p))
+						continue
+					} else if !enabled {
+						continue
+					}
+				} else { // More than one key; Any available pair
 					if !slices.ContainsFunc(keys, func(k key.PairAsset) bool { return a == k.Asset && k.Pair().Equal(p) }) {
 						continue
 					}
