@@ -636,7 +636,7 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 		return nil, err
 	}
 	if !e.SupportsAsset(s.AssetType) {
-		return nil, fmt.Errorf("%s: orderType %v is not valid", e.Name, s.AssetType)
+		return nil, fmt.Errorf("%s: asset type %v not supported: %w", e.Name, s.AssetType, asset.ErrNotSupported)
 	}
 	fmtPair, err := e.FormatExchangeCurrency(s.Pair, s.AssetType)
 	if err != nil {
