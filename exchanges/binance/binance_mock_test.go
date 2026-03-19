@@ -26,6 +26,11 @@ func TestMain(m *testing.M) {
 	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("Binance Setup error: %s", err)
 	}
+	if apiKey != "" && apiSecret != "" {
+		e.API.AuthenticatedSupport = true
+		e.API.CredentialsValidator.RequiresBase64DecodeSecret = false
+		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+	}
 
 	if err := testexch.MockHTTPInstance(e); err != nil {
 		log.Fatalf("Binance MockHTTPInstance error: %s", err)

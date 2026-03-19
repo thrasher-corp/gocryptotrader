@@ -6826,7 +6826,7 @@
         "rateLimitType": "RAW_REQUESTS"
        }
       ],
-      "serverTime": 1773869139643,
+      "serverTime": 1773960918102,
       "symbols": [
        {
         "allowTrailingStop": true,
@@ -6861,7 +6861,7 @@
          },
          {
           "filterType": "MARKET_LOT_SIZE",
-          "maxQty": "1584.29310083",
+          "maxQty": "1616.95689250",
           "minQty": "0.00000000",
           "stepSize": "0.00000000"
          },
@@ -7187,7 +7187,7 @@
          },
          {
           "filterType": "MARKET_LOT_SIZE",
-          "maxQty": "2813.68665833",
+          "maxQty": "3398.14972916",
           "minQty": "0.00000000",
           "stepSize": "0.00000000"
          },
@@ -7513,7 +7513,7 @@
          },
          {
           "filterType": "MARKET_LOT_SIZE",
-          "maxQty": "1779.86248333",
+          "maxQty": "1485.65876250",
           "minQty": "0.00000000",
           "stepSize": "0.00000000"
          },
@@ -7839,7 +7839,7 @@
          },
          {
           "filterType": "MARKET_LOT_SIZE",
-          "maxQty": "5427.49808333",
+          "maxQty": "4831.98666666",
           "minQty": "0.00000000",
           "stepSize": "0.00000000"
          },
@@ -8850,34 +8850,6 @@
   "/api/v3/ticker/24hr": {
    "GET": [
     {
-     "data": {
-      "askPrice": "74082.22000000",
-      "askQty": "0.48150000",
-      "bidPrice": "74082.21000000",
-      "bidQty": "1.93397000",
-      "closeTime": 1773689063011,
-      "count": 5443659,
-      "firstId": 6108544792,
-      "highPrice": "74509.52000000",
-      "lastId": 6113988450,
-      "lastPrice": "74082.21000000",
-      "lastQty": "0.00216000",
-      "lowPrice": "71433.75000000",
-      "openPrice": "71506.21000000",
-      "openTime": 1773602663011,
-      "prevClosePrice": "71506.20000000",
-      "priceChange": "2576.00000000",
-      "priceChangePercent": "3.602",
-      "quoteVolume": "2033020591.73176980",
-      "symbol": "BTCUSDT",
-      "volume": "27664.91188000",
-      "weightedAvgPrice": "73487.33299966"
-     },
-     "queryString": "symbol=BTCUSDT",
-     "bodyParams": "",
-     "headers": {}
-    },
-    {
      "data": [
       {
        "askPrice": "71272.75000000",
@@ -8927,6 +8899,34 @@
       }
      ],
      "queryString": "symbols=%5B%22BTCUSDT%22%2C%22DOGEUSDT%22%5D",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "askPrice": "69359.71000000",
+      "askQty": "1.59353000",
+      "bidPrice": "69359.70000000",
+      "bidQty": "1.22765000",
+      "closeTime": 1773930279012,
+      "count": 5185862,
+      "firstId": 6122074498,
+      "highPrice": "72021.58000000",
+      "lastId": 6127260359,
+      "lastPrice": "69359.70000000",
+      "lastQty": "0.00012000",
+      "lowPrice": "69081.51000000",
+      "openPrice": "71989.69000000",
+      "openTime": 1773843879012,
+      "prevClosePrice": "71989.93000000",
+      "priceChange": "-2629.99000000",
+      "priceChangePercent": "-3.653",
+      "quoteVolume": "1800267909.41126740",
+      "symbol": "BTCUSDT",
+      "volume": "25456.21557000",
+      "weightedAvgPrice": "70720.17065777"
+     },
+     "queryString": "symbol=BTCUSDT",
      "bodyParams": "",
      "headers": {}
     }
@@ -9440,7 +9440,7 @@
         "rateLimitType": "ORDERS"
        }
       ],
-      "serverTime": 1773864013879,
+      "serverTime": 1773957613682,
       "symbols": [
        {
         "baseAsset": "BTC",
@@ -10559,41 +10559,6 @@
   "/dapi/v1/ticker/24hr": {
    "GET": [
     {
-     "data": {
-      "code": -1121,
-      "msg": "Invalid symbol."
-     },
-     "queryString": "symbol=BTCUSDPERP",
-     "bodyParams": "",
-     "headers": {}
-    },
-    {
-     "data": [
-      {
-       "baseVolume": "19987.21826487",
-       "closeTime": 1773688057224,
-       "count": 585473,
-       "firstId": 1104876271,
-       "highPrice": "74488.0",
-       "lastId": 1105461743,
-       "lastPrice": "73930.3",
-       "lastQty": "1",
-       "lowPrice": "71315.8",
-       "openPrice": "71434.9",
-       "openTime": 1773601620000,
-       "pair": "BTCUSD",
-       "priceChange": "2495.4",
-       "priceChangePercent": "3.493",
-       "symbol": "BTCUSD_PERP",
-       "volume": "14674173",
-       "weightedAvgPrice": "73417.78533430"
-      }
-     ],
-     "queryString": "symbol=BTCUSD_PERP",
-     "bodyParams": "",
-     "headers": {}
-    },
-    {
      "data": [
       {
        "baseVolume": "1637.92321135",
@@ -10692,6 +10657,32 @@
       }
      ],
      "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "baseVolume": "18063.44618779",
+       "closeTime": 1773930285784,
+       "count": 530136,
+       "firstId": 1106342752,
+       "highPrice": "71991.9",
+       "lastId": 1106872887,
+       "lastPrice": "69322.6",
+       "lastQty": "25",
+       "lowPrice": "69055.1",
+       "openPrice": "71942.4",
+       "openTime": 1773843840000,
+       "pair": "BTCUSD",
+       "priceChange": "-2619.8",
+       "priceChangePercent": "-3.642",
+       "symbol": "BTCUSD_PERP",
+       "volume": "12771496",
+       "weightedAvgPrice": "70703.54054940"
+      }
+     ],
+     "queryString": "symbol=BTCUSD_PERP",
      "bodyParams": "",
      "headers": {}
     }
@@ -11107,7 +11098,7 @@
         "filters": [
          {
           "filterType": "PRICE_FILTER",
-          "maxPrice": "40.000",
+          "maxPrice": "20.000",
           "minPrice": "5.000",
           "tickSize": "5.000"
          },
@@ -11173,8 +11164,8 @@
         "filters": [
          {
           "filterType": "PRICE_FILTER",
-          "maxPrice": "50890.000",
-          "minPrice": "5655.000",
+          "maxPrice": "53585.000",
+          "minPrice": "5955.000",
           "tickSize": "5.000"
          },
          {
@@ -11222,7 +11213,7 @@
         "rateLimitType": "ORDERS"
        }
       ],
-      "serverTime": 1773844913288,
+      "serverTime": 1773960917192,
       "timezone": "UTC"
      },
      "queryString": "",
@@ -11470,33 +11461,6 @@
        "askPrice": "20",
        "bidPrice": "10",
        "closeTime": 1773799260924,
-       "exercisePrice": "71650.73021739",
-       "firstTradeId": 718,
-       "high": "30",
-       "lastPrice": "15",
-       "lastQty": "0.02",
-       "low": "15",
-       "open": "30",
-       "openTime": 1773647340000,
-       "priceChange": "-15",
-       "priceChangePercent": "-0.5",
-       "strikePrice": "100000",
-       "symbol": "BTC-260327-100000-C",
-       "tradeCount": 2,
-       "volume": "0.22"
-      }
-     ],
-     "queryString": "symbol=BTC-260327-100000-C",
-     "bodyParams": "",
-     "headers": {}
-    },
-    {
-     "data": [
-      {
-       "amount": "3.3",
-       "askPrice": "20",
-       "bidPrice": "10",
-       "closeTime": 1773799260924,
        "exercisePrice": "71277.99717391",
        "firstTradeId": 718,
        "high": "30",
@@ -11596,6 +11560,33 @@
      "queryString": "",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": [
+      {
+       "amount": "130",
+       "askPrice": "10",
+       "bidPrice": "5",
+       "closeTime": 1773898303437,
+       "exercisePrice": "69357.1576087",
+       "firstTradeId": 720,
+       "high": "15",
+       "lastPrice": "10",
+       "lastQty": "13",
+       "low": "10",
+       "open": "15",
+       "openTime": 1773799260000,
+       "priceChange": "-5",
+       "priceChangePercent": "-0.333",
+       "strikePrice": "100000",
+       "symbol": "BTC-260327-100000-C",
+       "tradeCount": 1,
+       "volume": "13"
+      }
+     ],
+     "queryString": "symbol=BTC-260327-100000-C",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -11616,234 +11607,120 @@
     {
      "data": [
       {
-       "T": 1772887447400,
-       "a": 3184825511,
-       "f": 7399963013,
-       "l": 7399963013,
-       "m": true,
-       "nq": "0.015",
-       "p": "67876.60",
-       "q": "0.015"
+       "T": 1744103852817,
+       "a": 2670003998,
+       "f": 6188139921,
+       "l": 6188139921,
+       "m": false,
+       "nq": "0.000",
+       "p": "79011.90",
+       "q": "0.012"
       },
       {
-       "T": 1772887447501,
-       "a": 3184825512,
-       "f": 7399963014,
-       "l": 7399963014,
+       "T": 1744103852895,
+       "a": 2670003999,
+       "f": 6188139922,
+       "l": 6188139922,
        "m": true,
-       "nq": "0.002",
-       "p": "67876.60",
+       "nq": "0.000",
+       "p": "79011.80",
+       "q": "0.012"
+      },
+      {
+       "T": 1744103852986,
+       "a": 2670004000,
+       "f": 6188139923,
+       "l": 6188139924,
+       "m": false,
+       "nq": "0.000",
+       "p": "79011.90",
+       "q": "0.056"
+      },
+      {
+       "T": 1744103853907,
+       "a": 2670004001,
+       "f": 6188139925,
+       "l": 6188139925,
+       "m": true,
+       "nq": "0.000",
+       "p": "79011.80",
        "q": "0.002"
       },
       {
-       "T": 1772887447522,
-       "a": 3184825513,
-       "f": 7399963015,
-       "l": 7399963015,
-       "m": false,
-       "nq": "0.004",
-       "p": "67876.70",
-       "q": "0.004"
-      },
-      {
-       "T": 1772887447626,
-       "a": 3184825514,
-       "f": 7399963016,
-       "l": 7399963016,
+       "T": 1744103854024,
+       "a": 2670004002,
+       "f": 6188139926,
+       "l": 6188139927,
        "m": true,
-       "nq": "0.290",
-       "p": "67876.60",
-       "q": "0.290"
-      },
-      {
-       "T": 1772887448084,
-       "a": 3184825515,
-       "f": 7399963017,
-       "l": 7399963017,
-       "m": false,
-       "nq": "0.036",
-       "p": "67876.70",
-       "q": "0.036"
+       "nq": "0.000",
+       "p": "79011.80",
+       "q": "0.005"
       }
      ],
-     "queryString": "endTime=1773405847318\u0026limit=5\u0026startTime=1772887447318\u0026symbol=BTCUSDT",
+     "queryString": "endTime=1744190254944\u0026limit=5\u0026startTime=1744103851944\u0026symbol=BTCUSDT",
      "bodyParams": "",
      "headers": {}
     },
     {
      "data": [
       {
-       "T": 1772887447400,
-       "a": 3184825511,
-       "f": 7399963013,
-       "l": 7399963013,
-       "m": true,
-       "nq": "0.015",
-       "p": "67876.60",
-       "q": "0.015"
+       "T": 1744103852817,
+       "a": 2670003998,
+       "f": 6188139921,
+       "l": 6188139921,
+       "m": false,
+       "nq": "0.000",
+       "p": "79011.90",
+       "q": "0.012"
       },
       {
-       "T": 1772887447501,
-       "a": 3184825512,
-       "f": 7399963014,
-       "l": 7399963014,
+       "T": 1744103852895,
+       "a": 2670003999,
+       "f": 6188139922,
+       "l": 6188139922,
        "m": true,
-       "nq": "0.002",
-       "p": "67876.60",
+       "nq": "0.000",
+       "p": "79011.80",
+       "q": "0.012"
+      },
+      {
+       "T": 1744103852986,
+       "a": 2670004000,
+       "f": 6188139923,
+       "l": 6188139924,
+       "m": false,
+       "nq": "0.000",
+       "p": "79011.90",
+       "q": "0.056"
+      },
+      {
+       "T": 1744103853907,
+       "a": 2670004001,
+       "f": 6188139925,
+       "l": 6188139925,
+       "m": true,
+       "nq": "0.000",
+       "p": "79011.80",
        "q": "0.002"
       },
       {
-       "T": 1772887447522,
-       "a": 3184825513,
-       "f": 7399963015,
-       "l": 7399963015,
-       "m": false,
-       "nq": "0.004",
-       "p": "67876.70",
-       "q": "0.004"
-      },
-      {
-       "T": 1772887447626,
-       "a": 3184825514,
-       "f": 7399963016,
-       "l": 7399963016,
+       "T": 1744103854024,
+       "a": 2670004002,
+       "f": 6188139926,
+       "l": 6188139927,
        "m": true,
-       "nq": "0.290",
-       "p": "67876.60",
-       "q": "0.290"
-      },
-      {
-       "T": 1772887448084,
-       "a": 3184825515,
-       "f": 7399963017,
-       "l": 7399963017,
-       "m": false,
-       "nq": "0.036",
-       "p": "67876.70",
-       "q": "0.036"
+       "nq": "0.000",
+       "p": "79011.80",
+       "q": "0.005"
       }
      ],
-     "queryString": "endTime=1773405847318\u0026startTime=1772887447318\u0026symbol=BTCUSDT",
-     "bodyParams": "",
-     "headers": {}
-    },
-    {
-     "data": [
-      {
-       "T": 1744103855083,
-       "a": 2670004007,
-       "f": 6188139936,
-       "l": 6188139936,
-       "m": true,
-       "nq": "0.000",
-       "p": "79011.80",
-       "q": "0.001"
-      },
-      {
-       "T": 1744103855098,
-       "a": 2670004008,
-       "f": 6188139937,
-       "l": 6188139937,
-       "m": false,
-       "nq": "0.000",
-       "p": "79011.90",
-       "q": "0.004"
-      },
-      {
-       "T": 1744103855164,
-       "a": 2670004009,
-       "f": 6188139938,
-       "l": 6188139938,
-       "m": true,
-       "nq": "0.000",
-       "p": "79011.80",
-       "q": "0.020"
-      },
-      {
-       "T": 1744103855290,
-       "a": 2670004010,
-       "f": 6188139939,
-       "l": 6188139966,
-       "m": false,
-       "nq": "0.000",
-       "p": "79011.90",
-       "q": "1.066"
-      },
-      {
-       "T": 1744103855294,
-       "a": 2670004011,
-       "f": 6188139967,
-       "l": 6188139967,
-       "m": false,
-       "nq": "0.000",
-       "p": "79012.40",
-       "q": "0.002"
-      }
-     ],
-     "queryString": "endTime=1744190254944\u0026limit=5\u0026startTime=1744103854944\u0026symbol=BTCUSDT",
-     "bodyParams": "",
-     "headers": {}
-    },
-    {
-     "data": [
-      {
-       "T": 1744103855083,
-       "a": 2670004007,
-       "f": 6188139936,
-       "l": 6188139936,
-       "m": true,
-       "nq": "0.000",
-       "p": "79011.80",
-       "q": "0.001"
-      },
-      {
-       "T": 1744103855098,
-       "a": 2670004008,
-       "f": 6188139937,
-       "l": 6188139937,
-       "m": false,
-       "nq": "0.000",
-       "p": "79011.90",
-       "q": "0.004"
-      },
-      {
-       "T": 1744103855164,
-       "a": 2670004009,
-       "f": 6188139938,
-       "l": 6188139938,
-       "m": true,
-       "nq": "0.000",
-       "p": "79011.80",
-       "q": "0.020"
-      },
-      {
-       "T": 1744103855290,
-       "a": 2670004010,
-       "f": 6188139939,
-       "l": 6188139966,
-       "m": false,
-       "nq": "0.000",
-       "p": "79011.90",
-       "q": "1.066"
-      },
-      {
-       "T": 1744103855294,
-       "a": 2670004011,
-       "f": 6188139967,
-       "l": 6188139967,
-       "m": false,
-       "nq": "0.000",
-       "p": "79012.40",
-       "q": "0.002"
-      }
-     ],
-     "queryString": "endTime=1744190254944\u0026startTime=1744103854944\u0026symbol=BTCUSDT",
+     "queryString": "endTime=1744190254944\u0026startTime=1744103851944\u0026symbol=BTCUSDT",
      "bodyParams": "",
      "headers": {}
     },
     {
      "data": null,
-     "queryString": "endTime=1744190254944\u0026fromID=7442186355\u0026limit=5\u0026startTime=1744103854944\u0026symbol=BTCUSDT",
+     "queryString": "endTime=1744190254944\u0026fromID=7442186355\u0026limit=5\u0026startTime=1744103851944\u0026symbol=BTCUSDT",
      "bodyParams": "",
      "headers": {}
     }
@@ -12192,7 +12069,7 @@
         "rateLimitType": "ORDERS"
        }
       ],
-      "serverTime": 1773842413827,
+      "serverTime": 1773957613783,
       "symbols": [
        {
         "baseAsset": "BTC",
@@ -14247,29 +14124,6 @@
   "/fapi/v1/ticker/24hr": {
    "GET": [
     {
-     "data": {
-      "closeTime": 1773684943260,
-      "count": 6218180,
-      "firstId": 7438263288,
-      "highPrice": "74481.50",
-      "lastId": 7444486862,
-      "lastPrice": "74207.70",
-      "lastQty": "0.002",
-      "lowPrice": "71275.00",
-      "openPrice": "71686.80",
-      "openTime": 1773598500000,
-      "priceChange": "2520.90",
-      "priceChangePercent": "3.517",
-      "quoteVolume": "19891416362.32",
-      "symbol": "BTCUSDT",
-      "volume": "271149.941",
-      "weightedAvgPrice": "73359.47"
-     },
-     "queryString": "symbol=BTCUSDT",
-     "bodyParams": "",
-     "headers": {}
-    },
-    {
      "data": [
       {
        "closeTime": 1738314001737,
@@ -14363,6 +14217,29 @@
       }
      ],
      "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "closeTime": 1773930283552,
+      "count": 5790157,
+      "firstId": 7454026068,
+      "highPrice": "71993.00",
+      "lastId": 7459822024,
+      "lastPrice": "69319.90",
+      "lastQty": "0.013",
+      "lowPrice": "69050.00",
+      "openPrice": "71942.20",
+      "openTime": 1773843840000,
+      "priceChange": "-2622.30",
+      "priceChangePercent": "-3.645",
+      "quoteVolume": "16963081745.32",
+      "symbol": "BTCUSDT",
+      "volume": "240117.612",
+      "weightedAvgPrice": "70644.89"
+     },
+     "queryString": "symbol=BTCUSDT",
      "bodyParams": "",
      "headers": {}
     }
@@ -16241,6 +16118,6297 @@
     }
    ]
   },
+  "/papi/v1/apiReferral/userCustomization": {
+   "GET": [
+    {
+     "data": {
+      "code": -2015,
+      "msg": "Invalid API-key, IP, or permissions for action, request ip: 165.22.114.43"
+     },
+     "queryString": "brokerId=1234\u0026recvWindow=5000\u0026signature=640c5f96fc768af59f5766b9633276f67b1e676650f5fc0ce2f2c39f28f96ec0\u0026timestamp=1773959926956",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ]
+  },
+  "/sapi/v1/account/apiRestrictions": {
+   "GET": [
+    {
+     "data": {
+      "createTime": 1732257345000,
+      "enableFixApiTrade": false,
+      "enableFixReadOnly": false,
+      "enableFutures": false,
+      "enableInternalTransfer": false,
+      "enableMargin": false,
+      "enablePortfolioMarginTrading": false,
+      "enableReading": true,
+      "enableSpotAndMarginTrading": false,
+      "enableVanillaOptions": false,
+      "enableWithdrawals": false,
+      "ipRestrict": false,
+      "permitsUniversalTransfer": false
+     },
+     "queryString": "recvWindow=5000\u0026signature=f609ae5612b03f583200229e3e20f44d8b61407ce831343efe67856c75954eb2\u0026timestamp=1773957257219",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ]
+  },
+  "/sapi/v1/account/info": {
+   "GET": [
+    {
+     "data": {
+      "isFutureEnabled": true,
+      "isMarginEnabled": false,
+      "isOptionsEnabled": false,
+      "isPortfolioMarginRetailEnabled": false,
+      "vipLevel": 0
+     },
+     "queryString": "recvWindow=5000\u0026signature=725bd5334d7e8ffb7c440ae79ec959c08ffcdce50b91f4a6f6a57c4fd8d24a5d\u0026timestamp=1773957203862",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ]
+  },
+  "/sapi/v1/asset/assetDetail": {
+   "GET": [
+    {
+     "data": {
+      "0G": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.1",
+       "withdrawFee": "0.001",
+       "withdrawStatus": true
+      },
+      "1000CAT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "22",
+       "withdrawFee": "11",
+       "withdrawStatus": true
+      },
+      "1000CHEEMS": {
+       "depositStatus": true,
+       "minWithdrawAmount": "86",
+       "withdrawFee": "43",
+       "withdrawStatus": true
+      },
+      "1000PEPPER": {
+       "depositStatus": false,
+       "minWithdrawAmount": "100000",
+       "withdrawFee": "50000",
+       "withdrawStatus": true
+      },
+      "1000SATS": {
+       "depositStatus": true,
+       "minWithdrawAmount": "300000",
+       "withdrawFee": "100000",
+       "withdrawStatus": true
+      },
+      "123": {
+       "depositStatus": false,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "1INCH": {
+       "depositStatus": true,
+       "minWithdrawAmount": "8.96",
+       "withdrawFee": "4.48",
+       "withdrawStatus": true
+      },
+      "1MBABYDOGE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2150",
+       "withdrawFee": "1075",
+       "withdrawStatus": true
+      },
+      "2Z": {
+       "depositStatus": true,
+       "minWithdrawAmount": "9.26",
+       "withdrawFee": "4.63",
+       "withdrawStatus": true
+      },
+      "456": {
+       "depositStatus": false,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "A": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.36",
+       "withdrawFee": "0.18",
+       "withdrawStatus": true
+      },
+      "A2Z": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1804",
+       "withdrawFee": "902",
+       "withdrawStatus": true
+      },
+      "AAVE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.0076",
+       "withdrawFee": "0.0038",
+       "withdrawStatus": true
+      },
+      "ACA": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.4",
+       "withdrawFee": "0.2",
+       "withdrawStatus": true
+      },
+      "ACE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.1",
+       "withdrawFee": "0.006",
+       "withdrawStatus": true
+      },
+      "ACH": {
+       "depositStatus": true,
+       "minWithdrawAmount": "124",
+       "withdrawFee": "62",
+       "withdrawStatus": true
+      },
+      "ACHF": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.78",
+       "withdrawFee": "0.39",
+       "withdrawStatus": false
+      },
+      "ACM": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "ACT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "50",
+       "withdrawFee": "25",
+       "withdrawStatus": true
+      },
+      "ACX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "20",
+       "withdrawFee": "10",
+       "withdrawStatus": true
+      },
+      "ADA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2",
+       "withdrawFee": "0.8",
+       "withdrawStatus": true
+      },
+      "ADD": {
+       "depositStatus": false,
+       "depositTip": "Not support deposit",
+       "minWithdrawAmount": "200",
+       "withdrawFee": "100",
+       "withdrawStatus": false
+      },
+      "ADX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "12",
+       "withdrawFee": "6",
+       "withdrawStatus": true
+      },
+      "ADXOLD": {
+       "depositStatus": false,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "5",
+       "withdrawStatus": false
+      },
+      "AE": {
+       "depositStatus": false,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "AED": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "AERGO": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "16",
+       "withdrawFee": "8.19",
+       "withdrawStatus": false
+      },
+      "AEUR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.78",
+       "withdrawFee": "0.39",
+       "withdrawStatus": true
+      },
+      "AEVO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "34",
+       "withdrawFee": "17",
+       "withdrawStatus": true
+      },
+      "AFN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "AGIX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "7.9",
+       "withdrawFee": "3.95",
+       "withdrawStatus": true
+      },
+      "AGLD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "3.66",
+       "withdrawFee": "1.83",
+       "withdrawStatus": true
+      },
+      "AI": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1.72",
+       "withdrawFee": "0.86",
+       "withdrawStatus": true
+      },
+      "AION": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "0.2",
+       "withdrawFee": "0.1",
+       "withdrawStatus": false
+      },
+      "AITECH": {
+       "depositStatus": true,
+       "minWithdrawAmount": "25",
+       "withdrawFee": "3",
+       "withdrawStatus": true
+      },
+      "AIXBT": {
+       "depositStatus": false,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0.5",
+       "withdrawStatus": false
+      },
+      "AKRO": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "16346",
+       "withdrawFee": "8173",
+       "withdrawStatus": true
+      },
+      "ALCH": {
+       "depositStatus": true,
+       "minWithdrawAmount": "80",
+       "withdrawFee": "10",
+       "withdrawStatus": true
+      },
+      "ALCX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.18",
+       "withdrawFee": "0.09",
+       "withdrawStatus": true
+      },
+      "ALGO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "0.008",
+       "withdrawStatus": true
+      },
+      "ALICE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "7.84",
+       "withdrawFee": "3.92",
+       "withdrawStatus": true
+      },
+      "ALLO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0.01",
+       "withdrawStatus": true
+      },
+      "ALPACA": {
+       "depositStatus": false,
+       "minWithdrawAmount": "6.38",
+       "withdrawFee": "3.19",
+       "withdrawStatus": true
+      },
+      "ALPHA": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "144",
+       "withdrawFee": "72",
+       "withdrawStatus": true
+      },
+      "ALPINE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.088",
+       "withdrawFee": "0.044",
+       "withdrawStatus": true
+      },
+      "ALT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "112",
+       "withdrawFee": "56",
+       "withdrawStatus": true
+      },
+      "AMB": {
+       "depositStatus": false,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "1",
+       "withdrawStatus": false
+      },
+      "AMD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "AMP": {
+       "depositStatus": true,
+       "minWithdrawAmount": "660",
+       "withdrawFee": "330",
+       "withdrawStatus": true
+      },
+      "ANC": {
+       "depositStatus": false,
+       "minWithdrawAmount": "3",
+       "withdrawFee": "2.5",
+       "withdrawStatus": false
+      },
+      "ANIME": {
+       "depositStatus": true,
+       "minWithdrawAmount": "178",
+       "withdrawFee": "89",
+       "withdrawStatus": true
+      },
+      "ANKR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "180",
+       "withdrawFee": "90",
+       "withdrawStatus": true
+      },
+      "ANT": {
+       "depositStatus": false,
+       "minWithdrawAmount": "7.1",
+       "withdrawFee": "3.55",
+       "withdrawStatus": false
+      },
+      "ANTOLD": {
+       "depositStatus": false,
+       "minWithdrawAmount": "4",
+       "withdrawFee": "2",
+       "withdrawStatus": true
+      },
+      "ANY": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.022",
+       "withdrawFee": "0.011",
+       "withdrawStatus": true
+      },
+      "AOA": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "APE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "9.28",
+       "withdrawFee": "4.64",
+       "withdrawStatus": true
+      },
+      "APEOLD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.16",
+       "withdrawFee": "0.079",
+       "withdrawStatus": false
+      },
+      "API3": {
+       "depositStatus": true,
+       "minWithdrawAmount": "3.08",
+       "withdrawFee": "1.54",
+       "withdrawStatus": true
+      },
+      "APPC": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "3520",
+       "withdrawFee": "1760",
+       "withdrawStatus": false
+      },
+      "APT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.6",
+       "withdrawFee": "0.016",
+       "withdrawStatus": true
+      },
+      "AR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.00004",
+       "withdrawFee": "0.00002",
+       "withdrawStatus": true
+      },
+      "ARB": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2.14",
+       "withdrawFee": "1.07",
+       "withdrawStatus": true
+      },
+      "ARBUSDCE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.22",
+       "withdrawFee": "0.11",
+       "withdrawStatus": true
+      },
+      "ARDR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "4",
+       "withdrawFee": "2",
+       "withdrawStatus": true
+      },
+      "ARK": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.6",
+       "withdrawFee": "0.3",
+       "withdrawStatus": true
+      },
+      "ARKM": {
+       "depositStatus": true,
+       "minWithdrawAmount": "7.84",
+       "withdrawFee": "3.92",
+       "withdrawStatus": true
+      },
+      "ARN": {
+       "depositStatus": false,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "5",
+       "withdrawStatus": false
+      },
+      "ARPA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "88",
+       "withdrawFee": "44",
+       "withdrawStatus": true
+      },
+      "ARS": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "ASR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "AST": {
+       "depositStatus": false,
+       "depositTip": "-",
+       "minWithdrawAmount": "7",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "ASTER": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.056",
+       "withdrawFee": "0.028",
+       "withdrawStatus": true
+      },
+      "ASTR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "5",
+       "withdrawFee": "2",
+       "withdrawStatus": true
+      },
+      "AT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.28",
+       "withdrawFee": "0.14",
+       "withdrawStatus": true
+      },
+      "ATA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "3.52",
+       "withdrawFee": "1.76",
+       "withdrawStatus": true
+      },
+      "ATD": {
+       "depositStatus": false,
+       "depositTip": "Contract Frozen, Waiting for Upgrade",
+       "minWithdrawAmount": "60",
+       "withdrawFee": "10",
+       "withdrawStatus": true
+      },
+      "ATEM": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1.26",
+       "withdrawFee": "0.63",
+       "withdrawStatus": true
+      },
+      "ATH": {
+       "depositStatus": true,
+       "minWithdrawAmount": "64",
+       "withdrawFee": "32",
+       "withdrawStatus": true
+      },
+      "ATM": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "ATOM": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.04",
+       "withdrawFee": "0.02",
+       "withdrawStatus": true
+      },
+      "AUCTION": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.18",
+       "withdrawFee": "0.09",
+       "withdrawStatus": true
+      },
+      "AUD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "AUDIO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "42",
+       "withdrawFee": "21",
+       "withdrawStatus": true
+      },
+      "AUTO": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.012",
+       "withdrawFee": "0.0058",
+       "withdrawStatus": false
+      },
+      "AVA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "4.16",
+       "withdrawFee": "2.08",
+       "withdrawStatus": true
+      },
+      "AVAOLD": {
+       "depositStatus": false,
+       "minWithdrawAmount": "4.08",
+       "withdrawFee": "2.04",
+       "withdrawStatus": false
+      },
+      "AVAX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.1",
+       "withdrawFee": "0.008",
+       "withdrawStatus": true
+      },
+      "AVNT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "5",
+       "withdrawFee": "1",
+       "withdrawStatus": true
+      },
+      "AWE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "7.98",
+       "withdrawFee": "3.99",
+       "withdrawStatus": true
+      },
+      "AXL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0.02",
+       "withdrawStatus": true
+      },
+      "AXS": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.74",
+       "withdrawFee": "0.37",
+       "withdrawStatus": true
+      },
+      "AXSOLD": {
+       "depositStatus": false,
+       "minWithdrawAmount": "15",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "AZN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "BABY": {
+       "depositStatus": true,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "0.01",
+       "withdrawStatus": true
+      },
+      "BADGER": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "0.6",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "BAKE": {
+       "depositStatus": false,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "BAL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1.08",
+       "withdrawFee": "0.54",
+       "withdrawStatus": true
+      },
+      "BANANA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.22",
+       "withdrawFee": "0.11",
+       "withdrawStatus": true
+      },
+      "BANANAS31": {
+       "depositStatus": true,
+       "minWithdrawAmount": "3.96",
+       "withdrawFee": "1.98",
+       "withdrawStatus": true
+      },
+      "BAND": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.02",
+       "withdrawFee": "0.01",
+       "withdrawStatus": true
+      },
+      "BANK": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1.1",
+       "withdrawFee": "0.55",
+       "withdrawStatus": true
+      },
+      "BAR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "BARD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.058",
+       "withdrawFee": "0.029",
+       "withdrawStatus": true
+      },
+      "BASED": {
+       "depositStatus": true,
+       "minWithdrawAmount": "464",
+       "withdrawFee": "232",
+       "withdrawStatus": true
+      },
+      "BAT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "8.64",
+       "withdrawFee": "4.32",
+       "withdrawStatus": true
+      },
+      "BB": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0.05",
+       "withdrawStatus": true
+      },
+      "BCD": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.02",
+       "withdrawFee": "0.01",
+       "withdrawStatus": false
+      },
+      "BCH": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.002",
+       "withdrawFee": "0.0002",
+       "withdrawStatus": true
+      },
+      "BCHA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.00038",
+       "withdrawFee": "0.00019",
+       "withdrawStatus": false
+      },
+      "BCHSV": {
+       "depositStatus": false,
+       "depositTip": "Delisted, Deposit Suspended",
+       "minWithdrawAmount": "0.02",
+       "withdrawFee": "0.01",
+       "withdrawStatus": false
+      },
+      "BCX": {
+       "depositStatus": false,
+       "minWithdrawAmount": "2",
+       "withdrawFee": "0.5",
+       "withdrawStatus": false
+      },
+      "BDOT": {
+       "depositStatus": false,
+       "depositTip": "cointip007",
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "BDT": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "BEAM": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "0.2",
+       "withdrawFee": "0.1",
+       "withdrawStatus": false
+      },
+      "BEAMX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "19",
+       "withdrawFee": "9.7",
+       "withdrawStatus": true
+      },
+      "BEAR": {
+       "depositStatus": false,
+       "minWithdrawAmount": "12712",
+       "withdrawFee": "6356",
+       "withdrawStatus": false
+      },
+      "BEL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "8.8",
+       "withdrawFee": "4.4",
+       "withdrawStatus": true
+      },
+      "BERA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.1",
+       "withdrawFee": "0.001",
+       "withdrawStatus": true
+      },
+      "BETA": {
+       "depositStatus": false,
+       "minWithdrawAmount": "72",
+       "withdrawFee": "36",
+       "withdrawStatus": false
+      },
+      "BETH": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.000018",
+       "withdrawFee": "0.0000089",
+       "withdrawStatus": false
+      },
+      "BFUSD": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "BGBP": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "5.62",
+       "withdrawFee": "2.81",
+       "withdrawStatus": false
+      },
+      "BGN": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "BHD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "BICO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "36",
+       "withdrawFee": "18",
+       "withdrawStatus": true
+      },
+      "BIDR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "660",
+       "withdrawFee": "330",
+       "withdrawStatus": true
+      },
+      "BIFI": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.0078",
+       "withdrawFee": "0.0039",
+       "withdrawStatus": true
+      },
+      "BIFIBSCOLD": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.00034",
+       "withdrawFee": "0.00017",
+       "withdrawStatus": false
+      },
+      "BIGTIME": {
+       "depositStatus": true,
+       "minWithdrawAmount": "64",
+       "withdrawFee": "32",
+       "withdrawStatus": true
+      },
+      "BIO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "42",
+       "withdrawFee": "21",
+       "withdrawStatus": true
+      },
+      "BKRW": {
+       "depositStatus": false,
+       "minWithdrawAmount": "20",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "BLASTETH": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.0001",
+       "withdrawFee": "0.00001",
+       "withdrawStatus": false
+      },
+      "BLINK": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "100",
+       "withdrawFee": "60",
+       "withdrawStatus": false
+      },
+      "BLUR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "44",
+       "withdrawFee": "22",
+       "withdrawStatus": true
+      },
+      "BLZ": {
+       "depositStatus": true,
+       "minWithdrawAmount": "52",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "BMT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2.42",
+       "withdrawFee": "1.21",
+       "withdrawStatus": true
+      },
+      "BNB": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.0005",
+       "withdrawFee": "0.00001",
+       "withdrawStatus": true
+      },
+      "BNBBEAR": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.022",
+       "withdrawFee": "0.011",
+       "withdrawStatus": false
+      },
+      "BNBBULL": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.024",
+       "withdrawFee": "0.012",
+       "withdrawStatus": false
+      },
+      "BNBDOWN": {
+       "depositStatus": false,
+       "depositTip": "Not support deposit",
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "BNBUP": {
+       "depositStatus": false,
+       "depositTip": "Not support deposit",
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "BNC": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.2",
+       "withdrawFee": "0.1",
+       "withdrawStatus": true
+      },
+      "BND": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "BNFCR": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "BNSOL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.1",
+       "withdrawFee": "0.002",
+       "withdrawStatus": true
+      },
+      "BNT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2.86",
+       "withdrawFee": "1.43",
+       "withdrawStatus": true
+      },
+      "BNX": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.022",
+       "withdrawFee": "0.011",
+       "withdrawStatus": false
+      },
+      "BOB": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "BOBA": {
+       "depositStatus": false,
+       "minWithdrawAmount": "19",
+       "withdrawFee": "9.9",
+       "withdrawStatus": false
+      },
+      "BOLT": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "6818",
+       "withdrawFee": "3409",
+       "withdrawStatus": true
+      },
+      "BOME": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1654",
+       "withdrawFee": "827",
+       "withdrawStatus": true
+      },
+      "BOND": {
+       "depositStatus": false,
+       "minWithdrawAmount": "9.26",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "BONK": {
+       "depositStatus": true,
+       "minWithdrawAmount": "117386",
+       "withdrawFee": "58693",
+       "withdrawStatus": true
+      },
+      "BOO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "15",
+       "withdrawFee": "7.57",
+       "withdrawStatus": true
+      },
+      "BOT": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.0016",
+       "withdrawFee": "0.0008",
+       "withdrawStatus": false
+      },
+      "BQX": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0.5",
+       "withdrawStatus": true
+      },
+      "BR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2",
+       "withdrawFee": "1",
+       "withdrawStatus": true
+      },
+      "BRD": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "470",
+       "withdrawFee": "235",
+       "withdrawStatus": false
+      },
+      "BREV": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.3",
+       "withdrawFee": "0.15",
+       "withdrawStatus": true
+      },
+      "BRL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "BROCCOLI714": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2.92",
+       "withdrawFee": "1.46",
+       "withdrawStatus": true
+      },
+      "BROCCOLIF2B": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "BRUSH": {
+       "depositStatus": true,
+       "minWithdrawAmount": "30",
+       "withdrawFee": "15",
+       "withdrawStatus": true
+      },
+      "BSW": {
+       "depositStatus": false,
+       "minWithdrawAmount": "11",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "BTC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.00012",
+       "withdrawFee": "0.000015",
+       "withdrawStatus": true
+      },
+      "BTCDOWN": {
+       "depositStatus": false,
+       "depositTip": "Not support deposit",
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "BTCST": {
+       "depositStatus": false,
+       "minWithdrawAmount": "3.22",
+       "withdrawFee": "1.61",
+       "withdrawStatus": false
+      },
+      "BTCUP": {
+       "depositStatus": false,
+       "depositTip": "Not support deposit",
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "BTCX": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "BTG": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "0.002",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "BTM": {
+       "depositStatus": false,
+       "depositTip": "Delisted, Deposit Suspended",
+       "minWithdrawAmount": "1002",
+       "withdrawFee": "501",
+       "withdrawStatus": true
+      },
+      "BTS": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "BTTC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1794978",
+       "withdrawFee": "897489",
+       "withdrawStatus": true
+      },
+      "BTTOLD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "800",
+       "withdrawFee": "400",
+       "withdrawStatus": false
+      },
+      "BUIDLX": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "BULL": {
+       "depositStatus": false,
+       "minWithdrawAmount": "33730",
+       "withdrawFee": "16865",
+       "withdrawStatus": false
+      },
+      "BURGER": {
+       "depositStatus": false,
+       "minWithdrawAmount": "14",
+       "withdrawFee": "7.29",
+       "withdrawStatus": false
+      },
+      "BUSD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "5",
+       "withdrawStatus": false
+      },
+      "BVND": {
+       "depositStatus": false,
+       "minWithdrawAmount": "13086",
+       "withdrawFee": "6543",
+       "withdrawStatus": false
+      },
+      "BWP": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "BYN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "BZRX": {
+       "depositStatus": false,
+       "minWithdrawAmount": "17",
+       "withdrawFee": "8.79",
+       "withdrawStatus": false
+      },
+      "C": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.7",
+       "withdrawFee": "0.35",
+       "withdrawStatus": true
+      },
+      "C98": {
+       "depositStatus": true,
+       "minWithdrawAmount": "28",
+       "withdrawFee": "14",
+       "withdrawStatus": true
+      },
+      "CAD": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "CAKE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.028",
+       "withdrawFee": "0.014",
+       "withdrawStatus": true
+      },
+      "CAN": {
+       "depositStatus": false,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "5",
+       "withdrawStatus": true
+      },
+      "CARV": {
+       "depositStatus": true,
+       "minWithdrawAmount": "3.08",
+       "withdrawFee": "1.54",
+       "withdrawStatus": true
+      },
+      "CATI": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1.82",
+       "withdrawFee": "0.91",
+       "withdrawStatus": true
+      },
+      "CBK": {
+       "depositStatus": false,
+       "minWithdrawAmount": "2.38",
+       "withdrawFee": "1.19",
+       "withdrawStatus": false
+      },
+      "CBM": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "5392656",
+       "withdrawFee": "2696328",
+       "withdrawStatus": true
+      },
+      "CDT": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "54",
+       "withdrawFee": "27",
+       "withdrawStatus": false
+      },
+      "CELO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.018",
+       "withdrawFee": "0.003",
+       "withdrawStatus": true
+      },
+      "CELR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "312",
+       "withdrawFee": "156",
+       "withdrawStatus": true
+      },
+      "CETUS": {
+       "depositStatus": true,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "0.5",
+       "withdrawStatus": true
+      },
+      "CFD": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "10",
+       "withdrawFee": "5",
+       "withdrawStatus": false
+      },
+      "CFG": {
+       "depositStatus": true,
+       "minWithdrawAmount": "6.32",
+       "withdrawFee": "3.16",
+       "withdrawStatus": true
+      },
+      "CFX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.0048",
+       "withdrawFee": "0.0024",
+       "withdrawStatus": true
+      },
+      "CGPT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1.76",
+       "withdrawFee": "0.88",
+       "withdrawStatus": true
+      },
+      "CHAT": {
+       "depositStatus": false,
+       "depositTip": "Delisted, Deposit Suspended",
+       "minWithdrawAmount": "6676",
+       "withdrawFee": "3338",
+       "withdrawStatus": false
+      },
+      "CHESS": {
+       "depositStatus": false,
+       "minWithdrawAmount": "13",
+       "withdrawFee": "6.84",
+       "withdrawStatus": true
+      },
+      "CHF": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "CHR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "54",
+       "withdrawFee": "27",
+       "withdrawStatus": true
+      },
+      "CHZ": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2",
+       "withdrawFee": "1",
+       "withdrawStatus": true
+      },
+      "CITY": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "CKB": {
+       "depositStatus": true,
+       "minWithdrawAmount": "300",
+       "withdrawFee": "1",
+       "withdrawStatus": true
+      },
+      "CLOAK": {
+       "depositStatus": false,
+       "depositTip": "Delisted, Deposit Suspended",
+       "minWithdrawAmount": "0.02",
+       "withdrawFee": "0.02",
+       "withdrawStatus": false
+      },
+      "CLP": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "CLV": {
+       "depositStatus": false,
+       "minWithdrawAmount": "182",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "CMT": {
+       "depositStatus": false,
+       "minWithdrawAmount": "2",
+       "withdrawFee": "1",
+       "withdrawStatus": false
+      },
+      "CND": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "7146",
+       "withdrawFee": "3573",
+       "withdrawStatus": false
+      },
+      "COCOS": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.022",
+       "withdrawFee": "0.011",
+       "withdrawStatus": false
+      },
+      "COMBO": {
+       "depositStatus": false,
+       "minWithdrawAmount": "32",
+       "withdrawFee": "16",
+       "withdrawStatus": false
+      },
+      "COMP": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.046",
+       "withdrawFee": "0.023",
+       "withdrawStatus": true
+      },
+      "COOKIE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2.1",
+       "withdrawFee": "1.05",
+       "withdrawStatus": true
+      },
+      "COP": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "COS": {
+       "depositStatus": true,
+       "minWithdrawAmount": "22",
+       "withdrawFee": "11",
+       "withdrawStatus": true
+      },
+      "COTI": {
+       "depositStatus": true,
+       "minWithdrawAmount": "62",
+       "withdrawFee": "31",
+       "withdrawStatus": true
+      },
+      "COVER": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "0.01",
+       "withdrawFee": "0.005",
+       "withdrawStatus": true
+      },
+      "COVEROLD": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "0.11",
+       "withdrawFee": "0.055",
+       "withdrawStatus": true
+      },
+      "COW": {
+       "depositStatus": true,
+       "minWithdrawAmount": "3.74",
+       "withdrawFee": "1.87",
+       "withdrawStatus": true
+      },
+      "CRC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "CREAM": {
+       "depositStatus": false,
+       "minWithdrawAmount": "1.64",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "CREO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "17",
+       "withdrawFee": "8.51",
+       "withdrawStatus": true
+      },
+      "CRV": {
+       "depositStatus": true,
+       "minWithdrawAmount": "3.66",
+       "withdrawFee": "1.83",
+       "withdrawStatus": true
+      },
+      "CTK": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0.05",
+       "withdrawStatus": true
+      },
+      "CTR": {
+       "depositStatus": true,
+       "depositTip": "Delisted, Deposit Suspended",
+       "minWithdrawAmount": "614",
+       "withdrawFee": "307",
+       "withdrawStatus": false
+      },
+      "CTSI": {
+       "depositStatus": true,
+       "minWithdrawAmount": "34",
+       "withdrawFee": "17",
+       "withdrawStatus": true
+      },
+      "CTXC": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.002",
+       "withdrawFee": "0.001",
+       "withdrawStatus": false
+      },
+      "CUSDOX": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "CVC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "26",
+       "withdrawFee": "13",
+       "withdrawStatus": true
+      },
+      "CVP": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "44",
+       "withdrawFee": "22",
+       "withdrawStatus": false
+      },
+      "CVX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.46",
+       "withdrawFee": "0.23",
+       "withdrawStatus": true
+      },
+      "CYBER": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1.6",
+       "withdrawFee": "0.8",
+       "withdrawStatus": true
+      },
+      "CYBERETH": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.00002",
+       "withdrawFee": "0.00001",
+       "withdrawStatus": true
+      },
+      "CZK": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "D": {
+       "depositStatus": true,
+       "minWithdrawAmount": "6.14",
+       "withdrawFee": "3.07",
+       "withdrawStatus": true
+      },
+      "DAI": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.88",
+       "withdrawFee": "0.44",
+       "withdrawStatus": true
+      },
+      "DAR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2.56",
+       "withdrawFee": "1.28",
+       "withdrawStatus": false
+      },
+      "DASH": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.004",
+       "withdrawFee": "0.0002",
+       "withdrawStatus": true
+      },
+      "DATA": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "1058",
+       "withdrawFee": "529",
+       "withdrawStatus": true
+      },
+      "DCR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.02",
+       "withdrawFee": "0.006",
+       "withdrawStatus": true
+      },
+      "DEGO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.88",
+       "withdrawFee": "0.44",
+       "withdrawStatus": true
+      },
+      "DEGOOLD": {
+       "depositStatus": false,
+       "minWithdrawAmount": "20",
+       "withdrawFee": "12",
+       "withdrawStatus": false
+      },
+      "DENT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "3854",
+       "withdrawFee": "1927",
+       "withdrawStatus": true
+      },
+      "DEXE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.15",
+       "withdrawFee": "0.077",
+       "withdrawStatus": true
+      },
+      "DF": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "660",
+       "withdrawFee": "330",
+       "withdrawStatus": true
+      },
+      "DGB": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.4",
+       "withdrawFee": "0.004",
+       "withdrawStatus": true
+      },
+      "DGD": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "0.012",
+       "withdrawFee": "0.006",
+       "withdrawStatus": true
+      },
+      "DIA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "4.7",
+       "withdrawFee": "2.35",
+       "withdrawStatus": true
+      },
+      "DKK": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "DLT": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "1138",
+       "withdrawFee": "569",
+       "withdrawStatus": true
+      },
+      "DNT": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "358",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "DOCK": {
+       "depositStatus": false,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "DODO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "56",
+       "withdrawFee": "28",
+       "withdrawStatus": true
+      },
+      "DOGE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "8",
+       "withdrawFee": "4",
+       "withdrawStatus": true
+      },
+      "DOGS": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1000",
+       "withdrawFee": "100",
+       "withdrawStatus": true
+      },
+      "DOLO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "24",
+       "withdrawFee": "12",
+       "withdrawStatus": true
+      },
+      "DON": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.6",
+       "withdrawFee": "0.5",
+       "withdrawStatus": true
+      },
+      "DOOD": {
+       "depositStatus": false,
+       "minWithdrawAmount": "7.56",
+       "withdrawFee": "3.78",
+       "withdrawStatus": true
+      },
+      "DOP": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "DOT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1.3",
+       "withdrawFee": "0.08",
+       "withdrawStatus": true
+      },
+      "DREP": {
+       "depositStatus": false,
+       "minWithdrawAmount": "4370",
+       "withdrawFee": "2185",
+       "withdrawStatus": false
+      },
+      "DREPOLD": {
+       "depositStatus": false,
+       "minWithdrawAmount": "3000",
+       "withdrawFee": "1500",
+       "withdrawStatus": false
+      },
+      "DRX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "50",
+       "withdrawFee": "10",
+       "withdrawStatus": true
+      },
+      "DUSK": {
+       "depositStatus": true,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "5.28",
+       "withdrawStatus": true
+      },
+      "DYDX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "9.88",
+       "withdrawFee": "4.94",
+       "withdrawStatus": true
+      },
+      "DYM": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0.004",
+       "withdrawStatus": true
+      },
+      "DZD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "EASY": {
+       "depositStatus": false,
+       "minWithdrawAmount": "1.1",
+       "withdrawFee": "0.55",
+       "withdrawStatus": true
+      },
+      "EDEN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1.08",
+       "withdrawFee": "0.54",
+       "withdrawStatus": true
+      },
+      "EDG": {
+       "depositStatus": false,
+       "minWithdrawAmount": "200",
+       "withdrawFee": "100",
+       "withdrawStatus": true
+      },
+      "EDO": {
+       "depositStatus": false,
+       "depositTip": "Network Swap, Deposit Closed",
+       "minWithdrawAmount": "4.46",
+       "withdrawFee": "2.23",
+       "withdrawStatus": true
+      },
+      "EDU": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.48",
+       "withdrawFee": "0.24",
+       "withdrawStatus": true
+      },
+      "EFI": {
+       "depositStatus": true,
+       "minWithdrawAmount": "24",
+       "withdrawFee": "12",
+       "withdrawStatus": true
+      },
+      "EGLD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.0016",
+       "withdrawFee": "0.0008",
+       "withdrawStatus": true
+      },
+      "EGP": {
+       "depositStatus": false,
+       "depositTip": "",
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "EIGEN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "4.36",
+       "withdrawFee": "2.18",
+       "withdrawStatus": true
+      },
+      "ELF": {
+       "depositStatus": true,
+       "minWithdrawAmount": "22",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "ELON": {
+       "depositStatus": true,
+       "minWithdrawAmount": "671340",
+       "withdrawFee": "335670",
+       "withdrawStatus": true
+      },
+      "ENA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "8.14",
+       "withdrawFee": "4.07",
+       "withdrawStatus": true
+      },
+      "ENG": {
+       "depositStatus": false,
+       "minWithdrawAmount": "8406",
+       "withdrawFee": "4203",
+       "withdrawStatus": false
+      },
+      "ENJ": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0.0003",
+       "withdrawStatus": true
+      },
+      "ENS": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.14",
+       "withdrawFee": "0.07",
+       "withdrawStatus": true
+      },
+      "ENSO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.034",
+       "withdrawFee": "0.017",
+       "withdrawStatus": true
+      },
+      "ENTRP": {
+       "depositStatus": false,
+       "minWithdrawAmount": "20",
+       "withdrawFee": "10",
+       "withdrawStatus": true
+      },
+      "EON": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "20",
+       "withdrawFee": "10",
+       "withdrawStatus": true
+      },
+      "EOP": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "10",
+       "withdrawFee": "5",
+       "withdrawStatus": true
+      },
+      "EOS": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.16",
+       "withdrawFee": "0.08",
+       "withdrawStatus": true
+      },
+      "EOSBEAR": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.044",
+       "withdrawFee": "0.022",
+       "withdrawStatus": false
+      },
+      "EOSBULL": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.01",
+       "withdrawFee": "0.005",
+       "withdrawStatus": false
+      },
+      "EPIC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "3.4",
+       "withdrawFee": "1.7",
+       "withdrawStatus": true
+      },
+      "EPS": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.22",
+       "withdrawFee": "0.11",
+       "withdrawStatus": true
+      },
+      "EPX": {
+       "depositStatus": false,
+       "minWithdrawAmount": "79322",
+       "withdrawFee": "39661",
+       "withdrawStatus": false
+      },
+      "ERA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.28",
+       "withdrawFee": "0.14",
+       "withdrawStatus": true
+      },
+      "ERD": {
+       "depositStatus": false,
+       "minWithdrawAmount": "3",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "ERN": {
+       "depositStatus": false,
+       "minWithdrawAmount": "1.68",
+       "withdrawFee": "0.84",
+       "withdrawStatus": false
+      },
+      "ESP": {
+       "depositStatus": true,
+       "minWithdrawAmount": "9.2",
+       "withdrawFee": "4.6",
+       "withdrawStatus": true
+      },
+      "ETB": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "ETC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.02",
+       "withdrawFee": "0.004",
+       "withdrawStatus": true
+      },
+      "ETF": {
+       "depositStatus": false,
+       "depositTip": "Waiting for wallet development of ETF team",
+       "minWithdrawAmount": "2",
+       "withdrawFee": "1",
+       "withdrawStatus": false
+      },
+      "ETH": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.002",
+       "withdrawFee": "0.00015",
+       "withdrawStatus": true
+      },
+      "ETHBEAR": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.0001",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "ETHBNT": {
+       "depositStatus": false,
+       "depositTip": "Not support deposit",
+       "minWithdrawAmount": "10",
+       "withdrawFee": "5",
+       "withdrawStatus": true
+      },
+      "ETHBULL": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "ETHDOWN": {
+       "depositStatus": false,
+       "depositTip": "Not support deposit",
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "ETHFI": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1.62",
+       "withdrawFee": "0.81",
+       "withdrawStatus": true
+      },
+      "ETHOS": {
+       "depositStatus": false,
+       "minWithdrawAmount": "800",
+       "withdrawFee": "400",
+       "withdrawStatus": true
+      },
+      "ETHUP": {
+       "depositStatus": false,
+       "depositTip": "Not support deposit",
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "ETHW": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.02",
+       "withdrawFee": "0.004",
+       "withdrawStatus": true
+      },
+      "ETHX": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "EUL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.96",
+       "withdrawFee": "0.48",
+       "withdrawStatus": true
+      },
+      "EUR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "EURI": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.034",
+       "withdrawFee": "0.017",
+       "withdrawStatus": true
+      },
+      "EURPS": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "EVX": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "8406",
+       "withdrawFee": "4203",
+       "withdrawStatus": false
+      },
+      "EZ": {
+       "depositStatus": false,
+       "minWithdrawAmount": "642",
+       "withdrawFee": "321",
+       "withdrawStatus": false
+      },
+      "F": {
+       "depositStatus": true,
+       "minWithdrawAmount": "7.18",
+       "withdrawFee": "3.59",
+       "withdrawStatus": true
+      },
+      "FAIR3": {
+       "depositStatus": true,
+       "minWithdrawAmount": "35",
+       "withdrawFee": "5",
+       "withdrawStatus": true
+      },
+      "FARM": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.066",
+       "withdrawFee": "0.033",
+       "withdrawStatus": true
+      },
+      "FARTCOIN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "6",
+       "withdrawFee": "3",
+       "withdrawStatus": true
+      },
+      "FDUSD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "0.01",
+       "withdrawStatus": true
+      },
+      "FET": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1.5",
+       "withdrawFee": "0.00001",
+       "withdrawStatus": true
+      },
+      "FF": {
+       "depositStatus": true,
+       "minWithdrawAmount": "12",
+       "withdrawFee": "6.11",
+       "withdrawStatus": true
+      },
+      "FIDA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "46",
+       "withdrawFee": "23",
+       "withdrawStatus": true
+      },
+      "FIL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.01",
+       "withdrawFee": "0.0005",
+       "withdrawStatus": true
+      },
+      "FIN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "5",
+       "withdrawStatus": true
+      },
+      "FIO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "16",
+       "withdrawFee": "8",
+       "withdrawStatus": true
+      },
+      "FIRO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.04",
+       "withdrawFee": "0.02",
+       "withdrawStatus": true
+      },
+      "FIS": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "10",
+       "withdrawFee": "8",
+       "withdrawStatus": true
+      },
+      "FLM": {
+       "depositStatus": false,
+       "minWithdrawAmount": "2",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "FLOKI": {
+       "depositStatus": true,
+       "minWithdrawAmount": "29452",
+       "withdrawFee": "14726",
+       "withdrawStatus": true
+      },
+      "FLOW": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2.7",
+       "withdrawFee": "0.005",
+       "withdrawStatus": true
+      },
+      "FLR": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.02",
+       "withdrawFee": "0.01",
+       "withdrawStatus": true
+      },
+      "FLUX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "15",
+       "withdrawFee": "7.96",
+       "withdrawStatus": true
+      },
+      "FOGO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0.01",
+       "withdrawStatus": true
+      },
+      "FOR": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "1984",
+       "withdrawFee": "992",
+       "withdrawStatus": true
+      },
+      "FORM": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.16",
+       "withdrawFee": "0.079",
+       "withdrawStatus": true
+      },
+      "FORTH": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1.46",
+       "withdrawFee": "0.73",
+       "withdrawStatus": true
+      },
+      "FRAX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0.1",
+       "withdrawStatus": true
+      },
+      "FRONT": {
+       "depositStatus": false,
+       "minWithdrawAmount": "40",
+       "withdrawFee": "20",
+       "withdrawStatus": true
+      },
+      "FTM": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0.002",
+       "withdrawStatus": false
+      },
+      "FTT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "3.04",
+       "withdrawFee": "1.52",
+       "withdrawStatus": true
+      },
+      "FUEL": {
+       "depositStatus": false,
+       "minWithdrawAmount": "53032",
+       "withdrawFee": "26516",
+       "withdrawStatus": false
+      },
+      "FUN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "678",
+       "withdrawFee": "339",
+       "withdrawStatus": true
+      },
+      "FUSDC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0.5",
+       "withdrawStatus": true
+      },
+      "FUSDT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0.5",
+       "withdrawStatus": true
+      },
+      "FXS": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1.1",
+       "withdrawFee": "0.55",
+       "withdrawStatus": false
+      },
+      "G": {
+       "depositStatus": true,
+       "minWithdrawAmount": "214",
+       "withdrawFee": "107",
+       "withdrawStatus": true
+      },
+      "GAL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.9",
+       "withdrawFee": "0.45",
+       "withdrawStatus": true
+      },
+      "GALA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "254",
+       "withdrawFee": "127",
+       "withdrawStatus": true
+      },
+      "GAS": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "GBP": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "GBPPS": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "GEL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "GFT": {
+       "depositStatus": false,
+       "minWithdrawAmount": "3.76",
+       "withdrawFee": "1.88",
+       "withdrawStatus": false
+      },
+      "GHS": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "GHST": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "7.98",
+       "withdrawFee": "3.99",
+       "withdrawStatus": true
+      },
+      "GIGGLE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.0015",
+       "withdrawFee": "0.00073",
+       "withdrawStatus": true
+      },
+      "GLM": {
+       "depositStatus": true,
+       "minWithdrawAmount": "6.54",
+       "withdrawFee": "3.27",
+       "withdrawStatus": true
+      },
+      "GLMR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "0.02",
+       "withdrawStatus": true
+      },
+      "GMT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "64",
+       "withdrawFee": "32",
+       "withdrawStatus": true
+      },
+      "GMX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.034",
+       "withdrawFee": "0.017",
+       "withdrawStatus": true
+      },
+      "GNF": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "GNO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.0066",
+       "withdrawFee": "0.0033",
+       "withdrawStatus": true
+      },
+      "GNS": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.07",
+       "withdrawFee": "0.035",
+       "withdrawStatus": true
+      },
+      "GNT": {
+       "depositStatus": false,
+       "minWithdrawAmount": "4.04",
+       "withdrawFee": "2.02",
+       "withdrawStatus": false
+      },
+      "GO": {
+       "depositStatus": false,
+       "minWithdrawAmount": "2",
+       "withdrawFee": "1",
+       "withdrawStatus": false
+      },
+      "GOAT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "100",
+       "withdrawFee": "10",
+       "withdrawStatus": true
+      },
+      "GPS": {
+       "depositStatus": true,
+       "minWithdrawAmount": "54",
+       "withdrawFee": "27",
+       "withdrawStatus": true
+      },
+      "GQ": {
+       "depositStatus": true,
+       "minWithdrawAmount": "500",
+       "withdrawFee": "150",
+       "withdrawStatus": true
+      },
+      "GRASS": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2.16",
+       "withdrawFee": "1.08",
+       "withdrawStatus": true
+      },
+      "GRS": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.4",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "GRT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "32",
+       "withdrawFee": "16",
+       "withdrawStatus": true
+      },
+      "GST": {
+       "depositStatus": false,
+       "minWithdrawAmount": "440",
+       "withdrawFee": "220",
+       "withdrawStatus": false
+      },
+      "GTC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "9.66",
+       "withdrawFee": "4.83",
+       "withdrawStatus": true
+      },
+      "GTO": {
+       "depositStatus": false,
+       "minWithdrawAmount": "24",
+       "withdrawFee": "12",
+       "withdrawStatus": false
+      },
+      "GTQ": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "GUN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2",
+       "withdrawFee": "1",
+       "withdrawStatus": true
+      },
+      "GVT": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "9.42",
+       "withdrawFee": "4.71",
+       "withdrawStatus": true
+      },
+      "GXS": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "0.6",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "GYEN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "154",
+       "withdrawFee": "77",
+       "withdrawStatus": true
+      },
+      "HAEDAL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1.24",
+       "withdrawFee": "0.62",
+       "withdrawStatus": true
+      },
+      "HARD": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.08",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "HBAR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2",
+       "withdrawFee": "0.06",
+       "withdrawStatus": true
+      },
+      "HC": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.01",
+       "withdrawFee": "0.005",
+       "withdrawStatus": false
+      },
+      "HCC": {
+       "depositStatus": false,
+       "depositTip": "Delisted, Deposit Suspended",
+       "minWithdrawAmount": "0.0005",
+       "withdrawFee": "0.0005",
+       "withdrawStatus": false
+      },
+      "HEGIC": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "574",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "HEI": {
+       "depositStatus": true,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "5.13",
+       "withdrawStatus": true
+      },
+      "HEMI": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2",
+       "withdrawFee": "1",
+       "withdrawStatus": true
+      },
+      "HEMIETH": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.0002",
+       "withdrawFee": "0.0001",
+       "withdrawStatus": true
+      },
+      "HFT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "58",
+       "withdrawFee": "29",
+       "withdrawStatus": true
+      },
+      "HIFI": {
+       "depositStatus": false,
+       "minWithdrawAmount": "26",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "HIGH": {
+       "depositStatus": true,
+       "minWithdrawAmount": "6.24",
+       "withdrawFee": "3.12",
+       "withdrawStatus": true
+      },
+      "HIVE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.02",
+       "withdrawFee": "0.01",
+       "withdrawStatus": true
+      },
+      "HKD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "HMSTR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "248",
+       "withdrawFee": "124",
+       "withdrawStatus": true
+      },
+      "HNL": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "HNST": {
+       "depositStatus": false,
+       "minWithdrawAmount": "20",
+       "withdrawFee": "10",
+       "withdrawStatus": true
+      },
+      "HNT": {
+       "depositStatus": false,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0.55",
+       "withdrawStatus": true
+      },
+      "HOLO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.64",
+       "withdrawFee": "0.32",
+       "withdrawStatus": true
+      },
+      "HOME": {
+       "depositStatus": true,
+       "minWithdrawAmount": "20",
+       "withdrawFee": "10",
+       "withdrawStatus": true
+      },
+      "HOOK": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2.68",
+       "withdrawFee": "1.34",
+       "withdrawStatus": true
+      },
+      "HOT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1918",
+       "withdrawFee": "959",
+       "withdrawStatus": true
+      },
+      "HRK": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "HTX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "310000",
+       "withdrawFee": "155000",
+       "withdrawStatus": true
+      },
+      "HUF": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "HUMA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "40",
+       "withdrawFee": "20",
+       "withdrawStatus": true
+      },
+      "HYPER": {
+       "depositStatus": true,
+       "minWithdrawAmount": "9.58",
+       "withdrawFee": "4.79",
+       "withdrawStatus": true
+      },
+      "IBENJIX": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "ICN": {
+       "depositStatus": false,
+       "minWithdrawAmount": "6.8",
+       "withdrawFee": "3.4",
+       "withdrawStatus": false
+      },
+      "ICP": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.002",
+       "withdrawFee": "0.0003",
+       "withdrawStatus": true
+      },
+      "ICX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.04",
+       "withdrawFee": "0.02",
+       "withdrawStatus": true
+      },
+      "ID": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.94",
+       "withdrawFee": "0.47",
+       "withdrawStatus": true
+      },
+      "IDEX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "174",
+       "withdrawFee": "87",
+       "withdrawStatus": true
+      },
+      "IDR": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "IDRT": {
+       "depositStatus": false,
+       "minWithdrawAmount": "15172",
+       "withdrawFee": "7586",
+       "withdrawStatus": true
+      },
+      "IHC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1226",
+       "withdrawFee": "613",
+       "withdrawStatus": true
+      },
+      "ILS": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "ILV": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.22",
+       "withdrawFee": "0.11",
+       "withdrawStatus": true
+      },
+      "IMX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "5.22",
+       "withdrawFee": "2.61",
+       "withdrawStatus": true
+      },
+      "INIT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "5",
+       "withdrawFee": "0.1",
+       "withdrawStatus": true
+      },
+      "INJ": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.1",
+       "withdrawFee": "0.01",
+       "withdrawStatus": true
+      },
+      "INR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "INS": {
+       "depositStatus": false,
+       "minWithdrawAmount": "68506",
+       "withdrawFee": "34253",
+       "withdrawStatus": false
+      },
+      "IO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "6.44",
+       "withdrawFee": "3.22",
+       "withdrawStatus": true
+      },
+      "IOST": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2",
+       "withdrawFee": "0.0001",
+       "withdrawStatus": true
+      },
+      "IOTA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "28",
+       "withdrawFee": "0.06",
+       "withdrawStatus": true
+      },
+      "IOTX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0.12",
+       "withdrawStatus": true
+      },
+      "IQ": {
+       "depositStatus": true,
+       "minWithdrawAmount": "100",
+       "withdrawFee": "50",
+       "withdrawStatus": true
+      },
+      "IRIS": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.096",
+       "withdrawFee": "0.048",
+       "withdrawStatus": false
+      },
+      "ISK": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "IXFI": {
+       "depositStatus": true,
+       "minWithdrawAmount": "500",
+       "withdrawFee": "200",
+       "withdrawStatus": true
+      },
+      "JASMY": {
+       "depositStatus": true,
+       "minWithdrawAmount": "148",
+       "withdrawFee": "74",
+       "withdrawStatus": true
+      },
+      "JELLYJELLY": {
+       "depositStatus": true,
+       "minWithdrawAmount": "300",
+       "withdrawFee": "30",
+       "withdrawStatus": true
+      },
+      "JEX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "21.7",
+       "withdrawFee": "10.85",
+       "withdrawStatus": true
+      },
+      "JOD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "JOE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1.92",
+       "withdrawFee": "0.96",
+       "withdrawStatus": true
+      },
+      "JPY": {
+       "depositStatus": false,
+       "depositTip": "",
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "JST": {
+       "depositStatus": true,
+       "minWithdrawAmount": "100",
+       "withdrawFee": "50",
+       "withdrawStatus": true
+      },
+      "JTO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2.42",
+       "withdrawFee": "1.21",
+       "withdrawStatus": true
+      },
+      "JUP": {
+       "depositStatus": true,
+       "minWithdrawAmount": "4.44",
+       "withdrawFee": "2.22",
+       "withdrawStatus": true
+      },
+      "JUV": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "KAIA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "100",
+       "withdrawFee": "0.005",
+       "withdrawStatus": true
+      },
+      "KAITO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1.24",
+       "withdrawFee": "0.62",
+       "withdrawStatus": true
+      },
+      "KAT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.01",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "KATETH": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.0001",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "KAVA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2",
+       "withdrawFee": "0.03",
+       "withdrawStatus": true
+      },
+      "KDA": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.02",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "KEEP": {
+       "depositStatus": false,
+       "minWithdrawAmount": "9.74",
+       "withdrawFee": "4.87",
+       "withdrawStatus": true
+      },
+      "KERNEL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "9.86",
+       "withdrawFee": "4.93",
+       "withdrawStatus": true
+      },
+      "KES": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "KEY": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "9806",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "KEYFI": {
+       "depositStatus": false,
+       "minWithdrawAmount": "34",
+       "withdrawFee": "17",
+       "withdrawStatus": true
+      },
+      "KGS": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "KGST": {
+       "depositStatus": true,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "2",
+       "withdrawStatus": true
+      },
+      "KHR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "KITE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.2",
+       "withdrawFee": "0.1",
+       "withdrawStatus": true
+      },
+      "KLAY": {
+       "depositStatus": false,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0.005",
+       "withdrawStatus": false
+      },
+      "KLY": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.2",
+       "withdrawFee": "0.1",
+       "withdrawStatus": true
+      },
+      "KMD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.004",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "KMNO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "32",
+       "withdrawFee": "16",
+       "withdrawStatus": true
+      },
+      "KNC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "6.5",
+       "withdrawFee": "3.25",
+       "withdrawStatus": true
+      },
+      "KNCL": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "1.64",
+       "withdrawFee": "0.82",
+       "withdrawStatus": false
+      },
+      "KOGE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.03",
+       "withdrawFee": "0.01",
+       "withdrawStatus": true
+      },
+      "KOM": {
+       "depositStatus": false,
+       "minWithdrawAmount": "140",
+       "withdrawFee": "70",
+       "withdrawStatus": false
+      },
+      "KP3R": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "0.68",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "KSM": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.4",
+       "withdrawFee": "0.01",
+       "withdrawStatus": true
+      },
+      "KWD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "KYD": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "KZT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "LA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "3.8",
+       "withdrawFee": "1.9",
+       "withdrawStatus": true
+      },
+      "LAK": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "LAYER": {
+       "depositStatus": true,
+       "minWithdrawAmount": "8.74",
+       "withdrawFee": "4.37",
+       "withdrawStatus": true
+      },
+      "LAZIO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.056",
+       "withdrawFee": "0.028",
+       "withdrawStatus": true
+      },
+      "LBA": {
+       "depositStatus": false,
+       "minWithdrawAmount": "20",
+       "withdrawFee": "10",
+       "withdrawStatus": true
+      },
+      "LDO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2.9",
+       "withdrawFee": "1.45",
+       "withdrawStatus": true
+      },
+      "LEND": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "10",
+       "withdrawFee": "5",
+       "withdrawStatus": false
+      },
+      "LEVER": {
+       "depositStatus": false,
+       "minWithdrawAmount": "54158",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "LIF3": {
+       "depositStatus": true,
+       "minWithdrawAmount": "110",
+       "withdrawFee": "55",
+       "withdrawStatus": true
+      },
+      "LINA": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "39362",
+       "withdrawFee": "19681",
+       "withdrawStatus": false
+      },
+      "LINEA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "1",
+       "withdrawStatus": true
+      },
+      "LINEAETH": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.0002",
+       "withdrawFee": "0.0001",
+       "withdrawStatus": true
+      },
+      "LINK": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.096",
+       "withdrawFee": "0.048",
+       "withdrawStatus": true
+      },
+      "LISTA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.44",
+       "withdrawFee": "0.22",
+       "withdrawStatus": true
+      },
+      "LIT": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "6.62",
+       "withdrawFee": "3.31",
+       "withdrawStatus": false
+      },
+      "LLT": {
+       "depositStatus": false,
+       "depositTip": "Delisted, Deposit Suspended",
+       "minWithdrawAmount": "200",
+       "withdrawFee": "100",
+       "withdrawStatus": false
+      },
+      "LOKA": {
+       "depositStatus": false,
+       "minWithdrawAmount": "22",
+       "withdrawFee": "11",
+       "withdrawStatus": false
+      },
+      "LOOKS": {
+       "depositStatus": true,
+       "minWithdrawAmount": "24",
+       "withdrawFee": "12",
+       "withdrawStatus": true
+      },
+      "LOOM": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "1370",
+       "withdrawFee": "685",
+       "withdrawStatus": false
+      },
+      "LOOMOLD": {
+       "depositStatus": false,
+       "minWithdrawAmount": "1370",
+       "withdrawFee": "685",
+       "withdrawStatus": false
+      },
+      "LPT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.38",
+       "withdrawFee": "0.19",
+       "withdrawStatus": true
+      },
+      "LQDR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1.12",
+       "withdrawFee": "0.56",
+       "withdrawStatus": true
+      },
+      "LQTY": {
+       "depositStatus": true,
+       "minWithdrawAmount": "3.04",
+       "withdrawFee": "1.52",
+       "withdrawStatus": true
+      },
+      "LRC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "34",
+       "withdrawFee": "17",
+       "withdrawStatus": true
+      },
+      "LSK": {
+       "depositStatus": true,
+       "minWithdrawAmount": "6.68",
+       "withdrawFee": "3.34",
+       "withdrawStatus": true
+      },
+      "LSL": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "LTC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.002",
+       "withdrawFee": "0.0001",
+       "withdrawStatus": true
+      },
+      "LTO": {
+       "depositStatus": false,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "5",
+       "withdrawStatus": false
+      },
+      "LTOOLD": {
+       "depositStatus": false,
+       "minWithdrawAmount": "186",
+       "withdrawFee": "93",
+       "withdrawStatus": false
+      },
+      "LTSTO": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "LTT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "24",
+       "withdrawFee": "12",
+       "withdrawStatus": true
+      },
+      "LUMIA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.1",
+       "withdrawFee": "0.001",
+       "withdrawStatus": true
+      },
+      "LUN": {
+       "depositStatus": false,
+       "minWithdrawAmount": "132",
+       "withdrawFee": "66",
+       "withdrawStatus": false
+      },
+      "LUNA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.08",
+       "withdrawFee": "0.04",
+       "withdrawStatus": true
+      },
+      "LUNC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "25000",
+       "withdrawFee": "22.66",
+       "withdrawStatus": true
+      },
+      "LYD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "MA": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "MAD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "MAGIC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "3.52",
+       "withdrawFee": "1.76",
+       "withdrawStatus": true
+      },
+      "MANA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "9.6",
+       "withdrawFee": "4.8",
+       "withdrawStatus": true
+      },
+      "MANTA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.42",
+       "withdrawFee": "0.15",
+       "withdrawStatus": true
+      },
+      "MANTRA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "4",
+       "withdrawFee": "0.04",
+       "withdrawStatus": true
+      },
+      "MAPS": {
+       "depositStatus": true,
+       "minWithdrawAmount": "360",
+       "withdrawFee": "180",
+       "withdrawStatus": true
+      },
+      "MASK": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1.92",
+       "withdrawFee": "0.96",
+       "withdrawStatus": true
+      },
+      "MATIC": {
+       "depositStatus": false,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "0.08",
+       "withdrawStatus": false
+      },
+      "MATICUSDCE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.058",
+       "withdrawFee": "0.029",
+       "withdrawStatus": true
+      },
+      "MAV": {
+       "depositStatus": true,
+       "minWithdrawAmount": "60",
+       "withdrawFee": "30",
+       "withdrawStatus": true
+      },
+      "MBL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "9.8",
+       "withdrawFee": "1.5",
+       "withdrawStatus": true
+      },
+      "MBOX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2.12",
+       "withdrawFee": "1.06",
+       "withdrawStatus": true
+      },
+      "MC": {
+       "depositStatus": false,
+       "minWithdrawAmount": "17",
+       "withdrawFee": "8.66",
+       "withdrawStatus": false
+      },
+      "MCAP": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0.5",
+       "withdrawStatus": false
+      },
+      "MCO": {
+       "depositStatus": false,
+       "minWithdrawAmount": "2.82",
+       "withdrawFee": "1.41",
+       "withdrawStatus": false
+      },
+      "MDA": {
+       "depositStatus": false,
+       "depositTip": "-",
+       "minWithdrawAmount": "258",
+       "withdrawFee": "129",
+       "withdrawStatus": false
+      },
+      "MDL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "MDT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "88",
+       "withdrawFee": "44",
+       "withdrawStatus": true
+      },
+      "MDX": {
+       "depositStatus": false,
+       "minWithdrawAmount": "44",
+       "withdrawFee": "22",
+       "withdrawStatus": false
+      },
+      "MDXT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "142",
+       "withdrawFee": "71",
+       "withdrawStatus": true
+      },
+      "ME": {
+       "depositStatus": true,
+       "minWithdrawAmount": "6.24",
+       "withdrawFee": "3.12",
+       "withdrawStatus": true
+      },
+      "MEETONE": {
+       "depositStatus": false,
+       "depositTip": "Not support deposit",
+       "minWithdrawAmount": "600",
+       "withdrawFee": "300",
+       "withdrawStatus": true
+      },
+      "MEME": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1520",
+       "withdrawFee": "760",
+       "withdrawStatus": true
+      },
+      "MERL": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "MET": {
+       "depositStatus": true,
+       "minWithdrawAmount": "4.64",
+       "withdrawFee": "2.32",
+       "withdrawStatus": true
+      },
+      "METIS": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.2",
+       "withdrawFee": "0.0015",
+       "withdrawStatus": true
+      },
+      "MEW": {
+       "depositStatus": true,
+       "minWithdrawAmount": "4000",
+       "withdrawFee": "400",
+       "withdrawStatus": true
+      },
+      "MFT": {
+       "depositStatus": false,
+       "minWithdrawAmount": "2820",
+       "withdrawFee": "1410",
+       "withdrawStatus": true
+      },
+      "MILK": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "MIMATIC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.54",
+       "withdrawFee": "0.27",
+       "withdrawStatus": true
+      },
+      "MINA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "5",
+       "withdrawFee": "0.9",
+       "withdrawStatus": true
+      },
+      "MIR": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "106",
+       "withdrawFee": "53",
+       "withdrawStatus": false
+      },
+      "MIRA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.48",
+       "withdrawFee": "0.24",
+       "withdrawStatus": true
+      },
+      "MITH": {
+       "depositStatus": false,
+       "minWithdrawAmount": "3484",
+       "withdrawFee": "1742",
+       "withdrawStatus": true
+      },
+      "MITO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2",
+       "withdrawFee": "1",
+       "withdrawStatus": true
+      },
+      "MKR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.00048",
+       "withdrawFee": "0.00024",
+       "withdrawStatus": false
+      },
+      "MLN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.24",
+       "withdrawFee": "0.12",
+       "withdrawStatus": true
+      },
+      "MMK": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "MMT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.98",
+       "withdrawFee": "0.49",
+       "withdrawStatus": true
+      },
+      "MNT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "MNTC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "MOB": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.4",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "MOD": {
+       "depositStatus": false,
+       "depositTip": "Delisted, Deposit Suspended",
+       "minWithdrawAmount": "4.86",
+       "withdrawFee": "2.86",
+       "withdrawStatus": false
+      },
+      "MONKY": {
+       "depositStatus": true,
+       "minWithdrawAmount": "100000",
+       "withdrawFee": "50000",
+       "withdrawStatus": true
+      },
+      "MOODENG": {
+       "depositStatus": true,
+       "minWithdrawAmount": "100",
+       "withdrawFee": "10",
+       "withdrawStatus": true
+      },
+      "MORPHO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "4",
+       "withdrawFee": "2",
+       "withdrawStatus": true
+      },
+      "MOVE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "42",
+       "withdrawFee": "21",
+       "withdrawStatus": true
+      },
+      "MOVR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.006",
+       "withdrawFee": "0.003",
+       "withdrawStatus": true
+      },
+      "MTH": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "9248",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "MTL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.2",
+       "withdrawFee": "0.1",
+       "withdrawStatus": true
+      },
+      "MTLX": {
+       "depositStatus": false,
+       "minWithdrawAmount": "1.56",
+       "withdrawFee": "0.78",
+       "withdrawStatus": true
+      },
+      "MUBARAK": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2.68",
+       "withdrawFee": "1.34",
+       "withdrawStatus": true
+      },
+      "MULTI": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.11",
+       "withdrawFee": "0.054",
+       "withdrawStatus": true
+      },
+      "MUR": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "MXN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "MYX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2",
+       "withdrawFee": "1",
+       "withdrawStatus": true
+      },
+      "NANO": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.042",
+       "withdrawFee": "0.021",
+       "withdrawStatus": false
+      },
+      "NAS": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "0.2",
+       "withdrawFee": "0.1",
+       "withdrawStatus": false
+      },
+      "NAV": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "0.4",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "NBS": {
+       "depositStatus": false,
+       "minWithdrawAmount": "2",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "NBT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "22",
+       "withdrawFee": "11",
+       "withdrawStatus": true
+      },
+      "NCASH": {
+       "depositStatus": false,
+       "minWithdrawAmount": "43964",
+       "withdrawFee": "21982",
+       "withdrawStatus": false
+      },
+      "NEAR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.6",
+       "withdrawFee": "0.02",
+       "withdrawStatus": true
+      },
+      "NEBL": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.02",
+       "withdrawFee": "0.01",
+       "withdrawStatus": false
+      },
+      "NEIRO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "12788",
+       "withdrawFee": "6394",
+       "withdrawStatus": true
+      },
+      "NEO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "NEWT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "12",
+       "withdrawFee": "6.3",
+       "withdrawStatus": true
+      },
+      "NEXO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.98",
+       "withdrawFee": "0.49",
+       "withdrawStatus": true
+      },
+      "NFP": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2.36",
+       "withdrawFee": "1.18",
+       "withdrawStatus": true
+      },
+      "NFT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "285517",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "NGN": {
+       "depositStatus": false,
+       "depositTip": "You can't deposit via the app right now, please try using browser.",
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "NIGHT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.82",
+       "withdrawFee": "0.41",
+       "withdrawStatus": true
+      },
+      "NIL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "0.1",
+       "withdrawStatus": true
+      },
+      "NIO": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "NKN": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "120",
+       "withdrawFee": "60",
+       "withdrawStatus": true
+      },
+      "NMR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.11",
+       "withdrawFee": "0.057",
+       "withdrawStatus": true
+      },
+      "NODE": {
+       "depositStatus": false,
+       "minWithdrawAmount": "100",
+       "withdrawFee": "10",
+       "withdrawStatus": false
+      },
+      "NOK": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "NOM": {
+       "depositStatus": true,
+       "minWithdrawAmount": "60",
+       "withdrawFee": "28.5",
+       "withdrawStatus": true
+      },
+      "NOT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "198",
+       "withdrawFee": "99",
+       "withdrawStatus": true
+      },
+      "NPXS": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "10472",
+       "withdrawFee": "5236",
+       "withdrawStatus": false
+      },
+      "NSBT": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.048",
+       "withdrawFee": "0.024",
+       "withdrawStatus": false
+      },
+      "NTRN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.4",
+       "withdrawFee": "0.25",
+       "withdrawStatus": true
+      },
+      "NU": {
+       "depositStatus": false,
+       "minWithdrawAmount": "24",
+       "withdrawFee": "12",
+       "withdrawStatus": true
+      },
+      "NULS": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.02",
+       "withdrawFee": "0.01",
+       "withdrawStatus": false
+      },
+      "NVT": {
+       "depositStatus": false,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0.1",
+       "withdrawStatus": true
+      },
+      "NXPC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.14",
+       "withdrawFee": "0.068",
+       "withdrawStatus": true
+      },
+      "NXS": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "0.04",
+       "withdrawFee": "0.02",
+       "withdrawStatus": false
+      },
+      "NZD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "OAX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "708",
+       "withdrawFee": "354",
+       "withdrawStatus": true
+      },
+      "OCEAN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "4",
+       "withdrawFee": "2",
+       "withdrawStatus": true
+      },
+      "OG": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "OGN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "36",
+       "withdrawFee": "18",
+       "withdrawStatus": true
+      },
+      "OGV": {
+       "depositStatus": false,
+       "minWithdrawAmount": "98",
+       "withdrawFee": "49",
+       "withdrawStatus": true
+      },
+      "OM": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0.01",
+       "withdrawStatus": false
+      },
+      "OMG": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "36",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "OMNI": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "OMOLD": {
+       "depositStatus": false,
+       "minWithdrawAmount": "67",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "OMR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "ONDO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "3.3",
+       "withdrawFee": "1.65",
+       "withdrawStatus": true
+      },
+      "ONE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "60",
+       "withdrawFee": "0.1",
+       "withdrawStatus": true
+      },
+      "ONG": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.2",
+       "withdrawFee": "0.02",
+       "withdrawStatus": true
+      },
+      "ONT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2",
+       "withdrawFee": "0.05",
+       "withdrawStatus": true
+      },
+      "ONX": {
+       "depositStatus": false,
+       "minWithdrawAmount": "222",
+       "withdrawFee": "111",
+       "withdrawStatus": false
+      },
+      "OOKI": {
+       "depositStatus": false,
+       "minWithdrawAmount": "93140",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "OP": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.52",
+       "withdrawFee": "0.26",
+       "withdrawStatus": true
+      },
+      "OPEN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "5.74",
+       "withdrawFee": "2.87",
+       "withdrawStatus": true
+      },
+      "OPN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0.1",
+       "withdrawStatus": true
+      },
+      "OPUSDCE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.066",
+       "withdrawFee": "0.033",
+       "withdrawStatus": true
+      },
+      "ORCA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.78",
+       "withdrawFee": "0.39",
+       "withdrawStatus": true
+      },
+      "ORDI": {
+       "depositStatus": true,
+       "minWithdrawAmount": "3",
+       "withdrawFee": "1.2",
+       "withdrawStatus": true
+      },
+      "ORN": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "OSMO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "5",
+       "withdrawFee": "0.6",
+       "withdrawStatus": true
+      },
+      "OST": {
+       "depositStatus": false,
+       "minWithdrawAmount": "6702",
+       "withdrawFee": "3351",
+       "withdrawStatus": false
+      },
+      "OXT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "52",
+       "withdrawFee": "26",
+       "withdrawStatus": true
+      },
+      "PAB": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "PARA": {
+       "depositStatus": false,
+       "minWithdrawAmount": "11",
+       "withdrawFee": "10",
+       "withdrawStatus": false
+      },
+      "PARTI": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.46",
+       "withdrawFee": "0.23",
+       "withdrawStatus": true
+      },
+      "PAX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "30",
+       "withdrawFee": "15",
+       "withdrawStatus": false
+      },
+      "PAXG": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.00018",
+       "withdrawFee": "0.000091",
+       "withdrawStatus": true
+      },
+      "PDA": {
+       "depositStatus": false,
+       "minWithdrawAmount": "80",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "PEN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "PENDLE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.7",
+       "withdrawFee": "0.35",
+       "withdrawStatus": true
+      },
+      "PENGU": {
+       "depositStatus": true,
+       "minWithdrawAmount": "96",
+       "withdrawFee": "48",
+       "withdrawStatus": true
+      },
+      "PEOPLE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "128",
+       "withdrawFee": "64",
+       "withdrawStatus": true
+      },
+      "PEPE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "249676",
+       "withdrawFee": "124838",
+       "withdrawStatus": true
+      },
+      "PERL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2644",
+       "withdrawFee": "1322",
+       "withdrawStatus": false
+      },
+      "PERLOLD": {
+       "depositStatus": false,
+       "minWithdrawAmount": "900",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "PERP": {
+       "depositStatus": true,
+       "minWithdrawAmount": "9.38",
+       "withdrawFee": "4.69",
+       "withdrawStatus": true
+      },
+      "PGALA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "80",
+       "withdrawFee": "72",
+       "withdrawStatus": true
+      },
+      "PHA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "28",
+       "withdrawFee": "14",
+       "withdrawStatus": true
+      },
+      "PHB": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.3",
+       "withdrawFee": "0.15",
+       "withdrawStatus": true
+      },
+      "PHBV1": {
+       "depositStatus": false,
+       "minWithdrawAmount": "44",
+       "withdrawFee": "22",
+       "withdrawStatus": false
+      },
+      "PHP": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "PIVX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.4",
+       "withdrawFee": "0.04",
+       "withdrawStatus": true
+      },
+      "PIXEL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "96",
+       "withdrawFee": "48",
+       "withdrawStatus": true
+      },
+      "PKR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "PLA": {
+       "depositStatus": false,
+       "minWithdrawAmount": "364",
+       "withdrawFee": "182",
+       "withdrawStatus": false
+      },
+      "PLN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "PLUME": {
+       "depositStatus": true,
+       "minWithdrawAmount": "76",
+       "withdrawFee": "38",
+       "withdrawStatus": true
+      },
+      "PNT": {
+       "depositStatus": false,
+       "minWithdrawAmount": "976",
+       "withdrawFee": "488",
+       "withdrawStatus": false
+      },
+      "PNUT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "15",
+       "withdrawFee": "7.93",
+       "withdrawStatus": true
+      },
+      "POA": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "0.02",
+       "withdrawFee": "0.01",
+       "withdrawStatus": false
+      },
+      "POE": {
+       "depositStatus": false,
+       "minWithdrawAmount": "141788",
+       "withdrawFee": "70894",
+       "withdrawStatus": false
+      },
+      "POL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.44",
+       "withdrawFee": "0.25",
+       "withdrawStatus": true
+      },
+      "POLS": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "28",
+       "withdrawFee": "1",
+       "withdrawStatus": false
+      },
+      "POLY": {
+       "depositStatus": false,
+       "minWithdrawAmount": "14",
+       "withdrawFee": "7.27",
+       "withdrawStatus": true
+      },
+      "POLYX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "5",
+       "withdrawStatus": true
+      },
+      "POND": {
+       "depositStatus": true,
+       "minWithdrawAmount": "372",
+       "withdrawFee": "186",
+       "withdrawStatus": true
+      },
+      "POPCAT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "14",
+       "withdrawFee": "7.11",
+       "withdrawStatus": true
+      },
+      "PORTAL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "74",
+       "withdrawFee": "37",
+       "withdrawStatus": true
+      },
+      "PORTO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.034",
+       "withdrawFee": "0.017",
+       "withdrawStatus": true
+      },
+      "POWR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "13",
+       "withdrawFee": "6.77",
+       "withdrawStatus": true
+      },
+      "PPT": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "32",
+       "withdrawFee": "16",
+       "withdrawStatus": false
+      },
+      "PROM": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.8",
+       "withdrawFee": "0.4",
+       "withdrawStatus": true
+      },
+      "PROS": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.4",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "PROVE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "3.24",
+       "withdrawFee": "1.62",
+       "withdrawStatus": true
+      },
+      "PSG": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "PUMP": {
+       "depositStatus": true,
+       "minWithdrawAmount": "366",
+       "withdrawFee": "183",
+       "withdrawStatus": true
+      },
+      "PUNDIX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "5.84",
+       "withdrawFee": "2.92",
+       "withdrawStatus": true
+      },
+      "PURSE": {
+       "depositStatus": false,
+       "minWithdrawAmount": "4230",
+       "withdrawFee": "2115",
+       "withdrawStatus": true
+      },
+      "PYG": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "PYR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2.84",
+       "withdrawFee": "1.42",
+       "withdrawStatus": true
+      },
+      "PYROLD": {
+       "depositStatus": false,
+       "minWithdrawAmount": "60",
+       "withdrawFee": "30",
+       "withdrawStatus": true
+      },
+      "PYTH": {
+       "depositStatus": true,
+       "minWithdrawAmount": "15",
+       "withdrawFee": "7.69",
+       "withdrawStatus": true
+      },
+      "QAR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "QI": {
+       "depositStatus": true,
+       "minWithdrawAmount": "44",
+       "withdrawFee": "22",
+       "withdrawStatus": true
+      },
+      "QISWAP": {
+       "depositStatus": false,
+       "minWithdrawAmount": "58",
+       "withdrawFee": "29",
+       "withdrawStatus": true
+      },
+      "QKC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "274",
+       "withdrawFee": "137",
+       "withdrawStatus": true
+      },
+      "QLC": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "2",
+       "withdrawFee": "1",
+       "withdrawStatus": false
+      },
+      "QNT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.012",
+       "withdrawFee": "0.006",
+       "withdrawStatus": true
+      },
+      "QSP": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "1000",
+       "withdrawFee": "500",
+       "withdrawStatus": false
+      },
+      "QTUM": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.1",
+       "withdrawFee": "0.05",
+       "withdrawStatus": true
+      },
+      "QUICK": {
+       "depositStatus": true,
+       "minWithdrawAmount": "5.24",
+       "withdrawFee": "2.62",
+       "withdrawStatus": true
+      },
+      "QUICKOLD": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.38",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "QUINT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "5",
+       "withdrawFee": "1",
+       "withdrawStatus": true
+      },
+      "RAD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "3.76",
+       "withdrawFee": "1.88",
+       "withdrawStatus": true
+      },
+      "RARE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "54",
+       "withdrawFee": "27",
+       "withdrawStatus": true
+      },
+      "RAY": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1.16",
+       "withdrawFee": "0.58",
+       "withdrawStatus": true
+      },
+      "RCN": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "2458",
+       "withdrawFee": "1229",
+       "withdrawStatus": true
+      },
+      "RDN": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "2378",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "RDNT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "50",
+       "withdrawFee": "25",
+       "withdrawStatus": true
+      },
+      "RDNTOLD": {
+       "depositStatus": false,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "RED": {
+       "depositStatus": true,
+       "minWithdrawAmount": "6.68",
+       "withdrawFee": "3.34",
+       "withdrawStatus": true
+      },
+      "REEF": {
+       "depositStatus": false,
+       "minWithdrawAmount": "20",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "REI": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.06",
+       "withdrawFee": "0.03",
+       "withdrawStatus": true
+      },
+      "REN": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "428",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "RENBTC": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.000058",
+       "withdrawFee": "0.000029",
+       "withdrawStatus": true
+      },
+      "RENDER": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.42",
+       "withdrawFee": "0.21",
+       "withdrawStatus": true
+      },
+      "REP": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "0.84",
+       "withdrawFee": "0.42",
+       "withdrawStatus": false
+      },
+      "REPV1": {
+       "depositStatus": false,
+       "minWithdrawAmount": "2",
+       "withdrawFee": "1",
+       "withdrawStatus": true
+      },
+      "REQ": {
+       "depositStatus": true,
+       "minWithdrawAmount": "13",
+       "withdrawFee": "6.5",
+       "withdrawStatus": true
+      },
+      "RESOLV": {
+       "depositStatus": true,
+       "minWithdrawAmount": "14",
+       "withdrawFee": "7.37",
+       "withdrawStatus": true
+      },
+      "REZ": {
+       "depositStatus": true,
+       "minWithdrawAmount": "232",
+       "withdrawFee": "116",
+       "withdrawStatus": true
+      },
+      "RGT": {
+       "depositStatus": false,
+       "minWithdrawAmount": "11",
+       "withdrawFee": "5.88",
+       "withdrawStatus": false
+      },
+      "RIF": {
+       "depositStatus": true,
+       "minWithdrawAmount": "24",
+       "withdrawFee": "12",
+       "withdrawStatus": true
+      },
+      "RLC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2.02",
+       "withdrawFee": "1.01",
+       "withdrawStatus": true
+      },
+      "RLUSD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "0.2",
+       "withdrawStatus": true
+      },
+      "RNDR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.54",
+       "withdrawFee": "0.27",
+       "withdrawStatus": true
+      },
+      "ROBO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1.48",
+       "withdrawFee": "0.74",
+       "withdrawStatus": true
+      },
+      "RON": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "RONIN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.05",
+       "withdrawFee": "0.01",
+       "withdrawStatus": true
+      },
+      "ROSE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0.1",
+       "withdrawStatus": true
+      },
+      "RPL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.46",
+       "withdrawFee": "0.23",
+       "withdrawStatus": true
+      },
+      "RSR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "534",
+       "withdrawFee": "267",
+       "withdrawStatus": true
+      },
+      "RUB": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "RUNE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.5",
+       "withdrawFee": "0.1",
+       "withdrawStatus": true
+      },
+      "RVN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2",
+       "withdrawFee": "0.1",
+       "withdrawStatus": true
+      },
+      "RWA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "200",
+       "withdrawFee": "50",
+       "withdrawStatus": true
+      },
+      "RWF": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "RWUSD": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "S": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0.004",
+       "withdrawStatus": true
+      },
+      "SAGA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2",
+       "withdrawFee": "0.1",
+       "withdrawStatus": true
+      },
+      "SAHARA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "34",
+       "withdrawFee": "17",
+       "withdrawStatus": true
+      },
+      "SALT": {
+       "depositStatus": true,
+       "depositTip": "Delisted, Deposit Suspended",
+       "minWithdrawAmount": "96",
+       "withdrawFee": "48",
+       "withdrawStatus": false
+      },
+      "SAND": {
+       "depositStatus": true,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "5.19",
+       "withdrawStatus": true
+      },
+      "SANTOS": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.032",
+       "withdrawFee": "0.016",
+       "withdrawStatus": true
+      },
+      "SAPIEN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "5.94",
+       "withdrawFee": "2.97",
+       "withdrawStatus": true
+      },
+      "SAR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "SBTC": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.001",
+       "withdrawFee": "0.0005",
+       "withdrawStatus": false
+      },
+      "SC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.4",
+       "withdrawFee": "0.1",
+       "withdrawStatus": true
+      },
+      "SCR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "4",
+       "withdrawFee": "0.2",
+       "withdrawStatus": true
+      },
+      "SCRT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "5",
+       "withdrawFee": "0.1",
+       "withdrawStatus": true
+      },
+      "SDG": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "SEI": {
+       "depositStatus": true,
+       "minWithdrawAmount": "5",
+       "withdrawFee": "0.4",
+       "withdrawStatus": true
+      },
+      "SEK": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "SENT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "42",
+       "withdrawFee": "21",
+       "withdrawStatus": true
+      },
+      "SFM": {
+       "depositStatus": true,
+       "minWithdrawAmount": "4678",
+       "withdrawFee": "2339",
+       "withdrawStatus": true
+      },
+      "SFP": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.13",
+       "withdrawFee": "0.067",
+       "withdrawStatus": true
+      },
+      "SGB": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.02",
+       "withdrawFee": "0.01",
+       "withdrawStatus": false
+      },
+      "SGT": {
+       "depositStatus": false,
+       "minWithdrawAmount": "3616752",
+       "withdrawFee": "1808376",
+       "withdrawStatus": true
+      },
+      "SHELL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1.24",
+       "withdrawFee": "0.62",
+       "withdrawStatus": true
+      },
+      "SHIB": {
+       "depositStatus": true,
+       "minWithdrawAmount": "151278",
+       "withdrawFee": "75639",
+       "withdrawStatus": true
+      },
+      "SIGN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "20",
+       "withdrawFee": "10",
+       "withdrawStatus": true
+      },
+      "SKL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "132",
+       "withdrawFee": "66",
+       "withdrawStatus": true
+      },
+      "SKY": {
+       "depositStatus": true,
+       "minWithdrawAmount": "12",
+       "withdrawFee": "6.06",
+       "withdrawStatus": true
+      },
+      "SKYA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "232",
+       "withdrawFee": "116",
+       "withdrawStatus": true
+      },
+      "SKYAI": {
+       "depositStatus": true,
+       "minWithdrawAmount": "300",
+       "withdrawFee": "5",
+       "withdrawStatus": true
+      },
+      "SKYCOIN": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.04",
+       "withdrawFee": "0.02",
+       "withdrawStatus": false
+      },
+      "SLE": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "SLF": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.1",
+       "withdrawFee": "0.01",
+       "withdrawStatus": false
+      },
+      "SLP": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1396",
+       "withdrawFee": "698",
+       "withdrawStatus": true
+      },
+      "SLPOLD": {
+       "depositStatus": false,
+       "minWithdrawAmount": "614",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "SNGLS": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "2600",
+       "withdrawFee": "1300",
+       "withdrawStatus": true
+      },
+      "SNM": {
+       "depositStatus": false,
+       "depositTip": "-",
+       "minWithdrawAmount": "8828",
+       "withdrawFee": "4414",
+       "withdrawStatus": true
+      },
+      "SNMOLD": {
+       "depositStatus": false,
+       "minWithdrawAmount": "6.86",
+       "withdrawFee": "3.43",
+       "withdrawStatus": true
+      },
+      "SNS": {
+       "depositStatus": false,
+       "minWithdrawAmount": "430",
+       "withdrawFee": "215",
+       "withdrawStatus": true
+      },
+      "SNT": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "28",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "SNX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2.82",
+       "withdrawFee": "1.41",
+       "withdrawStatus": true
+      },
+      "SOL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.1",
+       "withdrawFee": "0.001",
+       "withdrawStatus": true
+      },
+      "SOLO": {
+       "depositStatus": false,
+       "minWithdrawAmount": "4.5",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "SOLV": {
+       "depositStatus": true,
+       "minWithdrawAmount": "9.94",
+       "withdrawFee": "4.97",
+       "withdrawStatus": true
+      },
+      "SOLVBTC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.00001",
+       "withdrawFee": "0.0000067",
+       "withdrawStatus": true
+      },
+      "SOMI": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2",
+       "withdrawFee": "0.02",
+       "withdrawStatus": true
+      },
+      "SOON": {
+       "depositStatus": true,
+       "minWithdrawAmount": "4",
+       "withdrawFee": "1",
+       "withdrawStatus": true
+      },
+      "SOPH": {
+       "depositStatus": true,
+       "minWithdrawAmount": "15",
+       "withdrawFee": "1.4",
+       "withdrawStatus": true
+      },
+      "SOS": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "SPARTA": {
+       "depositStatus": false,
+       "minWithdrawAmount": "84",
+       "withdrawFee": "42",
+       "withdrawStatus": false
+      },
+      "SPARTAOLD": {
+       "depositStatus": false,
+       "minWithdrawAmount": "4",
+       "withdrawFee": "2",
+       "withdrawStatus": false
+      },
+      "SPELL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "5036",
+       "withdrawFee": "2518",
+       "withdrawStatus": true
+      },
+      "SPIRIT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "4234",
+       "withdrawFee": "2117",
+       "withdrawStatus": true
+      },
+      "SPK": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1.74",
+       "withdrawFee": "0.87",
+       "withdrawStatus": true
+      },
+      "SPX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "9",
+       "withdrawFee": "1",
+       "withdrawStatus": true
+      },
+      "SRM": {
+       "depositStatus": false,
+       "minWithdrawAmount": "71",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "SSV": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.32",
+       "withdrawFee": "0.16",
+       "withdrawStatus": true
+      },
+      "STEEM": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.02",
+       "withdrawFee": "0.01",
+       "withdrawStatus": true
+      },
+      "STG": {
+       "depositStatus": true,
+       "minWithdrawAmount": "4.66",
+       "withdrawFee": "2.33",
+       "withdrawStatus": true
+      },
+      "STGOLD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "5",
+       "withdrawFee": "0.2",
+       "withdrawStatus": false
+      },
+      "STMX": {
+       "depositStatus": false,
+       "minWithdrawAmount": "20538",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "STMXOLD": {
+       "depositStatus": false,
+       "minWithdrawAmount": "1172",
+       "withdrawFee": "586",
+       "withdrawStatus": false
+      },
+      "STO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "11",
+       "withdrawFee": "5.66",
+       "withdrawStatus": true
+      },
+      "STORJ": {
+       "depositStatus": true,
+       "minWithdrawAmount": "8.78",
+       "withdrawFee": "4.39",
+       "withdrawStatus": true
+      },
+      "STORM": {
+       "depositStatus": false,
+       "minWithdrawAmount": "200",
+       "withdrawFee": "100",
+       "withdrawStatus": false
+      },
+      "STPT": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit uspended",
+       "minWithdrawAmount": "10",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "STRAX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "0.01",
+       "withdrawStatus": true
+      },
+      "STRK": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2",
+       "withdrawFee": "0.1",
+       "withdrawStatus": true
+      },
+      "STX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "5",
+       "withdrawFee": "1",
+       "withdrawStatus": true
+      },
+      "SUB": {
+       "depositStatus": false,
+       "depositTip": "Delisted, Deposit Suspended",
+       "minWithdrawAmount": "40",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "SUI": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0.06",
+       "withdrawStatus": true
+      },
+      "SUN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "15",
+       "withdrawFee": "6",
+       "withdrawStatus": true
+      },
+      "SUNOLD": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.0058",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "SUPER": {
+       "depositStatus": true,
+       "minWithdrawAmount": "7.64",
+       "withdrawFee": "3.82",
+       "withdrawStatus": true
+      },
+      "SUSD": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "10",
+       "withdrawFee": "0.3",
+       "withdrawStatus": true
+      },
+      "SUSHI": {
+       "depositStatus": true,
+       "minWithdrawAmount": "4.24",
+       "withdrawFee": "2.12",
+       "withdrawStatus": true
+      },
+      "SWRV": {
+       "depositStatus": false,
+       "minWithdrawAmount": "856",
+       "withdrawFee": "428",
+       "withdrawStatus": false
+      },
+      "SXP": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.2",
+       "withdrawFee": "0.1",
+       "withdrawStatus": true
+      },
+      "SXT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "52",
+       "withdrawFee": "26",
+       "withdrawStatus": true
+      },
+      "SYN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "17",
+       "withdrawFee": "8.86",
+       "withdrawStatus": true
+      },
+      "SYRUP": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "SYS": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2",
+       "withdrawFee": "1",
+       "withdrawStatus": true
+      },
+      "T": {
+       "depositStatus": true,
+       "minWithdrawAmount": "132",
+       "withdrawFee": "66",
+       "withdrawStatus": true
+      },
+      "TAIKOETH": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "TAO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.01",
+       "withdrawFee": "0.0003",
+       "withdrawStatus": true
+      },
+      "TAROT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "9.64",
+       "withdrawFee": "4.82",
+       "withdrawStatus": true
+      },
+      "TBCC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "5",
+       "withdrawStatus": true
+      },
+      "TCT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2278",
+       "withdrawFee": "1139",
+       "withdrawStatus": true
+      },
+      "TFUEL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "5.6",
+       "withdrawFee": "2.8",
+       "withdrawStatus": true
+      },
+      "THB": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "THE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.26",
+       "withdrawFee": "0.13",
+       "withdrawStatus": true
+      },
+      "THETA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.42",
+       "withdrawFee": "0.21",
+       "withdrawStatus": true
+      },
+      "TIA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.4",
+       "withdrawFee": "0.1",
+       "withdrawStatus": true
+      },
+      "TJS": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "TKO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.72",
+       "withdrawFee": "0.36",
+       "withdrawStatus": true
+      },
+      "TLM": {
+       "depositStatus": true,
+       "minWithdrawAmount": "490",
+       "withdrawFee": "245",
+       "withdrawStatus": true
+      },
+      "TMT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "TNB": {
+       "depositStatus": true,
+       "minWithdrawAmount": "21280",
+       "withdrawFee": "10640",
+       "withdrawStatus": true
+      },
+      "TND": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "TNSR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "16",
+       "withdrawFee": "8.09",
+       "withdrawStatus": true
+      },
+      "TNT": {
+       "depositStatus": false,
+       "minWithdrawAmount": "74",
+       "withdrawFee": "37",
+       "withdrawStatus": true
+      },
+      "TOMB": {
+       "depositStatus": true,
+       "minWithdrawAmount": "340",
+       "withdrawFee": "170",
+       "withdrawStatus": true
+      },
+      "TOMO": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "0.02",
+       "withdrawFee": "0.01",
+       "withdrawStatus": false
+      },
+      "TON": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.06",
+       "withdrawFee": "0.02",
+       "withdrawStatus": true
+      },
+      "TORN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.064",
+       "withdrawFee": "0.032",
+       "withdrawStatus": true
+      },
+      "TOWNS": {
+       "depositStatus": true,
+       "minWithdrawAmount": "224",
+       "withdrawFee": "112",
+       "withdrawStatus": true
+      },
+      "TRB": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.054",
+       "withdrawFee": "0.027",
+       "withdrawStatus": true
+      },
+      "TREE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "13",
+       "withdrawFee": "6.6",
+       "withdrawStatus": true
+      },
+      "TREEB": {
+       "depositStatus": true,
+       "minWithdrawAmount": "27862",
+       "withdrawFee": "13931",
+       "withdrawStatus": true
+      },
+      "TRIBE": {
+       "depositStatus": false,
+       "minWithdrawAmount": "30",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "TRIG": {
+       "depositStatus": false,
+       "depositTip": "Delisted, Deposit Suspended",
+       "minWithdrawAmount": "51",
+       "withdrawFee": "50",
+       "withdrawStatus": false
+      },
+      "TROY": {
+       "depositStatus": false,
+       "minWithdrawAmount": "554",
+       "withdrawFee": "277",
+       "withdrawStatus": false
+      },
+      "TRU": {
+       "depositStatus": true,
+       "minWithdrawAmount": "158",
+       "withdrawFee": "79",
+       "withdrawStatus": true
+      },
+      "TRUMP": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.2",
+       "withdrawFee": "0.1",
+       "withdrawStatus": true
+      },
+      "TRX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "30",
+       "withdrawFee": "1.5",
+       "withdrawStatus": true
+      },
+      "TRXOLD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2.66",
+       "withdrawFee": "1.33",
+       "withdrawStatus": false
+      },
+      "TRY": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "TST": {
+       "depositStatus": true,
+       "minWithdrawAmount": "4.12",
+       "withdrawFee": "2.06",
+       "withdrawStatus": true
+      },
+      "TURBO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "722",
+       "withdrawFee": "361",
+       "withdrawStatus": true
+      },
+      "TURTLE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "18",
+       "withdrawFee": "9.39",
+       "withdrawStatus": true
+      },
+      "TUSD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "0.3",
+       "withdrawStatus": true
+      },
+      "TUSDOLD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.04",
+       "withdrawFee": "0.02",
+       "withdrawStatus": true
+      },
+      "TUT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "3.9",
+       "withdrawFee": "1.95",
+       "withdrawStatus": true
+      },
+      "TVK": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "348",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "TWD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "TWT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.076",
+       "withdrawFee": "0.038",
+       "withdrawStatus": true
+      },
+      "TZS": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "U": {
+       "depositStatus": true,
+       "minWithdrawAmount": "5",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "UAH": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "UFT": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "262",
+       "withdrawFee": "131",
+       "withdrawStatus": false
+      },
+      "UGX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "UMA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2.04",
+       "withdrawFee": "1.02",
+       "withdrawStatus": true
+      },
+      "UND": {
+       "depositStatus": true,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "5",
+       "withdrawStatus": false
+      },
+      "UNFI": {
+       "depositStatus": false,
+       "minWithdrawAmount": "6.32",
+       "withdrawFee": "3.16",
+       "withdrawStatus": false
+      },
+      "UNI": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.24",
+       "withdrawFee": "0.12",
+       "withdrawStatus": true
+      },
+      "USCX": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "USD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "USD1": {
+       "depositStatus": true,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "0.3",
+       "withdrawStatus": true
+      },
+      "USDC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "0.8",
+       "withdrawStatus": true
+      },
+      "USDCE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.078",
+       "withdrawFee": "0.039",
+       "withdrawStatus": true
+      },
+      "USDCX": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "USDE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "0.3",
+       "withdrawStatus": true
+      },
+      "USDP": {
+       "depositStatus": true,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "0.3",
+       "withdrawStatus": true
+      },
+      "USDS": {
+       "depositStatus": false,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "0.3",
+       "withdrawStatus": false
+      },
+      "USDT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "0.5",
+       "withdrawStatus": true
+      },
+      "USDTE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.078",
+       "withdrawFee": "0.039",
+       "withdrawStatus": true
+      },
+      "USDTX": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "UST": {
+       "depositStatus": false,
+       "minWithdrawAmount": "100",
+       "withdrawFee": "5",
+       "withdrawStatus": false
+      },
+      "USTC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1.2",
+       "withdrawFee": "0.6",
+       "withdrawStatus": true
+      },
+      "USUAL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "60",
+       "withdrawFee": "30",
+       "withdrawStatus": true
+      },
+      "USYCX": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "UTK": {
+       "depositStatus": true,
+       "minWithdrawAmount": "92",
+       "withdrawFee": "46",
+       "withdrawStatus": true
+      },
+      "UYU": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "UZS": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "VAB": {
+       "depositStatus": true,
+       "minWithdrawAmount": "5770",
+       "withdrawFee": "2885",
+       "withdrawStatus": true
+      },
+      "VAI": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.04",
+       "withdrawFee": "0.02",
+       "withdrawStatus": false
+      },
+      "VANA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.2",
+       "withdrawFee": "0.001",
+       "withdrawStatus": true
+      },
+      "VANRY": {
+       "depositStatus": true,
+       "minWithdrawAmount": "134",
+       "withdrawFee": "67",
+       "withdrawStatus": true
+      },
+      "VDAO": {
+       "depositStatus": false,
+       "minWithdrawAmount": "200",
+       "withdrawFee": "100",
+       "withdrawStatus": true
+      },
+      "VELO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "100",
+       "withdrawFee": "0.1",
+       "withdrawStatus": true
+      },
+      "VELODROME": {
+       "depositStatus": true,
+       "minWithdrawAmount": "4.28",
+       "withdrawFee": "2.14",
+       "withdrawStatus": true
+      },
+      "VET": {
+       "depositStatus": true,
+       "minWithdrawAmount": "6",
+       "withdrawFee": "3",
+       "withdrawStatus": true
+      },
+      "VGX": {
+       "depositStatus": false,
+       "minWithdrawAmount": "952",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "VIA": {
+       "depositStatus": false,
+       "depositTip": "Unsupported Token, Deposit Suspended",
+       "minWithdrawAmount": "0.02",
+       "withdrawFee": "0.01",
+       "withdrawStatus": false
+      },
+      "VIB": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "1600",
+       "withdrawFee": "1400",
+       "withdrawStatus": false
+      },
+      "VIC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.02",
+       "withdrawFee": "0.001",
+       "withdrawStatus": true
+      },
+      "VIDT": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "464",
+       "withdrawFee": "232",
+       "withdrawStatus": false
+      },
+      "VIRTUAL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "3",
+       "withdrawFee": "0.5",
+       "withdrawStatus": true
+      },
+      "VITE": {
+       "depositStatus": false,
+       "minWithdrawAmount": "2",
+       "withdrawFee": "1",
+       "withdrawStatus": false
+      },
+      "VND": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "VOXEL": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.8",
+       "withdrawFee": "0.5",
+       "withdrawStatus": true
+      },
+      "VRAB": {
+       "depositStatus": false,
+       "minWithdrawAmount": "200",
+       "withdrawFee": "100",
+       "withdrawStatus": true
+      },
+      "VRT": {
+       "depositStatus": false,
+       "minWithdrawAmount": "6524",
+       "withdrawFee": "3262",
+       "withdrawStatus": false
+      },
+      "VTHO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "400",
+       "withdrawFee": "70",
+       "withdrawStatus": true
+      },
+      "W": {
+       "depositStatus": true,
+       "minWithdrawAmount": "42",
+       "withdrawFee": "21",
+       "withdrawStatus": true
+      },
+      "WABI": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "818",
+       "withdrawFee": "409",
+       "withdrawStatus": true
+      },
+      "WAL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1.48",
+       "withdrawFee": "0.74",
+       "withdrawStatus": true
+      },
+      "WAN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.02",
+       "withdrawFee": "0.005",
+       "withdrawStatus": true
+      },
+      "WAVES": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.01",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "WAX": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.0000001",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "WAXP": {
+       "depositStatus": true,
+       "minWithdrawAmount": "7",
+       "withdrawFee": "0.2",
+       "withdrawStatus": true
+      },
+      "WBETH": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.000016",
+       "withdrawFee": "0.0000082",
+       "withdrawStatus": true
+      },
+      "WBNB": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.000044",
+       "withdrawFee": "0.000022",
+       "withdrawStatus": true
+      },
+      "WBTC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.000012",
+       "withdrawFee": "0.0000062",
+       "withdrawStatus": true
+      },
+      "WCT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1.08",
+       "withdrawFee": "0.54",
+       "withdrawStatus": true
+      },
+      "WETH": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.00026",
+       "withdrawFee": "0.00013",
+       "withdrawStatus": true
+      },
+      "WIF": {
+       "depositStatus": true,
+       "minWithdrawAmount": "4",
+       "withdrawFee": "2",
+       "withdrawStatus": true
+      },
+      "WIN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2000",
+       "withdrawFee": "1100",
+       "withdrawStatus": true
+      },
+      "WING": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.007",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "WINGS": {
+       "depositStatus": true,
+       "depositTip": "Delisted, Deposit Suspended",
+       "minWithdrawAmount": "306",
+       "withdrawFee": "153",
+       "withdrawStatus": true
+      },
+      "WLD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2.4",
+       "withdrawFee": "1.2",
+       "withdrawStatus": true
+      },
+      "WLDETH": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.0001",
+       "withdrawFee": "0.00001",
+       "withdrawStatus": true
+      },
+      "WLFI": {
+       "depositStatus": true,
+       "minWithdrawAmount": "9.04",
+       "withdrawFee": "4.52",
+       "withdrawStatus": true
+      },
+      "WNXM": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.012",
+       "withdrawFee": "0.0059",
+       "withdrawStatus": false
+      },
+      "WOO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2.06",
+       "withdrawFee": "1.03",
+       "withdrawStatus": true
+      },
+      "WPR": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "6000",
+       "withdrawFee": "2000",
+       "withdrawStatus": false
+      },
+      "WRX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "26",
+       "withdrawFee": "13",
+       "withdrawStatus": true
+      },
+      "WRXOLD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "3.3",
+       "withdrawFee": "1.65",
+       "withdrawStatus": true
+      },
+      "WSOL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.1",
+       "withdrawFee": "0.005",
+       "withdrawStatus": true
+      },
+      "WTC": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "0.1",
+       "withdrawFee": "0.01",
+       "withdrawStatus": false
+      },
+      "XAF": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "XAI": {
+       "depositStatus": true,
+       "minWithdrawAmount": "20",
+       "withdrawFee": "10",
+       "withdrawStatus": true
+      },
+      "XDATA": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "130",
+       "withdrawFee": "65",
+       "withdrawStatus": true
+      },
+      "XEC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "20000",
+       "withdrawFee": "280",
+       "withdrawStatus": true
+      },
+      "XEM": {
+       "depositStatus": false,
+       "depositTip": "Wallet Maintenance, Deposit Suspended",
+       "minWithdrawAmount": "0.24",
+       "withdrawFee": "0.12",
+       "withdrawStatus": false
+      },
+      "XLM": {
+       "depositStatus": true,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "0.005",
+       "withdrawStatus": true
+      },
+      "XMR": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.0002",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "XNO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.082",
+       "withdrawFee": "0.041",
+       "withdrawStatus": true
+      },
+      "XOF": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "XPL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0.0001",
+       "withdrawStatus": true
+      },
+      "XPR": {
+       "depositStatus": false,
+       "minWithdrawAmount": "254",
+       "withdrawFee": "127",
+       "withdrawStatus": true
+      },
+      "XRP": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2",
+       "withdrawFee": "0.2",
+       "withdrawStatus": true
+      },
+      "XRPBEAR": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.0024",
+       "withdrawFee": "0.0012",
+       "withdrawStatus": false
+      },
+      "XRPBULL": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.15",
+       "withdrawFee": "0.076",
+       "withdrawStatus": false
+      },
+      "XTER": {
+       "depositStatus": true,
+       "minWithdrawAmount": "12",
+       "withdrawFee": "2",
+       "withdrawStatus": true
+      },
+      "XTZ": {
+       "depositStatus": true,
+       "minWithdrawAmount": "1",
+       "withdrawFee": "0.1",
+       "withdrawStatus": true
+      },
+      "XUSD": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.88",
+       "withdrawFee": "0.44",
+       "withdrawStatus": true
+      },
+      "XVG": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2",
+       "withdrawFee": "1",
+       "withdrawStatus": true
+      },
+      "XVS": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.013",
+       "withdrawFee": "0.0063",
+       "withdrawStatus": true
+      },
+      "XYM": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0.2",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "YB": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.3",
+       "withdrawFee": "0.15",
+       "withdrawStatus": true
+      },
+      "YFI": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.00032",
+       "withdrawFee": "0.00016",
+       "withdrawStatus": true
+      },
+      "YFII": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.014",
+       "withdrawFee": "0.0071",
+       "withdrawStatus": false
+      },
+      "YGG": {
+       "depositStatus": true,
+       "minWithdrawAmount": "22",
+       "withdrawFee": "11",
+       "withdrawStatus": true
+      },
+      "YOYO": {
+       "depositStatus": false,
+       "minWithdrawAmount": "2",
+       "withdrawFee": "1",
+       "withdrawStatus": false
+      },
+      "ZAMA": {
+       "depositStatus": true,
+       "minWithdrawAmount": "20",
+       "withdrawFee": "8",
+       "withdrawStatus": true
+      },
+      "ZAR": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      },
+      "ZBT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "11",
+       "withdrawFee": "5.99",
+       "withdrawStatus": true
+      },
+      "ZCX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "248",
+       "withdrawFee": "124",
+       "withdrawStatus": true
+      },
+      "ZEC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.02",
+       "withdrawFee": "0.01",
+       "withdrawStatus": true
+      },
+      "ZEN": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.074",
+       "withdrawFee": "0.037",
+       "withdrawStatus": true
+      },
+      "ZENT": {
+       "depositStatus": true,
+       "minWithdrawAmount": "800",
+       "withdrawFee": "300",
+       "withdrawStatus": true
+      },
+      "ZIL": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2",
+       "withdrawFee": "1",
+       "withdrawStatus": true
+      },
+      "ZK": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.2",
+       "withdrawFee": "0.1",
+       "withdrawStatus": true
+      },
+      "ZKC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "11",
+       "withdrawFee": "5.55",
+       "withdrawStatus": true
+      },
+      "ZKJ": {
+       "depositStatus": true,
+       "minWithdrawAmount": "2",
+       "withdrawFee": "1",
+       "withdrawStatus": true
+      },
+      "ZKP": {
+       "depositStatus": true,
+       "minWithdrawAmount": "10",
+       "withdrawFee": "5.33",
+       "withdrawStatus": true
+      },
+      "ZKUSDCE": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.24",
+       "withdrawFee": "0.12",
+       "withdrawStatus": true
+      },
+      "ZMW": {
+       "depositStatus": false,
+       "minWithdrawAmount": "0",
+       "withdrawFee": "0",
+       "withdrawStatus": false
+      },
+      "ZRC": {
+       "depositStatus": true,
+       "minWithdrawAmount": "44",
+       "withdrawFee": "5",
+       "withdrawStatus": true
+      },
+      "ZRO": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.42",
+       "withdrawFee": "0.21",
+       "withdrawStatus": true
+      },
+      "ZRX": {
+       "depositStatus": true,
+       "minWithdrawAmount": "8.24",
+       "withdrawFee": "4.12",
+       "withdrawStatus": true
+      },
+      "币安人生": {
+       "depositStatus": true,
+       "minWithdrawAmount": "0.05",
+       "withdrawFee": "0",
+       "withdrawStatus": true
+      }
+     },
+     "queryString": "recvWindow=5000\u0026signature=ef3b790e7a70754a768292a9003ace6fb50410e9e2e451acbe9782cc19f109a9\u0026timestamp=1773952746621",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ]
+  },
+  "/sapi/v1/asset/assetDividend": {
+   "GET": [
+    {
+     "data": {
+      "rows": [],
+      "total": 0
+     },
+     "queryString": "asset=BTC\u0026endTime=1744190254944\u0026limit=100\u0026recvWindow=5000\u0026signature=123bcb5755f3923ca09c81cf4b269669200d55ecc95c3f4758e5911b69d6c6c7\u0026startTime=1744103854944\u0026timestamp=1773952701216",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ]
+  },
+  "/sapi/v1/asset/convert-transfer/queryByPage": {
+   "GET": [
+    {
+     "data": {
+      "rows": [],
+      "total": 0
+     },
+     "queryString": "accountType=CARD\u0026asset=BTC\u0026clientTranId=233423423\u0026endTime=1744190254944\u0026recvWindow=5000\u0026signature=e01c9c84f1037b5891b72aa435b82b58a52460ffff1898bf7978949ef7b9193f\u0026size=20\u0026startTime=1744103854944\u0026timestamp=1773957099995\u0026tranid=transaction-id",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ]
+  },
+  "/sapi/v1/asset/custody/transfer-history": {
+   "GET": [
+    {
+     "data": {
+      "code": -9000,
+      "msg": "the api throw error:This two users are not in parent-child relation."
+     },
+     "queryString": "asset=BTC\u0026email=someone%40thrasher.com\u0026endTime=1744190254944\u0026recvWindow=5000\u0026signature=85ccb0af0426bac2b9b33681513261fdc48acc15e2856fc6303a0e4f71ef53f7\u0026startTime=1744103854944\u0026timestamp=1773957619094\u0026type=Delegate",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ]
+  },
+  "/sapi/v1/asset/dust-btc": {
+   "POST": [
+    {
+     "data": {
+      "details": [
+       {
+        "amountFree": "0.0908",
+        "asset": "1INCH",
+        "assetFullName": "1INCH",
+        "exchange": "0.00000027",
+        "toBNB": "0.00001354",
+        "toBNBOffExchange": "0.00001327",
+        "toBTC": "0.00000012"
+       },
+       {
+        "amountFree": "0.19",
+        "asset": "1MBABYDOGE",
+        "assetFullName": "1MBABYDOGE",
+        "exchange": "0",
+        "toBNB": "0.00000012",
+        "toBNBOffExchange": "0.00000012",
+        "toBTC": "0"
+       },
+       {
+        "amountFree": "0.000841",
+        "asset": "AAVE",
+        "assetFullName": "AAVE",
+        "exchange": "0.00000293",
+        "toBNB": "0.00014658",
+        "toBNBOffExchange": "0.00014365",
+        "toBTC": "0.00000133"
+       },
+       {
+        "amountFree": "0.0228",
+        "asset": "ACX",
+        "assetFullName": "ACX",
+        "exchange": "0.00000003",
+        "toBNB": "0.00000151",
+        "toBNBOffExchange": "0.00000148",
+        "toBTC": "0.00000001"
+       },
+       {
+        "amountFree": "5.21302",
+        "asset": "ADA",
+        "assetFullName": "ADA",
+        "exchange": "0.00004356",
+        "toBNB": "0.00217795",
+        "toBNBOffExchange": "0.00213439",
+        "toBTC": "0.00001983"
+       }
+      ],
+      "dribbletPercentage": "0.02",
+      "totalTransferBNB": "0.05024338",
+      "totalTransferBtc": "0.00045746"
+     },
+     "queryString": "accountType=MINI\u0026recvWindow=5000\u0026signature=a9f2a55e976256c14b959aca0f318e0ba6c0a465fead2d52a627df12c9c3f089\u0026timestamp=1773952607736",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ]
+  },
+  "/sapi/v1/asset/get-funding-asset": {
+   "POST": [
+    {
+     "data": null,
+     "queryString": "asset=BTC\u0026needBtcValuation=true\u0026recvWindow=5000\u0026signature=2707803b2444d6803e92a57aecc01d81436aa100679e9e42f907c2f33e36cc8c\u0026timestamp=1773956971777",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ]
+  },
+  "/sapi/v1/asset/ledger-transfer/cloud-mining/queryByPage": {
+   "GET": [
+    {
+     "data": {
+      "rows": [],
+      "total": 0
+     },
+     "queryString": "asset=BTC\u0026clientTranId=1234\u0026endTime=1744190254944\u0026recvWindow=5000\u0026signature=f75f602b871b078c83721d8ba39f6658cea03a49fa659913faa4f4244bb125fc\u0026startTime=1744103854944\u0026timestamp=1773957153143\u0026tranId=1232313",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ]
+  },
+  "/sapi/v1/asset/tradeFee": {
+   "GET": [
+    {
+     "data": [
+      {
+       "makerCommission": "0.001",
+       "symbol": "0GBNB",
+       "takerCommission": "0.001"
+      },
+      {
+       "makerCommission": "0",
+       "symbol": "0GFDUSD",
+       "takerCommission": "0.001"
+      },
+      {
+       "makerCommission": "0.001",
+       "symbol": "0GTRY",
+       "takerCommission": "0.0015"
+      },
+      {
+       "makerCommission": "0.001",
+       "symbol": "0GUSDC",
+       "takerCommission": "0.00095"
+      },
+      {
+       "makerCommission": "0.001",
+       "symbol": "0GUSDT",
+       "takerCommission": "0.001"
+      }
+     ],
+     "queryString": "recvWindow=5000\u0026signature=975a351813c7b1fffa8022d508c1836b158cc4dd3eec1b71afc422b74d5661c8\u0026timestamp=1773955152072",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    },
+    {
+     "data": [
+      {
+       "makerCommission": "0.001",
+       "symbol": "BTCUSDT",
+       "takerCommission": "0.001"
+      }
+     ],
+     "queryString": "recvWindow=5000\u0026signature=afc4b7fd71af574ba29270da0082b9984421961d92424498b2e8fecf034c1084\u0026symbol=BTCUSDT\u0026timestamp=1773955153321",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ]
+  },
+  "/sapi/v1/asset/transfer": {
+   "GET": [
+    {
+     "data": {
+      "code": -1102,
+      "msg": "Mandatory parameter 'size' was not sent, was empty/null, or malformed."
+     },
+     "queryString": "current=1\u0026endTime=1744190254944\u0026fromSymbol=BTC\u0026recvWindow=5000\u0026signature=fac7a91552db0d43d3f8912ec2f18382d9be544e22e8ec5f10217e27993366b6\u0026size=1234\u0026startTime=1744103854944\u0026timestamp=1773955375774\u0026toSymbol=USDT\u0026type=UMFUTURE_MARGIN",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    },
+    {
+     "data": {
+      "code": -5026,
+      "msg": "Start time query records range is too large"
+     },
+     "queryString": "amount=1234\u0026current=1\u0026endTime=1744190254944\u0026fromSymbol=BTC\u0026recvWindow=5000\u0026signature=36978813b9e957cfa6192268eee537a11411575f9e6c847ee484f3947e404ecd\u0026startTime=1744103854944\u0026timestamp=1773956678323\u0026toSymbol=USDT\u0026type=UMFUTURE_MARGIN",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    },
+    {
+     "data": {
+      "total": 0
+     },
+     "queryString": "amount=1234\u0026current=1\u0026endTime=1744190254944\u0026fromSymbol=BTC\u0026recvWindow=5000\u0026signature=0b437e1902097b7fa568cc19be9fcec6910f66a114d8c211bc54f75e8a06e620\u0026timestamp=1773956895699\u0026toSymbol=USDT\u0026type=UMFUTURE_MARGIN",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ]
+  },
+  "/sapi/v1/asset/wallet/balance": {
+   "GET": [
+    {
+     "data": [
+      {
+       "activate": true,
+       "balance": "0.01446462",
+       "walletName": "Spot"
+      },
+      {
+       "activate": true,
+       "balance": "0.00006443",
+       "walletName": "Funding"
+      },
+      {
+       "activate": true,
+       "balance": "0",
+       "walletName": "Cross Margin"
+      },
+      {
+       "activate": true,
+       "balance": "0",
+       "walletName": "Isolated Margin"
+      },
+      {
+       "activate": true,
+       "balance": "0",
+       "walletName": "USDⓈ-M Futures"
+      }
+     ],
+     "queryString": "recvWindow=5000\u0026signature=bfa298bf4c18de7d52de51a05f7c3c4028e2a77b4019eaaa40cf639263d4437d\u0026timestamp=1773957563151",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ]
+  },
+  "/sapi/v1/capital/contract/convertible-coins": {
+   "GET": [
+    {
+     "data": {
+      "coins": [],
+      "convertEnabled": false,
+      "exchangeRates": {}
+     },
+     "queryString": "recvWindow=5000\u0026signature=21709530be3004947a071c34d16fcdc6af358cc540eb09ec4023a4b826722c8f\u0026timestamp=1773957324719",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ]
+  },
+  "/sapi/v1/capital/deposit/address": {
+   "GET": [
+    {
+     "data": {
+      "address": "1LL5M9CDDybKj9BMwFTgpddeWRAnu19zjR",
+      "coin": "BTC",
+      "isDefault": 0,
+      "tag": "",
+      "url": "https://www.blockchain.com/explorer/addresses/btc/1LL5M9CDDybKj9BMwFTgpddeWRAnu19zjR"
+     },
+     "queryString": "coin=BTC\u0026recvWindow=10000\u0026signature=eb06e4cb5ac793b20c34e89b101f7f4aa5661aa8e60af2b8581ca5703a199e08\u0026timestamp=1773952549619",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ]
+  },
+  "/sapi/v1/capital/deposit/address/list": {
+   "GET": [
+    {
+     "data": [
+      {
+       "address": "1LL5M9CDDybKj9BMwFTgpddeWRAnu19zjR",
+       "coin": "BTC",
+       "isDefault": 1,
+       "tag": ""
+      }
+     ],
+     "queryString": "coin=BTC\u0026recvWindow=5000\u0026signature=27ac754a34c19534fdc249423859b3b44a2532d720efcd3b4b811f673d04526f\u0026timestamp=1773957484327",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ]
+  },
   "/sapi/v1/convert/exchangeInfo": {
    "GET": [
     {
@@ -16297,6 +22465,23 @@
     }
    ]
   },
+  "/sapi/v1/managed-subaccount/query-trans-log": {
+   "GET": [
+    {
+     "data": {
+      "code": -1000,
+      "msg": "Forbidden."
+     },
+     "queryString": "endTime=1744190254944\u0026limit=10\u0026page=1\u0026recvWindow=5000\u0026signature=9a11136305a061cefeeaae7f2672220b2a1859689ce3d9d081f870abf2786bc2\u0026startTime=1744103854944\u0026timestamp=1773959796907\u0026transferFunctionAccountType=MARGIN",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ]
+  },
   "/sapi/v1/mining/pub/algoList": {
    "GET": [
     {
@@ -16323,6 +22508,81 @@
     }
    ]
   },
+  "/sapi/v1/spot/delist-schedule": {
+   "GET": [
+    {
+     "data": [
+      {
+       "delistTime": 1773975600000,
+       "symbols": [
+        "BONKBRL",
+        "MEFDUSD"
+       ]
+      },
+      {
+       "delistTime": 1775012400000,
+       "symbols": [
+        "A2ZUSDC",
+        "A2ZUSDT",
+        "FORTHUSDT",
+        "HOOKUSDT",
+        "IDEXUSDC",
+        "IDEXUSDT",
+        "LRCTRY",
+        "LRCUSDT",
+        "NTRNTRY",
+        "NTRNUSDT",
+        "RDNTTRY",
+        "RDNTUSDT",
+        "SXPTRY",
+        "SXPUSDT"
+       ]
+      }
+     ],
+     "queryString": "recvWindow=5000\u0026signature=1ca04a2920fda3e754d14a234cee8e65b77e08e4ea5774a0af1b4ca20b9f7801\u0026timestamp=1773958357231",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ]
+  },
+  "/sapi/v1/sub-account/futures/internalTransfer": {
+   "GET": []
+  },
+  "/sapi/v1/sub-account/list": {
+   "GET": [
+    {
+     "data": {
+      "subAccounts": [],
+      "success": true
+     },
+     "queryString": "email=testsub%40gmail.com\u0026limit=10\u0026recvWindow=5000\u0026signature=03d8d5c3ea9b2e9e3a1b2864f8958ce997bb0e5383ba2b99d92695699c945de0\u0026timestamp=1773958485863",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ]
+  },
+  "/sapi/v1/sub-account/sub/transfer/history": {
+   "GET": [
+    {
+     "data": null,
+     "queryString": "endTime=1773958940834\u0026limit=10\u0026recvWindow=5000\u0026signature=45fe6f2629124533cefd77f719343ead8f269694950d7f2e887a767b8722068c\u0026timestamp=1773958940834",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ]
+  },
   "/sapi/v1/system/status": {
    "GET": [
     {
@@ -16335,6 +22595,33 @@
      "headers": {}
     }
    ]
+  },
+  "/sapi/v3/asset/getUserAsset": {
+   "POST": [
+    {
+     "data": [
+      {
+       "asset": "BTC",
+       "btcValuation": "0.00270572",
+       "free": "0.00270572",
+       "freeze": "0",
+       "ipoable": "0",
+       "locked": "0",
+       "withdrawing": "0"
+      }
+     ],
+     "queryString": "asset=BTC\u0026needBtcValuation=true\u0026recvWindow=5000\u0026signature=7ca12a7e019c583590bd3a7ac30f1103a5a9a4eb237a08ce63436bbe21d62af0\u0026timestamp=1773957044256",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ]
+  },
+  "/sapi/v4/sub-account/assets": {
+   "GET": []
   }
  }
 }

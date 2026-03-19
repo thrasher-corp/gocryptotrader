@@ -312,6 +312,7 @@ func (e *Exchange) GetFuturesSwapTickerChangeStats(ctx context.Context, symbol c
 		if err != nil {
 			return nil, err
 		}
+		println("symbolValue: ", symbolValue)
 		params.Set("symbol", symbolValue)
 	}
 	if pair != "" {
@@ -1077,7 +1078,7 @@ func (e *Exchange) FetchCoinMarginExchangeLimits(ctx context.Context) ([]limits.
 		if err != nil {
 			return nil, err
 		}
-		if len(coinFutures.Symbols[x].Filters) < 6 {
+		if len(coinFutures.Symbols[x].Filters) < 5 {
 			continue
 		}
 

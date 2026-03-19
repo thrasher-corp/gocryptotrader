@@ -553,19 +553,20 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			return err
 		}
 
-		for y := range tick {
-			cp, err := currency.NewPairFromString(tick[y].Symbol)
+		for _, t := range tick {
+			println("Coinb: ", t.Symbol)
+			cp, err := currency.NewPairFromString(t.Symbol)
 			if err != nil {
 				return err
 			}
 			err = ticker.ProcessTicker(&ticker.Price{
-				Last:         tick[y].LastPrice.Float64(),
-				High:         tick[y].HighPrice.Float64(),
-				Low:          tick[y].LowPrice.Float64(),
-				Volume:       tick[y].Volume.Float64(),
-				QuoteVolume:  tick[y].QuoteVolume.Float64(),
-				Open:         tick[y].OpenPrice.Float64(),
-				Close:        tick[y].PrevClosePrice.Float64(),
+				Last:         t.LastPrice.Float64(),
+				High:         t.HighPrice.Float64(),
+				Low:          t.LowPrice.Float64(),
+				Volume:       t.Volume.Float64(),
+				QuoteVolume:  t.QuoteVolume.Float64(),
+				Open:         t.OpenPrice.Float64(),
+				Close:        t.PrevClosePrice.Float64(),
 				Pair:         cp,
 				ExchangeName: e.Name,
 				AssetType:    a,
@@ -638,6 +639,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			return nil, ticker.ErrTickerNotFound
 		}
 		for t := range ticks {
+			println("asset.Spot/Margin: ", p.String(), a.String())
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         ticks[t].LastPrice.Float64(),
 				High:         ticks[t].HighPrice.Float64(),
@@ -665,6 +667,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		if len(tick) == 0 {
 			return nil, fmt.Errorf("%w, pair: %v", ticker.ErrTickerNotFound, p)
 		}
+		println("USDTMargined tick[0].Symbol: ", tick[0].Symbol)
 		err = ticker.ProcessTicker(&ticker.Price{
 			Last:         tick[0].LastPrice,
 			High:         tick[0].HighPrice,
@@ -687,6 +690,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			return nil, err
 		}
 		for t := range tick {
+			println("CoinMarginedFutures tick[t].Symbol: ", tick[t].Symbol)
 			cp, err := currency.NewPairFromString(tick[t].Symbol)
 			if err != nil {
 				return nil, err
@@ -720,6 +724,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			if err != nil {
 				return nil, err
 			}
+			println("Options: Pair: ", cp.String())
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         tick[a].LastPrice.Float64(),
 				High:         tick[a].High.Float64(),

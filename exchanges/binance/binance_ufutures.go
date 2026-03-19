@@ -1270,13 +1270,13 @@ func (e *Exchange) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]limits.
 	l := make([]limits.MinMaxLevel, 0, len(usdtFutures.Symbols))
 	for x := range usdtFutures.Symbols {
 		var cp currency.Pair
-		cp, err = currency.NewPairFromStrings(usdtFutures.Symbols[x].BaseAsset,
-			usdtFutures.Symbols[x].QuoteAsset)
+		cp, err = currency.NewPairFromString(usdtFutures.Symbols[x].Symbol)
 		if err != nil {
 			return nil, err
 		}
 
-		if len(usdtFutures.Symbols[x].Filters) < 7 {
+		println("len(usdtFutures.Symbols[x].Filters) : ", len(usdtFutures.Symbols[x].Filters))
+		if len(usdtFutures.Symbols[x].Filters) < 5 {
 			continue
 		}
 

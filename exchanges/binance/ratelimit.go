@@ -14,19 +14,18 @@ const (
 	spotRequestRate = 6000
 	// Order related limits which are segregated from the global rate limits
 	// 100 requests per 10 seconds and max 100000 requests per day.
-	spotOrderInterval             = 10 * time.Second
-	spotOrderRequestRate          = 100
-	cFuturesInterval              = time.Minute
-	cFuturesRequestRate           = 2400
-	cFuturesOrderInterval         = time.Minute
-	cFuturesOrderRequestRate      = 1200
-	uFuturesInterval              = time.Minute
-	uFuturesRequestRate           = 2400
-	portfolioMarginRate           = 6000
-	portfolioMarginOrderLimitRate = 1200
-	portfolioMarginInterval       = time.Minute
-	uFuturesOrderInterval         = time.Second * 10
-	uFuturesOrderRequestRate      = 300
+	spotOrderInterval        = 10 * time.Second
+	spotOrderRequestRate     = 100
+	cFuturesInterval         = time.Minute
+	cFuturesRequestRate      = 2400
+	cFuturesOrderInterval    = time.Minute
+	cFuturesOrderRequestRate = 1200
+	uFuturesInterval         = time.Minute
+	uFuturesRequestRate      = 2400
+	portfolioMarginRate      = 6000
+	portfolioMarginInterval  = time.Minute
+	uFuturesOrderInterval    = time.Second * 10
+	uFuturesOrderRequestRate = 300
 )
 
 // Binance Spot rate limits
@@ -60,9 +59,6 @@ const (
 	getTickers100Rate
 	getTickersMoreThan100Rate
 	spotPriceChangeAllRate
-	spotTicker1Rate
-	spotTicker20Rate
-	spotTicker100Rate
 	spotTickerAllRate
 	spotOpenOrdersAllRate
 	allCrossMarginFeeDataRate
@@ -465,6 +461,7 @@ func GetRateLimits() request.RateLimitDefinitions {
 		pmAssetLeverageRate:                    request.GetRateLimiterWithWeight(spotLimiter, 50),
 		spotPriceChangeAllRate:                 request.GetRateLimiterWithWeight(spotLimiter, 80),
 		getTickersMoreThan100Rate:              request.GetRateLimiterWithWeight(spotLimiter, 80),
+		spotTickerAllRate:                      request.GetRateLimiterWithWeight(spotLimiter, 4),
 
 		spotOrderRate:              request.GetRateLimiterWithWeight(spotOrdersLimiter, 1),
 		spotOpenOrdersSpecificRate: request.GetRateLimiterWithWeight(spotOrdersLimiter, 6),

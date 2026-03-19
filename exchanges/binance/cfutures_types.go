@@ -254,7 +254,7 @@ type FuturesOrderPlaceData struct {
 	OriginalType       string            `json:"origType"`
 	Price              float64           `json:"price,string"`
 	ReduceOnly         bool              `json:"reduceOnly"`
-	Side               string            `json:"buy"`
+	Side               string            `json:"side"`
 	PositionSide       string            `json:"positionSide"`
 	Status             string            `json:"status"`
 	StopPrice          float64           `json:"stopPrice,string"`

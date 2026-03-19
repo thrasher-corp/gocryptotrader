@@ -56,7 +56,7 @@ func TestFuturesNewOrderRequest_Unmarshal(t *testing.T) {
 		CumulativeQuantity: 32.0,
 		CumulativeBase:     16.0,
 		TimeInForce:        order.GoodTillCancel,
-		OrderType:          "MARKET",
+		OrderType:          "LIMIT",
 		ReduceOnly:         true,
 		ClosePosition:      true,
 		StopPrice:          2048.0,

@@ -2314,7 +2314,7 @@ func (e *Exchange) GetUserUniversalTransferHistory(ctx context.Context, transfer
 	}
 	params := url.Values{}
 	params.Set("type", transferType.String())
-	params.Set("size", strconv.FormatInt(size, 10))
+	params.Set("amount", strconv.FormatInt(size, 10))
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
