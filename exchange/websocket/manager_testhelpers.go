@@ -34,6 +34,56 @@ func (m *Manager) SetSubscriptionsNotRequired() {
 	}
 }
 
+func (m *Manager) testWebsocketByFilter(messageFilter any) (*websocket, error) {
+	if err := common.NilGuard(m); err != nil {
+		return nil, err
+	}
+	if !m.useMultiConnectionManagement {
+		return nil, fmt.Errorf("%s: multi connection management not enabled %w please use exported Conn and AuthConn fields", m.exchangeName, errCannotObtainOutboundConnection)
+	}
+	for _, ws := range m.snapshotConnectionManager() {
+		if ws.setup != nil && ws.setup.MessageFilter == messageFilter {
+			return ws, nil
+		}
+	}
+	return nil, fmt.Errorf("%s: %w associated with message filter: '%v'", m.exchangeName, ErrRequestRouteNotFound, messageFilter)
+}
+
+// CreateTestConnection returns an unmanaged connection built from the setup
+// matching the supplied message filter.
+//
+// This exported helper exists for cross-package test harnesses only. It lets
+// exchange-package tests reuse a manager-configured connection type without
+// establishing a live websocket session.
+func (m *Manager) CreateTestConnection(messageFilter any) (Connection, error) {
+	ws, err := m.testWebsocketByFilter(messageFilter)
+	if err != nil {
+		return nil, err
+	}
+	if ws.setup == nil {
+		return nil, fmt.Errorf("%w: ConnectionSetup", common.ErrNilPointer)
+	}
+	return m.createConnectionFromSetup(ws.setup), nil
+}
+
+// TrackTestConnection registers a test connection against the managed
+// websocket matching the supplied message filter.
+//
+// This exported helper exists for cross-package test harnesses only. It is
+// intended for tests that wrap a manager-created connection with custom
+// send/receive behaviour while still needing multi-connection bookkeeping.
+func (m *Manager) TrackTestConnection(messageFilter any, conn Connection) error {
+	if err := common.NilGuard(conn); err != nil {
+		return err
+	}
+	ws, err := m.testWebsocketByFilter(messageFilter)
+	if err != nil {
+		return err
+	}
+	m.trackConnection(conn, ws)
+	return nil
+}
+
 // SetAllConnectionURLs configures every managed websocket connection to use the
 // same URL.
 //

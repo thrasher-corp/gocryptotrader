@@ -3,8 +3,10 @@ package websocket
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
@@ -299,6 +301,33 @@ func TestUpdateChannelSubscriptions(t *testing.T) {
 	require.Zero(t, store.Len())
 }
 
+func TestInitSubscriptionStore(t *testing.T) {
+	t.Parallel()
+
+	t.Run("GlobalStore", func(t *testing.T) {
+		t.Parallel()
+
+		manager := &Manager{}
+		store := manager.initSubscriptionStore(nil)
+
+		require.NotNil(t, store, "global subscription store must be initialised")
+		assert.Same(t, store, manager.subscriptions, "global subscription store should be retained on the manager")
+	})
+
+	t.Run("ManagedConnectionStore", func(t *testing.T) {
+		t.Parallel()
+
+		manager, conn := newManagedSubscriptionTestManagerWithStore(t, nil)
+		require.Nil(t, manager.connectionManager[0].subscriptions, "managed websocket store must start nil for this test")
+
+		store := manager.initSubscriptionStore(conn)
+
+		require.NotNil(t, store, "managed connection store must be initialised")
+		assert.Same(t, store, manager.connectionManager[0].subscriptions, "managed websocket should retain the initialised store")
+		assert.NotSame(t, store, manager.subscriptions, "managed connection should keep an isolated subscription store")
+	})
+}
+
 func currySimpleSub(w *Manager) func(subscription.List) error {
 	return func(subs subscription.List) error {
 		return w.AddSuccessfulSubscriptions(nil, subs...)
@@ -323,6 +352,293 @@ func currySimpleUnsubConn(w *Manager) func(context.Context, Connection, subscrip
 	}
 }
 
+func newManagedSubscriptionTestManagerWithStore(t *testing.T, store *subscription.Store) (*Manager, Connection) {
+	t.Helper()
+
+	manager := NewManager()
+	setup := newDefaultSetup()
+	setup.UseMultiConnectionManagement = true
+	require.NoError(t, manager.Setup(setup))
+
+	ws := &websocket{
+		setup: &ConnectionSetup{
+			URL: "wss://managed-subscriptions.test/ws",
+			Subscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
+				return manager.AddSuccessfulSubscriptions(conn, subs...)
+			},
+			Unsubscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
+				return manager.RemoveSubscriptions(conn, subs...)
+			},
+		},
+		subscriptions: store,
+	}
+	conn := &connection{
+		URL:           ws.setup.URL,
+		subscriptions: subscription.NewStore(),
+	}
+
+	manager.connectionManagerMu.Lock()
+	manager.connectionManager = append(manager.connectionManager, ws)
+	manager.connections[conn] = ws
+	ws.connections = []Connection{conn}
+	manager.connectionManagerMu.Unlock()
+
+	return manager, conn
+}
+
+func newManagedSubscriptionTestManager(t *testing.T) (*Manager, Connection) {
+	t.Helper()
+	return newManagedSubscriptionTestManagerWithStore(t, subscription.NewStore())
+}
+
+func startSubscriptionReaders(manager *Manager) func() {
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	var once sync.Once
+	for range 4 {
+		wg.Go(func() {
+			for {
+				select {
+				case <-done:
+					return
+				default:
+					_ = manager.GetSubscription("missing")
+					_ = manager.GetSubscriptions()
+				}
+			}
+		})
+	}
+
+	return func() {
+		once.Do(func() {
+			close(done)
+			wg.Wait()
+		})
+	}
+}
+
+func runConcurrentSubscriptionOps(t *testing.T, workers int, op func(int) error) {
+	t.Helper()
+
+	start := make(chan struct{})
+	errs := make(chan error, workers)
+	var wg sync.WaitGroup
+
+	for i := range workers {
+		wg.Go(func() {
+			<-start
+			errs <- op(i)
+		})
+	}
+
+	close(start)
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		require.NoError(t, err)
+	}
+}
+
+func newConcurrentSubscription(channel string, index int) *subscription.Subscription {
+	name := fmt.Sprintf("%s-%d", channel, index)
+	return &subscription.Subscription{
+		Key:     name,
+		Channel: name,
+	}
+}
+
+func TestExportedManagedSubscriptionFunctionsConcurrent(t *testing.T) {
+	t.Parallel()
+
+	const workers = 32
+
+	t.Run("AddSubscriptions", func(t *testing.T) {
+		t.Parallel()
+
+		manager, conn := newManagedSubscriptionTestManager(t)
+		stopReaders := startSubscriptionReaders(manager)
+		defer stopReaders()
+
+		subs := make(subscription.List, workers)
+		for i := range workers {
+			subs[i] = newConcurrentSubscription("add", i)
+		}
+
+		runConcurrentSubscriptionOps(t, workers, func(i int) error {
+			return manager.AddSubscriptions(conn, subs[i])
+		})
+
+		stopReaders()
+
+		require.Len(t, manager.GetSubscriptions(), workers)
+		for _, sub := range subs {
+			require.Same(t, sub, manager.GetSubscription(sub))
+			assert.Equal(t, subscription.SubscribingState, sub.State())
+		}
+	})
+
+	t.Run("AddSuccessfulSubscriptions", func(t *testing.T) {
+		t.Parallel()
+
+		manager, conn := newManagedSubscriptionTestManager(t)
+		stopReaders := startSubscriptionReaders(manager)
+		defer stopReaders()
+
+		subs := make(subscription.List, workers)
+		for i := range workers {
+			subs[i] = newConcurrentSubscription("success", i)
+		}
+
+		runConcurrentSubscriptionOps(t, workers, func(i int) error {
+			return manager.AddSuccessfulSubscriptions(conn, subs[i])
+		})
+
+		stopReaders()
+
+		require.Len(t, manager.GetSubscriptions(), workers)
+		for _, sub := range subs {
+			require.Same(t, sub, manager.GetSubscription(sub))
+			assert.Equal(t, subscription.SubscribedState, sub.State())
+		}
+	})
+
+	t.Run("RemoveSubscriptions", func(t *testing.T) {
+		t.Parallel()
+
+		manager, conn := newManagedSubscriptionTestManager(t)
+		subs := make(subscription.List, workers)
+		for i := range workers {
+			subs[i] = newConcurrentSubscription("remove", i)
+		}
+		require.NoError(t, manager.AddSuccessfulSubscriptions(conn, subs...))
+
+		stopReaders := startSubscriptionReaders(manager)
+		defer stopReaders()
+
+		runConcurrentSubscriptionOps(t, workers, func(i int) error {
+			return manager.RemoveSubscriptions(conn, subs[i])
+		})
+
+		stopReaders()
+
+		assert.Empty(t, manager.GetSubscriptions())
+		for _, sub := range subs {
+			assert.Nil(t, manager.GetSubscription(sub))
+			assert.Equal(t, subscription.UnsubscribedState, sub.State())
+		}
+	})
+
+	t.Run("SubscribeToChannels", func(t *testing.T) {
+		t.Parallel()
+
+		manager, conn := newManagedSubscriptionTestManager(t)
+		stopReaders := startSubscriptionReaders(manager)
+		defer stopReaders()
+
+		subs := make(subscription.List, workers)
+		for i := range workers {
+			subs[i] = newConcurrentSubscription("subscribe", i)
+		}
+
+		runConcurrentSubscriptionOps(t, workers, func(i int) error {
+			return manager.SubscribeToChannels(t.Context(), conn, subscription.List{subs[i]})
+		})
+
+		stopReaders()
+
+		require.Len(t, manager.GetSubscriptions(), workers)
+		for _, sub := range subs {
+			require.Same(t, sub, manager.GetSubscription(sub))
+			assert.Equal(t, subscription.SubscribedState, sub.State())
+		}
+	})
+
+	t.Run("UnsubscribeChannels", func(t *testing.T) {
+		t.Parallel()
+
+		manager, conn := newManagedSubscriptionTestManager(t)
+		subs := make(subscription.List, workers)
+		for i := range workers {
+			subs[i] = newConcurrentSubscription("unsubscribe", i)
+		}
+		require.NoError(t, manager.AddSuccessfulSubscriptions(conn, subs...))
+
+		stopReaders := startSubscriptionReaders(manager)
+		defer stopReaders()
+
+		runConcurrentSubscriptionOps(t, workers, func(i int) error {
+			return manager.UnsubscribeChannels(t.Context(), conn, subscription.List{subs[i]})
+		})
+
+		stopReaders()
+
+		assert.Empty(t, manager.GetSubscriptions())
+		for _, sub := range subs {
+			assert.Nil(t, manager.GetSubscription(sub))
+			assert.Equal(t, subscription.UnsubscribedState, sub.State())
+		}
+	})
+}
+
+func TestManagedSubscriptionGettersConcurrentStoreInit(t *testing.T) {
+	t.Parallel()
+
+	const workers = 32
+
+	manager, conn := newManagedSubscriptionTestManagerWithStore(t, nil)
+	stopReaders := startSubscriptionReaders(manager)
+	defer stopReaders()
+
+	subs := make(subscription.List, workers)
+	for i := range workers {
+		subs[i] = newConcurrentSubscription("initialise", i)
+	}
+
+	runConcurrentSubscriptionOps(t, workers, func(i int) error {
+		return manager.AddSuccessfulSubscriptions(conn, subs[i])
+	})
+
+	stopReaders()
+
+	require.Len(t, manager.GetSubscriptions(), workers)
+	for _, sub := range subs {
+		require.Same(t, sub, manager.GetSubscription(sub))
+	}
+}
+
+func TestFlushChannelsConcurrentReaders(t *testing.T) {
+	t.Parallel()
+
+	manager, conn := newManagedSubscriptionTestManager(t)
+	manager.setEnabled(true)
+	manager.setState(connectedState)
+	manager.MaxSubscriptionsPerConnection = 2
+
+	expected := subscription.List{
+		newConcurrentSubscription("flush", 0),
+		newConcurrentSubscription("flush", 1),
+	}
+	manager.connectionManager[0].setup.GenerateSubscriptions = func() (subscription.List, error) {
+		return expected, nil
+	}
+
+	stopReaders := startSubscriptionReaders(manager)
+	defer stopReaders()
+
+	runConcurrentSubscriptionOps(t, 8, func(int) error {
+		return manager.FlushChannels(t.Context())
+	})
+
+	stopReaders()
+
+	require.Len(t, manager.GetSubscriptions(), len(expected))
+	require.Len(t, conn.Subscriptions().List(), len(expected))
+	for _, sub := range expected {
+		require.Same(t, sub, manager.GetSubscription(sub))
+	}
+}
+
 func TestFlushChannels(t *testing.T) {
 	t.Parallel()
 	// Enabled pairs/setup system
@@ -341,12 +657,13 @@ func TestFlushChannels(t *testing.T) {
 	}}
 
 	w := NewManager()
+	t.Cleanup(func() { cleanupManagerMonitors(t, w) })
 	w.exchangeName = "test"
 	w.connector = noopConnect
 	w.Subscriber = newgen.SUBME
 	w.Unsubscriber = newgen.UNSUBME
-	// Added for when we utilise connect() in FlushChannels() so the traffic monitor doesn't time out and turn this to an unconnected state
-	w.trafficTimeout = time.Second * 30
+	// Keep enough headroom for FlushChannels connection cycles without leaving long-lived monitor goroutines behind.
+	w.trafficTimeout = time.Second
 
 	w.setEnabled(true)
 	w.setState(connectedState)
@@ -462,8 +779,9 @@ func TestFlushChannels(t *testing.T) {
 // fakeConnection is a minimal Connection implementation used in cleanup tests.
 type fakeConnection struct {
 	Connection
-	subscriptions  *subscription.Store
-	shutdownCalled bool
+	subscriptions     *subscription.Store
+	subscriptionsHook func()
+	shutdownCalled    bool
 }
 
 func (f *fakeConnection) Shutdown() error {
@@ -471,7 +789,12 @@ func (f *fakeConnection) Shutdown() error {
 	return nil
 }
 
-func (f *fakeConnection) Subscriptions() *subscription.Store { return f.subscriptions }
+func (f *fakeConnection) Subscriptions() *subscription.Store {
+	if f.subscriptionsHook != nil {
+		f.subscriptionsHook()
+	}
+	return f.subscriptions
+}
 
 func TestScaleConnectionsToSubscriptions(t *testing.T) {
 	t.Parallel()
@@ -676,6 +999,59 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 		assert.False(t, activeConn.shutdownCalled)
 		assert.Len(t, ws.connections, 1)
 		assert.Same(t, activeConn, ws.connections[0])
+	})
+
+	t.Run("Cleanup Keeps Freshly Added Connections", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		m.MaxSubscriptionsPerConnection = 2
+		m.connections = make(map[Connection]*websocket)
+
+		ws := &websocket{
+			setup:         &ConnectionSetup{},
+			subscriptions: subscription.NewStore(),
+		}
+
+		emptyConn := &fakeConnection{subscriptions: subscription.NewStore()}
+		activeConn := &fakeConnection{subscriptions: subscription.NewStore()}
+		freshConn := &fakeConnection{subscriptions: subscription.NewStore()}
+		require.NoError(t, activeConn.subscriptions.Add(&subscription.Subscription{Channel: "A"}))
+		require.NoError(t, freshConn.subscriptions.Add(&subscription.Subscription{Channel: "B"}))
+
+		var addFreshOnce sync.Once
+		emptyConn.subscriptionsHook = func() {
+			addFreshOnce.Do(func() {
+				m.connectionManagerMu.Lock()
+				m.connections[freshConn] = ws
+				ws.connections = append(ws.connections, freshConn)
+				m.connectionManagerMu.Unlock()
+			})
+		}
+
+		ws.connections = []Connection{emptyConn, activeConn}
+		m.connections[emptyConn] = ws
+		m.connections[activeConn] = ws
+
+		require.NoError(t, m.scaleConnectionsToSubscriptions(t.Context(), ws, nil))
+
+		assert.True(t, emptyConn.shutdownCalled)
+		assert.False(t, activeConn.shutdownCalled)
+		assert.False(t, freshConn.shutdownCalled)
+		assert.Len(t, ws.connections, 2)
+
+		var haveActive, haveFresh bool
+		for _, conn := range ws.connections {
+			if conn == activeConn {
+				haveActive = true
+			}
+			if conn == freshConn {
+				haveFresh = true
+			}
+		}
+		assert.True(t, haveActive)
+		assert.True(t, haveFresh)
+		assert.NotContains(t, m.connections, emptyConn)
+		assert.Same(t, ws, m.connections[freshConn])
 	})
 }
 

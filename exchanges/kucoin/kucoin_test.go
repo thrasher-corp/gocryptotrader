@@ -2088,6 +2088,66 @@ func TestUpdateOrderbook(t *testing.T) {
 	}
 }
 
+func TestMergeRoundedOrderbookLevels(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		levels []orderbook.Level
+		exp    []orderbook.Level
+	}{
+		{
+			name:   "empty",
+			levels: nil,
+			exp:    nil,
+		},
+		{
+			name: "single",
+			levels: []orderbook.Level{
+				{Price: 9.99, Amount: 1},
+			},
+			exp: []orderbook.Level{
+				{Price: 9.99, Amount: 1},
+			},
+		},
+		{
+			name: "adjacentDuplicatesMerge",
+			levels: []orderbook.Level{
+				{Price: 1e18, Amount: 0.00001405},
+				{Price: 1e18, Amount: 0.00064},
+				{Price: 9.99, Amount: 1},
+			},
+			exp: []orderbook.Level{
+				{Price: 1e18, Amount: 0.00065405},
+				{Price: 9.99, Amount: 1},
+			},
+		},
+		{
+			name: "nonAdjacentDuplicatesRemainSeparate",
+			levels: []orderbook.Level{
+				{Price: 1.0, Amount: 1.0},
+				{Price: 2.0, Amount: 2.0},
+				{Price: 1.0, Amount: 3.0},
+			},
+			exp: []orderbook.Level{
+				{Price: 1.0, Amount: 1.0},
+				{Price: 2.0, Amount: 2.0},
+				{Price: 1.0, Amount: 3.0},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			merged := mergeRoundedOrderbookLevels(tc.levels)
+			require.Len(t, merged, len(tc.exp), "Merged level count must match expected length")
+			for i := range tc.exp {
+				assert.Equal(t, tc.exp[i].Price, merged[i].Price, "Merged level price should match expected value")
+				assert.InDelta(t, tc.exp[i].Amount, merged[i].Amount, 1e-12, "Merged level amount should match expected value")
+			}
+		})
+	}
+}
+
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
 	for _, a := range e.GetAssetTypes(true) {
@@ -2353,7 +2413,9 @@ func TestPushData(t *testing.T) {
 	t.Parallel()
 
 	e := testInstance(t)
-	e.Name = "TestPushData"
+	// Isolate global orderbook keying by exchange name to avoid cross-test contamination
+	// when Kucoin websocket tests run in parallel.
+	e.Name += "-TestPushData"
 	e.SetCredentials("mock", "test", "test", "", "", "")
 	e.API.AuthenticatedSupport = true
 	e.API.AuthenticatedWebsocketSupport = true
