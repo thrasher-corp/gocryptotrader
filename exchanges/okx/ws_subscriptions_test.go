@@ -139,8 +139,8 @@ func TestRefreshEquivalentOrderbookSnapshot(t *testing.T) {
 		}
 		marginSub := &subscription.Subscription{
 			Asset:            asset.Margin,
-			Pairs:            []currency.Pair{pair},
-			Channel:          subscription.OrderbookChannel,
+			Pairs:            append([]currency.Pair(nil), spotSub.Pairs...),
+			Channel:          spotSub.Channel,
 			QualifiedChannel: spotSub.QualifiedChannel,
 		}
 		exp := &orderbook.Book{
@@ -154,19 +154,22 @@ func TestRefreshEquivalentOrderbookSnapshot(t *testing.T) {
 			ValidateOrderbook: tracked.ValidateOrderbook,
 		}
 		require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-			Exchange:          tracked.Name,
-			Pair:              pair,
-			Asset:             asset.Spot,
+			Exchange:          exp.Exchange,
+			Pair:              spotSub.Pairs[0],
+			Asset:             spotSub.Asset,
 			LastUpdateID:      exp.LastUpdateID,
 			LastUpdated:       exp.LastUpdated,
 			Bids:              exp.Bids,
 			Asks:              exp.Asks,
-			ValidateOrderbook: tracked.ValidateOrderbook,
+			ValidateOrderbook: exp.ValidateOrderbook,
 		}))
 		require.NoError(t, tracked.refreshEquivalentOrderbookSnapshot(marginSub))
 
 		book, err := tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Margin)
 		require.NoError(t, err)
+		require.Equal(t, exp.Exchange, book.Exchange)
+		require.Equal(t, exp.Pair, book.Pair)
+		require.Equal(t, exp.Asset, book.Asset)
 		require.Equal(t, exp.LastUpdateID, book.LastUpdateID)
 		require.Equal(t, exp.LastUpdated, book.LastUpdated)
 		require.Equal(t, exp.Bids, book.Bids)
