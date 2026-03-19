@@ -813,6 +813,7 @@ func TestUpdateTickersUsesAvailablePairs(t *testing.T) {
 	testExchange := new(Exchange)
 	require.NoError(t, testexch.Setup(testExchange))
 	require.NoError(t, testexch.MockHTTPInstance(testExchange))
+	testExchange.Name += "-TestUpdateTickersUsesAvailablePairs"
 
 	availableButDisabled := currency.NewPairWithDelimiter("BTC", "USDT", currency.UnderscoreDelimiter)
 	excludedFromAvailable := currency.NewPairWithDelimiter("DOGE", "BTC", currency.UnderscoreDelimiter)

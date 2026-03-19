@@ -184,7 +184,39 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	if err := e.UpdateTickers(ctx, a); err != nil {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if err := e.CurrencyPairs.IsAssetAvailable(a); err != nil {
+		return nil, err
+	}
+
+	formattedPair, err := e.FormatExchangeCurrency(p, a)
+	if err != nil {
+		return nil, err
+	}
+	result, err := e.GetTicker(ctx, formattedPair.Lower().String())
+	if err != nil {
+		return nil, err
+	}
+
+	resultCurr, ok := result[formattedPair.Lower().String()]
+	if !ok {
+		return nil, fmt.Errorf("%w %s", ticker.ErrTickerNotFound, p)
+	}
+
+	err = ticker.ProcessTicker(&ticker.Price{
+		Pair:         p,
+		Last:         resultCurr.Last,
+		Ask:          resultCurr.Sell,
+		Bid:          resultCurr.Buy,
+		Low:          resultCurr.Low,
+		QuoteVolume:  resultCurr.VolumeCurrent,
+		Volume:       resultCurr.Vol,
+		ExchangeName: e.Name,
+		AssetType:    a,
+	})
+	if err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(e.Name, p, a)

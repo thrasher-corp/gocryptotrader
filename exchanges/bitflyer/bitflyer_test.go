@@ -3,6 +3,7 @@ package bitflyer
 import (
 	"log"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -28,6 +29,13 @@ const (
 
 var e *Exchange
 
+func skipIfChainflyerTimeout(t *testing.T, err error) {
+	t.Helper()
+	if err != nil && strings.Contains(err.Error(), "context deadline exceeded") {
+		t.Skipf("skipping due to upstream timeout: %v", err)
+	}
+}
+
 func TestMain(m *testing.M) {
 	e = new(Exchange)
 	if err := testexch.Setup(e); err != nil {
@@ -45,6 +53,7 @@ func TestMain(m *testing.M) {
 func TestGetLatestBlockCA(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetLatestBlockCA(t.Context())
+	skipIfChainflyerTimeout(t, err)
 	if err != nil {
 		t.Error("Bitflyer - GetLatestBlockCA() error:", err)
 	}
@@ -53,6 +62,7 @@ func TestGetLatestBlockCA(t *testing.T) {
 func TestGetBlockCA(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetBlockCA(t.Context(), "000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f")
+	skipIfChainflyerTimeout(t, err)
 	if err != nil {
 		t.Error("Bitflyer - GetBlockCA() error:", err)
 	}
@@ -61,6 +71,7 @@ func TestGetBlockCA(t *testing.T) {
 func TestGetBlockbyHeightCA(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetBlockbyHeightCA(t.Context(), 0)
+	skipIfChainflyerTimeout(t, err)
 	if err != nil {
 		t.Error("Bitflyer - GetBlockbyHeightCA() error:", err)
 	}
@@ -69,6 +80,7 @@ func TestGetBlockbyHeightCA(t *testing.T) {
 func TestGetTransactionByHashCA(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetTransactionByHashCA(t.Context(), "0562d1f063cd4127053d838b165630445af5e480ceb24e1fd9ecea52903cb772")
+	skipIfChainflyerTimeout(t, err)
 	if err != nil {
 		t.Error("Bitflyer - GetTransactionByHashCA() error:", err)
 	}
@@ -77,6 +89,7 @@ func TestGetTransactionByHashCA(t *testing.T) {
 func TestGetAddressInfoCA(t *testing.T) {
 	t.Parallel()
 	v, err := e.GetAddressInfoCA(t.Context(), core.BitcoinDonationAddress)
+	skipIfChainflyerTimeout(t, err)
 	if err != nil {
 		t.Error("Bitflyer - GetAddressInfoCA() error:", err)
 	}

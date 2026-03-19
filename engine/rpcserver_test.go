@@ -1570,6 +1570,14 @@ func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
 		Available:    currency.Pairs{cp},
 		Enabled:      currency.Pairs{cp},
 		AssetEnabled: true,
+		RequestFormat: &currency.PairFormat{
+			Delimiter: currency.DashDelimiter,
+			Uppercase: true,
+		},
+		ConfigFormat: &currency.PairFormat{
+			Delimiter: currency.DashDelimiter,
+			Uppercase: true,
+		},
 	}
 	err = em.Add(exch)
 	require.NoError(t, err)
@@ -3380,19 +3388,18 @@ func TestChangePositionMargin(t *testing.T) {
 	b.Name = fakeExchangeName
 	b.Enabled = true
 
-	cp, err := currency.NewPairFromString("btc-mad")
+	cp, err := currency.NewPairFromString("BTC-MAD")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.USDTMarginedFutures] = &currency.PairStore{
+	require.NoError(t, b.CurrencyPairs.Store(asset.USDTMarginedFutures, &currency.PairStore{
 		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
-	}
+	}))
 
 	fakeExchange := fExchange{
 		IBotExchange: exch,
@@ -3435,19 +3442,18 @@ func TestSetLeverage(t *testing.T) {
 	b.Name = fakeExchangeName
 	b.Enabled = true
 
-	cp, err := currency.NewPairFromString("btc-mad")
+	cp, err := currency.NewPairFromString("BTC-MAD")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.USDTMarginedFutures] = &currency.PairStore{
+	require.NoError(t, b.CurrencyPairs.Store(asset.USDTMarginedFutures, &currency.PairStore{
 		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
-	}
+	}))
 
 	fakeExchange := fExchange{
 		IBotExchange: exch,
@@ -3501,19 +3507,18 @@ func TestGetLeverage(t *testing.T) {
 	b.Name = fakeExchangeName
 	b.Enabled = true
 
-	cp, err := currency.NewPairFromString("btc-mad")
+	cp, err := currency.NewPairFromString("BTC-MAD")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.USDTMarginedFutures] = &currency.PairStore{
+	require.NoError(t, b.CurrencyPairs.Store(asset.USDTMarginedFutures, &currency.PairStore{
 		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
-	}
+	}))
 
 	fakeExchange := fExchange{
 		IBotExchange: exch,
@@ -3543,7 +3548,7 @@ func TestGetLeverage(t *testing.T) {
 	req.Asset = asset.USDTMarginedFutures.String()
 	req.MarginType = "isolated"
 	lev, err := s.GetLeverage(t.Context(), req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	if lev.Leverage != 1337 {
 		t.Errorf("received '%v' expected '%v'", lev, 1337)
@@ -3570,19 +3575,18 @@ func TestSetMarginType(t *testing.T) {
 	b.Name = fakeExchangeName
 	b.Enabled = true
 
-	cp, err := currency.NewPairFromString("btc-mad")
+	cp, err := currency.NewPairFromString("BTC-MAD")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.USDTMarginedFutures] = &currency.PairStore{
+	require.NoError(t, b.CurrencyPairs.Store(asset.USDTMarginedFutures, &currency.PairStore{
 		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
-	}
+	}))
 
 	fakeExchange := fExchange{
 		IBotExchange: exch,
@@ -3622,19 +3626,18 @@ func TestSetCollateralMode(t *testing.T) {
 	b.Name = fakeExchangeName
 	b.Enabled = true
 
-	cp, err := currency.NewPairFromString("btc-mad")
+	cp, err := currency.NewPairFromString("BTC-MAD")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.USDTMarginedFutures] = &currency.PairStore{
+	require.NoError(t, b.CurrencyPairs.Store(asset.USDTMarginedFutures, &currency.PairStore{
 		AssetEnabled:  true,
 		ConfigFormat:  &currency.PairFormat{Delimiter: "/"},
 		RequestFormat: &currency.PairFormat{Delimiter: "/"},
 		Available:     currency.Pairs{cp},
 		Enabled:       currency.Pairs{cp},
-	}
+	}))
 
 	fakeExchange := fExchange{
 		IBotExchange: exch,
