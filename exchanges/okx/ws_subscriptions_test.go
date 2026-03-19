@@ -125,6 +125,70 @@ func (c *subscriptionRecorderConnection) SendJSONMessage(_ context.Context, _ re
 
 func (c *subscriptionRecorderConnection) Subscriptions() *subscription.Store { return c.subscriptions }
 
+func TestRefreshEquivalentOrderbookSnapshot(t *testing.T) {
+	t.Run("CopiesInverseSnapshotToEquivalentAsset", func(t *testing.T) {
+		tracked := new(Exchange)
+		require.NoError(t, testexch.Setup(tracked))
+
+		pair := currency.NewBTCUSDT()
+		spotSub := &subscription.Subscription{
+			Asset:            asset.Spot,
+			Pairs:            []currency.Pair{pair},
+			Channel:          subscription.OrderbookChannel,
+			QualifiedChannel: `{"channel":"books","instID":"BTC-USDT"}`,
+		}
+		marginSub := &subscription.Subscription{
+			Asset:            asset.Margin,
+			Pairs:            []currency.Pair{pair},
+			Channel:          subscription.OrderbookChannel,
+			QualifiedChannel: spotSub.QualifiedChannel,
+		}
+		exp := &orderbook.Book{
+			Exchange:          tracked.Name,
+			Pair:              pair,
+			Asset:             asset.Margin,
+			LastUpdateID:      123,
+			LastUpdated:       time.Unix(123, 0),
+			Bids:              orderbook.Levels{{Price: 99, Amount: 2}},
+			Asks:              orderbook.Levels{{Price: 100, Amount: 1}},
+			ValidateOrderbook: tracked.ValidateOrderbook,
+		}
+		require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			Exchange:          tracked.Name,
+			Pair:              pair,
+			Asset:             asset.Spot,
+			LastUpdateID:      exp.LastUpdateID,
+			LastUpdated:       exp.LastUpdated,
+			Bids:              exp.Bids,
+			Asks:              exp.Asks,
+			ValidateOrderbook: tracked.ValidateOrderbook,
+		}))
+		require.NoError(t, tracked.refreshEquivalentOrderbookSnapshot(marginSub))
+
+		book, err := tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Margin)
+		require.NoError(t, err)
+		require.Equal(t, exp.LastUpdateID, book.LastUpdateID)
+		require.Equal(t, exp.LastUpdated, book.LastUpdated)
+		require.Equal(t, exp.Bids, book.Bids)
+		require.Equal(t, exp.Asks, book.Asks)
+	})
+
+	t.Run("IgnoresMissingInverseSnapshot", func(t *testing.T) {
+		tracked := new(Exchange)
+		require.NoError(t, testexch.Setup(tracked))
+
+		err := tracked.refreshEquivalentOrderbookSnapshot(&subscription.Subscription{
+			Asset:            asset.Margin,
+			Pairs:            []currency.Pair{currency.NewBTCUSDT()},
+			Channel:          subscription.OrderbookChannel,
+			QualifiedChannel: `{"channel":"books","instID":"BTC-USDT"}`,
+		})
+		require.NoError(t, err)
+		_, err = tracked.Websocket.Orderbook.GetOrderbook(currency.NewBTCUSDT(), asset.Margin)
+		require.ErrorIs(t, err, orderbook.ErrDepthNotFound)
+	})
+}
+
 func TestTrackEquivalentSubscriptionsOnExistingConnection(t *testing.T) {
 	newEquivalentSubs := func() (*subscription.Subscription, *subscription.Subscription) {
 		pair := currency.NewBTCUSDT()
