@@ -219,7 +219,7 @@ func TestTrackEquivalentSubscriptionsOnExistingConnection(t *testing.T) {
 		remaining, err := tracked.trackEquivalentSubscriptionsOnExistingConnection(t.Context(), existingConn, subscription.List{marginSub})
 		require.NoError(t, err)
 		require.Empty(t, remaining)
-		require.Empty(t, existingConn.requests, "equivalent re-enable should remain a logical track, not a new outbound subscribe")
+		require.Empty(t, existingConn.requests, "equivalent re-enable remains a logical track, not a new outbound subscribe")
 
 		marginBook, err := tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Margin)
 		require.NoError(t, err)
