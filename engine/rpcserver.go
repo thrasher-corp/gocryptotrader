@@ -3543,10 +3543,16 @@ func checkParamsWithAvailable(exchName string, e exchange.IBotExchange, a asset.
 		return nil
 	}
 	_, err := e.MatchSymbolWithAvailablePairs(p.String(), a, p.Delimiter != "")
-	if err != nil {
-		return fmt.Errorf("%v %w", p, errCurrencyPairInvalid)
+	if err == nil {
+		return nil
 	}
-	return nil
+
+	// Fallback for tests/exchanges where pair matcher has not yet been indexed.
+	availablePairs, getPairsErr := e.GetAvailablePairs(a)
+	if getPairsErr == nil && availablePairs.Contains(p, true) {
+		return nil
+	}
+	return fmt.Errorf("%v %w", p, errCurrencyPairInvalid)
 }
 
 func parseMultipleEvents(ret []*withdraw.Response) *gctrpc.WithdrawalEventsByExchangeResponse {

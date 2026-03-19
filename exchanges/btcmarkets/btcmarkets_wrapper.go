@@ -207,7 +207,7 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
-	pairs, err := e.FetchTradablePairs(ctx, a)
+	pairs, err := e.GetAvailablePairs(a)
 	if err != nil {
 		return err
 	}
@@ -248,7 +248,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		return nil, err
 	}
 	if err := ticker.ProcessTicker(&ticker.Price{
-		Pair:         tick.MarketID,
+		Pair:         p,
 		Last:         tick.LastPrice,
 		High:         tick.High24h,
 		Low:          tick.Low24h,
@@ -261,7 +261,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 	}); err != nil {
 		return nil, err
 	}
-	return ticker.GetTicker(e.Name, fPair, a)
+	return ticker.GetTicker(e.Name, p, a)
 }
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
