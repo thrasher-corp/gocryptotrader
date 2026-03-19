@@ -568,7 +568,31 @@ func (m *Manager) connect(ctx context.Context) error {
 			continue
 		}
 
-		for _, batchedSubs := range common.Batch(subs, m.MaxSubscriptionsPerConnection) {
+		reducedSubs, err := m.trackOnExistingConnection(ctx, ws, subs)
+		if err != nil {
+			subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err))
+			continue
+		}
+		if len(reducedSubs) != len(subs) {
+			trackedBeforeBatching := make(subscription.List, 0, len(subs)-len(reducedSubs))
+			for _, sub := range subs {
+				if !slices.Contains(reducedSubs, sub) {
+					trackedBeforeBatching = append(trackedBeforeBatching, sub)
+				}
+			}
+			if missing := ws.subscriptions.Missing(trackedBeforeBatching); len(missing) > 0 {
+				subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w: %w %q", i+1, ws.setup.URL, ErrSubscriptionFailure, ErrSubscriptionsNotAdded, missing))
+				continue
+			}
+		}
+		if len(reducedSubs) == 0 {
+			if m.verbose {
+				log.Debugf(log.WebsocketMgr, "%s websocket: [URL:%s] tracked logical subscriptions on existing connection. [Total Subs: %d] [Tracked: %d]", m.exchangeName, ws.setup.URL, len(subs), len(subs))
+			}
+			continue
+		}
+
+		for _, batchedSubs := range common.Batch(reducedSubs, m.MaxSubscriptionsPerConnection) {
 			toConnect, err := m.trackOnExistingConnection(ctx, ws, batchedSubs)
 			if err != nil {
 				subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err))

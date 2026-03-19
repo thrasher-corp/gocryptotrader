@@ -1344,6 +1344,134 @@ func TestConnectTracksOnExistingConnectionBeforeNewConnection(t *testing.T) {
 	assert.NotNil(t, m.connectionManager[0].subscriptions.Get(subB), "later tracked subscription should be tracked logically")
 }
 
+func TestConnectReducesTrackedSubscriptionsBeforeBatching(t *testing.T) {
+	t.Parallel()
+
+	m := NewManager()
+	m.exchangeName = "test"
+	m.useMultiConnectionManagement = true
+	m.MaxSubscriptionsPerConnection = 2
+	m.setEnabled(true)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+	}))
+	t.Cleanup(srv.Close)
+	t.Cleanup(func() { cleanupManagerMonitors(t, m) })
+
+	realA := &subscription.Subscription{Channel: "real-A"}
+	trackedA := &subscription.Subscription{Channel: "tracked-A"}
+	realB := &subscription.Subscription{Channel: "real-B"}
+	trackedB := &subscription.Subscription{Channel: "tracked-B"}
+	trackable := map[*subscription.Subscription]bool{
+		trackedA: true,
+		trackedB: true,
+	}
+
+	var connectorCalls int
+	var trackBatchLens []int
+	require.NoError(t, m.SetupNewConnection(&ConnectionSetup{
+		URL: "ws" + srv.URL[len("http"):] + "/ws",
+		Connector: func(ctx context.Context, conn Connection) error {
+			connectorCalls++
+			return conn.Dial(ctx, gws.DefaultDialer, nil, nil)
+		},
+		GenerateSubscriptions: func() (subscription.List, error) {
+			return subscription.List{realA, trackedA, realB, trackedB}, nil
+		},
+		Subscriber: func(_ context.Context, c Connection, s subscription.List) error {
+			return m.AddSuccessfulSubscriptions(c, s...)
+		},
+		TrackOnExistingConnection: func(_ context.Context, conn Connection, subs subscription.List) (subscription.List, error) {
+			trackBatchLens = append(trackBatchLens, len(subs))
+			remaining := make(subscription.List, 0, len(subs))
+			tracked := make(subscription.List, 0, len(subs))
+			for _, sub := range subs {
+				if !trackable[sub] {
+					remaining = append(remaining, sub)
+					continue
+				}
+				tracked = append(tracked, sub)
+			}
+			if len(tracked) == 0 {
+				return subs, nil
+			}
+			if err := m.AddSuccessfulSubscriptions(conn, tracked...); err != nil {
+				return nil, err
+			}
+			for _, sub := range tracked {
+				if err := conn.Subscriptions().Add(sub); err != nil {
+					return nil, err
+				}
+			}
+			return remaining, nil
+		},
+		Handler: func(context.Context, Connection, []byte) error { return nil },
+	}))
+
+	ws := m.connectionManager[0]
+	existingConn := &fakeConnection{subscriptions: subscription.NewStore()}
+	m.trackConnection(existingConn, ws)
+
+	require.NoError(t, m.Connect(t.Context()))
+
+	assert.Equal(t, 1, connectorCalls, "pre-batch tracking reduces the real subscriptions to a single connection")
+	assert.Equal(t, []int{4, 2}, trackBatchLens, "Connect reduces against existing connections before batching and still re-checks reduced batches")
+	assert.NotNil(t, ws.subscriptions.Get(trackedA), "tracked-A is tracked logically before batching")
+	assert.NotNil(t, ws.subscriptions.Get(trackedB), "tracked-B is tracked logically before batching")
+	assert.NotNil(t, ws.subscriptions.Get(realA), "real-A is tracked logically")
+	assert.NotNil(t, ws.subscriptions.Get(realB), "real-B is tracked logically")
+}
+
+func TestConnectPreBatchTrackedSubscriptionsRequireRecordedState(t *testing.T) {
+	t.Parallel()
+
+	m := NewManager()
+	m.exchangeName = "test"
+	m.useMultiConnectionManagement = true
+	m.MaxSubscriptionsPerConnection = 2
+	m.setEnabled(true)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+	}))
+	t.Cleanup(srv.Close)
+	t.Cleanup(func() { cleanupManagerMonitors(t, m) })
+
+	realSub := &subscription.Subscription{Channel: "real"}
+	trackedSub := &subscription.Subscription{Channel: "tracked"}
+	require.NoError(t, m.SetupNewConnection(&ConnectionSetup{
+		URL: "ws" + srv.URL[len("http"):] + "/ws",
+		Connector: func(ctx context.Context, conn Connection) error {
+			return conn.Dial(ctx, gws.DefaultDialer, nil, nil)
+		},
+		GenerateSubscriptions: func() (subscription.List, error) {
+			return subscription.List{realSub, trackedSub}, nil
+		},
+		Subscriber: func(_ context.Context, c Connection, s subscription.List) error {
+			return m.AddSuccessfulSubscriptions(c, s...)
+		},
+		TrackOnExistingConnection: func(_ context.Context, _ Connection, subs subscription.List) (subscription.List, error) {
+			remaining := make(subscription.List, 0, len(subs))
+			for _, sub := range subs {
+				if sub == trackedSub {
+					continue
+				}
+				remaining = append(remaining, sub)
+			}
+			return remaining, nil
+		},
+		Handler: func(context.Context, Connection, []byte) error { return nil },
+	}))
+
+	ws := m.connectionManager[0]
+	m.trackConnection(&fakeConnection{subscriptions: subscription.NewStore()}, ws)
+
+	err := m.Connect(t.Context())
+	require.ErrorIs(t, err, ErrSubscriptionFailure, "pre-batch tracked subscriptions must surface subscription failure when subscriptions are not recorded")
+	require.ErrorIs(t, err, ErrSubscriptionsNotAdded, "pre-batch tracked subscriptions must validate that tracked subscriptions were added")
+}
+
 func TestUnsubscribeFromConnection(t *testing.T) {
 	t.Parallel()
 	m := NewManager()
