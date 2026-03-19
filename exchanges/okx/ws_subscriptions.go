@@ -2,12 +2,14 @@ package okx
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
@@ -102,6 +104,30 @@ func inverseSpotMarginSubscription(sub *subscription.Subscription) (*subscriptio
 	return inverse, true
 }
 
+func (e *Exchange) refreshEquivalentOrderbookSnapshot(sub *subscription.Subscription) error {
+	if sub == nil || sub.Channel != subscription.OrderbookChannel || len(sub.Pairs) == 0 {
+		return nil
+	}
+
+	inverse, ok := inverseSpotMarginSubscription(sub)
+	if !ok {
+		return nil
+	}
+
+	book, err := e.Websocket.Orderbook.GetOrderbook(sub.Pairs[0], inverse.Asset)
+	if err != nil {
+		if errors.Is(err, orderbook.ErrDepthNotFound) {
+			return nil
+		}
+		return err
+	}
+
+	cloned := *book
+	cloned.Asset = sub.Asset
+	cloned.Pair = sub.Pairs[0]
+	return e.Websocket.Orderbook.LoadSnapshot(&cloned)
+}
+
 func (e *Exchange) trackEquivalentSubscriptionsOnExistingConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) (subscription.List, error) {
 	if conn == nil || len(subs) == 0 {
 		return subs, nil
@@ -127,6 +153,9 @@ func (e *Exchange) trackEquivalentSubscriptionsOnExistingConnection(ctx context.
 	connSubsStore := conn.Subscriptions()
 	for _, sub := range tracked {
 		if err := connSubsStore.Add(sub); err != nil {
+			return nil, err
+		}
+		if err := e.refreshEquivalentOrderbookSnapshot(sub); err != nil {
 			return nil, err
 		}
 	}

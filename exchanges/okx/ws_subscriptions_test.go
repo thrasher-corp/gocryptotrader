@@ -3,11 +3,13 @@ package okx
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -168,5 +170,62 @@ func TestTrackEquivalentSubscriptionsOnExistingConnection(t *testing.T) {
 		require.Len(t, remaining, 1, "spot sub must NOT be tracked on a connection that doesn't own the inverse")
 		require.Same(t, spotSub, remaining[0])
 		require.Empty(t, wrongConn.subscriptions.List(), "wrongConn must not gain any subscriptions")
+	})
+
+	t.Run("RefreshesOrderbookSnapshotWhenTrackingEquivalentReenable", func(t *testing.T) {
+		tracked := new(Exchange)
+		require.NoError(t, testexch.Setup(tracked))
+
+		pair := currency.NewBTCUSDT()
+		spotSub := &subscription.Subscription{
+			Asset:            asset.Spot,
+			Pairs:            []currency.Pair{pair},
+			Channel:          subscription.OrderbookChannel,
+			QualifiedChannel: `{"channel":"books","instID":"BTC-USDT"}`,
+		}
+		marginSub := &subscription.Subscription{
+			Asset:            asset.Margin,
+			Pairs:            []currency.Pair{pair},
+			Channel:          subscription.OrderbookChannel,
+			QualifiedChannel: spotSub.QualifiedChannel,
+		}
+
+		existingConn := &subscriptionRecorderConnection{subscriptions: subscription.NewStore()}
+		require.NoError(t, tracked.Websocket.AddSuccessfulSubscriptions(existingConn, spotSub))
+		require.NoError(t, existingConn.subscriptions.Add(spotSub))
+
+		spotSnapshot := &orderbook.Book{
+			Exchange:          tracked.Name,
+			Pair:              pair,
+			Asset:             asset.Spot,
+			LastUpdateID:      123,
+			LastUpdated:       time.Unix(123, 0),
+			Bids:              orderbook.Levels{{Price: 99, Amount: 2}},
+			Asks:              orderbook.Levels{{Price: 100, Amount: 1}},
+			ValidateOrderbook: tracked.ValidateOrderbook,
+		}
+		require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(spotSnapshot))
+		require.NoError(t, tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			Exchange:          tracked.Name,
+			Pair:              pair,
+			Asset:             asset.Margin,
+			LastUpdateID:      7,
+			LastUpdated:       time.Unix(7, 0),
+			Bids:              orderbook.Levels{{Price: 1, Amount: 1}},
+			Asks:              orderbook.Levels{{Price: 2, Amount: 1}},
+			ValidateOrderbook: tracked.ValidateOrderbook,
+		}))
+
+		remaining, err := tracked.trackEquivalentSubscriptionsOnExistingConnection(t.Context(), existingConn, subscription.List{marginSub})
+		require.NoError(t, err)
+		require.Empty(t, remaining)
+		require.Empty(t, existingConn.requests, "equivalent re-enable should remain a logical track, not a new outbound subscribe")
+
+		marginBook, err := tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Margin)
+		require.NoError(t, err)
+		require.Equal(t, spotSnapshot.LastUpdateID, marginBook.LastUpdateID)
+		require.Equal(t, spotSnapshot.LastUpdated, marginBook.LastUpdated)
+		require.Equal(t, spotSnapshot.Bids, marginBook.Bids)
+		require.Equal(t, spotSnapshot.Asks, marginBook.Asks)
 	})
 }
