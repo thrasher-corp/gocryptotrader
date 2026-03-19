@@ -27,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -1536,97 +1537,130 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
-	var orders []order.Detail
-	format, err := e.GetPairFormat(req.AssetType, true)
-	if err != nil {
-		return nil, err
-	}
+	var resp []order.Detail
+
 	switch req.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
-		for x := range req.Pairs {
-			fPair := req.Pairs[x].Format(format)
-			spotOrders, err := e.GetMySpotTradingHistory(ctx, fPair, req.FromOrderID, 0, 0, req.AssetType == asset.CrossMargin, req.StartTime, req.EndTime)
+		format, err := e.GetPairFormat(req.AssetType, true)
+		if err != nil {
+			return nil, err
+		}
+		pairs := req.Pairs
+		if len(pairs) == 0 {
+			pairs = currency.Pairs{currency.EMPTYPAIR}
+		}
+		for i := range pairs {
+			fp := pairs[i]
+			if fp.IsPopulated() {
+				fp = pairs[i].Format(format)
+			}
+			o, err := e.GetMySpotTradingHistory(ctx, fp, req.FromOrderID, 0, 1000, req.StartTime, req.EndTime)
 			if err != nil {
 				return nil, err
 			}
-			for o := range spotOrders {
-				var side order.Side
-				side, err = order.StringToOrderSide(spotOrders[o].Side)
+			for j := range o {
+				fp, err = e.MatchSymbolWithAvailablePairs(o[j].CurrencyPair.String(), req.AssetType, true)
 				if err != nil {
 					return nil, err
 				}
-				detail := order.Detail{
-					OrderID:        spotOrders[o].OrderID,
-					Amount:         spotOrders[o].Amount.Float64(),
-					ExecutedAmount: spotOrders[o].Amount.Float64(),
-					Price:          spotOrders[o].Price.Float64(),
-					Date:           spotOrders[o].CreateTime.Time(),
+				side, err := order.StringToOrderSide(o[j].Side)
+				if err != nil {
+					return nil, err
+				}
+				od := order.Detail{
+					OrderID:        o[j].OrderID,
+					Amount:         o[j].Amount.Float64(),
+					ExecutedAmount: o[j].Amount.Float64(),
+					Price:          o[j].Price.Float64(),
+					Date:           o[j].CreateTime.Time(),
 					Side:           side,
 					Exchange:       e.Name,
-					Pair:           fPair,
+					Pair:           fp,
 					AssetType:      req.AssetType,
-					Fee:            spotOrders[o].Fee.Float64(),
-					FeeAsset:       currency.NewCode(spotOrders[o].FeeCurrency),
+					Fee:            o[j].Fee.Float64(),
+					FeeAsset:       o[j].FeeCurrency,
 				}
-				detail.InferCostsAndTimes()
-				orders = append(orders, detail)
+				od.InferCostsAndTimes()
+				resp = append(resp, od)
 			}
 		}
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
-		for x := range req.Pairs {
-			fPair := req.Pairs[x].Format(format)
-			settle, err := getSettlementCurrency(fPair, req.AssetType)
+		format, err := e.GetPairFormat(req.AssetType, true)
+		if err != nil {
+			return nil, err
+		}
+		pairs := req.Pairs
+		if len(pairs) == 0 {
+			pairs = currency.Pairs{currency.EMPTYPAIR}
+		}
+		for i := range pairs {
+			fp := pairs[i]
+			if fp.IsPopulated() {
+				fp = pairs[i].Format(format)
+			}
+			settle, err := getSettlementCurrency(fp, req.AssetType)
 			if err != nil {
 				return nil, err
 			}
-			var futuresOrder []TradingHistoryItem
+			var o []TradingHistoryItem
 			if req.AssetType == asset.DeliveryFutures {
-				futuresOrder, err = e.GetMyDeliveryTradingHistory(ctx, settle, req.FromOrderID, fPair, 0, 0, 0, "")
+				o, err = e.GetMyDeliveryTradingHistory(ctx, settle, req.FromOrderID, fp, 0, 0, 0, "")
 			} else {
-				futuresOrder, err = e.GetMyFuturesTradingHistory(ctx, settle, "", req.FromOrderID, fPair, 0, 0, 0)
+				o, err = e.GetMyFuturesTradingHistory(ctx, settle, "", req.FromOrderID, fp, 0, 0, 0)
 			}
 			if err != nil {
 				return nil, err
 			}
-			for o := range futuresOrder {
-				detail := order.Detail{
-					OrderID:   strconv.FormatInt(futuresOrder[o].ID, 10),
-					Amount:    futuresOrder[o].Size.Float64(),
-					Price:     futuresOrder[o].Price.Float64(),
-					Date:      futuresOrder[o].CreateTime.Time(),
+			for j := range o {
+				fp, err = e.MatchSymbolWithAvailablePairs(o[j].Contract, req.AssetType, true)
+				if err != nil {
+					return nil, err
+				}
+				od := order.Detail{
+					OrderID:   strconv.FormatInt(o[j].ID, 10),
+					Amount:    o[j].Size.Float64(),
+					Price:     o[j].Price.Float64(),
+					Date:      o[j].CreateTime.Time(),
 					Exchange:  e.Name,
-					Pair:      fPair,
+					Pair:      fp,
 					AssetType: req.AssetType,
 				}
-				detail.InferCostsAndTimes()
-				orders = append(orders, detail)
+				od.InferCostsAndTimes()
+				resp = append(resp, od)
 			}
 		}
 	case asset.Options:
-		for x := range req.Pairs {
-			fPair := req.Pairs[x].Format(format)
-			optionOrders, err := e.GetMyOptionsTradingHistory(ctx, fPair.String(), fPair.Upper(), 0, 0, req.StartTime, req.EndTime)
+		if len(req.Pairs) == 0 {
+			return nil, currency.ErrCurrencyPairsEmpty
+		}
+		format, err := e.GetPairFormat(req.AssetType, true)
+		if err != nil {
+			return nil, err
+		}
+		for i := range req.Pairs {
+			fp := req.Pairs[i].Format(format)
+			o, err := e.GetMyOptionsTradingHistory(ctx, fp.String(), fp.Upper(), 0, 0, req.StartTime, req.EndTime)
 			if err != nil {
 				return nil, err
 			}
-			for o := range optionOrders {
-				detail := order.Detail{
-					OrderID:   strconv.FormatInt(optionOrders[o].OrderID, 10),
-					Amount:    optionOrders[o].Size.Float64(),
-					Price:     optionOrders[o].Price.Float64(),
-					Date:      optionOrders[o].CreateTime.Time(),
+			for j := range o {
+				od := order.Detail{
+					OrderID:   strconv.FormatInt(o[j].OrderID, 10),
+					Amount:    o[j].Size.Float64(),
+					Price:     o[j].Price.Float64(),
+					Date:      o[j].CreateTime.Time(),
 					Exchange:  e.Name,
-					Pair:      fPair,
+					Pair:      fp,
 					AssetType: req.AssetType,
 				}
-				detail.InferCostsAndTimes()
-				orders = append(orders, detail)
+				od.InferCostsAndTimes()
+				resp = append(resp, od)
 			}
 		}
 	default:
 		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, req.AssetType)
 	}
-	return req.Filter(e.Name, orders), nil
+	return req.Filter(e.Name, resp), nil
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
@@ -2216,6 +2250,53 @@ func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, co
 		}
 	}
 	return resp
+}
+
+// SetLeverage sets the account's initial leverage for the asset type and pair
+func (e *Exchange) SetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, marginType margin.Type, amount float64, _ order.Side) error {
+	switch item {
+	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
+		if pair.IsEmpty() {
+			return currency.ErrCurrencyPairEmpty
+		}
+		if amount <= 0 {
+			return fmt.Errorf("%w: %f", errInvalidLeverage, amount)
+		}
+		fPair, err := e.FormatExchangeCurrency(pair, item)
+		if err != nil {
+			return err
+		}
+		settle, err := getSettlementCurrency(fPair, item)
+		if err != nil {
+			return err
+		}
+		if item == asset.DeliveryFutures {
+			switch marginType {
+			case margin.Isolated, margin.Unset:
+				_, err = e.UpdateDeliveryPositionLeverage(ctx, settle, fPair, amount)
+				return err
+			default:
+				return fmt.Errorf("%w %v", margin.ErrMarginTypeUnsupported, marginType)
+			}
+		}
+
+		leverage := amount
+		crossLeverageLimit := 0.0
+		switch marginType {
+		case margin.Multi:
+			leverage = 0
+			crossLeverageLimit = amount
+		case margin.Isolated, margin.Unset:
+			// defaults already set
+		default:
+			return fmt.Errorf("%w %v", margin.ErrMarginTypeUnsupported, marginType)
+		}
+
+		_, err = e.UpdateFuturesPositionLeverage(ctx, settle, fPair, leverage, crossLeverageLimit)
+		return err
+	default:
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
 }
 
 // IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future

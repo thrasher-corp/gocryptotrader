@@ -226,7 +226,7 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 		}
 	}
 
-	outbound := make([]WsInput, 0, len(channelsToSubscribe))
+	outbound := make([]WsInput, len(channelsToSubscribe))
 	for i := range channelsToSubscribe {
 		if len(channelsToSubscribe[i].Pairs) != 1 {
 			return nil, subscription.ErrNotSinglePair
@@ -311,14 +311,14 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 			}
 			params[0] = "ob." + params[0] + "." + strconv.FormatUint(uintLvl, 10)
 		}
-		outbound = append(outbound, WsInput{
+		outbound[i] = WsInput{
 			ID:      e.MessageSequence(),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
 			Payload: params,
 			Auth:    auth,
 			Time:    timestamp.Unix(),
-		})
+		}
 	}
 	return outbound, nil
 }
