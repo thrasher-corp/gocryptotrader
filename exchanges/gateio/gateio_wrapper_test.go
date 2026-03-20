@@ -3,15 +3,18 @@ package gateio
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func TestCancelAllOrders(t *testing.T) {
@@ -73,6 +76,57 @@ func TestCancelAllOrders(t *testing.T) {
 			assert.NoError(t, err)
 		})
 	}
+}
+
+func TestOpenInterestFromStats(t *testing.T) {
+	t.Parallel()
+
+	_, err := openInterestFromStats(nil)
+	require.ErrorIs(t, err, errNoValidResponseFromServer)
+
+	openInterest, err := openInterestFromStats([]ContractStat{
+		{Time: types.Time(time.Unix(100, 0)), OpenInterest: types.Number(2)},
+		{Time: types.Time(time.Unix(300, 0)), OpenInterest: types.Number(4)},
+		{Time: types.Time(time.Unix(200, 0)), OpenInterest: types.Number(3)},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 4.0, openInterest)
+}
+
+func TestUseOpenInterestStats(t *testing.T) {
+	t.Parallel()
+
+	assert.False(t, useOpenInterestStats(nil, asset.USDTMarginedFutures))
+	assert.False(t, useOpenInterestStats([]key.PairAsset{{Asset: asset.CoinMarginedFutures}, {Asset: asset.CoinMarginedFutures}}, asset.CoinMarginedFutures))
+	assert.False(t, useOpenInterestStats([]key.PairAsset{{Asset: asset.CoinMarginedFutures}}, asset.USDTMarginedFutures))
+	assert.False(t, useOpenInterestStats([]key.PairAsset{{Asset: asset.DeliveryFutures}}, asset.DeliveryFutures))
+	assert.True(t, useOpenInterestStats([]key.PairAsset{{Asset: asset.CoinMarginedFutures}}, asset.CoinMarginedFutures))
+	assert.True(t, useOpenInterestStats([]key.PairAsset{{Asset: asset.USDTMarginedFutures}}, asset.USDTMarginedFutures))
+}
+
+func TestGetRequestedOpenInterestPair(t *testing.T) {
+	t.Parallel()
+
+	pair := getPair(t, asset.DeliveryFutures)
+	requested, err := getRequestedOpenInterestPair(e, []key.PairAsset{{
+		Base:  pair.Base.Item,
+		Quote: pair.Quote.Item,
+		Asset: asset.DeliveryFutures,
+	}}, asset.DeliveryFutures)
+	require.NoError(t, err)
+	assert.Equal(t, pair, requested)
+
+	requested, err = getRequestedOpenInterestPair(e, []key.PairAsset{{
+		Base:  pair.Base.Item,
+		Quote: pair.Quote.Item,
+		Asset: asset.DeliveryFutures,
+	}}, asset.CoinMarginedFutures)
+	require.NoError(t, err)
+	assert.Equal(t, currency.EMPTYPAIR, requested)
+
+	requested, err = getRequestedOpenInterestPair(e, []key.PairAsset{{Asset: asset.DeliveryFutures}, {Asset: asset.DeliveryFutures}}, asset.DeliveryFutures)
+	require.NoError(t, err)
+	assert.Equal(t, currency.EMPTYPAIR, requested)
 }
 
 func TestMessageID(t *testing.T) {
