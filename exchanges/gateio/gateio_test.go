@@ -2891,7 +2891,21 @@ func TestGetOpenInterest(t *testing.T) {
 		key.PairAsset{Base: usdtPair.Base.Item, Quote: usdtPair.Quote.Item, Asset: asset.USDTMarginedFutures},
 	)
 	assert.NoError(t, err, "GetOpenInterest should not error for multiple explicit perpetual pairs")
-	require.Len(t, resp, 2, "GetOpenInterest returns the requested perpetual pairs")
+	require.Len(t, resp, 2, "GetOpenInterest returns exactly the requested perpetual pairs")
+
+	expected := map[asset.Item]currency.Pair{
+		asset.CoinMarginedFutures: coinPair,
+		asset.USDTMarginedFutures: usdtPair,
+	}
+	found := make(map[asset.Item]bool, len(expected))
+	for _, oi := range resp {
+		expPair, ok := expected[oi.Key.Asset]
+		require.Truef(t, ok, "unexpected asset in OpenInterest response: %v", oi.Key.Asset)
+		assert.Truef(t, expPair.Equal(oi.Key.Pair()), "OpenInterest pair mismatch for asset %v", oi.Key.Asset)
+		assert.Positivef(t, oi.OpenInterest, "OpenInterest should return positive open interest for asset %v", oi.Key.Asset)
+		found[oi.Key.Asset] = true
+	}
+	require.Len(t, found, len(expected), "OpenInterest response missing expected assets")
 
 	resp, err = e.GetOpenInterest(t.Context())
 	assert.NoError(t, err, "GetOpenInterest should not error")

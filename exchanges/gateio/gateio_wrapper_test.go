@@ -104,6 +104,31 @@ func TestUseOpenInterestStats(t *testing.T) {
 	assert.True(t, useOpenInterestStats([]key.PairAsset{{Asset: asset.USDTMarginedFutures}}, asset.USDTMarginedFutures))
 }
 
+func TestGetRequestedOpenInterestPair(t *testing.T) {
+	t.Parallel()
+
+	pair := getPair(t, asset.DeliveryFutures)
+	requested, err := getRequestedOpenInterestPair(e, []key.PairAsset{{
+		Base:  pair.Base.Item,
+		Quote: pair.Quote.Item,
+		Asset: asset.DeliveryFutures,
+	}}, asset.DeliveryFutures)
+	require.NoError(t, err)
+	assert.Equal(t, pair, requested)
+
+	requested, err = getRequestedOpenInterestPair(e, []key.PairAsset{{
+		Base:  pair.Base.Item,
+		Quote: pair.Quote.Item,
+		Asset: asset.DeliveryFutures,
+	}}, asset.CoinMarginedFutures)
+	require.NoError(t, err)
+	assert.Equal(t, currency.EMPTYPAIR, requested)
+
+	requested, err = getRequestedOpenInterestPair(e, []key.PairAsset{{Asset: asset.DeliveryFutures}, {Asset: asset.DeliveryFutures}}, asset.DeliveryFutures)
+	require.NoError(t, err)
+	assert.Equal(t, currency.EMPTYPAIR, requested)
+}
+
 func TestMessageID(t *testing.T) {
 	t.Parallel()
 	id := e.MessageID()

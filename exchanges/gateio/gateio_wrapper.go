@@ -2196,11 +2196,9 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) (
 	}
 	for _, a := range assets {
 		useStats := useOpenInterestStats(keys, a)
-		var requestedPair currency.Pair
-		if useStats {
-			if requestedPair, errs = e.MatchSymbolWithAvailablePairs(keys[0].Pair().String(), a, false); errs != nil {
-				return nil, errs
-			}
+		requestedPair, err := getRequestedOpenInterestPair(e, keys, a)
+		if err != nil {
+			return nil, err
 		}
 		contracts, err := e.getOpenInterestContracts(ctx, a, requestedPair)
 		if err != nil {
@@ -2293,6 +2291,13 @@ func openInterestFromStats(stats []ContractStat) (float64, error) {
 
 func useOpenInterestStats(keys []key.PairAsset, a asset.Item) bool {
 	return a != asset.DeliveryFutures && len(keys) == 1 && keys[0].Asset == a
+}
+
+func getRequestedOpenInterestPair(e *Exchange, keys []key.PairAsset, a asset.Item) (currency.Pair, error) {
+	if len(keys) != 1 || keys[0].Asset != a {
+		return currency.EMPTYPAIR, nil
+	}
+	return e.MatchSymbolWithAvailablePairs(keys[0].Pair().String(), a, false)
 }
 
 func (e *Exchange) getOpenInterestFromStats(ctx context.Context, a asset.Item, p currency.Pair) (float64, error) {
