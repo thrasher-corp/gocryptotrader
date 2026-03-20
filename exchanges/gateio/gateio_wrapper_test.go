@@ -103,14 +103,30 @@ func TestFetchOrderbook(t *testing.T) {
 	require.NoError(t, err, "GetAvailablePairs must not error")
 	require.NotEmpty(t, availMargin, "margin pairs must not be empty")
 
+	availSpot, err := e.GetAvailablePairs(asset.Spot)
+	require.NoError(t, err, "GetAvailablePairs must not error")
+	require.NotEmpty(t, availSpot, "spot pairs must not be empty")
+
 	enabledMargin, err := e.GetEnabledPairs(asset.Margin)
 	require.NoError(t, err, "GetEnabledPairs must not error")
 
 	marginPair := availMargin[0]
+	marginPairNotInSpot := currency.EMPTYPAIR
 	for _, candidate := range enabledMargin {
 		if availMargin.Contains(candidate, true) {
 			marginPair = candidate
-			break
+			if !availSpot.Contains(candidate, true) {
+				marginPairNotInSpot = candidate
+				break
+			}
+		}
+	}
+	if marginPairNotInSpot.IsEmpty() {
+		for _, candidate := range availMargin {
+			if !availSpot.Contains(candidate, true) {
+				marginPairNotInSpot = candidate
+				break
+			}
 		}
 	}
 
