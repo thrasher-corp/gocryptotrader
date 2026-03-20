@@ -913,10 +913,10 @@ func (e *Exchange) wsProcessSubStatus(resp []byte) {
 
 	keySub := &subscription.Subscription{Channel: c}
 	lookupKey := any(subscription.ChannelKey{Subscription: keySub})
-	pName, err := jsonparser.GetUnsafeString(resp, "pair")
-	if err == nil {
-		pair, err := currency.NewPairFromString(pName)
-		if err != nil {
+	if pName, pErr := jsonparser.GetUnsafeString(resp, "pair"); pErr == nil {
+		pair, pErr := currency.NewPairFromString(pName)
+		if pErr != nil {
+			log.Errorf(log.ExchangeSys, "%s error parsing websocket subscription pair %q: %s from message: %s", e.Name, pName, pErr, resp)
 			return
 		}
 		keySub.Pairs = currency.Pairs{pair}
