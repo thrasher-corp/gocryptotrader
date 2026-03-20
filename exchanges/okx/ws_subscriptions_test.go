@@ -125,6 +125,40 @@ func (c *subscriptionRecorderConnection) SendJSONMessage(_ context.Context, _ re
 
 func (c *subscriptionRecorderConnection) Subscriptions() *subscription.Store { return c.subscriptions }
 
+func TestInverseSpotMarginSubscription(t *testing.T) {
+	t.Parallel()
+
+	pair := currency.NewBTCUSDT()
+	for _, tc := range []struct {
+		name     string
+		sub      *subscription.Subscription
+		expOK    bool
+		expAsset asset.Item
+	}{
+		{name: "nil", sub: nil, expOK: false},
+		{name: "spot to margin", sub: &subscription.Subscription{Asset: asset.Spot, Pairs: []currency.Pair{pair}, Channel: subscription.TickerChannel}, expOK: true, expAsset: asset.Margin},
+		{name: "margin to spot", sub: &subscription.Subscription{Asset: asset.Margin, Pairs: []currency.Pair{pair}, Channel: subscription.TickerChannel}, expOK: true, expAsset: asset.Spot},
+		{name: "non spot margin", sub: &subscription.Subscription{Asset: asset.USDTMarginedFutures, Pairs: []currency.Pair{pair}, Channel: subscription.TickerChannel}, expOK: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			inverse, ok := inverseSpotMarginSubscription(tc.sub)
+			require.Equal(t, tc.expOK, ok)
+			if !tc.expOK {
+				require.Nil(t, inverse)
+				return
+			}
+			require.NotNil(t, inverse)
+			require.NotSame(t, tc.sub, inverse)
+			require.Equal(t, tc.expAsset, inverse.Asset)
+			require.Equal(t, tc.sub.Channel, inverse.Channel)
+			require.Equal(t, tc.sub.Pairs, inverse.Pairs)
+			require.NotEqual(t, tc.sub.Asset, inverse.Asset)
+		})
+	}
+}
+
 func TestRefreshEquivalentOrderbookSnapshot(t *testing.T) {
 	t.Run("CopiesInverseSnapshotToEquivalentAsset", func(t *testing.T) {
 		tracked := new(Exchange)
