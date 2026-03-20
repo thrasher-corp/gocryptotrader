@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"os"
 	"slices"
 	"strings"
@@ -13,7 +14,82 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/bitstamp"
+	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 )
+
+func stubStartupNTPOffsetChecker(t *testing.T, fn func(context.Context, []string) (time.Duration, error)) {
+	t.Helper()
+	original := startupNTPOffsetChecker
+	startupNTPOffsetChecker = fn
+	t.Cleanup(func() {
+		startupNTPOffsetChecker = original
+	})
+}
+
+func testStartupNTPConfig(level int) *config.Config {
+	allowedDifference := time.Second
+	allowedNegativeDifference := time.Second
+	loggingEnabled := false
+	return &config.Config{
+		Logging: gctlog.Config{Enabled: &loggingEnabled},
+		NTPClient: config.NTPClientConfig{
+			Level:                     level,
+			Pool:                      []string{"ntp.invalid:123"},
+			AllowedDifference:         &allowedDifference,
+			AllowedNegativeDifference: &allowedNegativeDifference,
+		},
+	}
+}
+
+func TestHandleStartupNTPPolicy(t *testing.T) {
+	t.Run("query failure should warn and continue", func(t *testing.T) {
+		bot := &Engine{
+			Config: testStartupNTPConfig(0),
+			Settings: Settings{
+				CoreSettings: CoreSettings{EnableNTPClient: true},
+			},
+		}
+		stubStartupNTPOffsetChecker(t, func(context.Context, []string) (time.Duration, error) {
+			return 0, assert.AnError
+		})
+
+		err := bot.handleStartupNTPPolicy(strings.NewReader(""))
+		require.NoError(t, err, "handleStartupNTPPolicy must not error when startup NTP querying fails")
+		assert.Equal(t, 0, bot.Config.NTPClient.Level, "NTP level should remain unchanged when querying fails")
+	})
+
+	t.Run("offset within threshold should not prompt", func(t *testing.T) {
+		bot := &Engine{
+			Config: testStartupNTPConfig(0),
+			Settings: Settings{
+				CoreSettings: CoreSettings{EnableNTPClient: true},
+			},
+		}
+		stubStartupNTPOffsetChecker(t, func(context.Context, []string) (time.Duration, error) {
+			return 500 * time.Millisecond, nil
+		})
+
+		err := bot.handleStartupNTPPolicy(strings.NewReader(""))
+		require.NoError(t, err, "handleStartupNTPPolicy must not error when the offset is within threshold")
+		assert.Equal(t, 0, bot.Config.NTPClient.Level, "NTP level should remain unchanged when the offset is within threshold")
+	})
+
+	t.Run("offset outside threshold should prompt and update config", func(t *testing.T) {
+		bot := &Engine{
+			Config: testStartupNTPConfig(0),
+			Settings: Settings{
+				CoreSettings: CoreSettings{EnableNTPClient: true},
+			},
+		}
+		stubStartupNTPOffsetChecker(t, func(context.Context, []string) (time.Duration, error) {
+			return 2 * time.Second, nil
+		})
+
+		err := bot.handleStartupNTPPolicy(strings.NewReader("w\n"))
+		require.NoError(t, err, "handleStartupNTPPolicy must not error when prompting for out-of-threshold offsets")
+		assert.Equal(t, 1, bot.Config.NTPClient.Level, "NTP level should update after the startup prompt response")
+	})
+}
 
 // blockedCIExchanges are exchanges that are not able to be tested on CI
 var blockedCIExchanges = []string{

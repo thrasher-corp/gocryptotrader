@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -57,6 +58,8 @@ type Engine struct {
 // Bot is a happy global engine to allow various areas of the application
 // to access its setup services and functions
 var Bot *Engine
+
+var startupNTPOffsetChecker = checkNTPOffset
 
 // New starts a new engine
 func New() (*Engine, error) {
@@ -332,29 +335,8 @@ func (bot *Engine) Start() error {
 	}
 
 	if bot.Settings.EnableNTPClient {
-		if bot.Config.NTPClient.Level == 0 {
-			// Check NTP config and ensure pools are configured
-			bot.Config.CheckNTPConfig()
-
-			// Perform actual NTP check before prompting user
-			offset, err := CheckNTPOffset(context.Background(), bot.Config.NTPClient.Pool)
-			if err != nil {
-				gctlog.Warnf(gctlog.TimeMgr, "Unable to check NTP time: %v", err)
-			} else {
-				// Prompt user if time is actually out of sync
-				allowedDiff := *bot.Config.NTPClient.AllowedDifference
-				allowedNegDiff := -*bot.Config.NTPClient.AllowedNegativeDifference
-				if offset > allowedDiff || offset < allowedNegDiff {
-					gctlog.Warnf(gctlog.TimeMgr, "System time offset detected: %v (allowed: +%v / %v)", offset, allowedDiff, allowedNegDiff)
-					responseMessage, err := bot.Config.SetNTPCheck(os.Stdin)
-					if err != nil {
-						return fmt.Errorf("unable to set NTP check: %w", err)
-					}
-					gctlog.Infoln(gctlog.TimeMgr, responseMessage)
-				} else {
-					gctlog.Debugf(gctlog.TimeMgr, "System time is in sync (offset: %v)", offset)
-				}
-			}
+		if err := bot.handleStartupNTPPolicy(os.Stdin); err != nil {
+			return err
 		}
 		if n, err := setupNTPManager(&bot.Config.NTPClient, *bot.Config.Logging.Enabled); err != nil {
 			gctlog.Errorf(gctlog.Global, "NTP manager unable to start: %s", err)
@@ -572,6 +554,37 @@ func (bot *Engine) Start() error {
 		}
 	}
 
+	return nil
+}
+
+// handleStartupNTPPolicy keeps startup NTP prompting policy separate from the
+// transport details used to measure the offset.
+func (bot *Engine) handleStartupNTPPolicy(input io.Reader) error {
+	if bot == nil || bot.Config == nil || !bot.Settings.EnableNTPClient || bot.Config.NTPClient.Level != 0 {
+		return nil
+	}
+
+	bot.Config.CheckNTPConfig()
+
+	offset, err := startupNTPOffsetChecker(context.Background(), bot.Config.NTPClient.Pool)
+	if err != nil {
+		gctlog.Warnf(gctlog.TimeMgr, "Unable to check NTP time during startup: %v", err)
+		return nil
+	}
+
+	allowedDiff := *bot.Config.NTPClient.AllowedDifference
+	allowedNegDiff := -*bot.Config.NTPClient.AllowedNegativeDifference
+	if offset <= allowedDiff && offset >= allowedNegDiff {
+		gctlog.Debugf(gctlog.TimeMgr, "System time is in sync (offset: %v)", offset)
+		return nil
+	}
+
+	gctlog.Warnf(gctlog.TimeMgr, "System time offset detected: %v (allowed: +%v / %v)", offset, allowedDiff, allowedNegDiff)
+	responseMessage, err := bot.Config.SetNTPCheck(input)
+	if err != nil {
+		return fmt.Errorf("unable to set NTP check: %w", err)
+	}
+	gctlog.Infoln(gctlog.TimeMgr, responseMessage)
 	return nil
 }
 
