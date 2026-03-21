@@ -586,3 +586,39 @@ type UTransactionHistoryDownloadLink struct {
 	IsExpired           any    `json:"isExpired"`
 	S3Link              any    `json:"s3Link"`
 }
+
+// WSBalanceAndPositionUpdate represents usd margined account balance update stream data
+type WSBalanceAndPositionUpdate struct {
+	EventType   string      `json:"e"`
+	EventTime   types.Time  `json:"E"`
+	Transaction types.Time  `json:"T"`
+	UpdateData  *UpdateData `json:"a"`
+}
+
+// UpdateData re[resents a balance and position update detail
+type UpdateData struct {
+	ReasonType string               `json:"m"`
+	Balances   []*WSAccountBalance  `json:"B"`
+	Positions  []*WSAccountPosition `json:"P"`
+}
+
+// WSAccountBalance represents an account balance detail
+type WSAccountBalance struct {
+	Asset         currency.Code `json:"a"`
+	WalletBalance types.Number  `json:"wb"`
+	CrossWallet   types.Number  `json:"cw"`
+	BalanceChange types.Number  `json:"bc"`
+}
+
+// WSAccountPosition represents an account position
+type WSAccountPosition struct {
+	Symbol              currency.Pair `json:"s"`
+	PositionAmount      types.Number  `json:"pa"`
+	EntryPrice          types.Number  `json:"ep"`
+	BreakevenPrice      types.Number  `json:"bep"`
+	AccumulatedRealized types.Number  `json:"cr,omitempty"`
+	UnrealizedPNL       types.Number  `json:"up"`
+	MarginType          string        `json:"mt"`
+	IsolatedWallet      types.Number  `json:"iw"`
+	PositionSide        string        `json:"ps"`
+}

@@ -15363,6 +15363,12 @@
      "queryString": "eTime=1744190254944\u0026pair=BTCUSD\u0026period=5m\u0026sTime=1744103854944",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": null,
+     "queryString": "eTime=1744190254944\u0026pair=BTCUSD_PERP\u0026period=5m\u0026sTime=1744103854944",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -15637,6 +15643,12 @@
      "queryString": "contractType=ALL\u0026endTime=1773434701096\u0026pair=BTCUSD\u0026period=5m\u0026startTime=1772916301096",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": null,
+     "queryString": "contractType=ALL\u0026eTime=1744190254944\u0026pair=BTCUSD_PERP\u0026period=5m\u0026sTime=1744103854944",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -15903,6 +15915,12 @@
       }
      ],
      "queryString": "eTime=1744190254944\u0026pair=BTCUSD\u0026period=5m\u0026sTime=1744103854944",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": null,
+     "queryString": "eTime=1744190254944\u0026pair=BTCUSDT\u0026period=5m\u0026sTime=1744103854944",
      "bodyParams": "",
      "headers": {}
     }

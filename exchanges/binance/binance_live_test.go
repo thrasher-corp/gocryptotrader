@@ -55,6 +55,11 @@ func TestMain(m *testing.M) {
 	if err := e.populateTradablePairs(); err != nil {
 		log.Fatal(err)
 	}
+	spotTradablePair = currency.NewPair(currency.NewCode("BTC"), currency.NewCode("USDT"))
+	marginTradablePair = currency.NewPair(currency.NewCode("BTC"), currency.NewCode("USDT"))
+	usdtmTradablePair = currency.NewPair(currency.NewCode("BTC"), currency.NewCode("USDT"))
+	coinmTradablePair = currency.NewPair(currency.NewCode("BTC"), currency.NewCode("USD_PERP"))
+	optionsTradablePair = currency.Pair{Base: currency.NewCode("BTC"), Quote: currency.NewCode("260327-100000-C"), Delimiter: currency.DashDelimiter}
 
 	assetToTradablePairMap = map[asset.Item]currency.Pair{
 		asset.Spot:                spotTradablePair,
@@ -125,5 +130,6 @@ func (e *Exchange) populateTradablePairs() error {
 		return fmt.Errorf("%w for %v", currency.ErrCurrencyPairsEmpty, asset.Options)
 	}
 	optionsTradablePair, err = e.FormatExchangeCurrency(tradablePairs[0], asset.Options)
+	e.HTTPRecording = true
 	return err
 }

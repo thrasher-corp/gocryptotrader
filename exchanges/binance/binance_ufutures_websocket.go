@@ -11,6 +11,7 @@ import (
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -109,6 +110,8 @@ func (e *Exchange) wsHandleFuturesData(ctx context.Context, conn websocket.Conne
 		stream = extractStreamInfo(result.Stream)
 	}
 	switch stream {
+	case "ACCOUNT_UPDATE":
+		return e.processBalanceAndPositionUpdate(ctx, result.Data, asset.USDTMarginedFutures)
 	case assetIndexAllChan, "assetIndex":
 		return e.processMultiAssetModeAssetIndexes(ctx, result.Data, true)
 	case contractInfoAllChan:
@@ -139,6 +142,31 @@ func (e *Exchange) wsHandleFuturesData(ctx context.Context, conn websocket.Conne
 		return e.processContinuousKlineUpdate(ctx, result.Data, asset.USDTMarginedFutures)
 	}
 	return fmt.Errorf("unhandled stream data %s", string(respRaw))
+}
+
+func (e *Exchange) processBalanceAndPositionUpdate(ctx context.Context, respRaw []byte, assetType asset.Item) error {
+	var resp *WSBalanceAndPositionUpdate
+	if err := json.Unmarshal(respRaw, &resp); err != nil {
+		return err
+	}
+	subAccts := accounts.SubAccounts{}
+	for _, b := range resp.UpdateData.Balances {
+		subAcct := accounts.NewSubAccount(assetType, b.BalanceChange.String())
+		subAcct.Balances.Set(b.Asset, accounts.Balance{
+			Currency:  b.Asset,
+			Hold:      b.WalletBalance.Float64(),
+			Free:      b.WalletBalance.Float64(),
+			UpdatedAt: resp.Transaction.Time(),
+		})
+		subAccts = subAccts.Merge(subAcct)
+	}
+	if err := e.Websocket.DataHandler.Send(ctx, resp.UpdateData.Positions); err != nil {
+		return err
+	}
+	if err := e.Accounts.Save(ctx, subAccts, true); err != nil {
+		return err
+	}
+	return e.Websocket.DataHandler.Send(ctx, subAccts)
 }
 
 func (e *Exchange) processContinuousKlineUpdate(ctx context.Context, respRaw []byte, assetType asset.Item) error {

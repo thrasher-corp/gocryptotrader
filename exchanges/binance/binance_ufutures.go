@@ -1185,11 +1185,7 @@ func (e *Exchange) UAccountIncomeHistory(ctx context.Context, symbol currency.Pa
 func (e *Exchange) UGetNotionalAndLeverageBrackets(ctx context.Context, symbol currency.Pair) ([]*UNotionalLeverageAndBrakcetsData, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {
-		symbolValue, err := e.FormatSymbol(symbol, asset.USDTMarginedFutures)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("symbol", symbolValue)
+		params.Set("symbol", symbol.String())
 	}
 	var resp []*UNotionalLeverageAndBrakcetsData
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/leverageBracket", params, uFuturesDefaultRate, nil, &resp)
@@ -1199,11 +1195,7 @@ func (e *Exchange) UGetNotionalAndLeverageBrackets(ctx context.Context, symbol c
 func (e *Exchange) UPositionsADLEstimate(ctx context.Context, symbol currency.Pair) (*UPositionADLEstimationData, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {
-		symbolValue, err := e.FormatSymbol(symbol, asset.USDTMarginedFutures)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("symbol", symbolValue)
+		params.Set("symbol", symbol.String())
 	}
 	var resp *UPositionADLEstimationData
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/adlQuantile", params, uFuturesAccountInformationRate, nil, &resp)

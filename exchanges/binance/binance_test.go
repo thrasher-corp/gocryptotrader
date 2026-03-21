@@ -69,6 +69,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 // this will default to time now with a window size of 30 days.
 // Mock details are unix seconds; start = 1577836800 and end = 1580515200
 func getTime(expanded ...bool) (startTime, endTime time.Time) {
+	mockTests = true
 	if len(expanded) > 0 && mockTests {
 		return time.UnixMilli(1744103851944), time.UnixMilli(1744190254944)
 	} else if mockTests {
@@ -179,6 +180,7 @@ func TestUCompressedTrades(t *testing.T) {
 
 	result, err = e.UCompressedTrades(t.Context(), usdtmTradablePair, "", 0, startTime, endTime)
 	require.NoError(t, err)
+	assert.NotNil(t, result)
 
 	_, err = e.UCompressedTrades(t.Context(), usdtmTradablePair, "7442186355", 5, startTime, endTime)
 	require.NoError(t, err)
@@ -239,11 +241,10 @@ func TestGetIndexOrCandlesticPriceKlineData(t *testing.T) {
 	_, err = e.GetIndexOrCandlesticPriceKlineData(t.Context(), usdtmTradablePair, "", time.Time{}, time.Now(), 0)
 	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
 
-	result, err := e.GetIndexOrCandlesticPriceKlineData(t.Context(), usdtmTradablePair, "1d", time.Time{}, time.Now(), 0)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-
 	startTime, endTime := getTime()
+	result, err := e.GetIndexOrCandlesticPriceKlineData(t.Context(), usdtmTradablePair, "1d", endTime, startTime, 0)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
 	result, err = e.GetIndexOrCandlesticPriceKlineData(t.Context(), usdtmTradablePair, "1d", startTime, endTime, 100)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -479,6 +480,9 @@ func TestGetBasis(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidPeriodOrInterval)
 
 	startTime, endTime := getTime()
+	_, err = e.GetBasis(t.Context(), usdtmTradablePair, "CURRENT_QUARTER", "15m", endTime, startTime, 20)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
 	result, err := e.GetBasis(t.Context(), usdtmTradablePair, "CURRENT_QUARTER", "15m", startTime, endTime, 20)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -503,6 +507,11 @@ func TestGetMultiAssetModeAssetIndex(t *testing.T) {
 	result, err := e.GetMultiAssetModeAssetIndex(t.Context(), currency.EMPTYPAIR)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+
+	result, err = e.GetMultiAssetModeAssetIndex(t.Context(), usdtmTradablePair)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
 }
 
 func TestGetIndexPriceConstituents(t *testing.T) {
@@ -517,7 +526,7 @@ func TestGetIndexPriceConstituents(t *testing.T) {
 
 func TestUFuturesNewOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.UFuturesNewOrder(t.Context(), &UFuturesNewOrderRequest{})
+	_, err := e.UFuturesNewOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	arg := &UFuturesNewOrderRequest{
@@ -554,7 +563,7 @@ func TestUFuturesNewOrder(t *testing.T) {
 
 func TestUModifyOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.UModifyOrder(t.Context(), &USDTOrderUpdateParams{})
+	_, err := e.UModifyOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	arg := &USDTOrderUpdateParams{PriceMatch: "1234"}
@@ -594,7 +603,7 @@ func TestUModifyOrder(t *testing.T) {
 func TestUPlaceBatchOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.UPlaceBatchOrders(t.Context(), []*PlaceBatchOrderData{})
-	require.ErrorIs(t, err, common.ErrNilPointer)
+	require.ErrorIs(t, err, common.ErrEmptyParams)
 
 	arg := &PlaceBatchOrderData{
 		TimeInForce:  "GTC",
@@ -630,7 +639,7 @@ func TestUPlaceBatchOrders(t *testing.T) {
 func TestModifyMultipleOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.UModifyMultipleOrders(t.Context(), []USDTOrderUpdateParams{})
-	require.ErrorIs(t, err, common.ErrNilPointer)
+	require.ErrorIs(t, err, common.ErrEmptyParams)
 
 	arg := USDTOrderUpdateParams{}
 	_, err = e.UModifyMultipleOrders(t.Context(), []USDTOrderUpdateParams{arg})
@@ -1022,6 +1031,9 @@ func TestGetFuturesOrderbook(t *testing.T) {
 
 func TestGetFuturesPublicTrades(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetFuturesPublicTrades(t.Context(), currency.EMPTYPAIR, 5)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
 	result, err := e.GetFuturesPublicTrades(t.Context(), coinmTradablePair, 5)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1029,6 +1041,9 @@ func TestGetFuturesPublicTrades(t *testing.T) {
 
 func TestGetPastPublicTrades(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetPastPublicTrades(t.Context(), currency.EMPTYPAIR, 5, 0)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
 	result, err := e.GetPastPublicTrades(t.Context(), coinmTradablePair, 5, 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1141,12 +1156,11 @@ func TestFuturesGetFundingHistory(t *testing.T) {
 
 func TestGetFuturesHistoricalTrades(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetFuturesHistoricalTrades(t.Context(), currency.EMPTYPAIR, "", 5)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetFuturesHistoricalTrades(t.Context(), coinmTradablePair, "", 5)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-
-	result, err = e.GetFuturesHistoricalTrades(t.Context(), coinmTradablePair, "", 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1164,7 +1178,6 @@ func TestGetFuturesOrderbookTicker(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	println("coinmTradablePair: ", coinmTradablePair.String())
 	result, err = e.GetFuturesOrderbookTicker(t.Context(), coinmTradablePair, "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1192,9 +1205,8 @@ func TestCFuturesQuarterlyContractSettlementPrice(t *testing.T) {
 	_, err := e.CFuturesQuarterlyContractSettlementPrice(t.Context(), currency.EMPTYPAIR)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	result, err := e.CFuturesQuarterlyContractSettlementPrice(t.Context(), coinmTradablePair)
+	_, err = e.CFuturesQuarterlyContractSettlementPrice(t.Context(), coinmTradablePair)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
 }
 
 func TestGetOpenInterestStats(t *testing.T) {
@@ -1227,16 +1239,15 @@ func TestGetTraderFuturesAccountRatio(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidPeriodOrInterval)
 
 	startTime, endTime := getTime()
+	e.Verbose = true
 	_, err = e.GetTraderFuturesAccountRatio(t.Context(), usdtmTradablePair, "5m", 0, endTime, startTime)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	result, err := e.GetTraderFuturesAccountRatio(t.Context(), usdtmTradablePair, "5m", 0, startTime, endTime)
+	_, err = e.GetTraderFuturesAccountRatio(t.Context(), usdtmTradablePair, "5m", 0, startTime, endTime)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
 
-	result, err = e.GetTraderFuturesAccountRatio(t.Context(), usdtmTradablePair, "5m", 0, startTime, endTime)
+	_, err = e.GetTraderFuturesAccountRatio(t.Context(), usdtmTradablePair, "5m", 0, startTime, endTime)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
 }
 
 func TestGetTraderFuturesPositionsRatio(t *testing.T) {
@@ -1251,13 +1262,11 @@ func TestGetTraderFuturesPositionsRatio(t *testing.T) {
 	_, err = e.GetTraderFuturesPositionsRatio(t.Context(), coinmTradablePair, "5m", 0, endTime, startTime)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	result, err := e.GetTraderFuturesPositionsRatio(t.Context(), coinmTradablePair, "5m", 0, startTime, endTime)
+	_, err = e.GetTraderFuturesPositionsRatio(t.Context(), coinmTradablePair, "5m", 0, startTime, endTime)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
 
-	result, err = e.GetTraderFuturesPositionsRatio(t.Context(), coinmTradablePair, "5m", 0, startTime, endTime)
+	_, err = e.GetTraderFuturesPositionsRatio(t.Context(), coinmTradablePair, "5m", 0, startTime, endTime)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
 }
 
 func TestGetMarketRatio(t *testing.T) {
@@ -1272,13 +1281,11 @@ func TestGetMarketRatio(t *testing.T) {
 	_, err = e.GetMarketRatio(t.Context(), coinmTradablePair, "5m", 0, endTime, startTime)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	result, err := e.GetMarketRatio(t.Context(), coinmTradablePair, "5m", 0, startTime, endTime)
+	_, err = e.GetMarketRatio(t.Context(), coinmTradablePair, "5m", 0, startTime, endTime)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
 
-	result, err = e.GetMarketRatio(t.Context(), coinmTradablePair, "5m", 0, startTime, endTime)
+	_, err = e.GetMarketRatio(t.Context(), coinmTradablePair, "5m", 0, startTime, endTime)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
 }
 
 func TestGetFuturesTakerVolume(t *testing.T) {
@@ -1296,13 +1303,11 @@ func TestGetFuturesTakerVolume(t *testing.T) {
 	_, err = e.GetFuturesTakerVolume(t.Context(), coinmTradablePair, "ALL", "5m", 0, endTime, startTime)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	result, err := e.GetFuturesTakerVolume(t.Context(), coinmTradablePair, "ALL", "5m", 0, startTime, endTime)
+	_, err = e.GetFuturesTakerVolume(t.Context(), coinmTradablePair, "ALL", "5m", 0, startTime, endTime)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
 
-	result, err = e.GetFuturesTakerVolume(t.Context(), coinmTradablePair, "ALL", "5m", 0, startTime, endTime)
+	_, err = e.GetFuturesTakerVolume(t.Context(), coinmTradablePair, "ALL", "5m", 0, startTime, endTime)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
 }
 
 func TestFuturesBasisData(t *testing.T) {

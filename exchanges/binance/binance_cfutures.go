@@ -55,12 +55,11 @@ func (e *Exchange) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair
 
 // GetFuturesPublicTrades gets recent public trades for CoinMarginedFutures,
 func (e *Exchange) GetFuturesPublicTrades(ctx context.Context, symbol currency.Pair, limit uint64) ([]*FuturesPublicTradesData, error) {
-	symbolValue, err := e.FormatSymbol(symbol, asset.CoinMarginedFutures)
-	if err != nil {
-		return nil, err
+	if symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params := url.Values{}
-	params.Set("symbol", symbolValue)
+	params.Set("symbol", symbol.String())
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
@@ -70,12 +69,11 @@ func (e *Exchange) GetFuturesPublicTrades(ctx context.Context, symbol currency.P
 
 // GetFuturesHistoricalTrades gets historical public trades for CoinMarginedFutures,
 func (e *Exchange) GetFuturesHistoricalTrades(ctx context.Context, symbol currency.Pair, fromID string, limit uint64) ([]*UPublicTradesData, error) {
-	symbolValue, err := e.FormatSymbol(symbol, asset.CoinMarginedFutures)
-	if err != nil {
-		return nil, err
+	if symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params := url.Values{}
-	params.Set("symbol", symbolValue)
+	params.Set("symbol", symbol.String())
 	if fromID != "" {
 		params.Set("fromID", fromID)
 	}
@@ -88,12 +86,11 @@ func (e *Exchange) GetFuturesHistoricalTrades(ctx context.Context, symbol curren
 
 // GetPastPublicTrades gets past public trades for CoinMarginedFutures,
 func (e *Exchange) GetPastPublicTrades(ctx context.Context, symbol currency.Pair, limit, fromID uint64) ([]*FuturesPublicTradesData, error) {
-	symbolValue, err := e.FormatSymbol(symbol, asset.CoinMarginedFutures)
-	if err != nil {
-		return nil, err
+	if symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
 	}
 	params := url.Values{}
-	params.Set("symbol", symbolValue)
+	params.Set("symbol", symbol.String())
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
