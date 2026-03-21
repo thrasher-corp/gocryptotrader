@@ -130,8 +130,13 @@ func timeToNTPTimestamp(t time.Time) (seconds, fractional uint32) {
 		return 0, 0
 	}
 
-	nanos := uint32(t.Nanosecond())
-	fractional = uint32((uint64(nanos) << 32) / uint64(time.Second))
+	nanos := int64(t.Nanosecond())
+	frac := (nanos << 32) / int64(time.Second)
+	if frac < 0 || frac > math.MaxUint32 {
+		return 0, 0
+	}
+
+	fractional = uint32(frac)
 	return uint32(unixSeconds), fractional
 }
 
