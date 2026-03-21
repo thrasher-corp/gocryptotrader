@@ -136,8 +136,19 @@ func timeToNTPTimestamp(t time.Time) (seconds, fractional uint32) {
 		return 0, 0
 	}
 
-	fractional = uint32(frac)
-	return uint32(unixSeconds), fractional
+	seconds = binary.BigEndian.Uint32([]byte{
+		byte(unixSeconds >> 24),
+		byte(unixSeconds >> 16),
+		byte(unixSeconds >> 8),
+		byte(unixSeconds),
+	})
+	fractional = binary.BigEndian.Uint32([]byte{
+		byte(frac >> 24),
+		byte(frac >> 16),
+		byte(frac >> 8),
+		byte(frac),
+	})
+	return seconds, fractional
 }
 
 // calculateNTPOffset applies the RFC 5905 clock offset formula using the four
