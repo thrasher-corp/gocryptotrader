@@ -60,6 +60,7 @@ type Engine struct {
 var Bot *Engine
 
 var startupNTPOffsetChecker = checkNTPOffset
+var startupNTPOffsetRetryLimit = defaultRetryLimit
 
 // New starts a new engine
 func New() (*Engine, error) {
@@ -566,7 +567,19 @@ func (bot *Engine) handleStartupNTPPolicy(input io.Reader) error {
 
 	bot.Config.CheckNTPConfig()
 
-	offset, err := startupNTPOffsetChecker(context.Background(), bot.Config.NTPClient.Pool)
+	var (
+		offset time.Duration
+		err    error
+	)
+	for i := range startupNTPOffsetRetryLimit {
+		offset, err = startupNTPOffsetChecker(context.Background(), bot.Config.NTPClient.Pool)
+		if err == nil {
+			break
+		}
+		if i == startupNTPOffsetRetryLimit-1 {
+			break
+		}
+	}
 	if err != nil {
 		gctlog.Warnf(gctlog.TimeMgr, "Unable to check NTP time during startup: %v", err)
 		return nil

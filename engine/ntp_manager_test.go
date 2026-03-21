@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"errors"
+	"net"
 	"testing"
 	"time"
 
@@ -17,6 +18,15 @@ func stubQueryNTPOffset(t *testing.T, fn func(context.Context, []string) (time.D
 	queryNTPOffsetFunc = fn
 	t.Cleanup(func() {
 		queryNTPOffsetFunc = original
+	})
+}
+
+func stubQueryNTPOffsetFromPool(t *testing.T, fn func(context.Context, *net.Dialer, string) (time.Duration, error)) {
+	t.Helper()
+	original := queryNTPOffsetFromPoolFunc
+	queryNTPOffsetFromPoolFunc = fn
+	t.Cleanup(func() {
+		queryNTPOffsetFromPoolFunc = original
 	})
 }
 
@@ -191,10 +201,39 @@ func TestNTPTimestampToTime(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			assert.True(t, ntpTimestampToTime(tc.seconds, tc.fractional).Equal(tc.expected), "ntpTimestampToTime should convert NTP timestamps to the expected time")
+		})
+	}
+}
+
+func TestTimeToNTPTimestamp(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		input    time.Time
+		expected time.Time
+	}{
+		{
+			name:     "unix epoch",
+			input:    time.Unix(0, 0),
+			expected: time.Unix(0, 0),
+		},
+		{
+			name:     "with nanoseconds",
+			input:    time.Unix(123, 456000000),
+			expected: time.Unix(123, 456000000),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			sec, frac := timeToNTPTimestamp(tc.input)
+			converted := ntpTimestampToTime(sec, frac)
+			assert.WithinDuration(t, tc.expected, converted, time.Microsecond, "timeToNTPTimestamp should round trip with ntpTimestampToTime")
 		})
 	}
 }
@@ -207,6 +246,20 @@ func TestCheckNTPOffset(t *testing.T) {
 
 	_, err := checkNTPOffset(context.Background(), []string{"ntp.invalid:123"})
 	require.ErrorIs(t, err, wantErr, "checkNTPOffset must return the mocked query error")
+}
+
+func TestQueryNTPOffsetNoValidServer(t *testing.T) {
+	t.Parallel()
+
+	wantErr := errors.New("boom")
+	stubQueryNTPOffsetFromPool(t, func(context.Context, *net.Dialer, string) (time.Duration, error) {
+		return 0, wantErr
+	})
+
+	_, err := queryNTPOffset(context.Background(), []string{"ntp.invalid:123"})
+	require.Error(t, err, "queryNTPOffset must error when no pool can be reached")
+	require.ErrorIs(t, err, errNoValidNTPServer, "queryNTPOffset must wrap errNoValidNTPServer when all pools fail")
+	require.ErrorIs(t, err, wantErr, "queryNTPOffset must retain the last underlying pool error for debugging")
 }
 
 func TestCalculateNTPOffset(t *testing.T) {
@@ -245,10 +298,30 @@ func TestValidateNTPResponse(t *testing.T) {
 			wantErr: errInvalidNTPMode,
 		},
 		{
+			name: "invalid leap indicator alarm",
+			packet: &ntpPacket{
+				Settings:  0xC4,
+				Stratum:   1,
+				RxTimeSec: 1,
+				TxTimeSec: 1,
+			},
+			wantErr: errInvalidNTPResponse,
+		},
+		{
 			name: "invalid stratum",
 			packet: &ntpPacket{
 				Settings:  0x04,
 				Stratum:   0,
+				RxTimeSec: 1,
+				TxTimeSec: 1,
+			},
+			wantErr: errInvalidNTPStratum,
+		},
+		{
+			name: "unsynchronised high stratum",
+			packet: &ntpPacket{
+				Settings:  0x04,
+				Stratum:   16,
 				RxTimeSec: 1,
 				TxTimeSec: 1,
 			},
@@ -285,7 +358,6 @@ func TestValidateNTPResponse(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			err := validateNTPResponse(tc.packet)
@@ -294,6 +366,56 @@ func TestValidateNTPResponse(t *testing.T) {
 				return
 			}
 			require.ErrorIs(t, err, tc.wantErr, "validateNTPResponse must return the expected validation error")
+		})
+	}
+}
+
+func TestValidateNTPOriginateTimestamp(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		packet     *ntpPacket
+		seconds    uint32
+		fractional uint32
+		wantErr    error
+	}{
+		{
+			name:    "nil packet",
+			packet:  nil,
+			wantErr: errInvalidNTPResponse,
+		},
+		{
+			name: "mismatched originate timestamp",
+			packet: &ntpPacket{
+				OrigTimeSec:  2,
+				OrigTimeFrac: 3,
+			},
+			seconds:    1,
+			fractional: 2,
+			wantErr:    errInvalidNTPOriginate,
+		},
+		{
+			name: "matching originate timestamp",
+			packet: &ntpPacket{
+				OrigTimeSec:  1,
+				OrigTimeFrac: 2,
+			},
+			seconds:    1,
+			fractional: 2,
+			wantErr:    nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := validateNTPOriginateTimestamp(tc.packet, tc.seconds, tc.fractional)
+			if tc.wantErr == nil {
+				require.NoError(t, err, "validateNTPOriginateTimestamp must not error for matching originate timestamps")
+				return
+			}
+			require.ErrorIs(t, err, tc.wantErr, "validateNTPOriginateTimestamp must return the expected validation error")
 		})
 	}
 }

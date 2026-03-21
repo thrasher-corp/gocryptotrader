@@ -26,6 +26,15 @@ func stubStartupNTPOffsetChecker(t *testing.T, fn func(context.Context, []string
 	})
 }
 
+func stubStartupNTPOffsetRetryLimit(t *testing.T, limit int) {
+	t.Helper()
+	original := startupNTPOffsetRetryLimit
+	startupNTPOffsetRetryLimit = limit
+	t.Cleanup(func() {
+		startupNTPOffsetRetryLimit = original
+	})
+}
+
 func testStartupNTPConfig(level int) *config.Config {
 	allowedDifference := time.Second
 	allowedNegativeDifference := time.Second
@@ -43,19 +52,46 @@ func testStartupNTPConfig(level int) *config.Config {
 
 func TestHandleStartupNTPPolicy(t *testing.T) {
 	t.Run("query failure should warn and continue", func(t *testing.T) {
+		stubStartupNTPOffsetRetryLimit(t, 3)
 		bot := &Engine{
 			Config: testStartupNTPConfig(0),
 			Settings: Settings{
 				CoreSettings: CoreSettings{EnableNTPClient: true},
 			},
 		}
+		calls := 0
 		stubStartupNTPOffsetChecker(t, func(context.Context, []string) (time.Duration, error) {
+			calls++
 			return 0, assert.AnError
 		})
 
 		err := bot.handleStartupNTPPolicy(strings.NewReader(""))
 		require.NoError(t, err, "handleStartupNTPPolicy must not error when startup NTP querying fails")
 		assert.Equal(t, 0, bot.Config.NTPClient.Level, "NTP level should remain unchanged when querying fails")
+		assert.Equal(t, 3, calls, "handleStartupNTPPolicy should retry transient startup NTP failures")
+	})
+
+	t.Run("transient query failure should recover on retry", func(t *testing.T) {
+		stubStartupNTPOffsetRetryLimit(t, 3)
+		bot := &Engine{
+			Config: testStartupNTPConfig(0),
+			Settings: Settings{
+				CoreSettings: CoreSettings{EnableNTPClient: true},
+			},
+		}
+		calls := 0
+		stubStartupNTPOffsetChecker(t, func(context.Context, []string) (time.Duration, error) {
+			calls++
+			if calls < 2 {
+				return 0, assert.AnError
+			}
+			return 2 * time.Second, nil
+		})
+
+		err := bot.handleStartupNTPPolicy(strings.NewReader("w\n"))
+		require.NoError(t, err, "handleStartupNTPPolicy must not error when a retry succeeds")
+		assert.Equal(t, 2, calls, "handleStartupNTPPolicy should stop retrying after a successful startup NTP query")
+		assert.Equal(t, 1, bot.Config.NTPClient.Level, "NTP level should update after a successful retry and prompt response")
 	})
 
 	t.Run("offset within threshold should not prompt", func(t *testing.T) {

@@ -25,12 +25,14 @@ var errNoValidNTPServer = errors.New("no valid NTP server could be reached")
 var (
 	errInvalidNTPResponse  = errors.New("invalid NTP response")
 	errInvalidNTPMode      = errors.New("invalid NTP mode")
+	errInvalidNTPOriginate = errors.New("invalid NTP originate timestamp")
 	errZeroNTPTransmitTime = errors.New("zero NTP transmit timestamp")
 	errZeroNTPReceiveTime  = errors.New("zero NTP receive timestamp")
 	errInvalidNTPStratum   = errors.New("invalid NTP stratum")
 )
 
 var queryNTPOffsetFunc = queryNTPOffset
+var queryNTPOffsetFromPoolFunc = queryNTPOffsetFromPool
 
 // checkNTPOffset performs a one-time NTP check and returns the measured offset.
 // It is used during startup before the NTP manager loop begins.
@@ -46,15 +48,17 @@ func queryNTPOffset(ctx context.Context, pools []string) (time.Duration, error) 
 	}
 
 	dialer := &net.Dialer{Timeout: ntpDialTimeout}
+	var lastErr error
 
 	for i := range pools {
-		offset, err := queryNTPOffsetFromPool(ctx, dialer, pools[i])
+		offset, err := queryNTPOffsetFromPoolFunc(ctx, dialer, pools[i])
 		if err == nil {
 			return offset, nil
 		}
+		lastErr = err
 		log.Warnf(log.TimeMgr, "Unable to query NTP host %v: %v. Attempting next", pools[i], err)
 	}
-	return 0, errNoValidNTPServer
+	return 0, fmt.Errorf("%w: %w", errNoValidNTPServer, lastErr)
 }
 
 // queryNTPOffsetFromPool performs a single NTP exchange against one pool and
@@ -75,8 +79,15 @@ func queryNTPOffsetFromPool(ctx context.Context, dialer *net.Dialer, pool string
 	}
 
 	originTimestamp := time.Now()
+	origSec, origFrac := timeToNTPTimestamp(originTimestamp)
 
-	req := &ntpPacket{Settings: 0x1B}
+	req := &ntpPacket{
+		Settings:     0x1B,
+		TxTimeSec:    origSec,
+		TxTimeFrac:   origFrac,
+		OrigTimeSec:  0,
+		OrigTimeFrac: 0,
+	}
 	if err := binary.Write(conn, binary.BigEndian, req); err != nil {
 		return 0, fmt.Errorf("unable to write request to %v: %w", pool, err)
 	}
@@ -89,6 +100,9 @@ func queryNTPOffsetFromPool(ctx context.Context, dialer *net.Dialer, pool string
 	destinationTimestamp := time.Now()
 
 	if err := validateNTPResponse(rsp); err != nil {
+		return 0, fmt.Errorf("invalid response from %v: %w", pool, err)
+	}
+	if err := validateNTPOriginateTimestamp(rsp, origSec, origFrac); err != nil {
 		return 0, fmt.Errorf("invalid response from %v: %w", pool, err)
 	}
 
@@ -105,6 +119,15 @@ func ntpTimestampToTime(seconds, fractional uint32) time.Time {
 	return time.Unix(unixSeconds, nanos)
 }
 
+// timeToNTPTimestamp converts a time.Time to its NTP seconds and fractional
+// components so requests can be correlated with responses.
+func timeToNTPTimestamp(t time.Time) (uint32, uint32) {
+	unixSeconds := t.Unix() + ntpEpochOffset
+	nanos := t.Nanosecond()
+	frac := (uint64(nanos) << 32) / 1.e9
+	return uint32(unixSeconds), uint32(frac)
+}
+
 // calculateNTPOffset applies the RFC 5905 clock offset formula using the four
 // timestamps involved in one NTP request/response exchange.
 func calculateNTPOffset(origin, receive, transmit, destination time.Time) time.Duration {
@@ -118,11 +141,15 @@ func validateNTPResponse(rsp *ntpPacket) error {
 		return errInvalidNTPResponse
 	}
 
+	if (rsp.Settings>>6)&0x03 == 3 {
+		return errInvalidNTPResponse
+	}
+
 	if rsp.Settings&0x07 != 4 {
 		return errInvalidNTPMode
 	}
 
-	if rsp.Stratum == 0 {
+	if rsp.Stratum == 0 || rsp.Stratum >= 16 {
 		return errInvalidNTPStratum
 	}
 
@@ -134,6 +161,19 @@ func validateNTPResponse(rsp *ntpPacket) error {
 		return errZeroNTPTransmitTime
 	}
 
+	return nil
+}
+
+// validateNTPOriginateTimestamp ensures the response matches the client's
+// transmit timestamp, preventing stale or mismatched UDP replies from being
+// trusted for offset calculation.
+func validateNTPOriginateTimestamp(rsp *ntpPacket, seconds, fractional uint32) error {
+	if rsp == nil {
+		return errInvalidNTPResponse
+	}
+	if rsp.OrigTimeSec != seconds || rsp.OrigTimeFrac != fractional {
+		return errInvalidNTPOriginate
+	}
 	return nil
 }
 
