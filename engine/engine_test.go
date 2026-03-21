@@ -35,14 +35,14 @@ func stubStartupNTPOffsetRetryLimit(t *testing.T, limit int) {
 	})
 }
 
-func testStartupNTPConfig(level int) *config.Config {
+func testStartupNTPConfig() *config.Config {
 	allowedDifference := time.Second
 	allowedNegativeDifference := time.Second
 	loggingEnabled := false
 	return &config.Config{
 		Logging: gctlog.Config{Enabled: &loggingEnabled},
 		NTPClient: config.NTPClientConfig{
-			Level:                     level,
+			Level:                     0,
 			Pool:                      []string{"ntp.invalid:123"},
 			AllowedDifference:         &allowedDifference,
 			AllowedNegativeDifference: &allowedNegativeDifference,
@@ -54,7 +54,7 @@ func TestHandleStartupNTPPolicy(t *testing.T) {
 	t.Run("query failure should warn and continue", func(t *testing.T) {
 		stubStartupNTPOffsetRetryLimit(t, 3)
 		bot := &Engine{
-			Config: testStartupNTPConfig(0),
+			Config: testStartupNTPConfig(),
 			Settings: Settings{
 				CoreSettings: CoreSettings{EnableNTPClient: true},
 			},
@@ -74,7 +74,7 @@ func TestHandleStartupNTPPolicy(t *testing.T) {
 	t.Run("transient query failure should recover on retry", func(t *testing.T) {
 		stubStartupNTPOffsetRetryLimit(t, 3)
 		bot := &Engine{
-			Config: testStartupNTPConfig(0),
+			Config: testStartupNTPConfig(),
 			Settings: Settings{
 				CoreSettings: CoreSettings{EnableNTPClient: true},
 			},
@@ -96,7 +96,7 @@ func TestHandleStartupNTPPolicy(t *testing.T) {
 
 	t.Run("offset within threshold should not prompt", func(t *testing.T) {
 		bot := &Engine{
-			Config: testStartupNTPConfig(0),
+			Config: testStartupNTPConfig(),
 			Settings: Settings{
 				CoreSettings: CoreSettings{EnableNTPClient: true},
 			},
@@ -112,7 +112,7 @@ func TestHandleStartupNTPPolicy(t *testing.T) {
 
 	t.Run("offset outside threshold should prompt and update config", func(t *testing.T) {
 		bot := &Engine{
-			Config: testStartupNTPConfig(0),
+			Config: testStartupNTPConfig(),
 			Settings: Settings{
 				CoreSettings: CoreSettings{EnableNTPClient: true},
 			},

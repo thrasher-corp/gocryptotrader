@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"sync/atomic"
 	"time"
@@ -31,8 +32,10 @@ var (
 	errInvalidNTPStratum   = errors.New("invalid NTP stratum")
 )
 
-var queryNTPOffsetFunc = queryNTPOffset
-var queryNTPOffsetFromPoolFunc = queryNTPOffsetFromPool
+var (
+	queryNTPOffsetFunc         = queryNTPOffset
+	queryNTPOffsetFromPoolFunc = queryNTPOffsetFromPool
+)
 
 // checkNTPOffset performs a one-time NTP check and returns the measured offset.
 // It is used during startup before the NTP manager loop begins.
@@ -121,11 +124,15 @@ func ntpTimestampToTime(seconds, fractional uint32) time.Time {
 
 // timeToNTPTimestamp converts a time.Time to its NTP seconds and fractional
 // components so requests can be correlated with responses.
-func timeToNTPTimestamp(t time.Time) (uint32, uint32) {
+func timeToNTPTimestamp(t time.Time) (seconds, fractional uint32) {
 	unixSeconds := t.Unix() + ntpEpochOffset
-	nanos := t.Nanosecond()
-	frac := (uint64(nanos) << 32) / 1.e9
-	return uint32(unixSeconds), uint32(frac)
+	if unixSeconds < 0 || unixSeconds > math.MaxUint32 {
+		return 0, 0
+	}
+
+	nanos := uint32(t.Nanosecond())
+	fractional = uint32((uint64(nanos) << 32) / uint64(time.Second))
+	return uint32(unixSeconds), fractional
 }
 
 // calculateNTPOffset applies the RFC 5905 clock offset formula using the four

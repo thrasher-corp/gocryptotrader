@@ -59,8 +59,10 @@ type Engine struct {
 // to access its setup services and functions
 var Bot *Engine
 
-var startupNTPOffsetChecker = checkNTPOffset
-var startupNTPOffsetRetryLimit = defaultRetryLimit
+var (
+	startupNTPOffsetChecker    = checkNTPOffset
+	startupNTPOffsetRetryLimit = defaultRetryLimit
+)
 
 // New starts a new engine
 func New() (*Engine, error) {
