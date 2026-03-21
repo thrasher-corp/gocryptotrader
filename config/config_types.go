@@ -241,6 +241,11 @@ type GRPCConfig struct {
 	GRPCProxyListenAddress string `json:"grpcProxyListenAddress"`
 	GRPCAllowBotShutdown   bool   `json:"grpcAllowBotShutdown"`
 	TimeInNanoSeconds      bool   `json:"timeInNanoSeconds"`
+	// UnixSocketEnabled enables a Unix Domain Socket listener for same-server
+	// clients. UDS is ~2-5x faster than TCP loopback and needs no TLS since
+	// access is controlled by socket file permissions.
+	UnixSocketEnabled bool   `json:"unixSocketEnabled"`
+	UnixSocketPath    string `json:"unixSocketPath"`
 }
 
 // RemoteControlConfig stores the RPC services config

@@ -18,6 +18,7 @@ import (
 	grpcauth "github.com/grpc-ecosystem/go-grpc-middleware/auth"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"github.com/pquerna/otp/totp"
+	"google.golang.org/grpc/credentials/insecure"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gct-ta/indicators"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -57,6 +58,12 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/timestamppb"
+)
+
+const (
+	// defaultUnixSocketPath is the default path for the gRPC Unix Domain Socket.
+	// Callers on the same server connect here instead of over TCP.
+	defaultUnixSocketPath = "/tmp/gocryptotrader.sock"
 )
 
 var (
@@ -164,6 +171,51 @@ func StartRPCServer(engine *Engine) {
 
 	if s.Settings.EnableGRPCProxy {
 		s.StartRPCRESTProxy()
+	}
+
+	if engine.Config.RemoteControl.GRPC.UnixSocketEnabled {
+		go startRPCServerUnixSocket(engine, &s)
+	}
+}
+
+// startRPCServerUnixSocket starts an additional gRPC listener on a Unix Domain
+// Socket alongside the main TCP+TLS listener. UDS is preferred for same-server
+// clients because it bypasses the kernel network stack (~2-5x faster than TCP
+// loopback) and access is governed by socket file permissions rather than TLS.
+func startRPCServerUnixSocket(engine *Engine, s *RPCServer) {
+	socketPath := engine.Config.RemoteControl.GRPC.UnixSocketPath
+	if socketPath == "" {
+		socketPath = defaultUnixSocketPath
+	}
+
+	// Remove stale socket from a previous run.
+	if err := os.Remove(socketPath); err != nil && !os.IsNotExist(err) {
+		log.Errorf(log.GRPCSys, "gRPC UDS: could not remove stale socket %s: %v", socketPath, err)
+		return
+	}
+
+	lis, err := net.Listen("unix", socketPath)
+	if err != nil {
+		log.Errorf(log.GRPCSys, "gRPC UDS: failed to listen on %s: %v", socketPath, err)
+		return
+	}
+
+	// Restrict socket access to the owner of the process.
+	if err := os.Chmod(socketPath, 0o600); err != nil {
+		log.Warnf(log.GRPCSys, "gRPC UDS: could not chmod socket %s: %v", socketPath, err)
+	}
+
+	// No TLS for local socket — kernel enforces process isolation.
+	udsServer := grpc.NewServer(
+		grpc.Creds(insecure.NewCredentials()),
+		grpc.UnaryInterceptor(grpcauth.UnaryServerInterceptor(s.authenticateClient)),
+		grpc.StreamInterceptor(grpcauth.StreamServerInterceptor(s.authenticateClient)),
+	)
+	gctrpc.RegisterGoCryptoTraderServiceServer(udsServer, s)
+
+	log.Debugf(log.GRPCSys, "gRPC Unix socket server starting on %s", socketPath)
+	if err := udsServer.Serve(lis); err != nil {
+		log.Errorf(log.GRPCSys, "gRPC UDS server error: %v", err)
 	}
 }
 

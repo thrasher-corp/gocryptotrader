@@ -18,6 +18,7 @@ import (
 	"github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -27,6 +28,7 @@ var (
 	password      string
 	pairDelimiter string
 	certPath      string
+	socketPath    string
 	timeout       time.Duration
 	exchangeCreds accounts.Credentials
 	verbose       bool
@@ -44,17 +46,36 @@ func jsonOutput(in any) {
 }
 
 func setupClient(c *cli.Context) (*grpc.ClientConn, context.CancelFunc, error) {
-	creds, err := credentials.NewClientTLSFromFile(certPath, "")
-	if err != nil {
-		return nil, nil, err
-	}
+	var (
+		opts   []grpc.DialOption
+		target string
+	)
 
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(creds),
-		grpc.WithPerRPCCredentials(auth.BasicAuth{
-			Username: username,
-			Password: password,
-		}),
+	if socketPath != "" {
+		// Unix Domain Socket: fastest path for same-server clients.
+		// No TLS needed; socket file permissions control access.
+		opts = []grpc.DialOption{
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithPerRPCCredentials(auth.BasicAuth{
+				Username: username,
+				Password: password,
+			}),
+		}
+		target = "unix://" + socketPath
+	} else {
+		// TCP with TLS for remote (or non-UDS local) connections.
+		creds, err := credentials.NewClientTLSFromFile(certPath, "")
+		if err != nil {
+			return nil, nil, err
+		}
+		opts = []grpc.DialOption{
+			grpc.WithTransportCredentials(creds),
+			grpc.WithPerRPCCredentials(auth.BasicAuth{
+				Username: username,
+				Password: password,
+			}),
+		}
+		target = host
 	}
 
 	var cancel context.CancelFunc
@@ -68,7 +89,7 @@ func setupClient(c *cli.Context) (*grpc.ClientConn, context.CancelFunc, error) {
 	if verbose {
 		c.Context = metadata.AppendToOutgoingContext(c.Context, "verbose", "true")
 	}
-	conn, err := grpc.NewClient(host, opts...)
+	conn, err := grpc.NewClient(target, opts...)
 	return conn, cancel, err
 }
 
@@ -82,8 +103,14 @@ func main() {
 		&cli.StringFlag{
 			Name:        "rpchost",
 			Value:       "localhost:9052",
-			Usage:       "the gRPC host to connect to",
+			Usage:       "the gRPC host to connect to (TCP+TLS); ignored when --socket is set",
 			Destination: &host,
+		},
+		&cli.StringFlag{
+			Name:        "socket",
+			Value:       "",
+			Usage:       "Unix Domain Socket path for same-server connections (e.g. /tmp/gocryptotrader.sock); bypasses TLS and is faster than TCP loopback",
+			Destination: &socketPath,
 		},
 		&cli.StringFlag{
 			Name:        "rpcuser",
