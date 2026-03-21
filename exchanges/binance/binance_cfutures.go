@@ -255,6 +255,9 @@ func (e *Exchange) GetPremiumIndexKlineData(ctx context.Context, symbol currency
 }
 
 func (e *Exchange) getKline(ctx context.Context, symbol currency.Pair, interval, path string, limit uint64, startTime, endTime time.Time) ([]*CFuturesCandleStick, error) {
+	if symbol.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
 	symbolValue, err := e.FormatSymbol(symbol, asset.CoinMarginedFutures)
 	if err != nil {
 		return nil, err

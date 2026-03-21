@@ -9061,6 +9061,58 @@
      "queryString": "limit=1000\u0026symbol=BTCUSDT",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": [
+      {
+       "id": 6134987574,
+       "isBestMatch": true,
+       "isBuyerMaker": false,
+       "price": "70424.13000000",
+       "qty": "0.00008000",
+       "quoteQty": "5.63393040",
+       "time": 1774123284777
+      },
+      {
+       "id": 6134987575,
+       "isBestMatch": true,
+       "isBuyerMaker": false,
+       "price": "70424.13000000",
+       "qty": "0.00008000",
+       "quoteQty": "5.63393040",
+       "time": 1774123284777
+      },
+      {
+       "id": 6134987576,
+       "isBestMatch": true,
+       "isBuyerMaker": false,
+       "price": "70424.49000000",
+       "qty": "0.00017000",
+       "quoteQty": "11.97216330",
+       "time": 1774123284777
+      },
+      {
+       "id": 6134987577,
+       "isBestMatch": true,
+       "isBuyerMaker": false,
+       "price": "70424.64000000",
+       "qty": "0.00008000",
+       "quoteQty": "5.63397120",
+       "time": 1774123284777
+      },
+      {
+       "id": 6134987578,
+       "isBestMatch": true,
+       "isBuyerMaker": false,
+       "price": "70424.76000000",
+       "qty": "0.00008000",
+       "quoteQty": "5.63398080",
+       "time": 1774123284777
+      }
+     ],
+     "queryString": "limit=15\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -10415,6 +10467,15 @@
   "/dapi/v1/markPriceKlines": {
    "GET": [
     {
+     "data": {
+      "code": -1121,
+      "msg": "Invalid symbol."
+     },
+     "queryString": "endTime=1744190254944\u0026interval=1M\u0026limit=5\u0026startTime=1744103854944\u0026symbol=BTCUSDPERP",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
      "data": null,
      "queryString": "endTime=1744190254944\u0026interval=1M\u0026limit=5\u0026startTime=1744103854944\u0026symbol=BTCUSD_PERP",
      "bodyParams": "",
@@ -10551,6 +10612,24 @@
     {
      "data": null,
      "queryString": "endTime=1744190254944\u0026interval=1M\u0026limit=5\u0026startTime=1744103854944\u0026symbol=BTCUSD_PERP",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": -1121,
+      "msg": "Invalid symbol."
+     },
+     "queryString": "endTime=1744190254944\u0026interval=1M\u0026limit=5\u0026startTime=1744103854944\u0026symbol=BTCUSDPERP",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": -1102,
+      "msg": "Mandatory parameter 'symbol' was not sent, was empty/null, or malformed."
+     },
+     "queryString": "endTime=1744190254944\u0026interval=1M\u0026limit=5\u0026startTime=1744103854944\u0026symbol=",
      "bodyParams": "",
      "headers": {}
     }
@@ -11447,6 +11526,15 @@
       }
      ],
      "queryString": "expiration=180326\u0026underlyingAsset=ETH",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "code": -6010,
+      "msg": "open interest error data."
+     },
+     "queryString": "expiration=090425\u0026underlyingAsset=ETH",
      "bodyParams": "",
      "headers": {}
     }

@@ -159,6 +159,9 @@ func (e *Exchange) GetHistoricalTrades(ctx context.Context, symbol currency.Pair
 // then the trades are collected with multiple backend requests.
 // https://binance-docs.github.io/apidocs/spot/en/#compressed-aggregate-trades-list
 func (e *Exchange) GetAggregatedTrades(ctx context.Context, arg *AggregatedTradeRequestParams) ([]*AggregatedTrade, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	if arg.Symbol.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -3113,8 +3116,10 @@ func (e *Exchange) getManagedSubAccountTransferLog(ctx context.Context, email, t
 	if !common.MatchesEmailPattern(email) {
 		return nil, fmt.Errorf("%w: email = %s", errValidEmailRequired, email)
 	}
-	if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
-		return nil, err
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
 	}
 	if page < 0 {
 		return nil, errPageNumberRequired
@@ -6690,7 +6695,7 @@ func (e *Exchange) SubmitDepositQuestionnaire(ctx context.Context, walletTransac
 	if walletTransactionID == "" {
 		return nil, fmt.Errorf("%w: WalletTransactionID is required", errTransactionIDRequired)
 	}
-	if questionnaire == "" {
+	if questionnaire == nil {
 		return nil, errQuestionnaireRequired
 	}
 	questionnaireJSON, err := json.Marshal(questionnaire)
