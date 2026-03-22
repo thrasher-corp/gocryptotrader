@@ -59,7 +59,7 @@ var defaultAssetPairStores = map[asset.Item]currency.PairStore{
 	},
 	asset.CoinMarginedFutures: {
 		AssetEnabled:  true,
-		RequestFormat: &currency.PairFormat{Uppercase: true}, // Delimiter: currency.UnderscoreDelimiter},
+		RequestFormat: &currency.PairFormat{Uppercase: true},
 		ConfigFormat:  &currency.PairFormat{Uppercase: true, Delimiter: currency.UnderscoreDelimiter},
 	},
 	asset.Options: {
@@ -405,6 +405,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 			if err != nil {
 				return nil, err
 			}
+			print(pair.String(), ",")
 			pairs = append(pairs, pair)
 		}
 	case asset.USDTMarginedFutures:
@@ -473,51 +474,41 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		if err != nil {
 			return err
 		}
-		pairs, err := e.GetEnabledPairs(a)
+		enabledPairs, err := e.GetEnabledPairs(a)
 		if err != nil {
 			return err
 		}
-		pairs = pairs.Format(format)
-		batchNo := len(pairs)/2 + (len(pairs)%2 - 1)
 		var tick []*PriceChangeStats
-		for batch := 0; batch <= batchNo; batch++ {
-			var selectedPairs currency.Pairs
-			if batch*2+2 >= len(pairs) {
-				selectedPairs = pairs[batch*2:]
-			} else {
-				selectedPairs = pairs[batch*2 : batch*2+2]
-			}
-			if e.IsAPIStreamConnected() {
-				tick, err = e.GetWsTradingDayTickers(&PriceChangeRequestParam{Symbols: selectedPairs, TickerType: "FULL"})
-			} else {
-				tick, err = e.GetPriceChangeStats(ctx, currency.EMPTYPAIR, selectedPairs)
-			}
+		if e.IsAPIStreamConnected() {
+			tick, err = e.GetWsTradingDayTickers(&PriceChangeRequestParam{Symbols: enabledPairs, TickerType: "FULL"})
+		} else {
+			tick, err = e.GetPriceChangeStats(ctx, currency.EMPTYPAIR, enabledPairs)
+		}
+		if err != nil {
+			return err
+		}
+
+		for y := range tick {
+			pair, err := currency.NewPairFromString(tick[y].Symbol)
 			if err != nil {
 				return err
 			}
-
-			for y := range tick {
-				pair, err := currency.NewPairFromString(tick[y].Symbol)
-				if err != nil {
-					return err
-				}
-				err = ticker.ProcessTicker(&ticker.Price{
-					Last:         tick[y].LastPrice.Float64(),
-					High:         tick[y].HighPrice.Float64(),
-					Low:          tick[y].LowPrice.Float64(),
-					Bid:          tick[y].BidPrice.Float64(),
-					Ask:          tick[y].AskPrice.Float64(),
-					Volume:       tick[y].Volume.Float64(),
-					QuoteVolume:  tick[y].QuoteVolume.Float64(),
-					Open:         tick[y].OpenPrice.Float64(),
-					Close:        tick[y].PrevClosePrice.Float64(),
-					Pair:         pair.Format(format),
-					ExchangeName: e.Name,
-					AssetType:    a,
-				})
-				if err != nil {
-					return err
-				}
+			err = ticker.ProcessTicker(&ticker.Price{
+				Last:         tick[y].LastPrice.Float64(),
+				High:         tick[y].HighPrice.Float64(),
+				Low:          tick[y].LowPrice.Float64(),
+				Bid:          tick[y].BidPrice.Float64(),
+				Ask:          tick[y].AskPrice.Float64(),
+				Volume:       tick[y].Volume.Float64(),
+				QuoteVolume:  tick[y].QuoteVolume.Float64(),
+				Open:         tick[y].OpenPrice.Float64(),
+				Close:        tick[y].PrevClosePrice.Float64(),
+				Pair:         pair.Format(format),
+				ExchangeName: e.Name,
+				AssetType:    a,
+			})
+			if err != nil {
+				return err
 			}
 		}
 	case asset.USDTMarginedFutures:
@@ -554,7 +545,6 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 		}
 
 		for _, t := range tick {
-			println("Coinb: ", t.Symbol)
 			cp, err := currency.NewPairFromString(t.Symbol)
 			if err != nil {
 				return err
@@ -639,7 +629,6 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			return nil, ticker.ErrTickerNotFound
 		}
 		for t := range ticks {
-			println("asset.Spot/Margin: ", p.String(), a.String())
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         ticks[t].LastPrice.Float64(),
 				High:         ticks[t].HighPrice.Float64(),
@@ -667,7 +656,6 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		if len(tick) == 0 {
 			return nil, fmt.Errorf("%w, pair: %v", ticker.ErrTickerNotFound, p)
 		}
-		println("USDTMargined tick[0].Symbol: ", tick[0].Symbol)
 		err = ticker.ProcessTicker(&ticker.Price{
 			Last:         tick[0].LastPrice,
 			High:         tick[0].HighPrice,
@@ -690,8 +678,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			return nil, err
 		}
 		for t := range tick {
-			println("CoinMarginedFutures tick[t].Symbol: ", tick[t].Symbol)
-			cp, err := currency.NewPairFromString(tick[t].Symbol)
+			cp, err := e.MatchSymbolWithAvailablePairs(tick[t].Symbol, a, false)
 			if err != nil {
 				return nil, err
 			}
@@ -724,7 +711,6 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 			if err != nil {
 				return nil, err
 			}
-			println("Options: Pair: ", cp.String())
 			err = ticker.ProcessTicker(&ticker.Price{
 				Last:         tick[a].LastPrice.Float64(),
 				High:         tick[a].High.Float64(),
@@ -1086,9 +1072,6 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, a ass
 	if err := e.CurrencyPairs.IsAssetEnabled(a); err != nil {
 		return nil, err
 	}
-	if a != asset.Spot {
-		return nil, fmt.Errorf("%w %q", asset.ErrNotSupported, a)
-	}
 	rFmt, err := e.GetPairFormat(a, true)
 	if err != nil {
 		return nil, err
@@ -1102,12 +1085,14 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, a ass
 				Symbol:    pFmt,
 				StartTime: from.UnixMilli(),
 				EndTime:   to.UnixMilli(),
+				Limit:     1000,
 			})
 		} else {
 			trades, err = e.GetAggregatedTrades(ctx, &AggregatedTradeRequestParams{
 				Symbol:    pFmt,
 				StartTime: from,
 				EndTime:   to,
+				Limit:     1000,
 			})
 		}
 		if err != nil {
@@ -1130,49 +1115,6 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, a ass
 				Timestamp:    trades[i].TimeStamp.Time(),
 				AssetType:    a,
 				Side:         tSide,
-			}
-		}
-		return result, nil
-	case asset.USDTMarginedFutures, asset.CoinMarginedFutures:
-		var trades []*UPublicTradesData
-		if a == asset.USDTMarginedFutures {
-			trades, err = e.UFuturesHistoricalTrades(ctx, pFmt, "", 0)
-		} else {
-			trades, err = e.GetFuturesHistoricalTrades(ctx, pFmt, "", 0)
-		}
-		if err != nil {
-			return nil, err
-		}
-		result := make([]trade.Data, len(trades))
-		for i := range trades {
-			result[i] = trade.Data{
-				CurrencyPair: p,
-				TID:          strconv.FormatInt(trades[i].ID, 10),
-				Amount:       trades[i].Qty,
-				Exchange:     e.Name,
-				Price:        trades[i].Price,
-				Timestamp:    trades[i].Time.Time(),
-				AssetType:    a,
-				Side:         order.AnySide,
-			}
-		}
-		return result, nil
-	case asset.Options:
-		trades, err := e.GetEOptionsTradeHistory(ctx, pFmt, 0, 0)
-		if err != nil {
-			return nil, err
-		}
-		result := make([]trade.Data, len(trades))
-		for i := range trades {
-			result[i] = trade.Data{
-				CurrencyPair: p,
-				TID:          strconv.FormatInt(trades[i].ID, 10),
-				Amount:       trades[i].Quantity.Float64(),
-				Exchange:     e.Name,
-				Price:        trades[i].Price.Float64(),
-				Timestamp:    trades[i].Time.Time(),
-				AssetType:    a,
-				Side:         order.AnySide,
 			}
 		}
 		return result, nil

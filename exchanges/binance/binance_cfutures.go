@@ -81,7 +81,7 @@ func (e *Exchange) GetFuturesHistoricalTrades(ctx context.Context, symbol curren
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp []*UPublicTradesData
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestCoinMargined, http.MethodGet, "/dapi/v1/historicalTrades", params, cFuturesHistoricalTradesRate, nil, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestCoinMargined, common.EncodeURLValues("/dapi/v1/historicalTrades", params), cFuturesHistoricalTradesRate, &resp)
 }
 
 // GetPastPublicTrades gets past public trades for CoinMarginedFutures,
@@ -312,7 +312,6 @@ func (e *Exchange) GetFuturesSwapTickerChangeStats(ctx context.Context, symbol c
 		if err != nil {
 			return nil, err
 		}
-		println("symbolValue: ", symbolValue)
 		params.Set("symbol", symbolValue)
 	}
 	if pair != "" {
@@ -1078,7 +1077,7 @@ func (e *Exchange) FetchCoinMarginExchangeLimits(ctx context.Context) ([]limits.
 		if err != nil {
 			return nil, err
 		}
-		if len(coinFutures.Symbols[x].Filters) < 5 {
+		if len(coinFutures.Symbols[x].Filters) < 6 {
 			continue
 		}
 

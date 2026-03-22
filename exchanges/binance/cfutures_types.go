@@ -598,43 +598,46 @@ type UFuturesExchangeInfo struct {
 // UFuturesSymbolInfo contains details of a currency symbol
 // for a usdt margined future contract
 type UFuturesSymbolInfo struct {
-	Symbol                   string     `json:"symbol"`
-	Pair                     string     `json:"pair"`
-	ContractType             string     `json:"contractType"`
-	DeliveryDate             types.Time `json:"deliveryDate"`
-	OnboardDate              types.Time `json:"onboardDate"`
-	Status                   string     `json:"status"`
-	MaintenanceMarginPercent float64    `json:"maintMarginPercent,string"`
-	RequiredMarginPercent    float64    `json:"requiredMarginPercent,string"`
-	BaseAsset                string     `json:"baseAsset"`
-	QuoteAsset               string     `json:"quoteAsset"`
-	MarginAsset              string     `json:"marginAsset"`
-	PricePrecision           int64      `json:"pricePrecision"`
-	QuantityPrecision        int64      `json:"quantityPrecision"`
-	BaseAssetPrecision       int64      `json:"baseAssetPrecision"`
-	QuotePrecision           int64      `json:"quotePrecision"`
-	UnderlyingType           string     `json:"underlyingType"`
-	UnderlyingSubType        []string   `json:"underlyingSubType"`
-	SettlePlan               float64    `json:"settlePlan"`
-	TriggerProtect           float64    `json:"triggerProtect,string"`
-	Filters                  []struct {
-		FilterType        string  `json:"filterType"`
-		MinPrice          float64 `json:"minPrice,string"`
-		MaxPrice          float64 `json:"maxPrice,string"`
-		TickSize          float64 `json:"tickSize,string"`
-		StepSize          float64 `json:"stepSize,string"`
-		MaxQty            float64 `json:"maxQty,string"`
-		MinQty            float64 `json:"minQty,string"`
-		Limit             int64   `json:"limit"`
-		MultiplierDown    float64 `json:"multiplierDown,string"`
-		MultiplierUp      float64 `json:"multiplierUp,string"`
-		MultiplierDecimal float64 `json:"multiplierDecimal,string"`
-		Notional          float64 `json:"notional,string"`
-	} `json:"filters"`
-	OrderTypes      []string `json:"OrderType"`
-	TimeInForce     []string `json:"timeInForce"`
-	LiquidationFee  float64  `json:"liquidationFee,string"`
-	MarketTakeBound float64  `json:"marketTakeBound,string"`
+	Symbol                   string                  `json:"symbol"`
+	Pair                     string                  `json:"pair"`
+	ContractType             string                  `json:"contractType"`
+	DeliveryDate             types.Time              `json:"deliveryDate"`
+	OnboardDate              types.Time              `json:"onboardDate"`
+	Status                   string                  `json:"status"`
+	MaintenanceMarginPercent float64                 `json:"maintMarginPercent,string"`
+	RequiredMarginPercent    float64                 `json:"requiredMarginPercent,string"`
+	BaseAsset                string                  `json:"baseAsset"`
+	QuoteAsset               string                  `json:"quoteAsset"`
+	MarginAsset              string                  `json:"marginAsset"`
+	PricePrecision           int64                   `json:"pricePrecision"`
+	QuantityPrecision        int64                   `json:"quantityPrecision"`
+	BaseAssetPrecision       int64                   `json:"baseAssetPrecision"`
+	QuotePrecision           int64                   `json:"quotePrecision"`
+	UnderlyingType           string                  `json:"underlyingType"`
+	UnderlyingSubType        []string                `json:"underlyingSubType"`
+	SettlePlan               float64                 `json:"settlePlan"`
+	TriggerProtect           float64                 `json:"triggerProtect,string"`
+	Filters                  []*OrderExecutionLimits `json:"filters"`
+	OrderTypes               []string                `json:"OrderType"`
+	TimeInForce              []string                `json:"timeInForce"`
+	LiquidationFee           float64                 `json:"liquidationFee,string"`
+	MarketTakeBound          float64                 `json:"marketTakeBound,string"`
+}
+
+// OrderExecutionLimits represents an order execution limits
+type OrderExecutionLimits struct {
+	FilterType        string  `json:"filterType"`
+	MinPrice          float64 `json:"minPrice,string"`
+	MaxPrice          float64 `json:"maxPrice,string"`
+	TickSize          float64 `json:"tickSize,string"`
+	StepSize          float64 `json:"stepSize,string"`
+	MaxQty            float64 `json:"maxQty,string"`
+	MinQty            float64 `json:"minQty,string"`
+	Limit             int64   `json:"limit"`
+	MultiplierDown    float64 `json:"multiplierDown,string"`
+	MultiplierUp      float64 `json:"multiplierUp,string"`
+	MultiplierDecimal float64 `json:"multiplierDecimal,string"`
+	Notional          float64 `json:"notional,string"`
 }
 
 // CExchangeInfo stores exchange info for cfutures

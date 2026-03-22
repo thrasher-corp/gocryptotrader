@@ -66,23 +66,6 @@ func (e *Exchange) GetEOptionsRecentTrades(ctx context.Context, symbol currency.
 	return resp, e.SendAPIKeyHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, common.EncodeURLValues("/eapi/v1/trades", params), optionsRecentTradesRate, &resp)
 }
 
-// GetEOptionsTradeHistory retrieves older market historical trades.
-func (e *Exchange) GetEOptionsTradeHistory(ctx context.Context, symbol currency.Pair, fromID, limit int64) ([]*EOptionsTradeItem, error) {
-	if symbol.IsEmpty() {
-		return nil, currency.ErrCurrencyPairEmpty
-	}
-	params := url.Values{}
-	params.Set("symbol", symbol.String())
-	if fromID > 0 {
-		params.Set("fromId", strconv.FormatInt(fromID, 10))
-	}
-	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	var resp []*EOptionsTradeItem
-	return resp, e.SendAPIKeyHTTPRequest(ctx, exchange.RestOptions, http.MethodGet, common.EncodeURLValues("/eapi/v1/historicalTrades", params), optionsDefaultRate, &resp)
-}
-
 // GetEOptionsCandlesticks retrieves kline/candlestick bars for an option symbol. Klines are uniquely identified by their open time.
 func (e *Exchange) GetEOptionsCandlesticks(ctx context.Context, symbol currency.Pair, interval kline.Interval, startTime, endTime time.Time, limit uint64) ([]*EOptionsCandlestick, error) {
 	if symbol.IsEmpty() {

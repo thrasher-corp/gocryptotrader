@@ -213,8 +213,10 @@ func (e *Exchange) batchAggregateTrades(ctx context.Context, arg *AggregatedTrad
 		// Extend from the default of 500
 		params.Set("limit", "1000")
 	}
-	var resp []*AggregatedTrade
-	var fromID int64
+	var (
+		resp   []*AggregatedTrade
+		fromID int64
+	)
 	if arg.FromID > 0 {
 		fromID = arg.FromID
 	} else {

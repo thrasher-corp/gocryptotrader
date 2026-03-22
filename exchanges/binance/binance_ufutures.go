@@ -125,7 +125,7 @@ func (e *Exchange) UFuturesHistoricalTrades(ctx context.Context, symbol currency
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []*UPublicTradesData
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/historicalTrades", params, uFuturesHistoricalTradesRate, nil, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/fapi/v1/historicalTrades", params), uFuturesHistoricalTradesRate, &resp)
 }
 
 // UCompressedTrades gets compressed public trades for usdt margined futures
@@ -1267,8 +1267,7 @@ func (e *Exchange) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]limits.
 			return nil, err
 		}
 
-		println("len(usdtFutures.Symbols[x].Filters) : ", len(usdtFutures.Symbols[x].Filters))
-		if len(usdtFutures.Symbols[x].Filters) < 5 {
+		if len(usdtFutures.Symbols[x].Filters) < 6 {
 			continue
 		}
 
@@ -1284,11 +1283,10 @@ func (e *Exchange) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]limits.
 			MarketMaxQty:            usdtFutures.Symbols[x].Filters[2].MaxQty,
 			MarketStepIncrementSize: usdtFutures.Symbols[x].Filters[2].StepSize,
 			MaxTotalOrders:          usdtFutures.Symbols[x].Filters[3].Limit,
-			MaxAlgoOrders:           usdtFutures.Symbols[x].Filters[4].Limit,
-			MinNotional:             usdtFutures.Symbols[x].Filters[5].Notional,
-			MultiplierUp:            usdtFutures.Symbols[x].Filters[6].MultiplierUp,
-			MultiplierDown:          usdtFutures.Symbols[x].Filters[6].MultiplierDown,
-			MultiplierDecimal:       usdtFutures.Symbols[x].Filters[6].MultiplierDecimal,
+			MinNotional:             usdtFutures.Symbols[x].Filters[4].Notional,
+			MultiplierUp:            usdtFutures.Symbols[x].Filters[5].MultiplierUp,
+			MultiplierDown:          usdtFutures.Symbols[x].Filters[5].MultiplierDown,
+			MultiplierDecimal:       usdtFutures.Symbols[x].Filters[5].MultiplierDecimal,
 		})
 	}
 	return l, nil

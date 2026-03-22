@@ -149,19 +149,36 @@ func (e *Exchange) processBalanceAndPositionUpdate(ctx context.Context, respRaw 
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
+	if resp.UpdateData == nil {
+		return nil
+	}
+	log.Debugf(log.ExchangeSys, "%v ACCOUNT_UPDATE reason: %s eventTime: %v", e.Name, resp.UpdateData.ReasonType, resp.EventTime.Time())
 	subAccts := accounts.SubAccounts{}
 	for _, b := range resp.UpdateData.Balances {
-		subAcct := accounts.NewSubAccount(assetType, b.BalanceChange.String())
+		subAcct := accounts.NewSubAccount(assetType, "")
+		walletBalance := b.WalletBalance.Float64()
+		crossWallet := b.CrossWallet.Float64()
 		subAcct.Balances.Set(b.Asset, accounts.Balance{
 			Currency:  b.Asset,
-			Hold:      b.WalletBalance.Float64(),
-			Free:      b.WalletBalance.Float64(),
+			Total:     walletBalance,
+			Hold:      walletBalance - crossWallet,
+			Free:      crossWallet,
 			UpdatedAt: resp.Transaction.Time(),
 		})
 		subAccts = subAccts.Merge(subAcct)
 	}
-	if err := e.Websocket.DataHandler.Send(ctx, resp.UpdateData.Positions); err != nil {
-		return err
+	for _, p := range resp.UpdateData.Positions {
+		if p.PositionAmount.Float64() == 0 {
+			log.Debugf(log.ExchangeSys, "%v position closed: %v side: %s", e.Name, p.Symbol, p.PositionSide)
+		}
+	}
+	if len(resp.UpdateData.Positions) > 0 {
+		if err := e.Websocket.DataHandler.Send(ctx, resp.UpdateData.Positions); err != nil {
+			return err
+		}
+	}
+	if len(subAccts) == 0 {
+		return nil
 	}
 	if err := e.Accounts.Save(ctx, subAccts, true); err != nil {
 		return err

@@ -68,6 +68,15 @@ func TestMain(m *testing.M) {
 		asset.USDTMarginedFutures: usdtmTradablePair,
 		asset.CoinMarginedFutures: coinmTradablePair,
 	}
+	for assetType, pair := range assetToTradablePairMap {
+		if err := e.CurrencyPairs.StorePairs(assetType, []currency.Pair{pair}, false); err != nil {
+			log.Fatal(err)
+		}
+		if err := e.CurrencyPairs.StorePairs(assetType, []currency.Pair{pair}, true); err != nil {
+			log.Fatal(err)
+		}
+	}
+	e.HTTPRecording = true
 	os.Exit(m.Run())
 }
 
