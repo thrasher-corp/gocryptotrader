@@ -69,7 +69,6 @@ func setFeeBuilder() *exchange.FeeBuilder {
 // this will default to time now with a window size of 30 days.
 // Mock details are unix seconds; start = 1577836800 and end = 1580515200
 func getTime(expanded ...bool) (startTime, endTime time.Time) {
-	mockTests = true
 	if len(expanded) > 0 && mockTests {
 		return time.UnixMilli(1744103851944), time.UnixMilli(1744190254944)
 	} else if mockTests {
@@ -3460,8 +3459,8 @@ func TestSubscribeBadResp(t *testing.T) {
 	require.NotNil(t, conn)
 
 	err = e.Subscribe(t.Context(), conn, channels)
-	require.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "Subscribe should error ErrSubscriptionFailure")
-	require.ErrorIs(t, err, common.ErrUnknownError, "Subscribe should error errUnknownError")
+	require.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "Subscribe must error ErrSubscriptionFailure")
+	require.ErrorIs(t, err, common.ErrUnknownError, "Subscribe must error errUnknownError")
 	assert.ErrorContains(t, err, "carrots", "Subscribe should error containing the carrots")
 }
 
@@ -3976,7 +3975,7 @@ func TestFetchExchangeLimits(t *testing.T) {
 	require.NotEmpty(t, l, "Should get some limits back")
 
 	_, err = e.FetchExchangeLimits(t.Context(), asset.Futures)
-	require.ErrorIs(t, err, asset.ErrNotSupported, "FetchExchangeLimits should error on other asset types")
+	require.ErrorIs(t, err, asset.ErrNotSupported, "FetchExchangeLimits must error on other asset types")
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
