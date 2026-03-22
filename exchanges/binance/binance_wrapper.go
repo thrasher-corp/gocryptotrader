@@ -401,11 +401,12 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 			if cInfo.Symbols[z].ContractStatus != tradingStatus {
 				continue
 			}
-			pair, err := currency.NewPairFromString(cInfo.Symbols[z].Symbol)
+			sym := cInfo.Symbols[z]
+			quote := sym.Symbol[len(sym.BaseAsset):]
+			pair, err := currency.NewPairFromStrings(sym.BaseAsset, quote)
 			if err != nil {
 				return nil, err
 			}
-			print(pair.String(), ",")
 			pairs = append(pairs, pair)
 		}
 	case asset.USDTMarginedFutures:

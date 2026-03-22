@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"slices"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -1071,9 +1070,9 @@ func (e *Exchange) FetchCoinMarginExchangeLimits(ctx context.Context) ([]limits.
 
 	l := make([]limits.MinMaxLevel, 0, len(coinFutures.Symbols))
 	for x := range coinFutures.Symbols {
-		symbol := strings.Split(coinFutures.Symbols[x].Symbol, currency.UnderscoreDelimiter)
+		sym := coinFutures.Symbols[x]
 		var cp currency.Pair
-		cp, err = currency.NewPairFromStrings(symbol[0], symbol[1])
+		cp, err = currency.NewPairFromStrings(sym.BaseAsset, sym.Symbol[len(sym.BaseAsset):])
 		if err != nil {
 			return nil, err
 		}

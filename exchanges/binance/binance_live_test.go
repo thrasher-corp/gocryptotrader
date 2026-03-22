@@ -76,7 +76,6 @@ func TestMain(m *testing.M) {
 			log.Fatal(err)
 		}
 	}
-	e.HTTPRecording = true
 	os.Exit(m.Run())
 }
 

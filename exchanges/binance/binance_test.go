@@ -1238,7 +1238,6 @@ func TestGetTraderFuturesAccountRatio(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidPeriodOrInterval)
 
 	startTime, endTime := getTime()
-	e.Verbose = true
 	_, err = e.GetTraderFuturesAccountRatio(t.Context(), usdtmTradablePair, "5m", 0, endTime, startTime)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
@@ -1635,7 +1634,6 @@ func TestFetchTradablePairs(t *testing.T) {
 
 	assetTypes := e.GetAssetTypes(true)
 	for a := range []asset.Item{asset.CoinMarginedFutures} {
-		e.Verbose = true
 		results, err := e.FetchTradablePairs(t.Context(), assetTypes[a])
 		assert.NoError(t, err)
 		assert.NotNil(t, results)
@@ -3771,10 +3769,7 @@ func TestSetExchangeOrderExecutionLimits(t *testing.T) {
 	err := e.UpdateOrderExecutionLimits(t.Context(), asset.Binary)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
-	cmfCP, err := currency.NewPairFromStrings("BTCUSD", "PERP")
-	require.NoError(t, err)
-
-	l, err := e.GetOrderExecutionLimits(asset.CoinMarginedFutures, cmfCP)
+	l, err := e.GetOrderExecutionLimits(asset.CoinMarginedFutures, coinmTradablePair)
 	require.NoError(t, err)
 	require.NotEmpty(t, l, "exchange limit should be loaded")
 
@@ -3972,7 +3967,6 @@ func TestFormatUSDTMarginedFuturesPair(t *testing.T) {
 
 func TestFetchExchangeLimits(t *testing.T) {
 	t.Parallel()
-	e.HTTPMockDataSliceLimit = 10
 	l, err := e.FetchExchangeLimits(t.Context(), asset.Spot)
 	require.NoError(t, err)
 	require.NotEmpty(t, l, "Should get some limits back")
@@ -3987,8 +3981,6 @@ func TestFetchExchangeLimits(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	e.HTTPMockDataSliceLimit = 10
-	testexch.UpdatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
 		t.Run(a.String(), func(t *testing.T) {
 			t.Parallel()
@@ -4082,7 +4074,6 @@ func TestGetLatestFundingRates(t *testing.T) {
 		require.NoError(t, testexch.MockHTTPInstance(e), "MockHTTPInstance must not error for local exchange instance")
 	}
 	testexch.UpdatePairsOnce(t, e)
-
 	usdtPerpetualPair := currency.NewBTCUSDT()
 	_, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset:                asset.USDTMarginedFutures,
@@ -9600,7 +9591,6 @@ func TestUnmarshalJSON(t *testing.T) {
 
 func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
-	testexch.UpdatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
 		pairs, err := e.CurrencyPairs.GetPairs(a, false)
 		require.NoErrorf(t, err, "cannot get pairs for %s", a)

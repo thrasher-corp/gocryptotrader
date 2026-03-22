@@ -335,7 +335,7 @@
         "rateLimitType": "RAW_REQUESTS"
        }
       ],
-      "serverTime": 1774188210412,
+      "serverTime": 1774216951739,
       "symbols": [
        {
         "allowTrailingStop": true,
@@ -346,7 +346,7 @@
          "DECREMENT"
         ],
         "amendAllowed": true,
-        "baseAsset": "ETH",
+        "baseAsset": "BTC",
         "baseAssetPrecision": 8,
         "baseCommissionPrecision": 8,
         "cancelReplaceAllowed": true,
@@ -370,7 +370,7 @@
          },
          {
           "filterType": "MARKET_LOT_SIZE",
-          "maxQty": "1512.33788250",
+          "maxQty": "1826.08298291",
           "minQty": "0.00000000",
           "stepSize": "0.00000000"
          },
@@ -683,13 +683,13 @@
          ]
         ],
         "permissions": [],
-        "quoteAsset": "BTC",
+        "quoteAsset": "USDT",
         "quoteAssetPrecision": 8,
         "quoteCommissionPrecision": 8,
         "quoteOrderQtyMarketAllowed": true,
         "quotePrecision": 8,
         "status": "TRADING",
-        "symbol": "ETHBTC"
+        "symbol": "BTCUSDT"
        },
        {
         "allowTrailingStop": true,
@@ -724,7 +724,7 @@
          },
          {
           "filterType": "MARKET_LOT_SIZE",
-          "maxQty": "3183.59527083",
+          "maxQty": "3502.00052719",
           "minQty": "0.00000000",
           "stepSize": "0.00000000"
          },
@@ -1078,7 +1078,7 @@
          },
          {
           "filterType": "MARKET_LOT_SIZE",
-          "maxQty": "1934.52517083",
+          "maxQty": "2242.86964435",
           "minQty": "0.00000000",
           "stepSize": "0.00000000"
          },
@@ -1432,7 +1432,7 @@
          },
          {
           "filterType": "MARKET_LOT_SIZE",
-          "maxQty": "5460.92591666",
+          "maxQty": "5759.59125523",
           "minQty": "0.00000000",
           "stepSize": "0.00000000"
          },
@@ -3523,7 +3523,7 @@
          },
          {
           "filterType": "MARKET_LOT_SIZE",
-          "maxQty": "22730.95208333",
+          "maxQty": "22871.23416666",
           "minQty": "0.00000000",
           "stepSize": "0.00000000"
          },
@@ -8207,7 +8207,7 @@
         "rateLimitType": "ORDERS"
        }
       ],
-      "serverTime": 1774188013840,
+      "serverTime": 1774216813928,
       "symbols": [
        {
         "baseAsset": "BTC",
