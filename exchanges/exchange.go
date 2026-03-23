@@ -683,11 +683,20 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled bool) 
 		updateType = "available"
 	}
 
-	if len(diff.New) > 0 {
-		log.Debugf(log.ExchangeSys, "%s Updating %s pairs [%v] - Added: %s.\n", b.Name, updateType, strings.ToUpper(a.String()), diff.New)
-	}
-	if len(diff.Remove) > 0 {
-		log.Debugf(log.ExchangeSys, "%s Updating %s pairs [%v] - Removed: %s.\n", b.Name, updateType, strings.ToUpper(a.String()), diff.Remove)
+	if len(diff.New) > 0 || len(diff.Remove) > 0 {
+		if enabled {
+			log.Debugf(log.ExchangeSys, "%s Updating %s pairs [%v] - Added: %d Removed: %d.", b.Name, updateType, strings.ToUpper(a.String()), len(diff.New), len(diff.Remove))
+		} else {
+			log.Debugf(log.ExchangeSys, "%s Updating %s pairs [%v] - Added: %d Removed: %d Total: %d.", b.Name, updateType, strings.ToUpper(a.String()), len(diff.New), len(diff.Remove), len(incoming))
+		}
+		if b.IsVerbose() {
+			if len(diff.New) > 0 {
+				log.Debugf(log.ExchangeSys, "%s %s pairs [%v] new: %s.", b.Name, updateType, strings.ToUpper(a.String()), diff.New)
+			}
+			if len(diff.Remove) > 0 {
+				log.Debugf(log.ExchangeSys, "%s %s pairs [%v] removed: %s.", b.Name, updateType, strings.ToUpper(a.String()), diff.Remove)
+			}
+		}
 	}
 
 	if err := common.NilGuard(b.Config, b.Config.CurrencyPairs); err != nil {
@@ -764,12 +773,16 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled bool) 
 		if err != nil {
 			return err
 		}
-		log.Debugf(log.ExchangeSys, "%s Enabled pairs missing for %s. Added %s.\n", b.Name, strings.ToUpper(a.String()), randomPair)
+		log.Debugf(log.ExchangeSys, "%s Enabled pairs missing for %s. Added %s.", b.Name, strings.ToUpper(a.String()), randomPair)
 		enabledPairs = currency.Pairs{randomPair}
 	}
 
 	if len(diff.Remove) > 0 {
-		log.Debugf(log.ExchangeSys, "%s Checked and updated enabled pairs [%v] - Removed: %s.\n", b.Name, strings.ToUpper(a.String()), diff.Remove)
+		if b.IsVerbose() {
+			log.Debugf(log.ExchangeSys, "%s Checked and updated enabled pairs [%v] - removed: %s.", b.Name, strings.ToUpper(a.String()), diff.Remove)
+		} else {
+			log.Debugf(log.ExchangeSys, "%s Checked and updated enabled pairs [%v] - Removed: %d.", b.Name, strings.ToUpper(a.String()), len(diff.Remove))
+		}
 	}
 	if err := b.Config.CurrencyPairs.StorePairs(a, enabledPairs, true); err != nil {
 		return err
@@ -1804,6 +1817,12 @@ func Bootstrap(ctx context.Context, b IBotExchange) error {
 			wsEnabled := false
 			if w, err := b.GetWebsocket(); err == nil {
 				wsURL = w.GetWebsocketURL()
+				if wsURL == "" {
+					urls, getErr := w.GetConfiguredWebsocketURLs()
+					if getErr == nil {
+						wsURL = strings.Join(urls, ",")
+					}
+				}
 				wsEnabled = w.IsEnabled()
 			}
 			log.Debugf(log.ExchangeSys, "%s Websocket: %s. (url: %s)", b.GetName(), common.IsEnabled(wsEnabled), wsURL)

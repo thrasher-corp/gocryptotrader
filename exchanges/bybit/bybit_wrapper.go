@@ -420,7 +420,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 	case asset.Spot, asset.CoinMarginedFutures, asset.USDCMarginedFutures, asset.USDTMarginedFutures:
 		category = getCategoryName(a)
 		for {
-			response, err = e.GetInstrumentInfo(ctx, category, "", "Trading", "", nextPageCursor, 1000)
+			response, err = e.GetInstrumentInfo(ctx, category, "", tradingStatus, "", nextPageCursor, 1000)
 			if err != nil {
 				return nil, err
 			}
@@ -435,7 +435,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		for x := range supportedOptionsTypes {
 			nextPageCursor = ""
 			for {
-				response, err = e.GetInstrumentInfo(ctx, category, "", "Trading", supportedOptionsTypes[x], nextPageCursor, 1000)
+				response, err = e.GetInstrumentInfo(ctx, category, "", tradingStatus, supportedOptionsTypes[x], nextPageCursor, 1000)
 				if err != nil {
 					return nil, err
 				}
@@ -460,7 +460,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		filterSymbol = "USD"
 	}
 	for x := range allPairs {
-		if allPairs[x].Status != "Trading" || (filterSymbol != "" && allPairs[x].QuoteCoin != filterSymbol) {
+		if allPairs[x].Status != tradingStatus || (filterSymbol != "" && allPairs[x].QuoteCoin != filterSymbol) {
 			continue
 		}
 		if a == asset.Options {
@@ -1615,7 +1615,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		for i := range supportedOptionsTypes {
 			nextPageCursor = ""
 			for {
-				instrumentInfo, err := e.GetInstrumentInfo(ctx, getCategoryName(a), "", "", supportedOptionsTypes[i], nextPageCursor, 1000)
+				instrumentInfo, err := e.GetInstrumentInfo(ctx, getCategoryName(a), "", tradingStatus, supportedOptionsTypes[i], nextPageCursor, 1000)
 				if err != nil {
 					return fmt.Errorf("%w - %v", err, supportedOptionsTypes[i])
 				}
@@ -1631,6 +1631,9 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	}
 	l := make([]limits.MinMaxLevel, 0, len(allInstrumentsInfo.List))
 	for _, inst := range allInstrumentsInfo.List {
+		if a == asset.Options && inst.Status != tradingStatus {
+			continue
+		}
 		symbol := inst.transformSymbol(a)
 		pair, err := e.MatchSymbolWithAvailablePairs(symbol, a, true)
 		if err != nil {
