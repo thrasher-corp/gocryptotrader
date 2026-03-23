@@ -98,7 +98,7 @@ grep_matches() {
         if [[ "$search_root" == "*" ]]; then
             grep_targets=(*)
         fi
-        "$GREP_BIN" -r -n --color=always --include="$name_glob" -"$grep_mode" "$pattern" "${grep_targets[@]}" 2>/dev/null
+        "$GREP_BIN" -r -n -I --color=always --include="$name_glob" -"$grep_mode" "$pattern" "${grep_targets[@]}" 2>/dev/null
         return $?
     fi
 
@@ -263,17 +263,15 @@ else
             echo "jq differences found in $file! Please run 'make lint_configs'"
             rm -f "$processed_file"
             check_failed=1
-            if [[ "$CI_MODE" -eq 1 ]]; then
-                exit 1
-            fi
-            fail "JSON config files are not properly sorted"
         else
             rm -f "$processed_file"
             echo "No differences found in $file 🌞"
         fi
     done
 
-    if [[ "$check_failed" -eq 0 ]]; then
+    if [[ "$check_failed" -eq 1 ]]; then
+        fail "JSON config files are not properly sorted"
+    else
         pass "JSON config files are properly formatted"
     fi
 fi
