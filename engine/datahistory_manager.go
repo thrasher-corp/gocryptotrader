@@ -192,6 +192,9 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 			if err != nil && !errors.Is(err, candle.ErrNoCandleDataFound) {
 				return fmt.Errorf("%s could not load candle data: %w", jobs[i].Nickname, err)
 			}
+			if candles == nil {
+				candles = &kline.Item{}
+			}
 			err = jobs[i].rangeHolder.SetHasDataFromCandles(candles.Candles)
 			if err != nil {
 				return err
@@ -215,6 +218,9 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 			candles, err = m.candleLoader(jobs[i].Exchange, jobs[i].Pair, jobs[i].Asset, jobs[i].ConversionInterval, jobs[i].StartDate, jobs[i].EndDate)
 			if err != nil && !errors.Is(err, candle.ErrNoCandleDataFound) {
 				return fmt.Errorf("%s could not load candle data: %w", jobs[i].Nickname, err)
+			}
+			if candles == nil {
+				candles = &kline.Item{}
 			}
 			err = jobs[i].rangeHolder.SetHasDataFromCandles(candles.Candles)
 			if err != nil {
@@ -1478,7 +1484,7 @@ func (m *DataHistoryManager) GenerateJobSummary(nickname string) (*DataHistoryJo
 	}, nil
 }
 
-// ----------------------------Lovely-converters----------------------------
+// convertDBModelToJob converts a database model into a data history job
 func (m *DataHistoryManager) convertDBModelToJob(dbModel *datahistoryjob.DataHistoryJob) (*DataHistoryJob, error) {
 	if !m.IsRunning() {
 		return nil, ErrSubSystemNotStarted

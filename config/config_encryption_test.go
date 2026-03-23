@@ -113,8 +113,7 @@ func TestEncryptConfigData(t *testing.T) {
 	require.ErrorIs(t, err, ErrSettingEncryptConfig)
 
 	_, err = c.encryptConfigData([]byte(`{"test":1}`))
-	require.Error(t, err)
-	require.IsType(t, aes.KeySizeError(1), err)
+	require.ErrorAs(t, err, new(aes.KeySizeError))
 
 	sessDk, salt, err := makeNewSessionDK([]byte("asdf"))
 	require.NoError(t, err, "makeNewSessionDK must not error")

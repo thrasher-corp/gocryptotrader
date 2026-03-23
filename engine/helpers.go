@@ -977,6 +977,13 @@ func NewExchangeByNameWithDefaults(ctx context.Context, name string) (exchange.I
 	return exch, nil
 }
 
+func resolvePPROFListenAddress(listenAddr string) string {
+	if listenAddr == "" {
+		return defaultPPROFListenAddress
+	}
+	return listenAddr
+}
+
 // StartPPROF starts a pprof profiler if enabled
 func StartPPROF(ctx context.Context, cfg *config.Profiler) error {
 	if !cfg.Enabled {
@@ -986,10 +993,7 @@ func StartPPROF(ctx context.Context, cfg *config.Profiler) error {
 	runtime.SetMutexProfileFraction(cfg.MutexProfileFraction)
 	runtime.SetBlockProfileRate(cfg.BlockProfileRate)
 
-	listenAddr := cfg.ListenAddress
-	if listenAddr == "" {
-		listenAddr = defaultPPROFListenAddress
-	}
+	listenAddr := resolvePPROFListenAddress(cfg.ListenAddress)
 
 	lc := net.ListenConfig{}
 	ln, err := lc.Listen(ctx, "tcp", listenAddr)

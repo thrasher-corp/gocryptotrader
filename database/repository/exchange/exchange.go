@@ -168,7 +168,7 @@ func insertPostgresql(ctx context.Context, tx *sql.Tx, in []Details) (err error)
 			if errRB != nil {
 				log.Errorln(log.DatabaseMgr, errRB)
 			}
-			return
+			return err
 		}
 	}
 	return nil
