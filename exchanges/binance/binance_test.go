@@ -110,9 +110,9 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-	// if mockTests {
-	// 	t.Skip()
-	// }
+	if mockTests {
+		t.Skip()
+	}
 	enabledAssets := e.GetAssetTypes(true)
 	for _, assetType := range enabledAssets {
 		err := e.UpdateTickers(t.Context(), assetType)
