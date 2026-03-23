@@ -3,7 +3,6 @@ package mock
 import (
 	"fmt"
 	"net/url"
-	"reflect"
 	"strconv"
 	"strings"
 
@@ -81,7 +80,7 @@ func DeriveURLValsFromJSONMap(payload []byte) (url.Values, error) {
 		case map[string]any, []any, nil:
 			vals.Add(k, fmt.Sprintf("%v", val))
 		default:
-			return vals, fmt.Errorf("unhandled conversion type: %v, please add as needed", reflect.TypeOf(val))
+			return vals, fmt.Errorf("unhandled conversion type: %T, please add as needed", val)
 		}
 	}
 

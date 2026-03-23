@@ -41,7 +41,7 @@ func TestMatchURLVals(t *testing.T) {
 	}
 }
 
-type class struct {
+type multiTypeHolder struct {
 	Counter    int     `json:"counter"`
 	Numbers    []int   `json:"numbers"`
 	Number     float64 `json:"number"`
@@ -51,15 +51,15 @@ type class struct {
 func TestDeriveURLValsFromJSON(t *testing.T) {
 	t.Parallel()
 	test1 := struct {
-		Things     []string `json:"things"`
-		Data       class    `json:"data"`
-		Counter    int      `json:"counter"`
-		IsEvenNum  bool     `json:"numbers"`
-		Number     float64  `json:"number"`
-		SomeString string   `json:"somestring"`
+		Things     []string        `json:"things"`
+		Data       multiTypeHolder `json:"data"`
+		Counter    int             `json:"counter"`
+		IsEvenNum  bool            `json:"numbers"`
+		Number     float64         `json:"number"`
+		SomeString string          `json:"somestring"`
 	}{
 		Things: []string{"hello", "world"},
-		Data: class{
+		Data: multiTypeHolder{
 			Counter:    1,
 			Numbers:    []int{1, 3, 3, 7, 9},
 			Number:     3.14,
@@ -104,17 +104,17 @@ func TestDeriveURLValsFromJSONSlice(t *testing.T) {
 	_, err := DeriveURLValsFromJSONSlice([]byte(``))
 	require.NoError(t, err, "DeriveURLValsFromJSONSlice must not error")
 
-	test1 := []struct {
-		Things     []string `json:"things"`
-		Data       class    `json:"data"`
-		Counter    int      `json:"counter"`
-		IsEvenNum  bool     `json:"numbers"`
-		Number     float64  `json:"number"`
-		SomeString string   `json:"somestring"`
+	tcs := []struct {
+		Things     []string        `json:"things"`
+		Data       multiTypeHolder `json:"data"`
+		Counter    int             `json:"counter"`
+		IsEvenNum  bool            `json:"numbers"`
+		Number     float64         `json:"number"`
+		SomeString string          `json:"somestring"`
 	}{
 		{
 			Things: []string{"hello", "world"},
-			Data: class{
+			Data: multiTypeHolder{
 				Counter:    1,
 				Numbers:    []int{1, 3, 3, 7, 9},
 				Number:     3.14,
@@ -123,47 +123,53 @@ func TestDeriveURLValsFromJSONSlice(t *testing.T) {
 			Counter:    1,
 			IsEvenNum:  false,
 			Number:     3.14,
-			SomeString: "hello, peoples",
+			SomeString: "Test case 1",
 		},
 		{
 			Things: []string{"hello", "thrasher"},
-			Data: class{
+			Data: multiTypeHolder{
 				Counter:    2,
 				Numbers:    []int{1, 9, 9, 9},
 				Number:     3.14529,
 				SomeString: "hello, team",
 			},
-			IsEvenNum: true,
-			Number:    3,
+			IsEvenNum:  true,
+			Number:     3,
+			SomeString: "Test case 2",
 		},
 		{
 			Things: []string{"hello", "Ethiopia"},
-			Data: class{
+			Data: multiTypeHolder{
 				Counter:    3,
 				Numbers:    []int{2, 0, 1, 8},
 				Number:     2018,
 				SomeString: "hello, there",
 			},
-			IsEvenNum: true,
-			Number:    3,
+			IsEvenNum:  true,
+			SomeString: "Test case 3",
+			Number:     3,
+		},
+		{
+			SomeString: "Test case 4",
 		},
 		{},
-		{Things: []string{}},
-		{Things: nil},
 	}
-	payload, err := json.Marshal(test1)
+	payload, err := json.Marshal(tcs)
 	require.NoError(t, err, "Marshal must not error")
 
 	values, err := DeriveURLValsFromJSONSlice(payload)
 	require.NoError(t, err, "DeriveURLValsFromJSONSlice must not error")
-	assert.Len(t, values, 6)
+	assert.Len(t, values, len(tcs))
 
-	for i := range test1 {
-		elemPayload, err := json.Marshal(test1[i])
-		require.NoError(t, err, "Marshal must not error")
+	for i := range tcs {
+		t.Run(tcs[i].SomeString, func(t *testing.T) {
+			t.Parallel()
+			elemPayload, err := json.Marshal(tcs[i])
+			require.NoError(t, err, "Marshal must not error")
 
-		val, err := DeriveURLValsFromJSONMap(elemPayload)
-		require.NoError(t, err, "DeriveURLValsFromJSONMap must not error")
-		assert.True(t, MatchURLVals(values[i], val), "MatchURLVals should be true")
+			val, err := DeriveURLValsFromJSONMap(elemPayload)
+			require.NoError(t, err, "DeriveURLValsFromJSONMap must not error")
+			assert.True(t, MatchURLVals(values[i], val), "MatchURLVals should be true")
+		})
 	}
 }

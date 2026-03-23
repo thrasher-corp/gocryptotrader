@@ -194,9 +194,6 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 								return jErr
 							}
 
-							if len(reqVals) != len(mockVals) {
-								continue
-							}
 							if found = slices.EqualFunc(reqVals, mockVals, MatchURLVals); found {
 								// if found will delete instance and overwrite with new
 								// data
