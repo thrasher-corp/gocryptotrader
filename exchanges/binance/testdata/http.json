@@ -7839,6 +7839,50 @@
     }
    ]
   },
+  "/fapi/v1/allOrders": {
+   "GET": [
+    {
+     "data": null,
+     "queryString": "endTime=1774272637439\u0026recvWindow=5000\u0026signature=188850c7bc8ebfa4208e3ec03867cded972e37040d138641f3f247b6cd1fb024\u0026startTime=1773754237439\u0026timestamp=1774272637574",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    },
+    {
+     "data": null,
+     "queryString": "endTime=1774272637439\u0026limit=5\u0026recvWindow=5000\u0026signature=87046f4801f15e44f488ca97d1612c3dff77d390118985a617e8748a2ea6b941\u0026startTime=1773754237439\u0026symbol=BTCUSDT\u0026timestamp=1774272638198",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    },
+    {
+     "data": null,
+     "queryString": "endTime=1774272758885\u0026recvWindow=5000\u0026signature=a067f15955819487c6e0db67d7859ce5d89dece43c6ade2110f7d0ceea55cb4b\u0026startTime=1773754358885\u0026timestamp=1774272759019",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    },
+    {
+     "data": null,
+     "queryString": "endTime=1774272758885\u0026limit=5\u0026recvWindow=5000\u0026signature=641dc3296ddf72c46ca6f66a55272fd3929dc27424beb5a57009e1b6bb3925c8\u0026startTime=1773754358885\u0026symbol=BTCUSDT\u0026timestamp=1774272760531",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ]
+  },
   "/fapi/v1/assetIndex": {
    "GET": [
     {
@@ -9456,6 +9500,15 @@
      "queryString": "limit=100\u0026symbol=BTCUSDT",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": {
+      "code": -2014,
+      "msg": "API-key format invalid."
+     },
+     "queryString": "limit=5\u0026symbol=BTCUSDT",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -10512,6 +10565,105 @@
     }
    ]
   },
+  "/fapi/v1/openOrders": {
+   "GET": [
+    {
+     "data": null,
+     "queryString": "recvWindow=10000\u0026signature=484e1ca78bc1cc347e709f7c18bd716afd63d5a4558bc0c882e5daa28e24f7ec\u0026timestamp=1774272610472",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    },
+    {
+     "data": null,
+     "queryString": "recvWindow=5000\u0026signature=d473d4ae6128ed3586526809cb764952ab47dc2715df0756ba3a76537dfe8afb\u0026symbol=BTCUSDT\u0026timestamp=1774272611077",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ]
+  },
+  "/fapi/v1/order": {
+   "GET": [
+    {
+     "data": {
+      "avgPrice": "0.00000",
+      "clientOrderId": "abc",
+      "cumQuote": "0",
+      "executedQty": "0",
+      "orderId": 1917641,
+      "origQty": "0.40",
+      "origType": "TRAILING_STOP_MARKET",
+      "price": "0",
+      "reduceOnly": false,
+      "side": "BUY",
+      "positionSide": "SHORT",
+      "status": "NEW",
+      "stopPrice": "9300",
+      "closePosition": false,
+      "symbol": "BTCUSDT",
+      "time": 1579276756075,
+      "timeInForce": "GTC",
+      "type": "TRAILING_STOP_MARKET",
+      "activatePrice": "9020",
+      "priceRate": "0.3",
+      "updateTime": 1579276756075,
+      "workingType": "CONTRACT_PRICE",
+      "priceProtect": false
+     },
+     "queryString": "orderId=123\u0026recvWindow=5000\u0026signature=95137921228fdbdff47275e63bd180416cb9323a305e83446e7df965204a7946\u0026symbol=BTCUSDT\u0026timestamp=1774271857645",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ]
+  },
+  "/fapi/v1/orderAmendment": {
+   "GET": [
+    {
+     "data": {
+      "code": -1102,
+      "msg": "Param 'orderId' or 'origClientOrderId' must be sent, but both were empty/null!"
+     },
+     "queryString": "endTime=1774271291536\u0026limit=10\u0026recvWindow=5000\u0026signature=ca273fdfbb2550c469d34568e5b5a55e6f207b68ae92ecf3ca406136acf4ef23\u0026startTime=1773752891536\u0026symbol=KAVAUSDT\u0026timestamp=1774271291536",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    },
+    {
+     "data": null,
+     "queryString": "endTime=1774271368781\u0026limit=10\u0026orderId=1234\u0026recvWindow=5000\u0026signature=c7a7c06e25cb9a1a7714a0eb9ca9c4818ff5a6cc1f0a6d88374ca8769f209e60\u0026startTime=1773752968781\u0026symbol=KAVAUSDT\u0026timestamp=1774271368782",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    },
+    {
+     "data": null,
+     "queryString": "endTime=1774271746623\u0026limit=10\u0026orderId=1234\u0026recvWindow=5000\u0026signature=1bac80fa3e738fb38bae76c2a1b112ca60a523e20592f3d6cc237fddbf6120ce\u0026startTime=1773753346623\u0026symbol=BTCUSDT\u0026timestamp=1774271746623",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ]
+  },
   "/fapi/v1/premiumIndex": {
    "GET": [
     {
@@ -11053,6 +11205,76 @@
      "queryString": "limit=1000\u0026symbol=BTCUSDT",
      "bodyParams": "",
      "headers": {}
+    }
+   ]
+  },
+  "/fapi/v2/balance": {
+   "GET": [
+    {
+     "data": [
+      {
+       "accountAlias": "SgSgfWoCAuXqfWsR",
+       "asset": "FDUSD",
+       "availableBalance": "0.00000000",
+       "balance": "0.00000000",
+       "crossUnPnl": "0.00000000",
+       "crossWalletBalance": "0.00000000",
+       "marginAvailable": true,
+       "maxWithdrawAmount": "0.00000000",
+       "updateTime": 0
+      },
+      {
+       "accountAlias": "SgSgfWoCAuXqfWsR",
+       "asset": "U",
+       "availableBalance": "0.00000000",
+       "balance": "0.00000000",
+       "crossUnPnl": "0.00000000",
+       "crossWalletBalance": "0.00000000",
+       "marginAvailable": true,
+       "maxWithdrawAmount": "0.00000000",
+       "updateTime": 0
+      },
+      {
+       "accountAlias": "SgSgfWoCAuXqfWsR",
+       "asset": "LDUSDT",
+       "availableBalance": "0.00000000",
+       "balance": "0.00000000",
+       "crossUnPnl": "0.00000000",
+       "crossWalletBalance": "0.00000000",
+       "marginAvailable": true,
+       "maxWithdrawAmount": "0.00000000",
+       "updateTime": 0
+      },
+      {
+       "accountAlias": "SgSgfWoCAuXqfWsR",
+       "asset": "BFUSD",
+       "availableBalance": "0.00000000",
+       "balance": "0.00000000",
+       "crossUnPnl": "0.00000000",
+       "crossWalletBalance": "0.00000000",
+       "marginAvailable": true,
+       "maxWithdrawAmount": "0.00000000",
+       "updateTime": 0
+      },
+      {
+       "accountAlias": "SgSgfWoCAuXqfWsR",
+       "asset": "BNB",
+       "availableBalance": "0.00000000",
+       "balance": "0.00000000",
+       "crossUnPnl": "0.00000000",
+       "crossWalletBalance": "0.00000000",
+       "marginAvailable": true,
+       "maxWithdrawAmount": "0.00000000",
+       "updateTime": 0
+      }
+     ],
+     "queryString": "recvWindow=5000\u0026signature=8669bdb7a6c8664beb75184c808f95db8651b2e95d3eaabf236c9de82c17eb8e\u0026timestamp=1774276401760",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
     }
    ]
   },

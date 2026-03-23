@@ -1,4 +1,4 @@
-//go:build mock_test_off
+//go:build !mock_test_off
 
 // This will build if build tag mock_test_off is parsed and will do live testing
 // using all tests in (exchange)_test.go
@@ -55,11 +55,6 @@ func TestMain(m *testing.M) {
 	if err := e.populateTradablePairs(); err != nil {
 		log.Fatal(err)
 	}
-	spotTradablePair = currency.NewPair(currency.NewCode("BTC"), currency.NewCode("USDT"))
-	marginTradablePair = currency.NewPair(currency.NewCode("BTC"), currency.NewCode("USDT"))
-	usdtmTradablePair = currency.NewPair(currency.NewCode("BTC"), currency.NewCode("USDT"))
-	coinmTradablePair = currency.NewPair(currency.NewCode("BTC"), currency.NewCode("USD_PERP"))
-	optionsTradablePair = currency.Pair{Base: currency.NewCode("BTC"), Quote: currency.NewCode("260327-100000-C"), Delimiter: currency.DashDelimiter}
 
 	assetToTradablePairMap = map[asset.Item]currency.Pair{
 		asset.Spot:                spotTradablePair,
@@ -67,14 +62,6 @@ func TestMain(m *testing.M) {
 		asset.Options:             optionsTradablePair,
 		asset.USDTMarginedFutures: usdtmTradablePair,
 		asset.CoinMarginedFutures: coinmTradablePair,
-	}
-	for assetType, pair := range assetToTradablePairMap {
-		if err := e.CurrencyPairs.StorePairs(assetType, []currency.Pair{pair}, false); err != nil {
-			log.Fatal(err)
-		}
-		if err := e.CurrencyPairs.StorePairs(assetType, []currency.Pair{pair}, true); err != nil {
-			log.Fatal(err)
-		}
 	}
 	os.Exit(m.Run())
 }

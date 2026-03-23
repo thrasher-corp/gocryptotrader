@@ -125,7 +125,7 @@ func (e *Exchange) UFuturesHistoricalTrades(ctx context.Context, symbol currency
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []*UPublicTradesData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/fapi/v1/historicalTrades", params), uFuturesHistoricalTradesRate, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/historicalTrades", params, uFuturesHistoricalTradesRate, nil, &resp)
 }
 
 // UCompressedTrades gets compressed public trades for usdt margined futures
@@ -787,7 +787,7 @@ func (e *Exchange) GetUSDTOrderModifyHistory(ctx context.Context, symbol currenc
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol.String())
-	if orderID <= 0 {
+	if orderID > 0 {
 		params.Set("orderId", strconv.FormatInt(orderID, 10))
 	}
 	if origClientOrderID != "" {
