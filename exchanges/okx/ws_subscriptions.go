@@ -128,13 +128,13 @@ func (e *Exchange) refreshEquivalentOrderbookSnapshot(sub *subscription.Subscrip
 	return e.Websocket.Orderbook.LoadSnapshot(&cloned)
 }
 
-func (e *Exchange) trackEquivalentSubscriptionsOnExistingConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) (subscription.List, error) {
+// trackEquivalentSubscriptionsOnExistingConnection identifies spot/margin equivalent subscriptions that can be logically attached to an existing connection, sends any required outbound subscribe payloads, and returns both remaining and tracked subscriptions for manager-level bookkeeping.
+func (e *Exchange) trackEquivalentSubscriptionsOnExistingConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) (remaining, tracked subscription.List, err error) {
 	if conn == nil || len(subs) == 0 {
-		return subs, nil
+		return subs, nil, nil
 	}
 
-	var tracked subscription.List
-	remaining := make(subscription.List, 0, len(subs))
+	remaining = make(subscription.List, 0, len(subs))
 	for _, sub := range subs {
 		inverse, ok := inverseSpotMarginSubscription(sub)
 		if !ok || conn.Subscriptions().Get(inverse) == nil {
@@ -144,20 +144,24 @@ func (e *Exchange) trackEquivalentSubscriptionsOnExistingConnection(ctx context.
 		tracked = append(tracked, sub)
 	}
 	if len(tracked) == 0 {
-		return remaining, nil
+		return remaining, nil, nil
 	}
-	if err := e.handleSubscription(ctx, conn, operationSubscribe, tracked); err != nil {
-		return nil, err
+	requests, err := e.chunkRequests(tracked, operationSubscribe)
+	if err != nil {
+		return nil, nil, err
 	}
-
-	connSubsStore := conn.Subscriptions()
+	for _, req := range requests {
+		if len(req.Arguments) == 0 {
+			continue
+		}
+		if err := conn.SendJSONMessage(ctx, websocketRequestEPL, req); err != nil {
+			return nil, nil, err
+		}
+	}
 	for _, sub := range tracked {
-		if err := connSubsStore.Add(sub); err != nil {
-			return nil, err
-		}
 		if err := e.refreshEquivalentOrderbookSnapshot(sub); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
-	return remaining, nil
+	return remaining, tracked, nil
 }

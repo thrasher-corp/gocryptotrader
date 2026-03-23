@@ -245,12 +245,14 @@ func TestTrackEquivalentSubscriptionsOnExistingConnection(t *testing.T) {
 		require.NoError(t, tracked.Websocket.AddSuccessfulSubscriptions(existingConn, marginSub))
 		require.NoError(t, existingConn.subscriptions.Add(marginSub))
 
-		remaining, err := tracked.trackEquivalentSubscriptionsOnExistingConnection(t.Context(), existingConn, subscription.List{spotSub})
+		remaining, trackedSubs, err := tracked.trackEquivalentSubscriptionsOnExistingConnection(t.Context(), existingConn, subscription.List{spotSub})
 		require.NoError(t, err)
 		require.Empty(t, remaining, "equivalent spot subscription must be tracked on the existing connection")
+		require.Len(t, trackedSubs, 1)
+		require.Same(t, spotSub, trackedSubs[0])
 		require.Empty(t, existingConn.requests, "tracking on an existing connection must not emit a new outbound subscribe request")
-		require.NotNil(t, tracked.Websocket.GetSubscription(spotSub), "spot subscription must be tracked logically")
-		require.Len(t, existingConn.subscriptions.List(), 2, "existing connection store must track both logical subscriptions")
+		require.Nil(t, tracked.Websocket.GetSubscription(spotSub), "hook must not mutate manager-level tracking state directly")
+		require.Len(t, existingConn.subscriptions.List(), 1, "hook must not mutate connection subscription stores directly")
 	})
 
 	t.Run("SkipsConnectionWithoutInverse", func(t *testing.T) {
@@ -266,10 +268,11 @@ func TestTrackEquivalentSubscriptionsOnExistingConnection(t *testing.T) {
 
 		wrongConn := &subscriptionRecorderConnection{subscriptions: subscription.NewStore()}
 
-		remaining, err := tracked.trackEquivalentSubscriptionsOnExistingConnection(t.Context(), wrongConn, subscription.List{spotSub})
+		remaining, trackedSubs, err := tracked.trackEquivalentSubscriptionsOnExistingConnection(t.Context(), wrongConn, subscription.List{spotSub})
 		require.NoError(t, err)
 		require.Len(t, remaining, 1, "spot sub must NOT be tracked on a connection that doesn't own the inverse")
 		require.Same(t, spotSub, remaining[0])
+		require.Empty(t, trackedSubs)
 		require.Empty(t, wrongConn.subscriptions.List(), "wrongConn must not gain any subscriptions")
 	})
 
@@ -317,9 +320,11 @@ func TestTrackEquivalentSubscriptionsOnExistingConnection(t *testing.T) {
 			ValidateOrderbook: tracked.ValidateOrderbook,
 		}))
 
-		remaining, err := tracked.trackEquivalentSubscriptionsOnExistingConnection(t.Context(), existingConn, subscription.List{marginSub})
+		remaining, trackedSubs, err := tracked.trackEquivalentSubscriptionsOnExistingConnection(t.Context(), existingConn, subscription.List{marginSub})
 		require.NoError(t, err)
 		require.Empty(t, remaining)
+		require.Len(t, trackedSubs, 1)
+		require.Same(t, marginSub, trackedSubs[0])
 		require.Empty(t, existingConn.requests, "equivalent re-enable remains a logical track, not a new outbound subscribe")
 
 		marginBook, err := tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Margin)

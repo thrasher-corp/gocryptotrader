@@ -812,7 +812,130 @@ func cleanupManagedConnectionReaders(t *testing.T, m *Manager, ws *websocket) {
 	resetManagerForNextConnectAttempt(t, m)
 }
 
-func TestTrackOnExistingConnection(t *testing.T) {
+func TestApplyTrackedSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	t.Run("NoTrackedSubscriptionsNoOp", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		conn := &fakeConnection{}
+		require.NoError(t, m.applyTrackedSubscriptions(conn, nil))
+	})
+
+	t.Run("RecordsInManagerAndConnectionStores", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		sub := &subscription.Subscription{Channel: "tracked"}
+		conn := &fakeConnection{subscriptions: subscription.NewStore()}
+		ws := &websocket{setup: &ConnectionSetup{}, subscriptions: subscription.NewStore()}
+		m.trackConnection(conn, ws)
+
+		require.NoError(t, m.applyTrackedSubscriptions(conn, subscription.List{sub}))
+		require.NotNil(t, ws.subscriptions.Get(sub), "tracked subscription must be recorded in websocket store")
+		require.NotNil(t, conn.subscriptions.Get(sub), "tracked subscription must be recorded in connection store")
+		assert.Equal(t, subscription.SubscribedState, sub.State())
+	})
+
+	t.Run("ErrorsWhenConnectionStoreIsNil", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		sub := &subscription.Subscription{Channel: "tracked"}
+		conn := &fakeConnection{}
+		ws := &websocket{setup: &ConnectionSetup{}, subscriptions: subscription.NewStore()}
+		m.trackConnection(conn, ws)
+
+		err := m.applyTrackedSubscriptions(conn, subscription.List{sub})
+		require.ErrorIs(t, err, common.ErrNilPointer)
+	})
+}
+
+func TestAbsorbSubscriptionsAndValidate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("PassThroughWithoutTrackHook", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		subs := subscription.List{{Channel: "A"}}
+		ws := &websocket{
+			setup:         &ConnectionSetup{},
+			subscriptions: subscription.NewStore(),
+			connections:   []Connection{&fakeConnection{subscriptions: subscription.NewStore()}},
+		}
+
+		remaining, err := m.absorbTrackableSubscriptionsAndValidate(t.Context(), ws, subs)
+		require.NoError(t, err)
+		assert.Equal(t, subs, remaining)
+	})
+
+	t.Run("PropagatesTrackError", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		expectedErr := errors.New("track failed")
+		ws := &websocket{
+			setup: &ConnectionSetup{
+				TrackOnExistingConnection: func(context.Context, Connection, subscription.List) (subscription.List, subscription.List, error) {
+					return nil, nil, expectedErr
+				},
+			},
+			subscriptions: subscription.NewStore(),
+			connections:   []Connection{&fakeConnection{subscriptions: subscription.NewStore()}},
+		}
+
+		remaining, err := m.absorbTrackableSubscriptionsAndValidate(t.Context(), ws, subscription.List{{Channel: "A"}})
+		require.ErrorIs(t, err, expectedErr)
+		assert.Nil(t, remaining)
+	})
+
+	t.Run("ErrorsWhenTrackedSubsNotRecordedOnWebsocketStore", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		trackedSub := &subscription.Subscription{Channel: "tracked"}
+		conn := &fakeConnection{subscriptions: subscription.NewStore()}
+		ws := &websocket{
+			setup: &ConnectionSetup{
+				TrackOnExistingConnection: func(context.Context, Connection, subscription.List) (subscription.List, subscription.List, error) {
+					return nil, subscription.List{trackedSub}, nil
+				},
+			},
+			subscriptions: subscription.NewStore(),
+			connections:   []Connection{conn},
+		}
+
+		// Intentionally do not map conn -> ws; manager-level tracking goes to
+		// the global store, allowing validation to detect missing websocket state.
+		remaining, err := m.absorbTrackableSubscriptionsAndValidate(t.Context(), ws, subscription.List{trackedSub})
+		require.ErrorIs(t, err, ErrSubscriptionFailure)
+		require.ErrorIs(t, err, ErrSubscriptionsNotAdded)
+		assert.Nil(t, remaining)
+	})
+
+	t.Run("ReturnsRemainingAndRecordsTracked", func(t *testing.T) {
+		t.Parallel()
+		m := NewManager()
+		trackedSub := &subscription.Subscription{Channel: "tracked"}
+		remainingSub := &subscription.Subscription{Channel: "remaining"}
+		conn := &fakeConnection{subscriptions: subscription.NewStore()}
+		ws := &websocket{
+			setup: &ConnectionSetup{
+				TrackOnExistingConnection: func(_ context.Context, _ Connection, _ subscription.List) (subscription.List, subscription.List, error) {
+					return subscription.List{remainingSub}, subscription.List{trackedSub}, nil
+				},
+			},
+			subscriptions: subscription.NewStore(),
+			connections:   []Connection{conn},
+		}
+		m.trackConnection(conn, ws)
+
+		remaining, err := m.absorbTrackableSubscriptionsAndValidate(t.Context(), ws, subscription.List{trackedSub, remainingSub})
+		require.NoError(t, err)
+		require.Len(t, remaining, 1)
+		assert.Same(t, remainingSub, remaining[0])
+		require.NotNil(t, ws.subscriptions.Get(trackedSub))
+		require.NotNil(t, conn.subscriptions.Get(trackedSub))
+	})
+}
+
+func TestAbsorbTrackedSubscriptions(t *testing.T) {
 	t.Parallel()
 
 	t.Run("PassthroughWithoutTrackHook", func(t *testing.T) {
@@ -824,9 +947,10 @@ func TestTrackOnExistingConnection(t *testing.T) {
 			connections: []Connection{&fakeConnection{subscriptions: subscription.NewStore()}},
 		}
 
-		remaining, err := m.trackOnExistingConnection(t.Context(), ws, subs)
+		remaining, tracked, err := m.absorbTrackedSubscriptions(t.Context(), ws, subs)
 		require.NoError(t, err)
 		assert.Equal(t, subs, remaining)
+		assert.Empty(t, tracked)
 	})
 
 	t.Run("TracksAcrossConnectionsUntilEmpty", func(t *testing.T) {
@@ -837,13 +961,11 @@ func TestTrackOnExistingConnection(t *testing.T) {
 		conn1 := &fakeConnection{subscriptions: subscription.NewStore()}
 		ws := &websocket{
 			setup: &ConnectionSetup{
-				TrackOnExistingConnection: func(_ context.Context, conn Connection, subs subscription.List) (subscription.List, error) {
+				TrackOnExistingConnection: func(_ context.Context, conn Connection, subs subscription.List) (subscription.List, subscription.List, error) {
 					if conn != conn1 {
-						return subs, nil
+						return subs, nil, nil
 					}
-					require.NoError(t, m.AddSuccessfulSubscriptions(conn, tracked))
-					require.NoError(t, conn.Subscriptions().Add(tracked))
-					return nil, nil
+					return nil, subscription.List{tracked}, nil
 				},
 			},
 			subscriptions: subscription.NewStore(),
@@ -852,9 +974,11 @@ func TestTrackOnExistingConnection(t *testing.T) {
 		m.connections[conn0] = ws
 		m.connections[conn1] = ws
 
-		remaining, err := m.trackOnExistingConnection(t.Context(), ws, subscription.List{tracked})
+		remaining, trackedSubs, err := m.absorbTrackedSubscriptions(t.Context(), ws, subscription.List{tracked})
 		require.NoError(t, err)
 		require.Nil(t, remaining)
+		require.Len(t, trackedSubs, 1)
+		require.Same(t, tracked, trackedSubs[0])
 		require.NotNil(t, ws.subscriptions.Get(tracked))
 		require.NotNil(t, conn1.subscriptions.Get(tracked))
 		assert.Nil(t, conn0.subscriptions.Get(tracked))
@@ -866,16 +990,17 @@ func TestTrackOnExistingConnection(t *testing.T) {
 		expectedErr := errors.New("track failed")
 		ws := &websocket{
 			setup: &ConnectionSetup{
-				TrackOnExistingConnection: func(context.Context, Connection, subscription.List) (subscription.List, error) {
-					return nil, expectedErr
+				TrackOnExistingConnection: func(context.Context, Connection, subscription.List) (subscription.List, subscription.List, error) {
+					return nil, nil, expectedErr
 				},
 			},
 			connections: []Connection{&fakeConnection{subscriptions: subscription.NewStore()}},
 		}
 
-		remaining, err := m.trackOnExistingConnection(t.Context(), ws, subscription.List{{Channel: "A"}})
+		remaining, tracked, err := m.absorbTrackedSubscriptions(t.Context(), ws, subscription.List{{Channel: "A"}})
 		require.ErrorIs(t, err, expectedErr)
 		assert.Nil(t, remaining)
+		assert.Nil(t, tracked)
 	})
 }
 
@@ -1063,13 +1188,11 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 				Connector: func(context.Context, Connection) error {
 					return errors.New("should not create a new connection")
 				},
-				TrackOnExistingConnection: func(_ context.Context, conn Connection, subs subscription.List) (subscription.List, error) {
+				TrackOnExistingConnection: func(_ context.Context, _ Connection, subs subscription.List) (subscription.List, subscription.List, error) {
 					if len(subs) != 1 || subs[0].Channel != logical.Channel {
-						return subs, nil
+						return subs, nil, nil
 					}
-					require.NoError(t, m.AddSuccessfulSubscriptions(conn, logical))
-					require.NoError(t, conn.Subscriptions().Add(logical))
-					return nil, nil
+					return nil, subscription.List{logical}, nil
 				},
 			},
 			subscriptions: subscription.NewStore(),
@@ -1109,15 +1232,13 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 				Connector: func(context.Context, Connection) error {
 					return errors.New("should not create a new connection")
 				},
-				TrackOnExistingConnection: func(_ context.Context, conn Connection, subs subscription.List) (subscription.List, error) {
+				TrackOnExistingConnection: func(_ context.Context, conn Connection, subs subscription.List) (subscription.List, subscription.List, error) {
 					// Only track when the connection owns subB (the inverse).
 					if conn.Subscriptions().Get(subB) == nil {
-						return subs, nil
+						return subs, nil, nil
 					}
 					trackedOnConn = conn
-					require.NoError(t, m.AddSuccessfulSubscriptions(conn, logical))
-					require.NoError(t, conn.Subscriptions().Add(logical))
-					return nil, nil
+					return nil, subscription.List{logical}, nil
 				},
 			},
 			subscriptions: subscription.NewStore(),
@@ -1147,7 +1268,7 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 		// conn1 has subB (the inverse of logical sub C).
 		// Without the pre-subscribe tracking pass, the generic
 		// subscribeToConnection loop would route C to conn0 because
-		// it has capacity. The fix ensures trackOnExistingConnection
+		// it has capacity. The fix ensures absorbTrackedSubscriptions
 		// runs first, absorbing C onto conn1.
 		subA := &subscription.Subscription{Channel: "A"}
 		subB := &subscription.Subscription{Channel: "B"}
@@ -1168,22 +1289,22 @@ func TestScaleConnectionsToSubscriptions(t *testing.T) {
 				Connector: func(context.Context, Connection) error {
 					return errors.New("should not create a new connection")
 				},
-				TrackOnExistingConnection: func(_ context.Context, conn Connection, subs subscription.List) (subscription.List, error) {
+				TrackOnExistingConnection: func(_ context.Context, conn Connection, subs subscription.List) (subscription.List, subscription.List, error) {
 					// Only track when the connection owns subB (the inverse).
 					if conn.Subscriptions().Get(subB) == nil {
-						return subs, nil
+						return subs, nil, nil
 					}
 					var remaining subscription.List
+					var tracked subscription.List
 					for _, s := range subs {
 						if s.Channel != logical.Channel {
 							remaining = append(remaining, s)
 							continue
 						}
 						trackedOnConn = conn
-						require.NoError(t, m.AddSuccessfulSubscriptions(conn, s))
-						require.NoError(t, conn.Subscriptions().Add(s))
+						tracked = append(tracked, s)
 					}
-					return remaining, nil
+					return remaining, tracked, nil
 				},
 				Handler: func(context.Context, Connection, []byte) error { return nil },
 			},
@@ -1319,18 +1440,12 @@ func TestConnectTracksOnExistingConnectionBeforeNewConnection(t *testing.T) {
 		Subscriber: func(_ context.Context, c Connection, s subscription.List) error {
 			return m.AddSuccessfulSubscriptions(c, s...)
 		},
-		TrackOnExistingConnection: func(_ context.Context, conn Connection, subs subscription.List) (subscription.List, error) {
+		TrackOnExistingConnection: func(_ context.Context, _ Connection, subs subscription.List) (subscription.List, subscription.List, error) {
 			if len(subs) != 1 || subs[0] != subB {
-				return subs, nil
+				return subs, nil, nil
 			}
 			trackCalls++
-			if err := m.AddSuccessfulSubscriptions(conn, subB); err != nil {
-				return nil, err
-			}
-			if err := conn.Subscriptions().Add(subB); err != nil {
-				return nil, err
-			}
-			return nil, nil
+			return nil, subscription.List{subB}, nil
 		},
 		Handler: func(context.Context, Connection, []byte) error { return nil },
 	}))
@@ -1382,7 +1497,7 @@ func TestConnectReducesTrackedSubscriptionsBeforeBatching(t *testing.T) {
 		Subscriber: func(_ context.Context, c Connection, s subscription.List) error {
 			return m.AddSuccessfulSubscriptions(c, s...)
 		},
-		TrackOnExistingConnection: func(_ context.Context, conn Connection, subs subscription.List) (subscription.List, error) {
+		TrackOnExistingConnection: func(_ context.Context, _ Connection, subs subscription.List) (subscription.List, subscription.List, error) {
 			trackBatchLens = append(trackBatchLens, len(subs))
 			remaining := make(subscription.List, 0, len(subs))
 			tracked := make(subscription.List, 0, len(subs))
@@ -1394,17 +1509,9 @@ func TestConnectReducesTrackedSubscriptionsBeforeBatching(t *testing.T) {
 				tracked = append(tracked, sub)
 			}
 			if len(tracked) == 0 {
-				return subs, nil
+				return subs, nil, nil
 			}
-			if err := m.AddSuccessfulSubscriptions(conn, tracked...); err != nil {
-				return nil, err
-			}
-			for _, sub := range tracked {
-				if err := conn.Subscriptions().Add(sub); err != nil {
-					return nil, err
-				}
-			}
-			return remaining, nil
+			return remaining, tracked, nil
 		},
 		Handler: func(context.Context, Connection, []byte) error { return nil },
 	}))
@@ -1423,7 +1530,7 @@ func TestConnectReducesTrackedSubscriptionsBeforeBatching(t *testing.T) {
 	assert.NotNil(t, ws.subscriptions.Get(realB), "real-B is tracked logically")
 }
 
-func TestConnectPreBatchTrackedSubscriptionsRequireRecordedState(t *testing.T) {
+func TestConnectPreBatchTrackedSubscriptionsAutoRecordState(t *testing.T) {
 	t.Parallel()
 
 	m := NewManager()
@@ -1451,15 +1558,17 @@ func TestConnectPreBatchTrackedSubscriptionsRequireRecordedState(t *testing.T) {
 		Subscriber: func(_ context.Context, c Connection, s subscription.List) error {
 			return m.AddSuccessfulSubscriptions(c, s...)
 		},
-		TrackOnExistingConnection: func(_ context.Context, _ Connection, subs subscription.List) (subscription.List, error) {
+		TrackOnExistingConnection: func(_ context.Context, _ Connection, subs subscription.List) (subscription.List, subscription.List, error) {
 			remaining := make(subscription.List, 0, len(subs))
+			tracked := make(subscription.List, 0, len(subs))
 			for _, sub := range subs {
 				if sub == trackedSub {
+					tracked = append(tracked, sub)
 					continue
 				}
 				remaining = append(remaining, sub)
 			}
-			return remaining, nil
+			return remaining, tracked, nil
 		},
 		Handler: func(context.Context, Connection, []byte) error { return nil },
 	}))
@@ -1467,9 +1576,8 @@ func TestConnectPreBatchTrackedSubscriptionsRequireRecordedState(t *testing.T) {
 	ws := m.connectionManager[0]
 	m.trackConnection(&fakeConnection{subscriptions: subscription.NewStore()}, ws)
 
-	err := m.Connect(t.Context())
-	require.ErrorIs(t, err, ErrSubscriptionFailure, "pre-batch tracked subscriptions must surface subscription failure when subscriptions are not recorded")
-	require.ErrorIs(t, err, ErrSubscriptionsNotAdded, "pre-batch tracked subscriptions must validate that tracked subscriptions were added")
+	require.NoError(t, m.Connect(t.Context()))
+	require.NotNil(t, ws.subscriptions.Get(trackedSub), "tracked subscriptions must be recorded by the manager")
 }
 
 func TestUnsubscribeFromConnection(t *testing.T) {
