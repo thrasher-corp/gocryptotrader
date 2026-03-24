@@ -1133,6 +1133,31 @@ func TestWsOwnTradesSub(t *testing.T) {
 	assert.Empty(t, e.Websocket.GetSubscriptions(), "Should have successfully removed channel")
 }
 
+func TestWsProcessSubStatusAuthenticated(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name             string
+		channel          string
+		qualifiedChannel string
+	}{
+		{name: "own trades", channel: subscription.MyTradesChannel, qualifiedChannel: krakenWsOwnTrades},
+		{name: "open orders", channel: subscription.MyOrdersChannel, qualifiedChannel: krakenWsOpenOrders},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup Instance must not error")
+			s := &subscription.Subscription{Channel: tc.channel, QualifiedChannel: tc.qualifiedChannel, Authenticated: true}
+			require.NoError(t, ex.Websocket.AddSubscriptions(nil, s), "authenticated subscription must be added in subscribing state")
+
+			ex.wsProcessSubStatus([]byte(`{"channelName":"` + tc.qualifiedChannel + `","event":"subscriptionStatus","reqid":3,"status":"subscribed","subscription":{"name":"` + tc.qualifiedChannel + `"}}`))
+			assert.Equal(t, subscription.SubscribedState, s.State(), "authenticated subscription status should be updated without requiring a pair field")
+		})
+	}
+}
+
 // TestGenerateSubscriptions tests the subscriptions generated from configuration
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
