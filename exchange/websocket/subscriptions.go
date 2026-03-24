@@ -373,6 +373,73 @@ func (m *Manager) updateChannelSubscriptions(ctx context.Context, store *subscri
 	return nil
 }
 
+// applyTrackedSubscriptions records tracked subscriptions in both manager-level and connection-level stores for the provided connection.
+func (m *Manager) applyTrackedSubscriptions(conn Connection, tracked subscription.List) error {
+	if len(tracked) == 0 {
+		return nil
+	}
+	if err := m.AddSuccessfulSubscriptions(conn, tracked...); err != nil {
+		return err
+	}
+	store := conn.Subscriptions()
+	if err := common.NilGuard(store); err != nil {
+		return fmt.Errorf("websocket connection %w", err)
+	}
+	for _, sub := range tracked {
+		if err := store.Add(sub); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// absorbTrackedSubscriptions asks each managed connection whether a subset of subs can be logically tracked on that existing connection.
+// It applies tracked subscriptions to manager and connection stores and returns the remaining subscriptions that still need outbound subscribe traffic/new capacity plus the list that were tracked.
+func (m *Manager) absorbTrackedSubscriptions(ctx context.Context, ws *websocket, subs subscription.List) (remaining, tracked subscription.List, err error) {
+	if len(subs) == 0 || ws == nil || ws.setup == nil || ws.setup.TrackOnExistingConnection == nil {
+		return subs, nil, nil
+	}
+	connections := m.snapshotManagedConnections(ws)
+	if len(connections) == 0 {
+		return subs, nil, nil
+	}
+
+	remaining = subs
+	tracked = make(subscription.List, 0, len(subs))
+	for _, conn := range connections {
+		connRemaining, connTracked, err := ws.setup.TrackOnExistingConnection(ctx, conn, remaining)
+		if err != nil {
+			return nil, nil, err
+		}
+		if err := m.applyTrackedSubscriptions(conn, connTracked); err != nil {
+			return nil, nil, err
+		}
+		if len(connTracked) != 0 {
+			tracked = append(tracked, connTracked...)
+		}
+		remaining = connRemaining
+		if len(remaining) == 0 {
+			return nil, tracked, nil
+		}
+	}
+	return remaining, tracked, nil
+}
+
+// absorbTrackableSubscriptionsAndValidate absorbs trackable subscriptions onto existing connections and verifies that tracked subscriptions were recorded in the websocket-level subscription store.
+func (m *Manager) absorbTrackableSubscriptionsAndValidate(ctx context.Context, ws *websocket, subs subscription.List) (subscription.List, error) {
+	remaining, tracked, err := m.absorbTrackedSubscriptions(ctx, ws, subs)
+	if err != nil {
+		return nil, err
+	}
+	if len(tracked) == 0 {
+		return remaining, nil
+	}
+	if missing := ws.subscriptions.Missing(tracked); len(missing) > 0 {
+		return nil, fmt.Errorf("%w: %w %q", ErrSubscriptionFailure, ErrSubscriptionsNotAdded, missing)
+	}
+	return remaining, nil
+}
+
 // scaleConnectionsToSubscriptions scales connections to subscriptions based off current subscription list and subscription limit
 func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, ws *websocket, incoming subscription.List) error {
 	if err := common.NilGuard(ws); err != nil {
@@ -406,8 +473,15 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, ws *webso
 		}
 	}
 	if len(subs) != 0 {
+		// First, absorb subscriptions that should be tracked on existing
+		// connections (e.g. OKX spot/margin equivalents) before the
+		// generic capacity-based routing can misplace them.
+		currentSubs, err := m.absorbTrackableSubscriptionsAndValidate(ctx, ws, subs)
+		if err != nil {
+			return err
+		}
+
 		// Subscribe to existing connections to use up existing capacity
-		currentSubs := slices.Clone(subs)
 		for _, conn := range m.snapshotManagedConnections(ws) {
 			leftOver, err := m.subscribeToConnection(ctx, conn, currentSubs)
 			if err != nil {
@@ -421,7 +495,14 @@ func (m *Manager) scaleConnectionsToSubscriptions(ctx context.Context, ws *webso
 
 		// Spawn new connections if there are still subscriptions left to process
 		for _, batch := range common.Batch(currentSubs, m.MaxSubscriptionsPerConnection) {
-			if err := m.createConnectAndSubscribe(ctx, ws, batch); err != nil {
+			toConnect, err := m.absorbTrackableSubscriptionsAndValidate(ctx, ws, batch)
+			if err != nil {
+				return err
+			}
+			if len(toConnect) == 0 {
+				continue
+			}
+			if err := m.createConnectAndSubscribe(ctx, ws, toConnect); err != nil {
 				return err
 			}
 		}
@@ -503,7 +584,7 @@ func (m *Manager) subscribeToConnection(ctx context.Context, conn Connection, su
 	}
 
 	usedCap := store.Len()
-	if m.MaxSubscriptionsPerConnection > 0 && usedCap == m.MaxSubscriptionsPerConnection {
+	if m.MaxSubscriptionsPerConnection > 0 && usedCap >= m.MaxSubscriptionsPerConnection {
 		return subs, nil // No capacity left for this connection
 	}
 

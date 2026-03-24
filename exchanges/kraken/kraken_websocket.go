@@ -79,9 +79,10 @@ func init() {
 }
 
 var (
-	errCancellingOrder = errors.New("error cancelling order")
-	errSubPairMissing  = errors.New("pair missing from subscription response")
-	errInvalidChecksum = errors.New("invalid checksum")
+	errCancellingOrder        = errors.New("error cancelling order")
+	errSubPairMissing         = errors.New("pair missing from subscription response")
+	errInvalidChecksum        = errors.New("invalid checksum")
+	errExpectedOneSubResponse = errors.New("expected 1 subscription response")
 )
 
 var defaultSubscriptions = subscription.List{
@@ -731,7 +732,11 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 		r.Subscription.Token = e.websocketAuthToken()
 	}
 
-	resps, err := conn.SendMessageReturnResponses(ctx, request.Unset, r.RequestID, r, len(s.Pairs))
+	expectedResponses := len(s.Pairs)
+	if expectedResponses == 0 {
+		expectedResponses = 1
+	}
+	resps, err := conn.SendMessageReturnResponses(ctx, request.Unset, r.RequestID, r, expectedResponses)
 
 	// Ignore an overall timeout, because we'll track individual subscriptions in handleSubResps
 	err = common.ExcludeError(err, websocket.ErrSignatureTimeout)
@@ -747,6 +752,16 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 // Returns an error collection of unique errors and its pairs
 func (e *Exchange) handleSubResps(s *subscription.Subscription, resps [][]byte, op string) error {
 	reqFmt := currency.PairFormat{Uppercase: true, Delimiter: "/"}
+
+	if len(s.Pairs) == 0 {
+		if len(resps) != 1 {
+			return fmt.Errorf("%w; got %d; Channel: %s", errExpectedOneSubResponse, len(resps), s.Channel)
+		}
+		if err := e.getSubRespErr(resps[0], op); err != nil {
+			return fmt.Errorf("%w; Channel: %s", err, s.Channel)
+		}
+		return nil
+	}
 
 	errMap := map[string]error{}
 	pairErrs := map[currency.Pair]error{}
@@ -840,14 +855,6 @@ func (e *Exchange) getRespErr(resp []byte) error {
 // It's job is to ensure that subscription state is kept correct sequentially between WS messages
 // If this responsibility was moved to Subscribe then we would have a race due to the channel connecting IncomingWithData
 func (e *Exchange) wsProcessSubStatus(conn websocket.Connection, resp []byte) {
-	pName, err := jsonparser.GetUnsafeString(resp, "pair")
-	if err != nil {
-		return
-	}
-	pair, err := currency.NewPairFromString(pName)
-	if err != nil {
-		return
-	}
 	c, err := jsonparser.GetUnsafeString(resp, "channelName")
 	if err != nil {
 		return
@@ -859,18 +866,25 @@ func (e *Exchange) wsProcessSubStatus(conn websocket.Connection, resp []byte) {
 	if err != nil {
 		return
 	}
-	key := &subscription.Subscription{
-		// We don't use asset because it's either Empty or Spot, but not both
-		Channel: c,
-		Pairs:   currency.Pairs{pair},
+
+	keySub := &subscription.Subscription{Channel: c}
+	lookupKey := any(subscription.ChannelKey{Subscription: keySub})
+	if pName, pErr := jsonparser.GetUnsafeString(resp, "pair"); pErr == nil {
+		pair, pErr := currency.NewPairFromString(pName)
+		if pErr != nil {
+			log.Errorf(log.ExchangeSys, "%s error parsing websocket subscription pair %q: %s from message: %s", e.Name, pName, pErr, resp)
+			return
+		}
+		keySub.Pairs = currency.Pairs{pair}
+		lookupKey = &subscription.IgnoringAssetKey{Subscription: keySub}
 	}
 
-	if err = fqChannelNameSub(key); err != nil {
+	if err = fqChannelNameSub(keySub); err != nil {
 		return
 	}
-	s := e.Websocket.GetSubscription(&subscription.IgnoringAssetKey{Subscription: key})
+	s := e.Websocket.GetSubscription(lookupKey)
 	if s == nil {
-		log.Errorf(log.ExchangeSys, "%s %s Channel: %s Pairs: %s", e.Name, subscription.ErrNotFound, key.Channel, key.Pairs.Join())
+		log.Errorf(log.ExchangeSys, "%s %s Channel: %s Pairs: %s", e.Name, subscription.ErrNotFound, keySub.Channel, keySub.Pairs.Join())
 		return
 	}
 
