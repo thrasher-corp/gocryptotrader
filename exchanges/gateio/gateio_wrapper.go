@@ -2259,47 +2259,56 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) (
 		}
 	}
 	for _, a := range assets {
-		var p currency.Pair
-		if len(keys) == 1 && a == keys[0].Asset {
-			if p, errs = e.MatchSymbolWithAvailablePairs(keys[0].Pair().String(), a, false); errs != nil {
-				return nil, errs
-			}
+		useStats := useOpenInterestStats(keys, a)
+		requestedPair, err := getRequestedOpenInterestPair(e, keys, a)
+		if err != nil {
+			return nil, err
 		}
-		contracts, err := e.getOpenInterestContracts(ctx, a, p)
+		contracts, err := e.getOpenInterestContracts(ctx, a, requestedPair)
 		if err != nil {
 			errs = common.AppendError(errs, fmt.Errorf("%w fetching %s", err, a))
 			continue
 		}
 		for _, c := range contracts {
-			if p.IsEmpty() { // If not exactly one key provided
-				p, err = e.MatchSymbolWithAvailablePairs(c.contractName(), a, true)
+			pair := requestedPair
+			if pair.IsEmpty() { // If not exactly one key provided
+				pair, err = e.MatchSymbolWithAvailablePairs(c.contractName(), a, true)
 				if err != nil {
 					if err := common.ExcludeError(err, currency.ErrPairNotFound); err != nil {
 						errs = common.AppendError(errs, fmt.Errorf("%w from %s contract %s", err, a, c.contractName()))
 					}
 					continue
 				}
-				if len(keys) == 0 { // No keys: default fan-out scope is enabled pairs.
-					if enabled, err := e.IsPairEnabled(p, a); err != nil {
-						errs = common.AppendError(errs, fmt.Errorf("%w: %s %s", err, a, p))
+				if len(keys) == 0 { // No keys: All enabled pairs
+					if enabled, err := e.IsPairEnabled(pair, a); err != nil {
+						errs = common.AppendError(errs, fmt.Errorf("%w: %s %s", err, a, pair))
 						continue
 					} else if !enabled {
 						continue
 					}
 				} else { // More than one key; Any available pair
-					if !slices.ContainsFunc(keys, func(k key.PairAsset) bool { return a == k.Asset && k.Pair().Equal(p) }) {
+					if !slices.ContainsFunc(keys, func(k key.PairAsset) bool { return a == k.Asset && k.Pair().Equal(pair) }) {
 						continue
 					}
+				}
+			}
+
+			openInterest := c.openInterest()
+			if useStats {
+				openInterest, err = e.getOpenInterestFromStats(ctx, a, pair)
+				if err != nil {
+					errs = common.AppendError(errs, fmt.Errorf("%w from %s contract %s", err, a, c.contractName()))
+					continue
 				}
 			}
 			resp = append(resp, futures.OpenInterest{
 				Key: key.ExchangeAssetPair{
 					Exchange: e.Name,
-					Base:     p.Base.Item,
-					Quote:    p.Quote.Item,
+					Base:     pair.Base.Item,
+					Quote:    pair.Quote.Item,
 					Asset:    a,
 				},
-				OpenInterest: c.openInterest(),
+				OpenInterest: openInterest,
 			})
 		}
 	}
@@ -2329,6 +2338,42 @@ func (c *DeliveryContract) openInterest() float64 {
 
 func (c *DeliveryContract) contractName() string {
 	return c.Name
+}
+
+func openInterestFromStats(stats []ContractStat) (float64, error) {
+	if len(stats) == 0 {
+		return 0, errNoValidResponseFromServer
+	}
+	latest := stats[0]
+	for i := 1; i < len(stats); i++ {
+		if stats[i].Time.Time().After(latest.Time.Time()) {
+			latest = stats[i]
+		}
+	}
+	return latest.OpenInterest.Float64(), nil
+}
+
+func useOpenInterestStats(keys []key.PairAsset, a asset.Item) bool {
+	return a != asset.DeliveryFutures && len(keys) == 1 && keys[0].Asset == a
+}
+
+func getRequestedOpenInterestPair(e *Exchange, keys []key.PairAsset, a asset.Item) (currency.Pair, error) {
+	if len(keys) != 1 || keys[0].Asset != a {
+		return currency.EMPTYPAIR, nil
+	}
+	return e.MatchSymbolWithAvailablePairs(keys[0].Pair().String(), a, false)
+}
+
+func (e *Exchange) getOpenInterestFromStats(ctx context.Context, a asset.Item, p currency.Pair) (float64, error) {
+	settle, err := getSettlementCurrency(p, a)
+	if err != nil {
+		return 0, err
+	}
+	stats, err := e.GetFutureStats(ctx, settle, p, time.Time{}, 0, 1)
+	if err != nil {
+		return 0, err
+	}
+	return openInterestFromStats(stats)
 }
 
 func (e *Exchange) getOpenInterestContracts(ctx context.Context, a asset.Item, p currency.Pair) ([]openInterestContract, error) {
