@@ -460,7 +460,7 @@ func TestGetServerTime(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestCountdownCancelorder(t *testing.T) {
+func TestCountdownCancelSpotOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.CountdownCancelorders(t.Context(), CountdownCancelOrderParam{Timeout: 0, CurrencyPair: getPair(t, asset.Spot)})
 	require.ErrorIs(t, err, errInvalidCountdown)
@@ -468,6 +468,51 @@ func TestCountdownCancelorder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err = e.CountdownCancelorders(t.Context(), CountdownCancelOrderParam{Timeout: 10, CurrencyPair: getPair(t, asset.Spot)})
 	assert.NoError(t, err)
+
+	for _, tc := range []struct {
+		name         string
+		requiresAuth bool
+		arg          CountdownCancelOrderParam
+		expectedErr  error
+	}{
+		{
+			name:         "valid",
+			requiresAuth: true,
+			arg: CountdownCancelOrderParam{
+				Timeout:      10,
+				CurrencyPair: getPair(t, asset.Spot),
+			},
+		},
+		{
+			name: "timeout_zero",
+			arg: CountdownCancelOrderParam{
+				Timeout:      0,
+				CurrencyPair: getPair(t, asset.Spot),
+			},
+			expectedErr: errInvalidCountdown,
+		},
+		{
+			name: "timeout_negative",
+			arg: CountdownCancelOrderParam{
+				Timeout:      -1,
+				CurrencyPair: getPair(t, asset.Spot),
+			},
+			expectedErr: errInvalidCountdown,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if tc.requiresAuth {
+				sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+			}
+			_, err := e.CountdownCancelSpotOrders(t.Context(), tc.arg)
+			if tc.expectedErr != nil {
+				assert.ErrorIs(t, err, tc.expectedErr)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
 }
 
 func TestCreatePriceTriggeredOrder(t *testing.T) {
@@ -1185,6 +1230,39 @@ func TestUpdateFuturesPositionRiskLimit(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestSetLeverage(t *testing.T) {
+	t.Parallel()
+
+	err := e.SetLeverage(t.Context(), asset.Spot, getPair(t, asset.Spot), margin.Isolated, 1, order.UnknownSide)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	err = e.SetLeverage(t.Context(), asset.CoinMarginedFutures, getPair(t, asset.CoinMarginedFutures), margin.NoMargin, 1, order.UnknownSide)
+	assert.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
+
+	err = e.SetLeverage(t.Context(), asset.CoinMarginedFutures, getPair(t, asset.CoinMarginedFutures), margin.Isolated, 0, order.UnknownSide)
+	assert.ErrorIs(t, err, errInvalidLeverage)
+
+	err = e.SetLeverage(t.Context(), asset.CoinMarginedFutures, currency.EMPTYPAIR, margin.Isolated, 1, order.UnknownSide)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	err = e.SetLeverage(t.Context(), asset.DeliveryFutures, getPair(t, asset.DeliveryFutures), margin.Isolated, 0, order.UnknownSide)
+	assert.ErrorIs(t, err, errInvalidLeverage)
+
+	err = e.SetLeverage(t.Context(), asset.DeliveryFutures, getPair(t, asset.DeliveryFutures), margin.Multi, 1, order.UnknownSide)
+	assert.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+
+	err = e.SetLeverage(t.Context(), asset.CoinMarginedFutures, getPair(t, asset.CoinMarginedFutures), margin.Isolated, 1, order.UnknownSide)
+	assert.NoError(t, err)
+
+	err = e.SetLeverage(t.Context(), asset.USDTMarginedFutures, getPair(t, asset.USDTMarginedFutures), margin.Multi, 5, order.UnknownSide)
+	assert.NoError(t, err)
+
+	err = e.SetLeverage(t.Context(), asset.DeliveryFutures, getPair(t, asset.DeliveryFutures), margin.Isolated, 1, order.UnknownSide)
+	assert.NoError(t, err)
+}
+
 func TestPlaceDeliveryOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -1665,14 +1743,54 @@ func TestGetFuturesLiquidationHistory(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestCountdownCancelOrders(t *testing.T) {
+func TestCountdownCancelFuturesOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.CountdownCancelOrders(t.Context(), currency.EMPTYCODE, CountdownParams{Timeout: 8})
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err = e.CountdownCancelOrders(t.Context(), currency.BTC, CountdownParams{Timeout: 8})
-	assert.NoError(t, err)
+	for _, tc := range []struct {
+		name         string
+		requiresAuth bool
+		settle       currency.Code
+		arg          CountdownParams
+		expectedErr  error
+	}{
+		{
+			name:         "valid",
+			requiresAuth: true,
+			settle:       currency.BTC,
+			arg: CountdownParams{
+				Timeout: 8,
+			},
+		},
+		{
+			name:   "empty_settlement",
+			settle: currency.EMPTYCODE,
+			arg: CountdownParams{
+				Timeout: 8,
+			},
+			expectedErr: errEmptyOrInvalidSettlementCurrency,
+		},
+		{
+			name:   "negative_timeout",
+			settle: currency.BTC,
+			arg: CountdownParams{
+				Timeout: -1,
+			},
+			expectedErr: errInvalidTimeout,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if tc.requiresAuth {
+				sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+			}
+			_, err := e.CountdownCancelFuturesOrders(t.Context(), tc.settle, tc.arg)
+			if tc.expectedErr != nil {
+				assert.ErrorIs(t, err, tc.expectedErr)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
 }
 
 func TestCreatePriceTriggeredFuturesOrder(t *testing.T) {
@@ -2522,20 +2640,120 @@ func TestGetActiveOrders(t *testing.T) {
 }
 
 func TestGetOrderHistory(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, e)
+	type testCase struct {
+		name         string
+		requiresAuth bool
+		request      order.MultiOrderRequest
+		expectedErr  error
+	}
+
+	testCases := make([]testCase, 0, len(e.GetAssetTypes(false))*2+1)
 	for _, a := range e.GetAssetTypes(false) {
 		enabledPairs := getPairs(t, a)
-		if len(enabledPairs) > 4 {
-			enabledPairs = enabledPairs[:4]
+		enabledPairs = enabledPairs[:min(4, len(enabledPairs))]
+
+		withPairs := testCase{
+			name:         a.String() + "/with_pairs",
+			requiresAuth: true,
+			request: order.MultiOrderRequest{
+				Type:      order.AnyType,
+				Side:      order.Buy,
+				Pairs:     enabledPairs,
+				AssetType: a,
+			},
 		}
-		multiOrderRequest := order.MultiOrderRequest{
+		testCases = append(testCases, withPairs)
+
+		noPairs := testCase{
+			name:         a.String() + "/without_pairs",
+			requiresAuth: true,
+			request: order.MultiOrderRequest{
+				Type:      order.AnyType,
+				Side:      order.Buy,
+				AssetType: a,
+			},
+		}
+		if a == asset.Options {
+			noPairs.requiresAuth = false
+			noPairs.expectedErr = currency.ErrCurrencyPairsEmpty
+		}
+		testCases = append(testCases, noPairs)
+	}
+
+	testCases = append(testCases, testCase{
+		name:         "unsupported/default_case_binary",
+		requiresAuth: false,
+		request: order.MultiOrderRequest{
 			Type:      order.AnyType,
 			Side:      order.Buy,
-			Pairs:     enabledPairs,
-			AssetType: a,
-		}
-		_, err := e.GetOrderHistory(t.Context(), &multiOrderRequest)
-		assert.NoErrorf(t, err, "GetOrderHistory should not error for %s", a)
+			AssetType: asset.Binary,
+		},
+		expectedErr: asset.ErrNotSupported,
+	})
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if tc.requiresAuth {
+				sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+			}
+			orders, err := e.GetOrderHistory(t.Context(), &tc.request)
+			if tc.expectedErr != nil {
+				assert.ErrorIs(t, err, tc.expectedErr)
+				return
+			}
+			require.NoError(t, err)
+			for j := range orders {
+				assert.Equal(t, tc.request.AssetType, orders[j].AssetType)
+				assert.Equal(t, e.Name, orders[j].Exchange)
+				assert.True(t, orders[j].Pair.IsPopulated(), "pair should be populated for order history response")
+			}
+		})
+	}
+}
+
+func TestGetOrderHistoryRequestImmutability(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, e)
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	enabledPairs := getPairs(t, asset.Spot)
+	enabledPairs = enabledPairs[:min(2, len(enabledPairs))]
+
+	type testCase struct {
+		name    string
+		request order.MultiOrderRequest
+	}
+
+	testCases := []testCase{
+		{
+			name: "nil_pairs",
+			request: order.MultiOrderRequest{
+				Type:      order.AnyType,
+				Side:      order.Buy,
+				AssetType: asset.Spot,
+			},
+		},
+		{
+			name: "provided_pairs",
+			request: order.MultiOrderRequest{
+				Type:      order.AnyType,
+				Side:      order.Buy,
+				Pairs:     slices.Clone(enabledPairs),
+				AssetType: asset.Spot,
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			expectedPairs := slices.Clone(tc.request.Pairs)
+			_, err := e.GetOrderHistory(t.Context(), &tc.request)
+			require.NoError(t, err)
+			assert.Equal(t, expectedPairs, tc.request.Pairs)
+		})
 	}
 }
 
@@ -3189,8 +3407,32 @@ func TestGetOpenInterest(t *testing.T) {
 			Asset: a,
 		})
 		assert.NoErrorf(t, err, "GetOpenInterest should not error for %s asset", a)
-		assert.Lenf(t, resp, 1, "GetOpenInterest should return 1 item for %s asset", a)
+		require.Lenf(t, resp, 1, "GetOpenInterest must return 1 item for %s asset", a)
+		assert.Positivef(t, resp[0].OpenInterest, "GetOpenInterest should return positive open interest for %s asset", a)
 	}
+
+	coinPair := getPair(t, asset.CoinMarginedFutures)
+	usdtPair := getPair(t, asset.USDTMarginedFutures)
+	resp, err = e.GetOpenInterest(t.Context(),
+		key.PairAsset{Base: coinPair.Base.Item, Quote: coinPair.Quote.Item, Asset: asset.CoinMarginedFutures},
+		key.PairAsset{Base: usdtPair.Base.Item, Quote: usdtPair.Quote.Item, Asset: asset.USDTMarginedFutures},
+	)
+	assert.NoError(t, err, "GetOpenInterest should not error for multiple explicit perpetual pairs")
+	require.Len(t, resp, 2, "GetOpenInterest returns exactly the requested perpetual pairs")
+
+	expected := map[asset.Item]currency.Pair{
+		asset.CoinMarginedFutures: coinPair,
+		asset.USDTMarginedFutures: usdtPair,
+	}
+	found := make(map[asset.Item]bool, len(expected))
+	for _, oi := range resp {
+		expPair, ok := expected[oi.Key.Asset]
+		require.Truef(t, ok, "unexpected asset in OpenInterest response: %v", oi.Key.Asset)
+		assert.Truef(t, expPair.Equal(oi.Key.Pair()), "OpenInterest pair mismatch for asset %v", oi.Key.Asset)
+		assert.Positivef(t, oi.OpenInterest, "OpenInterest should return positive open interest for asset %v", oi.Key.Asset)
+		found[oi.Key.Asset] = true
+	}
+	require.Len(t, found, len(expected), "OpenInterest response missing expected assets")
 
 	resp, err = e.GetOpenInterest(t.Context())
 	assert.NoError(t, err)

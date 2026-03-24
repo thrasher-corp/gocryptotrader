@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -89,6 +90,20 @@ func TestCreateKlineRequest(t *testing.T) {
 	if !r.End.Equal(end.Add(OneHour.Duration() - (time.Second * 30))) {
 		t.Fatalf("received: '%v', but expected '%v'", r.End, end.Add(OneHour.Duration()-(time.Second*30)))
 	}
+}
+
+func TestCreateKlineRequest_OneMonthAlignment(t *testing.T) {
+	t.Parallel()
+
+	pair := currency.NewBTCUSDT()
+	start := time.Date(2024, 1, 15, 12, 0, 0, 0, time.UTC)
+	end := time.Date(2024, 2, 15, 12, 0, 0, 0, time.UTC)
+
+	r, err := CreateKlineRequest("name", pair, pair, asset.Spot, OneMonth, OneMonth, start, end, 1)
+	require.NoError(t, err)
+
+	assert.Equal(t, time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), r.Start)
+	assert.Equal(t, time.Date(2024, 3, 1, 0, 0, 0, 0, time.UTC), r.End)
 }
 
 func TestGetRanges(t *testing.T) {
@@ -272,6 +287,29 @@ func TestRequest_ProcessResponse(t *testing.T) {
 	if sweetItem.Candles[len(sweetItem.Candles)-1].Time.Equal(laterEndDate) {
 		t.Fatalf("received: '%v', but expected '%v'", sweetItem.Candles[len(sweetItem.Candles)-1].Time, "should not equal")
 	}
+}
+
+func TestRequest_ProcessResponse_OneMonth(t *testing.T) {
+	t.Parallel()
+
+	start := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	end := time.Date(2024, 4, 1, 0, 0, 0, 0, time.UTC)
+	pair := currency.NewBTCUSDT()
+
+	r, err := CreateKlineRequest("name", pair, pair, asset.Spot, OneMonth, OneMonth, start, end, 1)
+	require.NoError(t, err)
+
+	holder, err := r.ProcessResponse([]Candle{
+		{Time: start, Close: 1},
+		{Time: start.AddDate(0, 1, 0), Close: 2},
+		{Time: start.AddDate(0, 2, 0), Close: 3},
+	})
+	require.NoError(t, err)
+	require.Len(t, holder.Candles, 3)
+
+	assert.Equal(t, start, holder.Candles[0].Time)
+	assert.Equal(t, start.AddDate(0, 1, 0), holder.Candles[1].Time)
+	assert.Equal(t, start.AddDate(0, 2, 0), holder.Candles[2].Time)
 }
 
 func TestExtendedRequest_ProcessResponse(t *testing.T) {

@@ -70,6 +70,8 @@ const (
 
 	// Withdrawals
 	withdrawal = "/withdrawals"
+
+	gateioSpotAllCountdown = "spot/countdown_cancel_all"
 )
 
 const (
@@ -78,43 +80,45 @@ const (
 )
 
 var (
-	errInvalidOrderText          = errors.New("invalid text value, requires prefix `t-`")
-	errLoanTypeIsRequired        = errors.New("loan type is required")
-	errUserIDRequired            = errors.New("user id is required")
-	errSTPGroupNameRequired      = errors.New("self-trade prevention group name required")
-	errSTPGroupIDRequired        = errors.New("self-trade prevention group id required")
-	errPlanIDRequired            = errors.New("plan ID required")
-	errInvalidCurrencyChain      = errors.New("name of the chain used for withdrawal must be specified")
-	errNoValidResponseFromServer = errors.New("no valid response from server")
-	errInvalidUnderlying         = errors.New("missing underlying")
-	errInvalidOrderSize          = errors.New("invalid order size")
-	errInvalidSubAccount         = errors.New("invalid or empty subaccount")
-	errInvalidTransferDirection  = errors.New("invalid transfer direction")
-	errDifferentAccount          = errors.New("account type must be identical for all orders")
-	errNoValidParameterPassed    = errors.New("no valid parameter passed")
-	errInvalidCountdown          = errors.New("invalid countdown, Countdown time, in seconds At least 5 seconds, 0 means cancel the countdown")
-	errInvalidOrderStatus        = errors.New("invalid order status")
-	errInvalidLoanID             = errors.New("missing loan ID")
-	errMissingPreviewID          = errors.New("missing required parameter: preview_id")
-	errChangeHasToBePositive     = errors.New("change has to be positive")
-	errInvalidAutoSize           = errors.New("invalid autoSize")
-	errTooManyOrderRequest       = errors.New("too many order creation request")
-	errInvalidTimeout            = errors.New("invalid timeout, should be in seconds At least 5 seconds, 0 means cancel the countdown")
-	errNoTickerData              = errors.New("no ticker data available")
-	errInvalidTimezone           = errors.New("invalid timezone")
-	errMultipleOrders            = errors.New("multiple orders passed")
-	errMissingWithdrawalID       = errors.New("missing withdrawal ID")
-	errInvalidSubAccountUserID   = errors.New("sub-account user id is required")
-	errInvalidSettlementQuote    = errors.New("symbol quote currency does not match asset settlement currency")
-	errInvalidSettlementBase     = errors.New("symbol base currency does not match asset settlement currency")
-	errMissingAPIKey             = errors.New("missing API key information")
-	errInvalidTextPrefix         = errors.New("invalid text value, requires prefix `t-`")
-	errSingleAssetRequired       = errors.New("single asset type required")
-	errMissingUnifiedAccountMode = errors.New("unified account mode is required")
-	errTooManyCurrencyCodes      = errors.New("too many currency codes supplied")
-	errFetchingOrderbook         = errors.New("error fetching orderbook")
-	errNoSpotInstrument          = errors.New("no spot instrument available")
-	errOperationTypeRequired     = errors.New("operation type required")
+	errEmptyOrInvalidSettlementCurrency = errors.New("empty or invalid settlement currency")
+	errInvalidOrderText                 = errors.New("invalid text value, requires prefix `t-`")
+	errLoanTypeIsRequired               = errors.New("loan type is required")
+	errUserIDRequired                   = errors.New("user id is required")
+	errSTPGroupNameRequired             = errors.New("self-trade prevention group name required")
+	errSTPGroupIDRequired               = errors.New("self-trade prevention group id required")
+	errPlanIDRequired                   = errors.New("plan ID required")
+	errInvalidCurrencyChain             = errors.New("name of the chain used for withdrawal must be specified")
+	errNoValidResponseFromServer        = errors.New("no valid response from server")
+	errInvalidUnderlying                = errors.New("missing underlying")
+	errInvalidOrderSize                 = errors.New("invalid order size")
+	errInvalidSubAccount                = errors.New("invalid or empty subaccount")
+	errInvalidTransferDirection         = errors.New("invalid transfer direction")
+	errDifferentAccount                 = errors.New("account type must be identical for all orders")
+	errNoValidParameterPassed           = errors.New("no valid parameter passed")
+	errInvalidCountdown                 = errors.New("invalid countdown, Countdown time, in seconds At least 5 seconds, 0 means cancel the countdown")
+	errInvalidOrderStatus               = errors.New("invalid order status")
+	errInvalidLoanID                    = errors.New("missing loan ID")
+	errMissingPreviewID                 = errors.New("missing required parameter: preview_id")
+	errChangeHasToBePositive            = errors.New("change has to be positive")
+	errInvalidAutoSize                  = errors.New("invalid autoSize")
+	errTooManyOrderRequest              = errors.New("too many order creation request")
+	errInvalidTimeout                   = errors.New("invalid timeout, should be in seconds At least 5 seconds, 0 means cancel the countdown")
+	errNoTickerData                     = errors.New("no ticker data available")
+	errInvalidTimezone                  = errors.New("invalid timezone")
+	errMultipleOrders                   = errors.New("multiple orders passed")
+	errMissingWithdrawalID              = errors.New("missing withdrawal ID")
+	errInvalidSubAccountUserID          = errors.New("sub-account user id is required")
+	errInvalidSettlementQuote           = errors.New("symbol quote currency does not match asset settlement currency")
+	errInvalidSettlementBase            = errors.New("symbol base currency does not match asset settlement currency")
+	errMissingAPIKey                    = errors.New("missing API key information")
+	errInvalidTextPrefix                = errors.New("invalid text value, requires prefix `t-`")
+	errSingleAssetRequired              = errors.New("single asset type required")
+	errMissingUnifiedAccountMode        = errors.New("unified account mode is required")
+	errTooManyCurrencyCodes             = errors.New("too many currency codes supplied")
+	errFetchingOrderbook                = errors.New("error fetching orderbook")
+	errNoSpotInstrument                 = errors.New("no spot instrument available")
+	errOperationTypeRequired            = errors.New("operation type required")
+	errInvalidLeverage                  = errors.New("invalid leverage value")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
@@ -2422,16 +2426,30 @@ func (e *Exchange) GetFuturesLiquidationHistory(ctx context.Context, settle curr
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualLiquidationHistoryEPL, http.MethodGet, futuresPath+settle.Item.Lower+"/liquidates", params, nil, &response)
 }
 
-// CountdownCancelOrders represents a trigger time response
-func (e *Exchange) CountdownCancelOrders(ctx context.Context, settle currency.Code, arg CountdownParams) (*TriggerTimeResponse, error) {
+// CountdownCancelFuturesOrders represents a trigger time response
+func (e *Exchange) CountdownCancelFuturesOrders(ctx context.Context, settle currency.Code, arg CountdownParams) (*TriggerTimeResponse, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
 	if arg.Timeout < 0 {
 		return nil, errInvalidTimeout
 	}
+	return e.sendCountdownCancelOrdersRequest(ctx, perpetualCancelTriggerOrdersEPL, futuresPath+settle.Item.Lower+"/countdown_cancel_all", &arg)
+}
+
+// CountdownCancelSpotOrders Countdown cancel orders
+// When the timeout set by the user is reached, if there is no cancel or set a new countdown, the related pending orders will be automatically cancelled.
+// This endpoint can be called repeatedly to set a new countdown or cancel the countdown.
+func (e *Exchange) CountdownCancelSpotOrders(ctx context.Context, arg CountdownCancelOrderParam) (*TriggerTimeResponse, error) {
+	if arg.Timeout <= 0 {
+		return nil, errInvalidCountdown
+	}
+	return e.sendCountdownCancelOrdersRequest(ctx, spotCountdownCancelEPL, gateioSpotAllCountdown, &arg)
+}
+
+func (e *Exchange) sendCountdownCancelOrdersRequest(ctx context.Context, epl request.EndpointLimit, path string, arg any) (*TriggerTimeResponse, error) {
 	var response *TriggerTimeResponse
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualCancelTriggerOrdersEPL, http.MethodPost, futuresPath+settle.Item.Lower+"/countdown_cancel_all", nil, &arg, &response)
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, epl, http.MethodPost, path, nil, arg, &response)
 }
 
 // CreatePriceTriggeredFuturesOrder create a price-triggered order

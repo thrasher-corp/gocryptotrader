@@ -1546,9 +1546,13 @@ type SpotPersonalTradeHistory struct {
 	Amount       types.Number  `json:"amount"`
 	Price        types.Number  `json:"price"`
 	Fee          types.Number  `json:"fee"`
-	FeeCurrency  string        `json:"fee_currency"`
-	PointFee     string        `json:"point_fee"`
-	GtFee        string        `json:"gt_fee"`
+	FeeCurrency  currency.Code `json:"fee_currency"`
+	PointFee     types.Number  `json:"point_fee"`
+	GtFee        types.Number  `json:"gt_fee"`
+	AmendText    string        `json:"amend_text"`
+	SequenceID   string        `json:"sequence_id"`
+	Text         string        `json:"text"`
+	Deal         types.Number  `json:"deal"`
 }
 
 // CountdownCancelOrderParam represents countdown cancel order params
