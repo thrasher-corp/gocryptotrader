@@ -3564,7 +3564,7 @@
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/gctrpcGetSusbsytemsResponse"
+              "$ref": "#/definitions/gctrpcGetSubsystemsResponse"
             }
           },
           "default": {
@@ -6672,7 +6672,7 @@
         }
       }
     },
-    "gctrpcGetSusbsytemsResponse": {
+    "gctrpcGetSubsystemsResponse": {
       "type": "object",
       "properties": {
         "subsystemsStatus": {
@@ -7758,7 +7758,7 @@
           "type": "string"
         },
         "exchange": {
-          "$ref": "#/definitions/gctrpcWithdrawlExchangeEvent"
+          "$ref": "#/definitions/gctrpcWithdrawalExchangeEvent"
         },
         "request": {
           "$ref": "#/definitions/gctrpcWithdrawalRequestEvent"
@@ -7824,6 +7824,20 @@
         }
       }
     },
+    "gctrpcWithdrawalExchangeEvent": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        }
+      }
+    },
     "gctrpcWithdrawalRequestEvent": {
       "type": "object",
       "properties": {
@@ -7846,20 +7860,6 @@
         },
         "crypto": {
           "$ref": "#/definitions/gctrpcCryptoWithdrawalEvent"
-        }
-      }
-    },
-    "gctrpcWithdrawlExchangeEvent": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "id": {
-          "type": "string"
-        },
-        "status": {
-          "type": "string"
         }
       }
     },

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	gws "github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -32,7 +33,7 @@ var (
 
 // Connection defines the interface for websocket connections
 type Connection interface {
-	Dial(context.Context, *gws.Dialer, http.Header) error
+	Dial(context.Context, *gws.Dialer, http.Header, url.Values) error
 	ReadMessage() Response
 	SetupPingHandler(request.EndpointLimit, PingHandler)
 	// SendMessageReturnResponse will send a WS message to the connection and wait for response
@@ -83,6 +84,10 @@ type ConnectionSetup struct {
 	// messages based on the exchange's websocket server requirements to
 	// subscribe to specific channels.
 	Subscriber func(ctx context.Context, conn Connection, sub subscription.List) error
+	// TrackOnExistingConnection can attach logical subscriptions to an already-connected websocket connection without creating a new connection.
+	// It must return remaining subscriptions that still require outbound subscribe traffic or new connection capacity, and tracked subscriptions for this specific connection.
+	// The manager applies tracked subscriptions to the websocket and connection stores.
+	TrackOnExistingConnection func(ctx context.Context, conn Connection, subs subscription.List) (remaining, tracked subscription.List, err error)
 	// Unsubscriber is a function that will be called to send unsubscription
 	// messages based on the exchange's websocket server requirements to
 	// unsubscribe from specific channels. NOTE: IF THE FEATURE IS ENABLED.
@@ -132,7 +137,7 @@ type connection struct {
 }
 
 // Dial sets proxy urls and then connects to the websocket
-func (c *connection) Dial(ctx context.Context, dialer *gws.Dialer, headers http.Header) error {
+func (c *connection) Dial(ctx context.Context, dialer *gws.Dialer, headers http.Header, values url.Values) error {
 	if c.ProxyURL != "" {
 		proxy, err := url.Parse(c.ProxyURL)
 		if err != nil {
@@ -141,20 +146,20 @@ func (c *connection) Dial(ctx context.Context, dialer *gws.Dialer, headers http.
 		dialer.Proxy = http.ProxyURL(proxy)
 	}
 
-	var err error
-	var conStatus *http.Response
-	c.Connection, conStatus, err = dialer.DialContext(ctx, c.URL, headers)
+	path := common.EncodeURLValues(c.URL, values)
+	conn, resp, err := dialer.DialContext(ctx, path, headers)
 	if err != nil {
-		if conStatus != nil {
-			_ = conStatus.Body.Close()
-			return fmt.Errorf("%s websocket connection: %v %v %v Error: %w", c.ExchangeName, c.URL, conStatus, conStatus.StatusCode, err)
+		if resp != nil {
+			_ = resp.Body.Close()
+			return fmt.Errorf("%s websocket connection: %v %v %v Error: %w", c.ExchangeName, path, resp, resp.StatusCode, err)
 		}
-		return fmt.Errorf("%s websocket connection: %v Error: %w", c.ExchangeName, c.URL, err)
+		return fmt.Errorf("%s websocket connection: %v Error: %w", c.ExchangeName, path, err)
 	}
-	_ = conStatus.Body.Close()
+	_ = resp.Body.Close()
+	c.Connection = conn
 
 	if c.Verbose {
-		log.Infof(log.WebsocketMgr, "%v Websocket connected to %s\n", c.ExchangeName, c.URL)
+		log.Infof(log.WebsocketMgr, "%v Websocket connected to %s\n", c.ExchangeName, path)
 	}
 	select {
 	case c.Traffic <- struct{}{}:

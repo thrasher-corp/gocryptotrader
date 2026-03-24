@@ -94,7 +94,7 @@ func TestCreateKline(t *testing.T) {
 	trades := make([]order.TradeHistory, tradeTotal)
 	execution := time.Now()
 	for x := range tradeTotal {
-		price, rndTime := 1000+float64(rand.Intn(1000)), rand.Intn(10) //nolint:gosec // no need to import crypo/rand for testing
+		price, rndTime := 1000+float64(rand.Intn(1000)), rand.Intn(10) //nolint:gosec // no need to import crypto/rand for testing
 		execution = execution.Add(time.Duration(rndTime) * time.Second)
 		trades[x] = order.TradeHistory{
 			Timestamp: execution,
@@ -117,6 +117,211 @@ func TestCreateKline(t *testing.T) {
 	}
 	if amounts != float64(tradeTotal) {
 		t.Fatalf("received: '%v' but expected '%v'", amounts, float64(tradeTotal))
+	}
+}
+
+func TestCreateKline_OneMonth(t *testing.T) {
+	t.Parallel()
+
+	start := time.Date(2024, 1, 15, 12, 0, 0, 0, time.UTC)
+	trades := []order.TradeHistory{
+		{
+			Timestamp: start,
+			Amount:    1,
+			Price:     10,
+		},
+		{
+			Timestamp: start.AddDate(0, 1, 0),
+			Amount:    2,
+			Price:     20,
+		},
+		{
+			Timestamp: start.AddDate(0, 1, 10),
+			Amount:    3,
+			Price:     25,
+		},
+		{
+			Timestamp: time.Date(2024, 3, 1, 0, 0, 0, 0, time.UTC),
+			Amount:    4,
+			Price:     30,
+		},
+	}
+
+	k, err := CreateKline(trades, OneMonth, currency.NewBTCUSDT(), asset.Spot, "Binance")
+	require.NoError(t, err, "CreateKline must not error for month-aligned trades")
+	require.Len(t, k.Candles, 3, "CreateKline must return a candle for each covered month")
+
+	assert.Equal(t, time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), k.Candles[0].Time, "First candle time should align to the start of January")
+	assert.Equal(t, 10.0, k.Candles[0].Open, "First candle open should reflect the first January trade")
+	assert.Equal(t, 1.0, k.Candles[0].Volume, "First candle volume should reflect the January trades")
+
+	assert.Equal(t, time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC), k.Candles[1].Time, "Second candle time should align to the start of February")
+	assert.Equal(t, 20.0, k.Candles[1].Open, "Second candle open should reflect the first February trade")
+	assert.Equal(t, 25.0, k.Candles[1].Close, "Second candle close should reflect the final February trade")
+	assert.Equal(t, 5.0, k.Candles[1].Volume, "Second candle volume should reflect the February trades")
+
+	assert.Equal(t, time.Date(2024, 3, 1, 0, 0, 0, 0, time.UTC), k.Candles[2].Time, "Third candle time should align to the start of March")
+	assert.Equal(t, 30.0, k.Candles[2].Open, "Third candle open should reflect the March trade")
+	assert.Equal(t, 4.0, k.Candles[2].Volume, "Third candle volume should reflect the March trades")
+}
+
+func TestAlignIntervalStart(t *testing.T) {
+	t.Parallel()
+
+	offset := time.FixedZone("UTC+10", 10*60*60)
+	for _, tc := range []struct {
+		name     string
+		input    time.Time
+		interval Interval
+		expected time.Time
+	}{
+		{
+			name:     "DurationInterval",
+			input:    time.Date(2024, 5, 15, 10, 45, 59, 123, offset),
+			interval: OneHour,
+			expected: time.Date(2024, 5, 15, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:     "OneMonth",
+			input:    time.Date(2024, 5, 15, 10, 45, 59, 123, offset),
+			interval: OneMonth,
+			expected: time.Date(2024, 5, 1, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:     "ThreeMonth",
+			input:    time.Date(2024, 5, 15, 10, 45, 59, 123, offset),
+			interval: ThreeMonth,
+			expected: time.Date(2024, 4, 1, 0, 0, 0, 0, time.UTC),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, alignIntervalStart(tc.input, tc.interval), "alignIntervalStart should return the expected UTC boundary")
+		})
+	}
+}
+
+func TestNextIntervalStart(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		input    time.Time
+		interval Interval
+		expected time.Time
+	}{
+		{
+			name:     "DurationInterval",
+			input:    time.Date(2024, 5, 15, 0, 0, 0, 0, time.UTC),
+			interval: OneHour,
+			expected: time.Date(2024, 5, 15, 1, 0, 0, 0, time.UTC),
+		},
+		{
+			name:     "OneMonth",
+			input:    time.Date(2024, 5, 15, 10, 45, 59, 0, time.UTC),
+			interval: OneMonth,
+			expected: time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			name:     "ThreeMonth",
+			input:    time.Date(2024, 5, 15, 10, 45, 59, 0, time.UTC),
+			interval: ThreeMonth,
+			expected: time.Date(2024, 7, 1, 0, 0, 0, 0, time.UTC),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, nextIntervalStart(tc.input, tc.interval), "nextIntervalStart should return the expected boundary")
+		})
+	}
+}
+
+func TestIntervalCount(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		start    time.Time
+		end      time.Time
+		interval Interval
+		expected uint64
+	}{
+		{
+			name:     "InvalidWindow",
+			start:    time.Date(2024, 1, 1, 3, 0, 0, 0, time.UTC),
+			end:      time.Date(2024, 1, 1, 3, 0, 0, 0, time.UTC),
+			interval: OneHour,
+			expected: 0,
+		},
+		{
+			name:     "DurationInterval",
+			start:    time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+			end:      time.Date(2024, 1, 1, 3, 0, 0, 0, time.UTC),
+			interval: OneHour,
+			expected: 3,
+		},
+		{
+			name:     "CalendarInterval",
+			start:    time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+			end:      time.Date(2024, 4, 1, 0, 0, 0, 0, time.UTC),
+			interval: OneMonth,
+			expected: 3,
+		},
+		{
+			name:     "QuarterlyCalendarInterval",
+			start:    time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+			end:      time.Date(2024, 10, 1, 0, 0, 0, 0, time.UTC),
+			interval: ThreeMonth,
+			expected: 3,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, intervalCount(tc.start, tc.end, tc.interval), "intervalCount should return the expected interval total")
+		})
+	}
+}
+
+func TestIntervalCountAsInt(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name     string
+		start    time.Time
+		end      time.Time
+		interval Interval
+		expected int
+	}{
+		{
+			name:     "InvalidWindow",
+			start:    time.Date(2024, 1, 1, 3, 0, 0, 0, time.UTC),
+			end:      time.Date(2024, 1, 1, 3, 0, 0, 0, time.UTC),
+			interval: OneHour,
+			expected: 0,
+		},
+		{
+			name:     "DurationInterval",
+			start:    time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+			end:      time.Date(2024, 1, 1, 3, 0, 0, 0, time.UTC),
+			interval: OneHour,
+			expected: 3,
+		},
+		{
+			name:     "CalendarInterval",
+			start:    time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+			end:      time.Date(2024, 4, 1, 0, 0, 0, 0, time.UTC),
+			interval: OneMonth,
+			expected: 3,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			count, err := intervalCountAsInt(tc.start, tc.end, tc.interval)
+
+			require.NoError(t, err, "intervalCountAsInt must not error for supported ranges")
+			assert.Equal(t, tc.expected, count, "intervalCountAsInt should return the expected interval total")
+		})
 	}
 }
 
@@ -318,6 +523,16 @@ func TestCalculateCandleDateRanges(t *testing.T) {
 	assert.Equal(t, 1, len(v.Ranges))
 	assert.Equal(t, 52, len(v.Ranges[0].Intervals))
 
+	monthStart := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	v, err = CalculateCandleDateRanges(monthStart, monthStart.AddDate(0, 3, 0), OneMonth, 10)
+	require.NoError(t, err)
+	require.Len(t, v.Ranges, 1)
+	require.Len(t, v.Ranges[0].Intervals, 3)
+
+	assert.Equal(t, monthStart, v.Ranges[0].Intervals[0].Start.Time)
+	assert.Equal(t, monthStart.AddDate(0, 1, 0), v.Ranges[0].Intervals[1].Start.Time)
+	assert.Equal(t, monthStart.AddDate(0, 2, 0), v.Ranges[0].Intervals[2].Start.Time)
+
 	v, err = CalculateCandleDateRanges(et, ft, OneWeek, 5)
 	require.NoError(t, err)
 	assert.Equal(t, 2108, len(v.Ranges))
@@ -343,7 +558,7 @@ func TestItem_SortCandlesByTimestamp(t *testing.T) {
 	}
 
 	for x := range 100 {
-		y := rand.Float64() //nolint:gosec // used for generating test data, no need to import crypo/rand
+		y := rand.Float64() //nolint:gosec // used for generating test data, no need to import crypto/rand
 		tempKline.Candles = append(tempKline.Candles,
 			Candle{
 				Time:   time.Now().AddDate(0, 0, -x),
@@ -433,6 +648,58 @@ func TestStoreInDatabase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to remove temp db file: %v", err)
 	}
+}
+
+func TestStoreInDatabase_OneMonthAlignment(t *testing.T) {
+	setupTest(t)
+
+	config := &database.Config{
+		Driver:            database.DBSQLite3,
+		ConnectionDetails: drivers.ConnectionDetails{Database: "./testdb"},
+	}
+	dbConn, err := testhelpers.ConnectToDatabase(config)
+	require.NoError(t, err, "ConnectToDatabase must not error for SQLite")
+	t.Cleanup(func() {
+		assert.NoError(t, testhelpers.CloseDatabase(dbConn), "CloseDatabase should not error for SQLite")
+		assert.NoError(t, os.RemoveAll(testhelpers.TempDir), "Removing the temporary database should not error")
+	})
+
+	require.NoError(t, seedDB(false), "seedDB must not error for SQLite")
+
+	in := &Item{
+		Exchange: testExchanges[0].Name,
+		Pair:     currency.NewBTCUSDT(),
+		Asset:    asset.Spot,
+		Interval: OneMonth,
+		Candles: []Candle{
+			{
+				Time:   time.Date(2024, 1, 15, 12, 0, 0, 0, time.UTC),
+				Open:   1,
+				High:   2,
+				Low:    0.5,
+				Close:  1.5,
+				Volume: 10,
+			},
+			{
+				Time:   time.Date(2024, 2, 20, 12, 0, 0, 0, time.UTC),
+				Open:   2,
+				High:   3,
+				Low:    1.5,
+				Close:  2.5,
+				Volume: 20,
+			},
+		},
+	}
+
+	_, err = StoreInDatabase(in, false)
+	require.NoError(t, err, "StoreInDatabase must not error for month-based data")
+
+	loaded, err := LoadFromDatabase(testExchanges[0].Name, currency.NewBTCUSDT(), asset.Spot, OneMonth, time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2024, 3, 1, 0, 0, 0, 0, time.UTC))
+	require.NoError(t, err, "LoadFromDatabase must not error for stored month-based data")
+	require.Len(t, loaded.Candles, 2, "LoadFromDatabase must return the stored month-based candles")
+
+	assert.Equal(t, time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), loaded.Candles[0].Time, "First stored candle time should align to the start of January")
+	assert.Equal(t, time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC), loaded.Candles[1].Time, "Second stored candle time should align to the start of February")
 }
 
 func TestLoadFromDatabase(t *testing.T) {
@@ -980,6 +1247,49 @@ func TestAddPadding(t *testing.T) {
 	if len(k.Candles) != 6 {
 		t.Errorf("received '%v' expected '%v'", len(k.Candles), 6)
 	}
+}
+
+func TestAddPadding_OneMonth(t *testing.T) {
+	t.Parallel()
+
+	start := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	k := &Item{
+		Interval: OneMonth,
+		Candles: []Candle{
+			{
+				Time:  start,
+				Close: 1,
+			},
+			{
+				Time:  start.AddDate(0, 2, 0),
+				Close: 3,
+			},
+		},
+	}
+
+	err := k.addPadding(start, start.AddDate(0, 3, 0), false)
+	require.NoError(t, err)
+	require.Len(t, k.Candles, 3)
+
+	assert.Equal(t, start, k.Candles[0].Time)
+	assert.Equal(t, start.AddDate(0, 1, 0), k.Candles[1].Time)
+	assert.Equal(t, start.AddDate(0, 2, 0), k.Candles[2].Time)
+
+	februaryStart := time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC)
+	k = &Item{
+		Interval: OneMonth,
+		Candles: []Candle{
+			{
+				Time:  februaryStart,
+				Close: 1,
+			},
+		},
+	}
+
+	err = k.addPadding(februaryStart, februaryStart.AddDate(0, 1, 0), false)
+	require.NoError(t, err)
+	require.Len(t, k.Candles, 1)
+	assert.Equal(t, februaryStart, k.Candles[0].Time)
 }
 
 func TestGetClosePriceAtTime(t *testing.T) {

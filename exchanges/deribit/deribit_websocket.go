@@ -110,7 +110,7 @@ func (e *Exchange) WsConnect() error {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}); err != nil {
+	if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
 		return err
 	}
 	e.Websocket.Wg.Add(1)
@@ -617,9 +617,48 @@ func (e *Exchange) processData(ctx context.Context, respRaw []byte, result any) 
 	return e.Websocket.DataHandler.Send(ctx, result)
 }
 
+func resolutionToInterval(resolution string) (kline.Interval, error) {
+	switch resolution {
+	case "100ms":
+		return kline.HundredMilliseconds, nil
+	case "1":
+		return kline.OneMin, nil
+	case "3":
+		return kline.ThreeMin, nil
+	case "5":
+		return kline.FiveMin, nil
+	case "10":
+		return kline.TenMin, nil
+	case "15":
+		return kline.FifteenMin, nil
+	case "30":
+		return kline.ThirtyMin, nil
+	case "60":
+		return kline.OneHour, nil
+	case "120":
+		return kline.TwoHour, nil
+	case "180":
+		return kline.ThreeHour, nil
+	case "360":
+		return kline.SixHour, nil
+	case "720":
+		return kline.TwelveHour, nil
+	case "1D":
+		return kline.OneDay, nil
+	case "raw":
+		return kline.Raw, nil
+	default:
+		return 0, fmt.Errorf("%w, unsupported resolution %q", kline.ErrInvalidInterval, resolution)
+	}
+}
+
 func (e *Exchange) processCandleChart(ctx context.Context, respRaw []byte, channels []string) error {
 	if len(channels) != 4 {
 		return fmt.Errorf("%w, expected format 'chart.trades.{instrument_name}.{resolution}', but found %s", common.ErrInvalidResponse, strings.Join(channels, "."))
+	}
+	interval, err := resolutionToInterval(channels[3])
+	if err != nil {
+		return err
 	}
 	a, cp, err := getAssetPairByInstrument(channels[2])
 	if err != nil {
@@ -632,16 +671,19 @@ func (e *Exchange) processCandleChart(ctx context.Context, respRaw []byte, chann
 	if err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, websocket.KlineData{
-		Timestamp:  candleData.Tick.Time(),
-		Pair:       cp,
-		AssetType:  a,
-		Exchange:   e.Name,
-		OpenPrice:  candleData.Open,
-		HighPrice:  candleData.High,
-		LowPrice:   candleData.Low,
-		ClosePrice: candleData.Close,
-		Volume:     candleData.Volume,
+	return e.Websocket.DataHandler.Send(ctx, kline.Item{
+		Pair:     cp,
+		Asset:    a,
+		Exchange: e.Name,
+		Interval: interval,
+		Candles: []kline.Candle{{
+			Time:   candleData.Tick.Time(),
+			Open:   candleData.Open,
+			High:   candleData.High,
+			Low:    candleData.Low,
+			Close:  candleData.Close,
+			Volume: candleData.Volume,
+		}},
 	})
 }
 
@@ -794,7 +836,7 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 		"channelName":     channelName,
 		"interval":        channelInterval,
 		"isSymbolChannel": isSymbolChannel,
-		"fmt":             formatChannelPair,
+		"fmt":             formatPairString,
 	}).
 		Parse(subTplText)
 }
@@ -906,18 +948,11 @@ func isSymbolChannel(s *subscription.Subscription) bool {
 	return false
 }
 
-func formatChannelPair(pair currency.Pair) string {
-	if str := pair.Quote.String(); strings.Contains(str, "PERPETUAL") && strings.Contains(str, "-") {
-		pair.Delimiter = "_"
-	}
-	return pair.String()
-}
-
 const subTplText = `
 {{- if isSymbolChannel $.S -}}
 	{{- range $asset, $pairs := $.AssetPairs }}
 		{{- range $p := $pairs }}
-			{{- channelName $.S -}} . {{- fmt $p }}
+			{{- channelName $.S -}} . {{- fmt $asset $p }}
 			{{- with $i := interval $.S -}} . {{- $i }}{{ end }}
 			{{- $.PairSeparator }}
 		{{- end }}

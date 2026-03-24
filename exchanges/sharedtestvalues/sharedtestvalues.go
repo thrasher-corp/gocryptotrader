@@ -56,11 +56,11 @@ func NewTestWebsocket() *websocket.Manager {
 
 // SkipTestIfCredentialsUnset is a test helper function checking if the
 // authenticated function can perform the required test.
-func SkipTestIfCredentialsUnset(t *testing.T, exch exchange.IBotExchange, canManipulateOrders ...bool) {
-	t.Helper()
+func SkipTestIfCredentialsUnset(tb testing.TB, exch exchange.IBotExchange, canManipulateOrders ...bool) {
+	tb.Helper()
 
 	if len(canManipulateOrders) > 1 {
-		t.Fatal("more than one canManipulateOrders boolean value has been supplied, please remove")
+		tb.Fatal("more than one canManipulateOrders boolean value has been supplied, please remove")
 	}
 
 	areTestAPICredentialsSet := AreAPICredentialsSet(exch)
@@ -81,7 +81,7 @@ func SkipTestIfCredentialsUnset(t *testing.T, exch exchange.IBotExchange, canMan
 		out = append(out, warningManipulateOrders)
 	}
 	out = append(out, warningHowTo)
-	t.Skip(strings.Join(out, ", "))
+	tb.Skip(strings.Join(out, ", "))
 }
 
 // SkipTestIfCannotManipulateOrders will only skip if the credentials are set
