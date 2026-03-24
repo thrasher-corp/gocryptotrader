@@ -213,9 +213,13 @@ func TestCheckJSON(t *testing.T) {
 func TestHTTPRecord(t *testing.T) {
 	t.Parallel()
 
-	service := "mock"
+	service := "mockhttprecord"
+	serviceDir := filepath.Join("..", service)
 	outputDirPath := filepath.Join("..", service, "testdata")
-	err := os.Mkdir(outputDirPath, 0o755)
+	err := os.RemoveAll(serviceDir)
+	require.NoError(t, err)
+
+	err = os.MkdirAll(outputDirPath, 0o755)
 	require.NoError(t, err)
 
 	filePath := filepath.Join(outputDirPath, "http.json")
@@ -226,65 +230,70 @@ func TestHTTPRecord(t *testing.T) {
 	require.NoError(t, err, "file not created properly")
 
 	defer func() {
-		require.NoErrorf(t, os.Remove(filePath), "Remove test exclusion file %q must not error", filePath)
-		require.NoErrorf(t, os.Remove(outputDirPath), "Remove test exclusion dir %q must not error", outputDirPath)
+		require.NoErrorf(t, os.RemoveAll(serviceDir), "Remove test exclusion dir %q must not error", serviceDir)
 	}()
 
 	content, err := json.Marshal(testVal)
 	require.NoError(t, err, "Marshal must not error")
 	require.NotNil(t, content, "Marshal must not return nil")
 
-	response := &http.Response{
-		Request: &http.Request{
-			Method: http.MethodGet,
-			URL:    &url.URL{},
-		},
-	}
-	err = HTTPRecord(response, "mock", content, 4)
-	require.NoError(t, err, "HTTPRecord must not error")
-
-	fullURL, err := url.Parse("https://api.abc.com/test/payload")
-	require.NoError(t, err)
-	assert.NotNil(t, fullURL)
-
-	for _, method := range []string{http.MethodPost, http.MethodDelete, http.MethodPut} {
-		response = &http.Response{
-			Request: &http.Request{
-				Header: map[string][]string{
-					contentType: {applicationJSON},
-				},
-				Method:  method,
-				URL:     fullURL,
-				Body:    io.NopCloser(bytes.NewReader(content)),
-				GetBody: func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(content)), nil },
-			},
-		}
-
-		// Call HTTPRecord repeatedly using the same response and request body.
-		// HTTPRecord internally checks whether the request body contains a JSON array,
-		// attempts to unmarshal it, and generates a []url.Values for comparison.
-		// This loop ensures that repeated calls with identical input do not cause errors.
-		for range 2 {
-			err = HTTPRecord(response, "mock", content, 4)
-			require.NoError(t, err, "HTTPRecord must not error")
-		}
-	}
-
-	for _, method := range []string{http.MethodGet, http.MethodDelete} {
-		fullURL, err = url.Parse("https://api.abc.com/test/payload?$queryString")
-		require.NoError(t, err)
-		assert.NotNil(t, fullURL)
-
-		response = &http.Response{
+	makeResponse := func(method, rawURL string, body []byte) *http.Response {
+		parsed, parseErr := url.Parse(rawURL)
+		require.NoError(t, parseErr)
+		resp := &http.Response{
+			Body: io.NopCloser(bytes.NewReader(nil)),
 			Request: &http.Request{
 				Method: method,
-				URL:    fullURL,
+				URL:    parsed,
 			},
 		}
+		if body != nil {
+			resp.Request.Header = map[string][]string{
+				contentType: {applicationJSON},
+			}
+			resp.Request.Body = io.NopCloser(bytes.NewReader(body))
+			resp.Request.GetBody = func() (io.ReadCloser, error) {
+				return io.NopCloser(bytes.NewReader(body)), nil
+			}
+		}
+		return resp
+	}
+	callRecord := func(method, rawURL string, body []byte) error {
+		resp := makeResponse(method, rawURL, body)
+		defer func() {
+			require.NoError(t, resp.Body.Close())
+		}()
+		return HTTPRecord(resp, service, content, 4)
+	}
 
+	assertRouteMethodLen := func(path, method string, expected int) {
+		finalPayload, readErr := os.ReadFile(filePath)
+		require.NoError(t, readErr, "Read final mock file must not error")
+		var finalMock VCRMock
+		readErr = json.Unmarshal(finalPayload, &finalMock)
+		require.NoError(t, readErr, "Unmarshal final mock file must not error")
+		require.Contains(t, finalMock.Routes, path)
+		assert.Len(t, finalMock.Routes[path][method], expected)
+	}
+
+	// Base GET entry for route initialization coverage.
+	err = callRecord(http.MethodGet, "https://api.abc.com/test/base", nil)
+	require.NoError(t, err)
+
+	// For write methods, repeated same request should overwrite existing record.
+	for _, method := range []string{http.MethodPost, http.MethodDelete, http.MethodPut} {
 		for range 2 {
-			err = HTTPRecord(response, "mock", content, 4)
+			err = callRecord(method, "https://api.abc.com/test/payload", content)
 			require.NoError(t, err, "HTTPRecord must not error")
 		}
+		assertRouteMethodLen("/test/payload", method, 1)
 	}
+
+	// Shape mismatch should return an explicit error.
+	err = callRecord(http.MethodPost, "https://api.abc.com/test/mismatch", content)
+	require.NoError(t, err, "HTTPRecord must not error")
+	objectBody := []byte(`{"foo":"bar"}`)
+	err = callRecord(http.MethodPost, "https://api.abc.com/test/mismatch", objectBody)
+	require.ErrorIs(t, err, errMismatchedJSONBodyShape)
+	assertRouteMethodLen("/test/mismatch", http.MethodPost, 1)
 }

@@ -22,6 +22,11 @@ import (
 // defaultDataSliceLimit the mock slice data size limit to a default of 5
 const defaultDataSliceLimit = 5
 
+var (
+	errMismatchedJSONBodyShape  = errors.New("mismatched JSON body shape")
+	errUnsupportedJSONBodyShape = errors.New("unsupported JSON body shape")
+)
+
 // HTTPResponse defines expected response from the end point including request
 // data for pathing on the VCR server
 type HTTPResponse struct {
@@ -183,7 +188,10 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 					case applicationJSON, textPlain:
 						trimmedStoredBody := strings.TrimSpace(mockResponses[i].BodyParams)
 						trimmedRequestBody := strings.TrimSpace(body)
-						if strings.HasPrefix(trimmedStoredBody, "[") && strings.HasPrefix(trimmedRequestBody, "[") {
+						storedShape := getJSONBodyShape(trimmedStoredBody)
+						requestShape := getJSONBodyShape(trimmedRequestBody)
+						switch {
+						case storedShape == jsonBodyArray && requestShape == jsonBodyArray:
 							reqVals, jErr := DeriveURLValsFromJSONSlice([]byte(body))
 							if jErr != nil {
 								return jErr
@@ -199,7 +207,7 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 								// data
 								mockResponses = slices.Delete(mockResponses, i, i+1)
 							}
-						} else if strings.HasPrefix(trimmedStoredBody, "{") && strings.HasPrefix(trimmedRequestBody, "{") {
+						case storedShape == jsonBodyObject && requestShape == jsonBodyObject:
 							reqVals, jErr := DeriveURLValsFromJSONMap([]byte(body))
 							if jErr != nil {
 								return jErr
@@ -214,6 +222,10 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 								// if the incoming query matches an existing, we will delete the existing mock record and overwrite with new data
 								mockResponses = slices.Delete(mockResponses, i, i+1)
 							}
+						case storedShape != requestShape:
+							return fmt.Errorf("%w request=%s stored=%s", errMismatchedJSONBodyShape, requestShape, storedShape)
+						default:
+							return fmt.Errorf("%w request=%s stored=%s", errUnsupportedJSONBodyShape, requestShape, storedShape)
 						}
 					case "":
 						if !ok {
@@ -252,6 +264,25 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 	}
 
 	return file.Write(outputFilePath, payload)
+}
+
+type jsonBodyShape string
+
+const (
+	jsonBodyUnknown jsonBodyShape = "unknown"
+	jsonBodyArray   jsonBodyShape = "array"
+	jsonBodyObject  jsonBodyShape = "object"
+)
+
+func getJSONBodyShape(body string) jsonBodyShape {
+	switch {
+	case strings.HasPrefix(body, "["):
+		return jsonBodyArray
+	case strings.HasPrefix(body, "{"):
+		return jsonBodyObject
+	default:
+		return jsonBodyUnknown
+	}
 }
 
 // GetFilteredHeader filters excluded http headers for insertion into a mock
