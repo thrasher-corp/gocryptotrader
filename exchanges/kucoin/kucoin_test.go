@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"sync"
 	"testing"
 	"time"
 
@@ -2420,8 +2419,6 @@ func TestPushData(t *testing.T) {
 	e.API.AuthenticatedSupport = true
 	e.API.AuthenticatedWebsocketSupport = true
 
-	var wg sync.WaitGroup
-	wg.Add(2)
 	e.wsOBUpdateMgr = buffer.NewUpdateManager(&buffer.UpdateManagerParams{
 		BufferInstance: &e.Websocket.Orderbook,
 		CheckPendingUpdate: func(_, _ int64, _ *orderbook.Update) (skip bool, err error) {
@@ -2429,7 +2426,6 @@ func TestPushData(t *testing.T) {
 		},
 		FetchDeadline: buffer.DefaultWSOrderbookUpdateDeadline,
 		FetchOrderbook: func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
-			defer wg.Done()
 			if p.Equal(currency.NewBTCUSDT()) && a == asset.Spot {
 				return &orderbook.Book{
 					Pair:        p,
@@ -2462,9 +2458,9 @@ func TestPushData(t *testing.T) {
 		}
 		return e.wsHandleData(ctx, nil, r)
 	})
-	wg.Wait()
+
+	require.Eventually(t, func() bool { return len(e.Websocket.DataHandler.C) == 31 }, time.Second, time.Millisecond*10, "must receive 31 messages")
 	e.Websocket.DataHandler.Close()
-	assert.Len(t, e.Websocket.DataHandler.C, 31, "Should see correct number of messages")
 	require.Len(t, fErrs, 1, "Must get exactly one error message")
 	assert.ErrorContains(t, fErrs[0].Err, "cannot save holdings: nil pointer: *accounts.Accounts")
 }
