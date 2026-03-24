@@ -84,6 +84,10 @@ type ConnectionSetup struct {
 	// messages based on the exchange's websocket server requirements to
 	// subscribe to specific channels.
 	Subscriber func(ctx context.Context, conn Connection, sub subscription.List) error
+	// TrackOnExistingConnection can attach logical subscriptions to an already-connected websocket connection without creating a new connection.
+	// It must return remaining subscriptions that still require outbound subscribe traffic or new connection capacity, and tracked subscriptions for this specific connection.
+	// The manager applies tracked subscriptions to the websocket and connection stores.
+	TrackOnExistingConnection func(ctx context.Context, conn Connection, subs subscription.List) (remaining, tracked subscription.List, err error)
 	// Unsubscriber is a function that will be called to send unsubscription
 	// messages based on the exchange's websocket server requirements to
 	// unsubscribe from specific channels. NOTE: IF THE FEATURE IS ENABLED.
