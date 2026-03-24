@@ -221,15 +221,16 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                   wsPublic,
-		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:      websocketResponseMaxLimit,
-		ConnectionRateLimiter: func() *request.RateLimiterWithWeight { return request.NewRateLimitWithWeight(time.Hour, 480, 1) }, // see: https://www.okx.com/docs-v5/en/#overview-websocket-connect
-		Connector:             e.wsConnect,
-		GenerateSubscriptions: func() (subscription.List, error) { return e.generateSubscriptions(true) },
-		Handler:               e.wsHandleData,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
+		URL:                       wsPublic,
+		ResponseCheckTimeout:      exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:          websocketResponseMaxLimit,
+		ConnectionRateLimiter:     func() *request.RateLimiterWithWeight { return request.NewRateLimitWithWeight(time.Hour, 480, 1) }, // see: https://www.okx.com/docs-v5/en/#overview-websocket-connect
+		Connector:                 e.wsConnect,
+		GenerateSubscriptions:     func() (subscription.List, error) { return e.generateSubscriptions(true) },
+		Handler:                   e.wsHandleData,
+		Subscriber:                e.Subscribe,
+		TrackOnExistingConnection: e.trackEquivalentSubscriptionsOnExistingConnection,
+		Unsubscriber:              e.Unsubscribe,
 	}); err != nil {
 		return err
 	}

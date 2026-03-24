@@ -50,9 +50,12 @@ const (
 var (
 	e *Exchange
 
-	leadTraderUniqueID string
-	loadLeadTraderOnce sync.Once
-	errSyncLeadTrader  error
+	leadTraderUniqueID             string
+	loadLeadTraderOnce             sync.Once
+	errSyncLeadTrader              error
+	leadTraderSubPositionsUniqueID string
+	loadLeadTraderSubPositionsOnce sync.Once
+	errSyncLeadTraderSubPositions  error
 
 	mainPair          = currency.NewPairWithDelimiter("BTC", "USDT", "-") // Is used for spot, margin symbols and underlying contracts
 	optionsPair       = currency.NewPairWithDelimiter("BTC", "USD", "-")
@@ -91,7 +94,7 @@ func syncLeadTraderUniqueID(t *testing.T) error {
 			Limit:          10,
 		})
 		if err != nil {
-			errSyncLeadTrader = fmt.Errorf("GetLeadTradersRanks failed: %s", err)
+			errSyncLeadTrader = fmt.Errorf("GetLeadTradersRanks failed: %w", err)
 			return
 		}
 		if len(result) == 0 {
@@ -107,6 +110,53 @@ func syncLeadTraderUniqueID(t *testing.T) error {
 	})
 
 	return errSyncLeadTrader
+}
+
+func syncLeadTraderSubPositionsUniqueID(t *testing.T) error {
+	t.Helper()
+
+	if useTestNet {
+		t.Skip("Testnet does not support lead trader API")
+	}
+
+	loadLeadTraderSubPositionsOnce.Do(func() {
+		result, err := e.GetLeadTradersRanks(contextGenerate(), &LeadTraderRanksRequest{
+			InstrumentType: instTypeSwap,
+			SortType:       "pnl_ratio",
+			HasVacancy:     true,
+			Limit:          10,
+		})
+		if err != nil {
+			errSyncLeadTraderSubPositions = fmt.Errorf("GetLeadTradersRanks failed: %w", err)
+			return
+		}
+		if len(result) == 0 {
+			errSyncLeadTraderSubPositions = errors.New("no lead trader found")
+			return
+		}
+		if len(result[0].Ranks) == 0 {
+			errSyncLeadTraderSubPositions = errors.New("could not load lead traders ranks")
+			return
+		}
+
+		for i := range result[0].Ranks {
+			candidate := result[0].Ranks[i].UniqueCode
+			_, err = e.GetLeadTraderCurrentLeadPositions(contextGenerate(), instTypeSwap, candidate, "", "", 1)
+			if err != nil {
+				continue
+			}
+			_, err = e.GetLeadTraderLeadPositionHistory(contextGenerate(), instTypeSwap, candidate, "", "", 1)
+			if err != nil {
+				continue
+			}
+			leadTraderSubPositionsUniqueID = candidate
+			return
+		}
+
+		errSyncLeadTraderSubPositions = errors.New("no lead trader found with working subposition endpoints")
+	})
+
+	return errSyncLeadTraderSubPositions
 }
 
 // contextGenerate sends an optional value to allow test requests
@@ -5415,8 +5465,11 @@ func TestGetLeadTraderCurrentLeadPositions(t *testing.T) {
 	_, err := e.GetLeadTraderCurrentLeadPositions(contextGenerate(), instTypeSwap, "", "", "", 10)
 	require.ErrorIs(t, err, errUniqueCodeRequired)
 
-	require.NoError(t, syncLeadTraderUniqueID(t), "syncLeadTraderUniqueID must not error")
-	_, err = e.GetLeadTraderCurrentLeadPositions(contextGenerate(), "SWAP", leadTraderUniqueID, "", "", 10)
+	err = syncLeadTraderSubPositionsUniqueID(t)
+	if err != nil {
+		t.Skipf("OKX did not expose a lead trader with working current/history subposition endpoints: %v", err)
+	}
+	_, err = e.GetLeadTraderCurrentLeadPositions(contextGenerate(), "SWAP", leadTraderSubPositionsUniqueID, "", "", 10)
 	require.NoError(t, err)
 	// No test validation of positions performed as the lead trader may not have any positions open
 }
@@ -5426,8 +5479,11 @@ func TestGetLeadTraderLeadPositionHistory(t *testing.T) {
 	_, err := e.GetLeadTraderLeadPositionHistory(contextGenerate(), "SWAP", "", "", "", 10)
 	require.ErrorIs(t, err, errUniqueCodeRequired)
 
-	require.NoError(t, syncLeadTraderUniqueID(t), "syncLeadTraderUniqueID must not error")
-	result, err := e.GetLeadTraderLeadPositionHistory(contextGenerate(), "SWAP", leadTraderUniqueID, "", "", 10)
+	err = syncLeadTraderSubPositionsUniqueID(t)
+	if err != nil {
+		t.Skipf("OKX did not expose a lead trader with working current/history subposition endpoints: %v", err)
+	}
+	result, err := e.GetLeadTraderLeadPositionHistory(contextGenerate(), "SWAP", leadTraderSubPositionsUniqueID, "", "", 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
