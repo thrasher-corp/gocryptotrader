@@ -41,6 +41,8 @@ const (
 	candlesChannel   = "candles"
 )
 
+var errWebsocketAuthResponse = errors.New("gemini websocket auth response error")
+
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneDay},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel},
@@ -342,9 +344,9 @@ func (e *Exchange) wsHandleData(ctx context.Context, _ websocket.Connection, res
 				if msg, ok := result["message"].(string); ok {
 					reason += " - " + msg
 				}
-				return errors.New(reason)
+				return fmt.Errorf("%w: %s", errWebsocketAuthResponse, reason)
 			}
-			return fmt.Errorf("%v Unhandled websocket error %s", e.Name, respRaw)
+			return fmt.Errorf("%w: %v Unhandled websocket error %s", errWebsocketAuthResponse, e.Name, respRaw)
 		default:
 			return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)})
 		}

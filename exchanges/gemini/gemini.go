@@ -51,6 +51,11 @@ const (
 	geminiTransfers          = "transfers"
 )
 
+var (
+	errTickerRequestFailed   = errors.New("gemini ticker request failed")
+	errWithdrawRequestFailed = errors.New("gemini withdraw request failed")
+)
+
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Gemini, create multiple
 // instances with differing APIkeys for segregation of roles for authenticated
 // requests & sessions by appending new sessions to the Session map using
@@ -88,10 +93,11 @@ func (e *Exchange) GetTicker(ctx context.Context, currencyPair string) (TickerV2
 	path := "/v2/ticker/" + currencyPair
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &ticker)
 	if err != nil {
-		return ticker, err
+		return ticker, fmt.Errorf("%w: %w", errTickerRequestFailed, err)
 	}
 	if ticker.Result == "error" {
-		return ticker, fmt.Errorf("%v %v %v",
+		return ticker, fmt.Errorf("%w %v %v",
+			errTickerRequestFailed,
 			e.Name,
 			ticker.Reason,
 			ticker.Message)
@@ -345,10 +351,10 @@ func (e *Exchange) GetCryptoDepositAddress(ctx context.Context, depositAddLabel,
 
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, geminiDeposit+"/"+ccy+"/"+geminiNewAddress, req, &response)
 	if err != nil {
-		return response, err
+		return response, fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, err)
 	}
 	if response.Message != "" {
-		return response, errors.New(response.Message)
+		return response, fmt.Errorf("%w: %s", request.ErrAuthRequestFailed, response.Message)
 	}
 	return response, nil
 }
@@ -362,10 +368,10 @@ func (e *Exchange) WithdrawCrypto(ctx context.Context, address, ccy string, amou
 
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, geminiWithdraw+strings.ToLower(ccy), req, &response)
 	if err != nil {
-		return response, err
+		return response, fmt.Errorf("%w: %w", errWithdrawRequestFailed, err)
 	}
 	if response.Message != "" {
-		return response, errors.New(response.Message)
+		return response, fmt.Errorf("%w: %s", errWithdrawRequestFailed, response.Message)
 	}
 	return response, nil
 }
@@ -381,10 +387,10 @@ func (e *Exchange) PostHeartbeat(ctx context.Context) (string, error) {
 
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, geminiHeartbeat, nil, &response)
 	if err != nil {
-		return response.Result, err
+		return response.Result, fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, err)
 	}
 	if response.Message != "" {
-		return response.Result, errors.New(response.Message)
+		return response.Result, fmt.Errorf("%w: %s", request.ErrAuthRequestFailed, response.Message)
 	}
 	return response.Result, nil
 }
@@ -416,7 +422,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, params map[string]any, result any) (err error) {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, err)
 	}
 
 	endpoint, err := e.API.Endpoints.GetURL(ep)

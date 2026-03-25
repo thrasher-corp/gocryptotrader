@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -65,9 +66,7 @@ func TestGetTicker(t *testing.T) {
 		t.Error("GetTicker() error", err)
 	}
 	_, err = e.GetTicker(t.Context(), "bla")
-	if err == nil {
-		t.Error("GetTicker() Expected error")
-	}
+	assert.ErrorIs(t, err, errTickerRequestFailed, "GetTicker should error for invalid symbol")
 }
 
 func TestGetOrderbook(t *testing.T) {
@@ -89,11 +88,11 @@ func TestGetTrades(t *testing.T) {
 func TestGetNotionalVolume(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetNotionalVolume(t.Context())
-	if err != nil && mockTests {
-		t.Error("GetNotionalVolume() error", err)
-	} else if err == nil && !mockTests {
-		t.Error("GetNotionalVolume() error cannot be nil")
+	if mockTests {
+		assert.NoError(t, err, "GetNotionalVolume should not error in mock mode")
+		return
 	}
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetNotionalVolume should error when credentials are unset")
 }
 
 func TestGetAuction(t *testing.T) {
@@ -120,107 +119,103 @@ func TestNewOrder(t *testing.T) {
 		9000000,
 		order.Sell.Lower(),
 		"exchange limit")
-	if err != nil && mockTests {
-		t.Error("NewOrder() error", err)
-	} else if err == nil && !mockTests {
-		t.Error("NewOrder() error cannot be nil")
+	if mockTests {
+		assert.NoError(t, err, "NewOrder should not error in mock mode")
+		return
 	}
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "NewOrder should error when credentials are unset")
 }
 
 func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelExistingOrder(t.Context(), 265555413)
-	if err != nil && mockTests {
-		t.Error("CancelExistingOrder() error", err)
-	} else if err == nil && !mockTests {
-		t.Error("CancelExistingOrder() error cannot be nil")
+	if mockTests {
+		assert.NoError(t, err, "CancelExistingOrder should not error in mock mode")
+		return
 	}
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "CancelExistingOrder should error when credentials are unset")
 }
 
 func TestCancelExistingOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelExistingOrders(t.Context(), false)
-	if err != nil && mockTests {
-		t.Error("CancelExistingOrders() error", err)
-	} else if err == nil && !mockTests {
-		t.Error("CancelExistingOrders() error cannot be nil")
+	if mockTests {
+		assert.NoError(t, err, "CancelExistingOrders should not error in mock mode")
+		return
 	}
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "CancelExistingOrders should error when credentials are unset")
 }
 
 func TestGetOrderStatus(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetOrderStatus(t.Context(), 265563260)
-	if err != nil && mockTests {
-		t.Error("GetOrderStatus() error", err)
-	} else if err == nil && !mockTests {
-		t.Error("GetOrderStatus() error cannot be nil")
+	if mockTests {
+		assert.NoError(t, err, "GetOrderStatus should not error in mock mode")
+		return
 	}
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetOrderStatus should error when credentials are unset")
 }
 
 func TestGetOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetOrders(t.Context())
-	if err != nil && mockTests {
-		t.Error("GetOrders() error", err)
-	} else if err == nil && !mockTests {
-		t.Error("GetOrders() error cannot be nil")
+	if mockTests {
+		assert.NoError(t, err, "GetOrders should not error in mock mode")
+		return
 	}
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetOrders should error when credentials are unset")
 }
 
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetTradeHistory(t.Context(), testCurrency, 0)
-	if err != nil && mockTests {
-		t.Error("GetTradeHistory() error", err)
-	} else if err == nil && !mockTests {
-		t.Error("GetTradeHistory() error cannot be nil")
+	if mockTests {
+		assert.NoError(t, err, "GetTradeHistory should not error in mock mode")
+		return
 	}
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetTradeHistory should error when credentials are unset")
 }
 
 func TestGetTradeVolume(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetTradeVolume(t.Context())
-	if err != nil && mockTests {
-		t.Error("GetTradeVolume() error", err)
-	} else if err == nil && !mockTests {
-		t.Error("GetTradeVolume() error cannot be nil")
+	if mockTests {
+		assert.NoError(t, err, "GetTradeVolume should not error in mock mode")
+		return
 	}
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetTradeVolume should error when credentials are unset")
 }
 
 func TestGetBalances(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetBalances(t.Context())
-	if err != nil && mockTests {
-		t.Error("GetBalances() error", err)
-	} else if err == nil && !mockTests {
-		t.Error("GetBalances() error cannot be nil")
+	if mockTests {
+		assert.NoError(t, err, "GetBalances should not error in mock mode")
+		return
 	}
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetBalances should error when credentials are unset")
 }
 
 func TestGetCryptoDepositAddress(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetCryptoDepositAddress(t.Context(), "LOL123", "btc")
-	if err == nil {
-		t.Error("GetCryptoDepositAddress() Expected error")
-	}
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetCryptoDepositAddress should error for invalid account")
 }
 
 func TestWithdrawCrypto(t *testing.T) {
 	t.Parallel()
 	_, err := e.WithdrawCrypto(t.Context(), "LOL123", "btc", 1)
-	if err == nil {
-		t.Error("WithdrawCrypto() Expected error")
-	}
+	assert.ErrorIs(t, err, errWithdrawRequestFailed, "WithdrawCrypto should error for invalid account")
 }
 
 func TestPostHeartbeat(t *testing.T) {
 	t.Parallel()
 	_, err := e.PostHeartbeat(t.Context())
-	if err != nil && mockTests {
-		t.Error("PostHeartbeat() error", err)
-	} else if err == nil && !mockTests {
-		t.Error("PostHeartbeat() error cannot be nil")
+	if mockTests {
+		assert.NoError(t, err, "PostHeartbeat should not error in mock mode")
+		return
 	}
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "PostHeartbeat should error when credentials are unset")
 }
 
 func setFeeBuilder() *exchange.FeeBuilder {
@@ -356,9 +351,9 @@ func TestGetActiveOrders(t *testing.T) {
 	_, err := e.GetActiveOrders(t.Context(), &getOrdersRequest)
 	switch {
 	case sharedtestvalues.AreAPICredentialsSet(e) && err != nil && !mockTests:
-		t.Errorf("Could not get open orders: %s", err)
-	case !sharedtestvalues.AreAPICredentialsSet(e) && err == nil && !mockTests:
-		t.Error("Expecting an error when no keys are set")
+		assert.NoError(t, err, "GetActiveOrders should not error")
+	case !sharedtestvalues.AreAPICredentialsSet(e) && !mockTests:
+		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetActiveOrders should error when no keys are set")
 	case mockTests && err != nil:
 		t.Errorf("Could not get open orders: %s", err)
 	}
@@ -376,9 +371,9 @@ func TestGetOrderHistory(t *testing.T) {
 	_, err := e.GetOrderHistory(t.Context(), &getOrdersRequest)
 	switch {
 	case sharedtestvalues.AreAPICredentialsSet(e) && err != nil:
-		t.Errorf("Could not get order history: %s", err)
-	case !sharedtestvalues.AreAPICredentialsSet(e) && err == nil && !mockTests:
-		t.Error("Expecting an error when no keys are set")
+		assert.NoError(t, err, "GetOrderHistory should not error")
+	case !sharedtestvalues.AreAPICredentialsSet(e) && !mockTests:
+		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetOrderHistory should error when no keys are set")
 	case err != nil && mockTests:
 		t.Errorf("Could not get order history: %s", err)
 	}
@@ -409,9 +404,10 @@ func TestSubmitOrder(t *testing.T) {
 	response, err := e.SubmitOrder(t.Context(), orderSubmission)
 	switch {
 	case sharedtestvalues.AreAPICredentialsSet(e) && (err != nil || response.Status != order.New):
-		t.Errorf("Order failed to be placed: %v", err)
-	case !sharedtestvalues.AreAPICredentialsSet(e) && err == nil && !mockTests:
-		t.Error("Expecting an error when no keys are set")
+		assert.NoError(t, err, "SubmitOrder should not error")
+		assert.Equal(t, order.New, response.Status, "SubmitOrder should return order.New status")
+	case !sharedtestvalues.AreAPICredentialsSet(e) && !mockTests:
+		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "SubmitOrder should error when no keys are set")
 	case mockTests && err != nil:
 		t.Errorf("Order failed to be placed: %v", err)
 	}
@@ -430,8 +426,8 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	err := e.CancelOrder(t.Context(), orderCancellation)
 	switch {
-	case !sharedtestvalues.AreAPICredentialsSet(e) && err == nil && !mockTests:
-		t.Error("Expecting an error when no keys are set")
+	case !sharedtestvalues.AreAPICredentialsSet(e) && !mockTests:
+		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "CancelOrder should error when no keys are set")
 	case sharedtestvalues.AreAPICredentialsSet(e) && err != nil:
 		t.Errorf("Could not cancel orders: %v", err)
 	case err != nil && mockTests:
@@ -455,8 +451,8 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	resp, err := e.CancelAllOrders(t.Context(), orderCancellation)
 	switch {
-	case !sharedtestvalues.AreAPICredentialsSet(e) && err == nil && !mockTests:
-		t.Error("Expecting an error when no keys are set")
+	case !sharedtestvalues.AreAPICredentialsSet(e) && !mockTests:
+		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "CancelAllOrders should error when no keys are set")
 	case sharedtestvalues.AreAPICredentialsSet(e) && err != nil:
 		t.Errorf("Could not cancel orders: %v", err)
 	case mockTests && err != nil:
@@ -473,9 +469,7 @@ func TestModifyOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
 	_, err := e.ModifyOrder(t.Context(), &order.Modify{AssetType: asset.Spot})
-	if err == nil {
-		t.Error("ModifyOrder() Expected error")
-	}
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "ModifyOrder should error for incomplete request")
 }
 
 func TestWithdraw(t *testing.T) {
@@ -495,15 +489,7 @@ func TestWithdraw(t *testing.T) {
 				Address: core.BitcoinDonationAddress,
 			},
 		})
-	if !sharedtestvalues.AreAPICredentialsSet(e) && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-	if sharedtestvalues.AreAPICredentialsSet(e) && err != nil && !mockTests {
-		t.Errorf("Withdraw failed to be placed: %v", err)
-	}
-	if sharedtestvalues.AreAPICredentialsSet(e) && err == nil && mockTests {
-		t.Errorf("Withdraw failed to be placed: %v", err)
-	}
+	assert.ErrorIs(t, err, errWithdrawRequestFailed, "Withdraw should error for invalid request")
 }
 
 func TestWithdrawFiat(t *testing.T) {
@@ -540,9 +526,7 @@ func TestWithdrawInternationalBank(t *testing.T) {
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetDepositAddress(t.Context(), currency.BTC, "", "")
-	if err == nil {
-		t.Error("GetDepositAddress error cannot be nil")
-	}
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetDepositAddress should error when account details are missing")
 }
 
 func TestWsAuth(t *testing.T) {
@@ -564,7 +548,7 @@ func TestWsMissingRole(t *testing.T) {
 		"reason":"MissingRole",
 		"message":"To access this endpoint, you need to log in to the website and go to the settings page to assign one of these roles [FundManager] to API key wujB3szN54gtJ4QDhqRJ which currently has roles [Trader]"
 	}`)
-	assert.Error(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should return an error")
+	assert.ErrorIs(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), errWebsocketAuthResponse, "wsHandleData should return an error")
 }
 
 func TestWsOrderEventSubscriptionResponse(t *testing.T) {

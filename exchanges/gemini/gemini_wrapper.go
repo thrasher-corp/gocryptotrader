@@ -580,17 +580,17 @@ func (e *Exchange) GetDepositAddress(ctx context.Context, cryptocurrency currenc
 // submitted
 func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequest *withdraw.Request) (*withdraw.ExchangeResponse, error) {
 	if err := withdrawRequest.Validate(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", errWithdrawRequestFailed, err)
 	}
 	resp, err := e.WithdrawCrypto(ctx,
 		withdrawRequest.Crypto.Address,
 		withdrawRequest.Currency.String(),
 		withdrawRequest.Amount)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", errWithdrawRequestFailed, err)
 	}
 	if resp.Result == "error" {
-		return nil, errors.New(resp.Message)
+		return nil, fmt.Errorf("%w: %s", errWithdrawRequestFailed, resp.Message)
 	}
 
 	return &withdraw.ExchangeResponse{
