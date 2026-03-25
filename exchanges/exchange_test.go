@@ -2449,6 +2449,65 @@ func TestIsPairEnabled(t *testing.T) {
 	}
 }
 
+func TestIsPairAvailable(t *testing.T) {
+	t.Parallel()
+	b := Base{Name: "test"}
+	availablePair := currency.NewBTCUSDT()
+	notAvailablePair := currency.NewPair(currency.BTC, currency.AUD)
+	err := b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+		AssetEnabled: true,
+		Available:    []currency.Pair{availablePair},
+		Enabled:      []currency.Pair{availablePair},
+	})
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name        string
+		pair        currency.Pair
+		assetType   asset.Item
+		expected    bool
+		expectedErr error
+	}{
+		{
+			name:      "available pair",
+			pair:      availablePair,
+			assetType: asset.Spot,
+			expected:  true,
+		},
+		{
+			name:      "pair not available",
+			pair:      notAvailablePair,
+			assetType: asset.Spot,
+			expected:  false,
+		},
+		{
+			name:        "invalid asset",
+			pair:        availablePair,
+			assetType:   asset.Item(1337),
+			expectedErr: asset.ErrNotSupported,
+		},
+		{
+			name:        "empty pair",
+			pair:        currency.EMPTYPAIR,
+			assetType:   asset.Spot,
+			expectedErr: currency.ErrCurrencyPairEmpty,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := b.IsPairAvailable(tc.pair, tc.assetType)
+			if tc.expectedErr != nil {
+				assert.ErrorIs(t, err, tc.expectedErr)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, got)
+		})
+	}
+}
+
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
 	var b Base
