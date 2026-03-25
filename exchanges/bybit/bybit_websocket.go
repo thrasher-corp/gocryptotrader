@@ -109,14 +109,14 @@ func (e *Exchange) WebsocketAuthenticatePrivateConnection(ctx context.Context, c
 	}
 	resp, err := conn.SendMessageReturnResponse(ctx, wsSubscriptionEPL, req.RequestID, req)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, req.Operation, err)
 	}
 	var response SubscriptionResponse
 	if err := json.Unmarshal(resp, &response); err != nil {
-		return err
+		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, req.Operation, err)
 	}
 	if !response.Success {
-		return fmt.Errorf("%s with request ID %s msg: %s", response.Operation, response.RequestID, response.ReturnMessage)
+		return fmt.Errorf("%w %s %s request_id=%s, %v", request.ErrAuthRequestFailed, e.Name, response.Operation, response.RequestID, errors.New(response.ReturnMessage))
 	}
 	return nil
 }
@@ -132,7 +132,7 @@ func (e *Exchange) WebsocketAuthenticateTradeConnection(ctx context.Context, con
 	}
 	resp, err := conn.SendMessageReturnResponse(ctx, wsSubscriptionEPL, req.RequestID, req)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, req.Operation, err)
 	}
 	var response struct {
 		ReturnCode    int64  `json:"retCode"`
@@ -141,14 +141,14 @@ func (e *Exchange) WebsocketAuthenticateTradeConnection(ctx context.Context, con
 		ConnectionID  string `json:"connId"`
 	}
 	if err := json.Unmarshal(resp, &response); err != nil {
-		return err
+		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, req.Operation, err)
 	}
 	if response.ReturnCode != 0 {
 		c, ok := retCode[response.ReturnCode]
 		if !ok {
 			c = "unknown return error code"
 		}
-		return fmt.Errorf("%s failed - code:%d [%v] msg:%s", response.Operation, response.ReturnCode, c, response.ReturnMessage)
+		return fmt.Errorf("%w %s %s code=%d message=%s info=%v", request.ErrAuthRequestFailed, e.Name, response.Operation, response.ReturnCode, response.ReturnMessage, c)
 	}
 	return nil
 }

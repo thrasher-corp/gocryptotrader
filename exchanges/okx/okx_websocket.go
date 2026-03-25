@@ -35,8 +35,11 @@ import (
 )
 
 var (
-	pingMsg = []byte("ping")
-	pongMsg = []byte("pong")
+	pingMsg                   = []byte("ping")
+	pongMsg                   = []byte("pong")
+	errOptionSummaryUnmarshal = errors.New("option summary unmarshal failed")
+	errOptionSummaryPairParse = errors.New("option summary pair parse failed")
+	errOptionSummaryDispatch  = errors.New("option summary dispatch failed")
 
 	// See: https://www.okx.com/docs-v5/en/#error-code-websocket-public
 	authConnErrorCodes = []string{
@@ -278,18 +281,18 @@ func (e *Exchange) wsAuthenticateConnection(ctx context.Context, conn websocket.
 	}
 	resp, err := conn.SendMessageReturnResponse(ctx, websocketRequestEPL, "login-response", op)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, operationLogin, err)
 	}
 	var intermediary struct {
 		Code    int64  `json:"code,string"`
 		Message string `json:"msg"`
 	}
 	if err := json.Unmarshal(resp, &intermediary); err != nil {
-		return err
+		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, operationLogin, err)
 	}
 
 	if intermediary.Code != 0 {
-		return getStatusError(intermediary.Code, intermediary.Message)
+		return fmt.Errorf("%w %s %s code=%d message=%s", request.ErrAuthRequestFailed, e.Name, operationLogin, intermediary.Code, intermediary.Message)
 	}
 	return nil
 }
@@ -1371,12 +1374,12 @@ func (e *Exchange) wsProcessTickers(ctx context.Context, data []byte) error {
 func (e *Exchange) wsProcessOptionSummary(ctx context.Context, respRaw []byte) error {
 	var response WsOptionSummary
 	if err := json.Unmarshal(respRaw, &response); err != nil {
-		return err
+		return fmt.Errorf("%w: %w", errOptionSummaryUnmarshal, err)
 	}
 	for i := range response.Data {
 		pair, err := e.GetPairFromInstrumentID(response.Data[i].InstrumentID)
 		if err != nil {
-			return err
+			return fmt.Errorf("%w: %w", errOptionSummaryPairParse, err)
 		}
 		if err := e.Websocket.DataHandler.Send(ctx, &exchangeoptions.Option{
 			ExchangeName: e.Name,
@@ -1391,7 +1394,7 @@ func (e *Exchange) wsProcessOptionSummary(ctx context.Context, respRaw []byte) e
 			AskIV:        response.Data[i].AskVolatility.Float64(),
 			MarkIV:       response.Data[i].MarkVolatility.Float64(),
 		}); err != nil {
-			return err
+			return fmt.Errorf("%w: %w", errOptionSummaryDispatch, err)
 		}
 	}
 	return nil

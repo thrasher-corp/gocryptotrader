@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -12,7 +11,6 @@ import (
 	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -20,26 +18,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
-	testpath "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 )
-
-func loadGateioExchangeConfig(t *testing.T, exchangeName string) *config.Exchange {
-	t.Helper()
-
-	root, err := testpath.RootPathFromCWD()
-	require.NoError(t, err)
-
-	cfg := &config.Config{}
-	require.NoError(t, cfg.LoadConfig(filepath.Join(root, "testdata", "configtest.json"), true))
-
-	exchCfg, err := cfg.GetExchangeConfig(exchangeName)
-	require.NoError(t, err)
-	exchCfg.Features.Subscriptions = subscription.List{}
-	exchCfg.WebsocketTrafficTimeout = time.Hour
-	exchCfg.ConnectionMonitorDelay = time.Hour
-	return exchCfg
-}
 
 func connectGateioWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *Exchange {
 	t.Helper()
@@ -52,7 +32,11 @@ func connectGateioWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc)
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
 
 	ex.Websocket = websocket.NewManager()
-	exchCfg := loadGateioExchangeConfig(t, ex.Name)
+	exchCfg := ex.Config
+	require.NotNil(t, exchCfg)
+	exchCfg.Features.Subscriptions = subscription.List{}
+	exchCfg.WebsocketTrafficTimeout = time.Hour
+	exchCfg.ConnectionMonitorDelay = time.Hour
 	require.NoError(t, ex.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:               exchCfg,
 		Features:                     &ex.Features.Supports.WebsocketCapabilities,

@@ -68,11 +68,11 @@ func (e *Exchange) sendWebsocketTradeRequest(ctx context.Context, op, orderLinkI
 	// sending the request.
 	outbound, err := e.Websocket.GetConnection(OutboundTradeConnection)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, op, err)
 	}
 	inbound, err := e.Websocket.GetConnection(InboundPrivateConnection)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, op, err)
 	}
 
 	// Set up a listener to wait for the response to come back from the inbound connection. The request is sent through
@@ -80,7 +80,7 @@ func (e *Exchange) sendWebsocketTradeRequest(ctx context.Context, op, orderLinkI
 	// outbound connection sends its acknowledgement.
 	ch, err := inbound.MatchReturnResponses(ctx, orderLinkID, 1)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, op, err)
 	}
 
 	requestID := e.MessageID()
@@ -91,38 +91,38 @@ func (e *Exchange) sendWebsocketTradeRequest(ctx context.Context, op, orderLinkI
 		Arguments: []any{payload},
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, op, err)
 	}
 
 	var confirmation WebsocketConfirmation
 	if err := json.Unmarshal(outResp, &confirmation); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, op, err)
 	}
 
 	if confirmation.RetCode != 0 {
-		return nil, fmt.Errorf("code:%d, info:%v message:%s", confirmation.RetCode, retCode[confirmation.RetCode], confirmation.RetMsg)
+		return nil, fmt.Errorf("%w %s %s code=%d message=%s info=%v", request.ErrAuthRequestFailed, e.Name, op, confirmation.RetCode, confirmation.RetMsg, retCode[confirmation.RetCode])
 	}
 
 	inResp := <-ch // Blocking read is acceptable; channel has a built in timeout already
 	if inResp.Err != nil {
-		return nil, inResp.Err
+		return nil, fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, op, inResp.Err)
 	}
 
 	if len(inResp.Responses) != 1 {
-		return nil, fmt.Errorf("expected 1 response, received %d", len(inResp.Responses))
+		return nil, fmt.Errorf("%w %s %s invalid websocket response count expected=1 received=%d", request.ErrAuthRequestFailed, e.Name, op, len(inResp.Responses))
 	}
 
 	var ret WebsocketOrderResponse
 	if err := json.Unmarshal(inResp.Responses[0], &ret); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, op, err)
 	}
 
 	if len(ret.Data) != 1 {
-		return nil, fmt.Errorf("expected 1 response, received %d", len(ret.Data))
+		return nil, fmt.Errorf("%w %s %s invalid websocket response count expected=1 received=%d", request.ErrAuthRequestFailed, e.Name, op, len(ret.Data))
 	}
 
 	if ret.Data[0].RejectReason != "EC_NoError" {
-		return nil, fmt.Errorf("order rejected: %s", ret.Data[0].RejectReason)
+		return nil, fmt.Errorf("%w %s %s order rejected=%s", request.ErrAuthRequestFailed, e.Name, op, ret.Data[0].RejectReason)
 	}
 
 	return &ret.Data[0], nil

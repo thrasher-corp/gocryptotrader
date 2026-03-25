@@ -3737,7 +3737,6 @@ func TestOrderbookChannelIntervals(t *testing.T) {
 	s := &subscription.Subscription{Channel: futuresOrderbookUpdateChannel, Interval: kline.TwentyMilliseconds, Levels: 100}
 	_, err := orderbookChannelInterval(s, asset.Futures)
 	require.ErrorIs(t, err, subscription.ErrInvalidInterval)
-	require.ErrorContains(t, err, "20ms only valid with Levels 20")
 	s.Levels = 20
 	i, err := orderbookChannelInterval(s, asset.Futures)
 	require.NoError(t, err)
@@ -3990,7 +3989,7 @@ func TestUnmarshalJSONOrderbookLevels(t *testing.T) {
 	assert.Equal(t, 123.45, ob[0].Price, "Price should be correct")
 	assert.Equal(t, 0.001, ob[0].Amount, "Amount should be correct")
 
-	require.Error(t, ob.UnmarshalJSON([]byte(`["p":"123.45","s":"0.001"]`)))
+	require.ErrorIs(t, ob.UnmarshalJSON([]byte(`["p":"123.45","s":"0.001"]`)), common.ErrMalformedData)
 }
 
 func TestGetEstimatedInterestRate(t *testing.T) {

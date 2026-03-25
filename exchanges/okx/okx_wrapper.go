@@ -43,6 +43,8 @@ const (
 	websocketResponseMaxLimit = time.Second * 3
 )
 
+var errContractAmountCanNotBeDecimal = errors.New("contract amount can not be decimal")
+
 // SetDefaults sets the basic defaults for Okx
 func (e *Exchange) SetDefaults() {
 	e.Name = "Okx"
@@ -1129,7 +1131,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 	}
 	var err error
 	if math.Trunc(action.Amount) != action.Amount {
-		return nil, errors.New("contract amount can not be decimal")
+		return nil, errContractAmountCanNotBeDecimal
 	}
 	// When asset type is asset.Spread
 	if action.AssetType == asset.Spread {
@@ -1249,7 +1251,7 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modif
 		return nil, err
 	}
 	if math.Trunc(action.Amount) != action.Amount {
-		return nil, errors.New("contract amount can not be decimal")
+		return nil, errContractAmountCanNotBeDecimal
 	}
 	if action.AssetType == asset.Spread {
 		_, err := e.WSAmendSpreadOrder(ctx, &AmendSpreadOrderParam{
@@ -1347,11 +1349,11 @@ func (e *Exchange) deriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderReque
 	}
 	pairString := pairFormat.Format(s.Pair)
 	tradeMode := e.marginTypeToString(s.MarginType)
-	sideType, err := deriveOKXSide(s.Side)
+	sideType, err := deriveOrderSide(s.Side)
 	if err != nil {
 		return nil, err
 	}
-	positionSide := deriveOKXPositionSide(s)
+	positionSide := derivePositionSide(s)
 	amount := s.Amount
 	var targetCurrency string
 	if isSpotMarketOrder(s) {
@@ -1394,7 +1396,7 @@ func isSpotMarketBuyWithQuoteAmount(s *order.Submit) bool {
 	return isSpotMarketOrder(s) && s.Side.IsLong() && s.QuoteAmount > 0
 }
 
-func deriveOKXSide(side order.Side) (string, error) {
+func deriveOrderSide(side order.Side) (string, error) {
 	if !side.IsLong() && !side.IsShort() {
 		return "", fmt.Errorf("%w %s", order.ErrSideIsInvalid, side)
 	}
@@ -1404,7 +1406,7 @@ func deriveOKXSide(side order.Side) (string, error) {
 	return order.Sell.Lower(), nil
 }
 
-func deriveOKXPositionSide(s *order.Submit) string {
+func derivePositionSide(s *order.Submit) string {
 	if s.AssetType != asset.Futures && s.AssetType != asset.PerpetualSwap {
 		return ""
 	}
@@ -1434,7 +1436,7 @@ func (e *Exchange) deriveAmendOrderArguments(action *order.Modify) (*AmendOrderR
 		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, action.AssetType)
 	}
 	if math.Trunc(action.Amount) != action.Amount {
-		return nil, errors.New("contract amount can not be decimal")
+		return nil, errContractAmountCanNotBeDecimal
 	}
 	pairFormat, err := e.GetPairFormat(action.AssetType, true)
 	if err != nil {
@@ -1590,7 +1592,7 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 		if err != nil {
 			return nil, err
 		}
-		side, err := deriveOKXSide(s.Side)
+		side, err := deriveOrderSide(s.Side)
 		if err != nil {
 			return nil, err
 		}

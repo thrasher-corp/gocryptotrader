@@ -155,7 +155,7 @@ func (e *Exchange) wsStartHeartbeat(ctx context.Context) {
 
 func (e *Exchange) wsLogin(ctx context.Context) error {
 	if !e.IsWebsocketAuthenticationSupported() {
-		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", e.Name)
+		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, "public/auth", errors.New("AuthenticatedWebsocketAPISupport not enabled"))
 	}
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
@@ -185,15 +185,15 @@ func (e *Exchange) wsLogin(ctx context.Context) error {
 	resp, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
 	if err != nil {
 		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		return err
+		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, "public/auth", err)
 	}
 	var response wsLoginResponse
 	err = json.Unmarshal(resp, &response)
 	if err != nil {
-		return fmt.Errorf("%v %v", e.Name, err)
+		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, "public/auth", err)
 	}
 	if response.Error != nil && (response.Error.Code > 0 || response.Error.Message != "") {
-		return fmt.Errorf("%v Error:%v Message:%v", e.Name, response.Error.Code, response.Error.Message)
+		return fmt.Errorf("%w %s %s code=%d message=%s", request.ErrAuthRequestFailed, e.Name, "public/auth", response.Error.Code, response.Error.Message)
 	}
 	return nil
 }
@@ -474,7 +474,7 @@ func (e *Exchange) processQuoteTicker(ctx context.Context, respRaw []byte, chann
 	if err != nil {
 		return err
 	}
-	if err := e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 		ExchangeName: e.Name,
 		Pair:         cp,
 		AssetType:    a,
@@ -483,10 +483,7 @@ func (e *Exchange) processQuoteTicker(ctx context.Context, respRaw []byte, chann
 		Ask:          quoteTicker.BestAskPrice,
 		BidSize:      quoteTicker.BestBidAmount,
 		AskSize:      quoteTicker.BestAskAmount,
-	}); err != nil {
-		return err
-	}
-	return nil
+	})
 }
 
 func (e *Exchange) processTrades(ctx context.Context, respRaw []byte, channels []string) error {

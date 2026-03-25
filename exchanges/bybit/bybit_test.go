@@ -3882,7 +3882,7 @@ func TestWebsocketAuthenticatePrivateConnection(t *testing.T) {
 	err = e.WebsocketAuthenticatePrivateConnection(ctx, &FixtureConnection{})
 	require.NoError(t, err)
 	err = e.WebsocketAuthenticatePrivateConnection(ctx, &FixtureConnection{sendMessageReturnResponseOverride: []byte(`{"success":false,"ret_msg":"failed auth","conn_id":"5758770c-8152-4545-a84f-dae089e56499","req_id":"1","op":"subscribe"}`)})
-	require.Error(t, err)
+	require.ErrorIs(t, err, request.ErrAuthRequestFailed)
 }
 
 func TestWebsocketAuthenticateTradeConnection(t *testing.T) {
@@ -3901,7 +3901,7 @@ func TestWebsocketAuthenticateTradeConnection(t *testing.T) {
 	err = e.WebsocketAuthenticateTradeConnection(ctx, &FixtureConnection{sendMessageReturnResponseOverride: []byte(`{"retCode":0,"retMsg":"OK","op":"auth","connId":"d2a641kgcg7ab33b7mdg-4x6a"}`)})
 	require.NoError(t, err)
 	err = e.WebsocketAuthenticateTradeConnection(ctx, &FixtureConnection{sendMessageReturnResponseOverride: []byte(`{"retCode":10004,"retMsg":"Invalid sign","op":"auth","connId":"d2a63t6p49kk82nefh90-4ye8"}`)})
-	require.Error(t, err)
+	require.ErrorIs(t, err, request.ErrAuthRequestFailed)
 }
 
 func TestTransformSymbol(t *testing.T) {
