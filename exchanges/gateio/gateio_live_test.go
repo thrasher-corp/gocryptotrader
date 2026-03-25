@@ -1,4 +1,4 @@
-//go:build mock_test_off
+//go:build !mock_test_off
 
 // This will build if build tag mock_test_off is parsed and will do live testing
 // using all tests in (exchange)_test.go
@@ -28,7 +28,10 @@ func TestMain(m *testing.M) {
 		e.API.AuthenticatedWebsocketSupport = true
 		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
-	if err := e.populateTradablePairs(); err != nil {
+	// if err := e.populateTradablePairs(); err != nil {
+	// 	log.Fatal(err)
+	// }
+	if err := e.enablePairs(); err != nil {
 		log.Fatal(err)
 	}
 	e.HTTPRecording = true

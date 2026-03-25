@@ -455,6 +455,9 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 		pairs := make([]currency.Pair, 0, len(contracts))
 		for _, fContract := range contracts {
+			if a == asset.CoinMarginedFutures {
+				println("fContract.Name: ", fContract.Name.String())
+			}
 			if fContract.Name.IsEmpty() {
 				continue
 			}

@@ -1883,12 +1883,17 @@ func (e *Exchange) PremiumIndexKLine(ctx context.Context, settleCurrency currenc
 	if contract.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	params.Set("contract", contract.String())
-	if from.IsZero() {
+	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.Unix(), 10))
 	}
-	if to.IsZero() {
+	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
 	if limit > 0 {
@@ -2429,7 +2434,7 @@ func (e *Exchange) GetFuturesLiquidationHistory(ctx context.Context, settle curr
 // CountdownCancelFuturesOrders represents a trigger time response
 func (e *Exchange) CountdownCancelFuturesOrders(ctx context.Context, settle currency.Code, arg CountdownParams) (*TriggerTimeResponse, error) {
 	if settle.IsEmpty() {
-		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
+		return nil, fmt.Errorf("%w; settlement currency is required", errEmptyOrInvalidSettlementCurrency)
 	}
 	if arg.Timeout < 0 {
 		return nil, errInvalidTimeout

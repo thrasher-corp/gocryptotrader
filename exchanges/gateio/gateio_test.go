@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"slices"
 	"strconv"
 	"strings"
@@ -48,6 +49,49 @@ var (
 	e                *Exchange
 	enabledAssetPair map[asset.Item]currency.Pair
 )
+
+func (e *Exchange) enablePairs() error {
+	var err error
+	enabledAssetPair = make(map[asset.Item]currency.Pair, 7)
+	enabledAssetPair[asset.Spot], err = e.FormatExchangeCurrency(currency.NewPairWithDelimiter("BTC", "USDT", "_"), asset.Spot)
+	if err != nil {
+		log.Fatal(err)
+	}
+	enabledAssetPair[asset.Margin], err = e.FormatExchangeCurrency(currency.NewPairWithDelimiter("BTC", "USDT", "_"), asset.Margin)
+	if err != nil {
+		log.Fatal(err)
+	}
+	enabledAssetPair[asset.CrossMargin], err = e.FormatExchangeCurrency(currency.NewPairWithDelimiter("BTC", "USDT", "_"), asset.CrossMargin)
+	if err != nil {
+		log.Fatal(err)
+	}
+	enabledAssetPair[asset.USDTMarginedFutures], err = e.FormatExchangeCurrency(currency.NewPairWithDelimiter("BTC", "USDT", "_"), asset.USDTMarginedFutures)
+	if err != nil {
+		log.Fatal(err)
+	}
+	enabledAssetPair[asset.CoinMarginedFutures], err = e.FormatExchangeCurrency(currency.NewPairWithDelimiter("BTC", "USDT", "_"), asset.CoinMarginedFutures)
+	if err != nil {
+		log.Fatal(err)
+	}
+	enabledAssetPair[asset.DeliveryFutures], err = e.FormatExchangeCurrency(currency.NewPairWithDelimiter("BTC", "USDT_20260213", "_"), asset.DeliveryFutures)
+	if err != nil {
+		log.Fatal(err)
+	}
+	enabledAssetPair[asset.Options], err = e.FormatExchangeCurrency(currency.NewPairWithDelimiter("BTC", "USDT-20260326-76000-P", "_"), asset.Options)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// store the pairs into the enabled pairs
+	for a, p := range enabledAssetPair {
+		if err := e.CurrencyPairs.StorePairs(a, []currency.Pair{p}, false); err != nil {
+			return err
+		}
+		if err := e.CurrencyPairs.StorePairs(a, []currency.Pair{p}, true); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 func getTime() (startTime, endTime time.Time) {
 	if mockTests {
@@ -100,6 +144,31 @@ func TestGetAccountBalances(t *testing.T) {
 
 func TestWithdraw(t *testing.T) {
 	t.Parallel()
+	_, err := e.WithdrawCryptocurrencyFunds(t.Context(), nil)
+	require.ErrorIs(t, err, withdraw.ErrRequestCannotBeNil)
+
+	arg := &withdraw.Request{
+		Description: "WITHDRAW IT ALL",
+	}
+	_, err = e.WithdrawCryptocurrencyFunds(t.Context(), arg)
+	require.ErrorIs(t, err, common.ErrExchangeNameNotSet)
+
+	arg.Exchange = e.Name
+	_, err = e.WithdrawCryptocurrencyFunds(t.Context(), arg)
+	require.ErrorContains(t, err, withdraw.ErrStrAmountMustBeGreaterThanZero)
+
+	arg.Amount = 1
+	_, err = e.WithdrawCryptocurrencyFunds(t.Context(), arg)
+	require.ErrorContains(t, err, withdraw.ErrStrNoCurrencySet)
+
+	arg.Currency = currency.USD
+	arg.Crypto = withdraw.CryptoRequest{
+		Address: "bc1qk0jareu4jytc0cfrhr5wgshsq8282awp",
+		Chain:   "",
+	}
+	_, err = e.WithdrawCryptocurrencyFunds(t.Context(), arg)
+	require.ErrorContains(t, err, withdraw.ErrStrCurrencyNotCrypto)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	cryptocurrencyChains, err := e.GetAvailableTransferChains(t.Context(), currency.BTC)
 	require.NoError(t, err, "GetAvailableTransferChains must not error")
@@ -1010,6 +1079,7 @@ func TestGetAllFutureContracts(t *testing.T) {
 
 func TestGetFuturesContract(t *testing.T) {
 	t.Parallel()
+	e.Verbose = true
 	_, err := e.GetFuturesContract(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures).String())
 	assert.NoError(t, err)
 	_, err = e.GetFuturesContract(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures).String())
@@ -1018,6 +1088,7 @@ func TestGetFuturesContract(t *testing.T) {
 
 func TestGetFuturesOrderbook(t *testing.T) {
 	t.Parallel()
+	e.Verbose = true
 	_, err := e.GetFuturesOrderbook(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), "", 10, false)
 	assert.NoError(t, err)
 	_, err = e.GetFuturesOrderbook(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), "", 10, false)
@@ -1042,6 +1113,7 @@ func TestGetFuturesCandlesticks(t *testing.T) {
 
 func TestPremiumIndexKLine(t *testing.T) {
 	t.Parallel()
+	e.Verbose = true
 	_, err := e.PremiumIndexKLine(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), time.Time{}, time.Time{}, 0, kline.OneWeek)
 	assert.NoError(t, err)
 	_, err = e.PremiumIndexKLine(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), time.Time{}, time.Time{}, 0, kline.OneWeek)
@@ -2023,8 +2095,11 @@ func TestUpdateDeliveryPositionRiskLimit(t *testing.T) {
 
 func TestGetAllOptionsUnderlyings(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetAllOptionsUnderlyings(t.Context())
+	underlyings, err := e.GetAllOptionsUnderlyings(t.Context())
 	assert.NoError(t, err)
+	for x := range underlyings {
+		println(underlyings[x].Name, ", ")
+	}
 }
 
 func TestGetExpirationTime(t *testing.T) {
@@ -2032,7 +2107,7 @@ func TestGetExpirationTime(t *testing.T) {
 	_, err := e.GetExpirationTime(t.Context(), "")
 	assert.ErrorIs(t, err, errInvalidUnderlying)
 
-	_, err = e.GetExpirationTime(t.Context(), "BTC_USDT")
+	_, err = e.GetExpirationTime(t.Context(), getPair(t, asset.Spot).String())
 	assert.NoError(t, err)
 }
 
