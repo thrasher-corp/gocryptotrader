@@ -98,12 +98,12 @@ grep_matches() {
         if [[ "$search_root" == "*" ]]; then
             grep_targets=(*)
         fi
-        "$GREP_BIN" -r -n -I --color=always --include="$name_glob" -"$grep_mode" "$pattern" "${grep_targets[@]}" 2>/dev/null
+        "$GREP_BIN" -r -n -I --color=always --exclude-dir=.git --exclude-dir=.idea --include="$name_glob" -"$grep_mode" "$pattern" "${grep_targets[@]}" 2>/dev/null
         return $?
     fi
 
     local results
-    results=$(find . -name "$name_glob" -not -path './.git/*' "$@" -print0 2>/dev/null \
+    results=$(find . -name "$name_glob" -not -path './.git/*' -not -path './.idea/*' "$@" -print0 2>/dev/null \
         | xargs -0 perl -e '
             my $pattern = shift @ARGV;
             my $strip_dot_prefix = shift @ARGV;
@@ -219,9 +219,9 @@ info "Check for LLM targeted invisible Unicode"
 # Uses perl -T to skip binary files (equivalent to grep -I in the original CI).
 UNICODE_PATTERN='(?!\x20)[\p{Cf}\p{Z}\p{M}]'
 if [[ "$HAS_GNU_GREP" -eq 1 ]]; then
-    unicode_results=$("$GREP_BIN" -r -n -I --color=always --exclude-dir=.git -P "$UNICODE_PATTERN" . 2>/dev/null) || true
+    unicode_results=$("$GREP_BIN" -r -n -I --color=always --exclude-dir=.git --exclude-dir=.idea -P "$UNICODE_PATTERN" . 2>/dev/null) || true
 else
-    unicode_results=$(find . -not -path './.git/*' -type f -print0 2>/dev/null \
+    unicode_results=$(find . -not -path './.git/*' -not -path './.idea/*' -type f -print0 2>/dev/null \
         | xargs -0 perl -e '
             for my $f (@ARGV) {
                 next unless -T $f;
