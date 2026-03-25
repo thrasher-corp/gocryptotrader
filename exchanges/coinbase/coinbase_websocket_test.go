@@ -52,7 +52,7 @@ func TestWsHandleData(t *testing.T) {
 		t.Parallel()
 		mockJSON := []byte(`{"type": "error"}`)
 		err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), mockJSON)
-		assert.Error(t, err)
+		assert.ErrorIs(t, err, errChannelNameUnknown)
 	})
 
 	t.Run("subscriptions channel", func(t *testing.T) {
@@ -218,7 +218,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, err)
 	testsubs.EqualLists(t, exp, subs)
 	_, err = subscription.List{{Channel: "wibble"}}.ExpandTemplates(e)
-	assert.ErrorContains(t, err, "subscription channel not supported: wibble")
+	assert.ErrorIs(t, err, subscription.ErrNotSupported)
 }
 
 func TestSubscribeUnsubscribe(t *testing.T) {
@@ -306,7 +306,7 @@ func TestGetWSJWTCacheAndRefresh(t *testing.T) {
 	// expired path uses GetJWT; without creds we just assert it returns an error
 	ex.jwt.expiresAt = time.Now().Add(-time.Second)
 	_, err = ex.GetWSJWT(t.Context())
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty)
 }
 
 func TestProcessBidAskArray(t *testing.T) {
@@ -429,7 +429,7 @@ func TestWSProcessCandle(t *testing.T) {
 	assert.Equal(t, asset.Spot, candles[0].Asset)
 
 	resp.Events = []byte(`[{"type":false}]`)
-	assert.Error(t, ex.wsProcessCandle(t.Context(), resp))
+	assert.ErrorIs(t, ex.wsProcessCandle(t.Context(), resp), errCandleDataUnmarshal)
 }
 
 func TestWSProcessMarketTrades(t *testing.T) {
@@ -460,7 +460,7 @@ func TestWSProcessMarketTrades(t *testing.T) {
 	assert.Equal(t, order.Buy, trades[0].Side)
 
 	resp.Events = []byte(`[{"type":false}]`)
-	assert.Error(t, ex.wsProcessMarketTrades(t.Context(), resp))
+	assert.ErrorIs(t, ex.wsProcessMarketTrades(t.Context(), resp), errMarketTradeDataUnmarshal)
 }
 
 func TestWSProcessL2(t *testing.T) {

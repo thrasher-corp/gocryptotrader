@@ -28,6 +28,11 @@ const (
 	coinbaseWebsocketURL = "wss://advanced-trade-ws.coinbase.com"
 )
 
+var (
+	errCandleDataUnmarshal      = fmt.Errorf("coinbase websocket candle data: %w", common.ErrMalformedData)
+	errMarketTradeDataUnmarshal = fmt.Errorf("coinbase websocket market trade data: %w", common.ErrMalformedData)
+)
+
 var subscriptionNames = map[string]string{
 	subscription.HeartbeatChannel: "heartbeats",
 	subscription.TickerChannel:    "ticker",
@@ -103,7 +108,7 @@ func (e *Exchange) wsProcessTicker(ctx context.Context, resp *StandardWebsocketR
 func (e *Exchange) wsProcessCandle(ctx context.Context, resp *StandardWebsocketResponse) error {
 	var wsCandles []WebsocketCandleHolder
 	if err := json.Unmarshal(resp.Events, &wsCandles); err != nil {
-		return err
+		return fmt.Errorf("%w: %w", errCandleDataUnmarshal, err)
 	}
 	var allCandles []kline.Item
 	for i := range wsCandles {
@@ -131,7 +136,7 @@ func (e *Exchange) wsProcessCandle(ctx context.Context, resp *StandardWebsocketR
 func (e *Exchange) wsProcessMarketTrades(ctx context.Context, resp *StandardWebsocketResponse) error {
 	var wsTrades []WebsocketMarketTradeHolder
 	if err := json.Unmarshal(resp.Events, &wsTrades); err != nil {
-		return err
+		return fmt.Errorf("%w: %w", errMarketTradeDataUnmarshal, err)
 	}
 	var allTrades []trade.Data
 	for i := range wsTrades {
