@@ -123,7 +123,7 @@ func TestDeriveURLValsFromJSONSlice(t *testing.T) {
 			Counter:    1,
 			IsEvenNum:  false,
 			Number:     3.14,
-			SomeString: "Test case 1",
+			SomeString: "case 1",
 		},
 		{
 			Things: []string{"hello", "thrasher"},
@@ -135,7 +135,7 @@ func TestDeriveURLValsFromJSONSlice(t *testing.T) {
 			},
 			IsEvenNum:  true,
 			Number:     3,
-			SomeString: "Test case 2",
+			SomeString: "case 2",
 		},
 		{
 			Things: []string{"hello", "Ethiopia"},
@@ -146,11 +146,11 @@ func TestDeriveURLValsFromJSONSlice(t *testing.T) {
 				SomeString: "hello, there",
 			},
 			IsEvenNum:  true,
-			SomeString: "Test case 3",
+			SomeString: "case 3",
 			Number:     3,
 		},
 		{
-			SomeString: "Test case 4",
+			SomeString: "case 4",
 		},
 		{},
 	}
@@ -162,7 +162,7 @@ func TestDeriveURLValsFromJSONSlice(t *testing.T) {
 	assert.Len(t, values, len(tcs))
 
 	for i := range tcs {
-		t.Run(tcs[i].SomeString, func(t *testing.T) {
+		t.Run("Test :"+tcs[i].SomeString, func(t *testing.T) {
 			t.Parallel()
 			elemPayload, err := json.Marshal(tcs[i])
 			require.NoError(t, err, "Marshal must not error")

@@ -78,7 +78,11 @@ func DeriveURLValsFromJSONMap(payload []byte) (url.Values, error) {
 		case float64:
 			vals.Add(k, strconv.FormatFloat(val, 'f', -1, 64))
 		case map[string]any, []any, nil:
-			vals.Add(k, fmt.Sprintf("%v", val))
+			b, err := json.Marshal(val)
+			if err != nil {
+				return vals, err
+			}
+			vals.Add(k, string(b))
 		default:
 			return vals, fmt.Errorf("unhandled conversion type: %T, please add as needed", val)
 		}
