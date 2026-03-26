@@ -199,7 +199,19 @@ Run the following to check for linting issues:
     golangci-lint run ./... (or make lint)
 ```
 
-Several other miscellaneous checks will be run via [GitHub actions](/.github/workflows/misc.yml).
+Run the miscellaneous repository checks locally with:
+
+```console
+    make misc_checks
+```
+
+The full local verification flow can be run with:
+
+```console
+    make check
+```
+
+This includes linting, miscellaneous checks and tests. The same miscellaneous checks are also run via [GitHub actions](/.github/workflows/misc.yml).
 
 - All lint warnings and errors must be resolved before merging.
 - Use `//nolint:linter-name` sparingly and always explain the reason in a comment next to the code.

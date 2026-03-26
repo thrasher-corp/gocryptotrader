@@ -568,16 +568,41 @@ func (m *Manager) connect(ctx context.Context) error {
 			continue
 		}
 
-		for _, batchedSubs := range common.Batch(subs, m.MaxSubscriptionsPerConnection) {
-			if err := m.createConnectAndSubscribe(ctx, ws, batchedSubs); err != nil {
+		// Pre-pass: absorb trackable logical subscriptions onto already-managed connections before batching/capacity routing to avoid misplacement.
+		remainingSubs, err := m.absorbTrackableSubscriptionsAndValidate(ctx, ws, subs)
+		if err != nil {
+			subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err))
+			continue
+		}
+		if len(remainingSubs) == 0 {
+			if m.verbose {
+				log.Debugf(log.WebsocketMgr, "%s websocket: [URL:%s] tracked logical subscriptions on existing connection. [Total Subs: %d] [Tracked: %d]", m.exchangeName, ws.setup.URL, len(subs), len(subs))
+			}
+			continue
+		}
+
+		for _, batchCandidates := range common.Batch(remainingSubs, m.MaxSubscriptionsPerConnection) {
+			batchRemainingSubs, err := m.absorbTrackableSubscriptionsAndValidate(ctx, ws, batchCandidates)
+			if err != nil {
+				subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err))
+				continue
+			}
+			if len(batchRemainingSubs) == 0 {
+				if m.verbose {
+					log.Debugf(log.WebsocketMgr, "%s websocket: [URL:%s] tracked logical subscriptions on existing connection. [Total Subs: %d] [Tracked: %d]", m.exchangeName, ws.setup.URL, len(subs), len(batchCandidates))
+				}
+				continue
+			}
+			if err := m.createConnectAndSubscribe(ctx, ws, batchRemainingSubs); err != nil {
 				if errors.Is(err, common.ErrFatal) {
 					multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err)
 					break
 				}
 				subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err))
+				continue
 			}
 			if m.verbose {
-				log.Debugf(log.WebsocketMgr, "%s websocket: [URL:%s] connected. [Total Subs: %d] [Subscribed: %d]", m.exchangeName, ws.setup.URL, len(subs), len(batchedSubs))
+				log.Debugf(log.WebsocketMgr, "%s websocket: [URL:%s] connected. [Total Subs: %d] [Subscribed: %d]", m.exchangeName, ws.setup.URL, len(subs), len(batchRemainingSubs))
 			}
 		}
 
@@ -1104,28 +1129,32 @@ func (m *Manager) observeConnection(ctx context.Context, t *time.Timer) (exit bo
 // monitorTraffic monitors to see if there has been traffic within the trafficTimeout time window. If there is no traffic
 // the connection is shutdown and will be reconnected by the connectionMonitor routine.
 func (m *Manager) monitorTraffic(context.Context) func() bool {
-	return func() bool { return m.observeTraffic(m.trafficTimeout) }
+	return func() bool {
+		return m.observeTraffic(time.After(m.trafficTimeout), func() {
+			go func() {
+				if err := m.Shutdown(); err != nil {
+					log.Errorf(log.WebsocketMgr, "%v websocket: trafficMonitor shutdown err: %s", m.exchangeName, err)
+				}
+			}()
+		})
+	}
 }
 
-func (m *Manager) observeTraffic(timeout time.Duration) bool {
+func (m *Manager) observeTraffic(timeout <-chan time.Time, onTimeout func()) bool {
 	select {
 	case <-m.ShutdownC:
 		if m.verbose {
 			log.Debugf(log.WebsocketMgr, "%v websocket: trafficMonitor shutdown message received", m.exchangeName)
 		}
-	case <-time.After(timeout):
+	case <-timeout:
 		if m.IsConnecting() || signalReceived(m.TrafficAlert) {
 			return false
 		}
 		if m.verbose {
-			log.Warnf(log.WebsocketMgr, "%v websocket: has not received a traffic alert in %v. Reconnecting", m.exchangeName, timeout)
+			log.Warnf(log.WebsocketMgr, "%v websocket: has not received a traffic alert in %v. Reconnecting", m.exchangeName, m.trafficTimeout)
 		}
-		if m.IsConnected() {
-			go func() { // Without this the m.Shutdown() call below will deadlock
-				if err := m.Shutdown(); err != nil {
-					log.Errorf(log.WebsocketMgr, "%v websocket: trafficMonitor shutdown err: %s", m.exchangeName, err)
-				}
-			}()
+		if m.IsConnected() && onTimeout != nil {
+			onTimeout()
 		}
 	}
 	return true
