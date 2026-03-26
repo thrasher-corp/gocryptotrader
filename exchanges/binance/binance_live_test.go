@@ -1,4 +1,4 @@
-//go:build !mock_test_off
+//go:build mock_test_off
 
 // This will build if build tag mock_test_off is parsed and will do live testing
 // using all tests in (exchange)_test.go
@@ -125,6 +125,5 @@ func (e *Exchange) populateTradablePairs() error {
 		return fmt.Errorf("%w for %v", currency.ErrCurrencyPairsEmpty, asset.Options)
 	}
 	optionsTradablePair, err = e.FormatExchangeCurrency(tradablePairs[0], asset.Options)
-	e.HTTPRecording = true
 	return err
 }

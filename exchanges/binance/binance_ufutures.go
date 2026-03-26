@@ -1266,7 +1266,6 @@ func (e *Exchange) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]limits.
 		if err != nil {
 			return nil, err
 		}
-
 		if len(usdtFutures.Symbols[x].Filters) < 6 {
 			continue
 		}

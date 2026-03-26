@@ -10565,30 +10565,6 @@
     }
    ]
   },
-  "/fapi/v1/openOrders": {
-   "GET": [
-    {
-     "data": null,
-     "queryString": "recvWindow=10000\u0026signature=484e1ca78bc1cc347e709f7c18bd716afd63d5a4558bc0c882e5daa28e24f7ec\u0026timestamp=1774272610472",
-     "bodyParams": "",
-     "headers": {
-      "X-Mbx-Apikey": [
-       ""
-      ]
-     }
-    },
-    {
-     "data": null,
-     "queryString": "recvWindow=5000\u0026signature=d473d4ae6128ed3586526809cb764952ab47dc2715df0756ba3a76537dfe8afb\u0026symbol=BTCUSDT\u0026timestamp=1774272611077",
-     "bodyParams": "",
-     "headers": {
-      "X-Mbx-Apikey": [
-       ""
-      ]
-     }
-    }
-   ]
-  },
   "/fapi/v1/order": {
    "GET": [
     {
@@ -10618,43 +10594,6 @@
       "priceProtect": false
      },
      "queryString": "orderId=123\u0026recvWindow=5000\u0026signature=95137921228fdbdff47275e63bd180416cb9323a305e83446e7df965204a7946\u0026symbol=BTCUSDT\u0026timestamp=1774271857645",
-     "bodyParams": "",
-     "headers": {
-      "X-Mbx-Apikey": [
-       ""
-      ]
-     }
-    }
-   ]
-  },
-  "/fapi/v1/orderAmendment": {
-   "GET": [
-    {
-     "data": {
-      "code": -1102,
-      "msg": "Param 'orderId' or 'origClientOrderId' must be sent, but both were empty/null!"
-     },
-     "queryString": "endTime=1774271291536\u0026limit=10\u0026recvWindow=5000\u0026signature=ca273fdfbb2550c469d34568e5b5a55e6f207b68ae92ecf3ca406136acf4ef23\u0026startTime=1773752891536\u0026symbol=KAVAUSDT\u0026timestamp=1774271291536",
-     "bodyParams": "",
-     "headers": {
-      "X-Mbx-Apikey": [
-       ""
-      ]
-     }
-    },
-    {
-     "data": null,
-     "queryString": "endTime=1774271368781\u0026limit=10\u0026orderId=1234\u0026recvWindow=5000\u0026signature=c7a7c06e25cb9a1a7714a0eb9ca9c4818ff5a6cc1f0a6d88374ca8769f209e60\u0026startTime=1773752968781\u0026symbol=KAVAUSDT\u0026timestamp=1774271368782",
-     "bodyParams": "",
-     "headers": {
-      "X-Mbx-Apikey": [
-       ""
-      ]
-     }
-    },
-    {
-     "data": null,
-     "queryString": "endTime=1774271746623\u0026limit=10\u0026orderId=1234\u0026recvWindow=5000\u0026signature=1bac80fa3e738fb38bae76c2a1b112ca60a523e20592f3d6cc237fddbf6120ce\u0026startTime=1773753346623\u0026symbol=BTCUSDT\u0026timestamp=1774271746623",
      "bodyParams": "",
      "headers": {
       "X-Mbx-Apikey": [
@@ -11205,76 +11144,6 @@
      "queryString": "limit=1000\u0026symbol=BTCUSDT",
      "bodyParams": "",
      "headers": {}
-    }
-   ]
-  },
-  "/fapi/v2/balance": {
-   "GET": [
-    {
-     "data": [
-      {
-       "accountAlias": "SgSgfWoCAuXqfWsR",
-       "asset": "FDUSD",
-       "availableBalance": "0.00000000",
-       "balance": "0.00000000",
-       "crossUnPnl": "0.00000000",
-       "crossWalletBalance": "0.00000000",
-       "marginAvailable": true,
-       "maxWithdrawAmount": "0.00000000",
-       "updateTime": 0
-      },
-      {
-       "accountAlias": "SgSgfWoCAuXqfWsR",
-       "asset": "U",
-       "availableBalance": "0.00000000",
-       "balance": "0.00000000",
-       "crossUnPnl": "0.00000000",
-       "crossWalletBalance": "0.00000000",
-       "marginAvailable": true,
-       "maxWithdrawAmount": "0.00000000",
-       "updateTime": 0
-      },
-      {
-       "accountAlias": "SgSgfWoCAuXqfWsR",
-       "asset": "LDUSDT",
-       "availableBalance": "0.00000000",
-       "balance": "0.00000000",
-       "crossUnPnl": "0.00000000",
-       "crossWalletBalance": "0.00000000",
-       "marginAvailable": true,
-       "maxWithdrawAmount": "0.00000000",
-       "updateTime": 0
-      },
-      {
-       "accountAlias": "SgSgfWoCAuXqfWsR",
-       "asset": "BFUSD",
-       "availableBalance": "0.00000000",
-       "balance": "0.00000000",
-       "crossUnPnl": "0.00000000",
-       "crossWalletBalance": "0.00000000",
-       "marginAvailable": true,
-       "maxWithdrawAmount": "0.00000000",
-       "updateTime": 0
-      },
-      {
-       "accountAlias": "SgSgfWoCAuXqfWsR",
-       "asset": "BNB",
-       "availableBalance": "0.00000000",
-       "balance": "0.00000000",
-       "crossUnPnl": "0.00000000",
-       "crossWalletBalance": "0.00000000",
-       "marginAvailable": true,
-       "maxWithdrawAmount": "0.00000000",
-       "updateTime": 0
-      }
-     ],
-     "queryString": "recvWindow=5000\u0026signature=8669bdb7a6c8664beb75184c808f95db8651b2e95d3eaabf236c9de82c17eb8e\u0026timestamp=1774276401760",
-     "bodyParams": "",
-     "headers": {
-      "X-Mbx-Apikey": [
-       ""
-      ]
-     }
     }
    ]
   },

@@ -110,9 +110,6 @@ func TestUpdateTicker(t *testing.T) {
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.Skip()
-	}
 	enabledAssets := e.GetAssetTypes(true)
 	for _, assetType := range enabledAssets {
 		err := e.UpdateTickers(t.Context(), assetType)
@@ -230,7 +227,7 @@ func TestGetUFuturesContinuousKlineData(t *testing.T) {
 	_, err = e.GetUFuturesContinuousKlineData(t.Context(), usdtmTradablePair, "CURRENT_QUARTER", "5m", endTime, startTime, 10)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	result, err := e.GetUFuturesContinuousKlineData(t.Context(), usdtmTradablePair, "CURRENT_QUARTER", "1d", startTime, endTime, 10)
+	result, err := e.GetUFuturesContinuousKlineData(t.Context(), usdtmTradablePair, "PERPETUAL", "1d", startTime, endTime, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -477,18 +474,18 @@ func TestGetBasis(t *testing.T) {
 	_, err = e.GetBasis(t.Context(), usdtmTradablePair, "", "15m", time.Time{}, time.Time{}, 20)
 	require.ErrorIs(t, err, errContractTypeIsRequired)
 
-	_, err = e.GetBasis(t.Context(), usdtmTradablePair, "CURRENT_QUARTER", "", time.Time{}, time.Time{}, 20)
+	_, err = e.GetBasis(t.Context(), usdtmTradablePair, "PERPETUAL", "", time.Time{}, time.Time{}, 20)
 	require.ErrorIs(t, err, errInvalidPeriodOrInterval)
 
 	startTime, endTime := getTime()
-	_, err = e.GetBasis(t.Context(), usdtmTradablePair, "CURRENT_QUARTER", "15m", endTime, startTime, 20)
+	_, err = e.GetBasis(t.Context(), usdtmTradablePair, "PERPETUAL", "15m", endTime, startTime, 20)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	result, err := e.GetBasis(t.Context(), usdtmTradablePair, "CURRENT_QUARTER", "15m", startTime, endTime, 20)
+	result, err := e.GetBasis(t.Context(), usdtmTradablePair, "PERPETUAL", "15m", startTime, endTime, 20)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = e.GetBasis(t.Context(), usdtmTradablePair, "NEXT_QUARTER", "15m", startTime, endTime, 20)
+	result, err = e.GetBasis(t.Context(), usdtmTradablePair, "PERPETUAL", "15m", startTime, endTime, 20)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 	result, err = e.GetBasis(t.Context(), usdtmTradablePair, "PERPETUAL", "15m", startTime, endTime, 20)
@@ -509,7 +506,7 @@ func TestGetMultiAssetModeAssetIndex(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = e.GetMultiAssetModeAssetIndex(t.Context(), usdtmTradablePair)
+	result, err = e.GetMultiAssetModeAssetIndex(t.Context(), currency.NewBTCUSD())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -698,9 +695,7 @@ func TestGetUSDTOrderModifyHistory(t *testing.T) {
 	_, err = e.GetUSDTOrderModifyHistory(t.Context(), usdtmTradablePair, "", 1234, 10, endTime, startTime)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetUSDTOrderModifyHistory(t.Context(), usdtmTradablePair, "", 1234, 10, startTime, endTime)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -773,10 +768,7 @@ func TestUFetchOpenOrder(t *testing.T) {
 
 func TestUAllAccountOpenOrders(t *testing.T) {
 	t.Parallel()
-
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.UAllAccountOpenOrders(t.Context(), currency.EMPTYPAIR)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -792,9 +784,7 @@ func TestUAllAccountOrders(t *testing.T) {
 	_, err := e.UAllAccountOrders(t.Context(), currency.EMPTYPAIR, 0, 0, endTime, startTime)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.UAllAccountOrders(t.Context(), currency.EMPTYPAIR, 0, 0, startTime, endTime)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -806,9 +796,7 @@ func TestUAllAccountOrders(t *testing.T) {
 
 func TestUAccountBalanceV2(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.UAccountBalanceV2(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -3954,7 +3942,7 @@ func TestFormatSymbol(t *testing.T) {
 		},
 		{
 			name:           "usdtmarginedfutures-BTCUSDT",
-			pair:           usdtmTradablePair,
+			pair:           currency.NewBTCUSDT(),
 			asset:          asset.USDTMarginedFutures,
 			expectedString: "BTCUSDT",
 		},
@@ -3995,7 +3983,7 @@ func TestFetchExchangeLimits(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	for _, a := range e.GetAssetTypes(false) {
+	for _, a := range e.GetAssetTypes(true) {
 		t.Run(a.String(), func(t *testing.T) {
 			t.Parallel()
 			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
