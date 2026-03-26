@@ -303,7 +303,7 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		updated = true
 	}
 	if updated {
-		if d.LastUpdated.Equal(m.LastUpdated) {
+		if m.LastUpdated.IsZero() || d.LastUpdated.Equal(m.LastUpdated) {
 			d.LastUpdated = time.Now()
 		} else {
 			d.LastUpdated = m.LastUpdated

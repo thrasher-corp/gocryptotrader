@@ -1108,13 +1108,23 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	assert.Equal(t, closeTime, od.CloseTime)
 	assert.Equal(t, lastUpdated, od.LastUpdated)
 
+	nextCloseTime := closeTime.Add(time.Minute)
+	beforeUpdate := time.Now()
+	err = od.UpdateOrderFromDetail(&Detail{CloseTime: nextCloseTime})
+	afterUpdate := time.Now()
+	require.NoError(t, err)
+	assert.Equal(t, nextCloseTime, od.CloseTime)
+	assert.False(t, od.LastUpdated.Before(beforeUpdate), "LastUpdated should not be before test start when incoming timestamp is unset")
+	assert.False(t, od.LastUpdated.After(afterUpdate), "LastUpdated should not be after test end when incoming timestamp is unset")
+	lastUpdatedWithoutIncoming := od.LastUpdated
+
 	err = od.UpdateOrderFromDetail(&Detail{})
 	require.NoError(t, err)
 	assert.Equal(t, 10.0, od.ContractAmount)
 	assert.Equal(t, 11.0, od.AverageExecutedPrice)
 	assert.Equal(t, 12.0, od.Cost)
-	assert.Equal(t, closeTime, od.CloseTime)
-	assert.Equal(t, lastUpdated, od.LastUpdated)
+	assert.Equal(t, nextCloseTime, od.CloseTime)
+	assert.Equal(t, lastUpdatedWithoutIncoming, od.LastUpdated)
 
 	id, err = uuid.NewV4()
 	require.NoError(t, err)
