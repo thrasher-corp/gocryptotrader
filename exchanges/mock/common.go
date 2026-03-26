@@ -1,12 +1,17 @@
 package mock
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+)
+
+var (
+	errJSONMapPayloadMustBeObject = errors.New("json map payload must be an object")
 )
 
 // MatchURLVals matches url.Value query strings
@@ -63,6 +68,9 @@ func DeriveURLValsFromJSONMap(payload []byte) (url.Values, error) {
 	vals := url.Values{}
 	if len(payload) == 0 {
 		return vals, nil
+	}
+	if getJSONBodyShape(strings.TrimSpace(string(payload))) == jsonBodyArray {
+		return vals, errJSONMapPayloadMustBeObject
 	}
 	intermediary := make(map[string]any)
 	if err := json.Unmarshal(payload, &intermediary); err != nil {
