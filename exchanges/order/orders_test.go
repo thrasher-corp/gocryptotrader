@@ -1061,6 +1061,10 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	assert.Equal(t, asset.Item(1), od.AssetType)
 	assert.Equal(t, updated, od.LastUpdated)
 	assert.Equal(t, "BTCUSD", od.Pair.String())
+	assert.Zero(t, od.ContractAmount)
+	assert.Zero(t, od.AverageExecutedPrice)
+	assert.Zero(t, od.Cost)
+	assert.True(t, od.CloseTime.IsZero())
 	assert.Nil(t, od.Trades)
 
 	om.Trades = append(om.Trades, TradeHistory{TID: "1"}, TradeHistory{TID: "2"})
@@ -1087,6 +1091,30 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	assert.Equal(t, UnknownSide, od.Trades[0].Side)
 	assert.Equal(t, UnknownType, od.Trades[0].Type)
 	assert.Equal(t, 1337.0, od.Trades[0].Amount)
+
+	closeTime := updated.Add(time.Minute)
+	lastUpdated := closeTime.Add(time.Minute)
+	err = od.UpdateOrderFromDetail(&Detail{
+		ContractAmount:       10,
+		AverageExecutedPrice: 11,
+		Cost:                 12,
+		CloseTime:            closeTime,
+		LastUpdated:          lastUpdated,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 10.0, od.ContractAmount)
+	assert.Equal(t, 11.0, od.AverageExecutedPrice)
+	assert.Equal(t, 12.0, od.Cost)
+	assert.Equal(t, closeTime, od.CloseTime)
+	assert.Equal(t, lastUpdated, od.LastUpdated)
+
+	err = od.UpdateOrderFromDetail(&Detail{})
+	require.NoError(t, err)
+	assert.Equal(t, 10.0, od.ContractAmount)
+	assert.Equal(t, 11.0, od.AverageExecutedPrice)
+	assert.Equal(t, 12.0, od.Cost)
+	assert.Equal(t, closeTime, od.CloseTime)
+	assert.Equal(t, lastUpdated, od.LastUpdated)
 
 	id, err = uuid.NewV4()
 	require.NoError(t, err)

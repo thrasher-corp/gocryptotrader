@@ -174,6 +174,10 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 		d.Amount = m.Amount
 		updated = true
 	}
+	if m.ContractAmount > 0 && m.ContractAmount != d.ContractAmount {
+		d.ContractAmount = m.ContractAmount
+		updated = true
+	}
 	if m.LimitPriceUpper > 0 && m.LimitPriceUpper != d.LimitPriceUpper {
 		d.LimitPriceUpper = m.LimitPriceUpper
 		updated = true
@@ -192,6 +196,14 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	}
 	if m.ExecutedAmount > 0 && m.ExecutedAmount != d.ExecutedAmount {
 		d.ExecutedAmount = m.ExecutedAmount
+		updated = true
+	}
+	if m.AverageExecutedPrice > 0 && m.AverageExecutedPrice != d.AverageExecutedPrice {
+		d.AverageExecutedPrice = m.AverageExecutedPrice
+		updated = true
+	}
+	if m.Cost > 0 && m.Cost != d.Cost {
+		d.Cost = m.Cost
 		updated = true
 	}
 	if m.Fee > 0 && m.Fee != d.Fee {
@@ -234,6 +246,10 @@ func (d *Detail) UpdateOrderFromDetail(m *Detail) error {
 	}
 	if m.AssetType != asset.Empty && m.AssetType != d.AssetType {
 		d.AssetType = m.AssetType
+		updated = true
+	}
+	if !m.CloseTime.IsZero() && !m.CloseTime.Equal(d.CloseTime) {
+		d.CloseTime = m.CloseTime
 		updated = true
 	}
 	for x := range m.Trades {
