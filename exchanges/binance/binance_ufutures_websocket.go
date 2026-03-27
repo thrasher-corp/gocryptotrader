@@ -25,9 +25,9 @@ import (
 )
 
 const (
-	usdtmFuturesPublicURL  = "wss://fstream.binance.com/public/stream"
-	usdtmFuturesMarketURL  = "wss://fstream.binance.com/market/stream"
-	usdtmFuturesPrivateURL = "wss://fstream.binance.com/private/stream"
+	fstreamPublicURL  = "wss://fstream.binance.com/public/stream"
+	fstreamMarketURL  = "wss://fstream.binance.com/market/stream"
+	fstreamPrivateURL = "wss://fstream.binance.com/private/stream"
 
 	usdtmPublicFilter  = "usd-m-public"
 	usdtmMarketFilter  = "usd-m-market"
@@ -67,7 +67,7 @@ func (e *Exchange) WsUFuturesConnect(ctx context.Context, conn websocket.Connect
 		HandshakeTimeout: e.Config.HTTPTimeout,
 		Proxy:            http.ProxyFromEnvironment,
 	}
-	if conn.GetURL() == usdtmFuturesPrivateURL {
+	if conn.GetURL() == fstreamPrivateURL {
 		listenKey, err = e.GetWsAuthStreamKey(context.TODO())
 		switch {
 		case err != nil:

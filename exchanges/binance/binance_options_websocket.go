@@ -27,12 +27,16 @@ import (
 )
 
 const (
-	eoptionsWebsocketURL = "wss://nbstream.binance.com/eoptions/"
+	fstreamOptionsPublicURL  = "wss://fstream.binance.com/public/stream"
+	fstreamOptionsMarketURL  = "wss://fstream.binance.com/market/stream"
+	fstreamOptionsPrivateURL = "wss://fstream.binance.com/private"
 
-	// For convention, we use the @channel_type pattern to represents channels that use underlying asset like ETH otherwise they use symbols or none
+	optionsPublicFilter  = "options-public"
+	optionsMarketFilter  = "options-market"
+	optionsPrivateFilter = "options-private"
 
-	cnlTrade                    = "trade"  // <symbol>@trade
-	cnlTradeWithUnderlyingAsset = "@trade" // <underlyingAsset>@trade eg. ETH@trade
+	cnlTrade                    = "trade"
+	cnlTradeWithUnderlyingAsset = "@trade"
 	cnlIndex                    = "index"
 	cnlMarkPrice                = "@markPrice"
 	cnlKline                    = "kline"
@@ -41,6 +45,7 @@ const (
 	cnlOpenInterest             = "@openInterest@"
 	cnlDepth                    = "depth"
 	cnlOptionPair               = "option_pair"
+	cnlOptionSymbol             = "!optionSymbol" // mar
 )
 
 // defaultEOptionsSubscriptions list of default subscription channels
@@ -61,20 +66,16 @@ func (e *Exchange) WsOptionsConnect(ctx context.Context, conn websocket.Connecti
 		HandshakeTimeout: e.Config.HTTPTimeout,
 		Proxy:            http.ProxyFromEnvironment,
 	}
-	wsURL := eoptionsWebsocketURL + "stream"
-	conn.SetURL(wsURL)
-
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
+	if conn.GetURL() == fstreamOptionsPrivateURL {
 		listenKey, err = e.GetEOptionsWsAuthStreamKey(ctx)
 		switch {
 		case err != nil:
-			log.Errorf(log.ExchangeSys, "%v unable to connect to authenticated options Websocket. Error: %s", e.Name, err)
+			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			log.Errorf(log.ExchangeSys, "%v unable to connect to authenticated Websocket. Error: %s", e.Name, err)
 		default:
-			wsURL = wsURL + "ws/" + listenKey
-			conn.SetURL(wsURL)
+			conn.SetURL(fstreamOptionsPrivateURL + "/ws/" + listenKey)
 		}
 	}
-	conn.SetURL(wsURL)
 	err = conn.Dial(ctx, &dialer, http.Header{}, nil)
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", e.Name, err)
@@ -181,8 +182,7 @@ func (e *Exchange) OptionUnsubscribe(ctx context.Context, conn websocket.Connect
 }
 
 // GenerateEOptionsDefaultSubscriptions generates the default subscription set
-func (e *Exchange) GenerateEOptionsDefaultSubscriptions() (subscription.List, error) {
-	channels := defaultEOptionsSubscriptions
+func (e *Exchange) GenerateEOptionsDefaultSubscriptions(filter string) (subscription.List, error) {
 	var subscriptions subscription.List
 	pairs, err := e.FetchTradablePairs(context.Background(), asset.Options)
 	if err != nil {
@@ -190,6 +190,23 @@ func (e *Exchange) GenerateEOptionsDefaultSubscriptions() (subscription.List, er
 	}
 	if len(pairs) > 4 {
 		pairs = pairs[:3]
+	}
+	var channels []string
+	for _, ch := range defaultEOptionsSubscriptions {
+		switch filter {
+		case optionsPublicFilter:
+			switch ch {
+			case cnlTrade, cnlTradeWithUnderlyingAsset, cnlDepth, cnlTicker, cnlTickerWithExpiration, cnlKline:
+				channels = append(channels, ch)
+			}
+		case optionsMarketFilter:
+			switch ch {
+			case cnlOptionSymbol, cnlMarkPrice, cnlIndex, cnlOptionPair, cnlOpenInterest:
+				channels = append(channels, ch)
+			}
+		case usdtmPrivateFilter:
+			return subscription.List{}, nil
+		}
 	}
 
 	for z := range channels {
@@ -226,7 +243,7 @@ func (e *Exchange) GenerateEOptionsDefaultSubscriptions() (subscription.List, er
 					"level": 50, // Valid levels are 10, 20, 50, 100.
 				},
 			})
-		case cnlOptionPair:
+		case cnlOptionPair, cnlOptionSymbol:
 			subscriptions = append(subscriptions, &subscription.Subscription{
 				Channel: cnlOptionPair,
 			})
@@ -295,6 +312,8 @@ func (e *Exchange) wsHandleEOptionsData(ctx context.Context, conn websocket.Conn
 		return e.processOptionsPair(ctx, respRaw)
 	case "depth":
 		return e.processOptionsOrderbook(respRaw)
+	case cnlOptionSymbol:
+		return e.processOptionsSymbol(ctx, respRaw)
 	default:
 		return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
 			Message: string(respRaw),
@@ -337,6 +356,15 @@ func (e *Exchange) processOptionsOrderbook(data []byte) error {
 		UpdateID:   resp.UpdateID,
 		UpdateTime: resp.TransactionTime.Time(),
 	})
+}
+
+// processOptionsSymbol represents a new symbol listing stream
+func (e *Exchange) processOptionsSymbol(ctx context.Context, data []byte) error {
+	var resp WsOptionSymbol
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return err
+	}
+	return e.Websocket.DataHandler.Send(ctx, resp)
 }
 
 // processOptionsPair new symbol listing stream

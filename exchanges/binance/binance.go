@@ -310,7 +310,7 @@ func (e *Exchange) retrieveSpotKline(ctx context.Context, arg *KlinesRequestPara
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("interval", arg.Interval)
-	if arg.Limit != 0 {
+	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
 	if !arg.StartTime.IsZero() {

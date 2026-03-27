@@ -299,7 +299,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	// USD-Margined Futures public stream connection
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		MessageFilter:         usdtmPublicFilter,
-		URL:                   usdtmFuturesPublicURL,
+		URL:                   fstreamPublicURL,
 		Handler:               e.wsHandleFuturesData,
 		Connector:             e.WsUFuturesConnect,
 		Subscriber:            e.SubscribeFutures,
@@ -315,7 +315,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	// USD-Margined Futures market stream connection
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		MessageFilter:         usdtmMarketFilter,
-		URL:                   usdtmFuturesMarketURL,
+		URL:                   fstreamMarketURL,
 		Handler:               e.wsHandleFuturesData,
 		Connector:             e.WsUFuturesConnect,
 		Subscriber:            e.SubscribeFutures,
@@ -331,7 +331,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	// USD-Margined Futures private stream connection
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		MessageFilter:            usdtmPrivateFilter,
-		URL:                      usdtmFuturesPrivateURL,
+		URL:                      fstreamPrivateURL,
 		Handler:                  e.wsHandleFuturesData,
 		Connector:                e.WsUFuturesConnect,
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
@@ -343,18 +343,49 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	// Options Margined Futures connection
-	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		MessageFilter:         asset.Options,
-		URL:                   eoptionsWebsocketURL,
+	// Options public stream connection
+	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		MessageFilter:         optionsPublicFilter,
+		URL:                   fstreamOptionsPublicURL,
 		Handler:               e.wsHandleEOptionsData,
 		Connector:             e.WsOptionsConnect,
 		Subscriber:            e.OptionSubscribe,
 		Unsubscriber:          e.OptionUnsubscribe,
-		GenerateSubscriptions: e.GenerateEOptionsDefaultSubscriptions,
+		GenerateSubscriptions: func() (subscription.List, error) { return e.GenerateEOptionsDefaultSubscriptions(optionsPublicFilter) },
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 		RateLimit:             request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
+	}); err != nil {
+		return err
+	}
+
+	// Options market stream connection
+	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		MessageFilter:         optionsMarketFilter,
+		URL:                   fstreamOptionsMarketURL,
+		Handler:               e.wsHandleEOptionsData,
+		Connector:             e.WsOptionsConnect,
+		Subscriber:            e.OptionSubscribe,
+		Unsubscriber:          e.OptionUnsubscribe,
+		GenerateSubscriptions: func() (subscription.List, error) { return e.GenerateEOptionsDefaultSubscriptions(optionsMarketFilter) },
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
+	}); err != nil {
+		return err
+	}
+
+	// Options private stream connection
+	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		MessageFilter:            optionsPrivateFilter,
+		URL:                      fstreamOptionsPrivateURL,
+		Handler:                  e.wsHandleEOptionsData,
+		Connector:                e.WsOptionsConnect,
+		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+		RateLimit:                request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
+		SubscriptionsNotRequired: true,
+		Authenticated:            true,
 	})
 }
 
@@ -398,7 +429,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 		pairs = make([]currency.Pair, 0, len(cInfo.Symbols))
 		for z := range cInfo.Symbols {
-			if cInfo.Symbols[z].ContractStatus != tradingStatus {
+			if !strings.EqualFold(cInfo.Symbols[z].ContractStatus, tradingStatus) {
 				continue
 			}
 			sym := cInfo.Symbols[z]
@@ -436,11 +467,10 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		if err != nil {
 			return nil, err
 		}
-		pairs = make([]currency.Pair, len(exchangeInformation.OptionSymbols))
-		for a := range exchangeInformation.OptionSymbols {
-			pairs[a], err = currency.NewPairFromString(exchangeInformation.OptionSymbols[a].Symbol)
-			if err != nil {
-				return nil, err
+		pairs = make([]currency.Pair, 0, len(exchangeInformation.OptionSymbols))
+		for _, opSymbol := range exchangeInformation.OptionSymbols {
+			if strings.EqualFold(opSymbol.Status, tradingStatus) {
+				pairs = append(pairs, opSymbol.Symbol)
 			}
 		}
 	}
@@ -3042,7 +3072,7 @@ func (e *Exchange) FormatExchangeKlineInterval(interval kline.Interval) string {
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := e.GetKlineRequest(pair, a, interval, start, end, false)
+	req, err := e.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -3130,7 +3160,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 		}
 		for i := range candles {
 			timeSeries = append(timeSeries, kline.Candle{
-				Time:   candles[i].CloseTime.Time(),
+				Time:   candles[i].OpenTime.Time(),
 				Open:   candles[i].Open.Float64(),
 				High:   candles[i].High.Float64(),
 				Low:    candles[i].Low.Float64(),
@@ -3240,7 +3270,7 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 			}
 			for i := range candles {
 				timeSeries = append(timeSeries, kline.Candle{
-					Time:   candles[i].CloseTime.Time(),
+					Time:   candles[i].OpenTime.Time().UTC(),
 					Open:   candles[i].Open.Float64(),
 					High:   candles[i].High.Float64(),
 					Low:    candles[i].Low.Float64(),
@@ -4591,7 +4621,7 @@ func (e *Exchange) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp cur
 			return "", err
 		}
 		for i := range ei.OptionSymbols {
-			if ei.OptionSymbols[i].Symbol != symbol {
+			if ei.OptionSymbols[i].Symbol.String() != symbol {
 				continue
 			}
 			underlying = ei.OptionSymbols[i].Underlying

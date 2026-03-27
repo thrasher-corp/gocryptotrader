@@ -23,37 +23,41 @@ type EOptionExchangeInfo struct {
 		ID   int64  `json:"id"`
 		Name string `json:"name"`
 	} `json:"optionAssets"`
-	OptionSymbols []struct {
-		ContractID int64      `json:"contractId"`
-		ExpiryDate types.Time `json:"expiryDate"`
-		Filters    []struct {
-			FilterType string       `json:"filterType"` // possible values are: PRICE_FILTER, LOT_SIZE
-			MinPrice   types.Number `json:"minPrice,omitempty"`
-			MaxPrice   types.Number `json:"maxPrice,omitempty"`
-			TickSize   types.Number `json:"tickSize,omitempty"`
-			MinQty     types.Number `json:"minQty,omitempty"`
-			MaxQty     types.Number `json:"maxQty,omitempty"`
-			StepSize   types.Number `json:"stepSize,omitempty"`
-		} `json:"filters"`
-		ID                   int64        `json:"id"`
-		Symbol               string       `json:"symbol"`
-		Side                 string       `json:"side"`
-		StrikePrice          types.Number `json:"strikePrice"`
-		Underlying           string       `json:"underlying"`
-		Unit                 int64        `json:"unit"`
-		MakerFeeRate         types.Number `json:"makerFeeRate"`
-		TakerFeeRate         types.Number `json:"takerFeeRate"`
-		MaxQty               types.Number `json:"maxQty"`
-		MinQty               types.Number `json:"minQty"`
-		InitialMargin        string       `json:"initialMargin"`
-		MaintenanceMargin    string       `json:"maintenanceMargin"`
-		MinInitialMargin     string       `json:"minInitialMargin"`
-		MinMaintenanceMargin string       `json:"minMaintenanceMargin"`
-		PriceScale           float64      `json:"priceScale"`
-		QuantityScale        float64      `json:"quantityScale"`
-		QuoteAsset           string       `json:"quoteAsset"`
-	} `json:"optionSymbols"`
-	RateLimits []RateLimitInfo `json:"rateLimits"`
+	OptionSymbols []*OptionsSymbolDetail `json:"optionSymbols"`
+	RateLimits    []RateLimitInfo        `json:"rateLimits"`
+}
+
+// OptionsSymbolDetail represents an option market symbol detail
+type OptionsSymbolDetail struct {
+	ContractID int64      `json:"contractId"`
+	ExpiryDate types.Time `json:"expiryDate"`
+	Filters    []struct {
+		FilterType string       `json:"filterType"` // possible values are: PRICE_FILTER, LOT_SIZE
+		MinPrice   types.Number `json:"minPrice,omitempty"`
+		MaxPrice   types.Number `json:"maxPrice,omitempty"`
+		TickSize   types.Number `json:"tickSize,omitempty"`
+		MinQty     types.Number `json:"minQty,omitempty"`
+		MaxQty     types.Number `json:"maxQty,omitempty"`
+		StepSize   types.Number `json:"stepSize,omitempty"`
+	} `json:"filters"`
+	ID                   int64         `json:"id"`
+	Symbol               currency.Pair `json:"symbol"`
+	Side                 string        `json:"side"`
+	StrikePrice          types.Number  `json:"strikePrice"`
+	Underlying           string        `json:"underlying"`
+	Unit                 int64         `json:"unit"`
+	MakerFeeRate         types.Number  `json:"makerFeeRate"`
+	TakerFeeRate         types.Number  `json:"takerFeeRate"`
+	MaxQuantity          types.Number  `json:"maxQty"`
+	MinQuantity          types.Number  `json:"minQty"`
+	InitialMargin        types.Number  `json:"initialMargin"`
+	MaintenanceMargin    types.Number  `json:"maintenanceMargin"`
+	MinInitialMargin     types.Number  `json:"minInitialMargin"`
+	MinMaintenanceMargin types.Number  `json:"minMaintenanceMargin"`
+	PriceScale           float64       `json:"priceScale"`
+	QuantityScale        float64       `json:"quantityScale"`
+	Status               string        `json:"status"`
+	QuoteAsset           currency.Code `json:"quoteAsset"`
 }
 
 // EOptionsOrderbook represents an european orderbook option information.
@@ -521,6 +525,21 @@ type WsOptionsNewPair struct {
 	OptionType                string       `json:"d"`
 	StrikePrice               types.Number `json:"sp"`
 	ExpirationTime            types.Time   `json:"ed"`
+}
+
+// WsOptionSymbol represents a new symbol information sent through websocket stream
+type WsOptionSymbol struct {
+	Event                    string        `json:"e"`
+	EventTime                types.Time    `json:"E"`
+	Symbol                   currency.Pair `json:"s"`
+	Underlying               string        `json:"ps"`
+	QuoteAsset               currency.Code `json:"qa"`
+	OptionType               string        `json:"d"`
+	StrikePrice              types.Number  `json:"sp"`
+	DeliveryTime             types.Time    `json:"dt"`
+	UnderlyingAssetUQuantity uint64        `json:"u"`
+	OnboardDateTime          types.Time    `json:"ot"`
+	ContractStatus           string        `json:"cs"`
 }
 
 // WsOptionsOrderbook represents a partial orderbook websocket stream data

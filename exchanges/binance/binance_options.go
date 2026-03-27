@@ -618,14 +618,8 @@ func (e *Exchange) FetchOptionsExchangeLimits(ctx context.Context) ([]limits.Min
 	}
 	l := make([]limits.MinMaxLevel, 0, len(resp.OptionSymbols))
 	for i := range resp.OptionSymbols {
-		var cp currency.Pair
-		cp, err = currency.NewPairFromString(resp.OptionSymbols[i].Symbol)
-		if err != nil {
-			return nil, err
-		}
-
 		mml := limits.MinMaxLevel{
-			Key: key.NewExchangeAssetPair(e.Name, asset.Options, cp),
+			Key: key.NewExchangeAssetPair(e.Name, asset.Options, resp.OptionSymbols[i].Symbol),
 		}
 
 		for _, f := range resp.OptionSymbols[i].Filters {
@@ -642,8 +636,8 @@ func (e *Exchange) FetchOptionsExchangeLimits(ctx context.Context) ([]limits.Min
 				return nil, fmt.Errorf("filter type %s not supported", f.FilterType)
 			}
 		}
-		mml.MarketMaxQty = resp.OptionSymbols[i].MaxQty.Float64()
-		mml.MarketMinQty = resp.OptionSymbols[i].MinQty.Float64()
+		mml.MarketMaxQty = resp.OptionSymbols[i].MaxQuantity.Float64()
+		mml.MarketMinQty = resp.OptionSymbols[i].MinQuantity.Float64()
 		mml.MaxTotalOrders = maxOrderLimit
 		l = append(l, mml)
 	}

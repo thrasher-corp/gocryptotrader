@@ -1189,7 +1189,7 @@ func TestGetCFuturesIndexPriceConstituents(t *testing.T) {
 	_, err := e.GetCFuturesIndexPriceConstituents(t.Context(), currency.EMPTYPAIR)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	result, err := e.GetCFuturesIndexPriceConstituents(t.Context(), coinmTradablePair)
+	result, err := e.GetCFuturesIndexPriceConstituents(t.Context(), currency.NewBTCUSD())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3595,9 +3595,10 @@ func TestExecutionTypeToOrderStatus(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	startTime, endTime := getTime()
+	startTime, endTime := getTime(true)
+	e.Verbose = true
 	for assetType, pair := range assetToTradablePairMap {
-		result, err := e.GetHistoricCandles(t.Context(), pair, assetType, kline.OneDay, startTime, endTime)
+		result, err := e.GetHistoricCandles(t.Context(), pair, assetType, kline.FiveMin, startTime, endTime)
 		require.NoErrorf(t, err, "%v %v", assetType, err)
 		require.NotNil(t, result)
 	}
@@ -3607,8 +3608,8 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 	startTime, endTime := getTime()
 	for assetType, pair := range assetToTradablePairMap {
-		result, err := e.GetHistoricCandlesExtended(t.Context(), pair, assetType, kline.OneDay, startTime, endTime)
-		require.NoError(t, err)
+		result, err := e.GetHistoricCandlesExtended(t.Context(), pair, assetType, kline.FiveMin, startTime, endTime)
+		require.NoErrorf(t, err, "asset type: %v error: %v", assetType, err)
 		assert.NotNil(t, result)
 	}
 }
@@ -3808,7 +3809,7 @@ func TestWsOrderExecutionReport(t *testing.T) {
 		AssetType:            asset.Spot,
 		Date:                 time.UnixMilli(1616627567900),
 		LastUpdated:          time.UnixMilli(1616627567900),
-		Pair:                 usdtmTradablePair,
+		Pair:                 currency.NewBTCUSDT(),
 		TimeInForce:          order.GoodTillCancel,
 	}
 	// empty the channel. otherwise mock_test will fail
