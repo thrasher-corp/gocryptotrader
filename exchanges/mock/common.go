@@ -10,9 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
-var (
-	errJSONMapPayloadMustBeObject = errors.New("json map payload must be an object")
-)
+var errJSONMapPayloadMustBeObject = errors.New("json map payload must be an object")
 
 // MatchURLVals matches url.Value query strings
 func MatchURLVals(v1, v2 url.Values) bool {

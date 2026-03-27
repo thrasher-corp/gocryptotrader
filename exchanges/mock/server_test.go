@@ -241,7 +241,7 @@ func TestJSONBodyArrayRegression(t *testing.T) {
 	_, err := DeriveURLValsFromJSONMap(arrayPayload)
 	require.ErrorIs(t, err, errJSONMapPayloadMustBeObject)
 
-	// Fixed behavior: array payloads are matched via DeriveURLValsFromJSONSlice
+	// Fixed behaviour: array payloads are matched via DeriveURLValsFromJSONSlice
 	// + MatchAndGetResponseJSONSlice.
 	reqVals, err := DeriveURLValsFromJSONSlice(arrayPayload)
 	require.NoError(t, err)
