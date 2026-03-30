@@ -1495,16 +1495,9 @@ func subscribeForTest(ctx context.Context, e *Exchange, subs subscription.List) 
 			return err
 		}
 	}
-	conn, err := e.Websocket.GetConnection(publicBitfinexWebsocketEndpoint)
+	conn, err := e.Websocket.GetConnection(asset.Spot)
 	if err != nil {
-		wsRunningURL, urlErr := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
-		if urlErr != nil {
-			return err
-		}
-		conn, err = e.Websocket.GetConnection(wsRunningURL)
-		if err != nil {
-			return err
-		}
+		return err
 	}
 	return e.subscribeForConnection(ctx, conn, subs)
 }
@@ -1515,16 +1508,9 @@ func unsubscribeForTest(ctx context.Context, e *Exchange, subs subscription.List
 			return err
 		}
 	}
-	conn, err := e.Websocket.GetConnection(publicBitfinexWebsocketEndpoint)
+	conn, err := e.Websocket.GetConnection(asset.Spot)
 	if err != nil {
-		wsRunningURL, urlErr := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
-		if urlErr != nil {
-			return err
-		}
-		conn, err = e.Websocket.GetConnection(wsRunningURL)
-		if err != nil {
-			return err
-		}
+		return err
 	}
 	return e.unsubscribeForConnection(ctx, conn, subs)
 }

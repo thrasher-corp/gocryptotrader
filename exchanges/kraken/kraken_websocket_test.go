@@ -56,7 +56,7 @@ func TestManageSubs(t *testing.T) {
 				Channel:          tc.channel,
 				QualifiedChannel: tc.qualifiedChannel,
 				Authenticated:    true,
-			}})
+			}}, conn)
 			if tc.errIs != nil {
 				require.ErrorIs(t, err, tc.errIs)
 				require.ErrorContains(t, err, tc.errContains)

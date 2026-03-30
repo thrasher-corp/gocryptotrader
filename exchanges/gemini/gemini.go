@@ -96,7 +96,7 @@ func (e *Exchange) GetTicker(ctx context.Context, currencyPair string) (TickerV2
 		return ticker, fmt.Errorf("%w: %w", errTickerRequestFailed, err)
 	}
 	if ticker.Result == "error" {
-		return ticker, fmt.Errorf("%w %v %v",
+		return ticker, fmt.Errorf("%w %v %v %v",
 			errTickerRequestFailed,
 			e.Name,
 			ticker.Reason,

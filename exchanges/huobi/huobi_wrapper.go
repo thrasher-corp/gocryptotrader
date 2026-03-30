@@ -225,7 +225,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		RateLimit:             request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		MessageFilter:         wsRunningURL,
+		MessageFilter:         asset.Spot,
 	})
 	if err != nil {
 		return err
@@ -248,7 +248,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		RateLimit:                request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-		MessageFilter:            wsRunningAuthURL,
+		MessageFilter:            "auth",
 	})
 }
 

@@ -255,7 +255,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: e.generateSubscriptionsSpot,
 		Connector:             e.WsConnectSpot,
 		Authenticate:          e.authenticateSpot,
-		MessageFilter:         wsSpotURL,
+		MessageFilter:         asset.Spot,
 	})
 	if err != nil {
 		return err
@@ -275,7 +275,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		},
 		Connector:     e.WsFuturesConnect,
 		Authenticate:  e.authenticateFutures,
-		MessageFilter: wsUSDTFuturesURL,
+		MessageFilter: asset.USDTMarginedFutures,
 	})
 	if err != nil {
 		return err
@@ -295,7 +295,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			return e.GenerateFuturesDefaultSubscriptions(asset.CoinMarginedFutures)
 		},
 		Connector:     e.WsFuturesConnect,
-		MessageFilter: wsCoinFuturesURL,
+		MessageFilter: asset.CoinMarginedFutures,
 	})
 	if err != nil {
 		return err
@@ -314,7 +314,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Unsubscriber:          e.DeliveryFuturesUnsubscribe,
 		GenerateSubscriptions: e.GenerateDeliveryFuturesDefaultSubscriptions,
 		Connector:             e.WsDeliveryFuturesConnect,
-		MessageFilter:         wsDeliveryURL,
+		MessageFilter:         asset.DeliveryFutures,
 	})
 	if err != nil {
 		return err
@@ -330,7 +330,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Unsubscriber:          e.OptionsUnsubscribe,
 		GenerateSubscriptions: e.GenerateOptionsDefaultSubscriptions,
 		Connector:             e.WsOptionsConnect,
-		MessageFilter:         wsOptionsURL,
+		MessageFilter:         asset.Options,
 	})
 }
 

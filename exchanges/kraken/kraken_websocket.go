@@ -18,7 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -949,11 +948,7 @@ func fqChannelNameSub(s *subscription.Subscription) error {
 }
 
 func (e *Exchange) wsAuthConnection() (websocket.Connection, error) {
-	wsRunningAuthURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
-	if err != nil {
-		return nil, err
-	}
-	return e.Websocket.GetConnection(wsRunningAuthURL)
+	return e.Websocket.GetConnection("auth")
 }
 
 // wsAddOrder creates an order, returned order ID if success
