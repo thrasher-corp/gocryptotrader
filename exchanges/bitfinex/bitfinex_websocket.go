@@ -486,19 +486,16 @@ func (e *Exchange) handleWSEvent(ctx context.Context, respRaw []byte) error {
 		if err != nil {
 			return fmt.Errorf("%w 'chanId': %w from message: %s", common.ErrParsingWSField, err, respRaw)
 		}
-		err = e.Websocket.Match.RequireMatchWithData("unsubscribe:"+chanID, respRaw)
-		if err != nil {
+		if err := e.Websocket.Match.RequireMatchWithData("unsubscribe:"+chanID, respRaw); err != nil {
 			return fmt.Errorf("%w: unsubscribe:%v", err, chanID)
 		}
 	case wsEventError:
 		if subID, err := jsonparser.GetUnsafeString(respRaw, "subId"); err == nil {
-			err = e.Websocket.Match.RequireMatchWithData("subscribe:"+subID, respRaw)
-			if err != nil {
+			if err := e.Websocket.Match.RequireMatchWithData("subscribe:"+subID, respRaw); err != nil {
 				return fmt.Errorf("%w: subscribe:%v", err, subID)
 			}
 		} else if chanID, err := jsonparser.GetUnsafeString(respRaw, "chanId"); err == nil {
-			err = e.Websocket.Match.RequireMatchWithData("unsubscribe:"+chanID, respRaw)
-			if err != nil {
+			if err := e.Websocket.Match.RequireMatchWithData("unsubscribe:"+chanID, respRaw); err != nil {
 				return fmt.Errorf("%w: unsubscribe:%v", err, chanID)
 			}
 		} else {
@@ -563,8 +560,7 @@ func (e *Exchange) handleWSSubscribed(respRaw []byte) error {
 	c.Key = int(chanID)
 
 	// subscribeToChan removes the old subID keyed Subscription
-	err = e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, c)
-	if err != nil {
+	if err := e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, c); err != nil {
 		return fmt.Errorf("%w: %w subID: %s", websocket.ErrSubscriptionFailure, err, subID)
 	}
 
@@ -1642,12 +1638,12 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(sprig.FuncMap()).Funcs(template.FuncMap{
 		"subToMap": subToMap,
-		"removeSpotFromMargin": func(ap map[asset.Item]currency.Pairs) string {
+		"removeSpotFromMargin": func(ap map[asset.Item]currency.Pairs) (string, error) {
 			spotPairs, err := e.GetEnabledPairs(asset.Spot)
 			if err != nil {
-				panic(fmt.Sprintf("error getting enabled spot pairs: %v", err))
+				return "", err
 			}
-			return removeSpotFromMargin(ap, spotPairs)
+			return removeSpotFromMargin(ap, spotPairs), nil
 		},
 	}).Parse(subTplText)
 }
@@ -1816,8 +1812,7 @@ func (e *Exchange) WsNewOrder(ctx context.Context, data *WsNewOrderRequest) (str
 		return "", errors.New(e.Name + " - Order message not returned")
 	}
 	var respData []any
-	err = json.Unmarshal(resp, &respData)
-	if err != nil {
+	if err := json.Unmarshal(resp, &respData); err != nil {
 		return "", err
 	}
 
@@ -1874,8 +1869,7 @@ func (e *Exchange) WsModifyOrder(ctx context.Context, data *WsUpdateOrderRequest
 	}
 
 	var responseData []any
-	err = json.Unmarshal(resp, &responseData)
-	if err != nil {
+	if err := json.Unmarshal(resp, &responseData); err != nil {
 		return err
 	}
 	if len(responseData) < 3 {
@@ -1927,8 +1921,7 @@ func (e *Exchange) WsCancelOrder(ctx context.Context, orderID int64) error {
 		return fmt.Errorf("%v - Order %v failed to cancel", e.Name, orderID)
 	}
 	var responseData []any
-	err = json.Unmarshal(resp, &responseData)
-	if err != nil {
+	if err := json.Unmarshal(resp, &responseData); err != nil {
 		return err
 	}
 	if len(responseData) < 3 {
@@ -1984,8 +1977,7 @@ func (e *Exchange) WsCancelOffer(ctx context.Context, orderID int64) error {
 		return fmt.Errorf("%v - Order %v failed to cancel", e.Name, orderID)
 	}
 	var responseData []any
-	err = json.Unmarshal(resp, &responseData)
-	if err != nil {
+	if err := json.Unmarshal(resp, &responseData); err != nil {
 		return err
 	}
 	if len(responseData) < 3 {

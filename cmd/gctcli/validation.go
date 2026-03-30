@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"unicode"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -16,14 +17,11 @@ var (
 )
 
 func validPair(pair string) bool {
-	if !strings.ContainsAny(pair, "-_/:.") {
+	if !strings.ContainsFunc(pair, unicode.IsPunct) {
 		return false
 	}
-	p, err := currency.NewPairFromString(pair)
-	if err != nil {
-		return false
-	}
-	return p.Base.String() != "" && p.Quote.String() != ""
+	p, _ := currency.NewPairFromString(pair)
+	return !p.Base.IsEmpty() && !p.Quote.IsEmpty()
 }
 
 func validAsset(i string) bool {

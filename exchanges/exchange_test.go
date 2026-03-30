@@ -2508,6 +2508,30 @@ func TestIsPairAvailable(t *testing.T) {
 	}
 }
 
+func TestIsAssetAvailable(t *testing.T) {
+	t.Parallel()
+	b := Base{Name: "test"}
+	err := b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+		AssetEnabled: true,
+		Available:    []currency.Pair{currency.NewBTCUSDT()},
+		Enabled:      []currency.Pair{currency.NewBTCUSDT()},
+	})
+	require.NoError(t, err, "Store must not error")
+
+	err = b.IsAssetAvailable(asset.Spot)
+	require.NoError(t, err, "IsAssetAvailable must not error for configured assets")
+
+	err = b.IsAssetAvailable(asset.Item(1337))
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "IsAssetAvailable should error for invalid assets")
+
+	err = b.IsAssetAvailable(asset.Margin)
+	assert.ErrorIs(t, err, currency.ErrAssetNotFound, "IsAssetAvailable should error when no pair store exists for the asset")
+
+	b.CurrencyPairs.Pairs = nil
+	err = b.IsAssetAvailable(asset.Spot)
+	assert.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "IsAssetAvailable should error when pair manager is not initialised")
+}
+
 func TestGetOpenInterest(t *testing.T) {
 	t.Parallel()
 	var b Base

@@ -84,19 +84,19 @@ func TestGetSymbols(t *testing.T) {
 	assert.Less(t, len(filtered), len(allSymbols), "market filter should narrow the symbol list")
 }
 
-func TestValidateCredentials(t *testing.T) {
+func TestValidateAPICredentialsBasic(t *testing.T) {
 	t.Parallel()
 
 	t.Run("unsupported asset", func(t *testing.T) {
 		t.Parallel()
-		err := e.ValidateCredentials(t.Context(), asset.Item(1337))
+		err := e.ValidateAPICredentials(t.Context(), asset.Item(1337))
 		assert.ErrorIs(t, err, asset.ErrNotSupported)
 	})
 
 	t.Run("authenticated request", func(t *testing.T) {
 		t.Parallel()
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-		err := e.ValidateCredentials(t.Context(), asset.Spot)
+		err := e.ValidateAPICredentials(t.Context(), asset.Spot)
 		assert.NoError(t, err)
 	})
 }
