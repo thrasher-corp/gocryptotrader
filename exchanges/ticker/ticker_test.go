@@ -425,7 +425,7 @@ func TestProcessBatch(t *testing.T) {
 	require.NoError(t, err, "ProcessBatch must not error for empty input")
 
 	exchName := strings.ReplaceAll(t.Name(), "/", "-")
-	pairOne := currency.NewPair(currency.BTC, currency.USD)
+	pairOne := currency.NewBTCUSD()
 	pairTwo := currency.NewPair(currency.ETH, currency.USD)
 	err = ProcessBatch([]Price{
 		{
