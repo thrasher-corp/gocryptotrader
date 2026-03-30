@@ -70,7 +70,6 @@ var (
 	errDispatchSystem          = errors.New("dispatch system offline")
 	errCurrencyNotEnabled      = errors.New("currency not enabled")
 	errCurrencyNotSpecified    = errors.New("a currency must be specified")
-	errCurrencyPairInvalid     = errors.New("currency provided is not found in the available pairs list")
 	errNoTrades                = errors.New("no trades returned from supplied params")
 	errNilRequestData          = errors.New("nil request data received, cannot continue")
 	errShutdownNotAllowed      = errors.New("shutting down this bot instance is not allowed via gRPC, please enable by command line flag --grpcshutdown or config.json field grpcAllowBotShutdown")
@@ -3491,17 +3490,7 @@ func checkParamsWithAvailablePair(e exchange.IBotExchange, a asset.Item, p curre
 	if p.IsEmpty() {
 		return currency.EMPTYPAIR, nil
 	}
-	matchedPair, err := e.MatchSymbolWithAvailablePairs(p.String(), a, p.Delimiter != "")
-	if err == nil {
-		return matchedPair, nil
-	}
-
-	// Fallback for tests/exchanges where pair matcher has not yet been indexed.
-	availablePairs, getPairsErr := e.GetAvailablePairs(a)
-	if getPairsErr == nil && availablePairs.Contains(p, true) {
-		return p, nil
-	}
-	return currency.EMPTYPAIR, fmt.Errorf("%v %w", p, errCurrencyPairInvalid)
+	return e.MatchSymbolWithAvailablePairs(p.String(), a, p.Delimiter != "")
 }
 
 func parseMultipleEvents(ret []*withdraw.Response) *gctrpc.WithdrawalEventsByExchangeResponse {
