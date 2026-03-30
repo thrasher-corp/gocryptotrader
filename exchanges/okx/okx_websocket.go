@@ -1433,12 +1433,13 @@ func optionInstrumentFamilyFromPair(pair currency.Pair) string {
 // GetSubscriptionTemplate returns a subscription channel template
 func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{
-		"channelName":     channelName,
-		"isSymbolChannel": isSymbolChannel,
-		"isAssetChannel":  isAssetChannel,
-		"isInstFamily":    isInstFamilyChannel,
-		"instType":        GetInstrumentTypeFromAssetItem,
-		"instFamily":      optionInstrumentFamilyFromPair,
+		"subscriptionForAsset": subscriptionForAsset,
+		"channelName":          channelName,
+		"isSymbolChannel":      isSymbolChannel,
+		"isAssetChannel":       isAssetChannel,
+		"isInstFamily":         isInstFamilyChannel,
+		"instType":             GetInstrumentTypeFromAssetItem,
+		"instFamily":           optionInstrumentFamilyFromPair,
 	}).Parse(subTplText)
 }
 
@@ -1532,6 +1533,14 @@ func isInstFamilyChannel(s *subscription.Subscription) bool {
 	return (s.Asset == asset.Options && s.Channel == subscription.AllTradesChannel) || channelName(s) == channelOptSummary
 }
 
+// subscriptionForAsset applies the current template expansion asset to a clone so
+// channel mapping/shape checks operate on the concrete asset (e.g. options).
+func subscriptionForAsset(s *subscription.Subscription, a asset.Item) *subscription.Subscription {
+	cloned := s.Clone()
+	cloned.Asset = a
+	return cloned
+}
+
 // isSymbolChannel returns if the channel expects one Symbol per subscription
 func isSymbolChannel(s *subscription.Subscription) bool {
 	if isInstFamilyChannel(s) {
@@ -1545,18 +1554,17 @@ func isSymbolChannel(s *subscription.Subscription) bool {
 }
 
 const subTplText = `
-{{- with $name := channelName $.S }}
-	{{- range $asset, $pairs := $.AssetPairs }}
-		{{- if isAssetChannel $.S -}}
+{{- range $asset, $pairs := $.AssetPairs }}
+	{{- with $sub := subscriptionForAsset $.S $asset -}}
+	{{- with $name := channelName $sub }}
+		{{- if isAssetChannel $sub -}}
 			{"channel":"{{ $name }}","instType":"{{ instType $asset }}"}
-		{{- else if isInstFamily $.S }}
+		{{- else if isInstFamily $sub }}
 			{{- range $p := $pairs -}}
-				{"channel":"{{ $name }}"
-				,"instFamily":"{{ instFamily $p }}"
-				,"instType":"{{ instType $asset }}"}
+				{"channel":"{{ $name }}","instFamily":"{{ instFamily $p }}","instType":"{{ instType $asset }}"}
 				{{ $.PairSeparator }}
 			{{- end -}}
-		{{- else if isSymbolChannel $.S }}
+		{{- else if isSymbolChannel $sub }}
 			{{- range $p := $pairs -}}
 				{"channel":"{{ $name }}","instID":"{{ $p }}"}
 				{{ $.PairSeparator }}
@@ -1566,7 +1574,8 @@ const subTplText = `
 			{{- with $algoId := index $.S.Params "algoId" -}} ,"algoId":"{{ $algoId }}" {{- end -}}
 			}
 		{{- end }}
-	{{- $.AssetSeparator }}
 	{{- end }}
-{{- end }}
+	{{- end }}
+	{{- $.AssetSeparator }}
+{{- end -}}
 `

@@ -2604,7 +2604,7 @@ func TestSubscribe(t *testing.T) {
 	require.NoError(t, err, "ExpandTemplates must not error")
 	ex.Features.Subscriptions = subscription.List{}
 
-	conn := connectGateioTestWithMockedWebsocket(t, ex, staticGateioWSHandler(`{"time":1726121320,"time_ms":1726121320745,"id":1,"conn_id":"f903779a148987ca","trace_id":"d8ee37cd14347e4ed298d44e69aedaa7","channel":"spot.tickers","event":"subscribe","payload":["BRETT_USDT"],"result":{"status":"success"},"requestId":"d8ee37cd14347e4ed298d44e69aedaa7"}`))
+	conn := connectGateioTestWithMockedWebsocket(t, ex, ackGateioWSHandler())
 	err = ex.Subscribe(t.Context(), conn, subs)
 	require.NoError(t, err, "Subscribe must not error")
 }
@@ -3093,9 +3093,26 @@ func (d *FixtureConnection) SendMessageReturnResponse(context.Context, request.E
 
 func (d *FixtureConnection) GetURL() string { return "wss://test" }
 
-func staticGateioWSHandler(response string) mockws.WsMockFunc {
-	return func(_ testing.TB, _ []byte, c *gws.Conn) error {
-		return c.WriteMessage(gws.TextMessage, []byte(response))
+func ackGateioWSHandler() mockws.WsMockFunc {
+	return func(_ testing.TB, incoming []byte, c *gws.Conn) error {
+		var req WsInput
+		if err := json.Unmarshal(incoming, &req); err != nil {
+			return err
+		}
+		resp, err := json.Marshal(map[string]any{
+			"time":    1726121320,
+			"time_ms": 1726121320745,
+			"id":      req.ID,
+			"channel": req.Channel,
+			"event":   req.Event,
+			"result": map[string]string{
+				"status": "success",
+			},
+		})
+		if err != nil {
+			return err
+		}
+		return c.WriteMessage(gws.TextMessage, resp)
 	}
 }
 
@@ -3113,7 +3130,9 @@ func connectGateioTestWithMockedWebsocket(t *testing.T, ex *Exchange, wsHandler 
 	t.Cleanup(func() {
 		_ = ex.Websocket.Shutdown()
 	})
-	return ex.Websocket.Conn
+	conn, err := ex.Websocket.GetConnection(asset.Spot)
+	require.NoError(t, err)
+	return conn
 }
 
 func TestHandleSubscriptions(t *testing.T) {
@@ -3121,17 +3140,29 @@ func TestHandleSubscriptions(t *testing.T) {
 
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
-	conn := connectGateioTestWithMockedWebsocket(t, ex, staticGateioWSHandler(`{"time":1726121320,"time_ms":1726121320745,"id":1,"conn_id":"f903779a148987ca","trace_id":"d8ee37cd14347e4ed298d44e69aedaa7","channel":"spot.tickers","event":"subscribe","payload":["BRETT_USDT"],"result":{"status":"success"},"requestId":"d8ee37cd14347e4ed298d44e69aedaa7"}`))
+	conn := connectGateioTestWithMockedWebsocket(t, ex, ackGateioWSHandler())
 
-	subs := subscription.List{{Channel: subscription.OrderbookChannel}}
+	subs := subscription.List{{
+		Channel: subscription.OrderbookChannel,
+		Asset:   asset.Spot,
+		Pairs:   currency.Pairs{currency.NewBTCUSDT()},
+	}}
 
 	err := ex.handleSubscription(t.Context(), conn, subscribeEvent, subs, func(context.Context, string, subscription.List) ([]WsInput, error) {
-		return []WsInput{{}}, nil
+		return []WsInput{{
+			Event:   subscribeEvent,
+			Channel: spotOrderbookChannel,
+			Payload: []string{currency.NewBTCUSDT().String(), "100ms"},
+		}}, nil
 	})
 	require.NoError(t, err)
 
 	err = ex.handleSubscription(t.Context(), conn, unsubscribeEvent, subs, func(context.Context, string, subscription.List) ([]WsInput, error) {
-		return []WsInput{{}}, nil
+		return []WsInput{{
+			Event:   unsubscribeEvent,
+			Channel: spotOrderbookChannel,
+			Payload: []string{currency.NewBTCUSDT().String(), "100ms"},
+		}}, nil
 	})
 	require.NoError(t, err)
 }

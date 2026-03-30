@@ -673,6 +673,9 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 
 // manageSubs sends a websocket message to subscribe or unsubscribe from a list of channel
 func (e *Exchange) manageSubs(ctx context.Context, event string, conn websocket.Connection, subs subscription.List) error {
+	if err := common.NilGuard(conn); err != nil {
+		return fmt.Errorf("%w: websocket connection", err)
+	}
 	subs, err := subs.ExpandTemplates(e)
 	if err != nil {
 		return err
@@ -680,6 +683,9 @@ func (e *Exchange) manageSubs(ctx context.Context, event string, conn websocket.
 
 	return e.ParallelChanOp(ctx, subs, func(ctx context.Context, batch subscription.List) error {
 		for _, s := range batch {
+			if err := common.NilGuard(s); err != nil {
+				return fmt.Errorf("%w: subscription", err)
+			}
 			if err := func() error {
 				msg, err := e.manageSubReq(ctx, event, s)
 				if err != nil {
@@ -946,9 +952,15 @@ type GeneratePayload func(ctx context.Context, event string, channelsToSubscribe
 
 // handleSubscription sends a websocket message to receive data from the channel
 func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List, generatePayload GeneratePayload) error {
+	if err := common.NilGuard(conn); err != nil {
+		return fmt.Errorf("%w: websocket connection", err)
+	}
 	payloads, err := generatePayload(ctx, event, channelsToSubscribe)
 	if err != nil {
 		return err
+	}
+	if len(payloads) != len(channelsToSubscribe) {
+		return fmt.Errorf("payload count mismatch: got %d payloads for %d subscriptions", len(payloads), len(channelsToSubscribe))
 	}
 	index := make(map[*subscription.Subscription]int, len(channelsToSubscribe))
 	for i, s := range channelsToSubscribe {
@@ -956,12 +968,20 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 	}
 	return e.ParallelChanOp(ctx, channelsToSubscribe, func(ctx context.Context, batch subscription.List) error {
 		for _, s := range batch {
+			if err := common.NilGuard(s); err != nil {
+				return fmt.Errorf("%w: subscription", err)
+			}
 			if err := func() error {
 				k, ok := index[s]
 				if !ok {
 					return fmt.Errorf("subscription not found for %s %s", s.Channel, s.Asset)
 				}
-				result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payloads[k].ID, payloads[k])
+				msg := payloads[k]
+				if msg.ID == 0 {
+					msg.ID = e.MessageSequence()
+					payloads[k] = msg
+				}
+				result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, msg.ID, msg)
 				if err != nil {
 					return err
 				}
@@ -970,7 +990,7 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 					return err
 				}
 				if resp.Error != nil && resp.Error.Code != 0 {
-					return fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message)
+					return fmt.Errorf("error while %s to channel %s error code: %d message: %s", msg.Event, msg.Channel, resp.Error.Code, resp.Error.Message)
 				}
 				if event == subscribeEvent {
 					return e.Websocket.AddSuccessfulSubscriptions(conn, s)
