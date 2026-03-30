@@ -104,10 +104,6 @@ func (e *Exchange) WsConnectSpot(ctx context.Context, conn websocket.Connection)
 
 // websocketLogin authenticates the websocket connection
 func (e *Exchange) websocketLogin(ctx context.Context, conn websocket.Connection, channel string) error {
-	if conn == nil {
-		return fmt.Errorf("%w: %T", common.ErrNilPointer, conn)
-	}
-
 	if channel == "" {
 		return errChannelEmpty
 	}
@@ -994,7 +990,6 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, epl request.Endpoin
 	if err != nil {
 		return err
 	}
-
 	conn, err := e.Websocket.GetConnection(connSignature)
 	if err != nil {
 		return err

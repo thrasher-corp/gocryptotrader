@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -2293,8 +2294,12 @@ func (e *Exchange) sendWsPayload(ctx context.Context, ep request.EndpointLimit, 
 		if e.Verbose {
 			log.Debugf(log.RequestSys, "%s attempt %d", e.Name, attempt)
 		}
+		conn, err := e.Websocket.GetConnection(asset.All)
+		if err != nil {
+			return err
+		}
 		var payload []byte
-		payload, err = e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, input.ID, input)
+		payload, err = conn.SendMessageReturnResponse(ctx, request.Unset, input.ID, input)
 		if err != nil {
 			return err
 		}
