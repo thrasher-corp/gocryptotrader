@@ -1471,10 +1471,11 @@ func TestCheckParamsWithAvailable(t *testing.T) {
 			ps.ConfigFormat = &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 		}
 		require.NoError(t, b.SetAssetPairStore(a, ps), "SetAssetPairStore must not error")
+		require.NoError(t, b.CurrencyPairs.Store(a, &ps), "Store must not error")
 	}
 
 	err = checkParamsWithAvailable(e, asset.Spot, currency.NewBTCUSDT())
-	assert.ErrorIs(t, err, errCurrencyPairInvalid, "checkParamsWithAvailable should error correctly")
+	assert.ErrorIs(t, err, currency.ErrPairNotFound, "checkParamsWithAvailable should error correctly")
 
 	data := []currency.Pair{
 		{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.USDT},
@@ -1530,7 +1531,7 @@ func TestCheckParamsWithAvailablePair(t *testing.T) {
 	assert.True(t, got.IsEmpty(), "checkParamsWithAvailablePair should return an empty pair when no pair is supplied")
 
 	_, err = checkParamsWithAvailablePair(e, asset.Spot, currency.NewPair(currency.BTC, currency.MAD))
-	assert.ErrorIs(t, err, errCurrencyPairInvalid, "checkParamsWithAvailablePair should error for unavailable pairs")
+	assert.ErrorIs(t, err, currency.ErrPairNotFound, "checkParamsWithAvailablePair should error for unavailable pairs")
 }
 
 func TestParseEvents(t *testing.T) {
@@ -1616,6 +1617,8 @@ func TestRPCServerUpsertDataHistoryJob(t *testing.T) {
 			Uppercase: true,
 		},
 	}
+	err = b.CurrencyPairs.Store(asset.Spot, b.CurrencyPairs.Pairs[asset.Spot])
+	require.NoError(t, err)
 	err = em.Add(exch)
 	require.NoError(t, err)
 
@@ -2120,6 +2123,8 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 		Available:    currency.Pairs{cp},
 		Enabled:      currency.Pairs{cp},
 	}
+	err = b.CurrencyPairs.Store(asset.Spot, b.CurrencyPairs.Pairs[asset.Spot])
+	require.NoError(t, err)
 	fakeExchange := fExchange{
 		IBotExchange: exch,
 	}
