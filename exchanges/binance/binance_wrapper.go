@@ -2293,6 +2293,107 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, req *margin.Positio
 	}, nil
 }
 
+// GetCurrentMarginRates retrieves the latest margin borrow rates.
+func (e *Exchange) GetCurrentMarginRates(ctx context.Context, req *margin.CurrentRatesRequest) ([]margin.CurrentRateResponse, error) {
+	if err := common.NilGuard(req); err != nil {
+		return nil, err
+	}
+	if req.Asset != asset.Margin {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
+	}
+	pairs := req.Pairs
+	if len(pairs) == 0 {
+		var err error
+		pairs, err = e.GetEnabledPairs(req.Asset)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(pairs) == 0 {
+		return nil, currency.ErrCurrencyPairsEmpty
+	}
+
+	timeChecked := time.Now().UTC()
+	cache := make(map[string]margin.Rate, len(pairs))
+	resp := make([]margin.CurrentRateResponse, len(pairs))
+	for i := range pairs {
+		if pairs[i].IsEmpty() {
+			return nil, currency.ErrCurrencyPairEmpty
+		}
+	}
+	if !e.IsRESTAuthenticationSupported() {
+		return nil, exchange.ErrAuthenticationSupportNotEnabled
+	}
+	for i := range pairs {
+		pairKey := pairs[i].String()
+		rate, ok := cache[pairKey]
+		if !ok {
+			history, err := e.GetUserMarginInterestHistory(ctx, pairs[i].Base, pairs[i], time.Time{}, time.Time{}, 1, 1, false)
+			if err != nil {
+				return nil, err
+			}
+			if len(history.Rows) == 0 {
+				return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotFound, pairs[i].Base)
+			}
+			hourlyRate := decimal.NewFromFloat(history.Rows[0].InterestRate)
+			rate = margin.Rate{
+				Time:             history.Rows[0].InterestAccruedTime.Time(),
+				HourlyBorrowRate: hourlyRate,
+				YearlyBorrowRate: hourlyRate.Mul(decimal.NewFromInt(24 * 365)),
+			}
+			cache[pairKey] = rate
+		}
+		resp[i] = margin.CurrentRateResponse{
+			Exchange:    e.Name,
+			Asset:       req.Asset,
+			Pair:        pairs[i],
+			CurrentRate: &rate,
+			TimeChecked: timeChecked,
+		}
+	}
+	return resp, nil
+}
+
+// GetMarginRatesHistory retrieves public margin borrow rate history.
+func (e *Exchange) GetMarginRatesHistory(ctx context.Context, req *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
+	if req == nil {
+		return nil, common.ErrNilPointer
+	}
+	if req.Asset != asset.Margin {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
+	}
+	if req.Currency.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if !req.StartDate.IsZero() && !req.EndDate.IsZero() {
+		if err := common.StartEndTimeCheck(req.StartDate, req.EndDate); err != nil {
+			return nil, err
+		}
+	}
+	if !e.IsRESTAuthenticationSupported() {
+		return nil, exchange.ErrAuthenticationSupportNotEnabled
+	}
+	history, err := e.GetMarginInterestRateHistory(ctx, req.Currency, 0, req.StartDate, req.EndDate)
+	if err != nil {
+		return nil, err
+	}
+	resp := &margin.RateHistoryResponse{
+		Rates: make([]margin.Rate, 0, len(history)),
+	}
+	for i := range history {
+		dailyBorrowRate := decimal.NewFromFloat(history[i].DailyInterestRate)
+		resp.Rates = append(resp.Rates, margin.Rate{
+			Time:             history[i].Timestamp.Time(),
+			HourlyBorrowRate: dailyBorrowRate.Div(decimal.NewFromInt(24)),
+			YearlyBorrowRate: dailyBorrowRate.Mul(decimal.NewFromInt(365)),
+		})
+	}
+	sort.Slice(resp.Rates, func(i, j int) bool {
+		return resp.Rates[i].Time.Before(resp.Rates[j].Time)
+	})
+	return resp, nil
+}
+
 // marginTypeToString converts the GCT margin type to Binance's string
 func (e *Exchange) marginTypeToString(mt margin.Type) (string, error) {
 	switch mt {
