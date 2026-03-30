@@ -140,6 +140,56 @@ func TestMessageID(t *testing.T) {
 	require.Len(t, got.String(), 36, "UUID v7 string representation must be 36 characters long")
 }
 
+func TestPriceDivisor(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		asset  asset.Item
+		pair   currency.Pair
+		expect float64
+		errIs  error
+	}{
+		{
+			name:   "standard pair uses divisor 1",
+			asset:  asset.Spot,
+			pair:   currency.NewBTCUSDT(),
+			expect: 1,
+		},
+		{
+			name:   "special futures pair uses scaled divisor",
+			asset:  asset.USDTMarginedFutures,
+			pair:   currency.NewPair(divisorCurrency, currency.USDT),
+			expect: 1e6,
+		},
+		{
+			name:   "special delivery pair uses scaled divisor",
+			asset:  asset.DeliveryFutures,
+			pair:   currency.NewPair(divisorCurrency, currency.USDT),
+			expect: 1e6,
+		},
+		{
+			name:  "special non futures pair returns unsupported error",
+			asset: asset.Spot,
+			pair:  currency.NewPair(divisorCurrency, currency.USDT),
+			errIs: currency.ErrCurrencyNotSupported,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := priceDivisor(tc.asset, tc.pair)
+			if tc.errIs != nil {
+				require.ErrorIs(t, err, tc.errIs)
+				return
+			}
+
+			require.NoError(t, err, "priceDivisor must not error")
+			assert.Equal(t, tc.expect, got, "price divisor should match expected value")
+		})
+	}
+}
+
 // 7610378	       143.3 ns/op	      48 B/op	       2 allocs/op
 func BenchmarkMessageID(b *testing.B) {
 	for b.Loop() {
