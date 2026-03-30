@@ -88,14 +88,12 @@ func (b *Base) SetClientProxyAddress(addr string) error {
 		return fmt.Errorf("%w %w", ErrSettingProxyAddress, err)
 	}
 
-	err = b.Requester.SetProxy(proxy)
-	if err != nil {
+	if err := b.Requester.SetProxy(proxy); err != nil {
 		return err
 	}
 
 	if b.Websocket != nil {
-		err = b.Websocket.SetProxyAddress(context.TODO(), addr)
-		if err != nil {
+		if err := b.Websocket.SetProxyAddress(context.TODO(), addr); err != nil {
 			return err
 		}
 	}
@@ -298,8 +296,7 @@ func (b *Base) SetCurrencyPairFormat() error {
 			if err != nil {
 				return err
 			}
-			err = b.Config.CurrencyPairs.Store(assetTypes[x], ps)
-			if err != nil {
+			if err := b.Config.CurrencyPairs.Store(assetTypes[x], ps); err != nil {
 				return err
 			}
 		}
@@ -391,8 +388,7 @@ func (b *Base) GetPairFormat(a asset.Item, r bool) (currency.PairFormat, error) 
 // the exchange by asset type, if the asset type is disabled this will return no
 // enabled pairs
 func (b *Base) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
-	err := b.CurrencyPairs.IsAssetEnabled(a)
-	if err != nil {
+	if err := b.CurrencyPairs.IsAssetEnabled(a); err != nil {
 		return nil, err
 	}
 	format, err := b.GetPairFormat(a, false)
@@ -443,6 +439,11 @@ func (b *Base) GetAvailablePairs(assetType asset.Item) (currency.Pairs, error) {
 		return nil, err
 	}
 	return pairs.Format(format), nil
+}
+
+// IsAssetAvailable checks whether an asset exists in the pair store.
+func (b *Base) IsAssetAvailable(a asset.Item) error {
+	return b.CurrencyPairs.IsAssetAvailable(a)
 }
 
 // SupportsPair returns true or not whether a currency pair exists in the
@@ -630,8 +631,7 @@ func (b *Base) SetPairs(pairs currency.Pairs, assetType asset.Item, enabled bool
 		cPairs[x] = pairs[x].Format(pairFmt)
 	}
 
-	err = b.CurrencyPairs.StorePairs(assetType, cPairs, enabled)
-	if err != nil {
+	if err := b.CurrencyPairs.StorePairs(assetType, cPairs, enabled); err != nil {
 		return err
 	}
 	return b.Config.CurrencyPairs.StorePairs(assetType, cPairs, enabled)
@@ -805,22 +805,19 @@ func (b *Base) SetAPIURL() error {
 	var err error
 	if b.Config.API.OldEndPoints != nil {
 		if b.Config.API.OldEndPoints.URL != "" && b.Config.API.OldEndPoints.URL != config.APIURLNonDefaultMessage {
-			err = b.API.Endpoints.SetRunningURL(RestSpot.String(), b.Config.API.OldEndPoints.URL)
-			if err != nil {
+			if err := b.API.Endpoints.SetRunningURL(RestSpot.String(), b.Config.API.OldEndPoints.URL); err != nil {
 				return err
 			}
 			checkInsecureEndpoint(b.Config.API.OldEndPoints.URL)
 		}
 		if b.Config.API.OldEndPoints.URLSecondary != "" && b.Config.API.OldEndPoints.URLSecondary != config.APIURLNonDefaultMessage {
-			err = b.API.Endpoints.SetRunningURL(RestSpotSupplementary.String(), b.Config.API.OldEndPoints.URLSecondary)
-			if err != nil {
+			if err := b.API.Endpoints.SetRunningURL(RestSpotSupplementary.String(), b.Config.API.OldEndPoints.URLSecondary); err != nil {
 				return err
 			}
 			checkInsecureEndpoint(b.Config.API.OldEndPoints.URLSecondary)
 		}
 		if b.Config.API.OldEndPoints.WebsocketURL != "" && b.Config.API.OldEndPoints.WebsocketURL != config.WebsocketURLNonDefaultMessage {
-			err = b.API.Endpoints.SetRunningURL(WebsocketSpot.String(), b.Config.API.OldEndPoints.WebsocketURL)
-			if err != nil {
+			if err := b.API.Endpoints.SetRunningURL(WebsocketSpot.String(), b.Config.API.OldEndPoints.WebsocketURL); err != nil {
 				return err
 			}
 			checkInsecureEndpoint(b.Config.API.OldEndPoints.WebsocketURL)
@@ -866,8 +863,7 @@ func (b *Base) SetAPIURL() error {
 
 			checkInsecureEndpoint(val)
 
-			err = b.API.Endpoints.SetRunningURL(key, val)
-			if err != nil {
+			if err := b.API.Endpoints.SetRunningURL(key, val); err != nil {
 				return err
 			}
 		}
@@ -1512,8 +1508,7 @@ func (b *Base) GetKlineRequest(pair currency.Pair, a asset.Item, interval kline.
 		return nil, err
 	}
 
-	err = b.verifyKlineParameters(pair, a, exchangeInterval)
-	if err != nil {
+	if err := b.verifyKlineParameters(pair, a, exchangeInterval); err != nil {
 		return nil, err
 	}
 
@@ -1583,8 +1578,7 @@ func (b *Base) GetKlineExtendedRequest(pair currency.Pair, a asset.Item, interva
 		return nil, err
 	}
 
-	err = b.verifyKlineParameters(pair, a, exchangeInterval)
-	if err != nil {
+	if err := b.verifyKlineParameters(pair, a, exchangeInterval); err != nil {
 		return nil, err
 	}
 
@@ -1887,8 +1881,7 @@ func GetDefaultConfig(ctx context.Context, exch IBotExchange) (*config.Exchange,
 	}
 
 	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = exch.UpdateTradablePairs(ctx)
-		if err != nil {
+		if err := exch.UpdateTradablePairs(ctx); err != nil {
 			return nil, err
 		}
 	}

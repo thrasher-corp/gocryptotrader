@@ -147,16 +147,14 @@ func (e *Exchange) SetDefaults() {
 
 // Setup takes in the supplied exchange configuration details and sets params
 func (e *Exchange) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
+	if err := exch.Validate(); err != nil {
 		return err
 	}
 	if !exch.Enabled {
 		e.SetEnabled(false)
 		return nil
 	}
-	err = e.SetupDefaults(exch)
-	if err != nil {
+	if err := e.SetupDefaults(exch); err != nil {
 		return err
 	}
 
@@ -434,8 +432,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	}
 	book.Asks.Reverse() // Reverse order of asks to ascending
 
-	err = book.Process()
-	if err != nil {
+	if err := book.Process(); err != nil {
 		return book, err
 	}
 	return orderbook.Get(e.Name, p, assetType)
@@ -583,8 +580,7 @@ allTrades:
 			break allTrades
 		}
 	}
-	err = e.AddTradesToBuffer(resp...)
-	if err != nil {
+	if err := e.AddTradesToBuffer(resp...); err != nil {
 		return nil, err
 	}
 
@@ -834,8 +830,7 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 // GetActiveOrders retrieves any orders that are active/open
 // This function is not concurrency safe due to orderSide/orderType maps
 func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
-	err := req.Validate()
-	if err != nil {
+	if err := req.Validate(); err != nil {
 		return nil, err
 	}
 
@@ -889,8 +884,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 // Can Limit response to specific order status
 // This function is not concurrency safe due to orderSide/orderType maps
 func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
-	err := req.Validate()
-	if err != nil {
+	if err := req.Validate(); err != nil {
 		return nil, err
 	}
 
@@ -1259,8 +1253,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 		resp := make([]futures.OpenInterest, 0, len(activeInstruments))
 		for i := range activeInstruments {
 			for _, a := range e.CurrencyPairs.GetAssetTypes(false) {
-				var symbol currency.Pair
-				symbol, err = e.MatchSymbolWithAvailablePairs(activeInstruments[i].Symbol, a, false)
+				symbol, err := e.MatchSymbolWithAvailablePairs(activeInstruments[i].Symbol, a, false)
 				if err != nil {
 					if errors.Is(err, currency.ErrPairNotFound) {
 						continue
@@ -1285,8 +1278,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 		}
 		return resp, nil
 	}
-	_, err := e.MatchSymbolWithAvailablePairs(k[0].Pair().String(), k[0].Asset, false)
-	if err != nil {
+	if _, err := e.MatchSymbolWithAvailablePairs(k[0].Pair().String(), k[0].Asset, false); err != nil {
 		return nil, err
 	}
 	symbolStr, err := e.FormatSymbol(k[0].Pair(), k[0].Asset)
@@ -1310,8 +1302,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := e.CurrencyPairs.IsPairAvailable(cp, a)
-	if err != nil {
+	if _, err := e.CurrencyPairs.IsPairAvailable(cp, a); err != nil {
 		return "", err
 	}
 	cp.Delimiter = currency.DashDelimiter

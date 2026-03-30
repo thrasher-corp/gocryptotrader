@@ -265,7 +265,7 @@ func (e *Exchange) processTicker(ctx context.Context, incoming []byte, pushTime 
 	out := make([]ticker.Price, 0, len(standardMarginAssetTypes))
 	for _, a := range standardMarginAssetTypes {
 		if isAvailable, _ := e.CurrencyPairs.IsPairAvailable(data.CurrencyPair, a); isAvailable {
-			tickPrice := ticker.Price{
+			out = append(out, ticker.Price{
 				ExchangeName: e.Name,
 				Volume:       data.BaseVolume.Float64(),
 				QuoteVolume:  data.QuoteVolume.Float64(),
@@ -277,12 +277,11 @@ func (e *Exchange) processTicker(ctx context.Context, incoming []byte, pushTime 
 				AssetType:    a,
 				Pair:         data.CurrencyPair,
 				LastUpdated:  pushTime,
-			}
-			if err := ticker.ProcessTicker(&tickPrice); err != nil {
-				return err
-			}
-			out = append(out, tickPrice)
+			})
 		}
+	}
+	if err := ticker.ProcessBatch(out); err != nil {
+		return err
 	}
 	return e.Websocket.DataHandler.Send(ctx, out)
 }
@@ -480,8 +479,7 @@ func (e *Exchange) processSpotOrders(ctx context.Context, data []byte) error {
 		Event   string        `json:"event"`
 		Result  []WsSpotOrder `json:"result"`
 	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	details := make([]order.Detail, len(resp.Result))
@@ -527,8 +525,7 @@ func (e *Exchange) processUserPersonalTrades(data []byte) error {
 		Event   string                `json:"event"`
 		Result  []WsUserPersonalTrade `json:"result"`
 	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	fills := make([]fill.Data, len(resp.Result))
@@ -608,8 +605,7 @@ func (e *Exchange) processFundingBalances(ctx context.Context, data []byte) erro
 		Event   string             `json:"event"`
 		Result  []WsFundingBalance `json:"result"`
 	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	return e.Websocket.DataHandler.Send(ctx, resp)
@@ -622,8 +618,7 @@ func (e *Exchange) processCrossMarginBalance(ctx context.Context, data []byte) e
 		Event   string                  `json:"event"`
 		Result  []*WsCrossMarginBalance `json:"result"`
 	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	subAccts := accounts.SubAccounts{}
@@ -649,8 +644,7 @@ func (e *Exchange) processCrossMarginLoans(ctx context.Context, data []byte) err
 		Event   string            `json:"event"`
 		Result  WsCrossMarginLoan `json:"result"`
 	}{}
-	err := json.Unmarshal(data, &resp)
-	if err != nil {
+	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
 	return e.Websocket.DataHandler.Send(ctx, resp)

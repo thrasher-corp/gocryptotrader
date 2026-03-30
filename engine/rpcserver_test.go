@@ -1441,16 +1441,16 @@ func TestGetOrder(t *testing.T) {
 func TestCheckParamsWithAvailable(t *testing.T) {
 	t.Parallel()
 	var e exchange.IBotExchange
-	err := checkParamsWithAvailable("Binance", e, asset.Spot, currency.NewBTCUSDT())
+	err := checkParamsWithAvailable(e, asset.Spot, currency.NewBTCUSDT())
 	assert.ErrorIs(t, err, errExchangeNotLoaded, "checkParamsWithAvailable should error correctly")
 
 	e = &binance.Exchange{}
-	err = checkParamsWithAvailable("Binance", e, asset.Spot, currency.NewBTCUSDT())
+	err = checkParamsWithAvailable(e, asset.Spot, currency.NewBTCUSDT())
 	assert.ErrorIs(t, err, errExchangeNotEnabled, "checkParamsWithAvailable should error correctly")
 
 	e.SetEnabled(true)
 
-	err = checkParamsWithAvailable("Binance", e, asset.Spot, currency.NewBTCUSDT())
+	err = checkParamsWithAvailable(e, asset.Spot, currency.NewBTCUSDT())
 	assert.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "checkParamsWithAvailable should error correctly")
 
 	b := e.GetBase()
@@ -1471,7 +1471,7 @@ func TestCheckParamsWithAvailable(t *testing.T) {
 		require.NoError(t, b.SetAssetPairStore(a, ps), "SetAssetPairStore must not error")
 	}
 
-	err = checkParamsWithAvailable("Binance", e, asset.Spot, currency.NewBTCUSDT())
+	err = checkParamsWithAvailable(e, asset.Spot, currency.NewBTCUSDT())
 	assert.ErrorIs(t, err, errCurrencyPairInvalid, "checkParamsWithAvailable should error correctly")
 
 	data := []currency.Pair{
@@ -1484,14 +1484,51 @@ func TestCheckParamsWithAvailable(t *testing.T) {
 	require.NoError(t, err, "GetAvailablePairs must not error")
 	require.NotEmpty(t, availablePairs, "GetAvailablePairs must return at least one pair")
 
-	err = checkParamsWithAvailable("Binance", e, asset.Spot, availablePairs[0])
+	err = checkParamsWithAvailable(e, asset.Spot, availablePairs[0])
 	require.NoError(t, err, "checkParamsWithAvailable must allow available pairs even when disabled")
 
 	err = b.CurrencyPairs.EnablePair(asset.Spot, currency.Pair{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.USDT})
 	require.NoError(t, err, "EnablePair must not error")
 
-	err = checkParamsWithAvailable("Binance", e, asset.Spot, availablePairs[0])
+	err = checkParamsWithAvailable(e, asset.Spot, availablePairs[0])
 	require.NoError(t, err, "checkParamsWithAvailable must not error")
+}
+
+func TestCheckParamsWithAvailablePair(t *testing.T) {
+	t.Parallel()
+
+	var e exchange.IBotExchange
+	_, err := checkParamsWithAvailablePair(e, asset.Spot, currency.NewBTCUSDT())
+	assert.ErrorIs(t, err, errExchangeNotLoaded, "checkParamsWithAvailablePair should error correctly")
+
+	e = &binance.Exchange{}
+	_, err = checkParamsWithAvailablePair(e, asset.Spot, currency.NewBTCUSDT())
+	assert.ErrorIs(t, err, errExchangeNotEnabled, "checkParamsWithAvailablePair should error correctly")
+
+	e.SetEnabled(true)
+	_, err = checkParamsWithAvailablePair(e, asset.Spot, currency.NewBTCUSDT())
+	assert.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "checkParamsWithAvailablePair should error correctly")
+
+	b := e.GetBase()
+	require.NoError(t, b.SetAssetPairStore(asset.Spot, currency.PairStore{
+		AssetEnabled:  true,
+		RequestFormat: &currency.PairFormat{Uppercase: true},
+		ConfigFormat:  &currency.PairFormat{Delimiter: currency.DashDelimiter, Uppercase: true},
+	}), "SetAssetPairStore must not error")
+
+	expectedPair := currency.Pair{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.USDT}
+	require.NoError(t, b.CurrencyPairs.StorePairs(asset.Spot, []currency.Pair{expectedPair}, false), "StorePairs must not error")
+
+	got, err := checkParamsWithAvailablePair(e, asset.Spot, expectedPair)
+	require.NoError(t, err, "checkParamsWithAvailablePair must not error for available pairs")
+	assert.True(t, got.Equal(expectedPair), "checkParamsWithAvailablePair should return the validated pair")
+
+	got, err = checkParamsWithAvailablePair(e, asset.Spot, currency.EMPTYPAIR)
+	require.NoError(t, err, "checkParamsWithAvailablePair must not error for empty pairs")
+	assert.True(t, got.IsEmpty(), "checkParamsWithAvailablePair should return an empty pair when no pair is supplied")
+
+	_, err = checkParamsWithAvailablePair(e, asset.Spot, currency.NewPair(currency.BTC, currency.MAD))
+	assert.ErrorIs(t, err, errCurrencyPairInvalid, "checkParamsWithAvailablePair should error for unavailable pairs")
 }
 
 func TestParseEvents(t *testing.T) {
@@ -3347,7 +3384,7 @@ func TestChangePositionMargin(t *testing.T) {
 	b.Name = fakeExchangeName
 	b.Enabled = true
 
-	cp, err := currency.NewPairFromString("BTC-MAD")
+	cp, err := currency.NewPairFromString("btc-mad")
 	if err != nil {
 		t.Fatal(err)
 	}

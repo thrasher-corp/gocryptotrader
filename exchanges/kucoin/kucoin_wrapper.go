@@ -353,10 +353,10 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
-	err := e.CurrencyPairs.IsAssetAvailable(a)
-	if err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(a); err != nil {
 		return nil, err
 	}
+	var err error
 	p, err = e.FormatExchangeCurrency(p, a)
 	if err != nil {
 		return nil, err
@@ -575,8 +575,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	if e.IsSaveTradeDataEnabled() {
-		err := trade.AddTradesToBuffer(resp...)
-		if err != nil {
+		if err := trade.AddTradesToBuffer(resp...); err != nil {
 			return nil, err
 		}
 	}
@@ -821,8 +820,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	if ord == nil {
 		return common.ErrNilPointer
 	}
-	err := e.CurrencyPairs.IsAssetAvailable(ord.AssetType)
-	if err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(ord.AssetType); err != nil {
 		return err
 	}
 	pairFormat, err := e.GetPairFormat(ord.AssetType, true)
@@ -887,15 +885,14 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	if orderCancellation == nil {
 		return order.CancelAllResponse{}, common.ErrNilPointer
 	}
-	err := e.CurrencyPairs.IsAssetAvailable(orderCancellation.AssetType)
-	if err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(orderCancellation.AssetType); err != nil {
 		return order.CancelAllResponse{}, err
 	}
 	result := order.CancelAllResponse{}
-	err = orderCancellation.Validate()
-	if err != nil {
+	if err := orderCancellation.Validate(); err != nil {
 		return result, err
 	}
+	var err error
 	var pairString string
 	if !orderCancellation.Pair.IsEmpty() {
 		orderCancellation.Pair, err = e.FormatExchangeCurrency(orderCancellation.Pair, orderCancellation.AssetType)
@@ -959,10 +956,10 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 
 // GetOrderInfo returns order information based on order ID
 func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair currency.Pair, assetType asset.Item) (*order.Detail, error) {
-	err := e.CurrencyPairs.IsAssetAvailable(assetType)
-	if err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(assetType); err != nil {
 		return nil, err
 	}
+	var err error
 	pair, err = e.FormatExchangeCurrency(pair, assetType)
 	if err != nil {
 		return nil, err
@@ -1184,8 +1181,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 	if getOrdersRequest == nil {
 		return nil, common.ErrNilPointer
 	}
-	err := e.CurrencyPairs.IsAssetAvailable(getOrdersRequest.AssetType)
-	if err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(getOrdersRequest.AssetType); err != nil {
 		return nil, err
 	}
 	if err := getOrdersRequest.Validate(); err != nil {
@@ -1673,16 +1669,6 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 	}
 }
 
-// ValidateCredentials validates current credentials used for wrapper
-func (e *Exchange) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
-	err := e.CurrencyPairs.IsAssetAvailable(assetType)
-	if err != nil {
-		return err
-	}
-	_, err = e.UpdateAccountBalances(ctx, assetType)
-	return e.CheckTransientError(err)
-}
-
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
 	req, err := e.GetKlineRequest(pair, a, interval, start, end, false)
@@ -2003,8 +1989,7 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 	}
 
 	if !r.StartDate.IsZero() && !r.EndDate.IsZero() {
-		err := common.StartEndTimeCheck(r.StartDate, r.EndDate)
-		if err != nil {
+		if err := common.StartEndTimeCheck(r.StartDate, r.EndDate); err != nil {
 			return nil, err
 		}
 	}
@@ -2195,8 +2180,7 @@ func (e *Exchange) GetFuturesPositionOrders(ctx context.Context, r *futures.Posi
 	if len(r.Pairs) == 0 {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	err := common.StartEndTimeCheck(r.StartDate, r.EndDate)
-	if err != nil {
+	if err := common.StartEndTimeCheck(r.StartDate, r.EndDate); err != nil {
 		return nil, err
 	}
 	if !r.EndDate.IsZero() && r.EndDate.Sub(r.StartDate) > e.Features.Supports.MaximumOrderHistory {
@@ -2377,8 +2361,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := e.CurrencyPairs.IsPairAvailable(cp, a)
-	if err != nil {
+	if _, err := e.CurrencyPairs.IsPairAvailable(cp, a); err != nil {
 		return "", err
 	}
 	cp.Delimiter = currency.DashDelimiter

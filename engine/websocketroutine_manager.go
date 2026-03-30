@@ -202,21 +202,12 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		if !m.verbose {
 			return nil
 		}
-		log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v",
-			exchName,
-			m.FormatCurrency(d.CurrencyPair),
-			d.AssetType,
-			d)
+		log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v", exchName, m.FormatCurrency(d.CurrencyPair), d.AssetType, d)
 	case *ticker.Price:
 		if !m.syncer.IsRunning() {
 			return nil
 		}
-		err := m.syncer.WebsocketUpdate(exchName,
-			d.Pair,
-			d.AssetType,
-			SyncItemTicker,
-			nil)
-		if err != nil {
+		if err := m.syncer.WebsocketUpdate(exchName, d.Pair, d.AssetType, SyncItemTicker, nil); err != nil {
 			return err
 		}
 		m.syncer.PrintTickerSummary(d, "websocket", nil)
@@ -225,12 +216,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 			return nil
 		}
 		for x := range d {
-			err := m.syncer.WebsocketUpdate(exchName,
-				d[x].Pair,
-				d[x].AssetType,
-				SyncItemTicker,
-				nil)
-			if err != nil {
+			if err := m.syncer.WebsocketUpdate(exchName, d[x].Pair, d[x].AssetType, SyncItemTicker, nil); err != nil {
 				return err
 			}
 			m.syncer.PrintTickerSummary(&d[x], "websocket", nil)
@@ -263,12 +249,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		if err != nil {
 			return err
 		}
-		err = m.syncer.WebsocketUpdate(exchName,
-			base.Pair,
-			base.Asset,
-			SyncItemOrderbook,
-			nil)
-		if err != nil {
+		if err := m.syncer.WebsocketUpdate(exchName, base.Pair, base.Asset, SyncItemOrderbook, nil); err != nil {
 			return err
 		}
 		m.syncer.PrintOrderbookSummary(base, "websocket", nil)
@@ -277,8 +258,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 			return nil
 		}
 		if !m.orderManager.Exists(d) {
-			err := m.orderManager.Add(d)
-			if err != nil {
+			if err := m.orderManager.Add(d); err != nil {
 				return err
 			}
 			m.printOrderSummary(d, false)
@@ -287,13 +267,11 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 			if err != nil {
 				return err
 			}
-			err = od.UpdateOrderFromDetail(d)
-			if err != nil {
+			if err := od.UpdateOrderFromDetail(d); err != nil {
 				return err
 			}
 
-			err = m.orderManager.UpdateExistingOrder(od)
-			if err != nil {
+			if err := m.orderManager.UpdateExistingOrder(od); err != nil {
 				return err
 			}
 			m.printOrderSummary(od, true)
@@ -304,8 +282,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		}
 		for x := range d {
 			if !m.orderManager.Exists(&d[x]) {
-				err := m.orderManager.Add(&d[x])
-				if err != nil {
+				if err := m.orderManager.Add(&d[x]); err != nil {
 					return err
 				}
 				m.printOrderSummary(&d[x], false)
@@ -314,12 +291,10 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 				if err != nil {
 					return err
 				}
-				err = od.UpdateOrderFromDetail(&d[x])
-				if err != nil {
+				if err := od.UpdateOrderFromDetail(&d[x]); err != nil {
 					return err
 				}
-				err = m.orderManager.UpdateExistingOrder(od)
-				if err != nil {
+				if err := m.orderManager.UpdateExistingOrder(od); err != nil {
 					return err
 				}
 				m.printOrderSummary(od, true)

@@ -187,32 +187,29 @@ func (e *Exchange) SetDefaults() {
 
 // Setup sets user configuration
 func (e *Exchange) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
+	if err := exch.Validate(); err != nil {
 		return err
 	}
 	if !exch.Enabled {
 		e.SetEnabled(false)
 		return nil
 	}
-	err = e.SetupDefaults(exch)
-	if err != nil {
+	if err := e.SetupDefaults(exch); err != nil {
 		return err
 	}
 
-	err = e.Websocket.Setup(&websocket.ManagerSetup{
+	if err := e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:               exch,
 		Features:                     &e.Features.Supports.WebsocketCapabilities,
 		FillsFeed:                    e.Features.Enabled.FillsFeed,
 		TradeFeed:                    e.Features.Enabled.TradeFeed,
 		UseMultiConnectionManagement: true,
 		RateLimitDefinitions:         packageRateLimits,
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 	// Spot connection
-	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                   gateioWebsocketEndpoint,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
@@ -223,12 +220,11 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Connector:             e.WsConnectSpot,
 		Authenticate:          e.authenticateSpot,
 		MessageFilter:         asset.Spot,
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 	// Futures connection - USDT margined
-	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  usdtFuturesWebsocketURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -243,13 +239,12 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Connector:     e.WsFuturesConnect,
 		Authenticate:  e.authenticateFutures,
 		MessageFilter: asset.USDTMarginedFutures,
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 
 	// Futures connection - BTC margined
-	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  btcFuturesWebsocketURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -263,14 +258,13 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		},
 		Connector:     e.WsFuturesConnect,
 		MessageFilter: asset.CoinMarginedFutures,
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 
 	// TODO: Add BTC margined delivery futures.
 	// Futures connection - Delivery - USDT margined
-	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                  deliveryRealUSDTTradingURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
@@ -282,8 +276,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: e.GenerateDeliveryFuturesDefaultSubscriptions,
 		Connector:             e.WsDeliveryFuturesConnect,
 		MessageFilter:         asset.DeliveryFutures,
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 
@@ -392,8 +385,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 				ExchangeName: e.Name,
 				AssetType:    a,
 			}
-			err = ticker.ProcessTicker(tickerData)
-			if err != nil {
+			if err := ticker.ProcessTicker(tickerData); err != nil {
 				return nil, err
 			}
 		}
@@ -864,8 +856,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 	default:
 		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 	}
-	err = e.AddTradesToBuffer(resp...)
-	if err != nil {
+	if err := e.AddTradesToBuffer(resp...); err != nil {
 		return nil, err
 	}
 	sort.Sort(trade.ByDate(resp))
@@ -880,8 +871,7 @@ func (e *Exchange) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset
 // SubmitOrder submits a new order
 // TODO: support multiple order types (IOC)
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	err := s.Validate(e.GetTradingRequirements())
-	if err != nil {
+	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 	if err := e.formatOrderClientIDAndPair(s); err != nil {
@@ -1073,8 +1063,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			})
 			continue
 		}
-		err = o[x].Validate(o[x].StandardCancel())
-		if err != nil {
+		if err := o[x].Validate(o[x].StandardCancel()); err != nil {
 			return nil, err
 		}
 	}
@@ -1964,14 +1953,9 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			if err != nil {
 				return err
 			}
-			minBaseAmount := contractInfo[i].OrderSizeMin.Float64()
-			if minBaseAmount == 0 {
-				minBaseAmount = 1 // Futures contracts are quantized in whole contracts.
-			}
-
 			l = append(l, limits.MinMaxLevel{
 				Key:                     key.NewExchangeAssetPair(e.Name, a, contractInfo[i].Name),
-				MinimumBaseAmount:       minBaseAmount,
+				MinimumBaseAmount:       contractInfo[i].OrderSizeMin.Float64(),
 				MaximumBaseAmount:       contractInfo[i].OrderSizeMax.Float64(),
 				PriceStepIncrementSize:  contractInfo[i].OrderPriceRound.Float64(),
 				AmountStepIncrementSize: 1, // 1 Contract
@@ -2478,8 +2462,7 @@ func getFutureOrderSize(s *order.Submit) (float64, error) {
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := e.CurrencyPairs.IsPairAvailable(cp, a)
-	if err != nil {
+	if _, err := e.CurrencyPairs.IsPairAvailable(cp, a); err != nil {
 		return "", err
 	}
 	cp.Delimiter = currency.UnderscoreDelimiter
@@ -2503,8 +2486,7 @@ func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curre
 // WebsocketSubmitOrder submits an order to the exchange
 // NOTE: Regarding spot orders, fee is applied to purchased currency.
 func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	err := s.Validate(e.GetTradingRequirements())
-	if err != nil {
+	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 

@@ -371,10 +371,6 @@ func (p *PairsManager) IsPairEnabled(pair Pair, a asset.Item) (bool, error) {
 
 // IsAssetAvailable checks to see if an asset exists in the pair store
 func (p *PairsManager) IsAssetAvailable(a asset.Item) error {
-	if !a.IsValid() {
-		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
-	}
-
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
 
@@ -552,8 +548,7 @@ func (p *PairsManager) MarshalJSON() ([]byte, error) {
 // correctly unmarshalled from a string into a uint.
 func (fs *FullStore) UnmarshalJSON(d []byte) error {
 	var temp map[string]*PairStore
-	err := json.Unmarshal(d, &temp)
-	if err != nil {
+	if err := json.Unmarshal(d, &temp); err != nil {
 		return err
 	}
 

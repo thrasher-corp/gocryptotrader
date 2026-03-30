@@ -465,6 +465,24 @@ func TestAssetEnabled(t *testing.T) {
 	assert.NoError(t, err, "IsAssetEnabled should not error")
 }
 
+func TestIsAssetAvailable(t *testing.T) {
+	t.Parallel()
+
+	pm := initTest(t)
+	err := pm.IsAssetAvailable(asset.Spot)
+	assert.NoError(t, err, "IsAssetAvailable should not error for configured assets")
+
+	err = pm.IsAssetAvailable(asset.Item(1337))
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "IsAssetAvailable should return unsupported asset errors")
+
+	err = pm.IsAssetAvailable(asset.PerpetualSwap)
+	assert.ErrorIs(t, err, ErrAssetNotFound, "IsAssetAvailable should error when asset store entry is missing")
+
+	pm.Pairs = nil
+	err = pm.IsAssetAvailable(asset.Spot)
+	assert.ErrorIs(t, err, ErrPairManagerNotInitialised, "IsAssetAvailable should error when pair manager is not initialised")
+}
+
 // TestFullStoreUnmarshalMarshal tests json Mashal and Unmarshal
 func TestFullStoreUnmarshalMarshal(t *testing.T) {
 	t.Parallel()
