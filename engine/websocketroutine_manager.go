@@ -207,19 +207,19 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		if !m.syncer.IsRunning() {
 			return nil
 		}
-		if err := m.syncer.WebsocketUpdate(exchName, d.Pair, d.AssetType, SyncItemTicker, nil); err != nil {
-			return err
-		}
-		m.syncer.PrintTickerSummary(d, "websocket", nil)
+		err := m.syncer.WebsocketUpdate(exchName, d.Pair, d.AssetType, SyncItemTicker, nil)
+		m.syncer.PrintTickerSummary(d, "websocket", err)
+		return err
 	case []ticker.Price:
 		if !m.syncer.IsRunning() {
 			return nil
 		}
 		for x := range d {
-			if err := m.syncer.WebsocketUpdate(exchName, d[x].Pair, d[x].AssetType, SyncItemTicker, nil); err != nil {
+			err := m.syncer.WebsocketUpdate(exchName, d[x].Pair, d[x].AssetType, SyncItemTicker, nil)
+			m.syncer.PrintTickerSummary(&d[x], "websocket", err)
+			if err != nil {
 				return err
 			}
-			m.syncer.PrintTickerSummary(&d[x], "websocket", nil)
 		}
 	case order.Detail, ticker.Price, orderbook.Depth:
 		return errUseAPointer
