@@ -216,7 +216,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 		URL:                   wsPublicURL,
-		MessageFilter:         wsPublicURL,
+		MessageFilter:         asset.Spot,
 	})
 	if err != nil {
 		return err
@@ -233,7 +233,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
 		URL:                      wsAuthURL,
-		MessageFilter:            wsAuthURL,
+		MessageFilter:            "auth",
 	})
 }
 

@@ -23,7 +23,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -1743,11 +1742,7 @@ func (e *Exchange) wsSendAuthConn(ctx context.Context, conn websocket.Connection
 }
 
 func (e *Exchange) wsAuthConnection() (websocket.Connection, error) {
-	wsAuthURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
-	if err != nil {
-		return nil, err
-	}
-	return e.Websocket.GetConnection(wsAuthURL)
+	return e.Websocket.GetConnection("auth")
 }
 
 // WsNewOrder authenticated new order request

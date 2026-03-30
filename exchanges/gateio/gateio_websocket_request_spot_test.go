@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -22,10 +21,7 @@ func TestWebsocketLogin(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	e := newExchangeWithWebsocket(t, asset.Spot)
-
-	wsSpotURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	require.NoError(t, err)
-	c, err := e.Websocket.GetConnection(wsSpotURL)
+	c, err := e.Websocket.GetConnection(asset.Spot)
 	require.NoError(t, err)
 
 	err = e.websocketLogin(t.Context(), c, "")

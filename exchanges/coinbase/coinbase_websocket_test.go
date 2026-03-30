@@ -557,31 +557,17 @@ func TestWSProcessUser(t *testing.T) {
 }
 
 func subscribeForTest(ctx context.Context, e *Exchange, subs subscription.List) error {
-	wsRunningURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	conn, err := e.Websocket.GetConnection(asset.Spot)
 	if err != nil {
 		return err
-	}
-	conn, err := e.Websocket.GetConnection(wsRunningURL)
-	if err != nil {
-		conn, err = e.Websocket.GetConnection(coinbaseWebsocketURL)
-		if err != nil {
-			return err
-		}
 	}
 	return e.subscribeForConnection(ctx, conn, subs)
 }
 
 func unsubscribeForTest(ctx context.Context, e *Exchange, subs subscription.List) error {
-	wsRunningURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	conn, err := e.Websocket.GetConnection(asset.Spot)
 	if err != nil {
 		return err
-	}
-	conn, err := e.Websocket.GetConnection(wsRunningURL)
-	if err != nil {
-		conn, err = e.Websocket.GetConnection(coinbaseWebsocketURL)
-		if err != nil {
-			return err
-		}
 	}
 	return e.unsubscribeForConnection(ctx, conn, subs)
 }

@@ -23,7 +23,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -991,12 +990,6 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, epl request.Endpoin
 	if err != nil {
 		return err
 	}
-	if a, ok := connSignature.(asset.Item); ok {
-		if connSignature, err = e.websocketConnectionSignature(a); err != nil {
-			return err
-		}
-	}
-
 	conn, err := e.Websocket.GetConnection(connSignature)
 	if err != nil {
 		return err
@@ -1040,23 +1033,6 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, epl request.Endpoin
 	}
 
 	return json.Unmarshal(inbound.Data, &resultHolder{Result: result})
-}
-
-func (e *Exchange) websocketConnectionSignature(a asset.Item) (string, error) {
-	switch a {
-	case asset.Spot:
-		return e.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	case asset.USDTMarginedFutures:
-		return e.API.Endpoints.GetURL(exchange.WebsocketUSDTMargined)
-	case asset.CoinMarginedFutures:
-		return e.API.Endpoints.GetURL(exchange.WebsocketCoinMargined)
-	case asset.DeliveryFutures:
-		return e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
-	case asset.Options:
-		return e.API.Endpoints.GetURL(exchange.WebsocketOptions)
-	default:
-		return "", fmt.Errorf("%w: websocket connection signature asset %q", asset.ErrNotSupported, a)
-	}
 }
 
 type wsRespAckInspector struct{}

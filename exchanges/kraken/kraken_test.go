@@ -938,9 +938,7 @@ func TestSubscribeForConnection(t *testing.T) {
 
 	k := mockWsInstance(t, curryWsMockUpgrader(t, mockWsServer))
 
-	wsRunningURL, err := k.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
-	require.NoError(t, err, "GetURL must not error")
-	conn, err := k.Websocket.GetConnection(wsRunningURL)
+	conn, err := k.Websocket.GetConnection("auth")
 	require.NoError(t, err, "GetConnection must not error")
 
 	subs := subscription.List{
@@ -976,9 +974,7 @@ func TestSubscribeForConnectionResubscribeAndUnsubscribe(t *testing.T) {
 
 	k := mockWsInstance(t, curryWsMockUpgrader(t, mockWsServer))
 
-	wsRunningURL, err := k.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
-	require.NoError(t, err, "GetURL must not error")
-	conn, err := k.Websocket.GetConnection(wsRunningURL)
+	conn, err := k.Websocket.GetConnection("auth")
 	require.NoError(t, err, "GetConnection must not error")
 
 	sub := &subscription.Subscription{

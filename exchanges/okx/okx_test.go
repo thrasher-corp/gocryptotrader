@@ -6262,9 +6262,7 @@ func TestBusinessWSCandleSubscriptions(t *testing.T) {
 
 	require.NoError(t, e.Websocket.Connect(t.Context()))
 
-	wsBusinessURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
-	require.NoError(t, err)
-	conn, err := e.Websocket.GetConnection(wsBusinessURL)
+	conn, err := e.Websocket.GetConnection(wsBusinessConnectionFilter)
 	require.NoError(t, err, "GetConnection must not error")
 
 	err = e.BusinessSubscribe(t.Context(), conn, subscription.List{{Channel: channelCandle1D}})
