@@ -542,7 +542,7 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op
 		if v, d, _, rErr := jsonparser.Get(respRaw, "result"); rErr != nil {
 			err = rErr
 		} else if d != jsonparser.Null { // null is the only expected and acceptable response
-			err = fmt.Errorf("%w: %s", common.ErrUnknownError, v)
+			err = fmt.Errorf("%w: %w: %s", websocket.ErrSubscriptionFailure, common.ErrUnknownError, v)
 		}
 	}
 

@@ -2,6 +2,7 @@ package binance
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -28,6 +29,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -69,6 +71,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 // this will default to time now with a window size of 30 days.
 // Mock details are unix seconds; start = 1577836800 and end = 1580515200
 func getTime(expanded ...bool) (startTime, endTime time.Time) {
+	// mockTests = true
 	if len(expanded) > 0 && mockTests {
 		return time.UnixMilli(1744103851944), time.UnixMilli(1744190254944)
 	} else if mockTests {
@@ -3408,6 +3411,14 @@ func BenchmarkWsHandleData(b *testing.B) {
 	}
 }
 
+type FixtureConnection struct{ websocket.Connection }
+
+func (d *FixtureConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
+	return []byte(`{"result":null,"id":"%s"}`), nil
+}
+
+func (d *FixtureConnection) GetURL() string { return "wss://test" }
+
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
 	if mockTests {
@@ -3417,34 +3428,25 @@ func TestSubscribe(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	channels, err := e.generateSubscriptions() // Note: We grab this before it's overwritten by MockWsInstance below
 	require.NoError(t, err, "generateSubscriptions must not error")
-	if mockTests {
-		exp := []string{"btcusdt@depth@100ms", "btcusdt@kline_1m", "btcusdt@ticker", "btcusdt@trade", "dogeusdt@depth@100ms", "dogeusdt@kline_1m", "dogeusdt@ticker", "dogeusdt@trade"}
-		mock := func(tb testing.TB, msg []byte, w *gws.Conn) error {
-			tb.Helper()
-			var req WsPayload
-			require.NoError(tb, json.Unmarshal(msg, &req), "Unmarshal must not error")
-			require.ElementsMatch(tb, req.Params, exp, "Params must have correct channels")
-			return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":null,"id":"%s"}`, req.ID))
-		}
-		e = testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
-	} else {
-		testexch.SetupWs(t, e)
-	}
-	conn, err := e.Websocket.GetConnection(asset.Spot)
-	require.NoError(t, err)
-	require.NotNil(t, conn)
 
-	err = e.Subscribe(t.Context(), conn, channels)
+	exp := []string{"btcusdt@depth@100ms", "btcusdt@kline_1m", "btcusdt@ticker", "btcusdt@trade", "dogeusdt@depth@100ms", "dogeusdt@kline_1m", "dogeusdt@ticker", "dogeusdt@trade"}
+	mock := func(tb testing.TB, msg []byte, w *gws.Conn) error {
+		tb.Helper()
+		var req WsPayload
+		require.NoError(tb, json.Unmarshal(msg, &req), "Unmarshal must not error")
+		require.ElementsMatch(tb, req.Params, exp, "Params must have correct channels")
+		return w.WriteMessage(gws.TextMessage, fmt.Appendf(nil, `{"result":null,"id":"%s"}`, req.ID))
+	}
+	e = testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
+
+	err = e.Subscribe(t.Context(), &FixtureConnection{}, channels)
 	require.NoError(t, err)
-	err = e.Unsubscribe(t.Context(), conn, channels)
+	err = e.Unsubscribe(t.Context(), &FixtureConnection{}, channels)
 	assert.NoError(t, err)
 }
 
 func TestSubscribeBadResp(t *testing.T) {
 	t.Parallel()
-	if mockTests {
-		t.SkipNow()
-	}
 	channels := subscription.List{
 		{Channel: "moons@ticker"},
 	}
@@ -3597,6 +3599,9 @@ func TestExecutionTypeToOrderStatus(t *testing.T) {
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 	startTime, endTime := getTime(true)
+	if mockTests {
+		startTime, endTime = time.UnixMilli(1774479176769), time.UnixMilli(1774997576769)
+	}
 	for assetType, pair := range assetToTradablePairMap {
 		result, err := e.GetHistoricCandles(t.Context(), pair, assetType, kline.FiveMin, startTime, endTime)
 		require.NoErrorf(t, err, "%v %v", assetType, err)
@@ -3606,7 +3611,10 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-	startTime, endTime := getTime()
+	startTime, endTime := getTime(true)
+	if mockTests {
+		startTime, endTime = time.UnixMilli(1774479176769), time.UnixMilli(1774997576769)
+	}
 	for assetType, pair := range assetToTradablePairMap {
 		result, err := e.GetHistoricCandlesExtended(t.Context(), pair, assetType, kline.FiveMin, startTime, endTime)
 		require.NoErrorf(t, err, "asset type: %v error: %v", assetType, err)
