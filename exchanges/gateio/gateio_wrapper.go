@@ -1953,13 +1953,11 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		if err != nil {
 			return err
 		}
-		// MBABYDOGE price is 1e6 x spot price
-		divCurrency := currency.NewCode("MBABYDOGE")
 		l = make([]limits.MinMaxLevel, 0, len(contractInfo))
 		for i := range contractInfo {
-			priceDiv := 1.0
-			if contractInfo[i].Name.Base.Equal(divCurrency) {
-				priceDiv = 1e6
+			pd, err := priceDivisor(a, contractInfo[i].Name)
+			if err != nil {
+				return err
 			}
 
 			l = append(l, limits.MinMaxLevel{
@@ -1969,7 +1967,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				PriceStepIncrementSize:  contractInfo[i].OrderPriceRound.Float64(),
 				AmountStepIncrementSize: 1, // 1 Contract
 				MultiplierDecimal:       contractInfo[i].QuantoMultiplier.Float64(),
-				PriceDivisor:            priceDiv,
+				PriceDivisor:            pd,
 				Delisting:               contractInfo[i].DelistingTime.Time(),
 				Delisted:                contractInfo[i].DelistedTime.Time(),
 				Listed:                  contractInfo[i].LaunchTime.Time(),
@@ -1988,12 +1986,18 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				if err != nil {
 					return err
 				}
+				pd, err := priceDivisor(a, cp)
+				if err != nil {
+					return err
+				}
 				l = append(l, limits.MinMaxLevel{
 					Key:                     key.NewExchangeAssetPair(e.Name, a, cp),
 					MinimumBaseAmount:       float64(contractInfo[x].OrderSizeMin),
 					MaximumBaseAmount:       float64(contractInfo[x].OrderSizeMax),
 					PriceStepIncrementSize:  contractInfo[x].OrderPriceRound.Float64(),
 					AmountStepIncrementSize: 1,
+					MultiplierDecimal:       contractInfo[x].QuantoMultiplier.Float64(),
+					PriceDivisor:            pd,
 					Expiry:                  contractInfo[x].ExpireTime.Time(),
 				})
 			}
@@ -2003,16 +2007,24 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		if err != nil {
 			return err
 		}
+		l = make([]limits.MinMaxLevel, 0)
 		for x := range underlyings {
 			contracts, err := e.GetAllContractOfUnderlyingWithinExpiryDate(ctx, underlyings[x].Name, time.Time{})
 			if err != nil {
 				return err
 			}
+			l = slices.Grow(l, len(contracts))
 			for c := range contracts {
 				cp, err := currency.NewPairFromString(strings.ReplaceAll(contracts[c].Name, currency.DashDelimiter, currency.UnderscoreDelimiter))
 				if err != nil {
 					return err
 				}
+
+				pd, err := priceDivisor(a, cp)
+				if err != nil {
+					return err
+				}
+
 				cp.Quote = currency.NewCode(strings.ReplaceAll(cp.Quote.String(), currency.UnderscoreDelimiter, currency.DashDelimiter))
 				l = append(l, limits.MinMaxLevel{
 					Key:                     key.NewExchangeAssetPair(e.Name, a, cp),
@@ -2020,6 +2032,8 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 					MaximumBaseAmount:       float64(contracts[c].OrderSizeMax),
 					PriceStepIncrementSize:  contracts[c].OrderPriceRound.Float64(),
 					AmountStepIncrementSize: 1,
+					MultiplierDecimal:       contracts[c].Multiplier.Float64(),
+					PriceDivisor:            pd,
 				})
 			}
 		}
@@ -2029,6 +2043,20 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	}
 
 	return limits.Load(l)
+}
+
+// MBABYDOGE price is 1e6 x spot price for futures contracts. This is the only currency that has this characteristic.
+var divisorCurrency = currency.NewCode("MBABYDOGE")
+
+// priceDivisor returns the price divisor for a given asset and currency pair
+func priceDivisor(a asset.Item, p currency.Pair) (float64, error) {
+	if !p.Base.Equal(divisorCurrency) {
+		return 1, nil
+	}
+	if a.IsFutures() {
+		return 1e6, nil
+	}
+	return 0, fmt.Errorf("price divisor %w: %q %q", currency.ErrCurrencyNotSupported, p, a)
 }
 
 // GetHistoricalFundingRates returns historical funding rates for a futures contract
