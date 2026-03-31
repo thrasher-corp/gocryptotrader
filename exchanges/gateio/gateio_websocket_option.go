@@ -386,7 +386,7 @@ func (e *Exchange) processOptionsContractTickers(ctx context.Context, incoming [
 	}); err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &exchangeoptions.Option{
+	return e.Websocket.DataHandler.Send(ctx, &exchangeoptions.Greeks{
 		ExchangeName: e.Name,
 		Pair:         data.Name,
 		AssetType:    asset.Options,

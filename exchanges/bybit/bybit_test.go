@@ -3395,7 +3395,7 @@ func TestWsTicker(t *testing.T) {
 				assert.Equal(t, asset.CoinMarginedFutures, v.AssetType, "AssetType should be correct")
 				assert.Equal(t, int64(1715757638152), v.LastUpdated.UnixMilli(), "LastUpdated should be correct")
 			}
-		case *exchangeoptions.Option:
+		case *exchangeoptions.Greeks:
 			assert.Equal(t, e.Name, v.ExchangeName, "ExchangeName should be correct")
 			assert.Equal(t, asset.Options, v.AssetType, "AssetType should be correct")
 			assert.Equal(t, "BTC-28JUN24-60000-P", v.Pair.String(), "Pair should be correct")

@@ -7,8 +7,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// Option is a normalised options greeks payload for websocket data handling.
-type Option struct {
+// Greeks is a normalised options greeks payload for websocket data handling.
+type Greeks struct {
 	ExchangeName string
 	Pair         currency.Pair
 	AssetType    asset.Item

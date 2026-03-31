@@ -572,7 +572,7 @@ func (e *Exchange) processIncrementalTicker(ctx context.Context, respRaw []byte,
 	if a != asset.Options {
 		return nil
 	}
-	return e.Websocket.DataHandler.Send(ctx, &exchangeoptions.Option{
+	return e.Websocket.DataHandler.Send(ctx, &exchangeoptions.Greeks{
 		ExchangeName: e.Name,
 		Pair:         cp,
 		AssetType:    a,

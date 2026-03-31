@@ -546,7 +546,7 @@ func (e *Exchange) wsProcessPublicTicker(ctx context.Context, assetType asset.It
 	if assetType != asset.Options {
 		return nil
 	}
-	return e.Websocket.DataHandler.Send(ctx, &exchangeoptions.Option{
+	return e.Websocket.DataHandler.Send(ctx, &exchangeoptions.Greeks{
 		ExchangeName: e.Name,
 		Pair:         p,
 		AssetType:    assetType,

@@ -1381,7 +1381,7 @@ func (e *Exchange) wsProcessOptionSummary(ctx context.Context, respRaw []byte) e
 		if err != nil {
 			return fmt.Errorf("%w: %w", errOptionSummaryPairParse, err)
 		}
-		if err := e.Websocket.DataHandler.Send(ctx, &exchangeoptions.Option{
+		if err := e.Websocket.DataHandler.Send(ctx, &exchangeoptions.Greeks{
 			ExchangeName: e.Name,
 			Pair:         pair,
 			AssetType:    asset.Options,

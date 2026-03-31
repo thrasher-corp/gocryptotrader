@@ -565,7 +565,7 @@ func TestWSProcessOptionSummary(t *testing.T) {
 
 	select {
 	case got := <-ex.Websocket.DataHandler.C:
-		opt, ok := got.Data.(*exchangeoptions.Option)
+		opt, ok := got.Data.(*exchangeoptions.Greeks)
 		require.True(t, ok)
 		require.Equal(t, ex.Name, opt.ExchangeName)
 		require.Equal(t, asset.Options, opt.AssetType)
