@@ -66,7 +66,7 @@ func (e *Exchange) WsOptionsConnect(ctx context.Context, conn websocket.Connecti
 		HandshakeTimeout: e.Config.HTTPTimeout,
 		Proxy:            http.ProxyFromEnvironment,
 	}
-	if conn.GetURL() == fstreamOptionsPrivateURL {
+	if conn.GetURL() == fstreamOptionsPrivateURL && e.Websocket.CanUseAuthenticatedEndpoints() && e.CanUseAuthenticatedWebsocketEndpoints() {
 		listenKey, err = e.GetEOptionsWsAuthStreamKey(ctx)
 		switch {
 		case err != nil:

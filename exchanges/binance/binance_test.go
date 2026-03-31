@@ -3457,6 +3457,7 @@ func TestSubscribeBadResp(t *testing.T) {
 	}
 	e := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, mock))
 
+	testexch.SetupWs(t, e)
 	conn, err := e.Websocket.GetConnection(asset.Spot)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
@@ -3596,7 +3597,6 @@ func TestExecutionTypeToOrderStatus(t *testing.T) {
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 	startTime, endTime := getTime(true)
-	e.Verbose = true
 	for assetType, pair := range assetToTradablePairMap {
 		result, err := e.GetHistoricCandles(t.Context(), pair, assetType, kline.FiveMin, startTime, endTime)
 		require.NoErrorf(t, err, "%v %v", assetType, err)

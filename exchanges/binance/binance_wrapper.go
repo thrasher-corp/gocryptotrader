@@ -375,18 +375,21 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	// Options private stream connection
-	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		MessageFilter:            optionsPrivateFilter,
-		URL:                      fstreamOptionsPrivateURL,
-		Handler:                  e.wsHandleEOptionsData,
-		Connector:                e.WsOptionsConnect,
-		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-		RateLimit:                request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
-		SubscriptionsNotRequired: true,
-		Authenticated:            true,
-	})
+	if e.AreCredentialsValid(context.Background()) {
+		// Options private stream connection
+		return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+			MessageFilter:            optionsPrivateFilter,
+			URL:                      fstreamOptionsPrivateURL,
+			Handler:                  e.wsHandleEOptionsData,
+			Connector:                e.WsOptionsConnect,
+			ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+			RateLimit:                request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
+			SubscriptionsNotRequired: true,
+			Authenticated:            true,
+		})
+	}
+	return nil
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
