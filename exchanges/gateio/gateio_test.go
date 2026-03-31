@@ -629,7 +629,7 @@ func TestGetUniLoanInterestRecords(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidLimit)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	records, err := e.GetUniLoanInterestRecords(t.Context(), BTCUSDT, currency.BTC, 0, 0)
+	records, err := e.GetUniLoanInterestRecords(t.Context(), BTCUSDT, currency.BTC, 1, 100)
 	assert.NoError(t, err)
 	assert.NotNil(t, records)
 }
