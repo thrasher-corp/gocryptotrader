@@ -47,21 +47,8 @@ var currencyStateManagementCommand = &cli.Command{
 			Name:      "tradepair",
 			Usage:     "returns if the currency pair can be traded on the exchange",
 			ArgsUsage: "<exchange> <pair> <asset>",
-			Flags: []cli.Flag{
-				&cli.StringFlag{
-					Name:  "exchange",
-					Usage: "the exchange to act on",
-				},
-				&cli.StringFlag{
-					Name:  "pair",
-					Usage: "the currency pair e.g. btc-usd",
-				},
-				&cli.StringFlag{
-					Name:  "asset",
-					Usage: "the asset type",
-				},
-			},
-			Action: stateGetPairTrading,
+			Flags:     FlagsFromStruct(&CurrencyPairStateParams{}),
+			Action:    stateGetPairTrading,
 		},
 	},
 }
@@ -99,8 +86,7 @@ func stateGetAll(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.CurrencyStateGetAll(c.Context,
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).CurrencyStateGetAll(c.Context,
 		&gctrpc.CurrencyStateGetAllRequest{Exchange: exchange},
 	)
 	if err != nil {
@@ -116,25 +102,9 @@ func stateGetDeposit(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchange string
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
-	} else {
-		exchange = c.Args().First()
-	}
-
-	var code string
-	if c.IsSet("code") {
-		code = c.String("code")
-	} else {
-		code = c.Args().Get(1)
-	}
-
-	var a string
-	if c.IsSet("asset") {
-		a = c.String("asset")
-	} else {
-		a = c.Args().Get(2)
+	arg := &CurrencyCodeStateParams{}
+	if err := unmarshalCLIFields(c, arg); err != nil {
+		return err
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -143,14 +113,14 @@ func stateGetDeposit(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.CurrencyStateDeposit(c.Context,
-		&gctrpc.CurrencyStateDepositRequest{
-			Exchange: exchange,
-			Code:     code,
-			Asset:    a,
-		},
-	)
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		CurrencyStateDeposit(c.Context,
+			&gctrpc.CurrencyStateDepositRequest{
+				Exchange: arg.Exchange,
+				Code:     arg.Code,
+				Asset:    arg.Asset,
+			},
+		)
 	if err != nil {
 		return err
 	}
@@ -164,25 +134,9 @@ func stateGetWithdrawal(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchange string
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
-	} else {
-		exchange = c.Args().First()
-	}
-
-	var code string
-	if c.IsSet("code") {
-		code = c.String("code")
-	} else {
-		code = c.Args().Get(1)
-	}
-
-	var a string
-	if c.IsSet("asset") {
-		a = c.String("asset")
-	} else {
-		a = c.Args().Get(2)
+	arg := &CurrencyCodeStateParams{}
+	if err := unmarshalCLIFields(c, arg); err != nil {
+		return err
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -191,14 +145,14 @@ func stateGetWithdrawal(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.CurrencyStateWithdraw(c.Context,
-		&gctrpc.CurrencyStateWithdrawRequest{
-			Exchange: exchange,
-			Code:     code,
-			Asset:    a,
-		},
-	)
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		CurrencyStateWithdraw(c.Context,
+			&gctrpc.CurrencyStateWithdrawRequest{
+				Exchange: arg.Exchange,
+				Code:     arg.Code,
+				Asset:    arg.Asset,
+			},
+		)
 	if err != nil {
 		return err
 	}
@@ -212,25 +166,9 @@ func stateGetTrading(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchange string
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
-	} else {
-		exchange = c.Args().First()
-	}
-
-	var code string
-	if c.IsSet("code") {
-		code = c.String("code")
-	} else {
-		code = c.Args().Get(1)
-	}
-
-	var a string
-	if c.IsSet("asset") {
-		a = c.String("asset")
-	} else {
-		a = c.Args().Get(2)
+	arg := &CurrencyCodeStateParams{}
+	if err := unmarshalCLIFields(c, arg); err != nil {
+		return err
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -239,12 +177,11 @@ func stateGetTrading(c *cli.Context) error {
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.CurrencyStateTrading(c.Context,
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).CurrencyStateTrading(c.Context,
 		&gctrpc.CurrencyStateTradingRequest{
-			Exchange: exchange,
-			Code:     code,
-			Asset:    a,
+			Exchange: arg.Exchange,
+			Code:     arg.Code,
+			Asset:    arg.Asset,
 		},
 	)
 	if err != nil {
@@ -260,39 +197,21 @@ func stateGetPairTrading(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var exchange string
-	if c.IsSet("exchange") {
-		exchange = c.String("exchange")
-	} else {
-		exchange = c.Args().First()
+	arg := &CurrencyPairStateParams{}
+	if err := unmarshalCLIFields(c, arg); err != nil {
+		return err
 	}
-
-	var pair string
-	if c.IsSet("pair") {
-		pair = c.String("pair")
-	} else {
-		pair = c.Args().Get(1)
-	}
-
-	var a string
-	if c.IsSet("asset") {
-		a = c.String("asset")
-	} else {
-		a = c.Args().Get(2)
-	}
-
 	conn, cancel, err := setupClient(c)
 	if err != nil {
 		return err
 	}
 	defer closeConn(conn, cancel)
 
-	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.CurrencyStateTradingPair(c.Context,
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).CurrencyStateTradingPair(c.Context,
 		&gctrpc.CurrencyStateTradingPairRequest{
-			Exchange: exchange,
-			Pair:     pair,
-			Asset:    a,
+			Exchange: arg.Exchange,
+			Pair:     arg.Pair,
+			Asset:    arg.Asset,
 		},
 	)
 	if err != nil {

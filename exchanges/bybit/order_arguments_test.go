@@ -50,16 +50,14 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 		},
 		{
 			submit: &order.Submit{
-				Exchange:  e.GetName(),
-				Pair:      currency.NewBTCUSDT(),
-				AssetType: asset.USDCMarginedFutures,
-				Side:      order.Buy,
-				Type:      order.Market,
-				Amount:    1,
-				RiskManagementModes: order.RiskManagementModes{
-					TakeProfit: order.RiskManagement{Price: 100},
-					StopLoss:   order.RiskManagement{Price: 200},
-				},
+				Exchange:   e.GetName(),
+				Pair:       currency.NewBTCUSDT(),
+				AssetType:  asset.USDCMarginedFutures,
+				Side:       order.Buy,
+				Type:       order.Market,
+				Amount:     1,
+				TakeProfit: order.RiskManagement{Price: 100},
+				StopLoss:   order.RiskManagement{Price: 200},
 			},
 			exp: &PlaceOrderRequest{
 				Category:            getCategoryName(asset.USDCMarginedFutures),
