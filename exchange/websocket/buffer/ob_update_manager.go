@@ -34,13 +34,14 @@ var (
 // UpdateManager manages order book REST snapshots to queued websocket order book updates
 // TODO: Directly couple with orderbook struct and optimise locking paths.
 type UpdateManager struct {
-	lookup             map[key.PairAsset]*updateCache
+	lookup   map[key.PairAsset]*updateCache
+	lookupMu sync.RWMutex
+
 	deadline           time.Duration
 	delay              time.Duration
 	fetchOrderbook     func(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error)
 	checkPendingUpdate func(lastUpdateID, firstUpdateID int64, update *orderbook.Update) (skip bool, err error)
 	ob                 *Orderbook
-	m                  sync.RWMutex
 }
 
 type updateCache struct {
@@ -135,14 +136,14 @@ func (m *UpdateManager) loadCache(p currency.Pair, a asset.Item) (*updateCache, 
 	if !a.IsValid() {
 		return nil, fmt.Errorf("%w: %q", asset.ErrInvalidAsset, a)
 	}
-	m.m.RLock()
+	m.lookupMu.RLock()
 	cache, ok := m.lookup[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}]
-	m.m.RUnlock()
+	m.lookupMu.RUnlock()
 	if !ok {
 		cache = &updateCache{ch: make(chan int64), state: cacheStateInitialised}
-		m.m.Lock()
+		m.lookupMu.Lock()
 		m.lookup[key.PairAsset{Base: p.Base.Item, Quote: p.Quote.Item, Asset: a}] = cache
-		m.m.Unlock()
+		m.lookupMu.Unlock()
 	}
 	return cache, nil
 }
@@ -156,7 +157,7 @@ func (m *UpdateManager) applyUpdate(ctx context.Context, cache *updateCache, fir
 		log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", m.ob.exchangeName, update.Pair, update.Asset, err)
 		return m.invalidateCache(ctx, firstUpdateID, update, cache)
 	}
-	if isOutOfSequence(lastUpdateID, firstUpdateID) {
+	if lastUpdateID+1 != firstUpdateID {
 		if m.ob.verbose { // disconnection will pollute logs
 			log.Warnf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: desync detected", m.ob.exchangeName, update.Pair, update.Asset)
 		}
@@ -254,7 +255,7 @@ func (m *UpdateManager) applyPendingUpdates(cache *updateCache) error {
 			if skip {
 				continue
 			}
-		} else if isOutOfSequence(bookLastUpdateID, data.firstUpdateID) {
+		} else if bookLastUpdateID+1 != data.firstUpdateID {
 			return fmt.Errorf("apply pending updates %w: last update ID %d, first update ID %d", ErrOrderbookSnapshotOutdated, bookLastUpdateID, data.firstUpdateID)
 		}
 
@@ -270,11 +271,6 @@ func (m *UpdateManager) applyPendingUpdates(cache *updateCache) error {
 	}
 	cache.state = cacheStateSynced
 	return nil
-}
-
-// isOutOfSequence checks if the update is out of sequence
-func isOutOfSequence(lastUpdateID, firstUpdateID int64) bool {
-	return lastUpdateID+1 != firstUpdateID
 }
 
 // waitForUpdate waits for an update with an ID >= nextUpdateID
