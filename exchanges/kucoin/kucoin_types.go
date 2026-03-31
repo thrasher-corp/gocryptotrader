@@ -41,6 +41,7 @@ var (
 	errTransferTypeMissing        = errors.New("transfer type is required")
 	errTradeTypeMissing           = errors.New("trade type is missing")
 	errTimeInForceRequired        = errors.New("time in force is required")
+	errInvalidLimit               = errors.New("invalid limit")
 	errInvalidMsgType             = errors.New("message type field not valid")
 	errMissingPurchaseOrderNumber = errors.New("missing purchase order number")
 	errMissingInterestRate        = errors.New("interest rate is required")

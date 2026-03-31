@@ -196,7 +196,7 @@ func (m *UpdateManager) syncOrderbook(ctx context.Context, cache *updateCache, p
 	// updates before we fetch the orderbook snapshot.
 	select {
 	case <-ctx.Done():
-		cache.clearPreserveStateWithLock()
+		cache.clearPendingUpdatesWithLock()
 		return ctx.Err()
 	case <-time.After(m.delay):
 	}
@@ -305,7 +305,7 @@ func (c *updateCache) clearWithLock() {
 	c.clearNoLock()
 }
 
-func (c *updateCache) clearPreserveStateWithLock() {
+func (c *updateCache) clearPendingUpdatesWithLock() {
 	c.m.Lock()
 	defer c.m.Unlock()
 	c.clearNoLock()

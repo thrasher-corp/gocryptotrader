@@ -411,6 +411,17 @@ func TestClearWithLock(t *testing.T) {
 	require.Empty(t, cache.updates)
 }
 
+func TestClearPendingUpdatesWithLock(t *testing.T) {
+	t.Parallel()
+	cache := &updateCache{
+		updates: []pendingUpdate{{update: &orderbook.Update{}}},
+		state:   cacheStateQueuing,
+	}
+	cache.clearPendingUpdatesWithLock()
+	require.Empty(t, cache.updates)
+	assert.Equal(t, cacheStateQueuing, cache.state)
+}
+
 func TestClearNoLock(t *testing.T) {
 	t.Parallel()
 	cache := &updateCache{updates: []pendingUpdate{{update: &orderbook.Update{}}}}

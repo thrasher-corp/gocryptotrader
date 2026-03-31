@@ -202,7 +202,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	case marketSnapshotChannel:
 		return e.processMarketSnapshot(ctx, resp.Data, topicInfo[0])
 	case marketOrderbookChannel:
-		return e.processOrderbookWithDepth(ctx, respData, topicInfo[1])
+		return e.processSpotOrderbookWithDepth(ctx, respData, topicInfo[1])
 	case marketOrderbookDepth1Channel, marketOrderbookDepth5Channel, marketOrderbookDepth50Channel:
 		return e.processOrderbook(resp.Data, topicInfo[1], topicInfo[0])
 	case marketCandlesChannel:
@@ -815,8 +815,8 @@ func (e *Exchange) processCandlesticks(ctx context.Context, respData []byte, ins
 	return nil
 }
 
-// processOrderbookWithDepth processes order book data with a specified depth for a particular symbol.
-func (e *Exchange) processOrderbookWithDepth(ctx context.Context, respData []byte, instrument string) error {
+// processSpotOrderbookWithDepth processes order book data with a specified depth for a particular symbol.
+func (e *Exchange) processSpotOrderbookWithDepth(ctx context.Context, respData []byte, instrument string) error {
 	pair, err := currency.NewPairFromString(instrument)
 	if err != nil {
 		return err
@@ -961,23 +961,22 @@ func (e *Exchange) manageSubscriptions(ctx context.Context, conn websocket.Conne
 			return err
 		}
 
-		capture := struct {
+		intermediary := struct {
 			Type string `json:"type"`
 			Code int    `json:"code"`
 			Data any    `json:"data"`
 		}{}
-
-		if err := json.Unmarshal(respRaw, &capture); err != nil {
+		if err := json.Unmarshal(respRaw, &intermediary); err != nil {
 			return err
 		}
 
-		switch capture.Type {
+		switch intermediary.Type {
 		case "error":
-			msg, ok := capture.Data.(string)
+			msg, ok := intermediary.Data.(string)
 			if !ok {
 				msg = "unknown error"
 			}
-			errs = common.AppendError(errs, fmt.Errorf("%s (%d)", msg, capture.Code))
+			errs = common.AppendError(errs, fmt.Errorf("%s (%d)", msg, intermediary.Code))
 		case "ack":
 			if operation == "unsubscribe" {
 				err = e.Websocket.RemoveSubscriptions(conn, *assoc...)
@@ -991,7 +990,7 @@ func (e *Exchange) manageSubscriptions(ctx context.Context, conn websocket.Conne
 				errs = common.AppendError(errs, err)
 			}
 		default:
-			errs = common.AppendError(errs, fmt.Errorf("%w: %s from %s", errInvalidMsgType, capture.Type, respRaw))
+			errs = common.AppendError(errs, fmt.Errorf("%w: %s from %s", errInvalidMsgType, intermediary.Type, respRaw))
 		}
 	}
 	return errs

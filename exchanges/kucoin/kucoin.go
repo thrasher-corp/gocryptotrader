@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -151,12 +150,12 @@ func (e *Exchange) GetOrderbookAuthenticatedV1(ctx context.Context, symbol strin
 	switch a {
 	case asset.Spot:
 		if limit != "20" && limit != "50" && limit != "FULL" {
-			return nil, fmt.Errorf("%w: %s", errors.New("invalid limit"), limit)
+			return nil, fmt.Errorf("%w: %s", errInvalidLimit, limit)
 		}
 		tradeType = "SPOT"
 	case asset.Futures:
 		if limit != "20" && limit != "100" && limit != "FULL" {
-			return nil, fmt.Errorf("%w: %s", errors.New("invalid limit"), limit)
+			return nil, fmt.Errorf("%w: %s", errInvalidLimit, limit)
 		}
 		tradeType = "FUTURES"
 	default:

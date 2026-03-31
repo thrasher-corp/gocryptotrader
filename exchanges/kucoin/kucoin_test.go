@@ -180,6 +180,44 @@ func TestGetOrderbook(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetOrderbookAuthenticatedV1(t *testing.T) {
+	t.Parallel()
+
+	_, err := e.GetOrderbookAuthenticatedV1(t.Context(), "", asset.Spot, "20")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	_, err = e.GetOrderbookAuthenticatedV1(t.Context(), spotTradablePair.String(), asset.Spot, "10")
+	assert.ErrorIs(t, err, errInvalidLimit)
+
+	_, err = e.GetOrderbookAuthenticatedV1(t.Context(), futuresTradablePair.String(), asset.Futures, "50")
+	assert.ErrorIs(t, err, errInvalidLimit)
+
+	_, err = e.GetOrderbookAuthenticatedV1(t.Context(), spotTradablePair.String(), asset.Margin, "20")
+	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+
+	for _, tt := range []struct {
+		name   string
+		symbol string
+		asset  asset.Item
+		limit  string
+	}{
+		{name: "spot", symbol: spotTradablePair.String(), asset: asset.Spot, limit: "20"},
+		{name: "futures", symbol: futuresTradablePair.String(), asset: asset.Futures, limit: "20"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := e.GetOrderbookAuthenticatedV1(t.Context(), tt.symbol, tt.asset, tt.limit)
+			assert.NoErrorf(t, err, "GetOrderbookAuthenticatedV1 should not error for %s", tt.name)
+			assert.NotNilf(t, result, "GetOrderbookAuthenticatedV1 should return an orderbook for %s", tt.name)
+			if result != nil {
+				assert.NotEmptyf(t, result.Bids, "GetOrderbookAuthenticatedV1 should return bids for %s", tt.name)
+				assert.NotEmptyf(t, result.Asks, "GetOrderbookAuthenticatedV1 should return asks for %s", tt.name)
+			}
+		})
+	}
+}
+
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetTradeHistory(t.Context(), "")
