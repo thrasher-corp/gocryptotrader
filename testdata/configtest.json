@@ -2035,6 +2035,16 @@
      "delimiter": "_"
     },
     "useGlobalFormat": true,
+    "assetTypes": [
+     "spot",
+     "option",
+     "coinmarginedfutures",
+     "usdtmarginedfutures",
+     "margin",
+     "cross_margin",
+     "delivery",
+     "option"
+    ],
     "pairs": {
      "coinmarginedfutures": {
       "assetEnabled": true,
@@ -2085,10 +2095,10 @@
      "requiresSecret": true
     },
     "urlEndpoints": {
-     "RestFuturesURL": "https://fx-api.gateio.ws/api/v4/",
+     "RestFuturesURL": "https://fx-api.gateio.ws",
      "RestSpotSupplementaryURL": "https://fx-api-testnet.gateio.ws",
-     "RestSpotURL": "https://api.gateio.ws/api/v4/",
-     "WebsocketSpotURL": "wss://api.gateio.ws/ws/v4/"
+     "RestSpotURL": "https://api.gateio.ws",
+     "WebsocketSpotURL": "wss://api.gateio.ws"
     }
    },
    "features": {
