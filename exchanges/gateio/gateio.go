@@ -29,10 +29,10 @@ import (
 
 const (
 	gateioAPIVersion                    = "/api/v4/"
-	gateioTradeURL                      = "https://api.gateio.ws" + gateioAPIVersion
-	gateioFuturesTestnetTrading         = "https://fx-api-testnet.gateio.ws" + gateioAPIVersion
-	gateioFuturesLiveTradingAlternative = "https://fx-api.gateio.ws" + gateioAPIVersion
-	tradeBaseURL                        = "https://www.gate.io" + gateioAPIVersion
+	gateioTradeURL                      = "https://api.gateio.ws"
+	gateioFuturesTestnetTrading         = "https://fx-api-testnet.gateio.ws"
+	gateioFuturesLiveTradingAlternative = "https://fx-api.gateio.ws"
+	tradeBaseURL                        = "https://www.gate.io"
 
 	// SubAccount Endpoints
 	subAccounts = "sub_accounts"
@@ -81,7 +81,6 @@ const (
 
 var (
 	errEmptyOrInvalidSettlementCurrency = errors.New("empty or invalid settlement currency")
-	errInvalidOrderText                 = errors.New("invalid text value, requires prefix `t-`")
 	errLoanTypeIsRequired               = errors.New("loan type is required")
 	errUserIDRequired                   = errors.New("user id is required")
 	errSTPGroupNameRequired             = errors.New("self-trade prevention group name required")
@@ -762,7 +761,7 @@ func (e *Exchange) CreateBatchOrders(ctx context.Context, args []CreateOrderRequ
 		if args[x].Text == "" {
 			return nil, order.ErrClientOrderIDMustBeSet
 		} else if !strings.HasPrefix(args[x].Text, "t-") {
-			return nil, errInvalidOrderText
+			return nil, errInvalidTextPrefix
 		}
 		if args[x].CurrencyPair.IsEmpty() {
 			return nil, currency.ErrCurrencyPairEmpty
@@ -4204,7 +4203,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	var intermediary json.RawMessage
 	if err := e.SendPayload(ctx, epl, func() (*request.Item, error) {
 		headers := make(map[string]string)
-		urlPath := endpoint
+		urlPath := gateioAPIVersion + endpoint
 		timestamp := time.Now()
 		var paramValue string
 		if param != nil {
@@ -4279,7 +4278,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	return e.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return &request.Item{
 			Method:                 http.MethodGet,
-			Path:                   endpoint + path,
+			Path:                   endpoint + gateioAPIVersion + path,
 			Result:                 result,
 			Verbose:                e.Verbose,
 			HTTPDebugging:          e.HTTPDebugging,

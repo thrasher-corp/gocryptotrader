@@ -73,11 +73,11 @@ func (e *Exchange) enablePairs() error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	enabledAssetPair[asset.DeliveryFutures], err = e.FormatExchangeCurrency(currency.NewPairWithDelimiter("BTC", "USDT_20260213", "_"), asset.DeliveryFutures)
+	enabledAssetPair[asset.DeliveryFutures], err = e.FormatExchangeCurrency(currency.NewPairWithDelimiter("BTC", "USDT_20260626", "_"), asset.DeliveryFutures)
 	if err != nil {
 		log.Fatal(err)
 	}
-	enabledAssetPair[asset.Options], err = e.FormatExchangeCurrency(currency.NewPairWithDelimiter("BTC", "USDT-20260326-76000-P", "_"), asset.Options)
+	enabledAssetPair[asset.Options], err = e.FormatExchangeCurrency(currency.NewPairWithDelimiter("BTC", "USDT-20260925-75000-P", "_"), asset.Options)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -338,7 +338,7 @@ func TestCreateBatchOrders(t *testing.T) {
 
 	arg.Text = "1234"
 	_, err = e.CreateBatchOrders(t.Context(), []CreateOrderRequest{arg})
-	require.ErrorIs(t, err, errInvalidOrderText)
+	require.ErrorIs(t, err, errInvalidTextPrefix)
 
 	arg.Text = "t-1234"
 	_, err = e.CreateBatchOrders(t.Context(), []CreateOrderRequest{arg})
@@ -1079,7 +1079,6 @@ func TestGetAllFutureContracts(t *testing.T) {
 
 func TestGetFuturesContract(t *testing.T) {
 	t.Parallel()
-	e.Verbose = true
 	_, err := e.GetFuturesContract(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures).String())
 	assert.NoError(t, err)
 	_, err = e.GetFuturesContract(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures).String())
@@ -1088,7 +1087,6 @@ func TestGetFuturesContract(t *testing.T) {
 
 func TestGetFuturesOrderbook(t *testing.T) {
 	t.Parallel()
-	e.Verbose = true
 	_, err := e.GetFuturesOrderbook(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), "", 10, false)
 	assert.NoError(t, err)
 	_, err = e.GetFuturesOrderbook(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), "", 10, false)
@@ -1113,7 +1111,6 @@ func TestGetFuturesCandlesticks(t *testing.T) {
 
 func TestPremiumIndexKLine(t *testing.T) {
 	t.Parallel()
-	e.Verbose = true
 	_, err := e.PremiumIndexKLine(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), time.Time{}, time.Time{}, 0, kline.OneWeek)
 	assert.NoError(t, err)
 	_, err = e.PremiumIndexKLine(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), time.Time{}, time.Time{}, 0, kline.OneWeek)
@@ -1186,11 +1183,15 @@ func TestGetLiquidationHistory(t *testing.T) {
 	_, err = e.GetLiquidationHistory(t.Context(), currency.USDT, currency.EMPTYPAIR, time.Time{}, time.Time{}, 0)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	startTime, endTime := getTimeWithInterval(kline.OneHour)
+	startTime, endTime := getTimeWithInterval(kline.FifteenMin)
+	if mockTests {
+		startTime, endTime = time.UnixMilli(1774989950000), time.UnixMilli(1774991750000)
+	}
 	_, err = e.GetLiquidationHistory(t.Context(), getPair(t, asset.USDTMarginedFutures).Quote, getPair(t, asset.USDTMarginedFutures), endTime, startTime, 0)
 	assert.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	usdtmFuturesTP := getPair(t, asset.USDTMarginedFutures)
+	startTime = endTime.Add(-time.Minute * 30)
 	_, err = e.GetLiquidationHistory(t.Context(), usdtmFuturesTP.Quote, usdtmFuturesTP, startTime, endTime, 100)
 	assert.NoError(t, err)
 }
@@ -1616,7 +1617,7 @@ func TestPlaceFuturesOrder(t *testing.T) {
 	arg.Price = 123
 	arg.Text = "client-order-id"
 	_, err = e.PlaceFuturesOrder(t.Context(), arg)
-	require.ErrorIs(t, err, errInvalidOrderText)
+	require.ErrorIs(t, err, errInvalidTextPrefix)
 
 	arg.Text = "t-client-order-id"
 	arg.AutoSize = "long"
@@ -1712,7 +1713,7 @@ func TestPlaceBatchFuturesOrders(t *testing.T) {
 	arg.Price = 123
 	arg.Text = "client-order-id"
 	_, err = e.PlaceBatchFuturesOrders(t.Context(), currency.USDT, []FuturesOrderCreateParams{arg})
-	require.ErrorIs(t, err, errInvalidOrderText)
+	require.ErrorIs(t, err, errInvalidTextPrefix)
 
 	arg.Text = "t-client-order-id"
 	arg.AutoSize = "long"
@@ -1920,7 +1921,6 @@ func TestCancelAllFuturesOpenOrders(t *testing.T) {
 
 func TestGetAllDeliveryContracts(t *testing.T) {
 	t.Parallel()
-	e.Verbose = true
 	r, err := e.GetAllDeliveryContracts(t.Context(), currency.USDT)
 	require.NoError(t, err, "GetAllDeliveryContracts must not error")
 	assert.NotEmpty(t, r, "GetAllDeliveryContracts should return data")
@@ -2097,9 +2097,7 @@ func TestGetAllOptionsUnderlyings(t *testing.T) {
 	t.Parallel()
 	underlyings, err := e.GetAllOptionsUnderlyings(t.Context())
 	assert.NoError(t, err)
-	for x := range underlyings {
-		println(underlyings[x].Name, ", ")
-	}
+	require.NotNil(t, underlyings)
 }
 
 func TestGetExpirationTime(t *testing.T) {
@@ -2344,7 +2342,10 @@ func TestGetAccountChangingHistory(t *testing.T) {
 func TestGetUsersPositionSpecifiedUnderlying(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetUsersPositionSpecifiedUnderlying(t.Context(), "BTC_USDT")
+	_, err := e.GetUsersPositionSpecifiedUnderlying(t.Context(), "")
+	assert.NoError(t, err)
+
+	_, err = e.GetUsersPositionSpecifiedUnderlying(t.Context(), "BTC_USDT")
 	assert.NoError(t, err)
 }
 
@@ -5484,6 +5485,16 @@ func TestGetUserIsolatedMarginAccountList(t *testing.T) {
 	require.NoError(t, err)
 
 	result, err := e.GetUserIsolatedMarginAccountList(t.Context(), currency.EMPTYPAIR)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAvailableTransferChains(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetAvailableTransferChains(t.Context(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	result, err := e.GetAvailableTransferChains(t.Context(), currency.ETH)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

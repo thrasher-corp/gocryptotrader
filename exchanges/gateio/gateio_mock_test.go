@@ -1,4 +1,4 @@
-//go:build mock_test_off
+//go:build !mock_test_off
 
 // This will build if build tag mock_test_off is parsed and will do live testing
 // using all tests in (exchange)_test.go
@@ -24,7 +24,7 @@ func TestMain(m *testing.M) {
 		e.API.AuthenticatedWebsocketSupport = true
 		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
-	if err := testexch.MockHTTPInstance(e, gateioAPIVersion); err != nil {
+	if err := testexch.MockHTTPInstance(e, ""); err != nil {
 		log.Fatalf("Poloniex MockHTTPInstance error: %s", err)
 	}
 	if err := e.enablePairs(); err != nil {

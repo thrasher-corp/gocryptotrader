@@ -380,11 +380,13 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		if err != nil {
 			return nil, err
 		}
+		// println("fPair: ", fPair.String(), " underlying: ", underlying.String())
 		tickers, err := e.GetOptionsTickers(ctx, underlying.String())
 		if err != nil {
 			return nil, err
 		}
 		for _, tkr := range tickers {
+			println("tkr.Name: ", tkr.Name.String(), "fPair: ", fPair.String())
 			if !tkr.Name.Equal(fPair) {
 				continue
 			}
@@ -400,11 +402,8 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 				ExchangeName: e.Name,
 				AssetType:    a,
 			}
-			if err := ticker.ProcessTicker(tickerData); err != nil {
-				return nil, err
-			}
+			break
 		}
-		return ticker.GetTicker(e.Name, fPair, a)
 	}
 	if err := ticker.ProcessTicker(tickerData); err != nil {
 		return nil, err
@@ -475,6 +474,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 				continue
 			}
 			p := strings.ToUpper(deliveryContract.Name)
+			println("p: ", p)
 			cp, err := currency.NewPairFromString(p)
 			if err != nil {
 				return nil, err
@@ -2778,7 +2778,7 @@ func getSettlementCurrency(p currency.Pair, a asset.Item) (currency.Code, error)
 			if !p.Base.Equal(currency.BTC) { // Only BTC endpoint currently available
 				return currency.EMPTYCODE, fmt.Errorf("%w %s %s", errInvalidSettlementBase, a, p)
 			}
-			if !p.Quote.Equal(currency.USDT) { // We expect all Coin-M to be quoted in USD
+			if !p.Quote.Equal(currency.USD) { // We expect all Coin-M to be quoted in USD
 				return currency.EMPTYCODE, fmt.Errorf("%w %s %s", errInvalidSettlementQuote, a, p)
 			}
 		}
