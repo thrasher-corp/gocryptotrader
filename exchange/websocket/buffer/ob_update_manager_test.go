@@ -261,8 +261,8 @@ func TestApplyUpdateInvalidateOnUpdateError(t *testing.T) {
 	require.NoError(t, err, "applyUpdate must not error when invalidating after update failure")
 
 	cache.m.Lock()
-	require.Equal(t, cacheStateQueuing, cache.state, "cache should enter queuing state after invalidation")
-	require.NotEmpty(t, cache.updates, "cache should queue the update before sync starts")
+	require.Equal(t, cacheStateQueuing, cache.state, "cache must enter queuing state after invalidation")
+	require.NotEmpty(t, cache.updates, "cache must queue the update before sync starts")
 	cache.m.Unlock()
 
 	cancel()
@@ -271,7 +271,7 @@ func TestApplyUpdateInvalidateOnUpdateError(t *testing.T) {
 		cache.m.Lock()
 		defer cache.m.Unlock()
 		return cache.state == cacheStateQueuing && len(cache.updates) == 0
-	}, time.Second, time.Millisecond*50, "cache should preserve queuing state and clear pending updates after cancellation")
+	}, time.Second, time.Millisecond*50, "cache must preserve queuing state and clear pending updates after cancellation")
 }
 
 func TestInitialiseOrderbookCache(t *testing.T) {
