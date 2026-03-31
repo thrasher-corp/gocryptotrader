@@ -20,7 +20,7 @@ func TestCollapseSubscriptionList(t *testing.T) {
 	marketSubs := make(subscription.List, 0, totalSubscriptions)
 	expectedPairs := make(currency.Pairs, 0, totalSubscriptions)
 	expectedSuffixes := make([]string, 0, totalSubscriptions)
-	for i := 0; i < totalSubscriptions; i++ {
+	for i := range totalSubscriptions {
 		base := fmt.Sprintf("COIN%03d", i)
 		suffix := base + "-USDT"
 		pair := currency.NewPairWithDelimiter(base, "USDT", "-")

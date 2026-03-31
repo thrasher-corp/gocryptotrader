@@ -207,6 +207,7 @@ func TestGetOrderbookAuthenticatedV1(t *testing.T) {
 		{name: "futures", symbol: futuresTradablePair.String(), asset: asset.Futures, limit: "20"},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, err := e.GetOrderbookAuthenticatedV1(t.Context(), tt.symbol, tt.asset, tt.limit)
 			assert.NoErrorf(t, err, "GetOrderbookAuthenticatedV1 should not error for %s", tt.name)
 			assert.NotNilf(t, result, "GetOrderbookAuthenticatedV1 should return an orderbook for %s", tt.name)
