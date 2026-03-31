@@ -136,12 +136,12 @@ func (e *Exchange) websocketLogin(ctx context.Context, conn websocket.Connection
 
 	resp, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payload.RequestID, req)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, channel, err)
 	}
 
 	var inbound WebsocketAPIResponse
 	if err := json.Unmarshal(resp, &inbound); err != nil {
-		return err
+		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, channel, err)
 	}
 
 	if inbound.Header.Status == http.StatusOK {
@@ -150,10 +150,10 @@ func (e *Exchange) websocketLogin(ctx context.Context, conn websocket.Connection
 
 	var wsErr WebsocketErrors
 	if err := json.Unmarshal(inbound.Data, &wsErr.Errors); err != nil {
-		return err
+		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, channel, err)
 	}
 
-	return fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
+	return fmt.Errorf("%w %s %s code=%v message=%s", request.ErrAuthRequestFailed, e.Name, channel, wsErr.Errors.Label, wsErr.Errors.Message)
 }
 
 func (e *Exchange) generateWsSignature(secret, event, channel string, t int64) (string, error) {
@@ -673,6 +673,9 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 
 // manageSubs sends a websocket message to subscribe or unsubscribe from a list of channel
 func (e *Exchange) manageSubs(ctx context.Context, event string, conn websocket.Connection, subs subscription.List) error {
+	if err := common.NilGuard(conn); err != nil {
+		return fmt.Errorf("%w: websocket connection", err)
+	}
 	subs, err := subs.ExpandTemplates(e)
 	if err != nil {
 		return err
@@ -680,6 +683,9 @@ func (e *Exchange) manageSubs(ctx context.Context, event string, conn websocket.
 
 	return e.ParallelChanOp(ctx, subs, func(ctx context.Context, batch subscription.List) error {
 		for _, s := range batch {
+			if err := common.NilGuard(s); err != nil {
+				return fmt.Errorf("%w: subscription", err)
+			}
 			if err := func() error {
 				msg, err := e.manageSubReq(ctx, event, s)
 				if err != nil {
@@ -946,9 +952,15 @@ type GeneratePayload func(ctx context.Context, event string, channelsToSubscribe
 
 // handleSubscription sends a websocket message to receive data from the channel
 func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List, generatePayload GeneratePayload) error {
+	if err := common.NilGuard(conn); err != nil {
+		return fmt.Errorf("%w: websocket connection", err)
+	}
 	payloads, err := generatePayload(ctx, event, channelsToSubscribe)
 	if err != nil {
 		return err
+	}
+	if len(payloads) != len(channelsToSubscribe) {
+		return fmt.Errorf("payload count mismatch: got %d payloads for %d subscriptions", len(payloads), len(channelsToSubscribe))
 	}
 	index := make(map[*subscription.Subscription]int, len(channelsToSubscribe))
 	for i, s := range channelsToSubscribe {
@@ -956,12 +968,20 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 	}
 	return e.ParallelChanOp(ctx, channelsToSubscribe, func(ctx context.Context, batch subscription.List) error {
 		for _, s := range batch {
+			if err := common.NilGuard(s); err != nil {
+				return fmt.Errorf("%w: subscription", err)
+			}
 			if err := func() error {
 				k, ok := index[s]
 				if !ok {
 					return fmt.Errorf("subscription not found for %s %s", s.Channel, s.Asset)
 				}
-				result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payloads[k].ID, payloads[k])
+				msg := payloads[k]
+				if msg.ID == 0 {
+					msg.ID = e.MessageSequence()
+					payloads[k] = msg
+				}
+				result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, msg.ID, msg)
 				if err != nil {
 					return err
 				}
@@ -970,7 +990,7 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 					return err
 				}
 				if resp.Error != nil && resp.Error.Code != 0 {
-					return fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message)
+					return fmt.Errorf("error while %s to channel %s error code: %d message: %s", msg.Event, msg.Channel, resp.Error.Code, resp.Error.Message)
 				}
 				if event == subscribeEvent {
 					return e.Websocket.AddSuccessfulSubscriptions(conn, s)
@@ -1014,11 +1034,11 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, epl request.Endpoin
 
 	responses, err := conn.SendMessageReturnResponsesWithInspector(ctx, epl, req.Payload.RequestID, req, expectedResponses, wsRespAckInspector{})
 	if err != nil {
-		return err
+		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, channel, err)
 	}
 
 	if len(responses) == 0 {
-		return common.ErrNoResponse
+		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, channel, common.ErrNoResponse)
 	}
 
 	// responses may include an ack resp, which we skip
@@ -1026,18 +1046,21 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, epl request.Endpoin
 
 	var inbound WebsocketAPIResponse
 	if err := json.Unmarshal(endResponse, &inbound); err != nil {
-		return err
+		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, channel, err)
 	}
 
 	if inbound.Header.Status != http.StatusOK {
 		var wsErr WebsocketErrors
 		if err := json.Unmarshal(inbound.Data, &wsErr); err != nil {
-			return err
+			return fmt.Errorf("%w %s %s status=%d, %v", request.ErrAuthRequestFailed, e.Name, channel, inbound.Header.Status, err)
 		}
-		return fmt.Errorf("%s: %s", wsErr.Errors.Label, wsErr.Errors.Message)
+		return fmt.Errorf("%w %s %s code=%v message=%s", request.ErrAuthRequestFailed, e.Name, channel, wsErr.Errors.Label, wsErr.Errors.Message)
 	}
 
-	return json.Unmarshal(inbound.Data, &resultHolder{Result: result})
+	if err := json.Unmarshal(inbound.Data, &resultHolder{Result: result}); err != nil {
+		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, channel, err)
+	}
+	return nil
 }
 
 type wsRespAckInspector struct{}

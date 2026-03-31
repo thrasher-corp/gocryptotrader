@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	exchangeoptions "github.com/thrasher-corp/gocryptotrader/exchange/options"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
@@ -108,14 +109,14 @@ func (e *Exchange) WebsocketAuthenticatePrivateConnection(ctx context.Context, c
 	}
 	resp, err := conn.SendMessageReturnResponse(ctx, wsSubscriptionEPL, req.RequestID, req)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, req.Operation, err)
 	}
 	var response SubscriptionResponse
 	if err := json.Unmarshal(resp, &response); err != nil {
-		return err
+		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, req.Operation, err)
 	}
 	if !response.Success {
-		return fmt.Errorf("%s with request ID %s msg: %s", response.Operation, response.RequestID, response.ReturnMessage)
+		return fmt.Errorf("%w %s %s request_id=%s, %v", request.ErrAuthRequestFailed, e.Name, response.Operation, response.RequestID, errors.New(response.ReturnMessage))
 	}
 	return nil
 }
@@ -131,7 +132,7 @@ func (e *Exchange) WebsocketAuthenticateTradeConnection(ctx context.Context, con
 	}
 	resp, err := conn.SendMessageReturnResponse(ctx, wsSubscriptionEPL, req.RequestID, req)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, req.Operation, err)
 	}
 	var response struct {
 		ReturnCode    int64  `json:"retCode"`
@@ -140,14 +141,14 @@ func (e *Exchange) WebsocketAuthenticateTradeConnection(ctx context.Context, con
 		ConnectionID  string `json:"connId"`
 	}
 	if err := json.Unmarshal(resp, &response); err != nil {
-		return err
+		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, req.Operation, err)
 	}
 	if response.ReturnCode != 0 {
 		c, ok := retCode[response.ReturnCode]
 		if !ok {
 			c = "unknown return error code"
 		}
-		return fmt.Errorf("%s failed - code:%d [%v] msg:%s", response.Operation, response.ReturnCode, c, response.ReturnMessage)
+		return fmt.Errorf("%w %s %s code=%d message=%s info=%v", request.ErrAuthRequestFailed, e.Name, response.Operation, response.ReturnCode, response.ReturnMessage, c)
 	}
 	return nil
 }
@@ -539,7 +540,25 @@ func (e *Exchange) wsProcessPublicTicker(ctx context.Context, assetType asset.It
 	if err := ticker.ProcessTicker(tick); err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, tick)
+	if err := e.Websocket.DataHandler.Send(ctx, tick); err != nil {
+		return err
+	}
+	if assetType != asset.Options {
+		return nil
+	}
+	return e.Websocket.DataHandler.Send(ctx, &exchangeoptions.Greeks{
+		ExchangeName: e.Name,
+		Pair:         p,
+		AssetType:    assetType,
+		LastUpdated:  resp.PushTimestamp.Time(),
+		Delta:        tickResp.Delta.Float64(),
+		Gamma:        tickResp.Gamma.Float64(),
+		Vega:         tickResp.Vega.Float64(),
+		Theta:        tickResp.Theta.Float64(),
+		BidIV:        tickResp.BidIv.Float64(),
+		AskIV:        tickResp.AskIv.Float64(),
+		MarkIV:       tickResp.MarkIv.Float64(),
+	})
 }
 
 func updateTicker(tick *ticker.Price, resp *TickerWebsocket) {
@@ -831,7 +850,7 @@ func (e *Exchange) generateAuthSubscriptions() (subscription.List, error) {
 
 	var subscriptions subscription.List
 	// TODO: Implement DCP (Disconnection Protect) subscription
-	for _, channel := range []string{chanPositions, chanExecution, chanOrder, chanWallet} {
+	for _, channel := range []string{chanPositions, chanExecution, chanOrder, chanWallet, chanGreeks} {
 		subscriptions = append(subscriptions, &subscription.Subscription{Channel: channel, Asset: asset.All})
 	}
 	return subscriptions, nil

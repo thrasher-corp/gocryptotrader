@@ -176,7 +176,7 @@ func TestSyncOrderbook(t *testing.T) {
 
 	cache.updates = []pendingUpdate{{update: &orderbook.Update{Pair: pair, Asset: asset.Spot}}}
 	err = cache.SyncOrderbook(t.Context(), e, pair, asset.Spot, 0, time.Second)
-	require.ErrorContains(t, err, context.DeadlineExceeded.Error())
+	require.ErrorIs(t, err, context.DeadlineExceeded)
 
 	err = e.Base.SetPairs([]currency.Pair{pair}, asset.Spot, true)
 	require.NoError(t, err)
