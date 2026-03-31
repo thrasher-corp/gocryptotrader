@@ -122,6 +122,7 @@ func (m *SyncManager) Start() error {
 		return errNoSyncItemsEnabled
 	}
 	m.shutdown = make(chan bool)
+	m.startWebsocketSyncWorkers()
 	m.initSyncWG.Add(1)
 	m.inService.Done()
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer started.")
@@ -241,6 +242,7 @@ func (m *SyncManager) Stop() error {
 		return fmt.Errorf("exchange CurrencyPairSyncer %w", ErrSubSystemNotStarted)
 	}
 	close(m.shutdown)
+	m.wsSyncWG.Wait()
 	m.inService.Add(1)
 	log.Debugln(log.SyncMgr, "Exchange CurrencyPairSyncer stopped.")
 	return nil

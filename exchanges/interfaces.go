@@ -51,6 +51,7 @@ type IBotExchange interface {
 	UpdateTradablePairs(ctx context.Context) error
 	GetEnabledPairs(a asset.Item) (currency.Pairs, error)
 	GetAvailablePairs(a asset.Item) (currency.Pairs, error)
+	IsAssetAvailable(a asset.Item) error
 	GetPairFormat(asset.Item, bool) (currency.PairFormat, error)
 	SetPairs(pairs currency.Pairs, a asset.Item, enabled bool) error
 	GetAssetTypes(enabled bool) asset.Items

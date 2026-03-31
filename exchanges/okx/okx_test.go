@@ -4421,13 +4421,31 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 	_, err = e.getAssetsFromInstrumentID("test")
 	assert.ErrorIs(t, err, currency.ErrCurrencyNotSupported)
 	_, err = e.getAssetsFromInstrumentID("test-test")
-	assert.ErrorIs(t, err, asset.ErrNotEnabled)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
 	for _, a := range []asset.Item{asset.Margin, asset.Spot} {
 		assets, err2 := e.getAssetsFromInstrumentID(e.CurrencyPairs.Pairs[a].Enabled[0].String())
 		require.NoErrorf(t, err2, "GetAssetsFromInstrumentTypeOrID must not error for asset: %s", a)
 		assert.Contains(t, assets, a)
 	}
+
+	t.Run("EnabledLookupCanDifferFromAvailableLookup", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+
+		pair := ex.CurrencyPairs.Pairs[asset.Spot].Enabled[0]
+		require.NoError(t, ex.CurrencyPairs.DisablePair(asset.Spot, pair), "DisablePair must not error")
+
+		availableAssets, err := ex.getAssetsFromInstrumentID(pair.String())
+		require.NoError(t, err, "getAssetsFromInstrumentID must not error")
+		assert.Contains(t, availableAssets, asset.Spot, "available lookup should still include spot")
+
+		enabledAssets, err := ex.getEnabledAssetsFromInstrumentID(pair.String())
+		require.NoError(t, err, "getEnabledAssetsFromInstrumentID must not error")
+		assert.NotContains(t, enabledAssets, asset.Spot, "enabled lookup should not include disabled spot pair")
+	})
 }
 
 func TestSetMarginType(t *testing.T) {
