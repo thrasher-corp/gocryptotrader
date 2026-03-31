@@ -4,7 +4,7 @@ go 1.26
 
 require (
 	github.com/Masterminds/sprig/v3 v3.3.0
-	github.com/buger/jsonparser v1.1.1
+	github.com/buger/jsonparser v1.1.2
 	github.com/bytedance/sonic v1.15.0
 	github.com/d5/tengo/v2 v2.17.0
 	github.com/gofrs/uuid v4.4.0+incompatible
@@ -12,8 +12,8 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.28.0
 	github.com/kat-co/vala v0.0.0-20170210184112-42e1d8b61f12
-	github.com/lib/pq v1.11.2
-	github.com/mattn/go-sqlite3 v1.14.34
+	github.com/lib/pq v1.12.0
+	github.com/mattn/go-sqlite3 v1.14.38
 	github.com/pkg/errors v0.9.1
 	github.com/pquerna/otp v1.5.0
 	github.com/shopspring/decimal v1.4.0
@@ -29,7 +29,7 @@ require (
 	golang.org/x/text v0.35.0
 	golang.org/x/time v0.15.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20260209200024-4cfbd4190f57
-	google.golang.org/grpc v1.79.2
+	google.golang.org/grpc v1.79.3
 	google.golang.org/protobuf v1.36.11
 )
 

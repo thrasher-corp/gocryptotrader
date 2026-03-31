@@ -2630,6 +2630,8 @@ func TestGenerateSubscriptionsSpot(t *testing.T) {
 						s.QualifiedChannel = pairs[i].String() + ",100ms"
 					case spotOrderbookChannel:
 						s.QualifiedChannel = pairs[i].String() + ",5,1000ms"
+					case spotOrderbookV2:
+						s.QualifiedChannel = fmt.Sprintf("ob.%s.%d", pairs[i].String(), s.Levels)
 					}
 					s.Pairs = pairs[i : i+1]
 					exp = append(exp, s)
@@ -2816,6 +2818,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 					assert.Positivef(t, l.MaximumBaseAmount, "MaximumBaseAmount should be positive for %s", p)
 					assert.Positivef(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s", p)
 					assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
+					assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", p)
 				case asset.USDTMarginedFutures:
 					assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", p)
 					assert.NotZerof(t, l.Listed, "Listed should be populated for %s", p)
@@ -2843,6 +2846,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 					assert.NotZerof(t, l.Expiry, "Expiry should be populated for %s", p)
 					assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", p)
 					assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
+					assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", p)
 				}
 			}
 		})
@@ -2972,8 +2976,32 @@ func TestGetOpenInterest(t *testing.T) {
 			Asset: a,
 		})
 		assert.NoErrorf(t, err, "GetOpenInterest should not error for %s asset", a)
-		assert.Lenf(t, resp, 1, "GetOpenInterest should return 1 item for %s asset", a)
+		require.Lenf(t, resp, 1, "GetOpenInterest must return 1 item for %s asset", a)
+		assert.Positivef(t, resp[0].OpenInterest, "GetOpenInterest should return positive open interest for %s asset", a)
 	}
+
+	coinPair := getPair(t, asset.CoinMarginedFutures)
+	usdtPair := getPair(t, asset.USDTMarginedFutures)
+	resp, err = e.GetOpenInterest(t.Context(),
+		key.PairAsset{Base: coinPair.Base.Item, Quote: coinPair.Quote.Item, Asset: asset.CoinMarginedFutures},
+		key.PairAsset{Base: usdtPair.Base.Item, Quote: usdtPair.Quote.Item, Asset: asset.USDTMarginedFutures},
+	)
+	assert.NoError(t, err, "GetOpenInterest should not error for multiple explicit perpetual pairs")
+	require.Len(t, resp, 2, "GetOpenInterest returns exactly the requested perpetual pairs")
+
+	expected := map[asset.Item]currency.Pair{
+		asset.CoinMarginedFutures: coinPair,
+		asset.USDTMarginedFutures: usdtPair,
+	}
+	found := make(map[asset.Item]bool, len(expected))
+	for _, oi := range resp {
+		expPair, ok := expected[oi.Key.Asset]
+		require.Truef(t, ok, "unexpected asset in OpenInterest response: %v", oi.Key.Asset)
+		assert.Truef(t, expPair.Equal(oi.Key.Pair()), "OpenInterest pair mismatch for asset %v", oi.Key.Asset)
+		assert.Positivef(t, oi.OpenInterest, "OpenInterest should return positive open interest for asset %v", oi.Key.Asset)
+		found[oi.Key.Asset] = true
+	}
+	require.Len(t, found, len(expected), "OpenInterest response missing expected assets")
 
 	resp, err = e.GetOpenInterest(t.Context())
 	assert.NoError(t, err, "GetOpenInterest should not error")
