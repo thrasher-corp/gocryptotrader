@@ -3051,6 +3051,8 @@ func TestGenerateSubscriptionsSpot(t *testing.T) {
 						s.QualifiedChannel = pairs[i].String() + ",100ms"
 					case spotOrderbookChannel:
 						s.QualifiedChannel = pairs[i].String() + ",5,1000ms"
+					case spotOrderbookV2:
+						s.QualifiedChannel = fmt.Sprintf("ob.%s.%d", pairs[i].String(), s.Levels)
 					}
 					s.Pairs = pairs[i : i+1]
 					exp = append(exp, s)
@@ -3331,6 +3333,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 						assert.Positivef(t, l.MaximumBaseAmount, "MaximumBaseAmount should be positive for %s", p)
 						assert.Positivef(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s", p)
 						assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
+						assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", p)
 					case asset.USDTMarginedFutures:
 						assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", p)
 						assert.NotZerof(t, l.Listed, "Listed should be populated for %s", p)
@@ -3349,6 +3352,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 						assert.NotZerof(t, l.Expiry, "Expiry should be populated for %s", p)
 						assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", p)
 						assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
+						assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", p)
 					}
 				}
 			}
