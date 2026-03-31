@@ -263,22 +263,20 @@ func (e *Exchange) processTicker(ctx context.Context, incoming []byte, pushTime 
 		return err
 	}
 	out := make([]ticker.Price, 0, len(standardMarginAssetTypes))
-	for _, a := range standardMarginAssetTypes {
-		if isAvailable, _ := e.CurrencyPairs.IsPairAvailable(data.CurrencyPair, a); isAvailable {
-			out = append(out, ticker.Price{
-				ExchangeName: e.Name,
-				Volume:       data.BaseVolume.Float64(),
-				QuoteVolume:  data.QuoteVolume.Float64(),
-				High:         data.High24H.Float64(),
-				Low:          data.Low24H.Float64(),
-				Last:         data.Last.Float64(),
-				Bid:          data.HighestBid.Float64(),
-				Ask:          data.LowestAsk.Float64(),
-				AssetType:    a,
-				Pair:         data.CurrencyPair,
-				LastUpdated:  pushTime,
-			})
-		}
+	for _, a := range e.enabledStandardMarginAssetsForPair(data.CurrencyPair) {
+		out = append(out, ticker.Price{
+			ExchangeName: e.Name,
+			Volume:       data.BaseVolume.Float64(),
+			QuoteVolume:  data.QuoteVolume.Float64(),
+			High:         data.High24H.Float64(),
+			Low:          data.Low24H.Float64(),
+			Last:         data.Last.Float64(),
+			Bid:          data.HighestBid.Float64(),
+			Ask:          data.LowestAsk.Float64(),
+			AssetType:    a,
+			Pair:         data.CurrencyPair,
+			LastUpdated:  pushTime,
+		})
 	}
 	if err := ticker.ProcessBatch(out); err != nil {
 		return err
@@ -302,20 +300,18 @@ func (e *Exchange) processTrades(incoming []byte) error {
 		return err
 	}
 
-	for _, a := range standardMarginAssetTypes {
-		if isAvailable, _ := e.CurrencyPairs.IsPairAvailable(data.CurrencyPair, a); isAvailable {
-			if err := e.Websocket.Trade.Update(saveTradeData, trade.Data{
-				Timestamp:    data.CreateTime.Time(),
-				CurrencyPair: data.CurrencyPair,
-				AssetType:    a,
-				Exchange:     e.Name,
-				Price:        data.Price.Float64(),
-				Amount:       data.Amount.Float64(),
-				Side:         side,
-				TID:          strconv.FormatInt(data.ID, 10),
-			}); err != nil {
-				return err
-			}
+	for _, a := range e.enabledStandardMarginAssetsForPair(data.CurrencyPair) {
+		if err := e.Websocket.Trade.Update(saveTradeData, trade.Data{
+			Timestamp:    data.CreateTime.Time(),
+			CurrencyPair: data.CurrencyPair,
+			AssetType:    a,
+			Exchange:     e.Name,
+			Price:        data.Price.Float64(),
+			Amount:       data.Amount.Float64(),
+			Side:         side,
+			TID:          strconv.FormatInt(data.ID, 10),
+		}); err != nil {
+			return err
 		}
 	}
 
@@ -341,23 +337,21 @@ func (e *Exchange) processCandlestick(ctx context.Context, incoming []byte) erro
 	}
 
 	out := make([]kline.Item, 0, len(standardMarginAssetTypes))
-	for _, a := range standardMarginAssetTypes {
-		if isAvailable, _ := e.CurrencyPairs.IsPairAvailable(currencyPair, a); isAvailable {
-			out = append(out, kline.Item{
-				Pair:     currencyPair,
-				Asset:    a,
-				Exchange: e.Name,
-				Interval: interval,
-				Candles: []kline.Candle{{
-					Time:   data.Timestamp.Time(),
-					Open:   data.OpenPrice.Float64(),
-					Close:  data.ClosePrice.Float64(),
-					High:   data.HighestPrice.Float64(),
-					Low:    data.LowestPrice.Float64(),
-					Volume: data.TotalVolume.Float64(),
-				}},
-			})
-		}
+	for _, a := range e.enabledStandardMarginAssetsForPair(currencyPair) {
+		out = append(out, kline.Item{
+			Pair:     currencyPair,
+			Asset:    a,
+			Exchange: e.Name,
+			Interval: interval,
+			Candles: []kline.Candle{{
+				Time:   data.Timestamp.Time(),
+				Open:   data.OpenPrice.Float64(),
+				Close:  data.ClosePrice.Float64(),
+				High:   data.HighestPrice.Float64(),
+				Low:    data.LowestPrice.Float64(),
+				Volume: data.TotalVolume.Float64(),
+			}},
+		})
 	}
 	return e.Websocket.DataHandler.Send(ctx, out)
 }
@@ -401,22 +395,34 @@ func (e *Exchange) processOrderbookSnapshot(incoming []byte, lastPushed time.Tim
 		return err
 	}
 
-	for _, a := range standardMarginAssetTypes {
-		if isAvailable, _ := e.CurrencyPairs.IsPairAvailable(data.CurrencyPair, a); isAvailable {
-			if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-				Exchange:    e.Name,
-				Pair:        data.CurrencyPair,
-				Asset:       a,
-				LastUpdated: data.UpdateTime.Time(),
-				LastPushed:  lastPushed,
-				Bids:        data.Bids.Levels(),
-				Asks:        data.Asks.Levels(),
-			}); err != nil {
-				return err
-			}
+	for _, a := range e.enabledStandardMarginAssetsForPair(data.CurrencyPair) {
+		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			Exchange:    e.Name,
+			Pair:        data.CurrencyPair,
+			Asset:       a,
+			LastUpdated: data.UpdateTime.Time(),
+			LastPushed:  lastPushed,
+			Bids:        data.Bids.Levels(),
+			Asks:        data.Asks.Levels(),
+		}); err != nil {
+			return err
 		}
 	}
 	return nil
+}
+
+// enabledStandardMarginAssetsForPair returns standard spot/margin asset types that are enabled for a pair.
+// This avoids fanning websocket updates into disabled asset stores, which increases memory usage with no consumer benefit.
+func (e *Exchange) enabledStandardMarginAssetsForPair(pair currency.Pair) []asset.Item {
+	out := make([]asset.Item, 0, len(standardMarginAssetTypes))
+	for _, a := range standardMarginAssetTypes {
+		isEnabled, _ := e.CurrencyPairs.IsPairEnabled(pair, a)
+		if !isEnabled {
+			continue
+		}
+		out = append(out, a)
+	}
+	return out
 }
 
 func (e *Exchange) processOrderbookUpdateWithSnapshot(ctx context.Context, conn websocket.Connection, incoming []byte, lastPushed time.Time, a asset.Item) error {

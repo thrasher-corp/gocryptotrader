@@ -2444,7 +2444,7 @@ func TestPushData(t *testing.T) {
 		return e.wsHandleData(ctx, nil, r)
 	})
 	e.Websocket.DataHandler.Close()
-	assert.GreaterOrEqual(t, len(e.Websocket.DataHandler.C), 44, "Should see expected number of messages")
+	assert.GreaterOrEqual(t, len(e.Websocket.DataHandler.C), 29, "Should see expected number of messages with enabled-only fan-out")
 	require.Len(t, fErrs, 1, "Must get exactly one error message")
 	assert.ErrorContains(t, fErrs[0].Err, "cannot save holdings: nil pointer: *accounts.Accounts")
 }
@@ -3100,6 +3100,17 @@ func TestProcessOrderbook(t *testing.T) {
 func TestProcessMarketSnapshot(t *testing.T) {
 	t.Parallel()
 	ku := testInstance(t)
+	expectedPairs := currency.Pairs{
+		currency.NewPairWithDelimiter("TRX", "BTC", "-"),
+		currency.NewPairWithDelimiter("ETH", "BTC", "-"),
+		currency.NewPairWithDelimiter("BTC", "USDT", "-"),
+	}
+	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+		require.NoError(t, ku.CurrencyPairs.StorePairs(a, expectedPairs, false), "StorePairs available must not error")
+		require.NoError(t, ku.CurrencyPairs.StorePairs(a, expectedPairs, true), "StorePairs enabled must not error")
+		require.NoError(t, ku.CurrencyPairs.SetAssetEnabled(a, true), "SetAssetEnabled must not error")
+	}
+
 	testexch.FixtureToDataHandler(t, "testdata/wsMarketSnapshot.json", func(ctx context.Context, b []byte) error { return ku.wsHandleData(ctx, nil, b) })
 	ku.Websocket.DataHandler.Close()
 

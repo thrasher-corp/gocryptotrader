@@ -1519,39 +1519,39 @@ func (o *orderbookManager) StopNeedsFetchingBook(pair currency.Pair, assetType a
 func (e *Exchange) CalculateAssets(topic string, cp currency.Pair) ([]asset.Item, error) {
 	switch {
 	case cp.Quote.Equal(currency.USDTM), strings.HasPrefix(topic, "/contract"):
-		futuresAvailable, err := e.IsPairAvailable(cp, asset.Futures)
+		futuresEnabled, err := e.IsPairEnabled(cp, asset.Futures)
 		if err != nil {
 			if errors.Is(err, currency.ErrCurrencyNotFound) {
 				return nil, nil
 			}
 			return nil, err
 		}
-		if !futuresAvailable {
+		if !futuresEnabled {
 			return nil, nil
 		}
 		return []asset.Item{asset.Futures}, nil
 	case strings.HasPrefix(topic, "/margin"), strings.HasPrefix(topic, "/index"):
-		marginAvailable, err := e.IsPairAvailable(cp, asset.Margin)
+		marginEnabled, err := e.IsPairEnabled(cp, asset.Margin)
 		if err != nil {
 			if errors.Is(err, currency.ErrCurrencyNotFound) {
 				return nil, nil
 			}
 			return nil, err
 		}
-		if !marginAvailable {
+		if !marginEnabled {
 			return nil, nil
 		}
 		return []asset.Item{asset.Margin}, nil
 	default:
 		resp := make([]asset.Item, 0, 2)
-		spotEnabled, err := e.IsPairAvailable(cp, asset.Spot)
+		spotEnabled, err := e.IsPairEnabled(cp, asset.Spot)
 		if err != nil && !errors.Is(err, currency.ErrCurrencyNotFound) {
 			return nil, err
 		}
 		if spotEnabled {
 			resp = append(resp, asset.Spot)
 		}
-		marginEnabled, err := e.IsPairAvailable(cp, asset.Margin)
+		marginEnabled, err := e.IsPairEnabled(cp, asset.Margin)
 		if err != nil && !errors.Is(err, currency.ErrCurrencyNotFound) {
 			return nil, err
 		}

@@ -124,17 +124,9 @@ func (e *Exchange) wsProcessTicker(ctx context.Context, resp *StandardWebsocketR
 				Ask:          wsTickers[i].Tickers[j].BestAsk.Float64(),
 				AskSize:      wsTickers[i].Tickers[j].BestAskQuantity.Float64(),
 			}
-			var errs error
 			for k := range symbolAliases {
-				if isAvailable, err := e.CurrencyPairs.IsPairAvailable(symbolAliases[k], asset.Spot); err != nil {
-					errs = common.AppendError(errs, err)
-					continue
-				} else if isAvailable {
+				if isEnabled, _ := e.CurrencyPairs.IsPairEnabled(symbolAliases[k], asset.Spot); isEnabled {
 					t.Pair = symbolAliases[k]
-					if err := ticker.ProcessTicker(&t); err != nil {
-						errs = common.AppendError(errs, err)
-						continue
-					}
 					allTickers = append(allTickers, t)
 				}
 			}
@@ -370,11 +362,11 @@ func (e *Exchange) ProcessSnapshot(snapshot *WebsocketOrderbookDataHolder, times
 		ValidateOrderbook: e.ValidateOrderbook,
 	}
 	for _, a := range e.pairAliases.GetAlias(snapshot.ProductID) {
-		isAvailable, err := e.IsPairAvailable(a, asset.Spot)
+		isEnabled, err := e.IsPairEnabled(a, asset.Spot)
 		if err != nil {
 			return err
 		}
-		if isAvailable {
+		if isEnabled {
 			book.Pair = a
 			if err := e.Websocket.Orderbook.LoadSnapshot(book); err != nil {
 				return err
@@ -398,11 +390,11 @@ func (e *Exchange) ProcessUpdate(update *WebsocketOrderbookDataHolder, timestamp
 		Asset:      asset.Spot,
 	}
 	for _, a := range e.pairAliases.GetAlias(update.ProductID) {
-		isAvailable, err := e.IsPairAvailable(a, asset.Spot)
+		isEnabled, err := e.IsPairEnabled(a, asset.Spot)
 		if err != nil {
 			return err
 		}
-		if isAvailable {
+		if isEnabled {
 			obU.Pair = a
 			if err := e.Websocket.Orderbook.Update(obU); err != nil {
 				return err

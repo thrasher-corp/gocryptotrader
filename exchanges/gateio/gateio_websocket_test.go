@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -307,4 +308,104 @@ func TestProcessOrderbookUpdateWithSnapshot(t *testing.T) {
 		}
 		require.NoError(t, err)
 	}
+}
+
+func TestEnabledStandardMarginAssetsForPair(t *testing.T) {
+	t.Parallel()
+
+	ex := setupExchangeWithSpotOnlyEnabledBTCUSDT(t)
+	pair := currency.NewPairWithDelimiter("BTC", "USDT", "_")
+
+	assets := ex.enabledStandardMarginAssetsForPair(pair)
+	require.Equal(t, []asset.Item{asset.Spot}, assets, "enabledStandardMarginAssetsForPair must only return spot when margin assets are disabled")
+
+	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Margin, true), "SetAssetEnabled must not error")
+	assets = ex.enabledStandardMarginAssetsForPair(pair)
+	require.Equal(t, []asset.Item{asset.Spot, asset.Margin}, assets, "enabledStandardMarginAssetsForPair must include margin after enabling margin")
+}
+
+func TestProcessTickerEnabledAssetsOnly(t *testing.T) {
+	t.Parallel()
+
+	ex := setupExchangeWithSpotOnlyEnabledBTCUSDT(t)
+	err := ex.processTicker(t.Context(), []byte(`{
+		"currency_pair":"BTC_USDT",
+		"last":"19106.55",
+		"lowest_ask":"19108.71",
+		"highest_bid":"19106.55",
+		"base_volume":"2811.3042155865",
+		"quote_volume":"53441606.52411221454674732293",
+		"high_24h":"19417.74",
+		"low_24h":"18434.21"
+	}`), time.Unix(1606291803, 0))
+	require.NoError(t, err, "processTicker must not error")
+
+	require.Len(t, ex.Websocket.DataHandler.C, 1, "websocket data handler must receive one ticker batch")
+	payload := <-ex.Websocket.DataHandler.C
+	tickerBatch, ok := payload.Data.([]ticker.Price)
+	require.True(t, ok, "expected []ticker.Price payload")
+	require.Len(t, tickerBatch, 1, "processTicker must only emit enabled spot asset data")
+	assert.Equal(t, asset.Spot, tickerBatch[0].AssetType, "processTicker should only emit spot when margin assets are disabled")
+}
+
+func TestProcessCandlestickEnabledAssetsOnly(t *testing.T) {
+	t.Parallel()
+
+	ex := setupExchangeWithSpotOnlyEnabledBTCUSDT(t)
+	err := ex.processCandlestick(t.Context(), []byte(`{
+		"t":"1606292580",
+		"v":"2362.32035",
+		"c":"19128.1",
+		"h":"19128.1",
+		"l":"19128.1",
+		"o":"19128.1",
+		"n":"1m_BTC_USDT"
+	}`))
+	require.NoError(t, err, "processCandlestick must not error")
+
+	require.Len(t, ex.Websocket.DataHandler.C, 1, "websocket data handler must receive one candle batch")
+	payload := <-ex.Websocket.DataHandler.C
+	candleBatch, ok := payload.Data.([]kline.Item)
+	require.True(t, ok, "expected []kline.Item payload")
+	require.Len(t, candleBatch, 1, "processCandlestick must only emit enabled spot asset data")
+	assert.Equal(t, asset.Spot, candleBatch[0].Asset, "processCandlestick should only emit spot when margin assets are disabled")
+}
+
+func TestProcessOrderbookSnapshotEnabledAssetsOnly(t *testing.T) {
+	t.Parallel()
+
+	ex := setupExchangeWithSpotOnlyEnabledBTCUSDT(t)
+	pair := currency.NewPairWithDelimiter("BTC", "USDT", "_")
+	err := ex.processOrderbookSnapshot([]byte(`{
+		"t":1606295412123,
+		"lastUpdateId":48791820,
+		"s":"BTC_USDT",
+		"bids":[["19079.55","0.0195"]],
+		"asks":[["19080.24","0.1638"]]
+	}`), time.Unix(1606295412, 0))
+	require.NoError(t, err, "processOrderbookSnapshot must not error")
+
+	_, err = ex.Websocket.Orderbook.LastUpdateID(pair, asset.Spot)
+	require.NoError(t, err, "spot orderbook must be updated")
+	_, err = ex.Websocket.Orderbook.LastUpdateID(pair, asset.Margin)
+	assert.ErrorIs(t, err, orderbook.ErrDepthNotFound, "margin orderbook should not be updated when margin is disabled")
+	_, err = ex.Websocket.Orderbook.LastUpdateID(pair, asset.CrossMargin)
+	assert.ErrorIs(t, err, orderbook.ErrDepthNotFound, "cross margin orderbook should not be updated when cross margin is disabled")
+}
+
+// setupExchangeWithSpotOnlyEnabledBTCUSDT returns a GateIO exchange where BTC_USDT is available for spot, margin and cross margin, but only spot is enabled.
+func setupExchangeWithSpotOnlyEnabledBTCUSDT(t *testing.T) *Exchange {
+	t.Helper()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	pair := currency.NewPairWithDelimiter("BTC", "USDT", "_")
+	for _, a := range standardMarginAssetTypes {
+		require.NoError(t, ex.CurrencyPairs.StorePairs(a, currency.Pairs{pair}, false), "StorePairs available must not error")
+		require.NoError(t, ex.CurrencyPairs.StorePairs(a, currency.Pairs{pair}, true), "StorePairs enabled must not error")
+	}
+	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Spot, true), "SetAssetEnabled must not error")
+	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Margin, false), "SetAssetEnabled must not error")
+	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.CrossMargin, false), "SetAssetEnabled must not error")
+	return ex
 }
