@@ -293,12 +293,12 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	var errs error
 	var validPairs currency.Pairs
 	for i := range aliases {
-		isAvailable, err := e.CurrencyPairs.IsPairAvailable(aliases[i], assetType)
+		isEnabled, err := e.CurrencyPairs.IsPairEnabled(aliases[i], assetType)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-		if isAvailable {
+		if isEnabled {
 			book.Pair = aliases[i]
 			if err := book.Process(); err != nil {
 				errs = common.AppendError(errs, err)
