@@ -243,7 +243,7 @@ func TestJSONBodyArrayRegression(t *testing.T) {
 
 	// Fixed behaviour: array payloads are matched via DeriveURLValsFromJSONSlice
 	// + MatchAndGetResponseJSONSlice.
-	reqVals, err := DeriveURLValsFromJSONSlice(arrayPayload)
+	reqVals, err := DeriveURLValsFromJSONArray(arrayPayload)
 	require.NoError(t, err)
 
 	mockData := []HTTPResponse{

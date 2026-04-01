@@ -170,7 +170,7 @@ func RegisterHandler(pattern string, mock map[string][]HTTPResponse, mux *http.S
 				var payload json.RawMessage
 				switch getJSONBodyShape(strings.TrimSpace(string(readBody))) {
 				case jsonBodyArray:
-					reqVals, err := DeriveURLValsFromJSONSlice(readBody)
+					reqVals, err := DeriveURLValsFromJSONArray(readBody)
 					if err != nil {
 						log.Fatalf("DeriveURLValsFromJSONSlice Mock Test Failure - %v", err)
 					}
@@ -208,7 +208,7 @@ func RegisterHandler(pattern string, mock map[string][]HTTPResponse, mux *http.S
 				var payload json.RawMessage
 				switch getJSONBodyShape(strings.TrimSpace(string(jsonThings))) {
 				case jsonBodyArray:
-					reqVals, err := DeriveURLValsFromJSONSlice(jsonThings)
+					reqVals, err := DeriveURLValsFromJSONArray(jsonThings)
 					if err != nil {
 						log.Fatalf("Mock Test Failure - %v", err)
 					}
@@ -283,7 +283,10 @@ func MatchAndGetResponse(mockData []HTTPResponse, requestVals url.Values, isQuer
 		}
 
 		mockVals := url.Values{}
-		if json.Valid([]byte(data)) {
+		if data != "" && json.Valid([]byte(data)) {
+			if getJSONBodyShape(data) != jsonBodyObject {
+				continue
+			}
 			dataMap := make(map[string]any)
 			if err := json.Unmarshal([]byte(data), &dataMap); err != nil {
 				return nil, err
@@ -334,7 +337,7 @@ func MatchAndGetResponseJSONSlice(mockData []HTTPResponse, requestVals []url.Val
 			continue
 		}
 
-		mockVals, err := DeriveURLValsFromJSONSlice([]byte(data))
+		mockVals, err := DeriveURLValsFromJSONArray([]byte(data))
 		if err != nil {
 			return nil, err
 		}

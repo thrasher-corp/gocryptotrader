@@ -192,12 +192,12 @@ func HTTPRecord(res *http.Response, service string, respContents []byte, mockDat
 						requestShape := getJSONBodyShape(trimmedRequestBody)
 						switch {
 						case storedShape == jsonBodyArray && requestShape == jsonBodyArray:
-							reqVals, jErr := DeriveURLValsFromJSONSlice([]byte(body))
+							reqVals, jErr := DeriveURLValsFromJSONArray([]byte(body))
 							if jErr != nil {
 								return jErr
 							}
 
-							mockVals, jErr := DeriveURLValsFromJSONSlice([]byte(mockResponses[i].BodyParams))
+							mockVals, jErr := DeriveURLValsFromJSONArray([]byte(mockResponses[i].BodyParams))
 							if jErr != nil {
 								return jErr
 							}
