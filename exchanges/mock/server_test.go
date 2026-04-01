@@ -2,9 +2,14 @@ package mock
 
 import (
 	"bytes"
+	"encoding/base64"
+	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -89,4 +94,166 @@ func TestNewVCRServer(t *testing.T) {
 	// clean up test.json file
 	err = os.Remove(testFile)
 	require.NoError(t, err, "Remove testFile must not error")
+}
+
+func TestRegisterHandlerArrayBodyMatching(t *testing.T) {
+	t.Parallel()
+
+	tcs := []struct {
+		name          string
+		contentType   string
+		requestBody   string
+		geminiPayload string
+	}{
+		{
+			name:        "application_json_array_body",
+			contentType: applicationJSON,
+			requestBody: `[{"coin":"btc","amount":1},{"coin":"eth","amount":2}]`,
+		},
+		{
+			name:          "text_plain_array_body",
+			contentType:   textPlain,
+			requestBody:   "",
+			geminiPayload: `[{"coin":"btc","amount":1},{"coin":"eth","amount":2}]`,
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			arrayPayload := `[{"coin":"btc","amount":1},{"coin":"eth","amount":2}]`
+			mux := http.NewServeMux()
+			RegisterHandler("/array-shape", map[string][]HTTPResponse{
+				http.MethodPost: {
+					{
+						Headers: http.Header{
+							contentType: {tc.contentType},
+						},
+						BodyParams: arrayPayload,
+						Data:       json.RawMessage(`{"match":"array"}`),
+					},
+				},
+			}, mux)
+
+			srv := httptest.NewServer(mux)
+			t.Cleanup(srv.Close)
+
+			req, err := http.NewRequestWithContext(t.Context(),
+				http.MethodPost,
+				srv.URL+"/array-shape",
+				strings.NewReader(tc.requestBody))
+			require.NoError(t, err)
+			req.Header.Set(contentType, tc.contentType)
+			if tc.geminiPayload != "" {
+				req.Header.Set("X-Gemini-Payload", base64.StdEncoding.EncodeToString([]byte(tc.geminiPayload)))
+			}
+
+			resp, err := srv.Client().Do(req)
+			require.NoError(t, err)
+			t.Cleanup(func() {
+				require.NoError(t, resp.Body.Close())
+			})
+			require.Equal(t, http.StatusOK, resp.StatusCode)
+
+			body, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+
+			got := map[string]string{}
+			err = json.Unmarshal(body, &got)
+			require.NoError(t, err)
+			assert.Equal(t, "array", got["match"])
+		})
+	}
+}
+
+func TestMatchAndGetResponseJSONSlice(t *testing.T) {
+	t.Parallel()
+
+	tcs := []struct {
+		name       string
+		mockBody   string
+		request    []url.Values
+		wantErr    bool
+		wantResult string
+	}{
+		{
+			name:     "match_array_payload",
+			mockBody: `[{"coin":"btc","amount":1},{"coin":"eth","amount":2}]`,
+			request: []url.Values{
+				{
+					"coin":   {"btc"},
+					"amount": {"1"},
+				},
+				{
+					"coin":   {"eth"},
+					"amount": {"2"},
+				},
+			},
+			wantResult: `{"match":"array"}`,
+		},
+		{
+			name:     "no_match_array_payload",
+			mockBody: `[{"coin":"btc","amount":1},{"coin":"eth","amount":2}]`,
+			request: []url.Values{
+				{
+					"coin":   {"btc"},
+					"amount": {"10"},
+				},
+				{
+					"coin":   {"eth"},
+					"amount": {"20"},
+				},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			mockData := []HTTPResponse{
+				{
+					BodyParams: tc.mockBody,
+					Data:       json.RawMessage(`{"match":"array"}`),
+				},
+			}
+
+			got, err := MatchAndGetResponseJSONSlice(mockData, tc.request, false)
+			if tc.wantErr {
+				require.ErrorIs(t, err, errNoDataMatched)
+				return
+			}
+			require.NoError(t, err)
+			assert.JSONEq(t, tc.wantResult, string(got))
+		})
+	}
+}
+
+func TestJSONBodyArrayRegression(t *testing.T) {
+	t.Parallel()
+
+	// Regression proof:
+	// Before the fix, playback attempted DeriveURLValsFromJSONMap for JSON body
+	// payloads, which fails for arrays.
+	arrayPayload := []byte(`[{"coin":"btc","amount":1},{"coin":"eth","amount":2}]`)
+	_, err := DeriveURLValsFromJSONMap(arrayPayload)
+	require.ErrorIs(t, err, errJSONMapPayloadMustBeObject)
+
+	// Fixed behaviour: array payloads are matched via DeriveURLValsFromJSONSlice
+	// + MatchAndGetResponseJSONSlice.
+	reqVals, err := DeriveURLValsFromJSONArray(arrayPayload)
+	require.NoError(t, err)
+
+	mockData := []HTTPResponse{
+		{
+			BodyParams: string(arrayPayload),
+			Data:       json.RawMessage(`{"match":"array"}`),
+		},
+	}
+
+	got, err := MatchAndGetResponseJSONSlice(mockData, reqVals, false)
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"match":"array"}`, string(got))
 }

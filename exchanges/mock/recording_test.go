@@ -1,6 +1,8 @@
 package mock
 
 import (
+	"bytes"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -37,27 +39,64 @@ func TestGetFilteredURLVals(t *testing.T) {
 	assert.NotContains(t, cleanVals, superSecretData, "exclusion real_name should be removed")
 }
 
-func TestCheckResponsePayload(t *testing.T) {
-	testbody := struct {
-		SomeJSON string `json:"stuff"`
-	}{
-		SomeJSON: "REAAAAHHHHH",
-	}
+type checkclass struct {
+	Counter int     `json:"counter,omitempty"`
+	Numbers []int   `json:"numbers,omitempty"`
+	Number  float64 `json:"number,omitempty"`
+	Name    string  `json:"name,omitempty"`
+}
 
-	payload, err := json.Marshal(testbody)
-	require.NoError(t, err, "json marshal must not error")
+func TestCheckResponsePayload(t *testing.T) {
+	type someJSON struct {
+		Secret      string      `json:"secret,omitempty"`
+		Data        checkclass  `json:"data"`
+		DataPointer *checkclass `json:"datapointer,omitempty"`
+		Login       int         `json:"login,omitempty"`
+		IsEvenNum   bool        `json:"pass,omitempty"`
+		Balance     float64     `json:"bsb,omitempty"`
+		RealName    string      `json:"real_name,omitempty"`
+	}
+	inputs := []struct {
+		in  any
+		exp []byte
+		err error
+	}{
+		{
+			in: []someJSON{
+				{
+					Secret: "REAAAAHHHHH",
+					Data: checkclass{
+						Name: "the-super-secret-name",
+					},
+				},
+				{},
+			}, exp: []byte("[\n {\n  \"data\": {\n   \"name\": \"\"\n  },\n  \"secret\": \"\"\n },\n {\n  \"data\": {}\n }\n]"),
+		},
+		{
+			in: someJSON{}, exp: []byte("{\n \"data\": {}\n}"),
+		},
+		{in: []*string{}, exp: []byte(`[]`)},
+		{in: someJSON{
+			Secret:    "",
+			Login:     1234,
+			IsEvenNum: true,
+			Balance:   1234.56,
+			RealName:  "sam",
+		}, exp: []byte("{\n \"bsb\": 0,\n \"data\": {},\n \"login\": 0,\n \"pass\": true,\n \"real_name\": \"\"\n}")},
+	}
 
 	items, err := getExcludedItems()
 	require.NoError(t, err, "getExcludedItems must not error")
 	assert.NotNil(t, items, "getExcludedItems should not return nil")
 
-	data, err := CheckResponsePayload(payload, items, 5)
-	assert.NoError(t, err, "CheckResponsePayload should not error")
+	for i := range inputs {
+		payload, err := json.Marshal(inputs[i].in)
+		require.NoError(t, err, "json marshal must not error")
 
-	expected := `{
- "stuff": "REAAAAHHHHH"
-}`
-	assert.Equal(t, expected, string(data))
+		data, err := CheckResponsePayload(payload, items, 5)
+		assert.NoError(t, err, "CheckResponsePayload should not error")
+		assert.Equal(t, inputs[i].exp, data)
+	}
 }
 
 func TestGetExcludedItems(t *testing.T) {
@@ -174,9 +213,13 @@ func TestCheckJSON(t *testing.T) {
 func TestHTTPRecord(t *testing.T) {
 	t.Parallel()
 
-	service := "mock"
+	service := "mockhttprecord"
+	serviceDir := filepath.Join("..", service)
 	outputDirPath := filepath.Join("..", service, "testdata")
-	err := os.Mkdir(outputDirPath, 0o755)
+	err := os.RemoveAll(serviceDir)
+	require.NoError(t, err)
+
+	err = os.MkdirAll(outputDirPath, 0o755)
 	require.NoError(t, err)
 
 	filePath := filepath.Join(outputDirPath, "http.json")
@@ -187,20 +230,70 @@ func TestHTTPRecord(t *testing.T) {
 	require.NoError(t, err, "file not created properly")
 
 	defer func() {
-		require.NoErrorf(t, os.Remove(filePath), "Remove test exclusion file %q must not error", filePath)
-		require.NoErrorf(t, os.Remove(outputDirPath), "Remove test exclusion dir %q must not error", outputDirPath)
+		require.NoErrorf(t, os.RemoveAll(serviceDir), "Remove test exclusion dir %q must not error", serviceDir)
 	}()
 
 	content, err := json.Marshal(testVal)
 	require.NoError(t, err, "Marshal must not error")
 	require.NotNil(t, content, "Marshal must not return nil")
 
-	response := &http.Response{
-		Request: &http.Request{
-			Method: http.MethodGet,
-			URL:    &url.URL{},
-		},
+	makeResponse := func(method, rawURL string, body []byte) *http.Response {
+		parsed, parseErr := url.Parse(rawURL)
+		require.NoError(t, parseErr)
+		resp := &http.Response{
+			Body: io.NopCloser(bytes.NewReader(nil)),
+			Request: &http.Request{
+				Method: method,
+				URL:    parsed,
+			},
+		}
+		if body != nil {
+			resp.Request.Header = map[string][]string{
+				contentType: {applicationJSON},
+			}
+			resp.Request.Body = io.NopCloser(bytes.NewReader(body))
+			resp.Request.GetBody = func() (io.ReadCloser, error) {
+				return io.NopCloser(bytes.NewReader(body)), nil
+			}
+		}
+		return resp
 	}
-	err = HTTPRecord(response, "mock", content, 4)
+	callRecord := func(method, rawURL string, body []byte) error {
+		resp := makeResponse(method, rawURL, body)
+		defer func() {
+			require.NoError(t, resp.Body.Close())
+		}()
+		return HTTPRecord(resp, service, content, 4)
+	}
+
+	assertRouteMethodLen := func(path, method string, expected int) {
+		finalPayload, readErr := os.ReadFile(filePath)
+		require.NoError(t, readErr, "Read final mock file must not error")
+		var finalMock VCRMock
+		readErr = json.Unmarshal(finalPayload, &finalMock)
+		require.NoError(t, readErr, "Unmarshal final mock file must not error")
+		require.Contains(t, finalMock.Routes, path)
+		assert.Len(t, finalMock.Routes[path][method], expected)
+	}
+
+	// Base GET entry for route initialization coverage.
+	err = callRecord(http.MethodGet, "https://api.abc.com/test/base", nil)
+	require.NoError(t, err)
+
+	// For write methods, repeated same request should overwrite existing record.
+	for _, method := range []string{http.MethodPost, http.MethodDelete, http.MethodPut} {
+		for range 2 {
+			err = callRecord(method, "https://api.abc.com/test/payload", content)
+			require.NoError(t, err, "HTTPRecord must not error")
+		}
+		assertRouteMethodLen("/test/payload", method, 1)
+	}
+
+	// Shape mismatch should return an explicit error.
+	err = callRecord(http.MethodPost, "https://api.abc.com/test/mismatch", content)
 	require.NoError(t, err, "HTTPRecord must not error")
+	objectBody := []byte(`{"foo":"bar"}`)
+	err = callRecord(http.MethodPost, "https://api.abc.com/test/mismatch", objectBody)
+	require.ErrorIs(t, err, errMismatchedJSONBodyShape)
+	assertRouteMethodLen("/test/mismatch", http.MethodPost, 1)
 }

@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -32,6 +33,7 @@ const (
 // error declarations
 var (
 	errJSONMockFilePathRequired = errors.New("no path to json mock file found")
+	errNoDataMatched            = errors.New("no data could be matched")
 )
 
 // VCRMock defines the main mock JSON file and attributes
@@ -165,14 +167,28 @@ func RegisterHandler(pattern string, mock map[string][]HTTPResponse, mux *http.S
 					log.Fatalf("Mock Test Failure - %v", err)
 				}
 
-				reqVals, err := DeriveURLValsFromJSONMap(readBody)
-				if err != nil {
-					log.Fatalf("DeriveURLValsFromJSONMap Mock Test Failure - %v", err)
-				}
+				var payload json.RawMessage
+				switch getJSONBodyShape(strings.TrimSpace(string(readBody))) {
+				case jsonBodyArray:
+					reqVals, err := DeriveURLValsFromJSONArray(readBody)
+					if err != nil {
+						log.Fatalf("DeriveURLValsFromJSONSlice Mock Test Failure - %v", err)
+					}
 
-				payload, err := MatchAndGetResponse(httpResponses, reqVals, false)
-				if err != nil {
-					log.Fatal("Mock Test Failure - MatchAndGetResponse error ", err)
+					payload, err = MatchAndGetResponseJSONSlice(httpResponses, reqVals, false)
+					if err != nil {
+						log.Fatal("Mock Test Failure - MatchAndGetResponseJSONSlice error ", err)
+					}
+				default:
+					reqVals, err := DeriveURLValsFromJSONMap(readBody)
+					if err != nil {
+						log.Fatalf("DeriveURLValsFromJSONMap Mock Test Failure - %v", err)
+					}
+
+					payload, err = MatchAndGetResponse(httpResponses, reqVals, false)
+					if err != nil {
+						log.Fatal("Mock Test Failure - MatchAndGetResponse error ", err)
+					}
 				}
 
 				MessageWriteJSON(w, http.StatusOK, payload)
@@ -189,14 +205,28 @@ func RegisterHandler(pattern string, mock map[string][]HTTPResponse, mux *http.S
 					log.Fatal("Mock Test Failure - ", err)
 				}
 
-				reqVals, err := DeriveURLValsFromJSONMap(jsonThings)
-				if err != nil {
-					log.Fatalf("Mock Test Failure - %v", err)
-				}
+				var payload json.RawMessage
+				switch getJSONBodyShape(strings.TrimSpace(string(jsonThings))) {
+				case jsonBodyArray:
+					reqVals, err := DeriveURLValsFromJSONArray(jsonThings)
+					if err != nil {
+						log.Fatalf("Mock Test Failure - %v", err)
+					}
 
-				payload, err := MatchAndGetResponse(httpResponses, reqVals, false)
-				if err != nil {
-					log.Fatal("Mock Test Failure - MatchAndGetResponse error ", err)
+					payload, err = MatchAndGetResponseJSONSlice(httpResponses, reqVals, false)
+					if err != nil {
+						log.Fatal("Mock Test Failure - MatchAndGetResponseJSONSlice error ", err)
+					}
+				default:
+					reqVals, err := DeriveURLValsFromJSONMap(jsonThings)
+					if err != nil {
+						log.Fatalf("Mock Test Failure - %v", err)
+					}
+
+					payload, err = MatchAndGetResponse(httpResponses, reqVals, false)
+					if err != nil {
+						log.Fatal("Mock Test Failure - MatchAndGetResponse error ", err)
+					}
 				}
 
 				MessageWriteJSON(w, http.StatusOK, payload)
@@ -253,7 +283,10 @@ func MatchAndGetResponse(mockData []HTTPResponse, requestVals url.Values, isQuer
 		}
 
 		mockVals := url.Values{}
-		if json.Valid([]byte(data)) {
+		if data != "" && json.Valid([]byte(data)) {
+			if getJSONBodyShape(data) != jsonBodyObject {
+				continue
+			}
 			dataMap := make(map[string]any)
 			if err := json.Unmarshal([]byte(data), &dataMap); err != nil {
 				return nil, err
@@ -286,5 +319,33 @@ func MatchAndGetResponse(mockData []HTTPResponse, requestVals url.Values, isQuer
 			return mockData[i].Data, nil
 		}
 	}
-	return nil, errors.New("no data could be matched")
+	return nil, errNoDataMatched
+}
+
+// MatchAndGetResponseJSONSlice matches incoming request values against array
+// based body params from the mock data and returns the payload.
+func MatchAndGetResponseJSONSlice(mockData []HTTPResponse, requestVals []url.Values, isQueryData bool) (json.RawMessage, error) {
+	for i := range mockData {
+		var data string
+		if isQueryData {
+			data = mockData[i].QueryString
+		} else {
+			data = mockData[i].BodyParams
+		}
+
+		if !json.Valid([]byte(data)) || getJSONBodyShape(strings.TrimSpace(data)) != jsonBodyArray {
+			continue
+		}
+
+		mockVals, err := DeriveURLValsFromJSONArray([]byte(data))
+		if err != nil {
+			return nil, err
+		}
+
+		if slices.EqualFunc(mockVals, requestVals, MatchURLVals) {
+			return mockData[i].Data, nil
+		}
+	}
+
+	return nil, errNoDataMatched
 }
