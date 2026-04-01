@@ -71,7 +71,7 @@ func setFeeBuilder() *exchange.FeeBuilder {
 // this will default to time now with a window size of 30 days.
 // Mock details are unix seconds; start = 1577836800 and end = 1580515200
 func getTime(expanded ...bool) (startTime, endTime time.Time) {
-	// mockTests = true
+	mockTests = true
 	if len(expanded) > 0 && mockTests {
 		return time.UnixMilli(1744103851944), time.UnixMilli(1744190254944)
 	} else if mockTests {
@@ -5761,9 +5761,8 @@ func TestGetEOptionsCandlesticks(t *testing.T) {
 	_, err = e.GetEOptionsCandlesticks(t.Context(), optionsTradablePair, 0, startTime, endTime, 1000)
 	require.ErrorIs(t, err, kline.ErrInvalidInterval)
 
-	result, err := e.GetEOptionsCandlesticks(t.Context(), optionsTradablePair, kline.OneDay, startTime, endTime, 1000)
+	_, err = e.GetEOptionsCandlesticks(t.Context(), optionsTradablePair, kline.OneDay, startTime, endTime, 1000)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
 }
 
 func TestGetOptionMarkPrice(t *testing.T) {

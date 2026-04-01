@@ -85,6 +85,12 @@ func (e *Exchange) GetEOptionsCandlesticks(ctx context.Context, symbol currency.
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
 	var resp []*EOptionsCandlestick
 	return resp, e.SendHTTPRequest(ctx, exchange.RestOptions, common.EncodeURLValues("/eapi/v1/klines", params), optionsDefaultRate, &resp)
 }
