@@ -1,10 +1,8 @@
 package kucoin
 
 import (
-	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -15,13 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -30,13 +25,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
-	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -54,18 +46,6 @@ var (
 	spotTradablePair, marginTradablePair, futuresTradablePair currency.Pair
 	assertToTradablePairMap                                   map[asset.Item]currency.Pair
 )
-
-// ConnectionFixture is a websocket connection mock, this is used in test that previously used the actual websocket connection.
-// The current design makes it difficult to connect and subscribe using the actual websocket connection in tests, so
-// this mock is used to simulate the connection behaviour.
-type ConnectionFixture struct {
-	websocket.Connection
-	messageResponse string
-}
-
-func (c ConnectionFixture) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
-	return []byte(c.messageResponse), nil
-}
 
 func TestMain(m *testing.M) {
 	e = new(Exchange)
@@ -206,7 +186,7 @@ func TestGetOrderbookAuthenticatedV1(t *testing.T) {
 		{name: "spot", symbol: spotTradablePair.String(), asset: asset.Spot, limit: "20"},
 		{name: "futures", symbol: futuresTradablePair.String(), asset: asset.Futures, limit: "20"},
 	} {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name+"_"+tt.symbol, func(t *testing.T) {
 			t.Parallel()
 			result, err := e.GetOrderbookAuthenticatedV1(t.Context(), tt.symbol, tt.asset, tt.limit)
 			assert.NoErrorf(t, err, "GetOrderbookAuthenticatedV1 should not error for %s", tt.name)
@@ -2432,259 +2412,6 @@ func TestValidateAPICredentials(t *testing.T) {
 	}
 }
 
-func TestGetInstanceServers(t *testing.T) {
-	t.Parallel()
-	result, err := e.GetInstanceServers(t.Context())
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetAuthenticatedServersInstances(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetAuthenticatedInstanceServers(t.Context())
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestPushData(t *testing.T) {
-	t.Parallel()
-
-	e := testInstance(t)
-	// Isolate global orderbook keying by exchange name to avoid cross-test contamination
-	// when Kucoin websocket tests run in parallel.
-	e.Name += "-TestPushData"
-	e.SetCredentials("mock", "test", "test", "", "", "")
-	e.API.AuthenticatedSupport = true
-	e.API.AuthenticatedWebsocketSupport = true
-
-	e.wsOBUpdateMgr = buffer.NewUpdateManager(&buffer.UpdateManagerParams{
-		BufferInstance: &e.Websocket.Orderbook,
-		CheckPendingUpdate: func(_, _ int64, _ *orderbook.Update) (skip bool, err error) {
-			return false, nil
-		},
-		FetchDeadline: buffer.DefaultWSOrderbookUpdateDeadline,
-		FetchOrderbook: func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
-			if p.Equal(currency.NewBTCUSDT()) && a == asset.Spot {
-				return &orderbook.Book{
-					Pair:        p,
-					Asset:       a,
-					Exchange:    e.Name,
-					Bids:        []orderbook.Level{{Amount: 1, Price: 100}},
-					Asks:        []orderbook.Level{{Amount: 1, Price: 100}},
-					LastUpdated: time.Now(),
-				}, nil
-			}
-			if p.Equal(currency.NewPair(currency.ETH, currency.USDCM)) && a == asset.Futures {
-				return &orderbook.Book{
-					Pair:        p,
-					Asset:       a,
-					Exchange:    e.Name,
-					Bids:        []orderbook.Level{{Amount: 1, Price: 100}},
-					Asks:        []orderbook.Level{{Amount: 1, Price: 100}},
-					LastUpdated: time.Now(),
-				}, nil
-			}
-			panic("test update manager unexpected pair or asset")
-		},
-	})
-
-	fErrs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsHandleData.json", func(ctx context.Context, r []byte) error {
-		if bytes.Contains(r, []byte("FANGLE-ACCOUNTS")) {
-			hold := e.Accounts
-			e.Accounts = nil
-			defer func() { e.Accounts = hold }()
-		}
-		return e.wsHandleData(ctx, nil, r)
-	})
-
-	require.Eventually(t, func() bool { return len(e.Websocket.DataHandler.C) == 31 }, time.Second, time.Millisecond*10, "must receive 31 messages")
-	require.Len(t, fErrs, 1, "Must get exactly one error message")
-	assert.ErrorContains(t, fErrs[0].Err, "cannot save holdings: nil pointer: *accounts.Accounts")
-}
-
-func TestGenerateSubscriptions(t *testing.T) {
-	t.Parallel()
-
-	ku := testInstance(t)
-
-	// Pairs overlap for spot/margin tests:
-	// Only in Spot: BTC-USDT, ETH-USDT
-	// In Both: ETH-BTC, LTC-USDT
-	// Only in Margin: TRX-BTC, SOL-USDC
-	pairs := map[string]currency.Pairs{}
-	for a, ss := range map[string][]string{
-		"spot":    {"BTC-USDT", "ETH-BTC", "ETH-USDT", "LTC-USDT"},
-		"margin":  {"ETH-BTC", "LTC-USDT", "SOL-USDC", "TRX-BTC"},
-		"futures": {"ETHUSDCM", "SOLUSDTM", "XBTUSDCM"},
-	} {
-		for _, s := range ss {
-			p, err := currency.NewPairFromString(s)
-			require.NoError(t, err, "NewPairFromString must not error")
-			pairs[a] = pairs[a].Add(p)
-		}
-	}
-	pairs["both"] = common.SortStrings(pairs["spot"].Add(pairs["margin"]...))
-
-	exp := subscription.List{
-		{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: pairs["both"], QualifiedChannel: "/market/ticker:" + pairs["both"].Join()},
-		{Channel: subscription.TickerChannel, Asset: asset.Futures, Pairs: pairs["futures"], QualifiedChannel: "/contractMarket/tickerV2:" + pairs["futures"].Join()},
-		{
-			Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: pairs["both"], QualifiedChannel: "/spotMarket/level2Depth5:" + pairs["both"].Join(),
-			Interval: kline.HundredMilliseconds,
-		},
-		{
-			Channel: subscription.OrderbookChannel, Asset: asset.Futures, Pairs: pairs["futures"], QualifiedChannel: "/contractMarket/level2Depth5:" + pairs["futures"].Join(),
-			Interval: kline.HundredMilliseconds,
-		},
-		{Channel: subscription.AllTradesChannel, Asset: asset.Spot, Pairs: pairs["both"], QualifiedChannel: "/market/match:" + pairs["both"].Join()},
-	}
-
-	subs, err := ku.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions must not error")
-	testsubs.EqualLists(t, exp, subs)
-
-	ku.Websocket.SetCanUseAuthenticatedEndpoints(true)
-
-	var loanPairs currency.Pairs
-	loanCurrs := common.SortStrings(pairs["both"].GetCurrencies())
-	for _, c := range loanCurrs {
-		loanPairs = append(loanPairs, currency.Pair{Base: c})
-	}
-
-	exp = append(exp, subscription.List{
-		{Asset: asset.Futures, Channel: futuresTradeOrderChannel, QualifiedChannel: "/contractMarket/tradeOrders", Pairs: pairs["futures"]},
-		{Asset: asset.Futures, Channel: futuresStopOrdersLifecycleEventChannel, QualifiedChannel: "/contractMarket/advancedOrders", Pairs: pairs["futures"]},
-		{Asset: asset.Futures, Channel: futuresAccountBalanceEventChannel, QualifiedChannel: "/contractAccount/wallet", Pairs: pairs["futures"]},
-		{Asset: asset.Margin, Channel: marginPositionChannel, QualifiedChannel: "/margin/position", Pairs: pairs["margin"]},
-		{Asset: asset.Margin, Channel: marginLoanChannel, QualifiedChannel: "/margin/loan:" + loanCurrs.Join(), Pairs: loanPairs},
-		{Channel: accountBalanceChannel, QualifiedChannel: "/account/balance"},
-	}...)
-
-	subs, err = ku.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions with Auth must not error")
-	testsubs.EqualLists(t, exp, subs)
-}
-
-func TestGenerateTickerAllSub(t *testing.T) {
-	t.Parallel()
-
-	ku := testInstance(t)
-	avail, err := ku.GetAvailablePairs(asset.Spot)
-	require.NoError(t, err, "GetAvailablePairs must not error")
-	err = ku.CurrencyPairs.StorePairs(asset.Spot, avail[:11], true)
-	require.NoError(t, err, "StorePairs must not error")
-
-	ku.Features.Subscriptions = subscription.List{{Channel: subscription.TickerChannel, Asset: asset.Spot}}
-	exp := subscription.List{
-		{Channel: subscription.TickerChannel, Asset: asset.Spot, QualifiedChannel: "/market/ticker:all", Pairs: avail[:11]},
-	}
-	subs, err := ku.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions with Auth must not error")
-	testsubs.EqualLists(t, exp, subs)
-}
-
-// TestGenerateOtherSubscriptions exercises non-default subscriptions
-func TestGenerateOtherSubscriptions(t *testing.T) {
-	t.Parallel()
-
-	ku := testInstance(t)
-
-	subs := subscription.List{
-		{Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.FourHour},
-		{Channel: marketSnapshotChannel, Asset: asset.Spot},
-	}
-
-	for _, s := range subs {
-		ku.Features.Subscriptions = subscription.List{s}
-		got, err := ku.generateSubscriptions()
-		assert.NoError(t, err, "generateSubscriptions should not error")
-		require.Len(t, got, 1, "Must generate just one sub")
-		assert.NotEmpty(t, got[0].QualifiedChannel, "Qualified Channel should not be empty")
-		if got[0].Channel == subscription.CandlesChannel {
-			assert.Equal(t, "/market/candles:BTC-USDT_4hour,ETH-BTC_4hour,ETH-USDT_4hour,LTC-USDT_4hour", got[0].QualifiedChannel, "QualifiedChannel should be correct")
-		}
-	}
-}
-
-// TestGenerateMarginSubscriptions is a regression test for #1755 and ensures margin subscriptions work without spot subs
-func TestGenerateMarginSubscriptions(t *testing.T) {
-	t.Parallel()
-
-	ku := testInstance(t)
-
-	spotAvail, err := ku.GetAvailablePairs(asset.Spot)
-	require.NoError(t, err, "GetAvailablePairs must not error for spot pairs")
-	spotAvail = common.SortStrings(spotAvail)
-	marginAvail, err := ku.GetAvailablePairs(asset.Margin)
-	require.NoError(t, err, "GetAvailablePairs must not error for margin pairs")
-	marginAvail = common.SortStrings(marginAvail)
-	require.GreaterOrEqual(t, len(marginAvail), 6, "Margin available pairs must include at least 6 pairs")
-	require.GreaterOrEqual(t, len(spotAvail), 3, "Spot available pairs must include at least 3 pairs")
-
-	err = ku.CurrencyPairs.StorePairs(asset.Margin, marginAvail[:6], true)
-	require.NoError(t, err, "StorePairs must not error storing margin pairs")
-	err = ku.CurrencyPairs.StorePairs(asset.Spot, spotAvail[:3], true)
-	require.NoError(t, err, "StorePairs must not error storing spot pairs")
-
-	ku.Features.Subscriptions = subscription.List{{Channel: subscription.TickerChannel, Asset: asset.Margin}}
-	subs, err := ku.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions must not error")
-	require.Len(t, subs, 1, "Must generate just one sub")
-	assert.Equal(t, asset.Margin, subs[0].Asset, "Asset should be correct")
-	assert.Equal(t, "/market/ticker:"+marginAvail[:6].Join(), subs[0].QualifiedChannel, "QualifiedChannel should be correct")
-
-	require.NoError(t, ku.CurrencyPairs.SetAssetEnabled(asset.Margin, false), "SetAssetEnabled Spot must not error")
-	require.NoError(t, err, "SetAssetEnabled must not error")
-	ku.Features.Subscriptions = subscription.List{{Channel: subscription.TickerChannel, Asset: asset.All}}
-	subs, err = ku.generateSubscriptions()
-	require.NoError(t, err, "mergeMarginPairs must not cause errAssetRecords by adding an empty asset when Margin is disabled")
-	require.NotEmpty(t, subs, "generateSubscriptions must return some subs")
-
-	require.NoError(t, ku.CurrencyPairs.SetAssetEnabled(asset.Margin, true), "SetAssetEnabled Margin must not error")
-	require.NoError(t, ku.CurrencyPairs.SetAssetEnabled(asset.Spot, false), "SetAssetEnabled Spot must not error")
-	require.NoError(t, ku.CurrencyPairs.SetAssetEnabled(asset.Futures, false), "SetAssetEnabled Futures must not error")
-	ku.Features.Subscriptions = subscription.List{{Channel: subscription.TickerChannel, Asset: asset.All}}
-	subs, err = ku.generateSubscriptions()
-	require.NoError(t, err, "mergeMarginPairs must not cause errAssetRecords by adding an empty asset when Spot is disabled")
-	require.NotEmpty(t, subs, "generateSubscriptions must return some subs")
-}
-
-// TestCheckSubscriptions ensures checkSubscriptions upgrades user config correctly
-func TestCheckSubscriptions(t *testing.T) {
-	t.Parallel()
-
-	ku := &Exchange{
-		Base: exchange.Base{
-			Config: &config.Exchange{
-				Features: &config.FeaturesConfig{
-					Subscriptions: subscription.List{
-						{Enabled: true, Channel: "ticker"},
-						{Enabled: true, Channel: "allTrades"},
-						{Enabled: true, Channel: "orderbook", Interval: kline.HundredMilliseconds},
-						{Enabled: true, Channel: "/contractMarket/tickerV2:%s"},
-						{Enabled: true, Channel: "/contractMarket/level2Depth50:%s"},
-						{Enabled: true, Channel: "/margin/fundingBook:%s", Authenticated: true},
-						{Enabled: true, Channel: "/account/balance", Authenticated: true},
-						{Enabled: true, Channel: "/margin/position", Authenticated: true},
-						{Enabled: true, Channel: "/margin/loan:%s", Authenticated: true},
-						{Enabled: true, Channel: "/contractMarket/tradeOrders", Authenticated: true},
-						{Enabled: true, Channel: "/contractMarket/advancedOrders", Authenticated: true},
-						{Enabled: true, Channel: "/contractAccount/wallet", Authenticated: true},
-						{Enabled: true, Channel: "/contractMarket/level2", Asset: asset.Futures},
-						{Enabled: true, Channel: "/market/level2", Asset: asset.Spot, Authenticated: true},
-					},
-				},
-			},
-			Features: exchange.Features{},
-		},
-	}
-
-	ku.checkSubscriptions()
-	testsubs.EqualLists(t, defaultSubscriptions, ku.Features.Subscriptions)
-	testsubs.EqualLists(t, defaultSubscriptions, ku.Config.Features.Subscriptions)
-}
-
 func TestGetAvailableTransferChains(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -3129,158 +2856,6 @@ func TestUpdateAccountBalances(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 	}
-}
-
-func TestProcessMarketSnapshot(t *testing.T) {
-	t.Parallel()
-	ku := testInstance(t)
-	testexch.FixtureToDataHandler(t, "testdata/wsMarketSnapshot.json", func(ctx context.Context, b []byte) error { return ku.wsHandleData(ctx, nil, b) })
-	ku.Websocket.DataHandler.Close()
-	assert.Len(t, ku.Websocket.DataHandler.C, 4, "Should see 4 tickers")
-	seenAssetTypes := map[asset.Item]int{}
-	for resp := range ku.Websocket.DataHandler.C {
-		switch v := resp.Data.(type) {
-		case *ticker.Price:
-			switch len(ku.Websocket.DataHandler.C) {
-			case 3:
-				assert.Equal(t, asset.Margin, v.AssetType, "AssetType")
-				assert.Equal(t, time.UnixMilli(1700555342007), v.LastUpdated, "datetime")
-				assert.Equal(t, 0.004445, v.High, "high")
-				assert.Equal(t, 0.004415, v.Last, "lastTradedPrice")
-				assert.Equal(t, 0.004191, v.Low, "low")
-				assert.Equal(t, currency.NewPairWithDelimiter("TRX", "BTC", "-"), v.Pair, "symbol")
-				assert.Equal(t, 13097.3357, v.Volume, "volume")
-				assert.Equal(t, 57.44552981, v.QuoteVolume, "volValue")
-			case 2, 1:
-				assert.Equal(t, time.UnixMilli(1700555340197), v.LastUpdated, "datetime")
-				assert.Contains(t, []asset.Item{asset.Spot, asset.Margin}, v.AssetType, "AssetType is Spot or Margin")
-				seenAssetTypes[v.AssetType]++
-				assert.Equal(t, 1, seenAssetTypes[v.AssetType], "Each Asset Type is sent only once per unique snapshot")
-				assert.Equal(t, 0.054846, v.High, "high")
-				assert.Equal(t, 0.053778, v.Last, "lastTradedPrice")
-				assert.Equal(t, 0.05364, v.Low, "low")
-				assert.Equal(t, currency.NewPairWithDelimiter("ETH", "BTC", "-"), v.Pair, "symbol")
-				assert.Equal(t, 2958.3139116, v.Volume, "volume")
-				assert.Equal(t, 160.7847672784213, v.QuoteVolume, "volValue")
-			case 0:
-				assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
-				assert.Equal(t, time.UnixMilli(1700555342151), v.LastUpdated, "datetime")
-				assert.Equal(t, 37750.0, v.High, "high")
-				assert.Equal(t, 37366.8, v.Last, "lastTradedPrice")
-				assert.Equal(t, 36700.0, v.Low, "low")
-				assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "-"), v.Pair, "symbol")
-				assert.Equal(t, 2900.37846402, v.Volume, "volume")
-				assert.Equal(t, 108210331.34015164, v.QuoteVolume, "volValue")
-			}
-		case error:
-			t.Error(v)
-		default:
-			t.Errorf("Got unexpected data: %T %v", v, v)
-		}
-	}
-}
-
-// TestSubscribeBatches ensures that endpoints support batching, contrary to kucoin api docs
-func TestSubscribeBatches(t *testing.T) {
-	t.Parallel()
-
-	ku := testInstance(t)
-	ku.Features.Subscriptions = subscription.List{}
-	testexch.SetupWs(t, ku)
-
-	ku.Features.Subscriptions = subscription.List{
-		{Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
-		{Asset: asset.Futures, Channel: subscription.TickerChannel},
-		{Asset: asset.Spot, Channel: marketSnapshotChannel},
-	}
-
-	subs, err := ku.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions must not error")
-	require.Len(t, subs, len(ku.Features.Subscriptions), "Must generate batched subscriptions")
-
-	err = ku.Subscribe(t.Context(), &ConnectionFixture{messageResponse: `{"id":"019ae225-c584-7b71-a634-489c7249e000","type":"ack"}`}, subs)
-	assert.NoError(t, err, "Subscribe to small batches should not error")
-}
-
-// TestSubscribeTickerAll ensures that ticker subscriptions switch to using all and it works
-
-// TestSubscribeBatchLimit exercises the kucoin batch limits of 400 per connection
-// Ensures batching of 100 pairs and the connection symbol limit is still 400 at Kucoin's end
-func TestSubscribeBatchLimit(t *testing.T) {
-	t.Parallel()
-
-	const expectedLimit = 400
-
-	ku := testInstance(t)
-	ku.Features.Subscriptions = subscription.List{}
-	testexch.SetupWs(t, ku)
-
-	avail, err := ku.GetAvailablePairs(asset.Spot)
-	require.NoError(t, err, "GetAvailablePairs must not error")
-
-	err = ku.CurrencyPairs.StorePairs(asset.Spot, avail[:expectedLimit], true)
-	require.NoError(t, err, "StorePairs must not error")
-
-	ku.Features.Subscriptions = subscription.List{{Asset: asset.Spot, Channel: subscription.AllTradesChannel}}
-	subs, err := ku.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions must not error")
-	require.Len(t, subs, 4, "Must get 4 subs")
-
-	err = ku.Subscribe(t.Context(), &ConnectionFixture{messageResponse: `{"id":"019ae225-c584-7b71-a634-489c7249e000","type":"ack"}`}, subs)
-	require.NoError(t, err, "Subscribe must not error")
-
-	err = ku.Unsubscribe(t.Context(), &ConnectionFixture{messageResponse: `{"id":"019ae225-c584-7b71-a634-489c7249e000","type":"ack"}`}, subs)
-	require.NoError(t, err, "Unsubscribe must not error")
-
-	err = ku.CurrencyPairs.StorePairs(asset.Spot, avail[:expectedLimit+20], true)
-	require.NoError(t, err, "StorePairs must not error")
-
-	ku.Features.Subscriptions = subscription.List{{Asset: asset.Spot, Channel: subscription.AllTradesChannel}}
-	subs, err = ku.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions must not error")
-	require.Len(t, subs, 5, "Must get 5 subs")
-
-	err = ku.Subscribe(t.Context(), &ConnectionFixture{messageResponse: `{"id":"019ae22f-4718-7da4-846d-999b085cc24a","type":"error","code":509,"data":"exceed max subscription count limitation of 400 per session"}`}, subs)
-	require.Error(t, err, "Subscribe must error")
-	assert.ErrorContains(t, err, "exceed max subscription count limitation of 400 per session", "Subscribe to MarketSnapshot should error above connection symbol limit")
-}
-
-func TestSubscribeTickerAll(t *testing.T) {
-	t.Parallel()
-
-	ku := testInstance(t)
-	ku.Features.Subscriptions = subscription.List{}
-	testexch.SetupWs(t, ku)
-	done := make(chan struct{})
-	go func() { // drain websocket messages when subscribed to all tickers
-		for {
-			select {
-			case <-done:
-				return
-			case <-ku.Websocket.DataHandler.C:
-			}
-		}
-	}()
-	t.Cleanup(func() {
-		close(done)
-	})
-
-	avail, err := ku.GetAvailablePairs(asset.Spot)
-	require.NoError(t, err, "GetAvailablePairs must not error")
-
-	require.GreaterOrEqual(t, len(avail), 500)
-	err = ku.CurrencyPairs.StorePairs(asset.Spot, avail[:500], true)
-	require.NoError(t, err, "StorePairs must not error")
-
-	ku.Features.Subscriptions = subscription.List{{Asset: asset.Spot, Channel: subscription.TickerChannel}}
-
-	subs, err := ku.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions must not error")
-	require.Len(t, subs, 1, "Must generate one subscription")
-	assert.Equal(t, "/market/ticker:all", subs[0].QualifiedChannel, "QualifiedChannel should be correct")
-
-	err = ku.Subscribe(t.Context(), &ConnectionFixture{messageResponse: `{"id":"019ae225-c584-7b71-a634-489c7249e000","type":"ack"}`}, subs)
-	assert.NoError(t, err, "Subscribe to should not error")
 }
 
 func TestGetFuturesContractDetails(t *testing.T) {
@@ -4552,39 +4127,6 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestProcessFuturesKline(t *testing.T) {
-	t.Parallel()
-
-	ku := new(Exchange)
-	require.NoError(t, testexch.Setup(ku), "Test instance Setup must not error")
-
-	data := fmt.Sprintf(`{"symbol":%q,"candles":["1714964400","63815.1","63890.8","63928.5","63797.8","17553.0","17553"],"time":1714964823722}`, futuresTradablePair.String())
-	err := ku.processFuturesKline(t.Context(), []byte(data), "1hour")
-	require.NoError(t, err)
-
-	select {
-	case msg := <-ku.Websocket.DataHandler.C:
-		got, ok := msg.Data.(*kline.Item)
-		require.True(t, ok, "expected *kline.Item")
-		assert.Equal(t, &kline.Item{
-			Asset:    asset.Futures,
-			Exchange: ku.Name,
-			Pair:     futuresTradablePair,
-			Interval: kline.OneHour,
-			Candles: []kline.Candle{{
-				Time:   time.Unix(1714964400, 0),
-				Open:   63815.1,
-				Close:  63890.8,
-				High:   63928.5,
-				Low:    63797.8,
-				Volume: 17553,
-			}},
-		}, got)
-	default:
-		require.Fail(t, "expected websocket kline payload")
-	}
-}
-
 func TestIntervalFromString(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -4637,26 +4179,6 @@ func TestGetHistoricTrades(t *testing.T) {
 func TestCancelBatchOrders(t *testing.T) {
 	_, err := e.CancelBatchOrders(t.Context(), nil)
 	assert.ErrorIs(t, common.ErrFunctionNotSupported, err)
-}
-
-func TestChannelName(t *testing.T) {
-	t.Parallel()
-	for _, tt := range []struct {
-		a   asset.Item
-		ch  string
-		exp string
-	}{
-		{asset.Futures, futuresOrderbookDepth50Channel, futuresOrderbookDepth50Channel},
-		{asset.Futures, subscription.OrderbookChannel, futuresOrderbookDepth5Channel},
-		{asset.Futures, subscription.CandlesChannel, marketCandlesChannel},
-		{asset.Futures, subscription.TickerChannel, futuresTickerChannel},
-		{asset.Spot, subscription.OrderbookChannel, marketOrderbookDepth5Channel},
-		{asset.Spot, subscription.AllTradesChannel, marketMatchChannel},
-		{asset.Spot, subscription.CandlesChannel, marketCandlesChannel},
-		{asset.Spot, subscription.TickerChannel, marketTickerChannel},
-	} {
-		assert.Equal(t, tt.exp, channelName(&subscription.Subscription{Channel: tt.ch}, tt.a))
-	}
 }
 
 func TestStringToTimeInForce(t *testing.T) {

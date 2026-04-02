@@ -3,7 +3,6 @@ package buffer
 import (
 	"context"
 	"errors"
-	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -29,7 +28,6 @@ func newTestParams() UpdateManagerParams {
 }
 
 func fetchOrderbookMock(_ context.Context, pair currency.Pair, a asset.Item) (*orderbook.Book, error) {
-	fmt.Println("fetchOrderbookMock called with pair:", pair, "asset:", a)
 	return &orderbook.Book{
 		Exchange:     "TestExchange",
 		Pair:         pair,

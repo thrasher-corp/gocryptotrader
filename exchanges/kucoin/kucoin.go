@@ -170,7 +170,12 @@ func (e *Exchange) GetOrderbookAuthenticatedV1(ctx context.Context, symbol strin
 	if err := e.SendAuthHTTPRequest(ctx, exchange.RestSpot, spotFuturesOrderbookV1EPL, http.MethodGet, common.EncodeURLValues("/ua/v1/market/orderbook", params), nil, &o); err != nil {
 		return nil, err
 	}
-	return &Orderbook{Asks: o.Asks, Bids: o.Bids, Time: time.Now(), Sequence: o.Sequence.Int64()}, nil
+	lastUpdated := o.Time.Time()
+	// Time does not come back in certain authenticated V1 responses, so fall back to now.
+	if lastUpdated.IsZero() {
+		lastUpdated = time.Now()
+	}
+	return &Orderbook{Asks: o.Asks, Bids: o.Bids, Time: lastUpdated, Sequence: o.Sequence.Int64()}, nil
 }
 
 // GetTradeHistory gets trade history of the specified pair
