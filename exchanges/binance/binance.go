@@ -2158,10 +2158,6 @@ func (e *Exchange) WithdrawHistory(ctx context.Context, c currency.Code, status 
 		}
 	}
 	params := url.Values{}
-	if !c.IsEmpty() {
-		params.Set("coin", c.String())
-	}
-
 	if status != "" {
 		i, err := strconv.Atoi(status)
 		if err != nil {
@@ -2175,7 +2171,9 @@ func (e *Exchange) WithdrawHistory(ctx context.Context, c currency.Code, status 
 		}
 		params.Set("status", status)
 	}
-
+	if !c.IsEmpty() {
+		params.Set("coin", c.String())
+	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
 	}
@@ -7749,7 +7747,7 @@ func (e *Exchange) CustomiseIDForClientToReferredUser(ctx context.Context, custo
 		return nil, fmt.Errorf("%w: customerID is required", order.ErrOrderIDNotSet)
 	}
 	if brokerID == "" {
-		return nil, fmt.Errorf("%w: brokerID is required", order.ErrOrderIDNotSet)
+		return nil, errInvalidBrokerID
 	}
 	params := url.Values{}
 	params.Set("customerId", customerID)

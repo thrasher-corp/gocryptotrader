@@ -123,6 +123,7 @@ var (
 	errCommissionValueRequired      = errors.New("commission value is required")
 	errAPIKeyNameRequired           = errors.New("api key name required")
 	errRewardTypeMissing            = errors.New("reward type is required")
+	errInvalidBrokerID              = errors.New("missing brokerID")
 )
 
 var subscriptionCycleList = []string{"H1", "H4", "H8", "H12", "WEEKLY", "DAILY", "MONTHLY", "BI_WEEKLY"}
