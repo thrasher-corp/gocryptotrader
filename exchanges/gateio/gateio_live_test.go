@@ -28,13 +28,9 @@ func TestMain(m *testing.M) {
 		e.API.AuthenticatedWebsocketSupport = true
 		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
 	}
-	// if err := e.populateTradablePairs(); err != nil {
-	// 	log.Fatal(err)
-	// }
-	if err := e.enablePairs(); err != nil {
+	if err := e.populateTradablePairs(); err != nil {
 		log.Fatal(err)
 	}
-	e.HTTPRecording = true
 	os.Exit(m.Run())
 }
 

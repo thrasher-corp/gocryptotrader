@@ -380,13 +380,11 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		if err != nil {
 			return nil, err
 		}
-		// println("fPair: ", fPair.String(), " underlying: ", underlying.String())
 		tickers, err := e.GetOptionsTickers(ctx, underlying.String())
 		if err != nil {
 			return nil, err
 		}
 		for _, tkr := range tickers {
-			println("tkr.Name: ", tkr.Name.String(), "fPair: ", fPair.String())
 			if !tkr.Name.Equal(fPair) {
 				continue
 			}
@@ -441,9 +439,6 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 		return pairs, nil
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
-		if a == asset.USDTMarginedFutures {
-			e.Verbose = true
-		}
 		settle, err := getSettlementCurrency(currency.EMPTYPAIR, a)
 		if err != nil {
 			return nil, err
@@ -454,10 +449,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 		pairs := make([]currency.Pair, 0, len(contracts))
 		for _, fContract := range contracts {
-			if a == asset.CoinMarginedFutures {
-				println("fContract.Name: ", fContract.Name.String())
-			}
-			if fContract.Name.IsEmpty() {
+			if fContract.Name.IsEmpty() || (fContract.Type == "inverse" && a != asset.CoinMarginedFutures) || (fContract.Type == "linear" && a != asset.USDTMarginedFutures) {
 				continue
 			}
 			pairs = append(pairs, fContract.Name)
@@ -473,9 +465,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 			if deliveryContract.InDelisting || deliveryContract.Name == "" {
 				continue
 			}
-			p := strings.ToUpper(deliveryContract.Name)
-			println("p: ", p)
-			cp, err := currency.NewPairFromString(p)
+			cp, err := currency.NewPairFromString(strings.ToUpper(deliveryContract.Name))
 			if err != nil {
 				return nil, err
 			}
