@@ -84,7 +84,6 @@ func getTime(expanded ...bool) (startTime, endTime time.Time) {
 
 func TestUServerTime(t *testing.T) {
 	t.Parallel()
-	e.Verbose = true
 	result, err := e.UServerTime(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1761,7 +1760,6 @@ func TestGetTickerData(t *testing.T) {
 	_, err := e.GetTickerData(t.Context(), []currency.Pair{}, time.Minute*20, "FULL")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty)
 
-	e.Verbose = true
 	result, err := e.GetTickerData(t.Context(), []currency.Pair{spotTradablePair}, time.Minute*20, "FULL")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -3773,7 +3771,6 @@ func TestFetchCoinMarginExchangeLimits(t *testing.T) {
 
 func TestSetExchangeOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	e.Verbose = true
 	assetTypes := e.GetAssetTypes(true)
 	for a := range assetTypes {
 		err := e.UpdateOrderExecutionLimits(t.Context(), assetTypes[a])
@@ -4994,10 +4991,10 @@ func TestGetWsSymbolOrderbookTicker(t *testing.T) {
 
 func TestGetQuerySessionStatus(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	if mockTests {
 		t.SkipNow()
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	testexch.SetupWs(t, e)
 	if !e.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
@@ -5009,10 +5006,10 @@ func TestGetQuerySessionStatus(t *testing.T) {
 
 func TestGetLogOutOfSession(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	if mockTests {
 		t.SkipNow()
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	testexch.SetupWs(t, e)
 	if !e.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
@@ -5086,10 +5083,10 @@ func TestValidatePlaceNewOrderRequest(t *testing.T) {
 
 func TestWsQueryOrder(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	if mockTests {
 		t.SkipNow()
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	testexch.SetupWs(t, e)
 	if !e.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
@@ -5217,10 +5214,10 @@ func TestWsQueryOCOOrder(t *testing.T) {
 	_, err := e.WsQueryOCOOrder("", 0, 0)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	if mockTests {
 		t.SkipNow()
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	testexch.SetupWs(t, e)
 	if !e.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
@@ -5254,10 +5251,10 @@ func TestWsCancelOCOOrder(t *testing.T) {
 
 func TestWsCurrentOpenOCOOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	if mockTests {
 		t.SkipNow()
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	testexch.SetupWs(t, e)
 	if !e.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
@@ -5357,10 +5354,10 @@ func TestSortingTest(t *testing.T) {
 
 func TestGetAccountInformation(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	if mockTests {
 		t.SkipNow()
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	testexch.SetupWs(t, e)
 	if !e.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
@@ -5372,10 +5369,10 @@ func TestGetAccountInformation(t *testing.T) {
 
 func TestWsQueryAccountOrderRateLimits(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	if mockTests {
 		t.SkipNow()
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	testexch.SetupWs(t, e)
 	if !e.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
@@ -5393,10 +5390,10 @@ func TestWsQueryAccountOrderHistory(t *testing.T) {
 	_, err = e.WsQueryAccountOrderHistory(&AccountOrderRequestParam{Limit: 5})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	if mockTests {
 		t.SkipNow()
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	testexch.SetupWs(t, e)
 	if !e.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
@@ -5417,10 +5414,10 @@ func TestWsQueryAccountOCOOrderHistory(t *testing.T) {
 	_, err := e.WsQueryAccountOCOOrderHistory(0, 0, 0, endTime, startTime)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	if mockTests {
 		t.SkipNow()
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	testexch.SetupWs(t, e)
 	if !e.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
@@ -5438,10 +5435,10 @@ func TestWsAccountTradeHistory(t *testing.T) {
 	_, err = e.WsAccountTradeHistory(&AccountOrderRequestParam{OrderID: 1234})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	if mockTests {
 		t.SkipNow()
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	testexch.SetupWs(t, e)
 	if !e.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
@@ -5459,10 +5456,10 @@ func TestWsAccountPreventedMatches(t *testing.T) {
 	_, err = e.WsAccountPreventedMatches(spotTradablePair, 0, 0, 0, 0, 0)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	if mockTests {
 		t.SkipNow()
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	testexch.SetupWs(t, e)
 	if !e.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
@@ -5477,10 +5474,10 @@ func TestWsAccountAllocation(t *testing.T) {
 	_, err := e.WsAccountAllocation(currency.EMPTYPAIR, time.Time{}, time.Now(), 0, 0, 0, 19)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	if mockTests {
 		t.SkipNow()
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	testexch.SetupWs(t, e)
 	if !e.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
@@ -5495,10 +5492,10 @@ func TestWsAccountCommissionRates(t *testing.T) {
 	_, err := e.WsAccountCommissionRates(currency.EMPTYPAIR)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	if mockTests {
 		t.SkipNow()
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	testexch.SetupWs(t, e)
 	if !e.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
@@ -5510,10 +5507,10 @@ func TestWsAccountCommissionRates(t *testing.T) {
 
 func TestWsStartUserDataStream(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	if mockTests {
 		t.SkipNow()
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	testexch.SetupWs(t, e)
 	if !e.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
@@ -5528,10 +5525,10 @@ func TestWsPingUserDataStream(t *testing.T) {
 	err := e.WsPingUserDataStream("")
 	require.ErrorIs(t, err, errListenKeyIsRequired)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	if mockTests {
 		t.SkipNow()
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	testexch.SetupWs(t, e)
 	if !e.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
@@ -5545,7 +5542,6 @@ func TestWsStopUserDataStream(t *testing.T) {
 	err := e.WsStopUserDataStream("")
 	require.ErrorIs(t, err, errListenKeyIsRequired)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	if mockTests {
 		t.SkipNow()
 	}
@@ -5553,6 +5549,7 @@ func TestWsStopUserDataStream(t *testing.T) {
 	if !e.IsAPIStreamConnected() {
 		t.Skip(apiStreamingIsNotConnected)
 	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	err = e.WsStopUserDataStream("xs0mRXdAKlIPDRFrlPcw0qI41Eh3ixNntmymGyhrhgqo7L6FuLaWArTD7RLP")
 	require.NoError(t, err)
 }
@@ -5595,6 +5592,10 @@ func TestGetDailyAccountSnapshot(t *testing.T) {
 	_, err := e.GetDailyAccountSnapshot(t.Context(), "", time.Time{}, time.Now(), 0)
 	require.ErrorIs(t, err, asset.ErrInvalidAsset)
 
+	startTime, endTime := getTime()
+	_, err = e.GetDailyAccountSnapshot(t.Context(), "SPOT", endTime, startTime, 0)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetDailyAccountSnapshot(t.Context(), "SPOT", time.Time{}, time.Now(), 0)
 	require.NoError(t, err)
@@ -5633,6 +5634,10 @@ func TestGetAccountTradingAPIStatus(t *testing.T) {
 
 func TestGetDustLog(t *testing.T) {
 	t.Parallel()
+	startTime, endTime := getTime()
+	_, err := e.GetDustLog(t.Context(), "MARGIN", endTime, startTime)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetDustLog(t.Context(), "MARGIN", time.Time{}, time.Now())
 	require.NoError(t, err)
@@ -5896,14 +5901,22 @@ func TestGetEOptionsCandlesticks(t *testing.T) {
 
 func TestGetOptionMarkPrice(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetOptionMarkPrice(t.Context(), optionsTradablePair)
+	result, err := e.GetOptionMarkPrice(t.Context(), currency.EMPTYPAIR)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = e.GetOptionMarkPrice(t.Context(), optionsTradablePair)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestGetEOptions24hrTickerPriceChangeStatistics(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetEOptions24hrTickerPriceChangeStatistics(t.Context(), optionsTradablePair)
+	result, err := e.GetEOptions24hrTickerPriceChangeStatistics(t.Context(), currency.EMPTYPAIR)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = e.GetEOptions24hrTickerPriceChangeStatistics(t.Context(), optionsTradablePair)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

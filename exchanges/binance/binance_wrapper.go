@@ -3346,6 +3346,9 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 
 // GetAvailableTransferChains returns the available transfer blockchains for the specific cryptocurrency
 func (e *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
+	if cryptocurrency.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
 	coinInfo, err := e.GetAllCoinsInfo(ctx)
 	if err != nil {
 		return nil, err
@@ -3358,6 +3361,9 @@ func (e *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrenc
 				availableChains = append(availableChains, coinInfo[x].NetworkList[y].Network)
 			}
 		}
+	}
+	if len(availableChains) == 0 {
+		return nil, fmt.Errorf("%w no available chains for %v", currency.ErrCurrencyNotFound, cryptocurrency)
 	}
 	return availableChains, nil
 }
