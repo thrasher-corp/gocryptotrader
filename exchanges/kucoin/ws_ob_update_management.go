@@ -58,7 +58,6 @@ func checkPendingUpdate(sequenceEndOld, sequenceStartNew int64, update *orderboo
 	for i := range update.Bids {
 		if update.Bids[i].ID >= target {
 			bids = append(bids, update.Bids[i])
-			continue
 		}
 	}
 	update.Bids = bids
@@ -66,7 +65,6 @@ func checkPendingUpdate(sequenceEndOld, sequenceStartNew int64, update *orderboo
 	for i := range update.Asks {
 		if update.Asks[i].ID >= target {
 			asks = append(asks, update.Asks[i])
-			continue
 		}
 	}
 	update.Asks = asks

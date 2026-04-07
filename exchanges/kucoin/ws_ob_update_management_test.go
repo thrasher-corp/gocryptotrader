@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -23,6 +24,16 @@ func TestFetchWSOrderbookSnapshot(t *testing.T) {
 	xbtusdtm := currency.NewPair(currency.XBT, currency.USDTM)
 	_, err = e.fetchWSOrderbookSnapshot(t.Context(), xbtusdtm, asset.FutureCombo)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
+
+	t.Run("orderbook_error", func(t *testing.T) {
+		noCredentialsExchange := new(Exchange)
+		require.NoError(t, testexch.Setup(noCredentialsExchange), "Setup must not error")
+		noCredentialsExchange.API.AuthenticatedSupport = true
+
+		got, err := noCredentialsExchange.fetchWSOrderbookSnapshot(t.Context(), currency.NewBTCUSDT(), asset.Spot)
+		require.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty, "must return the authenticated orderbook error")
+		assert.Nil(t, got, "snapshot should be nil when the authenticated orderbook fetch fails")
+	})
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	got, err := e.fetchWSOrderbookSnapshot(t.Context(), currency.NewBTCUSDT(), asset.Spot)
