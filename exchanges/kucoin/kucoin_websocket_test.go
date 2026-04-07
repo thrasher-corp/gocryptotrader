@@ -751,6 +751,7 @@ func TestManageSubscriptions(t *testing.T) {
 	}
 
 	t.Run("error_paths", func(t *testing.T) {
+		t.Parallel()
 		t.Run("send_message", func(t *testing.T) {
 			t.Parallel()
 			ku := testInstance(t)
