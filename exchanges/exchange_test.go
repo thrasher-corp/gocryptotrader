@@ -1445,7 +1445,7 @@ func TestVerifyKlineParameters(t *testing.T) {
 
 	assert.ErrorIs(t, b.verifyKlineParameters(availablePairs[0], asset.Index, kline.OneYear), currency.ErrAssetNotFound)
 	assert.ErrorIs(t, b.verifyKlineParameters(currency.EMPTYPAIR, asset.Spot, kline.OneMin), currency.ErrCurrencyPairEmpty)
-	assert.ErrorIs(t, b.verifyKlineParameters(availablePairs[1], asset.Spot, kline.OneYear), currency.ErrPairNotEnabled)
+	assert.ErrorIs(t, b.verifyKlineParameters(availablePairs[1], asset.Spot, kline.OneYear), kline.ErrInvalidInterval)
 	assert.ErrorIs(t, b.verifyKlineParameters(availablePairs[0], asset.Spot, kline.OneYear), kline.ErrInvalidInterval)
 	assert.NoError(t, b.verifyKlineParameters(availablePairs[0], asset.Spot, kline.OneMin), "verifyKlineParameters should not error")
 }
@@ -2379,10 +2379,10 @@ func TestMatchSymbolCheckEnabled(t *testing.T) {
 	_, _, err = b.MatchSymbolCheckEnabled("sillBillies", asset.Futures, false)
 	require.ErrorIs(t, err, currency.ErrPairNotFound)
 
-	whatIGot, enabled, err := b.MatchSymbolCheckEnabled("btcusdT", asset.Spot, false)
+	whatIGot, isEnabled, err := b.MatchSymbolCheckEnabled("btcusdT", asset.Spot, false)
 	require.NoError(t, err)
 
-	if !enabled {
+	if !isEnabled {
 		t.Fatal("expected true")
 	}
 
@@ -2390,25 +2390,25 @@ func TestMatchSymbolCheckEnabled(t *testing.T) {
 		t.Fatalf("received: '%v' but expected: '%v'", whatIGot, whatIWant)
 	}
 
-	whatIGot, enabled, err = b.MatchSymbolCheckEnabled("btc-usdT", asset.Spot, true)
+	whatIGot, isEnabled, err = b.MatchSymbolCheckEnabled("btc-usdT", asset.Spot, true)
 	require.NoError(t, err)
 
 	if !whatIGot.Equal(whatIWant) {
 		t.Fatalf("received: '%v' but expected: '%v'", whatIGot, whatIWant)
 	}
 
-	if !enabled {
+	if !isEnabled {
 		t.Fatal("expected true")
 	}
 
-	whatIGot, enabled, err = b.MatchSymbolCheckEnabled("btc-AUD", asset.Spot, true)
+	whatIGot, isEnabled, err = b.MatchSymbolCheckEnabled("btc-AUD", asset.Spot, true)
 	require.NoError(t, err)
 
 	if !whatIGot.Equal(availButNoEnabled) {
 		t.Fatalf("received: '%v' but expected: '%v'", whatIGot, whatIWant)
 	}
 
-	if enabled {
+	if isEnabled {
 		t.Fatal("expected false")
 	}
 }
@@ -2447,6 +2447,89 @@ func TestIsPairEnabled(t *testing.T) {
 	if !enabled {
 		t.Fatal("expected true")
 	}
+}
+
+func TestIsPairAvailable(t *testing.T) {
+	t.Parallel()
+	b := Base{Name: "test"}
+	availablePair := currency.NewBTCUSDT()
+	notAvailablePair := currency.NewPair(currency.BTC, currency.AUD)
+	err := b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+		AssetEnabled: true,
+		Available:    []currency.Pair{availablePair},
+		Enabled:      []currency.Pair{availablePair},
+	})
+	require.NoError(t, err)
+
+	testCases := []struct {
+		name        string
+		pair        currency.Pair
+		assetType   asset.Item
+		expected    bool
+		expectedErr error
+	}{
+		{
+			name:      "available pair",
+			pair:      availablePair,
+			assetType: asset.Spot,
+			expected:  true,
+		},
+		{
+			name:      "pair not available",
+			pair:      notAvailablePair,
+			assetType: asset.Spot,
+			expected:  false,
+		},
+		{
+			name:        "invalid asset",
+			pair:        availablePair,
+			assetType:   asset.Item(1337),
+			expectedErr: asset.ErrNotSupported,
+		},
+		{
+			name:        "empty pair",
+			pair:        currency.EMPTYPAIR,
+			assetType:   asset.Spot,
+			expectedErr: currency.ErrCurrencyPairEmpty,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := b.IsPairAvailable(tc.pair, tc.assetType)
+			if tc.expectedErr != nil {
+				assert.ErrorIs(t, err, tc.expectedErr)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, got)
+		})
+	}
+}
+
+func TestIsAssetAvailable(t *testing.T) {
+	t.Parallel()
+	b := Base{Name: "test"}
+	err := b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
+		AssetEnabled: true,
+		Available:    []currency.Pair{currency.NewBTCUSDT()},
+		Enabled:      []currency.Pair{currency.NewBTCUSDT()},
+	})
+	require.NoError(t, err, "Store must not error")
+
+	err = b.IsAssetAvailable(asset.Spot)
+	require.NoError(t, err, "IsAssetAvailable must not error for configured assets")
+
+	err = b.IsAssetAvailable(asset.Item(1337))
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "IsAssetAvailable should error for invalid assets")
+
+	err = b.IsAssetAvailable(asset.Margin)
+	assert.ErrorIs(t, err, currency.ErrAssetNotFound, "IsAssetAvailable should error when no pair store exists for the asset")
+
+	b.CurrencyPairs.Pairs = nil
+	err = b.IsAssetAvailable(asset.Spot)
+	assert.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "IsAssetAvailable should error when pair manager is not initialised")
 }
 
 func TestGetOpenInterest(t *testing.T) {

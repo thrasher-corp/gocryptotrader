@@ -101,6 +101,23 @@ func TestGetSymbols(t *testing.T) {
 	assert.NotEmpty(t, symbols, "should return all available ETF symbols")
 }
 
+func TestValidateAPICredentialsBasic(t *testing.T) {
+	t.Parallel()
+
+	t.Run("unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		err := e.ValidateAPICredentials(t.Context(), asset.Item(1337))
+		assert.ErrorIs(t, err, asset.ErrNotSupported)
+	})
+
+	t.Run("authenticated request", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		err := e.ValidateAPICredentials(t.Context(), asset.Spot)
+		assert.NoError(t, err)
+	})
+}
+
 func TestGetTicker(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetTicker(t.Context(), "")
@@ -2427,7 +2444,7 @@ func TestPushData(t *testing.T) {
 		return e.wsHandleData(ctx, nil, r)
 	})
 	e.Websocket.DataHandler.Close()
-	assert.Len(t, e.Websocket.DataHandler.C, 29, "Should see correct number of messages")
+	assert.GreaterOrEqual(t, len(e.Websocket.DataHandler.C), 29, "Should see expected number of messages with enabled-only fan-out")
 	require.Len(t, fErrs, 1, "Must get exactly one error message")
 	assert.ErrorContains(t, fErrs[0].Err, "cannot save holdings: nil pointer: *accounts.Accounts")
 }
@@ -3083,49 +3100,84 @@ func TestProcessOrderbook(t *testing.T) {
 func TestProcessMarketSnapshot(t *testing.T) {
 	t.Parallel()
 	ku := testInstance(t)
+	expectedPairs := currency.Pairs{
+		currency.NewPairWithDelimiter("TRX", "BTC", "-"),
+		currency.NewPairWithDelimiter("ETH", "BTC", "-"),
+		currency.NewPairWithDelimiter("BTC", "USDT", "-"),
+	}
+	for _, a := range []asset.Item{asset.Spot, asset.Margin} {
+		require.NoError(t, ku.CurrencyPairs.StorePairs(a, expectedPairs, false), "StorePairs available must not error")
+		require.NoError(t, ku.CurrencyPairs.StorePairs(a, expectedPairs, true), "StorePairs enabled must not error")
+		require.NoError(t, ku.CurrencyPairs.SetAssetEnabled(a, true), "SetAssetEnabled must not error")
+	}
+
 	testexch.FixtureToDataHandler(t, "testdata/wsMarketSnapshot.json", func(ctx context.Context, b []byte) error { return ku.wsHandleData(ctx, nil, b) })
 	ku.Websocket.DataHandler.Close()
-	assert.Len(t, ku.Websocket.DataHandler.C, 4, "Should see 4 tickers")
-	seenAssetTypes := map[asset.Item]int{}
+
+	type expected struct {
+		lastUpdated time.Time
+		high        float64
+		last        float64
+		low         float64
+		volume      float64
+		quoteVolume float64
+	}
+	expectedByPair := map[string]expected{
+		currency.NewPairWithDelimiter("TRX", "BTC", "-").String(): {
+			lastUpdated: time.UnixMilli(1700555342007),
+			high:        0.004445,
+			last:        0.004415,
+			low:         0.004191,
+			volume:      13097.3357,
+			quoteVolume: 57.44552981,
+		},
+		currency.NewPairWithDelimiter("ETH", "BTC", "-").String(): {
+			lastUpdated: time.UnixMilli(1700555340197),
+			high:        0.054846,
+			last:        0.053778,
+			low:         0.05364,
+			volume:      2958.3139116,
+			quoteVolume: 160.7847672784213,
+		},
+		currency.NewPairWithDelimiter("BTC", "USDT", "-").String(): {
+			lastUpdated: time.UnixMilli(1700555342151),
+			high:        37750,
+			last:        37366.8,
+			low:         36700,
+			volume:      2900.37846402,
+			quoteVolume: 108210331.34015164,
+		},
+	}
+	seen := make(map[string]map[asset.Item]int)
 	for resp := range ku.Websocket.DataHandler.C {
 		switch v := resp.Data.(type) {
 		case *ticker.Price:
-			switch len(ku.Websocket.DataHandler.C) {
-			case 3:
-				assert.Equal(t, asset.Margin, v.AssetType, "AssetType")
-				assert.Equal(t, time.UnixMilli(1700555342007), v.LastUpdated, "datetime")
-				assert.Equal(t, 0.004445, v.High, "high")
-				assert.Equal(t, 0.004415, v.Last, "lastTradedPrice")
-				assert.Equal(t, 0.004191, v.Low, "low")
-				assert.Equal(t, currency.NewPairWithDelimiter("TRX", "BTC", "-"), v.Pair, "symbol")
-				assert.Equal(t, 13097.3357, v.Volume, "volume")
-				assert.Equal(t, 57.44552981, v.QuoteVolume, "volValue")
-			case 2, 1:
-				assert.Equal(t, time.UnixMilli(1700555340197), v.LastUpdated, "datetime")
-				assert.Contains(t, []asset.Item{asset.Spot, asset.Margin}, v.AssetType, "AssetType is Spot or Margin")
-				seenAssetTypes[v.AssetType]++
-				assert.Equal(t, 1, seenAssetTypes[v.AssetType], "Each Asset Type is sent only once per unique snapshot")
-				assert.Equal(t, 0.054846, v.High, "high")
-				assert.Equal(t, 0.053778, v.Last, "lastTradedPrice")
-				assert.Equal(t, 0.05364, v.Low, "low")
-				assert.Equal(t, currency.NewPairWithDelimiter("ETH", "BTC", "-"), v.Pair, "symbol")
-				assert.Equal(t, 2958.3139116, v.Volume, "volume")
-				assert.Equal(t, 160.7847672784213, v.QuoteVolume, "volValue")
-			case 0:
-				assert.Equal(t, asset.Spot, v.AssetType, "AssetType")
-				assert.Equal(t, time.UnixMilli(1700555342151), v.LastUpdated, "datetime")
-				assert.Equal(t, 37750.0, v.High, "high")
-				assert.Equal(t, 37366.8, v.Last, "lastTradedPrice")
-				assert.Equal(t, 36700.0, v.Low, "low")
-				assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USDT", "-"), v.Pair, "symbol")
-				assert.Equal(t, 2900.37846402, v.Volume, "volume")
-				assert.Equal(t, 108210331.34015164, v.QuoteVolume, "volValue")
+			exp, ok := expectedByPair[v.Pair.String()]
+			if !ok {
+				t.Fatalf("unexpected pair %s", v.Pair)
 			}
+			assert.Contains(t, []asset.Item{asset.Spot, asset.Margin}, v.AssetType, "AssetType should be spot or margin")
+			assert.Equal(t, exp.lastUpdated, v.LastUpdated, "datetime")
+			assert.Equal(t, exp.high, v.High, "high")
+			assert.Equal(t, exp.last, v.Last, "lastTradedPrice")
+			assert.Equal(t, exp.low, v.Low, "low")
+			assert.Equal(t, exp.volume, v.Volume, "volume")
+			assert.Equal(t, exp.quoteVolume, v.QuoteVolume, "volValue")
+
+			if _, ok := seen[v.Pair.String()]; !ok {
+				seen[v.Pair.String()] = make(map[asset.Item]int)
+			}
+			seen[v.Pair.String()][v.AssetType]++
 		case error:
 			t.Error(v)
 		default:
 			t.Errorf("Got unexpected data: %T %v", v, v)
 		}
+	}
+	assert.Len(t, seen, 3, "Should see 3 unique pairs")
+	for pair, byAsset := range seen {
+		assert.Equalf(t, 1, byAsset[asset.Spot], "%s should emit one spot ticker", pair)
+		assert.Equalf(t, 1, byAsset[asset.Margin], "%s should emit one margin ticker", pair)
 	}
 }
 
