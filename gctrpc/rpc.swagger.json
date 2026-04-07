@@ -2844,19 +2844,7 @@
             "type": "string"
           },
           {
-            "name": "getPredictedRate",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          },
-          {
             "name": "getLendingPayments",
-            "in": "query",
-            "required": false,
-            "type": "boolean"
-          },
-          {
-            "name": "getBorrowRates",
             "in": "query",
             "required": false,
             "type": "boolean"

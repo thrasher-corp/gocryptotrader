@@ -1,9 +1,9 @@
-package okx
+package bitfinex
 
 import (
 	"testing"
+	"time"
 
-	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -13,34 +13,13 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
-func TestMessageID(t *testing.T) {
-	t.Parallel()
-	id := new(Exchange).MessageID()
-	require.Len(t, id, 32, "Must return the correct length of message id")
-	u, err := uuid.FromString(id)
-	require.NoError(t, err, "MessageID must return a valid UUID")
-	require.Equal(t, uuid.V7, u.Version(), "MessageID must return a V7 uuid")
-	require.Len(t, u.String(), 36, "UUID v7 string representation must be 36 characters long")
-}
-
-// 7696807	       153.1 ns/op	      48 B/op	       2 allocs/op
-func BenchmarkMessageID(b *testing.B) {
-	e := new(Exchange)
-	for b.Loop() {
-		_ = e.MessageID()
-	}
-}
-
 func TestGetMarginRatesHistory(t *testing.T) {
 	t.Parallel()
-	currencies := []currency.Code{currency.USDT, currency.BTC, currency.ETH}
-	if !mainPair.IsEmpty() && !mainPair.Base.IsEmpty() {
-		currencies = append([]currency.Code{mainPair.Base}, currencies...)
-	}
 	testCases := []struct {
-		name  string
-		req   *margin.RateHistoryRequest
-		errIs error
+		name    string
+		req     *margin.RateHistoryRequest
+		errIs   error
+		success bool
 	}{
 		{
 			name:  "nil request",
@@ -51,40 +30,41 @@ func TestGetMarginRatesHistory(t *testing.T) {
 			name: "unsupported asset",
 			req: &margin.RateHistoryRequest{
 				Asset:    asset.Spot,
-				Currency: currency.USDT,
+				Currency: currency.USD,
 			},
 			errIs: asset.ErrNotSupported,
 		},
 		{
 			name: "missing currency",
 			req: &margin.RateHistoryRequest{
-				Asset: asset.Margin,
+				Asset: asset.MarginFunding,
 			},
 			errIs: currency.ErrCurrencyCodeEmpty,
+		},
+		{
+			name: "success",
+			req: &margin.RateHistoryRequest{
+				Asset:     asset.MarginFunding,
+				Currency:  currency.USD,
+				StartDate: time.Now().Add(-30 * 24 * time.Hour),
+				EndDate:   time.Now(),
+			},
+			success: true,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			_, err := e.GetMarginRatesHistory(contextGenerate(), tc.req)
+			resp, err := e.GetMarginRatesHistory(t.Context(), tc.req)
+			if tc.success {
+				require.NoError(t, err)
+				require.NotNil(t, resp)
+				require.NotEmpty(t, resp.Rates)
+				return
+			}
 			require.ErrorIs(t, err, tc.errIs)
 		})
 	}
-	t.Run("success", func(t *testing.T) {
-		t.Parallel()
-		for i := range currencies {
-			resp, err := e.GetMarginRatesHistory(contextGenerate(), &margin.RateHistoryRequest{
-				Asset:    asset.Margin,
-				Currency: currencies[i],
-			})
-			require.NoError(t, err)
-			require.NotNil(t, resp)
-			if len(resp.Rates) > 0 {
-				return
-			}
-		}
-		t.Skip("OKX returned empty public borrow history for tested currencies")
-	})
 }
 
 func TestGetCurrentMarginRates(t *testing.T) {
@@ -113,7 +93,7 @@ func TestGetCurrentMarginRates(t *testing.T) {
 		{
 			name: "empty pair",
 			req: &margin.CurrentRatesRequest{
-				Asset: asset.Margin,
+				Asset: asset.MarginFunding,
 				Pairs: currency.Pairs{currency.EMPTYPAIR},
 			},
 			errIs: currency.ErrCurrencyPairEmpty,
@@ -121,7 +101,7 @@ func TestGetCurrentMarginRates(t *testing.T) {
 		{
 			name: "empty pairs lookup error",
 			req: &margin.CurrentRatesRequest{
-				Asset: asset.Margin,
+				Asset: asset.MarginFunding,
 			},
 			useLocal:     true,
 			disableAsset: true,
@@ -130,7 +110,7 @@ func TestGetCurrentMarginRates(t *testing.T) {
 		{
 			name: "empty pairs after lookup",
 			req: &margin.CurrentRatesRequest{
-				Asset: asset.Margin,
+				Asset: asset.MarginFunding,
 			},
 			useLocal:     true,
 			clearEnabled: true,
@@ -139,8 +119,11 @@ func TestGetCurrentMarginRates(t *testing.T) {
 		{
 			name: "success",
 			req: &margin.CurrentRatesRequest{
-				Asset: asset.Margin,
-				Pairs: currency.Pairs{mainPair},
+				Asset: asset.MarginFunding,
+				Pairs: currency.Pairs{
+					currency.NewPair(currency.USD, currency.USDT),
+					currency.NewPair(currency.USD, currency.BTC),
+				},
 			},
 			expectSuccess: true,
 		},
@@ -153,21 +136,21 @@ func TestGetCurrentMarginRates(t *testing.T) {
 				local := new(Exchange)
 				require.NoError(t, testexch.Setup(local))
 				if tc.disableAsset {
-					require.NoError(t, local.CurrencyPairs.SetAssetEnabled(asset.Margin, false))
+					require.NoError(t, local.CurrencyPairs.SetAssetEnabled(asset.MarginFunding, false))
 				}
 				if tc.clearEnabled {
-					ps, err := local.CurrencyPairs.Get(asset.Margin)
+					ps, err := local.CurrencyPairs.Get(asset.MarginFunding)
 					require.NoError(t, err)
 					ps.AssetEnabled = true
 					ps.Enabled = nil
-					require.NoError(t, local.CurrencyPairs.Store(asset.Margin, ps))
+					require.NoError(t, local.CurrencyPairs.Store(asset.MarginFunding, ps))
 				}
 				target = local
 			}
 
-			rates, err := target.GetCurrentMarginRates(contextGenerate(), tc.req)
+			rates, err := target.GetCurrentMarginRates(t.Context(), tc.req)
 			if tc.errIs != nil {
-				assert.ErrorIs(t, err, tc.errIs)
+				require.ErrorIs(t, err, tc.errIs)
 				return
 			}
 			require.NoError(t, err)
@@ -175,7 +158,7 @@ func TestGetCurrentMarginRates(t *testing.T) {
 				require.NotEmpty(t, rates)
 				for i := range rates {
 					assert.Equal(t, target.Name, rates[i].Exchange)
-					assert.Equal(t, asset.Margin, rates[i].Asset)
+					assert.Equal(t, asset.MarginFunding, rates[i].Asset)
 					assert.NotNil(t, rates[i].CurrentRate)
 					assert.False(t, rates[i].CurrentRate.Time.IsZero())
 					assert.False(t, rates[i].TimeChecked.IsZero())
