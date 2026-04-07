@@ -147,6 +147,26 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 				TriggerPriceType: "LastPrice",
 			},
 		},
+		{
+			submit: &order.Submit{
+				Exchange:  e.GetName(),
+				Pair:      optionsTradablePair,
+				AssetType: asset.Options,
+				Side:      order.Buy,
+				Type:      order.Limit,
+				Amount:    1,
+				Price:     5000,
+			},
+			exp: &PlaceOrderRequest{
+				Category:      getCategoryName(asset.Options),
+				Symbol:        optionsTradablePair.Format(currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}),
+				Side:          sideBuy,
+				OrderType:     orderTypeToString(order.Limit),
+				OrderQuantity: 1,
+				TimeInForce:   "GTC",
+				Price:         5000,
+			},
+		},
 	} {
 		got, err := e.deriveSubmitOrderArguments(tc.submit)
 		if tc.err != nil {
@@ -188,6 +208,24 @@ func TestDeriveAmendOrderArguments(t *testing.T) {
 				TriggerPriceType:  "LastPrice",
 			},
 		},
+		{
+			action: &order.Modify{
+				OrderID:   "69420",
+				Pair:      optionsTradablePair,
+				AssetType: asset.Options,
+				Amount:    1,
+				Price:     5000,
+			},
+			exp: &AmendOrderRequest{
+				Category:          getCategoryName(asset.Options),
+				Symbol:            optionsTradablePair.Format(currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}),
+				OrderID:           "69420",
+				OrderQuantity:     1,
+				Price:             5000,
+				StopLossTriggerBy: "LastPrice",
+				TriggerPriceType:  "LastPrice",
+			},
+		},
 	} {
 		got, err := e.deriveAmendOrderArguments(tc.action)
 		if tc.err != nil {
@@ -224,6 +262,18 @@ func TestDeriveCancelOrderArguments(t *testing.T) {
 			exp: &CancelOrderRequest{
 				Category: getCategoryName(asset.USDCMarginedFutures),
 				Symbol:   currency.NewBTCUSDT().Format(currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}),
+				OrderID:  "69420",
+			},
+		},
+		{
+			action: &order.Cancel{
+				OrderID:   "69420",
+				Pair:      optionsTradablePair,
+				AssetType: asset.Options,
+			},
+			exp: &CancelOrderRequest{
+				Category: getCategoryName(asset.Options),
+				Symbol:   optionsTradablePair.Format(currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}),
 				OrderID:  "69420",
 			},
 		},
