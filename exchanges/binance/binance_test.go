@@ -709,9 +709,7 @@ func TestUGetOrderData(t *testing.T) {
 	_, err := e.UGetOrderData(t.Context(), currency.EMPTYPAIR, "123", "")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.UGetOrderData(t.Context(), usdtmTradablePair, "123", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -5949,7 +5947,6 @@ func TestGetEOptionsOpenInterests(t *testing.T) {
 	_, err = e.GetEOptionsOpenInterests(t.Context(), currency.ETH, time.Time{})
 	require.ErrorIs(t, err, errExpirationTimeRequired)
 
-	t.SkipNow() // TODO: The "expiration" query value according to the documentation does not work.
 	result, err := e.GetEOptionsOpenInterests(t.Context(), currency.ETH, expiration)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
