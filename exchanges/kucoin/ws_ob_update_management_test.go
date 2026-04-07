@@ -26,6 +26,7 @@ func TestFetchWSOrderbookSnapshot(t *testing.T) {
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
 	t.Run("orderbook_error", func(t *testing.T) {
+		t.Parallel()
 		noCredentialsExchange := new(Exchange)
 		require.NoError(t, testexch.Setup(noCredentialsExchange), "Setup must not error")
 		noCredentialsExchange.API.AuthenticatedSupport = true

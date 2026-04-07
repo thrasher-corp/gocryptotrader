@@ -301,6 +301,7 @@ func TestProcessOrderbook(t *testing.T) {
 	t.Parallel()
 
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		ku := testInstance(t)
 		pair, err := currency.NewPairFromString("ETH-BTC")
 		require.NoError(t, err, "NewPairFromString must not error")
@@ -342,6 +343,8 @@ func TestProcessOrderbook(t *testing.T) {
 	})
 
 	t.Run("last_updated_fallback", func(t *testing.T) {
+		t.Parallel()
+
 		ku := testInstance(t)
 		pair, err := currency.NewPairFromString("ETH-BTC")
 		require.NoError(t, err, "NewPairFromString must not error")
@@ -363,25 +366,30 @@ func TestProcessOrderbook(t *testing.T) {
 	})
 
 	t.Run("error_paths", func(t *testing.T) {
+		t.Parallel()
 		t.Run("invalid_json", func(t *testing.T) {
+			t.Parallel()
 			ku := testInstance(t)
 			err := ku.processOrderbook([]byte(`{"asks":`), "ETH-BTC", marketOrderbookDepth50Channel)
 			require.Error(t, err)
 		})
 
 		t.Run("invalid_symbol", func(t *testing.T) {
+			t.Parallel()
 			ku := testInstance(t)
 			err := ku.processOrderbook([]byte(`{"asks":[["0.0500","1"]],"bids":[["0.0400","1"]],"timestamp":1700555340197}`), "a", marketOrderbookDepth50Channel)
 			require.ErrorIs(t, err, currency.ErrCreatingPair)
 		})
 
 		t.Run("calculate_assets", func(t *testing.T) {
+			t.Parallel()
 			ku := new(Exchange)
 			err := ku.processOrderbook([]byte(`{"asks":[["0.0500","1"]],"bids":[["0.0400","1"]],"timestamp":1700555340197}`), "ETH-BTC", marketOrderbookDepth50Channel)
 			require.ErrorIs(t, err, currency.ErrPairManagerNotInitialised)
 		})
 
 		t.Run("load_snapshot", func(t *testing.T) {
+			t.Parallel()
 			ku := testInstance(t)
 			ku.Name = ""
 			err := ku.processOrderbook([]byte(`{"asks":[["0.0500","1"]],"bids":[["0.0400","1"]],"timestamp":1700555340197}`), "ETH-BTC", marketOrderbookDepth50Channel)
@@ -394,13 +402,16 @@ func TestProcessSpotOrderbookWithDepth(t *testing.T) {
 	t.Parallel()
 
 	t.Run("error_paths", func(t *testing.T) {
+		t.Parallel()
 		t.Run("invalid_instrument", func(t *testing.T) {
+			t.Parallel()
 			ku := testInstance(t)
 			err := ku.processSpotOrderbookWithDepth(t.Context(), []byte(`{"data":{"changes":{"asks":[["18906","0.00331","14103845"]],"bids":[["18891.9","0.15688","14103847"]]},"sequenceEnd":14103847,"sequenceStart":14103844,"symbol":"BTC-USDT","time":1663747970273}}`), "a")
 			require.ErrorIs(t, err, currency.ErrCreatingPair)
 		})
 
 		t.Run("invalid_json", func(t *testing.T) {
+			t.Parallel()
 			ku := testInstance(t)
 			err := ku.processSpotOrderbookWithDepth(t.Context(), []byte(`{"data":`), "BTC-USDT")
 			require.Error(t, err)
@@ -414,6 +425,7 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 	validPayload := []byte(`{"sequence":18,"change":"5000.0,buy,83","timestamp":1551770400000}`)
 
 	t.Run("buy", func(t *testing.T) {
+		t.Parallel()
 		ku := testInstance(t)
 		ku.Name += "-TestProcessFuturesOrderbookLevel2"
 		require.False(t, futuresTradablePair.IsEmpty(), "futuresTradablePair must be initialised")
@@ -461,6 +473,7 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 	})
 
 	t.Run("sell", func(t *testing.T) {
+		t.Parallel()
 		ku := testInstance(t)
 		ku.Name += "-TestProcessFuturesOrderbookLevel2Sell"
 		require.False(t, futuresTradablePair.IsEmpty(), "futuresTradablePair must be initialised")
@@ -508,37 +521,44 @@ func TestProcessFuturesOrderbookLevel2(t *testing.T) {
 	})
 
 	t.Run("error_paths", func(t *testing.T) {
+		t.Parallel()
 		t.Run("pair_match", func(t *testing.T) {
+			t.Parallel()
 			ku := testInstance(t)
 			err := ku.processFuturesOrderbookLevel2(t.Context(), validPayload, "NOTAREALPAIR")
 			require.ErrorIs(t, err, currency.ErrPairNotFound)
 		})
 
 		t.Run("invalid_json", func(t *testing.T) {
+			t.Parallel()
 			ku := testInstance(t)
 			err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":`), futuresTradablePair.String())
 			require.Error(t, err)
 		})
 
 		t.Run("invalid_change_format", func(t *testing.T) {
+			t.Parallel()
 			ku := testInstance(t)
 			err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":18,"change":"5000.0,buy","timestamp":1551770400000}`), futuresTradablePair.String())
 			require.ErrorContains(t, err, "unexpected orderbook change format")
 		})
 
 		t.Run("invalid_price", func(t *testing.T) {
+			t.Parallel()
 			ku := testInstance(t)
 			err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":18,"change":"bad,buy,83","timestamp":1551770400000}`), futuresTradablePair.String())
 			require.ErrorContains(t, err, "invalid syntax")
 		})
 
 		t.Run("invalid_amount", func(t *testing.T) {
+			t.Parallel()
 			ku := testInstance(t)
 			err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":18,"change":"5000.0,buy,bad","timestamp":1551770400000}`), futuresTradablePair.String())
 			require.ErrorContains(t, err, "invalid syntax")
 		})
 
 		t.Run("invalid_side", func(t *testing.T) {
+			t.Parallel()
 			ku := testInstance(t)
 			err := ku.processFuturesOrderbookLevel2(t.Context(), []byte(`{"sequence":18,"change":"5000.0,hold,83","timestamp":1551770400000}`), futuresTradablePair.String())
 			require.ErrorContains(t, err, "unexpected orderbook side")
@@ -732,6 +752,7 @@ func TestManageSubscriptions(t *testing.T) {
 
 	t.Run("error_paths", func(t *testing.T) {
 		t.Run("send_message", func(t *testing.T) {
+			t.Parallel()
 			ku := testInstance(t)
 			errExpected := errors.New("send failure")
 
@@ -740,6 +761,7 @@ func TestManageSubscriptions(t *testing.T) {
 		})
 
 		t.Run("invalid_json", func(t *testing.T) {
+			t.Parallel()
 			ku := testInstance(t)
 
 			err := ku.manageSubscriptions(t.Context(), &ConnectionFixture{messageResponse: `{"type":`}, subscription.List{baseSub()}, "subscribe")
@@ -747,6 +769,7 @@ func TestManageSubscriptions(t *testing.T) {
 		})
 
 		t.Run("error_payload_not_string", func(t *testing.T) {
+			t.Parallel()
 			ku := testInstance(t)
 
 			err := ku.manageSubscriptions(t.Context(), &ConnectionFixture{messageResponse: `{"type":"error","code":509,"data":{}}`}, subscription.List{baseSub()}, "subscribe")
@@ -755,6 +778,7 @@ func TestManageSubscriptions(t *testing.T) {
 		})
 
 		t.Run("unexpected_message_type", func(t *testing.T) {
+			t.Parallel()
 			ku := testInstance(t)
 
 			err := ku.manageSubscriptions(t.Context(), &ConnectionFixture{messageResponse: `{"type":"mystery","code":1}`}, subscription.List{baseSub()}, "subscribe")
@@ -763,6 +787,7 @@ func TestManageSubscriptions(t *testing.T) {
 		})
 
 		t.Run("subscribe_ack_add_error", func(t *testing.T) {
+			t.Parallel()
 			ku := testInstance(t)
 			ku.Verbose = true
 			sub := baseSub()
@@ -773,6 +798,7 @@ func TestManageSubscriptions(t *testing.T) {
 		})
 
 		t.Run("unsubscribe_ack_remove_error", func(t *testing.T) {
+			t.Parallel()
 			ku := testInstance(t)
 
 			err := ku.manageSubscriptions(t.Context(), &ConnectionFixture{messageResponse: `{"type":"ack"}`}, subscription.List{baseSub()}, "unsubscribe")
