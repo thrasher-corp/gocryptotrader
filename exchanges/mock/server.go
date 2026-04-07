@@ -325,14 +325,11 @@ func MatchAndGetResponse(mockData []HTTPResponse, requestVals url.Values, isQuer
 // MatchAndGetResponseJSONSlice matches incoming request values against array
 // based body params from the mock data and returns the payload.
 func MatchAndGetResponseJSONSlice(mockData []HTTPResponse, requestVals []url.Values, isQueryData bool) (json.RawMessage, error) {
+	if isQueryData {
+		return nil, errNoDataMatched
+	}
 	for i := range mockData {
-		var data string
-		if isQueryData {
-			data = mockData[i].QueryString
-		} else {
-			data = mockData[i].BodyParams
-		}
-
+		data := mockData[i].BodyParams
 		if !json.Valid([]byte(data)) || getJSONBodyShape(strings.TrimSpace(data)) != jsonBodyArray {
 			continue
 		}

@@ -59,7 +59,6 @@ func TestCheckResponsePayload(t *testing.T) {
 	inputs := []struct {
 		in  any
 		exp []byte
-		err error
 	}{
 		{
 			in: []someJSON{

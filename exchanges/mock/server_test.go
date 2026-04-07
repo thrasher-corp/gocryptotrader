@@ -193,6 +193,21 @@ func TestMatchAndGetResponseJSONSlice(t *testing.T) {
 			wantResult: `{"match":"array"}`,
 		},
 		{
+			name:     "erroring_match_array_payload",
+			mockBody: `[{"coin":"btc","amount":1},{"coin":"eth","amount":2]`,
+			request: []url.Values{
+				{
+					"coin":   {"btc"},
+					"amount": {"1"},
+				},
+				{
+					"coin":   {"eth"},
+					"amount": {"2"},
+				},
+			},
+			wantErr: true,
+		},
+		{
 			name:     "no_match_array_payload",
 			mockBody: `[{"coin":"btc","amount":1},{"coin":"eth","amount":2}]`,
 			request: []url.Values{

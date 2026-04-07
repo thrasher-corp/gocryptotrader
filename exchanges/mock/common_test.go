@@ -100,6 +100,9 @@ func TestDeriveURLValsFromJSON(t *testing.T) {
 		require.Len(t, val, 1)
 		assert.Equalf(t, test2[key], val[0], "DeriveURLValsFromJSON should return the correct value for %s", key)
 	}
+
+	values, err = DeriveURLValsFromJSONMap([]byte(`{"a":"b",}`))
+	require.Error(t, err)
 }
 
 var tcs = []uniqueTypesHolder{
