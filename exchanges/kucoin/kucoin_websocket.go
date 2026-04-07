@@ -72,8 +72,6 @@ const (
 	futuresAccountBalanceEventChannel      = "/contractAccount/wallet"
 
 	futuresLimitCandles = "/contractMarket/limitCandle"
-
-	wsConnection = "websocket_connection"
 )
 
 var (

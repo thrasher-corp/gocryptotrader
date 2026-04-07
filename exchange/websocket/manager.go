@@ -682,7 +682,6 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 		}
 		return nil
 	}
-
 	if err := ws.setup.Subscriber(ctx, conn, subs); err != nil {
 		return fmt.Errorf("%w: %w", ErrSubscriptionFailure, err)
 	}
@@ -865,7 +864,6 @@ func (m *Manager) SetWebsocketURL(u string, auth, reconnect bool) error {
 		if defaultVals {
 			u = m.defaultURLAuth
 		}
-
 		err := checkWebsocketURL(u)
 		if err != nil {
 			return err

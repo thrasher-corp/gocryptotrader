@@ -22,11 +22,15 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
 	coinbaseWebsocketURL = "wss://advanced-trade-ws.coinbase.com"
+)
+
+var (
+	errCandleDataUnmarshal      = fmt.Errorf("coinbase websocket candle data: %w", common.ErrMalformedData)
+	errMarketTradeDataUnmarshal = fmt.Errorf("coinbase websocket market trade data: %w", common.ErrMalformedData)
 )
 
 var subscriptionNames = map[string]string{
@@ -57,47 +61,8 @@ var defaultSubscriptions = subscription.List{
 	*/
 }
 
-// WsConnect initiates a websocket connection
-func (e *Exchange) WsConnect() error {
-	ctx := context.TODO()
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
-		return websocket.ErrWebsocketNotEnabled
-	}
-	var dialer gws.Dialer
-	if err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
-		return err
-	}
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(ctx)
-	return nil
-}
-
-// wsReadData receives and passes on websocket messages for processing
-func (e *Exchange) wsReadData(ctx context.Context) {
-	defer e.Websocket.Wg.Done()
-	var seqCount uint64
-	for {
-		resp := e.Websocket.Conn.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		sequence, err := e.wsHandleData(ctx, resp.Raw)
-		if err != nil {
-			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
-			}
-		}
-		if sequence != nil {
-			if *sequence != seqCount {
-				err := fmt.Errorf("%w: received %v, expected %v", errOutOfSequence, sequence, seqCount)
-				if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-					log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
-				}
-				seqCount = *sequence
-			}
-			seqCount++
-		}
-	}
+func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
+	return conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil)
 }
 
 // wsProcessTicker handles ticker data from the websocket
@@ -143,7 +108,7 @@ func (e *Exchange) wsProcessTicker(ctx context.Context, resp *StandardWebsocketR
 func (e *Exchange) wsProcessCandle(ctx context.Context, resp *StandardWebsocketResponse) error {
 	var wsCandles []WebsocketCandleHolder
 	if err := json.Unmarshal(resp.Events, &wsCandles); err != nil {
-		return err
+		return fmt.Errorf("%w: %w", errCandleDataUnmarshal, err)
 	}
 	var allCandles []kline.Item
 	for i := range wsCandles {
@@ -171,7 +136,7 @@ func (e *Exchange) wsProcessCandle(ctx context.Context, resp *StandardWebsocketR
 func (e *Exchange) wsProcessMarketTrades(ctx context.Context, resp *StandardWebsocketResponse) error {
 	var wsTrades []WebsocketMarketTradeHolder
 	if err := json.Unmarshal(resp.Events, &wsTrades); err != nil {
-		return err
+		return fmt.Errorf("%w: %w", errMarketTradeDataUnmarshal, err)
 	}
 	var allTrades []trade.Data
 	for i := range wsTrades {
@@ -307,47 +272,58 @@ func (e *Exchange) wsProcessUser(ctx context.Context, resp *StandardWebsocketRes
 }
 
 // wsHandleData handles all the websocket data coming from the websocket connection
-func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) (*uint64, error) {
+func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	var resp StandardWebsocketResponse
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
-		return nil, err
+		return err
+	}
+	if err := e.checkWSSequence(conn, resp.Sequence); err != nil {
+		return err
 	}
 	if resp.Error != "" {
-		return &resp.Sequence, errors.New(resp.Error)
+		return errors.New(resp.Error)
 	}
 	switch resp.Channel {
 	case "subscriptions", "heartbeats":
-		return &resp.Sequence, nil
+		return nil
 	case "status":
 		var wsStatus []WebsocketProductHolder
 		if err := json.Unmarshal(resp.Events, &wsStatus); err != nil {
-			return &resp.Sequence, err
+			return err
 		}
-		return &resp.Sequence, e.Websocket.DataHandler.Send(ctx, wsStatus)
+		return e.Websocket.DataHandler.Send(ctx, wsStatus)
 	case "ticker", "ticker_batch":
-		if err := e.wsProcessTicker(ctx, &resp); err != nil {
-			return &resp.Sequence, err
-		}
+		return e.wsProcessTicker(ctx, &resp)
 	case "candles":
-		if err := e.wsProcessCandle(ctx, &resp); err != nil {
-			return &resp.Sequence, err
-		}
+		return e.wsProcessCandle(ctx, &resp)
 	case "market_trades":
-		if err := e.wsProcessMarketTrades(ctx, &resp); err != nil {
-			return &resp.Sequence, err
-		}
+		return e.wsProcessMarketTrades(ctx, &resp)
 	case "l2_data":
-		if err := e.wsProcessL2(&resp); err != nil {
-			return &resp.Sequence, err
-		}
+		return e.wsProcessL2(&resp)
 	case "user":
-		if err := e.wsProcessUser(ctx, &resp); err != nil {
-			return &resp.Sequence, err
-		}
+		return e.wsProcessUser(ctx, &resp)
 	default:
-		return &resp.Sequence, errChannelNameUnknown
+		return errChannelNameUnknown
 	}
-	return &resp.Sequence, nil
+}
+
+func (e *Exchange) checkWSSequence(conn websocket.Connection, sequence uint64) error {
+	e.wsSeqMu.Lock()
+	defer e.wsSeqMu.Unlock()
+	if e.wsSeqState == nil {
+		e.wsSeqState = make(map[websocket.Connection]uint64)
+	}
+	expected, ok := e.wsSeqState[conn]
+	if !ok {
+		e.wsSeqState[conn] = sequence + 1
+		return nil
+	}
+	if sequence != expected {
+		e.wsSeqState[conn] = sequence + 1
+		return fmt.Errorf("%w: received %v, expected %v", errOutOfSequence, sequence, expected)
+	}
+	e.wsSeqState[conn] = expected + 1
+	return nil
 }
 
 // ProcessSnapshot processes the initial orderbook snap shot
@@ -418,18 +394,8 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 	return template.New("master.tmpl").Funcs(template.FuncMap{"channelName": channelName}).Parse(subTplText)
 }
 
-// Subscribe sends a websocket message to receive data from a list of channels
-func (e *Exchange) Subscribe(subs subscription.List) error {
-	return e.ParallelChanOp(context.TODO(), subs, func(ctx context.Context, subs subscription.List) error { return e.manageSubs(ctx, "subscribe", subs) }, 1)
-}
-
-// Unsubscribe sends a websocket message to stop receiving data from a list of channels
-func (e *Exchange) Unsubscribe(subs subscription.List) error {
-	return e.ParallelChanOp(context.TODO(), subs, func(ctx context.Context, subs subscription.List) error { return e.manageSubs(ctx, "unsubscribe", subs) }, 1)
-}
-
 // manageSubs subscribes or unsubscribes from a list of websocket channels
-func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.List) error {
+func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op string, subs subscription.List) error {
 	var errs error
 	subs, errs = subs.ExpandTemplates(e)
 	for _, s := range subs {
@@ -447,17 +413,25 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 				return err
 			}
 		}
-		if err = e.Websocket.Conn.SendJSONMessage(ctx, limitType, r); err == nil {
+		if err = conn.SendJSONMessage(ctx, limitType, r); err == nil {
 			switch op {
 			case "subscribe":
-				err = e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, s)
+				err = e.Websocket.AddSuccessfulSubscriptions(conn, s)
 			case "unsubscribe":
-				err = e.Websocket.RemoveSubscriptions(e.Websocket.Conn, s)
+				err = e.Websocket.RemoveSubscriptions(conn, s)
 			}
 		}
 		errs = common.AppendError(errs, err)
 	}
 	return errs
+}
+
+func (e *Exchange) subscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	return e.manageSubs(ctx, conn, "subscribe", subs)
+}
+
+func (e *Exchange) unsubscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	return e.manageSubs(ctx, conn, "unsubscribe", subs)
 }
 
 // GetWSJWT returns a JWT, using a stored one of it's provided, and generating a new one otherwise
