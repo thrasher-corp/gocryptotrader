@@ -26,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -1060,6 +1061,39 @@ func TestUpdateFuturesPositionLeverage(t *testing.T) {
 	assert.NoError(t, err, "UpdateFuturesPositionLeverage should not error for CoinMarginedFutures")
 	_, err = e.UpdateFuturesPositionLeverage(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), 1, 0)
 	assert.NoError(t, err, "UpdateFuturesPositionLeverage should not error for USDTMarginedFutures")
+}
+
+func TestSetLeverage(t *testing.T) {
+	t.Parallel()
+
+	err := e.SetLeverage(t.Context(), asset.Spot, getPair(t, asset.Spot), margin.Isolated, 1, order.UnknownSide)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+
+	err = e.SetLeverage(t.Context(), asset.CoinMarginedFutures, getPair(t, asset.CoinMarginedFutures), margin.NoMargin, 1, order.UnknownSide)
+	assert.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
+
+	err = e.SetLeverage(t.Context(), asset.CoinMarginedFutures, getPair(t, asset.CoinMarginedFutures), margin.Isolated, 0, order.UnknownSide)
+	assert.ErrorIs(t, err, errInvalidLeverage)
+
+	err = e.SetLeverage(t.Context(), asset.CoinMarginedFutures, currency.EMPTYPAIR, margin.Isolated, 1, order.UnknownSide)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	err = e.SetLeverage(t.Context(), asset.DeliveryFutures, getPair(t, asset.DeliveryFutures), margin.Isolated, 0, order.UnknownSide)
+	assert.ErrorIs(t, err, errInvalidLeverage)
+
+	err = e.SetLeverage(t.Context(), asset.DeliveryFutures, getPair(t, asset.DeliveryFutures), margin.Multi, 1, order.UnknownSide)
+	assert.ErrorIs(t, err, margin.ErrMarginTypeUnsupported)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+
+	err = e.SetLeverage(t.Context(), asset.CoinMarginedFutures, getPair(t, asset.CoinMarginedFutures), margin.Isolated, 1, order.UnknownSide)
+	assert.NoError(t, err)
+
+	err = e.SetLeverage(t.Context(), asset.USDTMarginedFutures, getPair(t, asset.USDTMarginedFutures), margin.Multi, 5, order.UnknownSide)
+	assert.NoError(t, err)
+
+	err = e.SetLeverage(t.Context(), asset.DeliveryFutures, getPair(t, asset.DeliveryFutures), margin.Isolated, 1, order.UnknownSide)
+	assert.NoError(t, err)
 }
 
 func TestPlaceDeliveryOrder(t *testing.T) {
@@ -2542,6 +2576,8 @@ func TestGenerateSubscriptionsSpot(t *testing.T) {
 						s.QualifiedChannel = pairs[i].String() + ",100ms"
 					case spotOrderbookChannel:
 						s.QualifiedChannel = pairs[i].String() + ",5,1000ms"
+					case spotOrderbookV2:
+						s.QualifiedChannel = fmt.Sprintf("ob.%s.%d", pairs[i].String(), s.Levels)
 					}
 					s.Pairs = pairs[i : i+1]
 					exp = append(exp, s)
@@ -2732,6 +2768,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 						assert.Positivef(t, l.MaximumBaseAmount, "MaximumBaseAmount should be positive for %s", p)
 						assert.Positivef(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s", p)
 						assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
+						assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", p)
 					case asset.USDTMarginedFutures:
 						assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", p)
 						assert.NotZerof(t, l.Listed, "Listed should be populated for %s", p)
@@ -2750,6 +2787,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 						assert.NotZerof(t, l.Expiry, "Expiry should be populated for %s", p)
 						assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", p)
 						assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
+						assert.Positivef(t, l.MultiplierDecimal, "MultiplierDecimal should be positive for %s", p)
 					}
 				}
 			}
@@ -2880,8 +2918,32 @@ func TestGetOpenInterest(t *testing.T) {
 			Asset: a,
 		})
 		assert.NoErrorf(t, err, "GetOpenInterest should not error for %s asset", a)
-		assert.Lenf(t, resp, 1, "GetOpenInterest should return 1 item for %s asset", a)
+		require.Lenf(t, resp, 1, "GetOpenInterest must return 1 item for %s asset", a)
+		assert.Positivef(t, resp[0].OpenInterest, "GetOpenInterest should return positive open interest for %s asset", a)
 	}
+
+	coinPair := getPair(t, asset.CoinMarginedFutures)
+	usdtPair := getPair(t, asset.USDTMarginedFutures)
+	resp, err = e.GetOpenInterest(t.Context(),
+		key.PairAsset{Base: coinPair.Base.Item, Quote: coinPair.Quote.Item, Asset: asset.CoinMarginedFutures},
+		key.PairAsset{Base: usdtPair.Base.Item, Quote: usdtPair.Quote.Item, Asset: asset.USDTMarginedFutures},
+	)
+	assert.NoError(t, err, "GetOpenInterest should not error for multiple explicit perpetual pairs")
+	require.Len(t, resp, 2, "GetOpenInterest returns exactly the requested perpetual pairs")
+
+	expected := map[asset.Item]currency.Pair{
+		asset.CoinMarginedFutures: coinPair,
+		asset.USDTMarginedFutures: usdtPair,
+	}
+	found := make(map[asset.Item]bool, len(expected))
+	for _, oi := range resp {
+		expPair, ok := expected[oi.Key.Asset]
+		require.Truef(t, ok, "unexpected asset in OpenInterest response: %v", oi.Key.Asset)
+		assert.Truef(t, expPair.Equal(oi.Key.Pair()), "OpenInterest pair mismatch for asset %v", oi.Key.Asset)
+		assert.Positivef(t, oi.OpenInterest, "OpenInterest should return positive open interest for asset %v", oi.Key.Asset)
+		found[oi.Key.Asset] = true
+	}
+	require.Len(t, found, len(expected), "OpenInterest response missing expected assets")
 
 	resp, err = e.GetOpenInterest(t.Context())
 	assert.NoError(t, err, "GetOpenInterest should not error")
