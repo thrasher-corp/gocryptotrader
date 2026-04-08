@@ -340,6 +340,7 @@ func TestDoRequest_NoContent(t *testing.T) {
 		{
 			name: "no content zero value result remains unchanged",
 			run: func(t *testing.T) {
+				t.Helper()
 				r := newRequester(t)
 				var resp struct {
 					Response bool `json:"response"`
@@ -358,6 +359,7 @@ func TestDoRequest_NoContent(t *testing.T) {
 		{
 			name: "no content pre populated result remains unchanged",
 			run: func(t *testing.T) {
+				t.Helper()
 				r := newRequester(t)
 				resp := struct {
 					Response bool `json:"response"`
@@ -378,6 +380,7 @@ func TestDoRequest_NoContent(t *testing.T) {
 		{
 			name: "no content nil result must not error",
 			run: func(t *testing.T) {
+				t.Helper()
 				r := newRequester(t)
 				err := r.SendPayload(t.Context(), UnAuth, func() (*Item, error) {
 					return &Item{
@@ -391,6 +394,7 @@ func TestDoRequest_NoContent(t *testing.T) {
 		{
 			name: "no content header response must be copied",
 			run: func(t *testing.T) {
+				t.Helper()
 				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 					w.Header().Set("Content-Type", "application/json")
 					w.Header().Set("X-No-Content", "true")
