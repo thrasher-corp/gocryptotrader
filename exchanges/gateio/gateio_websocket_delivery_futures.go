@@ -122,7 +122,7 @@ func (e *Exchange) generateDeliveryFuturesPayload(ctx context.Context, event str
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	outbound := make([]WsInput, 0, len(channelsToSubscribe))
+	outbound := make([]WsInput, len(channelsToSubscribe))
 	for i := range channelsToSubscribe {
 		if len(channelsToSubscribe[i].Pairs) != 1 {
 			return nil, subscription.ErrNotSinglePair
@@ -192,14 +192,14 @@ func (e *Exchange) generateDeliveryFuturesPayload(ctx context.Context, event str
 				params = append(params, intervalString)
 			}
 		}
-		outbound = append(outbound, WsInput{
+		outbound[i] = WsInput{
 			ID:      e.MessageSequence(),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
 			Payload: params,
 			Auth:    auth,
 			Time:    timestamp.Unix(),
-		})
+		}
 	}
 	return outbound, nil
 }

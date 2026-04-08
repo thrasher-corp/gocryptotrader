@@ -44,6 +44,7 @@ const (
 	sideSell = "Sell"
 
 	cSpot, cLinear, cOption, cInverse = "spot", "linear", "option", "inverse"
+	tradingStatus                     = "Trading"
 
 	accountTypeNormal  AccountType = 1
 	accountTypeUnified AccountType = 2

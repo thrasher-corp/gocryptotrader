@@ -29,7 +29,7 @@ import (
 )
 
 // Setup takes an empty exchange instance and loads config for it from testdata/configtest and connects a NewTestWebsocket
-func Setup(e exchange.IBotExchange) error {
+func Setup(e exchange.IBotExchange, verbose ...bool) error {
 	cfg := &config.Config{}
 
 	root, err := testutils.RootPathFromCWD()
@@ -46,6 +46,10 @@ func Setup(e exchange.IBotExchange) error {
 	if err != nil {
 		return fmt.Errorf("GetExchangeConfig(%q) error: %w", eName, err)
 	}
+	if len(verbose) > 0 {
+		exchConf.Verbose = verbose[0]
+	}
+
 	b := e.GetBase()
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
 
@@ -102,11 +106,11 @@ func MockHTTPInstance(e exchange.IBotExchange, optionalPathPostfix ...string) er
 func MockWsInstance[T any, PT interface {
 	*T
 	exchange.IBotExchange
-}](tb testing.TB, h http.HandlerFunc) *T {
+}](tb testing.TB, h http.HandlerFunc, verbose ...bool) *T {
 	tb.Helper()
 
 	e := PT(new(T))
-	require.NoError(tb, Setup(e), "Test exchange Setup must not error")
+	require.NoError(tb, Setup(e, verbose...), "Test exchange Setup must not error")
 
 	s := httptest.NewServer(h)
 
@@ -115,15 +119,14 @@ func MockWsInstance[T any, PT interface {
 	b.API.AuthenticatedWebsocketSupport = true
 	err := b.API.Endpoints.SetRunningURL("RestSpotURL", s.URL)
 	require.NoError(tb, err, "Endpoints.SetRunningURL must not error for RestSpotURL")
-	for _, auth := range []bool{true, false} {
-		err = b.Websocket.SetWebsocketURL("ws"+strings.TrimPrefix(s.URL, "http"), auth, true)
-		require.NoErrorf(tb, err, "SetWebsocketURL must not error for auth: %v", auth)
-	}
+
+	wsURL := "ws" + strings.TrimPrefix(s.URL, "http")
+	err = b.Websocket.SetAllConnectionURLs(wsURL)
+	require.NoError(tb, err, "SetAllConnectionURLs must not error")
 
 	// For testing we never want to use the default subscriptions; Tests of GenerateSubscriptions should be exercising it directly
 	b.Features.Subscriptions = subscription.List{}
-	// Exchanges which don't support subscription conf; Can be removed when all exchanges support sub conf
-	b.Websocket.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
+	b.Websocket.SetSubscriptionsNotRequired()
 
 	err = b.Websocket.Connect(context.TODO())
 	require.NoError(tb, err, "Connect must not error")
@@ -217,8 +220,7 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 
 	// For testing we never want to use the default subscriptions; Tests of GenerateSubscriptions should be exercising it directly
 	b.Features.Subscriptions = subscription.List{}
-	// Exchanges which don't support subscription conf; Can be removed when all exchanges support sub conf
-	w.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
+	w.SetSubscriptionsNotRequired()
 
 	err = w.Connect(context.TODO())
 	require.NoError(tb, err, "Connect must not error")

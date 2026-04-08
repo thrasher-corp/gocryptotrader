@@ -11,7 +11,7 @@ DRIVER ?= psql
 RACE_FLAG := $(if $(NO_RACE_TEST),,-race)
 CONFIG_FLAG = $(if $(CONFIG),-config $(CONFIG),)
 
-.PHONY: all lint lint_docker check test build install fmt gofumpt update_deps
+.PHONY: all lint lint_docker misc_checks check test build install fmt gofumpt update_deps
 
 all: check build
 
@@ -23,7 +23,10 @@ lint_docker:
 	@command -v docker >/dev/null 2>&1 || (echo "Docker not found. Please install Docker to run this target." && exit 1)
 	docker run --rm -t -v $(CURDIR):/app -w /app golangci/golangci-lint:v2.9.0 golangci-lint run --verbose
 
-check: lint test
+misc_checks:
+	bash ./scripts/misc_checks.sh
+
+check: lint misc_checks test
 
 test:
 	go test $(RACE_FLAG) -coverprofile=coverage.txt -covermode=atomic  ./...

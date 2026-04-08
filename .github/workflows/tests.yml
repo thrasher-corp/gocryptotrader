@@ -45,7 +45,7 @@ jobs:
 
     steps:
     - name: Cancel previous workflow runs
-      uses: styfle/cancel-workflow-action@0.13.0
+      uses: styfle/cancel-workflow-action@0.13.1
       with:
         access_token: ${{ github.token }}
 
@@ -115,7 +115,7 @@ jobs:
         GOARCH: ${{ matrix.goarch }}
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@v6
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
@@ -127,7 +127,7 @@ jobs:
 
     steps:
     - name: Cancel previous workflow runs
-      uses: styfle/cancel-workflow-action@0.13.0
+      uses: styfle/cancel-workflow-action@0.13.1
       with:
         access_token: ${{ github.token }}
 
@@ -167,7 +167,7 @@ jobs:
 
     steps:
     - name: Cancel previous workflow runs
-      uses: styfle/cancel-workflow-action@0.13.0
+      uses: styfle/cancel-workflow-action@0.13.1
       with:
         access_token: ${{ github.token }}
 
