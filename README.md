@@ -20,6 +20,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 |----------|------|-----------|-----|
 | Binance.US| Yes  | Yes        | NA  |
 | Binance| Yes  | Yes        | NA  |
+| Bitget | Yes | Yes | NA |
 | Bitfinex | Yes  | Yes        | NA  |
 | Bitflyer | Yes  | No      | NA  |
 | Bithumb | Yes  | Yes       | NA  |
@@ -167,8 +168,6 @@ Binaries will be published once the codebase reaches a stable condition.
 | [Copilot](https://github.com/apps/copilot-swe-agent) | 13 |
 | [vadimzhukck](https://github.com/vadimzhukck) | 10 |
 | [junnplus](https://github.com/junnplus) | 9 |
-| [geseq](https://github.com/geseq) | 8 |
-| [marcofranssen](https://github.com/marcofranssen) | 8 |
 | [140am](https://github.com/140am) | 8 |
 | [cranktakular](https://github.com/cranktakular) | 7 |
 | [TaltaM](https://github.com/TaltaM) | 6 |
@@ -189,9 +188,6 @@ Binaries will be published once the codebase reaches a stable condition.
 | [andreygrehov](https://github.com/andreygrehov) | 2 |
 | [bretep](https://github.com/bretep) | 2 |
 | [Christian-Achilli](https://github.com/Christian-Achilli) | 2 |
-| [dsinuela-taurus](https://github.com/dsinuela-taurus) | 2 |
-| [cornelk](https://github.com/cornelk) | 2 |
-| [gam-phon](https://github.com/gam-phon) | 2 |
 | [MarkDzulko](https://github.com/MarkDzulko) | 2 |
 | [MathieuCesbron](https://github.com/MathieuCesbron) | 2 |
 | [aidan-bailey](https://github.com/aidan-bailey) | 1 |

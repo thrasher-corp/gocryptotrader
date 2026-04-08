@@ -64,7 +64,7 @@ func (e *Exchange) wsReadData(ctx context.Context) {
 
 	for {
 		select {
-		case <-e.Websocket.ShutdownC:
+		case <-e.Websocket.ShutdownSignal():
 			return
 		default:
 			resp := e.Websocket.Conn.ReadMessage()

@@ -374,3 +374,36 @@ type PositionSummary struct {
 	FrozenBalance                decimal.Decimal
 	EquityOfCurrency             decimal.Decimal
 }
+
+// PositionMode defines the different position modes supported by exchanges
+type PositionMode uint8
+
+// All supported position modes
+const (
+	UnknownMode PositionMode = 0
+	OneWayMode  PositionMode = 1 << iota
+	HedgeMode
+)
+
+// PositionHistory holds position history data
+// Each exchange has their own requirements, so not all fields
+// are required to be populated
+type PositionHistory struct {
+	Exchange          string
+	PositionID        string
+	Pair              currency.Pair
+	MarginCoin        currency.Code
+	MarginType        margin.Type
+	Side              order.Side
+	PositionMode      PositionMode
+	OpenAveragePrice  float64
+	CloseAveragePrice float64
+	OpenSize          float64
+	CloseSize         float64
+	RealisedPnl       float64
+	SettlementFee     float64
+	OpenFee           float64
+	CloseFee          float64
+	StartDate         time.Time
+	LastUpdated       time.Time
+}

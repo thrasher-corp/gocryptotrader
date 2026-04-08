@@ -62,7 +62,7 @@ func IsValidString(m string) bool {
 }
 
 // StringToMarginType converts a string to a margin type
-// doesn't error, just returns unknown if the string is not recognised
+// returns unknown if the string is not recognised
 func StringToMarginType(m string) (Type, error) {
 	switch strings.ToLower(m) {
 	case isolatedStr:
