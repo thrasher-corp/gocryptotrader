@@ -41,6 +41,10 @@ type Exchange struct {
 
 	isAPIStreamConnectionLock sync.Mutex
 
+	// represents a USD-Margined futures account position mode information and lock for synchronized access.
+	umAccountPositionMode     UserAccountPositionMode
+	umAccountPositionModeLock sync.Mutex
+
 	accountType      *AccountTypeHolder
 	accountTypeMutex sync.Mutex
 }
@@ -57,6 +61,35 @@ func (e *Exchange) FetchAccountType(ctx context.Context) (bool, error) {
 		e.accountType.isUnified = accInfo.AccountType == "MARGIN_2"
 	}
 	return e.accountType.isUnified, nil
+}
+
+// UserAccountPositionMode holds user's account position mode information.
+type UserAccountPositionMode int
+
+// represents account position modes for futures orders
+const (
+	UnknownPositionMode UserAccountPositionMode = iota
+	OneWayMode                                  = 1 << iota
+	DualMode
+)
+
+// GetUMAccountPositionMode returns the cached USD-Margined account position mode.
+// If not already set, it fetches the current mode from the API and caches it.
+func (e *Exchange) GetUMAccountPositionMode(ctx context.Context) (UserAccountPositionMode, error) {
+	e.umAccountPositionModeLock.Lock()
+	defer e.umAccountPositionModeLock.Unlock()
+	if e.umAccountPositionMode == UnknownPositionMode {
+		accInfo, err := e.GetUMCurrentPositionMode(ctx)
+		if err != nil {
+			return UnknownPositionMode, err
+		}
+		if accInfo.DualPositionMode {
+			e.umAccountPositionMode = DualMode
+		} else {
+			e.umAccountPositionMode = OneWayMode
+		}
+	}
+	return e.umAccountPositionMode, nil
 }
 
 // AccountTypeHolder holds the account type associated with the loaded API key.
@@ -5502,16 +5535,16 @@ func (e *Exchange) FuturesTWAPOrder(ctx context.Context, arg *TWAPOrderParams) (
 //
 // You need to enable Futures Trading Permission for the api key which requests this endpoint.
 // Base URL: https://api.binance.com
-func (e *Exchange) CancelFuturesAlgoOrder(ctx context.Context, algoID int64) (*AlgoOrderResponse, error) {
+func (e *Exchange) CancelFuturesAlgoOrder(ctx context.Context, algoID string) (*AlgoOrderResponse, error) {
 	return e.cancelAlgoOrder(ctx, algoID, "/sapi/v1/algo/futures/order")
 }
 
-func (e *Exchange) cancelAlgoOrder(ctx context.Context, algoID int64, path string) (*AlgoOrderResponse, error) {
-	if algoID == 0 {
+func (e *Exchange) cancelAlgoOrder(ctx context.Context, algoID, path string) (*AlgoOrderResponse, error) {
+	if algoID == "" {
 		return nil, fmt.Errorf("%w: algoId is required", order.ErrOrderIDNotSet)
 	}
 	params := url.Values{}
-	params.Set("algoId", strconv.FormatInt(algoID, 10))
+	params.Set("algoId", algoID)
 	var resp *AlgoOrderResponse
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodDelete, path, params, sapiDefaultRate, nil, &resp)
 }
@@ -5610,7 +5643,7 @@ func (e *Exchange) SpotTWAPNewOrder(ctx context.Context, arg *SpotTWAPOrderParam
 }
 
 // CancelSpotAlgoOrder cancels an open spot TWAP order
-func (e *Exchange) CancelSpotAlgoOrder(ctx context.Context, algoID int64) (*AlgoOrderResponse, error) {
+func (e *Exchange) CancelSpotAlgoOrder(ctx context.Context, algoID string) (*AlgoOrderResponse, error) {
 	return e.cancelAlgoOrder(ctx, algoID, "/sapi/v1/algo/spot/order")
 }
 

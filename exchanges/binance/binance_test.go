@@ -8903,11 +8903,11 @@ func TestTWAPOrder(t *testing.T) {
 
 func TestCancelAlgoOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelFuturesAlgoOrder(t.Context(), 0)
+	_, err := e.CancelFuturesAlgoOrder(t.Context(), "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.CancelFuturesAlgoOrder(t.Context(), 1234)
+	result, err := e.CancelFuturesAlgoOrder(t.Context(), "1234")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -8970,7 +8970,7 @@ func TestTWAPNewOrder(t *testing.T) {
 func TestCancelSpotAlgoOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.CancelSpotAlgoOrder(t.Context(), 1234)
+	result, err := e.CancelSpotAlgoOrder(t.Context(), "1234")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

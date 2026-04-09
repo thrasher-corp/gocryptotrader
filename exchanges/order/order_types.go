@@ -391,10 +391,11 @@ const (
 	SOR // smart-order-routine(SOR) used in Binance
 	OTO // one-trigger-other used in Binance: https://developers.binance.com/docs/binance-spot-api-docs/enums#contingencytype
 	LimitMaker
-	OCO             // One-cancels-the-other order
-	ConditionalStop // One-way stop order
-	TWAP            // time-weighted average price
-	Chase           // chase limit order
+	OCO                 // One-cancels-the-other order
+	ConditionalStop     // One-way stop order
+	TWAP                // time-weighted average price
+	VolumeParticipation // volume-participation trade order used in Binance: https://developers.binance.com/docs/algo/future-algo
+	Chase               // chase limit order
 	OptimalLimit
 	MarketMakerProtection
 
@@ -416,6 +417,7 @@ const (
 	orderStop                  = "STOP"
 	orderConditionalStop       = "CONDITIONAL"
 	orderTWAP                  = "TWAP"
+	orderVolumeParticipation   = "VP"
 	orderChase                 = "CHASE"
 	orderTakeProfit            = "TAKE PROFIT"
 	orderTakeProfitMarket      = "TAKE PROFIT MARKET"
@@ -449,6 +451,7 @@ var AllOrderTypes = Limit |
 	OCO |
 	ConditionalStop |
 	TWAP |
+	VolumeParticipation |
 	Chase |
 	OptimalLimit |
 	MarketMakerProtection

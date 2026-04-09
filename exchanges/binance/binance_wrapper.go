@@ -1301,6 +1301,20 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			sideType = order.Sell.String()
 		}
 		switch {
+		case s.Type == order.TWAP:
+			resp, err := e.SpotTWAPNewOrder(ctx, &SpotTWAPOrderParam{
+				Symbol:       s.Pair,
+				Side:         s.Side.String(),
+				Quantity:     s.Amount,
+				Duration:     int64(time.Until(s.EndTime).Seconds()),
+				ClientAlgoID: s.ClientOrderID,
+				LimitPrice:   s.Price,
+				Timestamp:    time.Now().UnixMilli(),
+			})
+			if err != nil {
+				return nil, err
+			}
+			orderID = resp.ClientAlgoID
 		case s.Type == order.SOR:
 			if e.IsAPIStreamConnected() && e.Websocket.CanUseAuthenticatedEndpoints() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 				resp, err := e.WsPlaceNewSOROrder(&WsOSRPlaceOrderParams{
@@ -1415,8 +1429,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				}
 			}
 		}
-	case asset.CoinMarginedFutures,
-		asset.USDTMarginedFutures:
+	case asset.CoinMarginedFutures:
 		var reqSide string
 		switch s.Side {
 		case order.Buy, order.Sell:
@@ -1429,105 +1442,113 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		if s.Type == order.Limit {
 			timeInForce = order.GoodTillCancel.String()
 		}
-		if s.AssetType == asset.CoinMarginedFutures {
-			if isAccountTypeUnified {
-				switch s.Type {
-				case order.Stop, order.StopMarket, order.TakeProfit, order.TakeProfitMarket, order.TrailingStop:
-					var callbackRate float64
-					if s.TrackingMode == order.Percentage {
-						callbackRate = s.TrackingValue
-					}
-					result, err := e.NewCMConditionalOrder(ctx, &ConditionalOrderParam{
-						Symbol:              s.Pair,
-						Side:                s.Side.Lower(),
-						StrategyType:        oTypeString,
-						TimeInForce:         timeInForceString(s.TimeInForce, s.Type),
-						Quantity:            s.Amount,
-						ReduceOnly:          s.ReduceOnly,
-						Price:               s.Price,
-						NewClientStrategyID: s.ClientOrderID,
-						StopPrice:           s.RiskManagementModes.StopLoss.Price,
-						ActivationPrice:     s.TriggerPrice,
-						CallbackRate:        callbackRate,
-					})
-					if err != nil {
-						return nil, err
-					}
-					orderID = strconv.FormatUint(result.StrategyID, 10)
-				default:
-					result, err := e.NewCMOrder(ctx, &UMOrderParam{
-						Symbol:           s.Pair,
-						Side:             s.Side.Lower(),
-						OrderType:        oTypeString,
-						TimeInForce:      timeInForceString(s.TimeInForce, s.Type),
-						Quantity:         s.Amount,
-						ReduceOnly:       s.ReduceOnly,
-						Price:            s.Price,
-						NewClientOrderID: s.ClientOrderID,
-					})
-					if err != nil {
-						return nil, err
-					}
-					orderID = strconv.FormatInt(result.OrderID, 10)
+		if isAccountTypeUnified {
+			switch s.Type {
+			case order.Stop, order.StopMarket, order.TakeProfit, order.TakeProfitMarket, order.TrailingStop:
+				var callbackRate float64
+				if s.TrackingMode == order.Percentage {
+					callbackRate = s.TrackingValue
 				}
-			} else {
-				o, err := e.FuturesNewOrder(ctx, &FuturesNewOrderRequest{
-					Symbol:           s.Pair,
-					Side:             reqSide,
-					OrderType:        oTypeString,
-					TimeInForce:      timeInForce,
-					NewClientOrderID: s.ClientOrderID,
-					Quantity:         s.Amount,
-					Price:            s.Price,
-					ReduceOnly:       s.ReduceOnly,
+				result, err := e.NewCMConditionalOrder(ctx, &ConditionalOrderParam{
+					Symbol:              s.Pair,
+					Side:                s.Side.Lower(),
+					StrategyType:        oTypeString,
+					TimeInForce:         timeInForceString(s.TimeInForce, s.Type),
+					Quantity:            s.Amount,
+					ReduceOnly:          s.ReduceOnly,
+					Price:               s.Price,
+					NewClientStrategyID: s.ClientOrderID,
+					StopPrice:           s.RiskManagementModes.StopLoss.Price,
+					ActivationPrice:     s.TriggerPrice,
+					CallbackRate:        callbackRate,
 				})
 				if err != nil {
 					return nil, err
 				}
-				orderID = strconv.FormatInt(o.OrderID, 10)
+				orderID = strconv.FormatUint(result.StrategyID, 10)
+			default:
+				result, err := e.NewCMOrder(ctx, &UMOrderParam{
+					Symbol:           s.Pair,
+					Side:             s.Side.Lower(),
+					OrderType:        oTypeString,
+					TimeInForce:      timeInForceString(s.TimeInForce, s.Type),
+					Quantity:         s.Amount,
+					ReduceOnly:       s.ReduceOnly,
+					Price:            s.Price,
+					NewClientOrderID: s.ClientOrderID,
+				})
+				if err != nil {
+					return nil, err
+				}
+				orderID = strconv.FormatInt(result.OrderID, 10)
 			}
 		} else {
-			if isAccountTypeUnified {
-				switch s.Type {
-				case order.Stop, order.StopMarket, order.TakeProfit, order.TakeProfitMarket, order.TrailingStop:
-					var callbackRate float64
-					if s.TrackingMode == order.Percentage {
-						callbackRate = s.TrackingValue
-					}
-					result, err := e.NewUMConditionalOrder(ctx, &ConditionalOrderParam{
-						Symbol:              s.Pair,
-						Side:                s.Side.Lower(),
-						StrategyType:        oTypeString,
-						TimeInForce:         timeInForceString(s.TimeInForce, s.Type),
-						Quantity:            s.Amount,
-						ReduceOnly:          s.ReduceOnly,
-						Price:               s.Price,
-						NewClientStrategyID: s.ClientOrderID,
-						StopPrice:           s.RiskManagementModes.StopLoss.Price,
-						ActivationPrice:     s.TriggerPrice,
-						CallbackRate:        callbackRate,
-					})
-					if err != nil {
-						return nil, err
-					}
-					orderID = strconv.FormatUint(result.StrategyID, 10)
-				default:
-					result, err := e.NewUMOrder(ctx, &UMOrderParam{
-						Symbol:           s.Pair,
-						Side:             s.Side.Lower(),
-						OrderType:        oTypeString,
-						TimeInForce:      timeInForceString(s.TimeInForce, s.Type),
-						Quantity:         s.Amount,
-						ReduceOnly:       s.ReduceOnly,
-						Price:            s.Price,
-						NewClientOrderID: s.ClientOrderID,
-					})
-					if err != nil {
-						return nil, err
-					}
-					orderID = strconv.FormatInt(result.OrderID, 10)
+			o, err := e.FuturesNewOrder(ctx, &FuturesNewOrderRequest{
+				Symbol:           s.Pair,
+				Side:             reqSide,
+				OrderType:        oTypeString,
+				TimeInForce:      timeInForce,
+				NewClientOrderID: s.ClientOrderID,
+				Quantity:         s.Amount,
+				Price:            s.Price,
+				ReduceOnly:       s.ReduceOnly,
+			})
+			if err != nil {
+				return nil, err
+			}
+			orderID = strconv.FormatInt(o.OrderID, 10)
+		}
+	case asset.USDTMarginedFutures:
+		var reqSide string
+		switch s.Side {
+		case order.Buy, order.Sell:
+			reqSide = s.Side.String()
+		default:
+			return nil, order.ErrSideIsInvalid
+		}
+		if isAccountTypeUnified {
+			switch s.Type {
+			case order.Stop, order.StopMarket, order.TakeProfit, order.TakeProfitMarket, order.TrailingStop:
+				var callbackRate float64
+				if s.TrackingMode == order.Percentage {
+					callbackRate = s.TrackingValue
 				}
-			} else {
+				result, err := e.NewUMConditionalOrder(ctx, &ConditionalOrderParam{
+					Symbol:              s.Pair,
+					Side:                s.Side.Lower(),
+					StrategyType:        oTypeString,
+					TimeInForce:         timeInForceString(s.TimeInForce, s.Type),
+					Quantity:            s.Amount,
+					ReduceOnly:          s.ReduceOnly,
+					Price:               s.Price,
+					NewClientStrategyID: s.ClientOrderID,
+					StopPrice:           s.RiskManagementModes.StopLoss.Price,
+					ActivationPrice:     s.TriggerPrice,
+					CallbackRate:        callbackRate,
+				})
+				if err != nil {
+					return nil, err
+				}
+				orderID = strconv.FormatUint(result.StrategyID, 10)
+			default:
+				result, err := e.NewUMOrder(ctx, &UMOrderParam{
+					Symbol:           s.Pair,
+					Side:             s.Side.Lower(),
+					OrderType:        oTypeString,
+					TimeInForce:      timeInForceString(s.TimeInForce, s.Type),
+					Quantity:         s.Amount,
+					ReduceOnly:       s.ReduceOnly,
+					Price:            s.Price,
+					NewClientOrderID: s.ClientOrderID,
+				})
+				if err != nil {
+					return nil, err
+				}
+				orderID = strconv.FormatInt(result.OrderID, 10)
+			}
+		} else {
+			switch s.Type {
+			case order.Limit, order.Market:
 				o, err := e.UFuturesNewOrder(ctx, &UFuturesNewOrderRequest{
 					Symbol:           s.Pair,
 					Side:             reqSide,
@@ -1542,6 +1563,88 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 					return nil, err
 				}
 				orderID = strconv.FormatInt(o.OrderID, 10)
+			case order.VolumeParticipation:
+				if s.ClientOrderID == "" {
+					return nil, order.ErrClientOrderIDMustBeSet
+				}
+				accountPositionMode, err := e.GetUMAccountPositionMode(ctx)
+				if err != nil {
+					return nil, err
+				}
+				hedgeMode := accountPositionMode == DualMode
+				var positionSide string
+				if hedgeMode {
+					switch s.Side {
+					case order.Long:
+						positionSide = "LONG"
+					case order.Short:
+						positionSide = "SHORT"
+					default:
+						return nil, fmt.Errorf("%w: hedge mode requires Long or Short side", order.ErrSideIsInvalid)
+					}
+				}
+				var urgency string
+				remaining := time.Until(s.EndTime)
+				switch {
+				case remaining <= 0:
+					return nil, errEndTimeInThePast
+				case remaining <= time.Hour:
+					urgency = "HIGH"
+				case remaining <= 4*time.Hour:
+					urgency = "MEDIUM"
+				default:
+					urgency = "LOW"
+				}
+				resp, err := e.VolumeParticipationNewOrder(ctx, &VolumeParticipationOrderParams{
+					Symbol:       s.Pair,
+					Side:         s.Side.String(),
+					PositionSide: positionSide,
+					Quantity:     s.Amount,
+					Urgency:      urgency,
+					ClientAlgoID: s.ClientOrderID,
+					ReduceOnly:   s.ReduceOnly,
+					LimitPrice:   s.Price,
+				})
+				if err != nil {
+					return nil, err
+				}
+				orderID = resp.ClientAlgoID
+			case order.TWAP:
+				if s.ClientOrderID == "" {
+					return nil, order.ErrClientOrderIDMustBeSet
+				}
+				accountPositionMode, err := e.GetUMAccountPositionMode(ctx)
+				if err != nil {
+					return nil, err
+				}
+				hedgeMode := accountPositionMode == DualMode
+				var positionSide string
+				if hedgeMode {
+					switch s.Side {
+					case order.Long:
+						positionSide = "LONG"
+					case order.Short:
+						positionSide = "SHORT"
+					default:
+						return nil, fmt.Errorf("%w: hedge mode requires Long or Short side", order.ErrSideIsInvalid)
+					}
+				}
+				resp, err := e.FuturesTWAPOrder(ctx, &TWAPOrderParams{
+					Symbol:       s.Pair,
+					Side:         s.Side.String(),
+					PositionSide: positionSide,
+					Quantity:     s.Amount,
+					Duration:     int64(time.Until(s.EndTime).Seconds()),
+					ClientAlgoID: s.ClientOrderID,
+					ReduceOnly:   s.ReduceOnly,
+					LimitPrice:   s.Price,
+				})
+				if err != nil {
+					return nil, err
+				}
+				orderID = resp.ClientAlgoID
+			default:
+				return nil, fmt.Errorf("%w %v", order.ErrTypeIsInvalid, s.Type)
 			}
 		}
 	case asset.Options:
@@ -1605,12 +1708,16 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 			err        error
 		)
 		switch {
+		case o.Type == order.TWAP:
+			_, err := e.CancelSpotAlgoOrder(ctx, o.OrderID)
+			return err
 		case o.Type == order.OCO:
 			if e.IsAPIStreamConnected() && e.Websocket.CanUseAuthenticatedEndpoints() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 				_, err = e.WsCancelOCOOrder(o.Pair, o.OrderID, o.ClientOrderID, "")
-			} else {
-				_, err = e.CancelOCOOrder(ctx, o.Pair, o.OrderID, o.ClientOrderID, "")
+				return err
 			}
+			_, err = e.CancelOCOOrder(ctx, o.Pair, o.OrderID, o.ClientOrderID, "")
+			return err
 		case e.IsAPIStreamConnected() && e.Websocket.CanUseAuthenticatedEndpoints() && e.Websocket.CanUseAuthenticatedWebsocketForWrapper():
 			orderIDInt, err = strconv.ParseInt(o.OrderID, 10, 64)
 			if err != nil {
@@ -1621,6 +1728,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 				OrderID:           orderIDInt,
 				OrigClientOrderID: o.ClientOrderID,
 			})
+			return err
 		default:
 			orderIDInt, err = strconv.ParseInt(o.OrderID, 10, 64)
 			if err != nil {
@@ -1630,8 +1738,8 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 				o.Pair,
 				orderIDInt,
 				o.AccountID)
+			return err
 		}
-		return err
 	case asset.CoinMarginedFutures:
 		if isAccountTypeUnified {
 			_, err := e.CancelCMOrder(ctx, o.Pair, o.ClientOrderID, o.OrderID)
@@ -1645,13 +1753,15 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 			return err
 		}
 		switch o.Type {
+		case order.TWAP, order.VolumeParticipation:
+			_, err := e.CancelFuturesAlgoOrder(ctx, o.OrderID)
+			return err
 		case order.Stop, order.StopLimit, order.TrailingStop, order.TakeProfit, order.TakeProfitLimit:
 			_, err := e.CancelUMConditionalOrder(ctx, o.Pair, o.ClientOrderID, 0)
 			return err
-		default:
-			_, err := e.UCancelOrder(ctx, o.Pair, o.OrderID, "")
-			return err
 		}
+		_, err := e.UCancelOrder(ctx, o.Pair, o.OrderID, "")
+		return err
 	case asset.Options:
 		reg := regexp.MustCompile(`^\d+$`)
 		if !reg.MatchString(o.OrderID) {

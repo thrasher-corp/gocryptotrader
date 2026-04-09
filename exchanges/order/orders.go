@@ -697,6 +697,8 @@ func (t Type) String() string {
 		return orderConditionalStop
 	case TWAP:
 		return orderTWAP
+	case VolumeParticipation:
+		return orderVolumeParticipation
 	case Chase:
 		return orderChase
 	case TakeProfit:
@@ -1175,6 +1177,8 @@ func StringToOrderType(oType string) (Type, error) {
 		return MarketMakerProtection, nil
 	case orderTWAP:
 		return TWAP, nil
+	case orderVolumeParticipation:
+		return VolumeParticipation, nil
 	case orderChase:
 		return Chase, nil
 	case orderTakeProfitMarket, "TAKE_PROFIT_MARKET":

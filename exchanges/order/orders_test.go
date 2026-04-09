@@ -347,6 +347,7 @@ func TestOrderTypeToString(t *testing.T) {
 		{Stop, "STOP"},
 		{ConditionalStop, "CONDITIONAL"},
 		{TWAP, "TWAP"},
+		{VolumeParticipation, "VP"},
 		{Chase, "CHASE"},
 		{TakeProfit, "TAKE PROFIT"},
 		{TakeProfitMarket, "TAKE PROFIT MARKET"},

@@ -124,6 +124,7 @@ var (
 	errAPIKeyNameRequired           = errors.New("api key name required")
 	errRewardTypeMissing            = errors.New("reward type is required")
 	errInvalidBrokerID              = errors.New("missing brokerID")
+	errEndTimeInThePast             = errors.New("invalid end time; endtime in the past")
 )
 
 var subscriptionCycleList = []string{"H1", "H4", "H8", "H12", "WEEKLY", "DAILY", "MONTHLY", "BI_WEEKLY"}
@@ -4774,7 +4775,7 @@ type SpotTWAPOrderParam struct {
 	Duration     int64         `json:"duration"`
 	ClientAlgoID string        `json:"clientAlgoId,omitempty"`
 	LimitPrice   float64       `json:"limitPrice,omitempty"`
-	STPMode      string        `json:"stpMode,omitempty"`
+	Timestamp    int64         `json:"timestamp"`
 }
 
 // ClassicPMAccountInfo represents a classic portfolio margin account information.
