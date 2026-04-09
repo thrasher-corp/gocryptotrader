@@ -455,7 +455,7 @@ type UFuturesNewOrderRequest struct {
 	Quantity         float64       `json:"quantity,omitempty"`
 	Price            float64       `json:"price,omitempty"`
 	StopPrice        float64       `json:"stop_price,omitempty"`
-	ActivationPrice  float64       `json:"activation_price,omitempty"`
+	ActivationPrice  float64       `json:"activationPrice,omitempty"`
 	CallbackRate     float64       `json:"callback_rate,omitempty"`
 	ReduceOnly       bool          `json:"reduce_only,omitempty"`
 }
