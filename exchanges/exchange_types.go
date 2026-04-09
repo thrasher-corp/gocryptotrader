@@ -269,6 +269,7 @@ const (
 	RestSpotSupplementary
 	RestUSDTMargined
 	RestCoinMargined
+	RestOptions
 	RestFutures
 	RestFuturesSupplementary
 	RestUSDCMargined
@@ -293,6 +294,7 @@ const (
 	restSpotSupplementaryURL      = "RestSpotSupplementaryURL"
 	restUSDTMarginedFuturesURL    = "RestUSDTMarginedFuturesURL"
 	restCoinMarginedFuturesURL    = "RestCoinMarginedFuturesURL"
+	restOptionsURL                = "RestOptionsURL"
 	restUSDCMarginedFuturesURL    = "RestUSDCMarginedFuturesURL"
 	restFuturesURL                = "RestFuturesURL"
 	restFuturesSupplementaryURL   = "RestFuturesSupplementaryURL"
@@ -319,6 +321,7 @@ var keyURLs = []URL{
 	RestSpotSupplementary,
 	RestUSDTMargined,
 	RestCoinMargined,
+	RestOptions,
 	RestFutures,
 	RestFuturesSupplementary,
 	RestUSDCMargined,
