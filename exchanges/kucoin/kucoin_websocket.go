@@ -1033,16 +1033,7 @@ func collapseSubscriptionList(subs subscription.List) map[*subscription.List]*su
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
 func (e *Exchange) generateSubscriptions() (subscription.List, error) {
-	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
-	if err != nil {
-		return nil, err
-	}
-	collapsed := collapseSubscriptionList(subs)
-	resp := make(subscription.List, 0, len(collapsed))
-	for _, sub := range collapsed {
-		resp = append(resp, sub)
-	}
-	return resp, nil
+	return e.Features.Subscriptions.ExpandTemplates(e)
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
