@@ -33,21 +33,15 @@ import (
 // this mock is used to simulate the connection behaviour.
 type ConnectionFixture struct {
 	websocket.Connection
-	messageResponse  string
-	messageResponses []string
-	messageError     error
-	sendFn           func(any) ([]byte, error)
-	sentRequests     []WsSubscriptionInput
+	messageResponse string
+	messageError    error
+	sendFn          func(any) ([]byte, error)
+	sentRequests    []WsSubscriptionInput
 }
 
 func (c *ConnectionFixture) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _, req any) ([]byte, error) {
 	if input, ok := req.(WsSubscriptionInput); ok {
 		c.sentRequests = append(c.sentRequests, input)
-	}
-	if len(c.messageResponses) > 0 {
-		resp := c.messageResponses[0]
-		c.messageResponses = c.messageResponses[1:]
-		return []byte(resp), nil
 	}
 	if c.messageError != nil {
 		return nil, c.messageError
