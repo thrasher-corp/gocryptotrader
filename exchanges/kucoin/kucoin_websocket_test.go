@@ -33,15 +33,49 @@ import (
 // this mock is used to simulate the connection behaviour.
 type ConnectionFixture struct {
 	websocket.Connection
-	messageResponse string
-	messageError    error
+	messageResponse  string
+	messageResponses []string
+	messageError     error
+	sendFn           func(any) ([]byte, error)
+	sentRequests     []WsSubscriptionInput
 }
 
-func (c ConnectionFixture) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
+func (c *ConnectionFixture) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _ any, req any) ([]byte, error) {
+	if input, ok := req.(WsSubscriptionInput); ok {
+		c.sentRequests = append(c.sentRequests, input)
+	}
+	if len(c.messageResponses) > 0 {
+		resp := c.messageResponses[0]
+		c.messageResponses = c.messageResponses[1:]
+		return []byte(resp), nil
+	}
 	if c.messageError != nil {
 		return nil, c.messageError
 	}
+	if c.sendFn != nil {
+		return c.sendFn(req)
+	}
 	return []byte(c.messageResponse), nil
+}
+
+func expectedPerPairSubscriptions(channel string, a asset.Item, pairs currency.Pairs, qualifiedPrefix string, interval kline.Interval, suffixFn func(currency.Pair) string) subscription.List {
+	if suffixFn == nil {
+		suffixFn = func(pair currency.Pair) string {
+			return pair.String()
+		}
+	}
+
+	resp := make(subscription.List, 0, len(pairs))
+	for _, pair := range pairs {
+		resp = append(resp, &subscription.Subscription{
+			Channel:          channel,
+			Asset:            a,
+			Pairs:            currency.Pairs{pair},
+			QualifiedChannel: qualifiedPrefix + ":" + suffixFn(pair),
+			Interval:         interval,
+		})
+	}
+	return resp
 }
 
 func TestGetInstanceServers(t *testing.T) {
@@ -138,19 +172,11 @@ func TestGenerateSubscriptions(t *testing.T) {
 	}
 	pairs["both"] = common.SortStrings(pairs["spot"].Add(pairs["margin"]...))
 
-	exp := subscription.List{
-		{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: pairs["both"], QualifiedChannel: "/market/ticker:" + pairs["both"].Join()},
-		{Channel: subscription.TickerChannel, Asset: asset.Futures, Pairs: pairs["futures"], QualifiedChannel: "/contractMarket/tickerV2:" + pairs["futures"].Join()},
-		{
-			Channel: subscription.OrderbookChannel, Asset: asset.Spot, Pairs: pairs["both"], QualifiedChannel: "/spotMarket/level2Depth5:" + pairs["both"].Join(),
-			Interval: kline.HundredMilliseconds,
-		},
-		{
-			Channel: subscription.OrderbookChannel, Asset: asset.Futures, Pairs: pairs["futures"], QualifiedChannel: "/contractMarket/level2Depth5:" + pairs["futures"].Join(),
-			Interval: kline.HundredMilliseconds,
-		},
-		{Channel: subscription.AllTradesChannel, Asset: asset.Spot, Pairs: pairs["both"], QualifiedChannel: "/market/match:" + pairs["both"].Join()},
-	}
+	exp := append(subscription.List{}, expectedPerPairSubscriptions(subscription.TickerChannel, asset.Spot, pairs["both"], marketTickerChannel, 0, nil)...)
+	exp = append(exp, expectedPerPairSubscriptions(subscription.TickerChannel, asset.Futures, pairs["futures"], futuresTickerChannel, 0, nil)...)
+	exp = append(exp, expectedPerPairSubscriptions(subscription.OrderbookChannel, asset.Spot, pairs["both"], marketOrderbookDepth5Channel, kline.HundredMilliseconds, nil)...)
+	exp = append(exp, expectedPerPairSubscriptions(subscription.OrderbookChannel, asset.Futures, pairs["futures"], futuresOrderbookDepth5Channel, kline.HundredMilliseconds, nil)...)
+	exp = append(exp, expectedPerPairSubscriptions(subscription.AllTradesChannel, asset.Spot, pairs["both"], marketMatchChannel, 0, nil)...)
 
 	subs, err := ku.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
@@ -201,6 +227,11 @@ func TestGenerateOtherSubscriptions(t *testing.T) {
 	t.Parallel()
 
 	ku := testInstance(t)
+	spotPairs, err := ku.GetEnabledPairs(asset.Spot)
+	require.NoError(t, err, "GetEnabledPairs must not error")
+	spotPairs = common.SortStrings(spotPairs)
+	interval, err := IntervalToString(kline.FourHour)
+	require.NoError(t, err, "IntervalToString must not error")
 
 	subs := subscription.List{
 		{Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.FourHour},
@@ -210,12 +241,21 @@ func TestGenerateOtherSubscriptions(t *testing.T) {
 	for _, s := range subs {
 		ku.Features.Subscriptions = subscription.List{s}
 		got, err := ku.generateSubscriptions()
-		assert.NoError(t, err, "generateSubscriptions should not error")
-		require.Len(t, got, 1, "Must generate just one sub")
-		assert.NotEmpty(t, got[0].QualifiedChannel, "Qualified Channel should not be empty")
-		if got[0].Channel == subscription.CandlesChannel {
-			assert.Equal(t, "/market/candles:BTC-USDT_4hour,ETH-BTC_4hour,ETH-USDT_4hour,LTC-USDT_4hour", got[0].QualifiedChannel, "QualifiedChannel should be correct")
+		require.NoError(t, err, "generateSubscriptions must not error")
+
+		var exp subscription.List
+		switch s.Channel {
+		case subscription.CandlesChannel:
+			exp = expectedPerPairSubscriptions(subscription.CandlesChannel, asset.Spot, spotPairs, marketCandlesChannel, kline.FourHour, func(pair currency.Pair) string {
+				return pair.String() + "_" + interval
+			})
+		case marketSnapshotChannel:
+			exp = expectedPerPairSubscriptions(marketSnapshotChannel, asset.Spot, spotPairs, marketSnapshotChannel, 0, nil)
+		default:
+			t.Fatalf("unexpected test channel %s", s.Channel)
 		}
+
+		testsubs.EqualLists(t, exp, got)
 	}
 }
 
@@ -242,9 +282,7 @@ func TestGenerateMarginSubscriptions(t *testing.T) {
 	ku.Features.Subscriptions = subscription.List{{Channel: subscription.TickerChannel, Asset: asset.Margin}}
 	subs, err := ku.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
-	require.Len(t, subs, 1, "Must generate just one sub")
-	assert.Equal(t, asset.Margin, subs[0].Asset, "Asset should be correct")
-	assert.Equal(t, "/market/ticker:"+marginAvail[:6].Join(), subs[0].QualifiedChannel, "QualifiedChannel should be correct")
+	testsubs.EqualLists(t, expectedPerPairSubscriptions(subscription.TickerChannel, asset.Margin, marginAvail[:6], marketTickerChannel, 0, nil), subs)
 
 	require.NoError(t, ku.CurrencyPairs.SetAssetEnabled(asset.Margin, false), "SetAssetEnabled Spot must not error")
 	require.NoError(t, err, "SetAssetEnabled must not error")
@@ -631,10 +669,27 @@ func TestSubscribeBatches(t *testing.T) {
 
 	subs, err := ku.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
-	require.Len(t, subs, len(ku.Features.Subscriptions), "Must generate batched subscriptions")
+	spotPairs, err := ku.GetEnabledPairs(asset.Spot)
+	require.NoError(t, err, "GetEnabledPairs must not error for spot pairs")
+	futuresPairs, err := ku.GetEnabledPairs(asset.Futures)
+	require.NoError(t, err, "GetEnabledPairs must not error for futures pairs")
+	require.Len(t, subs, len(spotPairs)+len(futuresPairs)+len(spotPairs), "generateSubscriptions must return one subscription per enabled pair")
 
-	err = ku.Subscribe(t.Context(), &ConnectionFixture{messageResponse: `{"id":"019ae225-c584-7b71-a634-489c7249e000","type":"ack"}`}, subs)
-	assert.NoError(t, err, "Subscribe to small batches should not error")
+	conn := &ConnectionFixture{messageResponse: `{"id":"019ae225-c584-7b71-a634-489c7249e000","type":"ack"}`}
+	err = ku.Subscribe(t.Context(), conn, subs)
+	require.NoError(t, err, "Subscribe must not error for small batches")
+
+	expectedOutbound := collapseSubscriptionList(subs)
+	require.Len(t, conn.sentRequests, len(expectedOutbound), "Subscribe must send one request per collapsed batch")
+	expectedTopics := make(map[string]struct{}, len(expectedOutbound))
+	for _, outbound := range expectedOutbound {
+		expectedTopics[outbound.QualifiedChannel] = struct{}{}
+	}
+	for _, req := range conn.sentRequests {
+		_, ok := expectedTopics[req.Topic]
+		assert.Truef(t, ok, "Request topic should match a collapsed subscription: %s", req.Topic)
+	}
+	assert.Len(t, ku.Websocket.GetSubscriptions(), len(subs), "Subscribe should track each original subscription")
 }
 
 func TestChannelName(t *testing.T) {
@@ -664,38 +719,70 @@ func TestSubscribeBatchLimit(t *testing.T) {
 
 	const expectedLimit = 400
 
-	ku := testInstance(t)
-	ku.Features.Subscriptions = subscription.List{}
-	testexch.SetupWs(t, ku)
+	setupSubs := func(tb testing.TB, total int) (*Exchange, subscription.List) {
+		tb.Helper()
+		ku := testInstance(tb)
+		ku.Features.Subscriptions = subscription.List{}
+		testexch.SetupWs(tb, ku)
 
-	avail, err := ku.GetAvailablePairs(asset.Spot)
-	require.NoError(t, err, "GetAvailablePairs must not error")
+		avail, err := ku.GetAvailablePairs(asset.Spot)
+		require.NoError(tb, err, "GetAvailablePairs must not error")
+		require.GreaterOrEqual(tb, len(avail), total, "GetAvailablePairs must include enough spot pairs")
 
-	err = ku.CurrencyPairs.StorePairs(asset.Spot, avail[:expectedLimit], true)
-	require.NoError(t, err, "StorePairs must not error")
+		err = ku.CurrencyPairs.StorePairs(asset.Spot, avail[:total], true)
+		require.NoError(tb, err, "StorePairs must not error")
 
-	ku.Features.Subscriptions = subscription.List{{Asset: asset.Spot, Channel: subscription.AllTradesChannel}}
-	subs, err := ku.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions must not error")
-	require.Len(t, subs, 4, "Must get 4 subs")
+		ku.Features.Subscriptions = subscription.List{{Asset: asset.Spot, Channel: subscription.AllTradesChannel}}
+		subs, err := ku.generateSubscriptions()
+		require.NoError(tb, err, "generateSubscriptions must not error")
+		return ku, subs
+	}
 
-	err = ku.Subscribe(t.Context(), &ConnectionFixture{messageResponse: `{"id":"019ae225-c584-7b71-a634-489c7249e000","type":"ack"}`}, subs)
-	require.NoError(t, err, "Subscribe must not error")
+	t.Run("within_limit", func(t *testing.T) {
+		t.Parallel()
 
-	err = ku.Unsubscribe(t.Context(), &ConnectionFixture{messageResponse: `{"id":"019ae225-c584-7b71-a634-489c7249e000","type":"ack"}`}, subs)
-	require.NoError(t, err, "Unsubscribe must not error")
+		ku, subs := setupSubs(t, expectedLimit)
+		require.Len(t, subs, expectedLimit, "generateSubscriptions must return one subscription per enabled pair")
 
-	err = ku.CurrencyPairs.StorePairs(asset.Spot, avail[:expectedLimit+20], true)
-	require.NoError(t, err, "StorePairs must not error")
+		conn := &ConnectionFixture{messageResponse: `{"id":"019ae225-c584-7b71-a634-489c7249e000","type":"ack"}`}
+		err := ku.Subscribe(t.Context(), conn, subs)
+		require.NoError(t, err, "Subscribe must not error at KuCoin's session limit")
+		require.Len(t, conn.sentRequests, 4, "Subscribe must send four batched requests at KuCoin's session limit")
+		assert.Len(t, ku.Websocket.GetSubscriptions(), expectedLimit, "Subscribe should track each original subscription at KuCoin's session limit")
 
-	ku.Features.Subscriptions = subscription.List{{Asset: asset.Spot, Channel: subscription.AllTradesChannel}}
-	subs, err = ku.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions must not error")
-	require.Len(t, subs, 5, "Must get 5 subs")
+		unsubConn := &ConnectionFixture{messageResponse: `{"id":"019ae225-c584-7b71-a634-489c7249e000","type":"ack"}`}
+		err = ku.Unsubscribe(t.Context(), unsubConn, subs)
+		require.NoError(t, err, "Unsubscribe must not error at KuCoin's session limit")
+		require.Len(t, unsubConn.sentRequests, 4, "Unsubscribe must send four batched requests at KuCoin's session limit")
+		assert.Empty(t, ku.Websocket.GetSubscriptions(), "Unsubscribe should remove all tracked subscriptions")
+	})
 
-	err = ku.Subscribe(t.Context(), &ConnectionFixture{messageResponse: `{"id":"019ae22f-4718-7da4-846d-999b085cc24a","type":"error","code":509,"data":"exceed max subscription count limitation of 400 per session"}`}, subs)
-	require.Error(t, err, "Subscribe must error")
-	assert.ErrorContains(t, err, "exceed max subscription count limitation of 400 per session", "Subscribe to MarketSnapshot should error above connection symbol limit")
+	t.Run("over_limit", func(t *testing.T) {
+		t.Parallel()
+
+		ku, subs := setupSubs(t, expectedLimit+20)
+		require.Len(t, subs, expectedLimit+20, "generateSubscriptions must return one subscription per enabled pair")
+		expectedOutbound := collapseSubscriptionList(subs)
+		batchSizes := make(map[string]int, len(expectedOutbound))
+		for assoc, outbound := range expectedOutbound {
+			batchSizes[outbound.QualifiedChannel] = len(*assoc)
+		}
+
+		conn := &ConnectionFixture{}
+		conn.sendFn = func(_ any) ([]byte, error) {
+			if len(conn.sentRequests) == 5 {
+				return []byte(`{"id":"019ae22f-4718-7da4-846d-999b085cc24a","type":"error","code":509,"data":"exceed max subscription count limitation of 400 per session"}`), nil
+			}
+			return []byte(`{"id":"019ae225-c584-7b71-a634-489c7249e000","type":"ack"}`), nil
+		}
+
+		err := ku.Subscribe(t.Context(), conn, subs)
+		require.Error(t, err, "Subscribe must error once KuCoin's session limit is exceeded")
+		require.Len(t, conn.sentRequests, 5, "Subscribe must send five batched requests when more than 400 pairs are enabled")
+		assert.ErrorContains(t, err, "exceed max subscription count limitation of 400 per session", "Subscribe should return KuCoin's session limit error")
+		failedBatchSize := batchSizes[conn.sentRequests[len(conn.sentRequests)-1].Topic]
+		assert.Len(t, ku.Websocket.GetSubscriptions(), len(subs)-failedBatchSize, "Only acknowledged subscriptions should be tracked after KuCoin rejects one batch")
+	})
 }
 
 // TestSubscribeTickerAll ensures that ticker subscriptions switch to using all and it works
