@@ -689,6 +689,9 @@ func tickerFromResp(symbol string, respAny []any) (*Ticker, error) {
 		// Bitfinex REST tickers now append a trailing update timestamp.
 		// Keep accepting the original 10-field payload because older REST
 		// fixtures still use it.
+		if _, ok := respAny[10].(float64); !ok {
+			return nil, fmt.Errorf("%w for %s field Timestamp from %v", errTickerInvalidResp, symbol, respAny)
+		}
 		respAny = respAny[:10]
 	default:
 		return nil, fmt.Errorf("%w for %s: %v", errTickerInvalidFieldCount, symbol, respAny)
@@ -722,6 +725,9 @@ func tickerFromFundingResp(symbol string, respAny []any) (*Ticker, error) {
 	case 16:
 	case 17:
 		// Bitfinex REST funding tickers now append a trailing update timestamp.
+		if _, ok := respAny[16].(float64); !ok {
+			return nil, fmt.Errorf("%w for %s field Timestamp from %v", errTickerInvalidResp, symbol, respAny)
+		}
 		respAny = respAny[:16]
 	default:
 		return nil, fmt.Errorf("%w for %s: %v", errTickerInvalidFieldCount, symbol, respAny)

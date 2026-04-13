@@ -228,6 +228,11 @@ func TestTickerFromResp(t *testing.T) {
 	assert.ErrorIs(t, err, errTickerInvalidFieldCount, "tickerFromResp should error correctly")
 	assert.ErrorContains(t, err, "tBTCUSD", "tickerFromResp should error correctly")
 
+	_, err = tickerFromResp("tBTCUSD", []any{1.1, 2.2, 3.3, 4.4, 5.5, 6.6, 7.7, 8.8, 9.9, 10.10, nil})
+	assert.ErrorIs(t, err, errTickerInvalidResp, "tickerFromResp should reject non-numeric trailing timestamps")
+	assert.ErrorContains(t, err, "Timestamp", "tickerFromResp should reject non-numeric trailing timestamps")
+	assert.ErrorContains(t, err, "tBTCUSD", "tickerFromResp should reject non-numeric trailing timestamps")
+
 	_, err = tickerFromResp("tBTCUSD", []any{1.1, 2.2, 3.3, 4.4, 5.5, 6.6, 7.7, 8.8, 9.9, 10.10, 1747143592992.0, 42.0})
 	assert.ErrorIs(t, err, errTickerInvalidFieldCount, "tickerFromResp should reject unexpected extra fields")
 	assert.ErrorContains(t, err, "tBTCUSD", "tickerFromResp should reject unexpected extra fields")
@@ -274,6 +279,11 @@ func TestTickerFromFundingResp(t *testing.T) {
 	_, err = tickerFromFundingResp("fBTC", []any{100.0, nil, 100.0, nil, nil, nil, nil, nil, nil})
 	assert.ErrorIs(t, err, errTickerInvalidFieldCount, "tickerFromFundingResp should error correctly")
 	assert.ErrorContains(t, err, "fBTC", "tickerFromFundingResp should error correctly")
+
+	_, err = tickerFromFundingResp("fBTC", []any{1.1, 2.2, 3.0, 4.4, 5.5, 6.0, 7.7, 8.8, 9.9, 10.10, 11.11, 12.12, 13.13, nil, nil, 15.15, nil})
+	assert.ErrorIs(t, err, errTickerInvalidResp, "tickerFromFundingResp should reject non-numeric trailing timestamps")
+	assert.ErrorContains(t, err, "Timestamp", "tickerFromFundingResp should reject non-numeric trailing timestamps")
+	assert.ErrorContains(t, err, "fBTC", "tickerFromFundingResp should reject non-numeric trailing timestamps")
 
 	_, err = tickerFromFundingResp("fBTC", []any{1.1, 2.2, 3.0, 4.4, 5.5, 6.0, 7.7, 8.8, 9.9, 10.10, 11.11, 12.12, 13.13, nil, nil, 15.15, 1747143592992.0, 42.0})
 	assert.ErrorIs(t, err, errTickerInvalidFieldCount, "tickerFromFundingResp should reject unexpected extra fields")
