@@ -683,7 +683,14 @@ func tickerFromResp(symbol string, respAny []any) (*Ticker, error) {
 	if strings.HasPrefix(symbol, "f") {
 		return tickerFromFundingResp(symbol, respAny)
 	}
-	if len(respAny) != 10 {
+	switch len(respAny) {
+	case 10:
+	case 11:
+		// Bitfinex REST tickers now append a trailing update timestamp.
+		// Keep accepting the original 10-field payload because older REST
+		// fixtures still use it.
+		respAny = respAny[:10]
+	default:
 		return nil, fmt.Errorf("%w for %s: %v", errTickerInvalidFieldCount, symbol, respAny)
 	}
 	resp := make([]float64, 10)
@@ -711,7 +718,12 @@ func tickerFromResp(symbol string, respAny []any) (*Ticker, error) {
 var fundingTickerFields = []string{"FlashReturnRate", "Bid", "BidPeriod", "BidSize", "Ask", "AskPeriod", "AskSize", "DailyChange", "DailyChangePercentage", "LastPrice", "DailyVolume", "DailyHigh", "DailyLow", "", "", "FRRAmountAvailable"}
 
 func tickerFromFundingResp(symbol string, respAny []any) (*Ticker, error) {
-	if len(respAny) != 16 {
+	switch len(respAny) {
+	case 16:
+	case 17:
+		// Bitfinex REST funding tickers now append a trailing update timestamp.
+		respAny = respAny[:16]
+	default:
 		return nil, fmt.Errorf("%w for %s: %v", errTickerInvalidFieldCount, symbol, respAny)
 	}
 	resp := make([]float64, 16)

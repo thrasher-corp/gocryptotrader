@@ -228,18 +228,36 @@ func TestTickerFromResp(t *testing.T) {
 	assert.ErrorIs(t, err, errTickerInvalidFieldCount, "tickerFromResp should error correctly")
 	assert.ErrorContains(t, err, "tBTCUSD", "tickerFromResp should error correctly")
 
-	tick, err := tickerFromResp("tBTCUSD", []any{1.1, 2.2, 3.3, 4.4, 5.5, 6.6, 7.7, 8.8, 9.9, 10.10})
-	require.NoError(t, err, "tickerFromResp must error correctly")
-	assert.Equal(t, 1.1, tick.Bid, "Tick Bid should be correct")
-	assert.Equal(t, 2.2, tick.BidSize, "Tick BidSize should be correct")
-	assert.Equal(t, 3.3, tick.Ask, "Tick Ask should be correct")
-	assert.Equal(t, 4.4, tick.AskSize, "Tick AskSize should be correct")
-	assert.Equal(t, 5.5, tick.DailyChange, "Tick DailyChange should be correct")
-	assert.Equal(t, 6.6, tick.DailyChangePerc, "Tick DailyChangePerc should be correct")
-	assert.Equal(t, 7.7, tick.Last, "Tick Last should be correct")
-	assert.Equal(t, 8.8, tick.Volume, "Tick Volume should be correct")
-	assert.Equal(t, 9.9, tick.High, "Tick High should be correct")
-	assert.Equal(t, 10.10, tick.Low, "Tick Low should be correct")
+	_, err = tickerFromResp("tBTCUSD", []any{1.1, 2.2, 3.3, 4.4, 5.5, 6.6, 7.7, 8.8, 9.9, 10.10, 1747143592992.0, 42.0})
+	assert.ErrorIs(t, err, errTickerInvalidFieldCount, "tickerFromResp should reject unexpected extra fields")
+	assert.ErrorContains(t, err, "tBTCUSD", "tickerFromResp should reject unexpected extra fields")
+
+	expTradingTick := &Ticker{
+		Bid:             1.1,
+		BidSize:         2.2,
+		Ask:             3.3,
+		AskSize:         4.4,
+		DailyChange:     5.5,
+		DailyChangePerc: 6.6,
+		Last:            7.7,
+		Volume:          8.8,
+		High:            9.9,
+		Low:             10.10,
+	}
+	for _, tc := range []struct {
+		name    string
+		payload []any
+	}{
+		{name: "legacy payload", payload: []any{1.1, 2.2, 3.3, 4.4, 5.5, 6.6, 7.7, 8.8, 9.9, 10.10}},
+		{name: "payload with trailing timestamp", payload: []any{1.1, 2.2, 3.3, 4.4, 5.5, 6.6, 7.7, 8.8, 9.9, 10.10, 1747143592992.0}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tick, err := tickerFromResp("tBTCUSD", tc.payload)
+			require.NoError(t, err, "tickerFromResp must not error")
+			assert.Equal(t, expTradingTick, tick, "tickerFromResp should parse trading payload correctly")
+		})
+	}
 
 	_, err = tickerFromResp("fBTC", []any{100.0, nil, 100.0, nil, nil, nil, nil, nil, nil, nil})
 	assert.ErrorIs(t, err, errTickerInvalidFieldCount, "tickerFromResp should delegate to tickerFromFundingResp and error correctly")
@@ -257,22 +275,40 @@ func TestTickerFromFundingResp(t *testing.T) {
 	assert.ErrorIs(t, err, errTickerInvalidFieldCount, "tickerFromFundingResp should error correctly")
 	assert.ErrorContains(t, err, "fBTC", "tickerFromFundingResp should error correctly")
 
-	tick, err := tickerFromFundingResp("fBTC", []any{1.1, 2.2, 3.0, 4.4, 5.5, 6.0, 7.7, 8.8, 9.9, 10.10, 11.11, 12.12, 13.13, nil, nil, 15.15})
-	require.NoError(t, err, "tickerFromFundingResp must error correctly")
-	assert.Equal(t, 1.1, tick.FlashReturnRate, "Tick FlashReturnRate should be correct")
-	assert.Equal(t, 2.2, tick.Bid, "Tick Bid should be correct")
-	assert.Equal(t, int64(3), tick.BidPeriod, "Tick BidPeriod should be correct")
-	assert.Equal(t, 4.4, tick.BidSize, "Tick BidSize should be correct")
-	assert.Equal(t, 5.5, tick.Ask, "Tick Ask should be correct")
-	assert.Equal(t, int64(6), tick.AskPeriod, "Tick AskPeriod should be correct")
-	assert.Equal(t, 7.7, tick.AskSize, "Tick AskSize should be correct")
-	assert.Equal(t, 8.8, tick.DailyChange, "Tick DailyChange should be correct")
-	assert.Equal(t, 9.9, tick.DailyChangePerc, "Tick DailyChangePerc should be correct")
-	assert.Equal(t, 10.10, tick.Last, "Tick Last should be correct")
-	assert.Equal(t, 11.11, tick.Volume, "Tick Volume should be correct")
-	assert.Equal(t, 12.12, tick.High, "Tick High should be correct")
-	assert.Equal(t, 13.13, tick.Low, "Tick Low should be correct")
-	assert.Equal(t, 15.15, tick.FRRAmountAvailable, "Tick FRRAmountAvailable should be correct")
+	_, err = tickerFromFundingResp("fBTC", []any{1.1, 2.2, 3.0, 4.4, 5.5, 6.0, 7.7, 8.8, 9.9, 10.10, 11.11, 12.12, 13.13, nil, nil, 15.15, 1747143592992.0, 42.0})
+	assert.ErrorIs(t, err, errTickerInvalidFieldCount, "tickerFromFundingResp should reject unexpected extra fields")
+	assert.ErrorContains(t, err, "fBTC", "tickerFromFundingResp should reject unexpected extra fields")
+
+	expFundingTick := &Ticker{
+		FlashReturnRate:    1.1,
+		Bid:                2.2,
+		BidPeriod:          3,
+		BidSize:            4.4,
+		Ask:                5.5,
+		AskPeriod:          6,
+		AskSize:            7.7,
+		DailyChange:        8.8,
+		DailyChangePerc:    9.9,
+		Last:               10.10,
+		Volume:             11.11,
+		High:               12.12,
+		Low:                13.13,
+		FRRAmountAvailable: 15.15,
+	}
+	for _, tc := range []struct {
+		name    string
+		payload []any
+	}{
+		{name: "legacy payload", payload: []any{1.1, 2.2, 3.0, 4.4, 5.5, 6.0, 7.7, 8.8, 9.9, 10.10, 11.11, 12.12, 13.13, nil, nil, 15.15}},
+		{name: "payload with trailing timestamp", payload: []any{1.1, 2.2, 3.0, 4.4, 5.5, 6.0, 7.7, 8.8, 9.9, 10.10, 11.11, 12.12, 13.13, nil, nil, 15.15, 1747143592992.0}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tick, err := tickerFromFundingResp("fBTC", tc.payload)
+			require.NoError(t, err, "tickerFromFundingResp must not error")
+			assert.Equal(t, expFundingTick, tick, "tickerFromFundingResp should parse funding payload correctly")
+		})
+	}
 }
 
 func TestGetTickerFunding(t *testing.T) {
