@@ -13,6 +13,9 @@
 	currency.SHFT:     84,
 		TotalIn  float64 `json:"totalIn"`
 		TotalIn        int64  `json:"totalIn"`
+	"Contract Info":                 `{"stream": "!contractInfo", "data": {"e":"contractInfo", "E":1669356423908, "s":"IOTAUSDT", "ps":"IOTAUSDT", "ct":"PERPETUAL", "dt":4133404800000, "ot":1569398400000, "cs":"TRADING", "bks":[ { "bs":1, "bnf":0, "bnc":5000, "mmr":0.01, "cf":0, "mi":21, "ma":50 }, { "bs":2, "bnf":5000, "bnc":25000, "mmr":0.025, "cf":75, "mi":11, "ma":20 } ] }}`,
+	OnboardDateTime  convert.ExchangeTime `json:"ot"`
+		TransferFrom  string               `json:"transFrom,omitempty"`
   behavior: default
 	loanCustomiseMarginCall      = "/sapi/v1/loan/customize/margin_call"
 	assert.ErrorIs(t, b.StartPortfolioWatcher(ctx, 0), context.Canceled, "StartPortfolioWatcher should return context.Canceled")
@@ -51,3 +54,5 @@
 	withdrawal := []byte(`[13293039,"ETH","ETHEREUM",null,null,1574175052000,1574181326000,null,null,"CANCELED",null,null,-0.24,-0.00135,null,null,"DESTINATION_ADDRESS",null,null,null,"TRANSACTION_ID","Purchase of 100 pizzas"]`)
 	pressXToJSON = `[0,"oc",[34930659963,null,1574955083558,"tETHUSD",1574955083558,1574955354487,0.201104,0.201104,"EXCHANGE LIMIT",null,null,null,0,"CANCELED",null,null,120,0,0,0,null,null,null,0,0,null,null,null,"BFX",null,null,null]]`
 	"Quotes":                                `{"arg": {"channel":"quotes"},"data":[{"validUntil":"1608997227854","uTime":"1608267227834","cTime":"1608267227834","legs":[{"px":"0.0023","sz":"25.0","instId":"BTC-USD-220114-25000-C","side":"sell","tgtCcy":""},{"px":"0.0045","sz":"25","instId":"BTC-USD-220114-35000-C","side":"buy","tgtCcy":""}],"quoteId":"25092","rfqId":"18753","traderCode":"SATS","quoteSide":"sell","state":"canceled","clQuoteId":""}]}`,
+		APIKey                string     `json:"apiKey"`
+	APIKey     string     `json:"apiKey"`
