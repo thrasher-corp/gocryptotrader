@@ -4010,20 +4010,13 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 			return nil, fmt.Errorf("%w %v %v position info", currency.ErrCurrencyNotFound, req.Asset, req.Pair)
 		}
 
-		var usdtAsset, busdAsset *UAsset
+		var collateralAsset *UAsset
 		for i := range ai.Assets {
-			if usdtAsset != nil && busdAsset != nil {
-				break
-			}
-			if strings.EqualFold(ai.Assets[i].Asset, currency.USDT.Item.Symbol) {
-				usdtAsset = &ai.Assets[i]
-				continue
-			}
-			if strings.EqualFold(ai.Assets[i].Asset, currency.BUSD.Item.Symbol) {
-				busdAsset = &ai.Assets[i]
+			if strings.HasSuffix(accountPosition.Symbol, ai.Assets[i].Asset) {
+				collateralAsset = &ai.Assets[i]
 			}
 		}
-		if usdtAsset == nil && busdAsset == nil {
+		if collateralAsset == nil {
 			return nil, fmt.Errorf("%w %v %v asset info", currency.ErrCurrencyNotFound, req.Asset, req.Pair)
 		}
 
@@ -4054,14 +4047,6 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 
 		switch collateralMode {
 		case collateral.SingleMode:
-			var collateralAsset *UAsset
-			switch {
-			case strings.Contains(accountPosition.Symbol, usdtAsset.Asset):
-				collateralAsset = usdtAsset
-			case strings.Contains(accountPosition.Symbol, busdAsset.Asset):
-				collateralAsset = busdAsset
-			}
-
 			collateralTotal = collateralAsset.WalletBalance
 			collateralAvailable = collateralAsset.AvailableBalance
 			unrealisedPNL = collateralAsset.UnrealizedProfit
@@ -4104,6 +4089,9 @@ func (e *Exchange) GetFuturesPositionSummary(ctx context.Context, req *futures.P
 			return nil, fmt.Errorf("%w %v %v", futures.ErrNoPositionsFound, req.Asset, req.Pair)
 		}
 
+		positionSize = relevantPosition.PositionAmount
+		markPrice = relevantPosition.MarkPrice
+		liquidationPrice = relevantPosition.LiquidationPrice
 		return &futures.PositionSummary{
 			Pair:                         req.Pair,
 			Asset:                        req.Asset,
