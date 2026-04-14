@@ -23,8 +23,8 @@ func TestNumberUnmarshalJSON(t *testing.T) {
 	assert.Zero(t, n.Float64(), "UnmarshalJSON should parse empty as 0")
 
 	err = n.UnmarshalJSON([]byte(`null`))
-	assert.NoError(t, err, "Unmarshal should not error")
-	assert.Zero(t, n.Float64(), "UnmarshalJSON should parse empty as 0")
+	assert.NoError(t, err, "Unmarshal should not error on null")
+	assert.Zero(t, n.Float64(), "UnmarshalJSON should parse null as 0")
 
 	err = n.UnmarshalJSON([]byte(`1337.37`))
 	assert.NoError(t, err, "Unmarshal should not error on number types")
