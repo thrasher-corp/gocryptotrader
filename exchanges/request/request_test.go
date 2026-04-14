@@ -312,25 +312,12 @@ func TestDoRequest(t *testing.T) {
 
 func TestDoRequest_NoContent(t *testing.T) {
 	t.Parallel()
-	newRequesterWithClient := func(t *testing.T, client *http.Client, opts ...RequesterOption) *Requester {
-		t.Helper()
-
-		r, err := New("test", client, opts...)
-		require.NoError(t, err, "New requester must not error")
-		t.Cleanup(func() {
-			assert.NoError(t, r.Shutdown(), "Shutdown should not error")
-		})
-		return r
-	}
-
-	newRequesterWithOpts := func(t *testing.T, opts ...RequesterOption) *Requester {
-		t.Helper()
-		return newRequesterWithClient(t, common.NewHTTPClientWithTimeout(0), opts...)
-	}
-
 	newRequester := func(t *testing.T) *Requester {
 		t.Helper()
-		return newRequesterWithOpts(t, WithLimiter(globalshell))
+		r, err := New("test", common.NewHTTPClientWithTimeout(0), WithLimiter(globalshell))
+		require.NoError(t, err, "New requester must not error")
+		t.Cleanup(func() { assert.NoError(t, r.Shutdown(), "Shutdown should not error") })
+		return r
 	}
 
 	scenarioTests := []struct {
