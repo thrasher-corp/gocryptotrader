@@ -1,6 +1,8 @@
 package mock
 
 import (
+	"bytes"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -203,4 +205,62 @@ func TestHTTPRecord(t *testing.T) {
 	}
 	err = HTTPRecord(response, "mock", content, 4)
 	require.NoError(t, err, "HTTPRecord must not error")
+
+	existingMock := VCRMock{
+		Routes: map[string]map[string][]HTTPResponse{
+			"": {
+				http.MethodPost: {
+					{
+						Headers:    map[string][]string{contentType: {applicationJSON}},
+						BodyParams: `{"key": "value"}`,
+						Data:       json.RawMessage(`{}`),
+					},
+				},
+			},
+		},
+	}
+	mockData, err := json.Marshal(existingMock)
+	require.NoError(t, err, "Marshal must not error")
+	require.NoError(t, os.WriteFile(filePath, mockData, 0o644), "WriteFile must not error")
+
+	invalidBody := []byte(`{invalid json`)
+	response = &http.Response{
+		Request: &http.Request{
+			Method: http.MethodPost,
+			Header: http.Header{contentType: {applicationJSON}},
+			URL:    &url.URL{},
+			GetBody: func() (io.ReadCloser, error) {
+				return io.NopCloser(bytes.NewReader(invalidBody)), nil
+			},
+		},
+	}
+	err = HTTPRecord(response, "mock", content, 4)
+	require.Error(t, err, "HTTPRecord must error for invalid request body JSON")
+
+	existingMockBadParams := VCRMock{
+		Routes: map[string]map[string][]HTTPResponse{
+			"": {
+				http.MethodPost: {
+					{
+						Headers:    map[string][]string{contentType: {applicationJSON}},
+						BodyParams: `{invalid params`,
+						Data:       json.RawMessage(`{}`),
+					},
+				},
+			},
+		},
+	}
+	mockData, err = json.Marshal(existingMockBadParams)
+	require.NoError(t, err, "Marshal must not error")
+	require.NoError(t, os.WriteFile(filePath, mockData, 0o644), "WriteFile must not error")
+
+	response = &http.Response{
+		Request: &http.Request{
+			Method: http.MethodPost,
+			Header: http.Header{contentType: {applicationJSON}},
+			URL:    &url.URL{},
+		},
+	}
+	err = HTTPRecord(response, "mock", content, 4)
+	require.Error(t, err, "HTTPRecord must error for invalid stored BodyParams JSON")
 }
