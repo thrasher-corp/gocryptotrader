@@ -172,6 +172,7 @@ var (
 	errFetchingOrderbook                = errors.New("error fetching orderbook")
 	errNoSpotInstrument                 = errors.New("no spot instrument available")
 	errInvalidLimit                     = errors.New("invalid limit")
+	errInvalidUniLoanType               = errors.New("invalid uni loan type: must be \"borrow\" or \"repay\"")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
@@ -1352,8 +1353,8 @@ func (e *Exchange) GetEstimatedInterestRate(ctx context.Context, currencies []cu
 }
 
 // UniLoanBorrowOrRepay borrows or repays currency in a unified margin account
-// using the margin/uni/loans endpoint. Pass typ="borrow" to open a loan or
-// typ="repay" to close one. This replaces the deprecated POST margin/loans
+// using the margin/uni/loans endpoint. Pass type="borrow" to open a loan or
+// type="repay" to close one. This replaces the deprecated POST margin/loans
 // endpoint which returned 403 "This API is no longer supported" for unified
 // margin accounts.
 func (e *Exchange) UniLoanBorrowOrRepay(ctx context.Context, arg *UniLoanBorrowRepayParam) error {
@@ -1367,7 +1368,7 @@ func (e *Exchange) UniLoanBorrowOrRepay(ctx context.Context, arg *UniLoanBorrowR
 		return currency.ErrCurrencyCodeEmpty
 	}
 	if arg.Type != "borrow" && arg.Type != "repay" {
-		return errors.New("invalid uni loan type: must be \"borrow\" or \"repay\"")
+		return errInvalidUniLoanType
 	}
 	if arg.Amount <= 0 {
 		return fmt.Errorf("%w, amount must be greater than 0", errInvalidAmount)
@@ -1376,12 +1377,12 @@ func (e *Exchange) UniLoanBorrowOrRepay(ctx context.Context, arg *UniLoanBorrowR
 }
 
 // GetUniLoanInterestRecords retrieves interest deduction records for unified
-// margin loans. Filters by currency pair and optionally by currency code.
+// margin loans. Optionally filters by currency pair or by currency code.
 // Pagination: page starts at 1, limit defaults to 100 (max 100).
-func (e *Exchange) GetUniLoanInterestRecords(ctx context.Context, currencyPair currency.Pair, ccy currency.Code, page, limit uint64) ([]UniLoanInterestRecord, error) {
+func (e *Exchange) GetUniLoanInterestRecords(ctx context.Context, pair currency.Pair, ccy currency.Code, page, limit uint64, from, to time.Time) ([]UniLoanInterestRecord, error) {
 	params := url.Values{}
-	if currencyPair.IsPopulated() {
-		params.Set("currency_pair", currencyPair.String())
+	if pair.IsPopulated() {
+		params.Set("currency_pair", pair.String())
 	}
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
@@ -1394,6 +1395,12 @@ func (e *Exchange) GetUniLoanInterestRecords(ctx context.Context, currencyPair c
 			return nil, fmt.Errorf("%w: maximum 100", errInvalidLimit)
 		}
 		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	if !from.IsZero() {
+		params.Set("from", strconv.FormatInt(from.Unix(), 10))
+	}
+	if !to.IsZero() {
+		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
 	var response []UniLoanInterestRecord
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginUniInterestRecordsEPL, http.MethodGet, gateioMarginUniInterestRecords, params, nil, &response)

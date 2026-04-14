@@ -601,12 +601,12 @@ func TestUniLoanBorrowOrRepay(t *testing.T) {
 		Type:         "borrow",
 		Amount:       1,
 	}), currency.ErrCurrencyCodeEmpty)
-	assert.ErrorContains(t, e.UniLoanBorrowOrRepay(t.Context(), &UniLoanBorrowRepayParam{
+	assert.ErrorIs(t, e.UniLoanBorrowOrRepay(t.Context(), &UniLoanBorrowRepayParam{
 		CurrencyPair: currency.NewBTCUSDT(),
 		Currency:     currency.BTC,
 		Type:         "invalid",
 		Amount:       1,
-	}), "invalid uni loan type")
+	}), errInvalidUniLoanType)
 	assert.ErrorIs(t, e.UniLoanBorrowOrRepay(t.Context(), &UniLoanBorrowRepayParam{
 		CurrencyPair: currency.NewBTCUSDT(),
 		Currency:     currency.BTC,
