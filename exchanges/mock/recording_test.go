@@ -263,4 +263,46 @@ func TestHTTPRecord(t *testing.T) {
 	}
 	err = HTTPRecord(response, "mock", content, 4)
 	require.Error(t, err, "HTTPRecord must error for invalid stored BodyParams JSON")
+
+	existingMockBadParams.Routes[""]["ABC"] = []HTTPResponse{
+		{
+			Headers:    map[string][]string{contentType: {applicationJSON}},
+			BodyParams: `{invalid params`,
+			Data:       json.RawMessage(`{}`),
+		},
+	}
+	mockData, err = json.Marshal(existingMockBadParams)
+	require.NoError(t, err, "Marshal must not error")
+	require.NoError(t, os.WriteFile(filePath, mockData, 0o644), "WriteFile must not error")
+
+	response = &http.Response{
+		Request: &http.Request{
+			Method: "ABC",
+			Header: http.Header{contentType: {applicationJSON}},
+			URL:    &url.URL{},
+		},
+	}
+	err = HTTPRecord(response, "mock", content, 4)
+	require.ErrorContains(t, err, "unhandled request method")
+
+	existingMockBadParams.Routes[""][http.MethodPost] = []HTTPResponse{
+		{
+			Headers:    map[string][]string{contentType: {"ABC"}},
+			BodyParams: `{}`,
+			Data:       json.RawMessage(`{}`),
+		},
+	}
+	mockData, err = json.Marshal(existingMockBadParams)
+	require.NoError(t, err, "Marshal must not error")
+	require.NoError(t, os.WriteFile(filePath, mockData, 0o644), "WriteFile must not error")
+
+	response = &http.Response{
+		Request: &http.Request{
+			Method: http.MethodPost,
+			Header: http.Header{contentType: {"ABC"}},
+			URL:    &url.URL{},
+		},
+	}
+	err = HTTPRecord(response, "mock", content, 4)
+	require.ErrorContains(t, err, "unhandled content type")
 }
