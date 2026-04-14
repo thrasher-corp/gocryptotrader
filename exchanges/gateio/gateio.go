@@ -903,6 +903,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	if err != nil {
 		return err
 	}
+	respHeaders := make(http.Header)
 	var intermediary json.RawMessage
 	err = e.SendPayload(ctx, epl, func() (*request.Item, error) {
 		headers := make(map[string]string)
@@ -946,12 +947,17 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			HTTPDebugging:          e.HTTPDebugging,
 			HTTPRecording:          e.HTTPRecording,
 			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
+			HeaderResponse:         &respHeaders,
 		}, nil
 	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}
-	if len(intermediary) == 0 { // 204 No Content is returned with empty body, so intermediary will be empty but it is not an error
+
+	if respHeaders.Get("Status") == "204" { // 204 No Content is returned with empty body, so intermediary will be empty but it is not an error
+		if len(intermediary) != 0 {
+			return fmt.Errorf("%s %w, expected empty response body but got %s", e.Name, request.ErrAuthRequestFailed, string(intermediary))
+		}
 		if result == nil {
 			return nil
 		}
