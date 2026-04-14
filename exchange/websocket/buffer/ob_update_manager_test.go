@@ -288,8 +288,8 @@ func TestInitialiseOrderbookCache(t *testing.T) {
 		UpdateTime: time.Now(),
 	}
 	cache := &updateCache{}
-	m.initialiseOrderbookCache(ctx, 1337, update, cache)
 	cache.m.Lock()
+	m.initialiseOrderbookCache(ctx, 1337, update, cache)
 	require.Equal(t, cacheStateQueuing, cache.state, "state must be queuing")
 	require.NotEmpty(t, cache.updates, "updates must have queued update")
 	cache.m.Unlock()
@@ -317,6 +317,7 @@ func TestInvalidateCache(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
+	cache.m.Lock()
 	err = m.invalidateCache(ctx, 1337, &orderbook.Update{
 		Pair:       currency.NewBTCUSDT(),
 		Asset:      asset.Spot,
@@ -326,7 +327,6 @@ func TestInvalidateCache(t *testing.T) {
 	}, cache)
 	require.ErrorIs(t, err, orderbook.ErrDepthNotFound, "invalidateCache must error but still trigger syncOrderbook")
 
-	cache.m.Lock()
 	require.Equal(t, cacheStateQueuing, cache.state, "state must be uninitialised after invalidateCache")
 	require.NotEmpty(t, cache.updates, "updates must not be empty after invalidateCache")
 	cache.m.Unlock()
