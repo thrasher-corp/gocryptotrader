@@ -1564,6 +1564,85 @@ func TestWSTickerResponse(t *testing.T) {
 	}
 }
 
+func TestWSTickerResponseTrailingField(t *testing.T) {
+	t.Parallel()
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{btcusdPair}, Channel: subscription.TickerChannel, Key: 11534})
+	require.NoError(t, err, "AddSubscriptions must not error")
+
+	err = e.wsHandleData(t.Context(), []byte(`[11534,[61.304,2228.36155358,61.305,1323.2442970500003,0.395,0.0065,61.371,50973.3020771,62.5,57.421,null]]`))
+	require.NoError(t, err, "wsHandleData must not error for trailing ticker fields")
+
+	select {
+	case resp := <-e.Websocket.DataHandler.C:
+		tick, ok := resp.Data.(*ticker.Price)
+		require.True(t, ok, "DataHandler should receive a ticker.Price")
+		assert.Equal(t, btcusdPair, tick.Pair, "Ticker pair should be correct")
+		assert.Equal(t, asset.Spot, tick.AssetType, "Ticker asset should be correct")
+		assert.Equal(t, 61.304, tick.Bid, "Ticker bid should be correct")
+		assert.Equal(t, 61.305, tick.Ask, "Ticker ask should be correct")
+		assert.Equal(t, 61.371, tick.Last, "Ticker last should be correct")
+		assert.Equal(t, 50973.3020771, tick.Volume, "Ticker volume should be correct")
+		assert.Equal(t, 62.5, tick.High, "Ticker high should be correct")
+		assert.Equal(t, 57.421, tick.Low, "Ticker low should be correct")
+	case <-time.After(time.Second):
+		t.Fatal("Ticker update must be queued")
+	}
+}
+
+func TestWSFundingTickerResponseTrailingField(t *testing.T) {
+	t.Parallel()
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	fundingPair, err := currency.NewPairFromStrings("USD", "")
+	require.NoError(t, err, "NewPairFromStrings must not error")
+	err = e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.MarginFunding, Pairs: currency.Pairs{fundingPair}, Channel: subscription.TickerChannel, Key: 22334})
+	require.NoError(t, err, "AddSubscriptions must not error")
+
+	err = e.wsHandleData(t.Context(), []byte(`[22334,[1.1,2.2,3,4.4,5.5,6,7.7,8.8,9.9,10.1,11.11,12.12,13.13,null,null,15.15,null]]`))
+	require.NoError(t, err, "wsHandleData must not error for trailing funding ticker fields")
+
+	select {
+	case resp := <-e.Websocket.DataHandler.C:
+		tick, ok := resp.Data.(*ticker.Price)
+		require.True(t, ok, "DataHandler should receive a ticker.Price")
+		assert.Equal(t, fundingPair, tick.Pair, "Ticker pair should be correct")
+		assert.Equal(t, asset.MarginFunding, tick.AssetType, "Ticker asset should be correct")
+		assert.Equal(t, 1.1, tick.FlashReturnRate, "Ticker flash return rate should be correct")
+		assert.Equal(t, 2.2, tick.Bid, "Ticker bid should be correct")
+		assert.Equal(t, 3.0, tick.BidPeriod, "Ticker bid period should be correct")
+		assert.Equal(t, 5.5, tick.Ask, "Ticker ask should be correct")
+		assert.Equal(t, 6.0, tick.AskPeriod, "Ticker ask period should be correct")
+		assert.Equal(t, 10.1, tick.Last, "Ticker last should be correct")
+		assert.Equal(t, 11.11, tick.Volume, "Ticker volume should be correct")
+		assert.Equal(t, 12.12, tick.High, "Ticker high should be correct")
+		assert.Equal(t, 13.13, tick.Low, "Ticker low should be correct")
+		assert.Equal(t, 15.15, tick.FlashReturnRateAmount, "Ticker flash return rate amount should be correct")
+	case <-time.After(time.Second):
+		t.Fatal("Funding ticker update must be queued")
+	}
+}
+
+func TestWSTickerResponseInvalidFieldCount(t *testing.T) {
+	t.Parallel()
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{btcusdPair}, Channel: subscription.TickerChannel, Key: 11534})
+	require.NoError(t, err, "AddSubscriptions must not error")
+
+	err = e.wsHandleData(t.Context(), []byte(`[11534,[1,2,3,4,5,6,7,8,9,10,11,12]]`))
+	assert.ErrorIs(t, err, errTickerInvalidFieldCount, "wsHandleData should reject unexpected websocket ticker field counts")
+	select {
+	case resp := <-e.Websocket.DataHandler.C:
+		t.Fatalf("DataHandler should not receive websocket ticker data on invalid field counts: %#v", resp)
+	default:
+	}
+}
+
 func TestWSCandleResponse(t *testing.T) {
 	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{btcusdPair}, Channel: subscription.CandlesChannel, Key: 343351})
 	require.NoError(t, err, "AddSubscriptions must not error")
