@@ -171,6 +171,16 @@ func intervalToString(interval kline.Interval, isWebsocket ...bool) (string, err
 	return "", kline.ErrUnsupportedInterval
 }
 
+// IntervalFromString returns a kline.Interval from string input.
+func IntervalFromString(interval string) (kline.Interval, error) {
+	for x := range intervalsList {
+		if intervalsList[x].str == interval {
+			return intervalsList[x].i, nil
+		}
+	}
+	return 0, fmt.Errorf("%w interval: %v", kline.ErrInvalidInterval, interval)
+}
+
 // GetCandlestick retrieves kline/candlestick bars for a symbol.
 // Klines are uniquely identified by their open time.
 func (e *Exchange) GetCandlestick(ctx context.Context, symbol currency.Pair, interval string, startTime, endTime time.Time, limit uint64) ([]CandlestickData, error) {

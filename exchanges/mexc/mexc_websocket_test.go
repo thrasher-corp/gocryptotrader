@@ -1,6 +1,7 @@
 package mexc
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -21,7 +22,7 @@ func TestWsHandle(t *testing.T) {
 		"spot@private.account.v3.api.pb":             `{channel: "spot@private.account.v3.api.pb", createTime: 1736417034305, sendTime: 1736417034307, privateAccount { vcoinName: "USDT", coinId: "128f589271cb4951b03e71e6323eb7be", balanceAmount: "21.94210356004384", balanceAmountChange: "10", frozenAmount: "0", frozenAmountChange: "0", type: "CONTRACT_TRANSFER", time: 1736416910000}}`,
 	}
 	for elem := range pushDataMap {
-		err := e.WsHandleData([]byte(pushDataMap[elem]))
+		err := e.WsHandleData(context.Background(), nil, []byte(pushDataMap[elem]))
 		assert.NoErrorf(t, err, "%v: %s", err, elem)
 	}
 }
@@ -47,7 +48,7 @@ func TestWsHandleFuturesData(t *testing.T) {
 	for elem := range futuresWsPushDataMap {
 		t.Run(elem, func(t *testing.T) {
 			t.Parallel()
-			err := e.WsHandleFuturesData([]byte(futuresWsPushDataMap[elem]))
+			err := e.WsHandleData(context.Background(), nil, []byte(futuresWsPushDataMap[elem]))
 			assert.NoErrorf(t, err, "%v: %s", err, elem)
 		})
 	}

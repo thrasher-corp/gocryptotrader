@@ -72,7 +72,7 @@ func (e *Exchange) WsFuturesConnect(ctx context.Context, conn websocket.Connecti
 		ReadBufferSize:    8192,
 		WriteBufferSize:   8192,
 	}
-	if err := conn.Dial(ctx, &dialer, http.Header{}); err != nil {
+	if err := conn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
 		return err
 	}
 	conn.SetupPingHandler(request.UnAuth, websocket.PingHandler{
@@ -174,7 +174,7 @@ func (e *Exchange) handleSubscriptionFuturesPayload(ctx context.Context, conn we
 }
 
 // WsHandleFuturesData processed futures websocket data
-func (e *Exchange) WsHandleFuturesData(respRaw []byte) error {
+func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	var resp *WsFuturesData
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
@@ -186,67 +186,63 @@ func (e *Exchange) WsHandleFuturesData(respRaw []byte) error {
 		return nil
 	}
 	if resp.Channel == "rs.login" {
-		if !e.Websocket.Match.IncomingWithData(resp.Channel, respRaw) {
-			e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+		if !conn.IncomingWithData(resp.Channel, respRaw) {
+			return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
 				Message: string(respRaw) + websocket.UnhandledMessage,
-			}
+			})
 		}
 	}
 	cnlSplits := strings.Split(resp.Channel, ".")
 	switch strings.Join(cnlSplits[1:], ".") {
 	case channelFTickers:
-		return e.processFuturesTickers(resp.Data)
+		return e.processFuturesTickers(ctx, resp.Data)
 	case channelFTicker:
-		return e.processFuturesTicker(resp.Data)
+		return e.processFuturesTicker(ctx, resp.Data)
 	case channelFDeal:
-		return e.processFuturesFillData(resp.Data, resp.Symbol)
+		return e.processFuturesFillData(ctx, resp.Data, resp.Symbol)
 	case channelFDepthFull:
 		return e.processOrderbookDepth(resp.Data, resp.Symbol)
 	case channelFKline:
-		return e.processFuturesKlineData(resp.Data, resp.Symbol)
+		return e.processFuturesKlineData(ctx, resp.Data, resp.Symbol)
 	case channelFFundingRate:
 		var data *FuturesWsFundingRate
 		if err := json.Unmarshal(resp.Data, &data); err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- data
-		return nil
+		return e.Websocket.DataHandler.Send(ctx, data)
 	case channelFIndexPrice:
-		return e.processIndexPrice(resp.Data)
+		return e.processIndexPrice(ctx, resp.Data)
 	case channelFFairPrice:
-		return e.processFairPrice(resp.Data)
+		return e.processFairPrice(ctx, resp.Data)
 	case channelFPersonalPositions:
-		return e.processPersonalPosition(resp.Data)
+		return e.processPersonalPosition(ctx, resp.Data)
 	case channelFPersonalAssets:
-		return e.processPersonalAsset(resp.Data)
+		return e.processPersonalAsset(ctx, resp.Data)
 	case channelFPersonalOrder:
-		return e.processPersonalOrder(resp.Data)
+		return e.processPersonalOrder(ctx, resp.Data)
 	case channelFPersonalADLLevel:
 		var data *FuturesADLLevel
 		if err := json.Unmarshal(resp.Data, &data); err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- data
-		return nil
+		return e.Websocket.DataHandler.Send(ctx, data)
 	case channelFPersonalRiskLimit:
 		var data *FuturesWebsocketRiskLimit
 		if err := json.Unmarshal(resp.Data, &data); err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- data
-		return nil
+		return e.Websocket.DataHandler.Send(ctx, data)
 	case channelFPositionMode:
 		var data *FuturesPositionMode
 		if err := json.Unmarshal(resp.Data, &data); err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- data
-		return nil
+		return e.Websocket.DataHandler.Send(ctx, data)
 	}
 	return nil
 }
 
-func (e *Exchange) processPersonalPosition(data []byte) error {
+func (e *Exchange) processPersonalPosition(ctx context.Context, data []byte) error {
 	var resp *FuturesWsPersonalPosition
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
@@ -278,7 +274,7 @@ func (e *Exchange) processPersonalPosition(data []byte) error {
 	case 2:
 		oSide = order.Short
 	}
-	e.Websocket.DataHandler <- order.Detail{
+	return e.Websocket.DataHandler.Send(ctx, order.Detail{
 		TimeInForce: order.GoodTillCancel,
 		Leverage:    resp.Leverage,
 		Price:       resp.HoldAvgPrice,
@@ -291,16 +287,15 @@ func (e *Exchange) processPersonalPosition(data []byte) error {
 		AssetType:   asset.Futures,
 		Pair:        cp,
 		MarginType:  marginType,
-	}
-	return nil
+	})
 }
 
-func (e *Exchange) processPersonalAsset(data []byte) error {
+func (e *Exchange) processPersonalAsset(ctx context.Context, data []byte) error {
 	var resp *FuturesPersonalAsset
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- accounts.Change{
+	return e.Websocket.DataHandler.Send(ctx, accounts.Change{
 		AssetType: asset.Futures,
 		Balance: accounts.Balance{
 			Currency: currency.NewCode(resp.Currency),
@@ -308,11 +303,10 @@ func (e *Exchange) processPersonalAsset(data []byte) error {
 			Hold:     resp.FrozenBalance,
 			Free:     resp.AvailableBalance - resp.FrozenBalance,
 		},
-	}
-	return nil
+	})
 }
 
-func (e *Exchange) processPersonalOrder(data []byte) error {
+func (e *Exchange) processPersonalOrder(ctx context.Context, data []byte) error {
 	var resp *WsFuturesPersonalOrder
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
@@ -367,7 +361,7 @@ func (e *Exchange) processPersonalOrder(data []byte) error {
 	case 2:
 		marginType = margin.Multi
 	}
-	e.Websocket.DataHandler <- &order.Detail{
+	return e.Websocket.DataHandler.Send(ctx, &order.Detail{
 		Exchange:             e.Name,
 		Pair:                 cp,
 		TimeInForce:          tif,
@@ -387,11 +381,10 @@ func (e *Exchange) processPersonalOrder(data []byte) error {
 		AssetType:            asset.Futures,
 		LastUpdated:          resp.UpdateTime.Time(),
 		MarginType:           marginType,
-	}
-	return nil
+	})
 }
 
-func (e *Exchange) processFairPrice(data []byte) error {
+func (e *Exchange) processFairPrice(ctx context.Context, data []byte) error {
 	var resp *PriceAndSymbol
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
@@ -400,15 +393,14 @@ func (e *Exchange) processFairPrice(data []byte) error {
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- ticker.Price{
+	return e.Websocket.DataHandler.Send(ctx, ticker.Price{
 		ExchangeName: e.Name,
 		IndexPrice:   resp.Price,
 		Pair:         cp,
-	}
-	return nil
+	})
 }
 
-func (e *Exchange) processIndexPrice(data []byte) error {
+func (e *Exchange) processIndexPrice(ctx context.Context, data []byte) error {
 	var resp *PriceAndSymbol
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
@@ -417,15 +409,14 @@ func (e *Exchange) processIndexPrice(data []byte) error {
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- ticker.Price{
+	return e.Websocket.DataHandler.Send(ctx, ticker.Price{
 		ExchangeName: e.Name,
 		IndexPrice:   resp.Price,
 		Pair:         cp,
-	}
-	return nil
+	})
 }
 
-func (e *Exchange) processFuturesKlineData(data []byte, symbol string) error {
+func (e *Exchange) processFuturesKlineData(ctx context.Context, data []byte, symbol string) error {
 	var resp *FuturesWebsocketKline
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
@@ -434,19 +425,26 @@ func (e *Exchange) processFuturesKlineData(data []byte, symbol string) error {
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- websocket.KlineData{
-		Pair:       cp,
-		Exchange:   e.Name,
-		AssetType:  asset.Futures,
-		Interval:   resp.Interval,
-		OpenPrice:  resp.OpeningPrice,
-		Timestamp:  resp.TradeTime.Time(),
-		HighPrice:  resp.HighestPrice,
-		LowPrice:   resp.LowestPrice,
-		ClosePrice: resp.ClosePrice,
-		Volume:     resp.TotalTransactionVolume,
+	interval, err := IntervalFromString(resp.Interval)
+	if err != nil {
+		return err
 	}
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, kline.Item{
+		Pair:     cp,
+		Exchange: e.Name,
+		Asset:    asset.Futures,
+		Interval: interval,
+		Candles: []kline.Candle{
+			{
+				Open:   resp.OpeningPrice,
+				High:   resp.HighestPrice,
+				Low:    resp.LowestPrice,
+				Close:  resp.ClosePrice,
+				Volume: resp.TotalTransactionVolume,
+			},
+		},
+	})
+
 }
 
 func (e *Exchange) processOrderbookDepth(data []byte, symbol string) error {
@@ -468,7 +466,7 @@ func (e *Exchange) processOrderbookDepth(data []byte, symbol string) error {
 	})
 }
 
-func (e *Exchange) processFuturesFillData(data []byte, symbol string) error {
+func (e *Exchange) processFuturesFillData(ctx context.Context, data []byte, symbol string) error {
 	var resp []FuturesTransactionFills
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
@@ -485,7 +483,7 @@ func (e *Exchange) processFuturesFillData(data []byte, symbol string) error {
 		case 2:
 			oSide = order.Sell
 		}
-		e.Websocket.DataHandler <- &trade.Data{
+		if err := e.Websocket.DataHandler.Send(ctx, &trade.Data{
 			Timestamp: resp[x].TransationTime.Time(),
 			Exchange:  e.Name,
 			AssetType: asset.Futures.String(),
@@ -494,12 +492,14 @@ func (e *Exchange) processFuturesFillData(data []byte, symbol string) error {
 			Side:      oSide.String(),
 			Price:     resp[x].Price,
 			Amount:    resp[x].Volume,
+		}); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-func (e *Exchange) processFuturesTicker(data []byte) error {
+func (e *Exchange) processFuturesTicker(ctx context.Context, data []byte) error {
 	var resp *FuturesPriceTickerDetail
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
@@ -508,7 +508,7 @@ func (e *Exchange) processFuturesTicker(data []byte) error {
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- &ticker.Price{
+	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 		Last:         resp.LastPrice,
 		High:         resp.High24Price,
 		Low:          resp.Lower24Price,
@@ -520,11 +520,10 @@ func (e *Exchange) processFuturesTicker(data []byte) error {
 		ExchangeName: e.Name,
 		AssetType:    asset.Futures,
 		LastUpdated:  resp.Timestamp.Time(),
-	}
-	return nil
+	})
 }
 
-func (e *Exchange) processFuturesTickers(data []byte) error {
+func (e *Exchange) processFuturesTickers(ctx context.Context, data []byte) error {
 	var tickers []FuturesTickerItem
 	if err := json.Unmarshal(data, &tickers); err != nil {
 		return err
@@ -534,13 +533,15 @@ func (e *Exchange) processFuturesTickers(data []byte) error {
 		if err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- &ticker.Price{
+		if err = e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 			ExchangeName: e.Name,
 			Pair:         cp,
 			AssetType:    asset.Futures,
 			Last:         tickers[t].LastPrice,
 			MarkPrice:    tickers[t].FairPrice,
 			Volume:       tickers[t].Volume24,
+		}); err != nil {
+			return err
 		}
 	}
 	return nil

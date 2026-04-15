@@ -161,10 +161,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Subscriber:            e.Subscribe,
 		Unsubscriber:          e.Unsubscribe,
 		GenerateSubscriptions: e.generateSubscriptions,
-		Handler: func(_ context.Context, _ websocket.Connection, incoming []byte) error {
-			return e.WsHandleData(incoming)
-		},
-		MessageFilter: asset.Spot,
+		Handler:               e.WsHandleData,
+		MessageFilter:         asset.Spot,
 	}); err != nil {
 		return err
 	}
@@ -177,11 +175,9 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Subscriber:            e.SubscribeFutures,
 		Unsubscriber:          e.UnsubscribeFutures,
 		GenerateSubscriptions: e.generateFuturesSubscriptions,
-		Handler: func(_ context.Context, _ websocket.Connection, incoming []byte) error {
-			return e.WsHandleFuturesData(incoming)
-		},
-		Authenticate:  e.wsAuth,
-		MessageFilter: asset.Futures,
+		Handler:               e.WsHandleFuturesData,
+		Authenticate:          e.wsAuth,
+		MessageFilter:         asset.Futures,
 	})
 }
 

@@ -65,7 +65,7 @@ func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) err
 		EnableCompression: true,
 		ReadBufferSize:    8192,
 		WriteBufferSize:   8192,
-	}, http.Header{}); err != nil {
+	}, http.Header{}, nil); err != nil {
 		return err
 	}
 	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
@@ -205,13 +205,13 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 }
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
-func (e *Exchange) WsHandleData(respRaw []byte) error {
+func (e *Exchange) WsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	if strings.HasPrefix(string(respRaw), "{") {
 		if id, err := jsonparser.GetInt(respRaw, "id"); err == nil {
-			if !e.Websocket.Match.IncomingWithData(id, respRaw) {
-				e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+			if !conn.IncomingWithData(id, respRaw) {
+				return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
 					Message: string(respRaw) + websocket.UnhandledMessage,
-				}
+				})
 			}
 		}
 		// Ignore json messages which doesn't have an ID.
@@ -371,8 +371,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 				}(),
 			}
 		}
-		e.Websocket.DataHandler <- tradesDetail
-		return nil
+		return e.Websocket.DataHandler.Send(ctx, tradesDetail)
 	case channelKlineV3:
 		result := &mexc_proto_types.PushDataV3ApiWrapper{
 			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicSpotKline{},
@@ -385,39 +384,43 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		klineData := websocket.KlineData{
-			Pair:      cp,
-			Exchange:  e.Name,
-			AssetType: asset.Spot,
-			Interval:  body.Interval,
+		interval, err := IntervalFromString(body.Interval)
+		if err != nil {
+			return err
 		}
-		klineData.CloseTime = time.UnixMilli(body.WindowEnd)
+		klineData := kline.Candle{}
+		klineData.Time = time.UnixMilli(body.WindowEnd)
 		if klineData.Volume, err = strconv.ParseFloat(body.Amount, 64); err != nil {
 			return err
 		}
-		klineData.StartTime = time.UnixMilli(body.WindowStart)
-		klineData.LowPrice, err = strconv.ParseFloat(body.LowestPrice, 64)
+		// klineData. = time.UnixMilli(body.WindowStart)
+		klineData.Low, err = strconv.ParseFloat(body.LowestPrice, 64)
 		if err != nil {
 			return err
 		}
-		klineData.HighPrice, err = strconv.ParseFloat(body.HighestPrice, 64)
+		klineData.High, err = strconv.ParseFloat(body.HighestPrice, 64)
 		if err != nil {
 			return err
 		}
-		klineData.LowPrice, err = strconv.ParseFloat(body.LowestPrice, 64)
+		klineData.Low, err = strconv.ParseFloat(body.LowestPrice, 64)
 		if err != nil {
 			return err
 		}
-		klineData.OpenPrice, err = strconv.ParseFloat(body.OpeningPrice, 64)
+		klineData.Open, err = strconv.ParseFloat(body.OpeningPrice, 64)
 		if err != nil {
 			return err
 		}
-		klineData.ClosePrice, err = strconv.ParseFloat(body.ClosingPrice, 64)
+		klineData.Close, err = strconv.ParseFloat(body.ClosingPrice, 64)
 		if err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- []websocket.KlineData{klineData}
-		return nil
+		return e.Websocket.DataHandler.Send(ctx, &kline.Item{
+			Pair:     cp,
+			Exchange: e.Name,
+			Asset:    asset.Spot,
+			Interval: interval,
+			Candles:  []kline.Candle{klineData},
+		})
 	case channelIncreaseDepthBatchV3:
 		result := &mexc_proto_types.PushDataV3ApiWrapper{
 			Body: &mexc_proto_types.PushDataV3ApiWrapper_PublicIncreaseDepthsBatch{},
@@ -556,8 +559,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 				return err
 			}
 		}
-		e.Websocket.DataHandler <- tickersDetail
-		return nil
+		return e.Websocket.DataHandler.Send(ctx, tickersDetail)
 	case channelAccountV3:
 		result := &mexc_proto_types.PushDataV3ApiWrapper{
 			Body: &mexc_proto_types.PushDataV3ApiWrapper_PrivateAccount{},
@@ -574,7 +576,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- accounts.Change{
+		return e.Websocket.DataHandler.Send(ctx, accounts.Change{
 			AssetType: asset.Spot,
 			Balance: accounts.Balance{
 				Currency: currency.NewCode(body.VcoinName),
@@ -582,8 +584,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 				Hold:     frozenAmount,
 				Free:     balanceAmount - frozenAmount,
 			},
-		}
-		return nil
+		})
 	case channelPrivateDealsV3:
 		result := &mexc_proto_types.PushDataV3ApiWrapper{
 			Body: &mexc_proto_types.PushDataV3ApiWrapper_PrivateDeals{},
@@ -608,7 +609,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- []trade.Data{
+		return e.Websocket.DataHandler.Send(ctx, []trade.Data{
 			{
 				TID:          body.OrderId,
 				Exchange:     e.Name,
@@ -624,8 +625,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 					return order.Sell
 				}(),
 			},
-		}
-		return nil
+		})
 	case channelPrivateOrdersAPI:
 		result := mexc_proto_types.PushDataV3ApiWrapper{
 			Body: &mexc_proto_types.PushDataV3ApiWrapper_PrivateOrders{},
@@ -671,7 +671,7 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		e.Websocket.DataHandler <- &order.Detail{
+		return e.Websocket.DataHandler.Send(ctx, &order.Detail{
 			Exchange:             e.Name,
 			Price:                body.Price.Float64(),
 			Amount:               body.Amount.Float64(),
@@ -694,11 +694,11 @@ func (e *Exchange) WsHandleData(respRaw []byte) error {
 			LastUpdated: body.CreateTime.Time(),
 			Pair:        cp,
 			TimeInForce: tif,
-		}
+		})
 	default:
-		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+		return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
 			Message: string(respRaw) + websocket.UnhandledMessage,
-		}
+		})
 	}
 	return nil
 }
