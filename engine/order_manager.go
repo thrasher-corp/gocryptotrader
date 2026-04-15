@@ -1080,7 +1080,7 @@ func (s *store) getByDetail(det *order.Detail) *order.Detail {
 	return nil
 }
 
-// Add Adds an order to the orderStore for tracking the lifecycle
+// add adds an order to the orderStore for tracking the lifecycle
 func (s *store) add(det *order.Detail) error {
 	if det == nil {
 		return errNilOrder
@@ -1119,7 +1119,7 @@ func (s *store) getFilteredOrders(f *order.Filter) ([]order.Detail, error) {
 	defer s.m.RUnlock()
 
 	var os []order.Detail
-	// optimization if Exchange is filtered
+	// optimisation if Exchange is filtered
 	if f.Exchange != "" {
 		if e, ok := s.Orders[strings.ToLower(f.Exchange)]; ok {
 			for i := range e {
@@ -1159,7 +1159,7 @@ func (s *store) getActiveOrders(f *order.Filter) []order.Detail {
 			}
 		}
 	case f.Exchange != "":
-		// optimization if Exchange is filtered
+		// optimisation if Exchange is filtered
 		if e, ok := s.Orders[strings.ToLower(f.Exchange)]; ok {
 			for i := range e {
 				if e[i].Status != order.UnknownStatus && (!e[i].IsActive() || !e[i].MatchFilter(f)) {

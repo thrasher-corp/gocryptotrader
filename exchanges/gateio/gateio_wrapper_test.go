@@ -3,15 +3,18 @@ package gateio
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func TestCancelAllOrders(t *testing.T) {
@@ -75,6 +78,57 @@ func TestCancelAllOrders(t *testing.T) {
 	}
 }
 
+func TestOpenInterestFromStats(t *testing.T) {
+	t.Parallel()
+
+	_, err := openInterestFromStats(nil)
+	require.ErrorIs(t, err, errNoValidResponseFromServer)
+
+	openInterest, err := openInterestFromStats([]ContractStat{
+		{Time: types.Time(time.Unix(100, 0)), OpenInterest: types.Number(2)},
+		{Time: types.Time(time.Unix(300, 0)), OpenInterest: types.Number(4)},
+		{Time: types.Time(time.Unix(200, 0)), OpenInterest: types.Number(3)},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 4.0, openInterest)
+}
+
+func TestUseOpenInterestStats(t *testing.T) {
+	t.Parallel()
+
+	assert.False(t, useOpenInterestStats(nil, asset.USDTMarginedFutures))
+	assert.False(t, useOpenInterestStats([]key.PairAsset{{Asset: asset.CoinMarginedFutures}, {Asset: asset.CoinMarginedFutures}}, asset.CoinMarginedFutures))
+	assert.False(t, useOpenInterestStats([]key.PairAsset{{Asset: asset.CoinMarginedFutures}}, asset.USDTMarginedFutures))
+	assert.False(t, useOpenInterestStats([]key.PairAsset{{Asset: asset.DeliveryFutures}}, asset.DeliveryFutures))
+	assert.True(t, useOpenInterestStats([]key.PairAsset{{Asset: asset.CoinMarginedFutures}}, asset.CoinMarginedFutures))
+	assert.True(t, useOpenInterestStats([]key.PairAsset{{Asset: asset.USDTMarginedFutures}}, asset.USDTMarginedFutures))
+}
+
+func TestGetRequestedOpenInterestPair(t *testing.T) {
+	t.Parallel()
+
+	pair := getPair(t, asset.DeliveryFutures)
+	requested, err := getRequestedOpenInterestPair(e, []key.PairAsset{{
+		Base:  pair.Base.Item,
+		Quote: pair.Quote.Item,
+		Asset: asset.DeliveryFutures,
+	}}, asset.DeliveryFutures)
+	require.NoError(t, err)
+	assert.Equal(t, pair, requested)
+
+	requested, err = getRequestedOpenInterestPair(e, []key.PairAsset{{
+		Base:  pair.Base.Item,
+		Quote: pair.Quote.Item,
+		Asset: asset.DeliveryFutures,
+	}}, asset.CoinMarginedFutures)
+	require.NoError(t, err)
+	assert.Equal(t, currency.EMPTYPAIR, requested)
+
+	requested, err = getRequestedOpenInterestPair(e, []key.PairAsset{{Asset: asset.DeliveryFutures}, {Asset: asset.DeliveryFutures}}, asset.DeliveryFutures)
+	require.NoError(t, err)
+	assert.Equal(t, currency.EMPTYPAIR, requested)
+}
+
 func TestMessageID(t *testing.T) {
 	t.Parallel()
 	id := e.MessageID()
@@ -83,6 +137,56 @@ func TestMessageID(t *testing.T) {
 	require.NoError(t, err, "ID string must convert back to a UUID")
 	require.Equal(t, uuid.V7, got.Version(), "message ID must be a UUID v7")
 	require.Len(t, got.String(), 36, "UUID v7 string representation must be 36 characters long")
+}
+
+func TestPriceDivisor(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name   string
+		asset  asset.Item
+		pair   currency.Pair
+		expect float64
+		errIs  error
+	}{
+		{
+			name:   "standard pair uses divisor 1",
+			asset:  asset.Spot,
+			pair:   currency.NewBTCUSDT(),
+			expect: 1,
+		},
+		{
+			name:   "special futures pair uses scaled divisor",
+			asset:  asset.USDTMarginedFutures,
+			pair:   currency.NewPair(divisorCurrency, currency.USDT),
+			expect: 1e6,
+		},
+		{
+			name:   "special delivery pair uses scaled divisor",
+			asset:  asset.DeliveryFutures,
+			pair:   currency.NewPair(divisorCurrency, currency.USDT),
+			expect: 1e6,
+		},
+		{
+			name:  "special non futures pair returns unsupported error",
+			asset: asset.Spot,
+			pair:  currency.NewPair(divisorCurrency, currency.USDT),
+			errIs: currency.ErrCurrencyNotSupported,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := priceDivisor(tc.asset, tc.pair)
+			if tc.errIs != nil {
+				require.ErrorIs(t, err, tc.errIs)
+				return
+			}
+
+			require.NoError(t, err, "priceDivisor must not error")
+			assert.Equal(t, tc.expect, got, "price divisor should match expected value")
+		})
+	}
 }
 
 // 7610378	       143.3 ns/op	      48 B/op	       2 allocs/op
@@ -97,20 +201,35 @@ func TestFetchOrderbook(t *testing.T) {
 
 	testexch.UpdatePairsOnce(t, e)
 
-	availSpot, err := e.GetAvailablePairs(asset.Spot)
-	require.NoError(t, err, "GetAvailablePairs must not error")
-
 	availMargin, err := e.GetAvailablePairs(asset.Margin)
 	require.NoError(t, err, "GetAvailablePairs must not error")
+	require.NotEmpty(t, availMargin, "margin pairs must not be empty")
 
-	marginPairNotInSpot, err := availMargin.Remove(availSpot...).GetRandomPair()
-	require.NoError(t, err, "GetRandomPair must not error")
+	enabledMargin, err := e.GetEnabledPairs(asset.Margin)
+	require.NoError(t, err, "GetEnabledPairs must not error")
+
+	marginPair := availMargin[0]
+	for _, candidate := range enabledMargin {
+		if availMargin.Contains(candidate, true) {
+			marginPair = candidate
+			break
+		}
+	}
 
 	availOptions, err := e.GetAvailablePairs(asset.Options)
 	require.NoError(t, err, "GetAvailablePairs must not error")
+	require.NotEmpty(t, availOptions, "options pairs must not be empty")
 
-	optionsPair, err := availOptions.GetRandomPair()
-	require.NoError(t, err, "GetRandomPair must not error")
+	enabledOptions, err := e.GetEnabledPairs(asset.Options)
+	require.NoError(t, err, "GetEnabledPairs must not error")
+
+	optionsPair := availOptions[0]
+	for _, candidate := range enabledOptions {
+		if availOptions.Contains(candidate, true) {
+			optionsPair = candidate
+			break
+		}
+	}
 
 	availDelivery, err := e.GetAvailablePairs(asset.DeliveryFutures)
 	require.NoError(t, err, "GetAvailablePairs must not error")
@@ -124,9 +243,9 @@ func TestFetchOrderbook(t *testing.T) {
 		err  error
 	}{
 		{pair: currency.EMPTYPAIR, a: asset.Spot, err: currency.ErrCurrencyPairEmpty},
-		{pair: marginPairNotInSpot, a: asset.Margin, err: errNoSpotInstrument},
-		{pair: marginPairNotInSpot, a: asset.Binary, err: asset.ErrNotSupported},
+		{pair: marginPair, a: asset.Binary, err: asset.ErrNotSupported},
 		{pair: currency.NewBTCUSDT(), a: asset.Spot},
+		{pair: marginPair, a: asset.Margin},
 		{pair: currency.NewBTCUSDT(), a: asset.USDTMarginedFutures},
 		{pair: deliveryPair, a: asset.DeliveryFutures},
 		{pair: optionsPair, a: asset.Options},
@@ -150,4 +269,18 @@ func TestFetchOrderbook(t *testing.T) {
 			assert.LessOrEqual(t, got.LastUpdated, got.LastPushed, "Last updated timestamp should be before last pushed timestamp")
 		})
 	}
+}
+
+func TestFetchOrderbookNoSpotInstrument(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	ex.SetDefaults()
+	ex.Name = t.Name()
+
+	require.NoError(t, ex.Base.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, false))
+
+	fakePair := currency.NewPair(currency.NewCode("ZZFAKE"), currency.USDT)
+	_, err := ex.fetchOrderbook(t.Context(), fakePair, asset.Margin, 1)
+	require.ErrorIs(t, err, errNoSpotInstrument)
 }

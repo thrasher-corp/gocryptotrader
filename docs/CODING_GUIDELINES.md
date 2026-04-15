@@ -22,11 +22,9 @@ Refer to the [ADD_NEW_EXCHANGE.md](/docs/ADD_NEW_EXCHANGE.md) document for compr
 ### Type Usage
 
 - Use the most appropriate native Go types for struct fields:
-  - If the API returns numbers as strings, use float64 with the `json:",string"` tag.
-  - For timestamps, use `time.Time` if Go's JSON unmarshalling supports the format directly.
-- If native Go types are not supported directly, use the following built-in types:
-  - `types.Time` for Unix timestamps that require custom unmarshalling.
-  - `types.Number` for numerical float values where an exchange API may return either a `string` or `float64` value.
+  - If the API always returns a number as a bare JSON number, use `float64`.
+  - If the API returns a number as a quoted JSON string, or may return either a string or a bare number, use `types.Number` — **do not** use `float64` with the `json:",string"` tag.
+  - For timestamps, use `time.Time` if Go's JSON unmarshalling supports the format directly; otherwise use `types.Time` for Unix timestamps that require custom unmarshalling.
 - Always use full and descriptive field names for clarity and consistency. Avoid short API-provided aliases unless compatibility requires it.
 - Default to `uint64` for exchange API parameters and structs for integers where appropriate.
   - Avoid `int` (size varies by architecture) or `int64` (allows negatives where they don't make sense).
@@ -112,13 +110,27 @@ Use `require` and `assert` appropriately:
 
 - Use when test flow depends on the result.
 - Messages must contain **"must"** (e.g., "response must not be nil").
-- Use the *f* variants when using format specifiers (e.g., `require.Equalf`).
 
 #### assert
 
 - Use when the test can proceed regardless of the check.
 - Messages must contain **"should"** (e.g., "status code should be 200").
-- Use `assert.Equalf`, etc., when applicable.
+
+#### `f` variants (`assert.ErrorIsf`, `require.NoErrorf`, etc.)
+
+- Only use `f` variants when the message contains **format verbs** (e.g., `%s`, `%d`, `%v`).
+- If the message is a plain string with no format verbs, use the non-`f` variant.
+
+```go
+    // Correct — format verb %s requires the f variant:
+    assert.NoErrorf(t, err, "UpdateAccountInfo should not error for asset %s", a)
+
+    // Correct — plain message, no format verbs:
+    assert.ErrorIs(t, err, errInvalidOrderSize, "validate should return expected error")
+
+    // Wrong — f variant used without format verbs:
+    assert.ErrorIsf(t, err, errInvalidOrderSize, "validate should return expected error")
+```
 
 ### Test Coverage
 
@@ -167,7 +179,7 @@ Use `require` and `assert` appropriately:
 - API methods and public types must have comments for GoDoc.
 - Comments should explain **why** the code is doing something, not **what** it's doing, which should be self-explanatory.
 - Self-explanatory comments must be avoided.
-- Only retain comments for complex logic or where external behavior needs clarification.
+- Only retain comments for complex logic or where external behaviour needs clarification.
 
 ## Formatting
 
@@ -187,13 +199,19 @@ Run the following to check for linting issues:
     golangci-lint run ./... (or make lint)
 ```
 
-Run the following tool to check for Go modernise issues:
+Run the miscellaneous repository checks locally with:
 
 ```console
-    make modernise
+    make misc_checks
 ```
 
-Several other miscellaneous checks will be run via [GitHub actions](/.github/workflows/misc.yml).
+The full local verification flow can be run with:
+
+```console
+    make check
+```
+
+This includes linting, miscellaneous checks and tests. The same miscellaneous checks are also run via [GitHub actions](/.github/workflows/misc.yml).
 
 - All lint warnings and errors must be resolved before merging.
 - Use `//nolint:linter-name` sparingly and always explain the reason in a comment next to the code.

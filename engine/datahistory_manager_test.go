@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
+	"github.com/thrasher-corp/gocryptotrader/database/repository/candle"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjob"
 	"github.com/thrasher-corp/gocryptotrader/database/repository/datahistoryjobresult"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -504,6 +505,100 @@ func TestCompareJobsToData(t *testing.T) {
 	err = m.compareJobsToData(dhj)
 	assert.NoError(t, err)
 
+	t.Run("no existing candle data for primary interval", func(t *testing.T) {
+		t.Parallel()
+		mgr, _ := createDHM(t)
+		calls := 0
+		var gotInterval kline.Interval
+		mgr.candleLoader = func(
+			exchangeName string,
+			pair currency.Pair,
+			assetType asset.Item,
+			interval kline.Interval,
+			start time.Time,
+			end time.Time,
+		) (*kline.Item, error) {
+			_ = exchangeName
+			_ = pair
+			_ = assetType
+			_ = start
+			_ = end
+			calls++
+			gotInterval = interval
+			return nil, candle.ErrNoCandleDataFound
+		}
+		tt := time.Now().Truncate(kline.OneHour.Duration())
+		job := &DataHistoryJob{
+			Nickname:           "TestCompareJobsToDataNoPrimaryCandleData",
+			Exchange:           testExchange,
+			Asset:              asset.Spot,
+			Pair:               currency.NewBTCUSD(),
+			StartDate:          tt.Add(-time.Minute * 5),
+			EndDate:            tt,
+			Interval:           kline.OneMin,
+			ConversionInterval: kline.FiveMin,
+		}
+		// ErrNoCandleDataFound is recoverable and should mark intervals as missing.
+		err := mgr.compareJobsToData(job)
+		require.NoError(t, err, "ErrNoCandleDataFound must be non-fatal for primary interval")
+		require.Equal(t, 1, calls)
+		require.Equal(t, kline.OneMin, gotInterval)
+		require.NotNil(t, job.rangeHolder)
+		require.NotEmpty(t, job.rangeHolder.Ranges)
+		for i := range job.rangeHolder.Ranges {
+			for j := range job.rangeHolder.Ranges[i].Intervals {
+				assert.False(t, job.rangeHolder.Ranges[i].Intervals[j].HasData)
+			}
+		}
+	})
+
+	t.Run("no existing candle data for conversion interval", func(t *testing.T) {
+		t.Parallel()
+		mgr, _ := createDHM(t)
+		calls := 0
+		var gotInterval kline.Interval
+		mgr.candleLoader = func(
+			exchangeName string,
+			pair currency.Pair,
+			assetType asset.Item,
+			interval kline.Interval,
+			start time.Time,
+			end time.Time,
+		) (*kline.Item, error) {
+			_ = exchangeName
+			_ = pair
+			_ = assetType
+			_ = start
+			_ = end
+			calls++
+			gotInterval = interval
+			return nil, candle.ErrNoCandleDataFound
+		}
+		tt := time.Now().Truncate(kline.OneHour.Duration())
+		job := &DataHistoryJob{
+			Nickname:           "TestCompareJobsToDataNoConversionCandleData",
+			Exchange:           testExchange,
+			Asset:              asset.Spot,
+			Pair:               currency.NewBTCUSD(),
+			StartDate:          tt.Add(-time.Minute * 5),
+			EndDate:            tt,
+			Interval:           kline.OneMin,
+			DataType:           dataHistoryConvertCandlesDataType,
+			ConversionInterval: kline.FiveMin,
+		}
+		err := mgr.compareJobsToData(job)
+		require.NoError(t, err, "ErrNoCandleDataFound must be non-fatal for conversion interval")
+		require.Equal(t, 1, calls)
+		require.Equal(t, kline.FiveMin, gotInterval)
+		require.NotNil(t, job.rangeHolder)
+		require.NotEmpty(t, job.rangeHolder.Ranges)
+		for i := range job.rangeHolder.Ranges {
+			for j := range job.rangeHolder.Ranges[i].Intervals {
+				assert.False(t, job.rangeHolder.Ranges[i].Intervals[j].HasData)
+			}
+		}
+	})
+
 	m.started = 0
 	err = m.compareJobsToData(dhj)
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
@@ -739,7 +834,6 @@ func TestConverters(t *testing.T) {
 	}
 }
 
-// test helper functions
 func createDHM(t *testing.T) (*DataHistoryManager, *datahistoryjob.DataHistoryJob) {
 	t.Helper()
 	em := NewExchangeManager()

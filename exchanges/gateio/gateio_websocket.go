@@ -91,7 +91,7 @@ func (e *Exchange) WsConnectSpot(ctx context.Context, conn websocket.Connection)
 	if err := e.CurrencyPairs.IsAssetEnabled(asset.Spot); err != nil {
 		return err
 	}
-	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{}, nil, nil); err != nil {
 		return err
 	}
 	pingHandler, err := getWSPingHandler(spotPingChannel)
@@ -328,25 +328,31 @@ func (e *Exchange) processCandlestick(ctx context.Context, incoming []byte) erro
 	if len(icp) < 3 {
 		return fmt.Errorf("%w: candlestick websocket", common.ErrMalformedData)
 	}
+	interval, err := e.GetIntervalFromString(icp[0])
+	if err != nil {
+		return err
+	}
 	currencyPair, err := currency.NewPairFromString(strings.Join(icp[1:], currency.UnderscoreDelimiter))
 	if err != nil {
 		return err
 	}
 
-	out := make([]websocket.KlineData, 0, len(standardMarginAssetTypes))
+	out := make([]kline.Item, 0, len(standardMarginAssetTypes))
 	for _, a := range standardMarginAssetTypes {
 		if enabled, _ := e.CurrencyPairs.IsPairEnabled(currencyPair, a); enabled {
-			out = append(out, websocket.KlineData{
-				Pair:       currencyPair,
-				AssetType:  a,
-				Exchange:   e.Name,
-				StartTime:  data.Timestamp.Time(),
-				Interval:   icp[0],
-				OpenPrice:  data.OpenPrice.Float64(),
-				ClosePrice: data.ClosePrice.Float64(),
-				HighPrice:  data.HighestPrice.Float64(),
-				LowPrice:   data.LowestPrice.Float64(),
-				Volume:     data.TotalVolume.Float64(),
+			out = append(out, kline.Item{
+				Pair:     currencyPair,
+				Asset:    a,
+				Exchange: e.Name,
+				Interval: interval,
+				Candles: []kline.Candle{{
+					Time:   data.Timestamp.Time(),
+					Open:   data.OpenPrice.Float64(),
+					Close:  data.ClosePrice.Float64(),
+					High:   data.HighestPrice.Float64(),
+					Low:    data.LowestPrice.Float64(),
+					Volume: data.TotalVolume.Float64(),
+				}},
 			})
 		}
 	}
@@ -667,38 +673,39 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 
 // manageSubs sends a websocket message to subscribe or unsubscribe from a list of channel
 func (e *Exchange) manageSubs(ctx context.Context, event string, conn websocket.Connection, subs subscription.List) error {
-	var errs error
-	subs, errs = subs.ExpandTemplates(e)
-	if errs != nil {
-		return errs
+	subs, err := subs.ExpandTemplates(e)
+	if err != nil {
+		return err
 	}
 
-	for _, s := range subs {
-		if err := func() error {
-			msg, err := e.manageSubReq(ctx, event, s)
-			if err != nil {
-				return err
+	return e.ParallelChanOp(ctx, subs, func(ctx context.Context, batch subscription.List) error {
+		for _, s := range batch {
+			if err := func() error {
+				msg, err := e.manageSubReq(ctx, event, s)
+				if err != nil {
+					return err
+				}
+				result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, msg.ID, msg)
+				if err != nil {
+					return err
+				}
+				var resp WsEventResponse
+				if err := json.Unmarshal(result, &resp); err != nil {
+					return err
+				}
+				if resp.Error != nil && resp.Error.Code != 0 {
+					return fmt.Errorf("(%d) %s", resp.Error.Code, resp.Error.Message)
+				}
+				if event == "unsubscribe" {
+					return e.Websocket.RemoveSubscriptions(conn, s)
+				}
+				return e.Websocket.AddSuccessfulSubscriptions(conn, s)
+			}(); err != nil {
+				return fmt.Errorf("%s %s %s: %w", s.Channel, s.Asset, s.Pairs, err)
 			}
-			result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, msg.ID, msg)
-			if err != nil {
-				return err
-			}
-			var resp WsEventResponse
-			if err := json.Unmarshal(result, &resp); err != nil {
-				return err
-			}
-			if resp.Error != nil && resp.Error.Code != 0 {
-				return fmt.Errorf("(%d) %s", resp.Error.Code, resp.Error.Message)
-			}
-			if event == "unsubscribe" {
-				return e.Websocket.RemoveSubscriptions(conn, s)
-			}
-			return e.Websocket.AddSuccessfulSubscriptions(conn, s)
-		}(); err != nil {
-			errs = common.AppendError(errs, fmt.Errorf("%s %s %s: %w", s.Channel, s.Asset, s.Pairs, err))
 		}
-	}
-	return errs
+		return nil
+	}, 1)
 }
 
 // manageSubReq constructs the subscription management message for a subscription
@@ -792,6 +799,7 @@ func isSingleOrderbookChannel(name string) bool {
 		futuresOrderbookChannel,
 		futuresOrderbookTickerChannel,
 		futuresOrderbookUpdateChannel,
+		futuresOrderbookV2,
 		optionsOrderbookChannel,
 		optionsOrderbookTickerChannel,
 		optionsOrderbookUpdateChannel:
@@ -942,29 +950,38 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 	if err != nil {
 		return err
 	}
-	var errs error
-	for k := range payloads {
-		result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payloads[k].ID, payloads[k])
-		if err != nil {
-			errs = common.AppendError(errs, err)
-			continue
-		}
-		var resp WsEventResponse
-		if err = json.Unmarshal(result, &resp); err != nil {
-			errs = common.AppendError(errs, err)
-		} else {
-			if resp.Error != nil && resp.Error.Code != 0 {
-				errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message))
-				continue
-			}
-			if event == subscribeEvent {
-				errs = common.AppendError(errs, e.Websocket.AddSuccessfulSubscriptions(conn, channelsToSubscribe[k]))
-			} else {
-				errs = common.AppendError(errs, e.Websocket.RemoveSubscriptions(conn, channelsToSubscribe[k]))
-			}
-		}
+	index := make(map[*subscription.Subscription]int, len(channelsToSubscribe))
+	for i, s := range channelsToSubscribe {
+		index[s] = i
 	}
-	return errs
+	return e.ParallelChanOp(ctx, channelsToSubscribe, func(ctx context.Context, batch subscription.List) error {
+		for _, s := range batch {
+			if err := func() error {
+				k, ok := index[s]
+				if !ok {
+					return fmt.Errorf("subscription not found for %s %s", s.Channel, s.Asset)
+				}
+				result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payloads[k].ID, payloads[k])
+				if err != nil {
+					return err
+				}
+				var resp WsEventResponse
+				if err := json.Unmarshal(result, &resp); err != nil {
+					return err
+				}
+				if resp.Error != nil && resp.Error.Code != 0 {
+					return fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message)
+				}
+				if event == subscribeEvent {
+					return e.Websocket.AddSuccessfulSubscriptions(conn, s)
+				}
+				return e.Websocket.RemoveSubscriptions(conn, s)
+			}(); err != nil {
+				return fmt.Errorf("%s %s %s: %w", s.Channel, s.Asset, s.Pairs, err)
+			}
+		}
+		return nil
+	}, 1)
 }
 
 type resultHolder struct {
@@ -1046,6 +1063,7 @@ func getWSPingHandler(channel string) (websocket.PingHandler, error) {
 	}, nil
 }
 
+// extractOrderbookLimit returns the orderbook limit for the asset type
 // TODO: When subscription config is added for all assets update limits to use sub.Levels
 func (e *Exchange) extractOrderbookLimit(a asset.Item) (uint64, error) {
 	switch a {

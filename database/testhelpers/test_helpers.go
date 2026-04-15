@@ -65,7 +65,7 @@ func ConnectToDatabase(conn *database.Config) (dbConn *database.Instance, err er
 	}
 
 	database.DB.SetConnected(true)
-	return
+	return dbConn, err
 }
 
 // CloseDatabase closes database connection

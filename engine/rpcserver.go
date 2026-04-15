@@ -259,8 +259,8 @@ func (s *RPCServer) getRPCEndpoints() (map[string]*gctrpc.RPCEndpoint, error) {
 }
 
 // GetSubsystems returns a list of subsystems and their status
-func (s *RPCServer) GetSubsystems(_ context.Context, _ *gctrpc.GetSubsystemsRequest) (*gctrpc.GetSusbsytemsResponse, error) {
-	return &gctrpc.GetSusbsytemsResponse{SubsystemsStatus: s.GetSubsystemsStatus()}, nil
+func (s *RPCServer) GetSubsystems(_ context.Context, _ *gctrpc.GetSubsystemsRequest) (*gctrpc.GetSubsystemsResponse, error) {
+	return &gctrpc.GetSubsystemsResponse{SubsystemsStatus: s.GetSubsystemsStatus()}, nil
 }
 
 // EnableSubsystem enables a engine subsystem
@@ -711,16 +711,14 @@ func (s *RPCServer) GetPortfolioSummary(_ context.Context, _ *gctrpc.GetPortfoli
 	var resp gctrpc.GetPortfolioSummaryResponse
 
 	p := func(coins []portfolio.Coin) []*gctrpc.Coin {
-		var c []*gctrpc.Coin
+		c := make([]*gctrpc.Coin, len(coins))
 		for x := range coins {
-			c = append(c,
-				&gctrpc.Coin{
-					Coin:       coins[x].Coin.String(),
-					Balance:    coins[x].Balance,
-					Address:    coins[x].Address,
-					Percentage: coins[x].Percentage,
-				},
-			)
+			c[x] = &gctrpc.Coin{
+				Coin:       coins[x].Coin.String(),
+				Balance:    coins[x].Balance,
+				Address:    coins[x].Address,
+				Percentage: coins[x].Percentage,
+			}
 		}
 		return c
 	}
@@ -729,15 +727,13 @@ func (s *RPCServer) GetPortfolioSummary(_ context.Context, _ *gctrpc.GetPortfoli
 	resp.CoinsOffline = p(result.Offline)
 	resp.CoinsOfflineSummary = make(map[string]*gctrpc.OfflineCoins)
 	for k, v := range result.OfflineSummary {
-		var o []*gctrpc.OfflineCoinSummary
+		o := make([]*gctrpc.OfflineCoinSummary, len(v))
 		for x := range v {
-			o = append(o,
-				&gctrpc.OfflineCoinSummary{
-					Address:    v[x].Address,
-					Balance:    v[x].Balance,
-					Percentage: v[x].Percentage,
-				},
-			)
+			o[x] = &gctrpc.OfflineCoinSummary{
+				Address:    v[x].Address,
+				Balance:    v[x].Balance,
+				Percentage: v[x].Percentage,
+			}
 		}
 		resp.CoinsOfflineSummary[k.String()] = &gctrpc.OfflineCoins{
 			Addresses: o,
@@ -1739,7 +1735,7 @@ func (s *RPCServer) WithdrawalEventByID(_ context.Context, r *gctrpc.WithdrawalE
 	resp := &gctrpc.WithdrawalEventByIDResponse{
 		Event: &gctrpc.WithdrawalEventResponse{
 			Id: v.ID.String(),
-			Exchange: &gctrpc.WithdrawlExchangeEvent{
+			Exchange: &gctrpc.WithdrawalExchangeEvent{
 				Name:   v.Exchange.Name,
 				Id:     v.Exchange.Name,
 				Status: v.Exchange.Status,
@@ -3568,7 +3564,7 @@ func parseMultipleEvents(ret []*withdraw.Response) *gctrpc.WithdrawalEventsByExc
 	for x := range ret {
 		tempEvent := &gctrpc.WithdrawalEventResponse{
 			Id: ret[x].ID.String(),
-			Exchange: &gctrpc.WithdrawlExchangeEvent{
+			Exchange: &gctrpc.WithdrawalExchangeEvent{
 				Name:   ret[x].Exchange.Name,
 				Id:     ret[x].Exchange.ID,
 				Status: ret[x].Exchange.Status,
@@ -3624,7 +3620,7 @@ func parseWithdrawalsHistory(ret []exchange.WithdrawalHistory, exchName string, 
 
 		tempEvent := &gctrpc.WithdrawalEventResponse{
 			Id: ret[x].TransferID,
-			Exchange: &gctrpc.WithdrawlExchangeEvent{
+			Exchange: &gctrpc.WithdrawalExchangeEvent{
 				Name:   exchName,
 				Status: ret[x].Status,
 			},
@@ -3654,7 +3650,7 @@ func parseWithdrawalsHistory(ret []exchange.WithdrawalHistory, exchName string, 
 func parseSingleEvents(ret *withdraw.Response) *gctrpc.WithdrawalEventsByExchangeResponse {
 	tempEvent := &gctrpc.WithdrawalEventResponse{
 		Id: ret.ID.String(),
-		Exchange: &gctrpc.WithdrawlExchangeEvent{
+		Exchange: &gctrpc.WithdrawalExchangeEvent{
 			Name:   ret.Exchange.Name,
 			Id:     ret.Exchange.Name,
 			Status: ret.Exchange.Status,
