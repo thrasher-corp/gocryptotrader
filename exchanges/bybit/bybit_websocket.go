@@ -109,11 +109,11 @@ func (e *Exchange) WebsocketAuthenticatePrivateConnection(ctx context.Context, c
 	}
 	resp, err := conn.SendMessageReturnResponse(ctx, wsSubscriptionEPL, req.RequestID, req)
 	if err != nil {
-		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, req.Operation, err)
+		return fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, req.Operation, err)
 	}
 	var response SubscriptionResponse
 	if err := json.Unmarshal(resp, &response); err != nil {
-		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, req.Operation, err)
+		return fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, req.Operation, err)
 	}
 	if !response.Success {
 		return fmt.Errorf("%w %s %s request_id=%s, %v", request.ErrAuthRequestFailed, e.Name, response.Operation, response.RequestID, errors.New(response.ReturnMessage))
@@ -132,7 +132,7 @@ func (e *Exchange) WebsocketAuthenticateTradeConnection(ctx context.Context, con
 	}
 	resp, err := conn.SendMessageReturnResponse(ctx, wsSubscriptionEPL, req.RequestID, req)
 	if err != nil {
-		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, req.Operation, err)
+		return fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, req.Operation, err)
 	}
 	var response struct {
 		ReturnCode    int64  `json:"retCode"`
@@ -141,7 +141,7 @@ func (e *Exchange) WebsocketAuthenticateTradeConnection(ctx context.Context, con
 		ConnectionID  string `json:"connId"`
 	}
 	if err := json.Unmarshal(resp, &response); err != nil {
-		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, req.Operation, err)
+		return fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, req.Operation, err)
 	}
 	if response.ReturnCode != 0 {
 		c, ok := retCode[response.ReturnCode]

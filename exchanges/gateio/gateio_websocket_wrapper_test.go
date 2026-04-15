@@ -206,6 +206,9 @@ func TestWebsocketModifyOrderMocked(t *testing.T) {
 		Amount:    1,
 	})
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+
+	_, err = ex.WebsocketModifyOrder(t.Context(), &order.Modify{})
+	require.ErrorIs(t, err, order.ErrPairIsEmpty)
 }
 
 func TestWebsocketCancelOrderMocked(t *testing.T) {
@@ -233,4 +236,14 @@ func TestWebsocketCancelOrderMocked(t *testing.T) {
 		Pair:      getPair(t, asset.Options),
 	})
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+
+	err = ex.WebsocketCancelOrder(t.Context(), &order.Cancel{})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	err = ex.WebsocketCancelOrder(t.Context(), &order.Cancel{
+		OrderID:   "1",
+		AssetType: asset.Binary,
+		Pair:      currency.NewBTCUSD(),
+	})
+	require.ErrorIs(t, err, common.ErrNotYetImplemented)
 }

@@ -1065,14 +1065,14 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modif
 		if err != nil {
 			return nil, err
 		}
-		modResp.OrderID = strconv.FormatInt(resp.ID, 10)
-		modResp.Status = order.Open
 		if resp.Status != "" && resp.Status != statusOpen {
 			modResp.Status, err = order.StringToOrderStatus(resp.Status)
 			if err != nil {
 				return nil, err
 			}
 		}
+		modResp.OrderID = strconv.FormatInt(resp.ID, 10)
+		modResp.Status = order.Open
 	case asset.Options:
 		return nil, common.ErrFunctionNotSupported
 	default:

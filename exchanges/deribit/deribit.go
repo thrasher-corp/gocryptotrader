@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -50,6 +51,7 @@ const (
 	getFundingRateHistory            = "public/get_funding_rate_history"
 	getFundingRateValue              = "public/get_funding_rate_value"
 	getHistoricalVolatility          = "public/get_historical_volatility"
+	getCurrencyIndexPrice            = "public/get_index"
 	getIndexPrice                    = "public/get_index_price"
 	getIndexPriceNames               = "public/get_index_price_names"
 	getInstrument                    = "public/get_instrument"
@@ -63,6 +65,7 @@ const (
 	getMarkPriceHistory              = "public/get_mark_price_history"
 	getOrderbook                     = "public/get_order_book"
 	getOrderbookByInstrumentID       = "public/get_order_book_by_instrument_id"
+	getRFQ                           = "public/get_rfqs"
 	getTradeVolumes                  = "public/get_trade_volumes"
 	getTradingViewChartData          = "public/get_tradingview_chart_data"
 	getVolatilityIndex               = "public/get_volatility_index_data"
@@ -113,6 +116,7 @@ const (
 	getUserTradesByInstrumentAndTime = "private/get_user_trades_by_instrument_and_time"
 	getUserTradesByOrder             = "private/get_user_trades_by_order"
 	resetMMP                         = "private/reset_mmp"
+	sendRFQ                          = "private/send_rfq"
 	setMMPConfig                     = "private/set_mmp_config"
 	getSettlementHistoryByInstrument = "private/get_settlement_history_by_instrument"
 	getSettlementHistoryByCurrency   = "private/get_settlement_history_by_currency"
@@ -289,6 +293,17 @@ func (e *Exchange) GetHistoricalVolatility(ctx context.Context, ccy currency.Cod
 	params.Set("currency", ccy.String())
 	var data []HistoricalVolatilityData
 	return data, e.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getHistoricalVolatility, params), &data)
+}
+
+// GetCurrencyIndexPrice retrieves the current index price for the instruments, for the selected currency.
+func (e *Exchange) GetCurrencyIndexPrice(ctx context.Context, ccy currency.Code) (*IndexPrice, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("currency", ccy.String())
+	var resp *IndexPrice
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getCurrencyIndexPrice, params), &resp)
 }
 
 // GetIndexPrice gets price data for the requested index
@@ -551,6 +566,20 @@ func (e *Exchange) GetSupportedIndexNames(ctx context.Context, priceIndexType st
 	}
 	var resp []string
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, nonMatchingEPL, common.EncodeURLValues("public/get_supported_index_names", params), &resp)
+}
+
+// GetRequestForQuote retrieves RFQ information.
+func (e *Exchange) GetRequestForQuote(ctx context.Context, ccy currency.Code, kind string) ([]RequestForQuote, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("currency", ccy.String())
+	if kind != "" {
+		params.Set("kind", kind)
+	}
+	var resp []RequestForQuote
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, nonMatchingEPL, common.EncodeURLValues(getRFQ, params), &resp)
 }
 
 // GetTradeVolumes gets trade volumes' data of all instruments
@@ -1337,8 +1366,8 @@ func (e *Exchange) SetEmailLanguage(ctx context.Context, language string) error 
 	return nil
 }
 
-// SetSelfTradingConfig configure self trading behaviour
-// mode: Self trading prevention behaviour. Possible values: 'reject_taker', 'cancel_maker'
+// SetSelfTradingConfig configure self trading behavior
+// mode: Self trading prevention behavior. Possible values: 'reject_taker', 'cancel_maker'
 // extended_to_subaccounts: If value is true trading is prevented between subaccounts of given account
 func (e *Exchange) SetSelfTradingConfig(ctx context.Context, mode string, extendedToSubaccounts bool) (string, error) {
 	if mode == "" {
@@ -2073,6 +2102,29 @@ func (e *Exchange) ResetMMP(ctx context.Context, ccy currency.Code) error {
 	return nil
 }
 
+// SendRequestForQuote sends RFQ on a given instrument.
+func (e *Exchange) SendRequestForQuote(ctx context.Context, instrumentName string, amount float64, side order.Side) error {
+	params, err := checkInstrument(instrumentName)
+	if err != nil {
+		return err
+	}
+	if amount > 0 {
+		params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
+	}
+	if side != order.UnknownSide {
+		params.Set("side", side.String())
+	}
+	var resp string
+	err = e.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, sendRFQ, params, &resp)
+	if err != nil {
+		return err
+	}
+	if resp != "ok" {
+		return fmt.Errorf("rfq couldn't send for %v", instrumentName)
+	}
+	return nil
+}
+
 // SetMMPConfig sends a request to set the given parameter values to the mmp config for the provided currency
 func (e *Exchange) SetMMPConfig(ctx context.Context, ccy currency.Code, interval kline.Interval, frozenTime int64, quantityLimit, deltaLimit float64) error {
 	if ccy.IsEmpty() {
@@ -2127,8 +2179,8 @@ func (e *Exchange) GetSettlementHistoryByInstrument(ctx context.Context, instrum
 		getSettlementHistoryByInstrument, params, &resp)
 }
 
-// GetSettlementHistoryByCurrency sends a request to fetch settlement history data sorted by currency
-func (e *Exchange) GetSettlementHistoryByCurrency(ctx context.Context, ccy currency.Code, settlementType, continuation string, count int64, searchStartTimeStamp time.Time) (*PrivateSettlementsHistoryData, error) {
+// GetSettlementHistoryByCurency sends a request to fetch settlement history data sorted by currency
+func (e *Exchange) GetSettlementHistoryByCurency(ctx context.Context, ccy currency.Code, settlementType, continuation string, count int64, searchStartTimeStamp time.Time) (*PrivateSettlementsHistoryData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -2576,44 +2628,46 @@ func (e *Exchange) StringToAssetKind(assetType string) (asset.Item, error) {
 
 // getAssetPairByInstrument is able to determine the asset type and currency pair
 // based on the received instrument ID
-func getAssetPairByInstrument(instrument string) (asset.Item, currency.Pair, error) {
+func (e *Exchange) getAssetPairByInstrument(instrument string) (currency.Pair, asset.Item, error) {
 	if instrument == "" {
-		return asset.Empty, currency.EMPTYPAIR, currency.ErrSymbolStringEmpty
+		return currency.EMPTYPAIR, asset.Empty, errInvalidInstrumentName
 	}
 
 	item, err := getAssetFromInstrument(instrument)
 	if err != nil {
-		return asset.Empty, currency.EMPTYPAIR, err
+		return currency.EMPTYPAIR, asset.Empty, err
 	}
 	cp, err := currency.NewPairFromString(instrument)
 	if err != nil {
-		return asset.Empty, currency.EMPTYPAIR, err
+		return currency.EMPTYPAIR, asset.Empty, err
 	}
-	return item, cp, nil
+
+	return cp, item, nil
 }
 
-// getAssetFromInstrument extrapolates the asset type from the instrument formatting as each type is unique
 func getAssetFromInstrument(instrument string) (asset.Item, error) {
-	currencyParts := strings.Split(instrument, currency.DashDelimiter)
-	partsLen := len(currencyParts)
-	currencySuffix := currencyParts[partsLen-1]
-	hasUnderscore := strings.Contains(instrument, currency.UnderscoreDelimiter)
+	splitCurrency := strings.Split(instrument, currency.DashDelimiter)
+	splitLen := len(splitCurrency)
+	lastSplit := splitCurrency[splitLen-1]
+	hasUnderscore := strings.IndexAny(instrument, currency.UnderscoreDelimiter) != -1
 	switch {
-	case partsLen == 1 && !hasUnderscore: // no pair delimiter found
+	case splitLen == 1 && !hasUnderscore:
 		return asset.Empty, fmt.Errorf("%w %s", errUnsupportedInstrumentFormat, instrument)
-	case partsLen == 1: // spot pairs use underscore eg BTC_USDC
+	case splitLen == 1:
 		return asset.Spot, nil
-	case partsLen == 2: // futures pairs use single dash eg ETH_USDC-PERPETUAL, BTC-12SEP25
+	case splitLen == 2:
 		return asset.Futures, nil
-	case currencySuffix == "C", currencySuffix == "P": // options end in P or C to denote puts or calls eg BTC-26SEP25-30000-C
+	case lastSplit == "C" || lastSplit == "P":
 		return asset.Options, nil
-	case partsLen >= 3 && currencyParts[partsLen-2] == "FS" && strings.Contains(currencySuffix, currency.UnderscoreDelimiter):
-		// futures combos have underlying-FS-shortLeg_longLeg
-		// eg BTC-FS-28NOV25_PERP or BTC-USDC-FS-28NOV25_PERP
+	case splitLen == 3 && hasUnderscore:
 		return asset.FutureCombo, nil
-	case partsLen == 4: // option combos with more than 3 parts eg BTC_USDC-PS-19SEP25-113000_111000
+	case splitLen == 3:
+		return asset.Futures, nil
+	case splitLen > 3 && lastSplit == "FS":
+		return asset.FutureCombo, nil
+	case splitLen > 3:
 		return asset.OptionCombo, nil
-	default: // deribit has changed their format and needs a review
+	default:
 		return asset.Empty, fmt.Errorf("%w %s", errUnsupportedInstrumentFormat, instrument)
 	}
 }
@@ -2670,7 +2724,7 @@ func getOfflineTradeFee(price, amount float64) float64 {
 	return 0.0003 * price * amount
 }
 
-func formatFuturesTradablePair(pair currency.Pair) string {
+func (e *Exchange) formatFuturesTradablePair(pair currency.Pair) string {
 	var instrumentID string
 	if result := strings.Split(pair.String(), currency.DashDelimiter); len(result) == 3 {
 		instrumentID = strings.Join(result[:2], currency.UnderscoreDelimiter) + currency.DashDelimiter + result[2]
@@ -2685,7 +2739,7 @@ func formatFuturesTradablePair(pair currency.Pair) string {
 // EXPIRE is DDMMMYY
 // STRIKE may include a d for decimal point in linear options
 // TYPE is Call or Put
-func optionPairToString(pair currency.Pair) string {
+func (e *Exchange) optionPairToString(pair currency.Pair) string {
 	initialDelimiter := currency.DashDelimiter
 	q := pair.Quote.String()
 	if strings.HasPrefix(q, "USDC") && len(q) > 11 { // Linear option
@@ -2697,44 +2751,14 @@ func optionPairToString(pair currency.Pair) string {
 	return pair.Base.String() + initialDelimiter + q
 }
 
-// optionComboPairToString formats an option combo pair to deribit request format
-// e.g. XRP-USDC-CS-26SEP25-3D3_3D5 -> XRP_USDC-CS-26SEP25-3d3_3d5
-func optionComboPairToString(pair currency.Pair) string {
-	parts := strings.Split(pair.String(), "-")
-	// Deribit uses lowercase 'd' to represent the decimal point
-	lastIdx := len(parts) - 1
-	parts[lastIdx] = strings.ReplaceAll(parts[lastIdx], "D", "d")
-	// Leave unchanged when:
-	// * length <= 3 (not enough info to be a combo needing underscore)
-	// * length == 4 and second token is not USDC (original logic kept as-is)
-	if len(parts) <= 3 || (len(parts) == 4 && parts[1] != "USDC") {
-		return strings.Join(parts, "-")
+// optionComboPairToString formats an option combo pair from dash to underscore between base and quote, e.g. PAXG-USDC-CS-12SEP25-3550_3600 -> PAXG_USDC-CS-12SEP25-3550_3600
+func (e *Exchange) optionComboPairToString(pair currency.Pair) string {
+	// Convert pair to string
+	pairStr := pair.String()
+	// Find the first dash, replace with underscore
+	idx := strings.Index(pairStr, "-")
+	if idx == -1 {
+		return pairStr // fallback, not a combo format
 	}
-	// Otherwise insert underscore after base (covers:
-	// * any length > 4
-	// * length == 4 with USDC as second token)
-	return parts[0] + "_" + strings.Join(parts[1:], "-")
-}
-
-// futureComboPairToString formats a future combo pair to deribit request format
-// e.g. ETH-USDC-FS-28NOV25_PERP -> ETH_USDC-FS-28NOV25_PERP (linear)
-// e.g. BTC-FS-28NOV25_PERP -> BTC-FS-28NOV25_PERP (inverse, unchanged)
-func futureComboPairToString(pair currency.Pair) string {
-	s := pair.String()
-	before, after, found := strings.Cut(s, "-")
-	if !found {
-		return s
-	}
-
-	// Must have "USDC-" immediately after first dash (linear combo)
-	if len(after) < 5 || after[:5] != "USDC-" {
-		return s
-	}
-
-	// Need at least one more dash after "USDC-" to have 4+ parts
-	if !strings.Contains(after[5:], "-") {
-		return s
-	}
-
-	return before + "_" + after
+	return pairStr[:idx] + "_" + pairStr[idx+1:]
 }

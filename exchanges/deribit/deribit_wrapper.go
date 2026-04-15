@@ -560,14 +560,14 @@ func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, asset
 
 // SubmitOrder submits a new order
 func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
-	err := s.Validate(e.GetTradingRequirements())
-	if err != nil {
+	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
 	if !e.SupportsAsset(s.AssetType) {
 		return nil, fmt.Errorf("%s: orderType %v is not valid", e.Name, s.AssetType)
 	}
 	var orderID string
+	var err error
 	var fmtPair currency.Pair
 	status := order.New
 	fmtPair, err = e.FormatExchangeCurrency(s.Pair, s.AssetType)

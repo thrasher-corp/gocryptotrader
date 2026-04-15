@@ -3050,6 +3050,15 @@ func TestWSHandleData(t *testing.T) {
 			assert.NoError(t, err, "wsHandleData should not error")
 		}
 	}
+	t.Run("returns send error when data handler is closed", func(t *testing.T) {
+		t.Parallel()
+
+		ex := testInstance()
+		ex.Websocket.DataHandler.Close()
+
+		err := ex.wsHandleData(t.Context(), nil, asset.Options, []byte(`{"topic":"tickers.BTC-26NOV24-92000-C","ts":1672304486868,"type":"snapshot","data":{"symbol":"BTC-26NOV24-92000-C","lastPrice":"2","highPrice24h":"3","lowPrice24h":"1","turnover24h":"10","volume24h":"5","bid1Price":"1.9","ask1Price":"2.1","bid1Size":"2","ask1Size":"3","delta":"0.1","gamma":"0.2","vega":"0.3","theta":"0.4","bidIv":"0.11","askIv":"0.12","markIv":"0.13"}}`))
+		require.Error(t, err, "wsHandleData must return an error when data handler send fails")
+	})
 }
 
 func TestWSHandleAuthenticatedData(t *testing.T) {

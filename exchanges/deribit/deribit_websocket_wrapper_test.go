@@ -221,6 +221,12 @@ func TestWebsocketSubmitOrderMocked(t *testing.T) {
 	require.Equal(t, "buy-order", resp.OrderID)
 	require.Equal(t, order.New, resp.Status)
 
+	ioc := *sub
+	ioc.TimeInForce = order.ImmediateOrCancel
+	resp, err = ex.WebsocketSubmitOrder(t.Context(), &ioc)
+	require.NoError(t, err)
+	require.Equal(t, "buy-order", resp.OrderID)
+
 	sell := *sub
 	sell.Side = order.Sell
 	resp, err = ex.WebsocketSubmitOrder(t.Context(), &sell)

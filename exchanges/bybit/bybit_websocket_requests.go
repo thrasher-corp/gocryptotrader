@@ -68,11 +68,11 @@ func (e *Exchange) sendWebsocketTradeRequest(ctx context.Context, op, orderLinkI
 	// sending the request.
 	outbound, err := e.Websocket.GetConnection(OutboundTradeConnection)
 	if err != nil {
-		return nil, fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, op, err)
+		return nil, fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, op, err)
 	}
 	inbound, err := e.Websocket.GetConnection(InboundPrivateConnection)
 	if err != nil {
-		return nil, fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, op, err)
+		return nil, fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, op, err)
 	}
 
 	// Set up a listener to wait for the response to come back from the inbound connection. The request is sent through
@@ -80,7 +80,7 @@ func (e *Exchange) sendWebsocketTradeRequest(ctx context.Context, op, orderLinkI
 	// outbound connection sends its acknowledgement.
 	ch, err := inbound.MatchReturnResponses(ctx, orderLinkID, 1)
 	if err != nil {
-		return nil, fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, op, err)
+		return nil, fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, op, err)
 	}
 
 	requestID := e.MessageID()
@@ -91,12 +91,12 @@ func (e *Exchange) sendWebsocketTradeRequest(ctx context.Context, op, orderLinkI
 		Arguments: []any{payload},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, op, err)
+		return nil, fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, op, err)
 	}
 
 	var confirmation WebsocketConfirmation
 	if err := json.Unmarshal(outResp, &confirmation); err != nil {
-		return nil, fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, op, err)
+		return nil, fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, op, err)
 	}
 
 	if confirmation.RetCode != 0 {
@@ -105,7 +105,7 @@ func (e *Exchange) sendWebsocketTradeRequest(ctx context.Context, op, orderLinkI
 
 	inResp := <-ch // Blocking read is acceptable; channel has a built in timeout already
 	if inResp.Err != nil {
-		return nil, fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, op, inResp.Err)
+		return nil, fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, op, inResp.Err)
 	}
 
 	if len(inResp.Responses) != 1 {
@@ -114,7 +114,7 @@ func (e *Exchange) sendWebsocketTradeRequest(ctx context.Context, op, orderLinkI
 
 	var ret WebsocketOrderResponse
 	if err := json.Unmarshal(inResp.Responses[0], &ret); err != nil {
-		return nil, fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, op, err)
+		return nil, fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, op, err)
 	}
 
 	if len(ret.Data) != 1 {
