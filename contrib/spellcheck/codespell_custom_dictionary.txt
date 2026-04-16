@@ -4,7 +4,6 @@ affilate->affiliate
 authentecated->authenticated
 behavior->behaviour
 bifinex->bitfinex
-canceled->cancelled
 candlesctick->candlestick
 critcalbankingstuff->criticalbankingstuff
 crypo->crypto
