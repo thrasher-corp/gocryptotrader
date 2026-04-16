@@ -3,6 +3,8 @@ package bitfinex
 import (
 	"bufio"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strconv"
 	"testing"
@@ -207,7 +209,7 @@ func TestGetTickerBatch(t *testing.T) {
 	require.Contains(t, ticks, "tBTCUSD", "Ticker batch must contain tBTCUSD")
 	checkTradeTick(t, ticks["tBTCUSD"])
 	require.Contains(t, ticks, "fUSD", "Ticker batch must contain fUSD")
-	checkTradeTick(t, ticks["fUSD"])
+	checkFundingTick(t, ticks["fUSD"])
 }
 
 func TestGetTicker(t *testing.T) {
@@ -604,6 +606,88 @@ func TestUpdateTicker(t *testing.T) {
 	if err == nil {
 		assert.False(t, tick.LastUpdated.IsZero(), "UpdateTicker should populate LastUpdated")
 	}
+}
+
+func TestUpdateTickersStoresTradingTimestampFromBatch(t *testing.T) {
+	ex := newMockTickerBatchExchange(t, "Bitfinex timestamp spot test", [][]any{{
+		"tBTCUSD",
+		1.1,
+		2.2,
+		3.3,
+		4.4,
+		5.5,
+		6.6,
+		7.7,
+		8.8,
+		9.9,
+		10.10,
+		1747143592992.0,
+	}})
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{btcusdPair}, true), "StorePairs must not error")
+
+	err := ex.UpdateTickers(t.Context(), asset.Spot)
+	require.NoError(t, err, "UpdateTickers must not error")
+
+	stored, err := ticker.GetTicker(ex.Name, btcusdPair, asset.Spot)
+	require.NoError(t, err, "GetTicker must not error")
+	assert.Equal(t, time.UnixMilli(1747143592992), stored.LastUpdated, "UpdateTickers should preserve the exchange timestamp for spot tickers")
+}
+
+func TestUpdateTickersStoresFundingTimestampFromBatch(t *testing.T) {
+	fundingPair, err := currency.NewPairFromString("USD")
+	require.NoError(t, err, "NewPairFromString must not error")
+
+	ex := newMockTickerBatchExchange(t, "Bitfinex timestamp funding test", [][]any{{
+		"fUSD",
+		1.1,
+		2.2,
+		3.0,
+		4.4,
+		5.5,
+		6.0,
+		7.7,
+		8.8,
+		9.9,
+		10.10,
+		11.11,
+		12.12,
+		13.13,
+		nil,
+		nil,
+		15.15,
+		1747143592992.0,
+	}})
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.MarginFunding, currency.Pairs{fundingPair}, true), "StorePairs must not error")
+
+	err = ex.UpdateTickers(t.Context(), asset.MarginFunding)
+	require.NoError(t, err, "UpdateTickers must not error")
+
+	stored, err := ticker.GetTicker(ex.Name, fundingPair, asset.MarginFunding)
+	require.NoError(t, err, "GetTicker must not error")
+	assert.Equal(t, time.UnixMilli(1747143592992), stored.LastUpdated, "UpdateTickers should preserve the exchange timestamp for funding tickers")
+}
+
+func newMockTickerBatchExchange(t *testing.T, name string, payload [][]any) *Exchange {
+	t.Helper()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	ex.Name = name
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method, "Ticker batch request method should be GET")
+		assert.Equal(t, "/v2/tickers", r.URL.Path, "Ticker batch request path should be correct")
+		assert.Equal(t, "ALL", r.URL.Query().Get("symbols"), "Ticker batch request symbols should be correct")
+
+		w.WriteHeader(http.StatusOK)
+		err := json.NewEncoder(w).Encode(payload)
+		require.NoError(t, err, "Encoding ticker batch payload must not error")
+	}))
+	t.Cleanup(server.Close)
+
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+	return ex
 }
 
 func TestUpdateTickers(t *testing.T) {
