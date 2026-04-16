@@ -62,7 +62,7 @@ type BrokerSubAccountAPIKeyParams struct {
 // comma-separated string when marshaled.
 type StringList []string
 
-// MarshalJSON deserializes a list of string into a comma-separated string representation
+// MarshalJSON deserialises a list of string into a comma-separated string representation
 func (sl StringList) MarshalJSON() ([]byte, error) {
 	return append(append([]byte("\""), []byte(strings.Join(sl, ","))...), '"'), nil
 }

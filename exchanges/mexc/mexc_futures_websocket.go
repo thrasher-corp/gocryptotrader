@@ -444,7 +444,6 @@ func (e *Exchange) processFuturesKlineData(ctx context.Context, data []byte, sym
 			},
 		},
 	})
-
 }
 
 func (e *Exchange) processOrderbookDepth(data []byte, symbol string) error {
@@ -533,7 +532,7 @@ func (e *Exchange) processFuturesTickers(ctx context.Context, data []byte) error
 		if err != nil {
 			return err
 		}
-		if err = e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+		if err := e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 			ExchangeName: e.Name,
 			Pair:         cp,
 			AssetType:    asset.Futures,

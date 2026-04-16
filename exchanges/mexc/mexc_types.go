@@ -100,7 +100,7 @@ type CandlestickData struct {
 	QuoteAssetVolume types.Number
 }
 
-// UnmarshalJSON deserializes byte data into a CandlestickData instance
+// UnmarshalJSON deserialises byte data into a CandlestickData instance
 func (c *CandlestickData) UnmarshalJSON(data []byte) error {
 	target := [8]any{&c.OpenTime, &c.OpenPrice, &c.HighPrice, &c.LowPrice, &c.ClosePrice, &c.Volume, &c.CloseTime, &c.QuoteAssetVolume}
 	return json.Unmarshal(data, &target)
@@ -136,7 +136,7 @@ type TickerData struct {
 // TickerList represents list of ticker data
 type TickerList []TickerData
 
-// UnmarshalJSON deserializes byte data into TickerList
+// UnmarshalJSON deserialises byte data into TickerList
 func (t *TickerList) UnmarshalJSON(data []byte) error {
 	tickers := []TickerData{}
 	err := json.Unmarshal(data, &tickers)
@@ -275,7 +275,7 @@ type BatchOrderCreationParam struct {
 	Price            float64       `json:"price,omitempty,string"`
 	Quantity         float64       `json:"quantity,omitempty,string"`
 	QuoteOrderQty    float64       `json:"quoteOrderQty,omitempty,string"`
-	Symbol           currency.Pair `json:"symbol,omitempty"`
+	Symbol           currency.Pair `json:"symbol"`
 	Side             string        `json:"side,omitempty"`
 	NewClientOrderID int64         `json:"newClientOrderId,omitempty"`
 }
@@ -697,7 +697,7 @@ type FuturesContractsDetail struct {
 // FuturesContractsList holds a list of futures contracts
 type FuturesContractsList []FuturesContractDetail
 
-// UnmarshalJSON deserializes a futures contract list byte data into FuturesContractsList instance
+// UnmarshalJSON deserialises a futures contract list byte data into FuturesContractsList instance
 func (fcl *FuturesContractsList) UnmarshalJSON(data []byte) error {
 	var target []FuturesContractDetail
 	if err := json.Unmarshal(data, &target); err != nil {
@@ -789,7 +789,7 @@ type ContractOrderbookWithDepth struct {
 // OrderbookDataWithDepth holds orderbook data with the depth
 type OrderbookDataWithDepth orderbook.Level
 
-// UnmarshalJSON deserializes slice of byte data into OrderbookDataWithDepth
+// UnmarshalJSON deserialises slice of byte data into OrderbookDataWithDepth
 func (od *OrderbookDataWithDepth) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[3]any{&od.Price, &od.Amount, &od.OrderCount})
 }
@@ -901,7 +901,7 @@ type ContractTickerDetail struct {
 // ContractTickersList holds a list of contract ticker details.
 type ContractTickersList []ContractTickerDetail
 
-// UnmarshalJSON deserializes a contract ticker byte data into ContractTickersList
+// UnmarshalJSON deserialises a contract ticker byte data into ContractTickersList
 func (cts *ContractTickersList) UnmarshalJSON(data []byte) error {
 	var targets []ContractTickerDetail
 	if err := json.Unmarshal(data, &targets); err != nil {
