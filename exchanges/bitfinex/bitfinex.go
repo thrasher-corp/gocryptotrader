@@ -684,18 +684,18 @@ func tickerFromResp(symbol string, respAny []any) (*Ticker, error) {
 	if strings.HasPrefix(symbol, "f") {
 		return tickerFromFundingResp(symbol, respAny)
 	}
-	var timestamp types.Time
+	var firstTradeTimestamp types.Time
 	switch len(respAny) {
 	case 10:
 	case 11:
-		// Bitfinex REST tickers now append a trailing update timestamp.
+		// Bitfinex REST tickers can append a trailing FIRST_TRADE timestamp.
 		// Keep accepting the original 10-field payload because older REST
 		// fixtures still use it.
 		ts, ok := respAny[10].(float64)
 		if !ok {
-			return nil, fmt.Errorf("%w for %s field Timestamp from %v", errTickerInvalidResp, symbol, respAny)
+			return nil, fmt.Errorf("%w for %s field FirstTradeTimestamp from %v", errTickerInvalidResp, symbol, respAny)
 		}
-		timestamp = types.Time(time.UnixMilli(int64(ts)))
+		firstTradeTimestamp = types.Time(time.UnixMilli(int64(ts)))
 		respAny = respAny[:10]
 	default:
 		return nil, fmt.Errorf("%w for %s: %v", errTickerInvalidFieldCount, symbol, respAny)
@@ -719,23 +719,23 @@ func tickerFromResp(symbol string, respAny []any) (*Ticker, error) {
 		Volume:          resp[7],
 		High:            resp[8],
 		Low:             resp[9],
-		Timestamp:       timestamp,
+		Timestamp:       firstTradeTimestamp,
 	}, nil
 }
 
 var fundingTickerFields = []string{"FlashReturnRate", "Bid", "BidPeriod", "BidSize", "Ask", "AskPeriod", "AskSize", "DailyChange", "DailyChangePercentage", "LastPrice", "DailyVolume", "DailyHigh", "DailyLow", "", "", "FRRAmountAvailable"}
 
 func tickerFromFundingResp(symbol string, respAny []any) (*Ticker, error) {
-	var timestamp types.Time
+	var firstTradeTimestamp types.Time
 	switch len(respAny) {
 	case 16:
 	case 17:
-		// Bitfinex REST funding tickers now append a trailing update timestamp.
+		// Bitfinex REST funding tickers can append a trailing FIRST_TRADE timestamp.
 		ts, ok := respAny[16].(float64)
 		if !ok {
-			return nil, fmt.Errorf("%w for %s field Timestamp from %v", errTickerInvalidResp, symbol, respAny)
+			return nil, fmt.Errorf("%w for %s field FirstTradeTimestamp from %v", errTickerInvalidResp, symbol, respAny)
 		}
-		timestamp = types.Time(time.UnixMilli(int64(ts)))
+		firstTradeTimestamp = types.Time(time.UnixMilli(int64(ts)))
 		respAny = respAny[:16]
 	default:
 		return nil, fmt.Errorf("%w for %s: %v", errTickerInvalidFieldCount, symbol, respAny)
@@ -766,7 +766,7 @@ func tickerFromFundingResp(symbol string, respAny []any) (*Ticker, error) {
 		High:               resp[11],
 		Low:                resp[12],
 		FRRAmountAvailable: resp[15],
-		Timestamp:          timestamp,
+		Timestamp:          firstTradeTimestamp,
 	}, nil
 }
 

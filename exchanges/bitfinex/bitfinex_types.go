@@ -14,13 +14,13 @@ import (
 )
 
 var (
-	errSetCannotBeEmpty        = errors.New("set cannot be empty")
-	errNoSeqNo                 = errors.New("no sequence number")
-	errParamNotAllowed         = errors.New("param not allowed")
-	errTickerInvalidSymbol     = errors.New("invalid ticker symbol")
-	errTickerInvalidResp       = errors.New("invalid ticker response format")
-	errTickerInvalidFieldCount = errors.New("invalid ticker response field count")
-	errTickerInvalidTimestamp  = errors.New("invalid ticker timestamp format")
+	errSetCannotBeEmpty            = errors.New("set cannot be empty")
+	errNoSeqNo                     = errors.New("no sequence number")
+	errParamNotAllowed             = errors.New("param not allowed")
+	errTickerInvalidSymbol         = errors.New("invalid ticker symbol")
+	errTickerInvalidResp           = errors.New("invalid ticker response format")
+	errTickerInvalidFieldCount     = errors.New("invalid ticker response field count")
+	errTickerInvalidFirstTradeTime = errors.New("invalid ticker first trade timestamp format")
 )
 
 // AccountV2Data stores account v2 data
@@ -152,7 +152,7 @@ type Ticker struct {
 	High               float64
 	Low                float64
 	FRRAmountAvailable float64    // Flash Return Rate amount available
-	Timestamp          types.Time // Trailing ticker update timestamp when supplied by Bitfinex
+	Timestamp          types.Time // Trailing ticker FIRST_TRADE timestamp when supplied by Bitfinex
 }
 
 // DerivativeDataResponse stores data for queried derivative

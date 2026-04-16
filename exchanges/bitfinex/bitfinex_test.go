@@ -1814,7 +1814,7 @@ func TestWSTickerResponseInvalidTrailingTimestamp(t *testing.T) {
 	require.NoError(t, err, "AddSubscriptions must not error")
 
 	err = e.wsHandleData(t.Context(), []byte(`[11534,[61.304,2228.36155358,61.305,1323.2442970500003,0.395,0.0065,61.371,50973.3020771,62.5,57.421,true]]`))
-	assert.ErrorIs(t, err, errTickerInvalidTimestamp, "wsHandleData should reject invalid trailing ticker timestamp types")
+	assert.ErrorIs(t, err, errTickerInvalidFirstTradeTime, "wsHandleData should reject invalid trailing FIRST_TRADE timestamp types")
 	select {
 	case resp := <-e.Websocket.DataHandler.C:
 		t.Fatalf("DataHandler should not receive websocket ticker data on invalid trailing timestamp types: %#v", resp)
@@ -1833,7 +1833,7 @@ func TestWSFundingTickerResponseInvalidTrailingTimestamp(t *testing.T) {
 	require.NoError(t, err, "AddSubscriptions must not error")
 
 	err = e.wsHandleData(t.Context(), []byte(`[22334,[1.1,2.2,3,4.4,5.5,6,7.7,8.8,9.9,10.1,11.11,12.12,13.13,null,null,15.15,true]]`))
-	assert.ErrorIs(t, err, errTickerInvalidTimestamp, "wsHandleData should reject invalid funding trailing ticker timestamp types")
+	assert.ErrorIs(t, err, errTickerInvalidFirstTradeTime, "wsHandleData should reject invalid funding trailing FIRST_TRADE timestamp types")
 	select {
 	case resp := <-e.Websocket.DataHandler.C:
 		t.Fatalf("DataHandler should not receive websocket funding ticker data on invalid trailing timestamp types: %#v", resp)

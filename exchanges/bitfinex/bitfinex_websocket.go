@@ -816,12 +816,12 @@ func (e *Exchange) handleWSTickerUpdate(ctx context.Context, c *subscription.Sub
 	case 11, 17:
 		// Bitfinex websocket tickers can append an optional trailing FIRST_TRADE
 		// timestamp. The docs note this field may be null.
-		if tickerData[len(tickerData)-1] != nil {
-			ts, tsOK := tickerData[len(tickerData)-1].(float64)
-			if !tsOK {
-				return errTickerInvalidTimestamp
+		if last := tickerData[len(tickerData)-1]; last != nil {
+			firstTradeTimestamp, firstTradeTimestampOK := last.(float64)
+			if !firstTradeTimestampOK {
+				return errTickerInvalidFirstTradeTime
 			}
-			t.LastUpdated = time.UnixMilli(int64(ts))
+			t.LastUpdated = time.UnixMilli(int64(firstTradeTimestamp))
 		}
 		tickerData = tickerData[:len(tickerData)-1]
 	}
