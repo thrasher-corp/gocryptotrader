@@ -150,7 +150,8 @@ type Ticker struct {
 	Volume             float64
 	High               float64
 	Low                float64
-	FRRAmountAvailable float64 // Flash Return Rate amount available
+	FRRAmountAvailable float64    // Flash Return Rate amount available
+	Timestamp          types.Time // Trailing ticker update timestamp when supplied by Bitfinex
 }
 
 // DerivativeDataResponse stores data for queried derivative
