@@ -1930,11 +1930,17 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			}
 			l = append(l, limits.MinMaxLevel{
 				Key:                     key.NewExchangeAssetPair(e.Name, a, currency.NewPair(pairsData[i].Base, pairsData[i].Quote)),
-				QuoteStepIncrementSize:  math.Pow10(-int(pairsData[i].PricePrecision)),
+				PriceStepIncrementSize:  math.Pow10(-int(pairsData[i].PricePrecision)),
 				AmountStepIncrementSize: math.Pow10(-int(pairsData[i].AmountPrecision)),
 				MinimumBaseAmount:       minBaseAmount,
 				MinimumQuoteAmount:      pairsData[i].MinQuoteAmount.Float64(),
+				MaximumBaseAmount:       pairsData[i].MaxBaseAmount.Float64(),
+				MaximumQuoteAmount:      pairsData[i].MaxQuoteAmount.Float64(),
 				Delisted:                pairsData[i].DelistingTime.Time(),
+				Listed:                  oldestTime(pairsData[i].SellStart.Time(), pairsData[i].BuyStart.Time()),
+				MultiplierUp:            pairsData[i].MaximumQuoteRisePercentage.Float64(),
+				MultiplierDown:          pairsData[i].MaximumQuoteDeclinePercentage.Float64(),
+				MarketMaxQty:            pairsData[i].MarketOrderMaxStock.Float64(),
 			})
 		}
 	case asset.Margin, asset.CrossMargin:
@@ -1943,24 +1949,12 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			return err
 		}
 
-		// Build lookup of active margin-supported pairs with their limits.
-		// Pairs with min_base_amount == 0 are effectively dead and skipped.
-		type marginInfo struct {
-			pair     currency.Pair
-			minBase  float64
-			minQuote float64
-		}
-		supported := make(map[string]marginInfo, len(marginPairs))
+		supported := make(map[currency.Pair]*MarginCurrencyPairInfo, len(marginPairs))
 		for i := range marginPairs {
-			if marginPairs[i].Status == 0 || marginPairs[i].MinBaseAmount.Float64() == 0 {
+			if marginPairs[i].Status == 0 || marginPairs[i].MinBaseAmount.Float64() == 0 { // Pairs with min_base_amount == 0 are effectively dead and skipped.
 				continue
 			}
-			p := currency.NewPair(marginPairs[i].Base, marginPairs[i].Quote)
-			supported[p.String()] = marginInfo{
-				pair:     p,
-				minBase:  marginPairs[i].MinBaseAmount.Float64(),
-				minQuote: marginPairs[i].MinQuoteAmount.Float64(),
-			}
+			supported[currency.NewPair(marginPairs[i].Base, marginPairs[i].Quote)] = &marginPairs[i]
 		}
 
 		// Spot data provides precision and step size; filter to margin-supported pairs only.
@@ -1974,45 +1968,46 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		l = make([]limits.MinMaxLevel, 0, len(supported))
 		for i := range pairsData {
 			p := currency.NewPair(pairsData[i].Base, pairsData[i].Quote)
-			pKey := p.String()
-			mInfo, ok := supported[pKey]
+			mInfo, ok := supported[p]
 			if !ok {
 				continue
 			}
-			delete(supported, pKey) // Track coverage; remainder handled below.
+			delete(supported, p) // Track coverage; remainder handled below.
 
-			minBaseAmount := mInfo.minBase
-			if minBaseAmount == 0 {
-				minBaseAmount = pairsData[i].MinBaseAmount.Float64()
-				if minBaseAmount == 0 {
-					minBaseAmount = math.Pow10(-int(pairsData[i].AmountPrecision))
-				}
-			}
-
-			minQuoteAmount := mInfo.minQuote
+			minQuoteAmount := mInfo.MinQuoteAmount.Float64()
 			if minQuoteAmount == 0 {
 				minQuoteAmount = pairsData[i].MinQuoteAmount.Float64()
 			}
 
+			maxQuoteAmount := mInfo.MaxQuoteAmount.Float64()
+			if maxQuoteAmount == 0 {
+				maxQuoteAmount = pairsData[i].MaxQuoteAmount.Float64()
+			}
+
 			l = append(l, limits.MinMaxLevel{
 				Key:                     key.NewExchangeAssetPair(e.Name, a, p),
-				QuoteStepIncrementSize:  math.Pow10(-int(pairsData[i].PricePrecision)),
+				PriceStepIncrementSize:  math.Pow10(-int(pairsData[i].PricePrecision)),
 				AmountStepIncrementSize: math.Pow10(-int(pairsData[i].AmountPrecision)),
-				MinimumBaseAmount:       minBaseAmount,
+				MinimumBaseAmount:       mInfo.MinBaseAmount.Float64(),
 				MinimumQuoteAmount:      minQuoteAmount,
+				MaximumBaseAmount:       pairsData[i].MaxBaseAmount.Float64(),
+				MaximumQuoteAmount:      maxQuoteAmount,
 				Delisted:                pairsData[i].DelistingTime.Time(),
+				Listed:                  oldestTime(pairsData[i].SellStart.Time(), pairsData[i].BuyStart.Time()),
+				MultiplierUp:            pairsData[i].MaximumQuoteRisePercentage.Float64(),
+				MultiplierDown:          pairsData[i].MaximumQuoteDeclinePercentage.Float64(),
+				MarketMaxQty:            pairsData[i].MarketOrderMaxStock.Float64(),
 			})
 		}
 
 		// Any margin pairs that weren't found in spot data still need limits
 		// (e.g. pairs only listable on margin). Use margin data with defaults.
-		for _, mInfo := range supported {
+		for pair, mInfo := range supported {
 			l = append(l, limits.MinMaxLevel{
-				Key:                     key.NewExchangeAssetPair(e.Name, a, mInfo.pair),
-				AmountStepIncrementSize: 0, // Margin API doesn't provide step size; leave step increments as 0 to avoid incorrectly treating minimum amounts as step sizes in validation.
-				QuoteStepIncrementSize:  0, // As above
-				MinimumBaseAmount:       mInfo.minBase,
-				MinimumQuoteAmount:      mInfo.minQuote,
+				Key:                key.NewExchangeAssetPair(e.Name, a, pair),
+				MinimumBaseAmount:  mInfo.MinBaseAmount.Float64(),
+				MinimumQuoteAmount: mInfo.MinQuoteAmount.Float64(),
+				MaximumQuoteAmount: mInfo.MaxQuoteAmount.Float64(),
 			})
 		}
 	case asset.USDTMarginedFutures, asset.CoinMarginedFutures:
@@ -2114,6 +2109,20 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	}
 
 	return limits.Load(l)
+}
+
+// oldestTime returns the oldest non-zero time from a list of times. If all times are zero, it returns a zero time.
+func oldestTime(times ...time.Time) time.Time {
+	var listed time.Time
+	for i := range times {
+		if times[i].IsZero() || !times[i].Before(time.Now()) {
+			continue
+		}
+		if listed.IsZero() || times[i].Before(listed) {
+			listed = times[i]
+		}
+	}
+	return listed
 }
 
 // MBABYDOGE price is 1e6 x spot price for futures contracts. This is the only currency that has this characteristic.

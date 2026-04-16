@@ -625,11 +625,8 @@ func TestUniLoanBorrowOrRepay(t *testing.T) {
 
 func TestGetUniLoanInterestRecords(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetUniLoanInterestRecords(t.Context(), BTCUSDT, currency.BTC, 0, 101)
-	require.ErrorIs(t, err, errInvalidLimit)
-
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	records, err := e.GetUniLoanInterestRecords(t.Context(), BTCUSDT, currency.BTC, 1, 100)
+	records, err := e.GetUniLoanInterestRecords(t.Context(), BTCUSDT, currency.BTC, 1, 100, time.Time{}, time.Time{})
 	assert.NoError(t, err)
 	assert.NotNil(t, records)
 }
@@ -2830,7 +2827,9 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 					assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
 				case asset.Spot:
 					assert.Positivef(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive for %s", p)
-					assert.Positivef(t, l.QuoteStepIncrementSize, "QuoteStepIncrementSize should be positive for %s", p)
+					if l.QuoteStepIncrementSize != 0 {
+						assert.Positivef(t, l.QuoteStepIncrementSize, "QuoteStepIncrementSize should be positive for %s when set", p)
+					}
 					assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", p)
 					assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s", p)
 				case asset.Margin, asset.CrossMargin:

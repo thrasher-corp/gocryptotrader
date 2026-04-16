@@ -1391,9 +1391,6 @@ func (e *Exchange) GetUniLoanInterestRecords(ctx context.Context, pair currency.
 		params.Set("page", strconv.FormatUint(page, 10))
 	}
 	if limit > 0 {
-		if limit > 100 {
-			return nil, fmt.Errorf("%w: maximum 100", errInvalidLimit)
-		}
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if !from.IsZero() {
@@ -1432,7 +1429,6 @@ func (e *Exchange) GetOrderbookOfLendingLoans(ctx context.Context, ccy currency.
 
 // GetMarginAccountList retrieves user's isolated margin account list.
 // Supports querying both risk-based and margin-based isolated margin accounts.
-// Uses the latest GET /margin/user/account interface.
 func (e *Exchange) GetMarginAccountList(ctx context.Context, currencyPair currency.Pair) ([]MarginAccountItem, error) {
 	params := url.Values{}
 	if currencyPair.IsPopulated() {
