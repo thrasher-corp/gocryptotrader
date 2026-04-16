@@ -20,6 +20,7 @@ var (
 	errTickerInvalidSymbol     = errors.New("invalid ticker symbol")
 	errTickerInvalidResp       = errors.New("invalid ticker response format")
 	errTickerInvalidFieldCount = errors.New("invalid ticker response field count")
+	errTickerInvalidTimestamp  = errors.New("invalid ticker timestamp format")
 )
 
 // AccountV2Data stores account v2 data

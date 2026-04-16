@@ -814,8 +814,15 @@ func (e *Exchange) handleWSTickerUpdate(ctx context.Context, c *subscription.Sub
 
 	switch len(tickerData) {
 	case 11, 17:
-		// Bitfinex websocket tickers can append an unused trailing field.
-		// Ignore it and preserve the established field mapping.
+		// Bitfinex websocket tickers can append an optional trailing FIRST_TRADE
+		// timestamp. The docs note this field may be null.
+		if tickerData[len(tickerData)-1] != nil {
+			ts, tsOK := tickerData[len(tickerData)-1].(float64)
+			if !tsOK {
+				return errTickerInvalidTimestamp
+			}
+			t.LastUpdated = time.UnixMilli(int64(ts))
+		}
 		tickerData = tickerData[:len(tickerData)-1]
 	}
 

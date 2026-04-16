@@ -681,7 +681,7 @@ func newMockTickerBatchExchange(t *testing.T, name string, payload [][]any) *Exc
 
 		w.WriteHeader(http.StatusOK)
 		err := json.NewEncoder(w).Encode(payload)
-		require.NoError(t, err, "Encoding ticker batch payload must not error")
+		assert.NoError(t, err, "Encoding ticker batch payload should not error")
 	}))
 	t.Cleanup(server.Close)
 
@@ -1706,7 +1706,7 @@ func TestWSTickerResponseTrailingField(t *testing.T) {
 	require.NoError(t, err, "AddSubscriptions must not error")
 
 	err = e.wsHandleData(t.Context(), []byte(`[11534,[61.304,2228.36155358,61.305,1323.2442970500003,0.395,0.0065,61.371,50973.3020771,62.5,57.421,null]]`))
-	require.NoError(t, err, "wsHandleData must not error for trailing ticker fields")
+	require.NoError(t, err, "wsHandleData must not error for optional trailing ticker timestamps")
 
 	select {
 	case resp := <-e.Websocket.DataHandler.C:
@@ -1720,6 +1720,7 @@ func TestWSTickerResponseTrailingField(t *testing.T) {
 		assert.Equal(t, 50973.3020771, tick.Volume, "Ticker volume should be correct")
 		assert.Equal(t, 62.5, tick.High, "Ticker high should be correct")
 		assert.Equal(t, 57.421, tick.Low, "Ticker low should be correct")
+		assert.True(t, tick.LastUpdated.IsZero(), "Ticker LastUpdated should stay zero when FIRST_TRADE is null")
 	case <-time.After(time.Second):
 		t.Fatal("Ticker update must be queued")
 	}
@@ -1736,7 +1737,7 @@ func TestWSFundingTickerResponseTrailingField(t *testing.T) {
 	require.NoError(t, err, "AddSubscriptions must not error")
 
 	err = e.wsHandleData(t.Context(), []byte(`[22334,[1.1,2.2,3,4.4,5.5,6,7.7,8.8,9.9,10.1,11.11,12.12,13.13,null,null,15.15,null]]`))
-	require.NoError(t, err, "wsHandleData must not error for trailing funding ticker fields")
+	require.NoError(t, err, "wsHandleData must not error for optional trailing funding ticker timestamps")
 
 	select {
 	case resp := <-e.Websocket.DataHandler.C:
@@ -1754,8 +1755,89 @@ func TestWSFundingTickerResponseTrailingField(t *testing.T) {
 		assert.Equal(t, 12.12, tick.High, "Ticker high should be correct")
 		assert.Equal(t, 13.13, tick.Low, "Ticker low should be correct")
 		assert.Equal(t, 15.15, tick.FlashReturnRateAmount, "Ticker flash return rate amount should be correct")
+		assert.True(t, tick.LastUpdated.IsZero(), "Ticker LastUpdated should stay zero when FIRST_TRADE is null")
 	case <-time.After(time.Second):
 		t.Fatal("Funding ticker update must be queued")
+	}
+}
+
+func TestWSTickerResponseTrailingTimestamp(t *testing.T) {
+	t.Parallel()
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{btcusdPair}, Channel: subscription.TickerChannel, Key: 11534})
+	require.NoError(t, err, "AddSubscriptions must not error")
+
+	err = e.wsHandleData(t.Context(), []byte(`[11534,[61.304,2228.36155358,61.305,1323.2442970500003,0.395,0.0065,61.371,50973.3020771,62.5,57.421,1747143592992]]`))
+	require.NoError(t, err, "wsHandleData must not error for trailing ticker timestamps")
+
+	select {
+	case resp := <-e.Websocket.DataHandler.C:
+		tick, ok := resp.Data.(*ticker.Price)
+		require.True(t, ok, "DataHandler must receive a ticker.Price")
+		assert.Equal(t, time.UnixMilli(1747143592992), tick.LastUpdated, "Ticker LastUpdated should preserve FIRST_TRADE timestamps")
+	case <-time.After(time.Second):
+		t.Fatal("Ticker update must be queued")
+	}
+}
+
+func TestWSFundingTickerResponseTrailingTimestamp(t *testing.T) {
+	t.Parallel()
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	fundingPair, err := currency.NewPairFromStrings("USD", "")
+	require.NoError(t, err, "NewPairFromStrings must not error")
+	err = e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.MarginFunding, Pairs: currency.Pairs{fundingPair}, Channel: subscription.TickerChannel, Key: 22334})
+	require.NoError(t, err, "AddSubscriptions must not error")
+
+	err = e.wsHandleData(t.Context(), []byte(`[22334,[1.1,2.2,3,4.4,5.5,6,7.7,8.8,9.9,10.1,11.11,12.12,13.13,null,null,15.15,1747143592992]]`))
+	require.NoError(t, err, "wsHandleData must not error for trailing funding ticker timestamps")
+
+	select {
+	case resp := <-e.Websocket.DataHandler.C:
+		tick, ok := resp.Data.(*ticker.Price)
+		require.True(t, ok, "DataHandler must receive a ticker.Price")
+		assert.Equal(t, time.UnixMilli(1747143592992), tick.LastUpdated, "Ticker LastUpdated should preserve funding FIRST_TRADE timestamps")
+	case <-time.After(time.Second):
+		t.Fatal("Funding ticker update must be queued")
+	}
+}
+
+func TestWSTickerResponseInvalidTrailingTimestamp(t *testing.T) {
+	t.Parallel()
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{btcusdPair}, Channel: subscription.TickerChannel, Key: 11534})
+	require.NoError(t, err, "AddSubscriptions must not error")
+
+	err = e.wsHandleData(t.Context(), []byte(`[11534,[61.304,2228.36155358,61.305,1323.2442970500003,0.395,0.0065,61.371,50973.3020771,62.5,57.421,true]]`))
+	assert.ErrorIs(t, err, errTickerInvalidTimestamp, "wsHandleData should reject invalid trailing ticker timestamp types")
+	select {
+	case resp := <-e.Websocket.DataHandler.C:
+		t.Fatalf("DataHandler should not receive websocket ticker data on invalid trailing timestamp types: %#v", resp)
+	default:
+	}
+}
+
+func TestWSFundingTickerResponseInvalidTrailingTimestamp(t *testing.T) {
+	t.Parallel()
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	fundingPair, err := currency.NewPairFromStrings("USD", "")
+	require.NoError(t, err, "NewPairFromStrings must not error")
+	err = e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.MarginFunding, Pairs: currency.Pairs{fundingPair}, Channel: subscription.TickerChannel, Key: 22334})
+	require.NoError(t, err, "AddSubscriptions must not error")
+
+	err = e.wsHandleData(t.Context(), []byte(`[22334,[1.1,2.2,3,4.4,5.5,6,7.7,8.8,9.9,10.1,11.11,12.12,13.13,null,null,15.15,true]]`))
+	assert.ErrorIs(t, err, errTickerInvalidTimestamp, "wsHandleData should reject invalid funding trailing ticker timestamp types")
+	select {
+	case resp := <-e.Websocket.DataHandler.C:
+		t.Fatalf("DataHandler should not receive websocket funding ticker data on invalid trailing timestamp types: %#v", resp)
+	default:
 	}
 }
 
