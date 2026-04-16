@@ -1578,7 +1578,7 @@ func TestWSTickerResponseTrailingField(t *testing.T) {
 	select {
 	case resp := <-e.Websocket.DataHandler.C:
 		tick, ok := resp.Data.(*ticker.Price)
-		require.True(t, ok, "DataHandler should receive a ticker.Price")
+		require.True(t, ok, "DataHandler must receive a ticker.Price")
 		assert.Equal(t, btcusdPair, tick.Pair, "Ticker pair should be correct")
 		assert.Equal(t, asset.Spot, tick.AssetType, "Ticker asset should be correct")
 		assert.Equal(t, 61.304, tick.Bid, "Ticker bid should be correct")
@@ -1608,7 +1608,7 @@ func TestWSFundingTickerResponseTrailingField(t *testing.T) {
 	select {
 	case resp := <-e.Websocket.DataHandler.C:
 		tick, ok := resp.Data.(*ticker.Price)
-		require.True(t, ok, "DataHandler should receive a ticker.Price")
+		require.True(t, ok, "DataHandler must receive a ticker.Price")
 		assert.Equal(t, fundingPair, tick.Pair, "Ticker pair should be correct")
 		assert.Equal(t, asset.MarginFunding, tick.AssetType, "Ticker asset should be correct")
 		assert.Equal(t, 1.1, tick.FlashReturnRate, "Ticker flash return rate should be correct")
