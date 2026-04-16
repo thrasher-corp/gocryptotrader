@@ -171,7 +171,6 @@ var (
 	errTooManyCurrencyCodes             = errors.New("too many currency codes supplied")
 	errFetchingOrderbook                = errors.New("error fetching orderbook")
 	errNoSpotInstrument                 = errors.New("no spot instrument available")
-	errInvalidLimit                     = errors.New("invalid limit")
 	errInvalidUniLoanType               = errors.New("invalid uni loan type: must be \"borrow\" or \"repay\"")
 )
 

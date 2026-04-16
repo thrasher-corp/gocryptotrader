@@ -208,7 +208,7 @@ func TestOldestTime(t *testing.T) {
 		},
 		{
 			name:   "zero and future times are ignored",
-			times:  []time.Time{time.Time{}, future},
+			times:  []time.Time{{}, future},
 			expect: time.Time{},
 		},
 		{
@@ -218,7 +218,7 @@ func TestOldestTime(t *testing.T) {
 		},
 		{
 			name:   "oldest past time is returned",
-			times:  []time.Time{future, pastNewer, time.Time{}, pastOldest},
+			times:  []time.Time{future, pastNewer, {}, pastOldest},
 			expect: pastOldest,
 		},
 	} {
