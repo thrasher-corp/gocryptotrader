@@ -81,14 +81,14 @@ func TestDataHistoryManagerStart(t *testing.T) {
 	t.Parallel()
 	m, _ := createDHM(t)
 	m.started = 0
-	err := m.Start()
+	err := m.Start(t.Context())
 	assert.NoError(t, err)
 
-	err = m.Start()
+	err = m.Start(t.Context())
 	assert.ErrorIs(t, err, ErrSubSystemAlreadyStarted)
 
 	m = nil
-	err = m.Start()
+	err = m.Start(t.Context())
 	assert.ErrorIs(t, err, ErrNilSubsystem)
 }
 
@@ -688,27 +688,111 @@ func TestRunJob(t *testing.T) {
 			assert.NoError(t, err)
 
 			tc.Status = dataHistoryIntervalIssuesFound
-			err = m.runJob(tc)
+			err = m.runJob(t.Context(), tc)
 			assert.ErrorIs(t, err, errJobInvalid)
 
 			rh := tc.rangeHolder
 			tc.Status = dataHistoryStatusActive
 			tc.rangeHolder = nil
-			err = m.runJob(tc)
+			err = m.runJob(t.Context(), tc)
 			assert.ErrorIs(t, err, errJobInvalid)
 
 			tc.rangeHolder = rh
-			err = m.runJob(tc)
+			err = m.runJob(t.Context(), tc)
 			assert.NoError(t, err)
 		})
 	}
 	var badM *DataHistoryManager
-	err := badM.runJob(nil)
+	err := badM.runJob(t.Context(), nil)
 	assert.ErrorIs(t, err, ErrNilSubsystem)
 
 	badM = &DataHistoryManager{}
-	err = badM.runJob(nil)
+	err = badM.runJob(t.Context(), nil)
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
+}
+
+func TestRunJobSkipsPersistenceOnCancelledContext(t *testing.T) {
+	t.Parallel()
+	m, dbJob := createDHM(t)
+	m.tradeSaver = dataHistoryTradeSaver
+	m.candleSaver = dataHistoryCandleSaver
+	m.tradeLoader = dataHistoryTraderLoader
+
+	tt := time.Now().Truncate(kline.OneMin.Duration())
+	tc := &DataHistoryJob{
+		Nickname:  "TestRunJobSkipsPersistenceOnCancelledContext",
+		Exchange:  testExchange,
+		Asset:     asset.Spot,
+		Pair:      currency.NewBTCUSDT(),
+		StartDate: tt.Add(-kline.OneMin.Duration()),
+		EndDate:   tt,
+		Interval:  kline.OneMin,
+		DataType:  dataHistoryCandleDataType,
+	}
+	require.NoError(t, m.UpsertJob(tc, false))
+	tc.Status = dataHistoryStatusActive
+
+	jobService := &countingDataHistoryJobService{dataHistoryJobService: dataHistoryJobService{job: dbJob}}
+	resultService := &countingDataHistoryJobResultService{}
+	m.jobDB = jobService
+	m.jobResultDB = resultService
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	err := m.runJob(ctx, tc)
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Equal(t, 0, jobService.upsertCalls)
+	assert.Equal(t, 0, resultService.upsertCalls)
+}
+
+func TestRunJobsReturnsNilOnCancelledContext(t *testing.T) {
+	t.Parallel()
+	m, _ := createDHM(t)
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	err := m.runJobs(ctx)
+	require.NoError(t, err)
+}
+
+func TestRunJobSkipsPersistenceWhenStoppedDuringRun(t *testing.T) {
+	t.Parallel()
+	m, dbJob := createDHM(t)
+	m.tradeSaver = dataHistoryTradeSaver
+	m.tradeLoader = dataHistoryTraderLoader
+	m.candleSaver = func(i *kline.Item, _ bool) (uint64, error) {
+		atomic.StoreInt32(&m.started, 0)
+		if i == nil {
+			return 0, nil
+		}
+		return uint64(len(i.Candles)), nil
+	}
+
+	tt := time.Now().Truncate(kline.OneHour.Duration())
+	tc := &DataHistoryJob{
+		Nickname:           "TestRunJobSkipsPersistenceWhenStoppedDuringRun",
+		Exchange:           testExchange,
+		Asset:              asset.Spot,
+		Pair:               currency.NewBTCUSDT(),
+		StartDate:          tt.Add(-kline.OneHour.Duration()),
+		EndDate:            tt,
+		Interval:           kline.FifteenMin,
+		DataType:           dataHistoryConvertCandlesDataType,
+		ConversionInterval: kline.OneHour,
+	}
+	require.NoError(t, m.UpsertJob(tc, false))
+	tc.Status = dataHistoryStatusActive
+
+	jobService := &countingDataHistoryJobService{dataHistoryJobService: dataHistoryJobService{job: dbJob}}
+	resultService := &countingDataHistoryJobResultService{}
+	m.jobDB = jobService
+	m.jobResultDB = resultService
+
+	err := m.runJob(t.Context(), tc)
+	if err != nil {
+		require.ErrorIs(t, err, ErrSubSystemNotStarted)
+	}
+	assert.Equal(t, 0, jobService.upsertCalls)
+	assert.Equal(t, 0, resultService.upsertCalls)
 }
 
 func TestGenerateJobSummaryTest(t *testing.T) {
@@ -745,15 +829,15 @@ func TestGenerateJobSummaryTest(t *testing.T) {
 func TestRunJobs(t *testing.T) {
 	t.Parallel()
 	m, _ := createDHM(t)
-	err := m.runJobs()
+	err := m.runJobs(t.Context())
 	assert.NoError(t, err)
 
 	atomic.StoreInt32(&m.started, 0)
-	err = m.runJobs()
+	err = m.runJobs(t.Context())
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
 	m = nil
-	err = m.runJobs()
+	err = m.runJobs(t.Context())
 	assert.ErrorIs(t, err, ErrNilSubsystem)
 }
 
@@ -923,7 +1007,7 @@ func (d *dataBaseConnection) GetConfig() *database.Config {
 func TestProcessCandleData(t *testing.T) {
 	t.Parallel()
 	m, _ := createDHM(t)
-	_, err := m.processCandleData(nil, nil, time.Time{}, time.Time{}, 0)
+	_, err := m.processCandleData(t.Context(), nil, nil, time.Time{}, time.Time{}, 0)
 	assert.ErrorIs(t, err, errNilJob)
 
 	j := &DataHistoryJob{
@@ -935,7 +1019,7 @@ func TestProcessCandleData(t *testing.T) {
 		EndDate:   time.Now().Truncate(kline.OneHour.Duration()),
 		Interval:  kline.OneHour,
 	}
-	_, err = m.processCandleData(j, nil, time.Time{}, time.Time{}, 0)
+	_, err = m.processCandleData(t.Context(), j, nil, time.Time{}, time.Time{}, 0)
 	assert.ErrorIs(t, err, ErrExchangeNotFound)
 
 	em := NewExchangeManager()
@@ -946,7 +1030,7 @@ func TestProcessCandleData(t *testing.T) {
 	fakeExchange := dhmExchange{
 		IBotExchange: exch,
 	}
-	_, err = m.processCandleData(j, exch, time.Time{}, time.Time{}, 0)
+	_, err = m.processCandleData(t.Context(), j, exch, time.Time{}, time.Time{}, 0)
 	assert.ErrorIs(t, err, common.ErrDateUnset)
 
 	m.candleSaver = dataHistoryCandleSaver
@@ -954,13 +1038,13 @@ func TestProcessCandleData(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	r, err := m.processCandleData(j, fakeExchange, j.StartDate, j.EndDate, 0)
+	r, err := m.processCandleData(t.Context(), j, fakeExchange, j.StartDate, j.EndDate, 0)
 	assert.NoError(t, err)
 
 	if r.Status != dataHistoryStatusComplete {
 		t.Errorf("received %v expected %v", r.Status, dataHistoryStatusComplete)
 	}
-	r, err = m.processCandleData(j, exch, j.StartDate, j.EndDate, 0)
+	r, err = m.processCandleData(t.Context(), j, exch, j.StartDate, j.EndDate, 0)
 	assert.NoError(t, err)
 
 	if r.Status != dataHistoryStatusFailed {
@@ -971,7 +1055,7 @@ func TestProcessCandleData(t *testing.T) {
 func TestProcessTradeData(t *testing.T) {
 	t.Parallel()
 	m, _ := createDHM(t)
-	_, err := m.processTradeData(nil, nil, time.Time{}, time.Time{}, 0)
+	_, err := m.processTradeData(t.Context(), nil, nil, time.Time{}, time.Time{}, 0)
 	assert.ErrorIs(t, err, errNilJob)
 
 	j := &DataHistoryJob{
@@ -983,7 +1067,7 @@ func TestProcessTradeData(t *testing.T) {
 		EndDate:   time.Now().Truncate(kline.OneHour.Duration()),
 		Interval:  kline.OneHour,
 	}
-	_, err = m.processTradeData(j, nil, time.Time{}, time.Time{}, 0)
+	_, err = m.processTradeData(t.Context(), j, nil, time.Time{}, time.Time{}, 0)
 	assert.ErrorIs(t, err, ErrExchangeNotFound)
 
 	em := NewExchangeManager()
@@ -994,7 +1078,7 @@ func TestProcessTradeData(t *testing.T) {
 	fakeExchange := dhmExchange{
 		IBotExchange: exch,
 	}
-	_, err = m.processTradeData(j, exch, time.Time{}, time.Time{}, 0)
+	_, err = m.processTradeData(t.Context(), j, exch, time.Time{}, time.Time{}, 0)
 	assert.ErrorIs(t, err, common.ErrDateUnset)
 
 	j.rangeHolder, err = kline.CalculateCandleDateRanges(j.StartDate, j.EndDate, j.Interval, 1337)
@@ -1002,13 +1086,13 @@ func TestProcessTradeData(t *testing.T) {
 		t.Error(err)
 	}
 	m.tradeSaver = dataHistoryTradeSaver
-	r, err := m.processTradeData(j, fakeExchange, j.StartDate, j.EndDate, 0)
+	r, err := m.processTradeData(t.Context(), j, fakeExchange, j.StartDate, j.EndDate, 0)
 	assert.NoError(t, err)
 
 	if r.Status != dataHistoryStatusFailed {
 		t.Errorf("received %v expected %v", r.Status, dataHistoryStatusFailed)
 	}
-	r, err = m.processTradeData(j, exch, j.StartDate, j.EndDate, 0)
+	r, err = m.processTradeData(t.Context(), j, exch, j.StartDate, j.EndDate, 0)
 	assert.NoError(t, err)
 
 	if r.Status != dataHistoryStatusFailed {
@@ -1076,7 +1160,7 @@ func TestValidateCandles(t *testing.T) {
 	t.Parallel()
 	m, _ := createDHM(t)
 	m.candleSaver = dataHistoryCandleSaver
-	_, err := m.validateCandles(nil, nil, time.Time{}, time.Time{})
+	_, err := m.validateCandles(t.Context(), nil, nil, time.Time{}, time.Time{})
 	assert.ErrorIs(t, err, errNilJob)
 
 	j := &DataHistoryJob{
@@ -1088,7 +1172,7 @@ func TestValidateCandles(t *testing.T) {
 		EndDate:   time.Now(),
 		Interval:  kline.OneHour,
 	}
-	_, err = m.validateCandles(j, nil, time.Time{}, time.Time{})
+	_, err = m.validateCandles(t.Context(), j, nil, time.Time{}, time.Time{})
 	assert.ErrorIs(t, err, ErrExchangeNotFound)
 
 	em := NewExchangeManager()
@@ -1099,20 +1183,20 @@ func TestValidateCandles(t *testing.T) {
 	fakeExchange := dhmExchange{
 		IBotExchange: exch,
 	}
-	_, err = m.validateCandles(j, exch, time.Time{}, time.Time{})
+	_, err = m.validateCandles(t.Context(), j, exch, time.Time{}, time.Time{})
 	assert.ErrorIs(t, err, common.ErrDateUnset)
 
 	j.rangeHolder, err = kline.CalculateCandleDateRanges(j.StartDate, j.EndDate, j.Interval, 1337)
 	if err != nil {
 		t.Error(err)
 	}
-	r, err := m.validateCandles(j, fakeExchange, j.StartDate, j.EndDate)
+	r, err := m.validateCandles(t.Context(), j, fakeExchange, j.StartDate, j.EndDate)
 	assert.NoError(t, err)
 
 	if r.Status != dataHistoryIntervalIssuesFound {
 		t.Errorf("received %v expected %v", r.Status, dataHistoryIntervalIssuesFound)
 	}
-	r, err = m.validateCandles(j, exch, j.StartDate, j.EndDate)
+	r, err = m.validateCandles(t.Context(), j, exch, j.StartDate, j.EndDate)
 	assert.NoError(t, err)
 
 	if r.Status != dataHistoryStatusFailed {
@@ -1297,6 +1381,16 @@ type dataHistoryJobResultService struct {
 	datahistoryjobresult.IDBService
 }
 
+type countingDataHistoryJobService struct {
+	dataHistoryJobService
+	upsertCalls int
+}
+
+type countingDataHistoryJobResultService struct {
+	dataHistoryJobResultService
+	upsertCalls int
+}
+
 var (
 	jobID     = "00a434e2-8502-4d6b-865f-e4243fd8b5a7"
 	startDate = time.Date(2020, 1, 1, 0, 0, 0, 0, time.Local)
@@ -1304,6 +1398,11 @@ var (
 )
 
 func (d dataHistoryJobService) Upsert(_ ...*datahistoryjob.DataHistoryJob) error {
+	return nil
+}
+
+func (d *countingDataHistoryJobService) Upsert(_ ...*datahistoryjob.DataHistoryJob) error {
+	d.upsertCalls++
 	return nil
 }
 
@@ -1351,6 +1450,11 @@ func (d dataHistoryJobService) GetRelatedUpcomingJobs(_ string) ([]*datahistoryj
 }
 
 func (d dataHistoryJobResultService) Upsert(_ ...*datahistoryjobresult.DataHistoryJobResult) error {
+	return nil
+}
+
+func (d *countingDataHistoryJobResultService) Upsert(_ ...*datahistoryjobresult.DataHistoryJobResult) error {
+	d.upsertCalls++
 	return nil
 }
 

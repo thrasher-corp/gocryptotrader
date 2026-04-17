@@ -210,6 +210,8 @@ const (
 	marginPairsConfigurationEPL
 	modifyLeverageMultiplierEPL
 	marginActiveHFOrdersEPL
+
+	spotFuturesOrderbookV1EPL
 )
 
 // GetRateLimit returns a RateLimit instance, which implements the request.Limiter interface.
@@ -276,7 +278,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		marketListEPL:                                 request.GetRateLimiterWithWeight(publicRate, 3),
 		partOrderbook20EPL:                            request.GetRateLimiterWithWeight(publicRate, 2),
 		partOrderbook100EPL:                           request.GetRateLimiterWithWeight(publicRate, 4),
-		fullOrderbookEPL:                              request.GetRateLimiterWithWeight(spotRate, 3),
+		fullOrderbookEPL:                              request.GetRateLimiterWithWeight(managementRate, 6),
 		tradeHistoryEPL:                               request.GetRateLimiterWithWeight(publicRate, 3),
 		klinesEPL:                                     request.GetRateLimiterWithWeight(publicRate, 3),
 		fiatPriceEPL:                                  request.GetRateLimiterWithWeight(publicRate, 3),
@@ -421,5 +423,7 @@ func GetRateLimit() request.RateLimitDefinitions {
 		marginPairsConfigurationEPL: request.GetRateLimiterWithWeight(spotRate, 5),
 		modifyLeverageMultiplierEPL: request.GetRateLimiterWithWeight(spotRate, 5),
 		marginActiveHFOrdersEPL:     request.GetRateLimiterWithWeight(spotRate, 2),
+
+		spotFuturesOrderbookV1EPL: request.GetRateLimiterWithWeight(managementRate, 6),
 	}
 }
