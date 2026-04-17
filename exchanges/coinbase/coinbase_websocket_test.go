@@ -427,6 +427,41 @@ func TestWSProcessCandle(t *testing.T) {
 	require.Len(t, candles, 1)
 	assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USD", "-"), candles[0].Pair)
 	assert.Equal(t, asset.Spot, candles[0].Asset)
+	assert.Len(t, candles[0].Candles, 1)
+
+	resp.Events = []byte(`[{
+		"type":"update",
+		"candles":[
+			{
+				"start":"1704067200",
+				"low":"1",
+				"high":"2",
+				"open":"1.25",
+				"close":"1.75",
+				"volume":"3.5",
+				"product_id":"BTC-USD"
+			},
+			{
+				"start":"1704067500",
+				"low":"1.5",
+				"high":"2.5",
+				"open":"1.75",
+				"close":"2.25",
+				"volume":"1.1",
+				"product_id":"BTC-USD"
+			}
+		]
+	}]`)
+	require.NoError(t, ex.wsProcessCandle(t.Context(), resp))
+
+	data = receiveDataHandlerPayload(t, ex)
+	candles, ok = data.([]kline.Item)
+	require.True(t, ok)
+	require.Len(t, candles, 2)
+	assert.Len(t, candles[0].Candles, 1)
+	assert.Len(t, candles[1].Candles, 1)
+	assert.Equal(t, kline.FiveMin, candles[0].Interval)
+	assert.Equal(t, kline.FiveMin, candles[1].Interval)
 
 	resp.Events = []byte(`[{"type":false}]`)
 	assert.ErrorIs(t, ex.wsProcessCandle(t.Context(), resp), errCandleDataUnmarshal)

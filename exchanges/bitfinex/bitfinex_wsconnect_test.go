@@ -5,10 +5,8 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
-	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
@@ -42,47 +40,15 @@ func (f *wsConnectFixtureConnection) SendJSONMessage(context.Context, request.En
 	return nil
 }
 
-func waitForWaitGroup(t *testing.T, wg *sync.WaitGroup, timeout time.Duration) {
-	t.Helper()
-	waitDone := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(waitDone)
-	}()
-
-	select {
-	case <-waitDone:
-	case <-time.After(timeout):
-		t.Fatalf("timed out waiting for websocket waitgroup within %s", timeout)
-	}
-}
-
-func TestWsConnectAuthDialFailureSkipsAuthReaderAndAuthSend(t *testing.T) {
+func TestWSConnectDialFailureSkipsConfigure(t *testing.T) {
 	t.Parallel()
 
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	conn := &wsConnectFixtureConnection{dialErr: errors.New("dial failed")}
 
-	ex.API.AuthenticatedSupport = true
-	ex.API.AuthenticatedWebsocketSupport = true
-	ex.SetCredentials("key", "secret", "", "", "", "")
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-
-	publicConn := &wsConnectFixtureConnection{}
-	authConn := &wsConnectFixtureConnection{dialErr: errors.New("auth dial failed")}
-	ex.Websocket.Conn = publicConn
-	ex.Websocket.AuthConn = authConn
-
-	err := ex.WsConnect()
-	require.NoError(t, err, "WsConnect must not error when auth dial fails")
-
-	waitForWaitGroup(t, &ex.Websocket.Wg, 2*time.Second)
-
-	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "auth endpoints should be disabled on auth dial failure")
-	assert.Equal(t, int32(1), publicConn.dialCalls.Load(), "public conn should dial once")
-	assert.Equal(t, int32(1), publicConn.readCalls.Load(), "public reader should run once")
-	assert.Equal(t, int32(1), publicConn.sendJSONCalls.Load(), "ConfigureWS should send once on public connection")
-	assert.Equal(t, int32(1), authConn.dialCalls.Load(), "auth conn should attempt dial once")
-	assert.Equal(t, int32(0), authConn.readCalls.Load(), "auth reader should not start after failed auth dial")
-	assert.Equal(t, int32(0), authConn.sendJSONCalls.Load(), "auth send should be skipped after failed auth dial")
+	err := ex.wsConnect(t.Context(), conn)
+	require.Error(t, err, "wsConnect must return an error when dial fails")
+	assert.Equal(t, int32(1), conn.dialCalls.Load(), "connection should dial once")
+	assert.Equal(t, int32(0), conn.sendJSONCalls.Load(), "ConfigureWS should not send when dial fails")
 }
