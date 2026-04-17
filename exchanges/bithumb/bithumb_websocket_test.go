@@ -97,6 +97,13 @@ func TestWsHandleDataStoresTickerForSinglePairSubscription(t *testing.T) {
 	}
 	dummy.setupOrderbookManager(t.Context())
 	dummy.API.Endpoints = e.NewEndpoints()
+	require.NoError(t,
+		dummy.Websocket.AddSubscriptions(dummy.Websocket.Conn, &subscription.Subscription{
+			Asset:   asset.Spot,
+			Channel: subscription.TickerChannel,
+			Pairs:   currency.Pairs{currency.NewPairWithDelimiter("BTC", "KRW", "_")},
+		}),
+		"AddSubscriptions must not error")
 
 	err := dummy.wsHandleData(t.Context(), wsTickerResp)
 	require.NoError(t, err, "wsHandleData must not error for ticker updates")

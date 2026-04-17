@@ -124,9 +124,9 @@ func (e *Exchange) wsProcessTicker(ctx context.Context, resp *StandardWebsocketR
 				Ask:          wsTickers[i].Tickers[j].BestAsk.Float64(),
 				AskSize:      wsTickers[i].Tickers[j].BestAskQuantity.Float64(),
 			}
-			for k := range symbolAliases {
-				if isEnabled, _ := e.CurrencyPairs.IsPairEnabled(symbolAliases[k], asset.Spot); isEnabled {
-					t.Pair = symbolAliases[k]
+			for _, pair := range symbolAliases {
+				if isEnabled, _ := e.CurrencyPairs.IsPairEnabled(pair, asset.Spot); isEnabled {
+					t.Pair = pair
 					allTickers = append(allTickers, t)
 				}
 			}
