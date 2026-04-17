@@ -416,11 +416,9 @@ func (e *Exchange) processOrderbookSnapshot(incoming []byte, lastPushed time.Tim
 func (e *Exchange) enabledStandardMarginAssetsForPair(pair currency.Pair) []asset.Item {
 	out := make([]asset.Item, 0, len(standardMarginAssetTypes))
 	for _, a := range standardMarginAssetTypes {
-		isEnabled, _ := e.CurrencyPairs.IsPairEnabled(pair, a)
-		if !isEnabled {
-			continue
+		if isEnabled, _ := e.CurrencyPairs.IsPairEnabled(pair, a); isEnabled {
+			out = append(out, a)
 		}
-		out = append(out, a)
 	}
 	return out
 }

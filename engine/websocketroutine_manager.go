@@ -235,12 +235,20 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		if !m.syncer.IsRunning() {
 			return nil
 		}
-		return m.syncer.EnqueueWebsocketUpdate(exchName, d)
+		err := m.syncer.WebsocketUpdate(exchName, d.Pair, d.AssetType, SyncItemTicker, nil)
+		m.syncer.PrintTickerSummary(d, "websocket", err)
+		return err
 	case []ticker.Price:
 		if !m.syncer.IsRunning() {
 			return nil
 		}
-		return m.syncer.EnqueueWebsocketUpdate(exchName, d)
+		for x := range d {
+			err := m.syncer.WebsocketUpdate(exchName, d[x].Pair, d[x].AssetType, SyncItemTicker, nil)
+			m.syncer.PrintTickerSummary(&d[x], "websocket", err)
+			if err != nil {
+				return err
+			}
+		}
 	case order.Detail, ticker.Price, orderbook.Depth:
 		return errUseAPointer
 	case kline.Item:
@@ -265,7 +273,14 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		if !m.syncer.IsRunning() {
 			return nil
 		}
-		return m.syncer.EnqueueWebsocketUpdate(exchName, d)
+		base, err := d.Retrieve()
+		if err != nil {
+			return err
+		}
+		if err := m.syncer.WebsocketUpdate(exchName, base.Pair, base.Asset, SyncItemOrderbook, nil); err != nil {
+			return err
+		}
+		m.syncer.PrintOrderbookSummary(base, "websocket", nil)
 	case *order.Detail:
 		if !m.orderManager.IsRunning() {
 			return nil

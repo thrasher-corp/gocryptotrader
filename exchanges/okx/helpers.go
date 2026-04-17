@@ -85,18 +85,6 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 	}
 }
 
-// getAssetsFromInstrumentID parses an instrument ID and returns a list of assets types
-// that the instrument is associated with
-func (e *Exchange) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item, error) {
-	return e.getAssetsFromInstrumentIDWithCheck(instrumentID, false)
-}
-
-// getEnabledAssetsFromInstrumentID parses an instrument ID and returns enabled
-// asset types only, for websocket fan-out paths.
-func (e *Exchange) getEnabledAssetsFromInstrumentID(instrumentID string) ([]asset.Item, error) {
-	return e.getAssetsFromInstrumentIDWithCheck(instrumentID, true)
-}
-
 // getAssetsFromInstrumentIDWithCheck parses an instrument ID and returns assets
 // depending on whether enabled-only checks are requested.
 func (e *Exchange) getAssetsFromInstrumentIDWithCheck(instrumentID string, enabledOnly bool) ([]asset.Item, error) {
