@@ -330,6 +330,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			Ask:          val.Ask,
 			Volume:       val.Volume,
 			Pair:         pair,
+			LastUpdated:  val.Timestamp.Time(),
 			AssetType:    a,
 			ExchangeName: e.Name,
 		})
