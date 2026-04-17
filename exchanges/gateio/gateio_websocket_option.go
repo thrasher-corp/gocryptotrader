@@ -387,18 +387,18 @@ func (e *Exchange) processOptionsContractTickers(ctx context.Context, incoming [
 		return err
 	}
 	return e.Websocket.DataHandler.Send(ctx, &exchangeoptions.Greeks{
-		ExchangeName: e.Name,
-		Pair:         data.Name,
-		AssetType:    asset.Options,
-		Delta:        data.Delta.Float64(),
-		Gamma:        data.Gamma.Float64(),
-		Vega:         data.Vega.Float64(),
-		Theta:        data.Theta.Float64(),
-		Rho:          data.Rho.Float64(),
-		BidIV:        data.BidImpliedVolatility.Float64(),
-		AskIV:        data.AskImpliedVolatility.Float64(),
-		MarkIV:       data.MarkImpliedVolatility.Float64(),
-		LastUpdated:  time.Now(),
+		ExchangeName:          e.Name,
+		Pair:                  data.Name,
+		AssetType:             asset.Options,
+		Delta:                 data.Delta.Float64(),
+		Gamma:                 data.Gamma.Float64(),
+		Vega:                  data.Vega.Float64(),
+		Theta:                 data.Theta.Float64(),
+		Rho:                   data.Rho.Float64(),
+		BidImpliedVolatility:  data.BidImpliedVolatility.Float64(),
+		AskImpliedVolatility:  data.AskImpliedVolatility.Float64(),
+		MarkImpliedVolatility: data.MarkImpliedVolatility.Float64(),
+		LastUpdated:           time.Now(),
 	})
 }
 

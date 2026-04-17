@@ -267,15 +267,13 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 			m.syncer.PrintTickerSummary(&d[x], "websocket", err)
 		}
 	case *exchangeoptions.Greeks:
-		if !m.verbose {
-			return nil
+		if m.verbose {
+			log.Infof(log.WebsocketMgr, "%s websocket %s %s options updated %+v", exchName, m.FormatCurrency(d.Pair), d.AssetType, d)
 		}
-		log.Infof(log.WebsocketMgr, "%s websocket %s %s options updated %+v", exchName, m.FormatCurrency(d.Pair), d.AssetType, d)
 	case []exchangeoptions.Greeks:
-		if !m.verbose {
-			return nil
+		if m.verbose {
+			log.Infof(log.WebsocketMgr, "%s websocket options updated %+v", exchName, d)
 		}
-		log.Infof(log.WebsocketMgr, "%s websocket options updated %+v", exchName, d)
 	case order.Detail, ticker.Price, orderbook.Depth, exchangeoptions.Greeks:
 		return errUseAPointer
 	case kline.Item:

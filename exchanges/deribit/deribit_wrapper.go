@@ -631,9 +631,13 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		return nil, fmt.Errorf("%s %w", e.Name, exchange.ErrAuthenticationSupportNotEnabled)
 	}
-	err := s.Validate(e.GetTradingRequirements())
-	if err != nil {
+	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
+	}
+	if s.TimeInForce != order.UnknownTIF &&
+		s.TimeInForce != order.ImmediateOrCancel &&
+		s.TimeInForce != order.PostOnly {
+		return nil, fmt.Errorf("%w: %s", order.ErrUnsupportedTimeInForce, s.TimeInForce)
 	}
 	if !e.SupportsAsset(s.AssetType) {
 		return nil, fmt.Errorf("%s: asset type %v not supported: %w", e.Name, s.AssetType, asset.ErrNotSupported)

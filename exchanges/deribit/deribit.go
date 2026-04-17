@@ -2179,8 +2179,8 @@ func (e *Exchange) GetSettlementHistoryByInstrument(ctx context.Context, instrum
 		getSettlementHistoryByInstrument, params, &resp)
 }
 
-// GetSettlementHistoryByCurency sends a request to fetch settlement history data sorted by currency
-func (e *Exchange) GetSettlementHistoryByCurency(ctx context.Context, ccy currency.Code, settlementType, continuation string, count int64, searchStartTimeStamp time.Time) (*PrivateSettlementsHistoryData, error) {
+// GetSettlementHistoryByCurrency sends a request to fetch settlement history data sorted by currency.
+func (e *Exchange) GetSettlementHistoryByCurrency(ctx context.Context, ccy currency.Code, settlementType, continuation string, count int64, searchStartTimeStamp time.Time) (*PrivateSettlementsHistoryData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -2627,29 +2627,32 @@ func (e *Exchange) StringToAssetKind(assetType string) (asset.Item, error) {
 }
 
 // getAssetPairByInstrument is able to determine the asset type and currency pair
-// based on the received instrument ID
-func (e *Exchange) getAssetPairByInstrument(instrument string) (currency.Pair, asset.Item, error) {
+// based on the received instrument ID.
+func getAssetPairByInstrument(instrument string) (asset.Item, currency.Pair, error) {
 	if instrument == "" {
-		return currency.EMPTYPAIR, asset.Empty, errInvalidInstrumentName
+		return asset.Empty, currency.EMPTYPAIR, currency.ErrSymbolStringEmpty
 	}
 
 	item, err := getAssetFromInstrument(instrument)
 	if err != nil {
-		return currency.EMPTYPAIR, asset.Empty, err
+		return asset.Empty, currency.EMPTYPAIR, err
 	}
 	cp, err := currency.NewPairFromString(instrument)
 	if err != nil {
-		return currency.EMPTYPAIR, asset.Empty, err
+		return asset.Empty, currency.EMPTYPAIR, err
 	}
 
-	return cp, item, nil
+	return item, cp, nil
 }
 
 func getAssetFromInstrument(instrument string) (asset.Item, error) {
 	splitCurrency := strings.Split(instrument, currency.DashDelimiter)
 	splitLen := len(splitCurrency)
+	hasUnderscore := strings.Contains(instrument, currency.UnderscoreDelimiter)
+	if splitLen == 0 {
+		return asset.Empty, fmt.Errorf("%w %s", errUnsupportedInstrumentFormat, instrument)
+	}
 	lastSplit := splitCurrency[splitLen-1]
-	hasUnderscore := strings.IndexAny(instrument, currency.UnderscoreDelimiter) != -1
 	switch {
 	case splitLen == 1 && !hasUnderscore:
 		return asset.Empty, fmt.Errorf("%w %s", errUnsupportedInstrumentFormat, instrument)
@@ -2657,15 +2660,11 @@ func getAssetFromInstrument(instrument string) (asset.Item, error) {
 		return asset.Spot, nil
 	case splitLen == 2:
 		return asset.Futures, nil
+	case strings.Contains(instrument, "-FS-"):
+		return asset.FutureCombo, nil
 	case lastSplit == "C" || lastSplit == "P":
 		return asset.Options, nil
-	case splitLen == 3 && hasUnderscore:
-		return asset.FutureCombo, nil
-	case splitLen == 3:
-		return asset.Futures, nil
-	case splitLen > 3 && lastSplit == "FS":
-		return asset.FutureCombo, nil
-	case splitLen > 3:
+	case splitLen >= 3 && hasUnderscore:
 		return asset.OptionCombo, nil
 	default:
 		return asset.Empty, fmt.Errorf("%w %s", errUnsupportedInstrumentFormat, instrument)
@@ -2724,7 +2723,8 @@ func getOfflineTradeFee(price, amount float64) float64 {
 	return 0.0003 * price * amount
 }
 
-func (e *Exchange) formatFuturesTradablePair(pair currency.Pair) string {
+// formatFuturesTradablePair transforms futures pair formatting to Deribit instrument naming.
+func formatFuturesTradablePair(pair currency.Pair) string {
 	var instrumentID string
 	if result := strings.Split(pair.String(), currency.DashDelimiter); len(result) == 3 {
 		instrumentID = strings.Join(result[:2], currency.UnderscoreDelimiter) + currency.DashDelimiter + result[2]
@@ -2739,7 +2739,7 @@ func (e *Exchange) formatFuturesTradablePair(pair currency.Pair) string {
 // EXPIRE is DDMMMYY
 // STRIKE may include a d for decimal point in linear options
 // TYPE is Call or Put
-func (e *Exchange) optionPairToString(pair currency.Pair) string {
+func optionPairToString(pair currency.Pair) string {
 	initialDelimiter := currency.DashDelimiter
 	q := pair.Quote.String()
 	if strings.HasPrefix(q, "USDC") && len(q) > 11 { // Linear option
@@ -2752,13 +2752,29 @@ func (e *Exchange) optionPairToString(pair currency.Pair) string {
 }
 
 // optionComboPairToString formats an option combo pair from dash to underscore between base and quote, e.g. PAXG-USDC-CS-12SEP25-3550_3600 -> PAXG_USDC-CS-12SEP25-3550_3600
-func (e *Exchange) optionComboPairToString(pair currency.Pair) string {
+func optionComboPairToString(pair currency.Pair) string {
 	// Convert pair to string
 	pairStr := pair.String()
-	// Find the first dash, replace with underscore
-	idx := strings.Index(pairStr, "-")
-	if idx == -1 {
+	if !strings.Contains(pairStr, "-USDC-") {
+		return pairStr
+	}
+	// Find the first dash, replace with underscore.
+	before, after, found := strings.Cut(pairStr, "-")
+	if !found {
 		return pairStr // fallback, not a combo format
 	}
-	return pairStr[:idx] + "_" + pairStr[idx+1:]
+	return before + "_" + after
+}
+
+// futureComboPairToString formats a futures combo pair from dash to underscore between base and quote.
+func futureComboPairToString(pair currency.Pair) string {
+	pairStr := pair.String()
+	if !strings.Contains(pairStr, "-FS-") {
+		return pairStr
+	}
+	splitPair := strings.Split(pairStr, currency.DashDelimiter)
+	if len(splitPair) >= 3 && splitPair[1] != "FS" {
+		return splitPair[0] + currency.UnderscoreDelimiter + strings.Join(splitPair[1:], currency.DashDelimiter)
+	}
+	return pairStr
 }

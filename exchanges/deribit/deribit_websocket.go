@@ -155,7 +155,7 @@ func (e *Exchange) wsStartHeartbeat(ctx context.Context) {
 
 func (e *Exchange) wsLogin(ctx context.Context) error {
 	if !e.IsWebsocketAuthenticationSupported() {
-		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, "public/auth", errors.New("AuthenticatedWebsocketAPISupport not enabled"))
+		return fmt.Errorf("%w %s %s, %w", request.ErrAuthRequestFailed, e.Name, "public/auth", errAuthenticatedWebsocketNotEnabled)
 	}
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
@@ -573,18 +573,18 @@ func (e *Exchange) processIncrementalTicker(ctx context.Context, respRaw []byte,
 		return nil
 	}
 	return e.Websocket.DataHandler.Send(ctx, &exchangeoptions.Greeks{
-		ExchangeName: e.Name,
-		Pair:         cp,
-		AssetType:    a,
-		LastUpdated:  incrementalTicker.Timestamp.Time(),
-		Delta:        incrementalTicker.Greeks.Delta,
-		Gamma:        incrementalTicker.Greeks.Gamma,
-		Vega:         incrementalTicker.Greeks.Vega,
-		Theta:        incrementalTicker.Greeks.Theta,
-		Rho:          incrementalTicker.Greeks.Rho,
-		BidIV:        incrementalTicker.BidIv,
-		AskIV:        incrementalTicker.AskIv,
-		MarkIV:       incrementalTicker.MarkIv,
+		ExchangeName:          e.Name,
+		Pair:                  cp,
+		AssetType:             a,
+		LastUpdated:           incrementalTicker.Timestamp.Time(),
+		Delta:                 incrementalTicker.Greeks.Delta,
+		Gamma:                 incrementalTicker.Greeks.Gamma,
+		Vega:                  incrementalTicker.Greeks.Vega,
+		Theta:                 incrementalTicker.Greeks.Theta,
+		Rho:                   incrementalTicker.Greeks.Rho,
+		BidImpliedVolatility:  incrementalTicker.BidIv,
+		AskImpliedVolatility:  incrementalTicker.AskIv,
+		MarkImpliedVolatility: incrementalTicker.MarkIv,
 	})
 }
 
@@ -904,15 +904,12 @@ func (e *Exchange) handleSubscription(ctx context.Context, method string, subs s
 		var response wsSubscriptionResponse
 		err = json.Unmarshal(data, &response)
 		if err != nil {
-			errs = common.AppendError(errs, fmt.Errorf("%v %v", e.Name, err))
+			errs = common.AppendError(errs, fmt.Errorf("%s subscription response parse failed: %w", e.Name, err))
 			continue
 		}
 		subAck := map[string]bool{}
 		for _, c := range response.Result {
 			subAck[c] = true
-		}
-		if len(subAck) != len(batch) {
-			errs = common.AppendError(errs, websocket.ErrSubscriptionFailure)
 		}
 		for _, s := range batch {
 			if _, ok := subAck[s.QualifiedChannel]; ok {

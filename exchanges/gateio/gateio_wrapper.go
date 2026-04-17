@@ -1140,7 +1140,7 @@ func (e *Exchange) WebsocketCancelOrder(ctx context.Context, o *order.Cancel) er
 	case asset.Options:
 		return common.ErrFunctionNotSupported
 	default:
-		return common.ErrNotYetImplemented
+		return fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, o.AssetType)
 	}
 }
 

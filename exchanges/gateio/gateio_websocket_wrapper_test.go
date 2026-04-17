@@ -82,7 +82,6 @@ func connectGateioWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc)
 	setupConn(asset.DeliveryFutures)
 
 	ex.Websocket.SetSubscriptionsNotRequired()
-	require.NoError(t, ex.Websocket.SetAllConnectionURLs(wsURL))
 	require.NoError(t, ex.Websocket.Connect(t.Context()))
 	t.Cleanup(func() {
 		_ = ex.Websocket.Shutdown()
@@ -245,5 +244,5 @@ func TestWebsocketCancelOrderMocked(t *testing.T) {
 		AssetType: asset.Binary,
 		Pair:      currency.NewBTCUSD(),
 	})
-	require.ErrorIs(t, err, common.ErrNotYetImplemented)
+	require.ErrorIs(t, err, asset.ErrNotSupported)
 }

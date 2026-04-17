@@ -574,9 +574,9 @@ func TestWSProcessOptionSummary(t *testing.T) {
 		require.Equal(t, 0.2, opt.Gamma)
 		require.Equal(t, -0.3, opt.Theta)
 		require.Equal(t, 0.4, opt.Vega)
-		require.Equal(t, 0.5, opt.BidIV)
-		require.Equal(t, 0.6, opt.AskIV)
-		require.Equal(t, 0.55, opt.MarkIV)
+		require.Equal(t, 0.5, opt.BidImpliedVolatility)
+		require.Equal(t, 0.6, opt.AskImpliedVolatility)
+		require.Equal(t, 0.55, opt.MarkImpliedVolatility)
 	default:
 		t.Fatal("expected option payload on data handler")
 	}

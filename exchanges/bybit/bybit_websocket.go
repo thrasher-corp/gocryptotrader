@@ -547,17 +547,17 @@ func (e *Exchange) wsProcessPublicTicker(ctx context.Context, assetType asset.It
 		return nil
 	}
 	return e.Websocket.DataHandler.Send(ctx, &exchangeoptions.Greeks{
-		ExchangeName: e.Name,
-		Pair:         p,
-		AssetType:    assetType,
-		LastUpdated:  resp.PushTimestamp.Time(),
-		Delta:        tickResp.Delta.Float64(),
-		Gamma:        tickResp.Gamma.Float64(),
-		Vega:         tickResp.Vega.Float64(),
-		Theta:        tickResp.Theta.Float64(),
-		BidIV:        tickResp.BidIv.Float64(),
-		AskIV:        tickResp.AskIv.Float64(),
-		MarkIV:       tickResp.MarkIv.Float64(),
+		ExchangeName:          e.Name,
+		Pair:                  p,
+		AssetType:             assetType,
+		LastUpdated:           resp.PushTimestamp.Time(),
+		Delta:                 tickResp.Delta.Float64(),
+		Gamma:                 tickResp.Gamma.Float64(),
+		Vega:                  tickResp.Vega.Float64(),
+		Theta:                 tickResp.Theta.Float64(),
+		BidImpliedVolatility:  tickResp.BidIv.Float64(),
+		AskImpliedVolatility:  tickResp.AskIv.Float64(),
+		MarkImpliedVolatility: tickResp.MarkIv.Float64(),
 	})
 }
 

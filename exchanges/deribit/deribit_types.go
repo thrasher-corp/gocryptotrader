@@ -65,6 +65,7 @@ var (
 	errMissingSignature                    = errors.New("missing signature")
 	errStartingHeartbeat                   = errors.New("error starting heartbeat")
 	errSendingHeartbeat                    = errors.New("error sending heartbeat")
+	errAuthenticatedWebsocketNotEnabled    = errors.New("authenticated websocket API support not enabled")
 
 	websocketRequestTimeout = time.Second * 30
 
@@ -187,6 +188,17 @@ type IndexPrice struct {
 type IndexPriceData struct {
 	EstimatedDeliveryPrice float64 `json:"estimated_delivery_price"`
 	IndexPrice             float64 `json:"index_price"`
+}
+
+// RequestForQuote stores a Deribit RFQ payload.
+type RequestForQuote struct {
+	RFQID               int64      `json:"rfq_id"`
+	State               string     `json:"state"`
+	InstrumentName      string     `json:"instrument_name"`
+	Amount              float64    `json:"amount"`
+	Direction           string     `json:"direction"`
+	CreationTimestamp   types.Time `json:"creation_timestamp"`
+	LastUpdateTimestamp types.Time `json:"last_update_timestamp"`
 }
 
 // InstrumentData gets data for instruments

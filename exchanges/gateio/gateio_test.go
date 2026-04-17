@@ -3191,6 +3191,7 @@ func TestHandleSubscriptions(t *testing.T) {
 
 		err := ex.handleSubscription(t.Context(), conn, subscribeEvent, subs, func(context.Context, string, subscription.List) ([]WsInput, error) {
 			return []WsInput{{
+				ID:      1,
 				Event:   subscribeEvent,
 				Channel: spotOrderbookChannel,
 				Payload: []string{currency.NewBTCUSDT().String(), "100ms"},
@@ -3200,6 +3201,7 @@ func TestHandleSubscriptions(t *testing.T) {
 
 		err = ex.handleSubscription(t.Context(), conn, unsubscribeEvent, subs, func(context.Context, string, subscription.List) ([]WsInput, error) {
 			return []WsInput{{
+				ID:      2,
 				Event:   unsubscribeEvent,
 				Channel: spotOrderbookChannel,
 				Payload: []string{currency.NewBTCUSDT().String(), "100ms"},
@@ -3256,6 +3258,51 @@ func TestHandleSubscriptions(t *testing.T) {
 
 		err := ex.manageSubs(t.Context(), subscribeEvent, nil, subs)
 		require.ErrorContains(t, err, "websocket connection", "error must mention websocket connection")
+	})
+
+	t.Run("handle-subscription-missing-message-id", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		conn := connectGateioTestWithMockedWebsocket(t, ex, ackGateioWSHandler())
+		subs := subscription.List{{
+			Channel: subscription.OrderbookChannel,
+			Asset:   asset.Spot,
+			Pairs:   currency.Pairs{currency.NewBTCUSDT()},
+		}}
+
+		err := ex.handleSubscription(t.Context(), conn, subscribeEvent, subs, func(context.Context, string, subscription.List) ([]WsInput, error) {
+			return []WsInput{{
+				Event:   subscribeEvent,
+				Channel: spotOrderbookChannel,
+				Payload: []string{currency.NewBTCUSDT().String(), "100ms"},
+			}}, nil
+		})
+		require.ErrorContains(t, err, "missing message ID", "error must mention missing message ID")
+	})
+
+	t.Run("handle-subscription-nil-subscription", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		conn := connectGateioTestWithMockedWebsocket(t, ex, ackGateioWSHandler())
+		err := ex.handleSubscription(t.Context(), conn, subscribeEvent, subscription.List{nil}, func(context.Context, string, subscription.List) ([]WsInput, error) {
+			return []WsInput{{ID: 1, Event: subscribeEvent, Channel: spotOrderbookChannel}}, nil
+		})
+		require.ErrorContains(t, err, "subscription", "error must mention nil subscription")
+	})
+
+	t.Run("manage-subs-nil-subscription", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		conn := connectGateioTestWithMockedWebsocket(t, ex, ackGateioWSHandler())
+
+		err := ex.manageSubs(t.Context(), subscribeEvent, conn, subscription.List{nil})
+		require.ErrorContains(t, err, "subscription", "error must mention nil subscription")
 	})
 }
 

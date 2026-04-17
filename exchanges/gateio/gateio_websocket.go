@@ -676,6 +676,11 @@ func (e *Exchange) manageSubs(ctx context.Context, event string, conn websocket.
 	if err := common.NilGuard(conn); err != nil {
 		return fmt.Errorf("%w: websocket connection", err)
 	}
+	for _, s := range subs {
+		if err := common.NilGuard(s); err != nil {
+			return fmt.Errorf("%w: subscription", err)
+		}
+	}
 	subs, err := subs.ExpandTemplates(e)
 	if err != nil {
 		return err
@@ -978,8 +983,7 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 				}
 				msg := payloads[k]
 				if msg.ID == 0 {
-					msg.ID = e.MessageSequence()
-					payloads[k] = msg
+					return fmt.Errorf("missing message ID for %s %s", s.Channel, s.Asset)
 				}
 				result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, msg.ID, msg)
 				if err != nil {

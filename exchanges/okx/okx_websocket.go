@@ -1382,17 +1382,17 @@ func (e *Exchange) wsProcessOptionSummary(ctx context.Context, respRaw []byte) e
 			return fmt.Errorf("%w: %w", errOptionSummaryPairParse, err)
 		}
 		if err := e.Websocket.DataHandler.Send(ctx, &exchangeoptions.Greeks{
-			ExchangeName: e.Name,
-			Pair:         pair,
-			AssetType:    asset.Options,
-			LastUpdated:  response.Data[i].Timestamp.Time(),
-			Delta:        response.Data[i].Delta.Float64(),
-			Gamma:        response.Data[i].Gamma.Float64(),
-			Vega:         response.Data[i].Vega.Float64(),
-			Theta:        response.Data[i].Theta.Float64(),
-			BidIV:        response.Data[i].BidVolatility.Float64(),
-			AskIV:        response.Data[i].AskVolatility.Float64(),
-			MarkIV:       response.Data[i].MarkVolatility.Float64(),
+			ExchangeName:          e.Name,
+			Pair:                  pair,
+			AssetType:             asset.Options,
+			LastUpdated:           response.Data[i].Timestamp.Time(),
+			Delta:                 response.Data[i].Delta.Float64(),
+			Gamma:                 response.Data[i].Gamma.Float64(),
+			Vega:                  response.Data[i].Vega.Float64(),
+			Theta:                 response.Data[i].Theta.Float64(),
+			BidImpliedVolatility:  response.Data[i].BidVolatility.Float64(),
+			AskImpliedVolatility:  response.Data[i].AskVolatility.Float64(),
+			MarkImpliedVolatility: response.Data[i].MarkVolatility.Float64(),
 		}); err != nil {
 			return fmt.Errorf("%w: %w", errOptionSummaryDispatch, err)
 		}

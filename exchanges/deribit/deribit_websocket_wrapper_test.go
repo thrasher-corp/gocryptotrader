@@ -67,7 +67,6 @@ func connectDeribitWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc
 	require.NoError(t, ex.Websocket.SetAllConnectionURLs(wsURL))
 	ex.Features.Subscriptions = subscription.List{}
 	ex.Websocket.SetSubscriptionsNotRequired()
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	require.NoError(t, ex.Websocket.Connect(t.Context()))
 	t.Cleanup(func() {
 		_ = ex.Websocket.Shutdown()
@@ -204,6 +203,11 @@ func TestWebsocketSubmitOrderMocked(t *testing.T) {
 	_, err = ex.WebsocketSubmitOrder(t.Context(), &badSide)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
+	unsupportedTIF := *sub
+	unsupportedTIF.TimeInForce = order.FillOrKill
+	_, err = ex.WebsocketSubmitOrder(t.Context(), &unsupportedTIF)
+	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce)
+
 	exError := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(map[string]string{
 		submitBuy: `{"jsonrpc":"2.0","id":"{{id}}","error":{"code":13009,"message":"ws buy failed"}}`,
 	}))
@@ -232,6 +236,42 @@ func TestWebsocketSubmitOrderMocked(t *testing.T) {
 	resp, err = ex.WebsocketSubmitOrder(t.Context(), &sell)
 	require.NoError(t, err)
 	require.Equal(t, "sell-order", resp.OrderID)
+}
+
+func TestHandleSubscriptionMocked(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns parse error when response is invalid", func(t *testing.T) {
+		t.Parallel()
+
+		ex := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(map[string]string{
+			"public/subscribe": `{"jsonrpc":"2.0","id":"{{id}}","result":123}`,
+		}))
+
+		err := ex.handleSubscription(t.Context(), "public/subscribe", subscription.List{{
+			Channel: subscription.TickerChannel,
+			Asset:   asset.Futures,
+			Pairs:   currency.Pairs{futuresTradablePair},
+		}})
+		require.ErrorContains(t, err, "subscription response parse failed")
+	})
+
+	t.Run("returns aggregated errors for missing and unexpected channels", func(t *testing.T) {
+		t.Parallel()
+
+		ex := connectDeribitWithMockedWebsocket(t, deribitOrderWSMock(map[string]string{
+			"public/subscribe": `{"jsonrpc":"2.0","id":"{{id}}","result":["unexpected.channel"]}`,
+		}))
+
+		err := ex.handleSubscription(t.Context(), "public/subscribe", subscription.List{{
+			Channel: subscription.TickerChannel,
+			Asset:   asset.Futures,
+			Pairs:   currency.Pairs{futuresTradablePair},
+		}})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "failed to public/subscribe")
+		require.ErrorContains(t, err, "unexpected channel")
+	})
 }
 
 func TestWebsocketModifyOrderMocked(t *testing.T) {
