@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
@@ -78,66 +79,129 @@ func connectDeribitWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc
 func TestWebsocketSubmitOrder(t *testing.T) {
 	t.Parallel()
 
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex))
+	t.Run("coverage", func(t *testing.T) {
+		t.Parallel()
 
-	sub := &order.Submit{
-		Exchange:    ex.Name,
-		Pair:        optionsTradablePair,
-		AssetType:   asset.Options,
-		Side:        order.Buy,
-		Type:        order.Limit,
-		Amount:      1,
-		Price:       1,
-		QuoteAmount: 1,
-	}
-	_, err := ex.WebsocketSubmitOrder(t.Context(), sub)
-	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex))
 
-	// Wrapper websocket usage requires both authenticated endpoints and an active websocket connection.
-	// Setting auth capability alone is insufficient.
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	_, err = ex.WebsocketSubmitOrder(t.Context(), sub)
-	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
+		sub := &order.Submit{
+			Exchange:    ex.Name,
+			Pair:        optionsTradablePair,
+			AssetType:   asset.Options,
+			Side:        order.Buy,
+			Type:        order.Limit,
+			Amount:      1,
+			Price:       1,
+			QuoteAmount: 1,
+		}
+		_, err := ex.WebsocketSubmitOrder(t.Context(), sub)
+		require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
+
+		// Wrapper websocket usage requires both authenticated endpoints and an active websocket connection.
+		// Setting auth capability alone is insufficient.
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		_, err = ex.WebsocketSubmitOrder(t.Context(), sub)
+		require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
+	})
+
+	t.Run("live validation passes but order is not placed", func(t *testing.T) {
+		t.Parallel()
+
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		require.True(t, e.Websocket.CanUseAuthenticatedWebsocketForWrapper())
+
+		_, err := e.WebsocketSubmitOrder(t.Context(), &order.Submit{
+			Exchange:  e.Name,
+			Pair:      optionsTradablePair,
+			AssetType: asset.Options,
+			Side:      order.Buy,
+			Type:      order.Limit,
+			Amount:    0.00000001,
+			Price:     0.00000001,
+		})
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed)
+		require.NotErrorIs(t, err, order.ErrSideIsInvalid)
+	})
 }
 
 func TestWebsocketModifyOrder(t *testing.T) {
 	t.Parallel()
 
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex))
+	t.Run("coverage", func(t *testing.T) {
+		t.Parallel()
 
-	modify := &order.Modify{
-		OrderID:   "1",
-		AssetType: asset.Options,
-		Pair:      optionsTradablePair,
-		Amount:    1,
-	}
-	_, err := ex.WebsocketModifyOrder(t.Context(), modify)
-	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex))
 
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	_, err = ex.WebsocketModifyOrder(t.Context(), modify)
-	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
+		modify := &order.Modify{
+			OrderID:   "1",
+			AssetType: asset.Options,
+			Pair:      optionsTradablePair,
+			Amount:    1,
+		}
+		_, err := ex.WebsocketModifyOrder(t.Context(), modify)
+		require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
+
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		_, err = ex.WebsocketModifyOrder(t.Context(), modify)
+		require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
+	})
+
+	t.Run("live validation passes but order is not modified", func(t *testing.T) {
+		t.Parallel()
+
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		require.True(t, e.Websocket.CanUseAuthenticatedWebsocketForWrapper())
+
+		_, err := e.WebsocketModifyOrder(t.Context(), &order.Modify{
+			OrderID:   "codex-do-not-fill-this-order-id",
+			AssetType: asset.Options,
+			Pair:      optionsTradablePair,
+			Amount:    1,
+			Price:     1,
+		})
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed)
+		require.NotErrorIs(t, err, order.ErrOrderIDNotSet)
+	})
 }
 
 func TestWebsocketCancelOrder(t *testing.T) {
 	t.Parallel()
 
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex))
+	t.Run("coverage", func(t *testing.T) {
+		t.Parallel()
 
-	cancel := &order.Cancel{
-		OrderID:   "1",
-		AssetType: asset.Options,
-		Pair:      optionsTradablePair,
-	}
-	err := ex.WebsocketCancelOrder(t.Context(), cancel)
-	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex))
 
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	err = ex.WebsocketCancelOrder(t.Context(), cancel)
-	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
+		cancel := &order.Cancel{
+			OrderID:   "1",
+			AssetType: asset.Options,
+			Pair:      optionsTradablePair,
+		}
+		err := ex.WebsocketCancelOrder(t.Context(), cancel)
+		require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
+
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		err = ex.WebsocketCancelOrder(t.Context(), cancel)
+		require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled)
+	})
+
+	t.Run("live validation passes but order is not cancelled", func(t *testing.T) {
+		t.Parallel()
+
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		require.True(t, e.Websocket.CanUseAuthenticatedWebsocketForWrapper())
+
+		err := e.WebsocketCancelOrder(t.Context(), &order.Cancel{
+			OrderID:   "codex-do-not-fill-this-order-id",
+			AssetType: asset.Options,
+			Pair:      optionsTradablePair,
+		})
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed)
+		require.NotErrorIs(t, err, order.ErrOrderIDNotSet)
+	})
 }
 
 func TestSymbolChannelSeparator(t *testing.T) {
