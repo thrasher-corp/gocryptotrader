@@ -1747,8 +1747,9 @@ func TestWSTickerResponseTrailingField(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{btcusdPair}, Channel: subscription.TickerChannel, Key: 11534})
 	require.NoError(t, err, "AddSubscriptions must not error")
+	conn := testexch.GetMockConn(t, e, "")
 
-	err = e.wsHandleData(t.Context(), []byte(`[11534,[61.304,2228.36155358,61.305,1323.2442970500003,0.395,0.0065,61.371,50973.3020771,62.5,57.421,null]]`))
+	err = e.wsHandleData(t.Context(), conn, []byte(`[11534,[61.304,2228.36155358,61.305,1323.2442970500003,0.395,0.0065,61.371,50973.3020771,62.5,57.421,null]]`))
 	require.NoError(t, err, "wsHandleData must not error for optional trailing ticker timestamps")
 
 	select {
@@ -1778,8 +1779,9 @@ func TestWSFundingTickerResponseTrailingField(t *testing.T) {
 	require.NoError(t, err, "NewPairFromStrings must not error")
 	err = e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.MarginFunding, Pairs: currency.Pairs{fundingPair}, Channel: subscription.TickerChannel, Key: 22334})
 	require.NoError(t, err, "AddSubscriptions must not error")
+	conn := testexch.GetMockConn(t, e, "")
 
-	err = e.wsHandleData(t.Context(), []byte(`[22334,[1.1,2.2,3,4.4,5.5,6,7.7,8.8,9.9,10.1,11.11,12.12,13.13,null,null,15.15,null]]`))
+	err = e.wsHandleData(t.Context(), conn, []byte(`[22334,[1.1,2.2,3,4.4,5.5,6,7.7,8.8,9.9,10.1,11.11,12.12,13.13,null,null,15.15,null]]`))
 	require.NoError(t, err, "wsHandleData must not error for optional trailing funding ticker timestamps")
 
 	select {
@@ -1811,8 +1813,9 @@ func TestWSTickerResponseTrailingTimestamp(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{btcusdPair}, Channel: subscription.TickerChannel, Key: 11534})
 	require.NoError(t, err, "AddSubscriptions must not error")
+	conn := testexch.GetMockConn(t, e, "")
 
-	err = e.wsHandleData(t.Context(), []byte(`[11534,[61.304,2228.36155358,61.305,1323.2442970500003,0.395,0.0065,61.371,50973.3020771,62.5,57.421,1747143592992]]`))
+	err = e.wsHandleData(t.Context(), conn, []byte(`[11534,[61.304,2228.36155358,61.305,1323.2442970500003,0.395,0.0065,61.371,50973.3020771,62.5,57.421,1747143592992]]`))
 	require.NoError(t, err, "wsHandleData must not error for trailing ticker timestamps")
 
 	select {
@@ -1834,8 +1837,9 @@ func TestWSFundingTickerResponseTrailingTimestamp(t *testing.T) {
 	require.NoError(t, err, "NewPairFromStrings must not error")
 	err = e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.MarginFunding, Pairs: currency.Pairs{fundingPair}, Channel: subscription.TickerChannel, Key: 22334})
 	require.NoError(t, err, "AddSubscriptions must not error")
+	conn := testexch.GetMockConn(t, e, "")
 
-	err = e.wsHandleData(t.Context(), []byte(`[22334,[1.1,2.2,3,4.4,5.5,6,7.7,8.8,9.9,10.1,11.11,12.12,13.13,null,null,15.15,1747143592992]]`))
+	err = e.wsHandleData(t.Context(), conn, []byte(`[22334,[1.1,2.2,3,4.4,5.5,6,7.7,8.8,9.9,10.1,11.11,12.12,13.13,null,null,15.15,1747143592992]]`))
 	require.NoError(t, err, "wsHandleData must not error for trailing funding ticker timestamps")
 
 	select {
@@ -1855,8 +1859,9 @@ func TestWSTickerResponseInvalidTrailingTimestamp(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{btcusdPair}, Channel: subscription.TickerChannel, Key: 11534})
 	require.NoError(t, err, "AddSubscriptions must not error")
+	conn := testexch.GetMockConn(t, e, "")
 
-	err = e.wsHandleData(t.Context(), []byte(`[11534,[61.304,2228.36155358,61.305,1323.2442970500003,0.395,0.0065,61.371,50973.3020771,62.5,57.421,true]]`))
+	err = e.wsHandleData(t.Context(), conn, []byte(`[11534,[61.304,2228.36155358,61.305,1323.2442970500003,0.395,0.0065,61.371,50973.3020771,62.5,57.421,true]]`))
 	assert.ErrorIs(t, err, errTickerInvalidFirstTradeTime, "wsHandleData should reject invalid trailing FIRST_TRADE timestamp types")
 	select {
 	case resp := <-e.Websocket.DataHandler.C:
@@ -1874,8 +1879,9 @@ func TestWSFundingTickerResponseInvalidTrailingTimestamp(t *testing.T) {
 	require.NoError(t, err, "NewPairFromStrings must not error")
 	err = e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.MarginFunding, Pairs: currency.Pairs{fundingPair}, Channel: subscription.TickerChannel, Key: 22334})
 	require.NoError(t, err, "AddSubscriptions must not error")
+	conn := testexch.GetMockConn(t, e, "")
 
-	err = e.wsHandleData(t.Context(), []byte(`[22334,[1.1,2.2,3,4.4,5.5,6,7.7,8.8,9.9,10.1,11.11,12.12,13.13,null,null,15.15,true]]`))
+	err = e.wsHandleData(t.Context(), conn, []byte(`[22334,[1.1,2.2,3,4.4,5.5,6,7.7,8.8,9.9,10.1,11.11,12.12,13.13,null,null,15.15,true]]`))
 	assert.ErrorIs(t, err, errTickerInvalidFirstTradeTime, "wsHandleData should reject invalid funding trailing FIRST_TRADE timestamp types")
 	select {
 	case resp := <-e.Websocket.DataHandler.C:
@@ -1891,8 +1897,9 @@ func TestWSTickerResponseInvalidFieldCount(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{btcusdPair}, Channel: subscription.TickerChannel, Key: 11534})
 	require.NoError(t, err, "AddSubscriptions must not error")
+	conn := testexch.GetMockConn(t, e, "")
 
-	err = e.wsHandleData(t.Context(), []byte(`[11534,[1,2,3,4,5,6,7,8,9,10,11,12]]`))
+	err = e.wsHandleData(t.Context(), conn, []byte(`[11534,[1,2,3,4,5,6,7,8,9,10,11,12]]`))
 	assert.ErrorIs(t, err, errTickerInvalidFieldCount, "wsHandleData should reject unexpected websocket ticker field counts")
 	select {
 	case resp := <-e.Websocket.DataHandler.C:
@@ -1945,6 +1952,20 @@ func TestWSNotifications(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+}
+
+func TestWSNotificationsNilConnPanics(t *testing.T) {
+	t.Parallel()
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+
+	payload := []byte(`[0,"n",[1575287438.515,"on-req",null,null,[1185815098,null,1575287436979,"tETHUSD",1575287438515,1575287438515,-2.5,-2.5,"LIMIT",null,null,null,0,"ACTIVE",null,null,230,0,0,0,null,null,null,0,null,null,null,null,"API>BFX",null,null,null],null,"SUCCESS","Submitting limit sell order for -2.5 ETH."]]`)
+	assert.Panics(t,
+		func() {
+			_ = e.wsHandleData(t.Context(), nil, payload)
+		},
+		"wsHandleData should panic when conn is nil for on-req notifications")
 }
 
 func TestWSFundingOfferSnapshotAndUpdate(t *testing.T) {

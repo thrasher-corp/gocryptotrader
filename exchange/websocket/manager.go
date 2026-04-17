@@ -536,7 +536,6 @@ func (m *Manager) connect(ctx context.Context) error {
 			}
 
 			if len(subs) == 0 {
-				// If no subscriptions are generated, we skip this connection.
 				if m.verbose {
 					log.Debugf(log.WebsocketMgr, "%s websocket: no subscriptions generated for [conn:%d] [URL:%s], skipping", m.exchangeName, i+1, ws.setup.URL)
 				}
