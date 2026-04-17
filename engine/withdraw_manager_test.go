@@ -90,7 +90,7 @@ func TestSubmitWithdrawal(t *testing.T) {
 	assert.ErrorIs(t, err, withdraw.ErrStrAddressNotWhiteListed)
 
 	var wg sync.WaitGroup
-	err = pm.Start(&wg)
+	err = pm.Start(t.Context(), &wg)
 	if err != nil {
 		t.Error(err)
 	}

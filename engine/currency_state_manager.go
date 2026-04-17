@@ -55,7 +55,7 @@ func SetupCurrencyStateManager(interval time.Duration, em iExchangeManager) (*Cu
 }
 
 // Start runs the subsystem
-func (c *CurrencyStateManager) Start() error {
+func (c *CurrencyStateManager) Start(ctx context.Context) error {
 	log.Debugln(log.ExchangeSys, "Currency state manager starting...")
 	if c == nil {
 		return fmt.Errorf("%s %w", CurrencyStateManagementName, ErrNilSubsystem)
@@ -65,7 +65,7 @@ func (c *CurrencyStateManager) Start() error {
 		return fmt.Errorf("%s %w", CurrencyStateManagementName, ErrSubSystemAlreadyStarted)
 	}
 	c.wg.Add(1)
-	go c.monitor()
+	go c.monitor(ctx)
 	log.Debugln(log.ExchangeSys, "Currency state manager started.")
 	return nil
 }
@@ -96,7 +96,7 @@ func (c *CurrencyStateManager) IsRunning() bool {
 	return atomic.LoadInt32(&c.started) == 1
 }
 
-func (c *CurrencyStateManager) monitor() {
+func (c *CurrencyStateManager) monitor(ctx context.Context) {
 	defer c.wg.Done()
 	timer := time.NewTimer(0) // Prime firing of channel for initial sync.
 	for {
@@ -113,7 +113,7 @@ func (c *CurrencyStateManager) monitor() {
 			}
 			for x := range exchs {
 				wg.Add(1)
-				go c.update(exchs[x], &wg, exchs[x].GetAssetTypes(true))
+				go c.update(ctx, exchs[x], &wg, exchs[x].GetAssetTypes(true))
 			}
 			wg.Wait() // This causes some variability in the timer due to the
 			// longest length of request time. Can do time.Ticker but don't
@@ -123,10 +123,10 @@ func (c *CurrencyStateManager) monitor() {
 	}
 }
 
-func (c *CurrencyStateManager) update(exch exchange.IBotExchange, wg *sync.WaitGroup, enabledAssets asset.Items) {
+func (c *CurrencyStateManager) update(ctx context.Context, exch exchange.IBotExchange, wg *sync.WaitGroup, enabledAssets asset.Items) {
 	defer wg.Done()
 	for y := range enabledAssets {
-		err := exch.UpdateCurrencyStates(context.TODO(), enabledAssets[y])
+		err := exch.UpdateCurrencyStates(ctx, enabledAssets[y])
 		if err != nil {
 			if errors.Is(err, common.ErrNotYetImplemented) {
 				// Deploy default values for outbound gRPC aspects.

@@ -4,7 +4,6 @@ affilate->affiliate
 authentecated->authenticated
 behavior->behaviour
 bifinex->bitfinex
-canceled->cancelled
 candlesctick->candlestick
 critcalbankingstuff->criticalbankingstuff
 crypo->crypto
@@ -22,6 +21,10 @@ deserializes->deserialises
 deserializing->deserialising
 favor->favour
 generalized->generalised
+initialize->initialise
+initialized->initialised
+initialization->initialisation
+initializing->initialising
 indivudal->individual
 lenging->lending
 liquidiation->liquidation
