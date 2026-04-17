@@ -275,7 +275,7 @@ func TestHTTPRecord(t *testing.T) {
 		assert.Len(t, finalMock.Routes[path][method], expected)
 	}
 
-	// Base GET entry for route initialization coverage.
+	// Base GET entry for route initialisation coverage.
 	err = callRecord(http.MethodGet, "https://api.abc.com/test/base", nil)
 	require.NoError(t, err)
 
