@@ -1061,6 +1061,10 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	assert.Equal(t, asset.Item(1), od.AssetType)
 	assert.Equal(t, updated, od.LastUpdated)
 	assert.Equal(t, "BTCUSD", od.Pair.String())
+	assert.Zero(t, od.ContractAmount)
+	assert.Zero(t, od.AverageExecutedPrice)
+	assert.Zero(t, od.Cost)
+	assert.True(t, od.CloseTime.IsZero())
 	assert.Nil(t, od.Trades)
 
 	om.Trades = append(om.Trades, TradeHistory{TID: "1"}, TradeHistory{TID: "2"})
@@ -1088,6 +1092,40 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	assert.Equal(t, UnknownType, od.Trades[0].Type)
 	assert.Equal(t, 1337.0, od.Trades[0].Amount)
 
+	closeTime := updated.Add(time.Minute)
+	lastUpdated := closeTime.Add(time.Minute)
+	err = od.UpdateOrderFromDetail(&Detail{
+		ContractAmount:       10,
+		AverageExecutedPrice: 11,
+		Cost:                 12,
+		CloseTime:            closeTime,
+		LastUpdated:          lastUpdated,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 10.0, od.ContractAmount)
+	assert.Equal(t, 11.0, od.AverageExecutedPrice)
+	assert.Equal(t, 12.0, od.Cost)
+	assert.Equal(t, closeTime, od.CloseTime)
+	assert.Equal(t, lastUpdated, od.LastUpdated)
+
+	nextCloseTime := closeTime.Add(time.Minute)
+	beforeUpdate := time.Now()
+	err = od.UpdateOrderFromDetail(&Detail{CloseTime: nextCloseTime})
+	afterUpdate := time.Now()
+	require.NoError(t, err)
+	assert.Equal(t, nextCloseTime, od.CloseTime)
+	assert.False(t, od.LastUpdated.Before(beforeUpdate), "LastUpdated should not be before test start when incoming timestamp is unset")
+	assert.False(t, od.LastUpdated.After(afterUpdate), "LastUpdated should not be after test end when incoming timestamp is unset")
+	lastUpdatedWithoutIncoming := od.LastUpdated
+
+	err = od.UpdateOrderFromDetail(&Detail{})
+	require.NoError(t, err)
+	assert.Equal(t, 10.0, od.ContractAmount)
+	assert.Equal(t, 11.0, od.AverageExecutedPrice)
+	assert.Equal(t, 12.0, od.Cost)
+	assert.Equal(t, nextCloseTime, od.CloseTime)
+	assert.Equal(t, lastUpdatedWithoutIncoming, od.LastUpdated)
+
 	id, err = uuid.NewV4()
 	require.NoError(t, err)
 
@@ -1097,7 +1135,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 
 	err = od.UpdateOrderFromDetail(om)
 	require.NoError(t, err)
-	assert.NotEqual(t, id, od.InternalOrderID, "Should not be able to update the internal order ID after initialization")
+	assert.NotEqual(t, id, od.InternalOrderID, "Should not be able to update the internal order ID after initialisation")
 }
 
 func TestClassificationError_Error(t *testing.T) {
