@@ -805,7 +805,22 @@ func (e *Exchange) handleWSTickerUpdate(ctx context.Context, c *subscription.Sub
 		ExchangeName: e.Name,
 	}
 
-	if len(tickerData) == 10 {
+	switch len(tickerData) {
+	case 11, 17:
+		// Bitfinex websocket tickers can append an optional trailing FIRST_TRADE
+		// timestamp. The docs note this field may be null.
+		if last := tickerData[len(tickerData)-1]; last != nil {
+			firstTradeTimestamp, firstTradeTimestampOK := last.(float64)
+			if !firstTradeTimestampOK {
+				return errTickerInvalidFirstTradeTime
+			}
+			t.LastUpdated = time.UnixMilli(int64(firstTradeTimestamp))
+		}
+		tickerData = tickerData[:len(tickerData)-1]
+	}
+
+	switch len(tickerData) {
+	case 10:
 		if t.Bid, ok = tickerData[0].(float64); !ok {
 			return errors.New("unable to type assert ticker bid")
 		}
@@ -824,7 +839,7 @@ func (e *Exchange) handleWSTickerUpdate(ctx context.Context, c *subscription.Sub
 		if t.Low, ok = tickerData[9].(float64); !ok {
 			return errors.New("unable to type assert ticker low")
 		}
-	} else {
+	case 16:
 		if t.FlashReturnRate, ok = tickerData[0].(float64); !ok {
 			return errors.New("unable to type assert ticker flash return rate")
 		}
@@ -859,8 +874,10 @@ func (e *Exchange) handleWSTickerUpdate(ctx context.Context, c *subscription.Sub
 			return errors.New("unable to type assert ticker low")
 		}
 		if t.FlashReturnRateAmount, ok = tickerData[15].(float64); !ok {
-			return errors.New("unable to type assert ticker flash return rate")
+			return errors.New("unable to type assert ticker flash return rate amount")
 		}
+	default:
+		return fmt.Errorf("%w for websocket ticker payload: %v", errTickerInvalidFieldCount, tickerData)
 	}
 	if err := ticker.ProcessTicker(t); err != nil {
 		return err
