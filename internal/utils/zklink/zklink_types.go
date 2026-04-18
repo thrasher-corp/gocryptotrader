@@ -30,14 +30,13 @@ type ContractBuilder struct {
 
 // WithdrawBuilder holds an asset withdrawal builder parameters
 type WithdrawBuilder struct {
-	AccountID    *big.Int
-	SubAccountID *big.Int
-	ToChainID    *big.Int
-	ToAddress    *big.Int
-	// L2SourceToken TokenId
-	// L1TargetToken TokenId
-	Amount *big.Int
-	// DataHash         *H256
+	AccountID        *big.Int
+	SubAccountID     *big.Int
+	ToChainID        *big.Int
+	ToAddress        *big.Int
+	L2SourceToken    *big.Int // 16-bit field: L2 token ID (e.g. USDT=140)
+	L1TargetToken    *big.Int // 16-bit field: L1 target token ID
+	Amount           *big.Int
 	Fee              *big.Int
 	Nonce            *big.Int
 	WithdrawFeeRatio *big.Int

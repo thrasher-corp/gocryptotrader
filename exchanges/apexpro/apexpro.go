@@ -40,6 +40,10 @@ type Exchange struct {
 	StarkConfig       *starkex.StarkConfig
 	UserAccountDetail *UserAccountV2
 	NetworkID         int
+
+	// ZKLinkerSigner is lazily initialised on first V3 signing call.
+	// Access via getOrInitZKLinkerSigner() in apexpro_zksigner.go.
+	ZKLinkerSigner interface{}
 }
 
 const (
@@ -710,9 +714,64 @@ func (e *Exchange) orderCreationParamsFilter(ctx context.Context, arg *CreateOrd
 	return params, nil
 }
 
-// CreateOrderV3 creates a new order
+// orderCreationParamsFilterV3 validates and prepares URL params for a V3 order,
+// signing with the zkKey (ZKLink Schnorr) scheme.
+func (e *Exchange) orderCreationParamsFilterV3(ctx context.Context, arg *CreateOrderParams) (url.Values, error) {
+	if *arg == (CreateOrderParams{}) {
+		return nil, order.ErrOrderDetailIsNil
+	}
+	if arg.Symbol.IsEmpty() {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	if arg.Side == "" {
+		return nil, order.ErrSideIsInvalid
+	}
+	if arg.OrderType == "" {
+		return nil, order.ErrTypeIsInvalid
+	}
+	if arg.Size <= 0 {
+		return nil, limits.ErrAmountBelowMin
+	}
+	if arg.Price <= 0 {
+		return nil, limits.ErrPriceBelowMin
+	}
+	if arg.ClientOrderID == "" {
+		arg.ClientOrderID = strings.TrimPrefix(randomClientID(), "0")
+	}
+	zkKeySignature, err := e.ProcessZKKeyOrderSignature(ctx, arg)
+	if err != nil {
+		return nil, err
+	}
+	params := url.Values{}
+	params.Set("symbol", arg.Symbol.String())
+	params.Set("side", arg.Side)
+	params.Set("clientOrderId", arg.ClientOrderID)
+	params.Set("type", arg.OrderType)
+	params.Set("size", strconv.FormatFloat(arg.Size, 'f', -1, 64))
+	params.Set("price", strconv.FormatFloat(arg.Price, 'f', -1, 64))
+	if arg.LimitFee != 0 {
+		params.Set("limitFee", strconv.FormatFloat(arg.LimitFee, 'f', -1, 64))
+	}
+	params.Set("expiration", strconv.FormatInt(arg.ExpirationTime, 10))
+	if arg.TimeInForce != "" {
+		params.Set("timeInForce", arg.TimeInForce)
+	}
+	if arg.TrailingPercent > 0 {
+		params.Set("trailingPercent", strconv.FormatFloat(arg.TrailingPercent, 'f', -1, 64))
+	}
+	if arg.TriggerPrice > 0 {
+		params.Set("triggerPrice", strconv.FormatFloat(arg.TriggerPrice, 'f', -1, 64))
+	}
+	if arg.ReduceOnly {
+		params.Set("reduceOnly", "true")
+	}
+	params.Set("zkKeySignature", zkKeySignature)
+	return params, nil
+}
+
+// CreateOrderV3 creates a new order using the ZKLink (zkKey) signing scheme.
 func (e *Exchange) CreateOrderV3(ctx context.Context, arg *CreateOrderParams) (*OrderDetail, error) {
-	params, err := e.orderCreationParamsFilter(ctx, arg)
+	params, err := e.orderCreationParamsFilterV3(ctx, arg)
 	if err != nil {
 		return nil, err
 	}
@@ -1308,7 +1367,7 @@ func (e *Exchange) WithdrawAsset(ctx context.Context, arg *AssetWithdrawalParams
 	}
 	params.Set("isFastWithdraw", strconv.FormatBool(arg.IsFastWithdraw))
 	params.Set("nonce", arg.Nonce)
-	signature, err := e.ProcessWithdrawalToAddressSignatureV3(ctx, arg)
+	zkKeySignature, err := e.ProcessZKKeyWithdrawalSignature(ctx, arg)
 	if err != nil {
 		return nil, err
 	}
@@ -1316,7 +1375,7 @@ func (e *Exchange) WithdrawAsset(ctx context.Context, arg *AssetWithdrawalParams
 		return nil, errZeroKnowledgeAccountIDMissing
 	}
 	params.Set("zkAccountId", arg.ZKAccountID)
-	params.Set("signature", signature)
+	params.Set("zkKeySignature", zkKeySignature)
 	var resp *WithdrawalResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, "v3/withdrawal", request.UnAuth, params, nil, &resp)
 }

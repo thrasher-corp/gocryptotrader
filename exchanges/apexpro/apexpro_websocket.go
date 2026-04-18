@@ -126,11 +126,11 @@ func (e *Exchange) WsAuth(dialer *gws.Dialer) error {
 	e.Websocket.Wg.Add(1)
 	go e.wsReadData(e.Websocket.AuthConn)
 	return e.Websocket.AuthConn.SendJSONMessage(context.Background(), request.UnAuth, &struct {
-		Operation string        `json:"op"`
-		Arguments []interface{} `json:"args"`
+		Operation string `json:"op"`
+		Arguments []any  `json:"args"`
 	}{
 		Operation: "login",
-		Arguments: []interface{}{string(value)},
+		Arguments: []any{string(value)},
 	})
 }
 

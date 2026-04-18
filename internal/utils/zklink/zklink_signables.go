@@ -58,8 +58,9 @@ func (w *WithdrawBuilder) GetBytes() *big.Int {
 	payload.Lsh(payload, WithdrawFieldBitLengths["to"])
 	payload.Add(payload, w.ToAddress)
 	payload.Lsh(payload, WithdrawFieldBitLengths["l2SourceToken"])
-	// part1.Add(part1, w.)
+	payload.Add(payload, w.L2SourceToken)
 	payload.Lsh(payload, WithdrawFieldBitLengths["l1TargetToken"])
+	payload.Add(payload, w.L1TargetToken)
 
 	payload.Lsh(payload, WithdrawFieldBitLengths["amount"])
 	payload.Add(payload, w.Amount)
