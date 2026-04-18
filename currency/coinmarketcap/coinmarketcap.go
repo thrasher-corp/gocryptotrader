@@ -409,7 +409,7 @@ func (c *Coinmarketcap) GetExchangeInfo(exchangeID ...int64) (ExchangeInfo, erro
 
 // GetExchangeMap returns a paginated list of all cryptocurrency exchanges by
 // CoinMarketCap ID. Recommend using this convenience endpoint to lookup and
-// utilize the unique exchange id across all endpoints as typical exchange
+// utilise the unique exchange id across all endpoints as typical exchange
 // identifiers may change over time. ie huobi -> hadax -> global -> who knows
 // what else
 //
@@ -704,7 +704,7 @@ func (c *Coinmarketcap) SendHTTPRequest(method, endpoint string, v url.Values, r
 }
 
 // CheckAccountPlan checks your current account plan to the minimal account
-// needed to send http request, this is used to minimize requests for lower
+// needed to send http request, this is used to minimise requests for lower
 // account privileges
 func (c *Coinmarketcap) CheckAccountPlan(minAllowable uint8) error {
 	if c.Plan < minAllowable {

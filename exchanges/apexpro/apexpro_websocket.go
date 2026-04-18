@@ -60,7 +60,7 @@ func (e *Exchange) WsConnect() error {
 	dialer.HandshakeTimeout = e.Config.HTTPTimeout
 	dialer.Proxy = http.ProxyFromEnvironment
 	var err error
-	err = e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
+	err = e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil)
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s",
 			e.Name,
@@ -94,7 +94,7 @@ func (e *Exchange) WsAuth(dialer *gws.Dialer) error {
 	if err != nil {
 		return err
 	}
-	err = e.Websocket.AuthConn.Dial(ctx, dialer, http.Header{})
+	err = e.Websocket.AuthConn.Dial(ctx, dialer, http.Header{}, nil)
 	if err != nil {
 		return err
 	}
@@ -500,24 +500,31 @@ func (e *Exchange) processCandlestickData(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
-	klineData := make([]websocket.KlineData, len(resp.Data))
+	klineData := make([]kline.Item, len(resp.Data))
 	for a := range resp.Data {
 		pair, err := currency.NewPairFromString(resp.Data[a].Symbol)
 		if err != nil {
 			return err
 		}
-		klineData[a] = websocket.KlineData{
-			Timestamp:  resp.Timestamp.Time(),
-			Pair:       pair,
-			AssetType:  asset.Futures,
-			Exchange:   e.Name,
-			StartTime:  resp.Data[a].Start.Time(),
-			Interval:   resp.Data[a].Interval,
-			OpenPrice:  resp.Data[a].Open.Float64(),
-			ClosePrice: resp.Data[a].Close.Float64(),
-			HighPrice:  resp.Data[a].High.Float64(),
-			LowPrice:   resp.Data[a].Low.Float64(),
-			Volume:     resp.Data[a].Volume.Float64(),
+		interval, err := intervalFromString(resp.Data[a].Interval)
+		if err != nil {
+			return err
+		}
+		klineData[a] = kline.Item{
+			Pair:     pair,
+			Asset:    asset.Futures,
+			Exchange: e.Name,
+			Interval: interval,
+			Candles: []kline.Candle{
+				{
+					Time:   resp.Timestamp.Time(),
+					Open:   resp.Data[a].Open.Float64(),
+					Close:  resp.Data[a].Close.Float64(),
+					High:   resp.Data[a].High.Float64(),
+					Low:    resp.Data[a].Low.Float64(),
+					Volume: resp.Data[a].Volume.Float64(),
+				},
+			},
 		}
 	}
 	return e.Websocket.DataHandler.Send(context.Background(), klineData)

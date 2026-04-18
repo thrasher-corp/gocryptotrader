@@ -9,6 +9,7 @@ import (
 	"io"
 	"log"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -50,6 +51,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/utils"
 	"github.com/thrasher-corp/goose"
 	"google.golang.org/grpc/metadata"
 )
@@ -61,7 +63,14 @@ const (
 	fakeExchangeName      = "fake"
 )
 
-var errExpectedTestError = errors.New("expected test error")
+var (
+	errExpectedTestError = errors.New("expected test error")
+	testExchangeCounter  common.Counter
+)
+
+func newUniqueFakeExchangeName() string {
+	return fmt.Sprintf("%s-%d", fakeExchangeName, testExchangeCounter.IncrementAndGet())
+}
 
 // fExchange is a fake exchange with function overrides
 // we're not testing an actual exchange's implemented functions
@@ -429,7 +438,7 @@ func (f fExchange) CanDeposit(_ currency.Code, _ asset.Item) error {
 	return nil
 }
 
-// Sets up everything required to run any function inside rpcserver
+// RPCTestSetup sets up everything required to run any function inside rpcserver
 // Only use if you require a database, this makes tests slow
 func RPCTestSetup(t *testing.T) *Engine {
 	t.Helper()
@@ -2268,6 +2277,45 @@ func TestShutdown(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestShutdownConcurrentRequestsDoNotBlock(t *testing.T) {
+	t.Parallel()
+	s := RPCServer{Engine: &Engine{
+		Settings: Settings{CoreSettings: CoreSettings{
+			EnableGRPCShutdown: true,
+		}},
+		GRPCShutdownSignal: make(chan struct{}, 1),
+	}}
+
+	const callers = 2
+	errCh := make(chan error, callers)
+	var wg sync.WaitGroup
+	wg.Add(callers)
+	for range callers {
+		go func() {
+			defer wg.Done()
+			_, err := s.Shutdown(t.Context(), &gctrpc.ShutdownRequest{})
+			errCh <- err
+		}()
+	}
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("concurrent Shutdown calls blocked")
+	}
+
+	for range callers {
+		require.NoError(t, <-errCh)
+	}
+	assert.LessOrEqual(t, len(s.Engine.GRPCShutdownSignal), 1)
+}
+
 func TestGetTechnicalAnalysis(t *testing.T) {
 	t.Parallel()
 
@@ -3048,7 +3096,8 @@ func TestGetOrderbookMovement(t *testing.T) {
 
 	exch.SetDefaults()
 	b := exch.GetBase()
-	b.Name = fakeExchangeName
+	uniqueFakeExchangeName := newUniqueFakeExchangeName()
+	b.Name = uniqueFakeExchangeName
 	b.Enabled = true
 
 	cp := currency.NewPairWithDelimiter("btc", "metal", "-")
@@ -3074,7 +3123,7 @@ func TestGetOrderbookMovement(t *testing.T) {
 	_, err = s.GetOrderbookMovement(t.Context(), req)
 	require.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
-	req.Exchange = "fake"
+	req.Exchange = uniqueFakeExchangeName
 	_, err = s.GetOrderbookMovement(t.Context(), req)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
@@ -3141,7 +3190,8 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 
 	exch.SetDefaults()
 	b := exch.GetBase()
-	b.Name = fakeExchangeName
+	uniqueFakeExchangeName := newUniqueFakeExchangeName()
+	b.Name = uniqueFakeExchangeName
 	b.Enabled = true
 
 	cp := currency.NewPairWithDelimiter("btc", "meme", "-")
@@ -3167,7 +3217,7 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 	_, err = s.GetOrderbookAmountByNominal(t.Context(), req)
 	require.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
-	req.Exchange = "fake"
+	req.Exchange = uniqueFakeExchangeName
 	_, err = s.GetOrderbookAmountByNominal(t.Context(), req)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
@@ -3181,9 +3231,7 @@ func TestGetOrderbookAmountByNominal(t *testing.T) {
 		Quote: currency.MEME.String(),
 	}
 	_, err = s.GetOrderbookAmountByNominal(t.Context(), req)
-	if !strings.Contains(err.Error(), "cannot find orderbook") {
-		t.Fatalf("received: '%+v' but expected: '%v'", err, "cannot find orderbook")
-	}
+	require.ErrorIs(t, err, orderbook.ErrOrderbookNotFound)
 
 	depth, err := orderbook.DeployDepth(req.Exchange, currency.NewPair(currency.BTC, currency.MEME), asset.Spot)
 	require.NoError(t, err, "orderbook.DeployDepth must not error")
@@ -3227,7 +3275,8 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 
 	exch.SetDefaults()
 	b := exch.GetBase()
-	b.Name = fakeExchangeName
+	uniqueFakeExchangeName := newUniqueFakeExchangeName()
+	b.Name = uniqueFakeExchangeName
 	b.Enabled = true
 
 	cp := currency.NewPairWithDelimiter("btc", "mad", "-")
@@ -3253,7 +3302,7 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 	_, err = s.GetOrderbookAmountByImpact(t.Context(), req)
 	require.ErrorIs(t, err, common.ErrExchangeNameNotSet)
 
-	req.Exchange = "fake"
+	req.Exchange = uniqueFakeExchangeName
 	_, err = s.GetOrderbookAmountByImpact(t.Context(), req)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
@@ -3267,9 +3316,7 @@ func TestGetOrderbookAmountByImpact(t *testing.T) {
 		Quote: currency.MAD.String(),
 	}
 	_, err = s.GetOrderbookAmountByImpact(t.Context(), req)
-	if !strings.Contains(err.Error(), "cannot find orderbook") {
-		t.Fatalf("received: '%+v' but expected: '%v'", err, "cannot find orderbook")
-	}
+	require.ErrorIs(t, err, orderbook.ErrOrderbookNotFound)
 
 	depth, err := orderbook.DeployDepth(req.Exchange, currency.NewPair(currency.BTC, currency.MAD), asset.Spot)
 	require.NoError(t, err, "orderbook.DeployDepth must not error")
@@ -3711,7 +3758,9 @@ func TestStartRPCRESTProxy(t *testing.T) {
 	fakeTime := time.Now().Add(-time.Hour)
 	e.uptime = fakeTime
 
-	StartRPCServer(e)
+	rpcCtx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	StartRPCServer(rpcCtx, e)
 
 	// Give the proxy time to start
 	time.Sleep(time.Millisecond * 500)
@@ -3811,6 +3860,47 @@ func TestRPCProxyAuthClient(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestStartRPCServerStopsListenerOnContextCancel(t *testing.T) {
+	t.Parallel()
+	tempDir := t.TempDir()
+	tempDirTLS := utils.GetTLSDir(tempDir)
+	require.NoError(t, os.MkdirAll(tempDirTLS, os.ModePerm), "MkdirAll must not error")
+	require.NoError(t, genCert(tempDirTLS), "genCert must not error")
+
+	listenConfig := net.ListenConfig{}
+	portListener, err := listenConfig.Listen(t.Context(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err, "Listen must not error")
+	listenAddress := portListener.Addr().String()
+	require.NoError(t, portListener.Close(), "Close must not error")
+
+	e := &Engine{
+		Config: &config.Config{RemoteControl: config.RemoteControlConfig{
+			GRPC: config.GRPCConfig{
+				Enabled:       true,
+				ListenAddress: listenAddress,
+			},
+		}},
+		Settings: Settings{DataDir: tempDir},
+	}
+
+	rpcCtx, cancel := context.WithCancel(context.Background())
+	StartRPCServer(rpcCtx, e)
+
+	canDial := func() bool {
+		dialer := net.Dialer{Timeout: 100 * time.Millisecond}
+		conn, dialErr := dialer.DialContext(t.Context(), "tcp", listenAddress)
+		if dialErr != nil {
+			return false
+		}
+		_ = conn.Close()
+		return true
+	}
+
+	assert.Eventually(t, canDial, 5*time.Second, 100*time.Millisecond, "gRPC listener should accept TCP connections after startup")
+	cancel()
+	assert.Eventually(t, func() bool { return !canDial() }, 5*time.Second, 100*time.Millisecond, "gRPC listener should close after context cancellation")
 }
 
 func TestGetCurrencyTradeURL(t *testing.T) {

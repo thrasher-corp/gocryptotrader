@@ -161,14 +161,40 @@ func (e *Exchange) getNewestTradingData(ctx context.Context, symbol, path string
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(path, params), request.UnAuth, &resp)
 }
 
-var intervalToStringMap = map[kline.Interval]string{kline.OneMin: "1", kline.FiveMin: "5", kline.FifteenMin: "15", kline.ThirtyMin: "30", kline.OneHour: "60", kline.TwoHour: "120", kline.FourHour: "240", kline.SixHour: "360", kline.SevenHour: "720", kline.OneDay: "D", kline.OneMonth: "M", kline.OneWeek: "W"}
+var intervalToStringMap = []*struct {
+	Interval kline.Interval
+	String   string
+}{
+	{Interval: kline.OneMin, String: "1"},
+	{Interval: kline.FiveMin, String: "5"},
+	{Interval: kline.FifteenMin, String: "15"},
+	{Interval: kline.ThirtyMin, String: "30"},
+	{Interval: kline.OneHour, String: "60"},
+	{Interval: kline.TwoHour, String: "120"},
+	{Interval: kline.FourHour, String: "240"},
+	{Interval: kline.SixHour, String: "360"},
+	{Interval: kline.SevenHour, String: "720"},
+	{Interval: kline.OneDay, String: "D"},
+	{Interval: kline.OneMonth, String: "M"},
+	{Interval: kline.OneWeek, String: "W"},
+}
 
 func intervalToString(interval kline.Interval) (string, error) {
-	intervalString, okay := intervalToStringMap[interval]
-	if !okay {
-		return "", kline.ErrUnsupportedInterval
+	for _, val := range intervalToStringMap {
+		if val.Interval == interval {
+			return val.String, nil
+		}
 	}
-	return intervalString, nil
+	return "", fmt.Errorf("unsupported interval %s: %w", interval, kline.ErrUnsupportedInterval)
+}
+
+func intervalFromString(intervalString string) (kline.Interval, error) {
+	for _, val := range intervalToStringMap {
+		if val.String == intervalString {
+			return val.Interval, nil
+		}
+	}
+	return kline.Interval(0), fmt.Errorf("unsupported interval string %s: %w", intervalString, kline.ErrInvalidInterval)
 }
 
 // GetCandlestickChartDataV3 etrieves all candlestick chart data.

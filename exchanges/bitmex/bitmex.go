@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -847,7 +848,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request to bitmex
-func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, verb, path string, params Parameter, result any) error {
+func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, params Parameter, result any) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -866,19 +867,27 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers["api-expires"] = ts
 		headers["api-key"] = creds.Key
 
+		requestPath := path
 		var payload string
 		if params != nil {
 			if err := params.VerifyData(); err != nil {
 				return nil, err
 			}
-			data, err := json.Marshal(params)
-			if err != nil {
-				return nil, err
+			if method == http.MethodGet {
+				requestPath, err = paramsToRequestPath(params, requestPath)
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				data, err := json.Marshal(params)
+				if err != nil {
+					return nil, err
+				}
+				payload = string(data)
 			}
-			payload = string(data)
 		}
 
-		hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte(verb+"/api/v1"+path+ts+payload), []byte(creds.Secret))
+		hmac, err := crypto.GetHMAC(crypto.HashSHA256, []byte(method+"/api/v1"+requestPath+ts+payload), []byte(creds.Secret))
 		if err != nil {
 			return nil, err
 		}
@@ -886,8 +895,8 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		headers["api-signature"] = hex.EncodeToString(hmac)
 
 		return &request.Item{
-			Method:                 verb,
-			Path:                   endpoint + path,
+			Method:                 method,
+			Path:                   endpoint + requestPath,
 			Headers:                headers,
 			Body:                   strings.NewReader(payload),
 			Result:                 &respCheck,
@@ -903,6 +912,42 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	}
 
 	return e.CaptureError(respCheck, result)
+}
+
+func paramsToRequestPath(params Parameter, path string) (string, error) {
+	values, err := paramsToURLValues(params)
+	if err != nil {
+		return "", err
+	}
+	if len(values) == 0 {
+		return path, nil
+	}
+	sep := "?"
+	if strings.Contains(path, "?") {
+		if strings.HasSuffix(path, "?") || strings.HasSuffix(path, "&") {
+			sep = ""
+		} else {
+			sep = "&"
+		}
+	}
+	return path + sep + values.Encode(), nil
+}
+
+func paramsToURLValues(params Parameter) (url.Values, error) {
+	v := reflect.ValueOf(params)
+	if !v.IsValid() {
+		return url.Values{}, nil
+	}
+	if v.Kind() == reflect.Ptr {
+		if v.IsNil() {
+			return url.Values{}, nil
+		}
+		return StructValsToURLVals(params)
+	}
+
+	ptr := reflect.New(v.Type())
+	ptr.Elem().Set(v)
+	return StructValsToURLVals(ptr.Interface())
 }
 
 // CaptureError little hack that captures an error

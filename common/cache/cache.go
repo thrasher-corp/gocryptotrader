@@ -21,7 +21,7 @@ func (l *LRUCache) Get(key any) (value any) {
 	return l.lru.Get(key)
 }
 
-// GetOldest looks up old key's value from the cache.
+// getOldest looks up old key's value from the cache
 func (l *LRUCache) getOldest() (key, value any) {
 	l.m.Lock()
 	defer l.m.Unlock()

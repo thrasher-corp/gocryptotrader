@@ -1,8 +1,8 @@
 ## Dev Container base image
 # See: https://github.com/devcontainers/images/tree/main/src/go
 # Use the published "dev-" tagged image for the latest Go version.
-# See MCR tags: dev-1.25, dev-1.25-bookworm
-ARG VARIANT=dev-1.25-bookworm
+# See MCR tags: dev-1.26, dev-1.26-trixie
+ARG VARIANT=dev-1.26-trixie
 FROM mcr.microsoft.com/devcontainers/go:${VARIANT}
 
 USER root

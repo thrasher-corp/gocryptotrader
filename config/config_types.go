@@ -22,6 +22,7 @@ const (
 	EncryptedFile                        = "config.dat"
 	File                                 = "config.json"
 	TestFile                             = "../testdata/configtest.json"
+	TestFileV0                           = "../testdata/configtestv0.json"
 	fileEncryptionPrompt                 = 0
 	fileEncryptionEnabled                = 1
 	fileEncryptionDisabled               = -1

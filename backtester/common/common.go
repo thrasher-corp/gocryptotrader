@@ -65,8 +65,9 @@ func FitStringToLimit(str, spacer string, limit int, upper bool) string {
 		return str[0:limit]
 	}
 	spacerLen := len(spacer)
+	var s strings.Builder
 	for i := range limResp {
-		str += spacer
+		s.WriteString(spacer)
 		for j := range spacerLen {
 			if j > 0 {
 				// prevent clever people from going beyond
@@ -75,6 +76,7 @@ func FitStringToLimit(str, spacer string, limit int, upper bool) string {
 			}
 		}
 	}
+	str += s.String()
 
 	return str[0:limit]
 }

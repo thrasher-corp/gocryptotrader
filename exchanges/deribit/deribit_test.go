@@ -1001,12 +1001,12 @@ func TestWSRetrieveTransfers(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-const cancelWithdrawlPushDataJSON = `{"address": "2NBqqD5GRJ8wHy1PYyCXTe9ke5226FhavBz", "amount": 0.5, "confirmed_timestamp": null, "created_timestamp": 1550571443070, "currency": "BTC", "fee": 0.0001, "id": 1, "priority": 0.15, "state": "cancelled", "transaction_id": null, "updated_timestamp": 1550571443070}`
+const cancelWithdrawalPushDataJSON = `{"address": "2NBqqD5GRJ8wHy1PYyCXTe9ke5226FhavBz", "amount": 0.5, "confirmed_timestamp": null, "created_timestamp": 1550571443070, "currency": "BTC", "fee": 0.0001, "id": 1, "priority": 0.15, "state": "cancelled", "transaction_id": null, "updated_timestamp": 1550571443070}`
 
 func TestCancelWithdrawal(t *testing.T) {
 	t.Parallel()
 	var resp *CancelWithdrawalData
-	err := json.Unmarshal([]byte(cancelWithdrawlPushDataJSON), &resp)
+	err := json.Unmarshal([]byte(cancelWithdrawalPushDataJSON), &resp)
 	require.NoError(t, err)
 	_, err = e.CancelWithdrawal(t.Context(), currency.EMPTYCODE, 123844)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
@@ -2608,24 +2608,24 @@ func TestWSSetMMPConfig(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestGetSettlementHistoryByCurency(t *testing.T) {
+func TestGetSettlementHistoryByCurrency(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetSettlementHistoryByCurency(t.Context(), currency.EMPTYCODE, "settlement", "", 10, time.Now().Add(-time.Hour))
+	_, err := e.GetSettlementHistoryByCurrency(t.Context(), currency.EMPTYCODE, "settlement", "", 10, time.Now().Add(-time.Hour))
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetSettlementHistoryByCurency(t.Context(), currency.BTC, "settlement", "", 10, time.Now().Add(-time.Hour))
+	result, err := e.GetSettlementHistoryByCurrency(t.Context(), currency.BTC, "settlement", "", 10, time.Now().Add(-time.Hour))
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
-func TestWSRetrieveSettlementHistoryByCurency(t *testing.T) {
+func TestWSRetrieveSettlementHistoryByCurrency(t *testing.T) {
 	t.Parallel()
-	_, err := e.WSRetrieveSettlementHistoryByCurency(t.Context(), currency.EMPTYCODE, "settlement", "", 10, time.Now().Add(-time.Hour))
+	_, err := e.WSRetrieveSettlementHistoryByCurrency(t.Context(), currency.EMPTYCODE, "settlement", "", 10, time.Now().Add(-time.Hour))
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.WSRetrieveSettlementHistoryByCurency(t.Context(), currency.BTC, "settlement", "", 10, time.Now().Add(-time.Hour))
+	result, err := e.WSRetrieveSettlementHistoryByCurrency(t.Context(), currency.BTC, "settlement", "", 10, time.Now().Add(-time.Hour))
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3729,6 +3729,37 @@ func TestProcessPushData(t *testing.T) {
 	}
 }
 
+func TestProcessCandleChartIntervalMapping(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+
+	payload := []byte(`{"params":{"data":{"volume":0.05219351,"tick":1573645080000,"open":8869.79,"low":8788.25,"high":8870.31,"cost":460,"close":8791.25},"channel":"chart.trades.BTC-PERPETUAL.1"},"method":"subscription","jsonrpc":"2.0"}`)
+	require.NoError(t, ex.processCandleChart(t.Context(), payload, []string{"chart", "trades", "BTC-PERPETUAL", "1"}))
+
+	select {
+	case msg := <-ex.Websocket.DataHandler.C:
+		got, ok := msg.Data.(kline.Item)
+		require.True(t, ok, "expected kline item")
+		assert.Equal(t, kline.Item{
+			Pair:     currency.NewPairWithDelimiter("BTC", "PERPETUAL", "-"),
+			Asset:    asset.Futures,
+			Exchange: ex.Name,
+			Interval: kline.OneMin,
+			Candles: []kline.Candle{{
+				Time:   time.UnixMilli(1573645080000),
+				Open:   8869.79,
+				High:   8870.31,
+				Low:    8788.25,
+				Close:  8791.25,
+				Volume: 0.05219351,
+			}},
+		}, got)
+	default:
+		require.Fail(t, "expected websocket candle payload")
+	}
+}
+
 func TestFormatFuturesTradablePair(t *testing.T) {
 	t.Parallel()
 	futuresInstrumentsOutputList := map[currency.Pair]string{
@@ -3804,18 +3835,25 @@ func TestGetLatestFundingRates(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
+	testexch.UpdatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
 		t.Run(a.String(), func(t *testing.T) {
 			t.Parallel()
 			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
 			pairs, err := e.CurrencyPairs.GetPairs(a, true)
 			require.NoError(t, err, "GetPairs must not error")
-			l, err := e.GetOrderExecutionLimits(a, pairs[0])
-			require.NoError(t, err, "GetOrderExecutionLimits must not error")
-			assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
-			assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
+			for _, p := range pairs {
+				l, err := e.GetOrderExecutionLimits(a, p)
+				require.NoError(t, err, "GetOrderExecutionLimits must not error")
+				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+				assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
+			}
 		})
 	}
+	t.Run("unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported)
+	})
 }
 
 func TestGetLockedStatus(t *testing.T) {
@@ -4119,15 +4157,71 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	assert.NotEmpty(t, resp)
 }
 
-func TestFormatChannelPair(t *testing.T) {
+func TestFormatPairString(t *testing.T) {
 	t.Parallel()
-	pair := currency.NewPair(currency.BTC, currency.NewCode("USDC-PERPETUAL"))
-	pair.Delimiter = "-"
-	assert.Equal(t, "BTC_USDC-PERPETUAL", formatChannelPair(pair))
 
-	pair = currency.NewPair(currency.BTC, currency.NewCode("PERPETUAL"))
-	pair.Delimiter = "-"
-	assert.Equal(t, "BTC-PERPETUAL", formatChannelPair(pair))
+	tests := []struct {
+		name      string
+		assetType asset.Item
+		pair      currency.Pair
+		exp       string
+	}{
+		{
+			name:      "spot",
+			assetType: asset.Spot,
+			pair:      currency.NewPair(currency.BTC, currency.USDC),
+			exp:       "BTC_USDC",
+		},
+		{
+			name:      "linear perpetual futures",
+			assetType: asset.Futures,
+			pair:      currency.NewPair(currency.BTC, currency.NewCode("USDC-PERPETUAL")),
+			exp:       "BTC_USDC-PERPETUAL",
+		},
+		{
+			name:      "inverse perpetual futures",
+			assetType: asset.Futures,
+			pair:      currency.NewPair(currency.BTC, currency.NewCode("PERPETUAL")),
+			exp:       "BTC-PERPETUAL",
+		},
+		{
+			name:      "dated linear futures",
+			assetType: asset.Futures,
+			pair:      currency.NewPair(currency.BTC, currency.NewCode("USDC-27MAR26")),
+			exp:       "BTC_USDC-27MAR26",
+		},
+		{
+			name:      "linear options",
+			assetType: asset.Options,
+			pair:      currency.NewPair(currency.NewCode("PAXG"), currency.NewCode("USDC-30MAY25")),
+			exp:       "PAXG_USDC-30MAY25",
+		},
+		{
+			name:      "inverse options",
+			assetType: asset.Options,
+			pair:      currency.NewPair(currency.BTC, currency.NewCode("14JUN24-62000-C")),
+			exp:       "BTC-14JUN24-62000-C",
+		},
+		{
+			name:      "linear option combo",
+			assetType: asset.OptionCombo,
+			pair:      currency.NewPair(currency.BTC, currency.NewCode("USDC-PCOND-7MAR26-65500_66000_70000_70500")),
+			exp:       "BTC_USDC-PCOND-7MAR26-65500_66000_70000_70500",
+		},
+		{
+			name:      "future combo",
+			assetType: asset.FutureCombo,
+			pair:      currency.NewPair(currency.BTC, currency.NewCode("USDC-FS-27MAR26_PERP")),
+			exp:       "BTC_USDC-FS-27MAR26_PERP",
+		},
+	}
+
+	for i := range tests {
+		t.Run(tests[i].name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tests[i].exp, formatPairString(tests[i].assetType, tests[i].pair))
+		})
+	}
 }
 
 var timeInForceList = []struct {

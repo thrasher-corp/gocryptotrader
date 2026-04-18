@@ -126,7 +126,7 @@ func (e *Exchange) WsConnect() error {
 		return websocket.ErrWebsocketNotEnabled
 	}
 	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
+	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil)
 	if err != nil {
 		return fmt.Errorf("%v unable to connect to Websocket. Error: %s",
 			e.Name,
@@ -136,27 +136,24 @@ func (e *Exchange) WsConnect() error {
 	e.Websocket.Wg.Add(1)
 	go e.wsReadData(ctx, e.Websocket.Conn)
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		err = e.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{})
+		err = e.Websocket.AuthConn.Dial(ctx, &dialer, http.Header{}, nil)
 		if err != nil {
 			log.Errorf(log.ExchangeSys,
 				"%v unable to connect to authenticated Websocket. Error: %s",
 				e.Name,
 				err)
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		}
-		e.Websocket.Wg.Add(1)
-		go e.wsReadData(ctx, e.Websocket.AuthConn)
-		err = e.WsSendAuth(ctx)
-		if err != nil {
-			log.Errorf(log.ExchangeSys,
-				"%v - authentication failed: %v\n",
-				e.Name,
-				err)
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		} else {
+			e.Websocket.Wg.Add(1)
+			go e.wsReadData(ctx, e.Websocket.AuthConn)
+			err = e.WsSendAuth(ctx)
+			if err != nil {
+				log.Errorf(log.ExchangeSys, "%v - authentication failed: %v", e.Name, err)
+				e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			}
 		}
 	}
 
-	e.Websocket.Wg.Add(1)
 	return e.ConfigureWS(ctx)
 }
 
@@ -774,18 +771,21 @@ func (e *Exchange) handleWSAllCandleUpdates(ctx context.Context, c *subscription
 		wsCandles = []Candle{wsCandle}
 	}
 
-	klines := make([]websocket.KlineData, len(wsCandles))
+	klines := make([]kline.Item, len(wsCandles))
 	for i := range wsCandles {
-		klines[i] = websocket.KlineData{
-			Exchange:   e.Name,
-			AssetType:  c.Asset,
-			Pair:       c.Pairs[0],
-			Timestamp:  wsCandles[i].Timestamp.Time(),
-			OpenPrice:  wsCandles[i].Open.Float64(),
-			ClosePrice: wsCandles[i].Close.Float64(),
-			HighPrice:  wsCandles[i].High.Float64(),
-			LowPrice:   wsCandles[i].Low.Float64(),
-			Volume:     wsCandles[i].Volume.Float64(),
+		klines[i] = kline.Item{
+			Exchange: e.Name,
+			Asset:    c.Asset,
+			Pair:     c.Pairs[0],
+			Interval: c.Interval,
+			Candles: []kline.Candle{{
+				Time:   wsCandles[i].Timestamp.Time(),
+				Open:   wsCandles[i].Open.Float64(),
+				Close:  wsCandles[i].Close.Float64(),
+				High:   wsCandles[i].High.Float64(),
+				Low:    wsCandles[i].Low.Float64(),
+				Volume: wsCandles[i].Volume.Float64(),
+			}},
 		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, klines)
@@ -809,7 +809,22 @@ func (e *Exchange) handleWSTickerUpdate(ctx context.Context, c *subscription.Sub
 		ExchangeName: e.Name,
 	}
 
-	if len(tickerData) == 10 {
+	switch len(tickerData) {
+	case 11, 17:
+		// Bitfinex websocket tickers can append an optional trailing FIRST_TRADE
+		// timestamp. The docs note this field may be null.
+		if last := tickerData[len(tickerData)-1]; last != nil {
+			firstTradeTimestamp, firstTradeTimestampOK := last.(float64)
+			if !firstTradeTimestampOK {
+				return errTickerInvalidFirstTradeTime
+			}
+			t.LastUpdated = time.UnixMilli(int64(firstTradeTimestamp))
+		}
+		tickerData = tickerData[:len(tickerData)-1]
+	}
+
+	switch len(tickerData) {
+	case 10:
 		if t.Bid, ok = tickerData[0].(float64); !ok {
 			return errors.New("unable to type assert ticker bid")
 		}
@@ -828,7 +843,7 @@ func (e *Exchange) handleWSTickerUpdate(ctx context.Context, c *subscription.Sub
 		if t.Low, ok = tickerData[9].(float64); !ok {
 			return errors.New("unable to type assert ticker low")
 		}
-	} else {
+	case 16:
 		if t.FlashReturnRate, ok = tickerData[0].(float64); !ok {
 			return errors.New("unable to type assert ticker flash return rate")
 		}
@@ -863,8 +878,10 @@ func (e *Exchange) handleWSTickerUpdate(ctx context.Context, c *subscription.Sub
 			return errors.New("unable to type assert ticker low")
 		}
 		if t.FlashReturnRateAmount, ok = tickerData[15].(float64); !ok {
-			return errors.New("unable to type assert ticker flash return rate")
+			return errors.New("unable to type assert ticker flash return rate amount")
 		}
+	default:
+		return fmt.Errorf("%w for websocket ticker payload: %v", errTickerInvalidFieldCount, tickerData)
 	}
 	return e.Websocket.DataHandler.Send(ctx, t)
 }

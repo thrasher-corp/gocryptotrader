@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 )
 
 func TestMatchReturnResponses(t *testing.T) {
@@ -58,4 +60,13 @@ func TestIncomingWithData(t *testing.T) {
 	require.True(t, ws.IncomingWithData(0, []byte("test")))
 	require.Len(t, ch, 1, "must have one item in channel")
 	assert.Equal(t, []byte("test"), <-ch)
+}
+
+func TestConnectionSubscriptions(t *testing.T) {
+	t.Parallel()
+	ws := &connection{}
+	require.Nil(t, ws.Subscriptions())
+	ws.subscriptions = subscription.NewStore()
+	require.NotNil(t, ws.Subscriptions())
+	testsubs.EqualLists(t, ws.subscriptions.List(), ws.Subscriptions().List())
 }

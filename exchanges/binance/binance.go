@@ -576,7 +576,7 @@ func (e *Exchange) OpenOrders(ctx context.Context, pair currency.Pair) ([]QueryO
 	return resp, nil
 }
 
-// AllOrders Get all account orders; active, canceled, or filled.
+// AllOrders Get all account orders; active, cancelled, or filled.
 // orderId optional param
 // limit optional param, default 500; max 500
 func (e *Exchange) AllOrders(ctx context.Context, symbol currency.Pair, orderID, limit string) ([]QueryOrderData, error) {

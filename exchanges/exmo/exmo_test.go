@@ -2,6 +2,8 @@ package exmo
 
 import (
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
@@ -18,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -29,6 +32,10 @@ const (
 var (
 	e        *Exchange
 	testPair = currency.NewBTCUSD().Format(currency.PairFormat{Uppercase: true, Delimiter: "_"})
+
+	// useMockCryptoPaymentProviderTests keeps provider endpoint tests deterministic in CI.
+	// Flip it locally to exercise the live EXMO provider endpoint until EXMO gets a full mock/live test split.
+	useMockCryptoPaymentProviderTests = true
 )
 
 func TestMain(m *testing.M) {
@@ -462,20 +469,85 @@ func TestUpdateTickers(t *testing.T) {
 	}
 }
 
+func setupCryptoPaymentProviderTestExchange(t *testing.T, response string) *Exchange {
+	t.Helper()
+
+	ex := new(Exchange)
+	err := testexch.Setup(ex)
+	require.NoError(t, err, "Setup must not error")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method, "Request method should be GET")
+		assert.Equal(t, "/v1/payments/providers/crypto/list", r.URL.Path, "Request path should be correct")
+		w.Header().Set("Content-Type", "application/json")
+		_, writeErr := w.Write([]byte(response))
+		assert.NoError(t, writeErr, "Writing response should not error")
+	}))
+	t.Cleanup(server.Close)
+
+	err = ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL)
+	require.NoError(t, err, "SetRunningURL must not error")
+
+	return ex
+}
+
 func TestGetCryptoPaymentProvidersList(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetCryptoPaymentProvidersList(t.Context())
-	if err != nil {
-		t.Fatal(err)
+
+	if !useMockCryptoPaymentProviderTests {
+		_, err := e.GetCryptoPaymentProvidersList(t.Context())
+		require.NoError(t, err, "GetCryptoPaymentProvidersList must not error")
+		return
 	}
+
+	ex := setupCryptoPaymentProviderTestExchange(t, `{
+		"USDT":[
+			{"type":"deposit","name":"ETHEREUM (ERC-20)","currency_name":"USDT","min":"10","max":"0","enabled":true,"comment":"","commission_desc":"","currency_confirmations":10},
+			{"type":"withdraw","name":"ETHEREUM ERC-20","currency_name":"USDT","min":"12","max":"200000","enabled":true,"comment":"","commission_desc":"0.6 USDT","currency_confirmations":10},
+			{"type":"deposit","name":"TRON (TRC-20)","currency_name":"USDT","min":"1","max":"0","enabled":true,"comment":"","commission_desc":"","currency_confirmations":10}
+		],
+		"BTC":[
+			{"type":"deposit","name":"BITCOIN","currency_name":"BTC","min":0.0001,"max":0,"enabled":true,"comment":"","commission_desc":"","currency_confirmations":2}
+		]
+	}`)
+
+	resp, err := ex.GetCryptoPaymentProvidersList(t.Context())
+	require.NoError(t, err, "GetCryptoPaymentProvidersList must not error")
+
+	exp := map[string][]CryptoPaymentProvider{
+		"USDT": {
+			{Type: "deposit", Name: "ETHEREUM (ERC-20)", CurrencyName: "USDT", Min: types.Number(10), Max: types.Number(0), Enabled: true, Comment: "", CommissionDescription: "", CurrencyConfirmations: 10},
+			{Type: "withdraw", Name: "ETHEREUM ERC-20", CurrencyName: "USDT", Min: types.Number(12), Max: types.Number(200000), Enabled: true, Comment: "", CommissionDescription: "0.6 USDT", CurrencyConfirmations: 10},
+			{Type: "deposit", Name: "TRON (TRC-20)", CurrencyName: "USDT", Min: types.Number(1), Max: types.Number(0), Enabled: true, Comment: "", CommissionDescription: "", CurrencyConfirmations: 10},
+		},
+		"BTC": {
+			{Type: "deposit", Name: "BITCOIN", CurrencyName: "BTC", Min: types.Number(0.0001), Max: types.Number(0), Enabled: true, Comment: "", CommissionDescription: "", CurrencyConfirmations: 2},
+		},
+	}
+	assert.Equal(t, exp, resp, "Decoded provider response should match expected values")
 }
 
 func TestGetAvailableTransferChains(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetAvailableTransferChains(t.Context(), currency.USDT)
-	if err != nil {
-		t.Error(err)
+
+	if !useMockCryptoPaymentProviderTests {
+		_, err := e.GetAvailableTransferChains(t.Context(), currency.USDT)
+		require.NoError(t, err, "GetAvailableTransferChains must not error")
+		return
 	}
+
+	ex := setupCryptoPaymentProviderTestExchange(t, `{
+		"USDT":[
+			{"type":"deposit","name":"ETHEREUM (ERC-20)","currency_name":"USDT","min":"10","max":"0","enabled":true,"comment":"","commission_desc":"","currency_confirmations":10},
+			{"type":"withdraw","name":"ETHEREUM ERC-20","currency_name":"USDT","min":"12","max":"200000","enabled":true,"comment":"","commission_desc":"0.6 USDT","currency_confirmations":10},
+			{"type":"deposit","name":"TRON (TRC-20)","currency_name":"USDT","min":"1","max":"0","enabled":true,"comment":"","commission_desc":"","currency_confirmations":10},
+			{"type":"deposit","name":"SOLANA","currency_name":"USDT","min":"1","max":"0","enabled":false,"comment":"","commission_desc":"","currency_confirmations":10}
+		]
+	}`)
+
+	resp, err := ex.GetAvailableTransferChains(t.Context(), currency.USDT)
+	require.NoError(t, err, "GetAvailableTransferChains must not error")
+	assert.Equal(t, []string{"ERC-20", "TRC-20"}, resp, "Available transfer chains should include enabled deposit networks only")
 }
 
 func TestGetAccountFundingHistory(t *testing.T) {
