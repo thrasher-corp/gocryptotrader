@@ -10094,6 +10094,10 @@ func TestCreateBrokerSubAccount(t *testing.T) {
 	result, err := e.CreateBrokerSubAccount(t.Context(), "1234")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+
+	result, err = e.CreateBrokerSubAccount(t.Context(), "Thrasher")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestGetBrokerSubAccounts(t *testing.T) {
@@ -10432,6 +10436,10 @@ func TestGetFuturesClientifNewUser(t *testing.T) {
 	result, err := e.GetFuturesClientifNewUser(t.Context(), "123123", false)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+
+	result, err = e.GetFuturesClientifNewUser(t.Context(), "123123", true)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestCustomiseIDForClientToReferredUser(t *testing.T) {
@@ -10470,11 +10478,11 @@ func TestCreateAPIKey(t *testing.T) {
 	t.Parallel()
 	_, err := e.CreateAPIKey(t.Context(), "", "12312", "1", "", "", true, true, false, true)
 	require.ErrorIs(t, err, errAPIKeyNameRequired)
-	_, err = e.CreateAPIKey(t.Context(), "Sam", "", "1", "", "", true, true, false, true)
+	_, err = e.CreateAPIKey(t.Context(), "Thrasher", "", "1", "", "", true, true, false, true)
 	require.ErrorIs(t, err, errEmptySubAccountAPIKey)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateAPICredentials)
-	result, err := e.CreateAPIKey(t.Context(), "Sam", "sub-acc-API-key-here", "1", "", "", true, true, false, true)
+	result, err := e.CreateAPIKey(t.Context(), "Thrasher", "sub-acc-API-key-here", "1", "", "", true, true, false, true)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
