@@ -681,7 +681,7 @@ type WsResult struct {
 	Channel        string          `json:"channel,omitempty"`
 	Subscription   string          `json:"subscription,omitempty"`
 	Data           json.RawMessage `json:"data,omitempty"`
-	InstrumentName string          `json:"instrument_name,omitempty"`
+	InstrumentName currency.Pair   `json:"instrument_name,omitempty"`
 	Depth          int64           `json:"depth,omitempty"`    // for orderbooks
 	Interval       string          `json:"interval,omitempty"` // for candlestick data.
 	Timestamp      types.Time      `json:"t"`                  // Timestamp of book publish (milliseconds since the Unix epoch)
@@ -1044,22 +1044,22 @@ type UsersPositions struct {
 
 // UserPosition holds a brief of user's position information
 type UserPosition struct {
-	InstrumentType       string       `json:"type"`
-	AccountID            string       `json:"account_id"`
-	Quantity             types.Number `json:"quantity"`
-	Cost                 types.Number `json:"cost"`
-	OpenPositionPnl      types.Number `json:"open_position_pnl"`
-	OpenPosCost          types.Number `json:"open_pos_cost"`
-	SessionPnl           types.Number `json:"session_pnl"`
-	UpdateTimestampMs    types.Time   `json:"update_timestamp_ms"`
-	InstrumentName       string       `json:"instrument_name"`
-	LiquidationPrice     types.Number `json:"liquidation_price"`
-	SessionUnrealizedPnl types.Number `json:"session_unrealized_pnl"`
-	PosInitialMargin     types.Number `json:"pos_initial_margin"`
-	PosMaintenanceMargin types.Number `json:"pos_maintenance_margin"`
-	MarketValue          types.Number `json:"market_value"`
-	MarkPrice            types.Number `json:"mark_price"`
-	TargetLeverage       types.Number `json:"target_leverage"`
+	InstrumentType       string        `json:"type"`
+	AccountID            string        `json:"account_id"`
+	Quantity             types.Number  `json:"quantity"`
+	Cost                 types.Number  `json:"cost"`
+	OpenPositionPnl      types.Number  `json:"open_position_pnl"`
+	OpenPosCost          types.Number  `json:"open_pos_cost"`
+	SessionPnl           types.Number  `json:"session_pnl"`
+	UpdateTimestampMs    types.Time    `json:"update_timestamp_ms"`
+	InstrumentName       currency.Pair `json:"instrument_name"`
+	LiquidationPrice     types.Number  `json:"liquidation_price"`
+	SessionUnrealizedPnl types.Number  `json:"session_unrealized_pnl"`
+	PosInitialMargin     types.Number  `json:"pos_initial_margin"`
+	PosMaintenanceMargin types.Number  `json:"pos_maintenance_margin"`
+	MarketValue          types.Number  `json:"market_value"`
+	MarkPrice            types.Number  `json:"mark_price"`
+	TargetLeverage       types.Number  `json:"target_leverage"`
 }
 
 // WsUserPositionBalance holds user's asset and position balance details.

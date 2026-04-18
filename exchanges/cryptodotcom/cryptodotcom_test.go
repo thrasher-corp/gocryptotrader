@@ -81,6 +81,7 @@ func initmainTP() error {
 
 func TestGetRiskParameters(t *testing.T) {
 	t.Parallel()
+	e.Verbose = true
 	result, err := e.GetRiskParameters(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -158,15 +159,15 @@ func TestWithdrawFunds(t *testing.T) {
 
 func TestWsCreateWithdrawal(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsCreateWithdrawal(currency.EMPTYCODE, 10, core.BitcoinDonationAddress, "", "", "")
+	_, err := e.WsCreateWithdrawal(t.Context(), currency.EMPTYCODE, 10, core.BitcoinDonationAddress, "", "", "")
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = e.WsCreateWithdrawal(currency.BTC, 0, core.BitcoinDonationAddress, "", "", "")
+	_, err = e.WsCreateWithdrawal(t.Context(), currency.BTC, 0, core.BitcoinDonationAddress, "", "", "")
 	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
-	_, err = e.WsCreateWithdrawal(currency.BTC, 10, "", "", "", "")
+	_, err = e.WsCreateWithdrawal(t.Context(), currency.BTC, 10, "", "", "", "")
 	require.ErrorIs(t, err, errAddressRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.WsCreateWithdrawal(currency.BTC, 10, core.BitcoinDonationAddress, "", "", "")
+	result, err := e.WsCreateWithdrawal(t.Context(), currency.BTC, 10, core.BitcoinDonationAddress, "", "", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -194,7 +195,7 @@ func TestGetWithdrawalHistory(t *testing.T) {
 func TestWsRetriveWithdrawalHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.WsRetriveWithdrawalHistory()
+	result, err := e.WsRetriveWithdrawalHistory(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -248,7 +249,7 @@ func TestGetAccountSummary(t *testing.T) {
 func TestWsRetriveAccountSummary(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.WsRetriveAccountSummary(currency.BTC)
+	result, err := e.WsRetriveAccountSummary(t.Context(), currency.BTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -346,28 +347,29 @@ func TestWsPlaceOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	arg := &OrderParam{Symbol: mainTP.String(), Side: order.Buy, OrderType: order.Limit, Price: 123, Quantity: 12}
-	result, err := e.WsPlaceOrder(arg)
+	result, err := e.WsPlaceOrder(t.Context(), arg)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestWsAmendOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsAmendOrder(&AmendOrderParam{NewPrice: 124.})
+	_, err := e.WsAmendOrder(t.Context(), &AmendOrderParam{NewPrice: 124.})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
-	_, err = e.WsAmendOrder(&AmendOrderParam{OrderID: "1234", NewPrice: 124.})
+	_, err = e.WsAmendOrder(t.Context(), &AmendOrderParam{OrderID: "1234", NewPrice: 124.})
 	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
 
-	_, err = e.WsAmendOrder(&AmendOrderParam{OrderID: "1234", NewQuantity: 1})
+	_, err = e.WsAmendOrder(t.Context(), &AmendOrderParam{OrderID: "1234", NewQuantity: 1})
 	require.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.WsAmendOrder(&AmendOrderParam{
-		OrderID:     "1234",
-		NewPrice:    124.,
-		NewQuantity: 2,
-	})
+	result, err := e.WsAmendOrder(t.Context(),
+		&AmendOrderParam{
+			OrderID:     "1234",
+			NewPrice:    124.,
+			NewQuantity: 2,
+		})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -387,13 +389,13 @@ func TestCancelExistingOrder(t *testing.T) {
 
 func TestWsCancelExistingOrder(t *testing.T) {
 	t.Parallel()
-	err := e.WsCancelExistingOrder("", "1232412")
+	err := e.WsCancelExistingOrder(t.Context(), "", "1232412")
 	assert.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
-	err = e.WsCancelExistingOrder(mainTP.String(), "")
+	err = e.WsCancelExistingOrder(t.Context(), mainTP.String(), "")
 	assert.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	err = e.WsCancelExistingOrder(mainTP.String(), "1232412")
+	err = e.WsCancelExistingOrder(t.Context(), mainTP.String(), "1232412")
 	assert.NoError(t, err)
 }
 
@@ -412,7 +414,7 @@ func TestGetPrivateTrades(t *testing.T) {
 func TestWsRetrivePrivateTrades(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.WsRetrivePrivateTrades("", time.Time{}, time.Time{}, 0, 0)
+	result, err := e.WsRetrivePrivateTrades(t.Context(), "", time.Time{}, time.Time{}, 0, 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -439,7 +441,7 @@ func TestGetPersonalOpenOrders(t *testing.T) {
 func TestWsRetrivePersonalOpenOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.WsRetrivePersonalOpenOrders("")
+	result, err := e.WsRetrivePersonalOpenOrders(t.Context(), "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -455,7 +457,7 @@ func TestGetPersonalOrderHistory(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
-	result, err = e.WsRetrivePersonalOrderHistory("", time.Time{}, time.Time{}, 0, 20)
+	result, err = e.WsRetrivePersonalOrderHistory(t.Context(), "", time.Time{}, time.Time{}, 0, 20)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -474,15 +476,17 @@ func TestCreateOrderList(t *testing.T) {
 
 func TestWsCreateOrderList(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsCreateOrderList("LIST", []OrderParam{})
+	_, err := e.WsCreateOrderList(t.Context(), "LIST", []OrderParam{})
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.WsCreateOrderList("LIST", []OrderParam{
-		{
-			Symbol: mainTP.String(), ClientOrderID: "", TimeInForce: "", Side: order.Buy, OrderType: order.Limit, PostOnly: false, TriggerPrice: 0, Price: 123, Quantity: 12, Notional: 0,
-		},
-	})
+	result, err := e.WsCreateOrderList(
+		t.Context(),
+		"LIST", []OrderParam{
+			{
+				Symbol: mainTP.String(), ClientOrderID: "", TimeInForce: "", Side: order.Buy, OrderType: order.Limit, PostOnly: false, TriggerPrice: 0, Price: 123, Quantity: 12, Notional: 0,
+			},
+		})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -503,14 +507,14 @@ func TestCancelOrderList(t *testing.T) {
 
 func TestWsCancelOrderList(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsCancelOrderList([]CancelOrderParam{})
+	_, err := e.WsCancelOrderList(t.Context(), []CancelOrderParam{})
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = e.WsCancelOrderList([]CancelOrderParam{{InstrumentName: "", OrderID: ""}})
+	_, err = e.WsCancelOrderList(t.Context(), []CancelOrderParam{{InstrumentName: "", OrderID: ""}})
 	require.ErrorIs(t, err, errInstrumentNameOrOrderIDRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.WsCancelOrderList([]CancelOrderParam{{InstrumentName: mainTP.String(), OrderID: "1234567"}, {InstrumentName: mainTP.String(), OrderID: "123450067"}})
+	result, err := e.WsCancelOrderList(t.Context(), []CancelOrderParam{{InstrumentName: mainTP.String(), OrderID: "1234567"}, {InstrumentName: mainTP.String(), OrderID: "123450067"}})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -525,7 +529,7 @@ func TestCancelAllPersonalOrders(t *testing.T) {
 func TestWsCancelAllPersonalOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	err := e.WsCancelAllPersonalOrders(mainTP.String(), OrderTypeToString(order.Limit))
+	err := e.WsCancelAllPersonalOrders(t.Context(), mainTP.String(), OrderTypeToString(order.Limit))
 	assert.NoError(t, err)
 }
 
@@ -996,18 +1000,18 @@ func TestGenerateDefaultSubscriptions(t *testing.T) {
 func TestWsRetriveCancelOnDisconnect(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.WsRetriveCancelOnDisconnect()
+	result, err := e.WsRetriveCancelOnDisconnect(t.Context())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestWsSetCancelOnDisconnect(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsSetCancelOnDisconnect("")
+	_, err := e.WsSetCancelOnDisconnect(t.Context(), "")
 	require.ErrorIs(t, err, errInvalidOrderCancellationScope)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.WsSetCancelOnDisconnect("ACCOUNT")
+	result, err := e.WsSetCancelOnDisconnect(t.Context(), "ACCOUNT")
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -1094,7 +1098,7 @@ func TestPushData(t *testing.T) {
 	for key, val := range pushDataMap {
 		t.Run(key, func(t *testing.T) {
 			t.Parallel()
-			err := e.WsHandleData([]byte(val), true)
+			err := e.WsHandleData(context.Background(), nil, []byte(val))
 			assert.NoErrorf(t, err, "Received unexpected error: %v for asset type: %s", err, val)
 		})
 	}
@@ -1406,17 +1410,17 @@ func TestClosePosition(t *testing.T) {
 
 func TestWsClosePosition(t *testing.T) {
 	t.Parallel()
-	_, err := e.WsClosePosition("", "MARKET", 23123)
+	_, err := e.WsClosePosition(t.Context(), "", "MARKET", 23123)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
-	_, err = e.WsClosePosition(perpetualTP.String(), "", 23123)
+	_, err = e.WsClosePosition(t.Context(), perpetualTP.String(), "", 23123)
 	require.ErrorIs(t, err, order.ErrUnsupportedOrderType)
 
-	_, err = e.WsClosePosition(perpetualTP.String(), "LIMIT", 0)
+	_, err = e.WsClosePosition(t.Context(), perpetualTP.String(), "LIMIT", 0)
 	require.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.WsClosePosition(perpetualTP.String(), "LIMIT", 23123)
+	result, err := e.WsClosePosition(t.Context(), perpetualTP.String(), "LIMIT", 23123)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

@@ -1578,7 +1578,6 @@
     "credentialsValidator": {
      "requiresKey": true,
      "requiresClientID": true
-<<<<<<< HEAD
     }
    },
    "features": {
@@ -1908,8 +1907,6 @@
     "credentialsValidator": {
      "requiresKey": true,
      "requiresSecret": true
-=======
->>>>>>> ea0a9ff6183042ae68fbb546950549728983a515
     },
     "urlEndpoints": {
      "RestSpotURL": "https://api.coinut.com",

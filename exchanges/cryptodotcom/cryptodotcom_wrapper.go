@@ -161,33 +161,42 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
-	if err := e.Websocket.Setup(
-		&websocket.ManagerSetup{
-			ExchangeConfig:        exch,
-			DefaultURL:            cryptodotcomWebsocketUserAPI,
-			RunningURL:            wsRunningEndpoint,
-			Connector:             e.WsConnect,
-			Subscriber:            e.Subscribe,
-			Unsubscriber:          e.Unsubscribe,
-			GenerateSubscriptions: e.generateDefaultSubscriptions,
-			Features:              &e.Features.Supports.WebsocketCapabilities,
-			FillsFeed:             exch.Features.Enabled.FillsFeed,
-			TradeFeed:             exch.Features.Enabled.TradeFeed,
-		}); err != nil {
+	if err := e.Websocket.Setup(&websocket.ManagerSetup{
+		ExchangeConfig:               exch,
+		DefaultURL:                   cryptodotcomWebsocketUserAPI,
+		RunningURL:                   wsRunningEndpoint,
+		Features:                     &e.Features.Supports.WebsocketCapabilities,
+		FillsFeed:                    exch.Features.Enabled.FillsFeed,
+		TradeFeed:                    exch.Features.Enabled.TradeFeed,
+		UseMultiConnectionManagement: true,
+	}); err != nil {
 		return err
 	}
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  cryptodotcomWebsocketMarketAPI,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL:                   cryptodotcomWebsocketMarketAPI,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		GenerateSubscriptions: e.generateDefaultSubscriptions,
+		MessageFilter:         publicMessageFilter,
+		Connector:             e.WsConnect,
+		Handler:               e.WsHandleData,
+		Subscriber:            e.Subscribe,
+		Unsubscriber:          e.Unsubscribe,
 	}); err != nil {
 		return err
 	}
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  cryptodotcomWebsocketUserAPI,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Authenticated:        true,
+		URL:                   cryptodotcomWebsocketUserAPI,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		GenerateSubscriptions: e.generateDefaultSubscriptions,
+		Authenticate:          e.AuthenticateWebsocketConnection,
+		MessageFilter:         privateMessageFilter,
+		Connector:             e.WsAuthConnect,
+		Handler:               e.WsHandleData,
+		Subscriber:            e.Subscribe,
+		Unsubscriber:          e.Unsubscribe,
+		Authenticated:         true,
 	})
 }
 
@@ -395,7 +404,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 		err  error
 	)
 	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		accs, err = e.WsRetriveAccountSummary(currency.EMPTYCODE)
+		accs, err = e.WsRetriveAccountSummary(ctx, currency.EMPTYCODE)
 	} else {
 		accs, err = e.GetAccountSummary(ctx, currency.EMPTYCODE)
 	}
@@ -426,7 +435,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 		withdrawals *WithdrawalResponse
 	)
 	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		withdrawals, err = e.WsRetriveWithdrawalHistory()
+		withdrawals, err = e.WsRetriveWithdrawalHistory(ctx)
 	} else {
 		withdrawals, err = e.GetWithdrawalHistory(ctx)
 	}
@@ -639,7 +648,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	var ordersResp *CreateOrderResponse
 	arg := &OrderParam{Symbol: format.Format(s.Pair), Side: s.Side, OrderType: s.Type, Price: s.Price, Quantity: s.Amount, ClientOrderID: s.ClientOrderID, Notional: notional, PostOnly: s.TimeInForce.Is(order.PostOnly), TriggerPrice: s.TriggerPrice, TriggerPriceType: priceTypeString, TimeInForce: timeInForceToString(s.TimeInForce)}
 	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		ordersResp, err = e.WsPlaceOrder(arg)
+		ordersResp, err = e.WsPlaceOrder(ctx, arg)
 	} else {
 		ordersResp, err = e.CreateOrder(ctx, arg)
 	}
@@ -671,7 +680,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 		return currency.ErrCurrencyPairEmpty
 	}
 	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		return e.WsCancelExistingOrder(format.Format(ord.Pair), ord.OrderID)
+		return e.WsCancelExistingOrder(ctx, format.Format(ord.Pair), ord.OrderID)
 	}
 	return e.CancelExistingOrder(ctx, format.Format(ord.Pair), ord.OrderID)
 }
@@ -694,7 +703,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, orders []order.Cancel)
 	}
 	var cancelResp *CancelOrdersResponse
 	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		cancelResp, err = e.WsCancelOrderList(cancelOrderParams)
+		cancelResp, err = e.WsCancelOrderList(ctx, cancelOrderParams)
 	} else {
 		cancelResp, err = e.CancelOrderList(ctx, cancelOrderParams)
 	}
@@ -724,7 +733,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		return cancelAllResponse, err
 	}
 	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		return order.CancelAllResponse{}, e.WsCancelAllPersonalOrders(orderCancellation.Pair.Format(format).String(), OrderTypeToString(orderCancellation.Type))
+		return order.CancelAllResponse{}, e.WsCancelAllPersonalOrders(ctx, orderCancellation.Pair.Format(format).String(), OrderTypeToString(orderCancellation.Type))
 	}
 	return order.CancelAllResponse{}, e.CancelAllPersonalOrders(ctx, orderCancellation.Pair.Format(format).String(), OrderTypeToString(orderCancellation.Type))
 }
@@ -806,7 +815,7 @@ func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 		err            error
 	)
 	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		withdrawalResp, err = e.WsCreateWithdrawal(withdrawRequest.Currency, withdrawRequest.Amount, withdrawRequest.Crypto.Address, withdrawRequest.Crypto.AddressTag, withdrawRequest.Crypto.Chain, withdrawRequest.ClientOrderID)
+		withdrawalResp, err = e.WsCreateWithdrawal(ctx, withdrawRequest.Currency, withdrawRequest.Amount, withdrawRequest.Crypto.Address, withdrawRequest.Crypto.AddressTag, withdrawRequest.Crypto.Chain, withdrawRequest.ClientOrderID)
 	} else {
 		withdrawalResp, err = e.WithdrawFunds(ctx, withdrawRequest.Currency, withdrawRequest.Amount, withdrawRequest.Crypto.Address, withdrawRequest.Crypto.AddressTag, withdrawRequest.Crypto.Chain, withdrawRequest.ClientOrderID)
 	}
@@ -849,7 +858,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 			err    error
 		)
 		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			orders, err = e.WsRetrivePersonalOpenOrders("")
+			orders, err = e.WsRetrivePersonalOpenOrders(ctx, "")
 		} else {
 			orders, err = e.GetPersonalOpenOrders(ctx, "")
 		}
@@ -986,7 +995,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 	}
 	var orders *PersonalOrdersResponse
 	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		orders, err = e.WsRetrivePersonalOrderHistory("", getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0, 0)
+		orders, err = e.WsRetrivePersonalOrderHistory(ctx, "", getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0, 0)
 	} else {
 		orders, err = e.GetPersonalOrderHistory(ctx, "", getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0, 0)
 	}
