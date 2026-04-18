@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -71,7 +72,7 @@ func (e *Exchange) WsConnect() error {
 			}
 		}
 	}
-	err = e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
+	err = e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil)
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s",
 			e.Name,
@@ -90,7 +91,7 @@ func (e *Exchange) WsConnect() error {
 	})
 
 	e.Websocket.Wg.Add(1)
-	go e.wsReadData()
+	go e.wsReadData(ctx)
 
 	e.setupOrderbookManager(ctx)
 	return nil
@@ -100,33 +101,30 @@ func (e *Exchange) WsConnect() error {
 // keep the WS auth key active
 func (e *Exchange) KeepAuthKeyAlive(ctx context.Context) {
 	defer e.Websocket.Wg.Done()
-	// ClosUserDataStream closes the User data stream and remove the listen key when closing the websocket.
+	// CloseUserDataStream closes the User data stream and remove the listen key when closing the websocket
 	defer func() {
-		er := e.CloseUserDataStream(ctx)
-		if er != nil {
-			log.Errorf(log.WebsocketMgr, "%s closing user data stream error %v",
-				e.Name, er)
+		if err := e.CloseUserDataStream(ctx); err != nil {
+			log.Errorf(log.WebsocketMgr, "%s closing user data stream error %v", e.Name, err)
 		}
 	}()
-	// Looping in 30 Minutes and updating the listenKey
-	ticks := time.NewTicker(time.Minute * 30)
+
 	for {
 		select {
 		case <-e.Websocket.ShutdownC:
-			ticks.Stop()
 			return
-		case <-ticks.C:
-			err := e.MaintainWsAuthStreamKey(ctx)
-			if err != nil {
-				e.Websocket.DataHandler <- err
-				log.Warnf(log.ExchangeSys, "%s - Unable to renew auth websocket token, may experience shutdown", e.Name)
+		case <-time.After(time.Minute * 30):
+			if err := e.MaintainWsAuthStreamKey(ctx); err != nil {
+				if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+					log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
+				}
+				log.Warnf(log.ExchangeSys, "%s %s: Unable to renew auth websocket token, may experience shutdown", e.Name, e.Websocket.Conn.GetURL())
 			}
 		}
 	}
 }
 
 // wsReadData receives and passes on websocket messages for processing
-func (e *Exchange) wsReadData() {
+func (e *Exchange) wsReadData(ctx context.Context) {
 	defer e.Websocket.Wg.Done()
 
 	for {
@@ -134,9 +132,10 @@ func (e *Exchange) wsReadData() {
 		if resp.Raw == nil {
 			return
 		}
-		err := e.wsHandleData(resp.Raw)
-		if err != nil {
-			e.Websocket.DataHandler <- err
+		if err := e.wsHandleData(ctx, resp.Raw); err != nil {
+			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
+			}
 		}
 	}
 }
@@ -162,7 +161,7 @@ func stringToOrderStatus(status string) (order.Status, error) {
 	}
 }
 
-func (e *Exchange) wsHandleData(respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	var multiStreamData map[string]any
 	err := json.Unmarshal(respRaw, &multiStreamData)
 	if err != nil {
@@ -194,8 +193,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 						e.Name,
 						err)
 				}
-				e.Websocket.DataHandler <- data
-				return nil
+				return e.Websocket.DataHandler.Send(ctx, data)
 			case "balanceUpdate":
 				var data wsBalanceUpdate
 				err := json.Unmarshal(respRaw, &data)
@@ -204,8 +202,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 						e.Name,
 						err)
 				}
-				e.Websocket.DataHandler <- data
-				return nil
+				return e.Websocket.DataHandler.Send(ctx, data)
 			case "executionReport":
 				var data wsOrderUpdate
 				err := json.Unmarshal(respRaw, &data)
@@ -230,11 +227,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 				orderID := strconv.FormatInt(data.Data.OrderID, 10)
 				orderStatus, err := stringToOrderStatus(data.Data.OrderStatus)
 				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
+					return err
 				}
 				clientOrderID := data.Data.ClientOrderID
 				if orderStatus == order.Cancelled {
@@ -242,21 +235,13 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 				}
 				orderType, err := order.StringToOrderType(data.Data.OrderType)
 				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
+					return err
 				}
 				orderSide, err := order.StringToOrderSide(data.Data.Side)
 				if err != nil {
-					e.Websocket.DataHandler <- order.ClassificationError{
-						Exchange: e.Name,
-						OrderID:  orderID,
-						Err:      err,
-					}
+					return err
 				}
-				e.Websocket.DataHandler <- &order.Detail{
+				return e.Websocket.DataHandler.Send(ctx, &order.Detail{
 					Price:                data.Data.Price,
 					Amount:               data.Data.Quantity,
 					AverageExecutedPrice: averagePrice,
@@ -276,8 +261,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 					Date:                 data.Data.OrderCreationTime.Time(),
 					LastUpdated:          data.Data.TransactionTime.Time(),
 					Pair:                 pair,
-				}
-				return nil
+				})
 			case "listStatus":
 				var data WsListStatus
 				err := json.Unmarshal(respRaw, &data)
@@ -286,8 +270,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 						e.Name,
 						err)
 				}
-				e.Websocket.DataHandler <- data
-				return nil
+				return e.Websocket.DataHandler.Send(ctx, data)
 			}
 		}
 	}
@@ -356,7 +339,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 						return err
 					}
 
-					e.Websocket.DataHandler <- &ticker.Price{
+					return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 						ExchangeName: e.Name,
 						Open:         t.OpenPrice,
 						Close:        t.ClosePrice,
@@ -370,38 +353,40 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 						LastUpdated:  t.EventTime.Time(),
 						AssetType:    asset.Spot,
 						Pair:         pair,
-					}
-					return nil
+					})
 				case "kline_1m", "kline_3m", "kline_5m", "kline_15m", "kline_30m", "kline_1h", "kline_2h", "kline_4h",
 					"kline_6h", "kline_8h", "kline_12h", "kline_1d", "kline_3d", "kline_1w", "kline_1M":
-					var kline KlineStream
-					err := json.Unmarshal(rawData, &kline)
+					var ks KlineStream
+					err := json.Unmarshal(rawData, &ks)
 					if err != nil {
 						return fmt.Errorf("%v - Could not convert to a KlineStream structure %s",
 							e.Name,
 							err)
 					}
 
-					pair, err := currency.NewPairFromFormattedPairs(kline.Symbol, pairs, format)
+					pair, err := currency.NewPairFromFormattedPairs(ks.Symbol, pairs, format)
 					if err != nil {
 						return err
 					}
 
-					e.Websocket.DataHandler <- websocket.KlineData{
-						Timestamp:  kline.EventTime.Time(),
-						Pair:       pair,
-						AssetType:  asset.Spot,
-						Exchange:   e.Name,
-						StartTime:  kline.Kline.StartTime.Time(),
-						CloseTime:  kline.Kline.CloseTime.Time(),
-						Interval:   kline.Kline.Interval,
-						OpenPrice:  kline.Kline.OpenPrice,
-						ClosePrice: kline.Kline.ClosePrice,
-						HighPrice:  kline.Kline.HighPrice,
-						LowPrice:   kline.Kline.LowPrice,
-						Volume:     kline.Kline.Volume,
+					interval, err := formatToInterval(ks.Kline.Interval)
+					if err != nil {
+						return err
 					}
-					return nil
+					return e.Websocket.DataHandler.Send(ctx, kline.Item{
+						Pair:     pair,
+						Asset:    asset.Spot,
+						Exchange: e.Name,
+						Interval: interval,
+						Candles: []kline.Candle{{
+							Time:   ks.Kline.StartTime.Time(),
+							Open:   ks.Kline.OpenPrice,
+							Close:  ks.Kline.ClosePrice,
+							High:   ks.Kline.HighPrice,
+							Low:    ks.Kline.LowPrice,
+							Volume: ks.Kline.Volume,
+						}},
+					})
 				case "depth":
 					var depth WebsocketDepthStream
 					err := json.Unmarshal(rawData, &depth)
@@ -428,8 +413,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 							e.Name,
 							err)
 					}
-					e.Websocket.DataHandler <- depth
-					return nil
+					return e.Websocket.DataHandler.Send(ctx, &depth)
 				case "bookTicker":
 					var bo OrderBookTickerStream
 					err := json.Unmarshal(rawData, &bo)
@@ -441,20 +425,18 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 						return err
 					}
 					bo.Symbol = pair
-					e.Websocket.DataHandler <- &bo
-					return nil
+					return e.Websocket.DataHandler.Send(ctx, &bo)
 				case "aggTrade":
 					var agg WebsocketAggregateTradeStream
 					err := json.Unmarshal(rawData, &agg)
 					if err != nil {
 						return fmt.Errorf("%v - Could not convert to aggTrade structure %s ", err, e.Name)
 					}
-					e.Websocket.DataHandler <- agg
-					return nil
+					return e.Websocket.DataHandler.Send(ctx, &agg)
 				default:
-					e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+					return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
 						Message: e.Name + websocket.UnhandledMessage + string(respRaw),
-					}
+					})
 				}
 			}
 		} else if wsStream == "!bookTicker" {
@@ -482,8 +464,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 					return err
 				}
 				bt.Symbol = pair
-				e.Websocket.DataHandler <- &bt
-				return nil
+				return e.Websocket.DataHandler.Send(ctx, &bt)
 			}
 		}
 	}
@@ -1026,4 +1007,41 @@ func (o *orderbookManager) checkIsInitialSync(pair currency.Pair) (bool, error) 
 				asset.Spot)
 	}
 	return state.initialSync, nil
+}
+
+func formatToInterval(interval string) (kline.Interval, error) {
+	switch interval {
+	case "1m":
+		return kline.OneMin, nil
+	case "3m":
+		return kline.ThreeMin, nil
+	case "5m":
+		return kline.FiveMin, nil
+	case "15m":
+		return kline.FifteenMin, nil
+	case "30m":
+		return kline.ThirtyMin, nil
+	case "1h":
+		return kline.OneHour, nil
+	case "2h":
+		return kline.TwoHour, nil
+	case "4h":
+		return kline.FourHour, nil
+	case "6h":
+		return kline.SixHour, nil
+	case "8h":
+		return kline.EightHour, nil
+	case "12h":
+		return kline.TwelveHour, nil
+	case "1d":
+		return kline.OneDay, nil
+	case "3d":
+		return kline.ThreeDay, nil
+	case "1w":
+		return kline.OneWeek, nil
+	case "1M":
+		return kline.OneMonth, nil
+	default:
+		return 0, fmt.Errorf("%w: %q", kline.ErrInvalidInterval, interval)
+	}
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
@@ -53,15 +54,15 @@ func createSnapshot(pair currency.Pair) (holder *Orderbook, asks, bids orderbook
 
 	newBook := make(map[key.PairAsset]*orderbookHolder)
 
-	ch := make(chan any)
-	go func(<-chan any) { // reader
-		for range ch {
+	relay := stream.NewRelay(10)
+	go func(relay *stream.Relay) { // reader
+		for range relay.C {
 			continue
 		}
-	}(ch)
+	}(relay)
 	holder = &Orderbook{
 		exchangeName: exchangeName,
-		dataHandler:  ch,
+		dataHandler:  relay,
 		ob:           newBook,
 	}
 	err = holder.LoadSnapshot(book)
@@ -87,7 +88,7 @@ func BenchmarkBufferPerformance(b *testing.B) {
 		Asset:      asset.Spot,
 	}
 	for b.Loop() {
-		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypo/rand for testing
+		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypto/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
 		require.NoError(b, holder.Update(update))
@@ -114,14 +115,13 @@ func BenchmarkBufferSortingPerformance(b *testing.B) {
 		Asset:      asset.Spot,
 	}
 	for b.Loop() {
-		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypo/rand for testing
+		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypto/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
 		require.NoError(b, holder.Update(update))
 	}
 }
 
-// BenchmarkBufferSortingPerformance benchmark
 // 914500	      1599 ns/op	     440 B/op	       4 allocs/op
 func BenchmarkBufferSortingByIDPerformance(b *testing.B) {
 	cp, err := getExclusivePair()
@@ -142,7 +142,7 @@ func BenchmarkBufferSortingByIDPerformance(b *testing.B) {
 	}
 
 	for b.Loop() {
-		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypo/rand for testing
+		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypto/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
 		require.NoError(b, holder.Update(update))
@@ -170,7 +170,7 @@ func BenchmarkNoBufferPerformance(b *testing.B) {
 	}
 
 	for b.Loop() {
-		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypo/rand for testing
+		randomIndex := rand.Intn(4) //nolint:gosec // no need to import crypto/rand for testing
 		update.Asks = itemArray[randomIndex]
 		update.Bids = itemArray[randomIndex]
 		require.NoError(b, obl.Update(update))
@@ -432,7 +432,7 @@ func TestRunSnapshotWithNoData(t *testing.T) {
 
 	var obl Orderbook
 	obl.ob = make(map[key.PairAsset]*orderbookHolder)
-	obl.dataHandler = make(chan any, 1)
+	obl.dataHandler = stream.NewRelay(1)
 	var snapShot1 orderbook.Book
 	snapShot1.Asset = asset.Spot
 	snapShot1.Pair = cp
@@ -449,7 +449,7 @@ func TestLoadSnapshot(t *testing.T) {
 	require.NoError(t, err)
 
 	var obl Orderbook
-	obl.dataHandler = make(chan any, 100)
+	obl.dataHandler = stream.NewRelay(100)
 	obl.ob = make(map[key.PairAsset]*orderbookHolder)
 
 	err = obl.LoadSnapshot(&orderbook.Book{Asks: orderbook.Levels{{Amount: 1}}, ValidateOrderbook: true})
@@ -502,7 +502,7 @@ func TestInsertingSnapShots(t *testing.T) {
 	require.NoError(t, err)
 
 	var holder Orderbook
-	holder.dataHandler = make(chan any, 100)
+	holder.dataHandler = stream.NewRelay(100)
 	holder.ob = make(map[key.PairAsset]*orderbookHolder)
 	var snapShot1 orderbook.Book
 	snapShot1.Exchange = "WSORDERBOOKTEST1"
@@ -650,6 +650,9 @@ func TestGetOrderbook(t *testing.T) {
 	_, err = holder.GetOrderbook(cp, 0)
 	require.ErrorIs(t, err, asset.ErrInvalidAsset)
 
+	_, err = holder.GetOrderbook(cp, asset.Futures)
+	require.ErrorIs(t, err, orderbook.ErrDepthNotFound)
+
 	ob, err := holder.GetOrderbook(cp, asset.Spot)
 	require.NoError(t, err)
 
@@ -698,18 +701,18 @@ func TestSetup(t *testing.T) {
 	t.Parallel()
 	w := Orderbook{}
 	err := w.Setup(nil, nil, nil)
-	require.ErrorIs(t, err, errExchangeConfigNil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	exchangeConfig := &config.Exchange{}
 	err = w.Setup(exchangeConfig, nil, nil)
-	require.ErrorIs(t, err, errBufferConfigNil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	bufferConf := &Config{}
 	err = w.Setup(exchangeConfig, bufferConf, nil)
-	require.ErrorIs(t, err, errUnsetDataHandler)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	exchangeConfig.Orderbook.WebsocketBufferEnabled = true
-	err = w.Setup(exchangeConfig, bufferConf, make(chan any))
+	err = w.Setup(exchangeConfig, bufferConf, stream.NewRelay(1))
 	require.ErrorIs(t, err, errIssueBufferEnabledButNoLimit)
 
 	exchangeConfig.Orderbook.WebsocketBufferLimit = 1337
@@ -717,7 +720,7 @@ func TestSetup(t *testing.T) {
 	exchangeConfig.Name = "test"
 	bufferConf.SortBuffer = true
 	bufferConf.SortBufferByUpdateIDs = true
-	err = w.Setup(exchangeConfig, bufferConf, make(chan any))
+	err = w.Setup(exchangeConfig, bufferConf, stream.NewRelay(1))
 	require.NoError(t, err)
 
 	require.Equal(t, 1337, w.obBufferLimit)
@@ -733,11 +736,11 @@ func TestInvalidateOrderbook(t *testing.T) {
 	require.NoError(t, err)
 
 	w := &Orderbook{}
-	err = w.Setup(&config.Exchange{Name: "test"}, &Config{}, make(chan any, 2))
+	err = w.Setup(&config.Exchange{Name: "test"}, &Config{}, stream.NewRelay(2))
 	require.NoError(t, err)
 
 	var snapShot1 orderbook.Book
-	snapShot1.Exchange = "Snapshooooot"
+	snapShot1.Exchange = "Snapshot"
 	asks := []orderbook.Level{{Price: 4000, Amount: 1, ID: 8}}
 	bids := []orderbook.Level{{Price: 4000, Amount: 1, ID: 9}}
 	snapShot1.Asks = asks

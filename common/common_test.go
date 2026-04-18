@@ -1,6 +1,7 @@
 package common
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -690,4 +691,37 @@ func TestSetIfZero(t *testing.T) {
 	changed = SetIfZero(&s, "world")
 	assert.True(t, changed, "SetIfZero should change a zero value")
 	assert.Equal(t, "world", s, "SetIfZero should change a zero value")
+}
+
+func TestContextFunctions(t *testing.T) {
+	t.Parallel()
+
+	type key string
+	const k1 key = "key1"
+	const k2 key = "key2"
+	const k3 key = "key3"
+
+	RegisterContextKey(k1)
+	RegisterContextKey(k2)
+
+	ctx := context.WithValue(context.Background(), k1, "value1")
+	ctx = context.WithValue(ctx, k2, "value2")
+	ctx = context.WithValue(ctx, k3, "value3") // Not registered
+
+	frozen := FreezeContext(ctx)
+
+	assert.Equal(t, "value1", frozen[k1], "should have captured k1")
+	assert.Equal(t, "value2", frozen[k2], "should have captured k2")
+	assert.Zero(t, frozen[k3], "k3 should not be captured")
+
+	thawed := ThawContext(frozen)
+	assert.Equal(t, "value1", thawed.Value(k1), "should have k1 after thaw")
+	assert.Equal(t, "value2", thawed.Value(k2), "should have k2 after thaw")
+	assert.Nil(t, thawed.Value(k3), "Thawed context should not have k3")
+
+	ctx2 := context.WithValue(context.Background(), k3, "value3_new")
+	merged := MergeContext(ctx2, frozen)
+	assert.Equal(t, "value1", merged.Value(k1), "should have k1 from frozen")
+	assert.Equal(t, "value2", merged.Value(k2), "should have k2 from frozen")
+	assert.Equal(t, "value3_new", merged.Value(k3), "should have k3 from parent")
 }

@@ -12,7 +12,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -386,8 +385,7 @@ func TestGetOrderHistory(t *testing.T) {
 	}
 }
 
-// Any tests below this line have the ability to impact your orders on the exchange. Enable canManipulateRealOrders to run them
-// ----------------------------------------------------------------------------------------------------------------------------
+// TestSubmitOrder and below can impact your orders on the exchange. Enable canManipulateRealOrders to run them
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
@@ -554,21 +552,16 @@ func TestWsAuth(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if !e.Websocket.IsEnabled() &&
-		!e.API.AuthenticatedWebsocketSupport ||
-		!sharedtestvalues.AreAPICredentialsSet(e) {
-		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
-	}
+	testexch.SkipTestIfCannotUseAuthenticatedWebsocket(t, e)
 	var dialer gws.Dialer
-	go e.wsReadData()
 	err = e.WsAuth(t.Context(), &dialer)
 	if err != nil {
 		t.Error(err)
 	}
 	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
-	case resp := <-e.Websocket.DataHandler:
-		subAck, ok := resp.(WsSubscriptionAcknowledgementResponse)
+	case resp := <-e.Websocket.DataHandler.C:
+		subAck, ok := resp.Data.(WsSubscriptionAcknowledgementResponse)
 		if !ok {
 			t.Error("unable to type assert WsSubscriptionAcknowledgementResponse")
 		}
@@ -587,7 +580,7 @@ func TestWsMissingRole(t *testing.T) {
 		"reason":"MissingRole",
 		"message":"To access this endpoint, you need to log in to the website and go to the settings page to assign one of these roles [FundManager] to API key wujB3szN54gtJ4QDhqRJ which currently has roles [Trader]"
 	}`)
-	if err := e.wsHandleData(pressXToJSON); err == nil {
+	if err := e.wsHandleData(t.Context(), pressXToJSON); err == nil {
 		t.Error("Expected error")
 	}
 }
@@ -611,7 +604,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
   "original_amount" : "14.0296",
   "price" : "1059.54"
 } ]`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -633,7 +626,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
     "price": "3592.00",
     "socket_sequence": 13
 }]`)
-	err = e.wsHandleData(pressXToJSON)
+	err = e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -654,7 +647,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
     "total_spend": "200.00",
     "socket_sequence": 29
 }]`)
-	err = e.wsHandleData(pressXToJSON)
+	err = e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -675,7 +668,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
     "original_amount": "25",
     "socket_sequence": 26
 }]`)
-	err = e.wsHandleData(pressXToJSON)
+	err = e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -697,7 +690,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
   "original_amount" : "500",
   "socket_sequence" : 32307
 } ]`)
-	err = e.wsHandleData(pressXToJSON)
+	err = e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -719,7 +712,7 @@ func TestWsSubAck(t *testing.T) {
     "closed"
   ]
 }`)
-	if err := e.wsHandleData(pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
 		t.Error(err)
 	}
 }
@@ -732,7 +725,7 @@ func TestWsHeartbeat(t *testing.T) {
   "trace_id": "b8biknoqppr32kc7gfgg",
   "socket_sequence": 37
 }`)
-	if err := e.wsHandleData(pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
 		t.Error(err)
 	}
 }
@@ -753,7 +746,7 @@ func TestWsUnsubscribe(t *testing.T) {
         ]}
     ]
 }`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -776,7 +769,7 @@ func TestWsTradeData(t *testing.T) {
     }
   ]
 }`)
-	if err := e.wsHandleData(pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
 		t.Error(err)
 	}
 }
@@ -808,7 +801,7 @@ func TestWsAuctionData(t *testing.T) {
     ],
     "type": "update"
 }`)
-	if err := e.wsHandleData(pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
 		t.Error(err)
 	}
 }
@@ -829,7 +822,7 @@ func TestWsBlockTrade(t *testing.T) {
       }
    ]
 }`)
-	if err := e.wsHandleData(pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
 		t.Error(err)
 	}
 }
@@ -844,12 +837,17 @@ func TestWSTrade(t *testing.T) {
 		"quantity": "0.09110000",
 		"side": "buy"
 	}`)
-	if err := e.wsHandleData(pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
 		t.Error(err)
 	}
 }
 
 func TestWsCandles(t *testing.T) {
+	t.Parallel()
+
+	g := new(Exchange)
+	require.NoError(t, testexch.Setup(g), "Test instance Setup must not error")
+
 	pressXToJSON := []byte(`{
   "type": "candles_15m_updates",
   "symbol": "BTCUSD",
@@ -872,8 +870,59 @@ func TestWsCandles(t *testing.T) {
     ]
   ]
 }`)
-	if err := e.wsHandleData(pressXToJSON); err != nil {
-		t.Error(err)
+	require.NoError(t, g.wsHandleData(t.Context(), pressXToJSON))
+
+	for _, exp := range []kline.Candle{
+		{
+			Time:   time.UnixMilli(1561054500000),
+			Open:   9350.18,
+			High:   9358.35,
+			Low:    9350.18,
+			Close:  9355.51,
+			Volume: 2.07,
+		},
+		{
+			Time:   time.UnixMilli(1561053600000),
+			Open:   9357.33,
+			High:   9357.33,
+			Low:    9350.18,
+			Close:  9350.18,
+			Volume: 1.5900161,
+		},
+	} {
+		select {
+		case msg := <-g.Websocket.DataHandler.C:
+			k, ok := msg.Data.(kline.Item)
+			require.True(t, ok, "expected kline item")
+			assert.Equal(t, kline.FifteenMin, k.Interval)
+			assert.Equal(t, exp, k.Candles[0])
+		default:
+			require.Fail(t, "expected websocket candle payload")
+		}
+	}
+}
+
+func TestCandleTypeToInterval(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		candleType string
+		interval   kline.Interval
+		hasErr     bool
+	}{
+		{candleType: "candles_1m_updates", interval: kline.OneMin},
+		{candleType: "candles_5m_updates", interval: kline.FiveMin},
+		{candleType: "candles_1h_updates", interval: kline.OneHour},
+		{candleType: "candles_1d_updates", interval: kline.OneDay},
+		{candleType: "bad", hasErr: true},
+	}
+	for _, tt := range tests {
+		got, err := candleTypeToInterval(tt.candleType)
+		if tt.hasErr {
+			require.ErrorIs(t, err, kline.ErrInvalidInterval)
+			continue
+		}
+		require.NoError(t, err)
+		assert.Equal(t, tt.interval, got)
 	}
 }
 
@@ -894,7 +943,7 @@ func TestWsAuctions(t *testing.T) {
     ],
     "type": "update"
 }`)
-	if err := e.wsHandleData(pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
 		t.Error(err)
 	}
 
@@ -918,7 +967,7 @@ func TestWsAuctions(t *testing.T) {
         }
     ]
 }`)
-	if err := e.wsHandleData(pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
 		t.Error(err)
 	}
 
@@ -949,7 +998,7 @@ func TestWsAuctions(t *testing.T) {
         }
     ]
 }`)
-	if err := e.wsHandleData(pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
 		t.Error(err)
 	}
 }
@@ -978,7 +1027,7 @@ func TestWsMarketData(t *testing.T) {
     }
   ]
 }    `)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1006,7 +1055,7 @@ func TestWsMarketData(t *testing.T) {
     }
   ]
 }    `)
-	err = e.wsHandleData(pressXToJSON)
+	err = e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1028,7 +1077,7 @@ func TestWsMarketData(t *testing.T) {
     }
   ]
 }  `)
-	err = e.wsHandleData(pressXToJSON)
+	err = e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -1066,7 +1115,7 @@ func TestWsError(t *testing.T) {
 	}
 
 	for x := range tt {
-		err := e.wsHandleData(tt[x].Data)
+		err := e.wsHandleData(t.Context(), tt[x].Data)
 		if tt[x].ErrorExpected && err != nil && !strings.Contains(err.Error(), tt[x].ErrorShouldContain) {
 			t.Errorf("expected error to contain: %s, got: %s",
 				tt[x].ErrorShouldContain, err.Error(),
@@ -1126,7 +1175,7 @@ func TestWsLevel2Update(t *testing.T) {
 			}
 		]
 	}`)
-	if err := e.wsHandleData(pressXToJSON); err != nil {
+	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
 		t.Error(err)
 	}
 }
@@ -1260,17 +1309,24 @@ func TestGetSymbolDetails(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
+	testexch.UpdatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
 		t.Run(a.String(), func(t *testing.T) {
 			t.Parallel()
 			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
 			pairs, err := e.CurrencyPairs.GetPairs(a, false)
 			require.NoError(t, err, "GetPairs must not error")
-			l, err := e.GetOrderExecutionLimits(a, pairs[0])
-			require.NoError(t, err, "GetOrderExecutionLimits must not error")
-			assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+			for _, p := range pairs {
+				l, err := e.GetOrderExecutionLimits(a, p)
+				require.NoError(t, err, "GetOrderExecutionLimits must not error")
+				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+			}
 		})
 	}
+	t.Run("unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported)
+	})
 }
 
 func TestGetCurrencyTradeURL(t *testing.T) {

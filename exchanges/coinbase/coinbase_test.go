@@ -74,7 +74,7 @@ const (
 	errInvalidProductID        = `Coinbase unsuccessful HTTP status code: 404 raw response: {"error":"NOT_FOUND","error_details":"valid product_id is required","message":"valid product_id is required"}`
 	errExpectedFeeRange        = "expected fee range of %v and %v, received %v"
 	errOptionInvalid           = `Coinbase unsuccessful HTTP status code: 400 raw response: {"error":"unknown","error_details":"parsing field \"product_type\": \"OPTIONS\" is not a valid value","message":"parsing field \"product_type\": \"OPTIONS\" is not a valid value"}`
-	errJSONUnmarshalUnexpected = "JSON umarshalling did not return expected error"
+	errJSONUnmarshalUnexpected = "JSON unmarshalling did not return expected error"
 )
 
 func TestMain(m *testing.M) {
@@ -111,7 +111,7 @@ func TestWsConnect(t *testing.T) {
 	assert.ErrorIs(t, err, websocket.ErrWebsocketNotEnabled)
 	err = exchangeBaseHelper(exch)
 	require.NoError(t, err)
-	err = exch.Websocket.Enable()
+	err = exch.Websocket.Enable(t.Context())
 	assert.NoError(t, err)
 }
 
@@ -1151,7 +1151,7 @@ func TestUpdateTicker(t *testing.T) {
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
 }
 
-// Not parallel; being parallel causes intermittent errors with another test for no discernible reason
+// TestUpdateOrderbook does not run in parallel; being parallel causes intermittent errors with another test for no discernible reason
 func TestUpdateOrderbook(t *testing.T) {
 	testexch.UpdatePairsOnce(t, e)
 	_, err := e.UpdateOrderbook(t.Context(), currency.Pair{}, asset.Empty)
@@ -1296,6 +1296,7 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	_, err = e.WithdrawCryptocurrencyFunds(t.Context(), &req)
 	assert.ErrorIs(t, err, errWalletIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	req.Amount = -0.1
 	wallets, err := e.GetAllWallets(t.Context(), PaginationInp{})
 	assert.NoError(t, err)
 	if wallets == nil || len(wallets.Data) == 0 {
@@ -1508,14 +1509,12 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 // TestWsAuth dials websocket, sends login request.
 func TestWsAuth(t *testing.T) {
 	p := currency.Pairs{testPairFiat}
-	if e.Websocket.IsEnabled() && !e.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(e) {
-		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
-	}
+	testexch.SkipTestIfCannotUseAuthenticatedWebsocket(t, e)
 	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{})
+	err := e.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{}, nil)
 	require.NoError(t, err)
 	e.Websocket.Wg.Add(1)
-	go e.wsReadData()
+	go e.wsReadData(t.Context())
 	err = e.Subscribe(subscription.List{
 		{
 			Channel:       "myAccount",
@@ -1527,7 +1526,7 @@ func TestWsAuth(t *testing.T) {
 	assert.NoError(t, err)
 	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
-	case badResponse := <-e.Websocket.DataHandler:
+	case badResponse := <-e.Websocket.DataHandler.C:
 		assert.IsType(t, []order.Detail{}, badResponse)
 	case <-timer.C:
 	}
@@ -1542,64 +1541,64 @@ func TestWsHandleData(t *testing.T) {
 	go func() {
 		for {
 			select {
-			case <-e.Websocket.DataHandler:
+			case <-e.Websocket.DataHandler.C:
 				continue
 			case <-done:
 				return
 			}
 		}
 	}()
-	_, err := e.wsHandleData(nil)
+	_, err := e.wsHandleData(t.Context(), nil)
 	var syntaxErr *json.SyntaxError
 	assert.True(t, errors.As(err, &syntaxErr) || strings.Contains(err.Error(), "Syntax error no sources available, the input json is empty"), errJSONUnmarshalUnexpected)
 	mockJSON := []byte(`{"type": "error"}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.Error(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "subscriptions"}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.NoError(t, err)
 	var unmarshalTypeErr *json.UnmarshalTypeError
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "status", "events": [{"type": 1234}]}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "status", "events": [{"type": "moo"}]}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "ticker", "events": [{"type": "moo", "tickers": false}]}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "candles", "events": [{"type": false}]}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "candles", "events": [{"type": "moo", "candles": [{"low": "1.1"}]}]}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "market_trades", "events": [{"type": false}]}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "market_trades", "events": [{"type": "moo", "trades": [{"price": "1.1"}]}]}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "events": [{"type": false, "updates": [{"price_level": "1.1"}]}]}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "moo", "updates": [{"price_level": "1.1"}]}]}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.ErrorIs(t, err, errUnknownL2DataType)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "snapshot", "product_id": "BTC-USD", "updates": [{"side": "bid", "price_level": "1.1", "new_quantity": "2.2"}]}]}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "l2_data", "timestamp": "2006-01-02T15:04:05Z", "events": [{"type": "update", "product_id": "BTC-USD", "updates": [{"side": "bid", "price_level": "1.1", "new_quantity": "2.2"}]}]}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.NoError(t, err)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": false}]}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
-	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": "moo", "orders": [{"limit_price": "2.2", "total_fees": "1.1", "post_only": true}], "positions": {"perpetual_futures_positions": [{"margin_type": "fakeMarginType"}], "expiring_futures_positions": [{}]}}]}`)
-	_, err = e.wsHandleData(mockJSON)
-	assert.NoError(t, err)
+	mockJSON = []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": "l", "orders": [{"limit_price": "2.2", "total_fees": "1.1", "post_only": true}], "positions": {"perpetual_futures_positions": [{"margin_type": "fakeMarginType"}], "expiring_futures_positions": [{}]}}]}`)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
+	assert.ErrorIs(t, err, order.ErrUnrecognisedOrderType)
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "fakechan", "events": [{"type": ""}]}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.ErrorIs(t, err, errChannelNameUnknown)
 	p, err := e.FormatExchangeCurrency(currency.NewBTCUSD(), asset.Spot)
 	require.NoError(t, err)
@@ -1607,8 +1606,42 @@ func TestWsHandleData(t *testing.T) {
 		p: {p},
 	})
 	mockJSON = []byte(`{"sequence_num": 0, "channel": "ticker", "events": [{"type": "moo", "tickers": [{"product_id": "BTC-USD", "price": "1.1"}]}]}`)
-	_, err = e.wsHandleData(mockJSON)
+	_, err = e.wsHandleData(t.Context(), mockJSON)
 	assert.NoError(t, err)
+}
+
+func TestWsProcessCandleIntervalMapping(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup instance must not error")
+
+	resp := &StandardWebsocketResponse{
+		Channel: "candles",
+		Events:  json.RawMessage(`[{"type":"snapshot","candles":[{"start":1704067200,"low":"99.5","high":"101.0","open":"100.0","close":"100.5","volume":"12.3","product_id":"BTC-USD"}]}]`),
+	}
+	require.NoError(t, ex.wsProcessCandle(t.Context(), resp))
+
+	select {
+	case msg := <-ex.Websocket.DataHandler.C:
+		got, ok := msg.Data.([]kline.Item)
+		require.True(t, ok, "expected []kline.Item")
+		assert.Equal(t, []kline.Item{{
+			Pair:     currency.NewPairWithDelimiter("BTC", "USD", "-"),
+			Asset:    asset.Spot,
+			Exchange: ex.Name,
+			Interval: kline.FiveMin,
+			Candles: []kline.Candle{{
+				Time:   time.Unix(1704067200, 0),
+				Open:   100,
+				Close:  100.5,
+				High:   101,
+				Low:    99.5,
+				Volume: 12.3,
+			}},
+		}}, got)
+	default:
+		require.Fail(t, "expected websocket candle payload")
+	}
 }
 
 func TestProcessSnapshotUpdate(t *testing.T) {
@@ -1971,6 +2004,7 @@ func withdrawFiatFundsHelper(t *testing.T, fn withdrawFiatFunc) {
 	_, err = fn(t.Context(), &req)
 	assert.ErrorIs(t, err, errWalletIDEmpty)
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	req.Amount = -0.1
 	req.WalletID = "meow"
 	req.Fiat.Bank.BankName = "GCT's Officially Fake and Not Real Test Bank"
 	_, err = fn(t.Context(), &req)

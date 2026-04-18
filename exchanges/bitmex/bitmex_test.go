@@ -1,6 +1,7 @@
 package bitmex
 
 import (
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -15,7 +16,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -148,6 +148,52 @@ func TestGetFundingHistory(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetAccountFundingHistory(t.Context())
 	require.Error(t, err)
+}
+
+func TestUserMarginGETUsesQueryNotBody(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	err := testexch.Setup(ex)
+	require.NoError(t, err, "Setup must not error")
+	ex.API.AuthenticatedSupport = true
+	ex.SetCredentials("test-key", "test-secret", "", "", "", "")
+
+	call := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		call++
+		assert.Equal(t, http.MethodGet, r.Method, "Request method should be GET")
+		assert.Equal(t, "/api/v1/user/margin", r.URL.Path, "Request path should be correct")
+
+		body, err := io.ReadAll(r.Body)
+		assert.NoError(t, err, "Reading request body should not error")
+		assert.Empty(t, body, "GET requests should not include a JSON body")
+
+		switch call {
+		case 1:
+			assert.Equal(t, "currency=XBt", r.URL.RawQuery, "GetUserMargin should use currency query param")
+			_, err = w.Write([]byte(`{"currency":"XBt","walletBalance":1}`))
+			assert.NoError(t, err, "Writing response should not error")
+		case 2:
+			assert.Equal(t, "currency=all", r.URL.RawQuery, "GetAllUserMargin should use currency query param")
+			_, err = w.Write([]byte(`[{"currency":"XBt","walletBalance":1}]`))
+			assert.NoError(t, err, "Writing response should not error")
+		default:
+			t.Fatalf("unexpected request call count: %d", call)
+		}
+	}))
+	defer server.Close()
+
+	err = ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v1")
+	require.NoError(t, err, "SetRunningURL must not error")
+
+	_, err = ex.GetUserMargin(t.Context(), "XBt")
+	require.NoError(t, err, "GetUserMargin must not error")
+
+	_, err = ex.GetAllUserMargin(t.Context())
+	require.NoError(t, err, "GetAllUserMargin must not error")
+
+	require.Equal(t, 2, call, "Expected exactly two requests")
 }
 
 func TestGetInstruments(t *testing.T) {
@@ -717,20 +763,18 @@ func TestGetDepositAddress(t *testing.T) {
 
 func TestWsAuth(t *testing.T) {
 	t.Parallel()
-	if !e.Websocket.IsEnabled() && !e.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(e) {
-		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
-	}
+	testexch.SkipTestIfCannotUseAuthenticatedWebsocket(t, e)
 	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{})
+	err := e.Websocket.Conn.Dial(t.Context(), &dialer, http.Header{}, nil)
 	require.NoError(t, err)
 
-	go e.wsReadData()
+	go e.wsReadData(t.Context())
 	err = e.websocketSendAuth(t.Context())
 	require.NoError(t, err)
 	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
 	select {
-	case resp := <-e.Websocket.DataHandler:
-		sub, ok := resp.(WebsocketSubscribeResp)
+	case resp := <-e.Websocket.DataHandler.C:
+		sub, ok := resp.Data.(WebsocketSubscribeResp)
 		if !ok {
 			t.Fatal("unable to type assert WebsocketSubscribeResp")
 		}
@@ -760,7 +804,7 @@ func TestWsPositionUpdate(t *testing.T) {
     "unrealisedGrossPnl":-677,"unrealisedPnl":-677,"unrealisedPnlPcnt":-0.0078,"unrealisedRoePcnt":-0.7756,
     "simpleQty":0.001,"liquidationPrice":1140.1, "timestamp":"2017-04-04T22:07:45.442Z"
    }]}`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	require.NoError(t, err)
 }
 
@@ -782,7 +826,7 @@ func TestWsInsertExectuionUpdate(t *testing.T) {
     "homeNotional":-0.00088155,"foreignNotional":1,"transactTime":"2017-04-04T22:07:46.035Z",
     "timestamp":"2017-04-04T22:07:46.035Z"
    }]}`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	require.NoError(t, err)
 }
 
@@ -795,7 +839,7 @@ func TestWSPositionUpdateHandling(t *testing.T) {
     "markPrice":1136.88,"posState":"Liquidated","simpleQty":0.001,"liquidationPrice":1140.1,"bankruptPrice":1134.37,
     "timestamp":"2017-04-04T22:07:46.019Z"
    }]}`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	require.NoError(t, err)
 	pressXToJSON = []byte(`{"table":"position",
    "action":"update",
@@ -811,7 +855,7 @@ func TestWSPositionUpdateHandling(t *testing.T) {
     "avgEntryPrice":null,"breakEvenPrice":null,"marginCallPrice":null,"liquidationPrice":null,"bankruptPrice":null,
     "timestamp":"2017-04-04T22:07:46.140Z"
    }]}`)
-	err = e.wsHandleData(pressXToJSON)
+	err = e.wsHandleData(t.Context(), pressXToJSON)
 	require.NoError(t, err)
 }
 
@@ -832,7 +876,7 @@ func TestWSOrderbookHandling(t *testing.T) {
         {"symbol":"ETHUSD","id":17999996000,"side":"Buy","size":20,"price":40},
         {"symbol":"ETHUSD","id":17999997000,"side":"Buy","size":100,"price":30}
       ]}`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	require.NoError(t, err)
 
 	pressXToJSON = []byte(`{
@@ -841,14 +885,14 @@ func TestWSOrderbookHandling(t *testing.T) {
       "data":[
         {"symbol":"ETHUSD","id":17999995000,"side":"Buy","size":5,"timestamp":"2017-04-04T22:16:38.461Z"}
       ]}`)
-	err = e.wsHandleData(pressXToJSON)
+	err = e.wsHandleData(t.Context(), pressXToJSON)
 	require.NoError(t, err)
 
 	pressXToJSON = []byte(`{
       "table":"orderBookL2_25",
       "action":"update",
       "data":[]}`)
-	err = e.wsHandleData(pressXToJSON)
+	err = e.wsHandleData(t.Context(), pressXToJSON)
 	require.ErrorContains(t, err, "empty orderbook")
 
 	pressXToJSON = []byte(`{
@@ -857,7 +901,7 @@ func TestWSOrderbookHandling(t *testing.T) {
       "data":[
         {"symbol":"ETHUSD","id":17999995000,"side":"Buy","timestamp":"2017-04-04T22:16:38.461Z"}
       ]}`)
-	err = e.wsHandleData(pressXToJSON)
+	err = e.wsHandleData(t.Context(), pressXToJSON)
 	require.NoError(t, err)
 
 	pressXToJSON = []byte(`{
@@ -866,7 +910,7 @@ func TestWSOrderbookHandling(t *testing.T) {
       "data":[
         {"symbol":"ETHUSD","id":17999995000,"side":"Buy","timestamp":"2017-04-04T22:16:38.461Z"}
       ]}`)
-	err = e.wsHandleData(pressXToJSON)
+	err = e.wsHandleData(t.Context(), pressXToJSON)
 	assert.ErrorIs(t, err, orderbook.ErrOrderbookInvalid)
 }
 
@@ -879,7 +923,7 @@ func TestWSDeleveragePositionUpdateHandling(t *testing.T) {
     "markPrice":1160.72,"posState":"Deleverage","simpleQty":1.746,"liquidationPrice":1140.1,
     "timestamp":"2017-04-04T22:16:38.460Z"
    }]}`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	require.NoError(t, err)
 
 	pressXToJSON = []byte(`{"table":"position",
@@ -897,7 +941,7 @@ func TestWSDeleveragePositionUpdateHandling(t *testing.T) {
     "avgEntryPrice":null,"breakEvenPrice":null,"marginCallPrice":null,"liquidationPrice":null,"bankruptPrice":null,
     "timestamp":"2017-04-04T22:16:38.547Z"
    }]}`)
-	err = e.wsHandleData(pressXToJSON)
+	err = e.wsHandleData(t.Context(), pressXToJSON)
 	require.NoError(t, err)
 }
 
@@ -919,7 +963,7 @@ func TestWSDeleverageExecutionInsertHandling(t *testing.T) {
     "homeNotional":-1.72306,"foreignNotional":2000,"transactTime":"2017-04-04T22:16:38.472Z",
     "timestamp":"2017-04-04T22:16:38.472Z"
    }]}`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	require.NoError(t, err)
 }
 
@@ -929,13 +973,13 @@ func TestWsTrades(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	e.SetSaveTradeDataStatus(true)
 	msg := []byte(`{"table":"trade","action":"insert","data":[{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.3,"tickDirection":"MinusTick","trdMatchID":"c427f7a0-6b26-1e10-5c4e-1bd74daf2a73","grossValue":2583000,"homeNotional":0.9904912836767037,"foreignNotional":255.84389857369254},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.3,"tickDirection":"ZeroMinusTick","trdMatchID":"95eb9155-b58c-70e9-44b7-34efe50302e0","grossValue":2583000,"homeNotional":0.9904912836767037,"foreignNotional":255.84389857369254},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.3,"tickDirection":"ZeroMinusTick","trdMatchID":"e607c187-f25c-86bc-cb39-8afff7aaf2d9","grossValue":2583000,"homeNotional":0.9904912836767037,"foreignNotional":255.84389857369254},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":17,"price":258.3,"tickDirection":"ZeroMinusTick","trdMatchID":"0f076814-a57d-9a59-8063-ad6b823a80ac","grossValue":439110,"homeNotional":0.1683835182250396,"foreignNotional":43.49346275752773},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.25,"tickDirection":"MinusTick","trdMatchID":"f4ef3dfd-51c4-538f-37c1-e5071ba1c75d","grossValue":2582500,"homeNotional":0.9904912836767037,"foreignNotional":255.79437400950872},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.25,"tickDirection":"ZeroMinusTick","trdMatchID":"81ef136b-8f4a-b1cf-78a8-fffbfa89bf40","grossValue":2582500,"homeNotional":0.9904912836767037,"foreignNotional":255.79437400950872},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.25,"tickDirection":"ZeroMinusTick","trdMatchID":"65a87e8c-7563-34a4-d040-94e8513c5401","grossValue":2582500,"homeNotional":0.9904912836767037,"foreignNotional":255.79437400950872},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":15,"price":258.25,"tickDirection":"ZeroMinusTick","trdMatchID":"1d11a74e-a157-3f33-036d-35a101fba50b","grossValue":387375,"homeNotional":0.14857369255150554,"foreignNotional":38.369156101426306},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":1,"price":258.25,"tickDirection":"ZeroMinusTick","trdMatchID":"40d49df1-f018-f66f-4ca5-31d4997641d7","grossValue":25825,"homeNotional":0.009904912836767036,"foreignNotional":2.5579437400950873},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.2,"tickDirection":"MinusTick","trdMatchID":"36135b51-73e5-c007-362b-a55be5830c6b","grossValue":2582000,"homeNotional":0.9904912836767037,"foreignNotional":255.7448494453249},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.2,"tickDirection":"ZeroMinusTick","trdMatchID":"6ee19edb-99aa-3030-ba63-933ffb347ade","grossValue":2582000,"homeNotional":0.9904912836767037,"foreignNotional":255.7448494453249},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":100,"price":258.2,"tickDirection":"ZeroMinusTick","trdMatchID":"d44be603-cdb8-d676-e3e2-f91fb12b2a70","grossValue":2582000,"homeNotional":0.9904912836767037,"foreignNotional":255.7448494453249},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":5,"price":258.2,"tickDirection":"ZeroMinusTick","trdMatchID":"a14b43b3-50b4-c075-c54d-dfb0165de33d","grossValue":129100,"homeNotional":0.04952456418383518,"foreignNotional":12.787242472266245},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":8,"price":258.2,"tickDirection":"ZeroMinusTick","trdMatchID":"3c30e175-5194-320c-8f8c-01636c2f4a32","grossValue":206560,"homeNotional":0.07923930269413629,"foreignNotional":20.45958795562599},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":50,"price":258.2,"tickDirection":"ZeroMinusTick","trdMatchID":"5b803378-760b-4919-21fc-bfb275d39ace","grossValue":1291000,"homeNotional":0.49524564183835185,"foreignNotional":127.87242472266244},{"timestamp":"2020-02-17T01:35:36.442Z","symbol":"ETHUSD","side":"Sell","size":244,"price":258.2,"tickDirection":"ZeroMinusTick","trdMatchID":"cf57fec1-c444-b9e5-5e2d-4fb643f4fdb7","grossValue":6300080,"homeNotional":2.416798732171157,"foreignNotional":624.0174326465927}]}`)
-	require.NoError(t, e.wsHandleData(msg), "Must not error handling a standard stream of trades")
+	require.NoError(t, e.wsHandleData(t.Context(), msg), "Must not error handling a standard stream of trades")
 
 	msg = []byte(`{"table":"trade","action":"insert","data":[{"timestamp":"2020-02-17T01:35:36.442Z","symbol":".BGCT","size":14,"price":258.2,"side":"sell"}]}`)
-	require.ErrorIs(t, e.wsHandleData(msg), exchange.ErrSymbolNotMatched, "Must error correctly with an unknown symbol")
+	require.ErrorIs(t, e.wsHandleData(t.Context(), msg), exchange.ErrSymbolNotMatched, "Must error correctly with an unknown symbol")
 
 	msg = []byte(`{"table":"trade","action":"insert","data":[{"timestamp":"2020-02-17T01:35:36.442Z","symbol":".BGCT","size":0,"price":258.2,"side":"sell"}]}`)
-	require.NoError(t, e.wsHandleData(msg), "Must not error that symbol is unknown when index trade is ignored due to zero size")
+	require.NoError(t, e.wsHandleData(t.Context(), msg), "Must not error that symbol is unknown when index trade is ignored due to zero size")
 }
 
 func TestGetRecentTrades(t *testing.T) {
@@ -1157,41 +1201,115 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	}
 }
 
+func TestUpdateOrderExecutionLimits(t *testing.T) {
+	t.Parallel()
+	testexch.UpdatePairsOnce(t, e)
+	for _, a := range e.GetAssetTypes(false) {
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			err := e.UpdateOrderExecutionLimits(t.Context(), a)
+			require.NoError(t, err, "UpdateOrderExecutionLimits must not error")
+			pairs, err := e.CurrencyPairs.GetPairs(a, false)
+			require.NoError(t, err, "GetPairs must not error")
+			require.NotEmpty(t, pairs, "GetPairs must return pairs")
+			for _, p := range pairs {
+				l, err := e.GetOrderExecutionLimits(a, p)
+				require.NoError(t, err, "GetOrderExecutionLimits must not error")
+				assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
+			}
+		})
+	}
+	t.Run("unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported)
+	})
+}
+
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 
-	p := currency.Pairs{
-		currency.NewPair(currency.ETH, currency.USD),
-		currency.NewPair(currency.BCH, currency.NewCode("Z19")),
-	}
-
-	exp := subscription.List{
-		{QualifiedChannel: bitmexWSOrderbookL2 + ":" + p[1].String(), Channel: bitmexWSOrderbookL2, Asset: asset.Futures, Pairs: p[1:2]},
-		{QualifiedChannel: bitmexWSOrderbookL2 + ":" + p[0].String(), Channel: bitmexWSOrderbookL2, Asset: asset.PerpetualContract, Pairs: p[:1]},
-		{QualifiedChannel: bitmexWSTrade + ":" + p[1].String(), Channel: bitmexWSTrade, Asset: asset.Futures, Pairs: p[1:2]},
-		{QualifiedChannel: bitmexWSTrade + ":" + p[0].String(), Channel: bitmexWSTrade, Asset: asset.PerpetualContract, Pairs: p[:1]},
-		{QualifiedChannel: bitmexWSAffiliate, Channel: bitmexWSAffiliate, Authenticated: true},
-		{QualifiedChannel: bitmexWSOrder, Channel: bitmexWSOrder, Authenticated: true},
-		{QualifiedChannel: bitmexWSMargin, Channel: bitmexWSMargin, Authenticated: true},
-		{QualifiedChannel: bitmexWSTransact, Channel: bitmexWSTransact, Authenticated: true},
-		{QualifiedChannel: bitmexWSWallet, Channel: bitmexWSWallet, Authenticated: true},
-		{QualifiedChannel: bitmexWSExecution + ":" + p[0].String(), Channel: bitmexWSExecution, Authenticated: true, Asset: asset.PerpetualContract, Pairs: p[:1]},
-		{QualifiedChannel: bitmexWSPosition + ":" + p[0].String(), Channel: bitmexWSPosition, Authenticated: true, Asset: asset.PerpetualContract, Pairs: p[:1]},
-	}
-
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	subs, err := e.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
+	require.NotEmpty(t, subs, "generateSubscriptions must return subscriptions")
+
+	seenQualifiedChannels := make(map[string]struct{}, len(subs))
+	for _, s := range subs {
+		assert.NotEmpty(t, s.QualifiedChannel, "QualifiedChannel should not be empty")
+		_, found := seenQualifiedChannels[s.QualifiedChannel]
+		assert.Falsef(t, found, "QualifiedChannel should be unique, got duplicate %q", s.QualifiedChannel)
+		seenQualifiedChannels[s.QualifiedChannel] = struct{}{}
+
+		if s.Asset == asset.Index {
+			assert.NotContainsf(t, s.QualifiedChannel, bitmexWSOrderbookL2+":", "Index subscriptions should not include %s", bitmexWSOrderbookL2)
+		}
+	}
+
+	expectedBaseSubscriptions := subscription.List{
+		{Enabled: true, Channel: bitmexWSOrderbookL2, Asset: asset.All},
+		{Enabled: true, Channel: bitmexWSTrade, Asset: asset.All},
+		{Enabled: true, Channel: bitmexWSAffiliate, Authenticated: true},
+		{Enabled: true, Channel: bitmexWSOrder, Authenticated: true},
+		{Enabled: true, Channel: bitmexWSMargin, Authenticated: true},
+		{Enabled: true, Channel: bitmexWSTransact, Authenticated: true},
+		{Enabled: true, Channel: bitmexWSWallet, Authenticated: true},
+		{Enabled: true, Channel: bitmexWSExecution, Authenticated: true, Asset: asset.PerpetualContract},
+		{Enabled: true, Channel: bitmexWSPosition, Authenticated: true, Asset: asset.PerpetualContract},
+	}
+
+	exp := subscription.List{}
+	for _, baseSub := range expectedBaseSubscriptions {
+		if baseSub.Asset == asset.Empty {
+			s := baseSub.Clone()
+			s.QualifiedChannel = s.Channel
+			exp = append(exp, s)
+			continue
+		}
+
+		for _, a := range e.GetAssetTypes(true) {
+			if !e.IsAssetWebsocketSupported(a) {
+				continue
+			}
+			if baseSub.Asset != asset.All && baseSub.Asset != a {
+				continue
+			}
+			if a == asset.Index && baseSub.Channel == bitmexWSOrderbookL2 {
+				continue
+			}
+
+			pairs, err := e.GetEnabledPairs(a)
+			require.NoErrorf(t, err, "GetEnabledPairs must not error for asset %s", a)
+			pairFmt, err := e.GetPairFormat(a, true)
+			require.NoErrorf(t, err, "GetPairFormat must not error for asset %s", a)
+			pairs = common.SortStrings(pairs.Format(pairFmt))
+
+			for _, p := range pairs {
+				s := baseSub.Clone()
+				s.Asset = a
+				s.Pairs = currency.Pairs{p}
+				s.QualifiedChannel = s.Channel + ":" + p.String()
+				exp = append(exp, s)
+			}
+		}
+	}
+
 	testsubs.EqualLists(t, exp, subs)
 
 	for _, a := range e.GetAssetTypes(true) {
 		require.NoErrorf(t, e.CurrencyPairs.SetAssetEnabled(a, false), "SetAssetEnabled must not error for %s", a)
 	}
-	_, err = e.generateSubscriptions()
+	subs, err = e.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error when no assets are enabled")
+	testsubs.EqualLists(t, subscription.List{
+		{QualifiedChannel: bitmexWSAffiliate, Channel: bitmexWSAffiliate, Authenticated: true},
+		{QualifiedChannel: bitmexWSOrder, Channel: bitmexWSOrder, Authenticated: true},
+		{QualifiedChannel: bitmexWSMargin, Channel: bitmexWSMargin, Authenticated: true},
+		{QualifiedChannel: bitmexWSTransact, Channel: bitmexWSTransact, Authenticated: true},
+		{QualifiedChannel: bitmexWSWallet, Channel: bitmexWSWallet, Authenticated: true},
+	}, subs)
 }
 
 func TestSubscribe(t *testing.T) {

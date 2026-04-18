@@ -312,6 +312,8 @@ func TestOrderIs(t *testing.T) {
 		{Type: StopMarket, Targets: []Type{Stop, Market}},
 		{Type: TrailingStop, Targets: []Type{TrailingStop}},
 		{Type: UnknownType | Limit, Targets: []Type{Limit}},
+		{Type: TrailingStop | Limit, Targets: []Type{TrailingStopLimit, Limit}},
+		{Type: LimitMaker, Targets: []Type{LimitMaker}},
 		{Type: TakeProfitMarket, Targets: []Type{TakeProfit, Market}},
 	}
 	for _, oType := range orderComparisonList {
@@ -358,6 +360,9 @@ func TestOrderTypeToString(t *testing.T) {
 		{AnyType, "ANY"},
 		{UnknownType | Limit, "LIMIT"},
 		{StopMarket | ConditionalStop, "UNKNOWN"},
+		{TrailingStop | Limit, "TRAILING_STOP_LIMIT"},
+		{TrailingStopLimit, "TRAILING_STOP_LIMIT"},
+		{LimitMaker, "LIMIT_MAKER"},
 	}
 	for _, tt := range orderToToStringsList {
 		t.Run(tt.String, func(t *testing.T) {
@@ -502,17 +507,18 @@ func BenchmarkFilterOrdersBySide(b *testing.B) {
 func TestFilterOrdersByTimeRange(t *testing.T) {
 	t.Parallel()
 
-	orders := []Detail{
-		{
+	orders := make([]Detail, 0, 4)
+	orders = append(orders,
+		Detail{
 			Date: time.Unix(100, 0),
 		},
-		{
+		Detail{
 			Date: time.Unix(110, 0),
 		},
-		{
+		Detail{
 			Date: time.Unix(111, 0),
 		},
-	}
+	)
 
 	err := FilterOrdersByTimeRange(&orders, time.Unix(0, 0), time.Unix(0, 0))
 	require.NoError(t, err)
@@ -603,7 +609,7 @@ func TestFilterOrdersByPairs(t *testing.T) {
 	FilterOrdersByPairs(&orders, currencies)
 	assert.Len(t, orders, 2, "Reverse Orders should be filtered correctly")
 
-	currencies = []currency.Pair{}
+	currencies = make([]currency.Pair, 0, 1)
 	FilterOrdersByPairs(&orders, currencies)
 	assert.Len(t, orders, 2, "Orders should be filtered correctly")
 
@@ -846,6 +852,10 @@ func TestStringToOrderType(t *testing.T) {
 		{"TRIGGER_bracket", Bracket, nil},
 		{"optimal_limit", OptimalLimit, nil},
 		{"OPTIMAL_LIMIT", OptimalLimit, nil},
+		{"TRAILING_STOP_LIMIT", TrailingStopLimit, nil},
+		{"trailing_stop_limit", TrailingStopLimit, nil},
+		{"LIMIT_MAKER", LimitMaker, nil},
+		{"Limit Maker", LimitMaker, nil},
 	}
 	for i := range cases {
 		testData := &cases[i]
@@ -1051,6 +1061,10 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	assert.Equal(t, asset.Item(1), od.AssetType)
 	assert.Equal(t, updated, od.LastUpdated)
 	assert.Equal(t, "BTCUSD", od.Pair.String())
+	assert.Zero(t, od.ContractAmount)
+	assert.Zero(t, od.AverageExecutedPrice)
+	assert.Zero(t, od.Cost)
+	assert.True(t, od.CloseTime.IsZero())
 	assert.Nil(t, od.Trades)
 
 	om.Trades = append(om.Trades, TradeHistory{TID: "1"}, TradeHistory{TID: "2"})
@@ -1078,6 +1092,40 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 	assert.Equal(t, UnknownType, od.Trades[0].Type)
 	assert.Equal(t, 1337.0, od.Trades[0].Amount)
 
+	closeTime := updated.Add(time.Minute)
+	lastUpdated := closeTime.Add(time.Minute)
+	err = od.UpdateOrderFromDetail(&Detail{
+		ContractAmount:       10,
+		AverageExecutedPrice: 11,
+		Cost:                 12,
+		CloseTime:            closeTime,
+		LastUpdated:          lastUpdated,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 10.0, od.ContractAmount)
+	assert.Equal(t, 11.0, od.AverageExecutedPrice)
+	assert.Equal(t, 12.0, od.Cost)
+	assert.Equal(t, closeTime, od.CloseTime)
+	assert.Equal(t, lastUpdated, od.LastUpdated)
+
+	nextCloseTime := closeTime.Add(time.Minute)
+	beforeUpdate := time.Now()
+	err = od.UpdateOrderFromDetail(&Detail{CloseTime: nextCloseTime})
+	afterUpdate := time.Now()
+	require.NoError(t, err)
+	assert.Equal(t, nextCloseTime, od.CloseTime)
+	assert.False(t, od.LastUpdated.Before(beforeUpdate), "LastUpdated should not be before test start when incoming timestamp is unset")
+	assert.False(t, od.LastUpdated.After(afterUpdate), "LastUpdated should not be after test end when incoming timestamp is unset")
+	lastUpdatedWithoutIncoming := od.LastUpdated
+
+	err = od.UpdateOrderFromDetail(&Detail{})
+	require.NoError(t, err)
+	assert.Equal(t, 10.0, od.ContractAmount)
+	assert.Equal(t, 11.0, od.AverageExecutedPrice)
+	assert.Equal(t, 12.0, od.Cost)
+	assert.Equal(t, nextCloseTime, od.CloseTime)
+	assert.Equal(t, lastUpdatedWithoutIncoming, od.LastUpdated)
+
 	id, err = uuid.NewV4()
 	require.NoError(t, err)
 
@@ -1087,7 +1135,7 @@ func TestUpdateOrderFromDetail(t *testing.T) {
 
 	err = od.UpdateOrderFromDetail(om)
 	require.NoError(t, err)
-	assert.NotEqual(t, id, od.InternalOrderID, "Should not be able to update the internal order ID after initialization")
+	assert.NotEqual(t, id, od.InternalOrderID, "Should not be able to update the internal order ID after initialisation")
 }
 
 func TestClassificationError_Error(t *testing.T) {
@@ -1745,7 +1793,7 @@ func TestMarshalOrder(t *testing.T) {
 	}
 	j, err := json.Marshal(orderSubmit)
 	require.NoError(t, err, "Marshal must not error")
-	exp := []byte(`{"Exchange":"test","Type":4,"Side":"BUY","Pair":"BTC-USDT","AssetType":"spot","TimeInForce":"","ReduceOnly":false,"Leverage":0,"Price":1000,"Amount":1,"QuoteAmount":0,"TriggerPrice":0,"TriggerPriceType":0,"ClientID":"","ClientOrderID":"","AutoBorrow":false,"MarginType":"multi","RetrieveFees":false,"RetrieveFeeDelay":0,"RiskManagementModes":{"Mode":"","TakeProfit":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopLoss":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopEntry":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0}},"Hidden":false,"Iceberg":false,"EndTime":"0001-01-01T00:00:00Z","StopDirection":false,"TrackingMode":0,"TrackingValue":0,"RFQDisabled":false}`)
+	exp := []byte(`{"Exchange":"test","Type":4,"Side":"BUY","Pair":"BTC-USDT","AssetType":"spot","TimeInForce":"","ReduceOnly":false,"Leverage":0,"Price":1000,"Amount":1,"QuoteAmount":0,"TriggerPrice":0,"TriggerPriceType":0,"ClientID":"","ClientOrderID":"","AutoBorrow":false,"MarginType":"multi","RetrieveFees":false,"RetrieveFeeDelay":0,"RiskManagementModes":{"Mode":"","TakeProfit":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopLoss":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopEntry":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0}},"Hidden":false,"Iceberg":false,"EndTime":"0001-01-01T00:00:00Z","StopDirection":false,"TrackingMode":0,"TrackingValue":0,"LimitTrackingMode":0,"LimitTrackingValue":0,"RFQDisabled":false,"SlippageTolerance":0}`)
 	assert.Equal(t, exp, j)
 }
 
@@ -1754,4 +1802,24 @@ func TestAdd(t *testing.T) {
 	var c CancelAllResponse
 	c.Add("order1", "cancelled")
 	assert.Equal(t, "cancelled", c.Status["order1"])
+}
+
+func TestPosition(t *testing.T) {
+	t.Parallel()
+	input := []struct {
+		sides []Side
+		side  Side
+		err   error
+	}{
+		{[]Side{Short, Sell, Ask}, Short, nil},
+		{[]Side{Long, Buy, Bid}, Long, nil},
+		{[]Side{Side(123)}, UnknownSide, ErrPositionSideUnsupported},
+	}
+	for _, a := range input {
+		for _, sd := range a.sides {
+			side, err := sd.Position()
+			assert.Equal(t, a.side, side)
+			assert.ErrorIs(t, err, a.err)
+		}
+	}
 }

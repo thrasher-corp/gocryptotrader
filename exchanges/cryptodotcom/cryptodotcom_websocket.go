@@ -129,17 +129,13 @@ func (e *Exchange) WsReadData() {
 			case resp := <-responseStream:
 				err := e.WsHandleData(resp.Data, resp.Authenticated)
 				if err != nil {
-					select {
-					case e.Websocket.DataHandler <- err:
-					default:
-						log.Errorf(log.WebsocketMgr, "%s websocket handle data error: %v", e.Name, err)
-					}
+					log.Errorf(log.WebsocketMgr, "%s websocket handle data error: %v", e.Name, err)
 				}
 			default:
 			}
 			return
 		case resp := <-responseStream:
-			err := e.WsHandleData(resp.Data, resp.Authenticated)
+			err := e.WsHandleData(ctx, resp.Data, resp.Authenticated)
 			if err != nil {
 				e.Websocket.DataHandler <- err
 			}
@@ -351,7 +347,7 @@ func (e *Exchange) generatePayload(operation string, subscriptions subscription.
 }
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
-func (e *Exchange) WsHandleData(respRaw []byte, authConnection bool) error {
+func (e *Exchange) WsHandleData(ctx context.Context, respRaw []byte, authConnection bool) error {
 	var resp *SubscriptionResponse
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -373,24 +369,23 @@ func (e *Exchange) WsHandleData(respRaw []byte, authConnection bool) error {
 		case instrumentOrderbookCnl:
 			return e.processOrderbook(resp.Result)
 		case tickerCnl:
-			return e.processTicker(resp.Result)
+			return e.processTicker(ctx, resp.Result)
 		case tradeCnl:
 			return e.processTrades(resp.Result)
 		case candlestickCnl:
-			return e.processCandlestick(resp.Result)
+			return e.processCandlestick(ctx, resp.Result)
 		case otcBooksCnl:
 			return e.processOTCOrderbook(resp.Result)
 		case positionBalanceCnl:
-			return e.processPositionBalance(resp.Result)
+			return e.processPositionBalance(ctx, resp.Result)
 		case accountRiskCnl:
-			return e.processAccountRisk(resp.Result)
+			return e.processAccountRisk(ctx, resp.Result)
 		case userPositionsCnl:
-			return e.processUserPosition(resp.Result)
+			return e.processUserPosition(ctx, resp.Result)
 		case fundingCnl:
-			return e.processFundingRate(resp.Result)
+			return e.processFundingRate(ctx, resp.Result)
 		case settlementCnl, markCnl, indexCnl:
-			e.Websocket.DataHandler <- resp
-			return nil
+			return e.Websocket.DataHandler.Send(ctx, resp)
 		default:
 			if strings.HasPrefix(resp.Result.Channel, userOrderCnl) {
 				return e.processUserOrders(resp.Result)
@@ -411,7 +406,7 @@ func (e *Exchange) WsHandleData(respRaw []byte, authConnection bool) error {
 	return nil
 }
 
-func (e *Exchange) processFundingRate(resp *WsResult) error {
+func (e *Exchange) processFundingRate(ctx context.Context, resp *WsResult) error {
 	var data []ValueAndTimestamp
 	err := json.Unmarshal(resp.Data, &data)
 	if err != nil {
@@ -422,18 +417,20 @@ func (e *Exchange) processFundingRate(resp *WsResult) error {
 		return err
 	}
 	for d := range data {
-		e.Websocket.DataHandler <- websocket.FundingData{
+		if err := e.Websocket.DataHandler.Send(ctx, websocket.FundingData{
 			Timestamp:    data[d].Timestamp.Time(),
 			CurrencyPair: cp,
 			AssetType:    asset.PerpetualSwap,
 			Exchange:     e.Name,
 			Rate:         data[d].Value.Float64(),
+		}); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
-func (e *Exchange) processAccountRisk(resp *WsResult) error {
+func (e *Exchange) processAccountRisk(ctx context.Context, resp *WsResult) error {
 	var data []UserAccountRisk
 	err := json.Unmarshal(resp.Data, &data)
 	if err != nil {
@@ -471,13 +468,17 @@ func (e *Exchange) processAccountRisk(resp *WsResult) error {
 				Pair:           cp,
 			}
 		}
-		e.Websocket.DataHandler <- positions
-		e.Websocket.DataHandler <- changes
+		if err := e.Websocket.DataHandler.Send(ctx, positions); err != nil {
+			return err
+		}
+		if err := e.Websocket.DataHandler.Send(ctx, changes); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func (e *Exchange) processPositionBalance(resp *WsResult) error {
+func (e *Exchange) processPositionBalance(ctx context.Context, resp *WsResult) error {
 	var data *WsUserPositionBalance
 	err := json.Unmarshal(resp.Data, &data)
 	if err != nil {
@@ -502,7 +503,9 @@ func (e *Exchange) processPositionBalance(resp *WsResult) error {
 			Pair:           cp,
 		}
 	}
-	e.Websocket.DataHandler <- positions
+	if err := e.Websocket.DataHandler.Send(ctx, positions); err != nil {
+		return err
+	}
 	changes := make([]accounts.Change, len(data.Balances))
 	for b := range data.Balances {
 		changes[b] = accounts.Change{
@@ -513,11 +516,10 @@ func (e *Exchange) processPositionBalance(resp *WsResult) error {
 			},
 		}
 	}
-	e.Websocket.DataHandler <- changes
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, changes)
 }
 
-func (e *Exchange) processUserPosition(resp *WsResult) error {
+func (e *Exchange) processUserPosition(ctx context.Context, resp *WsResult) error {
 	var data []UserPosition
 	err := json.Unmarshal(resp.Data, &data)
 	if err != nil {
@@ -546,8 +548,7 @@ func (e *Exchange) processUserPosition(resp *WsResult) error {
 			Pair:        cp,
 		}
 	}
-	e.Websocket.DataHandler <- orders
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, orders)
 }
 
 func (e *Exchange) processOTCOrderbook(resp *WsResult) error {
@@ -588,7 +589,7 @@ func (e *Exchange) processOTCOrderbook(resp *WsResult) error {
 	return nil
 }
 
-func (e *Exchange) processCandlestick(resp *WsResult) error {
+func (e *Exchange) processCandlestick(ctx context.Context, resp *WsResult) error {
 	var data []WsCandlestickItem
 	err := json.Unmarshal(resp.Data, &data)
 	if err != nil {
@@ -602,23 +603,25 @@ func (e *Exchange) processCandlestick(resp *WsResult) error {
 	if err != nil {
 		return err
 	}
-	candles := make([]websocket.KlineData, len(data))
+	candles := make([]kline.Item, len(data))
 	for x := range data {
-		candles[x] = websocket.KlineData{
-			Pair:      cp,
-			Exchange:  e.Name,
-			Timestamp: data[x].UpdateTime.Time(),
-			Interval:  interval.Word(),
-			AssetType: asset.Spot,
-			OpenPrice: data[x].Open,
-			HighPrice: data[x].High,
-			LowPrice:  data[x].Low,
-			Volume:    data[x].Volume,
-			StartTime: data[x].EndTime.Time(), // This field represents Start Timestamp for websocket push data. and End Timestamp for REST
+		candles[x] = kline.Item{
+			Pair:     cp,
+			Exchange: e.Name,
+			Interval: interval,
+			Asset:    asset.Spot,
+			Candles: []kline.Candle{
+				{
+					Open:   data[x].Open,
+					High:   data[x].High,
+					Low:    data[x].Low,
+					Volume: data[x].Volume,
+					Time:   data[x].UpdateTime.Time(),
+				},
+			},
 		}
 	}
-	e.Websocket.DataHandler <- candles
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, candles)
 }
 
 func (e *Exchange) processTrades(resp *WsResult) error {
@@ -652,7 +655,7 @@ func (e *Exchange) processTrades(resp *WsResult) error {
 	return trade.AddTradesToBuffer(trades...)
 }
 
-func (e *Exchange) processTicker(resp *WsResult) error {
+func (e *Exchange) processTicker(ctx context.Context, resp *WsResult) error {
 	var data []TickerItem
 	err := json.Unmarshal(resp.Data, &data)
 	if err != nil {
@@ -679,8 +682,7 @@ func (e *Exchange) processTicker(resp *WsResult) error {
 			Pair:         cp,
 		}
 	}
-	e.Websocket.DataHandler <- tickersDatas
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, tickersDatas)
 }
 
 func (e *Exchange) processOrderbook(resp *WsResult) error {

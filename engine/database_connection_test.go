@@ -67,7 +67,7 @@ func TestStartSQLite(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// This test does not care for a successful connection
+// TestStartPostgres does not require a successful connection
 func TestStartPostgres(t *testing.T) {
 	m, err := SetupDatabaseConnectionManager(&database.Config{})
 	assert.NoError(t, err)

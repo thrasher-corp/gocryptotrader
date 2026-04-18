@@ -66,6 +66,7 @@ var (
 	ErrStartAfterTimeNow         = errors.New("start date is after current time")
 	ErrNilPointer                = errors.New("nil pointer")
 	ErrEmptyParams               = errors.New("empty parameters")
+	ErrParameterRequired         = errors.New("parameter is required")
 	ErrCannotCalculateOffline    = errors.New("cannot calculate offline, unsupported")
 	ErrNoResponse                = errors.New("no response")
 	ErrInvalidResponse           = errors.New("invalid response")
@@ -75,6 +76,8 @@ var (
 	ErrGettingField              = errors.New("error getting field")
 	ErrSettingField              = errors.New("error setting field")
 	ErrParsingWSField            = errors.New("error parsing websocket field")
+	ErrMalformedData             = errors.New("malformed data")
+	ErrFatal                     = errors.New("fatal error")
 )
 
 var (
@@ -90,7 +93,7 @@ func NilGuard(ptrs ...any) (errs error) {
 		Obviously can't compare to nil, since the types won't match, so we look into the interface
 		eface is the internal representation of any; e(mpty-inter)face
 		See: https://cs.opensource.google/go/go/+/refs/tags/go1.24.1:src/runtime/runtime2.go;l=184-187
-		We optimize here by converting to [2]uintptr and just checking the address, instead of casting to a local eface type
+		We optimise here by converting to [2]uintptr and just checking the address, instead of casting to a local eface type
 		*/
 		if (*[2]uintptr)(unsafe.Pointer(&p))[1] == 0 {
 			errs = AppendError(errs, fmt.Errorf("%w: %T", ErrNilPointer, p))
@@ -694,4 +697,59 @@ func SetIfZero[T comparable](p *T, def T) bool {
 	}
 	*p = def
 	return true
+}
+
+var (
+	contextKeys   []any
+	contextKeysMu sync.RWMutex
+)
+
+// RegisterContextKey registers a key to be captured by FreezeContext
+func RegisterContextKey(key any) {
+	contextKeysMu.Lock()
+	defer contextKeysMu.Unlock()
+	if !slices.Contains(contextKeys, key) {
+		contextKeys = append(contextKeys, key)
+	}
+}
+
+// FrozenContext holds captured context values
+type FrozenContext map[any]any
+
+// FreezeContext captures values from the context for registered keys
+func FreezeContext(ctx context.Context) FrozenContext {
+	contextKeysMu.RLock()
+	defer contextKeysMu.RUnlock()
+
+	values := make(FrozenContext, len(contextKeys))
+	for _, key := range contextKeys {
+		if val := ctx.Value(key); val != nil {
+			values[key] = val
+		}
+	}
+	return values
+}
+
+// ThawContext creates a new context from the frozen context using context.Background() as parent
+func ThawContext(fc FrozenContext) context.Context {
+	return MergeContext(context.Background(), fc)
+}
+
+// MergeContext adds the frozen values to an existing context
+func MergeContext(ctx context.Context, fc FrozenContext) context.Context {
+	return &mergedContext{Context: ctx, frozen: fc}
+}
+
+// mergedContext is a context that has merged values from a frozen context and a parent context.
+// frozen values are stored in FrozenContext instead of nested context.WithValue because of the performance of calling WithValue N+ times on messages being frozen
+type mergedContext struct {
+	context.Context //nolint:containedctx // mergedContext implements context.Context
+	frozen          FrozenContext
+}
+
+func (m *mergedContext) Value(key any) any {
+	if val, ok := m.frozen[key]; ok {
+		return val
+	}
+	return m.Context.Value(key)
 }

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -37,7 +36,7 @@ const (
 	optionsTradesChannel                 = "options.trades"
 	optionsUnderlyingTradesChannel       = "options.ul_trades"
 	optionsUnderlyingPriceChannel        = "options.ul_price"
-	optionsMarkPriceChannel              = "options.mark_price"
+	optionsMarkPriceChannel              = "options.mark_prices"
 	optionsSettlementChannel             = "options.settlements"
 	optionsContractsChannel              = "options.contracts"
 	optionsContractCandlesticksChannel   = "options.contract_candlesticks"
@@ -71,7 +70,7 @@ func (e *Exchange) WsOptionsConnect(ctx context.Context, conn websocket.Connecti
 	if err := e.CurrencyPairs.IsAssetEnabled(asset.Options); err != nil {
 		return err
 	}
-	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{}, nil, nil); err != nil {
 		return err
 	}
 	pingHandler, err := getWSPingHandler(optionsPingChannel)
@@ -162,7 +161,7 @@ getEnabledPairs:
 
 func (e *Exchange) generateOptionsPayload(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
-		return nil, errors.New("cannot generate payload, no channels supplied")
+		return nil, errNoChannelsSupplied
 	}
 	var err error
 	var intervalString string
@@ -296,80 +295,77 @@ func (e *Exchange) WsHandleOptionsData(ctx context.Context, conn websocket.Conne
 
 	switch push.Channel {
 	case optionsContractTickersChannel:
-		return e.processOptionsContractTickers(push.Result)
+		return e.processOptionsContractTickers(ctx, push.Result)
 	case optionsUnderlyingTickersChannel:
-		return e.processOptionsUnderlyingTicker(push.Result)
+		return e.processOptionsUnderlyingTicker(ctx, push.Result)
 	case optionsTradesChannel,
 		optionsUnderlyingTradesChannel:
 		return e.processOptionsTradesPushData(respRaw)
 	case optionsUnderlyingPriceChannel:
-		return e.processOptionsUnderlyingPricePushData(push.Result)
+		return e.processOptionsUnderlyingPricePushData(ctx, push.Result)
 	case optionsMarkPriceChannel:
-		return e.processOptionsMarkPrice(push.Result)
+		return e.processOptionsMarkPrice(ctx, push.Result)
 	case optionsSettlementChannel:
-		return e.processOptionsSettlementPushData(push.Result)
+		return e.processOptionsSettlementPushData(ctx, push.Result)
 	case optionsContractsChannel:
-		return e.processOptionsContractPushData(push.Result)
+		return e.processOptionsContractPushData(ctx, push.Result)
 	case optionsContractCandlesticksChannel,
 		optionsUnderlyingCandlesticksChannel:
-		return e.processOptionsCandlestickPushData(respRaw)
+		return e.processOptionsCandlestickPushData(ctx, respRaw)
 	case optionsOrderbookChannel:
 		return e.processOptionsOrderbookSnapshotPushData(push.Event, push.Result, push.Time)
 	case optionsOrderbookTickerChannel:
-		return e.processOrderbookTickerPushData(respRaw)
+		return e.processOrderbookTickerPushData(ctx, respRaw)
 	case optionsOrderbookUpdateChannel:
 		return e.processOptionsOrderbookUpdate(ctx, push.Result, asset.Options, push.Time)
 	case optionsOrdersChannel:
-		return e.processOptionsOrderPushData(respRaw)
+		return e.processOptionsOrderPushData(ctx, respRaw)
 	case optionsUserTradesChannel:
 		return e.processOptionsUserTradesPushData(respRaw)
 	case optionsLiquidatesChannel:
-		return e.processOptionsLiquidatesPushData(respRaw)
+		return e.processOptionsLiquidatesPushData(ctx, respRaw)
 	case optionsUserSettlementChannel:
-		return e.processOptionsUsersPersonalSettlementsPushData(respRaw)
+		return e.processOptionsUsersPersonalSettlementsPushData(ctx, respRaw)
 	case optionsPositionCloseChannel:
-		return e.processPositionCloseData(respRaw)
+		return e.processPositionCloseData(ctx, respRaw)
 	case optionsBalancesChannel:
 		return e.processBalancePushData(ctx, push.Result, asset.Options)
 	case optionsPositionsChannel:
-		return e.processOptionsPositionPushData(respRaw)
+		return e.processOptionsPositionPushData(ctx, respRaw)
 	case "options.pong":
 		return nil
 	default:
-		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+		return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
 			Message: e.Name + websocket.UnhandledMessage + string(respRaw),
-		}
-		return errors.New(websocket.UnhandledMessage)
+		})
 	}
 }
 
-func (e *Exchange) processOptionsContractTickers(incoming []byte) error {
+func (e *Exchange) processOptionsContractTickers(ctx context.Context, incoming []byte) error {
 	var data OptionsTicker
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- &ticker.Price{
+	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 		Pair:         data.Name,
 		Last:         data.LastPrice.Float64(),
 		Bid:          data.Bid1Price.Float64(),
 		Ask:          data.Ask1Price.Float64(),
-		AskSize:      data.Ask1Size,
-		BidSize:      data.Bid1Size,
+		AskSize:      data.Ask1Size.Float64(),
+		BidSize:      data.Bid1Size.Float64(),
 		ExchangeName: e.Name,
 		AssetType:    asset.Options,
-	}
-	return nil
+	})
 }
 
-func (e *Exchange) processOptionsUnderlyingTicker(incoming []byte) error {
+func (e *Exchange) processOptionsUnderlyingTicker(ctx context.Context, incoming []byte) error {
 	var data WsOptionUnderlyingTicker
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- &data
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, &data)
 }
 
 func (e *Exchange) processOptionsTradesPushData(data []byte) error {
@@ -395,55 +391,51 @@ func (e *Exchange) processOptionsTradesPushData(data []byte) error {
 			CurrencyPair: resp.Result[x].Contract,
 			AssetType:    asset.Options,
 			Exchange:     e.Name,
-			Price:        resp.Result[x].Price,
-			Amount:       resp.Result[x].Size,
+			Price:        resp.Result[x].Price.Float64(),
+			Amount:       resp.Result[x].Size.Float64(),
 			TID:          strconv.FormatInt(resp.Result[x].ID, 10),
 		}
 	}
 	return e.Websocket.Trade.Update(saveTradeData, trades...)
 }
 
-func (e *Exchange) processOptionsUnderlyingPricePushData(incoming []byte) error {
+func (e *Exchange) processOptionsUnderlyingPricePushData(ctx context.Context, incoming []byte) error {
 	var data WsOptionsUnderlyingPrice
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- &data
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, &data)
 }
 
-func (e *Exchange) processOptionsMarkPrice(incoming []byte) error {
+func (e *Exchange) processOptionsMarkPrice(ctx context.Context, incoming []byte) error {
 	var data WsOptionsMarkPrice
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- &data
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, &data)
 }
 
-func (e *Exchange) processOptionsSettlementPushData(incoming []byte) error {
+func (e *Exchange) processOptionsSettlementPushData(ctx context.Context, incoming []byte) error {
 	var data WsOptionsSettlement
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- &data
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, &data)
 }
 
-func (e *Exchange) processOptionsContractPushData(incoming []byte) error {
+func (e *Exchange) processOptionsContractPushData(ctx context.Context, incoming []byte) error {
 	var data WsOptionsContract
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- &data
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, &data)
 }
 
-func (e *Exchange) processOptionsCandlestickPushData(data []byte) error {
+func (e *Exchange) processOptionsCandlestickPushData(ctx context.Context, data []byte) error {
 	resp := struct {
 		Time    types.Time                     `json:"time"`
 		Channel string                         `json:"channel"`
@@ -454,41 +446,45 @@ func (e *Exchange) processOptionsCandlestickPushData(data []byte) error {
 	if err != nil {
 		return err
 	}
-	klineDatas := make([]websocket.KlineData, len(resp.Result))
+	klineDatas := make([]kline.Item, len(resp.Result))
 	for x := range resp.Result {
 		icp := strings.Split(resp.Result[x].NameOfSubscription, currency.UnderscoreDelimiter)
 		if len(icp) < 3 {
 			return errors.New("malformed options candlestick websocket push data")
 		}
+		interval, err := e.GetIntervalFromString(icp[0])
+		if err != nil {
+			return err
+		}
 		currencyPair, err := currency.NewPairFromString(strings.Join(icp[1:], currency.UnderscoreDelimiter))
 		if err != nil {
 			return err
 		}
-		klineDatas[x] = websocket.KlineData{
-			Pair:       currencyPair,
-			AssetType:  asset.Options,
-			Exchange:   e.Name,
-			StartTime:  resp.Result[x].Timestamp.Time(),
-			Interval:   icp[0],
-			OpenPrice:  resp.Result[x].OpenPrice.Float64(),
-			ClosePrice: resp.Result[x].ClosePrice.Float64(),
-			HighPrice:  resp.Result[x].HighestPrice.Float64(),
-			LowPrice:   resp.Result[x].LowestPrice.Float64(),
-			Volume:     resp.Result[x].Amount.Float64(),
+		klineDatas[x] = kline.Item{
+			Pair:     currencyPair,
+			Asset:    asset.Options,
+			Exchange: e.Name,
+			Interval: interval,
+			Candles: []kline.Candle{{
+				Time:   resp.Result[x].Timestamp.Time(),
+				Open:   resp.Result[x].OpenPrice.Float64(),
+				Close:  resp.Result[x].ClosePrice.Float64(),
+				High:   resp.Result[x].HighestPrice.Float64(),
+				Low:    resp.Result[x].LowestPrice.Float64(),
+				Volume: resp.Result[x].Amount.Float64(),
+			}},
 		}
 	}
-	e.Websocket.DataHandler <- klineDatas
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, klineDatas)
 }
 
-func (e *Exchange) processOrderbookTickerPushData(incoming []byte) error {
+func (e *Exchange) processOrderbookTickerPushData(ctx context.Context, incoming []byte) error {
 	var data WsOptionsOrderbookTicker
 	err := json.Unmarshal(incoming, &data)
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- &data
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, &data)
 }
 
 func (e *Exchange) processOptionsOrderbookUpdate(ctx context.Context, incoming []byte, a asset.Item, pushTime time.Time) error {
@@ -499,14 +495,14 @@ func (e *Exchange) processOptionsOrderbookUpdate(ctx context.Context, incoming [
 	asks := make([]orderbook.Level, len(data.Asks))
 	for x := range data.Asks {
 		asks[x].Price = data.Asks[x].Price.Float64()
-		asks[x].Amount = data.Asks[x].Size
+		asks[x].Amount = data.Asks[x].Size.Float64()
 	}
 	bids := make([]orderbook.Level, len(data.Bids))
 	for x := range data.Bids {
 		bids[x].Price = data.Bids[x].Price.Float64()
-		bids[x].Amount = data.Bids[x].Size
+		bids[x].Amount = data.Bids[x].Size.Float64()
 	}
-	return e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, e, data.FirstUpdatedID, &orderbook.Update{
+	return e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, data.FirstUpdatedID, &orderbook.Update{
 		UpdateID:   data.LastUpdatedID,
 		UpdateTime: data.Timestamp.Time(),
 		LastPushed: pushTime,
@@ -535,12 +531,12 @@ func (e *Exchange) processOptionsOrderbookSnapshotPushData(event string, incomin
 		}
 		base.Asks = make([]orderbook.Level, len(data.Asks))
 		for x := range data.Asks {
-			base.Asks[x].Amount = data.Asks[x].Size
+			base.Asks[x].Amount = data.Asks[x].Size.Float64()
 			base.Asks[x].Price = data.Asks[x].Price.Float64()
 		}
 		base.Bids = make([]orderbook.Level, len(data.Bids))
 		for x := range data.Bids {
-			base.Bids[x].Amount = data.Bids[x].Size
+			base.Bids[x].Amount = data.Bids[x].Size.Float64()
 			base.Bids[x].Price = data.Bids[x].Price.Float64()
 		}
 		return e.Websocket.Orderbook.LoadSnapshot(&base)
@@ -558,11 +554,11 @@ func (e *Exchange) processOptionsOrderbookSnapshotPushData(event string, incomin
 		}
 		if data[x].Amount > 0 {
 			ab[1] = append(ab[1], orderbook.Level{
-				Price: data[x].Price.Float64(), Amount: data[x].Amount,
+				Price: data[x].Price.Float64(), Amount: data[x].Amount.Float64(),
 			})
 		} else {
 			ab[0] = append(ab[0], orderbook.Level{
-				Price: data[x].Price.Float64(), Amount: -data[x].Amount,
+				Price: data[x].Price.Float64(), Amount: -data[x].Amount.Float64(),
 			})
 		}
 		if !ok {
@@ -594,7 +590,7 @@ func (e *Exchange) processOptionsOrderbookSnapshotPushData(event string, incomin
 	return nil
 }
 
-func (e *Exchange) processOptionsOrderPushData(data []byte) error {
+func (e *Exchange) processOptionsOrderPushData(ctx context.Context, data []byte) error {
 	resp := struct {
 		Time    types.Time       `json:"time"`
 		Channel string           `json:"channel"`
@@ -617,20 +613,19 @@ func (e *Exchange) processOptionsOrderPushData(data []byte) error {
 			return err
 		}
 		orderDetails[x] = order.Detail{
-			Amount:         resp.Result[x].Size,
+			Amount:         resp.Result[x].Size.Float64(),
 			Exchange:       e.Name,
 			OrderID:        strconv.FormatInt(resp.Result[x].ID, 10),
 			Status:         status,
 			Pair:           resp.Result[x].Contract,
 			Date:           resp.Result[x].CreationTime.Time(),
-			ExecutedAmount: resp.Result[x].Size - resp.Result[x].Left,
-			Price:          resp.Result[x].Price,
+			ExecutedAmount: resp.Result[x].Size.Float64() - resp.Result[x].RemainingAmount.Float64(),
+			Price:          resp.Result[x].Price.Float64(),
 			AssetType:      asset.Options,
 			AccountID:      resp.Result[x].User,
 		}
 	}
-	e.Websocket.DataHandler <- orderDetails
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, orderDetails)
 }
 
 func (e *Exchange) processOptionsUserTradesPushData(data []byte) error {
@@ -656,13 +651,13 @@ func (e *Exchange) processOptionsUserTradesPushData(data []byte) error {
 			OrderID:      resp.Result[x].OrderID,
 			TradeID:      resp.Result[x].ID,
 			Price:        resp.Result[x].Price.Float64(),
-			Amount:       resp.Result[x].Size,
+			Amount:       resp.Result[x].Size.Float64(),
 		}
 	}
 	return e.Websocket.Fills.Update(fills...)
 }
 
-func (e *Exchange) processOptionsLiquidatesPushData(data []byte) error {
+func (e *Exchange) processOptionsLiquidatesPushData(ctx context.Context, data []byte) error {
 	resp := struct {
 		Time    types.Time            `json:"time"`
 		Channel string                `json:"channel"`
@@ -673,11 +668,10 @@ func (e *Exchange) processOptionsLiquidatesPushData(data []byte) error {
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- &resp
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, &resp)
 }
 
-func (e *Exchange) processOptionsUsersPersonalSettlementsPushData(data []byte) error {
+func (e *Exchange) processOptionsUsersPersonalSettlementsPushData(ctx context.Context, data []byte) error {
 	resp := struct {
 		Time    types.Time                `json:"time"`
 		Channel string                    `json:"channel"`
@@ -688,11 +682,10 @@ func (e *Exchange) processOptionsUsersPersonalSettlementsPushData(data []byte) e
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- &resp
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, &resp)
 }
 
-func (e *Exchange) processOptionsPositionPushData(data []byte) error {
+func (e *Exchange) processOptionsPositionPushData(ctx context.Context, data []byte) error {
 	resp := struct {
 		Time    types.Time          `json:"time"`
 		Channel string              `json:"channel"`
@@ -703,6 +696,5 @@ func (e *Exchange) processOptionsPositionPushData(data []byte) error {
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- &resp
-	return nil
+	return e.Websocket.DataHandler.Send(ctx, &resp)
 }

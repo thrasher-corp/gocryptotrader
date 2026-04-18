@@ -23,6 +23,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Bybit
@@ -43,6 +44,7 @@ const (
 	sideSell = "Sell"
 
 	cSpot, cLinear, cOption, cInverse = "spot", "linear", "option", "inverse"
+	tradingStatus                     = "Trading"
 
 	accountTypeNormal  AccountType = 1
 	accountTypeUnified AccountType = 2
@@ -378,7 +380,7 @@ func (e *Exchange) GetOpenInterestData(ctx context.Context, category, symbol, in
 // If both 'startTime' and 'endTime' are not specified, it will return the most recent 1 hours worth of data.
 // 'startTime' and 'endTime' are a pair of params. Either both are passed or they are not passed at all.
 // This endpoint can query the last 2 years worth of data, but make sure [endTime - startTime] <= 30 days.
-func (e *Exchange) GetHistoricalVolatility(ctx context.Context, category, baseCoin string, period int64, startTime, endTime time.Time) ([]HistoricVolatility, error) {
+func (e *Exchange) GetHistoricalVolatility(ctx context.Context, category string, baseCoin currency.Code, period int64, startTime, endTime time.Time) ([]HistoricVolatility, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
 	} else if category != cOption {
@@ -386,8 +388,8 @@ func (e *Exchange) GetHistoricalVolatility(ctx context.Context, category, baseCo
 	}
 	params := url.Values{}
 	params.Set("category", category)
-	if baseCoin != "" {
-		params.Set("baseCoin", baseCoin)
+	if !baseCoin.IsEmpty() {
+		params.Set("baseCoin", baseCoin.String())
 	}
 	if period > 0 {
 		params.Set("period", strconv.FormatInt(period, 10))
@@ -2088,7 +2090,7 @@ func (e *Exchange) SetSpotMarginTradeLeverage(ctx context.Context, leverage floa
 	return e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/spot-margin-trade/set-leverage", nil, &map[string]string{"leverage": strconv.FormatFloat(leverage, 'f', -1, 64)}, &struct{}{}, defaultEPL)
 }
 
-// GetVIPMarginData retrieves public VIP Margin data
+// GetVIPMarginData retrieves public VIP margin data.
 func (e *Exchange) GetVIPMarginData(ctx context.Context, vipLevel, ccy string) (*VIPMarginData, error) {
 	params := url.Values{}
 	if vipLevel != "" {
@@ -2097,32 +2099,58 @@ func (e *Exchange) GetVIPMarginData(ctx context.Context, vipLevel, ccy string) (
 	if ccy != "" {
 		params.Set("currency", ccy)
 	}
+
 	var resp *VIPMarginData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, "spot-cross-margin-trade/data", defaultEPL, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("spot-margin-trade/data", params), defaultEPL, &resp)
 }
 
-// GetMarginCoinInfo retrieves margin coin information.
+// GetMarginCoinInfo retrieves spot margin collateral information.
 func (e *Exchange) GetMarginCoinInfo(ctx context.Context, coin currency.Code) ([]MarginCoinInfo, error) {
 	params := url.Values{}
 	if !coin.IsEmpty() {
-		params.Set("coin", coin.String())
+		params.Set("currency", coin.String())
 	}
-	resp := struct {
-		List []MarginCoinInfo `json:"list"`
+
+	newResp := struct {
+		List []struct {
+			Coin                string                      `json:"currency"`
+			CollateralRatioList []MarginCollateralRatioTier `json:"collateralRatioList"`
+		} `json:"list"`
 	}{}
-	return resp.List, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("spot-cross-margin-trade/pledge-token", params), defaultEPL, &resp)
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("spot-margin-trade/collateral", params), defaultEPL, &newResp); err != nil {
+		return nil, err
+	}
+
+	resp := make([]MarginCoinInfo, 0, len(newResp.List))
+	for _, item := range newResp.List {
+		conversionRate := types.Number(0)
+		if len(item.CollateralRatioList) > 0 {
+			conversionRate = item.CollateralRatioList[0].CollateralRatio
+		}
+		resp = append(resp, MarginCoinInfo{
+			Coin:                item.Coin,
+			ConversionRate:      conversionRate,
+			CollateralRatioList: item.CollateralRatioList,
+		})
+	}
+	return resp, nil
 }
 
-// GetBorrowableCoinInfo retrieves borrowable coin info list.
-func (e *Exchange) GetBorrowableCoinInfo(ctx context.Context, coin currency.Code) ([]BorrowableCoinInfo, error) {
-	params := url.Values{}
-	if !coin.IsEmpty() {
-		params.Set("coin", coin.String())
+// GetMaxBorrowableAmount retrieves max borrowable amount by currency.
+func (e *Exchange) GetMaxBorrowableAmount(ctx context.Context, coin currency.Code) ([]MaxBorrowableAmount, error) {
+	if coin.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
 	}
+	params := url.Values{}
+	params.Set("currency", coin.String())
+
 	resp := struct {
-		List []BorrowableCoinInfo `json:"list"`
+		List []MaxBorrowableAmount `json:"list"`
 	}{}
-	return resp.List, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("spot-cross-margin-trade/borrow-token", params), defaultEPL, &resp)
+	if err := e.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/spot-margin-trade/max-borrowable", params, nil, &resp, getSpotMarginTradeMaxBorrowableEPL); err != nil {
+		return nil, err
+	}
+	return resp.List, nil
 }
 
 // GetInterestAndQuota retrieves interest and quota information.
@@ -2242,9 +2270,9 @@ func (e *Exchange) GetProductInfo(ctx context.Context, productID string) (*Insti
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("ins-loan/product-infos", params), defaultEPL, &resp)
 }
 
-// GetInstitutionalLengingMarginCoinInfo retrieves institutional lending margin coin information.
+// GetInstitutionalLendingMarginCoinInfo retrieves institutional lending margin coin information.
 // ProductId. If not passed, then return all product margin coin. For spot, it returns coin that convertRation greater than 0.
-func (e *Exchange) GetInstitutionalLengingMarginCoinInfo(ctx context.Context, productID string) (*InstitutionalMarginCoinInfo, error) {
+func (e *Exchange) GetInstitutionalLendingMarginCoinInfo(ctx context.Context, productID string) (*InstitutionalMarginCoinInfo, error) {
 	params := url.Values{}
 	if productID != "" {
 		params.Set("productId", productID)
@@ -2511,10 +2539,20 @@ func (e *Exchange) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL
 			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}, request.AuthenticatedRequest)
-	if response.RetCode != 0 && response.RetMsg != "" {
+	if authErr := getAuthV5Error(response); authErr != nil {
+		return authErr
+	}
+	return err
+}
+
+func getAuthV5Error(response *RestResponse) error {
+	if response.RetCode == 0 {
+		return nil
+	}
+	if response.RetMsg != "" {
 		return fmt.Errorf("%w code: %d message: %s", request.ErrAuthRequestFailed, response.RetCode, response.RetMsg)
 	}
-	if len(response.RetExtInfo.List) > 0 && response.RetCode != 0 {
+	if len(response.RetExtInfo.List) > 0 {
 		var errMessage strings.Builder
 		var failed bool
 		for i := range response.RetExtInfo.List {
@@ -2524,10 +2562,10 @@ func (e *Exchange) SendAuthHTTPRequestV5(ctx context.Context, ePath exchange.URL
 			}
 		}
 		if failed {
-			return fmt.Errorf("%w %s", request.ErrAuthRequestFailed, errMessage.String())
+			return fmt.Errorf("%w %s", request.ErrAuthRequestFailed, strings.TrimSpace(errMessage.String()))
 		}
 	}
-	return err
+	return fmt.Errorf("%w code: %d", request.ErrAuthRequestFailed, response.RetCode)
 }
 
 func getSide(side string) order.Side {

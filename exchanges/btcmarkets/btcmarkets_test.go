@@ -1,6 +1,7 @@
 package btcmarkets
 
 import (
+	"encoding/base64"
 	"log"
 	"os"
 	"testing"
@@ -10,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -361,14 +363,12 @@ func TestGetReport(t *testing.T) {
 	}
 }
 
-func TestRequestWithdaw(t *testing.T) {
+func TestRequestWithdraw(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	_, err := e.RequestWithdraw(t.Context(), "BTC", 1, "sdjflajdslfjld", "", "", "", "")
-	if err == nil {
-		t.Error("expected an error due to invalid toAddress")
-	}
+	assert.Error(t, err, "RequestWithdraw should error due to invalid toAddress")
 }
 
 func TestBatchPlaceCancelOrders(t *testing.T) {
@@ -488,7 +488,7 @@ func TestWSTrade(t *testing.T) {
 	assert.ErrorContains(t, fErrs[0].Err, "WRONG", "Side.UnmarshalJSON errors should propagate correctly")
 	assert.ErrorIs(t, fErrs[1].Err, order.ErrSideIsInvalid, "wsHandleData errors should propagate correctly")
 	assert.ErrorContains(t, fErrs[1].Err, "ANY", "wsHandleData errors should propagate correctly")
-	close(e.Websocket.DataHandler)
+	e.Websocket.DataHandler.Close()
 
 	exp := []trade.Data{
 		{
@@ -512,12 +512,12 @@ func TestWSTrade(t *testing.T) {
 			AssetType:    asset.Spot,
 		},
 	}
-	require.Len(t, e.Websocket.DataHandler, 2, "Must see correct number of trades")
+	require.Len(t, e.Websocket.DataHandler.C, 2, "Must see correct number of trades")
 
-	for resp := range e.Websocket.DataHandler {
-		switch v := resp.(type) {
+	for resp := range e.Websocket.DataHandler.C {
+		switch v := resp.Data.(type) {
 		case trade.Data:
-			i := 1 - len(e.Websocket.DataHandler)
+			i := 1 - len(e.Websocket.DataHandler.C)
 			require.Equalf(t, exp[i], v, "Trade[%d] must be correct", i)
 		case error:
 			t.Error(v)
@@ -612,6 +612,10 @@ func TestWsHeartbeats(t *testing.T) {
 }
 
 func TestWsOrders(t *testing.T) {
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{
+		Key:    "testkey",
+		Secret: base64.StdEncoding.EncodeToString([]byte("testsecret")),
+	})
 	pressXToJSON := []byte(`{ 
 	"orderId": 79003,
     "marketId": "BTC-AUD",
@@ -624,7 +628,7 @@ func TestWsOrders(t *testing.T) {
     "timestamp": "2019-04-08T20:41:19.339Z",
     "messageType": "orderChange"
   }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
+	err := e.wsHandleData(ctx, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -647,7 +651,7 @@ func TestWsOrders(t *testing.T) {
     "timestamp": "2019-04-08T20:50:39.658Z",
     "messageType": "orderChange"
   }`)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
+	err = e.wsHandleData(ctx, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -664,7 +668,7 @@ func TestWsOrders(t *testing.T) {
     "timestamp": "2019-04-08T20:41:41.857Z",
     "messageType": "orderChange"
   }`)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
+	err = e.wsHandleData(ctx, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -687,7 +691,7 @@ func TestWsOrders(t *testing.T) {
 	"timestamp": "2019-04-08T20:41:41.857Z",
     "messageType": "orderChange"
   }`)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
+	err = e.wsHandleData(ctx, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -704,7 +708,7 @@ func TestWsOrders(t *testing.T) {
     "timestamp": "2019-04-08T20:41:41.857Z",
     "messageType": "orderChange"
   }`)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
+	err = e.wsHandleData(ctx, pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -912,17 +916,24 @@ func TestWrapperModifyOrder(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
+	testexch.UpdatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
 		t.Run(a.String(), func(t *testing.T) {
 			t.Parallel()
 			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
 			pairs, err := e.CurrencyPairs.GetPairs(a, false)
 			require.NoError(t, err, "GetPairs must not error")
-			l, err := e.GetOrderExecutionLimits(a, pairs[0])
-			require.NoError(t, err, "GetOrderExecutionLimits must not error")
-			assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+			for _, p := range pairs {
+				l, err := e.GetOrderExecutionLimits(a, p)
+				require.NoError(t, err, "GetOrderExecutionLimits must not error")
+				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+			}
 		})
 	}
+	t.Run("unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported)
+	})
 }
 
 func TestGetWithdrawalsHistory(t *testing.T) {

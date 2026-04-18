@@ -54,7 +54,7 @@ func TestPairUnmarshalJSON(t *testing.T) {
 	assert.Equal(t, "usd", p.Quote.String(), "Quote should be correct")
 	assert.Equal(t, "_", p.Delimiter, "Delimiter should be correct")
 
-	assert.ErrorIs(t, p.UnmarshalJSON([]byte(`"btcusd"`)), errCannotCreatePair, "UnmarshalJSON with no delimiter should error")
+	assert.ErrorIs(t, p.UnmarshalJSON([]byte(`"btcusd"`)), ErrCreatingPair, "UnmarshalJSON with no delimiter should error")
 
 	assert.NoError(t, p.UnmarshalJSON([]byte(`""`)), "UnmarshalJSON should not error on empty value")
 	assert.Equal(t, EMPTYPAIR, p, "UnmarshalJSON empty value should give EMPTYPAIR")
@@ -508,22 +508,17 @@ func TestCopyPairFormat(t *testing.T) {
 	pairOne := NewBTCUSD()
 	pairOne.Delimiter = "-"
 
-	var pairs []Pair
-	pairs = append(pairs, pairOne, NewPair(LTC, USD))
+	pairs := []Pair{pairOne, NewPair(LTC, USD)}
 
 	testPair := NewBTCUSD()
 	testPair.Delimiter = "~"
 
 	result := CopyPairFormat(testPair, pairs, false)
-	if result.String() != defaultPairWDelimiter {
-		t.Error("TestCopyPairFormat: Expected pair was not found")
-	}
+	assert.Equal(t, defaultPairWDelimiter, result.String(), "CopyPairFormat should return correctly formatted pair")
 
 	np := NewPair(ETH, USD)
 	result = CopyPairFormat(np, pairs, true)
-	if result.String() != "" {
-		t.Error("TestCopyPairFormat: Unexpected non empty pair returned")
-	}
+	assert.Empty(t, result.String(), "CopyPairFormat should return empty string when pair not found")
 }
 
 func TestPairsToStringArray(t *testing.T) {

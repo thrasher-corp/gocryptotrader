@@ -252,8 +252,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: e.generateSubscriptions,
 		Subscriber:            e.SpotSubscribe,
 		Unsubscriber:          e.SpotUnsubscribe,
-		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
-			return e.wsHandleData(conn, asset.Spot, resp)
+		Handler: func(ctx context.Context, conn websocket.Connection, resp []byte) error {
+			return e.wsHandleData(ctx, conn, asset.Spot, resp)
 		},
 	}); err != nil {
 		return err
@@ -273,8 +273,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: e.GenerateOptionsDefaultSubscriptions,
 		Subscriber:            e.OptionsSubscribe,
 		Unsubscriber:          e.OptionsUnsubscribe,
-		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
-			return e.wsHandleData(conn, asset.Options, resp)
+		Handler: func(ctx context.Context, conn websocket.Connection, resp []byte) error {
+			return e.wsHandleData(ctx, conn, asset.Options, resp)
 		},
 	}); err != nil {
 		return err
@@ -300,8 +300,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Unsubscriber: func(ctx context.Context, conn websocket.Connection, unsub subscription.List) error {
 			return e.LinearUnsubscribe(ctx, conn, asset.USDTMarginedFutures, unsub)
 		},
-		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
-			return e.wsHandleData(conn, asset.USDTMarginedFutures, resp)
+		Handler: func(ctx context.Context, conn websocket.Connection, resp []byte) error {
+			return e.wsHandleData(ctx, conn, asset.USDTMarginedFutures, resp)
 		},
 		MessageFilter: asset.USDTMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
 	}); err != nil {
@@ -328,8 +328,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Unsubscriber: func(ctx context.Context, conn websocket.Connection, unsub subscription.List) error {
 			return e.LinearUnsubscribe(ctx, conn, asset.USDCMarginedFutures, unsub)
 		},
-		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
-			return e.wsHandleData(conn, asset.USDCMarginedFutures, resp)
+		Handler: func(ctx context.Context, conn websocket.Connection, resp []byte) error {
+			return e.wsHandleData(ctx, conn, asset.USDCMarginedFutures, resp)
 		},
 		MessageFilter: asset.USDCMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
 	}); err != nil {
@@ -350,8 +350,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: e.GenerateInverseDefaultSubscriptions,
 		Subscriber:            e.InverseSubscribe,
 		Unsubscriber:          e.InverseUnsubscribe,
-		Handler: func(_ context.Context, conn websocket.Connection, resp []byte) error {
-			return e.wsHandleData(conn, asset.CoinMarginedFutures, resp)
+		Handler: func(ctx context.Context, conn websocket.Connection, resp []byte) error {
+			return e.wsHandleData(ctx, conn, asset.CoinMarginedFutures, resp)
 		},
 	}); err != nil {
 		return err
@@ -420,7 +420,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 	case asset.Spot, asset.CoinMarginedFutures, asset.USDCMarginedFutures, asset.USDTMarginedFutures:
 		category = getCategoryName(a)
 		for {
-			response, err = e.GetInstrumentInfo(ctx, category, "", "Trading", "", nextPageCursor, 1000)
+			response, err = e.GetInstrumentInfo(ctx, category, "", tradingStatus, "", nextPageCursor, 1000)
 			if err != nil {
 				return nil, err
 			}
@@ -435,7 +435,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		for x := range supportedOptionsTypes {
 			nextPageCursor = ""
 			for {
-				response, err = e.GetInstrumentInfo(ctx, category, "", "Trading", supportedOptionsTypes[x], nextPageCursor, 1000)
+				response, err = e.GetInstrumentInfo(ctx, category, "", tradingStatus, supportedOptionsTypes[x], nextPageCursor, 1000)
 				if err != nil {
 					return nil, err
 				}
@@ -460,7 +460,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		filterSymbol = "USD"
 	}
 	for x := range allPairs {
-		if allPairs[x].Status != "Trading" || (filterSymbol != "" && allPairs[x].QuoteCoin != filterSymbol) {
+		if allPairs[x].Status != tradingStatus || (filterSymbol != "" && allPairs[x].QuoteCoin != filterSymbol) {
 			continue
 		}
 		if a == asset.Options {
@@ -1615,7 +1615,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		for i := range supportedOptionsTypes {
 			nextPageCursor = ""
 			for {
-				instrumentInfo, err := e.GetInstrumentInfo(ctx, getCategoryName(a), "", "", supportedOptionsTypes[i], nextPageCursor, 1000)
+				instrumentInfo, err := e.GetInstrumentInfo(ctx, getCategoryName(a), "", tradingStatus, supportedOptionsTypes[i], nextPageCursor, 1000)
 				if err != nil {
 					return fmt.Errorf("%w - %v", err, supportedOptionsTypes[i])
 				}
@@ -1631,6 +1631,9 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	}
 	l := make([]limits.MinMaxLevel, 0, len(allInstrumentsInfo.List))
 	for _, inst := range allInstrumentsInfo.List {
+		if a == asset.Options && inst.Status != tradingStatus {
+			continue
+		}
 		symbol := inst.transformSymbol(a)
 		pair, err := e.MatchSymbolWithAvailablePairs(symbol, a, true)
 		if err != nil {

@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
@@ -51,9 +50,12 @@ const (
 var (
 	e *Exchange
 
-	leadTraderUniqueID string
-	loadLeadTraderOnce sync.Once
-	errSyncLeadTrader  error
+	leadTraderUniqueID             string
+	loadLeadTraderOnce             sync.Once
+	errSyncLeadTrader              error
+	leadTraderSubPositionsUniqueID string
+	loadLeadTraderSubPositionsOnce sync.Once
+	errSyncLeadTraderSubPositions  error
 
 	mainPair          = currency.NewPairWithDelimiter("BTC", "USDT", "-") // Is used for spot, margin symbols and underlying contracts
 	optionsPair       = currency.NewPairWithDelimiter("BTC", "USD", "-")
@@ -92,7 +94,7 @@ func syncLeadTraderUniqueID(t *testing.T) error {
 			Limit:          10,
 		})
 		if err != nil {
-			errSyncLeadTrader = fmt.Errorf("GetLeadTradersRanks failed: %s", err)
+			errSyncLeadTrader = fmt.Errorf("GetLeadTradersRanks failed: %w", err)
 			return
 		}
 		if len(result) == 0 {
@@ -108,6 +110,53 @@ func syncLeadTraderUniqueID(t *testing.T) error {
 	})
 
 	return errSyncLeadTrader
+}
+
+func syncLeadTraderSubPositionsUniqueID(t *testing.T) error {
+	t.Helper()
+
+	if useTestNet {
+		t.Skip("Testnet does not support lead trader API")
+	}
+
+	loadLeadTraderSubPositionsOnce.Do(func() {
+		result, err := e.GetLeadTradersRanks(contextGenerate(), &LeadTraderRanksRequest{
+			InstrumentType: instTypeSwap,
+			SortType:       "pnl_ratio",
+			HasVacancy:     true,
+			Limit:          10,
+		})
+		if err != nil {
+			errSyncLeadTraderSubPositions = fmt.Errorf("GetLeadTradersRanks failed: %w", err)
+			return
+		}
+		if len(result) == 0 {
+			errSyncLeadTraderSubPositions = errors.New("no lead trader found")
+			return
+		}
+		if len(result[0].Ranks) == 0 {
+			errSyncLeadTraderSubPositions = errors.New("could not load lead traders ranks")
+			return
+		}
+
+		for i := range result[0].Ranks {
+			candidate := result[0].Ranks[i].UniqueCode
+			_, err = e.GetLeadTraderCurrentLeadPositions(contextGenerate(), instTypeSwap, candidate, "", "", 1)
+			if err != nil {
+				continue
+			}
+			_, err = e.GetLeadTraderLeadPositionHistory(contextGenerate(), instTypeSwap, candidate, "", "", 1)
+			if err != nil {
+				continue
+			}
+			leadTraderSubPositionsUniqueID = candidate
+			return
+		}
+
+		errSyncLeadTraderSubPositions = errors.New("no lead trader found with working subposition endpoints")
+	})
+
+	return errSyncLeadTraderSubPositions
 }
 
 // contextGenerate sends an optional value to allow test requests
@@ -413,7 +462,6 @@ func TestGetOpenInterestData(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-// Only being used for testing purposes and unexported
 func (e *Exchange) underlyingFromInstID(instrumentType, instID string) (string, error) {
 	e.instrumentsInfoMapLock.Lock()
 	defer e.instrumentsInfoMapLock.Unlock()
@@ -628,7 +676,6 @@ func TestCurrencyUnitConvert(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-// Trading related endpoints test functions.
 func TestGetSupportCoins(t *testing.T) {
 	t.Parallel()
 	result, err := e.GetSupportCoins(contextGenerate())
@@ -1854,12 +1901,12 @@ func TestWithdrawal(t *testing.T) {
 	require.ErrorIs(t, err, errAddressRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.Withdrawal(contextGenerate(), &WithdrawalInput{Amount: 0.1, TransactionFee: 0.00005, Currency: currency.BTC, WithdrawalDestination: "4", ToAddress: core.BitcoinDonationAddress})
+	result, err := e.Withdrawal(contextGenerate(), &WithdrawalInput{Amount: -0.1, TransactionFee: 0.00005, Currency: currency.BTC, WithdrawalDestination: "4", ToAddress: core.BitcoinDonationAddress})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	result, err = e.Withdrawal(contextGenerate(), &WithdrawalInput{
-		Amount:                0.1,
+		Amount:                -0.1,
 		WithdrawalDestination: "4",
 		TransactionFee:        0.00005,
 		Currency:              currency.BTC,
@@ -2880,7 +2927,6 @@ func TestPurcahseETHStaking(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// RedeemETHStaking
 func TestRedeemETHStaking(t *testing.T) {
 	t.Parallel()
 	err := e.RedeemETHStaking(contextGenerate(), 0)
@@ -3327,12 +3373,18 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
 			pairs, err := e.CurrencyPairs.GetPairs(a, true)
 			require.NoError(t, err, "GetPairs must not error")
-			l, err := e.GetOrderExecutionLimits(a, pairs[0])
-			require.NoError(t, err, "GetOrderExecutionLimits must not error")
-			assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
-			assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+			for _, p := range pairs {
+				l, err := e.GetOrderExecutionLimits(a, p)
+				require.NoError(t, err, "GetOrderExecutionLimits must not error")
+				assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
+				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+			}
 		})
 	}
+	t.Run("unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported)
+	})
 }
 
 func TestUpdateTicker(t *testing.T) {
@@ -3771,7 +3823,7 @@ func TestWithdraw(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	withdrawCryptoRequest := withdraw.Request{
 		Exchange: e.Name,
-		Amount:   0.00000000001,
+		Amount:   -0.1,
 		Currency: currency.BTC,
 		Crypto: withdraw.CryptoRequest{
 			Address: core.BitcoinDonationAddress,
@@ -3885,8 +3937,8 @@ func TestGetHistoricCandles(t *testing.T) {
 		require.NoErrorf(t, err, "GetEnabledPairs for asset %s must not error", a)
 		require.NotEmptyf(t, pairs, "GetEnabledPairs for asset %s must not return empty pairs", a)
 		result, err := e.GetHistoricCandles(contextGenerate(), pairs[0], a, kline.OneMin, time.Now().Add(-time.Hour), time.Now())
-		if (a == asset.Spread || a == asset.Options) && err != nil { // Options and spread candles sometimes returns no data
-			continue
+		if (a == asset.Spread || a == asset.Options || a == asset.Futures) && errors.Is(err, kline.ErrNoTimeSeriesDataToConvert) {
+			continue // These market types can legitimately return no candles for some windows.
 		}
 		require.NoErrorf(t, err, "GetHistoricCandles for asset %s and pair %s must not error", a, pairs[0])
 		assert.NotNilf(t, result, "GetHistoricCandles for asset %s and pair %s should not return nil", a, pairs[0])
@@ -3912,13 +3964,13 @@ func TestOrderPushData(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsOrders.json", e.WsHandleData)
-	close(e.Websocket.DataHandler)
-	require.Len(t, e.Websocket.DataHandler, 4, "Should see 4 orders")
-	for resp := range e.Websocket.DataHandler {
-		switch v := resp.(type) {
+	testexch.FixtureToDataHandler(t, "testdata/wsOrders.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, nil, b) })
+	e.Websocket.DataHandler.Close()
+	require.Len(t, e.Websocket.DataHandler.C, 4, "Should see 4 orders")
+	for resp := range e.Websocket.DataHandler.C {
+		switch v := resp.Data.(type) {
 		case *order.Detail:
-			switch len(e.Websocket.DataHandler) {
+			switch len(e.Websocket.DataHandler.C) {
 			case 3:
 				assert.Equal(t, "452197707845865472", v.OrderID, "OrderID")
 				assert.Equal(t, "HamsterParty14", v.ClientOrderID, "ClientOrderID")
@@ -4027,7 +4079,7 @@ func TestWsHandleData(t *testing.T) {
 			e.API.AuthenticatedSupport = false
 			e.API.AuthenticatedWebsocketSupport = false
 		}
-		err := e.WsHandleData(t.Context(), []byte(msg))
+		err := e.wsHandleData(t.Context(), nil, []byte(msg))
 		if name == "Balance Save Error" {
 			assert.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "wsProcessBalanceAndPosition Accounts.Save should error without credentials")
 		} else {
@@ -4045,8 +4097,69 @@ func TestPushDataDynamic(t *testing.T) {
 	}
 	var err error
 	for x := range dataMap {
-		err = e.WsHandleData(t.Context(), []byte(dataMap[x]))
+		err = e.wsHandleData(t.Context(), nil, []byte(dataMap[x]))
 		require.NoError(t, err)
+	}
+}
+
+func TestWsProcessCandlesIntervalMapping(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+
+	payload := []byte(`{"arg":{"channel":"candle1D","instType":"SPOT","instId":"BTC-USDT"},"data":[["1597026383085","8533.02","8553.74","8527.17","8548.26","45247","529.5858061"]]}`)
+	require.NoError(t, ex.wsProcessCandles(t.Context(), payload))
+
+	select {
+	case msg := <-ex.Websocket.DataHandler.C:
+		got, ok := msg.Data.(kline.Item)
+		require.True(t, ok, "expected kline item")
+		assert.Equal(t, kline.Item{
+			Pair:     currency.NewPairWithDelimiter("BTC", "USDT", "-"),
+			Asset:    asset.Spot,
+			Exchange: ex.Name,
+			Interval: kline.OneDay,
+			Candles: []kline.Candle{{
+				Time:   time.UnixMilli(1597026383085),
+				Open:   8533.02,
+				Close:  8548.26,
+				High:   8553.74,
+				Low:    8527.17,
+				Volume: 45247,
+			}},
+		}, got)
+	default:
+		require.Fail(t, "expected websocket candle payload")
+	}
+}
+
+func TestWsProcessIndexCandlesIntervalMapping(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+
+	payload := []byte(`{"arg":{"channel":"index-candle30m","instType":"SPOT","instId":"BTC-USDT"},"data":[["1597026383085","3811.31","3811.31","3811.31","3811.31"]]}`)
+	require.NoError(t, ex.wsProcessIndexCandles(t.Context(), payload))
+
+	select {
+	case msg := <-ex.Websocket.DataHandler.C:
+		got, ok := msg.Data.(kline.Item)
+		require.True(t, ok, "expected kline item")
+		assert.Equal(t, kline.Item{
+			Pair:     currency.NewPairWithDelimiter("BTC", "USDT", "-"),
+			Asset:    asset.Spot,
+			Exchange: ex.Name,
+			Interval: kline.ThirtyMin,
+			Candles: []kline.Candle{{
+				Time:  time.UnixMilli(1597026383085),
+				Open:  3811.31,
+				High:  3811.31,
+				Low:   3811.31,
+				Close: 3811.31,
+			}},
+		}, got)
+	default:
+		require.Fail(t, "expected websocket index candle payload")
 	}
 }
 
@@ -4079,7 +4192,7 @@ func TestWSProcessTrades(t *testing.T) {
 		})
 		require.NoError(t, err, "AddSubscriptions must not error")
 	}
-	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", e.WsHandleData)
+	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, nil, b) })
 
 	exp := []trade.Data{
 		{
@@ -4099,13 +4212,13 @@ func TestWSProcessTrades(t *testing.T) {
 	}
 
 	total := len(assets) * len(exp)
-	require.Len(t, e.Websocket.DataHandler, total, "Must see correct number of trades")
+	require.Len(t, e.Websocket.DataHandler.C, total, "Must see correct number of trades")
 
 	trades := make(map[asset.Item][]trade.Data)
 
-	for len(e.Websocket.DataHandler) > 0 {
-		resp := <-e.Websocket.DataHandler
-		switch v := resp.(type) {
+	for len(e.Websocket.DataHandler.C) > 0 {
+		resp := <-e.Websocket.DataHandler.C
+		switch v := resp.Data.(type) {
 		case trade.Data:
 			trades[v.AssetType] = append(trades[v.AssetType], v)
 		case error:
@@ -5356,8 +5469,11 @@ func TestGetLeadTraderCurrentLeadPositions(t *testing.T) {
 	_, err := e.GetLeadTraderCurrentLeadPositions(contextGenerate(), instTypeSwap, "", "", "", 10)
 	require.ErrorIs(t, err, errUniqueCodeRequired)
 
-	require.NoError(t, syncLeadTraderUniqueID(t), "syncLeadTraderUniqueID must not error")
-	_, err = e.GetLeadTraderCurrentLeadPositions(contextGenerate(), "SWAP", leadTraderUniqueID, "", "", 10)
+	err = syncLeadTraderSubPositionsUniqueID(t)
+	if err != nil {
+		t.Skipf("OKX did not expose a lead trader with working current/history subposition endpoints: %v", err)
+	}
+	_, err = e.GetLeadTraderCurrentLeadPositions(contextGenerate(), "SWAP", leadTraderSubPositionsUniqueID, "", "", 10)
 	require.NoError(t, err)
 	// No test validation of positions performed as the lead trader may not have any positions open
 }
@@ -5367,8 +5483,11 @@ func TestGetLeadTraderLeadPositionHistory(t *testing.T) {
 	_, err := e.GetLeadTraderLeadPositionHistory(contextGenerate(), "SWAP", "", "", "", 10)
 	require.ErrorIs(t, err, errUniqueCodeRequired)
 
-	require.NoError(t, syncLeadTraderUniqueID(t), "syncLeadTraderUniqueID must not error")
-	result, err := e.GetLeadTraderLeadPositionHistory(contextGenerate(), "SWAP", leadTraderUniqueID, "", "", 10)
+	err = syncLeadTraderSubPositionsUniqueID(t)
+	if err != nil {
+		t.Skipf("OKX did not expose a lead trader with working current/history subposition endpoints: %v", err)
+	}
+	result, err := e.GetLeadTraderLeadPositionHistory(contextGenerate(), "SWAP", leadTraderSubPositionsUniqueID, "", "", 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -5612,7 +5731,7 @@ func TestGetInviteesDetail(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetUserAffilateRebateInformation(t *testing.T) {
+func TestGetUserAffiliateRebateInformation(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetUserAffiliateRebateInformation(contextGenerate(), "")
 	require.ErrorIs(t, err, errInvalidAPIKey)
@@ -6045,7 +6164,9 @@ func TestGenerateSubscriptions(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := e.generateSubscriptions()
+	public, err := e.generateSubscriptions(true)
+	require.NoError(t, err, "generateSubscriptions must not error")
+	private, err := e.generateSubscriptions(false)
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp := subscription.List{
 		{Channel: subscription.MyAccountChannel, QualifiedChannel: `{"channel":"account"}`, Authenticated: true},
@@ -6081,31 +6202,70 @@ func TestGenerateSubscriptions(t *testing.T) {
 			}
 		}
 	}
-	testsubs.EqualLists(t, exp, subs)
+	testsubs.EqualLists(t, exp, append(public, private...))
 
 	e.Features.Subscriptions = subscription.List{{Channel: channelGridPositions, Params: map[string]any{"algoId": "42"}}}
-	subs, err = e.generateSubscriptions()
+	public, err = e.generateSubscriptions(true)
+	require.NoError(t, err, "generateSubscriptions must not error")
+	private, err = e.generateSubscriptions(false)
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp = subscription.List{{Channel: channelGridPositions, Params: map[string]any{"algoId": "42"}, QualifiedChannel: `{"channel":"grid-positions","algoId":"42"}`}}
-	testsubs.EqualLists(t, exp, subs)
+	testsubs.EqualLists(t, exp, append(public, private...))
 
 	e.Features.Subscriptions = subscription.List{{Channel: channelGridPositions}}
-	subs, err = e.generateSubscriptions()
+	public, err = e.generateSubscriptions(true)
+	require.NoError(t, err, "generateSubscriptions must not error")
+	private, err = e.generateSubscriptions(false)
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp = subscription.List{{Channel: channelGridPositions, QualifiedChannel: `{"channel":"grid-positions"}`}}
-	testsubs.EqualLists(t, exp, subs)
+	testsubs.EqualLists(t, exp, append(public, private...))
 }
 
+// TODO: Implement channel subscriptions for business ws and remove this test
 func TestBusinessWSCandleSubscriptions(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
 
-	err := e.WsConnectBusiness(t.Context())
-	require.NoError(t, err, "WsConnectBusiness must not error")
+	e.Features.Subscriptions = nil // Subscriptions not needed for this test
 
-	err = e.BusinessSubscribe(t.Context(), subscription.List{{Channel: channelCandle1D}})
+	finish := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Go(func() { // reader routine so nothing blocks
+		for {
+			select {
+			case <-finish:
+				return
+			case <-e.Websocket.DataHandler.C:
+			}
+		}
+	})
+
+	for _, a := range e.GetAssetTypes(true) { // Disable all assets except spread and spot so only those are tested and data handler isn't polluted
+		switch a {
+		case asset.Spread:
+			enabled, err := e.GetBase().CurrencyPairs.GetPairs(a, true)
+			require.NoError(t, err, "GetPairs must not error")
+			randomPair, err := enabled.GetRandomPair()
+			require.NoError(t, err, "GetRandomPair must not error")
+			require.NoError(t, e.GetBase().SetPairs(currency.Pairs{randomPair}, a, true), "SetPairs must not error")
+			continue
+		case asset.Spot:
+		default:
+			require.NoError(t, e.GetBase().CurrencyPairs.SetAssetEnabled(a, false), "SetAssetEnabled must not error")
+		}
+	}
+
+	require.NoError(t, e.Websocket.Connect(t.Context()))
+
+	conn, err := e.Websocket.GetConnection(businessConnection)
+	require.NoError(t, err, "GetConnection must not error")
+
+	err = e.BusinessSubscribe(t.Context(), conn, subscription.List{{Channel: channelCandle1D}})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	close(finish) // yield so that assertion below gets all data
+	wg.Wait()
 
 	p := currency.Pairs{
 		mainPair,
@@ -6113,27 +6273,31 @@ func TestBusinessWSCandleSubscriptions(t *testing.T) {
 		currency.NewPairWithDelimiter("OKB", "USDT", "-"),
 	}
 
+	var subs subscription.List
 	for i, ch := range []string{channelCandle1D, channelMarkPriceCandle1M, channelIndexCandle1H} {
-		err := e.BusinessSubscribe(t.Context(), subscription.List{{Channel: ch, Pairs: p[i : i+1]}})
-		require.NoErrorf(t, err, "BusinessSubscribe %s-%s must not error", ch, p[i])
+		subs = append(subs, &subscription.Subscription{Channel: ch, Pairs: p[i : i+1]})
 	}
 
+	err = e.BusinessSubscribe(t.Context(), conn, subs)
+	require.NoError(t, err, "BusinessSubscribe must not error")
+
 	var got currency.Pairs
-	assert.Eventually(t, func() bool {
-		select {
-		case a := <-e.Websocket.DataHandler:
-			switch v := a.(type) {
-			case websocket.KlineData:
-				got = got.Add(v.Pair)
-			case []CandlestickMarkPrice:
-				if len(v) > 0 {
-					got = got.Add(v[0].Pair)
-				}
+	check := func() bool {
+		data := <-e.Websocket.DataHandler.C
+		switch v := data.Data.(type) {
+		case kline.Item:
+			got = got.Add(v.Pair)
+		case []CandlestickMarkPrice:
+			if len(v) > 0 {
+				got = got.Add(v[0].Pair)
 			}
 		default:
 		}
 		return len(got) == 3
-	}, 4*time.Second, 100*time.Millisecond, "Should eventually get candles from the datahandler")
+	}
+	assert.Eventually(t, check, 5*time.Second, time.Millisecond)
+	require.Equal(t, 3, len(got), "must receive candles for all three subscriptions")
+	require.NoError(t, got.ContainsAll(p, true), "must receive candles for all subscribed pairs")
 }
 
 const (
@@ -6158,13 +6322,13 @@ func TestWsProcessPublicSpreadTrades(t *testing.T) {
 
 func TestWsProcessPublicSpreadTicker(t *testing.T) {
 	t.Parallel()
-	err := e.wsProcessPublicSpreadTicker([]byte(okxSpreadPublicTickerJSON))
+	err := e.wsProcessPublicSpreadTicker(t.Context(), []byte(okxSpreadPublicTickerJSON))
 	assert.NoError(t, err)
 }
 
 func TestWsProcessSpreadOrders(t *testing.T) {
 	t.Parallel()
-	err := e.wsProcessSpreadOrders([]byte(wsProcessSpreadOrdersJSON))
+	err := e.wsProcessSpreadOrders(t.Context(), []byte(wsProcessSpreadOrdersJSON))
 	assert.NoError(t, err)
 }
 

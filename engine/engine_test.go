@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"os"
 	"slices"
 	"strings"
@@ -100,7 +101,10 @@ func TestStartStopDoesNotCausePanic(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	botOne.Settings.EnableGRPC = false
 	botOne.Settings.EnableGRPCProxy = false
+	botOne.Config.RemoteControl.GRPC.Enabled = false
+	botOne.Config.RemoteControl.GRPC.GRPCProxyEnabled = false
 	for i := range botOne.Config.Exchanges {
 		if botOne.Config.Exchanges[i].Name != testExchange {
 			// there is no need to load all exchanges for this test
@@ -112,6 +116,169 @@ func TestStartStopDoesNotCausePanic(t *testing.T) {
 	}
 
 	botOne.Stop()
+}
+
+func TestGetRuntimeContext(t *testing.T) {
+	t.Parallel()
+	var nilBot *Engine
+	assert.Nil(t, nilBot.getRuntimeContext().Done(), "nil bot should return a background context")
+
+	bot := &Engine{}
+	assert.Nil(t, bot.getRuntimeContext().Done(), "zero-value bot should return a background context")
+
+	ctx := bot.EnsureRuntimeContext()
+	require.NotNil(t, ctx, "runtime context must be created")
+	assert.Same(t, ctx, bot.getRuntimeContext(), "stored runtime context should be returned")
+}
+
+func TestGetRuntimeCancel(t *testing.T) {
+	t.Parallel()
+	var nilBot *Engine
+	assert.Nil(t, nilBot.getRuntimeCancel(), "nil bot should not return a cancel function")
+
+	bot := &Engine{}
+	assert.Nil(t, bot.getRuntimeCancel(), "zero-value bot should not return a cancel function")
+
+	bot.EnsureRuntimeContext()
+	assert.NotNil(t, bot.getRuntimeCancel(), "runtime cancel should be returned after setup")
+}
+
+func TestCancelRuntimeContext(t *testing.T) {
+	t.Parallel()
+	var nilBot *Engine
+	assert.NotPanics(t, func() { nilBot.cancelRuntimeContext() }, "nil bot should ignore runtime context cancellation")
+
+	bot := &Engine{}
+	assert.NotPanics(t, func() { bot.cancelRuntimeContext() }, "zero-value bot should ignore runtime context cancellation")
+
+	ctx := bot.EnsureRuntimeContext()
+	require.NoError(t, ctx.Err(), "runtime context must start active")
+
+	bot.cancelRuntimeContext()
+	assert.ErrorIs(t, ctx.Err(), context.Canceled, "runtime context should be cancelled")
+}
+
+func TestClearRuntimeContext(t *testing.T) {
+	t.Parallel()
+	var nilBot *Engine
+	assert.NotPanics(t, func() { nilBot.clearRuntimeContext() }, "nil bot should ignore runtime context clearing")
+
+	bot := &Engine{}
+	bot.EnsureRuntimeContext()
+	require.NotNil(t, bot.getRuntimeCancel(), "runtime cancel must be stored before clearing")
+
+	bot.clearRuntimeContext()
+	assert.Nil(t, bot.getRuntimeContext().Done(), "cleared runtime context should fall back to background")
+	assert.Nil(t, bot.getRuntimeCancel(), "cleared runtime cancel should be removed")
+}
+
+func TestSetRuntimeShutdownRequested(t *testing.T) {
+	t.Parallel()
+	var nilBot *Engine
+	assert.NotPanics(t, func() { nilBot.setRuntimeShutdownRequested(true) }, "nil bot should ignore shutdown setter calls")
+
+	bot := &Engine{}
+	bot.setRuntimeShutdownRequested(true)
+	assert.True(t, bot.runtimeShutdownRequested, "shutdown flag should be set")
+
+	bot.setRuntimeShutdownRequested(false)
+	assert.False(t, bot.runtimeShutdownRequested, "shutdown flag should be cleared")
+}
+
+func TestIsRuntimeShutdownRequested(t *testing.T) {
+	t.Parallel()
+	var nilBot *Engine
+	assert.False(t, nilBot.isRuntimeShutdownRequested(), "nil bot should report no shutdown request")
+
+	bot := &Engine{}
+	assert.False(t, bot.isRuntimeShutdownRequested(), "zero-value bot should default to no shutdown request")
+
+	bot.runtimeShutdownRequested = true
+	assert.True(t, bot.isRuntimeShutdownRequested(), "stored shutdown request should be reported")
+}
+
+func TestEnsureRuntimeContext(t *testing.T) {
+	t.Parallel()
+	var nilBot *Engine
+	assert.Nil(t, nilBot.EnsureRuntimeContext().Done(), "nil bot should return a background context")
+
+	bot := &Engine{}
+	ctx := bot.EnsureRuntimeContext()
+	require.NotNil(t, ctx, "runtime context must be created")
+	require.NoError(t, ctx.Err(), "runtime context must start active")
+	assert.Same(t, ctx, bot.runtimeCtx, "runtime context should be stored")
+	assert.NotNil(t, bot.runtimeCancel, "runtime cancel should be stored")
+	assert.Same(t, ctx, bot.EnsureRuntimeContext(), "existing runtime context should be reused")
+}
+
+func TestEnsureRuntimeContextReturnsExistingCanceledContextAfterShutdownRequest(t *testing.T) {
+	t.Parallel()
+	bot := &Engine{}
+	ctx := bot.EnsureRuntimeContext()
+	require.NotNil(t, ctx, "runtime context must be created before shutdown")
+	require.NoError(t, ctx.Err(), "runtime context must start active before shutdown")
+
+	bot.RequestShutdown()
+	ctxAfterShutdown := bot.EnsureRuntimeContext()
+	assert.Same(t, ctx, ctxAfterShutdown, "shutdown-requested runtime context should reuse the existing context")
+	require.ErrorIs(t, ctxAfterShutdown.Err(), context.Canceled, "shutdown-requested runtime context must stay cancelled")
+}
+
+func TestEnsureRuntimeContextShutdownRequestedWithoutExistingContext(t *testing.T) {
+	t.Parallel()
+	bot := &Engine{}
+	bot.setRuntimeShutdownRequested(true)
+
+	ctx := bot.EnsureRuntimeContext()
+	require.ErrorIs(t, ctx.Err(), context.Canceled, "shutdown-requested runtime context must be cancelled")
+	assert.Nil(t, bot.runtimeCtx, "shutdown-requested path should not store a runtime context")
+	assert.Nil(t, bot.runtimeCancel, "shutdown-requested path should not store a runtime cancel function")
+}
+
+func TestEnsureRuntimeContextCancelPresentWithoutContextReturnsBackground(t *testing.T) {
+	t.Parallel()
+	bot := &Engine{runtimeCancel: func() {}}
+
+	ctx := bot.EnsureRuntimeContext()
+	assert.Nil(t, ctx.Done(), "missing runtime context should fall back to background")
+	assert.NotNil(t, bot.runtimeCancel, "existing runtime cancel should be preserved")
+	assert.Nil(t, bot.runtimeCtx, "background fallback should not create a runtime context")
+}
+
+func TestRequestShutdown(t *testing.T) {
+	t.Parallel()
+	var nilBot *Engine
+	assert.NotPanics(t, func() { nilBot.RequestShutdown() }, "nil bot should ignore shutdown requests")
+
+	bot := &Engine{}
+	ctx := bot.EnsureRuntimeContext()
+	require.NoError(t, ctx.Err(), "runtime context must start active")
+
+	bot.RequestShutdown()
+	assert.True(t, bot.isRuntimeShutdownRequested(), "shutdown request should be recorded")
+	assert.ErrorIs(t, ctx.Err(), context.Canceled, "runtime context should be cancelled on shutdown request")
+}
+
+func TestWaitForGPRCShutdownDoesNotBlockWithoutShutdownReceiver(t *testing.T) {
+	t.Parallel()
+	bot := &Engine{
+		GRPCShutdownSignal: make(chan struct{}, 1),
+		Settings:           Settings{Shutdown: make(chan struct{})},
+	}
+
+	done := make(chan struct{})
+	go func() {
+		bot.waitForGPRCShutdown()
+		close(done)
+	}()
+
+	bot.GRPCShutdownSignal <- struct{}{}
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("waitForGPRCShutdown blocked without shutdown receiver")
+	}
 }
 
 var enableExperimentalTest = false
@@ -131,7 +298,10 @@ func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	botOne.Settings.EnableGRPC = false
 	botOne.Settings.EnableGRPCProxy = false
+	botOne.Config.RemoteControl.GRPC.Enabled = false
+	botOne.Config.RemoteControl.GRPC.GRPCProxyEnabled = false
 
 	botTwo, err := NewFromSettings(&Settings{
 		ConfigFile:   config.TestFile,
@@ -141,7 +311,10 @@ func TestStartStopTwoDoesNotCausePanic(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	botTwo.Settings.EnableGRPC = false
 	botTwo.Settings.EnableGRPCProxy = false
+	botTwo.Config.RemoteControl.GRPC.Enabled = false
+	botTwo.Config.RemoteControl.GRPC.GRPCProxyEnabled = false
 
 	if err = botOne.Start(); err != nil {
 		t.Error(err)

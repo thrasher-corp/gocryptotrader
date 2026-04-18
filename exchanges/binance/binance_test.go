@@ -406,19 +406,15 @@ func TestUFuturesNewOrder(t *testing.T) {
 func TestUPlaceBatchOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	var data []PlaceBatchOrderData
-	var tempData PlaceBatchOrderData
-	tempData.Symbol = "BTCUSDT"
-	tempData.Side = "BUY"
-	tempData.OrderType = "LIMIT"
-	tempData.Quantity = 4
-	tempData.Price = 1
-	tempData.TimeInForce = "GTC"
-	data = append(data, tempData)
-	_, err := e.UPlaceBatchOrders(t.Context(), data)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := e.UPlaceBatchOrders(t.Context(), []PlaceBatchOrderData{{
+		Symbol:      "BTCUSDT",
+		Side:        "BUY",
+		OrderType:   "LIMIT",
+		TimeInForce: "GTC",
+		Quantity:    4,
+		Price:       1,
+	}})
+	assert.NoError(t, err, "UPlaceBatchOrders should not error")
 }
 
 func TestUGetOrderData(t *testing.T) {
@@ -890,20 +886,15 @@ func TestFuturesNewOrder(t *testing.T) {
 func TestFuturesBatchOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	var data []PlaceBatchOrderData
-	var tempData PlaceBatchOrderData
-	tempData.Symbol = "BTCUSD_PERP"
-	tempData.Side = "BUY"
-	tempData.OrderType = "LIMIT"
-	tempData.Quantity = 1
-	tempData.Price = 1
-	tempData.TimeInForce = "GTC"
-
-	data = append(data, tempData)
-	_, err := e.FuturesBatchOrder(t.Context(), data)
-	if err != nil {
-		t.Error(err)
-	}
+	_, err := e.FuturesBatchOrder(t.Context(), []PlaceBatchOrderData{{
+		Symbol:      "BTCUSD_PERP",
+		Side:        "BUY",
+		OrderType:   "LIMIT",
+		Quantity:    1,
+		Price:       1,
+		TimeInForce: "GTC",
+	}})
+	assert.NoError(t, err, "FuturesBatchOrder should not error")
 }
 
 func TestFuturesBatchCancelOrders(t *testing.T) {
@@ -1975,12 +1966,12 @@ func BenchmarkWsHandleData(bb *testing.B) {
 	require.Len(bb, lines, 8)
 	go func() {
 		for {
-			<-e.Websocket.DataHandler
+			<-e.Websocket.DataHandler.C
 		}
 	}()
 	for bb.Loop() {
 		for x := range lines {
-			assert.NoError(bb, e.wsHandleData(lines[x]))
+			assert.NoError(bb, e.wsHandleData(bb.Context(), lines[x]))
 		}
 	}
 }
@@ -2031,7 +2022,7 @@ func TestSubscribeBadResp(t *testing.T) {
 func TestWsTickerUpdate(t *testing.T) {
 	t.Parallel()
 	pressXToJSON := []byte(`{"stream":"btcusdt@ticker","data":{"e":"24hrTicker","E":1580254809477,"s":"ETHBTC","p":"420.97000000","P":"4.720","w":"9058.27981278","x":"8917.98000000","c":"9338.96000000","Q":"0.17246300","b":"9338.03000000","B":"0.18234600","a":"9339.70000000","A":"0.14097600","o":"8917.99000000","h":"9373.19000000","l":"8862.40000000","v":"72229.53692000","q":"654275356.16896672","O":1580168409456,"C":1580254809456,"F":235294268,"L":235894703,"n":600436}}`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2063,7 +2054,7 @@ func TestWsKlineUpdate(t *testing.T) {
 		"B": "123456"   
 	  }
 	}}`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2085,7 +2076,7 @@ func TestWsTradeUpdate(t *testing.T) {
 	  "m": true,        
 	  "M": true         
 	}}`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2144,7 +2135,7 @@ func TestWsDepthUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := e.wsHandleData(update1); err != nil {
+	if err := e.wsHandleData(t.Context(), update1); err != nil {
 		t.Fatal(err)
 	}
 
@@ -2180,7 +2171,7 @@ func TestWsDepthUpdate(t *testing.T) {
 	  ]
 	}}`)
 
-	if err = e.wsHandleData(update2); err != nil {
+	if err = e.wsHandleData(t.Context(), update2); err != nil {
 		t.Error(err)
 	}
 
@@ -2213,7 +2204,7 @@ func TestWsBalanceUpdate(t *testing.T) {
   "a": "BTC",                   
   "d": "100.00000000",          
   "T": 1573200697068}}`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2245,7 +2236,7 @@ func TestWsOCO(t *testing.T) {
     }
   ]
 }}`)
-	err := e.wsHandleData(pressXToJSON)
+	err := e.wsHandleData(t.Context(), pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}
@@ -2534,16 +2525,21 @@ func TestWsOrderExecutionReport(t *testing.T) {
 		Pair:                 currency.NewBTCUSDT(),
 	}
 	// empty the channel. otherwise mock_test will fail
-	for len(e.Websocket.DataHandler) > 0 {
-		<-e.Websocket.DataHandler
+drain:
+	for {
+		select {
+		case <-e.Websocket.DataHandler.C:
+		default:
+			break drain
+		}
 	}
 
-	err := e.wsHandleData(payload)
+	err := e.wsHandleData(t.Context(), payload)
 	if err != nil {
 		t.Fatal(err)
 	}
-	res := <-e.Websocket.DataHandler
-	switch r := res.(type) {
+	res := <-e.Websocket.DataHandler.C
+	switch r := res.Data.(type) {
 	case *order.Detail:
 		if !reflect.DeepEqual(expectedResult, *r) {
 			t.Errorf("Results do not match:\nexpected: %v\nreceived: %v", expectedResult, *r)
@@ -2553,7 +2549,7 @@ func TestWsOrderExecutionReport(t *testing.T) {
 	}
 
 	payload = []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"executionReport","E":1616633041556,"s":"BTCUSDT","c":"YeULctvPAnHj5HXCQo9Mob","S":"BUY","o":"LIMIT","f":"GTC","q":"0.00028600","p":"52436.85000000","P":"0.00000000","F":"0.00000000","g":-1,"C":"","x":"TRADE","X":"FILLED","r":"NONE","i":5341783271,"l":"0.00028600","z":"0.00028600","L":"52436.85000000","n":"0.00000029","N":"BTC","T":1616633041555,"t":726946523,"I":11390206312,"w":false,"m":false,"M":true,"O":1616633041555,"Z":"14.99693910","Y":"14.99693910","Q":"0.00000000","W":1616633041555}}`)
-	err = e.wsHandleData(payload)
+	err = e.wsHandleData(t.Context(), payload)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2562,7 +2558,7 @@ func TestWsOrderExecutionReport(t *testing.T) {
 func TestWsOutboundAccountPosition(t *testing.T) {
 	t.Parallel()
 	payload := []byte(`{"stream":"jTfvpakT2yT0hVIo5gYWVihZhdM2PrBgJUZ5PyfZ4EVpCkx4Uoxk5timcrQc","data":{"e":"outboundAccountPosition","E":1616628815745,"u":1616628815745,"B":[{"a":"BTC","f":"0.00225109","l":"0.00123000"},{"a":"BNB","f":"0.00000000","l":"0.00000000"},{"a":"USDT","f":"54.43390661","l":"0.00000000"}]}}`)
-	if err := e.wsHandleData(payload); err != nil {
+	if err := e.wsHandleData(t.Context(), payload); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -2725,31 +2721,37 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
 			pairs, err := e.CurrencyPairs.GetPairs(a, false)
 			require.NoError(t, err, "GetPairs must not error")
-			l, err := e.GetOrderExecutionLimits(a, pairs[0])
-			require.NoError(t, err, "GetOrderExecutionLimits must not error")
-			assert.Positive(t, l.MinPrice, "MinPrice should be positive")
-			assert.Positive(t, l.MaxPrice, "MaxPrice should be positive")
-			assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
-			assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
-			assert.Positive(t, l.MaximumBaseAmount, "MaximumBaseAmount should be positive")
-			assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
-			assert.Positive(t, l.MarketMaxQty, "MarketMaxQty should be positive")
-			assert.Positive(t, l.MaxTotalOrders, "MaxTotalOrders should be positive")
-			switch a {
-			case asset.Spot, asset.Margin:
-				assert.Positive(t, l.MaxIcebergParts, "MaxIcebergParts should be positive")
-			case asset.USDTMarginedFutures:
-				assert.Positive(t, l.MinNotional, "MinNotional should be positive")
-				fallthrough
-			case asset.CoinMarginedFutures:
-				assert.Positive(t, l.MultiplierUp, "MultiplierUp should be positive")
-				assert.Positive(t, l.MultiplierDown, "MultiplierDown should be positive")
-				assert.Positive(t, l.MarketMinQty, "MarketMinQty should be positive")
-				assert.Positive(t, l.MarketStepIncrementSize, "MarketStepIncrementSize should be positive")
-				assert.Positive(t, l.MaxAlgoOrders, "MaxAlgoOrders should be positive")
+			for _, p := range pairs {
+				l, err := e.GetOrderExecutionLimits(a, p)
+				require.NoError(t, err, "GetOrderExecutionLimits must not error")
+				assert.Positive(t, l.MinPrice, "MinPrice should be positive")
+				assert.Positive(t, l.MaxPrice, "MaxPrice should be positive")
+				assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
+				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+				assert.Positive(t, l.MaximumBaseAmount, "MaximumBaseAmount should be positive")
+				assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
+				assert.Positive(t, l.MarketMaxQty, "MarketMaxQty should be positive")
+				assert.Positive(t, l.MaxTotalOrders, "MaxTotalOrders should be positive")
+				switch a {
+				case asset.Spot, asset.Margin:
+					assert.Positive(t, l.MaxIcebergParts, "MaxIcebergParts should be positive")
+				case asset.USDTMarginedFutures:
+					assert.Positive(t, l.MinNotional, "MinNotional should be positive")
+					fallthrough
+				case asset.CoinMarginedFutures:
+					assert.Positive(t, l.MultiplierUp, "MultiplierUp should be positive")
+					assert.Positive(t, l.MultiplierDown, "MultiplierDown should be positive")
+					assert.Positive(t, l.MarketMinQty, "MarketMinQty should be positive")
+					assert.Positive(t, l.MarketStepIncrementSize, "MarketStepIncrementSize should be positive")
+					assert.Positive(t, l.MaxAlgoOrders, "MaxAlgoOrders should be positive")
+				}
 			}
 		})
 	}
+	t.Run("unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported)
+	})
 }
 
 func TestGetHistoricalFundingRates(t *testing.T) {
@@ -2801,23 +2803,32 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 
 func TestGetLatestFundingRates(t *testing.T) {
 	t.Parallel()
-	cp := currency.NewBTCUSDT()
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Setup must not error for local exchange instance")
+	if mockTests {
+		require.NoError(t, testexch.MockHTTPInstance(e), "MockHTTPInstance must not error for local exchange instance")
+	}
+	testexch.UpdatePairsOnce(t, e)
+
+	usdtPerpetualPair := currency.NewBTCUSDT()
 	_, err := e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset:                asset.USDTMarginedFutures,
-		Pair:                 cp,
+		Pair:                 usdtPerpetualPair,
 		IncludePredictedRate: true,
 	})
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 
-	err = e.CurrencyPairs.EnablePair(asset.USDTMarginedFutures, cp)
+	err = e.CurrencyPairs.EnablePair(asset.USDTMarginedFutures, usdtPerpetualPair)
 	require.Truef(t, err == nil || errors.Is(err, currency.ErrPairAlreadyEnabled),
-		"EnablePair for asset %s and pair %s must not error: %s", asset.USDTMarginedFutures, cp, err)
+		"EnablePair for asset %s and pair %s must not error: %s", asset.USDTMarginedFutures, usdtPerpetualPair, err)
 
 	_, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset: asset.USDTMarginedFutures,
-		Pair:  cp,
+		Pair:  usdtPerpetualPair,
 	})
 	assert.NoError(t, err, "GetLatestFundingRates should not error for USDTMarginedFutures")
+
 	_, err = e.GetLatestFundingRates(t.Context(), &fundingrate.LatestRateRequest{
 		Asset: asset.CoinMarginedFutures,
 	})

@@ -3,7 +3,6 @@ package gateio
 import (
 	"context"
 	"errors"
-	"net/http"
 	"strconv"
 	"time"
 
@@ -40,7 +39,7 @@ func (e *Exchange) WsDeliveryFuturesConnect(ctx context.Context, conn websocket.
 	if err := e.CurrencyPairs.IsAssetEnabled(asset.DeliveryFutures); err != nil {
 		return err
 	}
-	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
+	if err := conn.Dial(ctx, &gws.Dialer{}, nil, nil); err != nil {
 		return err
 	}
 	pingHandler, err := getWSPingHandler(futuresPingChannel)
@@ -113,7 +112,7 @@ func (e *Exchange) DeliveryFuturesUnsubscribe(ctx context.Context, conn websocke
 
 func (e *Exchange) generateDeliveryFuturesPayload(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
-		return nil, errors.New("cannot generate payload, no channels supplied")
+		return nil, errNoChannelsSupplied
 	}
 	var creds *accounts.Credentials
 	var err error
@@ -123,7 +122,7 @@ func (e *Exchange) generateDeliveryFuturesPayload(ctx context.Context, event str
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		}
 	}
-	outbound := make([]WsInput, 0, len(channelsToSubscribe))
+	outbound := make([]WsInput, len(channelsToSubscribe))
 	for i := range channelsToSubscribe {
 		if len(channelsToSubscribe[i].Pairs) != 1 {
 			return nil, subscription.ErrNotSinglePair
@@ -193,14 +192,14 @@ func (e *Exchange) generateDeliveryFuturesPayload(ctx context.Context, event str
 				params = append(params, intervalString)
 			}
 		}
-		outbound = append(outbound, WsInput{
+		outbound[i] = WsInput{
 			ID:      e.MessageSequence(),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
 			Payload: params,
 			Auth:    auth,
 			Time:    timestamp.Unix(),
-		})
+		}
 	}
 	return outbound, nil
 }

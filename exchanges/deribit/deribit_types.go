@@ -42,7 +42,6 @@ var (
 	errInvalidID                           = errors.New("invalid id")
 	errInvalidMarginModel                  = errors.New("missing margin model")
 	errInvalidEmailAddress                 = errors.New("invalid email address")
-	errMalformedData                       = errors.New("malformed data")
 	errWebsocketConnectionNotAuthenticated = errors.New("websocket connection is not authenticated")
 	errResolutionNotSet                    = errors.New("resolution not set")
 	errInvalidDestinationID                = errors.New("invalid destination id")
@@ -544,7 +543,7 @@ type PrivateTradeData struct {
 	Order  OrderData   `json:"order"`
 }
 
-// CancelResp represents the detail of canceled order.
+// CancelResp represents the detail of cancelled order.
 type CancelResp struct {
 	InstrumentName string              `json:"instrument_name"`
 	Currency       string              `json:"currency"`
@@ -592,7 +591,7 @@ type MultipleCancelResponse struct {
 	CancelDetails []CancelResp
 }
 
-// UnmarshalJSON deserializes order cancellation response into a MultipleCancelResponse instance.
+// UnmarshalJSON deserialises order cancellation response into a MultipleCancelResponse instance.
 func (a *MultipleCancelResponse) UnmarshalJSON(data []byte) error {
 	var cancelCount int64
 	var cancelDetails []CancelResp

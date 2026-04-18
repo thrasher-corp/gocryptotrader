@@ -241,25 +241,28 @@ func TestUpdateTradablePairs(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
+	testexch.UpdatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
 		t.Run(a.String(), func(t *testing.T) {
 			t.Parallel()
 			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
 			pairs, err := e.CurrencyPairs.GetPairs(a, false)
 			require.NoError(t, err, "GetPairs must not error")
-			l, err := e.GetOrderExecutionLimits(a, pairs[0])
-			require.NoError(t, err, "GetOrderExecutionLimits must not error")
-			assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should not be zero")
-			assert.NotEmpty(t, l.Key.Pair(), "Pair should not be empty")
-			assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
-			assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
-			assert.Positive(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive")
-			if mockTests {
-				assert.Equal(t, 0.01, l.PriceStepIncrementSize, "PriceStepIncrementSize should be 0.01")
-				assert.Equal(t, 20., l.MinimumQuoteAmount, "MinimumQuoteAmount should be 20")
+			for _, p := range pairs {
+				l, err := e.GetOrderExecutionLimits(a, p)
+				require.NoError(t, err, "GetOrderExecutionLimits must not error")
+				assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should not be zero")
+				assert.NotEmpty(t, l.Key.Pair(), "Pair should not be empty")
+				assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
+				assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
+				assert.Positive(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive")
 			}
 		})
 	}
+	t.Run("unsupported asset", func(t *testing.T) {
+		t.Parallel()
+		require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported)
+	})
 }
 
 func TestGetTransactions(t *testing.T) {
@@ -619,9 +622,12 @@ func TestWithdrawFiat(t *testing.T) {
 			RequiresIntermediaryBank: false,
 			IsExpressWire:            false,
 		},
-		Amount:      10,
+		Amount:      -0.1,
 		Currency:    currency.USD,
 		Description: "WITHDRAW IT ALL",
+	}
+	if mockTests {
+		withdrawFiatRequest.Amount = 10
 	}
 
 	w, err := e.WithdrawFiatFunds(t.Context(), &withdrawFiatRequest)
@@ -668,14 +674,18 @@ func TestWithdrawInternationalBank(t *testing.T) {
 			IntermediaryBankName:          "Federal Reserve Bank",
 			IntermediaryBankPostalCode:    "2088",
 		},
-		Amount:      50,
+		Amount:      -0.1,
 		Currency:    currency.USD,
 		Description: "WITHDRAW IT ALL",
+	}
+	if mockTests {
+		withdrawFiatRequest.Amount = 50
 	}
 
 	w, err := e.WithdrawFiatFundsToInternationalBank(t.Context(),
 		&withdrawFiatRequest)
 	if mockTests {
+		require.NoError(t, err, "WithdrawFiatFundsToInternationalBank must not error")
 		assert.Equal(t, "1", w.ID, "Withdrawal ID should be correct")
 	} else {
 		require.NoError(t, err, "WithdrawFiatFundsToInternationalBank must not error")
@@ -744,12 +754,12 @@ func TestWsOrderUpdate(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
 	testexch.FixtureToDataHandler(t, "testdata/wsMyOrders.json", e.wsHandleData)
-	close(e.Websocket.DataHandler)
-	assert.Len(t, e.Websocket.DataHandler, 8, "Should see 8 orders")
-	for resp := range e.Websocket.DataHandler {
-		switch v := resp.(type) {
+	e.Websocket.DataHandler.Close()
+	assert.Len(t, e.Websocket.DataHandler.C, 8, "Should see 8 orders")
+	for resp := range e.Websocket.DataHandler.C {
+		switch v := resp.Data.(type) {
 		case *order.Detail:
-			switch len(e.Websocket.DataHandler) {
+			switch len(e.Websocket.DataHandler.C) {
 			case 7:
 				assert.Equal(t, "1658864794234880", v.OrderID, "OrderID")
 				assert.Equal(t, time.UnixMicro(1693831262313000), v.Date, "Date")

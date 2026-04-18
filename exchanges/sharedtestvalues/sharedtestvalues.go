@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -28,6 +29,8 @@ const (
 	// WebsocketChannelOverrideCapacity used in websocket testing
 	// Defines channel capacity as defaults size can block tests
 	WebsocketChannelOverrideCapacity = 500
+	// WebsocketRelayBufferCapacity used for relay buffer sizing in tests
+	WebsocketRelayBufferCapacity = 10000
 
 	MockTesting = "Mock testing framework in use for %s exchange on REST endpoints only"
 	LiveTesting = "Mock testing bypassed; live testing of REST endpoints in use for %s exchange"
@@ -38,12 +41,6 @@ const (
 	warningHowTo            = "these values can be set at the top of the test file."
 )
 
-// GetWebsocketInterfaceChannelOverride returns a new interface based channel
-// with the capacity set to WebsocketChannelOverrideCapacity
-func GetWebsocketInterfaceChannelOverride() chan any {
-	return make(chan any, WebsocketChannelOverrideCapacity)
-}
-
 // GetWebsocketStructChannelOverride returns a new struct based channel
 // with the capacity set to WebsocketChannelOverrideCapacity
 func GetWebsocketStructChannelOverride() chan struct{} {
@@ -53,18 +50,17 @@ func GetWebsocketStructChannelOverride() chan struct{} {
 // NewTestWebsocket returns a test websocket object
 func NewTestWebsocket() *websocket.Manager {
 	w := websocket.NewManager()
-	w.DataHandler = make(chan any, WebsocketChannelOverrideCapacity)
-	w.ToRoutine = make(chan any, 1000)
+	w.DataHandler = stream.NewRelay(WebsocketChannelOverrideCapacity)
 	return w
 }
 
 // SkipTestIfCredentialsUnset is a test helper function checking if the
 // authenticated function can perform the required test.
-func SkipTestIfCredentialsUnset(t *testing.T, exch exchange.IBotExchange, canManipulateOrders ...bool) {
-	t.Helper()
+func SkipTestIfCredentialsUnset(tb testing.TB, exch exchange.IBotExchange, canManipulateOrders ...bool) {
+	tb.Helper()
 
 	if len(canManipulateOrders) > 1 {
-		t.Fatal("more than one canManipulateOrders boolean value has been supplied, please remove")
+		tb.Fatal("more than one canManipulateOrders boolean value has been supplied, please remove")
 	}
 
 	areTestAPICredentialsSet := AreAPICredentialsSet(exch)
@@ -76,16 +72,16 @@ func SkipTestIfCredentialsUnset(t *testing.T, exch exchange.IBotExchange, canMan
 		return
 	}
 
-	message := []string{warningSkip}
+	out := []string{warningSkip}
 	if !areTestAPICredentialsSet {
-		message = append(message, warningKeys)
+		out = append(out, warningKeys)
 	}
 
 	if supportsManipulatingOrders && !allowedToManipulateOrders {
-		message = append(message, warningManipulateOrders)
+		out = append(out, warningManipulateOrders)
 	}
-	message = append(message, warningHowTo)
-	t.Skip(strings.Join(message, ", "))
+	out = append(out, warningHowTo)
+	tb.Skip(strings.Join(out, ", "))
 }
 
 // SkipTestIfCannotManipulateOrders will only skip if the credentials are set

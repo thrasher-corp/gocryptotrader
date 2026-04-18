@@ -657,16 +657,12 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, cfg *Config) []E
 			Response:   jsonifyInterface([]any{nil}),
 		})
 
-		var request []order.Cancel
-		request = append(request, order.Cancel{
+		cancelBatchOrdersResponse, err := e.CancelBatchOrders(context.TODO(), []order.Cancel{{
 			Side:      testOrderSide,
 			Pair:      p,
 			OrderID:   cfg.OrderSubmission.OrderID,
 			AssetType: assetTypes[i],
-		})
-
-		var CancelBatchOrdersResponse *order.CancelBatchResponse
-		CancelBatchOrdersResponse, err = e.CancelBatchOrders(context.TODO(), request)
+		}})
 		msg = ""
 		if err != nil {
 			msg = err.Error()
@@ -676,7 +672,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, cfg *Config) []E
 			SentParams: jsonifyInterface([]any{cancelRequest}),
 			Function:   "CancelBatchOrders",
 			Error:      msg,
-			Response:   jsonifyInterface([]any{CancelBatchOrdersResponse}),
+			Response:   jsonifyInterface([]any{cancelBatchOrdersResponse}),
 		})
 
 		var cancellAllOrdersResponse order.CancelAllResponse

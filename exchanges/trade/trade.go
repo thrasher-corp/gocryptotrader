@@ -1,6 +1,7 @@
 package trade
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"slices"
@@ -14,13 +15,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/database"
 	tradesql "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
+	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// Setup creates the trade processor if trading is supported
+// setup creates the trade processor if trading is supported
 func (p *Processor) setup(wg *sync.WaitGroup) {
 	p.mutex.Lock()
 	p.bufferProcessorInterval = BufferProcessorIntervalTime
@@ -30,7 +32,7 @@ func (p *Processor) setup(wg *sync.WaitGroup) {
 
 // Setup configures necessary fields to the `Trade` structure that govern trade data
 // processing.
-func (t *Trade) Setup(tradeFeedEnabled bool, c chan any) {
+func (t *Trade) Setup(tradeFeedEnabled bool, c *stream.Relay) {
 	t.dataHandler = c
 	t.tradeFeedEnabled = tradeFeedEnabled
 }
@@ -38,13 +40,16 @@ func (t *Trade) Setup(tradeFeedEnabled bool, c chan any) {
 // Update processes trade data, either by saving it or routing it through
 // the data channel.
 func (t *Trade) Update(save bool, data ...Data) error {
+	ctx := context.TODO()
 	if len(data) == 0 {
 		// nothing to do
 		return nil
 	}
 
 	if t.tradeFeedEnabled {
-		t.dataHandler <- data
+		if err := t.dataHandler.Send(ctx, data); err != nil {
+			return err
+		}
 	}
 
 	if save {
@@ -112,11 +117,12 @@ func AddTradesToBuffer(data ...Data) error {
 
 // Run will save trade data to the database in batches
 func (p *Processor) Run(wg *sync.WaitGroup) {
-	wg.Done()
 	if !atomic.CompareAndSwapInt32(&p.started, 0, 1) {
+		wg.Done()
 		log.Errorln(log.Trade, "trade processor already started")
 		return
 	}
+	wg.Done()
 	defer func() {
 		atomic.CompareAndSwapInt32(&p.started, 1, 0)
 	}()
