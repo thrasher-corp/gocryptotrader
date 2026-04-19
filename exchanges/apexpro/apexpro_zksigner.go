@@ -88,7 +88,7 @@ func (e *Exchange) ProcessZKKeyOrderSignature(ctx context.Context, arg *CreateOr
 		found    bool
 	)
 	for _, c := range configData.ContractConfig.PerpetualContract {
-		if c.Symbol == arg.Symbol.String() {
+		if c.Symbol.Equal(arg.Symbol) {
 			pairID, err = strconv.ParseInt(c.L2PairID, 10, 64)
 			if err != nil {
 				return "", fmt.Errorf("invalid l2PairId %q: %w", c.L2PairID, err)

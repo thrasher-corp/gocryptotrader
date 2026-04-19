@@ -1,7 +1,6 @@
 package apexpro
 
 import (
-	"context"
 	"encoding/hex"
 	"math/big"
 	"testing"
@@ -93,9 +92,7 @@ func TestContractBuilderGetBytes(t *testing.T) {
 
 func TestWithdrawBuilderGetBytes(t *testing.T) {
 	t.Parallel()
-
 	toAddr, _ := new(big.Int).SetString("0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045", 0)
-
 	builder := &zklink.WithdrawBuilder{
 		AccountID:        big.NewInt(1000),
 		SubAccountID:     big.NewInt(1),
@@ -151,7 +148,7 @@ func TestProcessZKKeyOrderSignature_MissingCredentials(t *testing.T) {
 	t.Parallel()
 
 	ex := new(Exchange)
-	_, err := ex.ProcessZKKeyOrderSignature(context.Background(), &CreateOrderParams{
+	_, err := ex.ProcessZKKeyOrderSignature(t.Context(), &CreateOrderParams{
 		Symbol: currency.NewPairWithDelimiter("BTC", "USDT", "-"),
 		Side:   "BUY",
 	})
@@ -162,7 +159,7 @@ func TestProcessZKKeyWithdrawalSignature_MissingCredentials(t *testing.T) {
 	t.Parallel()
 
 	ex := new(Exchange)
-	_, err := ex.ProcessZKKeyWithdrawalSignature(context.Background(), &AssetWithdrawalParams{
+	_, err := ex.ProcessZKKeyWithdrawalSignature(t.Context(), &AssetWithdrawalParams{
 		Amount:          1.0,
 		L2SourceTokenID: currency.USDT,
 		L1TargetTokenID: currency.USDT,

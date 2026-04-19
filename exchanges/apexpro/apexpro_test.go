@@ -1339,13 +1339,6 @@ func TestGetActiveOrders(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestWsConnect(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	err := e.WsConnect()
-	assert.NoError(t, err)
-}
-
 func TestGetTransferErc20Fact(t *testing.T) {
 	fact, err := GetTransferErc20Fact(
 		3, "0x1234567890123456789012345678901234567890",

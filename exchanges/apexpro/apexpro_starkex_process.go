@@ -51,7 +51,7 @@ func (e *Exchange) ProcessOrderSignature(ctx context.Context, arg *CreateOrderPa
 	}
 	var contractDetail *PerpetualContractDetail
 	for a := range e.SymbolsConfig.Data.PerpetualContract {
-		if e.SymbolsConfig.Data.PerpetualContract[a].Symbol == arg.Symbol.String() {
+		if e.SymbolsConfig.Data.PerpetualContract[a].Symbol.Equal(arg.Symbol) {
 			contractDetail = &e.SymbolsConfig.Data.PerpetualContract[a]
 			if !contractDetail.EnableTrade {
 				return "", currency.ErrPairNotEnabled
@@ -559,7 +559,7 @@ func GetTransferErc20Fact(tokenDecimals int, recipient, humanAmount, tokenAddres
 		// types
 		[]string{"address", "uint256", "address", "uint256"},
 		// values
-		[]interface{}{recipient, tokenAmount.String(), tokenAddress, saltInt.String()},
+		[]any{recipient, tokenAmount.String(), tokenAddress, saltInt.String()},
 	)
 	if err != nil {
 		return "", err

@@ -118,22 +118,24 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 
 	err = e.Websocket.Setup(
 		&websocket.ManagerSetup{
-			ExchangeConfig:        exch,
-			DefaultURL:            apexProWebsocket,
-			RunningURL:            wsRunningEndpoint,
-			Connector:             e.WsConnect,
-			Subscriber:            e.Subscribe,
-			Unsubscriber:          e.Unsubscribe,
-			GenerateSubscriptions: e.GenerateDefaultSubscriptions,
-			Features:              &e.Features.Supports.WebsocketCapabilities,
+			ExchangeConfig:               exch,
+			DefaultURL:                   apexProWebsocket,
+			RunningURL:                   wsRunningEndpoint,
+			Features:                     &e.Features.Supports.WebsocketCapabilities,
+			UseMultiConnectionManagement: true,
 		})
 	if err != nil {
 		return err
 	}
 	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  apexProWebsocket,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		URL:                   apexProWebsocket,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		GenerateSubscriptions: e.GenerateDefaultSubscriptions,
+		Handler:               e.wsHandleData,
+		Connector:             e.WsConnect,
+		Subscriber:            e.Subscribe,
+		Unsubscriber:          e.Unsubscribe,
 	})
 	if err != nil {
 		return err
@@ -143,6 +145,10 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		URL:                  apexProPrivateWebsocket,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+		Handler:              e.wsHandleData,
+		Connector:            e.WsAuth,
+		Subscriber:           e.Subscribe,
+		Unsubscriber:         e.Unsubscribe,
 		Authenticated:        true,
 	})
 }
@@ -164,11 +170,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		if !configs.Data.PerpetualContract[a].EnableTrade {
 			continue
 		}
-		cp, err := currency.NewPairFromString(configs.Data.PerpetualContract[a].Symbol)
-		if err != nil {
-			return nil, err
-		}
-		tradablePairs = append(tradablePairs, cp)
+		tradablePairs = append(tradablePairs, configs.Data.PerpetualContract[a].Symbol)
 	}
 	return tradablePairs, nil
 }
@@ -807,20 +809,16 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, _ asset.Item) 
 	}
 	resp := make([]futures.Contract, 0, len(result.ContractConfig.PerpetualContract))
 	for x := range result.ContractConfig.PerpetualContract {
-		var cp, underlying currency.Pair
-		cp, err = currency.NewPairFromString(result.ContractConfig.PerpetualContract[x].Symbol)
-		if err != nil {
-			return nil, err
-		}
-		underlying, err = currency.NewPairFromStrings(result.ContractConfig.PerpetualContract[x].Symbol, "USD")
+		var underlying currency.Pair
+		underlying, err = currency.NewPairFromString(result.ContractConfig.PerpetualContract[x].UnderlyingCurrencyID)
 		if err != nil {
 			return nil, err
 		}
 		resp = append(resp, futures.Contract{
 			Exchange:           e.Name,
-			Name:               cp,
 			Underlying:         underlying,
 			Asset:              asset.Futures,
+			Name:               result.ContractConfig.PerpetualContract[x].Symbol,
 			StartDate:          result.ContractConfig.PerpetualContract[x].KlineStartTime.Time(),
 			SettlementType:     futures.Linear,
 			IsActive:           result.ContractConfig.PerpetualContract[x].EnableTrade,
@@ -849,9 +847,8 @@ func (e *Exchange) IsPerpetualFutureCurrency(a asset.Item, pair currency.Pair) (
 		}
 		contracts = resp.Data.PerpetualContract
 	}
-	symbol := pair.String()
 	for a := range contracts {
-		if contracts[a].Symbol == symbol {
+		if contracts[a].Symbol.Equal(pair) {
 			return true, nil
 		}
 	}
@@ -914,14 +911,12 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, _ asset.Item)
 	}
 	ls := make([]limits.MinMaxLevel, 0, len(instrumentsInfo.ContractConfig.PerpetualContract))
 	for x := range instrumentsInfo.ContractConfig.PerpetualContract {
-		var pair currency.Pair
-		pair, err = e.MatchSymbolWithAvailablePairs(instrumentsInfo.ContractConfig.PerpetualContract[x].Symbol, asset.Futures, false)
-		if err != nil {
+		if enabled, err := e.IsPairEnabled(instrumentsInfo.ContractConfig.PerpetualContract[x].Symbol, asset.Futures); err != nil || !enabled {
 			log.Warnf(log.ExchangeSys, "%s unable to load limits for %v, pair data missing", e.Name, instrumentsInfo.ContractConfig.PerpetualContract[x].Symbol)
 			continue
 		}
 		ls = append(ls, limits.MinMaxLevel{
-			Key:                     key.NewExchangeAssetPair(e.Name, asset.Futures, pair),
+			Key:                     key.NewExchangeAssetPair(e.Name, asset.Futures, instrumentsInfo.ContractConfig.PerpetualContract[x].Symbol),
 			MinimumBaseAmount:       instrumentsInfo.ContractConfig.PerpetualContract[x].MinOrderSize.Float64(),
 			MaximumBaseAmount:       instrumentsInfo.ContractConfig.PerpetualContract[x].MaxOrderSize.Float64(),
 			MaxTotalOrders:          instrumentsInfo.ContractConfig.PerpetualContract[x].MaxPositionSize.Int64(),

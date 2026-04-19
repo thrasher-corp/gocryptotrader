@@ -43,7 +43,7 @@ type Exchange struct {
 
 	// ZKLinkerSigner is lazily initialised on first V3 signing call.
 	// Access via getOrInitZKLinkerSigner() in apexpro_zksigner.go.
-	ZKLinkerSigner interface{}
+	ZKLinkerSigner any
 }
 
 const (
@@ -403,8 +403,8 @@ func (e *Exchange) EditUserDataV1(ctx context.Context, arg *EditUserDataParams) 
 }
 
 func (e *Exchange) editUserData(ctx context.Context, arg *EditUserDataParams, path string) (*UserDataResponse, error) {
-	if *arg == (EditUserDataParams{}) {
-		return nil, common.ErrNilPointer
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	var resp *UserDataResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, request.UnAuth, nil, arg, &resp)
@@ -582,7 +582,7 @@ func (e *Exchange) GetUserTransferData(ctx context.Context, id, limit int64, tok
 	if endAt.IsZero() {
 		return nil, fmt.Errorf("%w, endTime is required", errInvalidTimestamp)
 	}
-	arg := make(map[string]interface{})
+	arg := make(map[string]any)
 	params := url.Values{}
 	if limit > 0 {
 		arg["limit"] = strconv.FormatInt(limit, 10)
@@ -856,8 +856,8 @@ func (e *Exchange) FastWithdrawalV2(ctx context.Context, arg *FastWithdrawalPara
 }
 
 func (e *Exchange) fillWithdrawalParams(arg *FastWithdrawalParams) error {
-	if *arg == (FastWithdrawalParams{}) {
-		return common.ErrNilPointer
+	if err := common.NilGuard(arg); err != nil {
+		return err
 	}
 	if arg.Amount <= 0 {
 		return limits.ErrAmountBelowMin
@@ -925,7 +925,7 @@ func (e *Exchange) cancelOrderByID(ctx context.Context, id, path string) (types.
 		return 0, order.ErrOrderIDNotSet
 	}
 	var resp types.Number
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, request.UnAuth, nil, map[string]interface{}{"id": id}, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, request.UnAuth, nil, map[string]any{"id": id}, &resp)
 }
 
 // CancelAllOpenOrdersV3 cancels all open orders
@@ -1324,8 +1324,8 @@ func (e *Exchange) GetRepaymentPrice(ctx context.Context, repaymentPriceTokens [
 
 // UserManualRepayment sends a user manual repayment request
 func (e *Exchange) UserManualRepayment(ctx context.Context, arg *UserManualRepaymentParams) (*IDResponse, error) {
-	if arg == nil {
-		return nil, common.ErrNilPointer
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if arg.ClientID == "" {
 		return nil, errClientIDMissing
@@ -1374,7 +1374,7 @@ func (e *Exchange) setInitialMarginRateInfo(ctx context.Context, symbol, path st
 	if initialMarginRate <= 0 {
 		return errInitialMarginRateRequired
 	}
-	arg := &map[string]interface{}{
+	arg := &map[string]any{
 		"symbol":            symbol,
 		"initialMarginRate": strconv.FormatFloat(initialMarginRate, 'f', -1, 64),
 	}
@@ -1485,8 +1485,8 @@ func (e *Exchange) WithdrawalToAddressV2(ctx context.Context, arg *WithdrawalToA
 }
 
 func (e *Exchange) withdrawalToAddress(ctx context.Context, arg *WithdrawalToAddressParams, path string) (*WithdrawalResponse, error) {
-	if *arg == (WithdrawalToAddressParams{}) {
-		return nil, common.ErrNilPointer
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	if arg.Amount <= 0 {
 		return nil, limits.ErrAmountBelowMin
@@ -1548,17 +1548,17 @@ func (e *Exchange) crossChainWithdrawals(ctx context.Context, arg *FastWithdrawa
 }
 
 // SendHTTPRequest sends an unauthenticated request
-func (e *Exchange) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result interface{}, useAsItIs ...bool) error {
+func (e *Exchange) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path string, f request.EndpointLimit, result any, useAsItIs ...bool) error {
 	endpointPath, err := e.API.Endpoints.GetURL(ePath)
 	if err != nil {
 		return err
 	}
-	var response interface{}
+	var response any
 	if len(useAsItIs) > 0 && useAsItIs[0] {
 		response = result
 	} else {
 		response = &struct {
-			Data interface{} `json:"data"`
+			Data any `json:"data"`
 		}{
 			Data: result,
 		}
@@ -1576,7 +1576,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request.
-func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, f request.EndpointLimit, params url.Values, arg, result interface{}, timestamps ...int64) error {
+func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ePath exchange.URL, method, path string, f request.EndpointLimit, params url.Values, arg, result any, timestamps ...int64) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
