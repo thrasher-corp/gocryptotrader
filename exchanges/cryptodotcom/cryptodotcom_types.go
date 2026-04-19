@@ -138,7 +138,7 @@ type PrivateRequestParam struct {
 	ID        int64                  `json:"id"`
 	Method    string                 `json:"method"`
 	APIKey    string                 `json:"api_key,omitempty"`
-	Params    map[string]interface{} `json:"params"`
+	Params    map[string]any `json:"params"`
 	Nonce     int64                  `json:"nonce"`
 	Signature string                 `json:"sig"`
 }
@@ -345,7 +345,7 @@ type AmendOrderParam struct {
 	NewQuantity           float64 `json:"new_quantity"`
 }
 
-func (arg *OrderParam) getCreateParamMap() (map[string]interface{}, error) {
+func (arg *OrderParam) getCreateParamMap() (map[string]any, error) {
 	if arg == nil {
 		return nil, fmt.Errorf("%w, CreateOrderParam can not be nil", common.ErrNilPointer)
 	}
@@ -395,7 +395,7 @@ func (arg *OrderParam) getCreateParamMap() (map[string]interface{}, error) {
 	default:
 		return nil, fmt.Errorf("%w, unsupported order type: %v", order.ErrTypeIsInvalid, arg.OrderType)
 	}
-	params := make(map[string]interface{})
+	params := make(map[string]any)
 	params["instrument_name"] = arg.Symbol
 	params["side"] = arg.Side.String()
 	params["type"] = OrderTypeToString(arg.OrderType)
@@ -681,7 +681,7 @@ type WsResult struct {
 	Channel        string          `json:"channel,omitempty"`
 	Subscription   string          `json:"subscription,omitempty"`
 	Data           json.RawMessage `json:"data,omitempty"`
-	InstrumentName currency.Pair   `json:"instrument_name,omitempty"`
+	InstrumentName currency.Pair   `json:"instrument_name"`
 	Depth          int64           `json:"depth,omitempty"`    // for orderbooks
 	Interval       string          `json:"interval,omitempty"` // for candlestick data.
 	Timestamp      types.Time      `json:"t"`                  // Timestamp of book publish (milliseconds since the Unix epoch)
@@ -762,24 +762,24 @@ type WsRequestPayload struct {
 
 // RespData represents a generalized object structure of responses.
 type RespData struct {
-	ID            int64       `json:"id"`
-	Method        string      `json:"method"`
-	Code          int64       `json:"code"`
-	Message       string      `json:"message"`
-	DetailCode    string      `json:"detail_code"`
-	DetailMessage string      `json:"detail_message"`
-	Result        interface{} `json:"result"`
+	ID            int64  `json:"id"`
+	Method        string `json:"method"`
+	Code          int64  `json:"code"`
+	Message       string `json:"message"`
+	DetailCode    string `json:"detail_code"`
+	DetailMessage string `json:"detail_message"`
+	Result        any    `json:"result"`
 }
 
 // WSRespData represents a generalized object structure of websocket responses.
 type WSRespData struct {
-	ID            int64       `json:"id"`
-	Method        string      `json:"method"`
-	Code          int64       `json:"code"`
-	Message       string      `json:"message"`
-	DetailCode    string      `json:"detail_code"`
-	DetailMessage string      `json:"detail_message"`
-	Result        interface{} `json:"result"`
+	ID            int64  `json:"id"`
+	Method        string `json:"method"`
+	Code          int64  `json:"code"`
+	Message       string `json:"message"`
+	DetailCode    string `json:"detail_code"`
+	DetailMessage string `json:"detail_message"`
+	Result        any    `json:"result"`
 }
 
 // AllInstruments holds all instruments detail.
@@ -1359,7 +1359,7 @@ type FiatCreateWithdrawl struct {
 		BankName            string `json:"bank_name,omitempty"`
 		Address1            string `json:"address_1,omitempty"`
 		Address2            string `json:"address_2,omitempty"`
-	} `json:"intermediate_bank,omitempty"`
+	} `json:"intermediate_bank"`
 }
 
 // FiatWithdrawalResponse holds a fiat currency withdrawal response

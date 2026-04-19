@@ -1083,7 +1083,7 @@ func (e *Exchange) getParamString(params map[string]any) string {
 	keys := e.sortParams(params)
 	for x := range keys {
 		if params[keys[x]] == nil {
-			paramString += keys[x] + "null"
+			paramString = fmt.Sprintf("%s%snull", paramString, keys[x])
 		}
 		switch value := params[keys[x]].(type) {
 		case bool:
@@ -1098,7 +1098,7 @@ func (e *Exchange) getParamString(params map[string]any) string {
 			paramString += keys[x] + value
 		case []map[string]any:
 			for y := range value {
-				paramString += e.getParamString(value[y])
+				paramString = fmt.Sprintf("%s%s", paramString, e.getParamString(value[y]))
 			}
 		}
 	}

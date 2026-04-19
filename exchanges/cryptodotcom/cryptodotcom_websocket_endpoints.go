@@ -260,19 +260,25 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, method string, arg 
 		conn    websocket.Connection
 	)
 	if authenticated {
-		conn, err := e.Websocket.GetConnection(privateMessageFilter)
+		conn, err = e.Websocket.GetConnection(privateMessageFilter)
 		if err != nil {
 			return err
 		}
 		req.ID = e.MessageSequence()
 		payload, err = conn.SendMessageReturnResponse(ctx, request.Auth, req.ID, req)
+		if err != nil {
+			return err
+		}
 	} else {
-		req.ID = e.MessageSequence()
 		conn, err = e.Websocket.GetConnection(publicMessageFilter)
 		if err != nil {
 			return err
 		}
+		req.ID = e.MessageSequence()
 		payload, err = conn.SendMessageReturnResponse(ctx, request.UnAuth, req.ID, req)
+		if err != nil {
+			return err
+		}
 	}
 	if err != nil {
 		return err

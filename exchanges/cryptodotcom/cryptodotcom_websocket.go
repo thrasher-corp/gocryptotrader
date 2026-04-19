@@ -140,7 +140,7 @@ func (e *Exchange) WsAuthConnect(ctx context.Context, conn websocket.Connection)
 
 // AuthenticateWebsocketConnection authenticates the websocekt connection.
 func (e *Exchange) AuthenticateWebsocketConnection(ctx context.Context, conn websocket.Connection) error {
-	creds, err := e.GetCredentials(context.Background())
+	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
@@ -160,7 +160,7 @@ func (e *Exchange) AuthenticateWebsocketConnection(ctx context.Context, conn web
 	}
 	req.APIKey = creds.Key
 	req.Signature = hex.EncodeToString(hmac)
-	payload, err = conn.SendMessageReturnResponse(context.Background(), request.UnAuth, req.ID, req)
+	payload, err = conn.SendMessageReturnResponse(ctx, request.UnAuth, req.ID, req)
 	if err != nil {
 		return err
 	}
