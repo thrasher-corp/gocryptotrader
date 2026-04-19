@@ -646,6 +646,8 @@ func TestCancelPerpOrderV2(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelPerpOrderV2(t.Context(), "", currency.USDT)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	_, err = e.CancelPerpOrderV2(t.Context(), "12345", currency.EMPTYCODE)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.CancelPerpOrderV2(t.Context(), "123231", currency.USDT)
@@ -679,6 +681,9 @@ func TestGetOpenOrdersV1(t *testing.T) {
 
 func TestGetAllOrderHistory(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetAllOrderHistory(t.Context(), "BTC-USDC", "SELL", "MARKET", "OPEN", "HISTORY", time.Now(), time.Now().Add(-time.Hour), 0, 10)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetAllOrderHistory(t.Context(), "BTC-USDC", "SELL", "MARKET", "OPEN", "HISTORY", time.Time{}, time.Time{}, 0, 10)
 	require.NoError(t, err)
@@ -689,6 +694,8 @@ func TestGetAllOrderHistoryV2(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetAllOrderHistoryV2(t.Context(), currency.EMPTYCODE, "BTC-USDC", "SELL", "MARKET", "OPEN", "HISTORY", time.Time{}, time.Time{}, 0, 10)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	_, err = e.GetAllOrderHistoryV2(t.Context(), currency.USDT, "BTC-USDC", "SELL", "MARKET", "OPEN", "HISTORY", time.Now(), time.Now().Add(-time.Hour), 0, 10)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetAllOrderHistoryV2(t.Context(), currency.USDT, "BTC-USDC", "SELL", "MARKET", "OPEN", "HISTORY", time.Time{}, time.Time{}, 0, 10)
@@ -698,6 +705,9 @@ func TestGetAllOrderHistoryV2(t *testing.T) {
 
 func TestGetAllOrderHistoryV1(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetAllOrderHistoryV1(t.Context(), "BTC-USDC", "SELL", "MARKET", "OPEN", "HISTORY", time.Now(), time.Now().Add(-time.Hour), 0, 10)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetAllOrderHistoryV1(t.Context(), "BTC-USDC", "SELL", "MARKET", "OPEN", "HISTORY", time.Time{}, time.Time{}, 0, 10)
 	require.NoError(t, err)

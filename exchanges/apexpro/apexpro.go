@@ -217,8 +217,12 @@ func (e *Exchange) getCandlestickChartData(ctx context.Context, symbol, path str
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
-	params.Set("symbol", symbol)
 	if interval != kline.Interval(0) {
 		intervalString, err := intervalToString(interval)
 		if err != nil {
@@ -235,6 +239,7 @@ func (e *Exchange) getCandlestickChartData(ctx context.Context, symbol, path str
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
+	params.Set("symbol", symbol)
 	var resp map[string][]CandlestickData
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(path, params), request.UnAuth, &resp)
 }
@@ -454,6 +459,11 @@ func (e *Exchange) GetUserTransferDataV1(ctx context.Context, ccy currency.Code,
 }
 
 func (e *Exchange) getUserTransferData(ctx context.Context, ccy currency.Code, startTime, endTime time.Time, transferType, path string, chainIDs []string, limit, page int64) (*UserWithdrawalsV2, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if !ccy.IsEmpty() {
 		params.Set("currencyId", ccy.String())
@@ -491,6 +501,11 @@ func (e *Exchange) GetUserWithdrawalListV1(ctx context.Context, transferType str
 }
 
 func (e *Exchange) getUserWithdrawalList(ctx context.Context, transferType, path string, startTime, endTime time.Time, page, limit int64) (*WithdrawalsV2, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if !startTime.IsZero() {
 		params.Set("beginTimeInclusive", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -646,6 +661,11 @@ func (e *Exchange) GetTradeHistoryV1(ctx context.Context, symbol, side, orderTyp
 }
 
 func (e *Exchange) getTradeHistory(ctx context.Context, symbol, side, orderType, token, path string, startTime, endTime time.Time, page, limit int64, ePath exchange.URL) (*TradeHistory, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if symbol != "" {
 		params.Set("symbol", symbol)
@@ -978,6 +998,11 @@ func (e *Exchange) GetAllOrderHistoryV1(ctx context.Context, symbol, side, order
 }
 
 func (e *Exchange) getAllOrderHistory(ctx context.Context, symbol, side, orderType, orderStatus, ordersKind, token, path string, startTime, endTime time.Time, page, limit int64) (*OrderHistoryResponse, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if token != "" {
 		params.Set("token", token)
@@ -1121,6 +1146,11 @@ func (e *Exchange) GetFundingRateV1(ctx context.Context, symbol, side, status st
 }
 
 func (e *Exchange) getFundingRate(ctx context.Context, symbol, side, status, token, path string, startTime, endTime time.Time, limit, page int64, ePath exchange.URL) (*FundingRateResponse, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if token != "" {
 		params.Set("token", token)
@@ -1169,6 +1199,11 @@ func (e *Exchange) GetUserHistorialProfitAndLossV2(ctx context.Context, token cu
 }
 
 func (e *Exchange) getUserHistorialProfitAndLoss(ctx context.Context, symbol, positionType, token, path string, startTime, endTime time.Time, page, limit int64, ePath exchange.URL) (*PNLHistory, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if token != "" {
 		params.Set("token", token)
@@ -1237,6 +1272,11 @@ func (e *Exchange) GetHistoricalAssetValueV2(ctx context.Context, token currency
 }
 
 func (e *Exchange) getHistoricalAssetValue(ctx context.Context, token, path string, startTime, endTime time.Time, ePath exchange.URL) (*AssetValueHistory, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
 	params := url.Values{}
 	if token != "" {
 		params.Set("token", token)

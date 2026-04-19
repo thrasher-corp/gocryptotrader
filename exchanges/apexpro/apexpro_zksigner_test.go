@@ -17,7 +17,6 @@ import (
 // knownSeedsHex is a deterministic test seed (does NOT represent a real key).
 const knownSeedsHex = "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
 
-// TestNewZKLinkSignerFromSeeds verifies deterministic key derivation from known seeds.
 func TestNewZKLinkSignerFromSeeds(t *testing.T) {
 	t.Parallel()
 
@@ -29,17 +28,14 @@ func TestNewZKLinkSignerFromSeeds(t *testing.T) {
 	require.NotNil(t, signer)
 
 	pubBytes := signer.PublicKeyBytes()
-	// Public key must be non-zero
 	var zero [32]byte
 	assert.NotEqual(t, zero, pubBytes, "public key should not be zero")
 
-	// Calling again with same seeds must produce identical public key (deterministic)
 	signer2, err := zklink.NewZKLinkSignerFromSeeds(seeds)
 	require.NoError(t, err)
 	assert.Equal(t, pubBytes, signer2.PublicKeyBytes(), "key derivation must be deterministic")
 }
 
-// TestNewZKLinkSignerFromSeedsErrors checks error cases.
 func TestNewZKLinkSignerFromSeedsErrors(t *testing.T) {
 	t.Parallel()
 
@@ -50,7 +46,6 @@ func TestNewZKLinkSignerFromSeedsErrors(t *testing.T) {
 	assert.Error(t, err, "empty seeds should error")
 }
 
-// TestZKLinkSignerSign verifies that Sign produces a 64-byte output and is deterministic.
 func TestZKLinkSignerSign(t *testing.T) {
 	t.Parallel()
 
@@ -65,18 +60,15 @@ func TestZKLinkSignerSign(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, sig1, 64, "signature must be 64 bytes")
 
-	// Re-sign same message — must produce identical signature (deterministic nonce)
 	sig2, err := signer.Sign(msg)
 	require.NoError(t, err)
 	assert.Equal(t, sig1, sig2, "signing same message must be deterministic")
 
-	// Different messages must produce different signatures
 	sig3, err := signer.Sign(big.NewInt(87654321))
 	require.NoError(t, err)
 	assert.NotEqual(t, sig1, sig3, "different messages must produce different signatures")
 }
 
-// TestContractBuilderGetBytes verifies bit-packing of known field values.
 func TestContractBuilderGetBytes(t *testing.T) {
 	t.Parallel()
 
@@ -86,11 +78,11 @@ func TestContractBuilderGetBytes(t *testing.T) {
 		SlotID:       big.NewInt(0),
 		Nonce:        big.NewInt(5),
 		PairID:       big.NewInt(2),
-		Size:         big.NewInt(100000000),  // 1 BTC in satoshi-like units
-		Price:        big.NewInt(3000000000), // $30 000 in cent-like units
+		Size:         big.NewInt(100000000),
+		Price:        big.NewInt(3000000000),
 		Direction:    true,
-		TakerFeeRate: big.NewInt(20),  // 0.02% × 100000
-		MakerFeeRate: big.NewInt(10),  // 0.01% × 100000
+		TakerFeeRate: big.NewInt(20),
+		MakerFeeRate: big.NewInt(10),
 		HasSubsidy:   false,
 	}
 
@@ -99,7 +91,6 @@ func TestContractBuilderGetBytes(t *testing.T) {
 	assert.True(t, msgBytes.BitLen() > 0, "message bytes must be non-zero")
 }
 
-// TestWithdrawBuilderGetBytes verifies bit-packing includes token fields.
 func TestWithdrawBuilderGetBytes(t *testing.T) {
 	t.Parallel()
 
@@ -125,24 +116,19 @@ func TestWithdrawBuilderGetBytes(t *testing.T) {
 	assert.True(t, msgBytes.BitLen() > 0, "message bytes must be non-zero")
 }
 
-// TestRescueHashBigInt verifies that RescueHashBigInt returns a non-nil result.
 func TestRescueHashBigInt(t *testing.T) {
 	t.Parallel()
-
-	msg := big.NewInt(0).Lsh(big.NewInt(1), 200) // 2^200, ~60 bytes
+	msg := big.NewInt(0).Lsh(big.NewInt(1), 200)
 	result := zklink.RescueHashBigInt(msg)
 	require.NotNil(t, result)
 
-	// Same input must produce same hash (deterministic)
 	result2 := zklink.RescueHashBigInt(msg)
 	assert.Equal(t, result.Bytes(), result2.Bytes(), "hash must be deterministic")
 
-	// Different input must produce different hash
 	result3 := zklink.RescueHashBigInt(big.NewInt(0).Add(msg, big.NewInt(1)))
 	assert.NotEqual(t, result.Bytes(), result3.Bytes(), "different inputs must produce different hashes")
 }
 
-// TestRescueHashBigIntDifferentSizes exercises the bigIntToFrElements chunking.
 func TestRescueHashBigIntDifferentSizes(t *testing.T) {
 	t.Parallel()
 
@@ -153,8 +139,6 @@ func TestRescueHashBigIntDifferentSizes(t *testing.T) {
 	}
 }
 
-// TestGetOrInitZKLinkerSigner_MissingCredentials ensures an error is returned
-// when L2Secret is empty.
 func TestGetOrInitZKLinkerSigner_MissingCredentials(t *testing.T) {
 	t.Parallel()
 
@@ -163,8 +147,6 @@ func TestGetOrInitZKLinkerSigner_MissingCredentials(t *testing.T) {
 	assert.Error(t, err)
 }
 
-// TestProcessZKKeyOrderSignature_MissingCredentials verifies error propagation
-// when L2Secret is unset (no real API call is made).
 func TestProcessZKKeyOrderSignature_MissingCredentials(t *testing.T) {
 	t.Parallel()
 
@@ -173,12 +155,9 @@ func TestProcessZKKeyOrderSignature_MissingCredentials(t *testing.T) {
 		Symbol: currency.NewPairWithDelimiter("BTC", "USDT", "-"),
 		Side:   "BUY",
 	})
-	// Error is expected because credentials are not set
 	assert.Error(t, err)
 }
 
-// TestProcessZKKeyWithdrawalSignature_MissingCredentials verifies error propagation
-// when L2Secret is unset.
 func TestProcessZKKeyWithdrawalSignature_MissingCredentials(t *testing.T) {
 	t.Parallel()
 
@@ -191,7 +170,6 @@ func TestProcessZKKeyWithdrawalSignature_MissingCredentials(t *testing.T) {
 	assert.Error(t, err)
 }
 
-// TestProcessZKKeyOrderSignature_Integration is guarded by credential availability.
 func TestProcessZKKeyOrderSignature_Integration(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
