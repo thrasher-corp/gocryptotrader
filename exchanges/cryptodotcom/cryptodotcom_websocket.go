@@ -259,12 +259,13 @@ func (e *Exchange) handleSubscriptions(ctx context.Context, conn websocket.Conne
 	}
 	for p := range subscriptionPayloads {
 		if subscriptionPayloads[p].Authenticated {
-			err = conn.SendJSONMessage(ctx, request.UnAuth, subscriptionPayloads[p])
+			if err := conn.SendJSONMessage(ctx, request.Auth, subscriptionPayloads[p]); err != nil {
+				return err
+			}
 		} else {
-			err = conn.SendJSONMessage(ctx, request.UnAuth, subscriptionPayloads[p])
-		}
-		if err != nil {
-			return err
+			if err := conn.SendJSONMessage(ctx, request.UnAuth, subscriptionPayloads[p]); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

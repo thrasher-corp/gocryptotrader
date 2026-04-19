@@ -133,14 +133,14 @@ type CancelOnDisconnectScope struct {
 	Scope string `json:"scope"`
 }
 
-// PrivateRequestParam represents a generalized private request parameter.
+// PrivateRequestParam represents a generalised private request parameter.
 type PrivateRequestParam struct {
-	ID        int64                  `json:"id"`
-	Method    string                 `json:"method"`
-	APIKey    string                 `json:"api_key,omitempty"`
+	ID        int64          `json:"id"`
+	Method    string         `json:"method"`
+	APIKey    string         `json:"api_key,omitempty"`
 	Params    map[string]any `json:"params"`
-	Nonce     int64                  `json:"nonce"`
-	Signature string                 `json:"sig"`
+	Nonce     int64          `json:"nonce"`
+	Signature string         `json:"sig"`
 }
 
 // CurrencyNetworkResponse retrieves the symbol network mapping.
@@ -760,7 +760,7 @@ type WsRequestPayload struct {
 	Params    map[string]any `json:"params,omitempty"`
 }
 
-// RespData represents a generalized object structure of responses.
+// RespData represents a generalised object structure of responses.
 type RespData struct {
 	ID            int64  `json:"id"`
 	Method        string `json:"method"`
@@ -771,7 +771,7 @@ type RespData struct {
 	Result        any    `json:"result"`
 }
 
-// WSRespData represents a generalized object structure of websocket responses.
+// WSRespData represents a generalised object structure of websocket responses.
 type WSRespData struct {
 	ID            int64  `json:"id"`
 	Method        string `json:"method"`
