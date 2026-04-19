@@ -632,13 +632,13 @@ func TestRequestOTCQuote(t *testing.T) {
 
 	_, err = e.RequestOTCQuote(t.Context(), currency.EMPTYPAIR, .001, 232, "BUY")
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
-	_, err = e.RequestOTCQuote(t.Context(), currency.NewPair(currency.BTC, currency.USDT), 0, 0, "BUY")
+	_, err = e.RequestOTCQuote(t.Context(), currency.NewBTCUSDT(), 0, 0, "BUY")
 	require.ErrorIs(t, err, order.ErrAmountMustBeSet)
-	_, err = e.RequestOTCQuote(t.Context(), currency.NewPair(currency.BTC, currency.USDT), .001, 232, "")
+	_, err = e.RequestOTCQuote(t.Context(), currency.NewBTCUSDT(), .001, 232, "")
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.RequestOTCQuote(t.Context(), currency.NewPair(currency.BTC, currency.USDT), .001, 232, "BUY")
+	result, err := e.RequestOTCQuote(t.Context(), currency.NewBTCUSDT(), .001, 232, "BUY")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -677,7 +677,7 @@ func TestGetOTCTradeHistory(t *testing.T) {
 	require.NoError(t, err)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetOTCTradeHistory(t.Context(), currency.NewPair(currency.BTC, currency.USDT), time.Time{}, time.Time{}, 0, 0)
+	result, err := e.GetOTCTradeHistory(t.Context(), currency.NewBTCUSDT(), time.Time{}, time.Time{}, 0, 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
