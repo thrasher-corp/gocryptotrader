@@ -2,6 +2,7 @@ package engine
 
 import (
 	"errors"
+	"sync/atomic"
 	"time"
 )
 
@@ -19,7 +20,7 @@ var (
 
 // ntpManager starts the NTP manager
 type ntpManager struct {
-	started                   int32
+	started                   atomic.Int32
 	shutdown                  chan struct{}
 	level                     int64
 	allowedDifference         time.Duration

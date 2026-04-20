@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -63,7 +64,7 @@ type Event struct {
 
 // eventManager holds communication manager data
 type eventManager struct {
-	started         int32
+	started         atomic.Int32
 	comms           iCommsManager
 	events          []Event
 	verbose         bool
