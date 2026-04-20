@@ -993,6 +993,16 @@ type BlockTradeCollection struct {
 	BrokerName string           `json:"broker_name"`
 }
 
+// ExecutedBlockTradeCollection represents an executed block trade object containing grouped trades.
+type ExecutedBlockTradeCollection struct {
+	ID         string               `json:"id"`
+	Timestamp  types.Time           `json:"timestamp"`
+	Trades     []BlockTradeResponse `json:"trades"`
+	AppName    string               `json:"app_name"`
+	BrokerCode string               `json:"broker_code"`
+	BrokerName string               `json:"broker_name"`
+}
+
 // BlockRFQLeg describes one RFQ leg.
 type BlockRFQLeg struct {
 	Ratio          float64 `json:"ratio"`

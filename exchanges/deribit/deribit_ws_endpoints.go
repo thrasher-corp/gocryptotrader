@@ -2025,7 +2025,7 @@ func (e *Exchange) UnsubscribeAllPrivateChannels(ctx context.Context) (string, e
 // WSExecuteBlockTrade executes a block trade request
 // The whole request have to be exact the same as in private/verify_block_trade, only role field should be set appropriately - it basically means that both sides have to agree on the same timestamp, nonce, trades fields and server will assure that role field is different between sides (each party accepted own role).
 // Using the same timestamp and nonce by both sides in private/verify_block_trade assures that even if unintentionally both sides execute given block trade with valid counterparty_signature, the given block trade will be executed only once
-func (e *Exchange) WSExecuteBlockTrade(ctx context.Context, timestampMS time.Time, nonce, role string, ccy currency.Code, trades []BlockTradeParam) ([]BlockTradeResponse, error) {
+func (e *Exchange) WSExecuteBlockTrade(ctx context.Context, timestampMS time.Time, nonce, role string, ccy currency.Code, trades []BlockTradeParam) (*ExecutedBlockTradeCollection, error) {
 	if nonce == "" {
 		return nil, errMissingNonce
 	}
@@ -2069,7 +2069,7 @@ func (e *Exchange) WSExecuteBlockTrade(ctx context.Context, timestampMS time.Tim
 		Timestamp:             timestampMS.UnixMilli(),
 		Currency:              ccy.String(),
 	}
-	var resp []BlockTradeResponse
+	var resp *ExecutedBlockTradeCollection
 	return resp, e.SendWSRequest(ctx, matchingEPL, "private/execute_block_trade", input, &resp, true)
 }
 
@@ -2141,11 +2141,11 @@ func (e *Exchange) WsInvalidateBlockTradeSignature(ctx context.Context, signatur
 }
 
 // WSRetrieveUserBlockTrade returns information about users block trade through the websocket connection.
-func (e *Exchange) WSRetrieveUserBlockTrade(ctx context.Context, id string) ([]BlockTradeData, error) {
+func (e *Exchange) WSRetrieveUserBlockTrade(ctx context.Context, id string) (*BlockTradeCollection, error) {
 	if id == "" {
 		return nil, errMissingBlockTradeID
 	}
-	var resp []BlockTradeData
+	var resp *BlockTradeCollection
 	return resp, e.SendWSRequest(ctx, blockTradeReadEPL, "private/get_block_trade", map[string]string{"id": id}, &resp, true)
 }
 

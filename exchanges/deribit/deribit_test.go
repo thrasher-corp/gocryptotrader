@@ -3006,13 +3006,15 @@ func TestWSExecuteBlockTrade(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-const getUserBlocTradeResponseJSON = `[ { "trade_seq": 37, "trade_id": "92437", "timestamp": 1565089523719, "tick_direction": 3, "state": "filled", "price": 0.0001, "order_type": "limit", "order_id": "343062", "matching_id": null, "liquidity": "T", "iv": 0, "instrument_name": "BTC-9AUG19-10250-C", "index_price": 11738, "fee_currency": "BTC", "fee": 0.00025, "direction": "sell", "block_trade_id": "61", "amount": 10 }, { "trade_seq": 25350, "trade_id": "92435", "timestamp": 1565089523719, "tick_direction": 3, "state": "filled", "price": 11590, "order_type": "limit", "order_id": "343058", "matching_id": null, "liquidity": "T", "instrument_name": "BTC-PERPETUAL", "index_price": 11737.98, "fee_currency": "BTC", "fee": 0.00000164, "direction": "buy", "block_trade_id": "61", "amount": 190 } ]`
+const getUserBlocTradeResponseJSON = `{ "id": "61", "timestamp": 1565089523720, "trades": [ { "trade_seq": 37, "trade_id": "92437", "timestamp": 1565089523719, "tick_direction": 3, "state": "filled", "price": 0.0001, "order_type": "limit", "order_id": "343062", "matching_id": null, "liquidity": "T", "iv": 0, "instrument_name": "BTC-9AUG19-10250-C", "index_price": 11738, "fee_currency": "BTC", "fee": 0.00025, "direction": "sell", "block_trade_id": "61", "amount": 10 }, { "trade_seq": 25350, "trade_id": "92435", "timestamp": 1565089523719, "tick_direction": 3, "state": "filled", "price": 11590, "order_type": "limit", "order_id": "343058", "matching_id": null, "liquidity": "T", "instrument_name": "BTC-PERPETUAL", "index_price": 11737.98, "fee_currency": "BTC", "fee": 0.00000164, "direction": "buy", "block_trade_id": "61", "amount": 190 } ] }`
 
 func TestGetUserBlocTrade(t *testing.T) {
 	t.Parallel()
-	var resp []BlockTradeData
+	var resp BlockTradeCollection
 	err := json.Unmarshal([]byte(getUserBlocTradeResponseJSON), &resp)
 	require.NoError(t, err)
+	assert.Equal(t, "61", resp.ID)
+	assert.Len(t, resp.Trades, 2)
 	_, err = e.GetUserBlockTrade(t.Context(), "")
 	require.ErrorIs(t, err, errMissingBlockTradeID)
 

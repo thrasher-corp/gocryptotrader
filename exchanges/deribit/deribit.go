@@ -2267,7 +2267,7 @@ func (e *Exchange) CreateCombo(ctx context.Context, args []ComboParam) (*ComboDe
 // ExecuteBlockTrade executes a block trade request
 // The whole request have to be exact the same as in private/verify_block_trade, only role field should be set appropriately - it basically means that both sides have to agree on the same timestamp, nonce, trades fields and server will assure that role field is different between sides (each party accepted own role).
 // Using the same timestamp and nonce by both sides in private/verify_block_trade assures that even if unintentionally both sides execute given block trade with valid counterparty_signature, the given block trade will be executed only once
-func (e *Exchange) ExecuteBlockTrade(ctx context.Context, timestampMS time.Time, tradeNonce, role string, ccy currency.Code, trades []BlockTradeParam) ([]BlockTradeResponse, error) {
+func (e *Exchange) ExecuteBlockTrade(ctx context.Context, timestampMS time.Time, tradeNonce, role string, ccy currency.Code, trades []BlockTradeParam) (*ExecutedBlockTradeCollection, error) {
 	if tradeNonce == "" {
 		return nil, errMissingNonce
 	}
@@ -2309,7 +2309,7 @@ func (e *Exchange) ExecuteBlockTrade(ctx context.Context, timestampMS time.Time,
 	params.Set("role", role)
 	params.Set("counterparty_signature", signature)
 	params.Set("timestamp", strconv.FormatInt(timestampMS.UnixMilli(), 10))
-	var resp []BlockTradeResponse
+	var resp *ExecutedBlockTradeCollection
 	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet, "private/execute_block_trade", params, &resp)
 }
 
@@ -2379,13 +2379,13 @@ func (e *Exchange) InvalidateBlockTradeSignature(ctx context.Context, signature 
 }
 
 // GetUserBlockTrade returns information about users block trade
-func (e *Exchange) GetUserBlockTrade(ctx context.Context, id string) ([]BlockTradeData, error) {
+func (e *Exchange) GetUserBlockTrade(ctx context.Context, id string) (*BlockTradeCollection, error) {
 	if id == "" {
 		return nil, errMissingBlockTradeID
 	}
 	params := url.Values{}
 	params.Set("id", id)
-	var resp []BlockTradeData
+	var resp *BlockTradeCollection
 	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, blockTradeReadEPL, http.MethodGet, "private/get_block_trade", params, &resp)
 }
 
