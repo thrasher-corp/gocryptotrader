@@ -413,7 +413,7 @@ func TestGetInstrument(t *testing.T) {
 	for i := range resp {
 		assert.Equal(t, instTypeFutures, resp[i].InstrumentType, "InstrumentType should be correct")
 		assert.Equal(t, "SOL-USD", resp[i].Underlying, "Underlying should be correct")
-		assert.False(t, resp[i].InstrumentID.IsEmpty(), "InstrumentID should not be empty")
+		assert.True(t, resp[i].InstrumentID.IsPopulated(), "InstrumentID should be populated")
 		assert.NotEmpty(t, resp[i].State, "State should not be empty")
 	}
 
