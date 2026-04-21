@@ -4527,7 +4527,7 @@ func TestWSRetrieveCombos(t *testing.T) {
 	_, err := e.WSRetrieveCombos(t.Context(), currency.EMPTYCODE)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	result, err := e.WSRetrieveCombos(t.Context(), futureComboTradablePair.Base)
+	result, err := e.WSRetrieveCombos(t.Context(), currency.BTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
