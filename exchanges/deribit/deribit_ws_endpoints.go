@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 
@@ -2127,10 +2126,8 @@ func (e *Exchange) WsInvalidateBlockTradeSignature(ctx context.Context, signatur
 	if signature == "" {
 		return errMissingSignature
 	}
-	params := url.Values{}
-	params.Set("signature", signature)
 	var resp string
-	err := e.SendWSRequest(ctx, blockTradeWriteEPL, "private/invalidate_block_trade_signature", params, &resp, true)
+	err := e.SendWSRequest(ctx, blockTradeWriteEPL, "private/invalidate_block_trade_signature", map[string]string{"signature": signature}, &resp, true)
 	if err != nil {
 		return err
 	}
