@@ -409,7 +409,13 @@ func TestGetInstrument(t *testing.T) {
 		Underlying:     "SOL-USD",
 	})
 	require.NoError(t, err)
-	assert.Empty(t, resp, "Should get back no instruments for SOL-USD futures")
+	require.NotEmpty(t, resp, "GetInstruments must return live instruments for SOL-USD futures")
+	for i := range resp {
+		assert.Equal(t, instTypeFutures, resp[i].InstrumentType, "InstrumentType should be correct")
+		assert.Equal(t, "SOL-USD", resp[i].Underlying, "Underlying should be correct")
+		assert.True(t, resp[i].InstrumentID.IsPopulated(), "InstrumentID should be populated")
+		assert.NotEmpty(t, resp[i].State, "State should not be empty")
+	}
 
 	result, err := e.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
 		InstrumentType: instTypeSpot,
