@@ -598,7 +598,7 @@ func getOrderbookStream(c *cli.Context) error {
 			return err
 		}
 
-		if err := clearScreen(); err != nil {
+		if err := clearScreen(c.Context); err != nil {
 			return err
 		}
 
@@ -722,7 +722,7 @@ func getExchangeOrderbookStream(c *cli.Context) error {
 			return err
 		}
 
-		if err := clearScreen(); err != nil {
+		if err := clearScreen(c.Context); err != nil {
 			return err
 		}
 

@@ -55,7 +55,7 @@ var tradeCommand = &cli.Command{
 			Usage:     "will highlight any interval that is missing trade data so you can fill that gap",
 			ArgsUsage: "<exchange> <pair> <asset> <start> <end>",
 			Action:    findMissingSavedTradeIntervals,
-			Flags: FlagsFromStruct(&FindMisingSavedTradeIntervalsParams{
+			Flags: FlagsFromStruct(&FindMissingSavedTradeIntervalsParams{
 				Start: time.Now().Add(-time.Hour * 24).Truncate(time.Hour).Format(time.DateTime),
 				End:   time.Now().Truncate(time.Hour).Format(time.DateTime),
 			}),
@@ -79,7 +79,7 @@ func findMissingSavedTradeIntervals(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	arg := &FindMisingSavedTradeIntervalsParams{}
+	arg := &FindMissingSavedTradeIntervalsParams{}
 	if err := unmarshalCLIFields(c, arg); err != nil {
 		return err
 	}

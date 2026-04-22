@@ -202,8 +202,8 @@ type MarginRateHistoryParams struct {
 // CurrencyTradeURLParams defines command-line flags for exchange currency trade URL retrieval and unmarshal their values.
 type CurrencyTradeURLParams struct {
 	Exchange string `name:"exchange,e" required:"t" usage:"the exchange to retrieve margin rates from"`
-	Asset    string `name:"asset,a"    require:"t"  usage:"the asset type of the currency pair"`
-	Pair     string `name:"pair,p"     require:"t"  usage:"the currency pair"`
+	Asset    string `name:"asset,a"    required:"t"  usage:"the asset type of the currency pair"`
+	Pair     string `name:"pair,p"     required:"t"  usage:"the currency pair"`
 }
 
 // AddPortfolioAddressParams defines command-line flags for adding portfolio address and unmarshal their values.
@@ -213,7 +213,7 @@ type AddPortfolioAddressParams struct {
 	CoinType           string  `name:"coin_type"           usage:"the coin type e.g ('BTC')"`
 	Description        string  `name:"description"         usage:"description of the address"`
 	ColdStorage        bool    `name:"cold_storage"        usage:"true/false if address is cold storage"`
-	SupportedExchanges string  `name:"supported_exchanges" usage:"common separated list of exchanges supported by this address for withdrawals"`
+	SupportedExchanges string  `name:"supported_exchanges" usage:"comma separated list of exchanges supported by this address for withdrawals"`
 }
 
 // GetOrdersCommandParams defines command-line flags for exchange orders retrieval and unmarshal their values.
@@ -255,14 +255,14 @@ type WithdrawalRequestByDateParams struct {
 	Limit    int64  `name:"limit"      usage:"max number of withdrawals to return"`
 }
 
-// WithdrawlRequestByExchangeIDParams defines command-line flags for withdrawal request by exchange id and unmarshal their values.
-type WithdrawlRequestByExchangeIDParams struct {
+// WithdrawalRequestByExchangeIDParams defines command-line flags for withdrawal request by exchange id and unmarshal their values.
+type WithdrawalRequestByExchangeIDParams struct {
 	Exchange string `name:"exchange,e" required:"t" usage:"exchange name"`
 	ID       string `name:"id"         required:"t" usage:"withdrawal id"`
 }
 
-// WithdrawlRequestByExchangeParams defines command-line flags for withdrawal request by exchange and unmarshal their values.
-type WithdrawlRequestByExchangeParams struct {
+// WithdrawalRequestByExchangeParams defines command-line flags for withdrawal request by exchange and unmarshal their values.
+type WithdrawalRequestByExchangeParams struct {
 	Exchange string `name:"exchange,e" required:"t"                                usage:"exchange name"`
 	Asset    string `name:"asset"      usage:"the asset type of the currency pair"`
 	Limit    int64  `name:"limit"      usage:"max number of withdrawals to return"`
@@ -291,8 +291,8 @@ type GetTradesParams struct {
 	End      string `name:"end"        required:"t" usage:"<end> WARNING: large date ranges may take considerable time"`
 }
 
-// FindMisingSavedTradeIntervalsParams defines command-line flags for exchange missing saved trade intervals retrieval and unmarshal their values.
-type FindMisingSavedTradeIntervalsParams struct {
+// FindMissingSavedTradeIntervalsParams defines command-line flags for exchange missing saved trade intervals retrieval and unmarshal their values.
+type FindMissingSavedTradeIntervalsParams struct {
 	Exchange string `name:"exchange,e" required:"t" usage:"the exchange to find the missing trades"`
 	Pair     string `name:"pair,p"     required:"t" usage:"the currency pair"`
 	Asset    string `name:"asset,a"    required:"t" usage:"the asset type of the currency pair"`

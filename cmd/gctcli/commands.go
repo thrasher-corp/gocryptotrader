@@ -669,7 +669,7 @@ func getAccountBalancesStream(c *cli.Context) error {
 			return err
 		}
 
-		if err := clearScreen(); err != nil {
+		if err := clearScreen(c.Context); err != nil {
 			return err
 		}
 
@@ -1493,7 +1493,7 @@ func modifyOrder(c *cli.Context) error {
 		return errInvalidPair
 	}
 
-	p, err := currency.NewPairFromString(arg.CurrencyPair)
+	p, err := currency.NewPairDelimiter(arg.CurrencyPair, pairDelimiter)
 	if err != nil {
 		return err
 	}
@@ -1927,15 +1927,15 @@ var withdrawalRequestCommand = &cli.Command{
 			Name:      "byexchangeid",
 			Usage:     "exchange id",
 			ArgsUsage: "<id>",
-			Flags:     FlagsFromStruct(&WithdrawlRequestByExchangeIDParams{}),
+			Flags:     FlagsFromStruct(&WithdrawalRequestByExchangeIDParams{}),
 			Action:    withdrawalRequestByExchangeID,
 		},
 		{
 			Name:      "byexchange",
 			Usage:     "exchange limit",
 			ArgsUsage: "<id>",
-			Flags:     FlagsFromStruct(&WithdrawlRequestByExchangeParams{}),
-			Action:    withdrawalRequestByExchangeID,
+			Flags:     FlagsFromStruct(&WithdrawalRequestByExchangeParams{}),
+			Action:    withdrawalRequestByExchange,
 		},
 		{
 			Name:      "bydate",
@@ -1989,38 +1989,9 @@ func withdrawalRequestByExchangeID(c *cli.Context) error {
 	if c.NArg() == 0 && c.NumFlags() == 0 {
 		return cli.ShowSubcommandHelp(c)
 	}
-
-	var in *gctrpc.WithdrawalEventsByExchangeRequest
-	if c.Command.Name == "byexchangeid" {
-		arg := &WithdrawlRequestByExchangeIDParams{}
-		err := unmarshalCLIFields(c, arg)
-		if err != nil {
-			return err
-		}
-
-		in = &gctrpc.WithdrawalEventsByExchangeRequest{
-			Exchange: arg.Exchange,
-			Id:       arg.ID,
-			Limit:    1,
-		}
-	} else {
-		arg := &WithdrawlRequestByExchangeParams{}
-		err := unmarshalCLIFields(c, arg)
-		if err != nil {
-			return err
-		}
-
-		arg.Asset = strings.ToLower(arg.Asset)
-		if !validAsset(arg.Asset) {
-			return errInvalidAsset
-		}
-
-		in = &gctrpc.WithdrawalEventsByExchangeRequest{
-			Exchange:  arg.Exchange,
-			Limit:     int32(arg.Limit), //nolint:gosec // TODO: SQL boiler's QueryMod limit only accepts the int type
-			Currency:  arg.Currency,
-			AssetType: arg.Asset,
-		}
+	arg := &WithdrawalRequestByExchangeIDParams{}
+	if err := unmarshalCLIFields(c, arg); err != nil {
+		return err
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -2030,7 +2001,46 @@ func withdrawalRequestByExchangeID(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
-		WithdrawalEventsByExchange(c.Context, in)
+		WithdrawalEventsByExchange(c.Context, &gctrpc.WithdrawalEventsByExchangeRequest{
+			Exchange: arg.Exchange,
+			Id:       arg.ID,
+			Limit:    1,
+		})
+	if err != nil {
+		return err
+	}
+	jsonOutput(result)
+	return nil
+}
+
+func withdrawalRequestByExchange(c *cli.Context) error {
+	if c.NArg() == 0 && c.NumFlags() == 0 {
+		return cli.ShowSubcommandHelp(c)
+	}
+
+	arg := &WithdrawalRequestByExchangeParams{}
+	if err := unmarshalCLIFields(c, arg); err != nil {
+		return err
+	}
+
+	arg.Asset = strings.ToLower(arg.Asset)
+	if !validAsset(arg.Asset) {
+		return errInvalidAsset
+	}
+
+	conn, cancel, err := setupClient(c)
+	if err != nil {
+		return err
+	}
+	defer closeConn(conn, cancel)
+
+	result, err := gctrpc.NewGoCryptoTraderServiceClient(conn).
+		WithdrawalEventsByExchange(c.Context, &gctrpc.WithdrawalEventsByExchangeRequest{
+			Exchange:  arg.Exchange,
+			Limit:     int32(arg.Limit), //nolint:gosec // TODO: SQL boiler's QueryMod limit only accepts the int type
+			Currency:  arg.Currency,
+			AssetType: arg.Asset,
+		})
 	if err != nil {
 		return err
 	}
@@ -2142,7 +2152,7 @@ var setLoggerDetailsCommand = &cli.Command{
 			Usage: "logger to get level details of",
 		},
 		&cli.StringFlag{
-			Name:  "flags",
+			Name:  "level",
 			Usage: "pipe separated value of loggers e.g INFO|WARN",
 		},
 	},
@@ -2153,8 +2163,10 @@ func setLoggerDetails(c *cli.Context) error {
 		return cli.ShowSubcommandHelp(c)
 	}
 
-	var logger string
-	var level string
+	var (
+		logger string
+		level  string
+	)
 
 	if c.IsSet("logger") {
 		logger = c.String("logger")
@@ -2223,7 +2235,7 @@ func getTickerStream(c *cli.Context) error {
 		return errInvalidAsset
 	}
 
-	p, err := currency.NewPairFromString(arg.Pair)
+	p, err := currency.NewPairDelimiter(arg.Pair, pairDelimiter)
 	if err != nil {
 		return err
 	}
@@ -2256,7 +2268,7 @@ func getTickerStream(c *cli.Context) error {
 			return err
 		}
 
-		if err := clearScreen(); err != nil {
+		if err := clearScreen(c.Context); err != nil {
 			return err
 		}
 
@@ -3259,7 +3271,7 @@ func unmarshalCLIFields(c *cli.Context, params any) error {
 						return fmt.Errorf("%w for flag %q", ErrRequiredValueMissing, flagNames[0])
 					}
 				}
-				if !value {
+				if value {
 					break
 				}
 			}
@@ -3311,10 +3323,10 @@ func FlagsFromStruct(params any) []cli.Flag {
 		}
 		flagName := flagNames[0]
 
-		var aliceNames []string
+		var aliasNames []string
 		if len(flagNames) > 1 {
 			if !slices.Contains(flagNames[1:], "") {
-				aliceNames = flagNames[1:]
+				aliasNames = flagNames[1:]
 			}
 		}
 
@@ -3338,7 +3350,7 @@ func FlagsFromStruct(params any) []cli.Flag {
 				Hidden:   hidden,
 				Required: required,
 				Value:    val.Field(i).String(),
-				Aliases:  aliceNames,
+				Aliases:  aliasNames,
 			})
 		case reflect.Float64:
 			flags = append(flags, &cli.Float64Flag{
@@ -3347,7 +3359,7 @@ func FlagsFromStruct(params any) []cli.Flag {
 				Hidden:   hidden,
 				Required: required,
 				Value:    val.Field(i).Float(),
-				Aliases:  aliceNames,
+				Aliases:  aliasNames,
 			})
 		case reflect.Bool:
 			flags = append(flags, &cli.BoolFlag{
@@ -3355,7 +3367,7 @@ func FlagsFromStruct(params any) []cli.Flag {
 				Usage:    usage,
 				Hidden:   hidden,
 				Required: required,
-				Aliases:  aliceNames,
+				Aliases:  aliasNames,
 			})
 		case reflect.Int64:
 			flags = append(flags, &cli.Int64Flag{
@@ -3364,7 +3376,7 @@ func FlagsFromStruct(params any) []cli.Flag {
 				Hidden:   hidden,
 				Required: required,
 				Value:    val.Field(i).Int(),
-				Aliases:  aliceNames,
+				Aliases:  aliasNames,
 			})
 		}
 	}
