@@ -62,12 +62,13 @@ import (
 )
 
 var (
-	errCertExpired         = errors.New("gRPC TLS certificate has expired")
-	errCertDataIsNil       = errors.New("gRPC TLS certificate PEM data is nil")
-	errCertTypeInvalid     = errors.New("gRPC TLS certificate type is invalid")
-	errSubsystemNotFound   = errors.New("subsystem not found")
-	errGRPCManagementFault = errors.New("cannot manage GRPC subsystem via GRPC. Please manually change your config")
-	errNilBot              = errors.New("received nil engine bot")
+	errCertExpired            = errors.New("gRPC TLS certificate has expired")
+	errCertDataIsNil          = errors.New("gRPC TLS certificate PEM data is nil")
+	errCertTypeInvalid        = errors.New("gRPC TLS certificate type is invalid")
+	errSubsystemNotFound      = errors.New("subsystem not found")
+	errGRPCManagementFault    = errors.New("cannot manage GRPC subsystem via GRPC. Please manually change your config")
+	errRuntimeShutdownRequest = errors.New("cannot enable subsystem while engine shutdown is in progress")
+	errNilBot                 = errors.New("received nil engine bot")
 )
 
 const (
@@ -126,6 +127,15 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 		return errNilConfig
 	}
 
+	if enable && bot.isRuntimeShutdownRequested() {
+		return errRuntimeShutdownRequest
+	}
+
+	runtimeCtx := context.Background()
+	if enable {
+		runtimeCtx = bot.EnsureRuntimeContext()
+	}
+
 	var err error
 	switch strings.ToLower(subSystemName) {
 	case CommunicationsManagerName:
@@ -159,7 +169,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 					return err
 				}
 			}
-			return bot.OrderManager.Start()
+			return bot.OrderManager.Start(runtimeCtx)
 		}
 		return bot.OrderManager.Stop()
 	case PortfolioManagerName:
@@ -170,7 +180,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 					return err
 				}
 			}
-			return bot.portfolioManager.Start(&bot.ServicesWG)
+			return bot.portfolioManager.Start(runtimeCtx, &bot.ServicesWG)
 		}
 		return bot.portfolioManager.Stop()
 	case NTPManagerName:
@@ -228,7 +238,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 					return err
 				}
 			}
-			return bot.currencyPairSyncer.Start()
+			return bot.currencyPairSyncer.Start(runtimeCtx)
 		}
 		return bot.currencyPairSyncer.Stop()
 	case dispatch.Name:
@@ -246,7 +256,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 					return err
 				}
 			}
-			return bot.dataHistoryManager.Start()
+			return bot.dataHistoryManager.Start(runtimeCtx)
 		}
 		return bot.dataHistoryManager.Stop()
 	case vm.Name:
@@ -270,7 +280,7 @@ func (bot *Engine) SetSubsystem(subSystemName string, enable bool) error {
 					return err
 				}
 			}
-			return bot.currencyStateManager.Start()
+			return bot.currencyStateManager.Start(runtimeCtx)
 		}
 		return bot.currencyStateManager.Stop()
 	}
@@ -623,6 +633,7 @@ func (bot *Engine) GetExchangeCryptocurrencyDepositAddress(ctx context.Context, 
 
 // GetAllExchangeCryptocurrencyDepositAddresses obtains an exchanges deposit cryptocurrency list
 func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]ExchangeDepositAddresses {
+	runtimeCtx := bot.getRuntimeContext()
 	result := make(map[string]ExchangeDepositAddresses)
 	exchanges := bot.GetExchanges()
 	var depositSyncer sync.WaitGroup
@@ -652,7 +663,7 @@ func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]Exc
 				isSingular := false
 				var depositAddrs []deposit.Address
 				if supportsMultiChain {
-					availChains, err := exch.GetAvailableTransferChains(context.TODO(), currency.NewCode(cryptocurrency))
+					availChains, err := exch.GetAvailableTransferChains(runtimeCtx, currency.NewCode(cryptocurrency))
 					if err != nil {
 						log.Errorf(log.Global, "%s failed to get cryptocurrency available transfer chains. Err: %s\n", exchName, err)
 						continue
@@ -661,7 +672,7 @@ func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]Exc
 						// store the default non-chain specified address for a specified crypto
 						chainContainsItself := common.StringSliceCompareInsensitive(availChains, cryptocurrency)
 						if !chainContainsItself && !requiresChainSet {
-							depositAddr, err := exch.GetDepositAddress(context.TODO(), currency.NewCode(cryptocurrency), "", "")
+							depositAddr, err := exch.GetDepositAddress(runtimeCtx, currency.NewCode(cryptocurrency), "", "")
 							if err != nil {
 								log.Errorf(log.Global, "%s failed to get cryptocurrency deposit address for %s. Err: %s\n",
 									exchName,
@@ -680,7 +691,7 @@ func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]Exc
 								continue
 							}
 
-							depositAddr, err := exch.GetDepositAddress(context.TODO(), currency.NewCode(cryptocurrency), "", availChains[z])
+							depositAddr, err := exch.GetDepositAddress(runtimeCtx, currency.NewCode(cryptocurrency), "", availChains[z])
 							if err != nil {
 								log.Errorf(log.Global, "%s failed to get cryptocurrency deposit address for %s [chain %s]. Err: %s\n",
 									exchName,
@@ -699,7 +710,7 @@ func (bot *Engine) GetAllExchangeCryptocurrencyDepositAddresses() map[string]Exc
 				}
 
 				if !supportsMultiChain || isSingular {
-					depositAddr, err := exch.GetDepositAddress(context.TODO(), currency.NewCode(cryptocurrency), "", "")
+					depositAddr, err := exch.GetDepositAddress(runtimeCtx, currency.NewCode(cryptocurrency), "", "")
 					if err != nil {
 						log.Errorf(log.Global, "%s failed to get cryptocurrency deposit address for %s. Err: %s\n",
 							exchName,
