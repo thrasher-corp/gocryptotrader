@@ -199,6 +199,7 @@ type FuturesManagement interface {
 type MarginManagement interface {
 	SetMarginType(ctx context.Context, item asset.Item, pair currency.Pair, tp margin.Type) error
 	ChangePositionMargin(ctx context.Context, change *margin.PositionChangeRequest) (*margin.PositionChangeResponse, error)
+	GetCurrentMarginRates(context.Context, *margin.CurrentRatesRequest) ([]margin.CurrentRateResponse, error)
 	GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error)
 	futures.PNLCalculation
 	GetFuturesContractDetails(ctx context.Context, item asset.Item) ([]futures.Contract, error)
