@@ -159,28 +159,25 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if err != nil {
 		return err
 	}
-	pairs, err := e.GetEnabledPairs(a)
+	avail, err := e.GetAvailablePairs(a)
 	if err != nil {
 		return err
 	}
-	for i := range pairs {
-		for j := range tickerInfo {
-			if !pairs[i].Equal(tickerInfo[j].Symbol) {
-				continue
-			}
-
-			if err := ticker.ProcessTicker(&ticker.Price{
-				Last:         tickerInfo[j].Ticker.Latest,
-				High:         tickerInfo[j].Ticker.High,
-				Low:          tickerInfo[j].Ticker.Low,
-				Volume:       tickerInfo[j].Ticker.Volume,
-				Pair:         tickerInfo[j].Symbol,
-				LastUpdated:  tickerInfo[j].Timestamp.Time(),
-				ExchangeName: e.Name,
-				AssetType:    a,
-			}); err != nil {
-				return err
-			}
+	for j := range tickerInfo {
+		if !avail.Contains(tickerInfo[j].Symbol, true) {
+			continue
+		}
+		if err := ticker.ProcessTicker(&ticker.Price{
+			Last:         tickerInfo[j].Ticker.Latest,
+			High:         tickerInfo[j].Ticker.High,
+			Low:          tickerInfo[j].Ticker.Low,
+			Volume:       tickerInfo[j].Ticker.Volume,
+			Pair:         tickerInfo[j].Symbol,
+			LastUpdated:  tickerInfo[j].Timestamp.Time(),
+			ExchangeName: e.Name,
+			AssetType:    a,
+		}); err != nil {
+			return err
 		}
 	}
 	return nil
