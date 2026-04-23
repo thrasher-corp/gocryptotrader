@@ -15,28 +15,35 @@ import (
 )
 
 func TestGetFilteredHeader(t *testing.T) {
+	t.Parallel()
 	items, err := getExcludedItems()
 	require.NoError(t, err, "getExcludedItems must not error")
-	assert.NotNil(t, items, "getExcludedItems should not return nil")
 
-	resp := http.Response{}
-	resp.Request = &http.Request{}
-	resp.Request.Header = http.Header{}
+	resp := &http.Response{Request: &http.Request{Header: http.Header{}}}
 	resp.Request.Header.Set("Key", "RiskyVals")
-	fMap := GetFilteredHeader(&resp, items)
-	assert.Empty(t, fMap.Get("Key"), "risky values should be removed")
+	resp.Request.Header.Set("X-Mbx-Apikey", "secret-key")
+	resp.Request.Header.Set("Accept", "application/json")
+
+	fMap := GetFilteredHeader(resp, items)
+	assert.Empty(t, fMap.Get("Key"), "excluded header Key should be cleared")
+	assert.Empty(t, fMap.Get("X-Mbx-Apikey"), "excluded header X-Mbx-Apikey should be cleared")
+	assert.Equal(t, "application/json", fMap.Get("Accept"), "non-excluded header should survive")
 }
 
 func TestGetFilteredURLVals(t *testing.T) {
+	t.Parallel()
 	items, err := getExcludedItems()
 	require.NoError(t, err, "getExcludedItems must not error")
-	assert.NotNil(t, items, "getExcludedItems should not return nil")
 
-	superSecretData := "Dr Seuss"
-	shadyVals := url.Values{}
-	shadyVals.Set("real_name", superSecretData)
-	cleanVals := GetFilteredURLVals(shadyVals, items)
-	assert.NotContains(t, cleanVals, superSecretData, "exclusion real_name should be removed")
+	vals := url.Values{}
+	vals.Set("real_name", "Dr Seuss")
+	vals.Set("user", "admin")
+	vals.Set("currency", "btc")
+
+	result := GetFilteredURLVals(vals, items)
+	assert.NotContains(t, result, "Dr Seuss", "excluded real_name value should be removed")
+	assert.NotContains(t, result, "admin", "excluded user value should be removed")
+	assert.Contains(t, result, "currency=btc", "non-excluded currency should survive")
 }
 
 type checkclass struct {
@@ -99,10 +106,14 @@ func TestCheckResponsePayload(t *testing.T) {
 }
 
 func TestGetExcludedItems(t *testing.T) {
+	t.Parallel()
 	exclusionList, err := getExcludedItems()
 	require.NoError(t, err, "getExcludedItems must not error")
 	assert.NotEmpty(t, exclusionList.Headers, "Headers should not be empty")
 	assert.NotEmpty(t, exclusionList.Variables, "Variables should not be empty")
+	assert.Contains(t, exclusionList.Headers, "Key", "Key should be in excluded headers")
+	assert.Contains(t, exclusionList.Variables, "real_name", "real_name should be in excluded variables")
+	assert.Contains(t, exclusionList.Variables, "user", "user should be in excluded variables")
 }
 
 type TestStructLevel0 struct {
@@ -354,4 +365,52 @@ func TestHTTPRecord(t *testing.T) {
 	}
 	err = HTTPRecord(moockResponse, service, content, 4)
 	require.ErrorContains(t, err, "unhandled content type")
+}
+
+func TestIsExcluded(t *testing.T) {
+	t.Parallel()
+	tcs := []struct {
+		name        string
+		key         string
+		excluded    []string
+		hasExcluded bool
+	}{
+		{name: "exact match", key: "real_name", excluded: []string{"real_name"}, hasExcluded: true},
+		{name: "case insensitive uppercase", key: "REAL_NAME", excluded: []string{"real_name"}, hasExcluded: true},
+		{name: "case insensitive mixed", key: "Real_Name", excluded: []string{"real_name"}, hasExcluded: true},
+		{name: "no match", key: "currency", excluded: []string{"real_name", "apiKey"}, hasExcluded: false},
+		{name: "empty excluded list", key: "real_name", excluded: []string{}, hasExcluded: false},
+		{name: "nil excluded list", key: "real_name", excluded: nil, hasExcluded: false},
+		{name: "match in middle of list", key: "user", excluded: []string{"bsb", "user", "name"}, hasExcluded: true},
+		{name: "empty key no match", key: "", excluded: []string{"real_name"}, hasExcluded: false},
+	}
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equalf(t, tc.hasExcluded, IsExcluded(tc.key, tc.excluded), "IsExcluded should return %v for key %q", tc.hasExcluded, tc.key)
+		})
+	}
+}
+
+func TestGetJSONBodyShape(t *testing.T) {
+	t.Parallel()
+	tcs := []struct {
+		name  string
+		input string
+		want  jsonBodyShape
+	}{
+		{name: "array", input: `[1,2,3]`, want: jsonBodyArray},
+		{name: "object", input: `{"a":"b"}`, want: jsonBodyObject},
+		{name: "empty string", input: "", want: jsonBodyUnknown},
+		{name: "non-json string", input: "not json", want: jsonBodyUnknown},
+		{name: "untrimmed array", input: "  [", want: jsonBodyUnknown},
+		{name: "untrimmed object", input: "  {", want: jsonBodyUnknown},
+		{name: "null literal", input: "null", want: jsonBodyUnknown},
+	}
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.want, getJSONBodyShape(tc.input), "getJSONBodyShape should return correct shape")
+		})
+	}
 }

@@ -259,8 +259,7 @@ func MessageWriteJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set(contentType, applicationJSON)
 	w.WriteHeader(status)
 	if data != nil {
-		err := json.NewEncoder(w).Encode(data)
-		if err != nil {
+		if err := json.NewEncoder(w).Encode(data); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			_, wErr := w.Write([]byte(err.Error()))
 			if wErr != nil {
