@@ -15,7 +15,7 @@ type Vector []*fr.Element
 func column(m Matrix) int {
 	if len(m) > 0 {
 		length := len(m[0])
-		for i := 1; i < len(m); i++ {
+		for i := range m {
 			if len(m[i]) != length {
 				panic("m is not matrix!")
 			}
@@ -34,9 +34,9 @@ func row(m Matrix) int {
 // for 0 <= i < row, 0 <= j < column, compute M_ij*scalar.
 func ScalarMul(scalar *fr.Element, m Matrix) Matrix {
 	res := make([][]*fr.Element, len(m))
-	for i := 0; i < len(m); i++ {
+	for i := range m {
 		res[i] = make([]*fr.Element, len(m[i]))
-		for j := 0; j < len(m[i]); j++ {
+		for j := range m[i] {
 			res[i][j] = NewElement().Mul(scalar, m[i][j])
 		}
 	}
@@ -48,7 +48,7 @@ func ScalarMul(scalar *fr.Element, m Matrix) Matrix {
 func ScalarVecMul(scalar *fr.Element, v Vector) Vector {
 	res := make([]*fr.Element, len(v))
 
-	for i := 0; i < len(v); i++ {
+	for i := range v {
 		res[i] = NewElement().Mul(scalar, v[i])
 	}
 
@@ -61,7 +61,7 @@ func VecAdd(a, b Vector) (Vector, error) {
 	}
 
 	res := make([]*fr.Element, len(a))
-	for i := 0; i < len(a); i++ {
+	for i := range a {
 		res[i] = NewElement().Add(a[i], b[i])
 	}
 
@@ -74,7 +74,7 @@ func VecSub(a, b Vector) (Vector, error) {
 	}
 
 	res := make([]*fr.Element, len(a))
-	for i := 0; i < len(a); i++ {
+	for i := range a {
 		res[i] = NewElement().Sub(a[i], b[i])
 	}
 
@@ -88,7 +88,7 @@ func VecMul(a, b Vector) (*fr.Element, error) {
 		return res, errors.New("length err: cannot compute vector mul!")
 	}
 
-	for i := 0; i < len(a); i++ {
+	for i := range a {
 		tmp := NewElement().Mul(a[i], b[i])
 		res.Add(res, tmp)
 	}
@@ -107,17 +107,10 @@ func IsVecEqual(a, b Vector) bool {
 		}
 	}
 
-	// time-constant comparison, against timing attacks.
-	//res := 0
-	//for i := 0; i < len(a); i++ {
-	//	res |= a[i].Cmp(b[i])
-	//}
-	//return res == 0
-
 	return true
 }
 
-// if delta(m)≠0, m is invertible.
+// IsInvertible if delta(m)≠0, m is invertible.
 // so we can transform m to the upper triangular matrix,
 // and if all upper diagonal elements are not zero, then m is invertible.
 func IsInvertible(m Matrix) bool {
@@ -133,7 +126,7 @@ func IsInvertible(m Matrix) bool {
 		panic(err)
 	}
 
-	for i := 0; i < row(tmp); i++ {
+	for i := range row(tmp) {
 		if upper[i][i].Cmp(zero()) == 0 {
 			return false
 		}
@@ -152,9 +145,9 @@ func MatMul(a, b Matrix) (Matrix, error) {
 
 	var err error
 	res := make([][]*fr.Element, row(a))
-	for i := 0; i < row(a); i++ {
+	for i := range row(a) {
 		res[i] = make([]*fr.Element, column(b))
-		for j := 0; j < column(b); j++ {
+		for j := range column(b) {
 			res[i][j], err = VecMul(a[i], transb[j])
 			if err != nil {
 				return nil, fmt.Errorf("vec mul err: %w", err)
@@ -165,7 +158,7 @@ func MatMul(a, b Matrix) (Matrix, error) {
 	return res, nil
 }
 
-// left Matrix multiplication, denote by M*V, where M is the matrix, and V is the vector.
+// LeftMatMul left Matrix multiplication, denote by M*V, where M is the matrix, and V is the vector.
 func LeftMatMul(m Matrix, v Vector) (Vector, error) {
 	if !IsSquareMatrix(m) {
 		panic("matrix is not square!")
@@ -177,7 +170,7 @@ func LeftMatMul(m Matrix, v Vector) (Vector, error) {
 
 	res := make([]*fr.Element, len(v))
 	var err error
-	for i := 0; i < len(v); i++ {
+	for i := range len(v) {
 		res[i], err = VecMul(m[i], v)
 		if err != nil {
 			return nil, fmt.Errorf("vector mul err: %w", err)
@@ -187,7 +180,7 @@ func LeftMatMul(m Matrix, v Vector) (Vector, error) {
 	return res, nil
 }
 
-// right Matrix multiplication, denote by V*M, where V is the vector, and M is the matrix.
+// RightMatMul right Matrix multiplication, denote by V*M, where V is the vector, and M is the matrix.
 func RightMatMul(v Vector, m Matrix) (Vector, error) {
 	if !IsSquareMatrix(m) {
 		return nil, errors.New("matrix is not square")
@@ -200,7 +193,7 @@ func RightMatMul(v Vector, m Matrix) (Vector, error) {
 	transm := transpose(m)
 	res := make([]*fr.Element, len(v))
 	var err error
-	for i := 0; i < len(v); i++ {
+	for i := range v {
 		res[i], err = VecMul(transm[i], v)
 		if err != nil {
 			return nil, fmt.Errorf("vector mul err: %w", err)
@@ -214,9 +207,9 @@ func RightMatMul(v Vector, m Matrix) (Vector, error) {
 func transpose(m Matrix) Matrix {
 	res := make([][]*fr.Element, column(m))
 
-	for j := 0; j < column(m); j++ {
+	for j := range column(m) {
 		res[j] = make([]*fr.Element, len(m))
-		for i := 0; i < len(m); i++ {
+		for i := range m {
 			res[j][i] = m[i][j]
 		}
 	}
@@ -224,18 +217,18 @@ func transpose(m Matrix) Matrix {
 	return res
 }
 
-// the square matrix is a t*t matrix.
+// IsSquareMatrix the square matrix is a t*t matrix.
 func IsSquareMatrix(m Matrix) bool {
 	return row(m) == column(m)
 }
 
-// make t*t identity matrix.
+// MakeIdentity make t*t identity matrix.
 func MakeIdentity(t int) Matrix {
 	res := make([][]*fr.Element, t)
 
 	for i := 0; i < t; i++ {
 		res[i] = make([]*fr.Element, t)
-		for j := 0; j < t; j++ {
+		for j := range t {
 			if i == j {
 				res[i][j] = one()
 			} else {
@@ -247,10 +240,10 @@ func MakeIdentity(t int) Matrix {
 	return res
 }
 
-// determine if a matrix is identity.
+// IsIdentity determine if a matrix is identity.
 func IsIdentity(m Matrix) bool {
-	for i := 0; i < row(m); i++ {
-		for j := 0; j < column(m); j++ {
+	for i := range row(m) {
+		for j := range column(m) {
 			if ((i == j) && m[i][j].Cmp(one()) != 0) || ((i != j) && (m[i][j].Cmp(zero()) != 0)) {
 				return false
 			}
@@ -260,28 +253,19 @@ func IsIdentity(m Matrix) bool {
 	return true
 }
 
+// IsEqual compares matrixes
 func IsEqual(a, b Matrix) bool {
 	if row(a) != row(b) || column(a) != column(b) {
 		return false
 	}
 
-	for i := 0; i < row(a); i++ {
-		for j := 0; j < column(a); j++ {
+	for i := range row(a) {
+		for j := range column(a) {
 			if a[i][j].Cmp(b[i][j]) != 0 {
 				return false
 			}
 		}
 	}
-
-	// time-constant comparison, against timing attacks.
-	//res := 0
-	//for i := 0; i < row(a); i++ {
-	//	for j := 0; j < column(a); j++ {
-	//		res |= a[i][j].Cmp(b[i][j])
-	//	}
-	//}
-	//return res == 0
-
 	return true
 }
 
@@ -293,15 +277,15 @@ func minor(m Matrix, rowIndex, columnIndex int) (Matrix, error) {
 
 	res := make([][]*fr.Element, row(m)-1)
 
-	for i := 0; i < row(m); i++ {
+	for i := range row(m) {
 		if i < rowIndex {
-			for j := 0; j < column(m); j++ {
+			for j := range column(m) {
 				if j != columnIndex {
 					res[i] = append(res[i], m[i][j])
 				}
 			}
 		} else if i > rowIndex {
-			for j := 0; j < column(m); j++ {
+			for j := range column(m) {
 				if j != columnIndex {
 					res[i-1] = append(res[i-1], m[i][j])
 				}
@@ -318,7 +302,7 @@ func isFirstKZero(v Vector, k int) bool {
 		return false
 	}
 
-	for i := 0; i < k; i++ {
+	for i := range k {
 		if v[i].Cmp(zero()) != 0 {
 			return false
 		}
@@ -334,14 +318,13 @@ func findNonZero(m Matrix, index int) (pivot *fr.Element, pivotIndex int, err er
 		return NewElement(), -1, errors.New("index out of range!")
 	}
 
-	for i := 0; i < row(m); i++ {
+	for i := range row(m) {
 		if m[i][index].Cmp(zero()) != 0 {
 			pivot = m[i][index]
 			pivotIndex = i
 			break
 		}
 	}
-
 	return
 }
 
@@ -354,7 +337,7 @@ func eliminate(m, shadow Matrix, columnIndex int) (Matrix, Matrix, error) {
 
 	pivotInv := NewElement().Inverse(pivot)
 
-	for i := 0; i < row(m); i++ {
+	for i := range row(m) {
 		if i == pivotIndex {
 			continue
 		}
@@ -391,7 +374,7 @@ func copyMatrixRows(m Matrix, startIndex, endIndex int) Matrix {
 
 	res := make([][]*fr.Element, endIndex-startIndex)
 
-	for i := 0; i < endIndex-startIndex; i++ {
+	for i := range endIndex - startIndex {
 		res[i] = make([]*fr.Element, column(m))
 		copy(res[i], m[i+startIndex])
 	}
@@ -403,7 +386,7 @@ func copyMatrixRows(m Matrix, startIndex, endIndex int) Matrix {
 func reverseRows(m Matrix) Matrix {
 	res := make([][]*fr.Element, row(m))
 
-	for i := 0; i < row(m); i++ {
+	for i := range row(m) {
 		res[i] = make([]*fr.Element, column(m))
 		copy(res[i], m[row(m)-i-1])
 	}
@@ -414,23 +397,18 @@ func reverseRows(m Matrix) Matrix {
 // determine if numbers of zero elements equals to n.
 func zeroNums(v Vector, n int) bool {
 	count := 0
-	for i := 0; i < len(v); i++ {
+	for i := range len(v) {
 		if v[i].Cmp(zero()) != 0 {
 			break
 		}
 		count++
 	}
-
-	if count == n {
-		return true
-	}
-
-	return false
+	return count == n
 }
 
 // determine if a matrix is upper triangular.
 func isUpperTriangular(m Matrix) bool {
-	for i := 0; i < row(m); i++ {
+	for i := range row(m) {
 		if !zeroNums(m[i], i) {
 			return false
 		}
@@ -480,7 +458,7 @@ func reduceToIdentity(m, shadow Matrix) (Matrix, Matrix, error) {
 	var err error
 	result := make([][]*fr.Element, row(m))
 	shadowResult := make([][]*fr.Element, row(shadow))
-	for i := 0; i < row(m); i++ {
+	for i := range row(m) {
 		result[i] = make([]*fr.Element, column(m))
 		shadowResult[i] = make([]*fr.Element, column(shadow))
 		indexi := row(m) - i - 1
@@ -496,7 +474,7 @@ func reduceToIdentity(m, shadow Matrix) (Matrix, Matrix, error) {
 
 		shadowNorm := ScalarVecMul(factorInv, shadow[indexi])
 
-		for j := 0; j < i; j++ {
+		for j := range i {
 			indexj := row(m) - j - 1
 			val := norm[indexj]
 
@@ -523,7 +501,7 @@ func reduceToIdentity(m, shadow Matrix) (Matrix, Matrix, error) {
 	return result, shadowResult, nil
 }
 
-// use Gaussian elimination to invert a matrix.
+// Invert uses Gaussian elimination to invert a matrix.
 // A|I -> I|A^-1.
 func Invert(m Matrix) (Matrix, error) {
 	if !IsInvertible(m) {

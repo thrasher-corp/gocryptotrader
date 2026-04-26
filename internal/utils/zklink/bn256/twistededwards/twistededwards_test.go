@@ -23,7 +23,6 @@ import (
 )
 
 func TestAdd(t *testing.T) {
-
 	var p1, p2 Point
 
 	p1.X.SetString("8728367628344135467582547753719073727968275979035063555332785894244029982715")
@@ -97,7 +96,6 @@ func TestDouble(t *testing.T) {
 }
 
 func TestDoubleProj(t *testing.T) {
-
 	var p Point
 	var pproj PointProj
 
@@ -122,7 +120,6 @@ func TestDoubleProj(t *testing.T) {
 }
 
 func TestScalarMul(t *testing.T) {
-
 	// set curve parameters
 	ed := GetEdwardsCurve()
 

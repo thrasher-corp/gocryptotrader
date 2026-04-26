@@ -282,8 +282,6 @@ func BatchInvert(a []*fr.Element) []*fr.Element {
 	if len(a) == 0 {
 		return res
 	}
-
-	type zeroMark struct{}
 	zeroes := make([]bool, len(a))
 	accumulator := new(fr.Element).SetOne()
 

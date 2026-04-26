@@ -34,7 +34,7 @@ func TestVector(t *testing.T) {
 	for _, cases := range sub {
 		get, err := VecSub(cases.v1, cases.v2)
 		assert.NoError(t, err)
-		assert.Equal(t, get, cases.want)
+		assert.Equal(t, cases.want, get)
 	}
 
 	add := []struct {
@@ -49,7 +49,7 @@ func TestVector(t *testing.T) {
 	for _, cases := range add {
 		get, err := VecAdd(cases.v1, cases.v2)
 		assert.NoError(t, err)
-		assert.Equal(t, get, cases.want)
+		assert.Equal(t, cases.want, get)
 	}
 
 	scalarmul := []struct {
@@ -64,7 +64,7 @@ func TestVector(t *testing.T) {
 
 	for _, cases := range scalarmul {
 		get := ScalarVecMul(cases.scalar, cases.v)
-		assert.Equal(t, get, cases.want)
+		assert.Equal(t, cases.want, get)
 	}
 
 	vecmul := []struct {
@@ -79,7 +79,7 @@ func TestVector(t *testing.T) {
 	for _, cases := range vecmul {
 		get, err := VecMul(cases.v1, cases.v2)
 		assert.NoError(t, err)
-		assert.Equal(t, get, cases.want)
+		assert.Equal(t, cases.want, get)
 	}
 }
 
@@ -96,14 +96,14 @@ func TestMatrixScalarMul(t *testing.T) {
 
 	for _, cases := range scalarmul {
 		get := ScalarMul(cases.scalar, cases.m)
-		assert.Equal(t, get, cases.want)
+		assert.Equal(t, cases.want, get)
 	}
 }
 
 func TestIdentity(t *testing.T) {
 	get := MakeIdentity(3)
 	want := Matrix{{OneE, zeroE, zeroE}, {zeroE, OneE, zeroE}, {zeroE, zeroE, OneE}}
-	assert.Equal(t, get, want)
+	assert.Equal(t, want, get)
 }
 
 func TestMinor(t *testing.T) {
@@ -127,7 +127,7 @@ func TestMinor(t *testing.T) {
 	for _, cases := range testMatrix {
 		get, err := minor(m, cases.i, cases.j)
 		assert.NoError(t, err)
-		assert.Equal(t, get, cases.want)
+		assert.Equal(t, cases.want, get)
 	}
 }
 
@@ -148,7 +148,7 @@ func TestCopyMatrix(t *testing.T) {
 
 	for _, cases := range testMatrix {
 		get := copyMatrixRows(m, cases.start, cases.end)
-		assert.Equal(t, get, cases.want)
+		assert.Equal(t, cases.want, get)
 	}
 }
 
@@ -162,7 +162,7 @@ func TestTranspose(t *testing.T) {
 
 	for _, cases := range testMatrix {
 		get := transpose(cases.input)
-		assert.Equal(t, get, cases.want)
+		assert.Equal(t, cases.want, get)
 	}
 }
 
@@ -182,7 +182,7 @@ func TestUpperTriangular(t *testing.T) {
 		m, _, err := upperTriangular(cases.m, cases.s)
 		assert.NoError(t, err)
 		get := isUpperTriangular(m)
-		assert.Equal(t, get, cases.want)
+		assert.Equal(t, cases.want, get)
 	}
 }
 
@@ -203,7 +203,7 @@ func TestFindNonzeroE(t *testing.T) {
 
 	for _, cases := range vectorSet {
 		get := isFirstKZero(cases.v, cases.k)
-		assert.Equal(t, get, cases.want)
+		assert.Equal(t, cases.want, get)
 	}
 
 	nonzeroESet := []struct {
@@ -292,7 +292,7 @@ func TestMatMul(t *testing.T) {
 	for _, cases := range testMatrix {
 		get, err := MatMul(cases.m1, cases.m2)
 		assert.NoError(t, err)
-		assert.Equal(t, get, cases.want)
+		assert.Equal(t, cases.want, get)
 	}
 
 	// [[1,2,3],[4,5,6],[7,8,9]]*[1,1,1]
@@ -313,7 +313,7 @@ func TestMatMul(t *testing.T) {
 	for _, cases := range testLeftMul {
 		get, err := LeftMatMul(cases.m, cases.v)
 		assert.NoError(t, err)
-		assert.Equal(t, get, cases.want)
+		assert.Equal(t, cases.want, get)
 	}
 
 	// [1,1,1]*[[1,2,3],[4,5,6],[7,8,9]]
@@ -333,7 +333,7 @@ func TestMatMul(t *testing.T) {
 	for _, cases := range testRightMul {
 		get, err := RightMatMul(cases.v, cases.m)
 		assert.NoError(t, err)
-		assert.Equal(t, get, cases.want)
+		assert.Equal(t, cases.want, get)
 	}
 }
 
@@ -373,7 +373,7 @@ func TestEliminate(t *testing.T) {
 	for _, cases := range testMatrix {
 		get, _, err := eliminate(m, shadow, cases.c)
 		assert.NoError(t, err)
-		assert.Equal(t, get, cases.want)
+		assert.Equal(t, cases.want, get)
 	}
 }
 
@@ -408,7 +408,7 @@ func TestReduceToIdentity(t *testing.T) {
 	for _, cases := range testMatrix {
 		_, get, err := reduceToIdentity(cases.m, shadow)
 		assert.NoError(t, err)
-		assert.Equal(t, get, cases.want)
+		assert.Equal(t, cases.want, get)
 	}
 }
 
@@ -425,7 +425,7 @@ func TestIsInvertible(t *testing.T) {
 
 	for _, cases := range testMatrix {
 		get := IsInvertible(cases.m)
-		assert.Equal(t, get, cases.want)
+		assert.Equal(t, cases.want, get)
 	}
 }
 
@@ -487,6 +487,6 @@ func TestInvert(t *testing.T) {
 
 		get, err := Invert(cases.m)
 		assert.NoError(t, err)
-		assert.Equal(t, get, cases.want)
+		assert.Equal(t, cases.want, get)
 	}
 }

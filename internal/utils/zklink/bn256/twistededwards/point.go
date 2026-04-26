@@ -114,11 +114,8 @@ func (p *PointProj) FromAffine(p1 *Point) *PointProj {
 // Add adds points in projective coordinates
 // cf https://hyperelliptic.org/EFD/g1p/auto-twisted-projective.html
 func (p *PointProj) Add(p1, p2 *PointProj) *PointProj {
-
 	var res PointProj
-
 	ecurve := GetEdwardsCurve()
-
 	var A, B, C, D, E, F, G, H, I fr.Element
 	A.Mul(&p1.Z, &p2.Z)
 	B.Square(&A)
@@ -177,7 +174,6 @@ func (p *PointProj) Double(p1 *PointProj) *PointProj {
 // scal scalar NOT in Montgomery form
 // modifies p
 func (p *Point) ScalarMul(p1 *Point, scalar fr.Element) *Point {
-
 	var resProj, p1Proj PointProj
 	resProj.X.SetZero()
 	resProj.Y.SetOne()

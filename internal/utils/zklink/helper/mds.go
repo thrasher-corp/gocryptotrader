@@ -44,8 +44,6 @@ type SparseMatrix struct {
 	V Vector
 }
 
-// generate the mds (cauchy) matrix, which is invertible, and
-// its sub-matrices are invertible as well.
 func GenMDS(t int) Matrix {
 	xVec := make([]*fr.Element, t)
 	yVec := make([]*fr.Element, t)

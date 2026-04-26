@@ -87,7 +87,7 @@ func TestContractBuilderGetBytes(t *testing.T) {
 
 	msgBytes := builder.GetBytes()
 	require.NotNil(t, msgBytes)
-	assert.True(t, msgBytes.BitLen() > 0, "message bytes must be non-zero")
+	assert.Positive(t, msgBytes.BitLen(), "message bytes must be non-zero")
 }
 
 func TestWithdrawBuilderGetBytes(t *testing.T) {
@@ -110,7 +110,7 @@ func TestWithdrawBuilderGetBytes(t *testing.T) {
 
 	msgBytes := builder.GetBytes()
 	require.NotNil(t, msgBytes)
-	assert.True(t, msgBytes.BitLen() > 0, "message bytes must be non-zero")
+	assert.Positive(t, msgBytes.BitLen(), "message bytes must be non-zero")
 }
 
 func TestRescueHashBigInt(t *testing.T) {

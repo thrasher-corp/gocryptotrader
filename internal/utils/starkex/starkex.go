@@ -157,7 +157,7 @@ func (sc *StarkConfig) SignECDSA(msgHash, privKey *big.Int, seed ...*big.Int) (r
 		}
 
 		w := math_utils.DivMod(k, agg, sc.N)
-		if !(w.Cmp(one) > 0 && w.Cmp(nBit) < 0) {
+		if w.Cmp(one) <= 0 || w.Cmp(nBit) >= 0 {
 			continue
 		}
 

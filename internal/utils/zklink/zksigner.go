@@ -12,10 +12,10 @@ import (
 
 // ZKLinkSigner holds the key material for ZKLink Schnorr signing on BN254 twisted Edwards.
 type ZKLinkSigner struct {
-	privateKeyBig *big.Int             // private key as big.Int, reduced mod curve order
-	privateKey    fr.Element           // private key in regular (non-Montgomery) form for ScalarMul
-	publicKey     twistededwards.Point // public key = privateKey × G
-	pubKeyHash    [20]byte             // Blake2s(packed pubkey)[:20], used as L2 key hash
+	privateKeyBig *big.Int
+	privateKey    fr.Element
+	publicKey     twistededwards.Point
+	pubKeyHash    [20]byte
 }
 
 // NewZKLinkSignerFromSeeds derives a ZKLinkSigner from EIP-191 seeds bytes.
@@ -76,8 +76,8 @@ func (z *ZKLinkSigner) PublicKeyBytes() [32]byte {
 	var packed [32]byte
 	copy(packed[:], yBytes)
 
-	xBytes := z.publicKey.X.Bytes() // 32 bytes, big-endian, regular form
-	if xBytes[31]&1 == 1 {         // X is odd: set bit 255 (MSB of byte 0)
+	xBytes := z.publicKey.X.Bytes()
+	if xBytes[31]&1 == 1 {
 		packed[0] |= 0x80
 	}
 	return packed
@@ -121,7 +121,7 @@ func (z *ZKLinkSigner) Sign(msg *big.Int) ([64]byte, error) {
 	// Step 3: R = k × G
 	var kElem fr.Element
 	kElem.SetBigInt(k)
-	kElem.FromMont() // regular form required by ScalarMul
+	kElem.FromMont()
 
 	var R twistededwards.Point
 	R.ScalarMul(&curve.Base, kElem)
