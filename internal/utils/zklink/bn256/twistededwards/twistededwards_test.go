@@ -45,11 +45,9 @@ func TestAdd(t *testing.T) {
 	if !p1.Y.Equal(&expectedY) {
 		t.Fatal("wrong y coordinate")
 	}
-
 }
 
 func TestAddProj(t *testing.T) {
-
 	var p1, p2 Point
 	var p1proj, p2proj PointProj
 
@@ -76,13 +74,10 @@ func TestAddProj(t *testing.T) {
 	if !p1.Y.Equal(&expectedY) {
 		t.Fatal("wrong y coordinate")
 	}
-
 }
 
 func TestDouble(t *testing.T) {
-
 	var p Point
-
 	p.X.SetString("8728367628344135467582547753719073727968275979035063555332785894244029982715")
 	p.Y.SetString("8834462946188529904793384347374734779374831553974460136522409595751449858199")
 
@@ -148,5 +143,4 @@ func TestScalarMul(t *testing.T) {
 	if !expectedY.Equal(&p.Y) {
 		t.Fatal("wrong y coordinate")
 	}
-
 }

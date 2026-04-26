@@ -47,11 +47,8 @@ func NewPoint(x, y fr.Element) Point {
 
 // IsOnCurve checks if a point is on the twisted Edwards curve
 func (p *Point) IsOnCurve() bool {
-
 	ecurve := GetEdwardsCurve()
-
 	var lhs, rhs, tmp fr.Element
-
 	tmp.Mul(&p.Y, &p.Y)
 	lhs.Mul(&p.X, &p.X).
 		Mul(&lhs, &ecurve.A).
@@ -69,7 +66,6 @@ func (p *Point) IsOnCurve() bool {
 // Add adds two points (x,y), (u,v) on a twisted Edwards curve with parameters a, d
 // modifies p
 func (p *Point) Add(p1, p2 *Point) *Point {
-
 	ecurve := GetEdwardsCurve()
 
 	var xu, yv, xv, yu, dxyuv, one, denx, deny fr.Element
@@ -151,7 +147,6 @@ func (p *PointProj) Add(p1, p2 *PointProj) *PointProj {
 // Double adds points in projective coordinates
 // cf https://hyperelliptic.org/EFD/g1p/auto-twisted-projective.html
 func (p *PointProj) Double(p1 *PointProj) *PointProj {
-
 	var res PointProj
 
 	ecurve := GetEdwardsCurve()

@@ -131,7 +131,7 @@ func TestMinor(t *testing.T) {
 	}
 }
 
-func TestcopyMatrix(t *testing.T) {
+func TestCopyMatrix(t *testing.T) {
 	m := Matrix{{OneE, Two, Three}, {Four, Five, Six}, {Seven, Eight, Nine}}
 
 	testMatrix := []struct {

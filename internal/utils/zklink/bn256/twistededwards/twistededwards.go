@@ -25,7 +25,6 @@ func GetEdwardsCurve() CurveParams {
 }
 
 func initEdBN256() {
-
 	edwards.A.SetUint64(168700)
 	edwards.D.SetUint64(168696)
 	edwards.Cofactor.SetUint64(8).FromMont()

@@ -135,10 +135,10 @@ func GenerateK(ecOrder *big.Int, privateKey *big.Int, hashFunc hash.Hash, messag
 	k := make([]byte, hashFunc.Size())
 
 	// Step B: Set v to 0x01 and k to 0x00
-	for i := range len(v) {
+	for i := range v {
 		v[i] = 0x01
 	}
-	for i := range len(k) {
+	for i := range k {
 		k[i] = 0x00
 	}
 
