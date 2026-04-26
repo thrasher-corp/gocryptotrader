@@ -41,21 +41,13 @@ type GlobalDefaultConfigs struct {
 // AllSymbolsConfigs represents all symbols configurations.
 type AllSymbolsConfigs struct {
 	SpotConfig struct {
-		Assets []struct {
-			TokenID       string       `json:"tokenId"`
-			Token         string       `json:"token"`
-			DisplayName   string       `json:"displayName"`
-			Decimals      int64        `json:"decimals"`
-			ShowStep      string       `json:"showStep"`
-			IconURL       string       `json:"iconUrl"`
-			L2WithdrawFee types.Number `json:"l2WithdrawFee"`
-		} `json:"assets"`
+		Assets     []*AssetInfo          `json:"assets"`
 		Global     *GlobalDefaultConfigs `json:"global"`
 		Spot       []any                 `json:"spot"`
 		MultiChain *MultiChainDetails    `json:"multiChain"`
 	} `json:"spotConfig"`
 	ContractConfig struct {
-		Assets []AssetInfo `json:"assets"`
+		Assets []*AssetInfo `json:"assets"`
 		Tokens []struct {
 			Token    string       `json:"token"`
 			StepSize types.Number `json:"stepSize"`
@@ -90,10 +82,10 @@ type NewTradingData struct {
 
 // MarketDepthV3 represents a market depth information.
 type MarketDepthV3 struct {
-	Asks       [][2]types.Number `json:"a"` // Sell
-	Bids       [][2]types.Number `json:"b"` // Buy
-	Symbol     string            `json:"s"`
-	UpdateTime types.Time        `json:"u"`
+	Asks       orderbook.LevelsArrayPriceAmount `json:"a"` // Sell
+	Bids       orderbook.LevelsArrayPriceAmount `json:"b"` // Buy
+	Symbol     string                           `json:"s"`
+	UpdateTime types.Time                       `json:"u"`
 }
 
 // CandlestickData represents a candlestick chart data.
@@ -129,14 +121,17 @@ type TickerData struct {
 
 // FundingRateHistory represents a funding rate history response.
 type FundingRateHistory struct {
-	HistoryFunds []struct {
-		Symbol           string       `json:"symbol"`
-		Rate             types.Number `json:"rate"`
-		Price            types.Number `json:"price"`
-		FundingTime      types.Time   `json:"fundingTime"`
-		FundingTimestamp types.Time   `json:"fundingTimestamp"`
-	} `json:"historyFunds"`
-	TotalSize int64 `json:"totalSize"`
+	HistoryFunds []*FundingRateDetail `json:"historyFunds"`
+	TotalSize    int64                `json:"totalSize"`
+}
+
+// FundingRateDetail represents a funding rate detail instance
+type FundingRateDetail struct {
+	Symbol           string       `json:"symbol"`
+	Rate             types.Number `json:"rate"`
+	Price            types.Number `json:"price"`
+	FundingTime      types.Time   `json:"fundingTime"`
+	FundingTimestamp types.Time   `json:"fundingTimestamp"`
 }
 
 // CurrencyInfo represents a currency detail.
@@ -153,17 +148,17 @@ type CurrencyInfo struct {
 type V2ConfigData struct {
 	Data struct {
 		USDCConfig struct {
-			Currency          []*CurrencyInfo           `json:"currency"`
-			Global            *GlobalConfig             `json:"global"`
-			PerpetualContract []PerpetualContractDetail `json:"perpetualContract"`
-			MultiChain        *MultiChainDetails        `json:"multiChain"`
-			DepositFromBybit  bool                      `json:"depositFromBybit"`
+			Currency          []*CurrencyInfo            `json:"currency"`
+			Global            *GlobalConfig              `json:"global"`
+			PerpetualContract []*PerpetualContractDetail `json:"perpetualContract"`
+			MultiChain        *MultiChainDetails         `json:"multiChain"`
+			DepositFromBybit  bool                       `json:"depositFromBybit"`
 		} `json:"usdcConfig"`
 		USDTConfig struct {
-			Currency          []CurrencyInfo            `json:"currency"`
-			Global            *GlobalConfig             `json:"global"`
-			PerpetualContract []PerpetualContractDetail `json:"perpetualContract"`
-			MultiChain        *MultiChainDetails        `json:"multiChain"`
+			Currency          []*CurrencyInfo            `json:"currency"`
+			Global            *GlobalConfig              `json:"global"`
+			PerpetualContract []*PerpetualContractDetail `json:"perpetualContract"`
+			MultiChain        *MultiChainDetails         `json:"multiChain"`
 		} `json:"usdtConfig"`
 	} `json:"data"`
 	TimeCost int64 `json:"timeCost"`
@@ -206,17 +201,17 @@ type V1CurrencyConfig struct {
 // AllSymbolsV1Config represents a configuration information
 type AllSymbolsV1Config struct {
 	Data struct {
-		Currency          []V1CurrencyConfig        `json:"currency"`
-		Global            GlobalConfig              `json:"global"`
-		PerpetualContract []PerpetualContractDetail `json:"perpetualContract"`
-		MultiChain        MultiChainDetails         `json:"multiChain"`
+		Currency          []*V1CurrencyConfig        `json:"currency"`
+		Global            GlobalConfig               `json:"global"`
+		PerpetualContract []*PerpetualContractDetail `json:"perpetualContract"`
+		MultiChain        MultiChainDetails          `json:"multiChain"`
 	} `json:"data"`
 	TimeCost int64 `json:"timeCost"`
 }
 
 // MultiChainDetails holds details about chains and summary information
 type MultiChainDetails struct {
-	Chains      []ChainInfo  `json:"chains"`
+	Chains      []*ChainInfo `json:"chains"`
 	Currency    string       `json:"currency"`
 	MaxWithdraw types.Number `json:"maxWithdraw"`
 	MinDeposit  types.Number `json:"minDeposit"`
@@ -476,10 +471,10 @@ type UserResponse struct {
 
 // WsCandlesticks represents a list of candlestick data.
 type WsCandlesticks struct {
-	Topic     string            `json:"topic"`
-	Data      []CandlestickData `json:"data"`
-	Timestamp types.Time        `json:"ts"`
-	Type      string            `json:"type"`
+	Topic     string             `json:"topic"`
+	Data      []*CandlestickData `json:"data"`
+	Timestamp types.Time         `json:"ts"`
+	Type      string             `json:"type"`
 }
 
 // WsSymbolsTickerInformaton represents a ticker information for assets.
@@ -514,6 +509,7 @@ type RegistrationAndOnboardingResponse struct {
 		Ips    []string `json:"ips"`
 	} `json:"apiKey"`
 	User struct {
+		ID                       string       `json:"id"`
 		EthereumAddress          string       `json:"ethereumAddress"`
 		IsRegistered             bool         `json:"isRegistered"`
 		Email                    string       `json:"email"`
@@ -526,7 +522,6 @@ type RegistrationAndOnboardingResponse struct {
 		IsSharingUsername        bool         `json:"isSharingUsername"`
 		IsSharingAddress         bool         `json:"isSharingAddress"`
 		Country                  string       `json:"country"`
-		ID                       string       `json:"id"`
 		AvatarURL                string       `json:"avatarUrl"`
 		AvatarBorderURL          string       `json:"avatarBorderUrl"`
 		EmailNotifyGeneralEnable bool         `json:"emailNotifyGeneralEnable"`
@@ -535,75 +530,7 @@ type RegistrationAndOnboardingResponse struct {
 		PopupNotifyTradingEnable bool         `json:"popupNotifyTradingEnable"`
 		AppNotifyTradingEnable   bool         `json:"appNotifyTradingEnable"`
 	} `json:"user"`
-	Account struct {
-		EthereumAddress string `json:"ethereumAddress"`
-		L2Key           string `json:"l2Key"`
-		ID              string `json:"id"`
-		Version         string `json:"version"`
-		SpotAccount     struct {
-			CreatedAt            types.Time `json:"createdAt"`
-			UpdatedAt            types.Time `json:"updatedAt"`
-			ZkAccountID          string     `json:"zkAccountId"`
-			IsMultiSigEthAddress bool       `json:"isMultiSigEthAddress"`
-			DefaultSubAccountID  string     `json:"defaultSubAccountId"`
-			Nonce                int        `json:"nonce"`
-			Status               string     `json:"status"`
-			SubAccounts          []struct {
-				SubAccountID       string `json:"subAccountId"`
-				L2Key              string `json:"l2Key"`
-				Nonce              int    `json:"nonce"`
-				NonceVersion       int    `json:"nonceVersion"`
-				ChangePubKeyStatus string `json:"changePubKeyStatus"`
-			} `json:"subAccounts"`
-		} `json:"spotAccount"`
-		SpotWallets []struct {
-			UserID                   string       `json:"userId"`
-			AccountID                string       `json:"accountId"`
-			SubAccountID             string       `json:"subAccountId"`
-			Balance                  types.Number `json:"balance"`
-			TokenID                  string       `json:"tokenId"`
-			PendingDepositAmount     types.Number `json:"pendingDepositAmount"`
-			PendingWithdrawAmount    types.Number `json:"pendingWithdrawAmount"`
-			PendingTransferOutAmount types.Number `json:"pendingTransferOutAmount"`
-			PendingTransferInAmount  types.Number `json:"pendingTransferInAmount"`
-			CreatedAt                types.Time   `json:"createdAt"`
-			UpdatedAt                types.Time   `json:"updatedAt"`
-		} `json:"spotWallets"`
-		ExperienceMoney []struct {
-			AvailableAmount types.Number `json:"availableAmount"`
-			TotalNumber     types.Number `json:"totalNumber"`
-			TotalAmount     types.Number `json:"totalAmount"`
-			RecycledAmount  types.Number `json:"recycledAmount"`
-			Token           string       `json:"token"`
-		} `json:"experienceMoney"`
-		ContractAccount AccountInfo `json:"contractAccount"`
-		ContractWallets []struct {
-			UserID                   string       `json:"userId"`
-			AccountID                string       `json:"accountId"`
-			Balance                  types.Number `json:"balance"`
-			Asset                    string       `json:"asset"`
-			PendingDepositAmount     types.Number `json:"pendingDepositAmount"`
-			PendingWithdrawAmount    types.Number `json:"pendingWithdrawAmount"`
-			PendingTransferOutAmount types.Number `json:"pendingTransferOutAmount"`
-			PendingTransferInAmount  types.Number `json:"pendingTransferInAmount"`
-		} `json:"contractWallets"`
-		Positions []struct {
-			IsPrelaunch             bool         `json:"isPrelaunch"`
-			Symbol                  string       `json:"symbol"`
-			Status                  string       `json:"status"`
-			Side                    string       `json:"side"`
-			Size                    types.Number `json:"size"`
-			EntryPrice              types.Number `json:"entryPrice"`
-			ExitPrice               types.Number `json:"exitPrice"`
-			CreatedAt               types.Time   `json:"createdAt"`
-			UpdatedTime             types.Time   `json:"updatedTime"`
-			Fee                     types.Number `json:"fee"`
-			FundingFee              types.Number `json:"fundingFee"`
-			LightNumbers            types.Number `json:"lightNumbers"`
-			CustomInitialMarginRate string       `json:"customInitialMarginRate"`
-		} `json:"positions"`
-		IsNewUser bool `json:"isNewUser"`
-	} `json:"account"`
+	Account *UserAccountDetail `json:"account"`
 }
 
 // EditUserDataParams represents a request parameter to edit user data.
@@ -636,34 +563,14 @@ type UserDataResponse struct {
 
 // UserAccountV2 represents a V2 user account detail.
 type UserAccountV2 struct {
-	ID              string `json:"id"`
-	StarkKey        string `json:"starkKey"`
-	PositionID      string `json:"positionId"`
-	EthereumAddress string `json:"ethereumAddress"`
-	ExperienceMoney []struct {
-		AvailableAmount types.Number `json:"availableAmount"`
-		TotalNumber     types.Number `json:"totalNumber"`
-		TotalAmount     types.Number `json:"totalAmount"`
-		RecycledAmount  types.Number `json:"recycledAmount"`
-		Token           string       `json:"token"`
-	} `json:"experienceMoney"`
-	Accounts  []AccountInfo `json:"accounts"`
-	Wallets   any           `json:"wallets"`
-	Positions []struct {
-		Token                   string       `json:"token"`
-		Symbol                  string       `json:"symbol"`
-		Status                  string       `json:"status"`
-		Side                    string       `json:"side"`
-		Size                    types.Number `json:"size"`
-		EntryPrice              types.Number `json:"entryPrice"`
-		ExitPrice               types.Number `json:"exitPrice"`
-		CreatedAt               types.Time   `json:"createdAt"`
-		UpdatedTime             types.Time   `json:"updatedTime"`
-		Fee                     types.Number `json:"fee"`
-		FundingFee              types.Number `json:"fundingFee"`
-		LightNumbers            string       `json:"lightNumbers"`
-		CustomInitialMarginRate types.Number `json:"customInitialMarginRate"`
-	} `json:"positions"`
+	ID              string              `json:"id"`
+	StarkKey        string              `json:"starkKey"`
+	PositionID      string              `json:"positionId"`
+	EthereumAddress string              `json:"ethereumAddress"`
+	ExperienceMoney []*ExperiencedMoney `json:"experienceMoney"`
+	Accounts        []AccountInfo       `json:"accounts"`
+	Wallets         any                 `json:"wallets"`
+	Positions       []*PositionInfo     `json:"positions"`
 }
 
 // UserAccountDetail represents a user account detail.
@@ -688,32 +595,30 @@ type UserAccountDetail struct {
 			ChangePubKeyStatus string `json:"changePubKeyStatus"`
 		} `json:"subAccounts"`
 	} `json:"spotAccount"`
-	SpotWallets     []*SpotWallet `json:"spotWallets"`
-	ExperienceMoney []struct {
-		AvailableAmount types.Number `json:"availableAmount"`
-		TotalNumber     types.Number `json:"totalNumber"`
-		TotalAmount     types.Number `json:"totalAmount"`
-		RecycledAmount  types.Number `json:"recycledAmount"`
-		Token           string       `json:"token"`
-	} `json:"experienceMoney"`
-	ContractAccount AccountInfo       `json:"contractAccount"`
-	ContractWallets []*ContractWallet `json:"contractWallets"`
-	Positions       []struct {
-		IsPrelaunch             bool         `json:"isPrelaunch"`
-		Symbol                  string       `json:"symbol"`
-		Status                  string       `json:"status"`
-		Side                    string       `json:"side"`
-		Size                    types.Number `json:"size"`
-		EntryPrice              types.Number `json:"entryPrice"`
-		ExitPrice               string       `json:"exitPrice"`
-		CreatedAt               types.Time   `json:"createdAt"`
-		UpdatedTime             types.Time   `json:"updatedTime"`
-		Fee                     types.Number `json:"fee"`
-		FundingFee              types.Number `json:"fundingFee"`
-		LightNumbers            string       `json:"lightNumbers"`
-		CustomInitialMarginRate string       `json:"customInitialMarginRate"`
-	} `json:"positions"`
-	IsNewUser bool `json:"isNewUser"`
+	SpotWallets     []*SpotWallet       `json:"spotWallets"`
+	ExperienceMoney []*ExperiencedMoney `json:"experienceMoney"`
+	ContractAccount *AccountInfo        `json:"contractAccount"`
+	ContractWallets []*ContractWallet   `json:"contractWallets"`
+	Positions       []*PositionInfo     `json:"positions"`
+	IsNewUser       bool                `json:"isNewUser"`
+}
+
+// PositionInfo represents position information
+type PositionInfo struct {
+	IsPrelaunch             bool         `json:"isPrelaunch"`
+	Token                   string       `json:"token"`
+	Symbol                  string       `json:"symbol"`
+	Status                  string       `json:"status"`
+	Side                    string       `json:"side"`
+	Size                    types.Number `json:"size"`
+	EntryPrice              types.Number `json:"entryPrice"`
+	ExitPrice               string       `json:"exitPrice"`
+	CreatedAt               types.Time   `json:"createdAt"`
+	UpdatedTime             types.Time   `json:"updatedTime"`
+	Fee                     types.Number `json:"fee"`
+	FundingFee              types.Number `json:"fundingFee"`
+	LightNumbers            string       `json:"lightNumbers"`
+	CustomInitialMarginRate string       `json:"customInitialMarginRate"`
 }
 
 // SpotWallet represents a spot wallet detail
@@ -745,33 +650,14 @@ type ContractWallet struct {
 
 // UserAccountDetailV1 represents a user account detail through the v1 API endpoint.
 type UserAccountDetailV1 struct {
-	StarkKey     string       `json:"starkKey"`
-	PositionID   string       `json:"positionId"`
-	TakerFeeRate types.Number `json:"takerFeeRate"`
-	MakerFeeRate types.Number `json:"makerFeeRate"`
-	CreatedAt    types.Time   `json:"createdAt"`
-	Wallets      []struct {
-		UserID                   string       `json:"userId"`
-		AccountID                string       `json:"accountId"`
-		Asset                    string       `json:"asset"`
-		Balance                  types.Number `json:"balance"`
-		PendingDepositAmount     types.Number `json:"pendingDepositAmount"`
-		PendingWithdrawAmount    types.Number `json:"pendingWithdrawAmount"`
-		PendingTransferOutAmount types.Number `json:"pendingTransferOutAmount"`
-		PendingTransferInAmount  types.Number `json:"pendingTransferInAmount"`
-	} `json:"wallets"`
-	OpenPositions []struct {
-		Symbol       string       `json:"symbol"`
-		Side         string       `json:"side"`
-		Size         types.Number `json:"size"`
-		EntryPrice   types.Number `json:"entryPrice"`
-		Fee          types.Number `json:"fee"`
-		FundingFee   types.Number `json:"fundingFee"`
-		CreatedAt    types.Time   `json:"createdAt"`
-		UpdatedTime  types.Time   `json:"updatedTime"`
-		LightNumbers string       `json:"lightNumbers"`
-	} `json:"openPositions"`
-	ID string `json:"id"`
+	StarkKey      string            `json:"starkKey"`
+	PositionID    string            `json:"positionId"`
+	TakerFeeRate  types.Number      `json:"takerFeeRate"`
+	MakerFeeRate  types.Number      `json:"makerFeeRate"`
+	CreatedAt     types.Time        `json:"createdAt"`
+	Wallets       []*ContractWallet `json:"wallets"`
+	OpenPositions []*PositionInfo   `json:"openPositions"`
+	ID            string            `json:"id"`
 }
 
 // UserAccountBalanceResponse represents a user account balance.
@@ -794,12 +680,12 @@ type UserAccountBalanceV2Response struct {
 
 // UserWithdrawals represents users withdrawals list.
 type UserWithdrawals struct {
-	Transfers []UserWithdrawal `json:"transfers"`
+	Transfers []*UserWithdrawal `json:"transfers"`
 }
 
 // UserWithdrawalsV2 represents users withdrawals list.
 type UserWithdrawalsV2 struct {
-	Transfers []UserWithdrawalV2 `json:"transfers"`
+	Transfers []*UserWithdrawalV2 `json:"transfers"`
 }
 
 // UserWithdrawalV2 represents a user asset withdrawal info
@@ -898,8 +784,8 @@ type ContractTransferLimit struct {
 
 // TradeHistory represents a trade history
 type TradeHistory struct {
-	Orders    []TradeFill `json:"orders"`
-	TotalSize int64       `json:"totalSize"`
+	Orders    []*TradeFill `json:"orders"`
+	TotalSize int64        `json:"totalSize"`
 }
 
 // TradeFill  represents a trade fill information.
@@ -982,25 +868,28 @@ type OrderDetail struct {
 
 // OrderHistoryResponse represents list of order.
 type OrderHistoryResponse struct {
-	Orders    []OrderDetail `json:"orders"`
-	TotalSize int64         `json:"totalSize"`
+	Orders    []*OrderDetail `json:"orders"`
+	TotalSize int64          `json:"totalSize"`
 }
 
 // FundingRateResponse represents a list of funding rates.
 type FundingRateResponse struct {
-	FundingValues []struct {
-		ID            string       `json:"id"`
-		Symbol        string       `json:"symbol"`
-		FundingValue  string       `json:"fundingValue"`
-		Rate          types.Number `json:"rate"`
-		PositionSize  types.Number `json:"positionSize"`
-		Price         types.Number `json:"price"`
-		Side          string       `json:"side"`
-		Status        string       `json:"status"`
-		FundingTime   types.Time   `json:"fundingTime"`
-		TransactionID string       `json:"transactionId"`
-	} `json:"fundingValues"`
-	TotalSize int64 `json:"totalSize"`
+	FundingValues []*FundingValue `json:"fundingValues"`
+	TotalSize     int64           `json:"totalSize"`
+}
+
+// FundingValue represents a funding transaction detail
+type FundingValue struct {
+	ID            string       `json:"id"`
+	Symbol        string       `json:"symbol"`
+	FundingValue  string       `json:"fundingValue"`
+	Rate          types.Number `json:"rate"`
+	PositionSize  types.Number `json:"positionSize"`
+	Price         types.Number `json:"price"`
+	Side          string       `json:"side"`
+	Status        string       `json:"status"`
+	FundingTime   types.Time   `json:"fundingTime"`
+	TransactionID string       `json:"transactionId"`
 }
 
 // PNLHistory represents positions profit and loss(PNL) history
@@ -1267,9 +1156,9 @@ type AccountAssetTransfer struct {
 
 // WsAccountNotificationsResponse represents an account's notification responses
 type WsAccountNotificationsResponse struct {
-	UnreadNum     int                       `json:"unreadNum"`
-	NotifyMsgList []AccountNotificationInfo `json:"notifyMsgList"`
-	NotifyList    []AccountNotificationInfo `json:"notify_list"`
+	UnreadNum     int                        `json:"unreadNum"`
+	NotifyMsgList []*AccountNotificationInfo `json:"notifyMsgList"`
+	NotifyList    []*AccountNotificationInfo `json:"notify_list"`
 }
 
 // AccountNotificationInfo represents an account notification detail
@@ -1288,18 +1177,18 @@ type AccountNotificationInfo struct {
 
 // CreateOrderParam represents a stark order creation parameters
 type CreateOrderParam struct {
-	AmountCollateral    string        `json:"amount_collateral"`
-	AmountFee           string        `json:"amount_fee"`
-	AmountSynthetic     string        `json:"amount_synthetic"`
-	AssetIDCollateral   string        `json:"asset_id_collateral"`
-	AssetIDSynthetic    string        `json:"asset_id_synthetic"`
-	ExpirationTimestamp string        `json:"expiration_timestamp"`
-	IsBuyingSynthetic   bool          `json:"is_buying_synthetic"`
-	Nonce               string        `json:"nonce"`
-	OrderType           string        `json:"order_type"`
-	PositionID          string        `json:"position_id"`
-	PublicKey           string        `json:"public_key"`
-	Signature           SignatureInfo `json:"signature"`
+	AmountCollateral    string         `json:"amount_collateral"`
+	AmountFee           string         `json:"amount_fee"`
+	AmountSynthetic     string         `json:"amount_synthetic"`
+	AssetIDCollateral   string         `json:"asset_id_collateral"`
+	AssetIDSynthetic    string         `json:"asset_id_synthetic"`
+	ExpirationTimestamp string         `json:"expiration_timestamp"`
+	IsBuyingSynthetic   bool           `json:"is_buying_synthetic"`
+	Nonce               string         `json:"nonce"`
+	OrderType           string         `json:"order_type"`
+	PositionID          string         `json:"position_id"`
+	PublicKey           string         `json:"public_key"`
+	Signature           *SignatureInfo `json:"signature"`
 }
 
 // LoanRepaymentRates represents a loan repayment rates
@@ -1319,13 +1208,13 @@ type RepaymentTokenAndAmount struct {
 
 // UserLoanRepaymentParams holds user manual loans repayment parameter
 type UserLoanRepaymentParams struct {
-	RepaymentTokens     []RepaymentTokenAndAmount `json:"repaymentTokens"`
-	ClientID            string                    `json:"clientId"`
-	PoolRepaymentTokens []RepaymentTokenAndAmount `json:"poolRepaymentTokens"`
+	RepaymentTokens     []*RepaymentTokenAndAmount `json:"repaymentTokens"`
+	ClientID            string                     `json:"clientId"`
+	PoolRepaymentTokens []*RepaymentTokenAndAmount `json:"poolRepaymentTokens"`
 }
 
 // LoanRepaymentTokenAndAmountList holds list of tokens and amount details
-type LoanRepaymentTokenAndAmountList []RepaymentTokenAndAmount
+type LoanRepaymentTokenAndAmountList []*RepaymentTokenAndAmount
 
 // MarshalJSON serializes the LoanRepaymentTokenAndAmount into byte data
 func (l LoanRepaymentTokenAndAmountList) MarshalJSON() ([]byte, error) {

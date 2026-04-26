@@ -108,8 +108,8 @@ func generateRescueMDS() error {
 		}
 
 		// Build Cauchy matrix M[i][j] = 1 / (x[i] - y[j])
-		for i := 0; i < rescueStateWidth; i++ {
-			for j := 0; j < rescueStateWidth; j++ {
+		for i := range rescueStateWidth {
+			for j := range rescueStateWidth {
 				var diff fr.Element
 				diff.Sub(&x[i], &y[j])
 				diff.Inverse(&diff)
@@ -176,9 +176,9 @@ func rescuePowInv5(x *fr.Element) fr.Element {
 // rescueApplyMDS multiplies state by the MDS matrix in-place.
 func rescueApplyMDS(state *[rescueStateWidth]fr.Element) {
 	var out [rescueStateWidth]fr.Element
-	for i := 0; i < rescueStateWidth; i++ {
+	for i := range rescueStateWidth {
 		out[i].SetZero()
-		for j := 0; j < rescueStateWidth; j++ {
+		for j := range rescueStateWidth {
 			var tmp fr.Element
 			tmp.Mul(&rescueMDS[i*rescueStateWidth+j], &state[j])
 			out[i].Add(&out[i], &tmp)
@@ -193,30 +193,30 @@ func RescuePermute(state *[rescueStateWidth]fr.Element) {
 	initRescue()
 
 	// Initial round constant addition
-	for i := 0; i < rescueStateWidth; i++ {
+	for i := range rescueStateWidth {
 		state[i].Add(&state[i], &rescueRC[i])
 	}
 
-	for r := 0; r < rescueRounds; r++ {
+	for r := range rescueRounds {
 		// Forward S-box: x → x^5
-		for i := 0; i < rescueStateWidth; i++ {
+		for i := range rescueStateWidth {
 			v := rescuePow5(&state[i])
 			state[i] = v
 		}
 		rescueApplyMDS(state)
 		offset := (2*r + 1) * rescueStateWidth
-		for i := 0; i < rescueStateWidth; i++ {
+		for i := range rescueStateWidth {
 			state[i].Add(&state[i], &rescueRC[offset+i])
 		}
 
 		// Inverse S-box: x → x^inv5
-		for i := 0; i < rescueStateWidth; i++ {
+		for i := range rescueStateWidth {
 			v := rescuePowInv5(&state[i])
 			state[i] = v
 		}
 		rescueApplyMDS(state)
 		offset = (2*r + 2) * rescueStateWidth
-		for i := 0; i < rescueStateWidth; i++ {
+		for i := range rescueStateWidth {
 			state[i].Add(&state[i], &rescueRC[offset+i])
 		}
 	}
@@ -287,7 +287,7 @@ func BatchInvert(a []*fr.Element) []*fr.Element {
 	zeroes := make([]bool, len(a))
 	accumulator := new(fr.Element).SetOne()
 
-	for i := 0; i < len(a); i++ {
+	for i := range len(a) {
 		if a[i].IsZero() {
 			zeroes[i] = true
 			continue

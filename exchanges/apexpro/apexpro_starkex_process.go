@@ -52,7 +52,7 @@ func (e *Exchange) ProcessOrderSignature(ctx context.Context, arg *CreateOrderPa
 	var contractDetail *PerpetualContractDetail
 	for a := range e.SymbolsConfig.Data.PerpetualContract {
 		if e.SymbolsConfig.Data.PerpetualContract[a].Symbol.Equal(arg.Symbol) {
-			contractDetail = &e.SymbolsConfig.Data.PerpetualContract[a]
+			contractDetail = e.SymbolsConfig.Data.PerpetualContract[a]
 			if !contractDetail.EnableTrade {
 				return "", currency.ErrPairNotEnabled
 			}
@@ -86,7 +86,7 @@ func (e *Exchange) ProcessOrderSignature(ctx context.Context, arg *CreateOrderPa
 	var collateralAsset *V1CurrencyConfig
 	for c := range e.SymbolsConfig.Data.Currency {
 		if e.SymbolsConfig.Data.Currency[c].ID == contractDetail.SettleCurrencyID {
-			collateralAsset = &e.SymbolsConfig.Data.Currency[c]
+			collateralAsset = e.SymbolsConfig.Data.Currency[c]
 			break
 		}
 	}
@@ -171,7 +171,7 @@ func (e *Exchange) ProcessWithdrawalToAddressSignatureV3(ctx context.Context, ar
 	var currencyInfo *V1CurrencyConfig
 	for c := range e.SymbolsConfig.Data.Currency {
 		if e.SymbolsConfig.Data.Currency[c].ID == arg.L1TargetTokenID.String() {
-			currencyInfo = &e.SymbolsConfig.Data.Currency[c]
+			currencyInfo = e.SymbolsConfig.Data.Currency[c]
 			break
 		}
 	}
@@ -237,7 +237,7 @@ func (e *Exchange) ProcessWithdrawalToAddressSignature(ctx context.Context, arg 
 	var currencyInfo *V1CurrencyConfig
 	for c := range e.SymbolsConfig.Data.Currency {
 		if e.SymbolsConfig.Data.Currency[c].ID == arg.Asset.String() {
-			currencyInfo = &e.SymbolsConfig.Data.Currency[c]
+			currencyInfo = e.SymbolsConfig.Data.Currency[c]
 			break
 		}
 	}
@@ -307,7 +307,7 @@ func (e *Exchange) ProcessWithdrawalSignature(ctx context.Context, arg *Withdraw
 	var collateralInfo *V1CurrencyConfig
 	for c := range e.SymbolsConfig.Data.Currency {
 		if e.SymbolsConfig.Data.Currency[c].ID == arg.Asset.String() {
-			collateralInfo = &e.SymbolsConfig.Data.Currency[c]
+			collateralInfo = e.SymbolsConfig.Data.Currency[c]
 			break
 		}
 	}
@@ -364,7 +364,7 @@ func (e *Exchange) ProcessTransferSignature(ctx context.Context, arg *FastWithdr
 	var currencyInfo *V1CurrencyConfig
 	for c := range e.SymbolsConfig.Data.Currency {
 		if e.SymbolsConfig.Data.Currency[c].ID == arg.Asset.String() {
-			currencyInfo = &e.SymbolsConfig.Data.Currency[c]
+			currencyInfo = e.SymbolsConfig.Data.Currency[c]
 			break
 		}
 	}
@@ -434,7 +434,7 @@ func (e *Exchange) ProcessConditionalTransfer(ctx context.Context, arg *FastWith
 	var currencyInfo *V1CurrencyConfig
 	for c := range e.SymbolsConfig.Data.Currency {
 		if e.SymbolsConfig.Data.Currency[c].ID == arg.Asset.String() {
-			currencyInfo = &e.SymbolsConfig.Data.Currency[c]
+			currencyInfo = e.SymbolsConfig.Data.Currency[c]
 			break
 		}
 	}

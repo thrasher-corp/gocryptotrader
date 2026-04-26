@@ -207,8 +207,7 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 		ExchangeName: e.Name,
 		AssetType:    assetType,
 	}
-	err = ticker.ProcessTicker(tickerPrice)
-	if err != nil {
+	if err := ticker.ProcessTicker(tickerPrice); err != nil {
 		return tickerPrice, err
 	}
 	return ticker.GetTicker(e.Name, p, assetType)
@@ -252,24 +251,10 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 		Pair:              pair,
 		Asset:             assetType,
 		ValidateOrderbook: e.ValidateOrderbook,
+		Asks:              orderbookNew.Asks.Levels(),
+		Bids:              orderbookNew.Bids.Levels(),
 	}
-	book.Bids = make(orderbook.Levels, len(orderbookNew.Bids))
-	for x := range orderbookNew.Bids {
-		book.Bids[x] = orderbook.Level{
-			Amount: orderbookNew.Bids[x][1].Float64(),
-			Price:  orderbookNew.Bids[x][0].Float64(),
-		}
-	}
-
-	book.Asks = make(orderbook.Levels, len(orderbookNew.Asks))
-	for x := range orderbookNew.Asks {
-		book.Asks[x] = orderbook.Level{
-			Amount: orderbookNew.Asks[x][1].Float64(),
-			Price:  orderbookNew.Asks[x][0].Float64(),
-		}
-	}
-	err = book.Process()
-	if err != nil {
+	if err := book.Process(); err != nil {
 		return nil, err
 	}
 	return orderbook.Get(e.Name, pair, assetType)
@@ -837,7 +822,7 @@ func (e *Exchange) IsPerpetualFutureCurrency(a asset.Item, pair currency.Pair) (
 	if pair.IsEmpty() {
 		return false, currency.ErrCurrencyPairEmpty
 	}
-	var contracts []PerpetualContractDetail
+	var contracts []*PerpetualContractDetail
 	if e.SymbolsConfig != nil {
 		contracts = e.SymbolsConfig.Data.PerpetualContract
 	} else {
