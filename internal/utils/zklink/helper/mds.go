@@ -81,7 +81,7 @@ regen:
 	return m
 }
 
-// derive the mds matrices from m.
+// deriveMatrices derives the mds matrices from m.
 func deriveMatrices(m Matrix) (*mdsMatrices, error) {
 	mInv, err := Invert(m)
 	if err != nil {
@@ -108,7 +108,7 @@ func deriveMatrices(m Matrix) (*mdsMatrices, error) {
 	return &mdsMatrices{m, mInv, mHat, mHatInv, mPrime, mDoublePrime}, nil
 }
 
-// generate the matrix m', where m = m'*m”.
+// genPrime generate the matrix m', where m = m'*m”.
 func genPrime(m Matrix) Matrix {
 	prime := make([][]*fr.Element, row(m))
 	prime[0] = append(prime[0], one())
@@ -126,7 +126,7 @@ func genPrime(m Matrix) Matrix {
 	return prime
 }
 
-// generate the matrix m”, where m = m'*m”.
+// genDoublePrime generate the matrix m”, where m = m'*m”.
 func genDoublePrime(m, mHatInv Matrix) (Matrix, error) {
 	w, v := genPreVectors(m)
 
@@ -152,7 +152,7 @@ func genDoublePrime(m, mHatInv Matrix) (Matrix, error) {
 	return doublePrime, nil
 }
 
-// generate pre-computed vectors used in the sparse matrix.
+// genPreVectors generate pre-computed vectors used in the sparse matrix.
 func genPreVectors(m Matrix) (Vector, Vector) {
 	v := make([]*fr.Element, column(m)-1)
 	copy(v, m[0][1:])

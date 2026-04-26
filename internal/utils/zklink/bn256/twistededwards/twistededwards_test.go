@@ -75,26 +75,6 @@ func TestAddProj(t *testing.T) {
 	}
 }
 
-func TestDouble(t *testing.T) {
-	var p Point
-	p.X.SetString("8728367628344135467582547753719073727968275979035063555332785894244029982715")
-	p.Y.SetString("8834462946188529904793384347374734779374831553974460136522409595751449858199")
-
-	p.Double(&p)
-
-	var expectedX, expectedY fr.Element
-
-	expectedX.SetString("17048188201798084482613703497237052386773720266456818725024051932759787099830")
-	expectedY.SetString("15722506141850766164380928609287974914029282300941585435780118880890915697552")
-
-	if !p.X.Equal(&expectedX) {
-		t.Fatal("wrong x coordinate")
-	}
-	if !p.Y.Equal(&expectedY) {
-		t.Fatal("wrong y coordinate")
-	}
-}
-
 func TestDoubleProj(t *testing.T) {
 	var p Point
 	var pproj PointProj

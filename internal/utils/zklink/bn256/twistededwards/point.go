@@ -40,29 +40,6 @@ func (p *PointProj) Set(p1 *PointProj) *PointProj {
 	return p
 }
 
-// NewPoint creates a new instance of Point
-func NewPoint(x, y fr.Element) Point {
-	return Point{x, y}
-}
-
-// IsOnCurve checks if a point is on the twisted Edwards curve
-func (p *Point) IsOnCurve() bool {
-	ecurve := GetEdwardsCurve()
-	var lhs, rhs, tmp fr.Element
-	tmp.Mul(&p.Y, &p.Y)
-	lhs.Mul(&p.X, &p.X).
-		Mul(&lhs, &ecurve.A).
-		Add(&lhs, &tmp)
-
-	tmp.Mul(&p.X, &p.X).
-		Mul(&tmp, &p.Y).
-		Mul(&tmp, &p.Y).
-		Mul(&tmp, &ecurve.D)
-	rhs.SetOne().Add(&rhs, &tmp)
-
-	return lhs.Equal(&rhs)
-}
-
 // Add adds two points (x,y), (u,v) on a twisted Edwards curve with parameters a, d
 // modifies p
 func (p *Point) Add(p1, p2 *Point) *Point {
@@ -86,13 +63,6 @@ func (p *Point) Add(p1, p2 *Point) *Point {
 	p.X.Div(&pRes.X, &denx)
 	p.Y.Div(&pRes.Y, &deny)
 
-	return p
-}
-
-// Double doubles point (x,y) on a twisted Edwards curve with parameters a, d
-// modifies p
-func (p *Point) Double(p1 *Point) *Point {
-	p.Add(p1, p1)
 	return p
 }
 
@@ -184,7 +154,7 @@ func (p *Point) ScalarMul(p1 *Point, scalar fr.Element) *Point {
 	const wordSize = bits.UintSize
 
 	for i := 4 - 1; i >= 0; i-- {
-		for j := 0; j < wordSize; j++ {
+		for j := range wordSize {
 			resProj.Double(&resProj)
 			b := (scalar[i] & (uint64(1) << uint64(wordSize-1-j))) >> uint64(wordSize-1-j)
 			if b == 1 {

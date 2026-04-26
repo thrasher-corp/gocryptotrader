@@ -15,7 +15,7 @@ func TestSoliditySHA3(t *testing.T) {
 
 	result, err = SoliditySHA3(
 		[]string{"address", "uint256", "address", "uint256"},
-		[]interface{}{"0x1234567890123456789012345678901234567890", "123456", "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa", "1311768467294899695"})
+		[]any{"0x1234567890123456789012345678901234567890", "123456", "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa", "1311768467294899695"})
 	require.NoError(t, err)
 	assert.Equal(t, "34052387b5efb6132a42b244cff52a85a507ab319c414564d7a89207d4473672", hex.EncodeToString(result))
 }

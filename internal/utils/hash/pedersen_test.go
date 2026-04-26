@@ -56,11 +56,3 @@ func TestPedersen(t *testing.T) {
 		})
 	}
 }
-
-func TestHim(t *testing.T) {
-	t.Parallel()
-	bigo, _ := big.NewInt(0).SetString("0x2a9318e74bfa2b48f5fd9207e6bd7fd4292d7f6d37579d2601065fd6d6343eb1", 0)
-	another, _ := big.NewInt(0).SetString("0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001", 0)
-	result := new(big.Int).Mod(bigo, another)
-	println(result.String())
-}

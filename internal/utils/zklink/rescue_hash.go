@@ -276,37 +276,6 @@ func bigIntToFrElements(n *big.Int) []fr.Element {
 	return elems
 }
 
-// BatchInvert returns a new slice with every element inverted using Montgomery's trick.
-func BatchInvert(a []*fr.Element) []*fr.Element {
-	res := make([]*fr.Element, len(a))
-	if len(a) == 0 {
-		return res
-	}
-	zeroes := make([]bool, len(a))
-	accumulator := new(fr.Element).SetOne()
-
-	for i := range len(a) {
-		if a[i].IsZero() {
-			zeroes[i] = true
-			continue
-		}
-		res[i] = new(fr.Element).Set(accumulator)
-		accumulator.Mul(accumulator, a[i])
-	}
-
-	accumulator.Inverse(accumulator)
-
-	for i := len(a) - 1; i >= 0; i-- {
-		if zeroes[i] {
-			res[i] = new(fr.Element)
-			continue
-		}
-		res[i].Mul(res[i], accumulator)
-		accumulator.Mul(accumulator, a[i])
-	}
-	return res
-}
-
 // PowerSBox represents a power S-box with precomputed inverse exponent.
 type PowerSBox struct {
 	Power *big.Int
@@ -316,33 +285,4 @@ type PowerSBox struct {
 // QuinticSBox represents a quintic S-box marker.
 type QuinticSBox struct {
 	Marker *big.Int
-}
-
-// BatchInversion computes modular inverses in-place using Montgomery's trick.
-func BatchInversion(v []*big.Int, modulus *big.Int) {
-	if len(v) == 0 {
-		return
-	}
-	prod := make([]*big.Int, len(v))
-	tmp := big.NewInt(1)
-	zero := big.NewInt(0)
-	j := 0
-
-	for _, g := range v {
-		if g.Cmp(zero) != 0 {
-			tmp = new(big.Int).Mod(new(big.Int).Mul(tmp, g), modulus)
-			prod[j] = new(big.Int).Set(tmp)
-			j++
-		}
-	}
-	tmp.ModInverse(tmp, modulus)
-
-	for i := j - 1; i >= 0; i-- {
-		g := v[i]
-		if g.Cmp(zero) != 0 {
-			newTmp := new(big.Int).Mod(new(big.Int).Mul(tmp, g), modulus)
-			g.Mod(new(big.Int).Mul(tmp, prod[i]), modulus)
-			tmp.Set(newTmp)
-		}
-	}
 }

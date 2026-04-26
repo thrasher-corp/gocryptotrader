@@ -11,7 +11,7 @@ type Matrix [][]*fr.Element
 
 type Vector []*fr.Element
 
-// return the column numbers of the matrix.
+// column return the column numbers of the matrix.
 func column(m Matrix) int {
 	if len(m) > 0 {
 		length := len(m[0])
@@ -26,7 +26,7 @@ func column(m Matrix) int {
 	}
 }
 
-// return the row numbers of the matrix.
+// row return the row numbers of the matrix.
 func row(m Matrix) int {
 	return len(m)
 }
@@ -44,7 +44,7 @@ func ScalarMul(scalar *fr.Element, m Matrix) Matrix {
 	return res
 }
 
-// for 0 <= i < length, compute v_i*scalar.
+// ScalarVecMul for 0 <= i < length, compute v_i*scalar.
 func ScalarVecMul(scalar *fr.Element, v Vector) Vector {
 	res := make([]*fr.Element, len(v))
 
