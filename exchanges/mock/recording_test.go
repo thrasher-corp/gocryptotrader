@@ -365,6 +365,23 @@ func TestHTTPRecord(t *testing.T) {
 	}
 	err = HTTPRecord(moockResponse, service, content, 4)
 	require.ErrorContains(t, err, "unhandled content type")
+
+	mockData, err = json.Marshal(&VCRMock{
+		Routes: map[string]map[string][]HTTPResponse{
+			"/test/unknown-shape": {
+				http.MethodPost: {{
+					Headers:    map[string][]string{contentType: {applicationJSON}},
+					BodyParams: `null`,
+					Data:       json.RawMessage(`{}`),
+				}},
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filePath, mockData, 0o644))
+
+	err = callRecord(http.MethodPost, "https://api.abc.com/test/unknown-shape", []byte(`null`))
+	require.ErrorIs(t, err, errUnsupportedJSONBodyShape)
 }
 
 func TestIsExcluded(t *testing.T) {
