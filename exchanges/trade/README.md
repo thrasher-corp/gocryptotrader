@@ -71,6 +71,7 @@ _b in this context is an `IBotExchange` implemented struct_
 | Bybit | Yes | Yes | Yes |
 | Coinbase | Yes | Yes | No|
 | COINUT | Yes | Yes | No |
+| Cryptodotcom | Yes | Yes | No |
 | Deribit | Yes | Yes | Yes |
 | Exmo | Yes | NA | No |
 | GateIO | Yes | Yes | No |
