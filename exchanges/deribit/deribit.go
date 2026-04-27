@@ -159,15 +159,6 @@ const (
 	getCombos       = "public/get_combos"
 	createCombos    = "private/create_combo"
 
-	// Block Trades Endpoints
-	executeBlockTrades             = "private/execute_block_trade"
-	getBlockTrades                 = "private/get_block_trade"
-	getLastBlockTradesByCurrency   = "private/get_last_block_trades_by_currency"
-	invalidateBlockTradesSignature = "private/invalidate_block_trade_signature"
-	movePositions                  = "private/move_positions"
-	simulateBlockPosition          = "private/simulate_block_trade"
-	verifyBlockTrades              = "private/verify_block_trade"
-
 	// roles
 
 	roleMaker = "maker"
@@ -1337,8 +1328,8 @@ func (e *Exchange) SetEmailLanguage(ctx context.Context, language string) error 
 	return nil
 }
 
-// SetSelfTradingConfig configure self trading behavior
-// mode: Self trading prevention behavior. Possible values: 'reject_taker', 'cancel_maker'
+// SetSelfTradingConfig configure self trading behaviour
+// mode: Self trading prevention behaviour. Possible values: 'reject_taker', 'cancel_maker'
 // extended_to_subaccounts: If value is true trading is prevented between subaccounts of given account
 func (e *Exchange) SetSelfTradingConfig(ctx context.Context, mode string, extendedToSubaccounts bool) (string, error) {
 	if mode == "" {
@@ -2127,8 +2118,8 @@ func (e *Exchange) GetSettlementHistoryByInstrument(ctx context.Context, instrum
 		getSettlementHistoryByInstrument, params, &resp)
 }
 
-// GetSettlementHistoryByCurency sends a request to fetch settlement history data sorted by currency
-func (e *Exchange) GetSettlementHistoryByCurency(ctx context.Context, ccy currency.Code, settlementType, continuation string, count int64, searchStartTimeStamp time.Time) (*PrivateSettlementsHistoryData, error) {
+// GetSettlementHistoryByCurrency sends a request to fetch settlement history data sorted by currency
+func (e *Exchange) GetSettlementHistoryByCurrency(ctx context.Context, ccy currency.Code, settlementType, continuation string, count int64, searchStartTimeStamp time.Time) (*PrivateSettlementsHistoryData, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -2276,7 +2267,7 @@ func (e *Exchange) CreateCombo(ctx context.Context, args []ComboParam) (*ComboDe
 // ExecuteBlockTrade executes a block trade request
 // The whole request have to be exact the same as in private/verify_block_trade, only role field should be set appropriately - it basically means that both sides have to agree on the same timestamp, nonce, trades fields and server will assure that role field is different between sides (each party accepted own role).
 // Using the same timestamp and nonce by both sides in private/verify_block_trade assures that even if unintentionally both sides execute given block trade with valid counterparty_signature, the given block trade will be executed only once
-func (e *Exchange) ExecuteBlockTrade(ctx context.Context, timestampMS time.Time, tradeNonce, role string, ccy currency.Code, trades []BlockTradeParam) ([]BlockTradeResponse, error) {
+func (e *Exchange) ExecuteBlockTrade(ctx context.Context, timestampMS time.Time, tradeNonce, role string, ccy currency.Code, trades []BlockTradeParam) (*ExecutedBlockTradeCollection, error) {
 	if tradeNonce == "" {
 		return nil, errMissingNonce
 	}
@@ -2318,8 +2309,8 @@ func (e *Exchange) ExecuteBlockTrade(ctx context.Context, timestampMS time.Time,
 	params.Set("role", role)
 	params.Set("counterparty_signature", signature)
 	params.Set("timestamp", strconv.FormatInt(timestampMS.UnixMilli(), 10))
-	var resp []BlockTradeResponse
-	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet, executeBlockTrades, params, &resp)
+	var resp *ExecutedBlockTradeCollection
+	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet, "private/execute_block_trade", params, &resp)
 }
 
 // VerifyBlockTrade verifies and creates block trade signature
@@ -2366,7 +2357,7 @@ func (e *Exchange) VerifyBlockTrade(ctx context.Context, timestampMS time.Time, 
 	resp := &struct {
 		Signature string `json:"signature"`
 	}{}
-	return resp.Signature, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet, verifyBlockTrades, params, resp)
+	return resp.Signature, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet, "private/verify_block_trade", params, resp)
 }
 
 // InvalidateBlockTradeSignature user at any time (before the private/execute_block_trade is called) can invalidate its own signature effectively cancelling block trade
@@ -2377,7 +2368,7 @@ func (e *Exchange) InvalidateBlockTradeSignature(ctx context.Context, signature 
 	params := url.Values{}
 	params.Set("signature", signature)
 	var resp string
-	err := e.SendHTTPAuthRequest(ctx, exchange.RestSpot, nonMatchingEPL, http.MethodGet, invalidateBlockTradesSignature, params, &resp)
+	err := e.SendHTTPAuthRequest(ctx, exchange.RestSpot, blockTradeWriteEPL, http.MethodGet, "private/invalidate_block_trade_signature", params, &resp)
 	if err != nil {
 		return err
 	}
@@ -2388,14 +2379,617 @@ func (e *Exchange) InvalidateBlockTradeSignature(ctx context.Context, signature 
 }
 
 // GetUserBlockTrade returns information about users block trade
-func (e *Exchange) GetUserBlockTrade(ctx context.Context, id string) ([]BlockTradeData, error) {
+func (e *Exchange) GetUserBlockTrade(ctx context.Context, id string) (*BlockTradeCollection, error) {
 	if id == "" {
 		return nil, errMissingBlockTradeID
 	}
 	params := url.Values{}
 	params.Set("id", id)
-	var resp []BlockTradeData
-	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, getBlockTrades, params, &resp)
+	var resp *BlockTradeCollection
+	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, blockTradeReadEPL, http.MethodGet, "private/get_block_trade", params, &resp)
+}
+
+// GetBlockTradeRequests provides a list of block trade requests including pending approvals, declined trades, and expired trades.
+func (e *Exchange) GetBlockTradeRequests(ctx context.Context, brokerCode string) ([]PendingBlockTradeData, error) {
+	params := url.Values{}
+	if brokerCode != "" {
+		params.Set("broker_code", brokerCode)
+	}
+	var resp []PendingBlockTradeData
+	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, blockTradeReadEPL, http.MethodGet, "private/get_block_trade_requests", params, &resp)
+}
+
+func validatePendingBlockTradeAction(timestampMS time.Time, tradeNonce, role string) error {
+	if tradeNonce == "" {
+		return errMissingNonce
+	}
+	if timestampMS.IsZero() {
+		return errZeroTimestamp
+	}
+	if role != roleMaker && role != roleTaker {
+		return errInvalidTradeRole
+	}
+	return nil
+}
+
+// ApproveBlockTrade approves a pending block trade.
+func (e *Exchange) ApproveBlockTrade(ctx context.Context, timestampMS time.Time, tradeNonce, role string) error {
+	if err := validatePendingBlockTradeAction(timestampMS, tradeNonce, role); err != nil {
+		return err
+	}
+	params := url.Values{}
+	params.Set("timestamp", strconv.FormatInt(timestampMS.UnixMilli(), 10))
+	params.Set("nonce", tradeNonce)
+	params.Set("role", role)
+	var resp string
+	err := e.SendHTTPAuthRequest(ctx, exchange.RestFutures, blockTradeWriteEPL, http.MethodGet, "private/approve_block_trade", params, &resp)
+	if err != nil {
+		return err
+	}
+	if resp != "ok" {
+		return fmt.Errorf("server response: %s", resp)
+	}
+	return nil
+}
+
+// RejectBlockTrade rejects a pending block trade.
+func (e *Exchange) RejectBlockTrade(ctx context.Context, timestampMS time.Time, tradeNonce, role string) error {
+	if err := validatePendingBlockTradeAction(timestampMS, tradeNonce, role); err != nil {
+		return err
+	}
+	params := url.Values{}
+	params.Set("timestamp", strconv.FormatInt(timestampMS.UnixMilli(), 10))
+	params.Set("nonce", tradeNonce)
+	params.Set("role", role)
+	var resp string
+	err := e.SendHTTPAuthRequest(ctx, exchange.RestFutures, blockTradeWriteEPL, http.MethodGet, "private/reject_block_trade", params, &resp)
+	if err != nil {
+		return err
+	}
+	if resp != "ok" {
+		return fmt.Errorf("server response: %s", resp)
+	}
+	return nil
+}
+
+// GetBlockTrades returns list of users block trades.
+func (e *Exchange) GetBlockTrades(ctx context.Context, req *GetBlockTradesRequest) ([]BlockTradeCollection, error) {
+	if req == nil {
+		return nil, errNoArgumentPassed
+	}
+	params := url.Values{}
+	if !req.Currency.IsEmpty() {
+		params.Set("currency", req.Currency.String())
+	}
+	if req.StartID != "" {
+		params.Set("start_id", req.StartID)
+	}
+	if req.EndID != "" {
+		params.Set("end_id", req.EndID)
+	}
+	if req.Count > 0 {
+		params.Set("count", strconv.FormatUint(req.Count, 10))
+	}
+	if req.BlockRFQID > 0 {
+		params.Set("block_rfq_id", strconv.FormatUint(req.BlockRFQID, 10))
+	}
+	if req.BrokerCode != "" {
+		params.Set("broker_code", req.BrokerCode)
+	}
+	var resp []BlockTradeCollection
+	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, blockTradeReadEPL, http.MethodGet, "private/get_block_trades", params, &resp)
+}
+
+// GetBrokerTradeRequests retrieves broker trade requests including pending, declined, and expired.
+func (e *Exchange) GetBrokerTradeRequests(ctx context.Context) ([]BrokerTradeRequestItem, error) {
+	var resp []BrokerTradeRequestItem
+	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, blockTradeReadEPL, http.MethodGet, "private/get_broker_trade_requests", url.Values{}, &resp)
+}
+
+// GetBrokerTrades retrieves broker trade history.
+func (e *Exchange) GetBrokerTrades(ctx context.Context, req *GetBrokerTradesRequest) (*BrokerTradeHistoryResponse, error) {
+	if req == nil {
+		return nil, errNoArgumentPassed
+	}
+	params := url.Values{}
+	if !req.Currency.IsEmpty() {
+		params.Set("currency", req.Currency.String())
+	}
+	if req.Count > 0 {
+		params.Set("count", strconv.FormatUint(req.Count, 10))
+	}
+	if req.StartID != "" {
+		params.Set("start_id", req.StartID)
+	}
+	if req.EndID != "" {
+		params.Set("end_id", req.EndID)
+	}
+	var resp *BrokerTradeHistoryResponse
+	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, blockTradeReadEPL, http.MethodGet, "private/get_broker_trades", params, &resp)
+}
+
+func validateBlockRFQDirection(direction string) (string, error) {
+	if direction == "" {
+		return "", errInvalidOrderSideOrDirection
+	}
+	normalisedDirection := strings.ToLower(direction)
+	if normalisedDirection != sideBUY && normalisedDirection != sideSELL {
+		return "", errInvalidOrderSideOrDirection
+	}
+	return normalisedDirection, nil
+}
+
+func validateBlockRFQLegs(legs []BlockRFQLeg, required bool) ([]BlockRFQLeg, error) {
+	if len(legs) == 0 {
+		if required {
+			return nil, errNoArgumentPassed
+		}
+		return nil, nil
+	}
+	checkedLegs := make([]BlockRFQLeg, len(legs))
+	copy(checkedLegs, legs)
+	for i := range checkedLegs {
+		if checkedLegs[i].InstrumentName == "" {
+			return nil, fmt.Errorf("%w, empty string", errInvalidInstrumentName)
+		}
+		if checkedLegs[i].Ratio <= 0 {
+			return nil, errInvalidAmount
+		}
+		if checkedLegs[i].Direction == "" {
+			return nil, errInvalidOrderSideOrDirection
+		}
+		normalisedDirection, err := validateBlockRFQDirection(checkedLegs[i].Direction)
+		if err != nil {
+			return nil, err
+		}
+		checkedLegs[i].Direction = normalisedDirection
+		if checkedLegs[i].Price < 0 {
+			return nil, fmt.Errorf("%w, leg price can't be negative", errInvalidPrice)
+		}
+	}
+	return checkedLegs, nil
+}
+
+func validateCreateBlockRFQLegs(legs []CreateBlockRFQLeg) ([]CreateBlockRFQLeg, error) {
+	if len(legs) == 0 {
+		return nil, errNoArgumentPassed
+	}
+	checkedLegs := make([]CreateBlockRFQLeg, len(legs))
+	copy(checkedLegs, legs)
+	for i := range checkedLegs {
+		if checkedLegs[i].InstrumentName == "" {
+			return nil, fmt.Errorf("%w, empty string", errInvalidInstrumentName)
+		}
+		if checkedLegs[i].Amount <= 0 {
+			return nil, errInvalidAmount
+		}
+		if checkedLegs[i].Direction == "" {
+			return nil, errInvalidOrderSideOrDirection
+		}
+		normalisedDirection, err := validateBlockRFQDirection(checkedLegs[i].Direction)
+		if err != nil {
+			return nil, err
+		}
+		checkedLegs[i].Direction = normalisedDirection
+	}
+	return checkedLegs, nil
+}
+
+func validateBlockRFQTradeAllocations(tradeAllocations []BlockRFQTradeAllocation) error {
+	for i := range tradeAllocations {
+		hasUserID := tradeAllocations[i].UserID != 0
+		hasClientInfo := tradeAllocations[i].ClientInfo != nil && (tradeAllocations[i].ClientInfo.ClientID != 0 || tradeAllocations[i].ClientInfo.ClientLinkID != 0)
+		if !hasUserID && !hasClientInfo {
+			return errUserIDOrClientInfoRequired
+		}
+		if tradeAllocations[i].Amount <= 0 {
+			return errInvalidAmount
+		}
+	}
+	return nil
+}
+
+func validateBlockRFQHedge(hedge *BlockRFQHedgeLeg) (*BlockRFQHedgeLeg, error) {
+	if hedge == nil {
+		return nil, common.ErrNilPointer
+	}
+	checkedHedge := *hedge
+	if checkedHedge.InstrumentName == "" {
+		return nil, fmt.Errorf("%w, empty string", errInvalidInstrumentName)
+	}
+	if checkedHedge.Direction == "" {
+		return nil, errInvalidOrderSideOrDirection
+	}
+	normalisedDirection, err := validateBlockRFQDirection(checkedHedge.Direction)
+	if err != nil {
+		return nil, err
+	}
+	checkedHedge.Direction = normalisedDirection
+	if checkedHedge.Amount <= 0 {
+		return nil, errInvalidAmount
+	}
+	if checkedHedge.Price < 0 {
+		return nil, fmt.Errorf("%w, hedge price can't be negative", errInvalidPrice)
+	}
+	return &checkedHedge, nil
+}
+
+func setJSONParam(params url.Values, key string, value any) error {
+	encodedValue, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	params.Set(key, string(encodedValue))
+	return nil
+}
+
+// CreateBlockRFQ creates a new block RFQ.
+func (e *Exchange) CreateBlockRFQ(ctx context.Context, req *CreateBlockRFQRequest) (*BlockRFQData, error) {
+	if req == nil {
+		return nil, errNoArgumentPassed
+	}
+	checkedLegs, err := validateCreateBlockRFQLegs(req.Legs)
+	if err != nil {
+		return nil, err
+	}
+	err = validateBlockRFQTradeAllocations(req.TradeAllocations)
+	if err != nil {
+		return nil, err
+	}
+	var checkedHedge *BlockRFQHedgeLeg
+	if req.Hedge != nil {
+		checkedHedge, err = validateBlockRFQHedge(req.Hedge)
+		if err != nil {
+			return nil, err
+		}
+	}
+	params := url.Values{}
+	err = setJSONParam(params, "legs", checkedLegs)
+	if err != nil {
+		return nil, err
+	}
+	if len(req.Makers) > 0 {
+		err = setJSONParam(params, "makers", req.Makers)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(req.TradeAllocations) > 0 {
+		err = setJSONParam(params, "trade_allocations", req.TradeAllocations)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if checkedHedge != nil {
+		err = setJSONParam(params, "hedge", checkedHedge)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if req.Label != "" {
+		params.Set("label", req.Label)
+	}
+	if req.Disclosed {
+		params.Set("disclosed", "true")
+	}
+	var resp *BlockRFQData
+	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, blockRFQWriteEPL, http.MethodGet, "private/create_block_rfq", params, &resp)
+}
+
+// AddBlockRFQQuote adds a quote for an existing block RFQ.
+func (e *Exchange) AddBlockRFQQuote(ctx context.Context, req *AddBlockRFQQuoteRequest) (*BlockRFQQuote, error) {
+	if req == nil {
+		return nil, errNoArgumentPassed
+	}
+	if req.BlockRFQID <= 0 {
+		return nil, errMissingBlockRFQID
+	}
+	var normalisedDirection string
+	if req.Direction != "" {
+		validatedDirection, err := validateBlockRFQDirection(req.Direction)
+		if err != nil {
+			return nil, err
+		}
+		normalisedDirection = validatedDirection
+	}
+	checkedLegs, err := validateBlockRFQLegs(req.Legs, false)
+	if err != nil {
+		return nil, err
+	}
+	var checkedHedge *BlockRFQHedgeLeg
+	if req.Hedge != nil {
+		checkedHedge, err = validateBlockRFQHedge(req.Hedge)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if req.Amount < 0 {
+		return nil, errInvalidAmount
+	}
+	if req.Price < 0 {
+		return nil, errInvalidPrice
+	}
+	params := url.Values{}
+	params.Set("block_rfq_id", strconv.FormatUint(req.BlockRFQID, 10))
+	if req.Amount > 0 {
+		params.Set("amount", strconv.FormatFloat(req.Amount, 'f', -1, 64))
+	}
+	if req.Price > 0 {
+		params.Set("price", strconv.FormatFloat(req.Price, 'f', -1, 64))
+	}
+	if normalisedDirection != "" {
+		params.Set("direction", normalisedDirection)
+	}
+	if req.ExecutionInstruction != "" {
+		params.Set("execution_instruction", req.ExecutionInstruction)
+	}
+	if !req.ExpiresAt.IsZero() {
+		params.Set("expires_at", strconv.FormatInt(req.ExpiresAt.UnixMilli(), 10))
+	}
+	if len(checkedLegs) > 0 {
+		err = setJSONParam(params, "legs", checkedLegs)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if checkedHedge != nil {
+		err = setJSONParam(params, "hedge", checkedHedge)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if req.Label != "" {
+		params.Set("label", req.Label)
+	}
+	var resp *BlockRFQQuote
+	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet, "private/add_block_rfq_quote", params, &resp)
+}
+
+// EditBlockRFQQuote edits an existing block RFQ quote.
+func (e *Exchange) EditBlockRFQQuote(ctx context.Context, req *EditBlockRFQQuoteRequest) (*BlockRFQQuote, error) {
+	if req == nil {
+		return nil, errNoArgumentPassed
+	}
+	if req.BlockRFQQuoteID <= 0 && (req.BlockRFQID <= 0 || req.Label == "") {
+		return nil, errMissingBlockRFQQuoteIdentifier
+	}
+	checkedLegs, err := validateBlockRFQLegs(req.Legs, false)
+	if err != nil {
+		return nil, err
+	}
+	var checkedHedge *BlockRFQHedgeLeg
+	if req.Hedge != nil {
+		checkedHedge, err = validateBlockRFQHedge(req.Hedge)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if req.Amount < 0 {
+		return nil, errInvalidAmount
+	}
+	if req.Price < 0 {
+		return nil, errInvalidPrice
+	}
+	params := url.Values{}
+	if req.BlockRFQQuoteID > 0 {
+		params.Set("block_rfq_quote_id", strconv.FormatUint(req.BlockRFQQuoteID, 10))
+	}
+	if req.BlockRFQID > 0 {
+		params.Set("block_rfq_id", strconv.FormatUint(req.BlockRFQID, 10))
+	}
+	if req.Amount > 0 {
+		params.Set("amount", strconv.FormatFloat(req.Amount, 'f', -1, 64))
+	}
+	if req.Price > 0 {
+		params.Set("price", strconv.FormatFloat(req.Price, 'f', -1, 64))
+	}
+	if len(checkedLegs) > 0 {
+		err = setJSONParam(params, "legs", checkedLegs)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if checkedHedge != nil {
+		err = setJSONParam(params, "hedge", checkedHedge)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if req.Label != "" {
+		params.Set("label", req.Label)
+	}
+	var resp *BlockRFQQuote
+	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet, "private/edit_block_rfq_quote", params, &resp)
+}
+
+// CancelBlockRFQQuote cancels an existing block RFQ quote.
+func (e *Exchange) CancelBlockRFQQuote(ctx context.Context, blockRFQQuoteID, blockRFQID uint64, label string) (*BlockRFQQuote, error) {
+	if blockRFQQuoteID <= 0 && (blockRFQID <= 0 || label == "") {
+		return nil, errMissingBlockRFQQuoteIdentifier
+	}
+	params := url.Values{}
+	if blockRFQQuoteID > 0 {
+		params.Set("block_rfq_quote_id", strconv.FormatUint(blockRFQQuoteID, 10))
+	}
+	if blockRFQID > 0 {
+		params.Set("block_rfq_id", strconv.FormatUint(blockRFQID, 10))
+	}
+	if label != "" {
+		params.Set("label", label)
+	}
+	var resp *BlockRFQQuote
+	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet, "private/cancel_block_rfq_quote", params, &resp)
+}
+
+// CancelAllBlockRFQQuotes cancels all block RFQ quotes created by the current account.
+func (e *Exchange) CancelAllBlockRFQQuotes(ctx context.Context, blockRFQID uint64, detailed bool) (*BlockRFQQuoteCancelResponse, error) {
+	params := url.Values{}
+	if blockRFQID > 0 {
+		params.Set("block_rfq_id", strconv.FormatUint(blockRFQID, 10))
+	}
+	if detailed {
+		params.Set("detailed", "true")
+	}
+	var resp *BlockRFQQuoteCancelResponse
+	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet, "private/cancel_all_block_rfq_quotes", params, &resp)
+}
+
+// CancelBlockRFQ cancels a block RFQ.
+func (e *Exchange) CancelBlockRFQ(ctx context.Context, blockRFQID uint64) (*BlockRFQData, error) {
+	if blockRFQID <= 0 {
+		return nil, errMissingBlockRFQID
+	}
+	params := url.Values{}
+	params.Set("block_rfq_id", strconv.FormatUint(blockRFQID, 10))
+	var resp *BlockRFQData
+	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, blockRFQWriteEPL, http.MethodGet, "private/cancel_block_rfq", params, &resp)
+}
+
+// CancelBlockRFQTrigger cancels a trigger attached to a block RFQ.
+func (e *Exchange) CancelBlockRFQTrigger(ctx context.Context, blockRFQID uint64) (*BlockRFQData, error) {
+	if blockRFQID <= 0 {
+		return nil, errMissingBlockRFQID
+	}
+	params := url.Values{}
+	params.Set("block_rfq_id", strconv.FormatUint(blockRFQID, 10))
+	var resp *BlockRFQData
+	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, blockRFQWriteEPL, http.MethodGet, "private/cancel_block_rfq_trigger", params, &resp)
+}
+
+// AcceptBlockRFQ accepts an existing block RFQ.
+func (e *Exchange) AcceptBlockRFQ(ctx context.Context, req *AcceptBlockRFQRequest) (*BlockRFQAcceptResponse, error) {
+	if req == nil {
+		return nil, errNoArgumentPassed
+	}
+	if req.BlockRFQID <= 0 {
+		return nil, errMissingBlockRFQID
+	}
+	if req.Amount < 0 {
+		return nil, errInvalidAmount
+	}
+	if req.Price < 0 {
+		return nil, errInvalidPrice
+	}
+	var normalisedDirection string
+	if req.Direction != "" {
+		validatedDirection, err := validateBlockRFQDirection(req.Direction)
+		if err != nil {
+			return nil, err
+		}
+		normalisedDirection = validatedDirection
+	}
+	checkedLegs, err := validateBlockRFQLegs(req.Legs, false)
+	if err != nil {
+		return nil, err
+	}
+	var checkedHedge *BlockRFQHedgeLeg
+	if req.Hedge != nil {
+		checkedHedge, err = validateBlockRFQHedge(req.Hedge)
+		if err != nil {
+			return nil, err
+		}
+	}
+	params := url.Values{}
+	params.Set("block_rfq_id", strconv.FormatUint(req.BlockRFQID, 10))
+	if req.Price > 0 {
+		params.Set("price", strconv.FormatFloat(req.Price, 'f', -1, 64))
+	}
+	if req.Amount > 0 {
+		params.Set("amount", strconv.FormatFloat(req.Amount, 'f', -1, 64))
+	}
+	if normalisedDirection != "" {
+		params.Set("direction", normalisedDirection)
+	}
+	if checkedHedge != nil {
+		err = setJSONParam(params, "hedge", checkedHedge)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(checkedLegs) > 0 {
+		err = setJSONParam(params, "legs", checkedLegs)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if req.TimeInForce != "" {
+		params.Set("time_in_force", req.TimeInForce)
+	}
+	var resp *BlockRFQAcceptResponse
+	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, blockRFQWriteEPL, http.MethodGet, "private/accept_block_rfq", params, &resp)
+}
+
+// GetBlockRFQs returns a list of Block RFQs that were either created by the user or assigned to them as a maker.
+func (e *Exchange) GetBlockRFQs(ctx context.Context, req *GetBlockRFQsRequest) (*BlockRFQListResponse, error) {
+	if req == nil {
+		return nil, errNoArgumentPassed
+	}
+	params := url.Values{}
+	if !req.Currency.IsEmpty() {
+		params.Set("currency", req.Currency.String())
+	}
+	if req.Count > 0 {
+		params.Set("count", strconv.FormatUint(req.Count, 10))
+	}
+	if req.State != "" {
+		params.Set("state", req.State)
+	}
+	if req.Role != "" {
+		params.Set("role", req.Role)
+	}
+	if req.Continuation != "" {
+		params.Set("continuation", req.Continuation)
+	}
+	if req.BlockRFQID > 0 {
+		params.Set("block_rfq_id", strconv.FormatUint(req.BlockRFQID, 10))
+	}
+	var resp *BlockRFQListResponse
+	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, blockRFQReadEPL, http.MethodGet, "private/get_block_rfqs", params, &resp)
+}
+
+// GetBlockRFQQuotes retrieves open quotes for Block RFQs.
+func (e *Exchange) GetBlockRFQQuotes(ctx context.Context, blockRFQID, blockRFQQuoteID uint64, label string) ([]BlockRFQQuote, error) {
+	params := url.Values{}
+	if blockRFQID > 0 {
+		params.Set("block_rfq_id", strconv.FormatUint(blockRFQID, 10))
+	}
+	if blockRFQQuoteID > 0 {
+		params.Set("block_rfq_quote_id", strconv.FormatUint(blockRFQQuoteID, 10))
+	}
+	if label != "" {
+		params.Set("label", label)
+	}
+	var resp []BlockRFQQuote
+	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, blockRFQReadEPL, http.MethodGet, "private/get_block_rfq_quotes", params, &resp)
+}
+
+// GetBlockRFQMakers returns a list of all available Block RFQ makers.
+func (e *Exchange) GetBlockRFQMakers(ctx context.Context) ([]string, error) {
+	var resp []string
+	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, blockRFQReadEPL, http.MethodGet, "private/get_block_rfq_makers", url.Values{}, &resp)
+}
+
+// GetBlockRFQUserInfo returns identity and rating information for the requesting account and subaccounts.
+func (e *Exchange) GetBlockRFQUserInfo(ctx context.Context) (*BlockRFQUserInfoResponse, error) {
+	var resp *BlockRFQUserInfoResponse
+	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, blockRFQReadEPL, http.MethodGet, "private/get_block_rfq_user_info", url.Values{}, &resp)
+}
+
+// GetBlockRFQTrades returns a list of recent Block RFQ trades.
+func (e *Exchange) GetBlockRFQTrades(ctx context.Context, ccy currency.Code, continuation string, count uint64) (*BlockRFQTradeTapeResponse, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("currency", ccy.String())
+	if continuation != "" {
+		params.Set("continuation", continuation)
+	}
+	if count > 0 {
+		params.Set("count", strconv.FormatUint(count, 10))
+	}
+	var resp *BlockRFQTradeTapeResponse
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, blockRFQReadEPL, common.EncodeURLValues("public/get_block_rfq_trades", params), &resp)
 }
 
 // GetTime retrieves the current time (in milliseconds). This API endpoint can be used to check the clock skew between your software and Deribit's systems.
@@ -2424,7 +3018,7 @@ func (e *Exchange) GetLastBlockTradesByCurrency(ctx context.Context, ccy currenc
 		params.Set("count", strconv.FormatInt(count, 10))
 	}
 	var resp []BlockTradeData
-	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, getLastBlockTradesByCurrency, params, &resp)
+	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, blockTradeReadEPL, http.MethodGet, "private/get_last_block_trades_by_currency", params, &resp)
 }
 
 // MovePositions moves positions from source subaccount to target subaccount
@@ -2459,7 +3053,7 @@ func (e *Exchange) MovePositions(ctx context.Context, ccy currency.Code, sourceS
 	params.Set("target_uid", strconv.FormatInt(targetSubAccountUID, 10))
 	params.Set("trades", string(values))
 	var resp []BlockTradeMoveResponse
-	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, nonMatchingEPL, http.MethodGet, movePositions, params, &resp)
+	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet, "private/move_positions", params, &resp)
 }
 
 // SimulateBlockTrade checks if a block trade can be executed
@@ -2493,7 +3087,7 @@ func (e *Exchange) SimulateBlockTrade(ctx context.Context, role string, trades [
 	params.Set("role", role)
 	params.Set("trades", string(values))
 	var resp bool
-	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet, simulateBlockPosition, params, &resp)
+	return resp, e.SendHTTPAuthRequest(ctx, exchange.RestFutures, matchingEPL, http.MethodGet, "private/simulate_block_trade", params, &resp)
 }
 
 // GetLockedStatus retrieves information about locked currencies

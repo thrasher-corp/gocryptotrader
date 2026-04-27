@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -79,7 +80,7 @@ func (e *Exchange) WsConnect() error {
 		}
 	}
 
-	err = e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
+	err = e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil)
 	if err != nil {
 		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s",
 			e.Name,
@@ -363,26 +364,30 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		})
 	case "kline_1m", "kline_3m", "kline_5m", "kline_15m", "kline_30m", "kline_1h", "kline_2h", "kline_4h",
 		"kline_6h", "kline_8h", "kline_12h", "kline_1d", "kline_3d", "kline_1w", "kline_1M":
-		var kline KlineStream
-		err = json.Unmarshal(jsonData, &kline)
+		var ks KlineStream
+		err = json.Unmarshal(jsonData, &ks)
 		if err != nil {
 			return fmt.Errorf("%v - Could not convert to a KlineStream structure %s",
 				e.Name,
 				err)
 		}
-		return e.Websocket.DataHandler.Send(ctx, websocket.KlineData{
-			Timestamp:  kline.EventTime.Time(),
-			Pair:       pair,
-			AssetType:  asset.Spot,
-			Exchange:   e.Name,
-			StartTime:  kline.Kline.StartTime.Time(),
-			CloseTime:  kline.Kline.CloseTime.Time(),
-			Interval:   kline.Kline.Interval,
-			OpenPrice:  kline.Kline.OpenPrice.Float64(),
-			ClosePrice: kline.Kline.ClosePrice.Float64(),
-			HighPrice:  kline.Kline.HighPrice.Float64(),
-			LowPrice:   kline.Kline.LowPrice.Float64(),
-			Volume:     kline.Kline.Volume.Float64(),
+		interval, err := formatToInterval(ks.Kline.Interval)
+		if err != nil {
+			return err
+		}
+		return e.Websocket.DataHandler.Send(ctx, kline.Item{
+			Pair:     pair,
+			Asset:    asset.Spot,
+			Exchange: e.Name,
+			Interval: interval,
+			Candles: []kline.Candle{{
+				Time:   ks.Kline.StartTime.Time(),
+				Open:   ks.Kline.OpenPrice.Float64(),
+				Close:  ks.Kline.ClosePrice.Float64(),
+				High:   ks.Kline.HighPrice.Float64(),
+				Low:    ks.Kline.LowPrice.Float64(),
+				Volume: ks.Kline.Volume.Float64(),
+			}},
 		})
 	case "depth":
 		var depth WebsocketDepthStream
@@ -963,6 +968,43 @@ func (o *orderbookManager) stopNeedsFetchingBook(pair currency.Pair) error {
 	}
 	state.needsFetchingBook = false
 	return nil
+}
+
+func formatToInterval(interval string) (kline.Interval, error) {
+	switch interval {
+	case "1m":
+		return kline.OneMin, nil
+	case "3m":
+		return kline.ThreeMin, nil
+	case "5m":
+		return kline.FiveMin, nil
+	case "15m":
+		return kline.FifteenMin, nil
+	case "30m":
+		return kline.ThirtyMin, nil
+	case "1h":
+		return kline.OneHour, nil
+	case "2h":
+		return kline.TwoHour, nil
+	case "4h":
+		return kline.FourHour, nil
+	case "6h":
+		return kline.SixHour, nil
+	case "8h":
+		return kline.EightHour, nil
+	case "12h":
+		return kline.TwelveHour, nil
+	case "1d":
+		return kline.OneDay, nil
+	case "3d":
+		return kline.ThreeDay, nil
+	case "1w":
+		return kline.OneWeek, nil
+	case "1M":
+		return kline.OneMonth, nil
+	default:
+		return 0, fmt.Errorf("%w: %q", kline.ErrInvalidInterval, interval)
+	}
 }
 
 const subTplText = `

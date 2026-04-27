@@ -47,3 +47,4 @@ __debug_bin
 coverage.txt
 wrapperconfig.json
 .history/
+.codex

@@ -169,52 +169,55 @@ func (e *Exchange) SetDefaults() {
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
+	e.wsOBUpdateMgr = buffer.NewUpdateManager(&buffer.UpdateManagerParams{
+		FetchDelay:         buffer.DefaultWSOrderbookUpdateTimeDelay,
+		FetchDeadline:      buffer.DefaultWSOrderbookUpdateDeadline,
+		FetchOrderbook:     e.fetchWSOrderbookSnapshot,
+		CheckPendingUpdate: checkPendingUpdate,
+		BufferInstance:     &e.Websocket.Orderbook,
+	})
 }
 
 // Setup takes in the supplied exchange configuration details and sets params
 func (e *Exchange) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
+	if err := exch.Validate(); err != nil {
 		return err
 	}
 	if !exch.Enabled {
 		e.SetEnabled(false)
 		return nil
 	}
-	err = e.SetupDefaults(exch)
-	if err != nil {
+	if err := e.SetupDefaults(exch); err != nil {
 		return err
 	}
 
 	e.checkSubscriptions()
 
+	if err := e.Websocket.Setup(&websocket.ManagerSetup{
+		ExchangeConfig:                         exch,
+		Features:                               &e.Features.Supports.WebsocketCapabilities,
+		TradeFeed:                              e.Features.Enabled.TradeFeed,
+		UseMultiConnectionManagement:           true,
+		MaxWebsocketSubscriptionsPerConnection: 400,
+	}); err != nil {
+		return err
+	}
+
 	wsRunningEndpoint, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
 	}
-	err = e.Websocket.Setup(
-		&websocket.ManagerSetup{
-			ExchangeConfig:        exch,
-			DefaultURL:            kucoinWebsocketURL,
-			RunningURL:            wsRunningEndpoint,
-			Connector:             e.WsConnect,
-			Subscriber:            e.Subscribe,
-			Unsubscriber:          e.Unsubscribe,
-			GenerateSubscriptions: e.generateSubscriptions,
-			Features:              &e.Features.Supports.WebsocketCapabilities,
-			OrderbookBufferConfig: buffer.Config{
-				SortBuffer:            true,
-				SortBufferByUpdateIDs: true,
-			},
-			TradeFeed: e.Features.Enabled.TradeFeed,
-		})
-	if err != nil {
-		return err
-	}
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		RateLimit:            request.NewRateLimitWithWeight(time.Second, 2, 1),
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             request.NewRateLimitWithWeight(time.Second*10, 100, 1), // See: https://www.kucoin.com/docs-new/rate-limit#websocket-rate-limit
+		URL:                   wsRunningEndpoint,
+		Connector:             e.WsConnect,
+		GenerateSubscriptions: e.generateSubscriptions,
+		Subscriber:            e.Subscribe,
+		Unsubscriber:          e.Unsubscribe,
+		Handler:               e.wsHandleData,
+		MessageFilter:         wsConnection,
 	})
 }
 
@@ -379,13 +382,15 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset
 		return nil, err
 	}
 
+	asks := mergeRoundedOrderbookLevels(ordBook.Asks)
+	bids := mergeRoundedOrderbookLevels(ordBook.Bids)
 	ob := &orderbook.Book{
 		Exchange:          e.Name,
 		Pair:              p,
 		Asset:             a,
 		ValidateOrderbook: e.ValidateOrderbook,
-		Asks:              ordBook.Asks,
-		Bids:              ordBook.Bids,
+		Asks:              asks,
+		Bids:              bids,
 	}
 
 	if err := ob.Process(); err != nil {
@@ -393,6 +398,26 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset
 	}
 
 	return orderbook.Get(e.Name, p, a)
+}
+
+// KuCoin's rounded books can emit adjacent levels that can be collapsed to the same
+// price, so we consolidate them before loading the local book to avoid
+// duplicate-price levels downstream.
+func mergeRoundedOrderbookLevels(levels []orderbook.Level) []orderbook.Level {
+	if len(levels) < 2 {
+		return levels
+	}
+
+	writeIndex := 1
+	for i := 1; i < len(levels); i++ {
+		if levels[writeIndex-1].Price == levels[i].Price {
+			levels[writeIndex-1].Amount += levels[i].Amount
+			continue
+		}
+		levels[writeIndex] = levels[i]
+		writeIndex++
+	}
+	return levels[:writeIndex]
 }
 
 // UpdateAccountBalances retrieves currency balances
@@ -1654,16 +1679,6 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 		}
 		return 0, errors.New("can't construct fee")
 	}
-}
-
-// ValidateCredentials validates current credentials used for wrapper
-func (e *Exchange) ValidateCredentials(ctx context.Context, assetType asset.Item) error {
-	err := e.CurrencyPairs.IsAssetEnabled(assetType)
-	if err != nil {
-		return err
-	}
-	_, err = e.UpdateAccountBalances(ctx, assetType)
-	return e.CheckTransientError(err)
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval

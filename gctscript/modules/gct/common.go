@@ -102,7 +102,7 @@ func WriteAsCSV(args ...objects.Object) (objects.Object, error) {
 		}
 
 		if front {
-			var newBucket [][]string
+			newBucket := make([][]string, 0, len(temp))
 			newBucket = append(newBucket, temp...)
 			for x := range bucket {
 				newBucket[x] = append(newBucket[x], bucket[x]...)

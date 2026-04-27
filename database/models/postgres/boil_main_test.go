@@ -33,6 +33,22 @@ type tester interface {
 	teardown() error
 }
 
+func missingPSQLConfigKeys() []string {
+	requiredKeys := [...]string{
+		"psql.user",
+		"psql.host",
+		"psql.dbname",
+	}
+
+	missing := make([]string, 0, len(requiredKeys))
+	for _, key := range requiredKeys {
+		if strings.TrimSpace(viper.GetString(key)) == "" {
+			missing = append(missing, key)
+		}
+	}
+	return missing
+}
+
 func TestMain(m *testing.M) {
 	if dbMain == nil {
 		fmt.Println("no dbMain tester interface was ready")
@@ -50,6 +66,13 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		fmt.Println("unable to load config file")
 		os.Exit(-2)
+	}
+
+	missingPSQLConfig := missingPSQLConfigKeys()
+	if len(missingPSQLConfig) != 0 {
+		// TODO(#1818): Replace this hard exit skip once sqlboiler-generated postgres tests support explicit runtime skip handling.
+		fmt.Printf("Skipping postgres ORM tests due to missing config: %s (see https://github.com/thrasher-corp/gocryptotrader/issues/567)\n", strings.Join(missingPSQLConfig, ", "))
+		os.Exit(0)
 	}
 
 	// Set DebugMode so we can see generated sql statements

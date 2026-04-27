@@ -13,3 +13,6 @@
 	currency.SHFT:     84,
 		TotalIn  float64 `json:"totalIn"`
 		TotalIn        int64  `json:"totalIn"`
+  behavior: default
+	loanCustomiseMarginCall      = "/sapi/v1/loan/customize/margin_call"
+	// unimplemented method is ever invoked, so we test this at initialization

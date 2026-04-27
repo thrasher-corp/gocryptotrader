@@ -36,11 +36,11 @@ func (g *GctScriptManager) Validate(file string) (err error) {
 	tempVM := g.NewVM()
 	err = tempVM.Load(file)
 	if err != nil {
-		return
+		return err
 	}
 	err = tempVM.Compile()
 	if err != nil {
-		return
+		return err
 	}
 	return tempVM.RunCtx()
 }

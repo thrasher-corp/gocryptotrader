@@ -35,13 +35,13 @@ var (
 	errAPIKeyRequired             = errors.New("account API key is required")
 	errInvalidPassPhraseInstance  = errors.New("invalid passphrase string")
 	errNoValidResponseFromServer  = errors.New("no valid response from server")
-	errMissingOrderbookSequence   = errors.New("missing orderbook sequence")
 	errSizeOrFundIsRequired       = errors.New("at least one required among size and funds")
 	errInvalidLeverage            = errors.New("invalid leverage value")
 	errAccountTypeMissing         = errors.New("account type is required")
 	errTransferTypeMissing        = errors.New("transfer type is required")
 	errTradeTypeMissing           = errors.New("trade type is missing")
 	errTimeInForceRequired        = errors.New("time in force is required")
+	errInvalidLimit               = errors.New("invalid limit")
 	errInvalidMsgType             = errors.New("message type field not valid")
 	errMissingPurchaseOrderNumber = errors.New("missing purchase order number")
 	errMissingInterestRate        = errors.New("interest rate is required")
@@ -1002,7 +1002,7 @@ type TransferableBalanceInfo struct {
 type FundTransferFuturesParam struct {
 	Amount             float64       `json:"amount"`
 	Currency           currency.Code `json:"currency"`
-	RecieveAccountType string        `json:"recAccountType"` // possible values are: MAIN and TRADE
+	ReceiveAccountType string        `json:"recAccountType"` // possible values are: MAIN and TRADE
 }
 
 // FundTransferToFuturesParam holds request parameters to transfer funds to futures account
@@ -1348,8 +1348,8 @@ type WsOrderbook struct {
 
 // OrderbookChanges represents orderbook ask and bid changes
 type OrderbookChanges struct {
-	Asks [][]types.Number `json:"asks"`
-	Bids [][]types.Number `json:"bids"`
+	Asks [][3]types.Number `json:"asks"`
+	Bids [][3]types.Number `json:"bids"`
 }
 
 // WsCandlestick represents candlestick information push data for a symbol
@@ -1545,8 +1545,8 @@ type WsOrderbookLevel5 struct {
 	Timestamp     types.Time        `json:"timestamp"`
 }
 
-// WsOrderbookLevel5Response represents a response data for an orderbook push data with depth level 5
-type WsOrderbookLevel5Response struct {
+// WsFuturesOrderbookLevelResponse represents a response data for an orderbook push data with depth level 5 or 50
+type WsFuturesOrderbookLevelResponse struct {
 	Sequence      int64                            `json:"sequence"`
 	Bids          orderbook.LevelsArrayPriceAmount `json:"bids"`
 	Asks          orderbook.LevelsArrayPriceAmount `json:"asks"`

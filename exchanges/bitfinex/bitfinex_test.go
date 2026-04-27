@@ -3,6 +3,8 @@ package bitfinex
 import (
 	"bufio"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strconv"
 	"testing"
@@ -141,19 +143,24 @@ func TestUpdateTradablePairs(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
+	testexch.UpdatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
 		t.Run(a.String(), func(t *testing.T) {
 			t.Parallel()
 			switch a {
-			case asset.Spot:
+			case asset.Spot, asset.Margin:
 				require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
 				pairs, err := e.CurrencyPairs.GetPairs(a, false)
 				require.NoError(t, err, "GetPairs must not error")
-				l, err := e.GetOrderExecutionLimits(a, pairs[0])
-				require.NoError(t, err, "GetOrderExecutionLimits must not error")
-				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+				for _, p := range pairs {
+					l, err := e.GetOrderExecutionLimits(a, p)
+					require.NoError(t, err, "GetOrderExecutionLimits must not error")
+					assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+				}
+			case asset.MarginFunding:
+				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), asset.ErrNotSupported)
 			default:
-				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), common.ErrNotYetImplemented)
+				require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), a), asset.ErrNotSupported)
 			}
 		})
 	}
@@ -202,7 +209,7 @@ func TestGetTickerBatch(t *testing.T) {
 	require.Contains(t, ticks, "tBTCUSD", "Ticker batch must contain tBTCUSD")
 	checkTradeTick(t, ticks["tBTCUSD"])
 	require.Contains(t, ticks, "fUSD", "Ticker batch must contain fUSD")
-	checkTradeTick(t, ticks["fUSD"])
+	checkFundingTick(t, ticks["fUSD"])
 }
 
 func TestGetTicker(t *testing.T) {
@@ -223,18 +230,61 @@ func TestTickerFromResp(t *testing.T) {
 	assert.ErrorIs(t, err, errTickerInvalidFieldCount, "tickerFromResp should error correctly")
 	assert.ErrorContains(t, err, "tBTCUSD", "tickerFromResp should error correctly")
 
-	tick, err := tickerFromResp("tBTCUSD", []any{1.1, 2.2, 3.3, 4.4, 5.5, 6.6, 7.7, 8.8, 9.9, 10.10})
-	require.NoError(t, err, "tickerFromResp must error correctly")
-	assert.Equal(t, 1.1, tick.Bid, "Tick Bid should be correct")
-	assert.Equal(t, 2.2, tick.BidSize, "Tick BidSize should be correct")
-	assert.Equal(t, 3.3, tick.Ask, "Tick Ask should be correct")
-	assert.Equal(t, 4.4, tick.AskSize, "Tick AskSize should be correct")
-	assert.Equal(t, 5.5, tick.DailyChange, "Tick DailyChange should be correct")
-	assert.Equal(t, 6.6, tick.DailyChangePerc, "Tick DailyChangePerc should be correct")
-	assert.Equal(t, 7.7, tick.Last, "Tick Last should be correct")
-	assert.Equal(t, 8.8, tick.Volume, "Tick Volume should be correct")
-	assert.Equal(t, 9.9, tick.High, "Tick High should be correct")
-	assert.Equal(t, 10.10, tick.Low, "Tick Low should be correct")
+	_, err = tickerFromResp("tBTCUSD", []any{1.1, 2.2, 3.3, 4.4, 5.5, 6.6, 7.7, 8.8, 9.9, 10.10, nil})
+	assert.ErrorIs(t, err, errTickerInvalidResp, "tickerFromResp should reject non-numeric trailing timestamps")
+	assert.ErrorContains(t, err, "Timestamp", "tickerFromResp should reject non-numeric trailing timestamps")
+	assert.ErrorContains(t, err, "tBTCUSD", "tickerFromResp should reject non-numeric trailing timestamps")
+
+	_, err = tickerFromResp("tBTCUSD", []any{1.1, 2.2, 3.3, 4.4, 5.5, 6.6, 7.7, 8.8, 9.9, 10.10, 1747143592992.0, 42.0})
+	assert.ErrorIs(t, err, errTickerInvalidFieldCount, "tickerFromResp should reject unexpected extra fields")
+	assert.ErrorContains(t, err, "tBTCUSD", "tickerFromResp should reject unexpected extra fields")
+
+	for _, tc := range []struct {
+		name    string
+		payload []any
+		exp     *Ticker
+	}{
+		{
+			name:    "legacy payload",
+			payload: []any{1.1, 2.2, 3.3, 4.4, 5.5, 6.6, 7.7, 8.8, 9.9, 10.10},
+			exp: &Ticker{
+				Bid:             1.1,
+				BidSize:         2.2,
+				Ask:             3.3,
+				AskSize:         4.4,
+				DailyChange:     5.5,
+				DailyChangePerc: 6.6,
+				Last:            7.7,
+				Volume:          8.8,
+				High:            9.9,
+				Low:             10.10,
+			},
+		},
+		{
+			name:    "payload with trailing timestamp",
+			payload: []any{1.1, 2.2, 3.3, 4.4, 5.5, 6.6, 7.7, 8.8, 9.9, 10.10, 1747143592992.0},
+			exp: &Ticker{
+				Bid:             1.1,
+				BidSize:         2.2,
+				Ask:             3.3,
+				AskSize:         4.4,
+				DailyChange:     5.5,
+				DailyChangePerc: 6.6,
+				Last:            7.7,
+				Volume:          8.8,
+				High:            9.9,
+				Low:             10.10,
+				Timestamp:       types.Time(time.UnixMilli(1747143592992)),
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tick, err := tickerFromResp("tBTCUSD", tc.payload)
+			require.NoError(t, err, "tickerFromResp must not error")
+			assert.Equal(t, tc.exp, tick, "tickerFromResp should parse trading payload correctly")
+		})
+	}
 
 	_, err = tickerFromResp("fBTC", []any{100.0, nil, 100.0, nil, nil, nil, nil, nil, nil, nil})
 	assert.ErrorIs(t, err, errTickerInvalidFieldCount, "tickerFromResp should delegate to tickerFromFundingResp and error correctly")
@@ -252,22 +302,69 @@ func TestTickerFromFundingResp(t *testing.T) {
 	assert.ErrorIs(t, err, errTickerInvalidFieldCount, "tickerFromFundingResp should error correctly")
 	assert.ErrorContains(t, err, "fBTC", "tickerFromFundingResp should error correctly")
 
-	tick, err := tickerFromFundingResp("fBTC", []any{1.1, 2.2, 3.0, 4.4, 5.5, 6.0, 7.7, 8.8, 9.9, 10.10, 11.11, 12.12, 13.13, nil, nil, 15.15})
-	require.NoError(t, err, "tickerFromFundingResp must error correctly")
-	assert.Equal(t, 1.1, tick.FlashReturnRate, "Tick FlashReturnRate should be correct")
-	assert.Equal(t, 2.2, tick.Bid, "Tick Bid should be correct")
-	assert.Equal(t, int64(3), tick.BidPeriod, "Tick BidPeriod should be correct")
-	assert.Equal(t, 4.4, tick.BidSize, "Tick BidSize should be correct")
-	assert.Equal(t, 5.5, tick.Ask, "Tick Ask should be correct")
-	assert.Equal(t, int64(6), tick.AskPeriod, "Tick AskPeriod should be correct")
-	assert.Equal(t, 7.7, tick.AskSize, "Tick AskSize should be correct")
-	assert.Equal(t, 8.8, tick.DailyChange, "Tick DailyChange should be correct")
-	assert.Equal(t, 9.9, tick.DailyChangePerc, "Tick DailyChangePerc should be correct")
-	assert.Equal(t, 10.10, tick.Last, "Tick Last should be correct")
-	assert.Equal(t, 11.11, tick.Volume, "Tick Volume should be correct")
-	assert.Equal(t, 12.12, tick.High, "Tick High should be correct")
-	assert.Equal(t, 13.13, tick.Low, "Tick Low should be correct")
-	assert.Equal(t, 15.15, tick.FRRAmountAvailable, "Tick FRRAmountAvailable should be correct")
+	_, err = tickerFromFundingResp("fBTC", []any{1.1, 2.2, 3.0, 4.4, 5.5, 6.0, 7.7, 8.8, 9.9, 10.10, 11.11, 12.12, 13.13, nil, nil, 15.15, nil})
+	assert.ErrorIs(t, err, errTickerInvalidResp, "tickerFromFundingResp should reject non-numeric trailing timestamps")
+	assert.ErrorContains(t, err, "Timestamp", "tickerFromFundingResp should reject non-numeric trailing timestamps")
+	assert.ErrorContains(t, err, "fBTC", "tickerFromFundingResp should reject non-numeric trailing timestamps")
+
+	_, err = tickerFromFundingResp("fBTC", []any{1.1, 2.2, 3.0, 4.4, 5.5, 6.0, 7.7, 8.8, 9.9, 10.10, 11.11, 12.12, 13.13, nil, nil, 15.15, 1747143592992.0, 42.0})
+	assert.ErrorIs(t, err, errTickerInvalidFieldCount, "tickerFromFundingResp should reject unexpected extra fields")
+	assert.ErrorContains(t, err, "fBTC", "tickerFromFundingResp should reject unexpected extra fields")
+
+	for _, tc := range []struct {
+		name    string
+		payload []any
+		exp     *Ticker
+	}{
+		{
+			name:    "legacy payload",
+			payload: []any{1.1, 2.2, 3.0, 4.4, 5.5, 6.0, 7.7, 8.8, 9.9, 10.10, 11.11, 12.12, 13.13, nil, nil, 15.15},
+			exp: &Ticker{
+				FlashReturnRate:    1.1,
+				Bid:                2.2,
+				BidPeriod:          3,
+				BidSize:            4.4,
+				Ask:                5.5,
+				AskPeriod:          6,
+				AskSize:            7.7,
+				DailyChange:        8.8,
+				DailyChangePerc:    9.9,
+				Last:               10.10,
+				Volume:             11.11,
+				High:               12.12,
+				Low:                13.13,
+				FRRAmountAvailable: 15.15,
+			},
+		},
+		{
+			name:    "payload with trailing timestamp",
+			payload: []any{1.1, 2.2, 3.0, 4.4, 5.5, 6.0, 7.7, 8.8, 9.9, 10.10, 11.11, 12.12, 13.13, nil, nil, 15.15, 1747143592992.0},
+			exp: &Ticker{
+				FlashReturnRate:    1.1,
+				Bid:                2.2,
+				BidPeriod:          3,
+				BidSize:            4.4,
+				Ask:                5.5,
+				AskPeriod:          6,
+				AskSize:            7.7,
+				DailyChange:        8.8,
+				DailyChangePerc:    9.9,
+				Last:               10.10,
+				Volume:             11.11,
+				High:               12.12,
+				Low:                13.13,
+				FRRAmountAvailable: 15.15,
+				Timestamp:          types.Time(time.UnixMilli(1747143592992)),
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tick, err := tickerFromFundingResp("fBTC", tc.payload)
+			require.NoError(t, err, "tickerFromFundingResp must not error")
+			assert.Equal(t, tc.exp, tick, "tickerFromFundingResp should parse funding payload correctly")
+		})
+	}
 }
 
 func TestGetTickerFunding(t *testing.T) {
@@ -284,6 +381,7 @@ func checkTradeTick(tb testing.TB, tick *Ticker) {
 	assert.Positive(tb, tick.Ask, "Tick Ask should be positive")
 	assert.Positive(tb, tick.AskSize, "Tick AskSize should be positive")
 	assert.Positive(tb, tick.Last, "Tick Last should be positive")
+	assert.False(tb, tick.Timestamp.Time().IsZero(), "Tick Timestamp should be populated")
 	// Can't test DailyChange*, Volume, High or Low without false positives when they're occasionally 0
 }
 
@@ -297,6 +395,7 @@ func checkFundingTick(tb testing.TB, tick *Ticker) {
 	assert.Positive(tb, tick.AskPeriod, "Tick AskPeriod should be positive")
 	assert.Positive(tb, tick.AskSize, "Tick AskSize should be positive")
 	assert.Positive(tb, tick.Last, "Tick Last should be positive")
+	assert.False(tb, tick.Timestamp.Time().IsZero(), "Tick Timestamp should be populated")
 	// Can't test FRRAmountAvailable as it's occasionally 0
 }
 
@@ -502,8 +601,93 @@ func TestNewOrder(t *testing.T) {
 func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 
-	_, err := e.UpdateTicker(t.Context(), btcusdPair, asset.Spot)
+	tick, err := e.UpdateTicker(t.Context(), btcusdPair, asset.Spot)
 	assert.NoError(t, common.ExcludeError(err, ticker.ErrBidEqualsAsk), "UpdateTicker may only error about locked markets")
+	if err == nil {
+		assert.False(t, tick.LastUpdated.IsZero(), "UpdateTicker should populate LastUpdated")
+	}
+}
+
+func TestUpdateTickersStoresTradingTimestampFromBatch(t *testing.T) {
+	ex := newMockTickerBatchExchange(t, "Bitfinex timestamp spot test", [][]any{{
+		"tBTCUSD",
+		1.1,
+		2.2,
+		3.3,
+		4.4,
+		5.5,
+		6.6,
+		7.7,
+		8.8,
+		9.9,
+		10.10,
+		1747143592992.0,
+	}})
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{btcusdPair}, true), "StorePairs must not error")
+
+	err := ex.UpdateTickers(t.Context(), asset.Spot)
+	require.NoError(t, err, "UpdateTickers must not error")
+
+	stored, err := ticker.GetTicker(ex.Name, btcusdPair, asset.Spot)
+	require.NoError(t, err, "GetTicker must not error")
+	assert.Equal(t, time.UnixMilli(1747143592992), stored.LastUpdated, "UpdateTickers should preserve the exchange timestamp for spot tickers")
+}
+
+func TestUpdateTickersStoresFundingTimestampFromBatch(t *testing.T) {
+	fundingPair, err := currency.NewPairFromString("USD")
+	require.NoError(t, err, "NewPairFromString must not error")
+
+	ex := newMockTickerBatchExchange(t, "Bitfinex timestamp funding test", [][]any{{
+		"fUSD",
+		1.1,
+		2.2,
+		3.0,
+		4.4,
+		5.5,
+		6.0,
+		7.7,
+		8.8,
+		9.9,
+		10.10,
+		11.11,
+		12.12,
+		13.13,
+		nil,
+		nil,
+		15.15,
+		1747143592992.0,
+	}})
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.MarginFunding, currency.Pairs{fundingPair}, true), "StorePairs must not error")
+
+	err = ex.UpdateTickers(t.Context(), asset.MarginFunding)
+	require.NoError(t, err, "UpdateTickers must not error")
+
+	stored, err := ticker.GetTicker(ex.Name, fundingPair, asset.MarginFunding)
+	require.NoError(t, err, "GetTicker must not error")
+	assert.Equal(t, time.UnixMilli(1747143592992), stored.LastUpdated, "UpdateTickers should preserve the exchange timestamp for funding tickers")
+}
+
+func newMockTickerBatchExchange(t *testing.T, name string, payload [][]any) *Exchange {
+	t.Helper()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	ex.Name = name
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method, "Ticker batch request method should be GET")
+		assert.Equal(t, "/v2/tickers", r.URL.Path, "Ticker batch request path should be correct")
+		assert.Equal(t, "ALL", r.URL.Query().Get("symbols"), "Ticker batch request symbols should be correct")
+
+		w.WriteHeader(http.StatusOK)
+		err := json.NewEncoder(w).Encode(payload)
+		assert.NoError(t, err, "Encoding ticker batch payload should not error")
+	}))
+	t.Cleanup(server.Close)
+
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+	return ex
 }
 
 func TestUpdateTickers(t *testing.T) {
@@ -1106,13 +1290,7 @@ func TestGetDepositAddress(t *testing.T) {
 }
 
 func TestWSAuth(t *testing.T) {
-	if !e.Websocket.IsEnabled() {
-		t.Skip(websocket.ErrWebsocketNotEnabled.Error())
-	}
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if !e.API.AuthenticatedWebsocketSupport {
-		t.Skip("Authentecated API support not enabled")
-	}
+	testexch.SkipTestIfCannotUseAuthenticatedWebsocket(t, e)
 	testexch.SetupWs(t, e)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must be turned on")
 
@@ -1123,7 +1301,7 @@ func TestWSAuth(t *testing.T) {
 			resp, ok = v.Data.(map[string]any)
 		default:
 		}
-		return
+		return ok
 	}
 
 	if assert.Eventually(t, catcher, sharedtestvalues.WebsocketResponseDefaultTimeout, time.Millisecond*10, "Auth response should arrive") {
@@ -1136,46 +1314,122 @@ func TestWSAuth(t *testing.T) {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
+	expectedQualifiedChannel := func(t *testing.T, s *subscription.Subscription, a asset.Item, p currency.Pair) string {
+		t.Helper()
+
+		channel := s.Channel
+		if mapped, ok := subscriptionNames[s.Channel]; ok {
+			channel = mapped
+		}
+		payload := map[string]any{
+			"channel": channel,
+		}
+
+		var fundingPeriod string
+		for k, v := range s.Params {
+			switch k {
+			case CandlesPeriodKey:
+				period, ok := v.(string)
+				require.Truef(t, ok, "CandlesPeriodKey must be string for channel %s", s.Channel)
+				fundingPeriod = ":" + period
+			case "key", "symbol", "len":
+				require.Failf(t, "invalid params", "Params must not contain reserved key %q", k)
+			default:
+				payload[k] = v
+			}
+		}
+		if s.Levels != 0 {
+			payload["len"] = s.Levels
+		}
+
+		prefix := "t"
+		if a == asset.MarginFunding {
+			prefix = "f"
+		}
+
+		pairFmt := currency.PairFormat{Uppercase: true}
+		if p.Len() > 6 {
+			pairFmt.Delimiter = ":"
+		}
+
+		symbol := prefix + p.Format(pairFmt).String()
+		if channel == wsCandlesChannel {
+			payload["key"] = "trade:" + s.Interval.Short() + ":" + symbol + fundingPeriod
+		} else {
+			payload["symbol"] = symbol
+		}
+
+		encoded, err := json.Marshal(payload)
+		require.NoError(t, err, "Marshal must not error for expected payload")
+		return string(encoded)
+	}
+
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	require.True(t, e.Websocket.CanUseAuthenticatedEndpoints(), "CanUseAuthenticatedEndpoints must return true")
+
 	subs, err := e.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
+	require.NotEmpty(t, subs, "generateSubscriptions must return subscriptions")
+
+	seenChannels := make(map[string]struct{}, len(subs))
+	spotChannelPairs := make(map[string]struct{})
+	for _, sub := range subs {
+		assert.NotEmpty(t, sub.QualifiedChannel, "QualifiedChannel should not be empty")
+
+		_, found := seenChannels[sub.QualifiedChannel]
+		assert.Falsef(t, found, "QualifiedChannel should be unique, got duplicate %q", sub.QualifiedChannel)
+		seenChannels[sub.QualifiedChannel] = struct{}{}
+
+		if len(sub.Pairs) != 1 {
+			continue
+		}
+
+		pairCode := sub.Pairs[0].Base.String() + sub.Pairs[0].Quote.String()
+		key := sub.Channel + "|" + pairCode
+		switch sub.Asset {
+		case asset.Spot:
+			spotChannelPairs[key] = struct{}{}
+		case asset.Margin:
+			_, duplicatedInSpot := spotChannelPairs[key]
+			assert.False(t, duplicatedInSpot, "Margin subscriptions should not duplicate spot channel pairs")
+		}
+	}
+
 	exp := subscription.List{}
 	for _, baseSub := range e.Features.Subscriptions {
 		for _, a := range e.GetAssetTypes(true) {
+			if !e.IsAssetWebsocketSupported(a) {
+				continue
+			}
 			if baseSub.Asset != asset.All && baseSub.Asset != a {
 				continue
 			}
+
 			pairs, err := e.GetEnabledPairs(a)
-			require.NoErrorf(t, err, "GetEnabledPairs %s must not error", a)
-			for _, p := range pairs.Format(currency.PairFormat{Uppercase: true}) {
+			require.NoErrorf(t, err, "GetEnabledPairs must not error for asset %s", a)
+
+			pairFmt, err := e.GetPairFormat(a, true)
+			require.NoErrorf(t, err, "GetPairFormat must not error for asset %s", a)
+			pairs = common.SortStrings(pairs.Format(pairFmt))
+
+			if a == asset.Margin {
+				spotPairs, err := e.GetEnabledPairs(asset.Spot)
+				require.NoError(t, err, "GetEnabledPairs must not error for spot asset")
+				pairs = pairs.Remove(spotPairs...)
+			}
+
+			for _, p := range pairs {
 				s := baseSub.Clone()
 				s.Asset = a
 				s.Pairs = currency.Pairs{p}
-				prefix := "t"
-				if a == asset.MarginFunding {
-					prefix = "f"
-				}
-				switch s.Channel {
-				case subscription.TickerChannel:
-					s.QualifiedChannel = `{"channel":"ticker","symbol":"` + prefix + p.String() + `"}`
-				case subscription.CandlesChannel:
-					if a == asset.MarginFunding {
-						s.QualifiedChannel = `{"channel":"candles","key":"trade:1m:` + prefix + p.String() + `:p30"}`
-					} else {
-						s.QualifiedChannel = `{"channel":"candles","key":"trade:1m:` + prefix + p.String() + `"}`
-					}
-				case subscription.OrderbookChannel:
-					s.QualifiedChannel = `{"channel":"book","len":100,"prec":"R0","symbol":"` + prefix + p.String() + `"}`
-				case subscription.AllTradesChannel:
-					s.QualifiedChannel = `{"channel":"trades","symbol":"` + prefix + p.String() + `"}`
-				}
+				s.QualifiedChannel = expectedQualifiedChannel(t, s, a, p)
 				exp = append(exp, s)
 			}
 		}
 	}
+
 	testsubs.EqualLists(t, exp, subs)
 }
 
@@ -1186,11 +1440,11 @@ func TestWSSubscribe(t *testing.T) {
 	require.NoError(t, testexch.Setup(e), "TestInstance must not error")
 	testexch.SetupWs(t, e)
 	err := e.Subscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
-	require.NoError(t, err, "Subrcribe must not error")
+	require.NoError(t, err, "Subscribe must not error")
 	catcher := func() (ok bool) {
 		i := <-e.Websocket.DataHandler.C
 		_, ok = i.Data.(*ticker.Price)
-		return
+		return ok
 	}
 	assert.Eventually(t, catcher, sharedtestvalues.WebsocketResponseDefaultTimeout, time.Millisecond*10, "Ticker response should arrive")
 
@@ -1443,6 +1697,167 @@ func TestWSTickerResponse(t *testing.T) {
 	}
 }
 
+func TestWSTickerResponseTrailingField(t *testing.T) {
+	t.Parallel()
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{btcusdPair}, Channel: subscription.TickerChannel, Key: 11534})
+	require.NoError(t, err, "AddSubscriptions must not error")
+
+	err = e.wsHandleData(t.Context(), []byte(`[11534,[61.304,2228.36155358,61.305,1323.2442970500003,0.395,0.0065,61.371,50973.3020771,62.5,57.421,null]]`))
+	require.NoError(t, err, "wsHandleData must not error for optional trailing ticker timestamps")
+
+	select {
+	case resp := <-e.Websocket.DataHandler.C:
+		tick, ok := resp.Data.(*ticker.Price)
+		require.True(t, ok, "DataHandler must receive a ticker.Price")
+		assert.Equal(t, btcusdPair, tick.Pair, "Ticker pair should be correct")
+		assert.Equal(t, asset.Spot, tick.AssetType, "Ticker asset should be correct")
+		assert.Equal(t, 61.304, tick.Bid, "Ticker bid should be correct")
+		assert.Equal(t, 61.305, tick.Ask, "Ticker ask should be correct")
+		assert.Equal(t, 61.371, tick.Last, "Ticker last should be correct")
+		assert.Equal(t, 50973.3020771, tick.Volume, "Ticker volume should be correct")
+		assert.Equal(t, 62.5, tick.High, "Ticker high should be correct")
+		assert.Equal(t, 57.421, tick.Low, "Ticker low should be correct")
+		assert.True(t, tick.LastUpdated.IsZero(), "Ticker LastUpdated should stay zero when FIRST_TRADE is null")
+	case <-time.After(time.Second):
+		t.Fatal("Ticker update must be queued")
+	}
+}
+
+func TestWSFundingTickerResponseTrailingField(t *testing.T) {
+	t.Parallel()
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	fundingPair, err := currency.NewPairFromStrings("USD", "")
+	require.NoError(t, err, "NewPairFromStrings must not error")
+	err = e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.MarginFunding, Pairs: currency.Pairs{fundingPair}, Channel: subscription.TickerChannel, Key: 22334})
+	require.NoError(t, err, "AddSubscriptions must not error")
+
+	err = e.wsHandleData(t.Context(), []byte(`[22334,[1.1,2.2,3,4.4,5.5,6,7.7,8.8,9.9,10.1,11.11,12.12,13.13,null,null,15.15,null]]`))
+	require.NoError(t, err, "wsHandleData must not error for optional trailing funding ticker timestamps")
+
+	select {
+	case resp := <-e.Websocket.DataHandler.C:
+		tick, ok := resp.Data.(*ticker.Price)
+		require.True(t, ok, "DataHandler must receive a ticker.Price")
+		assert.Equal(t, fundingPair, tick.Pair, "Ticker pair should be correct")
+		assert.Equal(t, asset.MarginFunding, tick.AssetType, "Ticker asset should be correct")
+		assert.Equal(t, 1.1, tick.FlashReturnRate, "Ticker flash return rate should be correct")
+		assert.Equal(t, 2.2, tick.Bid, "Ticker bid should be correct")
+		assert.Equal(t, 3.0, tick.BidPeriod, "Ticker bid period should be correct")
+		assert.Equal(t, 5.5, tick.Ask, "Ticker ask should be correct")
+		assert.Equal(t, 6.0, tick.AskPeriod, "Ticker ask period should be correct")
+		assert.Equal(t, 10.1, tick.Last, "Ticker last should be correct")
+		assert.Equal(t, 11.11, tick.Volume, "Ticker volume should be correct")
+		assert.Equal(t, 12.12, tick.High, "Ticker high should be correct")
+		assert.Equal(t, 13.13, tick.Low, "Ticker low should be correct")
+		assert.Equal(t, 15.15, tick.FlashReturnRateAmount, "Ticker flash return rate amount should be correct")
+		assert.True(t, tick.LastUpdated.IsZero(), "Ticker LastUpdated should stay zero when FIRST_TRADE is null")
+	case <-time.After(time.Second):
+		t.Fatal("Funding ticker update must be queued")
+	}
+}
+
+func TestWSTickerResponseTrailingTimestamp(t *testing.T) {
+	t.Parallel()
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{btcusdPair}, Channel: subscription.TickerChannel, Key: 11534})
+	require.NoError(t, err, "AddSubscriptions must not error")
+
+	err = e.wsHandleData(t.Context(), []byte(`[11534,[61.304,2228.36155358,61.305,1323.2442970500003,0.395,0.0065,61.371,50973.3020771,62.5,57.421,1747143592992]]`))
+	require.NoError(t, err, "wsHandleData must not error for trailing ticker timestamps")
+
+	select {
+	case resp := <-e.Websocket.DataHandler.C:
+		tick, ok := resp.Data.(*ticker.Price)
+		require.True(t, ok, "DataHandler must receive a ticker.Price")
+		assert.Equal(t, time.UnixMilli(1747143592992), tick.LastUpdated, "Ticker LastUpdated should preserve FIRST_TRADE timestamps")
+	case <-time.After(time.Second):
+		t.Fatal("Ticker update must be queued")
+	}
+}
+
+func TestWSFundingTickerResponseTrailingTimestamp(t *testing.T) {
+	t.Parallel()
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	fundingPair, err := currency.NewPairFromStrings("USD", "")
+	require.NoError(t, err, "NewPairFromStrings must not error")
+	err = e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.MarginFunding, Pairs: currency.Pairs{fundingPair}, Channel: subscription.TickerChannel, Key: 22334})
+	require.NoError(t, err, "AddSubscriptions must not error")
+
+	err = e.wsHandleData(t.Context(), []byte(`[22334,[1.1,2.2,3,4.4,5.5,6,7.7,8.8,9.9,10.1,11.11,12.12,13.13,null,null,15.15,1747143592992]]`))
+	require.NoError(t, err, "wsHandleData must not error for trailing funding ticker timestamps")
+
+	select {
+	case resp := <-e.Websocket.DataHandler.C:
+		tick, ok := resp.Data.(*ticker.Price)
+		require.True(t, ok, "DataHandler must receive a ticker.Price")
+		assert.Equal(t, time.UnixMilli(1747143592992), tick.LastUpdated, "Ticker LastUpdated should preserve funding FIRST_TRADE timestamps")
+	case <-time.After(time.Second):
+		t.Fatal("Funding ticker update must be queued")
+	}
+}
+
+func TestWSTickerResponseInvalidTrailingTimestamp(t *testing.T) {
+	t.Parallel()
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{btcusdPair}, Channel: subscription.TickerChannel, Key: 11534})
+	require.NoError(t, err, "AddSubscriptions must not error")
+
+	err = e.wsHandleData(t.Context(), []byte(`[11534,[61.304,2228.36155358,61.305,1323.2442970500003,0.395,0.0065,61.371,50973.3020771,62.5,57.421,true]]`))
+	assert.ErrorIs(t, err, errTickerInvalidFirstTradeTime, "wsHandleData should reject invalid trailing FIRST_TRADE timestamp types")
+	select {
+	case resp := <-e.Websocket.DataHandler.C:
+		t.Fatalf("DataHandler should not receive websocket ticker data on invalid trailing timestamp types: %#v", resp)
+	default:
+	}
+}
+
+func TestWSFundingTickerResponseInvalidTrailingTimestamp(t *testing.T) {
+	t.Parallel()
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	fundingPair, err := currency.NewPairFromStrings("USD", "")
+	require.NoError(t, err, "NewPairFromStrings must not error")
+	err = e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.MarginFunding, Pairs: currency.Pairs{fundingPair}, Channel: subscription.TickerChannel, Key: 22334})
+	require.NoError(t, err, "AddSubscriptions must not error")
+
+	err = e.wsHandleData(t.Context(), []byte(`[22334,[1.1,2.2,3,4.4,5.5,6,7.7,8.8,9.9,10.1,11.11,12.12,13.13,null,null,15.15,true]]`))
+	assert.ErrorIs(t, err, errTickerInvalidFirstTradeTime, "wsHandleData should reject invalid funding trailing FIRST_TRADE timestamp types")
+	select {
+	case resp := <-e.Websocket.DataHandler.C:
+		t.Fatalf("DataHandler should not receive websocket funding ticker data on invalid trailing timestamp types: %#v", resp)
+	default:
+	}
+}
+
+func TestWSTickerResponseInvalidFieldCount(t *testing.T) {
+	t.Parallel()
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{btcusdPair}, Channel: subscription.TickerChannel, Key: 11534})
+	require.NoError(t, err, "AddSubscriptions must not error")
+
+	err = e.wsHandleData(t.Context(), []byte(`[11534,[1,2,3,4,5,6,7,8,9,10,11,12]]`))
+	assert.ErrorIs(t, err, errTickerInvalidFieldCount, "wsHandleData should reject unexpected websocket ticker field counts")
+	select {
+	case resp := <-e.Websocket.DataHandler.C:
+		t.Fatalf("DataHandler should not receive websocket ticker data on invalid field counts: %#v", resp)
+	default:
+	}
+}
+
 func TestWSCandleResponse(t *testing.T) {
 	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{btcusdPair}, Channel: subscription.CandlesChannel, Key: 343351})
 	require.NoError(t, err, "AddSubscriptions must not error")
@@ -1581,119 +1996,56 @@ func TestGetHistoricCandlesExtended(t *testing.T) {
 
 func TestFixCasing(t *testing.T) {
 	ret, err := e.fixCasing(btcusdPair, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ret != "tBTCUSD" {
-		t.Errorf("unexpected result: %v", ret)
-	}
+	require.NoError(t, err, "fixCasing must not error")
+	assert.Equal(t, "tBTCUSD", ret, "fixCasing should return correct result")
 	pair, err := currency.NewPairFromString("TBTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "NewPairFromString must not error")
 	ret, err = e.fixCasing(pair, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ret != "tBTCUSD" {
-		t.Errorf("unexpected result: %v", ret)
-	}
+	require.NoError(t, err, "fixCasing must not error")
+	assert.Equal(t, "tBTCUSD", ret, "fixCasing should return correct result")
 	pair, err = currency.NewPairFromString("tBTCUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "NewPairFromString must not error")
 	ret, err = e.fixCasing(pair, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ret != "tBTCUSD" {
-		t.Errorf("unexpected result: %v", ret)
-	}
+	require.NoError(t, err, "fixCasing must not error")
+	assert.Equal(t, "tBTCUSD", ret, "fixCasing should return correct result")
 	ret, err = e.fixCasing(btcusdPair, asset.Margin)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ret != "tBTCUSD" {
-		t.Errorf("unexpected result: %v", ret)
-	}
+	require.NoError(t, err, "fixCasing must not error")
+	assert.Equal(t, "tBTCUSD", ret, "fixCasing should return correct result")
 	ret, err = e.fixCasing(btcusdPair, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ret != "tBTCUSD" {
-		t.Errorf("unexpected result: %v", ret)
-	}
+	require.NoError(t, err, "fixCasing must not error")
+	assert.Equal(t, "tBTCUSD", ret, "fixCasing should return correct result")
 	pair, err = currency.NewPairFromString("FUNETH")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "NewPairFromString must not error")
 	ret, err = e.fixCasing(pair, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ret != "tFUNETH" {
-		t.Errorf("unexpected result: %v", ret)
-	}
+	require.NoError(t, err, "fixCasing must not error")
+	assert.Equal(t, "tFUNETH", ret, "fixCasing should return correct result")
 	pair, err = currency.NewPairFromString("TNBUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "NewPairFromString must not error")
 	ret, err = e.fixCasing(pair, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ret != "tTNBUSD" {
-		t.Errorf("unexpected result: %v", ret)
-	}
+	require.NoError(t, err, "fixCasing must not error")
+	assert.Equal(t, "tTNBUSD", ret, "fixCasing should return correct result")
 
 	pair, err = currency.NewPairFromString("tTNBUSD")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "NewPairFromString must not error")
 	ret, err = e.fixCasing(pair, asset.Spot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ret != "tTNBUSD" {
-		t.Errorf("unexpected result: %v", ret)
-	}
+	require.NoError(t, err, "fixCasing must not error")
+	assert.Equal(t, "tTNBUSD", ret, "fixCasing should return correct result")
 	pair, err = currency.NewPairFromStrings("fUSD", "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "NewPairFromStrings must not error")
 	ret, err = e.fixCasing(pair, asset.MarginFunding)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ret != "fUSD" {
-		t.Errorf("unexpected result: %v", ret)
-	}
+	require.NoError(t, err, "fixCasing must not error")
+	assert.Equal(t, "fUSD", ret, "fixCasing should return correct result")
 	pair, err = currency.NewPairFromStrings("USD", "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "NewPairFromStrings must not error")
 	ret, err = e.fixCasing(pair, asset.MarginFunding)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ret != "fUSD" {
-		t.Errorf("unexpected result: %v", ret)
-	}
+	require.NoError(t, err, "fixCasing must not error")
+	assert.Equal(t, "fUSD", ret, "fixCasing should return correct result")
 
 	pair, err = currency.NewPairFromStrings("FUSD", "")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err, "NewPairFromStrings must not error")
 	ret, err = e.fixCasing(pair, asset.MarginFunding)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ret != "fUSD" {
-		t.Errorf("unexpected result: %v", ret)
-	}
+	require.NoError(t, err, "fixCasing must not error")
+	assert.Equal(t, "fUSD", ret, "fixCasing should return correct result")
 
 	_, err = e.fixCasing(currency.NewPair(currency.EMPTYCODE, currency.BTC), asset.MarginFunding)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
@@ -1885,31 +2237,27 @@ func TestGetAvailableTransferChains(t *testing.T) {
 	}
 }
 
-func TestAccetableMethodStore(t *testing.T) {
+func TestAcceptableMethodStore(t *testing.T) {
 	t.Parallel()
 	var a acceptableMethodStore
-	if a.loaded() {
-		t.Error("should be empty")
-	}
+	assert.False(t, a.loaded(), "acceptable method store should start empty")
 	data := map[string][]string{
 		"BITCOIN": {"BTC"},
 		"TETHER1": {"UST"},
 		"TETHER2": {"UST"},
 	}
 	a.load(data)
-	if !a.loaded() {
-		t.Error("data should be loaded")
-	}
-	if name := a.lookup(currency.NewCode("BTC")); len(name) != 1 && name[1] != "BITCOIN" {
-		t.Error("incorrect values")
-	}
-	if name := a.lookup(currency.NewCode("UST")); (name[0] != "TETHER1" && name[1] != "TETHER2") &&
-		(name[0] != "TETHER2" && name[1] != "TETHER1") {
-		t.Errorf("incorrect values")
-	}
-	if name := a.lookup(currency.NewCode("PANDA_HORSE")); len(name) != 0 {
-		t.Error("incorrect values")
-	}
+	assert.True(t, a.loaded(), "acceptable method store should be loaded after load call")
+
+	btcName := a.lookup(currency.NewCode("BTC"))
+	require.Len(t, btcName, 1, "BTC lookup must return exactly one value")
+	assert.Equal(t, "BITCOIN", btcName[0], "BTC lookup should map to BITCOIN")
+
+	ustName := a.lookup(currency.NewCode("UST"))
+	assert.ElementsMatch(t, []string{"TETHER1", "TETHER2"}, ustName, "UST lookup should contain both tether aliases")
+
+	pandaHorseName := a.lookup(currency.NewCode("PANDA_HORSE"))
+	assert.Empty(t, pandaHorseName, "unknown lookup should return no values")
 }
 
 func TestGetSiteListConfigData(t *testing.T) {
