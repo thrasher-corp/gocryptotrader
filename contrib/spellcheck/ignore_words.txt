@@ -4,7 +4,4 @@ prevend
 flate
 zar
 insid
-ot
-transFrom
 totalin
-customize
