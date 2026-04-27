@@ -31,8 +31,9 @@ const (
 	binanceDefaultWebsocketURL = "wss://stream.binance.com:9443/stream"
 	pingDelay                  = time.Minute * 9
 
-	wsSubscribeMethod   = "SUBSCRIBE"
-	wsUnsubscribeMethod = "UNSUBSCRIBE"
+	wsSubscribeMethod         = "SUBSCRIBE"
+	wsUnsubscribeMethod       = "UNSUBSCRIBE"
+	wsListSubscriptionsMethod = "LIST_SUBSCRIPTIONS"
 )
 
 var listenKey string
@@ -50,13 +51,18 @@ var (
 )
 
 // WsConnect initiates a websocket connection
-func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) error {
-	if err := e.CurrencyPairs.IsAssetEnabled(asset.Spot); err != nil {
-		return err
+func (e *Exchange) WsConnect() error {
+	ctx := context.TODO()
+	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
+		return websocket.ErrWebsocketNotEnabled
 	}
 
+	var dialer gws.Dialer
+	dialer.HandshakeTimeout = e.Config.HTTPTimeout
+	dialer.Proxy = http.ProxyFromEnvironment
+	var err error
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		listenKey, err := e.GetWsAuthStreamKey(ctx)
+		listenKey, err = e.GetWsAuthStreamKey(ctx)
 		if err != nil {
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			log.Errorf(log.ExchangeSys,
@@ -65,29 +71,34 @@ func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) err
 				err)
 		} else {
 			// cleans on failed connection
-			clean := strings.Split(conn.GetURL(), "?streams=")
+			clean := strings.Split(e.Websocket.GetWebsocketURL(), "?streams=")
 			authPayload := clean[0] + "?streams=" + listenKey
-			conn.SetURL(authPayload)
+			err = e.Websocket.SetWebsocketURL(authPayload, false, false)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
-	dialer := gws.Dialer{
-		HandshakeTimeout: e.Config.HTTPTimeout,
-		Proxy:            http.ProxyFromEnvironment,
-	}
-	if err := conn.Dial(ctx, &dialer, http.Header{}, nil); err != nil {
-		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s", e.Name, err)
+	err = e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil)
+	if err != nil {
+		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s",
+			e.Name,
+			err)
 	}
 
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
 		go e.KeepAuthKeyAlive(ctx)
 	}
 
-	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       gws.PongMessage,
 		Delay:             pingDelay,
 	})
+
+	e.Websocket.Wg.Add(1)
+	go e.wsReadData(ctx)
 
 	e.setupOrderbookManager(ctx)
 	return nil
@@ -138,9 +149,28 @@ func (e *Exchange) KeepAuthKeyAlive(ctx context.Context) {
 	}
 }
 
-func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
+// wsReadData receives and passes on websocket messages for processing
+func (e *Exchange) wsReadData(ctx context.Context) {
+	defer e.Websocket.Wg.Done()
+
+	for {
+		resp := e.Websocket.Conn.ReadMessage()
+		if resp.Raw == nil {
+			return
+		}
+		if err := e.wsHandleData(ctx, resp.Raw); err != nil {
+			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
+				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, e.Websocket.Conn.GetURL(), errSend, err)
+			}
+		}
+	}
+}
+
+func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	if id, err := jsonparser.GetString(respRaw, "id"); err == nil {
-		return conn.RequireMatchWithData(id, respRaw)
+		if e.Websocket.Match.IncomingWithData(id, respRaw) {
+			return nil
+		}
 	}
 
 	if resultString, err := jsonparser.GetUnsafeString(respRaw, "result"); err == nil {
@@ -152,7 +182,9 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	if err != nil {
 		return fmt.Errorf("%s %s %s", e.Name, websocket.UnhandledMessage, string(respRaw))
 	}
-	if event, err := jsonparser.GetUnsafeString(jsonData, "e"); err == nil {
+	var event string
+	event, err = jsonparser.GetUnsafeString(jsonData, "e")
+	if err == nil {
 		switch event {
 		case "outboundAccountPosition":
 			var data WsAccountPositionData
@@ -213,14 +245,6 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 			var orderSide order.Side
 			orderSide, err = order.StringToOrderSide(data.Side)
 			if err != nil {
-				return e.Websocket.DataHandler.Send(ctx, order.ClassificationError{
-					Exchange: e.Name,
-					OrderID:  orderID,
-					Err:      err,
-				})
-			}
-			tif, err := order.StringToTimeInForce(data.TimeInForce)
-			if err != nil {
 				return err
 			}
 			return e.Websocket.DataHandler.Send(ctx, &order.Detail{
@@ -243,20 +267,14 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 				Date:                 data.OrderCreationTime.Time(),
 				LastUpdated:          data.TransactionTime.Time(),
 				Pair:                 pair,
-				TimeInForce:          tif,
 			})
 		case "listStatus":
 			var data WsListStatusData
-			if err := json.Unmarshal(jsonData, &data); err != nil {
+			err = json.Unmarshal(jsonData, &data)
+			if err != nil {
 				return fmt.Errorf("%v - Could not convert to listStatus structure %s",
 					e.Name,
 					err)
-			}
-			return e.Websocket.DataHandler.Send(ctx, data)
-		case "outboundAccountInfo":
-			var data wsAccountInfo
-			if err := json.Unmarshal(respRaw, &data); err != nil {
-				return fmt.Errorf("%v - Could not convert to outboundAccountInfo structure %s", e.Name, err)
 			}
 			return e.Websocket.DataHandler.Send(ctx, data)
 		}
@@ -299,30 +317,32 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		}
 
 		var t TradeStream
-		if err := json.Unmarshal(jsonData, &t); err != nil {
+		err := json.Unmarshal(jsonData, &t)
+		if err != nil {
 			return fmt.Errorf("%v - Could not unmarshal trade data: %s",
 				e.Name,
 				err)
 		}
-		return e.Websocket.Trade.Update(saveTradeData,
-			trade.Data{
-				CurrencyPair: pair,
-				Timestamp:    t.TimeStamp.Time(),
-				Price:        t.Price.Float64(),
-				Amount:       t.Quantity.Float64(),
-				Exchange:     e.Name,
-				AssetType:    asset.Spot,
-				Side: func() order.Side {
-					if t.IsBuyerMaker {
-						return order.Sell
-					}
-					return order.Buy
-				}(),
-				TID: strconv.FormatInt(t.TradeID, 10),
-			})
+		td := trade.Data{
+			CurrencyPair: pair,
+			Timestamp:    t.TimeStamp.Time(),
+			Price:        t.Price.Float64(),
+			Amount:       t.Quantity.Float64(),
+			Exchange:     e.Name,
+			AssetType:    asset.Spot,
+			TID:          strconv.FormatInt(t.TradeID, 10),
+		}
+
+		if t.IsBuyerMaker { // Seller is Taker
+			td.Side = order.Sell
+		} else { // Buyer is Taker
+			td.Side = order.Buy
+		}
+		return e.Websocket.Trade.Update(saveTradeData, td)
 	case "ticker":
 		var t TickerStream
-		if err := json.Unmarshal(jsonData, &t); err != nil {
+		err = json.Unmarshal(jsonData, &t)
+		if err != nil {
 			return fmt.Errorf("%v - Could not convert to a TickerStream structure %s",
 				e.Name,
 				err.Error())
@@ -345,7 +365,8 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	case "kline_1m", "kline_3m", "kline_5m", "kline_15m", "kline_30m", "kline_1h", "kline_2h", "kline_4h",
 		"kline_6h", "kline_8h", "kline_12h", "kline_1d", "kline_3d", "kline_1w", "kline_1M":
 		var ks KlineStream
-		if err := json.Unmarshal(jsonData, &ks); err != nil {
+		err = json.Unmarshal(jsonData, &ks)
+		if err != nil {
 			return fmt.Errorf("%v - Could not convert to a KlineStream structure %s",
 				e.Name,
 				err)
@@ -370,7 +391,8 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		})
 	case "depth":
 		var depth WebsocketDepthStream
-		if err := json.Unmarshal(jsonData, &depth); err != nil {
+		err = json.Unmarshal(jsonData, &depth)
+		if err != nil {
 			return fmt.Errorf("%v - Could not convert to depthStream structure %s",
 				e.Name,
 				err)
@@ -414,10 +436,7 @@ func stringToOrderStatus(status string) (order.Status, error) {
 
 // SeedLocalCache seeds depth data
 func (e *Exchange) SeedLocalCache(ctx context.Context, p currency.Pair) error {
-	ob, err := e.GetOrderBook(ctx, OrderBookDataRequestParams{
-		Symbol: p,
-		Limit:  1000,
-	})
+	ob, err := e.GetOrderBook(ctx, p, 1000)
 	if err != nil {
 		return err
 	}
@@ -425,17 +444,22 @@ func (e *Exchange) SeedLocalCache(ctx context.Context, p currency.Pair) error {
 }
 
 // SeedLocalCacheWithBook seeds the local orderbook cache
-func (e *Exchange) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBook) error {
-	return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+func (e *Exchange) SeedLocalCacheWithBook(p currency.Pair, orderbookNew *OrderBookResponse) error {
+	t := orderbookNew.Timestamp.Time()
+	if t.IsZero() {
+		t = time.Now() // Time not provided for this REST book.
+	}
+	newOrderBook := orderbook.Book{
 		Pair:              p,
-		Exchange:          e.Name,
 		Asset:             asset.Spot,
-		ValidateOrderbook: e.ValidateOrderbook,
+		Exchange:          e.Name,
 		LastUpdateID:      orderbookNew.LastUpdateID,
-		LastUpdated:       time.Now(), // Time not provided in REST book.
-		Asks:              orderbook.Levels(orderbookNew.Asks),
-		Bids:              orderbook.Levels(orderbookNew.Bids),
-	})
+		ValidateOrderbook: e.ValidateOrderbook,
+		Bids:              orderbookNew.Bids.Levels(),
+		Asks:              orderbookNew.Asks.Levels(),
+		LastUpdated:       t,
+	}
+	return e.Websocket.Orderbook.LoadSnapshot(&newOrderBook)
 }
 
 // UpdateLocalBuffer updates and returns the most recent iteration of the orderbook
@@ -444,7 +468,8 @@ func (e *Exchange) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if err := e.obm.stageWsUpdate(wsdp, pair, asset.Spot); err != nil {
+	err = e.obm.stageWsUpdate(wsdp, pair, asset.Spot)
+	if err != nil {
 		init, err2 := e.obm.checkIsInitialSync(pair)
 		if err2 != nil {
 			return false, err2
@@ -452,7 +477,8 @@ func (e *Exchange) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
 		return init, err
 	}
 
-	if err := e.applyBufferUpdate(pair); err != nil {
+	err = e.applyBufferUpdate(pair)
+	if err != nil {
 		e.invalidateAndCleanupOrderbook(pair)
 	}
 
@@ -507,23 +533,21 @@ func formatChannelInterval(s *subscription.Subscription) string {
 }
 
 // Subscribe subscribes to a set of channels
-func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, channels subscription.List) error {
-	return e.ParallelChanOp(ctx, channels, func(ctx context.Context, l subscription.List) error {
-		return e.manageSubs(ctx, conn, wsSubscribeMethod, l)
-	}, 50)
+func (e *Exchange) Subscribe(channels subscription.List) error {
+	ctx := context.TODO()
+	return e.ParallelChanOp(ctx, channels, func(ctx context.Context, l subscription.List) error { return e.manageSubs(ctx, wsSubscribeMethod, l) }, 50)
 }
 
 // Unsubscribe unsubscribes from a set of channels
-func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, channels subscription.List) error {
-	return e.ParallelChanOp(ctx, channels, func(ctx context.Context, l subscription.List) error {
-		return e.manageSubs(ctx, conn, wsUnsubscribeMethod, l)
-	}, 50)
+func (e *Exchange) Unsubscribe(channels subscription.List) error {
+	ctx := context.TODO()
+	return e.ParallelChanOp(ctx, channels, func(ctx context.Context, l subscription.List) error { return e.manageSubs(ctx, wsUnsubscribeMethod, l) }, 50)
 }
 
 // manageSubs subscribes or unsubscribes from a list of subscriptions
-func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op string, subs subscription.List) error {
+func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.List) error {
 	if op == wsSubscribeMethod {
-		if err := e.Websocket.AddSubscriptions(conn, subs...); err != nil { // Note: AddSubscription will set state to subscribing
+		if err := e.Websocket.AddSubscriptions(e.Websocket.Conn, subs...); err != nil { // Note: AddSubscription will set state to subscribing
 			return err
 		}
 	} else {
@@ -537,19 +561,20 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op
 		Method: op,
 		Params: subs.QualifiedChannels(),
 	}
-	respRaw, err := conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
+
+	respRaw, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
 	if err == nil {
 		if v, d, _, rErr := jsonparser.Get(respRaw, "result"); rErr != nil {
 			err = rErr
 		} else if d != jsonparser.Null { // null is the only expected and acceptable response
-			err = fmt.Errorf("%w: %w: %s", websocket.ErrSubscriptionFailure, common.ErrUnknownError, v)
+			err = fmt.Errorf("%w: %s", common.ErrUnknownError, v)
 		}
 	}
 
 	if err != nil {
 		err = fmt.Errorf("%w; Channels: %s", err, strings.Join(subs.QualifiedChannels(), ", "))
 		if op == wsSubscribeMethod {
-			if err2 := e.Websocket.RemoveSubscriptions(conn, subs...); err2 != nil {
+			if err2 := e.Websocket.RemoveSubscriptions(e.Websocket.Conn, subs...); err2 != nil {
 				err = common.AppendError(err, err2)
 			}
 		}
@@ -557,18 +582,18 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op
 		if op == wsSubscribeMethod {
 			err = common.AppendError(err, subs.SetStates(subscription.SubscribedState))
 		} else {
-			err = e.Websocket.RemoveSubscriptions(conn, subs...)
+			err = e.Websocket.RemoveSubscriptions(e.Websocket.Conn, subs...)
 		}
 	}
 
 	return err
 }
 
-// ProcessUpdate processes the websocket orderbook update
-func (e *Exchange) ProcessUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDepthStream) error {
+// ProcessOrderbookUpdate processes the websocket orderbook update
+func (e *Exchange) ProcessOrderbookUpdate(cp currency.Pair, a asset.Item, ws *WebsocketDepthStream) error {
 	return e.Websocket.Orderbook.Update(&orderbook.Update{
-		Bids:       orderbook.Levels(ws.UpdateBids),
-		Asks:       orderbook.Levels(ws.UpdateAsks),
+		Bids:       ws.UpdateBids.Levels(),
+		Asks:       ws.UpdateAsks.Levels(),
 		Pair:       cp,
 		UpdateID:   ws.LastUpdateID,
 		UpdateTime: ws.Timestamp.Time(),
@@ -603,13 +628,15 @@ func (e *Exchange) applyBufferUpdate(pair currency.Pair) error {
 	}
 
 	if recent != nil {
-		if err := e.obm.checkAndProcessOrderbookUpdate(e.ProcessUpdate, pair, recent); err != nil {
+		err = e.obm.checkAndProcessOrderbookUpdate(e.ProcessOrderbookUpdate, pair, recent)
+		if err != nil {
 			log.Errorf(
 				log.WebsocketMgr,
 				"%s error processing update - initiating new orderbook sync via REST: %s\n",
 				e.Name,
 				err)
-			if err := e.obm.setNeedsFetchingBook(pair); err != nil {
+			err = e.obm.setNeedsFetchingBook(pair)
+			if err != nil {
 				return err
 			}
 		}
@@ -657,18 +684,21 @@ func (e *Exchange) SynchroniseWebsocketOrderbook(ctx context.Context) {
 
 // processJob fetches and processes orderbook updates
 func (e *Exchange) processJob(ctx context.Context, p currency.Pair) error {
-	if err := e.SeedLocalCache(ctx, p); err != nil {
+	err := e.SeedLocalCache(ctx, p)
+	if err != nil {
 		return fmt.Errorf("%s %s seeding local cache for orderbook error: %v",
 			p, asset.Spot, err)
 	}
 
-	if err := e.obm.stopFetchingBook(p); err != nil {
+	err = e.obm.stopFetchingBook(p)
+	if err != nil {
 		return err
 	}
 
 	// Immediately apply the buffer updates so we don't wait for a
 	// new update to initiate this.
-	if err := e.applyBufferUpdate(p); err != nil {
+	err = e.applyBufferUpdate(p)
+	if err != nil {
 		e.invalidateAndCleanupOrderbook(p)
 		return err
 	}
@@ -859,7 +889,8 @@ buffer:
 				return err
 			}
 			if process {
-				if err := processor(pair, asset.Spot, d); err != nil {
+				err := processor(pair, asset.Spot, d)
+				if err != nil {
 					return fmt.Errorf("%s %s processing update error: %w",
 						pair, asset.Spot, err)
 				}
@@ -939,36 +970,41 @@ func (o *orderbookManager) stopNeedsFetchingBook(pair currency.Pair) error {
 	return nil
 }
 
-var klineIntervalList = []*struct {
-	Interval kline.Interval
-	String   string
-}{
-	{String: "1s", Interval: kline.ThousandMilliseconds},
-	{String: "1m", Interval: kline.OneMin},
-	{String: "3m", Interval: kline.ThreeMin},
-	{String: "5m", Interval: kline.FiveMin},
-	{String: "15m", Interval: kline.FifteenMin},
-	{String: "30m", Interval: kline.ThirtyMin},
-	{String: "1h", Interval: kline.OneHour},
-	{String: "2h", Interval: kline.TwoHour},
-	{String: "4h", Interval: kline.FourHour},
-	{String: "6h", Interval: kline.SixHour},
-	{String: "8h", Interval: kline.EightHour},
-	{String: "12h", Interval: kline.TwelveHour},
-	{String: "1d", Interval: kline.OneDay},
-	{String: "3d", Interval: kline.ThreeDay},
-	{String: "1w", Interval: kline.OneWeek},
-	{String: "1M", Interval: kline.OneMonth},
-}
-
-// stringToInterval returns interval from string
-func formatToInterval(intervalString string) (kline.Interval, error) {
-	for _, interval := range klineIntervalList {
-		if interval.String == intervalString {
-			return interval.Interval, nil
-		}
+func formatToInterval(interval string) (kline.Interval, error) {
+	switch interval {
+	case "1m":
+		return kline.OneMin, nil
+	case "3m":
+		return kline.ThreeMin, nil
+	case "5m":
+		return kline.FiveMin, nil
+	case "15m":
+		return kline.FifteenMin, nil
+	case "30m":
+		return kline.ThirtyMin, nil
+	case "1h":
+		return kline.OneHour, nil
+	case "2h":
+		return kline.TwoHour, nil
+	case "4h":
+		return kline.FourHour, nil
+	case "6h":
+		return kline.SixHour, nil
+	case "8h":
+		return kline.EightHour, nil
+	case "12h":
+		return kline.TwelveHour, nil
+	case "1d":
+		return kline.OneDay, nil
+	case "3d":
+		return kline.ThreeDay, nil
+	case "1w":
+		return kline.OneWeek, nil
+	case "1M":
+		return kline.OneMonth, nil
+	default:
+		return 0, fmt.Errorf("%w: %q", kline.ErrInvalidInterval, interval)
 	}
-	return 0, fmt.Errorf("%w: %q", kline.ErrInvalidInterval, intervalString)
 }
 
 const subTplText = `
