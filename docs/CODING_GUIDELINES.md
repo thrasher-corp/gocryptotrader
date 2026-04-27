@@ -88,6 +88,17 @@ Refer to the [ADD_NEW_EXCHANGE.md](/docs/ADD_NEW_EXCHANGE.md) document for compr
     }
 ```
 
+- Prefer package-level sentinel errors for validation, parsing, and custom unmarshalling failures that produce deterministic, testable outcomes when callers or tests need stable `errors.Is` matching.
+- When returning additional context for a sentinel error, wrap the sentinel with `fmt.Errorf` and `%w` rather than replacing it with a new inline `errors.New(...)` value.
+
+```go
+    var errInvalidOrderSide = errors.New("invalid order side")
+
+    if side == "" {
+        return fmt.Errorf("%w: empty input", errInvalidOrderSide)
+    }
+```
+
 - Prefer meaningful and specific error messages that identify the operation being performed.
 - Always include enough context in errors to aid in debugging and traceability.
 - Do not use panic; always return and propagate errors cleanly.
@@ -131,6 +142,11 @@ Use `require` and `assert` appropriately:
     // Wrong — f variant used without format verbs:
     assert.ErrorIsf(t, err, errInvalidOrderSize, "validate should return expected error")
 ```
+
+#### Sentinel error coverage
+
+- When returning sentinel errors directly or wrapped, add direct `assert.ErrorIs` or `require.ErrorIs` coverage for that path.
+- For validation and custom unmarshalling helpers, prefer a focused test for the exact sentinel error path rather than relying only on indirect endpoint coverage.
 
 ### Test Coverage
 
@@ -199,7 +215,19 @@ Run the following to check for linting issues:
     golangci-lint run ./... (or make lint)
 ```
 
-Several other miscellaneous checks will be run via [GitHub actions](/.github/workflows/misc.yml).
+Run the miscellaneous repository checks locally with:
+
+```console
+    make misc_checks
+```
+
+The full local verification flow can be run with:
+
+```console
+    make check
+```
+
+This includes linting, miscellaneous checks and tests. The same miscellaneous checks are also run via [GitHub actions](/.github/workflows/misc.yml).
 
 - All lint warnings and errors must be resolved before merging.
 - Use `//nolint:linter-name` sparingly and always explain the reason in a comment next to the code.

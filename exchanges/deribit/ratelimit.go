@@ -19,6 +19,10 @@ const (
 	matchingEPL
 	portfolioMarginEPL
 	privatePortfolioMarginEPL
+	blockTradeReadEPL
+	blockTradeWriteEPL
+	blockRFQReadEPL
+	blockRFQWriteEPL
 )
 
 // GetRateLimits returns the rate limit for the exchange
@@ -28,5 +32,9 @@ func GetRateLimits() request.RateLimitDefinitions {
 		matchingEPL:               request.GetRateLimiterWithWeight(request.NewRateLimit(time.Second, minMatchingBurst), matchingWeight),
 		portfolioMarginEPL:        request.GetRateLimiterWithWeight(request.NewRateLimit(5*time.Second, portfoliMarginRate), standardWeight),
 		privatePortfolioMarginEPL: request.GetRateLimiterWithWeight(request.NewRateLimit(5*time.Second, portfoliMarginRate), standardWeight),
+		blockTradeReadEPL:         request.GetRateLimiterWithWeight(request.NewRateLimit(time.Second, nonMatchingRate), standardWeight),
+		blockTradeWriteEPL:        request.GetRateLimiterWithWeight(request.NewRateLimit(time.Second, nonMatchingRate), standardWeight),
+		blockRFQReadEPL:           request.GetRateLimiterWithWeight(request.NewRateLimit(time.Second, nonMatchingRate), standardWeight),
+		blockRFQWriteEPL:          request.GetRateLimiterWithWeight(request.NewRateLimit(time.Second, nonMatchingRate), standardWeight),
 	}
 }
