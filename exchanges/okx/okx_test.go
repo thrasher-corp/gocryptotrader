@@ -460,10 +460,14 @@ func TestGetOpenInterestData(t *testing.T) {
 	require.NoError(t, err, "GetAvailablePairs must not error")
 	require.NotEmpty(t, p, "GetAvailablePairs must not return empty pairs")
 
+	instrumentID := strings.Replace(p[0].String(), "_UM", "", 1)
 	uly, err := e.underlyingFromInstID(instTypeOption, p[0].String())
 	require.NoError(t, err)
+	instFamily, err := e.instrumentFamilyFromInstID(instTypeOption, p[0].String())
+	require.NoError(t, err)
+	instFamily = strings.Replace(instFamily, "_UM", "", 1)
 
-	result, err := e.GetOpenInterestData(contextGenerate(), instTypeOption, uly, optionsPair.String(), p[0].String())
+	result, err := e.GetOpenInterestData(contextGenerate(), instTypeOption, uly, instFamily, instrumentID)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
