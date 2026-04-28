@@ -465,7 +465,6 @@ func TestGetOpenInterestData(t *testing.T) {
 	require.NoError(t, err)
 	instFamily, err := e.instrumentFamilyFromInstID(instTypeOption, p[0].String())
 	require.NoError(t, err)
-	instFamily = strings.Replace(instFamily, "_UM", "", 1)
 
 	result, err := e.GetOpenInterestData(contextGenerate(), instTypeOption, uly, instFamily, instrumentID)
 	require.NoError(t, err)
@@ -6153,14 +6152,14 @@ func (e *Exchange) instrumentFamilyFromInstID(instrumentType, instID string) (st
 		}
 		for a := range insts {
 			if insts[a].InstrumentID.String() == instID {
-				return insts[a].InstrumentFamily, nil
+				return strings.Replace(insts[a].InstrumentFamily, "_UM", "", 1), nil
 			}
 		}
 	} else {
 		for _, insts := range e.instrumentsInfoMap {
 			for a := range insts {
 				if insts[a].InstrumentID.String() == instID {
-					return insts[a].InstrumentFamily, nil
+					return strings.Replace(insts[a].InstrumentFamily, "_UM", "", 1), nil
 				}
 			}
 		}
