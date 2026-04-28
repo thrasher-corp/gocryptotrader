@@ -438,7 +438,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 		pairs := make([]currency.Pair, 0, len(tradables))
 		for x := range tradables {
-			if tradables[x].Status == 0 {
+			if tradables[x].Status == 0 || tradables[x].MinBaseAmount.Float64() == 0 { // Pairs with min_base_amount == 0 are effectively dead and skipped.
 				continue
 			}
 			pairs = append(pairs, tradables[x].ID)
@@ -1937,11 +1937,84 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			}
 			l = append(l, limits.MinMaxLevel{
 				Key:                     key.NewExchangeAssetPair(e.Name, a, currency.NewPair(pairsData[i].Base, pairsData[i].Quote)),
-				QuoteStepIncrementSize:  math.Pow10(-int(pairsData[i].PricePrecision)),
+				PriceStepIncrementSize:  math.Pow10(-int(pairsData[i].PricePrecision)),
 				AmountStepIncrementSize: math.Pow10(-int(pairsData[i].AmountPrecision)),
 				MinimumBaseAmount:       minBaseAmount,
 				MinimumQuoteAmount:      pairsData[i].MinQuoteAmount.Float64(),
+				MaximumBaseAmount:       pairsData[i].MaxBaseAmount.Float64(),
+				MaximumQuoteAmount:      pairsData[i].MaxQuoteAmount.Float64(),
 				Delisted:                pairsData[i].DelistingTime.Time(),
+				Listed:                  oldestTime(pairsData[i].SellStart.Time(), pairsData[i].BuyStart.Time()),
+				MultiplierUp:            pairsData[i].MaximumQuoteRisePercentage.Float64(),
+				MultiplierDown:          pairsData[i].MaximumQuoteDeclinePercentage.Float64(),
+				MarketMaxQty:            pairsData[i].MarketOrderMaxStock.Float64(),
+			})
+		}
+	case asset.Margin, asset.CrossMargin:
+		marginPairs, err := e.GetMarginSupportedCurrencyPairs(ctx)
+		if err != nil {
+			return err
+		}
+
+		supported := make(map[currency.Pair]*MarginCurrencyPairInfo, len(marginPairs))
+		for i := range marginPairs {
+			if marginPairs[i].Status == 0 || marginPairs[i].MinBaseAmount.Float64() == 0 { // Pairs with min_base_amount == 0 are effectively dead and skipped.
+				continue
+			}
+			supported[currency.NewPair(marginPairs[i].Base, marginPairs[i].Quote)] = &marginPairs[i]
+		}
+
+		// Spot data provides precision and step size; filter to margin-supported pairs only.
+		// Note: we do NOT skip "untradable" spot pairs here because margin availability
+		// is determined by the margin API status, not the spot trade status.
+		pairsData, err := e.ListSpotCurrencyPairs(ctx)
+		if err != nil {
+			return err
+		}
+
+		l = make([]limits.MinMaxLevel, 0, len(supported))
+		for i := range pairsData {
+			p := currency.NewPair(pairsData[i].Base, pairsData[i].Quote)
+			mInfo, ok := supported[p]
+			if !ok {
+				continue
+			}
+			delete(supported, p) // Track coverage; remainder handled below.
+
+			minQuoteAmount := mInfo.MinQuoteAmount.Float64()
+			if minQuoteAmount == 0 {
+				minQuoteAmount = pairsData[i].MinQuoteAmount.Float64()
+			}
+
+			maxQuoteAmount := mInfo.MaxQuoteAmount.Float64()
+			if maxQuoteAmount == 0 {
+				maxQuoteAmount = pairsData[i].MaxQuoteAmount.Float64()
+			}
+
+			l = append(l, limits.MinMaxLevel{
+				Key:                     key.NewExchangeAssetPair(e.Name, a, p),
+				PriceStepIncrementSize:  math.Pow10(-int(pairsData[i].PricePrecision)),
+				AmountStepIncrementSize: math.Pow10(-int(pairsData[i].AmountPrecision)),
+				MinimumBaseAmount:       mInfo.MinBaseAmount.Float64(),
+				MinimumQuoteAmount:      minQuoteAmount,
+				MaximumBaseAmount:       pairsData[i].MaxBaseAmount.Float64(),
+				MaximumQuoteAmount:      maxQuoteAmount,
+				Delisted:                pairsData[i].DelistingTime.Time(),
+				Listed:                  oldestTime(pairsData[i].SellStart.Time(), pairsData[i].BuyStart.Time()),
+				MultiplierUp:            pairsData[i].MaximumQuoteRisePercentage.Float64(),
+				MultiplierDown:          pairsData[i].MaximumQuoteDeclinePercentage.Float64(),
+				MarketMaxQty:            pairsData[i].MarketOrderMaxStock.Float64(),
+			})
+		}
+
+		// Any margin pairs that weren't found in spot data still need limits
+		// (e.g. pairs only listable on margin). Use margin data with defaults.
+		for pair, mInfo := range supported {
+			l = append(l, limits.MinMaxLevel{
+				Key:                key.NewExchangeAssetPair(e.Name, a, pair),
+				MinimumBaseAmount:  mInfo.MinBaseAmount.Float64(),
+				MinimumQuoteAmount: mInfo.MinQuoteAmount.Float64(),
+				MaximumQuoteAmount: mInfo.MaxQuoteAmount.Float64(),
 			})
 		}
 	case asset.USDTMarginedFutures, asset.CoinMarginedFutures:
@@ -2043,6 +2116,20 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	}
 
 	return limits.Load(l)
+}
+
+// oldestTime returns the oldest non-zero time from a list of times. If all times are zero, it returns a zero time.
+func oldestTime(times ...time.Time) time.Time {
+	var listed time.Time
+	for i := range times {
+		if times[i].IsZero() || !times[i].Before(time.Now()) {
+			continue
+		}
+		if listed.IsZero() || times[i].Before(listed) {
+			listed = times[i]
+		}
+	}
+	return listed
 }
 
 // MBABYDOGE price is 1e6 x spot price for futures contracts. This is the only currency that has this characteristic.
@@ -2504,7 +2591,7 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	}
 
 	switch s.AssetType {
-	case asset.Spot:
+	case asset.Spot, asset.Margin, asset.CrossMargin:
 		req, err := e.getSpotOrderRequest(s)
 		if err != nil {
 			return nil, err
@@ -2778,6 +2865,8 @@ func (e *Exchange) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequest, er
 		CurrencyPair: s.Pair,
 		Text:         s.ClientOrderID,
 		TimeInForce:  tif,
+		AutoBorrow:   s.AutoBorrow,
+		AutoRepay:    s.AutoRepay,
 	}, nil
 }
 

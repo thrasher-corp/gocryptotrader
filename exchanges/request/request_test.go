@@ -94,6 +94,9 @@ func TestMain(m *testing.M) {
 			log.Fatal(err)
 		}
 	})
+	sm.HandleFunc("/nocontent", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
 
 	server := httptest.NewServer(sm)
 	testURL = server.URL
@@ -305,6 +308,113 @@ func TestDoRequest(t *testing.T) {
 	}
 
 	require.NoError(t, ec.Collect(), "Collect must return no errors")
+}
+
+func TestDoRequest_NoContent(t *testing.T) {
+	t.Parallel()
+	newRequester := func(t *testing.T) *Requester {
+		t.Helper()
+		r, err := New("test", common.NewHTTPClientWithTimeout(0), WithLimiter(globalshell))
+		require.NoError(t, err, "New requester must not error")
+		t.Cleanup(func() { assert.NoError(t, r.Shutdown(), "Shutdown should not error") })
+		return r
+	}
+
+	scenarioTests := []struct {
+		name string
+		run  func(t *testing.T)
+	}{
+		{
+			name: "no content zero value result remains unchanged",
+			run: func(t *testing.T) {
+				t.Helper()
+				r := newRequester(t)
+				var resp struct {
+					Response bool `json:"response"`
+				}
+				err := r.SendPayload(t.Context(), UnAuth, func() (*Item, error) {
+					return &Item{
+						Method: http.MethodPost,
+						Path:   testURL + "/nocontent",
+						Result: &resp,
+					}, nil
+				}, UnauthenticatedRequest)
+				require.NoError(t, err, "SendPayload must not error on 204 No Content")
+				assert.False(t, resp.Response, "result should remain zero value on 204 No Content")
+			},
+		},
+		{
+			name: "no content pre populated result remains unchanged",
+			run: func(t *testing.T) {
+				t.Helper()
+				r := newRequester(t)
+				resp := struct {
+					Response bool `json:"response"`
+				}{
+					Response: true,
+				}
+				err := r.SendPayload(t.Context(), UnAuth, func() (*Item, error) {
+					return &Item{
+						Method: http.MethodPost,
+						Path:   testURL + "/nocontent",
+						Result: &resp,
+					}, nil
+				}, UnauthenticatedRequest)
+				require.NoError(t, err, "SendPayload must not error on 204 No Content")
+				assert.True(t, resp.Response, "result should remain unchanged when unmarshalling is skipped on 204 No Content")
+			},
+		},
+		{
+			name: "no content nil result must not error",
+			run: func(t *testing.T) {
+				t.Helper()
+				r := newRequester(t)
+				err := r.SendPayload(t.Context(), UnAuth, func() (*Item, error) {
+					return &Item{
+						Method: http.MethodPost,
+						Path:   testURL + "/nocontent",
+					}, nil
+				}, UnauthenticatedRequest)
+				require.NoError(t, err, "SendPayload must not error on 204 No Content with nil Result")
+			},
+		},
+		{
+			name: "no content header response must be copied",
+			run: func(t *testing.T) {
+				t.Helper()
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.Header().Set("X-No-Content", "true")
+					w.WriteHeader(http.StatusNoContent)
+				}))
+				t.Cleanup(server.Close)
+
+				r := newRequester(t)
+				headers := http.Header{}
+				var resp struct {
+					Response bool `json:"response"`
+				}
+				err := r.SendPayload(t.Context(), UnAuth, func() (*Item, error) {
+					return &Item{
+						Method:         http.MethodPost,
+						Path:           server.URL,
+						Result:         &resp,
+						HeaderResponse: &headers,
+					}, nil
+				}, UnauthenticatedRequest)
+				require.NoError(t, err, "SendPayload must not error on 204 No Content with headers")
+				assert.Equal(t, "true", headers.Get("X-No-Content"), "HeaderResponse should contain custom headers for 204 No Content")
+				assert.Equal(t, "application/json", headers.Get("Content-Type"), "HeaderResponse should contain Content-Type for 204 No Content")
+				assert.False(t, resp.Response, "result should remain zero value when 204 No Content has headers")
+			},
+		},
+	}
+	for _, tc := range scenarioTests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tc.run(t)
+		})
+	}
 }
 
 func TestDoRequest_Retries(t *testing.T) {
