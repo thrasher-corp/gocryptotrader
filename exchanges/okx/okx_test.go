@@ -460,10 +460,10 @@ func TestGetOpenInterestData(t *testing.T) {
 	require.NoError(t, err, "GetAvailablePairs must not error")
 	require.NotEmpty(t, p, "GetAvailablePairs must not return empty pairs")
 
-	instrumentID := strings.Replace(p[0].String(), "_UM", "", 1)
-	uly, err := e.underlyingFromInstID(instTypeOption, p[0].String())
+	instrumentID := p[0].String()
+	uly, err := e.underlyingFromInstID(instTypeOption, instrumentID)
 	require.NoError(t, err)
-	instFamily, err := e.instrumentFamilyFromInstID(instTypeOption, p[0].String())
+	instFamily, err := e.instrumentFamilyFromInstID(instTypeOption, instrumentID)
 	require.NoError(t, err)
 
 	result, err := e.GetOpenInterestData(contextGenerate(), instTypeOption, uly, instFamily, instrumentID)
@@ -6152,14 +6152,14 @@ func (e *Exchange) instrumentFamilyFromInstID(instrumentType, instID string) (st
 		}
 		for a := range insts {
 			if insts[a].InstrumentID.String() == instID {
-				return strings.Replace(insts[a].InstrumentFamily, "_UM", "", 1), nil
+				return insts[a].InstrumentFamily, nil
 			}
 		}
 	} else {
 		for _, insts := range e.instrumentsInfoMap {
 			for a := range insts {
 				if insts[a].InstrumentID.String() == instID {
-					return strings.Replace(insts[a].InstrumentFamily, "_UM", "", 1), nil
+					return insts[a].InstrumentFamily, nil
 				}
 			}
 		}
