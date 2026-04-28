@@ -216,7 +216,7 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 		return err
 	}
 
-	err = bt.orderManager.Start()
+	err = bt.orderManager.Start(context.Background())
 	if err != nil {
 		return err
 	}
