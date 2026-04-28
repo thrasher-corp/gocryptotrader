@@ -70,6 +70,10 @@ func (m *mockEx) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
 	return m.pairs[a], m.errPairs
 }
 
+func (m *mockEx) GetAvailablePairs(a asset.Item) (currency.Pairs, error) {
+	return m.pairs[a], m.errPairs
+}
+
 func (m *mockEx) GetPairFormat(_ asset.Item, _ bool) (currency.PairFormat, error) {
 	return currency.PairFormat{Uppercase: true, Delimiter: "-"}, m.errFormat
 }

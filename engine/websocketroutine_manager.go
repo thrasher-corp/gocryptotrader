@@ -220,50 +220,34 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ws *websocket.Manager) e
 func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any) error {
 	switch d := data.(type) {
 	case string:
+		if !m.verbose {
+			return nil
+		}
 		log.Infoln(log.WebsocketMgr, d)
 	case error:
 		return fmt.Errorf("exchange %s websocket error - %s", exchName, data)
 	case websocket.FundingData:
-		if m.verbose {
-			log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v",
-				exchName,
-				m.FormatCurrency(d.CurrencyPair),
-				d.AssetType,
-				d)
+		if !m.verbose {
+			return nil
 		}
+		log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v", exchName, m.FormatCurrency(d.CurrencyPair), d.AssetType, d)
 	case *ticker.Price:
-		if m.syncer.IsRunning() {
-			err := m.syncer.WebsocketUpdate(exchName,
-				d.Pair,
-				d.AssetType,
-				SyncItemTicker,
-				nil)
-			if err != nil {
-				return err
-			}
+		if !m.syncer.IsRunning() {
+			return nil
 		}
-		err := ticker.ProcessTicker(d)
-		if err != nil {
-			return err
-		}
+		err := m.syncer.WebsocketUpdate(exchName, d.Pair, d.AssetType, SyncItemTicker, nil)
 		m.syncer.PrintTickerSummary(d, "websocket", err)
+		return err
 	case []ticker.Price:
+		if !m.syncer.IsRunning() {
+			return nil
+		}
 		for x := range d {
-			if m.syncer.IsRunning() {
-				err := m.syncer.WebsocketUpdate(exchName,
-					d[x].Pair,
-					d[x].AssetType,
-					SyncItemTicker,
-					nil)
-				if err != nil {
-					return err
-				}
-			}
-			err := ticker.ProcessTicker(&d[x])
+			err := m.syncer.WebsocketUpdate(exchName, d[x].Pair, d[x].AssetType, SyncItemTicker, nil)
+			m.syncer.PrintTickerSummary(&d[x], "websocket", err)
 			if err != nil {
 				return err
 			}
-			m.syncer.PrintTickerSummary(&d[x], "websocket", err)
 		}
 	case order.Detail, ticker.Price, orderbook.Depth:
 		return errUseAPointer
@@ -286,19 +270,15 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 			}
 		}
 	case *orderbook.Depth:
+		if !m.syncer.IsRunning() {
+			return nil
+		}
 		base, err := d.Retrieve()
 		if err != nil {
 			return err
 		}
-		if m.syncer.IsRunning() {
-			err := m.syncer.WebsocketUpdate(exchName,
-				base.Pair,
-				base.Asset,
-				SyncItemOrderbook,
-				nil)
-			if err != nil {
-				return err
-			}
+		if err := m.syncer.WebsocketUpdate(exchName, base.Pair, base.Asset, SyncItemOrderbook, nil); err != nil {
+			return err
 		}
 		m.syncer.PrintOrderbookSummary(base, "websocket", nil)
 	case *order.Detail:
@@ -306,8 +286,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 			return nil
 		}
 		if !m.orderManager.Exists(d) {
-			err := m.orderManager.Add(d)
-			if err != nil {
+			if err := m.orderManager.Add(d); err != nil {
 				return err
 			}
 			m.printOrderSummary(d, false)
@@ -316,13 +295,11 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 			if err != nil {
 				return err
 			}
-			err = od.UpdateOrderFromDetail(d)
-			if err != nil {
+			if err := od.UpdateOrderFromDetail(d); err != nil {
 				return err
 			}
 
-			err = m.orderManager.UpdateExistingOrder(od)
-			if err != nil {
+			if err := m.orderManager.UpdateExistingOrder(od); err != nil {
 				return err
 			}
 			m.printOrderSummary(od, true)
@@ -333,8 +310,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		}
 		for x := range d {
 			if !m.orderManager.Exists(&d[x]) {
-				err := m.orderManager.Add(&d[x])
-				if err != nil {
+				if err := m.orderManager.Add(&d[x]); err != nil {
 					return err
 				}
 				m.printOrderSummary(&d[x], false)
@@ -343,37 +319,47 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 				if err != nil {
 					return err
 				}
-				err = od.UpdateOrderFromDetail(&d[x])
-				if err != nil {
+				if err := od.UpdateOrderFromDetail(&d[x]); err != nil {
 					return err
 				}
-				err = m.orderManager.UpdateExistingOrder(od)
-				if err != nil {
+				if err := m.orderManager.UpdateExistingOrder(od); err != nil {
 					return err
 				}
 				m.printOrderSummary(od, true)
 			}
 		}
-	case order.ClassificationError:
-		return fmt.Errorf("%w %s", d.Err, d.Error())
 	case websocket.UnhandledMessageWarning:
 		log.Warnf(log.WebsocketMgr, "%s unhandled message - %s", exchName, d.Message)
 	case []accounts.Change, accounts.Change:
-		if m.verbose {
-			log.Debugf(log.WebsocketMgr, "%s %+v", exchName, d)
+		if !m.verbose {
+			return nil
 		}
-	case []trade.Data, trade.Data:
-		if m.verbose {
-			log.Infof(log.Trade, "%+v", d)
+		log.Debugf(log.WebsocketMgr, "%s %+v", exchName, d)
+	case []trade.Data:
+		if !m.verbose {
+			return nil
 		}
+		log.Infof(log.Trade, "%+v", d)
+	case trade.Data:
+		if !m.verbose {
+			return nil
+		}
+		log.Infof(log.Trade, "%+v", d)
 	case []fill.Data:
-		if m.verbose {
-			log.Infof(log.Fill, "%+v", d)
+		if !m.verbose {
+			return nil
 		}
+		log.Infof(log.Fill, "%+v", d)
+	case fill.Data:
+		if !m.verbose {
+			return nil
+		}
+		log.Infof(log.Fill, "%+v", d)
 	default:
-		if m.verbose {
-			log.Warnf(log.WebsocketMgr, "%s websocket Unknown type: %+v", exchName, d)
+		if !m.verbose {
+			return nil
 		}
+		log.Warnf(log.WebsocketMgr, "%s websocket Unknown type: %+v", exchName, d)
 	}
 	return nil
 }

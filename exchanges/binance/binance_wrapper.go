@@ -341,7 +341,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 			return err
 		}
 
-		pairs, err := e.GetEnabledPairs(a)
+		pairs, err := e.GetAvailablePairs(a)
 		if err != nil {
 			return err
 		}
@@ -516,7 +516,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := e.CurrencyPairs.IsAssetEnabled(a); err != nil {
+	if err := e.IsAssetAvailable(a); err != nil {
 		return nil, err
 	}
 
@@ -741,8 +741,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 	}
 
 	if e.IsSaveTradeDataEnabled() {
-		err := trade.AddTradesToBuffer(resp...)
-		if err != nil {
+		if err := trade.AddTradesToBuffer(resp...); err != nil {
 			return nil, err
 		}
 	}
@@ -753,7 +752,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
 func (e *Exchange) GetHistoricTrades(ctx context.Context, p currency.Pair, a asset.Item, from, to time.Time) ([]trade.Data, error) {
-	if err := e.CurrencyPairs.IsAssetEnabled(a); err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(a); err != nil {
 		return nil, err
 	}
 	if a != asset.Spot {
@@ -987,13 +986,11 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 			return err
 		}
 	case asset.CoinMarginedFutures:
-		_, err := e.FuturesCancelOrder(ctx, o.Pair, o.OrderID, "")
-		if err != nil {
+		if _, err := e.FuturesCancelOrder(ctx, o.Pair, o.OrderID, ""); err != nil {
 			return err
 		}
 	case asset.USDTMarginedFutures:
-		_, err := e.UCancelOrder(ctx, o.Pair, o.OrderID, "")
-		if err != nil {
+		if _, err := e.UCancelOrder(ctx, o.Pair, o.OrderID, ""); err != nil {
 			return err
 		}
 	}
@@ -1040,8 +1037,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (orde
 				}
 			}
 		} else {
-			_, err := e.FuturesCancelAllOpenOrders(ctx, req.Pair)
-			if err != nil {
+			if _, err := e.FuturesCancelAllOpenOrders(ctx, req.Pair); err != nil {
 				return cancelAllOrdersResponse, err
 			}
 		}
@@ -1058,8 +1054,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (orde
 				}
 			}
 		} else {
-			_, err := e.UCancelAllOpenOrders(ctx, req.Pair)
-			if err != nil {
+			if _, err := e.UCancelAllOpenOrders(ctx, req.Pair); err != nil {
 				return cancelAllOrdersResponse, err
 			}
 		}
@@ -1074,7 +1069,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(assetType); err != nil {
 		return nil, err
 	}
 
@@ -1246,8 +1241,7 @@ func (e *Exchange) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 
 // GetActiveOrders retrieves any orders that are active/open
 func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
-	err := req.Validate()
-	if err != nil {
+	if err := req.Validate(); err != nil {
 		return nil, err
 	}
 	if len(req.Pairs) == 0 || len(req.Pairs) >= 40 {
@@ -1368,8 +1362,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
-	err := req.Validate()
-	if err != nil {
+	if err := req.Validate(); err != nil {
 		return nil, err
 	}
 	if len(req.Pairs) == 0 {
@@ -1918,13 +1911,12 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		resp := make([]fundingrate.LatestRateResponse, 0, len(mp))
 		for i := range mp {
 			var cp currency.Pair
-			var isEnabled bool
-			cp, isEnabled, err = e.MatchSymbolCheckEnabled(mp[i].Symbol, r.Asset, true)
-			if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+			cp, err = e.MatchSymbolWithAvailablePairs(mp[i].Symbol, r.Asset, true)
+			if err != nil {
+				if errors.Is(err, currency.ErrPairNotFound) {
+					continue
+				}
 				return nil, err
-			}
-			if !isEnabled {
-				continue
 			}
 			var isPerp bool
 			isPerp, err = e.IsPerpetualFutureCurrency(r.Asset, cp)
@@ -2948,8 +2940,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (e *Exchange) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := e.CurrencyPairs.IsPairEnabled(cp, a)
-	if err != nil {
+	if _, err := e.CurrencyPairs.IsPairAvailable(cp, a); err != nil {
 		return "", err
 	}
 	symbol, err := e.FormatSymbol(cp, a)

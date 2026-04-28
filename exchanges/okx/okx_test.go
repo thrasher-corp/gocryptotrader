@@ -4187,8 +4187,8 @@ func TestWSProcessTrades(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	assets, err := e.getAssetsFromInstrumentID(mainPair.String())
-	require.NoError(t, err, "getAssetsFromInstrumentID must not error")
+	assets, err := e.getAssetsFromInstrumentIDWithCheck(mainPair.String(), false)
+	require.NoError(t, err, "getAssetsFromInstrumentIDWithCheck must not error")
 
 	p := currency.NewPairWithDelimiter("BTC", "USDT", currency.DashDelimiter)
 
@@ -4411,11 +4411,11 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
 
-	_, err := e.getAssetsFromInstrumentID("")
+	_, err := e.getAssetsFromInstrumentIDWithCheck("", false)
 	assert.ErrorIs(t, err, errMissingInstrumentID)
 
 	for _, a := range []asset.Item{asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Options} {
-		assets, err2 := e.getAssetsFromInstrumentID(e.CurrencyPairs.Pairs[a].Enabled[0].String())
+		assets, err2 := e.getAssetsFromInstrumentIDWithCheck(e.CurrencyPairs.Pairs[a].Enabled[0].String(), false)
 		require.NoErrorf(t, err2, "GetAssetsFromInstrumentTypeOrID must not error for asset: %s", a)
 		switch a {
 		case asset.Spot, asset.Margin:
@@ -4427,16 +4427,34 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 		assert.Containsf(t, assets, a, "Should contain asset: %s", a)
 	}
 
-	_, err = e.getAssetsFromInstrumentID("test")
+	_, err = e.getAssetsFromInstrumentIDWithCheck("test", false)
 	assert.ErrorIs(t, err, currency.ErrCurrencyNotSupported)
-	_, err = e.getAssetsFromInstrumentID("test-test")
-	assert.ErrorIs(t, err, asset.ErrNotEnabled)
+	_, err = e.getAssetsFromInstrumentIDWithCheck("test-test", false)
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
 	for _, a := range []asset.Item{asset.Margin, asset.Spot} {
-		assets, err2 := e.getAssetsFromInstrumentID(e.CurrencyPairs.Pairs[a].Enabled[0].String())
+		assets, err2 := e.getAssetsFromInstrumentIDWithCheck(e.CurrencyPairs.Pairs[a].Enabled[0].String(), false)
 		require.NoErrorf(t, err2, "GetAssetsFromInstrumentTypeOrID must not error for asset: %s", a)
 		assert.Contains(t, assets, a)
 	}
+
+	t.Run("EnabledLookupCanDifferFromAvailableLookup", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+
+		pair := ex.CurrencyPairs.Pairs[asset.Spot].Enabled[0]
+		require.NoError(t, ex.CurrencyPairs.DisablePair(asset.Spot, pair), "DisablePair must not error")
+
+		availableAssets, err := ex.getAssetsFromInstrumentIDWithCheck(pair.String(), false)
+		require.NoError(t, err, "getAssetsFromInstrumentIDWithCheck must not error")
+		assert.Contains(t, availableAssets, asset.Spot, "available lookup should still include spot")
+
+		enabledAssets, err := ex.getAssetsFromInstrumentIDWithCheck(pair.String(), true)
+		require.NoError(t, err, "getAssetsFromInstrumentIDWithCheck must not error")
+		assert.NotContains(t, enabledAssets, asset.Spot, "enabled lookup should not include disabled spot pair")
+	})
 }
 
 func TestSetMarginType(t *testing.T) {
