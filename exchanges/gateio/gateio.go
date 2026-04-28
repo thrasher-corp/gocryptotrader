@@ -17,11 +17,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-<<<<<<< HEAD
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
-=======
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
->>>>>>> f841c6342c8502e521eacb2ce53380294a9d28d5
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
