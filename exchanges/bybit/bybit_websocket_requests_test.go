@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testutils "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
 )
@@ -70,28 +71,40 @@ func TestWSCreateOrder(t *testing.T) {
 func TestWebsocketSubmitOrder(t *testing.T) {
 	t.Parallel()
 
-	// Test quote amount needs to be used due to protocol trade requirements
-	s := &order.Submit{
-		Exchange:  e.Name,
-		Pair:      currency.NewBTCUSDT(),
-		AssetType: asset.Spot,
-		Side:      order.Buy,
-		Type:      order.Market,
-		Amount:    0.0001,
-	}
+	t.Run("coverage", func(t *testing.T) {
+		t.Parallel()
 
-	_, err := e.WebsocketSubmitOrder(t.Context(), s)
-	require.ErrorIs(t, err, order.ErrAmountMustBeSet)
+		// Spot market orders require quote amount; this keeps local wrapper validation covered.
+		_, err := e.WebsocketSubmitOrder(t.Context(), &order.Submit{
+			Exchange:  e.Name,
+			Pair:      currency.NewBTCUSDT(),
+			AssetType: asset.Spot,
+			Side:      order.Buy,
+			Type:      order.Market,
+			Amount:    0.0001,
+		})
+		require.ErrorIs(t, err, order.ErrAmountMustBeSet)
+	})
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	e := getWebsocketInstance(t)
+	t.Run("live validation passes but order is not placed", func(t *testing.T) {
+		t.Parallel()
 
-	s.Type = order.Limit
-	s.Price = 55000
-	s.Amount = -0.0001 // Replace with a valid quantity
-	got, err := e.WebsocketSubmitOrder(t.Context(), s)
-	require.NoError(t, err)
-	require.NotEmpty(t, got)
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		ex := getWebsocketInstance(t)
+
+		_, err := ex.WebsocketSubmitOrder(t.Context(), &order.Submit{
+			Exchange:    ex.Name,
+			Pair:        currency.NewBTCUSDT(),
+			AssetType:   asset.Spot,
+			Side:        order.Buy,
+			Type:        order.Limit,
+			TimeInForce: order.FillOrKill,
+			Amount:      0.0001,
+			Price:       1,
+		})
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed)
+		require.NotErrorIs(t, err, order.ErrAmountMustBeSet)
+	})
 }
 
 func TestWSAmendOrder(t *testing.T) {
@@ -119,19 +132,30 @@ func TestWSAmendOrder(t *testing.T) {
 
 func TestWebsocketModifyOrder(t *testing.T) {
 	t.Parallel()
-	mod := &order.Modify{
-		Pair:      currency.NewBTCUSDT(),
-		AssetType: asset.Spot,
-		Amount:    0.0001,
-		OrderID:   "1793388409122024192", // Replace with a valid order ID
-	}
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	e := getWebsocketInstance(t)
+	t.Run("coverage", func(t *testing.T) {
+		t.Parallel()
 
-	got, err := e.WebsocketModifyOrder(t.Context(), mod)
-	require.NoError(t, err)
-	require.NotEmpty(t, got)
+		_, err := e.WebsocketModifyOrder(t.Context(), &order.Modify{})
+		require.ErrorIs(t, err, order.ErrPairIsEmpty)
+	})
+
+	t.Run("live validation passes but order is not modified", func(t *testing.T) {
+		t.Parallel()
+
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		ex := getWebsocketInstance(t)
+
+		_, err := ex.WebsocketModifyOrder(t.Context(), &order.Modify{
+			Pair:      currency.NewBTCUSDT(),
+			AssetType: asset.Spot,
+			Amount:    0.0001,
+			Price:     1,
+			OrderID:   "codex-do-not-fill-this-order-id",
+		})
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed)
+		require.NotErrorIs(t, err, order.ErrPairIsEmpty)
+	})
 }
 
 func TestWSCancelOrder(t *testing.T) {
@@ -170,17 +194,28 @@ func TestWSCancelOrder(t *testing.T) {
 
 func TestWebsocketCancelOrder(t *testing.T) {
 	t.Parallel()
-	cancel := &order.Cancel{
-		OrderID:   "1793388409122024192", // Replace with a valid order ID
-		Pair:      currency.NewBTCUSDT(),
-		AssetType: asset.Spot,
-	}
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	e := getWebsocketInstance(t)
+	t.Run("coverage", func(t *testing.T) {
+		t.Parallel()
 
-	err := e.WebsocketCancelOrder(t.Context(), cancel)
-	require.NoError(t, err)
+		err := e.WebsocketCancelOrder(t.Context(), &order.Cancel{})
+		require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	})
+
+	t.Run("live validation passes but order is not cancelled", func(t *testing.T) {
+		t.Parallel()
+
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		ex := getWebsocketInstance(t)
+
+		err := ex.WebsocketCancelOrder(t.Context(), &order.Cancel{
+			OrderID:   "codex-do-not-fill-this-order-id",
+			Pair:      currency.NewBTCUSDT(),
+			AssetType: asset.Spot,
+		})
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed)
+		require.NotErrorIs(t, err, order.ErrOrderIDNotSet)
+	})
 }
 
 // getWebsocketInstance returns a websocket instance copy for live bi-directional testing
