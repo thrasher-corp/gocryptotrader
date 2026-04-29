@@ -33,6 +33,9 @@ const (
 	cnlRisk            = "RISK"
 	cnlOrderbookLevel1 = "LEVEL1"
 	cnlOrderbookLevel2 = "LEVEL2"
+
+	subscribeOperation   = "SUBSCRIBE"
+	unsubscribeOperation = "UNSUBSCRIBE"
 )
 
 var defaultSubscriptions = []string{
@@ -50,7 +53,7 @@ func (e *Exchange) WsConnect() error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
 	}
-	if err := e.Websocket.Conn.Dial(context.Background(), &gws.Dialer{Proxy: http.ProxyFromEnvironment}, http.Header{}); err != nil {
+	if err := e.Websocket.Conn.Dial(context.Background(), &gws.Dialer{Proxy: http.ProxyFromEnvironment}, http.Header{}, nil); err != nil {
 		return err
 	}
 	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
@@ -88,7 +91,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 		return err
 	}
 	switch resp.Type {
-	case "SUBSCRIBE":
+	case subscribeOperation:
 		var subsccefulySubscribedChannels subscription.List
 		for x := range resp.Channels {
 			subsccefulySubscribedChannels = append(subsccefulySubscribedChannels,
@@ -98,7 +101,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 				})
 		}
 		return e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, subsccefulySubscribedChannels...)
-	case "UNSUBSCRIBE":
+	case unsubscribeOperation:
 		var subsccefulySubscribedChannels subscription.List
 		for x := range resp.Channels {
 			subsccefulySubscribedChannels = append(subsccefulySubscribedChannels,
@@ -375,7 +378,7 @@ func (e *Exchange) GenerateDefaultSubscriptions() (subscription.List, error) {
 
 // Subscribe subscribe to channels
 func (e *Exchange) Subscribe(subscriptions subscription.List) error {
-	subscriptionPayloads, err := e.handleSubscriptions(subscriptions, "SUBSCRIBE")
+	subscriptionPayloads, err := e.handleSubscriptions(subscriptions, subscribeOperation)
 	if err != nil {
 		return err
 	}
@@ -384,7 +387,7 @@ func (e *Exchange) Subscribe(subscriptions subscription.List) error {
 
 // Unsubscribe unsubscribe to channels
 func (e *Exchange) Unsubscribe(subscriptions subscription.List) error {
-	subscriptionPayloads, err := e.handleSubscriptions(subscriptions, "UNSUBSCRIBE")
+	subscriptionPayloads, err := e.handleSubscriptions(subscriptions, unsubscribeOperation)
 	if err != nil {
 		return err
 	}

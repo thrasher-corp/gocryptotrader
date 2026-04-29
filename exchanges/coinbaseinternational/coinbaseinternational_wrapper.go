@@ -178,11 +178,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		if instrumentDetail.TradingState != "TRADING" {
 			continue
 		}
-		cp, err := currency.NewPairFromString(instrumentDetail.Symbol)
-		if err != nil {
-			return nil, err
-		}
-		pairs = append(pairs, cp)
+		pairs = append(pairs, instrumentDetail.Symbol)
 	}
 	return pairs, nil
 }
@@ -547,11 +543,8 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	if err != nil {
 		return nil, err
 	}
-	newPair, err := currency.NewPairFromString(resp.Symbol)
-	if err != nil {
-		return nil, err
-	} else if !newPair.Equal(pair) {
-		return nil, fmt.Errorf("expected pair %v, got %v", pair, newPair)
+	if !resp.Symbol.Equal(pair) {
+		return nil, fmt.Errorf("expected pair %v, got %v", pair, resp.Symbol)
 	}
 	tif, err := order.StringToTimeInForce(resp.TimeInForce)
 	if err != nil {
@@ -655,11 +648,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 		if err != nil {
 			return nil, err
 		}
-		pair, err := currency.NewPairFromString(orderDetail.Symbol)
-		if err != nil {
-			return nil, err
-		}
-		if len(getOrdersRequest.Pairs) != 0 && getOrdersRequest.Pairs.Contains(pair, true) {
+		if len(getOrdersRequest.Pairs) != 0 && getOrdersRequest.Pairs.Contains(orderDetail.Symbol, true) {
 			continue
 		}
 		tif, err := order.StringToTimeInForce(orderDetail.TimeInForce)
@@ -683,7 +672,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 			Side:                 oSide,
 			Status:               oStatus,
 			AssetType:            asset.Spot,
-			Pair:                 pair,
+			Pair:                 orderDetail.Symbol,
 			TimeInForce:          tif,
 		})
 	}
@@ -793,17 +782,13 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 		if instInfo.Type != "PERP" {
 			continue
 		}
-		cp, err := currency.NewPairFromString(instInfo.Symbol)
-		if err != nil {
-			return nil, err
-		}
 		underlying, err := currency.NewPairFromStrings(instInfo.BaseAssetName, instInfo.QuoteAssetName)
 		if err != nil {
 			return nil, err
 		}
 		resp = append(resp, futures.Contract{
 			Exchange:           e.Name,
-			Name:               cp.Format(format),
+			Name:               instInfo.Symbol.Format(format),
 			Underlying:         underlying,
 			Asset:              item,
 			IsActive:           instInfo.TradingState == "TRADING",
@@ -871,12 +856,8 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	}
 	ls := make([]limits.MinMaxLevel, len(instruments))
 	for i, instInfo := range instruments {
-		pair, err := currency.NewPairFromString(instInfo.Symbol)
-		if err != nil {
-			return err
-		}
 		ls[i] = limits.MinMaxLevel{
-			Key:                     key.NewExchangeAssetPair(e.Name, a, pair.Format(format)),
+			Key:                     key.NewExchangeAssetPair(e.Name, a, instInfo.Symbol.Format(format)),
 			AmountStepIncrementSize: instInfo.BaseIncrement.Float64(),
 			QuoteStepIncrementSize:  instInfo.QuoteIncrement.Float64(),
 			MinimumQuoteAmount:      instInfo.Quote.LimitDown.Float64(),

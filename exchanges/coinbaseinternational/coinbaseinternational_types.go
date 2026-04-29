@@ -44,7 +44,7 @@ type AssetInfoWithSupportedNetwork struct {
 type InstrumentInfo struct {
 	InstrumentID              string              `json:"instrument_id"`
 	InstrumentUUID            string              `json:"instrument_uuid"`
-	Symbol                    string              `json:"symbol"`
+	Symbol                    currency.Pair       `json:"symbol"`
 	Type                      string              `json:"type"`
 	BaseAssetID               string              `json:"base_asset_id"`
 	BaseAssetUUID             string              `json:"base_asset_uuid"`
@@ -112,15 +112,15 @@ type IndexMetadata struct {
 
 // IndexMetadataConstituent holds an index metadata constituents
 type IndexMetadataConstituent struct {
-	Symbol         string       `json:"symbol"`
-	Name           string       `json:"name"`
-	Rank           int64        `json:"rank"`
-	CapFactor      string       `json:"cap_factor"` // constituent market cap factor (or multiplier)
-	Amount         types.Number `json:"amount"`
-	MarketCap      types.Number `json:"market_cap"`
-	IndexMarketCap types.Number `json:"index_market_cap"`
-	Weight         types.Number `json:"weight"`
-	RunningWeight  types.Number `json:"running_weight"`
+	Symbol         currency.Pair `json:"symbol"`
+	Name           string        `json:"name"`
+	Rank           int64         `json:"rank"`
+	CapFactor      string        `json:"cap_factor"` // constituent market cap factor (or multiplier)
+	Amount         types.Number  `json:"amount"`
+	MarketCap      types.Number  `json:"market_cap"`
+	IndexMarketCap types.Number  `json:"index_market_cap"`
+	Weight         types.Number  `json:"weight"`
+	RunningWeight  types.Number  `json:"running_weight"`
 }
 
 // IndexPriceInfo represents latest index price info
@@ -156,9 +156,9 @@ type InstrumentsTradingVolumes struct {
 type InstrumentTradingVolume struct {
 	Timestamp   time.Time `json:"timestamp"`
 	Instruments []struct {
-		Symbol   string       `json:"symbol"`
-		Volume   types.Number `json:"volume"`
-		Notional types.Number `json:"notional"`
+		Symbol   currency.Pair `json:"symbol"`
+		Volume   types.Number  `json:"volume"`
+		Notional types.Number  `json:"notional"`
 	} `json:"instruments"`
 	Totals struct {
 		TotalInstrumentsVolume   types.Number `json:"total_instruments_volume"`
@@ -271,35 +271,35 @@ type ModifyOrderParam struct {
 
 // OrderDetail represents a single order item.
 type OrderDetail struct {
-	OrderID          types.Number `json:"order_id"`
-	ClientOrderID    string       `json:"client_order_id"`
-	Side             string       `json:"side"`
-	InstrumentID     string       `json:"instrument_id"`
-	InstrumentUUID   string       `json:"instrument_uuid"`
-	Symbol           string       `json:"symbol"`
-	PortfolioID      int64        `json:"portfolio_id"`
-	PortfolioUUID    string       `json:"portfolio_uuid"`
-	Type             string       `json:"type"`
-	Price            float64      `json:"price"`
-	StopPrice        float64      `json:"stop_price"`
-	Size             float64      `json:"size"`
-	TimeInForce      string       `json:"tif"`
-	ExpireTime       time.Time    `json:"expire_time"`
-	StpMode          string       `json:"stp_mode"`
-	EventType        string       `json:"event_type"`
-	OrderStatus      string       `json:"order_status"`
-	LeavesQuantity   types.Number `json:"leaves_qty"`
-	ExecutedQuantity types.Number `json:"exec_qty"`
-	AveragePrice     types.Number `json:"avg_price"`
-	Message          string       `json:"message"`
-	Fee              types.Number `json:"fee"`
-	StopLimitPrice   float64      `json:"stop_limit_price"`
-	EventTime        time.Time    `json:"event_time"`
-	SubmitTime       time.Time    `json:"submit_time"`
-	PostOnly         bool         `json:"post_only"`
-	CloseOnly        bool         `json:"close_only"`
-	AlgoStrategy     string       `json:"algo_strategy"`
-	Text             string       `json:"text"`
+	OrderID          types.Number  `json:"order_id"`
+	ClientOrderID    string        `json:"client_order_id"`
+	Side             string        `json:"side"`
+	InstrumentID     string        `json:"instrument_id"`
+	InstrumentUUID   string        `json:"instrument_uuid"`
+	Symbol           currency.Pair `json:"symbol"`
+	PortfolioID      int64         `json:"portfolio_id"`
+	PortfolioUUID    string        `json:"portfolio_uuid"`
+	Type             string        `json:"type"`
+	Price            float64       `json:"price"`
+	StopPrice        float64       `json:"stop_price"`
+	Size             float64       `json:"size"`
+	TimeInForce      string        `json:"tif"`
+	ExpireTime       time.Time     `json:"expire_time"`
+	StpMode          string        `json:"stp_mode"`
+	EventType        string        `json:"event_type"`
+	OrderStatus      string        `json:"order_status"`
+	LeavesQuantity   types.Number  `json:"leaves_qty"`
+	ExecutedQuantity types.Number  `json:"exec_qty"`
+	AveragePrice     types.Number  `json:"avg_price"`
+	Message          string        `json:"message"`
+	Fee              types.Number  `json:"fee"`
+	StopLimitPrice   float64       `json:"stop_limit_price"`
+	EventTime        time.Time     `json:"event_time"`
+	SubmitTime       time.Time     `json:"submit_time"`
+	PostOnly         bool          `json:"post_only"`
+	CloseOnly        bool          `json:"close_only"`
+	AlgoStrategy     string        `json:"algo_strategy"`
+	Text             string        `json:"text"`
 }
 
 // PortfolioInfo represents a user portfolio item
@@ -369,16 +369,16 @@ type SubAccountBalance struct {
 
 // SubAccountPosition holds a sub-account position detail
 type SubAccountPosition struct {
-	InstrumentID   string  `json:"instrument_id"`
-	InstrumentUUID string  `json:"instrument_uuid"`
-	Symbol         string  `json:"symbol"`
-	Vwap           float64 `json:"vwap"`
-	NetSize        float64 `json:"net_size"`
-	BuyOrderSize   float64 `json:"buy_order_size"`
-	SellOrderSize  float64 `json:"sell_order_size"`
-	ImContribution float64 `json:"im_contribution"`
-	UnrealizedPnl  float64 `json:"unrealized_pnl"`
-	MarkPrice      float64 `json:"mark_price"`
+	InstrumentID   string        `json:"instrument_id"`
+	InstrumentUUID string        `json:"instrument_uuid"`
+	Symbol         currency.Pair `json:"symbol"`
+	Vwap           float64       `json:"vwap"`
+	NetSize        float64       `json:"net_size"`
+	BuyOrderSize   float64       `json:"buy_order_size"`
+	SellOrderSize  float64       `json:"sell_order_size"`
+	ImContribution float64       `json:"im_contribution"`
+	UnrealizedPnl  float64       `json:"unrealized_pnl"`
+	MarkPrice      float64       `json:"mark_price"`
 }
 
 // PortfolioMarginCallStatus holds margin call status for a given
@@ -486,24 +486,24 @@ type PortfolioBalance struct {
 
 // PortfolioPosition represents a portfolio positions instance.
 type PortfolioPosition struct {
-	InstrumentID              string  `json:"instrument_id"`
-	InstrumentUUID            string  `json:"instrument_uuid"`
-	Symbol                    string  `json:"symbol"`
-	Vwap                      float64 `json:"vwap"`
-	NetSize                   float64 `json:"net_size"`
-	BuyOrderSize              float64 `json:"buy_order_size"`
-	SellOrderSize             float64 `json:"sell_order_size"`
-	InitialMarginContribution float64 `json:"im_contribution"`
-	UnrealizedPnl             float64 `json:"unrealized_pnl"`
-	MarkPrice                 float64 `json:"mark_price"`
+	InstrumentID              string        `json:"instrument_id"`
+	InstrumentUUID            string        `json:"instrument_uuid"`
+	Symbol                    currency.Pair `json:"symbol"`
+	Vwap                      float64       `json:"vwap"`
+	NetSize                   float64       `json:"net_size"`
+	BuyOrderSize              float64       `json:"buy_order_size"`
+	SellOrderSize             float64       `json:"sell_order_size"`
+	InitialMarginContribution float64       `json:"im_contribution"`
+	UnrealizedPnl             float64       `json:"unrealized_pnl"`
+	MarkPrice                 float64       `json:"mark_price"`
 }
 
 // OpenPortfolioPositions holds an open positions for a specific portfolio
 type OpenPortfolioPositions struct {
-	Symbol                    string  `json:"symbol"`
-	InstrumentID              string  `json:"instrument_id"`
-	InstrumentUUID            string  `json:"instrument_uuid"`
-	OpenPositionNotionalLimit float64 `json:"open_position_notional_limit"`
+	Symbol                    currency.Pair `json:"symbol"`
+	InstrumentID              string        `json:"instrument_id"`
+	InstrumentUUID            string        `json:"instrument_uuid"`
+	OpenPositionNotionalLimit float64       `json:"open_position_notional_limit"`
 }
 
 // PortfolioFill represents a portfolio fill information.
@@ -525,7 +525,7 @@ type SubAccountFillDetail struct {
 	OrderID        string            `json:"order_id"`
 	InstrumentID   string            `json:"instrument_id"`
 	InstrumentUUID string            `json:"instrument_uuid"`
-	Symbol         string            `json:"symbol"`
+	Symbol         currency.Pair     `json:"symbol"`
 	MatchID        string            `json:"match_id"`
 	FillPrice      float64           `json:"fill_price"`
 	FillQty        float64           `json:"fill_qty"`
@@ -635,7 +635,7 @@ type FundTransfer struct {
 	ToCoinbaseAccount   string            `json:"to_cb_account"`
 	TransactionHash     string            `json:"txn_hash"`
 	PositionID          string            `json:"position_id"`
-	InstrumentSymbol    string            `json:"instrument_symbol"`
+	InstrumentSymbol    currency.Pair     `json:"instrument_symbol"`
 	InstrumentID        string            `json:"instrument_id"`
 	ToCounterpartyID    string            `json:"to_counterparty_id"`
 	FromCounterpartyID  string            `json:"from_counterparty_id"`
