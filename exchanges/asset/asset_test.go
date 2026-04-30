@@ -77,7 +77,7 @@ func TestIsValid(t *testing.T) {
 
 func TestIsMargin(t *testing.T) {
 	t.Parallel()
-	assertClassification(t, Item.IsMargin, Margin, CrossMargin, MarginFunding)
+	assertClassification(t, Item.IsMargin, Margin, CrossMargin)
 }
 
 func TestIsFutures(t *testing.T) {
@@ -155,6 +155,7 @@ func assertClassification(t *testing.T, classifier func(Item) bool, valid ...Ite
 			require.Falsef(t, classifier(assetType), "classifier must return false for %d (%s)", assetType, assetType)
 		}
 	}
+	require.False(t, classifier(All), "classifier must return false for All")
 }
 
 func TestNew(t *testing.T) {

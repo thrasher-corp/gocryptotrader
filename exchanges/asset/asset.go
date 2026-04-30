@@ -162,10 +162,10 @@ func (a Item) IsValid() bool {
 	return a > Empty && a < All
 }
 
-// IsMargin checks if the asset type is margin based
+// IsMargin checks if the asset type is margin trading based
 func (a Item) IsMargin() bool {
 	switch a {
-	case Margin, CrossMargin, MarginFunding:
+	case Margin, CrossMargin:
 		return true
 	default:
 		return false
