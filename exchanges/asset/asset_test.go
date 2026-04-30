@@ -75,26 +75,84 @@ func TestIsValid(t *testing.T) {
 	require.False(t, All.IsValid(), "IsValid must return false for All")
 }
 
+func TestIsMargin(t *testing.T) {
+	t.Parallel()
+	assertClassification(t, Item.IsMargin, Margin, CrossMargin, MarginFunding)
+}
+
 func TestIsFutures(t *testing.T) {
 	t.Parallel()
-	valid := []Item{PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, FutureCombo, LinearContract, Spread}
-	for a := range All {
-		if slices.Contains(valid, a) {
-			require.Truef(t, a.IsFutures(), "IsFutures must return true for %s", a)
-		} else {
-			require.Falsef(t, a.IsFutures(), "IsFutures must return false for non-asset value %d (%s)", a, a)
-		}
-	}
+	assertClassification(t, Item.IsFutures,
+		PerpetualContract,
+		PerpetualSwap,
+		Futures,
+		DeliveryFutures,
+		UpsideProfitContract,
+		DownsideProfitContract,
+		CoinMarginedFutures,
+		USDTMarginedFutures,
+		USDCMarginedFutures,
+		FutureCombo,
+		LinearContract,
+		Spread)
 }
 
 func TestIsOptions(t *testing.T) {
 	t.Parallel()
-	valid := []Item{Options, OptionCombo}
-	for a := range All {
-		if slices.Contains(valid, a) {
-			require.Truef(t, a.IsOptions(), "IsOptions must return true for %s", a)
+	assertClassification(t, Item.IsOptions, Options, OptionCombo)
+}
+
+func TestIsDerivatives(t *testing.T) {
+	t.Parallel()
+	assertClassification(t, Item.IsDerivatives,
+		PerpetualContract,
+		PerpetualSwap,
+		Futures,
+		DeliveryFutures,
+		UpsideProfitContract,
+		DownsideProfitContract,
+		CoinMarginedFutures,
+		USDTMarginedFutures,
+		USDCMarginedFutures,
+		FutureCombo,
+		LinearContract,
+		Spread,
+		Options,
+		OptionCombo)
+}
+
+func TestIsSwap(t *testing.T) {
+	t.Parallel()
+	assertClassification(t, Item.IsSwap, PerpetualContract, PerpetualSwap)
+}
+
+func TestIsMultiLeg(t *testing.T) {
+	t.Parallel()
+	assertClassification(t, Item.IsMultiLeg, FutureCombo, OptionCombo, Spread)
+}
+
+func TestIsStablecoinMargined(t *testing.T) {
+	t.Parallel()
+	assertClassification(t, Item.IsStablecoinMargined, USDTMarginedFutures, USDCMarginedFutures)
+}
+
+func TestIsCoinMargined(t *testing.T) {
+	t.Parallel()
+	assertClassification(t, Item.IsCoinMargined, CoinMarginedFutures)
+}
+
+func TestIsFunding(t *testing.T) {
+	t.Parallel()
+	assertClassification(t, Item.IsFunding, MarginFunding)
+}
+
+func assertClassification(t *testing.T, classifier func(Item) bool, valid ...Item) {
+	t.Helper()
+	for assetType := range All {
+		if slices.Contains(valid, assetType) {
+			require.Truef(t, classifier(assetType), "classifier must return true for %s", assetType)
 		} else {
-			require.Falsef(t, a.IsOptions(), "IsOptions must return false for non-asset value %d (%s)", a, a)
+			require.Falsef(t, classifier(assetType), "classifier must return false for %d (%s)", assetType, assetType)
 		}
 	}
 }
