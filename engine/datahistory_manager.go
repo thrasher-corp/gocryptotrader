@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -80,7 +79,7 @@ func (m *DataHistoryManager) Start(ctx context.Context) error {
 	if m.databaseConnectionInstance == nil {
 		return errNilDatabaseConnectionManager
 	}
-	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
+	if !m.started.CompareAndSwap(0, 1) {
 		return ErrSubSystemAlreadyStarted
 	}
 	m.shutdown = make(chan struct{})
@@ -95,7 +94,7 @@ func (m *DataHistoryManager) IsRunning() bool {
 	if m == nil {
 		return false
 	}
-	return atomic.LoadInt32(&m.started) == 1
+	return m.started.Load() == 1
 }
 
 // Stop stops the subsystem
@@ -103,7 +102,7 @@ func (m *DataHistoryManager) Stop() error {
 	if m == nil {
 		return ErrNilSubsystem
 	}
-	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
+	if !m.started.CompareAndSwap(1, 0) {
 		return ErrSubSystemNotStarted
 	}
 	close(m.shutdown)
@@ -116,7 +115,7 @@ func (m *DataHistoryManager) retrieveJobs() ([]*DataHistoryJob, error) {
 	if m == nil {
 		return nil, ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if m.started.Load() == 0 {
 		return nil, ErrSubSystemNotStarted
 	}
 	dbJobs, err := m.jobDB.GetAllIncompleteJobsAndResults()
@@ -148,7 +147,7 @@ func (m *DataHistoryManager) PrepareJobs() ([]*DataHistoryJob, error) {
 	if m == nil {
 		return nil, ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if m.started.Load() == 0 {
 		return nil, ErrSubSystemNotStarted
 	}
 	jobs, err := m.retrieveJobs()
@@ -173,7 +172,7 @@ func (m *DataHistoryManager) compareJobsToData(jobs ...*DataHistoryJob) error {
 	if m == nil {
 		return ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if m.started.Load() == 0 {
 		return ErrSubSystemNotStarted
 	}
 	var err error
@@ -256,14 +255,14 @@ func (m *DataHistoryManager) runJobs(ctx context.Context) error {
 	if m == nil {
 		return ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if m.started.Load() == 0 {
 		return ErrSubSystemNotStarted
 	}
 
-	if !atomic.CompareAndSwapInt32(&m.processing, 0, 1) {
+	if !m.processing.CompareAndSwap(0, 1) {
 		return fmt.Errorf("cannot process jobs, %w", ErrSubSystemAlreadyStarted)
 	}
-	defer atomic.StoreInt32(&m.processing, 0)
+	defer m.processing.Store(0)
 
 	validJobs, err := m.PrepareJobs()
 	if err != nil {
@@ -303,7 +302,7 @@ func (m *DataHistoryManager) runJob(ctx context.Context, job *DataHistoryJob) er
 	if m == nil {
 		return ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if m.started.Load() == 0 {
 		return ErrSubSystemNotStarted
 	}
 	if job == nil {
@@ -1056,7 +1055,7 @@ func (m *DataHistoryManager) CheckCandleIssue(job *DataHistoryJob, multiplier in
 	if m == nil {
 		return ErrNilSubsystem.Error(), false
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if m.started.Load() == 0 {
 		return ErrSubSystemNotStarted.Error(), false
 	}
 	if job == nil {
@@ -1095,7 +1094,7 @@ func (m *DataHistoryManager) SetJobRelationship(prerequisiteJobNickname, jobNick
 	if m == nil {
 		return ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if m.started.Load() == 0 {
 		return ErrSubSystemNotStarted
 	}
 	if jobNickname == "" {
@@ -1301,7 +1300,7 @@ func (m *DataHistoryManager) GetByID(id uuid.UUID) (*DataHistoryJob, error) {
 	if m == nil {
 		return nil, ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if m.started.Load() == 0 {
 		return nil, ErrSubSystemNotStarted
 	}
 	if id == uuid.Nil {
@@ -1325,7 +1324,7 @@ func (m *DataHistoryManager) GetByNickname(nickname string, fullDetails bool) (*
 	if m == nil {
 		return nil, ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if m.started.Load() == 0 {
 		return nil, ErrSubSystemNotStarted
 	}
 	if fullDetails {
@@ -1360,7 +1359,7 @@ func (m *DataHistoryManager) GetAllJobStatusBetween(start, end time.Time) ([]*Da
 	if m == nil {
 		return nil, ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if m.started.Load() == 0 {
 		return nil, ErrSubSystemNotStarted
 	}
 	if err := common.StartEndTimeCheck(start, end); err != nil {
@@ -1386,7 +1385,7 @@ func (m *DataHistoryManager) SetJobStatus(nickname, id string, status dataHistor
 	if m == nil {
 		return ErrNilSubsystem
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if m.started.Load() == 0 {
 		return ErrSubSystemNotStarted
 	}
 	if nickname == "" && id == "" {

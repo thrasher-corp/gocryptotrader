@@ -17,7 +17,7 @@ var errConnectionCheckerIsNil = errors.New("connection checker is nil")
 
 // connectionManager manages the connchecker
 type connectionManager struct {
-	started int32
+	started atomic.Int32
 	conn    *connchecker.Checker
 	cfg     *config.ConnectionMonitorConfig
 }
@@ -27,7 +27,7 @@ func (m *connectionManager) IsRunning() bool {
 	if m == nil {
 		return false
 	}
-	return atomic.LoadInt32(&m.started) == 1
+	return m.started.Load() == 1
 }
 
 // setupConnectionManager creates a connection manager
@@ -54,7 +54,7 @@ func (m *connectionManager) Start() error {
 	if m == nil {
 		return fmt.Errorf("connection manager %w", ErrNilSubsystem)
 	}
-	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
+	if !m.started.CompareAndSwap(0, 1) {
 		return fmt.Errorf("connection manager %w", ErrSubSystemAlreadyStarted)
 	}
 
@@ -64,7 +64,7 @@ func (m *connectionManager) Start() error {
 		m.cfg.PublicDomainList,
 		m.cfg.CheckInterval)
 	if err != nil {
-		atomic.CompareAndSwapInt32(&m.started, 1, 0)
+		m.started.CompareAndSwap(1, 0)
 		return err
 	}
 
@@ -77,11 +77,11 @@ func (m *connectionManager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("connection manager: %w", ErrNilSubsystem)
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if m.started.Load() == 0 {
 		return fmt.Errorf("connection manager: %w", ErrSubSystemNotStarted)
 	}
 	defer func() {
-		atomic.CompareAndSwapInt32(&m.started, 1, 0)
+		m.started.CompareAndSwap(1, 0)
 	}()
 	if m.conn == nil {
 		return fmt.Errorf("connection manager: %w", errConnectionCheckerIsNil)

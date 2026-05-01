@@ -3,7 +3,6 @@ package engine
 import (
 	"errors"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -78,7 +77,7 @@ func TestWebsocketRoutineManagerIsRunning(t *testing.T) {
 	err = m.Start(t.Context())
 	assert.NoError(t, err)
 
-	for atomic.LoadInt32(&m.state) == startingState {
+	for m.state.Load() == startingState {
 		<-time.After(time.Second / 100)
 	}
 	if !m.IsRunning() {
@@ -122,7 +121,7 @@ func TestWebsocketRoutineManagerConcurrentStartStop(t *testing.T) {
 		}()
 		wg.Wait()
 
-		if atomic.LoadInt32(&m.state) != stoppedState {
+		if m.state.Load() != stoppedState {
 			require.NoError(t, m.Stop())
 		}
 		assert.Nil(t, m.connectionCancel)
@@ -285,7 +284,7 @@ func TestRegisterWebsocketDataHandlerWithFunctionality(t *testing.T) {
 	}
 
 	mock := websocket.NewManager()
-	m.state = readyState
+	m.state.Store(readyState)
 	err = m.websocketDataReceiver(mock)
 	if err != nil {
 		t.Fatal(err)

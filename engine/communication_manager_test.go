@@ -43,7 +43,7 @@ func TestIsRunning(t *testing.T) {
 	if !m.IsRunning() {
 		t.Error("expected true")
 	}
-	m.started = 0
+	m.started.Store(0)
 	if m.IsRunning() {
 		t.Error("expected false")
 	}
@@ -65,7 +65,7 @@ func TestStart(t *testing.T) {
 	err = m.Start()
 	assert.NoError(t, err)
 
-	m.started = 1
+	m.started.Store(1)
 	err = m.Start()
 	assert.ErrorIs(t, err, ErrSubSystemAlreadyStarted)
 }
@@ -85,7 +85,7 @@ func TestGetStatus(t *testing.T) {
 	_, err = m.GetStatus()
 	assert.NoError(t, err)
 
-	m.started = 0
+	m.started.Store(0)
 	_, err = m.GetStatus()
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 }
