@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -146,8 +145,8 @@ func TestSyncManagerSyncTickerUsesRuntimeContextCancellation(t *testing.T) {
 		TimeoutWebsocket:    time.Second,
 	}, em, &config.RemoteControlConfig{}, false)
 	require.NoError(t, err)
-	atomic.StoreInt32(&m.started, 1)
-	atomic.StoreInt32(&m.initSyncCompleted, 1)
+	m.started.Store(1)
+	m.initSyncCompleted.Store(1)
 
 	runtimeCtx, cancel := context.WithCancel(t.Context())
 	defer cancel()
@@ -216,7 +215,7 @@ func TestPrintTickerSummary(t *testing.T) {
 	m, err = SetupSyncManager(&config.SyncManagerConfig{SynchronizeTrades: true, SynchronizeContinuously: true, FiatDisplayCurrency: currency.USD, PairFormatDisplay: &currency.EMPTYFORMAT}, em, &config.RemoteControlConfig{}, false)
 	assert.NoError(t, err)
 
-	atomic.StoreInt32(&m.started, 1)
+	m.started.Store(1)
 	m.PrintTickerSummary(&ticker.Price{
 		Pair: currency.NewBTCUSDT(),
 	}, "REST", nil)
@@ -256,7 +255,7 @@ func TestPrintOrderbookSummary(t *testing.T) {
 	m, err = SetupSyncManager(&config.SyncManagerConfig{SynchronizeTrades: true, SynchronizeContinuously: true, FiatDisplayCurrency: currency.USD, PairFormatDisplay: &currency.EMPTYFORMAT}, em, &config.RemoteControlConfig{}, false)
 	assert.NoError(t, err)
 
-	atomic.StoreInt32(&m.started, 1)
+	m.started.Store(1)
 	m.PrintOrderbookSummary(&orderbook.Book{
 		Pair: currency.NewPair(currency.AUD, currency.USD),
 	}, "REST", nil)
@@ -291,7 +290,7 @@ func TestWaitForInitialSync(t *testing.T) {
 	err = m.WaitForInitialSync()
 	require.ErrorIs(t, err, ErrSubSystemNotStarted)
 
-	m.started = 1
+	m.started.Store(1)
 	err = m.WaitForInitialSync()
 	require.NoError(t, err)
 }
@@ -306,12 +305,12 @@ func TestSyncManagerWebsocketUpdate(t *testing.T) {
 	err = m.WebsocketUpdate("", currency.EMPTYPAIR, 1, 47, nil)
 	require.ErrorIs(t, err, ErrSubSystemNotStarted)
 
-	m.started = 1
+	m.started.Store(1)
 	// not started initial sync
 	err = m.WebsocketUpdate("", currency.EMPTYPAIR, 1, 47, nil)
 	require.NoError(t, err)
 
-	m.initSyncStarted = 1
+	m.initSyncStarted.Store(1)
 	// orderbook not enabled
 	err = m.WebsocketUpdate("", currency.EMPTYPAIR, asset.Spot, SyncItemOrderbook, nil)
 	require.NoError(t, err)

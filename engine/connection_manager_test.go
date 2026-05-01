@@ -31,7 +31,7 @@ func TestConnectionMonitorIsRunning(t *testing.T) {
 	if !m.IsRunning() {
 		t.Error("expected true")
 	}
-	m.started = 0
+	m.started.Store(0)
 	if m.IsRunning() {
 		t.Error("expected false")
 	}
@@ -59,7 +59,9 @@ func TestConnectionMonitorStart(t *testing.T) {
 
 func TestConnectionMonitorStop(t *testing.T) {
 	t.Parallel()
-	err := (&connectionManager{started: 1}).Stop()
+	cm := &connectionManager{}
+	cm.started.Store(1)
+	err := cm.Stop()
 	assert.ErrorIs(t, err, errConnectionCheckerIsNil)
 
 	m, err := setupConnectionManager(&config.ConnectionMonitorConfig{})

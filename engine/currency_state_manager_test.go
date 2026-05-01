@@ -133,13 +133,17 @@ func TestCurrencyStateManagerIsRunning(t *testing.T) {
 	err = (&CurrencyStateManager{}).Stop()
 	require.ErrorIs(t, err, ErrSubSystemNotStarted)
 
-	err = (&CurrencyStateManager{started: 1, shutdown: make(chan struct{})}).Stop()
+	csm := &CurrencyStateManager{shutdown: make(chan struct{})}
+	csm.started.Store(1)
+	err = csm.Stop()
 	require.NoError(t, err)
 
 	err = (*CurrencyStateManager)(nil).Start(t.Context())
 	require.ErrorIs(t, err, ErrNilSubsystem)
 
-	err = (&CurrencyStateManager{started: 1}).Start(t.Context())
+	csm2 := &CurrencyStateManager{}
+	csm2.started.Store(1)
+	err = csm2.Start(t.Context())
 	require.ErrorIs(t, err, ErrSubSystemAlreadyStarted)
 
 	man := &CurrencyStateManager{
@@ -187,22 +191,19 @@ func TestGetAllRPC(t *testing.T) {
 	_, err := (*CurrencyStateManager)(nil).GetAllRPC("")
 	require.ErrorIs(t, err, ErrSubSystemNotStarted)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{ErrorMeOne: true},
-	}).GetAllRPC("")
+	csm1 := &CurrencyStateManager{iExchangeManager: &fakeExchangeManagerino{ErrorMeOne: true}}
+	csm1.started.Store(1)
+	_, err = csm1.GetAllRPC("")
 	require.ErrorIs(t, err, errManager)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{ErrorMeTwo: true},
-	}).GetAllRPC("")
+	csm2 := &CurrencyStateManager{iExchangeManager: &fakeExchangeManagerino{ErrorMeTwo: true}}
+	csm2.started.Store(1)
+	_, err = csm2.GetAllRPC("")
 	require.ErrorIs(t, err, errExchange)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{},
-	}).GetAllRPC("")
+	csm3 := &CurrencyStateManager{iExchangeManager: &fakeExchangeManagerino{}}
+	csm3.started.Store(1)
+	_, err = csm3.GetAllRPC("")
 	require.NoError(t, err)
 }
 
@@ -211,22 +212,19 @@ func TestCanWithdrawRPC(t *testing.T) {
 	_, err := (*CurrencyStateManager)(nil).CanWithdrawRPC("", currency.EMPTYCODE, asset.Empty)
 	require.ErrorIs(t, err, ErrSubSystemNotStarted)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{ErrorMeOne: true},
-	}).CanWithdrawRPC("", currency.EMPTYCODE, asset.Empty)
+	csm1 := &CurrencyStateManager{iExchangeManager: &fakeExchangeManagerino{ErrorMeOne: true}}
+	csm1.started.Store(1)
+	_, err = csm1.CanWithdrawRPC("", currency.EMPTYCODE, asset.Empty)
 	require.ErrorIs(t, err, errManager)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{ErrorMeTwo: true},
-	}).CanWithdrawRPC("", currency.EMPTYCODE, asset.Empty)
+	csm2 := &CurrencyStateManager{iExchangeManager: &fakeExchangeManagerino{ErrorMeTwo: true}}
+	csm2.started.Store(1)
+	_, err = csm2.CanWithdrawRPC("", currency.EMPTYCODE, asset.Empty)
 	require.ErrorIs(t, err, errExchange)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{},
-	}).CanWithdrawRPC("", currency.EMPTYCODE, asset.Empty)
+	csm3 := &CurrencyStateManager{iExchangeManager: &fakeExchangeManagerino{}}
+	csm3.started.Store(1)
+	_, err = csm3.CanWithdrawRPC("", currency.EMPTYCODE, asset.Empty)
 	require.NoError(t, err)
 }
 
@@ -235,22 +233,19 @@ func TestCanDepositRPC(t *testing.T) {
 	_, err := (*CurrencyStateManager)(nil).CanDepositRPC("", currency.EMPTYCODE, asset.Empty)
 	require.ErrorIs(t, err, ErrSubSystemNotStarted)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{ErrorMeOne: true},
-	}).CanDepositRPC("", currency.EMPTYCODE, asset.Empty)
+	csm1 := &CurrencyStateManager{iExchangeManager: &fakeExchangeManagerino{ErrorMeOne: true}}
+	csm1.started.Store(1)
+	_, err = csm1.CanDepositRPC("", currency.EMPTYCODE, asset.Empty)
 	require.ErrorIs(t, err, errManager)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{ErrorMeTwo: true},
-	}).CanDepositRPC("", currency.EMPTYCODE, asset.Empty)
+	csm2 := &CurrencyStateManager{iExchangeManager: &fakeExchangeManagerino{ErrorMeTwo: true}}
+	csm2.started.Store(1)
+	_, err = csm2.CanDepositRPC("", currency.EMPTYCODE, asset.Empty)
 	require.ErrorIs(t, err, errExchange)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{},
-	}).CanDepositRPC("", currency.EMPTYCODE, asset.Empty)
+	csm3 := &CurrencyStateManager{iExchangeManager: &fakeExchangeManagerino{}}
+	csm3.started.Store(1)
+	_, err = csm3.CanDepositRPC("", currency.EMPTYCODE, asset.Empty)
 	require.NoError(t, err)
 }
 
@@ -259,22 +254,19 @@ func TestCanTradeRPC(t *testing.T) {
 	_, err := (*CurrencyStateManager)(nil).CanTradeRPC("", currency.EMPTYCODE, asset.Empty)
 	require.ErrorIs(t, err, ErrSubSystemNotStarted)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{ErrorMeOne: true},
-	}).CanTradeRPC("", currency.EMPTYCODE, asset.Empty)
+	csm1 := &CurrencyStateManager{iExchangeManager: &fakeExchangeManagerino{ErrorMeOne: true}}
+	csm1.started.Store(1)
+	_, err = csm1.CanTradeRPC("", currency.EMPTYCODE, asset.Empty)
 	require.ErrorIs(t, err, errManager)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{ErrorMeTwo: true},
-	}).CanTradeRPC("", currency.EMPTYCODE, asset.Empty)
+	csm2 := &CurrencyStateManager{iExchangeManager: &fakeExchangeManagerino{ErrorMeTwo: true}}
+	csm2.started.Store(1)
+	_, err = csm2.CanTradeRPC("", currency.EMPTYCODE, asset.Empty)
 	require.ErrorIs(t, err, errExchange)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{},
-	}).CanTradeRPC("", currency.EMPTYCODE, asset.Empty)
+	csm3 := &CurrencyStateManager{iExchangeManager: &fakeExchangeManagerino{}}
+	csm3.started.Store(1)
+	_, err = csm3.CanTradeRPC("", currency.EMPTYCODE, asset.Empty)
 	require.NoError(t, err)
 }
 
@@ -283,22 +275,19 @@ func TestCanTradePairRPC(t *testing.T) {
 	_, err := (*CurrencyStateManager)(nil).CanTradePairRPC("", currency.EMPTYPAIR, asset.Empty)
 	require.ErrorIs(t, err, ErrSubSystemNotStarted)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{ErrorMeOne: true},
-	}).CanTradePairRPC("", currency.EMPTYPAIR, asset.Empty)
+	csm1 := &CurrencyStateManager{iExchangeManager: &fakeExchangeManagerino{ErrorMeOne: true}}
+	csm1.started.Store(1)
+	_, err = csm1.CanTradePairRPC("", currency.EMPTYPAIR, asset.Empty)
 	require.ErrorIs(t, err, errManager)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{ErrorMeTwo: true},
-	}).CanTradePairRPC("", currency.EMPTYPAIR, asset.Empty)
+	csm2 := &CurrencyStateManager{iExchangeManager: &fakeExchangeManagerino{ErrorMeTwo: true}}
+	csm2.started.Store(1)
+	_, err = csm2.CanTradePairRPC("", currency.EMPTYPAIR, asset.Empty)
 	require.ErrorIs(t, err, errExchange)
 
-	_, err = (&CurrencyStateManager{
-		started:          1,
-		iExchangeManager: &fakeExchangeManagerino{},
-	}).CanTradePairRPC("", currency.EMPTYPAIR, asset.Empty)
+	csm3 := &CurrencyStateManager{iExchangeManager: &fakeExchangeManagerino{}}
+	csm3.started.Store(1)
+	_, err = csm3.CanTradePairRPC("", currency.EMPTYPAIR, asset.Empty)
 	require.NoError(t, err)
 }
 

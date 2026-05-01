@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 )
@@ -26,7 +27,7 @@ const (
 
 // WebsocketRoutineManager is used to process websocket updates from a unified location
 type WebsocketRoutineManager struct {
-	state            int32
+	state            atomic.Int32
 	verbose          bool
 	exchangeManager  iExchangeManager
 	orderManager     iOrderManager
