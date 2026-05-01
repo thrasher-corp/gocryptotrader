@@ -3,8 +3,8 @@ package hash
 // Note: currently some methods implementations here are directly copied from the github.com/yaune/starkex repository, and will be removed/update and tested
 
 import (
-	"io/ioutil"
 	"math/big"
+	"os"
 
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	math_utils "github.com/thrasher-corp/gocryptotrader/internal/utils/mathutils"
@@ -12,7 +12,7 @@ import (
 
 // LoadPedersenConfig loads a pedersen configuration from a json file.
 func LoadPedersenConfig(path string) (*PedersenCfg, error) {
-	file, err := ioutil.ReadFile(path)
+	file, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}

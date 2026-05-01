@@ -10,7 +10,7 @@ type Signable interface {
 // GetBytes implements the signable interface
 func (c *ContractBuilder) GetBytes() *big.Int {
 	payload := big.NewInt(0)
-	payload.Add(payload, big.NewInt(CONTRACT_MSG_TYPE))
+	payload.Add(payload, big.NewInt(contractMsgType))
 	payload.Lsh(payload, ContractFieldBitLengths["accountId"])
 	payload.Add(payload, c.AccountID)
 	payload.Lsh(payload, ContractFieldBitLengths["subAccountId"])
@@ -48,7 +48,7 @@ func boolToBigInt(b bool) *big.Int {
 // GetBytes implements the signable interface
 func (w *WithdrawBuilder) GetBytes() *big.Int {
 	payload := big.NewInt(0)
-	payload.Add(payload, big.NewInt(WITHDRAW_MSG_TYPE))
+	payload.Add(payload, big.NewInt(withdrawMsgType))
 	payload.Lsh(payload, WithdrawFieldBitLengths["toChainId"])
 	payload.Add(payload, w.ToChainID)
 	payload.Lsh(payload, WithdrawFieldBitLengths["accountId"])
@@ -82,7 +82,7 @@ func (w *WithdrawBuilder) GetBytes() *big.Int {
 // GetBytes implements the signable interface
 func (t *TransferBuilder) GetBytes() *big.Int {
 	payload := big.NewInt(0)
-	payload.Add(payload, big.NewInt(TRANSFER_MSG_TYPE))
+	payload.Add(payload, big.NewInt(transferMsgType))
 	payload.Lsh(payload, TransferFieldBigLengths["accountId"])
 	payload.Add(payload, t.AccountID)
 	payload.Lsh(payload, TransferFieldBigLengths["fromSubAccountId"])

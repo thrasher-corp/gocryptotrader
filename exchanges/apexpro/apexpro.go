@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -27,7 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/internal/utils/starkex"
 	"github.com/thrasher-corp/gocryptotrader/types"
-	"golang.org/x/exp/rand"
 )
 
 // Exchange is the overarching type across this package
@@ -1313,7 +1313,7 @@ func (e *Exchange) GetRepaymentPrice(ctx context.Context, repaymentPriceTokens [
 		if repaymentPriceTokens[a].Amount <= 0 {
 			return nil, limits.ErrAmountBelowMin
 		}
-		paramString += repaymentPriceTokens[a].Token.String() + "|" + strconv.FormatFloat(repaymentPriceTokens[a].Amount, 'f', -1, 64) + ","
+		paramString += fmt.Sprintf("%s|%f,", repaymentPriceTokens[a].Token.String(), repaymentPriceTokens[a].Amount)
 	}
 	paramString = strings.Trim(paramString, ",")
 	params.Set("repaymentPriceTokens", paramString)
@@ -1645,7 +1645,6 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ePath excha
 }
 
 func randomClientID() string {
-	rand.Seed(uint64(time.Now().UnixNano()))
 	return strconv.FormatFloat(rand.Float64(), 'f', -1, 64)[2:]
 }
 
@@ -1654,6 +1653,6 @@ func nonceFromClientID(clientID string) *big.Int {
 	hasher.Write([]byte(clientID))
 	hashBytes := hasher.Sum(nil)
 	hashHex := hex.EncodeToString(hashBytes)
-	nonce, _ := strconv.ParseUint(hashHex[0:8], 16, 64)
-	return big.NewInt(int64(nonce))
+	nonce, _ := strconv.ParseInt(hashHex[0:8], 16, 64)
+	return big.NewInt(nonce)
 }

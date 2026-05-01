@@ -39,8 +39,8 @@ type Report struct {
 
 // GRPC holds the GRPC configuration
 type GRPC struct {
+	gctconfig.GRPCConfig
 	Username string `json:"username"`
 	Password string `json:"password"`
-	gctconfig.GRPCConfig
-	TLSDir string `json:"tls-dir"`
+	TLSDir   string `json:"tls-dir"`
 }

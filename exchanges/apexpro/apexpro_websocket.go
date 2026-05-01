@@ -221,7 +221,7 @@ func (e *Exchange) handleSubscriptionPayload(operation string, subscriptions sub
 	return susbcriptionPayload, nil
 }
 
-func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 	var resp WsMessage
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err

@@ -15,8 +15,10 @@ type CurveParams struct {
 	Base     Point
 }
 
-var edwards CurveParams
-var initOnce sync.Once
+var (
+	edwards  CurveParams
+	initOnce sync.Once
+)
 
 // GetEdwardsCurve returns the twisted Edwards curve on BN256's Fr
 func GetEdwardsCurve() CurveParams {

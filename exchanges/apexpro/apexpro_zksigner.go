@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/internal/utils/zklink"
 )
 
@@ -20,7 +21,7 @@ var (
 	errZKLinkPairNotFound = errors.New("l2PairId not found for symbol in V3 config")
 
 	zkSignerMu    sync.Mutex
-	cachedSigner  *zklink.ZKLinkSigner
+	cachedSigner  *zklink.Signer
 	cachedSeedHex string
 )
 
@@ -33,7 +34,7 @@ type ZKKeyInfo struct {
 
 // getOrInitZKLinkerSigner returns (or lazily initialises) the ZKLinkSigner
 // from the hex-encoded seeds stored in L2Secret.
-func (e *Exchange) getOrInitZKLinkerSigner(seedsHex string) (*zklink.ZKLinkSigner, error) {
+func (e *Exchange) getOrInitZKLinkerSigner(seedsHex string) (*zklink.Signer, error) {
 	zkSignerMu.Lock()
 	defer zkSignerMu.Unlock()
 
@@ -88,16 +89,17 @@ func (e *Exchange) ProcessZKKeyOrderSignature(ctx context.Context, arg *CreateOr
 		found    bool
 	)
 	for _, c := range configData.ContractConfig.PerpetualContract {
-		if c.Symbol.Equal(arg.Symbol) {
-			pairID, err = strconv.ParseInt(c.L2PairID, 10, 64)
-			if err != nil {
-				return "", fmt.Errorf("invalid l2PairId %q: %w", c.L2PairID, err)
-			}
-			stepSize = c.StepSize.Decimal()
-			tickSize = c.TickSize.Decimal()
-			found = true
-			break
+		if !c.Symbol.Equal(arg.Symbol) {
+			continue
 		}
+		pairID, err = strconv.ParseInt(c.L2PairID, 10, 64)
+		if err != nil {
+			return "", fmt.Errorf("invalid l2PairId %q: %w", c.L2PairID, err)
+		}
+		stepSize = c.StepSize.Decimal()
+		tickSize = c.TickSize.Decimal()
+		found = true
+		break
 	}
 	if !found {
 		return "", fmt.Errorf("%w: %s", errZKLinkPairNotFound, arg.Symbol)
@@ -141,7 +143,7 @@ func (e *Exchange) ProcessZKKeyOrderSignature(ctx context.Context, arg *CreateOr
 		priceInt = priceD.BigInt()
 	}
 
-	isBuy := strings.ToUpper(arg.Side) == "BUY"
+	isBuy := strings.EqualFold(arg.Side, order.Buy.String())
 
 	builder := &zklink.ContractBuilder{
 		AccountID:    big.NewInt(zkAccountID),

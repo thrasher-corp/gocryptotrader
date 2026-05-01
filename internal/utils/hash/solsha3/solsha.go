@@ -8,7 +8,7 @@ import (
 )
 
 // solsha3 solidity sha3
-func solsha3(types []string, values ...interface{}) []byte {
+func solsha3(types []string, values ...any) []byte {
 	b := [][]byte{}
 	for i, typ := range types {
 		data, err := pack(typ, values[i], false)
@@ -29,7 +29,7 @@ func solsha3(types []string, values ...interface{}) []byte {
 }
 
 // SoliditySHA3 computes the KECCAK-256 hash of the given input.
-func SoliditySHA3(data ...interface{}) ([]byte, error) {
+func SoliditySHA3(data ...any) ([]byte, error) {
 	types, ok := data[0].([]string)
 	if !ok {
 		return nil, errors.New("invalid data types")
@@ -38,7 +38,7 @@ func SoliditySHA3(data ...interface{}) ([]byte, error) {
 	if len(rest) == len(types) {
 		return solsha3(types, data[1:]...), nil
 	}
-	iface, ok := data[1].([]interface{})
+	iface, ok := data[1].([]any)
 	if ok {
 		return solsha3(types, iface...), nil
 	}

@@ -10,8 +10,8 @@ import (
 	"golang.org/x/crypto/blake2s"
 )
 
-// ZKLinkSigner holds the key material for ZKLink Schnorr signing on BN254 twisted Edwards.
-type ZKLinkSigner struct {
+// Signer holds the key material for ZKLink Schnorr signing on BN254 twisted Edwards.
+type Signer struct {
 	privateKeyBig *big.Int
 	privateKey    fr.Element
 	publicKey     twistededwards.Point
@@ -25,7 +25,7 @@ type ZKLinkSigner struct {
 //  2. Reduce mod BN254 twisted Edwards curve order → privKey
 //  3. privKey × G → pubKey
 //  4. Blake2s(pack(pubKey))[:20] → pubKeyHash
-func NewZKLinkSignerFromSeeds(seeds []byte) (*ZKLinkSigner, error) {
+func NewZKLinkSignerFromSeeds(seeds []byte) (*Signer, error) {
 	if len(seeds) == 0 {
 		return nil, errors.New("seeds cannot be empty")
 	}
@@ -50,7 +50,7 @@ func NewZKLinkSignerFromSeeds(seeds []byte) (*ZKLinkSigner, error) {
 	var pubKey twistededwards.Point
 	pubKey.ScalarMul(&curve.Base, privElem)
 
-	signer := &ZKLinkSigner{
+	signer := &Signer{
 		privateKeyBig: privBig,
 		privateKey:    privElem,
 		publicKey:     pubKey,
@@ -71,7 +71,7 @@ func NewZKLinkSignerFromSeeds(seeds []byte) (*ZKLinkSigner, error) {
 
 // PublicKeyBytes returns the 32-byte compressed representation of the public key.
 // The Y coordinate is encoded big-endian; bit 255 (MSB of byte 0) is set if X is odd.
-func (z *ZKLinkSigner) PublicKeyBytes() [32]byte {
+func (z *Signer) PublicKeyBytes() [32]byte {
 	yBytes := z.publicKey.Y.Bytes() // 32 bytes, big-endian, regular form
 	var packed [32]byte
 	copy(packed[:], yBytes)
@@ -84,7 +84,7 @@ func (z *ZKLinkSigner) PublicKeyBytes() [32]byte {
 }
 
 // PubKeyHash returns the 20-byte Blake2s hash of the packed public key.
-func (z *ZKLinkSigner) PubKeyHash() [20]byte {
+func (z *Signer) PubKeyHash() [20]byte {
 	return z.pubKeyHash
 }
 
@@ -97,7 +97,7 @@ func (z *ZKLinkSigner) PubKeyHash() [20]byte {
 //  3. R = k × G
 //  4. e = RescueHash([R.X, pubKey.X, msgHash]) mod curve_order
 //  5. s = (k + e × privKey) mod curve_order
-func (z *ZKLinkSigner) Sign(msg *big.Int) ([64]byte, error) {
+func (z *Signer) Sign(msg *big.Int) ([64]byte, error) {
 	// Step 1: hash the transaction message to a single field element
 	msgHash := RescueHashBigInt(msg)
 

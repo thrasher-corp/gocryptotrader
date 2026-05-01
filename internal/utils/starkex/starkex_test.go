@@ -10,8 +10,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
-const MockPublicKey = "0x3b865a18323b8d147a12c556bfb1d502516c325b1477a23ba6c77af31f020fd"
-const MockPrivateKey = "0x58c7d5a90b1776bde86ebac077e053ed85b0f7164f53b080304a531947f46e3"
+const (
+	MockPublicKey  = "0x3b865a18323b8d147a12c556bfb1d502516c325b1477a23ba6c77af31f020fd"
+	MockPrivateKey = "0x58c7d5a90b1776bde86ebac077e053ed85b0f7164f53b080304a531947f46e3"
+)
 
 func TestNewStarkExConfig(t *testing.T) {
 	t.Parallel()

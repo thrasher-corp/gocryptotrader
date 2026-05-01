@@ -62,7 +62,7 @@ func generateRescueRoundConstants() error {
 			return err
 		}
 		h.Write(tag)
-		h.Write(GH_FIRST_BLOCK)
+		h.Write(GHFirstBlock)
 		h.Write(nonceBytes)
 		hashData := h.Sum(nil)
 
@@ -84,7 +84,7 @@ func generateRescueMDS() error {
 		return err
 	}
 	h.Write(tag)
-	h.Write(GH_FIRST_BLOCK)
+	h.Write(GHFirstBlock)
 	key := h.Sum(nil) // 32-byte key derived from the tag
 
 	// Zero nonce, matching the Rust ChaCha20 RNG seeding convention

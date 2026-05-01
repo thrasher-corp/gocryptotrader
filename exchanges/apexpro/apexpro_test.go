@@ -331,6 +331,7 @@ func TestEditUserData(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
 func TestEditUserDataV2(t *testing.T) {
 	t.Parallel()
 	_, err := e.EditUserDataV2(t.Context(), &EditUserDataParams{})
@@ -1181,16 +1182,16 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	err = e.UpdateOrderExecutionLimits(t.Context(), asset.Futures)
 	require.NoError(t, err)
 
-	limits, err := e.GetOrderExecutionLimits(asset.Futures, pairs[0])
+	execLimits, err := e.GetOrderExecutionLimits(asset.Futures, pairs[0])
 	assert.NoErrorf(t, err, "GetOrderExecutionLimits should not error for %s pair %s", asset.Futures, pairs[0])
-	assert.Positivef(t, limits.MinPrice, "MinPrice must be positive for %s pair %s", asset.Futures, pairs[0])
-	assert.Positivef(t, limits.MaxPrice, "MaxPrice must be positive for %s pair %s", asset.Futures, pairs[0])
-	assert.Positivef(t, limits.PriceStepIncrementSize, "PriceStepIncrementSize must be positive for %s pair %s", asset.Futures, pairs[0])
-	assert.Positivef(t, limits.MinimumBaseAmount, "MinimumBaseAmount must be positive for %s pair %s", asset.Futures, pairs[0])
-	assert.Positivef(t, limits.MaximumBaseAmount, "MaximumBaseAmount must be positive for %s pair %s", asset.Futures, pairs[0])
-	assert.Positivef(t, limits.AmountStepIncrementSize, "AmountStepIncrementSize must be positive for %s pair %s", asset.Futures, pairs[0])
-	assert.Positivef(t, limits.MarketMaxQty, "MarketMaxQty must be positive for %s pair %s", asset.Futures, pairs[0])
-	assert.Positivef(t, limits.MaxTotalOrders, "MaxTotalOrders must be positive for %s pair %s", asset.Futures, pairs[0])
+	assert.Positivef(t, execLimits.MinPrice, "MinPrice must be positive for %s pair %s", asset.Futures, pairs[0])
+	assert.Positivef(t, execLimits.MaxPrice, "MaxPrice must be positive for %s pair %s", asset.Futures, pairs[0])
+	assert.Positivef(t, execLimits.PriceStepIncrementSize, "PriceStepIncrementSize must be positive for %s pair %s", asset.Futures, pairs[0])
+	assert.Positivef(t, execLimits.MinimumBaseAmount, "MinimumBaseAmount must be positive for %s pair %s", asset.Futures, pairs[0])
+	assert.Positivef(t, execLimits.MaximumBaseAmount, "MaximumBaseAmount must be positive for %s pair %s", asset.Futures, pairs[0])
+	assert.Positivef(t, execLimits.AmountStepIncrementSize, "AmountStepIncrementSize must be positive for %s pair %s", asset.Futures, pairs[0])
+	assert.Positivef(t, execLimits.MarketMaxQty, "MarketMaxQty must be positive for %s pair %s", asset.Futures, pairs[0])
+	assert.Positivef(t, execLimits.MaxTotalOrders, "MaxTotalOrders must be positive for %s pair %s", asset.Futures, pairs[0])
 }
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {

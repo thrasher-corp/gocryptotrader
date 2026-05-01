@@ -15,7 +15,7 @@ import (
 
 var errInvalidInput = errors.New("invalid input")
 
-func pack(typ string, value interface{}, _isArray bool) ([]byte, error) {
+func pack(typ string, value any, _isArray bool) ([]byte, error) {
 	switch typ {
 	case "address":
 		if _isArray {
@@ -174,7 +174,7 @@ func pack(typ string, value interface{}, _isArray bool) ([]byte, error) {
 }
 
 // Address address
-func Address(input interface{}) []byte {
+func Address(input any) []byte {
 	switch v := input.(type) {
 	case common.Address:
 		return v.Bytes()
@@ -209,7 +209,7 @@ func Address(input interface{}) []byte {
 }
 
 // AddressArray address
-func AddressArray(input interface{}) []byte {
+func AddressArray(input any) []byte {
 	var values []byte
 	s := reflect.ValueOf(input)
 	for i := range s.Len() {
@@ -221,7 +221,7 @@ func AddressArray(input interface{}) []byte {
 }
 
 // String string
-func String(input interface{}) []byte {
+func String(input any) []byte {
 	switch v := input.(type) {
 	case []byte:
 		return v
@@ -238,7 +238,7 @@ func String(input interface{}) []byte {
 }
 
 // StringArray string
-func StringArray(input interface{}) []byte {
+func StringArray(input any) []byte {
 	var values []byte
 	s := reflect.ValueOf(input)
 	for i := range s.Len() {
@@ -250,7 +250,7 @@ func StringArray(input interface{}) []byte {
 }
 
 // Uint256 uint256
-func Uint256(input interface{}) []byte {
+func Uint256(input any) []byte {
 	switch v := input.(type) {
 	case *big.Int:
 		return math.U256Bytes(v)
@@ -269,7 +269,7 @@ func Uint256(input interface{}) []byte {
 }
 
 // Uint256Array uint256 array
-func Uint256Array(input interface{}) []byte {
+func Uint256Array(input any) []byte {
 	var values []byte
 	s := reflect.ValueOf(input)
 	for i := range s.Len() {
@@ -281,7 +281,7 @@ func Uint256Array(input interface{}) []byte {
 }
 
 // Bool bool
-func Bool(input interface{}) []byte {
+func Bool(input any) []byte {
 	if v, ok := input.(bool); ok {
 		if v {
 			return []byte{0x1}
@@ -298,7 +298,7 @@ func Bool(input interface{}) []byte {
 }
 
 // BoolArray bool array
-func BoolArray(input interface{}) []byte {
+func BoolArray(input any) []byte {
 	var values []byte
 	s := reflect.ValueOf(input)
 	for i := range s.Len() {

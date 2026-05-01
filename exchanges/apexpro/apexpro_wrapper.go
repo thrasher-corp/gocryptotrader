@@ -132,10 +132,12 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 		GenerateSubscriptions: e.GenerateDefaultSubscriptions,
-		Handler:               e.wsHandleData,
-		Connector:             e.WsConnect,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
+		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
+			return e.wsHandleData(ctx, incoming)
+		},
+		Connector:    e.WsConnect,
+		Subscriber:   e.Subscribe,
+		Unsubscriber: e.Unsubscribe,
 	})
 	if err != nil {
 		return err
@@ -145,11 +147,13 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		URL:                  apexProPrivateWebsocket,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Handler:              e.wsHandleData,
-		Connector:            e.WsAuth,
-		Subscriber:           e.Subscribe,
-		Unsubscriber:         e.Unsubscribe,
-		Authenticated:        true,
+		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
+			return e.wsHandleData(ctx, incoming)
+		},
+		Connector:     e.WsAuth,
+		Subscriber:    e.Subscribe,
+		Unsubscriber:  e.Unsubscribe,
+		Authenticated: true,
 	})
 }
 

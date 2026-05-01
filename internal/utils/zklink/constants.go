@@ -2,9 +2,9 @@ package zklink
 
 // constants for zklink signing parameters
 const (
-	CONTRACT_MSG_TYPE = 254
-	WITHDRAW_MSG_TYPE = 3
-	TRANSFER_MSG_TYPE = 4
+	contractMsgType = 254
+	withdrawMsgType = 3
+	transferMsgType = 4
 )
 
 var (
@@ -56,8 +56,8 @@ var (
 	}
 )
 
-// / First 64 bytes of the BLAKE2s input during group hash.
-// / This is chosen to be some random string that we couldn't have anticipated when we designed
-// / the algorithm, for rigidity purposes.
-// / We deliberately use an ASCII hex string of 32 bytes here.
-var GH_FIRST_BLOCK = []byte("096b36a5804bfacef1691e173c366a47ff5ba84a44f26ddd7e8d9f79d5b42df0")
+// GHFirstBlock First 64 bytes of the BLAKE2s input during group hash.
+// This is chosen to be some random string that we couldn't have anticipated when we designed
+// the algorithm, for rigidity purposes.
+// We deliberately use an ASCII hex string of 32 bytes here.
+var GHFirstBlock = []byte("096b36a5804bfacef1691e173c366a47ff5ba84a44f26ddd7e8d9f79d5b42df0")

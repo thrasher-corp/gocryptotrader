@@ -7,10 +7,10 @@ import (
 )
 
 const (
-	PACKED_POINT_SIZE         = 32
-	SIGNATURE_SIZE            = 96
-	NEW_PUBKEY_HASH_BYTES_LEN = 20
-	NEW_PUBKEY_HASH_WIDTH     = NEW_PUBKEY_HASH_BYTES_LEN * 8
+	packedPointSize       = 32
+	signatureSize         = 96
+	newPubKeyHashBytesLen = 20
+	newPubKeyHashWidth    = newPubKeyHashBytesLen * 8
 )
 
 // ContractBuilder holds a contract builder parameters
