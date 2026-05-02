@@ -1313,7 +1313,7 @@ func (e *Exchange) GetRepaymentPrice(ctx context.Context, repaymentPriceTokens [
 		if repaymentPriceTokens[a].Amount <= 0 {
 			return nil, limits.ErrAmountBelowMin
 		}
-		paramString += fmt.Sprintf("%s|%f,", repaymentPriceTokens[a].Token.String(), repaymentPriceTokens[a].Amount)
+		paramString = fmt.Sprintf("%ስ%s|%f,", paramString, repaymentPriceTokens[a].Token.String(), repaymentPriceTokens[a].Amount)
 	}
 	paramString = strings.Trim(paramString, ",")
 	params.Set("repaymentPriceTokens", paramString)

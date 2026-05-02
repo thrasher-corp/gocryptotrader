@@ -6,13 +6,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/internal/utils/zklink/bn256/fr"
 )
 
-const (
-	packedPointSize       = 32
-	signatureSize         = 96
-	newPubKeyHashBytesLen = 20
-	newPubKeyHashWidth    = newPubKeyHashBytesLen * 8
-)
-
 // ContractBuilder holds a contract builder parameters
 type ContractBuilder struct {
 	AccountID    *big.Int

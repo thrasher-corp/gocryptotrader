@@ -1,8 +1,8 @@
 package apexpro
 
 import (
+	"fmt"
 	"math/big"
-	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -499,16 +499,19 @@ type WsSymbolsTickerInformaton struct {
 	Timestamp types.Time `json:"ts"`
 }
 
+// OnboardingAPIKeyInformation represents the API key information sent when onboarding.
+type OnboardingAPIKeyInformation struct {
+	APIKey string   `json:"apiKey"`
+	Key    string   `json:"key"`
+	Secret string   `json:"secret"`
+	Remark string   `json:"remark"`
+	Ips    []string `json:"ips"`
+}
+
 // RegistrationAndOnboardingResponse represents a registration and onboarding response.
 type RegistrationAndOnboardingResponse struct {
-	APIKey struct {
-		APIKey string   `json:"apiKey"`
-		Key    string   `json:"key"`
-		Secret string   `json:"secret"`
-		Remark string   `json:"remark"`
-		Ips    []string `json:"ips"`
-	} `json:"apiKey"`
-	User struct {
+	APIKey *OnboardingAPIKeyInformation `json:"apiKey,omitempty"`
+	User   struct {
 		ID                       string       `json:"id"`
 		EthereumAddress          string       `json:"ethereumAddress"`
 		IsRegistered             bool         `json:"isRegistered"`
@@ -955,7 +958,7 @@ type TransferAndWithdrawalLimit struct {
 
 // CreateOrderParams represents a request parameter for creating order.
 type CreateOrderParams struct {
-	Symbol          currency.Pair `json:"symbol,omitempty"`
+	Symbol          currency.Pair `json:"symbol"`
 	Side            string        `json:"side,omitempty"`
 	OrderType       string        `json:"type,omitempty"`
 	Size            float64       `json:"size,omitempty,string"`
@@ -1220,7 +1223,7 @@ type LoanRepaymentTokenAndAmountList []*RepaymentTokenAndAmount
 func (l LoanRepaymentTokenAndAmountList) MarshalJSON() ([]byte, error) {
 	var marshaledString string
 	for a := range l {
-		marshaledString += l[a].Token.String() + "|" + strconv.FormatFloat(l[a].Amount, 'f', -1, 64)
+		marshaledString = fmt.Sprintf("%s%s|%f", marshaledString, l[a].Token.String(), l[a].Amount)
 	}
 	byteData := append([]byte{'"'}, append([]byte(marshaledString), []byte{'"'}...)...)
 	return byteData, nil

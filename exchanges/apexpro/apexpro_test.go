@@ -965,7 +965,8 @@ func TestWithdrawAsset(t *testing.T) {
 		ToChainID:        "3",
 		L2SourceTokenID:  currency.USDC,
 		L1TargetTokenID:  currency.USDC,
-		IsFastWithdraw:   false})
+		IsFastWithdraw:   false,
+	})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	_, err = e.WithdrawAsset(t.Context(), &AssetWithdrawalParams{

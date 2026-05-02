@@ -132,7 +132,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 		GenerateSubscriptions: e.GenerateDefaultSubscriptions,
-		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
+		Handler: func(ctx context.Context, _ websocket.Connection, incoming []byte) error {
 			return e.wsHandleData(ctx, incoming)
 		},
 		Connector:    e.WsConnect,
@@ -147,7 +147,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		URL:                  apexProPrivateWebsocket,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
+		Handler: func(ctx context.Context, _ websocket.Connection, incoming []byte) error {
 			return e.wsHandleData(ctx, incoming)
 		},
 		Connector:     e.WsAuth,

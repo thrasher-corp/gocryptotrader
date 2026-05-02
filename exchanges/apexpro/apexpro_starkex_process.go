@@ -498,7 +498,7 @@ func (e *Exchange) ProcessConditionalTransfer(ctx context.Context, arg *FastWith
 	if token == nil {
 		return "", errTokenDetailIsMissing
 	}
-	fact, err := GetTransferErc20Fact(int(token.Decimals),
+	fact, err := GetTransferErc20Fact(int32(token.Decimals),
 		arg.ERC20Address,
 		strconv.FormatFloat(arg.Amount, 'f', -1, 64), token.TokenAddress,
 		"0x"+nonceFromClientID(arg.ClientID).Text(16))
@@ -545,7 +545,7 @@ func FactToCondition(factRegistryAddress, fact string) *big.Int {
 
 // GetTransferErc20Fact get erc20 fact
 // tokenDecimals is COLLATERAL_TOKEN_DECIMALS
-func GetTransferErc20Fact(tokenDecimals int, recipient, humanAmount, tokenAddress, salt string) (string, error) {
+func GetTransferErc20Fact(tokenDecimals int32, recipient, humanAmount, tokenAddress, salt string) (string, error) {
 	amount, err := decimal.NewFromString(humanAmount)
 	if err != nil {
 		return "", err

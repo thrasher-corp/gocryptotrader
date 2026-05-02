@@ -26,7 +26,8 @@ func ECMult(m *big.Int, point [2]*big.Int, alpha int, p *big.Int) [2]*big.Int {
 	return ECCAdd(ECMult(big.NewInt(0).Sub(m, one), point, alpha, p), point, p)
 }
 
-// ECDouble doubles a point on an elliptic curve with the equation y^2 = x^3 + alpha*x + beta mod p
+// ECDouble doubles a point on an elliptic curve with the equation y^2 = x^3 + alpha*x + beta mod p.
+// Assumes the point is given in affine form (x, y) and has y != 0.
 func ECDouble(point [2]*big.Int, alpha int, p *big.Int) [2]*big.Int {
 	// computes m = div_mod(3 * point[0] * point[0] + alpha, 2 * point[1], p)
 	p1 := big.NewInt(3)
@@ -45,8 +46,6 @@ func ECDouble(point [2]*big.Int, alpha int, p *big.Int) [2]*big.Int {
 	y.Mod(y, p)
 	return [2]*big.Int{x, y}
 }
-
-// Assumes the point is given in affine form (x, y) and has y != 0.
 
 // ECCAdd gets two points on an elliptic curve mod p and returns their sum.
 // Assumes the points are given in affine form (x, y) and have different x coordinates.
@@ -82,6 +81,8 @@ func DivMod(n, m, p *big.Int) *big.Int {
 	return tmp.Mod(tmp, p)
 }
 
+// IGCdex computes the extended greatest common divisor of a and b using the extended Euclidean
+// algorithm, returning (x, y, g) such that a*x + b*y = g where g = gcd(|a|, |b|).
 func IGCdex(a, b *big.Int) (x, y, g *big.Int) {
 	if a.Cmp(zero) == 0 && b.Cmp(zero) == 0 {
 		return big.NewInt(0), big.NewInt(1), big.NewInt(0)
@@ -120,7 +121,7 @@ func GenerateKRfc6979(msgHash, priKey, ecOrder *big.Int, seed int) *big.Int {
 	var extra []byte
 	if seed > 0 {
 		buf := new(bytes.Buffer)
-		var data interface{}
+		var data any
 		switch {
 		case seed < 256:
 			data = uint8(seed)

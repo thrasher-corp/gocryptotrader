@@ -32,17 +32,19 @@ func Mac(alg func() hash.Hash, k, m, buf []byte) []byte {
 	return h.Sum(buf[:0])
 }
 
-// https://tools.ietf.org/html/rfc6979#section-2.3.2
+// Bits2Int converts a sequence of bits to a non-negative integer as per RFC 6979 Section 2.3.2.
+// See https://tools.ietf.org/html/rfc6979#section-2.3.2
 func Bits2Int(in []byte, qlen int) *big.Int {
 	vlen := len(in) * 8
 	v := new(big.Int).SetBytes(in)
 	if vlen > qlen {
-		v = new(big.Int).Rsh(v, uint(vlen-qlen))
+		v = new(big.Int).Rsh(v, uint(vlen-qlen)) //nolint:gosec // vlen > qlen is guaranteed by the preceding if condition
 	}
 	return v
 }
 
-// https://tools.ietf.org/html/rfc6979#section-2.3.3
+// Int2Octets converts an integer to a fixed-length sequence of octets as per RFC 6979 Section 2.3.3.
+// See https://tools.ietf.org/html/rfc6979#section-2.3.3
 func Int2Octets(v *big.Int, rolen int) []byte {
 	out := v.Bytes()
 
@@ -63,7 +65,8 @@ func Int2Octets(v *big.Int, rolen int) []byte {
 	return out
 }
 
-// https://tools.ietf.org/html/rfc6979#section-2.3.4
+// Bits2Octets converts a sequence of bits to a sequence of octets as per RFC 6979 Section 2.3.4.
+// See https://tools.ietf.org/html/rfc6979#section-2.3.4
 func Bits2Octets(in []byte, q *big.Int, qlen, rolen int) []byte {
 	z1 := Bits2Int(in, qlen)
 	z2 := new(big.Int).Sub(z1, q)
@@ -73,13 +76,13 @@ func Bits2Octets(in []byte, q *big.Int, qlen, rolen int) []byte {
 	return Int2Octets(z2, rolen)
 }
 
-// https://tools.ietf.org/html/rfc6979#section-3.2
-
-func GenerateSecret(q, x *big.Int, alg func() hash.Hash, hash, extraEntropy []byte) *big.Int {
+// GenerateSecret generates a deterministic secret value k suitable for use in ECDSA signing,
+// as per RFC 6979 Section 3.2. See https://tools.ietf.org/html/rfc6979#section-3.2
+func GenerateSecret(q, x *big.Int, alg func() hash.Hash, hashInput, extraEntropy []byte) *big.Int {
 	qlen := q.BitLen()
 	holen := alg().Size()
 	rolen := (qlen + 7) >> 3
-	bx := append(Int2Octets(x, rolen), Bits2Octets(hash, q, qlen, rolen)...)
+	bx := append(Int2Octets(x, rolen), Bits2Octets(hashInput, q, qlen, rolen)...)
 	// extra_entropy - extra added data in binary form as per section-3.6 of rfc6979
 	if len(extraEntropy) > 0 {
 		bx = append(bx, extraEntropy...)
@@ -89,7 +92,7 @@ func GenerateSecret(q, x *big.Int, alg func() hash.Hash, hash, extraEntropy []by
 	v := bytes.Repeat([]byte{0x01}, holen)
 
 	// Step C
-	k := bytes.Repeat([]byte{0x00}, holen)
+	k := make([]byte, holen)
 
 	// Step D
 	k = Mac(alg, k, append(append(v, 0x00), bx...), k)

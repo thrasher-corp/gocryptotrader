@@ -121,7 +121,7 @@ func (e *Exchange) ProcessZKKeyOrderSignature(ctx context.Context, arg *CreateOr
 	}
 	nonce := accountData.SpotAccount.Nonce
 
-	// Fee rates → ZKLink units (rate × 100000), fitting in 8 bits each
+	// Fee rates -› ZKLink units (rate × 100000), fitting in 8 bits each
 	takerFeeRate := accountData.ContractAccount.TakerFeeRate.Float64()
 	makerFeeRate := accountData.ContractAccount.MakerFeeRate.Float64()
 	takerFeeInt := big.NewInt(int64(takerFeeRate * 100000))
