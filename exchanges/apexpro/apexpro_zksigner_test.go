@@ -167,6 +167,18 @@ func TestProcessZKKeyWithdrawalSignature_MissingCredentials(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestProcessZKKeyTransferSignature_MissingCredentials(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	_, err := ex.ProcessZKKeyTransferSignature(t.Context(), &FastWithdrawalParams{
+		Amount:  1.0,
+		Asset:   currency.USDT,
+		ChainID: "1",
+	})
+	assert.Error(t, err)
+}
+
 func TestProcessZKKeyOrderSignature_Integration(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 

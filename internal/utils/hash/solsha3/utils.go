@@ -210,8 +210,8 @@ func Address(input any) []byte {
 
 // AddressArray address
 func AddressArray(input any) []byte {
-	var values []byte
 	s := reflect.ValueOf(input)
+	values := make([]byte, 0, s.Len()*32)
 	for i := range s.Len() {
 		val := s.Index(i).Interface()
 		result := common.LeftPadBytes(Address(val), 32)
@@ -239,8 +239,8 @@ func String(input any) []byte {
 
 // StringArray string
 func StringArray(input any) []byte {
-	var values []byte
 	s := reflect.ValueOf(input)
+	values := make([]byte, 0, s.Len()*32)
 	for i := range s.Len() {
 		val := s.Index(i).Interface()
 		result := String(val)
@@ -270,8 +270,8 @@ func Uint256(input any) []byte {
 
 // Uint256Array uint256 array
 func Uint256Array(input any) []byte {
-	var values []byte
 	s := reflect.ValueOf(input)
+	values := make([]byte, 0, s.Len()*32)
 	for i := range s.Len() {
 		val := s.Index(i).Interface()
 		result := common.LeftPadBytes(Uint256(val), 32)
@@ -299,8 +299,8 @@ func Bool(input any) []byte {
 
 // BoolArray bool array
 func BoolArray(input any) []byte {
-	var values []byte
 	s := reflect.ValueOf(input)
+	values := make([]byte, 0, s.Len()*32)
 	for i := range s.Len() {
 		val := s.Index(i).Interface()
 		result := common.LeftPadBytes(Bool(val), 32)

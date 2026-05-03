@@ -14,7 +14,6 @@ const (
 	rescueStateWidth = 3
 	rescueRounds     = 22
 	rescueRate       = 2
-	rescueCapacity   = 1
 	// Total round constants: (1 + 2*rounds) * stateWidth
 	rescueNumRC = (1 + 2*rescueRounds) * rescueStateWidth // 135
 )
@@ -265,8 +264,7 @@ func bigIntToFrElements(n *big.Int) []fr.Element {
 	const chunkSize = 31
 	b := n.Bytes() // big-endian, no leading zeros
 	if rem := len(b) % chunkSize; rem != 0 {
-		padding := make([]byte, chunkSize-rem)
-		b = append(padding, b...)
+		b = append(make([]byte, chunkSize-rem), b...)
 	}
 
 	elems := make([]fr.Element, len(b)/chunkSize)

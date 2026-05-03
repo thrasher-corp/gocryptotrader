@@ -47,8 +47,10 @@ const Limbs = 4
 const Bits = 254
 
 // field modulus stored as big.Int
-var _modulus big.Int
-var onceModulus sync.Once
+var (
+	_modulus    big.Int
+	onceModulus sync.Once
+)
 
 // Modulus returns q as a big.Int
 // q =
@@ -273,7 +275,6 @@ func (z *Element) Neg(x *Element) *Element {
 // Generic (no ADX instructions, no AMD64) versions of multiplication and squaring algorithms
 
 func _mulGeneric(z, x, y *Element) {
-
 	var t [4]uint64
 	var c [3]uint64
 	{
@@ -341,7 +342,6 @@ func _mulGeneric(z, x, y *Element) {
 }
 
 func _squareGeneric(z, x *Element) {
-
 	var t [4]uint64
 	var c [3]uint64
 	{
@@ -613,7 +613,7 @@ func (z *Element) Sqrt(x *Element) *Element {
 	b.Mul(&w, &y)
 
 	// g = nonResidue ^ s
-	var g = Element{
+	g := Element{
 		7164790868263648668,
 		11685701338293206998,
 		6216421865291908056,
@@ -671,7 +671,7 @@ func (z *Element) Inverse(x *Element) *Element {
 	}
 
 	// initialize u = q
-	var u = Element{
+	u := Element{
 		4891460686036598785,
 		2896914383306846353,
 		13281191951274694749,
@@ -679,7 +679,7 @@ func (z *Element) Inverse(x *Element) *Element {
 	}
 
 	// initialize s = r^2
-	var s = Element{
+	s := Element{
 		1997599621687373223,
 		6052339484930628067,
 		10108755138030829701,
@@ -840,7 +840,6 @@ func (z *Element) Inverse(x *Element) *Element {
 
 	return z
 }
-
 
 // Cmp compares (lexicographic order) z and x and returns:
 //

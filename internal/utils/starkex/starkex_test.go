@@ -52,7 +52,7 @@ func TestECDSASignatureFromFile(t *testing.T) {
 	require.NotNil(t, sfg)
 
 	resp := &struct {
-		PrivateKey string `json:"private_key"`
+		PrivateKey string `json:"private_key"` //nolint:gosec // Used for testing purpose
 		Messages   []struct {
 			Hash string   `json:"hash"`
 			R    *big.Int `json:"r"`

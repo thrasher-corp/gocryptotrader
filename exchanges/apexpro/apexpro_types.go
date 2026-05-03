@@ -247,7 +247,7 @@ type GlobalConfig struct {
 // ChainInfo represents a chain information
 type ChainInfo struct {
 	Chain              string       `json:"chain"`
-	ChainID            int64        `json:"chainId"`
+	ChainID            types.Number `json:"chainId"`
 	ChainIconURL       string       `json:"chainIconUrl"`
 	ContractAddress    string       `json:"contractAddress"`
 	DepositGasFeeLess  bool         `json:"depositGasFeeLess"`
@@ -497,43 +497,6 @@ type WsSymbolsTickerInformaton struct {
 	} `json:"data"`
 	Type      string     `json:"type"`
 	Timestamp types.Time `json:"ts"`
-}
-
-// OnboardingAPIKeyInformation represents the API key information sent when onboarding.
-type OnboardingAPIKeyInformation struct {
-	APIKey string   `json:"apiKey"`
-	Key    string   `json:"key"`
-	Secret string   `json:"secret"`
-	Remark string   `json:"remark"`
-	Ips    []string `json:"ips"`
-}
-
-// RegistrationAndOnboardingResponse represents a registration and onboarding response.
-type RegistrationAndOnboardingResponse struct {
-	APIKey *OnboardingAPIKeyInformation `json:"apiKey,omitempty"`
-	User   struct {
-		ID                       string       `json:"id"`
-		EthereumAddress          string       `json:"ethereumAddress"`
-		IsRegistered             bool         `json:"isRegistered"`
-		Email                    string       `json:"email"`
-		Username                 string       `json:"username"`
-		ReferredByAffiliateLink  string       `json:"referredByAffiliateLink"`
-		AffiliateLink            string       `json:"affiliateLink"`
-		ApexTokenBalance         types.Number `json:"apexTokenBalance"`
-		StakedApexTokenBalance   types.Number `json:"stakedApexTokenBalance"`
-		IsEmailVerified          bool         `json:"isEmailVerified"`
-		IsSharingUsername        bool         `json:"isSharingUsername"`
-		IsSharingAddress         bool         `json:"isSharingAddress"`
-		Country                  string       `json:"country"`
-		AvatarURL                string       `json:"avatarUrl"`
-		AvatarBorderURL          string       `json:"avatarBorderUrl"`
-		EmailNotifyGeneralEnable bool         `json:"emailNotifyGeneralEnable"`
-		EmailNotifyTradingEnable bool         `json:"emailNotifyTradingEnable"`
-		EmailNotifyAccountEnable bool         `json:"emailNotifyAccountEnable"`
-		PopupNotifyTradingEnable bool         `json:"popupNotifyTradingEnable"`
-		AppNotifyTradingEnable   bool         `json:"appNotifyTradingEnable"`
-	} `json:"user"`
-	Account *UserAccountDetail `json:"account"`
 }
 
 // EditUserDataParams represents a request parameter to edit user data.
@@ -1026,9 +989,9 @@ type FastWithdrawalParams struct {
 	Expiration   int64         `json:"expiration"`
 	Asset        currency.Code `json:"asset"`
 	ERC20Address string        `json:"erc20Address"`
-	ChainID      string        `json:"fee"`
-	Fees         float64       `json:"chainId"`
-	IPAccountID  string        `json:"lpAccountId,omitempty"`
+	ChainID      string        `json:"chainId"`
+	Fees         float64       `json:"fee"`
+	LpAccountID  string        `json:"lpAccountId,omitempty"`
 	Signature    string        `json:"signature"`
 }
 
@@ -1038,7 +1001,7 @@ type WsInput struct {
 	Topics      []string `json:"topics,omitempty"`
 	HTTPMethod  string   `json:"httpMethod,omitempty"`
 	RequestPath string   `json:"requestPath,omitempty"`
-	APIKey      string   `json:"apiKey,omitempty"`
+	APIKey      string   `json:"apiKey,omitempty"` //nolint:gosec // Used when authenticating websocket connection
 	Passphrase  string   `json:"passphrase,omitempty"`
 	Timestamp   int64    `json:"timestamp,omitempty"`
 	Signature   string   `json:"signature,omitempty"`

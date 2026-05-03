@@ -47,8 +47,10 @@ const Limbs = 4
 const Bits = 254
 
 // field modulus stored as big.Int
-var _modulus big.Int
-var onceModulus sync.Once
+var (
+	_modulus    big.Int
+	onceModulus sync.Once
+)
 
 // Modulus returns q as a big.Int
 // q =
@@ -273,7 +275,6 @@ func (z *Element) Neg(x *Element) *Element {
 // Generic (no ADX instructions, no AMD64) versions of multiplication and squaring algorithms
 
 func _mulGeneric(z, x, y *Element) {
-
 	var t [4]uint64
 	var c [3]uint64
 	{
@@ -341,7 +342,6 @@ func _mulGeneric(z, x, y *Element) {
 }
 
 func _squareGeneric(z, x *Element) {
-
 	var t [4]uint64
 	var c [3]uint64
 	{
@@ -619,7 +619,7 @@ func (z *Element) Inverse(x *Element) *Element {
 	}
 
 	// initialize u = q
-	var u = Element{
+	u := Element{
 		4332616871279656263,
 		10917124144477883021,
 		13281191951274694749,
@@ -627,7 +627,7 @@ func (z *Element) Inverse(x *Element) *Element {
 	}
 
 	// initialize s = r^2
-	var s = Element{
+	s := Element{
 		17522657719365597833,
 		13107472804851548667,
 		5164255478447964150,

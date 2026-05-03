@@ -487,7 +487,7 @@ func (e *Exchange) ProcessConditionalTransfer(ctx context.Context, arg *FastWith
 	}
 	var token *TokenInfo
 	for k := range e.SymbolsConfig.Data.MultiChain.Chains {
-		if e.SymbolsConfig.Data.MultiChain.Chains[k].ChainID == int64(e.NetworkID) {
+		if e.SymbolsConfig.Data.MultiChain.Chains[k].ChainID.Int64() == int64(e.NetworkID) {
 			for t := range e.SymbolsConfig.Data.MultiChain.Chains[k].Tokens {
 				if e.SymbolsConfig.Data.MultiChain.Chains[k].Tokens[t].Token == arg.Asset.Upper().String() {
 					token = &e.SymbolsConfig.Data.MultiChain.Chains[k].Tokens[t]
@@ -554,7 +554,7 @@ func GetTransferErc20Fact(tokenDecimals int32, recipient, humanAmount, tokenAddr
 	if !ok {
 		return "", fmt.Errorf("invalid salt: %v,can not parse to big.Int", salt)
 	}
-	tokenAmount := amount.Mul(decimal.New(10, int32(tokenDecimals-1)))
+	tokenAmount := amount.Mul(decimal.New(10, tokenDecimals-1))
 	fact, err := solsha3.SoliditySHA3(
 		// types
 		[]string{"address", "uint256", "address", "uint256"},

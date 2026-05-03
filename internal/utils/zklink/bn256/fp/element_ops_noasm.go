@@ -1,3 +1,4 @@
+//go:build !amd64
 // +build !amd64
 
 // Copyright 2020 ConsenSys Software Inc.
@@ -106,7 +107,6 @@ func neg(z, x *Element) {
 }
 
 func reduce(z *Element) {
-
 	// if z > q --> z -= q
 	// note: this is NOT constant time
 	if !(z[3] < 3486998266802970665 || (z[3] == 3486998266802970665 && (z[2] < 13281191951274694749 || (z[2] == 13281191951274694749 && (z[1] < 10917124144477883021 || (z[1] == 10917124144477883021 && (z[0] < 4332616871279656263))))))) {

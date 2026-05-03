@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
-	"math/rand"
+	rand "math/rand/v2"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -109,16 +109,6 @@ func (e *Exchange) GetMarketDepthV3(ctx context.Context, symbol string, limit in
 	return e.getMarketDepth(ctx, symbol, "v3/depth", limit)
 }
 
-// GetMarketDepthV2 retrieve all active orderbook for one symbol, include all bids and asks.
-func (e *Exchange) GetMarketDepthV2(ctx context.Context, symbol string, limit int64) (*MarketDepthV3, error) {
-	return e.getMarketDepth(ctx, symbol, "v2/depth", limit)
-}
-
-// GetMarketDepthV1 retrieve all active orderbook for one symbol, include all bids and asks.
-func (e *Exchange) GetMarketDepthV1(ctx context.Context, symbol string, limit int64) (*MarketDepthV3, error) {
-	return e.getMarketDepth(ctx, symbol, "v1/depth", limit)
-}
-
 func (e *Exchange) getMarketDepth(ctx context.Context, symbol, path string, limit int64) (*MarketDepthV3, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
@@ -136,16 +126,6 @@ func (e *Exchange) getMarketDepth(ctx context.Context, symbol, path string, limi
 // GetNewestTradingDataV3 retrieve trading data.
 func (e *Exchange) GetNewestTradingDataV3(ctx context.Context, symbol string, limit int64) ([]NewTradingData, error) {
 	return e.getNewestTradingData(ctx, symbol, "v3/trades", limit)
-}
-
-// GetNewestTradingDataV2 retrieve trading data.
-func (e *Exchange) GetNewestTradingDataV2(ctx context.Context, symbol string, limit int64) ([]NewTradingData, error) {
-	return e.getNewestTradingData(ctx, symbol, "v2/trades", limit)
-}
-
-// GetNewestTradingDataV1 retrieve trading data.
-func (e *Exchange) GetNewestTradingDataV1(ctx context.Context, symbol string, limit int64) ([]NewTradingData, error) {
-	return e.getNewestTradingData(ctx, symbol, "v1/trades", limit)
 }
 
 func (e *Exchange) getNewestTradingData(ctx context.Context, symbol, path string, limit int64) ([]NewTradingData, error) {
@@ -203,16 +183,6 @@ func (e *Exchange) GetCandlestickChartDataV3(ctx context.Context, symbol string,
 	return e.getCandlestickChartData(ctx, symbol, "v3/klines", interval, startTime, endTime, limit)
 }
 
-// GetCandlestickChartDataV2 retrieves v2 all candlestick chart data.
-func (e *Exchange) GetCandlestickChartDataV2(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) (map[string][]CandlestickData, error) {
-	return e.getCandlestickChartData(ctx, symbol, "v2/klines", interval, startTime, endTime, limit)
-}
-
-// GetCandlestickChartDataV1 retrieves v1 all candlestick chart data.
-func (e *Exchange) GetCandlestickChartDataV1(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) (map[string][]CandlestickData, error) {
-	return e.getCandlestickChartData(ctx, symbol, "v1/klines", interval, startTime, endTime, limit)
-}
-
 func (e *Exchange) getCandlestickChartData(ctx context.Context, symbol, path string, interval kline.Interval, startTime, endTime time.Time, limit int64) (map[string][]CandlestickData, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
@@ -247,11 +217,6 @@ func (e *Exchange) getCandlestickChartData(ctx context.Context, symbol, path str
 // GetTickerDataV3 get the latest data on symbol tickers.
 func (e *Exchange) GetTickerDataV3(ctx context.Context, symbol string) ([]TickerData, error) {
 	return e.getTickerData(ctx, symbol, "v3/ticker")
-}
-
-// GetTickerDataV2 get the latest data on symbol tickers.
-func (e *Exchange) GetTickerDataV2(ctx context.Context, symbol string) ([]TickerData, error) {
-	return e.getTickerData(ctx, symbol, "v2/ticker")
 }
 
 func (e *Exchange) getTickerData(ctx context.Context, symbol, path string) ([]TickerData, error) {
@@ -711,7 +676,7 @@ func (e *Exchange) GetWorstPriceV1(ctx context.Context, symbol, side string, amo
 }
 
 func (e *Exchange) orderCreationParamsFilter(ctx context.Context, arg *CreateOrderParams) (url.Values, error) {
-	if *arg == (CreateOrderParams{}) {
+	if arg == nil || *arg == (CreateOrderParams{}) {
 		return nil, order.ErrOrderDetailIsNil
 	}
 	if arg.Symbol.IsEmpty() {
@@ -728,6 +693,12 @@ func (e *Exchange) orderCreationParamsFilter(ctx context.Context, arg *CreateOrd
 	}
 	if arg.Price <= 0 {
 		return nil, limits.ErrPriceBelowMin
+	}
+	if arg.LimitFee < 0 {
+		return nil, errLimitFeeRequired
+	}
+	if arg.ExpirationTime == 0 {
+		return nil, errExpirationTimeRequired
 	}
 	signature, err := e.ProcessOrderSignature(ctx, arg)
 	if err != nil {
@@ -845,14 +816,19 @@ func (e *Exchange) CreateOrderV1(ctx context.Context, arg *CreateOrderParams) (*
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "v1/create-order", request.UnAuth, params, nil, &resp)
 }
 
-// FastWithdrawalV1 withdraws an asset
+// FastWithdrawalV1 withdraws an asset via the StarkEx V1 endpoint.
 func (e *Exchange) FastWithdrawalV1(ctx context.Context, arg *FastWithdrawalParams) (*WithdrawalResponse, error) {
 	return e.fastWithdrawal(ctx, arg, "v1/fast-withdraw")
 }
 
-// FastWithdrawalV2 withdraws an asset
+// FastWithdrawalV2 withdraws an asset via the StarkEx V2 endpoint.
 func (e *Exchange) FastWithdrawalV2(ctx context.Context, arg *FastWithdrawalParams) (*WithdrawalResponse, error) {
 	return e.fastWithdrawal(ctx, arg, "v2/fast-withdraw")
+}
+
+// FastWithdrawalV3 withdraws an asset via the ZKLink V3 endpoint.
+func (e *Exchange) FastWithdrawalV3(ctx context.Context, arg *FastWithdrawalParams) (*WithdrawalResponse, error) {
+	return e.fastWithdrawalZKLink(ctx, arg, "v3/fast-withdraw")
 }
 
 func (e *Exchange) fillWithdrawalParams(arg *FastWithdrawalParams) error {
@@ -888,6 +864,26 @@ func (e *Exchange) fastWithdrawal(ctx context.Context, arg *FastWithdrawalParams
 	params.Set("chainId", arg.ChainID)
 	params.Set("clientId", arg.ClientID)
 	params.Set("signature", signature)
+	var resp *WithdrawalResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, request.UnAuth, params, nil, &resp)
+}
+
+func (e *Exchange) fastWithdrawalZKLink(ctx context.Context, arg *FastWithdrawalParams, path string) (*WithdrawalResponse, error) {
+	if err := e.fillWithdrawalParams(arg); err != nil {
+		return nil, err
+	}
+	zkKeySignature, err := e.ProcessZKKeyTransferSignature(ctx, arg)
+	if err != nil {
+		return nil, err
+	}
+	params := url.Values{}
+	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
+	params.Set("expiration", strconv.FormatInt(arg.Expiration, 10))
+	params.Set("asset", arg.Asset.String())
+	params.Set("fees", strconv.FormatFloat(arg.Fees, 'f', -1, 64))
+	params.Set("chainId", arg.ChainID)
+	params.Set("clientId", arg.ClientID)
+	params.Set("zkKeySignature", zkKeySignature)
 	var resp *WithdrawalResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, request.UnAuth, params, nil, &resp)
 }
@@ -1313,7 +1309,7 @@ func (e *Exchange) GetRepaymentPrice(ctx context.Context, repaymentPriceTokens [
 		if repaymentPriceTokens[a].Amount <= 0 {
 			return nil, limits.ErrAmountBelowMin
 		}
-		paramString = fmt.Sprintf("%ስ%s|%f,", paramString, repaymentPriceTokens[a].Token.String(), repaymentPriceTokens[a].Amount)
+		paramString = fmt.Sprintf("%s%s|%f,", paramString, repaymentPriceTokens[a].Token.String(), repaymentPriceTokens[a].Amount)
 	}
 	paramString = strings.Trim(paramString, ",")
 	params.Set("repaymentPriceTokens", paramString)
@@ -1433,14 +1429,21 @@ func (e *Exchange) WithdrawAsset(ctx context.Context, arg *AssetWithdrawalParams
 	}
 	params.Set("isFastWithdraw", strconv.FormatBool(arg.IsFastWithdraw))
 	params.Set("nonce", arg.Nonce)
+	if arg.ZKAccountID == "" {
+		accountData, err := e.GetUserAccountDataV3(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("GetUserAccountDataV3: %w", err)
+		}
+		arg.ZKAccountID = accountData.SpotAccount.ZkAccountID
+		if arg.ZKAccountID == "" {
+			return nil, errZeroKnowledgeAccountIDMissing
+		}
+	}
+	params.Set("zkAccountId", arg.ZKAccountID)
 	zkKeySignature, err := e.ProcessZKKeyWithdrawalSignature(ctx, arg)
 	if err != nil {
 		return nil, err
 	}
-	if arg.ZKAccountID == "" {
-		return nil, errZeroKnowledgeAccountIDMissing
-	}
-	params.Set("zkAccountId", arg.ZKAccountID)
 	params.Set("zkKeySignature", zkKeySignature)
 	var resp *WithdrawalResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, "v3/withdrawal", request.UnAuth, params, nil, &resp)
@@ -1516,22 +1519,25 @@ func (e *Exchange) withdrawalToAddress(ctx context.Context, arg *WithdrawalToAdd
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, request.UnAuth, params, nil, &resp)
 }
 
-// CrossChainWithdrawalsV1 withdraws an asset through different chains
+// CrossChainWithdrawalsV1 withdraws an asset through different chains via the StarkEx V1 endpoint.
 func (e *Exchange) CrossChainWithdrawalsV1(ctx context.Context, arg *FastWithdrawalParams) (*WithdrawalResponse, error) {
 	return e.crossChainWithdrawals(ctx, arg, "v1/cross-chain-withdraw")
 }
 
-// CrossChainWithdrawalsV2 withdraaws an asse tthrough the v2 api
+// CrossChainWithdrawalsV2 withdraws an asset through different chains via the StarkEx V2 endpoint.
 func (e *Exchange) CrossChainWithdrawalsV2(ctx context.Context, arg *FastWithdrawalParams) (*WithdrawalResponse, error) {
 	return e.crossChainWithdrawals(ctx, arg, "v2/cross-chain-withdraw")
 }
 
+// CrossChainWithdrawalsV3 withdraws an asset through different chains via the ZKLink V3 endpoint.
+func (e *Exchange) CrossChainWithdrawalsV3(ctx context.Context, arg *FastWithdrawalParams) (*WithdrawalResponse, error) {
+	return e.crossChainWithdrawalsZKLink(ctx, arg, "v3/cross-chain-withdraw")
+}
+
 func (e *Exchange) crossChainWithdrawals(ctx context.Context, arg *FastWithdrawalParams, path string) (*WithdrawalResponse, error) {
-	err := e.fillWithdrawalParams(arg)
-	if err != nil {
+	if err := e.fillWithdrawalParams(arg); err != nil {
 		return nil, err
 	}
-	// TODO: signature validation and testing
 	signature, err := e.ProcessConditionalTransfer(ctx, arg)
 	if err != nil {
 		return nil, err
@@ -1543,6 +1549,25 @@ func (e *Exchange) crossChainWithdrawals(ctx context.Context, arg *FastWithdrawa
 	params.Set("fees", strconv.FormatFloat(arg.Fees, 'f', -1, 64))
 	params.Set("chainId", arg.ChainID)
 	params.Set("signature", signature)
+	var resp *WithdrawalResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, request.UnAuth, params, nil, &resp)
+}
+
+func (e *Exchange) crossChainWithdrawalsZKLink(ctx context.Context, arg *FastWithdrawalParams, path string) (*WithdrawalResponse, error) {
+	if err := e.fillWithdrawalParams(arg); err != nil {
+		return nil, err
+	}
+	zkKeySignature, err := e.ProcessZKKeyTransferSignature(ctx, arg)
+	if err != nil {
+		return nil, err
+	}
+	params := url.Values{}
+	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
+	params.Set("expiration", strconv.FormatInt(arg.Expiration, 10))
+	params.Set("asset", arg.Asset.String())
+	params.Set("fees", strconv.FormatFloat(arg.Fees, 'f', -1, 64))
+	params.Set("chainId", arg.ChainID)
+	params.Set("zkKeySignature", zkKeySignature)
 	var resp *WithdrawalResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, request.UnAuth, params, nil, &resp)
 }
@@ -1601,7 +1626,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ePath excha
 		}
 		body = bytes.NewBuffer(payload)
 	} else if method == http.MethodPost && params != nil {
-		body = bytes.NewBuffer([]byte(params.Encode()))
+		body = bytes.NewBufferString(params.Encode())
 		dataString = params.Encode()
 	}
 	err = e.SendPayload(ctx, f, func() (*request.Item, error) {

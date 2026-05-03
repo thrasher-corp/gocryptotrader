@@ -39,8 +39,8 @@ func (e *Exchange) SetDefaults() {
 	e.API.CredentialsValidator.RequiresKey = true
 	e.API.CredentialsValidator.RequiresSecret = true
 
-	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: "-"}
-	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: "-"}
+	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
+	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 	err := e.SetAssetPairStore(asset.Futures, currency.PairStore{
 		RequestFormat: requestFmt,
 		ConfigFormat:  configFmt,
@@ -69,6 +69,26 @@ func (e *Exchange) SetDefaults() {
 		},
 		Enabled: exchange.FeaturesEnabled{
 			AutoPairUpdates: true,
+			Kline: kline.ExchangeCapabilitiesEnabled{
+				Intervals: kline.DeployExchangeIntervals(
+					kline.IntervalCapacity{Interval: kline.OneMin},
+					kline.IntervalCapacity{Interval: kline.ThreeMin},
+					kline.IntervalCapacity{Interval: kline.FiveMin},
+					kline.IntervalCapacity{Interval: kline.FifteenMin},
+					kline.IntervalCapacity{Interval: kline.ThirtyMin},
+					kline.IntervalCapacity{Interval: kline.OneHour},
+					kline.IntervalCapacity{Interval: kline.TwoHour},
+					kline.IntervalCapacity{Interval: kline.FourHour},
+					kline.IntervalCapacity{Interval: kline.SixHour},
+					kline.IntervalCapacity{Interval: kline.EightHour},
+					kline.IntervalCapacity{Interval: kline.TwelveHour},
+					kline.IntervalCapacity{Interval: kline.OneDay},
+					kline.IntervalCapacity{Interval: kline.ThreeDay},
+					kline.IntervalCapacity{Interval: kline.OneWeek},
+					kline.IntervalCapacity{Interval: kline.OneMonth},
+				),
+				GlobalResultLimit: 1000,
+			},
 		},
 	}
 
@@ -150,10 +170,11 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler: func(ctx context.Context, _ websocket.Connection, incoming []byte) error {
 			return e.wsHandleData(ctx, incoming)
 		},
-		Connector:     e.WsAuth,
-		Subscriber:    e.Subscribe,
-		Unsubscriber:  e.Unsubscribe,
-		Authenticated: true,
+		Connector:                e.WsAuth,
+		Subscriber:               e.Subscribe,
+		Unsubscriber:             e.Unsubscribe,
+		Authenticated:            true,
+		SubscriptionsNotRequired: true,
 	})
 }
 
@@ -176,7 +197,11 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 		tradablePairs = append(tradablePairs, configs.Data.PerpetualContract[a].Symbol)
 	}
-	return tradablePairs, nil
+	format, err := e.GetPairFormat(a, true)
+	if err != nil {
+		return nil, err
+	}
+	return tradablePairs.Format(format), nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -398,7 +423,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
-	orderResp, err := e.CreateOrderV2(ctx, &CreateOrderParams{
+	orderResp, err := e.CreateOrderV3(ctx, &CreateOrderParams{
 		Symbol:           s.Pair,
 		Side:             s.Side.String(),
 		OrderType:        orderTypeString(s.Type),
@@ -531,7 +556,11 @@ func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	withdrawalResponse, err := e.WithdrawAsset(ctx, &AssetWithdrawalParams{
 		Amount:           withdrawRequest.Amount,
 		ClientWithdrawID: withdrawRequest.ClientOrderID,
+		Timestamp:        time.Now(),
 		EthereumAddress:  withdrawRequest.Crypto.Address,
+		ToChainID:        withdrawRequest.Crypto.Chain,
+		L2SourceTokenID:  withdrawRequest.Currency,
+		L1TargetTokenID:  withdrawRequest.Currency,
 	})
 	if err != nil {
 		return nil, err
@@ -799,7 +828,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, _ asset.Item) 
 	resp := make([]futures.Contract, 0, len(result.ContractConfig.PerpetualContract))
 	for x := range result.ContractConfig.PerpetualContract {
 		var underlying currency.Pair
-		underlying, err = currency.NewPairFromString(result.ContractConfig.PerpetualContract[x].UnderlyingCurrencyID)
+		underlying, err = currency.NewPairFromString(result.ContractConfig.PerpetualContract[x].SymbolDisplayName)
 		if err != nil {
 			return nil, err
 		}
@@ -894,27 +923,30 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 
 // UpdateOrderExecutionLimits updates order execution limits
 func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, _ asset.Item) error {
-	instrumentsInfo, err := e.GetAllConfigDataV3(ctx)
-	if err != nil {
-		return err
-	}
-	ls := make([]limits.MinMaxLevel, 0, len(instrumentsInfo.ContractConfig.PerpetualContract))
-	for x := range instrumentsInfo.ContractConfig.PerpetualContract {
-		if enabled, err := e.IsPairEnabled(instrumentsInfo.ContractConfig.PerpetualContract[x].Symbol, asset.Futures); err != nil || !enabled {
-			log.Warnf(log.ExchangeSys, "%s unable to load limits for %v, pair data missing", e.Name, instrumentsInfo.ContractConfig.PerpetualContract[x].Symbol)
-			continue
+	var contracts []*PerpetualContractDetail
+	if e.SymbolsConfig != nil {
+		contracts = e.SymbolsConfig.Data.PerpetualContract
+	} else {
+		resp, err := e.GetAllSymbolsConfigDataV1(ctx)
+		if err != nil {
+			return err
 		}
-		ls = append(ls, limits.MinMaxLevel{
-			Key:                     key.NewExchangeAssetPair(e.Name, asset.Futures, instrumentsInfo.ContractConfig.PerpetualContract[x].Symbol),
-			MinimumBaseAmount:       instrumentsInfo.ContractConfig.PerpetualContract[x].MinOrderSize.Float64(),
-			MaximumBaseAmount:       instrumentsInfo.ContractConfig.PerpetualContract[x].MaxOrderSize.Float64(),
-			MaxTotalOrders:          instrumentsInfo.ContractConfig.PerpetualContract[x].MaxPositionSize.Int64(),
-			MaxPrice:                instrumentsInfo.ContractConfig.PerpetualContract[x].MaxMarketPriceRange.Float64(),
-			PriceStepIncrementSize:  instrumentsInfo.ContractConfig.PerpetualContract[x].TickSize.Float64(),
-			AmountStepIncrementSize: instrumentsInfo.ContractConfig.PerpetualContract[x].StepSize.Float64(),
-			QuoteStepIncrementSize:  instrumentsInfo.ContractConfig.PerpetualContract[x].IncrementalPositionValue.Float64(),
-			MaximumQuoteAmount:      instrumentsInfo.ContractConfig.PerpetualContract[x].MaxPositionValue.Float64(),
-		})
+		contracts = resp.Data.PerpetualContract
+	}
+	ls := make([]limits.MinMaxLevel, len(contracts))
+	for x, pContract := range contracts {
+		ls[x] = limits.MinMaxLevel{
+			Key:                     key.NewExchangeAssetPair(e.Name, asset.Futures, pContract.Symbol),
+			MinPrice:                pContract.TickSize.Float64(),
+			PriceStepIncrementSize:  pContract.TickSize.Float64(),
+			MinimumBaseAmount:       pContract.MinOrderSize.Float64(),
+			MaximumBaseAmount:       pContract.MaxOrderSize.Float64(),
+			AmountStepIncrementSize: pContract.StepSize.Float64(),
+			QuoteStepIncrementSize:  pContract.IncrementalPositionValue.Float64(),
+			MaximumQuoteAmount:      pContract.MaxPositionValue.Float64(),
+			MarketMaxQty:            pContract.MaxOrderSize.Float64(),
+			MaxTotalOrders:          pContract.MaxPositionSize.Int64(),
+		}
 	}
 	return limits.Load(ls)
 }

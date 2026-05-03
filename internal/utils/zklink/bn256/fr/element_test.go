@@ -165,7 +165,6 @@ func TestELEMENTIsRandom(t *testing.T) {
 }
 
 func TestByte(t *testing.T) {
-
 	modulus := Modulus()
 
 	// test values
@@ -217,8 +216,8 @@ func BenchmarkInverseELEMENT(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		benchResElement.Inverse(&x)
 	}
-
 }
+
 func BenchmarkExpELEMENT(b *testing.B) {
 	var x Element
 	x.SetRandom()
@@ -291,6 +290,7 @@ func BenchmarkToMontELEMENT(b *testing.B) {
 		benchResElement.ToMont()
 	}
 }
+
 func BenchmarkSquareELEMENT(b *testing.B) {
 	benchResElement.SetRandom()
 	b.ResetTimer()
@@ -364,11 +364,9 @@ func TestELEMENTreduce(t *testing.T) {
 			t.Fatal("reduce failed")
 		}
 	}
-
 }
 
 func (z *Element) testReduce() *Element {
-
 	// if z > q --> z -= q
 	// note: this is NOT constant time
 	if !(z[3] < 3486998266802970665 || (z[3] == 3486998266802970665 && (z[2] < 13281191951274694749 || (z[2] == 13281191951274694749 && (z[1] < 2896914383306846353 || (z[1] == 2896914383306846353 && (z[0] < 4891460686036598785))))))) {
@@ -385,7 +383,6 @@ func (z *Element) testReduce() *Element {
 // Gopter tests
 
 func TestELEMENTMul(t *testing.T) {
-
 	parameters := gopter.DefaultTestParameters()
 	parameters.MinSuccessfulTests = 10000
 
@@ -446,7 +443,6 @@ func TestELEMENTMul(t *testing.T) {
 }
 
 func TestELEMENTSquare(t *testing.T) {
-
 	parameters := gopter.DefaultTestParameters()
 	parameters.MinSuccessfulTests = 10000
 
@@ -510,7 +506,6 @@ func TestELEMENTSquare(t *testing.T) {
 }
 
 func TestELEMENTFromMont(t *testing.T) {
-
 	parameters := gopter.DefaultTestParameters()
 	parameters.MinSuccessfulTests = 10000
 
