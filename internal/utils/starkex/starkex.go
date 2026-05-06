@@ -35,7 +35,7 @@ type StarkConfig struct {
 
 var one = big.NewInt(1)
 
-const defaultPedersenConfigsPath = "internal/utils/hash/elliptic_curve_config/"
+const defaultPedersenConfigsPath = "internal/utils/starkex/"
 
 // NewStarkExConfig returns a elliptic curve configuration given the name of the elliptic curve config
 func NewStarkExConfig() (*StarkConfig, error) {

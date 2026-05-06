@@ -1629,7 +1629,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ePath excha
 		body = bytes.NewBufferString(params.Encode())
 		dataString = params.Encode()
 	}
-	err = e.SendPayload(ctx, f, func() (*request.Item, error) {
+	if err := e.SendPayload(ctx, f, func() (*request.Item, error) {
 		timestamp := time.Now().UTC().UnixMilli()
 		if len(timestamps) > 0 && timestamps[0] != 0 {
 			timestamp = timestamps[0]
@@ -1659,8 +1659,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ePath excha
 			HTTPRecording: e.HTTPRecording,
 		}
 		return reqItem, nil
-	}, request.AuthenticatedRequest)
-	if err != nil {
+	}, request.AuthenticatedRequest); err != nil {
 		return err
 	}
 	if response.Code != 0 {

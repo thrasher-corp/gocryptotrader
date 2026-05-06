@@ -40,9 +40,9 @@ func (c *ContractBuilder) GetBytes() *big.Int {
 
 func boolToBigInt(b bool) *big.Int {
 	if b {
-		return big.NewInt(1) // If true, return 1 as big.Int
+		return big.NewInt(1)
 	}
-	return big.NewInt(0) // If false, return 0 as big.Int
+	return big.NewInt(0)
 }
 
 // GetBytes implements the signable interface

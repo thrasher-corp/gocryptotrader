@@ -19,7 +19,7 @@ const (
 )
 
 // inv5Exponent = ModInverse(5, p-1) for BN254 Fr modulus p
-// Used for the inverse S-box x → x^inv5
+// Used for the inverse S-box x = x^inv5
 var rescueInv5Exp = func() *big.Int {
 	n, _ := new(big.Int).SetString(
 		"17510594297471420177797124596205820070838691520332827474958563349260646796493", 10)
@@ -197,7 +197,7 @@ func RescuePermute(state *[rescueStateWidth]fr.Element) {
 	}
 
 	for r := range rescueRounds {
-		// Forward S-box: x → x^5
+		// Forward S-box: x = x^5
 		for i := range rescueStateWidth {
 			v := rescuePow5(&state[i])
 			state[i] = v
@@ -208,7 +208,7 @@ func RescuePermute(state *[rescueStateWidth]fr.Element) {
 			state[i].Add(&state[i], &rescueRC[offset+i])
 		}
 
-		// Inverse S-box: x → x^inv5
+		// Inverse S-box: x = x^inv5
 		for i := range rescueStateWidth {
 			v := rescuePowInv5(&state[i])
 			state[i] = v
@@ -272,15 +272,4 @@ func bigIntToFrElements(n *big.Int) []fr.Element {
 		elems[i].SetBytes(b[i*chunkSize : (i+1)*chunkSize])
 	}
 	return elems
-}
-
-// PowerSBox represents a power S-box with precomputed inverse exponent.
-type PowerSBox struct {
-	Power *big.Int
-	Inv   uint64
-}
-
-// QuinticSBox represents a quintic S-box marker.
-type QuinticSBox struct {
-	Marker *big.Int
 }

@@ -2,8 +2,6 @@ package zklink
 
 import (
 	"math/big"
-
-	"github.com/thrasher-corp/gocryptotrader/internal/utils/zklink/bn256/fr"
 )
 
 // ContractBuilder holds a contract builder parameters
@@ -48,18 +46,4 @@ type TransferBuilder struct {
 	Fee              *big.Int
 	Nonce            *big.Int
 	Timestamp        *big.Int
-}
-
-// Bn256RescueParams represents capacity, rate of hash, and other details of the rescue hash algorithm
-type Bn256RescueParams struct {
-	C              uint32
-	R              uint32
-	Rounds         uint32
-	SecurityLevel  uint32
-	RoundConstants []*fr.Element
-	MDSMatrix      []*fr.Element
-	SBox0          *PowerSBox
-	SBox1          *QuinticSBox
-
-	CustomGatesAllowed bool
 }

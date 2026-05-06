@@ -21,10 +21,10 @@ type Signer struct {
 // NewZKLinkSignerFromSeeds derives a ZKLinkSigner from EIP-191 seeds bytes.
 //
 // Algorithm:
-//  1. SHA256(seeds) → 32 bytes
-//  2. Reduce mod BN254 twisted Edwards curve order → privKey
-//  3. privKey × G → pubKey
-//  4. Blake2s(pack(pubKey))[:20] → pubKeyHash
+//  1. SHA256(seeds) = 32 bytes
+//  2. Reduce mod BN254 twisted Edwards curve order = privKey
+//  3. privKey × G = pubKey
+//  4. Blake2s(pack(pubKey))[:20] = pubKeyHash
 func NewZKLinkSignerFromSeeds(seeds []byte) (*Signer, error) {
 	if len(seeds) == 0 {
 		return nil, errors.New("seeds cannot be empty")
@@ -34,8 +34,9 @@ func NewZKLinkSignerFromSeeds(seeds []byte) (*Signer, error) {
 	hash := sha256.Sum256(seeds)
 
 	// Reduce mod curve order
-	curve := twistededwards.GetEdwardsCurve()
 	privBig := new(big.Int).SetBytes(hash[:])
+
+	curve := twistededwards.GetEdwardsCurve()
 	privBig.Mod(privBig, &curve.Order)
 	if privBig.Sign() == 0 {
 		return nil, errors.New("derived private key is zero; try different seeds")
@@ -72,7 +73,7 @@ func NewZKLinkSignerFromSeeds(seeds []byte) (*Signer, error) {
 // PublicKeyBytes returns the 32-byte compressed representation of the public key.
 // The Y coordinate is encoded big-endian; bit 255 (MSB of byte 0) is set if X is odd.
 func (z *Signer) PublicKeyBytes() [32]byte {
-	yBytes := z.publicKey.Y.Bytes() // 32 bytes, big-endian, regular form
+	yBytes := z.publicKey.Y.Bytes()
 	var packed [32]byte
 	copy(packed[:], yBytes)
 
@@ -104,7 +105,7 @@ func (z *Signer) Sign(msg *big.Int) ([64]byte, error) {
 	// Step 2: deterministic nonce
 	privBytes := make([]byte, 32)
 	z.privateKeyBig.FillBytes(privBytes)
-	msgHashBytes := msgHash.Bytes() // 32 bytes, regular form
+	msgHashBytes := msgHash.Bytes()
 
 	h := sha256.New()
 	h.Write(privBytes)

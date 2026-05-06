@@ -49,8 +49,8 @@ type Credentials struct {
 	PEMKey              string
 	SubAccount          string
 	OneTimePassword     string
-	L2Key               string
 	L2Secret            string
+	L2Key               string
 	L2KeyYCoordinate    string
 	SecretBase64Decoded bool
 	// TODO: Add AccessControl uint8 for READ/WRITE/Withdraw capabilities.
