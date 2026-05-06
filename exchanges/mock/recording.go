@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"bytes"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -25,6 +26,7 @@ const defaultDataSliceLimit = 5
 var (
 	errMismatchedJSONBodyShape  = errors.New("mismatched JSON body shape")
 	errUnsupportedJSONBodyShape = errors.New("unsupported JSON body shape")
+	errUnexpectedTrailingJSON   = errors.New("unexpected trailing JSON content")
 )
 
 // HTTPResponse defines expected response from the end point including request
@@ -313,7 +315,7 @@ func GetFilteredURLVals(vals url.Values, items Exclusion) string {
 // that should not be there.
 func CheckResponsePayload(data []byte, items Exclusion, mockDataSliceLimit int) ([]byte, error) {
 	var intermediary any
-	if err := json.Unmarshal(data, &intermediary); err != nil {
+	if err := decodeLeadingJSONValue(data, &intermediary); err != nil {
 		return nil, err
 	}
 
@@ -333,6 +335,20 @@ const (
 	Bool    = "bool"
 	Invalid = "invalid"
 )
+
+func decodeLeadingJSONValue(data []byte, target any) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	if err := decoder.Decode(target); err != nil {
+		return err
+	}
+
+	remainder := bytes.TrimSpace(data[decoder.InputOffset():])
+	if len(remainder) == 0 || bytes.Equal(remainder, []byte(`""`)) {
+		return nil
+	}
+
+	return fmt.Errorf("%w: %q", errUnexpectedTrailingJSON, remainder)
+}
 
 // CheckJSON recursively parses json data to retract keywords, quite intensive.
 func CheckJSON(data any, excluded *Exclusion, limit int) (any, error) {

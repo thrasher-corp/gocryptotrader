@@ -431,3 +431,24 @@ func TestGetJSONBodyShape(t *testing.T) {
 		})
 	}
 }
+
+func TestCheckResponsePayloadTrailingData(t *testing.T) {
+	t.Parallel()
+
+	items, err := getExcludedItems()
+	require.NoError(t, err, "getExcludedItems must not error")
+
+	data, err := CheckResponsePayload([]byte(`[{"symbol":"BTC_USDT"}]""`), items, 5)
+	require.NoError(t, err, "CheckResponsePayload must not error with trailing payload data")
+	assert.JSONEq(t, `[{"symbol":"BTC_USDT"}]`, string(data), "CheckResponsePayload should preserve the leading valid JSON value")
+}
+
+func TestCheckResponsePayloadUnexpectedTrailingData(t *testing.T) {
+	t.Parallel()
+
+	items, err := getExcludedItems()
+	require.NoError(t, err, "getExcludedItems must not error")
+
+	_, err = CheckResponsePayload([]byte(`[{"symbol":"BTC_USDT"}]{"extra":true}`), items, 5)
+	require.ErrorIs(t, err, errUnexpectedTrailingJSON, "CheckResponsePayload must reject unexpected trailing JSON data")
+}

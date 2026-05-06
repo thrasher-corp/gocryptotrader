@@ -248,7 +248,7 @@ func RegisterHandler(pattern string, mock map[string][]HTTPResponse, mux *http.S
 			return
 
 		default:
-			log.Fatal("Mock Test Failure - Unhandled HTTP method:",
+			log.Fatalf("Mock Test Failure - Unhandled HTTP method: %s",
 				r.Header.Get(contentType))
 		}
 	})
