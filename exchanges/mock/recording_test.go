@@ -54,6 +54,7 @@ type checkclass struct {
 }
 
 func TestCheckResponsePayload(t *testing.T) {
+	t.Parallel()
 	type someJSON struct {
 		Secret      string      `json:"secret,omitempty"`
 		Data        checkclass  `json:"data"`
@@ -451,4 +452,39 @@ func TestCheckResponsePayloadUnexpectedTrailingData(t *testing.T) {
 
 	_, err = CheckResponsePayload([]byte(`[{"symbol":"BTC_USDT"}]{"extra":true}`), items, 5)
 	require.ErrorIs(t, err, errUnexpectedTrailingJSON, "CheckResponsePayload must reject unexpected trailing JSON data")
+}
+
+func TestDecodeLeadingJSONValue(t *testing.T) {
+	t.Parallel()
+
+	t.Run("invalid json", func(t *testing.T) {
+		t.Parallel()
+		var v any
+		var syntaxErr *json.SyntaxError
+		require.ErrorAs(t, decodeLeadingJSONValue([]byte(`not-json`), &v), &syntaxErr, "decodeLeadingJSONValue must return a JSON syntax error")
+	})
+
+	tcs := []struct {
+		name    string
+		input   []byte
+		wantErr error
+	}{
+		{name: "valid json no trailing", input: []byte(`[{"symbol":"BTC_USDT"}]`)},
+		{name: "trailing empty string", input: []byte(`[{"symbol":"BTC_USDT"}]""`)},
+		{name: "trailing whitespace then empty string", input: []byte(`[{"symbol":"BTC_USDT"}]   ""`)},
+		{name: "unexpected trailing object", input: []byte(`[{"symbol":"BTC_USDT"}]{"extra":true}`), wantErr: errUnexpectedTrailingJSON},
+		{name: "unexpected trailing value", input: []byte(`{"a":1}null`), wantErr: errUnexpectedTrailingJSON},
+	}
+	for _, tc := range tcs {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var v any
+			err := decodeLeadingJSONValue(tc.input, &v)
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr, "decodeLeadingJSONValue must return expected error")
+			} else {
+				require.NoError(t, err, "decodeLeadingJSONValue must not error")
+			}
+		})
+	}
 }
