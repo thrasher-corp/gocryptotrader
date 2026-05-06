@@ -124,11 +124,11 @@ func (e *Exchange) getMarketDepth(ctx context.Context, symbol, path string, limi
 }
 
 // GetNewestTradingDataV3 retrieve trading data.
-func (e *Exchange) GetNewestTradingDataV3(ctx context.Context, symbol string, limit int64) ([]NewTradingData, error) {
+func (e *Exchange) GetNewestTradingDataV3(ctx context.Context, symbol string, limit int64) ([]*NewTradingData, error) {
 	return e.getNewestTradingData(ctx, symbol, "v3/trades", limit)
 }
 
-func (e *Exchange) getNewestTradingData(ctx context.Context, symbol, path string, limit int64) ([]NewTradingData, error) {
+func (e *Exchange) getNewestTradingData(ctx context.Context, symbol, path string, limit int64) ([]*NewTradingData, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -137,7 +137,7 @@ func (e *Exchange) getNewestTradingData(ctx context.Context, symbol, path string
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []NewTradingData
+	var resp []*NewTradingData
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(path, params), request.UnAuth, &resp)
 }
 
@@ -179,11 +179,11 @@ func intervalFromString(intervalString string) (kline.Interval, error) {
 
 // GetCandlestickChartDataV3 etrieves all candlestick chart data.
 // Candlestick chart time indicators: Numbers represent minutes, D for Days, M for Month and W for Week — 1 5 15 30 60 120 240 360 720 "D" "M" "W"
-func (e *Exchange) GetCandlestickChartDataV3(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) (map[string][]CandlestickData, error) {
+func (e *Exchange) GetCandlestickChartDataV3(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) (map[string][]*CandlestickData, error) {
 	return e.getCandlestickChartData(ctx, symbol, "v3/klines", interval, startTime, endTime, limit)
 }
 
-func (e *Exchange) getCandlestickChartData(ctx context.Context, symbol, path string, interval kline.Interval, startTime, endTime time.Time, limit int64) (map[string][]CandlestickData, error) {
+func (e *Exchange) getCandlestickChartData(ctx context.Context, symbol, path string, interval kline.Interval, startTime, endTime time.Time, limit int64) (map[string][]*CandlestickData, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -210,23 +210,23 @@ func (e *Exchange) getCandlestickChartData(ctx context.Context, symbol, path str
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	params.Set("symbol", symbol)
-	var resp map[string][]CandlestickData
+	var resp map[string][]*CandlestickData
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(path, params), request.UnAuth, &resp)
 }
 
 // GetTickerDataV3 get the latest data on symbol tickers.
-func (e *Exchange) GetTickerDataV3(ctx context.Context, symbol string) ([]TickerData, error) {
+func (e *Exchange) GetTickerDataV3(ctx context.Context, symbol string) ([]*TickerData, error) {
 	return e.getTickerData(ctx, symbol, "v3/ticker")
 }
 
-func (e *Exchange) getTickerData(ctx context.Context, symbol, path string) ([]TickerData, error) {
+func (e *Exchange) getTickerData(ctx context.Context, symbol, path string) ([]*TickerData, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	var resp []TickerData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(path, params), request.UnAuth, &resp)
+	var resp []*TickerData
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(path, params), request.UnAuth, &resp)
 }
 
 // GetFundingHistoryRateV3 retrieves a funding history rate.
@@ -950,25 +950,25 @@ func (e *Exchange) CancelPerpOrderV2(ctx context.Context, orderID string, token 
 }
 
 // GetOpenOrders retrieves an active orders
-func (e *Exchange) GetOpenOrders(ctx context.Context) ([]OrderDetail, error) {
-	var resp []OrderDetail
+func (e *Exchange) GetOpenOrders(ctx context.Context) ([]*OrderDetail, error) {
+	var resp []*OrderDetail
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, "v3/open-orders", request.UnAuth, nil, nil, &resp)
 }
 
 // GetOpenOrdersV2 retrieves an active orders
-func (e *Exchange) GetOpenOrdersV2(ctx context.Context, token currency.Code) ([]OrderDetail, error) {
+func (e *Exchange) GetOpenOrdersV2(ctx context.Context, token currency.Code) ([]*OrderDetail, error) {
 	if token.IsEmpty() {
 		return nil, fmt.Errorf("%w, token is required", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	params.Set("token", token.String())
-	var resp []OrderDetail
+	var resp []*OrderDetail
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v2/open-orders", request.UnAuth, params, nil, &resp)
 }
 
 // GetOpenOrdersV1 retrieves an active orders
-func (e *Exchange) GetOpenOrdersV1(ctx context.Context) ([]OrderDetail, error) {
-	var resp []OrderDetail
+func (e *Exchange) GetOpenOrdersV1(ctx context.Context) ([]*OrderDetail, error) {
+	var resp []*OrderDetail
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v1/open-orders", request.UnAuth, nil, nil, &resp)
 }
 

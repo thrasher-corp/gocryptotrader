@@ -35,9 +35,7 @@ import (
 
 // Element represents a field element stored on 4 words (uint64)
 // Element are assumed to be in Montgomery form in all methods
-// field modulus q =
-//
-// 21888242871839275222246405745257275088548364400416034343698204186575808495617
+// field modulus q = 21888242871839275222246405745257275088548364400416034343698204186575808495617
 type Element [4]uint64
 
 // Limbs number of 64 bits words needed to represent Element
@@ -53,9 +51,7 @@ var (
 )
 
 // Modulus returns q as a big.Int
-// q =
-//
-// 21888242871839275222246405745257275088548364400416034343698204186575808495617
+// q = 21888242871839275222246405745257275088548364400416034343698204186575808495617
 func Modulus() *big.Int {
 	onceModulus.Do(func() {
 		_modulus.SetString("21888242871839275222246405745257275088548364400416034343698204186575808495617", 10)
@@ -118,7 +114,7 @@ func (z *Element) Set(x *Element) *Element {
 
 // SetInterface converts i1 from uint64, int, string, or Element, big.Int into Element
 // panic if provided type is not supported
-func (z *Element) SetInterface(i1 interface{}) *Element {
+func (z *Element) SetInterface(i1 any) *Element {
 	switch c1 := i1.(type) {
 	case Element:
 		return z.Set(&c1)

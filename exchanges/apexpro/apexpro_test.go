@@ -121,6 +121,7 @@ func TestGetTickerDataV3(t *testing.T) {
 	_, err := e.GetTickerDataV3(t.Context(), "")
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
+	e.Verbose = true
 	result, err := e.GetTickerDataV3(t.Context(), "BTC-USDC")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1207,6 +1208,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	enabledPairs, err := e.GetEnabledPairs(asset.Futures)
 	require.NoError(t, err)
 
+	e.Verbose = true
 	result, err := e.GetHistoricCandles(t.Context(), enabledPairs[0], asset.Futures, kline.FifteenMin, time.Now().Add(-time.Minute*3), time.Now())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
