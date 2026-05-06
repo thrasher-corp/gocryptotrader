@@ -4,8 +4,8 @@ go 1.26
 
 require (
 	github.com/Masterminds/sprig/v3 v3.3.0
-	github.com/buger/jsonparser v1.1.2
-	github.com/bytedance/sonic v1.15.0
+	github.com/buger/jsonparser v1.2.0
+	github.com/bytedance/sonic v1.15.1
 	github.com/d5/tengo/v2 v2.17.0
 	github.com/ethereum/go-ethereum v1.13.5
 	github.com/gofrs/uuid v4.4.0+incompatible
@@ -15,7 +15,7 @@ require (
 	github.com/kat-co/vala v0.0.0-20170210184112-42e1d8b61f12
 	github.com/leanovate/gopter v0.2.11
 	github.com/lib/pq v1.12.3
-	github.com/mattn/go-sqlite3 v1.14.42
+	github.com/mattn/go-sqlite3 v1.14.44
 	github.com/pkg/errors v0.9.1
 	github.com/pquerna/otp v1.5.0
 	github.com/shopspring/decimal v1.4.0
@@ -27,13 +27,12 @@ require (
 	github.com/urfave/cli/v2 v2.27.7
 	github.com/volatiletech/null v8.0.0+incompatible
 	golang.org/x/crypto v0.50.0
-	golang.org/x/exp v0.0.0-20260112195511-716be5621a96
 	golang.org/x/sys v0.43.0
 	golang.org/x/term v0.42.0
 	golang.org/x/text v0.36.0
 	golang.org/x/time v0.15.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20260414002931-afd174a4e478
-	google.golang.org/grpc v1.80.0
+	google.golang.org/grpc v1.81.0
 	google.golang.org/protobuf v1.36.11
 )
 
@@ -45,7 +44,7 @@ require (
 	github.com/boombuler/barcode v1.0.1 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.2.0 // indirect
 	github.com/bytedance/gopkg v0.1.3 // indirect
-	github.com/bytedance/sonic/loader v0.5.0 // indirect
+	github.com/bytedance/sonic/loader v0.5.1 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
