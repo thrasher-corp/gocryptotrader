@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"slices"
 	"strconv"
@@ -62,6 +63,23 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func TestSetUnixTimeRangeParams(t *testing.T) {
+	t.Parallel()
+	from := time.Unix(1710000000, 0)
+	to := from.Add(time.Hour)
+	params := url.Values{}
+	require.NoError(t, setUnixTimeRangeParams(&params, from, to), "setUnixTimeRangeParams must not error")
+	assert.Equal(t, strconv.FormatInt(from.Unix(), 10), params.Get("from"), "from should match unix timestamp")
+	assert.Equal(t, strconv.FormatInt(to.Unix(), 10), params.Get("to"), "to should match unix timestamp")
+
+	params = url.Values{}
+	require.NoError(t, setUnixTimeRangeParams(&params, from, time.Time{}), "setUnixTimeRangeParams must not error when end time is empty")
+	assert.Equal(t, strconv.FormatInt(from.Unix(), 10), params.Get("from"), "from should match unix timestamp")
+	assert.Empty(t, params.Get("to"), "to should not be set")
+
+	require.ErrorIs(t, setUnixTimeRangeParams(&url.Values{}, to, from), common.ErrStartAfterEnd)
+}
+
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, e)
@@ -97,6 +115,28 @@ func TestGetAccountBalances(t *testing.T) {
 		_, err := e.UpdateAccountBalances(t.Context(), a)
 		assert.NoErrorf(t, err, "UpdateAccountBalances should not error for asset %s", a)
 	}
+}
+
+func TestSetCrossMarginAccountBalances(t *testing.T) {
+	t.Parallel()
+	balances := accounts.CurrencyBalances{}
+	setCrossMarginAccountBalances(&balances, &CrossMarginAccount{
+		Balances: map[string]CrossMarginCurrencyBalance{
+			"BTC": {
+				Available: types.Number(2),
+				Freeze:    types.Number(0.5),
+				Borrowed:  types.Number(0.25),
+				Interest:  types.Number(0.05),
+			},
+		},
+	})
+
+	got := balances[currency.BTC]
+	assert.InDelta(t, 2.5, got.Total, 0.00000001, "total should include available and frozen balances")
+	assert.InDelta(t, 0.5, got.Hold, 0.00000001, "hold should match frozen balance")
+	assert.InDelta(t, 2, got.Free, 0.00000001, "free should match available balance")
+	assert.InDelta(t, 0.3, got.Borrowed, 0.00000001, "borrowed should include principal and interest")
+	assert.InDelta(t, 1.7, got.AvailableWithoutBorrow, 0.00000001, "available without borrow should subtract borrowed principal and interest")
 }
 
 func TestWithdraw(t *testing.T) {
@@ -593,6 +633,17 @@ func TestModifyALoanRecord(t *testing.T) {
 	}); err != nil {
 		t.Errorf("%s ModifyALoanRecord() error %v", e.Name, err)
 	}
+}
+
+func TestQueryInterestDeductionRecords(t *testing.T) {
+	t.Parallel()
+	tn := time.Now()
+	_, err := e.QueryInterestDeductionRecords(t.Context(), currency.BTC, 0, 0, tn.Add(time.Hour), tn, "")
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err = e.QueryInterestDeductionRecords(t.Context(), currency.EMPTYCODE, 0, 0, time.Time{}, time.Time{}, "")
+	require.NoError(t, err, "QueryInterestDeductionRecords must not error")
 }
 
 func TestCurrencySupportedByCrossMargin(t *testing.T) {

@@ -73,17 +73,8 @@ const (
 	walletTotalBalance                  = "wallet/total_balance"
 
 	// Margin
-	gateioMarginCurrencyPairs = "margin/currency_pairs"
-	gateioMarginFundingBook   = "margin/funding_book"
-	// gateioMarginAccount           = "margin/accounts"
-	// gateioMarginAccountBook       = "margin/account_book"
-	// gateioMarginFundingAccounts   = "margin/funding_accounts"
-	// gateioMarginLoans             = "margin/loans"
-	// gateioMarginMergedLoans       = "margin/merged_loans"
-	// gateioMarginLoanRecords       = "margin/loan_records"
-	// gateioMarginAutoRepay         = "margin/auto_repay"
-	// gateioMarginTransfer          = "margin/transferable"
-	// gateioMarginBorrowable        = "margin/borrowable"
+	gateioMarginCurrencyPairs     = "margin/currency_pairs"
+	gateioMarginFundingBook       = "margin/funding_book"
 	gateioMarginLoans             = "margin/loans"
 	gateioMarginMergedLoans       = "margin/merged_loans"
 	gateioMarginLoanRecords       = "margin/loan_records"
@@ -191,6 +182,21 @@ func timeInForceFromString(tif string) (order.TimeInForce, error) {
 		}
 	}
 	return order.UnknownTIF, fmt.Errorf("%w: %q", order.ErrUnsupportedTimeInForce, tif)
+}
+
+func setUnixTimeRangeParams(params *url.Values, from, to time.Time) error {
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
+			return err
+		}
+	}
+	if !from.IsZero() {
+		params.Set("from", strconv.FormatInt(from.Unix(), 10))
+	}
+	if !to.IsZero() {
+		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	}
+	return nil
 }
 
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with GateIO
@@ -442,11 +448,8 @@ func (e *Exchange) GetMarketTrades(ctx context.Context, pairString currency.Pair
 	if reverse {
 		params.Set("reverse", strconv.FormatBool(reverse))
 	}
-	if !from.IsZero() {
-		params.Set("from", strconv.FormatInt(from.Unix(), 10))
-	}
-	if !to.IsZero() {
-		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
+		return nil, err
 	}
 	if page != 0 {
 		params.Set("page", strconv.FormatUint(page, 10))
@@ -474,11 +477,8 @@ func (e *Exchange) GetCandlesticks(ctx context.Context, currencyPair currency.Pa
 		}
 		params.Set("interval", intervalString)
 	}
-	if !from.IsZero() {
-		params.Set("from", strconv.FormatInt(from.Unix(), 10))
-	}
-	if !to.IsZero() {
-		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
+		return nil, err
 	}
 	var candles []Candlestick
 	return candles, e.SendHTTPRequest(ctx, exchange.RestSpot, publicCandleStickSpotEPL, common.EncodeURLValues(gateioSpotCandlesticks, params), &candles)
@@ -1331,16 +1331,8 @@ func (e *Exchange) QueryInterestDeductionRecords(ctx context.Context, ccy curren
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	if !from.IsZero() && !to.IsZero() {
-		if err := common.StartEndTimeCheck(from, to); err != nil {
-			return nil, err
-		}
-	}
-	if !from.IsZero() {
-		params.Set("from", strconv.FormatInt(from.Unix(), 10))
-	}
-	if !to.IsZero() {
-		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
+		return nil, err
 	}
 	if loanType != "" {
 		params.Set("type", loanType)
@@ -1614,11 +1606,8 @@ func (e *Exchange) GetCrossMarginAccountChangeHistory(ctx context.Context, ccy c
 	if !ccy.IsEmpty() {
 		params.Set("currency", ccy.String())
 	}
-	if !from.IsZero() {
-		params.Set("from", strconv.FormatInt(from.Unix(), 10))
-	}
-	if !to.IsZero() {
-		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
+		return nil, err
 	}
 	if page > 0 {
 		params.Set("page", strconv.FormatUint(page, 10))
@@ -1802,11 +1791,8 @@ func (e *Exchange) GetFuturesTradingHistory(ctx context.Context, settle currency
 	if lastID != "" {
 		params.Set("last_id", lastID)
 	}
-	if !from.IsZero() {
-		params.Set("from", strconv.FormatInt(from.Unix(), 10))
-	}
-	if !to.IsZero() {
-		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
+		return nil, err
 	}
 	var response []TradingHistoryItem
 	return response, e.SendHTTPRequest(ctx, exchange.RestSpot, publicTradingHistoryFuturesEPL, common.EncodeURLValues(futuresPath+settle.Item.Lower+"/trades", params), &response)
@@ -1822,11 +1808,8 @@ func (e *Exchange) GetFuturesCandlesticks(ctx context.Context, settle currency.C
 	}
 	params := url.Values{}
 	params.Set("contract", strings.ToUpper(contract))
-	if !from.IsZero() {
-		params.Set("from", strconv.FormatInt(from.Unix(), 10))
-	}
-	if !to.IsZero() {
-		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
+		return nil, err
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
@@ -1964,11 +1947,8 @@ func (e *Exchange) GetLiquidationHistory(ctx context.Context, settle currency.Co
 	}
 	params := url.Values{}
 	params.Set("contract", contract.String())
-	if !from.IsZero() {
-		params.Set("from", strconv.FormatInt(from.Unix(), 10))
-	}
-	if !to.IsZero() {
-		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
+		return nil, err
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
@@ -1995,11 +1975,8 @@ func (e *Exchange) GetFuturesAccountBooks(ctx context.Context, settle currency.C
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	if !from.IsZero() {
-		params.Set("from", strconv.FormatInt(from.Unix(), 10))
-	}
-	if !to.IsZero() {
-		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
+		return nil, err
 	}
 	if changingType != "" {
 		params.Set("type", changingType)
@@ -2304,11 +2281,8 @@ func (e *Exchange) GetFuturesPositionCloseHistory(ctx context.Context, settle cu
 	if offset > 0 {
 		params.Set("offset", strconv.FormatUint(offset, 10))
 	}
-	if !from.IsZero() {
-		params.Set("from", strconv.FormatInt(from.Unix(), 10))
-	}
-	if !to.IsZero() {
-		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
+		return nil, err
 	}
 	var response []PositionCloseHistoryResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualClosePositionEPL, http.MethodGet, futuresPath+settle.Item.Lower+"/position_close", params, nil, &response)
@@ -2512,11 +2486,8 @@ func (e *Exchange) GetDeliveryTradingHistory(ctx context.Context, settle currenc
 	}
 	params := url.Values{}
 	params.Set("contract", contract.String())
-	if !from.IsZero() {
-		params.Set("from", strconv.FormatInt(from.Unix(), 10))
-	}
-	if !to.IsZero() {
-		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
+		return nil, err
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
@@ -2538,11 +2509,8 @@ func (e *Exchange) GetDeliveryFuturesCandlesticks(ctx context.Context, settle cu
 	}
 	params := url.Values{}
 	params.Set("contract", contract.Upper().String())
-	if !from.IsZero() {
-		params.Set("from", strconv.FormatInt(from.Unix(), 10))
-	}
-	if !to.IsZero() {
-		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
+		return nil, err
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
@@ -2602,11 +2570,8 @@ func (e *Exchange) GetDeliveryAccountBooks(ctx context.Context, settle currency.
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	if !from.IsZero() {
-		params.Set("from", strconv.FormatInt(from.Unix(), 10))
-	}
-	if !to.IsZero() {
-		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
+		return nil, err
 	}
 	if changingType != "" {
 		params.Set("type", changingType)
@@ -2797,11 +2762,8 @@ func (e *Exchange) GetDeliveryPositionCloseHistory(ctx context.Context, settle c
 	if offset > 0 {
 		params.Set("offset", strconv.FormatUint(offset, 10))
 	}
-	if !from.IsZero() {
-		params.Set("from", strconv.FormatInt(from.Unix(), 10))
-	}
-	if !to.IsZero() {
-		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
+		return nil, err
 	}
 	var response []PositionCloseHistoryResponse
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, deliveryCloseHistoryEPL, http.MethodGet, deliveryPath+settle.Item.Lower+"/position_close", params, nil, &response)
@@ -3012,11 +2974,8 @@ func (e *Exchange) GetSettlementHistory(ctx context.Context, underlying string, 
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	if !from.IsZero() {
-		params.Set("from", strconv.FormatInt(from.Unix(), 10))
-	}
-	if !to.IsZero() {
-		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
+		return nil, err
 	}
 	var settlements []OptionSettlement
 	return settlements, e.SendHTTPRequest(ctx, exchange.RestSpot, publicSettlementOptionsEPL, common.EncodeURLValues(gateioOptionSettlement, params), &settlements)
@@ -3278,11 +3237,8 @@ func (e *Exchange) GetOptionFuturesCandlesticks(ctx context.Context, contract cu
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	if !from.IsZero() {
-		params.Set("from", strconv.FormatInt(from.Unix(), 10))
-	}
-	if !to.IsZero() {
-		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
+		return nil, err
 	}
 	intervalString, err := getIntervalString(interval)
 	if err != nil {
@@ -3303,11 +3259,8 @@ func (e *Exchange) GetOptionFuturesMarkPriceCandlesticks(ctx context.Context, un
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	if !from.IsZero() {
-		params.Set("from", strconv.FormatInt(from.Unix(), 10))
-	}
-	if !to.IsZero() {
-		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
+		return nil, err
 	}
 	if int64(interval) != 0 {
 		intervalString, err := getIntervalString(interval)
@@ -3336,11 +3289,8 @@ func (e *Exchange) GetOptionsTradeHistory(ctx context.Context, contract currency
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	if !from.IsZero() {
-		params.Set("from", strconv.FormatInt(from.Unix(), 10))
-	}
-	if !to.IsZero() {
-		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	if err := setUnixTimeRangeParams(&params, from, to); err != nil {
+		return nil, err
 	}
 	var trades []TradingHistoryItem
 	return trades, e.SendHTTPRequest(ctx, exchange.RestSpot, publicTradeHistoryOptionsEPL, common.EncodeURLValues(gateioOptionsTrades, params), &trades)

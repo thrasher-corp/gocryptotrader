@@ -173,6 +173,9 @@ func TestGetIsolatedMarginInterestDeductionRecords(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetIsolatedMarginInterestDeductionRecords(t.Context(), BTCUSDT, currency.BTC, 0, 101, time.Time{}, time.Time{})
 	require.ErrorIs(t, err, errInvalidLimit)
+	tn := time.Now()
+	_, err = e.GetIsolatedMarginInterestDeductionRecords(t.Context(), BTCUSDT, currency.BTC, 0, 0, tn.Add(time.Hour), tn)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err = e.GetIsolatedMarginInterestDeductionRecords(t.Context(), currency.EMPTYPAIR, currency.EMPTYCODE, 0, 0, time.Time{}, time.Time{})
