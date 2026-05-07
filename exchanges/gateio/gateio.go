@@ -1319,7 +1319,7 @@ func (e *Exchange) ConvertSmallBalances(ctx context.Context, currs ...currency.C
 
 // ********************************* Margin *******************************************
 
-// GetUniLoanInterestRecords retrieves interest deduction records for unified
+// QueryInterestDeductionRecords retrieves unified interest deduction records.
 func (e *Exchange) QueryInterestDeductionRecords(ctx context.Context, ccy currency.Code, page, limit int64, from, to time.Time, loanType string) ([]LoanInterestDeductionRecord, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
