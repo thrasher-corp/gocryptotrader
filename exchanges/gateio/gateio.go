@@ -31,6 +31,12 @@ const (
 	gateioFuturesLiveTradingAlternative = "https://fx-api.gateio.ws/" + gateioAPIVersion
 	gateioAPIVersion                    = "api/v4/"
 	tradeBaseURL                        = "https://www.gate.io/"
+	spotAccount                         = "spot"
+	marginAccount                       = "margin"
+	crossMarginAccount                  = "cross_margin"
+	futuresAccount                      = "futures"
+	deliveryAccount                     = "delivery"
+	optionsAccount                      = "options"
 
 	// SubAccount Endpoints
 	subAccounts = "sub_accounts"
@@ -535,9 +541,7 @@ func (e *Exchange) CreateBatchOrders(ctx context.Context, args []CreateOrderRequ
 		if args[x].Side != "buy" && args[x].Side != "sell" {
 			return nil, order.ErrSideIsInvalid
 		}
-		if !strings.EqualFold(args[x].Account, asset.Spot.String()) &&
-			!strings.EqualFold(args[x].Account, asset.CrossMargin.String()) &&
-			!strings.EqualFold(args[x].Account, asset.Margin.String()) {
+		if !isSpotOrderAccount(args[x].Account) {
 			return nil, errors.New("only spot, margin, and cross_margin area allowed")
 		}
 		if args[x].Amount <= 0 {
@@ -564,7 +568,7 @@ func (e *Exchange) GetSpotOpenOrders(ctx context.Context, page, limit uint64, is
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	if isCrossMargin {
-		params.Set("account", asset.CrossMargin.String())
+		params.Set("account", crossMarginAccount)
 	}
 	var response []SpotOrdersDetail
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotGetOpenOrdersEPL, http.MethodGet, gateioSpotOpenOrders, params, nil, &response)
@@ -601,9 +605,7 @@ func (e *Exchange) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequest) 
 	if arg.Side != "buy" && arg.Side != "sell" {
 		return nil, order.ErrSideIsInvalid
 	}
-	if !strings.EqualFold(arg.Account, asset.Spot.String()) &&
-		!strings.EqualFold(arg.Account, asset.CrossMargin.String()) &&
-		!strings.EqualFold(arg.Account, asset.Margin.String()) {
+	if !isSpotOrderAccount(arg.Account) {
 		return nil, errors.New("only 'spot', 'cross_margin', and 'margin' area allowed")
 	}
 	if arg.Amount <= 0 {
@@ -647,7 +649,7 @@ func (e *Exchange) CancelAllOpenOrdersSpecifiedCurrencyPair(ctx context.Context,
 		params.Set("side", strings.ToLower(side.Title()))
 	}
 	if a == asset.Spot || a == asset.Margin || a == asset.CrossMargin {
-		params.Set("account", a.String())
+		params.Set("account", e.assetTypeToString(a))
 	}
 	var response []SpotOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotCancelAllOpenOrdersEPL, http.MethodDelete, gateioSpotOrders, params, nil, &response)
@@ -704,7 +706,7 @@ func (e *Exchange) AmendSpotOrder(ctx context.Context, orderID string, currencyP
 	params := url.Values{}
 	params.Set("currency_pair", currencyPair.String())
 	if isCrossMarginAccount {
-		params.Set("account", asset.CrossMargin.String())
+		params.Set("account", crossMarginAccount)
 	}
 	if arg.Amount != 0 && arg.Price != 0 {
 		return nil, errors.New("only can chose one of amount or price")
@@ -726,7 +728,7 @@ func (e *Exchange) CancelSingleSpotOrder(ctx context.Context, orderID, currencyP
 	params := url.Values{}
 	params.Set("currency_pair", currencyPair)
 	if isCrossMarginAccount {
-		params.Set("account", asset.CrossMargin.String())
+		params.Set("account", crossMarginAccount)
 	}
 	var response *SpotOrder
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotCancelSingleOrderEPL, http.MethodDelete, gateioSpotOrders+"/"+orderID, params, nil, &response)
@@ -1106,10 +1108,10 @@ func (e *Exchange) TransferCurrency(ctx context.Context, arg *TransferCurrencyPa
 	if arg.To == arg.From {
 		return nil, errors.New("from and to account cannot be the same")
 	}
-	if (arg.To == "margin" || arg.From == "margin") && arg.CurrencyPair.IsEmpty() {
+	if (arg.To == marginAccount || arg.From == marginAccount) && arg.CurrencyPair.IsEmpty() {
 		return nil, errors.New("currency pair is required for margin account transfer")
 	}
-	if (arg.To == "futures" || arg.From == "futures") && arg.Settle == "" {
+	if (arg.To == futuresAccount || arg.From == futuresAccount) && arg.Settle == "" {
 		return nil, errors.New("settle is required for futures account transfer")
 	}
 	if arg.Amount <= 0 {
@@ -1120,10 +1122,22 @@ func (e *Exchange) TransferCurrency(ctx context.Context, arg *TransferCurrencyPa
 }
 
 func (e *Exchange) assetTypeToString(acc asset.Item) string {
-	if acc == asset.Options {
-		return "options"
+	switch acc {
+	case asset.Spot:
+		return spotAccount
+	case asset.Margin:
+		return marginAccount
+	case asset.CrossMargin:
+		return crossMarginAccount
+	case asset.Options:
+		return optionsAccount
+	default:
+		return acc.String()
 	}
-	return acc.String()
+}
+
+func isSpotOrderAccount(account string) bool {
+	return account == spotAccount || account == marginAccount || account == crossMarginAccount
 }
 
 // SubAccountTransfer to transfer between main and sub accounts
@@ -1143,7 +1157,7 @@ func (e *Exchange) SubAccountTransfer(ctx context.Context, arg SubAccountTransfe
 		return errInvalidAmount
 	}
 	switch arg.SubAccountType {
-	case "", "spot", "futures", "delivery":
+	case "", spotAccount, futuresAccount, deliveryAccount:
 	default:
 		return fmt.Errorf("%w %q for SubAccountTransfer; Supported: [spot, futures, delivery]", asset.ErrNotSupported, arg.SubAccountType)
 	}

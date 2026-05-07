@@ -791,6 +791,54 @@ func TestTransferCurrency(t *testing.T) {
 	}
 }
 
+func TestAssetTypeToString(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		asset    asset.Item
+		expected string
+	}{
+		{name: "spot", asset: asset.Spot, expected: spotAccount},
+		{name: "margin", asset: asset.Margin, expected: marginAccount},
+		{name: "cross margin", asset: asset.CrossMargin, expected: crossMarginAccount},
+		{name: "options", asset: asset.Options, expected: optionsAccount},
+		{name: "fallback", asset: asset.CoinMarginedFutures, expected: asset.CoinMarginedFutures.String()},
+		{name: "empty", asset: asset.Empty, expected: ""},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, e.assetTypeToString(tc.asset), "assetTypeToString should return expected account type")
+		})
+	}
+}
+
+func TestIsSpotOrderAccount(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		account  string
+		expected bool
+	}{
+		{name: "spot", account: spotAccount, expected: true},
+		{name: "margin", account: marginAccount, expected: true},
+		{name: "cross margin", account: crossMarginAccount, expected: true},
+		{name: "empty", account: "", expected: false},
+		{name: "options", account: optionsAccount, expected: false},
+		{name: "futures", account: futuresAccount, expected: false},
+		{name: "spot uppercase", account: "SPOT", expected: false},
+		{name: "margin mixed case", account: "Margin", expected: false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, isSpotOrderAccount(tc.account), "isSpotOrderAccount should return expected support status")
+		})
+	}
+}
+
 func TestSubAccountTransfer(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()

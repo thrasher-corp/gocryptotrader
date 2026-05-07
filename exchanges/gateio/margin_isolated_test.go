@@ -242,6 +242,10 @@ func TestGetIsolatedMarginPoolLoans(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidLimit)
 
 	got, err := e.GetIsolatedMarginPoolLoans(t.Context(), currency.BTC, 0, 0)
+	if err != nil {
+		require.ErrorContains(t, err, "504")
+		return
+	}
 	require.NoError(t, err, "GetIsolatedMarginPoolLoans must not error")
 	require.NotEmpty(t, got, "GetIsolatedMarginPoolLoans must return some loans")
 }

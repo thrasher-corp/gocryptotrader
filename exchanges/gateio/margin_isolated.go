@@ -18,8 +18,6 @@ import (
 
 const (
 	frontEndURL             = "https://www.gate.com/apiw/v2/"
-	_spot                   = "spot"
-	_margin                 = "margin"
 	marginPoolLoanPageLimit = 100
 )
 
@@ -27,13 +25,13 @@ var errInvalidLimit = errors.New("invalid limit")
 
 // TransferCollateralToIsolatedMargin transfers collateral from spot account to isolated margin account for a specific currency and pair.
 func (e *Exchange) TransferCollateralToIsolatedMargin(ctx context.Context, pair currency.Pair, ccy currency.Code, amount float64) (*TransactionIDResponse, error) {
-	return e.TransferCurrency(ctx, &TransferCurrencyParam{CurrencyPair: pair, Currency: ccy, From: _spot, To: _margin, Amount: types.Number(amount)})
+	return e.TransferCurrency(ctx, &TransferCurrencyParam{CurrencyPair: pair, Currency: ccy, From: spotAccount, To: marginAccount, Amount: types.Number(amount)})
 }
 
 // TransferCollateralFromIsolatedMargin transfers collateral from an isolated margin account to spot account for a specific currency and pair.
 // NOTE: Collateral can be orphaned when interest deduction has occurred but has not been repaid yet.
 func (e *Exchange) TransferCollateralFromIsolatedMargin(ctx context.Context, pair currency.Pair, ccy currency.Code, amount float64) (*TransactionIDResponse, error) {
-	return e.TransferCurrency(ctx, &TransferCurrencyParam{CurrencyPair: pair, Currency: ccy, From: _margin, To: _spot, Amount: types.Number(amount)})
+	return e.TransferCurrency(ctx, &TransferCurrencyParam{CurrencyPair: pair, Currency: ccy, From: marginAccount, To: spotAccount, Amount: types.Number(amount)})
 }
 
 // GetIsolatedMarginAccountBalanceChangeHistory retrieves margin account balance change history
