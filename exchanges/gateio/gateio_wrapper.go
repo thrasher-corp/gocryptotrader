@@ -174,6 +174,7 @@ func (e *Exchange) SetDefaults() {
 		exchange.RestFutures:           gateioFuturesLiveTradingAlternative,
 		exchange.RestSpotSupplementary: gateioFuturesTestnetTrading,
 		exchange.WebsocketSpot:         gateioWebsocketEndpoint,
+		exchange.EdgeCase1:             frontEndURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -702,7 +703,7 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 			})
 		}
 	case asset.Margin, asset.CrossMargin:
-		balances, err := e.GetMarginAccountList(ctx, currency.EMPTYPAIR)
+		balances, err := e.GetIsolatedMarginAccountList(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return nil, err
 		}

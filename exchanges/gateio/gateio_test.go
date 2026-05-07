@@ -480,34 +480,6 @@ func TestCancelPriceTriggeredOrder(t *testing.T) {
 	}
 }
 
-func TestGetMarginAccountList(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.GetMarginAccountList(t.Context(), currency.EMPTYPAIR); err != nil {
-		t.Errorf("%s GetMarginAccountList() error %v", e.Name, err)
-	}
-}
-
-func TestListMarginAccountBalanceChangeHistory(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.ListMarginAccountBalanceChangeHistory(t.Context(), currency.BTC, currency.Pair{
-		Base:      currency.BTC,
-		Delimiter: currency.UnderscoreDelimiter,
-		Quote:     currency.USDT,
-	}, time.Time{}, time.Time{}, 0, 0); err != nil {
-		t.Errorf("%s ListMarginAccountBalanceChangeHistory() error %v", e.Name, err)
-	}
-}
-
-func TestGetMarginFundingAccountList(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.GetMarginFundingAccountList(t.Context(), currency.BTC); err != nil {
-		t.Errorf("%s GetMarginFundingAccountList %v", e.Name, err)
-	}
-}
-
 func TestMarginLoan(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -620,38 +592,6 @@ func TestModifyALoanRecord(t *testing.T) {
 		LoanID:       "1234",
 	}); err != nil {
 		t.Errorf("%s ModifyALoanRecord() error %v", e.Name, err)
-	}
-}
-
-func TestUpdateUsersAutoRepaymentSetting(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.UpdateUsersAutoRepaymentSetting(t.Context(), true); err != nil {
-		t.Errorf("%s UpdateUsersAutoRepaymentSetting() error %v", e.Name, err)
-	}
-}
-
-func TestGetUserAutoRepaymentSetting(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.GetUserAutoRepaymentSetting(t.Context()); err != nil {
-		t.Errorf("%s GetUserAutoRepaymentSetting() error %v", e.Name, err)
-	}
-}
-
-func TestGetMaxTransferableAmountForSpecificMarginCurrency(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.GetMaxTransferableAmountForSpecificMarginCurrency(t.Context(), currency.BTC, currency.EMPTYPAIR); err != nil {
-		t.Errorf("%s GetMaxTransferableAmountForSpecificMarginCurrency() error %v", e.Name, err)
-	}
-}
-
-func TestGetMaxBorrowableAmountForSpecificMarginCurrency(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.GetMaxBorrowableAmountForSpecificMarginCurrency(t.Context(), currency.BTC, currency.EMPTYPAIR); err != nil {
-		t.Errorf("%s GetMaxBorrowableAmountForSpecificMarginCurrency() error %v", e.Name, err)
 	}
 }
 
@@ -3959,36 +3899,4 @@ func TestUnmarshalJSONOrderbookLevels(t *testing.T) {
 	assert.Equal(t, 0.001, ob[0].Amount, "Amount should be correct")
 
 	require.Error(t, ob.UnmarshalJSON([]byte(`["p":"123.45","s":"0.001"]`)))
-}
-
-func TestGetEstimatedInterestRate(t *testing.T) {
-	t.Parallel()
-
-	_, err := e.GetEstimatedInterestRate(t.Context(), nil)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodesEmpty)
-
-	_, err = e.GetEstimatedInterestRate(t.Context(), currency.Currencies{currency.EMPTYCODE})
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-
-	_, err = e.GetEstimatedInterestRate(t.Context(), currency.Currencies{
-		currency.USDT,
-		currency.BTC,
-		currency.ETH,
-		currency.XRP,
-		currency.LTC,
-		currency.DOGE,
-		currency.BCH,
-		currency.SOL,
-		currency.ADA,
-		currency.DOT,
-		currency.MATIC,
-	})
-	require.ErrorIs(t, err, errTooManyCurrencyCodes)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	got, err := e.GetEstimatedInterestRate(t.Context(), currency.Currencies{currency.BTC})
-	require.NoError(t, err)
-	val, ok := got["BTC"]
-	require.True(t, ok, "result map must contain BTC key")
-	require.Positive(t, val.Float64(), "estimated interest rate must not be 0")
 }
