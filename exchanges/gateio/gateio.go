@@ -1331,6 +1331,11 @@ func (e *Exchange) QueryInterestDeductionRecords(ctx context.Context, ccy curren
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
+			return nil, err
+		}
+	}
 	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.Unix(), 10))
 	}
