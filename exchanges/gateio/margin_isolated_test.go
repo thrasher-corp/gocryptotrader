@@ -185,14 +185,14 @@ func TestGetIsolatedMarginInterestDeductionRecords(t *testing.T) {
 func TestGetIsolatedMarginMaxBorrowableAmount(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetIsolatedMarginMaxBorrowableAmount(t.Context(), currency.EMPTYCODE, BTCUSDT)
-	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	_, err = e.GetIsolatedMarginMaxBorrowableAmount(t.Context(), currency.BTC, currency.EMPTYPAIR)
-	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err = e.GetIsolatedMarginMaxBorrowableAmount(t.Context(), currency.BTC, BTCUSDT)
-	assert.NoError(t, err, "GetIsolatedMarginMaxBorrowableAmount must not error")
+	require.NoError(t, err, "GetIsolatedMarginMaxBorrowableAmount must not error")
 }
 
 func TestGetIsolatedMarginUserLeverageTiers(t *testing.T) {
