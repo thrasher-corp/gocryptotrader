@@ -78,7 +78,7 @@ var supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binar
 
 // Supported returns a list of supported asset types
 func Supported() Items {
-	return supportedList
+	return slices.Clone(supportedList)
 }
 
 // String converts an Item to its string representation
@@ -208,16 +208,6 @@ func (a Item) IsDerivatives() bool {
 	return a.IsFutures() || a.IsOptions()
 }
 
-// IsSwap checks if the asset type is a perpetual swap based asset
-func (a Item) IsSwap() bool {
-	switch a {
-	case PerpetualContract, PerpetualSwap:
-		return true
-	default:
-		return false
-	}
-}
-
 // IsMultiLeg checks if the asset type requires multi-leg handling
 func (a Item) IsMultiLeg() bool {
 	switch a {
@@ -251,12 +241,12 @@ func (a Item) IsFunding() bool {
 // UnmarshalJSON conforms type to the unmarshaler interface
 func (a *Item) UnmarshalJSON(d []byte) error {
 	var assetString string
-	err := json.Unmarshal(d, &assetString)
-	if err != nil {
+	if err := json.Unmarshal(d, &assetString); err != nil {
 		return err
 	}
 
 	if assetString == "" {
+		*a = Empty
 		return nil
 	}
 
@@ -276,8 +266,7 @@ func (a Item) MarshalJSON() ([]byte, error) {
 
 // New takes an input matches to relevant package assets
 func New(input string) (Item, error) {
-	input = strings.ToLower(input)
-	switch input {
+	switch input = strings.ToLower(input); input {
 	case spot:
 		return Spot, nil
 	case margin:

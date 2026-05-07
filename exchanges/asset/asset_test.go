@@ -15,7 +15,7 @@ func TestString(t *testing.T) {
 		if a == 0 {
 			assert.Empty(t, a.String(), "Empty.String should return empty")
 		} else {
-			assert.NotEmptyf(t, a.String(), "%s.String should return empty", a)
+			assert.NotEmptyf(t, a.String(), "%s.String should not return empty", a)
 		}
 	}
 }
@@ -121,11 +121,6 @@ func TestIsDerivatives(t *testing.T) {
 		OptionCombo)
 }
 
-func TestIsSwap(t *testing.T) {
-	t.Parallel()
-	assertClassification(t, Item.IsSwap, PerpetualContract, PerpetualSwap)
-}
-
 func TestIsMultiLeg(t *testing.T) {
 	t.Parallel()
 	assertClassification(t, Item.IsMultiLeg, FutureCombo, OptionCombo, Spread)
@@ -211,6 +206,10 @@ func TestSupported(t *testing.T) {
 			t.Fatal("TestSupported returned an unexpected result")
 		}
 	}
+	s[0] = Empty
+	if supportedList[0] != Spot {
+		t.Fatal("TestSupported should not return mutable package state")
+	}
 }
 
 func TestUnmarshalMarshal(t *testing.T) {
@@ -243,6 +242,7 @@ func TestUnmarshalMarshal(t *testing.T) {
 
 	err = json.Unmarshal([]byte(`""`), &spot)
 	require.NoError(t, err)
+	assert.Equal(t, Empty, spot, "Unmarshal should reset empty input to Empty")
 
 	err = json.Unmarshal([]byte(`123`), &spot)
 	assert.Error(t, err, "Unmarshal should error correctly")
