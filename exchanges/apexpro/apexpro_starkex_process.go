@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/shopspring/decimal"
+	"golang.org/x/crypto/sha3"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/internal/utils/hash/solsha3"
 	"github.com/thrasher-corp/gocryptotrader/internal/utils/starkex"
@@ -537,8 +537,9 @@ func (e *Exchange) ProcessConditionalTransfer(ctx context.Context, arg *FastWith
 func FactToCondition(factRegistryAddress, fact string) *big.Int {
 	data := strings.TrimPrefix(factRegistryAddress, "0x") + fact
 	hexBytes, _ := hex.DecodeString(data)
-	hash := crypto.Keccak256Hash(hexBytes)
-	fst := hash.Big()
+	h := sha3.NewLegacyKeccak256()
+	h.Write(hexBytes)
+	fst := new(big.Int).SetBytes(h.Sum(nil))
 	fst.And(fst, BitMask250)
 	return fst
 }

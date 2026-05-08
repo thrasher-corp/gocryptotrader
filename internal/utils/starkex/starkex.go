@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	path "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
-	"github.com/thrasher-corp/gocryptotrader/internal/utils/hash"
 	math_utils "github.com/thrasher-corp/gocryptotrader/internal/utils/mathutils"
 )
 
@@ -43,7 +42,7 @@ func NewStarkExConfig() (*StarkConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	pedersenConfig, err := hash.LoadPedersenConfig(rootPath + "/" + defaultPedersenConfigsPath + strings.ToLower("starkEx") + ".json")
+	pedersenConfig, err := LoadPedersenConfig(rootPath + "/" + defaultPedersenConfigsPath + strings.ToLower("starkEx") + ".json")
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,7 @@
 package solsha3
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"testing"
 
@@ -15,7 +16,26 @@ func TestSoliditySHA3(t *testing.T) {
 
 	result, err = SoliditySHA3(
 		[]string{"address", "uint256", "address", "uint256"},
-		[]any{"0x1234567890123456789012345678901234567890", "123456", "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa", "1311768467294899695"})
+		[]any{"0x1234567890123456789012345678901234567890", "123456", "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa", "1311768467294899695"},
+	)
 	require.NoError(t, err)
 	assert.Equal(t, "34052387b5efb6132a42b244cff52a85a507ab319c414564d7a89207d4473672", hex.EncodeToString(result))
+}
+
+func TestLeftPadBytes(t *testing.T) {
+	t.Parallel()
+	val := uint64(123)
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, val)
+	newVal := leftPadBytes(b, 32)
+	assert.Len(t, newVal, 32)
+}
+
+func TestRightPadBytes(t *testing.T) {
+	t.Parallel()
+	val := uint64(123)
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, val)
+	newVal := rightPadBytes(b, 32)
+	assert.Len(t, newVal, 32)
 }

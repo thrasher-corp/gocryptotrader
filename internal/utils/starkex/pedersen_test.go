@@ -1,4 +1,4 @@
-package hash
+package starkex
 
 import (
 	"fmt"
@@ -6,23 +6,15 @@ import (
 	"strings"
 	"testing"
 
-	path "github.com/thrasher-corp/gocryptotrader/internal/testing/utils"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPedersen(t *testing.T) {
-	rootPath, err := path.RootPathFromCWD()
-	if err != nil {
-		t.Fatal(err)
-	}
-	const defaultPedersenConfigsPath = "internal/utils/hash/elliptic_curve_config/"
-	loadConfig, err := LoadPedersenConfig(rootPath + "/" + defaultPedersenConfigsPath + strings.ToLower("starkEx") + ".json")
-	if err != nil {
-		t.Fatal(t, err)
-	}
+	loadConfig, err := LoadPedersenConfig("starkEx.json")
+	require.NoError(t, err)
 
 	tests := []struct {
-		a, b string
-		want string
+		a, b, want string
 	}{
 		{
 			"0x03d937c035c878245caf64531a5756109c53068da139362728feb561405371cb",

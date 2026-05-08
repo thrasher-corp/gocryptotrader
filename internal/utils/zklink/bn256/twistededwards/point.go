@@ -164,6 +164,5 @@ func (p *Point) ScalarMul(p1 *Point, scalar fr.Element) *Point {
 	}
 
 	p.FromProj(&resProj)
-
 	return p
 }

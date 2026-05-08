@@ -14,6 +14,7 @@ const (
 	rescueStateWidth = 3
 	rescueRounds     = 22
 	rescueRate       = 2
+
 	// Total round constants: (1 + 2*rounds) * stateWidth
 	rescueNumRC = (1 + 2*rescueRounds) * rescueStateWidth // 135
 )

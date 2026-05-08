@@ -1001,7 +1001,7 @@ type WsInput struct {
 	Topics      []string `json:"topics,omitempty"`
 	HTTPMethod  string   `json:"httpMethod,omitempty"`
 	RequestPath string   `json:"requestPath,omitempty"`
-	APIKey      string   `json:"apiKey,omitempty"` //nolint:gosec // Used when authenticating websocket connection
+	APIKey      string   `json:"apiKey,omitempty"`
 	Passphrase  string   `json:"passphrase,omitempty"`
 	Timestamp   int64    `json:"timestamp,omitempty"`
 	Signature   string   `json:"signature,omitempty"`

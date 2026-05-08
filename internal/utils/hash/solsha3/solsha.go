@@ -3,9 +3,10 @@ package solsha3
 import (
 	"errors"
 
-	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"golang.org/x/crypto/sha3"
 )
+
+var errInvalidDataType = errors.New("invalid data types")
 
 // solsha3 solidity sha3
 func solsha3(types []string, values ...any) []byte {
@@ -19,7 +20,6 @@ func solsha3(types []string, values ...any) []byte {
 	}
 
 	hash := sha3.NewLegacyKeccak256()
-
 	var bs []byte
 	for _, bi := range b {
 		bs = append(bs, bi...)
@@ -32,7 +32,7 @@ func solsha3(types []string, values ...any) []byte {
 func SoliditySHA3(data ...any) ([]byte, error) {
 	types, ok := data[0].([]string)
 	if !ok {
-		return nil, errors.New("invalid data types")
+		return nil, errInvalidDataType
 	}
 	rest := data[1:]
 	if len(rest) == len(types) {
@@ -42,5 +42,5 @@ func SoliditySHA3(data ...any) ([]byte, error) {
 	if ok {
 		return solsha3(types, iface...), nil
 	}
-	return nil, common.ErrInvalidDataType
+	return nil, errInvalidDataType
 }

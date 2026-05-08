@@ -8,18 +8,41 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/math"
 )
 
 var errInvalidInput = errors.New("invalid input")
+
+// leftPadBytes left pads []byte to have a total 'length'.
+func leftPadBytes(slice []byte, length int) []byte {
+	if length <= len(slice) {
+		return slice
+	}
+	padded := make([]byte, length)
+	copy(padded[length-len(slice):], slice)
+	return padded
+}
+
+// rightPadBytes right pads []byte to have a total 'length'
+func rightPadBytes(slice []byte, length int) []byte {
+	if length <= len(slice) {
+		return slice
+	}
+	padded := make([]byte, length)
+	copy(padded, slice)
+	return padded
+}
+
+// u256Bytes converts a *big.Int into [32]byte
+func u256Bytes(n *big.Int) []byte {
+	b := n.Bytes()
+	return leftPadBytes(b, 32)
+}
 
 func pack(typ string, value any, _isArray bool) ([]byte, error) {
 	switch typ {
 	case "address":
 		if _isArray {
-			return common.LeftPadBytes(Address(value), 32), nil
+			return leftPadBytes(Address(value), 32), nil
 		}
 
 		return Address(value), nil
@@ -27,7 +50,7 @@ func pack(typ string, value any, _isArray bool) ([]byte, error) {
 		return String(value), nil
 	case "bool":
 		if _isArray {
-			return common.LeftPadBytes(Bool(value), 32), nil
+			return leftPadBytes(Bool(value), 32), nil
 		}
 
 		return Bool(value), nil
@@ -61,7 +84,7 @@ func pack(typ string, value any, _isArray bool) ([]byte, error) {
 		} else {
 			return nil, errors.New("type not supported")
 		}
-		return common.LeftPadBytes(v, size/8), nil
+		return leftPadBytes(v, size/8), nil
 	}
 
 	regexBytes := regexp.MustCompile(`^bytes(\d+)$`)
@@ -176,8 +199,8 @@ func pack(typ string, value any, _isArray bool) ([]byte, error) {
 // Address address
 func Address(input any) []byte {
 	switch v := input.(type) {
-	case common.Address:
-		return v.Bytes()
+	case [20]byte:
+		return v[:]
 	case string:
 		v = strings.TrimPrefix(v, "0x")
 		if v == "" || v == "0" {
@@ -205,7 +228,7 @@ func Address(input any) []byte {
 		return AddressArray(input)
 	}
 
-	return common.HexToAddress("").Bytes()
+	return make([]byte, 20)
 }
 
 // AddressArray address
@@ -214,7 +237,7 @@ func AddressArray(input any) []byte {
 	values := make([]byte, 0, s.Len()*32)
 	for i := range s.Len() {
 		val := s.Index(i).Interface()
-		result := common.LeftPadBytes(Address(val), 32)
+		result := leftPadBytes(Address(val), 32)
 		values = append(values, result...)
 	}
 	return values
@@ -253,11 +276,11 @@ func StringArray(input any) []byte {
 func Uint256(input any) []byte {
 	switch v := input.(type) {
 	case *big.Int:
-		return math.U256Bytes(v)
+		return u256Bytes(v)
 	case string:
 		bn := new(big.Int)
 		bn.SetString(v, 10)
-		return math.U256Bytes(bn)
+		return u256Bytes(bn)
 	}
 
 	if reflect.TypeOf(input).Kind() == reflect.Array ||
@@ -265,7 +288,7 @@ func Uint256(input any) []byte {
 		return Uint256Array(input)
 	}
 
-	return common.RightPadBytes([]byte(""), 32)
+	return rightPadBytes([]byte(""), 32)
 }
 
 // Uint256Array uint256 array
@@ -274,7 +297,7 @@ func Uint256Array(input any) []byte {
 	values := make([]byte, 0, s.Len()*32)
 	for i := range s.Len() {
 		val := s.Index(i).Interface()
-		result := common.LeftPadBytes(Uint256(val), 32)
+		result := leftPadBytes(Uint256(val), 32)
 		values = append(values, result...)
 	}
 	return values
@@ -303,7 +326,7 @@ func BoolArray(input any) []byte {
 	values := make([]byte, 0, s.Len()*32)
 	for i := range s.Len() {
 		val := s.Index(i).Interface()
-		result := common.LeftPadBytes(Bool(val), 32)
+		result := leftPadBytes(Bool(val), 32)
 		values = append(values, result...)
 	}
 	return values

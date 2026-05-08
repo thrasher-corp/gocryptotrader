@@ -1,4 +1,4 @@
-package hash
+package starkex
 
 // Note: currently some methods implementations here are directly copied from the github.com/yaune/starkex repository, and will be removed/update and tested
 
@@ -9,6 +9,17 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	math_utils "github.com/thrasher-corp/gocryptotrader/internal/utils/mathutils"
 )
+
+// PedersenCfg represents a pedersen hash configuration options
+type PedersenCfg struct {
+	Comment        string        `json:"_comment"`
+	FieldPrime     *big.Int      `json:"FIELD_PRIME"`
+	FieldGen       int           `json:"FIELD_GEN"`
+	EcOrder        *big.Int      `json:"EC_ORDER"`
+	ALPHA          int           `json:"ALPHA"`
+	BETA           *big.Int      `json:"BETA"`
+	ConstantPoints [][2]*big.Int `json:"CONSTANT_POINTS"`
+}
 
 // LoadPedersenConfig loads a pedersen configuration from a json file.
 func LoadPedersenConfig(path string) (*PedersenCfg, error) {

@@ -51,7 +51,7 @@ type hashAndSignature struct {
 }
 
 var ref6979SignatureTestVector = &struct {
-	PrivateKey string             `json:"private_key"` //nolint:gosec // Used for testing purpose
+	PrivateKey string             `json:"private_key"`
 	Messages   []hashAndSignature `json:"messages"`
 }{
 	PrivateKey: "0x3c1e9550e66958296d11b60f8e8e7a7ad990d07fa65d5f7652c4a6c87d4e3cc",

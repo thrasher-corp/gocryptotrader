@@ -19,6 +19,7 @@ package twistededwards
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/internal/utils/zklink/bn256/fr"
 )
 
@@ -37,13 +38,8 @@ func TestAdd(t *testing.T) {
 	expectedY.SetString("9214827499166027327226786359816287546740571844393227610238633031200971415079")
 
 	p1.Add(&p1, &p2)
-
-	if !p1.X.Equal(&expectedX) {
-		t.Fatal("wrong x coordinate")
-	}
-	if !p1.Y.Equal(&expectedY) {
-		t.Fatal("wrong y coordinate")
-	}
+	require.True(t, expectedX.Equal(&p1.X), "wrong y coordinate")
+	require.True(t, expectedY.Equal(&p1.Y), "wrong y coordinate")
 }
 
 func TestAddProj(t *testing.T) {
@@ -66,13 +62,8 @@ func TestAddProj(t *testing.T) {
 
 	p1proj.Add(&p1proj, &p2proj)
 	p1.FromProj(&p1proj)
-
-	if !p1.X.Equal(&expectedX) {
-		t.Fatal("wrong x coordinate")
-	}
-	if !p1.Y.Equal(&expectedY) {
-		t.Fatal("wrong y coordinate")
-	}
+	require.True(t, expectedX.Equal(&p1.X), "wrong y coordinate")
+	require.True(t, expectedY.Equal(&p1.Y), "wrong y coordinate")
 }
 
 func TestDoubleProj(t *testing.T) {
@@ -90,13 +81,8 @@ func TestDoubleProj(t *testing.T) {
 
 	expectedX.SetString("17048188201798084482613703497237052386773720266456818725024051932759787099830")
 	expectedY.SetString("15722506141850766164380928609287974914029282300941585435780118880890915697552")
-
-	if !p.X.Equal(&expectedX) {
-		t.Fatal("wrong x coordinate")
-	}
-	if !p.Y.Equal(&expectedY) {
-		t.Fatal("wrong y coordinate")
-	}
+	require.True(t, expectedX.Equal(&p.X), "wrong y coordinate")
+	require.True(t, expectedY.Equal(&p.Y), "wrong y coordinate")
 }
 
 func TestScalarMul(t *testing.T) {
@@ -113,11 +99,6 @@ func TestScalarMul(t *testing.T) {
 
 	expectedX.SetString("2617519824163134005353570974989848134508856877236793995668417237392062754831")
 	expectedY.SetString("12956808000482532416873382696451950668786244907047953547021024966691314258300")
-
-	if !expectedX.Equal(&p.X) {
-		t.Fatal("wrong x coordinate")
-	}
-	if !expectedY.Equal(&p.Y) {
-		t.Fatal("wrong y coordinate")
-	}
+	require.True(t, expectedX.Equal(&p.X), "wrong y coordinate")
+	require.True(t, expectedY.Equal(&p.Y), "wrong y coordinate")
 }
