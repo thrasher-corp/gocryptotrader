@@ -211,7 +211,7 @@ func (e *Exchange) getCandlestickChartData(ctx context.Context, symbol, path str
 	}
 	params.Set("symbol", symbol)
 	var resp map[string][]*CandlestickData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(path, params), request.UnAuth, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues(path, params), request.UnAuth, &resp)
 }
 
 // GetTickerDataV3 get the latest data on symbol tickers.

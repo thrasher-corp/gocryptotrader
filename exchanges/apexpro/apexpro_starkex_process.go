@@ -12,10 +12,10 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
-	"golang.org/x/crypto/sha3"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/internal/utils/hash/solsha3"
 	"github.com/thrasher-corp/gocryptotrader/internal/utils/starkex"
+	"golang.org/x/crypto/sha3"
 )
 
 var (
@@ -152,13 +152,8 @@ func (e *Exchange) ProcessOrderSignature(ctx context.Context, arg *CreateOrderPa
 func appendSignatures(r, s *big.Int) string {
 	rBytes := r.Bytes()
 	sBytes := s.Bytes()
-
-	for i := len(rBytes); i < 32; i++ {
-		rBytes = append([]byte{byte(0)}, rBytes...)
-	}
-	for i := len(sBytes); i < 32; i++ {
-		sBytes = append([]byte{byte(0)}, sBytes...)
-	}
+	rBytes = solsha3.LeftPadBytes(rBytes, 32)
+	sBytes = solsha3.LeftPadBytes(sBytes, 32)
 	return hex.EncodeToString(append(rBytes, sBytes...))
 }
 

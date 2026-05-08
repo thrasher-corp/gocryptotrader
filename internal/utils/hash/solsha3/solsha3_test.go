@@ -1,8 +1,8 @@
 package solsha3
 
 import (
-	"encoding/binary"
 	"encoding/hex"
+	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -24,18 +24,21 @@ func TestSoliditySHA3(t *testing.T) {
 
 func TestLeftPadBytes(t *testing.T) {
 	t.Parallel()
-	val := uint64(123)
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, val)
-	newVal := leftPadBytes(b, 32)
+	b := []byte{0x01, 0x02}
+	newVal := LeftPadBytes(b, 32)
 	assert.Len(t, newVal, 32)
+	assert.Equal(t, big.NewInt(0).SetBytes(newVal), big.NewInt(0).SetBytes(b))
+	assert.Equal(t, b, newVal[30:], "trailing bytes should match original")
+	assert.Equal(t, make([]byte, 30), newVal[:30], "leading bytes should be zero")
+	assert.Equal(t, b, LeftPadBytes(b, 1), "should return original slice when length <= len(slice)")
 }
 
 func TestRightPadBytes(t *testing.T) {
 	t.Parallel()
-	val := uint64(123)
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, val)
+	b := []byte{0x01, 0x02}
 	newVal := rightPadBytes(b, 32)
-	assert.Len(t, newVal, 32)
+	require.Len(t, newVal, 32, "result must have length 32")
+	assert.Equal(t, b, newVal[:2], "leading bytes should match original")
+	assert.Equal(t, make([]byte, 30), newVal[2:], "trailing bytes should be zero")
+	assert.Equal(t, b, rightPadBytes(b, 1), "should return original slice when length <= len(slice)")
 }

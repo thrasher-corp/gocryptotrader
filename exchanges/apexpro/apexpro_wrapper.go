@@ -100,7 +100,7 @@ func (e *Exchange) SetDefaults() {
 
 	e.API.Endpoints = e.NewEndpoints()
 	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpotSupplementary:      apexproAPIURL,
+		exchange.RestSpotSupplementary:      apexProOmniAPIURL,
 		exchange.RestSpot:                   apexproAPIURL,
 		exchange.WebsocketSpot:              apexProWebsocket,
 		exchange.WebsocketSpotSupplementary: apexProPrivateWebsocket,

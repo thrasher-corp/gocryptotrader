@@ -111,6 +111,7 @@ func TestGetCandlestickChartDataV3(t *testing.T) {
 	_, err := e.GetCandlestickChartDataV3(t.Context(), "", kline.FiveMin, time.Time{}, time.Time{}, 10)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
+	e.Verbose = true
 	result, err := e.GetCandlestickChartDataV3(t.Context(), "BTC-USDC", kline.FiveMin, time.Time{}, time.Time{}, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)

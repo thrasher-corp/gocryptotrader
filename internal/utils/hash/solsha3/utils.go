@@ -12,8 +12,8 @@ import (
 
 var errInvalidInput = errors.New("invalid input")
 
-// leftPadBytes left pads []byte to have a total 'length'.
-func leftPadBytes(slice []byte, length int) []byte {
+// LeftPadBytes left pads []byte to have a total 'length'.
+func LeftPadBytes(slice []byte, length int) []byte {
 	if length <= len(slice) {
 		return slice
 	}
@@ -35,14 +35,14 @@ func rightPadBytes(slice []byte, length int) []byte {
 // u256Bytes converts a *big.Int into [32]byte
 func u256Bytes(n *big.Int) []byte {
 	b := n.Bytes()
-	return leftPadBytes(b, 32)
+	return LeftPadBytes(b, 32)
 }
 
 func pack(typ string, value any, _isArray bool) ([]byte, error) {
 	switch typ {
 	case "address":
 		if _isArray {
-			return leftPadBytes(Address(value), 32), nil
+			return LeftPadBytes(Address(value), 32), nil
 		}
 
 		return Address(value), nil
@@ -50,7 +50,7 @@ func pack(typ string, value any, _isArray bool) ([]byte, error) {
 		return String(value), nil
 	case "bool":
 		if _isArray {
-			return leftPadBytes(Bool(value), 32), nil
+			return LeftPadBytes(Bool(value), 32), nil
 		}
 
 		return Bool(value), nil
@@ -84,7 +84,7 @@ func pack(typ string, value any, _isArray bool) ([]byte, error) {
 		} else {
 			return nil, errors.New("type not supported")
 		}
-		return leftPadBytes(v, size/8), nil
+		return LeftPadBytes(v, size/8), nil
 	}
 
 	regexBytes := regexp.MustCompile(`^bytes(\d+)$`)
@@ -237,7 +237,7 @@ func AddressArray(input any) []byte {
 	values := make([]byte, 0, s.Len()*32)
 	for i := range s.Len() {
 		val := s.Index(i).Interface()
-		result := leftPadBytes(Address(val), 32)
+		result := LeftPadBytes(Address(val), 32)
 		values = append(values, result...)
 	}
 	return values
@@ -297,7 +297,7 @@ func Uint256Array(input any) []byte {
 	values := make([]byte, 0, s.Len()*32)
 	for i := range s.Len() {
 		val := s.Index(i).Interface()
-		result := leftPadBytes(Uint256(val), 32)
+		result := LeftPadBytes(Uint256(val), 32)
 		values = append(values, result...)
 	}
 	return values
@@ -326,7 +326,7 @@ func BoolArray(input any) []byte {
 	values := make([]byte, 0, s.Len()*32)
 	for i := range s.Len() {
 		val := s.Index(i).Interface()
-		result := leftPadBytes(Bool(val), 32)
+		result := LeftPadBytes(Bool(val), 32)
 		values = append(values, result...)
 	}
 	return values
