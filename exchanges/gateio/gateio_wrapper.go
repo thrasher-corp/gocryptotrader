@@ -707,7 +707,9 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 		if err != nil {
 			return nil, err
 		}
-		setIsolatedMarginAccountBalances(&subAccts[0].Balances, balances)
+		if err := setIsolatedMarginAccountBalances(&subAccts[0].Balances, balances); err != nil {
+			return nil, err
+		}
 	case asset.CrossMargin:
 		crossMarginAccount, err := e.GetCrossMarginAccounts(ctx)
 		if err != nil {
@@ -749,19 +751,26 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 	return subAccts, e.Accounts.Save(ctx, subAccts, true)
 }
 
-func setIsolatedMarginAccountBalances(balances *accounts.CurrencyBalances, response []MarginAccountItem) {
+func setIsolatedMarginAccountBalances(balances *accounts.CurrencyBalances, response []MarginAccountItem) error {
 	for i := range response {
-		balances.Set(response[i].Base.Currency, accounts.Balance{
-			Total: response[i].Base.Available.Float64() + response[i].Base.LockedAmount.Float64(),
-			Hold:  response[i].Base.LockedAmount.Float64(),
-			Free:  response[i].Base.Available.Float64(),
-		})
-		balances.Set(response[i].Quote.Currency, accounts.Balance{
-			Total: response[i].Quote.Available.Float64() + response[i].Quote.LockedAmount.Float64(),
-			Hold:  response[i].Quote.LockedAmount.Float64(),
-			Free:  response[i].Quote.Available.Float64(),
-		})
+		if err := addIsolatedMarginAccountBalance(balances, response[i].Base); err != nil {
+			return err
+		}
+		if err := addIsolatedMarginAccountBalance(balances, response[i].Quote); err != nil {
+			return err
+		}
 	}
+	return nil
+}
+
+func addIsolatedMarginAccountBalance(balances *accounts.CurrencyBalances, balance AccountBalanceInformation) error {
+	available := balance.Available.Float64()
+	locked := balance.LockedAmount.Float64()
+	return balances.Add(balance.Currency, accounts.Balance{
+		Total: available + locked,
+		Hold:  locked,
+		Free:  available,
+	})
 }
 
 func setCrossMarginAccountBalances(balances *accounts.CurrencyBalances, account *CrossMarginAccount) {
