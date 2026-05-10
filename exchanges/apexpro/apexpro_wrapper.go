@@ -478,8 +478,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	if !orderCancellation.Pair.IsEmpty() {
 		symbols = append(symbols, orderCancellation.Pair.String())
 	}
-	err := e.CancelAllOpenOrdersV3(ctx, symbols)
-	if err != nil {
+	if err := e.CancelAllOpenOrdersV3(ctx, symbols); err != nil {
 		return order.CancelAllResponse{}, err
 	}
 	return order.CancelAllResponse{Status: map[string]string{orderCancellation.OrderID: "success"}}, nil
