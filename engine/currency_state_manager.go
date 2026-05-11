@@ -29,7 +29,7 @@ var enabled = &gctrpc.GenericResponse{Status: "enabled"}
 
 // CurrencyStateManager manages currency states
 type CurrencyStateManager struct {
-	started  int32
+	started  atomic.Int32
 	shutdown chan struct{}
 	wg       sync.WaitGroup
 	iExchangeManager
@@ -61,7 +61,7 @@ func (c *CurrencyStateManager) Start(ctx context.Context) error {
 		return fmt.Errorf("%s %w", CurrencyStateManagementName, ErrNilSubsystem)
 	}
 
-	if !atomic.CompareAndSwapInt32(&c.started, 0, 1) {
+	if !c.started.CompareAndSwap(0, 1) {
 		return fmt.Errorf("%s %w", CurrencyStateManagementName, ErrSubSystemAlreadyStarted)
 	}
 	c.wg.Add(1)
@@ -75,7 +75,7 @@ func (c *CurrencyStateManager) Stop() error {
 	if c == nil {
 		return fmt.Errorf("%s %w", CurrencyStateManagementName, ErrNilSubsystem)
 	}
-	if atomic.LoadInt32(&c.started) == 0 {
+	if c.started.Load() == 0 {
 		return fmt.Errorf("%s %w", CurrencyStateManagementName, ErrSubSystemNotStarted)
 	}
 
@@ -84,7 +84,7 @@ func (c *CurrencyStateManager) Stop() error {
 	c.wg.Wait()
 	c.shutdown = make(chan struct{})
 	log.Debugf(log.ExchangeSys, "Currency state manager %s", MsgSubSystemShutdown)
-	atomic.StoreInt32(&c.started, 0)
+	c.started.Store(0)
 	return nil
 }
 
@@ -93,7 +93,7 @@ func (c *CurrencyStateManager) IsRunning() bool {
 	if c == nil {
 		return false
 	}
-	return atomic.LoadInt32(&c.started) == 1
+	return c.started.Load() == 1
 }
 
 func (c *CurrencyStateManager) monitor(ctx context.Context) {

@@ -280,7 +280,7 @@ func OrdersSetup(t *testing.T) *OrderManager {
 	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{})
 	assert.NoError(t, err)
 
-	m.started = 1
+	m.started.Store(1)
 	return m
 }
 
@@ -568,7 +568,7 @@ func TestOrderManagerGracefulShutdownUsesBoundedContextWhenRuntimeCancelled(t *t
 
 	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{CancelOrdersOnShutdown: true})
 	require.NoError(t, err)
-	m.started = 1
+	m.started.Store(1)
 
 	require.NoError(t, m.orderStore.add(&order.Detail{
 		Exchange:  testExchange,
@@ -860,7 +860,7 @@ func TestProcessOrders(t *testing.T) {
 	m, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{})
 	assert.NoError(t, err)
 
-	m.started = 1
+	m.started.Store(1)
 	pairs := currency.Pairs{
 		currency.Pair{Base: currency.BTC, Quote: currency.USD},
 	}
@@ -1255,7 +1255,7 @@ func TestGetFuturesPositionsForExchange(t *testing.T) {
 	_, err := o.GetFuturesPositionsForExchange("test", asset.Spot, cp)
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
-	o.started = 1
+	o.started.Store(1)
 	o.orderStore.futuresPositionController = futures.SetupPositionController()
 	_, err = o.GetFuturesPositionsForExchange("test", asset.Spot, cp)
 	assert.ErrorIs(t, err, futures.ErrNotFuturesAsset)
@@ -1294,7 +1294,7 @@ func TestClearFuturesPositionsForExchange(t *testing.T) {
 	err := o.ClearFuturesTracking("test", asset.Spot, cp)
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
-	o.started = 1
+	o.started.Store(1)
 	o.orderStore.futuresPositionController = futures.SetupPositionController()
 	err = o.ClearFuturesTracking("test", asset.Spot, cp)
 	assert.ErrorIs(t, err, futures.ErrNotFuturesAsset)
@@ -1336,7 +1336,7 @@ func TestUpdateOpenPositionUnrealisedPNL(t *testing.T) {
 	_, err := o.UpdateOpenPositionUnrealisedPNL("test", asset.Spot, cp, 1, time.Now())
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
-	o.started = 1
+	o.started.Store(1)
 	o.orderStore.futuresPositionController = futures.SetupPositionController()
 	_, err = o.UpdateOpenPositionUnrealisedPNL("test", asset.Spot, cp, 1, time.Now())
 	assert.ErrorIs(t, err, futures.ErrNotFuturesAsset)
@@ -1375,7 +1375,7 @@ func TestSubmitFakeOrder(t *testing.T) {
 	_, err := o.SubmitFakeOrder(nil, resp, false)
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
-	o.started = 1
+	o.started.Store(1)
 	_, err = o.SubmitFakeOrder(nil, resp, false)
 	assert.ErrorIs(t, err, errNilOrder)
 
@@ -1417,7 +1417,7 @@ func TestGetOrdersSnapshot(t *testing.T) {
 	t.Parallel()
 	o := &OrderManager{}
 	o.GetOrdersSnapshot(order.AnyStatus)
-	o.started = 1
+	o.started.Store(1)
 	o.orderStore.Orders = make(map[string][]*order.Detail)
 	o.orderStore.Orders[testExchange] = []*order.Detail{
 		{
@@ -1481,7 +1481,7 @@ func TestOrderManagerExists(t *testing.T) {
 	if o.Exists(nil) {
 		t.Error("expected false")
 	}
-	o.started = 1
+	o.started.Store(1)
 	if o.Exists(nil) {
 		t.Error("expected false")
 	}
@@ -1498,7 +1498,7 @@ func TestOrderManagerAdd(t *testing.T) {
 	err := o.Add(nil)
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
-	o.started = 1
+	o.started.Store(1)
 	err = o.Add(nil)
 	assert.ErrorIs(t, err, errNilOrder)
 
@@ -1513,11 +1513,11 @@ func TestGetAllOpenFuturesPositions(t *testing.T) {
 	o, err := SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
 	assert.NoError(t, err)
 
-	o.started = 0
+	o.started.Store(0)
 	_, err = o.GetAllOpenFuturesPositions()
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
-	o.started = 1
+	o.started.Store(1)
 	o.activelyTrackFuturesPositions = true
 	o.orderStore.futuresPositionController = futures.SetupPositionController()
 	_, err = o.GetAllOpenFuturesPositions()
@@ -1534,12 +1534,12 @@ func TestGetOpenFuturesPosition(t *testing.T) {
 	o, err := SetupOrderManager(NewExchangeManager(), &CommunicationManager{}, wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
 	assert.NoError(t, err)
 
-	o.started = 0
+	o.started.Store(0)
 	cp := currency.NewPair(currency.BTC, currency.PERP)
 	_, err = o.GetOpenFuturesPosition(testExchange, asset.Spot, cp)
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
-	o.started = 1
+	o.started.Store(1)
 	_, err = o.GetOpenFuturesPosition(testExchange, asset.Spot, cp)
 	assert.ErrorIs(t, err, futures.ErrNotFuturesAsset)
 
@@ -1581,7 +1581,7 @@ func TestGetOpenFuturesPosition(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	o.started = 1
+	o.started.Store(1)
 
 	_, err = o.GetOpenFuturesPosition(testExchange, asset.Spot, cp)
 	assert.ErrorIs(t, err, futures.ErrNotFuturesAsset)
@@ -1659,7 +1659,7 @@ func TestProcessFuturesPositions(t *testing.T) {
 	o, err = SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{ActivelyTrackFuturesPositions: true, FuturesTrackingSeekDuration: time.Hour})
 	assert.NoError(t, err)
 
-	o.started = 1
+	o.started.Store(1)
 
 	err = o.processFuturesPositions(t.Context(), fakeExchange, nil)
 	assert.ErrorIs(t, err, common.ErrNilPointer)

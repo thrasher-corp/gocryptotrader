@@ -18,7 +18,7 @@ const DatabaseConnectionManagerName = "database"
 
 // DatabaseConnectionManager holds the database connection and its status
 type DatabaseConnectionManager struct {
-	started  int32
+	started  atomic.Int32
 	shutdown chan struct{}
 	cfg      database.Config
 	wg       sync.WaitGroup
@@ -30,12 +30,12 @@ func (m *DatabaseConnectionManager) IsRunning() bool {
 	if m == nil {
 		return false
 	}
-	return atomic.LoadInt32(&m.started) == 1
+	return m.started.Load() == 1
 }
 
 // GetInstance returns a limited scoped database instance
 func (m *DatabaseConnectionManager) GetInstance() database.IDatabase {
-	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+	if m == nil || m.started.Load() == 0 {
 		return nil
 	}
 
@@ -61,7 +61,7 @@ func SetupDatabaseConnectionManager(cfg *database.Config) (*DatabaseConnectionMa
 
 // IsConnected is an exported check to verify if the database is connected
 func (m *DatabaseConnectionManager) IsConnected() bool {
-	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+	if m == nil || m.started.Load() == 0 {
 		return false
 	}
 	return m.dbConn.IsConnected()
@@ -75,12 +75,12 @@ func (m *DatabaseConnectionManager) Start(wg *sync.WaitGroup) (err error) {
 	if m == nil {
 		return fmt.Errorf("%s %w", DatabaseConnectionManagerName, ErrNilSubsystem)
 	}
-	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
+	if !m.started.CompareAndSwap(0, 1) {
 		return fmt.Errorf("database manager %w", ErrSubSystemAlreadyStarted)
 	}
 	defer func() {
 		if err != nil {
-			atomic.CompareAndSwapInt32(&m.started, 1, 0)
+			m.started.CompareAndSwap(1, 0)
 		}
 	}()
 
@@ -125,11 +125,11 @@ func (m *DatabaseConnectionManager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("%s %w", DatabaseConnectionManagerName, ErrNilSubsystem)
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if m.started.Load() == 0 {
 		return fmt.Errorf("%s %w", DatabaseConnectionManagerName, ErrSubSystemNotStarted)
 	}
 	defer func() {
-		atomic.CompareAndSwapInt32(&m.started, 1, 0)
+		m.started.CompareAndSwap(1, 0)
 	}()
 
 	err := m.dbConn.CloseConnection()
@@ -170,7 +170,7 @@ func (m *DatabaseConnectionManager) checkConnection() error {
 	if m == nil {
 		return fmt.Errorf("%s %w", DatabaseConnectionManagerName, ErrNilSubsystem)
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if m.started.Load() == 0 {
 		return fmt.Errorf("%s %w", DatabaseConnectionManagerName, ErrSubSystemNotStarted)
 	}
 	if !m.cfg.Enabled {

@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"strings"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -46,9 +45,9 @@ func TestSetupDataHistoryManager(t *testing.T) {
 
 	dbInst.SetConnected(true)
 	dbCM := &DatabaseConnectionManager{
-		dbConn:  dbInst,
-		started: 1,
+		dbConn: dbInst,
 	}
+	dbCM.started.Store(1)
 	err = dbInst.SetSQLiteConnection(&sql.DB{})
 	assert.NoError(t, err)
 
@@ -63,11 +62,11 @@ func TestSetupDataHistoryManager(t *testing.T) {
 func TestDataHistoryManagerIsRunning(t *testing.T) {
 	t.Parallel()
 	m, _ := createDHM(t)
-	m.started = 0
+	m.started.Store(0)
 	if m.IsRunning() {
 		t.Error("expected false")
 	}
-	m.started = 1
+	m.started.Store(1)
 	if !m.IsRunning() {
 		t.Error("expected true")
 	}
@@ -80,7 +79,7 @@ func TestDataHistoryManagerIsRunning(t *testing.T) {
 func TestDataHistoryManagerStart(t *testing.T) {
 	t.Parallel()
 	m, _ := createDHM(t)
-	m.started = 0
+	m.started.Store(0)
 	err := m.Start(t.Context())
 	assert.NoError(t, err)
 
@@ -220,7 +219,7 @@ func TestSetJobStatus(t *testing.T) {
 	err = m.SetJobStatus(dhj.Nickname, "", dataHistoryStatusRemoved)
 	assert.NoError(t, err)
 
-	atomic.StoreInt32(&m.started, 0)
+	m.started.Store(0)
 	err = m.SetJobStatus("", dhj.ID.String(), 0)
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
@@ -253,7 +252,7 @@ func TestGetByNickname(t *testing.T) {
 	_, err = m.GetByNickname(dhj.Nickname, false)
 	assert.NoError(t, err)
 
-	atomic.StoreInt32(&m.started, 0)
+	m.started.Store(0)
 	_, err = m.GetByNickname("test123", false)
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
@@ -286,7 +285,7 @@ func TestGetByID(t *testing.T) {
 	_, err = m.GetByID(dhj.ID)
 	assert.NoError(t, err)
 
-	atomic.StoreInt32(&m.started, 0)
+	m.started.Store(0)
 	_, err = m.GetByID(dhj.ID)
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
@@ -317,7 +316,7 @@ func TestRetrieveJobs(t *testing.T) {
 		t.Error("expected job")
 	}
 
-	atomic.StoreInt32(&m.started, 0)
+	m.started.Store(0)
 	_, err = m.retrieveJobs()
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
@@ -357,7 +356,7 @@ func TestGetActiveJobs(t *testing.T) {
 		t.Error("expected 0 jobs")
 	}
 
-	atomic.StoreInt32(&m.started, 0)
+	m.started.Store(0)
 	_, err = m.GetActiveJobs()
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
@@ -449,7 +448,7 @@ func TestGetAllJobStatusBetween(t *testing.T) {
 	_, err = m.GetAllJobStatusBetween(time.Now().Add(-time.Hour), time.Now().Add(-time.Minute*30))
 	assert.NoError(t, err)
 
-	m.started = 0
+	m.started.Store(0)
 	_, err = m.GetAllJobStatusBetween(time.Now().Add(-time.Hour), time.Now().Add(-time.Minute*30))
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
@@ -467,7 +466,7 @@ func TestPrepareJobs(t *testing.T) {
 	if len(jobs) != 1 {
 		t.Errorf("expected 1 job, received %v", len(jobs))
 	}
-	m.started = 0
+	m.started.Store(0)
 	_, err = m.PrepareJobs()
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
@@ -599,7 +598,7 @@ func TestCompareJobsToData(t *testing.T) {
 		}
 	})
 
-	m.started = 0
+	m.started.Store(0)
 	err = m.compareJobsToData(dhj)
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
@@ -760,7 +759,7 @@ func TestRunJobSkipsPersistenceWhenStoppedDuringRun(t *testing.T) {
 	m.tradeSaver = dataHistoryTradeSaver
 	m.tradeLoader = dataHistoryTraderLoader
 	m.candleSaver = func(i *kline.Item, _ bool) (uint64, error) {
-		atomic.StoreInt32(&m.started, 0)
+		m.started.Store(0)
 		if i == nil {
 			return 0, nil
 		}
@@ -817,7 +816,7 @@ func TestGenerateJobSummaryTest(t *testing.T) {
 		t.Error("expected result ranges")
 	}
 
-	atomic.StoreInt32(&m.started, 0)
+	m.started.Store(0)
 	_, err = m.GenerateJobSummary("TestGenerateJobSummary")
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
@@ -832,7 +831,7 @@ func TestRunJobs(t *testing.T) {
 	err := m.runJobs(t.Context())
 	assert.NoError(t, err)
 
-	atomic.StoreInt32(&m.started, 0)
+	m.started.Store(0)
 	err = m.runJobs(t.Context())
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
@@ -980,13 +979,13 @@ func createDHM(t *testing.T) (*DataHistoryManager, *datahistoryjob.DataHistoryJo
 		databaseConnectionInstance: &dataBaseConnection{},
 		jobDB:                      &dataHistoryJobService{job: j},
 		jobResultDB:                dataHistoryJobResultService{},
-		started:                    1,
 		exchangeManager:            em,
 		candleLoader:               dataHistoryCandleLoader,
 		interval:                   time.NewTicker(time.Minute),
 		verbose:                    true,
 		maxResultInsertions:        defaultMaxResultInsertions,
 	}
+	m.started.Store(1)
 	return m, j
 }
 
@@ -1222,7 +1221,7 @@ func TestSetJobRelationship(t *testing.T) {
 	err = m.SetJobRelationship("", "")
 	assert.ErrorIs(t, err, errNicknameUnset)
 
-	m.started = 0
+	m.started.Store(0)
 	err = m.SetJobRelationship("", "")
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
@@ -1282,7 +1281,7 @@ func TestCheckCandleIssue(t *testing.T) {
 		t.Errorf("expected %v received %v", true, replace)
 	}
 
-	m.started = 0
+	m.started.Store(0)
 	issue, replace = m.CheckCandleIssue(nil, 0, 0, 0, "")
 	if issue != ErrSubSystemNotStarted.Error() {
 		t.Errorf("expected %v received %v", ErrSubSystemNotStarted, issue)
@@ -1343,7 +1342,7 @@ func TestSaveCandlesInBatches(t *testing.T) {
 	err := dhm.saveCandlesInBatches(nil, nil, nil)
 	assert.ErrorIs(t, err, ErrSubSystemNotStarted)
 
-	dhm.started = 1
+	dhm.started.Store(1)
 	err = dhm.saveCandlesInBatches(nil, nil, nil)
 	assert.ErrorIs(t, err, errNilJob)
 

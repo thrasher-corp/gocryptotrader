@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
@@ -41,7 +40,7 @@ func (m *eventManager) Start() error {
 	if m == nil {
 		return fmt.Errorf("event manager %w", ErrNilSubsystem)
 	}
-	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
+	if !m.started.CompareAndSwap(0, 1) {
 		return fmt.Errorf("event manager %w", ErrSubSystemAlreadyStarted)
 	}
 	log.Debugf(log.EventMgr, "Event Manager started. SleepDelay: %v\n", m.sleepDelay.String())
@@ -55,7 +54,7 @@ func (m *eventManager) IsRunning() bool {
 	if m == nil {
 		return false
 	}
-	return atomic.LoadInt32(&m.started) == 1
+	return m.started.Load() == 1
 }
 
 // Stop attempts to shutdown the subsystem
@@ -63,7 +62,7 @@ func (m *eventManager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("event manager %w", ErrNilSubsystem)
 	}
-	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
+	if !m.started.CompareAndSwap(1, 0) {
 		return fmt.Errorf("event manager %w", ErrSubSystemNotStarted)
 	}
 	close(m.shutdown)
@@ -109,7 +108,7 @@ func (m *eventManager) Add(exchange, item string, condition EventConditionParams
 	if m == nil {
 		return 0, fmt.Errorf("event manager %w", ErrNilSubsystem)
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if m.started.Load() == 0 {
 		return 0, fmt.Errorf("event manager %w", ErrSubSystemNotStarted)
 	}
 	err := m.isValidEvent(exchange, item, condition, action)
@@ -137,7 +136,7 @@ func (m *eventManager) Add(exchange, item string, condition EventConditionParams
 
 // Remove deletes an event by its ID
 func (m *eventManager) Remove(eventID int64) bool {
-	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+	if m == nil || m.started.Load() == 0 {
 		return false
 	}
 	m.m.Lock()
@@ -154,7 +153,7 @@ func (m *eventManager) Remove(eventID int64) bool {
 // getEventCounter displays the amount of total events on the chain and the
 // events that have been executed.
 func (m *eventManager) getEventCounter() (total, executed int) {
-	if m == nil || atomic.LoadInt32(&m.started) == 0 {
+	if m == nil || m.started.Load() == 0 {
 		return 0, 0
 	}
 	m.m.Lock()
@@ -174,7 +173,7 @@ func (m *eventManager) checkEventCondition(e *Event) error {
 	if m == nil {
 		return fmt.Errorf("event manager %w", ErrNilSubsystem)
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if m.started.Load() == 0 {
 		return fmt.Errorf("event manager %w", ErrSubSystemNotStarted)
 	}
 	if e == nil {
