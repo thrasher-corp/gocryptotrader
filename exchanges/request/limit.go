@@ -121,14 +121,18 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 	}
 
 	r.m.Lock()
-	if r.weight == 0 {
+	weight := r.weight
+	if overrideWeight, ok := getRateLimitWeight(ctx); ok {
+		weight = overrideWeight
+	}
+	if weight == 0 {
 		r.m.Unlock()
 		return errInvalidWeight
 	}
 
 	tn := time.Now()
-	reserved := make([]*rate.Reservation, 0, r.weight)
-	for range r.weight {
+	reserved := make([]*rate.Reservation, 0, weight)
+	for range weight {
 		// This avoids needing burst capacity in the limiter, which would otherwise allow the rate limit to be exceeded over short periods
 		reserved = append(reserved, r.limiter.ReserveN(tn, 1))
 	}

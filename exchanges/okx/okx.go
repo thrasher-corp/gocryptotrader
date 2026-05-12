@@ -35,6 +35,8 @@ type Exchange struct {
 
 	instrumentsInfoMapLock sync.Mutex
 	instrumentsInfoMap     map[string][]Instrument
+	tradeScopedLimiters    sync.Map
+	tradeSubAccountLimiter sync.Map
 }
 
 const (
@@ -53,6 +55,12 @@ const (
 // PlaceOrder places an order
 func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*OrderData, error) {
 	if err := arg.Validate(); err != nil {
+		return nil, err
+	}
+	if err := e.applyTradeScopeRateLimit(ctx, tradeRateLimitPlaceSingle, tradeScopeCountsFromPlaceOrders([]PlaceOrderRequestParam{*arg})); err != nil {
+		return nil, err
+	}
+	if err := e.applyTradeSubAccountRateLimit(ctx, 1); err != nil {
 		return nil, err
 	}
 	var resp *OrderData
@@ -76,8 +84,20 @@ func (e *Exchange) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderReq
 			return nil, err
 		}
 	}
+	class := tradeRateLimitPlaceBatch
+	if len(args) == 1 {
+		class = tradeRateLimitPlaceSingle
+	}
+	if err := e.applyTradeScopeRateLimit(ctx, class, tradeScopeCountsFromPlaceOrders(args)); err != nil {
+		return nil, err
+	}
+	if err := e.applyTradeSubAccountRateLimit(ctx, countByOrder(args)); err != nil {
+		return nil, err
+	}
+	epl := batchEndpointLimit(len(args), placeOrderEPL, placeMultipleOrdersEPL)
+	ctx = request.WithRateLimitWeight(ctx, toRateLimitWeight(len(args)))
 	var resp []OrderData
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, placeMultipleOrdersEPL, http.MethodPost, "trade/batch-orders", &args, &resp, request.AuthenticatedRequest)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, epl, http.MethodPost, "trade/batch-orders", &args, &resp, request.AuthenticatedRequest)
 	if err != nil {
 		if len(resp) == 0 {
 			return nil, err
@@ -101,6 +121,9 @@ func (e *Exchange) CancelSingleOrder(ctx context.Context, arg *CancelOrderReques
 	}
 	if arg.OrderID == "" && arg.ClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
+	}
+	if err := e.applyTradeScopeRateLimit(ctx, tradeRateLimitCancelSingle, tradeScopeCountsFromCancelOrders([]CancelOrderRequestParam{*arg})); err != nil {
+		return nil, err
 	}
 	var resp *OrderData
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, cancelOrderEPL, http.MethodPost, "trade/cancel-order", &arg, &resp, request.AuthenticatedRequest)
@@ -128,8 +151,17 @@ func (e *Exchange) CancelMultipleOrders(ctx context.Context, args []CancelOrderR
 			return nil, order.ErrOrderIDNotSet
 		}
 	}
+	class := tradeRateLimitCancelBatch
+	if len(args) == 1 {
+		class = tradeRateLimitCancelSingle
+	}
+	if err := e.applyTradeScopeRateLimit(ctx, class, tradeScopeCountsFromCancelOrders(args)); err != nil {
+		return nil, err
+	}
+	epl := batchEndpointLimit(len(args), cancelOrderEPL, cancelMultipleOrdersEPL)
+	ctx = request.WithRateLimitWeight(ctx, toRateLimitWeight(len(args)))
 	var resp []*OrderData
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleOrdersEPL, http.MethodPost, "trade/cancel-batch-orders", args, &resp, request.AuthenticatedRequest)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, epl, http.MethodPost, "trade/cancel-batch-orders", args, &resp, request.AuthenticatedRequest)
 	if err != nil {
 		if len(resp) == 0 {
 			return nil, err
@@ -159,6 +191,12 @@ func (e *Exchange) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams)
 	if arg.NewQuantity <= 0 && arg.NewPrice <= 0 {
 		return nil, errInvalidNewSizeOrPriceInformation
 	}
+	if err := e.applyTradeScopeRateLimit(ctx, tradeRateLimitAmendSingle, tradeScopeCountsFromAmendOrders([]AmendOrderRequestParams{*arg})); err != nil {
+		return nil, err
+	}
+	if err := e.applyTradeSubAccountRateLimit(ctx, 1); err != nil {
+		return nil, err
+	}
 	var resp *OrderData
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, amendOrderEPL, http.MethodPost, "trade/amend-order", arg, &resp, request.AuthenticatedRequest)
 }
@@ -179,8 +217,20 @@ func (e *Exchange) AmendMultipleOrders(ctx context.Context, args []AmendOrderReq
 			return nil, errInvalidNewSizeOrPriceInformation
 		}
 	}
+	class := tradeRateLimitAmendBatch
+	if len(args) == 1 {
+		class = tradeRateLimitAmendSingle
+	}
+	if err := e.applyTradeScopeRateLimit(ctx, class, tradeScopeCountsFromAmendOrders(args)); err != nil {
+		return nil, err
+	}
+	if err := e.applyTradeSubAccountRateLimit(ctx, countByOrder(args)); err != nil {
+		return nil, err
+	}
+	epl := batchEndpointLimit(len(args), amendOrderEPL, amendMultipleOrdersEPL)
+	ctx = request.WithRateLimitWeight(ctx, toRateLimitWeight(len(args)))
 	var resp []OrderData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, amendMultipleOrdersEPL, http.MethodPost, "trade/amend-batch-orders", &args, &resp, request.AuthenticatedRequest)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, epl, http.MethodPost, "trade/amend-batch-orders", &args, &resp, request.AuthenticatedRequest)
 }
 
 // ClosePositions close all positions of an instrument via a market order
