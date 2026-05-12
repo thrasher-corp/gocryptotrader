@@ -15,7 +15,7 @@ func TestString(t *testing.T) {
 		if a == 0 {
 			assert.Empty(t, a.String(), "Empty.String should return empty")
 		} else {
-			assert.NotEmptyf(t, a.String(), "%s.String should return empty", a)
+			assert.NotEmptyf(t, a.String(), "%s.String should not return empty", a)
 		}
 	}
 }
@@ -75,28 +75,82 @@ func TestIsValid(t *testing.T) {
 	require.False(t, All.IsValid(), "IsValid must return false for All")
 }
 
+func TestIsMargin(t *testing.T) {
+	t.Parallel()
+	assertClassification(t, Item.IsMargin, Margin, CrossMargin)
+}
+
 func TestIsFutures(t *testing.T) {
 	t.Parallel()
-	valid := []Item{PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, FutureCombo, LinearContract, Spread}
-	for a := range All {
-		if slices.Contains(valid, a) {
-			require.Truef(t, a.IsFutures(), "IsFutures must return true for %s", a)
-		} else {
-			require.Falsef(t, a.IsFutures(), "IsFutures must return false for non-asset value %d (%s)", a, a)
-		}
-	}
+	assertClassification(t, Item.IsFutures,
+		PerpetualContract,
+		PerpetualSwap,
+		Futures,
+		DeliveryFutures,
+		UpsideProfitContract,
+		DownsideProfitContract,
+		CoinMarginedFutures,
+		USDTMarginedFutures,
+		USDCMarginedFutures,
+		FutureCombo,
+		LinearContract,
+		Spread)
 }
 
 func TestIsOptions(t *testing.T) {
 	t.Parallel()
-	valid := []Item{Options, OptionCombo}
-	for a := range All {
-		if slices.Contains(valid, a) {
-			require.Truef(t, a.IsOptions(), "IsOptions must return true for %s", a)
+	assertClassification(t, Item.IsOptions, Options, OptionCombo)
+}
+
+func TestIsDerivatives(t *testing.T) {
+	t.Parallel()
+	assertClassification(t, Item.IsDerivatives,
+		PerpetualContract,
+		PerpetualSwap,
+		Futures,
+		DeliveryFutures,
+		UpsideProfitContract,
+		DownsideProfitContract,
+		CoinMarginedFutures,
+		USDTMarginedFutures,
+		USDCMarginedFutures,
+		FutureCombo,
+		LinearContract,
+		Spread,
+		Options,
+		OptionCombo)
+}
+
+func TestIsMultiLeg(t *testing.T) {
+	t.Parallel()
+	assertClassification(t, Item.IsMultiLeg, FutureCombo, OptionCombo, Spread)
+}
+
+func TestIsStablecoinMargined(t *testing.T) {
+	t.Parallel()
+	assertClassification(t, Item.IsStablecoinMargined, USDTMarginedFutures, USDCMarginedFutures)
+}
+
+func TestIsCoinMargined(t *testing.T) {
+	t.Parallel()
+	assertClassification(t, Item.IsCoinMargined, CoinMarginedFutures)
+}
+
+func TestIsFunding(t *testing.T) {
+	t.Parallel()
+	assertClassification(t, Item.IsFunding, MarginFunding)
+}
+
+func assertClassification(t *testing.T, classifier func(Item) bool, valid ...Item) {
+	t.Helper()
+	for assetType := range All {
+		if slices.Contains(valid, assetType) {
+			require.Truef(t, classifier(assetType), "classifier must return true for %s", assetType)
 		} else {
-			require.Falsef(t, a.IsOptions(), "IsOptions must return false for non-asset value %d (%s)", a, a)
+			require.Falsef(t, classifier(assetType), "classifier must return false for %d (%s)", assetType, assetType)
 		}
 	}
+	require.False(t, classifier(All), "classifier must return false for All")
 }
 
 func TestNew(t *testing.T) {
@@ -152,6 +206,10 @@ func TestSupported(t *testing.T) {
 			t.Fatal("TestSupported returned an unexpected result")
 		}
 	}
+	s[0] = Empty
+	if supportedList[0] != Spot {
+		t.Fatal("TestSupported should not return mutable package state")
+	}
 }
 
 func TestUnmarshalMarshal(t *testing.T) {
@@ -184,6 +242,7 @@ func TestUnmarshalMarshal(t *testing.T) {
 
 	err = json.Unmarshal([]byte(`""`), &spot)
 	require.NoError(t, err)
+	assert.Equal(t, Empty, spot, "Unmarshal should reset empty input to Empty")
 
 	err = json.Unmarshal([]byte(`123`), &spot)
 	assert.Error(t, err, "Unmarshal should error correctly")
