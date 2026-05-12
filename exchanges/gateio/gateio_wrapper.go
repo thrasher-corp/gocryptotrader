@@ -174,6 +174,7 @@ func (e *Exchange) SetDefaults() {
 		exchange.RestFutures:           gateioFuturesLiveTradingAlternative,
 		exchange.RestSpotSupplementary: gateioFuturesTestnetTrading,
 		exchange.WebsocketSpot:         gateioWebsocketEndpoint,
+		exchange.EdgeCase1:             frontEndURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -701,23 +702,20 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 				Free:  balances[i].Available.Float64(),
 			})
 		}
-	case asset.Margin, asset.CrossMargin:
-		balances, err := e.GetMarginAccountList(ctx, currency.EMPTYPAIR)
+	case asset.Margin:
+		balances, err := e.GetIsolatedMarginAccountList(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return nil, err
 		}
-		for i := range balances {
-			subAccts[0].Balances.Set(balances[i].Base.Currency, accounts.Balance{
-				Total: balances[i].Base.Available.Float64() + balances[i].Base.LockedAmount.Float64(),
-				Hold:  balances[i].Base.LockedAmount.Float64(),
-				Free:  balances[i].Base.Available.Float64(),
-			})
-			subAccts[0].Balances.Set(balances[i].Quote.Currency, accounts.Balance{
-				Total: balances[i].Quote.Available.Float64() + balances[i].Quote.LockedAmount.Float64(),
-				Hold:  balances[i].Quote.LockedAmount.Float64(),
-				Free:  balances[i].Quote.Available.Float64(),
-			})
+		if err := setIsolatedMarginAccountBalances(&subAccts[0].Balances, balances); err != nil {
+			return nil, err
 		}
+	case asset.CrossMargin:
+		crossMarginAccount, err := e.GetCrossMarginAccounts(ctx)
+		if err != nil {
+			return nil, err
+		}
+		setCrossMarginAccountBalances(&subAccts[0].Balances, crossMarginAccount)
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
 		settle, err := getSettlementCurrency(currency.EMPTYPAIR, a)
 		if err != nil {
@@ -751,6 +749,46 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 		return nil, fmt.Errorf("%w asset type: %q", asset.ErrNotSupported, a)
 	}
 	return subAccts, e.Accounts.Save(ctx, subAccts, true)
+}
+
+func setIsolatedMarginAccountBalances(balances *accounts.CurrencyBalances, response []MarginAccountItem) error {
+	for i := range response {
+		if err := addIsolatedMarginAccountBalance(balances, response[i].Base); err != nil {
+			return err
+		}
+		if err := addIsolatedMarginAccountBalance(balances, response[i].Quote); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func addIsolatedMarginAccountBalance(balances *accounts.CurrencyBalances, balance AccountBalanceInformation) error {
+	available := balance.Available.Float64()
+	locked := balance.LockedAmount.Float64()
+	return balances.Add(balance.Currency, accounts.Balance{
+		Total: available + locked,
+		Hold:  locked,
+		Free:  available,
+	})
+}
+
+func setCrossMarginAccountBalances(balances *accounts.CurrencyBalances, account *CrossMarginAccount) {
+	if account == nil {
+		return
+	}
+	for ccy, balance := range account.Balances {
+		borrowed := balance.Borrowed.Float64() + balance.Interest.Float64()
+		available := balance.Available.Float64()
+		freeze := balance.Freeze.Float64()
+		balances.Set(currency.NewCode(ccy), accounts.Balance{
+			Total:                  available + freeze,
+			Hold:                   freeze,
+			Free:                   available,
+			AvailableWithoutBorrow: available - borrowed,
+			Borrowed:               borrowed,
+		})
+	}
 }
 
 // GetAccountFundingHistory returns funding history, deposits and

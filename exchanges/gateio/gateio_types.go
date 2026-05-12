@@ -1260,43 +1260,6 @@ type MarginCurrencyBalance struct {
 	UnpairInterest types.Number `json:"interest"`
 }
 
-// MarginAccountItem margin account item
-type MarginAccountItem struct {
-	Locked       bool                      `json:"locked"`
-	CurrencyPair string                    `json:"currency_pair"`
-	Risk         string                    `json:"risk"`
-	Base         AccountBalanceInformation `json:"base"`
-	Quote        AccountBalanceInformation `json:"quote"`
-}
-
-// AccountBalanceInformation represents currency account balance information.
-type AccountBalanceInformation struct {
-	Available    types.Number  `json:"available"`
-	Borrowed     types.Number  `json:"borrowed"`
-	Interest     types.Number  `json:"interest"`
-	Currency     currency.Code `json:"currency"`
-	LockedAmount types.Number  `json:"locked"`
-}
-
-// MarginAccountBalanceChangeInfo represents margin account balance
-type MarginAccountBalanceChangeInfo struct {
-	ID            string     `json:"id"`
-	Time          types.Time `json:"time_ms"`
-	Currency      string     `json:"currency"`
-	CurrencyPair  string     `json:"currency_pair"`
-	AmountChanged string     `json:"change"`
-	Balance       string     `json:"balance"`
-}
-
-// MarginFundingAccountItem represents funding account list item.
-type MarginFundingAccountItem struct {
-	Currency     string       `json:"currency"`
-	Available    types.Number `json:"available"`
-	LockedAmount types.Number `json:"locked"`
-	Lent         string       `json:"lent"`       // Outstanding loan amount yet to be repaid
-	TotalLent    string       `json:"total_lent"` // Amount used for lending. total_lent = lent + locked
-}
-
 // MarginLoanRequestParam represents margin lend or borrow request param
 type MarginLoanRequestParam struct {
 	Side         string        `json:"side"`
@@ -1634,18 +1597,6 @@ type LoanRecord struct {
 	UnpaidInterest types.Number `json:"unpaid_interest"`
 }
 
-// OnOffStatus represents on or off status response status
-type OnOffStatus struct {
-	Status string `json:"status"`
-}
-
-// MaxTransferAndLoanAmount represents the maximum amount to transfer, borrow, or lend for specific currency and currency pair
-type MaxTransferAndLoanAmount struct {
-	Currency     string       `json:"currency"`
-	CurrencyPair string       `json:"currency_pair"`
-	Amount       types.Number `json:"amount"`
-}
-
 // CrossMarginCurrencies represents a currency supported by cross margin
 type CrossMarginCurrencies struct {
 	Name                 string       `json:"name"`
@@ -1730,6 +1681,17 @@ type RepaymentHistoryItem struct {
 	Currency   string       `json:"currency"`
 	Principal  types.Number `json:"principal"`
 	Interest   types.Number `json:"interest"`
+}
+
+// LoanInterestDeductionRecord represents a single interest deduction record
+type LoanInterestDeductionRecord struct {
+	Currency     currency.Code `json:"currency"`
+	CurrencyPair currency.Pair `json:"currency_pair"`
+	ActualRate   types.Number  `json:"actual_rate"`
+	Interest     types.Number  `json:"interest"`
+	Status       int64         `json:"status"` // 0=undeducted, 1=deducted
+	CreateTime   types.Time    `json:"create_time"`
+	Type         string        `json:"type"` // "platform" or "margin"
 }
 
 // FlashSwapOrderParams represents create flash swap order request parameters.
