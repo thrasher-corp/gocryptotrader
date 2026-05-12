@@ -6177,8 +6177,14 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	private, err := e.generateSubscriptions(false)
 	require.NoError(t, err, "generateSubscriptions must not error")
-	exp := subscription.List{
-		{Channel: subscription.MyAccountChannel, QualifiedChannel: `{"channel":"account"}`, Authenticated: true},
+	exp := subscription.List{}
+	for _, s := range e.Features.Subscriptions {
+		if s.Asset != asset.Empty {
+			continue
+		}
+		s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+		s.QualifiedChannel = `{"channel":"` + channelName(s) + `"}`
+		exp = append(exp, s)
 	}
 	var pairs currency.Pairs
 	for _, s := range e.Features.Subscriptions {
@@ -6192,14 +6198,22 @@ func TestGenerateSubscriptions(t *testing.T) {
 			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 			s.Asset = a
 			name := channelName(s)
-			if isSymbolChannel(s) {
+			switch {
+			case isSymbolChannel(s):
 				for i, p := range pairs {
 					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"instID":%q}`, name, p)
 					s.Pairs = pairs[i : i+1]
 					exp = append(exp, s)
 				}
-			} else {
+			case isInstFamilyChannel(s):
+				for i, p := range pairs {
+					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"instFamily":%q,"instType":%q}`, name, optionInstrumentFamilyFromPair(p), GetInstrumentTypeFromAssetItem(s.Asset))
+					s.Pairs = pairs[i : i+1]
+					exp = append(exp, s)
+				}
+			default:
 				s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 				if isAssetChannel(s) {
 					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"instType":%q}`, name, GetInstrumentTypeFromAssetItem(s.Asset))
@@ -6211,7 +6225,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 			}
 		}
 	}
-	testsubs.EqualLists(t, exp, append(public, private...))
+	testsubs.EqualLists(t, exp, slices.Concat(public, private))
 
 	e.Features.Subscriptions = subscription.List{{Channel: channelGridPositions, Params: map[string]any{"algoId": "42"}}}
 	public, err = e.generateSubscriptions(true)

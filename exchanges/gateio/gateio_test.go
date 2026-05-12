@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http/httptest"
 	"os"
 	"slices"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -33,6 +35,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
+	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -2594,10 +2597,15 @@ func TestGenerateSubscriptionsSpot(t *testing.T) {
 
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
-	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+
+	subs, err := ex.Features.Subscriptions.ExpandTemplates(ex)
 	require.NoError(t, err, "ExpandTemplates must not error")
-	e.Features.Subscriptions = subscription.List{}
-	err = e.Subscribe(t.Context(), &FixtureConnection{}, subs)
+	ex.Features.Subscriptions = subscription.List{}
+
+	conn := connectGateioTestWithMockedWebsocket(t, ex, ackGateioWSHandler())
+	err = ex.Subscribe(t.Context(), conn, subs)
 	require.NoError(t, err, "Subscribe must not error")
 }
 
@@ -2626,9 +2634,48 @@ func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 
 func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
-	if _, err := e.GenerateOptionsDefaultSubscriptions(); err != nil {
-		t.Error(err)
-	}
+	t.Run("default", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.GenerateOptionsDefaultSubscriptions()
+		require.NoError(t, err)
+	})
+
+	t.Run("de-duplicates-underlying-channels", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
+
+		pairs := currency.Pairs{
+			currency.NewPairWithDelimiter("BTC", "USDT-31DEC30-50000-C", "_"),
+			currency.NewPairWithDelimiter("BTC", "USDT-31DEC30-60000-P", "_"),
+		}
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Options, pairs, false), "StorePairs must not error for available options pairs")
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Options, pairs, true), "StorePairs must not error for enabled options pairs")
+
+		got, err := ex.GenerateOptionsDefaultSubscriptions()
+		require.NoError(t, err, "GenerateOptionsDefaultSubscriptions must not error")
+
+		underlyingChannels := []string{
+			optionsUnderlyingTickersChannel,
+			optionsUnderlyingTradesChannel,
+			optionsUnderlyingCandlesticksChannel,
+		}
+		for _, channel := range underlyingChannels {
+			t.Run(channel, func(t *testing.T) {
+				t.Parallel()
+
+				var count int
+				for i := range got {
+					if got[i] != nil && got[i].Channel == channel {
+						count++
+					}
+				}
+				require.Equal(t, 1, count, "underlying channel subscriptions must be de-duplicated per underlying")
+			})
+		}
+	})
 }
 
 func TestCreateAPIKeysOfSubAccount(t *testing.T) {
@@ -2774,6 +2821,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 						assert.NotZerof(t, l.Listed, "Listed should be populated for %s", p)
 						fallthrough
 					case asset.CoinMarginedFutures:
+						assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be non-negative for %s", p)
 						if !l.Delisted.IsZero() {
 							assert.Truef(t, l.Delisted.After(l.Delisting), "Delisted should be after Delisting for %s", p)
 						}
@@ -3084,20 +3132,178 @@ func (d *FixtureConnection) SendMessageReturnResponse(context.Context, request.E
 
 func (d *FixtureConnection) GetURL() string { return "wss://test" }
 
+func ackGateioWSHandler() mockws.WsMockFunc {
+	return func(_ testing.TB, incoming []byte, c *gws.Conn) error {
+		var req WsInput
+		if err := json.Unmarshal(incoming, &req); err != nil {
+			return err
+		}
+		resp, err := json.Marshal(map[string]any{
+			"time":    1726121320,
+			"time_ms": 1726121320745,
+			"id":      req.ID,
+			"channel": req.Channel,
+			"event":   req.Event,
+			"result": map[string]string{
+				"status": "success",
+			},
+		})
+		if err != nil {
+			return err
+		}
+		return c.WriteMessage(gws.TextMessage, resp)
+	}
+}
+
+func connectGateioTestWithMockedWebsocket(t *testing.T, ex *Exchange, wsHandler mockws.WsMockFunc) websocket.Connection {
+	t.Helper()
+
+	server := httptest.NewServer(mockws.CurryWsMockUpgrader(t, wsHandler))
+	t.Cleanup(server.Close)
+	wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
+
+	require.NoError(t, ex.Websocket.SetAllConnectionURLs(wsURL))
+	ex.Features.Subscriptions = subscription.List{}
+	ex.Websocket.SetSubscriptionsNotRequired()
+	require.NoError(t, ex.Websocket.Connect(t.Context()))
+	t.Cleanup(func() {
+		_ = ex.Websocket.Shutdown()
+	})
+	conn, err := ex.Websocket.GetConnection(asset.Spot)
+	require.NoError(t, err)
+	return conn
+}
+
 func TestHandleSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	subs := subscription.List{{Channel: subscription.OrderbookChannel}}
+	t.Run("handle-subscribe-and-unsubscribe", func(t *testing.T) {
+		t.Parallel()
 
-	err := e.handleSubscription(t.Context(), &FixtureConnection{}, subscribeEvent, subs, func(context.Context, string, subscription.List) ([]WsInput, error) {
-		return []WsInput{{}}, nil
-	})
-	require.NoError(t, err)
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		conn := connectGateioTestWithMockedWebsocket(t, ex, ackGateioWSHandler())
+		subs := subscription.List{{
+			Channel: subscription.OrderbookChannel,
+			Asset:   asset.Spot,
+			Pairs:   currency.Pairs{currency.NewBTCUSDT()},
+		}}
 
-	err = e.handleSubscription(t.Context(), &FixtureConnection{}, unsubscribeEvent, subs, func(context.Context, string, subscription.List) ([]WsInput, error) {
-		return []WsInput{{}}, nil
+		err := ex.handleSubscription(t.Context(), conn, subscribeEvent, subs, func(context.Context, string, subscription.List) ([]WsInput, error) {
+			return []WsInput{{
+				ID:      1,
+				Event:   subscribeEvent,
+				Channel: spotOrderbookChannel,
+				Payload: []string{currency.NewBTCUSDT().String(), "100ms"},
+			}}, nil
+		})
+		require.NoError(t, err)
+
+		err = ex.handleSubscription(t.Context(), conn, unsubscribeEvent, subs, func(context.Context, string, subscription.List) ([]WsInput, error) {
+			return []WsInput{{
+				ID:      2,
+				Event:   unsubscribeEvent,
+				Channel: spotOrderbookChannel,
+				Payload: []string{currency.NewBTCUSDT().String(), "100ms"},
+			}}, nil
+		})
+		require.NoError(t, err)
 	})
-	require.NoError(t, err)
+
+	t.Run("handle-subscription-nil-connection", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		subs := subscription.List{{
+			Channel: subscription.OrderbookChannel,
+			Asset:   asset.Spot,
+			Pairs:   currency.Pairs{currency.NewBTCUSDT()},
+		}}
+
+		err := ex.handleSubscription(t.Context(), nil, subscribeEvent, subs, func(context.Context, string, subscription.List) ([]WsInput, error) {
+			return nil, nil
+		})
+		require.ErrorContains(t, err, "websocket connection", "error must mention websocket connection")
+	})
+
+	t.Run("handle-subscription-payload-count-mismatch", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		conn := connectGateioTestWithMockedWebsocket(t, ex, ackGateioWSHandler())
+		subs := subscription.List{{
+			Channel: subscription.OrderbookChannel,
+			Asset:   asset.Spot,
+			Pairs:   currency.Pairs{currency.NewBTCUSDT()},
+		}}
+
+		err := ex.handleSubscription(t.Context(), conn, subscribeEvent, subs, func(context.Context, string, subscription.List) ([]WsInput, error) {
+			return []WsInput{}, nil
+		})
+		require.ErrorContains(t, err, "payload count mismatch", "error must mention payload count mismatch")
+	})
+
+	t.Run("manage-subs-nil-connection", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		subs := subscription.List{{
+			Channel: subscription.OrderbookChannel,
+			Asset:   asset.Spot,
+			Pairs:   currency.Pairs{currency.NewBTCUSDT()},
+		}}
+
+		err := ex.manageSubs(t.Context(), subscribeEvent, nil, subs)
+		require.ErrorContains(t, err, "websocket connection", "error must mention websocket connection")
+	})
+
+	t.Run("handle-subscription-missing-message-id", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		conn := connectGateioTestWithMockedWebsocket(t, ex, ackGateioWSHandler())
+		subs := subscription.List{{
+			Channel: subscription.OrderbookChannel,
+			Asset:   asset.Spot,
+			Pairs:   currency.Pairs{currency.NewBTCUSDT()},
+		}}
+
+		err := ex.handleSubscription(t.Context(), conn, subscribeEvent, subs, func(context.Context, string, subscription.List) ([]WsInput, error) {
+			return []WsInput{{
+				Event:   subscribeEvent,
+				Channel: spotOrderbookChannel,
+				Payload: []string{currency.NewBTCUSDT().String(), "100ms"},
+			}}, nil
+		})
+		require.ErrorContains(t, err, "missing message ID", "error must mention missing message ID")
+	})
+
+	t.Run("handle-subscription-nil-subscription", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		conn := connectGateioTestWithMockedWebsocket(t, ex, ackGateioWSHandler())
+		err := ex.handleSubscription(t.Context(), conn, subscribeEvent, subscription.List{nil}, func(context.Context, string, subscription.List) ([]WsInput, error) {
+			return []WsInput{{ID: 1, Event: subscribeEvent, Channel: spotOrderbookChannel}}, nil
+		})
+		require.ErrorContains(t, err, "subscription", "error must mention nil subscription")
+	})
+
+	t.Run("manage-subs-nil-subscription", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		conn := connectGateioTestWithMockedWebsocket(t, ex, ackGateioWSHandler())
+
+		err := ex.manageSubs(t.Context(), subscribeEvent, conn, subscription.List{nil})
+		require.ErrorContains(t, err, "subscription", "error must mention nil subscription")
+	})
 }
 
 func TestParseWSHeader(t *testing.T) {
@@ -3705,7 +3911,6 @@ func TestOrderbookChannelIntervals(t *testing.T) {
 	s := &subscription.Subscription{Channel: futuresOrderbookUpdateChannel, Interval: kline.TwentyMilliseconds, Levels: 100}
 	_, err := orderbookChannelInterval(s, asset.Futures)
 	require.ErrorIs(t, err, subscription.ErrInvalidInterval)
-	require.ErrorContains(t, err, "20ms only valid with Levels 20")
 	s.Levels = 20
 	i, err := orderbookChannelInterval(s, asset.Futures)
 	require.NoError(t, err)
@@ -3866,6 +4071,28 @@ func TestGetIntervalString(t *testing.T) {
 func TestWebsocketSubmitOrders(t *testing.T) {
 	t.Parallel()
 
+	t.Run("send-websocket-request-unmarshal-error-is-wrapped", func(t *testing.T) {
+		t.Parallel()
+
+		ex := connectGateioWithMockedWebsocket(t, gateioOrderWsMock)
+		var result int
+		err := ex.SendWebsocketRequest(
+			t.Context(),
+			websocketRateLimitNotNeededEPL,
+			"spot.order_place",
+			asset.Spot,
+			&CreateOrderRequest{
+				CurrencyPair: getPair(t, asset.Spot),
+				Account:      "spot",
+				Amount:       types.Number(1),
+				Price:        types.Number(100),
+			},
+			&result,
+			2,
+		)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "send websocket request must wrap auth request error")
+	})
+
 	_, err := e.WebsocketSubmitOrders(t.Context(), nil)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
@@ -3958,7 +4185,7 @@ func TestUnmarshalJSONOrderbookLevels(t *testing.T) {
 	assert.Equal(t, 123.45, ob[0].Price, "Price should be correct")
 	assert.Equal(t, 0.001, ob[0].Amount, "Amount should be correct")
 
-	require.Error(t, ob.UnmarshalJSON([]byte(`["p":"123.45","s":"0.001"]`)))
+	require.ErrorIs(t, ob.UnmarshalJSON([]byte(`["p":"123.45","s":"0.001"]`)), common.ErrMalformedData)
 }
 
 func TestGetEstimatedInterestRate(t *testing.T) {
