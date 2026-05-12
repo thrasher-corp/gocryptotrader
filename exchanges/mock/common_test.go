@@ -150,10 +150,13 @@ var tcs = []uniqueTypesHolder{
 	{},
 }
 
-func TestDeriveURLValsFromJSONSlice(t *testing.T) {
+func TestDeriveURLValsFromJSONArray(t *testing.T) {
 	t.Parallel()
 	_, err := DeriveURLValsFromJSONArray([]byte(``))
 	require.NoError(t, err, "DeriveURLValsFromJSONSlice must not error")
+
+	_, err = DeriveURLValsFromJSONArray([]byte(`[invalid`))
+	assert.Error(t, err, "invalid JSON should error")
 
 	payload, err := json.Marshal(tcs)
 	require.NoError(t, err, "Marshal must not error")
@@ -193,9 +196,9 @@ func TestDeriveURLValsFromJSONArrayAsMap(t *testing.T) {
 	require.NoError(t, err, "DeriveURLValsFromJSONArrayAsMap must not error")
 	assert.Len(t, value, len(tcs))
 
-	empty, err := DeriveURLValsFromJSONArrayAsMap([]byte{})
+	value, err = DeriveURLValsFromJSONArrayAsMap([]byte{})
 	assert.NoError(t, err, "empty payload should not error")
-	assert.Empty(t, empty, "empty payload should return empty url.Values")
+	assert.Empty(t, value, "empty payload should return empty url.Values")
 
 	_, err = DeriveURLValsFromJSONArrayAsMap([]byte(`{"not":"array"}`))
 	assert.ErrorIs(t, err, errJSONMapPayloadMustBeObject, "non-array input should return errJSONMapPayloadMustBeObject")
@@ -203,14 +206,14 @@ func TestDeriveURLValsFromJSONArrayAsMap(t *testing.T) {
 	_, err = DeriveURLValsFromJSONArrayAsMap([]byte(`[invalid`))
 	assert.Error(t, err, "invalid JSON should error")
 
-	single, err := DeriveURLValsFromJSONArrayAsMap([]byte(`["btc"]`))
+	value, err = DeriveURLValsFromJSONArrayAsMap([]byte(`["btc"]`))
 	require.NoError(t, err, "single element array must not error")
-	assert.Len(t, single, 1, "single element should produce one entry")
-	assert.Equal(t, "btc", single.Get("0"), "element value should be stored under index key")
+	assert.Len(t, value, 1, "single element should produce one entry")
+	assert.Equal(t, "btc", value.Get("0"), "element value should be stored under index key")
 
-	primitivesTypes, err := DeriveURLValsFromJSONArrayAsMap([]byte(`[true, 1.5, "hello"]`))
+	value, err = DeriveURLValsFromJSONArrayAsMap([]byte(`[true, 1.5, "hello"]`))
 	require.NoError(t, err, "primitive types array must not error")
-	assert.Equal(t, "true", primitivesTypes.Get("0"), "bool should be formatted as string")
-	assert.Equal(t, "1.5", primitivesTypes.Get("1"), "float64 should be formatted as string")
-	assert.Equal(t, "hello", primitivesTypes.Get("2"), "string value should be stored correctly")
+	assert.Equal(t, "true", value.Get("0"), "bool should be formatted as string")
+	assert.Equal(t, "1.5", value.Get("1"), "float64 should be formatted as string")
+	assert.Equal(t, "hello", value.Get("2"), "string value should be stored correctly")
 }

@@ -175,7 +175,7 @@ func RegisterHandler(pattern string, mock map[string][]HTTPResponse, mux *http.S
 						log.Fatalf("DeriveURLValsFromJSONSlice Mock Test Failure - %v", err)
 					}
 
-					payload, err = MatchAndGetResponseJSONSlice(httpResponses, reqVals, false)
+					payload, err = MatchAndGetResponseJSONSlice(httpResponses, reqVals)
 					if err != nil {
 						log.Fatal("Mock Test Failure - MatchAndGetResponseJSONSlice error ", err)
 					}
@@ -213,7 +213,7 @@ func RegisterHandler(pattern string, mock map[string][]HTTPResponse, mux *http.S
 						log.Fatalf("Mock Test Failure - %v", err)
 					}
 
-					payload, err = MatchAndGetResponseJSONSlice(httpResponses, reqVals, false)
+					payload, err = MatchAndGetResponseJSONSlice(httpResponses, reqVals)
 					if err != nil {
 						log.Fatal("Mock Test Failure - MatchAndGetResponseJSONSlice error ", err)
 					}
@@ -323,10 +323,7 @@ func MatchAndGetResponse(mockData []HTTPResponse, requestVals url.Values, isQuer
 
 // MatchAndGetResponseJSONSlice matches incoming request values against array
 // based body params from the mock data and returns the payload.
-func MatchAndGetResponseJSONSlice(mockData []HTTPResponse, requestVals []url.Values, isQueryData bool) (json.RawMessage, error) {
-	if isQueryData {
-		return nil, errNoDataMatched
-	}
+func MatchAndGetResponseJSONSlice(mockData []HTTPResponse, requestVals []url.Values) (json.RawMessage, error) {
 	for i := range mockData {
 		data := mockData[i].BodyParams
 		if !json.Valid([]byte(data)) || getJSONBodyShape(strings.TrimSpace(data)) != jsonBodyArray {

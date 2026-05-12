@@ -74,11 +74,11 @@ func DeriveURLValsFromJSONMap(payload []byte) (url.Values, error) {
 		return vals, nil
 	}
 	if getJSONBodyShape(strings.TrimSpace(string(payload))) == jsonBodyArray {
-		return vals, errJSONMapPayloadMustBeObject
+		return nil, errJSONMapPayloadMustBeObject
 	}
 	intermediary := make(map[string]any)
 	if err := json.Unmarshal(payload, &intermediary); err != nil {
-		return vals, err
+		return nil, err
 	}
 
 	for k, v := range intermediary {
@@ -92,11 +92,11 @@ func DeriveURLValsFromJSONMap(payload []byte) (url.Values, error) {
 		case map[string]any, []any, nil:
 			b, err := json.Marshal(val)
 			if err != nil {
-				return vals, err
+				return nil, err
 			}
 			vals.Add(k, string(b))
 		default:
-			return vals, fmt.Errorf("unhandled conversion type: %T, please add as needed", val)
+			return nil, fmt.Errorf("unhandled conversion type: %T, please add as needed", val)
 		}
 	}
 
@@ -111,11 +111,11 @@ func DeriveURLValsFromJSONArrayAsMap(payload []byte) (url.Values, error) {
 		return vals, nil
 	}
 	if getJSONBodyShape(strings.TrimSpace(string(payload))) != jsonBodyArray {
-		return vals, errJSONMapPayloadMustBeObject
+		return nil, errJSONMapPayloadMustBeObject
 	}
 	var intermediary []any
 	if err := json.Unmarshal(payload, &intermediary); err != nil {
-		return vals, err
+		return nil, err
 	}
 
 	for k, v := range intermediary {
@@ -133,7 +133,7 @@ func DeriveURLValsFromJSONArrayAsMap(payload []byte) (url.Values, error) {
 			}
 			vals.Add(strconv.Itoa(k), string(b))
 		default:
-			return vals, fmt.Errorf("unhandled conversion type: %T, please add as needed", val)
+			return nil, fmt.Errorf("unhandled conversion type: %T, please add as needed", val)
 		}
 	}
 

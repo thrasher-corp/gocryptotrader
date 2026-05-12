@@ -381,8 +381,25 @@ func TestHTTPRecord(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filePath, mockData, 0o644))
 
-	err = callRecord(http.MethodPost, "https://api.abc.com/test/unknown-shape", []byte(`null`))
+	err = callRecord(http.MethodPost, "/test/unknown-shape", []byte(`null`))
 	require.ErrorIs(t, err, errUnsupportedJSONBodyShape)
+
+	mockData, err = json.Marshal(&VCRMock{Routes: map[string]map[string][]HTTPResponse{
+		"/test/array-err": {http.MethodPost: {
+			{
+				Headers:    map[string][]string{contentType: {applicationJSON}},
+				BodyParams: `[invalid`,
+				Data:       json.RawMessage(`[]`),
+			},
+		},
+		}}})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filePath, mockData, 0o644))
+	require.Error(t, callRecord(http.MethodPost, "/test/array-err", []byte(`[invalid`)), "HTTPRecord must error for invalid array JSON")
+
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filePath, mockData, 0o644))
+	require.Error(t, callRecord(http.MethodPost, "/test/array-err", []byte(`[1, 2, 3]`)), "HTTPRecord must error for invalid array JSON")
 }
 
 func TestIsExcluded(t *testing.T) {
