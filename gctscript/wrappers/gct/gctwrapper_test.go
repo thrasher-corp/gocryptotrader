@@ -63,7 +63,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("Error during SetupOrderManager: %s", err)
 	}
-	if err = engine.Bot.OrderManager.Start(); err != nil {
+	if err = engine.Bot.OrderManager.Start(context.Background()); err != nil {
 		log.Fatalf("Error starting OrderManager: %s", err)
 	}
 	modules.SetModuleWrapper(Setup())

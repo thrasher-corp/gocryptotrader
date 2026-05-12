@@ -650,6 +650,9 @@ func TestGetOrderbook(t *testing.T) {
 	_, err = holder.GetOrderbook(cp, 0)
 	require.ErrorIs(t, err, asset.ErrInvalidAsset)
 
+	_, err = holder.GetOrderbook(cp, asset.Futures)
+	require.ErrorIs(t, err, orderbook.ErrDepthNotFound)
+
 	ob, err := holder.GetOrderbook(cp, asset.Spot)
 	require.NoError(t, err)
 
