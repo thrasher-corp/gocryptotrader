@@ -73,24 +73,26 @@ const (
 	walletTotalBalance                  = "wallet/total_balance"
 
 	// Margin
-	gateioMarginCurrencyPairs     = "margin/currency_pairs"
-	gateioMarginFundingBook       = "margin/funding_book"
-	gateioMarginAccount           = "margin/accounts"
-	gateioMarginAccountBook       = "margin/account_book"
-	gateioMarginFundingAccounts   = "margin/funding_accounts"
-	gateioMarginLoans             = "margin/loans"
-	gateioMarginMergedLoans       = "margin/merged_loans"
-	gateioMarginLoanRecords       = "margin/loan_records"
-	gateioMarginAutoRepay         = "margin/auto_repay"
-	gateioMarginTransfer          = "margin/transferable"
-	gateioMarginBorrowable        = "margin/borrowable"
-	gateioCrossMarginCurrencies   = "margin/cross/currencies"
-	gateioCrossMarginAccounts     = "margin/cross/accounts"
-	gateioCrossMarginAccountBook  = "margin/cross/account_book"
-	gateioCrossMarginLoans        = "margin/cross/loans"
-	gateioCrossMarginRepayments   = "margin/cross/repayments"
-	gateioCrossMarginTransferable = "margin/cross/transferable"
-	gateioCrossMarginBorrowable   = "margin/cross/borrowable"
+	gateioMarginCurrencyPairs      = "margin/currency_pairs"
+	gateioMarginFundingBook        = "margin/funding_book"
+	gateioMarginUserAccount        = "margin/user/account"
+	gateioMarginAccountBook        = "margin/account_book"
+	gateioMarginFundingAccounts    = "margin/funding_accounts"
+	gateioMarginLoans              = "margin/loans"
+	gateioMarginMergedLoans        = "margin/merged_loans"
+	gateioMarginLoanRecords        = "margin/loan_records"
+	gateioMarginAutoRepay          = "margin/auto_repay"
+	gateioMarginTransfer           = "margin/transferable"
+	gateioMarginBorrowable         = "margin/uni/borrowable"
+	gateioMarginUniLoans           = "margin/uni/loans"
+	gateioMarginUniInterestRecords = "margin/uni/interest_records"
+	gateioCrossMarginCurrencies    = "margin/cross/currencies"
+	gateioCrossMarginAccounts      = "margin/cross/accounts"
+	gateioCrossMarginAccountBook   = "margin/cross/account_book"
+	gateioCrossMarginLoans         = "margin/cross/loans"
+	gateioCrossMarginRepayments    = "margin/cross/repayments"
+	gateioCrossMarginTransferable  = "margin/cross/transferable"
+	gateioCrossMarginBorrowable    = "margin/cross/borrowable"
 
 	// Options
 	gateioOptionUnderlyings            = "options/underlyings"
@@ -1341,6 +1343,27 @@ func (e *Exchange) GetEstimatedInterestRate(ctx context.Context, currencies []cu
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginEstimateRateEPL, http.MethodGet, "margin/uni/estimate_rate", params, nil, &response)
 }
 
+// GetUniLoanInterestRecords retrieves interest deduction records for unified
+// margin loans. Filters by currency pair and optionally by currency code.
+// Pagination: page starts at 1, limit defaults to 100 (max 100).
+func (e *Exchange) GetUniLoanInterestRecords(ctx context.Context, currencyPair currency.Pair, ccy currency.Code, page, limit int64) ([]UniLoanInterestRecord, error) {
+	params := url.Values{}
+	if currencyPair.IsPopulated() {
+		params.Set("currency_pair", currencyPair.String())
+	}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	var response []UniLoanInterestRecord
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginUniInterestRecordsEPL, http.MethodGet, gateioMarginUniInterestRecords, params, nil, &response)
+}
+
 // GetMarginSupportedCurrencyPairs retrieves margin supported currency pairs.
 func (e *Exchange) GetMarginSupportedCurrencyPairs(ctx context.Context) ([]MarginCurrencyPairInfo, error) {
 	var currenciePairsInfo []MarginCurrencyPairInfo
@@ -1365,14 +1388,16 @@ func (e *Exchange) GetOrderbookOfLendingLoans(ctx context.Context, ccy currency.
 	return lendingLoans, e.SendHTTPRequest(ctx, exchange.RestSpot, publicOrderbookMarginEPL, gateioMarginFundingBook+"?currency="+ccy.String(), &lendingLoans)
 }
 
-// GetMarginAccountList margin account list
+// GetMarginAccountList retrieves user's isolated margin account list.
+// Supports querying both risk-based and margin-based isolated margin accounts.
+// Uses the latest GET /margin/user/account interface.
 func (e *Exchange) GetMarginAccountList(ctx context.Context, currencyPair currency.Pair) ([]MarginAccountItem, error) {
 	params := url.Values{}
 	if currencyPair.IsPopulated() {
 		params.Set("currency_pair", currencyPair.String())
 	}
 	var response []MarginAccountItem
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginAccountListEPL, http.MethodGet, gateioMarginAccount, params, nil, &response)
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginAccountListEPL, http.MethodGet, gateioMarginUserAccount, params, nil, &response)
 }
 
 // ListMarginAccountBalanceChangeHistory retrieves margin account balance change history
@@ -1659,16 +1684,17 @@ func (e *Exchange) GetMaxTransferableAmountForSpecificMarginCurrency(ctx context
 }
 
 // GetMaxBorrowableAmountForSpecificMarginCurrency retrieves the max borrowble amount for specific currency
-func (e *Exchange) GetMaxBorrowableAmountForSpecificMarginCurrency(ctx context.Context, ccy currency.Code, currencyPair currency.Pair) (*MaxTransferAndLoanAmount, error) {
+func (e *Exchange) GetMaxBorrowableAmountForSpecificMarginCurrency(ctx context.Context, ccy currency.Code, pair currency.Pair) (*MaxBorrowableAmount, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	params := url.Values{}
-	if currencyPair.IsPopulated() {
-		params.Set("currency_pair", currencyPair.String())
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
 	}
+	params := url.Values{}
+	params.Set("currency_pair", pair.String())
 	params.Set("currency", ccy.String())
-	var response *MaxTransferAndLoanAmount
+	var response *MaxBorrowableAmount
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginGetMaxBorrowEPL, http.MethodGet, gateioMarginBorrowable, params, nil, &response)
 }
 
