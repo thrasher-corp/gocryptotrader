@@ -66,6 +66,9 @@ func TestDeriveURLValsFromJSON(t *testing.T) {
 	assert.NoError(t, err, "DeriveURLValsFromJSONMap should not error")
 	assert.Len(t, values, 2)
 
+	values, err = DeriveURLValsFromJSONMap([]byte(`{"things": "1", "data": 2`))
+	assert.Error(t, err)
+
 	test2 := map[string]string{
 		"val":  "1",
 		"val2": "2",

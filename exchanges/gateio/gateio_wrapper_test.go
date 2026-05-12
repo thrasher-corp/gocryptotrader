@@ -84,7 +84,7 @@ func TestOpenInterestFromStats(t *testing.T) {
 	_, err := openInterestFromStats(nil)
 	require.ErrorIs(t, err, errNoValidResponseFromServer)
 
-	openInterest, err := openInterestFromStats([]ContractStat{
+	openInterest, err := openInterestFromStats([]*ContractStat{
 		{Time: types.Time(time.Unix(100, 0)), OpenInterest: types.Number(2)},
 		{Time: types.Time(time.Unix(300, 0)), OpenInterest: types.Number(4)},
 		{Time: types.Time(time.Unix(200, 0)), OpenInterest: types.Number(3)},
