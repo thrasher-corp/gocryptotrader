@@ -90,6 +90,12 @@
    "secret": "Secret",
    "otpSecret": "-"
   },
+  "coinbaseintrnational": {
+   "key": "Key",
+   "secret": "Secret",
+   "clientID": "ClientID",
+   "otpSecret": "-"
+  },
   "coinbasepro": {
    "key": "Key",
    "secret": "Secret",
@@ -141,14 +147,21 @@
    "secret": "Secret",
    "otpSecret": "-"
   },
-  "kucoin":{
-    "key": "Key",
-    "secret": "Secret",
-    "otpSecret": "-"
+  "kucoin": {
+   "key": "Key",
+   "secret": "Secret",
+   "clientID": "ClientID",
+   "otpSecret": "-"
   },
   "lbank": {
    "key": "Key",
    "secret": "Secret",
+   "otpSecret": "-"
+  },
+  "okcoin": {
+   "key": "Key",
+   "secret": "Secret",
+   "clientID": "ClientID",
    "otpSecret": "-"
   },
   "okcoin international": {
