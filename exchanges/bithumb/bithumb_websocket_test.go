@@ -72,6 +72,47 @@ func TestWsHandleData(t *testing.T) {
 	assert.IsType(t, new(ticker.Price), (<-dummy.Websocket.DataHandler.C).Data, "ticker should send a price to the DataHandler")
 }
 
+func TestWsHandleDataStoresTickerForSinglePairSubscription(t *testing.T) {
+	t.Parallel()
+
+	pairs := currency.Pairs{currency.NewPairWithDelimiter("BTC", "KRW", "_")}
+	dummy := Exchange{
+		location: time.Local,
+		Base: exchange.Base{
+			Name: "dummy-" + t.Name(),
+			CurrencyPairs: currency.PairsManager{
+				Pairs: map[asset.Item]*currency.PairStore{
+					asset.Spot: {
+						Available: pairs,
+						Enabled:   pairs,
+						ConfigFormat: &currency.PairFormat{
+							Uppercase: true,
+							Delimiter: currency.UnderscoreDelimiter,
+						},
+					},
+				},
+			},
+			Websocket: websocket.NewManager(),
+		},
+	}
+	dummy.setupOrderbookManager(t.Context())
+	dummy.API.Endpoints = e.NewEndpoints()
+	require.NoError(t,
+		dummy.Websocket.AddSubscriptions(dummy.Websocket.Conn, &subscription.Subscription{
+			Asset:   asset.Spot,
+			Channel: subscription.TickerChannel,
+			Pairs:   currency.Pairs{currency.NewPairWithDelimiter("BTC", "KRW", "_")},
+		}),
+		"AddSubscriptions must not error")
+
+	err := dummy.wsHandleData(t.Context(), wsTickerResp)
+	require.NoError(t, err, "wsHandleData must not error for ticker updates")
+
+	uniKRW := currency.NewPairWithDelimiter("UNI", "KRW", "_")
+	_, err = ticker.GetTicker(dummy.Name, uniKRW, asset.Spot)
+	require.NoError(t, err, "ticker must be cached even when websocket subscriptions are scoped to different enabled pairs")
+}
+
 func TestSubToReq(t *testing.T) {
 	t.Parallel()
 	p := currency.Pairs{currency.NewPairWithDelimiter("BTC", "KRW", "_"), currency.NewPairWithDelimiter("ETH", "KRW", "_")}

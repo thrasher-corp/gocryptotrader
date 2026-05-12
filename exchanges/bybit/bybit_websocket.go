@@ -429,7 +429,7 @@ func (e *Exchange) wsProcessLeverageTokenTicker(ctx context.Context, assetType a
 	if err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+	tickPrice := &ticker.Price{
 		Last:         result.LastPrice.Float64(),
 		High:         result.HighPrice24H.Float64(),
 		Low:          result.LowPrice24H.Float64(),
@@ -437,7 +437,11 @@ func (e *Exchange) wsProcessLeverageTokenTicker(ctx context.Context, assetType a
 		ExchangeName: e.Name,
 		AssetType:    assetType,
 		LastUpdated:  resp.PushTimestamp.Time(),
-	})
+	}
+	if err := ticker.ProcessTicker(tickPrice); err != nil {
+		return err
+	}
+	return e.Websocket.DataHandler.Send(ctx, tickPrice)
 }
 
 func (e *Exchange) wsProcessLeverageTokenKline(ctx context.Context, assetType asset.Item, resp *WebsocketResponse, topicSplit []string) error {

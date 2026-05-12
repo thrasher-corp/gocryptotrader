@@ -12,6 +12,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/nonce"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -53,14 +54,21 @@ func (e *Exchange) GetInfo(ctx context.Context) (Info, error) {
 
 // GetTicker returns a ticker for a specific currency
 func (e *Exchange) GetTicker(ctx context.Context, symbol string) (map[string]Ticker, error) {
-	type Response struct {
-		Data map[string]Ticker
-	}
-
-	response := Response{}
 	path := fmt.Sprintf("/%s/%s/%s", apiPublicVersion, publicTicker, symbol)
-
-	return response.Data, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &response.Data)
+	raw := make(map[string]json.RawMessage)
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &raw); err != nil {
+		return nil, err
+	}
+	result := make(map[string]Ticker, len(raw))
+	for k, v := range raw {
+		var t Ticker
+		if err := json.Unmarshal(v, &t); err != nil {
+			// API can return non-object values for invalid/unknown pairs in batch responses.
+			continue
+		}
+		result[k] = t
+	}
+	return result, nil
 }
 
 // GetDepth returns the depth for a specific currency
@@ -84,8 +92,7 @@ func (e *Exchange) GetTrades(ctx context.Context, symbol string) ([]Trade, error
 
 	var dataHolder respDataHolder
 	path := "/" + apiPublicVersion + "/" + publicTrades + "/" + symbol
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &dataHolder.Data)
-	if err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &dataHolder.Data); err != nil {
 		return nil, err
 	}
 
@@ -99,8 +106,7 @@ func (e *Exchange) GetTrades(ctx context.Context, symbol string) ([]Trade, error
 func (e *Exchange) GetAccountInformation(ctx context.Context) (AccountInfo, error) {
 	result := AccountInfo{}
 
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateAccountInfo, url.Values{}, &result)
-	if err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateAccountInfo, url.Values{}, &result); err != nil {
 		return result, err
 	}
 	if result.Error != "" {
@@ -119,8 +125,7 @@ func (e *Exchange) Trade(ctx context.Context, pair, orderType string, amount, pr
 
 	result := TradeOrderResponse{}
 
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateTrade, req, &result)
-	if err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateTrade, req, &result); err != nil {
 		return int64(result.OrderID), err
 	}
 	if result.Error != "" {
@@ -156,8 +161,7 @@ func (e *Exchange) CancelExistingOrder(ctx context.Context, orderID int64) error
 
 	result := CancelOrder{}
 
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateCancelOrder, req, &result)
-	if err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateCancelOrder, req, &result); err != nil {
 		return err
 	}
 	if result.Error != "" {
@@ -180,8 +184,7 @@ func (e *Exchange) GetTradeHistory(ctx context.Context, tidFrom, count, tidEnd, 
 
 	result := TradeHistoryResponse{}
 
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateTradeHistory, req, &result)
-	if err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateTradeHistory, req, &result); err != nil {
 		return nil, err
 	}
 	if result.Success == 0 {
@@ -224,8 +227,7 @@ func (e *Exchange) WithdrawCoinsToAddress(ctx context.Context, coin string, amou
 
 	result := WithdrawCoinsToAddress{}
 
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateWithdrawCoinsToAddress, req, &result)
-	if err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateWithdrawCoinsToAddress, req, &result); err != nil {
 		return result, err
 	}
 	if result.Error != "" {
@@ -242,8 +244,7 @@ func (e *Exchange) CreateCoupon(ctx context.Context, ccy string, amount float64)
 
 	var result CreateCoupon
 
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateCreateCoupon, req, &result)
-	if err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateCreateCoupon, req, &result); err != nil {
 		return result, err
 	}
 	if result.Error != "" {
@@ -259,8 +260,7 @@ func (e *Exchange) RedeemCoupon(ctx context.Context, coupon string) (RedeemCoupo
 
 	result := RedeemCoupon{}
 
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateRedeemCoupon, req, &result)
-	if err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpotSupplementary, privateRedeemCoupon, req, &result); err != nil {
 		return result, err
 	}
 	if result.Error != "" {

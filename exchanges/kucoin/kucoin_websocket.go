@@ -331,12 +331,7 @@ func (e *Exchange) processFuturesStopOrderLifecycleEvent(ctx context.Context, re
 	if err != nil {
 		return err
 	}
-	var enabledPairs currency.Pairs
-	enabledPairs, err = e.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		return err
-	}
-	pair, err := enabledPairs.DeriveFrom(resp.Symbol)
+	pair, err := e.MatchSymbolWithAvailablePairs(resp.Symbol, asset.Futures, false)
 	if err != nil {
 		return err
 	}
@@ -377,12 +372,7 @@ func (e *Exchange) processFuturesPrivateTradeOrders(ctx context.Context, respDat
 	if err != nil {
 		return err
 	}
-	var enabledPairs currency.Pairs
-	enabledPairs, err = e.GetEnabledPairs(asset.Futures)
-	if err != nil {
-		return err
-	}
-	pair, err := enabledPairs.DeriveFrom(resp.Symbol)
+	pair, err := e.MatchSymbolWithAvailablePairs(resp.Symbol, asset.Futures, false)
 	if err != nil {
 		return err
 	}
@@ -526,15 +516,11 @@ func (e *Exchange) processFuturesTickerV2(ctx context.Context, respData []byte) 
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
 	}
-	enabledPairs, err := e.GetEnabledPairs(asset.Futures)
+	pair, err := e.MatchSymbolWithAvailablePairs(resp.Symbol, asset.Futures, false)
 	if err != nil {
 		return err
 	}
-	pair, err := enabledPairs.DeriveFrom(resp.Symbol)
-	if err != nil {
-		return err
-	}
-	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+	tickPrice := &ticker.Price{
 		AssetType:    asset.Futures,
 		Last:         resp.FilledPrice.Float64(),
 		Volume:       resp.FilledSize.Float64(),
@@ -545,7 +531,11 @@ func (e *Exchange) processFuturesTickerV2(ctx context.Context, respData []byte) 
 		Bid:          resp.BestBidPrice.Float64(),
 		AskSize:      resp.BestAskSize.Float64(),
 		BidSize:      resp.BestBidSize.Float64(),
-	})
+	}
+	if err := ticker.ProcessTicker(tickPrice); err != nil {
+		return err
+	}
+	return e.Websocket.DataHandler.Send(ctx, tickPrice)
 }
 
 // processFuturesKline represents a futures instrument kline data update.
@@ -755,7 +745,7 @@ func (e *Exchange) processTicker(ctx context.Context, respData []byte, instrumen
 		if !e.AssetWebsocketSupport.IsAssetWebsocketSupported(assets[x]) {
 			continue
 		}
-		if err := e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+		tickPrice := &ticker.Price{
 			AssetType:    assets[x],
 			Last:         response.Price,
 			LastUpdated:  response.Timestamp.Time(),
@@ -766,7 +756,11 @@ func (e *Exchange) processTicker(ctx context.Context, respData []byte, instrumen
 			AskSize:      response.BestAskSize,
 			BidSize:      response.BestBidSize,
 			Volume:       response.Size,
-		}); err != nil {
+		}
+		if err := ticker.ProcessTicker(tickPrice); err != nil {
+			return err
+		}
+		if err := e.Websocket.DataHandler.Send(ctx, tickPrice); err != nil {
 			return err
 		}
 	}
@@ -915,7 +909,7 @@ func (e *Exchange) processMarketSnapshot(ctx context.Context, respData []byte, t
 		if !e.AssetWebsocketSupport.IsAssetWebsocketSupported(assets[x]) {
 			continue
 		}
-		if err := e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+		tickPrice := &ticker.Price{
 			ExchangeName: e.Name,
 			AssetType:    assets[x],
 			Last:         response.Data.LastTradedPrice,
@@ -927,7 +921,11 @@ func (e *Exchange) processMarketSnapshot(ctx context.Context, respData []byte, t
 			Open:         response.Data.Open,
 			Close:        response.Data.Close,
 			LastUpdated:  response.Data.Datetime.Time(),
-		}); err != nil {
+		}
+		if err := ticker.ProcessTicker(tickPrice); err != nil {
+			return err
+		}
+		if err := e.Websocket.DataHandler.Send(ctx, tickPrice); err != nil {
 			return err
 		}
 	}
@@ -1056,18 +1054,26 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 func (e *Exchange) CalculateAssets(topic string, cp currency.Pair) ([]asset.Item, error) {
 	switch {
 	case cp.Quote.Equal(currency.USDTM), strings.HasPrefix(topic, "/contract"):
-		if err := e.CurrencyPairs.IsAssetEnabled(asset.Futures); err != nil {
-			if !errors.Is(err, asset.ErrNotSupported) {
-				return nil, err
+		futuresEnabled, err := e.IsPairEnabled(cp, asset.Futures)
+		if err != nil {
+			if errors.Is(err, currency.ErrCurrencyNotFound) {
+				return nil, nil
 			}
+			return nil, err
+		}
+		if !futuresEnabled {
 			return nil, nil
 		}
 		return []asset.Item{asset.Futures}, nil
 	case strings.HasPrefix(topic, "/margin"), strings.HasPrefix(topic, "/index"):
-		if err := e.CurrencyPairs.IsAssetEnabled(asset.Margin); err != nil {
-			if !errors.Is(err, asset.ErrNotSupported) {
-				return nil, err
+		marginEnabled, err := e.IsPairEnabled(cp, asset.Margin)
+		if err != nil {
+			if errors.Is(err, currency.ErrCurrencyNotFound) {
+				return nil, nil
 			}
+			return nil, err
+		}
+		if !marginEnabled {
 			return nil, nil
 		}
 		return []asset.Item{asset.Margin}, nil

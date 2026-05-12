@@ -699,7 +699,7 @@ func (e *Exchange) wsProcessIndexCandles(ctx context.Context, respRaw []byte) er
 		}
 		assets = append(assets, assetType)
 	} else {
-		assets, err = e.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
+		assets, err = e.getAssetsFromInstrumentIDWithCheck(response.Argument.InstrumentID.String(), true)
 		if err != nil {
 			return err
 		}
@@ -751,6 +751,9 @@ func (e *Exchange) wsProcessPublicSpreadTicker(ctx context.Context, respRaw []by
 			ExchangeName: e.Name,
 			AssetType:    asset.Spread,
 			LastUpdated:  data[x].Timestamp.Time(),
+		}
+		if err := ticker.ProcessTicker(&tickers[x]); err != nil {
+			return err
 		}
 	}
 	return e.Websocket.DataHandler.Send(ctx, tickers)
@@ -835,7 +838,7 @@ func (e *Exchange) wsProcessOrderbook5(data []byte) error {
 		return fmt.Errorf("%s - no data returned", e.Name)
 	}
 
-	assets, err := e.getAssetsFromInstrumentID(resp.Argument.InstrumentID.String())
+	assets, err := e.getAssetsFromInstrumentIDWithCheck(resp.Argument.InstrumentID.String(), true)
 	if err != nil {
 		return err
 	}
@@ -919,7 +922,7 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 		}
 		assets = append(assets, assetType)
 	} else {
-		assets, err = e.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
+		assets, err = e.getAssetsFromInstrumentIDWithCheck(response.Argument.InstrumentID.String(), true)
 		if err != nil {
 			return err
 		}
@@ -1120,7 +1123,7 @@ func (e *Exchange) wsProcessTrades(ctx context.Context, data []byte) error {
 		}
 		assets = append(assets, assetType)
 	} else {
-		assets, err = e.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
+		assets, err = e.getAssetsFromInstrumentIDWithCheck(response.Argument.InstrumentID.String(), true)
 		if err != nil {
 			return err
 		}
@@ -1268,7 +1271,7 @@ func (e *Exchange) wsProcessCandles(ctx context.Context, respRaw []byte) error {
 		}
 		assets = append(assets, assetType)
 	} else {
-		assets, err = e.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
+		assets, err = e.getAssetsFromInstrumentIDWithCheck(response.Argument.InstrumentID.String(), true)
 		if err != nil {
 			return err
 		}
@@ -1312,7 +1315,7 @@ func (e *Exchange) wsProcessTickers(ctx context.Context, data []byte) error {
 			}
 			assets = append(assets, assetType)
 		} else {
-			assets, err = e.getAssetsFromInstrumentID(response.Argument.InstrumentID.String())
+			assets, err = e.getAssetsFromInstrumentIDWithCheck(response.Argument.InstrumentID.String(), true)
 			if err != nil {
 				return err
 			}
@@ -1342,6 +1345,9 @@ func (e *Exchange) wsProcessTickers(ctx context.Context, data []byte) error {
 				AssetType:    assets[j],
 				Pair:         response.Data[i].InstrumentID,
 				LastUpdated:  response.Data[i].TickerDataGenerationTime.Time(),
+			}
+			if err := ticker.ProcessTicker(tickData); err != nil {
+				return err
 			}
 			if err := e.Websocket.DataHandler.Send(ctx, tickData); err != nil {
 				return err

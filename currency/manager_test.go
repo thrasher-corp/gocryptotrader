@@ -465,6 +465,24 @@ func TestAssetEnabled(t *testing.T) {
 	assert.NoError(t, err, "IsAssetEnabled should not error")
 }
 
+func TestIsAssetAvailable(t *testing.T) {
+	t.Parallel()
+
+	pm := initTest(t)
+	err := pm.IsAssetAvailable(asset.Spot)
+	assert.NoError(t, err, "IsAssetAvailable should not error for configured assets")
+
+	err = pm.IsAssetAvailable(asset.Item(1337))
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "IsAssetAvailable should return unsupported asset errors")
+
+	err = pm.IsAssetAvailable(asset.PerpetualSwap)
+	assert.ErrorIs(t, err, ErrAssetNotFound, "IsAssetAvailable should error when asset store entry is missing")
+
+	pm.Pairs = nil
+	err = pm.IsAssetAvailable(asset.Spot)
+	assert.ErrorIs(t, err, ErrPairManagerNotInitialised, "IsAssetAvailable should error when pair manager is not initialised")
+}
+
 // TestFullStoreUnmarshalMarshal tests json Mashal and Unmarshal
 func TestFullStoreUnmarshalMarshal(t *testing.T) {
 	t.Parallel()
@@ -511,7 +529,7 @@ func TestIsPairAvailable(t *testing.T) {
 
 	ok, err = pm.IsPairAvailable(cp, asset.Futures)
 	require.NoError(t, err, "IsPairAvailable must not error")
-	assert.False(t, ok, "IsPairAvailable should return false for a disabled asset type")
+	assert.True(t, ok, "IsPairAvailable should return true when pair is available regardless of asset enabled state")
 
 	cp = NewPairWithDelimiter("XRP", "DOGE", "-")
 	ok, err = pm.IsPairAvailable(cp, asset.Spot)

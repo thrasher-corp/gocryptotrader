@@ -1406,6 +1406,9 @@ func TestGenerateSubscriptions(t *testing.T) {
 			if baseSub.Asset != asset.All && baseSub.Asset != a {
 				continue
 			}
+			if !e.IsAssetWebsocketSupported(a) {
+				continue
+			}
 
 			pairs, err := e.GetEnabledPairs(a)
 			require.NoErrorf(t, err, "GetEnabledPairs must not error for asset %s", a)
