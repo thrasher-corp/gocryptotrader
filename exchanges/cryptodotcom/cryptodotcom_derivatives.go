@@ -1,0 +1,150 @@
+package cryptodotcom
+
+import (
+	"context"
+	"fmt"
+	"net/url"
+	"slices"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+)
+
+const (
+	restURL            = "https://deriv-api.crypto.com/v1/"
+	websocketUserURL   = "wss://deriv-stream.crypto.com/v1/user"
+	websocketMarketURL = "wss://deriv-stream.crypto.com/v1/market"
+)
+
+// ChangeAccountLeverage changes the maximum leverage used by the account. Please note, each instrument has its own maximum leverage. Whichever leverage (account or instrument) is lower will be used.
+func (e *Exchange) ChangeAccountLeverage(ctx context.Context, accountID string, leverage int64) error {
+	if accountID == "" {
+		return errAccountIDMissing
+	}
+	if leverage <= 0 {
+		return order.ErrSubmitLeverageNotSupported
+	}
+	params := make(map[string]any)
+	params["account_id"] = accountID
+	params["leverage"] = leverage
+	return e.SendAuthHTTPRequest(ctx, exchange.RestFutures, changeAccountLeverageRate, "private/change-account-leverage", params, nil)
+}
+
+// ChangeAccountSettings changes account's self-trade-prevention settings
+// possible values of 'stpScope' are "M" for Matches Master or Sub a/c  and "S" for Matches Sub a/c only
+// possible values of 'stpInstruction' are: 'M' for Cancel Maker, "T" Cancel Taker, and "B" for Cancel Both Maker and Taker
+func (e *Exchange) ChangeAccountSettings(ctx context.Context, stpScope, stpInstruction, stpID string, leverage int) error {
+	params := make(map[string]any)
+	if stpScope != "" {
+		params["stp_scope"] = stpScope
+	}
+	if stpScope != "" && stpInstruction == "" {
+		return errSTPInstructionIsRequired
+	}
+	if stpInstruction != "" {
+		params["stp_inst"] = stpInstruction
+	}
+	if stpID != "" {
+		params["stp_id"] = stpID
+	}
+	if leverage > 0 {
+		params["leverage"] = leverage
+	}
+	return e.SendAuthHTTPRequest(ctx, exchange.RestFutures, changeAccountSettingRate, "private/change-account-settings", params, nil)
+}
+
+// GetAccountSettings retrieves account self-trade-prevention setting details
+func (e *Exchange) GetAccountSettings(ctx context.Context) ([]AccountSetting, error) {
+	var resp []AccountSetting
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFutures, changeAccountSettingRate, "private/get-account-settings", nil, &resp)
+}
+
+// GetAllExecutableTradesForInstrument returns all executable trades for a particular instrument
+func (e *Exchange) GetAllExecutableTradesForInstrument(ctx context.Context, symbol string, startTime, endTime time.Time, limit int64) (*InstrumentTrades, error) {
+	params := make(map[string]any)
+	if symbol != "" {
+		params["instrument_name"] = symbol
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params["start_time"] = startTime.UnixNano()
+		params["end_time"] = endTime.UnixNano()
+	}
+	if limit > 0 {
+		params["limit"] = limit
+	}
+	var resp *InstrumentTrades
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFutures, getAllExecutableTradesRate, "private/get-trades", params, &resp)
+}
+
+// ClosePosition cancels position for a particular instrument/pair (asynchronous).
+func (e *Exchange) ClosePosition(ctx context.Context, symbol, orderType string, price float64) (*OrderIDsDetail, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	orderType = strings.ToUpper(orderType)
+	if !slices.Contains([]string{"LIMIT", "MARKET"}, orderType) {
+		return nil, fmt.Errorf("%w: LIMIT or MARKET order types are supported", order.ErrUnsupportedOrderType)
+	}
+	if orderType == "LIMIT" && price <= 0 {
+		return nil, order.ErrPriceMustBeSetIfLimitOrder
+	}
+	params := make(map[string]any)
+	params["instrument_name"] = symbol
+	params["type"] = orderType
+	if price > 0 {
+		params["price"] = price
+	}
+	var resp *OrderIDsDetail
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFutures, closePositionRate, "private/close-position", params, &resp)
+}
+
+// GetFuturesOrderList gets the details of an outstanding (not executed) contingency order on Exchange.
+// contingency type possible value OCO
+func (e *Exchange) GetFuturesOrderList(ctx context.Context, contingencyType, listID, symbol string) (*OrdersDetail, error) {
+	if contingencyType == "" {
+		return nil, errContingencyTypeRequired
+	}
+	if listID == "" {
+		return nil, fmt.Errorf("%w: contingency order ID is required", order.ErrOrderIDNotSet)
+	}
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := make(map[string]any)
+	params["contingency_type"] = contingencyType
+	params["list_id"] = listID
+	params["instrument_name"] = symbol
+	var resp *OrdersDetail
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresOrderListRate, "private/get-order-list", params, &resp)
+}
+
+// GetInsurance fetches balance of Insurance Fund for a particular currency.
+func (e *Exchange) GetInsurance(ctx context.Context, symbol string, count int64, startTime, endTime time.Time) (*ValueAndTimestamp, error) {
+	if symbol == "" {
+		return nil, currency.ErrSymbolStringEmpty
+	}
+	params := url.Values{}
+	params.Set("instrument_name", symbol)
+	if count > 0 {
+		params.Set("count", strconv.FormatInt(count, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		err := common.StartEndTimeCheck(startTime, endTime)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("start_ts", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("end_ts", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	var resp *ValueAndTimestamp
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues("public/get-insurance", params), getInsuranceRate, &resp)
+}

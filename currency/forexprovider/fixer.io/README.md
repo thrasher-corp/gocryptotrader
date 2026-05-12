@@ -1,4 +1,4 @@
-# GoCryptoTrader package Fixer.io
+# GoCryptoTrader package Fixer.Io
 
 <img src="/common/gctlogo.png?raw=true" width="350px" height="350px" hspace="70">
 
