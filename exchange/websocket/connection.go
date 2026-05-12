@@ -129,7 +129,7 @@ type connection struct {
 	ProxyURL             string
 	Wg                   *sync.WaitGroup
 	Connection           *gws.Conn
-	shutdown             chan struct{}
+	shutdown             <-chan struct{}
 	Match                *Match
 	ResponseMaxLimit     time.Duration
 	Traffic              chan struct{}

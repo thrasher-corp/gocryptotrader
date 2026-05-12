@@ -87,7 +87,7 @@ func (s *store) DeployDepth(exchange string, p currency.Pair, a asset.Item) (*De
 		return nil, errPairNotSet
 	}
 	if !a.IsValid() {
-		return nil, errAssetTypeNotSet
+		return nil, ErrAssetTypeNotSet
 	}
 
 	s.m.RLock()
@@ -166,7 +166,7 @@ func (b *Book) Process() error {
 	}
 
 	if b.Asset.String() == "" {
-		return errAssetTypeNotSet
+		return ErrAssetTypeNotSet
 	}
 
 	if b.LastUpdated.IsZero() { // TODO: Enforce setting this on all exchanges

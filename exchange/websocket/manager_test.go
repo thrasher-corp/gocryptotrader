@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	gws "github.com/gorilla/websocket"
@@ -54,11 +55,11 @@ func restoreShutdownChannel(ws *Manager) {
 	}
 	ws.m.Lock()
 	defer ws.m.Unlock()
-	ws.ShutdownC = make(chan struct{})
+	ws.shutdownC = make(chan struct{})
 	for i := range ws.connectionManager {
 		for j := range ws.connectionManager[i].connections {
 			if conn, ok := ws.connectionManager[i].connections[j].(*connection); ok {
-				conn.shutdown = ws.ShutdownC
+				conn.shutdown = ws.shutdownC
 			}
 		}
 	}
@@ -95,7 +96,7 @@ func cleanupManagerMonitors(t *testing.T, ws *Manager) {
 	err := ws.Shutdown()
 	if err != nil {
 		if errors.Is(err, ErrNotConnected) || errors.Is(err, errAlreadyReconnecting) {
-			closeChanNoPanic(ws.ShutdownC)
+			closeChanNoPanic(ws.shutdownC)
 			resetManagerForNextConnectAttempt(t, ws)
 			require.Eventually(t, func() bool {
 				return !ws.connectionMonitorRunning.Load()
@@ -717,6 +718,51 @@ func TestCreateConnectAndSubscribe(t *testing.T) {
 	mgr.Wg.Wait()
 }
 
+func TestConnectIncludesCallerName(t *testing.T) {
+	t.Parallel()
+
+	ws := NewManager()
+	ws.setEnabled(true)
+	ws.useMultiConnectionManagement = true
+	ws.connectionManager = []*websocket{{
+		setup:         &ConnectionSetup{URL: "wss://example.invalid/ws"},
+		subscriptions: subscription.NewStore(),
+	}}
+
+	err := ws.Connect(request.WithCallerName(t.Context(), t.Name()))
+	require.ErrorIs(t, err, errWebsocketSubscriptionsGeneratorUnset)
+	assert.ErrorContains(t, err, "cannot connect to [conn:1] [URL:wss://example.invalid/ws]")
+}
+
+func TestObserveConnectionStopsOnShutdown(t *testing.T) {
+	t.Parallel()
+
+	ws := NewManager()
+	ws.verbose = true
+	ws.connectionMonitorRunning.Store(true)
+	close(ws.shutdownC)
+	synctest.Test(t, func(t *testing.T) {
+		timer := time.NewTimer(time.Minute)
+		t.Cleanup(func() {
+			timer.Stop()
+		})
+
+		require.True(t, ws.observeConnection(t.Context(), timer))
+		assert.False(t, ws.connectionMonitorRunning.Load())
+	})
+}
+
+func TestObserveTrafficStopsOnContextCancel(t *testing.T) {
+	t.Parallel()
+
+	ws := NewManager()
+	ws.verbose = true
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	assert.True(t, ws.observeTraffic(ctx, make(<-chan time.Time), func() {}))
+}
+
 func TestTrackConnection(t *testing.T) {
 	t.Parallel()
 
@@ -850,7 +896,7 @@ func TestManager(t *testing.T) {
 	require.NoError(t, err, "Setup may not error")
 
 	err = ws.Setup(defaultSetup)
-	assert.ErrorIs(t, err, errWebsocketAlreadyInitialised, "Setup should error correctly if called twice")
+	assert.ErrorIs(t, err, ErrWebsocketAlreadyInitialised, "Setup should error correctly if called twice")
 
 	assert.Equal(t, "GTX", ws.GetName(), "GetName should return correctly")
 	assert.True(t, ws.IsEnabled(), "Websocket should be enabled by Setup")
@@ -1196,7 +1242,8 @@ func TestSetupPingHandler(t *testing.T) {
 	if wc.ProxyURL != "" && !useProxyTests {
 		t.Skip("Proxy testing not enabled, skipping")
 	}
-	wc.shutdown = make(chan struct{})
+	sd := make(chan struct{})
+	wc.shutdown = sd
 	err := wc.Dial(t.Context(), &gws.Dialer{}, http.Header{}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -1223,7 +1270,7 @@ func TestSetupPingHandler(t *testing.T) {
 		Delay:       200,
 	})
 	time.Sleep(time.Millisecond * 201)
-	close(wc.shutdown)
+	close(sd)
 	wc.Wg.Wait()
 }
 
@@ -1611,7 +1658,7 @@ func TestMonitorFrame(t *testing.T) {
 
 func TestMonitorConnection(t *testing.T) {
 	t.Parallel()
-	ws := Manager{verbose: true, ReadMessageErrors: make(chan error, 1), ShutdownC: make(chan struct{})}
+	ws := Manager{verbose: true, ReadMessageErrors: make(chan error, 1), shutdownC: make(chan struct{})}
 	// Handle timer expired and websocket disabled, shutdown everything.
 	timer := time.NewTimer(0)
 	ws.setState(connectedState)
@@ -1665,23 +1712,23 @@ func TestMonitorTraffic(t *testing.T) { //nolint:tparallel // top-level parallel
 	newManager := func() *Manager {
 		return &Manager{
 			verbose:      true,
-			ShutdownC:    make(chan struct{}),
+			shutdownC:    make(chan struct{}),
 			TrafficAlert: make(chan struct{}, 1),
 		}
 	}
 
 	t.Run("shutdown signal exits", func(t *testing.T) {
 		ws := newManager()
-		close(ws.ShutdownC)
+		close(ws.shutdownC)
 
-		require.True(t, ws.observeTraffic(make(chan time.Time), nil))
+		require.True(t, ws.observeTraffic(t.Context(), make(chan time.Time), nil))
 	})
 
 	t.Run("connecting keeps monitor alive", func(t *testing.T) {
 		ws := newManager()
 		ws.setState(connectingState)
 
-		require.False(t, ws.observeTraffic(newTimeoutSignal(), nil))
+		require.False(t, ws.observeTraffic(t.Context(), newTimeoutSignal(), nil))
 	})
 
 	t.Run("traffic keeps monitor alive", func(t *testing.T) {
@@ -1689,7 +1736,7 @@ func TestMonitorTraffic(t *testing.T) { //nolint:tparallel // top-level parallel
 		ws.setState(connectedState)
 		ws.TrafficAlert <- struct{}{}
 
-		require.False(t, ws.observeTraffic(newTimeoutSignal(), nil))
+		require.False(t, ws.observeTraffic(t.Context(), newTimeoutSignal(), nil))
 	})
 
 	t.Run("timeout invokes shutdown handler", func(t *testing.T) {
@@ -1697,7 +1744,7 @@ func TestMonitorTraffic(t *testing.T) { //nolint:tparallel // top-level parallel
 		ws.setState(connectedState)
 
 		shutdownCalled := false
-		require.True(t, ws.observeTraffic(newTimeoutSignal(), func() {
+		require.True(t, ws.observeTraffic(t.Context(), newTimeoutSignal(), func() {
 			shutdownCalled = true
 			ws.setState(disconnectedState)
 		}))
@@ -1708,7 +1755,7 @@ func TestMonitorTraffic(t *testing.T) { //nolint:tparallel // top-level parallel
 	t.Run("monitor traffic shell", func(t *testing.T) {
 		ws := newManager()
 		ws.trafficTimeout = time.Hour
-		close(ws.ShutdownC)
+		close(ws.shutdownC)
 
 		innerShell := ws.monitorTraffic(t.Context())
 		require.True(t, innerShell())
@@ -1765,7 +1812,7 @@ func TestShutdown(t *testing.T) {
 	require.ErrorIs(t, m.Shutdown(), ErrNotConnected, "Shutdown must error correctly")
 	m.setState(connectedState)
 	require.Panics(t, func() { _ = m.Shutdown() }, "Shutdown must panic on nil shutdown channel")
-	m.ShutdownC = make(chan struct{})
+	m.resetShutdownSignal()
 	require.NoError(t, m.Shutdown(), "Shutdown must not error with no connections")
 	m.setState(connectedState)
 	m.Conn = &struct{ *connection }{&connection{}}
@@ -1798,14 +1845,14 @@ func TestShutdown(t *testing.T) {
 	defer respUnAuth.Body.Close()
 
 	m.connectionManager = nil
-	authConn := &connection{Connection: gwsConnAuth, shutdown: m.ShutdownC}
+	authConn := &connection{Connection: gwsConnAuth, shutdown: m.ShutdownSignal()}
 	m.AuthConn = authConn
-	unauthConn := &connection{Connection: gwsConnUnAuth, shutdown: m.ShutdownC}
+	unauthConn := &connection{Connection: gwsConnUnAuth, shutdown: m.ShutdownSignal()}
 	m.Conn = unauthConn
 
 	m.setState(connectedState)
 	require.NoError(t, m.Shutdown(), "Shutdown must not error with good connections")
 
-	require.Equal(t, m.ShutdownC, authConn.shutdown, "shutdown channels must be the same after original shutdown channel is closed")
-	require.Equal(t, m.ShutdownC, unauthConn.shutdown, "shutdown channels must be the same after original shutdown channel is closed")
+	require.Equal(t, m.ShutdownSignal(), authConn.shutdown, "shutdown channels must be the same after original shutdown channel is closed")
+	require.Equal(t, m.ShutdownSignal(), unauthConn.shutdown, "shutdown channels must be the same after original shutdown channel is closed")
 }
