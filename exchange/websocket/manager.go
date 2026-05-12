@@ -536,7 +536,6 @@ func (m *Manager) connect(ctx context.Context) error {
 			}
 
 			if len(subs) == 0 {
-				// If no subscriptions are generated, we skip this connection.
 				if m.verbose {
 					log.Debugf(log.WebsocketMgr, "%s websocket: no subscriptions generated for [conn:%d] [URL:%s], skipping", m.exchangeName, i+1, ws.setup.URL)
 				}
@@ -682,7 +681,6 @@ func (m *Manager) createConnectAndSubscribe(ctx context.Context, ws *websocket, 
 		}
 		return nil
 	}
-
 	if err := ws.setup.Subscriber(ctx, conn, subs); err != nil {
 		return fmt.Errorf("%w: %w", ErrSubscriptionFailure, err)
 	}
@@ -865,7 +863,6 @@ func (m *Manager) SetWebsocketURL(u string, auth, reconnect bool) error {
 		if defaultVals {
 			u = m.defaultURLAuth
 		}
-
 		err := checkWebsocketURL(u)
 		if err != nil {
 			return err
