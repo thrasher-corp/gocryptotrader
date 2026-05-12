@@ -1242,7 +1242,8 @@ func TestSetupPingHandler(t *testing.T) {
 	if wc.ProxyURL != "" && !useProxyTests {
 		t.Skip("Proxy testing not enabled, skipping")
 	}
-	wc.shutdown = make(chan struct{})
+	sd := make(chan struct{})
+	wc.shutdown = sd
 	err := wc.Dial(t.Context(), &gws.Dialer{}, http.Header{}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -1269,7 +1270,7 @@ func TestSetupPingHandler(t *testing.T) {
 		Delay:       200,
 	})
 	time.Sleep(time.Millisecond * 201)
-	close(wc.shutdown)
+	close(sd)
 	wc.Wg.Wait()
 }
 

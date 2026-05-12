@@ -28,7 +28,7 @@ const (
 	longSide                  = Long | Buy | Bid
 
 	inactiveStatuses = Filled | Cancelled | InsufficientBalance | MarketUnavailable | Rejected | PartiallyCancelled | PartiallyFilledCancelled | Expired | Closed | AnyStatus | Cancelling | Liquidated
-	activeStatuses   = Active | Open | PartiallyFilled | New | PendingCancel | Hidden | AutoDeleverage | Pending
+	activeStatuses   = Active | Open | PartiallyFilled | New | PendingCancel | Hidden | AutoDeleverage | Pending | PendingTrigger
 	notPlaced        = InsufficientBalance | MarketUnavailable | Rejected
 )
 
@@ -858,6 +858,8 @@ func (s Status) String() string {
 		return "LIQUIDATED"
 	case STP:
 		return "SELF_TRADE_PREVENTION"
+	case PendingTrigger:
+		return "PENDING_TRIGGER"
 	default:
 		return "UNKNOWN"
 	}
@@ -1225,6 +1227,8 @@ func StringToOrderStatus(status string) (Status, error) {
 		return AutoDeleverage, nil
 	case STP.String(), "STP":
 		return STP, nil
+	case PendingTrigger.String():
+		return PendingTrigger, nil
 	default:
 		return UnknownStatus, fmt.Errorf("%q %w", status, errUnrecognisedOrderStatus)
 	}

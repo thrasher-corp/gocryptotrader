@@ -4614,23 +4614,23 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, rateLim
 }
 
 func (p *Params) prepareDateString(startDate, endDate time.Time, ignoreUnsetStart, ignoreUnsetEnd bool) error {
-	if startDate.After(endDate) && !endDate.IsZero() && !endDate.Equal(common.ZeroValueUnix) {
+	if startDate.After(endDate) && !endDate.IsZero() && !endDate.Equal(common.ZeroValueUnix()) {
 		return common.ErrStartAfterEnd
 	}
-	if startDate.Equal(endDate) && !startDate.IsZero() && !startDate.Equal(common.ZeroValueUnix) {
+	if startDate.Equal(endDate) && !startDate.IsZero() && !startDate.Equal(common.ZeroValueUnix()) {
 		return common.ErrStartEqualsEnd
 	}
 	if startDate.After(time.Now()) {
 		return common.ErrStartAfterTimeNow
 	}
-	if startDate.IsZero() || startDate.Equal(common.ZeroValueUnix) {
+	if startDate.IsZero() || startDate.Equal(common.ZeroValueUnix()) {
 		if !ignoreUnsetStart {
 			return fmt.Errorf("start %w", common.ErrDateUnset)
 		}
 	} else {
 		url.Values(*p).Set("startTime", strconv.FormatInt(startDate.UnixMilli(), 10))
 	}
-	if endDate.IsZero() || endDate.Equal(common.ZeroValueUnix) {
+	if endDate.IsZero() || endDate.Equal(common.ZeroValueUnix()) {
 		if !ignoreUnsetEnd {
 			return fmt.Errorf("end %w", common.ErrDateUnset)
 		}

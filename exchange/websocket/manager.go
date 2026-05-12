@@ -820,7 +820,7 @@ func (m *Manager) setState(s uint32) {
 }
 
 // ShutdownSignal returns a channel that is closed when the websocket is shutting down
-func (m *Manager) ShutdownSignal() chan struct{} {
+func (m *Manager) ShutdownSignal() <-chan struct{} {
 	m.shutdownMu.RLock()
 	defer m.shutdownMu.RUnlock()
 	return m.shutdownC

@@ -1,6 +1,7 @@
 package bitget
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"errors"
@@ -194,7 +195,7 @@ func (e *Exchange) wsAuthenticate(ctx context.Context, conn websocket.Connection
 // wsHandleData handles data from the websocket connection
 // TODO: break up into public and private handlers to reduce complexity
 func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
-	if string(respRaw[:4]) == "pong" {
+	if bytes.HasPrefix(respRaw, []byte("pong")) {
 		if e.Verbose {
 			log.Debugf(log.ExchangeSys, "%v - Websocket pong received\n", e.Name)
 		}
@@ -463,7 +464,7 @@ func (e *Exchange) orderbookDataHandler(wsResponse *WsResponse, instrumentID, in
 	if err != nil {
 		return err
 	}
-	if wsResponse.Action[0] == 's' {
+	if wsResponse.Action != "" && wsResponse.Action[0] == 's' {
 		if len(bids) > 0 && bids[len(bids)-1].Price == 0 {
 			// Bid depths periodically contain a zero priced entry that needs to be removed. This might clash with the
 			// checksum validation when liquidity/levels are low and would need to be a strict rule to be applied when
@@ -945,7 +946,6 @@ func (e *Exchange) isolatedAccountDataHandler(ctx context.Context, wsResponse *W
 	return e.Websocket.DataHandler.Send(ctx, subAccts)
 }
 
-// AccountUpdateDataHandler
 func (e *Exchange) accountUpdateDataHandler(ctx context.Context, wsResponse *WsResponse, instrumentType string) error {
 	var subAcc *accounts.SubAccount
 	switch a := itemDecoder(instrumentType); a {
@@ -1064,7 +1064,7 @@ func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, s
 
 // ReqSplitter splits a request into multiple requests to avoid going over the byte limit
 func reqSplitter(req *WsRequest) []WsRequest {
-	capacity := (len(req.Arguments) / subRequestLimit) + 1
+	capacity := (len(req.Arguments) + subRequestLimit - 1) / subRequestLimit
 	reqs := make([]WsRequest, capacity)
 	for i := range capacity {
 		reqs[i].Operation = req.Operation
