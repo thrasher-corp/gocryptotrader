@@ -23,9 +23,22 @@ var (
 	privateConnection = "private"
 )
 
+func batchEndpointLimit(batchLen int, singleEPL, batchEPL request.EndpointLimit) request.EndpointLimit {
+	if batchLen == 1 {
+		return singleEPL
+	}
+	return batchEPL
+}
+
 // WSPlaceOrder submits an order
 func (e *Exchange) WSPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) (*OrderData, error) {
 	if err := arg.Validate(); err != nil {
+		return nil, err
+	}
+	if err := e.applyTradeScopeRateLimit(ctx, tradeRateLimitPlaceSingle, tradeScopeCountsFromPlaceOrders([]PlaceOrderRequestParam{*arg})); err != nil {
+		return nil, err
+	}
+	if err := e.applyTradeSubAccountRateLimit(ctx, 1); err != nil {
 		return nil, err
 	}
 
@@ -47,9 +60,21 @@ func (e *Exchange) WSPlaceMultipleOrders(ctx context.Context, args []PlaceOrderR
 			return nil, err
 		}
 	}
+	class := tradeRateLimitPlaceBatch
+	if len(args) == 1 {
+		class = tradeRateLimitPlaceSingle
+	}
+	if err := e.applyTradeScopeRateLimit(ctx, class, tradeScopeCountsFromPlaceOrders(args)); err != nil {
+		return nil, err
+	}
+	if err := e.applyTradeSubAccountRateLimit(ctx, countByOrder(args)); err != nil {
+		return nil, err
+	}
 
+	epl := batchEndpointLimit(len(args), placeOrderEPL, placeMultipleOrdersEPL)
+	ctx = request.WithRateLimitWeight(ctx, toRateLimitWeight(len(args)))
 	var resp []*OrderData
-	return resp, e.SendAuthenticatedWebsocketRequest(ctx, placeMultipleOrdersEPL, e.MessageID(), "batch-orders", args, &resp)
+	return resp, e.SendAuthenticatedWebsocketRequest(ctx, epl, e.MessageID(), "batch-orders", args, &resp)
 }
 
 // WSCancelOrder cancels an order
@@ -62,6 +87,9 @@ func (e *Exchange) WSCancelOrder(ctx context.Context, arg *CancelOrderRequestPar
 	}
 	if arg.OrderID == "" && arg.ClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
+	}
+	if err := e.applyTradeScopeRateLimit(ctx, tradeRateLimitCancelSingle, tradeScopeCountsFromCancelOrders([]CancelOrderRequestParam{*arg})); err != nil {
+		return nil, err
 	}
 
 	var resp []*OrderData
@@ -86,9 +114,18 @@ func (e *Exchange) WSCancelMultipleOrders(ctx context.Context, args []CancelOrde
 			return nil, order.ErrOrderIDNotSet
 		}
 	}
+	class := tradeRateLimitCancelBatch
+	if len(args) == 1 {
+		class = tradeRateLimitCancelSingle
+	}
+	if err := e.applyTradeScopeRateLimit(ctx, class, tradeScopeCountsFromCancelOrders(args)); err != nil {
+		return nil, err
+	}
 
+	epl := batchEndpointLimit(len(args), cancelOrderEPL, cancelMultipleOrdersEPL)
+	ctx = request.WithRateLimitWeight(ctx, toRateLimitWeight(len(args)))
 	var resp []*OrderData
-	return resp, e.SendAuthenticatedWebsocketRequest(ctx, cancelMultipleOrdersEPL, e.MessageID(), "batch-cancel-orders", args, &resp)
+	return resp, e.SendAuthenticatedWebsocketRequest(ctx, epl, e.MessageID(), "batch-cancel-orders", args, &resp)
 }
 
 // WSAmendOrder amends an order
@@ -104,6 +141,12 @@ func (e *Exchange) WSAmendOrder(ctx context.Context, arg *AmendOrderRequestParam
 	}
 	if arg.NewQuantity <= 0 && arg.NewPrice <= 0 {
 		return nil, errInvalidNewSizeOrPriceInformation
+	}
+	if err := e.applyTradeScopeRateLimit(ctx, tradeRateLimitAmendSingle, tradeScopeCountsFromAmendOrders([]AmendOrderRequestParams{*arg})); err != nil {
+		return nil, err
+	}
+	if err := e.applyTradeSubAccountRateLimit(ctx, 1); err != nil {
+		return nil, err
 	}
 
 	var resp []*OrderData
@@ -130,9 +173,21 @@ func (e *Exchange) WSAmendMultipleOrders(ctx context.Context, args []AmendOrderR
 			return nil, errInvalidNewSizeOrPriceInformation
 		}
 	}
+	class := tradeRateLimitAmendBatch
+	if len(args) == 1 {
+		class = tradeRateLimitAmendSingle
+	}
+	if err := e.applyTradeScopeRateLimit(ctx, class, tradeScopeCountsFromAmendOrders(args)); err != nil {
+		return nil, err
+	}
+	if err := e.applyTradeSubAccountRateLimit(ctx, countByOrder(args)); err != nil {
+		return nil, err
+	}
 
+	epl := batchEndpointLimit(len(args), amendOrderEPL, amendMultipleOrdersEPL)
+	ctx = request.WithRateLimitWeight(ctx, toRateLimitWeight(len(args)))
 	var resp []*OrderData
-	return resp, e.SendAuthenticatedWebsocketRequest(ctx, amendMultipleOrdersEPL, e.MessageID(), "batch-amend-orders", args, &resp)
+	return resp, e.SendAuthenticatedWebsocketRequest(ctx, epl, e.MessageID(), "batch-amend-orders", args, &resp)
 }
 
 // WSMassCancelOrders cancels all MMP pending orders of an instrument family. Only applicable to Option in Portfolio Margin mode, and MMP privilege is required.
@@ -257,7 +312,7 @@ func (e *Exchange) SendAuthenticatedWebsocketRequest(ctx context.Context, epl re
 
 	conn, err := e.Websocket.GetConnection(privateConnection)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, operation, err)
 	}
 
 	outbound := &struct {
@@ -275,7 +330,7 @@ func (e *Exchange) SendAuthenticatedWebsocketRequest(ctx context.Context, epl re
 
 	incoming, err := conn.SendMessageReturnResponse(ctx, epl, id, outbound)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, operation, err)
 	}
 
 	intermediary := struct {
@@ -291,18 +346,18 @@ func (e *Exchange) SendAuthenticatedWebsocketRequest(ctx context.Context, epl re
 	}
 
 	if err := json.Unmarshal(incoming, &intermediary); err != nil {
-		return err
+		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, operation, err)
 	}
 
 	switch intermediary.Code {
 	case 0:
 		return nil
 	case 1:
-		return parseWSResponseErrors(result, errOperationFailed)
+		return fmt.Errorf("%w %s %s code=%d message=%s, %v", request.ErrAuthRequestFailed, e.Name, operation, intermediary.Code, intermediary.Message, parseWSResponseErrors(result, errOperationFailed))
 	case 2:
-		return parseWSResponseErrors(result, errPartialSuccess)
+		return fmt.Errorf("%w %s %s code=%d message=%s, %v", request.ErrAuthRequestFailed, e.Name, operation, intermediary.Code, intermediary.Message, parseWSResponseErrors(result, errPartialSuccess))
 	default:
-		return getStatusError(intermediary.Code, intermediary.Message)
+		return fmt.Errorf("%w %s %s code=%d message=%s", request.ErrAuthRequestFailed, e.Name, operation, intermediary.Code, intermediary.Message)
 	}
 }
 

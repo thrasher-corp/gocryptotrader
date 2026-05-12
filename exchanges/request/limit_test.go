@@ -65,6 +65,13 @@ func TestRateLimit(t *testing.T) {
 		defer cancel()
 		err = r.RateLimit(ctx)
 		assert.ErrorIs(t, err, context.DeadlineExceeded, "should return correct error when context deadline exceeded")
+
+		r = NewRateLimitWithWeight(time.Second, 10, 1)
+		start = time.Now()
+		err = r.RateLimit(WithRateLimitWeight(t.Context(), 5))
+		elapsed = time.Since(start)
+		require.NoError(t, err, "rate limit with override weight must not error")
+		assert.Equal(t, 400*time.Millisecond, elapsed, "override weight should apply delay based on 5 requests")
 	})
 }
 

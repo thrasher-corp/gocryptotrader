@@ -1,10 +1,20 @@
 package request
 
-import "context"
+import (
+	"context"
+
+	"github.com/thrasher-corp/gocryptotrader/common"
+)
 
 const contextVerboseFlag verbosity = "verbose"
 
 type verbosity string
+
+type callerNameKey struct{}
+
+func init() {
+	common.RegisterContextKey(callerNameKey{})
+}
 
 // WithVerbose adds verbosity to a request context so that specific requests
 // can have distinct verbosity without impacting all requests.
@@ -19,6 +29,20 @@ func IsVerbose(ctx context.Context, verbose bool) bool {
 		verbose, _ = ctx.Value(contextVerboseFlag).(bool)
 	}
 	return verbose
+}
+
+// WithCallerName adds a diagnostic caller name to the context.
+func WithCallerName(ctx context.Context, name string) context.Context {
+	if name == "" {
+		return ctx
+	}
+	return context.WithValue(ctx, callerNameKey{}, name)
+}
+
+// CallerName returns the diagnostic caller name from the context.
+func CallerName(ctx context.Context) string {
+	name, _ := ctx.Value(callerNameKey{}).(string)
+	return name
 }
 
 type delayNotAllowedKey struct{}
@@ -43,4 +67,23 @@ func WithRetryNotAllowed(ctx context.Context) context.Context {
 func hasRetryNotAllowed(ctx context.Context) bool {
 	_, ok := ctx.Value(retryNotAllowedKey{}).(struct{})
 	return ok
+}
+
+type rateLimitWeightKey struct{}
+
+// WithRateLimitWeight adds a per-request rate-limit weight override to the context.
+// Values less than 1 are ignored.
+func WithRateLimitWeight(ctx context.Context, weight uint8) context.Context {
+	if weight < 1 {
+		return ctx
+	}
+	return context.WithValue(ctx, rateLimitWeightKey{}, Weight(weight))
+}
+
+func getRateLimitWeight(ctx context.Context) (Weight, bool) {
+	weight, ok := ctx.Value(rateLimitWeightKey{}).(Weight)
+	if !ok || weight < 1 {
+		return 0, false
+	}
+	return weight, true
 }

@@ -7,11 +7,34 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
+
+func TestPlaceOrderRequestParamMarshalJSON(t *testing.T) {
+	t.Parallel()
+
+	arg := PlaceOrderRequestParam{
+		InstrumentID: "SATS-USDT",
+		TradeMode:    TradeModeCross,
+		Side:         "buy",
+		OrderType:    orderFOK,
+		Amount:       170000000,
+		Price:        1.555e-8,
+		ReduceOnly:   true,
+	}
+
+	raw, err := json.Marshal(arg)
+	require.NoError(t, err)
+	require.Contains(t, string(raw), `"px":"0.00000001555"`)
+	require.Contains(t, string(raw), `"sz":"170000000"`)
+	require.Contains(t, string(raw), `"reduceOnly":"true"`)
+	require.NotContains(t, string(raw), "e-")
+	require.NotContains(t, string(raw), "E-")
+}
 
 func TestWSPlaceOrder(t *testing.T) {
 	t.Parallel()
@@ -36,6 +59,13 @@ func TestWSPlaceOrder(t *testing.T) {
 	got, err := e.WSPlaceOrder(request.WithVerbose(t.Context()), out)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
+}
+
+func TestBatchEndpointLimit(t *testing.T) {
+	t.Parallel()
+
+	require.Equal(t, placeOrderEPL, batchEndpointLimit(1, placeOrderEPL, placeMultipleOrdersEPL))
+	require.Equal(t, placeMultipleOrdersEPL, batchEndpointLimit(2, placeOrderEPL, placeMultipleOrdersEPL))
 }
 
 func TestWSPlaceMultipleOrders(t *testing.T) {

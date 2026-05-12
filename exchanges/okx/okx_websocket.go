@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
@@ -34,8 +35,19 @@ import (
 )
 
 var (
-	pingMsg = []byte("ping")
-	pongMsg = []byte("pong")
+	pingMsg               = []byte("ping")
+	pongMsg               = []byte("pong")
+	wsOrderbookLevelsPool = sync.Pool{
+		New: func() any {
+			levels := make(orderbook.Levels, 0, 64)
+			return &levels
+		},
+	}
+	wsOrderbookChecksumPool = sync.Pool{
+		New: func() any {
+			return new([1024]byte)
+		},
+	}
 
 	// See: https://www.okx.com/docs-v5/en/#error-code-websocket-public
 	authConnErrorCodes = []string{
@@ -45,8 +57,6 @@ var (
 )
 
 const (
-	// wsOrderbookChecksumDelimiter to be used in validating checksum
-	wsOrderbookChecksumDelimiter = ":"
 	// allowableIterations use the first 25 bids and asks in the full load to form a string
 	allowableIterations = 25
 	// wsOrderbookSnapshot orderbook push data type 'snapshot'
@@ -224,6 +234,8 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},
 	{Enabled: true, Asset: asset.All, Channel: subscription.MyOrdersChannel, Authenticated: true},
 	{Enabled: true, Channel: subscription.MyAccountChannel, Authenticated: true},
+	{Enabled: true, Channel: channelBalanceAndPosition, Authenticated: true},
+	{Enabled: true, Channel: channelAccountGreeks, Authenticated: true},
 }
 
 var subscriptionNames = map[string]string{
@@ -275,18 +287,18 @@ func (e *Exchange) wsAuthenticateConnection(ctx context.Context, conn websocket.
 	}
 	resp, err := conn.SendMessageReturnResponse(ctx, websocketRequestEPL, "login-response", op)
 	if err != nil {
-		return err
+		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, operationLogin, err)
 	}
 	var intermediary struct {
 		Code    int64  `json:"code,string"`
 		Message string `json:"msg"`
 	}
 	if err := json.Unmarshal(resp, &intermediary); err != nil {
-		return err
+		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, operationLogin, err)
 	}
 
 	if intermediary.Code != 0 {
-		return getStatusError(intermediary.Code, intermediary.Message)
+		return fmt.Errorf("%w %s %s code=%d message=%s", request.ErrAuthRequestFailed, e.Name, operationLogin, intermediary.Code, intermediary.Message)
 	}
 	return nil
 }
@@ -332,6 +344,7 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 // chunkRequests splits subscription requests into multiple requests if the total byte length exceeds maxConnByteLen.
 func (e *Exchange) chunkRequests(subs subscription.List, operation string) ([]WSSubscriptionInformationList, error) {
 	eval := e.getSpotMarginEvaluator(subs)
+	sentArgs := make(map[string]struct{})
 
 	var requests []WSSubscriptionInformationList
 	for len(subs) > 0 {
@@ -350,8 +363,19 @@ func (e *Exchange) chunkRequests(subs subscription.List, operation string) ([]WS
 			if err != nil {
 				return nil, err
 			}
+			argKey := ""
+			addedArgument := false
 			if isSubNeeded {
-				arguments = append(arguments, arg)
+				argKeyBytes, err := json.Marshal(arg)
+				if err != nil {
+					return nil, err
+				}
+				argKey = string(argKeyBytes)
+				if _, alreadyAdded := sentArgs[argKey]; !alreadyAdded {
+					arguments = append(arguments, arg)
+					sentArgs[argKey] = struct{}{}
+					addedArgument = true
+				}
 			}
 			channels = append(channels, sub)
 			chunk, err := json.Marshal(WSSubscriptionInformationList{Arguments: arguments, Operation: operation})
@@ -361,7 +385,10 @@ func (e *Exchange) chunkRequests(subs subscription.List, operation string) ([]WS
 			if len(chunk) > maxConnByteLen {
 				// Remove last added channel and argument as they exceed max byte length
 				channels = channels[:len(channels)-1]
-				arguments = arguments[:len(arguments)-1]
+				if addedArgument {
+					arguments = arguments[:len(arguments)-1]
+					delete(sentArgs, argKey)
+				}
 				subs = subs[i:]
 				break
 			}
@@ -924,9 +951,6 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 			return err
 		}
 	}
-	if !response.Argument.InstrumentID.IsPopulated() {
-		return currency.ErrCurrencyPairsEmpty
-	}
 	response.Argument.InstrumentID.Delimiter = currency.DashDelimiter
 	for i := range response.Data {
 		if response.Action == wsOrderbookSnapshot {
@@ -967,28 +991,27 @@ func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curren
 		return fmt.Errorf("%w %v", errInvalidChecksum, pair)
 	}
 
-	asks, err := e.AppendWsOrderbookItems(data.Asks)
-	if err != nil {
-		return err
-	}
-	bids, err := e.AppendWsOrderbookItems(data.Bids)
-	if err != nil {
-		return err
-	}
+	asks, asksPoolItem := appendWsOrderbookItemsFromPool(data.Asks)
+	bids, bidsPoolItem := appendWsOrderbookItemsFromPool(data.Bids)
+	lastUpdated := data.Timestamp.Time()
 	for i := range assets {
 		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 			LastUpdateID:      data.SequenceID,
 			Asset:             assets[i],
 			Asks:              asks,
 			Bids:              bids,
-			LastUpdated:       data.Timestamp.Time(),
+			LastUpdated:       lastUpdated,
 			Pair:              pair,
 			Exchange:          e.Name,
 			ValidateOrderbook: e.ValidateOrderbook,
 		}); err != nil {
+			putWsOrderbookLevels(asksPoolItem)
+			putWsOrderbookLevels(bidsPoolItem)
 			return err
 		}
 	}
+	putWsOrderbookLevels(asksPoolItem)
+	putWsOrderbookLevels(bidsPoolItem)
 	return nil
 }
 
@@ -996,40 +1019,75 @@ func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curren
 // After merging WS data, it will sort, validate and finally update the existing
 // orderbook
 func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
-	asks, err := e.AppendWsOrderbookItems(data.Asks)
-	if err != nil {
-		return err
-	}
-	bids, err := e.AppendWsOrderbookItems(data.Bids)
-	if err != nil {
-		return err
-	}
+	asks, asksPoolItem := appendWsOrderbookItemsFromPool(data.Asks)
+	bids, bidsPoolItem := appendWsOrderbookItemsFromPool(data.Bids)
+	updateTime := data.Timestamp.Time()
 	for i := range assets {
 		if err := e.Websocket.Orderbook.Update(&orderbook.Update{
 			UpdateID:         data.SequenceID,
 			Pair:             pair,
 			Asset:            assets[i],
-			UpdateTime:       data.Timestamp.Time(),
-			LastPushed:       data.Timestamp.Time(),
+			UpdateTime:       updateTime,
+			LastPushed:       updateTime,
 			GenerateChecksum: generateOrderbookChecksum,
 			ExpectedChecksum: uint32(data.Checksum), //nolint:gosec // Requires type casting
 			Asks:             asks,
 			Bids:             bids,
 			AllowEmpty:       true, // Allow empty levels to push forward sequence ID
 		}); err != nil {
+			putWsOrderbookLevels(asksPoolItem)
+			putWsOrderbookLevels(bidsPoolItem)
 			return err
 		}
 	}
+	putWsOrderbookLevels(asksPoolItem)
+	putWsOrderbookLevels(bidsPoolItem)
 	return nil
 }
 
 // AppendWsOrderbookItems adds websocket orderbook data bid/asks into an orderbook item array
-func (e *Exchange) AppendWsOrderbookItems(entries [][4]types.Number) (orderbook.Levels, error) {
+func (e *Exchange) AppendWsOrderbookItems(entries []WsOrderBookLevel) (orderbook.Levels, error) {
 	items := make(orderbook.Levels, len(entries))
-	for j := range entries {
-		items[j] = orderbook.Level{Amount: entries[j][1].Float64(), Price: entries[j][0].Float64()}
-	}
+	appendWsOrderbookItems(items, entries)
 	return items, nil
+}
+
+func appendWsOrderbookItems(items orderbook.Levels, entries []WsOrderBookLevel) {
+	for j := range entries {
+		items[j] = orderbook.Level{
+			Amount:    entries[j].Amount.Float64(),
+			StrAmount: entries[j].AmountString,
+			Price:     entries[j].Price.Float64(),
+			StrPrice:  entries[j].PriceString,
+		}
+	}
+}
+
+func appendWsOrderbookItemsFromPool(entries []WsOrderBookLevel) (items orderbook.Levels, pooledItems *orderbook.Levels) {
+	pooledItems, ok := wsOrderbookLevelsPool.Get().(*orderbook.Levels)
+	if !ok {
+		items = make(orderbook.Levels, len(entries))
+		appendWsOrderbookItems(items, entries)
+		return items, nil
+	}
+
+	items = *pooledItems
+	if cap(items) < len(entries) {
+		items = make(orderbook.Levels, len(entries))
+	} else {
+		items = items[:len(entries)]
+	}
+	appendWsOrderbookItems(items, entries)
+	*pooledItems = items
+	return items, pooledItems
+}
+
+func putWsOrderbookLevels(items *orderbook.Levels) {
+	if items == nil {
+		return
+	}
+	*items = (*items)[:0]
+	wsOrderbookLevelsPool.Put(items)
 }
 
 // generateOrderbookChecksum alternates over the first 25 bid and ask
@@ -1038,40 +1096,85 @@ func (e *Exchange) AppendWsOrderbookItems(entries [][4]types.Number) (orderbook.
 // there are less than 25 entries (for whatever reason)
 // eg Bid:Ask:Bid:Ask:Ask:Ask
 func generateOrderbookChecksum(orderbookData *orderbook.Book) uint32 {
-	var checksum strings.Builder
+	checksumBuffer, ok := wsOrderbookChecksumPool.Get().(*[1024]byte)
+	if !ok {
+		checksumBuffer = new([1024]byte)
+	}
+	checksum := checksumBuffer[:0]
 	for i := range allowableIterations {
 		if len(orderbookData.Bids)-1 >= i {
-			price := strconv.FormatFloat(orderbookData.Bids[i].Price, 'f', -1, 64)
-			amount := strconv.FormatFloat(orderbookData.Bids[i].Amount, 'f', -1, 64)
-			checksum.WriteString(price + wsOrderbookChecksumDelimiter + amount + wsOrderbookChecksumDelimiter)
+			checksum = appendOrderbookChecksumLevel(checksum, &orderbookData.Bids[i])
 		}
 		if len(orderbookData.Asks)-1 >= i {
-			price := strconv.FormatFloat(orderbookData.Asks[i].Price, 'f', -1, 64)
-			amount := strconv.FormatFloat(orderbookData.Asks[i].Amount, 'f', -1, 64)
-			checksum.WriteString(price + wsOrderbookChecksumDelimiter + amount + wsOrderbookChecksumDelimiter)
+			checksum = appendOrderbookChecksumLevel(checksum, &orderbookData.Asks[i])
 		}
 	}
-	checksumStr := strings.TrimSuffix(checksum.String(), wsOrderbookChecksumDelimiter)
-	return crc32.ChecksumIEEE([]byte(checksumStr))
+	if len(checksum) > 0 {
+		checksum = checksum[:len(checksum)-1]
+	}
+	result := crc32.ChecksumIEEE(checksum)
+	wsOrderbookChecksumPool.Put(checksumBuffer)
+	return result
 }
 
 // CalculateOrderbookChecksum alternates over the first 25 bid and ask entries from websocket data.
 func (e *Exchange) CalculateOrderbookChecksum(orderbookData *WsOrderBookData) (uint32, error) {
-	var checksum strings.Builder
+	checksumBuffer, ok := wsOrderbookChecksumPool.Get().(*[1024]byte)
+	if !ok {
+		checksumBuffer = new([1024]byte)
+	}
+	checksum := checksumBuffer[:0]
 	for i := range allowableIterations {
 		if len(orderbookData.Bids)-1 >= i {
-			bidPrice := orderbookData.Bids[i][0].String()
-			bidAmount := orderbookData.Bids[i][1].String()
-			checksum.WriteString(bidPrice + wsOrderbookChecksumDelimiter + bidAmount + wsOrderbookChecksumDelimiter)
+			if orderbookData.Bids[i].PriceString != "" {
+				checksum = append(checksum, orderbookData.Bids[i].PriceString...)
+			} else {
+				checksum = strconv.AppendFloat(checksum, float64(orderbookData.Bids[i].Price), 'f', -1, 64)
+			}
+			checksum = append(checksum, ':')
+			if orderbookData.Bids[i].AmountString != "" {
+				checksum = append(checksum, orderbookData.Bids[i].AmountString...)
+			} else {
+				checksum = strconv.AppendFloat(checksum, float64(orderbookData.Bids[i].Amount), 'f', -1, 64)
+			}
+			checksum = append(checksum, ':')
 		}
 		if len(orderbookData.Asks)-1 >= i {
-			askPrice := orderbookData.Asks[i][0].String()
-			askAmount := orderbookData.Asks[i][1].String()
-			checksum.WriteString(askPrice + wsOrderbookChecksumDelimiter + askAmount + wsOrderbookChecksumDelimiter)
+			if orderbookData.Asks[i].PriceString != "" {
+				checksum = append(checksum, orderbookData.Asks[i].PriceString...)
+			} else {
+				checksum = strconv.AppendFloat(checksum, float64(orderbookData.Asks[i].Price), 'f', -1, 64)
+			}
+			checksum = append(checksum, ':')
+			if orderbookData.Asks[i].AmountString != "" {
+				checksum = append(checksum, orderbookData.Asks[i].AmountString...)
+			} else {
+				checksum = strconv.AppendFloat(checksum, float64(orderbookData.Asks[i].Amount), 'f', -1, 64)
+			}
+			checksum = append(checksum, ':')
 		}
 	}
-	checksumStr := strings.TrimSuffix(checksum.String(), wsOrderbookChecksumDelimiter)
-	return crc32.ChecksumIEEE([]byte(checksumStr)), nil
+	if len(checksum) > 0 {
+		checksum = checksum[:len(checksum)-1]
+	}
+	result := crc32.ChecksumIEEE(checksum)
+	wsOrderbookChecksumPool.Put(checksumBuffer)
+	return result, nil
+}
+
+func appendOrderbookChecksumLevel(checksum []byte, level *orderbook.Level) []byte {
+	if level.StrPrice != "" {
+		checksum = append(checksum, level.StrPrice...)
+	} else {
+		checksum = strconv.AppendFloat(checksum, level.Price, 'f', -1, 64)
+	}
+	checksum = append(checksum, ':')
+	if level.StrAmount != "" {
+		checksum = append(checksum, level.StrAmount...)
+	} else {
+		checksum = strconv.AppendFloat(checksum, level.Amount, 'f', -1, 64)
+	}
+	return append(checksum, ':')
 }
 
 // wsHandleMarkPriceCandles processes candlestick mark price push data as a result of  subscription to "mark-price-candle*" channel.
@@ -1363,13 +1466,34 @@ func (e *Exchange) generateSubscriptions(public bool) (subscription.List, error)
 	return list.Private(), nil
 }
 
+func optionInstrumentFamilyFromPair(pair currency.Pair) string {
+	if !pair.IsPopulated() {
+		return ""
+	}
+
+	b := pair.Base.Upper().String()
+	q := pair.Quote.Upper().String()
+	// Options quote can include expiry/strike/type suffixes (e.g. USD-230224-18000-C).
+	// OKX instFamily expects just BASE-QUOTE.
+	if idx := strings.Index(q, currency.DashDelimiter); idx >= 0 {
+		q = q[:idx]
+	}
+	if q == "" {
+		return ""
+	}
+	return b + currency.DashDelimiter + q
+}
+
 // GetSubscriptionTemplate returns a subscription channel template
 func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{
-		"channelName":     channelName,
-		"isSymbolChannel": isSymbolChannel,
-		"isAssetChannel":  isAssetChannel,
-		"instType":        GetInstrumentTypeFromAssetItem,
+		"subscriptionForAsset": subscriptionForAsset,
+		"channelName":          channelName,
+		"isSymbolChannel":      isSymbolChannel,
+		"isAssetChannel":       isAssetChannel,
+		"isInstFamily":         isInstFamilyChannel,
+		"instType":             GetInstrumentTypeFromAssetItem,
+		"instFamily":           optionInstrumentFamilyFromPair,
 	}).Parse(subTplText)
 }
 
@@ -1440,6 +1564,14 @@ func (e *Exchange) wsProcessPushData(ctx context.Context, data []byte, resp any)
 
 // channelName converts global subscription channel names to exchange specific names
 func channelName(s *subscription.Subscription) string {
+	if s.Asset == asset.Options {
+		switch s.Channel {
+		case subscription.AllTradesChannel:
+			return channelOptionTrades
+		case subscription.TickerChannel:
+			return channelOptSummary
+		}
+	}
 	if s, ok := subscriptionNames[s.Channel]; ok {
 		return s
 	}
@@ -1451,8 +1583,23 @@ func isAssetChannel(s *subscription.Subscription) bool {
 	return s.Channel == subscription.MyOrdersChannel
 }
 
+func isInstFamilyChannel(s *subscription.Subscription) bool {
+	return (s.Asset == asset.Options && s.Channel == subscription.AllTradesChannel) || channelName(s) == channelOptSummary
+}
+
+// subscriptionForAsset applies the current template expansion asset to a clone so
+// channel mapping/shape checks operate on the concrete asset (e.g. options).
+func subscriptionForAsset(s *subscription.Subscription, a asset.Item) *subscription.Subscription {
+	cloned := s.Clone()
+	cloned.Asset = a
+	return cloned
+}
+
 // isSymbolChannel returns if the channel expects one Symbol per subscription
 func isSymbolChannel(s *subscription.Subscription) bool {
+	if isInstFamilyChannel(s) {
+		return false
+	}
 	switch s.Channel {
 	case subscription.CandlesChannel, subscription.TickerChannel, subscription.OrderbookChannel, subscription.AllTradesChannel, channelFundingRate:
 		return true
@@ -1461,11 +1608,17 @@ func isSymbolChannel(s *subscription.Subscription) bool {
 }
 
 const subTplText = `
-{{- with $name := channelName $.S }}
-	{{- range $asset, $pairs := $.AssetPairs }}
-		{{- if isAssetChannel $.S -}}
+{{- range $asset, $pairs := $.AssetPairs }}
+	{{- with $sub := subscriptionForAsset $.S $asset -}}
+	{{- with $name := channelName $sub }}
+		{{- if isAssetChannel $sub -}}
 			{"channel":"{{ $name }}","instType":"{{ instType $asset }}"}
-		{{- else if isSymbolChannel $.S }}
+		{{- else if isInstFamily $sub }}
+			{{- range $p := $pairs -}}
+				{"channel":"{{ $name }}","instFamily":"{{ instFamily $p }}","instType":"{{ instType $asset }}"}
+				{{ $.PairSeparator }}
+			{{- end -}}
+		{{- else if isSymbolChannel $sub }}
 			{{- range $p := $pairs -}}
 				{"channel":"{{ $name }}","instID":"{{ $p }}"}
 				{{ $.PairSeparator }}
@@ -1475,7 +1628,8 @@ const subTplText = `
 			{{- with $algoId := index $.S.Params "algoId" -}} ,"algoId":"{{ $algoId }}" {{- end -}}
 			}
 		{{- end }}
-	{{- $.AssetSeparator }}
 	{{- end }}
-{{- end }}
+	{{- end }}
+	{{- $.AssetSeparator }}
+{{- end -}}
 `
