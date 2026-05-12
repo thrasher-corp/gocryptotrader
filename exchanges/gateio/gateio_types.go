@@ -486,25 +486,30 @@ type CurrencyInfo struct {
 
 // CurrencyPairDetail represents a single currency pair detail.
 type CurrencyPairDetail struct {
-	ID              currency.Pair `json:"id"`
-	Base            currency.Code `json:"base"`
-	BaseName        string        `json:"base_name"`
-	Quote           currency.Code `json:"quote"`
-	QuoteName       string        `json:"quote_name"`
-	Fee             types.Number  `json:"fee"`
-	MinBaseAmount   types.Number  `json:"min_base_amount"`
-	MinQuoteAmount  types.Number  `json:"min_quote_amount"`
-	MaxBaseAmount   types.Number  `json:"max_base_amount"`
-	MaxQuoteAmount  types.Number  `json:"max_quote_amount"`
-	AmountPrecision uint8         `json:"amount_precision"`
-	PricePrecision  uint8         `json:"precision"`
-	TradeStatus     string        `json:"trade_status"` // e.g. "untradable", "buyable", "sellable", "tradable"
-	SellStart       types.Time    `json:"sell_start"`
-	BuyStart        types.Time    `json:"buy_start"`
-	DelistingTime   types.Time    `json:"delisting_time"`
-	Type            string        `json:"type"` // e.g. "normal", "pre-market"
-	TradeURL        string        `json:"trade_url"`
-	STTag           bool          `json:"st_tag"`
+	ID                            currency.Pair `json:"id"`
+	Base                          currency.Code `json:"base"`
+	BaseName                      string        `json:"base_name"`
+	Quote                         currency.Code `json:"quote"`
+	QuoteName                     string        `json:"quote_name"`
+	Fee                           types.Number  `json:"fee"`
+	MinBaseAmount                 types.Number  `json:"min_base_amount"`
+	MinQuoteAmount                types.Number  `json:"min_quote_amount"`
+	MaxBaseAmount                 types.Number  `json:"max_base_amount"`
+	MaxQuoteAmount                types.Number  `json:"max_quote_amount"`
+	AmountPrecision               uint8         `json:"amount_precision"`
+	PricePrecision                uint8         `json:"precision"`
+	TradeStatus                   string        `json:"trade_status"` // e.g. "untradable", "buyable", "sellable", "tradable"
+	SellStart                     types.Time    `json:"sell_start"`
+	BuyStart                      types.Time    `json:"buy_start"`
+	DelistingTime                 types.Time    `json:"delisting_time"`
+	Type                          string        `json:"type"` // e.g. "normal", "pre-market"
+	TradeURL                      string        `json:"trade_url"`
+	STTag                         bool          `json:"st_tag"`
+	MaximumQuoteRisePercentage    types.Number  `json:"up_rate"`
+	MaximumQuoteDeclinePercentage types.Number  `json:"down_rate"`
+	Slippage                      types.Number  `json:"slippage"`
+	MarketOrderMaxStock           types.Number  `json:"market_order_max_stock"`
+	MarketOrderMaxMoney           types.Number  `json:"market_order_max_money"`
 }
 
 // Ticker holds detail ticker information for a currency pair
@@ -1260,13 +1265,24 @@ type MarginCurrencyBalance struct {
 	UnpairInterest types.Number `json:"interest"`
 }
 
-// MarginAccountItem margin account item
+// MarginAccountItem margin account item.
+// Returned by the GET /margin/user/account endpoint which is the latest interface
+// supporting both risk-based (risk) and maintenance-margin-based (mmr) isolated
+// margin accounts.
 type MarginAccountItem struct {
-	Locked       bool                      `json:"locked"`
-	CurrencyPair string                    `json:"currency_pair"`
-	Risk         string                    `json:"risk"`
-	Base         AccountBalanceInformation `json:"base"`
-	Quote        AccountBalanceInformation `json:"quote"`
+	CurrencyPair string `json:"currency_pair"`
+	// AccountType indicates the account mode: "risk" (risk rate account),
+	// "mmr" (maintenance margin rate account), or "inactive" (market not activated).
+	AccountType string `json:"account_type"`
+	// Leverage is the user's current market leverage multiplier.
+	Leverage types.Number `json:"leverage"`
+	Locked   bool         `json:"locked"`
+	// Risk is the current risk rate (returned for risk-rate accounts).
+	Risk string `json:"risk"`
+	// Mmr is the current maintenance margin rate (returned for mmr accounts).
+	Mmr   string                    `json:"mmr"`
+	Base  AccountBalanceInformation `json:"base"`
+	Quote AccountBalanceInformation `json:"quote"`
 }
 
 // AccountBalanceInformation represents currency account balance information.
@@ -1730,6 +1746,28 @@ type RepaymentHistoryItem struct {
 	Currency   string       `json:"currency"`
 	Principal  types.Number `json:"principal"`
 	Interest   types.Number `json:"interest"`
+}
+
+// UniLoanInterestRecord represents a single interest deduction record from
+// the GET margin/uni/interest_records endpoint.
+type UniLoanInterestRecord struct {
+	Currency     string       `json:"currency"`
+	CurrencyPair string       `json:"currency_pair"`
+	ActualRate   types.Number `json:"actual_rate"`
+	Interest     types.Number `json:"interest"`
+	Status       int64        `json:"status"` // 0=undeducted, 1=deducted
+	CreateTime   types.Time   `json:"create_time"`
+	Type         string       `json:"type"` // "platform" or "margin"
+}
+
+// UniLoanBorrowRepayParam represents the request parameters for the unified
+// margin borrow-or-repay endpoint (POST margin/uni/loans).
+type UniLoanBorrowRepayParam struct {
+	CurrencyPair currency.Pair `json:"currency_pair"`
+	Currency     currency.Code `json:"currency"`
+	// Type is either "borrow" or "repay".
+	Type   string       `json:"type"`
+	Amount types.Number `json:"amount"`
 }
 
 // FlashSwapOrderParams represents create flash swap order request parameters.
@@ -2809,4 +2847,11 @@ type UserTransactionRateLimitInfo struct {
 	Ratio     types.Number `json:"ratio"`
 	MainRatio types.Number `json:"main_ratio"`
 	UpdatedAt types.Time   `json:"updated_at"`
+}
+
+// MaxBorrowableAmount represents the max borrowable amount for specific margin currency
+type MaxBorrowableAmount struct {
+	Currency   currency.Code `json:"currency"`
+	Borrowable types.Number  `json:"borrowable"`
+	Pair       currency.Pair `json:"currency_pair"`
 }
