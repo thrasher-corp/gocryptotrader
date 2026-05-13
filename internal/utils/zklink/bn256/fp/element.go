@@ -618,7 +618,7 @@ func (z *Element) Inverse(x *Element) *Element {
 		return z.Set(x)
 	}
 
-	// initialize u = q
+	// initialise u = q
 	u := Element{
 		4332616871279656263,
 		10917124144477883021,
@@ -626,7 +626,7 @@ func (z *Element) Inverse(x *Element) *Element {
 		3486998266802970665,
 	}
 
-	// initialize s = r^2
+	// initialise s = r^2
 	s := Element{
 		17522657719365597833,
 		13107472804851548667,

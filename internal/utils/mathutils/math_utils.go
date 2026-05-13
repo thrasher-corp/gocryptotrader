@@ -121,18 +121,16 @@ func GenerateKRfc6979(msgHash, priKey, ecOrder *big.Int, seed int) *big.Int {
 	var extra []byte
 	if seed > 0 {
 		buf := new(bytes.Buffer)
-		var data any
 		switch {
 		case seed < 256:
-			data = uint8(seed)
+			_ = binary.Write(buf, binary.BigEndian, uint8(seed))
 		case seed < 65536:
-			data = uint16(seed)
+			_ = binary.Write(buf, binary.BigEndian, uint16(seed))
 		case seed < 4294967296:
-			data = uint32(seed)
+			_ = binary.Write(buf, binary.BigEndian, uint32(seed))
 		default:
-			data = uint64(seed)
+			_ = binary.Write(buf, binary.BigEndian, uint64(seed))
 		}
-		_ = binary.Write(buf, binary.BigEndian, data)
 		extra = buf.Bytes()
 	}
 	return GenerateSecret(ecOrder, priKey, sha256.New, msgHash.Bytes(), extra)

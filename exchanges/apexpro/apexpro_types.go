@@ -1001,7 +1001,7 @@ type WsInput struct {
 	Topics      []string `json:"topics,omitempty"`
 	HTTPMethod  string   `json:"httpMethod,omitempty"`
 	RequestPath string   `json:"requestPath,omitempty"`
-	APIKey      string   `json:"apiKey,omitempty"`
+	APIKey      string   `json:"apiKey,omitempty"` //nolint:gosec // API Key is used as an identifier for authentication, not a secret credential.
 	Passphrase  string   `json:"passphrase,omitempty"`
 	Timestamp   int64    `json:"timestamp,omitempty"`
 	Signature   string   `json:"signature,omitempty"`

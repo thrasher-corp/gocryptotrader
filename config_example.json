@@ -289,7 +289,7 @@
   "verbose": false
  },
  "exchanges": [
- {
+  {
    "name": "ApexPro",
    "enabled": true,
    "verbose": false,

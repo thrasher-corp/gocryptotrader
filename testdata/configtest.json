@@ -3288,6 +3288,44 @@
    }
   },
   {
+   "name": "Testexch",
+   "enabled": true,
+   "verbose": false,
+   "httpTimeout": 0,
+   "websocketResponseCheckTimeout": 0,
+   "websocketResponseMaxLimit": 0,
+   "websocketTrafficTimeout": 0,
+   "connectionMonitorDelay": 0,
+   "baseCurrencies": "",
+   "currencyPairs": {
+    "bypassConfigFormatUpgrades": false,
+    "requestFormat": {
+     "uppercase": true
+    },
+    "configFormat": {
+     "uppercase": true,
+     "delimiter": "-"
+    },
+    "useGlobalFormat": true,
+    "pairs": {}
+   },
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret"
+    },
+    "urlEndpoints": null
+   },
+   "features": null,
+   "orderbook": {
+    "verificationBypass": false,
+    "websocketBufferLimit": 0,
+    "websocketBufferEnabled": false
+   }
+  },
+  {
    "name": "Yobit",
    "enabled": true,
    "verbose": false,
@@ -3370,44 +3408,6 @@
    "orderbook": {
     "verificationBypass": false,
     "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false
-   }
-  },
-  {
-   "name": "Testexch",
-   "enabled": true,
-   "verbose": false,
-   "httpTimeout": 0,
-   "websocketResponseCheckTimeout": 0,
-   "websocketResponseMaxLimit": 0,
-   "websocketTrafficTimeout": 0,
-   "connectionMonitorDelay": 0,
-   "baseCurrencies": "",
-   "currencyPairs": {
-    "bypassConfigFormatUpgrades": false,
-    "requestFormat": {
-     "uppercase": true
-    },
-    "configFormat": {
-     "uppercase": true,
-     "delimiter": "-"
-    },
-    "useGlobalFormat": true,
-    "pairs": {}
-   },
-   "api": {
-    "authenticatedSupport": false,
-    "authenticatedWebsocketApiSupport": false,
-    "credentials": {
-     "key": "Key",
-     "secret": "Secret"
-    },
-    "urlEndpoints": null
-   },
-   "features": null,
-   "orderbook": {
-    "verificationBypass": false,
-    "websocketBufferLimit": 0,
     "websocketBufferEnabled": false
    }
   }

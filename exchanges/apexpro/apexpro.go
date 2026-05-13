@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
-	mathRand "math/rand/v2"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -1669,7 +1669,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ePath excha
 }
 
 func randomClientID() string {
-	return strconv.FormatFloat(mathRand.Float64(), 'f', -1, 64)[2:]
+	return strconv.FormatFloat(rand.Float64(), 'f', -1, 64)[2:] //nolint:gosec // uses math/rand for non-cryptographic randomness
 }
 
 func nonceFromClientID(clientID string) *big.Int {
