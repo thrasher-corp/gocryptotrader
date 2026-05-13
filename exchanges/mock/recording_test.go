@@ -403,7 +403,7 @@ func TestHTTPRecord(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filePath, mockData, 0o644))
-	require.Error(t, callRecord(http.MethodPost, "/test/array-err", []byte(`[1, 2, 3]`)), "HTTPRecord must error for invalid array JSON")
+	require.Error(t, callRecord(http.MethodPost, "/test/array-err", []byte(`[{}]`)), "HTTPRecord must error for invalid array JSON")
 }
 
 func TestIsExcluded(t *testing.T) {
