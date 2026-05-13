@@ -3,14 +3,14 @@ package mock
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/url"
-	"reflect"
 	"strconv"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
+
+var errJSONMapPayloadMustBeObject = errors.New("json map payload must be an object")
 
 // MatchURLVals matches url.Value query strings
 func MatchURLVals(v1, v2 url.Values) bool {
@@ -40,16 +40,45 @@ func MatchURLVals(v1, v2 url.Values) bool {
 	return true
 }
 
+// DeriveURLValsFromJSONArray converts a JSON array into a slice of url.Values by processing each array element as a JSON object
+func DeriveURLValsFromJSONArray(payload []byte) ([]url.Values, error) {
+	if len(payload) == 0 {
+		return []url.Values{}, nil
+	}
+	var intermediary []json.RawMessage
+	err := json.Unmarshal(payload, &intermediary)
+	if err != nil {
+		return nil, err
+	}
+
+	vals := make([]url.Values, len(intermediary))
+	for i := range intermediary {
+		var result url.Values
+		if getJSONBodyShape(strings.TrimSpace(string(intermediary[i]))) == jsonBodyArray {
+			result, err = DeriveURLValsFromJSONArrayAsMap(intermediary[i])
+		} else {
+			result, err = DeriveURLValsFromJSONMap(intermediary[i])
+		}
+		if err != nil {
+			return nil, err
+		}
+		vals[i] = result
+	}
+	return vals, nil
+}
+
 // DeriveURLValsFromJSONMap gets url vals from a map[string]string encoded JSON body
 func DeriveURLValsFromJSONMap(payload []byte) (url.Values, error) {
 	vals := url.Values{}
 	if len(payload) == 0 {
 		return vals, nil
 	}
+	if getJSONBodyShape(strings.TrimSpace(string(payload))) == jsonBodyArray {
+		return nil, errJSONMapPayloadMustBeObject
+	}
 	intermediary := make(map[string]any)
-	err := json.Unmarshal(payload, &intermediary)
-	if err != nil {
-		return vals, err
+	if err := json.Unmarshal(payload, &intermediary); err != nil {
+		return nil, err
 	}
 
 	for k, v := range intermediary {
@@ -61,10 +90,50 @@ func DeriveURLValsFromJSONMap(payload []byte) (url.Values, error) {
 		case float64:
 			vals.Add(k, strconv.FormatFloat(val, 'f', -1, 64))
 		case map[string]any, []any, nil:
-			vals.Add(k, fmt.Sprintf("%v", val))
+			b, err := json.Marshal(val)
+			if err != nil {
+				return nil, err
+			}
+			vals.Add(k, string(b))
 		default:
-			log.Println(reflect.TypeOf(val))
-			return vals, errors.New("unhandled conversion type, please add as needed")
+			return nil, fmt.Errorf("unhandled conversion type: %T, please add as needed", val)
+		}
+	}
+
+	return vals, nil
+}
+
+// DeriveURLValsFromJSONArrayAsMap converts a JSON array into url.Values,
+// using indices as keys and stringified values
+func DeriveURLValsFromJSONArrayAsMap(payload []byte) (url.Values, error) {
+	vals := url.Values{}
+	if len(payload) == 0 {
+		return vals, nil
+	}
+	if getJSONBodyShape(strings.TrimSpace(string(payload))) != jsonBodyArray {
+		return nil, errJSONMapPayloadMustBeObject
+	}
+	var intermediary []any
+	if err := json.Unmarshal(payload, &intermediary); err != nil {
+		return nil, err
+	}
+
+	for k, v := range intermediary {
+		switch val := v.(type) {
+		case string:
+			vals.Add(strconv.Itoa(k), val)
+		case bool:
+			vals.Add(strconv.Itoa(k), strconv.FormatBool(val))
+		case float64:
+			vals.Add(strconv.Itoa(k), strconv.FormatFloat(val, 'f', -1, 64))
+		case map[string]any, []any, nil:
+			b, err := json.Marshal(val)
+			if err != nil {
+				return vals, err
+			}
+			vals.Add(strconv.Itoa(k), string(b))
+		default:
+			return nil, fmt.Errorf("unhandled conversion type: %T, please add as needed", val)
 		}
 	}
 
