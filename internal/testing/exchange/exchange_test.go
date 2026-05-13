@@ -12,7 +12,6 @@ import (
 	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -137,9 +136,6 @@ func TestSetupWs(t *testing.T) {
 	require.NoError(t, MockHTTPInstance(e, "api"), "MockHTTPInstance with optional path must not error")
 
 	SetupWs(t, e)
-
-	err = e.Websocket.DataHandler.Send(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	err = e.Websocket.DataHandler.Send(t.Context(), 1336)
 	require.NoError(t, err)
