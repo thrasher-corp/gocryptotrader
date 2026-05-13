@@ -122,14 +122,14 @@ func GenerateKRfc6979(msgHash, priKey, ecOrder *big.Int, seed uint64) *big.Int {
 	if seed > 0 {
 		buf := new(bytes.Buffer)
 		switch {
-		case seed < (1 << 8):
-			_ = binary.Write(buf, binary.BigEndian, uint8(seed))
-		case seed < (1 << 16):
-			_ = binary.Write(buf, binary.BigEndian, uint16(seed))
-		case seed < (1 << 32):
-			_ = binary.Write(buf, binary.BigEndian, uint32(seed))
+		case seed < 256:
+			_ = binary.Write(buf, binary.BigEndian, uint8(seed)) //nolint:gosec // G115: seed < 256 is enforced by the case condition
+		case seed < 65536:
+			_ = binary.Write(buf, binary.BigEndian, uint16(seed)) //nolint:gosec // G115: seed < 65536 is enforced by the case condition
+		case seed < 4294967296:
+			_ = binary.Write(buf, binary.BigEndian, uint32(seed)) //nolint:gosec // G115: seed < 4294967296 is enforced by the case condition
 		default:
-			_ = binary.Write(buf, binary.BigEndian, uint64(seed))
+			_ = binary.Write(buf, binary.BigEndian, seed)
 		}
 		extra = buf.Bytes()
 	}
