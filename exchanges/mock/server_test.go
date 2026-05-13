@@ -402,13 +402,13 @@ func TestMessageWriteJSON(t *testing.T) {
 	w := httptest.NewRecorder()
 	MessageWriteJSON(w, http.StatusOK, nil)
 	assert.Equal(t, http.StatusOK, w.Code, "status code should be correct")
-	assert.Equal(t, applicationJSON, w.Header().Get(contentType), "Content-Type should be set")
+	assert.Equal(t, applicationJSON, w.Header().Get(contentType), "Content-Type should be set") //nolint:testifylint //false positive; assert.JSONEq is not applicable for Content-Type header comparison
 	assert.Empty(t, w.Body.String(), "nil data should produce empty body")
 
 	w = httptest.NewRecorder()
 	MessageWriteJSON(w, http.StatusCreated, map[string]string{"key": "value"})
 	assert.Equal(t, http.StatusCreated, w.Code, "status code should be correct")
-	assert.Equal(t, applicationJSON, w.Header().Get(contentType), "Content-Type should be set")
+	assert.Equal(t, applicationJSON, w.Header().Get(contentType), "Content-Type should be set") //nolint:testifylint //false positive; assert.JSONEq is not applicable for Content-Type header comparison
 	assert.JSONEq(t, `{"key":"value"}`, strings.TrimSpace(w.Body.String()), "body should contain encoded JSON")
 
 	w = httptest.NewRecorder()
