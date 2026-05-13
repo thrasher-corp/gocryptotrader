@@ -72,7 +72,7 @@ func TestMain(m *testing.M) {
 	if apiKey != "" && apiSecret != "" && passphrase != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(apiKey, apiSecret, passphrase, "", "", "")
+		e.SetCredentials(apiKey, apiSecret, passphrase, "", "", "", "", "", "")
 		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 
@@ -4083,7 +4083,7 @@ func TestWsHandleData(t *testing.T) {
 		case "Balance And Position":
 			e.API.AuthenticatedSupport = true
 			e.API.AuthenticatedWebsocketSupport = true
-			e.SetCredentials("test", "test", "test", "", "", "")
+			e.SetCredentials("test", "test", "test", "", "", "", "", "", "")
 		default:
 			e.API.AuthenticatedSupport = false
 			e.API.AuthenticatedWebsocketSupport = false

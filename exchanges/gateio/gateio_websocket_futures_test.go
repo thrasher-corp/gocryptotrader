@@ -168,7 +168,7 @@ func TestGenerateFuturesPayload(t *testing.T) {
 		ex.Name = "generateFuturesPayloadAuthTest"
 		ex.API.AuthenticatedWebsocketSupport = true
 		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-		ex.SetCredentials("key", "secret", "", "", "", "")
+		ex.SetCredentials("key", "secret", "", "", "", "", "", "", "")
 
 		got, err := ex.generateFuturesPayload(t.Context(), subscribeEvent, subscription.List{
 			&subscription.Subscription{

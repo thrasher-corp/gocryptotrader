@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/apexpro"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binanceus"
@@ -916,6 +917,8 @@ func genCert(targetDir string) error {
 // supported.
 func NewSupportedExchangeByName(name string) (exchange.IBotExchange, error) {
 	switch strings.ToLower(name) {
+	case "apexpro":
+		return new(apexpro.Exchange), nil
 	case "binanceus":
 		return new(binanceus.Exchange), nil
 	case "binance":

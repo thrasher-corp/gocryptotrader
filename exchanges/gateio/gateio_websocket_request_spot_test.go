@@ -204,7 +204,7 @@ func newExchangeWithWebsocket(t *testing.T, a asset.Item) *Exchange {
 	testexch.UpdatePairsOnce(t, e)
 	e.API.AuthenticatedSupport = true
 	e.API.AuthenticatedWebsocketSupport = true
-	e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+	e.SetCredentials(apiKey, apiSecret, "", "", "", "", "", "", "")
 	e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 
 	// Disable all other asset types to ensure only the specified asset type is used for websocket tests.

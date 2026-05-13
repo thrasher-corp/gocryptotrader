@@ -65,6 +65,7 @@ A helper tool [cmd/dbseed](../cmd/dbseed/README.md) has been created for assisti
 ## Exchange status
 | Exchange       | Supported   | 
 |----------------|-------------|
+| ApexPro        | Y           |
 | Binance.US	 | Y		   | 
 | Binance        | Y           | 
 | Bitfinex       | Y           | 

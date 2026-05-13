@@ -47,7 +47,7 @@ func (e *Exchange) setAPICredential(apiKey, apiSecret string) { //nolint:unparam
 	if apiKey != "" && apiSecret != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.SetCredentials(apiKey, apiSecret, "", "", "", "", "", "", "")
 		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 }

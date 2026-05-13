@@ -220,7 +220,7 @@ func configureExchangeKeys() bool {
 		return false
 	}
 	b := ex.GetBase()
-	b.SetCredentials(exchAPIKEY, exchAPISECRET, exchClientID, "", "", "")
+	b.SetCredentials(exchAPIKEY, exchAPISECRET, exchClientID, "", "", "", "", "", "")
 	b.SkipAuthCheck = true
 	return b.AreCredentialsValid(context.Background())
 }

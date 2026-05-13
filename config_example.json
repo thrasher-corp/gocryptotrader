@@ -290,6 +290,95 @@
  },
  "exchanges": [
   {
+   "name": "ApexPro",
+   "enabled": true,
+   "verbose": false,
+   "httpTimeout": 15000000000,
+   "websocketResponseCheckTimeout": 30000000,
+   "websocketResponseMaxLimit": 7000000000,
+   "websocketTrafficTimeout": 30000000000,
+   "connectionMonitorDelay": 0,
+   "baseCurrencies": "USD,GBP,EUR",
+   "currencyPairs": {
+    "bypassConfigFormatUpgrades": false,
+    "pairs": {
+     "futures": {
+      "assetEnabled": true,
+      "enabled": "BTC-USDC",
+      "available": "BTC-USDC,ETH-USDC,AVAX-USDC,1000PEPE-USDC,ARB-USDC,XRP-USDC,ATOM-USDC,DOGE-USDC,MATIC-USDC,OP-USDC,SOL-USDC,BNB-USDC,LTC-USDC,APT-USDC,LDO-USDC,BLUR-USDC,BCH-USDC,WLD-USDC,LINK-USDC,LBR-USDC,TON-USDC,DYDX-USDC,TIA-USDC",
+      "requestFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      },
+      "configFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      }
+     }
+    }
+   },
+   "api": {
+    "authenticatedSupport": false,
+    "authenticatedWebsocketApiSupport": false,
+    "credentials": {
+     "key": "Key",
+     "secret": "Secret",
+     "clientID": "ClientID",
+     "l2Key": "l2Key",
+     "l2Secret": "l2Secret",
+     "l2KeyYCoordinate": "l2KeyYCoordinate"
+    },
+    "credentialsValidator": {
+     "requiresKey": true,
+     "requiresSecret": true,
+     "requiresClientID": true
+    },
+    "endpoints": {
+     "url": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "urlSecondary": "NON_DEFAULT_HTTP_LINK_TO_EXCHANGE_API",
+     "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
+    },
+    "urlEndpoints": null
+   },
+   "features": {
+    "supports": {
+     "restAPI": true,
+     "restCapabilities": {
+      "autoPairUpdates": true,
+      "fundingRateFetching": false
+     },
+     "websocketAPI": true
+    },
+    "enabled": {
+     "autoPairUpdates": true,
+     "websocketAPI": true,
+     "saveTradeData": false,
+     "tradeFeed": false,
+     "fillsFeed": false
+    }
+   },
+   "bankAccounts": [
+    {
+     "enabled": false,
+     "bankName": "",
+     "bankAddress": "",
+     "bankPostalCode": "",
+     "bankPostalCity": "",
+     "bankCountry": "",
+     "accountName": "",
+     "accountNumber": "",
+     "swiftCode": "",
+     "iban": "",
+     "supportedCurrencies": ""
+    }
+   ],
+   "orderbook": {
+    "verificationBypass": false,
+    "websocketBufferLimit": 5,
+    "websocketBufferEnabled": false
+   }
+  },
+  {
    "name": "BTC Markets",
    "enabled": true,
    "verbose": false,

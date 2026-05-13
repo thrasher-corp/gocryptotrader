@@ -47,7 +47,7 @@ func TestMain(m *testing.M) {
 	if apiKey != "" && apiSecret != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.SetCredentials(apiKey, apiSecret, "", "", "", "", "", "", "")
 	}
 
 	os.Exit(m.Run())
@@ -157,7 +157,7 @@ func TestUserMarginGETUsesQueryNotBody(t *testing.T) {
 	err := testexch.Setup(ex)
 	require.NoError(t, err, "Setup must not error")
 	ex.API.AuthenticatedSupport = true
-	ex.SetCredentials("test-key", "test-secret", "", "", "", "")
+	ex.SetCredentials("test-key", "test-secret", "", "", "", "", "", "", "")
 
 	call := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

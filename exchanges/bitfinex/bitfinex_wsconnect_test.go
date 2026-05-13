@@ -65,7 +65,7 @@ func TestWsConnectAuthDialFailureSkipsAuthReaderAndAuthSend(t *testing.T) {
 
 	ex.API.AuthenticatedSupport = true
 	ex.API.AuthenticatedWebsocketSupport = true
-	ex.SetCredentials("key", "secret", "", "", "", "")
+	ex.SetCredentials("key", "secret", "", "", "", "", "", "", "")
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 
 	publicConn := &wsConnectFixtureConnection{}

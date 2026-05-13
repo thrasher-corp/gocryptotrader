@@ -55,7 +55,7 @@ func testInstance() *Exchange {
 		log.Fatalf("Bybit Setup error: %s", err)
 	}
 
-	b.SetCredentials("mock", "tester", "", "", "", "") // Hack for UpdateAccountBalances test
+	b.SetCredentials("mock", "tester", "", "", "", "", "", "", "") // Hack for UpdateAccountBalances test
 
 	if err := testexch.MockHTTPInstance(b); err != nil {
 		log.Fatalf("Bybit MockHTTPInstance error: %s", err)

@@ -44,7 +44,7 @@ func TestMain(m *testing.M) {
 	if apiKey != "" && clientID != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(apiKey, clientID, "", "", "", "")
+		e.SetCredentials(apiKey, clientID, "", "", "", "", "", "", "")
 	}
 
 	if err := e.SeedInstruments(context.Background()); err != nil {

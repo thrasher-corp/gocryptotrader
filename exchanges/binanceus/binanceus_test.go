@@ -47,7 +47,7 @@ func TestMain(m *testing.M) {
 	if apiKey != "" && apiSecret != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.SetCredentials(apiKey, apiSecret, "", "", "", "", "", "", "")
 	}
 
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit

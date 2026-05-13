@@ -148,6 +148,7 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 
 ```go
 var Exchanges = []string{
+	"apexpro",
     "binance", // <-------- new exchange
     "bitfinex",
     "bitflyer",

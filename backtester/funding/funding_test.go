@@ -774,7 +774,7 @@ func TestUpdateFundingFromLiveData(t *testing.T) {
 		// this test requires auth to get coverage
 		return
 	}
-	ff.SetCredentials(apiKey, apiSec, "", subAccount, "", "")
+	ff.SetCredentials(apiKey, apiSec, "", subAccount, "", "", "", "", "")
 
 	err = f.UpdateFundingFromLiveData(true)
 	assert.NoError(t, err)
@@ -832,7 +832,7 @@ func TestUpdateAllCollateral(t *testing.T) {
 		// this test requires auth to get coverage
 		return
 	}
-	ff.SetCredentials(apiKey, apiSec, "", subAccount, "", "")
+	ff.SetCredentials(apiKey, apiSec, "", subAccount, "", "", "", "", "")
 	err = f.UpdateAllCollateral(true, true)
 	assert.NoError(t, err)
 }

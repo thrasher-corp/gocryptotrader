@@ -1911,7 +1911,7 @@ func exchangeBaseHelper(e *Exchange) error {
 		return err
 	}
 	if apiKey != "" {
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.SetCredentials(apiKey, apiSecret, "", "", "", "", "", "", "")
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
 	}
