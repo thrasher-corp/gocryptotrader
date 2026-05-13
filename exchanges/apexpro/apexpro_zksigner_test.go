@@ -32,7 +32,7 @@ func TestNewZKLinkSignerFromSeeds(t *testing.T) {
 
 	signer2, err := zklink.NewZKLinkSignerFromSeeds(seeds)
 	require.NoError(t, err)
-	assert.Equal(t, pubBytes, signer2.PublicKeyBytes(), "key derivation must be deterministic")
+	assert.Equal(t, pubBytes, signer2.PublicKeyBytes(), "key derivation should be deterministic")
 }
 
 func TestNewZKLinkSignerFromSeedsErrors(t *testing.T) {
@@ -57,15 +57,15 @@ func TestZKLinkSignerSign(t *testing.T) {
 	msg := big.NewInt(12345678)
 	sig1, err := signer.Sign(msg)
 	require.NoError(t, err)
-	assert.Len(t, sig1, 64, "signature must be 64 bytes")
+	assert.Len(t, sig1, 64, "signature should be 64 bytes")
 
 	sig2, err := signer.Sign(msg)
 	require.NoError(t, err)
-	assert.Equal(t, sig1, sig2, "signing same message must be deterministic")
+	assert.Equal(t, sig1, sig2, "signing same message should be deterministic")
 
 	sig3, err := signer.Sign(big.NewInt(87654321))
 	require.NoError(t, err)
-	assert.NotEqual(t, sig1, sig3, "different messages must produce different signatures")
+	assert.NotEqual(t, sig1, sig3, "different messages should produce different signatures")
 }
 
 func TestContractBuilderGetBytes(t *testing.T) {
@@ -87,7 +87,7 @@ func TestContractBuilderGetBytes(t *testing.T) {
 
 	msgBytes := builder.GetBytes()
 	require.NotNil(t, msgBytes)
-	assert.Positive(t, msgBytes.BitLen(), "message bytes must be non-zero")
+	assert.Positive(t, msgBytes.BitLen(), "message bytes should be non-zero")
 }
 
 func TestWithdrawBuilderGetBytes(t *testing.T) {
@@ -110,7 +110,7 @@ func TestWithdrawBuilderGetBytes(t *testing.T) {
 
 	msgBytes := builder.GetBytes()
 	require.NotNil(t, msgBytes)
-	assert.Positive(t, msgBytes.BitLen(), "message bytes must be non-zero")
+	assert.Positive(t, msgBytes.BitLen(), "message bytes should be non-zero")
 }
 
 func TestRescueHashBigInt(t *testing.T) {
@@ -120,10 +120,10 @@ func TestRescueHashBigInt(t *testing.T) {
 	require.NotNil(t, result)
 
 	result2 := zklink.RescueHashBigInt(msg)
-	assert.Equal(t, result.Bytes(), result2.Bytes(), "hash must be deterministic")
+	assert.Equal(t, result.Bytes(), result2.Bytes(), "hash should be deterministic")
 
 	result3 := zklink.RescueHashBigInt(big.NewInt(0).Add(msg, big.NewInt(1)))
-	assert.NotEqual(t, result.Bytes(), result3.Bytes(), "different inputs must produce different hashes")
+	assert.NotEqual(t, result.Bytes(), result3.Bytes(), "different inputs should produce different hashes")
 }
 
 func TestRescueHashBigIntDifferentSizes(t *testing.T) {
@@ -191,5 +191,5 @@ func TestProcessZKKeyOrderSignature_Integration(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
-	assert.Len(t, result, 128, "signature must be 128 hex chars (64 bytes)")
+	assert.Len(t, result, 128, "signature should be 128 hex chars (64 bytes)")
 }

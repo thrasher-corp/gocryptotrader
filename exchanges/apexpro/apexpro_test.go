@@ -1179,13 +1179,13 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 
 	execLimits, err := e.GetOrderExecutionLimits(asset.Futures, pairs[0])
 	assert.NoErrorf(t, err, "GetOrderExecutionLimits should not error for %s pair %s", asset.Futures, pairs[0])
-	assert.Positivef(t, execLimits.MinPrice, "MinPrice must be positive for %s pair %s", asset.Futures, pairs[0])
-	assert.Positivef(t, execLimits.PriceStepIncrementSize, "PriceStepIncrementSize must be positive for %s pair %s", asset.Futures, pairs[0])
-	assert.Positivef(t, execLimits.MinimumBaseAmount, "MinimumBaseAmount must be positive for %s pair %s", asset.Futures, pairs[0])
-	assert.Positivef(t, execLimits.MaximumBaseAmount, "MaximumBaseAmount must be positive for %s pair %s", asset.Futures, pairs[0])
-	assert.Positivef(t, execLimits.AmountStepIncrementSize, "AmountStepIncrementSize must be positive for %s pair %s", asset.Futures, pairs[0])
-	assert.Positivef(t, execLimits.MarketMaxQty, "MarketMaxQty must be positive for %s pair %s", asset.Futures, pairs[0])
-	assert.Positivef(t, execLimits.MaxTotalOrders, "MaxTotalOrders must be positive for %s pair %s", asset.Futures, pairs[0])
+	assert.Positivef(t, execLimits.MinPrice, "MinPrice should be positive for %s pair %s", asset.Futures, pairs[0])
+	assert.Positivef(t, execLimits.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s pair %s", asset.Futures, pairs[0])
+	assert.Positivef(t, execLimits.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s pair %s", asset.Futures, pairs[0])
+	assert.Positivef(t, execLimits.MaximumBaseAmount, "MaximumBaseAmount should be positive for %s pair %s", asset.Futures, pairs[0])
+	assert.Positivef(t, execLimits.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s pair %s", asset.Futures, pairs[0])
+	assert.Positivef(t, execLimits.MarketMaxQty, "MarketMaxQty should be positive for %s pair %s", asset.Futures, pairs[0])
+	assert.Positivef(t, execLimits.MaxTotalOrders, "MaxTotalOrders should be positive for %s pair %s", asset.Futures, pairs[0])
 }
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {

@@ -1182,7 +1182,7 @@ type UserLoanRepaymentParams struct {
 // LoanRepaymentTokenAndAmountList holds list of tokens and amount details
 type LoanRepaymentTokenAndAmountList []*RepaymentTokenAndAmount
 
-// MarshalJSON serializes the LoanRepaymentTokenAndAmount into byte data
+// MarshalJSON serialises the LoanRepaymentTokenAndAmount into byte data
 func (l LoanRepaymentTokenAndAmountList) MarshalJSON() ([]byte, error) {
 	var marshaledString string
 	for a := range l {

@@ -46,22 +46,22 @@ func (p *Point) Add(p1, p2 *Point) *Point {
 	ecurve := GetEdwardsCurve()
 
 	var xu, yv, xv, yu, dxyuv, one, denx, deny fr.Element
-	pRes := new(Point)
+	pResult := new(Point)
 	xv.Mul(&p1.X, &p2.Y)
 	yu.Mul(&p1.Y, &p2.X)
-	pRes.X.Add(&xv, &yu)
+	pResult.X.Add(&xv, &yu)
 
 	xu.Mul(&p1.X, &p2.X).Mul(&xu, &ecurve.A)
 	yv.Mul(&p1.Y, &p2.Y)
-	pRes.Y.Sub(&yv, &xu)
+	pResult.Y.Sub(&yv, &xu)
 
 	dxyuv.Mul(&xv, &yu).Mul(&dxyuv, &ecurve.D)
 	one.SetOne()
 	denx.Add(&one, &dxyuv)
 	deny.Sub(&one, &dxyuv)
 
-	p.X.Div(&pRes.X, &denx)
-	p.Y.Div(&pRes.Y, &deny)
+	p.X.Div(&pResult.X, &denx)
+	p.Y.Div(&pResult.Y, &deny)
 
 	return p
 }
