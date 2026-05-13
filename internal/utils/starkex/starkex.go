@@ -134,7 +134,7 @@ func (sc *StarkConfig) SignECDSA(msgHash, privKey *big.Int, seed ...*big.Int) (r
 	}
 	nBit := big.NewInt(0).Exp(big.NewInt(2), NElementBitsECDSA, nil)
 	for {
-		k := math_utils.GenerateKRfc6979(msgHash, privKey, sc.N, int(inSeed.Int64()))
+		k := math_utils.GenerateKRfc6979(msgHash, privKey, sc.N, inSeed.Uint64())
 		// In case r is rejected k shall be generated with new seed
 		if inSeed.Int64() == 0 {
 			inSeed = big.NewInt(1)

@@ -112,7 +112,7 @@ func IGCdex(a, b *big.Int) (x, y, g *big.Int) {
 // GenerateKRfc6979 generates a deterministic 'k' value as specified in RFC 6979 for use in ECDSA signatures.
 // This method ensures that the same private key and message will always produce the same 'k', providing
 // a defense against certain attacks that exploit poor randomness in 'k' values.
-func GenerateKRfc6979(msgHash, priKey, ecOrder *big.Int, seed int) *big.Int {
+func GenerateKRfc6979(msgHash, priKey, ecOrder *big.Int, seed uint64) *big.Int {
 	msgHash = big.NewInt(0).Set(msgHash) // copy
 	bitMod := msgHash.BitLen() % 8
 	if bitMod <= 4 && bitMod >= 1 && msgHash.BitLen() > 248 {
@@ -122,11 +122,11 @@ func GenerateKRfc6979(msgHash, priKey, ecOrder *big.Int, seed int) *big.Int {
 	if seed > 0 {
 		buf := new(bytes.Buffer)
 		switch {
-		case seed < 256:
+		case seed < (1 << 8):
 			_ = binary.Write(buf, binary.BigEndian, uint8(seed))
-		case seed < 65536:
+		case seed < (1 << 16):
 			_ = binary.Write(buf, binary.BigEndian, uint16(seed))
-		case seed < 4294967296:
+		case seed < (1 << 32):
 			_ = binary.Write(buf, binary.BigEndian, uint32(seed))
 		default:
 			_ = binary.Write(buf, binary.BigEndian, uint64(seed))
