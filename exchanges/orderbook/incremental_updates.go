@@ -38,13 +38,15 @@ var (
 
 // Update holds changes that are to be applied to a stored orderbook
 type Update struct {
-	UpdateID   int64
-	UpdateTime time.Time
-	LastPushed time.Time
-	Asset      asset.Item
-	Bids       Levels
-	Asks       Levels
-	Pair       currency.Pair
+	UpdateID       int64
+	UpdateTime     time.Time
+	LastPushed     time.Time
+	ReachedCodeAt  time.Time
+	ChecksumDoneAt time.Time
+	Asset          asset.Item
+	Bids           Levels
+	Asks           Levels
+	Pair           currency.Pair
 
 	// ExpectedChecksum defines the expected value when the books have been verified
 	ExpectedChecksum uint32

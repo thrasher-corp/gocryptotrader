@@ -4643,7 +4643,7 @@ func TestPutWsOrderbookLevels(t *testing.T) {
 
 	items := orderbook.Levels{{Price: 1}, {Price: 2}}
 	putWsOrderbookLevels(&items)
-	require.Len(t, items, 0, "putWsOrderbookLevels must reset pooled slice length")
+	require.Empty(t, items, "putWsOrderbookLevels must reset pooled slice length")
 }
 
 func TestAppendOrderbookChecksumLevel(t *testing.T) {

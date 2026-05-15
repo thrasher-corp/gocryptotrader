@@ -23,13 +23,13 @@ const (
 // Public errors
 var (
 	ErrOrderbookNotFound = errors.New("cannot find orderbook(s)")
+	ErrAssetTypeNotSet   = errors.New("orderbook asset type not set")
 	ErrPriceZero         = errors.New("price cannot be zero")
 	ErrExchangeNameEmpty = errors.New("empty orderbook exchange name")
 )
 
 var (
 	errPairNotSet           = errors.New("orderbook currency pair not set")
-	errAssetTypeNotSet      = errors.New("orderbook asset type not set")
 	errAmountInvalid        = errors.New("amount cannot be less or equal to zero")
 	errPriceOutOfOrder      = errors.New("pricing out of order")
 	errIDOutOfOrder         = errors.New("ID out of order")
@@ -102,6 +102,14 @@ type Book struct {
 	// from the exchange.
 	LastPushed time.Time
 
+	// ReachedGCTAt is to determine when it reaches GCT, before its been processed into
+	// the orderbook package. Use a time.Now at the start of the function that will process
+	// the websocket orderbook json
+	ReachedGCTAt time.Time
+
+	// ChecksumCompletedAt is when checksum validation finished for this update.
+	ChecksumCompletedAt time.Time
+
 	// InsertedAt is the time the update was inserted into the orderbook
 	// management system. This field is used to calculate round-trip times and
 	// processing delays, e.g., InsertedAt.Sub(LastPushed) represents the
@@ -139,6 +147,8 @@ type options struct {
 	asset                  asset.Item
 	lastUpdated            time.Time
 	lastPushed             time.Time
+	reachedGCTAt           time.Time
+	checksumCompletedAt    time.Time
 	insertedAt             time.Time
 	lastUpdateID           int64
 	priceDuplication       bool
