@@ -820,6 +820,7 @@ func (e *Exchange) wsProcessPublicSpreadTrades(respRaw []byte) error {
 
 // wsProcessSpreadOrderbook process spread orderbook data.
 func (e *Exchange) wsProcessSpreadOrderbook(respRaw []byte) error {
+	rca := time.Now()
 	var resp WsSpreadOrderbook
 	err := json.Unmarshal(respRaw, &resp)
 	if err != nil {
@@ -833,15 +834,18 @@ func (e *Exchange) wsProcessSpreadOrderbook(respRaw []byte) error {
 	if err != nil {
 		return err
 	}
+	checksumDoneAt := time.Now()
 	for x := range extractedResponse.Data {
 		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-			Asset:             asset.Spread,
-			Asks:              extractedResponse.Data[x].Asks,
-			Bids:              extractedResponse.Data[x].Bids,
-			LastUpdated:       resp.Data[x].Timestamp.Time(),
-			Pair:              pair,
-			Exchange:          e.Name,
-			ValidateOrderbook: e.ValidateOrderbook,
+			Asset:               asset.Spread,
+			Asks:                extractedResponse.Data[x].Asks,
+			Bids:                extractedResponse.Data[x].Bids,
+			LastUpdated:         resp.Data[x].Timestamp.Time(),
+			ReachedGCTAt:        rca,
+			ChecksumCompletedAt: checksumDoneAt,
+			Pair:                pair,
+			Exchange:            e.Name,
+			ValidateOrderbook:   e.ValidateOrderbook,
 		})
 		if err != nil {
 			return err
@@ -852,6 +856,7 @@ func (e *Exchange) wsProcessSpreadOrderbook(respRaw []byte) error {
 
 // wsProcessOrderbook5 processes orderbook data
 func (e *Exchange) wsProcessOrderbook5(data []byte) error {
+	rca := time.Now()
 	var resp WsOrderbook5
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
@@ -878,16 +883,19 @@ func (e *Exchange) wsProcessOrderbook5(data []byte) error {
 		bids[x].Price = resp.Data[0].Bids[x][0].Float64()
 		bids[x].Amount = resp.Data[0].Bids[x][1].Float64()
 	}
+	checksumDoneAt := time.Now()
 
 	for x := range assets {
 		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-			Asset:             assets[x],
-			Asks:              asks,
-			Bids:              bids,
-			LastUpdated:       resp.Data[0].Timestamp.Time(),
-			Pair:              resp.Argument.InstrumentID,
-			Exchange:          e.Name,
-			ValidateOrderbook: e.ValidateOrderbook,
+			Asset:               assets[x],
+			Asks:                asks,
+			Bids:                bids,
+			ReachedGCTAt:        rca,
+			ChecksumCompletedAt: checksumDoneAt,
+			LastUpdated:         resp.Data[0].Timestamp.Time(),
+			Pair:                resp.Argument.InstrumentID,
+			Exchange:            e.Name,
+			ValidateOrderbook:   e.ValidateOrderbook,
 		})
 		if err != nil {
 			return err
@@ -983,6 +991,7 @@ func (e *Exchange) wsProcessOrderBooks(ctx context.Context, conn websocket.Conne
 
 // WsProcessSnapshotOrderBook processes snapshot order books
 func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
+	reachedCodeAt := time.Now()
 	signedChecksum, err := e.CalculateOrderbookChecksum(data)
 	if err != nil {
 		return fmt.Errorf("%w %v: unable to calculate orderbook checksum: %s", errInvalidChecksum, pair, err)
@@ -990,20 +999,23 @@ func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curren
 	if signedChecksum != uint32(data.Checksum) { //nolint:gosec // Requires type casting
 		return fmt.Errorf("%w %v", errInvalidChecksum, pair)
 	}
+	checksumDoneAt := time.Now()
 
 	asks, asksPoolItem := appendWsOrderbookItemsFromPool(data.Asks)
 	bids, bidsPoolItem := appendWsOrderbookItemsFromPool(data.Bids)
 	lastUpdated := data.Timestamp.Time()
 	for i := range assets {
 		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-			LastUpdateID:      data.SequenceID,
-			Asset:             assets[i],
-			Asks:              asks,
-			Bids:              bids,
-			LastUpdated:       lastUpdated,
-			Pair:              pair,
-			Exchange:          e.Name,
-			ValidateOrderbook: e.ValidateOrderbook,
+			LastUpdateID:        data.SequenceID,
+			Asset:               assets[i],
+			Asks:                asks,
+			Bids:                bids,
+			LastUpdated:         lastUpdated,
+			ReachedGCTAt:        reachedCodeAt,
+			ChecksumCompletedAt: checksumDoneAt,
+			Pair:                pair,
+			Exchange:            e.Name,
+			ValidateOrderbook:   e.ValidateOrderbook,
 		}); err != nil {
 			putWsOrderbookLevels(asksPoolItem)
 			putWsOrderbookLevels(bidsPoolItem)
@@ -1019,11 +1031,12 @@ func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curren
 // After merging WS data, it will sort, validate and finally update the existing
 // orderbook
 func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
+	rca := time.Now()
 	asks, asksPoolItem := appendWsOrderbookItemsFromPool(data.Asks)
 	bids, bidsPoolItem := appendWsOrderbookItemsFromPool(data.Bids)
 	updateTime := data.Timestamp.Time()
 	for i := range assets {
-		if err := e.Websocket.Orderbook.Update(&orderbook.Update{
+		obu := &orderbook.Update{
 			UpdateID:         data.SequenceID,
 			Pair:             pair,
 			Asset:            assets[i],
@@ -1033,8 +1046,11 @@ func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency
 			ExpectedChecksum: uint32(data.Checksum), //nolint:gosec // Requires type casting
 			Asks:             asks,
 			Bids:             bids,
+			ReachedCodeAt:    rca,
 			AllowEmpty:       true, // Allow empty levels to push forward sequence ID
-		}); err != nil {
+		}
+		obu.ChecksumDoneAt = time.Now()
+		if err := e.Websocket.Orderbook.Update(obu); err != nil {
 			putWsOrderbookLevels(asksPoolItem)
 			putWsOrderbookLevels(bidsPoolItem)
 			return err
