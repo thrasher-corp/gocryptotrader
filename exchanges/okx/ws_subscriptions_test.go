@@ -355,6 +355,36 @@ func TestOptionFamilyChannels(t *testing.T) {
 	}), "option summary must be an instrument family channel")
 }
 
+func TestIsInstFamilyChannel(t *testing.T) {
+	t.Parallel()
+
+	require.True(t, isInstFamilyChannel(&subscription.Subscription{
+		Channel: subscription.AllTradesChannel,
+		Asset:   asset.Options,
+	}), "options all trades must be identified as instrument family channel")
+	require.True(t, isInstFamilyChannel(&subscription.Subscription{
+		Channel: subscription.TickerChannel,
+		Asset:   asset.Options,
+	}), "options ticker must be identified as instrument family channel")
+	require.False(t, isInstFamilyChannel(&subscription.Subscription{
+		Channel: subscription.AllTradesChannel,
+		Asset:   asset.Spot,
+	}), "spot all trades must not be identified as instrument family channel")
+}
+
+func TestSubscriptionForAsset(t *testing.T) {
+	t.Parallel()
+
+	original := &subscription.Subscription{
+		Channel: subscription.AllTradesChannel,
+		Asset:   asset.Spot,
+	}
+	cloned := subscriptionForAsset(original, asset.Options)
+	require.NotNil(t, cloned, "cloned subscription must not be nil")
+	require.Equal(t, asset.Options, cloned.Asset, "cloned subscription must contain replacement asset")
+	require.Equal(t, asset.Spot, original.Asset, "original subscription must remain unchanged")
+}
+
 func TestOptionInstrumentFamilyFromPair(t *testing.T) {
 	t.Parallel()
 

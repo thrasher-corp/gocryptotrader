@@ -280,7 +280,7 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.Equal(t, order.Buy.Lower(), arg.Side)
-		assert.Equal(t, positionSideShort, arg.PositionSide)
+		assert.Empty(t, arg.PositionSide)
 		assert.True(t, arg.ReduceOnly)
 	})
 

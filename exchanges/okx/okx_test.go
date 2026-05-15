@@ -826,7 +826,7 @@ func TestPlaceOrder(t *testing.T) {
 
 	arg.AssetType = asset.Futures
 	_, err = e.PlaceOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.PositionSide = "long"
 	_, err = e.PlaceOrder(contextGenerate(), arg)
@@ -908,7 +908,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 
 	arg.AssetType = asset.Futures
 	_, err = e.PlaceMultipleOrders(contextGenerate(), []PlaceOrderRequestParam{arg})
-	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.PositionSide = "long"
 	_, err = e.PlaceMultipleOrders(contextGenerate(), []PlaceOrderRequestParam{arg})
@@ -4492,6 +4492,15 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 	}
 }
 
+func TestGetAssetsFromInstrumentID(t *testing.T) {
+	t.Parallel()
+
+	e := new(Exchange)
+	assets, err := e.getAssetsFromInstrumentID("BTC-USD-240329-70000-C")
+	require.NoError(t, err, "getAssetsFromInstrumentID must not error for option instrument IDs")
+	require.Equal(t, []asset.Item{asset.Options}, assets, "getAssetsFromInstrumentID must infer options asset type")
+}
+
 func TestWsOrderBookLevelUnmarshalJSON(t *testing.T) {
 	t.Parallel()
 
@@ -4545,6 +4554,62 @@ func TestWsOrderBookLevelUnmarshalJSON(t *testing.T) {
 			assert.Equal(t, testCase.expectedAmountString, level.AmountString, "AmountString should match")
 		})
 	}
+}
+
+func TestAppendWsOrderbookItems(t *testing.T) {
+	t.Parallel()
+
+	entries := []WsOrderBookLevel{
+		{
+			Price:        100.5,
+			Amount:       2.25,
+			PriceString:  "100.5",
+			AmountString: "2.25",
+		},
+	}
+	items, err := new(Exchange).AppendWsOrderbookItems(entries)
+	require.NoError(t, err, "AppendWsOrderbookItems must not error")
+	require.Len(t, items, 1, "AppendWsOrderbookItems must return one orderbook item")
+	assert.Equal(t, 100.5, items[0].Price, "orderbook price should match")
+	assert.Equal(t, 2.25, items[0].Amount, "orderbook amount should match")
+	assert.Equal(t, "100.5", items[0].StrPrice, "orderbook price string should match")
+	assert.Equal(t, "2.25", items[0].StrAmount, "orderbook amount string should match")
+}
+
+func TestAppendWsOrderbookItemsFromPool(t *testing.T) {
+	t.Parallel()
+
+	entries := []WsOrderBookLevel{
+		{Price: 1, Amount: 2, PriceString: "1", AmountString: "2"},
+		{Price: 3, Amount: 4, PriceString: "3", AmountString: "4"},
+	}
+	items, pooled := appendWsOrderbookItemsFromPool(entries)
+	require.Len(t, items, 2, "appendWsOrderbookItemsFromPool must return expected item count")
+	assert.Equal(t, "1", items[0].StrPrice, "first price string should match")
+	assert.Equal(t, "4", items[1].StrAmount, "second amount string should match")
+
+	putWsOrderbookLevels(pooled)
+}
+
+func TestPutWsOrderbookLevels(t *testing.T) {
+	t.Parallel()
+
+	putWsOrderbookLevels(nil)
+
+	items := orderbook.Levels{{Price: 1}, {Price: 2}}
+	putWsOrderbookLevels(&items)
+	require.Len(t, items, 0, "putWsOrderbookLevels must reset pooled slice length")
+}
+
+func TestAppendOrderbookChecksumLevel(t *testing.T) {
+	t.Parallel()
+
+	level := &orderbook.Level{
+		StrPrice:  "100.01",
+		StrAmount: "0.25",
+	}
+	checksum := appendOrderbookChecksumLevel(nil, level)
+	require.Equal(t, "100.01:0.25:", string(checksum), "appendOrderbookChecksumLevel must append colon-delimited level values")
 }
 
 func TestSetMarginType(t *testing.T) {

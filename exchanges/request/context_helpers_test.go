@@ -40,6 +40,13 @@ func TestWithCallerName(t *testing.T) {
 	assert.Equal(t, "meow", CallerName(ctx))
 }
 
+func TestCallerName(t *testing.T) {
+	t.Parallel()
+
+	assert.Empty(t, CallerName(t.Context()), "caller name should be empty when not set")
+	assert.Equal(t, "audit", CallerName(WithCallerName(t.Context(), "audit")), "caller name should match injected value")
+}
+
 func TestWithRetryNotAllowed(t *testing.T) {
 	t.Parallel()
 	assert.True(t, hasRetryNotAllowed(WithRetryNotAllowed(t.Context())))
@@ -63,4 +70,16 @@ func TestWithRateLimitWeight(t *testing.T) {
 	weight, ok = getRateLimitWeight(ctx)
 	assert.True(t, ok)
 	assert.Equal(t, Weight(7), weight)
+}
+
+func TestGetRateLimitWeight(t *testing.T) {
+	t.Parallel()
+
+	weight, ok := getRateLimitWeight(t.Context())
+	assert.False(t, ok, "weight lookup should report missing in plain context")
+	assert.Zero(t, weight, "weight should be zero when missing")
+
+	weight, ok = getRateLimitWeight(WithRateLimitWeight(t.Context(), 3))
+	assert.True(t, ok, "weight lookup should report present when set")
+	assert.Equal(t, Weight(3), weight, "weight should match configured value")
 }
