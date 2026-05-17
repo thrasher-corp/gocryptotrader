@@ -81,44 +81,47 @@ const (
 )
 
 var (
-	errEmptyOrInvalidSettlementCurrency = errors.New("empty or invalid settlement currency")
-	errLoanTypeIsRequired               = errors.New("loan type is required")
-	errUserIDRequired                   = errors.New("user id is required")
-	errSTPGroupNameRequired             = errors.New("self-trade prevention group name required")
-	errSTPGroupIDRequired               = errors.New("self-trade prevention group id required")
-	errPlanIDRequired                   = errors.New("plan ID required")
-	errInvalidCurrencyChain             = errors.New("name of the chain used for withdrawal must be specified")
-	errNoValidResponseFromServer        = errors.New("no valid response from server")
-	errInvalidUnderlying                = errors.New("missing underlying")
-	errInvalidOrderSize                 = errors.New("invalid order size")
-	errInvalidSubAccount                = errors.New("invalid or empty subaccount")
-	errInvalidTransferDirection         = errors.New("invalid transfer direction")
-	errDifferentAccount                 = errors.New("account type must be identical for all orders")
-	errNoValidParameterPassed           = errors.New("no valid parameter passed")
-	errInvalidCountdown                 = errors.New("invalid countdown, Countdown time, in seconds At least 5 seconds, 0 means cancel the countdown")
-	errInvalidOrderStatus               = errors.New("invalid order status")
-	errInvalidLoanID                    = errors.New("missing loan ID")
-	errMissingPreviewID                 = errors.New("missing required parameter: preview_id")
-	errChangeHasToBePositive            = errors.New("change has to be positive")
-	errInvalidAutoSize                  = errors.New("invalid autoSize")
-	errTooManyOrderRequest              = errors.New("too many order creation request")
-	errInvalidTimeout                   = errors.New("invalid timeout, should be in seconds At least 5 seconds, 0 means cancel the countdown")
-	errNoTickerData                     = errors.New("no ticker data available")
-	errInvalidTimezone                  = errors.New("invalid timezone")
-	errMultipleOrders                   = errors.New("multiple orders passed")
-	errMissingWithdrawalID              = errors.New("missing withdrawal ID")
-	errInvalidSubAccountUserID          = errors.New("sub-account user id is required")
-	errInvalidSettlementQuote           = errors.New("symbol quote currency does not match asset settlement currency")
-	errInvalidSettlementBase            = errors.New("symbol base currency does not match asset settlement currency")
-	errMissingAPIKey                    = errors.New("missing API key information")
-	errInvalidTextPrefix                = errors.New("invalid text value, requires prefix `t-`")
-	errSingleAssetRequired              = errors.New("single asset type required")
-	errMissingUnifiedAccountMode        = errors.New("unified account mode is required")
-	errTooManyCurrencyCodes             = errors.New("too many currency codes supplied")
-	errFetchingOrderbook                = errors.New("error fetching orderbook")
-	errNoSpotInstrument                 = errors.New("no spot instrument available")
-	errOperationTypeRequired            = errors.New("operation type required")
-	errInvalidLeverage                  = errors.New("invalid leverage value")
+	errEmptyOrInvalidSettlementCurrency     = errors.New("empty or invalid settlement currency")
+	errLoanTypeIsRequired                   = errors.New("loan type is required")
+	errUserIDRequired                       = errors.New("user id is required")
+	errSTPGroupNameRequired                 = errors.New("self-trade prevention group name required")
+	errSTPGroupIDRequired                   = errors.New("self-trade prevention group id required")
+	errPlanIDRequired                       = errors.New("plan ID required")
+	errInvalidCurrencyChain                 = errors.New("name of the chain used for withdrawal must be specified")
+	errNoValidResponseFromServer            = errors.New("no valid response from server")
+	errInvalidUnderlying                    = errors.New("missing underlying")
+	errInvalidOrderSize                     = errors.New("invalid order size")
+	errInvalidSubAccount                    = errors.New("invalid or empty subaccount")
+	errInvalidTransferDirection             = errors.New("invalid transfer direction")
+	errDifferentAccount                     = errors.New("account type must be identical for all orders")
+	errNoValidParameterPassed               = errors.New("no valid parameter passed")
+	errInvalidCountdown                     = errors.New("invalid countdown, Countdown time, in seconds At least 5 seconds, 0 means cancel the countdown")
+	errInvalidOrderStatus                   = errors.New("invalid order status")
+	errInvalidLoanID                        = errors.New("missing loan ID")
+	errMissingPreviewID                     = errors.New("missing required parameter: preview_id")
+	errChangeHasToBePositive                = errors.New("change has to be positive")
+	errInvalidAutoSize                      = errors.New("invalid autoSize")
+	errTooManyOrderRequest                  = errors.New("too many order creation request")
+	errInvalidTimeout                       = errors.New("invalid timeout, should be in seconds At least 5 seconds, 0 means cancel the countdown")
+	errNoTickerData                         = errors.New("no ticker data available")
+	errInvalidTimezone                      = errors.New("invalid timezone")
+	errMultipleOrders                       = errors.New("multiple orders passed")
+	errMissingWithdrawalID                  = errors.New("missing withdrawal ID")
+	errInvalidSubAccountUserID              = errors.New("sub-account user id is required")
+	errInvalidSettlementQuote               = errors.New("symbol quote currency does not match asset settlement currency")
+	errInvalidSettlementBase                = errors.New("symbol base currency does not match asset settlement currency")
+	errMissingAPIKey                        = errors.New("missing API key information")
+	errInvalidTextPrefix                    = errors.New("invalid text value, requires prefix `t-`")
+	errSingleAssetRequired                  = errors.New("single asset type required")
+	errMissingUnifiedAccountMode            = errors.New("unified account mode is required")
+	errTooManyCurrencyCodes                 = errors.New("too many currency codes supplied")
+	errFetchingOrderbook                    = errors.New("error fetching orderbook")
+	errNoSpotInstrument                     = errors.New("no spot instrument available")
+	errOperationTypeRequired                = errors.New("operation type required")
+	errInvalidLeverage                      = errors.New("invalid leverage value")
+	errChaseOrderIDOrTextRequired           = errors.New("either id or text is required to stop a chase order")
+	errInvalidChaseSortBy                   = errors.New("invalid sort_by value: must be 1 (ORDER_SORT_CREATED_AT) or 2 (ORDER_SORT_FINISHED_AT)")
+	errChaseOrderPriceLimitOrOffsetRequired = errors.New("either price_limit or offset_limit is required to create a chase order")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
@@ -4808,4 +4811,110 @@ func (e *Exchange) GetUserIsolatedMarginAccountList(ctx context.Context, currenc
 	}
 	var resp []*IsolatedMarginAccountDetail
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "margin/user/account", params, nil, &resp)
+}
+
+// *********************************Futures Chase Orders***************************************
+
+// CreateChaseOrder creates a futures chase limit order that automatically adjusts its price to
+// track the market until the full amount is filled or the order is stopped.
+// Either arg.PriceLimit or arg.OffsetLimit must be non-zero.
+func (e *Exchange) CreateChaseOrder(ctx context.Context, arg *CreateChaseOrderRequest) (*ChaseOrder, error) {
+	if arg.Settle.IsEmpty() {
+		return nil, fmt.Errorf("%w: settlement currency is required", currency.ErrCurrencyCodeEmpty)
+	}
+	if arg.Contract.IsEmpty() {
+		return nil, fmt.Errorf("%w: contract pair is required", currency.ErrCurrencyPairEmpty)
+	}
+	if arg.Amount == 0 {
+		return nil, errInvalidOrderSize
+	}
+	if arg.PriceLimit.Float64() == 0 && arg.OffsetLimit.Float64() == 0 {
+		return nil, errChaseOrderPriceLimitOrOffsetRequired
+	}
+	var resp *ChaseOrder
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualCreateChaseOrderEPL, http.MethodPost, futuresPath+arg.Settle.Item.Lower+"/autoorder/v1/chase/create", nil, &arg, &resp)
+}
+
+// StopChaseOrder stops a running futures chase limit order. Either the order ID or the custom
+// text label must be provided to identify the order to stop.
+func (e *Exchange) StopChaseOrder(ctx context.Context, settle currency.Code, arg *StopChaseOrderRequest) (*ChaseOrder, error) {
+	if settle.IsEmpty() {
+		return nil, fmt.Errorf("%w: settlement currency is required", currency.ErrCurrencyCodeEmpty)
+	}
+	if arg.ID == 0 && arg.Text == "" {
+		return nil, errChaseOrderIDOrTextRequired
+	}
+	var resp *ChaseOrder
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualStopChaseOrderEPL, http.MethodPost, futuresPath+settle.Item.Lower+"/autoorder/v1/chase/stop", nil, &arg, &resp)
+}
+
+// StopAllChaseOrders stops all running futures chase limit orders for the given settlement
+// currency. The request may optionally scope the cancellation to a specific contract or margin mode.
+func (e *Exchange) StopAllChaseOrders(ctx context.Context, settle currency.Code, arg *StopAllChaseOrdersRequest) ([]*ChaseOrder, error) {
+	if settle.IsEmpty() {
+		return nil, fmt.Errorf("%w: settlement currency is required", currency.ErrCurrencyCodeEmpty)
+	}
+	var resp []*ChaseOrder
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualStopAllChaseOrdersEPL, http.MethodPost, futuresPath+settle.Item.Lower+"/autoorder/v1/chase/stop_all", nil, arg, &resp)
+}
+
+// GetChaseOrders retrieves a paginated list of futures chase limit orders.
+// sortBy must be 1 (sort by creation time) or 2 (sort by finish time).
+func (e *Exchange) GetChaseOrders(ctx context.Context, settle currency.Code, contract currency.Pair, isFinished bool, startAt, endAt time.Time, pageNum, pageSize uint64, sortBy int64, hideCancel, reduceOnly bool, side string) ([]*ChaseOrder, error) {
+	if settle.IsEmpty() {
+		return nil, fmt.Errorf("%w: settlement currency is required", currency.ErrCurrencyCodeEmpty)
+	}
+	if sortBy != 1 && sortBy != 2 {
+		return nil, errInvalidChaseSortBy
+	}
+	if !startAt.IsZero() && !endAt.IsZero() {
+		if err := common.StartEndTimeCheck(startAt, endAt); err != nil {
+			return nil, err
+		}
+	}
+	params := url.Values{}
+	if !contract.IsEmpty() {
+		params.Set("contract", contract.String())
+	}
+	if isFinished {
+		params.Set("is_finished", "1")
+	}
+	if !startAt.IsZero() {
+		params.Set("start_at", strconv.FormatInt(startAt.Unix(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("end_at", strconv.FormatInt(endAt.Unix(), 10))
+	}
+	if pageNum > 0 {
+		params.Set("page_num", strconv.FormatUint(pageNum, 10))
+	}
+	if pageSize > 0 {
+		params.Set("page_size", strconv.FormatUint(pageSize, 10))
+	}
+	params.Set("sort_by", strconv.FormatInt(sortBy, 10))
+	if hideCancel {
+		params.Set("hide_cancel", "1")
+	}
+	if reduceOnly {
+		params.Set("reduce_only", "1")
+	}
+	if side != "" {
+		params.Set("side", side)
+	}
+	var resp []*ChaseOrder
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualGetChaseOrdersEPL, http.MethodGet, common.EncodeURLValues(futuresPath+settle.Item.Lower+"/autoorder/v1/chase/list", params), nil, nil, &resp)
+}
+
+// GetChaseOrderDetail retrieves the full detail of a single futures chase limit order by its ID.
+func (e *Exchange) GetChaseOrderDetail(ctx context.Context, settle currency.Code, orderID int64) (*ChaseOrder, error) {
+	if settle.IsEmpty() {
+		return nil, fmt.Errorf("%w: settlement currency is required", currency.ErrCurrencyCodeEmpty)
+	}
+	if orderID <= 0 {
+		return nil, fmt.Errorf("%w: chase order ID is required", order.ErrOrderIDNotSet)
+	}
+	params := url.Values{}
+	params.Set("id", strconv.FormatInt(orderID, 10))
+	var resp *ChaseOrder
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualGetChaseOrderDetailEPL, http.MethodGet, common.EncodeURLValues(futuresPath+settle.Item.Lower+"/autoorder/v1/chase/detail", params), nil, nil, &resp)
 }

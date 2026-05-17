@@ -151,7 +151,8 @@ func (e *Exchange) SetDefaults() {
 		Subscriptions: defaultSubscriptions.Clone(),
 	}
 	var err error
-	e.Requester, err = request.New(e.Name,
+	e.Requester, err = request.New(
+		e.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(packageRateLimits),
 	)

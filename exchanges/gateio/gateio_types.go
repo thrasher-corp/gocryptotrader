@@ -3547,3 +3547,79 @@ type CurrencyBalanceDetail struct {
 	Borrowed  types.Number  `json:"borrowed"`
 	Interest  types.Number  `json:"interest"`
 }
+
+// CreateChaseOrderRequest represents a chase limit order creation request.
+type CreateChaseOrderRequest struct {
+	Contract           currency.Pair `json:"contract"`
+	Amount             int64         `json:"amount"`
+	PriceLimit         types.Number  `json:"price_limit,omitempty"`
+	OffsetLimit        types.Number  `json:"offset_limit,omitempty"`
+	ReduceOnly         bool          `json:"reduce_only,omitempty"`
+	Text               string        `json:"text,omitempty"`
+	IsDualMode         bool          `json:"is_dual_mode,omitempty"`
+	PriceType          int64         `json:"price_type,omitempty"`
+	PriceGapType       int64         `json:"price_gap_type,omitempty"`
+	PriceGapValue      types.Number  `json:"price_gap_value,omitempty"`
+	PositionMarginMode string        `json:"pos_margin_mode,omitempty"`
+	PositionMode       string        `json:"position_mode,omitempty"`
+	Settle             currency.Code `json:"-"`
+}
+
+// StopChaseOrderRequest represents a request to stop a running chase order.
+// At least one of ID or Text must be provided.
+type StopChaseOrderRequest struct {
+	ID   int64  `json:"id,omitempty"`
+	Text string `json:"text,omitempty"`
+}
+
+// StopAllChaseOrdersRequest represents a request to stop all running chase orders,
+// optionally scoped to a specific contract and margin mode.
+type StopAllChaseOrdersRequest struct {
+	Contract      currency.Pair
+	PosMarginMode string
+}
+
+// MarshalJSON implements json.Marshaler. Contract is omitted when empty so the API
+// does not receive an invalid empty-string contract value.
+func (s StopAllChaseOrdersRequest) MarshalJSON() ([]byte, error) {
+	if s.Contract.IsEmpty() {
+		return json.Marshal(struct {
+			PosMarginMode string `json:"pos_margin_mode,omitempty"`
+		}{
+			PosMarginMode: s.PosMarginMode,
+		})
+	}
+	return json.Marshal(struct {
+		Contract      string `json:"contract"`
+		PosMarginMode string `json:"pos_margin_mode,omitempty"`
+	}{
+		Contract: s.Contract.String(), 
+		PosMarginMode: s.PosMarginMode,
+	})
+}
+
+// ChaseOrder represents a chase limit order detail or list item.
+type ChaseOrder struct {
+	ID            int64         `json:"id"`
+	Contract      currency.Pair `json:"contract"`
+	Amount        int64         `json:"amount"`
+	ChasePrice    types.Number  `json:"chase_price"`
+	IntervalSec   int64         `json:"interval_sec"`
+	SuborderID    int64         `json:"suborder_id"`
+	SuborderSize  int64         `json:"suborder_size"`
+	SuborderLeft  int64         `json:"suborder_left"`
+	PriceType     int64         `json:"price_type"`
+	PriceGapType  int64         `json:"price_gap_type"`
+	PriceGapValue types.Number  `json:"price_gap_value"`
+	PriceLimit    types.Number  `json:"price_limit"`
+	OffsetLimit   types.Number  `json:"offset_limit"`
+	Status        string        `json:"status"`
+	FinishAs      string        `json:"finish_as"`
+	ReduceOnly    bool          `json:"reduce_only"`
+	IsDualMode    bool          `json:"is_dual_mode"`
+	PosMarginMode string        `json:"pos_margin_mode"`
+	Side          string        `json:"side"`
+	Text          string        `json:"text"`
+	CreateTime    types.Time    `json:"create_time"`
+	FinishTime    types.Time    `json:"finish_time"`
+}

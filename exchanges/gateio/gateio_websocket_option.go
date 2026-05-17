@@ -96,7 +96,8 @@ func (e *Exchange) GenerateOptionsDefaultSubscriptions() (subscription.List, err
 		if err != nil {
 			return nil, err
 		}
-		channelsToSubscribe = append(channelsToSubscribe,
+		channelsToSubscribe = append(
+			channelsToSubscribe,
 			optionsUserTradesChannel,
 			optionsBalancesChannel,
 		)
@@ -255,7 +256,8 @@ func (e *Exchange) generateOptionsPayload(ctx context.Context, event string, cha
 			}
 			params = append(
 				[]string{intervalString},
-				params...)
+				params...,
+			)
 		}
 		payloads[i] = &WsInput{
 			ID:      e.MessageSequence(),

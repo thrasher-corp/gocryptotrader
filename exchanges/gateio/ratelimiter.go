@@ -157,6 +157,11 @@ const (
 	perpetualCancelOpenOrdersEPL
 	perpetualGetTriggerOrderEPL
 	perpetualCancelTriggerOrderEPL
+	perpetualCreateChaseOrderEPL
+	perpetualStopChaseOrderEPL
+	perpetualStopAllChaseOrdersEPL
+	perpetualGetChaseOrdersEPL
+	perpetualGetChaseOrderDetailEPL
 
 	deliveryAccountEPL
 	deliveryAccountBooksEPL
@@ -351,6 +356,11 @@ var packageRateLimits = request.RateLimitDefinitions{
 	perpetualCancelOpenOrdersEPL:       orderCloseRateLimit(),
 	perpetualGetTriggerOrderEPL:        standardRateLimit(),
 	perpetualCancelTriggerOrderEPL:     orderCloseRateLimit(),
+	perpetualCreateChaseOrderEPL:       perpetualOrderplacementRateLimit(),
+	perpetualStopChaseOrderEPL:         orderCloseRateLimit(),
+	perpetualStopAllChaseOrdersEPL:     orderCloseRateLimit(),
+	perpetualGetChaseOrdersEPL:         standardRateLimit(),
+	perpetualGetChaseOrderDetailEPL:    standardRateLimit(),
 
 	deliveryAccountEPL:             standardRateLimit(),
 	deliveryAccountBooksEPL:        standardRateLimit(),

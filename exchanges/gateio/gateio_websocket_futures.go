@@ -283,7 +283,8 @@ func (e *Exchange) generateFuturesPayload(ctx context.Context, event string, cha
 				if ok {
 					params = append(
 						[]string{value},
-						params...)
+						params...,
+					)
 				}
 				var sigTemp string
 				sigTemp, err = e.generateWsSignature(creds.Secret, event, channelsToSubscribe[i].Channel, timestamp.Unix())
