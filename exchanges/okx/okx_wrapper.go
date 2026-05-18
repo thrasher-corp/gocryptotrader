@@ -298,7 +298,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 		pairs := make([]currency.Pair, 0, len(insts))
 		for x := range insts {
-			if insts[x].State != "live" {
+			if insts[x].State != stateLive {
 				continue
 			}
 			pairs = append(pairs, insts[x].InstrumentID.Format(format))
@@ -309,7 +309,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		if err != nil {
 			return nil, err
 		}
-		spreadInstruments, err := e.GetPublicSpreads(ctx, "", "", "", "live")
+		spreadInstruments, err := e.GetPublicSpreads(ctx, "", "", "", stateLive)
 		if err != nil {
 			return nil, fmt.Errorf("%w asset type: %v", err, a)
 		}
@@ -370,7 +370,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		}
 		return limits.Load(l)
 	case asset.Spread:
-		insts, err := e.GetPublicSpreads(ctx, "", "", "", "live")
+		insts, err := e.GetPublicSpreads(ctx, "", "", "", stateLive)
 		if err != nil {
 			return err
 		}
@@ -398,7 +398,7 @@ func deriveDelistingWindow(inst *Instrument, now time.Time) (delistingAt, delist
 	if !inst.ExpTime.Time().IsZero() {
 		return inst.ExpTime.Time(), inst.ExpTime.Time()
 	}
-	if strings.EqualFold(inst.State, "live") || inst.State == "" {
+	if inst.State == stateLive || inst.State == "" {
 		return time.Time{}, time.Time{}
 	}
 	delistedAt = now
@@ -1717,7 +1717,7 @@ func (e *Exchange) resolveInstrumentIDCode(ctx context.Context, ai asset.Item, i
 
 func lookupInstrumentIDCode(instruments []Instrument, instrumentID string) int64 {
 	for i := range instruments {
-		if !strings.EqualFold(instruments[i].InstrumentID.String(), instrumentID) {
+		if instruments[i].InstrumentID.String() != instrumentID {
 			continue
 		}
 		instrumentIDCode := instruments[i].InstrumentIDCode.Int64()
@@ -1977,7 +1977,7 @@ func (e *Exchange) GetDepositAddress(ctx context.Context, c currency.Code, _, ch
 	// Check if a specific chain was requested
 	if chain != "" {
 		for x := range response {
-			if !strings.EqualFold(response[x].Chain, chain) {
+			if response[x].Chain != chain {
 				continue
 			}
 			return &deposit.Address{
@@ -2492,7 +2492,7 @@ func (e *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrenc
 	}
 	chains := make([]string, 0, len(currencyChains))
 	for x := range currencyChains {
-		if (!cryptocurrency.IsEmpty() && !strings.EqualFold(cryptocurrency.String(), currencyChains[x].Currency)) ||
+		if (!cryptocurrency.IsEmpty() && cryptocurrency.String() != currencyChains[x].Currency) ||
 			(!currencyChains[x].CanDeposit && !currencyChains[x].CanWithdraw) ||
 			// Lightning network is currently not supported by transfer chains
 			// as it is an invoice string which is generated per request and is
@@ -3190,7 +3190,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				contractSettlementType futures.ContractSettlementType
 			)
 
-			if result[i].State == "live" {
+			if result[i].State == stateLive {
 				underlying, err = currency.NewPairFromString(result[i].Underlying)
 				if err != nil {
 					return nil, err
@@ -3223,7 +3223,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				Asset:          item,
 				StartDate:      result[i].ListTime.Time(),
 				EndDate:        result[i].ExpTime.Time(),
-				IsActive:       result[i].State == "live",
+				IsActive:       result[i].State == stateLive,
 				Status:         result[i].State,
 				Type:           ct,
 				SettlementType: contractSettlementType,
@@ -3254,7 +3254,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 				Asset:          asset.Spread,
 				StartDate:      results[s].ListTime.Time(),
 				EndDate:        results[s].ExpTime.Time(),
-				IsActive:       results[s].State == "live",
+				IsActive:       results[s].State == stateLive,
 				Status:         results[s].State,
 				Type:           futures.LongDated,
 				SettlementType: contractSettlementType,

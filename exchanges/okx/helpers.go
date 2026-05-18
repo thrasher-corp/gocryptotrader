@@ -100,7 +100,7 @@ func (*Exchange) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item, e
 	const swapSuffixLength = len("-SWAP")
 	if len(instrumentID) > swapSuffixLength {
 		suffix := instrumentID[len(instrumentID)-swapSuffixLength:]
-		if suffix == "-SWAP" || suffix == "-swap" {
+		if suffix == "-SWAP" {
 			return perpetualSwapAssetType, nil
 		}
 	}
@@ -112,7 +112,7 @@ func (*Exchange) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item, e
 	case 3:
 		return futuresAssetType, nil
 	case 5:
-		switch strings.ToUpper(splitInstrumentID[len(splitInstrumentID)-1]) {
+		switch splitInstrumentID[len(splitInstrumentID)-1] {
 		case "C", "P":
 			return optionsAssetType, nil
 		default:
