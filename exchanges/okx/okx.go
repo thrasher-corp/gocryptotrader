@@ -3212,7 +3212,7 @@ func (e *Exchange) GetGridAlgoSubOrders(ctx context.Context, algoOrderType, algo
 	if algoID == "" {
 		return nil, errAlgoIDRequired
 	}
-	if subOrderType != "live" && subOrderType != order.Filled.String() {
+	if subOrderType != stateLive && subOrderType != order.Filled.String() {
 		return nil, errMissingSubOrderType
 	}
 	params := url.Values{}

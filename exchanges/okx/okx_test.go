@@ -3433,7 +3433,7 @@ func TestLoadInstrumentOrderExecutionLimits(t *testing.T) {
 	require.NoError(t, exch.loadInstrumentOrderExecutionLimits(asset.Futures, []Instrument{
 		{
 			InstrumentID:     livePair,
-			State:            instrumentStateLive,
+			State:            stateLive,
 			TickSize:         types.Number(0.1),
 			MinimumOrderSize: types.Number(1),
 		},
@@ -3445,7 +3445,7 @@ func TestLoadInstrumentOrderExecutionLimits(t *testing.T) {
 		},
 		{
 			InstrumentID:     currency.EMPTYPAIR,
-			State:            instrumentStateLive,
+			State:            stateLive,
 			TickSize:         types.Number(0.01),
 			MinimumOrderSize: types.Number(2),
 		},
@@ -3461,7 +3461,7 @@ func TestLoadInstrumentOrderExecutionLimits(t *testing.T) {
 
 	require.ErrorIs(t, exch.loadInstrumentOrderExecutionLimits(asset.Futures, []Instrument{
 		{InstrumentID: inactivePair, State: "preopen"},
-		{InstrumentID: currency.EMPTYPAIR, State: instrumentStateLive},
+		{InstrumentID: currency.EMPTYPAIR, State: stateLive},
 	}), common.ErrInvalidResponse, "all filtered instruments must return invalid response")
 
 	require.ErrorIs(t, exch.loadInstrumentOrderExecutionLimits(asset.Futures, nil),
