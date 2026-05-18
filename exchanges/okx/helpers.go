@@ -9,13 +9,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-var (
-	spotAssetType          = []asset.Item{asset.Spot, asset.Margin}
-	perpetualSwapAssetType = []asset.Item{asset.PerpetualSwap}
-	futuresAssetType       = []asset.Item{asset.Futures}
-	optionsAssetType       = []asset.Item{asset.Options}
-)
-
 // orderTypeFromString returns the order Type and TimeInForce for okx order type strings
 func orderTypeFromString(orderType string) (order.Type, order.TimeInForce, error) {
 	orderType = strings.ToLower(orderType)
@@ -100,21 +93,21 @@ func (*Exchange) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item, e
 	const swapSuffixLength = len("-SWAP")
 	if len(instrumentID) > swapSuffixLength {
 		suffix := instrumentID[len(instrumentID)-swapSuffixLength:]
-		if suffix == "-SWAP" {
-			return perpetualSwapAssetType, nil
+		if strings.EqualFold(suffix, "-SWAP") {
+			return []asset.Item{asset.PerpetualSwap}, nil
 		}
 	}
 
 	splitInstrumentID := strings.Split(instrumentID, "-")
 	switch len(splitInstrumentID) {
 	case 2:
-		return spotAssetType, nil
+		return []asset.Item{asset.Spot, asset.Margin}, nil
 	case 3:
-		return futuresAssetType, nil
+		return []asset.Item{asset.Futures}, nil
 	case 5:
-		switch splitInstrumentID[len(splitInstrumentID)-1] {
+		switch strings.ToUpper(splitInstrumentID[len(splitInstrumentID)-1]) {
 		case "C", "P":
-			return optionsAssetType, nil
+			return []asset.Item{asset.Options}, nil
 		default:
 			return nil, fmt.Errorf("%w: unsupported option instrument ID %q", asset.ErrNotSupported, instrumentID)
 		}
@@ -128,7 +121,7 @@ func (*Exchange) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item, e
 
 // assetTypeFromInstrumentType returns an asset Item instance given and Instrument Type string
 func assetTypeFromInstrumentType(instrumentType string) (asset.Item, error) {
-	switch instrumentType {
+	switch strings.ToUpper(instrumentType) {
 	case instTypeSwap, instTypeContract:
 		return asset.PerpetualSwap, nil
 	case instTypeSpot:
