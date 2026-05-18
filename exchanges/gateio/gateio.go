@@ -122,6 +122,11 @@ var (
 	errChaseOrderIDOrTextRequired           = errors.New("either id or text is required to stop a chase order")
 	errInvalidChaseSortBy                   = errors.New("invalid sort_by value: must be 1 (ORDER_SORT_CREATED_AT) or 2 (ORDER_SORT_FINISHED_AT)")
 	errChaseOrderPriceLimitOrOffsetRequired = errors.New("either price_limit or offset_limit is required to create a chase order")
+
+	errOtcSideRequired       = errors.New("OTC side (PAY or GET) is required")
+	errOtcOrderTypeRequired  = errors.New("OTC order type (BUY or SELL) is required")
+	errOtcQuoteTokenRequired = errors.New("OTC quote token is required")
+	errOtcBankIDRequired     = errors.New("OTC bank ID is required")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
@@ -4917,4 +4922,157 @@ func (e *Exchange) GetChaseOrderDetail(ctx context.Context, settle currency.Code
 	params.Set("id", strconv.FormatInt(orderID, 10))
 	var resp *ChaseOrder
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualGetChaseOrderDetailEPL, http.MethodGet, common.EncodeURLValues(futuresPath+settle.Item.Lower+"/autoorder/v1/chase/detail", params), nil, nil, &resp)
+}
+
+// ***************************************** Over the counter(OTC) endpoints ********************************
+
+// GetFlatStablecoinQuote creates a flat and stablecoin quote, supporting both PAY and GET directions.
+func (e *Exchange) GetFlatStablecoinQuote(ctx context.Context, arg *OtcQuoteRequest) (*OtcQuoteData, error) {
+	if arg.Side == "" {
+		return nil, errOtcSideRequired
+	}
+	if arg.PayCoin.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if arg.GetCoin.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	var resp otcAPIResponse[*OtcQuoteData]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "otc/quote", nil, arg, &resp)
+}
+
+// CreateFlatOrder creates a flat order, supporting BUY for on-ramp and SELL for off-ramp.
+func (e *Exchange) CreateFlatOrder(ctx context.Context, arg *OtcFlatOrderRequest) error {
+	if arg.Type == "" {
+		return errOtcOrderTypeRequired
+	}
+	if arg.QuoteToken == "" {
+		return errOtcQuoteTokenRequired
+	}
+	if arg.BankID == "" {
+		return errOtcBankIDRequired
+	}
+	var resp OtcActionResponse
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "otc/order/create", nil, arg, &resp)
+}
+
+// CreateStablecoinOrder creates a stablecoin order.
+func (e *Exchange) CreateStablecoinOrder(ctx context.Context, arg *OtcStablecoinOrderRequest) error {
+	var resp OtcActionResponse
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "stable_coin/order/create", nil, arg, &resp)
+}
+
+// GetUserDefaultBankAccount retrieves the user's default bank account information.
+func (e *Exchange) GetUserDefaultBankAccount(ctx context.Context) (*OtcUserDefaultBankData, error) {
+	var resp otcAPIResponse[*OtcUserDefaultBankData]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "otc/get_user_def_bank", nil, nil, &resp)
+}
+
+// GetUserBankCardList retrieves the user's bank card list.
+func (e *Exchange) GetUserBankCardList(ctx context.Context) ([]*OTCBankCard, error) {
+	var resp otcAPIResponse[*OtcBankCardListData]
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "otc/bank_list", nil, nil, &resp); err != nil {
+		return nil, err
+	}
+	if resp.Data == nil {
+		return nil, nil
+	}
+	return resp.Data.Lists, nil
+}
+
+// MarkFlatOrderAsPaid marks a flat order as paid.
+func (e *Exchange) MarkFlatOrderAsPaid(ctx context.Context, orderID string) error {
+	if orderID == "" {
+		return order.ErrOrderIDNotSet
+	}
+	var resp OtcActionResponse
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "otc/order/paid", nil, &OtcMarkOrderPaidRequest{OrderID: orderID}, &resp)
+}
+
+// CancelFlatOrder cancels a flat order.
+func (e *Exchange) CancelFlatOrder(ctx context.Context, orderID string) error {
+	if orderID == "" {
+		return order.ErrOrderIDNotSet
+	}
+	params := url.Values{}
+	params.Set("order_id", orderID)
+	var resp OtcActionResponse
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "otc/order/cancel", params, nil, &resp)
+}
+
+// GetFlatOrderList retrieves the flat order list with optional filters.
+func (e *Exchange) GetFlatOrderList(ctx context.Context, orderType, status string, flatCurrency, cryptoCurrency currency.Code, from, to time.Time, pageNumber, pageSize uint64) (*OtcOrderListData, error) {
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
+			return nil, err
+		}
+	}
+	params := url.Values{}
+	if orderType != "" {
+		params.Set("type", orderType)
+	}
+	if !flatCurrency.IsEmpty() {
+		params.Set("flat_currency", flatCurrency.String())
+	}
+	if !cryptoCurrency.IsEmpty() {
+		params.Set("crypto_currency", cryptoCurrency.String())
+	}
+	if status != "" {
+		params.Set("status", status)
+	}
+	if !from.IsZero() {
+		params.Set("start_time", strconv.FormatInt(from.UTC().Unix(), 10))
+	}
+	if !to.IsZero() {
+		params.Set("end_time", strconv.FormatInt(to.UTC().Unix(), 10))
+	}
+	if pageNumber > 0 {
+		params.Set("pn", strconv.FormatUint(pageNumber, 10))
+	}
+	if pageSize > 0 {
+		params.Set("ps", strconv.FormatUint(pageSize, 10))
+	}
+	var resp otcAPIResponse[*OtcOrderListData]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "otc/order/list", params, nil, &resp)
+}
+
+// GetStablecoinOrderList retrieves the stablecoin order list with optional filters.
+func (e *Exchange) GetStablecoinOrderList(ctx context.Context, coinName currency.Code, status string, from, to time.Time, pageNumber, pageSize uint64) (*OtcStablecoinOrderListData, error) {
+	if !from.IsZero() && !to.IsZero() {
+		if err := common.StartEndTimeCheck(from, to); err != nil {
+			return nil, err
+		}
+	}
+	params := url.Values{}
+	if !coinName.IsEmpty() {
+		params.Set("coin_name", coinName.String())
+	}
+	if status != "" {
+		params.Set("status", status)
+	}
+	if !from.IsZero() {
+		params.Set("start_time", strconv.FormatInt(from.UTC().Unix(), 10))
+	}
+	if !to.IsZero() {
+		params.Set("end_time", strconv.FormatInt(to.UTC().Unix(), 10))
+	}
+	if pageNumber > 0 {
+		params.Set("page_number", strconv.FormatUint(pageNumber, 10))
+	}
+	if pageSize > 0 {
+		params.Set("page_size", strconv.FormatUint(pageSize, 10))
+	}
+	var resp otcAPIResponse[*OtcStablecoinOrderListData]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "stable_coin/order/list", params, nil, &resp)
+}
+
+// GetFlatOrderDetail retrieves details for a specific flat order.
+func (e *Exchange) GetFlatOrderDetail(ctx context.Context, orderID string) (*OtcOrderDetailData, error) {
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	params := url.Values{}
+	params.Set("order_id", orderID)
+	var resp otcAPIResponse[*OtcOrderDetailData]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "otc/order/detail", params, nil, &resp)
 }

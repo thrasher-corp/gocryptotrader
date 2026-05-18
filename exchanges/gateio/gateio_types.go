@@ -1,6 +1,7 @@
 package gateio
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
@@ -3593,7 +3594,7 @@ func (s StopAllChaseOrdersRequest) MarshalJSON() ([]byte, error) {
 		Contract      string `json:"contract"`
 		PosMarginMode string `json:"pos_margin_mode,omitempty"`
 	}{
-		Contract: s.Contract.String(), 
+		Contract:      s.Contract.String(),
 		PosMarginMode: s.PosMarginMode,
 	})
 }
@@ -3622,4 +3623,209 @@ type ChaseOrder struct {
 	Text          string        `json:"text"`
 	CreateTime    types.Time    `json:"create_time"`
 	FinishTime    types.Time    `json:"finish_time"`
+}
+
+// otcAPIResponse is a generic wrapper for OTC API responses containing a data payload.
+type otcAPIResponse[T any] struct {
+	Code      int64  `json:"code"`
+	Message   string `json:"message"`
+	Data      T      `json:"data"`
+	Timestamp int64  `json:"timestamp"`
+}
+
+// Error implements the error interface for OTC API responses.
+func (r *otcAPIResponse[T]) Error() error {
+	if r.Code != 0 {
+		return fmt.Errorf("error code: %d message: %s", r.Code, r.Message)
+	}
+	return nil
+}
+
+// OtcActionResponse holds the response for OTC action operations such as cancel or mark paid.
+type OtcActionResponse struct {
+	Code      int64      `json:"code"`
+	Message   string     `json:"message"`
+	Timestamp types.Time `json:"timestamp"`
+}
+
+// Error implements the error interface for OTC action responses.
+func (r *OtcActionResponse) Error() error {
+	if r.Code != 0 {
+		return fmt.Errorf("error code: %d message: %s", r.Code, r.Message)
+	}
+	return nil
+}
+
+// OtcQuoteRequest holds request parameters for creating a flat and stablecoin quote.
+type OtcQuoteRequest struct {
+	Side             string        `json:"side"`
+	PayCoin          currency.Code `json:"pay_coin"`
+	GetCoin          currency.Code `json:"get_coin"`
+	PayAmount        types.Number  `json:"pay_amount,omitempty"`
+	GetAmount        types.Number  `json:"get_amount,omitempty"`
+	CreateQuoteToken string        `json:"create_quote_token,omitempty"`
+	PromotionCode    string        `json:"promotion_code,omitempty"`
+}
+
+// OtcQuoteData holds the quote data returned by the OTC quote API.
+type OtcQuoteData struct {
+	Type           string        `json:"type"`
+	PayCoin        currency.Code `json:"pay_coin"`
+	GetCoin        currency.Code `json:"get_coin"`
+	PayAmount      types.Number  `json:"pay_amount"`
+	GetAmount      types.Number  `json:"get_amount"`
+	Rate           string        `json:"rate"`
+	RateDec        string        `json:"rate_dec"`
+	CreateTime     types.Time    `json:"create_time"`
+	GrossRate      string        `json:"gross_rate"`
+	DlDate         string        `json:"dl_date"`
+	PreRate        string        `json:"pre_rate"`
+	HotSignature   string        `json:"hot_signature"`
+	ValidityPeriod string        `json:"validity_period"`
+	DlState        string        `json:"dl_state"`
+	GetBankURL     string        `json:"get_bank_url"`
+	PayBankURL     string        `json:"pay_bank_url"`
+	OtherType      string        `json:"other_type"`
+	RefreshLastKey string        `json:"refresh_last_key"`
+}
+
+// OtcFlatOrderRequest holds request parameters for creating a flat order.
+type OtcFlatOrderRequest struct {
+	Type           string        `json:"type"`
+	SideCurrency   currency.Code `json:"side_currency"`
+	FlatCurrency   currency.Code `json:"flat_currency"`
+	CryptoCurrency currency.Code `json:"crypto_currency"`
+	CryptoAmount   types.Number  `json:"crypto_amount"`
+	FlatAmount     types.Number  `json:"flat_amount"`
+	PromotionCode  string        `json:"promotion_code,omitempty"`
+	QuoteToken     string        `json:"quote_token"`
+	BankID         string        `json:"bank_id"`
+}
+
+// OtcStablecoinOrderRequest holds request parameters for creating a stablecoin order.
+type OtcStablecoinOrderRequest struct {
+	PayCoin       currency.Code `json:"pay_coin,omitempty"`
+	GetCoin       currency.Code `json:"get_coin,omitempty"`
+	PayAmount     types.Number  `json:"pay_amount,omitempty"`
+	GetAmount     types.Number  `json:"get_amount,omitempty"`
+	Side          string        `json:"side,omitempty"`
+	PromotionCode string        `json:"promotion_code,omitempty"`
+	QuoteToken    string        `json:"quote_token,omitempty"`
+}
+
+// OtcUserDefaultBankData holds the user's default bank account information.
+type OtcUserDefaultBankData struct {
+	ID              string `json:"id"`
+	BankAccountName string `json:"bank_account_name"`
+	BankName        string `json:"bank_name"`
+	BankCountry     string `json:"bank_country"`
+	BankAddress     string `json:"bank_address"`
+	BankCode        string `json:"bank_code"`
+	BranchCode      string `json:"branch_code"`
+}
+
+// OTCBankCard holds a single bank card entry.
+type OTCBankCard struct {
+	ID                    string     `json:"id"`
+	BankAccountName       string     `json:"bank_account_name"`
+	BankName              string     `json:"bank_name"`
+	BankCountry           string     `json:"bank_country"`
+	BankAddress           string     `json:"bank_address"`
+	BranchCode            string     `json:"branch_code"`
+	Swift                 string     `json:"swift"`
+	BankCode              string     `json:"bank_code"`
+	IBAN                  string     `json:"iban"`
+	SubmitTime            types.Time `json:"submit_time"`
+	UpdateTime            types.Time `json:"update_time"`
+	AgentBankName         string     `json:"agent_bank_name"`
+	SubmitTime2           string     `json:"submit_time2"`
+	Status                string     `json:"status"`
+	DocumentationFileType string     `json:"documentation_file_type"`
+	IsDefault             string     `json:"is_default"`
+	DocumentationFileKey  string     `json:"documentation_file_key"`
+}
+
+// OtcBankCardListData holds the bank card list response data.
+type OtcBankCardListData struct {
+	Lists []*OTCBankCard `json:"lists"`
+}
+
+// OtcMarkOrderPaidRequest holds request parameters for marking a flat order as paid.
+type OtcMarkOrderPaidRequest struct {
+	OrderID string `json:"order_id"`
+}
+
+// OtcFlatCurrencyInfo holds currency information for a flat currency.
+type OtcFlatCurrencyInfo struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// OTCOrderListItem holds a single flat order list item.
+type OTCOrderListItem struct {
+	CreateAt         types.Time           `json:"create_at"`
+	TradeNo          string               `json:"trade_no"`
+	TradeMt          string               `json:"trade_mt"`
+	TradeNo1         string               `json:"trade_no1"`
+	DBStatus         string               `json:"db_status"`
+	Type             string               `json:"type"`
+	FlatCurrencyInfo *OtcFlatCurrencyInfo `json:"flat_currency_info"`
+	FlatAmount       string               `json:"flat_amount"`
+	CryptoCurrency   string               `json:"crypto_currency"`
+	CreateAt2        int64                `json:"create_at2"`
+	BankAccountIBM   string               `json:"bank_account_ibm"`
+	Rate             string               `json:"rate"`
+	CreateBankIBAM   string               `json:"create_bank_ibam"`
+	PromotionCode    string               `json:"promotion_code"`
+	Time             types.Time           `json:"time"`
+}
+
+// OtcOrderListData holds the flat order list response data.
+type OtcOrderListData struct {
+	Pn      int64               `json:"pn"`
+	Ps      int64               `json:"ps"`
+	TotalPn int64               `json:"total_pn"`
+	Count   int64               `json:"count"`
+	List    []*OTCOrderListItem `json:"list"`
+}
+
+// OTCStableCoinOrder holds a single stablecoin order item.
+type OTCStableCoinOrder struct {
+	ID          uint64        `json:"id"`
+	TradeNo     string        `json:"trade_no"`
+	PayCoin     currency.Code `json:"pay_coin"`
+	PayAmount   types.Number  `json:"pay_amount"`
+	GetCoin     currency.Code `json:"get_coin"`
+	GetAmount   types.Number  `json:"get_amount"`
+	Rate        string        `json:"rate"`
+	Status      string        `json:"status"`
+	CreateTime  types.Time    `json:"create_time"`
+	CreateTime2 types.Time    `json:"create_time2"`
+}
+
+// OtcStablecoinOrderListData holds the stablecoin order list response data.
+type OtcStablecoinOrderListData struct {
+	Total      int64                 `json:"total"`
+	PageSize   int64                 `json:"page_size"`
+	PageNumber int64                 `json:"page_number"`
+	TotalPage  int64                 `json:"total_page"`
+	List       []*OTCStableCoinOrder `json:"list"`
+}
+
+// OtcOrderDetailData holds the flat order detail data.
+type OtcOrderDetailData struct {
+	ID               string               `json:"id"`
+	UID              string               `json:"uid"`
+	Type             string               `json:"type"`
+	FlatCurrency     currency.Code        `json:"flat_currency"`
+	FlatAmount       types.Number         `json:"flat_amount"`
+	FlatCurrencyInfo *OtcFlatCurrencyInfo `json:"flat_currency_info"`
+	CryptoCurrency   string               `json:"crypto_currency"`
+	CryptoAmount     types.Number         `json:"crypto_amount"`
+	TransferRemark   string               `json:"transfer_remark"`
+	Status           string               `json:"status"`
+	CreateTime       types.Time           `json:"create_time"`
+	Rate             string               `json:"rate"`
+	PromotionCode    string               `json:"promotion_code"`
+	TradeNo          string               `json:"trade_no"`
 }

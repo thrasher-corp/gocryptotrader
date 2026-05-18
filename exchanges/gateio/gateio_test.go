@@ -5724,3 +5724,135 @@ func TestUploadP2PChatFile(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+// Over The Counter(OTC) endpoints unit tests
+
+func TestGetFlatStablecoinQuote(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetFlatStablecoinQuote(t.Context(), &OtcQuoteRequest{})
+	require.ErrorIs(t, err, errOtcSideRequired)
+
+	_, err = e.GetFlatStablecoinQuote(t.Context(), &OtcQuoteRequest{Side: "PAY"})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.GetFlatStablecoinQuote(t.Context(), &OtcQuoteRequest{Side: "PAY", PayCoin: currency.USD})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetFlatStablecoinQuote(t.Context(), &OtcQuoteRequest{
+		Side:      "PAY",
+		PayCoin:   currency.USD,
+		GetCoin:   currency.USDT,
+		PayAmount: 100,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCreateFlatOrder(t *testing.T) {
+	t.Parallel()
+	err := e.CreateFlatOrder(t.Context(), &OtcFlatOrderRequest{})
+	require.ErrorIs(t, err, errOtcOrderTypeRequired)
+
+	err = e.CreateFlatOrder(t.Context(), &OtcFlatOrderRequest{Type: "BUY"})
+	require.ErrorIs(t, err, errOtcQuoteTokenRequired)
+
+	err = e.CreateFlatOrder(t.Context(), &OtcFlatOrderRequest{Type: "BUY", QuoteToken: "token"})
+	require.ErrorIs(t, err, errOtcBankIDRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	err = e.CreateFlatOrder(t.Context(), &OtcFlatOrderRequest{
+		Type:           "BUY",
+		SideCurrency:   currency.USD,
+		FlatCurrency:   currency.USD,
+		CryptoCurrency: currency.USDT,
+		CryptoAmount:   100,
+		FlatAmount:     100,
+		QuoteToken:     "some_token",
+		BankID:         "72",
+	})
+	require.NoError(t, err)
+}
+
+func TestCreateStablecoinOrder(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	err := e.CreateStablecoinOrder(t.Context(), &OtcStablecoinOrderRequest{
+		PayCoin:    currency.USD,
+		GetCoin:    currency.USDT,
+		PayAmount:  100,
+		QuoteToken: "some_token",
+	})
+	require.NoError(t, err)
+}
+
+func TestGetUserDefaultBankAccount(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetUserDefaultBankAccount(t.Context())
+	require.NoError(t, err)
+	assert.NotNil(t, result, "result should not be nil")
+}
+
+func TestGetUserBankCardList(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetUserBankCardList(t.Context())
+	require.NoError(t, err)
+	assert.NotNil(t, result, "result should not be nil")
+}
+
+func TestMarkFlatOrderAsPaid(t *testing.T) {
+	t.Parallel()
+	err := e.MarkFlatOrderAsPaid(t.Context(), "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	err = e.MarkFlatOrderAsPaid(t.Context(), "203")
+	require.NoError(t, err)
+}
+
+func TestCancelFlatOrder(t *testing.T) {
+	t.Parallel()
+	err := e.CancelFlatOrder(t.Context(), "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	err = e.CancelFlatOrder(t.Context(), "203")
+	require.NoError(t, err)
+}
+
+func TestGetFlatOrderList(t *testing.T) {
+	t.Parallel()
+	startTime, endTime := getTime()
+	_, err := e.GetFlatOrderList(t.Context(), "", "", currency.EMPTYCODE, currency.EMPTYCODE, endTime, startTime, 0, 0)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetFlatOrderList(t.Context(), "BUY", "", currency.EMPTYCODE, currency.USDT, startTime, endTime, 1, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetStablecoinOrderList(t *testing.T) {
+	t.Parallel()
+	startTime, endTime := getTime()
+	_, err := e.GetStablecoinOrderList(t.Context(), currency.EMPTYCODE, "", endTime, startTime, 0, 0)
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetStablecoinOrderList(t.Context(), currency.USDT, "", startTime, endTime, 1, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFlatOrderDetail(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetFlatOrderDetail(t.Context(), "")
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetFlatOrderDetail(t.Context(), "203")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
