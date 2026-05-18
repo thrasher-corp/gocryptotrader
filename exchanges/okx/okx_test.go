@@ -3371,6 +3371,13 @@ func TestAssetTypeFromInstrumentType(t *testing.T) {
 		assetItem, err := assetTypeFromInstrumentType(k)
 		require.ErrorIs(t, err, v.Error)
 		assert.Equal(t, v.AssetType, assetItem)
+
+		if v.Error == nil && k != "" {
+			lower := strings.ToLower(k)
+			assetItem, err = assetTypeFromInstrumentType(lower)
+			require.NoError(t, err, "assetTypeFromInstrumentType must support lowercase instrument type inputs")
+			assert.Equal(t, v.AssetType, assetItem, "asset type should match for lowercase instrument type input")
+		}
 	}
 }
 
@@ -4461,6 +4468,11 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 			expectedAssetTypes: []asset.Item{asset.PerpetualSwap},
 		},
 		{
+			name:               "swap instrument lowercase suffix",
+			instrumentID:       "BTC-USD-swap",
+			expectedAssetTypes: []asset.Item{asset.PerpetualSwap},
+		},
+		{
 			name:          "invalid instrument",
 			instrumentID:  "test",
 			expectedError: currency.ErrCurrencyNotSupported,
@@ -4473,6 +4485,11 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 		{
 			name:               "options instrument",
 			instrumentID:       "BTC-USD-240329-70000-C",
+			expectedAssetTypes: []asset.Item{asset.Options},
+		},
+		{
+			name:               "options instrument lowercase suffix",
+			instrumentID:       "BTC-USD-240329-70000-c",
 			expectedAssetTypes: []asset.Item{asset.Options},
 		},
 	}

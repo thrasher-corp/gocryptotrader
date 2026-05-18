@@ -210,3 +210,93 @@ func BenchmarkGenerateOrderbookChecksum(b *testing.B) {
 		benchmarkChecksum = generateOrderbookChecksum(book)
 	}
 }
+
+func BenchmarkWsProcessSnapshotOrderBook(b *testing.B) {
+	b.ReportAllocs()
+
+	for _, benchmarkCase := range wsOrderBookBenchmarkCases {
+		b.Run(benchmarkCase.name, func(b *testing.B) {
+			var response WsOrderBook
+			if err := json.Unmarshal(benchmarkCase.payload, &response); err != nil {
+				b.Fatalf("Unmarshal must not error: %v", err)
+			}
+			response.Argument.InstrumentID.Delimiter = currency.DashDelimiter
+
+			ex := newBenchmarkOKXExchange(b)
+			drainBenchmarkDataHandler(b, ex)
+			assets := []asset.Item{benchmarkCase.assetType}
+
+			b.ResetTimer()
+			for b.Loop() {
+				if err := ex.WsProcessSnapshotOrderBook(&response.Data[0], response.Argument.InstrumentID, assets); err != nil {
+					b.Fatalf("WsProcessSnapshotOrderBook must not error: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkWsProcessUpdateOrderbook(b *testing.B) {
+	b.ReportAllocs()
+
+	for _, benchmarkCase := range wsOrderBookBenchmarkCases {
+		b.Run(benchmarkCase.name, func(b *testing.B) {
+			var snapshotResponse WsOrderBook
+			if err := json.Unmarshal(benchmarkCase.payload, &snapshotResponse); err != nil {
+				b.Fatalf("snapshot unmarshal must not error: %v", err)
+			}
+			snapshotResponse.Argument.InstrumentID.Delimiter = currency.DashDelimiter
+
+			var updateResponse WsOrderBook
+			if err := json.Unmarshal(benchmarkCase.update, &updateResponse); err != nil {
+				b.Fatalf("update unmarshal must not error: %v", err)
+			}
+			updateResponse.Argument.InstrumentID.Delimiter = currency.DashDelimiter
+
+			ex := newBenchmarkOKXExchange(b)
+			drainBenchmarkDataHandler(b, ex)
+			assets := []asset.Item{benchmarkCase.assetType}
+			if err := ex.WsProcessSnapshotOrderBook(&snapshotResponse.Data[0], snapshotResponse.Argument.InstrumentID, assets); err != nil {
+				b.Fatalf("WsProcessSnapshotOrderBook seed must not error: %v", err)
+			}
+
+			b.ResetTimer()
+			for b.Loop() {
+				if err := ex.WsProcessUpdateOrderbook(&updateResponse.Data[0], updateResponse.Argument.InstrumentID, assets); err != nil {
+					b.Fatalf("WsProcessUpdateOrderbook must not error: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkWsProcessOrderbook5(b *testing.B) {
+	b.ReportAllocs()
+
+	ob5payload := []byte(`{"arg":{"channel":"books5","instId":"OKB-USDT"},"data":[{"asks":[["0.0000007465","2290075956","0","4"],["0.0000007466","1747284705","0","4"],["0.0000007467","1338861655","0","3"],["0.0000007468","1661668387","0","6"],["0.0000007469","2715477116","0","5"]],"bids":[["0.0000007464","15693119","0","1"],["0.0000007463","2330835024","0","4"],["0.0000007462","1182926517","0","2"],["0.0000007461","3818684357","0","4"],["0.000000746","6021641435","0","7"]],"instId":"OKB-USDT","ts":"1695864901807","seqId":4826378794}]}`)
+
+	ex := newBenchmarkOKXExchange(b)
+	drainBenchmarkDataHandler(b, ex)
+
+	b.ResetTimer()
+	for b.Loop() {
+		if err := ex.wsProcessOrderbook5(ob5payload); err != nil {
+			b.Fatalf("wsProcessOrderbook5 must not error: %v", err)
+		}
+	}
+}
+
+func BenchmarkWsProcessSpreadOrderbook(b *testing.B) {
+	b.ReportAllocs()
+
+	payload := []byte(processSpreadOrderbookJSON)
+	ex := newBenchmarkOKXExchange(b)
+	drainBenchmarkDataHandler(b, ex)
+
+	b.ResetTimer()
+	for b.Loop() {
+		if err := ex.wsProcessSpreadOrderbook(payload); err != nil {
+			b.Fatalf("wsProcessSpreadOrderbook must not error: %v", err)
+		}
+	}
+}

@@ -312,7 +312,7 @@ func (e *Exchange) SendAuthenticatedWebsocketRequest(ctx context.Context, epl re
 
 	conn, err := e.Websocket.GetConnection(privateConnection)
 	if err != nil {
-		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, operation, err)
+		return fmt.Errorf("%w %s %s: %w", request.ErrAuthRequestFailed, e.Name, operation, err)
 	}
 
 	outbound := &struct {
@@ -330,7 +330,7 @@ func (e *Exchange) SendAuthenticatedWebsocketRequest(ctx context.Context, epl re
 
 	incoming, err := conn.SendMessageReturnResponse(ctx, epl, id, outbound)
 	if err != nil {
-		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, operation, err)
+		return fmt.Errorf("%w %s %s: %w", request.ErrAuthRequestFailed, e.Name, operation, err)
 	}
 
 	intermediary := struct {
@@ -346,16 +346,16 @@ func (e *Exchange) SendAuthenticatedWebsocketRequest(ctx context.Context, epl re
 	}
 
 	if err := json.Unmarshal(incoming, &intermediary); err != nil {
-		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, operation, err)
+		return fmt.Errorf("%w %s %s: %w", request.ErrAuthRequestFailed, e.Name, operation, err)
 	}
 
 	switch intermediary.Code {
 	case 0:
 		return nil
 	case 1:
-		return fmt.Errorf("%w %s %s code=%d message=%s, %v", request.ErrAuthRequestFailed, e.Name, operation, intermediary.Code, intermediary.Message, parseWSResponseErrors(result, errOperationFailed))
+		return fmt.Errorf("%w %s %s code=%d message=%s: %w", request.ErrAuthRequestFailed, e.Name, operation, intermediary.Code, intermediary.Message, parseWSResponseErrors(result, errOperationFailed))
 	case 2:
-		return fmt.Errorf("%w %s %s code=%d message=%s, %v", request.ErrAuthRequestFailed, e.Name, operation, intermediary.Code, intermediary.Message, parseWSResponseErrors(result, errPartialSuccess))
+		return fmt.Errorf("%w %s %s code=%d message=%s: %w", request.ErrAuthRequestFailed, e.Name, operation, intermediary.Code, intermediary.Message, parseWSResponseErrors(result, errPartialSuccess))
 	default:
 		return fmt.Errorf("%w %s %s code=%d message=%s", request.ErrAuthRequestFailed, e.Name, operation, intermediary.Code, intermediary.Message)
 	}
