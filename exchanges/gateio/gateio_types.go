@@ -1265,54 +1265,6 @@ type MarginCurrencyBalance struct {
 	UnpairInterest types.Number `json:"interest"`
 }
 
-// // MarginAccountItem margin account item.
-// // Returned by the GET /margin/user/account endpoint which is the latest interface
-// // supporting both risk-based (risk) and maintenance-margin-based (mmr) isolated
-// // margin accounts.
-// type MarginAccountItem struct {
-// 	CurrencyPair string `json:"currency_pair"`
-// 	// AccountType indicates the account mode: "risk" (risk rate account),
-// 	// "mmr" (maintenance margin rate account), or "inactive" (market not activated).
-// 	AccountType string `json:"account_type"`
-// 	// Leverage is the user's current market leverage multiplier.
-// 	Leverage types.Number `json:"leverage"`
-// 	Locked   bool         `json:"locked"`
-// 	// Risk is the current risk rate (returned for risk-rate accounts).
-// 	Risk string `json:"risk"`
-// 	// Mmr is the current maintenance margin rate (returned for mmr accounts).
-// 	Mmr   string                    `json:"mmr"`
-// 	Base  AccountBalanceInformation `json:"base"`
-// 	Quote AccountBalanceInformation `json:"quote"`
-// }
-
-// // AccountBalanceInformation represents currency account balance information.
-// type AccountBalanceInformation struct {
-// 	Available    types.Number  `json:"available"`
-// 	Borrowed     types.Number  `json:"borrowed"`
-// 	Interest     types.Number  `json:"interest"`
-// 	Currency     currency.Code `json:"currency"`
-// 	LockedAmount types.Number  `json:"locked"`
-// }
-
-// // MarginAccountBalanceChangeInfo represents margin account balance
-// type MarginAccountBalanceChangeInfo struct {
-// 	ID            string     `json:"id"`
-// 	Time          types.Time `json:"time_ms"`
-// 	Currency      string     `json:"currency"`
-// 	CurrencyPair  string     `json:"currency_pair"`
-// 	AmountChanged string     `json:"change"`
-// 	Balance       string     `json:"balance"`
-// }
-
-// // MarginFundingAccountItem represents funding account list item.
-// type MarginFundingAccountItem struct {
-// 	Currency     string       `json:"currency"`
-// 	Available    types.Number `json:"available"`
-// 	LockedAmount types.Number `json:"locked"`
-// 	Lent         string       `json:"lent"`       // Outstanding loan amount yet to be repaid
-// 	TotalLent    string       `json:"total_lent"` // Amount used for lending. total_lent = lent + locked
-// }
-
 // MarginLoanRequestParam represents margin lend or borrow request param
 type MarginLoanRequestParam struct {
 	Side         string        `json:"side"`

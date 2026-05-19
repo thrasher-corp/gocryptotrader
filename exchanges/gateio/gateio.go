@@ -1387,53 +1387,6 @@ func (e *Exchange) GetOrderbookOfLendingLoans(ctx context.Context, ccy currency.
 	return lendingLoans, e.SendHTTPRequest(ctx, exchange.RestSpot, publicOrderbookMarginEPL, gateioMarginFundingBook+"?currency="+ccy.String(), &lendingLoans)
 }
 
-// // GetMarginAccountList retrieves user's isolated margin account list.
-// // Supports querying both risk-based and margin-based isolated margin accounts.
-// func (e *Exchange) GetMarginAccountList(ctx context.Context, currencyPair currency.Pair) ([]MarginAccountItem, error) {
-// 	params := url.Values{}
-// 	if currencyPair.IsPopulated() {
-// 		params.Set("currency_pair", currencyPair.String())
-// 	}
-// 	var response []MarginAccountItem
-// 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginAccountListEPL, http.MethodGet, gateioMarginUserAccount, params, nil, &response)
-// }
-
-// // ListMarginAccountBalanceChangeHistory retrieves margin account balance change history
-// // Only transferals from and to margin account are provided for now. Time range allows 30 days at most
-// func (e *Exchange) ListMarginAccountBalanceChangeHistory(ctx context.Context, ccy currency.Code, currencyPair currency.Pair, from, to time.Time, page, limit uint64) ([]MarginAccountBalanceChangeInfo, error) {
-// 	params := url.Values{}
-// 	if !ccy.IsEmpty() {
-// 		params.Set("currency", ccy.String())
-// 	}
-// 	if currencyPair.IsPopulated() {
-// 		params.Set("currency_pair", currencyPair.String())
-// 	}
-// 	if !from.IsZero() {
-// 		params.Set("from", strconv.FormatInt(from.Unix(), 10))
-// 	}
-// 	if !to.IsZero() && ((!from.IsZero() && to.After(from)) || from.IsZero()) {
-// 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
-// 	}
-// 	if page > 0 {
-// 		params.Set("page", strconv.FormatUint(page, 10))
-// 	}
-// 	if limit > 0 {
-// 		params.Set("limit", strconv.FormatUint(limit, 10))
-// 	}
-// 	var response []MarginAccountBalanceChangeInfo
-// 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginAccountBalanceEPL, http.MethodGet, gateioMarginAccountBook, params, nil, &response)
-// }
-
-// // GetMarginFundingAccountList retrieves funding account list
-// func (e *Exchange) GetMarginFundingAccountList(ctx context.Context, ccy currency.Code) ([]MarginFundingAccountItem, error) {
-// 	params := url.Values{}
-// 	if !ccy.IsEmpty() {
-// 		params.Set("currency", ccy.String())
-// 	}
-// 	var response []MarginFundingAccountItem
-// 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginFundingAccountListEPL, http.MethodGet, gateioMarginFundingAccounts, params, nil, &response)
-// }
-
 // MarginLoan represents lend or borrow request
 func (e *Exchange) MarginLoan(ctx context.Context, arg *MarginLoanRequestParam) (*MarginLoanResponse, error) {
 	if arg == nil {
