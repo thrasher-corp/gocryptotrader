@@ -406,7 +406,11 @@ func (e *Exchange) loadInstrumentOrderExecutionLimits(a asset.Item, insts []Inst
 
 func deriveDelistingWindow(inst *Instrument, now time.Time) (delistingAt, delistedAt time.Time) {
 	if !inst.ExpTime.Time().IsZero() {
-		return inst.ExpTime.Time(), inst.ExpTime.Time()
+		delistingAt = inst.ExpTime.Time()
+		if delistingAt.Before(now) {
+			delistedAt = delistingAt
+		}
+		return delistingAt, delistedAt
 	}
 	if inst.State == stateLive || inst.State == "" {
 		return time.Time{}, time.Time{}
