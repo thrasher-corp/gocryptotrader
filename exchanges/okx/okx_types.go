@@ -811,7 +811,7 @@ func (arg *PlaceOrderRequestParam) MarshalJSON() ([]byte, error) {
 
 		PlaceOptionsOrder                    string `json:"pxUsd,omitempty"`
 		PlaceOptionsOrderOnImpliedVolatility string `json:"pxVol,omitempty"`
-		ReduceOnly                           string `json:"reduceOnly,omitempty"`
+		ReduceOnly                           bool   `json:"reduceOnly,omitempty"`
 		TargetCurrency                       string `json:"tgtCcy,omitempty"`
 		SelfTradePreventionMode              string `json:"stpMode,omitempty"`
 		BanAmend                             bool   `json:"banAmend,omitempty"`
@@ -838,15 +838,13 @@ func (arg *PlaceOrderRequestParam) MarshalJSON() ([]byte, error) {
 		out.Price = formatNonScientificFloat(arg.Price)
 	}
 	if arg.ReduceOnly {
-		out.ReduceOnly = strconv.FormatBool(true)
+		out.ReduceOnly = true
 	}
 	return json.Marshal(out)
 }
 
 func formatNonScientificFloat(value float64) string {
-	formatted := strconv.FormatFloat(value, 'f', 15, 64)
-	formatted = strings.TrimRight(formatted, "0")
-	return strings.TrimRight(formatted, ".")
+	return strconv.FormatFloat(value, 'f', -1, 64)
 }
 
 // Validate validates the PlaceOrderRequestParam

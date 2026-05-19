@@ -1008,11 +1008,11 @@ func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency
 			ExpectedChecksum: uint32(data.Checksum), //nolint:gosec // Requires type casting
 			Asks:             asks,
 			Bids:             bids,
-			ReachedCodeAt:    reachedCodeAt,
+			ReachedGCTAt:     reachedCodeAt,
 			AllowEmpty:       true, // Allow empty levels to push forward sequence ID
 		}
-		checksumDoneAt := time.Now()
-		obu.ChecksumDoneAt = checksumDoneAt
+		checksumCompletedAt := time.Now()
+		obu.ChecksumCompletedAt = checksumCompletedAt
 		if err := e.Websocket.Orderbook.Update(obu); err != nil {
 			putWsOrderbookLevels(asksPoolItem)
 			putWsOrderbookLevels(bidsPoolItem)

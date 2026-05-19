@@ -51,7 +51,7 @@ func TestLookupInstrumentIDCode(t *testing.T) {
 			expected:     123,
 		},
 		{
-			name: "single fallback entry",
+			name: "single non-matching entry returns zero",
 			instruments: []Instrument{
 				{
 					InstrumentID:     currency.NewPairWithDelimiter("ETH", "USDT", "-"),
@@ -59,7 +59,7 @@ func TestLookupInstrumentIDCode(t *testing.T) {
 				},
 			},
 			instrumentID: "BTC-USDT",
-			expected:     987,
+			expected:     0,
 		},
 		{
 			name: "no match in multiple entries",

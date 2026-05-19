@@ -1731,9 +1731,6 @@ func lookupInstrumentIDCode(instruments []Instrument, instrumentID string) int64
 			return instrumentIDCode
 		}
 	}
-	if len(instruments) == 1 {
-		return instruments[0].InstrumentIDCode.Int64()
-	}
 	return 0
 }
 
@@ -1983,7 +1980,7 @@ func (e *Exchange) GetDepositAddress(ctx context.Context, c currency.Code, _, ch
 	// Check if a specific chain was requested
 	if chain != "" {
 		for x := range response {
-			if response[x].Chain != chain {
+			if !strings.EqualFold(response[x].Chain, chain) {
 				continue
 			}
 			return &deposit.Address{
@@ -2498,7 +2495,7 @@ func (e *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrenc
 	}
 	chains := make([]string, 0, len(currencyChains))
 	for x := range currencyChains {
-		if (!cryptocurrency.IsEmpty() && cryptocurrency.String() != currencyChains[x].Currency) ||
+		if (!cryptocurrency.IsEmpty() && !strings.EqualFold(cryptocurrency.String(), currencyChains[x].Currency)) ||
 			(!currencyChains[x].CanDeposit && !currencyChains[x].CanWithdraw) ||
 			// Lightning network is currently not supported by transfer chains
 			// as it is an invoice string which is generated per request and is

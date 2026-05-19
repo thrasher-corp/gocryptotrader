@@ -31,7 +31,7 @@ func TestPlaceOrderRequestParamMarshalJSON(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, string(raw), `"px":"0.00000001555"`)
 	require.Contains(t, string(raw), `"sz":"170000000"`)
-	require.Contains(t, string(raw), `"reduceOnly":"true"`)
+	require.Contains(t, string(raw), `"reduceOnly":true`)
 	require.NotContains(t, string(raw), "e-")
 	require.NotContains(t, string(raw), "E-")
 }
