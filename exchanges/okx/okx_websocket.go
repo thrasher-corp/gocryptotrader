@@ -1001,18 +1001,18 @@ func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curren
 	bids, bidsPoolItem := appendWsOrderbookItemsFromPool(data.Bids)
 	lastUpdated := data.Timestamp.Time()
 	for i := range assets {
-			if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-				LastUpdateID:        data.SequenceID,
-				Asset:               assets[i],
-				Asks:                asks,
-				Bids:                bids,
-				LastUpdated:         lastUpdated,
-				ReachedGCTAt:        reachedGCTAt,
-				ChecksumCompletedAt: checksumCompletedAt,
-				Pair:                pair,
-				Exchange:            e.Name,
-				ValidateOrderbook:   e.ValidateOrderbook,
-			}); err != nil {
+		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+			LastUpdateID:        data.SequenceID,
+			Asset:               assets[i],
+			Asks:                asks,
+			Bids:                bids,
+			LastUpdated:         lastUpdated,
+			ReachedGCTAt:        reachedGCTAt,
+			ChecksumCompletedAt: checksumCompletedAt,
+			Pair:                pair,
+			Exchange:            e.Name,
+			ValidateOrderbook:   e.ValidateOrderbook,
+		}); err != nil {
 			putWsOrderbookLevels(asksPoolItem)
 			putWsOrderbookLevels(bidsPoolItem)
 			return err
