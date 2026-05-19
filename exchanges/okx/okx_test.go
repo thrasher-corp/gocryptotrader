@@ -4007,6 +4007,36 @@ func TestGenerateOrderbookChecksum(t *testing.T) {
 	require.Equal(t, uint32(2832680552), generateOrderbookChecksum(&orderbookBase))
 }
 
+func TestCalculateOrderbookChecksum(t *testing.T) {
+	t.Parallel()
+
+	data := &WsOrderBookData{
+		Bids: []WsOrderBookLevel{
+			{Price: 100.5, Amount: 1.25, PriceString: "100.5", AmountString: "1.25"},
+			{Price: 100.4, Amount: 2.5, PriceString: "100.4", AmountString: "2.5"},
+		},
+		Asks: []WsOrderBookLevel{
+			{Price: 100.6, Amount: 0.75, PriceString: "100.6", AmountString: "0.75"},
+			{Price: 100.7, Amount: 3.5, PriceString: "100.7", AmountString: "3.5"},
+		},
+	}
+
+	checksum, err := e.CalculateOrderbookChecksum(data)
+	require.NoError(t, err, "CalculateOrderbookChecksum must not error")
+
+	book := &orderbook.Book{
+		Bids: orderbook.Levels{
+			{Price: 100.5, Amount: 1.25, StrPrice: "100.5", StrAmount: "1.25"},
+			{Price: 100.4, Amount: 2.5, StrPrice: "100.4", StrAmount: "2.5"},
+		},
+		Asks: orderbook.Levels{
+			{Price: 100.6, Amount: 0.75, StrPrice: "100.6", StrAmount: "0.75"},
+			{Price: 100.7, Amount: 3.5, StrPrice: "100.7", StrAmount: "3.5"},
+		},
+	}
+	require.Equal(t, generateOrderbookChecksum(book), checksum, "CalculateOrderbookChecksum must match generateOrderbookChecksum for equivalent book data")
+}
+
 func TestOrderPushData(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
@@ -6391,13 +6421,6 @@ func TestGenerateSubscriptions(t *testing.T) {
 					s.Pairs = pairs[i : i+1]
 					exp = append(exp, s)
 				}
-			case isInstFamilyChannel(s):
-				for i, p := range pairs {
-					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
-					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"instFamily":%q,"instType":%q}`, name, optionInstrumentFamilyFromPair(p), GetInstrumentTypeFromAssetItem(s.Asset))
-					s.Pairs = pairs[i : i+1]
-					exp = append(exp, s)
-				}
 			default:
 				s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 				if isAssetChannel(s) {
@@ -6682,16 +6705,27 @@ func TestDeriveDelistingWindow(t *testing.T) {
 	t.Parallel()
 
 	now := time.Date(2026, time.May, 11, 16, 0, 0, 0, time.UTC)
-	expiry := now.Add(2 * time.Hour)
+	futureExpiry := now.Add(2 * time.Hour)
+	pastExpiry := now.Add(-2 * time.Hour)
 
-	t.Run("expiry takes precedence", func(t *testing.T) {
+	t.Run("future expiry maps to delisting only", func(t *testing.T) {
 		t.Parallel()
 		delistingAt, delistedAt := deriveDelistingWindow(&Instrument{
 			State:   "suspend",
-			ExpTime: types.Time(expiry),
+			ExpTime: types.Time(futureExpiry),
 		}, now)
-		require.Equal(t, expiry, delistingAt)
-		require.Equal(t, expiry, delistedAt)
+		require.Equal(t, futureExpiry, delistingAt)
+		require.True(t, delistedAt.IsZero())
+	})
+
+	t.Run("past expiry maps to delisting and delisted", func(t *testing.T) {
+		t.Parallel()
+		delistingAt, delistedAt := deriveDelistingWindow(&Instrument{
+			State:   "suspend",
+			ExpTime: types.Time(pastExpiry),
+		}, now)
+		require.Equal(t, pastExpiry, delistingAt)
+		require.Equal(t, pastExpiry, delistedAt)
 	})
 
 	t.Run("live state has no delisting", func(t *testing.T) {

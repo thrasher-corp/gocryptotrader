@@ -2,11 +2,13 @@ package okx
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -336,174 +338,79 @@ func TestTrackEquivalentSubscriptionsOnExistingConnection(t *testing.T) {
 	})
 }
 
-func TestOptionFamilyChannels(t *testing.T) {
-	t.Parallel()
-
-	require.Equal(t, channelOptionTrades, channelName(&subscription.Subscription{
-		Channel: subscription.AllTradesChannel,
-		Asset:   asset.Options,
-	}), "all trades for options must map to option-trades")
-
-	require.True(t, isInstFamilyChannel(&subscription.Subscription{
-		Channel: subscription.AllTradesChannel,
-		Asset:   asset.Options,
-	}), "options all trades must be an instrument family channel")
-
-	require.True(t, isInstFamilyChannel(&subscription.Subscription{
-		Channel: channelOptSummary,
-		Asset:   asset.Options,
-	}), "option summary must be an instrument family channel")
+type authConnectionStub struct {
+	websocket.Connection
+	response []byte
+	err      error
 }
 
-func TestIsInstFamilyChannel(t *testing.T) {
-	t.Parallel()
-
-	require.True(t, isInstFamilyChannel(&subscription.Subscription{
-		Channel: subscription.AllTradesChannel,
-		Asset:   asset.Options,
-	}), "options all trades must be identified as instrument family channel")
-	require.True(t, isInstFamilyChannel(&subscription.Subscription{
-		Channel: subscription.TickerChannel,
-		Asset:   asset.Options,
-	}), "options ticker must be identified as instrument family channel")
-	require.False(t, isInstFamilyChannel(&subscription.Subscription{
-		Channel: subscription.AllTradesChannel,
-		Asset:   asset.Spot,
-	}), "spot all trades must not be identified as instrument family channel")
+func (a *authConnectionStub) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _, _ any) ([]byte, error) {
+	return a.response, a.err
 }
 
-func TestSubscriptionForAsset(t *testing.T) {
-	t.Parallel()
-
-	original := &subscription.Subscription{
-		Channel: subscription.AllTradesChannel,
-		Asset:   asset.Spot,
-	}
-	cloned := subscriptionForAsset(original, asset.Options)
-	require.NotNil(t, cloned, "cloned subscription must not be nil")
-	require.Equal(t, asset.Options, cloned.Asset, "cloned subscription must contain replacement asset")
-	require.Equal(t, asset.Spot, original.Asset, "original subscription must remain unchanged")
-}
-
-func TestOptionInstrumentFamilyFromPair(t *testing.T) {
-	t.Parallel()
-
-	testCases := []struct {
-		name     string
-		pair     currency.Pair
-		expected string
-	}{
-		{
-			name:     "standard option pair",
-			pair:     currency.NewPairWithDelimiter("BTC", "USD-230224-18000-C", "-"),
-			expected: "BTC-USD",
-		},
-		{
-			name:     "spot-like pair",
-			pair:     currency.NewPairWithDelimiter("ETH", "USDT", "/"),
-			expected: "ETH-USDT",
-		},
-		{
-			name:     "empty pair",
-			pair:     currency.EMPTYPAIR,
-			expected: "",
-		},
-		{
-			name:     "missing quote family",
-			pair:     currency.NewPairWithDelimiter("BTC", "-230224-18000-C", "-"),
-			expected: "",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-			require.Equal(t, tc.expected, optionInstrumentFamilyFromPair(tc.pair))
-		})
-	}
-}
-
-func TestGenerateSubscriptionsOptionTradesUseInstrumentFamily(t *testing.T) {
+func TestWSAuthenticateConnection(t *testing.T) {
 	t.Parallel()
 
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	require.NoError(t,
-		ex.GetBase().SetPairs(currency.Pairs{currency.NewPairWithDelimiter("BTC", "USD", "-")}, asset.Options, false),
-		"SetPairs available must not error")
-	require.NoError(t,
-		ex.GetBase().SetPairs(currency.Pairs{currency.NewPairWithDelimiter("BTC", "USD", "-")}, asset.Options, true),
-		"SetPairs must not error")
-	ex.Features.Subscriptions = subscription.List{
-		{
-			Channel: subscription.AllTradesChannel,
-			Asset:   asset.Options,
-		},
-	}
+	ex.API.AuthenticatedSupport = true
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ex.SetCredentials("key", "secret", "passphrase", "", "", "")
 
-	subs, err := ex.generateSubscriptions(true)
-	require.NoError(t, err, "generateSubscriptions must not error")
-	require.Len(t, subs, 1, "must generate one options all-trades subscription")
-	require.Contains(t, subs[0].QualifiedChannel, `"channel":"option-trades"`)
-	require.Contains(t, subs[0].QualifiedChannel, `"instFamily":"BTC-USD"`)
-	require.Contains(t, subs[0].QualifiedChannel, `"instType":"OPTION"`)
-	require.NotContains(t, subs[0].QualifiedChannel, `"instID"`, "option-trades must use instFamily instead of instID")
+	t.Run("send error", func(t *testing.T) {
+		t.Parallel()
+		incomingErr := errors.New("send failed")
+		conn := &authConnectionStub{err: incomingErr}
+		err := ex.wsAuthenticateConnection(t.Context(), conn)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "wsAuthenticateConnection must wrap auth request failure")
+		require.ErrorIs(t, err, incomingErr, "wsAuthenticateConnection must preserve source error")
+	})
+
+	t.Run("unmarshal error", func(t *testing.T) {
+		t.Parallel()
+		conn := &authConnectionStub{response: []byte("{")}
+		err := ex.wsAuthenticateConnection(t.Context(), conn)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "wsAuthenticateConnection must wrap decode failure")
+	})
+
+	t.Run("non zero code", func(t *testing.T) {
+		t.Parallel()
+		conn := &authConnectionStub{response: []byte(`{"code":"1","msg":"bad auth"}`)}
+		err := ex.wsAuthenticateConnection(t.Context(), conn)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "wsAuthenticateConnection must treat non-zero code as auth failure")
+	})
+
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+		conn := &authConnectionStub{response: []byte(`{"code":"0","msg":""}`)}
+		require.NoError(t, ex.wsAuthenticateConnection(t.Context(), conn), "wsAuthenticateConnection must not error on success")
+	})
 }
 
-func TestGenerateSubscriptionsOptionSummaryUseInstrumentFamily(t *testing.T) {
+func TestChunkRequestsDeduplicatesArguments(t *testing.T) {
 	t.Parallel()
 
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	require.NoError(t,
-		ex.GetBase().SetPairs(currency.Pairs{currency.NewPairWithDelimiter("BTC", "USD", "-")}, asset.Options, false),
-		"SetPairs available must not error")
-	require.NoError(t,
-		ex.GetBase().SetPairs(currency.Pairs{currency.NewPairWithDelimiter("BTC", "USD", "-")}, asset.Options, true),
-		"SetPairs must not error")
+	require.NoError(t, ex.GetBase().SetPairs(currency.Pairs{currency.NewBTCUSDT()}, asset.Futures, false), "SetPairs available must not error")
+	require.NoError(t, ex.GetBase().SetPairs(currency.Pairs{currency.NewBTCUSDT()}, asset.Futures, true), "SetPairs enabled must not error")
 	ex.Features.Subscriptions = subscription.List{
-		{
-			Channel: subscription.TickerChannel,
-			Asset:   asset.Options,
-		},
+		{Channel: subscription.OrderbookChannel, Asset: asset.Futures},
+		{Channel: subscription.OrderbookChannel, Asset: asset.Futures},
 	}
 
 	subs, err := ex.generateSubscriptions(true)
 	require.NoError(t, err, "generateSubscriptions must not error")
-	require.Len(t, subs, 1, "must generate one options ticker subscription")
-	require.Contains(t, subs[0].QualifiedChannel, `"channel":"opt-summary"`)
-	require.Contains(t, subs[0].QualifiedChannel, `"instFamily":"BTC-USD"`)
-	require.Contains(t, subs[0].QualifiedChannel, `"instType":"OPTION"`)
-	require.NotContains(t, subs[0].QualifiedChannel, `"uly"`, "opt-summary must use instFamily instead of uly")
-}
-
-func TestChunkRequestsDeduplicatesOptionFamilyArguments(t *testing.T) {
-	t.Parallel()
-
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	require.NoError(t, ex.GetBase().SetPairs(currency.Pairs{
-		currency.NewPairWithDelimiter("BTC", "USD-230224-18000-C", "-"),
-		currency.NewPairWithDelimiter("BTC", "USD-230224-19000-C", "-"),
-	}, asset.Options, false), "SetPairs available must not error")
-	require.NoError(t, ex.GetBase().SetPairs(currency.Pairs{
-		currency.NewPairWithDelimiter("BTC", "USD-230224-18000-C", "-"),
-		currency.NewPairWithDelimiter("BTC", "USD-230224-19000-C", "-"),
-	}, asset.Options, true), "SetPairs must not error")
-
-	ex.Features.Subscriptions = subscription.List{
-		{
-			Channel: subscription.AllTradesChannel,
-			Asset:   asset.Options,
-		},
-	}
-	subs, err := ex.generateSubscriptions(true)
-	require.NoError(t, err, "generateSubscriptions must not error")
-	require.Len(t, subs, 2, "template expansion must still track each input options pair")
+	require.Len(t, subs, 2, "template expansion must preserve logical duplicates")
 
 	requests, err := ex.chunkRequests(subs, operationSubscribe)
 	require.NoError(t, err, "chunkRequests must not error")
 	require.NotEmpty(t, requests, "chunkRequests must return at least one request")
-	require.Equal(t, 1, len(requests[0].Arguments), "only one outbound instFamily argument must be sent")
-	require.Equal(t, 2, len(requests[0].subs), "all pair subscriptions must remain tracked")
+	require.Len(t, requests[0].subs, 2, "chunkRequests must continue tracking both logical subscriptions")
+	require.Len(t, requests[0].Arguments, 1, "chunkRequests must deduplicate identical outbound arguments")
+
+	firstArg, err := json.Marshal(requests[0].Arguments[0])
+	require.NoError(t, err, "Marshal first argument must not error")
+	expectedArg := []byte(`{"channel":"books","instId":"BTC-USDT"}`)
+	require.JSONEq(t, string(expectedArg), string(firstArg), "chunkRequests must retain expected outbound request payload")
 }

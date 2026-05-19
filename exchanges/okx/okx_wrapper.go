@@ -394,9 +394,15 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	}
 }
 
+// deriveDelistingWindow helps determine when a listing was expired
+// if the instrument is not live, but has no expiry time, we just make it now for Limit completeness
 func deriveDelistingWindow(inst *Instrument, now time.Time) (delistingAt, delistedAt time.Time) {
 	if !inst.ExpTime.Time().IsZero() {
-		return inst.ExpTime.Time(), inst.ExpTime.Time()
+		delistingAt = inst.ExpTime.Time()
+		if delistingAt.Before(now) {
+			delistedAt = delistingAt
+		}
+		return delistingAt, delistedAt
 	}
 	if inst.State == stateLive || inst.State == "" {
 		return time.Time{}, time.Time{}
