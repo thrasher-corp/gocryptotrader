@@ -438,7 +438,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 		pairs := make([]currency.Pair, 0, len(tradables))
 		for x := range tradables {
-			if tradables[x].Status == 0 || tradables[x].MinBaseAmount.Float64() == 0 { // Pairs with min_base_amount == 0 are effectively dead and skipped.
+			if tradables[x].Status == 0 || tradables[x].BaseMinimumBorrowAmount.Float64() == 0 { // Pairs with min_base_amount == 0 are effectively dead and skipped.
 				continue
 			}
 			pairs = append(pairs, tradables[x].ID)
@@ -1958,15 +1958,13 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 
 		supported := make(map[currency.Pair]*MarginCurrencyPairInfo, len(marginPairs))
 		for i := range marginPairs {
-			if marginPairs[i].Status == 0 || marginPairs[i].MinBaseAmount.Float64() == 0 { // Pairs with min_base_amount == 0 are effectively dead and skipped.
+			if marginPairs[i].Status == 0 || marginPairs[i].BaseMinimumBorrowAmount.Float64() == 0 { // Pairs with min_base_amount == 0 are effectively dead and skipped.
 				continue
 			}
-			supported[currency.NewPair(marginPairs[i].Base, marginPairs[i].Quote)] = &marginPairs[i]
+			supported[marginPairs[i].ID] = &marginPairs[i]
 		}
 
-		// Spot data provides precision and step size; filter to margin-supported pairs only.
-		// Note: we do NOT skip "untradable" spot pairs here because margin availability
-		// is determined by the margin API status, not the spot trade status.
+		// Required for spot trading limits
 		pairsData, err := e.ListSpotCurrencyPairs(ctx)
 		if err != nil {
 			return err
@@ -1974,48 +1972,28 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 
 		l = make([]limits.MinMaxLevel, 0, len(supported))
 		for i := range pairsData {
-			p := currency.NewPair(pairsData[i].Base, pairsData[i].Quote)
-			mInfo, ok := supported[p]
+			mInfo, ok := supported[pairsData[i].ID]
 			if !ok {
 				continue
 			}
-			delete(supported, p) // Track coverage; remainder handled below.
-
-			minQuoteAmount := mInfo.MinQuoteAmount.Float64()
-			if minQuoteAmount == 0 {
-				minQuoteAmount = pairsData[i].MinQuoteAmount.Float64()
+			delete(supported, pairsData[i].ID) // Track coverage; warn below.
+			minBaseAmount := pairsData[i].MinBaseAmount.Float64()
+			if minBaseAmount == 0 {
+				minBaseAmount = math.Pow10(-int(pairsData[i].AmountPrecision))
 			}
-
-			maxQuoteAmount := mInfo.MaxQuoteAmount.Float64()
-			if maxQuoteAmount == 0 {
-				maxQuoteAmount = pairsData[i].MaxQuoteAmount.Float64()
-			}
-
 			l = append(l, limits.MinMaxLevel{
-				Key:                     key.NewExchangeAssetPair(e.Name, a, p),
-				PriceStepIncrementSize:  math.Pow10(-int(pairsData[i].PricePrecision)),
-				AmountStepIncrementSize: math.Pow10(-int(pairsData[i].AmountPrecision)),
-				MinimumBaseAmount:       mInfo.MinBaseAmount.Float64(),
-				MinimumQuoteAmount:      minQuoteAmount,
-				MaximumBaseAmount:       pairsData[i].MaxBaseAmount.Float64(),
-				MaximumQuoteAmount:      maxQuoteAmount,
-				Delisted:                pairsData[i].DelistingTime.Time(),
-				Listed:                  oldestTime(pairsData[i].SellStart.Time(), pairsData[i].BuyStart.Time()),
-				MultiplierUp:            pairsData[i].MaximumQuoteRisePercentage.Float64(),
-				MultiplierDown:          pairsData[i].MaximumQuoteDeclinePercentage.Float64(),
-				MarketMaxQty:            pairsData[i].MarketOrderMaxStock.Float64(),
+				Key:                      key.NewExchangeAssetPair(e.Name, a, pairsData[i].ID),
+				QuoteStepIncrementSize:   math.Pow10(-int(pairsData[i].PricePrecision)),
+				AmountStepIncrementSize:  math.Pow10(-int(pairsData[i].AmountPrecision)),
+				MinimumBaseAmount:        minBaseAmount,
+				MinimumQuoteAmount:       pairsData[i].MinQuoteAmount.Float64(),
+				Delisted:                 pairsData[i].DelistingTime.Time(),
+				MinimumBorrowAmountBase:  mInfo.BaseMinimumBorrowAmount.Float64(),
+				MinimumBorrowAmountQuote: mInfo.QuoteMinimumBorrowAmount.Float64(),
 			})
 		}
-
-		// Any margin pairs that weren't found in spot data still need limits
-		// (e.g. pairs only listable on margin). Use margin data with defaults.
-		for pair, mInfo := range supported {
-			l = append(l, limits.MinMaxLevel{
-				Key:                key.NewExchangeAssetPair(e.Name, a, pair),
-				MinimumBaseAmount:  mInfo.MinBaseAmount.Float64(),
-				MinimumQuoteAmount: mInfo.MinQuoteAmount.Float64(),
-				MaximumQuoteAmount: mInfo.MaxQuoteAmount.Float64(),
-			})
+		if len(supported) > 0 {
+			log.Warnf(log.ExchangeSys, "%s %d unsupported margin pairs found, these will be skipped: %v", e.Name, len(supported), supported)
 		}
 	case asset.USDTMarginedFutures, asset.CoinMarginedFutures:
 		settlement := currency.USDT

@@ -2841,6 +2841,8 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 					if l.AmountStepIncrementSize != 0 {
 						assert.Positivef(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive for %s when set", p)
 					}
+					assert.Positivef(t, l.MinimumBorrowAmountBase, "MinimumBorrowAmountBase should be positive for %s", p)
+					assert.Positivef(t, l.MinimumBorrowAmountQuote, "MinimumBorrowAmountQuote should be positive for %s", p)
 				case asset.DeliveryFutures:
 					assert.NotZerof(t, l.Expiry, "Expiry should be populated for %s", p)
 					assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", p)
