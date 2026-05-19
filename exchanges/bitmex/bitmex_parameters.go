@@ -270,7 +270,7 @@ type OrderNewParams struct {
 	// OneUpdatesTheOtherAbsolute, OneUpdatesTheOtherProportional.
 	ContingencyType string `json:"contingencyType,omitempty"`
 
-	// DisplayQuantity- [Optional] quantity to display in the book. Use 0 for a fully
+	// DisplayQuantity - [Optional] quantity to display in the book. Use 0 for a fully
 	// hidden order.
 	DisplayQuantity float64 `json:"displayQty,omitempty"`
 

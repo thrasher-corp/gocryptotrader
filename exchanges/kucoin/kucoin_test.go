@@ -73,13 +73,15 @@ func TestMain(m *testing.M) {
 
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
-	symbols, err := e.GetSymbols(t.Context(), "")
+	allSymbols, err := e.GetSymbols(t.Context(), "")
 	assert.NoError(t, err)
-	assert.NotEmpty(t, symbols)
+	assert.NotEmpty(t, allSymbols)
+
 	// Using market string reduces the scope of what is returned.
-	symbols, err = e.GetSymbols(t.Context(), "ETF")
+	filtered, err := e.GetSymbols(t.Context(), "USDS")
 	assert.NoError(t, err)
-	assert.NotEmpty(t, symbols, "should return all available ETF symbols")
+	assert.NotEmpty(t, filtered, "should return symbols for an active market")
+	assert.Less(t, len(filtered), len(allSymbols), "market filter should narrow the symbol list")
 }
 
 func TestGetTicker(t *testing.T) {
