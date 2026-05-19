@@ -102,12 +102,14 @@ type Book struct {
 	// from the exchange.
 	LastPushed time.Time
 
-	// ReachedGCTAt is to determine when it reaches GCT, before its been processed into
-	// the orderbook package. Use a time.Now at the start of the function that will process
-	// the websocket orderbook json
+	// ReachedGCTAt marks when the update first reaches GoCryptoTrader code,
+	// before orderbook processing begins (typically set with time.Now() at the
+	// start of websocket message handling).
 	ReachedGCTAt time.Time
 
-	// ChecksumCompletedAt is when checksum validation finished for this update.
+	// ChecksumCompletedAt marks when checksum computation completed for this
+	// update in the caller path. It is not the point when checksum validation
+	// completes inside the orderbook package.
 	ChecksumCompletedAt time.Time
 
 	// InsertedAt is the time the update was inserted into the orderbook

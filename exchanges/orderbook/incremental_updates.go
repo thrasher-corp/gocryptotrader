@@ -38,15 +38,18 @@ var (
 
 // Update holds changes that are to be applied to a stored orderbook
 type Update struct {
-	UpdateID       int64
-	UpdateTime     time.Time
-	LastPushed     time.Time
-	ReachedCodeAt  time.Time
-	ChecksumDoneAt time.Time
-	Asset          asset.Item
-	Bids           Levels
-	Asks           Levels
-	Pair           currency.Pair
+	UpdateID   int64
+	UpdateTime time.Time
+	LastPushed time.Time
+	// ReachedGCTAt marks when the exchange adapter starts handling this
+	// update before it is applied to depth. This mirrors Book.ReachedGCTAt.
+	ReachedGCTAt time.Time
+	// ChecksumCompletedAt marks when upstream checksum computation finished.
+	ChecksumCompletedAt time.Time
+	Asset               asset.Item
+	Bids                Levels
+	Asks                Levels
+	Pair                currency.Pair
 
 	// ExpectedChecksum defines the expected value when the books have been verified
 	ExpectedChecksum uint32
