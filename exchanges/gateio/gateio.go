@@ -91,6 +91,26 @@ const (
 	gateioCrossMarginRepayments   = "margin/cross/repayments"
 	gateioCrossMarginTransferable = "margin/cross/transferable"
 	gateioCrossMarginBorrowable   = "margin/cross/borrowable"
+	// gateioMarginCurrencyPairs      = "margin/currency_pairs"
+	// gateioMarginFundingBook        = "margin/funding_book"
+	// gateioMarginUserAccount        = "margin/user/account"
+	// gateioMarginAccountBook        = "margin/account_book"
+	// gateioMarginFundingAccounts    = "margin/funding_accounts"
+	// gateioMarginLoans              = "margin/loans"
+	// gateioMarginMergedLoans        = "margin/merged_loans"
+	// gateioMarginLoanRecords        = "margin/loan_records"
+	// gateioMarginAutoRepay          = "margin/auto_repay"
+	// gateioMarginTransfer           = "margin/transferable"
+	// gateioMarginBorrowable         = "margin/uni/borrowable"
+	// gateioMarginUniLoans = "margin/uni/loans"
+	// gateioMarginUniInterestRecords = "margin/uni/interest_records"
+	// gateioCrossMarginCurrencies    = "margin/cross/currencies"
+	// gateioCrossMarginAccounts      = "margin/cross/accounts"
+	// gateioCrossMarginAccountBook   = "margin/cross/account_book"
+	// gateioCrossMarginLoans         = "margin/cross/loans"
+	// gateioCrossMarginRepayments    = "margin/cross/repayments"
+	// gateioCrossMarginTransferable  = "margin/cross/transferable"
+	// gateioCrossMarginBorrowable    = "margin/cross/borrowable"
 
 	// Options
 	gateioOptionUnderlyings            = "options/underlyings"
@@ -170,6 +190,7 @@ var (
 	errTooManyCurrencyCodes             = errors.New("too many currency codes supplied")
 	errFetchingOrderbook                = errors.New("error fetching orderbook")
 	errNoSpotInstrument                 = errors.New("no spot instrument available")
+	errInvalidUniLoanType               = errors.New("invalid uni loan type: must be \"borrow\" or \"repay\"")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
@@ -906,6 +927,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	if err != nil {
 		return err
 	}
+	respHeaders := make(http.Header)
 	var intermediary json.RawMessage
 	err = e.SendPayload(ctx, epl, func() (*request.Item, error) {
 		headers := make(map[string]string)
@@ -949,22 +971,29 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			HTTPDebugging:          e.HTTPDebugging,
 			HTTPRecording:          e.HTTPRecording,
 			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
+			HeaderResponse:         &respHeaders,
 		}, nil
 	}, request.AuthenticatedRequest)
 	if err != nil {
 		return err
+	}
+
+	if respHeaders.Get("Status") == "204" { // 204 No Content is returned with empty body, so intermediary will be empty but it is not an error
+		if len(intermediary) != 0 {
+			return fmt.Errorf("%s %w, expected empty response body but got %s", e.Name, request.ErrAuthRequestFailed, string(intermediary))
+		}
+		if result == nil {
+			return nil
+		}
+		return fmt.Errorf("%s %w, empty response body with non-nil result", e.Name, request.ErrAuthRequestFailed)
 	}
 	errCap := struct {
 		Label   string `json:"label"`
 		Code    string `json:"code"`
 		Message string `json:"message"`
 	}{}
-
 	if err := json.Unmarshal(intermediary, &errCap); err == nil && errCap.Code != "" {
-		return fmt.Errorf("%s auth request error, code: %s message: %s",
-			e.Name,
-			errCap.Label,
-			errCap.Message)
+		return fmt.Errorf("%s auth request error, code: %s message: %s", e.Name, errCap.Label, errCap.Message)
 	}
 	if result == nil {
 		return nil
@@ -1379,6 +1408,53 @@ func (e *Exchange) GetOrderbookOfLendingLoans(ctx context.Context, ccy currency.
 	return lendingLoans, e.SendHTTPRequest(ctx, exchange.RestSpot, publicOrderbookMarginEPL, gateioMarginFundingBook+"?currency="+ccy.String(), &lendingLoans)
 }
 
+// // GetMarginAccountList retrieves user's isolated margin account list.
+// // Supports querying both risk-based and margin-based isolated margin accounts.
+// func (e *Exchange) GetMarginAccountList(ctx context.Context, currencyPair currency.Pair) ([]MarginAccountItem, error) {
+// 	params := url.Values{}
+// 	if currencyPair.IsPopulated() {
+// 		params.Set("currency_pair", currencyPair.String())
+// 	}
+// 	var response []MarginAccountItem
+// 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginAccountListEPL, http.MethodGet, gateioMarginUserAccount, params, nil, &response)
+// }
+
+// // ListMarginAccountBalanceChangeHistory retrieves margin account balance change history
+// // Only transferals from and to margin account are provided for now. Time range allows 30 days at most
+// func (e *Exchange) ListMarginAccountBalanceChangeHistory(ctx context.Context, ccy currency.Code, currencyPair currency.Pair, from, to time.Time, page, limit uint64) ([]MarginAccountBalanceChangeInfo, error) {
+// 	params := url.Values{}
+// 	if !ccy.IsEmpty() {
+// 		params.Set("currency", ccy.String())
+// 	}
+// 	if currencyPair.IsPopulated() {
+// 		params.Set("currency_pair", currencyPair.String())
+// 	}
+// 	if !from.IsZero() {
+// 		params.Set("from", strconv.FormatInt(from.Unix(), 10))
+// 	}
+// 	if !to.IsZero() && ((!from.IsZero() && to.After(from)) || from.IsZero()) {
+// 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+// 	}
+// 	if page > 0 {
+// 		params.Set("page", strconv.FormatUint(page, 10))
+// 	}
+// 	if limit > 0 {
+// 		params.Set("limit", strconv.FormatUint(limit, 10))
+// 	}
+// 	var response []MarginAccountBalanceChangeInfo
+// 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginAccountBalanceEPL, http.MethodGet, gateioMarginAccountBook, params, nil, &response)
+// }
+
+// // GetMarginFundingAccountList retrieves funding account list
+// func (e *Exchange) GetMarginFundingAccountList(ctx context.Context, ccy currency.Code) ([]MarginFundingAccountItem, error) {
+// 	params := url.Values{}
+// 	if !ccy.IsEmpty() {
+// 		params.Set("currency", ccy.String())
+// 	}
+// 	var response []MarginFundingAccountItem
+// 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginFundingAccountListEPL, http.MethodGet, gateioMarginFundingAccounts, params, nil, &response)
+// }
+
 // MarginLoan represents lend or borrow request
 func (e *Exchange) MarginLoan(ctx context.Context, arg *MarginLoanRequestParam) (*MarginLoanResponse, error) {
 	if arg == nil {
@@ -1591,6 +1667,55 @@ func (e *Exchange) ModifyALoanRecord(ctx context.Context, loanRecordID string, a
 	var response *LoanRecord
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginModifyLoanRecordEPL, http.MethodPatch, gateioMarginLoanRecords+"/"+loanRecordID, nil, &arg, &response)
 }
+
+// // UpdateUsersAutoRepaymentSetting represents update user's auto repayment setting
+// func (e *Exchange) UpdateUsersAutoRepaymentSetting(ctx context.Context, statusOn bool) (*OnOffStatus, error) {
+// 	var statusStr string
+// 	if statusOn {
+// 		statusStr = "on"
+// 	} else {
+// 		statusStr = "off"
+// 	}
+// 	params := url.Values{}
+// 	params.Set("status", statusStr)
+// 	var response *OnOffStatus
+// 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginAutoRepayEPL, http.MethodPost, gateioMarginAutoRepay, params, nil, &response)
+// }
+
+// // GetUserAutoRepaymentSetting retrieve user auto repayment setting
+// func (e *Exchange) GetUserAutoRepaymentSetting(ctx context.Context) (*OnOffStatus, error) {
+// 	var response *OnOffStatus
+// 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginGetAutoRepaySettingsEPL, http.MethodGet, gateioMarginAutoRepay, nil, nil, &response)
+// }
+
+// // GetMaxTransferableAmountForSpecificMarginCurrency get the max transferable amount for a specific margin currency.
+// func (e *Exchange) GetMaxTransferableAmountForSpecificMarginCurrency(ctx context.Context, ccy currency.Code, currencyPair currency.Pair) (*MaxTransferAndLoanAmount, error) {
+// 	if ccy.IsEmpty() {
+// 		return nil, currency.ErrCurrencyCodeEmpty
+// 	}
+// 	params := url.Values{}
+// 	if currencyPair.IsPopulated() {
+// 		params.Set("currency_pair", currencyPair.String())
+// 	}
+// 	params.Set("currency", ccy.String())
+// 	var response *MaxTransferAndLoanAmount
+// 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginGetMaxTransferEPL, http.MethodGet, gateioMarginTransfer, params, nil, &response)
+// }
+
+// // GetMaxBorrowableAmountForSpecificMarginCurrency retrieves the max borrowable amount for specific currency
+// func (e *Exchange) GetMaxBorrowableAmountForSpecificMarginCurrency(ctx context.Context, ccy currency.Code, pair currency.Pair) (*MaxBorrowableAmount, error) {
+// 	if ccy.IsEmpty() {
+// 		return nil, currency.ErrCurrencyCodeEmpty
+// 	}
+// 	if pair.IsEmpty() {
+// 		return nil, currency.ErrCurrencyPairEmpty
+// 	}
+// 	params := url.Values{}
+// 	params.Set("currency_pair", pair.String())
+// 	params.Set("currency", ccy.String())
+// 	var response *MaxBorrowableAmount
+// 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginGetMaxBorrowEPL, http.MethodGet, gateioMarginBorrowable, params, nil, &response)
+// }
 
 // CurrencySupportedByCrossMargin currencies supported by cross margin.
 func (e *Exchange) CurrencySupportedByCrossMargin(ctx context.Context) ([]CrossMarginCurrencies, error) {
