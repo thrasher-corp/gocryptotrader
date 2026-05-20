@@ -3,6 +3,7 @@ package bitget
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -99,7 +100,7 @@ func TestWebsocketSubmitOrder(t *testing.T) {
 		MarginType:         margin.Isolated,
 	})
 	require.NoError(t, err)
-	require.NotEmpty(t, got)
+	assert.NotEmpty(t, got)
 }
 
 func TestWebsocketCancelOrder(t *testing.T) {
@@ -120,5 +121,5 @@ func TestWebsocketCancelOrder(t *testing.T) {
 		Pair:      testPair,
 		OrderID:   "1377803648385515520",
 	})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 }

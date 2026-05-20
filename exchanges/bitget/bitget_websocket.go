@@ -55,6 +55,10 @@ const (
 	bitgetAccountIsolatedChannel  = "account-isolated"
 	bitgetOrdersIsolatedChannel   = "orders-isolated"
 
+	// Websocket requests
+	bitgetPlaceOrderRequest  = "place-order"
+	bitgetCancelOrderRequest = "cancel-order"
+
 	loginErrorCode = 30005
 
 	subRequestLimit = (4096 - 32) / 89 // The exchange has a 4096 byte limit on sub/unsub requests. Currently operates off of 32 bytes of mandatory overhead, and a worst case of 89 bytes per additional argument

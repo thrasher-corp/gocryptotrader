@@ -54,30 +54,30 @@ type WebsocketFuturesOrderRequest struct {
 
 // WebsocketSpotOrderParams defines the order parameters for a websocket order request
 type WebsocketSpotOrderParams struct {
-	OrderType           string `json:"orderType"`
-	Side                string `json:"side"`
-	Size                string `json:"size"`
-	Force               string `json:"force"`
-	Price               string `json:"price,omitempty"`
-	ClientOrderID       string `json:"clientOid,omitempty"`
-	SelfTradePrevention string `json:"stp,omitempty"`
+	OrderType           string  `json:"orderType"`
+	Side                string  `json:"side"`
+	Size                float64 `json:"size,string"`
+	Force               string  `json:"force"`
+	Price               float64 `json:"price,string,omitempty"`
+	ClientOrderID       string  `json:"clientOid,omitempty"`
+	SelfTradePrevention string  `json:"stp,omitempty"`
 }
 
 // WebsocketFuturesOrderParams defines the order parameters for a websocket futures order request
 type WebsocketFuturesOrderParams struct {
-	OrderType              string `json:"orderType"`
-	Side                   string `json:"side"`
-	Size                   string `json:"size"`
-	Force                  string `json:"force"`
-	Price                  string `json:"price,omitempty"`
-	ClientOrderID          string `json:"clientOid,omitempty"`
-	MarginCoin             string `json:"marginCoin"`
-	MarginMode             string `json:"marginMode"`
-	TradeSide              string `json:"tradeSide,omitempty"`
-	ReduceOnly             string `json:"reduceOnly,omitempty"`
-	PresetStopSurplusPrice string `json:"presetStopSurplusPrice,omitempty"`
-	PresetStopLossPrice    string `json:"presetStopLossPrice,omitempty"`
-	SelfTradePrevention    string `json:"stp,omitempty"`
+	OrderType              string  `json:"orderType"`
+	Side                   string  `json:"side"`
+	Size                   float64 `json:"size,string"`
+	Force                  string  `json:"force"`
+	Price                  float64 `json:"price,string,omitempty"`
+	ClientOrderID          string  `json:"clientOid,omitempty"`
+	MarginCoin             string  `json:"marginCoin"`
+	MarginMode             string  `json:"marginMode"`
+	TradeSide              string  `json:"tradeSide,omitempty"`
+	ReduceOnly             string  `json:"reduceOnly,omitempty"`
+	PresetStopSurplusPrice float64 `json:"presetStopSurplusPrice,string,omitempty"`
+	PresetStopLossPrice    float64 `json:"presetStopLossPrice,string,omitempty"`
+	SelfTradePrevention    string  `json:"stp,omitempty"`
 }
 
 // WebsocketSpotPlaceOrderResponse defines the response parameters for a placed order via websocket

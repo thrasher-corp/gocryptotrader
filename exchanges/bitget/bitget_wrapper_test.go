@@ -11,36 +11,26 @@ import (
 
 func TestUpdateAccountInfo(t *testing.T) {
 	t.Parallel()
-
 	_, err := e.UpdateAccountBalances(t.Context(), asset.Empty)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
-
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err = e.UpdateAccountBalances(t.Context(), asset.Spot)
-	assert.NoError(t, err)
-	_, err = e.UpdateAccountBalances(t.Context(), asset.USDTMarginedFutures)
-	assert.NoError(t, err)
-	_, err = e.UpdateAccountBalances(t.Context(), asset.Margin)
-	assert.NoError(t, err)
-	_, err = e.UpdateAccountBalances(t.Context(), asset.CrossMargin)
-	assert.NoError(t, err)
+	ta := []asset.Item{asset.Spot, asset.USDTMarginedFutures, asset.Margin, asset.CrossMargin}
+	for _, a := range ta {
+		_, err = e.UpdateAccountBalances(t.Context(), a)
+		assert.NoErrorf(t, err, "UpdateAccountBalances should not error for asset type %s", a)
+	}
 }
 
 func TestUpdateTickers(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, e)
-	err := e.UpdateTickers(t.Context(), asset.Spot)
-	assert.NoError(t, err)
-	err = e.UpdateTickers(t.Context(), asset.CoinMarginedFutures)
-	assert.NoError(t, err)
-	err = e.UpdateTickers(t.Context(), asset.USDTMarginedFutures)
-	assert.NoError(t, err)
-	err = e.UpdateTickers(t.Context(), asset.USDCMarginedFutures)
-	assert.NoError(t, err)
-	err = e.UpdateTickers(t.Context(), asset.Empty)
+	err := e.UpdateTickers(t.Context(), asset.Empty)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
-	err = e.UpdateTickers(t.Context(), asset.Margin)
-	assert.NoError(t, err)
+	ta := []asset.Item{asset.Spot, asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.Margin}
+	for _, a := range ta {
+		err = e.UpdateTickers(t.Context(), a)
+		assert.NoErrorf(t, err, "UpdateTickers should not error for asset type %s", a)
+	}
 }
 
 func TestFetchTradablePairs(t *testing.T) {
@@ -64,10 +54,9 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	err := e.UpdateOrderExecutionLimits(t.Context(), asset.Empty)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
-	err = e.UpdateOrderExecutionLimits(t.Context(), asset.Spot)
-	assert.NoError(t, err)
-	err = e.UpdateOrderExecutionLimits(t.Context(), asset.USDCMarginedFutures)
-	assert.NoError(t, err)
-	err = e.UpdateOrderExecutionLimits(t.Context(), asset.Margin)
-	assert.NoError(t, err)
+	ta := []asset.Item{asset.Spot, asset.USDCMarginedFutures, asset.Margin}
+	for _, a := range ta {
+		err = e.UpdateOrderExecutionLimits(t.Context(), a)
+		assert.NoErrorf(t, err, "UpdateOrderExecutionLimits should not error for asset type %s", a)
+	}
 }

@@ -3,6 +3,7 @@ package bitget
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
@@ -70,7 +71,7 @@ func TestWebsocketSpotPlaceOrder(t *testing.T) {
 		Price:       100,
 	})
 	require.NoError(t, err)
-	require.NotEmpty(t, got)
+	assert.NotEmpty(t, got)
 }
 
 func TestWebsocketFuturesPlaceOrder(t *testing.T) {
@@ -139,7 +140,7 @@ func TestWebsocketFuturesPlaceOrder(t *testing.T) {
 		Contract: testPair, InstrumentType: "USDT-FUTURES", OrderType: "limit", Side: "buy", ContractSize: 1,
 		TimeInForce: "gtc", Price: 50, MarginCoin: currency.USDT, MarginMode: "isolated", TradeSide: "open",
 	})
-	require.NoError(t, err)
+	assert.NoError(t, err)
 }
 
 func TestWebsocketSpotCancelOrder(t *testing.T) {
@@ -155,7 +156,7 @@ func TestWebsocketSpotCancelOrder(t *testing.T) {
 
 	got, err := e.WebsocketSpotCancelOrder(t.Context(), testPair, "1376695893517410304", "")
 	require.NoError(t, err)
-	require.NotEmpty(t, got)
+	assert.NotEmpty(t, got)
 }
 
 func TestWebsocketFuturesCancelOrder(t *testing.T) {
@@ -171,7 +172,7 @@ func TestWebsocketFuturesCancelOrder(t *testing.T) {
 
 	e := newExchangeWithWebsocket(t, asset.Futures)
 	_, err = e.WebsocketFuturesCancelOrder(t.Context(), testPair, "USDT-FUTURES", "1376999173366317057", "")
-	require.NoError(t, err)
+	assert.NoError(t, err)
 }
 
 func TestWebsocketOrder_WSHandleData_Regression(t *testing.T) {

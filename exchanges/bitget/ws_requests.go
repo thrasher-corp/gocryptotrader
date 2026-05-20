@@ -42,24 +42,18 @@ func (e *Exchange) WebsocketSpotPlaceOrder(ctx context.Context, req *WebsocketSp
 	if req.Price <= 0 && req.OrderType == "limit" {
 		return nil, order.ErrPriceMustBeSetIfLimitOrder
 	}
-
-	var price string
-	if req.Price > 0 {
-		price = strconv.FormatFloat(req.Price, 'f', -1, 64)
-	}
-
 	var result []WebsocketSpotPlaceOrderResponse
 	if err := e.sendWebsocketTradeRequest(ctx, request.Unset, &result, &WebsocketTradeRequest{
 		ID:             strconv.FormatInt(e.GetBase().MessageSequence(), 10),
 		InstrumentType: "SPOT",
 		InstrumentID:   req.Pair.String(),
-		Channel:        "place-order",
+		Channel:        bitgetPlaceOrderRequest,
 		Params: WebsocketSpotOrderParams{
 			OrderType:           req.OrderType,
 			Side:                req.Side,
-			Size:                strconv.FormatFloat(req.Size, 'f', -1, 64),
+			Size:                req.Size,
 			Force:               req.TimeInForce,
-			Price:               price,
+			Price:               req.Price,
 			ClientOrderID:       req.ClientOrderID,
 			SelfTradePrevention: req.SelfTradePrevention,
 		},
@@ -67,7 +61,7 @@ func (e *Exchange) WebsocketSpotPlaceOrder(ctx context.Context, req *WebsocketSp
 		return nil, err
 	}
 	if len(result) != 1 {
-		return nil, common.ErrNoResponse
+		return nil, common.ErrInvalidResponse
 	}
 	return &result[0], nil
 }
@@ -86,13 +80,13 @@ func (e *Exchange) WebsocketSpotCancelOrder(ctx context.Context, pair currency.P
 		ID:             strconv.FormatInt(e.GetBase().MessageSequence(), 10),
 		InstrumentType: "SPOT",
 		InstrumentID:   pair.String(),
-		Channel:        "cancel-order",
+		Channel:        bitgetCancelOrderRequest,
 		Params:         WebsocketIDs{OrderID: orderID, ClientOrderID: clientOrderID},
 	}); err != nil {
 		return nil, err
 	}
 	if len(result) != 1 {
-		return nil, common.ErrNoResponse
+		return nil, common.ErrInvalidResponse
 	}
 	return &result[0], nil
 }
@@ -132,44 +126,32 @@ func (e *Exchange) WebsocketFuturesPlaceOrder(ctx context.Context, req *Websocke
 	if req.ReduceOnly != "" && req.TradeSide != "" {
 		return nil, fmt.Errorf("%w: reduce only and trade side cannot both be set", errValuesConflict)
 	}
-
-	var price, takeProfit, stopLoss string
-	if req.Price > 0 {
-		price = strconv.FormatFloat(req.Price, 'f', -1, 64)
-	}
-	if req.PresetStopSurplusPrice > 0 {
-		takeProfit = strconv.FormatFloat(req.PresetStopSurplusPrice, 'f', -1, 64)
-	}
-	if req.PresetStopLossPrice > 0 {
-		stopLoss = strconv.FormatFloat(req.PresetStopLossPrice, 'f', -1, 64)
-	}
-
 	var result []WebsocketFuturesPlaceOrderResponse
 	if err := e.sendWebsocketTradeRequest(ctx, request.Unset, &result, &WebsocketTradeRequest{
 		ID:             strconv.FormatInt(e.GetBase().MessageSequence(), 10),
 		InstrumentType: req.InstrumentType,
 		InstrumentID:   req.Contract.String(),
-		Channel:        "place-order",
+		Channel:        bitgetPlaceOrderRequest,
 		Params: WebsocketFuturesOrderParams{
 			OrderType:              req.OrderType,
 			Side:                   req.Side,
-			Size:                   strconv.FormatFloat(req.ContractSize, 'f', -1, 64),
+			Size:                   req.ContractSize,
 			Force:                  req.TimeInForce,
-			Price:                  price,
+			Price:                  req.Price,
 			ClientOrderID:          req.ClientOrderID,
 			MarginCoin:             req.MarginCoin.String(),
 			MarginMode:             req.MarginMode,
 			TradeSide:              req.TradeSide,
 			ReduceOnly:             req.ReduceOnly,
-			PresetStopSurplusPrice: takeProfit,
-			PresetStopLossPrice:    stopLoss,
+			PresetStopSurplusPrice: req.PresetStopSurplusPrice,
+			PresetStopLossPrice:    req.PresetStopLossPrice,
 			SelfTradePrevention:    req.SelfTradePrevention,
 		},
 	}); err != nil {
 		return nil, err
 	}
 	if len(result) != 1 {
-		return nil, common.ErrNoResponse
+		return nil, common.ErrInvalidResponse
 	}
 	return &result[0], nil
 }
@@ -191,13 +173,13 @@ func (e *Exchange) WebsocketFuturesCancelOrder(ctx context.Context, pair currenc
 		ID:             strconv.FormatInt(e.GetBase().MessageSequence(), 10),
 		InstrumentType: instrumentType,
 		InstrumentID:   pair.String(),
-		Channel:        "cancel-order",
+		Channel:        bitgetCancelOrderRequest,
 		Params:         WebsocketIDs{OrderID: orderID, ClientOrderID: clientOrderID},
 	}); err != nil {
 		return nil, err
 	}
 	if len(result) != 1 {
-		return nil, common.ErrNoResponse
+		return nil, common.ErrInvalidResponse
 	}
 	return &result[0], nil
 }

@@ -90,11 +90,7 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, submit *order.Submi
 		if err != nil {
 			return nil, err
 		}
-		sr, err := submit.DeriveSubmitResponse(resp.ID)
-		if err != nil {
-			return nil, err
-		}
-		return sr, nil
+		return submit.DeriveSubmitResponse(resp.ID)
 	default:
 		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, submit.AssetType)
 	}
