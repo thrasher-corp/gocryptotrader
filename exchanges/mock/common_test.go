@@ -201,7 +201,7 @@ func TestDeriveURLValsFromJSONArrayAsMap(t *testing.T) {
 	assert.Empty(t, value, "empty payload should return empty url.Values")
 
 	_, err = DeriveURLValsFromJSONArrayAsMap([]byte(`{"not":"array"}`))
-	assert.ErrorIs(t, err, errJSONMapPayloadMustBeObject, "non-array input should return errJSONMapPayloadMustBeObject")
+	assert.ErrorIs(t, err, errJSONMapPayloadMustBeArray, "non-array input should return errJSONMapPayloadMustBeObject")
 
 	_, err = DeriveURLValsFromJSONArrayAsMap([]byte(`[invalid`))
 	assert.Error(t, err, "invalid JSON should error")

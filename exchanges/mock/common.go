@@ -10,7 +10,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
-var errJSONMapPayloadMustBeObject = errors.New("json map payload must be an object")
+var (
+	errJSONMapPayloadMustBeObject = errors.New("json map payload must be an object")
+	errJSONMapPayloadMustBeArray  = errors.New("json map payload must be an array")
+)
 
 // MatchURLVals matches url.Value query strings
 func MatchURLVals(v1, v2 url.Values) bool {
@@ -111,7 +114,7 @@ func DeriveURLValsFromJSONArrayAsMap(payload []byte) (url.Values, error) {
 		return vals, nil
 	}
 	if getJSONBodyShape(strings.TrimSpace(string(payload))) != jsonBodyArray {
-		return nil, errJSONMapPayloadMustBeObject
+		return nil, errJSONMapPayloadMustBeArray
 	}
 	var intermediary []any
 	if err := json.Unmarshal(payload, &intermediary); err != nil {
