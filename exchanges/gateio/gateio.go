@@ -3504,6 +3504,22 @@ func (e *Exchange) GetSupportedFlashSwapCurrencies(ctx context.Context) ([]*Swap
 	return currencies, e.SendHTTPRequest(ctx, exchange.RestSpot, publicFlashSwapEPL, "flash_swap/currencies", &currencies)
 }
 
+// GetFlashSwapCurrencyPairs retrieves available flash currency pairs
+func (e *Exchange) GetFlashSwapCurrencyPairs(ctx context.Context, ccy currency.Code, page, limit uint64) ([]*SwapCurrencyPair, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatUint(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	var resp []*SwapCurrencyPair
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicFlashSwapEPL, common.EncodeURLValues("flash_swap/currency_pairs", params), &resp)
+}
+
 // CreateFlashSwapOrder creates a new flash swap order
 // initiate a flash swap preview in advance because order creation requires a preview result
 func (e *Exchange) CreateFlashSwapOrder(ctx context.Context, arg FlashSwapOrderParams) (*FlashSwapOrderResponse, error) {

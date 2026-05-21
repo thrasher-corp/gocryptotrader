@@ -39,7 +39,6 @@ func botResponseError(code int32, message string) error {
 }
 
 // GetBotStrategyRecommendations retrieves AIHub strategy recommendations.
-// It is the only formal interface for the discover domain and supports top1, bundle, filter, and refresh scenes.
 func (e *Exchange) GetBotStrategyRecommendations(ctx context.Context, arg *GetBotStrategyRecommendationsRequest) (*BotDiscoverData, error) {
 	params := url.Values{}
 	if arg != nil {

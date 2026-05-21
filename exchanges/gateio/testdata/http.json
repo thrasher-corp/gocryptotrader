@@ -50,7 +50,7 @@
        "status": 1
       }
      ],
-     "queryString": "limit=100&page=10",
+     "queryString": "limit=100\u0026page=10",
      "bodyParams": "",
      "headers": {}
     },
@@ -66,7 +66,7 @@
        "status": 1
       }
      ],
-     "queryString": "currency=memeboxtrump&limit=100&page=10",
+     "queryString": "currency=memeboxtrump\u0026limit=100\u0026page=10",
      "bodyParams": "",
      "headers": {}
     }
@@ -112,7 +112,7 @@
        "volume": "2317.01"
       }
      ],
-     "queryString": "limit=100&page=10",
+     "queryString": "limit=100\u0026page=10",
      "bodyParams": "",
      "headers": {}
     },
@@ -126,9 +126,269 @@
        "volume": "8511430.61"
       }
      ],
-     "queryString": "currency=memeboxtrump&limit=100&page=10",
+     "queryString": "currency=memeboxtrump\u0026limit=100\u0026page=10",
      "bodyParams": "",
      "headers": {}
+    }
+   ]
+  },
+  "/api/v4/bot/contract-martingale/create": {
+   "POST": [
+    {
+     "data": {
+      "code": 200,
+      "message": "success",
+      "data": {
+       "strategy_id": "cm_001",
+       "strategy_type": "contract_martingale",
+       "market": "BTC_USDT",
+       "status": "running",
+       "jump_url": "https://www.gate.io/bot/contract-martingale/cm_001"
+      },
+      "trace_id": "trace_007"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/api/v4/bot/futures-grid/create": {
+   "POST": [
+    {
+     "data": {
+      "code": 200,
+      "message": "success",
+      "data": {
+       "strategy_id": "fg_001",
+       "strategy_type": "futures_grid",
+       "market": "BTC_USDT",
+       "status": "running",
+       "jump_url": "https://www.gate.io/bot/futures-grid/fg_001"
+      },
+      "trace_id": "trace_005"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/api/v4/bot/infinite-grid/create": {
+   "POST": [
+    {
+     "data": {
+      "code": 200,
+      "message": "success",
+      "data": {
+       "strategy_id": "ig_001",
+       "strategy_type": "infinite_grid",
+       "market": "BTC_USDT",
+       "status": "running",
+       "jump_url": "https://www.gate.io/bot/infinite-grid/ig_001"
+      },
+      "trace_id": "trace_004"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/api/v4/bot/margin-grid/create": {
+   "POST": [
+    {
+     "data": {
+      "code": 200,
+      "message": "success",
+      "data": {
+       "strategy_id": "mg_001",
+       "strategy_type": "margin_grid",
+       "market": "BTC_USDT",
+       "status": "running",
+       "jump_url": "https://www.gate.io/bot/margin-grid/mg_001"
+      },
+      "trace_id": "trace_003"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/api/v4/bot/portfolio/detail": {
+   "GET": [
+    {
+     "data": {
+      "code": 200,
+      "message": "success",
+      "data": {
+       "strategy_id": "sg_001",
+       "strategy_type": "spot_grid",
+       "market": "BTC_USDT",
+       "status": "running",
+       "base_info": {
+        "strategy_name": "BTC_USDT Spot Grid",
+        "created_at": "2024-01-01T00:00:00Z",
+        "running_duration": 86400,
+        "invest_amount": "1000",
+        "total_profit": "120.50",
+        "profit_rate": "0.12"
+       },
+       "metrics": {
+        "grid_profit": "100.00",
+        "floating_pnl": "20.50",
+        "arbitrage_count": 42,
+        "price_range": "90000-110000",
+        "grid_count": 20,
+        "estimated_liquidation_price": "",
+        "price_floor": "",
+        "grid_profit_rate": "0.10",
+        "realized_pnl": "100.00",
+        "finished_rounds": 0,
+        "avg_cost": "",
+        "take_profit_price": "",
+        "maintenance_margin_ratio": ""
+       },
+       "position": {
+        "amount": "0.01",
+        "entry_price": "100000",
+        "quote_amount": "500",
+        "position_value": "1000",
+        "margin": "",
+        "side": "long"
+       },
+       "stop_supported": true
+      },
+      "trace_id": "trace_009"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/api/v4/bot/portfolio/running": {
+   "GET": [
+    {
+     "data": {
+      "code": 200,
+      "message": "success",
+      "data": {
+       "items": [
+        {
+         "strategy_id": "sg_001",
+         "strategy_type": "spot_grid",
+         "strategy_name": "BTC_USDT Spot Grid",
+         "market": "BTC_USDT",
+         "status": "running",
+         "pnl": "120.50",
+         "pnl_rate": "0.12",
+         "invest_amount": "1000",
+         "created_at": "2024-01-01T00:00:00Z"
+        }
+       ],
+       "page": 1,
+       "page_size": 20,
+       "total": 1
+      },
+      "trace_id": "trace_008"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/api/v4/bot/portfolio/stop": {
+   "POST": [
+    {
+     "data": {
+      "code": 200,
+      "message": "success",
+      "data": {
+       "strategy_id": "sg_001",
+       "strategy_type": "spot_grid",
+       "status": "stopping",
+       "result_message": "Strategy is being stopped"
+      },
+      "trace_id": "trace_010"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/api/v4/bot/spot-grid/create": {
+   "POST": [
+    {
+     "data": {
+      "code": 200,
+      "message": "success",
+      "data": {
+       "strategy_id": "sg_001",
+       "strategy_type": "spot_grid",
+       "market": "BTC_USDT",
+       "status": "running",
+       "jump_url": "https://www.gate.io/bot/spot-grid/sg_001"
+      },
+      "trace_id": "trace_002"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/api/v4/bot/spot-martingale/create": {
+   "POST": [
+    {
+     "data": {
+      "code": 200,
+      "message": "success",
+      "data": {
+       "strategy_id": "sm_001",
+       "strategy_type": "spot_martingale",
+       "market": "BTC_USDT",
+       "status": "running",
+       "jump_url": "https://www.gate.io/bot/spot-martingale/sm_001"
+      },
+      "trace_id": "trace_006"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
+    }
+   ]
+  },
+  "/api/v4/bot/strategy/recommend": {
+   "GET": [
+    {
+     "data": {
+      "code": 200,
+      "message": "success",
+      "data": {
+       "scene": "top1",
+       "recommendations": [
+        {
+         "recommendation_id": "rec_001",
+         "market": "BTC_USDT",
+         "strategy_type": "spot_grid",
+         "strategy_name": "BTC_USDT Spot Grid",
+         "backtest_apr": "0.35",
+         "max_drawdown": "0.12",
+         "summary": "Recommended spot grid for BTC_USDT",
+         "strategy_params_preview": "{\"low_price\":\"90000\",\"high_price\":\"110000\",\"grid_num\":20}"
+        }
+       ],
+       "unsupported_filters": []
+      },
+      "trace_id": "trace_001"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": null
     }
    ]
   },
@@ -158,7 +418,7 @@
      "data": {
       "label": "CONTRACT_NOT_FOUND"
      },
-     "queryString": "contract=BTC_USDT_20260213&from=1774793965&interval=1d&to=1774966765",
+     "queryString": "contract=BTC_USDT_20260213\u0026from=1774793965\u0026interval=1d\u0026to=1774966765",
      "bodyParams": "",
      "headers": {}
     },
@@ -167,7 +427,7 @@
       "detail": "Invalid request parameter `from` value: 1774797291",
       "label": "INVALID_PARAM_VALUE"
      },
-     "queryString": "contract=BTC_USDT_20260626&from=1774797291&interval=1m&to=1774970091",
+     "queryString": "contract=BTC_USDT_20260626\u0026from=1774797291\u0026interval=1m\u0026to=1774970091",
      "bodyParams": "",
      "headers": {}
     },
@@ -198,7 +458,7 @@
        "v": 52151
       }
      ],
-     "queryString": "contract=BTC_USDT_20260626&from=1774797662&interval=1d&to=1774970462",
+     "queryString": "contract=BTC_USDT_20260626\u0026from=1774797662\u0026interval=1d\u0026to=1774970462",
      "bodyParams": "",
      "headers": {}
     },
@@ -245,7 +505,7 @@
        "v": 49
       }
      ],
-     "queryString": "contract=BTC_USDT_20260626&from=1774797660&interval=1m&to=1774857660",
+     "queryString": "contract=BTC_USDT_20260626\u0026from=1774797660\u0026interval=1m\u0026to=1774857660",
      "bodyParams": "",
      "headers": {}
     },
@@ -254,7 +514,7 @@
       "detail": "Invalid request parameter `from` value: 1775246491",
       "label": "INVALID_PARAM_VALUE"
      },
-     "queryString": "contract=BTC_USDT_20260626&from=1775246491&interval=1m&to=1775419291",
+     "queryString": "contract=BTC_USDT_20260626\u0026from=1775246491\u0026interval=1m\u0026to=1775419291",
      "bodyParams": "",
      "headers": {}
     },
@@ -285,7 +545,7 @@
        "v": 42558
       }
      ],
-     "queryString": "contract=BTC_USDT_20260626&from=1775246494&interval=1d&to=1775419294",
+     "queryString": "contract=BTC_USDT_20260626\u0026from=1775246494\u0026interval=1d\u0026to=1775419294",
      "bodyParams": "",
      "headers": {}
     },
@@ -332,7 +592,7 @@
        "v": 39
       }
      ],
-     "queryString": "contract=BTC_USDT_20260626&from=1775306460&interval=1m&to=1775366460",
+     "queryString": "contract=BTC_USDT_20260626\u0026from=1775306460\u0026interval=1m\u0026to=1775366460",
      "bodyParams": "",
      "headers": {}
     },
@@ -341,7 +601,7 @@
       "detail": "Invalid request parameter `from` value: 1775246716",
       "label": "INVALID_PARAM_VALUE"
      },
-     "queryString": "contract=BTC_USDT_20260626&from=1775246716&interval=1m&to=1775419516",
+     "queryString": "contract=BTC_USDT_20260626\u0026from=1775246716\u0026interval=1m\u0026to=1775419516",
      "bodyParams": "",
      "headers": {}
     },
@@ -388,7 +648,7 @@
        "v": 393
       }
      ],
-     "queryString": "contract=BTC_USDT_20260626&from=1775250900&interval=1m&to=1775310900",
+     "queryString": "contract=BTC_USDT_20260626\u0026from=1775250900\u0026interval=1m\u0026to=1775310900",
      "bodyParams": "",
      "headers": {}
     },
@@ -435,7 +695,7 @@
        "v": 30
       }
      ],
-     "queryString": "contract=BTC_USDT_20260626&from=1775310900&interval=1m&to=1775370900",
+     "queryString": "contract=BTC_USDT_20260626\u0026from=1775310900\u0026interval=1m\u0026to=1775370900",
      "bodyParams": "",
      "headers": {}
     },
@@ -482,7 +742,7 @@
        "v": 124
       }
      ],
-     "queryString": "contract=BTC_USDT_20260626&from=1775370900&interval=1m&to=1775423760",
+     "queryString": "contract=BTC_USDT_20260626\u0026from=1775370900\u0026interval=1m\u0026to=1775423760",
      "bodyParams": "",
      "headers": {}
     },
@@ -529,7 +789,7 @@
        "v": 9
       }
      ],
-     "queryString": "contract=BTC_USDT_20260626&from=1775251140&interval=1m&to=1775311140",
+     "queryString": "contract=BTC_USDT_20260626\u0026from=1775251140\u0026interval=1m\u0026to=1775311140",
      "bodyParams": "",
      "headers": {}
     },
@@ -576,7 +836,7 @@
        "v": 40
       }
      ],
-     "queryString": "contract=BTC_USDT_20260626&from=1775311140&interval=1m&to=1775371140",
+     "queryString": "contract=BTC_USDT_20260626\u0026from=1775311140\u0026interval=1m\u0026to=1775371140",
      "bodyParams": "",
      "headers": {}
     },
@@ -623,7 +883,7 @@
        "v": 26
       }
      ],
-     "queryString": "contract=BTC_USDT_20260626&from=1775371140&interval=1m&to=1775424000",
+     "queryString": "contract=BTC_USDT_20260626\u0026from=1775371140\u0026interval=1m\u0026to=1775424000",
      "bodyParams": "",
      "headers": {}
     },
@@ -654,7 +914,7 @@
        "v": 45523
       }
      ],
-     "queryString": "contract=BTC_USDT_20260626&from=1775251164&interval=1d&to=1775423964",
+     "queryString": "contract=BTC_USDT_20260626\u0026from=1775251164\u0026interval=1d\u0026to=1775423964",
      "bodyParams": "",
      "headers": {}
     }
@@ -977,7 +1237,7 @@
       "current": 1775423963.401,
       "update": 1775423963.338
      },
-     "queryString": "contract=BTC_USDT_20260626&interval=0",
+     "queryString": "contract=BTC_USDT_20260626\u0026interval=0",
      "bodyParams": "",
      "headers": {}
     },
@@ -1031,7 +1291,7 @@
       "id": 175093772,
       "update": 1775423976.249
      },
-     "queryString": "contract=BTC_USDT_20260626&with_id=true",
+     "queryString": "contract=BTC_USDT_20260626\u0026with_id=true",
      "bodyParams": "",
      "headers": {}
     }
@@ -1427,13 +1687,121 @@
     }
    ]
   },
+  "/api/v4/flash_swap/currency_pairs": {
+   "GET": [
+    {
+     "data": [
+      {
+       "buy_currency": "USDT",
+       "buy_max_amount": "20000000",
+       "buy_min_amount": "1",
+       "currency_pair": "BTC_USDT",
+       "sell_currency": "BTC",
+       "sell_max_amount": "250",
+       "sell_min_amount": "0.000001"
+      },
+      {
+       "buy_currency": "BTC",
+       "buy_max_amount": "250",
+       "buy_min_amount": "0.000001",
+       "currency_pair": "USDT_BTC",
+       "sell_currency": "USDT",
+       "sell_max_amount": "20000000",
+       "sell_min_amount": "1"
+      },
+      {
+       "buy_currency": "BTC",
+       "buy_max_amount": "0.012375",
+       "buy_min_amount": "0.000001",
+       "currency_pair": "RAD_BTC",
+       "sell_currency": "RAD",
+       "sell_max_amount": "3300",
+       "sell_min_amount": "0.01"
+      },
+      {
+       "buy_currency": "BTC",
+       "buy_max_amount": "0.033875",
+       "buy_min_amount": "0.000001",
+       "currency_pair": "PORTALS_BTC",
+       "sell_currency": "PORTALS",
+       "sell_max_amount": "288300",
+       "sell_min_amount": "0.1"
+      },
+      {
+       "buy_currency": "BTC",
+       "buy_max_amount": "1.25",
+       "buy_min_amount": "0.000001",
+       "currency_pair": "OP_BTC",
+       "sell_currency": "OP",
+       "sell_max_amount": "770000",
+       "sell_min_amount": "1"
+      }
+     ],
+     "queryString": "currency=BTC\u0026limit=10",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "buy_currency": "USDT",
+       "buy_max_amount": "1710",
+       "buy_min_amount": "1",
+       "currency_pair": "PIRATE_USDT",
+       "sell_currency": "PIRATE",
+       "sell_max_amount": "842600",
+       "sell_min_amount": "1"
+      },
+      {
+       "buy_currency": "USDT",
+       "buy_max_amount": "8000",
+       "buy_min_amount": "1",
+       "currency_pair": "LMTS_USDT",
+       "sell_currency": "LMTS",
+       "sell_max_amount": "92600",
+       "sell_min_amount": "1"
+      },
+      {
+       "buy_currency": "USDT",
+       "buy_max_amount": "5000",
+       "buy_min_amount": "1",
+       "currency_pair": "TQQQX_USDT",
+       "sell_currency": "TQQQX",
+       "sell_max_amount": "44",
+       "sell_min_amount": "0.001"
+      },
+      {
+       "buy_currency": "USDT",
+       "buy_max_amount": "10000",
+       "buy_min_amount": "1",
+       "currency_pair": "CSCOON_USDT",
+       "sell_currency": "CSCOON",
+       "sell_max_amount": "120",
+       "sell_min_amount": "0.001"
+      },
+      {
+       "buy_currency": "USDT",
+       "buy_max_amount": "5000",
+       "buy_min_amount": "1",
+       "currency_pair": "ACA_USDT",
+       "sell_currency": "ACA",
+       "sell_max_amount": "755400",
+       "sell_min_amount": "1"
+      }
+     ],
+     "queryString": "limit=10\u0026page=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
   "/api/v4/futures/btc/candlesticks": {
    "GET": [
     {
      "data": {
       "label": "CONTRACT_NOT_FOUND"
      },
-     "queryString": "contract=BTC_USDT&interval=7d",
+     "queryString": "contract=BTC_USDT\u0026interval=7d",
      "bodyParams": "",
      "headers": {}
     }
@@ -1547,7 +1915,7 @@
      "data": {
       "label": "CONTRACT_NOT_FOUND"
      },
-     "queryString": "contract=BTC_USDT&limit=10",
+     "queryString": "contract=BTC_USDT\u0026limit=10",
      "bodyParams": "",
      "headers": {}
     }
@@ -1559,7 +1927,7 @@
      "data": {
       "label": "CONTRACT_NOT_FOUND"
      },
-     "queryString": "contract=BTC_USDT&from=-62135596800&interval=7d&to=-62135596800",
+     "queryString": "contract=BTC_USDT\u0026from=-62135596800\u0026interval=7d\u0026to=-62135596800",
      "bodyParams": "",
      "headers": {}
     },
@@ -1567,7 +1935,7 @@
      "data": {
       "label": "CONTRACT_NOT_FOUND"
      },
-     "queryString": "contract=BTC_USDT&interval=7d",
+     "queryString": "contract=BTC_USDT\u0026interval=7d",
      "bodyParams": "",
      "headers": {}
     }
@@ -1660,7 +2028,7 @@
        "v": 566916395
       }
      ],
-     "queryString": "contract=BTC_USDT&from=1774793965&interval=1d&to=1774966765",
+     "queryString": "contract=BTC_USDT\u0026from=1774793965\u0026interval=1d\u0026to=1774966765",
      "bodyParams": "",
      "headers": {}
     },
@@ -1712,7 +2080,7 @@
        "v": 163314
       }
      ],
-     "queryString": "contract=BTC_USDT&from=1774795440&interval=1m&to=1774855440",
+     "queryString": "contract=BTC_USDT\u0026from=1774795440\u0026interval=1m\u0026to=1774855440",
      "bodyParams": "",
      "headers": {}
     },
@@ -1764,7 +2132,7 @@
        "v": 294901
       }
      ],
-     "queryString": "contract=BTC_USDT&from=1774855440&interval=1m&to=1774915440",
+     "queryString": "contract=BTC_USDT\u0026from=1774855440\u0026interval=1m\u0026to=1774915440",
      "bodyParams": "",
      "headers": {}
     },
@@ -1816,7 +2184,7 @@
        "v": 650169
       }
      ],
-     "queryString": "contract=BTC_USDT&from=1774915440&interval=1m&to=1774968300",
+     "queryString": "contract=BTC_USDT\u0026from=1774915440\u0026interval=1m\u0026to=1774968300",
      "bodyParams": "",
      "headers": {}
     },
@@ -1850,7 +2218,7 @@
        "v": 596914184
       }
      ],
-     "queryString": "contract=BTC_USDT&from=1774795469&interval=1d&to=1774968269",
+     "queryString": "contract=BTC_USDT\u0026from=1774795469\u0026interval=1d\u0026to=1774968269",
      "bodyParams": "",
      "headers": {}
     },
@@ -1884,7 +2252,7 @@
        "v": 667023409
       }
      ],
-     "queryString": "contract=BTC_USDT&from=1774797662&interval=1d&to=1774970462",
+     "queryString": "contract=BTC_USDT\u0026from=1774797662\u0026interval=1d\u0026to=1774970462",
      "bodyParams": "",
      "headers": {}
     },
@@ -1936,7 +2304,7 @@
        "v": 1463936
       }
      ],
-     "queryString": "contract=BTC_USDT&from=1774797660&interval=1m&to=1774857660",
+     "queryString": "contract=BTC_USDT\u0026from=1774797660\u0026interval=1m\u0026to=1774857660",
      "bodyParams": "",
      "headers": {}
     },
@@ -1988,7 +2356,7 @@
        "v": 2354842
       }
      ],
-     "queryString": "contract=BTC_USDT&from=1774857660&interval=1m&to=1774917660",
+     "queryString": "contract=BTC_USDT\u0026from=1774857660\u0026interval=1m\u0026to=1774917660",
      "bodyParams": "",
      "headers": {}
     },
@@ -2022,7 +2390,7 @@
        "v": 293035397
       }
      ],
-     "queryString": "contract=BTC_USDT&from=1775246494&interval=1d&to=1775419294",
+     "queryString": "contract=BTC_USDT\u0026from=1775246494\u0026interval=1d\u0026to=1775419294",
      "bodyParams": "",
      "headers": {}
     },
@@ -2074,7 +2442,7 @@
        "v": 7588
       }
      ],
-     "queryString": "contract=BTC_USDT&from=1775246460&interval=1m&to=1775306460",
+     "queryString": "contract=BTC_USDT\u0026from=1775246460\u0026interval=1m\u0026to=1775306460",
      "bodyParams": "",
      "headers": {}
     },
@@ -2126,7 +2494,7 @@
        "v": 110003
       }
      ],
-     "queryString": "contract=BTC_USDT&from=1775306460&interval=1m&to=1775366460",
+     "queryString": "contract=BTC_USDT\u0026from=1775306460\u0026interval=1m\u0026to=1775366460",
      "bodyParams": "",
      "headers": {}
     },
@@ -2178,7 +2546,7 @@
        "v": 60092
       }
      ],
-     "queryString": "contract=BTC_USDT&from=1775366460&interval=1m&to=1775419320",
+     "queryString": "contract=BTC_USDT\u0026from=1775366460\u0026interval=1m\u0026to=1775419320",
      "bodyParams": "",
      "headers": {}
     },
@@ -2230,7 +2598,7 @@
        "v": 90031
       }
      ],
-     "queryString": "contract=BTC_USDT&from=1775250900&interval=1m&to=1775310900",
+     "queryString": "contract=BTC_USDT\u0026from=1775250900\u0026interval=1m\u0026to=1775310900",
      "bodyParams": "",
      "headers": {}
     },
@@ -2282,7 +2650,7 @@
        "v": 99699
       }
      ],
-     "queryString": "contract=BTC_USDT&from=1775310900&interval=1m&to=1775370900",
+     "queryString": "contract=BTC_USDT\u0026from=1775310900\u0026interval=1m\u0026to=1775370900",
      "bodyParams": "",
      "headers": {}
     },
@@ -2334,7 +2702,7 @@
        "v": 244605
       }
      ],
-     "queryString": "contract=BTC_USDT&from=1775370900&interval=1m&to=1775423760",
+     "queryString": "contract=BTC_USDT\u0026from=1775370900\u0026interval=1m\u0026to=1775423760",
      "bodyParams": "",
      "headers": {}
     },
@@ -2368,7 +2736,7 @@
        "v": 314984439
       }
      ],
-     "queryString": "contract=BTC_USDT&from=1775251164&interval=1d&to=1775423964",
+     "queryString": "contract=BTC_USDT\u0026from=1775251164\u0026interval=1d\u0026to=1775423964",
      "bodyParams": "",
      "headers": {}
     },
@@ -2420,7 +2788,7 @@
        "v": 7534
       }
      ],
-     "queryString": "contract=BTC_USDT&from=1775251140&interval=1m&to=1775311140",
+     "queryString": "contract=BTC_USDT\u0026from=1775251140\u0026interval=1m\u0026to=1775311140",
      "bodyParams": "",
      "headers": {}
     },
@@ -2472,7 +2840,7 @@
        "v": 97055
       }
      ],
-     "queryString": "contract=BTC_USDT&from=1775311140&interval=1m&to=1775371140",
+     "queryString": "contract=BTC_USDT\u0026from=1775311140\u0026interval=1m\u0026to=1775371140",
      "bodyParams": "",
      "headers": {}
     },
@@ -2524,7 +2892,7 @@
        "v": 37933
       }
      ],
-     "queryString": "contract=BTC_USDT&from=1775371140&interval=1m&to=1775424000",
+     "queryString": "contract=BTC_USDT\u0026from=1775371140\u0026interval=1m\u0026to=1775424000",
      "bodyParams": "",
      "headers": {}
     },
@@ -2576,7 +2944,7 @@
        "v": 577233221
       }
      ],
-     "queryString": "contract=BTC_USDT&interval=7d",
+     "queryString": "contract=BTC_USDT\u0026interval=7d",
      "bodyParams": "",
      "headers": {}
     }
@@ -2717,7 +3085,7 @@
        "top_short_size": 32460865
       }
      ],
-     "queryString": "contract=BTC_USDT&from=1774966883&interval=1m&limit=100",
+     "queryString": "contract=BTC_USDT\u0026from=1774966883\u0026interval=1m\u0026limit=100",
      "bodyParams": "",
      "headers": {}
     },
@@ -2854,7 +3222,7 @@
        "top_short_size": 29311754
       }
      ],
-     "queryString": "contract=BTC_USDT&from=1775420372&interval=1m&limit=100",
+     "queryString": "contract=BTC_USDT\u0026from=1775420372\u0026interval=1m\u0026limit=100",
      "bodyParams": "",
      "headers": {}
     }
@@ -3235,7 +3603,7 @@
        "t": 1774954800
       }
      ],
-     "queryString": "contract=ENJ_USDT&limit=1000",
+     "queryString": "contract=ENJ_USDT\u0026limit=1000",
      "bodyParams": "",
      "headers": {}
     },
@@ -3262,7 +3630,7 @@
        "t": 1775289601
       }
      ],
-     "queryString": "contract=BTC_USDT&limit=10",
+     "queryString": "contract=BTC_USDT\u0026limit=10",
      "bodyParams": "",
      "headers": {}
     }
@@ -3350,7 +3718,7 @@
       "label": "INVALID_PARAM_VALUE",
       "message": "range from/to must in 1 hour"
      },
-     "queryString": "contract=BTC_USDT&from=1774797679&limit=100&to=1774970479",
+     "queryString": "contract=BTC_USDT\u0026from=1774797679\u0026limit=100\u0026to=1774970479",
      "bodyParams": "",
      "headers": {}
     },
@@ -3359,7 +3727,7 @@
       "label": "INVALID_PARAM_VALUE",
       "message": "range from/to must in 1 hour"
      },
-     "queryString": "contract=BTC_USDT&from=1774818625&limit=100&to=1774991425",
+     "queryString": "contract=BTC_USDT\u0026from=1774818625\u0026limit=100\u0026to=1774991425",
      "bodyParams": "",
      "headers": {}
     },
@@ -3368,7 +3736,7 @@
       "label": "INVALID_PARAM_VALUE",
       "message": "range from/to must in 1 hour"
      },
-     "queryString": "contract=BTC_USDT&from=1774818685&limit=100&to=1774991485",
+     "queryString": "contract=BTC_USDT\u0026from=1774818685\u0026limit=100\u0026to=1774991485",
      "bodyParams": "",
      "headers": {}
     },
@@ -3377,7 +3745,7 @@
       "label": "INVALID_PARAM_VALUE",
       "message": "range from/to must in 1 hour"
      },
-     "queryString": "contract=BTC_USDT&from=1774818814&limit=100&to=1774991614",
+     "queryString": "contract=BTC_USDT\u0026from=1774818814\u0026limit=100\u0026to=1774991614",
      "bodyParams": "",
      "headers": {}
     },
@@ -3411,7 +3779,7 @@
        "time": 1774990056
       }
      ],
-     "queryString": "contract=BTC_USDT&from=1774989904&limit=100&to=1774991704",
+     "queryString": "contract=BTC_USDT\u0026from=1774989904\u0026limit=100\u0026to=1774991704",
      "bodyParams": "",
      "headers": {}
     },
@@ -3445,7 +3813,7 @@
        "time": 1774990056
       }
      ],
-     "queryString": "contract=BTC_USDT&from=1774989950&limit=100&to=1774991750",
+     "queryString": "contract=BTC_USDT\u0026from=1774989950\u0026limit=100\u0026to=1774991750",
      "bodyParams": "",
      "headers": {}
     },
@@ -3488,7 +3856,7 @@
        "time": 1775422436
       }
      ],
-     "queryString": "contract=BTC_USDT&from=1775422171&limit=100&to=1775423971",
+     "queryString": "contract=BTC_USDT\u0026from=1775422171\u0026limit=100\u0026to=1775423971",
      "bodyParams": "",
      "headers": {}
     }
@@ -3545,7 +3913,7 @@
       "current": 1775423973.95,
       "update": 1775423973.949
      },
-     "queryString": "contract=BTC_USDT&limit=10",
+     "queryString": "contract=BTC_USDT\u0026limit=10",
      "bodyParams": "",
      "headers": {}
     }
@@ -3555,7 +3923,7 @@
    "GET": [
     {
      "data": null,
-     "queryString": "contract=BTC_USDT&from=-62135596800&interval=7d&to=-62135596800",
+     "queryString": "contract=BTC_USDT\u0026from=-62135596800\u0026interval=7d\u0026to=-62135596800",
      "bodyParams": "",
      "headers": {}
     },
@@ -3564,7 +3932,7 @@
       "label": "INTERNAL",
       "message": "Request Timeout"
      },
-     "queryString": "contract=BTC_USDT&interval=7d",
+     "queryString": "contract=BTC_USDT\u0026interval=7d",
      "bodyParams": "",
      "headers": {}
     }
@@ -3615,7 +3983,7 @@
        "tier": 5
       }
      ],
-     "queryString": "contract=BTC_USDT&from=1&limit=10",
+     "queryString": "contract=BTC_USDT\u0026from=1\u0026limit=10",
      "bodyParams": "",
      "headers": {}
     }
@@ -3882,13 +4250,13 @@
    "GET": [
     {
      "data": null,
-     "queryString": "contract=BTC_USDT-20260925-75000-P&from=1774797085&interval=30m&limit=1000&to=1774969885",
+     "queryString": "contract=BTC_USDT-20260925-75000-P\u0026from=1774797085\u0026interval=30m\u0026limit=1000\u0026to=1774969885",
      "bodyParams": "",
      "headers": {}
     },
     {
      "data": null,
-     "queryString": "contract=BTC_USDT-20260925-75000-P&from=1774797671&interval=30m&limit=1000&to=1774970471",
+     "queryString": "contract=BTC_USDT-20260925-75000-P\u0026from=1774797671\u0026interval=30m\u0026limit=1000\u0026to=1774970471",
      "bodyParams": "",
      "headers": {}
     },
@@ -3935,7 +4303,7 @@
        "v": 0
       }
      ],
-     "queryString": "contract=BTC_USDT-20260925-75000-P&from=1775251173&interval=30m&limit=1000&to=1775423973",
+     "queryString": "contract=BTC_USDT-20260925-75000-P\u0026from=1775251173\u0026interval=30m\u0026limit=1000\u0026to=1775423973",
      "bodyParams": "",
      "headers": {}
     }
@@ -6824,7 +7192,7 @@
       "id": 2836984,
       "update": 1774970470.308
      },
-     "queryString": "contract=BTC_USDT-20260925-75000-P&interval=0.1&limit=9&with_id=true",
+     "queryString": "contract=BTC_USDT-20260925-75000-P\u0026interval=0.1\u0026limit=9\u0026with_id=true",
      "bodyParams": "",
      "headers": {}
     }
@@ -6843,7 +7211,7 @@
        "time": 1775376000
       }
      ],
-     "queryString": "limit=1&underlying=BTC_USDT",
+     "queryString": "limit=1\u0026underlying=BTC_USDT",
      "bodyParams": "",
      "headers": {}
     },
@@ -6907,7 +7275,7 @@
       "strike_price": "60000",
       "time": 1774944000
      },
-     "queryString": "at=1774944000&underlying=BTC_USDT",
+     "queryString": "at=1774944000\u0026underlying=BTC_USDT",
      "bodyParams": "",
      "headers": {}
     }
@@ -7033,13 +7401,13 @@
    "GET": [
     {
      "data": null,
-     "queryString": "contract=BTC_USDT-20260925-75000-P&from=1774797064&to=1774969864&type=C",
+     "queryString": "contract=BTC_USDT-20260925-75000-P\u0026from=1774797064\u0026to=1774969864\u0026type=C",
      "bodyParams": "",
      "headers": {}
     },
     {
      "data": null,
-     "queryString": "contract=BTC_USDT-20260925-75000-P&from=1774797669&to=1774970469&type=C",
+     "queryString": "contract=BTC_USDT-20260925-75000-P\u0026from=1774797669\u0026to=1774970469\u0026type=C",
      "bodyParams": "",
      "headers": {}
     },
@@ -7081,7 +7449,7 @@
        "size": -1
       }
      ],
-     "queryString": "contract=BTC_USDT-20260925-75000-P&from=1775251168&to=1775423968&type=C",
+     "queryString": "contract=BTC_USDT-20260925-75000-P\u0026from=1775251168\u0026to=1775423968\u0026type=C",
      "bodyParams": "",
      "headers": {}
     }
@@ -7106,7 +7474,7 @@
        "t": 1772928000
       }
      ],
-     "queryString": "interval=30d&underlying=BTC_USDT",
+     "queryString": "interval=30d\u0026underlying=BTC_USDT",
      "bodyParams": "",
      "headers": {}
     }
@@ -7197,7 +7565,7 @@
        "false"
       ]
      ],
-     "queryString": "currency_pair=BTC_USDT&from=1774793965&interval=1d&to=1774966765",
+     "queryString": "currency_pair=BTC_USDT\u0026from=1774793965\u0026interval=1d\u0026to=1774966765",
      "bodyParams": "",
      "headers": {}
     },
@@ -7234,7 +7602,7 @@
        "false"
       ]
      ],
-     "queryString": "currency_pair=BTC_USDT&from=1774795469&interval=1d&to=1774968269",
+     "queryString": "currency_pair=BTC_USDT\u0026from=1774795469\u0026interval=1d\u0026to=1774968269",
      "bodyParams": "",
      "headers": {}
     },
@@ -7243,7 +7611,7 @@
       "label": "INVALID_PARAM_VALUE",
       "message": "Candlestick range too broad. Maximum 1000 data points are allowed per request"
      },
-     "queryString": "currency_pair=BTC_USDT&from=1774795440&interval=1m&to=1774855440",
+     "queryString": "currency_pair=BTC_USDT\u0026from=1774795440\u0026interval=1m\u0026to=1774855440",
      "bodyParams": "",
      "headers": {}
     },
@@ -7300,7 +7668,7 @@
        "true"
       ]
      ],
-     "queryString": "currency_pair=BTC_USDT&interval=1d",
+     "queryString": "currency_pair=BTC_USDT\u0026interval=1d",
      "bodyParams": "",
      "headers": {}
     },
@@ -7309,7 +7677,7 @@
       "label": "INVALID_PARAM_VALUE",
       "message": "Candlestick range too broad. Maximum 1000 data points are allowed per request"
      },
-     "queryString": "currency_pair=BTC_USDT&from=1774797660&interval=1m&to=1774857660",
+     "queryString": "currency_pair=BTC_USDT\u0026from=1774797660\u0026interval=1m\u0026to=1774857660",
      "bodyParams": "",
      "headers": {}
     },
@@ -7346,7 +7714,7 @@
        "false"
       ]
      ],
-     "queryString": "currency_pair=BTC_USDT&from=1774797662&interval=1d&to=1774970462",
+     "queryString": "currency_pair=BTC_USDT\u0026from=1774797662\u0026interval=1d\u0026to=1774970462",
      "bodyParams": "",
      "headers": {}
     },
@@ -7383,7 +7751,7 @@
        "false"
       ]
      ],
-     "queryString": "currency_pair=BTC_USDT&from=1775246494&interval=1d&to=1775419294",
+     "queryString": "currency_pair=BTC_USDT\u0026from=1775246494\u0026interval=1d\u0026to=1775419294",
      "bodyParams": "",
      "headers": {}
     },
@@ -7392,7 +7760,7 @@
       "label": "INVALID_PARAM_VALUE",
       "message": "Candlestick range too broad. Maximum 1000 data points are allowed per request"
      },
-     "queryString": "currency_pair=BTC_USDT&from=1775246460&interval=1m&to=1775306460",
+     "queryString": "currency_pair=BTC_USDT\u0026from=1775246460\u0026interval=1m\u0026to=1775306460",
      "bodyParams": "",
      "headers": {}
     },
@@ -7401,7 +7769,7 @@
       "label": "INVALID_PARAM_VALUE",
       "message": "Candlestick range too broad. Maximum 1000 data points are allowed per request"
      },
-     "queryString": "currency_pair=BTC_USDT&from=1775250900&interval=1m&to=1775310900",
+     "queryString": "currency_pair=BTC_USDT\u0026from=1775250900\u0026interval=1m\u0026to=1775310900",
      "bodyParams": "",
      "headers": {}
     },
@@ -7438,7 +7806,7 @@
        "false"
       ]
      ],
-     "queryString": "currency_pair=BTC_USDT&from=1775251164&interval=1d&to=1775423964",
+     "queryString": "currency_pair=BTC_USDT\u0026from=1775251164\u0026interval=1d\u0026to=1775423964",
      "bodyParams": "",
      "headers": {}
     },
@@ -7447,7 +7815,7 @@
       "label": "INVALID_PARAM_VALUE",
       "message": "Candlestick range too broad. Maximum 1000 data points are allowed per request"
      },
-     "queryString": "currency_pair=BTC_USDT&from=1775251140&interval=1m&to=1775311140",
+     "queryString": "currency_pair=BTC_USDT\u0026from=1775251140\u0026interval=1m\u0026to=1775311140",
      "bodyParams": "",
      "headers": {}
     }
@@ -7828,7 +8196,7 @@
       "current": 1774968317360,
       "update": 1774968317359
      },
-     "queryString": "currency_pair=BTC_USDT&interval=0.1&limit=10&with_id=false",
+     "queryString": "currency_pair=BTC_USDT\u0026interval=0.1\u0026limit=10\u0026with_id=false",
      "bodyParams": "",
      "headers": {}
     },
@@ -7882,7 +8250,7 @@
       "id": 34890909828,
       "update": 1775423974345
      },
-     "queryString": "currency_pair=BTC_USDT&with_id=true",
+     "queryString": "currency_pair=BTC_USDT\u0026with_id=true",
      "bodyParams": "",
      "headers": {}
     }
@@ -7906,7 +8274,7 @@
        "quote_volume": "737010383.3594575"
       }
      ],
-     "queryString": "currency_pair=BTC_USDT&timezone=utc8",
+     "queryString": "currency_pair=BTC_USDT\u0026timezone=utc8",
      "bodyParams": "",
      "headers": {}
     },
@@ -8126,7 +8494,7 @@
        "side": "sell"
       }
      ],
-     "queryString": "currency_pair=BTC_USDT&page=1&reverse=true",
+     "queryString": "currency_pair=BTC_USDT\u0026page=1\u0026reverse=true",
      "bodyParams": "",
      "headers": {}
     }
@@ -8286,236 +8654,6 @@
      "queryString": "currency=ETH",
      "bodyParams": "",
      "headers": {}
-    }
-   ]
-  },
-  "/api/v4/bot/strategy/recommend": {
-   "GET": [
-    {
-     "data": {
-      "code": 200,
-      "message": "success",
-      "data": {
-       "scene": "top1",
-       "recommendations": [
-        {
-         "recommendation_id": "rec_001",
-         "market": "BTC_USDT",
-         "strategy_type": "spot_grid",
-         "strategy_name": "BTC_USDT Spot Grid",
-         "backtest_apr": "0.35",
-         "max_drawdown": "0.12",
-         "summary": "Recommended spot grid for BTC_USDT",
-         "strategy_params_preview": "{\"low_price\":\"90000\",\"high_price\":\"110000\",\"grid_num\":20}"
-        }
-       ],
-       "unsupported_filters": []
-      },
-      "trace_id": "trace_001"
-     }
-    }
-   ]
-  },
-  "/api/v4/bot/spot-grid/create": {
-   "POST": [
-    {
-     "data": {
-      "code": 200,
-      "message": "success",
-      "data": {
-       "strategy_id": "sg_001",
-       "strategy_type": "spot_grid",
-       "market": "BTC_USDT",
-       "status": "running",
-       "jump_url": "https://www.gate.io/bot/spot-grid/sg_001"
-      },
-      "trace_id": "trace_002"
-     }
-    }
-   ]
-  },
-  "/api/v4/bot/margin-grid/create": {
-   "POST": [
-    {
-     "data": {
-      "code": 200,
-      "message": "success",
-      "data": {
-       "strategy_id": "mg_001",
-       "strategy_type": "margin_grid",
-       "market": "BTC_USDT",
-       "status": "running",
-       "jump_url": "https://www.gate.io/bot/margin-grid/mg_001"
-      },
-      "trace_id": "trace_003"
-     }
-    }
-   ]
-  },
-  "/api/v4/bot/infinite-grid/create": {
-   "POST": [
-    {
-     "data": {
-      "code": 200,
-      "message": "success",
-      "data": {
-       "strategy_id": "ig_001",
-       "strategy_type": "infinite_grid",
-       "market": "BTC_USDT",
-       "status": "running",
-       "jump_url": "https://www.gate.io/bot/infinite-grid/ig_001"
-      },
-      "trace_id": "trace_004"
-     }
-    }
-   ]
-  },
-  "/api/v4/bot/futures-grid/create": {
-   "POST": [
-    {
-     "data": {
-      "code": 200,
-      "message": "success",
-      "data": {
-       "strategy_id": "fg_001",
-       "strategy_type": "futures_grid",
-       "market": "BTC_USDT",
-       "status": "running",
-       "jump_url": "https://www.gate.io/bot/futures-grid/fg_001"
-      },
-      "trace_id": "trace_005"
-     }
-    }
-   ]
-  },
-  "/api/v4/bot/spot-martingale/create": {
-   "POST": [
-    {
-     "data": {
-      "code": 200,
-      "message": "success",
-      "data": {
-       "strategy_id": "sm_001",
-       "strategy_type": "spot_martingale",
-       "market": "BTC_USDT",
-       "status": "running",
-       "jump_url": "https://www.gate.io/bot/spot-martingale/sm_001"
-      },
-      "trace_id": "trace_006"
-     }
-    }
-   ]
-  },
-  "/api/v4/bot/contract-martingale/create": {
-   "POST": [
-    {
-     "data": {
-      "code": 200,
-      "message": "success",
-      "data": {
-       "strategy_id": "cm_001",
-       "strategy_type": "contract_martingale",
-       "market": "BTC_USDT",
-       "status": "running",
-       "jump_url": "https://www.gate.io/bot/contract-martingale/cm_001"
-      },
-      "trace_id": "trace_007"
-     }
-    }
-   ]
-  },
-  "/api/v4/bot/portfolio/running": {
-   "GET": [
-    {
-     "data": {
-      "code": 200,
-      "message": "success",
-      "data": {
-       "items": [
-        {
-         "strategy_id": "sg_001",
-         "strategy_type": "spot_grid",
-         "strategy_name": "BTC_USDT Spot Grid",
-         "market": "BTC_USDT",
-         "status": "running",
-         "pnl": "120.50",
-         "pnl_rate": "0.12",
-         "invest_amount": "1000",
-         "created_at": "2024-01-01T00:00:00Z"
-        }
-       ],
-       "page": 1,
-       "page_size": 20,
-       "total": 1
-      },
-      "trace_id": "trace_008"
-     }
-    }
-   ]
-  },
-  "/api/v4/bot/portfolio/detail": {
-   "GET": [
-    {
-     "data": {
-      "code": 200,
-      "message": "success",
-      "data": {
-       "strategy_id": "sg_001",
-       "strategy_type": "spot_grid",
-       "market": "BTC_USDT",
-       "status": "running",
-       "base_info": {
-        "strategy_name": "BTC_USDT Spot Grid",
-        "created_at": "2024-01-01T00:00:00Z",
-        "running_duration": 86400,
-        "invest_amount": "1000",
-        "total_profit": "120.50",
-        "profit_rate": "0.12"
-       },
-       "metrics": {
-        "grid_profit": "100.00",
-        "floating_pnl": "20.50",
-        "arbitrage_count": 42,
-        "price_range": "90000-110000",
-        "grid_count": 20,
-        "estimated_liquidation_price": "",
-        "price_floor": "",
-        "grid_profit_rate": "0.10",
-        "realized_pnl": "100.00",
-        "finished_rounds": 0,
-        "avg_cost": "",
-        "take_profit_price": "",
-        "maintenance_margin_ratio": ""
-       },
-       "position": {
-        "amount": "0.01",
-        "entry_price": "100000",
-        "quote_amount": "500",
-        "position_value": "1000",
-        "margin": "",
-        "side": "long"
-       },
-       "stop_supported": true
-      },
-      "trace_id": "trace_009"
-     }
-    }
-   ]
-  },
-  "/api/v4/bot/portfolio/stop": {
-   "POST": [
-    {
-     "data": {
-      "code": 200,
-      "message": "success",
-      "data": {
-       "strategy_id": "sg_001",
-       "strategy_type": "spot_grid",
-       "status": "stopping",
-       "result_message": "Strategy is being stopped"
-      },
-      "trace_id": "trace_010"
-     }
     }
    ]
   }

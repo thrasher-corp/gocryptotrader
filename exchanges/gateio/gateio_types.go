@@ -940,6 +940,17 @@ type SwapCurrencies struct {
 	Swappable []string      `json:"swappable"`
 }
 
+// SwapCurrencyPair represents a flash swap currency pair instance.
+type SwapCurrencyPair struct {
+	CurrencyPair  currency.Pair `json:"currency_pair"`
+	SellCurrency  currency.Code `json:"sell_currency"`
+	BuyCurrency   currency.Code `json:"buy_currency"`
+	SellMinAmount types.Number  `json:"sell_min_amount"`
+	SellMaxAmount types.Number  `json:"sell_max_amount"`
+	BuyMinAmount  types.Number  `json:"buy_min_amount"`
+	BuyMaxAmount  types.Number  `json:"buy_max_amount"`
+}
+
 // MyOptionSettlement represents option private settlement
 type MyOptionSettlement struct {
 	Size         float64       `json:"size"`

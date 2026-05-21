@@ -2162,6 +2162,17 @@ func TestGetSupportedFlashSwapCurrencies(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestGetFlashSwapCurrencyPairs(t *testing.T) {
+	t.Parallel()
+	result, err := e.GetFlashSwapCurrencyPairs(t.Context(), currency.BTC, 0, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = e.GetFlashSwapCurrencyPairs(t.Context(), currency.EMPTYCODE, 1, 10)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 const flashSwapOrderResponseJSON = `{"id": 54646,  "create_time": 1651116876378,  "update_time": 1651116876378,  "user_id": 11135567,  "sell_currency": "BTC",  "sell_amount": "0.01",  "buy_currency": "USDT",  "buy_amount": "10",  "price": "100",  "status": 1}`
 
 func TestCreateFlashSwapOrder(t *testing.T) {
@@ -5901,7 +5912,7 @@ func TestCreateSpotGridBot(t *testing.T) {
 	arg.CreateParams.GridNum = 20
 	result, err := e.CreateSpotGridBot(t.Context(), arg)
 	require.NoError(t, err)
-	assert.NotEmpty(t, result.StrategyID, "strategy ID should not be empty")
+	assert.NotEmpty(t, result.StrategyID)
 }
 
 func TestCreateMarginGridBot(t *testing.T) {
@@ -5934,7 +5945,7 @@ func TestCreateMarginGridBot(t *testing.T) {
 	arg.CreateParams.Direction = order.Long.Lower()
 	result, err := e.CreateMarginGridBot(t.Context(), arg)
 	require.NoError(t, err)
-	assert.NotEmpty(t, result.StrategyID, "strategy ID should not be empty")
+	assert.NotEmpty(t, result.StrategyID)
 }
 
 func TestCreateInfiniteGridBot(t *testing.T) {
@@ -5958,7 +5969,7 @@ func TestCreateInfiniteGridBot(t *testing.T) {
 	arg.CreateParams.ProfitPerGrid = "0.003"
 	result, err := e.CreateInfiniteGridBot(t.Context(), arg)
 	require.NoError(t, err)
-	assert.NotEmpty(t, result.StrategyID, "strategy ID should not be empty")
+	assert.NotEmpty(t, result.StrategyID)
 }
 
 func TestCreateFuturesGridBot(t *testing.T) {
@@ -5991,7 +6002,7 @@ func TestCreateFuturesGridBot(t *testing.T) {
 	arg.CreateParams.Direction = order.Long.Lower()
 	result, err := e.CreateFuturesGridBot(t.Context(), arg)
 	require.NoError(t, err)
-	assert.NotEmpty(t, result.StrategyID, "strategy ID should not be empty")
+	assert.NotEmpty(t, result.StrategyID)
 }
 
 func TestCreateSpotMartingaleBot(t *testing.T) {
@@ -6019,7 +6030,7 @@ func TestCreateSpotMartingaleBot(t *testing.T) {
 	arg.CreateParams.TakeProfitRatio = "0.05"
 	result, err := e.CreateSpotMartingaleBot(t.Context(), arg)
 	require.NoError(t, err)
-	assert.NotEmpty(t, result.StrategyID, "strategy ID should not be empty")
+	assert.NotEmpty(t, result.StrategyID)
 }
 
 func TestCreateContractMartingaleBot(t *testing.T) {
@@ -6082,7 +6093,7 @@ func TestGetBotStrategyDetail(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetBotStrategyDetail(t.Context(), "sg_001", BotStrategySpotGrid)
 	require.NoError(t, err)
-	assert.NotEmpty(t, result.StrategyID, "strategy ID should not be empty")
+	assert.NotEmpty(t, result.StrategyID)
 }
 
 func TestStopBotStrategy(t *testing.T) {
@@ -6096,5 +6107,243 @@ func TestStopBotStrategy(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.StopBotStrategy(t.Context(), "sg_001", BotStrategySpotGrid)
 	require.NoError(t, err)
-	assert.NotEmpty(t, result.StrategyID, "strategy ID should not be empty")
+	assert.NotEmpty(t, result.StrategyID)
+}
+
+func TestGetTradFiMt5Account(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetTradFiMt5Account(t.Context())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetTradFiSymbolCategories(t *testing.T) {
+	t.Parallel()
+	result, err := e.GetTradFiSymbolCategories(t.Context())
+	require.NoError(t, err)
+	assert.NotEmpty(t, result)
+}
+
+func TestGetTradFiSymbols(t *testing.T) {
+	t.Parallel()
+	result, err := e.GetTradFiSymbols(t.Context())
+	require.NoError(t, err)
+	assert.NotEmpty(t, result)
+}
+
+func TestGetTradFiSymbolDetails(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetTradFiSymbolDetails(t.Context(), nil)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairsEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetTradFiSymbolDetails(t.Context(), currency.Pairs{{Base: currency.EUR, Quote: currency.USD}})
+	require.NoError(t, err)
+	assert.NotEmpty(t, result)
+}
+
+func TestGetTradFiKlines(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetTradFiKlines(t.Context(), currency.EMPTYPAIR, nil)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	_, err = e.GetTradFiKlines(t.Context(), currency.Pair{Base: currency.EUR, Quote: currency.USD}, nil)
+	require.ErrorIs(t, err, kline.ErrInvalidInterval)
+
+	_, err = e.GetTradFiKlines(t.Context(), currency.Pair{Base: currency.EUR, Quote: currency.USD}, &GetTradFiKlinesRequest{})
+	require.ErrorIs(t, err, kline.ErrInvalidInterval)
+
+	klineTypeString, err := klineIntervalToTypeString(kline.OneMin)
+	require.NoError(t, err)
+
+	result, err := e.GetTradFiKlines(t.Context(), currency.Pair{Base: currency.EUR, Quote: currency.USD}, &GetTradFiKlinesRequest{KlineType: klineTypeString})
+	require.NoError(t, err)
+	assert.NotEmpty(t, result)
+}
+
+func TestGetTradFiSymbolTicker(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetTradFiSymbolTicker(t.Context(), "")
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	result, err := e.GetTradFiSymbolTicker(t.Context(), "EURUSD")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestActivateTradFiUser(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.ActivateTradFiUser(t.Context())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetTradFiUserAssets(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetTradFiUserAssets(t.Context())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetTradFiTransactions(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetTradFiTransactions(t.Context(), nil)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = e.GetTradFiTransactions(t.Context(), &GetTradFiTransactionsRequest{
+		Type:     "deposit",
+		Page:     1,
+		PageSize: 10,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCreateTradFiTransaction(t *testing.T) {
+	t.Parallel()
+	err := e.CreateTradFiTransaction(t.Context(), &TradFiTransactionRequest{})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	err = e.CreateTradFiTransaction(t.Context(), &TradFiTransactionRequest{Asset: currency.USDT})
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+
+	err = e.CreateTradFiTransaction(t.Context(), &TradFiTransactionRequest{Asset: currency.USDT, Change: 100})
+	require.ErrorIs(t, err, errTradFiTypeRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	err = e.CreateTradFiTransaction(t.Context(), &TradFiTransactionRequest{
+		Asset:  currency.USDT,
+		Change: 100.00,
+		Type:   "deposit",
+	})
+	require.NoError(t, err)
+}
+
+func TestGetTradFiActiveOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetTradFiActiveOrders(t.Context())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCreateTradFiOrder(t *testing.T) {
+	t.Parallel()
+	_, err := e.CreateTradFiOrder(t.Context(), &TradFiOrderRequest{})
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	_, err = e.CreateTradFiOrder(t.Context(), &TradFiOrderRequest{Symbol: currency.Pair{Base: currency.EUR, Quote: currency.USD}})
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
+
+	_, err = e.CreateTradFiOrder(t.Context(), &TradFiOrderRequest{Symbol: currency.Pair{Base: currency.EUR, Quote: currency.USD}, Price: 1.09000})
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+
+	_, err = e.CreateTradFiOrder(t.Context(), &TradFiOrderRequest{Symbol: currency.Pair{Base: currency.EUR, Quote: currency.USD}, Price: 1.09000, Volume: 0.10})
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	result, err := e.CreateTradFiOrder(t.Context(), &TradFiOrderRequest{
+		Symbol:    currency.Pair{Base: currency.EUR, Quote: currency.USD},
+		Price:     1.09000,
+		PriceType: "trigger",
+		Side:      2,
+		Volume:    0.10,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestUpdateTradFiOrder(t *testing.T) {
+	t.Parallel()
+	_, err := e.UpdateTradFiOrder(t.Context(), 0, &TradFiOrderUpdateRequest{Price: "1.09100"})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	_, err = e.UpdateTradFiOrder(t.Context(), 1223, &TradFiOrderUpdateRequest{})
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	result, err := e.UpdateTradFiOrder(t.Context(), 1223, &TradFiOrderUpdateRequest{Price: "1.09100"})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCancelTradFiOrder(t *testing.T) {
+	t.Parallel()
+	err := e.CancelTradFiOrder(t.Context(), 0)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	err = e.CancelTradFiOrder(t.Context(), 1223)
+	require.NoError(t, err)
+}
+
+func TestGetTradFiOrderHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetTradFiOrderHistory(t.Context(), nil)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = e.GetTradFiOrderHistory(t.Context(), &GetTradFiOrderHistoryRequest{
+		Symbol: currency.Pair{Base: currency.EUR, Quote: currency.USD},
+		Side:   2,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetTradFiActivePositions(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetTradFiActivePositions(t.Context())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestUpdateTradFiPosition(t *testing.T) {
+	t.Parallel()
+	err := e.UpdateTradFiPosition(t.Context(), 0, &TradFiPositionUpdateRequest{})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	err = e.UpdateTradFiPosition(t.Context(), 1223, &TradFiPositionUpdateRequest{
+		PriceTakeProfit: 1.10000,
+		PriceStopLoss:   1.08000,
+	})
+	require.NoError(t, err)
+}
+
+func TestCloseTradFiPosition(t *testing.T) {
+	t.Parallel()
+	err := e.CloseTradFiPosition(t.Context(), 0, &TradFiClosePositionRequest{CloseType: 1})
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	err = e.CloseTradFiPosition(t.Context(), 1223, &TradFiClosePositionRequest{})
+	require.ErrorIs(t, err, errTradFiCloseTypeRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	err = e.CloseTradFiPosition(t.Context(), 1223, &TradFiClosePositionRequest{CloseType: 1})
+	require.NoError(t, err)
+}
+
+func TestGetTradFiPositionHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetTradFiPositionHistory(t.Context(), nil)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = e.GetTradFiPositionHistory(t.Context(), &GetTradFiPositionHistoryRequest{
+		Page:        1,
+		PageSize:    10,
+		Symbol:      currency.Pair{Base: currency.EUR, Quote: currency.USD},
+		PositionDir: order.Long.String(),
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
