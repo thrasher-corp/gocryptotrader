@@ -486,24 +486,32 @@ func TestDecodeLeadingJSONValue(t *testing.T) {
 	})
 
 	tcs := []struct {
-		name    string
-		input   []byte
-		wantErr error
+		name         string
+		input        []byte
+		wantErr      error
+		wantAnyError bool
 	}{
 		{name: "valid json no trailing", input: []byte(`[{"symbol":"BTC_USDT"}]`)},
 		{name: "trailing empty string", input: []byte(`[{"symbol":"BTC_USDT"}]""`)},
 		{name: "trailing whitespace then empty string", input: []byte(`[{"symbol":"BTC_USDT"}]   ""`)},
+		{name: "trailing non-empty string", input: []byte(`[{"symbol":"BTC_USDT"}]"extra"`), wantErr: errUnexpectedTrailingJSON},
+		{name: "trailing empty string then extra object", input: []byte(`[{"symbol":"BTC_USDT"}]""{"extra":true}`), wantErr: errUnexpectedTrailingJSON},
+		{name: "trailing empty string then malformed trailing json", input: []byte(`[{"symbol":"BTC_USDT"}]""{`), wantAnyError: true},
 		{name: "unexpected trailing object", input: []byte(`[{"symbol":"BTC_USDT"}]{"extra":true}`), wantErr: errUnexpectedTrailingJSON},
 		{name: "unexpected trailing value", input: []byte(`{"a":1}null`), wantErr: errUnexpectedTrailingJSON},
+		{name: "malformed trailing json", input: []byte(`{"a":1}{`), wantAnyError: true},
 	}
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var v any
 			err := decodeLeadingJSONValue(tc.input, &v)
-			if tc.wantErr != nil {
+			switch {
+			case tc.wantErr != nil:
 				require.ErrorIs(t, err, tc.wantErr, "decodeLeadingJSONValue must return expected error")
-			} else {
+			case tc.wantAnyError:
+				require.Error(t, err, "decodeLeadingJSONValue must error")
+			default:
 				require.NoError(t, err, "decodeLeadingJSONValue must not error")
 			}
 		})

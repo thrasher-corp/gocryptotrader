@@ -337,12 +337,23 @@ const (
 )
 
 func decodeLeadingJSONValue(data []byte, target any) error {
-	decoder := json.NewDecoder(bytes.NewReader(data))
+	reader := bytes.NewReader(data)
+	decoder := json.NewDecoder(reader)
 	if err := decoder.Decode(target); err != nil {
 		return err
 	}
 
-	remainder := bytes.TrimSpace(data[decoder.InputOffset():])
+	bufferedRemainder, err := io.ReadAll(decoder.Buffered())
+	if err != nil {
+		return fmt.Errorf("could not read buffered trailing JSON data: %w", err)
+	}
+
+	readerRemainder, err := io.ReadAll(reader)
+	if err != nil {
+		return fmt.Errorf("could not read trailing JSON data: %w", err)
+	}
+
+	remainder := bytes.TrimSpace(append(bufferedRemainder, readerRemainder...))
 	if len(remainder) == 0 || bytes.Equal(remainder, []byte(`""`)) {
 		return nil
 	}
