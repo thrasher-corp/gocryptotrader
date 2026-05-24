@@ -126,16 +126,16 @@ type P2pOrdersData struct {
 
 // P2pOrderItem holds a single P2P order item.
 type P2pOrderItem struct {
-	TransactionID uint64       `json:"txid"`
-	Type          string       `json:"type"`
-	Currency      string       `json:"currency"`
-	Fiat          string       `json:"fiat"`
-	Amount        types.Number `json:"amount"`
-	Total         types.Number `json:"total"`
-	Price         types.Number `json:"price"`
-	Status        int64        `json:"status"`
-	PaymentMethod string       `json:"pay_method"`
-	CreateTime    types.Time   `json:"create_time"`
+	TransactionID uint64        `json:"txid"`
+	Type          string        `json:"type"`
+	Currency      currency.Code `json:"currency"`
+	Fiat          string        `json:"fiat"`
+	Amount        types.Number  `json:"amount"`
+	Total         types.Number  `json:"total"`
+	Price         types.Number  `json:"price"`
+	Status        int64         `json:"status"`
+	PaymentMethod string        `json:"pay_method"`
+	CreateTime    types.Time    `json:"create_time"`
 }
 
 // GetP2POrderDetailsRequest holds request parameters for querying P2P order details.

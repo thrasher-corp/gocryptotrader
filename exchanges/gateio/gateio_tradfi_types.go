@@ -93,16 +93,16 @@ type TradFiSymbolList struct {
 
 // TradFiSymbolDetail holds detailed contract information for a trading symbol.
 type TradFiSymbolDetail struct {
-	Symbol             string        `json:"symbol"`
+	Symbol             currency.Pair `json:"symbol"`
 	SymbolDesc         string        `json:"symbol_desc"`
 	CategoryName       string        `json:"category_name"`
 	ContractVolume     types.Number  `json:"contract_volume"`
 	SettlementCurrency currency.Code `json:"settlement_currency"`
 	MaxOrderVolume     types.Number  `json:"max_order_volume"`
 	MinOrderVolume     types.Number  `json:"min_order_volume"`
-	Leverage           string        `json:"leverage"`
+	Leverage           float64       `json:"leverage"`
 	PricePrecision     int64         `json:"price_precision"`
-	PriceSlLevel       string        `json:"price_sl_level"`
+	PriceStopLossLevel string        `json:"price_sl_level"`
 	SwapCostType       string        `json:"swap_cost_type"`
 	BuySwapCostRate    types.Number  `json:"buy_swap_cost_rate"`
 	SellSwapCostRate   types.Number  `json:"sell_swap_cost_rate"`
@@ -278,15 +278,15 @@ type TradFiOrderHistoryList struct {
 
 // TradFiPosition holds an active open position.
 type TradFiPosition struct {
-	PositionID        int64  `json:"position_id"`
-	Symbol            string `json:"symbol"`
-	SymbolDesc        string `json:"symbol_desc"`
-	Margin            string `json:"margin"`
-	UnrealizedPNL     string `json:"unrealized_pnl"`
-	UnrealizedPNLRate string `json:"unrealized_pnl_rate"`
-	Volume            string `json:"volume"`
-	PriceOpen         string `json:"price_open"`
-	PositionDir       string `json:"position_dir"` // PositionDir: Long=long position, Short=short position.
+	PositionID        int64         `json:"position_id"`
+	Symbol            currency.Pair `json:"symbol"`
+	SymbolDesc        string        `json:"symbol_desc"`
+	Margin            string        `json:"margin"`
+	UnrealizedPNL     types.Number  `json:"unrealized_pnl"`
+	UnrealizedPNLRate types.Number  `json:"unrealized_pnl_rate"`
+	Volume            types.Number  `json:"volume"`
+	PriceOpen         types.Number  `json:"price_open"`
+	PositionDir       string        `json:"position_dir"` // PositionDir: Long=long position, Short=short position.
 }
 
 // TradFiPositionList wraps the active position list data field.
@@ -316,9 +316,9 @@ type TradFiLiquidationDetail struct {
 
 // TradFiRealizedPnlDetail holds a breakdown of realized profit and loss.
 type TradFiRealizedPnlDetail struct {
-	ClosedPnl string `json:"closed_pnl"`
-	Swap      string `json:"swap"`
-	Fee       string `json:"fee"`
+	ClosedPNL string       `json:"closed_pnl"`
+	Swap      string       `json:"swap"`
+	Fee       types.Number `json:"fee"`
 }
 
 // TradFiHistoricalPosition holds a closed position record.

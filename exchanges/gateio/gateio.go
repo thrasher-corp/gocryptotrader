@@ -3878,7 +3878,7 @@ func (e *Exchange) AddAutoInvestPlanPosition(ctx context.Context, planID int64, 
 	}
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "earn/autoinvest/plans/add_position", nil, &AutoInvestPlanAddPositionRequest{
 		PlanID: planID,
-		Amount: strconv.FormatFloat(amount, 'f', -1, 64),
+		Amount: amount,
 	}, nil)
 }
 

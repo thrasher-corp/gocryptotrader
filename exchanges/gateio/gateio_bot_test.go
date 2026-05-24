@@ -120,15 +120,15 @@ func TestCreateFuturesGridBot(t *testing.T) {
 	_, err = e.CreateFuturesGridBot(t.Context(), arg)
 	require.ErrorIs(t, err, errBotMoneyRequired)
 
-	arg.CreateParams.Money = "1000"
+	arg.CreateParams.Money = 1000
 	_, err = e.CreateFuturesGridBot(t.Context(), arg)
 	require.ErrorIs(t, err, errBotLowPriceRequired)
 
-	arg.CreateParams.LowPrice = "90000"
+	arg.CreateParams.LowPrice = 90000
 	_, err = e.CreateFuturesGridBot(t.Context(), arg)
 	require.ErrorIs(t, err, errBotHighPriceRequired)
 
-	arg.CreateParams.HighPrice = "110000"
+	arg.CreateParams.HighPrice = 110000
 	_, err = e.CreateFuturesGridBot(t.Context(), arg)
 	require.ErrorIs(t, err, errBotGridNumRequired)
 
@@ -137,7 +137,7 @@ func TestCreateFuturesGridBot(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	arg.CreateParams.Leverage = "5"
+	arg.CreateParams.Leverage = 5
 	arg.CreateParams.Direction = order.Long.Lower()
 	result, err := e.CreateFuturesGridBot(t.Context(), arg)
 	require.NoError(t, err)

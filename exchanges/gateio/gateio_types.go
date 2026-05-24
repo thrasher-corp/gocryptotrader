@@ -1757,47 +1757,47 @@ type ETH2ReturnRate struct {
 
 // StakingCoin holds an on-chain staking coin product detail
 type StakingCoin struct {
-	Pid            int64  `json:"pid"`
-	ProductType    int64  `json:"productType"`
-	IsDeFi         int64  `json:"isDeFi"`
-	Currency       string `json:"currency"`
-	EstimatedApr   string `json:"estimatedApr"`
-	MinStakeAmount string `json:"minStakeAmount"`
-	MaxStakeAmount string `json:"maxStakeAmount"`
-	ProtocolName   string `json:"protocolName"`
-	RedeemPeriod   int64  `json:"redeemPeriod"`
-	ExchangeRate   string `json:"exchangeRate"`
+	Pid            int64        `json:"pid"`
+	ProductType    int64        `json:"productType"`
+	IsDeFi         int64        `json:"isDeFi"`
+	Currency       string       `json:"currency"`
+	EstimatedApr   string       `json:"estimatedApr"`
+	MinStakeAmount types.Number `json:"minStakeAmount"`
+	MaxStakeAmount types.Number `json:"maxStakeAmount"`
+	ProtocolName   string       `json:"protocolName"`
+	RedeemPeriod   int64        `json:"redeemPeriod"`
+	ExchangeRate   string       `json:"exchangeRate"`
 }
 
 // StakingSwapRequest holds an on-chain token swap request for earned coins
 type StakingSwapRequest struct {
-	Coin   string `json:"coin"`
-	Side   int64  `json:"side"`
-	Amount string `json:"amount"`
-	Pid    int64  `json:"pid,omitempty"`
+	Coin   string  `json:"coin"`
+	Side   int64   `json:"side"`
+	Amount float64 `json:"amount,string"`
+	Pid    int64   `json:"pid,omitempty"`
 }
 
 // StakingSwapResponse holds the response for an on-chain staking swap
 type StakingSwapResponse struct {
-	ID              int64      `json:"id"`
-	Pid             int64      `json:"pid"`
-	Coin            string     `json:"coin"`
-	UID             int64      `json:"uid"`
-	Type            int64      `json:"type"`
-	Subtype         int64      `json:"subtype"`
-	Amount          string     `json:"amount"`
-	ExchangeRate    string     `json:"exchange_rate"`
-	ExchangeAmount  string     `json:"exchange_amount"`
-	UpdateTimestamp types.Time `json:"updateTimestamp"`
+	ID              int64        `json:"id"`
+	Pid             int64        `json:"pid"`
+	Coin            string       `json:"coin"`
+	UID             int64        `json:"uid"`
+	Type            int64        `json:"type"`
+	Subtype         int64        `json:"subtype"`
+	Amount          types.Number `json:"amount"`
+	ExchangeRate    string       `json:"exchange_rate"`
+	ExchangeAmount  types.Number `json:"exchange_amount"`
+	UpdateTimestamp types.Time   `json:"updateTimestamp"`
 }
 
 // StakingOrderItem holds an on-chain staking order item
 type StakingOrderItem struct {
-	Pid    int64  `json:"pid"`
-	Coin   string `json:"coin"`
-	Amount string `json:"amount"`
-	Type   int64  `json:"type"`
-	Status int64  `json:"status"`
+	Pid    int64        `json:"pid"`
+	Coin   string       `json:"coin"`
+	Amount types.Number `json:"amount"`
+	Type   int64        `json:"type"`
+	Status int64        `json:"status"`
 }
 
 // StakingOrdersResponse holds the paginated response for on-chain staking orders
@@ -1811,11 +1811,11 @@ type StakingOrdersResponse struct {
 
 // StakingDividendRecord holds an on-chain staking dividend record item
 type StakingDividendRecord struct {
-	Pid          int64  `json:"pid"`
-	MortgageCoin string `json:"mortgage_coin"`
-	Amount       string `json:"amount"`
-	RewardCoin   string `json:"reward_coin"`
-	Interest     string `json:"interest"`
+	PID          int64         `json:"pid"`
+	MortgageCoin currency.Code `json:"mortgage_coin"`
+	Amount       types.Number  `json:"amount"`
+	RewardCoin   currency.Code `json:"reward_coin"`
+	Interest     string        `json:"interest"`
 }
 
 // StakingDividendRecordsResponse holds the paginated response for staking dividend records
@@ -1829,16 +1829,16 @@ type StakingDividendRecordsResponse struct {
 
 // StakingAssetItem holds an on-chain staking asset item
 type StakingAssetItem struct {
-	Pid            int64      `json:"pid"`
-	MortgageCoin   string     `json:"mortgage_coin"`
-	MortgageAmount string     `json:"mortgage_amount"`
-	CreateStamp    types.Time `json:"createStamp"`
-	ExtraIncome    string     `json:"extra_income"`
-	FreezeAmount   string     `json:"freeze_amount"`
-	MoveIncome     string     `json:"move_income"`
-	Type           int64      `json:"type"`
-	Status         int64      `json:"status"`
-	IncomeTotal    string     `json:"income_total"`
+	Pid            int64        `json:"pid"`
+	MortgageCoin   string       `json:"mortgage_coin"`
+	MortgageAmount types.Number `json:"mortgage_amount"`
+	CreateStamp    types.Time   `json:"createStamp"`
+	ExtraIncome    string       `json:"extra_income"`
+	FreezeAmount   types.Number `json:"freeze_amount"`
+	MoveIncome     string       `json:"move_income"`
+	Type           int64        `json:"type"`
+	Status         int64        `json:"status"`
+	IncomeTotal    string       `json:"income_total"`
 }
 
 // DualInvestmentPlan holds an earn dual investment plan detail
@@ -1958,7 +1958,7 @@ type AutoInvestMinAmountRequest struct {
 
 // AutoInvestMinAmountResponse holds the minimum investment amount response
 type AutoInvestMinAmountResponse struct {
-	MinAmount string `json:"min_amount"`
+	MinAmount types.Number `json:"min_amount"`
 }
 
 // AutoInvestPlanExecutionRecord holds a single plan execution record item
@@ -1980,20 +1980,20 @@ type AutoInvestPlanExecutionRecordsResponse struct {
 
 // AutoInvestOrderItem holds an auto invest order detail item
 type AutoInvestOrderItem struct {
-	ID         int64  `json:"id"`
-	Type       string `json:"type"`
-	Amount     string `json:"amount"`
-	PlanID     int64  `json:"plan_id"`
-	Side       int64  `json:"side"`
-	Asset      string `json:"asset"`
-	RecordID   int64  `json:"record_id"`
-	TotalMoney string `json:"total_money"`
+	ID         int64        `json:"id"`
+	Type       string       `json:"type"`
+	Amount     types.Number `json:"amount"`
+	PlanID     int64        `json:"plan_id"`
+	Side       int64        `json:"side"`
+	Asset      string       `json:"asset"`
+	RecordID   int64        `json:"record_id"`
+	TotalMoney string       `json:"total_money"`
 }
 
 // AutoInvestConfigItem holds an investment currency configuration item
 type AutoInvestConfigItem struct {
-	Coin     string `json:"coin"`
-	MaxLimit string `json:"max_limit"`
+	Coin     currency.Code `json:"coin"`
+	MaxLimit types.Number  `json:"max_limit"`
 }
 
 // AutoInvestPlanDetails holds auto invest plan details
@@ -2021,15 +2021,15 @@ type AutoInvestPlanListResponse struct {
 
 // CreateAutoInvestPlanItem holds a single asset allocation item for plan creation
 type CreateAutoInvestPlanItem struct {
-	Coin  string `json:"coin"`
-	Ratio string `json:"ratio"`
+	Coin  currency.Code `json:"coin"`
+	Ratio float64       `json:"ratio,string"`
 }
 
 // CreateAutoInvestPlanRequest holds parameters for creating an auto invest plan
 type CreateAutoInvestPlanRequest struct {
 	PlanMoney  string                      `json:"plan_money"`
 	Name       string                      `json:"name,omitempty"`
-	Amount     string                      `json:"amount"`
+	Amount     float64                     `json:"amount,string"`
 	PeriodType string                      `json:"period_type"`
 	PeriodDay  int64                       `json:"period_day"`
 	Items      []*CreateAutoInvestPlanItem `json:"items"`
@@ -2049,17 +2049,17 @@ type AutoInvestPlanStopRequest struct {
 
 // AutoInvestPlanAddPositionRequest holds parameters for adding a position to an auto invest plan
 type AutoInvestPlanAddPositionRequest struct {
-	PlanID int64  `json:"plan_id"`
-	Amount string `json:"amount"`
+	PlanID int64   `json:"plan_id"`
+	Amount float64 `json:"amount,string"`
 }
 
 // FixedTermProduct holds a fixed-term earn product item
 type FixedTermProduct struct {
-	ID            int64  `json:"id"`
-	Name          string `json:"name"`
-	Asset         string `json:"asset"`
-	LockUpPeriod  int64  `json:"lock_up_period"`
-	MinLendAmount string `json:"min_lend_amount"`
+	ID            int64         `json:"id"`
+	Name          string        `json:"name"`
+	Asset         currency.Code `json:"asset"`
+	LockUpPeriod  int64         `json:"lock_up_period"`
+	MinLendAmount types.Number  `json:"min_lend_amount"`
 }
 
 // FixedTermProductsData holds the data field of the fixed-term product list response
@@ -3374,10 +3374,10 @@ type MultiCurrencyDetail struct {
 	BeforeAmountUSDT types.Number `json:"before_amount_usdt"`
 	AfterAmount      types.Number `json:"after_amount"`
 	AfterAmountUSDT  types.Number `json:"after_amount_usdt"`
-	RepaidAmount     string       `json:"repaid_amount"`
+	RepaidAmount     types.Number `json:"repaid_amount"`
 	RepaidPrincipal  string       `json:"repaid_principal"`
 	RepaidInterest   string       `json:"repaid_interest"`
-	RepaidAmountUsdt string       `json:"repaid_amount_usdt"`
+	RepaidAmountUSDT string       `json:"repaid_amount_usdt"`
 }
 
 // AddOrWithdrawCollateralParams holds a request parameter for adding or withdrawing collateral
@@ -4191,7 +4191,7 @@ type OTCOrderListItem struct {
 	DBStatus         string               `json:"db_status"`
 	Type             string               `json:"type"`
 	FlatCurrencyInfo *OtcFlatCurrencyInfo `json:"flat_currency_info"`
-	FlatAmount       string               `json:"flat_amount"`
+	FlatAmount       types.Number         `json:"flat_amount"`
 	CryptoCurrency   string               `json:"crypto_currency"`
 	CreateAt2        int64                `json:"create_at2"`
 	BankAccountIBM   string               `json:"bank_account_ibm"`

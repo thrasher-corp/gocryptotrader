@@ -145,19 +145,19 @@ func (e *Exchange) CreateFuturesGridBot(ctx context.Context, arg *FuturesGridCre
 	if arg.Market == "" {
 		return nil, errBotMarketRequired
 	}
-	if arg.CreateParams.Money == "" {
+	if arg.CreateParams.Money <= 0 {
 		return nil, errBotMoneyRequired
 	}
-	if arg.CreateParams.LowPrice == "" {
+	if arg.CreateParams.LowPrice <= 0 {
 		return nil, errBotLowPriceRequired
 	}
-	if arg.CreateParams.HighPrice == "" {
+	if arg.CreateParams.HighPrice <= 0 {
 		return nil, errBotHighPriceRequired
 	}
 	if arg.CreateParams.GridNum <= 0 {
 		return nil, errBotGridNumRequired
 	}
-	if arg.CreateParams.Leverage == "" {
+	if arg.CreateParams.Leverage <= 0 {
 		return nil, order.ErrSubmitLeverageNotSupported
 	}
 	arg.StrategyType = BotStrategyFuturesGrid

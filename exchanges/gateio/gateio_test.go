@@ -2375,11 +2375,11 @@ func TestSwapStakingCoins(t *testing.T) {
 	_, err := e.SwapStakingCoins(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "nil arg must return ErrNilPointer")
 
-	_, err = e.SwapStakingCoins(t.Context(), &StakingSwapRequest{Side: 0, Amount: "1"})
+	_, err = e.SwapStakingCoins(t.Context(), &StakingSwapRequest{Side: 0, Amount: 1})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "empty coin must return ErrCurrencyCodeEmpty")
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.SwapStakingCoins(t.Context(), &StakingSwapRequest{Coin: "ETH", Side: 0, Amount: "0.01"})
+	result, err := e.SwapStakingCoins(t.Context(), &StakingSwapRequest{Coin: "ETH", Side: 0, Amount: 0.01})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -2413,21 +2413,21 @@ func TestCreateAutoInvestPlan(t *testing.T) {
 	err := e.CreateAutoInvestPlan(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "nil arg must return ErrNilPointer")
 
-	err = e.CreateAutoInvestPlan(t.Context(), &CreateAutoInvestPlanRequest{Amount: "10", PeriodType: "monthly", PeriodDay: 1, Items: []*CreateAutoInvestPlanItem{{Coin: "BTC", Ratio: "100"}}})
+	err = e.CreateAutoInvestPlan(t.Context(), &CreateAutoInvestPlanRequest{Amount: 10, PeriodType: "monthly", PeriodDay: 1, Items: []*CreateAutoInvestPlanItem{{Coin: currency.BTC, Ratio: 100}}})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "empty plan_money must return ErrCurrencyCodeEmpty")
 
-	err = e.CreateAutoInvestPlan(t.Context(), &CreateAutoInvestPlanRequest{PlanMoney: "USDT", Amount: "10", PeriodType: "monthly", PeriodDay: 1})
+	err = e.CreateAutoInvestPlan(t.Context(), &CreateAutoInvestPlanRequest{PlanMoney: "USDT", Amount: 10, PeriodType: "monthly", PeriodDay: 1})
 	require.ErrorIs(t, err, errNoValidParameterPassed, "empty items must return errNoValidParameterPassed")
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	err = e.CreateAutoInvestPlan(t.Context(), &CreateAutoInvestPlanRequest{
 		PlanMoney:  "USDT",
-		Amount:     "10",
+		Amount:     10,
 		PeriodType: "monthly",
 		PeriodDay:  1,
-		Items:      []*CreateAutoInvestPlanItem{{Coin: "BTC", Ratio: "100"}},
+		Items:      []*CreateAutoInvestPlanItem{{Coin: currency.BTC, Ratio: 100}},
 	})
-	require.NoError(t, err, "CreateAutoInvestPlan must not error")
+	require.NoError(t, err)
 }
 
 func TestUpdateAutoInvestPlan(t *testing.T) {
@@ -2440,7 +2440,7 @@ func TestUpdateAutoInvestPlan(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	err = e.UpdateAutoInvestPlan(t.Context(), &AutoInvestPlanUpdateRequest{PlanID: 142582, FundSource: "earn", FundFlow: "auto_invest"})
-	require.NoError(t, err, "UpdateAutoInvestPlan must not error")
+	require.NoError(t, err)
 }
 
 func TestStopAutoInvestPlan(t *testing.T) {
@@ -2450,7 +2450,7 @@ func TestStopAutoInvestPlan(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	err = e.StopAutoInvestPlan(t.Context(), 142582)
-	require.NoError(t, err, "StopAutoInvestPlan must not error")
+	require.NoError(t, err)
 }
 
 func TestAddAutoInvestPlanPosition(t *testing.T) {
@@ -2463,7 +2463,7 @@ func TestAddAutoInvestPlanPosition(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	err = e.AddAutoInvestPlanPosition(t.Context(), 142583, 12.345)
-	require.NoError(t, err, "AddAutoInvestPlanPosition must not error")
+	require.NoError(t, err)
 }
 
 func TestGetAutoInvestSupportedCoins(t *testing.T) {
