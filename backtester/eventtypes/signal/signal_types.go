@@ -63,7 +63,7 @@ type Signal struct {
 	// eg with $5000 usd and 1 BTC, specifying BTC ensures
 	// the USD value won't be utilised when sizing an order
 	CollateralCurrency currency.Code
-	// MatchOrderAmount flags to other event handlers
+	// MatchesOrderAmount flags to other event handlers
 	// that the order amount must match the set Amount property
 	MatchesOrderAmount bool
 }
