@@ -123,10 +123,15 @@ var (
 	errInvalidChaseSortBy                   = errors.New("invalid sort_by value: must be 1 (ORDER_SORT_CREATED_AT) or 2 (ORDER_SORT_FINISHED_AT)")
 	errChaseOrderPriceLimitOrOffsetRequired = errors.New("either price_limit or offset_limit is required to create a chase order")
 
-	errOtcSideRequired       = errors.New("OTC side (PAY or GET) is required")
-	errOtcOrderTypeRequired  = errors.New("OTC order type (BUY or SELL) is required")
-	errOtcQuoteTokenRequired = errors.New("OTC quote token is required")
-	errOtcBankIDRequired     = errors.New("OTC bank ID is required")
+	errOtcSideRequired              = errors.New("OTC side (PAY or GET) is required")
+	errOtcOrderTypeRequired         = errors.New("OTC order type (BUY or SELL) is required")
+	errOtcQuoteTokenRequired        = errors.New("OTC quote token is required")
+	errOtcBankIDRequired            = errors.New("OTC bank ID is required")
+	errCurrencyTypeRequired         = errors.New("currency type is required")
+	errOrderRefundRequestIDRequired = errors.New("order-refund request ID is required")
+	errRecordIDRequired             = errors.New("record ID is required")
+	errPlanStatusRequired           = errors.New("plan status is required")
+	errHistoryTypeRequired          = errors.New("history type is required")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
@@ -3627,18 +3632,104 @@ func (e *Exchange) GetETH2HistoricalReturnRate(ctx context.Context) ([]*ETH2Retu
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/staking/eth2/rate_records", nil, nil, &resp)
 }
 
+// GetStakingCoins retrieves a list of on-chain staking coin products.
+func (e *Exchange) GetStakingCoins(ctx context.Context, coinType string) ([]*StakingCoin, error) {
+	params := url.Values{}
+	if coinType != "" {
+		params.Set("cointype", coinType)
+	}
+	var resp []*StakingCoin
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, common.EncodeURLValues("earn/staking/coins", params), nil, nil, &resp)
+}
+
+// SwapStakingCoins performs an on-chain token swap for earned coins (stake or redeem).
+// side: 0=Stake, 1=Redeem
+func (e *Exchange) SwapStakingCoins(ctx context.Context, arg *StakingSwapRequest) (*StakingSwapResponse, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
+	if arg.Coin == "" {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	var resp *StakingSwapResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "earn/staking/swap", nil, arg, &resp)
+}
+
+// GetStakingOrders retrieves a list of on-chain coin-earning orders.
+func (e *Exchange) GetStakingOrders(ctx context.Context, pid, orderType int64, ccy currency.Code, page int32) (*StakingOrdersResponse, error) {
+	params := url.Values{}
+	if pid > 0 {
+		params.Set("pid", strconv.FormatInt(pid, 10))
+	}
+	if !ccy.IsEmpty() {
+		params.Set("coin", ccy.String())
+	}
+	if orderType >= 0 {
+		params.Set("type", strconv.FormatInt(orderType, 10))
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(int64(page), 10))
+	}
+	var resp *StakingOrdersResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, common.EncodeURLValues("earn/staking/orders", params), nil, nil, &resp)
+}
+
+// GetStakingDividendRecords retrieves on-chain coin-earning dividend records.
+func (e *Exchange) GetStakingDividendRecords(ctx context.Context, pid int64, ccy currency.Code, page int32) (*StakingDividendRecordsResponse, error) {
+	params := url.Values{}
+	if pid > 0 {
+		params.Set("pid", strconv.FormatInt(pid, 10))
+	}
+	if !ccy.IsEmpty() {
+		params.Set("coin", ccy.String())
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(int64(page), 10))
+	}
+	var resp *StakingDividendRecordsResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, common.EncodeURLValues("earn/staking/dividend_list", params), nil, nil, &resp)
+}
+
+// GetStakingAssets retrieves on-chain coin-earning assets.
+func (e *Exchange) GetStakingAssets(ctx context.Context, ccy currency.Code) ([]*StakingAssetItem, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("coin", ccy.String())
+	}
+	var resp []*StakingAssetItem
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, common.EncodeURLValues("earn/staking/assets", params), nil, nil, &resp)
+}
+
 // GetDualInvestmentProductList dual Investment product list
-func (e *Exchange) GetDualInvestmentProductList(ctx context.Context, planID uint64) ([]*DualInvestmentPlan, error) {
+func (e *Exchange) GetDualInvestmentProductList(ctx context.Context, planID uint64, sortyType, orderType string, coin, quoteCurrency currency.Code, page, pageSize uint32) ([]*DualInvestmentPlan, error) {
 	params := url.Values{}
 	if planID != 0 {
 		params.Set("plan_id", strconv.FormatUint(planID, 10))
+	}
+	if sortyType != "" {
+		params.Set("sort", sortyType)
+	}
+	if orderType != "" {
+		params.Set("type", orderType)
+	}
+	if !coin.IsEmpty() {
+		params.Set("coin", coin.String())
+	}
+	if !quoteCurrency.IsEmpty() {
+		params.Set("quote_currency", quoteCurrency.String())
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatUint(uint64(page), 10))
+	}
+	if pageSize > 0 {
+		params.Set("page_size", strconv.FormatUint(uint64(pageSize), 10))
 	}
 	var resp []*DualInvestmentPlan
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/dual/investment_plan", params, nil, &resp)
 }
 
 // GetDualInvestmentOrderList dual Investment order list
-func (e *Exchange) GetDualInvestmentOrderList(ctx context.Context, from, to time.Time, page, limit int64) ([]*DualInvestmentOrderDetail, error) {
+func (e *Exchange) GetDualInvestmentOrderList(ctx context.Context, from, to time.Time, orderType, orderStatus string, coin currency.Code, page, limit int64) ([]*DualInvestmentOrderDetail, error) {
 	if !from.IsZero() && !to.IsZero() {
 		if err := common.StartEndTimeCheck(from, to); err != nil {
 			return nil, err
@@ -3650,6 +3741,17 @@ func (e *Exchange) GetDualInvestmentOrderList(ctx context.Context, from, to time
 	}
 	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
+	}
+	// Type enum: 'put' — buy low; 'call' — sell high
+	if orderType != "" {
+		params.Set("type", orderType)
+	}
+	// possible order status values are: 'HOLD' — open position, 'REPAY' — historical position, 'PROCESSING' — position active, 'SETTLEMENT_PROCESSING' — settlement in progress, 'ALL' — all
+	if orderStatus != "" {
+		params.Set("status", orderStatus)
+	}
+	if !coin.IsEmpty() {
+		params.Set("coin", coin.String())
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
@@ -3673,6 +3775,312 @@ func (e *Exchange) PlaceDualInvestmentOrder(ctx context.Context, arg *DualInvest
 		return order.ErrAmountIsInvalid
 	}
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "earn/dual/orders", nil, arg, nil)
+}
+
+// GetDualCurrencyEarningAssets represents a dual-currency earning asset detail
+func (e *Exchange) GetDualCurrencyEarningAssets(ctx context.Context) ([]*DualCurrencyEarningAsset, error) {
+	var resp []*DualCurrencyEarningAsset
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/dual/balance", nil, nil, &resp)
+}
+
+// GetDualCurrencyEarlyRedemptionPreview retrieves dual-currency early redemption preview
+func (e *Exchange) GetDualCurrencyEarlyRedemptionPreview(ctx context.Context, orderID string) (*DualCurrencyEarlyRedemption, error) {
+	if orderID == "" {
+		return nil, order.ErrOrderIDNotSet
+	}
+	params := url.Values{}
+	params.Set("order_id", orderID)
+	var resp *DualCurrencyEarlyRedemption
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/dual/order-refund-preview", params, nil, &resp)
+}
+
+// RedeemDualCurrencyOrder redeems a dual-currency order
+func (e *Exchange) RedeemDualCurrencyOrder(ctx context.Context, orderID, requestID string) error {
+	if orderID == "" {
+		return order.ErrOrderIDNotSet
+	}
+	if requestID == "" {
+		return errOrderRefundRequestIDRequired
+	}
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "earn/dual/order-refund", nil, &map[string]string{
+		"order_id": orderID,
+		"req_id":   requestID,
+	}, nil)
+}
+
+// ModifyDualCurrencyOrderReinvest modifies the reinvestment settings for a dual-currency order.
+func (e *Exchange) ModifyDualCurrencyOrderReinvest(ctx context.Context, arg *DualModifyOrderReinvestRequest) error {
+	if err := common.NilGuard(arg); err != nil {
+		return err
+	}
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "earn/dual/modify-order-reinvest", nil, arg, nil)
+}
+
+// GetDualCurrencyRecommendedProjects retrieves dual-currency recommended projects.
+func (e *Exchange) GetDualCurrencyRecommendedProjects(ctx context.Context, mode, coin, orderType, filterPIDs string) ([]*DualRecommendedProject, error) {
+	params := url.Values{}
+	if mode != "" {
+		params.Set("mode", mode)
+	}
+	if coin != "" {
+		params.Set("coin", coin)
+	}
+	if orderType != "" {
+		params.Set("type", orderType)
+	}
+	if filterPIDs != "" {
+		params.Set("filter_pids", filterPIDs)
+	}
+	var resp []*DualRecommendedProject
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, common.EncodeURLValues("earn/dual/project-recommended", params), nil, nil, &resp)
+}
+
+// CreateAutoInvestPlan creates a new auto invest plan.
+func (e *Exchange) CreateAutoInvestPlan(ctx context.Context, arg *CreateAutoInvestPlanRequest) error {
+	if err := common.NilGuard(arg); err != nil {
+		return err
+	}
+	if arg.PlanMoney == "" {
+		return currency.ErrCurrencyCodeEmpty
+	}
+	if len(arg.Items) == 0 {
+		return errNoValidParameterPassed
+	}
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "earn/autoinvest/plans", nil, arg, nil)
+}
+
+// UpdateAutoInvestPlan updates an existing auto invest plan.
+func (e *Exchange) UpdateAutoInvestPlan(ctx context.Context, arg *AutoInvestPlanUpdateRequest) error {
+	if err := common.NilGuard(arg); err != nil {
+		return err
+	}
+	if arg.PlanID <= 0 {
+		return errPlanIDRequired
+	}
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "earn/autoinvest/plans/update", nil, arg, nil)
+}
+
+// StopAutoInvestPlan stops an auto invest plan.
+func (e *Exchange) StopAutoInvestPlan(ctx context.Context, planID int64) error {
+	if planID <= 0 {
+		return errPlanIDRequired
+	}
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "earn/autoinvest/plans/stop", nil, &AutoInvestPlanStopRequest{PlanID: planID}, nil)
+}
+
+// AddAutoInvestPlanPosition adds a position immediately to an auto invest plan.
+func (e *Exchange) AddAutoInvestPlanPosition(ctx context.Context, planID int64, amount float64) error {
+	if planID <= 0 {
+		return errPlanIDRequired
+	}
+	if amount <= 0 {
+		return order.ErrAmountIsInvalid
+	}
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "earn/autoinvest/plans/add_position", nil, &AutoInvestPlanAddPositionRequest{
+		PlanID: planID,
+		Amount: strconv.FormatFloat(amount, 'f', -1, 64),
+	}, nil)
+}
+
+// GetAutoInvestSupportedCoins retrieves currencies supporting auto invest.
+func (e *Exchange) GetAutoInvestSupportedCoins(ctx context.Context, planMoney string) ([]*AutoInvestCoinItem, error) {
+	params := url.Values{}
+	if planMoney != "" {
+		params.Set("plan_money", planMoney)
+	}
+	var resp []*AutoInvestCoinItem
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, common.EncodeURLValues("earn/autoinvest/coins", params), nil, nil, &resp)
+}
+
+// GetAutoInvestMinimumAmount retrieves the minimum investment amount for the given assets.
+func (e *Exchange) GetAutoInvestMinimumAmount(ctx context.Context, arg *AutoInvestMinAmountRequest) (*AutoInvestMinAmountResponse, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
+	if arg.Money == "" {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	if len(arg.Items) == 0 {
+		return nil, errNoValidParameterPassed
+	}
+	var resp *AutoInvestMinAmountResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "earn/autoinvest/min_invest_amount", nil, arg, &resp)
+}
+
+// GetAutoInvestPlanExecutionRecords retrieves plan execution records.
+func (e *Exchange) GetAutoInvestPlanExecutionRecords(ctx context.Context, planID, pageNum, pageSize int64) (*AutoInvestPlanExecutionRecordsResponse, error) {
+	if planID <= 0 {
+		return nil, errPlanIDRequired
+	}
+	params := url.Values{}
+	params.Set("plan_id", strconv.FormatInt(planID, 10))
+	if pageNum > 0 {
+		params.Set("page_num", strconv.FormatInt(pageNum, 10))
+	}
+	if pageSize > 0 {
+		params.Set("page_size", strconv.FormatInt(pageSize, 10))
+	}
+	var resp *AutoInvestPlanExecutionRecordsResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, common.EncodeURLValues("earn/autoinvest/plans/records", params), nil, nil, &resp)
+}
+
+// GetAutoInvestPlanOrderDetails retrieves order details for a specific plan execution record.
+func (e *Exchange) GetAutoInvestPlanOrderDetails(ctx context.Context, planID, recordID int64) ([]*AutoInvestOrderItem, error) {
+	if planID <= 0 {
+		return nil, errPlanIDRequired
+	}
+	if recordID <= 0 {
+		return nil, errRecordIDRequired
+	}
+	params := url.Values{}
+	params.Set("plan_id", strconv.FormatInt(planID, 10))
+	params.Set("record_id", strconv.FormatInt(recordID, 10))
+	var resp []*AutoInvestOrderItem
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, common.EncodeURLValues("earn/autoinvest/orders", params), nil, nil, &resp)
+}
+
+// GetAutoInvestCurrencyConfig retrieves the investment currency configuration.
+func (e *Exchange) GetAutoInvestCurrencyConfig(ctx context.Context) ([]*AutoInvestConfigItem, error) {
+	var resp []*AutoInvestConfigItem
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/autoinvest/config", nil, nil, &resp)
+}
+
+// GetAutoInvestPlanDetails retrieves details of an auto invest plan.
+func (e *Exchange) GetAutoInvestPlanDetails(ctx context.Context, planID int64) (*AutoInvestPlanDetails, error) {
+	if planID <= 0 {
+		return nil, errPlanIDRequired
+	}
+	params := url.Values{}
+	params.Set("plan_id", strconv.FormatInt(planID, 10))
+	var resp *AutoInvestPlanDetails
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, common.EncodeURLValues("earn/autoinvest/plans/detail", params), nil, nil, &resp)
+}
+
+// GetAutoInvestPlanList retrieves a list of auto invest plans.
+func (e *Exchange) GetAutoInvestPlanList(ctx context.Context, status string, page, pageSize int64) (*AutoInvestPlanListResponse, error) {
+	if status == "" {
+		return nil, errPlanStatusRequired
+	}
+	params := url.Values{}
+	params.Set("status", status)
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if pageSize > 0 {
+		params.Set("page_size", strconv.FormatInt(pageSize, 10))
+	}
+	var resp *AutoInvestPlanListResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, common.EncodeURLValues("earn/autoinvest/plans/list_info", params), nil, nil, &resp)
+}
+
+// GetFixedTermProducts retrieves a fixed-term earn product list.
+// page and limit are required (limit max 100).
+func (e *Exchange) GetFixedTermProducts(ctx context.Context, asset string, productType, page, limit int64) (*FixedTermProductsResponse, error) {
+	if page <= 0 {
+		return nil, errInvalidOrderStatus
+	}
+	if limit <= 0 {
+		return nil, errInvalidOrderStatus
+	}
+	params := url.Values{}
+	if asset != "" {
+		params.Set("asset", asset)
+	}
+	if productType > 0 {
+		params.Set("type", strconv.FormatInt(productType, 10))
+	}
+	params.Set("page", strconv.FormatInt(page, 10))
+	params.Set("limit", strconv.FormatInt(limit, 10))
+	var resp *FixedTermProductsResponse
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("earn/fixed-term/products", params), &resp)
+}
+
+// GetFixedTermProductsByAsset retrieves fixed-term earn products for a single currency.
+// Sort by product term in ascending order.
+func (e *Exchange) GetFixedTermProductsByAsset(ctx context.Context, asset string, productType int64) (*FixedTermProductsByAssetResponse, error) {
+	if asset == "" {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("asset", asset)
+	if productType > 0 {
+		params.Set("type", strconv.FormatInt(productType, 10))
+	}
+	var resp *FixedTermProductsByAssetResponse
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("earn/fixed-term/products/asset/list", params), &resp)
+}
+
+// GetFixedTermSubscriptionHistory retrieves fixed-term earn history records filtered by type.
+// historyType is required: 1 for subscription, 2 for redemption, 3 for interest, 4 for bonus reward.
+// page and limit are required.
+func (e *Exchange) GetFixedTermSubscriptionHistory(ctx context.Context, historyType, page, limit, productID, subBusiness int64, orderID, businessFilter string, asset currency.Code, startAt, endAt time.Time) (*FixedTermHistoryResponse, error) {
+	if historyType <= 0 {
+		return nil, errHistoryTypeRequired
+	}
+	if page <= 0 {
+		return nil, errNoValidParameterPassed
+	}
+	if limit <= 0 {
+		return nil, errNoValidParameterPassed
+	}
+	params := url.Values{}
+	params.Set("type", strconv.FormatInt(historyType, 10))
+	params.Set("page", strconv.FormatInt(page, 10))
+	params.Set("limit", strconv.FormatInt(limit, 10))
+	if productID > 0 {
+		params.Set("product_id", strconv.FormatInt(productID, 10))
+	}
+	if orderID != "" {
+		params.Set("order_id", orderID)
+	}
+	if !asset.IsEmpty() {
+		params.Set("asset", asset.String())
+	}
+	if !startAt.IsZero() {
+		params.Set("start_at", strconv.FormatInt(startAt.UTC().Unix(), 10))
+	}
+	if !endAt.IsZero() {
+		params.Set("end_at", strconv.FormatInt(endAt.UTC().Unix(), 10))
+	}
+	if subBusiness > 0 {
+		params.Set("sub_business", strconv.FormatInt(subBusiness, 10))
+	}
+	if businessFilter != "" {
+		params.Set("business_filter", businessFilter)
+	}
+	var resp *FixedTermHistoryResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, common.EncodeURLValues("earn/fixed-term/earn/history", params), nil, nil, &resp)
+}
+
+// GetFixedTermSubscriptionOrders retrieves fixed-term earn subscription orders.
+func (e *Exchange) GetFixedTermSubscriptionOrders(ctx context.Context, productID int64, orderID string, asset currency.Code, page, limit int64, startTime, endTime time.Time, businessFilter string) (*FixedTermSubscriptionOrdersResponse, error) {
+	params := url.Values{}
+	if productID > 0 {
+		params.Set("product_id", strconv.FormatInt(productID, 10))
+	}
+	if orderID != "" {
+		params.Set("order_id", orderID)
+	}
+	if !asset.IsEmpty() {
+		params.Set("asset", asset.String())
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatInt(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !startTime.IsZero() {
+		params.Set("start_time", strconv.FormatInt(startTime.UTC().Unix(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("end_time", strconv.FormatInt(endTime.UTC().Unix(), 10))
+	}
+	if businessFilter != "" {
+		params.Set("business_filter", businessFilter)
+	}
+	var resp *FixedTermSubscriptionOrdersResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, common.EncodeURLValues("earn/fixed-term/earn/orders", params), nil, nil, &resp)
 }
 
 // GetStructuredProductList retrieves a structured Product List
@@ -3936,6 +4344,25 @@ func (e *Exchange) PlaceMultiCollateralLoanOrder(ctx context.Context, arg *Multi
 	return resp.OrderID, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "loan/multi_collateral/orders", nil, arg, &resp)
 }
 
+// GetMultiCollateralLoanOrders query multi-currency collateral order list
+func (e *Exchange) GetMultiCollateralLoanOrders(ctx context.Context, page, limit uint64, sortType, orderType string) ([]*MultiCollateralLoanOrderDetail, error) {
+	params := url.Values{}
+	if page > 0 {
+		params.Set("page", strconv.FormatUint(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	if sortType != "" {
+		params.Set("sort", sortType)
+	}
+	if orderType != "" {
+		params.Set("order_type", orderType)
+	}
+	var resp []*MultiCollateralLoanOrderDetail
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "loan/multi_collateral/orders", params, nil, &resp)
+}
+
 // GetOrderDetails query order details
 func (e *Exchange) GetOrderDetails(ctx context.Context, orderID string) (*MultiCollateralLoanOrderDetail, error) {
 	if orderID == "" {
@@ -4025,6 +4452,56 @@ func (e *Exchange) GetMultiCollateralAdjustmentRecords(ctx context.Context, page
 	}
 	var resp []*MultiCollateralAdjustmentRecord
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "loan/multi_collateral/mortgage", params, nil, &resp)
+}
+
+// GetMultiCollateralCurrencyQuota queries user's collateral and borrowing currency quota information.
+// currencyType must be "collateral" or "borrow"; when "collateral", ccy may be comma-separated.
+func (e *Exchange) GetMultiCollateralCurrencyQuota(ctx context.Context, currencyType, ccy string) ([]*MultiCollateralCurrencyQuota, error) {
+	if currencyType == "" {
+		return nil, errCurrencyTypeRequired
+	}
+	if ccy == "" {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("currency_type", currencyType)
+	params.Set("currency", ccy)
+	var resp []*MultiCollateralCurrencyQuota
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "loan/multi_collateral/currency_quota", params, nil, &resp)
+}
+
+// GetMultiCollateralSupportedCurrencies queries borrow currencies and collateral currencies supported by multi-currency collateral.
+func (e *Exchange) GetMultiCollateralSupportedCurrencies(ctx context.Context) (*MultiCollateralSupportedCurrencies, error) {
+	var resp *MultiCollateralSupportedCurrencies
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "loan/multi_collateral/currencies", &resp)
+}
+
+// GetMultiCollateralizationRatio queries collateralization ratio information.
+// The multi-currency collateral ratio is fixed, independent of currency.
+func (e *Exchange) GetMultiCollateralizationRatio(ctx context.Context) (*MultiCollateralizationRatio, error) {
+	var resp *MultiCollateralizationRatio
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "loan/multi_collateral/ltv", &resp)
+}
+
+// GetMultiCollateralFixedRates queries each currency's 7-day and 30-day fixed interest rates.
+func (e *Exchange) GetMultiCollateralFixedRates(ctx context.Context) ([]*CollateralFixRate, error) {
+	var resp []*CollateralFixRate
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "loan/multi_collateral/fixed_rate", &resp)
+}
+
+// GetMultiCollateralCurrentRates queries each currency's current interest rate updated every hour.
+// currencies is required (maximum 100); vipLevel defaults to 0 if empty.
+func (e *Exchange) GetMultiCollateralCurrentRates(ctx context.Context, currencies []string, vipLevel string) ([]*CollateralCurrentRate, error) {
+	if len(currencies) == 0 {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("currencies", strings.Join(currencies, ","))
+	if vipLevel != "" {
+		params.Set("vip_level", vipLevel)
+	}
+	var resp []*CollateralCurrentRate
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("loan/multi_collateral/current_rate", params), &resp)
 }
 
 // ------------------------ Broker Rebate Endpoints ------------------------

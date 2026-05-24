@@ -8656,6 +8656,339 @@
      "headers": {}
     }
    ]
+  },
+  "/api/v4/loan/multi_collateral/currency_quota": {
+   "GET": [
+    {
+     "data": [
+      {
+       "currency": "BTC",
+       "index_price": "37510.24",
+       "min_quota": "0.001",
+       "left_quota": "1000",
+       "left_quote_with_max": "500"
+      }
+     ],
+     "queryString": "currency=BTC&currency_type=collateral",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/loan/multi_collateral/currencies": {
+   "GET": [
+    {
+     "data": {
+      "loan_currencies": [
+       {
+        "currency": "BTC",
+        "price": "1212"
+       },
+       {
+        "currency": "GT",
+        "price": "12"
+       }
+      ],
+      "collateral_currencies": [
+       {
+        "currency": "BTC",
+        "index_price": "1212",
+        "discount": "0.7"
+       }
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/loan/multi_collateral/ltv": {
+   "GET": [
+    {
+     "data": {
+      "init_ltv": "0.7",
+      "alert_ltv": "0.8",
+      "liquidate_ltv": "0.9"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/loan/multi_collateral/fixed_rate": {
+   "GET": [
+    {
+     "data": [
+      {
+       "currency": "BTC",
+       "rate_7d": "0.000023",
+       "rate_30d": "0.1",
+       "update_time": 1703820105
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/loan/multi_collateral/current_rate": {
+   "GET": [
+    {
+     "data": [
+      {
+       "currency": "BTC",
+       "current_rate": "0.000023"
+      },
+      {
+       "currency": "GT",
+       "current_rate": "0.000015"
+      }
+     ],
+     "queryString": "currencies=BTC%2CGT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/earn/fixed-term/products": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "message": "",
+      "data": {
+       "list": [
+        {
+         "id": 11,
+         "name": "USDT-TEST",
+         "asset": "USDT",
+         "lock_up_period": 7,
+         "min_lend_amount": "1"
+        }
+       ]
+      },
+      "total": 1,
+      "timestamp": 1736419846
+     },
+     "queryString": "limit=10&page=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/earn/fixed-term/products/asset/list": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "message": "",
+      "data": {
+       "list": [
+        {
+         "id": 11,
+         "asset": "USDT",
+         "lock_up_period": 7,
+         "year_rate": "0.05",
+         "type": 1
+        }
+       ]
+      },
+      "timestamp": 1737644889
+     },
+     "queryString": "asset=USDT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/earn/autoinvest/plans/list_info": {
+   "GET": [
+    {
+     "data": {
+      "page": 1,
+      "page_size": 10,
+      "page_count": 2,
+      "total_count": 11,
+      "list": [
+       {
+        "id": 12345,
+        "version": 1,
+        "name": "Beta Invest BTC",
+        "create_time": 1737031532,
+        "update_time": 1737031532,
+        "user_id": 2121604096,
+        "money": "USDT",
+        "amount": "10",
+        "period_type": "monthly",
+        "period_day": 1
+       }
+      ]
+     },
+     "queryString": "page=1&page_size=100&status=active",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/earn/autoinvest/plans/detail": {
+   "GET": [
+    {
+     "data": {
+      "id": 14509,
+      "version": 4,
+      "name": "plan_list5007",
+      "create_time": 1737373532,
+      "update_time": 1737216404,
+      "user_id": 1231264,
+      "money": "USDT",
+      "amount": "10",
+      "period_type": "monthly",
+      "period_day": 1
+     },
+     "queryString": "plan_id=12345",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/earn/autoinvest/config": {
+   "GET": [
+    {
+     "data": [
+      {"coin": "BTC", "max_limit": "10"},
+      {"coin": "USDT", "max_limit": "100000"}
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/earn/autoinvest/orders": {
+   "GET": [
+    {
+     "data": [
+      {
+       "id": 679157,
+       "type": "buy",
+       "amount": "0.0162",
+       "asset": "USDT",
+       "plan_id": 12345,
+       "side": 3,
+       "record_id": 67890,
+       "total_money": "72.728"
+      }
+     ],
+     "queryString": "plan_id=12345&record_id=67890",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/earn/autoinvest/plans/records": {
+   "GET": [
+    {
+     "data": {
+      "page": 1,
+      "page_size": 10,
+      "total_page": 10,
+      "total": 96,
+      "list": [
+       {
+        "id": 17008013840415,
+        "type": "Auto Invest",
+        "money": "USDT",
+        "user_id": 6172
+       }
+      ]
+     },
+     "queryString": "plan_id=12345",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/earn/fixed-term/earn/history": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "message": "",
+      "data": {
+       "list": [
+        {
+         "id": 10001,
+         "order_id": 20001,
+         "user_id": 30001,
+         "product_id": 11,
+         "asset": "USDT",
+         "amount": "100",
+         "type": 1,
+         "status": "finished",
+         "lock_up_period": 7,
+         "uts_time": "2024-12-17"
+        }
+       ]
+      },
+      "total": 1,
+      "timestamp": 1736419846
+     },
+     "queryString": "limit=10&page=1&type=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/earn/fixed-term/earn/orders": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "message": "",
+      "data": {
+       "list": [
+        {
+         "id": 10001,
+         "product_id": 11,
+         "user_id": 30001,
+         "asset": "USDT",
+         "amount": "100",
+         "status": "active",
+         "lock_up_period": 7
+        }
+       ]
+      },
+      "total": 1,
+      "timestamp": 1736419846
+     },
+     "queryString": "limit=10&page=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/earn/autoinvest/plans/stop": {
+   "POST": [
+    {
+     "data": null,
+     "queryString": "",
+     "bodyParams": "plan_id=142582",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/earn/autoinvest/plans/add_position": {
+   "POST": [
+    {
+     "data": null,
+     "queryString": "",
+     "bodyParams": "amount=12.345&plan_id=142583",
+     "headers": {}
+    }
+   ]
   }
  }
 }

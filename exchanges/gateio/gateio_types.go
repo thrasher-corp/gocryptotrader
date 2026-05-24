@@ -1755,6 +1755,92 @@ type ETH2ReturnRate struct {
 	Rate     string     `json:"rate"`
 }
 
+// StakingCoin holds an on-chain staking coin product detail
+type StakingCoin struct {
+	Pid            int64  `json:"pid"`
+	ProductType    int64  `json:"productType"`
+	IsDeFi         int64  `json:"isDeFi"`
+	Currency       string `json:"currency"`
+	EstimatedApr   string `json:"estimatedApr"`
+	MinStakeAmount string `json:"minStakeAmount"`
+	MaxStakeAmount string `json:"maxStakeAmount"`
+	ProtocolName   string `json:"protocolName"`
+	RedeemPeriod   int64  `json:"redeemPeriod"`
+	ExchangeRate   string `json:"exchangeRate"`
+}
+
+// StakingSwapRequest holds an on-chain token swap request for earned coins
+type StakingSwapRequest struct {
+	Coin   string `json:"coin"`
+	Side   int64  `json:"side"`
+	Amount string `json:"amount"`
+	Pid    int64  `json:"pid,omitempty"`
+}
+
+// StakingSwapResponse holds the response for an on-chain staking swap
+type StakingSwapResponse struct {
+	ID              int64      `json:"id"`
+	Pid             int64      `json:"pid"`
+	Coin            string     `json:"coin"`
+	UID             int64      `json:"uid"`
+	Type            int64      `json:"type"`
+	Subtype         int64      `json:"subtype"`
+	Amount          string     `json:"amount"`
+	ExchangeRate    string     `json:"exchange_rate"`
+	ExchangeAmount  string     `json:"exchange_amount"`
+	UpdateTimestamp types.Time `json:"updateTimestamp"`
+}
+
+// StakingOrderItem holds an on-chain staking order item
+type StakingOrderItem struct {
+	Pid    int64  `json:"pid"`
+	Coin   string `json:"coin"`
+	Amount string `json:"amount"`
+	Type   int64  `json:"type"`
+	Status int64  `json:"status"`
+}
+
+// StakingOrdersResponse holds the paginated response for on-chain staking orders
+type StakingOrdersResponse struct {
+	Page       int64               `json:"page"`
+	PageSize   int64               `json:"pageSize"`
+	PageCount  int64               `json:"pageCount"`
+	TotalCount int64               `json:"totalCount"`
+	List       []*StakingOrderItem `json:"list"`
+}
+
+// StakingDividendRecord holds an on-chain staking dividend record item
+type StakingDividendRecord struct {
+	Pid          int64  `json:"pid"`
+	MortgageCoin string `json:"mortgage_coin"`
+	Amount       string `json:"amount"`
+	RewardCoin   string `json:"reward_coin"`
+	Interest     string `json:"interest"`
+}
+
+// StakingDividendRecordsResponse holds the paginated response for staking dividend records
+type StakingDividendRecordsResponse struct {
+	Page       int64                    `json:"page"`
+	PageSize   int64                    `json:"pageSize"`
+	PageCount  int64                    `json:"pageCount"`
+	TotalCount int64                    `json:"totalCount"`
+	List       []*StakingDividendRecord `json:"list"`
+}
+
+// StakingAssetItem holds an on-chain staking asset item
+type StakingAssetItem struct {
+	Pid            int64      `json:"pid"`
+	MortgageCoin   string     `json:"mortgage_coin"`
+	MortgageAmount string     `json:"mortgage_amount"`
+	CreateStamp    types.Time `json:"createStamp"`
+	ExtraIncome    string     `json:"extra_income"`
+	FreezeAmount   string     `json:"freeze_amount"`
+	MoveIncome     string     `json:"move_income"`
+	Type           int64      `json:"type"`
+	Status         int64      `json:"status"`
+	IncomeTotal    string     `json:"income_total"`
+}
+
 // DualInvestmentPlan holds an earn dual investment plan detail
 type DualInvestmentPlan struct {
 	ID               int           `json:"id"`
@@ -1794,11 +1880,288 @@ type DualInvestmentOrderDetail struct {
 	Text               string        `json:"text"`
 }
 
+// DualCurrencyEarningAsset represents an asset detail response for dual-currency earning assets
+type DualCurrencyEarningAsset struct {
+	UserAssetUSDT         types.Number `json:"user_asset_usdt"`
+	UserAssetBTC          types.Number `json:"user_asset_btc"`
+	UserTotalInterestUSDT types.Number `json:"user_total_interest_usdt"`
+	UserTotalInterestBTC  types.Number `json:"user_total_interest_btc"`
+}
+
+// DualCurrencyEarlyRedemption represents a dual-currency early redemption action response.
+type DualCurrencyEarlyRedemption struct {
+	CreateTimest        uint64        `json:"create_timest"`
+	DeliveryTimest      uint64        `json:"delivery_timest"`
+	ExercisePrice       types.Number  `json:"exercise_price"`
+	InvestAmount        types.Number  `json:"invest_amount"`
+	InvestCurrency      currency.Code `json:"invest_currency"`
+	Name                string        `json:"name"`
+	OrderID             uint64        `json:"order_id"`
+	ReqID               string        `json:"req_id"`
+	RefundServiceCharge int           `json:"refund_service_charge"`
+	SettlePrice         types.Number  `json:"settle_price"`
+	SettlementAmount    types.Number  `json:"settlement_amount"`
+	SettlementCurrency  currency.Code `json:"settlement_currency"`
+	SettlementInterest  types.Number  `json:"settlement_interest"`
+	SettlementPrinciple types.Number  `json:"settlement_principle"`
+	Type                string        `json:"type"`
+	MoneyBackTimest     uint64        `json:"money_back_timest"`
+}
+
 // DualInvestmentOrderParam holds a dual investment order parameter
 type DualInvestmentOrderParam struct {
 	PlanID string  `json:"plan_id"`
 	Amount float64 `json:"amount,string"`
 	Text   string  `json:"text,omitempty"`
+}
+
+// DualModifyOrderReinvestRequest holds parameters for modifying a dual-currency order reinvestment
+type DualModifyOrderReinvestRequest struct {
+	OrderID               int64 `json:"order_id,omitempty"`
+	Status                int32 `json:"status,omitempty"`
+	EffectiveTimeDuration int64 `json:"effective_time_duration,omitempty"`
+}
+
+// DualRecommendedProject holds a dual-currency recommended project item
+type DualRecommendedProject struct {
+	ID               int64         `json:"id"`
+	Category         int32         `json:"category"`
+	Type             int32         `json:"type"`
+	InvestCurrency   currency.Code `json:"invest_currency"`
+	ExerciseCurrency currency.Code `json:"exercise_currency"`
+	ApyDisplay       string        `json:"apy_display"`
+	ExercisePrice    string        `json:"exercise_price"`
+	DeliveryTime     types.Time    `json:"delivery_time"`
+	MinAmount        types.Number  `json:"min_amount"`
+	MaxAmount        types.Number  `json:"max_amount"`
+}
+
+// AutoInvestCoinItem holds a currency item supported by auto invest
+type AutoInvestCoinItem struct {
+	Key          string `json:"key"`
+	Value        string `json:"value"`
+	AssetIconURL string `json:"asset_icon_url"`
+	Sort         int64  `json:"sort"`
+}
+
+// AutoInvestMinAmountRequestItem holds a single asset allocation item for minimum invest amount query
+type AutoInvestMinAmountRequestItem struct {
+	Asset string `json:"asset"`
+	Ratio string `json:"ratio"`
+}
+
+// AutoInvestMinAmountRequest holds parameters for querying the minimum investment amount
+type AutoInvestMinAmountRequest struct {
+	Money string                            `json:"money"`
+	Items []*AutoInvestMinAmountRequestItem `json:"items"`
+}
+
+// AutoInvestMinAmountResponse holds the minimum investment amount response
+type AutoInvestMinAmountResponse struct {
+	MinAmount string `json:"min_amount"`
+}
+
+// AutoInvestPlanExecutionRecord holds a single plan execution record item
+type AutoInvestPlanExecutionRecord struct {
+	ID     int64  `json:"id"`
+	Type   string `json:"type"`
+	Money  string `json:"money"`
+	UserID int64  `json:"user_id"`
+}
+
+// AutoInvestPlanExecutionRecordsResponse holds the paginated response for plan execution records
+type AutoInvestPlanExecutionRecordsResponse struct {
+	Page      int64                            `json:"page"`
+	PageSize  int64                            `json:"page_size"`
+	TotalPage int64                            `json:"total_page"`
+	Total     int64                            `json:"total"`
+	List      []*AutoInvestPlanExecutionRecord `json:"list"`
+}
+
+// AutoInvestOrderItem holds an auto invest order detail item
+type AutoInvestOrderItem struct {
+	ID         int64  `json:"id"`
+	Type       string `json:"type"`
+	Amount     string `json:"amount"`
+	PlanID     int64  `json:"plan_id"`
+	Side       int64  `json:"side"`
+	Asset      string `json:"asset"`
+	RecordID   int64  `json:"record_id"`
+	TotalMoney string `json:"total_money"`
+}
+
+// AutoInvestConfigItem holds an investment currency configuration item
+type AutoInvestConfigItem struct {
+	Coin     string `json:"coin"`
+	MaxLimit string `json:"max_limit"`
+}
+
+// AutoInvestPlanDetails holds auto invest plan details
+type AutoInvestPlanDetails struct {
+	ID         int64        `json:"id"`
+	Version    int64        `json:"version"`
+	Name       string       `json:"name"`
+	CreateTime types.Time   `json:"create_time"`
+	UpdateTime types.Time   `json:"update_time"`
+	UserID     int64        `json:"user_id"`
+	Money      string       `json:"money"`
+	Amount     types.Number `json:"amount"`
+	PeriodType string       `json:"period_type"`
+	PeriodDay  int64        `json:"period_day"`
+}
+
+// AutoInvestPlanListResponse holds the paginated response for auto invest plan list
+type AutoInvestPlanListResponse struct {
+	Page       int64                    `json:"page"`
+	PageSize   int64                    `json:"page_size"`
+	PageCount  int64                    `json:"page_count"`
+	TotalCount int64                    `json:"total_count"`
+	List       []*AutoInvestPlanDetails `json:"list"`
+}
+
+// CreateAutoInvestPlanItem holds a single asset allocation item for plan creation
+type CreateAutoInvestPlanItem struct {
+	Coin  string `json:"coin"`
+	Ratio string `json:"ratio"`
+}
+
+// CreateAutoInvestPlanRequest holds parameters for creating an auto invest plan
+type CreateAutoInvestPlanRequest struct {
+	PlanMoney  string                      `json:"plan_money"`
+	Name       string                      `json:"name,omitempty"`
+	Amount     string                      `json:"amount"`
+	PeriodType string                      `json:"period_type"`
+	PeriodDay  int64                       `json:"period_day"`
+	Items      []*CreateAutoInvestPlanItem `json:"items"`
+}
+
+// AutoInvestPlanUpdateRequest holds parameters for updating an auto invest plan
+type AutoInvestPlanUpdateRequest struct {
+	PlanID     int64  `json:"plan_id"`
+	FundSource string `json:"fund_source,omitempty"`
+	FundFlow   string `json:"fund_flow,omitempty"`
+}
+
+// AutoInvestPlanStopRequest holds parameters for stopping an auto invest plan
+type AutoInvestPlanStopRequest struct {
+	PlanID int64 `json:"plan_id"`
+}
+
+// AutoInvestPlanAddPositionRequest holds parameters for adding a position to an auto invest plan
+type AutoInvestPlanAddPositionRequest struct {
+	PlanID int64  `json:"plan_id"`
+	Amount string `json:"amount"`
+}
+
+// FixedTermProduct holds a fixed-term earn product item
+type FixedTermProduct struct {
+	ID            int64  `json:"id"`
+	Name          string `json:"name"`
+	Asset         string `json:"asset"`
+	LockUpPeriod  int64  `json:"lock_up_period"`
+	MinLendAmount string `json:"min_lend_amount"`
+}
+
+// FixedTermProductsData holds the data field of the fixed-term product list response
+type FixedTermProductsData struct {
+	List []*FixedTermProduct `json:"list"`
+}
+
+// FixedTermProductsResponse holds the full response for the fixed-term product list endpoint
+type FixedTermProductsResponse struct {
+	Code      int64                  `json:"code"`
+	Message   string                 `json:"message"`
+	Data      *FixedTermProductsData `json:"data"`
+	Total     int64                  `json:"total"`
+	Timestamp types.Time             `json:"timestamp"`
+}
+
+// FixedTermProductSimple holds a simplified fixed-term earn product item (single-asset endpoint)
+type FixedTermProductSimple struct {
+	ID           int64         `json:"id"`
+	Asset        currency.Code `json:"asset"`
+	LockUpPeriod int64         `json:"lock_up_period"`
+	YearRate     string        `json:"year_rate"`
+	Type         int64         `json:"type"`
+}
+
+// FixedTermProductsByAssetData holds the data field for single-asset fixed-term product list
+type FixedTermProductsByAssetData struct {
+	List []*FixedTermProductSimple `json:"list"`
+}
+
+// FixedTermProductsByAssetResponse holds the full response for the single-asset fixed-term product endpoint
+type FixedTermProductsByAssetResponse struct {
+	Code      int64                         `json:"code"`
+	Message   string                        `json:"message"`
+	Data      *FixedTermProductsByAssetData `json:"data"`
+	Timestamp types.Time                    `json:"timestamp"`
+}
+
+// FixedTermHistoryRecord holds a single fixed-term earn history record
+type FixedTermHistoryRecord struct {
+	ID           int64         `json:"id"`
+	OrderID      int64         `json:"order_id"`
+	UserID       int64         `json:"user_id"`
+	ProductID    int64         `json:"product_id"`
+	Asset        currency.Code `json:"asset"`
+	Amount       types.Number  `json:"amount"`
+	Type         int64         `json:"type"`
+	Status       string        `json:"status"`
+	LockUpPeriod int64         `json:"lock_up_period"`
+	StartTime    types.Time    `json:"start_time"`
+	EndTime      types.Time    `json:"end_time"`
+	CreateTime   types.Time    `json:"create_time"`
+	SubBusiness  int64         `json:"sub_business"`
+	Interest     types.Number  `json:"interest"`
+	Earning      types.Number  `json:"earning"`
+	FundSource   string        `json:"fund_source"`
+	UtsTime      types.Time    `json:"uts_time"`
+}
+
+// FixedTermHistoryData wraps the list of fixed-term earn history records
+type FixedTermHistoryData struct {
+	List []*FixedTermHistoryRecord `json:"list"`
+}
+
+// FixedTermHistoryResponse holds the full response for the fixed-term earn history endpoint
+type FixedTermHistoryResponse struct {
+	Code      int64                 `json:"code"`
+	Message   string                `json:"message"`
+	Data      *FixedTermHistoryData `json:"data"`
+	Total     int64                 `json:"total"`
+	Timestamp types.Time            `json:"timestamp"`
+}
+
+// FixedTermSubscriptionOrder holds a single fixed-term earn subscription order
+type FixedTermSubscriptionOrder struct {
+	ID           int64         `json:"id"`
+	ProductID    int64         `json:"product_id"`
+	UserID       int64         `json:"user_id"`
+	Asset        currency.Code `json:"asset"`
+	Amount       types.Number  `json:"amount"`
+	Status       string        `json:"status"`
+	LockUpPeriod int64         `json:"lock_up_period"`
+	AnnualRate   types.Number  `json:"annual_rate"`
+	StartTime    types.Time    `json:"start_time"`
+	EndTime      types.Time    `json:"end_time"`
+	CreateTime   types.Time    `json:"create_time"`
+	SubBusiness  int64         `json:"sub_business"`
+	Interest     types.Number  `json:"interest"`
+}
+
+// FixedTermSubscriptionOrdersData wraps the list of fixed-term earn subscription orders
+type FixedTermSubscriptionOrdersData struct {
+	List []*FixedTermSubscriptionOrder `json:"list"`
+}
+
+// FixedTermSubscriptionOrdersResponse holds the full response for the fixed-term earn subscription orders endpoint
+type FixedTermSubscriptionOrdersResponse struct {
+	Code      int64                            `json:"code"`
+	Message   string                           `json:"message"`
+	Data      *FixedTermSubscriptionOrdersData `json:"data"`
+	Total     int64                            `json:"total"`
+	Timestamp int64                            `json:"timestamp"`
 }
 
 // StructuredProductDetail holds structured product detail
@@ -2936,31 +3299,29 @@ type MultiCollateralLoanOrderParam struct {
 
 // MultiCollateralLoanOrderDetail queries a multi-collateral loan order detail
 type MultiCollateralLoanOrderDetail struct {
-	OrderID                 string     `json:"order_id"`
-	OrderType               string     `json:"order_type"`
-	FixedType               string     `json:"fixed_type"`
-	FixedRate               float64    `json:"fixed_rate"`
-	ExpireTime              types.Time `json:"expire_time"`
-	AutoRenew               bool       `json:"auto_renew"`
-	AutoRepay               bool       `json:"auto_repay"`
-	CurrentLTV              string     `json:"current_ltv"`
-	Status                  string     `json:"status"`
-	BorrowTime              types.Time `json:"borrow_time"`
-	TotalLeftRepayUSDT      string     `json:"total_left_repay_usdt"`
-	TotalLeftCollateralUSDT string     `json:"total_left_collateral_usdt"`
-	BorrowCurrencies        []struct {
-		Currency           string       `json:"currency"`
-		IndexPrice         types.Number `json:"index_price"`
-		LeftRepayPrincipal types.Number `json:"left_repay_principal"`
-		LeftRepayInterest  types.Number `json:"left_repay_interest"`
-		LeftRepayUSDT      types.Number `json:"left_repay_usdt"`
-	} `json:"borrow_currencies"`
-	CollateralCurrencies []struct {
-		Currency           string       `json:"currency"`
-		IndexPrice         types.Number `json:"index_price"`
-		LeftCollateralUSDT types.Number `json:"left_collateral_usdt"`
-		LeftCollateral     string       `json:"left_collateral"`
-	} `json:"collateral_currencies"`
+	OrderID                 string                    `json:"order_id"`
+	OrderType               string                    `json:"order_type"`
+	FixedType               string                    `json:"fixed_type"`
+	FixedRate               float64                   `json:"fixed_rate"`
+	ExpireTime              types.Time                `json:"expire_time"`
+	AutoRenew               bool                      `json:"auto_renew"`
+	AutoRepay               bool                      `json:"auto_repay"`
+	CurrentLTV              string                    `json:"current_ltv"`
+	Status                  string                    `json:"status"`
+	BorrowTime              types.Time                `json:"borrow_time"`
+	TotalLeftRepayUSDT      string                    `json:"total_left_repay_usdt"`
+	TotalLeftCollateralUSDT string                    `json:"total_left_collateral_usdt"`
+	BorrowCurrencies        []*CollateralCurrencyInfo `json:"borrow_currencies"`
+	CollateralCurrencies    []*CollateralCurrencyInfo `json:"collateral_currencies"`
+}
+
+// CollateralCurrencyInfo represents a collateral currency information.
+type CollateralCurrencyInfo struct {
+	Currency           currency.Code `json:"currency"`
+	IndexPrice         types.Number  `json:"index_price"`
+	LeftRepayPrincipal types.Number  `json:"left_repay_principal"`
+	LeftRepayInterest  types.Number  `json:"left_repay_interest"`
+	LeftRepayUSDT      types.Number  `json:"left_repay_usdt"`
 }
 
 // MultiCollateralLoanRepaymentParams holds a request parameter for multi-collateral asset loan repayment parameter
@@ -3471,6 +3832,55 @@ type MultiCollateralAdjustmentRecord struct {
 	OperateTime          types.Time        `json:"operate_time"`
 	BorrowCurrencies     []*CurrencyDetail `json:"borrow_currencies"`
 	CollateralCurrencies []*CurrencyDetail `json:"collateral_currencies"`
+}
+
+// MultiCollateralCurrencyQuota holds currency quota information for multi-collateral
+type MultiCollateralCurrencyQuota struct {
+	Currency         string `json:"currency"`
+	IndexPrice       string `json:"index_price"`
+	MinQuota         string `json:"min_quota"`
+	LeftQuota        string `json:"left_quota"`
+	LeftQuoteWithMax string `json:"left_quote_with_max"`
+}
+
+// MultiCollateralSupportedCurrencies holds borrow and collateral currencies supported by multi-collateral
+type MultiCollateralSupportedCurrencies struct {
+	LoanCurrencies       []*MultiLoanItem       `json:"loan_currencies"`
+	CollateralCurrencies []*MultiCollateralItem `json:"collateral_currencies"`
+}
+
+// MultiLoanItem represents a borrowable currency item in multi-collateral
+type MultiLoanItem struct {
+	Currency string `json:"currency"`
+	Price    string `json:"price"`
+}
+
+// MultiCollateralItem represents a collateral currency item in multi-collateral
+type MultiCollateralItem struct {
+	Currency   string `json:"currency"`
+	IndexPrice string `json:"index_price"`
+	Discount   string `json:"discount"`
+}
+
+// MultiCollateralizationRatio holds the collateralization ratio information for multi-collateral
+type MultiCollateralizationRatio struct {
+	InitLTV      string `json:"init_ltv"`
+	AlertLTV     string `json:"alert_ltv"`
+	LiquidateLTV string `json:"liquidate_ltv"`
+}
+
+// CollateralFixRate holds a currency's 7-day and 30-day fixed interest rates
+type CollateralFixRate struct {
+	Currency   string     `json:"currency"`
+	Rate7d     string     `json:"rate_7d"`
+	Rate30d    string     `json:"rate_30d"`
+	UpdateTime types.Time `json:"update_time"`
+}
+
+// CollateralCurrentRate holds a currency's current interest rate
+type CollateralCurrentRate struct {
+	Currency    string `json:"currency"`
+	CurrentRate string `json:"current_rate"`
 }
 
 // CurrencyDetail holds a currency detail
