@@ -76,22 +76,27 @@ var (
 // GetTicker returns a ticker for the specified symbol
 // symbol: eth_btc
 func (e *Exchange) GetTicker(ctx context.Context, symbol string) (*TickerResponse, error) {
-	var t *TickerResponse
+	var t []TickerResponse // change to slice
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	path := "/v" + lbankAPIVersion1 + "/" + lbankTicker + "?" + params.Encode()
-	return t, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &t)
+	path := "/v" + lbankAPIVersion2 + "/" + lbankTicker + "?" + params.Encode()
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &t); err != nil {
+		return nil, err
+	}
+	if len(t) == 0 {
+		return nil, errors.New("no ticker data returned")
+	}
+	return &t[0], nil // return first element
 }
 
 // GetTimestamp returns a timestamp
 func (e *Exchange) GetTimestamp(ctx context.Context) (time.Time, error) {
-	var resp TimestampResponse
+	var ms int64
 	path := "/v" + lbankAPIVersion2 + "/" + lbankTimestamp
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
-	if err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &ms); err != nil {
 		return time.Time{}, err
 	}
-	return resp.Timestamp.Time(), nil
+	return time.UnixMilli(ms).UTC(), nil
 }
 
 // GetTickers returns all tickers
@@ -99,13 +104,13 @@ func (e *Exchange) GetTickers(ctx context.Context) ([]TickerResponse, error) {
 	var t []TickerResponse
 	params := url.Values{}
 	params.Set("symbol", "all")
-	path := "/v" + lbankAPIVersion1 + "/" + lbankTicker + "?" + params.Encode()
+	path := "/v" + lbankAPIVersion2 + "/" + lbankTicker + "?" + params.Encode()
 	return t, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &t)
 }
 
 // GetCurrencyPairs returns a list of supported currency pairs by the exchange
 func (e *Exchange) GetCurrencyPairs(ctx context.Context) ([]string, error) {
-	path := "/v" + lbankAPIVersion1 + "/" + lbankCurrencyPairs
+	path := "/v" + lbankAPIVersion2 + "/" + lbankCurrencyPairs
 	var result []string
 	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &result)
 }
@@ -132,7 +137,7 @@ func (e *Exchange) GetTrades(ctx context.Context, symbol string, limit uint64, t
 	if !tm.IsZero() {
 		params.Set("time", strconv.FormatInt(tm.Unix(), 10))
 	}
-	path := "/v" + lbankAPIVersion1 + "/" + lbankTrades + "?" + params.Encode()
+	path := "/v" + lbankAPIVersion2 + "/" + lbankTrades + "?" + params.Encode()
 	return g, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &g)
 }
 
@@ -144,7 +149,7 @@ func (e *Exchange) GetKlines(ctx context.Context, symbol, size, klineType string
 	params.Set("size", size)
 	params.Set("type", klineType)
 	params.Set("time", strconv.FormatInt(tm.Unix(), 10))
-	path := "/v" + lbankAPIVersion1 + "/" + lbankKlines + "?" + params.Encode()
+	path := "/v" + lbankAPIVersion2 + "/" + lbankKlines + "?" + params.Encode()
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &klineTemp)
 	if err != nil {
 		return nil, err
@@ -305,7 +310,7 @@ func (e *Exchange) QueryOrderHistory(ctx context.Context, pair, pageNumber, page
 // GetPairInfo finds information about all trading pairs
 func (e *Exchange) GetPairInfo(ctx context.Context) ([]PairInfoResponse, error) {
 	var resp []PairInfoResponse
-	path := "/v" + lbankAPIVersion1 + "/" + lbankPairInfo
+	path := "/v" + lbankAPIVersion2 + "/" + lbankPairInfo
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }
 
@@ -387,10 +392,10 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, pair, pageNumber, pageLeng
 }
 
 // USD2RMBRate finds USD-CNY Rate
-func (e *Exchange) USD2RMBRate(ctx context.Context) (ExchangeRateResponse, error) {
-	var resp ExchangeRateResponse
-	path := "/v" + lbankAPIVersion1 + "/" + lbankUSD2CNYRate
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
+func (e *Exchange) USD2RMBRate(ctx context.Context) (string, error) {
+	var rate string
+	path := "/v" + lbankAPIVersion2 + "/" + lbankUSD2CNYRate
+	return rate, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &rate)
 }
 
 // GetWithdrawConfig gets information about withdrawals
@@ -488,19 +493,34 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 		return err
 	}
 
+	var tempResp json.RawMessage
 	item := &request.Item{
 		Method:                 http.MethodGet,
 		Path:                   endpoint + path,
-		Result:                 result,
+		Result:                 &tempResp,
 		Verbose:                e.Verbose,
 		HTTPDebugging:          e.HTTPDebugging,
 		HTTPRecording:          e.HTTPRecording,
 		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 
-	return e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	err = e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)
+	if err != nil {
+		return err
+	}
+
+	var v2Resp V2Response
+	if err := json.Unmarshal(tempResp, &v2Resp); err == nil && v2Resp.Data != nil {
+		if v2Resp.Result == "false" {
+			return fmt.Errorf("%w code: %d message: %s",
+				request.ErrAuthRequestFailed, v2Resp.ErrorCode, v2Resp.Msg)
+		}
+		return json.Unmarshal(v2Resp.Data, result)
+	}
+
+	return json.Unmarshal(tempResp, result)
 }
 
 func (e *Exchange) loadPrivKey(ctx context.Context) error {
