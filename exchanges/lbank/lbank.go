@@ -175,7 +175,7 @@ func (e *Exchange) GetKlines(ctx context.Context, symbol, size, klineType string
 // GetUserInfo gets users account info
 func (e *Exchange) GetUserInfo(ctx context.Context) (InfoFinalResponse, error) {
 	var resp InfoFinalResponse
-	path := "/v" + lbankAPIVersion1 + "/" + lbankUserInfo
+	path := "/v" + lbankAPIVersion2 + "/" + lbankUserInfo
 	err := e.SendAuthHTTPRequest(ctx, http.MethodPost, path, nil, &resp)
 	if err != nil {
 		return resp, err
@@ -206,7 +206,7 @@ func (e *Exchange) CreateOrder(ctx context.Context, pair, side string, amount, p
 	params.Set("type", strings.ToLower(side))
 	params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
-	path := "/v" + lbankAPIVersion1 + "/" + lbankPlaceOrder
+	path := "/v" + lbankAPIVersion2 + "/" + lbankPlaceOrder
 	err := e.SendAuthHTTPRequest(ctx, http.MethodPost, path, params, &resp)
 	if err != nil {
 		return resp, err
@@ -225,7 +225,7 @@ func (e *Exchange) RemoveOrder(ctx context.Context, pair, orderID string) (Remov
 	params := url.Values{}
 	params.Set("symbol", pair)
 	params.Set("order_id", orderID)
-	path := "/v" + lbankAPIVersion1 + "/" + lbankCancelOrder
+	path := "/v" + lbankAPIVersion2 + "/" + lbankCancelOrder
 	err := e.SendAuthHTTPRequest(ctx, http.MethodPost, path, params, &resp)
 	if err != nil {
 		return resp, err
@@ -246,7 +246,7 @@ func (e *Exchange) QueryOrder(ctx context.Context, pair, orderIDs string) (Query
 	params := url.Values{}
 	params.Set("symbol", pair)
 	params.Set("order_id", orderIDs)
-	path := "/v" + lbankAPIVersion1 + "/" + lbankQueryOrder
+	path := "/v" + lbankAPIVersion2 + "/" + lbankQueryOrder
 	err := e.SendAuthHTTPRequest(ctx, http.MethodPost, path, params, &tempResp)
 	if err != nil {
 		return resp, err
@@ -282,7 +282,7 @@ func (e *Exchange) QueryOrderHistory(ctx context.Context, pair, pageNumber, page
 	params.Set("symbol", pair)
 	params.Set("current_page", pageNumber)
 	params.Set("page_length", pageLength)
-	path := "/v" + lbankAPIVersion1 + "/" + lbankQueryHistoryOrder
+	path := "/v" + lbankAPIVersion2 + "/" + lbankQueryHistoryOrder
 	err := e.SendAuthHTTPRequest(ctx, http.MethodPost, path, params, &tempResp)
 	if err != nil {
 		return resp, err
@@ -320,7 +320,7 @@ func (e *Exchange) OrderTransactionDetails(ctx context.Context, symbol, orderID 
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("order_id", orderID)
-	path := "/v" + lbankAPIVersion1 + "/" + lbankOrderTransactionDetails
+	path := "/v" + lbankAPIVersion2 + "/" + lbankOrderTransactionDetails
 	err := e.SendAuthHTTPRequest(ctx, http.MethodPost, path, params, &resp)
 	if err != nil {
 		return resp, err
@@ -344,7 +344,7 @@ func (e *Exchange) TransactionHistory(ctx context.Context, symbol, transactionTy
 	params.Set("from", from)
 	params.Set("direct", direct)
 	params.Set("size", size)
-	path := "/v" + lbankAPIVersion1 + "/" + lbankPastTransactions
+	path := "/v" + lbankAPIVersion2 + "/" + lbankPastTransactions
 	err := e.SendAuthHTTPRequest(ctx, http.MethodPost, path, params, &resp)
 	if err != nil {
 		return resp, err
@@ -366,7 +366,7 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, pair, pageNumber, pageLeng
 	params.Set("symbol", pair)
 	params.Set("current_page", pageNumber)
 	params.Set("page_length", pageLength)
-	path := "/v" + lbankAPIVersion1 + "/" + lbankOpeningOrders
+	path := "/v" + lbankAPIVersion2 + "/" + lbankOpeningOrders
 	err := e.SendAuthHTTPRequest(ctx, http.MethodPost, path, params, &tempResp)
 	if err != nil {
 		return resp, err
@@ -403,7 +403,7 @@ func (e *Exchange) GetWithdrawConfig(ctx context.Context, c currency.Code) ([]Wi
 	var resp []WithdrawConfigResponse
 	params := url.Values{}
 	params.Set("assetCode", c.Lower().String())
-	path := "/v" + lbankAPIVersion1 + "/" + lbankWithdrawConfig + "?" + params.Encode()
+	path := "/v" + lbankAPIVersion2 + "/" + lbankWithdrawConfig + "?" + params.Encode()
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }
 
@@ -423,7 +423,7 @@ func (e *Exchange) Withdraw(ctx context.Context, account, assetCode, amount, mem
 	if withdrawType != "" {
 		params.Set("type", withdrawType)
 	}
-	path := "/v" + lbankAPIVersion1 + "/" + lbankWithdraw
+	path := "/v" + lbankAPIVersion2 + "/" + lbankWithdraw
 	err := e.SendAuthHTTPRequest(ctx, http.MethodPost, path, params, &resp)
 	if err != nil {
 		return resp, err
@@ -443,7 +443,7 @@ func (e *Exchange) RevokeWithdraw(ctx context.Context, withdrawID string) (Revok
 	if withdrawID != "" {
 		params.Set("withdrawId", withdrawID)
 	}
-	path := "/v" + lbankAPIVersion1 + "/" + lbankRevokeWithdraw
+	path := "/v" + lbankAPIVersion2 + "/" + lbankRevokeWithdraw
 	err := e.SendAuthHTTPRequest(ctx, http.MethodPost, path, params, &resp)
 	if err != nil {
 		return resp, err
@@ -464,7 +464,7 @@ func (e *Exchange) GetWithdrawalRecords(ctx context.Context, assetCode string, p
 	params.Set("status", strconv.FormatInt(status, 10))
 	params.Set("pageNo", strconv.FormatInt(pageNo, 10))
 	params.Set("pageSize", strconv.FormatInt(pageSize, 10))
-	path := "/v" + lbankAPIVersion1 + "/" + lbankWithdrawalRecords
+	path := "/v" + lbankAPIVersion2 + "/" + lbankWithdrawalRecords
 	err := e.SendAuthHTTPRequest(ctx, http.MethodPost, path, params, &resp)
 	if err != nil {
 		return resp, err
