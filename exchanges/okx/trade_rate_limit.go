@@ -3,7 +3,6 @@ package okx
 import (
 	"context"
 	"fmt"
-	"math"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -87,61 +86,52 @@ func tradeScopeFromInstrumentID(instrumentID string) string {
 	return trimmed
 }
 
-func isOptionInstrumentID(instrumentID string) bool {
+func optionInstrumentSelectors(instrumentID string) (underlying, family string) {
 	parts := strings.Split(instrumentID, "-")
-	if len(parts) >= 5 {
-		return true
+	delimiter := "-"
+	if len(parts) < 2 {
+		parts = strings.Split(instrumentID, "_")
+		delimiter = "_"
 	}
-	parts = strings.Split(instrumentID, "_")
-	return len(parts) >= 5
+	if len(parts) < 2 {
+		return instrumentID, instrumentID
+	}
+	underlying = strings.Join(parts[:2], delimiter)
+	return underlying, underlying
+}
+
+func isOptionInstrumentID(instrumentID string) bool {
+	return len(strings.Split(instrumentID, "-")) >= 5 || len(strings.Split(instrumentID, "_")) >= 5
 }
 
 func tradeScopeCountsFromPlaceOrders(args []PlaceOrderRequestParam) map[string]int {
-	counts := make(map[string]int)
-	for i := range args {
-		scope := tradeScopeFromInstrumentID(args[i].InstrumentID)
-		if scope == "" {
-			continue
-		}
-		counts[scope]++
-	}
-	return counts
+	return tradeScopeCounts(args, func(arg PlaceOrderRequestParam) string { return arg.InstrumentID })
 }
 
 func tradeScopeCountsFromCancelOrders(args []CancelOrderRequestParam) map[string]int {
-	counts := make(map[string]int)
-	for i := range args {
-		scope := tradeScopeFromInstrumentID(args[i].InstrumentID)
-		if scope == "" {
-			continue
-		}
-		counts[scope]++
-	}
-	return counts
+	return tradeScopeCounts(args, func(arg CancelOrderRequestParam) string { return arg.InstrumentID })
 }
 
 func tradeScopeCountsFromAmendOrders(args []AmendOrderRequestParams) map[string]int {
-	counts := make(map[string]int)
-	for i := range args {
-		scope := tradeScopeFromInstrumentID(args[i].InstrumentID)
-		if scope == "" {
-			continue
-		}
-		counts[scope]++
-	}
-	return counts
+	return tradeScopeCounts(args, func(arg AmendOrderRequestParams) string { return arg.InstrumentID })
 }
 
-func countByOrder[T any](args []T) int {
-	return len(args)
+func tradeScopeCounts[T any](args []T, instrumentID func(T) string) map[string]int {
+	counts := make(map[string]int)
+	for _, arg := range args {
+		if scope := tradeScopeFromInstrumentID(instrumentID(arg)); scope != "" {
+			counts[scope]++
+		}
+	}
+	return counts
 }
 
 func toRateLimitWeight(value int) uint8 {
 	if value <= 0 {
-		return 0
+		panic("rate limit weight must be positive")
 	}
-	if value > math.MaxUint8 {
-		return math.MaxUint8
+	if value > 255 {
+		return 255
 	}
 	return uint8(value)
 }

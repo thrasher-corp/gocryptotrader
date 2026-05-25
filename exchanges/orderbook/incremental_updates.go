@@ -113,6 +113,8 @@ func (d *Depth) ProcessUpdate(u *Update) error {
 		if checksum := u.GenerateChecksum(d.snapshot()); checksum != u.ExpectedChecksum {
 			return d.invalidate(fmt.Errorf("%s %s %s %w: expected '%d', got '%d'", d.exchange, d.pair, d.asset, errChecksumMismatch, u.ExpectedChecksum, checksum))
 		}
+		u.ChecksumCompletedAt = time.Now()
+		d.checksumCompletedAt = u.ChecksumCompletedAt
 	}
 
 	if err := validate(d.snapshot()); err != nil {

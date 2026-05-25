@@ -39,7 +39,7 @@ var (
 	pongMsg               = []byte("pong")
 	wsOrderbookLevelsPool = sync.Pool{
 		New: func() any {
-			levels := make(orderbook.Levels, 0, 64)
+			levels := make(orderbook.Levels, 0, wsOrderbookLevelsPoolCapacity)
 			return &levels
 		},
 	}
@@ -55,6 +55,8 @@ var (
 		"60005", "60021", "60031", "50110", "60033",
 	}
 )
+
+const wsOrderbookLevelsPoolCapacity = 64
 
 const (
 	// allowableIterations use the first 25 bids and asks in the full load to form a string
@@ -963,8 +965,8 @@ func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curren
 	}
 	checksumCompletedAt := time.Now()
 
-	asks, asksPoolItem := appendWsOrderbookItemsFromPool(data.Asks)
-	bids, bidsPoolItem := appendWsOrderbookItemsFromPool(data.Bids)
+	asks := wsOrderbookItems(data.Asks)
+	bids := wsOrderbookItems(data.Bids)
 	lastUpdated := data.Timestamp.Time()
 	for i := range assets {
 		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
@@ -979,13 +981,9 @@ func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curren
 			Exchange:            e.Name,
 			ValidateOrderbook:   e.ValidateOrderbook,
 		}); err != nil {
-			putWsOrderbookLevels(asksPoolItem)
-			putWsOrderbookLevels(bidsPoolItem)
 			return err
 		}
 	}
-	putWsOrderbookLevels(asksPoolItem)
-	putWsOrderbookLevels(bidsPoolItem)
 	return nil
 }
 
@@ -993,9 +991,11 @@ func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curren
 // After merging WS data, it will sort, validate and finally update the existing
 // orderbook
 func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
-	reachedCodeAt := time.Now()
+	reachedGCTAt := time.Now()
 	asks, asksPoolItem := appendWsOrderbookItemsFromPool(data.Asks)
+	defer putWsOrderbookLevels(asksPoolItem)
 	bids, bidsPoolItem := appendWsOrderbookItemsFromPool(data.Bids)
+	defer putWsOrderbookLevels(bidsPoolItem)
 	updateTime := data.Timestamp.Time()
 	for i := range assets {
 		obu := &orderbook.Update{
@@ -1008,27 +1008,21 @@ func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency
 			ExpectedChecksum: uint32(data.Checksum), //nolint:gosec // Requires type casting
 			Asks:             asks,
 			Bids:             bids,
-			ReachedGCTAt:     reachedCodeAt,
+			ReachedGCTAt:     reachedGCTAt,
 			AllowEmpty:       true, // Allow empty levels to push forward sequence ID
 		}
-		checksumCompletedAt := time.Now()
-		obu.ChecksumCompletedAt = checksumCompletedAt
 		if err := e.Websocket.Orderbook.Update(obu); err != nil {
-			putWsOrderbookLevels(asksPoolItem)
-			putWsOrderbookLevels(bidsPoolItem)
 			return err
 		}
 	}
-	putWsOrderbookLevels(asksPoolItem)
-	putWsOrderbookLevels(bidsPoolItem)
 	return nil
 }
 
-// AppendWsOrderbookItems adds websocket orderbook data bid/asks into an orderbook item array
-func (e *Exchange) AppendWsOrderbookItems(entries []WsOrderBookLevel) (orderbook.Levels, error) {
+// wsOrderbookItems copies websocket orderbook data into orderbook levels.
+func wsOrderbookItems(entries []WsOrderBookLevel) orderbook.Levels {
 	items := make(orderbook.Levels, len(entries))
 	appendWsOrderbookItems(items, entries)
-	return items, nil
+	return items
 }
 
 // appendWsOrderbookItems copies websocket level values into preallocated orderbook levels.
@@ -1047,11 +1041,8 @@ func appendWsOrderbookItems(items orderbook.Levels, entries []WsOrderBookLevel) 
 func appendWsOrderbookItemsFromPool(entries []WsOrderBookLevel) (items orderbook.Levels, pooledItems *orderbook.Levels) {
 	pooledItems, ok := wsOrderbookLevelsPool.Get().(*orderbook.Levels)
 	if !ok {
-		items = make(orderbook.Levels, len(entries))
-		appendWsOrderbookItems(items, entries)
-		return items, nil
+		panic(errUnexpectedOrderbookLevelsPoolType)
 	}
-
 	items = *pooledItems
 	if cap(items) < len(entries) {
 		items = make(orderbook.Levels, len(entries))
@@ -1065,9 +1056,6 @@ func appendWsOrderbookItemsFromPool(entries []WsOrderBookLevel) (items orderbook
 
 // putWsOrderbookLevels clears and returns pooled orderbook levels.
 func putWsOrderbookLevels(items *orderbook.Levels) {
-	if items == nil {
-		return
-	}
 	*items = (*items)[:0]
 	wsOrderbookLevelsPool.Put(items)
 }
@@ -1080,8 +1068,9 @@ func putWsOrderbookLevels(items *orderbook.Levels) {
 func generateOrderbookChecksum(orderbookData *orderbook.Book) uint32 {
 	checksumBuffer, ok := wsOrderbookChecksumPool.Get().(*[1024]byte)
 	if !ok {
-		checksumBuffer = new([1024]byte)
+		panic(errUnexpectedOrderbookChecksumPoolType)
 	}
+	defer wsOrderbookChecksumPool.Put(checksumBuffer)
 	checksum := checksumBuffer[:0]
 	for i := range allowableIterations {
 		if len(orderbookData.Bids)-1 >= i {
@@ -1094,17 +1083,16 @@ func generateOrderbookChecksum(orderbookData *orderbook.Book) uint32 {
 	if len(checksum) > 0 {
 		checksum = checksum[:len(checksum)-1]
 	}
-	result := crc32.ChecksumIEEE(checksum)
-	wsOrderbookChecksumPool.Put(checksumBuffer)
-	return result
+	return crc32.ChecksumIEEE(checksum)
 }
 
 // CalculateOrderbookChecksum alternates over the first 25 bid and ask entries from websocket data.
 func (e *Exchange) CalculateOrderbookChecksum(orderbookData *WsOrderBookData) (uint32, error) {
 	checksumBuffer, ok := wsOrderbookChecksumPool.Get().(*[1024]byte)
 	if !ok {
-		checksumBuffer = new([1024]byte)
+		panic(errUnexpectedOrderbookChecksumPoolType)
 	}
+	defer wsOrderbookChecksumPool.Put(checksumBuffer)
 	checksum := checksumBuffer[:0]
 	for i := range allowableIterations {
 		if len(orderbookData.Bids)-1 >= i {
@@ -1123,9 +1111,7 @@ func (e *Exchange) CalculateOrderbookChecksum(orderbookData *WsOrderBookData) (u
 	if len(checksum) > 0 {
 		checksum = checksum[:len(checksum)-1]
 	}
-	result := crc32.ChecksumIEEE(checksum)
-	wsOrderbookChecksumPool.Put(checksumBuffer)
-	return result, nil
+	return crc32.ChecksumIEEE(checksum), nil
 }
 
 // appendOrderbookChecksumLevel appends one price and amount pair to checksum bytes.

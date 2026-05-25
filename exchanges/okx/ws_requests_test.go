@@ -36,44 +36,6 @@ func TestPlaceOrderRequestParamMarshalJSON(t *testing.T) {
 	require.NotContains(t, string(raw), "E-")
 }
 
-func TestFormatNonScientificFloat(t *testing.T) {
-	t.Parallel()
-
-	testCases := []struct {
-		name     string
-		value    float64
-		expected string
-	}{
-		{
-			name:     "tiny exponential value",
-			value:    1.555e-8,
-			expected: "0.00000001555",
-		},
-		{
-			name:     "trims trailing zeros",
-			value:    42.5,
-			expected: "42.5",
-		},
-		{
-			name:     "integer stays integer",
-			value:    42,
-			expected: "42",
-		},
-		{
-			name:     "zero value",
-			value:    0,
-			expected: "0",
-		},
-	}
-
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, testCase.expected, formatNonScientificFloat(testCase.value), "formatted float should match expected output")
-		})
-	}
-}
-
 func TestWSPlaceOrder(t *testing.T) {
 	t.Parallel()
 
@@ -97,13 +59,6 @@ func TestWSPlaceOrder(t *testing.T) {
 	got, err := e.WSPlaceOrder(request.WithVerbose(t.Context()), out)
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
-}
-
-func TestBatchEndpointLimit(t *testing.T) {
-	t.Parallel()
-
-	require.Equal(t, placeOrderEPL, batchEndpointLimit(1, placeOrderEPL, placeMultipleOrdersEPL))
-	require.Equal(t, placeMultipleOrdersEPL, batchEndpointLimit(2, placeOrderEPL, placeMultipleOrdersEPL))
 }
 
 func TestWSPlaceMultipleOrders(t *testing.T) {

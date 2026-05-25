@@ -111,7 +111,7 @@ func syncLeadTraderUniqueID(t *testing.T) error {
 	}
 
 	loadLeadTraderOnce.Do(func() {
-		result, err := e.GetLeadTradersRanks(request.WithVerbose(contextGenerate()), &LeadTraderRanksRequest{
+		result, err := e.GetLeadTradersRanks(contextGenerate(), &LeadTraderRanksRequest{
 			InstrumentType: instTypeSwap,
 			SortType:       "pnl_ratio",
 			HasVacancy:     true,
@@ -433,7 +433,7 @@ func TestGetInstrument(t *testing.T) {
 		Underlying:     optionsPair.String(),
 	})
 	require.NoError(t, err)
-	assert.NotEmpty(t, resp, "Should get back instruments for BTC-USD futures")
+	assert.NotEmpty(t, resp, "futures instruments should be returned")
 
 	result, err := e.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
 		InstrumentType: instTypeSpot,
@@ -945,7 +945,7 @@ func TestCancelMultipleOrders(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 	arg := CancelOrderRequestParam{}
 	_, err = e.CancelMultipleOrders(contextGenerate(), []CancelOrderRequestParam{arg})
-	require.ErrorIs(t, err, errMissingInstrumentID)
+	require.ErrorIs(t, err, common.ErrEmptyParams)
 
 	arg.InstrumentID = mainPair.String()
 	_, err = e.CancelMultipleOrders(contextGenerate(), []CancelOrderRequestParam{arg})
@@ -4528,12 +4528,12 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			assets, err2 := e.getAssetsFromInstrumentID(testCase.instrumentID)
+			assets, err := e.getAssetsFromInstrumentID(testCase.instrumentID)
 			if testCase.expectedError != nil {
-				require.ErrorIs(t, err2, testCase.expectedError, "getAssetsFromInstrumentID must return expected error")
+				require.ErrorIs(t, err, testCase.expectedError, "getAssetsFromInstrumentID must return expected error")
 				return
 			}
-			require.NoError(t, err2, "getAssetsFromInstrumentID must not error")
+			require.NoError(t, err, "getAssetsFromInstrumentID must not error")
 			assert.Equal(t, testCase.expectedAssetTypes, assets, "asset types should match")
 		})
 	}
@@ -4603,7 +4603,7 @@ func TestWsOrderBookLevelUnmarshalJSON(t *testing.T) {
 	}
 }
 
-func TestAppendWsOrderbookItems(t *testing.T) {
+func TestWsOrderbookItems(t *testing.T) {
 	t.Parallel()
 
 	entries := []WsOrderBookLevel{
@@ -4614,9 +4614,8 @@ func TestAppendWsOrderbookItems(t *testing.T) {
 			AmountString: "2.25",
 		},
 	}
-	items, err := new(Exchange).AppendWsOrderbookItems(entries)
-	require.NoError(t, err, "AppendWsOrderbookItems must not error")
-	require.Len(t, items, 1, "AppendWsOrderbookItems must return one orderbook item")
+	items := wsOrderbookItems(entries)
+	require.Len(t, items, 1, "wsOrderbookItems must return one orderbook item")
 	assert.Equal(t, 100.5, items[0].Price, "orderbook price should match")
 	assert.Equal(t, 2.25, items[0].Amount, "orderbook amount should match")
 	assert.Equal(t, "100.5", items[0].StrPrice, "orderbook price string should match")
@@ -4640,8 +4639,6 @@ func TestAppendWsOrderbookItemsFromPool(t *testing.T) {
 
 func TestPutWsOrderbookLevels(t *testing.T) {
 	t.Parallel()
-
-	putWsOrderbookLevels(nil)
 
 	items := orderbook.Levels{{Price: 1}, {Price: 2}}
 	putWsOrderbookLevels(&items)
@@ -6670,7 +6667,7 @@ func TestValidatePlaceOrderRequestParam(t *testing.T) {
 	p.TradeMode = TradeModeIsolated
 	p.AssetType = asset.Futures
 	require.ErrorIs(t, p.Validate(), order.ErrTypeIsInvalid)
-	p.PositionSide = "moo"
+	p.PositionSide = "invalid"
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.PositionSide = "long"
 	require.ErrorIs(t, p.Validate(), order.ErrTypeIsInvalid)
@@ -6710,34 +6707,34 @@ func TestDeriveDelistingWindow(t *testing.T) {
 
 	t.Run("future expiry maps to delisting only", func(t *testing.T) {
 		t.Parallel()
-		delistingAt, delistedAt := deriveDelistingWindow(&Instrument{
+		delistingAt, delistedAt := (&Instrument{
 			State:   "suspend",
 			ExpTime: types.Time(futureExpiry),
-		}, now)
+		}).deriveDelistingWindow(now)
 		require.Equal(t, futureExpiry, delistingAt)
 		require.True(t, delistedAt.IsZero())
 	})
 
 	t.Run("past expiry maps to delisting and delisted", func(t *testing.T) {
 		t.Parallel()
-		delistingAt, delistedAt := deriveDelistingWindow(&Instrument{
+		delistingAt, delistedAt := (&Instrument{
 			State:   "suspend",
 			ExpTime: types.Time(pastExpiry),
-		}, now)
+		}).deriveDelistingWindow(now)
 		require.Equal(t, pastExpiry, delistingAt)
 		require.Equal(t, pastExpiry, delistedAt)
 	})
 
 	t.Run("live state has no delisting", func(t *testing.T) {
 		t.Parallel()
-		delistingAt, delistedAt := deriveDelistingWindow(&Instrument{State: "live"}, now)
+		delistingAt, delistedAt := (&Instrument{State: "live"}).deriveDelistingWindow(now)
 		require.True(t, delistingAt.IsZero())
 		require.True(t, delistedAt.IsZero())
 	})
 
 	t.Run("non live state maps to delisted window", func(t *testing.T) {
 		t.Parallel()
-		delistingAt, delistedAt := deriveDelistingWindow(&Instrument{State: "suspend"}, now)
+		delistingAt, delistedAt := (&Instrument{State: "suspend"}).deriveDelistingWindow(now)
 		require.Equal(t, now.Add(-30*time.Minute), delistingAt)
 		require.Equal(t, now, delistedAt)
 	})
