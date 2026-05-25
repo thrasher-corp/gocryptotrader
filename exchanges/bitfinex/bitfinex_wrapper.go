@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -442,8 +441,8 @@ func (e *Exchange) GetAccountFundingHistory(_ context.Context) ([]exchange.Fundi
 	return nil, common.ErrFunctionNotSupported
 }
 
-// GetCurrentMarginRates returns the latest margin funding rates for pairs.
-func (e *Exchange) GetCurrentMarginRates(ctx context.Context, req *margin.CurrentRatesRequest) ([]margin.CurrentRateResponse, error) {
+// GetMarginRates returns the latest margin funding rates for pairs.
+func (e *Exchange) GetMarginRates(ctx context.Context, req *margin.CurrentRatesRequest) ([]margin.CurrentRateResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -453,8 +452,7 @@ func (e *Exchange) GetCurrentMarginRates(ctx context.Context, req *margin.Curren
 	pairs := req.Pairs
 	if len(pairs) == 0 {
 		var err error
-		pairs, err = e.GetEnabledPairs(req.Asset)
-		if err != nil {
+		if pairs, err = e.GetEnabledPairs(req.Asset); err != nil {
 			return nil, err
 		}
 	}
@@ -475,7 +473,7 @@ func (e *Exchange) GetCurrentMarginRates(ctx context.Context, req *margin.Curren
 		}
 		rate, ok := cache[ccy]
 		if !ok {
-			lends, err := e.GetLends(ctx, ccy.String(), nil)
+			lends, err := e.GetLends(ctx, ccy.String(), 0, time.Time{}, time.Time{})
 			if err != nil {
 				return nil, err
 			}
@@ -533,13 +531,7 @@ func (e *Exchange) GetMarginRatesHistory(ctx context.Context, req *margin.RateHi
 	}
 	seen := make(map[string]struct{})
 	for {
-		params := url.Values{}
-		params.Set("limit", strconv.Itoa(pageSize))
-		params.Set("end", strconv.FormatInt(cursorEnd.Unix(), 10))
-		if !req.StartDate.IsZero() {
-			params.Set("start", strconv.FormatInt(req.StartDate.Unix(), 10))
-		}
-		lends, err := e.GetLends(ctx, req.Currency.String(), params)
+		lends, err := e.GetLends(ctx, req.Currency.String(), pageSize, cursorEnd, req.StartDate)
 		if err != nil {
 			return nil, err
 		}

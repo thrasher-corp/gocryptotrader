@@ -318,7 +318,7 @@ func TestFetchOrderbookNoSpotInstrument(t *testing.T) {
 	require.ErrorIs(t, err, errNoSpotInstrument)
 }
 
-func TestGetCurrentMarginRates(t *testing.T) {
+func TestGetMarginRates(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name          string
@@ -409,7 +409,7 @@ func TestGetCurrentMarginRates(t *testing.T) {
 				}
 			}
 
-			rates, err := target.GetCurrentMarginRates(t.Context(), req)
+			rates, err := target.GetMarginRates(t.Context(), req)
 			if tc.errIs != nil {
 				require.ErrorIs(t, err, tc.errIs)
 				return

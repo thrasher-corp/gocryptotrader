@@ -2109,8 +2109,8 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, r *margin.PositionC
 	}, nil
 }
 
-// GetCurrentMarginRates returns the latest margin rates for pairs.
-func (e *Exchange) GetCurrentMarginRates(ctx context.Context, r *margin.CurrentRatesRequest) ([]margin.CurrentRateResponse, error) {
+// GetMarginRates returns the latest margin rates for pairs.
+func (e *Exchange) GetMarginRates(ctx context.Context, r *margin.CurrentRatesRequest) ([]margin.CurrentRateResponse, error) {
 	if err := common.NilGuard(r); err != nil {
 		return nil, err
 	}
@@ -2120,8 +2120,7 @@ func (e *Exchange) GetCurrentMarginRates(ctx context.Context, r *margin.CurrentR
 	pairs := r.Pairs
 	if len(pairs) == 0 {
 		var err error
-		pairs, err = e.GetEnabledPairs(r.Asset)
-		if err != nil {
+		if pairs, err = e.GetEnabledPairs(r.Asset); err != nil {
 			return nil, err
 		}
 	}
@@ -2130,7 +2129,6 @@ func (e *Exchange) GetCurrentMarginRates(ctx context.Context, r *margin.CurrentR
 	}
 
 	timeChecked := time.Now().UTC()
-	cache := make(map[currency.Code]margin.Rate)
 	borrowRatesByCurrency := make(map[currency.Code]BorrowInterestRate)
 	if !e.IsRESTAuthenticationSupported() {
 		// Borrow endpoint is authenticated; keep returning market rates when
@@ -2145,6 +2143,7 @@ func (e *Exchange) GetCurrentMarginRates(ctx context.Context, r *margin.CurrentR
 			borrowRatesByCurrency[borrowRates[i].Currency.Upper()] = borrowRates[i]
 		}
 	}
+	cache := make(map[currency.Code]margin.Rate)
 	resp := make([]margin.CurrentRateResponse, len(pairs))
 	for i := range pairs {
 		if pairs[i].IsEmpty() {

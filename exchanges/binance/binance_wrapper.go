@@ -2293,8 +2293,8 @@ func (e *Exchange) ChangePositionMargin(ctx context.Context, req *margin.Positio
 	}, nil
 }
 
-// GetCurrentMarginRates retrieves the latest margin borrow rates.
-func (e *Exchange) GetCurrentMarginRates(ctx context.Context, req *margin.CurrentRatesRequest) ([]margin.CurrentRateResponse, error) {
+// GetMarginRates retrieves the latest margin borrow rates.
+func (e *Exchange) GetMarginRates(ctx context.Context, req *margin.CurrentRatesRequest) ([]margin.CurrentRateResponse, error) {
 	if err := common.NilGuard(req); err != nil {
 		return nil, err
 	}
@@ -2304,18 +2304,13 @@ func (e *Exchange) GetCurrentMarginRates(ctx context.Context, req *margin.Curren
 	pairs := req.Pairs
 	if len(pairs) == 0 {
 		var err error
-		pairs, err = e.GetEnabledPairs(req.Asset)
-		if err != nil {
+		if pairs, err = e.GetEnabledPairs(req.Asset); err != nil {
 			return nil, err
 		}
 	}
 	if len(pairs) == 0 {
 		return nil, currency.ErrCurrencyPairsEmpty
 	}
-
-	timeChecked := time.Now().UTC()
-	cache := make(map[string]margin.Rate, len(pairs))
-	resp := make([]margin.CurrentRateResponse, len(pairs))
 	for i := range pairs {
 		if pairs[i].IsEmpty() {
 			return nil, currency.ErrCurrencyPairEmpty
@@ -2324,6 +2319,9 @@ func (e *Exchange) GetCurrentMarginRates(ctx context.Context, req *margin.Curren
 	if !e.IsRESTAuthenticationSupported() {
 		return nil, exchange.ErrAuthenticationSupportNotEnabled
 	}
+	timeChecked := time.Now().UTC()
+	cache := make(map[string]margin.Rate, len(pairs))
+	resp := make([]margin.CurrentRateResponse, len(pairs))
 	for i := range pairs {
 		pairKey := pairs[i].String()
 		rate, ok := cache[pairKey]
@@ -2356,8 +2354,8 @@ func (e *Exchange) GetCurrentMarginRates(ctx context.Context, req *margin.Curren
 
 // GetMarginRatesHistory retrieves public margin borrow rate history.
 func (e *Exchange) GetMarginRatesHistory(ctx context.Context, req *margin.RateHistoryRequest) (*margin.RateHistoryResponse, error) {
-	if req == nil {
-		return nil, common.ErrNilPointer
+	if err := common.NilGuard(req); err != nil {
+		return nil, err
 	}
 	if req.Asset != asset.Margin {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)

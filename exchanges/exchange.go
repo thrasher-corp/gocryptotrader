@@ -1691,8 +1691,8 @@ func (b *Base) GetMarginRatesHistory(context.Context, *margin.RateHistoryRequest
 	return nil, common.ErrNotYetImplemented
 }
 
-// GetCurrentMarginRates returns the latest margin rates for the supplied pairs.
-func (b *Base) GetCurrentMarginRates(context.Context, *margin.CurrentRatesRequest) ([]margin.CurrentRateResponse, error) {
+// GetMarginRates returns the latest margin rates for the supplied pairs.
+func (b *Base) GetMarginRates(context.Context, *margin.CurrentRatesRequest) ([]margin.CurrentRateResponse, error) {
 	return nil, common.ErrNotYetImplemented
 }
 

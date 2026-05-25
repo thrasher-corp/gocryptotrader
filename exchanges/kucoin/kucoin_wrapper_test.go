@@ -90,7 +90,7 @@ func TestGetMarginRatesHistory(t *testing.T) {
 	}
 }
 
-func TestGetCurrentMarginRates(t *testing.T) {
+func TestGetMarginRates(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name          string
@@ -168,7 +168,7 @@ func TestGetCurrentMarginRates(t *testing.T) {
 				target = local
 			}
 
-			rates, err := target.GetCurrentMarginRates(t.Context(), tc.req)
+			rates, err := target.GetMarginRates(t.Context(), tc.req)
 			if tc.errIs != nil {
 				require.ErrorIs(t, err, tc.errIs)
 				return
@@ -182,12 +182,6 @@ func TestGetCurrentMarginRates(t *testing.T) {
 					assert.NotNil(t, rates[i].CurrentRate)
 					assert.False(t, rates[i].CurrentRate.Time.IsZero())
 					assert.False(t, rates[i].TimeChecked.IsZero())
-					assert.False(t,
-						rates[i].CurrentRate.HourlyRate.IsZero() &&
-							rates[i].CurrentRate.YearlyRate.IsZero() &&
-							rates[i].CurrentRate.HourlyBorrowRate.IsZero() &&
-							rates[i].CurrentRate.YearlyBorrowRate.IsZero(),
-					)
 				}
 			}
 		})

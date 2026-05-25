@@ -71,7 +71,7 @@ func TestGetMarginRatesHistory(t *testing.T) {
 	}
 }
 
-func TestGetCurrentMarginRates(t *testing.T) {
+func TestGetMarginRates(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name           string
@@ -123,7 +123,7 @@ func TestGetCurrentMarginRates(t *testing.T) {
 					Pairs: currency.Pairs{pairs[0]},
 				}
 			}
-			rates, err := e.GetCurrentMarginRates(t.Context(), req)
+			rates, err := e.GetMarginRates(t.Context(), req)
 			if tc.errIs != nil {
 				require.ErrorIs(t, err, tc.errIs)
 				return

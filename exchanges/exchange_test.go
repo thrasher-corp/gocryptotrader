@@ -1915,10 +1915,10 @@ func TestGetMarginRateHistory(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
-func TestGetCurrentMarginRates(t *testing.T) {
+func TestGetMarginRates(t *testing.T) {
 	t.Parallel()
 	var b Base
-	_, err := b.GetCurrentMarginRates(t.Context(), nil)
+	_, err := b.GetMarginRates(t.Context(), nil)
 	assert.ErrorIs(t, err, common.ErrNotYetImplemented)
 }
 
