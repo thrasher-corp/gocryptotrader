@@ -432,7 +432,7 @@ func (c *Coinmarketcap) GetExchangeMap(start, limit int64) ([]ExchangeMap, error
 	}
 
 	if limit != 0 {
-		val.Set("limit", strconv.FormatInt(start, 10))
+		val.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
 	err = c.SendHTTPRequest(http.MethodGet, endpointExchangeMap, val, &resp)
@@ -494,7 +494,7 @@ func (c *Coinmarketcap) GetExchangeLatestMarketPairs(exchangeID, start, limit in
 	}
 
 	if limit != 0 {
-		val.Set("limit", strconv.FormatInt(start, 10))
+		val.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
 	err = c.SendHTTPRequest(http.MethodGet, endpointExchangeMarketPairsLatest, val, &resp)
@@ -652,8 +652,8 @@ func (c *Coinmarketcap) GetGlobalMeticHistoricalQuotes(tStart, tEnd time.Time) (
 // conversion.
 func (c *Coinmarketcap) GetPriceConversion(amount float64, currencyID int64, atHistoricTime time.Time) (PriceConversion, error) {
 	resp := struct {
-		Data PriceConversion `json:"data"`
-		Status
+		Data   PriceConversion `json:"data"`
+		Status Status          `json:"status"`
 	}{}
 
 	err := c.CheckAccountPlan(Hobbyist)
@@ -687,7 +687,7 @@ func (c *Coinmarketcap) SendHTTPRequest(method, endpoint string, v url.Values, r
 	headers["Accept"] = "application/json"
 	headers["X-CMC_PRO_API_KEY"] = c.APIkey
 
-	path := c.APIUrl + c.APIVersion + endpoint
+	path := c.APIUrl + "/" + endpoint
 	if v != nil {
 		path = path + "?" + v.Encode()
 	}

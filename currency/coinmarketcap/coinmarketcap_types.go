@@ -1,10 +1,61 @@
 package coinmarketcap
 
 import (
+	"fmt"
+	"maps"
+	"strconv"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
+
+// QuoteMap captures quote values for all returned conversion symbols.
+type QuoteMap map[string]Currency
+
+// APIErrorCode supports status error code decoding from either number or string.
+type APIErrorCode int64
+
+// UnmarshalJSON decodes error code from number or quoted string.
+func (c *APIErrorCode) UnmarshalJSON(data []byte) error {
+	var num int64
+	if err := json.Unmarshal(data, &num); err == nil {
+		*c = APIErrorCode(num)
+		return nil
+	}
+
+	var text string
+	if err := json.Unmarshal(data, &text); err != nil {
+		return err
+	}
+	parsed, err := strconv.ParseInt(text, 10, 64)
+	if err != nil {
+		return fmt.Errorf("failed to parse error code: %w", err)
+	}
+	*c = APIErrorCode(parsed)
+	return nil
+}
+
+// UnmarshalJSON handles quote payloads that may be either an object map or array.
+func (q *QuoteMap) UnmarshalJSON(data []byte) error {
+	var object map[string]Currency
+	if err := json.Unmarshal(data, &object); err == nil {
+		*q = object
+		return nil
+	}
+
+	var arr []map[string]Currency
+	if err := json.Unmarshal(data, &arr); err != nil {
+		return err
+	}
+
+	merged := make(map[string]Currency)
+	for i := range arr {
+		maps.Copy(merged, arr[i])
+	}
+	*q = merged
+	return nil
+}
 
 // Coinmarketcap account plan bitmasks, url and endpoint consts
 const (
@@ -17,25 +68,25 @@ const (
 
 	baseURL    = "https://pro-api.coinmarketcap.com"
 	sandboxURL = "https://sandbox-api.coinmarketcap.com"
-	version    = "/v1/"
+	version    = ""
 
-	endpointCryptocurrencyInfo               = "cryptocurrency/info"
-	endpointCryptocurrencyMap                = "cryptocurrency/map"
-	endpointCryptocurrencyHistoricalListings = "cryptocurrency/listings/historical"
-	endpointCryptocurrencyLatestListings     = "cryptocurrency/listings/latest"
-	endpointCryptocurrencyMarketPairs        = "cryptocurrency/market-pairs/latest"
-	endpointOHLCVHistorical                  = "cryptocurrency/ohlcv/historical"
-	endpointOHLCVLatest                      = "cryptocurrency/ohlcv/latest"
-	endpointGetMarketQuotesHistorical        = "cryptocurrency/quotes/historical"
-	endpointGetMarketQuotesLatest            = "cryptocurrency/quotes/latest"
-	endpointExchangeInfo                     = "exchange/info"
-	endpointExchangeMap                      = "exchange/map"
-	endpointExchangeMarketPairsLatest        = "exchange/market-pairs/latest"
-	endpointExchangeMarketQuoteHistorical    = "exchange/quotes/historical"
-	endpointExchangeMarketQuoteLatest        = "exchange/quotes/latest"
-	endpointGlobalQuoteHistorical            = "global-metrics/quotes/historical"
-	endpointGlobalQuoteLatest                = "global-metrics/quotes/latest"
-	endpointPriceConversion                  = "tools/price-conversion"
+	endpointCryptocurrencyInfo               = "v2/cryptocurrency/info"
+	endpointCryptocurrencyMap                = "v1/cryptocurrency/map"
+	endpointCryptocurrencyHistoricalListings = "v1/cryptocurrency/listings/historical"
+	endpointCryptocurrencyLatestListings     = "v3/cryptocurrency/listings/latest"
+	endpointCryptocurrencyMarketPairs        = "v2/cryptocurrency/market-pairs/latest"
+	endpointOHLCVHistorical                  = "v2/cryptocurrency/ohlcv/historical"
+	endpointOHLCVLatest                      = "v2/cryptocurrency/ohlcv/latest"
+	endpointGetMarketQuotesHistorical        = "v3/cryptocurrency/quotes/historical"
+	endpointGetMarketQuotesLatest            = "v3/cryptocurrency/quotes/latest"
+	endpointExchangeInfo                     = "v1/exchange/info"
+	endpointExchangeMap                      = "v1/exchange/map"
+	endpointExchangeMarketPairsLatest        = "v1/exchange/market-pairs/latest"
+	endpointExchangeMarketQuoteHistorical    = "v1/exchange/quotes/historical"
+	endpointExchangeMarketQuoteLatest        = "v1/exchange/quotes/latest"
+	endpointGlobalQuoteHistorical            = "v1/global-metrics/quotes/historical"
+	endpointGlobalQuoteLatest                = "v1/global-metrics/quotes/latest"
+	endpointPriceConversion                  = "v2/tools/price-conversion"
 
 	defaultTimeOut = time.Second * 15
 
@@ -77,11 +128,11 @@ type Settings struct {
 // Status defines a response status JSON struct that is received with every
 // HTTP request
 type Status struct {
-	Timestamp    string `json:"timestamp"`
-	ErrorCode    int64  `json:"error_code"`
-	ErrorMessage string `json:"error_message"`
-	Elapsed      int64  `json:"elapsed"`
-	CreditCount  int64  `json:"credit_count"`
+	Timestamp    string       `json:"timestamp"`
+	ErrorCode    APIErrorCode `json:"error_code"`
+	ErrorMessage string       `json:"error_message"`
+	Elapsed      int64        `json:"elapsed"`
+	CreditCount  int64        `json:"credit_count"`
 }
 
 // Currency defines a generic sub type to capture currency data
@@ -162,10 +213,7 @@ type CryptocurrencyHistoricalListings struct {
 	TotalSupply       float64   `json:"total_supply"`
 	MaxSupply         float64   `json:"max_supply"`
 	LastUpdated       time.Time `json:"last_updated"`
-	Quote             struct {
-		USD Currency `json:"USD"`
-		BTC Currency `json:"BTC"`
-	} `json:"quote"`
+	Quote             QuoteMap  `json:"quote"`
 }
 
 // CryptocurrencyLatestListings defines latest cryptocurrency listing data
@@ -181,12 +229,9 @@ type CryptocurrencyLatestListings struct {
 	MaxSupply         float64   `json:"max_supply"`
 	LastUpdated       time.Time `json:"last_updated"`
 	DateAdded         time.Time `json:"date_added"`
-	Tags              []string  `json:"tags"`
+	Tags              []any     `json:"tags"`
 	Platform          any       `json:"platform"`
-	Quote             struct {
-		USD Currency `json:"USD"`
-		BTC Currency `json:"BTC"`
-	} `json:"quote"`
+	Quote             QuoteMap  `json:"quote"`
 }
 
 // CryptocurrencyLatestMarketPairs defines the latest cryptocurrency pairs
@@ -251,8 +296,8 @@ type CryptocurrencyOHLCLatest map[string]struct {
 	} `json:"quote"`
 }
 
-// CryptocurrencyLatestQuotes defines latest cryptocurrency quotation data
-type CryptocurrencyLatestQuotes map[string]struct {
+// CryptocurrencyLatestQuotes defines latest cryptocurrency quotation data.
+type CryptocurrencyLatestQuotes []struct {
 	ID                int       `json:"id"`
 	Name              string    `json:"name"`
 	Symbol            string    `json:"symbol"`
@@ -264,11 +309,9 @@ type CryptocurrencyLatestQuotes map[string]struct {
 	NumMarketPairs    int       `json:"num_market_pairs"`
 	CmcRank           int       `json:"cmc_rank"`
 	LastUpdated       time.Time `json:"last_updated"`
-	Tags              []string  `json:"tags"`
+	Tags              []any     `json:"tags"`
 	Platform          any       `json:"platform"`
-	Quote             struct {
-		USD Currency `json:"USD"`
-	} `json:"quote"`
+	Quote             QuoteMap  `json:"quote"`
 }
 
 // CryptocurrencyHistoricalQuotes defines historical cryptocurrency quotation
@@ -373,9 +416,7 @@ type ExchangeLatestQuotes struct {
 		Slug           string    `json:"slug"`
 		NumMarketPairs int       `json:"num_market_pairs"`
 		LastUpdated    time.Time `json:"last_updated"`
-		Quote          struct {
-			USD Currency `json:"USD"`
-		} `json:"quote"`
+		Quote          QuoteMap  `json:"quote"`
 	} `json:"binance"`
 }
 
@@ -385,11 +426,9 @@ type ExchangeHistoricalQuotes struct {
 	Name   string `json:"name"`
 	Slug   string `json:"slug"`
 	Quotes []struct {
-		Timestamp time.Time `json:"timestamp"`
-		Quote     struct {
-			USD Currency `json:"USD"`
-		} `json:"quote"`
-		NumMarketPairs int `json:"num_market_pairs"`
+		Timestamp      time.Time `json:"timestamp"`
+		Quote          QuoteMap  `json:"quote"`
+		NumMarketPairs int       `json:"num_market_pairs"`
 	} `json:"quotes"`
 }
 
@@ -401,9 +440,7 @@ type GlobalMeticLatestQuotes struct {
 	ActiveMarketPairs      int       `json:"active_market_pairs"`
 	ActiveExchanges        int       `json:"active_exchanges"`
 	LastUpdated            time.Time `json:"last_updated"`
-	Quote                  struct {
-		USD Currency `json:"USD"`
-	} `json:"quote"`
+	Quote                  QuoteMap  `json:"quote"`
 }
 
 // GlobalMeticHistoricalQuotes defines historical global metric quotations
@@ -411,9 +448,7 @@ type GlobalMeticHistoricalQuotes struct {
 	Quotes []struct {
 		Timestamp    time.Time `json:"timestamp"`
 		BtcDominance float64   `json:"btc_dominance"`
-		Quote        struct {
-			USD Currency `json:"USD"`
-		} `json:"quote"`
+		Quote        QuoteMap  `json:"quote"`
 	} `json:"quotes"`
 }
 
@@ -424,9 +459,5 @@ type PriceConversion struct {
 	Name        string    `json:"name"`
 	Amount      float64   `json:"amount"`
 	LastUpdated time.Time `json:"last_updated"`
-	Quote       struct {
-		GBP Currency `json:"GBP"`
-		LTC Currency `json:"LTC"`
-		USD Currency `json:"USD"`
-	} `json:"quote"`
+	Quote       QuoteMap  `json:"quote"`
 }
