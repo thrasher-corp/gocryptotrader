@@ -3006,13 +3006,15 @@ func TestWSExecuteBlockTrade(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-const getUserBlocTradeResponseJSON = `[ { "trade_seq": 37, "trade_id": "92437", "timestamp": 1565089523719, "tick_direction": 3, "state": "filled", "price": 0.0001, "order_type": "limit", "order_id": "343062", "matching_id": null, "liquidity": "T", "iv": 0, "instrument_name": "BTC-9AUG19-10250-C", "index_price": 11738, "fee_currency": "BTC", "fee": 0.00025, "direction": "sell", "block_trade_id": "61", "amount": 10 }, { "trade_seq": 25350, "trade_id": "92435", "timestamp": 1565089523719, "tick_direction": 3, "state": "filled", "price": 11590, "order_type": "limit", "order_id": "343058", "matching_id": null, "liquidity": "T", "instrument_name": "BTC-PERPETUAL", "index_price": 11737.98, "fee_currency": "BTC", "fee": 0.00000164, "direction": "buy", "block_trade_id": "61", "amount": 190 } ]`
+const getUserBlockTradeResponseJSON = `{ "id": "61", "timestamp": 1565089523720, "trades": [ { "trade_seq": 37, "trade_id": "92437", "timestamp": 1565089523719, "tick_direction": 3, "state": "filled", "price": 0.0001, "order_type": "limit", "order_id": "343062", "matching_id": null, "liquidity": "T", "iv": 0, "instrument_name": "BTC-9AUG19-10250-C", "index_price": 11738, "fee_currency": "BTC", "fee": 0.00025, "direction": "sell", "block_trade_id": "61", "amount": 10 }, { "trade_seq": 25350, "trade_id": "92435", "timestamp": 1565089523719, "tick_direction": 3, "state": "filled", "price": 11590, "order_type": "limit", "order_id": "343058", "matching_id": null, "liquidity": "T", "instrument_name": "BTC-PERPETUAL", "index_price": 11737.98, "fee_currency": "BTC", "fee": 0.00000164, "direction": "buy", "block_trade_id": "61", "amount": 190 } ] }`
 
-func TestGetUserBlocTrade(t *testing.T) {
+func TestGetUserBlockTrade(t *testing.T) {
 	t.Parallel()
-	var resp []BlockTradeData
-	err := json.Unmarshal([]byte(getUserBlocTradeResponseJSON), &resp)
+	var resp BlockTradeCollection
+	err := json.Unmarshal([]byte(getUserBlockTradeResponseJSON), &resp)
 	require.NoError(t, err)
+	assert.Equal(t, "61", resp.ID)
+	assert.Len(t, resp.Trades, 2)
 	_, err = e.GetUserBlockTrade(t.Context(), "")
 	require.ErrorIs(t, err, errMissingBlockTradeID)
 
@@ -3031,6 +3033,719 @@ func TestWSRetrieveUserBlockTrade(t *testing.T) {
 	result, err := e.WSRetrieveUserBlockTrade(t.Context(), "12345567")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+func TestGetBlockTradeRequests(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetBlockTradeRequests(t.Context(), "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestWSRetrieveBlockTradeRequests(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.WSRetrieveBlockTradeRequests(t.Context(), "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestValidatePendingBlockTradeAction(t *testing.T) {
+	t.Parallel()
+
+	err := validatePendingBlockTradeAction(time.Now(), "", roleMaker)
+	require.ErrorIs(t, err, errMissingNonce)
+
+	err = validatePendingBlockTradeAction(time.Time{}, "nonce", roleMaker)
+	require.ErrorIs(t, err, errZeroTimestamp)
+
+	err = validatePendingBlockTradeAction(time.Now(), "nonce", "")
+	require.ErrorIs(t, err, errInvalidTradeRole)
+
+	err = validatePendingBlockTradeAction(time.Now(), "nonce", roleMaker)
+	require.NoError(t, err)
+}
+
+func TestBlockTradeActionMethods(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		fn   func(context.Context, time.Time, string, string) error
+	}{
+		{name: "ApproveBlockTrade", fn: e.ApproveBlockTrade},
+		{name: "WSApproveBlockTrade", fn: e.WSApproveBlockTrade},
+		{name: "RejectBlockTrade", fn: e.RejectBlockTrade},
+		{name: "WSRejectBlockTrade", fn: e.WSRejectBlockTrade},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := tc.fn(t.Context(), time.Now(), "", roleMaker)
+			require.ErrorIs(t, err, errMissingNonce)
+
+			err = tc.fn(t.Context(), time.Time{}, "nonce", roleMaker)
+			require.ErrorIs(t, err, errZeroTimestamp)
+
+			err = tc.fn(t.Context(), time.Now(), "nonce", "")
+			require.ErrorIs(t, err, errInvalidTradeRole)
+
+			sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+			err = tc.fn(t.Context(), time.Now(), "nonce", roleMaker)
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestGetBlockTrades(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetBlockTrades(t.Context(), nil)
+	require.ErrorIs(t, err, errNoArgumentPassed)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetBlockTrades(t.Context(), &GetBlockTradesRequest{Count: 5})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestWSRetrieveBlockTrades(t *testing.T) {
+	t.Parallel()
+	_, err := e.WSRetrieveBlockTrades(t.Context(), nil)
+	require.ErrorIs(t, err, errNoArgumentPassed)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.WSRetrieveBlockTrades(t.Context(), &GetBlockTradesRequest{Count: 5})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetBrokerTradeRequests(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.GetBrokerTradeRequests(t.Context())
+	require.NoError(t, err)
+}
+
+func TestWSRetrieveBrokerTradeRequests(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.WSRetrieveBrokerTradeRequests(t.Context())
+	require.NoError(t, err)
+}
+
+func TestGetBrokerTrades(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetBrokerTrades(t.Context(), nil)
+	require.ErrorIs(t, err, errNoArgumentPassed)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err = e.GetBrokerTrades(t.Context(), &GetBrokerTradesRequest{Count: 5})
+	require.NoError(t, err)
+}
+
+func TestWSRetrieveBrokerTrades(t *testing.T) {
+	t.Parallel()
+	_, err := e.WSRetrieveBrokerTrades(t.Context(), nil)
+	require.ErrorIs(t, err, errNoArgumentPassed)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err = e.WSRetrieveBrokerTrades(t.Context(), &GetBrokerTradesRequest{Count: 5})
+	require.NoError(t, err)
+}
+
+func TestBrokerTradeRequestItemUnmarshal(t *testing.T) {
+	t.Parallel()
+	const payload = `[
+		{
+			"timestamp": 1700000000000,
+			"state": "pending",
+			"trades": [{"amount": 10, "direction": "buy", "price": 50000, "instrument_name": "BTC-PERPETUAL"}],
+			"maker": {"state": "approved", "client_id": 1, "user_id": "***009", "client_name": "Alice", "client_link_name": "link1", "client_link_id": 11},
+			"taker": {"state": "pending", "client_id": 2, "user_id": 200, "client_name": "Bob", "client_link_name": "link2", "client_link_id": 22},
+			"nonce": "abc123"
+		}
+	]`
+	var resp []BrokerTradeRequestItem
+	err := json.Unmarshal([]byte(payload), &resp)
+	require.NoError(t, err)
+	require.Len(t, resp, 1)
+	assert.Equal(t, "abc123", resp[0].Nonce)
+	assert.Equal(t, "pending", resp[0].State)
+	assert.Equal(t, BrokerTradeUserID("***009"), resp[0].Maker.UserID)
+	assert.Equal(t, uint64(1), resp[0].Maker.ClientID)
+	assert.Equal(t, uint64(11), resp[0].Maker.ClientLinkID)
+	assert.Equal(t, "approved", resp[0].Maker.State)
+	assert.Equal(t, BrokerTradeUserID("200"), resp[0].Taker.UserID)
+	assert.Equal(t, uint64(2), resp[0].Taker.ClientID)
+	assert.Equal(t, uint64(22), resp[0].Taker.ClientLinkID)
+	require.Len(t, resp[0].Trades, 1)
+	assert.Equal(t, "BTC-PERPETUAL", resp[0].Trades[0].InstrumentName)
+}
+
+func TestBrokerTradeHistoryResponseUnmarshal(t *testing.T) {
+	t.Parallel()
+	const payload = `{
+		"history": [{
+			"id": "bt-1",
+			"timestamp": 1700000000000,
+			"trades": [{"trade_id": "t1", "instrument_name": "BTC-PERPETUAL", "amount": 5, "price": 50000, "direction": "buy"}],
+			"maker": {"user_id": "***100", "client_id": 1, "client_name": "Alice", "client_link_name": "link1", "client_link_id": 11},
+			"taker": {"user_id": 200, "client_id": 2, "client_name": "Bob", "client_link_name": "link2", "client_link_id": 22}
+		}],
+		"next_start_id": "ns-42"
+	}`
+	var resp BrokerTradeHistoryResponse
+	err := json.Unmarshal([]byte(payload), &resp)
+	require.NoError(t, err)
+	assert.Equal(t, "ns-42", resp.NextStartID)
+	require.Len(t, resp.History, 1)
+	assert.Equal(t, "bt-1", resp.History[0].ID)
+	assert.Equal(t, BrokerTradeUserID("***100"), resp.History[0].Maker.UserID)
+	assert.Equal(t, uint64(1), resp.History[0].Maker.ClientID)
+	assert.Equal(t, uint64(11), resp.History[0].Maker.ClientLinkID)
+	assert.Equal(t, BrokerTradeUserID("200"), resp.History[0].Taker.UserID)
+	assert.Equal(t, uint64(2), resp.History[0].Taker.ClientID)
+	assert.Equal(t, uint64(22), resp.History[0].Taker.ClientLinkID)
+	require.Len(t, resp.History[0].Trades, 1)
+	assert.Equal(t, "BTC-PERPETUAL", resp.History[0].Trades[0].InstrumentName)
+}
+
+func TestBlockRFQAcceptResponseUnmarshal(t *testing.T) {
+	t.Parallel()
+	const payload = `{
+		"trade_trigger": {"state": "triggered", "price": 50000, "direction": "buy"},
+		"block_trades": [{"id": "bt-1", "timestamp": 1700000000000, "trades": []}]
+	}`
+	var resp BlockRFQAcceptResponse
+	err := json.Unmarshal([]byte(payload), &resp)
+	require.NoError(t, err)
+	assert.Equal(t, "triggered", resp.TradeTrigger.State)
+	assert.Equal(t, float64(50000), resp.TradeTrigger.Price)
+	assert.Equal(t, "buy", resp.TradeTrigger.Direction)
+	require.Len(t, resp.BlockTrades, 1)
+	assert.Equal(t, "bt-1", resp.BlockTrades[0].ID)
+}
+
+func TestBlockRFQTradeAllocationResponseUnmarshal(t *testing.T) {
+	t.Parallel()
+	const payload = `[{"user_id":"***321","amount":1.5,"client_info":{"client_id":12,"client_link_id":34,"name":"desk-a"}}]`
+	var resp []BlockRFQTradeAllocationResponse
+	err := json.Unmarshal([]byte(payload), &resp)
+	require.NoError(t, err)
+	require.Len(t, resp, 1)
+	assert.Equal(t, BrokerTradeUserID("***321"), resp[0].UserID)
+	assert.Equal(t, float64(1.5), resp[0].Amount)
+	require.NotNil(t, resp[0].ClientInfo)
+	assert.Equal(t, uint64(12), resp[0].ClientInfo.ClientID)
+	assert.Equal(t, uint64(34), resp[0].ClientInfo.ClientLinkID)
+	assert.Equal(t, "desk-a", resp[0].ClientInfo.Name)
+}
+
+func TestBlockRFQDataTakerRatingUnmarshal(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		payload string
+		exp     float64
+	}{
+		{name: "string", payload: `{"taker_rating":"0.75"}`, exp: 0.75},
+		{name: "number", payload: `{"taker_rating":0.5}`, exp: 0.5},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var resp BlockRFQData
+			err := json.Unmarshal([]byte(tc.payload), &resp)
+			require.NoError(t, err)
+			assert.Equal(t, tc.exp, resp.TakerRating.Float64())
+		})
+	}
+}
+
+func TestValidateBlockRFQDirection(t *testing.T) {
+	t.Parallel()
+
+	_, err := validateBlockRFQDirection("")
+	require.ErrorIs(t, err, errInvalidOrderSideOrDirection)
+
+	normalisedDirection, err := validateBlockRFQDirection(strings.ToUpper(sideBUY))
+	require.NoError(t, err)
+	assert.Equal(t, sideBUY, normalisedDirection)
+
+	normalisedDirection, err = validateBlockRFQDirection(sideBUY)
+	require.NoError(t, err)
+	assert.Equal(t, sideBUY, normalisedDirection)
+
+	normalisedDirection, err = validateBlockRFQDirection(sideSELL)
+	require.NoError(t, err)
+	assert.Equal(t, sideSELL, normalisedDirection)
+
+	_, err = validateBlockRFQDirection("sideways")
+	require.ErrorIs(t, err, errInvalidOrderSideOrDirection)
+}
+
+func TestValidateBlockRFQLegs(t *testing.T) {
+	t.Parallel()
+
+	legs, err := validateBlockRFQLegs(nil, false)
+	require.NoError(t, err)
+	assert.Nil(t, legs)
+
+	_, err = validateBlockRFQLegs(nil, true)
+	require.ErrorIs(t, err, errNoArgumentPassed)
+
+	_, err = validateBlockRFQLegs([]BlockRFQLeg{{Ratio: 1, Direction: sideBUY, Price: 10}}, true)
+	require.ErrorIs(t, err, errInvalidInstrumentName)
+
+	_, err = validateBlockRFQLegs([]BlockRFQLeg{{Ratio: 0, InstrumentName: btcPerpInstrument, Direction: sideBUY, Price: 10}}, true)
+	require.ErrorIs(t, err, errInvalidAmount)
+
+	_, err = validateBlockRFQLegs([]BlockRFQLeg{{Ratio: 1, InstrumentName: btcPerpInstrument, Price: 10}}, true)
+	require.ErrorIs(t, err, errInvalidOrderSideOrDirection)
+
+	_, err = validateBlockRFQLegs([]BlockRFQLeg{{Ratio: 1, InstrumentName: btcPerpInstrument, Direction: "sideways", Price: 10}}, true)
+	require.ErrorIs(t, err, errInvalidOrderSideOrDirection)
+
+	_, err = validateBlockRFQLegs([]BlockRFQLeg{{Ratio: 1, InstrumentName: btcPerpInstrument, Direction: sideBUY, Price: -1}}, true)
+	require.ErrorIs(t, err, errInvalidPrice)
+
+	input := []BlockRFQLeg{{Ratio: 1, InstrumentName: btcPerpInstrument, Direction: strings.ToUpper(sideBUY), Price: 10}}
+	got, err := validateBlockRFQLegs(input, true)
+	require.NoError(t, err)
+	assert.Equal(t, []BlockRFQLeg{{Ratio: 1, InstrumentName: btcPerpInstrument, Direction: sideBUY, Price: 10}}, got)
+	assert.Equal(t, strings.ToUpper(sideBUY), input[0].Direction, "validateBlockRFQLegs should not mutate the caller input")
+
+	got, err = validateBlockRFQLegs(input, false)
+	require.NoError(t, err)
+	assert.Equal(t, []BlockRFQLeg{{Ratio: 1, InstrumentName: btcPerpInstrument, Direction: sideBUY, Price: 10}}, got)
+}
+
+func TestValidateCreateBlockRFQLegs(t *testing.T) {
+	t.Parallel()
+
+	_, err := validateCreateBlockRFQLegs(nil)
+	require.ErrorIs(t, err, errNoArgumentPassed)
+
+	_, err = validateCreateBlockRFQLegs([]CreateBlockRFQLeg{{Amount: 1, Direction: sideBUY}})
+	require.ErrorIs(t, err, errInvalidInstrumentName)
+
+	_, err = validateCreateBlockRFQLegs([]CreateBlockRFQLeg{{InstrumentName: btcPerpInstrument, Amount: 0, Direction: sideBUY}})
+	require.ErrorIs(t, err, errInvalidAmount)
+
+	_, err = validateCreateBlockRFQLegs([]CreateBlockRFQLeg{{InstrumentName: btcPerpInstrument, Amount: 1}})
+	require.ErrorIs(t, err, errInvalidOrderSideOrDirection)
+
+	_, err = validateCreateBlockRFQLegs([]CreateBlockRFQLeg{{InstrumentName: btcPerpInstrument, Amount: 1, Direction: "sideways"}})
+	require.ErrorIs(t, err, errInvalidOrderSideOrDirection)
+
+	input := []CreateBlockRFQLeg{{InstrumentName: btcPerpInstrument, Amount: 1, Direction: strings.ToUpper(sideBUY)}}
+	got, err := validateCreateBlockRFQLegs(input)
+	require.NoError(t, err)
+	assert.Equal(t, []CreateBlockRFQLeg{{InstrumentName: btcPerpInstrument, Amount: 1, Direction: sideBUY}}, got)
+	assert.Equal(t, strings.ToUpper(sideBUY), input[0].Direction, "validateCreateBlockRFQLegs should not mutate the caller input")
+}
+
+func TestValidateBlockRFQTradeAllocations(t *testing.T) {
+	t.Parallel()
+
+	err := validateBlockRFQTradeAllocations(nil)
+	require.NoError(t, err)
+
+	err = validateBlockRFQTradeAllocations([]BlockRFQTradeAllocation{{Amount: 1}})
+	require.ErrorIs(t, err, errUserIDOrClientInfoRequired)
+
+	err = validateBlockRFQTradeAllocations([]BlockRFQTradeAllocation{{UserID: 1, Amount: 0}})
+	require.ErrorIs(t, err, errInvalidAmount)
+
+	err = validateBlockRFQTradeAllocations([]BlockRFQTradeAllocation{{UserID: 1, Amount: 1}})
+	require.NoError(t, err)
+
+	err = validateBlockRFQTradeAllocations([]BlockRFQTradeAllocation{{ClientInfo: &BlockRFQTradeAllocationClientInfo{ClientID: 123}, Amount: 1}})
+	require.NoError(t, err)
+
+	err = validateBlockRFQTradeAllocations([]BlockRFQTradeAllocation{{ClientInfo: &BlockRFQTradeAllocationClientInfo{}, Amount: 1}})
+	require.ErrorIs(t, err, errUserIDOrClientInfoRequired)
+}
+
+func TestValidateBlockRFQHedge(t *testing.T) {
+	t.Parallel()
+
+	_, err := validateBlockRFQHedge(nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = validateBlockRFQHedge(&BlockRFQHedgeLeg{Amount: 1, Direction: sideBUY, Price: 10})
+	require.ErrorIs(t, err, errInvalidInstrumentName)
+
+	_, err = validateBlockRFQHedge(&BlockRFQHedgeLeg{Amount: 1, InstrumentName: btcPerpInstrument, Price: 10})
+	require.ErrorIs(t, err, errInvalidOrderSideOrDirection)
+
+	_, err = validateBlockRFQHedge(&BlockRFQHedgeLeg{Amount: 1, InstrumentName: btcPerpInstrument, Direction: "sideways", Price: 10})
+	require.ErrorIs(t, err, errInvalidOrderSideOrDirection)
+
+	_, err = validateBlockRFQHedge(&BlockRFQHedgeLeg{Amount: 0, InstrumentName: btcPerpInstrument, Direction: sideBUY, Price: 10})
+	require.ErrorIs(t, err, errInvalidAmount)
+
+	_, err = validateBlockRFQHedge(&BlockRFQHedgeLeg{Amount: 1, InstrumentName: btcPerpInstrument, Direction: sideBUY, Price: -1})
+	require.ErrorIs(t, err, errInvalidPrice)
+
+	input := &BlockRFQHedgeLeg{Amount: 1, InstrumentName: btcPerpInstrument, Direction: strings.ToUpper(sideSELL), Price: 10}
+	got, err := validateBlockRFQHedge(input)
+	require.NoError(t, err)
+	assert.Equal(t, &BlockRFQHedgeLeg{Amount: 1, InstrumentName: btcPerpInstrument, Direction: sideSELL, Price: 10}, got)
+	assert.Equal(t, strings.ToUpper(sideSELL), input.Direction, "validateBlockRFQHedge should not mutate the caller input")
+}
+
+func createBlockRFQTestLegs() []CreateBlockRFQLeg {
+	return []CreateBlockRFQLeg{
+		{
+			InstrumentName: btcPerpInstrument,
+			Amount:         1,
+			Direction:      order.Buy.Lower(),
+		},
+	}
+}
+
+func TestBlockRFQQuoteCancelResponseUnmarshalCount(t *testing.T) {
+	t.Parallel()
+	var response BlockRFQQuoteCancelResponse
+	err := json.Unmarshal([]byte(`7`), &response)
+	require.NoError(t, err)
+	require.Equal(t, uint64(7), response.CancelCount)
+	require.Empty(t, response.Quotes)
+}
+
+func TestBlockRFQQuoteCancelResponseUnmarshalQuotes(t *testing.T) {
+	t.Parallel()
+	var response BlockRFQQuoteCancelResponse
+	err := json.Unmarshal([]byte(`[{"block_rfq_quote_id": 42, "block_rfq_id": 21}]`), &response)
+	require.NoError(t, err)
+	require.Equal(t, uint64(1), response.CancelCount)
+	require.Len(t, response.Quotes, 1)
+	require.Equal(t, uint64(42), response.Quotes[0].BlockRFQQuoteID)
+	require.Equal(t, uint64(21), response.Quotes[0].BlockRFQID)
+}
+
+func TestBlockRFQQuoteCancelResponseUnmarshalEmpty(t *testing.T) {
+	t.Parallel()
+	var response BlockRFQQuoteCancelResponse
+	err := response.UnmarshalJSON([]byte(" \t\n"))
+	require.ErrorIs(t, err, errEmptyBlockRFQQuoteCancelResponse)
+	assert.ErrorContains(t, err, "\" \\t\\n\"")
+}
+
+func TestBlockRFQQuoteCancelResponseUnmarshalInvalid(t *testing.T) {
+	t.Parallel()
+	var response BlockRFQQuoteCancelResponse
+	err := json.Unmarshal([]byte(`{"unexpected":true}`), &response)
+	require.ErrorIs(t, err, errInvalidBlockRFQQuoteCancelResponse)
+	assert.ErrorContains(t, err, `"{\"unexpected\":true}"`)
+}
+
+func TestBrokerTradeUserIDUnmarshalError(t *testing.T) {
+	t.Parallel()
+	var userID BrokerTradeUserID
+	err := json.Unmarshal([]byte(`{}`), &userID)
+	require.ErrorIs(t, err, errInvalidBrokerTradeUserID)
+	assert.ErrorContains(t, err, "\"{}\"")
+}
+
+func TestCreateBlockRFQ(t *testing.T) {
+	t.Parallel()
+	_, err := e.CreateBlockRFQ(t.Context(), nil)
+	require.ErrorIs(t, err, errNoArgumentPassed)
+	_, err = e.CreateBlockRFQ(t.Context(), &CreateBlockRFQRequest{})
+	require.ErrorIs(t, err, errNoArgumentPassed)
+	_, err = e.CreateBlockRFQ(t.Context(), &CreateBlockRFQRequest{Legs: []CreateBlockRFQLeg{{Amount: 1, Direction: order.Buy.Lower()}}})
+	require.ErrorIs(t, err, errInvalidInstrumentName)
+	_, err = e.CreateBlockRFQ(t.Context(), &CreateBlockRFQRequest{Legs: createBlockRFQTestLegs(), TradeAllocations: []BlockRFQTradeAllocation{{Amount: 1}}})
+	require.ErrorIs(t, err, errUserIDOrClientInfoRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	_, err = e.CreateBlockRFQ(t.Context(), &CreateBlockRFQRequest{Legs: createBlockRFQTestLegs(), Label: "gct-block-rfq-test"})
+	require.NoError(t, err)
+}
+
+func TestWSCreateBlockRFQ(t *testing.T) {
+	t.Parallel()
+	_, err := e.WSCreateBlockRFQ(t.Context(), nil)
+	require.ErrorIs(t, err, errNoArgumentPassed)
+	_, err = e.WSCreateBlockRFQ(t.Context(), &CreateBlockRFQRequest{})
+	require.ErrorIs(t, err, errNoArgumentPassed)
+	_, err = e.WSCreateBlockRFQ(t.Context(), &CreateBlockRFQRequest{Legs: []CreateBlockRFQLeg{{Amount: 1, Direction: order.Buy.Lower()}}})
+	require.ErrorIs(t, err, errInvalidInstrumentName)
+	_, err = e.WSCreateBlockRFQ(t.Context(), &CreateBlockRFQRequest{Legs: createBlockRFQTestLegs(), TradeAllocations: []BlockRFQTradeAllocation{{Amount: 1}}})
+	require.ErrorIs(t, err, errUserIDOrClientInfoRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	_, err = e.WSCreateBlockRFQ(t.Context(), &CreateBlockRFQRequest{Legs: createBlockRFQTestLegs(), Label: "gct-block-rfq-test"})
+	require.NoError(t, err)
+}
+
+func TestAddBlockRFQQuote(t *testing.T) {
+	t.Parallel()
+	_, err := e.AddBlockRFQQuote(t.Context(), nil)
+	require.ErrorIs(t, err, errNoArgumentPassed)
+	_, err = e.AddBlockRFQQuote(t.Context(), &AddBlockRFQQuoteRequest{BlockRFQID: 0, Amount: 1, Price: 10, Direction: order.Buy.Lower()})
+	require.ErrorIs(t, err, errMissingBlockRFQID)
+	_, err = e.AddBlockRFQQuote(t.Context(), &AddBlockRFQQuoteRequest{BlockRFQID: 1, Amount: -1, Price: 10, Direction: order.Buy.Lower()})
+	require.ErrorIs(t, err, errInvalidAmount)
+	_, err = e.AddBlockRFQQuote(t.Context(), &AddBlockRFQQuoteRequest{BlockRFQID: 1, Amount: 1, Price: 10, Direction: "sideways"})
+	require.ErrorIs(t, err, errInvalidOrderSideOrDirection)
+	_, err = e.AddBlockRFQQuote(t.Context(), &AddBlockRFQQuoteRequest{BlockRFQID: 1, Amount: 1, Price: -1})
+	require.ErrorIs(t, err, errInvalidPrice)
+	_, err = e.AddBlockRFQQuote(t.Context(), &AddBlockRFQQuoteRequest{BlockRFQID: 1, Amount: 1, Price: -1, Direction: order.Buy.Lower()})
+	require.ErrorIs(t, err, errInvalidPrice)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	_, err = e.AddBlockRFQQuote(t.Context(), &AddBlockRFQQuoteRequest{BlockRFQID: 1 << 62, Amount: 1, Price: 10, Direction: order.Buy.Lower(), Label: "gct-block-rfq-quote"})
+	require.NoError(t, err)
+}
+
+func TestWSAddBlockRFQQuote(t *testing.T) {
+	t.Parallel()
+	_, err := e.WSAddBlockRFQQuote(t.Context(), nil)
+	require.ErrorIs(t, err, errNoArgumentPassed)
+	_, err = e.WSAddBlockRFQQuote(t.Context(), &AddBlockRFQQuoteRequest{BlockRFQID: 0, Amount: 1, Price: 10, Direction: order.Buy.Lower()})
+	require.ErrorIs(t, err, errMissingBlockRFQID)
+	_, err = e.WSAddBlockRFQQuote(t.Context(), &AddBlockRFQQuoteRequest{BlockRFQID: 1, Amount: -1, Price: 10, Direction: order.Buy.Lower()})
+	require.ErrorIs(t, err, errInvalidAmount)
+	_, err = e.WSAddBlockRFQQuote(t.Context(), &AddBlockRFQQuoteRequest{BlockRFQID: 1, Amount: 1, Price: 10, Direction: "sideways"})
+	require.ErrorIs(t, err, errInvalidOrderSideOrDirection)
+	_, err = e.WSAddBlockRFQQuote(t.Context(), &AddBlockRFQQuoteRequest{BlockRFQID: 1, Amount: 1, Price: -1})
+	require.ErrorIs(t, err, errInvalidPrice)
+	_, err = e.WSAddBlockRFQQuote(t.Context(), &AddBlockRFQQuoteRequest{BlockRFQID: 1, Amount: 1, Price: -1, Direction: order.Buy.Lower()})
+	require.ErrorIs(t, err, errInvalidPrice)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	_, err = e.WSAddBlockRFQQuote(t.Context(), &AddBlockRFQQuoteRequest{BlockRFQID: 1 << 62, Amount: 1, Price: 10, Direction: order.Buy.Lower(), Label: "gct-block-rfq-quote"})
+	require.NoError(t, err)
+}
+
+func TestEditBlockRFQQuote(t *testing.T) {
+	t.Parallel()
+	_, err := e.EditBlockRFQQuote(t.Context(), nil)
+	require.ErrorIs(t, err, errNoArgumentPassed)
+	_, err = e.EditBlockRFQQuote(t.Context(), &EditBlockRFQQuoteRequest{BlockRFQQuoteID: 0, Amount: 1, Price: 10})
+	require.ErrorIs(t, err, errMissingBlockRFQQuoteIdentifier)
+	_, err = e.EditBlockRFQQuote(t.Context(), &EditBlockRFQQuoteRequest{BlockRFQQuoteID: 1, Amount: 1, Price: -1})
+	require.ErrorIs(t, err, errInvalidPrice)
+	_, err = e.EditBlockRFQQuote(t.Context(), &EditBlockRFQQuoteRequest{BlockRFQID: 1, Label: "test", Amount: -1})
+	require.ErrorIs(t, err, errInvalidAmount, "request must support identification via block_rfq_id + label without quote ID")
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	_, err = e.EditBlockRFQQuote(t.Context(), &EditBlockRFQQuoteRequest{BlockRFQQuoteID: 1 << 62, Amount: 1, Price: 10, Label: "gct-block-rfq-quote"})
+	require.NoError(t, err)
+}
+
+func TestWSEditBlockRFQQuote(t *testing.T) {
+	t.Parallel()
+	_, err := e.WSEditBlockRFQQuote(t.Context(), nil)
+	require.ErrorIs(t, err, errNoArgumentPassed)
+	_, err = e.WSEditBlockRFQQuote(t.Context(), &EditBlockRFQQuoteRequest{BlockRFQQuoteID: 0, Amount: 1, Price: 10})
+	require.ErrorIs(t, err, errMissingBlockRFQQuoteIdentifier)
+	_, err = e.WSEditBlockRFQQuote(t.Context(), &EditBlockRFQQuoteRequest{BlockRFQQuoteID: 1, Amount: 1, Price: -1})
+	require.ErrorIs(t, err, errInvalidPrice)
+	_, err = e.WSEditBlockRFQQuote(t.Context(), &EditBlockRFQQuoteRequest{BlockRFQID: 1, Label: "test", Amount: -1})
+	require.ErrorIs(t, err, errInvalidAmount, "request must support identification via block_rfq_id + label without quote ID")
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	_, err = e.WSEditBlockRFQQuote(t.Context(), &EditBlockRFQQuoteRequest{BlockRFQQuoteID: 1 << 62, Amount: 1, Price: 10, Label: "gct-block-rfq-quote"})
+	require.NoError(t, err)
+}
+
+func TestCancelBlockRFQQuote(t *testing.T) {
+	t.Parallel()
+	_, err := e.CancelBlockRFQQuote(t.Context(), 0, 0, "")
+	require.ErrorIs(t, err, errMissingBlockRFQQuoteIdentifier)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	_, err = e.CancelBlockRFQQuote(t.Context(), 1<<62, 0, "")
+	require.NoError(t, err)
+}
+
+func TestWSCancelBlockRFQQuote(t *testing.T) {
+	t.Parallel()
+	_, err := e.WSCancelBlockRFQQuote(t.Context(), 0, 0, "")
+	require.ErrorIs(t, err, errMissingBlockRFQQuoteIdentifier)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	_, err = e.WSCancelBlockRFQQuote(t.Context(), 1<<62, 0, "")
+	require.NoError(t, err)
+}
+
+func TestCancelAllBlockRFQQuotes(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	_, err := e.CancelAllBlockRFQQuotes(t.Context(), 0, false)
+	require.NoError(t, err)
+}
+
+func TestWSCancelAllBlockRFQQuotes(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	_, err := e.WSCancelAllBlockRFQQuotes(t.Context(), 0, false)
+	require.NoError(t, err)
+}
+
+func TestCancelBlockRFQ(t *testing.T) {
+	t.Parallel()
+	_, err := e.CancelBlockRFQ(t.Context(), 0)
+	require.ErrorIs(t, err, errMissingBlockRFQID)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	_, err = e.CancelBlockRFQ(t.Context(), 1<<62)
+	require.NoError(t, err)
+}
+
+func TestWSCancelBlockRFQ(t *testing.T) {
+	t.Parallel()
+	_, err := e.WSCancelBlockRFQ(t.Context(), 0)
+	require.ErrorIs(t, err, errMissingBlockRFQID)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	_, err = e.WSCancelBlockRFQ(t.Context(), 1<<62)
+	require.NoError(t, err)
+}
+
+func TestCancelBlockRFQTrigger(t *testing.T) {
+	t.Parallel()
+	_, err := e.CancelBlockRFQTrigger(t.Context(), 0)
+	require.ErrorIs(t, err, errMissingBlockRFQID)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	_, err = e.CancelBlockRFQTrigger(t.Context(), 1<<62)
+	require.NoError(t, err)
+}
+
+func TestWSCancelBlockRFQTrigger(t *testing.T) {
+	t.Parallel()
+	_, err := e.WSCancelBlockRFQTrigger(t.Context(), 0)
+	require.ErrorIs(t, err, errMissingBlockRFQID)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	_, err = e.WSCancelBlockRFQTrigger(t.Context(), 1<<62)
+	require.NoError(t, err)
+}
+
+func TestAcceptBlockRFQ(t *testing.T) {
+	t.Parallel()
+	_, err := e.AcceptBlockRFQ(t.Context(), nil)
+	require.ErrorIs(t, err, errNoArgumentPassed)
+	_, err = e.AcceptBlockRFQ(t.Context(), &AcceptBlockRFQRequest{BlockRFQID: 0})
+	require.ErrorIs(t, err, errMissingBlockRFQID)
+	_, err = e.AcceptBlockRFQ(t.Context(), &AcceptBlockRFQRequest{BlockRFQID: 1, Amount: -1})
+	require.ErrorIs(t, err, errInvalidAmount)
+	_, err = e.AcceptBlockRFQ(t.Context(), &AcceptBlockRFQRequest{BlockRFQID: 1, Price: -1})
+	require.ErrorIs(t, err, errInvalidPrice)
+	_, err = e.AcceptBlockRFQ(t.Context(), &AcceptBlockRFQRequest{BlockRFQID: 1, Direction: "sideways"})
+	require.ErrorIs(t, err, errInvalidOrderSideOrDirection)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	_, err = e.AcceptBlockRFQ(t.Context(), &AcceptBlockRFQRequest{BlockRFQID: 1 << 62, Amount: 1, Price: 10, Direction: "buy"})
+	require.NoError(t, err)
+}
+
+func TestWSAcceptBlockRFQ(t *testing.T) {
+	t.Parallel()
+	_, err := e.WSAcceptBlockRFQ(t.Context(), nil)
+	require.ErrorIs(t, err, errNoArgumentPassed)
+	_, err = e.WSAcceptBlockRFQ(t.Context(), &AcceptBlockRFQRequest{BlockRFQID: 0})
+	require.ErrorIs(t, err, errMissingBlockRFQID)
+	_, err = e.WSAcceptBlockRFQ(t.Context(), &AcceptBlockRFQRequest{BlockRFQID: 1, Amount: -1})
+	require.ErrorIs(t, err, errInvalidAmount)
+	_, err = e.WSAcceptBlockRFQ(t.Context(), &AcceptBlockRFQRequest{BlockRFQID: 1, Price: -1})
+	require.ErrorIs(t, err, errInvalidPrice)
+	_, err = e.WSAcceptBlockRFQ(t.Context(), &AcceptBlockRFQRequest{BlockRFQID: 1, Direction: "sideways"})
+	require.ErrorIs(t, err, errInvalidOrderSideOrDirection)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	_, err = e.WSAcceptBlockRFQ(t.Context(), &AcceptBlockRFQRequest{BlockRFQID: 1 << 62, Amount: 1, Price: 10, Direction: "buy"})
+	require.NoError(t, err)
+}
+
+func TestGetBlockRFQs(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetBlockRFQs(t.Context(), nil)
+	require.ErrorIs(t, err, errNoArgumentPassed)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err = e.GetBlockRFQs(t.Context(), &GetBlockRFQsRequest{Count: 10})
+	require.NoError(t, err)
+}
+
+func TestWSRetrieveBlockRFQs(t *testing.T) {
+	t.Parallel()
+	_, err := e.WSRetrieveBlockRFQs(t.Context(), nil)
+	require.ErrorIs(t, err, errNoArgumentPassed)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err = e.WSRetrieveBlockRFQs(t.Context(), &GetBlockRFQsRequest{Count: 10})
+	require.NoError(t, err)
+}
+
+func TestGetBlockRFQQuotes(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.GetBlockRFQQuotes(t.Context(), 0, 0, "")
+	require.NoError(t, err)
+}
+
+func TestWSRetrieveBlockRFQQuotes(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.WSRetrieveBlockRFQQuotes(t.Context(), 0, 0, "")
+	require.NoError(t, err)
+}
+
+func TestGetBlockRFQMakers(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.GetBlockRFQMakers(t.Context())
+	require.NoError(t, err)
+}
+
+func TestWSRetrieveBlockRFQMakers(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.WSRetrieveBlockRFQMakers(t.Context())
+	require.NoError(t, err)
+}
+
+func TestGetBlockRFQUserInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.GetBlockRFQUserInfo(t.Context())
+	require.NoError(t, err)
+}
+
+func TestWSRetrieveBlockRFQUserInfo(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.WSRetrieveBlockRFQUserInfo(t.Context())
+	require.NoError(t, err)
+}
+
+func TestGetBlockRFQTrades(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetBlockRFQTrades(t.Context(), currency.EMPTYCODE, "", 5)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.GetBlockRFQTrades(t.Context(), currency.BTC, "", 10)
+	require.NoError(t, err)
+}
+
+func TestWSRetrieveBlockRFQTrades(t *testing.T) {
+	t.Parallel()
+	_, err := e.WSRetrieveBlockRFQTrades(t.Context(), currency.EMPTYCODE, "", 5)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.WSRetrieveBlockRFQTrades(t.Context(), currency.BTC, "", 10)
+	require.NoError(t, err)
 }
 
 func TestGetLastBlockTradesbyCurrency(t *testing.T) {
@@ -3214,7 +3929,7 @@ func TestSimulateBlockTrade(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	assert.NotNil(t, result)
+	assert.True(t, result)
 }
 
 func TestWsSimulateBlockTrade(t *testing.T) {
@@ -3273,7 +3988,7 @@ func TestWsSimulateBlockTrade(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	assert.NotNil(t, result)
+	assert.True(t, result)
 }
 
 func setupWs() {
@@ -3812,7 +4527,7 @@ func TestWSRetrieveCombos(t *testing.T) {
 	_, err := e.WSRetrieveCombos(t.Context(), currency.EMPTYCODE)
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	result, err := e.WSRetrieveCombos(t.Context(), futureComboTradablePair.Base)
+	result, err := e.WSRetrieveCombos(t.Context(), currency.BTC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
