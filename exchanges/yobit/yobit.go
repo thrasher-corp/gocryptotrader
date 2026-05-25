@@ -39,6 +39,8 @@ const (
 	privateRedeemCoupon           = "RedeemYobicode"
 )
 
+var errTickerDataNotFound = errors.New("ticker data not found in response")
+
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Yobit
 type Exchange struct {
 	exchange.Base
@@ -67,6 +69,9 @@ func (e *Exchange) GetTicker(ctx context.Context, symbol string) (map[string]Tic
 			continue
 		}
 		result[k] = t
+	}
+	if len(raw) > 0 && len(result) == 0 && !strings.Contains(symbol, "-") {
+		return nil, fmt.Errorf("%w for symbol request %q", errTickerDataNotFound, symbol)
 	}
 	return result, nil
 }

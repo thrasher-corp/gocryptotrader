@@ -225,7 +225,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		}
 		log.Infoln(log.WebsocketMgr, d)
 	case error:
-		return fmt.Errorf("exchange %s websocket error - %s", exchName, data)
+		return fmt.Errorf("exchange %s websocket error - %w", exchName, d)
 	case websocket.FundingData:
 		if !m.verbose {
 			return nil
