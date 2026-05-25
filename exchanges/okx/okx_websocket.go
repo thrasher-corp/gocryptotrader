@@ -56,7 +56,8 @@ var (
 	}
 )
 
-const wsOrderbookLevelsPoolCapacity = 64
+// wsOrderbookLevelsPoolCapacity follows OKX's "books" channel depth.
+const wsOrderbookLevelsPoolCapacity = 400
 
 const (
 	// allowableIterations use the first 25 bids and asks in the full load to form a string
@@ -1039,10 +1040,7 @@ func appendWsOrderbookItems(items orderbook.Levels, entries []WsOrderBookLevel) 
 
 // appendWsOrderbookItemsFromPool reuses pooled level slices to reduce allocations.
 func appendWsOrderbookItemsFromPool(entries []WsOrderBookLevel) (items orderbook.Levels, pooledItems *orderbook.Levels) {
-	pooledItems, ok := wsOrderbookLevelsPool.Get().(*orderbook.Levels)
-	if !ok {
-		panic(errUnexpectedOrderbookLevelsPoolType)
-	}
+	pooledItems = wsOrderbookLevelsPool.Get().(*orderbook.Levels)
 	items = *pooledItems
 	if cap(items) < len(entries) {
 		items = make(orderbook.Levels, len(entries))
