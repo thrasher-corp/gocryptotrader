@@ -603,10 +603,11 @@ func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 
 	tick, err := e.UpdateTicker(t.Context(), btcusdPair, asset.Spot)
-	assert.NoError(t, common.ExcludeError(err, ticker.ErrBidEqualsAsk), "UpdateTicker may only error about locked markets")
-	if err == nil {
-		assert.False(t, tick.LastUpdated.IsZero(), "UpdateTicker should populate LastUpdated")
+	require.NoError(t, common.ExcludeError(err, ticker.ErrBidEqualsAsk), "UpdateTicker may only error about locked markets")
+	if err != nil {
+		return
 	}
+	assert.False(t, tick.LastUpdated.IsZero(), "UpdateTicker should populate LastUpdated")
 }
 
 func TestUpdateTickersStoresTradingTimestampFromBatch(t *testing.T) {
@@ -1451,13 +1452,14 @@ func TestWSSubscribe(t *testing.T) {
 
 	subs, err := e.GetSubscriptions()
 	require.NoError(t, err, "GetSubscriptions must not error")
-	tickerSubs := make(subscription.List, 0, len(subs))
+	tickerSubs := make(subscription.List, 0, 1)
 	for i := range subs {
 		if subs[i].Channel == subscription.TickerChannel &&
 			subs[i].Asset == asset.Spot &&
 			len(subs[i].Pairs) == 1 &&
 			subs[i].Pairs[0].Equal(currency.NewBTCUSD()) {
 			tickerSubs = append(tickerSubs, subs[i])
+			break
 		}
 	}
 	require.NotEmpty(t, tickerSubs, "Expected at least one BTC/USD ticker subscription")

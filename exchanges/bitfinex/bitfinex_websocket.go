@@ -120,8 +120,8 @@ var subscriptionNames = map[string]string{
 }
 
 func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
-	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}); err != nil {
-		return fmt.Errorf("%v unable to connect to Websocket. Error: %s", e.Name, err)
+	if err := conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil); err != nil {
+		return fmt.Errorf("%s unable to connect to websocket: %w", e.Name, err)
 	}
 	return e.ConfigureWS(ctx, conn)
 }
@@ -520,7 +520,7 @@ func (e *Exchange) handleWSSubscribed(conn websocket.Connection, respRaw []byte)
 	if err != nil {
 		return fmt.Errorf("%w: %w subID: %s", websocket.ErrSubscriptionFailure, err, subID)
 	}
-	c.SetKey(int(chanID)) // chanID type avoids conflicts with string subID keys
+	c.SetKey(int(chanID)) // Channel update and unsubscribe paths use int keys.
 	err = e.Websocket.AddSuccessfulSubscriptions(conn, c)
 	if err != nil {
 		return fmt.Errorf("%w: %w subID: %s", websocket.ErrSubscriptionFailure, err, subID)

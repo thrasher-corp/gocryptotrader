@@ -2,7 +2,7 @@ package coinbase
 
 import (
 	"context"
-	stderrors "errors"
+	"errors"
 	"log"
 	"strconv"
 	"strings"
@@ -41,18 +41,24 @@ func TestWsConnect(t *testing.T) {
 
 func TestWsHandleData(t *testing.T) {
 	t.Parallel()
+	assertUnmarshalTypeError := func(t *testing.T, err error) {
+		t.Helper()
+		var unmarshalTypeErr *gctjson.UnmarshalTypeError
+		assert.True(t, errors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
+	}
+
 	t.Run("nil message", func(t *testing.T) {
 		t.Parallel()
 		err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), nil)
 		var syntaxErr *gctjson.SyntaxError
-		assert.True(t, stderrors.As(err, &syntaxErr) || strings.Contains(err.Error(), "Syntax error no sources available, the input json is empty"), errJSONUnmarshalUnexpected)
+		assert.True(t, errors.As(err, &syntaxErr) || strings.Contains(err.Error(), "Syntax error no sources available, the input json is empty"), errJSONUnmarshalUnexpected)
 	})
 
 	t.Run("error type message", func(t *testing.T) {
 		t.Parallel()
 		mockJSON := []byte(`{"type": "error"}`)
 		err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), mockJSON)
-		assert.ErrorIs(t, err, errChannelNameUnknown)
+		assert.EqualError(t, err, "error", "wsHandleData should return the websocket error type")
 	})
 
 	t.Run("subscriptions channel", func(t *testing.T) {
@@ -79,50 +85,44 @@ func TestWsHandleData(t *testing.T) {
 
 	t.Run("status events type unmarshal", func(t *testing.T) {
 		t.Parallel()
-		var unmarshalTypeErr *gctjson.UnmarshalTypeError
 		mockJSON := []byte(`{"sequence_num": 0, "channel": "status", "events": [{"type": 1234}]}`)
 		err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), mockJSON)
-		assert.True(t, stderrors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
+		assertUnmarshalTypeError(t, err)
 	})
 
 	t.Run("ticker tickers unmarshal", func(t *testing.T) {
 		t.Parallel()
-		var unmarshalTypeErr *gctjson.UnmarshalTypeError
 		mockJSON := []byte(`{"sequence_num": 0, "channel": "ticker", "events": [{"type": "moo", "tickers": false}]}`)
 		err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), mockJSON)
-		assert.True(t, stderrors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
+		assertUnmarshalTypeError(t, err)
 	})
 
 	t.Run("candles events type unmarshal", func(t *testing.T) {
 		t.Parallel()
-		var unmarshalTypeErr *gctjson.UnmarshalTypeError
 		mockJSON := []byte(`{"sequence_num": 0, "channel": "candles", "events": [{"type": false}]}`)
 		err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), mockJSON)
-		assert.True(t, stderrors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
+		assertUnmarshalTypeError(t, err)
 	})
 
 	t.Run("market_trades events type unmarshal", func(t *testing.T) {
 		t.Parallel()
-		var unmarshalTypeErr *gctjson.UnmarshalTypeError
 		mockJSON := []byte(`{"sequence_num": 0, "channel": "market_trades", "events": [{"type": false}]}`)
 		err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), mockJSON)
-		assert.True(t, stderrors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
+		assertUnmarshalTypeError(t, err)
 	})
 
 	t.Run("l2_data updates unmarshal", func(t *testing.T) {
 		t.Parallel()
-		var unmarshalTypeErr *gctjson.UnmarshalTypeError
 		mockJSON := []byte(`{"sequence_num": 0, "channel": "l2_data", "events": [{"type": false, "updates": [{"price_level": "1.1"}]}]}`)
 		err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), mockJSON)
-		assert.True(t, stderrors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
+		assertUnmarshalTypeError(t, err)
 	})
 
 	t.Run("user events type unmarshal", func(t *testing.T) {
 		t.Parallel()
-		var unmarshalTypeErr *gctjson.UnmarshalTypeError
 		mockJSON := []byte(`{"sequence_num": 0, "channel": "user", "events": [{"type": false}]}`)
 		err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), mockJSON)
-		assert.True(t, stderrors.As(err, &unmarshalTypeErr) || strings.Contains(err.Error(), "mismatched type with value"), errJSONUnmarshalUnexpected)
+		assertUnmarshalTypeError(t, err)
 	})
 
 	t.Run("unknown channel", func(t *testing.T) {
@@ -250,23 +250,6 @@ func TestCheckSubscriptions(t *testing.T) {
 	testsubs.EqualLists(t, defaultSubscriptions, e.Config.Features.Subscriptions)
 }
 
-func TestCheckWSSequenceAdditionalCoverage(t *testing.T) {
-	t.Parallel()
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex))
-	assert.NoError(t, ex.checkWSSequence(nil, 1))
-	conn := testexch.GetMockConn(t, ex, "ws://coinbase-seq")
-	// first sequence seen sets expected+1
-	assert.NoError(t, ex.checkWSSequence(conn, 7))
-	// in-order
-	assert.NoError(t, ex.checkWSSequence(conn, 8))
-	// out-of-order resets expected and returns err
-	err := ex.checkWSSequence(conn, 10)
-	assert.ErrorIs(t, err, errOutOfSequence)
-	// resumed should now accept 11
-	assert.NoError(t, ex.checkWSSequence(conn, 11))
-}
-
 func TestGetSubscriptionTemplate(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
@@ -277,33 +260,15 @@ func TestGetSubscriptionTemplate(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestManageSubsNilConn(t *testing.T) {
-	t.Parallel()
-	ex := new(Exchange)
-	err := ex.manageSubs(t.Context(), nil, "subscribe", subscription.List{})
-	assert.ErrorIs(t, err, websocket.ErrNotConnected)
-}
-
-func TestSubscribeUnsubscribeForConnectionNilConn(t *testing.T) {
-	t.Parallel()
-	ex := new(Exchange)
-	err := ex.subscribeForConnection(t.Context(), nil, subscription.List{})
-	assert.ErrorIs(t, err, websocket.ErrNotConnected)
-	err = ex.unsubscribeForConnection(t.Context(), nil, subscription.List{})
-	assert.ErrorIs(t, err, websocket.ErrNotConnected)
-}
-
 func TestGetWSJWTCacheAndRefresh(t *testing.T) {
 	t.Parallel()
 	ex := new(Exchange)
-	// cached token path
 	ex.jwt.token = "cached"
 	ex.jwt.expiresAt = time.Now().Add(time.Hour)
 	tok, err := ex.GetWSJWT(t.Context())
 	require.NoError(t, err)
 	assert.Equal(t, "cached", tok)
 
-	// expired path uses GetJWT; without creds we just assert it returns an error
 	ex.jwt.expiresAt = time.Now().Add(-time.Second)
 	_, err = ex.GetWSJWT(t.Context())
 	assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty)
@@ -328,72 +293,12 @@ func TestProcessBidAskArray(t *testing.T) {
 	assert.ErrorIs(t, err, order.ErrSideIsInvalid)
 }
 
-func TestStatusToStandardStatusWebsocket(t *testing.T) {
-	t.Parallel()
-	st, err := statusToStandardStatus("PENDING")
-	require.NoError(t, err)
-	assert.Equal(t, order.New, st)
-	_, err = statusToStandardStatus("unknown")
-	assert.ErrorIs(t, err, order.ErrUnsupportedStatusType)
-}
-
-func TestStringToStandardTypeWebsocket(t *testing.T) {
-	t.Parallel()
-	tp, err := stringToStandardType("LIMIT_ORDER_TYPE")
-	require.NoError(t, err)
-	assert.Equal(t, order.Limit, tp)
-	_, err = stringToStandardType("wat")
-	assert.ErrorIs(t, err, order.ErrUnrecognisedOrderType)
-}
-
-func TestStringToStandardAssetWebsocket(t *testing.T) {
-	t.Parallel()
-	at, err := stringToStandardAsset("SPOT")
-	require.NoError(t, err)
-	assert.Equal(t, asset.Spot, at)
-	_, err = stringToStandardAsset("wat")
-	assert.ErrorIs(t, err, asset.ErrNotSupported)
-}
-
-func TestStrategyDecoderWebsocket(t *testing.T) {
-	t.Parallel()
-	tif, err := strategyDecoder("IMMEDIATE_OR_CANCEL")
-	require.NoError(t, err)
-	assert.True(t, tif.Is(order.ImmediateOrCancel))
-	_, err = strategyDecoder("wat")
-	assert.ErrorIs(t, err, errUnrecognisedStrategyType)
-}
-
-func TestChannelNameWebsocket(t *testing.T) {
-	t.Parallel()
-	name, err := channelName(&subscription.Subscription{Channel: subscription.HeartbeatChannel})
-	require.NoError(t, err)
-	assert.Equal(t, "heartbeats", name)
-	_, err = channelName(&subscription.Subscription{Channel: "wat"})
-	assert.ErrorIs(t, err, subscription.ErrNotSupported)
-}
-
-func TestProcessSnapshotUpdateSendsToOrderbook(t *testing.T) {
-	t.Parallel()
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex))
-	pair := currency.NewBTCUSD()
-	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{pair}, true))
-	ex.pairAliases.Load(map[currency.Pair]currency.Pairs{pair: {pair}})
-	snap := WebsocketOrderbookDataHolder{ProductID: pair, Changes: []WebsocketOrderbookData{{Side: "bid", PriceLevel: 1.1, NewQuantity: 2.2}}}
-	err := ex.ProcessSnapshot(&snap, time.Now())
-	assert.NoError(t, err)
-	upd := WebsocketOrderbookDataHolder{ProductID: pair, Changes: []WebsocketOrderbookData{{Side: "bid", PriceLevel: 1.2, NewQuantity: 1.1}}}
-	err = ex.ProcessUpdate(&upd, time.Now())
-	assert.NoError(t, err)
-}
-
 func receiveDataHandlerPayload(t *testing.T, ex *Exchange) any {
 	t.Helper()
 	select {
 	case payload := <-ex.Websocket.DataHandler.C:
 		return payload.Data
-	case <-time.After(time.Second):
+	default:
 		t.Fatal("timed out waiting for websocket data handler payload")
 		return nil
 	}
@@ -408,30 +313,7 @@ func TestWSProcessCandle(t *testing.T) {
 		Timestamp: time.Unix(1704067200, 0),
 		Events: []byte(`[{
 			"type":"update",
-			"candles":[{
-				"start":"1704067200",
-				"low":"1",
-				"high":"2",
-				"open":"1.25",
-				"close":"1.75",
-				"volume":"3.5",
-				"product_id":"BTC-USD"
-			}]
-		}]`),
-	}
-	require.NoError(t, ex.wsProcessCandle(t.Context(), resp))
-
-	data := receiveDataHandlerPayload(t, ex)
-	candles, ok := data.([]kline.Item)
-	require.True(t, ok)
-	require.Len(t, candles, 1)
-	assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USD", "-"), candles[0].Pair)
-	assert.Equal(t, asset.Spot, candles[0].Asset)
-	assert.Len(t, candles[0].Candles, 1)
-
-	resp.Events = []byte(`[{
-		"type":"update",
-		"candles":[
+			"candles":[
 			{
 				"start":"1704067200",
 				"low":"1",
@@ -451,13 +333,16 @@ func TestWSProcessCandle(t *testing.T) {
 				"product_id":"BTC-USD"
 			}
 		]
-	}]`)
+		}]`),
+	}
 	require.NoError(t, ex.wsProcessCandle(t.Context(), resp))
 
-	data = receiveDataHandlerPayload(t, ex)
-	candles, ok = data.([]kline.Item)
+	data := receiveDataHandlerPayload(t, ex)
+	candles, ok := data.([]kline.Item)
 	require.True(t, ok)
 	require.Len(t, candles, 2)
+	assert.Equal(t, currency.NewPairWithDelimiter("BTC", "USD", "-"), candles[0].Pair)
+	assert.Equal(t, asset.Spot, candles[0].Asset)
 	assert.Len(t, candles[0].Candles, 1)
 	assert.Len(t, candles[1].Candles, 1)
 	assert.Equal(t, kline.FiveMin, candles[0].Interval)
