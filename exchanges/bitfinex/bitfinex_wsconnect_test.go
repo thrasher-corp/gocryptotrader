@@ -45,10 +45,11 @@ func TestWSConnectDialFailureSkipsConfigure(t *testing.T) {
 
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
-	conn := &wsConnectFixtureConnection{dialErr: errors.New("dial failed")}
+	errDialFailed := errors.New("dial failed")
+	conn := &wsConnectFixtureConnection{dialErr: errDialFailed}
 
 	err := ex.wsConnect(t.Context(), conn)
-	require.Error(t, err, "wsConnect must return an error when dial fails")
+	require.ErrorIs(t, err, errDialFailed, "wsConnect must return the dial error")
 	assert.Equal(t, int32(1), conn.dialCalls.Load(), "connection should dial once")
 	assert.Equal(t, int32(0), conn.sendJSONCalls.Load(), "ConfigureWS should not send when dial fails")
 }
