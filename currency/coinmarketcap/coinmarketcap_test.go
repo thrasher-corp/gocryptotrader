@@ -11,8 +11,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-var c Coinmarketcap
-
 // Please set API keys to test endpoint
 const (
 	apikey              = ""
@@ -36,14 +34,25 @@ func newConfiguredClient(t *testing.T) *Coinmarketcap {
 	c := &Coinmarketcap{}
 	c.SetDefaults()
 
+	plan := apiAccountPlanLevel
+	if plan == "" {
+		plan = "basic"
+	}
 	cfg := Settings{
 		APIKey:      apikey,
-		AccountPlan: "basic",
+		AccountPlan: plan,
 		Enabled:     true,
 	}
 	err := c.Setup(cfg)
 	require.NoError(t, err)
 	return c
+}
+
+func skipIfLiveCredentialsUnavailable(t *testing.T, c *Coinmarketcap, minAllowable uint8) {
+	t.Helper()
+	if !areAPICredtionalsSet(c, minAllowable) {
+		t.Skip("live CoinMarketCap credentials unavailable for this plan")
+	}
 }
 
 func TestSetDefaults(_ *testing.T) {
@@ -61,7 +70,9 @@ func TestSetup(t *testing.T) {
 	cfg.APIKey = apikey
 	cfg.AccountPlan = apiAccountPlanLevel
 	cfg.Enabled = true
-	cfg.AccountPlan = "basic"
+	if cfg.AccountPlan == "" {
+		cfg.AccountPlan = "basic"
+	}
 
 	err := c.Setup(cfg)
 	require.NoError(t, err)
@@ -97,24 +108,19 @@ func TestGetCryptocurrencyInfo(t *testing.T) {
 	t.Parallel()
 
 	c := newConfiguredClient(t)
+	skipIfLiveCredentialsUnavailable(t, c, Basic)
 	_, err := c.GetCryptocurrencyInfo(1)
-	if areAPICredtionalsSet(c, Basic) {
-		assert.NoError(t, err)
-	} else {
-		assert.Error(t, err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetCryptocurrencyIDMap(t *testing.T) {
 	t.Parallel()
 
 	c := newConfiguredClient(t)
+	skipIfLiveCredentialsUnavailable(t, c, Basic)
 	data, err := c.GetCryptocurrencyIDMap()
-	if areAPICredtionalsSet(c, Basic) {
-		assert.NoError(t, err)
-	} else if err == nil {
-		assert.NotEmpty(t, data)
-	}
+	assert.NoError(t, err)
+	assert.NotEmpty(t, data)
 }
 
 func TestGetCryptocurrencyHistoricalListings(t *testing.T) {
@@ -129,96 +135,72 @@ func TestGetCryptocurrencyLatestListing(t *testing.T) {
 	t.Parallel()
 
 	c := newConfiguredClient(t)
+	skipIfLiveCredentialsUnavailable(t, c, Basic)
 	_, err := c.GetCryptocurrencyLatestListing(0, 0)
-	if areAPICredtionalsSet(c, Basic) {
-		assert.NoError(t, err)
-	} else {
-		assert.Error(t, err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetCryptocurrencyLatestMarketPairs(t *testing.T) {
 	t.Parallel()
 
 	c := newConfiguredClient(t)
+	skipIfLiveCredentialsUnavailable(t, c, Standard)
 	_, err := c.GetCryptocurrencyLatestMarketPairs(1, 0, 0)
-	if areAPICredtionalsSet(c, Standard) {
-		assert.NoError(t, err)
-	} else {
-		assert.Error(t, err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetCryptocurrencyOHLCHistorical(t *testing.T) {
 	t.Parallel()
 
 	c := newConfiguredClient(t)
+	skipIfLiveCredentialsUnavailable(t, c, Standard)
 	_, err := c.GetCryptocurrencyOHLCHistorical(1, time.Now(), time.Now())
-	if areAPICredtionalsSet(c, Standard) {
-		assert.NoError(t, err)
-	} else {
-		assert.Error(t, err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetCryptocurrencyOHLCLatest(t *testing.T) {
 	t.Parallel()
 
 	c := newConfiguredClient(t)
+	skipIfLiveCredentialsUnavailable(t, c, Startup)
 	_, err := c.GetCryptocurrencyOHLCLatest(1)
-	if areAPICredtionalsSet(c, Startup) {
-		assert.NoError(t, err)
-	} else {
-		assert.Error(t, err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetCryptocurrencyLatestQuotes(t *testing.T) {
 	t.Parallel()
 
 	c := newConfiguredClient(t)
+	skipIfLiveCredentialsUnavailable(t, c, Basic)
 	_, err := c.GetCryptocurrencyLatestQuotes(1)
-	if areAPICredtionalsSet(c, Basic) {
-		assert.NoError(t, err)
-	} else {
-		assert.Error(t, err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetCryptocurrencyHistoricalQuotes(t *testing.T) {
 	t.Parallel()
 
 	c := newConfiguredClient(t)
+	skipIfLiveCredentialsUnavailable(t, c, Standard)
 	_, err := c.GetCryptocurrencyHistoricalQuotes(1, time.Now(), time.Now())
-	if areAPICredtionalsSet(c, Standard) {
-		assert.NoError(t, err)
-	} else {
-		assert.Error(t, err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetExchangeInfo(t *testing.T) {
 	t.Parallel()
 
 	c := newConfiguredClient(t)
+	skipIfLiveCredentialsUnavailable(t, c, Startup)
 	_, err := c.GetExchangeInfo(1)
-	if areAPICredtionalsSet(c, Startup) {
-		assert.NoError(t, err)
-	} else {
-		assert.Error(t, err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetExchangeMap(t *testing.T) {
 	t.Parallel()
 
 	c := newConfiguredClient(t)
+	skipIfLiveCredentialsUnavailable(t, c, Startup)
 	_, err := c.GetExchangeMap(0, 0)
-	if areAPICredtionalsSet(c, Startup) {
-		assert.NoError(t, err)
-	} else {
-		assert.Error(t, err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetExchangeHistoricalListings(t *testing.T) {
@@ -243,72 +225,54 @@ func TestGetExchangeLatestMarketPairs(t *testing.T) {
 	t.Parallel()
 
 	c := newConfiguredClient(t)
+	skipIfLiveCredentialsUnavailable(t, c, Standard)
 	_, err := c.GetExchangeLatestMarketPairs(1, 0, 0)
-	if areAPICredtionalsSet(c, Standard) {
-		assert.NoError(t, err)
-	} else {
-		assert.Error(t, err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetExchangeLatestQuotes(t *testing.T) {
 	t.Parallel()
 
 	c := newConfiguredClient(t)
+	skipIfLiveCredentialsUnavailable(t, c, Standard)
 	_, err := c.GetExchangeLatestQuotes(1)
-	if areAPICredtionalsSet(c, Standard) {
-		assert.NoError(t, err)
-	} else {
-		assert.Error(t, err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetExchangeHistoricalQuotes(t *testing.T) {
 	t.Parallel()
 
 	c := newConfiguredClient(t)
+	skipIfLiveCredentialsUnavailable(t, c, Standard)
 	_, err := c.GetExchangeHistoricalQuotes(1, time.Now(), time.Now())
-	if areAPICredtionalsSet(c, Standard) {
-		assert.NoError(t, err)
-	} else {
-		assert.Error(t, err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetGlobalMeticLatestQuotes(t *testing.T) {
 	t.Parallel()
 
 	c := newConfiguredClient(t)
+	skipIfLiveCredentialsUnavailable(t, c, Basic)
 	_, err := c.GetGlobalMeticLatestQuotes()
-	if areAPICredtionalsSet(c, Basic) {
-		assert.NoError(t, err)
-	} else {
-		assert.Error(t, err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetGlobalMeticHistoricalQuotes(t *testing.T) {
 	t.Parallel()
 
 	c := newConfiguredClient(t)
+	skipIfLiveCredentialsUnavailable(t, c, Standard)
 	_, err := c.GetGlobalMeticHistoricalQuotes(time.Now(), time.Now())
-	if areAPICredtionalsSet(c, Standard) {
-		assert.NoError(t, err)
-	} else {
-		assert.Error(t, err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetPriceConversion(t *testing.T) {
 	t.Parallel()
 
 	c := newConfiguredClient(t)
+	skipIfLiveCredentialsUnavailable(t, c, Hobbyist)
 	_, err := c.GetPriceConversion(0, 1, time.Now())
-	if areAPICredtionalsSet(c, Hobbyist) {
-		assert.NoError(t, err)
-	} else {
-		assert.Error(t, err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestSetAccountPlan(t *testing.T) {
