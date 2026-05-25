@@ -2006,7 +2006,7 @@ func TestWSFundingLoanSnapshotAndUpdate(t *testing.T) {
 	}
 }
 
-func TestWSAccountAndFundingUpdates(t *testing.T) {
+func TestWSAccountFundingUpdates(t *testing.T) {
 	t.Parallel()
 	tests := map[string]string{
 		"wallet snapshot":    `[0,"ws",[["exchange","SAN",19.76,0,null,null,null]]]`,
