@@ -969,7 +969,7 @@ func TestSubscribeForConnection(t *testing.T) {
 	}
 }
 
-func TestSubscribeForConnectionResubscribeAndUnsubscribe(t *testing.T) {
+func TestSubscribeForConnectionResubscribe(t *testing.T) {
 	t.Parallel()
 
 	k := mockWsInstance(t, curryWsMockUpgrader(t, mockWsServer))
@@ -992,6 +992,24 @@ func TestSubscribeForConnectionResubscribeAndUnsubscribe(t *testing.T) {
 		got := k.Websocket.GetSubscription(sub)
 		return got != nil && got.State() == subscription.SubscribedState
 	}, time.Second, 10*time.Millisecond, "resubscribing subscription must transition to subscribed state")
+}
+
+func TestUnsubscribeForConnection(t *testing.T) {
+	t.Parallel()
+
+	k := mockWsInstance(t, curryWsMockUpgrader(t, mockWsServer))
+
+	conn, err := k.Websocket.GetConnection("auth")
+	require.NoError(t, err, "GetConnection must not error")
+
+	sub := &subscription.Subscription{
+		Asset:            asset.Spot,
+		Channel:          subscription.TickerChannel,
+		QualifiedChannel: channelName(&subscription.Subscription{Channel: subscription.TickerChannel}),
+		Pairs:            currency.Pairs{spotTestPair},
+	}
+
+	require.NoError(t, k.Websocket.AddSubscriptions(conn, sub), "AddSubscriptions must not error")
 
 	require.NoError(t, k.unsubscribeForConnection(t.Context(), conn, subscription.List{sub}), "unsubscribeForConnection must not error")
 	require.Eventually(t, func() bool {
