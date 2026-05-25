@@ -657,14 +657,18 @@ func (e *Exchange) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*orde
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *Exchange) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
+func (e *Exchange) CancelAllOrders(ctx context.Context, _ *order.Cancel) (*order.CancelAllResponse, error) {
 	var err error
 	if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		err = e.WsCancelAllOrders(ctx)
 	} else {
 		_, err = e.CancelAllExistingOrders(ctx)
 	}
-	return order.CancelAllResponse{}, err
+	if err != nil {
+		return nil, err
+	}
+	var resp order.CancelAllResponse
+	return &resp, nil
 }
 
 func (e *Exchange) parseOrderToOrderDetail(o *Order) (*order.Detail, error) {

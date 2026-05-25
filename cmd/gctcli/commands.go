@@ -1923,13 +1923,21 @@ func cancelBatchOrders(c *cli.Context) error {
 
 var cancelAllOrdersCommand = &cli.Command{
 	Name:      "cancelallorders",
-	Usage:     "cancels all orders (all or by exchange name)",
-	ArgsUsage: "<exchange>",
+	Usage:     "cancels all orders, optionally scoped by asset and pair",
+	ArgsUsage: "<exchange> [asset] [pair]",
 	Action:    cancelAllOrders,
 	Flags: []cli.Flag{
 		&cli.StringFlag{
 			Name:  "exchange",
 			Usage: "the exchange to cancel all orders on",
+		},
+		&cli.StringFlag{
+			Name:  "asset",
+			Usage: "optional asset type for exchanges requiring a scoped cancel all request",
+		},
+		&cli.StringFlag{
+			Name:  "pair",
+			Usage: "optional trading pair for exchanges requiring a scoped cancel all request",
 		},
 	},
 }
@@ -1969,10 +1977,43 @@ var modifyOrderCommand = &cli.Command{
 
 func cancelAllOrders(c *cli.Context) error {
 	var exchangeName string
+	var assetType string
+	var currencyPair string
 	if c.IsSet("exchange") {
 		exchangeName = c.String("exchange")
 	} else {
 		exchangeName = c.Args().First()
+	}
+
+	if c.IsSet("asset") {
+		assetType = c.String("asset")
+	} else {
+		assetType = c.Args().Get(1)
+	}
+	assetType = strings.ToLower(assetType)
+	if assetType != "" && !validAsset(assetType) {
+		return errInvalidAsset
+	}
+
+	if c.IsSet("pair") {
+		currencyPair = c.String("pair")
+	} else {
+		currencyPair = c.Args().Get(2)
+	}
+
+	var p currency.Pair
+	if currencyPair != "" {
+		if assetType == "" {
+			return errInvalidAsset
+		}
+		if !validPair(currencyPair) {
+			return errInvalidPair
+		}
+		var err error
+		p, err = currency.NewPairDelimiter(currencyPair, pairDelimiter)
+		if err != nil {
+			return err
+		}
 	}
 
 	conn, cancel, err := setupClient(c)
@@ -1982,9 +2023,19 @@ func cancelAllOrders(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.CancelAllOrders(c.Context, &gctrpc.CancelAllOrdersRequest{
-		Exchange: exchangeName,
-	})
+	req := &gctrpc.CancelAllOrdersRequest{
+		Exchange:  exchangeName,
+		AssetType: assetType,
+	}
+	if !p.IsEmpty() {
+		req.Pair = &gctrpc.CurrencyPair{
+			Delimiter: p.Delimiter,
+			Base:      p.Base.String(),
+			Quote:     p.Quote.String(),
+		}
+	}
+
+	result, err := client.CancelAllOrders(c.Context, req)
 	if err != nil {
 		return err
 	}

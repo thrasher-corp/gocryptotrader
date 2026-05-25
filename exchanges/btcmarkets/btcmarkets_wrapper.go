@@ -542,11 +542,27 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *Exchange) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
-	resp := order.CancelAllResponse{Status: map[string]string{}}
-	orders, err := e.GetOrders(ctx, "", -1, -1, -1, true)
+func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (*order.CancelAllResponse, error) {
+	var resp order.CancelAllResponse
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+	if req.Pair.IsEmpty() {
+		return nil, order.ErrPairRequiredForCancelAllFanout
+	}
+	fPair, err := e.FormatExchangeCurrency(req.Pair, req.AssetType)
 	if err != nil {
-		return resp, err
+		if len(resp.Status) > 0 {
+			return &resp, err
+		}
+		return nil, err
+	}
+	orders, err := e.GetOrders(ctx, fPair.String(), -1, -1, -1, true)
+	if err != nil {
+		if len(resp.Status) > 0 {
+			return &resp, err
+		}
+		return nil, err
 	}
 
 	orderIDs := make([]string, len(orders))
@@ -556,16 +572,19 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.
 	for _, batch := range common.Batch(orderIDs, 20) {
 		cancelResp, err := e.CancelBatch(ctx, batch)
 		if err != nil {
-			return resp, err
+			if len(resp.Status) > 0 {
+				return &resp, err
+			}
+			return nil, err
 		}
 		for _, r := range cancelResp.CancelOrders {
-			resp.Status[r.OrderID] = "Success"
+			resp.Add(r.OrderID, "Success")
 		}
 		for _, r := range cancelResp.UnprocessedRequests {
-			resp.Status[r.RequestID] = "Cancellation Failed"
+			resp.Add(r.RequestID, "Cancellation Failed")
 		}
 	}
-	return resp, nil
+	return &resp, nil
 }
 
 // GetOrderInfo returns order information based on order ID

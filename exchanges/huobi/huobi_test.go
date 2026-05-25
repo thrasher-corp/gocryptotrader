@@ -1193,6 +1193,12 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
+
+	for _, a := range []asset.Item{asset.Spot, asset.CoinMarginedFutures, asset.Futures} {
+		_, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: a})
+		assert.ErrorIsf(t, err, order.ErrPairRequiredForCancelAllFanout, "CancelAllOrders should require an explicit pair to avoid fan-out for asset %s", a)
+	}
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
 	orderCancellation := order.Cancel{

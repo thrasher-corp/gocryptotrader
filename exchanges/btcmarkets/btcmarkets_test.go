@@ -389,6 +389,13 @@ func TestBatchPlaceCancelOrders(t *testing.T) {
 	}
 }
 
+func TestCancelAllOrders(t *testing.T) {
+	t.Parallel()
+
+	_, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
+	assert.ErrorIs(t, err, order.ErrPairRequiredForCancelAllFanout, "CancelAllOrders should require an explicit pair to avoid fan-out")
+}
+
 func TestGetBatchTrades(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)

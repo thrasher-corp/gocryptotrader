@@ -442,24 +442,39 @@ func (e *Exchange) GetServerTime(_ context.Context, _ asset.Item) (time.Time, er
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *Exchange) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
-	cancelAllOrdersResponse := order.CancelAllResponse{
-		Status: make(map[string]string),
+func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (*order.CancelAllResponse, error) {
+	var cancelAllOrdersResponse order.CancelAllResponse
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+	if req.Pair.IsEmpty() {
+		return nil, order.ErrPairRequiredForCancelAllFanout
+	}
+	fPair, err := e.FormatExchangeCurrency(req.Pair, req.AssetType)
+	if err != nil {
+		if len(cancelAllOrdersResponse.Status) > 0 {
+			return &cancelAllOrdersResponse, err
+		}
+		return nil, err
 	}
 
 	openOrders, err := e.GetOpenOrders(ctx)
 	if err != nil {
-		return cancelAllOrdersResponse, err
-	}
-
-	for i := range openOrders {
-		err = e.CancelExistingOrder(ctx, openOrders[i].OrderID)
-		if err != nil {
-			cancelAllOrdersResponse.Status[strconv.FormatInt(openOrders[i].OrderID, 10)] = err.Error()
+		if len(cancelAllOrdersResponse.Status) > 0 {
+			return &cancelAllOrdersResponse, err
 		}
+		return nil, err
+	}
+	orderData, ok := openOrders[fPair.String()]
+	if !ok {
+		return &cancelAllOrdersResponse, nil
 	}
 
-	return cancelAllOrdersResponse, nil
+	if err := e.CancelExistingOrder(ctx, orderData.OrderID); err != nil {
+		cancelAllOrdersResponse.Add(strconv.FormatInt(orderData.OrderID, 10), err.Error())
+	}
+
+	return &cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns order information based on order ID

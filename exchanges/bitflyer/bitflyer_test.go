@@ -336,20 +336,41 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	currencyPair := currency.NewPair(currency.LTC, currency.BTC)
-	orderCancellation := &order.Cancel{
-		OrderID:   "1",
-		AccountID: "1",
-		Pair:      currencyPair,
-		AssetType: asset.Spot,
+	testCases := []struct {
+		name     string
+		request  *order.Cancel
+		expected error
+	}{
+		{
+			name:     "nil request",
+			expected: order.ErrCancelOrderIsNil,
+		},
+		{
+			name: "empty pair",
+			request: &order.Cancel{
+				AssetType: asset.Spot,
+			},
+			expected: order.ErrPairRequiredForCancelAllFanout,
+		},
+		{
+			name: "explicit pair",
+			request: &order.Cancel{
+				OrderID:   "1",
+				AccountID: "1",
+				Pair:      currency.NewPair(currency.LTC, currency.BTC),
+				AssetType: asset.Spot,
+			},
+			expected: common.ErrNotYetImplemented,
+		},
 	}
 
-	_, err := e.CancelAllOrders(t.Context(), orderCancellation)
-
-	if err != common.ErrNotYetImplemented {
-		t.Errorf("Expected 'Not Yet Implemented', received %v", err)
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := e.CancelAllOrders(t.Context(), tt.request)
+			assert.ErrorIs(t, err, tt.expected, "CancelAllOrders should return expected error")
+		})
 	}
 }
 

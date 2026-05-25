@@ -25,10 +25,12 @@ var (
 	ErrAmountIsInvalid            = errors.New("order amount is equal or less than zero")
 	ErrPriceMustBeSetIfLimitOrder = errors.New("order price must be set if limit order type is desired")
 	ErrOrderIDNotSet              = errors.New("order id or client order id is not set")
-	ErrSubmitLeverageNotSupported = errors.New("leverage is not supported via order submission")
-	ErrClientOrderIDNotSupported  = errors.New("client order id not supported")
-	ErrUnsupportedOrderType       = errors.New("unsupported order type")
-	ErrUnsupportedStatusType      = errors.New("unsupported status type")
+	// ErrPairRequiredForCancelAllFanout is returned when a cancel-all wrapper would otherwise cancel by enumerating pairs or orders.
+	ErrPairRequiredForCancelAllFanout = errors.New("explicit currency pair required to avoid cancel all order fan-out")
+	ErrSubmitLeverageNotSupported     = errors.New("leverage is not supported via order submission")
+	ErrClientOrderIDNotSupported      = errors.New("client order id not supported")
+	ErrUnsupportedOrderType           = errors.New("unsupported order type")
+	ErrUnsupportedStatusType          = errors.New("unsupported status type")
 	// ErrNoRates is returned when no margin rates are returned when they are expected
 	ErrNoRates         = errors.New("no rates")
 	ErrCannotLiquidate = errors.New("cannot liquidate position")

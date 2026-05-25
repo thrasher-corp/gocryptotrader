@@ -319,6 +319,13 @@ func TestCancelOrder(t *testing.T) {
 	assert.NoError(t, err, "CancelOrder should not error")
 }
 
+func TestCancelAllOrders(t *testing.T) {
+	t.Parallel()
+
+	_, err := e.CancelAllOrders(t.Context(), &order.Cancel{AssetType: asset.Spot})
+	assert.ErrorIs(t, err, order.ErrPairRequiredForCancelAllFanout, "CancelAllOrders should require an explicit pair to avoid fan-out")
+}
+
 func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -333,6 +340,16 @@ func TestGetAllOpenOrderID(t *testing.T) {
 
 	_, err := e.getAllOpenOrderID(t.Context())
 	assert.NoError(t, err, "getAllOpenOrderID should not error")
+}
+
+func TestGetOpenOrderID(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+
+	fPair, err := e.FormatExchangeCurrency(testPair, asset.Spot)
+	require.NoError(t, err, "FormatExchangeCurrency must not error")
+	_, err = e.getOpenOrderID(t.Context(), fPair)
+	assert.NoError(t, err, "getOpenOrderID should not error")
 }
 
 func TestGetFeeByType(t *testing.T) {

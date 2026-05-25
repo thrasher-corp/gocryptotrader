@@ -400,46 +400,41 @@ func (e *Exchange) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*orde
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *Exchange) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
-	cancelAllOrdersResponse := order.CancelAllResponse{
-		Status: make(map[string]string),
+func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (*order.CancelAllResponse, error) {
+	var cancelAllOrdersResponse order.CancelAllResponse
+	if err := orderCancellation.Validate(); err != nil {
+		return nil, err
 	}
-
-	enabledPairs, err := e.GetEnabledPairs(asset.Spot)
+	if orderCancellation.Pair.IsEmpty() {
+		return nil, order.ErrPairRequiredForCancelAllFanout
+	}
+	fCurr, err := e.FormatExchangeCurrency(orderCancellation.Pair, asset.Spot)
 	if err != nil {
-		return cancelAllOrdersResponse, err
+		if len(cancelAllOrdersResponse.Status) > 0 {
+			return &cancelAllOrdersResponse, err
+		}
+		return nil, err
+	}
+	activeOrdersForPair, err := e.GetOpenOrders(ctx, fCurr.String())
+	if err != nil {
+		if len(cancelAllOrdersResponse.Status) > 0 {
+			return &cancelAllOrdersResponse, err
+		}
+		return nil, err
 	}
 
-	allActiveOrders := make([]map[string]ActiveOrders, len(enabledPairs))
-	for i := range enabledPairs {
-		fCurr, err := e.FormatExchangeCurrency(enabledPairs[i], asset.Spot)
+	for key := range activeOrdersForPair {
+		orderIDInt, err := strconv.ParseInt(key, 10, 64)
 		if err != nil {
-			return cancelAllOrdersResponse, err
+			cancelAllOrdersResponse.Add(key, err.Error())
+			continue
 		}
-		activeOrdersForPair, err := e.GetOpenOrders(ctx, fCurr.String())
-		if err != nil {
-			return cancelAllOrdersResponse, err
-		}
-
-		allActiveOrders[i] = activeOrdersForPair
-	}
-
-	for i := range allActiveOrders {
-		for key := range allActiveOrders[i] {
-			orderIDInt, err := strconv.ParseInt(key, 10, 64)
-			if err != nil {
-				cancelAllOrdersResponse.Status[key] = err.Error()
-				continue
-			}
-
-			err = e.CancelExistingOrder(ctx, orderIDInt)
-			if err != nil {
-				cancelAllOrdersResponse.Status[key] = err.Error()
-			}
+		if err := e.CancelExistingOrder(ctx, orderIDInt); err != nil {
+			cancelAllOrdersResponse.Add(key, err.Error())
 		}
 	}
 
-	return cancelAllOrdersResponse, nil
+	return &cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns order information based on order ID

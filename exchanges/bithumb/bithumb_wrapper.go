@@ -443,40 +443,36 @@ func (e *Exchange) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*orde
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (*order.CancelAllResponse, error) {
 	if err := orderCancellation.Validate(); err != nil {
-		return order.CancelAllResponse{}, err
+		return nil, err
 	}
 
-	cancelAllOrdersResponse := order.CancelAllResponse{
-		Status: make(map[string]string),
+	var cancelAllOrdersResponse order.CancelAllResponse
+
+	if orderCancellation.Pair.IsEmpty() {
+		return nil, order.ErrPairRequiredForCancelAllFanout
 	}
 
-	var allOrders []OrderData
-	currs, err := e.GetEnabledPairs(asset.Spot)
+	allOrders, err := e.GetOrders(ctx, "", orderCancellation.Side.String(), 100, time.Time{}, orderCancellation.Pair.Base, currency.EMPTYCODE)
 	if err != nil {
-		return cancelAllOrdersResponse, err
-	}
-
-	for i := range currs {
-		orders, err := e.GetOrders(ctx, "", orderCancellation.Side.String(), 100, time.Time{}, currs[i].Base, currency.EMPTYCODE)
-		if err != nil {
-			return cancelAllOrdersResponse, err
+		if len(cancelAllOrdersResponse.Status) > 0 {
+			return &cancelAllOrdersResponse, err
 		}
-		allOrders = append(allOrders, orders.Data...)
+		return nil, err
 	}
 
-	for i := range allOrders {
+	for i := range allOrders.Data {
 		_, err := e.CancelTrade(ctx,
 			orderCancellation.Side.String(),
-			allOrders[i].OrderID,
+			allOrders.Data[i].OrderID,
 			orderCancellation.Pair.Base.String())
 		if err != nil {
-			cancelAllOrdersResponse.Status[allOrders[i].OrderID] = err.Error()
+			cancelAllOrdersResponse.Status[allOrders.Data[i].OrderID] = err.Error()
 		}
 	}
 
-	return cancelAllOrdersResponse, nil
+	return &cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns order information based on order ID
