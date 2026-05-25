@@ -4473,8 +4473,7 @@ func (s *RPCServer) GetFuturesPositionsOrders(ctx context.Context, r *gctrpc.Get
 	response.Positions = positions
 	if r.SyncWithOrderManager {
 		for i := range positionDetails {
-			err = s.OrderManager.processFuturesPositions(ctx, exch, &positionDetails[i])
-			if err != nil {
+			if err := s.OrderManager.processFuturesPositions(ctx, exch, &positionDetails[i]); err != nil {
 				return nil, err
 			}
 		}
