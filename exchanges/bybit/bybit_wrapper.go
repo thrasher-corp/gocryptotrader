@@ -1013,18 +1013,17 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (*order.CancelAllResponse, error) {
 	err := orderCancellation.Validate()
 	if err != nil {
-		return order.CancelAllResponse{}, err
+		return nil, err
 	}
 	orderCancellation.Pair, err = e.FormatExchangeCurrency(orderCancellation.Pair, orderCancellation.AssetType)
 	if err != nil {
-		return order.CancelAllResponse{}, err
+		return nil, err
 	}
 	status := "success"
 	var cancelAllOrdersResponse order.CancelAllResponse
-	cancelAllOrdersResponse.Status = make(map[string]string)
 	switch orderCancellation.AssetType {
 	case asset.Spot, asset.USDTMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.Options:
 		if orderCancellation.AssetType == asset.USDCMarginedFutures && !orderCancellation.Pair.Quote.Equal(currency.PERP) {
@@ -1036,15 +1035,18 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 			BaseCoin: orderCancellation.Pair.Base.String(),
 		})
 		if err != nil {
-			return cancelAllOrdersResponse, err
+			if len(cancelAllOrdersResponse.Status) > 0 {
+				return &cancelAllOrdersResponse, err
+			}
+			return nil, err
 		}
 		for i := range activeOrder {
 			cancelAllOrdersResponse.Status[activeOrder[i].OrderID] = status
 		}
 	default:
-		return cancelAllOrdersResponse, fmt.Errorf("%s %w", orderCancellation.AssetType, asset.ErrNotSupported)
+		return nil, fmt.Errorf("%s %w", orderCancellation.AssetType, asset.ErrNotSupported)
 	}
-	return cancelAllOrdersResponse, nil
+	return &cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns order information based on order ID

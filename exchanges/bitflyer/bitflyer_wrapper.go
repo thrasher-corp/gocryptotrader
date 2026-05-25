@@ -320,11 +320,15 @@ func (e *Exchange) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*orde
 	return nil, common.ErrNotYetImplemented
 }
 
-// CancelAllOrders cancels all orders associated with a currency pair
-func (e *Exchange) CancelAllOrders(_ context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
-	// TODO, implement BitFlyer API
-	e.CancelAllExistingOrders()
-	return order.CancelAllResponse{}, common.ErrNotYetImplemented
+// CancelAllOrders cancels all orders associated with a currency pair.
+func (e *Exchange) CancelAllOrders(_ context.Context, req *order.Cancel) (*order.CancelAllResponse, error) {
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+	if req.Pair.IsEmpty() {
+		return nil, order.ErrPairRequiredForCancelAllFanout
+	}
+	return nil, common.ErrNotYetImplemented
 }
 
 // GetOrderInfo returns order information based on order ID

@@ -494,9 +494,9 @@ func (e *Exchange) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*orde
 // CancelAllOrders cancels all orders associated with a currency pair
 // If product ID is sent, all orders of that specified market will be cancelled
 // If not specified, all orders of all markets will be cancelled
-func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (*order.CancelAllResponse, error) {
 	if err := orderCancellation.Validate(); err != nil {
-		return order.CancelAllResponse{}, err
+		return nil, err
 	}
 
 	var resp order.CancelAllResponse
@@ -504,21 +504,26 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	fPair, err := e.FormatExchangeCurrency(orderCancellation.Pair,
 		orderCancellation.AssetType)
 	if err != nil {
-		return resp, err
+		if len(resp.Status) > 0 {
+			return &resp, err
+		}
+		return nil, err
 	}
 
 	allOrders, err := e.CancelExistingOrder(ctx, "", fPair.String(), "")
 	if err != nil {
-		return resp, err
+		if len(resp.Status) > 0 {
+			return &resp, err
+		}
+		return nil, err
 	}
 
-	resp.Status = make(map[string]string)
 	for x := range allOrders {
 		if allOrders[x].Status == orderCancelled {
-			resp.Status[allOrders[x].OrderID] = order.Cancelled.String()
+			resp.Add(allOrders[x].OrderID, order.Cancelled.String())
 		}
 	}
-	return resp, nil
+	return &resp, nil
 }
 
 func orderIntToType(i int) order.Type {

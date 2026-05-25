@@ -1414,15 +1414,43 @@ func (s *RPCServer) CancelBatchOrders(ctx context.Context, r *gctrpc.CancelBatch
 	}, nil
 }
 
-// CancelAllOrders cancels all orders, filterable by exchange
+// CancelAllOrders cancels all orders, optionally scoped by asset and pair when an exchange cannot safely cancel all natively.
 func (s *RPCServer) CancelAllOrders(ctx context.Context, r *gctrpc.CancelAllOrdersRequest) (*gctrpc.CancelAllOrdersResponse, error) {
+	if r == nil {
+		return nil, errNilRequestData
+	}
+
 	exch, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
 	}
 
+	req := &order.Cancel{
+		Exchange: r.Exchange,
+	}
+	if r.AssetType != "" {
+		req.AssetType, err = asset.New(r.AssetType)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if r.Pair != nil {
+		if r.AssetType == "" {
+			return nil, errAssetTypeUnset
+		}
+		req.Pair = currency.NewPairWithDelimiter(r.Pair.Base, r.Pair.Quote, r.Pair.Delimiter)
+		if req.Pair.IsEmpty() {
+			return nil, currency.ErrCurrencyPairEmpty
+		}
+	}
+	if req.AssetType.IsValid() {
+		if err := checkParamsWithAvailable(exch, req.AssetType, req.Pair); err != nil {
+			return nil, err
+		}
+	}
+
 	// TODO: Change to order manager
-	resp, err := exch.CancelAllOrders(ctx, nil)
+	resp, err := exch.CancelAllOrders(ctx, req)
 	if err != nil {
 		return nil, err
 	}

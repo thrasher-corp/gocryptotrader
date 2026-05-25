@@ -808,28 +808,48 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (order.CancelAllResponse, error) {
+func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (*order.CancelAllResponse, error) {
 	var resp order.CancelAllResponse
 	if err := req.Validate(); err != nil {
-		return resp, err
+		return nil, err
 	}
 	switch req.AssetType {
 	case asset.Spot:
 		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 			cancel, err := e.wsCancelAllOrders(ctx)
 			if err != nil {
-				return resp, err
+				if len(resp.Status) > 0 {
+					return &resp, err
+				}
+				return nil, err
 			}
 			for i := range cancel.Count {
 				resp.Add(fmt.Sprintf("Unknown:%d", i+1), "cancelled")
 			}
-			return resp, err
+			return &resp, nil
+		}
+		if !req.Pair.IsPopulated() {
+			return nil, order.ErrPairRequiredForCancelAllFanout
+		}
+		fPair, err := e.FormatExchangeCurrency(req.Pair, asset.Spot)
+		if err != nil {
+			if len(resp.Status) > 0 {
+				return &resp, err
+			}
+			return nil, err
 		}
 		openOrders, err := e.GetOpenOrders(ctx, OrderInfoOptions{})
 		if err != nil {
-			return resp, err
+			if len(resp.Status) > 0 {
+				return &resp, err
+			}
+			return nil, err
 		}
 		for orderID := range openOrders.Open {
+			// Kraken REST does not expose a pair-scoped cancel-all endpoint, so only cancel orders that match the explicit pair.
+			if !strings.EqualFold(openOrders.Open[orderID].Description.Pair, fPair.String()) {
+				continue
+			}
 			if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 				err = e.wsCancelOrders(ctx, []string{orderID})
 			} else {
@@ -844,13 +864,16 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (orde
 	case asset.Futures:
 		cancelData, err := e.FuturesCancelAllOrders(ctx, req.Pair)
 		if err != nil {
-			return resp, err
+			if len(resp.Status) > 0 {
+				return &resp, err
+			}
+			return nil, err
 		}
 		for x := range cancelData.CancelStatus.CancelledOrders {
 			resp.Add(cancelData.CancelStatus.CancelledOrders[x].OrderID, "cancelled")
 		}
 	}
-	return resp, nil
+	return &resp, nil
 }
 
 // GetOrderInfo returns information on a current open order

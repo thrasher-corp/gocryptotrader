@@ -1390,44 +1390,56 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (*order.CancelAllResponse, error) {
 	err := orderCancellation.Validate()
 	if err != nil {
-		return order.CancelAllResponse{}, err
+		return nil, err
 	}
-	cancelAllResponse := order.CancelAllResponse{
-		Status: map[string]string{},
-	}
+	var cancelAllResponse order.CancelAllResponse
 
 	// For asset.Spread asset orders cancellation
 	if orderCancellation.AssetType == asset.Spread {
 		var success bool
 		success, err = e.CancelAllSpreadOrders(ctx, orderCancellation.OrderID)
 		if err != nil {
-			return cancelAllResponse, err
+			if len(cancelAllResponse.Status) > 0 {
+				return &cancelAllResponse, err
+			}
+			return nil, err
 		}
-		cancelAllResponse.Status[orderCancellation.OrderID] = strconv.FormatBool(success)
-		return cancelAllResponse, nil
+		cancelAllResponse.Add(orderCancellation.OrderID, strconv.FormatBool(success))
+		return &cancelAllResponse, nil
 	}
 
 	var instrumentType string
 	if orderCancellation.AssetType.IsValid() {
 		err = e.CurrencyPairs.IsAssetAvailable(orderCancellation.AssetType)
 		if err != nil {
-			return order.CancelAllResponse{}, err
+			if len(cancelAllResponse.Status) > 0 {
+				return &cancelAllResponse, err
+			}
+			return nil, err
 		}
 		instrumentType = GetInstrumentTypeFromAssetItem(orderCancellation.AssetType)
+	} else {
+		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, orderCancellation.AssetType)
 	}
 	var oType string
 	if orderCancellation.Type != order.UnknownType && orderCancellation.Type != order.AnyType {
 		oType, err = orderTypeString(orderCancellation.Type, orderCancellation.TimeInForce)
 		if err != nil {
-			return order.CancelAllResponse{}, err
+			if len(cancelAllResponse.Status) > 0 {
+				return &cancelAllResponse, err
+			}
+			return nil, err
 		}
 	}
 	var curr string
 	if orderCancellation.Pair.IsPopulated() {
 		curr = orderCancellation.Pair.Upper().String()
+	}
+	if curr == "" && orderCancellation.OrderID == "" && orderCancellation.ClientOrderID == "" {
+		return nil, order.ErrPairRequiredForCancelAllFanout
 	}
 	myOrders, err := e.GetOrderList(ctx, &OrderListRequestParams{
 		InstrumentType: instrumentType,
@@ -1435,7 +1447,10 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		InstrumentID:   curr,
 	})
 	if err != nil {
-		return cancelAllResponse, err
+		if len(cancelAllResponse.Status) > 0 {
+			return &cancelAllResponse, err
+		}
+		return nil, err
 	}
 	cancelAllOrdersRequestParams := make([]CancelOrderRequestParam, len(myOrders))
 ordersLoop:
@@ -1485,7 +1500,7 @@ ordersLoop:
 		}
 		if err != nil {
 			if len(cancelAllResponse.Status) == 0 {
-				return cancelAllResponse, err
+				return nil, err
 			}
 		}
 		for y := range response {
@@ -1496,7 +1511,7 @@ ordersLoop:
 			}
 		}
 	}
-	return cancelAllResponse, nil
+	return &cancelAllResponse, nil
 }
 
 // GetOrderInfo returns order information based on order ID

@@ -3749,18 +3749,21 @@ func TestCancelBatchOrders(t *testing.T) {
 func TestCancelAllOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Binary})
-	require.ErrorIs(t, err, asset.ErrNotSupported)
+	require.ErrorIs(t, err, asset.ErrNotSupported, "CancelAllOrders must reject unsupported assets")
+
+	_, err = e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Spot})
+	require.ErrorIs(t, err, order.ErrPairRequiredForCancelAllFanout, "CancelAllOrders must require an explicit pair to avoid fan-out")
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Spread})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Futures})
+	result, err = e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Futures, Pair: perpetualSwapPair})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 
-	result, err = e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Spot})
+	result, err = e.CancelAllOrders(contextGenerate(), &order.Cancel{AssetType: asset.Spot, Pair: mainPair})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }

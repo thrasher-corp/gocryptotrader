@@ -1131,15 +1131,18 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.CancelAllResponse, error) {
+func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (*order.CancelAllResponse, error) {
 	var resp order.CancelAllResponse
 	if err := o.Validate(); err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	fmtPair, err := e.FormatExchangeCurrency(o.Pair, o.AssetType)
 	if err != nil {
-		return resp, err
+		if len(resp.Status) > 0 {
+			return &resp, err
+		}
+		return nil, err
 	}
 
 	spotSide := order.UnknownSide
@@ -1153,14 +1156,17 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 		futuresSide = order.Ask.Lower()
 	case o.Side == order.UnknownSide, o.Side == order.AnySide:
 	default:
-		return resp, fmt.Errorf("%w: %q", order.ErrSideIsInvalid, o.Side)
+		return nil, fmt.Errorf("%w: %q", order.ErrSideIsInvalid, o.Side)
 	}
 
 	switch o.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
 		cancel, err := e.CancelAllOpenOrdersSpecifiedCurrencyPair(ctx, fmtPair, spotSide, o.AssetType)
 		if err != nil {
-			return resp, err
+			if len(resp.Status) > 0 {
+				return &resp, err
+			}
+			return nil, err
 		}
 		for x := range cancel {
 			resp.Add(cancel[x].OrderID, cancel[x].Status)
@@ -1168,7 +1174,10 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
 		settle, err := getSettlementCurrency(fmtPair, o.AssetType)
 		if err != nil {
-			return resp, err
+			if len(resp.Status) > 0 {
+				return &resp, err
+			}
+			return nil, err
 		}
 		var cancel []FuturesOrder
 		if o.AssetType == asset.DeliveryFutures {
@@ -1177,7 +1186,10 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 			cancel, err = e.CancelMultipleFuturesOpenOrders(ctx, fmtPair, futuresSide, settle)
 		}
 		if err != nil {
-			return resp, err
+			if len(resp.Status) > 0 {
+				return &resp, err
+			}
+			return nil, err
 		}
 		for f := range cancel {
 			resp.Add(strconv.FormatInt(cancel[f].ID, 10), cancel[f].FinishAs)
@@ -1187,21 +1199,27 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.
 		if !o.Pair.IsEmpty() {
 			underlying, err = e.GetUnderlyingFromCurrencyPair(o.Pair)
 			if err != nil {
-				return resp, err
+				if len(resp.Status) > 0 {
+					return &resp, err
+				}
+				return nil, err
 			}
 		}
 		cancel, err := e.CancelMultipleOptionOpenOrders(ctx, fmtPair, underlying.String(), futuresSide)
 		if err != nil {
-			return resp, err
+			if len(resp.Status) > 0 {
+				return &resp, err
+			}
+			return nil, err
 		}
 		for x := range cancel {
 			resp.Add(strconv.FormatInt(cancel[x].OptionOrderID, 10), cancel[x].FinishAs)
 		}
 	default:
-		return resp, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, o.AssetType)
+		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, o.AssetType)
 	}
 
-	return resp, nil
+	return &resp, nil
 }
 
 // GetOrderInfo returns order information based on order ID

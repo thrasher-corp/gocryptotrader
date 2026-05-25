@@ -537,25 +537,33 @@ func (e *Exchange) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*orde
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (*order.CancelAllResponse, error) {
 	if err := orderCancellation.Validate(); err != nil {
-		return order.CancelAllResponse{}, err
+		return nil, err
 	}
 	var cancelAllOrdersResponse order.CancelAllResponse
-	cancelAllOrdersResponse.Status = make(map[string]string)
 	if orderCancellation.AssetType == asset.Spot {
 		symbolValue, err := e.FormatSymbol(orderCancellation.Pair, asset.Spot)
 		if err != nil {
-			return cancelAllOrdersResponse, err
+			if len(cancelAllOrdersResponse.Status) > 0 {
+				return &cancelAllOrdersResponse, err
+			}
+			return nil, err
 		}
 		openOrders, err := e.GetAllOpenOrders(ctx, symbolValue)
 		if err != nil {
-			return cancelAllOrdersResponse, err
+			if len(cancelAllOrdersResponse.Status) > 0 {
+				return &cancelAllOrdersResponse, err
+			}
+			return nil, err
 		}
 		for ind := range openOrders {
 			pair, err := currency.NewPairFromString(openOrders[ind].Symbol)
 			if err != nil {
-				return cancelAllOrdersResponse, err
+				if len(cancelAllOrdersResponse.Status) > 0 {
+					return &cancelAllOrdersResponse, err
+				}
+				return nil, err
 			}
 			_, err = e.CancelExistingOrder(ctx, &CancelOrderRequestParams{
 				Symbol:                pair,
@@ -563,13 +571,16 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 				ClientSuppliedOrderID: openOrders[ind].ClientOrderID,
 			})
 			if err != nil {
-				return cancelAllOrdersResponse, err
+				if len(cancelAllOrdersResponse.Status) > 0 {
+					return &cancelAllOrdersResponse, err
+				}
+				return nil, err
 			}
 		}
 	} else {
-		return cancelAllOrdersResponse, fmt.Errorf("%w '%v'", asset.ErrNotSupported, orderCancellation.AssetType)
+		return nil, fmt.Errorf("%w '%v'", asset.ErrNotSupported, orderCancellation.AssetType)
 	}
-	return cancelAllOrdersResponse, nil
+	return &cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns order information based on order ID

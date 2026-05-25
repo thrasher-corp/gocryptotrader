@@ -1107,100 +1107,71 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (*order.CancelAllResponse, error) {
 	if err := orderCancellation.Validate(); err != nil {
-		return order.CancelAllResponse{}, err
+		return nil, err
 	}
 	var cancelAllOrdersResponse order.CancelAllResponse
-	cancelAllOrdersResponse.Status = make(map[string]string)
 	switch orderCancellation.AssetType {
 	case asset.Spot:
-		enabledPairs, err := e.GetEnabledPairs(asset.Spot)
-		if err != nil {
-			return cancelAllOrdersResponse, err
+		if orderCancellation.Pair.IsEmpty() {
+			return nil, order.ErrPairRequiredForCancelAllFanout
 		}
-		for i := range enabledPairs {
-			resp, err := e.CancelOpenOrdersBatch(ctx,
-				orderCancellation.AccountID,
-				enabledPairs[i])
-			if err != nil {
-				return cancelAllOrdersResponse, err
+		resp, err := e.CancelOpenOrdersBatch(ctx,
+			orderCancellation.AccountID,
+			orderCancellation.Pair)
+		if err != nil {
+			if len(cancelAllOrdersResponse.Status) > 0 {
+				return &cancelAllOrdersResponse, err
 			}
-			if resp.Data.FailedCount > 0 {
-				return cancelAllOrdersResponse,
-					fmt.Errorf("%v orders failed to cancel",
-						resp.Data.FailedCount)
-			}
-			if resp.Status == "error" {
-				return cancelAllOrdersResponse, errors.New(resp.ErrorMessage)
-			}
+			return nil, err
+		}
+		if resp.Data.FailedCount > 0 {
+			return nil,
+				fmt.Errorf("%v orders failed to cancel",
+					resp.Data.FailedCount)
+		}
+		if resp.Status == "error" {
+			return nil, errors.New(resp.ErrorMessage)
 		}
 	case asset.CoinMarginedFutures:
 		if orderCancellation.Pair.IsEmpty() {
-			enabledPairs, err := e.GetEnabledPairs(asset.CoinMarginedFutures)
-			if err != nil {
-				return cancelAllOrdersResponse, err
+			return nil, order.ErrPairRequiredForCancelAllFanout
+		}
+		a, err := e.CancelAllSwapOrders(ctx, orderCancellation.Pair)
+		if err != nil {
+			if len(cancelAllOrdersResponse.Status) > 0 {
+				return &cancelAllOrdersResponse, err
 			}
-			for i := range enabledPairs {
-				a, err := e.CancelAllSwapOrders(ctx, enabledPairs[i])
-				if err != nil {
-					return cancelAllOrdersResponse, err
-				}
-				split := strings.Split(a.Successes, ",")
-				for x := range split {
-					cancelAllOrdersResponse.Status[split[x]] = "success"
-				}
-				for y := range a.Errors {
-					cancelAllOrdersResponse.Status[a.Errors[y].OrderID] = "fail: " + a.Errors[y].ErrMsg
-				}
-			}
-		} else {
-			a, err := e.CancelAllSwapOrders(ctx, orderCancellation.Pair)
-			if err != nil {
-				return cancelAllOrdersResponse, err
-			}
-			split := strings.Split(a.Successes, ",")
-			for x := range split {
-				cancelAllOrdersResponse.Status[split[x]] = "success"
-			}
-			for y := range a.Errors {
-				cancelAllOrdersResponse.Status[a.Errors[y].OrderID] = "fail: " + a.Errors[y].ErrMsg
-			}
+			return nil, err
+		}
+		split := strings.Split(a.Successes, ",")
+		for x := range split {
+			cancelAllOrdersResponse.Status[split[x]] = "success"
+		}
+		for y := range a.Errors {
+			cancelAllOrdersResponse.Status[a.Errors[y].OrderID] = "fail: " + a.Errors[y].ErrMsg
 		}
 	case asset.Futures:
 		if orderCancellation.Pair.IsEmpty() {
-			enabledPairs, err := e.GetEnabledPairs(asset.Futures)
-			if err != nil {
-				return cancelAllOrdersResponse, err
+			return nil, order.ErrPairRequiredForCancelAllFanout
+		}
+		a, err := e.FCancelAllOrders(ctx, orderCancellation.Pair, "", "")
+		if err != nil {
+			if len(cancelAllOrdersResponse.Status) > 0 {
+				return &cancelAllOrdersResponse, err
 			}
-			for i := range enabledPairs {
-				a, err := e.FCancelAllOrders(ctx, enabledPairs[i], "", "")
-				if err != nil {
-					return cancelAllOrdersResponse, err
-				}
-				split := strings.Split(a.Data.Successes, ",")
-				for x := range split {
-					cancelAllOrdersResponse.Status[split[x]] = "success"
-				}
-				for y := range a.Data.Errors {
-					cancelAllOrdersResponse.Status[strconv.FormatInt(a.Data.Errors[y].OrderID, 10)] = "fail: " + a.Data.Errors[y].ErrMsg
-				}
-			}
-		} else {
-			a, err := e.FCancelAllOrders(ctx, orderCancellation.Pair, "", "")
-			if err != nil {
-				return cancelAllOrdersResponse, err
-			}
-			split := strings.Split(a.Data.Successes, ",")
-			for x := range split {
-				cancelAllOrdersResponse.Status[split[x]] = "success"
-			}
-			for y := range a.Data.Errors {
-				cancelAllOrdersResponse.Status[strconv.FormatInt(a.Data.Errors[y].OrderID, 10)] = "fail: " + a.Data.Errors[y].ErrMsg
-			}
+			return nil, err
+		}
+		split := strings.Split(a.Data.Successes, ",")
+		for x := range split {
+			cancelAllOrdersResponse.Status[split[x]] = "success"
+		}
+		for y := range a.Data.Errors {
+			cancelAllOrdersResponse.Status[strconv.FormatInt(a.Data.Errors[y].OrderID, 10)] = "fail: " + a.Data.Errors[y].ErrMsg
 		}
 	}
-	return cancelAllOrdersResponse, nil
+	return &cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns order information based on order ID

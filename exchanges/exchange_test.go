@@ -2799,8 +2799,9 @@ func (f *FakeBase) Setup(*config.Exchange) error {
 	return nil
 }
 
-func (f *FakeBase) CancelAllOrders(context.Context, *order.Cancel) (order.CancelAllResponse, error) {
-	return order.CancelAllResponse{}, nil
+func (f *FakeBase) CancelAllOrders(context.Context, *order.Cancel) (*order.CancelAllResponse, error) {
+	var resp order.CancelAllResponse
+	return &resp, nil
 }
 
 func (f *FakeBase) CancelBatchOrders(context.Context, []order.Cancel) (*order.CancelBatchResponse, error) {

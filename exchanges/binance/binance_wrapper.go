@@ -1003,17 +1003,22 @@ func (e *Exchange) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*orde
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (order.CancelAllResponse, error) {
+func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (*order.CancelAllResponse, error) {
 	if err := req.Validate(); err != nil {
-		return order.CancelAllResponse{}, err
+		return nil, err
+	}
+	if req.Pair.IsEmpty() {
+		return nil, order.ErrPairRequiredForCancelAllFanout
 	}
 	var cancelAllOrdersResponse order.CancelAllResponse
-	cancelAllOrdersResponse.Status = make(map[string]string)
 	switch req.AssetType {
 	case asset.Spot, asset.Margin:
 		openOrders, err := e.OpenOrders(ctx, req.Pair)
 		if err != nil {
-			return cancelAllOrdersResponse, err
+			if len(cancelAllOrdersResponse.Status) > 0 {
+				return &cancelAllOrdersResponse, err
+			}
+			return nil, err
 		}
 		for i := range openOrders {
 			_, err = e.CancelExistingOrder(ctx,
@@ -1025,43 +1030,17 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (orde
 			}
 		}
 	case asset.CoinMarginedFutures:
-		if req.Pair.IsEmpty() {
-			enabledPairs, err := e.GetEnabledPairs(asset.CoinMarginedFutures)
-			if err != nil {
-				return cancelAllOrdersResponse, err
-			}
-			for i := range enabledPairs {
-				_, err = e.FuturesCancelAllOpenOrders(ctx, enabledPairs[i])
-				if err != nil {
-					return cancelAllOrdersResponse, err
-				}
-			}
-		} else {
-			if _, err := e.FuturesCancelAllOpenOrders(ctx, req.Pair); err != nil {
-				return cancelAllOrdersResponse, err
-			}
+		if _, err := e.FuturesCancelAllOpenOrders(ctx, req.Pair); err != nil {
+			return nil, err
 		}
 	case asset.USDTMarginedFutures:
-		if req.Pair.IsEmpty() {
-			enabledPairs, err := e.GetEnabledPairs(asset.USDTMarginedFutures)
-			if err != nil {
-				return cancelAllOrdersResponse, err
-			}
-			for i := range enabledPairs {
-				_, err = e.UCancelAllOpenOrders(ctx, enabledPairs[i])
-				if err != nil {
-					return cancelAllOrdersResponse, err
-				}
-			}
-		} else {
-			if _, err := e.UCancelAllOpenOrders(ctx, req.Pair); err != nil {
-				return cancelAllOrdersResponse, err
-			}
+		if _, err := e.UCancelAllOpenOrders(ctx, req.Pair); err != nil {
+			return nil, err
 		}
 	default:
-		return cancelAllOrdersResponse, fmt.Errorf("%w %v", asset.ErrNotSupported, req.AssetType)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.AssetType)
 	}
-	return cancelAllOrdersResponse, nil
+	return &cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns information on a current open order
