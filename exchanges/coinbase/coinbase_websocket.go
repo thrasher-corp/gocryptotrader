@@ -108,7 +108,6 @@ func (e *Exchange) wsProcessTicker(ctx context.Context, resp *StandardWebsocketR
 	}
 	var allTickers []ticker.Price
 	aliases := e.pairAliases.GetAliases()
-	var errs error
 	for i := range wsTickers {
 		for j := range wsTickers[i].Tickers {
 			symbolAliases := aliases[wsTickers[i].Tickers[j].ProductID]
@@ -132,13 +131,12 @@ func (e *Exchange) wsProcessTicker(ctx context.Context, resp *StandardWebsocketR
 					continue
 				}
 				t.Pair = pair
-				errs = common.AppendError(errs, ticker.ProcessTicker(&t))
+				if err := ticker.ProcessTicker(&t); err != nil {
+					return err
+				}
 				allTickers = append(allTickers, t)
 			}
 		}
-	}
-	if errs != nil {
-		return errs
 	}
 	return e.Websocket.DataHandler.Send(ctx, allTickers)
 }
