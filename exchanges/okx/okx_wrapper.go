@@ -382,7 +382,7 @@ func (e *Exchange) loadInstrumentOrderExecutionLimits(a asset.Item, insts []Inst
 		if insts[i].State != stateLive || insts[i].InstrumentID.IsEmpty() {
 			continue
 		}
-		delistingAt, delistedAt := deriveDelistingWindow(&insts[i], time.Now().UTC())
+		delistingAt, delistedAt := insts[i].deriveDelistingWindow(time.Now().UTC())
 		l = append(l, limits.MinMaxLevel{
 			Key:                     key.NewExchangeAssetPair(e.Name, a, insts[i].InstrumentID),
 			PriceStepIncrementSize:  insts[i].TickSize.Float64(),
@@ -404,7 +404,7 @@ func (e *Exchange) loadInstrumentOrderExecutionLimits(a asset.Item, insts []Inst
 	return limits.Load(l)
 }
 
-func deriveDelistingWindow(inst *Instrument, now time.Time) (delistingAt, delistedAt time.Time) {
+func (inst *Instrument) deriveDelistingWindow(now time.Time) (delistingAt, delistedAt time.Time) {
 	if !inst.ExpTime.Time().IsZero() {
 		delistingAt = inst.ExpTime.Time()
 		if delistingAt.Before(now) {
@@ -1178,8 +1178,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			ClientOrderID: action.ClientOrderID,
 		}
 		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			instrumentIDCode, resolveErr := e.resolveInstrumentIDCode(ctx, action.AssetType, amendRequest.InstrumentID)
-			if resolveErr == nil {
+			if instrumentIDCode, err := e.resolveInstrumentIDCode(ctx, action.AssetType, amendRequest.InstrumentID); err == nil {
 				amendRequest.InstrumentIDCode = instrumentIDCode
 			}
 			_, err = e.WSAmendOrder(ctx, &amendRequest)
@@ -1282,8 +1281,7 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modif
 	if err != nil {
 		return nil, err
 	}
-	instrumentIDCode, resolveErr := e.resolveInstrumentIDCode(ctx, action.AssetType, arg.InstrumentID)
-	if resolveErr == nil {
+	if instrumentIDCode, err := e.resolveInstrumentIDCode(ctx, action.AssetType, arg.InstrumentID); err == nil {
 		arg.InstrumentIDCode = instrumentIDCode
 	}
 	if _, err = e.WSAmendOrder(ctx, arg); err != nil {
@@ -1322,8 +1320,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 			ClientOrderID: ord.ClientOrderID,
 		}
 		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			instrumentIDCode, resolveErr := e.resolveInstrumentIDCode(ctx, ord.AssetType, req.InstrumentID)
-			if resolveErr == nil {
+			if instrumentIDCode, err := e.resolveInstrumentIDCode(ctx, ord.AssetType, req.InstrumentID); err == nil {
 				req.InstrumentIDCode = instrumentIDCode
 			}
 			_, err = e.WSCancelOrder(ctx, &req)
@@ -1516,8 +1513,7 @@ func (e *Exchange) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) 
 	if err != nil {
 		return err
 	}
-	instrumentIDCode, resolveErr := e.resolveInstrumentIDCode(ctx, ord.AssetType, arg.InstrumentID)
-	if resolveErr == nil {
+	if instrumentIDCode, err := e.resolveInstrumentIDCode(ctx, ord.AssetType, arg.InstrumentID); err == nil {
 		arg.InstrumentIDCode = instrumentIDCode
 	}
 	_, err = e.WSCancelOrder(ctx, arg)
@@ -1552,17 +1548,17 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			if o[x].ClientID == "" && o[x].OrderID == "" {
 				return nil, fmt.Errorf("%w, order ID required for order of type %v", order.ErrOrderIDNotSet, o[x].Type)
 			}
-			cancelOrderParams = append(cancelOrderParams, CancelOrderRequestParam{
+			cancelOrder := CancelOrderRequestParam{
 				InstrumentID:  pairFormat.Format(ord.Pair),
 				OrderID:       ord.OrderID,
 				ClientOrderID: ord.ClientOrderID,
-			})
+			}
 			if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				instrumentIDCode, resolveErr := e.resolveInstrumentIDCode(ctx, ord.AssetType, cancelOrderParams[len(cancelOrderParams)-1].InstrumentID)
-				if resolveErr == nil {
-					cancelOrderParams[len(cancelOrderParams)-1].InstrumentIDCode = instrumentIDCode
+				if instrumentIDCode, err := e.resolveInstrumentIDCode(ctx, ord.AssetType, cancelOrder.InstrumentID); err == nil {
+					cancelOrder.InstrumentIDCode = instrumentIDCode
 				}
 			}
+			cancelOrderParams = append(cancelOrderParams, cancelOrder)
 		case order.Trigger, order.OCO, order.ConditionalStop,
 			order.TWAP, order.TrailingStop, order.Chase:
 			if o[x].OrderID == "" {
@@ -1655,8 +1651,7 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	if err != nil {
 		return nil, err
 	}
-	instrumentIDCode, resolveErr := e.resolveInstrumentIDCode(ctx, s.AssetType, arg.InstrumentID)
-	if resolveErr == nil {
+	if instrumentIDCode, err := e.resolveInstrumentIDCode(ctx, s.AssetType, arg.InstrumentID); err == nil {
 		arg.InstrumentIDCode = instrumentIDCode
 	}
 	resp, err := e.WSPlaceOrder(ctx, arg)
@@ -1681,52 +1676,23 @@ func (e *Exchange) resolveInstrumentIDCode(ctx context.Context, ai asset.Item, i
 	if instType == "" {
 		return 0, fmt.Errorf("%w: %v", errInvalidInstrumentType, ai)
 	}
-	fetchParams := make([]InstrumentsFetchParams, 0, 4)
-	if ai == asset.Options {
-		underlying, family := optionInstrumentSelectors(instrumentID)
-		if underlying != "" || family != "" {
-			fetchParams = append(fetchParams, InstrumentsFetchParams{
-				InstrumentType:   instType,
-				Underlying:       underlying,
-				InstrumentFamily: family,
-				InstrumentID:     instrumentID,
-			})
-		}
-		if underlying != "" {
-			fetchParams = append(fetchParams, InstrumentsFetchParams{
-				InstrumentType: instType,
-				Underlying:     underlying,
-				InstrumentID:   instrumentID,
-			})
-		}
-		if family != "" {
-			fetchParams = append(fetchParams, InstrumentsFetchParams{
-				InstrumentType:   instType,
-				InstrumentFamily: family,
-				InstrumentID:     instrumentID,
-			})
-		}
-	}
-	fetchParams = append(fetchParams, InstrumentsFetchParams{
+
+	fetchParams := InstrumentsFetchParams{
 		InstrumentType: instType,
 		InstrumentID:   instrumentID,
-	})
-	var fetchErr error
-	for i := range fetchParams {
-		instruments, err := e.GetInstruments(ctx, &fetchParams[i])
-		if err != nil {
-			fetchErr = err
-			continue
-		}
-		instrumentIDCode := lookupInstrumentIDCode(instruments, instrumentID)
-		if instrumentIDCode > 0 {
-			return instrumentIDCode, nil
-		}
 	}
-	if fetchErr != nil {
-		return 0, fetchErr
+	if ai == asset.Options {
+		_, fetchParams.InstrumentFamily = optionInstrumentSelectors(instrumentID)
 	}
-	return 0, fmt.Errorf("instrument ID code not found for %s", instrumentID)
+
+	instruments, err := e.GetInstruments(ctx, &fetchParams)
+	if err != nil {
+		return 0, err
+	}
+	if instrumentIDCode := lookupInstrumentIDCode(instruments, instrumentID); instrumentIDCode > 0 {
+		return instrumentIDCode, nil
+	}
+	return 0, fmt.Errorf("%w: %s", errInstrumentIDCodeNotFound, instrumentID)
 }
 
 func lookupInstrumentIDCode(instruments []Instrument, instrumentID string) int64 {
@@ -1740,20 +1706,6 @@ func lookupInstrumentIDCode(instruments []Instrument, instrumentID string) int64
 		}
 	}
 	return 0
-}
-
-func optionInstrumentSelectors(instrumentID string) (underlying, family string) {
-	parts := strings.Split(instrumentID, currency.DashDelimiter)
-	delimiter := currency.DashDelimiter
-	if len(parts) < 2 {
-		parts = strings.Split(instrumentID, currency.UnderscoreDelimiter)
-		delimiter = currency.UnderscoreDelimiter
-	}
-	if len(parts) < 2 {
-		return instrumentID, instrumentID
-	}
-	underlying = strings.Join(parts[:2], delimiter)
-	return underlying, underlying
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
@@ -1841,8 +1793,7 @@ ordersLoop:
 			if remaining[i].InstrumentID == "" {
 				continue
 			}
-			instrumentIDCode, resolveErr := e.resolveInstrumentIDCode(ctx, orderCancellation.AssetType, remaining[i].InstrumentID)
-			if resolveErr == nil {
+			if instrumentIDCode, err := e.resolveInstrumentIDCode(ctx, orderCancellation.AssetType, remaining[i].InstrumentID); err == nil {
 				remaining[i].InstrumentIDCode = instrumentIDCode
 			}
 		}

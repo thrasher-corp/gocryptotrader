@@ -1,7 +1,6 @@
 package okx
 
 import (
-	"math"
 	"sync"
 	"testing"
 
@@ -67,20 +66,13 @@ func TestTradeScopeCountsFromAmendOrders(t *testing.T) {
 	require.Equal(t, 3, got["XRP-USDT"])
 }
 
-func TestCountByOrder(t *testing.T) {
-	t.Parallel()
-
-	require.Zero(t, countByOrder([]string(nil)))
-	require.Equal(t, 3, countByOrder([]int{1, 2, 3}))
-}
-
 func TestToRateLimitWeight(t *testing.T) {
 	t.Parallel()
 
-	require.Zero(t, toRateLimitWeight(0))
-	require.Zero(t, toRateLimitWeight(-1))
+	require.Panics(t, func() { toRateLimitWeight(0) }, "zero weight must panic")
+	require.Panics(t, func() { toRateLimitWeight(-1) }, "negative weight must panic")
 	require.Equal(t, uint8(12), toRateLimitWeight(12))
-	require.Equal(t, uint8(math.MaxUint8), toRateLimitWeight(math.MaxInt32))
+	require.Equal(t, uint8(255), toRateLimitWeight(300))
 }
 
 func TestGetOrCreateTradeScopedLimiter(t *testing.T) {
