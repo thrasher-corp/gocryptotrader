@@ -389,11 +389,6 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (e *Exchange) UpdateTicker(ctx context.Context, pair currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	var err error
-	pair, err = e.FormatExchangeCurrency(pair, assetType)
-	if err != nil {
-		return nil, err
-	}
 	isAvailable, err := e.IsPairAvailable(pair, assetType)
 	if err != nil {
 		return nil, err
