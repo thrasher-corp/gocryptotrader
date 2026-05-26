@@ -2688,7 +2688,7 @@ func (e *Exchange) WsSimulateBlockTrade(ctx context.Context, role string, trades
 // both authenticated and public endpoints are allowed.
 func (e *Exchange) SendWSRequest(ctx context.Context, epl request.EndpointLimit, method string, params, response any, authenticated bool) error {
 	if authenticated && !e.Websocket.CanUseAuthenticatedEndpoints() {
-		return errWebsocketConnectionNotAuthenticated
+		return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, method, errWebsocketConnectionNotAuthenticated)
 	}
 	input := &WsRequest{
 		JSONRPCVersion: rpcVersion,
@@ -2699,6 +2699,9 @@ func (e *Exchange) SendWSRequest(ctx context.Context, epl request.EndpointLimit,
 	resp := &wsResponse{Result: response}
 	err := e.sendWsPayload(ctx, epl, input, resp)
 	if err != nil {
+		if authenticated {
+			return fmt.Errorf("%w %s %s, %v", request.ErrAuthRequestFailed, e.Name, method, err)
+		}
 		return err
 	}
 	if resp.Error.Code != 0 || resp.Error.Message != "" {
@@ -2708,6 +2711,9 @@ func (e *Exchange) SendWSRequest(ctx context.Context, epl request.EndpointLimit,
 			if err == nil {
 				data = string(value)
 			}
+		}
+		if authenticated {
+			return fmt.Errorf("%w %s %s code=%d message=%s data=%s", request.ErrAuthRequestFailed, e.Name, method, resp.Error.Code, resp.Error.Message, data)
 		}
 		return fmt.Errorf("code: %d message: %s %s", resp.Error.Code, resp.Error.Message, data)
 	}

@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -174,10 +175,11 @@ func TestCheckJSON(t *testing.T) {
 func TestHTTPRecord(t *testing.T) {
 	t.Parallel()
 
-	service := "mock"
-	outputDirPath := filepath.Join("..", service, "testdata")
-	err := os.Mkdir(outputDirPath, 0o755)
-	require.NoError(t, err)
+	service := strings.ToLower(strings.ReplaceAll(t.Name(), "/", "-"))
+	baseDirPath := filepath.Join("..", service)
+	outputDirPath := filepath.Join(baseDirPath, "testdata")
+	err := os.MkdirAll(outputDirPath, 0o755)
+	require.NoError(t, err, "MkdirAll must not error")
 
 	filePath := filepath.Join(outputDirPath, "http.json")
 	err = os.WriteFile(filePath, []byte(`{"routes": null}`), 0o644)
@@ -187,8 +189,7 @@ func TestHTTPRecord(t *testing.T) {
 	require.NoError(t, err, "file not created properly")
 
 	defer func() {
-		require.NoErrorf(t, os.Remove(filePath), "Remove test exclusion file %q must not error", filePath)
-		require.NoErrorf(t, os.Remove(outputDirPath), "Remove test exclusion dir %q must not error", outputDirPath)
+		require.NoErrorf(t, os.RemoveAll(baseDirPath), "Remove test exclusion base dir %q must not error", baseDirPath)
 	}()
 
 	content, err := json.Marshal(testVal)
@@ -201,6 +202,6 @@ func TestHTTPRecord(t *testing.T) {
 			URL:    &url.URL{},
 		},
 	}
-	err = HTTPRecord(response, "mock", content, 4)
+	err = HTTPRecord(response, service, content, 4)
 	require.NoError(t, err, "HTTPRecord must not error")
 }

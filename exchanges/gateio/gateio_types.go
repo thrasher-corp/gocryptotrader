@@ -1,9 +1,11 @@
 package gateio
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -547,7 +549,7 @@ type OrderbookLevels orderbook.Levels
 func (o *OrderbookLevels) UnmarshalJSON(data []byte) error {
 	var levels []OrderbookItem
 	if err := json.Unmarshal(data, &levels); err != nil {
-		return err
+		return fmt.Errorf("%w: %w", common.ErrMalformedData, err)
 	}
 
 	*o = make(OrderbookLevels, len(levels))
