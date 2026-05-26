@@ -8989,6 +8989,302 @@
      "headers": {}
     }
    ]
+  },
+  "/api/v4/crossex/symbols": {
+   "GET": [
+    {
+     "data": [{"name":"BINANCE_FUTURE_BTC_USDT","exchange_type":"BINANCE","business_type":"FUTURES","state":"LIVE","tick_size":"0.1","lot_size":"1","min_notional":"5","min_size":"1","max_num_orders":"200"}],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/crossex/risk_limit": {
+   "GET": [
+    {
+     "data": [{"symbol":"BINANCE_FUTURE_BTC_USDT","lec":[{"min_risk_limit_value":"5000","quick_adj_amount":"1000","leverage_max":"20","maintenance_rate":"0.01"}]}],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/crossex/transfers/coin": {
+   "GET": [
+    {
+     "data": [{"coin":"USDT","min_trans_amount":10,"est_fee":1,"precision":6,"is_disabled":0}],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/crossex/transfers": {
+   "GET": [
+    {
+     "data": [{"id":"12345","client_order_id":"test-1","from_account_type":"SPOT","to_account_type":"CROSSEX_BALANCE","coin":"USDT","amount_actual":"10","status":"SUCCESS","fail_reason":""}],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ],
+   "POST": [
+    {
+     "data": {"tx_id":"transfer-001"},
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/crossex/orders": {
+   "POST": [
+    {
+     "data": {"user_id":"100001","order_id":"20491522002333905922","text":"crossex-test-1","state":"NEW","symbol":"BINANCE_FUTURE_BTC_USDT","side":"BUY","type":"GTC","attribute":"COMMON","exchange_type":"BINANCE","business_type":"FUTURES","qty":"1","price":"65000","time_in_force":"GTC","executed_qty":"0","executed_amount":"0","fee":"0","fee_asset":"USDT","leverage":"10","last_executed_qty":"0","last_executed_price":"0","position_side":"LONG","reduce_only":"false","last_executed_time":"0","create_time":"1715864142378","update_time":"1715864142378"},
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/crossex/orders/20491522002333905922": {
+   "GET": [
+    {
+     "data": {"user_id":"100001","order_id":"20491522002333905922","text":"crossex-test-1","state":"FILLED","symbol":"BINANCE_FUTURE_BTC_USDT","side":"BUY","type":"GTC","attribute":"COMMON","exchange_type":"BINANCE","business_type":"FUTURES","qty":"1","price":"65000","time_in_force":"GTC","executed_qty":"1","executed_amount":"65000","fee":"6.5","fee_asset":"USDT","leverage":"10","last_executed_qty":"1","last_executed_price":"65000","position_side":"LONG","reduce_only":"false","last_executed_time":"1715864142400","create_time":"1715864142378","update_time":"1715864142400"},
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ],
+   "PUT": [
+    {
+     "data": {"order_id":"20491522002333905922","text":"crossex-test-1"},
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ],
+   "DELETE": [
+    {
+     "data": {"order_id":"20491522002333905922","text":"crossex-test-1"},
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/crossex/convert/quote": {
+   "POST": [
+    {
+     "data": {"quote_id":"CTH46487058372","valid_ms":"1715864152378","from_coin":"BTC","to_coin":"USDT","from_amount":"1","to_amount":"65000","price":"65000"},
+     "queryString": "",
+     "bodyParams": "exchange_type=BINANCE&from_amount=1&from_coin=BTC&to_coin=USDT",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/crossex/convert/orders": {
+   "POST": [
+    {
+     "data": {"order_id":"123456","text":"123456"},
+     "queryString": "",
+     "bodyParams": "quote_id=CTH46487058372",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/crossex/accounts": {
+   "GET": [
+    {
+     "data": [{"user_id":"12345678","available_margin":"1100","margin_balance":"1100","initial_margin":"0","maintenance_margin":"0","initial_margin_rate":"0","maintenance_margin_rate":"0","position_mode":"SINGLE","account_limit":"10000","create_time":"1715864142378","exchange_type":"BINANCE","account_mode":"CROSS_EXCHANGE","update_time":"1715864142378"}],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ],
+   "PUT": [
+    {
+     "data": {"position_mode":"SINGLE","account_mode":"CROSS_EXCHANGE","exchange_type":"BINANCE"},
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/crossex/positions/leverage": {
+   "GET": [
+    {
+     "data": {"BINANCE_FUTURE_BTC_USDT":"10","OKX_FUTURE_BTC_USDT":"10"},
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ],
+   "POST": [
+    {
+     "data": {"symbol":"BINANCE_FUTURE_BTC_USDT","leverage":"10"},
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/crossex/margin_positions/leverage": {
+   "GET": [
+    {
+     "data": {"BINANCE_MARGIN_BTC_USDT":"5","OKX_MARGIN_BTC_USDT":"5"},
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ],
+   "POST": [
+    {
+     "data": {"symbol":"BINANCE_MARGIN_BTC_USDT","leverage":"5"},
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/crossex/positions": {
+   "POST": [
+    {
+     "data": {"order_id":"123456","text":"123456"},
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ],
+   "GET": [
+    {
+     "data": [{"user_id":"100001","position_id":"pos-001","symbol":"BINANCE_FUTURE_BTC_USDT","position_side":"LONG","initial_margin":"1000","maintenance_margin":"500","position_qty":"1","position_value":"65000","upnl":"100","leverage":"10","exchange_type":"BINANCE","create_time":"1715864142378","update_time":"1715864142378"}],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/crossex/margin_positions": {
+   "GET": [
+    {
+     "data": [{"user_id":"100001","position_id":"mpos-001","symbol":"BINANCE_MARGIN_BTC_USDT","position_side":"LONG","initial_margin":"500","maintenance_margin":"250","asset_qty":"1","asset_coin":"BTC","position_value":"65000","leverage":"5","exchange_type":"BINANCE","create_time":"1715864142378","update_time":"1715864142378"}],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/crossex/interest_rate": {
+   "GET": [
+    {
+     "data": [{"coin":"BCH","exchange_type":"GATE","hour_interest_rate":"0.00000465","time":"1763371200000"},{"coin":"ADA","exchange_type":"BINANCE","hour_interest_rate":"0.0000036558334","time":"1763371200000"}],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/crossex/fee": {
+   "GET": [
+    {
+     "data": [{"exchange_type":"BINANCE","spot_maker_fee":"0.0001","spot_taker_fee":"0.0025","future_maker_fee":"0.0002","future_taker_fee":"0.0005","special_fee_list":[]}],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/crossex/adl_rank": {
+   "GET": [
+    {
+     "data": [{"user_id":"111","symbol":"BINANCE_FUTURE_ADA_USDT","crossex_adl_rank":"1","exchange_adl_rank":"1"}],
+     "queryString": "symbol=BINANCE_FUTURE_ADA_USDT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/crossex/open_orders": {
+   "GET": [
+    {
+     "data": [{"user_id":"100001","order_id":"20491522002333905922","text":"crossex-test-1","state":"OPEN","symbol":"BINANCE_FUTURE_BTC_USDT","side":"BUY","type":"GTC","attribute":"COMMON","exchange_type":"BINANCE","business_type":"FUTURES","qty":"1","price":"65000","time_in_force":"GTC","executed_qty":"0","executed_amount":"0","fee":"0","fee_asset":"USDT","leverage":"10","last_executed_qty":"0","last_executed_price":"0","position_side":"LONG","reduce_only":"false","last_executed_time":"0","create_time":"1715864142378","update_time":"1715864142378"}],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/crossex/history_orders": {
+   "GET": [
+    {
+     "data": [{"user_id":"100001","order_id":"20491522002333905922","text":"crossex-test-1","state":"FILLED","symbol":"BINANCE_FUTURE_BTC_USDT","side":"BUY","type":"GTC","attribute":"COMMON","exchange_type":"BINANCE","business_type":"FUTURES","qty":"1","price":"65000","time_in_force":"GTC","executed_qty":"1","executed_amount":"65000","fee":"6.5","fee_asset":"USDT","leverage":"10","last_executed_qty":"1","last_executed_price":"65000","position_side":"LONG","reduce_only":"false","last_executed_time":"1715864142400","create_time":"1715864142378","update_time":"1715864142400"}],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/crossex/history_positions": {
+   "GET": [
+    {
+     "data": [{"position_id":"pos-001","user_id":"100001","symbol":"BINANCE_FUTURE_BTC_USDT","position_side":"LONG","closed_type":"COMPLETE_CLOSED","closed_pnl":"150","closed_pnl_rate":"0.23","open_avg_price":"64000","closed_avg_price":"65500","max_position_qty":"2","exchange_type":"BINANCE","create_time":"1715864142378","update_time":"1715864142400"}],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/crossex/history_margin_positions": {
+   "GET": [
+    {
+     "data": [{"position_id":"mpos-001","user_id":"100001","symbol":"BINANCE_MARGIN_BTC_USDT","position_side":"LONG","closed_type":"COMPLETE_CLOSED","closed_pnl":"50","closed_pnl_rate":"0.10","open_avg_price":"64000","closed_avg_price":"65000","max_position_qty":"1","exchange_type":"BINANCE","create_time":"1715864142378","update_time":"1715864142400"}],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/crossex/history_margin_interests": {
+   "GET": [
+    {
+     "data": [{"user_id":"100001","symbol":"BINANCE_MARGIN_BTC_USDT","interest_id":"int-001","liability_id":"pos-001","liability":"0.01","liability_coin":"BTC","interest":"0.000001","interest_rate":"0.0001","interest_type":"INTEREST_ON_POSITION","create_time":"1763371200000","exchange_type":"BINANCE"}],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/crossex/history_trades": {
+   "GET": [
+    {
+     "data": [{"user_id":"100001","transaction_id":"trade-001","filled_record_id":"fill-001","order_id":"20491522002333905922","text":"crossex-test-1","symbol":"BINANCE_FUTURE_BTC_USDT","exchange_type":"BINANCE","business_type":"FUTURES","side":"BUY","qty":"1","price":"65000","fee":"6.5","fee_coin":"USDT","create_time":"1715864142400"}],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/crossex/account_book": {
+   "GET": [
+    {
+     "data": [{"id":"book-001","user_id":"100001","business_id":"biz-001","statement_type":"TRADE_FEE","exchange_type":"BINANCE","change":"-6.5","balance":"993.5","create_time":"1715864142400"}],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/crossex/coin_discount_rate": {
+   "GET": [
+    {
+     "data": [{"coin":"SOL","exchange_type":"GATE","tier":"1","min_value":"0","max_value":"10000","discount_rate":"0.95"},{"coin":"SOL","exchange_type":"GATE","tier":"2","min_value":"10000","max_value":"20000","discount_rate":"0.93"}],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
   }
  }
 }
