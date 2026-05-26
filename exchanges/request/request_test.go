@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -308,6 +309,26 @@ func TestDoRequest(t *testing.T) {
 	}
 
 	require.NoError(t, ec.Collect(), "Collect must return no errors")
+}
+
+func TestSendPayloadWithRateLimits(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+		r, err := New("test", new(http.Client), WithLimiter(NewBasicRateLimit(100*time.Millisecond, 1, 1)))
+		require.NoError(t, err, "New requester must not error")
+		extra := NewRateLimitWithWeight(300*time.Millisecond, 1, 1)
+		requestErr := errors.New("request generation failed")
+		newRequest := func() (*Item, error) {
+			return nil, requestErr
+		}
+
+		err = r.SendPayloadWithRateLimits(t.Context(), Unset, []*RateLimiterWithWeight{extra}, []Weight{1}, newRequest, UnauthenticatedRequest)
+		require.ErrorIs(t, err, requestErr, "first call must reach request generation")
+
+		err = r.SendPayloadWithRateLimits(WithDelayNotAllowed(t.Context()), Unset, []*RateLimiterWithWeight{extra}, []Weight{1}, newRequest, UnauthenticatedRequest)
+		require.ErrorIs(t, err, ErrDelayNotAllowed, "second call must apply additional parallel rate limit")
+	})
 }
 
 func TestDoRequest_NoContent(t *testing.T) {

@@ -75,6 +75,15 @@ func New(name string, httpRequester *http.Client, opts ...RequesterOption) (*Req
 
 // SendPayload handles sending HTTP/HTTPS requests
 func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newRequest Generate, requestType AuthType) error {
+	return r.sendPayload(ctx, ep, nil, nil, newRequest, requestType)
+}
+
+// SendPayloadWithRateLimits handles sending HTTP/HTTPS requests with additional parallel rate limits.
+func (r *Requester) SendPayloadWithRateLimits(ctx context.Context, ep EndpointLimit, limiters []*RateLimiterWithWeight, weights []Weight, newRequest Generate, requestType AuthType) error {
+	return r.sendPayload(ctx, ep, limiters, weights, newRequest, requestType)
+}
+
+func (r *Requester) sendPayload(ctx context.Context, ep EndpointLimit, limiters []*RateLimiterWithWeight, weights []Weight, newRequest Generate, requestType AuthType) error {
 	if r == nil {
 		return ErrRequestSystemIsNil
 	}
@@ -92,7 +101,7 @@ func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newReques
 		return errRequestFunctionIsNil
 	}
 
-	err := r.doRequest(ctx, ep, newRequest)
+	err := r.doRequest(ctx, ep, limiters, weights, newRequest)
 	if err != nil && requestType == AuthenticatedRequest {
 		err = common.AppendError(err, ErrAuthRequestFailed)
 	}
@@ -139,7 +148,7 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 }
 
 // doRequest performs a HTTP/HTTPS request with the supplied params
-func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRequest Generate) error {
+func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, limiters []*RateLimiterWithWeight, weights []Weight, newRequest Generate) error {
 	for attempt := 1; ; attempt++ {
 		// Check if context has finished before executing new attempt.
 		select {
@@ -150,8 +159,11 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 
 		if r.limiter != nil {
 			// Initiate a rate limit reservation and sleep on requested endpoint
-			err := r.InitiateRateLimit(ctx, endpoint)
-			if err != nil {
+			if len(limiters) > 0 {
+				if err := r.InitiateRateLimitWithParallel(ctx, endpoint, limiters, weights); err != nil {
+					return fmt.Errorf("failed to rate limit HTTP request: %w", err)
+				}
+			} else if err := r.InitiateRateLimit(ctx, endpoint); err != nil {
 				return fmt.Errorf("failed to rate limit HTTP request: %w", err)
 			}
 		}

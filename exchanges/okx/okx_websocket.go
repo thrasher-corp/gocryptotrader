@@ -1040,7 +1040,10 @@ func appendWsOrderbookItems(items orderbook.Levels, entries []WsOrderBookLevel) 
 
 // appendWsOrderbookItemsFromPool reuses pooled level slices to reduce allocations.
 func appendWsOrderbookItemsFromPool(entries []WsOrderBookLevel) (items orderbook.Levels, pooledItems *orderbook.Levels) {
-	pooledItems = wsOrderbookLevelsPool.Get().(*orderbook.Levels)
+	pooledItems, ok := wsOrderbookLevelsPool.Get().(*orderbook.Levels)
+	if !ok {
+		panic(errUnexpectedOrderbookLevelsPoolType)
+	}
 	items = *pooledItems
 	if cap(items) < len(entries) {
 		items = make(orderbook.Levels, len(entries))
