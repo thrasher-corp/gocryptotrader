@@ -4190,6 +4190,210 @@
     }
    ]
   },
+  "/api/v4/margin/account_book": {
+   "GET": [
+    {
+     "data": [
+      {
+       "id": "12456",
+       "time": "1547633726523",
+       "time_ms": 1547633726523,
+       "currency": "BTC",
+       "currency_pair": "BTC_USDT",
+       "change": "-1.0",
+       "balance": "4.59921",
+       "type": "platform"
+      }
+     ],
+     "queryString": "currency=BTC&currency_pair=BTC_USDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "id": "12456",
+       "time": "1547633726523",
+       "time_ms": 1547633726523,
+       "currency": "BTC",
+       "currency_pair": "BTC_USDT",
+       "change": "-1.0",
+       "balance": "4.59921",
+       "type": "platform"
+      }
+     ],
+     "queryString": "currency=BTC&currency_pair=BTC_USDT&from=1744103854&limit=100&page=1&to=1744190254",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/margin/accounts": {
+   "GET": [
+    {
+     "data": [
+      {
+       "currency_pair": "BTC_USDT",
+       "locked": false,
+       "risk": "0.90",
+       "base": {
+        "currency": "BTC",
+        "available": "0.05",
+        "locked": "0",
+        "borrowed": "0",
+        "interest": "0"
+       },
+       "quote": {
+        "currency": "USDT",
+        "available": "1000",
+        "locked": "0",
+        "borrowed": "0",
+        "interest": "0"
+       }
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "currency_pair": "BTC_USDT",
+       "locked": false,
+       "risk": "0.90",
+       "base": {
+        "currency": "BTC",
+        "available": "0.05",
+        "locked": "0",
+        "borrowed": "0",
+        "interest": "0"
+       },
+       "quote": {
+        "currency": "USDT",
+        "available": "1000",
+        "locked": "0",
+        "borrowed": "0",
+        "interest": "0"
+       }
+      }
+     ],
+     "queryString": "currency_pair=BTC_USDT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/margin/auto_repay": {
+   "GET": [
+    {
+     "data": {
+      "status": "on"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ],
+   "POST": [
+    {
+     "data": {
+      "status": "on"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/margin/funding_accounts": {
+   "GET": [
+    {
+     "data": [
+      {
+       "currency": "BTC",
+       "available": "1.238",
+       "locked": "0",
+       "lent": "3.32",
+       "total_lent": "3.32"
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "currency": "BTC",
+       "available": "1.238",
+       "locked": "0",
+       "lent": "3.32",
+       "total_lent": "3.32"
+      }
+     ],
+     "queryString": "currency=BTC",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/margin/leverage/user_market_setting": {
+   "POST": [
+    {
+     "data": null,
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/margin/loan_margin_tiers": {
+   "GET": [
+    {
+     "data": [
+      {
+       "tier_amount": "100",
+       "mmr": "0.9",
+       "leverage": "1"
+      }
+     ],
+     "queryString": "currency_pair=BTC_USDT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/margin/transferable": {
+   "GET": [
+    {
+     "data": {
+      "currency": "ETH",
+      "currency_pair": "ETH_USDT",
+      "amount": "10000"
+     },
+     "queryString": "currency=BTC&currency_pair=BTC_USDT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/margin/uni/borrowable": {
+   "GET": [
+    {
+     "data": [
+      {
+       "currency": "BTC",
+       "borrowable": "1123.344",
+       "currency_pair": "BTC_USDT"
+      }
+     ],
+     "queryString": "currency=BTC&currency_pair=BTC_USDT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
   "/api/v4/margin/uni/currency_pairs": {
    "GET": [
     {
@@ -4241,6 +4445,178 @@
       "quote_min_borrow_amount": "1"
      },
      "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/margin/uni/estimate_rate": {
+   "GET": [
+    {
+     "data": {
+      "BTC": "0.000002",
+      "GT": "0.0000001"
+     },
+     "queryString": "currencies=BTC",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/margin/uni/interest_records": {
+   "GET": [
+    {
+     "data": [
+      {
+       "status": 1,
+       "currency_pair": "BTC_USDT",
+       "currency": "BTC",
+       "actual_rate": "0.00000813",
+       "interest": "0.0000001",
+       "type": "platform",
+       "create_time": 1673247054000
+      }
+     ],
+     "queryString": "currency=BTC&currency_pair=BTC_USDT&limit=10&page=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "status": 1,
+       "currency_pair": "BTC_USDT",
+       "currency": "BTC",
+       "actual_rate": "0.00000813",
+       "interest": "0.0000001",
+       "type": "platform",
+       "create_time": 1673247054000
+      }
+     ],
+     "queryString": "currency=BTC&currency_pair=BTC_USDT&from=1744103854944&limit=10&page=1&to=1744190254944",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/margin/uni/loan_records": {
+   "GET": [
+    {
+     "data": [
+      {
+       "type": "borrow",
+       "currency_pair": "BTC_USDT",
+       "currency": "BTC",
+       "amount": "1000",
+       "create_time": 1673247054000
+      }
+     ],
+     "queryString": "currency=BTC&currency_pair=BTC_USDT&limit=100&page=1&type=borrow",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/margin/uni/loans": {
+   "GET": [
+    {
+     "data": [
+      {
+       "currency": "USDT",
+       "currency_pair": "GT_USDT",
+       "amount": "1",
+       "type": "margin",
+       "change_time": 1673247054000,
+       "create_time": 1673247054000
+      }
+     ],
+     "queryString": "currency=BTC&currency_pair=BTC_USDT&limit=100&page=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ],
+   "POST": [
+    {
+     "data": null,
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/margin/user/account": {
+   "GET": [
+    {
+     "data": [
+      {
+       "currency_pair": "BTC_USDT",
+       "account_type": "margin",
+       "leverage": 3,
+       "locked": false,
+       "risk": "0.90",
+       "mmr": "0.03",
+       "base": {
+        "currency": "BTC",
+        "available": "0.05",
+        "locked": "0",
+        "borrowed": "0",
+        "interest": "0"
+       },
+       "quote": {
+        "currency": "USDT",
+        "available": "1000",
+        "locked": "0",
+        "borrowed": "0",
+        "interest": "0"
+       }
+      }
+     ],
+     "queryString": "currency_pair=BTC_USDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "currency_pair": "BTC_USDT",
+       "account_type": "margin",
+       "leverage": 3,
+       "locked": false,
+       "risk": "0.90",
+       "mmr": "0.03",
+       "base": {
+        "currency": "BTC",
+        "available": "0.05",
+        "locked": "0",
+        "borrowed": "0",
+        "interest": "0"
+       },
+       "quote": {
+        "currency": "USDT",
+        "available": "1000",
+        "locked": "0",
+        "borrowed": "0",
+        "interest": "0"
+       }
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/margin/user/loan_margin_tiers": {
+   "GET": [
+    {
+     "data": [
+      {
+       "tier_amount": "100",
+       "mmr": "0.9",
+       "leverage": "1"
+      }
+     ],
+     "queryString": "currency_pair=BTC_USDT",
      "bodyParams": "",
      "headers": {}
     }

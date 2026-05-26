@@ -5289,16 +5289,15 @@ func (e *Exchange) GetIsolatedMarginCurrentMarketLeverageLendingTiers(ctx contex
 }
 
 // SetUserIsolatedMarginAccountMarketLeverageMultiplier sets user's isolated margin account leverage multiplier for a market
-func (e *Exchange) SetUserIsolatedMarginAccountMarketLeverageMultiplier(ctx context.Context, currencyPair currency.Pair, leverage uint16) (*UserMarketLeverageMultiplierResponse, error) {
-	if leverage <= 0 {
-		return nil, order.ErrSubmitLeverageNotSupported
+func (e *Exchange) SetUserIsolatedMarginAccountMarketLeverageMultiplier(ctx context.Context, currencyPair currency.Pair, leverage uint16) error {
+	if leverage == 0 {
+		return order.ErrSubmitLeverageNotSupported
 	}
-	params := url.Values{}
-	if !currencyPair.IsEmpty() {
-		params.Set("currency_pair", currencyPair.String())
+	arg := &SetMarginMarketLeverageRequest{
+		CurrencyPair: currencyPair,
+		Leverage:     leverage,
 	}
-	var resp *UserMarketLeverageMultiplierResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "margin/leverage/user_market_setting", params, nil, &resp)
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "margin/leverage/user_market_setting", nil, arg, nil)
 }
 
 // GetUserIsolatedMarginAccountList retrieves user's isolated margin account list

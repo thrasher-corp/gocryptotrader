@@ -1342,11 +1342,13 @@ type AccountBalanceInformation struct {
 // MarginAccountBalanceChangeInfo represents margin account balance
 type MarginAccountBalanceChangeInfo struct {
 	ID            string        `json:"id"`
+	TimeUnix      string        `json:"time"`
 	Time          types.Time    `json:"time_ms"`
 	Currency      currency.Code `json:"currency"`
 	CurrencyPair  currency.Pair `json:"currency_pair"`
 	AmountChanged string        `json:"change"`
 	Balance       string        `json:"balance"`
+	AccountType   string        `json:"type"`
 }
 
 // MarginFundingAccountItem represents funding account list item.
@@ -3946,6 +3948,12 @@ type LoanMarginTierDetail struct {
 // UserMarketLeverageMultiplierResponse represents a response detail after setting a user's market leverage multiplier.
 type UserMarketLeverageMultiplierResponse struct {
 	CurrencyPair currency.Pair `json:"currency_pair"`
+	Leverage     uint16        `json:"leverage,string"`
+}
+
+// SetMarginMarketLeverageRequest holds the body for setting a user's isolated margin market leverage multiplier.
+type SetMarginMarketLeverageRequest struct {
+	CurrencyPair currency.Pair `json:"currency_pair,omitempty"`
 	Leverage     uint16        `json:"leverage,string"`
 }
 

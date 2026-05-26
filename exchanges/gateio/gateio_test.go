@@ -676,12 +676,16 @@ func TestCancelPriceTriggeredOrder(t *testing.T) {
 
 func TestGetMarginAccountList(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetIsolatedMarginAccountList(t.Context(), currency.EMPTYPAIR)
-	assert.NoError(t, err)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	}
+	result, err := e.GetIsolatedMarginAccountList(t.Context(), currency.EMPTYPAIR)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 
-	_, err = e.GetIsolatedMarginAccountList(t.Context(), getPair(t, asset.Margin))
-	assert.NoError(t, err)
+	result, err = e.GetIsolatedMarginAccountList(t.Context(), getPair(t, asset.Margin))
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestListMarginAccountBalanceChangeHistory(t *testing.T) {
@@ -690,46 +694,63 @@ func TestListMarginAccountBalanceChangeHistory(t *testing.T) {
 	_, err := e.ListMarginAccountBalanceChangeHistory(t.Context(), currency.BTC, getPair(t, asset.Margin), endTime, startTime, 0, 0)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err = e.ListMarginAccountBalanceChangeHistory(t.Context(), currency.BTC, getPair(t, asset.Margin), time.Time{}, time.Time{}, 0, 0)
-	assert.NoError(t, err)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	}
+	result, err := e.ListMarginAccountBalanceChangeHistory(t.Context(), currency.BTC, getPair(t, asset.Margin), time.Time{}, time.Time{}, 0, 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 
-	_, err = e.ListMarginAccountBalanceChangeHistory(t.Context(), currency.BTC, getPair(t, asset.Margin), startTime, endTime, 1, 100)
-	assert.NoError(t, err)
+	result, err = e.ListMarginAccountBalanceChangeHistory(t.Context(), currency.BTC, getPair(t, asset.Margin), startTime, endTime, 1, 100)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestGetMarginFundingAccountList(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetMarginFundingAccountList(t.Context(), currency.EMPTYCODE)
-	assert.NoError(t, err)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	}
+	result, err := e.GetMarginFundingAccountList(t.Context(), currency.EMPTYCODE)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 
-	_, err = e.GetMarginFundingAccountList(t.Context(), currency.BTC)
-	assert.NoError(t, err)
+	result, err = e.GetMarginFundingAccountList(t.Context(), currency.BTC)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestUpdateUsersAutoRepaymentSetting(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.UpdateUsersAutoRepaymentSetting(t.Context(), true)
-	assert.NoError(t, err)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	}
+	result, err := e.UpdateUsersAutoRepaymentSetting(t.Context(), true)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestGetUserAutoRepaymentSetting(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetUserAutoRepaymentSetting(t.Context())
-	assert.NoError(t, err)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	}
+	result, err := e.GetUserAutoRepaymentSetting(t.Context())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestGetMaxTransferableAmountForSpecificMarginCurrency(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetMaxTransferableAmountForSpecificMarginCurrency(t.Context(), currency.EMPTYCODE, currency.EMPTYPAIR)
-	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err = e.GetMaxTransferableAmountForSpecificMarginCurrency(t.Context(), currency.BTC, getPair(t, asset.Margin))
-	assert.NoError(t, err)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	}
+	result, err := e.GetMaxTransferableAmountForSpecificMarginCurrency(t.Context(), currency.BTC, getPair(t, asset.Margin))
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestCurrencySupportedByCrossMargin(t *testing.T) {
@@ -5297,7 +5318,9 @@ func TestGetEstimatedInterestRate(t *testing.T) {
 	})
 	require.ErrorIs(t, err, errTooManyCurrencyCodes)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	}
 	got, err := e.GetEstimatedInterestRate(t.Context(), currency.Currencies{currency.BTC})
 	require.NoError(t, err)
 	val, ok := got["BTC"]
@@ -5643,7 +5666,9 @@ func TestLendOrBorrow(t *testing.T) {
 
 func TestListAllIsolatedMarginLoans(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	}
 	result, err := e.ListAllIsolatedMarginLoans(t.Context(), getPair(t, asset.Margin), currency.BTC, 1, 100)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -5651,7 +5676,9 @@ func TestListAllIsolatedMarginLoans(t *testing.T) {
 
 func TestGetIsolatedMarginLoanRecords(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	}
 	result, err := e.GetIsolatedMarginLoanRecords(t.Context(), "borrow", currency.BTC, getPair(t, asset.Margin), 1, 100)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -5663,7 +5690,9 @@ func TestGetMarginAccountInterestDeductionRecords(t *testing.T) {
 	_, err := e.GetIsolatedMarginAccountInterestDeductionRecords(t.Context(), getPair(t, asset.Margin), currency.BTC, 1, 10, endTime, startTime)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	}
 	result, err := e.GetIsolatedMarginAccountInterestDeductionRecords(t.Context(), getPair(t, asset.Margin), currency.BTC, 1, 10, time.Time{}, time.Time{})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -5680,7 +5709,9 @@ func TestGetIsolatedMarginAccountMaximumBorrowableAmountByCurrency(t *testing.T)
 	_, err = e.GetIsolatedMarginAccountMaximumBorrowableAmountByCurrency(t.Context(), currency.BTC, currency.EMPTYPAIR)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	}
 	result, err := e.GetIsolatedMarginAccountMaximumBorrowableAmountByCurrency(t.Context(), currency.BTC, getPair(t, asset.Margin))
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -5691,7 +5722,9 @@ func TestGetUsersOwnLverageLendingTiersInCurrentMarket(t *testing.T) {
 	_, err := e.GetUsersOwnLverageLendingTiersInCurrentMarket(t.Context(), currency.EMPTYPAIR)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	}
 	result, err := e.GetUsersOwnLverageLendingTiersInCurrentMarket(t.Context(), getPair(t, asset.Margin))
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -5702,7 +5735,9 @@ func TestGetIsolatedMarginCurrentMarketLeverageLendingTiers(t *testing.T) {
 	_, err := e.GetIsolatedMarginCurrentMarketLeverageLendingTiers(t.Context(), currency.EMPTYPAIR)
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	}
 	result, err := e.GetIsolatedMarginCurrentMarketLeverageLendingTiers(t.Context(), getPair(t, asset.Margin))
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -5710,22 +5745,24 @@ func TestGetIsolatedMarginCurrentMarketLeverageLendingTiers(t *testing.T) {
 
 func TestSetUserIsolatedMarginAccountMarketLeverageMultiplier(t *testing.T) {
 	t.Parallel()
-	_, err := e.SetUserIsolatedMarginAccountMarketLeverageMultiplier(t.Context(), getPair(t, asset.Margin), 0)
+	err := e.SetUserIsolatedMarginAccountMarketLeverageMultiplier(t.Context(), getPair(t, asset.Margin), 0)
 	require.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.SetUserIsolatedMarginAccountMarketLeverageMultiplier(t.Context(), getPair(t, asset.Margin), 100)
+	err = e.SetUserIsolatedMarginAccountMarketLeverageMultiplier(t.Context(), getPair(t, asset.Margin), 10)
 	require.NoError(t, err)
-	assert.NotNil(t, result)
 }
 
 func TestGetUserIsolatedMarginAccountList(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetUserIsolatedMarginAccountList(t.Context(), getPair(t, asset.Margin))
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	}
+	result, err := e.GetUserIsolatedMarginAccountList(t.Context(), getPair(t, asset.Margin))
 	require.NoError(t, err)
+	assert.NotNil(t, result)
 
-	result, err := e.GetUserIsolatedMarginAccountList(t.Context(), currency.EMPTYPAIR)
+	result, err = e.GetUserIsolatedMarginAccountList(t.Context(), currency.EMPTYPAIR)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
