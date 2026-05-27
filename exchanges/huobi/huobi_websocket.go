@@ -85,7 +85,8 @@ func (e *Exchange) wsAuth(ctx context.Context, conn websocket.Connection) error 
 		authURL = wsSpotURL + wsPrivatePath
 	}
 	if conn.GetURL() != authURL {
-		return nil
+		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		return fmt.Errorf("%w: expected auth route %s, got %s", websocket.ErrRequestRouteNotFound, authURL, conn.GetURL())
 	}
 	if err := e.wsLogin(ctx, conn); err != nil {
 		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
@@ -492,11 +493,11 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 }
 
 func (e *Exchange) subscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
-	return common.AppendError(nil, e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error { return e.manageSubs(ctx, conn, wsSubOp, l) }, 1))
+	return e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error { return e.manageSubs(ctx, conn, wsSubOp, l) }, 1)
 }
 
 func (e *Exchange) unsubscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
-	return common.AppendError(nil, e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error { return e.manageSubs(ctx, conn, wsUnsubOp, l) }, 1))
+	return e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error { return e.manageSubs(ctx, conn, wsUnsubOp, l) }, 1)
 }
 
 func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op string, subs subscription.List) error {

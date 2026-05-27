@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -1993,6 +1994,45 @@ func TestGenerateSubscriptions(t *testing.T) {
 		}
 	}
 	testsubs.EqualLists(t, exp, subs)
+}
+
+func TestGeneratePublicSubscriptions(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+
+	subs, err := ex.generatePublicSubscriptions()
+	require.NoError(t, err, "generatePublicSubscriptions must not error")
+	require.NotEmpty(t, subs, "generatePublicSubscriptions must return subscriptions")
+	for _, s := range subs {
+		assert.False(t, s.Authenticated, "generatePublicSubscriptions should only return public subscriptions")
+	}
+}
+
+func TestGeneratePrivateSubscriptions(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+
+	subs, err := ex.generatePrivateSubscriptions()
+	require.NoError(t, err, "generatePrivateSubscriptions must not error")
+	require.NotEmpty(t, subs, "generatePrivateSubscriptions must return subscriptions")
+	for _, s := range subs {
+		assert.True(t, s.Authenticated, "generatePrivateSubscriptions should only return private subscriptions")
+	}
+}
+
+func TestWsAuthMismatchedRoute(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+
+	err := ex.wsAuth(t.Context(), testexch.GetMockConn(t, ex, wsSpotURL+wsPublicPath))
+	assert.ErrorIs(t, err, websocket.ErrRequestRouteNotFound, "wsAuth should error for a non-auth connection route")
+	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "wsAuth should disable authenticated endpoints after route mismatch")
 }
 
 func TestChannelName(t *testing.T) {

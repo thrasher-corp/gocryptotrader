@@ -32,7 +32,8 @@ import (
 var deribitWebsocketAddress = "wss://www.deribit.com/ws" + deribitAPIVersion
 
 const (
-	rpcVersion = "2.0"
+	rpcVersion                               = "2.0"
+	deribitMaxChannelsPerSubscriptionRequest = 500
 
 	// public websocket channels
 	announcementsChannel                   = "announcements"
@@ -824,6 +825,14 @@ func (e *Exchange) handleSubscription(ctx context.Context, conn websocket.Connec
 		return err
 	}
 
+	var errs error
+	for _, batch := range common.Batch(subs, deribitMaxChannelsPerSubscriptionRequest) {
+		errs = common.AppendError(errs, e.handleSubscriptionBatch(ctx, conn, method, batch))
+	}
+	return errs
+}
+
+func (e *Exchange) handleSubscriptionBatch(ctx context.Context, conn websocket.Connection, method string, subs subscription.List) error {
 	r := WsSubscriptionInput{
 		JSONRPCVersion: rpcVersion,
 		ID:             e.MessageID(),
