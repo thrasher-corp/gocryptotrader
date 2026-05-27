@@ -2,7 +2,6 @@ package gemini
 
 import (
 	"net/url"
-	"strings"
 	"testing"
 	"time"
 
@@ -228,68 +227,59 @@ func TestGetFee(t *testing.T) {
 	feeBuilder := setFeeBuilder()
 	if sharedtestvalues.AreAPICredentialsSet(e) || mockTests {
 		// CryptocurrencyTradeFee Basic
-		if _, err := e.GetFee(t.Context(), feeBuilder); err != nil {
-			assert.NoError(t, err)
-		}
+		_, err := e.GetFee(t.Context(), feeBuilder)
+		assert.NoError(t, err)
 
 		// CryptocurrencyTradeFee High quantity
 		feeBuilder = setFeeBuilder()
 		feeBuilder.Amount = 1000
 		feeBuilder.PurchasePrice = 1000
-		if _, err := e.GetFee(t.Context(), feeBuilder); err != nil {
-			assert.NoError(t, err)
-		}
+		_, err = e.GetFee(t.Context(), feeBuilder)
+		assert.NoError(t, err)
 
 		// CryptocurrencyTradeFee IsMaker
 		feeBuilder = setFeeBuilder()
 		feeBuilder.IsMaker = true
-		if _, err := e.GetFee(t.Context(), feeBuilder); err != nil {
-			assert.NoError(t, err)
-		}
+		_, err = e.GetFee(t.Context(), feeBuilder)
+		assert.NoError(t, err)
 
 		// CryptocurrencyTradeFee Negative purchase price
 		feeBuilder = setFeeBuilder()
 		feeBuilder.PurchasePrice = -1000
-		if _, err := e.GetFee(t.Context(), feeBuilder); err != nil {
-			assert.NoError(t, err)
-		}
+		_, err = e.GetFee(t.Context(), feeBuilder)
+		assert.NoError(t, err)
 	}
 	// CryptocurrencyWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	if _, err := e.GetFee(t.Context(), feeBuilder); err != nil {
-		assert.NoError(t, err)
-	}
+	_, err := e.GetFee(t.Context(), feeBuilder)
+	assert.NoError(t, err)
 
 	// CryptocurrencyWithdrawalFee Invalid currency
 	feeBuilder = setFeeBuilder()
 	feeBuilder.Pair.Base = currency.NewCode("hello")
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	if _, err := e.GetFee(t.Context(), feeBuilder); err != nil {
-		assert.NoError(t, err)
-	}
+	_, err = e.GetFee(t.Context(), feeBuilder)
+	assert.NoError(t, err)
 
 	// CryptocurrencyDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyDepositFee
-	if _, err := e.GetFee(t.Context(), feeBuilder); err != nil {
-		assert.NoError(t, err)
-	}
+	_, err = e.GetFee(t.Context(), feeBuilder)
+	assert.NoError(t, err)
 
 	// InternationalBankDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
-	if _, err := e.GetFee(t.Context(), feeBuilder); err != nil {
-		assert.NoError(t, err)
-	}
+	_, err = e.GetFee(t.Context(), feeBuilder)
+	assert.NoError(t, err)
 
 	// InternationalBankWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.USD
-	if _, err := e.GetFee(t.Context(), feeBuilder); err != nil {
-		assert.NoError(t, err)
-	}
+	_, err = e.GetFee(t.Context(), feeBuilder)
+	assert.NoError(t, err)
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
@@ -316,11 +306,9 @@ func TestGetActiveOrders(t *testing.T) {
 
 	_, err := e.GetActiveOrders(t.Context(), &getOrdersRequest)
 	switch {
-	case sharedtestvalues.AreAPICredentialsSet(e) && err != nil && !mockTests:
-		assert.NoError(t, err, "GetActiveOrders should not error")
 	case !sharedtestvalues.AreAPICredentialsSet(e) && !mockTests:
 		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetActiveOrders should error when no keys are set")
-	case mockTests && err != nil:
+	case sharedtestvalues.AreAPICredentialsSet(e) || mockTests:
 		assert.NoError(t, err, "GetActiveOrders should not error")
 	}
 }
@@ -336,11 +324,9 @@ func TestGetOrderHistory(t *testing.T) {
 
 	_, err := e.GetOrderHistory(t.Context(), &getOrdersRequest)
 	switch {
-	case sharedtestvalues.AreAPICredentialsSet(e) && err != nil:
-		assert.NoError(t, err, "GetOrderHistory should not error")
 	case !sharedtestvalues.AreAPICredentialsSet(e) && !mockTests:
 		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetOrderHistory should error when no keys are set")
-	case err != nil && mockTests:
+	case sharedtestvalues.AreAPICredentialsSet(e) || mockTests:
 		assert.NoError(t, err, "GetOrderHistory should not error")
 	}
 }
@@ -369,12 +355,12 @@ func TestSubmitOrder(t *testing.T) {
 
 	response, err := e.SubmitOrder(t.Context(), orderSubmission)
 	switch {
-	case sharedtestvalues.AreAPICredentialsSet(e) && (err != nil || response.Status != order.New):
-		assert.NoError(t, err, "SubmitOrder should not error")
+	case sharedtestvalues.AreAPICredentialsSet(e):
+		require.NoError(t, err, "SubmitOrder must not error")
 		assert.Equal(t, order.New, response.Status, "SubmitOrder should return order.New status")
 	case !sharedtestvalues.AreAPICredentialsSet(e) && !mockTests:
 		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "SubmitOrder should error when no keys are set")
-	case mockTests && err != nil:
+	case mockTests:
 		assert.NoError(t, err, "SubmitOrder should not error")
 	}
 }
@@ -394,9 +380,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	switch {
 	case !sharedtestvalues.AreAPICredentialsSet(e) && !mockTests:
 		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "CancelOrder should error when no keys are set")
-	case sharedtestvalues.AreAPICredentialsSet(e) && err != nil:
-		assert.NoError(t, err, "CancelOrder should not error")
-	case err != nil && mockTests:
+	case sharedtestvalues.AreAPICredentialsSet(e) || mockTests:
 		assert.NoError(t, err, "CancelOrder should not error")
 	}
 }
@@ -419,9 +403,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	switch {
 	case !sharedtestvalues.AreAPICredentialsSet(e) && !mockTests:
 		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "CancelAllOrders should error when no keys are set")
-	case sharedtestvalues.AreAPICredentialsSet(e) && err != nil:
-		assert.NoError(t, err, "CancelAllOrders should not error")
-	case mockTests && err != nil:
+	case sharedtestvalues.AreAPICredentialsSet(e) || mockTests:
 		assert.NoError(t, err, "CancelAllOrders should not error")
 	}
 
@@ -458,9 +440,6 @@ func TestWithdraw(t *testing.T) {
 
 func TestWithdrawFiat(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
-	}
 
 	withdrawFiatRequest := withdraw.Request{}
 	_, err := e.WithdrawFiatFunds(t.Context(), &withdrawFiatRequest)
@@ -469,9 +448,6 @@ func TestWithdrawFiat(t *testing.T) {
 
 func TestWithdrawInternationalBank(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
-	}
 
 	withdrawFiatRequest := withdraw.Request{}
 	_, err := e.WithdrawFiatFundsToInternationalBank(t.Context(),
@@ -492,10 +468,17 @@ func TestWsAuth(t *testing.T) {
 		!sharedtestvalues.AreAPICredentialsSet(e) {
 		t.Skip("authenticated websocket is not available for this test")
 	}
-	testexch.SkipTestIfCannotUseAuthenticatedWebsocket(t, e)
 	require.NoError(t, e.API.Endpoints.SetRunningURL(exchange.WebsocketSpotSupplementary.String(), geminiWebsocketSandboxEndpoint+geminiWsOrderEvents))
 	conn := testexch.GetMockConn(t, e, geminiWebsocketSandboxEndpoint+geminiWsOrderEvents)
 	require.NoError(t, e.wsAuthConnect(t.Context(), conn))
+}
+
+func TestWsConnect(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	conn := testexch.GetMockConn(t, ex, geminiWebsocketEndpoint)
+	assert.NoError(t, ex.wsConnect(t.Context(), conn), "wsConnect should not error")
 }
 
 func TestWsMissingRole(t *testing.T) {
@@ -619,9 +602,7 @@ func TestWsSubAck(t *testing.T) {
     "closed"
   ]
 }`)
-	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON); err != nil {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 }
 
 func TestWsHeartbeat(t *testing.T) {
@@ -632,9 +613,7 @@ func TestWsHeartbeat(t *testing.T) {
   "trace_id": "b8biknoqppr32kc7gfgg",
   "socket_sequence": 37
 }`)
-	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON); err != nil {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 }
 
 func TestWsUnsubscribe(t *testing.T) {
@@ -673,9 +652,7 @@ func TestWsTradeData(t *testing.T) {
     }
   ]
 }`)
-	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON); err != nil {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 }
 
 func TestWsAuctionData(t *testing.T) {
@@ -705,9 +682,7 @@ func TestWsAuctionData(t *testing.T) {
     ],
     "type": "update"
 }`)
-	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON); err != nil {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 }
 
 func TestWsBlockTrade(t *testing.T) {
@@ -726,9 +701,7 @@ func TestWsBlockTrade(t *testing.T) {
       }
    ]
 }`)
-	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON); err != nil {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 }
 
 func TestWSTrade(t *testing.T) {
@@ -741,9 +714,7 @@ func TestWSTrade(t *testing.T) {
 		"quantity": "0.09110000",
 		"side": "buy"
 	}`)
-	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON); err != nil {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 }
 
 func TestWsCandles(t *testing.T) {
@@ -847,9 +818,7 @@ func TestWsAuctions(t *testing.T) {
     ],
     "type": "update"
 }`)
-	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON); err != nil {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 
 	pressXToJSON = []byte(`{
     "type": "update",
@@ -871,9 +840,7 @@ func TestWsAuctions(t *testing.T) {
         }
     ]
 }`)
-	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON); err != nil {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 
 	pressXToJSON = []byte(`{
     "type": "update",
@@ -902,9 +869,7 @@ func TestWsAuctions(t *testing.T) {
         }
     ]
 }`)
-	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON); err != nil {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 }
 
 func TestWsMarketData(t *testing.T) {
@@ -1023,11 +988,11 @@ func TestWsError(t *testing.T) {
 			require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 
 			err := ex.wsHandleData(t.Context(), testexch.GetMockConn(t, ex, ""), tc.Data)
-			if tc.ErrorExpected && err != nil && !strings.Contains(err.Error(), tc.ErrorShouldContain) {
-				assert.Contains(t, err.Error(), tc.ErrorShouldContain, "error should contain expected substring")
-			} else if !tc.ErrorExpected && err != nil {
-				assert.NoError(t, err, "wsHandleData should not error for this payload")
+			if tc.ErrorExpected {
+				assert.ErrorContains(t, err, tc.ErrorShouldContain, "wsHandleData should return expected error")
+				return
 			}
+			assert.NoError(t, err, "wsHandleData should not error for this payload")
 		})
 	}
 }
@@ -1081,9 +1046,7 @@ func TestWsLevel2Update(t *testing.T) {
 			}
 		]
 	}`)
-	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON); err != nil {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 }
 
 func TestResponseToStatus(t *testing.T) {
@@ -1137,21 +1100,15 @@ func TestResponseToOrderType(t *testing.T) {
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
 	currencyPair, err := currency.NewPairFromString(testCurrency)
-	if err != nil {
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 	_, err = e.GetRecentTrades(t.Context(), currencyPair, asset.Spot)
-	if err != nil {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
 	currencyPair, err := currency.NewPairFromString(testCurrency)
-	if err != nil {
-		require.NoError(t, err)
-	}
+	require.NoError(t, err)
 	tStart := time.Date(2020, 6, 6, 0, 0, 0, 0, time.UTC)
 	tEnd := time.Date(2020, 6, 7, 0, 0, 0, 0, time.UTC)
 	if !mockTests {
@@ -1160,9 +1117,7 @@ func TestGetHistoricTrades(t *testing.T) {
 	}
 	_, err = e.GetHistoricTrades(t.Context(),
 		currencyPair, asset.Spot, tStart, tEnd)
-	if err != nil {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestTransfers(t *testing.T) {
@@ -1170,9 +1125,7 @@ func TestTransfers(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
 	_, err := e.Transfers(t.Context(), currency.BTC, time.Time{}, 100, "", true)
-	if err != nil {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetAccountFundingHistory(t *testing.T) {
@@ -1180,9 +1133,7 @@ func TestGetAccountFundingHistory(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
 	_, err := e.GetAccountFundingHistory(t.Context())
-	if err != nil {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetWithdrawalsHistory(t *testing.T) {
@@ -1190,9 +1141,7 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
 	_, err := e.GetWithdrawalsHistory(t.Context(), currency.BTC, asset.Spot)
-	if err != nil {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetOrderInfo(t *testing.T) {
@@ -1200,21 +1149,15 @@ func TestGetOrderInfo(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
 	_, err := e.GetOrderInfo(t.Context(), "1234", currency.EMPTYPAIR, asset.Empty)
-	if err != nil {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetSymbolDetails(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetSymbolDetails(t.Context(), "all")
-	if err != nil {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, err)
 	_, err = e.GetSymbolDetails(t.Context(), "btcusd")
-	if err != nil {
-		assert.NoError(t, err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
@@ -1287,4 +1230,20 @@ func TestGenerateSubscriptions(t *testing.T) {
 		func() { channelName(&subscription.Subscription{Channel: "wibble"}) },
 		"should panic on invalid channel",
 	)
+}
+
+func TestGeneratePublicSubscriptions(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	p := currency.Pairs{currency.NewPairWithDelimiter("BTC", "USD", ""), currency.NewPairWithDelimiter("ETH", "BTC", "")}
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, p, false), "StorePairs must not error")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, p, true), "StorePairs must not error")
+
+	subs, err := ex.generatePublicSubscriptions()
+	require.NoError(t, err, "generatePublicSubscriptions must not error")
+	require.NotEmpty(t, subs, "generatePublicSubscriptions must return subscriptions")
+	for _, s := range subs {
+		assert.False(t, s.Authenticated, "generatePublicSubscriptions should only return public subscriptions")
+	}
 }

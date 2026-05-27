@@ -173,10 +173,9 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:                         exch,
-		UseMultiConnectionManagement:           true,
-		Features:                               &e.Features.Supports.WebsocketCapabilities,
-		MaxWebsocketSubscriptionsPerConnection: 500, // https://docs.deribit.com/ (max 500 channels per subscribe request)
+		ExchangeConfig:               exch,
+		UseMultiConnectionManagement: true,
+		Features:                     &e.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
