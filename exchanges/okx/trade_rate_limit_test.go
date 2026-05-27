@@ -136,12 +136,23 @@ func TestTradeRateLimits(t *testing.T) {
 	t.Parallel()
 
 	ex := new(Exchange)
-	limits, err := ex.tradeRateLimits(tradeRateLimitPlaceSingle, map[string]int{"BTC-USDT": 2}, 3)
+	limits, err := ex.tradeRateLimits(tradeRateLimitParams{
+		class:                tradeRateLimitPlaceSingle,
+		counts:               map[string]int{"BTC-USDT": 2},
+		subAccountOrderCount: 3,
+		endpointWeight:       4,
+	})
 	require.NoError(t, err, "valid trade rate limits must not error")
 	require.Len(t, limits.limiters, 2, "valid trade rate limits must return scoped and subaccount limiters")
 	require.Equal(t, []request.Weight{2, 3}, limits.weights, "valid trade rate limits must return matching weights")
+	require.Equal(t, request.Weight(4), limits.endpointWeight, "valid trade rate limits must return endpoint weight")
 
 	ex.tradeSubAccountLimiter.Store("structural-subaccount-limit", "bad-type")
-	_, err = ex.tradeRateLimits(tradeRateLimitPlaceSingle, map[string]int{"BTC-USDT": 2}, 3)
+	_, err = ex.tradeRateLimits(tradeRateLimitParams{
+		class:                tradeRateLimitPlaceSingle,
+		counts:               map[string]int{"BTC-USDT": 2},
+		subAccountOrderCount: 3,
+		endpointWeight:       4,
+	})
 	require.Error(t, err, "invalid subaccount limiter type must error")
 }

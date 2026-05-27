@@ -19,8 +19,16 @@ const (
 )
 
 type tradeRateLimits struct {
-	limiters []*request.RateLimiterWithWeight
-	weights  []request.Weight
+	endpointWeight request.Weight
+	limiters       []*request.RateLimiterWithWeight
+	weights        []request.Weight
+}
+
+type tradeRateLimitParams struct {
+	class                tradeRateLimitClass
+	counts               map[string]int
+	subAccountOrderCount int
+	endpointWeight       int
 }
 
 func (e *Exchange) getOrCreateTradeScopedLimiter(class tradeRateLimitClass, scope string) *request.RateLimiterWithWeight {
@@ -46,20 +54,24 @@ func (e *Exchange) getOrCreateTradeScopedLimiter(class tradeRateLimitClass, scop
 	return rl
 }
 
-func (e *Exchange) tradeRateLimits(class tradeRateLimitClass, counts map[string]int, subAccountOrderCount int) (*tradeRateLimits, error) {
-	limiters, weights := e.tradeScopeRateLimits(class, counts)
-	if subAccountOrderCount > 0 {
-		limit, err := e.tradeSubAccountRateLimit(subAccountOrderCount)
+func (e *Exchange) tradeRateLimits(params tradeRateLimitParams) (*tradeRateLimits, error) {
+	limiters, weights := e.tradeScopeRateLimits(params.class, params.counts)
+	if params.subAccountOrderCount > 0 {
+		limit, err := e.tradeSubAccountRateLimit(params.subAccountOrderCount)
 		if err != nil {
 			return nil, err
 		}
 		limiters = append(limiters, limit)
-		weights = append(weights, request.Weight(toRateLimitWeight(subAccountOrderCount)))
+		weights = append(weights, request.Weight(toRateLimitWeight(params.subAccountOrderCount)))
 	}
-	return &tradeRateLimits{
+	limits := &tradeRateLimits{
 		limiters: limiters,
 		weights:  weights,
-	}, nil
+	}
+	if params.endpointWeight > 0 {
+		limits.endpointWeight = request.Weight(toRateLimitWeight(params.endpointWeight))
+	}
+	return limits, nil
 }
 
 func (e *Exchange) tradeScopeRateLimits(class tradeRateLimitClass, counts map[string]int) ([]*request.RateLimiterWithWeight, []request.Weight) {

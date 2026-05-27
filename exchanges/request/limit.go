@@ -112,7 +112,7 @@ func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) erro
 }
 
 // InitiateRateLimitWithParallel sleeps for an endpoint rate limit and additional parallel rate limits.
-func (r *Requester) InitiateRateLimitWithParallel(ctx context.Context, e EndpointLimit, limiters []*RateLimiterWithWeight, weights []Weight) error {
+func (r *Requester) InitiateRateLimitWithParallel(ctx context.Context, e EndpointLimit, endpointWeight Weight, limiters []*RateLimiterWithWeight, weights []Weight) error {
 	if r == nil {
 		return ErrRequestSystemIsNil
 	}
@@ -122,7 +122,7 @@ func (r *Requester) InitiateRateLimitWithParallel(ctx context.Context, e Endpoin
 	if err := common.NilGuard(r.limiter); err != nil {
 		return err
 	}
-	if err := RateLimitWithParallel(ctx, r.limiter[e], limiters, weights); err != nil {
+	if err := RateLimitWithParallel(ctx, r.limiter[e], endpointWeight, limiters, weights); err != nil {
 		return fmt.Errorf("cannot rate limit request %w for endpoint %d", err, e)
 	}
 	return nil
@@ -218,22 +218,29 @@ func RateLimitAll(ctx context.Context, limiters []*RateLimiterWithWeight, weight
 }
 
 // RateLimitWithParallel preserves normal endpoint rate limit behaviour while also reserving additional parallel scopes.
-// The endpoint limiter uses its configured weight or the request context override; the additional limiters use explicit
-// weights because they represent separate scopes, such as exchange instrument or sub-account limits, on the same request.
-func RateLimitWithParallel(ctx context.Context, endpoint *RateLimiterWithWeight, limiters []*RateLimiterWithWeight, weights []Weight) error {
+// The endpoint limiter uses endpointWeight when provided, otherwise its configured weight or the request context override.
+// Additional limiters use explicit weights because they represent separate scopes, such as exchange instrument or
+// sub-account limits, on the same request.
+func RateLimitWithParallel(ctx context.Context, endpoint *RateLimiterWithWeight, endpointWeight Weight, limiters []*RateLimiterWithWeight, weights []Weight) error {
 	if len(limiters) == 0 {
+		if endpointWeight > 0 {
+			if err := common.NilGuard(endpoint); err != nil {
+				return err
+			}
+			return endpoint.rateLimit(ctx, endpointWeight)
+		}
 		return endpoint.RateLimit(ctx)
 	}
 	if len(weights) != len(limiters) {
 		return fmt.Errorf("rate limiter count %d does not match weight count %d", len(limiters), len(weights))
 	}
 
-	var endpointWeight Weight
-	if endpoint != nil {
-		endpointWeight = endpoint.weight
-	}
-	if overrideWeight, ok := getRateLimitWeight(ctx); ok {
-		endpointWeight = overrideWeight
+	if endpointWeight == 0 {
+		if overrideWeight, ok := getRateLimitWeight(ctx); ok {
+			endpointWeight = overrideWeight
+		} else if endpoint != nil {
+			endpointWeight = endpoint.weight
+		}
 	}
 	requests := make([]rateLimitReservationRequest, 0, len(limiters)+1)
 	requests = append(requests, rateLimitReservationRequest{
