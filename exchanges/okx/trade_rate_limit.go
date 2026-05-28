@@ -1,7 +1,6 @@
 package okx
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -17,19 +16,6 @@ const (
 	tradeRateLimitAmendSingle  tradeRateLimitClass = "amend-single"
 	tradeRateLimitAmendBatch   tradeRateLimitClass = "amend-batch"
 )
-
-type tradeRateLimits struct {
-	endpointWeight request.Weight
-	limiters       []*request.RateLimiterWithWeight
-	weights        []request.Weight
-}
-
-type tradeRateLimitParams struct {
-	class                tradeRateLimitClass
-	counts               map[string]int
-	subAccountOrderCount int
-	endpointWeight       int
-}
 
 func (e *Exchange) getOrCreateTradeScopedLimiter(class tradeRateLimitClass, scope string) *request.RateLimiterWithWeight {
 	key := string(class) + "|" + strings.ToUpper(strings.TrimSpace(scope))
@@ -54,56 +40,45 @@ func (e *Exchange) getOrCreateTradeScopedLimiter(class tradeRateLimitClass, scop
 	return rl
 }
 
-func (e *Exchange) tradeRateLimits(params tradeRateLimitParams) (*tradeRateLimits, error) {
-	limiters, weights := e.tradeScopeRateLimits(params.class, params.counts)
-	if params.subAccountOrderCount > 0 {
-		limit, err := e.tradeSubAccountRateLimit(params.subAccountOrderCount)
-		if err != nil {
-			return nil, err
-		}
-		limiters = append(limiters, limit)
-		weights = append(weights, request.Weight(toRateLimitWeight(params.subAccountOrderCount)))
+func (e *Exchange) tradeRateLimits(class tradeRateLimitClass, counts map[string]int, subAccountOrderCount int) []request.RateLimitReservation {
+	limits := e.tradeScopeRateLimits(class, counts)
+	if limit, ok := e.tradeSubAccountRateLimit(subAccountOrderCount); ok {
+		limits = append(limits, limit)
 	}
-	limits := &tradeRateLimits{
-		limiters: limiters,
-		weights:  weights,
-	}
-	if params.endpointWeight > 0 {
-		limits.endpointWeight = request.Weight(toRateLimitWeight(params.endpointWeight))
-	}
-	return limits, nil
+	return limits
 }
 
-func (e *Exchange) tradeScopeRateLimits(class tradeRateLimitClass, counts map[string]int) ([]*request.RateLimiterWithWeight, []request.Weight) {
+func (e *Exchange) tradeScopeRateLimits(class tradeRateLimitClass, counts map[string]int) []request.RateLimitReservation {
 	if len(counts) == 0 {
-		return nil, nil
+		return nil
 	}
 
-	limiters := make([]*request.RateLimiterWithWeight, 0, len(counts))
-	weights := make([]request.Weight, 0, len(counts))
+	limits := make([]request.RateLimitReservation, 0, len(counts))
 	for scope, weight := range counts {
 		if weight < 1 {
 			continue
 		}
-		limiters = append(limiters, e.getOrCreateTradeScopedLimiter(class, scope))
-		weights = append(weights, request.Weight(toRateLimitWeight(weight)))
+		limits = append(limits, request.RateLimitReservation{
+			Limiter: e.getOrCreateTradeScopedLimiter(class, scope),
+			Weight:  request.Weight(toRateLimitWeight(weight)),
+		})
 	}
-	return limiters, weights
+	return limits
 }
 
-func (e *Exchange) tradeSubAccountRateLimit(orderCount int) (*request.RateLimiterWithWeight, error) {
+func (e *Exchange) tradeSubAccountRateLimit(orderCount int) (request.RateLimitReservation, bool) {
 	if orderCount < 1 {
-		return nil, nil
+		return request.RateLimitReservation{}, false
 	}
-	rlAny, _ := e.tradeSubAccountLimiter.LoadOrStore(
-		"structural-subaccount-limit",
-		request.NewRateLimitWithWeight(twoSecondsInterval, 1000, 1),
-	)
-	rl, ok := rlAny.(*request.RateLimiterWithWeight)
-	if !ok {
-		return nil, fmt.Errorf("invalid subaccount limiter type: %T", rlAny)
+	e.tradeSubAccountLock.Lock()
+	defer e.tradeSubAccountLock.Unlock()
+	if e.tradeSubAccountLimiter == nil {
+		e.tradeSubAccountLimiter = newTradeSubAccountRateLimiter()
 	}
-	return rl, nil
+	return request.RateLimitReservation{
+		Limiter: e.tradeSubAccountLimiter,
+		Weight:  request.Weight(toRateLimitWeight(orderCount)),
+	}, true
 }
 
 func tradeScopeFromInstrumentID(instrumentID string) string {

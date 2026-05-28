@@ -323,10 +323,11 @@ func TestSendPayloadWithRateLimits(t *testing.T) {
 			return nil, requestErr
 		}
 
-		err = r.SendPayloadWithRateLimits(t.Context(), Unset, 0, []*RateLimiterWithWeight{extra}, []Weight{1}, newRequest, UnauthenticatedRequest)
+		limits := []RateLimitReservation{{Limiter: extra, Weight: 1}}
+		err = r.SendPayloadWithRateLimits(t.Context(), Unset, newRequest, UnauthenticatedRequest, limits...)
 		require.ErrorIs(t, err, requestErr, "first call must reach request generation")
 
-		err = r.SendPayloadWithRateLimits(WithDelayNotAllowed(t.Context()), Unset, 0, []*RateLimiterWithWeight{extra}, []Weight{1}, newRequest, UnauthenticatedRequest)
+		err = r.SendPayloadWithRateLimits(WithDelayNotAllowed(t.Context()), Unset, newRequest, UnauthenticatedRequest, limits...)
 		require.ErrorIs(t, err, ErrDelayNotAllowed, "second call must apply additional parallel rate limit")
 	})
 }
