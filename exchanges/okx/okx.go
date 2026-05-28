@@ -35,6 +35,10 @@ type Exchange struct {
 
 	instrumentsInfoMapLock sync.Mutex
 	instrumentsInfoMap     map[string][]Instrument
+
+	// Trade rate limits are request-scoped additions to the static endpoint limiters.
+	// OKX applies separate buckets by instrument/family and by subaccount, so these
+	// limiters are created or reused when an order request is assembled.
 	tradeScopedLimiters    sync.Map
 	tradeSubAccountLock    sync.Mutex
 	tradeSubAccountLimiter *request.RateLimiterWithWeight
