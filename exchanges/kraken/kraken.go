@@ -49,7 +49,7 @@ func (e *Exchange) GetCurrentServerTime(ctx context.Context) (*TimeResponse, err
 	path := fmt.Sprintf("/%s/public/%s", krakenAPIVersion, krakenServerTime)
 
 	var result TimeResponse
-	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &result); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, krakenLimitPublic, path, &result); err != nil {
 		return nil, err
 	}
 
@@ -81,7 +81,7 @@ func (e *Exchange) SeedAssets(ctx context.Context) error {
 func (e *Exchange) GetAssets(ctx context.Context) (map[string]*Asset, error) {
 	path := fmt.Sprintf("/%s/public/%s", krakenAPIVersion, krakenAssets)
 	var result map[string]*Asset
-	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &result); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, krakenLimitPublic, path, &result); err != nil {
 		return nil, err
 	}
 	return result, nil
@@ -105,7 +105,7 @@ func (e *Exchange) GetAssetPairs(ctx context.Context, assetPairs []string, info 
 		}
 		params.Set("info", info)
 	}
-	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path+params.Encode(), &result); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, krakenLimitPublic, path+params.Encode(), &result); err != nil {
 		return nil, err
 	}
 	return result, nil
@@ -122,7 +122,7 @@ func (e *Exchange) GetTicker(ctx context.Context, symbol currency.Pair) (*Ticker
 
 	var data map[string]*TickerResponse
 	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenTicker, values.Encode())
-	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &data); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, krakenLimitPublic, path, &data); err != nil {
 		return nil, err
 	}
 
@@ -155,7 +155,7 @@ func (e *Exchange) GetTickers(ctx context.Context, pairList string) (map[string]
 	var result map[string]*TickerResponse
 	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenTicker, values.Encode())
 
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &result)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, krakenLimitPublic, path, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +196,7 @@ func (e *Exchange) GetOHLC(ctx context.Context, symbol currency.Pair, interval s
 	path := fmt.Sprintf("/%s/public/%s?%s", krakenAPIVersion, krakenOHLC, values.Encode())
 
 	result := make(map[string]any)
-	err = e.SendHTTPRequest(ctx, exchange.RestSpot, path, &result)
+	err = e.SendHTTPRequest(ctx, exchange.RestSpot, krakenLimitPublic, path, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +266,7 @@ func (e *Exchange) GetDepth(ctx context.Context, symbol currency.Pair) (*Orderbo
 	}
 
 	result := make(map[string]*orderbookStructure)
-	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &result); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, krakenLimitPublic, path, &result); err != nil {
 		return nil, err
 	}
 
@@ -308,7 +308,7 @@ func (e *Exchange) GetTrades(ctx context.Context, symbol currency.Pair, since ti
 
 	path := common.EncodeURLValues("/"+krakenAPIVersion+"/public/"+krakenTrades, values)
 	var resp *RecentTradesResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, krakenLimitPublic, path, &resp)
 }
 
 // GetSpread returns the full spread on Kraken
@@ -324,13 +324,13 @@ func (e *Exchange) GetSpread(ctx context.Context, symbol currency.Pair, since ti
 	}
 	var peanutButter *SpreadResponse
 	path := common.EncodeURLValues("/"+krakenAPIVersion+"/public/"+krakenSpread, values)
-	return peanutButter, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &peanutButter)
+	return peanutButter, e.SendHTTPRequest(ctx, exchange.RestSpot, krakenLimitPublic, path, &peanutButter)
 }
 
 // GetBalance returns your balance associated with your keys
 func (e *Exchange) GetBalance(ctx context.Context) (map[string]Balance, error) {
 	var result map[string]Balance
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenBalance, url.Values{}, &result); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenLimitBalance, krakenBalance, url.Values{}, &result); err != nil {
 		return nil, err
 	}
 
@@ -345,7 +345,7 @@ func (e *Exchange) GetWithdrawInfo(ctx context.Context, withdrawalAsset, withdra
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 
 	var result *WithdrawInformation
-	return result, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenWithdrawInfo, params, &result)
+	return result, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenLimitBalance, krakenWithdrawInfo, params, &result)
 }
 
 // Withdraw withdraws funds
@@ -356,7 +356,7 @@ func (e *Exchange) Withdraw(ctx context.Context, withdrawalAsset, withdrawalKey 
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 
 	var referenceID string
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenWithdraw, params, &referenceID); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenLimitWithdraw, krakenWithdraw, params, &referenceID); err != nil {
 		return referenceID, err
 	}
 
@@ -369,7 +369,7 @@ func (e *Exchange) GetDepositMethods(ctx context.Context, a string) ([]DepositMe
 	params.Set("asset", a)
 
 	var result []DepositMethods
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenDepositMethods, params, &result)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenLimitBalance, krakenDepositMethods, params, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -392,7 +392,7 @@ func (e *Exchange) GetTradeBalance(ctx context.Context, args ...TradeBalanceOpti
 	}
 
 	var result TradeBalanceInfo
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenTradeBalance, params, &result); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenLimitBalance, krakenTradeBalance, params, &result); err != nil {
 		return nil, err
 	}
 
@@ -412,7 +412,7 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, args OrderInfoOptions) (*O
 	}
 
 	var result OpenOrders
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenOpenOrders, params, &result); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenLimitBalance, krakenOpenOrders, params, &result); err != nil {
 		return nil, err
 	}
 
@@ -448,7 +448,7 @@ func (e *Exchange) GetClosedOrders(ctx context.Context, args GetClosedOrdersOpti
 	}
 
 	var result ClosedOrders
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenClosedOrders, params, &result); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenLimitHistory, krakenClosedOrders, params, &result); err != nil {
 		return nil, err
 	}
 
@@ -474,7 +474,7 @@ func (e *Exchange) QueryOrdersInfo(ctx context.Context, args OrderInfoOptions, t
 	}
 
 	var result map[string]OrderInfo
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenQueryOrders, params, &result); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenLimitHistory, krakenQueryOrders, params, &result); err != nil {
 		return result, err
 	}
 
@@ -508,7 +508,7 @@ func (e *Exchange) GetTradesHistory(ctx context.Context, args ...GetTradesHistor
 	}
 
 	var result TradesHistory
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenTradeHistory, params, &result); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenLimitHistory, krakenTradeHistory, params, &result); err != nil {
 		return nil, err
 	}
 
@@ -530,7 +530,7 @@ func (e *Exchange) QueryTrades(ctx context.Context, trades bool, txid string, tx
 	}
 
 	var result map[string]TradeInfo
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenQueryTrades, params, &result); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenLimitHistory, krakenQueryTrades, params, &result); err != nil {
 		return nil, err
 	}
 
@@ -550,7 +550,7 @@ func (e *Exchange) OpenPositions(ctx context.Context, docalcs bool, txids ...str
 	}
 
 	var result map[string]Position
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenOpenPositions, params, &result); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenLimitBalance, krakenOpenPositions, params, &result); err != nil {
 		return nil, err
 	}
 
@@ -588,7 +588,7 @@ func (e *Exchange) GetLedgers(ctx context.Context, args ...GetLedgersOptions) (*
 	}
 
 	var result Ledgers
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenLedgers, params, &result); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenLimitHistory, krakenLedgers, params, &result); err != nil {
 		return nil, err
 	}
 
@@ -606,7 +606,7 @@ func (e *Exchange) QueryLedgers(ctx context.Context, id string, ids ...string) (
 	}
 
 	var result map[string]LedgerInfo
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenQueryLedgers, params, &result); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenLimitHistory, krakenQueryLedgers, params, &result); err != nil {
 		return nil, err
 	}
 
@@ -633,7 +633,7 @@ func (e *Exchange) GetTradeVolume(ctx context.Context, feeinfo bool, symbol ...c
 	}
 
 	var result *TradeVolumeResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenTradeVolume, params, &result); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenLimitBalance, krakenTradeVolume, params, &result); err != nil {
 		return nil, err
 	}
 
@@ -698,7 +698,7 @@ func (e *Exchange) AddOrder(ctx context.Context, symbol currency.Pair, side, ord
 	}
 
 	var result AddOrderResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenOrderPlace, params, &result); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenLimitTrading, krakenOrderPlace, params, &result); err != nil {
 		return nil, err
 	}
 
@@ -712,7 +712,7 @@ func (e *Exchange) CancelExistingOrder(ctx context.Context, txid string) (*Cance
 	}
 
 	var result CancelOrderResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenOrderCancel, values, &result); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenLimitTrading, krakenOrderCancel, values, &result); err != nil {
 		return nil, err
 	}
 
@@ -720,7 +720,7 @@ func (e *Exchange) CancelExistingOrder(ctx context.Context, txid string) (*Cance
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP requests
-func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path string, result any) error {
+func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, path string, result any) error {
 	endpoint, err := e.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -737,7 +737,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 
-	err = e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	err = e.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)
 	if err != nil {
@@ -769,7 +769,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
-func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method string, params url.Values, result any) error {
+func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method string, params url.Values, result any) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -780,7 +780,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	}
 
 	interim := json.RawMessage{}
-	err = e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	err = e.SendPayload(ctx, epl, func() (*request.Item, error) {
 		nonce := e.Requester.GetNonce(nonce.UnixNano).String()
 		params.Set("nonce", nonce)
 		encoded := params.Encode()
@@ -912,7 +912,7 @@ func (e *Exchange) GetCryptoDepositAddress(ctx context.Context, method, code str
 	}
 
 	var result []DepositAddress
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenDepositAddresses, values, &result)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenLimitBalance, krakenDepositAddresses, values, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -932,7 +932,7 @@ func (e *Exchange) WithdrawStatus(ctx context.Context, c currency.Code, method s
 	}
 
 	var result []WithdrawStatusResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenWithdrawStatus, params, &result); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenLimitBalance, krakenWithdrawStatus, params, &result); err != nil {
 		return nil, err
 	}
 
@@ -946,7 +946,7 @@ func (e *Exchange) WithdrawCancel(ctx context.Context, c currency.Code, refID st
 	params.Set("refid", refID)
 
 	var result bool
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenWithdrawCancel, params, &result); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenLimitWithdraw, krakenWithdrawCancel, params, &result); err != nil {
 		return result, err
 	}
 
@@ -956,7 +956,7 @@ func (e *Exchange) WithdrawCancel(ctx context.Context, c currency.Code, refID st
 // GetWebsocketToken returns a websocket token
 func (e *Exchange) GetWebsocketToken(ctx context.Context) (string, error) {
 	var response WsTokenResponse
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenWebsocketToken, url.Values{}, &response); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenLimitBalance, krakenWebsocketToken, url.Values{}, &response); err != nil {
 		return "", err
 	}
 	return response.Token, nil
