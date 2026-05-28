@@ -2500,25 +2500,6 @@ type SettlementHistoryItem struct {
 	Fee         types.Number  `json:"fee"`
 }
 
-// SubAccountParams represents subaccount creation parameters
-type SubAccountParams struct {
-	SubAccountName string `json:"login_name"`
-	Remark         string `json:"remark,omitempty"`
-	Email          string `json:"email,omitempty"`
-	Password       string `json:"password,omitempty"`
-}
-
-// SubAccount represents a subaccount response
-type SubAccount struct {
-	Remark          string     `json:"remark"`
-	LoginName       string     `json:"login_name"`
-	Password        string     `json:"password"`
-	SubAccountEmail string     `json:"email"`
-	UserID          int64      `json:"user_id"`
-	State           int64      `json:"state"`
-	CreateTime      types.Time `json:"create_time"`
-}
-
 // WsInput represents general structure for websocket requests
 type WsInput struct {
 	Time    int64        `json:"time,omitempty"`
@@ -3146,39 +3127,6 @@ type InterSubAccountTransferParams struct {
 	Amount                  types.Number  `json:"amount"`                // Required
 }
 
-// CreateAPIKeySubAccountParams represents subaccount new API key creation parameters.
-type CreateAPIKeySubAccountParams struct {
-	SubAccountUserID uint64         `json:"user_id"`
-	Body             *SubAccountKey `json:"body"`
-}
-
-// SubAccountKey represents sub-account key detail information
-// this is a struct to be used for outbound requests.
-type SubAccountKey struct {
-	APIKeyName  string         `json:"name,omitempty"`
-	Permissions []APIV4KeyPerm `json:"perms,omitempty"`
-}
-
-// APIV4KeyPerm represents an API Version 4 Key permission information
-type APIV4KeyPerm struct {
-	PermissionName string   `json:"name,omitempty"`
-	ReadOnly       bool     `json:"read_only,omitempty"`
-	IPWhitelist    []string `json:"ip_whitelist,omitempty"`
-}
-
-// APIDetailResponse represents an API key response object
-type APIDetailResponse struct {
-	UserID      string         `json:"user_id"`
-	APIKeyName  string         `json:"name"` // API key name
-	Permissions []APIV4KeyPerm `json:"perms"`
-	IPWhitelist []string       `json:"ip_whitelist,omitempty"`
-	APIKey      string         `json:"key"`
-	Secret      string         `json:"secret"`
-	State       int64          `json:"state"` // State 1 - normal 2 - locked 3 - frozen
-	CreatedAt   types.Time     `json:"created_at"`
-	UpdatedAt   types.Time     `json:"updated_at"`
-}
-
 // PriceAndAmount used in updating an order
 type PriceAndAmount struct {
 	Amount types.Number `json:"amount,omitempty"`
@@ -3268,13 +3216,6 @@ type STPUserGroupMember struct {
 	UserID     uint64     `json:"user_id"`
 	STPID      uint64     `json:"stp_id"`
 	CreateTime types.Time `json:"create_time"`
-}
-
-// SubAccountMode holds a sub-account mode detail
-type SubAccountMode struct {
-	UserID    int    `json:"user_id"`
-	IsUnified bool   `json:"is_unified"`
-	Mode      string `json:"mode"`
 }
 
 // BorrowOrRepayParams holds a request parameter for asset borrow and repay requests

@@ -35,9 +35,6 @@ const (
 	gateioFuturesLiveTradingAlternative = "https://fx-api.gateio.ws"
 	tradeBaseURL                        = "https://www.gate.io"
 
-	// SubAccount Endpoints
-	subAccounts = "sub_accounts"
-
 	// Spot
 	gateioSpotCurrencies  = "spot/currencies"
 	gateioSpotOrders      = "spot/orders"
@@ -66,7 +63,6 @@ const (
 	ordersPath       = "orders"
 	positionsPath    = "positions/"
 	hedgeModePath    = "dual_comp/positions/"
-	subAccountsPath  = "sub_accounts/"
 	priceOrdersPaths = "price_orders"
 
 	// Withdrawals
@@ -159,117 +155,6 @@ type Exchange struct {
 	messageIDSeq  common.Counter
 	wsOBResubMgr  *wsOBResubManager
 	wsOBUpdateMgr *buffer.UpdateManager
-}
-
-// ***************************************** SubAccounts ********************************
-
-// CreateNewSubAccount creates a new sub-account
-func (e *Exchange) CreateNewSubAccount(ctx context.Context, arg *SubAccountParams) (*SubAccount, error) {
-	if arg.SubAccountName == "" {
-		return nil, errInvalidSubAccount
-	}
-	var response *SubAccount
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, subAccountEPL, http.MethodPost, subAccounts, nil, &arg, &response)
-}
-
-// GetSubAccounts retrieves list of sub-accounts for given account
-func (e *Exchange) GetSubAccounts(ctx context.Context) ([]*SubAccount, error) {
-	var response []*SubAccount
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, subAccountEPL, http.MethodGet, subAccounts, nil, nil, &response)
-}
-
-// GetSingleSubAccount retrieves a single sub-account for given account
-func (e *Exchange) GetSingleSubAccount(ctx context.Context, userID string) (*SubAccount, error) {
-	if userID == "" {
-		return nil, errInvalidSubAccount
-	}
-	var response *SubAccount
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, subAccountEPL, http.MethodGet, subAccounts+"/"+userID, nil, nil, &response)
-}
-
-// CreateAPIKeysOfSubAccount creates a sub-account for the sub-account
-//
-// name: Permission name (all permissions will be removed if no value is passed)
-// >> wallet: wallet, spot: spot/margin, futures: perpetual contract, delivery: delivery, earn: earn, options: options
-func (e *Exchange) CreateAPIKeysOfSubAccount(ctx context.Context, arg *CreateAPIKeySubAccountParams) (*APIDetailResponse, error) {
-	if arg.SubAccountUserID == 0 {
-		return nil, errInvalidSubAccountUserID
-	}
-	if arg.Body == nil {
-		return nil, errors.New("sub-account key information is required")
-	}
-	var resp *APIDetailResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, subAccountEPL, http.MethodPost, subAccountsPath+strconv.FormatUint(arg.SubAccountUserID, 10)+"/keys", nil, &arg, &resp)
-}
-
-// GetAllAPIKeyOfSubAccount list all API Key of the sub-account
-func (e *Exchange) GetAllAPIKeyOfSubAccount(ctx context.Context, userID uint64) ([]*APIDetailResponse, error) {
-	if userID == 0 {
-		return nil, errUserIDRequired
-	}
-	var resp []*APIDetailResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, subAccountEPL, http.MethodGet, subAccountsPath+strconv.FormatUint(userID, 10)+"/keys", nil, nil, &resp)
-}
-
-// UpdateAPIKeyOfSubAccount update API key of the sub-account
-func (e *Exchange) UpdateAPIKeyOfSubAccount(ctx context.Context, subAccountAPIKey string, arg CreateAPIKeySubAccountParams) error {
-	if arg.SubAccountUserID == 0 {
-		return errInvalidSubAccountUserID
-	}
-	if subAccountAPIKey == "" {
-		return errMissingAPIKey
-	}
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, subAccountEPL, http.MethodPut, subAccountsPath+strconv.FormatUint(arg.SubAccountUserID, 10)+"/keys/"+subAccountAPIKey, nil, &arg, nil)
-}
-
-// DeleteSubAccountAPIKeyPair deletes a subaccount API key pair
-func (e *Exchange) DeleteSubAccountAPIKeyPair(ctx context.Context, subAccountUserID int64, subAccountAPIKey string) error {
-	if subAccountUserID == 0 {
-		return errInvalidSubAccountUserID
-	}
-	if subAccountAPIKey == "" {
-		return errMissingAPIKey
-	}
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, subAccountEPL, http.MethodDelete, subAccountsPath+strconv.FormatInt(subAccountUserID, 10)+"/keys/"+subAccountAPIKey, nil, nil, nil)
-}
-
-// GetAPIKeyOfSubAccount retrieves the API Key of the sub-account
-func (e *Exchange) GetAPIKeyOfSubAccount(ctx context.Context, subAccountUserID int64, apiKey string) (*APIDetailResponse, error) {
-	if subAccountUserID == 0 {
-		return nil, errInvalidSubAccountUserID
-	}
-	if apiKey == "" {
-		return nil, errMissingAPIKey
-	}
-	var resp *APIDetailResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, subAccountEPL, http.MethodGet, subAccountsPath+strconv.FormatInt(subAccountUserID, 10)+"/keys/"+apiKey, nil, nil, &resp)
-}
-
-// LockSubAccount locks the sub-account
-func (e *Exchange) LockSubAccount(ctx context.Context, subAccountUserID int64) error {
-	if subAccountUserID == 0 {
-		return errInvalidSubAccountUserID
-	}
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, subAccountEPL, http.MethodPost, subAccountsPath+strconv.FormatInt(subAccountUserID, 10)+"/lock", nil, nil, nil)
-}
-
-// UnlockSubAccount locks the sub-account
-func (e *Exchange) UnlockSubAccount(ctx context.Context, subAccountUserID int64) error {
-	if subAccountUserID == 0 {
-		return errInvalidSubAccountUserID
-	}
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, subAccountEPL, http.MethodPost, subAccountsPath+strconv.FormatInt(subAccountUserID, 10)+"/unlock", nil, nil, nil)
-}
-
-// GetSubAccountMode retrieves sub-account mode
-// Unified account mode:
-//
-//	classic: Classic account mode
-//	multi_currency: Multi-currency margin mode
-//	portfolio: Portfolio margin mode
-func (e *Exchange) GetSubAccountMode(ctx context.Context) ([]*SubAccountMode, error) {
-	var resp []*SubAccountMode
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "sub_accounts/unified_mode", nil, nil, &resp)
 }
 
 // *****************************************  Spot **************************************
