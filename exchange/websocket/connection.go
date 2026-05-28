@@ -38,6 +38,8 @@ type Connection interface {
 	SetupPingHandler(request.EndpointLimit, PingHandler)
 	// SendMessageReturnResponse will send a WS message to the connection and wait for response
 	SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature, request any) ([]byte, error)
+	// SendMessageReturnResponseWithRateLimits sends a WS message with additional parallel rate limits and waits for response
+	SendMessageReturnResponseWithRateLimits(ctx context.Context, epl request.EndpointLimit, signature, request any, limits ...request.RateLimitReservation) ([]byte, error)
 	// SendMessageReturnResponses will send a WS message to the connection and wait for N responses
 	SendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature, request any, expected int) ([][]byte, error)
 	// SendMessageReturnResponsesWithInspector will send a WS message to the connection and wait for N responses with message inspection
@@ -58,11 +60,6 @@ type Connection interface {
 	MatchReturnResponses(ctx context.Context, signature any, expected int) (<-chan MatchedResponse, error)
 	// Subscriptions returns the subscription store for the connection
 	Subscriptions() *subscription.Store
-}
-
-// RateLimitedConnection supports sending a response-matched message with additional parallel rate limits.
-type RateLimitedConnection interface {
-	SendMessageReturnResponseWithRateLimits(ctx context.Context, epl request.EndpointLimit, signature, payload any, endpointWeight request.Weight, limiters []*request.RateLimiterWithWeight, weights []request.Weight) ([]byte, error)
 }
 
 // ConnectionSetup defines variables for an individual stream connection
@@ -176,7 +173,7 @@ func (c *connection) Dial(ctx context.Context, dialer *gws.Dialer, headers http.
 
 // SendJSONMessage sends a JSON encoded message over the connection
 func (c *connection) SendJSONMessage(ctx context.Context, epl request.EndpointLimit, data any) error {
-	return c.writeToConnWithRateLimits(ctx, epl, 0, nil, nil, func() error {
+	return c.writeToConnWithRateLimits(ctx, epl, func() error {
 		if request.IsVerbose(ctx, c.Verbose) {
 			if msg, err := json.Marshal(data); err == nil { // WriteJSON will error for us anyway
 				log.Debugf(log.WebsocketMgr, "%v %v: Sending message: %v", c.ExchangeName, removeURLQueryString(c.URL), string(msg))
@@ -188,24 +185,24 @@ func (c *connection) SendJSONMessage(ctx context.Context, epl request.EndpointLi
 
 // SendRawMessage sends a message over the connection without JSON encoding it
 func (c *connection) SendRawMessage(ctx context.Context, epl request.EndpointLimit, messageType int, message []byte) error {
-	return c.SendRawMessageWithRateLimits(ctx, epl, messageType, message, 0, nil, nil)
+	return c.SendRawMessageWithRateLimits(ctx, epl, messageType, message)
 }
 
 // SendRawMessageWithRateLimits sends a raw message with additional parallel rate limits.
-func (c *connection) SendRawMessageWithRateLimits(ctx context.Context, epl request.EndpointLimit, messageType int, message []byte, endpointWeight request.Weight, limiters []*request.RateLimiterWithWeight, weights []request.Weight) error {
-	return c.writeToConnWithRateLimits(ctx, epl, endpointWeight, limiters, weights, func() error {
+func (c *connection) SendRawMessageWithRateLimits(ctx context.Context, epl request.EndpointLimit, messageType int, message []byte, limits ...request.RateLimitReservation) error {
+	return c.writeToConnWithRateLimits(ctx, epl, func() error {
 		if request.IsVerbose(ctx, c.Verbose) {
 			log.Debugf(log.WebsocketMgr, "%v %v: Sending message: %v", c.ExchangeName, removeURLQueryString(c.URL), string(message))
 		}
 		return c.Connection.WriteMessage(messageType, message)
-	})
+	}, limits...)
 }
 
 func (c *connection) writeToConn(ctx context.Context, epl request.EndpointLimit, writeConn func() error) error {
-	return c.writeToConnWithRateLimits(ctx, epl, 0, nil, nil, writeConn)
+	return c.writeToConnWithRateLimits(ctx, epl, writeConn)
 }
 
-func (c *connection) writeToConnWithRateLimits(ctx context.Context, epl request.EndpointLimit, endpointWeight request.Weight, limiters []*request.RateLimiterWithWeight, weights []request.Weight, writeConn func() error) error {
+func (c *connection) writeToConnWithRateLimits(ctx context.Context, epl request.EndpointLimit, writeConn func() error, limits ...request.RateLimitReservation) error {
 	if !c.IsConnected() {
 		return fmt.Errorf("%v websocket connection: cannot send message %w", c.ExchangeName, errWebsocketIsDisconnected)
 	}
@@ -227,8 +224,8 @@ func (c *connection) writeToConnWithRateLimits(ctx context.Context, epl request.
 	}
 
 	if rl != nil {
-		if endpointWeight > 0 || len(limiters) > 0 {
-			if err := request.RateLimitWithParallel(ctx, rl, endpointWeight, limiters, weights); err != nil {
+		if len(limits) > 0 {
+			if err := request.RateLimitWithParallel(ctx, rl, limits...); err != nil {
 				return fmt.Errorf("%s websocket connection: rate limit error: %w", c.ExchangeName, err)
 			}
 		} else if err := rl.RateLimit(ctx); err != nil {
@@ -381,12 +378,12 @@ func (c *connection) GetURL() string {
 
 // SendMessageReturnResponse will send a WS message to the connection and wait for response
 func (c *connection) SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature, payload any) ([]byte, error) {
-	return c.SendMessageReturnResponseWithRateLimits(ctx, epl, signature, payload, 0, nil, nil)
+	return c.SendMessageReturnResponseWithRateLimits(ctx, epl, signature, payload)
 }
 
 // SendMessageReturnResponseWithRateLimits sends a WS message with additional parallel rate limits and waits for response.
-func (c *connection) SendMessageReturnResponseWithRateLimits(ctx context.Context, epl request.EndpointLimit, signature, payload any, endpointWeight request.Weight, limiters []*request.RateLimiterWithWeight, weights []request.Weight) ([]byte, error) {
-	resps, err := c.sendMessageReturnResponsesWithRateLimits(ctx, epl, signature, payload, 1, nil, endpointWeight, limiters, weights)
+func (c *connection) SendMessageReturnResponseWithRateLimits(ctx context.Context, epl request.EndpointLimit, signature, payload any, limits ...request.RateLimitReservation) ([]byte, error) {
+	resps, err := c.sendMessageReturnResponsesWithRateLimits(ctx, epl, signature, payload, 1, nil, limits...)
 	if err != nil {
 		return nil, err
 	}
@@ -396,16 +393,16 @@ func (c *connection) SendMessageReturnResponseWithRateLimits(ctx context.Context
 // SendMessageReturnResponses will send a WS message to the connection and wait for N responses
 // An error of ErrSignatureTimeout can be ignored if individual responses are being otherwise tracked
 func (c *connection) SendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature, payload any, expected int) ([][]byte, error) {
-	return c.sendMessageReturnResponsesWithRateLimits(ctx, epl, signature, payload, expected, nil, 0, nil, nil)
+	return c.sendMessageReturnResponsesWithRateLimits(ctx, epl, signature, payload, expected, nil)
 }
 
 // SendMessageReturnResponsesWithInspector will send a WS message to the connection and wait for N responses
 // An error of ErrSignatureTimeout can be ignored if individual responses are being otherwise tracked
 func (c *connection) SendMessageReturnResponsesWithInspector(ctx context.Context, epl request.EndpointLimit, signature, payload any, expected int, messageInspector Inspector) ([][]byte, error) {
-	return c.sendMessageReturnResponsesWithRateLimits(ctx, epl, signature, payload, expected, messageInspector, 0, nil, nil)
+	return c.sendMessageReturnResponsesWithRateLimits(ctx, epl, signature, payload, expected, messageInspector)
 }
 
-func (c *connection) sendMessageReturnResponsesWithRateLimits(ctx context.Context, epl request.EndpointLimit, signature, payload any, expected int, messageInspector Inspector, endpointWeight request.Weight, limiters []*request.RateLimiterWithWeight, weights []request.Weight) ([][]byte, error) {
+func (c *connection) sendMessageReturnResponsesWithRateLimits(ctx context.Context, epl request.EndpointLimit, signature, payload any, expected int, messageInspector Inspector, limits ...request.RateLimitReservation) ([][]byte, error) {
 	outbound, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling json for %s: %w", signature, err)
@@ -417,7 +414,7 @@ func (c *connection) sendMessageReturnResponsesWithRateLimits(ctx context.Contex
 	}
 
 	start := time.Now()
-	err = c.SendRawMessageWithRateLimits(ctx, epl, gws.TextMessage, outbound, endpointWeight, limiters, weights)
+	err = c.SendRawMessageWithRateLimits(ctx, epl, gws.TextMessage, outbound, limits...)
 	if err != nil {
 		return nil, err
 	}

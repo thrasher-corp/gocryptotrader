@@ -80,32 +80,27 @@ func TestRateLimitAll(t *testing.T) {
 	t.Parallel()
 
 	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
-		require.NoError(t, RateLimitAll(t.Context(), nil, nil), "empty rate limit set must not error")
+		require.NoError(t, RateLimitAll(t.Context()), "empty rate limit set must not error")
 
 		short := NewRateLimitWithWeight(100*time.Millisecond, 1, 1)
 		long := NewRateLimitWithWeight(300*time.Millisecond, 1, 1)
-		require.NoError(t, RateLimitAll(t.Context(), []*RateLimiterWithWeight{
-			short,
-			long,
-		}, nil), "first reservation must not error")
+		limits := []RateLimitReservation{
+			{Limiter: short},
+			{Limiter: long},
+		}
+		require.NoError(t, RateLimitAll(t.Context(), limits...), "first reservation must not error")
 
 		start := time.Now()
-		err := RateLimitAll(t.Context(), []*RateLimiterWithWeight{
-			short,
-			long,
-		}, nil)
+		err := RateLimitAll(t.Context(), limits...)
 		elapsed := time.Since(start)
 		require.NoError(t, err, "parallel rate limit must not error")
 		assert.Equal(t, 300*time.Millisecond, elapsed, "parallel rate limit should wait for the longest limiter only")
 
-		err = RateLimitAll(t.Context(), []*RateLimiterWithWeight{short}, []Weight{0})
+		err = RateLimitAll(t.Context(), RateLimitReservation{Limiter: &RateLimiterWithWeight{limiter: rate.NewLimiter(rate.Limit(1), 1)}})
 		assert.ErrorIs(t, err, errInvalidWeight, "zero weight should return errInvalidWeight")
 
-		err = RateLimitAll(t.Context(), []*RateLimiterWithWeight{nil}, nil)
+		err = RateLimitAll(t.Context(), RateLimitReservation{Limiter: nil})
 		assert.ErrorContains(t, err, "nil pointer: *request.RateLimiterWithWeight")
-
-		err = RateLimitAll(t.Context(), []*RateLimiterWithWeight{short}, []Weight{1, 1})
-		assert.ErrorContains(t, err, "rate limiter count 1 does not match weight count 2")
 	})
 }
 
@@ -115,22 +110,17 @@ func TestRateLimitAll_WithDelayNotAllowed(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
 		short := NewRateLimitWithWeight(100*time.Millisecond, 1, 1)
 		long := NewRateLimitWithWeight(300*time.Millisecond, 1, 1)
-		require.NoError(t, RateLimitAll(t.Context(), []*RateLimiterWithWeight{
-			short,
-			long,
-		}, nil), "first reservation must not error")
+		limits := []RateLimitReservation{
+			{Limiter: short},
+			{Limiter: long},
+		}
+		require.NoError(t, RateLimitAll(t.Context(), limits...), "first reservation must not error")
 
-		err := RateLimitAll(WithDelayNotAllowed(t.Context()), []*RateLimiterWithWeight{
-			short,
-			long,
-		}, nil)
+		err := RateLimitAll(WithDelayNotAllowed(t.Context()), limits...)
 		require.ErrorIs(t, err, ErrDelayNotAllowed, "delayed reservation must return ErrDelayNotAllowed")
 
 		start := time.Now()
-		err = RateLimitAll(t.Context(), []*RateLimiterWithWeight{
-			short,
-			long,
-		}, nil)
+		err = RateLimitAll(t.Context(), limits...)
 		elapsed := time.Since(start)
 		require.NoError(t, err, "cancelled reservations must be usable again")
 		assert.Equal(t, 300*time.Millisecond, elapsed, "cancelled reservation should not add another delay window")
@@ -143,24 +133,22 @@ func TestRateLimitWithParallel(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
 		endpoint := NewRateLimitWithWeight(100*time.Millisecond, 1, 1)
 		extra := NewRateLimitWithWeight(300*time.Millisecond, 1, 1)
-		require.NoError(t, RateLimitWithParallel(t.Context(), endpoint, 0, []*RateLimiterWithWeight{extra}, []Weight{1}), "first reservation must not error")
+		limits := []RateLimitReservation{{Limiter: extra, Weight: 1}}
+		require.NoError(t, RateLimitWithParallel(t.Context(), endpoint, limits...), "first reservation must not error")
 
 		start := time.Now()
-		err := RateLimitWithParallel(t.Context(), endpoint, 0, []*RateLimiterWithWeight{extra}, []Weight{1})
+		err := RateLimitWithParallel(t.Context(), endpoint, limits...)
 		elapsed := time.Since(start)
 		require.NoError(t, err, "parallel rate limit must not error")
 		assert.Equal(t, 300*time.Millisecond, elapsed, "parallel rate limit should wait for the longest limiter only")
 
-		err = RateLimitWithParallel(t.Context(), endpoint, 0, []*RateLimiterWithWeight{extra}, nil)
-		assert.ErrorContains(t, err, "rate limiter count 1 does not match weight count 0")
-
-		err = RateLimitWithParallel(t.Context(), endpoint, 0, []*RateLimiterWithWeight{extra}, []Weight{0})
+		err = RateLimitWithParallel(t.Context(), endpoint, RateLimitReservation{Limiter: &RateLimiterWithWeight{limiter: rate.NewLimiter(rate.Limit(1), 1)}})
 		assert.ErrorIs(t, err, errInvalidWeight, "zero parallel weight should return errInvalidWeight")
 
 		weightedEndpoint := NewRateLimitWithWeight(100*time.Millisecond, 1, 1)
 		weightedExtra := NewRateLimitWithWeight(100*time.Millisecond, 1, 1)
 		start = time.Now()
-		err = RateLimitWithParallel(t.Context(), weightedEndpoint, 3, []*RateLimiterWithWeight{weightedExtra}, []Weight{1})
+		err = RateLimitWithParallel(WithRateLimitWeight(t.Context(), 3), weightedEndpoint, RateLimitReservation{Limiter: weightedExtra, Weight: 1})
 		elapsed = time.Since(start)
 		require.NoError(t, err, "explicit endpoint weight must not error")
 		assert.Equal(t, 200*time.Millisecond, elapsed, "explicit endpoint weight should override endpoint default weight")
@@ -174,15 +162,16 @@ func TestInitiateRateLimitWithParallel(t *testing.T) {
 		r, err := New("test", new(http.Client), WithLimiter(NewBasicRateLimit(100*time.Millisecond, 1, 1)))
 		require.NoError(t, err, "requester must initialise")
 		extra := NewRateLimitWithWeight(300*time.Millisecond, 1, 1)
-		require.NoError(t, r.InitiateRateLimitWithParallel(t.Context(), Unset, 0, []*RateLimiterWithWeight{extra}, []Weight{1}), "first reservation must not error")
+		limits := []RateLimitReservation{{Limiter: extra, Weight: 1}}
+		require.NoError(t, r.InitiateRateLimitWithParallel(t.Context(), Unset, limits...), "first reservation must not error")
 
 		start := time.Now()
-		err = r.InitiateRateLimitWithParallel(t.Context(), Unset, 0, []*RateLimiterWithWeight{extra}, []Weight{1})
+		err = r.InitiateRateLimitWithParallel(t.Context(), Unset, limits...)
 		elapsed := time.Since(start)
 		require.NoError(t, err, "parallel rate limit must not error")
 		assert.Equal(t, 300*time.Millisecond, elapsed, "parallel rate limit should wait for the longest limiter only")
 
-		err = (*Requester)(nil).InitiateRateLimitWithParallel(t.Context(), Unset, 0, nil, nil)
+		err = (*Requester)(nil).InitiateRateLimitWithParallel(t.Context(), Unset)
 		assert.ErrorIs(t, err, ErrRequestSystemIsNil, "nil requester should return ErrRequestSystemIsNil")
 	})
 }

@@ -1,7 +1,6 @@
 package okx
 
 import (
-	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -95,64 +94,43 @@ func TestTradeScopeRateLimits(t *testing.T) {
 	t.Parallel()
 
 	ex := new(Exchange)
-	limiters, weights := ex.tradeScopeRateLimits(tradeRateLimitPlaceSingle, nil)
-	require.Empty(t, limiters, "empty scope map must not return limiters")
-	require.Empty(t, weights, "empty scope map must not return weights")
+	limits := ex.tradeScopeRateLimits(tradeRateLimitPlaceSingle, nil)
+	require.Empty(t, limits, "empty scope map must not return limits")
 
-	limiters, weights = ex.tradeScopeRateLimits(tradeRateLimitPlaceSingle, map[string]int{"BTC-USDT": 0})
-	require.Empty(t, limiters, "non-positive scope weights must be ignored")
-	require.Empty(t, weights, "non-positive scope weights must be ignored")
+	limits = ex.tradeScopeRateLimits(tradeRateLimitPlaceSingle, map[string]int{"BTC-USDT": 0})
+	require.Empty(t, limits, "non-positive scope weights must be ignored")
 
-	limiters, weights = ex.tradeScopeRateLimits(tradeRateLimitPlaceSingle, map[string]int{"BTC-USDT": 2})
-	require.Len(t, limiters, 1, "valid scope weight must return one limiter")
-	require.Equal(t, []request.Weight{2}, weights, "valid scope weight must return one weight")
+	limits = ex.tradeScopeRateLimits(tradeRateLimitPlaceSingle, map[string]int{"BTC-USDT": 2})
+	require.Len(t, limits, 1, "valid scope weight must return one limit")
+	require.NotNil(t, limits[0].Limiter, "valid scope limit must include limiter")
+	require.Equal(t, request.Weight(2), limits[0].Weight, "valid scope weight must return one weight")
 }
 
 func TestTradeSubAccountRateLimit(t *testing.T) {
 	t.Parallel()
 
 	ex := new(Exchange)
-	limit, err := ex.tradeSubAccountRateLimit(0)
-	require.NoError(t, err, "zero order count must not error")
-	assert.Nil(t, limit, "zero order count should not return a limit")
+	limit, ok := ex.tradeSubAccountRateLimit(0)
+	assert.False(t, ok, "zero order count should not return a limit")
+	assert.Empty(t, limit, "zero order count should not return a limit")
 
-	limit, err = ex.tradeSubAccountRateLimit(1)
-	require.NoError(t, err, "single order count must not error")
-	assert.NotNil(t, limit, "limiter should be set")
+	limit, ok = ex.tradeSubAccountRateLimit(1)
+	require.True(t, ok, "single order count must return a limit")
+	assert.NotNil(t, limit.Limiter, "limiter should be set")
+	assert.Equal(t, request.Weight(1), limit.Weight, "weight should match order count")
 
-	ex.tradeSubAccountLimiter.Store("structural-subaccount-limit", "bad-type")
-	_, err = ex.tradeSubAccountRateLimit(1)
-	require.Error(t, err, "invalid stored limiter type must error")
-	assert.Contains(t, err.Error(), "invalid subaccount limiter type", "error should mention invalid limiter type")
-
-	ex.tradeSubAccountLimiter = sync.Map{}
-	ex.tradeSubAccountLimiter.Store("structural-subaccount-limit", request.NewRateLimitWithWeight(twoSecondsInterval, 1000, 1))
-	limit, err = ex.tradeSubAccountRateLimit(3)
-	require.NoError(t, err, "valid stored limiter must return a weighted limit")
-	assert.NotNil(t, limit, "limiter should be set")
+	limit, ok = ex.tradeSubAccountRateLimit(3)
+	require.True(t, ok, "positive order count must return a limit")
+	assert.NotNil(t, limit.Limiter, "limiter should be set")
+	assert.Equal(t, request.Weight(3), limit.Weight, "weight should match order count")
 }
 
 func TestTradeRateLimits(t *testing.T) {
 	t.Parallel()
 
 	ex := new(Exchange)
-	limits, err := ex.tradeRateLimits(tradeRateLimitParams{
-		class:                tradeRateLimitPlaceSingle,
-		counts:               map[string]int{"BTC-USDT": 2},
-		subAccountOrderCount: 3,
-		endpointWeight:       4,
-	})
-	require.NoError(t, err, "valid trade rate limits must not error")
-	require.Len(t, limits.limiters, 2, "valid trade rate limits must return scoped and subaccount limiters")
-	require.Equal(t, []request.Weight{2, 3}, limits.weights, "valid trade rate limits must return matching weights")
-	require.Equal(t, request.Weight(4), limits.endpointWeight, "valid trade rate limits must return endpoint weight")
-
-	ex.tradeSubAccountLimiter.Store("structural-subaccount-limit", "bad-type")
-	_, err = ex.tradeRateLimits(tradeRateLimitParams{
-		class:                tradeRateLimitPlaceSingle,
-		counts:               map[string]int{"BTC-USDT": 2},
-		subAccountOrderCount: 3,
-		endpointWeight:       4,
-	})
-	require.Error(t, err, "invalid subaccount limiter type must error")
+	limits := ex.tradeRateLimits(tradeRateLimitPlaceSingle, map[string]int{"BTC-USDT": 2}, 3)
+	require.Len(t, limits, 2, "valid trade rate limits must return scoped and subaccount limiters")
+	require.Equal(t, request.Weight(2), limits[0].Weight, "valid trade rate limits must return scope weight")
+	require.Equal(t, request.Weight(3), limits[1].Weight, "valid trade rate limits must return subaccount weight")
 }

@@ -36,7 +36,8 @@ type Exchange struct {
 	instrumentsInfoMapLock sync.Mutex
 	instrumentsInfoMap     map[string][]Instrument
 	tradeScopedLimiters    sync.Map
-	tradeSubAccountLimiter sync.Map
+	tradeSubAccountLock    sync.Mutex
+	tradeSubAccountLimiter *request.RateLimiterWithWeight
 }
 
 const (
@@ -57,16 +58,9 @@ func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) 
 	if err := arg.Validate(); err != nil {
 		return nil, err
 	}
-	tradeLimits, err := e.tradeRateLimits(tradeRateLimitParams{
-		class:                tradeRateLimitPlaceSingle,
-		counts:               tradeScopeCountsFromPlaceOrders([]PlaceOrderRequestParam{*arg}),
-		subAccountOrderCount: 1,
-	})
-	if err != nil {
-		return nil, err
-	}
+	tradeLimits := e.tradeRateLimits(tradeRateLimitPlaceSingle, tradeScopeCountsFromPlaceOrders([]PlaceOrderRequestParam{*arg}), 1)
 	var resp *OrderData
-	err = e.sendHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, "trade/order", &arg, &resp, request.AuthenticatedRequest, tradeLimits)
+	err := e.sendHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, "trade/order", &arg, &resp, request.AuthenticatedRequest, tradeLimits)
 	if err != nil {
 		if resp != nil && resp.StatusMessage != "" {
 			return nil, fmt.Errorf("%w; %w", err, getStatusError(resp.StatusCode, resp.StatusMessage))
@@ -93,17 +87,10 @@ func (e *Exchange) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderReq
 			return nil, err
 		}
 	}
-	tradeLimits, err := e.tradeRateLimits(tradeRateLimitParams{
-		class:                tradeRateLimitPlaceBatch,
-		counts:               tradeScopeCountsFromPlaceOrders(args),
-		subAccountOrderCount: len(args),
-		endpointWeight:       len(args),
-	})
-	if err != nil {
-		return nil, err
-	}
+	ctx = request.WithRateLimitWeight(ctx, toRateLimitWeight(len(args)))
+	tradeLimits := e.tradeRateLimits(tradeRateLimitPlaceBatch, tradeScopeCountsFromPlaceOrders(args), len(args))
 	var resp []OrderData
-	err = e.sendHTTPRequest(ctx, exchange.RestSpot, placeMultipleOrdersEPL, http.MethodPost, "trade/batch-orders", &args, &resp, request.AuthenticatedRequest, tradeLimits)
+	err := e.sendHTTPRequest(ctx, exchange.RestSpot, placeMultipleOrdersEPL, http.MethodPost, "trade/batch-orders", &args, &resp, request.AuthenticatedRequest, tradeLimits)
 	if err != nil {
 		if len(resp) == 0 {
 			return nil, err
@@ -128,15 +115,9 @@ func (e *Exchange) CancelSingleOrder(ctx context.Context, arg *CancelOrderReques
 	if arg.OrderID == "" && arg.ClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	tradeLimits, err := e.tradeRateLimits(tradeRateLimitParams{
-		class:  tradeRateLimitCancelSingle,
-		counts: tradeScopeCountsFromCancelOrders([]CancelOrderRequestParam{*arg}),
-	})
-	if err != nil {
-		return nil, err
-	}
+	tradeLimits := e.tradeRateLimits(tradeRateLimitCancelSingle, tradeScopeCountsFromCancelOrders([]CancelOrderRequestParam{*arg}), 0)
 	var resp *OrderData
-	err = e.sendHTTPRequest(ctx, exchange.RestSpot, cancelOrderEPL, http.MethodPost, "trade/cancel-order", &arg, &resp, request.AuthenticatedRequest, tradeLimits)
+	err := e.sendHTTPRequest(ctx, exchange.RestSpot, cancelOrderEPL, http.MethodPost, "trade/cancel-order", &arg, &resp, request.AuthenticatedRequest, tradeLimits)
 	if err != nil {
 		if resp != nil && resp.StatusMessage != "" {
 			return nil, fmt.Errorf("%w; %w", err, getStatusError(resp.StatusCode, resp.StatusMessage))
@@ -168,16 +149,10 @@ func (e *Exchange) CancelMultipleOrders(ctx context.Context, args []CancelOrderR
 			return nil, order.ErrOrderIDNotSet
 		}
 	}
-	tradeLimits, err := e.tradeRateLimits(tradeRateLimitParams{
-		class:          tradeRateLimitCancelBatch,
-		counts:         tradeScopeCountsFromCancelOrders(args),
-		endpointWeight: len(args),
-	})
-	if err != nil {
-		return nil, err
-	}
+	ctx = request.WithRateLimitWeight(ctx, toRateLimitWeight(len(args)))
+	tradeLimits := e.tradeRateLimits(tradeRateLimitCancelBatch, tradeScopeCountsFromCancelOrders(args), 0)
 	var resp []*OrderData
-	err = e.sendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleOrdersEPL, http.MethodPost, "trade/cancel-batch-orders", args, &resp, request.AuthenticatedRequest, tradeLimits)
+	err := e.sendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleOrdersEPL, http.MethodPost, "trade/cancel-batch-orders", args, &resp, request.AuthenticatedRequest, tradeLimits)
 	if err != nil {
 		if len(resp) == 0 {
 			return nil, err
@@ -207,14 +182,7 @@ func (e *Exchange) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams)
 	if arg.NewQuantity <= 0 && arg.NewPrice <= 0 {
 		return nil, errInvalidNewSizeOrPriceInformation
 	}
-	tradeLimits, err := e.tradeRateLimits(tradeRateLimitParams{
-		class:                tradeRateLimitAmendSingle,
-		counts:               tradeScopeCountsFromAmendOrders([]AmendOrderRequestParams{*arg}),
-		subAccountOrderCount: 1,
-	})
-	if err != nil {
-		return nil, err
-	}
+	tradeLimits := e.tradeRateLimits(tradeRateLimitAmendSingle, tradeScopeCountsFromAmendOrders([]AmendOrderRequestParams{*arg}), 1)
 	var resp *OrderData
 	return resp, e.sendHTTPRequest(ctx, exchange.RestSpot, amendOrderEPL, http.MethodPost, "trade/amend-order", arg, &resp, request.AuthenticatedRequest, tradeLimits)
 }
@@ -242,15 +210,8 @@ func (e *Exchange) AmendMultipleOrders(ctx context.Context, args []AmendOrderReq
 			return nil, errInvalidNewSizeOrPriceInformation
 		}
 	}
-	tradeLimits, err := e.tradeRateLimits(tradeRateLimitParams{
-		class:                tradeRateLimitAmendBatch,
-		counts:               tradeScopeCountsFromAmendOrders(args),
-		subAccountOrderCount: len(args),
-		endpointWeight:       len(args),
-	})
-	if err != nil {
-		return nil, err
-	}
+	ctx = request.WithRateLimitWeight(ctx, toRateLimitWeight(len(args)))
+	tradeLimits := e.tradeRateLimits(tradeRateLimitAmendBatch, tradeScopeCountsFromAmendOrders(args), len(args))
 	var resp []OrderData
 	return resp, e.sendHTTPRequest(ctx, exchange.RestSpot, amendMultipleOrdersEPL, http.MethodPost, "trade/amend-batch-orders", &args, &resp, request.AuthenticatedRequest, tradeLimits)
 }
@@ -5955,7 +5916,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f reque
 	return e.sendHTTPRequest(ctx, ep, f, httpMethod, requestPath, data, result, requestType, nil)
 }
 
-func (e *Exchange) sendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, httpMethod, requestPath string, data, result any, requestType request.AuthType, tradeLimits *tradeRateLimits) (err error) {
+func (e *Exchange) sendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, httpMethod, requestPath string, data, result any, requestType request.AuthType, tradeLimits []request.RateLimitReservation) (err error) {
 	endpoint, err := e.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -6006,8 +5967,8 @@ func (e *Exchange) sendHTTPRequest(ctx context.Context, ep exchange.URL, f reque
 			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}
-	if tradeLimits != nil {
-		err = e.Requester.SendPayloadWithRateLimits(ctx, f, tradeLimits.endpointWeight, tradeLimits.limiters, tradeLimits.weights, newRequest, requestType)
+	if len(tradeLimits) > 0 {
+		err = e.Requester.SendPayloadWithRateLimits(ctx, f, newRequest, requestType, tradeLimits...)
 	} else {
 		err = e.SendPayload(ctx, f, newRequest, requestType)
 	}
