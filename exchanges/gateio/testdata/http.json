@@ -9661,6 +9661,94 @@
      "headers": {}
     }
    ]
+  },
+  "/api/v4/unified/portfolio_calculator": {
+   "POST": [
+    {
+     "data": {"maintain_margin_total":"0.003","initial_margin_total":"0.006","calculate_time":1714000000,"risk_unit":[{"symbol":"BTC_USDT","margin_result":[{"type":"delta","profit_loss_ranges":[{"price_percentage":"0.1","implied_volatility_percentage":"0","profit_loss":"-300"}],"max_loss":{"price_percentage":"0.2","implied_volatility_percentage":"0","profit_loss":"-600"},"mr1":"0.003","mr2":"0","mr3":"0","mr4":"0"}],"maintain_margin":"0.003","initial_margin":"0.006"}]},
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/unified/leverage/user_currency_setting": {
+   "GET": [
+    {
+     "data": [{"currency":"BTC","leverage":"3"},{"currency":"ETH","leverage":"2"}],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ],
+   "POST": [
+    {
+     "data": null,
+     "queryString": "",
+     "bodyParams": "{\"currency\":\"BTC\",\"leverage\":\"3\"}",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/unified/leverage/user_currency_config": {
+   "GET": [
+    {
+     "data": {"current_leverage":"2","min_leverage":"0","max_leverage":"8","debit":"0","available_margin":"0","borrowable":"0","except_leverage_borrowable":"0"},
+     "queryString": "currency=BTC",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/unified/currencies": {
+   "GET": [
+    {
+     "data": [{"name":"BTC","prec":"0.000001","min_borrow_amount":"0.01","user_max_borrow_amount":"1000000","total_max_borrow_amount":"1000000","loan_status":"enable"}],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/unified/history_loan_rate": {
+   "GET": [
+    {
+     "data": {"currency":"USDT","tier":"1","tier_up_rate":"1.18","rates":[{"time":1729476160000,"rate":"0.00010287"}]},
+     "queryString": "currency=USDT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/unified/collateral_currencies": {
+   "POST": [
+    {
+     "data": {"is_success":true},
+     "queryString": "",
+     "bodyParams": "{\"collateral_type\":1,\"enable_list\":[\"BTC\",\"ETH\"]}",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/unified/estimate_quick_repayment": {
+   "GET": [
+    {
+     "data": {"debt_currencies":[{"currency":"ETH","debt_amount":"0.5","estimated_usd":"1500","neg_balance":"-0.5","borrowed":"0.5"}],"available_currencies":[{"currency":"USDT","available":"1500","estimated_usd":"1500"}]},
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/unified/quick_repayment": {
+   "POST": [
+    {
+     "data": {"order_id":"qr_12345","repaid_info":[{"currency":"ETH","repaid":"0.5","left":"0"}],"used_info":[{"currency":"USDT","used":"1500"}]},
+     "queryString": "",
+     "bodyParams": "{\"debt_currencies\":[\"USDT\",\"ETH\"],\"available_currencies\":[\"USDT\",\"BTC\"]}",
+     "headers": {}
+    }
+   ]
   }
  }
 }

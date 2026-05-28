@@ -762,6 +762,109 @@ func (e *Exchange) CalculatePortfolioMargin(ctx context.Context, arg *PortfolioM
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "unified/portfolio_calculator", nil, arg, &resp)
 }
 
+// GetUserCurrencyLeverage retrieves the leverage multiplier settings for borrowing currencies
+// in the unified account. If currency is empty, all currencies are returned.
+func (e *Exchange) GetUserCurrencyLeverage(ctx context.Context, ccy currency.Code) ([]*UnifiedLeverageSetting, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	var resp []*UnifiedLeverageSetting
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, common.EncodeURLValues("unified/leverage/user_currency_setting", params), nil, nil, &resp)
+}
+
+// SetLoanCurrencyLeverage sets the loan currency leverage multiplier for the unified account.
+func (e *Exchange) SetLoanCurrencyLeverage(ctx context.Context, arg *UnifiedLeverageSetting) error {
+	if arg == nil {
+		return common.ErrNilPointer
+	}
+	if arg.Currency.IsEmpty() {
+		return currency.ErrCurrencyCodeEmpty
+	}
+	if arg.Leverage <= 0 {
+		return errInvalidLeverage
+	}
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "unified/leverage/user_currency_setting", nil, arg, nil)
+}
+
+// GetMaxMinCurrencyLeverage retrieves the maximum and minimum currency leverage that can be set
+// for the unified account.
+func (e *Exchange) GetMaxMinCurrencyLeverage(ctx context.Context, ccy currency.Code) (*UnifiedCurrencyLeverageConfig, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("currency", ccy.String())
+	var resp *UnifiedCurrencyLeverageConfig
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, common.EncodeURLValues("unified/leverage/user_currency_config", params), nil, nil, &resp)
+}
+
+// GetUnifiedLoanCurrencies retrieves the list of loan currencies supported by the unified account.
+// Optionally filter by currency. This endpoint does not require authentication.
+func (e *Exchange) GetUnifiedLoanCurrencies(ctx context.Context, ccy currency.Code) ([]*UnifiedLoanCurrency, error) {
+	params := url.Values{}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	var resp []*UnifiedLoanCurrency
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("unified/currencies", params), &resp)
+}
+
+// GetUnifiedHistoricalLendingRates retrieves historical lending rates for a currency in the unified account.
+// VIP tier, page, and limit are optional. This endpoint does not require authentication.
+func (e *Exchange) GetUnifiedHistoricalLendingRates(ctx context.Context, ccy currency.Code, tier string, page, limit uint64) (*UnifiedHistoricalLendingRate, error) {
+	if ccy.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("currency", ccy.String())
+	if tier != "" {
+		params.Set("tier", tier)
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatUint(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	var resp *UnifiedHistoricalLendingRate
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("unified/history_loan_rate", params), &resp)
+}
+
+// SetUnifiedCollateralCurrency sets collateral currencies for the unified account.
+// collateralType: 0 = all currencies, 1 = custom currencies.
+// When collateralType is 0, enableList and disableList are invalid.
+func (e *Exchange) SetUnifiedCollateralCurrency(ctx context.Context, arg *UnifiedSetCollateralRequest) (*UnifiedSetCollateralResponse, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
+	var resp *UnifiedSetCollateralResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "unified/collateral_currencies", nil, arg, &resp)
+}
+
+// EstimateQuickRepaymentDetails retrieves the estimated quick repayment details for the unified account.
+// Available for unified account cross-currency margin mode and portfolio margin mode.
+func (e *Exchange) EstimateQuickRepaymentDetails(ctx context.Context) (*UnifiedQuickEstimateRepayment, error) {
+	var resp *UnifiedQuickEstimateRepayment
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "unified/estimate_quick_repayment", nil, nil, &resp)
+}
+
+// QuickRepayment performs a quick repayment for the unified account.
+// Available for unified account cross-currency margin mode and portfolio margin mode.
+func (e *Exchange) QuickRepayment(ctx context.Context, arg *UnifiedQuickRepaymentRequest) (*UnifiedQuickRepaymentResponse, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
+	if len(arg.DebtCurrencies) == 0 {
+		return nil, fmt.Errorf("%w: debt currencies are required for quick repayment", currency.ErrCurrencyCodesEmpty)
+	}
+	if len(arg.AvailableCurrencies) == 0 {
+		return nil, fmt.Errorf("%w: available currencies are required for quick repayment", currency.ErrCurrencyCodesEmpty)
+	}
+	var resp *UnifiedQuickRepaymentResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "unified/quick_repayment", nil, arg, &resp)
+}
+
 // CreateBatchOrders Create a batch of orders Batch orders requirements: custom order field text is required At most 4 currency pairs,
 // maximum 10 orders each, are allowed in one request No mixture of spot orders and margin orders, i.e. account must be identical for all orders
 func (e *Exchange) CreateBatchOrders(ctx context.Context, args []CreateOrderRequest) ([]*SpotOrder, error) {

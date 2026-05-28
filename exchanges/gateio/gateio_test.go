@@ -4094,6 +4094,172 @@ func TestGetUnifiedAccountTieredLoanMargin(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestCalculatePortfolioMargin(t *testing.T) {
+	t.Parallel()
+
+	// SpotBalances validation
+	_, err := e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{SpotBalances: []*SpotBalanceParams{{Equity: 1000}}})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{SpotBalances: []*SpotBalanceParams{{Currency: currency.BTC}}})
+	require.ErrorIs(t, err, errInvalidOrderSize)
+
+	// SpotOrders validation
+	_, err = e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{SpotOrders: []*SpotOrderParams{{OrderPrice: 60000, Left: 0.1, Type: order.Limit}}})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	_, err = e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{SpotOrders: []*SpotOrderParams{{CurrencyPairs: "BTC_USDT", Left: 0.1, Type: order.Limit}}})
+	require.ErrorIs(t, err, limits.ErrPriceBelowMin)
+
+	_, err = e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{SpotOrders: []*SpotOrderParams{{CurrencyPairs: "BTC_USDT", OrderPrice: 60000, Type: order.Limit}}})
+	require.ErrorIs(t, err, errInvalidOrderSize)
+
+	_, err = e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{SpotOrders: []*SpotOrderParams{{CurrencyPairs: "BTC_USDT", OrderPrice: 60000, Left: 0.1}}})
+	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
+
+	// FuturesOrders validation
+	_, err = e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{FuturesOrders: []*FuturesOrderInfo{{Size: 1, Left: 0.5}}})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	_, err = e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{FuturesOrders: []*FuturesOrderInfo{{Contract: currency.NewPair(currency.BTC, currency.USDT), Left: 0.5}}})
+	require.ErrorIs(t, err, errInvalidOrderSize)
+
+	_, err = e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{FuturesOrders: []*FuturesOrderInfo{{Contract: currency.NewPair(currency.BTC, currency.USDT), Size: 1}}})
+	require.ErrorIs(t, err, errInvalidOrderSize)
+
+	// OptionsPositions validation
+	_, err = e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{OptionsPositions: []*OptionsOrderInfo{{Size: 1}}})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	_, err = e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{OptionsPositions: []*OptionsOrderInfo{{OptionsName: currency.NewPair(currency.BTC, currency.USDT)}}})
+	require.ErrorIs(t, err, errInvalidOrderSize)
+
+	// OptionsOrders validation
+	_, err = e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{OptionsOrders: []*OptionsOrderInfo{{Size: 1, Left: 0.5}}})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	_, err = e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{OptionsOrders: []*OptionsOrderInfo{{OptionsName: currency.NewPair(currency.BTC, currency.USDT), Left: 0.5}}})
+	require.ErrorIs(t, err, errInvalidOrderSize)
+
+	_, err = e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{OptionsOrders: []*OptionsOrderInfo{{OptionsName: currency.NewPair(currency.BTC, currency.USDT), Size: 1}}})
+	require.ErrorIs(t, err, errInvalidOrderSize)
+
+	if mockTests {
+		result, err := e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{})
+		require.NoError(t, err, "CalculatePortfolioMargin must not error")
+		assert.NotNil(t, result, "result should not be nil")
+		return
+	}
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{
+		SpotBalances: []*SpotBalanceParams{{Currency: currency.BTC, Equity: 0.5}},
+		SpotHedge:    true,
+	})
+	require.NoError(t, err, "CalculatePortfolioMargin must not error")
+	assert.NotNil(t, result, "result should not be nil")
+}
+
+func TestGetUserCurrencyLeverage(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	}
+	result, err := e.GetUserCurrencyLeverage(t.Context(), currency.EMPTYCODE)
+	require.NoError(t, err)
+	assert.NotEmpty(t, result)
+}
+
+func TestSetLoanCurrencyLeverage(t *testing.T) {
+	t.Parallel()
+	err := e.SetLoanCurrencyLeverage(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	err = e.SetLoanCurrencyLeverage(t.Context(), &UnifiedLeverageSetting{})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "must return currency code empty error")
+
+	err = e.SetLoanCurrencyLeverage(t.Context(), &UnifiedLeverageSetting{Currency: currency.BTC})
+	require.ErrorIs(t, err, errInvalidLeverage)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	err = e.SetLoanCurrencyLeverage(t.Context(), &UnifiedLeverageSetting{Currency: currency.BTC, Leverage: 3})
+	assert.NoError(t, err)
+}
+
+func TestGetMaxMinCurrencyLeverage(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetMaxMinCurrencyLeverage(t.Context(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "must return currency code empty error")
+
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	}
+	result, err := e.GetMaxMinCurrencyLeverage(t.Context(), currency.BTC)
+	require.NoError(t, err, "GetMaxMinCurrencyLeverage must not error")
+	assert.NotNil(t, result, "result should not be nil")
+}
+
+func TestGetUnifiedLoanCurrencies(t *testing.T) {
+	t.Parallel()
+	result, err := e.GetUnifiedLoanCurrencies(t.Context(), currency.EMPTYCODE)
+	require.NoError(t, err, "GetUnifiedLoanCurrencies must not error")
+	assert.NotEmpty(t, result, "result should not be empty")
+}
+
+func TestGetUnifiedHistoricalLendingRates(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetUnifiedHistoricalLendingRates(t.Context(), currency.EMPTYCODE, "", 0, 0)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "must return currency code empty error")
+
+	result, err := e.GetUnifiedHistoricalLendingRates(t.Context(), currency.USDT, "", 0, 0)
+	require.NoError(t, err, "GetUnifiedHistoricalLendingRates must not error")
+	assert.NotNil(t, result, "result should not be nil")
+}
+
+func TestSetUnifiedCollateralCurrency(t *testing.T) {
+	t.Parallel()
+	_, err := e.SetUnifiedCollateralCurrency(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "must return nil pointer error")
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	result, err := e.SetUnifiedCollateralCurrency(t.Context(), &UnifiedSetCollateralRequest{
+		CollateralType: 1,
+		EnableList:     []string{"BTC", "ETH"},
+	})
+	require.NoError(t, err, "SetUnifiedCollateralCurrency must not error")
+	assert.NotNil(t, result, "result should not be nil")
+}
+
+func TestEstimateQuickRepaymentDetails(t *testing.T) {
+	t.Parallel()
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	}
+	result, err := e.EstimateQuickRepaymentDetails(t.Context())
+	require.NoError(t, err)
+	assert.NotEmpty(t, result)
+}
+
+func TestQuickRepayment(t *testing.T) {
+	t.Parallel()
+	_, err := e.QuickRepayment(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "must return nil pointer error")
+
+	_, err = e.QuickRepayment(t.Context(), &UnifiedQuickRepaymentRequest{})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodesEmpty, "must return debt currencies required error")
+
+	_, err = e.QuickRepayment(t.Context(), &UnifiedQuickRepaymentRequest{DebtCurrencies: []currency.Code{currency.USDT}})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodesEmpty, "must return available currencies required error")
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	result, err := e.QuickRepayment(t.Context(), &UnifiedQuickRepaymentRequest{
+		DebtCurrencies:      []currency.Code{currency.USDT, currency.ETH},
+		AvailableCurrencies: []currency.Code{currency.USDT, currency.BTC},
+	})
+	require.NoError(t, err)
+	assert.NotEmpty(t, result)
+}
+
 func TestGetSettlementCurrency(t *testing.T) {
 	t.Parallel()
 	for _, tt := range []struct {
@@ -4134,7 +4300,6 @@ func (d *FixtureConnection) GetURL() string { return "wss://test" }
 func TestHandleSubscriptions(t *testing.T) {
 	t.Parallel()
 	subs := subscription.List{{Channel: subscription.OrderbookChannel}}
-
 	err := e.handleSubscription(t.Context(), &FixtureConnection{}, subscribeEvent, subs, func(context.Context, string, subscription.List) ([]*WsInput, error) {
 		return []*WsInput{{}}, nil
 	})

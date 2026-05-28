@@ -3640,6 +3640,104 @@ type PortfolioMarginCalculationResponse struct {
 	} `json:"risk_unit"`
 }
 
+// UnifiedLeverageSetting holds a unified account currency leverage multiplier setting.
+type UnifiedLeverageSetting struct {
+	Currency currency.Code `json:"currency"`
+	Leverage float64       `json:"leverage,string"`
+}
+
+// UnifiedCurrencyLeverageConfig holds the maximum and minimum currency leverage configuration.
+type UnifiedCurrencyLeverageConfig struct {
+	CurrentLeverage          types.Number `json:"current_leverage"`
+	MinLeverage              types.Number `json:"min_leverage"`
+	MaxLeverage              types.Number `json:"max_leverage"`
+	Debit                    types.Number `json:"debit"`
+	AvailableMargin          types.Number `json:"available_margin"`
+	Borrowable               types.Number `json:"borrowable"`
+	ExceptLeverageBorrowable types.Number `json:"except_leverage_borrowable"`
+}
+
+// UnifiedLoanCurrency holds detail for a loan currency supported by unified account.
+type UnifiedLoanCurrency struct {
+	Name                 string       `json:"name"`
+	Prec                 string       `json:"prec"`
+	MinBorrowAmount      types.Number `json:"min_borrow_amount"`
+	UserMaxBorrowAmount  types.Number `json:"user_max_borrow_amount"`
+	TotalMaxBorrowAmount types.Number `json:"total_max_borrow_amount"`
+	LoanStatus           string       `json:"loan_status"`
+}
+
+// UnifiedHistoricalLendingRate holds historical interest rate data for a currency.
+type UnifiedHistoricalLendingRate struct {
+	Currency   currency.Code `json:"currency"`
+	Tier       string        `json:"tier"`
+	TierUpRate string        `json:"tier_up_rate"`
+	Rates      []struct {
+		Time int64  `json:"time"`
+		Rate string `json:"rate"`
+	} `json:"rates"`
+}
+
+// UnifiedSetCollateralRequest is the request body for setting collateral currency.
+type UnifiedSetCollateralRequest struct {
+	CollateralType uint64   `json:"collateral_type,omitempty"`
+	EnableList     []string `json:"enable_list,omitempty"`
+	DisableList    []string `json:"disable_list,omitempty"`
+}
+
+// UnifiedSetCollateralResponse holds the result of setting collateral currency.
+type UnifiedSetCollateralResponse struct {
+	IsSuccess bool `json:"is_success"`
+}
+
+// UnifiedDebtCurrency holds debt currency detail for quick repayment estimation.
+type UnifiedDebtCurrency struct {
+	Currency     currency.Code `json:"currency"`
+	DebtAmount   types.Number  `json:"debt_amount"`
+	EstimatedUSD types.Number  `json:"estimated_usd"`
+	NegBalance   types.Number  `json:"neg_balance"`
+	Borrowed     types.Number  `json:"borrowed"`
+}
+
+// UnifiedAvailableCurrency holds available currency detail for quick repayment estimation.
+type UnifiedAvailableCurrency struct {
+	Currency     string `json:"currency"`
+	Available    string `json:"available"`
+	EstimatedUSD string `json:"estimated_usd"`
+}
+
+// UnifiedQuickEstimateRepayment holds the estimated quick repayment details.
+type UnifiedQuickEstimateRepayment struct {
+	DebtCurrencies      []*UnifiedDebtCurrency      `json:"debt_currencies"`
+	AvailableCurrencies []*UnifiedAvailableCurrency `json:"available_currencies"`
+}
+
+// UnifiedQuickRepaymentRequest is the request body for quick repayment.
+type UnifiedQuickRepaymentRequest struct {
+	DebtCurrencies      []currency.Code `json:"debt_currencies"`
+	AvailableCurrencies []currency.Code `json:"available_currencies"`
+}
+
+// UnifiedRepaidInfo holds repaid currency detail from a quick repayment.
+type UnifiedRepaidInfo struct {
+	Currency currency.Code `json:"currency"`
+	Repaid   types.Number  `json:"repaid"`
+	Left     types.Number  `json:"left"`
+}
+
+// UnifiedUsedInfo holds used currency detail from a quick repayment.
+type UnifiedUsedInfo struct {
+	Currency string `json:"currency"`
+	Used     string `json:"used"`
+}
+
+// UnifiedQuickRepaymentResponse holds the result of a quick repayment.
+type UnifiedQuickRepaymentResponse struct {
+	OrderID    string               `json:"order_id"`
+	RepaidInfo []*UnifiedRepaidInfo `json:"repaid_info"`
+	UsedInfo   []*UnifiedUsedInfo   `json:"used_info"`
+}
+
 // LendingCurrencyDetail holds a lending currency detail information
 type LendingCurrencyDetail struct {
 	Currency      currency.Code `json:"currency"`
