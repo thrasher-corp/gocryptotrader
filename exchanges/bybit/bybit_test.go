@@ -2993,7 +2993,7 @@ func (d *FixtureConnection) Dial(context.Context, *gws.Dialer, http.Header, url.
 	return d.dialError
 }
 
-func (d *FixtureConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
+func (d *FixtureConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any, ...request.RateLimitReservation) ([]byte, error) {
 	if d.sendMessageReturnResponseOverride != nil {
 		return d.sendMessageReturnResponseOverride, nil
 	}

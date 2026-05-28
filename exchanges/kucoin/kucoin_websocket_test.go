@@ -39,7 +39,7 @@ type ConnectionFixture struct {
 	sentRequests    []WsSubscriptionInput
 }
 
-func (c *ConnectionFixture) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _, req any) ([]byte, error) {
+func (c *ConnectionFixture) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _, req any, _ ...request.RateLimitReservation) ([]byte, error) {
 	if input, ok := req.(WsSubscriptionInput); ok {
 		c.sentRequests = append(c.sentRequests, input)
 	}

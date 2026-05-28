@@ -37,15 +37,13 @@ type Connection interface {
 	ReadMessage() Response
 	SetupPingHandler(request.EndpointLimit, PingHandler)
 	// SendMessageReturnResponse will send a WS message to the connection and wait for response
-	SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature, request any) ([]byte, error)
-	// SendMessageReturnResponseWithAdditionalRateLimits sends a WS message with endpoint and additional request-scoped rate limits and waits for response
-	SendMessageReturnResponseWithAdditionalRateLimits(ctx context.Context, epl request.EndpointLimit, signature, request any, additionalRateLimits ...request.RateLimitReservation) ([]byte, error)
+	SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature, request any, additionalRateLimits ...request.RateLimitReservation) ([]byte, error)
 	// SendMessageReturnResponses will send a WS message to the connection and wait for N responses
 	SendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature, request any, expected int) ([][]byte, error)
 	// SendMessageReturnResponsesWithInspector will send a WS message to the connection and wait for N responses with message inspection
 	SendMessageReturnResponsesWithInspector(ctx context.Context, epl request.EndpointLimit, signature, request any, expected int, messageInspector Inspector) ([][]byte, error)
 	// SendRawMessage sends a message over the connection without JSON encoding it
-	SendRawMessage(ctx context.Context, epl request.EndpointLimit, messageType int, message []byte) error
+	SendRawMessage(ctx context.Context, epl request.EndpointLimit, messageType int, message []byte, additionalRateLimits ...request.RateLimitReservation) error
 	// SendJSONMessage sends a JSON encoded message over the connection
 	SendJSONMessage(ctx context.Context, epl request.EndpointLimit, payload any) error
 	SetURL(string)
@@ -173,7 +171,7 @@ func (c *connection) Dial(ctx context.Context, dialer *gws.Dialer, headers http.
 
 // SendJSONMessage sends a JSON encoded message over the connection
 func (c *connection) SendJSONMessage(ctx context.Context, epl request.EndpointLimit, data any) error {
-	return c.writeToConnWithAdditionalRateLimits(ctx, epl, func() error {
+	return c.writeToConn(ctx, epl, func() error {
 		if request.IsVerbose(ctx, c.Verbose) {
 			if msg, err := json.Marshal(data); err == nil { // WriteJSON will error for us anyway
 				log.Debugf(log.WebsocketMgr, "%v %v: Sending message: %v", c.ExchangeName, removeURLQueryString(c.URL), string(msg))
@@ -183,14 +181,9 @@ func (c *connection) SendJSONMessage(ctx context.Context, epl request.EndpointLi
 	})
 }
 
-// SendRawMessage sends a message over the connection without JSON encoding it
-func (c *connection) SendRawMessage(ctx context.Context, epl request.EndpointLimit, messageType int, message []byte) error {
-	return c.SendRawMessageWithAdditionalRateLimits(ctx, epl, messageType, message)
-}
-
-// SendRawMessageWithAdditionalRateLimits sends a raw message with endpoint and additional request-scoped rate limits.
-func (c *connection) SendRawMessageWithAdditionalRateLimits(ctx context.Context, epl request.EndpointLimit, messageType int, message []byte, additionalRateLimits ...request.RateLimitReservation) error {
-	return c.writeToConnWithAdditionalRateLimits(ctx, epl, func() error {
+// SendRawMessage sends a message over the connection without JSON encoding it.
+func (c *connection) SendRawMessage(ctx context.Context, epl request.EndpointLimit, messageType int, message []byte, additionalRateLimits ...request.RateLimitReservation) error {
+	return c.writeToConn(ctx, epl, func() error {
 		if request.IsVerbose(ctx, c.Verbose) {
 			log.Debugf(log.WebsocketMgr, "%v %v: Sending message: %v", c.ExchangeName, removeURLQueryString(c.URL), string(message))
 		}
@@ -198,11 +191,7 @@ func (c *connection) SendRawMessageWithAdditionalRateLimits(ctx context.Context,
 	}, additionalRateLimits...)
 }
 
-func (c *connection) writeToConn(ctx context.Context, epl request.EndpointLimit, writeConn func() error) error {
-	return c.writeToConnWithAdditionalRateLimits(ctx, epl, writeConn)
-}
-
-func (c *connection) writeToConnWithAdditionalRateLimits(ctx context.Context, epl request.EndpointLimit, writeConn func() error, additionalRateLimits ...request.RateLimitReservation) error {
+func (c *connection) writeToConn(ctx context.Context, epl request.EndpointLimit, writeConn func() error, additionalRateLimits ...request.RateLimitReservation) error {
 	if !c.IsConnected() {
 		return fmt.Errorf("%v websocket connection: cannot send message %w", c.ExchangeName, errWebsocketIsDisconnected)
 	}
@@ -376,14 +365,9 @@ func (c *connection) GetURL() string {
 	return c.URL
 }
 
-// SendMessageReturnResponse will send a WS message to the connection and wait for response
-func (c *connection) SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature, payload any) ([]byte, error) {
-	return c.SendMessageReturnResponseWithAdditionalRateLimits(ctx, epl, signature, payload)
-}
-
-// SendMessageReturnResponseWithAdditionalRateLimits sends a WS message with endpoint and additional request-scoped rate limits and waits for response.
-func (c *connection) SendMessageReturnResponseWithAdditionalRateLimits(ctx context.Context, epl request.EndpointLimit, signature, payload any, additionalRateLimits ...request.RateLimitReservation) ([]byte, error) {
-	resps, err := c.sendMessageReturnResponsesWithAdditionalRateLimits(ctx, epl, signature, payload, 1, nil, additionalRateLimits...)
+// SendMessageReturnResponse will send a WS message to the connection and wait for response.
+func (c *connection) SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature, payload any, additionalRateLimits ...request.RateLimitReservation) ([]byte, error) {
+	resps, err := c.sendMessageReturnResponses(ctx, epl, signature, payload, 1, nil, additionalRateLimits...)
 	if err != nil {
 		return nil, err
 	}
@@ -393,16 +377,16 @@ func (c *connection) SendMessageReturnResponseWithAdditionalRateLimits(ctx conte
 // SendMessageReturnResponses will send a WS message to the connection and wait for N responses
 // An error of ErrSignatureTimeout can be ignored if individual responses are being otherwise tracked
 func (c *connection) SendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature, payload any, expected int) ([][]byte, error) {
-	return c.sendMessageReturnResponsesWithAdditionalRateLimits(ctx, epl, signature, payload, expected, nil)
+	return c.sendMessageReturnResponses(ctx, epl, signature, payload, expected, nil)
 }
 
 // SendMessageReturnResponsesWithInspector will send a WS message to the connection and wait for N responses
 // An error of ErrSignatureTimeout can be ignored if individual responses are being otherwise tracked
 func (c *connection) SendMessageReturnResponsesWithInspector(ctx context.Context, epl request.EndpointLimit, signature, payload any, expected int, messageInspector Inspector) ([][]byte, error) {
-	return c.sendMessageReturnResponsesWithAdditionalRateLimits(ctx, epl, signature, payload, expected, messageInspector)
+	return c.sendMessageReturnResponses(ctx, epl, signature, payload, expected, messageInspector)
 }
 
-func (c *connection) sendMessageReturnResponsesWithAdditionalRateLimits(ctx context.Context, epl request.EndpointLimit, signature, payload any, expected int, messageInspector Inspector, additionalRateLimits ...request.RateLimitReservation) ([][]byte, error) {
+func (c *connection) sendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature, payload any, expected int, messageInspector Inspector, additionalRateLimits ...request.RateLimitReservation) ([][]byte, error) {
 	outbound, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling json for %s: %w", signature, err)
@@ -414,7 +398,7 @@ func (c *connection) sendMessageReturnResponsesWithAdditionalRateLimits(ctx cont
 	}
 
 	start := time.Now()
-	err = c.SendRawMessageWithAdditionalRateLimits(ctx, epl, gws.TextMessage, outbound, additionalRateLimits...)
+	err = c.SendRawMessage(ctx, epl, gws.TextMessage, outbound, additionalRateLimits...)
 	if err != nil {
 		return nil, err
 	}

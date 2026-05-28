@@ -65,13 +65,13 @@ func TestTradeScopeCountsFromAmendOrders(t *testing.T) {
 	require.Equal(t, 3, got["XRP-USDT"])
 }
 
-func TestToRateLimitWeight(t *testing.T) {
+func TestRateLimitWeight(t *testing.T) {
 	t.Parallel()
 
-	require.Panics(t, func() { toRateLimitWeight(0) }, "zero weight must panic")
-	require.Panics(t, func() { toRateLimitWeight(-1) }, "negative weight must panic")
-	require.Equal(t, uint8(12), toRateLimitWeight(12))
-	require.Equal(t, uint8(255), toRateLimitWeight(300))
+	require.Zero(t, rateLimitWeight(0), "zero weight must be ignored")
+	require.Zero(t, rateLimitWeight(-1), "negative weight must be ignored")
+	require.Equal(t, uint8(12), rateLimitWeight(12), "positive weight must be preserved")
+	require.Equal(t, uint8(255), rateLimitWeight(300), "large weight must clamp to uint8 max")
 }
 
 func TestGetOrCreateTradeScopedLimiter(t *testing.T) {

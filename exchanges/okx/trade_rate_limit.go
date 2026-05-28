@@ -60,7 +60,7 @@ func (e *Exchange) additionalTradeScopeRateLimits(class tradeRateLimitClass, cou
 		}
 		additionalRateLimits = append(additionalRateLimits, request.RateLimitReservation{
 			Limiter: e.getOrCreateTradeScopedLimiter(class, scope),
-			Weight:  request.Weight(toRateLimitWeight(weight)),
+			Weight:  request.Weight(rateLimitWeight(weight)),
 		})
 	}
 	return additionalRateLimits
@@ -77,7 +77,7 @@ func (e *Exchange) tradeSubAccountRateLimit(orderCount int) (request.RateLimitRe
 	}
 	return request.RateLimitReservation{
 		Limiter: e.tradeSubAccountLimiter,
-		Weight:  request.Weight(toRateLimitWeight(orderCount)),
+		Weight:  request.Weight(rateLimitWeight(orderCount)),
 	}, true
 }
 
@@ -88,17 +88,15 @@ func tradeScopeFromInstrumentID(instrumentID string) string {
 	}
 	if isOptionInstrumentID(trimmed) {
 		_, family := optionInstrumentSelectors(trimmed)
-		return strings.ToUpper(strings.TrimSpace(family))
+		return family
 	}
 	return trimmed
 }
 
 func optionInstrumentSelectors(instrumentID string) (underlying, family string) {
-	parts := strings.Split(instrumentID, "-")
-	delimiter := "-"
+	parts, delimiter := strings.Split(instrumentID, "-"), "-"
 	if len(parts) < 2 {
-		parts = strings.Split(instrumentID, "_")
-		delimiter = "_"
+		parts, delimiter = strings.Split(instrumentID, "_"), "_"
 	}
 	if len(parts) < 2 {
 		return instrumentID, instrumentID
@@ -133,9 +131,9 @@ func tradeScopeCounts[T any](args []T, instrumentID func(T) string) map[string]i
 	return counts
 }
 
-func toRateLimitWeight(value int) uint8 {
+func rateLimitWeight(value int) uint8 {
 	if value <= 0 {
-		panic("rate limit weight must be positive")
+		return 0
 	}
 	if value > 255 {
 		return 255

@@ -344,7 +344,7 @@ type authConnectionStub struct {
 	err      error
 }
 
-func (a *authConnectionStub) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _, _ any) ([]byte, error) {
+func (a *authConnectionStub) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _, _ any, _ ...request.RateLimitReservation) ([]byte, error) {
 	return a.response, a.err
 }
 

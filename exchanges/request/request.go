@@ -73,17 +73,8 @@ func New(name string, httpRequester *http.Client, opts ...RequesterOption) (*Req
 	return r, nil
 }
 
-// SendPayload handles sending HTTP/HTTPS requests
-func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newRequest Generate, requestType AuthType) error {
-	return r.sendPayload(ctx, ep, newRequest, requestType)
-}
-
-// SendPayloadWithAdditionalRateLimits handles sending HTTP/HTTPS requests with endpoint and additional request-scoped rate limits.
-func (r *Requester) SendPayloadWithAdditionalRateLimits(ctx context.Context, ep EndpointLimit, newRequest Generate, requestType AuthType, additionalRateLimits ...RateLimitReservation) error {
-	return r.sendPayload(ctx, ep, newRequest, requestType, additionalRateLimits...)
-}
-
-func (r *Requester) sendPayload(ctx context.Context, ep EndpointLimit, newRequest Generate, requestType AuthType, additionalRateLimits ...RateLimitReservation) error {
+// SendPayload handles sending HTTP/HTTPS requests with endpoint and optional additional request-scoped rate limits.
+func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newRequest Generate, requestType AuthType, additionalRateLimits ...RateLimitReservation) error {
 	if r == nil {
 		return ErrRequestSystemIsNil
 	}
@@ -159,11 +150,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 
 		if r.limiter != nil {
 			// Initiate a rate limit reservation and sleep on requested endpoint
-			if len(additionalRateLimits) > 0 {
-				if err := r.InitiateRateLimitWithAdditional(ctx, endpoint, additionalRateLimits...); err != nil {
-					return fmt.Errorf("failed to rate limit HTTP request: %w", err)
-				}
-			} else if err := r.InitiateRateLimit(ctx, endpoint); err != nil {
+			if err := r.InitiateRateLimit(ctx, endpoint, additionalRateLimits...); err != nil {
 				return fmt.Errorf("failed to rate limit HTTP request: %w", err)
 			}
 		}
