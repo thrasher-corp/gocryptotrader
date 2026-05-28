@@ -84,7 +84,7 @@ func (e *Exchange) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderReq
 			return nil, err
 		}
 	}
-	ctx = request.WithRateLimitWeight(ctx, toRateLimitWeight(len(args)))
+	ctx = request.WithRateLimitWeight(ctx, rateLimitWeight(len(args)))
 	requestScopedRateLimits := e.additionalTradeRateLimits(tradeRateLimitPlaceBatch, tradeScopeCountsFromPlaceOrders(args), len(args))
 	var resp []OrderData
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, placeMultipleOrdersEPL, http.MethodPost, "trade/batch-orders", &args, &resp, request.AuthenticatedRequest, requestScopedRateLimits...)
@@ -139,7 +139,7 @@ func (e *Exchange) CancelMultipleOrders(ctx context.Context, args []CancelOrderR
 			return nil, order.ErrOrderIDNotSet
 		}
 	}
-	ctx = request.WithRateLimitWeight(ctx, toRateLimitWeight(len(args)))
+	ctx = request.WithRateLimitWeight(ctx, rateLimitWeight(len(args)))
 	requestScopedRateLimits := e.additionalTradeRateLimits(tradeRateLimitCancelBatch, tradeScopeCountsFromCancelOrders(args), 0)
 	var resp []*OrderData
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleOrdersEPL, http.MethodPost, "trade/cancel-batch-orders", args, &resp, request.AuthenticatedRequest, requestScopedRateLimits...)
@@ -193,7 +193,7 @@ func (e *Exchange) AmendMultipleOrders(ctx context.Context, args []AmendOrderReq
 			return nil, errInvalidNewSizeOrPriceInformation
 		}
 	}
-	ctx = request.WithRateLimitWeight(ctx, toRateLimitWeight(len(args)))
+	ctx = request.WithRateLimitWeight(ctx, rateLimitWeight(len(args)))
 	requestScopedRateLimits := e.additionalTradeRateLimits(tradeRateLimitAmendBatch, tradeScopeCountsFromAmendOrders(args), len(args))
 	var resp []OrderData
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, amendMultipleOrdersEPL, http.MethodPost, "trade/amend-batch-orders", &args, &resp, request.AuthenticatedRequest, requestScopedRateLimits...)
@@ -5946,11 +5946,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f reque
 			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}
-	if len(additionalRateLimits) > 0 {
-		err = e.Requester.SendPayloadWithAdditionalRateLimits(ctx, f, newRequest, requestType, additionalRateLimits...)
-	} else {
-		err = e.SendPayload(ctx, f, newRequest, requestType)
-	}
+	err = e.SendPayload(ctx, f, newRequest, requestType, additionalRateLimits...)
 	if err != nil {
 		return err
 	}
