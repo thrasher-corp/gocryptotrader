@@ -311,7 +311,7 @@ func TestDoRequest(t *testing.T) {
 	require.NoError(t, ec.Collect(), "Collect must return no errors")
 }
 
-func TestSendPayloadWithRateLimits(t *testing.T) {
+func TestSendPayloadWithAdditionalRateLimits(t *testing.T) {
 	t.Parallel()
 
 	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
@@ -323,12 +323,12 @@ func TestSendPayloadWithRateLimits(t *testing.T) {
 			return nil, requestErr
 		}
 
-		limits := []RateLimitReservation{{Limiter: extra, Weight: 1}}
-		err = r.SendPayloadWithRateLimits(t.Context(), Unset, newRequest, UnauthenticatedRequest, limits...)
+		additionalRateLimits := []RateLimitReservation{{Limiter: extra, Weight: 1}}
+		err = r.SendPayloadWithAdditionalRateLimits(t.Context(), Unset, newRequest, UnauthenticatedRequest, additionalRateLimits...)
 		require.ErrorIs(t, err, requestErr, "first call must reach request generation")
 
-		err = r.SendPayloadWithRateLimits(WithDelayNotAllowed(t.Context()), Unset, newRequest, UnauthenticatedRequest, limits...)
-		require.ErrorIs(t, err, ErrDelayNotAllowed, "second call must apply additional parallel rate limit")
+		err = r.SendPayloadWithAdditionalRateLimits(WithDelayNotAllowed(t.Context()), Unset, newRequest, UnauthenticatedRequest, additionalRateLimits...)
+		require.ErrorIs(t, err, ErrDelayNotAllowed, "second call must apply additional request-scoped rate limit")
 	})
 }
 

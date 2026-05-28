@@ -945,7 +945,7 @@ func TestCancelMultipleOrders(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 	arg := CancelOrderRequestParam{}
 	_, err = e.CancelMultipleOrders(contextGenerate(), []CancelOrderRequestParam{arg})
-	require.ErrorIs(t, err, common.ErrEmptyParams)
+	require.ErrorIs(t, err, errMissingInstrumentID)
 
 	arg.InstrumentID = mainPair.String()
 	_, err = e.CancelMultipleOrders(contextGenerate(), []CancelOrderRequestParam{arg})

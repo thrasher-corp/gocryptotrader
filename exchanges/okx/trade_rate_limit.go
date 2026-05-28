@@ -40,30 +40,30 @@ func (e *Exchange) getOrCreateTradeScopedLimiter(class tradeRateLimitClass, scop
 	return rl
 }
 
-func (e *Exchange) tradeRateLimits(class tradeRateLimitClass, counts map[string]int, subAccountOrderCount int) []request.RateLimitReservation {
-	limits := e.tradeScopeRateLimits(class, counts)
+func (e *Exchange) additionalTradeRateLimits(class tradeRateLimitClass, counts map[string]int, subAccountOrderCount int) []request.RateLimitReservation {
+	additionalRateLimits := e.additionalTradeScopeRateLimits(class, counts)
 	if limit, ok := e.tradeSubAccountRateLimit(subAccountOrderCount); ok {
-		limits = append(limits, limit)
+		additionalRateLimits = append(additionalRateLimits, limit)
 	}
-	return limits
+	return additionalRateLimits
 }
 
-func (e *Exchange) tradeScopeRateLimits(class tradeRateLimitClass, counts map[string]int) []request.RateLimitReservation {
+func (e *Exchange) additionalTradeScopeRateLimits(class tradeRateLimitClass, counts map[string]int) []request.RateLimitReservation {
 	if len(counts) == 0 {
 		return nil
 	}
 
-	limits := make([]request.RateLimitReservation, 0, len(counts))
+	additionalRateLimits := make([]request.RateLimitReservation, 0, len(counts))
 	for scope, weight := range counts {
 		if weight < 1 {
 			continue
 		}
-		limits = append(limits, request.RateLimitReservation{
+		additionalRateLimits = append(additionalRateLimits, request.RateLimitReservation{
 			Limiter: e.getOrCreateTradeScopedLimiter(class, scope),
 			Weight:  request.Weight(toRateLimitWeight(weight)),
 		})
 	}
-	return limits
+	return additionalRateLimits
 }
 
 func (e *Exchange) tradeSubAccountRateLimit(orderCount int) (request.RateLimitReservation, bool) {

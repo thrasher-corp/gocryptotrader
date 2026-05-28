@@ -90,20 +90,20 @@ func TestGetOrCreateTradeScopedLimiter(t *testing.T) {
 	require.NotNil(t, recovered, "limiter must be recreated if stored type is invalid")
 }
 
-func TestTradeScopeRateLimits(t *testing.T) {
+func TestAdditionalTradeScopeRateLimits(t *testing.T) {
 	t.Parallel()
 
 	ex := new(Exchange)
-	limits := ex.tradeScopeRateLimits(tradeRateLimitPlaceSingle, nil)
-	require.Empty(t, limits, "empty scope map must not return limits")
+	additionalRateLimits := ex.additionalTradeScopeRateLimits(tradeRateLimitPlaceSingle, nil)
+	require.Empty(t, additionalRateLimits, "empty scope map must not return additional rate limits")
 
-	limits = ex.tradeScopeRateLimits(tradeRateLimitPlaceSingle, map[string]int{"BTC-USDT": 0})
-	require.Empty(t, limits, "non-positive scope weights must be ignored")
+	additionalRateLimits = ex.additionalTradeScopeRateLimits(tradeRateLimitPlaceSingle, map[string]int{"BTC-USDT": 0})
+	require.Empty(t, additionalRateLimits, "non-positive scope weights must be ignored")
 
-	limits = ex.tradeScopeRateLimits(tradeRateLimitPlaceSingle, map[string]int{"BTC-USDT": 2})
-	require.Len(t, limits, 1, "valid scope weight must return one limit")
-	require.NotNil(t, limits[0].Limiter, "valid scope limit must include limiter")
-	require.Equal(t, request.Weight(2), limits[0].Weight, "valid scope weight must return one weight")
+	additionalRateLimits = ex.additionalTradeScopeRateLimits(tradeRateLimitPlaceSingle, map[string]int{"BTC-USDT": 2})
+	require.Len(t, additionalRateLimits, 1, "valid scope weight must return one additional rate limit")
+	require.NotNil(t, additionalRateLimits[0].Limiter, "valid scope limit must include limiter")
+	require.Equal(t, request.Weight(2), additionalRateLimits[0].Weight, "valid scope weight must return one weight")
 }
 
 func TestTradeSubAccountRateLimit(t *testing.T) {
@@ -125,12 +125,12 @@ func TestTradeSubAccountRateLimit(t *testing.T) {
 	assert.Equal(t, request.Weight(3), limit.Weight, "weight should match order count")
 }
 
-func TestTradeRateLimits(t *testing.T) {
+func TestAdditionalTradeRateLimits(t *testing.T) {
 	t.Parallel()
 
 	ex := new(Exchange)
-	limits := ex.tradeRateLimits(tradeRateLimitPlaceSingle, map[string]int{"BTC-USDT": 2}, 3)
-	require.Len(t, limits, 2, "valid trade rate limits must return scoped and subaccount limiters")
-	require.Equal(t, request.Weight(2), limits[0].Weight, "valid trade rate limits must return scope weight")
-	require.Equal(t, request.Weight(3), limits[1].Weight, "valid trade rate limits must return subaccount weight")
+	additionalRateLimits := ex.additionalTradeRateLimits(tradeRateLimitPlaceSingle, map[string]int{"BTC-USDT": 2}, 3)
+	require.Len(t, additionalRateLimits, 2, "valid trade rate limits must return scoped and subaccount limiters")
+	require.Equal(t, request.Weight(2), additionalRateLimits[0].Weight, "valid trade rate limits must return scope weight")
+	require.Equal(t, request.Weight(3), additionalRateLimits[1].Weight, "valid trade rate limits must return subaccount weight")
 }

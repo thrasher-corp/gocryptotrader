@@ -58,9 +58,9 @@ func (e *Exchange) PlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam) 
 	if err := arg.Validate(); err != nil {
 		return nil, err
 	}
-	tradeLimits := e.tradeRateLimits(tradeRateLimitPlaceSingle, tradeScopeCountsFromPlaceOrders([]PlaceOrderRequestParam{*arg}), 1)
+	requestScopedRateLimits := e.additionalTradeRateLimits(tradeRateLimitPlaceSingle, tradeScopeCountsFromPlaceOrders([]PlaceOrderRequestParam{*arg}), 1)
 	var resp *OrderData
-	err := e.sendHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, "trade/order", &arg, &resp, request.AuthenticatedRequest, tradeLimits)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, placeOrderEPL, http.MethodPost, "trade/order", &arg, &resp, request.AuthenticatedRequest, requestScopedRateLimits...)
 	if err != nil {
 		if resp != nil && resp.StatusMessage != "" {
 			return nil, fmt.Errorf("%w; %w", err, getStatusError(resp.StatusCode, resp.StatusMessage))
@@ -75,22 +75,15 @@ func (e *Exchange) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderReq
 	if len(args) == 0 {
 		return nil, order.ErrSubmissionIsNil
 	}
-	if len(args) == 1 {
-		resp, err := e.PlaceOrder(ctx, &args[0])
-		if err != nil {
-			return nil, err
-		}
-		return []OrderData{*resp}, nil
-	}
 	for x := range args {
 		if err := args[x].Validate(); err != nil {
 			return nil, err
 		}
 	}
 	ctx = request.WithRateLimitWeight(ctx, toRateLimitWeight(len(args)))
-	tradeLimits := e.tradeRateLimits(tradeRateLimitPlaceBatch, tradeScopeCountsFromPlaceOrders(args), len(args))
+	requestScopedRateLimits := e.additionalTradeRateLimits(tradeRateLimitPlaceBatch, tradeScopeCountsFromPlaceOrders(args), len(args))
 	var resp []OrderData
-	err := e.sendHTTPRequest(ctx, exchange.RestSpot, placeMultipleOrdersEPL, http.MethodPost, "trade/batch-orders", &args, &resp, request.AuthenticatedRequest, tradeLimits)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, placeMultipleOrdersEPL, http.MethodPost, "trade/batch-orders", &args, &resp, request.AuthenticatedRequest, requestScopedRateLimits...)
 	if err != nil {
 		if len(resp) == 0 {
 			return nil, err
@@ -115,9 +108,9 @@ func (e *Exchange) CancelSingleOrder(ctx context.Context, arg *CancelOrderReques
 	if arg.OrderID == "" && arg.ClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	tradeLimits := e.tradeRateLimits(tradeRateLimitCancelSingle, tradeScopeCountsFromCancelOrders([]CancelOrderRequestParam{*arg}), 0)
+	requestScopedRateLimits := e.additionalTradeRateLimits(tradeRateLimitCancelSingle, tradeScopeCountsFromCancelOrders([]CancelOrderRequestParam{*arg}), 0)
 	var resp *OrderData
-	err := e.sendHTTPRequest(ctx, exchange.RestSpot, cancelOrderEPL, http.MethodPost, "trade/cancel-order", &arg, &resp, request.AuthenticatedRequest, tradeLimits)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, cancelOrderEPL, http.MethodPost, "trade/cancel-order", &arg, &resp, request.AuthenticatedRequest, requestScopedRateLimits...)
 	if err != nil {
 		if resp != nil && resp.StatusMessage != "" {
 			return nil, fmt.Errorf("%w; %w", err, getStatusError(resp.StatusCode, resp.StatusMessage))
@@ -133,13 +126,6 @@ func (e *Exchange) CancelMultipleOrders(ctx context.Context, args []CancelOrderR
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
 	}
-	if len(args) == 1 {
-		resp, err := e.CancelSingleOrder(ctx, &args[0])
-		if err != nil {
-			return nil, err
-		}
-		return []*OrderData{resp}, nil
-	}
 	for x := range args {
 		arg := args[x]
 		if arg.InstrumentID == "" {
@@ -150,9 +136,9 @@ func (e *Exchange) CancelMultipleOrders(ctx context.Context, args []CancelOrderR
 		}
 	}
 	ctx = request.WithRateLimitWeight(ctx, toRateLimitWeight(len(args)))
-	tradeLimits := e.tradeRateLimits(tradeRateLimitCancelBatch, tradeScopeCountsFromCancelOrders(args), 0)
+	requestScopedRateLimits := e.additionalTradeRateLimits(tradeRateLimitCancelBatch, tradeScopeCountsFromCancelOrders(args), 0)
 	var resp []*OrderData
-	err := e.sendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleOrdersEPL, http.MethodPost, "trade/cancel-batch-orders", args, &resp, request.AuthenticatedRequest, tradeLimits)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleOrdersEPL, http.MethodPost, "trade/cancel-batch-orders", args, &resp, request.AuthenticatedRequest, requestScopedRateLimits...)
 	if err != nil {
 		if len(resp) == 0 {
 			return nil, err
@@ -182,22 +168,15 @@ func (e *Exchange) AmendOrder(ctx context.Context, arg *AmendOrderRequestParams)
 	if arg.NewQuantity <= 0 && arg.NewPrice <= 0 {
 		return nil, errInvalidNewSizeOrPriceInformation
 	}
-	tradeLimits := e.tradeRateLimits(tradeRateLimitAmendSingle, tradeScopeCountsFromAmendOrders([]AmendOrderRequestParams{*arg}), 1)
+	requestScopedRateLimits := e.additionalTradeRateLimits(tradeRateLimitAmendSingle, tradeScopeCountsFromAmendOrders([]AmendOrderRequestParams{*arg}), 1)
 	var resp *OrderData
-	return resp, e.sendHTTPRequest(ctx, exchange.RestSpot, amendOrderEPL, http.MethodPost, "trade/amend-order", arg, &resp, request.AuthenticatedRequest, tradeLimits)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, amendOrderEPL, http.MethodPost, "trade/amend-order", arg, &resp, request.AuthenticatedRequest, requestScopedRateLimits...)
 }
 
 // AmendMultipleOrders amend incomplete orders in batches. Maximum 20 orders can be amended at a time. Request parameters should be passed in the form of an array
 func (e *Exchange) AmendMultipleOrders(ctx context.Context, args []AmendOrderRequestParams) ([]OrderData, error) {
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
-	}
-	if len(args) == 1 {
-		resp, err := e.AmendOrder(ctx, &args[0])
-		if err != nil {
-			return nil, err
-		}
-		return []OrderData{*resp}, nil
 	}
 	for x := range args {
 		if args[x].InstrumentID == "" {
@@ -211,9 +190,9 @@ func (e *Exchange) AmendMultipleOrders(ctx context.Context, args []AmendOrderReq
 		}
 	}
 	ctx = request.WithRateLimitWeight(ctx, toRateLimitWeight(len(args)))
-	tradeLimits := e.tradeRateLimits(tradeRateLimitAmendBatch, tradeScopeCountsFromAmendOrders(args), len(args))
+	requestScopedRateLimits := e.additionalTradeRateLimits(tradeRateLimitAmendBatch, tradeScopeCountsFromAmendOrders(args), len(args))
 	var resp []OrderData
-	return resp, e.sendHTTPRequest(ctx, exchange.RestSpot, amendMultipleOrdersEPL, http.MethodPost, "trade/amend-batch-orders", &args, &resp, request.AuthenticatedRequest, tradeLimits)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, amendMultipleOrdersEPL, http.MethodPost, "trade/amend-batch-orders", &args, &resp, request.AuthenticatedRequest, requestScopedRateLimits...)
 }
 
 // ClosePositions close all positions of an instrument via a market order
@@ -5912,11 +5891,7 @@ URL arguments must be encoded in the request path
 result must be a pointer
 The response data is unmarshalled directly into result first and then (if needed) from the first array element
 */
-func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, httpMethod, requestPath string, data, result any, requestType request.AuthType) error {
-	return e.sendHTTPRequest(ctx, ep, f, httpMethod, requestPath, data, result, requestType, nil)
-}
-
-func (e *Exchange) sendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, httpMethod, requestPath string, data, result any, requestType request.AuthType, tradeLimits []request.RateLimitReservation) (err error) {
+func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.EndpointLimit, httpMethod, requestPath string, data, result any, requestType request.AuthType, additionalRateLimits ...request.RateLimitReservation) (err error) {
 	endpoint, err := e.API.Endpoints.GetURL(ep)
 	if err != nil {
 		return err
@@ -5967,8 +5942,8 @@ func (e *Exchange) sendHTTPRequest(ctx context.Context, ep exchange.URL, f reque
 			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
 	}
-	if len(tradeLimits) > 0 {
-		err = e.Requester.SendPayloadWithRateLimits(ctx, f, newRequest, requestType, tradeLimits...)
+	if len(additionalRateLimits) > 0 {
+		err = e.Requester.SendPayloadWithAdditionalRateLimits(ctx, f, newRequest, requestType, additionalRateLimits...)
 	} else {
 		err = e.SendPayload(ctx, f, newRequest, requestType)
 	}
