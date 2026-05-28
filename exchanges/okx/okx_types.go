@@ -796,46 +796,17 @@ type PlaceOrderRequestParam struct {
 	BanAmend bool `json:"banAmend,omitempty"` // Whether the SPOT Market Order size can be amended by the system.
 }
 
-type placeOrderRequestPayload struct {
-	InstrumentID                         string `json:"instId"`
-	InstrumentIDCode                     int64  `json:"instIdCode,omitempty"`
-	TradeMode                            string `json:"tdMode"`
-	ClientOrderID                        string `json:"clOrdId,omitempty"`
-	Currency                             string `json:"ccy,omitempty"`
-	OrderTag                             string `json:"tag,omitempty"`
-	Side                                 string `json:"side"`
-	PositionSide                         string `json:"posSide,omitempty"`
-	OrderType                            string `json:"ordType"`
-	Amount                               string `json:"sz"`
-	Price                                string `json:"px,omitempty"`
-	PlaceOptionsOrder                    string `json:"pxUsd,omitempty"`
-	PlaceOptionsOrderOnImpliedVolatility string `json:"pxVol,omitempty"`
-	ReduceOnly                           bool   `json:"reduceOnly,omitempty"`
-	TargetCurrency                       string `json:"tgtCcy,omitempty"`
-	SelfTradePreventionMode              string `json:"stpMode,omitempty"`
-	BanAmend                             bool   `json:"banAmend,omitempty"`
-}
-
 // MarshalJSON ensures small numeric values are sent as plain decimal strings
 // instead of scientific notation for websocket order submission.
 func (arg *PlaceOrderRequestParam) MarshalJSON() ([]byte, error) {
-	out := placeOrderRequestPayload{
-		InstrumentID:                         arg.InstrumentID,
-		InstrumentIDCode:                     arg.InstrumentIDCode,
-		TradeMode:                            arg.TradeMode,
-		ClientOrderID:                        arg.ClientOrderID,
-		Currency:                             arg.Currency,
-		OrderTag:                             arg.OrderTag,
-		Side:                                 arg.Side,
-		PositionSide:                         arg.PositionSide,
-		OrderType:                            arg.OrderType,
-		Amount:                               strconv.FormatFloat(arg.Amount, 'f', -1, 64),
-		PlaceOptionsOrder:                    arg.PlaceOptionsOrder,
-		PlaceOptionsOrderOnImpliedVolatility: arg.PlaceOptionsOrderOnImpliedVolatility,
-		ReduceOnly:                           arg.ReduceOnly,
-		TargetCurrency:                       arg.TargetCurrency,
-		SelfTradePreventionMode:              arg.SelfTradePreventionMode,
-		BanAmend:                             arg.BanAmend,
+	type placeOrderRequestParam PlaceOrderRequestParam
+	out := struct {
+		*placeOrderRequestParam
+		Amount string `json:"sz"`
+		Price  string `json:"px,omitempty"`
+	}{
+		placeOrderRequestParam: (*placeOrderRequestParam)(arg),
+		Amount:                 strconv.FormatFloat(arg.Amount, 'f', -1, 64),
 	}
 	if arg.Price > 0 {
 		out.Price = strconv.FormatFloat(arg.Price, 'f', -1, 64)
