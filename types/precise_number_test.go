@@ -165,7 +165,14 @@ func TestNewPreciseNumberFromString(t *testing.T) {
 
 	zero, err := NewPreciseNumberFromString("")
 	assert.NoError(t, err)
-	assert.True(t, zero.IsZero())
+	assert.True(t, zero.IsZero(), "empty string is the uninitialized zero value")
+
+	// An explicit "0" is *not* IsZero: it is a real wire value that must
+	// be preserved through omitempty serialization.
+	notZero, err := NewPreciseNumberFromString("0")
+	assert.NoError(t, err)
+	assert.False(t, notZero.IsZero(),
+		`explicit "0" must round-trip through JSON, not be omitted`)
 
 	_, err = NewPreciseNumberFromString("garbage")
 	assert.ErrorIs(t, err, errInvalidPreciseNumberValue)

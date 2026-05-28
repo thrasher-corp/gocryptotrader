@@ -76,12 +76,13 @@ func (p *PreciseNumber) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	val, err := strconv.ParseFloat(string(data), 64)
+	s := string(data)
+	val, err := strconv.ParseFloat(s, 64)
 	if err != nil {
 		return fmt.Errorf("%w: %s", errInvalidPreciseNumberValue, data)
 	}
 
-	p.raw = string(data)
+	p.raw = s
 	p.val = val
 	return nil
 }
@@ -148,7 +149,13 @@ func (p PreciseNumber) String() string {
 	return p.raw
 }
 
-// IsZero reports whether the value is the zero value.
+// IsZero reports whether the value is the uninitialized zero value.
+//
+// Note: this returns true only for the uninitialized struct, not for an
+// explicit "0" parsed from the wire. The distinction matters when
+// json.Marshal honours the IsZero() method for `omitempty` (Go 1.24+):
+// an explicit "0" must round-trip through JSON for accounting fields,
+// whereas an unset field is correctly omitted.
 func (p PreciseNumber) IsZero() bool {
-	return p.raw == "" || p.val == 0
+	return p.raw == ""
 }
