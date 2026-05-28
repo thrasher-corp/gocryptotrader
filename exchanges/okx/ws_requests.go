@@ -28,10 +28,10 @@ func (e *Exchange) WSPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam
 	if err := arg.Validate(); err != nil {
 		return nil, err
 	}
-	tradeLimits := e.tradeRateLimits(tradeRateLimitPlaceSingle, tradeScopeCountsFromPlaceOrders([]PlaceOrderRequestParam{*arg}), 1)
+	requestScopedRateLimits := e.additionalTradeRateLimits(tradeRateLimitPlaceSingle, tradeScopeCountsFromPlaceOrders([]PlaceOrderRequestParam{*arg}), 1)
 
 	var resp []*OrderData
-	if err := e.sendAuthenticatedWebsocketRequest(ctx, placeOrderEPL, e.MessageID(), "order", []PlaceOrderRequestParam{*arg}, &resp, tradeLimits); err != nil {
+	if err := e.sendAuthenticatedWebsocketRequest(ctx, placeOrderEPL, e.MessageID(), "order", []PlaceOrderRequestParam{*arg}, &resp, requestScopedRateLimits...); err != nil {
 		return nil, err
 	}
 	return singleItem(resp)
@@ -42,13 +42,6 @@ func (e *Exchange) WSPlaceMultipleOrders(ctx context.Context, args []PlaceOrderR
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
 	}
-	if len(args) == 1 {
-		resp, err := e.WSPlaceOrder(ctx, &args[0])
-		if err != nil {
-			return nil, err
-		}
-		return []*OrderData{resp}, nil
-	}
 
 	for i := range args {
 		if err := args[i].Validate(); err != nil {
@@ -56,10 +49,10 @@ func (e *Exchange) WSPlaceMultipleOrders(ctx context.Context, args []PlaceOrderR
 		}
 	}
 	ctx = request.WithRateLimitWeight(ctx, toRateLimitWeight(len(args)))
-	tradeLimits := e.tradeRateLimits(tradeRateLimitPlaceBatch, tradeScopeCountsFromPlaceOrders(args), len(args))
+	requestScopedRateLimits := e.additionalTradeRateLimits(tradeRateLimitPlaceBatch, tradeScopeCountsFromPlaceOrders(args), len(args))
 
 	var resp []*OrderData
-	return resp, e.sendAuthenticatedWebsocketRequest(ctx, placeMultipleOrdersEPL, e.MessageID(), "batch-orders", args, &resp, tradeLimits)
+	return resp, e.sendAuthenticatedWebsocketRequest(ctx, placeMultipleOrdersEPL, e.MessageID(), "batch-orders", args, &resp, requestScopedRateLimits...)
 }
 
 // WSCancelOrder cancels an order
@@ -73,10 +66,10 @@ func (e *Exchange) WSCancelOrder(ctx context.Context, arg *CancelOrderRequestPar
 	if arg.OrderID == "" && arg.ClientOrderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	tradeLimits := e.tradeRateLimits(tradeRateLimitCancelSingle, tradeScopeCountsFromCancelOrders([]CancelOrderRequestParam{*arg}), 0)
+	requestScopedRateLimits := e.additionalTradeRateLimits(tradeRateLimitCancelSingle, tradeScopeCountsFromCancelOrders([]CancelOrderRequestParam{*arg}), 0)
 
 	var resp []*OrderData
-	if err := e.sendAuthenticatedWebsocketRequest(ctx, cancelOrderEPL, e.MessageID(), "cancel-order", []CancelOrderRequestParam{*arg}, &resp, tradeLimits); err != nil {
+	if err := e.sendAuthenticatedWebsocketRequest(ctx, cancelOrderEPL, e.MessageID(), "cancel-order", []CancelOrderRequestParam{*arg}, &resp, requestScopedRateLimits...); err != nil {
 		return nil, err
 	}
 
@@ -88,13 +81,6 @@ func (e *Exchange) WSCancelMultipleOrders(ctx context.Context, args []CancelOrde
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
 	}
-	if len(args) == 1 {
-		resp, err := e.WSCancelOrder(ctx, &args[0])
-		if err != nil {
-			return nil, err
-		}
-		return []*OrderData{resp}, nil
-	}
 
 	for i := range args {
 		if args[i].InstrumentID == "" {
@@ -105,10 +91,10 @@ func (e *Exchange) WSCancelMultipleOrders(ctx context.Context, args []CancelOrde
 		}
 	}
 	ctx = request.WithRateLimitWeight(ctx, toRateLimitWeight(len(args)))
-	tradeLimits := e.tradeRateLimits(tradeRateLimitCancelBatch, tradeScopeCountsFromCancelOrders(args), 0)
+	requestScopedRateLimits := e.additionalTradeRateLimits(tradeRateLimitCancelBatch, tradeScopeCountsFromCancelOrders(args), 0)
 
 	var resp []*OrderData
-	return resp, e.sendAuthenticatedWebsocketRequest(ctx, cancelMultipleOrdersEPL, e.MessageID(), "batch-cancel-orders", args, &resp, tradeLimits)
+	return resp, e.sendAuthenticatedWebsocketRequest(ctx, cancelMultipleOrdersEPL, e.MessageID(), "batch-cancel-orders", args, &resp, requestScopedRateLimits...)
 }
 
 // WSAmendOrder amends an order
@@ -125,10 +111,10 @@ func (e *Exchange) WSAmendOrder(ctx context.Context, arg *AmendOrderRequestParam
 	if arg.NewQuantity <= 0 && arg.NewPrice <= 0 {
 		return nil, errInvalidNewSizeOrPriceInformation
 	}
-	tradeLimits := e.tradeRateLimits(tradeRateLimitAmendSingle, tradeScopeCountsFromAmendOrders([]AmendOrderRequestParams{*arg}), 1)
+	requestScopedRateLimits := e.additionalTradeRateLimits(tradeRateLimitAmendSingle, tradeScopeCountsFromAmendOrders([]AmendOrderRequestParams{*arg}), 1)
 
 	var resp []*OrderData
-	if err := e.sendAuthenticatedWebsocketRequest(ctx, amendOrderEPL, e.MessageID(), "amend-order", []AmendOrderRequestParams{*arg}, &resp, tradeLimits); err != nil {
+	if err := e.sendAuthenticatedWebsocketRequest(ctx, amendOrderEPL, e.MessageID(), "amend-order", []AmendOrderRequestParams{*arg}, &resp, requestScopedRateLimits...); err != nil {
 		return nil, err
 	}
 	return singleItem(resp)
@@ -138,13 +124,6 @@ func (e *Exchange) WSAmendOrder(ctx context.Context, arg *AmendOrderRequestParam
 func (e *Exchange) WSAmendMultipleOrders(ctx context.Context, args []AmendOrderRequestParams) ([]*OrderData, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("%T: %w", args, order.ErrSubmissionIsNil)
-	}
-	if len(args) == 1 {
-		resp, err := e.WSAmendOrder(ctx, &args[0])
-		if err != nil {
-			return nil, err
-		}
-		return []*OrderData{resp}, nil
 	}
 
 	for x := range args {
@@ -159,10 +138,10 @@ func (e *Exchange) WSAmendMultipleOrders(ctx context.Context, args []AmendOrderR
 		}
 	}
 	ctx = request.WithRateLimitWeight(ctx, toRateLimitWeight(len(args)))
-	tradeLimits := e.tradeRateLimits(tradeRateLimitAmendBatch, tradeScopeCountsFromAmendOrders(args), len(args))
+	requestScopedRateLimits := e.additionalTradeRateLimits(tradeRateLimitAmendBatch, tradeScopeCountsFromAmendOrders(args), len(args))
 
 	var resp []*OrderData
-	return resp, e.sendAuthenticatedWebsocketRequest(ctx, amendMultipleOrdersEPL, e.MessageID(), "batch-amend-orders", args, &resp, tradeLimits)
+	return resp, e.sendAuthenticatedWebsocketRequest(ctx, amendMultipleOrdersEPL, e.MessageID(), "batch-amend-orders", args, &resp, requestScopedRateLimits...)
 }
 
 // WSMassCancelOrders cancels all MMP pending orders of an instrument family. Only applicable to Option in Portfolio Margin mode, and MMP privilege is required.
@@ -281,10 +260,10 @@ func (e *Exchange) WSCancelAllSpreadOrders(ctx context.Context, spreadID string)
 
 // SendAuthenticatedWebsocketRequest sends a websocket request to the server
 func (e *Exchange) SendAuthenticatedWebsocketRequest(ctx context.Context, epl request.EndpointLimit, id, operation string, payload, result any) error {
-	return e.sendAuthenticatedWebsocketRequest(ctx, epl, id, operation, payload, result, nil)
+	return e.sendAuthenticatedWebsocketRequest(ctx, epl, id, operation, payload, result)
 }
 
-func (e *Exchange) sendAuthenticatedWebsocketRequest(ctx context.Context, epl request.EndpointLimit, id, operation string, payload, result any, tradeLimits []request.RateLimitReservation) error {
+func (e *Exchange) sendAuthenticatedWebsocketRequest(ctx context.Context, epl request.EndpointLimit, id, operation string, payload, result any, requestScopedRateLimits ...request.RateLimitReservation) error {
 	if operation == "" || payload == nil {
 		return errInvalidWebsocketRequest
 	}
@@ -308,8 +287,8 @@ func (e *Exchange) sendAuthenticatedWebsocketRequest(ctx context.Context, epl re
 	}
 
 	var incoming []byte
-	if len(tradeLimits) > 0 {
-		incoming, err = conn.SendMessageReturnResponseWithRateLimits(ctx, epl, id, outbound, tradeLimits...)
+	if len(requestScopedRateLimits) > 0 {
+		incoming, err = conn.SendMessageReturnResponseWithAdditionalRateLimits(ctx, epl, id, outbound, requestScopedRateLimits...)
 	} else {
 		incoming, err = conn.SendMessageReturnResponse(ctx, epl, id, outbound)
 	}

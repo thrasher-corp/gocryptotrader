@@ -117,8 +117,8 @@ func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) erro
 	return nil
 }
 
-// InitiateRateLimitWithParallel sleeps for an endpoint rate limit and additional parallel rate limits.
-func (r *Requester) InitiateRateLimitWithParallel(ctx context.Context, e EndpointLimit, limits ...RateLimitReservation) error {
+// InitiateRateLimitWithAdditional sleeps for an endpoint rate limit plus additional request-scoped rate limits.
+func (r *Requester) InitiateRateLimitWithAdditional(ctx context.Context, e EndpointLimit, additionalRateLimits ...RateLimitReservation) error {
 	if r == nil {
 		return ErrRequestSystemIsNil
 	}
@@ -128,7 +128,7 @@ func (r *Requester) InitiateRateLimitWithParallel(ctx context.Context, e Endpoin
 	if err := common.NilGuard(r.limiter); err != nil {
 		return err
 	}
-	if err := RateLimitWithParallel(ctx, r.limiter[e], limits...); err != nil {
+	if err := RateLimitWithAdditional(ctx, r.limiter[e], additionalRateLimits...); err != nil {
 		return fmt.Errorf("cannot rate limit request %w for endpoint %d", err, e)
 	}
 	return nil
@@ -198,28 +198,28 @@ func (r *RateLimiterWithWeight) rateLimit(ctx context.Context, weight Weight) er
 }
 
 // RateLimitAll reserves an arbitrary set of rate limiters together and waits only for the longest required delay.
-func RateLimitAll(ctx context.Context, limits ...RateLimitReservation) error {
-	if len(limits) == 0 {
+func RateLimitAll(ctx context.Context, rateLimits ...RateLimitReservation) error {
+	if len(rateLimits) == 0 {
 		return nil
 	}
 
-	requests := make([]rateLimitReservationState, 0, len(limits))
-	for x := range limits {
-		weight := limits[x].Weight
-		if weight == 0 && limits[x].Limiter != nil {
-			weight = limits[x].Limiter.weight
+	requests := make([]rateLimitReservationState, 0, len(rateLimits))
+	for x := range rateLimits {
+		weight := rateLimits[x].Weight
+		if weight == 0 && rateLimits[x].Limiter != nil {
+			weight = rateLimits[x].Limiter.weight
 		}
 		requests = append(requests, rateLimitReservationState{
-			limiter: limits[x].Limiter,
+			limiter: rateLimits[x].Limiter,
 			weight:  weight,
 		})
 	}
 	return rateLimitAll(ctx, requests...)
 }
 
-// RateLimitWithParallel reserves the endpoint limiter with any additional request-scoped limits.
-func RateLimitWithParallel(ctx context.Context, endpoint *RateLimiterWithWeight, limits ...RateLimitReservation) error {
-	if len(limits) == 0 {
+// RateLimitWithAdditional reserves the endpoint limiter with any additional request-scoped limits.
+func RateLimitWithAdditional(ctx context.Context, endpoint *RateLimiterWithWeight, additionalRateLimits ...RateLimitReservation) error {
+	if len(additionalRateLimits) == 0 {
 		return endpoint.RateLimit(ctx)
 	}
 
@@ -231,18 +231,18 @@ func RateLimitWithParallel(ctx context.Context, endpoint *RateLimiterWithWeight,
 	if overrideWeight, ok := getRateLimitWeight(ctx); ok {
 		endpointWeight = overrideWeight
 	}
-	allLimits := make([]RateLimitReservation, 0, len(limits)+1)
-	allLimits = append(allLimits, RateLimitReservation{
+	endpointAndAdditionalRateLimits := make([]RateLimitReservation, 0, len(additionalRateLimits)+1)
+	endpointAndAdditionalRateLimits = append(endpointAndAdditionalRateLimits, RateLimitReservation{
 		Limiter: endpoint,
 		Weight:  endpointWeight,
 	})
-	allLimits = append(allLimits, limits...)
+	endpointAndAdditionalRateLimits = append(endpointAndAdditionalRateLimits, additionalRateLimits...)
 
-	requests := make([]rateLimitReservationState, 0, len(allLimits))
-	for x := range allLimits {
+	requests := make([]rateLimitReservationState, 0, len(endpointAndAdditionalRateLimits))
+	for x := range endpointAndAdditionalRateLimits {
 		requests = append(requests, rateLimitReservationState{
-			limiter: allLimits[x].Limiter,
-			weight:  allLimits[x].Weight,
+			limiter: endpointAndAdditionalRateLimits[x].Limiter,
+			weight:  endpointAndAdditionalRateLimits[x].Weight,
 		})
 	}
 	return rateLimitAll(ctx, requests...)
