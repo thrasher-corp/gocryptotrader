@@ -481,8 +481,7 @@ func TestDecodeLeadingJSONValue(t *testing.T) {
 	t.Run("invalid json", func(t *testing.T) {
 		t.Parallel()
 		var v any
-		var syntaxErr *json.SyntaxError
-		require.ErrorAs(t, decodeLeadingJSONValue([]byte(`not-json`), &v), &syntaxErr, "decodeLeadingJSONValue must return a JSON syntax error")
+		require.Error(t, decodeLeadingJSONValue([]byte(`not-json`), &v), "decodeLeadingJSONValue must return a JSON syntax error")
 	})
 
 	tcs := []struct {
