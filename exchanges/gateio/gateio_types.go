@@ -2890,7 +2890,7 @@ type WsFuturesPosition struct {
 	MaintenanceRate    types.Number `json:"maintenance_rate"`
 	Margin             types.Number `json:"margin"`
 	Mode               string       `json:"mode"`
-	RealisedPnl        types.Number `json:"realised_pnl"`
+	RealisedPNL        types.Number `json:"realised_pnl"`
 	RealisedPoint      types.Number `json:"realised_point"`
 	RiskLimit          types.Number `json:"risk_limit"`
 	Size               types.Number `json:"size"`
@@ -2926,9 +2926,9 @@ type WsFuturesAutoOrder struct {
 	Name        string     `json:"name"`
 	IsStopOrder bool       `json:"is_stop_order"`
 	StopTrigger struct {
-		Rule         int64  `json:"rule"`
-		TriggerPrice string `json:"trigger_price"`
-		OrderPrice   string `json:"order_price"`
+		Rule         int64        `json:"rule"`
+		TriggerPrice types.Number `json:"trigger_price"`
+		OrderPrice   types.Number `json:"order_price"`
 	} `json:"stop_trigger"`
 }
 
@@ -3338,100 +3338,6 @@ type CollateralAddOrRemoveResponse struct {
 		Currency  currency.Code `json:"currency"`
 		Amount    types.Number  `json:"amount"`
 	} `json:"collateral_currencies"`
-}
-
-// BrokerRebateHistory holds list of brokers rebate history
-type BrokerRebateHistory struct {
-	Total        int64              `json:"total"`
-	Transactions []BrokerRebateItem `json:"list"`
-}
-
-// BrokerRebateItem holds a rebate history item
-type BrokerRebateItem struct {
-	CommissionTime   types.Time   `json:"commission_time"`
-	UserID           uint64       `json:"user_id"`
-	GroupName        string       `json:"group_name"`
-	CommissionAmount types.Number `json:"commission_amount"`
-	Source           string       `json:"source"`
-	CommissionAsset  string       `json:"commission_asset"`
-}
-
-// UsersRebateRecords holds rebate records of recommended users
-type UsersRebateRecords struct {
-	Total int `json:"total"`
-	List  []struct {
-		UserID           uint64       `json:"user_id"`
-		CommissionTime   types.Time   `json:"commission_time"`
-		CommissionAmount types.Number `json:"commission_amount"`
-		CommissionAsset  string       `json:"commission_asset"`
-		Source           string       `json:"source"`
-		GroupName        string       `json:"group_name"`
-	} `json:"list"`
-}
-
-// PartnerSubordinateList holds partner subordinate list
-type PartnerSubordinateList struct {
-	Total int64 `json:"total"`
-	List  []struct {
-		UserID       uint64     `json:"user_id"`
-		UserJoinTime types.Time `json:"user_join_time"`
-		Type         uint64     `json:"type"`
-	} `json:"list"`
-}
-
-// BrokerCommissionHistory holds brokers commission history
-type BrokerCommissionHistory struct {
-	List []struct {
-		UserID         int64        `json:"user_id"`
-		GroupName      string       `json:"group_name"`
-		CommissionTime types.Time   `json:"commission_time"`
-		Fee            types.Number `json:"fee"`
-		Source         string       `json:"source"`
-		Amount         types.Number `json:"amount"`
-		RebateFee      types.Number `json:"rebate_fee"`
-		FeeAsset       string       `json:"fee_asset"`
-		CurrencyPair   string       `json:"currency_pair"`
-		SubBrokerInfo  struct {
-			UserID                 uint64       `json:"user_id"`
-			OriginalCommissionRate types.Number `json:"original_commission_rate"`
-			RelativeCommissionRate types.Number `json:"relative_commission_rate"`
-			CommissionRate         types.Number `json:"commission_rate"`
-		} `json:"sub_broker_info"`
-		AlphaContractAddr string `json:"alpha_contract_addr"`
-	} `json:"list"`
-	Total int64 `json:"total"`
-}
-
-// BrokerRebateUserTradingHistory holds rebate broker user's trading history
-type BrokerRebateUserTradingHistory struct {
-	List []struct {
-		UserID          uint64        `json:"user_id"`
-		Fee             types.Number  `json:"fee"`
-		GroupName       string        `json:"group_name"`
-		TransactionTime types.Time    `json:"transaction_time"`
-		Amount          types.Number  `json:"amount"`
-		CurrencyPair    currency.Pair `json:"currency_pair"`
-		Source          string        `json:"source"`
-		FeeAsset        string        `json:"fee_asset"`
-		SubBrokerInfo   struct {
-			UserID                 uint64       `json:"user_id"`
-			OriginalCommissionRate types.Number `json:"original_commission_rate"`
-			RelativeCommissionRate types.Number `json:"relative_commission_rate"`
-			CommissionRate         types.Number `json:"commission_rate"`
-		} `json:"sub_broker_info"`
-		AlphaContractAddr string `json:"alpha_contract_addr"`
-	} `json:"list"`
-	Total int64 `json:"total"`
-}
-
-// UserRebaseSubRelation holds s user subordinate relationship
-type UserRebaseSubRelation struct {
-	List []struct {
-		Belong string `json:"belong"`
-		RefUID uint64 `json:"ref_uid"`
-		Type   uint64 `json:"type"`
-		UID    uint64 `json:"uid"`
-	} `json:"list"`
 }
 
 // LoadDetail represents a borrow or repay action detail information
@@ -4265,7 +4171,7 @@ type OTCStableCoinOrder struct {
 	PayAmount   types.Number  `json:"pay_amount"`
 	GetCoin     currency.Code `json:"get_coin"`
 	GetAmount   types.Number  `json:"get_amount"`
-	Rate        string        `json:"rate"`
+	Rate        types.Number  `json:"rate"`
 	Status      string        `json:"status"`
 	CreateTime  types.Time    `json:"create_time"`
 	CreateTime2 types.Time    `json:"create_time2"`

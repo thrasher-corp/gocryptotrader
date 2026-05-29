@@ -10440,6 +10440,215 @@
           "headers": {}
         }
       ]
+    },
+    "/api/v4/rebate/agency/transaction_history": {
+      "GET": [
+        {
+          "data": {
+            "currency_pair": "BTC_USDT",
+            "total": 1,
+            "list": [
+              {
+                "transaction_time": 1715864142,
+                "user_id": 10000001,
+                "group_name": "group_a",
+                "fee": "0.65",
+                "fee_asset": "USDT",
+                "currency_pair": "BTC_USDT",
+                "amount": "1500.5",
+                "amount_asset": "USDT",
+                "source": "SPOT"
+              }
+            ]
+          },
+          "queryString": "currency_pair=BTC_USDT&from=1744103854&limit=10&to=1744190254",
+          "bodyParams": "",
+          "headers": {}
+        }
+      ]
+    },
+    "/api/v4/rebate/agency/commission_history": {
+      "GET": [
+        {
+          "data": {
+            "currency_pair": "BTC_USDT",
+            "total": 1,
+            "list": [
+              {
+                "commission_time": 1715864142,
+                "user_id": 10000001,
+                "group_name": "group_a",
+                "commission_amount": "12.5",
+                "commission_asset": "USDT",
+                "source": "SPOT"
+              }
+            ]
+          },
+          "queryString": "commission_type=1&currency=USDT&from=1744103854&limit=10&to=1744190254",
+          "bodyParams": "",
+          "headers": {}
+        }
+      ]
+    },
+    "/api/v4/rebate/partner/transaction_history": {
+      "GET": [
+        {
+          "data": {
+            "total": 1,
+            "list": [
+              {
+                "transaction_time": 1715864142,
+                "user_id": 10000001,
+                "group_name": "group_a",
+                "fee": "0.65",
+                "fee_asset": "USDT",
+                "currency_pair": "BTC_USDT",
+                "amount": "1500.5",
+                "amount_asset": "USDT",
+                "source": "SPOT"
+              }
+            ]
+          },
+          "queryString": "from=1744103854&limit=10&to=1744190254",
+          "bodyParams": "",
+          "headers": {}
+        }
+      ]
+    },
+    "/api/v4/rebate/partner/commission_history": {
+      "GET": [
+        {
+          "data": {
+            "total": 1,
+            "list": [
+              {
+                "commission_time": 1715864142,
+                "user_id": 10000001,
+                "group_name": "group_a",
+                "commission_amount": "12.5",
+                "commission_asset": "USDT",
+                "source": "SPOT"
+              }
+            ]
+          },
+          "queryString": "currency=USDT&from=1744103854&limit=10&to=1744190254&user_id=10100011213",
+          "bodyParams": "",
+          "headers": {}
+        }
+      ]
+    },
+    "/api/v4/rebate/partner/sub_list": {
+      "GET": [
+        {
+          "data": {
+            "total": 1,
+            "list": [
+              {
+                "user_id": 10000001,
+                "user_join_time": 1715864142,
+                "type": 3
+              }
+            ]
+          },
+          "queryString": "limit=10&offset=100&user_id=12312312",
+          "bodyParams": "",
+          "headers": {}
+        }
+      ]
+    },
+    "/api/v4/rebate/broker/commission_history": {
+      "GET": [
+        {
+          "data": {
+            "total": 1,
+            "list": [
+              {
+                "commission_time": 1715864142,
+                "user_id": 10000001,
+                "group_name": "group_a",
+                "amount": "1500.5",
+                "fee": "0.65",
+                "fee_asset": "USDT",
+                "rebate_fee": "0.32",
+                "source": "Spot",
+                "currency_pair": "BTC_USDT",
+                "sub_broker_info": {
+                  "user_id": 20000002,
+                  "original_commission_rate": "0.0008",
+                  "relative_commission_rate": "0.5",
+                  "commission_rate": "0.0004"
+                },
+                "alpha_contract_addr": ""
+              }
+            ]
+          },
+          "queryString": "from=1744103854&limit=1&offset=100&to=1744190254&user_id=12312312",
+          "bodyParams": "",
+          "headers": {}
+        }
+      ]
+    },
+    "/api/v4/rebate/broker/transaction_history": {
+      "GET": [
+        {
+          "data": {
+            "total": 1,
+            "list": [
+              {
+                "transaction_time": 1715864142,
+                "user_id": 10000001,
+                "group_name": "group_a",
+                "fee": "0.65",
+                "currency_pair": "BTC_USDT",
+                "amount": "1500.5",
+                "fee_asset": "USDT",
+                "source": "Spot",
+                "sub_broker_info": {
+                  "user_id": 20000002,
+                  "original_commission_rate": "0.0008",
+                  "relative_commission_rate": "0.5",
+                  "commission_rate": "0.0004"
+                },
+                "alpha_contract_addr": ""
+              }
+            ]
+          },
+          "queryString": "from=1744103854&limit=1&offset=100&to=1744190254&user_id=12312312",
+          "bodyParams": "",
+          "headers": {}
+        }
+      ]
+    },
+    "/api/v4/rebate/user/info": {
+      "GET": [
+        {
+          "data": {
+            "invite_uid": 10000001
+          },
+          "queryString": "",
+          "bodyParams": "",
+          "headers": {}
+        }
+      ]
+    },
+    "/api/v4/rebate/user/sub_relation": {
+      "GET": [
+        {
+          "data": {
+            "list": [
+              {
+                "uid": 12342,
+                "belong": "partner",
+                "type": 5,
+                "ref_uid": 10000001
+              }
+            ]
+          },
+          "queryString": "user_id_list=12342,21312312312",
+          "bodyParams": "",
+          "headers": {}
+        }
+      ]
     }
   }
 }
