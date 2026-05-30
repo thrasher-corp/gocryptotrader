@@ -202,8 +202,8 @@ type MarginRateHistoryParams struct {
 // CurrencyTradeURLParams defines command-line flags for exchange currency trade URL retrieval and unmarshal their values.
 type CurrencyTradeURLParams struct {
 	Exchange string `name:"exchange,e" required:"t" usage:"the exchange to retrieve margin rates from"`
-	Asset    string `name:"asset,a"    required:"t"  usage:"the asset type of the currency pair"`
-	Pair     string `name:"pair,p"     required:"t"  usage:"the currency pair"`
+	Asset    string `name:"asset,a"    required:"t" usage:"the asset type of the currency pair"`
+	Pair     string `name:"pair,p"     required:"t" usage:"the currency pair"`
 }
 
 // AddPortfolioAddressParams defines command-line flags for adding portfolio address and unmarshal their values.
