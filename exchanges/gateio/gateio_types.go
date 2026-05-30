@@ -3898,7 +3898,7 @@ type UserMarketLeverageMultiplierResponse struct {
 
 // SetMarginMarketLeverageRequest holds the body for setting a user's isolated margin market leverage multiplier.
 type SetMarginMarketLeverageRequest struct {
-	CurrencyPair currency.Pair `json:"currency_pair,omitempty"`
+	CurrencyPair currency.Pair `json:"currency_pair"`
 	Leverage     uint16        `json:"leverage,string"`
 }
 
@@ -4078,10 +4078,10 @@ type OtcFlatOrderRequest struct {
 
 // OtcStablecoinOrderRequest holds request parameters for creating a stablecoin order.
 type OtcStablecoinOrderRequest struct {
-	PayCoin       currency.Code `json:"pay_coin,omitempty"`
-	GetCoin       currency.Code `json:"get_coin,omitempty"`
-	PayAmount     types.Number  `json:"pay_amount,omitempty"`
-	GetAmount     types.Number  `json:"get_amount,omitempty"`
+	PayCoin       currency.Code `json:"pay_coin"`
+	GetCoin       currency.Code `json:"get_coin"`
+	PayAmount     float64       `json:"pay_amount,omitempty"`
+	GetAmount     float64       `json:"get_amount,omitempty"`
 	Side          string        `json:"side,omitempty"`
 	PromotionCode string        `json:"promotion_code,omitempty"`
 	QuoteToken    string        `json:"quote_token,omitempty"`

@@ -109,7 +109,7 @@ type CrossexOrder struct {
 	ExecutedQuantity  types.Number  `json:"executed_qty"`
 	ExecutedAmount    types.Number  `json:"executed_amount"`
 	Fee               types.Number  `json:"fee"`
-	FeeAsset          string        `json:"fee_asset"`
+	FeeAsset          currency.Code `json:"fee_asset"`
 	TimeInForce       string        `json:"time_in_force"`
 	Leverage          types.Number  `json:"leverage"`
 	LastExecutedQty   types.Number  `json:"last_executed_qty"`

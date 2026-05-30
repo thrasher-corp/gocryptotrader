@@ -262,7 +262,7 @@ type P2pAdDetail struct {
 
 // GetMyP2PAdsRequest holds request parameters for getting the current user's P2P ads.
 type GetMyP2PAdsRequest struct {
-	Asset     currency.Code `json:"asset,omitempty"`
+	Asset     currency.Code `json:"asset"`
 	FiatUnit  string        `json:"fiat_unit,omitempty"`
 	TradeType string        `json:"trade_type,omitempty"`
 }
