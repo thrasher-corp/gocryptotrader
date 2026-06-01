@@ -87,7 +87,7 @@ func TestWsHandleData(t *testing.T) {
 	}
 	for i := range tc {
 		err := e.wsHandleData(t.Context(), fixtureConnection{}, tc[i].j)
-		assert.ErrorIs(t, err, tc[i].err, "test %d failed", i)
+		assert.ErrorIsf(t, err, tc[i].err, "test %d failed", i)
 	}
 	mockJSON := []byte(`notjson`)
 	err := e.wsHandleData(t.Context(), fixtureConnection{}, mockJSON)
@@ -110,7 +110,7 @@ func TestTickerDataHandler(t *testing.T) {
 	}
 	for i := range tc {
 		err := e.wsHandleData(t.Context(), fixtureConnection{}, tc[i].j)
-		assert.ErrorIs(t, err, tc[i].err, "test %d failed", i)
+		assert.ErrorIsf(t, err, tc[i].err, "test %d failed", i)
 	}
 	mockJSON := []byte(`{"event":"snapshot","arg":{"channel":"ticker","instType":"SPOT"},"data":[[]]}`)
 	err := e.wsHandleData(t.Context(), fixtureConnection{}, mockJSON)
@@ -134,7 +134,7 @@ func TestCandleDataHandler(t *testing.T) {
 	}
 	for i := range tc {
 		err := e.wsHandleData(t.Context(), fixtureConnection{}, tc[i].j)
-		assert.ErrorIs(t, err, tc[i].err, "test %d failed", i)
+		assert.ErrorIsf(t, err, tc[i].err, "test %d failed", i)
 	}
 	mockJSON := []byte(`{"event":"update","arg":{"channel":"candle1D"},"data":[[[{}]]]}`)
 	err := e.wsHandleData(t.Context(), fixtureConnection{}, mockJSON)
@@ -168,7 +168,7 @@ func TestOrderbookDataHandler(t *testing.T) {
 	}
 	for i := range tc {
 		err := e.wsHandleData(t.Context(), fixtureConnection{}, tc[i].j)
-		assert.ErrorIs(t, err, tc[i].err, "test %d failed", i)
+		assert.ErrorIsf(t, err, tc[i].err, "test %d failed", i)
 	}
 	mockJSON := []byte(`{"event":"snapshot","arg":{"channel":"books","instId":"BTCUSD"},"data":[[]]}`)
 	err := e.wsHandleData(t.Context(), fixtureConnection{}, mockJSON)
@@ -189,7 +189,7 @@ func TestAccountSnapshotDataHandler(t *testing.T) {
 	}
 	for i := range tc {
 		err := e.wsHandleData(ctx, fixtureConnection{}, tc[i].j)
-		assert.ErrorIs(t, err, tc[i].err, "test %d failed", i)
+		assert.ErrorIsf(t, err, tc[i].err, "test %d failed", i)
 	}
 	mockJSON := []byte(`{"event":"snapshot","arg":{"channel":"account","instType":"spot"},"data":[[]]}`)
 	err := e.wsHandleData(ctx, fixtureConnection{}, mockJSON)
@@ -210,7 +210,7 @@ func TestFillDataHandler(t *testing.T) {
 	}
 	for i := range tc {
 		err := e.wsHandleData(t.Context(), fixtureConnection{}, tc[i].j)
-		assert.ErrorIs(t, err, tc[i].err, "test %d failed", i)
+		assert.ErrorIsf(t, err, tc[i].err, "test %d failed", i)
 	}
 	mockJSON := []byte(`{"event":"snapshot","arg":{"channel":"fill","instType":"spot"},"data":[[]]}`)
 	err := e.wsHandleData(t.Context(), fixtureConnection{}, mockJSON)
@@ -232,7 +232,7 @@ func TestGenOrderDataHandler(t *testing.T) {
 	}
 	for i := range tc {
 		err := e.wsHandleData(t.Context(), fixtureConnection{}, tc[i].j)
-		assert.ErrorIs(t, err, tc[i].err, "test %d failed", i)
+		assert.ErrorIsf(t, err, tc[i].err, "test %d failed", i)
 	}
 	mockJSON := []byte(`{"event":"snapshot","arg":{"channel":"orders","instType":"spot"},"data":[[]]}`)
 	err := e.wsHandleData(t.Context(), fixtureConnection{}, mockJSON)
@@ -250,7 +250,7 @@ func TestTriggerOrderDatHandler(t *testing.T) {
 	}
 	for i := range tc {
 		err := e.wsHandleData(t.Context(), fixtureConnection{}, tc[i].j)
-		assert.ErrorIs(t, err, tc[i].err, "test %d failed", i)
+		assert.ErrorIsf(t, err, tc[i].err, "test %d failed", i)
 	}
 	mockJSON := []byte(`{"event":"snapshot","arg":{"channel":"orders-algo","instType":"spot"},"data":[[]]}`)
 	err := e.wsHandleData(t.Context(), fixtureConnection{}, mockJSON)
@@ -319,7 +319,7 @@ func TestMarginOrderDataHandler(t *testing.T) {
 	}
 	for i := range tc {
 		err := e.wsHandleData(t.Context(), fixtureConnection{}, tc[i].j)
-		assert.ErrorIs(t, err, tc[i].err, "test %d failed", i)
+		assert.ErrorIsf(t, err, tc[i].err, "test %d failed", i)
 	}
 	mockJSON := []byte(`{"event":"snapshot","arg":{"channel":"orders-crossed"},"data":[[]]}`)
 	err := e.wsHandleData(t.Context(), fixtureConnection{}, mockJSON)
@@ -351,7 +351,7 @@ func TestAccountUpdateDataHandler(t *testing.T) {
 	}
 	for i := range tc {
 		err := e.wsHandleData(t.Context(), fixtureConnection{}, tc[i].j)
-		assert.ErrorIs(t, err, tc[i].err, "test %d failed", i)
+		assert.ErrorIsf(t, err, tc[i].err, "test %d failed", i)
 	}
 	mockJSON := []byte(`{"event":"update","arg":{"channel":"account","instType":"spot"},"data":[[]]}`)
 	err := e.wsHandleData(t.Context(), fixtureConnection{}, mockJSON)

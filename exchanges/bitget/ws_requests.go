@@ -16,8 +16,6 @@ import (
 var (
 	errInvalidInstrumentType = errors.New("invalid instrument type")
 	errMarginModeUnset       = errors.New("margin mode must be set")
-	errMissingValues         = errors.New("missing values")
-	errValuesConflict        = errors.New("values conflict")
 )
 
 const privateConnection = "private"
@@ -43,7 +41,7 @@ func (e *Exchange) WebsocketSpotPlaceOrder(ctx context.Context, req *WebsocketSp
 		return nil, order.ErrPriceMustBeSetIfLimitOrder
 	}
 	var result []WebsocketSpotPlaceOrderResponse
-	if err := e.sendWebsocketTradeRequest(ctx, request.Unset, &result, &WebsocketTradeRequest{
+	if err := e.sendWebsocketTradeRequest(ctx, &result, &WebsocketTradeRequest{
 		ID:             strconv.FormatInt(e.GetBase().MessageSequence(), 10),
 		InstrumentType: "SPOT",
 		InstrumentID:   req.Pair.String(),
@@ -76,7 +74,7 @@ func (e *Exchange) WebsocketSpotCancelOrder(ctx context.Context, pair currency.P
 	}
 
 	var result []WebsocketCancelOrderResponse
-	if err := e.sendWebsocketTradeRequest(ctx, request.Unset, &result, &WebsocketTradeRequest{
+	if err := e.sendWebsocketTradeRequest(ctx, &result, &WebsocketTradeRequest{
 		ID:             strconv.FormatInt(e.GetBase().MessageSequence(), 10),
 		InstrumentType: "SPOT",
 		InstrumentID:   pair.String(),
@@ -120,14 +118,8 @@ func (e *Exchange) WebsocketFuturesPlaceOrder(ctx context.Context, req *Websocke
 	if req.MarginMode == "" {
 		return nil, errMarginModeUnset
 	}
-	if req.ReduceOnly == "" && req.TradeSide == "" {
-		return nil, fmt.Errorf("%w: either reduce only or trade side must be set, but not both", errMissingValues)
-	}
-	if req.ReduceOnly != "" && req.TradeSide != "" {
-		return nil, fmt.Errorf("%w: reduce only and trade side cannot both be set", errValuesConflict)
-	}
 	var result []WebsocketFuturesPlaceOrderResponse
-	if err := e.sendWebsocketTradeRequest(ctx, request.Unset, &result, &WebsocketTradeRequest{
+	if err := e.sendWebsocketTradeRequest(ctx, &result, &WebsocketTradeRequest{
 		ID:             strconv.FormatInt(e.GetBase().MessageSequence(), 10),
 		InstrumentType: req.InstrumentType,
 		InstrumentID:   req.Contract.String(),
@@ -169,7 +161,7 @@ func (e *Exchange) WebsocketFuturesCancelOrder(ctx context.Context, pair currenc
 	}
 
 	var result []WebsocketCancelOrderResponse
-	if err := e.sendWebsocketTradeRequest(ctx, request.Unset, &result, &WebsocketTradeRequest{
+	if err := e.sendWebsocketTradeRequest(ctx, &result, &WebsocketTradeRequest{
 		ID:             strconv.FormatInt(e.GetBase().MessageSequence(), 10),
 		InstrumentType: instrumentType,
 		InstrumentID:   pair.String(),
@@ -185,7 +177,7 @@ func (e *Exchange) WebsocketFuturesCancelOrder(ctx context.Context, pair currenc
 }
 
 // sendWebsocketTradeRequest sends a trade request via the private websocket connection
-func (e *Exchange) sendWebsocketTradeRequest(ctx context.Context, epl request.EndpointLimit, result any, arg *WebsocketTradeRequest) error {
+func (e *Exchange) sendWebsocketTradeRequest(ctx context.Context, result any, arg *WebsocketTradeRequest) error {
 	if err := common.NilGuard(arg); err != nil {
 		return err
 	}
@@ -203,7 +195,7 @@ func (e *Exchange) sendWebsocketTradeRequest(ctx context.Context, epl request.En
 		Args:      []*WebsocketTradeRequest{arg}, // Batch requests are not currently supported by the exchange
 	}
 
-	got, err := conn.SendMessageReturnResponse(ctx, epl, arg.ID, outbound)
+	got, err := conn.SendMessageReturnResponse(ctx, request.Unset, arg.ID, outbound)
 	if err != nil {
 		return err
 	}

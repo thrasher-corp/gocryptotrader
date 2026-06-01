@@ -1223,41 +1223,42 @@ type FundingCurrentResp struct {
 
 // ContractConfigResp contains information on contract details
 type ContractConfigResp struct {
-	Symbol                    string        `json:"symbol"`
-	BaseCoin                  currency.Code `json:"baseCoin"`
-	QuoteCoin                 currency.Code `json:"quoteCoin"`
-	BuyLimitPriceRatio        types.Number  `json:"buyLimitPriceRatio"`
-	SellLimitPriceRatio       types.Number  `json:"sellLimitPriceRatio"`
-	FeeRateUpRatio            types.Number  `json:"feeRateUpRatio"`
-	MakerFeeRate              types.Number  `json:"makerFeeRate"`
-	TakerFeeRate              types.Number  `json:"takerFeeRate"`
-	OpenCostUpRatio           types.Number  `json:"openCostUpRatio"`
-	SupportMarginCoins        []string      `json:"supportMarginCoins"`
-	MinimumTradeNumber        types.Number  `json:"minTradeNum"`
-	PriceEndStep              types.Number  `json:"priceEndStep"`
-	VolumePlace               types.Number  `json:"volumePlace"`
-	PricePlace                types.Number  `json:"pricePlace"`
-	SizeMultiplier            types.Number  `json:"sizeMultiplier"`
-	SymbolType                string        `json:"symbolType"`
-	MinimumTradeUSDT          types.Number  `json:"minTradeUSDT"`
-	MaximumSymbolOrderNumber  int64         `json:"maxSymbolOrderNum,string"`
-	MaximumProductOrderNumber int64         `json:"maxProductOrderNum,string"`
-	MaximumPositionNumber     int64         `json:"maxPositionNum,string"`
-	SymbolStatus              string        `json:"symbolStatus"`
-	OffTime                   int64         `json:"offTime,string"`       // negative value expected
-	LimitOpenTime             int64         `json:"limitOpenTime,string"` // negative value expected
-	DeliveryTime              types.Time    `json:"deliveryTime"`
-	DeliveryStartTime         types.Time    `json:"deliveryStartTime"`
-	DeliveryPeriod            string        `json:"deliveryPeriod"`
-	LaunchTime                types.Time    `json:"launchTime"`
-	FundInterval              EmptyInt      `json:"fundInterval"`
-	MinimumLeverage           types.Number  `json:"minLever"`
-	MaximumLeverage           types.Number  `json:"maxLever"`
-	PosLimit                  types.Number  `json:"posLimit"`
-	MaintainTime              types.Time    `json:"maintainTime"`
-	OpenTime                  types.Time    `json:"openTime"`
-	MaxMarketOrderQuantity    types.Number  `json:"maxMarketOrderQuantity"`
-	IsRealWorldAsset          YesNoBool     `json:"isRwa"`
+	Symbol                     string        `json:"symbol"`
+	BaseCoin                   currency.Code `json:"baseCoin"`
+	QuoteCoin                  currency.Code `json:"quoteCoin"`
+	BuyLimitPriceRatio         types.Number  `json:"buyLimitPriceRatio"`
+	SellLimitPriceRatio        types.Number  `json:"sellLimitPriceRatio"`
+	FeeRateUpRatio             types.Number  `json:"feeRateUpRatio"`
+	MakerFeeRate               types.Number  `json:"makerFeeRate"`
+	TakerFeeRate               types.Number  `json:"takerFeeRate"`
+	OpenCostUpRatio            types.Number  `json:"openCostUpRatio"`
+	SupportMarginCoins         []string      `json:"supportMarginCoins"`
+	MinimumTradeNumber         types.Number  `json:"minTradeNum"`
+	PriceEndStep               types.Number  `json:"priceEndStep"`
+	VolumePlace                types.Number  `json:"volumePlace"`
+	PricePlace                 types.Number  `json:"pricePlace"`
+	SizeMultiplier             types.Number  `json:"sizeMultiplier"`
+	SymbolType                 string        `json:"symbolType"`
+	MinimumTradeUSDT           types.Number  `json:"minTradeUSDT"`
+	MaximumSymbolOrderNumber   int64         `json:"maxSymbolOrderNum,string"`
+	MaximumProductOrderNumber  int64         `json:"maxProductOrderNum,string"`
+	MaximumPositionNumber      int64         `json:"maxPositionNum,string"`
+	SymbolStatus               string        `json:"symbolStatus"`
+	OffTime                    int64         `json:"offTime,string"`       // negative value expected
+	LimitOpenTime              int64         `json:"limitOpenTime,string"` // negative value expected
+	DeliveryTime               types.Time    `json:"deliveryTime"`
+	DeliveryStartTime          types.Time    `json:"deliveryStartTime"`
+	DeliveryPeriod             string        `json:"deliveryPeriod"`
+	LaunchTime                 types.Time    `json:"launchTime"`
+	FundInterval               EmptyInt      `json:"fundInterval"`
+	MinimumLeverage            types.Number  `json:"minLever"`
+	MaximumLeverage            types.Number  `json:"maxLever"`
+	PositionLimit              types.Number  `json:"posLimit"`
+	MaintainTime               types.Time    `json:"maintainTime"`
+	OpenTime                   types.Time    `json:"openTime"`
+	MaximumMarketOrderQuantity types.Number  `json:"maxMarketOrderQty"`
+	MaximumOrderQuantity       types.Number  `json:"maxOrderQty"`
+	IsRealWorldAsset           YesNoBool     `json:"isRwa"`
 }
 
 // OneAccResp contains information on a single account

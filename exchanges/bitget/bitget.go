@@ -2455,6 +2455,9 @@ func (e *Exchange) GetHistoricalPositions(ctx context.Context, pair currency.Pai
 
 // PlaceFuturesOrder places a futures order on the exchange
 func (e *Exchange) PlaceFuturesOrder(ctx context.Context, p *PlaceSingleFuturesOrderParams, isCopyTradeLeader bool) (*OrderIDStruct, error) {
+	if p == nil {
+		return nil, fmt.Errorf("%T %w", p, common.ErrNilPointer)
+	}
 	if p.Pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}

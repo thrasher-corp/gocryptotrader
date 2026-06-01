@@ -1351,8 +1351,11 @@ func TestGetContractConfig(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetContractConfig(t.Context(), currency.Pair{}, "")
 	assert.ErrorIs(t, err, errProductTypeEmpty)
-	_, err = e.GetContractConfig(t.Context(), currency.Pair{}, "USDT-FUTURES")
+	resp, err := e.GetContractConfig(t.Context(), currency.Pair{}, "USDT-FUTURES")
 	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+	assert.Positive(t, resp[0].MaximumMarketOrderQuantity)
+	assert.Positive(t, resp[0].MaximumOrderQuantity)
 }
 
 func TestGetOneFuturesAccount(t *testing.T) {
@@ -1563,8 +1566,10 @@ func TestGetHistoricalPositions(t *testing.T) {
 
 func TestPlaceFuturesOrder(t *testing.T) {
 	t.Parallel()
+	_, err := e.PlaceFuturesOrder(t.Context(), nil, false)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
 	p := &PlaceSingleFuturesOrderParams{}
-	_, err := e.PlaceFuturesOrder(t.Context(), p, false)
+	_, err = e.PlaceFuturesOrder(t.Context(), p, false)
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 	p.Pair = testPair2
 	_, err = e.PlaceFuturesOrder(t.Context(), p, false)

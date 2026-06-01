@@ -78,61 +78,48 @@ func TestWebsocketFuturesPlaceOrder(t *testing.T) {
 	t.Parallel()
 
 	_, err := e.WebsocketFuturesPlaceOrder(t.Context(), &WebsocketFuturesOrderRequest{})
-	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
 	_, err = e.WebsocketFuturesPlaceOrder(t.Context(), &WebsocketFuturesOrderRequest{Contract: testPair})
-	require.ErrorIs(t, err, errInvalidInstrumentType)
+	assert.ErrorIs(t, err, errInvalidInstrumentType)
 
 	_, err = e.WebsocketFuturesPlaceOrder(t.Context(), &WebsocketFuturesOrderRequest{
 		Contract: testPair, InstrumentType: "USDT-FUTURES",
 	})
-	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
+	assert.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
 	_, err = e.WebsocketFuturesPlaceOrder(t.Context(), &WebsocketFuturesOrderRequest{
 		Contract: testPair, InstrumentType: "USDT-FUTURES", OrderType: "limit",
 	})
-	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	assert.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	_, err = e.WebsocketFuturesPlaceOrder(t.Context(), &WebsocketFuturesOrderRequest{
 		Contract: testPair, InstrumentType: "USDT-FUTURES", OrderType: "limit", Side: "buy",
 	})
-	require.ErrorIs(t, err, order.ErrAmountMustBeSet)
+	assert.ErrorIs(t, err, order.ErrAmountMustBeSet)
 
 	_, err = e.WebsocketFuturesPlaceOrder(t.Context(), &WebsocketFuturesOrderRequest{
 		Contract: testPair, InstrumentType: "USDT-FUTURES", OrderType: "limit", Side: "buy", ContractSize: 1,
 	})
-	require.ErrorIs(t, err, order.ErrInvalidTimeInForce)
+	assert.ErrorIs(t, err, order.ErrInvalidTimeInForce)
 
 	_, err = e.WebsocketFuturesPlaceOrder(t.Context(), &WebsocketFuturesOrderRequest{
 		Contract: testPair, InstrumentType: "USDT-FUTURES", OrderType: "limit", Side: "buy", ContractSize: 1,
 		TimeInForce: "gtc",
 	})
-	require.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
+	assert.ErrorIs(t, err, order.ErrPriceMustBeSetIfLimitOrder)
 
 	_, err = e.WebsocketFuturesPlaceOrder(t.Context(), &WebsocketFuturesOrderRequest{
 		Contract: testPair, InstrumentType: "USDT-FUTURES", OrderType: "limit", Side: "buy", ContractSize: 1,
 		TimeInForce: "gtc", Price: 100,
 	})
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	_, err = e.WebsocketFuturesPlaceOrder(t.Context(), &WebsocketFuturesOrderRequest{
 		Contract: testPair, InstrumentType: "USDT-FUTURES", OrderType: "limit", Side: "buy", ContractSize: 1,
 		TimeInForce: "gtc", Price: 100, MarginCoin: currency.USDT,
 	})
-	require.ErrorIs(t, err, errMarginModeUnset)
-
-	_, err = e.WebsocketFuturesPlaceOrder(t.Context(), &WebsocketFuturesOrderRequest{
-		Contract: testPair, InstrumentType: "USDT-FUTURES", OrderType: "limit", Side: "buy", ContractSize: 1,
-		TimeInForce: "gtc", Price: 100, MarginCoin: currency.USDT, MarginMode: "isolated",
-	})
-	require.ErrorIs(t, err, errMissingValues)
-
-	_, err = e.WebsocketFuturesPlaceOrder(t.Context(), &WebsocketFuturesOrderRequest{
-		Contract: testPair, InstrumentType: "USDT-FUTURES", OrderType: "limit", Side: "buy", ContractSize: 1,
-		TimeInForce: "gtc", Price: 100, MarginCoin: currency.USDT, MarginMode: "isolated", ReduceOnly: "NO",
-		TradeSide: "open",
-	})
-	require.ErrorIs(t, err, errValuesConflict)
+	assert.ErrorIs(t, err, errMarginModeUnset)
 
 	e := newExchangeWithWebsocket(t, asset.Futures)
 
