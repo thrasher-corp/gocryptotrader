@@ -3,7 +3,7 @@ package types
 import (
 	"errors"
 	"fmt"
-	"strconv"
+	"math"
 
 	"github.com/shopspring/decimal"
 )
@@ -32,22 +32,39 @@ type PreciseNumber struct {
 	val float64 // parsed cache for fast Float64()
 }
 
-// NewPreciseNumberFromString constructs a PreciseNumber from a decimal string
-// without any precision loss. The string must be a valid base-10 number.
+// NewPreciseNumberFromString constructs a PreciseNumber from a base-10 decimal
+// string without precision loss. Empty input, hexadecimal, scientific notation,
+// NaN and Inf are rejected.
 func NewPreciseNumberFromString(s string) (PreciseNumber, error) {
 	if s == "" {
-		return PreciseNumber{}, nil
+		return PreciseNumber{}, fmt.Errorf("%w: empty string", errInvalidPreciseNumberValue)
 	}
-	val, err := strconv.ParseFloat(s, 64)
+	return parsePreciseNumber([]byte(s))
+}
+
+// parsePreciseNumber validates s as a base-10 decimal and returns a
+// PreciseNumber holding the original string and a derived float64 cache.
+//
+// decimal.NewFromString is used as the source of truth: it rejects
+// hexadecimal, scientific notation, NaN and Inf, all of which strconv.ParseFloat
+// would happily accept and which are never legitimate exchange wire values.
+func parsePreciseNumber(data []byte) (PreciseNumber, error) {
+	s := string(data)
+	d, err := decimal.NewFromString(s)
 	if err != nil {
-		return PreciseNumber{}, fmt.Errorf("%w: %s", errInvalidPreciseNumberValue, s)
+		return PreciseNumber{}, fmt.Errorf("%w: %s", errInvalidPreciseNumberValue, data)
+	}
+	val, _ := d.Float64()
+	if math.IsNaN(val) || math.IsInf(val, 0) {
+		return PreciseNumber{}, fmt.Errorf("%w: non-finite %s", errInvalidPreciseNumberValue, data)
 	}
 	return PreciseNumber{raw: s, val: val}, nil
 }
 
 // UnmarshalJSON implements json.Unmarshaler. It accepts both JSON strings
 // ("1337.37") and JSON numbers (1337.37) and preserves the original text
-// verbatim for downstream Decimal()/Int64() calls.
+// verbatim for downstream Decimal()/Int64() calls. null, an empty string and
+// a missing/zero-length payload all parse to the zero value.
 func (p *PreciseNumber) UnmarshalJSON(data []byte) error {
 	if len(data) == 0 {
 		*p = PreciseNumber{}
@@ -76,14 +93,11 @@ func (p *PreciseNumber) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	s := string(data)
-	val, err := strconv.ParseFloat(s, 64)
+	parsed, err := parsePreciseNumber(data)
 	if err != nil {
-		return fmt.Errorf("%w: %s", errInvalidPreciseNumberValue, data)
+		return err
 	}
-
-	p.raw = s
-	p.val = val
+	*p = parsed
 	return nil
 }
 
@@ -101,31 +115,24 @@ func (p PreciseNumber) MarshalJSON() ([]byte, error) {
 	return out, nil
 }
 
-// Float64 returns the cached float64 form. Suitable for sorting, comparisons,
+// Float64 returns the cached float64 form. Suitable for sorting, comparisons
 // and approximate computation. For exact arithmetic use Decimal.
 func (p PreciseNumber) Float64() float64 {
 	return p.val
 }
 
-// Int64 returns the integer value parsed from the original string. If the
-// original value contains a fractional part the fractional part is truncated
-// toward zero (matching [Number.Int64]). For values that originated as
-// integers (trade IDs, integer timestamps) this returns the exact value with
-// no float round-trip.
+// Int64 returns the integer value parsed from the original string, truncated
+// toward zero. For values that originated as integers (trade IDs, integer
+// timestamps) this returns the exact value with no float round-trip.
+//
+// raw is always a valid base-10 decimal here because every entry path runs
+// it through [parsePreciseNumber]; the zero value short-circuits to 0.
 func (p PreciseNumber) Int64() int64 {
 	if p.raw == "" {
 		return 0
 	}
-	if i, err := strconv.ParseInt(p.raw, 10, 64); err == nil {
-		return i
-	}
-	// Fractional value; fall back to truncating via Decimal to avoid the
-	// float-rounding behaviour exhibited by `int64(float64(p.val))` near
-	// representation boundaries.
-	if d, err := decimal.NewFromString(p.raw); err == nil {
-		return d.Truncate(0).IntPart()
-	}
-	return int64(p.val)
+	d, _ := decimal.NewFromString(p.raw)
+	return d.IntPart()
 }
 
 // Decimal returns the exact decimal value parsed from the original string,
@@ -134,10 +141,8 @@ func (p PreciseNumber) Decimal() decimal.Decimal {
 	if p.raw == "" {
 		return decimal.Zero
 	}
-	if d, err := decimal.NewFromString(p.raw); err == nil {
-		return d
-	}
-	return decimal.NewFromFloat(p.val)
+	d, _ := decimal.NewFromString(p.raw)
+	return d
 }
 
 // String returns the original numeric string, or "0" when the value is the
