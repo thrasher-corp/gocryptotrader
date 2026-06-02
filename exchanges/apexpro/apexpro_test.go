@@ -335,14 +335,6 @@ func TestGetUserAccountBalanceV2(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-func TestGetUserAccountBalanceV1(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetUserAccountBalanceV1(t.Context())
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
 func TestGetUserTransferDataV2(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -602,14 +594,6 @@ func TestGetOpenOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetOpenOrders(t.Context())
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetOpenOrdersV2(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetOpenOrdersV2(t.Context(), currency.USDC)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

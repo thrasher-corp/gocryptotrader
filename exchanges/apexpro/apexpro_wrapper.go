@@ -39,7 +39,7 @@ func (e *Exchange) SetDefaults() {
 	e.API.CredentialsValidator.RequiresKey = true
 	e.API.CredentialsValidator.RequiresSecret = true
 
-	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
+	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: ""}
 	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
 	err := e.SetAssetPairStore(asset.Futures, currency.PairStore{
 		RequestFormat: requestFmt,
@@ -183,25 +183,44 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 	if !e.SupportsAsset(a) {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-	configs, err := e.GetAllSymbolsConfigDataV1(ctx)
+	configs, err := e.GetAllConfigDataV3(ctx)
 	if err != nil {
 		return nil, err
 	}
 	// Storing the configuration values for later use.
 	e.SymbolsConfig = configs
 
-	tradablePairs := make(currency.Pairs, 0, len((configs.Data.PerpetualContract)))
-	for a := range configs.Data.PerpetualContract {
-		if !configs.Data.PerpetualContract[a].EnableTrade {
-			continue
+	switch a {
+	case asset.Futures:
+		tradablePairs := make(currency.Pairs, 0, len((configs.ContractConfig.PerpetualContract)))
+		for a := range configs.ContractConfig.PerpetualContract {
+			if !configs.ContractConfig.PerpetualContract[a].EnableTrade {
+				continue
+			}
+			tradablePairs = append(tradablePairs, configs.ContractConfig.PerpetualContract[a].Symbol)
 		}
-		tradablePairs = append(tradablePairs, configs.Data.PerpetualContract[a].Symbol)
+		format, err := e.GetPairFormat(a, true)
+		if err != nil {
+			return nil, err
+		}
+		return tradablePairs.Format(format), nil
+	case asset.Spot:
+		tradablePairs := make(currency.Pairs, 0, len((configs.SpotConfig.Spot)))
+		for a := range configs.SpotConfig.Spot {
+			cp, err := currency.NewPairFromString(configs.SpotConfig.Spot[a])
+			if err != nil {
+				return nil, err
+			}
+			tradablePairs = append(tradablePairs, cp)
+		}
+		format, err := e.GetPairFormat(a, true)
+		if err != nil {
+			return nil, err
+		}
+		return tradablePairs.Format(format), nil
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-	format, err := e.GetPairFormat(a, true)
-	if err != nil {
-		return nil, err
-	}
-	return tradablePairs.Format(format), nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -299,9 +318,10 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 	case asset.Spot:
 		spotSubAccounts := accounts.SubAccounts{}
 		for a := range accountInfo.SpotWallets {
+			tokenCcy := currency.NewCode(e.GetTokenByID(accountInfo.SpotWallets[a].TokenID))
 			subAcct := accounts.NewSubAccount(assetType, accountInfo.SpotWallets[a].UserID)
-			subAcct.Balances.Set(accountInfo.SpotWallets[a].TokenID, accounts.Balance{
-				Currency: accountInfo.SpotWallets[a].TokenID,
+			subAcct.Balances.Set(tokenCcy, accounts.Balance{
+				Currency: tokenCcy,
 				Total:    accountInfo.SpotWallets[a].Balance.Float64(),
 				Hold: accountInfo.SpotWallets[a].PendingDepositAmount.Float64() +
 					accountInfo.SpotWallets[a].PendingWithdrawAmount.Float64() +
@@ -856,7 +876,7 @@ func (e *Exchange) IsPerpetualFutureCurrency(a asset.Item, pair currency.Pair) (
 	}
 	var contracts []*PerpetualContractDetail
 	if e.SymbolsConfig != nil {
-		contracts = e.SymbolsConfig.Data.PerpetualContract
+		contracts = e.SymbolsConfig.ContractConfig.PerpetualContract
 	} else {
 		resp, err := e.GetAllSymbolsConfigDataV1(context.Background())
 		if err != nil {
@@ -905,13 +925,13 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			Asset:       asset.Futures,
 			Pair:        cp,
 			PredictedUpcomingRate: fundingrate.Rate{
-				Time: tickerData[i].NextFundingTime.Time(),
+				Time: tickerData[i].NextFundingTime,
 				Rate: decimal.NewFromFloat(tickerData[i].PredictedFundingRate.Float64()),
 			},
 			LatestRate: fundingrate.Rate{
 				Rate: decimal.NewFromFloat(tickerData[i].FundingRate.Float64()),
 			},
-			TimeOfNextRate: tickerData[i].NextFundingTime.Time(),
+			TimeOfNextRate: tickerData[i].NextFundingTime,
 		})
 	}
 	if len(resp) == 0 {
@@ -924,7 +944,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, _ asset.Item) error {
 	var contracts []*PerpetualContractDetail
 	if e.SymbolsConfig != nil {
-		contracts = e.SymbolsConfig.Data.PerpetualContract
+		contracts = e.SymbolsConfig.ContractConfig.PerpetualContract
 	} else {
 		resp, err := e.GetAllSymbolsConfigDataV1(ctx)
 		if err != nil {

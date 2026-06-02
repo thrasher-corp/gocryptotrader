@@ -35,7 +35,11 @@ type Exchange struct {
 	exchange.Base
 
 	// SymbolsConfig represents all symbols configuration.
-	SymbolsConfig *AllSymbolsV1Config
+	SymbolsConfig *AllSymbolsConfigs
+
+	// SymbolsV1Config caches the V1 symbols configuration, which carries the
+	// StarkEx asset metadata required by the legacy V1/V2 StarkEx signing code.
+	SymbolsV1Config *AllSymbolsV1Config
 
 	StarkConfig       *starkex.StarkConfig
 	UserAccountDetail *UserAccountV2
@@ -44,6 +48,16 @@ type Exchange struct {
 	// ZKLinkerSigner is lazily initialised on first V3 signing call.
 	// Access via getOrInitZKLinkerSigner() in apexpro_zksigner.go.
 	ZKLinkerSigner any
+}
+
+// GetTokenByID returns the token name matching the given token ID from the spot configuration.
+func (e *Exchange) GetTokenByID(tokenID string) string {
+	for _, t := range e.SymbolsConfig.SpotConfig.Assets {
+		if t.TokenID == tokenID {
+			return t.Token
+		}
+	}
+	return ""
 }
 
 const (
@@ -403,12 +417,6 @@ func (e *Exchange) GetUserAccountBalance(ctx context.Context) (*UserAccountBalan
 func (e *Exchange) GetUserAccountBalanceV2(ctx context.Context) (*UserAccountBalanceV2Response, error) {
 	var resp *UserAccountBalanceV2Response
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, "v2/account-balance", request.UnAuth, nil, nil, &resp)
-}
-
-// GetUserAccountBalanceV1 retrieve user account balance
-func (e *Exchange) GetUserAccountBalanceV1(ctx context.Context) (*UserAccountBalanceResponse, error) {
-	var resp *UserAccountBalanceResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v1/account-balance", request.UnAuth, nil, nil, &resp)
 }
 
 // UserWithdrawalsV2
@@ -953,17 +961,6 @@ func (e *Exchange) CancelPerpOrderV2(ctx context.Context, orderID string, token 
 func (e *Exchange) GetOpenOrders(ctx context.Context) ([]*OrderDetail, error) {
 	var resp []*OrderDetail
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, "v3/open-orders", request.UnAuth, nil, nil, &resp)
-}
-
-// GetOpenOrdersV2 retrieves an active orders
-func (e *Exchange) GetOpenOrdersV2(ctx context.Context, token currency.Code) ([]*OrderDetail, error) {
-	if token.IsEmpty() {
-		return nil, fmt.Errorf("%w, token is required", currency.ErrCurrencyCodeEmpty)
-	}
-	params := url.Values{}
-	params.Set("token", token.String())
-	var resp []*OrderDetail
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v2/open-orders", request.UnAuth, params, nil, &resp)
 }
 
 // GetOpenOrdersV1 retrieves an active orders

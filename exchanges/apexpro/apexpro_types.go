@@ -36,6 +36,47 @@ type GlobalDefaultConfigs struct {
 	ContractAssetPoolSubAccount       string `json:"contractAssetPoolSubAccount"`
 	ContractAssetPoolL2Key            string `json:"contractAssetPoolL2Key"`
 	ContractAssetPoolEthAddress       string `json:"contractAssetPoolEthAddress"`
+	VaultAccountID                    string `json:"vaultAccountId"`
+	VaultZkAccountID                  string `json:"vaultZkAccountId"`
+	VaultSubAccount                   string `json:"vaultSubAccount"`
+	VaultL2Key                        string `json:"vaultL2Key"`
+	VaultEthAddress                   string `json:"vaultEthAddress"`
+	MigrateUsdtPoolAccountID          string `json:"migrateUsdtPoolAccountId"`
+	MigrateUsdtPoolZkAccountID        string `json:"migrateUsdtPoolZkAccountId"`
+	MigrateUsdtPoolSubAccount         string `json:"migrateUsdtPoolSubAccount"`
+	MigrateUsdtPoolL2Key              string `json:"migrateUsdtPoolL2Key"`
+	MigrateUsdtPoolEthAddress         string `json:"migrateUsdtPoolEthAddress"`
+	MigrateUsdcPoolAccountID          string `json:"migrateUsdcPoolAccountId"`
+	MigrateUsdcPoolZkAccountID        string `json:"migrateUsdcPoolZkAccountId"`
+	MigrateUsdcPoolSubAccount         string `json:"migrateUsdcPoolSubAccount"`
+	MigrateUsdcPoolL2Key              string `json:"migrateUsdcPoolL2Key"`
+	MigrateUsdcPoolEthAddress         string `json:"migrateUsdcPoolEthAddress"`
+	OmniSwapPoolAccountID             string `json:"omniSwapPoolAccountId"`
+	OmniSwapPoolZkAccountID           string `json:"omniSwapPoolZkAccountId"`
+	OmniSwapPoolSubAccount            string `json:"omniSwapPoolSubAccount"`
+	OmniSwapPoolL2Key                 string `json:"omniSwapPoolL2Key"`
+	OmniSwapPoolEthAddress            string `json:"omniSwapPoolEthAddress"`
+	OmniSwapFeeAccountID              string `json:"omniSwapFeeAccountId"`
+	OmniSwapFeeZkAccountID            string `json:"omniSwapFeeZkAccountId"`
+	OmniSwapFeeSubAccount             string `json:"omniSwapFeeSubAccount"`
+	OmniSwapFeeL2Key                  string `json:"omniSwapFeeL2Key"`
+	OmniSwapFeeEthAddress             string `json:"omniSwapFeeEthAddress"`
+	FlashExchangeUsdcPoolAccountID    string `json:"flashExchangeUsdcPoolAccountId"`
+	FlashExchangeUsdcPoolL2Key        string `json:"flashExchangeUsdcPoolL2Key"`
+	FlashExchangeUsdcPoolSubAccount   string `json:"flashExchangeUsdcPoolSubAccount"`
+	FlashExchangeUsdcPoolZkAccountID  string `json:"flashExchangeUsdcPoolZkAccountId"`
+	FlashExchangeUsdcPoolEthAddress   string `json:"flashExchangeUsdcPoolEthAddress"`
+	FlashExchangeUsdtPoolAccountID    string `json:"flashExchangeUsdtPoolAccountId"`
+	FlashExchangeUsdtPoolL2Key        string `json:"flashExchangeUsdtPoolL2Key"`
+	FlashExchangeUsdtPoolSubAccount   string `json:"flashExchangeUsdtPoolSubAccount"`
+	FlashExchangeUsdtPoolZkAccountID  string `json:"flashExchangeUsdtPoolZkAccountId"`
+	FlashExchangeUsdtPoolEthAddress   string `json:"flashExchangeUsdtPoolEthAddress"`
+	StocksAssetPoolAccountID          string `json:"stocksAssetPoolAccountId"`
+	StocksAssetPoolL2Key              string `json:"stocksAssetPoolL2Key"`
+	StocksAssetPoolEthAddress         string `json:"stocksAssetPoolEthAddress"`
+	StocksAssetPoolZkAccountID        string `json:"stocksAssetPoolZkAccountId"`
+	StocksAssetPoolSubAccount         string `json:"stocksAssetPoolSubAccount"`
+	OrderExpireDays                   int    `json:"orderExpireDays"`
 }
 
 // AllSymbolsConfigs represents all symbols configurations.
@@ -43,7 +84,7 @@ type AllSymbolsConfigs struct {
 	SpotConfig struct {
 		Assets     []*AssetInfo          `json:"assets"`
 		Global     *GlobalDefaultConfigs `json:"global"`
-		Spot       []any                 `json:"spot"`
+		Spot       []string              `json:"spot"`
 		MultiChain *MultiChainDetails    `json:"multiChain"`
 	} `json:"spotConfig"`
 	ContractConfig struct {
@@ -53,22 +94,118 @@ type AllSymbolsConfigs struct {
 			StepSize types.Number `json:"stepSize"`
 			IconURL  string       `json:"iconUrl"`
 		} `json:"tokens"`
+		StockContract          []*StockContractDetail     `json:"stockContract"`
 		Global                 *GlobalConfig              `json:"global"`
 		PerpetualContract      []*PerpetualContractDetail `json:"perpetualContract"`
 		PrelaunchContract      []*PrelaunchContractDetail `json:"prelaunchContract"`
 		MaxMarketBalanceBuffer string                     `json:"maxMarketBalanceBuffer"`
+		Categorys              string                     `json:"categorys"`
+		PredictionCategorys    string                     `json:"predictionCategorys"`
+		StockCategorys         string                     `json:"stockCategorys"`
 	} `json:"contractConfig"`
+	OmniSwapConfig struct {
+		OmniLiquidityTokens []struct {
+			TokenID                     string `json:"tokenId"`
+			Token                       string `json:"token"`
+			DisplayName                 string `json:"displayName"`
+			Decimals                    int    `json:"decimals"`
+			ShowStep                    string `json:"showStep"`
+			IconURL                     string `json:"iconUrl"`
+			SettleStep                  string `json:"settleStep"`
+			EnableCollateral            bool   `json:"enableCollateral"`
+			EnableCrossCollateral       bool   `json:"enableCrossCollateral"`
+			CrossCollateralDiscountRate any    `json:"crossCollateralDiscountRate"`
+			IsGray                      bool   `json:"isGray"`
+		} `json:"omniLiquidityTokens"`
+		MultiChains        []struct{} `json:"multiChains"`
+		GeneralSwapConfigs struct {
+			MinSwapUsdtAmount   types.Number `json:"minSwapUsdtAmount"`
+			MaxSwapUsdtAmount   types.Number `json:"maxSwapUsdtAmount"`
+			DefaultSwapSlippage string       `json:"defaultSwapSlippage"`
+			SwapGasFeeBuffer    string       `json:"swapGasFeeBuffer"`
+			IncreaseRate        types.Number `json:"increaseRate"`
+			PlatformFeeRate     types.Number `json:"platformFeeRate"`
+			LowLiquidityValue   types.Number `json:"lowLiquidityValue"`
+		} `json:"generalSwapConfigs"`
+		ComingChains []string `json:"comingChains"`
+	} `json:"omniSwapConfig"`
+}
+
+// StockContractDetail represents a stock contract detail information.
+type StockContractDetail struct {
+	BaselinePositionValue            string       `json:"baselinePositionValue"`
+	CrossID                          uint64       `json:"crossId"`
+	CrossSymbolID                    uint64       `json:"crossSymbolId"`
+	CrossSymbolName                  string       `json:"crossSymbolName"`
+	DigitMerge                       string       `json:"digitMerge"`
+	DisplayMaxLeverage               types.Number `json:"displayMaxLeverage"`
+	DisplayMinLeverage               types.Number `json:"displayMinLeverage"`
+	EnableDisplay                    bool         `json:"enableDisplay"`
+	EnableOpenPosition               bool         `json:"enableOpenPosition"`
+	EnableTrade                      bool         `json:"enableTrade"`
+	FundingImpactMarginNotional      types.Number `json:"fundingImpactMarginNotional"`
+	FundingInterestRate              types.Number `json:"fundingInterestRate"`
+	IncrementalInitialMarginRate     types.Number `json:"incrementalInitialMarginRate"`
+	IncrementalMaintenanceMarginRate types.Number `json:"incrementalMaintenanceMarginRate"`
+	IncrementalPositionValue         types.Number `json:"incrementalPositionValue"`
+	InitialMarginRate                types.Number `json:"initialMarginRate"`
+	MaintenanceMarginRate            types.Number `json:"maintenanceMarginRate"`
+	MaxOrderSize                     types.Number `json:"maxOrderSize"`
+	MaxPositionSize                  types.Number `json:"maxPositionSize"`
+	MinOrderSize                     types.Number `json:"minOrderSize"`
+	MaxMarketPriceRange              types.Number `json:"maxMarketPriceRange"`
+	SettleAssetID                    string       `json:"settleAssetId"`
+	BaseTokenID                      string       `json:"baseTokenId"`
+	TokenName                        string       `json:"tokenName"`
+	StepSize                         types.Number `json:"stepSize"`
+	Symbol                           string       `json:"symbol"`
+	SymbolDisplayName                string       `json:"symbolDisplayName"`
+	TickSize                         types.Number `json:"tickSize"`
+	MaxMaintenanceMarginRate         types.Number `json:"maxMaintenanceMarginRate"`
+	MaxPositionValue                 types.Number `json:"maxPositionValue"`
+	TagIconURL                       string       `json:"tagIconUrl"`
+	Tag                              string       `json:"tag"`
+	RiskTip                          bool         `json:"riskTip"`
+	DefaultInitialMarginRate         types.Number `json:"defaultInitialMarginRate"`
+	KlineStartTime                   int          `json:"klineStartTime"`
+	MaxMarketSizeBuffer              string       `json:"maxMarketSizeBuffer"`
+	EnableFundingSettlement          bool         `json:"enableFundingSettlement"`
+	IndexPriceDecimals               int          `json:"indexPriceDecimals"`
+	IndexPriceVarRate                types.Number `json:"indexPriceVarRate"`
+	OpenPositionOiLimitRate          types.Number `json:"openPositionOiLimitRate"`
+	FundingMaxRate                   types.Number `json:"fundingMaxRate"`
+	FundingMinRate                   types.Number `json:"fundingMinRate"`
+	FundingMaxValue                  types.Number `json:"fundingMaxValue"`
+	EnableFundingMxValue             bool         `json:"enableFundingMxValue"`
+	L2PairID                         string       `json:"l2PairId"`
+	SettleTimeStamp                  int          `json:"settleTimeStamp"`
+	IsPrelaunch                      bool         `json:"isPrelaunch"`
+	RiskLimitConfig                  struct {
+		PositionSteps []string `json:"positionSteps"`
+		ImrSteps      []string `json:"imrSteps"`
+		MmrSteps      []string `json:"mmrSteps"`
+	} `json:"riskLimitConfig"`
+	Category                string `json:"category,omitempty"`
+	ContractType            string `json:"contractType"`
+	PredictionContractType  string `json:"predictionContractType"`
+	PullOffTime             int    `json:"pullOffTime,omitempty"`
+	DisableOpenPositionTime int    `json:"disableOpenPositionTime,omitempty"`
 }
 
 // AssetInfo represents an asset detail information.
 type AssetInfo struct {
-	TokenID       string       `json:"tokenId"`
-	Token         string       `json:"token"`
-	DisplayName   string       `json:"displayName"`
-	Decimals      types.Number `json:"decimals"`
-	ShowStep      string       `json:"showStep"`
-	IconURL       string       `json:"iconUrl"`
-	L2WithdrawFee types.Number `json:"l2WithdrawFee"`
+	TokenID                     string       `json:"tokenId"`
+	Token                       string       `json:"token"`
+	DisplayName                 string       `json:"displayName"`
+	Decimals                    types.Number `json:"decimals"`
+	ShowStep                    string       `json:"showStep"`
+	IconURL                     string       `json:"iconUrl"`
+	L2WithdrawFee               types.Number `json:"l2WithdrawFee"`
+	EnableCollateral            bool         `json:"enableCollateral"`
+	EnableCrossCollateral       bool         `json:"enableCrossCollateral"`
+	CrossCollateralDiscountRate any          `json:"crossCollateralDiscountRate"`
+	IsGray                      bool         `json:"isGray"`
+	PrepMaxCrossCollateralSize  int          `json:"prepMaxCrossCollateralSize,omitempty"`
 }
 
 // NewTradingData represents a new trading data detail.
@@ -115,7 +252,7 @@ type TickerData struct {
 	Volume24H            types.Number `json:"volume24h"`
 	FundingRate          types.Number `json:"fundingRate"`
 	PredictedFundingRate types.Number `json:"predictedFundingRate"`
-	NextFundingTime      types.Time   `json:"nextFundingTime"`
+	NextFundingTime      time.Time    `json:"nextFundingTime"`
 	TradeCount           types.Number `json:"tradeCount"`
 }
 
@@ -261,6 +398,31 @@ type ChainInfo struct {
 	TransactionConfirm int64        `json:"txConfirm"`
 	Tokens             []TokenInfo  `json:"tokens"`
 	WithdrawGasFeeLess bool         `json:"withdrawGasFeeLess"`
+
+	L1ChainID            string `json:"l1ChainId"`
+	SwapContractAddress  string `json:"swapContractAddress"`
+	StopSwap             bool   `json:"stopSwap"`
+	StopBuy              bool   `json:"stopBuy"`
+	SupportEnv           string `json:"supportEnv"`
+	GasTokenDecimals     int    `json:"gasTokenDecimals"`
+	DynamicFee           bool   `json:"dynamicFee"`
+	FeeGasLimit          int    `json:"feeGasLimit"`
+	SwapFeeRate          string `json:"swapFeeRate"`
+	BlockTime            string `json:"blockTime"`
+	MinSwapUsdtAmount    string `json:"minSwapUsdtAmount"`
+	MaxSwapUsdtAmount    string `json:"maxSwapUsdtAmount"`
+	WebRPCURL            string `json:"webRpcUrl"`
+	BackupRPCURL         string `json:"backupRpcUrl"`
+	WebChainAddressURL   string `json:"webChainAddressUrl"`
+	WebTxParam           string `json:"webTxParam"`
+	WebChainAddressParam string `json:"webChainAddressParam"`
+	BirdeyeChainName     string `json:"birdeyeChainName"`
+	BridgeTokens         any    `json:"bridgeTokens"`
+	OmniTokens           []struct {
+		Token        string `json:"token"`
+		Decimals     int    `json:"decimals"`
+		TokenAddress string `json:"tokenAddress"`
+	} `json:"omniTokens"`
 }
 
 // TokenInfo represents a token info detail
@@ -589,17 +751,17 @@ type PositionInfo struct {
 
 // SpotWallet represents a spot wallet detail
 type SpotWallet struct {
-	UserID                   string        `json:"userId"`
-	AccountID                string        `json:"accountId"`
-	SubAccountID             string        `json:"subAccountId"`
-	Balance                  types.Number  `json:"balance"`
-	TokenID                  currency.Code `json:"tokenId"`
-	PendingDepositAmount     types.Number  `json:"pendingDepositAmount"`
-	PendingWithdrawAmount    types.Number  `json:"pendingWithdrawAmount"`
-	PendingTransferOutAmount types.Number  `json:"pendingTransferOutAmount"`
-	PendingTransferInAmount  types.Number  `json:"pendingTransferInAmount"`
-	CreatedAt                types.Time    `json:"createdAt"`
-	UpdatedAt                types.Time    `json:"updatedAt"`
+	UserID                   string       `json:"userId"`
+	AccountID                string       `json:"accountId"`
+	SubAccountID             string       `json:"subAccountId"`
+	Balance                  types.Number `json:"balance"`
+	TokenID                  string       `json:"tokenId"`
+	PendingDepositAmount     types.Number `json:"pendingDepositAmount"`
+	PendingWithdrawAmount    types.Number `json:"pendingWithdrawAmount"`
+	PendingTransferOutAmount types.Number `json:"pendingTransferOutAmount"`
+	PendingTransferInAmount  types.Number `json:"pendingTransferInAmount"`
+	CreatedAt                types.Time   `json:"createdAt"`
+	UpdatedAt                types.Time   `json:"updatedAt"`
 }
 
 // ContractWallet represents a contract detail balance information

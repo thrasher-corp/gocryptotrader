@@ -30,6 +30,21 @@ var (
 
 const orderSignatureExpirationBuffersHours = 24 * 7
 
+// loadSymbolsV1Config lazily loads and caches the V1 symbols configuration used
+// by the legacy StarkEx signing routines, which require StarkEx asset metadata
+// not present in the V3 configuration.
+func (e *Exchange) loadSymbolsV1Config(ctx context.Context) error {
+	if e.SymbolsV1Config != nil {
+		return nil
+	}
+	cfg, err := e.GetAllSymbolsConfigDataV1(ctx)
+	if err != nil {
+		return err
+	}
+	e.SymbolsV1Config = cfg
+	return nil
+}
+
 // ProcessOrderSignature processes order request parameter and generates a starkEx signature
 func (e *Exchange) ProcessOrderSignature(ctx context.Context, arg *CreateOrderParams) (string, error) {
 	creds, err := e.GetCredentials(context.Background())
@@ -42,17 +57,13 @@ func (e *Exchange) ProcessOrderSignature(ctx context.Context, arg *CreateOrderPa
 	price := decimal.NewFromFloat(arg.Price)
 	size := decimal.NewFromFloat(arg.Size)
 
-	// check if the all symbols config is loaded, if not load
-	if e.SymbolsConfig == nil {
-		e.SymbolsConfig, err = e.GetAllSymbolsConfigDataV1(ctx)
-		if err != nil {
-			return "", err
-		}
+	if err := e.loadSymbolsV1Config(ctx); err != nil {
+		return "", err
 	}
 	var contractDetail *PerpetualContractDetail
-	for a := range e.SymbolsConfig.Data.PerpetualContract {
-		if e.SymbolsConfig.Data.PerpetualContract[a].Symbol.Equal(arg.Symbol) {
-			contractDetail = e.SymbolsConfig.Data.PerpetualContract[a]
+	for a := range e.SymbolsV1Config.Data.PerpetualContract {
+		if e.SymbolsV1Config.Data.PerpetualContract[a].Symbol.Equal(arg.Symbol) {
+			contractDetail = e.SymbolsV1Config.Data.PerpetualContract[a]
 			if !contractDetail.EnableTrade {
 				return "", currency.ErrPairNotEnabled
 			}
@@ -84,9 +95,9 @@ func (e *Exchange) ProcessOrderSignature(ctx context.Context, arg *CreateOrderPa
 	}
 	arg.LimitFee = takerFeeRate * arg.Size * arg.Price
 	var collateralAsset *V1CurrencyConfig
-	for c := range e.SymbolsConfig.Data.Currency {
-		if e.SymbolsConfig.Data.Currency[c].ID == contractDetail.SettleCurrencyID {
-			collateralAsset = e.SymbolsConfig.Data.Currency[c]
+	for c := range e.SymbolsV1Config.Data.Currency {
+		if e.SymbolsV1Config.Data.Currency[c].ID == contractDetail.SettleCurrencyID {
+			collateralAsset = e.SymbolsV1Config.Data.Currency[c]
 			break
 		}
 	}
@@ -163,10 +174,13 @@ func (e *Exchange) ProcessWithdrawalToAddressSignatureV3(ctx context.Context, ar
 	if err != nil {
 		return "", err
 	}
+	if err := e.loadSymbolsV1Config(ctx); err != nil {
+		return "", err
+	}
 	var currencyInfo *V1CurrencyConfig
-	for c := range e.SymbolsConfig.Data.Currency {
-		if e.SymbolsConfig.Data.Currency[c].ID == arg.L1TargetTokenID.String() {
-			currencyInfo = e.SymbolsConfig.Data.Currency[c]
+	for c := range e.SymbolsV1Config.Data.Currency {
+		if e.SymbolsV1Config.Data.Currency[c].ID == arg.L1TargetTokenID.String() {
+			currencyInfo = e.SymbolsV1Config.Data.Currency[c]
 			break
 		}
 	}
@@ -229,10 +243,13 @@ func (e *Exchange) ProcessWithdrawalToAddressSignature(ctx context.Context, arg 
 	if err != nil {
 		return "", err
 	}
+	if err := e.loadSymbolsV1Config(ctx); err != nil {
+		return "", err
+	}
 	var currencyInfo *V1CurrencyConfig
-	for c := range e.SymbolsConfig.Data.Currency {
-		if e.SymbolsConfig.Data.Currency[c].ID == arg.Asset.String() {
-			currencyInfo = e.SymbolsConfig.Data.Currency[c]
+	for c := range e.SymbolsV1Config.Data.Currency {
+		if e.SymbolsV1Config.Data.Currency[c].ID == arg.Asset.String() {
+			currencyInfo = e.SymbolsV1Config.Data.Currency[c]
 			break
 		}
 	}
@@ -299,10 +316,13 @@ func (e *Exchange) ProcessWithdrawalSignature(ctx context.Context, arg *Withdraw
 	if err != nil {
 		return "", err
 	}
+	if err := e.loadSymbolsV1Config(ctx); err != nil {
+		return "", err
+	}
 	var collateralInfo *V1CurrencyConfig
-	for c := range e.SymbolsConfig.Data.Currency {
-		if e.SymbolsConfig.Data.Currency[c].ID == arg.Asset.String() {
-			collateralInfo = e.SymbolsConfig.Data.Currency[c]
+	for c := range e.SymbolsV1Config.Data.Currency {
+		if e.SymbolsV1Config.Data.Currency[c].ID == arg.Asset.String() {
+			collateralInfo = e.SymbolsV1Config.Data.Currency[c]
 			break
 		}
 	}
@@ -356,10 +376,13 @@ func (e *Exchange) ProcessTransferSignature(ctx context.Context, arg *FastWithdr
 	if err != nil {
 		return "", err
 	}
+	if err := e.loadSymbolsV1Config(ctx); err != nil {
+		return "", err
+	}
 	var currencyInfo *V1CurrencyConfig
-	for c := range e.SymbolsConfig.Data.Currency {
-		if e.SymbolsConfig.Data.Currency[c].ID == arg.Asset.String() {
-			currencyInfo = e.SymbolsConfig.Data.Currency[c]
+	for c := range e.SymbolsV1Config.Data.Currency {
+		if e.SymbolsV1Config.Data.Currency[c].ID == arg.Asset.String() {
+			currencyInfo = e.SymbolsV1Config.Data.Currency[c]
 			break
 		}
 	}
@@ -419,17 +442,13 @@ func (e *Exchange) ProcessConditionalTransfer(ctx context.Context, arg *FastWith
 	if err != nil {
 		return "", err
 	}
-	// check if the all symbols config is loaded, if not load
-	if e.SymbolsConfig == nil {
-		e.SymbolsConfig, err = e.GetAllSymbolsConfigDataV1(ctx)
-		if err != nil {
-			return "", err
-		}
+	if err := e.loadSymbolsV1Config(ctx); err != nil {
+		return "", err
 	}
 	var currencyInfo *V1CurrencyConfig
-	for c := range e.SymbolsConfig.Data.Currency {
-		if e.SymbolsConfig.Data.Currency[c].ID == arg.Asset.String() {
-			currencyInfo = e.SymbolsConfig.Data.Currency[c]
+	for c := range e.SymbolsV1Config.Data.Currency {
+		if e.SymbolsV1Config.Data.Currency[c].ID == arg.Asset.String() {
+			currencyInfo = e.SymbolsV1Config.Data.Currency[c]
 			break
 		}
 	}
@@ -468,24 +487,24 @@ func (e *Exchange) ProcessConditionalTransfer(ctx context.Context, arg *FastWith
 	if arg.ClientID == "" {
 		arg.ClientID = randomClientID()
 	}
-	receiverPositionID, ok := big.NewInt(0).SetString(e.SymbolsConfig.Data.Global.FastWithdrawAccountID, 0)
+	receiverPositionID, ok := big.NewInt(0).SetString(e.SymbolsV1Config.Data.Global.FastWithdrawAccountID, 0)
 	if !ok {
 		return "", fmt.Errorf("%w, invalid fast withdrawal position ID", errInvalidPositionIDMissing)
 	}
-	receiverPublicKey, ok := big.NewInt(0).SetString(e.SymbolsConfig.Data.Global.FeeAccountL2Key, 0)
+	receiverPublicKey, ok := big.NewInt(0).SetString(e.SymbolsV1Config.Data.Global.FeeAccountL2Key, 0)
 	if !ok {
 		return "", fmt.Errorf("%w, invalid fast withdrawal L2 key", errL2KeyMissing)
 	}
-	fastWithdrawFactRegisterAddress, ok := big.NewInt(0).SetString(e.SymbolsConfig.Data.Global.FastWithdrawFactRegisterAddress, 0)
+	fastWithdrawFactRegisterAddress, ok := big.NewInt(0).SetString(e.SymbolsV1Config.Data.Global.FastWithdrawFactRegisterAddress, 0)
 	if !ok {
 		return "", fmt.Errorf("%w, invalid fast withdraw fact register address", errL2KeyMissing)
 	}
 	var token *TokenInfo
-	for k := range e.SymbolsConfig.Data.MultiChain.Chains {
-		if e.SymbolsConfig.Data.MultiChain.Chains[k].ChainID.Int64() == int64(e.NetworkID) {
-			for t := range e.SymbolsConfig.Data.MultiChain.Chains[k].Tokens {
-				if e.SymbolsConfig.Data.MultiChain.Chains[k].Tokens[t].Token == arg.Asset.Upper().String() {
-					token = &e.SymbolsConfig.Data.MultiChain.Chains[k].Tokens[t]
+	for k := range e.SymbolsV1Config.Data.MultiChain.Chains {
+		if e.SymbolsV1Config.Data.MultiChain.Chains[k].ChainID.Int64() == int64(e.NetworkID) {
+			for t := range e.SymbolsV1Config.Data.MultiChain.Chains[k].Tokens {
+				if e.SymbolsV1Config.Data.MultiChain.Chains[k].Tokens[t].Token == arg.Asset.Upper().String() {
+					token = &e.SymbolsV1Config.Data.MultiChain.Chains[k].Tokens[t]
 				}
 			}
 		}
