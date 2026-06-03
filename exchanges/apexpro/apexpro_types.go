@@ -891,13 +891,16 @@ type WithdrawalResponse struct {
 
 // WithdrawalFeeInfos represents an asset withdrawal fee information
 type WithdrawalFeeInfos struct {
-	WithdrawFeeAndPoolBalances []struct {
-		ChainID                 string       `json:"chainId"`
-		TokenID                 string       `json:"tokenId"`
-		Fee                     types.Number `json:"fee"`
-		ZkAvailableAmount       types.Number `json:"zkAvailableAmount"`
-		FastpoolAvailableAmount types.Number `json:"fastpoolAvailableAmount"`
-	} `json:"withdrawFeeAndPoolBalances"`
+	WithdrawFeeAndPoolBalances []*WithdrawFeeAndBalance `json:"withdrawFeeAndPoolBalances"`
+}
+
+// WithdrawFeeAndBalance represents the withdrawal fee and available balance information.
+type WithdrawFeeAndBalance struct {
+	ChainID                 string       `json:"chainId"`
+	TokenID                 string       `json:"tokenId"`
+	Fee                     types.Number `json:"fee"`
+	ZkAvailableAmount       types.Number `json:"zkAvailableAmount"`
+	FastpoolAvailableAmount types.Number `json:"fastpoolAvailableAmount"`
 }
 
 // ContractTransferLimit represents a contract transfer limit detail.

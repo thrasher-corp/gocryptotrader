@@ -39,11 +39,28 @@ func (e *Exchange) SetDefaults() {
 	e.API.CredentialsValidator.RequiresKey = true
 	e.API.CredentialsValidator.RequiresSecret = true
 
-	requestFmt := &currency.PairFormat{Uppercase: true, Delimiter: ""}
-	configFmt := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
-	err := e.SetAssetPairStore(asset.Futures, currency.PairStore{
-		RequestFormat: requestFmt,
-		ConfigFormat:  configFmt,
+	emptyDelimiter := &currency.PairFormat{Uppercase: true, Delimiter: ""}
+	dashDeliimiter := &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter}
+
+	err := e.SetAssetPairStore(asset.Spot, currency.PairStore{
+		RequestFormat: emptyDelimiter,
+		ConfigFormat:  dashDeliimiter,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = e.SetAssetPairStore(asset.PerpetualContract, currency.PairStore{
+		RequestFormat: emptyDelimiter,
+		ConfigFormat:  dashDeliimiter,
+	})
+	if err != nil {
+		log.Errorln(log.ExchangeSys, err)
+	}
+
+	err = e.SetAssetPairStore(asset.RealWorldAsset, currency.PairStore{
+		RequestFormat: dashDeliimiter,
+		ConfigFormat:  dashDeliimiter,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -191,7 +208,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 	e.SymbolsConfig = configs
 
 	switch a {
-	case asset.Futures:
+	case asset.PerpetualContract:
 		tradablePairs := make(currency.Pairs, 0, len((configs.ContractConfig.PerpetualContract)))
 		for a := range configs.ContractConfig.PerpetualContract {
 			if !configs.ContractConfig.PerpetualContract[a].EnableTrade {
@@ -218,6 +235,20 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 			return nil, err
 		}
 		return tradablePairs.Format(format), nil
+	case asset.RealWorldAsset:
+		tradablePairs := make(currency.Pairs, 0, len((configs.ContractConfig.StockContract)))
+		for a := range configs.ContractConfig.StockContract {
+			cp, err := currency.NewPairFromString(configs.ContractConfig.StockContract[a].Symbol)
+			if err != nil {
+				return nil, err
+			}
+			tradablePairs = append(tradablePairs, cp)
+		}
+		format, err := e.GetPairFormat(a, true)
+		if err != nil {
+			return nil, err
+		}
+		return tradablePairs.Format(format), nil
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
@@ -226,11 +257,16 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 // UpdateTradablePairs updates the exchanges available pairs and stores
 // them in the exchanges config
 func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
-	pairs, err := e.FetchTradablePairs(ctx, asset.Futures)
-	if err != nil {
-		return err
+	for _, a := range e.GetAssetTypes(true) {
+		pairs, err := e.FetchTradablePairs(ctx, a)
+		if err != nil {
+			return err
+		}
+		if err := e.UpdatePairs(pairs, a, true); err != nil {
+			return err
+		}
 	}
-	return e.UpdatePairs(pairs, asset.Futures, true)
+	return nil
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -331,8 +367,8 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 			spotSubAccounts.Merge(subAcct)
 		}
 		return spotSubAccounts, nil
-	case asset.Futures:
-		futuresSubAccounts := accounts.SubAccounts{}
+	case asset.PerpetualContract:
+		perpetualContractSubAccounts := accounts.SubAccounts{}
 		for a := range accountInfo.ContractWallets {
 			subAcct := accounts.NewSubAccount(assetType, accountInfo.ContractWallets[a].UserID)
 			subAcct.Balances.Set(accountInfo.ContractWallets[a].Asset, accounts.Balance{
@@ -343,9 +379,9 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 					accountInfo.ContractWallets[a].PendingTransferOutAmount.Float64() +
 					accountInfo.ContractWallets[a].PendingTransferInAmount.Float64(),
 			})
-			futuresSubAccounts.Merge(subAcct)
+			perpetualContractSubAccounts.Merge(subAcct)
 		}
-		return futuresSubAccounts, nil
+		return perpetualContractSubAccounts, nil
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
@@ -397,10 +433,10 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, _ currency.Code, _
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	if assetType != asset.Futures {
+	if assetType != asset.PerpetualContract {
 		return nil, fmt.Errorf("%w, asset type: %v", asset.ErrNotSupported, assetType)
 	}
-	pairFormat, err := e.GetPairFormat(asset.Futures, true)
+	pairFormat, err := e.GetPairFormat(asset.PerpetualContract, true)
 	if err != nil {
 		return nil, err
 	}
@@ -418,7 +454,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 		resp[i] = trade.Data{
 			Exchange:     e.Name,
 			CurrencyPair: p.Format(pairFormat),
-			AssetType:    asset.Futures,
+			AssetType:    asset.PerpetualContract,
 			Price:        tradeData[i].Price.Float64(),
 			Amount:       tradeData[i].Volume.Float64(),
 			Timestamp:    tradeData[i].TradeTime.Time(),
@@ -555,7 +591,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 		Type:            oType,
 		Side:            oSide,
 		Status:          oStatus,
-		AssetType:       asset.Futures,
+		AssetType:       asset.PerpetualContract,
 		LastUpdated:     orderDetail.UpdatedTime.Time(),
 		Pair:            cp,
 	}, nil
@@ -654,7 +690,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 			Type:            oType,
 			Side:            oSide,
 			Status:          oStatus,
-			AssetType:       asset.Futures,
+			AssetType:       asset.PerpetualContract,
 			LastUpdated:     orders[a].UpdatedTime.Time(),
 			Pair:            cp,
 		}
@@ -669,7 +705,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 		return nil, err
 	}
 	// getOrdersRequest.AssetType
-	pairFormat, err := e.GetPairFormat(asset.Futures, true)
+	pairFormat, err := e.GetPairFormat(asset.PerpetualContract, true)
 	if err != nil {
 		return nil, err
 	}
@@ -727,7 +763,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 			Type:            oType,
 			Side:            oSide,
 			Status:          oStatus,
-			AssetType:       asset.Futures,
+			AssetType:       asset.PerpetualContract,
 			LastUpdated:     orderHistoryResponse.Orders[a].UpdatedTime.Time(),
 			Pair:            cp,
 		})
@@ -767,11 +803,11 @@ func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.I
 
 // GetHistoricCandles returns candles between a time period for a set time interval
 func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, _ asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := e.GetKlineRequest(pair, asset.Futures, interval, start, end, false)
+	req, err := e.GetKlineRequest(pair, asset.PerpetualContract, interval, start, end, false)
 	if err != nil {
 		return nil, err
 	}
-	pairFormat, err := e.GetPairFormat(asset.Futures, true)
+	pairFormat, err := e.GetPairFormat(asset.PerpetualContract, true)
 	if err != nil {
 		return nil, err
 	}
@@ -805,7 +841,7 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, _
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
 func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, _ asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := e.GetKlineExtendedRequest(pair, asset.Futures, interval, start, end)
+	req, err := e.GetKlineExtendedRequest(pair, asset.PerpetualContract, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -854,7 +890,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, _ asset.Item) 
 		resp = append(resp, futures.Contract{
 			Exchange:           e.Name,
 			Underlying:         underlying,
-			Asset:              asset.Futures,
+			Asset:              asset.PerpetualContract,
 			Name:               result.ContractConfig.PerpetualContract[x].Symbol,
 			StartDate:          result.ContractConfig.PerpetualContract[x].KlineStartTime.Time(),
 			SettlementType:     futures.Linear,
@@ -868,7 +904,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, _ asset.Item) 
 
 // IsPerpetualFutureCurrency ensures a given asset and currency is a perpetual future
 func (e *Exchange) IsPerpetualFutureCurrency(a asset.Item, pair currency.Pair) (bool, error) {
-	if a != asset.Futures {
+	if a != asset.PerpetualContract {
 		return false, futures.ErrNotFuturesAsset
 	}
 	if pair.IsEmpty() {
@@ -897,10 +933,10 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	if r == nil {
 		return nil, fmt.Errorf("%w LatestRateRequest", common.ErrNilPointer)
 	}
-	if r.Asset != asset.Futures {
+	if r.Asset != asset.PerpetualContract {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, r.Asset)
 	}
-	pairFormat, err := e.GetPairFormat(asset.Futures, true)
+	pairFormat, err := e.GetPairFormat(asset.PerpetualContract, true)
 	if err != nil {
 		return nil, err
 	}
@@ -922,7 +958,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 		resp = append(resp, fundingrate.LatestRateResponse{
 			Exchange:    e.Name,
 			TimeChecked: time.Now(),
-			Asset:       asset.Futures,
+			Asset:       asset.PerpetualContract,
 			Pair:        cp,
 			PredictedUpcomingRate: fundingrate.Rate{
 				Time: tickerData[i].NextFundingTime,
@@ -955,7 +991,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, _ asset.Item)
 	ls := make([]limits.MinMaxLevel, len(contracts))
 	for x, pContract := range contracts {
 		ls[x] = limits.MinMaxLevel{
-			Key:                     key.NewExchangeAssetPair(e.Name, asset.Futures, pContract.Symbol),
+			Key:                     key.NewExchangeAssetPair(e.Name, asset.PerpetualContract, pContract.Symbol),
 			MinPrice:                pContract.TickSize.Float64(),
 			PriceStepIncrementSize:  pContract.TickSize.Float64(),
 			MinimumBaseAmount:       pContract.MinOrderSize.Float64(),

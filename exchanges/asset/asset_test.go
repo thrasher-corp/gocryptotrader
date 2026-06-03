@@ -126,6 +126,8 @@ func TestNew(t *testing.T) {
 		{Input: "future_combo", Expected: FutureCombo},
 		{Input: "spread", Expected: Spread},
 		{Input: "linearContract", Expected: LinearContract},
+		{Input: "rwa", Expected: RealWorldAsset},
+		{Input: "RwA", Expected: RealWorldAsset},
 	}
 
 	for _, tt := range cases {
