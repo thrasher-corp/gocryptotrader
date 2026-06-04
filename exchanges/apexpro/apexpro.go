@@ -27,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/internal/utils/starkex"
+	"github.com/thrasher-corp/gocryptotrader/internal/utils/zklink"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -80,6 +81,13 @@ var (
 	errDeviceTypeIsRequired          = errors.New("device type is required")
 	errLimitFeeRequired              = errors.New("limit fee is required")
 	errClientIDMissing               = errors.New("client ID is required")
+	errMasterAccountIDMissing        = errors.New("master account ID is required")
+	errSignatureMissing              = errors.New("signature is required")
+	errWalletNameMissing             = errors.New("wallet name is required")
+	errAccountIDMissing              = errors.New("account ID is required")
+	errReceiverAccountIDMissing      = errors.New("receiver account ID is required")
+	errReceiverL2KeyMissing          = errors.New("receiver l2 key is required")
+	errReceiverAddressMissing        = errors.New("receiver address is required")
 )
 
 // Start implementing public and private exchange API funcs below
@@ -1595,6 +1603,215 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path
 			HTTPRecording: e.HTTPRecording,
 		}, nil
 	}, request.UnauthenticatedRequest)
+}
+
+// ---------------------- Real World Asset (RWA) endpoints ------------------------------------------------------
+
+// RegisterRWAAccount registers a Real World Asset (RWA) sub-account using the primary API key.
+func (e *Exchange) RegisterRWAAccount(ctx context.Context, arg *RWARegisterAccountParams) (*RWAStockAccountResult, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
+	if arg.L2Key == "" {
+		return nil, errL2KeyMissing
+	}
+	if arg.MasterAccountID == "" {
+		return nil, errMasterAccountIDMissing
+	}
+	if arg.Signature == "" {
+		return nil, errSignatureMissing
+	}
+	params := url.Values{}
+	params.Set("l2Key", arg.L2Key)
+	params.Set("masterAccountId", arg.MasterAccountID)
+	params.Set("signature", arg.Signature)
+	var resp *RWAStockAccountResult
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "v3/stock/register-account", request.UnAuth, params, nil, &resp)
+}
+
+// GenerateRWAAPIKey generates API credentials for an RWA sub-account using the primary API key.
+func (e *Exchange) GenerateRWAAPIKey(ctx context.Context, arg *RWAGenerateAPIKeyParams) (*RWAStockAccountResult, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
+	if arg.L2Key == "" {
+		return nil, errL2KeyMissing
+	}
+	if arg.WalletName == "" {
+		return nil, errWalletNameMissing
+	}
+	if arg.AccountID == "" {
+		return nil, errAccountIDMissing
+	}
+	if arg.EthAddress == "" {
+		return nil, errEthereumAddressMissing
+	}
+	if arg.Signature == "" {
+		return nil, errSignatureMissing
+	}
+	params := url.Values{}
+	params.Set("l2Key", arg.L2Key)
+	params.Set("walletName", arg.WalletName)
+	params.Set("accountId", arg.AccountID)
+	params.Set("ethAddress", arg.EthAddress)
+	params.Set("signature", arg.Signature)
+	var resp *RWAStockAccountResult
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "v3/stock/generate-api", request.UnAuth, params, nil, &resp)
+}
+
+// GetRWAAccountData retrieves the RWA sub-account data using the RWA API key.
+func (e *Exchange) GetRWAAccountData(ctx context.Context) (*RWAAccountData, error) {
+	var resp *RWAAccountData
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v3/stock/account", request.UnAuth, nil, nil, &resp)
+}
+
+// TransferContractToRWA transfers an asset from the primary contract account to an RWA sub-account, signing with the primary seeds when no signature is supplied.
+func (e *Exchange) TransferContractToRWA(ctx context.Context, arg *RWATransferParams) (*RWATransferResponse, error) {
+	if err := e.validateRWATransfer(arg); err != nil {
+		return nil, err
+	}
+	if arg.Signature == "" {
+		account, err := e.GetUserAccountDataV3(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("GetUserAccountDataV3: %w", err)
+		}
+		signature, err := e.ProcessRWATransferSignature(ctx, arg, account.SpotAccount.ZkAccountID, account.SpotAccount.DefaultSubAccountID, account.SpotAccount.Nonce)
+		if err != nil {
+			return nil, err
+		}
+		arg.Signature = signature
+	}
+	return e.contractTransferTo(ctx, arg)
+}
+
+// TransferRWAToContract transfers an asset from an RWA sub-account back to the primary contract account, signing with the RWA seeds when no signature is supplied.
+func (e *Exchange) TransferRWAToContract(ctx context.Context, arg *RWATransferParams) (*RWATransferResponse, error) {
+	if err := e.validateRWATransfer(arg); err != nil {
+		return nil, err
+	}
+	if arg.Signature == "" {
+		account, err := e.GetRWAAccountData(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("GetRWAAccountData: %w", err)
+		}
+		signature, err := e.ProcessRWATransferSignature(ctx, arg, account.SpotAccount.ZkAccountID, account.SpotAccount.DefaultSubAccountID, 0)
+		if err != nil {
+			return nil, err
+		}
+		arg.Signature = signature
+	}
+	return e.contractTransferTo(ctx, arg)
+}
+
+func (e *Exchange) validateRWATransfer(arg *RWATransferParams) error {
+	if err := common.NilGuard(arg); err != nil {
+		return err
+	}
+	if arg.Amount <= 0 {
+		return limits.ErrAmountBelowMin
+	}
+	if arg.Asset.IsEmpty() {
+		return currency.ErrCurrencyCodeEmpty
+	}
+	if arg.ReceiverAccountID == "" {
+		return errReceiverAccountIDMissing
+	}
+	if arg.ReceiverL2Key == "" {
+		return errReceiverL2KeyMissing
+	}
+	if arg.ReceiverAddress == "" {
+		return errReceiverAddressMissing
+	}
+	if arg.ClientID == "" {
+		return errClientIDMissing
+	}
+	return nil
+}
+
+func (e *Exchange) contractTransferTo(ctx context.Context, arg *RWATransferParams) (*RWATransferResponse, error) {
+	params := url.Values{}
+	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
+	params.Set("asset", arg.Asset.String())
+	params.Set("receiverAccountId", arg.ReceiverAccountID)
+	params.Set("receiverL2Key", arg.ReceiverL2Key)
+	params.Set("receiverAddress", arg.ReceiverAddress)
+	params.Set("clientId", arg.ClientID)
+	if arg.AccountID != "" {
+		params.Set("accountId", arg.AccountID)
+	}
+	params.Set("signature", arg.Signature)
+	var resp *RWATransferResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "v3/contract-transfer-to", request.UnAuth, params, nil, &resp)
+}
+
+// CreateRWAOrder places an order on a tokenised RWA market via the shared v3/order endpoint, signed with the RWA sub-account credentials.
+func (e *Exchange) CreateRWAOrder(ctx context.Context, arg *CreateOrderParams) (*OrderDetail, error) {
+	return e.CreateOrderV3(ctx, arg)
+}
+
+// ProcessRWATransferSignature returns the hex ZKLink Schnorr signature for a transfer from the given account to the receiver in arg.
+func (e *Exchange) ProcessRWATransferSignature(ctx context.Context, arg *RWATransferParams, fromZkAccountID, fromSubAccountID string, nonce int64) (string, error) {
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return "", err
+	}
+	if creds.L2Secret == "" {
+		return "", errZKLinkSeedsMissing
+	}
+	signer, err := e.getOrInitZKLinkerSigner(creds.L2Secret)
+	if err != nil {
+		return "", err
+	}
+
+	fromAccountID, err := strconv.ParseInt(fromZkAccountID, 10, 64)
+	if err != nil {
+		return "", fmt.Errorf("parse zkAccountId: %w", err)
+	}
+	fromSubAccount, err := strconv.ParseInt(fromSubAccountID, 10, 64)
+	if err != nil {
+		return "", fmt.Errorf("parse subAccountId: %w", err)
+	}
+
+	configData, err := e.GetAllConfigDataV3(ctx)
+	if err != nil {
+		return "", fmt.Errorf("GetAllConfigDataV3: %w", err)
+	}
+	var tokenID int64
+	for _, asset := range configData.SpotConfig.Assets {
+		if strings.EqualFold(asset.Token, arg.Asset.String()) {
+			tokenID, err = strconv.ParseInt(asset.TokenID, 10, 64)
+			if err != nil {
+				return "", fmt.Errorf("parse tokenId: %w", err)
+			}
+			break
+		}
+	}
+
+	toAddress, ok := new(big.Int).SetString(strings.TrimPrefix(arg.ReceiverL2Key, "0x"), 16)
+	if !ok {
+		toAddress = big.NewInt(0)
+	}
+
+	const resolution = 1e8
+	amountInt := big.NewInt(int64(arg.Amount * resolution))
+
+	builder := &zklink.TransferBuilder{
+		AccountID:        big.NewInt(fromAccountID),
+		ToAddress:        toAddress,
+		FromSubAccountID: big.NewInt(fromSubAccount),
+		ToSubAccountID:   big.NewInt(0),
+		Token:            big.NewInt(tokenID),
+		Amount:           amountInt,
+		Fee:              big.NewInt(0),
+		Nonce:            big.NewInt(nonce),
+		Timestamp:        big.NewInt(time.Now().Unix()),
+	}
+
+	sig, err := signer.Sign(builder.GetBytes())
+	if err != nil {
+		return "", fmt.Errorf("zklink sign rwa transfer: %w", err)
+	}
+	return hex.EncodeToString(sig[:]), nil
 }
 
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request.

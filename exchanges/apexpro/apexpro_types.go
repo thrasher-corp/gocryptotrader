@@ -1369,3 +1369,90 @@ type UserManualRepaymentParams struct {
 type IDResponse struct {
 	ID string `json:"id"`
 }
+
+// RWARegisterAccountParams holds the parameters required to register a Real World Asset (RWA) sub-account.
+type RWARegisterAccountParams struct {
+	L2Key           string `json:"l2Key"`
+	MasterAccountID string `json:"masterAccountId"`
+	Signature       string `json:"signature"`
+}
+
+// RWAGenerateAPIKeyParams holds the parameters required to generate API credentials for an RWA sub-account.
+type RWAGenerateAPIKeyParams struct {
+	L2Key      string `json:"l2Key"`
+	WalletName string `json:"walletName"`
+	AccountID  string `json:"accountId"`
+	EthAddress string `json:"ethAddress"`
+	Signature  string `json:"signature"`
+}
+
+// RWAStockAccountResult wraps the stock (RWA) account returned by the registration and API-key generation endpoints.
+type RWAStockAccountResult struct {
+	StockAccount *RWAStockAccount `json:"stockAccount"`
+}
+
+// RWAStockAccount represents an RWA sub-account, optionally carrying generated API credentials.
+type RWAStockAccount struct {
+	AccountID   string     `json:"accountId"`
+	AccountType string     `json:"accountType"`
+	APIKey      *RWAAPIKey `json:"apiKey,omitempty"`
+}
+
+// RWAAPIKey holds the API credentials generated for an RWA sub-account.
+type RWAAPIKey struct {
+	Key        string `json:"key"`
+	Secret     string `json:"secret"` //nolint:gosec // API secret returned by the exchange on RWA key generation, not a hardcoded credential
+	Passphrase string `json:"passphrase"`
+}
+
+// RWAAccountData represents the account information of an RWA sub-account.
+type RWAAccountData struct {
+	EthereumAddress string              `json:"ethereumAddress"`
+	L2Key           string              `json:"l2Key"`
+	ID              string              `json:"id"`
+	ContractAccount *RWAContractAccount `json:"contractAccount"`
+	ContractWallets []*ContractWallet   `json:"contractWallets"`
+	SpotAccount     struct {
+		ZkAccountID         string `json:"zkAccountId"`
+		DefaultSubAccountID string `json:"defaultSubAccountId"`
+	} `json:"spotAccount"`
+	Positions []*PositionInfo `json:"positions"`
+}
+
+// RWAContractAccount represents the contract account portion of an RWA account.
+type RWAContractAccount struct {
+	CreatedAt      types.Time           `json:"createdAt"`
+	TakerFeeRate   types.Number         `json:"takerFeeRate"`
+	MakerFeeRate   types.Number         `json:"makerFeeRate"`
+	Status         string               `json:"status"`
+	SubAccountInfo []*RWASubAccountInfo `json:"subAccountInfo"`
+}
+
+// RWASubAccountInfo represents a single sub-account entry within an RWA contract account.
+type RWASubAccountInfo struct {
+	AccountID   string `json:"accountId"`
+	AccountType string `json:"accountType"`
+}
+
+// RWATransferParams holds the parameters required to transfer assets to or from an RWA sub-account.
+type RWATransferParams struct {
+	Amount            float64
+	Asset             currency.Code
+	ReceiverAccountID string
+	ReceiverL2Key     string
+	ReceiverAddress   string
+	ClientID          string
+	AccountID         string
+	Signature         string
+}
+
+// RWATransferResponse represents the result of an RWA contract transfer.
+type RWATransferResponse struct {
+	ID        string       `json:"id"`
+	ClientID  string       `json:"clientId"`
+	Type      string       `json:"type"`
+	Amount    types.Number `json:"amount"`
+	Token     string       `json:"token"`
+	Status    string       `json:"status"`
+	CreatedAt types.Time   `json:"createdAt"`
+}

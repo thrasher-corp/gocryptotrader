@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -160,7 +161,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			RunningURL:                   wsRunningEndpoint,
 			Features:                     &e.Features.Supports.WebsocketCapabilities,
 			UseMultiConnectionManagement: true,
-		})
+		},
+	)
 	if err != nil {
 		return err
 	}
@@ -209,7 +211,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 
 	switch a {
 	case asset.PerpetualContract:
-		tradablePairs := make(currency.Pairs, 0, len((configs.ContractConfig.PerpetualContract)))
+		tradablePairs := make(currency.Pairs, 0, len(configs.ContractConfig.PerpetualContract))
 		for a := range configs.ContractConfig.PerpetualContract {
 			if !configs.ContractConfig.PerpetualContract[a].EnableTrade {
 				continue
@@ -222,7 +224,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 		return tradablePairs.Format(format), nil
 	case asset.Spot:
-		tradablePairs := make(currency.Pairs, 0, len((configs.SpotConfig.Spot)))
+		tradablePairs := make(currency.Pairs, 0, len(configs.SpotConfig.Spot))
 		for a := range configs.SpotConfig.Spot {
 			cp, err := currency.NewPairFromString(configs.SpotConfig.Spot[a])
 			if err != nil {
@@ -236,7 +238,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 		}
 		return tradablePairs.Format(format), nil
 	case asset.RealWorldAsset:
-		tradablePairs := make(currency.Pairs, 0, len((configs.ContractConfig.StockContract)))
+		tradablePairs := make(currency.Pairs, 0, len(configs.ContractConfig.StockContract))
 		for a := range configs.ContractConfig.StockContract {
 			cp, err := currency.NewPairFromString(configs.ContractConfig.StockContract[a].Symbol)
 			if err != nil {
@@ -345,13 +347,13 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 }
 
 // UpdateAccountBalances retrieves currency balances
-func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
-	accountInfo, err := e.GetUserAccountDataV3(ctx)
-	if err != nil {
-		return nil, err
-	}
+func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	switch assetType {
 	case asset.Spot:
+		accountInfo, err := e.GetUserAccountDataV3(ctx)
+		if err != nil {
+			return nil, err
+		}
 		spotSubAccounts := accounts.SubAccounts{}
 		for a := range accountInfo.SpotWallets {
 			tokenCcy := currency.NewCode(e.GetTokenByID(accountInfo.SpotWallets[a].TokenID))
@@ -368,23 +370,38 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 		}
 		return spotSubAccounts, nil
 	case asset.PerpetualContract:
-		perpetualContractSubAccounts := accounts.SubAccounts{}
-		for a := range accountInfo.ContractWallets {
-			subAcct := accounts.NewSubAccount(assetType, accountInfo.ContractWallets[a].UserID)
-			subAcct.Balances.Set(accountInfo.ContractWallets[a].Asset, accounts.Balance{
-				Currency: accountInfo.ContractWallets[a].Asset,
-				Total:    accountInfo.ContractWallets[a].Balance.Float64(),
-				Hold: accountInfo.ContractWallets[a].PendingDepositAmount.Float64() +
-					accountInfo.ContractWallets[a].PendingWithdrawAmount.Float64() +
-					accountInfo.ContractWallets[a].PendingTransferOutAmount.Float64() +
-					accountInfo.ContractWallets[a].PendingTransferInAmount.Float64(),
-			})
-			perpetualContractSubAccounts.Merge(subAcct)
+		accountInfo, err := e.GetUserAccountDataV3(ctx)
+		if err != nil {
+			return nil, err
 		}
-		return perpetualContractSubAccounts, nil
+		return contractWalletBalances(assetType, accountInfo.ContractWallets), nil
+	case asset.RealWorldAsset:
+		rwaAccount, err := e.GetRWAAccountData(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return contractWalletBalances(assetType, rwaAccount.ContractWallets), nil
 	default:
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
+}
+
+// contractWalletBalances converts a set of contract wallets into sub-account balances for the given asset.
+func contractWalletBalances(assetType asset.Item, wallets []*ContractWallet) accounts.SubAccounts {
+	subAccounts := accounts.SubAccounts{}
+	for a := range wallets {
+		subAcct := accounts.NewSubAccount(assetType, wallets[a].UserID)
+		subAcct.Balances.Set(wallets[a].Asset, accounts.Balance{
+			Currency: wallets[a].Asset,
+			Total:    wallets[a].Balance.Float64(),
+			Hold: wallets[a].PendingDepositAmount.Float64() +
+				wallets[a].PendingWithdrawAmount.Float64() +
+				wallets[a].PendingTransferOutAmount.Float64() +
+				wallets[a].PendingTransferInAmount.Float64(),
+		})
+		subAccounts.Merge(subAcct)
+	}
+	return subAccounts
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -433,10 +450,10 @@ func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, _ currency.Code, _
 
 // GetRecentTrades returns the most recent trades for a currency and asset
 func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
-	if assetType != asset.PerpetualContract {
+	if assetType != asset.PerpetualContract && assetType != asset.RealWorldAsset {
 		return nil, fmt.Errorf("%w, asset type: %v", asset.ErrNotSupported, assetType)
 	}
-	pairFormat, err := e.GetPairFormat(asset.PerpetualContract, true)
+	pairFormat, err := e.GetPairFormat(assetType, true)
 	if err != nil {
 		return nil, err
 	}
@@ -447,14 +464,14 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 	var side order.Side
 	resp := make([]trade.Data, len(tradeData))
 	for i := range tradeData {
-		side, err = order.StringToOrderSide(tradeData[0].Side)
+		side, err = order.StringToOrderSide(tradeData[i].Side)
 		if err != nil {
 			return nil, err
 		}
 		resp[i] = trade.Data{
 			Exchange:     e.Name,
 			CurrencyPair: p.Format(pairFormat),
-			AssetType:    asset.PerpetualContract,
+			AssetType:    assetType,
 			Price:        tradeData[i].Price.Float64(),
 			Amount:       tradeData[i].Volume.Float64(),
 			Timestamp:    tradeData[i].TradeTime.Time(),
@@ -479,7 +496,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
-	orderResp, err := e.CreateOrderV3(ctx, &CreateOrderParams{
+	params := &CreateOrderParams{
 		Symbol:           s.Pair,
 		Side:             s.Side.String(),
 		OrderType:        orderTypeString(s.Type),
@@ -491,7 +508,15 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		TriggerPriceType: s.TriggerPriceType.String(),
 		ClientID:         s.ClientID,
 		TrailingPercent:  s.TrailingPercent,
-	})
+	}
+	var orderResp *OrderDetail
+	var err error
+	switch s.AssetType {
+	case asset.RealWorldAsset:
+		orderResp, err = e.CreateRWAOrder(ctx, params)
+	default:
+		orderResp, err = e.CreateOrderV3(ctx, params)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -591,7 +616,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 		Type:            oType,
 		Side:            oSide,
 		Status:          oStatus,
-		AssetType:       asset.PerpetualContract,
+		AssetType:       e.assetTypeFromSymbol(orderDetail.Symbol),
 		LastUpdated:     orderDetail.UpdatedTime.Time(),
 		Pair:            cp,
 	}, nil
@@ -690,7 +715,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 			Type:            oType,
 			Side:            oSide,
 			Status:          oStatus,
-			AssetType:       asset.PerpetualContract,
+			AssetType:       e.assetTypeFromSymbol(orders[a].Symbol),
 			LastUpdated:     orders[a].UpdatedTime.Time(),
 			Pair:            cp,
 		}
@@ -711,7 +736,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 	}
 	getOrdersRequest.Pairs = getOrdersRequest.Pairs.Format(pairFormat)
 	var symbol string
-	if len(getOrdersRequest.Pairs) == 0 {
+	if len(getOrdersRequest.Pairs) > 0 {
 		symbol = getOrdersRequest.Pairs[0].String()
 	}
 	orderHistoryResponse, err := e.GetAllOrderHistory(ctx, symbol, getOrdersRequest.Side.String(), orderTypeString(getOrdersRequest.Type), "", "", getOrdersRequest.StartTime, getOrdersRequest.EndTime, 0, 0)
@@ -763,7 +788,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 			Type:            oType,
 			Side:            oSide,
 			Status:          oStatus,
-			AssetType:       asset.PerpetualContract,
+			AssetType:       e.assetTypeFromSymbol(orderHistoryResponse.Orders[a].Symbol),
 			LastUpdated:     orderHistoryResponse.Orders[a].UpdatedTime.Time(),
 			Pair:            cp,
 		})
@@ -802,12 +827,12 @@ func (e *Exchange) ValidateAPICredentials(ctx context.Context, assetType asset.I
 }
 
 // GetHistoricCandles returns candles between a time period for a set time interval
-func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, _ asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := e.GetKlineRequest(pair, asset.PerpetualContract, interval, start, end, false)
+func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := e.GetKlineRequest(pair, a, interval, start, end, false)
 	if err != nil {
 		return nil, err
 	}
-	pairFormat, err := e.GetPairFormat(asset.PerpetualContract, true)
+	pairFormat, err := e.GetPairFormat(a, true)
 	if err != nil {
 		return nil, err
 	}
@@ -840,8 +865,8 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, _
 }
 
 // GetHistoricCandlesExtended returns candles between a time period for a set time interval
-func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, _ asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
-	req, err := e.GetKlineExtendedRequest(pair, asset.PerpetualContract, interval, start, end)
+func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency.Pair, a asset.Item, interval kline.Interval, start, end time.Time) (*kline.Item, error) {
+	req, err := e.GetKlineExtendedRequest(pair, a, interval, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -977,33 +1002,81 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 }
 
 // UpdateOrderExecutionLimits updates order execution limits
-func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, _ asset.Item) error {
-	var contracts []*PerpetualContractDetail
+func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
+	switch a {
+	case asset.PerpetualContract:
+		var contracts []*PerpetualContractDetail
+		if e.SymbolsConfig != nil {
+			contracts = e.SymbolsConfig.ContractConfig.PerpetualContract
+		} else {
+			resp, err := e.GetAllSymbolsConfigDataV1(ctx)
+			if err != nil {
+				return err
+			}
+			contracts = resp.Data.PerpetualContract
+		}
+		ls := make([]limits.MinMaxLevel, len(contracts))
+		for x, pContract := range contracts {
+			ls[x] = limits.MinMaxLevel{
+				Key:                     key.NewExchangeAssetPair(e.Name, asset.PerpetualContract, pContract.Symbol),
+				MinPrice:                pContract.TickSize.Float64(),
+				PriceStepIncrementSize:  pContract.TickSize.Float64(),
+				MinimumBaseAmount:       pContract.MinOrderSize.Float64(),
+				MaximumBaseAmount:       pContract.MaxOrderSize.Float64(),
+				AmountStepIncrementSize: pContract.StepSize.Float64(),
+				QuoteStepIncrementSize:  pContract.IncrementalPositionValue.Float64(),
+				MaximumQuoteAmount:      pContract.MaxPositionValue.Float64(),
+				MarketMaxQty:            pContract.MaxOrderSize.Float64(),
+				MaxTotalOrders:          pContract.MaxPositionSize.Int64(),
+			}
+		}
+		return limits.Load(ls)
+	case asset.RealWorldAsset:
+		cfg := e.SymbolsConfig
+		if cfg == nil {
+			var err error
+			cfg, err = e.GetAllConfigDataV3(ctx)
+			if err != nil {
+				return err
+			}
+		}
+		contracts := cfg.ContractConfig.StockContract
+		ls := make([]limits.MinMaxLevel, len(contracts))
+		for x, sContract := range contracts {
+			cp, err := currency.NewPairFromString(sContract.Symbol)
+			if err != nil {
+				return err
+			}
+			ls[x] = limits.MinMaxLevel{
+				Key:                     key.NewExchangeAssetPair(e.Name, asset.RealWorldAsset, cp),
+				MinPrice:                sContract.TickSize.Float64(),
+				PriceStepIncrementSize:  sContract.TickSize.Float64(),
+				MinimumBaseAmount:       sContract.MinOrderSize.Float64(),
+				MaximumBaseAmount:       sContract.MaxOrderSize.Float64(),
+				AmountStepIncrementSize: sContract.StepSize.Float64(),
+				QuoteStepIncrementSize:  sContract.IncrementalPositionValue.Float64(),
+				MaximumQuoteAmount:      sContract.MaxPositionValue.Float64(),
+				MarketMaxQty:            sContract.MaxOrderSize.Float64(),
+				MaxTotalOrders:          sContract.MaxPositionSize.Int64(),
+			}
+		}
+		return limits.Load(ls)
+	default:
+		return nil
+	}
+}
+
+// assetTypeFromSymbol return the asset item given a contract symbol using the cached V3 configuration.
+// check whether the instrument is of asset.RealWorldAsset or asset.PerpetualContract.
+func (e *Exchange) assetTypeFromSymbol(symbol string) asset.Item {
 	if e.SymbolsConfig != nil {
-		contracts = e.SymbolsConfig.ContractConfig.PerpetualContract
-	} else {
-		resp, err := e.GetAllSymbolsConfigDataV1(ctx)
-		if err != nil {
-			return err
-		}
-		contracts = resp.Data.PerpetualContract
-	}
-	ls := make([]limits.MinMaxLevel, len(contracts))
-	for x, pContract := range contracts {
-		ls[x] = limits.MinMaxLevel{
-			Key:                     key.NewExchangeAssetPair(e.Name, asset.PerpetualContract, pContract.Symbol),
-			MinPrice:                pContract.TickSize.Float64(),
-			PriceStepIncrementSize:  pContract.TickSize.Float64(),
-			MinimumBaseAmount:       pContract.MinOrderSize.Float64(),
-			MaximumBaseAmount:       pContract.MaxOrderSize.Float64(),
-			AmountStepIncrementSize: pContract.StepSize.Float64(),
-			QuoteStepIncrementSize:  pContract.IncrementalPositionValue.Float64(),
-			MaximumQuoteAmount:      pContract.MaxPositionValue.Float64(),
-			MarketMaxQty:            pContract.MaxOrderSize.Float64(),
-			MaxTotalOrders:          pContract.MaxPositionSize.Int64(),
+		for _, sc := range e.SymbolsConfig.ContractConfig.StockContract {
+			if strings.EqualFold(sc.Symbol, symbol) {
+				return asset.RealWorldAsset
+			}
 		}
 	}
-	return limits.Load(ls)
+	return asset.PerpetualContract
 }
 
 func orderTypeString(oType order.Type) string {

@@ -1322,7 +1322,8 @@ func TestGetTransferErc20Fact(t *testing.T) {
 	fact, err := GetTransferErc20Fact(
 		3, "0x1234567890123456789012345678901234567890",
 		"123.456", "0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa",
-		"0x1234567890abcdef")
+		"0x1234567890abcdef",
+	)
 	assert.NoError(t, err)
 	assert.Equal(t, "34052387b5efb6132a42b244cff52a85a507ab319c414564d7a89207d4473672", fact)
 }
@@ -1401,6 +1402,195 @@ func TestUserManualRepayment(t *testing.T) {
 		PoolRepaymentTokensDetail:   LoanRepaymentTokenAndAmountList{{Token: currency.BTC, Amount: 123.4}},
 		LoanRepaymentTokenAndAmount: LoanRepaymentTokenAndAmountList{{Token: currency.BTC, Amount: 123.4}},
 	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestRegisterRWAAccount(t *testing.T) {
+	t.Parallel()
+	_, err := e.RegisterRWAAccount(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.RegisterRWAAccount(t.Context(), &RWARegisterAccountParams{MasterAccountID: "123", Signature: "sig"})
+	require.ErrorIs(t, err, errL2KeyMissing)
+
+	_, err = e.RegisterRWAAccount(t.Context(), &RWARegisterAccountParams{L2Key: "0xabc", Signature: "sig"})
+	require.ErrorIs(t, err, errMasterAccountIDMissing)
+
+	_, err = e.RegisterRWAAccount(t.Context(), &RWARegisterAccountParams{L2Key: "0xabc", MasterAccountID: "123"})
+	require.ErrorIs(t, err, errSignatureMissing)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	result, err := e.RegisterRWAAccount(t.Context(), &RWARegisterAccountParams{
+		L2Key:           "0xabc",
+		MasterAccountID: "123",
+		Signature:       "sig",
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGenerateRWAAPIKey(t *testing.T) {
+	t.Parallel()
+	_, err := e.GenerateRWAAPIKey(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.GenerateRWAAPIKey(t.Context(), &RWAGenerateAPIKeyParams{WalletName: "w", AccountID: "1", EthAddress: "0xeth", Signature: "sig"})
+	require.ErrorIs(t, err, errL2KeyMissing)
+
+	_, err = e.GenerateRWAAPIKey(t.Context(), &RWAGenerateAPIKeyParams{L2Key: "0xabc", AccountID: "1", EthAddress: "0xeth", Signature: "sig"})
+	require.ErrorIs(t, err, errWalletNameMissing)
+
+	_, err = e.GenerateRWAAPIKey(t.Context(), &RWAGenerateAPIKeyParams{L2Key: "0xabc", WalletName: "w", EthAddress: "0xeth", Signature: "sig"})
+	require.ErrorIs(t, err, errAccountIDMissing)
+
+	_, err = e.GenerateRWAAPIKey(t.Context(), &RWAGenerateAPIKeyParams{L2Key: "0xabc", WalletName: "w", AccountID: "1", Signature: "sig"})
+	require.ErrorIs(t, err, errEthereumAddressMissing)
+
+	_, err = e.GenerateRWAAPIKey(t.Context(), &RWAGenerateAPIKeyParams{L2Key: "0xabc", WalletName: "w", AccountID: "1", EthAddress: "0xeth"})
+	require.ErrorIs(t, err, errSignatureMissing)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	result, err := e.GenerateRWAAPIKey(t.Context(), &RWAGenerateAPIKeyParams{
+		L2Key:      "0xabc",
+		WalletName: "w",
+		AccountID:  "1",
+		EthAddress: "0xeth",
+		Signature:  "sig",
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetRWAAccountData(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetRWAAccountData(t.Context())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestTransferContractToRWA(t *testing.T) {
+	t.Parallel()
+	_, err := e.TransferContractToRWA(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.TransferContractToRWA(t.Context(), &RWATransferParams{Asset: currency.USDT, ReceiverAccountID: "1", ReceiverL2Key: "0xabc", ReceiverAddress: "0xeth", ClientID: "c"})
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+
+	_, err = e.TransferContractToRWA(t.Context(), &RWATransferParams{Amount: 1, ReceiverAccountID: "1", ReceiverL2Key: "0xabc", ReceiverAddress: "0xeth", ClientID: "c"})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.TransferContractToRWA(t.Context(), &RWATransferParams{Amount: 1, Asset: currency.USDT, ReceiverL2Key: "0xabc", ReceiverAddress: "0xeth", ClientID: "c"})
+	require.ErrorIs(t, err, errReceiverAccountIDMissing)
+
+	_, err = e.TransferContractToRWA(t.Context(), &RWATransferParams{Amount: 1, Asset: currency.USDT, ReceiverAccountID: "1", ReceiverAddress: "0xeth", ClientID: "c"})
+	require.ErrorIs(t, err, errReceiverL2KeyMissing)
+
+	_, err = e.TransferContractToRWA(t.Context(), &RWATransferParams{Amount: 1, Asset: currency.USDT, ReceiverAccountID: "1", ReceiverL2Key: "0xabc", ClientID: "c"})
+	require.ErrorIs(t, err, errReceiverAddressMissing)
+
+	_, err = e.TransferContractToRWA(t.Context(), &RWATransferParams{Amount: 1, Asset: currency.USDT, ReceiverAccountID: "1", ReceiverL2Key: "0xabc", ReceiverAddress: "0xeth"})
+	require.ErrorIs(t, err, errClientIDMissing)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	result, err := e.TransferContractToRWA(t.Context(), &RWATransferParams{
+		Amount:            1,
+		Asset:             currency.USDT,
+		ReceiverAccountID: "850000000000000001",
+		ReceiverL2Key:     "0xabc",
+		ReceiverAddress:   ethereumAddress,
+		ClientID:          "1234567",
+		Signature:         "sig",
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestTransferRWAToContract(t *testing.T) {
+	t.Parallel()
+	_, err := e.TransferRWAToContract(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.TransferRWAToContract(t.Context(), &RWATransferParams{Amount: 1, Asset: currency.USDT, ReceiverAccountID: "1", ReceiverL2Key: "0xabc", ReceiverAddress: "0xeth"})
+	require.ErrorIs(t, err, errClientIDMissing)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	result, err := e.TransferRWAToContract(t.Context(), &RWATransferParams{
+		Amount:            1,
+		Asset:             currency.USDT,
+		ReceiverAccountID: "123",
+		ReceiverL2Key:     "0xabc",
+		ReceiverAddress:   ethereumAddress,
+		ClientID:          "1234567",
+		Signature:         "sig",
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCreateRWAOrder(t *testing.T) {
+	t.Parallel()
+	rwaPair, err := currency.NewPairFromString("AAPL-USDT")
+	require.NoError(t, err)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	result, err := e.CreateRWAOrder(t.Context(), &CreateOrderParams{
+		Symbol:      rwaPair,
+		Side:        order.Buy.String(),
+		OrderType:   "LIMIT",
+		Size:        0.01,
+		Price:       150,
+		TimeInForce: "GOOD_TIL_CANCEL",
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestAssetTypeFromSymbol(t *testing.T) {
+	t.Parallel()
+	rwa := &Exchange{SymbolsConfig: &AllSymbolsConfigs{}}
+	rwa.SymbolsConfig.ContractConfig.StockContract = []*StockContractDetail{{Symbol: "AAPL-USDT"}}
+	assert.Equal(t, asset.RealWorldAsset, rwa.assetTypeFromSymbol("AAPL-USDT"), "stock symbol should resolve to RWA")
+	assert.Equal(t, asset.PerpetualContract, rwa.assetTypeFromSymbol("BTC-USDT"), "unknown symbol should default to perpetual")
+
+	empty := &Exchange{}
+	assert.Equal(t, asset.PerpetualContract, empty.assetTypeFromSymbol("AAPL-USDT"), "nil config should default to perpetual")
+}
+
+func TestUpdateOrderExecutionLimitsRealWorldAsset(t *testing.T) {
+	t.Parallel()
+	rwa := &Exchange{SymbolsConfig: &AllSymbolsConfigs{}}
+	rwa.Name = "Apexpro-RWA-Test"
+	rwa.SymbolsConfig.ContractConfig.StockContract = []*StockContractDetail{{
+		Symbol:                   "AAPL-USDT",
+		TickSize:                 0.01,
+		StepSize:                 0.001,
+		MinOrderSize:             0.001,
+		MaxOrderSize:             1000,
+		IncrementalPositionValue: 1,
+		MaxPositionValue:         100000,
+		MaxPositionSize:          500,
+	}}
+	err := rwa.UpdateOrderExecutionLimits(t.Context(), asset.RealWorldAsset)
+	require.NoError(t, err)
+
+	cp, err := currency.NewPairFromString("AAPL-USDT")
+	require.NoError(t, err)
+	lim, err := rwa.GetOrderExecutionLimits(asset.RealWorldAsset, cp)
+	require.NoError(t, err)
+	assert.Positive(t, lim.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+	assert.Positive(t, lim.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
+	assert.Equal(t, int64(500), lim.MaxTotalOrders, "MaxTotalOrders should match config")
+
+	// Unsupported assets should be a no-op rather than an error.
+	require.NoError(t, rwa.UpdateOrderExecutionLimits(t.Context(), asset.Spot))
+}
+
+func TestUpdateAccountBalancesRealWorldAsset(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.UpdateAccountBalances(t.Context(), asset.RealWorldAsset)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
