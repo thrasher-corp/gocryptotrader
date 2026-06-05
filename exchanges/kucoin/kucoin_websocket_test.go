@@ -94,7 +94,7 @@ func TestPushData(t *testing.T) {
 	// Isolate global orderbook keying by exchange name to avoid cross-test contamination
 	// when Kucoin websocket tests run in parallel.
 	e.Name += "-TestPushData"
-	e.SetCredentials("mock", "test", "test", "", "", "")
+	e.SetCredentials("mock", "test", "test", "", "", "", "", "", "")
 	e.API.AuthenticatedSupport = true
 	e.API.AuthenticatedWebsocketSupport = true
 
