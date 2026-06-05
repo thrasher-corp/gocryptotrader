@@ -697,6 +697,10 @@ func (e *Exchange) AddOrder(ctx context.Context, symbol currency.Pair, side, ord
 		params.Set("timeinforce", args.TimeInForce)
 	}
 
+	if args.UserRef != 0 {
+		params.Set("userref", strconv.FormatInt(int64(args.UserRef), 10))
+	}
+
 	var result AddOrderResponse
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, krakenOrderPlace, params, &result); err != nil {
 		return nil, err
