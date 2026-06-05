@@ -744,8 +744,47 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (e *Exchange) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
-	return nil, common.ErrFunctionNotSupported
+func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
+	deposits, err := e.GetDepositRecords(ctx, currency.EMPTYCODE, time.Time{}, time.Time{}, 0, 0)
+	if err != nil {
+		return nil, err
+	}
+	withdrawals, err := e.GetWithdrawalRecords(ctx, currency.EMPTYCODE, time.Time{}, time.Time{}, 0, 0)
+	if err != nil {
+		return nil, err
+	}
+	history := make([]exchange.FundingHistory, 0, len(deposits)+len(withdrawals))
+	for _, d := range deposits {
+		history = append(history, exchange.FundingHistory{
+			ExchangeName:    e.Name,
+			Status:          d.Status,
+			TransferID:      d.ID,
+			Timestamp:       d.Timestamp.Time(),
+			Currency:        d.Currency.String(),
+			Amount:          d.Amount.Float64(),
+			Fee:             d.Fee.Float64(),
+			TransferType:    "deposit",
+			CryptoToAddress: d.Address,
+			CryptoTxID:      d.TransactionID,
+			CryptoChain:     d.Chain,
+		})
+	}
+	for _, w := range withdrawals {
+		history = append(history, exchange.FundingHistory{
+			ExchangeName:    e.Name,
+			Status:          w.Status,
+			TransferID:      w.ID,
+			Timestamp:       w.Timestamp.Time(),
+			Currency:        w.Currency.String(),
+			Amount:          w.Amount.Float64(),
+			Fee:             w.Fee.Float64(),
+			TransferType:    "withdrawal",
+			CryptoToAddress: w.WithdrawalAddress,
+			CryptoTxID:      w.TransactionID,
+			CryptoChain:     w.Chain,
+		})
+	}
+	return history, nil
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data

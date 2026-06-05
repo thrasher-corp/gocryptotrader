@@ -18,7 +18,7 @@ type SubAccount struct {
 	Email     string     `json:"email"`
 	State     int64      `json:"state"`
 	Type      int64      `json:"type"`
-	UserID    uint64      `json:"user_id"`
+	UserID    uint64     `json:"user_id"`
 	CreatedAt types.Time `json:"create_time"`
 }
 

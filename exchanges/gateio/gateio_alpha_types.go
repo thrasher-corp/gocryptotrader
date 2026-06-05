@@ -14,7 +14,7 @@ type alphaStatusError struct {
 	Message string `json:"Message"`
 }
 
-// Error represents an error interface for 
+// Error represents an error interface for
 func (a *alphaStatusError) Error() error {
 	if a.Label != "" {
 		return fmt.Errorf("label: %s message: %s", a.Label, a.Message)

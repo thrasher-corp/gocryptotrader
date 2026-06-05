@@ -5250,9 +5250,9 @@ func (e *Exchange) CreateFlatOrder(ctx context.Context, arg *OtcFlatOrderRequest
 }
 
 // CreateStablecoinOrder creates a stablecoin order.
-func (e *Exchange) CreateStablecoinOrder(ctx context.Context, arg *OtcStablecoinOrderRequest) error {
-	var resp OtcActionResponse
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "stable_coin/order/create", nil, arg, &resp)
+func (e *Exchange) CreateStablecoinOrder(ctx context.Context, arg *OtcStablecoinOrderRequest) (*OtcActionResponse, error) {
+	var resp *OtcActionResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "stable_coin/order/create", nil, arg, &resp)
 }
 
 // GetUserDefaultBankAccount retrieves the user's default bank account information.

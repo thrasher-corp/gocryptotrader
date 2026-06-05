@@ -2926,6 +2926,13 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetAccountFundingHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	_, err := e.GetAccountFundingHistory(t.Context())
+	assert.NoError(t, err)
+}
+
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
 	for _, a := range e.GetAssetTypes(false) {
@@ -5737,7 +5744,7 @@ func TestCreateFlatOrder(t *testing.T) {
 func TestCreateStablecoinOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	err := e.CreateStablecoinOrder(t.Context(), &OtcStablecoinOrderRequest{
+	_, err := e.CreateStablecoinOrder(t.Context(), &OtcStablecoinOrderRequest{
 		PayCoin:    currency.USD,
 		GetCoin:    currency.USDT,
 		PayAmount:  100,
