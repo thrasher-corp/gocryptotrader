@@ -4,12 +4,14 @@ import (
 	"context"
 	"log"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
@@ -18,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
@@ -1225,6 +1228,84 @@ func TestUpdateTicker(t *testing.T) {
 	require.NoError(t, err)
 
 	result, err := e.UpdateTicker(t.Context(), enabledPairs[0], asset.Futures)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+// perpetualContractOnce bootstraps the PerpetualContract asset with live pairs.
+var perpetualContractOnce sync.Once
+
+func setupPerpetualContract(tb testing.TB) {
+	tb.Helper()
+	perpetualContractOnce.Do(func() {
+		pairs, err := e.FetchTradablePairs(context.Background(), asset.PerpetualContract)
+		require.NoError(tb, err, "FetchTradablePairs must not error")
+		require.NotEmpty(tb, pairs, "FetchTradablePairs must return perpetual contract pairs")
+		require.NoError(tb, e.CurrencyPairs.SetAssetEnabled(asset.PerpetualContract, true), "SetAssetEnabled must not error")
+		require.NoError(tb, e.SetPairs(pairs, asset.PerpetualContract, false), "SetPairs available must not error")
+		require.NoError(tb, e.SetPairs(pairs[:1], asset.PerpetualContract, true), "SetPairs enabled must not error")
+	})
+}
+
+func TestUpdateTickers(t *testing.T) {
+	t.Parallel()
+	setupPerpetualContract(t)
+	enabledPairs, err := e.GetEnabledPairs(asset.PerpetualContract)
+	require.NoError(t, err)
+	require.NotEmpty(t, enabledPairs, "must have enabled perpetual contract pairs")
+
+	err = e.UpdateTickers(t.Context(), asset.PerpetualContract)
+	require.NoError(t, err)
+
+	result, err := ticker.GetTicker(e.Name, enabledPairs[0], asset.PerpetualContract)
+	require.NoError(t, err)
+	assert.Positive(t, result.Last, "last price should be positive")
+}
+
+func TestGetOpenInterest(t *testing.T) {
+	t.Parallel()
+	setupPerpetualContract(t)
+	enabledPairs, err := e.GetEnabledPairs(asset.PerpetualContract)
+	require.NoError(t, err)
+	require.NotEmpty(t, enabledPairs, "must have enabled perpetual contract pairs")
+
+	result, err := e.GetOpenInterest(t.Context(), key.PairAsset{
+		Base:  enabledPairs[0].Base.Item,
+		Quote: enabledPairs[0].Quote.Item,
+		Asset: asset.PerpetualContract,
+	})
+	require.NoError(t, err)
+	assert.NotEmpty(t, result, "should return open interest for the requested pair")
+
+	result, err = e.GetOpenInterest(t.Context())
+	require.NoError(t, err)
+	assert.NotEmpty(t, result, "should return open interest for all enabled pairs")
+
+	_, err = e.GetOpenInterest(t.Context(), key.PairAsset{Asset: asset.Spot})
+	assert.ErrorIs(t, err, asset.ErrNotSupported, "non-perpetual asset should error")
+}
+
+func TestGetCurrencyTradeURL(t *testing.T) {
+	t.Parallel()
+	setupPerpetualContract(t)
+	enabledPairs, err := e.GetEnabledPairs(asset.PerpetualContract)
+	require.NoError(t, err)
+	require.NotEmpty(t, enabledPairs, "must have enabled perpetual contract pairs")
+
+	result, err := e.GetCurrencyTradeURL(t.Context(), asset.PerpetualContract, enabledPairs[0])
+	require.NoError(t, err)
+	assert.NotEmpty(t, result, "trade URL should not be empty")
+
+	_, err = e.GetCurrencyTradeURL(t.Context(), asset.PerpetualContract, currency.EMPTYPAIR)
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "empty pair should error")
+}
+
+func TestGetAvailableTransferChains(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetAvailableTransferChains(t.Context(), currency.EMPTYCODE)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	result, err := e.GetAvailableTransferChains(t.Context(), currency.USDT)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

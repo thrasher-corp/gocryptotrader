@@ -82,6 +82,12 @@ func (e *Exchange) SetDefaults() {
 				TickerFetching:    true,
 				OrderbookFetching: true,
 			},
+			FuturesCapabilities: exchange.FuturesCapabilities{
+				OpenInterest: exchange.OpenInterestSupport{
+					Supported:          true,
+					SupportedViaTicker: true,
+				},
+			},
 			WithdrawPermissions: exchange.AutoWithdrawCrypto |
 				exchange.AutoWithdrawFiat,
 		},
@@ -284,24 +290,57 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 	if len(tick) == 0 {
 		return nil, ticker.ErrTickerNotFound
 	}
-	tickerPrice := &ticker.Price{
-		Last:         tick[0].LastPrice.Float64(),
-		High:         tick[0].HighPrice24H.Float64(),
-		Low:          tick[0].LowPrice24H.Float64(),
-		Volume:       tick[0].Volume24H.Float64(),
-		Pair:         p.Format(pairFormat),
-		ExchangeName: e.Name,
-		AssetType:    assetType,
-	}
-	if err := ticker.ProcessTicker(tickerPrice); err != nil {
-		return tickerPrice, err
+	if err := ticker.ProcessTicker(e.tickerPriceFromData(tick[0], p.Format(pairFormat), assetType)); err != nil {
+		return nil, err
 	}
 	return ticker.GetTicker(e.Name, p, assetType)
 }
 
+// tickerPriceFromData converts a single TickerData payload into a ticker.Price.
+func (e *Exchange) tickerPriceFromData(tick *TickerData, p currency.Pair, assetType asset.Item) *ticker.Price {
+	return &ticker.Price{
+		Last:         tick.LastPrice.Float64(),
+		High:         tick.HighPrice24H.Float64(),
+		Low:          tick.LowPrice24H.Float64(),
+		Volume:       tick.Volume24H.Float64(),
+		QuoteVolume:  tick.Turnover24H.Float64(),
+		MarkPrice:    tick.MarkPrice.Float64(),
+		IndexPrice:   tick.IndexPrice.Float64(),
+		OpenInterest: tick.OpenInterest.Float64(),
+		Pair:         p,
+		ExchangeName: e.Name,
+		AssetType:    assetType,
+	}
+}
+
 // UpdateTickers updates all currency pairs of a given asset type
-func (e *Exchange) UpdateTickers(_ context.Context, _ asset.Item) error {
-	return common.ErrFunctionNotSupported
+func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) error {
+	pairs, err := e.GetEnabledPairs(assetType)
+	if err != nil {
+		return err
+	}
+	if len(pairs) == 0 {
+		return currency.ErrCurrencyPairsEmpty
+	}
+	pairFormat, err := e.GetPairFormat(assetType, true)
+	if err != nil {
+		return err
+	}
+	var errs error
+	for _, p := range pairs {
+		tick, err := e.GetTickerDataV3(ctx, pairFormat.Format(p))
+		if err != nil {
+			errs = common.AppendError(errs, err)
+			continue
+		}
+		if len(tick) == 0 {
+			continue
+		}
+		if err := ticker.ProcessTicker(e.tickerPriceFromData(tick[0], p.Format(pairFormat), assetType)); err != nil {
+			errs = common.AppendError(errs, err)
+		}
+	}
+	return errs
 }
 
 // FetchTicker returns the ticker for a currency pair
@@ -1064,6 +1103,83 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	default:
 		return nil
 	}
+}
+
+// GetOpenInterest returns the open interest rate for a given asset pair
+func (e *Exchange) GetOpenInterest(ctx context.Context, keys ...key.PairAsset) ([]futures.OpenInterest, error) {
+	pairFormat, err := e.GetPairFormat(asset.PerpetualContract, true)
+	if err != nil {
+		return nil, err
+	}
+	var pairs currency.Pairs
+	if len(keys) == 0 {
+		pairs, err = e.GetEnabledPairs(asset.PerpetualContract)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		for _, k := range keys {
+			if k.Asset != asset.PerpetualContract {
+				return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, k.Asset)
+			}
+			pairs = append(pairs, k.Pair())
+		}
+	}
+	resp := make([]futures.OpenInterest, 0, len(pairs))
+	for _, p := range pairs {
+		tick, err := e.GetTickerDataV3(ctx, pairFormat.Format(p))
+		if err != nil {
+			return nil, err
+		}
+		if len(tick) == 0 {
+			continue
+		}
+		resp = append(resp, futures.OpenInterest{
+			Key:          key.NewExchangeAssetPair(e.Name, asset.PerpetualContract, p),
+			OpenInterest: tick[0].OpenInterest.Float64(),
+		})
+	}
+	return resp, nil
+}
+
+// GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
+func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
+	if _, err := e.CurrencyPairs.IsPairEnabled(cp, a); err != nil {
+		return "", err
+	}
+	pairFormat, err := e.GetPairFormat(a, true)
+	if err != nil {
+		return "", err
+	}
+	return "https://omni.apex.exchange/trade/" + pairFormat.Format(cp), nil
+}
+
+// GetAvailableTransferChains returns a list of supported transfer chains based on the supplied cryptocurrency
+func (e *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrency currency.Code) ([]string, error) {
+	if cryptocurrency.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	cfg := e.SymbolsConfig
+	if cfg == nil {
+		var err error
+		cfg, err = e.GetAllConfigDataV3(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if cfg.SpotConfig.MultiChain == nil {
+		return nil, nil
+	}
+	chains := make([]string, 0, len(cfg.SpotConfig.MultiChain.Chains))
+	for _, c := range cfg.SpotConfig.MultiChain.Chains {
+		for _, t := range c.Tokens {
+			if strings.EqualFold(t.Token, cryptocurrency.String()) {
+				chains = append(chains, c.Chain)
+				break
+			}
+		}
+	}
+	return chains, nil
 }
 
 // assetTypeFromSymbol return the asset item given a contract symbol using the cached V3 configuration.
