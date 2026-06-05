@@ -1,6 +1,7 @@
 package types
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -8,6 +9,24 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// highPrecisionValue is a decimal string with 17 significant digits — beyond
+// what float64 reliably round-trips through ParseFloat/FormatFloat. Shared by
+// the round-trip and head-to-head precision tests.
+const highPrecisionValue = "71428.12345678901234"
+
+// TestHighPrecisionValueSanity asserts the shared test constant genuinely
+// exceeds float64's round-trip precision, so the tests that rely on it are
+// exercising the property they claim to. If a float64 round-trip reproduced
+// the string exactly, those tests would pass trivially and prove nothing.
+func TestHighPrecisionValueSanity(t *testing.T) {
+	t.Parallel()
+	f, err := strconv.ParseFloat(highPrecisionValue, 64)
+	require.NoError(t, err)
+	roundTripped := strconv.FormatFloat(f, 'f', -1, 64)
+	assert.NotEqual(t, highPrecisionValue, roundTripped,
+		"highPrecisionValue must lose precision through float64 for the precision tests to be meaningful")
+}
 
 // TestPreciseNumberUnmarshalJSON verifies that both quoted and bare numeric
 // JSON values are accepted, that the original string is preserved, and that
@@ -37,22 +56,21 @@ func TestPreciseNumberUnmarshalJSON(t *testing.T) {
 	assert.Equal(t, "-7.25", p.String())
 
 	// Each entry exercises a distinct invalid-input branch in UnmarshalJSON.
-	for _, in := range []string{
-		`"MEOW"`,   // quoted non-numeric — rejected by parsePreciseNumber
-		`false`,    // false literal
-		`true`,     // true literal
-		`"1337.37`, // missing closing quote
-		`abc`,      // bare token with non-digit, non-minus first byte
-		`+5`,       // leading '+' is not in the accepted set
-		`0x1f`,     // hexadecimal — rejected by decimal.NewFromString
+	for _, tc := range []struct{ in, reason string }{
+		{`"MEOW"`, "quoted non-numeric rejected by parsePreciseNumber"},
+		{`false`, "false literal rejected"},
+		{`true`, "true literal rejected"},
+		{`"1337.37`, "missing closing quote rejected"},
+		{`abc`, "bare token with non-digit, non-minus first byte rejected"},
+		{`+5`, "leading '+' is not in the accepted set"},
+		{`0x1f`, "hexadecimal rejected by decimal.NewFromString"},
 	} {
-		err := p.UnmarshalJSON([]byte(in))
-		assert.ErrorIsf(t, err, errInvalidPreciseNumberValue, "rejects invalid %q", in)
+		err := p.UnmarshalJSON([]byte(tc.in))
+		assert.ErrorIsf(t, err, errInvalidPreciseNumberValue, "%s: %q", tc.reason, tc.in)
 	}
 
-	// Scientific notation is accepted by decimal.NewFromString and is a
-	// legitimate base-10 form sometimes seen on the wire.
-	require.NoError(t, p.UnmarshalJSON([]byte(`"1e10"`)))
+	require.NoError(t, p.UnmarshalJSON([]byte(`"1e10"`)),
+		"scientific notation is legitimate base-10 accepted by decimal.NewFromString")
 	assert.Equal(t, 1e10, p.Float64())
 }
 
@@ -78,16 +96,12 @@ func TestPreciseNumberMarshalJSON(t *testing.T) {
 func TestPreciseNumberRoundTrip(t *testing.T) {
 	t.Parallel()
 
-	// 17 significant digits — beyond what float64 reliably round-trips
-	// through ParseFloat/FormatFloat
-	const high = "71428.12345678901234"
-
 	var p PreciseNumber
-	require.NoError(t, p.UnmarshalJSON([]byte(`"`+high+`"`)))
+	require.NoError(t, p.UnmarshalJSON([]byte(`"`+highPrecisionValue+`"`)))
 
 	data, err := p.MarshalJSON()
 	require.NoError(t, err)
-	assert.Equal(t, `"`+high+`"`, string(data),
+	assert.Equal(t, `"`+highPrecisionValue+`"`, string(data),
 		"PreciseNumber must round-trip the original digit string")
 }
 
@@ -116,16 +130,13 @@ func TestPreciseNumberDecimal(t *testing.T) {
 func TestPreciseNumberDecimalBeatsNumber(t *testing.T) {
 	t.Parallel()
 
-	// 17 digits — beyond float64's reliable round-trip range
-	const wireValue = "71428.12345678901234"
-
 	var n Number
-	require.NoError(t, n.UnmarshalJSON([]byte(`"`+wireValue+`"`)))
+	require.NoError(t, n.UnmarshalJSON([]byte(`"`+highPrecisionValue+`"`)))
 
 	var p PreciseNumber
-	require.NoError(t, p.UnmarshalJSON([]byte(`"`+wireValue+`"`)))
+	require.NoError(t, p.UnmarshalJSON([]byte(`"`+highPrecisionValue+`"`)))
 
-	expected, err := decimal.NewFromString(wireValue)
+	expected, err := decimal.NewFromString(highPrecisionValue)
 	require.NoError(t, err)
 
 	assert.True(t, p.Decimal().Equal(expected),
@@ -192,26 +203,22 @@ func TestNewPreciseNumberFromString(t *testing.T) {
 	assert.Equal(t, "1.5", p.String())
 	assert.Equal(t, 1.5, p.Float64())
 
-	// Numerically zero but explicitly set: must round-trip through JSON
-	// (i.e. must not be IsZero) so omitempty doesn't drop accounting "0".
 	notZero, err := NewPreciseNumberFromString("0")
 	require.NoError(t, err)
 	assert.False(t, notZero.IsZero(),
-		"explicit \"0\" must not be IsZero; otherwise omitempty silently drops accounting fields")
+		"explicitly set \"0\" must not be IsZero, otherwise omitempty silently drops accounting fields")
 
-	// Empty constructor input is now an error rather than a silent zero
-	// value — callers wanting the zero value can use PreciseNumber{}.
 	_, err = NewPreciseNumberFromString("")
-	assert.ErrorIs(t, err, errInvalidPreciseNumberValue)
+	assert.ErrorIs(t, err, errInvalidPreciseNumberValue,
+		"empty constructor input must error rather than return a silent zero value; callers wanting zero can use PreciseNumber{}")
 
 	_, err = NewPreciseNumberFromString("garbage")
-	assert.ErrorIs(t, err, errInvalidPreciseNumberValue)
+	assert.ErrorIs(t, err, errInvalidPreciseNumberValue,
+		"non-numeric input must be rejected")
 
-	// Magnitude that overflows float64 → Inf; must be rejected so the
-	// cached val is always finite.
 	_, err = NewPreciseNumberFromString("1" + strings.Repeat("0", 400))
 	assert.ErrorIs(t, err, errInvalidPreciseNumberValue,
-		"values that overflow float64 to Inf must be rejected")
+		"a magnitude that overflows float64 to Inf must be rejected so the cached val stays finite")
 }
 
 // TestPreciseNumberIsZero pins the contract that IsZero is true only for the
@@ -257,4 +264,3 @@ func BenchmarkPreciseNumberDecimal(b *testing.B) {
 		}
 	}
 }
-

@@ -54,7 +54,7 @@ func parsePreciseNumber(data []byte) (PreciseNumber, error) {
 	if err != nil {
 		return PreciseNumber{}, fmt.Errorf("%w: %s", errInvalidPreciseNumberValue, data)
 	}
-	val, _ := d.Float64()
+	val := d.InexactFloat64()
 	if math.IsNaN(val) || math.IsInf(val, 0) {
 		return PreciseNumber{}, fmt.Errorf("%w: non-finite %s", errInvalidPreciseNumberValue, data)
 	}
