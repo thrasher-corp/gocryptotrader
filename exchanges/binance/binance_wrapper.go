@@ -107,6 +107,7 @@ func (e *Exchange) SetDefaults() {
 				CancelOrders:                   true,
 				CancelOrder:                    true,
 				SubmitOrder:                    true,
+				ModifyOrder:                    true,
 				DepositHistory:                 true,
 				WithdrawalHistory:              true,
 				TradeFetching:                  true,
@@ -961,8 +962,46 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 
 // GetAccountFundingHistory returns funding history, deposits and
 // withdrawals
-func (e *Exchange) GetAccountFundingHistory(_ context.Context) ([]exchange.FundingHistory, error) {
-	return nil, common.ErrFunctionNotSupported
+func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.FundingHistory, error) {
+	deposits, err := e.DepositHistory(ctx, currency.EMPTYCODE, "", time.Time{}, time.Time{}, 0, 0)
+	if err != nil {
+		return nil, err
+	}
+	withdrawals, err := e.WithdrawHistory(ctx, currency.EMPTYCODE, "", time.Time{}, time.Time{}, 0, 10000)
+	if err != nil {
+		return nil, err
+	}
+	resp := make([]exchange.FundingHistory, 0, len(deposits)+len(withdrawals))
+	for _, d := range deposits {
+		resp = append(resp, exchange.FundingHistory{
+			ExchangeName:    e.Name,
+			Status:          strconv.FormatUint(uint64(d.Status), 10),
+			TransferID:      d.TransactionID,
+			Timestamp:       d.InsertTime.Time(),
+			Currency:        d.Coin,
+			Amount:          d.Amount,
+			TransferType:    "deposit",
+			CryptoToAddress: d.Address,
+			CryptoTxID:      d.TransactionID,
+			CryptoChain:     d.Network,
+		})
+	}
+	for _, w := range withdrawals {
+		resp = append(resp, exchange.FundingHistory{
+			ExchangeName:    e.Name,
+			Status:          strconv.FormatInt(w.Status, 10),
+			TransferID:      w.ID,
+			Timestamp:       w.ApplyTime.Time(),
+			Currency:        w.Coin,
+			Amount:          w.Amount,
+			Fee:             w.TransactionFee,
+			TransferType:    "withdrawal",
+			CryptoToAddress: w.Address,
+			CryptoTxID:      w.TransactionID,
+			CryptoChain:     w.Network,
+		})
+	}
+	return resp, nil
 }
 
 // GetWithdrawalsHistory returns previous withdrawals data
@@ -1676,9 +1715,43 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	return resp, nil
 }
 
-// ModifyOrder modifies an existing order
-func (e *Exchange) ModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
-	return nil, common.ErrFunctionNotSupported
+// ModifyOrder modifies an existing order. Binance only supports amending
+// USDT-margined futures orders.
+func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+	if err := action.Validate(); err != nil {
+		return nil, err
+	}
+	if action.AssetType != asset.USDTMarginedFutures {
+		return nil, fmt.Errorf("%w: order modification is only supported for %s", common.ErrFunctionNotSupported, asset.USDTMarginedFutures)
+	}
+	var orderID int64
+	if action.OrderID != "" {
+		var err error
+		if orderID, err = strconv.ParseInt(action.OrderID, 10, 64); err != nil {
+			return nil, err
+		}
+	}
+	modified, err := e.UModifyOrder(ctx, &USDTOrderUpdateParams{
+		OrderID:           orderID,
+		OrigClientOrderID: action.ClientOrderID,
+		Symbol:            action.Pair,
+		Side:              action.Side.String(),
+		Amount:            action.Amount,
+		Price:             action.Price,
+	})
+	if err != nil {
+		return nil, err
+	}
+	resp, err := action.DeriveModifyResponse()
+	if err != nil {
+		return nil, err
+	}
+	resp.OrderID = strconv.FormatInt(modified.OrderID, 10)
+	resp.ClientOrderID = modified.ClientOrderID
+	if resp.Status, err = order.StringToOrderStatus(modified.Status); err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -1773,9 +1846,75 @@ func (e *Exchange) CancelOrder(ctx context.Context, o *order.Cancel) error {
 	return nil
 }
 
-// CancelBatchOrders cancels an orders by their corresponding ID numbers
-func (e *Exchange) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*order.CancelBatchResponse, error) {
-	return nil, common.ErrFunctionNotSupported
+// CancelBatchOrders cancels orders by their corresponding ID numbers. Binance
+// batch cancellation is per-symbol, so all orders must share the same asset
+// type and pair. Supported for USDT/coin-margined futures and options.
+func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.CancelBatchResponse, error) {
+	if len(o) == 0 {
+		return nil, order.ErrCancelOrderIsNil
+	}
+	a := o[0].AssetType
+	pair := o[0].Pair
+	if pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	orderIDs := make([]string, 0, len(o))
+	clientOrderIDs := make([]string, 0, len(o))
+	for i := range o {
+		if o[i].AssetType != a || !o[i].Pair.Equal(pair) {
+			return nil, errBatchCancelRequiresSamePair
+		}
+		switch {
+		case o[i].OrderID != "":
+			orderIDs = append(orderIDs, o[i].OrderID)
+		case o[i].ClientOrderID != "":
+			clientOrderIDs = append(clientOrderIDs, o[i].ClientOrderID)
+		default:
+			return nil, order.ErrOrderIDNotSet
+		}
+	}
+
+	pair, err := e.FormatExchangeCurrency(pair, a)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := &order.CancelBatchResponse{Status: make(map[string]string, len(o))}
+	switch a {
+	case asset.USDTMarginedFutures:
+		cancelled, err := e.UCancelBatchOrders(ctx, pair, orderIDs, clientOrderIDs)
+		if err != nil {
+			return nil, err
+		}
+		for _, c := range cancelled {
+			resp.Status[strconv.FormatInt(c.OrderID, 10)] = c.Status
+		}
+	case asset.CoinMarginedFutures:
+		cancelled, err := e.FuturesBatchCancelOrders(ctx, pair, orderIDs, clientOrderIDs)
+		if err != nil {
+			return nil, err
+		}
+		for _, c := range cancelled {
+			resp.Status[strconv.FormatInt(c.OrderID, 10)] = c.Status
+		}
+	case asset.Options:
+		ids := make([]int64, len(orderIDs))
+		for i := range orderIDs {
+			if ids[i], err = strconv.ParseInt(orderIDs[i], 10, 64); err != nil {
+				return nil, err
+			}
+		}
+		cancelled, err := e.CancelBatchOptionsOrders(ctx, pair, ids, clientOrderIDs)
+		if err != nil {
+			return nil, err
+		}
+		for _, c := range cancelled {
+			resp.Status[strconv.FormatInt(c.OrderID, 10)] = c.Status
+		}
+	default:
+		return nil, fmt.Errorf("%w: %s", asset.ErrNotSupported, a)
+	}
+	return resp, nil
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair

@@ -3315,8 +3315,52 @@ func TestGetOrderInfo(t *testing.T) {
 
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.ModifyOrder(t.Context(), &order.Modify{AssetType: asset.Spot})
+	p := currency.NewPair(currency.BTC, currency.USDT)
+	_, err := e.ModifyOrder(t.Context(), &order.Modify{AssetType: asset.Spot, Pair: p, OrderID: "1234"})
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	fPair, err := e.FormatExchangeCurrency(p, asset.USDTMarginedFutures)
+	require.NoError(t, err)
+	_, err = e.ModifyOrder(t.Context(), &order.Modify{
+		AssetType: asset.USDTMarginedFutures,
+		Pair:      fPair,
+		OrderID:   "1234",
+		Side:      order.Buy,
+		Amount:    1,
+		Price:     1,
+	})
+	assert.NoError(t, err)
+}
+
+func TestCancelBatchOrders(t *testing.T) {
+	t.Parallel()
+	_, err := e.CancelBatchOrders(t.Context(), nil)
+	require.ErrorIs(t, err, order.ErrCancelOrderIsNil)
+
+	p := currency.NewPair(currency.BTC, currency.USDT)
+	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{
+		{AssetType: asset.USDTMarginedFutures, Pair: p, OrderID: "1"},
+		{AssetType: asset.CoinMarginedFutures, Pair: p, OrderID: "2"},
+	})
+	require.ErrorIs(t, err, errBatchCancelRequiresSamePair)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	fPair, err := e.FormatExchangeCurrency(p, asset.USDTMarginedFutures)
+	require.NoError(t, err)
+	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{
+		{AssetType: asset.USDTMarginedFutures, Pair: fPair, OrderID: "1234"},
+		{AssetType: asset.USDTMarginedFutures, Pair: fPair, OrderID: "5678"},
+	})
+	assert.NoError(t, err)
+}
+
+func TestGetAccountFundingHistory(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetAccountFundingHistory(t.Context())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestGetAllCoinsInfo(t *testing.T) {

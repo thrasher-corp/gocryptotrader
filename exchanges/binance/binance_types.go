@@ -125,6 +125,7 @@ var (
 	errRewardTypeMissing            = errors.New("reward type is required")
 	errInvalidBrokerID              = errors.New("missing brokerID")
 	errEndTimeInThePast             = errors.New("invalid end time; endtime in the past")
+	errBatchCancelRequiresSamePair  = errors.New("batch cancellation requires a single asset type and pair")
 )
 
 var subscriptionCycleList = []string{"H1", "H4", "H8", "H12", "WEEKLY", "DAILY", "MONTHLY", "BI_WEEKLY"}
