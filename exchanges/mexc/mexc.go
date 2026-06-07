@@ -107,7 +107,7 @@ func (e *Exchange) GetRecentTradesList(ctx context.Context, symbol currency.Pair
 }
 
 // GetAggregatedTrades get compressed, aggregate trades. Trades that fill at the time, from the same order, with the same price will have the quantity aggregated.
-func (e *Exchange) GetAggregatedTrades(ctx context.Context, symbol currency.Pair, startTime, endTime time.Time, limit uint64) ([]AggregatedTradeDetail, error) {
+func (e *Exchange) GetAggregatedTrades(ctx context.Context, symbol currency.Pair, startTime, endTime time.Time, limit uint64) ([]*AggregatedTradeDetail, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -127,7 +127,7 @@ func (e *Exchange) GetAggregatedTrades(ctx context.Context, symbol currency.Pair
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var resp []AggregatedTradeDetail
+	var resp []*AggregatedTradeDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, aggregatedTradesEPL, http.MethodGet, "aggTrades", params, nil, &resp)
 }
 
@@ -183,7 +183,7 @@ func IntervalFromString(interval string) (kline.Interval, error) {
 
 // GetCandlestick retrieves kline/candlestick bars for a symbol.
 // Klines are uniquely identified by their open time.
-func (e *Exchange) GetCandlestick(ctx context.Context, symbol currency.Pair, interval string, startTime, endTime time.Time, limit uint64) ([]CandlestickData, error) {
+func (e *Exchange) GetCandlestick(ctx context.Context, symbol currency.Pair, interval string, startTime, endTime time.Time, limit uint64) ([]*CandlestickData, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -208,7 +208,7 @@ func (e *Exchange) GetCandlestick(ctx context.Context, symbol currency.Pair, int
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var resp []CandlestickData
+	var resp []*CandlestickData
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, candlestickEPL, http.MethodGet, "klines", params, nil, &resp)
 }
 
@@ -251,12 +251,12 @@ func (e *Exchange) GetSymbolPriceTicker(ctx context.Context, symbol currency.Pai
 }
 
 // GetSymbolsPriceTicker represents a symbol price ticker detail
-func (e *Exchange) GetSymbolsPriceTicker(ctx context.Context, symbols []string) ([]SymbolPriceTicker, error) {
+func (e *Exchange) GetSymbolsPriceTicker(ctx context.Context, symbols []string) ([]*SymbolPriceTicker, error) {
 	params := url.Values{}
 	if len(symbols) > 0 {
 		params.Set("symbols", strings.Join(symbols, ","))
 	}
-	var resp []SymbolPriceTicker
+	var resp []*SymbolPriceTicker
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, symbolsPriceTickerEPL, http.MethodGet, "ticker/price", params, nil, &resp)
 }
 
@@ -272,8 +272,8 @@ func (e *Exchange) GetSymbolOrderbookTicker(ctx context.Context, symbol currency
 }
 
 // GetOrderbookTickers represents an orderbook detail for all symbols
-func (e *Exchange) GetOrderbookTickers(ctx context.Context) ([]SymbolOrderbookTicker, error) {
-	var resp []SymbolOrderbookTicker
+func (e *Exchange) GetOrderbookTickers(ctx context.Context) ([]*SymbolOrderbookTicker, error) {
+	var resp []*SymbolOrderbookTicker
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, symbolOrderbookTickerEPL, http.MethodGet, "ticker/bookTicker", nil, nil, &resp)
 }
 
@@ -457,8 +457,8 @@ func (e *Exchange) UseAPIDefaultSymbols(ctx context.Context) ([]string, error) {
 }
 
 // GetCurrencyInformation get currency information
-func (e *Exchange) GetCurrencyInformation(ctx context.Context) ([]CurrencyInformation, error) {
-	var resp []CurrencyInformation
+func (e *Exchange) GetCurrencyInformation(ctx context.Context) ([]*CurrencyInformation, error) {
+	var resp []*CurrencyInformation
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getCurrencyInformationEPL, http.MethodGet, "capital/config/getall", nil, nil, &resp, true)
 }
 
@@ -508,7 +508,7 @@ func (e *Exchange) CancelWithdrawal(ctx context.Context, id string) (*IDResponse
 }
 
 // GetFundDepositHistory retrieves a list of fund deposit transaction details
-func (e *Exchange) GetFundDepositHistory(ctx context.Context, coin currency.Code, status string, startTime, endTime time.Time, limit int64) ([]FundDepositInfo, error) {
+func (e *Exchange) GetFundDepositHistory(ctx context.Context, coin currency.Code, status string, startTime, endTime time.Time, limit int64) ([]*FundDepositInfo, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
@@ -531,13 +531,13 @@ func (e *Exchange) GetFundDepositHistory(ctx context.Context, coin currency.Code
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []FundDepositInfo
+	var resp []*FundDepositInfo
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getFundDepositHistoryEPL, http.MethodGet, "capital/deposit/hisrec", params, nil, &resp, true)
 }
 
 // GetWithdrawalHistory represents currency withdrawal history possible values of withdraw status
 // 1:APPLY,2:AUDITING,3:WAIT,4:PROCESSING,5:WAIT_PACKAGING,6:WAIT_CONFIRM,7:SUCCESS,8:FAILED,9:CANCEL,10:MANUAL
-func (e *Exchange) GetWithdrawalHistory(ctx context.Context, coin currency.Code, startTime, endTime time.Time, status, limit int64) ([]WithdrawalInfo, error) {
+func (e *Exchange) GetWithdrawalHistory(ctx context.Context, coin currency.Code, startTime, endTime time.Time, status, limit int64) ([]*WithdrawalInfo, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
@@ -560,12 +560,12 @@ func (e *Exchange) GetWithdrawalHistory(ctx context.Context, coin currency.Code,
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []WithdrawalInfo
+	var resp []*WithdrawalInfo
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getWithdrawalHistoryEPL, http.MethodGet, "capital/withdraw/history", params, nil, &resp, true)
 }
 
 // GenerateDepositAddress generates a deposit address given the currency code and network name
-func (e *Exchange) GenerateDepositAddress(ctx context.Context, coin currency.Code, network string) ([]DepositAddressInfo, error) {
+func (e *Exchange) GenerateDepositAddress(ctx context.Context, coin currency.Code, network string) ([]*DepositAddressInfo, error) {
 	if coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -575,12 +575,12 @@ func (e *Exchange) GenerateDepositAddress(ctx context.Context, coin currency.Cod
 	params := url.Values{}
 	params.Set("coin", coin.String())
 	params.Set("network", network)
-	var resp []DepositAddressInfo
+	var resp []*DepositAddressInfo
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, generateDepositAddressEPL, http.MethodPost, "capital/deposit/address", params, nil, &resp, true)
 }
 
 // GetDepositAddressOfCoin retrieves a deposit address detail of an asset
-func (e *Exchange) GetDepositAddressOfCoin(ctx context.Context, coin currency.Code, network string) ([]DepositAddressInfo, error) {
+func (e *Exchange) GetDepositAddressOfCoin(ctx context.Context, coin currency.Code, network string) ([]*DepositAddressInfo, error) {
 	if coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -589,7 +589,7 @@ func (e *Exchange) GetDepositAddressOfCoin(ctx context.Context, coin currency.Co
 	if network != "" {
 		params.Set("network", network)
 	}
-	var resp []DepositAddressInfo
+	var resp []*DepositAddressInfo
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getDepositAddressEPL, http.MethodGet, "capital/deposit/address", params, nil, &resp, true)
 }
 
@@ -610,7 +610,7 @@ func (e *Exchange) GetWithdrawalAddress(ctx context.Context, coin currency.Code,
 }
 
 // UserUniversalTransfer transfers an asset transfer between account types of same account
-func (e *Exchange) UserUniversalTransfer(ctx context.Context, fromAccountType, toAccountType asset.Item, ccy currency.Code, amount float64) ([]UserUniversalTransferResponse, error) {
+func (e *Exchange) UserUniversalTransfer(ctx context.Context, fromAccountType, toAccountType asset.Item, ccy currency.Code, amount float64) ([]*UserUniversalTransferResponse, error) {
 	if !fromAccountType.IsValid() {
 		return nil, fmt.Errorf("%w, fromAccountType is required", asset.ErrInvalidAsset)
 	}
@@ -628,7 +628,7 @@ func (e *Exchange) UserUniversalTransfer(ctx context.Context, fromAccountType, t
 	params.Set("fromAccountType", fromAccountType.String())
 	params.Set("toAccountType", toAccountType.String())
 	params.Set("asset", ccy.String())
-	var resp []UserUniversalTransferResponse
+	var resp []*UserUniversalTransferResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, userUniversalTransferEPL, http.MethodPost, "capital/transfer", params, nil, &resp, true)
 }
 
@@ -678,8 +678,8 @@ func (e *Exchange) GetUniversalTransferDetailByID(ctx context.Context, transacti
 }
 
 // GetAssetThatCanBeConvertedintoMX represents an asset that can be converted into an MX asset
-func (e *Exchange) GetAssetThatCanBeConvertedintoMX(ctx context.Context) ([]AssetConvertableToMX, error) {
-	var resp []AssetConvertableToMX
+func (e *Exchange) GetAssetThatCanBeConvertedintoMX(ctx context.Context) ([]*AssetConvertableToMX, error) {
+	var resp []*AssetConvertableToMX
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getAssetConvertedMXEPL, http.MethodGet, "capital/convert/list", nil, nil, &resp, true)
 }
 
@@ -955,7 +955,7 @@ func (e *Exchange) StringToOrderTypeAndTimeInForce(oType string) (order.Type, or
 }
 
 // CreateBatchOrder creates utmost 30 orders with a same symbol in a batch,rate limit:2 times/s.
-func (e *Exchange) CreateBatchOrder(ctx context.Context, args []BatchOrderCreationParam) ([]OrderDetail, error) {
+func (e *Exchange) CreateBatchOrder(ctx context.Context, args []BatchOrderCreationParam) ([]*OrderDetail, error) {
 	if len(args) == 0 {
 		return nil, common.ErrEmptyParams
 	}
@@ -992,7 +992,7 @@ func (e *Exchange) CreateBatchOrder(ctx context.Context, args []BatchOrderCreati
 	}
 	params := url.Values{}
 	params.Set("batchOrders", string(jsonString))
-	var resp []OrderDetail
+	var resp []*OrderDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, createBatchOrdersEPL, http.MethodPost, "batchOrders", params, nil, &resp, true)
 }
 
@@ -1020,13 +1020,13 @@ func (e *Exchange) CancelTradeOrder(ctx context.Context, symbol currency.Pair, o
 }
 
 // CancelAllOpenOrdersBySymbol cancel all pending orders for a single symbol, including OCO pending orders.
-func (e *Exchange) CancelAllOpenOrdersBySymbol(ctx context.Context, symbol currency.Pair) ([]OrderDetail, error) {
+func (e *Exchange) CancelAllOpenOrdersBySymbol(ctx context.Context, symbol currency.Pair) ([]*OrderDetail, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol.String())
-	var resp []OrderDetail
+	var resp []*OrderDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, cancelAllOpenOrdersBySymbolEPL, http.MethodDelete, "openOrders", params, nil, &resp, true)
 }
 
@@ -1051,19 +1051,19 @@ func (e *Exchange) GetOrderByID(ctx context.Context, symbol currency.Pair, clien
 }
 
 // GetOpenOrders retrieves all open orders on a symbol. Careful when accessing this with no symbol.
-func (e *Exchange) GetOpenOrders(ctx context.Context, symbol currency.Pair) ([]OrderDetail, error) {
+func (e *Exchange) GetOpenOrders(ctx context.Context, symbol currency.Pair) ([]*OrderDetail, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol.String())
-	var resp []OrderDetail
+	var resp []*OrderDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getOpenOrdersEPL, http.MethodGet, "openOrders", params, nil, &resp, true)
 }
 
 // GetAllOrders retrieves all account orders including active, cancelled or completed orders(the query period is the latest 24 hours by default).
 // You can query a maximum of the latest 7 days.
-func (e *Exchange) GetAllOrders(ctx context.Context, symbol currency.Pair, startTime, endTime time.Time, limit int64) ([]OrderDetail, error) {
+func (e *Exchange) GetAllOrders(ctx context.Context, symbol currency.Pair, startTime, endTime time.Time, limit int64) ([]*OrderDetail, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -1084,7 +1084,7 @@ func (e *Exchange) GetAllOrders(ctx context.Context, symbol currency.Pair, start
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []OrderDetail
+	var resp []*OrderDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, allOrdersEPL, http.MethodGet, "allOrders", params, nil, &resp, true)
 }
 
@@ -1095,7 +1095,7 @@ func (e *Exchange) GetAccountInformation(ctx context.Context) (*AccountDetail, e
 }
 
 // GetAccountTradeList retrieves trades for a specific account and symbol,Only the transaction records in the past 1 month can be queried.
-func (e *Exchange) GetAccountTradeList(ctx context.Context, symbol currency.Pair, orderID string, startTime, endTime time.Time, limit int64) ([]AccountTrade, error) {
+func (e *Exchange) GetAccountTradeList(ctx context.Context, symbol currency.Pair, orderID string, startTime, endTime time.Time, limit int64) ([]*AccountTrade, error) {
 	if symbol.IsEmpty() {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -1119,7 +1119,7 @@ func (e *Exchange) GetAccountTradeList(ctx context.Context, symbol currency.Pair
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []AccountTrade
+	var resp []*AccountTrade
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, accountTradeListEPL, http.MethodGet, "myTrades", params, nil, &resp, true)
 }
 

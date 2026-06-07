@@ -698,11 +698,11 @@ func (e *Exchange) CancelOrderByClientOrderID(ctx context.Context, symbol curren
 }
 
 // CancelAllOpenOrders cancels all open contracts under this account
-func (e *Exchange) CancelAllOpenOrders(ctx context.Context, symbol currency.Pair) ([]OrderCancellationResponse, error) {
+func (e *Exchange) CancelAllOpenOrders(ctx context.Context, symbol currency.Pair) ([]*OrderCancellationResponse, error) {
 	params := url.Values{}
 	if !symbol.IsEmpty() {
 		params.Set("symbol", symbol.String())
 	}
-	var resp []OrderCancellationResponse
+	var resp []*OrderCancellationResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, cancelAllOpenOrdersEPL, http.MethodPost, "private/order/cancel_all", params, nil, &resp, true)
 }

@@ -16,7 +16,7 @@ import (
 )
 
 // GetBrokerUniversalTransferHistory retrieves universal transfer history for broker users
-func (e *Exchange) GetBrokerUniversalTransferHistory(ctx context.Context, fromAccountType, toAccountType asset.Item, fromAccount, toAccount string, startTime, endTime time.Time, page, limit int64) ([]BrokerAssetTransfer, error) {
+func (e *Exchange) GetBrokerUniversalTransferHistory(ctx context.Context, fromAccountType, toAccountType asset.Item, fromAccount, toAccount string, startTime, endTime time.Time, page, limit int64) ([]*BrokerAssetTransfer, error) {
 	if !fromAccountType.IsValid() {
 		return nil, fmt.Errorf("%w: FronAccountType is required", errAddressRequired)
 	}
@@ -50,7 +50,7 @@ func (e *Exchange) GetBrokerUniversalTransferHistory(ctx context.Context, fromAc
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	var resp []BrokerAssetTransfer
+	var resp []*BrokerAssetTransfer
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "broker/sub-account/universalTransfer", params, &resp, true)
 }
 
@@ -140,27 +140,27 @@ func (e *Exchange) GenerateBrokerSubAccountDepositAddress(ctx context.Context, a
 }
 
 // GetBrokerSubAccountDepositAddress retrieves a broker sub-account deposit address
-func (e *Exchange) GetBrokerSubAccountDepositAddress(ctx context.Context, coin currency.Code) ([]BrokerSubAccountDepositAddress, error) {
+func (e *Exchange) GetBrokerSubAccountDepositAddress(ctx context.Context, coin currency.Code) ([]*BrokerSubAccountDepositAddress, error) {
 	if coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	params := url.Values{}
 	params.Set("coin", coin.String())
-	var resp []BrokerSubAccountDepositAddress
+	var resp []*BrokerSubAccountDepositAddress
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "broker/capital/deposit/subAddress", params, nil, &resp, true)
 }
 
 // GetSubAccountDepositHistory retrieves a broker sub-account deposit history
-func (e *Exchange) GetSubAccountDepositHistory(ctx context.Context, coin currency.Code, depositStatus string, startTime, endTime time.Time, limit, page int64) ([]BrokerSubAccountDepositDetail, error) {
+func (e *Exchange) GetSubAccountDepositHistory(ctx context.Context, coin currency.Code, depositStatus string, startTime, endTime time.Time, limit, page int64) ([]*BrokerSubAccountDepositDetail, error) {
 	return e.getSubAccountDepositList(ctx, coin, depositStatus, "broker/capital/deposit/subHisrec", startTime, endTime, limit, page)
 }
 
 // GetAllRecentSubAccountDepositHistory retrieves a recent (3-days) broker sub-account deposit history
-func (e *Exchange) GetAllRecentSubAccountDepositHistory(ctx context.Context, coin currency.Code, depositStatus string, startTime, endTime time.Time, limit, page int64) ([]BrokerSubAccountDepositDetail, error) {
+func (e *Exchange) GetAllRecentSubAccountDepositHistory(ctx context.Context, coin currency.Code, depositStatus string, startTime, endTime time.Time, limit, page int64) ([]*BrokerSubAccountDepositDetail, error) {
 	return e.getSubAccountDepositList(ctx, coin, depositStatus, "broker/capital/deposit/subHisrec/getall", startTime, endTime, limit, page)
 }
 
-func (e *Exchange) getSubAccountDepositList(ctx context.Context, coin currency.Code, depositStatus, path string, startTime, endTime time.Time, limit, page int64) ([]BrokerSubAccountDepositDetail, error) {
+func (e *Exchange) getSubAccountDepositList(ctx context.Context, coin currency.Code, depositStatus, path string, startTime, endTime time.Time, limit, page int64) ([]*BrokerSubAccountDepositDetail, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
@@ -185,6 +185,6 @@ func (e *Exchange) getSubAccountDepositList(ctx context.Context, coin currency.C
 	if page > 0 {
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
-	var resp []BrokerSubAccountDepositDetail
+	var resp []*BrokerSubAccountDepositDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, path, params, nil, &resp, true)
 }
