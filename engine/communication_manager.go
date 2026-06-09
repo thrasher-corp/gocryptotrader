@@ -14,7 +14,7 @@ const CommunicationsManagerName = "communications"
 
 // CommunicationManager ensures operations of communications
 type CommunicationManager struct {
-	started  int32
+	started  atomic.Int32
 	shutdown chan struct{}
 	relayMsg chan base.Event
 	comms    *communications.Communications
@@ -42,7 +42,7 @@ func (m *CommunicationManager) IsRunning() bool {
 	if m == nil {
 		return false
 	}
-	return atomic.LoadInt32(&m.started) == 1
+	return m.started.Load() == 1
 }
 
 // Start runs the subsystem
@@ -50,7 +50,7 @@ func (m *CommunicationManager) Start() error {
 	if m == nil {
 		return fmt.Errorf("communications manager server %w", ErrNilSubsystem)
 	}
-	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
+	if !m.started.CompareAndSwap(0, 1) {
 		return fmt.Errorf("communications manager %w", ErrSubSystemAlreadyStarted)
 	}
 	log.Debugf(log.CommunicationMgr, "Communications manager %s", MsgSubSystemStarting)
@@ -72,11 +72,11 @@ func (m *CommunicationManager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("communications manager server %w", ErrNilSubsystem)
 	}
-	if atomic.LoadInt32(&m.started) == 0 {
+	if m.started.Load() == 0 {
 		return fmt.Errorf("communications manager %w", ErrSubSystemNotStarted)
 	}
 	defer func() {
-		atomic.CompareAndSwapInt32(&m.started, 1, 0)
+		m.started.CompareAndSwap(1, 0)
 	}()
 	close(m.shutdown)
 	log.Debugf(log.CommunicationMgr, "Communications manager %s", MsgSubSystemShuttingDown)

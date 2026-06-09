@@ -147,7 +147,7 @@ func TestSyncManagerSyncTickerUsesRuntimeContextCancellation(t *testing.T) {
 	}, em, &config.RemoteControlConfig{}, false)
 	require.NoError(t, err)
 	atomic.StoreInt32(&m.started, 1)
-	atomic.StoreInt32(&m.initSyncCompleted, 1)
+	m.initSyncCompleted.Store(1)
 
 	runtimeCtx, cancel := context.WithCancel(t.Context())
 	defer cancel()

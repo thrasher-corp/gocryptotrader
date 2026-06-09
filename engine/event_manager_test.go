@@ -3,7 +3,6 @@ package engine
 import (
 	"errors"
 	"strings"
-	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -125,7 +124,7 @@ func TestEventManagerIsRunning(t *testing.T) {
 	startTestEventManager(t, m)
 
 	assert.True(t, m.IsRunning(), "IsRunning should return true when started")
-	atomic.StoreInt32(&m.started, 0)
+	m.started.Store(0)
 	assert.False(t, m.IsRunning(), "IsRunning should return false when stopped")
 	m = nil
 	assert.False(t, m.IsRunning(), "IsRunning should return false for nil manager")
@@ -502,7 +501,7 @@ func TestExecuteEventVerbose(t *testing.T) {
 				verbose: true,
 				comms:   comms,
 			}
-			atomic.StoreInt32(&m.started, 1)
+			m.started.Store(1)
 			event := newPriceEvent(exchangeName, tc.threshold)
 			event.ID = 1
 			m.events = []Event{event}

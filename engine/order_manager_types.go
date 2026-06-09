@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -42,8 +43,8 @@ type orderManagerConfig struct {
 
 // OrderManager processes and stores orders across enabled exchanges
 type OrderManager struct {
-	started                       int32
-	processingOrders              int32
+	started                       atomic.Int32
+	processingOrders              atomic.Int32
 	shutdown                      chan struct{}
 	orderStore                    store
 	cfg                           orderManagerConfig

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"errors"
+	"sync/atomic"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -127,8 +128,8 @@ const (
 type DataHistoryManager struct {
 	exchangeManager            iExchangeManager
 	databaseConnectionInstance database.IDatabase
-	started                    int32
-	processing                 int32
+	started                    atomic.Int32
+	processing                 atomic.Int32
 	shutdown                   chan struct{}
 	interval                   *time.Ticker
 	jobDB                      datahistoryjob.IDBService

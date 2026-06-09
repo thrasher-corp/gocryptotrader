@@ -1292,7 +1292,7 @@ func TestGetOrders(t *testing.T) {
 	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, &config.OrderManager{})
 	assert.NoError(t, err)
 
-	om.started = 1
+	om.started.Store(1)
 	s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: om}}
 
 	p := &gctrpc.CurrencyPair{
@@ -1387,7 +1387,7 @@ func TestGetOrder(t *testing.T) {
 	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, &config.OrderManager{})
 	assert.NoError(t, err)
 
-	om.started = 1
+	om.started.Store(1)
 	assert.NoError(t, err)
 
 	s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: om}}
@@ -1807,7 +1807,7 @@ func TestGetManagedOrders(t *testing.T) {
 	om, err := SetupOrderManager(em, engerino.CommunicationsManager, &wg, &config.OrderManager{})
 	assert.NoError(t, err)
 
-	om.started = 1
+	om.started.Store(1)
 	s := RPCServer{Engine: &Engine{ExchangeManager: em, OrderManager: om}}
 
 	p := &gctrpc.CurrencyPair{
@@ -2079,9 +2079,11 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 	err = em.Add(fakeExchange)
 	require.NoError(t, err)
 
+	csm := &CurrencyStateManager{iExchangeManager: em}
+	csm.started.Store(1)
 	s := RPCServer{Engine: &Engine{
 		ExchangeManager:      em,
-		currencyStateManager: &CurrencyStateManager{started: 1, iExchangeManager: em},
+		currencyStateManager: csm,
 	}}
 
 	_, err = s.CurrencyStateTradingPair(t.Context(),
@@ -2091,6 +2093,12 @@ func TestCurrencyStateTradingPair(t *testing.T) {
 			Asset:    "spot",
 		})
 	require.NoError(t, err)
+}
+
+func getDummyStateManager(em *ExchangeManager) *CurrencyStateManager {
+	csm := &CurrencyStateManager{iExchangeManager: em}
+	csm.started.Store(1)
+	return csm
 }
 
 func TestGetFuturesPositionsOrders(t *testing.T) {
@@ -2136,15 +2144,12 @@ func TestGetFuturesPositionsOrders(t *testing.T) {
 	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
 	assert.NoError(t, err)
 
-	om.started = 1
+	om.started.Store(1)
 	s := RPCServer{
 		Engine: &Engine{
-			ExchangeManager: em,
-			currencyStateManager: &CurrencyStateManager{
-				started:          1,
-				iExchangeManager: em,
-			},
-			OrderManager: om,
+			ExchangeManager:      em,
+			currencyStateManager: getDummyStateManager(em),
+			OrderManager:         om,
 		},
 	}
 
@@ -2209,10 +2214,8 @@ func TestGetCollateral(t *testing.T) {
 
 	s := RPCServer{
 		Engine: &Engine{
-			ExchangeManager: em,
-			currencyStateManager: &CurrencyStateManager{
-				started: 1, iExchangeManager: em,
-			},
+			ExchangeManager:      em,
+			currencyStateManager: getDummyStateManager(em),
 		},
 	}
 
@@ -2351,11 +2354,8 @@ func TestGetTechnicalAnalysis(t *testing.T) {
 
 	s := RPCServer{
 		Engine: &Engine{
-			ExchangeManager: em,
-			currencyStateManager: &CurrencyStateManager{
-				started:          1,
-				iExchangeManager: em,
-			},
+			ExchangeManager:      em,
+			currencyStateManager: getDummyStateManager(em),
 		},
 	}
 
@@ -2585,10 +2585,8 @@ func TestGetMarginRatesHistory(t *testing.T) {
 
 	s := RPCServer{
 		Engine: &Engine{
-			ExchangeManager: em,
-			currencyStateManager: &CurrencyStateManager{
-				started: 1, iExchangeManager: em,
-			},
+			ExchangeManager:      em,
+			currencyStateManager: getDummyStateManager(em),
 		},
 	}
 	_, err = s.GetMarginRatesHistory(t.Context(), nil)
@@ -2724,15 +2722,12 @@ func TestGetFundingRates(t *testing.T) {
 	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
 	assert.NoError(t, err)
 
-	om.started = 1
+	om.started.Store(1)
 	s := RPCServer{
 		Engine: &Engine{
-			ExchangeManager: em,
-			currencyStateManager: &CurrencyStateManager{
-				started:          1,
-				iExchangeManager: em,
-			},
-			OrderManager: om,
+			ExchangeManager:      em,
+			currencyStateManager: getDummyStateManager(em),
+			OrderManager:         om,
 		},
 	}
 
@@ -2820,15 +2815,12 @@ func TestGetLatestFundingRate(t *testing.T) {
 	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
 	assert.NoError(t, err)
 
-	om.started = 1
+	om.started.Store(1)
 	s := RPCServer{
 		Engine: &Engine{
-			ExchangeManager: em,
-			currencyStateManager: &CurrencyStateManager{
-				started:          1,
-				iExchangeManager: em,
-			},
-			OrderManager: om,
+			ExchangeManager:      em,
+			currencyStateManager: getDummyStateManager(em),
+			OrderManager:         om,
 		},
 	}
 
@@ -2910,15 +2902,12 @@ func TestGetManagedPosition(t *testing.T) {
 	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
 	assert.NoError(t, err)
 
-	om.started = 1
+	om.started.Store(1)
 	s := RPCServer{
 		Engine: &Engine{
-			ExchangeManager: em,
-			currencyStateManager: &CurrencyStateManager{
-				started:          1,
-				iExchangeManager: em,
-			},
-			OrderManager: om,
+			ExchangeManager:      em,
+			currencyStateManager: getDummyStateManager(em),
+			OrderManager:         om,
 		},
 	}
 	_, err = s.GetManagedPosition(t.Context(), nil)
@@ -2948,7 +2937,7 @@ func TestGetManagedPosition(t *testing.T) {
 	s.OrderManager, err = SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
 	assert.NoError(t, err)
 
-	s.OrderManager.started = 1
+	s.OrderManager.started.Store(1)
 	s.OrderManager.activelyTrackFuturesPositions = true
 	_, err = s.GetManagedPosition(t.Context(), request)
 	assert.ErrorIs(t, err, futures.ErrPositionNotFound)
@@ -3034,15 +3023,12 @@ func TestGetAllManagedPositions(t *testing.T) {
 	om, err := SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour})
 	assert.NoError(t, err)
 
-	om.started = 1
+	om.started.Store(1)
 	s := RPCServer{
 		Engine: &Engine{
-			ExchangeManager: em,
-			currencyStateManager: &CurrencyStateManager{
-				started:          1,
-				iExchangeManager: em,
-			},
-			OrderManager: om,
+			ExchangeManager:      em,
+			currencyStateManager: getDummyStateManager(em),
+			OrderManager:         om,
 		},
 	}
 	_, err = s.GetAllManagedPositions(t.Context(), nil)
@@ -3052,7 +3038,7 @@ func TestGetAllManagedPositions(t *testing.T) {
 	s.OrderManager, err = SetupOrderManager(em, &CommunicationManager{}, &wg, &config.OrderManager{FuturesTrackingSeekDuration: time.Hour, ActivelyTrackFuturesPositions: true})
 	assert.NoError(t, err)
 
-	s.OrderManager.started = 1
+	s.OrderManager.started.Store(1)
 	_, err = s.GetAllManagedPositions(t.Context(), request)
 	assert.ErrorIs(t, err, futures.ErrNoPositionsFound)
 

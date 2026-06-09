@@ -24,8 +24,8 @@ var PortfolioSleepDelay = time.Minute
 // portfolioManager routinely retrieves a user's holdings through exchange APIs as well
 // as through addresses provided in the config
 type portfolioManager struct {
-	started               int32
-	processing            int32
+	started               atomic.Int32
+	processing            atomic.Int32
 	portfolioManagerDelay time.Duration
 	exchangeManager       *ExchangeManager
 	shutdown              chan struct{}
@@ -56,7 +56,7 @@ func setupPortfolioManager(e *ExchangeManager, portfolioManagerDelay time.Durati
 
 // IsRunning safely checks whether the subsystem is running
 func (m *portfolioManager) IsRunning() bool {
-	return m != nil && atomic.LoadInt32(&m.started) == 1
+	return m != nil && m.started.Load() == 1
 }
 
 // Start runs the subsystem
@@ -67,7 +67,7 @@ func (m *portfolioManager) Start(ctx context.Context, wg *sync.WaitGroup) error 
 	if wg == nil {
 		return errNilWaitGroup
 	}
-	if !atomic.CompareAndSwapInt32(&m.started, 0, 1) {
+	if !m.started.CompareAndSwap(0, 1) {
 		return fmt.Errorf("portfolio manager %w", ErrSubSystemAlreadyStarted)
 	}
 
@@ -83,11 +83,11 @@ func (m *portfolioManager) Stop() error {
 	if m == nil {
 		return fmt.Errorf("portfolio manager %w", ErrNilSubsystem)
 	}
-	if !atomic.CompareAndSwapInt32(&m.started, 1, 0) {
+	if !m.started.CompareAndSwap(1, 0) {
 		return fmt.Errorf("portfolio manager %w", ErrSubSystemNotStarted)
 	}
 	defer func() {
-		atomic.CompareAndSwapInt32(&m.started, 1, 0)
+		m.started.CompareAndSwap(1, 0)
 	}()
 
 	log.Debugf(log.PortfolioMgr, "Portfolio manager %s", MsgSubSystemShuttingDown)
@@ -119,7 +119,7 @@ func (m *portfolioManager) run(ctx context.Context, wg *sync.WaitGroup) {
 
 // processPortfolio updates portfolio holdings
 func (m *portfolioManager) processPortfolio(ctx context.Context) {
-	if !atomic.CompareAndSwapInt32(&m.processing, 0, 1) {
+	if !m.processing.CompareAndSwap(0, 1) {
 		return
 	}
 	m.m.Lock()
@@ -137,7 +137,7 @@ func (m *portfolioManager) processPortfolio(ctx context.Context) {
 
 		log.Debugf(log.PortfolioMgr, "Portfolio manager: Successfully updated address balance for %s address(es) %s", key, value)
 	}
-	atomic.CompareAndSwapInt32(&m.processing, 1, 0)
+	m.processing.CompareAndSwap(1, 0)
 }
 
 // updateExchangeBalances calls UpdateAccountBalance on each exchange, and transfers the account balances into portfolio
