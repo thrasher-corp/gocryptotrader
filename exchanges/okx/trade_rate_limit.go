@@ -1,14 +1,30 @@
 package okx
 
 import (
+	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 type tradeRateLimitClass string
 
+type tradeRateLimiter struct {
+	scopedLimitersLock sync.Mutex
+	scopedLimiters     map[string]*request.RateLimiterWithWeight
+	scopedLimiterKeys  []string
+	subAccountLock     sync.Mutex
+	subAccountLimiter  *request.RateLimiterWithWeight
+}
+
 const (
+	maxOKXBatchOrders = 20
+	// OKX scoped trade limiters are keyed by user-supplied instrument IDs or
+	// option families. Keep the cache bounded in case callers pass many bad or
+	// short-lived scope values.
+	maxTradeScopedLimiters = 1024
+
 	tradeRateLimitPlaceSingle  tradeRateLimitClass = "place-single"
 	tradeRateLimitPlaceBatch   tradeRateLimitClass = "place-batch"
 	tradeRateLimitCancelSingle tradeRateLimitClass = "cancel-single"
@@ -17,12 +33,22 @@ const (
 	tradeRateLimitAmendBatch   tradeRateLimitClass = "amend-batch"
 )
 
-func (e *Exchange) getOrCreateTradeScopedLimiter(class tradeRateLimitClass, scope string) *request.RateLimiterWithWeight {
+func validateOKXBatchOrderCount(count int) error {
+	if count > maxOKXBatchOrders {
+		return fmt.Errorf("%w, cannot process more than %d orders", errExceedLimit, maxOKXBatchOrders)
+	}
+	return nil
+}
+
+func (l *tradeRateLimiter) getOrCreateScopedLimiter(class tradeRateLimitClass, scope string) *request.RateLimiterWithWeight {
 	key := string(class) + "|" + strings.ToUpper(strings.TrimSpace(scope))
-	if rlAny, ok := e.tradeScopedLimiters.Load(key); ok {
-		if rl, ok := rlAny.(*request.RateLimiterWithWeight); ok {
-			return rl
-		}
+	l.scopedLimitersLock.Lock()
+	defer l.scopedLimitersLock.Unlock()
+	if l.scopedLimiters == nil {
+		l.scopedLimiters = make(map[string]*request.RateLimiterWithWeight, maxTradeScopedLimiters)
+	}
+	if rl := l.scopedLimiters[key]; rl != nil {
+		return rl
 	}
 
 	actions := 60
@@ -32,23 +58,31 @@ func (e *Exchange) getOrCreateTradeScopedLimiter(class tradeRateLimitClass, scop
 		actions = 300
 	}
 	rl := request.NewRateLimitWithWeight(twoSecondsInterval, actions, 1)
-	if existing, loaded := e.tradeScopedLimiters.LoadOrStore(key, rl); loaded {
-		if got, ok := existing.(*request.RateLimiterWithWeight); ok {
-			return got
-		}
+	if len(l.scopedLimiterKeys) >= maxTradeScopedLimiters {
+		// Drop the oldest limiter when the cache is full. These scopes come from
+		// request values, so this stops bad or short-lived values growing the map
+		// forever. If a real scope is evicted, it can be recreated cheaply.
+		delete(l.scopedLimiters, l.scopedLimiterKeys[0])
+		l.scopedLimiterKeys = l.scopedLimiterKeys[1:]
 	}
+	l.scopedLimiters[key] = rl
+	l.scopedLimiterKeys = append(l.scopedLimiterKeys, key)
 	return rl
 }
 
-func (e *Exchange) additionalTradeRateLimits(class tradeRateLimitClass, counts map[string]int, subAccountOrderCount int) []request.RateLimitReservation {
-	additionalRateLimits := e.additionalTradeScopeRateLimits(class, counts)
-	if limit, ok := e.tradeSubAccountRateLimit(subAccountOrderCount); ok {
+func (l *tradeRateLimiter) additionalTradeRateLimits(class tradeRateLimitClass, counts map[string]int, subAccountOrderCount int) []request.RateLimitReservation {
+	// OKX trade requests can be limited in three ways: the static REST or
+	// websocket endpoint limit, an instrument/family limit, and the shared
+	// subaccount limit. The request-specific limits are only returned when they
+	// apply because their weights depend on the request contents.
+	additionalRateLimits := l.additionalTradeScopeRateLimits(class, counts)
+	if limit, ok := l.subAccountRateLimit(subAccountOrderCount); ok {
 		additionalRateLimits = append(additionalRateLimits, limit)
 	}
 	return additionalRateLimits
 }
 
-func (e *Exchange) additionalTradeScopeRateLimits(class tradeRateLimitClass, counts map[string]int) []request.RateLimitReservation {
+func (l *tradeRateLimiter) additionalTradeScopeRateLimits(class tradeRateLimitClass, counts map[string]int) []request.RateLimitReservation {
 	if len(counts) == 0 {
 		return nil
 	}
@@ -59,24 +93,24 @@ func (e *Exchange) additionalTradeScopeRateLimits(class tradeRateLimitClass, cou
 			continue
 		}
 		additionalRateLimits = append(additionalRateLimits, request.RateLimitReservation{
-			Limiter: e.getOrCreateTradeScopedLimiter(class, scope),
+			Limiter: l.getOrCreateScopedLimiter(class, scope),
 			Weight:  request.Weight(rateLimitWeight(weight)),
 		})
 	}
 	return additionalRateLimits
 }
 
-func (e *Exchange) tradeSubAccountRateLimit(orderCount int) (request.RateLimitReservation, bool) {
+func (l *tradeRateLimiter) subAccountRateLimit(orderCount int) (request.RateLimitReservation, bool) {
 	if orderCount < 1 {
 		return request.RateLimitReservation{}, false
 	}
-	e.tradeSubAccountLock.Lock()
-	defer e.tradeSubAccountLock.Unlock()
-	if e.tradeSubAccountLimiter == nil {
-		e.tradeSubAccountLimiter = newTradeSubAccountRateLimiter()
+	l.subAccountLock.Lock()
+	defer l.subAccountLock.Unlock()
+	if l.subAccountLimiter == nil {
+		l.subAccountLimiter = newTradeSubAccountRateLimiter()
 	}
 	return request.RateLimitReservation{
-		Limiter: e.tradeSubAccountLimiter,
+		Limiter: l.subAccountLimiter,
 		Weight:  request.Weight(rateLimitWeight(orderCount)),
 	}, true
 }
