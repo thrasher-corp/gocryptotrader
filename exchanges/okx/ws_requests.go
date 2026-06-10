@@ -51,7 +51,7 @@ func (e *Exchange) WSPlaceMultipleOrders(ctx context.Context, args []PlaceOrderR
 			return nil, err
 		}
 	}
-	ctx = request.WithRateLimitWeight(ctx, rateLimitWeight(len(args)))
+	ctx = request.WithRateLimitWeight(ctx, boundRateLimitWeight(len(args)))
 	requestScopedRateLimits := e.tradeLimiter.additionalTradeRateLimits(tradeRateLimitPlaceBatch, tradeScopeCountsFromPlaceOrders(args), len(args))
 
 	var resp []*OrderData
@@ -96,7 +96,7 @@ func (e *Exchange) WSCancelMultipleOrders(ctx context.Context, args []CancelOrde
 			return nil, order.ErrOrderIDNotSet
 		}
 	}
-	ctx = request.WithRateLimitWeight(ctx, rateLimitWeight(len(args)))
+	ctx = request.WithRateLimitWeight(ctx, boundRateLimitWeight(len(args)))
 	requestScopedRateLimits := e.tradeLimiter.additionalTradeRateLimits(tradeRateLimitCancelBatch, tradeScopeCountsFromCancelOrders(args), 0)
 
 	var resp []*OrderData
@@ -146,7 +146,7 @@ func (e *Exchange) WSAmendMultipleOrders(ctx context.Context, args []AmendOrderR
 			return nil, errInvalidNewSizeOrPriceInformation
 		}
 	}
-	ctx = request.WithRateLimitWeight(ctx, rateLimitWeight(len(args)))
+	ctx = request.WithRateLimitWeight(ctx, boundRateLimitWeight(len(args)))
 	requestScopedRateLimits := e.tradeLimiter.additionalTradeRateLimits(tradeRateLimitAmendBatch, tradeScopeCountsFromAmendOrders(args), len(args))
 
 	var resp []*OrderData

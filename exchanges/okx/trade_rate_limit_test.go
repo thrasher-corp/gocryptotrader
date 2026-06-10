@@ -75,10 +75,10 @@ func TestTradeScopeCountsFromAmendOrders(t *testing.T) {
 func TestRateLimitWeight(t *testing.T) {
 	t.Parallel()
 
-	require.Zero(t, rateLimitWeight(0), "zero weight must be ignored")
-	require.Zero(t, rateLimitWeight(-1), "negative weight must be ignored")
-	require.Equal(t, uint8(12), rateLimitWeight(12), "positive weight must be preserved")
-	require.Equal(t, uint8(255), rateLimitWeight(300), "large weight must clamp to uint8 max")
+	require.Zero(t, boundRateLimitWeight(0), "zero weight must be ignored")
+	require.Zero(t, boundRateLimitWeight(-1), "negative weight must be ignored")
+	require.Equal(t, uint8(12), boundRateLimitWeight(12), "positive weight must be preserved")
+	require.Equal(t, uint8(255), boundRateLimitWeight(300), "large weight must clamp to uint8 max")
 }
 
 func TestValidateOKXBatchOrderCount(t *testing.T) {

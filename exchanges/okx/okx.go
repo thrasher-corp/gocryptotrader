@@ -82,7 +82,7 @@ func (e *Exchange) PlaceMultipleOrders(ctx context.Context, args []PlaceOrderReq
 			return nil, err
 		}
 	}
-	ctx = request.WithRateLimitWeight(ctx, rateLimitWeight(len(args)))
+	ctx = request.WithRateLimitWeight(ctx, boundRateLimitWeight(len(args)))
 	requestScopedRateLimits := e.tradeLimiter.additionalTradeRateLimits(tradeRateLimitPlaceBatch, tradeScopeCountsFromPlaceOrders(args), len(args))
 	var resp []OrderData
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, placeMultipleOrdersEPL, http.MethodPost, "trade/batch-orders", &args, &resp, request.AuthenticatedRequest, requestScopedRateLimits...)
@@ -140,7 +140,7 @@ func (e *Exchange) CancelMultipleOrders(ctx context.Context, args []CancelOrderR
 			return nil, order.ErrOrderIDNotSet
 		}
 	}
-	ctx = request.WithRateLimitWeight(ctx, rateLimitWeight(len(args)))
+	ctx = request.WithRateLimitWeight(ctx, boundRateLimitWeight(len(args)))
 	requestScopedRateLimits := e.tradeLimiter.additionalTradeRateLimits(tradeRateLimitCancelBatch, tradeScopeCountsFromCancelOrders(args), 0)
 	var resp []*OrderData
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, cancelMultipleOrdersEPL, http.MethodPost, "trade/cancel-batch-orders", args, &resp, request.AuthenticatedRequest, requestScopedRateLimits...)
@@ -197,7 +197,7 @@ func (e *Exchange) AmendMultipleOrders(ctx context.Context, args []AmendOrderReq
 			return nil, errInvalidNewSizeOrPriceInformation
 		}
 	}
-	ctx = request.WithRateLimitWeight(ctx, rateLimitWeight(len(args)))
+	ctx = request.WithRateLimitWeight(ctx, boundRateLimitWeight(len(args)))
 	requestScopedRateLimits := e.tradeLimiter.additionalTradeRateLimits(tradeRateLimitAmendBatch, tradeScopeCountsFromAmendOrders(args), len(args))
 	var resp []OrderData
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, amendMultipleOrdersEPL, http.MethodPost, "trade/amend-batch-orders", &args, &resp, request.AuthenticatedRequest, requestScopedRateLimits...)
