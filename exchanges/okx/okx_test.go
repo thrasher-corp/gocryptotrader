@@ -4630,11 +4630,13 @@ func TestAppendWsOrderbookItemsFromPool(t *testing.T) {
 		{Price: 3, Amount: 4, PriceString: "3", AmountString: "4"},
 	}
 	items, pooled := appendWsOrderbookItemsFromPool(entries)
+	t.Cleanup(func() {
+		putWsOrderbookLevels(pooled)
+	})
+
 	require.Len(t, items, 2, "appendWsOrderbookItemsFromPool must return expected item count")
 	assert.Equal(t, "1", items[0].StrPrice, "first price string should match")
 	assert.Equal(t, "4", items[1].StrAmount, "second amount string should match")
-
-	putWsOrderbookLevels(pooled)
 }
 
 func TestPutWsOrderbookLevels(t *testing.T) {

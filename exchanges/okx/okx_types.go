@@ -147,7 +147,6 @@ var (
 	errLastDaysRequired                     = errors.New("last days required")
 	errCopyInstrumentIDTypeRequired         = errors.New("copy instrument ID type is required")
 	errInvalidChecksum                      = errors.New("invalid checksum")
-	errInstrumentIDCodeNotFound             = errors.New("instrument ID code not found")
 	errUnexpectedOrderbookLevelsPoolType    = errors.New("unexpected orderbook levels pool type")
 	errUnexpectedOrderbookChecksumPoolType  = errors.New("unexpected orderbook checksum pool type")
 	errInvalidPositionMode                  = errors.New("invalid position mode")
@@ -796,10 +795,11 @@ type PlaceOrderRequestParam struct {
 	BanAmend bool `json:"banAmend,omitempty"` // Whether the SPOT Market Order size can be amended by the system.
 }
 
+type placeOrderRequestParam PlaceOrderRequestParam
+
 // MarshalJSON ensures small numeric values are sent as plain decimal strings
 // instead of scientific notation for websocket order submission.
 func (arg *PlaceOrderRequestParam) MarshalJSON() ([]byte, error) {
-	type placeOrderRequestParam PlaceOrderRequestParam
 	out := struct {
 		*placeOrderRequestParam
 		Amount string `json:"sz"`

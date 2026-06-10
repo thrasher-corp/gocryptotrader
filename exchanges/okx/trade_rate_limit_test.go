@@ -8,34 +8,40 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
+const (
+	tradeRateLimitBTCUSDT          = "BTC-USDT"
+	tradeRateLimitBTCUSDOptionCall = "BTC-USD-241227-50000-C"
+	tradeRateLimitBTCUSDOptionPut  = "BTC-USD-241227-45000-P"
+)
+
 func TestTradeScopeFromInstrumentID(t *testing.T) {
 	t.Parallel()
 
 	require.Empty(t, tradeScopeFromInstrumentID(""))
-	require.Equal(t, "BTC-USDT", tradeScopeFromInstrumentID("btc-usdt"))
-	require.Equal(t, "BTC-USD", tradeScopeFromInstrumentID("BTC-USD-241227-50000-C"))
+	require.Equal(t, tradeRateLimitBTCUSDT, tradeScopeFromInstrumentID("btc-usdt"))
+	require.Equal(t, "BTC-USD", tradeScopeFromInstrumentID(tradeRateLimitBTCUSDOptionCall))
 }
 
 func TestIsOptionInstrumentID(t *testing.T) {
 	t.Parallel()
 
-	require.True(t, isOptionInstrumentID("BTC-USD-241227-50000-C"), "dash-delimited option ID must be detected")
+	require.True(t, isOptionInstrumentID(tradeRateLimitBTCUSDOptionCall), "dash-delimited option ID must be detected")
 	require.True(t, isOptionInstrumentID("BTC_USD_241227_50000_C"), "underscore-delimited option ID must be detected")
-	require.False(t, isOptionInstrumentID("BTC-USDT"), "spot-style instrument ID must not be detected as option")
+	require.False(t, isOptionInstrumentID(tradeRateLimitBTCUSDT), "spot-style instrument ID must not be detected as option")
 }
 
 func TestTradeScopeCountsFromPlaceOrders(t *testing.T) {
 	t.Parallel()
 
 	args := []PlaceOrderRequestParam{
-		{InstrumentID: "BTC-USDT"},
-		{InstrumentID: "BTC-USDT"},
+		{InstrumentID: tradeRateLimitBTCUSDT},
+		{InstrumentID: tradeRateLimitBTCUSDT},
 		{InstrumentID: "ETH-USDT"},
-		{InstrumentID: "BTC-USD-241227-50000-C"},
-		{InstrumentID: "BTC-USD-241227-45000-P"},
+		{InstrumentID: tradeRateLimitBTCUSDOptionCall},
+		{InstrumentID: tradeRateLimitBTCUSDOptionPut},
 	}
 	got := tradeScopeCountsFromPlaceOrders(args)
-	require.Equal(t, 2, got["BTC-USDT"])
+	require.Equal(t, 2, got[tradeRateLimitBTCUSDT])
 	require.Equal(t, 1, got["ETH-USDT"])
 	require.Equal(t, 2, got["BTC-USD"])
 }
@@ -79,14 +85,14 @@ func TestGetOrCreateTradeScopedLimiter(t *testing.T) {
 
 	ex := new(Exchange)
 	first := ex.getOrCreateTradeScopedLimiter(tradeRateLimitPlaceSingle, " btc-usdt ")
-	second := ex.getOrCreateTradeScopedLimiter(tradeRateLimitPlaceSingle, "BTC-USDT")
+	second := ex.getOrCreateTradeScopedLimiter(tradeRateLimitPlaceSingle, tradeRateLimitBTCUSDT)
 	require.Same(t, first, second, "scoped limiter must be cached by normalised key")
 
-	batch := ex.getOrCreateTradeScopedLimiter(tradeRateLimitPlaceBatch, "BTC-USDT")
+	batch := ex.getOrCreateTradeScopedLimiter(tradeRateLimitPlaceBatch, tradeRateLimitBTCUSDT)
 	require.NotNil(t, batch, "batch limiter must be created")
 
-	ex.tradeScopedLimiters.Store("place-single|BTC-USDT", "not-a-limiter")
-	recovered := ex.getOrCreateTradeScopedLimiter(tradeRateLimitPlaceSingle, "BTC-USDT")
+	ex.tradeScopedLimiters.Store("place-single|"+tradeRateLimitBTCUSDT, "not-a-limiter")
+	recovered := ex.getOrCreateTradeScopedLimiter(tradeRateLimitPlaceSingle, tradeRateLimitBTCUSDT)
 	require.NotNil(t, recovered, "limiter must be recreated if stored type is invalid")
 }
 
@@ -97,10 +103,10 @@ func TestAdditionalTradeScopeRateLimits(t *testing.T) {
 	additionalRateLimits := ex.additionalTradeScopeRateLimits(tradeRateLimitPlaceSingle, nil)
 	require.Empty(t, additionalRateLimits, "empty scope map must not return additional rate limits")
 
-	additionalRateLimits = ex.additionalTradeScopeRateLimits(tradeRateLimitPlaceSingle, map[string]int{"BTC-USDT": 0})
+	additionalRateLimits = ex.additionalTradeScopeRateLimits(tradeRateLimitPlaceSingle, map[string]int{tradeRateLimitBTCUSDT: 0})
 	require.Empty(t, additionalRateLimits, "non-positive scope weights must be ignored")
 
-	additionalRateLimits = ex.additionalTradeScopeRateLimits(tradeRateLimitPlaceSingle, map[string]int{"BTC-USDT": 2})
+	additionalRateLimits = ex.additionalTradeScopeRateLimits(tradeRateLimitPlaceSingle, map[string]int{tradeRateLimitBTCUSDT: 2})
 	require.Len(t, additionalRateLimits, 1, "valid scope weight must return one additional rate limit")
 	require.NotNil(t, additionalRateLimits[0].Limiter, "valid scope limit must include limiter")
 	require.Equal(t, request.Weight(2), additionalRateLimits[0].Weight, "valid scope weight must return one weight")
@@ -129,7 +135,7 @@ func TestAdditionalTradeRateLimits(t *testing.T) {
 	t.Parallel()
 
 	ex := new(Exchange)
-	additionalRateLimits := ex.additionalTradeRateLimits(tradeRateLimitPlaceSingle, map[string]int{"BTC-USDT": 2}, 3)
+	additionalRateLimits := ex.additionalTradeRateLimits(tradeRateLimitPlaceSingle, map[string]int{tradeRateLimitBTCUSDT: 2}, 3)
 	require.Len(t, additionalRateLimits, 2, "valid trade rate limits must return scoped and subaccount limiters")
 	require.Equal(t, request.Weight(2), additionalRateLimits[0].Weight, "valid trade rate limits must return scope weight")
 	require.Equal(t, request.Weight(3), additionalRateLimits[1].Weight, "valid trade rate limits must return subaccount weight")

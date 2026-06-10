@@ -1,7 +1,6 @@
 package okx
 
 import (
-	"context"
 	"testing"
 
 	"github.com/gofrs/uuid"
@@ -102,13 +101,22 @@ func TestOptionInstrumentSelectors(t *testing.T) {
 	require.Equal(t, "INVALID", family, "fallback family must return raw instrument ID")
 }
 
-func TestResolveInstrumentIDCode(t *testing.T) {
+func TestCachedInstrumentIDCode(t *testing.T) {
 	t.Parallel()
 
-	ex := new(Exchange)
-	_, err := ex.resolveInstrumentIDCode(context.Background(), asset.Spot, "")
-	require.ErrorIs(t, err, errMissingInstrumentID, "resolveInstrumentIDCode must return missing instrument ID error")
+	ex := &Exchange{
+		instrumentsInfoMap: map[string][]Instrument{
+			instTypeSpot: {
+				{
+					InstrumentID:     currency.NewPairWithDelimiter("BTC", "USDT", "-"),
+					InstrumentIDCode: types.Number(123),
+				},
+			},
+		},
+	}
 
-	_, err = ex.resolveInstrumentIDCode(context.Background(), asset.Empty, "BTC-USDT")
-	require.ErrorIs(t, err, errInvalidInstrumentType, "resolveInstrumentIDCode must return invalid instrument type error")
+	assert.Zero(t, ex.cachedInstrumentIDCode(asset.Spot, ""), "empty instrument ID should return zero")
+	assert.Zero(t, ex.cachedInstrumentIDCode(asset.Empty, "BTC-USDT"), "invalid asset should return zero")
+	assert.Zero(t, ex.cachedInstrumentIDCode(asset.Spot, "ETH-USDT"), "missing cached instrument should return zero")
+	assert.Equal(t, int64(123), ex.cachedInstrumentIDCode(asset.Spot, "BTC-USDT"), "cached instrument ID code should be returned")
 }

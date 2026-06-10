@@ -29,11 +29,11 @@ func TestPlaceOrderRequestParamMarshalJSON(t *testing.T) {
 
 	raw, err := json.Marshal(&arg)
 	require.NoError(t, err)
-	require.Contains(t, string(raw), `"px":"0.00000001555"`)
-	require.Contains(t, string(raw), `"sz":"170000000"`)
-	require.Contains(t, string(raw), `"reduceOnly":true`)
-	require.NotContains(t, string(raw), "e-")
-	require.NotContains(t, string(raw), "E-")
+	assert.Contains(t, string(raw), `"px":"0.00000001555"`)
+	assert.Contains(t, string(raw), `"sz":"170000000"`)
+	assert.Contains(t, string(raw), `"reduceOnly":true`)
+	assert.NotContains(t, string(raw), "e-")
+	assert.NotContains(t, string(raw), "E-")
 }
 
 func TestWSPlaceOrder(t *testing.T) {
