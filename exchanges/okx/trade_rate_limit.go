@@ -94,7 +94,7 @@ func (l *tradeRateLimiter) additionalTradeScopeRateLimits(class tradeRateLimitCl
 		}
 		additionalRateLimits = append(additionalRateLimits, request.RateLimitReservation{
 			Limiter: l.getOrCreateScopedLimiter(class, scope),
-			Weight:  request.Weight(rateLimitWeight(weight)),
+			Weight:  request.Weight(boundRateLimitWeight(weight)),
 		})
 	}
 	return additionalRateLimits
@@ -111,7 +111,7 @@ func (l *tradeRateLimiter) subAccountRateLimit(orderCount int) (request.RateLimi
 	}
 	return request.RateLimitReservation{
 		Limiter: l.subAccountLimiter,
-		Weight:  request.Weight(rateLimitWeight(orderCount)),
+		Weight:  request.Weight(boundRateLimitWeight(orderCount)),
 	}, true
 }
 
@@ -165,12 +165,12 @@ func tradeScopeCounts[T any](args []T, instrumentID func(T) string) map[string]i
 	return counts
 }
 
-func rateLimitWeight(value int) uint8 {
-	if value <= 0 {
+func boundRateLimitWeight(weight int) uint8 {
+	if weight <= 0 {
 		return 0
 	}
-	if value > 255 {
+	if weight > 255 {
 		return 255
 	}
-	return uint8(value)
+	return uint8(weight)
 }
