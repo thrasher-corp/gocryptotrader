@@ -364,7 +364,7 @@ type FuturesAccountBalanceData struct {
 	UpdateTime         types.Time `json:"updateTime"`
 }
 
-// FuturesAccountInformationPosition  holds account position data
+// FuturesAccountInformationPosition holds account position data
 type FuturesAccountInformationPosition struct {
 	Symbol                 string     `json:"symbol"`
 	Amount                 float64    `json:"positionAmt,string"`
