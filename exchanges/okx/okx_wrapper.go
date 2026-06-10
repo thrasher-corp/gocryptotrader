@@ -56,7 +56,10 @@ func (e *Exchange) SetDefaults() {
 	e.API.CredentialsValidator.RequiresClientID = true
 
 	e.instrumentsInfoMap = make(map[string][]Instrument)
-	e.tradeSubAccountLimiter = newTradeSubAccountRateLimiter()
+	e.tradeLimiter = tradeRateLimiter{
+		scopedLimiters:    make(map[string]*request.RateLimiterWithWeight, maxTradeScopedLimiters),
+		subAccountLimiter: newTradeSubAccountRateLimiter(),
+	}
 
 	cpf := &currency.PairFormat{
 		Delimiter: currency.DashDelimiter,

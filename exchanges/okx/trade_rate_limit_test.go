@@ -1,6 +1,7 @@
 package okx
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -80,62 +81,82 @@ func TestRateLimitWeight(t *testing.T) {
 	require.Equal(t, uint8(255), rateLimitWeight(300), "large weight must clamp to uint8 max")
 }
 
-func TestGetOrCreateTradeScopedLimiter(t *testing.T) {
+func TestValidateOKXBatchOrderCount(t *testing.T) {
 	t.Parallel()
 
-	ex := new(Exchange)
-	first := ex.getOrCreateTradeScopedLimiter(tradeRateLimitPlaceSingle, " btc-usdt ")
-	second := ex.getOrCreateTradeScopedLimiter(tradeRateLimitPlaceSingle, tradeRateLimitBTCUSDT)
-	require.Same(t, first, second, "scoped limiter must be cached by normalised key")
-
-	batch := ex.getOrCreateTradeScopedLimiter(tradeRateLimitPlaceBatch, tradeRateLimitBTCUSDT)
-	require.NotNil(t, batch, "batch limiter must be created")
-
-	ex.tradeScopedLimiters.Store("place-single|"+tradeRateLimitBTCUSDT, "not-a-limiter")
-	recovered := ex.getOrCreateTradeScopedLimiter(tradeRateLimitPlaceSingle, tradeRateLimitBTCUSDT)
-	require.NotNil(t, recovered, "limiter must be recreated if stored type is invalid")
+	require.NoError(t, validateOKXBatchOrderCount(maxOKXBatchOrders), "maximum batch order count must be valid")
+	require.ErrorIs(t, validateOKXBatchOrderCount(maxOKXBatchOrders+1), errExceedLimit, "oversized batch order count must return limit error")
 }
 
-func TestAdditionalTradeScopeRateLimits(t *testing.T) {
+func TestTradeRateLimiterGetOrCreateScopedLimiter(t *testing.T) {
 	t.Parallel()
 
-	ex := new(Exchange)
-	additionalRateLimits := ex.additionalTradeScopeRateLimits(tradeRateLimitPlaceSingle, nil)
+	limiter := new(tradeRateLimiter)
+	first := limiter.getOrCreateScopedLimiter(tradeRateLimitPlaceSingle, " btc-usdt ")
+	second := limiter.getOrCreateScopedLimiter(tradeRateLimitPlaceSingle, tradeRateLimitBTCUSDT)
+	require.Same(t, first, second, "scoped limiter must be cached by normalised key")
+
+	batch := limiter.getOrCreateScopedLimiter(tradeRateLimitPlaceBatch, tradeRateLimitBTCUSDT)
+	require.NotNil(t, batch, "batch limiter must be created")
+	require.NotSame(t, first, batch, "different limiter classes must use different buckets")
+}
+
+func TestTradeRateLimiterGetOrCreateScopedLimiterEvictsOldest(t *testing.T) {
+	t.Parallel()
+
+	limiter := new(tradeRateLimiter)
+	for i := range maxTradeScopedLimiters {
+		limiter.getOrCreateScopedLimiter(tradeRateLimitPlaceSingle, fmt.Sprintf("BTC-USDT-%d", i))
+	}
+
+	firstKey := string(tradeRateLimitPlaceSingle) + "|BTC-USDT-0"
+	require.Contains(t, limiter.scopedLimiters, firstKey, "oldest limiter must remain before capacity is exceeded")
+
+	limiter.getOrCreateScopedLimiter(tradeRateLimitPlaceSingle, "BTC-USDT-overflow")
+	require.NotContains(t, limiter.scopedLimiters, firstKey, "oldest limiter must be evicted when capacity is exceeded")
+	require.Len(t, limiter.scopedLimiters, maxTradeScopedLimiters, "scoped limiter cache must remain bounded")
+}
+
+func TestTradeRateLimiterAdditionalTradeScopeRateLimits(t *testing.T) {
+	t.Parallel()
+
+	limiter := new(tradeRateLimiter)
+	additionalRateLimits := limiter.additionalTradeScopeRateLimits(tradeRateLimitPlaceSingle, nil)
 	require.Empty(t, additionalRateLimits, "empty scope map must not return additional rate limits")
 
-	additionalRateLimits = ex.additionalTradeScopeRateLimits(tradeRateLimitPlaceSingle, map[string]int{tradeRateLimitBTCUSDT: 0})
+	additionalRateLimits = limiter.additionalTradeScopeRateLimits(tradeRateLimitPlaceSingle, map[string]int{tradeRateLimitBTCUSDT: 0})
 	require.Empty(t, additionalRateLimits, "non-positive scope weights must be ignored")
 
-	additionalRateLimits = ex.additionalTradeScopeRateLimits(tradeRateLimitPlaceSingle, map[string]int{tradeRateLimitBTCUSDT: 2})
+	additionalRateLimits = limiter.additionalTradeScopeRateLimits(tradeRateLimitPlaceSingle, map[string]int{tradeRateLimitBTCUSDT: 2})
 	require.Len(t, additionalRateLimits, 1, "valid scope weight must return one additional rate limit")
 	require.NotNil(t, additionalRateLimits[0].Limiter, "valid scope limit must include limiter")
 	require.Equal(t, request.Weight(2), additionalRateLimits[0].Weight, "valid scope weight must return one weight")
 }
 
-func TestTradeSubAccountRateLimit(t *testing.T) {
+func TestTradeRateLimiterSubAccountRateLimit(t *testing.T) {
 	t.Parallel()
 
-	ex := new(Exchange)
-	limit, ok := ex.tradeSubAccountRateLimit(0)
+	limiter := new(tradeRateLimiter)
+	limit, ok := limiter.subAccountRateLimit(0)
 	assert.False(t, ok, "zero order count should not return a limit")
 	assert.Empty(t, limit, "zero order count should not return a limit")
 
-	limit, ok = ex.tradeSubAccountRateLimit(1)
+	limit, ok = limiter.subAccountRateLimit(1)
 	require.True(t, ok, "single order count must return a limit")
 	assert.NotNil(t, limit.Limiter, "limiter should be set")
 	assert.Equal(t, request.Weight(1), limit.Weight, "weight should match order count")
 
-	limit, ok = ex.tradeSubAccountRateLimit(3)
+	limit, ok = limiter.subAccountRateLimit(3)
 	require.True(t, ok, "positive order count must return a limit")
 	assert.NotNil(t, limit.Limiter, "limiter should be set")
 	assert.Equal(t, request.Weight(3), limit.Weight, "weight should match order count")
 }
 
-func TestAdditionalTradeRateLimits(t *testing.T) {
+func TestTradeRateLimiterAdditionalTradeRateLimits(t *testing.T) {
 	t.Parallel()
 
-	ex := new(Exchange)
-	additionalRateLimits := ex.additionalTradeRateLimits(tradeRateLimitPlaceSingle, map[string]int{tradeRateLimitBTCUSDT: 2}, 3)
+	limiter := new(tradeRateLimiter)
+	additionalRateLimits := limiter.additionalTradeRateLimits(tradeRateLimitPlaceSingle, map[string]int{tradeRateLimitBTCUSDT: 2}, 3)
 	require.Len(t, additionalRateLimits, 2, "valid trade rate limits must return scoped and subaccount limiters")
 	require.Equal(t, request.Weight(2), additionalRateLimits[0].Weight, "valid trade rate limits must return scope weight")
 	require.Equal(t, request.Weight(3), additionalRateLimits[1].Weight, "valid trade rate limits must return subaccount weight")
