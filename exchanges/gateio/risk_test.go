@@ -24,7 +24,7 @@ func TestGetUnifiedUserRiskUnitDetails(t *testing.T) {
 
 func TestGetFuturesRiskTable(t *testing.T) {
 	t.Parallel()
-
+	e.Verbose = true
 	_, err := e.GetFuturesRiskTable(t.Context(), currency.EMPTYCODE, "")
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
@@ -36,7 +36,7 @@ func TestGetFuturesRiskTable(t *testing.T) {
 	require.NoError(t, testexch.Setup(e))
 	require.NoError(t, testexch.MockHTTPInstance(e, "/"))
 
-	got, err := e.GetFuturesRiskTable(t.Context(), currency.USDT, "BTC_USDT_202507040223")
+	got, err := e.GetFuturesRiskTable(t.Context(), currency.USDT, getPair(t, asset.DeliveryFutures).String())
 	require.NoError(t, err)
 	assert.NotEmpty(t, got)
 }
