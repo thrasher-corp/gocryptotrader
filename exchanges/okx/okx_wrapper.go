@@ -1179,7 +1179,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			ClientOrderID: action.ClientOrderID,
 		}
 		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			if instrumentIDCode, err := e.resolveInstrumentIDCode(ctx, action.AssetType, amendRequest.InstrumentID); err == nil {
+			if instrumentIDCode := e.cachedInstrumentIDCode(action.AssetType, amendRequest.InstrumentID); instrumentIDCode > 0 {
 				amendRequest.InstrumentIDCode = instrumentIDCode
 			}
 			_, err = e.WSAmendOrder(ctx, &amendRequest)
@@ -1282,7 +1282,7 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modif
 	if err != nil {
 		return nil, err
 	}
-	if instrumentIDCode, err := e.resolveInstrumentIDCode(ctx, action.AssetType, arg.InstrumentID); err == nil {
+	if instrumentIDCode := e.cachedInstrumentIDCode(action.AssetType, arg.InstrumentID); instrumentIDCode > 0 {
 		arg.InstrumentIDCode = instrumentIDCode
 	}
 	if _, err = e.WSAmendOrder(ctx, arg); err != nil {
@@ -1321,7 +1321,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 			ClientOrderID: ord.ClientOrderID,
 		}
 		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			if instrumentIDCode, err := e.resolveInstrumentIDCode(ctx, ord.AssetType, req.InstrumentID); err == nil {
+			if instrumentIDCode := e.cachedInstrumentIDCode(ord.AssetType, req.InstrumentID); instrumentIDCode > 0 {
 				req.InstrumentIDCode = instrumentIDCode
 			}
 			_, err = e.WSCancelOrder(ctx, &req)
@@ -1514,7 +1514,7 @@ func (e *Exchange) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) 
 	if err != nil {
 		return err
 	}
-	if instrumentIDCode, err := e.resolveInstrumentIDCode(ctx, ord.AssetType, arg.InstrumentID); err == nil {
+	if instrumentIDCode := e.cachedInstrumentIDCode(ord.AssetType, arg.InstrumentID); instrumentIDCode > 0 {
 		arg.InstrumentIDCode = instrumentIDCode
 	}
 	_, err = e.WSCancelOrder(ctx, arg)
@@ -1555,7 +1555,7 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 				ClientOrderID: ord.ClientOrderID,
 			}
 			if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				if instrumentIDCode, err := e.resolveInstrumentIDCode(ctx, ord.AssetType, cancelOrder.InstrumentID); err == nil {
+				if instrumentIDCode := e.cachedInstrumentIDCode(ord.AssetType, cancelOrder.InstrumentID); instrumentIDCode > 0 {
 					cancelOrder.InstrumentIDCode = instrumentIDCode
 				}
 			}
@@ -1652,7 +1652,7 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	if err != nil {
 		return nil, err
 	}
-	if instrumentIDCode, err := e.resolveInstrumentIDCode(ctx, s.AssetType, arg.InstrumentID); err == nil {
+	if instrumentIDCode := e.cachedInstrumentIDCode(s.AssetType, arg.InstrumentID); instrumentIDCode > 0 {
 		arg.InstrumentIDCode = instrumentIDCode
 	}
 	resp, err := e.WSPlaceOrder(ctx, arg)
@@ -1669,31 +1669,17 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	return response, nil
 }
 
-func (e *Exchange) resolveInstrumentIDCode(ctx context.Context, ai asset.Item, instrumentID string) (int64, error) {
+func (e *Exchange) cachedInstrumentIDCode(ai asset.Item, instrumentID string) int64 {
 	if instrumentID == "" {
-		return 0, errMissingInstrumentID
+		return 0
 	}
 	instType := GetInstrumentTypeFromAssetItem(ai)
 	if instType == "" {
-		return 0, fmt.Errorf("%w: %v", errInvalidInstrumentType, ai)
+		return 0
 	}
-
-	fetchParams := InstrumentsFetchParams{
-		InstrumentType: instType,
-		InstrumentID:   instrumentID,
-	}
-	if ai == asset.Options {
-		_, fetchParams.InstrumentFamily = optionInstrumentSelectors(instrumentID)
-	}
-
-	instruments, err := e.GetInstruments(ctx, &fetchParams)
-	if err != nil {
-		return 0, err
-	}
-	if instrumentIDCode := lookupInstrumentIDCode(instruments, instrumentID); instrumentIDCode > 0 {
-		return instrumentIDCode, nil
-	}
-	return 0, fmt.Errorf("%w: %s", errInstrumentIDCodeNotFound, instrumentID)
+	e.instrumentsInfoMapLock.Lock()
+	defer e.instrumentsInfoMapLock.Unlock()
+	return lookupInstrumentIDCode(e.instrumentsInfoMap[instType], instrumentID)
 }
 
 func lookupInstrumentIDCode(instruments []Instrument, instrumentID string) int64 {
@@ -1794,7 +1780,7 @@ ordersLoop:
 			if remaining[i].InstrumentID == "" {
 				continue
 			}
-			if instrumentIDCode, err := e.resolveInstrumentIDCode(ctx, orderCancellation.AssetType, remaining[i].InstrumentID); err == nil {
+			if instrumentIDCode := e.cachedInstrumentIDCode(orderCancellation.AssetType, remaining[i].InstrumentID); instrumentIDCode > 0 {
 				remaining[i].InstrumentIDCode = instrumentIDCode
 			}
 		}

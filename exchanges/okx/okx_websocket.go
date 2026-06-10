@@ -122,6 +122,7 @@ const (
 	channelOpenInterest    = "open-interest"
 	channelTrades          = "trades"
 	channelAllTrades       = "trades-all"
+	channelOptionTrades    = "option-trades"
 	channelEstimatedPrice  = "estimated-price"
 	channelMarkPrice       = "mark-price"
 	channelPriceLimit      = "price-limit"
@@ -522,6 +523,8 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		return e.wsProcessPublicSpreadTicker(ctx, respRaw)
 	case channelOrderBooks, channelOrderBooks50TBT, channelBBOTBT, channelOrderBooksTBT:
 		return e.wsProcessOrderBooks(ctx, conn, respRaw)
+	case channelOptionTrades:
+		return e.wsProcessOptionTrades(respRaw)
 	case channelFundingRate:
 		var response WsFundingRate
 		return e.wsProcessPushData(ctx, respRaw, &response)
@@ -896,6 +899,38 @@ func (e *Exchange) wsProcessOrderbook5(data []byte) error {
 		}
 	}
 	return nil
+}
+
+// wsProcessOptionTrades handles options trade data
+func (e *Exchange) wsProcessOptionTrades(data []byte) error {
+	var resp WsOptionTrades
+	err := json.Unmarshal(data, &resp)
+	if err != nil {
+		return err
+	}
+	trades := make([]trade.Data, len(resp.Data))
+	for i := range resp.Data {
+		var pair currency.Pair
+		pair, err = e.GetPairFromInstrumentID(resp.Data[i].InstrumentID)
+		if err != nil {
+			return err
+		}
+		oSide, err := order.StringToOrderSide(resp.Data[i].Side)
+		if err != nil {
+			return err
+		}
+		trades[i] = trade.Data{
+			Amount:       resp.Data[i].Size.Float64(),
+			AssetType:    asset.Options,
+			CurrencyPair: pair,
+			Exchange:     e.Name,
+			Side:         oSide,
+			Timestamp:    resp.Data[i].Timestamp.Time(),
+			TID:          resp.Data[i].TradeID,
+			Price:        resp.Data[i].Price.Float64(),
+		}
+	}
+	return trade.AddTradesToBuffer(trades...)
 }
 
 // wsProcessOrderBooks processes "snapshot" and "update" order book
