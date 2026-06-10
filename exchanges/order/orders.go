@@ -28,7 +28,7 @@ const (
 	longSide                  = Long | Buy | Bid
 
 	inactiveStatuses = Filled | Cancelled | InsufficientBalance | MarketUnavailable | Rejected | PartiallyCancelled | PartiallyFilledCancelled | Expired | Closed | AnyStatus | Cancelling | Liquidated
-	activeStatuses   = Active | Open | PartiallyFilled | New | PendingCancel | Hidden | AutoDeleverage | Pending
+	activeStatuses   = Active | Open | PartiallyFilled | New | PendingCancel | Hidden | AutoDeleverage | Pending | PendingTrigger
 	notPlaced        = InsufficientBalance | MarketUnavailable | Rejected
 )
 
@@ -493,12 +493,11 @@ func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
 	}
 
 	return &SubmitResponse{
-		Exchange:  s.Exchange,
-		Type:      s.Type,
-		Side:      s.Side,
-		Pair:      s.Pair,
-		AssetType: s.AssetType,
-
+		Exchange:      s.Exchange,
+		Type:          s.Type,
+		Side:          s.Side,
+		Pair:          s.Pair,
+		AssetType:     s.AssetType,
 		TimeInForce:   s.TimeInForce,
 		ReduceOnly:    s.ReduceOnly,
 		Leverage:      s.Leverage,
@@ -509,11 +508,10 @@ func (s *Submit) DeriveSubmitResponse(orderID string) (*SubmitResponse, error) {
 		ClientID:      s.ClientID,
 		ClientOrderID: s.ClientOrderID,
 		MarginType:    s.MarginType,
-
-		LastUpdated: time.Now(),
-		Date:        time.Now(),
-		Status:      status,
-		OrderID:     orderID,
+		LastUpdated:   time.Now(),
+		Date:          time.Now(),
+		Status:        status,
+		OrderID:       orderID,
 	}, nil
 }
 
@@ -860,6 +858,8 @@ func (s Status) String() string {
 		return "LIQUIDATED"
 	case STP:
 		return "SELF_TRADE_PREVENTION"
+	case PendingTrigger:
+		return "PENDING_TRIGGER"
 	default:
 		return "UNKNOWN"
 	}
@@ -1227,6 +1227,8 @@ func StringToOrderStatus(status string) (Status, error) {
 		return AutoDeleverage, nil
 	case STP.String(), "STP":
 		return STP, nil
+	case PendingTrigger.String():
+		return PendingTrigger, nil
 	default:
 		return UnknownStatus, fmt.Errorf("%q %w", status, errUnrecognisedOrderStatus)
 	}
