@@ -33,7 +33,7 @@ func (e *Exchange) GetFuturesOrderbook(ctx context.Context, symbol currency.Pair
 	params := url.Values{}
 	params.Set("symbol", symbolValue)
 	var resp FuturesOrderbookData
-	return &resp, e.SendHTTPRequest(ctx, exchange.RestFutures, futuresOrderbook+"?"+params.Encode(), &resp)
+	return &resp, e.SendHTTPRequest(ctx, exchange.RestFutures, krakenLimitFuturesPublic, futuresOrderbook+"?"+params.Encode(), &resp)
 }
 
 // GetFuturesCharts returns candle data for kraken futures
@@ -54,7 +54,7 @@ func (e *Exchange) GetFuturesCharts(ctx context.Context, resolution, tickType st
 		reqStr += "?" + params.Encode()
 	}
 	var resp FuturesCandles
-	return &resp, e.SendHTTPRequest(ctx, exchange.RestFuturesSupplementary, reqStr, &resp)
+	return &resp, e.SendHTTPRequest(ctx, exchange.RestFuturesSupplementary, krakenLimitFuturesPublic, reqStr, &resp)
 }
 
 // GetFuturesTrades returns public trade data for kraken futures
@@ -71,25 +71,25 @@ func (e *Exchange) GetFuturesTrades(ctx context.Context, symbol currency.Pair, t
 		params.Set("before", strconv.FormatInt(from.Unix(), 10))
 	}
 	var resp FuturesPublicTrades
-	return &resp, e.SendHTTPRequest(ctx, exchange.RestFuturesSupplementary, futuresPublicTrades+"/"+symbolValue+"/executions?"+params.Encode(), &resp)
+	return &resp, e.SendHTTPRequest(ctx, exchange.RestFuturesSupplementary, krakenLimitFuturesPublic, futuresPublicTrades+"/"+symbolValue+"/executions?"+params.Encode(), &resp)
 }
 
 // GetInstruments gets a list of futures markets and their data
 func (e *Exchange) GetInstruments(ctx context.Context) (FuturesInstrumentData, error) {
 	var resp FuturesInstrumentData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, futuresInstruments, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, krakenLimitFuturesPublic, futuresInstruments, &resp)
 }
 
 // GetFuturesTickers gets a list of futures tickers and their data
 func (e *Exchange) GetFuturesTickers(ctx context.Context) (FuturesTickersData, error) {
 	var resp FuturesTickersData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, futuresTickers, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, krakenLimitFuturesPublic, futuresTickers, &resp)
 }
 
 // GetFuturesTickerBySymbol returns futures ticker data by symbol
 func (e *Exchange) GetFuturesTickerBySymbol(ctx context.Context, symbol string) (FuturesTickerData, error) {
 	var resp FuturesTickerData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, futuresTickers+"/"+symbol, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, krakenLimitFuturesPublic, futuresTickers+"/"+symbol, &resp)
 }
 
 // GetFuturesTradeHistory gets public trade history data for futures
@@ -104,7 +104,7 @@ func (e *Exchange) GetFuturesTradeHistory(ctx context.Context, symbol currency.P
 	if !lastTime.IsZero() {
 		params.Set("lastTime", lastTime.Format("2006-01-02T15:04:05.070Z"))
 	}
-	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, futuresTradeHistory+"?"+params.Encode(), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, krakenLimitFuturesPublic, futuresTradeHistory+"?"+params.Encode(), &resp)
 }
 
 // FuturesBatchOrder places a batch order for futures
