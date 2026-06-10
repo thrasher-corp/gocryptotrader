@@ -929,7 +929,7 @@ type MyOptionSettlement struct {
 	Fee          types.Number `json:"fee"`
 }
 
-// OptionsTicker represents  tickers of options contracts
+// OptionsTicker represents tickers of options contracts
 type OptionsTicker struct {
 	Name                  currency.Pair `json:"name"`
 	LastPrice             types.Number  `json:"last_price"`
@@ -1863,7 +1863,7 @@ type CloseOrder struct {
 	IsLiquidation bool         `json:"is_liq"`
 }
 
-// DualModeResponse represents  dual mode enable or disable
+// DualModeResponse represents dual mode enable or disable
 type DualModeResponse struct {
 	User           int64        `json:"user"`
 	Currency       string       `json:"currency"`
@@ -2328,7 +2328,7 @@ type WsFutureTicker struct {
 	High24H               types.Number  `json:"high_24h"`
 }
 
-// WsFuturesTrades represents  a list of trades push data
+// WsFuturesTrades represents a list of trades push data
 type WsFuturesTrades struct {
 	Size       types.Number  `json:"size"`
 	ID         int64         `json:"id"`
