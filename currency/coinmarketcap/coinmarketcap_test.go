@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Please set API keys to test endpoint
@@ -17,15 +16,17 @@ const (
 	apiAccountPlanLevel = ""
 )
 
-func areAPICredtionalsSet(c *Coinmarketcap, minAllowable uint8) bool {
-	if apiAccountPlanLevel != "" && apikey != "" {
+func skipIfLiveCredentialsUnavailable(t *testing.T, c *Coinmarketcap, minAllowable uint8) {
+	t.Helper()
+	switch {
+	case apiAccountPlanLevel != "" && apikey != "":
 		if err := c.CheckAccountPlan(minAllowable); err != nil {
-			log.Warnln(log.Global, "coinmarketpcap test suite - account plan not allowed for function, please review or upgrade plan to test")
-			return false
+			t.Skip("CoinMarketCap account plan not allowed for function, please review or upgrade plan to test")
 		}
-		return true
+		return
+	default:
+		t.Skip("CoinMarketCap API key or account plan not set")
 	}
-	return false
 }
 
 func newConfiguredClient(t *testing.T) *Coinmarketcap {
@@ -33,7 +34,6 @@ func newConfiguredClient(t *testing.T) *Coinmarketcap {
 
 	c := &Coinmarketcap{}
 	c.SetDefaults()
-
 	plan := apiAccountPlanLevel
 	if plan == "" {
 		plan = "basic"
@@ -48,24 +48,37 @@ func newConfiguredClient(t *testing.T) *Coinmarketcap {
 	return c
 }
 
-func skipIfLiveCredentialsUnavailable(t *testing.T, c *Coinmarketcap, minAllowable uint8) {
+func newSyntheticClient(t *testing.T, responses map[string]string) (client *Coinmarketcap, closeFn func()) {
 	t.Helper()
-	if !areAPICredtionalsSet(c, minAllowable) {
-		t.Skip("live CoinMarketCap credentials unavailable for this plan")
-	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		resp, ok := responses[r.URL.Path]
+		if !ok {
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"status":{"error_code":404,"error_message":"not found"}}`))
+			return
+		}
+		_, _ = w.Write([]byte(resp))
+	}))
+	c := &Coinmarketcap{}
+	c.SetDefaults()
+	c.APIUrl = server.URL
+	c.APIkey = "test"
+	c.Plan = Enterprise
+	return c, server.Close
 }
 
-func TestSetDefaults(_ *testing.T) {
+func TestSetDefaults(t *testing.T) {
+	t.Parallel()
 	var c Coinmarketcap
 	c.SetDefaults()
 }
 
 func TestSetup(t *testing.T) {
 	t.Parallel()
-
 	var c Coinmarketcap
 	c.SetDefaults()
-
 	cfg := Settings{}
 	cfg.APIKey = apikey
 	cfg.AccountPlan = apiAccountPlanLevel
@@ -80,33 +93,35 @@ func TestSetup(t *testing.T) {
 
 func TestCheckAccountPlan(t *testing.T) {
 	t.Parallel()
+	testCases := []struct {
+		name      string
+		plan      uint8
+		min       uint8
+		expectErr bool
+	}{
+		{name: "basic allows basic", plan: Basic, min: Basic},
+		{name: "basic blocks hobbyist", plan: Basic, min: Hobbyist, expectErr: true},
+		{name: "startup allows hobbyist", plan: Startup, min: Hobbyist},
+		{name: "startup blocks standard", plan: Startup, min: Standard, expectErr: true},
+		{name: "enterprise allows professional", plan: Enterprise, min: Professional},
+	}
 
-	c := newConfiguredClient(t)
-
-	if areAPICredtionalsSet(c, Basic) {
-		err := c.CheckAccountPlan(Enterprise)
-		assert.Error(t, err)
-
-		err = c.CheckAccountPlan(Professional)
-		assert.Error(t, err)
-
-		err = c.CheckAccountPlan(Standard)
-		assert.Error(t, err)
-
-		err = c.CheckAccountPlan(Hobbyist)
-		assert.Error(t, err)
-
-		err = c.CheckAccountPlan(Startup)
-		assert.Error(t, err)
-
-		err = c.CheckAccountPlan(Basic)
-		assert.NoError(t, err)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			c := &Coinmarketcap{Plan: tc.plan}
+			err := c.CheckAccountPlan(tc.min)
+			if tc.expectErr {
+				assert.ErrorIs(t, err, errFunctionUseNotAllowed, "CheckAccountPlan should return expected error")
+				return
+			}
+			assert.NoError(t, err, "CheckAccountPlan should not error")
+		})
 	}
 }
 
 func TestGetCryptocurrencyInfo(t *testing.T) {
 	t.Parallel()
-
 	c := newConfiguredClient(t)
 	skipIfLiveCredentialsUnavailable(t, c, Basic)
 	_, err := c.GetCryptocurrencyInfo(1)
@@ -115,7 +130,6 @@ func TestGetCryptocurrencyInfo(t *testing.T) {
 
 func TestGetCryptocurrencyIDMap(t *testing.T) {
 	t.Parallel()
-
 	c := newConfiguredClient(t)
 	skipIfLiveCredentialsUnavailable(t, c, Basic)
 	data, err := c.GetCryptocurrencyIDMap()
@@ -125,7 +139,6 @@ func TestGetCryptocurrencyIDMap(t *testing.T) {
 
 func TestGetCryptocurrencyHistoricalListings(t *testing.T) {
 	t.Parallel()
-
 	c := newConfiguredClient(t)
 	_, err := c.GetCryptocurrencyHistoricalListings()
 	assert.Error(t, err)
@@ -133,7 +146,6 @@ func TestGetCryptocurrencyHistoricalListings(t *testing.T) {
 
 func TestGetCryptocurrencyLatestListing(t *testing.T) {
 	t.Parallel()
-
 	c := newConfiguredClient(t)
 	skipIfLiveCredentialsUnavailable(t, c, Basic)
 	_, err := c.GetCryptocurrencyLatestListing(0, 0)
@@ -142,7 +154,6 @@ func TestGetCryptocurrencyLatestListing(t *testing.T) {
 
 func TestGetCryptocurrencyLatestMarketPairs(t *testing.T) {
 	t.Parallel()
-
 	c := newConfiguredClient(t)
 	skipIfLiveCredentialsUnavailable(t, c, Standard)
 	_, err := c.GetCryptocurrencyLatestMarketPairs(1, 0, 0)
@@ -151,7 +162,6 @@ func TestGetCryptocurrencyLatestMarketPairs(t *testing.T) {
 
 func TestGetCryptocurrencyOHLCHistorical(t *testing.T) {
 	t.Parallel()
-
 	c := newConfiguredClient(t)
 	skipIfLiveCredentialsUnavailable(t, c, Standard)
 	_, err := c.GetCryptocurrencyOHLCHistorical(1, time.Now(), time.Now())
@@ -160,7 +170,6 @@ func TestGetCryptocurrencyOHLCHistorical(t *testing.T) {
 
 func TestGetCryptocurrencyOHLCLatest(t *testing.T) {
 	t.Parallel()
-
 	c := newConfiguredClient(t)
 	skipIfLiveCredentialsUnavailable(t, c, Startup)
 	_, err := c.GetCryptocurrencyOHLCLatest(1)
@@ -169,7 +178,6 @@ func TestGetCryptocurrencyOHLCLatest(t *testing.T) {
 
 func TestGetCryptocurrencyLatestQuotes(t *testing.T) {
 	t.Parallel()
-
 	c := newConfiguredClient(t)
 	skipIfLiveCredentialsUnavailable(t, c, Basic)
 	_, err := c.GetCryptocurrencyLatestQuotes(1)
@@ -178,7 +186,6 @@ func TestGetCryptocurrencyLatestQuotes(t *testing.T) {
 
 func TestGetCryptocurrencyHistoricalQuotes(t *testing.T) {
 	t.Parallel()
-
 	c := newConfiguredClient(t)
 	skipIfLiveCredentialsUnavailable(t, c, Standard)
 	_, err := c.GetCryptocurrencyHistoricalQuotes(1, time.Now(), time.Now())
@@ -187,7 +194,6 @@ func TestGetCryptocurrencyHistoricalQuotes(t *testing.T) {
 
 func TestGetExchangeInfo(t *testing.T) {
 	t.Parallel()
-
 	c := newConfiguredClient(t)
 	skipIfLiveCredentialsUnavailable(t, c, Startup)
 	_, err := c.GetExchangeInfo(1)
@@ -196,7 +202,6 @@ func TestGetExchangeInfo(t *testing.T) {
 
 func TestGetExchangeMap(t *testing.T) {
 	t.Parallel()
-
 	c := newConfiguredClient(t)
 	skipIfLiveCredentialsUnavailable(t, c, Startup)
 	_, err := c.GetExchangeMap(0, 0)
@@ -205,25 +210,22 @@ func TestGetExchangeMap(t *testing.T) {
 
 func TestGetExchangeHistoricalListings(t *testing.T) {
 	t.Parallel()
-
 	c := newConfiguredClient(t)
 	_, err := c.GetExchangeHistoricalListings()
 	// TODO: update this once the feature above is implemented
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, errEndpointNotAvailable, "GetExchangeHistoricalListings should return expected error")
 }
 
 func TestGetExchangeLatestListings(t *testing.T) {
 	t.Parallel()
-
 	c := newConfiguredClient(t)
 	_, err := c.GetExchangeLatestListings()
 	// TODO: update this once the feature above is implemented
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, errEndpointNotAvailable, "GetExchangeLatestListings should return expected error")
 }
 
 func TestGetExchangeLatestMarketPairs(t *testing.T) {
 	t.Parallel()
-
 	c := newConfiguredClient(t)
 	skipIfLiveCredentialsUnavailable(t, c, Standard)
 	_, err := c.GetExchangeLatestMarketPairs(1, 0, 0)
@@ -232,7 +234,6 @@ func TestGetExchangeLatestMarketPairs(t *testing.T) {
 
 func TestGetExchangeLatestQuotes(t *testing.T) {
 	t.Parallel()
-
 	c := newConfiguredClient(t)
 	skipIfLiveCredentialsUnavailable(t, c, Standard)
 	_, err := c.GetExchangeLatestQuotes(1)
@@ -241,7 +242,6 @@ func TestGetExchangeLatestQuotes(t *testing.T) {
 
 func TestGetExchangeHistoricalQuotes(t *testing.T) {
 	t.Parallel()
-
 	c := newConfiguredClient(t)
 	skipIfLiveCredentialsUnavailable(t, c, Standard)
 	_, err := c.GetExchangeHistoricalQuotes(1, time.Now(), time.Now())
@@ -250,7 +250,6 @@ func TestGetExchangeHistoricalQuotes(t *testing.T) {
 
 func TestGetGlobalMeticLatestQuotes(t *testing.T) {
 	t.Parallel()
-
 	c := newConfiguredClient(t)
 	skipIfLiveCredentialsUnavailable(t, c, Basic)
 	_, err := c.GetGlobalMeticLatestQuotes()
@@ -259,7 +258,6 @@ func TestGetGlobalMeticLatestQuotes(t *testing.T) {
 
 func TestGetGlobalMeticHistoricalQuotes(t *testing.T) {
 	t.Parallel()
-
 	c := newConfiguredClient(t)
 	skipIfLiveCredentialsUnavailable(t, c, Standard)
 	_, err := c.GetGlobalMeticHistoricalQuotes(time.Now(), time.Now())
@@ -268,7 +266,6 @@ func TestGetGlobalMeticHistoricalQuotes(t *testing.T) {
 
 func TestGetPriceConversion(t *testing.T) {
 	t.Parallel()
-
 	c := newConfiguredClient(t)
 	skipIfLiveCredentialsUnavailable(t, c, Hobbyist)
 	_, err := c.GetPriceConversion(0, 1, time.Now())
@@ -277,7 +274,6 @@ func TestGetPriceConversion(t *testing.T) {
 
 func TestSetAccountPlan(t *testing.T) {
 	t.Parallel()
-
 	var c Coinmarketcap
 	accPlans := []string{"basic", "startup", "hobbyist", "standard", "professional", "enterprise"}
 	for _, plan := range accPlans {
@@ -301,31 +297,8 @@ func TestSetAccountPlan(t *testing.T) {
 	}
 }
 
-func newSyntheticClient(t *testing.T, responses map[string]string) (client *Coinmarketcap, closeFn func()) {
-	t.Helper()
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		resp, ok := responses[r.URL.Path]
-		if !ok {
-			w.WriteHeader(http.StatusNotFound)
-			_, _ = w.Write([]byte(`{"status":{"error_code":404,"error_message":"not found"}}`))
-			return
-		}
-		_, _ = w.Write([]byte(resp))
-	}))
-
-	c := &Coinmarketcap{}
-	c.SetDefaults()
-	c.APIUrl = server.URL
-	c.APIkey = "test"
-	c.Plan = Enterprise
-	return c, server.Close
-}
-
 func TestNewFromSettingsAndSetupDisabled(t *testing.T) {
 	t.Parallel()
-
 	cfg := Settings{Enabled: true, AccountPlan: "basic", APIKey: "x"}
 	client, err := NewFromSettings(cfg)
 	require.NoError(t, err)
@@ -341,23 +314,20 @@ func TestNewFromSettingsAndSetupDisabled(t *testing.T) {
 
 func TestQuoteMapUnmarshal(t *testing.T) {
 	t.Parallel()
-
-	var asObject QuoteMap
-	err := asObject.UnmarshalJSON([]byte(`{"USD":{"price":1.23},"BTC":{"price":0.1}}`))
+	var qm QuoteMap
+	err := qm.UnmarshalJSON([]byte(`{"USD":{"price":1.23},"BTC":{"price":0.1}}`))
 	require.NoError(t, err)
-	assert.Equal(t, 1.23, asObject["USD"].Price)
-	assert.Equal(t, 0.1, asObject["BTC"].Price)
+	assert.Equal(t, 1.23, qm["USD"].Price)
+	assert.Equal(t, 0.1, qm["BTC"].Price)
 
-	var asArray QuoteMap
-	err = asArray.UnmarshalJSON([]byte(`[{"USD":{"price":2.34}},{"ETH":{"price":3.45}}]`))
+	err = qm.UnmarshalJSON([]byte(`[{"USD":{"price":2.34}},{"ETH":{"price":3.45}}]`))
 	require.NoError(t, err)
-	assert.Equal(t, 2.34, asArray["USD"].Price)
-	assert.Equal(t, 3.45, asArray["ETH"].Price)
+	assert.Equal(t, 2.34, qm["USD"].Price)
+	assert.Equal(t, 3.45, qm["ETH"].Price)
 }
 
 func TestAPIErrorCodeUnmarshal(t *testing.T) {
 	t.Parallel()
-
 	var code APIErrorCode
 	err := code.UnmarshalJSON([]byte(`123`))
 	require.NoError(t, err)
@@ -373,7 +343,6 @@ func TestAPIErrorCodeUnmarshal(t *testing.T) {
 
 func TestCoinmarketcapEndpointSuccessSynthetic(t *testing.T) {
 	t.Parallel()
-
 	testCases := []struct {
 		name    string
 		path    string
@@ -423,7 +392,6 @@ func TestCoinmarketcapEndpointSuccessSynthetic(t *testing.T) {
 
 func TestCoinmarketcapEndpointStatusErrorSynthetic(t *testing.T) {
 	t.Parallel()
-
 	testCases := []struct {
 		name    string
 		path    string
@@ -444,14 +412,14 @@ func TestCoinmarketcapEndpointStatusErrorSynthetic(t *testing.T) {
 			client, done := newSyntheticClient(t, map[string]string{tc.path: tc.payload})
 			defer done()
 			err := tc.invoke(client)
-			assert.Error(t, err)
+			assert.ErrorIs(t, err, errAPIResponse, "endpoint should return expected error")
+			assert.ErrorContains(t, err, "boom", "endpoint should include API error message")
 		})
 	}
 }
 
 func TestCoinmarketcapEndpointRequestFailureSynthetic(t *testing.T) {
 	t.Parallel()
-
 	testCases := []struct {
 		name   string
 		invoke func(*Coinmarketcap) error
@@ -499,32 +467,31 @@ func TestCoinmarketcapEndpointRequestFailureSynthetic(t *testing.T) {
 
 func TestCoinmarketcapAccountPlanGatesSynthetic(t *testing.T) {
 	t.Parallel()
-
 	c, done := newSyntheticClient(t, map[string]string{})
 	defer done()
 
 	c.Plan = Basic
 
 	_, err := c.GetCryptocurrencyLatestMarketPairs(1, 0, 0)
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, errFunctionUseNotAllowed, "GetCryptocurrencyLatestMarketPairs should return expected error")
 	_, err = c.GetCryptocurrencyOHLCHistorical(1, time.Now(), time.Now())
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, errFunctionUseNotAllowed, "GetCryptocurrencyOHLCHistorical should return expected error")
 	_, err = c.GetCryptocurrencyOHLCLatest(1)
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, errFunctionUseNotAllowed, "GetCryptocurrencyOHLCLatest should return expected error")
 	_, err = c.GetCryptocurrencyHistoricalQuotes(1, time.Now(), time.Now())
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, errFunctionUseNotAllowed, "GetCryptocurrencyHistoricalQuotes should return expected error")
 	_, err = c.GetExchangeInfo(1)
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, errFunctionUseNotAllowed, "GetExchangeInfo should return expected error")
 	_, err = c.GetExchangeMap(1, 1)
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, errFunctionUseNotAllowed, "GetExchangeMap should return expected error")
 	_, err = c.GetExchangeLatestMarketPairs(1, 1, 1)
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, errFunctionUseNotAllowed, "GetExchangeLatestMarketPairs should return expected error")
 	_, err = c.GetExchangeLatestQuotes(1)
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, errFunctionUseNotAllowed, "GetExchangeLatestQuotes should return expected error")
 	_, err = c.GetExchangeHistoricalQuotes(1, time.Now(), time.Now())
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, errFunctionUseNotAllowed, "GetExchangeHistoricalQuotes should return expected error")
 	_, err = c.GetGlobalMeticHistoricalQuotes(time.Now(), time.Now())
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, errFunctionUseNotAllowed, "GetGlobalMeticHistoricalQuotes should return expected error")
 	_, err = c.GetPriceConversion(1, 1, time.Now())
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, errFunctionUseNotAllowed, "GetPriceConversion should return expected error")
 }

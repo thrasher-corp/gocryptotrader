@@ -10,53 +10,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
-// QuoteMap captures quote values for all returned conversion symbols.
-type QuoteMap map[string]Currency
-
-// APIErrorCode supports status error code decoding from either number or string.
-type APIErrorCode int64
-
-// UnmarshalJSON decodes error code from number or quoted string.
-func (c *APIErrorCode) UnmarshalJSON(data []byte) error {
-	var num int64
-	if err := json.Unmarshal(data, &num); err == nil {
-		*c = APIErrorCode(num)
-		return nil
-	}
-
-	var text string
-	if err := json.Unmarshal(data, &text); err != nil {
-		return err
-	}
-	parsed, err := strconv.ParseInt(text, 10, 64)
-	if err != nil {
-		return fmt.Errorf("failed to parse error code: %w", err)
-	}
-	*c = APIErrorCode(parsed)
-	return nil
-}
-
-// UnmarshalJSON handles quote payloads that may be either an object map or array.
-func (q *QuoteMap) UnmarshalJSON(data []byte) error {
-	var object map[string]Currency
-	if err := json.Unmarshal(data, &object); err == nil {
-		*q = object
-		return nil
-	}
-
-	var arr []map[string]Currency
-	if err := json.Unmarshal(data, &arr); err != nil {
-		return err
-	}
-
-	merged := make(map[string]Currency)
-	for i := range arr {
-		maps.Copy(merged, arr[i])
-	}
-	*q = merged
-	return nil
-}
-
 // Coinmarketcap account plan bitmasks, url and endpoint consts
 const (
 	Basic uint8 = 1 << iota
@@ -68,40 +21,31 @@ const (
 
 	baseURL    = "https://pro-api.coinmarketcap.com"
 	sandboxURL = "https://sandbox-api.coinmarketcap.com"
-	version    = ""
 
-	endpointCryptocurrencyInfo               = "v2/cryptocurrency/info"
-	endpointCryptocurrencyMap                = "v1/cryptocurrency/map"
-	endpointCryptocurrencyHistoricalListings = "v1/cryptocurrency/listings/historical"
-	endpointCryptocurrencyLatestListings     = "v3/cryptocurrency/listings/latest"
-	endpointCryptocurrencyMarketPairs        = "v2/cryptocurrency/market-pairs/latest"
-	endpointOHLCVHistorical                  = "v2/cryptocurrency/ohlcv/historical"
-	endpointOHLCVLatest                      = "v2/cryptocurrency/ohlcv/latest"
-	endpointGetMarketQuotesHistorical        = "v3/cryptocurrency/quotes/historical"
-	endpointGetMarketQuotesLatest            = "v3/cryptocurrency/quotes/latest"
-	endpointExchangeInfo                     = "v1/exchange/info"
-	endpointExchangeMap                      = "v1/exchange/map"
-	endpointExchangeMarketPairsLatest        = "v1/exchange/market-pairs/latest"
-	endpointExchangeMarketQuoteHistorical    = "v1/exchange/quotes/historical"
-	endpointExchangeMarketQuoteLatest        = "v1/exchange/quotes/latest"
-	endpointGlobalQuoteHistorical            = "v1/global-metrics/quotes/historical"
-	endpointGlobalQuoteLatest                = "v1/global-metrics/quotes/latest"
-	endpointPriceConversion                  = "v2/tools/price-conversion"
+	endpointCryptocurrencyInfo            = "v2/cryptocurrency/info"
+	endpointCryptocurrencyMap             = "v1/cryptocurrency/map"
+	endpointCryptocurrencyLatestListings  = "v3/cryptocurrency/listings/latest"
+	endpointCryptocurrencyMarketPairs     = "v2/cryptocurrency/market-pairs/latest"
+	endpointOHLCVHistorical               = "v2/cryptocurrency/ohlcv/historical"
+	endpointOHLCVLatest                   = "v2/cryptocurrency/ohlcv/latest"
+	endpointGetMarketQuotesHistorical     = "v3/cryptocurrency/quotes/historical"
+	endpointGetMarketQuotesLatest         = "v3/cryptocurrency/quotes/latest"
+	endpointExchangeInfo                  = "v1/exchange/info"
+	endpointExchangeMap                   = "v1/exchange/map"
+	endpointExchangeMarketPairsLatest     = "v1/exchange/market-pairs/latest"
+	endpointExchangeMarketQuoteHistorical = "v1/exchange/quotes/historical"
+	endpointExchangeMarketQuoteLatest     = "v1/exchange/quotes/latest"
+	endpointGlobalQuoteHistorical         = "v1/global-metrics/quotes/historical"
+	endpointGlobalQuoteLatest             = "v1/global-metrics/quotes/latest"
+	endpointPriceConversion               = "v2/tools/price-conversion"
 
 	defaultTimeOut = time.Second * 15
 
-	// BASIC, HOBBYIST STARTUP tier rate limits
-	RateInterval     = time.Minute
-	BasicRequestRate = 30
-
-	// STANDARD tier rate limit
-	StandardRequestRate = 60
-
-	// PROFESSIONAL tier rate limit
-	ProfessionalRequestRate = 90
-
-	// ENTERPRISE tier rate limit - Can be extended checkout agreement
-	EnterpriseRequestRate = 120
+	rateInterval            = time.Minute // BASIC, HOBBYIST STARTUP tier rate limits
+	basicRequestRate        = 30
+	standardRequestRate     = 60  // STANDARD tier rate limit
+	professionalRequestRate = 90  // PROFESSIONAL tier rate limit
+	enterpriseRequestRate   = 120 // ENTERPRISE tier rate limit - Can be extended checkout agreement
 )
 
 // Coinmarketcap is the overarching type across this package
@@ -460,4 +404,51 @@ type PriceConversion struct {
 	Amount      float64   `json:"amount"`
 	LastUpdated time.Time `json:"last_updated"`
 	Quote       QuoteMap  `json:"quote"`
+}
+
+// QuoteMap captures quote values for all returned conversion symbols.
+type QuoteMap map[string]Currency
+
+// APIErrorCode supports status error code decoding from either number or string.
+type APIErrorCode int64
+
+// UnmarshalJSON decodes error code from number or quoted string.
+func (c *APIErrorCode) UnmarshalJSON(data []byte) error {
+	var num int64
+	if err := json.Unmarshal(data, &num); err == nil {
+		*c = APIErrorCode(num)
+		return nil
+	}
+
+	var text string
+	if err := json.Unmarshal(data, &text); err != nil {
+		return err
+	}
+	parsed, err := strconv.ParseInt(text, 10, 64)
+	if err != nil {
+		return fmt.Errorf("failed to parse error code: %w", err)
+	}
+	*c = APIErrorCode(parsed)
+	return nil
+}
+
+// UnmarshalJSON handles quote payloads that may be either an object map or array.
+func (q *QuoteMap) UnmarshalJSON(data []byte) error {
+	var object map[string]Currency
+	if err := json.Unmarshal(data, &object); err == nil {
+		*q = object
+		return nil
+	}
+
+	var arr []map[string]Currency
+	if err := json.Unmarshal(data, &arr); err != nil {
+		return err
+	}
+
+	merged := make(map[string]Currency)
+	for i := range arr {
+		maps.Copy(merged, arr[i])
+	}
+	*q = merged
+	return nil
 }
