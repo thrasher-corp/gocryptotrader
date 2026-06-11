@@ -3000,6 +3000,10 @@ func (d *FixtureConnection) SendMessageReturnResponse(context.Context, request.E
 	return []byte(`{"success":true,"ret_msg":"subscribe","conn_id":"5758770c-8152-4545-a84f-dae089e56499","req_id":"1","op":"subscribe"}`), nil
 }
 
+func (d *FixtureConnection) SendMessageReturnResponseWithRateLimitWeight(ctx context.Context, epl request.EndpointLimit, _ request.Weight, signature, req any, additionalRateLimits ...request.RateLimitReservation) ([]byte, error) {
+	return d.SendMessageReturnResponse(ctx, epl, signature, req, additionalRateLimits...)
+}
+
 func (d *FixtureConnection) SendJSONMessage(context.Context, request.EndpointLimit, any) error {
 	return nil
 }

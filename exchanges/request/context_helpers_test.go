@@ -53,33 +53,3 @@ func TestWithRetryNotAllowed(t *testing.T) {
 	assert.False(t, hasRetryNotAllowed(t.Context()))
 	assert.False(t, hasRetryNotAllowed(WithDelayNotAllowed(WithVerbose(t.Context()))))
 }
-
-func TestWithRateLimitWeight(t *testing.T) {
-	t.Parallel()
-
-	weight, ok := getRateLimitWeight(t.Context())
-	assert.False(t, ok)
-	assert.Zero(t, weight)
-
-	ctx := WithRateLimitWeight(t.Context(), 0)
-	weight, ok = getRateLimitWeight(ctx)
-	assert.False(t, ok)
-	assert.Zero(t, weight)
-
-	ctx = WithRateLimitWeight(t.Context(), 7)
-	weight, ok = getRateLimitWeight(ctx)
-	assert.True(t, ok)
-	assert.Equal(t, Weight(7), weight)
-}
-
-func TestGetRateLimitWeight(t *testing.T) {
-	t.Parallel()
-
-	weight, ok := getRateLimitWeight(t.Context())
-	assert.False(t, ok, "weight lookup should report missing in plain context")
-	assert.Zero(t, weight, "weight should be zero when missing")
-
-	weight, ok = getRateLimitWeight(WithRateLimitWeight(t.Context(), 3))
-	assert.True(t, ok, "weight lookup should report present when set")
-	assert.Equal(t, Weight(3), weight, "weight should match configured value")
-}

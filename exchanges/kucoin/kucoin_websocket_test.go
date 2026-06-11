@@ -52,6 +52,10 @@ func (c *ConnectionFixture) SendMessageReturnResponse(_ context.Context, _ reque
 	return []byte(c.messageResponse), nil
 }
 
+func (c *ConnectionFixture) SendMessageReturnResponseWithRateLimitWeight(ctx context.Context, epl request.EndpointLimit, _ request.Weight, signature, req any, additionalRateLimits ...request.RateLimitReservation) ([]byte, error) {
+	return c.SendMessageReturnResponse(ctx, epl, signature, req, additionalRateLimits...)
+}
+
 func expectedPerPairSubscriptions(channel string, a asset.Item, pairs currency.Pairs, qualifiedPrefix string, interval kline.Interval, suffixFn func(currency.Pair) string) subscription.List {
 	if suffixFn == nil {
 		suffixFn = func(pair currency.Pair) string {

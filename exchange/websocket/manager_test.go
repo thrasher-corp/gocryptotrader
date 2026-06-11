@@ -1107,6 +1107,36 @@ func TestSendMessageReturnResponse(t *testing.T) {
 	assert.ErrorIs(t, err, ErrSignatureTimeout, "SendMessageReturnResponse should error when request ID not found")
 }
 
+func TestSendMessageReturnResponseWithRateLimitWeight(t *testing.T) {
+	t.Parallel()
+
+	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler) }))
+	defer mock.Close()
+
+	wc := &connection{
+		URL:              "ws" + mock.URL[len("http"):] + "/ws",
+		ResponseMaxLimit: time.Second * 5,
+		Match:            NewMatch(),
+		RateLimit:        request.NewRateLimitWithWeight(time.Second, 1000, 1),
+	}
+	err := wc.Dial(t.Context(), &gws.Dialer{}, http.Header{}, nil)
+	require.NoError(t, err, "Dial must not error")
+
+	go readMessages(t, wc)
+
+	req := testRequest{
+		Event: "subscribe",
+		Pairs: []string{currency.NewPairWithDelimiter("XBT", "USD", "/").String()},
+		Subscription: testRequestData{
+			Name: "ticker",
+		},
+		RequestID: 12345,
+	}
+
+	_, err = wc.SendMessageReturnResponseWithRateLimitWeight(t.Context(), request.Unset, 3, req.RequestID, req)
+	require.NoError(t, err, "SendMessageReturnResponseWithRateLimitWeight must not error")
+}
+
 func TestWaitForResponses(t *testing.T) {
 	t.Parallel()
 	dummy := &connection{
@@ -1561,28 +1591,28 @@ func TestRemoveURLQueryString(t *testing.T) {
 func TestWriteToConn(t *testing.T) {
 	t.Parallel()
 	wc := connection{}
-	require.ErrorIs(t, wc.writeToConn(t.Context(), request.Unset, func() error { return nil }), errWebsocketIsDisconnected)
+	require.ErrorIs(t, wc.writeToConn(t.Context(), request.Unset, 0, func() error { return nil }), errWebsocketIsDisconnected)
 	wc.setConnectedStatus(true)
 	// No rate limits set
-	require.NoError(t, wc.writeToConn(t.Context(), request.Unset, func() error { return nil }))
+	require.NoError(t, wc.writeToConn(t.Context(), request.Unset, 0, func() error { return nil }))
 	// connection rate limit set
 	// Use a longer interval so the second call always requires delay and hits ctx deadline checks deterministically.
 	wc.RateLimit = request.NewWeightedRateLimitByDuration(time.Second)
-	require.NoError(t, wc.writeToConn(t.Context(), request.Unset, func() error { return nil }))
+	require.NoError(t, wc.writeToConn(t.Context(), request.Unset, 0, func() error { return nil }))
 	ctx, cancel := context.WithTimeout(t.Context(), 0) // deadline exceeded
 	cancel()
-	require.ErrorIs(t, wc.writeToConn(ctx, request.Unset, func() error { return nil }), context.DeadlineExceeded)
+	require.ErrorIs(t, wc.writeToConn(ctx, request.Unset, 0, func() error { return nil }), context.DeadlineExceeded)
 	wc.RateLimit = request.NewWeightedRateLimitByDuration(time.Millisecond)
 	// definitions set but with fallover
 	wc.RateLimitDefinitions = request.RateLimitDefinitions{
 		request.Auth: request.NewWeightedRateLimitByDuration(time.Millisecond),
 	}
-	require.NoError(t, wc.writeToConn(t.Context(), request.Unset, func() error { return nil }))
+	require.NoError(t, wc.writeToConn(t.Context(), request.Unset, 0, func() error { return nil }))
 	// match with global rate limit
-	require.NoError(t, wc.writeToConn(t.Context(), request.Auth, func() error { return nil }))
+	require.NoError(t, wc.writeToConn(t.Context(), request.Auth, 0, func() error { return nil }))
 	// definitions set but connection rate limiter not set
 	wc.RateLimit = nil
-	require.ErrorIs(t, wc.writeToConn(ctx, request.Unset, func() error { return nil }), errRateLimitNotFound)
+	require.ErrorIs(t, wc.writeToConn(ctx, request.Unset, 0, func() error { return nil }), errRateLimitNotFound)
 }
 
 func TestDrain(t *testing.T) {

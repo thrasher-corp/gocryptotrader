@@ -68,22 +68,3 @@ func hasRetryNotAllowed(ctx context.Context) bool {
 	_, ok := ctx.Value(retryNotAllowedKey{}).(struct{})
 	return ok
 }
-
-type rateLimitWeightKey struct{}
-
-// WithRateLimitWeight adds a per-request rate-limit weight override to the context.
-// Values less than 1 are ignored.
-func WithRateLimitWeight(ctx context.Context, weight uint8) context.Context {
-	if weight < 1 {
-		return ctx
-	}
-	return context.WithValue(ctx, rateLimitWeightKey{}, Weight(weight))
-}
-
-func getRateLimitWeight(ctx context.Context) (Weight, bool) {
-	weight, ok := ctx.Value(rateLimitWeightKey{}).(Weight)
-	if !ok || weight < 1 {
-		return 0, false
-	}
-	return weight, true
-}
