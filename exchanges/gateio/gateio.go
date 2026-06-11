@@ -3335,7 +3335,7 @@ func (e *Exchange) GetMyOptionsTradingHistory(ctx context.Context, underlying st
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, optionsTradingHistoryEPL, http.MethodGet, gateioOptionsMyTrades, params, nil, &resp)
 }
 
-// GetOptionsTickers lists  tickers of options contracts
+// GetOptionsTickers lists tickers of options contracts
 func (e *Exchange) GetOptionsTickers(ctx context.Context, underlying string) ([]OptionsTicker, error) {
 	if underlying == "" {
 		return nil, errInvalidUnderlying
