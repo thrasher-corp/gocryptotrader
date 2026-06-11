@@ -323,7 +323,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 
 // UpdateTradablePairs updates the exchanges available pairs and stores them in the exchanges config
 func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
-	assetTypes := e.GetAssetTypes(true)
+	assetTypes := e.GetAssetTypes(false)
 	for i := range assetTypes {
 		pairs, err := e.FetchTradablePairs(ctx, assetTypes[i])
 		if err != nil {
@@ -462,7 +462,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 		if err != nil {
 			return err
 		}
-		pairs, err := e.GetEnabledPairs(assetType)
+		pairs, err := e.GetAvailablePairs(assetType)
 		if err != nil {
 			return err
 		}
@@ -493,7 +493,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			}
 		}
 	case asset.Spot, asset.PerpetualSwap, asset.Futures, asset.Options, asset.Margin:
-		pairs, err := e.GetEnabledPairs(assetType)
+		pairs, err := e.GetAvailablePairs(assetType)
 		if err != nil {
 			return err
 		}
@@ -603,7 +603,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 			}
 		}
 	case asset.Spot, asset.Options, asset.Margin, asset.PerpetualSwap, asset.Futures:
-		err = e.CurrencyPairs.IsAssetEnabled(assetType)
+		err = e.CurrencyPairs.IsAssetAvailable(assetType)
 		if err != nil {
 			return nil, err
 		}
@@ -654,7 +654,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 
 // UpdateAccountBalances retrieves currency balances
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
-	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(assetType); err != nil {
 		return nil, err
 	}
 	resp, err := e.AccountBalance(ctx, currency.EMPTYCODE)
@@ -1379,44 +1379,56 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (*order.CancelAllResponse, error) {
 	err := orderCancellation.Validate()
 	if err != nil {
-		return order.CancelAllResponse{}, err
+		return nil, err
 	}
-	cancelAllResponse := order.CancelAllResponse{
-		Status: map[string]string{},
-	}
+	var cancelAllResponse order.CancelAllResponse
 
 	// For asset.Spread asset orders cancellation
 	if orderCancellation.AssetType == asset.Spread {
 		var success bool
 		success, err = e.CancelAllSpreadOrders(ctx, orderCancellation.OrderID)
 		if err != nil {
-			return cancelAllResponse, err
+			if len(cancelAllResponse.Status) > 0 {
+				return &cancelAllResponse, err
+			}
+			return nil, err
 		}
-		cancelAllResponse.Status[orderCancellation.OrderID] = strconv.FormatBool(success)
-		return cancelAllResponse, nil
+		cancelAllResponse.Add(orderCancellation.OrderID, strconv.FormatBool(success))
+		return &cancelAllResponse, nil
 	}
 
 	var instrumentType string
 	if orderCancellation.AssetType.IsValid() {
-		err = e.CurrencyPairs.IsAssetEnabled(orderCancellation.AssetType)
+		err = e.CurrencyPairs.IsAssetAvailable(orderCancellation.AssetType)
 		if err != nil {
-			return order.CancelAllResponse{}, err
+			if len(cancelAllResponse.Status) > 0 {
+				return &cancelAllResponse, err
+			}
+			return nil, err
 		}
 		instrumentType = GetInstrumentTypeFromAssetItem(orderCancellation.AssetType)
+	} else {
+		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, orderCancellation.AssetType)
 	}
 	var oType string
 	if orderCancellation.Type != order.UnknownType && orderCancellation.Type != order.AnyType {
 		oType, err = orderTypeString(orderCancellation.Type, orderCancellation.TimeInForce)
 		if err != nil {
-			return order.CancelAllResponse{}, err
+			if len(cancelAllResponse.Status) > 0 {
+				return &cancelAllResponse, err
+			}
+			return nil, err
 		}
 	}
 	var curr string
 	if orderCancellation.Pair.IsPopulated() {
 		curr = orderCancellation.Pair.Upper().String()
+	}
+	if curr == "" && orderCancellation.OrderID == "" && orderCancellation.ClientOrderID == "" {
+		return nil, order.ErrPairRequiredForCancelAllFanout
 	}
 	myOrders, err := e.GetOrderList(ctx, &OrderListRequestParams{
 		InstrumentType: instrumentType,
@@ -1424,7 +1436,10 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 		InstrumentID:   curr,
 	})
 	if err != nil {
-		return cancelAllResponse, err
+		if len(cancelAllResponse.Status) > 0 {
+			return &cancelAllResponse, err
+		}
+		return nil, err
 	}
 	cancelAllOrdersRequestParams := make([]CancelOrderRequestParam, len(myOrders))
 ordersLoop:
@@ -1474,7 +1489,7 @@ ordersLoop:
 		}
 		if err != nil {
 			if len(cancelAllResponse.Status) == 0 {
-				return cancelAllResponse, err
+				return nil, err
 			}
 		}
 		for y := range response {
@@ -1485,7 +1500,7 @@ ordersLoop:
 			}
 		}
 	}
-	return cancelAllResponse, nil
+	return &cancelAllResponse, nil
 }
 
 // GetOrderInfo returns order information based on order ID
@@ -1540,7 +1555,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(assetType); err != nil {
 		return nil, err
 	}
 	pairFormat, err := e.GetPairFormat(assetType, false)
@@ -2930,14 +2945,13 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 				}
 			}
 			for j := range oid {
-				var isEnabled bool
 				var p currency.Pair
-				p, isEnabled, err = e.MatchSymbolCheckEnabled(oid[j].InstrumentID, v, true)
-				if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+				p, err = e.MatchSymbolWithAvailablePairs(oid[j].InstrumentID, v, true)
+				if err != nil {
+					if errors.Is(err, currency.ErrPairNotFound) {
+						continue
+					}
 					return nil, err
-				}
-				if !isEnabled {
-					continue
 				}
 				var appendData bool
 				for j := range k {
@@ -2989,11 +3003,11 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 		}
 	}
 	for i := range oid {
-		p, isEnabled, err := e.MatchSymbolCheckEnabled(oid[i].InstrumentID, k[0].Asset, true)
+		p, err := e.MatchSymbolWithAvailablePairs(oid[i].InstrumentID, k[0].Asset, true)
 		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
 			return nil, err
 		}
-		if !isEnabled {
+		if err != nil {
 			continue
 		}
 		resp[0] = futures.OpenInterest{
@@ -3006,7 +3020,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (e *Exchange) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := e.CurrencyPairs.IsPairEnabled(cp, a)
+	_, err := e.CurrencyPairs.IsPairAvailable(cp, a)
 	if err != nil {
 		return "", err
 	}

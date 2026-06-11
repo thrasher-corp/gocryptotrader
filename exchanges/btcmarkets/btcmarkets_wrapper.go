@@ -207,20 +207,14 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
-	allPairs, err := e.GetEnabledPairs(a)
+	pairs, err := e.GetAvailablePairs(a)
 	if err != nil {
 		return err
 	}
-
-	tickers, err := e.GetTickers(ctx, allPairs)
+	tickers, err := e.GetTickers(ctx, pairs)
 	if err != nil {
 		return err
 	}
-
-	if len(allPairs) != len(tickers) {
-		return errors.New("enabled pairs differ from returned tickers")
-	}
-
 	for x := range tickers {
 		if err := ticker.ProcessTicker(&ticker.Price{
 			Pair:         tickers[x].MarketID,
@@ -242,7 +236,29 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error) {
-	if err := e.UpdateTickers(ctx, a); err != nil {
+	if p.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	fPair, err := e.FormatExchangeCurrency(p, a)
+	if err != nil {
+		return nil, err
+	}
+	tick, err := e.GetTicker(ctx, fPair.String())
+	if err != nil {
+		return nil, err
+	}
+	if err := ticker.ProcessTicker(&ticker.Price{
+		Pair:         p,
+		Last:         tick.LastPrice,
+		High:         tick.High24h,
+		Low:          tick.Low24h,
+		Bid:          tick.BestBID,
+		Ask:          tick.BestAsk,
+		Volume:       tick.Volume,
+		LastUpdated:  time.Now(),
+		ExchangeName: e.Name,
+		AssetType:    a,
+	}); err != nil {
 		return nil, err
 	}
 	return ticker.GetTicker(e.Name, p, a)
@@ -253,7 +269,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(assetType); err != nil {
 		return nil, err
 	}
 
@@ -526,11 +542,27 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *Exchange) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
-	resp := order.CancelAllResponse{Status: map[string]string{}}
-	orders, err := e.GetOrders(ctx, "", -1, -1, -1, true)
+func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (*order.CancelAllResponse, error) {
+	var resp order.CancelAllResponse
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+	if req.Pair.IsEmpty() {
+		return nil, order.ErrPairRequiredForCancelAllFanout
+	}
+	fPair, err := e.FormatExchangeCurrency(req.Pair, req.AssetType)
 	if err != nil {
-		return resp, err
+		if len(resp.Status) > 0 {
+			return &resp, err
+		}
+		return nil, err
+	}
+	orders, err := e.GetOrders(ctx, fPair.String(), -1, -1, -1, true)
+	if err != nil {
+		if len(resp.Status) > 0 {
+			return &resp, err
+		}
+		return nil, err
 	}
 
 	orderIDs := make([]string, len(orders))
@@ -540,16 +572,19 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.
 	for _, batch := range common.Batch(orderIDs, 20) {
 		cancelResp, err := e.CancelBatch(ctx, batch)
 		if err != nil {
-			return resp, err
+			if len(resp.Status) > 0 {
+				return &resp, err
+			}
+			return nil, err
 		}
 		for _, r := range cancelResp.CancelOrders {
-			resp.Status[r.OrderID] = "Success"
+			resp.Add(r.OrderID, "Success")
 		}
 		for _, r := range cancelResp.UnprocessedRequests {
-			resp.Status[r.RequestID] = "Cancellation Failed"
+			resp.Add(r.RequestID, "Cancellation Failed")
 		}
 	}
-	return resp, nil
+	return &resp, nil
 }
 
 // GetOrderInfo returns order information based on order ID
@@ -992,7 +1027,7 @@ func (e *Exchange) GetLatestFundingRates(context.Context, *fundingrate.LatestRat
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := e.CurrencyPairs.IsPairEnabled(cp, a)
+	_, err := e.CurrencyPairs.IsPairAvailable(cp, a)
 	if err != nil {
 		return "", err
 	}

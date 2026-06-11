@@ -32,6 +32,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
+var errCancelAllOrdersFailed = errors.New("cancel all orders failed. Bitstamp provides no further information. Check order status to verify")
+
 // SetDefaults sets default for Bitstamp
 func (e *Exchange) SetDefaults() {
 	e.Name = "Bitstamp"
@@ -289,7 +291,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(assetType); err != nil {
 		return nil, err
 	}
 	book := &orderbook.Book{
@@ -471,16 +473,17 @@ func (e *Exchange) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*orde
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *Exchange) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
+func (e *Exchange) CancelAllOrders(ctx context.Context, _ *order.Cancel) (*order.CancelAllResponse, error) {
 	success, err := e.CancelAllExistingOrders(ctx)
 	if err != nil {
-		return order.CancelAllResponse{}, err
+		return nil, err
 	}
 	if !success {
-		err = errors.New("cancel all orders failed. Bitstamp provides no further information. Check order status to verify")
+		return nil, errCancelAllOrdersFailed
 	}
 
-	return order.CancelAllResponse{}, err
+	var resp order.CancelAllResponse
+	return &resp, nil
 }
 
 // GetOrderInfo returns order information based on order ID
@@ -848,7 +851,7 @@ func (e *Exchange) GetLatestFundingRates(context.Context, *fundingrate.LatestRat
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := e.CurrencyPairs.IsPairEnabled(cp, a)
+	_, err := e.CurrencyPairs.IsPairAvailable(cp, a)
 	if err != nil {
 		return "", err
 	}

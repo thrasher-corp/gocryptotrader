@@ -221,16 +221,12 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 
 	for x := range tick {
 		var pair currency.Pair
-		var enabled bool
-		pair, enabled, err = e.MatchSymbolCheckEnabled(tick[x].Symbol, a, false)
+		pair, err = e.MatchSymbolWithAvailablePairs(tick[x].Symbol, a, false)
 		if err != nil {
-			if !errors.Is(err, currency.ErrPairNotFound) {
-				return err
+			if errors.Is(err, currency.ErrPairNotFound) {
+				continue
 			}
-		}
-
-		if !enabled {
-			continue
+			return err
 		}
 
 		err = ticker.ProcessTicker(&ticker.Price{
@@ -267,7 +263,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, c currency.Pair, assetTy
 	if c.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(assetType); err != nil {
 		return nil, err
 	}
 	book := &orderbook.Book{
@@ -490,14 +486,15 @@ func (e *Exchange) GetServerTime(_ context.Context, _ asset.Item) (time.Time, er
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *Exchange) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
-	cancelAllOrdersResponse := order.CancelAllResponse{
-		Status: make(map[string]string),
-	}
+func (e *Exchange) CancelAllOrders(ctx context.Context, _ *order.Cancel) (*order.CancelAllResponse, error) {
+	var cancelAllOrdersResponse order.CancelAllResponse
 
 	resp, err := e.CancelAllExistingOrders(ctx)
 	if err != nil {
-		return cancelAllOrdersResponse, err
+		if len(cancelAllOrdersResponse.Status) > 0 {
+			return &cancelAllOrdersResponse, err
+		}
+		return nil, err
 	}
 
 	for i := range resp {
@@ -508,7 +505,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.
 		}
 	}
 
-	return cancelAllOrdersResponse, nil
+	return &cancelAllOrdersResponse, nil
 }
 
 // GetOrderInfo returns order information based on order ID
@@ -516,7 +513,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 	if pair.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(assetType); err != nil {
 		return nil, err
 	}
 
@@ -869,7 +866,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := e.CurrencyPairs.IsPairEnabled(cp, a)
+	_, err := e.CurrencyPairs.IsPairAvailable(cp, a)
 	if err != nil {
 		return "", err
 	}
