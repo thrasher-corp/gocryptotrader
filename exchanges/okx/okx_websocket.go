@@ -43,11 +43,6 @@ var (
 			return &levels
 		},
 	}
-	wsOrderbookChecksumPool = sync.Pool{
-		New: func() any {
-			return new([1024]byte)
-		},
-	}
 
 	// See: https://www.okx.com/docs-v5/en/#error-code-websocket-public
 	authConnErrorCodes = []string{
@@ -1075,10 +1070,7 @@ func appendWsOrderbookItems(items orderbook.Levels, entries []WsOrderBookLevel) 
 
 // appendWsOrderbookItemsFromPool reuses pooled level slices to reduce allocations.
 func appendWsOrderbookItemsFromPool(entries []WsOrderBookLevel) (items orderbook.Levels, pooledItems *orderbook.Levels) {
-	pooledItems, ok := wsOrderbookLevelsPool.Get().(*orderbook.Levels)
-	if !ok {
-		panic(errUnexpectedOrderbookLevelsPoolType)
-	}
+	pooledItems = wsOrderbookLevelsPool.Get().(*orderbook.Levels) //nolint:forcetypeassert // Not necessary from a pool
 	items = *pooledItems
 	if cap(items) < len(entries) {
 		items = make(orderbook.Levels, len(entries))
@@ -1102,11 +1094,7 @@ func putWsOrderbookLevels(items *orderbook.Levels) {
 // there are less than 25 entries (for whatever reason)
 // eg Bid:Ask:Bid:Ask:Ask:Ask
 func generateOrderbookChecksum(orderbookData *orderbook.Book) uint32 {
-	checksumBuffer, ok := wsOrderbookChecksumPool.Get().(*[1024]byte)
-	if !ok {
-		panic(errUnexpectedOrderbookChecksumPoolType)
-	}
-	defer wsOrderbookChecksumPool.Put(checksumBuffer)
+	var checksumBuffer [1024]byte
 	checksum := checksumBuffer[:0]
 	for i := range allowableIterations {
 		if len(orderbookData.Bids)-1 >= i {
@@ -1124,11 +1112,7 @@ func generateOrderbookChecksum(orderbookData *orderbook.Book) uint32 {
 
 // CalculateOrderbookChecksum alternates over the first 25 bid and ask entries from websocket data.
 func (e *Exchange) CalculateOrderbookChecksum(orderbookData *WsOrderBookData) (uint32, error) {
-	checksumBuffer, ok := wsOrderbookChecksumPool.Get().(*[1024]byte)
-	if !ok {
-		panic(errUnexpectedOrderbookChecksumPoolType)
-	}
-	defer wsOrderbookChecksumPool.Put(checksumBuffer)
+	var checksumBuffer [1024]byte
 	checksum := checksumBuffer[:0]
 	for i := range allowableIterations {
 		if len(orderbookData.Bids)-1 >= i {

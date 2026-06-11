@@ -147,8 +147,6 @@ var (
 	errLastDaysRequired                     = errors.New("last days required")
 	errCopyInstrumentIDTypeRequired         = errors.New("copy instrument ID type is required")
 	errInvalidChecksum                      = errors.New("invalid checksum")
-	errUnexpectedOrderbookLevelsPoolType    = errors.New("unexpected orderbook levels pool type")
-	errUnexpectedOrderbookChecksumPoolType  = errors.New("unexpected orderbook checksum pool type")
 	errInvalidPositionMode                  = errors.New("invalid position mode")
 	errLendingTermIsRequired                = errors.New("lending term is required")
 	errRateRequired                         = errors.New("lending rate is required")
