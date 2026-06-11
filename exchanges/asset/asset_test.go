@@ -11,7 +11,7 @@ import (
 
 func TestString(t *testing.T) {
 	t.Parallel()
-	for a := range All {
+	for a := Item(0); a <= All; a++ {
 		if a == 0 {
 			assert.Empty(t, a.String(), "Empty.String should return empty")
 		} else {
@@ -102,9 +102,9 @@ func TestIsOptions(t *testing.T) {
 	assertClassification(t, Item.IsOptions, Options, OptionCombo)
 }
 
-func TestIsDerivatives(t *testing.T) {
+func TestIsDerivative(t *testing.T) {
 	t.Parallel()
-	assertClassification(t, Item.IsDerivatives,
+	assertClassification(t, Item.IsDerivative,
 		PerpetualContract,
 		PerpetualSwap,
 		Futures,
@@ -162,6 +162,7 @@ func TestNew(t *testing.T) {
 	}{
 		{Input: "Spota", Error: ErrNotSupported},
 		{Input: "MARGIN", Expected: Margin},
+		{Input: "CROSS_MARGIN", Expected: CrossMargin},
 		{Input: "MARGINFUNDING", Expected: MarginFunding},
 		{Input: "INDEX", Expected: Index},
 		{Input: "BINARY", Expected: Binary},
@@ -180,6 +181,8 @@ func TestNew(t *testing.T) {
 		{Input: "future_combo", Expected: FutureCombo},
 		{Input: "spread", Expected: Spread},
 		{Input: "linearContract", Expected: LinearContract},
+		{Input: "DELIVERY", Expected: DeliveryFutures},
+		{Input: "all", Expected: All},
 	}
 
 	for _, tt := range cases {
