@@ -2188,6 +2188,76 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	return slices.Clip(resp), nil
 }
 
+// GetMarginRates returns the latest estimated margin rates for pairs.
+func (e *Exchange) GetMarginRates(ctx context.Context, req *margin.CurrentRatesRequest) ([]margin.CurrentRateResponse, error) {
+	if err := common.NilGuard(req); err != nil {
+		return nil, err
+	}
+	if req.Asset != asset.Margin {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, req.Asset)
+	}
+	pairs := req.Pairs
+	if len(pairs) == 0 {
+		var err error
+		if pairs, err = e.GetEnabledPairs(req.Asset); err != nil {
+			return nil, err
+		}
+	}
+	if len(pairs) == 0 {
+		return nil, currency.ErrCurrencyPairsEmpty
+	}
+
+	baseCurrencies := make(currency.Currencies, 0, len(pairs))
+	for i := range pairs {
+		if pairs[i].IsEmpty() {
+			return nil, currency.ErrCurrencyPairEmpty
+		}
+		b := pairs[i].Base.Upper()
+		if !baseCurrencies.Contains(b) {
+			baseCurrencies = append(baseCurrencies, b)
+		}
+	}
+	if !e.IsRESTAuthenticationSupported() {
+		return nil, exchange.ErrAuthenticationSupportNotEnabled
+	}
+
+	const maxCurrenciesPerReq = 10
+	timeChecked := time.Now().UTC()
+	ratesByCurrency := make(map[currency.Code]margin.Rate, len(baseCurrencies))
+	for i := 0; i < len(baseCurrencies); i += maxCurrenciesPerReq {
+		end := min(i+maxCurrenciesPerReq, len(baseCurrencies))
+		rates, err := e.GetEstimatedInterestRate(ctx, baseCurrencies[i:end])
+		if err != nil {
+			return nil, err
+		}
+		for c, v := range rates {
+			code := currency.NewCode(c).Upper()
+			hourly := v.Decimal()
+			ratesByCurrency[code] = margin.Rate{
+				Time:             timeChecked,
+				HourlyBorrowRate: hourly,
+				YearlyBorrowRate: hourly.Mul(decimal.NewFromInt(24 * 365)),
+			}
+		}
+	}
+
+	resp := make([]margin.CurrentRateResponse, len(pairs))
+	for i := range pairs {
+		rate, ok := ratesByCurrency[pairs[i].Base.Upper()]
+		if !ok {
+			return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotFound, pairs[i].Base)
+		}
+		resp[i] = margin.CurrentRateResponse{
+			Exchange:    e.Name,
+			Asset:       req.Asset,
+			Pair:        pairs[i],
+			CurrentRate: &rate,
+			TimeChecked: timeChecked,
+		}
+	}
+	return resp, nil
+}
+
 func contractToFundingRate(name string, item asset.Item, fPair currency.Pair, contract *FuturesContract, includeUpcomingRate bool) fundingrate.LatestRateResponse {
 	resp := fundingrate.LatestRateResponse{
 		Exchange: name,

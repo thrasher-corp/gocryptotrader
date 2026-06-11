@@ -1187,6 +1187,13 @@ type InterestRate struct {
 	MarketInterestRate types.Number `json:"marketInterestRate"`
 }
 
+// BorrowInterestRate represents current margin borrow interest rates by currency.
+type BorrowInterestRate struct {
+	Currency             currency.Code `json:"currency"`
+	HourlyBorrowRate     types.Number  `json:"hourlyBorrowRate"`
+	AnnualizedBorrowRate types.Number  `json:"annualizedBorrowRate"`
+}
+
 // OrderNumberResponse represents a response for margin trading lending and redemption
 type OrderNumberResponse struct {
 	OrderNo string `json:"orderNo"`
