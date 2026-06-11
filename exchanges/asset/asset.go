@@ -203,8 +203,8 @@ func (a Item) IsOptions() bool {
 	}
 }
 
-// IsDerivatives checks if the asset type is a futures or options contract based asset
-func (a Item) IsDerivatives() bool {
+// IsDerivative checks if the asset type is a futures or options contract based asset
+func (a Item) IsDerivative() bool {
 	return a.IsFutures() || a.IsOptions()
 }
 
