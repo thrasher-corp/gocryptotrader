@@ -435,6 +435,7 @@ func TestEvaluateRetry(t *testing.T) {
 	require.NoError(t, err, "must not error")
 	require.True(t, retry, "must retry on 429 response")
 
+	r.backoff = func(int) time.Duration { return 0 }
 	retry, err = r.evaluateRetry(t.Context(), nil, errTimeout, 1, true)
 	require.NoError(t, err, "must not error")
 	require.True(t, retry, "must retry on timeout error")
