@@ -434,6 +434,10 @@ func TestEvaluateRetry(t *testing.T) {
 	retry, err = r.evaluateRetry(t.Context(), &http.Response{StatusCode: http.StatusTooManyRequests, Status: "429", Body: io.NopCloser(strings.NewReader(""))}, nil, 1, true)
 	require.NoError(t, err, "must not error")
 	require.True(t, retry, "must retry on 429 response")
+
+	retry, err = r.evaluateRetry(t.Context(), nil, errTimeout, 1, true)
+	require.NoError(t, err, "must not error")
+	require.True(t, retry, "must retry on timeout error")
 }
 
 func TestGetNonce(t *testing.T) {
