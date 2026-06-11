@@ -332,6 +332,25 @@ func TestSendPayload_AdditionalRateLimits(t *testing.T) {
 	})
 }
 
+func TestSendPayloadWithRateLimitWeight(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+		r, err := New("test", new(http.Client), WithLimiter(NewBasicRateLimit(100*time.Millisecond, 1, 1)))
+		require.NoError(t, err, "New requester must not error")
+		requestErr := errors.New("request generation failed")
+		newRequest := func() (*Item, error) {
+			return nil, requestErr
+		}
+
+		err = r.SendPayloadWithRateLimitWeight(t.Context(), Unset, 3, newRequest, UnauthenticatedRequest)
+		require.ErrorIs(t, err, requestErr, "first call must reach request generation")
+
+		err = r.SendPayloadWithRateLimitWeight(WithDelayNotAllowed(t.Context()), Unset, 3, newRequest, UnauthenticatedRequest)
+		require.ErrorIs(t, err, ErrDelayNotAllowed, "second call must apply request-specific endpoint weight")
+	})
+}
+
 func TestDoRequest_NoContent(t *testing.T) {
 	t.Parallel()
 	newRequesterWithClient := func(t *testing.T, client *http.Client, opts ...RequesterOption) *Requester {
