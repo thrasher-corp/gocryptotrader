@@ -27,6 +27,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Lbank
@@ -76,27 +77,27 @@ var (
 // GetTicker returns a ticker for the specified symbol
 // symbol: eth_btc
 func (e *Exchange) GetTicker(ctx context.Context, symbol string) (*TickerResponse, error) {
-	var t []TickerResponse // change to slice
+	var t []TickerResponse
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	path := "/v" + lbankAPIVersion2 + "/" + lbankTicker + "?" + params.Encode()
+	path := common.EncodeURLValues("/v"+lbankAPIVersion2+"/"+lbankTicker, params)
 	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &t); err != nil {
 		return nil, err
 	}
-	if len(t) == 0 {
-		return nil, errors.New("no ticker data returned")
+	if len(t) != 1 {
+		return nil, fmt.Errorf("expected 1 ticker response, got %d", len(t))
 	}
-	return &t[0], nil // return first element
+	return &t[0], nil
 }
 
 // GetTimestamp returns a timestamp
 func (e *Exchange) GetTimestamp(ctx context.Context) (time.Time, error) {
-	var ms int64
+	var ts types.Time
 	path := "/v" + lbankAPIVersion2 + "/" + lbankTimestamp
-	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &ms); err != nil {
+	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &ts); err != nil {
 		return time.Time{}, err
 	}
-	return time.UnixMilli(ms).UTC(), nil
+	return ts.Time(), nil
 }
 
 // GetTickers returns all tickers
@@ -104,7 +105,7 @@ func (e *Exchange) GetTickers(ctx context.Context) ([]TickerResponse, error) {
 	var t []TickerResponse
 	params := url.Values{}
 	params.Set("symbol", "all")
-	path := "/v" + lbankAPIVersion2 + "/" + lbankTicker + "?" + params.Encode()
+	path := common.EncodeURLValues("/v"+lbankAPIVersion2+"/"+lbankTicker, params)
 	return t, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &t)
 }
 
@@ -121,7 +122,7 @@ func (e *Exchange) GetMarketDepths(ctx context.Context, symbol string, size uint
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	params.Set("size", strconv.FormatUint(size, 10))
-	path := "/v" + lbankAPIVersion2 + "/" + lbankMarketDepths + "?" + params.Encode()
+	path := common.EncodeURLValues("/v"+lbankAPIVersion2+"/"+lbankMarketDepths, params)
 	return &m, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &m)
 }
 
@@ -137,7 +138,7 @@ func (e *Exchange) GetTrades(ctx context.Context, symbol string, limit uint64, t
 	if !tm.IsZero() {
 		params.Set("time", strconv.FormatInt(tm.Unix(), 10))
 	}
-	path := "/v" + lbankAPIVersion2 + "/" + lbankTrades + "?" + params.Encode()
+	path := common.EncodeURLValues("/v"+lbankAPIVersion2+"/"+lbankTrades, params)
 	return g, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &g)
 }
 
@@ -149,7 +150,7 @@ func (e *Exchange) GetKlines(ctx context.Context, symbol, size, klineType string
 	params.Set("size", size)
 	params.Set("type", klineType)
 	params.Set("time", strconv.FormatInt(tm.Unix(), 10))
-	path := "/v" + lbankAPIVersion2 + "/" + lbankKlines + "?" + params.Encode()
+	path := common.EncodeURLValues("/v"+lbankAPIVersion2+"/"+lbankKlines, params)
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &klineTemp)
 	if err != nil {
 		return nil, err
@@ -392,10 +393,10 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, pair, pageNumber, pageLeng
 }
 
 // USD2RMBRate finds USD-CNY Rate
-func (e *Exchange) USD2RMBRate(ctx context.Context) (string, error) {
-	var rate string
+func (e *Exchange) USD2RMBRate(ctx context.Context) (float64, error) {
+	var rate types.Number
 	path := "/v" + lbankAPIVersion2 + "/" + lbankUSD2CNYRate
-	return rate, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &rate)
+	return rate.Float64(), e.SendHTTPRequest(ctx, exchange.RestSpot, path, &rate)
 }
 
 // GetWithdrawConfig gets information about withdrawals
@@ -403,7 +404,7 @@ func (e *Exchange) GetWithdrawConfig(ctx context.Context, c currency.Code) ([]Wi
 	var resp []WithdrawConfigResponse
 	params := url.Values{}
 	params.Set("assetCode", c.Lower().String())
-	path := "/v" + lbankAPIVersion2 + "/" + lbankWithdrawConfig + "?" + params.Encode()
+	path := common.EncodeURLValues("/v"+lbankAPIVersion2+"/"+lbankWithdrawConfig, params)
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }
 
@@ -512,14 +513,14 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 	}
 
 	var v2Resp V2Response
-	if err := json.Unmarshal(tempResp, &v2Resp); err == nil && v2Resp.Data != nil {
+	if err := json.Unmarshal(tempResp, &v2Resp); err == nil {
 		if v2Resp.Result == "false" {
-			return fmt.Errorf("%w code: %d message: %s",
-				request.ErrAuthRequestFailed, v2Resp.ErrorCode, v2Resp.Msg)
+			return fmt.Errorf("lbank: request failed: %s", v2Resp.Msg)
 		}
-		return json.Unmarshal(v2Resp.Data, result)
+		if v2Resp.Data != nil {
+			return json.Unmarshal(v2Resp.Data, result)
+		}
 	}
-
 	return json.Unmarshal(tempResp, result)
 }
 
