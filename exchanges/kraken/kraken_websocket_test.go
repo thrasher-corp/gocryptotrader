@@ -56,7 +56,7 @@ func TestManageSubs(t *testing.T) {
 				Channel:          tc.channel,
 				QualifiedChannel: tc.qualifiedChannel,
 				Authenticated:    true,
-			}})
+			}}, conn)
 			if tc.errIs != nil {
 				require.ErrorIs(t, err, tc.errIs)
 				require.ErrorContains(t, err, tc.errContains)
@@ -79,6 +79,6 @@ func TestWsProcessSubStatusInvalidPair(t *testing.T) {
 	}
 	require.NoError(t, ex.Websocket.AddSubscriptions(nil, s), "subscription must be added in subscribing state")
 
-	ex.wsProcessSubStatus([]byte(`{"channelName":"ticker","event":"subscriptionStatus","pair":"not-a-pair","status":"subscribed","subscription":{"name":"ticker"}}`))
+	ex.wsProcessSubStatus(nil, []byte(`{"channelName":"ticker","event":"subscriptionStatus","pair":"not-a-pair","status":"subscribed","subscription":{"name":"ticker"}}`))
 	assert.Equal(t, subscription.SubscribingState, s.State(), "invalid websocket subscription pair should leave the subscription state unchanged")
 }

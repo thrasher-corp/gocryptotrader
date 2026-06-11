@@ -1,8 +1,7 @@
 package huobi
 
 import (
-	"errors"
-	"fmt"
+	"context"
 	"log"
 	"os"
 	"strconv"
@@ -10,14 +9,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/buger/jsonparser"
-	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -31,7 +29,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
-	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -1286,9 +1283,10 @@ func TestWSCandles(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
-	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.kline.1min", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.CandlesChannel})
+	err := e.Websocket.AddSubscriptions(nil, &subscription.Subscription{Key: "market.btcusdt.kline.1min", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.CandlesChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsCandles.json", e.wsHandleData)
+	conn := testexch.GetMockConn(t, e, "")
+	testexch.FixtureToDataHandler(t, "testdata/wsCandles.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, conn, b) })
 	e.Websocket.DataHandler.Close()
 	require.Len(t, e.Websocket.DataHandler.C, 1, "Must see correct number of records")
 	cAny := <-e.Websocket.DataHandler.C
@@ -1316,9 +1314,10 @@ func TestWSOrderbook(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
-	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.depth.step0", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.OrderbookChannel})
+	err := e.Websocket.AddSubscriptions(nil, &subscription.Subscription{Key: "market.btcusdt.depth.step0", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.OrderbookChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsOrderbook.json", e.wsHandleData)
+	conn := testexch.GetMockConn(t, e, "")
+	testexch.FixtureToDataHandler(t, "testdata/wsOrderbook.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, conn, b) })
 	e.Websocket.DataHandler.Close()
 	require.Len(t, e.Websocket.DataHandler.C, 1, "Must see correct number of records")
 	dAny := <-e.Websocket.DataHandler.C
@@ -1344,10 +1343,11 @@ func TestWSHandleAllTradesMsg(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
-	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.trade.detail", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.AllTradesChannel})
+	err := e.Websocket.AddSubscriptions(nil, &subscription.Subscription{Key: "market.btcusdt.trade.detail", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.AllTradesChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
 	e.SetSaveTradeDataStatus(true)
-	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", e.wsHandleData)
+	conn := testexch.GetMockConn(t, e, "")
+	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, conn, b) })
 	e.Websocket.DataHandler.Close()
 	exp := []trade.Data{
 		{
@@ -1390,9 +1390,10 @@ func TestWSTicker(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
-	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Key: "market.btcusdt.detail", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.TickerChannel})
+	err := e.Websocket.AddSubscriptions(nil, &subscription.Subscription{Key: "market.btcusdt.detail", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.TickerChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsTicker.json", e.wsHandleData)
+	conn := testexch.GetMockConn(t, e, "")
+	testexch.FixtureToDataHandler(t, "testdata/wsTicker.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, conn, b) })
 	e.Websocket.DataHandler.Close()
 	require.Len(t, e.Websocket.DataHandler.C, 1, "Must see correct number of records")
 	tickAny := <-e.Websocket.DataHandler.C
@@ -1419,10 +1420,11 @@ func TestWSAccountUpdate(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
-	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Key: "accounts.update#2", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.MyAccountChannel})
+	err := e.Websocket.AddSubscriptions(nil, &subscription.Subscription{Key: "accounts.update#2", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.MyAccountChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
 	e.SetSaveTradeDataStatus(true)
-	testexch.FixtureToDataHandler(t, "testdata/wsMyAccount.json", e.wsHandleData)
+	conn := testexch.GetMockConn(t, e, "")
+	testexch.FixtureToDataHandler(t, "testdata/wsMyAccount.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, conn, b) })
 	e.Websocket.DataHandler.Close()
 	require.Len(t, e.Websocket.DataHandler.C, 3, "Must see correct number of records")
 	exp := []WsAccountUpdate{
@@ -1443,10 +1445,11 @@ func TestWSOrderUpdate(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
-	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Key: "orders#*", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.MyOrdersChannel})
+	err := e.Websocket.AddSubscriptions(nil, &subscription.Subscription{Key: "orders#*", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.MyOrdersChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
 	e.SetSaveTradeDataStatus(true)
-	errs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsMyOrders.json", e.wsHandleData)
+	conn := testexch.GetMockConn(t, e, "")
+	errs := testexch.FixtureToDataHandlerWithErrors(t, "testdata/wsMyOrders.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, conn, b) })
 	e.Websocket.DataHandler.Close()
 	require.Equal(t, 1, len(errs), "Must receive the correct number of errors back")
 	require.ErrorContains(t, errs[0].Err, "error with order \"test1\": invalid.client.order.id (NT) (2002)")
@@ -1509,10 +1512,11 @@ func TestWSMyTrades(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
-	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Key: "trade.clearing#btcusdt#1", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.MyTradesChannel})
+	err := e.Websocket.AddSubscriptions(nil, &subscription.Subscription{Key: "trade.clearing#btcusdt#1", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Channel: subscription.MyTradesChannel})
 	require.NoError(t, err, "AddSubscriptions must not error")
 	e.SetSaveTradeDataStatus(true)
-	testexch.FixtureToDataHandler(t, "testdata/wsMyTrades.json", e.wsHandleData)
+	conn := testexch.GetMockConn(t, e, "")
+	testexch.FixtureToDataHandler(t, "testdata/wsMyTrades.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, conn, b) })
 	e.Websocket.DataHandler.Close()
 	require.Len(t, e.Websocket.DataHandler.C, 1, "Must see correct number of records")
 	m := <-e.Websocket.DataHandler.C
@@ -1791,12 +1795,12 @@ func TestUpdateTickers(t *testing.T) {
 	updatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
 		err := e.UpdateTickers(t.Context(), a)
-		require.NoErrorf(t, err, "asset %s", a)
+		require.NoErrorf(t, err, "UpdateTicker must not error for asset %s", a)
 		avail, err := e.GetAvailablePairs(a)
 		require.NoError(t, err)
 		for _, p := range avail {
 			_, err = ticker.GetTicker(e.Name, p, a)
-			assert.NoErrorf(t, err, "Could not get ticker for %s %s", a, p)
+			assert.NoErrorf(t, err, "GetTicker should not error for %s %s", a, p)
 		}
 	}
 }
@@ -1910,8 +1914,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	updatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
 		pairs, err := e.CurrencyPairs.GetPairs(a, false)
-		require.NoErrorf(t, err, "cannot get pairs for %s", a)
-		require.NotEmptyf(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "GetPairs must not error for asset %s", a)
+		require.NotEmptyf(t, pairs, "pairs must not be empty for asset %s", a)
 		resp, err := e.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
 		assert.NotEmpty(t, resp)
@@ -1992,56 +1996,43 @@ func TestGenerateSubscriptions(t *testing.T) {
 	testsubs.EqualLists(t, exp, subs)
 }
 
-func wsFixture(tb testing.TB, msg []byte, w *gws.Conn) error {
-	tb.Helper()
-	action, _ := jsonparser.GetString(msg, "action")
-	ch, _ := jsonparser.GetString(msg, "ch")
-	if action == "req" && ch == "auth" {
-		return w.WriteMessage(gws.TextMessage, []byte(`{"action":"req","code":200,"ch":"auth","data":{}}`))
-	}
-	if action == "sub" {
-		return w.WriteMessage(gws.TextMessage, []byte(`{"action":"sub","code":200,"ch":"`+ch+`"}`))
-	}
-	id, _ := jsonparser.GetString(msg, "id")
-	sub, _ := jsonparser.GetString(msg, "sub")
-	if id != "" && sub != "" {
-		return w.WriteMessage(gws.TextMessage, []byte(`{"id":"`+id+`","status":"ok","subbed":"`+sub+`"}`))
-	}
-	return fmt.Errorf("%w: %s", errors.New("Unhandled mock websocket message"), msg)
-}
-
-// TestSubscribe exercises live public subscriptions
-func TestSubscribe(t *testing.T) {
+func TestGeneratePublicSubscriptions(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	subs, err := e.Features.Subscriptions.ExpandTemplates(e)
-	require.NoError(t, err, "ExpandTemplates must not error")
-	testexch.SetupWs(t, e)
-	err = e.Subscribe(subs)
-	require.NoError(t, err, "Subscribe must not error")
-	got := e.Websocket.GetSubscriptions()
-	require.Equal(t, 8, len(got), "Must get correct number of subscriptions")
-	for _, s := range got {
-		assert.Equal(t, subscription.SubscribedState, s.State())
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+
+	subs, err := ex.generatePublicSubscriptions()
+	require.NoError(t, err, "generatePublicSubscriptions must not error")
+	require.NotEmpty(t, subs, "generatePublicSubscriptions must return subscriptions")
+	for _, s := range subs {
+		assert.False(t, s.Authenticated, "generatePublicSubscriptions should only return public subscriptions")
 	}
 }
 
-// TestAuthSubscribe exercises mock subscriptions including private
-func TestAuthSubscribe(t *testing.T) {
+func TestGeneratePrivateSubscriptions(t *testing.T) {
 	t.Parallel()
-	subCfg := e.Features.Subscriptions
-	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
-	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	subs, err := subCfg.ExpandTemplates(h)
-	require.NoError(t, err, "ExpandTemplates must not error")
-	err = h.Subscribe(subs)
-	require.NoError(t, err, "Subscribe must not error")
-	got := h.Websocket.GetSubscriptions()
-	require.Equal(t, 11, len(got), "Must get correct number of subscriptions")
-	for _, s := range got {
-		assert.Equal(t, subscription.SubscribedState, s.State())
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+
+	subs, err := ex.generatePrivateSubscriptions()
+	require.NoError(t, err, "generatePrivateSubscriptions must not error")
+	require.NotEmpty(t, subs, "generatePrivateSubscriptions must return subscriptions")
+	for _, s := range subs {
+		assert.True(t, s.Authenticated, "generatePrivateSubscriptions should only return private subscriptions")
 	}
+}
+
+func TestWsAuthMismatchedRoute(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+
+	err := ex.wsAuth(t.Context(), testexch.GetMockConn(t, ex, wsSpotURL+wsPublicPath))
+	assert.ErrorIs(t, err, websocket.ErrRequestRouteNotFound, "wsAuth should error for a non-auth connection route")
+	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "wsAuth should disable authenticated endpoints after route mismatch")
 }
 
 func TestChannelName(t *testing.T) {

@@ -21,7 +21,6 @@ func TestWebsocketLogin(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	e := newExchangeWithWebsocket(t, asset.Spot)
-
 	c, err := e.Websocket.GetConnection(asset.Spot)
 	require.NoError(t, err)
 

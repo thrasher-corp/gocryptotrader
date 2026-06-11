@@ -27,7 +27,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -42,6 +41,8 @@ const (
 	candlesChannel   = "candles"
 )
 
+var errWebsocketAuthResponse = errors.New("gemini websocket auth response error")
+
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneDay},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel},
@@ -54,35 +55,21 @@ var subscriptionNames = map[string]string{
 	subscription.OrderbookChannel: marketDataLevel2,
 }
 
-// WsConnect initiates a websocket connection
-func (e *Exchange) WsConnect() error {
-	ctx := context.TODO()
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
-		return websocket.ErrWebsocketNotEnabled
-	}
-
-	var dialer gws.Dialer
-	err := e.Websocket.Conn.Dial(ctx, &dialer, http.Header{}, nil)
-	if err != nil {
-		return err
-	}
-
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(ctx, e.Websocket.Conn)
-
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		err := e.WsAuth(ctx, &dialer)
-		if err != nil {
-			log.Errorf(log.ExchangeSys, "%v - websocket authentication failed: %v\n", e.Name, err)
-			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		}
-	}
-	return nil
+func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
+	return conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil)
 }
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
 func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 	return e.Features.Subscriptions.ExpandTemplates(e)
+}
+
+func (e *Exchange) generatePublicSubscriptions() (subscription.List, error) {
+	subs, err := e.generateSubscriptions()
+	if err != nil {
+		return nil, err
+	}
+	return subs.Public(), nil
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
@@ -93,19 +80,15 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 	}).Parse(subTplText)
 }
 
-// Subscribe sends a websocket message to receive data from the channel
-func (e *Exchange) Subscribe(subs subscription.List) error {
-	ctx := context.TODO()
-	return e.manageSubs(ctx, subs, wsSubscribeOp)
+func (e *Exchange) subscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	return e.manageSubs(ctx, conn, subs, wsSubscribeOp)
 }
 
-// Unsubscribe sends a websocket message to stop receiving data from the channel
-func (e *Exchange) Unsubscribe(subs subscription.List) error {
-	ctx := context.TODO()
-	return e.manageSubs(ctx, subs, wsUnsubscribeOp)
+func (e *Exchange) unsubscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	return e.manageSubs(ctx, conn, subs, wsUnsubscribeOp)
 }
 
-func (e *Exchange) manageSubs(ctx context.Context, subs subscription.List, op wsSubOp) error {
+func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, subs subscription.List, op wsSubOp) error {
 	req := wsSubscribeRequest{
 		Type:          op,
 		Subscriptions: make([]wsSubscriptions, 0, len(subs)),
@@ -117,22 +100,18 @@ func (e *Exchange) manageSubs(ctx context.Context, subs subscription.List, op ws
 		})
 	}
 
-	if err := e.Websocket.Conn.SendJSONMessage(ctx, request.Unset, req); err != nil {
+	if err := conn.SendJSONMessage(ctx, request.Unset, req); err != nil {
 		return err
 	}
 
 	if op == wsUnsubscribeOp {
-		return e.Websocket.RemoveSubscriptions(e.Websocket.Conn, subs...)
+		return e.Websocket.RemoveSubscriptions(conn, subs...)
 	}
 
-	return e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, subs...)
+	return e.Websocket.AddSuccessfulSubscriptions(conn, subs...)
 }
 
-// WsAuth will connect to Gemini's secure endpoint
-func (e *Exchange) WsAuth(ctx context.Context, dialer *gws.Dialer) error {
-	if !e.IsWebsocketAuthenticationSupported() {
-		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", e.Name)
-	}
+func (e *Exchange) wsAuthConnect(ctx context.Context, conn websocket.Connection) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return err
@@ -145,11 +124,10 @@ func (e *Exchange) WsAuth(ctx context.Context, dialer *gws.Dialer) error {
 	if err != nil {
 		return fmt.Errorf("%v sendAuthenticatedHTTPRequest: Unable to JSON request", e.Name)
 	}
-	wsEndpoint, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	endpoint, err := e.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
 	if err != nil {
 		return err
 	}
-	endpoint := wsEndpoint + geminiWsOrderEvents
 	payloadB64 := base64.StdEncoding.EncodeToString(payloadJSON)
 	hmac, err := crypto.GetHMAC(crypto.HashSHA512_384, []byte(payloadB64), []byte(creds.Secret))
 	if err != nil {
@@ -164,31 +142,14 @@ func (e *Exchange) WsAuth(ctx context.Context, dialer *gws.Dialer) error {
 	headers.Add("X-GEMINI-SIGNATURE", hex.EncodeToString(hmac))
 	headers.Add("Cache-Control", "no-cache")
 
-	err = e.Websocket.AuthConn.Dial(ctx, dialer, headers, nil)
+	err = conn.Dial(ctx, &gws.Dialer{}, headers, nil)
 	if err != nil {
 		return fmt.Errorf("%v Websocket connection %v error. Error %v", e.Name, endpoint, err)
 	}
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData(ctx, e.Websocket.AuthConn)
 	return nil
 }
 
-func (e *Exchange) wsReadData(ctx context.Context, ws websocket.Connection) {
-	defer e.Websocket.Wg.Done()
-	for {
-		resp := ws.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		if err := e.wsHandleData(ctx, resp.Raw); err != nil {
-			if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
-				log.Errorf(log.WebsocketMgr, "%s %s: %s %s", e.Name, ws.GetURL(), errSend, err)
-			}
-		}
-	}
-}
-
-func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, _ websocket.Connection, respRaw []byte) error {
 	// only order details are sent in arrays
 	if strings.HasPrefix(string(respRaw), "[") {
 		var result []WsOrderResponse
@@ -383,9 +344,9 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 				if msg, ok := result["message"].(string); ok {
 					reason += " - " + msg
 				}
-				return errors.New(reason)
+				return fmt.Errorf("%w: %s", errWebsocketAuthResponse, reason)
 			}
-			return fmt.Errorf("%v Unhandled websocket error %s", e.Name, respRaw)
+			return fmt.Errorf("%w: %v Unhandled websocket error %s", errWebsocketAuthResponse, e.Name, respRaw)
 		default:
 			return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)})
 		}
