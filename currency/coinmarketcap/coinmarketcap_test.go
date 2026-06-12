@@ -73,6 +73,10 @@ func TestSetDefaults(t *testing.T) {
 	t.Parallel()
 	var c Coinmarketcap
 	c.SetDefaults()
+	assert.Equal(t, c.Name, "CoinMarketCap", "SetDefaults should name")
+	assert.Equal(t, baseURL, c.APIUrl, "SetDefaults should populate url with default")
+	assert.Empty(t, c.APIkey, "SetDefaults should not populate API key")
+	assert.NotNil(t, c.Requester, c.APIUrl, "SetDefaults should populate requester")
 }
 
 func TestSetup(t *testing.T) {

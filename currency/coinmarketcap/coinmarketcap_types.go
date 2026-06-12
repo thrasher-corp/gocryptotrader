@@ -434,21 +434,15 @@ func (c *APIErrorCode) UnmarshalJSON(data []byte) error {
 
 // UnmarshalJSON handles quote payloads that may be either an object map or array.
 func (q *QuoteMap) UnmarshalJSON(data []byte) error {
-	var object map[string]Currency
-	if err := json.Unmarshal(data, &object); err == nil {
-		*q = object
+	if err := json.Unmarshal(data, (*map[string]Currency)(q)); err == nil {
 		return nil
 	}
-
 	var arr []map[string]Currency
 	if err := json.Unmarshal(data, &arr); err != nil {
 		return err
 	}
-
-	merged := make(map[string]Currency)
 	for i := range arr {
-		maps.Copy(merged, arr[i])
+		maps.Copy(*q, arr[i])
 	}
-	*q = merged
 	return nil
 }
