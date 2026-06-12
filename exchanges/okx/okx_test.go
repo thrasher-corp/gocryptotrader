@@ -883,7 +883,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 	_, err = e.PlaceMultipleOrders(contextGenerate(), []PlaceOrderRequestParam{})
 	require.ErrorIs(t, err, order.ErrSubmissionIsNil)
 
-	_, err = e.PlaceMultipleOrders(contextGenerate(), make([]PlaceOrderRequestParam, maxOKXBatchOrders+1))
+	_, err = e.PlaceMultipleOrders(contextGenerate(), make([]PlaceOrderRequestParam, maxBatchOrders+1))
 	require.ErrorIs(t, err, errExceedLimit)
 
 	arg := PlaceOrderRequestParam{
@@ -947,7 +947,7 @@ func TestCancelMultipleOrders(t *testing.T) {
 	_, err := e.CancelMultipleOrders(contextGenerate(), []CancelOrderRequestParam{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 
-	_, err = e.CancelMultipleOrders(contextGenerate(), make([]CancelOrderRequestParam, maxOKXBatchOrders+1))
+	_, err = e.CancelMultipleOrders(contextGenerate(), make([]CancelOrderRequestParam, maxBatchOrders+1))
 	require.ErrorIs(t, err, errExceedLimit)
 
 	arg := CancelOrderRequestParam{}
@@ -1001,7 +1001,7 @@ func TestAmendMultipleOrders(t *testing.T) {
 	_, err := e.AmendMultipleOrders(contextGenerate(), []AmendOrderRequestParams{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
 
-	_, err = e.AmendMultipleOrders(contextGenerate(), make([]AmendOrderRequestParams, maxOKXBatchOrders+1))
+	_, err = e.AmendMultipleOrders(contextGenerate(), make([]AmendOrderRequestParams, maxBatchOrders+1))
 	require.ErrorIs(t, err, errExceedLimit)
 
 	arg := AmendOrderRequestParams{

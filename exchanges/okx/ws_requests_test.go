@@ -67,7 +67,7 @@ func TestWSPlaceMultipleOrders(t *testing.T) {
 	_, err := e.WSPlaceMultipleOrders(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrSubmissionIsNil)
 
-	_, err = e.WSPlaceMultipleOrders(t.Context(), make([]PlaceOrderRequestParam, maxOKXBatchOrders+1))
+	_, err = e.WSPlaceMultipleOrders(t.Context(), make([]PlaceOrderRequestParam, maxBatchOrders+1))
 	require.ErrorIs(t, err, errExceedLimit)
 
 	_, err = e.WSPlaceMultipleOrders(t.Context(), []PlaceOrderRequestParam{{}})
@@ -119,7 +119,7 @@ func TestWSCancelMultipleOrders(t *testing.T) {
 	_, err := e.WSCancelMultipleOrders(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrSubmissionIsNil)
 
-	_, err = e.WSCancelMultipleOrders(t.Context(), make([]CancelOrderRequestParam, maxOKXBatchOrders+1))
+	_, err = e.WSCancelMultipleOrders(t.Context(), make([]CancelOrderRequestParam, maxBatchOrders+1))
 	require.ErrorIs(t, err, errExceedLimit)
 
 	_, err = e.WSCancelMultipleOrders(t.Context(), []CancelOrderRequestParam{{}})
@@ -171,7 +171,7 @@ func TestWSAmendMultipleOrders(t *testing.T) {
 	_, err := e.WSAmendMultipleOrders(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrSubmissionIsNil)
 
-	_, err = e.WSAmendMultipleOrders(t.Context(), make([]AmendOrderRequestParams, maxOKXBatchOrders+1))
+	_, err = e.WSAmendMultipleOrders(t.Context(), make([]AmendOrderRequestParams, maxBatchOrders+1))
 	require.ErrorIs(t, err, errExceedLimit)
 
 	out := AmendOrderRequestParams{}

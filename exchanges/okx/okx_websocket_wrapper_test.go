@@ -235,21 +235,18 @@ func TestDeriveSubmitOrderArguments(t *testing.T) {
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
 
-	t.Run("spot market quote amount", func(t *testing.T) {
-		t.Parallel()
-		arg, err := ex.deriveSubmitOrderArguments(&order.Submit{
-			Exchange:    ex.Name,
-			Pair:        mainPair,
-			AssetType:   asset.Spot,
-			Side:        order.Buy,
-			Type:        order.Market,
-			QuoteAmount: 10,
-		})
-		require.NoError(t, err)
-		assert.Equal(t, order.Buy.Lower(), arg.Side)
-		assert.Equal(t, "quote_ccy", arg.TargetCurrency)
-		assert.Equal(t, 10.0, arg.Amount)
+	arg, err := ex.deriveSubmitOrderArguments(&order.Submit{
+		Exchange:    ex.Name,
+		Pair:        mainPair,
+		AssetType:   asset.Spot,
+		Side:        order.Buy,
+		Type:        order.Market,
+		QuoteAmount: 10,
 	})
+	require.NoError(t, err)
+	assert.Equal(t, order.Buy.Lower(), arg.Side)
+	assert.Equal(t, "quote_ccy", arg.TargetCurrency)
+	assert.Equal(t, 10.0, arg.Amount)
 
 	t.Run("futures leverage guard", func(t *testing.T) {
 		t.Parallel()

@@ -344,11 +344,11 @@ type authConnectionStub struct {
 	err      error
 }
 
-func (a *authConnectionStub) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _, _ any, _ ...request.RateLimitReservation) ([]byte, error) {
+func (a *authConnectionStub) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _, _ any, _ ...request.RateLimitWithWeightOverride) ([]byte, error) {
 	return a.response, a.err
 }
 
-func (a *authConnectionStub) SendMessageReturnResponseWithRateLimitWeight(_ context.Context, _ request.EndpointLimit, _ request.Weight, _, _ any, _ ...request.RateLimitReservation) ([]byte, error) {
+func (a *authConnectionStub) SendMessageReturnResponseWithRateLimitWeight(_ context.Context, _ request.EndpointLimit, _ request.Weight, _, _ any, _ ...request.RateLimitWithWeightOverride) ([]byte, error) {
 	return a.response, a.err
 }
 
