@@ -1971,12 +1971,13 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		}
 
 		l = make([]limits.MinMaxLevel, 0, len(supported))
+		unsupported := maps.Clone(supported)
 		for i := range pairsData {
 			mInfo, ok := supported[pairsData[i].ID]
 			if !ok {
 				continue
 			}
-			delete(supported, pairsData[i].ID) // Track coverage; warn below.
+			delete(unsupported, pairsData[i].ID) // Remove ids returned by the API. Any remaining will trigger a warning
 			minBaseAmount := pairsData[i].MinBaseAmount.Float64()
 			if minBaseAmount == 0 {
 				minBaseAmount = math.Pow10(-int(pairsData[i].AmountPrecision))
@@ -1992,8 +1993,9 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				MinimumBorrowAmountQuote: mInfo.QuoteMinimumBorrowAmount.Float64(),
 			})
 		}
-		if len(supported) > 0 {
-			log.Warnf(log.ExchangeSys, "%s %d unsupported margin pairs found, these will be skipped: %v", e.Name, len(supported), supported)
+		if len(unsupported) > 0 {
+			log.Warnf(log.ExchangeSys, "%s %d unsupported margin pairs found, no exeuction limits loaded for: %v", e.Name, len(unsupported), unsupported)
+
 		}
 	case asset.USDTMarginedFutures, asset.CoinMarginedFutures:
 		settlement := currency.USDT
