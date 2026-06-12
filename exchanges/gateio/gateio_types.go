@@ -1765,9 +1765,8 @@ type UniLoanInterestRecord struct {
 type UniLoanBorrowRepayParam struct {
 	CurrencyPair currency.Pair `json:"currency_pair"`
 	Currency     currency.Code `json:"currency"`
-	// Type is either "borrow" or "repay".
-	Type   string       `json:"type"`
-	Amount types.Number `json:"amount"`
+	Type         string        `json:"type"` // Type is either "borrow" or "repay"
+	Amount       types.Number  `json:"amount"`
 }
 
 // FlashSwapOrderParams represents create flash swap order request parameters.
