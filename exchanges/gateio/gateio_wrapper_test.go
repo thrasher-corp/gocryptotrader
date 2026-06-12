@@ -189,7 +189,7 @@ func TestPriceDivisor(t *testing.T) {
 	}
 }
 
-func TestOldestTime(t *testing.T) {
+func TestEarliestTime(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now().UTC()
@@ -212,6 +212,11 @@ func TestOldestTime(t *testing.T) {
 			expect: time.Time{},
 		},
 		{
+			name:   "time equal to now is ignored",
+			times:  []time.Time{now},
+			expect: time.Time{},
+		},
+		{
 			name:   "single past time is returned",
 			times:  []time.Time{pastNewer},
 			expect: pastNewer,
@@ -225,8 +230,8 @@ func TestOldestTime(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := oldestTime(tc.times...)
-			assert.Equal(t, tc.expect, got, "oldest time should match expected value")
+			got := earliestTime(now, tc.times...)
+			assert.Equal(t, tc.expect, got, "earliest time should match expected value")
 		})
 	}
 }

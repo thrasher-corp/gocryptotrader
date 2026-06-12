@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"slices"
 	"sort"
@@ -1944,7 +1945,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 				MaximumBaseAmount:       pairsData[i].MaxBaseAmount.Float64(),
 				MaximumQuoteAmount:      pairsData[i].MaxQuoteAmount.Float64(),
 				Delisted:                pairsData[i].DelistingTime.Time(),
-				Listed:                  oldestTime(pairsData[i].SellStart.Time(), pairsData[i].BuyStart.Time()),
+				Listed:                  earliestTime(time.Now(), pairsData[i].SellStart.Time(), pairsData[i].BuyStart.Time()),
 				MultiplierUp:            pairsData[i].MaximumQuoteRisePercentage.Float64(),
 				MultiplierDown:          pairsData[i].MaximumQuoteDeclinePercentage.Float64(),
 				MarketMaxQty:            pairsData[i].MarketOrderMaxStock.Float64(),
@@ -1995,7 +1996,6 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		}
 		if len(unsupported) > 0 {
 			log.Warnf(log.ExchangeSys, "%s %d unsupported margin pairs found, no exeuction limits loaded for: %v", e.Name, len(unsupported), unsupported)
-
 		}
 	case asset.USDTMarginedFutures, asset.CoinMarginedFutures:
 		settlement := currency.USDT
@@ -2098,20 +2098,18 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	return limits.Load(l)
 }
 
-// oldestTime returns the oldest non-zero time from a list of times. If all times are zero, it returns a zero time.
-func earliestTime(times ...time.Time) time.Time {
-	var oldest time.Time
-	now := time.Now()
-
+// earliestTime returns the earliest non-zero time before now from a list of times. If no such time exists, it returns a zero time.
+func earliestTime(now time.Time, times ...time.Time) time.Time {
+	var earliest time.Time
 	for _, ts := range times {
 		if ts.IsZero() || !ts.Before(now) {
 			continue
 		}
-		if oldest.IsZero() || ts.Before(oldest) {
-			oldest = ts
+		if earliest.IsZero() || ts.Before(earliest) {
+			earliest = ts
 		}
 	}
-	return oldest
+	return earliest
 }
 
 // MBABYDOGE price is 1e6 x spot price for futures contracts. This is the only currency that has this characteristic.
