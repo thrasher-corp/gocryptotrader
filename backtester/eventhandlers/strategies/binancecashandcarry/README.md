@@ -43,7 +43,7 @@ This strategy does support strategy customisation in the following ways:
 
 | Field | Description |  Example |
 | --- | ------- | --- |
-| openShortDistancePercentage | If there is no short position open, and the difference between FUTURES and SPOT pricing goes above this this percentage threshold, raise a SHORT order of the FUTURES contract | 10 |
+| openShortDistancePercentage | If there is no short position open, and the difference between FUTURES and SPOT pricing goes above this percentage threshold, raise a SHORT order of the FUTURES contract | 10 |
 | closeShortDistancePercentage | If there is an open SHORT position on a FUTURES contract, and the difference in FUTURES and SPOT pricing goes below this percentage threshold, close the SHORT position | 1 |
 
 ### External Resources
