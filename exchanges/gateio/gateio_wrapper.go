@@ -2099,17 +2099,19 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 }
 
 // oldestTime returns the oldest non-zero time from a list of times. If all times are zero, it returns a zero time.
-func oldestTime(times ...time.Time) time.Time {
-	var listed time.Time
-	for i := range times {
-		if times[i].IsZero() || !times[i].Before(time.Now()) {
+func earliestTime(times ...time.Time) time.Time {
+	var oldest time.Time
+	now := time.Now()
+
+	for _, ts := range times {
+		if ts.IsZero() || !ts.Before(now) {
 			continue
 		}
-		if listed.IsZero() || times[i].Before(listed) {
-			listed = times[i]
+		if oldest.IsZero() || ts.Before(oldest) {
+			oldest = ts
 		}
 	}
-	return listed
+	return oldest
 }
 
 // MBABYDOGE price is 1e6 x spot price for futures contracts. This is the only currency that has this characteristic.
