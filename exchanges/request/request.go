@@ -73,8 +73,20 @@ func New(name string, httpRequester *http.Client, opts ...RequesterOption) (*Req
 	return r, nil
 }
 
-// SendPayload handles sending HTTP/HTTPS requests
-func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newRequest Generate, requestType AuthType) error {
+// SendPayload handles sending HTTP/HTTPS requests with endpoint and optional additional request-scoped rate limits.
+func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newRequest Generate, requestType AuthType, additionalRateLimits ...RateLimitWithWeightOverride) error {
+	return r.sendPayload(ctx, ep, newRequest, requestType, additionalRateLimits...)
+}
+
+// SendPayloadWithRateLimitWeight handles sending HTTP/HTTPS requests with a request-specific endpoint rate-limit weight.
+func (r *Requester) SendPayloadWithRateLimitWeight(ctx context.Context, ep EndpointLimit, weight Weight, newRequest Generate, requestType AuthType, additionalRateLimits ...RateLimitWithWeightOverride) error {
+	if weight > 0 {
+		additionalRateLimits = append([]RateLimitWithWeightOverride{{WeightOverride: weight}}, additionalRateLimits...)
+	}
+	return r.sendPayload(ctx, ep, newRequest, requestType, additionalRateLimits...)
+}
+
+func (r *Requester) sendPayload(ctx context.Context, ep EndpointLimit, newRequest Generate, requestType AuthType, additionalRateLimits ...RateLimitWithWeightOverride) error {
 	if r == nil {
 		return ErrRequestSystemIsNil
 	}
@@ -92,7 +104,7 @@ func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newReques
 		return errRequestFunctionIsNil
 	}
 
-	err := r.doRequest(ctx, ep, newRequest)
+	err := r.doRequest(ctx, ep, newRequest, additionalRateLimits...)
 	if err != nil && requestType == AuthenticatedRequest {
 		err = common.AppendError(err, ErrAuthRequestFailed)
 	}
@@ -139,7 +151,7 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 }
 
 // doRequest performs a HTTP/HTTPS request with the supplied params
-func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRequest Generate) error {
+func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRequest Generate, additionalRateLimits ...RateLimitWithWeightOverride) error {
 	for attempt := 1; ; attempt++ {
 		// Check if context has finished before executing new attempt.
 		select {
@@ -150,8 +162,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 
 		if r.limiter != nil {
 			// Initiate a rate limit reservation and sleep on requested endpoint
-			err := r.InitiateRateLimit(ctx, endpoint)
-			if err != nil {
+			if err := r.InitiateRateLimit(ctx, endpoint, additionalRateLimits...); err != nil {
 				return fmt.Errorf("failed to rate limit HTTP request: %w", err)
 			}
 		}
@@ -210,9 +221,10 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 			return err
 		}
 		// Even in the case of an erroneous condition below, yield the parsed
-		// response to caller.
+		// response to caller. Skip unmarshalling if there is no body content
+		// (e.g. HTTP 204 No Content) to avoid a spurious syntax error.
 		var unmarshallError error
-		if p.Result != nil {
+		if p.Result != nil && resp.StatusCode != http.StatusNoContent {
 			unmarshallError = json.Unmarshal(contents, p.Result)
 		}
 

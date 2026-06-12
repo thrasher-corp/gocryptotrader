@@ -2993,11 +2993,15 @@ func (d *FixtureConnection) Dial(context.Context, *gws.Dialer, http.Header, url.
 	return d.dialError
 }
 
-func (d *FixtureConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any) ([]byte, error) {
+func (d *FixtureConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any, ...request.RateLimitWithWeightOverride) ([]byte, error) {
 	if d.sendMessageReturnResponseOverride != nil {
 		return d.sendMessageReturnResponseOverride, nil
 	}
 	return []byte(`{"success":true,"ret_msg":"subscribe","conn_id":"5758770c-8152-4545-a84f-dae089e56499","req_id":"1","op":"subscribe"}`), nil
+}
+
+func (d *FixtureConnection) SendMessageReturnResponseWithRateLimitWeight(ctx context.Context, epl request.EndpointLimit, _ request.Weight, signature, req any, additionalRateLimits ...request.RateLimitWithWeightOverride) ([]byte, error) {
+	return d.SendMessageReturnResponse(ctx, epl, signature, req, additionalRateLimits...)
 }
 
 func (d *FixtureConnection) SendJSONMessage(context.Context, request.EndpointLimit, any) error {

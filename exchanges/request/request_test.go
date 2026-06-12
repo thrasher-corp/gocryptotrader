@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -93,6 +94,9 @@ func TestMain(m *testing.M) {
 		if err != nil {
 			log.Fatal(err)
 		}
+	})
+	sm.HandleFunc("/nocontent", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
 	})
 
 	server := httptest.NewServer(sm)
@@ -305,6 +309,166 @@ func TestDoRequest(t *testing.T) {
 	}
 
 	require.NoError(t, ec.Collect(), "Collect must return no errors")
+}
+
+func TestSendPayload_AdditionalRateLimits(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+		r, err := New("test", new(http.Client), WithLimiter(NewBasicRateLimit(100*time.Millisecond, 1, 1)))
+		require.NoError(t, err, "New requester must not error")
+		extra := NewRateLimitWithWeight(300*time.Millisecond, 1, 1)
+		requestErr := errors.New("request generation failed")
+		newRequest := func() (*Item, error) {
+			return nil, requestErr
+		}
+
+		additionalRateLimits := []RateLimitWithWeightOverride{{Limiter: extra, WeightOverride: 1}}
+		err = r.SendPayload(t.Context(), Unset, newRequest, UnauthenticatedRequest, additionalRateLimits...)
+		require.ErrorIs(t, err, requestErr, "first call must reach request generation")
+
+		err = r.SendPayload(WithDelayNotAllowed(t.Context()), Unset, newRequest, UnauthenticatedRequest, additionalRateLimits...)
+		require.ErrorIs(t, err, ErrDelayNotAllowed, "second call must apply additional request-scoped rate limit")
+	})
+}
+
+func TestSendPayloadWithRateLimitWeight(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+		r, err := New("test", new(http.Client), WithLimiter(NewBasicRateLimit(100*time.Millisecond, 1, 1)))
+		require.NoError(t, err, "New requester must not error")
+		requestErr := errors.New("request generation failed")
+		newRequest := func() (*Item, error) {
+			return nil, requestErr
+		}
+
+		err = r.SendPayloadWithRateLimitWeight(t.Context(), Unset, 3, newRequest, UnauthenticatedRequest)
+		require.ErrorIs(t, err, requestErr, "first call must reach request generation")
+
+		err = r.SendPayloadWithRateLimitWeight(WithDelayNotAllowed(t.Context()), Unset, 3, newRequest, UnauthenticatedRequest)
+		require.ErrorIs(t, err, ErrDelayNotAllowed, "second call must apply request-specific endpoint weight")
+	})
+}
+
+func TestDoRequest_NoContent(t *testing.T) {
+	t.Parallel()
+	newRequesterWithClient := func(t *testing.T, client *http.Client, opts ...RequesterOption) *Requester {
+		t.Helper()
+
+		r, err := New("test", client, opts...)
+		require.NoError(t, err, "New requester must not error")
+		t.Cleanup(func() {
+			assert.NoError(t, r.Shutdown(), "Shutdown should not error")
+		})
+		return r
+	}
+
+	newRequesterWithOpts := func(t *testing.T, opts ...RequesterOption) *Requester {
+		t.Helper()
+		return newRequesterWithClient(t, common.NewHTTPClientWithTimeout(0), opts...)
+	}
+
+	newRequester := func(t *testing.T) *Requester {
+		t.Helper()
+		return newRequesterWithOpts(t, WithLimiter(globalshell))
+	}
+
+	scenarioTests := []struct {
+		name string
+		run  func(t *testing.T)
+	}{
+		{
+			name: "no content zero value result remains unchanged",
+			run: func(t *testing.T) {
+				t.Helper()
+				r := newRequester(t)
+				var resp struct {
+					Response bool `json:"response"`
+				}
+				err := r.SendPayload(t.Context(), UnAuth, func() (*Item, error) {
+					return &Item{
+						Method: http.MethodPost,
+						Path:   testURL + "/nocontent",
+						Result: &resp,
+					}, nil
+				}, UnauthenticatedRequest)
+				require.NoError(t, err, "SendPayload must not error on 204 No Content")
+				assert.False(t, resp.Response, "result should remain zero value on 204 No Content")
+			},
+		},
+		{
+			name: "no content pre populated result remains unchanged",
+			run: func(t *testing.T) {
+				t.Helper()
+				r := newRequester(t)
+				resp := struct {
+					Response bool `json:"response"`
+				}{
+					Response: true,
+				}
+				err := r.SendPayload(t.Context(), UnAuth, func() (*Item, error) {
+					return &Item{
+						Method: http.MethodPost,
+						Path:   testURL + "/nocontent",
+						Result: &resp,
+					}, nil
+				}, UnauthenticatedRequest)
+				require.NoError(t, err, "SendPayload must not error on 204 No Content")
+				assert.True(t, resp.Response, "result should remain unchanged when unmarshalling is skipped on 204 No Content")
+			},
+		},
+		{
+			name: "no content nil result must not error",
+			run: func(t *testing.T) {
+				t.Helper()
+				r := newRequester(t)
+				err := r.SendPayload(t.Context(), UnAuth, func() (*Item, error) {
+					return &Item{
+						Method: http.MethodPost,
+						Path:   testURL + "/nocontent",
+					}, nil
+				}, UnauthenticatedRequest)
+				require.NoError(t, err, "SendPayload must not error on 204 No Content with nil Result")
+			},
+		},
+		{
+			name: "no content header response must be copied",
+			run: func(t *testing.T) {
+				t.Helper()
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.Header().Set("X-No-Content", "true")
+					w.WriteHeader(http.StatusNoContent)
+				}))
+				t.Cleanup(server.Close)
+
+				r := newRequester(t)
+				headers := http.Header{}
+				var resp struct {
+					Response bool `json:"response"`
+				}
+				err := r.SendPayload(t.Context(), UnAuth, func() (*Item, error) {
+					return &Item{
+						Method:         http.MethodPost,
+						Path:           server.URL,
+						Result:         &resp,
+						HeaderResponse: &headers,
+					}, nil
+				}, UnauthenticatedRequest)
+				require.NoError(t, err, "SendPayload must not error on 204 No Content with headers")
+				assert.Equal(t, "true", headers.Get("X-No-Content"), "HeaderResponse should contain custom headers for 204 No Content")
+				assert.Equal(t, "application/json", headers.Get("Content-Type"), "HeaderResponse should contain Content-Type for 204 No Content")
+				assert.False(t, resp.Response, "result should remain zero value when 204 No Content has headers")
+			},
+		},
+	}
+	for _, tc := range scenarioTests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			tc.run(t)
+		})
+	}
 }
 
 func TestDoRequest_Retries(t *testing.T) {

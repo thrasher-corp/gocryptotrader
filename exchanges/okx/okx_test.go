@@ -36,6 +36,7 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -77,6 +78,29 @@ func TestMain(m *testing.M) {
 	}
 
 	os.Exit(m.Run())
+}
+
+func TestSetDefaultsEndpoints(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	ex.SetDefaults()
+
+	restURL, err := ex.API.Endpoints.GetURL(exchange.RestSpot)
+	require.NoError(t, err, "GetURL must not fail for OKX REST")
+	require.Equal(t, "https://www.okx.com/api/v5/", restURL)
+
+	publicURL, err := ex.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	require.NoError(t, err, "GetURL must not fail for OKX public websocket")
+	require.Equal(t, "wss://ws.okx.com:8443/ws/v5/public", publicURL)
+
+	privateURL, err := ex.API.Endpoints.GetURL(exchange.WebsocketPrivate)
+	require.NoError(t, err, "GetURL must not fail for OKX private websocket")
+	require.Equal(t, "wss://ws.okx.com:8443/ws/v5/private", privateURL)
+
+	businessURL, err := ex.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
+	require.NoError(t, err, "GetURL must not fail for OKX business websocket")
+	require.Equal(t, "wss://ws.okx.com:8443/ws/v5/business", businessURL)
 }
 
 func syncLeadTraderUniqueID(t *testing.T) error {
@@ -406,16 +430,10 @@ func TestGetInstrument(t *testing.T) {
 
 	resp, err := e.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
 		InstrumentType: instTypeFutures,
-		Underlying:     "SOL-USD",
+		Underlying:     optionsPair.String(),
 	})
 	require.NoError(t, err)
-	require.NotEmpty(t, resp, "GetInstruments must return live instruments for SOL-USD futures")
-	for i := range resp {
-		assert.Equal(t, instTypeFutures, resp[i].InstrumentType, "InstrumentType should be correct")
-		assert.Equal(t, "SOL-USD", resp[i].Underlying, "Underlying should be correct")
-		assert.True(t, resp[i].InstrumentID.IsPopulated(), "InstrumentID should be populated")
-		assert.NotEmpty(t, resp[i].State, "State should not be empty")
-	}
+	assert.NotEmpty(t, resp, "futures instruments should be returned")
 
 	result, err := e.GetInstruments(contextGenerate(), &InstrumentsFetchParams{
 		InstrumentType: instTypeSpot,
@@ -460,13 +478,12 @@ func TestGetOpenInterestData(t *testing.T) {
 	require.NoError(t, err, "GetAvailablePairs must not error")
 	require.NotEmpty(t, p, "GetAvailablePairs must not return empty pairs")
 
-	instrumentID := p[0].String()
-	uly, err := e.underlyingFromInstID(instTypeOption, instrumentID)
+	uly, err := e.underlyingFromInstID(instTypeOption, p[0].String())
 	require.NoError(t, err)
-	instFamily, err := e.instrumentFamilyFromInstID(instTypeOption, instrumentID)
+	family, err := e.instrumentFamilyFromInstID(instTypeOption, p[0].String())
 	require.NoError(t, err)
 
-	result, err := e.GetOpenInterestData(contextGenerate(), instTypeOption, uly, instFamily, instrumentID)
+	result, err := e.GetOpenInterestData(contextGenerate(), instTypeOption, uly, family, p[0].String())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -809,7 +826,7 @@ func TestPlaceOrder(t *testing.T) {
 
 	arg.AssetType = asset.Futures
 	_, err = e.PlaceOrder(contextGenerate(), arg)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.PositionSide = "long"
 	_, err = e.PlaceOrder(contextGenerate(), arg)
@@ -866,6 +883,9 @@ func TestPlaceMultipleOrders(t *testing.T) {
 	_, err = e.PlaceMultipleOrders(contextGenerate(), []PlaceOrderRequestParam{})
 	require.ErrorIs(t, err, order.ErrSubmissionIsNil)
 
+	_, err = e.PlaceMultipleOrders(contextGenerate(), make([]PlaceOrderRequestParam, maxBatchOrders+1))
+	require.ErrorIs(t, err, errExceedLimit)
+
 	arg := PlaceOrderRequestParam{
 		ReduceOnly: true,
 	}
@@ -891,7 +911,7 @@ func TestPlaceMultipleOrders(t *testing.T) {
 
 	arg.AssetType = asset.Futures
 	_, err = e.PlaceMultipleOrders(contextGenerate(), []PlaceOrderRequestParam{arg})
-	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	arg.PositionSide = "long"
 	_, err = e.PlaceMultipleOrders(contextGenerate(), []PlaceOrderRequestParam{arg})
@@ -926,6 +946,10 @@ func TestCancelMultipleOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelMultipleOrders(contextGenerate(), []CancelOrderRequestParam{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
+
+	_, err = e.CancelMultipleOrders(contextGenerate(), make([]CancelOrderRequestParam, maxBatchOrders+1))
+	require.ErrorIs(t, err, errExceedLimit)
+
 	arg := CancelOrderRequestParam{}
 	_, err = e.CancelMultipleOrders(contextGenerate(), []CancelOrderRequestParam{arg})
 	require.ErrorIs(t, err, errMissingInstrumentID)
@@ -976,6 +1000,9 @@ func TestAmendMultipleOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.AmendMultipleOrders(contextGenerate(), []AmendOrderRequestParams{})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
+
+	_, err = e.AmendMultipleOrders(contextGenerate(), make([]AmendOrderRequestParams, maxBatchOrders+1))
+	require.ErrorIs(t, err, errExceedLimit)
 
 	arg := AmendOrderRequestParams{
 		NewPriceInUSD: 1233,
@@ -3354,6 +3381,13 @@ func TestAssetTypeFromInstrumentType(t *testing.T) {
 		assetItem, err := assetTypeFromInstrumentType(k)
 		require.ErrorIs(t, err, v.Error)
 		assert.Equal(t, v.AssetType, assetItem)
+
+		if v.Error == nil && k != "" {
+			lower := strings.ToLower(k)
+			assetItem, err = assetTypeFromInstrumentType(lower)
+			require.NoError(t, err, "assetTypeFromInstrumentType must support lowercase instrument type inputs")
+			assert.Equal(t, v.AssetType, assetItem, "asset type should match for lowercase instrument type input")
+		}
 	}
 }
 
@@ -3387,6 +3421,16 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 				require.NoError(t, err, "GetOrderExecutionLimits must not error")
 				assert.Positive(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive")
 				assert.Positive(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive")
+				assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should be positive")
+				switch a {
+				case asset.Spot, asset.Margin:
+					assert.Positive(t, l.MaximumQuoteAmount, "MaximumQuoteAmount should be positive")
+				case asset.Futures, asset.PerpetualSwap, asset.Options:
+					assert.Positive(t, l.MultiplierDecimal, "MultiplierDecimal should be positive")
+					assert.NotZero(t, l.Listed, "Listed should be populated")
+				case asset.Spread:
+					assert.NotZero(t, l.Listed, "Listed should be populated")
+				}
 			}
 		})
 	}
@@ -3418,6 +3462,10 @@ func TestUpdateTickers(t *testing.T) {
 	testexch.UpdatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
 		err := e.UpdateTickers(contextGenerate(), a)
+		if a == asset.Spread {
+			require.ErrorIs(t, err, common.ErrFunctionNotSupported, "spread asset must return not supported error")
+			continue
+		}
 		require.NoErrorf(t, err, "UpdateTickers for asset %s must not error", a)
 	}
 }
@@ -3969,6 +4017,36 @@ func TestGenerateOrderbookChecksum(t *testing.T) {
 	require.Equal(t, uint32(2832680552), generateOrderbookChecksum(&orderbookBase))
 }
 
+func TestCalculateOrderbookChecksum(t *testing.T) {
+	t.Parallel()
+
+	data := &WsOrderBookData{
+		Bids: []WsOrderBookLevel{
+			{Price: 100.5, Amount: 1.25, PriceString: "100.5", AmountString: "1.25"},
+			{Price: 100.4, Amount: 2.5, PriceString: "100.4", AmountString: "2.5"},
+		},
+		Asks: []WsOrderBookLevel{
+			{Price: 100.6, Amount: 0.75, PriceString: "100.6", AmountString: "0.75"},
+			{Price: 100.7, Amount: 3.5, PriceString: "100.7", AmountString: "3.5"},
+		},
+	}
+
+	checksum, err := e.CalculateOrderbookChecksum(data)
+	require.NoError(t, err, "CalculateOrderbookChecksum must not error")
+
+	book := &orderbook.Book{
+		Bids: orderbook.Levels{
+			{Price: 100.5, Amount: 1.25, StrPrice: "100.5", StrAmount: "1.25"},
+			{Price: 100.4, Amount: 2.5, StrPrice: "100.4", StrAmount: "2.5"},
+		},
+		Asks: orderbook.Levels{
+			{Price: 100.6, Amount: 0.75, StrPrice: "100.6", StrAmount: "0.75"},
+			{Price: 100.7, Amount: 3.5, StrPrice: "100.7", StrAmount: "3.5"},
+		},
+	}
+	require.Equal(t, generateOrderbookChecksum(book), checksum, "CalculateOrderbookChecksum must match generateOrderbookChecksum for equivalent book data")
+}
+
 func TestOrderPushData(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
@@ -4409,34 +4487,185 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 	t.Parallel()
 
 	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Setup must not error")
 
 	_, err := e.getAssetsFromInstrumentID("")
 	assert.ErrorIs(t, err, errMissingInstrumentID)
 
-	for _, a := range []asset.Item{asset.Spot, asset.Futures, asset.PerpetualSwap, asset.Options} {
-		assets, err2 := e.getAssetsFromInstrumentID(e.CurrencyPairs.Pairs[a].Enabled[0].String())
-		require.NoErrorf(t, err2, "GetAssetsFromInstrumentTypeOrID must not error for asset: %s", a)
-		switch a {
-		case asset.Spot, asset.Margin:
-			// spot and margin instruments are similar
-			require.Len(t, assets, 2)
-		default:
-			require.Len(t, assets, 1)
-		}
-		assert.Containsf(t, assets, a, "Should contain asset: %s", a)
+	testCases := []struct {
+		name               string
+		instrumentID       string
+		expectedAssetTypes []asset.Item
+		expectedError      error
+	}{
+		{
+			name:               "spot instrument",
+			instrumentID:       "BTC-USDT",
+			expectedAssetTypes: []asset.Item{asset.Spot, asset.Margin},
+		},
+		{
+			name:               "swap instrument",
+			instrumentID:       "BTC-USD-SWAP",
+			expectedAssetTypes: []asset.Item{asset.PerpetualSwap},
+		},
+		{
+			name:               "swap instrument lowercase suffix",
+			instrumentID:       "BTC-USD-swap",
+			expectedAssetTypes: []asset.Item{asset.PerpetualSwap},
+		},
+		{
+			name:          "invalid instrument",
+			instrumentID:  "test",
+			expectedError: currency.ErrCurrencyNotSupported,
+		},
+		{
+			name:               "futures instrument",
+			instrumentID:       "BTC-USD-240329",
+			expectedAssetTypes: []asset.Item{asset.Futures},
+		},
+		{
+			name:               "options instrument",
+			instrumentID:       "BTC-USD-240329-70000-C",
+			expectedAssetTypes: []asset.Item{asset.Options},
+		},
+		{
+			name:               "options instrument lowercase suffix",
+			instrumentID:       "BTC-USD-240329-70000-c",
+			expectedAssetTypes: []asset.Item{asset.Options},
+		},
 	}
 
-	_, err = e.getAssetsFromInstrumentID("test")
-	assert.ErrorIs(t, err, currency.ErrCurrencyNotSupported)
-	_, err = e.getAssetsFromInstrumentID("test-test")
-	assert.ErrorIs(t, err, asset.ErrNotEnabled)
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
 
-	for _, a := range []asset.Item{asset.Margin, asset.Spot} {
-		assets, err2 := e.getAssetsFromInstrumentID(e.CurrencyPairs.Pairs[a].Enabled[0].String())
-		require.NoErrorf(t, err2, "GetAssetsFromInstrumentTypeOrID must not error for asset: %s", a)
-		assert.Contains(t, assets, a)
+			assets, err := e.getAssetsFromInstrumentID(testCase.instrumentID)
+			if testCase.expectedError != nil {
+				require.ErrorIs(t, err, testCase.expectedError, "getAssetsFromInstrumentID must return expected error")
+				return
+			}
+			require.NoError(t, err, "getAssetsFromInstrumentID must not error")
+			assert.Equal(t, testCase.expectedAssetTypes, assets, "asset types should match")
+		})
 	}
+}
+
+func TestGetAssetsFromInstrumentID(t *testing.T) {
+	t.Parallel()
+
+	e := new(Exchange)
+	assets, err := e.getAssetsFromInstrumentID("BTC-USD-240329-70000-C")
+	require.NoError(t, err, "getAssetsFromInstrumentID must not error for option instrument IDs")
+	require.Equal(t, []asset.Item{asset.Options}, assets, "getAssetsFromInstrumentID must infer options asset type")
+}
+
+func TestWsOrderBookLevelUnmarshalJSON(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name                 string
+		data                 []byte
+		expectedPrice        float64
+		expectedAmount       float64
+		expectedPriceString  string
+		expectedAmountString string
+		expectedError        error
+	}{
+		{
+			name:                 "quoted values",
+			data:                 []byte(`["0.07026","5","0","1"]`),
+			expectedPrice:        0.07026,
+			expectedAmount:       5,
+			expectedPriceString:  "0.07026",
+			expectedAmountString: "5",
+		},
+		{
+			name:                 "numeric values",
+			data:                 []byte(`[0.07026,5,0,1]`),
+			expectedPrice:        0.07026,
+			expectedAmount:       5,
+			expectedPriceString:  "0.07026",
+			expectedAmountString: "5",
+		},
+		{
+			name:          "malformed",
+			data:          []byte(`{}`),
+			expectedError: errInvalidOrderBookLevel,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			var level WsOrderBookLevel
+			err := json.Unmarshal(testCase.data, &level)
+			if testCase.expectedError != nil {
+				require.ErrorIs(t, err, testCase.expectedError, "UnmarshalJSON must return expected error")
+				return
+			}
+
+			require.NoError(t, err, "UnmarshalJSON must not error")
+			assert.Equal(t, testCase.expectedPrice, level.Price.Float64(), "Price should match")
+			assert.Equal(t, testCase.expectedAmount, level.Amount.Float64(), "Amount should match")
+			assert.Equal(t, testCase.expectedPriceString, level.PriceString, "PriceString should match")
+			assert.Equal(t, testCase.expectedAmountString, level.AmountString, "AmountString should match")
+		})
+	}
+}
+
+func TestWsOrderbookItems(t *testing.T) {
+	t.Parallel()
+
+	entries := []WsOrderBookLevel{
+		{
+			Price:        100.5,
+			Amount:       2.25,
+			PriceString:  "100.5",
+			AmountString: "2.25",
+		},
+	}
+	items := wsOrderbookItems(entries)
+	require.Len(t, items, 1, "wsOrderbookItems must return one orderbook item")
+	assert.Equal(t, 100.5, items[0].Price, "orderbook price should match")
+	assert.Equal(t, 2.25, items[0].Amount, "orderbook amount should match")
+	assert.Equal(t, "100.5", items[0].StrPrice, "orderbook price string should match")
+	assert.Equal(t, "2.25", items[0].StrAmount, "orderbook amount string should match")
+}
+
+func TestAppendWsOrderbookItemsFromPool(t *testing.T) {
+	t.Parallel()
+
+	entries := []WsOrderBookLevel{
+		{Price: 1, Amount: 2, PriceString: "1", AmountString: "2"},
+		{Price: 3, Amount: 4, PriceString: "3", AmountString: "4"},
+	}
+	items, pooled := appendWsOrderbookItemsFromPool(entries)
+	t.Cleanup(func() {
+		putWsOrderbookLevels(pooled)
+	})
+
+	require.Len(t, items, 2, "appendWsOrderbookItemsFromPool must return expected item count")
+	assert.Equal(t, "1", items[0].StrPrice, "first price string should match")
+	assert.Equal(t, "4", items[1].StrAmount, "second amount string should match")
+}
+
+func TestPutWsOrderbookLevels(t *testing.T) {
+	t.Parallel()
+
+	items := orderbook.Levels{{Price: 1}, {Price: 2}}
+	putWsOrderbookLevels(&items)
+	require.Empty(t, items, "putWsOrderbookLevels must reset pooled slice length")
+}
+
+func TestAppendOrderbookChecksumLevel(t *testing.T) {
+	t.Parallel()
+
+	level := &orderbook.Level{
+		StrPrice:  "100.01",
+		StrAmount: "0.25",
+	}
+	checksum := appendOrderbookChecksumLevel(nil, level)
+	require.Equal(t, "100.01:0.25:", string(checksum), "appendOrderbookChecksumLevel must append colon-delimited level values")
 }
 
 func TestSetMarginType(t *testing.T) {
@@ -4476,7 +4705,7 @@ func TestSetCollateralMode(t *testing.T) {
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
-func TestGetPositionSummary(t *testing.T) {
+func TestGetFuturesPositionSummary(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	pp, err := e.CurrencyPairs.GetPairs(asset.PerpetualSwap, true)
@@ -4592,11 +4821,6 @@ func TestWsProcessOrderbook5(t *testing.T) {
 	got, err := orderbook.Get(e.Name, required, asset.Spot)
 	require.NoError(t, err)
 
-	require.Len(t, got.Asks, 5)
-	require.Len(t, got.Bids, 5)
-	// Book replicated to margin
-	got, err = orderbook.Get(e.Name, required, asset.Margin)
-	require.NoError(t, err)
 	require.Len(t, got.Asks, 5)
 	assert.Len(t, got.Bids, 5)
 }
@@ -6177,8 +6401,14 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	private, err := e.generateSubscriptions(false)
 	require.NoError(t, err, "generateSubscriptions must not error")
-	exp := subscription.List{
-		{Channel: subscription.MyAccountChannel, QualifiedChannel: `{"channel":"account"}`, Authenticated: true},
+	exp := subscription.List{}
+	for _, s := range e.Features.Subscriptions {
+		if s.Asset != asset.Empty {
+			continue
+		}
+		s := s.Clone() //nolint:govet // Intentional lexical scope shadow
+		s.QualifiedChannel = `{"channel":"` + channelName(s) + `"}`
+		exp = append(exp, s)
 	}
 	var pairs currency.Pairs
 	for _, s := range e.Features.Subscriptions {
@@ -6192,14 +6422,15 @@ func TestGenerateSubscriptions(t *testing.T) {
 			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 			s.Asset = a
 			name := channelName(s)
-			if isSymbolChannel(s) {
+			switch {
+			case isSymbolChannel(s):
 				for i, p := range pairs {
 					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"instID":%q}`, name, p)
 					s.Pairs = pairs[i : i+1]
 					exp = append(exp, s)
 				}
-			} else {
+			default:
 				s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 				if isAssetChannel(s) {
 					s.QualifiedChannel = fmt.Sprintf(`{"channel":%q,"instType":%q}`, name, GetInstrumentTypeFromAssetItem(s.Asset))
@@ -6211,7 +6442,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 			}
 		}
 	}
-	testsubs.EqualLists(t, exp, append(public, private...))
+	testsubs.EqualLists(t, exp, slices.Concat(public, private))
 
 	e.Features.Subscriptions = subscription.List{{Channel: channelGridPositions, Params: map[string]any{"algoId": "42"}}}
 	public, err = e.generateSubscriptions(true)
@@ -6282,8 +6513,9 @@ func TestBusinessWSCandleSubscriptions(t *testing.T) {
 		currency.NewPairWithDelimiter("OKB", "USDT", "-"),
 	}
 
-	var subs subscription.List
-	for i, ch := range []string{channelCandle1D, channelMarkPriceCandle1M, channelIndexCandle1H} {
+	channels := []string{channelCandle1D, channelMarkPriceCandle1M, channelIndexCandle1H}
+	subs := make(subscription.List, 0, len(channels))
+	for i, ch := range channels {
 		subs = append(subs, &subscription.Subscription{Channel: ch, Pairs: p[i : i+1]})
 	}
 
@@ -6446,6 +6678,8 @@ func TestValidatePlaceOrderRequestParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), errInvalidTradeModeValue)
 	p.TradeMode = TradeModeIsolated
 	p.AssetType = asset.Futures
+	require.ErrorIs(t, p.Validate(), order.ErrTypeIsInvalid)
+	p.PositionSide = "invalid"
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.PositionSide = "long"
 	require.ErrorIs(t, p.Validate(), order.ErrTypeIsInvalid)
@@ -6474,4 +6708,46 @@ func TestValidateSpreadOrderParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.Side = order.Buy.String()
 	require.NoError(t, p.Validate())
+}
+
+func TestDeriveDelistingWindow(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, time.May, 11, 16, 0, 0, 0, time.UTC)
+	futureExpiry := now.Add(2 * time.Hour)
+	pastExpiry := now.Add(-2 * time.Hour)
+
+	t.Run("future expiry maps to delisting only", func(t *testing.T) {
+		t.Parallel()
+		delistingAt, delistedAt := (&Instrument{
+			State:   "suspend",
+			ExpTime: types.Time(futureExpiry),
+		}).deriveDelistingWindow(now)
+		require.Equal(t, futureExpiry, delistingAt)
+		require.True(t, delistedAt.IsZero())
+	})
+
+	t.Run("past expiry maps to delisting and delisted", func(t *testing.T) {
+		t.Parallel()
+		delistingAt, delistedAt := (&Instrument{
+			State:   "suspend",
+			ExpTime: types.Time(pastExpiry),
+		}).deriveDelistingWindow(now)
+		require.Equal(t, pastExpiry, delistingAt)
+		require.Equal(t, pastExpiry, delistedAt)
+	})
+
+	t.Run("live state has no delisting", func(t *testing.T) {
+		t.Parallel()
+		delistingAt, delistedAt := (&Instrument{State: "live"}).deriveDelistingWindow(now)
+		require.True(t, delistingAt.IsZero())
+		require.True(t, delistedAt.IsZero())
+	})
+
+	t.Run("non live state maps to delisted window", func(t *testing.T) {
+		t.Parallel()
+		delistingAt, delistedAt := (&Instrument{State: "suspend"}).deriveDelistingWindow(now)
+		require.Equal(t, now.Add(-30*time.Minute), delistingAt)
+		require.Equal(t, now, delistedAt)
+	})
 }

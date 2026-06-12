@@ -330,12 +330,12 @@ const (
 var rateLimits = func() request.RateLimitDefinitions {
 	return request.RateLimitDefinitions{
 		// Trade Endpoints
-		placeOrderEPL:                        request.NewRateLimitWithWeight(twoSecondsInterval, 60, 1),
-		placeMultipleOrdersEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 4, 1),
+		placeOrderEPL:                        request.NewRateLimitWithWeight(twoSecondsInterval, 1000, 1),
+		placeMultipleOrdersEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 1000, 1),
 		cancelOrderEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 60, 1),
 		cancelMultipleOrdersEPL:              request.NewRateLimitWithWeight(twoSecondsInterval, 300, 1),
-		amendOrderEPL:                        request.NewRateLimitWithWeight(twoSecondsInterval, 60, 1),
-		amendMultipleOrdersEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 4, 1),
+		amendOrderEPL:                        request.NewRateLimitWithWeight(twoSecondsInterval, 1000, 1),
+		amendMultipleOrdersEPL:               request.NewRateLimitWithWeight(twoSecondsInterval, 1000, 1),
 		closePositionEPL:                     request.NewRateLimitWithWeight(twoSecondsInterval, 20, 1),
 		getOrderDetEPL:                       request.NewRateLimitWithWeight(twoSecondsInterval, 60, 1),
 		getOrderListEPL:                      request.NewRateLimitWithWeight(twoSecondsInterval, 60, 1),

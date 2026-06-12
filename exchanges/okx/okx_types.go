@@ -59,6 +59,7 @@ const (
 	orderMarketMakerProtectionAndPostOnly = "mmp_and_post_only"
 	orderMarketMakerProtection            = "mmp"
 	orderOCO                              = "oco"
+	stateLive                             = "live"
 
 	// represents a margin balance type
 	marginBalanceReduce = "reduce"
@@ -160,6 +161,7 @@ var (
 	errPriceTrackingNotSet                  = errors.New("price tracking value not set")
 	errInvoiceTextMissing                   = errors.New("missing invoice text")
 	errFeeTypeUnsupported                   = errors.New("fee type is not supported")
+	errInvalidOrderBookLevel                = errors.New("invalid orderbook level")
 )
 
 // testNetKey this key is designed for using the testnet endpoints
@@ -370,6 +372,7 @@ type InstrumentsFetchParams struct {
 type Instrument struct {
 	InstrumentType                  string        `json:"instType"`
 	InstrumentID                    currency.Pair `json:"instId"`
+	InstrumentIDCode                types.Number  `json:"instIdCode"`
 	InstrumentFamily                string        `json:"instFamily"`
 	Underlying                      string        `json:"uly"`
 	Category                        string        `json:"category"`
@@ -390,6 +393,8 @@ type Instrument struct {
 	ContractType                    string        `json:"ctType"`
 	Alias                           string        `json:"alias"`
 	State                           string        `json:"state"`
+	MaxLimitAmount                  types.Number  `json:"maxLmtAmt"`
+	MaxMarketAmount                 types.Number  `json:"maxMktAmt"`
 	MaxQuantityOfSpotLimitOrder     types.Number  `json:"maxLmtSz"`
 	MaxQuantityOfMarketLimitOrder   types.Number  `json:"maxMktSz"`
 	MaxQuantityOfSpotTwapLimitOrder types.Number  `json:"maxTwapSz"`
@@ -765,26 +770,46 @@ func (c *CurrencyTakerFlow) UnmarshalJSON(data []byte) error {
 
 // PlaceOrderRequestParam requesting parameter for placing an order
 type PlaceOrderRequestParam struct {
-	AssetType     asset.Item `json:"-"`
-	InstrumentID  string     `json:"instId"`
-	TradeMode     string     `json:"tdMode"` // cash isolated
-	ClientOrderID string     `json:"clOrdId,omitempty"`
-	Currency      string     `json:"ccy,omitempty"` // Only applicable to cross MARGIN orders in Single-currency margin.
-	OrderTag      string     `json:"tag,omitempty"`
-	Side          string     `json:"side"`
-	PositionSide  string     `json:"posSide,omitempty"` // long/short only for FUTURES and SWAP
-	OrderType     string     `json:"ordType"`           // Time in force for the order
-	Amount        float64    `json:"sz,string"`
-	Price         float64    `json:"px,string,omitempty"` // Only applicable to limit,post_only,fok,ioc,mmp,mmp_and_post_only order.
+	AssetType        asset.Item `json:"-"`
+	InstrumentID     string     `json:"instId"`
+	InstrumentIDCode int64      `json:"instIdCode,omitempty"`
+	TradeMode        string     `json:"tdMode"` // cash isolated
+	ClientOrderID    string     `json:"clOrdId,omitempty"`
+	Currency         string     `json:"ccy,omitempty"` // Only applicable to cross MARGIN orders in Single-currency margin.
+	OrderTag         string     `json:"tag,omitempty"`
+	Side             string     `json:"side"`
+	PositionSide     string     `json:"posSide,omitempty"` // long/short only for FUTURES and SWAP
+	OrderType        string     `json:"ordType"`           // Time in force for the order
+	Amount           float64    `json:"sz,string"`
+	Price            float64    `json:"px,string,omitempty"` // Only applicable to limit,post_only,fok,ioc,mmp,mmp_and_post_only order.
 	// Options orders
 	PlaceOptionsOrder                    string `json:"pxUsd,omitempty"` // Place options orders in USD
 	PlaceOptionsOrderOnImpliedVolatility string `json:"pxVol,omitempty"` // Place options orders based on implied volatility, where 1 represents 100%
 
-	ReduceOnly              bool   `json:"reduceOnly,string,omitempty"`
+	ReduceOnly              bool   `json:"reduceOnly,omitempty"`
 	TargetCurrency          string `json:"tgtCcy,omitempty"`  // values base_ccy and quote_ccy for spot market orders
 	SelfTradePreventionMode string `json:"stpMode,omitempty"` // Default to cancel maker, `cancel_maker`,`cancel_taker`, `cancel_both``
 	// Added in the websocket requests
 	BanAmend bool `json:"banAmend,omitempty"` // Whether the SPOT Market Order size can be amended by the system.
+}
+
+type placeOrderRequestParam PlaceOrderRequestParam
+
+// MarshalJSON ensures small numeric values are sent as plain decimal strings
+// instead of scientific notation for websocket order submission.
+func (arg *PlaceOrderRequestParam) MarshalJSON() ([]byte, error) {
+	out := struct {
+		*placeOrderRequestParam
+		Amount string `json:"sz"`
+		Price  string `json:"px,omitempty"`
+	}{
+		placeOrderRequestParam: (*placeOrderRequestParam)(arg),
+		Amount:                 strconv.FormatFloat(arg.Amount, 'f', -1, 64),
+	}
+	if arg.Price > 0 {
+		out.Price = strconv.FormatFloat(arg.Price, 'f', -1, 64)
+	}
+	return json.Marshal(out)
 }
 
 // Validate validates the PlaceOrderRequestParam
@@ -792,7 +817,7 @@ func (arg *PlaceOrderRequestParam) Validate() error {
 	if arg == nil {
 		return fmt.Errorf("%T: %w", arg, common.ErrNilPointer)
 	}
-	if arg.InstrumentID == "" {
+	if arg.InstrumentID == "" && arg.InstrumentIDCode == 0 {
 		return errMissingInstrumentID
 	}
 	if arg.AssetType == asset.Spot || arg.AssetType == asset.Margin || arg.AssetType == asset.Empty {
@@ -806,7 +831,7 @@ func (arg *PlaceOrderRequestParam) Validate() error {
 	}
 	if arg.AssetType == asset.Futures || arg.AssetType == asset.PerpetualSwap {
 		arg.PositionSide = strings.ToLower(arg.PositionSide)
-		if !slices.Contains([]string{"long", "short"}, arg.PositionSide) {
+		if arg.PositionSide != "" && !slices.Contains([]string{"long", "short"}, arg.PositionSide) {
 			return fmt.Errorf("%w: %q, 'long' or 'short' supported", order.ErrSideIsInvalid, arg.PositionSide)
 		}
 	}
@@ -851,9 +876,10 @@ func (r *ResponseResult) Error() error {
 
 // CancelOrderRequestParam represents order parameters to cancel an order
 type CancelOrderRequestParam struct {
-	InstrumentID  string `json:"instId"`
-	OrderID       string `json:"ordId"`
-	ClientOrderID string `json:"clOrdId,omitempty"`
+	InstrumentID     string `json:"instId"`
+	InstrumentIDCode int64  `json:"instIdCode,omitempty"`
+	OrderID          string `json:"ordId"`
+	ClientOrderID    string `json:"clOrdId,omitempty"`
 }
 
 // CancelMassReqParam holds MMP batch cancel request parameters
@@ -864,13 +890,14 @@ type CancelMassReqParam struct {
 
 // AmendOrderRequestParams represents amend order requesting parameters
 type AmendOrderRequestParams struct {
-	InstrumentID    string  `json:"instId"`
-	CancelOnFail    bool    `json:"cxlOnFail,omitempty"`
-	OrderID         string  `json:"ordId,omitempty"`
-	ClientOrderID   string  `json:"clOrdId,omitempty"`
-	ClientRequestID string  `json:"reqId,omitempty"`
-	NewQuantity     float64 `json:"newSz,omitempty,string"`
-	NewPrice        float64 `json:"newPx,omitempty,string"`
+	InstrumentID     string  `json:"instId"`
+	InstrumentIDCode int64   `json:"instIdCode,omitempty"`
+	CancelOnFail     bool    `json:"cxlOnFail,omitempty"`
+	OrderID          string  `json:"ordId,omitempty"`
+	ClientOrderID    string  `json:"clOrdId,omitempty"`
+	ClientRequestID  string  `json:"reqId,omitempty"`
+	NewQuantity      float64 `json:"newSz,omitempty,string"`
+	NewPrice         float64 `json:"newPx,omitempty,string"`
 
 	// Modify options orders using USD prices
 	// Only applicable to options.
@@ -3686,12 +3713,77 @@ type PublicTrade struct {
 
 // WsOrderBookData represents a book order push data
 type WsOrderBookData struct {
-	Asks               [][4]types.Number `json:"asks"`
-	Bids               [][4]types.Number `json:"bids"`
-	Timestamp          types.Time        `json:"ts"`
-	Checksum           int32             `json:"checksum"`
-	PreviousSequenceID int64             `json:"prevSeqId"`
-	SequenceID         int64             `json:"seqId"`
+	Asks               []WsOrderBookLevel `json:"asks"`
+	Bids               []WsOrderBookLevel `json:"bids"`
+	Timestamp          types.Time         `json:"ts"`
+	Checksum           int32              `json:"checksum"`
+	PreviousSequenceID int64              `json:"prevSeqId"`
+	SequenceID         int64              `json:"seqId"`
+}
+
+// WsOrderBookLevel contains the price and amount from an OKX orderbook level.
+type WsOrderBookLevel struct {
+	Price        types.Number
+	Amount       types.Number
+	PriceString  string
+	AmountString string
+}
+
+// UnmarshalJSON deserialises the price and amount from an OKX orderbook level.
+func (w *WsOrderBookLevel) UnmarshalJSON(data []byte) error {
+	pos := 0
+	for pos < len(data) && data[pos] == ' ' {
+		pos++
+	}
+	if pos >= len(data) || data[pos] != '[' {
+		return fmt.Errorf("%w: %s", errInvalidOrderBookLevel, data)
+	}
+	pos++
+
+	var values [2]types.Number
+	var rawValues [2]string
+	for valueIndex := range values {
+		for pos < len(data) && (data[pos] == ' ' || data[pos] == ',') {
+			pos++
+		}
+		if pos >= len(data) {
+			return fmt.Errorf("%w: %s", errInvalidOrderBookLevel, data)
+		}
+
+		start := pos
+		if data[pos] == '"' {
+			pos++
+			start = pos
+			for pos < len(data) && data[pos] != '"' {
+				pos++
+			}
+			if pos >= len(data) {
+				return fmt.Errorf("%w: %s", errInvalidOrderBookLevel, data)
+			}
+		} else {
+			for pos < len(data) && data[pos] != ',' && data[pos] != ']' {
+				pos++
+			}
+		}
+
+		rawValue := string(data[start:pos])
+		value, err := strconv.ParseFloat(rawValue, 64)
+		if err != nil {
+			return fmt.Errorf("%w: %s", errInvalidOrderBookLevel, data)
+		}
+		values[valueIndex] = types.Number(value)
+		rawValues[valueIndex] = rawValue
+
+		if pos < len(data) && data[pos] == '"' {
+			pos++
+		}
+	}
+
+	w.Price = values[0]
+	w.Amount = values[1]
+	w.PriceString = rawValues[0]
+	w.AmountString = rawValues[1]
+	return nil
 }
 
 // WsOptionSummary represents option summary

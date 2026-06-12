@@ -37,13 +37,15 @@ type Connection interface {
 	ReadMessage() Response
 	SetupPingHandler(request.EndpointLimit, PingHandler)
 	// SendMessageReturnResponse will send a WS message to the connection and wait for response
-	SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature, request any) ([]byte, error)
+	SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature, request any, additionalRateLimits ...request.RateLimitWithWeightOverride) ([]byte, error)
+	// SendMessageReturnResponseWithRateLimitWeight will send a WS message using a request-specific endpoint rate-limit weight.
+	SendMessageReturnResponseWithRateLimitWeight(ctx context.Context, epl request.EndpointLimit, weight request.Weight, signature, request any, additionalRateLimits ...request.RateLimitWithWeightOverride) ([]byte, error)
 	// SendMessageReturnResponses will send a WS message to the connection and wait for N responses
 	SendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature, request any, expected int) ([][]byte, error)
 	// SendMessageReturnResponsesWithInspector will send a WS message to the connection and wait for N responses with message inspection
 	SendMessageReturnResponsesWithInspector(ctx context.Context, epl request.EndpointLimit, signature, request any, expected int, messageInspector Inspector) ([][]byte, error)
 	// SendRawMessage sends a message over the connection without JSON encoding it
-	SendRawMessage(ctx context.Context, epl request.EndpointLimit, messageType int, message []byte) error
+	SendRawMessage(ctx context.Context, epl request.EndpointLimit, messageType int, message []byte, additionalRateLimits ...request.RateLimitWithWeightOverride) error
 	// SendJSONMessage sends a JSON encoded message over the connection
 	SendJSONMessage(ctx context.Context, epl request.EndpointLimit, payload any) error
 	SetURL(string)
@@ -171,7 +173,7 @@ func (c *connection) Dial(ctx context.Context, dialer *gws.Dialer, headers http.
 
 // SendJSONMessage sends a JSON encoded message over the connection
 func (c *connection) SendJSONMessage(ctx context.Context, epl request.EndpointLimit, data any) error {
-	return c.writeToConn(ctx, epl, func() error {
+	return c.writeToConn(ctx, epl, 0, func() error {
 		if request.IsVerbose(ctx, c.Verbose) {
 			if msg, err := json.Marshal(data); err == nil { // WriteJSON will error for us anyway
 				log.Debugf(log.WebsocketMgr, "%v %v: Sending message: %v", c.ExchangeName, removeURLQueryString(c.URL), string(msg))
@@ -181,17 +183,21 @@ func (c *connection) SendJSONMessage(ctx context.Context, epl request.EndpointLi
 	})
 }
 
-// SendRawMessage sends a message over the connection without JSON encoding it
-func (c *connection) SendRawMessage(ctx context.Context, epl request.EndpointLimit, messageType int, message []byte) error {
-	return c.writeToConn(ctx, epl, func() error {
+// SendRawMessage sends a message over the connection without JSON encoding it.
+func (c *connection) SendRawMessage(ctx context.Context, epl request.EndpointLimit, messageType int, message []byte, additionalRateLimits ...request.RateLimitWithWeightOverride) error {
+	return c.sendRawMessage(ctx, epl, 0, messageType, message, additionalRateLimits...)
+}
+
+func (c *connection) sendRawMessage(ctx context.Context, epl request.EndpointLimit, weight request.Weight, messageType int, message []byte, additionalRateLimits ...request.RateLimitWithWeightOverride) error {
+	return c.writeToConn(ctx, epl, weight, func() error {
 		if request.IsVerbose(ctx, c.Verbose) {
 			log.Debugf(log.WebsocketMgr, "%v %v: Sending message: %v", c.ExchangeName, removeURLQueryString(c.URL), string(message))
 		}
 		return c.Connection.WriteMessage(messageType, message)
-	})
+	}, additionalRateLimits...)
 }
 
-func (c *connection) writeToConn(ctx context.Context, epl request.EndpointLimit, writeConn func() error) error {
+func (c *connection) writeToConn(ctx context.Context, epl request.EndpointLimit, weight request.Weight, writeConn func() error, additionalRateLimits ...request.RateLimitWithWeightOverride) error {
 	if !c.IsConnected() {
 		return fmt.Errorf("%v websocket connection: cannot send message %w", c.ExchangeName, errWebsocketIsDisconnected)
 	}
@@ -213,7 +219,14 @@ func (c *connection) writeToConn(ctx context.Context, epl request.EndpointLimit,
 	}
 
 	if rl != nil {
-		if err := rl.RateLimit(ctx); err != nil {
+		if weight > 0 {
+			additionalRateLimits = append([]request.RateLimitWithWeightOverride{{WeightOverride: weight}}, additionalRateLimits...)
+		}
+		if len(additionalRateLimits) > 0 {
+			if err := request.RateLimitWithAdditional(ctx, rl, additionalRateLimits...); err != nil {
+				return fmt.Errorf("%s websocket connection: rate limit error: %w", c.ExchangeName, err)
+			}
+		} else if err := rl.RateLimit(ctx); err != nil {
 			return fmt.Errorf("%s websocket connection: rate limit error: %w", c.ExchangeName, err)
 		}
 	}
@@ -361,9 +374,18 @@ func (c *connection) GetURL() string {
 	return c.URL
 }
 
-// SendMessageReturnResponse will send a WS message to the connection and wait for response
-func (c *connection) SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature, payload any) ([]byte, error) {
-	resps, err := c.SendMessageReturnResponses(ctx, epl, signature, payload, 1)
+// SendMessageReturnResponse will send a WS message to the connection and wait for response.
+func (c *connection) SendMessageReturnResponse(ctx context.Context, epl request.EndpointLimit, signature, payload any, additionalRateLimits ...request.RateLimitWithWeightOverride) ([]byte, error) {
+	resps, err := c.sendMessageReturnResponses(ctx, epl, 0, signature, payload, 1, nil, additionalRateLimits...)
+	if err != nil {
+		return nil, err
+	}
+	return resps[0], nil
+}
+
+// SendMessageReturnResponseWithRateLimitWeight will send a WS message using a request-specific endpoint rate-limit weight.
+func (c *connection) SendMessageReturnResponseWithRateLimitWeight(ctx context.Context, epl request.EndpointLimit, weight request.Weight, signature, payload any, additionalRateLimits ...request.RateLimitWithWeightOverride) ([]byte, error) {
+	resps, err := c.sendMessageReturnResponses(ctx, epl, weight, signature, payload, 1, nil, additionalRateLimits...)
 	if err != nil {
 		return nil, err
 	}
@@ -373,12 +395,16 @@ func (c *connection) SendMessageReturnResponse(ctx context.Context, epl request.
 // SendMessageReturnResponses will send a WS message to the connection and wait for N responses
 // An error of ErrSignatureTimeout can be ignored if individual responses are being otherwise tracked
 func (c *connection) SendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, signature, payload any, expected int) ([][]byte, error) {
-	return c.SendMessageReturnResponsesWithInspector(ctx, epl, signature, payload, expected, nil)
+	return c.sendMessageReturnResponses(ctx, epl, 0, signature, payload, expected, nil)
 }
 
 // SendMessageReturnResponsesWithInspector will send a WS message to the connection and wait for N responses
 // An error of ErrSignatureTimeout can be ignored if individual responses are being otherwise tracked
 func (c *connection) SendMessageReturnResponsesWithInspector(ctx context.Context, epl request.EndpointLimit, signature, payload any, expected int, messageInspector Inspector) ([][]byte, error) {
+	return c.sendMessageReturnResponses(ctx, epl, 0, signature, payload, expected, messageInspector)
+}
+
+func (c *connection) sendMessageReturnResponses(ctx context.Context, epl request.EndpointLimit, weight request.Weight, signature, payload any, expected int, messageInspector Inspector, additionalRateLimits ...request.RateLimitWithWeightOverride) ([][]byte, error) {
 	outbound, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling json for %s: %w", signature, err)
@@ -390,7 +416,7 @@ func (c *connection) SendMessageReturnResponsesWithInspector(ctx context.Context
 	}
 
 	start := time.Now()
-	err = c.SendRawMessage(ctx, epl, gws.TextMessage, outbound)
+	err = c.sendRawMessage(ctx, epl, weight, gws.TextMessage, outbound, additionalRateLimits...)
 	if err != nil {
 		return nil, err
 	}
