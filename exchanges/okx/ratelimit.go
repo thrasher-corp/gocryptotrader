@@ -670,7 +670,3 @@ var rateLimits = func() request.RateLimitDefinitions {
 		websocketRequestEPL: request.RateLimitNotRequired,
 	}
 }()
-
-func newTradeSubAccountRateLimiter() *request.RateLimiterWithWeight {
-	return request.NewRateLimitWithWeight(twoSecondsInterval, 1000, 1)
-}

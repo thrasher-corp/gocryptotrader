@@ -6,7 +6,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 func TestIsVerbose(t *testing.T) {
@@ -24,27 +23,6 @@ func TestWithDelayNotAllowed(t *testing.T) {
 	assert.True(t, hasDelayNotAllowed(WithDelayNotAllowed(t.Context())))
 	assert.False(t, hasDelayNotAllowed(t.Context()))
 	assert.False(t, hasDelayNotAllowed(WithRetryNotAllowed(WithVerbose(t.Context()))))
-}
-
-func TestWithCallerName(t *testing.T) {
-	t.Parallel()
-	ctx := WithCallerName(t.Context(), t.Name())
-	assert.Equal(t, t.Name(), CallerName(ctx))
-	assert.Empty(t, CallerName(t.Context()))
-	frozen := common.FreezeContext(ctx)
-	thawed := common.ThawContext(frozen)
-	assert.Equal(t, t.Name(), CallerName(thawed))
-	assert.Empty(t, CallerName(context.WithValue(t.Context(), callerNameKey{}, 1)))
-	ctx = WithCallerName(t.Context(), "meow")
-	ctx = WithCallerName(ctx, "")
-	assert.Equal(t, "meow", CallerName(ctx))
-}
-
-func TestCallerName(t *testing.T) {
-	t.Parallel()
-
-	assert.Empty(t, CallerName(t.Context()), "caller name should be empty when not set")
-	assert.Equal(t, "audit", CallerName(WithCallerName(t.Context(), "audit")), "caller name should match injected value")
 }
 
 func TestWithRetryNotAllowed(t *testing.T) {

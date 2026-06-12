@@ -3164,11 +3164,11 @@ func TestGetSettlementCurrency(t *testing.T) {
 
 type FixtureConnection struct{ websocket.Connection }
 
-func (d *FixtureConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any, ...request.RateLimitReservation) ([]byte, error) {
+func (d *FixtureConnection) SendMessageReturnResponse(context.Context, request.EndpointLimit, any, any, ...request.RateLimitWithWeightOverride) ([]byte, error) {
 	return []byte(`{"time":1726121320,"time_ms":1726121320745,"id":1,"conn_id":"f903779a148987ca","trace_id":"d8ee37cd14347e4ed298d44e69aedaa7","channel":"spot.tickers","event":"subscribe","payload":["BRETT_USDT"],"result":{"status":"success"},"requestId":"d8ee37cd14347e4ed298d44e69aedaa7"}`), nil
 }
 
-func (d *FixtureConnection) SendMessageReturnResponseWithRateLimitWeight(ctx context.Context, epl request.EndpointLimit, _ request.Weight, signature, req any, additionalRateLimits ...request.RateLimitReservation) ([]byte, error) {
+func (d *FixtureConnection) SendMessageReturnResponseWithRateLimitWeight(ctx context.Context, epl request.EndpointLimit, _ request.Weight, signature, req any, additionalRateLimits ...request.RateLimitWithWeightOverride) ([]byte, error) {
 	return d.SendMessageReturnResponse(ctx, epl, signature, req, additionalRateLimits...)
 }
 

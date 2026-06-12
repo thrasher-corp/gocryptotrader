@@ -57,7 +57,7 @@ func (e *Exchange) SetDefaults() {
 
 	e.instrumentsInfoMap = make(map[string][]Instrument)
 	e.tradeLimiter = tradeRateLimiter{
-		scopedLimiters:    make(map[string]*request.RateLimiterWithWeight, maxTradeScopedLimiters),
+		scopedLimiters:    make(map[tradeRateLimitKey]*request.RateLimiterWithWeight),
 		subAccountLimiter: newTradeSubAccountRateLimiter(),
 	}
 
@@ -353,6 +353,10 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		}
 		return e.loadInstrumentOrderExecutionLimits(a, insts)
 	case asset.Spread:
+		format, err := e.GetPairFormat(a, true)
+		if err != nil {
+			return err
+		}
 		insts, err := e.GetPublicSpreads(ctx, "", "", "", stateLive)
 		if err != nil {
 			return err
@@ -360,16 +364,23 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 		if len(insts) == 0 {
 			return common.ErrNoResponse
 		}
-		l := make([]limits.MinMaxLevel, len(insts))
+		l := make([]limits.MinMaxLevel, 0, len(insts))
 		for i := range insts {
-			l[i] = limits.MinMaxLevel{
-				Key:                     key.NewExchangeAssetPair(e.Name, a, insts[i].SpreadID),
+			limitKey := key.NewExchangeAssetPair(e.Name, a, insts[i].SpreadID.Format(format))
+			if limitKey.Pair().IsEmpty() {
+				continue
+			}
+			l = append(l, limits.MinMaxLevel{
+				Key:                     limitKey,
 				PriceStepIncrementSize:  insts[i].TickSize.Float64(),
 				MinimumBaseAmount:       insts[i].MinSize.Float64(),
 				AmountStepIncrementSize: insts[i].LotSize.Float64(),
 				Listed:                  insts[i].ListTime.Time(),
 				Expiry:                  insts[i].ExpTime.Time(),
-			}
+			})
+		}
+		if len(l) == 0 {
+			return common.ErrNoResponse
 		}
 		return limits.Load(l)
 	default:
@@ -381,14 +392,22 @@ func (e *Exchange) loadInstrumentOrderExecutionLimits(a asset.Item, insts []Inst
 	if len(insts) == 0 {
 		return common.ErrNoResponse
 	}
+	format, err := e.GetPairFormat(a, true)
+	if err != nil {
+		return err
+	}
 	l := make([]limits.MinMaxLevel, 0, len(insts))
 	for i := range insts {
 		if insts[i].State != stateLive || insts[i].InstrumentID.IsEmpty() {
 			continue
 		}
+		limitKey := key.NewExchangeAssetPair(e.Name, a, insts[i].InstrumentID.Format(format))
+		if limitKey.Pair().IsEmpty() {
+			continue
+		}
 		delistingAt, delistedAt := insts[i].deriveDelistingWindow(time.Now().UTC())
 		l = append(l, limits.MinMaxLevel{
-			Key:                     key.NewExchangeAssetPair(e.Name, a, insts[i].InstrumentID),
+			Key:                     limitKey,
 			PriceStepIncrementSize:  insts[i].TickSize.Float64(),
 			MinimumBaseAmount:       insts[i].MinimumOrderSize.Float64(),
 			MaximumBaseAmount:       insts[i].MaxQuantityOfSpotLimitOrder.Float64(),

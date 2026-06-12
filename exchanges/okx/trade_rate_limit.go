@@ -1,7 +1,9 @@
 package okx
 
 import (
+	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 
@@ -10,20 +12,26 @@ import (
 
 type tradeRateLimitClass string
 
+type tradeRateLimitKey struct {
+	class tradeRateLimitClass
+	scope string
+}
+
 type tradeRateLimiter struct {
 	scopedLimitersLock sync.Mutex
-	scopedLimiters     map[string]*request.RateLimiterWithWeight
-	scopedLimiterKeys  []string
+	scopedLimiters     map[tradeRateLimitKey]*request.RateLimiterWithWeight
 	subAccountLock     sync.Mutex
 	subAccountLimiter  *request.RateLimiterWithWeight
 }
 
+var (
+	errTradeRateLimiterNotInitialised = errors.New("trade rate limiter not initialised")
+	errMissingTradeRateLimitScope     = errors.New("missing trade rate limit scope")
+	errInvalidTradeRateLimitWeight    = errors.New("invalid trade rate limit weight")
+)
+
 const (
-	maxOKXBatchOrders = 20
-	// OKX scoped trade limiters are keyed by user-supplied instrument IDs or
-	// option families. Keep the cache bounded in case callers pass many bad or
-	// short-lived scope values.
-	maxTradeScopedLimiters = 1024
+	maxBatchOrders = 20
 
 	tradeRateLimitPlaceSingle  tradeRateLimitClass = "place-single"
 	tradeRateLimitPlaceBatch   tradeRateLimitClass = "place-batch"
@@ -33,22 +41,29 @@ const (
 	tradeRateLimitAmendBatch   tradeRateLimitClass = "amend-batch"
 )
 
-func validateOKXBatchOrderCount(count int) error {
-	if count > maxOKXBatchOrders {
-		return fmt.Errorf("%w, cannot process more than %d orders", errExceedLimit, maxOKXBatchOrders)
+func validateBatchOrderCount(count int) error {
+	if count > maxBatchOrders {
+		return fmt.Errorf("%w, cannot process more than %d orders", errExceedLimit, maxBatchOrders)
 	}
 	return nil
 }
 
-func (l *tradeRateLimiter) getOrCreateScopedLimiter(class tradeRateLimitClass, scope string) *request.RateLimiterWithWeight {
-	key := string(class) + "|" + strings.ToUpper(strings.TrimSpace(scope))
+func (l *tradeRateLimiter) getOrCreateScopedLimiter(class tradeRateLimitClass, scope string) (*request.RateLimiterWithWeight, error) {
+	normalisedScope := strings.ToUpper(strings.TrimSpace(scope))
+	if normalisedScope == "" {
+		return nil, errMissingTradeRateLimitScope
+	}
+	key := tradeRateLimitKey{
+		class: class,
+		scope: normalisedScope,
+	}
 	l.scopedLimitersLock.Lock()
 	defer l.scopedLimitersLock.Unlock()
 	if l.scopedLimiters == nil {
-		l.scopedLimiters = make(map[string]*request.RateLimiterWithWeight, maxTradeScopedLimiters)
+		return nil, errTradeRateLimiterNotInitialised
 	}
 	if rl := l.scopedLimiters[key]; rl != nil {
-		return rl
+		return rl, nil
 	}
 
 	actions := 60
@@ -58,61 +73,62 @@ func (l *tradeRateLimiter) getOrCreateScopedLimiter(class tradeRateLimitClass, s
 		actions = 300
 	}
 	rl := request.NewRateLimitWithWeight(twoSecondsInterval, actions, 1)
-	if len(l.scopedLimiterKeys) >= maxTradeScopedLimiters {
-		// Drop the oldest limiter when the cache is full. These scopes come from
-		// request values, so this stops bad or short-lived values growing the map
-		// forever. If a real scope is evicted, it can be recreated cheaply.
-		delete(l.scopedLimiters, l.scopedLimiterKeys[0])
-		l.scopedLimiterKeys = l.scopedLimiterKeys[1:]
-	}
 	l.scopedLimiters[key] = rl
-	l.scopedLimiterKeys = append(l.scopedLimiterKeys, key)
-	return rl
+	return rl, nil
 }
 
-func (l *tradeRateLimiter) additionalTradeRateLimits(class tradeRateLimitClass, counts map[string]int, subAccountOrderCount int) []request.RateLimitReservation {
+func (l *tradeRateLimiter) additionalTradeRateLimits(class tradeRateLimitClass, counts map[string]int, subAccountOrderCount int) ([]request.RateLimitWithWeightOverride, error) {
 	// OKX trade requests can be limited in three ways: the static REST or
 	// websocket endpoint limit, an instrument/family limit, and the shared
 	// subaccount limit. The request-specific limits are only returned when they
 	// apply because their weights depend on the request contents.
-	additionalRateLimits := l.additionalTradeScopeRateLimits(class, counts)
-	if limit, ok := l.subAccountRateLimit(subAccountOrderCount); ok {
+	additionalRateLimits, err := l.additionalTradeScopeRateLimits(class, counts)
+	if err != nil {
+		return nil, err
+	}
+	if limit, ok, err := l.subAccountRateLimit(subAccountOrderCount); err != nil {
+		return nil, err
+	} else if ok {
 		additionalRateLimits = append(additionalRateLimits, limit)
 	}
-	return additionalRateLimits
+	return additionalRateLimits, nil
 }
 
-func (l *tradeRateLimiter) additionalTradeScopeRateLimits(class tradeRateLimitClass, counts map[string]int) []request.RateLimitReservation {
+func (l *tradeRateLimiter) additionalTradeScopeRateLimits(class tradeRateLimitClass, counts map[string]int) ([]request.RateLimitWithWeightOverride, error) {
 	if len(counts) == 0 {
-		return nil
+		return nil, errMissingTradeRateLimitScope
 	}
 
-	additionalRateLimits := make([]request.RateLimitReservation, 0, len(counts))
+	additionalRateLimits := make([]request.RateLimitWithWeightOverride, 0, len(counts))
 	for scope, weight := range counts {
 		if weight < 1 {
-			continue
+			return nil, fmt.Errorf("%w: %s", errInvalidTradeRateLimitWeight, scope)
 		}
-		additionalRateLimits = append(additionalRateLimits, request.RateLimitReservation{
-			Limiter: l.getOrCreateScopedLimiter(class, scope),
-			Weight:  request.Weight(boundRateLimitWeight(weight)),
+		limiter, err := l.getOrCreateScopedLimiter(class, scope)
+		if err != nil {
+			return nil, err
+		}
+		additionalRateLimits = append(additionalRateLimits, request.RateLimitWithWeightOverride{
+			Limiter:        limiter,
+			WeightOverride: clampWeight(weight),
 		})
 	}
-	return additionalRateLimits
+	return additionalRateLimits, nil
 }
 
-func (l *tradeRateLimiter) subAccountRateLimit(orderCount int) (request.RateLimitReservation, bool) {
+func (l *tradeRateLimiter) subAccountRateLimit(orderCount int) (request.RateLimitWithWeightOverride, bool, error) {
 	if orderCount < 1 {
-		return request.RateLimitReservation{}, false
+		return request.RateLimitWithWeightOverride{}, false, nil
 	}
 	l.subAccountLock.Lock()
 	defer l.subAccountLock.Unlock()
 	if l.subAccountLimiter == nil {
-		l.subAccountLimiter = newTradeSubAccountRateLimiter()
+		return request.RateLimitWithWeightOverride{}, false, errTradeRateLimiterNotInitialised
 	}
-	return request.RateLimitReservation{
-		Limiter: l.subAccountLimiter,
-		Weight:  request.Weight(boundRateLimitWeight(orderCount)),
-	}, true
+	return request.RateLimitWithWeightOverride{
+		Limiter:        l.subAccountLimiter,
+		WeightOverride: clampWeight(orderCount),
+	}, true, nil
 }
 
 func tradeScopeFromInstrumentID(instrumentID string) string {
@@ -128,49 +144,51 @@ func tradeScopeFromInstrumentID(instrumentID string) string {
 }
 
 func optionInstrumentSelectors(instrumentID string) (underlying, family string) {
-	parts, delimiter := strings.Split(instrumentID, "-"), "-"
+	delimiter := "-"
+	parts := strings.Split(instrumentID, delimiter)
 	if len(parts) < 2 {
-		parts, delimiter = strings.Split(instrumentID, "_"), "_"
-	}
-	if len(parts) < 2 {
-		return instrumentID, instrumentID
+		delimiter = "_"
+		parts = strings.Split(instrumentID, delimiter)
+		if len(parts) < 2 {
+			return instrumentID, instrumentID
+		}
 	}
 	underlying = strings.Join(parts[:2], delimiter)
 	return underlying, underlying
 }
 
 func isOptionInstrumentID(instrumentID string) bool {
-	return len(strings.Split(instrumentID, "-")) >= 5 || len(strings.Split(instrumentID, "_")) >= 5
+	return strings.Count(instrumentID, "-") >= 4 || strings.Count(instrumentID, "_") >= 4
 }
 
-func tradeScopeCountsFromPlaceOrders(args []PlaceOrderRequestParam) map[string]int {
+func tradeScopeCountsFromPlaceOrders(args []PlaceOrderRequestParam) (map[string]int, error) {
 	return tradeScopeCounts(args, func(arg PlaceOrderRequestParam) string { return arg.InstrumentID })
 }
 
-func tradeScopeCountsFromCancelOrders(args []CancelOrderRequestParam) map[string]int {
+func tradeScopeCountsFromCancelOrders(args []CancelOrderRequestParam) (map[string]int, error) {
 	return tradeScopeCounts(args, func(arg CancelOrderRequestParam) string { return arg.InstrumentID })
 }
 
-func tradeScopeCountsFromAmendOrders(args []AmendOrderRequestParams) map[string]int {
+func tradeScopeCountsFromAmendOrders(args []AmendOrderRequestParams) (map[string]int, error) {
 	return tradeScopeCounts(args, func(arg AmendOrderRequestParams) string { return arg.InstrumentID })
 }
 
-func tradeScopeCounts[T any](args []T, instrumentID func(T) string) map[string]int {
+func tradeScopeCounts[T any](args []T, instrumentID func(T) string) (map[string]int, error) {
 	counts := make(map[string]int)
 	for _, arg := range args {
-		if scope := tradeScopeFromInstrumentID(instrumentID(arg)); scope != "" {
-			counts[scope]++
+		scope := tradeScopeFromInstrumentID(instrumentID(arg))
+		if scope == "" {
+			return nil, errMissingTradeRateLimitScope
 		}
+		counts[scope]++
 	}
-	return counts
+	return counts, nil
 }
 
-func boundRateLimitWeight(weight int) uint8 {
-	if weight <= 0 {
-		return 0
-	}
-	if weight > 255 {
-		return 255
-	}
-	return uint8(weight)
+func clampWeight(count int) request.Weight {
+	return request.Weight(min(max(count, 0), math.MaxUint8))
+}
+
+func newTradeSubAccountRateLimiter() *request.RateLimiterWithWeight {
+	return request.NewRateLimitWithWeight(twoSecondsInterval, 1000, 1)
 }

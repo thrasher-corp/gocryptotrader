@@ -323,7 +323,7 @@ func TestSendPayload_AdditionalRateLimits(t *testing.T) {
 			return nil, requestErr
 		}
 
-		additionalRateLimits := []RateLimitReservation{{Limiter: extra, Weight: 1}}
+		additionalRateLimits := []RateLimitWithWeightOverride{{Limiter: extra, WeightOverride: 1}}
 		err = r.SendPayload(t.Context(), Unset, newRequest, UnauthenticatedRequest, additionalRateLimits...)
 		require.ErrorIs(t, err, requestErr, "first call must reach request generation")
 
