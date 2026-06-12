@@ -1995,7 +1995,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			})
 		}
 		if len(unsupported) > 0 {
-			log.Warnf(log.ExchangeSys, "%s %d unsupported margin pairs found, no exeuction limits loaded for: %v", e.Name, len(unsupported), unsupported)
+			log.Warnf(log.ExchangeSys, "%s %d unsupported margin pairs found, no execution limits loaded for: %v", e.Name, len(unsupported), unsupported)
 		}
 	case asset.USDTMarginedFutures, asset.CoinMarginedFutures:
 		settlement := currency.USDT
