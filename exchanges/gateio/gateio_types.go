@@ -1755,7 +1755,7 @@ type UniLoanInterestRecord struct {
 	CurrencyPair string       `json:"currency_pair"`
 	ActualRate   types.Number `json:"actual_rate"`
 	Interest     types.Number `json:"interest"`
-	Status       int64        `json:"status"` // 0=undeducted, 1=deducted
+	Status       int64        `json:"status"` // 0 = undeducted, 1 = deducted
 	CreateTime   types.Time   `json:"create_time"`
 	Type         string       `json:"type"` // "platform" or "margin"
 }
