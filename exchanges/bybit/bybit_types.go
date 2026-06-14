@@ -1670,7 +1670,7 @@ type LoanOrderDetails struct {
 	ContractSymbols     []string     `json:"contractSymbols"`
 }
 
-// OrderRepayInfo represents repaid information information.
+// OrderRepayInfo represents repaid order information.
 type OrderRepayInfo struct {
 	RepayOrderID string     `json:"repayOrderId"`
 	RepaidTime   types.Time `json:"repaidTime"`
