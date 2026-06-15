@@ -17,7 +17,7 @@ type p2pAPIResponse[T any] struct {
 	Version   string       `json:"version"`
 }
 
-// Error implements the error chack interface to be used by the SendAuthenticatedHTTPRequest method
+// Error implements the error check interface to be used by the SendAuthenticatedHTTPRequest method
 func (p *p2pAPIResponse[T]) Error() error {
 	if p.Code != 0 {
 		return fmt.Errorf("error code: %d message: %s", p.Code, p.Message)

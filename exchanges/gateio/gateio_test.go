@@ -3958,27 +3958,27 @@ func TestCalculatePortfolioMargin(t *testing.T) {
 	_, err = e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{FuturesOrders: []*FuturesOrderInfo{{Size: 1, Left: 0.5}}})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	_, err = e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{FuturesOrders: []*FuturesOrderInfo{{Contract: currency.NewPair(currency.BTC, currency.USDT), Left: 0.5}}})
+	_, err = e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{FuturesOrders: []*FuturesOrderInfo{{Contract: currency.NewBTCUSDT(), Left: 0.5}}})
 	require.ErrorIs(t, err, errInvalidOrderSize)
 
-	_, err = e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{FuturesOrders: []*FuturesOrderInfo{{Contract: currency.NewPair(currency.BTC, currency.USDT), Size: 1}}})
+	_, err = e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{FuturesOrders: []*FuturesOrderInfo{{Contract: currency.NewBTCUSDT(), Size: 1}}})
 	require.ErrorIs(t, err, errInvalidOrderSize)
 
 	// OptionsPositions validation
 	_, err = e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{OptionsPositions: []*OptionsOrderInfo{{Size: 1}}})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	_, err = e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{OptionsPositions: []*OptionsOrderInfo{{OptionsName: currency.NewPair(currency.BTC, currency.USDT)}}})
+	_, err = e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{OptionsPositions: []*OptionsOrderInfo{{OptionsName: currency.NewBTCUSDT()}}})
 	require.ErrorIs(t, err, errInvalidOrderSize)
 
 	// OptionsOrders validation
 	_, err = e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{OptionsOrders: []*OptionsOrderInfo{{Size: 1, Left: 0.5}}})
 	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
 
-	_, err = e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{OptionsOrders: []*OptionsOrderInfo{{OptionsName: currency.NewPair(currency.BTC, currency.USDT), Left: 0.5}}})
+	_, err = e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{OptionsOrders: []*OptionsOrderInfo{{OptionsName: currency.NewBTCUSDT(), Left: 0.5}}})
 	require.ErrorIs(t, err, errInvalidOrderSize)
 
-	_, err = e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{OptionsOrders: []*OptionsOrderInfo{{OptionsName: currency.NewPair(currency.BTC, currency.USDT), Size: 1}}})
+	_, err = e.CalculatePortfolioMargin(t.Context(), &PortfolioMarginCalculatorParams{OptionsOrders: []*OptionsOrderInfo{{OptionsName: currency.NewBTCUSDT(), Size: 1}}})
 	require.ErrorIs(t, err, errInvalidOrderSize)
 
 	if mockTests {
