@@ -2377,8 +2377,7 @@ func TestModifyDualCurrencyOrderReinvest(t *testing.T) {
 
 func TestGetDualCurrencyRecommendedProjects(t *testing.T) {
 	t.Parallel()
-	// sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	e.Verbose = true
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetDualCurrencyRecommendedProjects(t.Context(), "senior", "", "", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
