@@ -655,7 +655,7 @@ func (e *Exchange) GetUserCurrencyLeverage(ctx context.Context, ccy currency.Cod
 		params.Set("currency", ccy.String())
 	}
 	var resp []*UnifiedLeverageSetting
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, common.EncodeURLValues("unified/leverage/user_currency_setting", params), nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "unified/leverage/user_currency_setting", params, nil, &resp)
 }
 
 // SetLoanCurrencyLeverage sets the loan currency leverage multiplier for the unified account.
@@ -681,7 +681,7 @@ func (e *Exchange) GetMaxMinCurrencyLeverage(ctx context.Context, ccy currency.C
 	params := url.Values{}
 	params.Set("currency", ccy.String())
 	var resp *UnifiedCurrencyLeverageConfig
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, common.EncodeURLValues("unified/leverage/user_currency_config", params), nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "unified/leverage/user_currency_config", params, nil, &resp)
 }
 
 // GetUnifiedLoanCurrencies retrieves the list of loan currencies supported by the unified account.
@@ -768,7 +768,7 @@ func (e *Exchange) CreateBatchOrders(ctx context.Context, args []CreateOrderRequ
 		if args[x].CurrencyPair.IsEmpty() {
 			return nil, currency.ErrCurrencyPairEmpty
 		}
-		if args[x].Side != order.Buy && args[x].Side != order.Sell {
+		if args[x].Side != order.Buy.Lower() && args[x].Side != order.Sell.Lower() {
 			return nil, order.ErrSideIsInvalid
 		}
 		if args[x].Account != asset.Spot &&
@@ -827,7 +827,7 @@ func (e *Exchange) PlaceSpotOrder(ctx context.Context, arg *CreateOrderRequest) 
 	if arg.CurrencyPair.IsInvalid() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if arg.Side != order.Buy && arg.Side != order.Sell {
+	if arg.Side != order.Buy.Lower() && arg.Side != order.Sell.Lower() {
 		return nil, order.ErrSideIsInvalid
 	}
 	if arg.Account != asset.Spot &&
@@ -873,7 +873,7 @@ func (e *Exchange) CancelAllOpenOrdersSpecifiedCurrencyPair(ctx context.Context,
 	params := url.Values{}
 	params.Set("currency_pair", currencyPair.String())
 	if side == order.Buy || side == order.Sell {
-		params.Set("side", strings.ToLower(side.Title()))
+		params.Set("side", side.Lower())
 	}
 	if a == asset.Spot || a == asset.Margin || a == asset.CrossMargin {
 		params.Set("account", a.String())
@@ -1877,7 +1877,7 @@ func (e *Exchange) GetFuturesCandlesticks(ctx context.Context, settle currency.C
 
 // PremiumIndexKLine retrieves premium Index K-Line
 // Maximum of 1000 points can be returned in a query. Be sure not to exceed the limit when specifying from, to and interval
-func (e *Exchange) PremiumIndexKLine(ctx context.Context, settleCurrency currency.Code, contract currency.Pair, from, to time.Time, limit int64, interval kline.Interval) ([]*FuturesPremiumIndexKLineResponse, error) {
+func (e *Exchange) PremiumIndexKLine(ctx context.Context, settleCurrency currency.Code, contract currency.Pair, from, to time.Time, limit int64, interval kline.Interval) (*FuturesPremiumIndexKlineResponse, error) {
 	if settleCurrency.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -1905,7 +1905,7 @@ func (e *Exchange) PremiumIndexKLine(ctx context.Context, settleCurrency currenc
 		return nil, err
 	}
 	params.Set("interval", intervalString)
-	var resp []*FuturesPremiumIndexKLineResponse
+	var resp *FuturesPremiumIndexKlineResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicPremiumIndexEPL, common.EncodeURLValues(futuresPath+settleCurrency.Item.Lower+"/premium_index", params), &resp)
 }
 
@@ -3627,7 +3627,7 @@ func (e *Exchange) GetStakingCoins(ctx context.Context, coinType string) ([]*Sta
 		params.Set("cointype", coinType)
 	}
 	var resp []*StakingCoin
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, common.EncodeURLValues("earn/staking/coins", params), nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/staking/coins", params, nil, &resp)
 }
 
 // SwapStakingCoins performs an on-chain token swap for earned coins (stake or redeem).
@@ -3659,7 +3659,7 @@ func (e *Exchange) GetStakingOrders(ctx context.Context, pid, orderType int64, c
 		params.Set("page", strconv.FormatInt(int64(page), 10))
 	}
 	var resp *StakingOrdersResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, common.EncodeURLValues("earn/staking/orders", params), nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/staking/orders", params, nil, &resp)
 }
 
 // GetStakingDividendRecords retrieves on-chain coin-earning dividend records.
@@ -3675,7 +3675,7 @@ func (e *Exchange) GetStakingDividendRecords(ctx context.Context, pid int64, ccy
 		params.Set("page", strconv.FormatInt(int64(page), 10))
 	}
 	var resp *StakingDividendRecordsResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, common.EncodeURLValues("earn/staking/dividend_list", params), nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/staking/dividend_list", params, nil, &resp)
 }
 
 // GetStakingAssets retrieves on-chain coin-earning assets.
@@ -3685,7 +3685,7 @@ func (e *Exchange) GetStakingAssets(ctx context.Context, ccy currency.Code) ([]*
 		params.Set("coin", ccy.String())
 	}
 	var resp []*StakingAssetItem
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, common.EncodeURLValues("earn/staking/assets", params), nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/staking/assets", params, nil, &resp)
 }
 
 // GetDualInvestmentProductList dual Investment product list
@@ -3820,7 +3820,7 @@ func (e *Exchange) GetDualCurrencyRecommendedProjects(ctx context.Context, mode,
 		params.Set("filter_pids", filterPIDs)
 	}
 	var resp []*DualRecommendedProject
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, common.EncodeURLValues("earn/dual/project-recommended", params), nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/dual/project-recommend", params, nil, &resp)
 }
 
 // CreateAutoInvestPlan creates a new auto invest plan.
@@ -3877,7 +3877,7 @@ func (e *Exchange) GetAutoInvestSupportedCoins(ctx context.Context, planMoney st
 		params.Set("plan_money", planMoney)
 	}
 	var resp []*AutoInvestCoinItem
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, common.EncodeURLValues("earn/autoinvest/coins", params), nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/autoinvest/coins", params, nil, &resp)
 }
 
 // GetAutoInvestMinimumAmount retrieves the minimum investment amount for the given assets.
@@ -3909,7 +3909,7 @@ func (e *Exchange) GetAutoInvestPlanExecutionRecords(ctx context.Context, planID
 		params.Set("page_size", strconv.FormatInt(pageSize, 10))
 	}
 	var resp *AutoInvestPlanExecutionRecordsResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, common.EncodeURLValues("earn/autoinvest/plans/records", params), nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/autoinvest/plans/records", params, nil, &resp)
 }
 
 // GetAutoInvestPlanOrderDetails retrieves order details for a specific plan execution record.
@@ -3924,7 +3924,7 @@ func (e *Exchange) GetAutoInvestPlanOrderDetails(ctx context.Context, planID, re
 	params.Set("plan_id", strconv.FormatInt(planID, 10))
 	params.Set("record_id", strconv.FormatInt(recordID, 10))
 	var resp []*AutoInvestOrderItem
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, common.EncodeURLValues("earn/autoinvest/orders", params), nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/autoinvest/orders", params, nil, &resp)
 }
 
 // GetAutoInvestCurrencyConfig retrieves the investment currency configuration.
@@ -3941,7 +3941,7 @@ func (e *Exchange) GetAutoInvestPlanDetails(ctx context.Context, planID int64) (
 	params := url.Values{}
 	params.Set("plan_id", strconv.FormatInt(planID, 10))
 	var resp *AutoInvestPlanDetails
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, common.EncodeURLValues("earn/autoinvest/plans/detail", params), nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/autoinvest/plans/detail", params, nil, &resp)
 }
 
 // GetAutoInvestPlanList retrieves a list of auto invest plans.
@@ -3958,12 +3958,11 @@ func (e *Exchange) GetAutoInvestPlanList(ctx context.Context, status string, pag
 		params.Set("page_size", strconv.FormatInt(pageSize, 10))
 	}
 	var resp *AutoInvestPlanListResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, common.EncodeURLValues("earn/autoinvest/plans/list_info", params), nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/autoinvest/plans/list_info", params, nil, &resp)
 }
 
 // GetFixedTermProducts retrieves a fixed-term earn product list.
-// page and limit are required (limit max 100).
-func (e *Exchange) GetFixedTermProducts(ctx context.Context, asset string, productType, page, limit int64) (*FixedTermProductsResponse, error) {
+func (e *Exchange) GetFixedTermProducts(ctx context.Context, assetName string, productType, page, limit int64) (*FixedTermProductsResponse, error) {
 	if page <= 0 {
 		return nil, errInvalidOrderStatus
 	}
@@ -3971,8 +3970,8 @@ func (e *Exchange) GetFixedTermProducts(ctx context.Context, asset string, produ
 		return nil, errInvalidOrderStatus
 	}
 	params := url.Values{}
-	if asset != "" {
-		params.Set("asset", asset)
+	if assetName != "" {
+		params.Set("asset", assetName)
 	}
 	if productType > 0 {
 		params.Set("type", strconv.FormatInt(productType, 10))
@@ -3980,7 +3979,7 @@ func (e *Exchange) GetFixedTermProducts(ctx context.Context, asset string, produ
 	params.Set("page", strconv.FormatInt(page, 10))
 	params.Set("limit", strconv.FormatInt(limit, 10))
 	var resp *FixedTermProductsResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("earn/fixed-term/products", params), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("earn/fixed-term/product", params), &resp)
 }
 
 // GetFixedTermProductsByAsset retrieves fixed-term earn products for a single currency.
@@ -3995,7 +3994,7 @@ func (e *Exchange) GetFixedTermProductsByAsset(ctx context.Context, asset string
 		params.Set("type", strconv.FormatInt(productType, 10))
 	}
 	var resp *FixedTermProductsByAssetResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("earn/fixed-term/products/asset/list", params), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("earn/fixed-term/product/asset/list", params), &resp)
 }
 
 // GetFixedTermSubscriptionHistory retrieves fixed-term earn history records filtered by type.
@@ -4037,7 +4036,7 @@ func (e *Exchange) GetFixedTermSubscriptionHistory(ctx context.Context, historyT
 		params.Set("business_filter", businessFilter)
 	}
 	var resp *FixedTermHistoryResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, common.EncodeURLValues("earn/fixed-term/earn/history", params), nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/fixed-term/earn/history", params, nil, &resp)
 }
 
 // GetFixedTermSubscriptionOrders retrieves fixed-term earn subscription orders.
@@ -4068,7 +4067,7 @@ func (e *Exchange) GetFixedTermSubscriptionOrders(ctx context.Context, productID
 		params.Set("business_filter", businessFilter)
 	}
 	var resp *FixedTermSubscriptionOrdersResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, common.EncodeURLValues("earn/fixed-term/earn/orders", params), nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/fixed-term/earn/orders", params, nil, &resp)
 }
 
 // GetStructuredProductList retrieves a structured Product List
@@ -4513,7 +4512,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			paramValue = param.Encode()
 		}
 		var sig string
-		sig, err = e.GenerateSignature(creds.Secret, method, endpoint, paramValue, data, timestamp)
+		sig, err = e.GenerateSignature(creds.Secret, method, urlPath, paramValue, data, timestamp)
 		if err != nil {
 			return nil, err
 		}
@@ -5200,7 +5199,7 @@ func (e *Exchange) GetChaseOrders(ctx context.Context, settle currency.Code, con
 		params.Set("side", side)
 	}
 	var resp []*ChaseOrder
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualGetChaseOrdersEPL, http.MethodGet, common.EncodeURLValues(futuresPath+settle.Item.Lower+"/autoorder/v1/chase/list", params), nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualGetChaseOrdersEPL, http.MethodGet, futuresPath+settle.Item.Lower+"/autoorder/v1/chase/list", params, nil, &resp)
 }
 
 // GetChaseOrderDetail retrieves the full detail of a single futures chase limit order by its ID.
@@ -5214,7 +5213,7 @@ func (e *Exchange) GetChaseOrderDetail(ctx context.Context, settle currency.Code
 	params := url.Values{}
 	params.Set("id", strconv.FormatInt(orderID, 10))
 	var resp *ChaseOrder
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualGetChaseOrderDetailEPL, http.MethodGet, common.EncodeURLValues(futuresPath+settle.Item.Lower+"/autoorder/v1/chase/detail", params), nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualGetChaseOrderDetailEPL, http.MethodGet, futuresPath+settle.Item.Lower+"/autoorder/v1/chase/detail", params, nil, &resp)
 }
 
 // ***************************************** Over the counter(OTC) endpoints ********************************

@@ -231,7 +231,7 @@ func (e *Exchange) GetBotRunningStrategies(ctx context.Context, strategyType, ma
 		params.Set("page_size", strconv.Itoa(int(pageSize)))
 	}
 	var resp BotPortfolioRunningResponse
-	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "bot/portfolio/running", params, nil, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "bot/portfolio/running", params, nil, &resp)
 }
 
 // GetBotStrategyDetail queries the detail of a single running AIHub strategy. Both strategyID and strategyType must be provided.

@@ -189,9 +189,9 @@ type TradFiTransactionListData struct {
 
 // TradFiTransactionRequest is the request body for fund deposit or withdrawal.
 type TradFiTransactionRequest struct {
-	Asset  currency.Code `json:"asset"`         // Asset is the asset type (e.g. USDT; currently only USDT is supported).
-	Change float64       `json:"change,string"` // Change is the quantity; supports up to two decimal places.
-	Type   string        `json:"type"`          // Type is either 'deposit' or 'withdraw'.
+	Asset  currency.Code `json:"asset"`
+	Change float64       `json:"change,string"`
+	Type   string        `json:"type"`
 }
 
 // TradFiOrder holds an active pending order.

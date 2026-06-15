@@ -100,9 +100,9 @@ type SpotGridCreateParams struct {
 
 // SpotGridCreateRequest is the request body for creating a spot grid strategy.
 type SpotGridCreateRequest struct {
-	StrategyType string                `json:"strategy_type"`
-	Market       string                `json:"market"`
-	CreateParams *SpotGridCreateParams `json:"create_params"`
+	StrategyType string               `json:"strategy_type"`
+	Market       string               `json:"market"`
+	CreateParams SpotGridCreateParams `json:"create_params"`
 }
 
 // MarginGridCreateParams holds the creation parameters for a leverage grid strategy.
@@ -123,9 +123,9 @@ type MarginGridCreateParams struct {
 
 // MarginGridCreateRequest is the request body for creating a leverage grid strategy.
 type MarginGridCreateRequest struct {
-	StrategyType string                  `json:"strategy_type"`
-	Market       string                  `json:"market"`
-	CreateParams *MarginGridCreateParams `json:"create_params"`
+	StrategyType string                 `json:"strategy_type"`
+	Market       string                 `json:"market"`
+	CreateParams MarginGridCreateParams `json:"create_params"`
 }
 
 // InfiniteGridCreateParams holds the creation parameters for an infinite grid strategy.
@@ -144,9 +144,9 @@ type InfiniteGridCreateParams struct {
 
 // InfiniteGridCreateRequest is the request body for creating an infinite grid strategy.
 type InfiniteGridCreateRequest struct {
-	StrategyType string                    `json:"strategy_type"`
-	Market       string                    `json:"market"`
-	CreateParams *InfiniteGridCreateParams `json:"create_params"`
+	StrategyType string                   `json:"strategy_type"`
+	Market       string                   `json:"market"`
+	CreateParams InfiniteGridCreateParams `json:"create_params"`
 }
 
 // FuturesGridCreateParams holds the creation parameters for a futures (contract) grid strategy.
@@ -167,9 +167,9 @@ type FuturesGridCreateParams struct {
 
 // FuturesGridCreateRequest is the request body for creating a futures grid strategy.
 type FuturesGridCreateRequest struct {
-	StrategyType string                   `json:"strategy_type"`
-	Market       string                   `json:"market"`
-	CreateParams *FuturesGridCreateParams `json:"create_params"`
+	StrategyType string                  `json:"strategy_type"`
+	Market       string                  `json:"market"`
+	CreateParams FuturesGridCreateParams `json:"create_params"`
 }
 
 // SpotMartingaleCreateParams holds the creation parameters for a spot martingale strategy.
@@ -185,9 +185,9 @@ type SpotMartingaleCreateParams struct {
 
 // SpotMartingaleCreateRequest is the request body for creating a spot martingale strategy.
 type SpotMartingaleCreateRequest struct {
-	StrategyType string                      `json:"strategy_type"`
-	Market       string                      `json:"market"`
-	CreateParams *SpotMartingaleCreateParams `json:"create_params"`
+	StrategyType string                     `json:"strategy_type"`
+	Market       string                     `json:"market"`
+	CreateParams SpotMartingaleCreateParams `json:"create_params"`
 }
 
 // ContractMartingaleCreateParams holds the creation parameters for a contract martingale strategy.
@@ -204,9 +204,9 @@ type ContractMartingaleCreateParams struct {
 
 // ContractMartingaleCreateRequest is the request body for creating a contract martingale strategy.
 type ContractMartingaleCreateRequest struct {
-	StrategyType string                          `json:"strategy_type"`
-	Market       string                          `json:"market"`
-	CreateParams *ContractMartingaleCreateParams `json:"create_params"`
+	StrategyType string                         `json:"strategy_type"`
+	Market       string                         `json:"market"`
+	CreateParams ContractMartingaleCreateParams `json:"create_params"`
 }
 
 // BotPortfolioRunningItem holds a single record in the list of running policies.
@@ -232,10 +232,10 @@ type BotPortfolioRunningData struct {
 
 // BotPortfolioRunningResponse is the unified response for querying the running policy list.
 type BotPortfolioRunningResponse struct {
-	Code    int32                    `json:"code"`
-	Message string                   `json:"message"`
-	Data    *BotPortfolioRunningData `json:"data"`
-	TraceID string                   `json:"trace_id"`
+	Code    int32                   `json:"code"`
+	Message string                  `json:"message"`
+	Data    BotPortfolioRunningData `json:"data"`
+	TraceID string                  `json:"trace_id"`
 }
 
 func (b *BotPortfolioRunningResponse) Error() error { return botResponseError(b.Code, b.Message) }

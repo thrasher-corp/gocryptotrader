@@ -97,19 +97,22 @@ func (e *Exchange) PlaceAlphaTradeOrder(ctx context.Context, arg *AlphaCurrencyQ
 
 // GetAlphaOrders retrieves alpha orders
 // possible state values are: 0 : All 1 : Processing 2 : Successful 3 : Failed 4 : Cancelled 5 : Buy order placed but transfer not completed 6 : Order cancelled but transfer not completed
-func (e *Exchange) GetAlphaOrders(ctx context.Context, memeCcy currency.Code, side order.Side, state uint8, from, to time.Time, page, limit uint64) ([]*AlphaOrderDetail, error) {
-	if memeCcy.IsEmpty() {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	if side != order.Sell && side != order.Buy {
-		return nil, order.ErrSideIsInvalid
-	}
+func (e *Exchange) GetAlphaOrders(ctx context.Context, memeCcy currency.Code, orderSide order.Side, state uint8, from, to time.Time, page, limit uint64) ([]*AlphaOrderDetail, error) {
 	if !from.IsZero() && !to.IsZero() {
 		if err := common.StartEndTimeCheck(from, to); err != nil {
 			return nil, err
 		}
 	}
 	params := url.Values{}
+	if !memeCcy.IsEmpty() {
+		params.Set("currency", memeCcy.String())
+	}
+	if orderSide != order.UnknownSide {
+		params.Set("side", orderSide.Lower())
+	}
+	if state != 0 {
+		params.Set("status", strconv.FormatUint(uint64(state), 10))
+	}
 	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
 	}
@@ -122,9 +125,6 @@ func (e *Exchange) GetAlphaOrders(ctx context.Context, memeCcy currency.Code, si
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	params.Set("status", strconv.FormatUint(uint64(state), 10))
-	params.Set("side", side.String())
-	params.Set("currency", memeCcy.String())
 	var resp []*AlphaOrderDetail
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "alpha/orders", params, nil, &resp)
 }

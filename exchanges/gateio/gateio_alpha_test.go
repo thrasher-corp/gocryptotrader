@@ -90,14 +90,8 @@ func TestPlaceAlphaTradeOrder(t *testing.T) {
 
 func TestGetAlphaOrders(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetAlphaOrders(t.Context(), currency.EMPTYCODE, order.Sell, 0, time.Time{}, time.Time{}, 0, 10)
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-
-	_, err = e.GetAlphaOrders(t.Context(), currency.ETH, order.Long, 0, time.Time{}, time.Time{}, 0, 10)
-	require.ErrorIs(t, err, order.ErrSideIsInvalid)
-
 	startTime, endTime := getTime()
-	_, err = e.GetAlphaOrders(t.Context(), currency.ETH, order.Sell, 0, endTime, startTime, 0, 10)
+	_, err := e.GetAlphaOrders(t.Context(), currency.ETH, order.Sell, 0, endTime, startTime, 0, 10)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)

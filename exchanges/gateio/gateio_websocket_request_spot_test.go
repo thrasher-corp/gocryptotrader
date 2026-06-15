@@ -44,7 +44,7 @@ func TestWebsocketSpotSubmitOrder(t *testing.T) {
 	_, err = e.WebsocketSpotSubmitOrder(t.Context(), out)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
-	out.Side = order.Sell
+	out.Side = order.Sell.Lower()
 	_, err = e.WebsocketSpotSubmitOrder(t.Context(), out)
 	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
 
@@ -75,7 +75,7 @@ func TestWebsocketSpotSubmitOrders(t *testing.T) {
 	_, err = e.WebsocketSpotSubmitOrders(t.Context(), out)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
-	out.Side = order.Buy
+	out.Side = order.Buy.Lower()
 	_, err = e.WebsocketSpotSubmitOrders(t.Context(), out)
 	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
 

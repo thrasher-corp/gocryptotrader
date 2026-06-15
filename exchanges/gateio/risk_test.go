@@ -31,7 +31,6 @@ func TestGetFuturesRiskTable(t *testing.T) {
 	_, err = e.GetFuturesRiskTable(t.Context(), currency.USDT, "")
 	require.ErrorIs(t, err, errTableIDEmpty)
 
-	// mock HTTP response due to dynamically generated table IDs, which can only be retrieved via authenticated endpoint
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e))
 	require.NoError(t, testexch.MockHTTPInstance(e, "/"))

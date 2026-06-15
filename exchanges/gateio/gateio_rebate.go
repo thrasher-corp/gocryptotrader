@@ -109,47 +109,43 @@ func rebateBrokerHistoryParams(arg *RebateBrokerHistoryRequest) (url.Values, err
 }
 
 // GetAgencyTransactionHistory retrieves a broker's transaction history of recommended users.
-// The record query time range cannot exceed 30 days.
 func (e *Exchange) GetAgencyTransactionHistory(ctx context.Context, arg *RebateTransactionHistoryRequest) (*AgencyTransactionHistoryResponse, error) {
 	params, err := rebateTransactionHistoryParams(arg)
 	if err != nil {
 		return nil, err
 	}
 	var resp *AgencyTransactionHistoryResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, common.EncodeURLValues("rebate/agency/transaction_history", params), nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/agency/transaction_history", params, nil, &resp)
 }
 
 // GetAgencyCommissionHistory retrieves a broker's rebate history of recommended users.
-// The record query time range cannot exceed 30 days.
 func (e *Exchange) GetAgencyCommissionHistory(ctx context.Context, arg *RebateCommissionHistoryRequest) (*AgencyCommissionHistoryResponse, error) {
 	params, err := rebateCommissionHistoryParams(arg)
 	if err != nil {
 		return nil, err
 	}
 	var resp *AgencyCommissionHistoryResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, common.EncodeURLValues("rebate/agency/commission_history", params), nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/agency/commission_history", params, nil, &resp)
 }
 
 // GetPartnerTransactionHistory retrieves a partner's transaction history of recommended users.
-// The record query time range cannot exceed 30 days.
 func (e *Exchange) GetPartnerTransactionHistory(ctx context.Context, arg *RebateTransactionHistoryRequest) (*PartnerTransactionHistoryResponse, error) {
 	params, err := rebateTransactionHistoryParams(arg)
 	if err != nil {
 		return nil, err
 	}
 	var resp *PartnerTransactionHistoryResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, common.EncodeURLValues("rebate/partner/transaction_history", params), nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/partner/transaction_history", params, nil, &resp)
 }
 
 // GetPartnerCommissionHistory retrieves a partner's rebate records of recommended users.
-// The record query time range cannot exceed 30 days.
 func (e *Exchange) GetPartnerCommissionHistory(ctx context.Context, arg *RebateCommissionHistoryRequest) (*PartnerCommissionHistoryResponse, error) {
 	params, err := rebateCommissionHistoryParams(arg)
 	if err != nil {
 		return nil, err
 	}
 	var resp *PartnerCommissionHistoryResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, common.EncodeURLValues("rebate/partner/commission_history", params), nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/partner/commission_history", params, nil, &resp)
 }
 
 // GetPartnerSubordinateList retrieves a partner's subordinate list, including sub-agents, direct customers, and indirect customers.
@@ -167,29 +163,27 @@ func (e *Exchange) GetPartnerSubordinateList(ctx context.Context, arg *PartnerSu
 		}
 	}
 	var resp *PartnerSubordinateListResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, common.EncodeURLValues("rebate/partner/sub_list", params), nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/partner/sub_list", params, nil, &resp)
 }
 
 // GetBrokerCommissionHistory retrieves a broker's rebate records for users.
-// The record query time range cannot exceed 30 days.
 func (e *Exchange) GetBrokerCommissionHistory(ctx context.Context, arg *RebateBrokerHistoryRequest) (*BrokerCommissionHistoryResponse, error) {
 	params, err := rebateBrokerHistoryParams(arg)
 	if err != nil {
 		return nil, err
 	}
 	var resp *BrokerCommissionHistoryResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, common.EncodeURLValues("rebate/broker/commission_history", params), nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/broker/commission_history", params, nil, &resp)
 }
 
 // GetBrokerTransactionHistory retrieves a broker's trading history for users.
-// The record query time range cannot exceed 30 days.
 func (e *Exchange) GetBrokerTransactionHistory(ctx context.Context, arg *RebateBrokerHistoryRequest) (*BrokerTransactionHistoryResponse, error) {
 	params, err := rebateBrokerHistoryParams(arg)
 	if err != nil {
 		return nil, err
 	}
 	var resp *BrokerTransactionHistoryResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, common.EncodeURLValues("rebate/broker/transaction_history", params), nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/broker/transaction_history", params, nil, &resp)
 }
 
 // GetUserRebateInformation retrieves the authenticated user's rebate information, returning the inviter's UID.
@@ -201,7 +195,6 @@ func (e *Exchange) GetUserRebateInformation(ctx context.Context) (uint64, error)
 }
 
 // GetUserSubordinateRelationship queries whether the specified users are within the system.
-// If more than 100 user IDs are provided, only the first 100 are returned by the exchange.
 func (e *Exchange) GetUserSubordinateRelationship(ctx context.Context, userIDList []string) (*UserSubordinateRelationResponse, error) {
 	if len(userIDList) == 0 {
 		return nil, errUserIDRequired
@@ -209,5 +202,5 @@ func (e *Exchange) GetUserSubordinateRelationship(ctx context.Context, userIDLis
 	params := url.Values{}
 	params.Set("user_id_list", strings.Join(userIDList, ","))
 	var resp *UserSubordinateRelationResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, common.EncodeURLValues("rebate/user/sub_relation", params), nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/user/sub_relation", params, nil, &resp)
 }

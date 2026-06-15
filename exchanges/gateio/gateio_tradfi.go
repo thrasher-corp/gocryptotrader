@@ -59,7 +59,6 @@ func (e *Exchange) GetTradFiSymbols(ctx context.Context) ([]*TradFiSymbol, error
 }
 
 // GetTradFiSymbolDetails retrieves detailed contract information for one or more symbols.
-// symbols is a comma-separated list of up to 10 trading symbol codes (e.g. "EURUSD,XAGUSD").
 func (e *Exchange) GetTradFiSymbolDetails(ctx context.Context, symbols currency.Pairs) ([]*TradFiSymbolDetail, error) {
 	if len(symbols) == 0 {
 		return nil, fmt.Errorf("%w: at least one tradfi symbol required", currency.ErrCurrencyPairsEmpty)
@@ -67,7 +66,7 @@ func (e *Exchange) GetTradFiSymbolDetails(ctx context.Context, symbols currency.
 	params := url.Values{}
 	params.Set("symbols", symbols.Join())
 	var resp tradFiResponse[*TradFiSymbolDetailList]
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, common.EncodeURLValues("tradfi/symbols/detail", params), nil, nil, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "tradfi/symbols/detail", params, nil, &resp); err != nil {
 		return nil, err
 	}
 	if resp.Data == nil {
@@ -129,7 +128,6 @@ func (e *Exchange) GetTradFiSymbolTicker(ctx context.Context, symbol string) (*T
 }
 
 // ActivateTradFiUser activates the TradFi service for the authenticated user.
-// If the user is already activated, this returns the existing account info.
 func (e *Exchange) ActivateTradFiUser(ctx context.Context) (*TradFiUserInfo, error) {
 	var resp tradFiResponse[*TradFiUserInfo]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "tradfi/users", nil, nil, &resp)
@@ -142,7 +140,6 @@ func (e *Exchange) GetTradFiUserAssets(ctx context.Context) (*TradFiUserAssets, 
 }
 
 // GetTradFiTransactions retrieves fund transfer in/out records.
-// All filter fields in arg are optional.
 func (e *Exchange) GetTradFiTransactions(ctx context.Context, arg *GetTradFiTransactionsRequest) (*TradFiTransactionListData, error) {
 	params := url.Values{}
 	if arg != nil {
@@ -168,7 +165,7 @@ func (e *Exchange) GetTradFiTransactions(ctx context.Context, arg *GetTradFiTran
 		}
 	}
 	var resp tradFiResponse[*TradFiTransactionListData]
-	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, common.EncodeURLValues("tradfi/transactions", params), nil, nil, &resp)
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "tradfi/transactions", params, nil, &resp)
 }
 
 // CreateTradFiTransaction deposits or withdraws funds to/from the TradFi account.
@@ -238,7 +235,6 @@ func (e *Exchange) CancelTradFiOrder(ctx context.Context, orderID int64) error {
 }
 
 // GetTradFiOrderHistory retrieves historical (completed) orders.
-// All filter fields in arg are optional.
 func (e *Exchange) GetTradFiOrderHistory(ctx context.Context, arg *GetTradFiOrderHistoryRequest) ([]*TradFiHistoricalOrder, error) {
 	params := url.Values{}
 	if arg != nil {
@@ -261,7 +257,7 @@ func (e *Exchange) GetTradFiOrderHistory(ctx context.Context, arg *GetTradFiOrde
 		}
 	}
 	var resp tradFiResponse[*TradFiOrderHistoryList]
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, common.EncodeURLValues("tradfi/orders/history", params), nil, nil, &resp); err != nil {
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "tradfi/orders/history", params, nil, &resp); err != nil {
 		return nil, err
 	}
 	if resp.Data == nil {
@@ -292,8 +288,6 @@ func (e *Exchange) UpdateTradFiPosition(ctx context.Context, positionID int64, a
 }
 
 // CloseTradFiPosition fully or partially closes an open position.
-// Set CloseType to 1 for a full close, 2 for a partial close.
-// CloseVolume is required for partial closes.
 func (e *Exchange) CloseTradFiPosition(ctx context.Context, positionID int64, arg *TradFiClosePositionRequest) error {
 	if positionID == 0 {
 		return order.ErrOrderIDNotSet
@@ -306,7 +300,6 @@ func (e *Exchange) CloseTradFiPosition(ctx context.Context, positionID int64, ar
 }
 
 // GetTradFiPositionHistory retrieves the history of closed positions.
-// All filter fields in arg are optional.
 func (e *Exchange) GetTradFiPositionHistory(ctx context.Context, arg *GetTradFiPositionHistoryRequest) (*TradFiHistoricalPositionListData, error) {
 	params := url.Values{}
 	if arg != nil {
@@ -335,5 +328,5 @@ func (e *Exchange) GetTradFiPositionHistory(ctx context.Context, arg *GetTradFiP
 		}
 	}
 	var resp tradFiResponse[*TradFiHistoricalPositionListData]
-	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, common.EncodeURLValues("tradfi/positions/history", params), nil, nil, &resp)
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "tradfi/positions/history", params, nil, &resp)
 }

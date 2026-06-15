@@ -40,8 +40,8 @@ import (
 // Please supply your own APIKEYS here for due diligence testing
 
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	apiKey                  = "WSKMLKNW-JCKF6SGH-VWKQAUS8-RYYWFJYP"
+	apiSecret               = "b1b11137b33e52bd7ae2df3a59e905141b40740edd0568f9141b63ed0cea6bdcab8b2ac8e307ca11a048493fd7d1528a26d7a1a9e3caae53fb82965b3ebf2b57"
 	canManipulateRealOrders = false
 )
 
@@ -328,7 +328,7 @@ func TestCreateBatchOrders(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	arg := CreateOrderRequest{
-		Side:    order.Sell,
+		Side:    order.Sell.Lower(),
 		Amount:  0.001,
 		Price:   12349,
 		Account: asset.Spot,
@@ -349,7 +349,7 @@ func TestCreateBatchOrders(t *testing.T) {
 		{
 			Text:         "t-123123123",
 			CurrencyPair: getPair(t, asset.Spot),
-			Side:         order.Sell,
+			Side:         order.Sell.Lower(),
 			Amount:       0.001,
 			Price:        12349,
 			Account:      asset.Spot,
@@ -358,7 +358,7 @@ func TestCreateBatchOrders(t *testing.T) {
 		{
 			Text:         "t-123123124",
 			CurrencyPair: getPair(t, asset.Spot),
-			Side:         order.Buy,
+			Side:         order.Buy.Lower(),
 			Amount:       1,
 			Price:        1234567789,
 			Account:      asset.Spot,
@@ -407,7 +407,7 @@ func TestCreateSpotOrder(t *testing.T) {
 	_, err = e.PlaceSpotOrder(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
-	arg.Side = order.Buy
+	arg.Side = order.Buy.Lower()
 	_, err = e.PlaceSpotOrder(t.Context(), arg)
 	require.ErrorIs(t, err, asset.ErrInvalidAsset)
 
@@ -423,7 +423,7 @@ func TestCreateSpotOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err = e.PlaceSpotOrder(t.Context(), &CreateOrderRequest{
 		CurrencyPair: getPair(t, asset.Spot),
-		Side:         order.Buy,
+		Side:         order.Buy.Lower(),
 		Amount:       1,
 		Price:        900000,
 		Account:      asset.Spot,
@@ -2377,8 +2377,9 @@ func TestModifyDualCurrencyOrderReinvest(t *testing.T) {
 
 func TestGetDualCurrencyRecommendedProjects(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetDualCurrencyRecommendedProjects(t.Context(), "smart", "", "", "")
+	// sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	e.Verbose = true
+	result, err := e.GetDualCurrencyRecommendedProjects(t.Context(), "senior", "", "", "")
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -6058,6 +6059,87 @@ func TestGetTradFiPositionHistory(t *testing.T) {
 		Symbol:      currency.Pair{Base: currency.EUR, Quote: currency.USD},
 		PositionDir: order.Long.String(),
 	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCreateChaseOrder(t *testing.T) {
+	t.Parallel()
+	_, err := e.CreateChaseOrder(t.Context(), &CreateChaseOrderRequest{})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.CreateChaseOrder(t.Context(), &CreateChaseOrderRequest{Settle: currency.USDT})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	_, err = e.CreateChaseOrder(t.Context(), &CreateChaseOrderRequest{Settle: currency.USDT, Contract: getPair(t, asset.USDTMarginedFutures)})
+	require.ErrorIs(t, err, errInvalidOrderSize)
+
+	_, err = e.CreateChaseOrder(t.Context(), &CreateChaseOrderRequest{Settle: currency.USDT, Contract: getPair(t, asset.USDTMarginedFutures), Amount: 1})
+	require.ErrorIs(t, err, errChaseOrderPriceLimitOrOffsetRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	result, err := e.CreateChaseOrder(t.Context(), &CreateChaseOrderRequest{
+		Settle:     currency.USDT,
+		Contract:   getPair(t, asset.USDTMarginedFutures),
+		Amount:     1,
+		PriceLimit: 1,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestStopChaseOrder(t *testing.T) {
+	t.Parallel()
+	_, err := e.StopChaseOrder(t.Context(), currency.EMPTYCODE, &StopChaseOrderRequest{})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.StopChaseOrder(t.Context(), currency.USDT, &StopChaseOrderRequest{})
+	require.ErrorIs(t, err, errChaseOrderIDOrTextRequired)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	result, err := e.StopChaseOrder(t.Context(), currency.USDT, &StopChaseOrderRequest{ID: 1})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestStopAllChaseOrders(t *testing.T) {
+	t.Parallel()
+	_, err := e.StopAllChaseOrders(t.Context(), currency.EMPTYCODE, &StopAllChaseOrdersRequest{})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	result, err := e.StopAllChaseOrders(t.Context(), currency.USDT, &StopAllChaseOrdersRequest{Contract: getPair(t, asset.USDTMarginedFutures)})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetChaseOrders(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetChaseOrders(t.Context(), currency.EMPTYCODE, currency.EMPTYPAIR, false, time.Time{}, time.Time{}, 0, 0, 1, false, false, "")
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.GetChaseOrders(t.Context(), currency.USDT, currency.EMPTYPAIR, false, time.Time{}, time.Time{}, 0, 0, 0, false, false, "")
+	require.ErrorIs(t, err, errInvalidChaseSortBy)
+
+	_, err = e.GetChaseOrders(t.Context(), currency.USDT, currency.EMPTYPAIR, false, time.Now(), time.Now().Add(-time.Hour), 0, 0, 1, false, false, "")
+	require.ErrorIs(t, err, common.ErrStartAfterEnd)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetChaseOrders(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), true, time.Time{}, time.Time{}, 1, 100, 1, false, false, "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetChaseOrderDetail(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetChaseOrderDetail(t.Context(), currency.EMPTYCODE, 0)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.GetChaseOrderDetail(t.Context(), currency.USDT, 0)
+	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetChaseOrderDetail(t.Context(), currency.USDT, 1)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

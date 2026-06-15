@@ -736,8 +736,8 @@ type FuturesCandlestick struct {
 	Name         string       `json:"n,omitempty"`
 }
 
-// FuturesPremiumIndexKLineResponse represents premium index K-Line information.
-type FuturesPremiumIndexKLineResponse struct {
+// FuturesPremiumIndexKlineResponse represents premium index K-Line information.
+type FuturesPremiumIndexKlineResponse struct {
 	UnixTimestamp types.Time   `json:"t"`
 	ClosePrice    types.Number `json:"c"`
 	HighestPrice  types.Number `json:"h"`
@@ -1467,7 +1467,7 @@ type CreateOrderRequest struct {
 	CurrencyPair              currency.Pair `json:"currency_pair,omitzero"`
 	Type                      string        `json:"type,omitempty"`
 	Account                   asset.Item    `json:"account,omitempty"`
-	Side                      order.Side    `json:"side,omitempty"`
+	Side                      string        `json:"side,omitempty"`
 	Iceberg                   string        `json:"iceberg,omitempty"`
 	Amount                    types.Number  `json:"amount,omitempty"`
 	Price                     types.Number  `json:"price,omitempty"`
@@ -1928,7 +1928,7 @@ type DualModifyOrderReinvestRequest struct {
 type DualRecommendedProject struct {
 	ID               int64         `json:"id"`
 	Category         int32         `json:"category"`
-	Type             int32         `json:"type"`
+	Type             string        `json:"type"`
 	InvestCurrency   currency.Code `json:"invest_currency"`
 	ExerciseCurrency currency.Code `json:"exercise_currency"`
 	ApyDisplay       string        `json:"apy_display"`

@@ -10649,6 +10649,74 @@
           "headers": {}
         }
       ]
+    },
+    "/api/v4/futures/usdt/autoorder/v1/chase/list": {
+      "GET": [
+        {
+          "data": [
+            {
+              "id": 1,
+              "contract": "BTC_USDT",
+              "amount": 1,
+              "chase_price": "67900.1",
+              "interval_sec": 5,
+              "suborder_id": 100,
+              "suborder_size": 1,
+              "suborder_left": 0,
+              "price_type": 0,
+              "price_gap_type": 0,
+              "price_gap_value": "0",
+              "price_limit": "68000",
+              "offset_limit": "0",
+              "status": "open",
+              "finish_as": "",
+              "reduce_only": false,
+              "is_dual_mode": false,
+              "pos_margin_mode": "cross",
+              "side": "buy",
+              "text": "t-abc",
+              "create_time": 1774991579,
+              "finish_time": 0
+            }
+          ],
+          "queryString": "contract=BTC_USDT&is_finished=1&page_num=1&page_size=100&sort_by=1",
+          "bodyParams": "",
+          "headers": {}
+        }
+      ]
+    },
+    "/api/v4/futures/usdt/autoorder/v1/chase/detail": {
+      "GET": [
+        {
+          "data": {
+            "id": 1,
+            "contract": "BTC_USDT",
+            "amount": 1,
+            "chase_price": "67900.1",
+            "interval_sec": 5,
+            "suborder_id": 100,
+            "suborder_size": 1,
+            "suborder_left": 0,
+            "price_type": 0,
+            "price_gap_type": 0,
+            "price_gap_value": "0",
+            "price_limit": "68000",
+            "offset_limit": "0",
+            "status": "open",
+            "finish_as": "",
+            "reduce_only": false,
+            "is_dual_mode": false,
+            "pos_margin_mode": "cross",
+            "side": "buy",
+            "text": "t-abc",
+            "create_time": 1774991579,
+            "finish_time": 0
+          },
+          "queryString": "id=1",
+          "bodyParams": "",
+          "headers": {}
+        }
+      ]
     }
   }
 }

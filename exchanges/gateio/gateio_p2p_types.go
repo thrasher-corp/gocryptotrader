@@ -340,7 +340,7 @@ type P2pSendMessageResult struct {
 
 // UploadP2PChatFileRequest holds request parameters for uploading a P2P chat file.
 type UploadP2PChatFileRequest struct {
-	ImageContentType string `json:"image_content_type"` // ImageContentType supports: image/png, image/jpg, image/jpeg, video/mp4. Max 20 MB.
+	ImageContentType string `json:"image_content_type"`
 	Base64Img        string `json:"base64_img"`
 }
 

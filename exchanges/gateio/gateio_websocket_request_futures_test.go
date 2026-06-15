@@ -33,7 +33,6 @@ func TestWebsocketFuturesSubmitOrder(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrUnsupportedTimeInForce)
 
 	out.TimeInForce = iocTIF
-
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err = e.WebsocketFuturesSubmitOrder(t.Context(), asset.USDTMarginedFutures, out)
 	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
@@ -216,9 +215,7 @@ func TestWebsocketFuturesGetOrderStatus(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-
 	e := newExchangeWithWebsocket(t, asset.USDTMarginedFutures)
-
 	got, err := e.WebsocketFuturesGetOrderStatus(t.Context(), BTCUSDT, asset.USDTMarginedFutures, "513170215869")
 	require.NoError(t, err)
 	require.NotEmpty(t, got)

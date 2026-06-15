@@ -2790,7 +2790,7 @@ func (e *Exchange) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequest, er
 	}
 
 	return &CreateOrderRequest{
-		Side:         side,
+		Side:         side.Lower(),
 		Type:         s.Type.Lower(),
 		Account:      s.AssetType,
 		Amount:       types.Number(s.GetTradeAmount(e.GetTradingRequirements())),

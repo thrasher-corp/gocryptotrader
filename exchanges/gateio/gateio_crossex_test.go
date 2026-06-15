@@ -72,7 +72,7 @@ func TestCreateCrossexOrder(t *testing.T) {
 	require.ErrorIs(t, err, errCrossexExchangeTypeRequired)
 
 	_, err = e.CreateCrossexOrder(t.Context(), &CrossexOrderCreateRequest{ExchangeType: "BINANCE"})
-	require.ErrorIs(t, err, errCrossexSymbolRequired)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	_, err = e.CreateCrossexOrder(t.Context(), &CrossexOrderCreateRequest{ExchangeType: "BINANCE", Symbol: "BINANCE_FUTURE_BTC_USDT"})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
@@ -203,7 +203,7 @@ func TestGetCrossexContractLeverage(t *testing.T) {
 func TestSetCrossexContractLeverage(t *testing.T) {
 	t.Parallel()
 	_, err := e.SetCrossexContractLeverage(t.Context(), &CrossexLeverageRequest{})
-	require.ErrorIs(t, err, errCrossexSymbolRequired)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	_, err = e.SetCrossexContractLeverage(t.Context(), &CrossexLeverageRequest{Symbol: "BINANCE_FUTURE_BTC_USDT"})
 	require.ErrorIs(t, err, errCrossexLeverageRequired)
@@ -230,7 +230,7 @@ func TestGetCrossexMarginLeverage(t *testing.T) {
 func TestSetCrossexMarginLeverage(t *testing.T) {
 	t.Parallel()
 	_, err := e.SetCrossexMarginLeverage(t.Context(), &CrossexLeverageRequest{})
-	require.ErrorIs(t, err, errCrossexSymbolRequired)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	_, err = e.SetCrossexMarginLeverage(t.Context(), &CrossexLeverageRequest{Symbol: "BINANCE_MARGIN_BTC_USDT"})
 	require.ErrorIs(t, err, errCrossexLeverageRequired)
@@ -247,7 +247,7 @@ func TestSetCrossexMarginLeverage(t *testing.T) {
 func TestCloseCrossexPosition(t *testing.T) {
 	t.Parallel()
 	_, err := e.CloseCrossexPosition(t.Context(), &CrossexClosePositionRequest{})
-	require.ErrorIs(t, err, errCrossexSymbolRequired)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.CloseCrossexPosition(t.Context(), &CrossexClosePositionRequest{
@@ -301,7 +301,7 @@ func TestGetCrossexMarginPositions(t *testing.T) {
 func TestGetCrossexADLRank(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetCrossexADLRank(t.Context(), "")
-	require.ErrorIs(t, err, errCrossexSymbolRequired)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)

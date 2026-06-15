@@ -7,7 +7,6 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -19,7 +18,7 @@ func (e *Exchange) ListSubAccounts(ctx context.Context, subAccountType int64) ([
 		params.Set("type", strconv.FormatInt(subAccountType, 10))
 	}
 	var resp []*SubAccount
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, subAccountEPL, http.MethodGet, common.EncodeURLValues("sub_accounts", params), nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, subAccountEPL, http.MethodGet, "sub_accounts", params, nil, &resp)
 }
 
 // CreateSubAccount creates a new sub-account under the main account.

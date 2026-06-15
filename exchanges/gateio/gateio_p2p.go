@@ -46,7 +46,6 @@ func (e *Exchange) GetP2PCounterpartyInfo(ctx context.Context, arg *GetCounterpa
 }
 
 // GetP2PPaymentMethods retrieves the current user's bound P2P payment methods.
-// Pass an empty Fiat field to return all available payment methods.
 func (e *Exchange) GetP2PPaymentMethods(ctx context.Context, arg *GetP2PPaymentMethodsRequest) ([]*P2pPaymentMethodGroup, error) {
 	var resp p2pAPIResponse[[]*P2pPaymentMethodGroup]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/account/get_myself_payment", nil, arg, &resp)
@@ -59,7 +58,6 @@ func (e *Exchange) GetP2PPendingOrders(ctx context.Context, arg *GetP2POrdersReq
 }
 
 // GetP2PHistoricalOrders retrieves the current user's historical P2P orders.
-// from and to are optional; when both are set they must satisfy from < to.
 func (e *Exchange) GetP2PHistoricalOrders(ctx context.Context, from, to time.Time, page, limit uint64, statusList []int64) (*P2pOrdersData, error) {
 	if !from.IsZero() && !to.IsZero() {
 		if err := common.StartEndTimeCheck(from, to); err != nil {
@@ -92,7 +90,6 @@ func (e *Exchange) GetP2POrderDetails(ctx context.Context, arg *GetP2POrderDetai
 }
 
 // ConfirmP2PPayment confirms that payment has been made for a P2P order.
-// PaymentMethod is optional; if provided it must be one of the order's supported payment types.
 func (e *Exchange) ConfirmP2PPayment(ctx context.Context, arg *ConfirmP2PPaymentRequest) error {
 	if arg.TransactionID == "" {
 		return order.ErrOrderIDNotSet
@@ -171,14 +168,12 @@ func (e *Exchange) GetP2PAdDetails(ctx context.Context, arg *GetP2PAdDetailsRequ
 }
 
 // GetMyP2PAds retrieves the current user's P2P advertisements.
-// Asset, FiatUnit and TradeType are optional filters.
 func (e *Exchange) GetMyP2PAds(ctx context.Context, arg *GetMyP2PAdsRequest) (*P2pMyAdsData, error) {
 	var resp p2pAPIResponse[P2pMyAdsData]
 	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/books/my_ads_list", nil, arg, &resp)
 }
 
 // GetP2PAdList retrieves the public P2P advertisement list for a given asset/fiat pair and trade side.
-// TradeType: "buy" for buy-crypto ads, "sell" for sell-crypto ads.
 func (e *Exchange) GetP2PAdList(ctx context.Context, arg *GetP2PAdsListRequest) ([]*P2pAdListItem, error) {
 	if arg.Asset.IsEmpty() {
 		return nil, fmt.Errorf("%w P2P asset required", currency.ErrCurrencyCodeEmpty)
@@ -194,7 +189,6 @@ func (e *Exchange) GetP2PAdList(ctx context.Context, arg *GetP2PAdsListRequest) 
 }
 
 // GetP2PChatHistory retrieves the chat history for a P2P order.
-// counterparty is the counterparty's UID; pass 0 to omit.
 func (e *Exchange) GetP2PChatHistory(ctx context.Context, transactionID, counterparty int64) ([]*P2pChatMessage, error) {
 	if transactionID == 0 {
 		return nil, order.ErrOrderIDNotSet
@@ -222,8 +216,6 @@ func (e *Exchange) SendP2PChatMessage(ctx context.Context, arg *SendP2PChatMessa
 }
 
 // UploadP2PChatFile uploads a file for use in P2P chat.
-// ImageContentType supports: image/png, image/jpg, image/jpeg, video/mp4. Max 20 MB.
-// Returns a file_key to pass as the Message field in SendP2PChatMessage with Type=1.
 func (e *Exchange) UploadP2PChatFile(ctx context.Context, arg *UploadP2PChatFileRequest) (*P2pUploadFileResult, error) {
 	if arg.ImageContentType == "" {
 		return nil, errP2PImageTypeRequired
