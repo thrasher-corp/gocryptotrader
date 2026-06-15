@@ -3984,12 +3984,12 @@ func (e *Exchange) GetFixedTermProducts(ctx context.Context, assetName string, p
 
 // GetFixedTermProductsByAsset retrieves fixed-term earn products for a single currency.
 // Sort by product term in ascending order.
-func (e *Exchange) GetFixedTermProductsByAsset(ctx context.Context, asset string, productType int64) (*FixedTermProductsByAssetResponse, error) {
-	if asset == "" {
+func (e *Exchange) GetFixedTermProductsByAsset(ctx context.Context, assetName string, productType int64) (*FixedTermProductsByAssetResponse, error) {
+	if assetName == "" {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	params := url.Values{}
-	params.Set("asset", asset)
+	params.Set("asset", assetName)
 	if productType > 0 {
 		params.Set("type", strconv.FormatInt(productType, 10))
 	}
@@ -4000,7 +4000,7 @@ func (e *Exchange) GetFixedTermProductsByAsset(ctx context.Context, asset string
 // GetFixedTermSubscriptionHistory retrieves fixed-term earn history records filtered by type.
 // historyType is required: 1 for subscription, 2 for redemption, 3 for interest, 4 for bonus reward.
 // page and limit are required.
-func (e *Exchange) GetFixedTermSubscriptionHistory(ctx context.Context, historyType, page, limit, productID, subBusiness int64, orderID, businessFilter string, asset currency.Code, startAt, endAt time.Time) (*FixedTermHistoryResponse, error) {
+func (e *Exchange) GetFixedTermSubscriptionHistory(ctx context.Context, historyType, page, limit, productID, subBusiness int64, orderID, businessFilter string, assetCcy currency.Code, startAt, endAt time.Time) (*FixedTermHistoryResponse, error) {
 	if historyType <= 0 {
 		return nil, errHistoryTypeRequired
 	}
@@ -4020,8 +4020,8 @@ func (e *Exchange) GetFixedTermSubscriptionHistory(ctx context.Context, historyT
 	if orderID != "" {
 		params.Set("order_id", orderID)
 	}
-	if !asset.IsEmpty() {
-		params.Set("asset", asset.String())
+	if !assetCcy.IsEmpty() {
+		params.Set("asset", assetCcy.String())
 	}
 	if !startAt.IsZero() {
 		params.Set("start_at", strconv.FormatInt(startAt.UTC().Unix(), 10))
@@ -4040,7 +4040,7 @@ func (e *Exchange) GetFixedTermSubscriptionHistory(ctx context.Context, historyT
 }
 
 // GetFixedTermSubscriptionOrders retrieves fixed-term earn subscription orders.
-func (e *Exchange) GetFixedTermSubscriptionOrders(ctx context.Context, productID int64, orderID string, asset currency.Code, page, limit int64, startTime, endTime time.Time, businessFilter string) (*FixedTermSubscriptionOrdersResponse, error) {
+func (e *Exchange) GetFixedTermSubscriptionOrders(ctx context.Context, productID int64, orderID string, assetName currency.Code, page, limit int64, startTime, endTime time.Time, businessFilter string) (*FixedTermSubscriptionOrdersResponse, error) {
 	params := url.Values{}
 	if productID > 0 {
 		params.Set("product_id", strconv.FormatInt(productID, 10))
@@ -4048,8 +4048,8 @@ func (e *Exchange) GetFixedTermSubscriptionOrders(ctx context.Context, productID
 	if orderID != "" {
 		params.Set("order_id", orderID)
 	}
-	if !asset.IsEmpty() {
-		params.Set("asset", asset.String())
+	if !assetName.IsEmpty() {
+		params.Set("asset", assetName.String())
 	}
 	if page > 0 {
 		params.Set("page", strconv.FormatInt(page, 10))

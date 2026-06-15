@@ -250,7 +250,7 @@ func (e *Exchange) GetBotStrategyDetail(ctx context.Context, strategyID, strateg
 }
 
 // StopBotStrategy terminates a single running AIHub strategy. Only one policy may be terminated per request.
-func (e *Exchange) StopBotStrategy(ctx context.Context, strategyID string, strategyType string) (*BotPortfolioStopData, error) {
+func (e *Exchange) StopBotStrategy(ctx context.Context, strategyID, strategyType string) (*BotPortfolioStopData, error) {
 	if strategyID == "" {
 		return nil, errBotStrategyIDRequired
 	}
