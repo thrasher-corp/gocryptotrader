@@ -34,6 +34,9 @@ const (
 	publicBullets  = "/v1/bullet-public"
 	privateBullets = "/v1/bullet-private"
 
+	kucoinWebsocketSpotURL    = "wss://ws-api-spot.kucoin.com"
+	kucoinWebsocketFuturesURL = "wss://ws-api-futures.kucoin.com"
+
 	// Spot channels
 	marketTickerChannel           = "/market/ticker"            // /market/ticker:{symbol},...
 	marketSnapshotChannel         = "/market/snapshot"          // /market/snapshot:{symbol},...
@@ -72,7 +75,10 @@ const (
 
 	futuresLimitCandles = "/contractMarket/limitCandle"
 
-	wsConnection = "websocket_connection"
+	kucoinWSSubscribeLimit = 100
+
+	wsSpotConnection    = "websocket_spot_connection"
+	wsFuturesConnection = "websocket_futures_connection"
 )
 
 var subscriptionNames = map[asset.Item]map[string]string{
@@ -107,9 +113,15 @@ var defaultSubscriptions = subscription.List{
 func (e *Exchange) WsConnect(ctx context.Context, conn websocket.Connection) error {
 	var instances *WSInstanceServers
 	var err error
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
+	futuresConnection := conn.GetURL() == kucoinWebsocketFuturesURL
+	switch {
+	case e.Websocket.CanUseAuthenticatedEndpoints() && futuresConnection:
+		instances, err = e.GetAuthenticatedFuturesInstanceServers(ctx)
+	case e.Websocket.CanUseAuthenticatedEndpoints():
 		instances, err = e.GetAuthenticatedInstanceServers(ctx)
-	} else {
+	case futuresConnection:
+		instances, err = e.GetFuturesInstanceServers(ctx)
+	default:
 		instances, err = e.GetInstanceServers(ctx)
 	}
 	if err != nil {
@@ -164,17 +176,45 @@ func (e *Exchange) GetInstanceServers(ctx context.Context) (*WSInstanceServers, 
 	}, request.UnauthenticatedRequest)
 }
 
+// GetFuturesInstanceServers retrieves the futures server list and temporary public token.
+func (e *Exchange) GetFuturesInstanceServers(ctx context.Context) (*WSInstanceServers, error) {
+	response := struct {
+		Data WSInstanceServers `json:"data"`
+		Error
+	}{}
+	return &(response.Data), e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+		endpointPath, err := e.API.Endpoints.GetURL(exchange.RestFutures)
+		if err != nil {
+			return nil, err
+		}
+		return &request.Item{
+			Method:                 http.MethodPost,
+			Path:                   endpointPath + publicBullets,
+			Result:                 &response,
+			Verbose:                e.Verbose,
+			HTTPDebugging:          e.HTTPDebugging,
+			HTTPRecording:          e.HTTPRecording,
+			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
+		}, nil
+	}, request.UnauthenticatedRequest)
+}
+
 // GetAuthenticatedInstanceServers retrieves server instances for authenticated users.
 func (e *Exchange) GetAuthenticatedInstanceServers(ctx context.Context) (*WSInstanceServers, error) {
 	response := struct {
 		Data *WSInstanceServers `json:"data"`
 		Error
 	}{}
-	err := e.SendAuthHTTPRequest(ctx, exchange.RestSpot, spotAuthenticationEPL, http.MethodPost, privateBullets, nil, &response)
-	if err != nil && strings.Contains(err.Error(), "400003") {
-		return response.Data, e.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresAuthenticationEPL, http.MethodPost, privateBullets, nil, &response)
-	}
-	return response.Data, err
+	return response.Data, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, spotAuthenticationEPL, http.MethodPost, privateBullets, nil, &response)
+}
+
+// GetAuthenticatedFuturesInstanceServers retrieves futures server instances for authenticated users.
+func (e *Exchange) GetAuthenticatedFuturesInstanceServers(ctx context.Context) (*WSInstanceServers, error) {
+	response := struct {
+		Data *WSInstanceServers `json:"data"`
+		Error
+	}{}
+	return response.Data, e.SendAuthHTTPRequest(ctx, exchange.RestFutures, futuresAuthenticationEPL, http.MethodPost, privateBullets, nil, &response)
 }
 
 // wsHandleData processes a websocket incoming data.
@@ -1009,7 +1049,7 @@ func collapseSubscriptionList(subs subscription.List) map[*subscription.List]*su
 
 	result := make(map[*subscription.List]*subscription.Subscription)
 	for qChan, group := range m {
-		for _, batch := range common.Batch(group, 100) {
+		for _, batch := range common.Batch(group, kucoinWSSubscribeLimit) {
 			s := batch[0].Clone()
 			s.Pairs = nil
 			suffixes := make([]string, 0, len(batch))
@@ -1031,9 +1071,34 @@ func collapseSubscriptionList(subs subscription.List) map[*subscription.List]*su
 	return result
 }
 
+func kucoinWebsocketRateLimiter() *request.RateLimiterWithWeight {
+	return request.NewRateLimitWithWeight(time.Second*10, 100, 1) // See: https://www.kucoin.com/docs-new/rate-limit#websocket-rate-limit
+}
+
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
 func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 	return e.Features.Subscriptions.ExpandTemplates(e)
+}
+
+func spotWebsocketSubscriptions(subs subscription.List) subscription.List {
+	spot, _ := splitWebsocketSubscriptions(subs)
+	return spot
+}
+
+func futuresWebsocketSubscriptions(subs subscription.List) subscription.List {
+	_, futures := splitWebsocketSubscriptions(subs)
+	return futures
+}
+
+func splitWebsocketSubscriptions(subs subscription.List) (spot, futures subscription.List) {
+	for _, sub := range subs {
+		if sub.Asset == asset.Futures || strings.HasPrefix(channelName(sub, sub.Asset), "/contract") {
+			futures = append(futures, sub)
+			continue
+		}
+		spot = append(spot, sub)
+	}
+	return spot, futures
 }
 
 // GetSubscriptionTemplate returns a subscription channel template

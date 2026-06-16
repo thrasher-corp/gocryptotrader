@@ -3,7 +3,10 @@ package kucoin
 import (
 	"context"
 	"errors"
+	"io"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
@@ -2590,6 +2593,44 @@ func TestSubmitOrder(t *testing.T) {
 	result, err = e.SubmitOrder(t.Context(), marginOrderSubmission)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+func TestSubmitOrderMarginAutoRepay(t *testing.T) {
+	t.Parallel()
+
+	ku := testInstance(t)
+	ku.SkipAuthCheck = true
+	ku.SetCredentials("key", "secret", "passphrase", "", "", "")
+
+	var payload map[string]any
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPost, r.Method, "margin order request method should be correct")
+		assert.Equal(t, "/api/v1/margin/order", r.URL.Path, "margin order request path should be correct")
+		body, err := io.ReadAll(r.Body)
+		assert.NoError(t, err, "ReadAll should not error")
+		assert.NoError(t, json.Unmarshal(body, &payload), "Unmarshal should not error")
+		_, err = w.Write([]byte(`{"code":"200000","orderId":"order-id","borrowSize":0,"loanApplyId":"loan-id"}`))
+		assert.NoError(t, err, "writing margin order response should not error")
+	}))
+	t.Cleanup(server.Close)
+	require.NoError(t, ku.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ku.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api"), "SetRunningURL must not error")
+
+	result, err := ku.SubmitOrder(t.Context(), &order.Submit{
+		Side:          order.Buy,
+		AssetType:     asset.Margin,
+		Pair:          marginTradablePair,
+		Type:          order.Limit,
+		Price:         1,
+		Amount:        1,
+		ClientOrderID: "client-order-id",
+		AutoRepay:     true,
+	})
+	require.NoError(t, err, "SubmitOrder must not error")
+	require.NotNil(t, result, "SubmitOrder must return a response")
+	assert.Equal(t, "order-id", result.OrderID, "OrderID should be correct")
+	assert.NotContains(t, payload, "autoBorrow", "payload should not auto-borrow when AutoBorrow is false")
+	assert.Equal(t, true, payload["autoRepay"], "payload should auto-repay when AutoRepay is true")
 }
 
 func TestCancelOrder(t *testing.T) {

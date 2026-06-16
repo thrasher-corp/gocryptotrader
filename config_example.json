@@ -2673,7 +2673,8 @@
     "urlEndpoints": {
      "RestFuturesURL": "https://api-futures.kucoin.com/api",
      "RestSpotURL": "https://api.kucoin.com/api",
-     "WebsocketSpotURL": "wss://ws-api.kucoin.com/endpoint"
+     "WebsocketFuturesURL": "wss://ws-api-futures.kucoin.com",
+     "WebsocketSpotURL": "wss://ws-api-spot.kucoin.com"
     }
    },
    "features": {

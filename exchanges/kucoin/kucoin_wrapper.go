@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -29,6 +30,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -158,9 +160,10 @@ func (e *Exchange) SetDefaults() {
 
 	e.API.Endpoints = e.NewEndpoints()
 	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:      kucoinAPIURL,
-		exchange.RestFutures:   kucoinFuturesAPIURL,
-		exchange.WebsocketSpot: kucoinWebsocketURL,
+		exchange.RestSpot:         kucoinAPIURL,
+		exchange.RestFutures:      kucoinFuturesAPIURL,
+		exchange.WebsocketSpot:    kucoinWebsocketSpotURL,
+		exchange.WebsocketFutures: kucoinWebsocketFuturesURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -203,21 +206,70 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	wsRunningEndpoint, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	wsSpotEndpoint, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+
+	var (
+		websocketSubscriptionsMu       sync.Mutex
+		websocketSpotSubscriptions     subscription.List
+		websocketFuturesSubscriptions  subscription.List
+		websocketSubscriptionConsumers int
+	)
+	generateWebsocketSubscriptions := func() (subscription.List, subscription.List, error) {
+		websocketSubscriptionsMu.Lock()
+		defer websocketSubscriptionsMu.Unlock()
+
+		if websocketSubscriptionConsumers == 0 {
+			subs, err := e.generateSubscriptions()
+			if err != nil {
+				return nil, nil, err
+			}
+			websocketSpotSubscriptions = spotWebsocketSubscriptions(subs)
+			websocketFuturesSubscriptions = futuresWebsocketSubscriptions(subs)
+			websocketSubscriptionConsumers = 2
+		}
+		websocketSubscriptionConsumers--
+		return websocketSpotSubscriptions, websocketFuturesSubscriptions, nil
+	}
+
+	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		ConnectionRateLimiter: kucoinWebsocketRateLimiter,
+		URL:                   wsSpotEndpoint,
+		Connector:             e.WsConnect,
+		GenerateSubscriptions: func() (subscription.List, error) {
+			spot, _, err := generateWebsocketSubscriptions()
+			return spot, err
+		},
+		Subscriber:    e.Subscribe,
+		Unsubscriber:  e.Unsubscribe,
+		Handler:       e.wsHandleData,
+		MessageFilter: wsSpotConnection,
+	}); err != nil {
+		return err
+	}
+
+	wsFuturesEndpoint, err := e.API.Endpoints.GetURL(exchange.WebsocketFutures)
 	if err != nil {
 		return err
 	}
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-		RateLimit:             request.NewRateLimitWithWeight(time.Second*10, 100, 1), // See: https://www.kucoin.com/docs-new/rate-limit#websocket-rate-limit
-		URL:                   wsRunningEndpoint,
+		ConnectionRateLimiter: kucoinWebsocketRateLimiter,
+		URL:                   wsFuturesEndpoint,
 		Connector:             e.WsConnect,
-		GenerateSubscriptions: e.generateSubscriptions,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
-		Handler:               e.wsHandleData,
-		MessageFilter:         wsConnection,
+		GenerateSubscriptions: func() (subscription.List, error) {
+			_, futuresSubs, err := generateWebsocketSubscriptions()
+			return futuresSubs, err
+		},
+		Subscriber:    e.Subscribe,
+		Unsubscriber:  e.Unsubscribe,
+		Handler:       e.wsHandleData,
+		MessageFilter: wsFuturesConnection,
 	})
 }
 
@@ -789,7 +841,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 				PostOnly:      s.TimeInForce.Is(order.PostOnly),
 				Hidden:        s.Hidden,
 				AutoBorrow:    s.AutoBorrow,
-				AutoRepay:     s.AutoBorrow,
+				AutoRepay:     s.AutoRepay,
 				Iceberg:       s.Iceberg,
 			})
 		if err != nil {

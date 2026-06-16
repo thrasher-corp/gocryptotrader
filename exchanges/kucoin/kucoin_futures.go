@@ -24,7 +24,6 @@ import (
 
 const (
 	kucoinFuturesAPIURL = "https://api-futures.kucoin.com/api"
-	kucoinWebsocketURL  = "wss://ws-api.kucoin.com/endpoint"
 
 	kucoinFuturesOrder     = "/v1/orders"
 	kucoinFuturesStopOrder = "/v1/stopOrders"
