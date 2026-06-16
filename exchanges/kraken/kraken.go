@@ -678,7 +678,7 @@ func (e *Exchange) AddOrder(ctx context.Context, symbol currency.Pair, side, ord
 	}
 
 	if args.CloseOrderType != "" {
-		params.Set("close[ordertype]", args.ExpireTm)
+		params.Set("close[ordertype]", args.CloseOrderType)
 	}
 
 	if args.ClosePrice != 0 {
@@ -695,6 +695,10 @@ func (e *Exchange) AddOrder(ctx context.Context, symbol currency.Pair, side, ord
 
 	if args.TimeInForce != "" {
 		params.Set("timeinforce", args.TimeInForce)
+	}
+
+	if args.UserRef != 0 {
+		params.Set("userref", strconv.FormatInt(int64(args.UserRef), 10))
 	}
 
 	var result AddOrderResponse
