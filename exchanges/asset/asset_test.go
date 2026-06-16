@@ -11,7 +11,7 @@ import (
 
 func TestString(t *testing.T) {
 	t.Parallel()
-	for a := Item(0); a <= All; a++ {
+	for a := range All + 1 {
 		if a == 0 {
 			assert.Empty(t, a.String(), "Empty.String should return empty")
 		} else {
