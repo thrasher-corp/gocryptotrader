@@ -219,7 +219,7 @@ func (e *Exchange) UpdateTradFiOrder(ctx context.Context, orderID int64, arg *Tr
 		return nil, order.ErrOrderIDNotSet
 	}
 	if arg.Price == "" {
-		return nil, fmt.Errorf("%w: tradfi order volume required", limits.ErrAmountBelowMin)
+		return nil, fmt.Errorf("%w: tradfi order volume required", limits.ErrPriceBelowMin)
 	}
 	var resp tradFiResponse[*TradFiUpdatedOrder]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPut, "tradfi/orders/"+strconv.FormatInt(orderID, 10), nil, arg, &resp)

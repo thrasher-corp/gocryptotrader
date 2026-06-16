@@ -91,6 +91,9 @@ var (
 	errInvalidTransferDirection             = errors.New("invalid transfer direction")
 	errDifferentAccount                     = errors.New("account type must be identical for all orders")
 	errNoValidParameterPassed               = errors.New("no valid parameter passed")
+	errPeriodTypeRequired                   = errors.New("period type required")
+	errPlanPeriodDayRequired                = errors.New("plan cycle day required")
+	errPlanPeriodHourRequired               = errors.New("plan period hour required")
 	errInvalidCountdown                     = errors.New("invalid countdown, Countdown time, in seconds At least 5 seconds, 0 means cancel the countdown")
 	errInvalidOrderStatus                   = errors.New("invalid order status")
 	errInvalidLoanID                        = errors.New("missing loan ID")
@@ -128,6 +131,7 @@ var (
 	errRecordIDRequired             = errors.New("record ID is required")
 	errPlanStatusRequired           = errors.New("plan status is required")
 	errHistoryTypeRequired          = errors.New("history type is required")
+	errProductIDRequired            = errors.New("product ID is missing")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
@@ -3659,7 +3663,7 @@ func (e *Exchange) GetStakingOrders(ctx context.Context, pid, orderType int64, c
 		params.Set("page", strconv.FormatInt(int64(page), 10))
 	}
 	var resp *StakingOrdersResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/staking/orders", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/staking/order_list", params, nil, &resp)
 }
 
 // GetStakingDividendRecords retrieves on-chain coin-earning dividend records.
@@ -3675,7 +3679,7 @@ func (e *Exchange) GetStakingDividendRecords(ctx context.Context, pid int64, ccy
 		params.Set("page", strconv.FormatInt(int64(page), 10))
 	}
 	var resp *StakingDividendRecordsResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/staking/dividend_list", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/staking/award_list", params, nil, &resp)
 }
 
 // GetStakingAssets retrieves on-chain coin-earning assets.
@@ -3824,17 +3828,35 @@ func (e *Exchange) GetDualCurrencyRecommendedProjects(ctx context.Context, mode,
 }
 
 // CreateAutoInvestPlan creates a new auto invest plan.
-func (e *Exchange) CreateAutoInvestPlan(ctx context.Context, arg *CreateAutoInvestPlanRequest) error {
+func (e *Exchange) CreateAutoInvestPlan(ctx context.Context, arg *CreateAutoInvestPlanRequest) (*AutoInvestPlanResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
-		return err
+		return nil, err
 	}
-	if arg.PlanMoney == "" {
-		return currency.ErrCurrencyCodeEmpty
+	if arg.PlanAmount <= 0 {
+		return nil, fmt.Errorf("%w plan amount is required", limits.ErrAmountBelowMin)
+	}
+	if arg.PlanPeriodType == "" {
+		return nil, errPeriodTypeRequired
+	}
+	if arg.PlanPeriodDay == 0 {
+		return nil, errPlanPeriodDayRequired
+	}
+	if arg.PlanPeriodHour != 0 {
+		return nil, errPlanPeriodHourRequired
 	}
 	if len(arg.Items) == 0 {
-		return errNoValidParameterPassed
+		return nil, errNoValidParameterPassed
 	}
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "earn/autoinvest/plans", nil, arg, nil)
+	for _, item := range arg.Items {
+		if item.Asset.IsEmpty() {
+			return nil, currency.ErrCurrencyCodeEmpty
+		}
+		if item.Ratio <= 0 {
+			return nil, fmt.Errorf("%w; proportion of this currency in the portfolio is required", order.ErrAmountMustBeSet)
+		}
+	}
+	var resp *AutoInvestPlanResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "earn/autoinvest/plans/create", nil, arg, nil)
 }
 
 // UpdateAutoInvestPlan updates an existing auto invest plan.
@@ -3891,6 +3913,14 @@ func (e *Exchange) GetAutoInvestMinimumAmount(ctx context.Context, arg *AutoInve
 	if len(arg.Items) == 0 {
 		return nil, errNoValidParameterPassed
 	}
+	for _, item := range arg.Items {
+		if item.Asset.IsEmpty() {
+			return nil, currency.ErrCurrencyCodeEmpty
+		}
+		if item.Ratio <= 0 {
+			return nil, fmt.Errorf("%w; proportion of this currency in the portfolio is required", order.ErrAmountMustBeSet)
+		}
+	}
 	var resp *AutoInvestMinAmountResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "earn/autoinvest/min_invest_amount", nil, arg, &resp)
 }
@@ -3903,7 +3933,7 @@ func (e *Exchange) GetAutoInvestPlanExecutionRecords(ctx context.Context, planID
 	params := url.Values{}
 	params.Set("plan_id", strconv.FormatInt(planID, 10))
 	if pageNum > 0 {
-		params.Set("page_num", strconv.FormatInt(pageNum, 10))
+		params.Set("page", strconv.FormatInt(pageNum, 10))
 	}
 	if pageSize > 0 {
 		params.Set("page_size", strconv.FormatInt(pageSize, 10))
@@ -3982,24 +4012,21 @@ func (e *Exchange) GetFixedTermProducts(ctx context.Context, assetName string, p
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("earn/fixed-term/product", params), &resp)
 }
 
-// GetFixedTermProductsByAsset retrieves fixed-term earn products for a single currency.
-// Sort by product term in ascending order.
+// GetFixedTermProductsByAsset retrieves fixed-term earn products for a single currency
 func (e *Exchange) GetFixedTermProductsByAsset(ctx context.Context, assetName string, productType int64) (*FixedTermProductsByAssetResponse, error) {
 	if assetName == "" {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	params := url.Values{}
-	params.Set("asset", assetName)
 	if productType > 0 {
 		params.Set("type", strconv.FormatInt(productType, 10))
 	}
 	var resp *FixedTermProductsByAssetResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("earn/fixed-term/product/asset/list", params), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("earn/fixed-term/product/"+assetName+"/list", params), &resp)
 }
 
 // GetFixedTermSubscriptionHistory retrieves fixed-term earn history records filtered by type.
 // historyType is required: 1 for subscription, 2 for redemption, 3 for interest, 4 for bonus reward.
-// page and limit are required.
 func (e *Exchange) GetFixedTermSubscriptionHistory(ctx context.Context, historyType, page, limit, productID, subBusiness int64, orderID, businessFilter string, assetCcy currency.Code, startAt, endAt time.Time) (*FixedTermHistoryResponse, error) {
 	if historyType <= 0 {
 		return nil, errHistoryTypeRequired
@@ -4036,7 +4063,7 @@ func (e *Exchange) GetFixedTermSubscriptionHistory(ctx context.Context, historyT
 		params.Set("business_filter", businessFilter)
 	}
 	var resp *FixedTermHistoryResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/fixed-term/earn/history", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/fixed-term/user/history", params, nil, &resp)
 }
 
 // GetFixedTermSubscriptionOrders retrieves fixed-term earn subscription orders.
@@ -4067,59 +4094,22 @@ func (e *Exchange) GetFixedTermSubscriptionOrders(ctx context.Context, productID
 		params.Set("business_filter", businessFilter)
 	}
 	var resp *FixedTermSubscriptionOrdersResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/fixed-term/earn/orders", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/fixed-term/user/lend", params, nil, &resp)
 }
 
-// GetStructuredProductList retrieves a structured Product List
-func (e *Exchange) GetStructuredProductList(ctx context.Context, productType, status string, page, limit int64) ([]*StructuredProductDetail, error) {
-	params := url.Values{}
-	if productType != "" {
-		params.Set("type", productType)
-	}
-	if status != "" {
-		params.Set("status", status)
-	}
-	if page > 0 {
-		params.Set("page", strconv.FormatInt(page, 10))
-	}
-	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	var resp []*StructuredProductDetail
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/structured/products", params, nil, &resp)
-}
-
-// GetStructuredProductOrderList retrieves structured product order list
-func (e *Exchange) GetStructuredProductOrderList(ctx context.Context, from, to time.Time, page, limit int64) ([]*StructuredProductOrderDetail, error) {
-	if !from.IsZero() && !to.IsZero() {
-		if err := common.StartEndTimeCheck(from, to); err != nil {
-			return nil, err
-		}
-	}
-	params := url.Values{}
-	if !from.IsZero() {
-		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
-	}
-	if !to.IsZero() {
-		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
-	}
-	if page > 0 {
-		params.Set("page", strconv.FormatInt(page, 10))
-	}
-	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	var resp []*StructuredProductOrderDetail
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/structured/orders", params, nil, &resp)
-}
-
-// PlaceStructuredProductOrder retrieves structured product orders
-func (e *Exchange) PlaceStructuredProductOrder(ctx context.Context, arg *StructuredOrder) (*StructuredOrder, error) {
+// SetFixedTermSubscriptionOrder to a fixed-term earn product by specifying the product ID and subscription amount.
+func (e *Exchange) SetFixedTermSubscriptionOrder(ctx context.Context, arg *FixedTermSubscriptionRequest) (*OrderIDResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
-	var resp *StructuredOrder
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "earn/structured/orders", nil, arg, &resp)
+	if arg.ProductID == 0 {
+		return nil, errProductIDRequired
+	}
+	if arg.Amount <= 0 {
+		return nil, limits.ErrAmountBelowMin
+	}
+	var resp *OrderIDResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/fixed-term/user/lend", nil, arg, &resp)
 }
 
 // ********************************* Trading Fee calculation ********************************

@@ -73,7 +73,7 @@ type TradFiCategoryList struct {
 
 // TradFiSymbol holds trading symbol information.
 type TradFiSymbol struct {
-	Symbol                   currency.Pair `json:"symbol"`
+	Symbol                   string        `json:"symbol"`
 	SymbolDesc               string        `json:"symbol_desc"`
 	CategoryID               int64         `json:"category_id"`
 	Status                   string        `json:"status"`     // Status: open=tradable, closed=non-tradable.
@@ -83,7 +83,7 @@ type TradFiSymbol struct {
 	OpenTime                 types.Time    `json:"open_time"`
 	NextOpenTime             types.Time    `json:"next_open_time"`
 	SettlementCurrency       currency.Code `json:"settlement_currency"`
-	SettlementCurrencySymbol currency.Pair `json:"settlement_currency_symbol"`
+	SettlementCurrencySymbol string        `json:"settlement_currency_symbol"`
 }
 
 // TradFiSymbolList wraps the symbol list data field.

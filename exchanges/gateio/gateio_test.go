@@ -70,7 +70,7 @@ func (e *Exchange) enablePairs() error {
 	if err != nil {
 		log.Fatal(err)
 	}
-	enabledAssetPair[asset.CoinMarginedFutures], err = e.FormatExchangeCurrency(dashDelimiterBTCUSDT, asset.CoinMarginedFutures)
+	enabledAssetPair[asset.CoinMarginedFutures], err = e.FormatExchangeCurrency(currency.NewPairWithDelimiter("BTC", "USD", "_"), asset.CoinMarginedFutures)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -2431,22 +2431,37 @@ func TestGetStakingAssets(t *testing.T) {
 
 func TestCreateAutoInvestPlan(t *testing.T) {
 	t.Parallel()
-	err := e.CreateAutoInvestPlan(t.Context(), nil)
+	_, err := e.CreateAutoInvestPlan(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "nil arg must return ErrNilPointer")
 
-	err = e.CreateAutoInvestPlan(t.Context(), &CreateAutoInvestPlanRequest{Amount: 10, PeriodType: "monthly", PeriodDay: 1, Items: []*CreateAutoInvestPlanItem{{Coin: currency.BTC, Ratio: 100}}})
-	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "empty plan_money must return ErrCurrencyCodeEmpty")
+	_, err = e.CreateAutoInvestPlan(t.Context(), &CreateAutoInvestPlanRequest{})
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "non-positive plan amount must return ErrAmountBelowMin")
 
-	err = e.CreateAutoInvestPlan(t.Context(), &CreateAutoInvestPlanRequest{PlanMoney: "USDT", Amount: 10, PeriodType: "monthly", PeriodDay: 1})
+	_, err = e.CreateAutoInvestPlan(t.Context(), &CreateAutoInvestPlanRequest{PlanAmount: 10})
+	require.ErrorIs(t, err, errPeriodTypeRequired, "empty plan period type must return errPeriodTypeRequired")
+
+	_, err = e.CreateAutoInvestPlan(t.Context(), &CreateAutoInvestPlanRequest{PlanAmount: 10, PlanPeriodType: "monthly"})
+	require.ErrorIs(t, err, errPlanPeriodDayRequired, "zero plan period day must return errPlanPeriodDayRequired")
+
+	_, err = e.CreateAutoInvestPlan(t.Context(), &CreateAutoInvestPlanRequest{PlanAmount: 10, PlanPeriodType: "monthly", PlanPeriodDay: 1, PlanPeriodHour: 1})
+	require.ErrorIs(t, err, errPlanPeriodHourRequired, "non-zero plan period hour must return errPlanPeriodHourRequired")
+
+	_, err = e.CreateAutoInvestPlan(t.Context(), &CreateAutoInvestPlanRequest{PlanAmount: 10, PlanPeriodType: "monthly", PlanPeriodDay: 1})
 	require.ErrorIs(t, err, errNoValidParameterPassed, "empty items must return errNoValidParameterPassed")
 
+	_, err = e.CreateAutoInvestPlan(t.Context(), &CreateAutoInvestPlanRequest{PlanAmount: 10, PlanPeriodType: "monthly", PlanPeriodDay: 1, Items: []*AutoInvestPlanItem{{Ratio: 100}}})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "empty item asset must return ErrCurrencyCodeEmpty")
+
+	_, err = e.CreateAutoInvestPlan(t.Context(), &CreateAutoInvestPlanRequest{PlanAmount: 10, PlanPeriodType: "monthly", PlanPeriodDay: 1, Items: []*AutoInvestPlanItem{{Asset: currency.BTC}}})
+	require.ErrorIs(t, err, order.ErrAmountMustBeSet, "non-positive item ratio must return ErrAmountMustBeSet")
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	err = e.CreateAutoInvestPlan(t.Context(), &CreateAutoInvestPlanRequest{
-		PlanMoney:  "USDT",
-		Amount:     10,
-		PeriodType: "monthly",
-		PeriodDay:  1,
-		Items:      []*CreateAutoInvestPlanItem{{Coin: currency.BTC, Ratio: 100}},
+	_, err = e.CreateAutoInvestPlan(t.Context(), &CreateAutoInvestPlanRequest{
+		PlanMoney:      "USDT",
+		PlanAmount:     10,
+		PlanPeriodType: "monthly",
+		PlanPeriodDay:  1,
+		Items:          []*AutoInvestPlanItem{{Asset: currency.BTC, Ratio: 100}},
 	})
 	require.NoError(t, err)
 }
@@ -2500,7 +2515,7 @@ func TestGetAutoInvestMinimumAmount(t *testing.T) {
 	_, err := e.GetAutoInvestMinimumAmount(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer, "nil arg must return ErrNilPointer")
 
-	_, err = e.GetAutoInvestMinimumAmount(t.Context(), &AutoInvestMinAmountRequest{Items: []*AutoInvestMinAmountRequestItem{{Asset: "BTC", Ratio: "33"}}})
+	_, err = e.GetAutoInvestMinimumAmount(t.Context(), &AutoInvestMinAmountRequest{Items: []*AutoInvestPlanItem{{Asset: currency.BTC, Ratio: 33}}})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "empty money must return ErrCurrencyCodeEmpty")
 
 	_, err = e.GetAutoInvestMinimumAmount(t.Context(), &AutoInvestMinAmountRequest{Money: "USDT"})
@@ -2509,10 +2524,10 @@ func TestGetAutoInvestMinimumAmount(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetAutoInvestMinimumAmount(t.Context(), &AutoInvestMinAmountRequest{
 		Money: "USDT",
-		Items: []*AutoInvestMinAmountRequestItem{
-			{Asset: "BTC", Ratio: "33"},
-			{Asset: "ETH", Ratio: "33"},
-			{Asset: "SOL", Ratio: "34"},
+		Items: []*AutoInvestPlanItem{
+			{Asset: currency.BTC, Ratio: 33},
+			{Asset: currency.ETH, Ratio: 33},
+			{Asset: currency.SOL, Ratio: 34},
 		},
 	})
 	require.NoError(t, err)
@@ -2597,10 +2612,35 @@ func TestGetFixedTermProductsByAsset(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestSetFixedTermSubscriptionOrder(t *testing.T) {
+	t.Parallel()
+	_, err := e.SetFixedTermSubscriptionOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "nil arg must return ErrNilPointer")
+
+	_, err = e.SetFixedTermSubscriptionOrder(t.Context(), &FixedTermSubscriptionRequest{Amount: 1})
+	require.ErrorIs(t, err, errProductIDRequired, "missing product ID must return errProductIDRequired")
+
+	_, err = e.SetFixedTermSubscriptionOrder(t.Context(), &FixedTermSubscriptionRequest{ProductID: 1})
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin, "non-positive amount must return ErrAmountBelowMin")
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.SetFixedTermSubscriptionOrder(t.Context(), &FixedTermSubscriptionRequest{ProductID: 1, Amount: 1})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetFixedTermSubscriptionOrders(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetFixedTermSubscriptionOrders(t.Context(), 11, "", currency.EMPTYCODE, 1, 10, time.Time{}, time.Time{}, "")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestGetFixedTermSubscriptionHistory(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFixedTermSubscriptionHistory(t.Context(), 0, 1, 10, 0, 0, "", "", currency.EMPTYCODE, time.Time{}, time.Time{})
-	require.ErrorIs(t, err, errHistoryTypeRequired, "zero type must return errHistoryTypeRequired")
+	require.ErrorIs(t, err, errHistoryTypeRequired, "zero history type must return errHistoryTypeRequired")
 
 	_, err = e.GetFixedTermSubscriptionHistory(t.Context(), 1, 0, 10, 0, 0, "", "", currency.EMPTYCODE, time.Time{}, time.Time{})
 	require.ErrorIs(t, err, errNoValidParameterPassed, "zero page must return errNoValidParameterPassed")
@@ -2610,34 +2650,6 @@ func TestGetFixedTermSubscriptionHistory(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetFixedTermSubscriptionHistory(t.Context(), 1, 1, 10, 0, 0, "", "", currency.EMPTYCODE, time.Time{}, time.Time{})
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetFixedTermSubscriptionOrders(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetFixedTermSubscriptionOrders(t.Context(), 0, "", currency.EMPTYCODE, 1, 10, time.Time{}, time.Time{}, "")
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetStructuredProductList(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetStructuredProductList(t.Context(), "", "in_process", 10, 100)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
-
-func TestGetStructuredProductOrderList(t *testing.T) {
-	t.Parallel()
-	startTime, endTime := getTime()
-	_, err := e.GetStructuredProductOrderList(t.Context(), endTime, startTime, 0, 100)
-	require.ErrorIs(t, err, common.ErrStartAfterEnd)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetStructuredProductOrderList(t.Context(), startTime, endTime, 0, 100)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -4113,16 +4125,19 @@ func TestGetSettlementCurrency(t *testing.T) {
 		{asset.USDTMarginedFutures, getPair(t, asset.DeliveryFutures), currency.EMPTYCODE, errInvalidSettlementQuote},
 
 		{asset.CoinMarginedFutures, currency.EMPTYPAIR, currency.BTC, nil},
-		{asset.CoinMarginedFutures, getPair(t, asset.CoinMarginedFutures), currency.BTC, nil},
+		{asset.CoinMarginedFutures, currency.Pair{Base: currency.BTC, Quote: currency.USD}, currency.BTC, nil},
 		{asset.CoinMarginedFutures, currency.Pair{Base: currency.ETH, Quote: currency.USD}, currency.EMPTYCODE, errInvalidSettlementBase},
 	} {
-		c, err := getSettlementCurrency(tt.p, tt.a)
-		if tt.err == nil {
-			require.NoErrorf(t, err, "getSettlementCurrency must not error for %s %s", tt.a, tt.p)
-		} else {
-			assert.ErrorIsf(t, err, tt.err, "getSettlementCurrency should return correct error for %s %s", tt.a, tt.p)
-		}
-		assert.Equalf(t, tt.exp, c, "getSettlementCurrency should return correct settlement currency for %s %s", tt.a, tt.p)
+		t.Run(tt.a.String()+"_"+tt.p.String()+"_"+tt.exp.String(), func(t *testing.T) {
+			t.Parallel()
+			c, err := getSettlementCurrency(tt.p, tt.a)
+			if tt.err == nil {
+				require.NoErrorf(t, err, "getSettlementCurrency must not error for %s %s", tt.a, tt.p)
+			} else {
+				assert.ErrorIsf(t, err, tt.err, "getSettlementCurrency should return correct error for %s %s", tt.a, tt.p)
+			}
+			assert.Equalf(t, tt.exp, c, "getSettlementCurrency should return correct settlement currency for %s %s", tt.a, tt.p)
+		})
 	}
 }
 

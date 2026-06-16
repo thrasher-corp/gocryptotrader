@@ -1946,16 +1946,10 @@ type AutoInvestCoinItem struct {
 	Sort         int64  `json:"sort"`
 }
 
-// AutoInvestMinAmountRequestItem holds a single asset allocation item for minimum invest amount query
-type AutoInvestMinAmountRequestItem struct {
-	Asset string `json:"asset"`
-	Ratio string `json:"ratio"`
-}
-
 // AutoInvestMinAmountRequest holds parameters for querying the minimum investment amount
 type AutoInvestMinAmountRequest struct {
-	Money string                            `json:"money"`
-	Items []*AutoInvestMinAmountRequestItem `json:"items"`
+	Money string                `json:"money"`
+	Items []*AutoInvestPlanItem `json:"items"`
 }
 
 // AutoInvestMinAmountResponse holds the minimum investment amount response
@@ -1965,10 +1959,21 @@ type AutoInvestMinAmountResponse struct {
 
 // AutoInvestPlanExecutionRecord holds a single plan execution record item
 type AutoInvestPlanExecutionRecord struct {
-	ID     int64  `json:"id"`
-	Type   string `json:"type"`
-	Money  string `json:"money"`
-	UserID int64  `json:"user_id"`
+	ID            int64         `json:"id"`
+	Type          string        `json:"type"`
+	Money         string        `json:"money"`
+	Asset         currency.Code `json:"asset"`
+	UserID        uint64        `json:"user_id"`
+	PlanID        uint64        `json:"plan_id"`
+	PlanVersion   uint64        `json:"plan_version"`
+	Amount        string        `json:"amount"`
+	CreateTime    types.Time    `json:"create_time"`
+	UpdateTime    types.Time    `json:"update_time"`
+	Status        string        `json:"status"`
+	StatusType    uint64        `json:"status_type"`
+	Side          uint64        `json:"side"`
+	StatusMessage string        `json:"status_message"`
+	Detail        string        `json:"detail"`
 }
 
 // AutoInvestPlanExecutionRecordsResponse holds the paginated response for plan execution records
@@ -2021,20 +2026,38 @@ type AutoInvestPlanListResponse struct {
 	List       []*AutoInvestPlanDetails `json:"list"`
 }
 
-// CreateAutoInvestPlanItem holds a single asset allocation item for plan creation
-type CreateAutoInvestPlanItem struct {
-	Coin  currency.Code `json:"coin"`
-	Ratio float64       `json:"ratio,string"`
+// AutoInvestPlanItem holds a single asset allocation item for plan creation
+type AutoInvestPlanItem struct {
+	Asset currency.Code `json:"asset"`
+	Ratio float64       `json:"ratio,omitempty,string"`
 }
 
 // CreateAutoInvestPlanRequest holds parameters for creating an auto invest plan
 type CreateAutoInvestPlanRequest struct {
-	PlanMoney  string                      `json:"plan_money"`
-	Name       string                      `json:"name,omitempty"`
-	Amount     float64                     `json:"amount,string"`
-	PeriodType string                      `json:"period_type"`
-	PeriodDay  int64                       `json:"period_day"`
-	Items      []*CreateAutoInvestPlanItem `json:"items"`
+	PlanName        string                `json:"plan_name"`
+	PlanDescription string                `json:"plan_des"`
+	PlanPeriodType  string                `json:"plan_period_type"`
+	PlanPeriodDay   int64                 `json:"plan_period_day"`
+	PlanPeriodHour  int64                 `json:"plan_period_hour"`
+	PlanMoney       string                `json:"plan_money"`
+	PlanAmount      float64               `json:"plan_amount,omitempty,string"`
+	Type            int64                 `json:"type"`
+	Items           []*AutoInvestPlanItem `json:"items"`
+	FundSource      string                `json:"fund_source"`
+	FundFlow        string                `json:"fund_flow"`
+}
+
+// AutoInvestPlanResponse represents an auto-invest plan response.
+type AutoInvestPlanResponse struct {
+	ID         int    `json:"id"`
+	Amount     string `json:"amount"`
+	Money      string `json:"money"`
+	NextTime   int    `json:"next_time"`
+	PeriodType string `json:"period_type"`
+	PeriodDay  int    `json:"period_day"`
+	PeriodHour int    `json:"period_hour"`
+	FundFlow   string `json:"fund_flow"`
+	FundSource string `json:"fund_source"`
 }
 
 // AutoInvestPlanUpdateRequest holds parameters for updating an auto invest plan
@@ -2164,6 +2187,17 @@ type FixedTermSubscriptionOrdersResponse struct {
 	Data      *FixedTermSubscriptionOrdersData `json:"data"`
 	Total     int64                            `json:"total"`
 	Timestamp int64                            `json:"timestamp"`
+}
+
+// FixedTermSubscriptionRequest represents a fixed term subscription order request.
+type FixedTermSubscriptionRequest struct {
+	ProductID         uint64  `json:"product_id"`
+	Amount            float64 `json:"amount,omitempty,string"`
+	YearRate          float64 `json:"year_rate,omitempty,string"`
+	ReinvestStatus    int64   `json:"reinvest_status"`
+	RedeemAccountType int64   `json:"redeem_account_type"`
+	FinancialRateID   int64   `json:"financial_rate_id"`
+	SubBusiness       int64   `json:"sub_business"`
 }
 
 // StructuredProductDetail holds structured product detail
