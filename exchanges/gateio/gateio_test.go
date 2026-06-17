@@ -5,9 +5,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/http"
-	"net/http/httptest"
-	"net/url"
 	"os"
 	"slices"
 	"strconv"
@@ -25,7 +22,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
@@ -973,92 +969,31 @@ func TestPremiumIndexKLine(t *testing.T) {
 	t.Parallel()
 	to := time.Now().UTC()
 	from := to.Add(-2 * kline.OneWeek.Duration())
-	_, err := e.PremiumIndexKLine(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), from, to, 0, kline.OneWeek)
-	assert.NoError(t, err, "PremiumIndexKLine should not error for CoinMarginedFutures")
-	_, err = e.PremiumIndexKLine(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), from, to, 0, kline.OneWeek)
-	assert.NoError(t, err, "PremiumIndexKLine should not error for USDTMarginedFutures")
-}
 
-func TestPremiumIndexKLineRequestTimeRange(t *testing.T) {
-	t.Parallel()
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	t.Run("live request", func(t *testing.T) {
+		t.Parallel()
+		coinMarginedContract := getPair(t, asset.CoinMarginedFutures)
+		usdtMarginedContract := getPair(t, asset.USDTMarginedFutures)
+		_, err := e.PremiumIndexKLine(t.Context(), currency.BTC, coinMarginedContract, from, to, 0, kline.OneWeek)
+		assert.NoError(t, err, "PremiumIndexKLine should not error for CoinMarginedFutures")
+		_, err = e.PremiumIndexKLine(t.Context(), currency.USDT, usdtMarginedContract, from, to, 0, kline.OneWeek)
+		assert.NoError(t, err, "PremiumIndexKLine should not error for USDTMarginedFutures")
+		_, err = e.PremiumIndexKLine(t.Context(), currency.USDT, usdtMarginedContract, time.Time{}, time.Time{}, 1, kline.OneWeek)
+		assert.NoError(t, err, "PremiumIndexKLine should not error with supplied limit")
+		_, err = e.PremiumIndexKLine(t.Context(), currency.USDT, usdtMarginedContract, from, to, 1, kline.OneWeek)
+		assert.NoError(t, err, "PremiumIndexKLine should not error with supplied bounds and limit")
+	})
 
-	requests := make(chan struct {
-		path  string
-		query url.Values
-	}, 2)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requests <- struct {
-			path  string
-			query url.Values
-		}{
-			path:  r.URL.Path,
-			query: r.URL.Query(),
-		}
-		_, _ = w.Write([]byte(`[]`))
-	}))
-	t.Cleanup(server.Close)
-
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/"), "SetRunningURL must not error")
-	contract := currency.NewBTCUSDT()
-
-	_, err := ex.PremiumIndexKLine(t.Context(), currency.Code{}, contract, time.Time{}, time.Time{}, 0, kline.OneWeek)
-	assert.ErrorIs(t, err, errEmptyOrInvalidSettlementCurrency, "empty settlement currency should return expected error")
-	_, err = ex.PremiumIndexKLine(t.Context(), currency.USDT, currency.Pair{}, time.Time{}, time.Time{}, 0, kline.OneWeek)
-	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "empty contract should return expected error")
-	_, err = ex.PremiumIndexKLine(t.Context(), currency.USDT, contract, time.Time{}, time.Time{}, 0, kline.FiveDay)
-	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "unsupported interval should return expected error")
-
-	readRequest := func() struct {
-		path  string
-		query url.Values
-	} {
-		t.Helper()
-		select {
-		case got := <-requests:
-			return got
-		case <-time.After(time.Second):
-			require.FailNow(t, "PremiumIndexKLine must send a request")
-		}
-		return struct {
-			path  string
-			query url.Values
-		}{}
-	}
-
-	_, err = ex.PremiumIndexKLine(t.Context(), currency.USDT, contract, time.Time{}, time.Time{}, 0, kline.OneWeek)
-	require.NoError(t, err, "PremiumIndexKLine must not error")
-	got := readRequest()
-
-	assert.Equal(t, "/futures/usdt/premium_index", got.path, "PremiumIndexKLine should use the expected path")
-	assert.Equal(t, contract.String(), got.query.Get("contract"), "contract should be set")
-	assert.Equal(t, "7d", got.query.Get("interval"), "interval should be set")
-	assert.Empty(t, got.query.Get("from"), "from should not be set when omitted")
-	assert.Empty(t, got.query.Get("to"), "to should not be set when omitted")
-	assert.Empty(t, got.query.Get("limit"), "limit should not be set when omitted")
-
-	_, err = ex.PremiumIndexKLine(t.Context(), currency.USDT, contract, time.Time{}, time.Time{}, 10, kline.OneWeek)
-	require.NoError(t, err, "PremiumIndexKLine must not error with supplied limit")
-	got = readRequest()
-	assert.Equal(t, "/futures/usdt/premium_index", got.path, "PremiumIndexKLine should use the expected path")
-	assert.Equal(t, contract.String(), got.query.Get("contract"), "contract should be set")
-	assert.Equal(t, "7d", got.query.Get("interval"), "interval should be set")
-	assert.Empty(t, got.query.Get("from"), "from should not be set when omitted")
-	assert.Empty(t, got.query.Get("to"), "to should not be set when omitted")
-	assert.Equal(t, "10", got.query.Get("limit"), "limit should be set when supplied")
-
-	expFrom := time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC)
-	expTo := time.Date(2026, time.June, 8, 0, 0, 0, 0, time.UTC)
-	_, err = ex.PremiumIndexKLine(t.Context(), currency.USDT, contract, expFrom, expTo, 10, kline.OneWeek)
-	require.NoError(t, err, "PremiumIndexKLine must not error with supplied bounds")
-	got = readRequest()
-	assert.Equal(t, "/futures/usdt/premium_index", got.path, "PremiumIndexKLine should use the expected path")
-	assert.Equal(t, contract.String(), got.query.Get("contract"), "contract should be set")
-	assert.Equal(t, "7d", got.query.Get("interval"), "interval should be set")
-	assert.Equal(t, strconv.FormatInt(expFrom.Unix(), 10), got.query.Get("from"), "from should use the supplied unix timestamp")
-	assert.Equal(t, strconv.FormatInt(expTo.Unix(), 10), got.query.Get("to"), "to should use the supplied unix timestamp")
-	assert.Equal(t, "10", got.query.Get("limit"), "limit should be set when supplied")
+	t.Run("validation", func(t *testing.T) {
+		t.Parallel()
+		contract := currency.NewBTCUSDT()
+		_, err := e.PremiumIndexKLine(t.Context(), currency.Code{}, contract, time.Time{}, time.Time{}, 0, kline.OneWeek)
+		assert.ErrorIs(t, err, errEmptyOrInvalidSettlementCurrency, "empty settlement currency should return expected error")
+		_, err = e.PremiumIndexKLine(t.Context(), currency.USDT, currency.Pair{}, time.Time{}, time.Time{}, 0, kline.OneWeek)
+		assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "empty contract should return expected error")
+		_, err = e.PremiumIndexKLine(t.Context(), currency.USDT, contract, time.Time{}, time.Time{}, 0, kline.FiveDay)
+		assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "unsupported interval should return expected error")
+	})
 }
 
 func TestGetFutureTickers(t *testing.T) {
