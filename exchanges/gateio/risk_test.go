@@ -33,6 +33,7 @@ func TestGetFuturesRiskTable(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e))
 	require.NoError(t, testexch.MockHTTPInstance(e, "/"))
+	require.NoError(t, storeTestPairs(e), "storeTestPairs must not error")
 
 	got, err := e.GetFuturesRiskTable(t.Context(), currency.USDT, getPair(t, asset.DeliveryFutures).String())
 	require.NoError(t, err)

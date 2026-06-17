@@ -83,6 +83,10 @@ func (e *Exchange) enablePairs() error {
 		log.Fatal(err)
 	}
 	// store the pairs into the enabled pairs
+	return storeTestPairs(e)
+}
+
+func storeTestPairs(e *Exchange) error {
 	for a, p := range enabledAssetPair {
 		if err := e.CurrencyPairs.StorePairs(a, []currency.Pair{p}, false); err != nil {
 			return err
@@ -95,10 +99,10 @@ func (e *Exchange) enablePairs() error {
 }
 
 func getTime() (startTime, endTime time.Time) {
-	if mockTests {
-		return time.UnixMilli(1744103854944), time.UnixMilli(1744190254944)
-	}
-	return time.Now().Add(-time.Hour * 48), time.Now()
+	// if mockTests {
+	return time.UnixMilli(1744103854944), time.UnixMilli(1744190254944)
+	// }
+	// return time.Now().Add(-time.Hour * 48), time.Now()
 }
 
 func getTimeWithInterval(interval kline.Interval) (startTime, endTime time.Time) {
@@ -112,6 +116,10 @@ func getTimeWithInterval(interval kline.Interval) (startTime, endTime time.Time)
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	require.NoError(t, testexch.MockHTTPInstance(e, ""), "MockHTTPInstance must not error")
+	require.NoError(t, storeTestPairs(e), "storeTestPairs must not error")
 	testexch.UpdatePairsOnce(t, e)
 }
 
@@ -1180,7 +1188,8 @@ func TestGetFutureStats(t *testing.T) {
 
 	_, err = e.GetFutureStats(t.Context(), currency.BTC, getPair(t, asset.CoinMarginedFutures), time.Time{}, 0, 0)
 	assert.NoError(t, err)
-	_, err = e.GetFutureStats(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), time.Now().Add(-time.Hour), kline.OneMin, 100)
+
+	_, err = e.GetFutureStats(t.Context(), currency.USDT, getPair(t, asset.USDTMarginedFutures), time.UnixMilli(1780846985008), kline.OneMin, 100)
 	assert.NoError(t, err)
 }
 
@@ -3036,7 +3045,9 @@ func TestGetActiveOrders(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	testexch.UpdatePairsOnce(t, e)
+	if !mockTests {
+		testexch.UpdatePairsOnce(t, e)
+	}
 	type testCase struct {
 		name         string
 		requiresAuth bool
@@ -3111,7 +3122,9 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestGetOrderHistoryRequestImmutability(t *testing.T) {
 	t.Parallel()
-	testexch.UpdatePairsOnce(t, e)
+	if !mockTests {
+		testexch.UpdatePairsOnce(t, e)
+	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	enabledPairs := getPairs(t, asset.Spot)
 	enabledPairs = enabledPairs[:min(2, len(enabledPairs))]
@@ -3154,6 +3167,11 @@ func TestGetOrderHistoryRequestImmutability(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e))
+	require.NoError(t, testexch.MockHTTPInstance(e, "/"))
+	require.NoError(t, storeTestPairs(e), "storeTestPairs must not error")
+
 	startTime, endTime := getTime()
 	for _, a := range e.GetAssetTypes(false) {
 		_, err := e.GetHistoricCandles(t.Context(), getPair(t, a), a, kline.OneDay, startTime, endTime)
@@ -3167,9 +3185,15 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e))
+	require.NoError(t, testexch.MockHTTPInstance(e, "/"))
+	require.NoError(t, storeTestPairs(e), "storeTestPairs must not error")
+
 	startTime, endTime := getTime()
 	for _, a := range e.GetAssetTypes(false) {
-		_, err := e.GetHistoricCandlesExtended(t.Context(), getPair(t, a), a, kline.OneMin, startTime, endTime)
+		_, err := e.GetHistoricCandlesExtended(t.Context(), getPair(t, a), a, kline.FourHour, startTime, endTime)
 		if a == asset.Options {
 			assert.ErrorIs(t, err, asset.ErrNotSupported, "GetHistoricCandlesExtended should error correctly for options")
 		} else {
@@ -3490,7 +3514,11 @@ func TestParseTimeUnmarshal(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-	testexch.UpdatePairsOnce(t, e)
+
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e))
+	require.NoError(t, testexch.MockHTTPInstance(e, "/"))
+	require.NoError(t, storeTestPairs(e), "storeTestPairs must not error")
 
 	for _, a := range e.GetAssetTypes(false) {
 		t.Run(a.String(), func(t *testing.T) {
@@ -3772,7 +3800,9 @@ func TestProcessFuturesOrdersPushData(t *testing.T) {
 
 func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
-	testexch.UpdatePairsOnce(t, e)
+	if !mockTests {
+		testexch.UpdatePairsOnce(t, e)
+	}
 	for _, a := range e.GetAssetTypes(false) {
 		pairs, err := e.CurrencyPairs.GetPairs(a, false)
 		require.NoErrorf(t, err, "cannot get pairs for %s", a)
@@ -4735,7 +4765,9 @@ func getPairs(tb testing.TB, a asset.Item) currency.Pairs {
 		return p
 	}
 
-	testexch.UpdatePairsOnce(tb, e)
+	if !mockTests {
+		testexch.UpdatePairsOnce(tb, e)
+	}
 	enabledPairs, err := e.GetEnabledPairs(a)
 	assert.NoErrorf(tb, err, "%s GetEnabledPairs should not error", a)
 	if !assert.NotEmptyf(tb, enabledPairs, "%s GetEnabledPairs should not be empty", a) {

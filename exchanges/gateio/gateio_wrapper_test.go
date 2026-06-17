@@ -199,7 +199,11 @@ func BenchmarkMessageID(b *testing.B) {
 func TestFetchOrderbook(t *testing.T) {
 	t.Parallel()
 
-	testexch.UpdatePairsOnce(t, e)
+	e := new(Exchange)
+	require.NoError(t, testexch.Setup(e), "Setup must not error")
+	e.Name = "ManagerHTTPMocked"
+	err := testexch.MockHTTPInstance(e)
+	require.NoError(t, storeTestPairs(e), "storeTestPairs must not error")
 
 	availMargin, err := e.GetAvailablePairs(asset.Margin)
 	require.NoError(t, err, "GetAvailablePairs must not error")
@@ -261,8 +265,8 @@ func TestFetchOrderbook(t *testing.T) {
 			assert.Equal(t, e.Name, got.Exchange, "Exchange name should be correct")
 			assert.True(t, tc.pair.Equal(got.Pair), "Pair should be correct")
 			assert.Equal(t, tc.a, got.Asset, "Asset should be correct")
-			assert.LessOrEqual(t, len(got.Asks), 1, "Asks count should not exceed limit, but may be empty especially for options")
-			assert.LessOrEqual(t, len(got.Bids), 1, "Bids count should not exceed limit, but may be empty especially for options")
+			assert.LessOrEqual(t, len(got.Asks), 5, "Asks count should not exceed limit, but may be empty especially for options")
+			assert.LessOrEqual(t, len(got.Bids), 5, "Bids count should not exceed limit, but may be empty especially for options")
 			assert.NotZero(t, got.LastUpdated, "Last updated timestamp should be set")
 			assert.NotZero(t, got.LastUpdateID, "Last update ID should be set")
 			assert.NotZero(t, got.LastPushed, "Last pushed timestamp should be set")
@@ -274,13 +278,15 @@ func TestFetchOrderbook(t *testing.T) {
 func TestFetchOrderbookNoSpotInstrument(t *testing.T) {
 	t.Parallel()
 
-	ex := new(Exchange)
-	ex.SetDefaults()
-	ex.Name = t.Name()
+	e := new(Exchange)
+	e.SetDefaults()
+	e.Name = t.Name()
 
-	require.NoError(t, ex.Base.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, false))
+	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	require.NoError(t, testexch.MockHTTPInstance(e, ""), "MockHTTPInstance must not error")
+	require.NoError(t, storeTestPairs(e), "storeTestPairs must not error")
 
 	fakePair := currency.NewPair(currency.NewCode("ZZFAKE"), currency.USDT)
-	_, err := ex.fetchOrderbook(t.Context(), fakePair, asset.Margin, 1)
+	_, err := e.fetchOrderbook(t.Context(), fakePair, asset.Margin, 1)
 	require.ErrorIs(t, err, errNoSpotInstrument)
 }

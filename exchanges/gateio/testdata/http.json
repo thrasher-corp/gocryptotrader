@@ -1067,7 +1067,6 @@
   },
   "/api/v4/delivery/usdt/candlesticks": {
    "GET": [
-
     {
      "data": [
       {
@@ -1554,6 +1553,123 @@
      "queryString": "contract=BTC_USDT_20260626\u0026from=1775251164\u0026interval=1d\u0026to=1775423964",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": [
+      {
+       "c": "80824.4",
+       "h": "80872.8",
+       "l": "79664.1",
+       "o": "80323.9",
+       "t": 1744099200,
+       "v": 10500
+      },
+      {
+       "c": "79406.8",
+       "h": "81285.1",
+       "l": "79096.2",
+       "o": "80870.9",
+       "t": 1744113600,
+       "v": 11067
+      },
+      {
+       "c": "77798.5",
+       "h": "79415.8",
+       "l": "77285",
+       "o": "79365.6",
+       "t": 1744128000,
+       "v": 11525
+      },
+      {
+       "c": "77242",
+       "h": "78235.5",
+       "l": "77203.3",
+       "o": "77795.1",
+       "t": 1744142400,
+       "v": 10375
+      },
+      {
+       "c": "75987.8",
+       "h": "77798.8",
+       "l": "75565.3",
+       "o": "77266.7",
+       "t": 1744156800,
+       "v": 11106
+      }
+     ],
+     "queryString": "contract=BTC_USDT_20260626\u0026from=1744099200\u0026interval=4h\u0026to=1744200000",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "c": "77242",
+       "h": "81726.2",
+       "l": "77203.3",
+       "o": "80020.4",
+       "t": 1744070400,
+       "v": 66260
+      },
+      {
+       "c": "83650.2",
+       "h": "84575.4",
+       "l": "75565.3",
+       "o": "77266.7",
+       "t": 1744156800,
+       "v": 65609
+      }
+     ],
+     "queryString": "contract=BTC_USDT_20260626\u0026from=1744103854\u0026interval=1d\u0026to=1744190254",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "c": "79897.8",
+       "h": "79915.1",
+       "l": "79897.5",
+       "o": "79915.1",
+       "t": 1744103820,
+       "v": 42
+      },
+      {
+       "c": "79897",
+       "h": "79897",
+       "l": "79873",
+       "o": "79877",
+       "t": 1744103880,
+       "v": 44
+      },
+      {
+       "c": "79847",
+       "h": "79897",
+       "l": "79846.7",
+       "o": "79897",
+       "t": 1744103940,
+       "v": 41
+      },
+      {
+       "c": "79842.9",
+       "h": "79892",
+       "l": "79842.9",
+       "o": "79858.9",
+       "t": 1744104000,
+       "v": 46
+      },
+      {
+       "c": "79885",
+       "h": "79902.5",
+       "l": "79856.3",
+       "o": "79856.4",
+       "t": 1744104060,
+       "v": 55
+      }
+     ],
+     "queryString": "contract=BTC_USDT_20260626\u0026from=1744103854\u0026interval=1m\u0026to=1744190254",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -1561,6 +1677,47 @@
    "GET": [
     {
      "data": [
+        {
+       "basis_impact_value": "1000",
+       "basis_rate": "0.005653",
+       "basis_value": "0.00001",
+       "config_change_time": 1774597501,
+       "cycle": "BI-WEEKLY",
+       "expire_time": 1775808000,
+       "in_delisting": false,
+       "index_price": "0.090395",
+       "last_price": "0.09043",
+       "leverage_max": "50",
+       "leverage_min": "1",
+       "maintenance_rate": "0.01",
+       "maker_fee_rate": "-0.00015",
+       "mark_price": "0.0904",
+       "mark_price_round": "0.00001",
+       "mark_type": "index",
+       "name": "BTC_USDT_20260626",
+       "order_price_deviate": "0.5",
+       "order_price_round": "0.00001",
+       "order_size_max": 1000000,
+       "order_size_min": 1,
+       "orderbook_id": 2981897,
+       "orders_limit": 50,
+       "position_size": 106,
+       "quanto_multiplier": "10",
+       "ref_discount_rate": "0",
+       "ref_rebate_rate": "0.2",
+       "risk_limit_base": "500000",
+       "risk_limit_max": "5000000",
+       "risk_limit_step": "500000",
+       "settle_fee_rate": "0.00015",
+       "settle_price": "0",
+       "settle_price_duration": 1800,
+       "settle_price_interval": 60,
+       "taker_fee_rate": "0.00025",
+       "trade_id": 74916,
+       "trade_size": 530433,
+       "type": "direct",
+       "underlying": "BTC_USDT"
+      },
       {
        "basis_impact_value": "1000",
        "basis_rate": "0.005653",
@@ -1872,6 +2029,60 @@
        }
       ],
       "current": 1775423963.401,
+      "id": 175093772,
+      "update": 1775423963.338
+     },
+     "queryString": "contract=BTC_USDT_20260626\u0026limit=1\u0026with_id=true",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "asks": [
+       {
+        "p": "67859.1",
+        "s": 3
+       },
+       {
+        "p": "67868.6",
+        "s": 915
+       },
+       {
+        "p": "67876.1",
+        "s": 3
+       },
+       {
+        "p": "67878.8",
+        "s": 2714
+       },
+       {
+        "p": "67890",
+        "s": 3
+       }
+      ],
+      "bids": [
+       {
+        "p": "67853.9",
+        "s": 1
+       },
+       {
+        "p": "67848.6",
+        "s": 3
+       },
+       {
+        "p": "67848.1",
+        "s": 1007
+       },
+       {
+        "p": "67837.9",
+        "s": 2706
+       },
+       {
+        "p": "67828.2",
+        "s": 3
+       }
+      ],
+      "current": 1775423963.401,
       "update": 1775423963.338
      },
      "queryString": "contract=BTC_USDT_20260626\u0026interval=0",
@@ -1936,6 +2147,22 @@
   },
   "/api/v4/delivery/usdt/risk_limit_tiers": {
    "GET": [
+    {
+     "data": [
+      {
+       "maintenance_rate": "0.01",
+       "tier": 1,
+       "initial_rate": "0.02",
+       "leverage_max": "50",
+       "risk_limit": "20000",
+       "contract": "ZTX_USDT",
+       "deduction": "0"
+      }
+     ],
+     "queryString": "contract=BTC_USDT_20260626",
+     "bodyParams": "",
+     "headers": {}
+    },
     {
      "data": [
       {
@@ -2045,9 +2272,30 @@
   "/api/v4/delivery/usdt/tickers": {
    "GET": [
     {
-     "data": {
-      "label": "CONTRACT_NOT_FOUND"
-     },
+     "data": [
+      {
+       "contract": "BTC_USDT",
+       "last": "6432",
+       "low_24h": "6278",
+       "high_24h": "6790",
+       "change_percentage": "4.43",
+       "total_size": "32323904",
+       "volume_24h": "184040233284",
+       "volume_24h_btc": "28613220",
+       "volume_24h_usd": "184040233284",
+       "volume_24h_base": "28613220",
+       "volume_24h_quote": "184040233284",
+       "volume_24h_settle": "28613220",
+       "mark_price": "6534",
+       "funding_rate": "0.0001",
+       "funding_rate_indicative": "0.0001",
+       "index_price": "6531",
+       "highest_bid": "34089.7",
+       "highest_size": "100",
+       "lowest_ask": "34217.9",
+       "lowest_size": "1000"
+      }
+     ],
      "queryString": "contract=BTC_USDT_20260213",
      "bodyParams": "",
      "headers": {}
@@ -2362,6 +2610,51 @@
      "data": null,
      "queryString": "",
      "bodyParams": "plan_id=142582",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/earn/fixed-term/product": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "message": "",
+      "data": {
+       "list": [
+        {
+         "id": 11,
+         "name": "USDT-TEST",
+         "asset": "USDT",
+         "lock_up_period": 16,
+         "min_lend_amount": "1",
+         "user_max_lend_amount": "100000",
+         "total_lend_amount": "100000000",
+         "year_rate": "0.03",
+         "status": 2,
+         "create_time": "2024-12-13T03:29:41.103Z",
+         "user_total_amount": "0"
+        },
+        {
+         "id": 10,
+         "name": "示例",
+         "asset": "USDT",
+         "lock_up_period": 15,
+         "min_lend_amount": "1",
+         "user_max_lend_amount": "100000",
+         "total_lend_amount": "100000000",
+         "year_rate": "0.03",
+         "status": 2,
+         "create_time": "2024-12-13T03:29:41.103Z",
+         "user_total_amount": "0"
+        }
+       ],
+       "total": 12
+      },
+      "timestamp": 1737644889
+     },
+     "queryString": "limit=10\u0026page=1",
+     "bodyParams": "",
      "headers": {}
     }
    ]
@@ -2803,6 +3096,83 @@
      "queryString": "contract=BTC_USD\u0026interval=7d",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": [
+      {
+       "c": "79861.2",
+       "h": "79927.5",
+       "l": "78780",
+       "o": "79262.8",
+       "sum": "759064",
+       "t": 1744099200,
+       "v": 759064
+      },
+      {
+       "c": "78460.7",
+       "h": "80249.7",
+       "l": "78126.4",
+       "o": "79927.5",
+       "sum": "1733264",
+       "t": 1744113600,
+       "v": 1733264
+      },
+      {
+       "c": "76646.4",
+       "h": "78450",
+       "l": "76247",
+       "o": "78450",
+       "sum": "3369527",
+       "t": 1744128000,
+       "v": 3369527
+      },
+      {
+       "c": "76095.5",
+       "h": "77088.2",
+       "l": "76088",
+       "o": "76742.5",
+       "sum": "1173958",
+       "t": 1744142400,
+       "v": 1173958
+      },
+      {
+       "c": "74976.3",
+       "h": "76867.5",
+       "l": "74531",
+       "o": "76183.3",
+       "sum": "2822737",
+       "t": 1744156800,
+       "v": 2822737
+      }
+     ],
+     "queryString": "contract=BTC_USD\u0026from=1744099200\u0026interval=4h\u0026to=1744200000",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "c": "76095.5",
+       "h": "80689.2",
+       "l": "76088",
+       "o": "79173.1",
+       "sum": "8333969",
+       "t": 1744070400,
+       "v": 8333969
+      },
+      {
+       "c": "82394.2",
+       "h": "83450",
+       "l": "74531",
+       "o": "76183.3",
+       "sum": "12502932",
+       "t": 1744156800,
+       "v": 12502932
+      }
+     ],
+     "queryString": "contract=BTC_USD\u0026from=1744103854\u0026interval=1d\u0026to=1744190254",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -2831,17 +3201,108 @@
     {
      "data": [
       {
-       "time": 1774966920,
-       "lsr_taker": 0.7998239573691359,
-       "lsr_account": 1.584655572755418,
+       "long_liq_amount": 0,
        "long_liq_size": 0,
+       "long_liq_usd": 0,
+       "long_liq_usd_new": 0,
+       "long_taker_size": 2,
+       "long_users": 330,
+       "lsr_account": 1.3807531380753137,
+       "lsr_taker": 0.025,
+       "mark_price": 64985.27,
+       "open_interest": 16815732,
+       "open_interest_usd": 16815732,
+       "short_liq_amount": 0,
        "short_liq_size": 0,
-       "open_interest": 8701256,
        "short_liq_usd": 0,
-       "mark_price": 67501.33,
-       "top_lsr_size": 1.0448598856547422,
-       "open_interest_usd": 587456789.12,
-       "top_lsr_account": 0.5405405405405405
+       "short_liq_usd_new": 0,
+       "short_taker_size": 80,
+       "short_users": 239,
+       "time": 1781702100,
+       "top_long_account": 52,
+       "top_long_size": 8517325,
+       "top_lsr_account": 0.6842105263157895,
+       "top_lsr_size": 1.011133320029351,
+       "top_short_account": 76,
+       "top_short_size": 8423543
+      },
+      {
+       "long_liq_amount": 0,
+       "long_liq_size": 0,
+       "long_liq_usd": 0,
+       "long_liq_usd_new": 0,
+       "long_taker_size": 1720,
+       "long_users": 329,
+       "lsr_account": 1.3708333333333333,
+       "lsr_taker": 3.3398058252427183,
+       "mark_price": 64879.34,
+       "open_interest": 16818218,
+       "open_interest_usd": 16818218,
+       "short_liq_amount": 0,
+       "short_liq_size": 0,
+       "short_liq_usd": 0,
+       "short_liq_usd_new": 0,
+       "short_taker_size": 515,
+       "short_users": 240,
+       "time": 1781702400,
+       "top_long_account": 52,
+       "top_long_size": 8518530,
+       "top_lsr_account": 0.6842105263157895,
+       "top_lsr_size": 1.0112878967482077,
+       "top_short_account": 76,
+       "top_short_size": 8423447
+      },
+      {
+       "long_liq_amount": 0,
+       "long_liq_size": 0,
+       "long_liq_usd": 0,
+       "long_liq_usd_new": 0,
+       "long_taker_size": 4677,
+       "long_users": 329,
+       "lsr_account": 1.3708333333333333,
+       "lsr_taker": 0.3390604610700304,
+       "mark_price": 64863.38,
+       "open_interest": 16817304,
+       "open_interest_usd": 16817304,
+       "short_liq_amount": 0,
+       "short_liq_size": 0,
+       "short_liq_usd": 0,
+       "short_liq_usd_new": 0,
+       "short_taker_size": 13794,
+       "short_users": 240,
+       "time": 1781702700,
+       "top_long_account": 51,
+       "top_long_size": 8492768,
+       "top_lsr_account": 0.6623376623376623,
+       "top_lsr_size": 1.0011305905794492,
+       "top_short_account": 77,
+       "top_short_size": 8483177
+      },
+      {
+       "long_liq_amount": 0,
+       "long_liq_size": 0,
+       "long_liq_usd": 0,
+       "long_liq_usd_new": 0,
+       "long_taker_size": 3153,
+       "long_users": 330,
+       "lsr_account": 1.375,
+       "lsr_taker": 5.838888888888889,
+       "mark_price": 65015.24,
+       "open_interest": 16822450,
+       "open_interest_usd": 16822450,
+       "short_liq_amount": 0,
+       "short_liq_size": 0,
+       "short_liq_usd": 0,
+       "short_liq_usd_new": 0,
+       "short_taker_size": 540,
+       "short_users": 240,
+       "time": 1781703000,
+       "top_long_account": 51,
+       "top_long_size": 8492308,
+       "top_lsr_account": 0.6623376623376623,
+       "top_lsr_size": 1.0007557246466048,
+       "top_short_account": 77,
+       "top_short_size": 8485895
       }
      ],
      "queryString": "contract=BTC_USD",
@@ -2942,7 +3403,59 @@
    "GET": [
     {
      "data": {
-      "label": "CONTRACT_NOT_FOUND"
+      "id": 123456,
+      "current": 1623898993.123,
+      "update": 1623898993.121,
+      "asks": [
+       {
+        "p": "1.52",
+        "s": "100"
+       },
+       {
+        "p": "1.53",
+        "s": "40"
+       }
+      ],
+      "bids": [
+       {
+        "p": "1.17",
+        "s": "150"
+       },
+       {
+        "p": "1.16",
+        "s": "203"
+       }
+      ]
+     },
+     "queryString": "contract=BTC_USD\u0026with_id=true",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "id": 123456,
+      "current": 1623898993.123,
+      "update": 1623898993.121,
+      "asks": [
+       {
+        "p": "1.52",
+        "s": "100"
+       },
+       {
+        "p": "1.53",
+        "s": "40"
+       }
+      ],
+      "bids": [
+       {
+        "p": "1.17",
+        "s": "150"
+       },
+       {
+        "p": "1.16",
+        "s": "203"
+       }
+      ]
      },
      "queryString": "contract=BTC_USD\u0026limit=10",
      "bodyParams": "",
@@ -3004,9 +3517,32 @@
      "headers": {}
     },
     {
-     "data": {
-      "label": "CONTRACT_NOT_FOUND"
-     },
+     "data": [
+      {
+       "change_percentage": "0.18",
+       "change_price": "121.6",
+       "contract": "BTC_USD",
+       "funding_rate": "0.0001",
+       "funding_rate_indicative": "0.0001",
+       "high_24h": "67691.7",
+       "highest_bid": "67296.7",
+       "highest_size": "810",
+       "index_price": "67499.05",
+       "last": "67295.7",
+       "low_24h": "66490.4",
+       "lowest_ask": "67438",
+       "lowest_size": "5247",
+       "mark_price": "67501.33",
+       "quanto_multiplier": "0",
+       "total_size": "17402512",
+       "volume_24h": "964612",
+       "volume_24h_base": "14",
+       "volume_24h_btc": "14",
+       "volume_24h_quote": "964612",
+       "volume_24h_settle": "14",
+       "volume_24h_usd": "964612"
+      }
+     ],
      "queryString": "contract=BTC_USD",
      "bodyParams": "",
      "headers": {}
@@ -4042,6 +4578,83 @@
      "queryString": "contract=BTC_USDT\u0026interval=7d",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": [
+      {
+       "c": "79948.1",
+       "h": "80032.3",
+       "l": "78800",
+       "o": "79456.8",
+       "sum": "317273889.18726",
+       "t": 1744099200,
+       "v": 40040576
+      },
+      {
+       "c": "78463.6",
+       "h": "80342",
+       "l": "78126",
+       "o": "79943.7",
+       "sum": "804588357.62144",
+       "t": 1744113600,
+       "v": 101353903
+      },
+      {
+       "c": "76824",
+       "h": "78493.8",
+       "l": "76302.1",
+       "o": "78461.2",
+       "sum": "726313171.26364",
+       "t": 1744128000,
+       "v": 94027904
+      },
+      {
+       "c": "76303.1",
+       "h": "77260.6",
+       "l": "76209.7",
+       "o": "76828.3",
+       "sum": "297567757.4475",
+       "t": 1744142400,
+       "v": 38795519
+      },
+      {
+       "c": "75048.5",
+       "h": "76842",
+       "l": "74594.3",
+       "o": "76303",
+       "sum": "713419834.2646",
+       "t": 1744156800,
+       "v": 94167913
+      }
+     ],
+     "queryString": "contract=BTC_USDT\u0026from=1744099200\u0026interval=4h\u0026to=1744200000",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "c": "76303.1",
+       "h": "80829.6",
+       "l": "76209.7",
+       "o": "79145.8",
+       "sum": "2892365232.33693",
+       "t": 1744070400,
+       "v": 367739297
+      },
+      {
+       "c": "82586",
+       "h": "83598",
+       "l": "74594.3",
+       "o": "76303",
+       "sum": "4434149909.24797",
+       "t": 1744156800,
+       "v": 566153127
+      }
+     ],
+     "queryString": "contract=BTC_USDT\u0026from=1744103854\u0026interval=1d\u0026to=1744190254",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -4067,139 +4680,11 @@
      "headers": {}
     },
     {
-     "data": [
-      {
-       "long_liq_amount": 0,
-       "long_liq_size": 0,
-       "long_liq_usd": 0,
-       "long_liq_usd_new": 0,
-       "long_taker_size": 369829,
-       "long_users": 16379,
-       "lsr_account": 1.584655572755418,
-       "lsr_taker": 0.7998239573691359,
-       "mark_price": 67653.45,
-       "open_interest": 587202544,
-       "open_interest_usd": 3972627795.03768,
-       "short_liq_amount": 0,
-       "short_liq_size": 0,
-       "short_liq_usd": 0,
-       "short_liq_usd_new": 0,
-       "short_taker_size": 462388,
-       "short_users": 10336,
-       "time": 1774966920,
-       "top_long_account": 40,
-       "top_long_size": 33828182,
-       "top_lsr_account": 0.5405405405405405,
-       "top_lsr_size": 1.0448598856547422,
-       "top_short_account": 74,
-       "top_short_size": 32375807
-      },
-      {
-       "long_liq_amount": 0,
-       "long_liq_size": 0,
-       "long_liq_usd": 0,
-       "long_liq_usd_new": 0,
-       "long_taker_size": 741752,
-       "long_users": 16388,
-       "lsr_account": 1.5809376808797992,
-       "lsr_taker": 0.9884517695471057,
-       "mark_price": 67616.1,
-       "open_interest": 588082448,
-       "open_interest_usd": 3976384161.22128,
-       "short_liq_amount": 0,
-       "short_liq_size": 0,
-       "short_liq_usd": 0,
-       "short_liq_usd_new": 0,
-       "short_taker_size": 750418,
-       "short_users": 10366,
-       "time": 1774966980,
-       "top_long_account": 40,
-       "top_long_size": 33895631,
-       "top_lsr_account": 0.5405405405405405,
-       "top_lsr_size": 1.0529921522091004,
-       "top_short_account": 74,
-       "top_short_size": 32189823
-      },
-      {
-       "long_liq_amount": 0,
-       "long_liq_size": 0,
-       "long_liq_usd": 0,
-       "long_liq_usd_new": 0,
-       "long_taker_size": 480826,
-       "long_users": 16376,
-       "lsr_account": 1.5770416024653313,
-       "lsr_taker": 0.7606020580070078,
-       "mark_price": 67649.62,
-       "open_interest": 588007792,
-       "open_interest_usd": 3977850368.583904,
-       "short_liq_amount": 0,
-       "short_liq_size": 0,
-       "short_liq_usd": 0,
-       "short_liq_usd_new": 0,
-       "short_taker_size": 632165,
-       "short_users": 10384,
-       "time": 1774967040,
-       "top_long_account": 40,
-       "top_long_size": 33899675,
-       "top_lsr_account": 0.5405405405405405,
-       "top_lsr_size": 1.0539358882476504,
-       "top_short_account": 74,
-       "top_short_size": 32164836
-      },
-      {
-       "long_liq_amount": 0,
-       "long_liq_size": 0,
-       "long_liq_usd": 0,
-       "long_liq_usd_new": 0,
-       "long_taker_size": 498881,
-       "long_users": 16357,
-       "lsr_account": 1.568866295798964,
-       "lsr_taker": 0.8049310966292933,
-       "mark_price": 67612.74,
-       "open_interest": 588438952,
-       "open_interest_usd": 3978596986.744848,
-       "short_liq_amount": 0,
-       "short_liq_size": 0,
-       "short_liq_usd": 0,
-       "short_liq_usd_new": 0,
-       "short_taker_size": 619781,
-       "short_users": 10426,
-       "time": 1774967100,
-       "top_long_account": 41,
-       "top_long_size": 34127904,
-       "top_lsr_account": 0.5540540540540541,
-       "top_lsr_size": 1.050215573600938,
-       "top_short_account": 74,
-       "top_short_size": 32496094
-      },
-      {
-       "long_liq_amount": 0,
-       "long_liq_size": 0,
-       "long_liq_usd": 0,
-       "long_liq_usd_new": 0,
-       "long_taker_size": 506930,
-       "long_users": 16329,
-       "lsr_account": 1.5616870696250955,
-       "lsr_taker": 1.3332894979090504,
-       "mark_price": 67605.91,
-       "open_interest": 587515496,
-       "open_interest_usd": 3971951974.618136,
-       "short_liq_amount": 0,
-       "short_liq_size": 0,
-       "short_liq_usd": 0,
-       "short_liq_usd_new": 0,
-       "short_taker_size": 380210,
-       "short_users": 10456,
-       "time": 1774967160,
-       "top_long_account": 41,
-       "top_long_size": 34113355,
-       "top_lsr_account": 0.5540540540540541,
-       "top_lsr_size": 1.0509071461897272,
-       "top_short_account": 74,
-       "top_short_size": 32460865
-      }
-     ],
-     "queryString": "contract=BTC_USDT\u0026from=1774966883\u0026interval=1m\u0026limit=100",
+     "data": {
+      "label": "INVALID_PARAM_VALUE",
+      "message": "from time exceeds 180-day limit"
+     },
+     "queryString": "contract=BTC_USDT\u0026from=1744103854\u0026interval=1m\u0026limit=100",
      "bodyParams": "",
      "headers": {}
     },
@@ -4210,133 +4695,133 @@
        "long_liq_size": 0,
        "long_liq_usd": 0,
        "long_liq_usd_new": 0,
-       "long_taker_size": 41069,
-       "long_users": 14863,
-       "lsr_account": 1.289855072463768,
-       "lsr_taker": 16.817772317772317,
-       "mark_price": 67347.8,
-       "open_interest": 581899000,
-       "open_interest_usd": 3918961747.22,
+       "long_taker_size": 155330,
+       "long_users": 17397,
+       "lsr_account": 1.5497060395510422,
+       "lsr_taker": 0.4883055642879598,
+       "mark_price": 62048.59,
+       "open_interest": 643307912,
+       "open_interest_usd": 3991634887.544408,
        "short_liq_amount": 0,
        "short_liq_size": 0,
        "short_liq_usd": 0,
        "short_liq_usd_new": 0,
-       "short_taker_size": 2442,
-       "short_users": 11523,
-       "time": 1775420400,
-       "top_long_account": 36,
-       "top_long_size": 33812930,
-       "top_lsr_account": 0.4556962025316456,
-       "top_lsr_size": 1.1540125474423244,
-       "top_short_account": 79,
-       "top_short_size": 29300314
+       "short_taker_size": 318100,
+       "short_users": 11226,
+       "time": 1780847040,
+       "top_long_account": 47,
+       "top_long_size": 36769850,
+       "top_lsr_account": 0.5662650602409639,
+       "top_lsr_size": 1.060266307572198,
+       "top_short_account": 83,
+       "top_short_size": 34679825
       },
       {
        "long_liq_amount": 0,
        "long_liq_size": 0,
        "long_liq_usd": 0,
        "long_liq_usd_new": 0,
-       "long_taker_size": 15130,
-       "long_users": 14863,
-       "lsr_account": 1.2899670196146502,
-       "lsr_taker": 0.871142330723169,
-       "mark_price": 67375,
-       "open_interest": 581910896,
-       "open_interest_usd": 3920624661.8,
+       "long_taker_size": 204679,
+       "long_users": 17405,
+       "lsr_account": 1.5500044527562562,
+       "lsr_taker": 0.5200719587152117,
+       "mark_price": 62076.44,
+       "open_interest": 643324800,
+       "open_interest_usd": 3993531334.7712,
        "short_liq_amount": 0,
        "short_liq_size": 0,
        "short_liq_usd": 0,
        "short_liq_usd_new": 0,
-       "short_taker_size": 17368,
-       "short_users": 11522,
-       "time": 1775420460,
-       "top_long_account": 36,
-       "top_long_size": 33812930,
-       "top_lsr_account": 0.4556962025316456,
-       "top_lsr_size": 1.1540125474423244,
-       "top_short_account": 79,
-       "top_short_size": 29300314
+       "short_taker_size": 393559,
+       "short_users": 11229,
+       "time": 1780847100,
+       "top_long_account": 47,
+       "top_long_size": 36778647,
+       "top_lsr_account": 0.5662650602409639,
+       "top_lsr_size": 1.0605366986013953,
+       "top_short_account": 83,
+       "top_short_size": 34679278
       },
       {
        "long_liq_amount": 0,
        "long_liq_size": 0,
        "long_liq_usd": 0,
        "long_liq_usd_new": 0,
-       "long_taker_size": 42939,
-       "long_users": 14863,
-       "lsr_account": 1.2900789861991147,
-       "lsr_taker": 16.636574970941496,
-       "mark_price": 67394.5,
-       "open_interest": 582011056,
-       "open_interest_usd": 3922434411.3592,
-       "short_liq_amount": 0.0179,
-       "short_liq_size": 179,
-       "short_liq_usd": 1206.36155,
-       "short_liq_usd_new": 1206.36155,
-       "short_taker_size": 2581,
-       "short_users": 11521,
-       "time": 1775420520,
-       "top_long_account": 36,
-       "top_long_size": 33812930,
-       "top_lsr_account": 0.4556962025316456,
-       "top_lsr_size": 1.1535621512107397,
-       "top_short_account": 79,
-       "top_short_size": 29311754
+       "long_taker_size": 89145,
+       "long_users": 17390,
+       "lsr_account": 1.5483928412429881,
+       "lsr_taker": 0.1640570652473968,
+       "mark_price": 61979.74,
+       "open_interest": 641986360,
+       "open_interest_usd": 3979014767.63464,
+       "short_liq_amount": 0,
+       "short_liq_size": 0,
+       "short_liq_usd": 0,
+       "short_liq_usd_new": 0,
+       "short_taker_size": 543378,
+       "short_users": 11231,
+       "time": 1780847160,
+       "top_long_account": 46,
+       "top_long_size": 36672181,
+       "top_lsr_account": 0.5476190476190476,
+       "top_lsr_size": 1.0608676461322637,
+       "top_short_account": 84,
+       "top_short_size": 34568102
       },
       {
        "long_liq_amount": 0,
        "long_liq_size": 0,
        "long_liq_usd": 0,
        "long_liq_usd_new": 0,
-       "long_taker_size": 64646,
-       "long_users": 14864,
-       "lsr_account": 1.2905018232332002,
-       "lsr_taker": 4.395892832857337,
-       "mark_price": 67400,
-       "open_interest": 581950400,
-       "open_interest_usd": 3922345696,
+       "long_taker_size": 172930,
+       "long_users": 17389,
+       "lsr_account": 1.5470640569395018,
+       "lsr_taker": 0.7509977547803202,
+       "mark_price": 62015.1,
+       "open_interest": 642029376,
+       "open_interest_usd": 3981551595.55776,
        "short_liq_amount": 0,
        "short_liq_size": 0,
        "short_liq_usd": 0,
        "short_liq_usd_new": 0,
-       "short_taker_size": 14706,
-       "short_users": 11518,
-       "time": 1775420580,
-       "top_long_account": 36,
-       "top_long_size": 33812930,
-       "top_lsr_account": 0.4556962025316456,
-       "top_lsr_size": 1.1535621512107397,
-       "top_short_account": 79,
-       "top_short_size": 29311754
+       "short_taker_size": 230267,
+       "short_users": 11240,
+       "time": 1780847220,
+       "top_long_account": 46,
+       "top_long_size": 36679916,
+       "top_lsr_account": 0.5476190476190476,
+       "top_lsr_size": 1.0610764280521712,
+       "top_short_account": 84,
+       "top_short_size": 34568590
       },
       {
        "long_liq_amount": 0,
        "long_liq_size": 0,
        "long_liq_usd": 0,
        "long_liq_usd_new": 0,
-       "long_taker_size": 62233,
-       "long_users": 14865,
-       "lsr_account": 1.2902525822411248,
-       "lsr_taker": 2.9339965112441657,
-       "mark_price": 67398.42,
-       "open_interest": 581953624,
-       "open_interest_usd": 3922275477.087408,
+       "long_taker_size": 139682,
+       "long_users": 17386,
+       "lsr_account": 1.5463844169705594,
+       "lsr_taker": 0.7658802177858439,
+       "mark_price": 62025.8,
+       "open_interest": 642006352,
+       "open_interest_usd": 3982095758.78816,
        "short_liq_amount": 0,
        "short_liq_size": 0,
        "short_liq_usd": 0,
        "short_liq_usd_new": 0,
-       "short_taker_size": 21211,
-       "short_users": 11521,
-       "time": 1775420640,
-       "top_long_account": 36,
-       "top_long_size": 33812930,
-       "top_lsr_account": 0.4556962025316456,
-       "top_lsr_size": 1.1535621512107397,
-       "top_short_account": 79,
-       "top_short_size": 29311754
+       "short_taker_size": 182381,
+       "short_users": 11243,
+       "time": 1780847280,
+       "top_long_account": 46,
+       "top_long_size": 36681868,
+       "top_lsr_account": 0.5476190476190476,
+       "top_lsr_size": 1.0610427170011114,
+       "top_short_account": 84,
+       "top_short_size": 34571528
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1775420372\u0026interval=1m\u0026limit=100",
+     "queryString": "contract=BTC_USDT\u0026from=1780846985\u0026interval=1m\u0026limit=100",
      "bodyParams": "",
      "headers": {}
     }
@@ -4347,25 +4832,59 @@
     {
      "data": [
       {
-       "config_change_time": 1769580511,
-       "contract_type": "",
-       "create_time": 1514764800,
+       "config_change_time": 1774162712,
+       "contract_type": "stocks",
+       "create_time": 1769414931,
+       "cross_leverage_default": "10",
+       "enable_bonus": true,
+       "enable_circuit_breaker": false,
+       "enable_credit": true,
+       "enable_decimal": false,
+       "funding_cap_ratio": "0.75",
+       "funding_impact_value": "5000",
        "funding_interval": 28800,
-       "funding_rate": "0.0001",
+       "funding_next_apply": 1775433600,
+       "funding_offset": 0,
+       "funding_rate": "0",
+       "funding_rate_indicative": "0",
+       "funding_rate_limit": "0.0002",
        "in_delisting": false,
-       "index_price": "67499.05",
-       "last_price": "67295.7",
-       "leverage_max": "100",
+       "index_price": "121.85",
+       "interest_rate": "0",
+       "is_pre_market": false,
+       "last_price": "121.66",
+       "launch_time": 1769416200,
+       "leverage_max": "25",
        "leverage_min": "1",
-       "maintenance_rate": "0.005",
-       "mark_price": "67501.33",
+       "long_users": 97,
+       "maintenance_rate": "0.025",
+       "maker_fee_rate": "-0.00005",
+       "mark_price": "121.66",
+       "mark_price_round": "0.01",
+       "mark_type": "index",
+       "market_order_size_max": "21000",
+       "market_order_slip_ratio": "0.01",
        "name": "BTC_USDT",
-       "order_size_max": 1000000,
+       "order_price_deviate": "0.1",
+       "order_price_round": "0.01",
+       "order_size_max": 32000,
        "order_size_min": 1,
-       "position_size": 12345678,
-       "quanto_multiplier": "0.0001",
+       "orderbook_id": 42521940,
+       "orders_limit": 100,
+       "position_size": 96928,
+       "quanto_multiplier": "0.01",
+       "ref_discount_rate": "0",
+       "ref_rebate_rate": "0.2",
+       "risk_limit_base": "5000",
+       "risk_limit_max": "2500000",
+       "risk_limit_step": "2495000",
+       "short_users": 28,
        "status": "trading",
-       "type": "direct"
+       "taker_fee_rate": "0.00075",
+       "trade_id": 413023,
+       "trade_size": 3607660,
+       "type": "direct",
+       "voucher_leverage": "0"
       },
       {
        "config_change_time": 1774162712,
@@ -5046,9 +5565,171 @@
        }
       ],
       "current": 1775423973.95,
+      "id": 116388268171,
+      "update": 1775423973.949
+     },
+     "queryString": "contract=BTC_USDT\u0026limit=1\u0026with_id=true",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "asks": [
+       {
+        "p": "67478",
+        "s": 16139
+       },
+       {
+        "p": "67478.5",
+        "s": 362
+       },
+       {
+        "p": "67479",
+        "s": 362
+       },
+       {
+        "p": "67479.5",
+        "s": 362
+       },
+       {
+        "p": "67479.7",
+        "s": 222
+       }
+      ],
+      "bids": [
+       {
+        "p": "67477.9",
+        "s": 19507
+       },
+       {
+        "p": "67477.5",
+        "s": 362
+       },
+       {
+        "p": "67477",
+        "s": 362
+       },
+       {
+        "p": "67476.9",
+        "s": 2
+       },
+       {
+        "p": "67476.5",
+        "s": 362
+       }
+      ],
+      "current": 1775423973.95,
+      "id": 116388268171,
+      "update": 1775423973.949
+     },
+     "queryString": "contract=BTC_USDT\u0026with_id=true",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "asks": [
+       {
+        "p": "67478",
+        "s": 16139
+       },
+       {
+        "p": "67478.5",
+        "s": 362
+       },
+       {
+        "p": "67479",
+        "s": 362
+       },
+       {
+        "p": "67479.5",
+        "s": 362
+       },
+       {
+        "p": "67479.7",
+        "s": 222
+       }
+      ],
+      "bids": [
+       {
+        "p": "67477.9",
+        "s": 19507
+       },
+       {
+        "p": "67477.5",
+        "s": 362
+       },
+       {
+        "p": "67477",
+        "s": 362
+       },
+       {
+        "p": "67476.9",
+        "s": 2
+       },
+       {
+        "p": "67476.5",
+        "s": 362
+       }
+      ],
+      "current": 1775423973.95,
       "update": 1775423973.949
      },
      "queryString": "contract=BTC_USDT\u0026limit=10",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "asks": [
+       {
+        "p": "65277.9",
+        "s": 29348
+       },
+       {
+        "p": "65284.1",
+        "s": 1956
+       },
+       {
+        "p": "65284.5",
+        "s": 442
+       },
+       {
+        "p": "65286.1",
+        "s": 1532
+       },
+       {
+        "p": "65286.9",
+        "s": 2853
+       }
+      ],
+      "bids": [
+       {
+        "p": "65277.8",
+        "s": 32098
+       },
+       {
+        "p": "65277.5",
+        "s": 301
+       },
+       {
+        "p": "65275.6",
+        "s": 30
+       },
+       {
+        "p": "65275.5",
+        "s": 301
+       },
+       {
+        "p": "65274.2",
+        "s": 2300
+       }
+      ],
+      "current": 1781709835.8,
+      "id": 116388268171,
+      "update": 1781709835.769
+     },
+     "queryString": "contract=BTC_USDT\u0026limit=20\u0026with_id=true",
      "bodyParams": "",
      "headers": {}
     }
@@ -5073,8 +5754,65 @@
     }
    ]
   },
+  "/api/v4/futures/usdt/risk_limit_table": {
+   "GET": [
+    {
+     "data": [
+        {
+            "tier": 1,
+            "risk_limit": "10000",
+            "initial_rate": "0.025",
+            "maintenance_rate": "0.015",
+            "leverage_max": "40",
+            "deduction": "0"
+        },
+        {
+            "tier": 2,
+            "risk_limit": "30000",
+            "initial_rate": "0.03333",
+            "maintenance_rate": "0.02",
+            "leverage_max": "30",
+            "deduction": "50"
+        }
+    ],
+     "queryString": "table_id=BTC_USDT_20260626",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
   "/api/v4/futures/usdt/risk_limit_tiers": {
    "GET": [
+    {
+     "data": [
+      {
+       "deduction": "0",
+       "initial_rate": "0.005",
+       "leverage_max": "200",
+       "maintenance_rate": "0.003",
+       "risk_limit": "200000",
+       "tier": 1
+      }
+     ],
+     "queryString": "contract=BTC_USDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "deduction": "0",
+       "initial_rate": "0.005",
+       "leverage_max": "200",
+       "maintenance_rate": "0.003",
+       "risk_limit": "200000",
+       "tier": 1
+      }
+     ],
+     "queryString": "limit=10\u0026offset=10",
+     "bodyParams": "",
+     "headers": {}
+    },
     {
      "data": [
       {
@@ -5913,6 +6651,12 @@
      "queryString": "contract=BTC_USDT-20260925-75000-P\u0026from=1775251173\u0026interval=30m\u0026limit=1000\u0026to=1775423973",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": [],
+     "queryString": "contract=BTC_USDT-20260925-75000-P\u0026from=1744103854\u0026interval=30m\u0026limit=1000\u0026to=1744190254",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -5940,6 +6684,47 @@
        "mark_price_up": "8299.7",
        "multiplier": "0.01",
        "name": "BTC_USDT-20260408-73000-P",
+       "order_price_deviate": "0.15",
+       "order_price_round": "1",
+       "order_size_max": 10000,
+       "order_size_min": 1,
+       "orderbook_id": 34336,
+       "orders_limit": 10,
+       "position_limit": 40000,
+       "position_size": 0,
+       "price_limit_fee_rate": "0.125",
+       "ref_discount_rate": "0",
+       "ref_rebate_rate": "0",
+       "settle_fee_rate": "0",
+       "settle_limit_fee_rate": "0.125",
+       "strike_price": "73000",
+       "tag": "day",
+       "taker_fee_rate": "0.0003",
+       "trade_id": 0,
+       "trade_size": 0,
+       "underlying": "BTC_USDT",
+       "underlying_price": "67488.22"
+      },
+      {
+       "ask1_price": "5672",
+       "ask1_size": 2000,
+       "bid1_price": "5348",
+       "bid1_size": 2000,
+       "create_time": 1775375281,
+       "expiration_time": 1775635200,
+       "init_margin_high": "0.15",
+       "init_margin_low": "0.1",
+       "is_active": true,
+       "is_call": false,
+       "last_price": "0",
+       "maint_margin_base": "0.075",
+       "maker_fee_rate": "0.0003",
+       "mark_price": "5533.2",
+       "mark_price_down": "2766.6",
+       "mark_price_round": "0.1",
+       "mark_price_up": "8299.7",
+       "multiplier": "0.01",
+       "name": "BTC_USDT-20260925-75000-P",
        "order_price_deviate": "0.15",
        "order_price_round": "1",
        "order_size_max": 10000,
@@ -8799,7 +9584,115 @@
       "id": 2836984,
       "update": 1774970470.308
      },
+     "queryString": "contract=BTC_USDT-20260925-75000-P\u0026limit=1\u0026with_id=true",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "asks": [
+       {
+        "p": "13676",
+        "s": 600
+       },
+       {
+        "p": "13817",
+        "s": 102
+       },
+       {
+        "p": "14577",
+        "s": 214
+       },
+       {
+        "p": "14605",
+        "s": 230
+       },
+       {
+        "p": "14632",
+        "s": 197
+       }
+      ],
+      "bids": [
+       {
+        "p": "13588",
+        "s": 102
+       },
+       {
+        "p": "13487",
+        "s": 144
+       },
+       {
+        "p": "11639",
+        "s": 244
+       },
+       {
+        "p": "11611",
+        "s": 182
+       },
+       {
+        "p": "11584",
+        "s": 173
+       }
+      ],
+      "current": 1774970474.039,
+      "id": 2836984,
+      "update": 1774970470.308
+     },
      "queryString": "contract=BTC_USDT-20260925-75000-P\u0026interval=0.1\u0026limit=9\u0026with_id=true",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "asks": [
+       {
+        "p": "13676",
+        "s": 600
+       },
+       {
+        "p": "13817",
+        "s": 102
+       },
+       {
+        "p": "14577",
+        "s": 214
+       },
+       {
+        "p": "14605",
+        "s": 230
+       },
+       {
+        "p": "14632",
+        "s": 197
+       }
+      ],
+      "bids": [
+       {
+        "p": "13588",
+        "s": 102
+       },
+       {
+        "p": "13487",
+        "s": 144
+       },
+       {
+        "p": "11639",
+        "s": 244
+       },
+       {
+        "p": "11611",
+        "s": 182
+       },
+       {
+        "p": "11584",
+        "s": 173
+       }
+      ],
+      "current": 1774970474.039,
+      "id": 2836984,
+      "update": 1774970470.308
+     },
+     "queryString": "contract=BTC_USDT-20260925-75000-P\u0026with_id=true",
      "bodyParams": "",
      "headers": {}
     }
@@ -8888,8 +9781,81 @@
     }
    ]
   },
+  "/api/v4/options/settlements/BTC_USDT-20260405-60000-P": {
+   "GET": [
+    {
+     "data": {
+      "contract": "BTC_USDT-20260405-60000-P",
+      "fee": "0",
+      "profit": "73.431430405781",
+      "settle_price": "67343.1430405781",
+      "strike_price": "60000",
+      "time": 1774944000
+     },
+     "queryString": "at=1775376000\u0026underlying=BTC_USDT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
   "/api/v4/options/tickers": {
    "GET": [
+    {
+     "data": [
+      {
+       "ask1_price": "5672",
+       "ask1_size": 2000,
+       "ask_iv": "0.7037",
+       "bid1_price": "5348",
+       "bid1_size": 2000,
+       "bid_iv": "0",
+       "delta": "-0.97772",
+       "expiration_time": 1775635200,
+       "gamma": "0.00002",
+       "index_price": "67503.71",
+       "last_price": "0",
+       "leverage": "11.926376189058",
+       "mark_iv": "0.4729",
+       "mark_price": "5532.7",
+       "name": "LTC_USDT-20260408-75000-P",
+       "position_size": 0,
+       "theta": "-28.33781",
+       "underlying_price": "67488.71",
+       "vega": "2.92983"
+      }
+     ],
+     "queryString": "underlying=LTC_USDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "ask1_price": "5672",
+       "ask1_size": 2000,
+       "ask_iv": "0.7037",
+       "bid1_price": "5348",
+       "bid1_size": 2000,
+       "bid_iv": "0",
+       "delta": "-0.97772",
+       "expiration_time": 1775635200,
+       "gamma": "0.00002",
+       "index_price": "67503.71",
+       "last_price": "0",
+       "leverage": "11.926376189058",
+       "mark_iv": "0.4729",
+       "mark_price": "5532.7",
+       "name": "ETH_USDT-20260408-75000-P",
+       "position_size": 0,
+       "theta": "-28.33781",
+       "underlying_price": "67488.71",
+       "vega": "2.92983"
+      }
+     ],
+     "queryString": "underlying=ETH_USDT",
+     "bodyParams": "",
+     "headers": {}
+    },
     {
      "data": [
       {
@@ -8991,7 +9957,119 @@
        "leverage": "17.258266801106",
        "mark_iv": "0.4356",
        "mark_price": "3597.4",
-       "name": "BTC_USDT-20260408-71000-P",
+       "name": "BTC_USDT-20260925-75000-P",
+       "position_size": 0,
+       "theta": "-73.20841",
+       "underlying_price": "67488.71",
+       "vega": "8.21628"
+      }
+     ],
+     "queryString": "underlying=SOL_USDT",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "ask1_price": "5672",
+       "ask1_size": 2000,
+       "ask_iv": "0.7037",
+       "bid1_price": "5348",
+       "bid1_size": 2000,
+       "bid_iv": "0",
+       "delta": "-0.97772",
+       "expiration_time": 1775635200,
+       "gamma": "0.00002",
+       "index_price": "67503.71",
+       "last_price": "0",
+       "leverage": "11.926376189058",
+       "mark_iv": "0.4729",
+       "mark_price": "5532.7",
+       "name": "BTC_USDT-20260408-73000-P",
+       "position_size": 0,
+       "theta": "-28.33781",
+       "underlying_price": "67488.71",
+       "vega": "2.92983"
+      },
+      {
+       "ask1_price": "34",
+       "ask1_size": 617,
+       "ask_iv": "0.5098",
+       "bid1_price": "11",
+       "bid1_size": 1000,
+       "bid_iv": "0.4296",
+       "delta": "0.02227",
+       "expiration_time": 1775635200,
+       "gamma": "0.00002",
+       "index_price": "67503.71",
+       "last_price": "0",
+       "leverage": "70.232409892523",
+       "mark_iv": "0.4729",
+       "mark_price": "21.4",
+       "name": "BTC_USDT-20260408-73000-C",
+       "position_size": 0,
+       "theta": "-28.33781",
+       "underlying_price": "67488.71",
+       "vega": "2.92983"
+      },
+      {
+       "ask1_price": "4697",
+       "ask1_size": 2000,
+       "ask_iv": "0.6355",
+       "bid1_price": "4363",
+       "bid1_size": 2000,
+       "bid_iv": "0",
+       "delta": "-0.95807",
+       "expiration_time": 1775635200,
+       "gamma": "0.000035",
+       "index_price": "67503.71",
+       "last_price": "0",
+       "leverage": "14.20044986926",
+       "mark_iv": "0.4524",
+       "mark_price": "4553.3",
+       "name": "BTC_USDT-20260408-72000-P",
+       "position_size": 0,
+       "theta": "-45.76164",
+       "underlying_price": "67488.71",
+       "vega": "4.94484"
+      },
+      {
+       "ask1_price": "57",
+       "ask1_size": 400,
+       "ask_iv": "0.4801",
+       "bid1_price": "30",
+       "bid1_size": 700,
+       "bid_iv": "0.4257",
+       "delta": "0.04192",
+       "expiration_time": 1775635200,
+       "gamma": "0.000035",
+       "index_price": "67503.71",
+       "last_price": "0",
+       "leverage": "67.36016007619",
+       "mark_iv": "0.4524",
+       "mark_price": "42",
+       "name": "BTC_USDT-20260408-72000-C",
+       "position_size": 0,
+       "theta": "-45.76234",
+       "underlying_price": "67488.71",
+       "vega": "4.94499"
+      },
+      {
+       "ask1_price": "3752",
+       "ask1_size": 2000,
+       "ask_iv": "0.5806",
+       "bid1_price": "3408",
+       "bid1_size": 455,
+       "bid_iv": "0",
+       "delta": "-0.91993",
+       "expiration_time": 1775635200,
+       "gamma": "0.000061",
+       "index_price": "67503.71",
+       "last_price": "0",
+       "leverage": "17.258266801106",
+       "mark_iv": "0.4356",
+       "mark_price": "3597.4",
+       "name": "BTC_USDT-20260925-75000-P",
        "position_size": 0,
        "theta": "-73.20841",
        "underlying_price": "67488.71",
@@ -9057,6 +10135,12 @@
       }
      ],
      "queryString": "contract=BTC_USDT-20260925-75000-P\u0026from=1775251168\u0026to=1775423968\u0026type=C",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [],
+     "queryString": "contract=BTC_USDT-20260925-75000-P\u0026from=1744103854\u0026to=1744190254\u0026type=C",
      "bodyParams": "",
      "headers": {}
     }
@@ -9662,6 +10746,90 @@
      "queryString": "currency_pair=BTC_USDT\u0026from=1775251140\u0026interval=1m\u0026to=1775311140",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": [
+      [
+       "1744099200",
+       "29102332.04870600",
+       "79981.3",
+       "80065.6",
+       "78830.1",
+       "79494.3",
+       "367.39632000",
+       "true"
+      ],
+      [
+       "1744113600",
+       "62722814.75121000",
+       "78497.9",
+       "80371.6",
+       "78185.5",
+       "79987",
+       "788.95289000",
+       "true"
+      ],
+      [
+       "1744128000",
+       "80311703.28067300",
+       "76857.5",
+       "78524.3",
+       "76342.4",
+       "78497.8",
+       "1039.09048000",
+       "true"
+      ],
+      [
+       "1744142400",
+       "34404803.31887100",
+       "76324.7",
+       "77285.1",
+       "76249.4",
+       "76857.8",
+       "448.57618000",
+       "true"
+      ],
+      [
+       "1744156800",
+       "92425231.55543900",
+       "75089.6",
+       "76870.7",
+       "74633.5",
+       "76325.7",
+       "1221.24348000",
+       "true"
+      ]
+     ],
+     "queryString": "currency_pair=BTC_USDT\u0026from=1744099200\u0026interval=4h\u0026to=1744200000",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      [
+       "1744070400",
+       "270618764.78815000",
+       "76324.7",
+       "80866.2",
+       "76249.4",
+       "79167.3",
+       "3446.19726000",
+       "true"
+      ],
+      [
+       "1744156800",
+       "767545662.82883800",
+       "82613.5",
+       "83585",
+       "74633.5",
+       "76325.7",
+       "9707.25837000",
+       "true"
+      ]
+     ],
+     "queryString": "currency_pair=BTC_USDT\u0026from=1744103854\u0026interval=1d\u0026to=1744190254",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -9828,6 +10996,30 @@
    "GET": [
     {
      "data": [
+        {
+       "amount_precision": 2,
+       "base": "BTC",
+       "base_name": "Aleph.im",
+       "buy_start": 1608350400,
+       "down_rate": "0.4",
+       "fee": "0.2",
+       "id": "BTC_USDT",
+       "market_order_max_money": "200000",
+       "market_order_max_stock": "7228044.81",
+       "max_quote_amount": "5000000",
+       "min_base_amount": "0.01",
+       "min_quote_amount": "3",
+       "precision": 5,
+       "quote": "USDT",
+       "quote_name": "Tether",
+       "sell_start": 1608264000,
+       "slippage": "0.1",
+       "st_tag": false,
+       "trade_status": "tradable",
+       "trade_url": "https://www.gate.com/trade/ALEPH_USDT",
+       "type": "normal",
+       "up_rate": "0.4"
+      },
       {
        "amount_precision": 2,
        "base": "ALEPH",
@@ -9991,6 +11183,82 @@
   },
   "/api/v4/spot/order_book": {
    "GET": [
+    {
+     "data": {
+      "asks": [
+       [
+        "67197.1",
+        "0.485259"
+       ],
+       [
+        "67197.9",
+        "0.016632"
+       ],
+       [
+        "67198",
+        "0.0148"
+       ],
+       [
+        "67199",
+        "0.0155"
+       ],
+       [
+        "67199.1",
+        "0.024881"
+       ]
+      ],
+      "bids": [
+       [
+        "67197",
+        "0.442669"
+       ],
+       [
+        "67196.9",
+        "0.01"
+       ],
+       [
+        "67196.7",
+        "0.001547"
+       ],
+       [
+        "67196.1",
+        "0.012274"
+       ],
+       [
+        "67196",
+        "0.025678"
+       ]
+      ],
+      "current": 1774968317360,
+      "id": 34890909828,
+      "update": 1774968317359
+     },
+     "queryString": "currency_pair=BTC_USDT\u0026limit=1\u0026with_id=true",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "asks": [
+       [
+        "67197.1",
+        "0.485259"
+       ]
+      ],
+      "bids": [
+       [
+        "67197",
+        "0.442669"
+       ]
+      ],
+      "current": 1774968317360,
+      "id": 27596272446,
+      "update": 1774968317359
+     },
+     "queryString": "currency_pair=BTC_USDT\u0026limit=20\u0026with_id=true",
+     "bodyParams": "",
+     "headers": {}
+    },
     {
      "data": {
       "asks": [

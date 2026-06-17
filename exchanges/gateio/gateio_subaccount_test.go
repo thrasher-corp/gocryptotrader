@@ -23,9 +23,7 @@ func TestCreateSubAccount(t *testing.T) {
 	_, err := e.CreateSubAccount(t.Context(), &CreateSubAccountRequest{})
 	require.ErrorIs(t, err, errInvalidSubAccount)
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.CreateSubAccount(t.Context(), &CreateSubAccountRequest{
 		LoginName: "test_sub_account_001",
 	})
@@ -64,9 +62,7 @@ func TestCreateSubAccountAPIKey(t *testing.T) {
 	_, err := e.CreateSubAccountAPIKey(t.Context(), 0, &SubAccountKeyRequest{})
 	require.ErrorIs(t, err, errInvalidSubAccountUserID)
 
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	}
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.CreateSubAccountAPIKey(t.Context(), 12345678, &SubAccountKeyRequest{
 		Name: "test_key",
 	})

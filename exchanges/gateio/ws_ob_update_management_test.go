@@ -18,6 +18,7 @@ import (
 func TestFetchWSOrderbookSnapshot(t *testing.T) {
 	t.Parallel()
 
+	e.Verbose = true
 	_, err := e.fetchWSOrderbookSnapshot(t.Context(), currency.NewBTCUSDT(), asset.Spread)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 
@@ -85,7 +86,9 @@ func TestOBManagerProcessOrderbookUpdateHTTPMocked(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
 	e.Name = "ManagerHTTPMocked"
-	err := testexch.MockHTTPInstance(e, "/api/v4/")
+	err := testexch.MockHTTPInstance(e)
+	require.NoError(t, storeTestPairs(e), "storeTestPairs must not error")
+
 	require.NoError(t, err, "MockHTTPInstance must not error")
 
 	// Add dummy subscription so that it can be matched and a limit/level can be extracted for initial orderbook sync spot.
