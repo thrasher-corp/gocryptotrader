@@ -75,6 +75,8 @@ func TestRetrieve(t *testing.T) {
 		asset:                  asset.DownsideProfitContract,
 		lastUpdated:            time.Now(),
 		lastPushed:             time.Now(),
+		reachedGCTAt:           time.Now(),
+		checksumCompletedAt:    time.Now(),
 		insertedAt:             time.Now(),
 		lastUpdateID:           1337,
 		priceDuplication:       true,
@@ -103,6 +105,8 @@ func TestRetrieve(t *testing.T) {
 	assert.Equal(t, asset.DownsideProfitContract, ob.Asset, "Should have correct Asset")
 	assert.Equal(t, d.options.lastUpdated, ob.LastUpdated, "Should have correct LastUpdated")
 	assert.Equal(t, d.options.lastPushed, ob.LastPushed, "Should have correct LastPushed")
+	assert.Equal(t, d.options.reachedGCTAt, ob.ReachedGCTAt, "Should have correct ReachedGCTAt")
+	assert.Equal(t, d.options.checksumCompletedAt, ob.ChecksumCompletedAt, "Should have correct ChecksumCompletedAt")
 	assert.Equal(t, d.options.insertedAt, ob.InsertedAt, "Should have correct InsertedAt")
 	assert.EqualValues(t, 1337, ob.LastUpdateID, "Should have correct LastUpdateID")
 	assert.True(t, ob.PriceDuplication, "Should have correct PriceDuplication")

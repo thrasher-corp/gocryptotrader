@@ -7,11 +7,34 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
+
+func TestPlaceOrderRequestParamMarshalJSON(t *testing.T) {
+	t.Parallel()
+
+	arg := PlaceOrderRequestParam{
+		InstrumentID: "SATS-USDT",
+		TradeMode:    TradeModeCross,
+		Side:         "buy",
+		OrderType:    orderFOK,
+		Amount:       170000000,
+		Price:        1.555e-8,
+		ReduceOnly:   true,
+	}
+
+	raw, err := json.Marshal(&arg)
+	require.NoError(t, err)
+	assert.Contains(t, string(raw), `"px":"0.00000001555"`)
+	assert.Contains(t, string(raw), `"sz":"170000000"`)
+	assert.Contains(t, string(raw), `"reduceOnly":true`)
+	assert.NotContains(t, string(raw), "e-")
+	assert.NotContains(t, string(raw), "E-")
+}
 
 func TestWSPlaceOrder(t *testing.T) {
 	t.Parallel()
@@ -43,6 +66,9 @@ func TestWSPlaceMultipleOrders(t *testing.T) {
 
 	_, err := e.WSPlaceMultipleOrders(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrSubmissionIsNil)
+
+	_, err = e.WSPlaceMultipleOrders(t.Context(), make([]PlaceOrderRequestParam, maxBatchOrders+1))
+	require.ErrorIs(t, err, errExceedLimit)
 
 	_, err = e.WSPlaceMultipleOrders(t.Context(), []PlaceOrderRequestParam{{}})
 	require.ErrorIs(t, err, errMissingInstrumentID)
@@ -93,6 +119,9 @@ func TestWSCancelMultipleOrders(t *testing.T) {
 	_, err := e.WSCancelMultipleOrders(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrSubmissionIsNil)
 
+	_, err = e.WSCancelMultipleOrders(t.Context(), make([]CancelOrderRequestParam, maxBatchOrders+1))
+	require.ErrorIs(t, err, errExceedLimit)
+
 	_, err = e.WSCancelMultipleOrders(t.Context(), []CancelOrderRequestParam{{}})
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
@@ -141,6 +170,9 @@ func TestWSAmendMultipleOrders(t *testing.T) {
 
 	_, err := e.WSAmendMultipleOrders(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrSubmissionIsNil)
+
+	_, err = e.WSAmendMultipleOrders(t.Context(), make([]AmendOrderRequestParams, maxBatchOrders+1))
+	require.ErrorIs(t, err, errExceedLimit)
 
 	out := AmendOrderRequestParams{}
 	_, err = e.WSAmendMultipleOrders(t.Context(), []AmendOrderRequestParams{out})
