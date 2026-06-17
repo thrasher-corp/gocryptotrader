@@ -202,7 +202,7 @@ func TestFetchOrderbook(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup must not error")
 	e.Name = "ManagerHTTPMocked"
-	err := testexch.MockHTTPInstance(e)
+	require.NoError(t, testexch.MockHTTPInstance(e))
 	require.NoError(t, storeTestPairs(e), "storeTestPairs must not error")
 
 	availMargin, err := e.GetAvailablePairs(asset.Margin)
