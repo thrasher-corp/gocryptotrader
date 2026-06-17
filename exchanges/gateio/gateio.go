@@ -1941,7 +1941,6 @@ func (e *Exchange) PremiumIndexKLine(ctx context.Context, settleCurrency currenc
 	if err != nil {
 		return nil, err
 	}
-	from, to = defaultPremiumIndexKLineTimeRange(from, to, time.Now(), interval)
 	params := url.Values{}
 	params.Set("contract", contract.String())
 	if !from.IsZero() {
@@ -1956,16 +1955,6 @@ func (e *Exchange) PremiumIndexKLine(ctx context.Context, settleCurrency currenc
 	params.Set("interval", intervalString)
 	var resp []FuturesPremiumIndexKLineResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicPremiumIndexEPL, common.EncodeURLValues(futuresPath+settleCurrency.Item.Lower+"/premium_index", params), &resp)
-}
-
-func defaultPremiumIndexKLineTimeRange(from, to, now time.Time, interval kline.Interval) (adjustedFrom, adjustedTo time.Time) {
-	if to.IsZero() {
-		to = now.UTC()
-	}
-	if from.IsZero() {
-		from = to.Add(-2 * interval.Duration())
-	}
-	return from, to
 }
 
 // GetFuturesTickers retrieves futures ticker information for a specific settle and contract info.
