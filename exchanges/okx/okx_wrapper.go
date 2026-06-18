@@ -371,6 +371,9 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 }
 
 func (e *Exchange) loadInstrumentOrderExecutionLimits(a asset.Item, insts []Instrument) error {
+	if len(insts) == 0 {
+		return common.ErrNoResponse
+	}
 	l := make([]limits.MinMaxLevel, 0, len(insts))
 	for i := range insts {
 		if insts[i].State != instrumentStateLive || insts[i].InstrumentID.IsEmpty() {
@@ -383,7 +386,7 @@ func (e *Exchange) loadInstrumentOrderExecutionLimits(a asset.Item, insts []Inst
 		})
 	}
 	if len(l) == 0 {
-		return common.ErrNoResponse
+		return common.ErrInvalidResponse
 	}
 	return limits.Load(l)
 }

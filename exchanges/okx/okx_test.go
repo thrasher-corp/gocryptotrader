@@ -3436,7 +3436,10 @@ func TestLoadInstrumentOrderExecutionLimits(t *testing.T) {
 	require.ErrorIs(t, exch.loadInstrumentOrderExecutionLimits(asset.Futures, []Instrument{
 		{InstrumentID: inactivePair, State: "preopen"},
 		{InstrumentID: currency.EMPTYPAIR, State: instrumentStateLive},
-	}), common.ErrNoResponse, "no live populated instruments should return no response")
+	}), common.ErrInvalidResponse, "all filtered instruments must return invalid response")
+
+	require.ErrorIs(t, exch.loadInstrumentOrderExecutionLimits(asset.Futures, nil),
+		common.ErrNoResponse, "empty instrument slice must return no response")
 }
 
 func TestUpdateTicker(t *testing.T) {
