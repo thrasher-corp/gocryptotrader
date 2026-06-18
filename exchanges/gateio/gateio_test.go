@@ -99,10 +99,10 @@ func storeTestPairs(e *Exchange) error {
 }
 
 func getTime() (startTime, endTime time.Time) {
-	// if mockTests {
-	return time.UnixMilli(1744103854944), time.UnixMilli(1744190254944)
-	// }
-	// return time.Now().Add(-time.Hour * 48), time.Now()
+	if mockTests {
+		return time.UnixMilli(1744103854944), time.UnixMilli(1744190254944)
+	}
+	return time.Now().Add(-time.Hour * 48), time.Now()
 }
 
 func getTimeWithInterval(interval kline.Interval) (startTime, endTime time.Time) {
@@ -3193,10 +3193,6 @@ func TestGetOrderHistoryRequestImmutability(t *testing.T) {
 
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e))
-	require.NoError(t, testexch.MockHTTPInstance(e, "/"))
-	require.NoError(t, storeTestPairs(e), "storeTestPairs must not error")
 
 	startTime, endTime := getTime()
 	for _, a := range e.GetAssetTypes(false) {
@@ -3211,11 +3207,6 @@ func TestGetHistoricCandles(t *testing.T) {
 
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
-
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e))
-	require.NoError(t, testexch.MockHTTPInstance(e, "/"))
-	require.NoError(t, storeTestPairs(e), "storeTestPairs must not error")
 
 	startTime, endTime := getTime()
 	for _, a := range e.GetAssetTypes(false) {
@@ -3459,6 +3450,7 @@ func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	subs, err := e.GenerateFuturesDefaultSubscriptions(asset.USDTMarginedFutures)
 	require.NoError(t, err)
 	require.NotEmpty(t, subs)
+
 	subs, err = e.GenerateFuturesDefaultSubscriptions(asset.CoinMarginedFutures)
 	require.NoError(t, err)
 	require.NotEmpty(t, subs)
@@ -3540,11 +3532,6 @@ func TestParseTimeUnmarshal(t *testing.T) {
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
-
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e))
-	require.NoError(t, testexch.MockHTTPInstance(e, "/"))
-	require.NoError(t, storeTestPairs(e), "storeTestPairs must not error")
 
 	for _, a := range e.GetAssetTypes(false) {
 		t.Run(a.String(), func(t *testing.T) {

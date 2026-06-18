@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -199,12 +198,6 @@ func BenchmarkMessageID(b *testing.B) {
 func TestFetchOrderbook(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Setup must not error")
-	e.Name = "ManagerHTTPMocked"
-	require.NoError(t, testexch.MockHTTPInstance(e))
-	require.NoError(t, storeTestPairs(e), "storeTestPairs must not error")
-
 	availMargin, err := e.GetAvailablePairs(asset.Margin)
 	require.NoError(t, err, "GetAvailablePairs must not error")
 	require.NotEmpty(t, availMargin, "margin pairs must not be empty")
@@ -277,14 +270,6 @@ func TestFetchOrderbook(t *testing.T) {
 
 func TestFetchOrderbookNoSpotInstrument(t *testing.T) {
 	t.Parallel()
-
-	e := new(Exchange)
-	e.SetDefaults()
-	e.Name = t.Name()
-
-	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	require.NoError(t, testexch.MockHTTPInstance(e, ""), "MockHTTPInstance must not error")
-	require.NoError(t, storeTestPairs(e), "storeTestPairs must not error")
 
 	fakePair := currency.NewPair(currency.NewCode("ZZFAKE"), currency.USDT)
 	_, err := e.fetchOrderbook(t.Context(), fakePair, asset.Margin, 1)

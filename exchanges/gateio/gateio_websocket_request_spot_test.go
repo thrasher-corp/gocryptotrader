@@ -194,9 +194,7 @@ func TestWebsocketSpotGetOrderStatus(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	testexch.UpdatePairsOnce(t, e)
 	e := newExchangeWithWebsocket(t, asset.Spot)
-
 	got, err := e.WebsocketSpotGetOrderStatus(t.Context(), "644999650452", BTCUSDT, "")
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
