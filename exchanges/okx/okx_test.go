@@ -3400,7 +3400,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 func TestLoadInstrumentOrderExecutionLimits(t *testing.T) {
 	exch := &Exchange{}
 	exch.SetDefaults()
-	exch.Name = "OkxTestLoadInstrumentOrderExecutionLimits"
+	exch.Name = t.Name()
 
 	livePair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
 	inactivePair := currency.NewPairWithDelimiter("ETH", "USDT", "-")
