@@ -1893,6 +1893,10 @@ func (e *Exchange) PremiumIndexKLine(ctx context.Context, settleCurrency currenc
 			return nil, err
 		}
 	}
+	intervalString, err := getIntervalString(interval)
+	if err != nil {
+		return nil, err
+	}
 	params := url.Values{}
 	params.Set("contract", contract.String())
 	if !from.IsZero() {
@@ -1903,10 +1907,6 @@ func (e *Exchange) PremiumIndexKLine(ctx context.Context, settleCurrency currenc
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
-	}
-	intervalString, err := getIntervalString(interval)
-	if err != nil {
-		return nil, err
 	}
 	params.Set("interval", intervalString)
 	var resp *FuturesPremiumIndexKlineResponse

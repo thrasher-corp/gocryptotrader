@@ -3466,10 +3466,16 @@
   "/api/v4/futures/btc/premium_index": {
    "GET": [
     {
-     "data": {
-      "label": "CONTRACT_NOT_FOUND"
-     },
-     "queryString": "contract=BTC_USD\u0026from=-62135596800\u0026interval=7d\u0026to=-62135596800",
+     "data": [
+        {
+            "t": 1539852480,
+            "c": "0",
+            "h": "0.00023",
+            "l": "0",
+            "o": "0"
+        }
+     ],
+     "queryString": "contract=BTC_USD\u0026from=1780577537\u0026interval=7d\u0026to=1781787137",
      "bodyParams": "",
      "headers": {}
     },
