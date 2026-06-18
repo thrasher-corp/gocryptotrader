@@ -377,7 +377,7 @@ func (e *Exchange) GetAccountBatchFeeRates(ctx context.Context, currencyPairs []
 	}
 	params := url.Values{}
 	params.Set("currency_pairs", strings.Join(currencyPairs, ","))
-	var resp map[string]*SpotTradingFeeRate // map of currency pair string to trading fee rate detail.
+	var resp map[string]*SpotTradingFeeRate
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotTradingFeeEPL, http.MethodGet, "spot/batch_fee", params, nil, &resp)
 }
 
@@ -1879,11 +1879,11 @@ func (e *Exchange) GetFuturesCandlesticks(ctx context.Context, settle currency.C
 	return candlesticks, e.SendHTTPRequest(ctx, exchange.RestFutures, publicCandleSticksFuturesEPL, common.EncodeURLValues(futuresPath+settle.Item.Lower+"/candlesticks", params), &candlesticks)
 }
 
-// PremiumIndexKLine retrieves premium Index K-Line
+// PremiumIndexKline retrieves premium Index K-Line
 // Maximum of 1000 points can be returned in a query. Be sure not to exceed the limit when specifying from, to and interval
-func (e *Exchange) PremiumIndexKLine(ctx context.Context, settleCurrency currency.Code, contract currency.Pair, from, to time.Time, limit int64, interval kline.Interval) (*FuturesPremiumIndexKlineResponse, error) {
+func (e *Exchange) PremiumIndexKline(ctx context.Context, settleCurrency currency.Code, contract currency.Pair, from, to time.Time, limit int64, interval kline.Interval) (*FuturesPremiumIndexKlineResponse, error) {
 	if settleCurrency.IsEmpty() {
-		return nil, fmt.Errorf("%w; settlement currency is required", currency.ErrCurrencyCodeEmpty)
+		return nil, fmt.Errorf("%w; settlement currency is required", errEmptyOrInvalidSettlementCurrency)
 	}
 	if contract.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty

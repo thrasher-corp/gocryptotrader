@@ -1146,26 +1146,29 @@ func TestPremiumIndexKLine(t *testing.T) {
 
 	t.Run("live request", func(t *testing.T) {
 		t.Parallel()
+		if mockTests {
+			t.SkipNow()
+		}
 		coinMarginedContract := getPair(t, asset.CoinMarginedFutures)
 		usdtMarginedContract := getPair(t, asset.USDTMarginedFutures)
-		_, err := e.PremiumIndexKLine(t.Context(), currency.BTC, coinMarginedContract, from, to, 0, kline.OneWeek)
+		_, err := e.PremiumIndexKline(t.Context(), currency.BTC, coinMarginedContract, from, to, 0, kline.OneWeek)
 		assert.NoError(t, err, "PremiumIndexKLine should not error for CoinMarginedFutures")
-		_, err = e.PremiumIndexKLine(t.Context(), currency.USDT, usdtMarginedContract, from, to, 0, kline.OneWeek)
+		_, err = e.PremiumIndexKline(t.Context(), currency.USDT, usdtMarginedContract, from, to, 0, kline.OneWeek)
 		assert.NoError(t, err, "PremiumIndexKLine should not error for USDTMarginedFutures")
-		_, err = e.PremiumIndexKLine(t.Context(), currency.USDT, usdtMarginedContract, time.Time{}, time.Time{}, 1, kline.OneWeek)
+		_, err = e.PremiumIndexKline(t.Context(), currency.USDT, usdtMarginedContract, time.Time{}, time.Time{}, 1, kline.OneWeek)
 		assert.NoError(t, err, "PremiumIndexKLine should not error with supplied limit")
-		_, err = e.PremiumIndexKLine(t.Context(), currency.USDT, usdtMarginedContract, from, to, 1, kline.OneWeek)
+		_, err = e.PremiumIndexKline(t.Context(), currency.USDT, usdtMarginedContract, from, to, 1, kline.OneWeek)
 		assert.NoError(t, err, "PremiumIndexKLine should not error with supplied bounds and limit")
 	})
 
 	t.Run("validation", func(t *testing.T) {
 		t.Parallel()
 		contract := currency.NewBTCUSDT()
-		_, err := e.PremiumIndexKLine(t.Context(), currency.USDT, contract, time.Time{}, time.Time{}, 0, kline.OneWeek)
+		_, err := e.PremiumIndexKline(t.Context(), currency.EMPTYCODE, contract, time.Time{}, time.Time{}, 0, kline.OneWeek)
 		assert.ErrorIs(t, err, errEmptyOrInvalidSettlementCurrency, "empty settlement currency should return expected error")
-		_, err = e.PremiumIndexKLine(t.Context(), currency.USDT, currency.Pair{}, time.Time{}, time.Time{}, 0, kline.OneWeek)
+		_, err = e.PremiumIndexKline(t.Context(), currency.USDT, currency.Pair{}, time.Time{}, time.Time{}, 0, kline.OneWeek)
 		assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "empty contract should return expected error")
-		_, err = e.PremiumIndexKLine(t.Context(), currency.USDT, contract, time.Time{}, time.Time{}, 0, kline.FiveDay)
+		_, err = e.PremiumIndexKline(t.Context(), currency.USDT, contract, time.Time{}, time.Time{}, 0, kline.FiveDay)
 		assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "unsupported interval should return expected error")
 	})
 }

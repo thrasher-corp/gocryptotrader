@@ -1677,7 +1677,7 @@
    "GET": [
     {
      "data": [
-        {
+      {
        "basis_impact_value": "1000",
        "basis_rate": "0.005653",
        "basis_value": "0.00001",
@@ -3467,23 +3467,43 @@
    "GET": [
     {
      "data": [
-        {
-            "t": 1539852480,
-            "c": "0",
-            "h": "0.00023",
-            "l": "0",
-            "o": "0"
-        }
+      {
+       "t": 1539852480,
+       "c": "0",
+       "h": "0.00023",
+       "l": "0",
+       "o": "0"
+      }
      ],
      "queryString": "contract=BTC_USD\u0026from=1780577537\u0026interval=7d\u0026to=1781787137",
      "bodyParams": "",
      "headers": {}
     },
     {
-     "data": {
-      "label": "CONTRACT_NOT_FOUND"
-     },
-     "queryString": "contract=BTC_USD\u0026interval=7d",
+     "data": [
+      {
+       "c": "-0.00066518121321320381",
+       "h": "-0.000025276147453817307224",
+       "l": "-0.00212267861106652042",
+       "o": "0.00111520486556709384",
+       "t": 1780272000
+      },
+      {
+       "c": "-0.00061209420840049265",
+       "h": "-0.00062483927887048246",
+       "l": "-0.00183752938986536071",
+       "o": "0.00073849910788473947",
+       "t": 1780876800
+      },
+      {
+       "c": "-0.00070664558178706653",
+       "h": "-0.00063817885173418699",
+       "l": "-0.00108935079578418261",
+       "o": "0",
+       "t": 1781481600
+      }
+     ],
+     "queryString": "contract=BTC_USD\u0026from=1780581847\u0026interval=7d\u0026to=1781791447",
      "bodyParams": "",
      "headers": {}
     }
@@ -5757,6 +5777,102 @@
      "queryString": "contract=BTC_USDT\u0026interval=7d",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": {
+      "label": "CONTRACT_NOT_FOUND"
+     },
+     "queryString": "contract=BTCUSDT\u0026interval=7d",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "label": "INVALID_PARAM_VALUE",
+      "message": "from time exceeds 180-day limit"
+     },
+     "queryString": "contract=BTC_USDT\u0026from=1744103854\u0026interval=7d\u0026to=1744190254",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "label": "INVALID_PARAM_VALUE",
+      "message": "from time exceeds 180-day limit"
+     },
+     "queryString": "contract=BTC_USDT\u0026from=1744103854\u0026interval=7d\u0026limit=1\u0026to=1744190254",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "c": "-0.00051958188047529567",
+       "h": "-0.0002665514573767219",
+       "l": "-0.00256887882865549489",
+       "o": "0.0027699157950317676",
+       "t": 1780272000
+      },
+      {
+       "c": "-0.00059881424127876895",
+       "h": "-0.00050190687995366939",
+       "l": "-0.00190721101802333919",
+       "o": "0.00300317385326523747",
+       "t": 1780876800
+      },
+      {
+       "c": "-0.00064704363389202682",
+       "h": "-0.00071289462613821146",
+       "l": "-0.00156414494736474648",
+       "o": "0.00025202506014303525",
+       "t": 1781481600
+      }
+     ],
+     "queryString": "contract=BTC_USDT\u0026from=1780581847\u0026interval=7d\u0026to=1781791447",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "c": "-0.00059881424127876895",
+       "h": "-0.0005638765430773542",
+       "l": "-0.00135477706584994659",
+       "o": "0.00300317385326523747",
+       "t": 1780876800
+      },
+      {
+       "c": "-0.00046022598554462144",
+       "h": "-0.00071289462613821146",
+       "l": "-0.00156414494736474648",
+       "o": "0.00025202506014303525",
+       "t": 1781481600
+      }
+     ],
+     "queryString": "contract=BTC_USDT\u0026interval=7d\u0026limit=1",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "c": "-0.00051958188047529567",
+       "h": "-0.0002665514573767219",
+       "l": "-0.00256887882865549489",
+       "o": "0.0027699157950317676",
+       "t": 1780272000
+      },
+      {
+       "c": "-0.00048441555742053831",
+       "h": "-0.00050190687995366939",
+       "l": "-0.00190721101802333919",
+       "o": "0.00114432342406388531",
+       "t": 1780876800
+      }
+     ],
+     "queryString": "contract=BTC_USDT\u0026from=1780581847\u0026interval=7d\u0026limit=1\u0026to=1781791447",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -5764,23 +5880,23 @@
    "GET": [
     {
      "data": [
-        {
-            "tier": 1,
-            "risk_limit": "10000",
-            "initial_rate": "0.025",
-            "maintenance_rate": "0.015",
-            "leverage_max": "40",
-            "deduction": "0"
-        },
-        {
-            "tier": 2,
-            "risk_limit": "30000",
-            "initial_rate": "0.03333",
-            "maintenance_rate": "0.02",
-            "leverage_max": "30",
-            "deduction": "50"
-        }
-    ],
+      {
+       "tier": 1,
+       "risk_limit": "10000",
+       "initial_rate": "0.025",
+       "maintenance_rate": "0.015",
+       "leverage_max": "40",
+       "deduction": "0"
+      },
+      {
+       "tier": 2,
+       "risk_limit": "30000",
+       "initial_rate": "0.03333",
+       "maintenance_rate": "0.02",
+       "leverage_max": "30",
+       "deduction": "50"
+      }
+     ],
      "queryString": "table_id=BTC_USDT_20260626",
      "bodyParams": "",
      "headers": {}
@@ -10227,6 +10343,76 @@
     }
    ]
   },
+  "/api/v4/otc/order/list": {
+   "GET": [
+    {
+     "data": {
+      "code": 0,
+      "data": {
+       "count": 0,
+       "lists": [],
+       "pn": 1,
+       "ps": 10,
+       "total_pn": 0
+      },
+      "message": "success",
+      "timestamp": 1781797045
+     },
+     "queryString": "crypto_currency=USDT\u0026end_time=1781797045\u0026pn=1\u0026ps=10\u0026start_time=1781624245\u0026type=BUY",
+     "bodyParams": "",
+     "headers": {
+      "Accept": [
+       "application/json"
+      ],
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Sign": [
+       "74ccd86b48ec3228f290493dd0a4da9f754221a414a594205f35788f2f86a03f55d89a933568ff6282e2f40fef8fc8d782ba561b2a2eab51e7f84c3425ac61fe"
+      ],
+      "Timestamp": [
+       "1781797045"
+      ]
+     }
+    },
+    {
+     "data": {
+      "code": 0,
+      "data": {
+       "count": 0,
+       "lists": [],
+       "pn": 1,
+       "ps": 10,
+       "total_pn": 0
+      },
+      "message": "success",
+      "timestamp": 1781797170
+     },
+     "queryString": "crypto_currency=USDT\u0026end_time=1744190254\u0026pn=1\u0026ps=10\u0026start_time=1744103854\u0026type=BUY",
+     "bodyParams": "",
+     "headers": {
+      "Accept": [
+       "application/json"
+      ],
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Sign": [
+       "77554ca0c7ed4303828e0410acdf54a0012439d7d0b9ef4e05d8c31a7e7076107f860fd20809b7358c7fe35e5e1013e0edb73819bc8276ee9fa4761e5f7c735f"
+      ],
+      "Timestamp": [
+       "1781797170"
+      ]
+     }
+    }
+   ]
+  },
   "/api/v4/rebate/agency/commission_history": {
    "GET": [
     {
@@ -11002,7 +11188,7 @@
    "GET": [
     {
      "data": [
-        {
+      {
        "amount_precision": 2,
        "base": "BTC",
        "base_name": "Aleph.im",
@@ -11184,6 +11370,42 @@
      "queryString": "",
      "bodyParams": "",
      "headers": {}
+    }
+   ]
+  },
+  "/api/v4/spot/fee": {
+   "GET": [
+    {
+     "data": {
+      "debit_fee": 2,
+      "gt_discount": false,
+      "gt_maker_fee": "0",
+      "gt_taker_fee": "0",
+      "loan_fee": "0.18",
+      "maker_fee": "0.001",
+      "point_type": "1",
+      "taker_fee": "0.001",
+      "user_id": 30627410
+     },
+     "queryString": "currency_pair=BTC_USDT",
+     "bodyParams": "",
+     "headers": {
+      "Accept": [
+       "application/json"
+      ],
+      "Content-Type": [
+       "application/json"
+      ],
+      "Key": [
+       ""
+      ],
+      "Sign": [
+       "e102090b38f900beceac02afa5d67344e40082fac7aa4848199a9d5fd4fca92aeb75b452b501bec38464a57028b04b2bec68ad00f4db7009afca8c41835a2947"
+      ],
+      "Timestamp": [
+       "1781796744"
+      ]
+     }
     }
    ]
   },
