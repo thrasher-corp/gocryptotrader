@@ -36,6 +36,7 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
@@ -3394,6 +3395,51 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 		t.Parallel()
 		require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported)
 	})
+}
+
+func TestLoadInstrumentOrderExecutionLimits(t *testing.T) {
+	exch := &Exchange{}
+	exch.SetDefaults()
+	exch.Name = t.Name()
+
+	livePair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
+	inactivePair := currency.NewPairWithDelimiter("ETH", "USDT", "-")
+	require.NoError(t, exch.loadInstrumentOrderExecutionLimits(asset.Futures, []Instrument{
+		{
+			InstrumentID:     livePair,
+			State:            instrumentStateLive,
+			TickSize:         types.Number(0.1),
+			MinimumOrderSize: types.Number(1),
+		},
+		{
+			InstrumentID:     inactivePair,
+			State:            "preopen",
+			TickSize:         types.Number(0.01),
+			MinimumOrderSize: types.Number(2),
+		},
+		{
+			InstrumentID:     currency.EMPTYPAIR,
+			State:            instrumentStateLive,
+			TickSize:         types.Number(0.01),
+			MinimumOrderSize: types.Number(2),
+		},
+	}), "loadInstrumentOrderExecutionLimits must load live instruments and skip inactive or empty instruments")
+
+	loadedLimit, err := exch.GetOrderExecutionLimits(asset.Futures, livePair)
+	require.NoError(t, err, "GetOrderExecutionLimits must not error for live instrument")
+	assert.Equal(t, 0.1, loadedLimit.PriceStepIncrementSize, "PriceStepIncrementSize should be set from live instrument")
+	assert.Equal(t, 1.0, loadedLimit.MinimumBaseAmount, "MinimumBaseAmount should be set from live instrument")
+
+	_, err = exch.GetOrderExecutionLimits(asset.Futures, inactivePair)
+	require.ErrorIs(t, err, limits.ErrOrderLimitNotFound, "inactive instruments must not be loaded")
+
+	require.ErrorIs(t, exch.loadInstrumentOrderExecutionLimits(asset.Futures, []Instrument{
+		{InstrumentID: inactivePair, State: "preopen"},
+		{InstrumentID: currency.EMPTYPAIR, State: instrumentStateLive},
+	}), common.ErrInvalidResponse, "all filtered instruments must return invalid response")
+
+	require.ErrorIs(t, exch.loadInstrumentOrderExecutionLimits(asset.Futures, nil),
+		common.ErrNoResponse, "empty instrument slice must return no response")
 }
 
 func TestUpdateTicker(t *testing.T) {
