@@ -20,7 +20,7 @@ var mockTests = true
 func TestMain(m *testing.M) {
 	e = testInstance()
 
-	if err := e.UpdateTradablePairs(context.Background()); err != nil {
+	if err := e.UpdateTradablePairs(context.Background(), e); err != nil {
 		log.Fatalf("Bybit unable to UpdateTradablePairs: %s", err)
 	}
 

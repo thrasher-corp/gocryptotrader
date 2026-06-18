@@ -2566,6 +2566,74 @@ func TestGetDefaultConfig(t *testing.T) {
 	assert.Equal(t, cpy, exch.Requester)
 }
 
+// fakeTradablePairExchange exercises the base UpdateTradablePairs by supplying tradable pairs via FetchTradablePairs.
+type fakeTradablePairExchange struct {
+	FakeBase
+	pairs    currency.Pairs
+	fetchErr error
+}
+
+func (f *fakeTradablePairExchange) FetchTradablePairs(context.Context, asset.Item) (currency.Pairs, error) {
+	return f.pairs, f.fetchErr
+}
+
+func TestUpdateTradablePairs(t *testing.T) {
+	t.Parallel()
+
+	newExch := func() *fakeTradablePairExchange {
+		f := &fakeTradablePairExchange{}
+		f.Name = "test"
+		f.CurrencyPairs = currency.PairsManager{
+			UseGlobalFormat: true,
+			ConfigFormat:    &currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter},
+			Pairs: map[asset.Item]*currency.PairStore{
+				asset.Spot: {AssetEnabled: true},
+			},
+		}
+		f.Config = &config.Exchange{Name: "test", CurrencyPairs: &currency.PairsManager{}}
+		return f
+	}
+
+	ltcusdPair := currency.NewPairWithDelimiter("LTC", "USD", "-")
+
+	t.Run("updates available pairs and enables one", func(t *testing.T) {
+		t.Parallel()
+		f := newExch()
+		f.pairs = currency.Pairs{btcusdPair, ltcusdPair}
+
+		require.NoError(t, f.Base.UpdateTradablePairs(t.Context(), f))
+
+		avail, err := f.GetAvailablePairs(asset.Spot)
+		require.NoError(t, err)
+		assert.ElementsMatch(t, currency.Pairs{btcusdPair, ltcusdPair}, avail, "available pairs should be updated")
+
+		enabled, err := f.GetEnabledPairs(asset.Spot)
+		require.NoError(t, err)
+		assert.Len(t, enabled, 1, "should enable exactly one pair")
+	})
+
+	t.Run("honours explicitly specified assets", func(t *testing.T) {
+		t.Parallel()
+		f := newExch()
+		f.pairs = currency.Pairs{btcusdPair}
+
+		require.NoError(t, f.Base.UpdateTradablePairs(t.Context(), f, asset.Spot))
+
+		avail, err := f.GetAvailablePairs(asset.Spot)
+		require.NoError(t, err)
+		assert.Equal(t, currency.Pairs{btcusdPair}, avail, "available pairs should be updated for the specified asset")
+	})
+
+	t.Run("propagates fetch errors", func(t *testing.T) {
+		t.Parallel()
+		errFetch := errors.New("fetch failed")
+		f := newExch()
+		f.fetchErr = errFetch
+
+		assert.ErrorIs(t, f.Base.UpdateTradablePairs(t.Context(), f), errFetch, "fetch error should be returned")
+	})
+}
+
 // TestCanUseAuthenticatedWebsocketEndpoints exercises CanUseAuthenticatedWebsocketEndpoints
 func TestCanUseAuthenticatedWebsocketEndpoints(t *testing.T) {
 	t.Parallel()
@@ -2710,7 +2778,10 @@ func (f *FakeBase) SetDefaults() {
 	f.Requester, _ = request.New("test", common.NewHTTPClientWithTimeout(time.Second))
 	f.Features.Supports.RESTCapabilities.AutoPairUpdates = true
 }
-func (f *FakeBase) UpdateTradablePairs(context.Context) error { return nil }
+
+func (f *FakeBase) UpdateTradablePairs(context.Context, IBotExchange, ...asset.Item) error {
+	return nil
+}
 
 func (f *FakeBase) Setup(*config.Exchange) error {
 	return nil

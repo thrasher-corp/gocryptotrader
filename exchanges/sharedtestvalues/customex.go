@@ -78,7 +78,7 @@ func (c *CustomEx) FetchTradablePairs(context.Context, asset.Item) (currency.Pai
 }
 
 // UpdateTradablePairs is a mock method for CustomEx
-func (c *CustomEx) UpdateTradablePairs(context.Context) error {
+func (c *CustomEx) UpdateTradablePairs(context.Context, exchange.IBotExchange, ...asset.Item) error {
 	return nil
 }
 

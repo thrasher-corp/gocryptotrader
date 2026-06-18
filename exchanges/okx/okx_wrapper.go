@@ -322,21 +322,6 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 	}
 }
 
-// UpdateTradablePairs updates the exchanges available pairs and stores them in the exchanges config
-func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
-	assetTypes := e.GetAssetTypes(true)
-	for i := range assetTypes {
-		pairs, err := e.FetchTradablePairs(ctx, assetTypes[i])
-		if err != nil {
-			return fmt.Errorf("%w for asset %v", err, assetTypes[i])
-		}
-		if err := e.UpdatePairs(pairs, assetTypes[i], false); err != nil {
-			return fmt.Errorf("%w for asset %v", err, assetTypes[i])
-		}
-	}
-	return e.EnsureOnePairEnabled()
-}
-
 // UpdateOrderExecutionLimits sets exchange execution order limits for an asset type
 func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error {
 	switch a {
