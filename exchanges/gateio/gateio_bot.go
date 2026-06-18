@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strconv"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -61,7 +62,7 @@ func (e *Exchange) GetBotStrategyRecommendations(ctx context.Context, arg *GetBo
 			params.Set("refresh_recommendation_id", arg.RefreshRecommendationID)
 		}
 		if arg.Limit > 0 {
-			params.Set("limit", strconv.Itoa(int(arg.Limit)))
+			params.Set("limit", strconv.FormatUint(uint64(arg.Limit), 10))
 		}
 		if arg.MaxDrawdownLTE != "" {
 			params.Set("max_drawdown_lte", arg.MaxDrawdownLTE)
@@ -76,6 +77,9 @@ func (e *Exchange) GetBotStrategyRecommendations(ctx context.Context, arg *GetBo
 
 // CreateSpotGridBot creates a spot grid strategy based on the incoming parameters.
 func (e *Exchange) CreateSpotGridBot(ctx context.Context, arg *SpotGridCreateRequest) (*BotCreateData, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	if arg.Market == "" {
 		return nil, errBotMarketRequired
 	}
@@ -98,6 +102,9 @@ func (e *Exchange) CreateSpotGridBot(ctx context.Context, arg *SpotGridCreateReq
 
 // CreateMarginGridBot creates a leverage (margin) grid strategy based on the passed parameters.
 func (e *Exchange) CreateMarginGridBot(ctx context.Context, arg *MarginGridCreateRequest) (*BotCreateData, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	if arg.Market == "" {
 		return nil, errBotMarketRequired
 	}
@@ -123,6 +130,9 @@ func (e *Exchange) CreateMarginGridBot(ctx context.Context, arg *MarginGridCreat
 
 // CreateInfiniteGridBot creates an infinite grid strategy based on the passed parameters.
 func (e *Exchange) CreateInfiniteGridBot(ctx context.Context, arg *InfiniteGridCreateRequest) (*BotCreateData, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	if arg.Market == "" {
 		return nil, errBotMarketRequired
 	}

@@ -1139,7 +1139,7 @@ func TestGetFuturesCandlesticks(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestPremiumIndexKLine(t *testing.T) {
+func TestPremiumIndexKline(t *testing.T) {
 	t.Parallel()
 	to := time.Now().UTC()
 	from := to.Add(-2 * kline.OneWeek.Duration())
@@ -2407,7 +2407,7 @@ func TestModifyDualCurrencyOrderReinvest(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	err = e.ModifyDualCurrencyOrderReinvest(t.Context(), &DualModifyOrderReinvestRequest{OrderID: 9497, Status: 1})
-	require.NoError(t, err, "ModifyDualCurrencyOrderReinvest must not error")
+	require.NoError(t, err)
 }
 
 func TestGetDualCurrencyRecommendedProjects(t *testing.T) {
@@ -4885,6 +4885,12 @@ func TestIsSingleOrderbookChannel(t *testing.T) {
 	}
 }
 
+func TestOrderCreateParamsValidateNilGuard(t *testing.T) {
+	t.Parallel()
+	require.ErrorIs(t, (*FuturesOrderCreateParams)(nil).validate(true), common.ErrNilPointer)
+	require.ErrorIs(t, (*DeliveryOrderCreateParams)(nil).validate(true), common.ErrNilPointer)
+}
+
 func TestValidateSubscriptions(t *testing.T) {
 	t.Parallel()
 	require.NoError(t, e.ValidateSubscriptions(nil))
@@ -5184,29 +5190,29 @@ func TestGetMultiCollateralCurrencyQuota(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetMultiCollateralCurrencyQuota(t.Context(), "collateral", "BTC")
-	require.NoError(t, err, "GetMultiCollateralCurrencyQuota must not error")
-	assert.NotNil(t, result, "result should not be nil")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestGetMultiCollateralSupportedCurrencies(t *testing.T) {
 	t.Parallel()
 	result, err := e.GetMultiCollateralSupportedCurrencies(t.Context())
-	require.NoError(t, err, "GetMultiCollateralSupportedCurrencies must not error")
-	assert.NotNil(t, result, "result should not be nil")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestGetMultiCollateralizationRatio(t *testing.T) {
 	t.Parallel()
 	result, err := e.GetMultiCollateralizationRatio(t.Context())
-	require.NoError(t, err, "GetMultiCollateralizationRatio must not error")
-	assert.NotNil(t, result, "result should not be nil")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestGetMultiCollateralFixedRates(t *testing.T) {
 	t.Parallel()
 	result, err := e.GetMultiCollateralFixedRates(t.Context())
-	require.NoError(t, err, "GetMultiCollateralFixedRates must not error")
-	assert.NotNil(t, result, "result should not be nil")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestGetMultiCollateralCurrentRates(t *testing.T) {
@@ -5215,8 +5221,8 @@ func TestGetMultiCollateralCurrentRates(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty, "empty currencies must return ErrCurrencyCodeEmpty")
 
 	result, err := e.GetMultiCollateralCurrentRates(t.Context(), []string{"BTC", "GT"}, "")
-	require.NoError(t, err, "GetMultiCollateralCurrentRates must not error")
-	assert.NotNil(t, result, "result should not be nil")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
 }
 
 func TestWebsocketSubmitOrders(t *testing.T) {
@@ -5265,7 +5271,6 @@ func TestUnmarshalJSONOrderbookLevels(t *testing.T) {
 	require.NoError(t, ob.UnmarshalJSON([]byte(`[{"p":"123.45","s":"0.001"}]`)))
 	assert.Equal(t, 123.45, ob[0].Price, "Price should be correct")
 	assert.Equal(t, 0.001, ob[0].Amount, "Amount should be correct")
-
 	require.Error(t, ob.UnmarshalJSON([]byte(`["p":"123.45","s":"0.001"]`)))
 }
 
@@ -5752,8 +5757,6 @@ func TestGetAvailableTransferChains(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-// Over The Counter(OTC) endpoints unit tests
-
 func TestGetFlatStablecoinQuote(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFlatStablecoinQuote(t.Context(), &OtcQuoteRequest{})
@@ -5923,7 +5926,7 @@ func TestGetTradFiKlines(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	_, err = e.GetTradFiKlines(t.Context(), currency.Pair{Base: currency.EUR, Quote: currency.USD}, nil)
-	require.ErrorIs(t, err, kline.ErrInvalidInterval)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	_, err = e.GetTradFiKlines(t.Context(), currency.Pair{Base: currency.EUR, Quote: currency.USD}, &GetTradFiKlinesRequest{})
 	require.ErrorIs(t, err, kline.ErrInvalidInterval)
@@ -5980,7 +5983,10 @@ func TestGetTradFiTransactions(t *testing.T) {
 
 func TestCreateTradFiTransaction(t *testing.T) {
 	t.Parallel()
-	err := e.CreateTradFiTransaction(t.Context(), &TradFiTransactionRequest{})
+	err := e.CreateTradFiTransaction(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	err = e.CreateTradFiTransaction(t.Context(), &TradFiTransactionRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	err = e.CreateTradFiTransaction(t.Context(), &TradFiTransactionRequest{Asset: currency.USDT})
@@ -6008,7 +6014,10 @@ func TestGetTradFiActiveOrders(t *testing.T) {
 
 func TestCreateTradFiOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.CreateTradFiOrder(t.Context(), &TradFiOrderRequest{})
+	_, err := e.CreateTradFiOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.CreateTradFiOrder(t.Context(), &TradFiOrderRequest{})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	_, err = e.CreateTradFiOrder(t.Context(), &TradFiOrderRequest{Symbol: currency.Pair{Base: currency.EUR, Quote: currency.USD}})
@@ -6034,7 +6043,10 @@ func TestCreateTradFiOrder(t *testing.T) {
 
 func TestUpdateTradFiOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.UpdateTradFiOrder(t.Context(), 0, &TradFiOrderUpdateRequest{Price: "1.09100"})
+	_, err := e.UpdateTradFiOrder(t.Context(), 0, nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.UpdateTradFiOrder(t.Context(), 0, &TradFiOrderUpdateRequest{Price: "1.09100"})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	_, err = e.UpdateTradFiOrder(t.Context(), 1223, &TradFiOrderUpdateRequest{})

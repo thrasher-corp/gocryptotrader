@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
@@ -28,7 +29,10 @@ func TestGetBotStrategyRecommendations(t *testing.T) {
 
 func TestCreateSpotGridBot(t *testing.T) {
 	t.Parallel()
-	_, err := e.CreateSpotGridBot(t.Context(), &SpotGridCreateRequest{})
+	_, err := e.CreateSpotGridBot(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.CreateSpotGridBot(t.Context(), &SpotGridCreateRequest{})
 	require.ErrorIs(t, err, errBotMarketRequired)
 
 	arg := &SpotGridCreateRequest{Market: "BTC_USDT"}
@@ -56,7 +60,10 @@ func TestCreateSpotGridBot(t *testing.T) {
 
 func TestCreateMarginGridBot(t *testing.T) {
 	t.Parallel()
-	_, err := e.CreateMarginGridBot(t.Context(), &MarginGridCreateRequest{})
+	_, err := e.CreateMarginGridBot(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.CreateMarginGridBot(t.Context(), &MarginGridCreateRequest{})
 	require.ErrorIs(t, err, errBotMarketRequired)
 
 	arg := &MarginGridCreateRequest{Market: "BTC_USDT"}
@@ -89,7 +96,10 @@ func TestCreateMarginGridBot(t *testing.T) {
 
 func TestCreateInfiniteGridBot(t *testing.T) {
 	t.Parallel()
-	_, err := e.CreateInfiniteGridBot(t.Context(), &InfiniteGridCreateRequest{})
+	_, err := e.CreateInfiniteGridBot(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.CreateInfiniteGridBot(t.Context(), &InfiniteGridCreateRequest{})
 	require.ErrorIs(t, err, errBotMarketRequired)
 
 	arg := &InfiniteGridCreateRequest{Market: "BTC_USDT"}

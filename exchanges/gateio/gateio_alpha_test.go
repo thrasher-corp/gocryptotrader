@@ -38,7 +38,10 @@ func TestGetAlphaAccountTransactionHistory(t *testing.T) {
 
 func TestCreateAlphaCurrencyQuoteID(t *testing.T) {
 	t.Parallel()
-	_, err := e.CreateAlphaCurrencyQuoteID(t.Context(), &AlphaCurrencyQuoteInfoRequest{})
+	_, err := e.CreateAlphaCurrencyQuoteID(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.CreateAlphaCurrencyQuoteID(t.Context(), &AlphaCurrencyQuoteInfoRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	arg := &AlphaCurrencyQuoteInfoRequest{Currency: currency.BTC}
@@ -62,7 +65,10 @@ func TestCreateAlphaCurrencyQuoteID(t *testing.T) {
 
 func TestPlaceAlphaTradeOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.PlaceAlphaTradeOrder(t.Context(), &AlphaCurrencyQuoteInfoRequest{})
+	_, err := e.PlaceAlphaTradeOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.PlaceAlphaTradeOrder(t.Context(), &AlphaCurrencyQuoteInfoRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	arg := &AlphaCurrencyQuoteInfoRequest{Currency: currency.BTC}

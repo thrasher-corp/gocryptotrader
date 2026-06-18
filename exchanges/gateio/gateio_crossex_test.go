@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -46,7 +47,10 @@ func TestGetCrossexTransferHistory(t *testing.T) {
 
 func TestCrossexFundTransfer(t *testing.T) {
 	t.Parallel()
-	_, err := e.CrossexFundTransfer(t.Context(), &CrossexTransferRequest{})
+	_, err := e.CrossexFundTransfer(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.CrossexFundTransfer(t.Context(), &CrossexTransferRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	_, err = e.CrossexFundTransfer(t.Context(), &CrossexTransferRequest{Coin: currency.BTC})
@@ -68,7 +72,10 @@ func TestCrossexFundTransfer(t *testing.T) {
 
 func TestCreateCrossexOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.CreateCrossexOrder(t.Context(), &CrossexOrderCreateRequest{})
+	_, err := e.CreateCrossexOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.CreateCrossexOrder(t.Context(), &CrossexOrderCreateRequest{})
 	require.ErrorIs(t, err, errCrossexExchangeTypeRequired)
 
 	_, err = e.CreateCrossexOrder(t.Context(), &CrossexOrderCreateRequest{ExchangeType: "BINANCE"})
@@ -130,7 +137,10 @@ func TestCancelCrossexOrder(t *testing.T) {
 
 func TestGetCrossexConvertQuote(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetCrossexConvertQuote(t.Context(), &CrossexConvertQuoteRequest{})
+	_, err := e.GetCrossexConvertQuote(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.GetCrossexConvertQuote(t.Context(), &CrossexConvertQuoteRequest{})
 	require.ErrorIs(t, err, errCrossexExchangeTypeRequired)
 
 	_, err = e.GetCrossexConvertQuote(t.Context(), &CrossexConvertQuoteRequest{ExchangeType: "BINANCE"})
@@ -202,7 +212,10 @@ func TestGetCrossexContractLeverage(t *testing.T) {
 
 func TestSetCrossexContractLeverage(t *testing.T) {
 	t.Parallel()
-	_, err := e.SetCrossexContractLeverage(t.Context(), &CrossexLeverageRequest{})
+	_, err := e.SetCrossexContractLeverage(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.SetCrossexContractLeverage(t.Context(), &CrossexLeverageRequest{})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	_, err = e.SetCrossexContractLeverage(t.Context(), &CrossexLeverageRequest{Symbol: "BINANCE_FUTURE_BTC_USDT"})
@@ -229,7 +242,10 @@ func TestGetCrossexMarginLeverage(t *testing.T) {
 
 func TestSetCrossexMarginLeverage(t *testing.T) {
 	t.Parallel()
-	_, err := e.SetCrossexMarginLeverage(t.Context(), &CrossexLeverageRequest{})
+	_, err := e.SetCrossexMarginLeverage(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.SetCrossexMarginLeverage(t.Context(), &CrossexLeverageRequest{})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	_, err = e.SetCrossexMarginLeverage(t.Context(), &CrossexLeverageRequest{Symbol: "BINANCE_MARGIN_BTC_USDT"})
@@ -246,7 +262,10 @@ func TestSetCrossexMarginLeverage(t *testing.T) {
 
 func TestCloseCrossexPosition(t *testing.T) {
 	t.Parallel()
-	_, err := e.CloseCrossexPosition(t.Context(), &CrossexClosePositionRequest{})
+	_, err := e.CloseCrossexPosition(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.CloseCrossexPosition(t.Context(), &CrossexClosePositionRequest{})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)

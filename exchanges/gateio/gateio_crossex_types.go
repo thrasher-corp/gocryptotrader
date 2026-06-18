@@ -68,9 +68,9 @@ type CrossexTransferRecord struct {
 type CrossexTransferRequest struct {
 	Coin   currency.Code `json:"coin"`
 	Amount float64       `json:"amount,string"`
+	Text   string        `json:"text,omitempty"`
 	From   string        `json:"from"`
 	To     string        `json:"to"`
-	Text   string        `json:"text,omitempty"`
 }
 
 // CrossexTransferResponse holds the result of a CrossEx fund transfer.
@@ -85,9 +85,9 @@ type CrossexOrderCreateRequest struct {
 	Symbol       string     `json:"symbol"`
 	Side         order.Side `json:"side"`
 	Type         string     `json:"type"`
-	Quantity     float64    `json:"qty,string,omitempty"`
-	Price        float64    `json:"price,string,omitempty"`
-	QuickQty     float64    `json:"quick_qty,string,omitempty"`
+	Quantity     float64    `json:"qty,omitempty,string"`
+	Price        float64    `json:"price,omitempty,string"`
+	QuickQty     float64    `json:"quick_qty,omitempty,string"`
 	ReduceOnly   bool       `json:"reduce_only,omitempty"`
 	PositionSide order.Side `json:"position_side,omitempty"`
 }
@@ -123,8 +123,8 @@ type CrossexOrder struct {
 
 // CrossexOrderUpdateRequest is the request body for modifying a CrossEx order.
 type CrossexOrderUpdateRequest struct {
-	Quantity float64 `json:"qty,string,omitempty"`
-	Price    float64 `json:"price,string,omitempty"`
+	Quantity float64 `json:"qty,omitempty,string"`
+	Price    float64 `json:"price,omitempty,string"`
 }
 
 // CrossexOrderActionResponse holds the result of a CrossEx order action (modify/cancel).

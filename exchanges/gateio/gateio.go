@@ -538,13 +538,13 @@ func (e *Exchange) GetInterestDeductionRecords(ctx context.Context, ccy currency
 		params.Set("type", loanType)
 	}
 	var resp []*InterestDeductionRecord
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "unified/interest_records", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, unifiedInterestRecordsEPL, http.MethodGet, "unified/interest_records", params, nil, &resp)
 }
 
 // GetUserRiskUnitDetails holds a user risk unit details
 func (e *Exchange) GetUserRiskUnitDetails(ctx context.Context) (*UserRiskUnitDetail, error) {
 	var resp *UserRiskUnitDetail
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "unified/risk_units", nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, unifiedRiskUnitsEPL, http.MethodGet, "unified/risk_units", nil, nil, &resp)
 }
 
 // SetUnifiedAccountMode sets unified account mode
@@ -560,13 +560,13 @@ func (e *Exchange) SetUnifiedAccountMode(ctx context.Context, arg *UnifiedAccoun
 	if arg.Mode == "" {
 		return errMissingUnifiedAccountMode
 	}
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPut, "unified/unified_mode", nil, arg, nil)
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, unifiedUpdateUnifiedModeEPL, http.MethodPut, "unified/unified_mode", nil, arg, nil)
 }
 
 // GetUnifiedAccountMode query mode of the unified account
 func (e *Exchange) GetUnifiedAccountMode(ctx context.Context) (*UnifiedAccountMode, error) {
 	var resp *UnifiedAccountMode
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "unified/unified_mode", nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, unifiedGetUnifiedModeEPL, http.MethodGet, "unified/unified_mode", nil, nil, &resp)
 }
 
 // GetUnifiedAccountEstimatedInterestRate retrieves unified account estimated interest rate
@@ -578,19 +578,19 @@ func (e *Exchange) GetUnifiedAccountEstimatedInterestRate(ctx context.Context, c
 	params := url.Values{}
 	params.Set("currencies", strings.Join(currencies, ","))
 	var resp map[currency.Code]types.Number
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "unified/estimate_rate", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, unifiedEstimateRateEPL, http.MethodGet, "unified/estimate_rate", params, nil, &resp)
 }
 
 // GetUnifiedAccountTiered retrieves unified account tiered
 func (e *Exchange) GetUnifiedAccountTiered(ctx context.Context) ([]*UnifiedAccountTieredDetail, error) {
 	var resp []*UnifiedAccountTieredDetail
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "unified/currency_discount_tiers", nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, unifiedCurrencyDiscountTiersEPL, http.MethodGet, "unified/currency_discount_tiers", nil, nil, &resp)
 }
 
 // GetUnifiedAccountTieredLoanMargin query unified account tiered loan margin
 func (e *Exchange) GetUnifiedAccountTieredLoanMargin(ctx context.Context) ([]*UnifiedAccountLoanMargin, error) {
 	var resp []*UnifiedAccountLoanMargin
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodGet, "unified/loan_margin_tiers", nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, unifiedLoanMarginTiersEPL, http.MethodGet, "unified/loan_margin_tiers", nil, nil, &resp)
 }
 
 // CalculatePortfolioMargin portfolio margin calculator
@@ -648,7 +648,7 @@ func (e *Exchange) CalculatePortfolioMargin(ctx context.Context, arg *PortfolioM
 		}
 	}
 	var resp *PortfolioMarginCalculationResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, http.MethodPost, "unified/portfolio_calculator", nil, arg, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, unifiedPortfolioCalculatorEPL, http.MethodPost, "unified/portfolio_calculator", nil, arg, &resp)
 }
 
 // GetUserCurrencyLeverage retrieves the leverage multiplier settings for borrowing currencies
@@ -659,7 +659,7 @@ func (e *Exchange) GetUserCurrencyLeverage(ctx context.Context, ccy currency.Cod
 		params.Set("currency", ccy.String())
 	}
 	var resp []*UnifiedLeverageSetting
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "unified/leverage/user_currency_setting", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, unifiedGetLeverageUserCurrencySettingEPL, http.MethodGet, "unified/leverage/user_currency_setting", params, nil, &resp)
 }
 
 // SetLoanCurrencyLeverage sets the loan currency leverage multiplier for the unified account.
@@ -673,7 +673,7 @@ func (e *Exchange) SetLoanCurrencyLeverage(ctx context.Context, arg *UnifiedLeve
 	if arg.Leverage <= 0 {
 		return errInvalidLeverage
 	}
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "unified/leverage/user_currency_setting", nil, arg, nil)
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, unifiedCreateLeverageUserCurrencySettingEPL, http.MethodPost, "unified/leverage/user_currency_setting", nil, arg, nil)
 }
 
 // GetMaxMinCurrencyLeverage retrieves the maximum and minimum currency leverage that can be set
@@ -685,7 +685,7 @@ func (e *Exchange) GetMaxMinCurrencyLeverage(ctx context.Context, ccy currency.C
 	params := url.Values{}
 	params.Set("currency", ccy.String())
 	var resp *UnifiedCurrencyLeverageConfig
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "unified/leverage/user_currency_config", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, unifiedLeverageUserCurrencyConfigEPL, http.MethodGet, "unified/leverage/user_currency_config", params, nil, &resp)
 }
 
 // GetUnifiedLoanCurrencies retrieves the list of loan currencies supported by the unified account.
@@ -696,7 +696,7 @@ func (e *Exchange) GetUnifiedLoanCurrencies(ctx context.Context, ccy currency.Co
 		params.Set("currency", ccy.String())
 	}
 	var resp []*UnifiedLoanCurrency
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("unified/currencies", params), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unifiedCurrenciesEPL, common.EncodeURLValues("unified/currencies", params), &resp)
 }
 
 // GetUnifiedHistoricalLendingRates retrieves historical lending rates for a currency in the unified account.
@@ -717,7 +717,7 @@ func (e *Exchange) GetUnifiedHistoricalLendingRates(ctx context.Context, ccy cur
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp *UnifiedHistoricalLendingRate
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("unified/history_loan_rate", params), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, unifiedHistoryLoanRateEPL, common.EncodeURLValues("unified/history_loan_rate", params), &resp)
 }
 
 // SetUnifiedCollateralCurrency sets collateral currencies for the unified account.
@@ -728,14 +728,14 @@ func (e *Exchange) SetUnifiedCollateralCurrency(ctx context.Context, arg *Unifie
 		return nil, err
 	}
 	var resp *UnifiedSetCollateralResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "unified/collateral_currencies", nil, arg, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, unifiedCollateralCurrenciesEPL, http.MethodPost, "unified/collateral_currencies", nil, arg, &resp)
 }
 
 // EstimateQuickRepaymentDetails retrieves the estimated quick repayment details for the unified account.
 // Available for unified account cross-currency margin mode and portfolio margin mode.
 func (e *Exchange) EstimateQuickRepaymentDetails(ctx context.Context) (*UnifiedQuickEstimateRepayment, error) {
 	var resp *UnifiedQuickEstimateRepayment
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "unified/estimate_quick_repayment", nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, unifiedEstimateQuickRepaymentEPL, http.MethodGet, "unified/estimate_quick_repayment", nil, nil, &resp)
 }
 
 // QuickRepayment performs a quick repayment for the unified account.
@@ -751,7 +751,7 @@ func (e *Exchange) QuickRepayment(ctx context.Context, arg *UnifiedQuickRepaymen
 		return nil, fmt.Errorf("%w: available currencies are required for quick repayment", currency.ErrCurrencyCodesEmpty)
 	}
 	var resp *UnifiedQuickRepaymentResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "unified/quick_repayment", nil, arg, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, unifiedQuickRepaymentEPL, http.MethodPost, "unified/quick_repayment", nil, arg, &resp)
 }
 
 // CreateBatchOrders Create a batch of orders Batch orders requirements: custom order field text is required At most 4 currency pairs,
@@ -4009,7 +4009,7 @@ func (e *Exchange) GetFixedTermProducts(ctx context.Context, assetName string, p
 	params.Set("page", strconv.FormatInt(page, 10))
 	params.Set("limit", strconv.FormatInt(limit, 10))
 	var resp *FixedTermProductsResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("earn/fixed-term/product", params), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, earnFixedTermProductEPL, common.EncodeURLValues("earn/fixed-term/product", params), &resp)
 }
 
 // GetFixedTermProductsByAsset retrieves fixed-term earn products for a single currency
@@ -4022,7 +4022,7 @@ func (e *Exchange) GetFixedTermProductsByAsset(ctx context.Context, assetName st
 		params.Set("type", strconv.FormatInt(productType, 10))
 	}
 	var resp *FixedTermProductsByAssetResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("earn/fixed-term/product/"+assetName+"/list", params), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, earnFixedTermProductListEPL, common.EncodeURLValues("earn/fixed-term/product/"+assetName+"/list", params), &resp)
 }
 
 // GetFixedTermSubscriptionHistory retrieves fixed-term earn history records filtered by type.
@@ -4227,7 +4227,6 @@ func validateOrderCreateParams(contract currency.Pair, size, price float64, auto
 }
 
 // CreateSelfTradePreventionUserGroup create STP user group
-// only the main account is allowed to create a new STP user group
 func (e *Exchange) CreateSelfTradePreventionUserGroup(ctx context.Context, arg *STPUserGroup) (*STPUserGroup, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
@@ -4240,7 +4239,6 @@ func (e *Exchange) CreateSelfTradePreventionUserGroup(ctx context.Context, arg *
 }
 
 // GetUserSelfTradePreventionGroups query STP user groups created by the user
-// Only query STP user groups created by the current main account
 func (e *Exchange) GetUserSelfTradePreventionGroups(ctx context.Context, name string) ([]*STPUserGroup, error) {
 	params := url.Values{}
 	if name != "" {
@@ -4251,7 +4249,6 @@ func (e *Exchange) GetUserSelfTradePreventionGroups(ctx context.Context, name st
 }
 
 // GetUsersInSTPUserGroup query users in the STP user group
-// Only the main account that created this STP group can query the account ID list in the current STP group
 func (e *Exchange) GetUsersInSTPUserGroup(ctx context.Context, stpID string) ([]*STPUserGroupMember, error) {
 	if stpID == "" {
 		return nil, errSTPGroupIDRequired
@@ -4261,8 +4258,6 @@ func (e *Exchange) GetUsersInSTPUserGroup(ctx context.Context, stpID string) ([]
 }
 
 // AddUsersToSTPUserGroup add users to the STP user group
-// Only the main account that created this STP group can add users to the STP user group
-// Only accounts under the current main account are allowed, cross-main account is not permitted
 func (e *Exchange) AddUsersToSTPUserGroup(ctx context.Context, stpID string, usersID []uint64) ([]*STPUserGroupMember, error) {
 	if stpID == "" {
 		return nil, errSTPGroupIDRequired
@@ -4275,7 +4270,6 @@ func (e *Exchange) AddUsersToSTPUserGroup(ctx context.Context, stpID string, use
 }
 
 // DeleteUserFromSTPUserGroup delete users from the STP user group
-// Only the main account that created this STP group is allowed to delete users from the STP user group
 func (e *Exchange) DeleteUserFromSTPUserGroup(ctx context.Context, stpID string, userID uint64) ([]*STPUserGroupMember, error) {
 	if stpID == "" {
 		return nil, errSTPGroupIDRequired
@@ -4428,11 +4422,10 @@ func (e *Exchange) GetMultiCollateralAdjustmentRecords(ctx context.Context, page
 		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
 	}
 	var resp []*MultiCollateralAdjustmentRecord
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "loan/multi_collateral/mortgage", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, loanMultiCollateralMortgageEPL, http.MethodGet, "loan/multi_collateral/mortgage", params, nil, &resp)
 }
 
 // GetMultiCollateralCurrencyQuota queries user's collateral and borrowing currency quota information.
-// currencyType must be "collateral" or "borrow"; when "collateral", ccy may be comma-separated.
 func (e *Exchange) GetMultiCollateralCurrencyQuota(ctx context.Context, currencyType, ccy string) ([]*MultiCollateralCurrencyQuota, error) {
 	if currencyType == "" {
 		return nil, errCurrencyTypeRequired
@@ -4444,30 +4437,28 @@ func (e *Exchange) GetMultiCollateralCurrencyQuota(ctx context.Context, currency
 	params.Set("currency_type", currencyType)
 	params.Set("currency", ccy)
 	var resp []*MultiCollateralCurrencyQuota
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "loan/multi_collateral/currency_quota", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, loanMultiCollateralCurrencyQuotaEPL, http.MethodGet, "loan/multi_collateral/currency_quota", params, nil, &resp)
 }
 
 // GetMultiCollateralSupportedCurrencies queries borrow currencies and collateral currencies supported by multi-currency collateral.
 func (e *Exchange) GetMultiCollateralSupportedCurrencies(ctx context.Context) (*MultiCollateralSupportedCurrencies, error) {
 	var resp *MultiCollateralSupportedCurrencies
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "loan/multi_collateral/currencies", &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, loanMultiCollateralCurrenciesEPL, "loan/multi_collateral/currencies", &resp)
 }
 
 // GetMultiCollateralizationRatio queries collateralization ratio information.
-// The multi-currency collateral ratio is fixed, independent of currency.
 func (e *Exchange) GetMultiCollateralizationRatio(ctx context.Context) (*MultiCollateralizationRatio, error) {
 	var resp *MultiCollateralizationRatio
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "loan/multi_collateral/ltv", &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, loanMultiCollateralLtvEPL, "loan/multi_collateral/ltv", &resp)
 }
 
 // GetMultiCollateralFixedRates queries each currency's 7-day and 30-day fixed interest rates.
 func (e *Exchange) GetMultiCollateralFixedRates(ctx context.Context) ([]*CollateralFixRate, error) {
 	var resp []*CollateralFixRate
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "loan/multi_collateral/fixed_rate", &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, loanMultiCollateralFixedRateEPL, "loan/multi_collateral/fixed_rate", &resp)
 }
 
 // GetMultiCollateralCurrentRates queries each currency's current interest rate updated every hour.
-// currencies is required (maximum 100); vipLevel defaults to 0 if empty.
 func (e *Exchange) GetMultiCollateralCurrentRates(ctx context.Context, currencies []string, vipLevel string) ([]*CollateralCurrentRate, error) {
 	if len(currencies) == 0 {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -4478,11 +4469,10 @@ func (e *Exchange) GetMultiCollateralCurrentRates(ctx context.Context, currencie
 		params.Set("vip_level", vipLevel)
 	}
 	var resp []*CollateralCurrentRate
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("loan/multi_collateral/current_rate", params), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, loanMultiCollateralCurrentRateEPL, common.EncodeURLValues("loan/multi_collateral/current_rate", params), &resp)
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the Gateio API
-// To use this you must setup an APIKey and APISecret from the exchange
 func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, epl request.EndpointLimit, method, endpoint string, param url.Values, data, result any) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
@@ -4585,7 +4575,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 // GetLendingCurrencyList retrieves lending currency list
 func (e *Exchange) GetLendingCurrencyList(ctx context.Context) ([]*LendingCurrencyDetail, error) {
 	var resp []*LendingCurrencyDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "earn/uni/currencies", &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, earnUniCurrenciesEPL, "earn/uni/currencies", &resp)
 }
 
 // GetLendingCurrencyDetail retrieves a single lending currency detail
@@ -4594,7 +4584,7 @@ func (e *Exchange) GetLendingCurrencyDetail(ctx context.Context, ccy currency.Co
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	var resp *LendingCurrencyDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "earn/uni/currencies/"+ccy.Item.Lower, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, earnUniCurrencyEPL, "earn/uni/currencies/"+ccy.Item.Lower, &resp)
 }
 
 // CreateLendingOrRedemption creates lending or redemption
@@ -4615,7 +4605,7 @@ func (e *Exchange) CreateLendingOrRedemption(ctx context.Context, arg *LendingOr
 	if arg.MinRate <= 0 {
 		return fmt.Errorf("%w: minimum interest rate is required", limits.ErrAmountBelowMin)
 	}
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "earn/uni/lends", nil, arg, nil)
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, earnUniCreateLendsEPL, http.MethodPost, "earn/uni/lends", nil, arg, nil)
 }
 
 // GetUserLendingOrderList get user's lending order list
@@ -4631,7 +4621,7 @@ func (e *Exchange) GetUserLendingOrderList(ctx context.Context, ccy currency.Cod
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp []*LendOrderDetail
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "earn/uni/lends", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, earnUniGetLendsEPL, http.MethodGet, "earn/uni/lends", params, nil, &resp)
 }
 
 // AmendUserLendingInformation amends user lending information
@@ -4642,7 +4632,7 @@ func (e *Exchange) AmendUserLendingInformation(ctx context.Context, ccy currency
 	if minRate <= 0 {
 		return fmt.Errorf("%w: minimum interest rate is required", limits.ErrAmountBelowMin)
 	}
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPatch, "earn/uni/lends", nil, map[string]string{
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, earnUniUpdateLendsEPL, http.MethodPatch, "earn/uni/lends", nil, map[string]string{
 		"currency": ccy.String(),
 		"min_rate": strconv.FormatFloat(minRate, 'f', 10, 64),
 	}, nil)
@@ -4675,7 +4665,7 @@ func (e *Exchange) GetLendingTransactionRecords(ctx context.Context, ccy currenc
 		params.Set("type", operationType)
 	}
 	var resp []*LendingTransactionRecord
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "earn/uni/lend_records", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, earnUniLendRecordsEPL, http.MethodGet, "earn/uni/lend_records", params, nil, &resp)
 }
 
 // GetUserTotalInterestIncomePerCurrency retrieves user's total interest income for specified currency
@@ -4686,7 +4676,7 @@ func (e *Exchange) GetUserTotalInterestIncomePerCurrency(ctx context.Context, cc
 	params := url.Values{}
 	params.Set("currency", ccy.String())
 	var resp *CurrencyAndInterestIncome
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "earn/uni/interests/"+ccy.Item.Lower, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, earnUniInterestsEPL, http.MethodGet, "earn/uni/interests/"+ccy.Item.Lower, params, nil, &resp)
 }
 
 // GetUserDividendRecords retrieves user dividend records
@@ -4713,7 +4703,7 @@ func (e *Exchange) GetUserDividendRecords(ctx context.Context, ccy currency.Code
 		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
 	}
 	var resp []*UserDividendRecords
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "earn/uni/interest_records", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, earnUniInterestRecordsEPL, http.MethodGet, "earn/uni/interest_records", params, nil, &resp)
 }
 
 // GetCurrencyInterestCompoundingStatus retrieves a currency code interest compounding status
@@ -4722,7 +4712,7 @@ func (e *Exchange) GetCurrencyInterestCompoundingStatus(ctx context.Context, ccy
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	var resp *CurrencyInterestStatus
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "earn/uni/interest_status/"+ccy.Lower().String(), nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, earnUniInterestStatusEPL, http.MethodGet, "earn/uni/interest_status/"+ccy.Lower().String(), nil, nil, &resp)
 }
 
 // GetUniLoanCurrencyAnnualizedTrendChart retrieves UniLoan currency annualized trend chart
@@ -4743,13 +4733,13 @@ func (e *Exchange) GetUniLoanCurrencyAnnualizedTrendChart(ctx context.Context, f
 		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
 	}
 	var resp []*UniLoanAssetData
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "earn/uni/chart", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, earnUniChartEPL, http.MethodGet, "earn/uni/chart", params, nil, &resp)
 }
 
 // GetCurrencyEstimatedAnnualizedInterestRate retrieves user's account estimated annulaized interest rate for each currency
 func (e *Exchange) GetCurrencyEstimatedAnnualizedInterestRate(ctx context.Context) ([]*CurrencyEstimatedAnnualInterestRate, error) {
 	var resp []*CurrencyEstimatedAnnualInterestRate
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "earn/uni/rate", nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, earnUniRateEPL, http.MethodGet, "earn/uni/rate", nil, nil, &resp)
 }
 
 // -------------- Collateral Loan endpoints ------------------------------
@@ -4937,7 +4927,7 @@ func (e *Exchange) GetSupportedBorrowingAndCollateralCurrencies(ctx context.Cont
 // ListLendingMarkets retrieves lending markets
 func (e *Exchange) ListLendingMarkets(ctx context.Context) ([]*LendingMarketDetail, error) {
 	var resp []*LendingMarketDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "margin/uni/currency_pairs", &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, marginUniCurrencyPairsEPL, "margin/uni/currency_pairs", &resp)
 }
 
 // GetLendingMarketDetail holds a lending market detail.
@@ -4946,7 +4936,7 @@ func (e *Exchange) GetLendingMarketDetail(ctx context.Context, currencyPair curr
 		return nil, currency.ErrCurrencyPairEmpty
 	}
 	var resp *LendingMarketDetail
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, "margin/uni/currency_pairs/"+currencyPair.String(), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, marginUniCurrencyPairEPL, "margin/uni/currency_pairs/"+currencyPair.String(), &resp)
 }
 
 // IsolatedMarginLendOrBorrow posts a lend or borrow order.
@@ -4967,7 +4957,7 @@ func (e *Exchange) IsolatedMarginLendOrBorrow(ctx context.Context, arg *LendOrBo
 		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *LendOrBorrowDetail
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "margin/uni/loans", nil, arg, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginUniCreateLoansEPL, http.MethodPost, "margin/uni/loans", nil, arg, &resp)
 }
 
 // ListAllIsolatedMarginLoans retrieves all loans history of the account
@@ -4986,7 +4976,7 @@ func (e *Exchange) ListAllIsolatedMarginLoans(ctx context.Context, currencyPair 
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp []*LoanDetail
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "margin/uni/loans", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginUniGetLoansEPL, http.MethodGet, "margin/uni/loans", params, nil, &resp)
 }
 
 // GetIsolatedMarginLoanRecords get a margin account loan records
@@ -5008,7 +4998,7 @@ func (e *Exchange) GetIsolatedMarginLoanRecords(ctx context.Context, loanType st
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp []*LoanDetail
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "margin/uni/loan_records", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginUniLoanRecordsEPL, http.MethodGet, "margin/uni/loan_records", params, nil, &resp)
 }
 
 // GetIsolatedMarginAccountInterestDeductionRecords retrieves a margin account interest deduction records
@@ -5038,7 +5028,7 @@ func (e *Exchange) GetIsolatedMarginAccountInterestDeductionRecords(ctx context.
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp []*InterestDeductionRecord
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "margin/uni/interest_records", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginUniInterestRecordsEPL, http.MethodGet, "margin/uni/interest_records", params, nil, &resp)
 }
 
 // GetIsolatedMarginAccountMaximumBorrowableAmountByCurrency retrieves a maximum borrowable amount if currency.Code for a currency pair market
@@ -5053,7 +5043,7 @@ func (e *Exchange) GetIsolatedMarginAccountMaximumBorrowableAmountByCurrency(ctx
 	params.Set("currency", ccy.String())
 	params.Set("currency_pair", currencyPair.String())
 	var resp []*MaximumBorrowableAmount
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "margin/uni/borrowable", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginUniBorrowableEPL, http.MethodGet, "margin/uni/borrowable", params, nil, &resp)
 }
 
 // GetUsersOwnLverageLendingTiersInCurrentMarket retrieves user's own leverage lending tiers in current market

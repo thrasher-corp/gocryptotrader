@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 var (
@@ -25,36 +24,33 @@ var (
 )
 
 // GetCrossexSymbols retrieves symbol information for CrossEx trading pairs.
-// Optionally filter by one or more symbol names.
 func (e *Exchange) GetCrossexSymbols(ctx context.Context, symbols []string) ([]*CrossexSymbol, error) {
 	params := url.Values{}
 	if len(symbols) > 0 {
 		params.Set("symbols", strings.Join(symbols, ","))
 	}
 	var resp []*CrossexSymbol
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("crossex/symbols", params), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, crossexSymbolsEPL, common.EncodeURLValues("crossex/symbols", params), &resp)
 }
 
 // GetCrossexRiskLimits retrieves risk limit information for CrossEx trading pairs.
-// Optionally filter by one or more symbol names.
 func (e *Exchange) GetCrossexRiskLimits(ctx context.Context, symbols []string) ([]*CrossexRiskLimit, error) {
 	params := url.Values{}
 	if len(symbols) > 0 {
 		params.Set("symbols", strings.Join(symbols, ","))
 	}
 	var resp []*CrossexRiskLimit
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, request.UnAuth, common.EncodeURLValues("crossex/risk_limit", params), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, crossexRiskLimitEPL, common.EncodeURLValues("crossex/risk_limit", params), &resp)
 }
 
 // GetCrossexTransferCoins retrieves the list of currencies supported for CrossEx transfers.
-// Optionally filter by coin code.
 func (e *Exchange) GetCrossexTransferCoins(ctx context.Context, coin currency.Code) ([]*CrossexTransferCoin, error) {
 	params := url.Values{}
 	if !coin.IsEmpty() {
 		params.Set("coin", coin.String())
 	}
 	var resp []*CrossexTransferCoin
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "crossex/transfers/coin", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexTransfersCoinEPL, http.MethodGet, "crossex/transfers/coin", params, nil, &resp)
 }
 
 // GetCrossexTransferHistory retrieves the fund transfer history for the authenticated user.
@@ -81,11 +77,14 @@ func (e *Exchange) GetCrossexTransferHistory(ctx context.Context, arg *GetCrosse
 		}
 	}
 	var resp []*CrossexTransferRecord
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "crossex/transfers", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexGetTransfersEPL, http.MethodGet, "crossex/transfers", params, nil, &resp)
 }
 
 // CrossexFundTransfer initiates a fund transfer to or from the CrossEx account.
 func (e *Exchange) CrossexFundTransfer(ctx context.Context, arg *CrossexTransferRequest) (*CrossexTransferResponse, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	if arg.Coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -99,11 +98,14 @@ func (e *Exchange) CrossexFundTransfer(ctx context.Context, arg *CrossexTransfer
 		return nil, errCrossexToAccountRequired
 	}
 	var resp CrossexTransferResponse
-	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "crossex/transfers", nil, arg, &resp)
+	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexCreateTransfersEPL, http.MethodPost, "crossex/transfers", nil, arg, &resp)
 }
 
 // CreateCrossexOrder places a new order on the CrossEx platform.
 func (e *Exchange) CreateCrossexOrder(ctx context.Context, arg *CrossexOrderCreateRequest) (*CrossexOrder, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	if arg.ExchangeType == "" {
 		return nil, errCrossexExchangeTypeRequired
 	}
@@ -117,7 +119,7 @@ func (e *Exchange) CreateCrossexOrder(ctx context.Context, arg *CrossexOrderCrea
 		return nil, order.ErrTypeIsInvalid
 	}
 	var resp CrossexOrder
-	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "crossex/orders", nil, arg, &resp)
+	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexCreateOrdersEPL, http.MethodPost, "crossex/orders", nil, arg, &resp)
 }
 
 // GetCrossexOrderDetails retrieves details for a specific CrossEx order.
@@ -126,7 +128,7 @@ func (e *Exchange) GetCrossexOrderDetails(ctx context.Context, orderID string) (
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp CrossexOrder
-	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "crossex/orders/"+orderID, nil, nil, &resp)
+	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexGetOrdersEPL, http.MethodGet, "crossex/orders/"+orderID, nil, nil, &resp)
 }
 
 // ModifyCrossexOrder modifies an existing CrossEx order's quantity or price.
@@ -135,7 +137,7 @@ func (e *Exchange) ModifyCrossexOrder(ctx context.Context, orderID string, arg *
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp CrossexOrderActionResponse
-	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPut, "crossex/orders/"+orderID, nil, arg, &resp)
+	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexUpdateOrdersEPL, http.MethodPut, "crossex/orders/"+orderID, nil, arg, &resp)
 }
 
 // CancelCrossexOrder cancels an existing CrossEx order.
@@ -144,11 +146,14 @@ func (e *Exchange) CancelCrossexOrder(ctx context.Context, orderID string) (*Cro
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp CrossexOrderActionResponse
-	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodDelete, "crossex/orders/"+orderID, nil, nil, &resp)
+	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexDeleteOrdersEPL, http.MethodDelete, "crossex/orders/"+orderID, nil, nil, &resp)
 }
 
 // GetCrossexConvertQuote retrieves a flash swap quote for a CrossEx currency conversion.
 func (e *Exchange) GetCrossexConvertQuote(ctx context.Context, arg *CrossexConvertQuoteRequest) (*CrossexConvertQuoteResponse, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	if arg.ExchangeType == "" {
 		return nil, errCrossexExchangeTypeRequired
 	}
@@ -162,7 +167,7 @@ func (e *Exchange) GetCrossexConvertQuote(ctx context.Context, arg *CrossexConve
 		return nil, fmt.Errorf("%w: crossex amount required", order.ErrAmountMustBeSet)
 	}
 	var resp CrossexConvertQuoteResponse
-	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "crossex/convert/quote", nil, arg, &resp)
+	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexConvertQuoteEPL, http.MethodPost, "crossex/convert/quote", nil, arg, &resp)
 }
 
 // ExecuteCrossexConvertOrder executes a CrossEx flash swap using a previously obtained quote ID.
@@ -172,39 +177,40 @@ func (e *Exchange) ExecuteCrossexConvertOrder(ctx context.Context, quoteID strin
 	}
 	body := CrossexConvertOrderRequest{QuoteID: quoteID}
 	var resp CrossexConvertOrderResponse
-	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "crossex/convert/orders", nil, &body, &resp)
+	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexConvertOrdersEPL, http.MethodPost, "crossex/convert/orders", nil, &body, &resp)
 }
 
 // GetCrossexAccountAssets retrieves the CrossEx account asset information.
-// Optionally filter by exchange type.
 func (e *Exchange) GetCrossexAccountAssets(ctx context.Context, exchangeType string) ([]*CrossexAccount, error) {
 	params := url.Values{}
 	if exchangeType != "" {
 		params.Set("exchange_type", exchangeType)
 	}
 	var resp []*CrossexAccount
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "crossex/accounts", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexGetAccountsEPL, http.MethodGet, "crossex/accounts", params, nil, &resp)
 }
 
 // UpdateCrossexAccount modifies the CrossEx account's position mode or account mode.
 func (e *Exchange) UpdateCrossexAccount(ctx context.Context, arg *CrossexAccountUpdateRequest) (*CrossexAccountUpdateResponse, error) {
 	var resp CrossexAccountUpdateResponse
-	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPut, "crossex/accounts", nil, arg, &resp)
+	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexUpdateAccountsEPL, http.MethodPut, "crossex/accounts", nil, arg, &resp)
 }
 
 // GetCrossexContractLeverage retrieves the leverage multiplier for CrossEx contract trading pairs.
-// Optionally filter by one or more symbol names.
 func (e *Exchange) GetCrossexContractLeverage(ctx context.Context, symbols []string) (map[string]string, error) {
 	params := url.Values{}
 	if len(symbols) > 0 {
 		params.Set("symbols", strings.Join(symbols, ","))
 	}
 	var resp map[string]string
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "crossex/positions/leverage", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexGetPositionsLeverageEPL, http.MethodGet, "crossex/positions/leverage", params, nil, &resp)
 }
 
 // SetCrossexContractLeverage sets the leverage multiplier for a CrossEx contract trading pair.
 func (e *Exchange) SetCrossexContractLeverage(ctx context.Context, arg *CrossexLeverageRequest) (*CrossexLeverageResponse, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	if arg.Symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -212,22 +218,24 @@ func (e *Exchange) SetCrossexContractLeverage(ctx context.Context, arg *CrossexL
 		return nil, errCrossexLeverageRequired
 	}
 	var resp CrossexLeverageResponse
-	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "crossex/positions/leverage", nil, arg, &resp)
+	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexCreatePositionsLeverageEPL, http.MethodPost, "crossex/positions/leverage", nil, arg, &resp)
 }
 
 // GetCrossexMarginLeverage retrieves the leverage multiplier for CrossEx leveraged (margin) trading pairs.
-// Optionally filter by one or more symbol names.
 func (e *Exchange) GetCrossexMarginLeverage(ctx context.Context, symbols []string) (map[string]string, error) {
 	params := url.Values{}
 	if len(symbols) > 0 {
 		params.Set("symbols", strings.Join(symbols, ","))
 	}
 	var resp map[string]string
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "crossex/margin_positions/leverage", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexGetMarginPositionsLeverageEPL, http.MethodGet, "crossex/margin_positions/leverage", params, nil, &resp)
 }
 
 // SetCrossexMarginLeverage sets the leverage multiplier for a CrossEx leveraged (margin) trading pair.
 func (e *Exchange) SetCrossexMarginLeverage(ctx context.Context, arg *CrossexLeverageRequest) (*CrossexLeverageResponse, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	if arg.Symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
@@ -235,20 +243,22 @@ func (e *Exchange) SetCrossexMarginLeverage(ctx context.Context, arg *CrossexLev
 		return nil, errCrossexLeverageRequired
 	}
 	var resp CrossexLeverageResponse
-	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "crossex/margin_positions/leverage", nil, arg, &resp)
+	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexCreateMarginPositionsLeverageEPL, http.MethodPost, "crossex/margin_positions/leverage", nil, arg, &resp)
 }
 
 // CloseCrossexPosition fully closes an open CrossEx contract position.
 func (e *Exchange) CloseCrossexPosition(ctx context.Context, arg *CrossexClosePositionRequest) (*CrossexOrderActionResponse, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	if arg.Symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	var resp CrossexOrderActionResponse
-	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "crossex/position", nil, arg, &resp)
+	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexPositionEPL, http.MethodPost, "crossex/position", nil, arg, &resp)
 }
 
 // GetCrossexInterestRates retrieves margin asset interest rates.
-// Optionally filter by coin and exchange type.
 func (e *Exchange) GetCrossexInterestRates(ctx context.Context, coin currency.Code, exchangeType string) ([]*CrossexInterestRate, error) {
 	params := url.Values{}
 	if !coin.IsEmpty() {
@@ -258,17 +268,16 @@ func (e *Exchange) GetCrossexInterestRates(ctx context.Context, coin currency.Co
 		params.Set("exchange_type", exchangeType)
 	}
 	var resp []*CrossexInterestRate
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "crossex/interest_rate", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexInterestRateEPL, http.MethodGet, "crossex/interest_rate", params, nil, &resp)
 }
 
 // GetCrossexUserFeeRates retrieves the fee rates for the authenticated CrossEx user.
 func (e *Exchange) GetCrossexUserFeeRates(ctx context.Context) ([]*CrossexFee, error) {
 	var resp []*CrossexFee
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "crossex/fee", nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexFeeEPL, http.MethodGet, "crossex/fee", nil, nil, &resp)
 }
 
 // GetCrossexContractPositions retrieves the authenticated user's open CrossEx contract positions.
-// Optionally filter by symbol and exchange type.
 func (e *Exchange) GetCrossexContractPositions(ctx context.Context, symbol, exchangeType string) ([]*CrossexPosition, error) {
 	params := url.Values{}
 	if symbol != "" {
@@ -278,11 +287,10 @@ func (e *Exchange) GetCrossexContractPositions(ctx context.Context, symbol, exch
 		params.Set("exchange_type", exchangeType)
 	}
 	var resp []*CrossexPosition
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "crossex/positions", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexPositionsEPL, http.MethodGet, "crossex/positions", params, nil, &resp)
 }
 
 // GetCrossexMarginPositions retrieves the authenticated user's open CrossEx leveraged (margin) positions.
-// Optionally filter by symbol and exchange type.
 func (e *Exchange) GetCrossexMarginPositions(ctx context.Context, symbol, exchangeType string) ([]*CrossexMarginPosition, error) {
 	params := url.Values{}
 	if symbol != "" {
@@ -292,7 +300,7 @@ func (e *Exchange) GetCrossexMarginPositions(ctx context.Context, symbol, exchan
 		params.Set("exchange_type", exchangeType)
 	}
 	var resp []*CrossexMarginPosition
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "crossex/margin_positions", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexMarginPositionsEPL, http.MethodGet, "crossex/margin_positions", params, nil, &resp)
 }
 
 // GetCrossexADLRank retrieves the ADL (Auto-Deleveraging) position reduction ranking for a CrossEx symbol.
@@ -303,7 +311,7 @@ func (e *Exchange) GetCrossexADLRank(ctx context.Context, symbol string) ([]*Cro
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	var resp []*CrossexAdlRank
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "crossex/adl_rank", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexAdlRankEPL, http.MethodGet, "crossex/adl_rank", params, nil, &resp)
 }
 
 // GetCrossexOpenOrders retrieves all currently open CrossEx orders.
@@ -321,7 +329,7 @@ func (e *Exchange) GetCrossexOpenOrders(ctx context.Context, arg *GetCrossexOpen
 		}
 	}
 	var resp []*CrossexOrder
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "crossex/open_orders", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexOpenOrdersEPL, http.MethodGet, "crossex/open_orders", params, nil, &resp)
 }
 
 // GetCrossexOrderHistory retrieves the CrossEx order history for the authenticated user.
@@ -348,7 +356,7 @@ func (e *Exchange) GetCrossexOrderHistory(ctx context.Context, arg *GetCrossexOr
 		}
 	}
 	var resp []*CrossexOrder
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "crossex/history_orders", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexHistoryOrdersEPL, http.MethodGet, "crossex/history_orders", params, nil, &resp)
 }
 
 // GetCrossexContractPositionHistory retrieves closed CrossEx contract position history.
@@ -372,7 +380,7 @@ func (e *Exchange) GetCrossexContractPositionHistory(ctx context.Context, arg *G
 		}
 	}
 	var resp []*CrossexHistoricalPosition
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "crossex/history_positions", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexHistoryPositionsEPL, http.MethodGet, "crossex/history_positions", params, nil, &resp)
 }
 
 // GetCrossexMarginPositionHistory retrieves closed CrossEx leveraged (margin) position history.
@@ -396,7 +404,7 @@ func (e *Exchange) GetCrossexMarginPositionHistory(ctx context.Context, arg *Get
 		}
 	}
 	var resp []*CrossexHistoricalMarginPosition
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "crossex/history_margin_positions", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexHistoryMarginPositionsEPL, http.MethodGet, "crossex/history_margin_positions", params, nil, &resp)
 }
 
 // GetCrossexMarginInterestHistory retrieves the leveraged interest deduction history.
@@ -423,7 +431,7 @@ func (e *Exchange) GetCrossexMarginInterestHistory(ctx context.Context, arg *Get
 		}
 	}
 	var resp []*CrossexMarginInterestRecord
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "crossex/history_margin_interests", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexHistoryMarginInterestsEPL, http.MethodGet, "crossex/history_margin_interests", params, nil, &resp)
 }
 
 // GetCrossexTradeHistory retrieves the trade history for the authenticated CrossEx user.
@@ -447,7 +455,7 @@ func (e *Exchange) GetCrossexTradeHistory(ctx context.Context, arg *GetCrossexTr
 		}
 	}
 	var resp []*CrossexTrade
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "crossex/history_trades", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexHistoryTradesEPL, http.MethodGet, "crossex/history_trades", params, nil, &resp)
 }
 
 // GetCrossexAccountBook retrieves the account asset change history for the authenticated CrossEx user.
@@ -474,11 +482,10 @@ func (e *Exchange) GetCrossexAccountBook(ctx context.Context, arg *GetCrossexAcc
 		}
 	}
 	var resp []*CrossexAccountBookRecord
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "crossex/account_book", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexAccountBookEPL, http.MethodGet, "crossex/account_book", params, nil, &resp)
 }
 
 // GetCrossexCoinDiscountRates retrieves the currency discount rates for CrossEx assets.
-// Optionally filter by coin and exchange type.
 func (e *Exchange) GetCrossexCoinDiscountRates(ctx context.Context, coin, exchangeType string) ([]*CrossexCoinDiscountRate, error) {
 	params := url.Values{}
 	if coin != "" {
@@ -488,5 +495,5 @@ func (e *Exchange) GetCrossexCoinDiscountRates(ctx context.Context, coin, exchan
 		params.Set("exchange_type", exchangeType)
 	}
 	var resp []*CrossexCoinDiscountRate
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "crossex/coin_discount_rate", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexCoinDiscountRateEPL, http.MethodGet, "crossex/coin_discount_rate", params, nil, &resp)
 }

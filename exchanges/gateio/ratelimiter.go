@@ -205,6 +205,122 @@ const (
 	deliveryUpdateRiskLimitEPL
 	perpetualUpdateRiskDualModeEPL
 	perpetualUpdateRiskEPL
+
+	// Alpha EPLs
+	alphaAccountsEPL
+	alphaAccountBookEPL
+	alphaCreateQuoteEPL
+	alphaPlaceOrderEPL
+	alphaListOrdersEPL
+	alphaGetOrderEPL
+	alphaCurrenciesEPL
+	alphaTickersEPL
+
+	// Unified EPLs
+	unifiedInterestRecordsEPL
+	unifiedRiskUnitsEPL
+	unifiedUpdateUnifiedModeEPL
+	unifiedGetUnifiedModeEPL
+	unifiedEstimateRateEPL
+	unifiedCurrencyDiscountTiersEPL
+	unifiedLoanMarginTiersEPL
+	unifiedPortfolioCalculatorEPL
+	unifiedGetLeverageUserCurrencySettingEPL
+	unifiedCreateLeverageUserCurrencySettingEPL
+	unifiedLeverageUserCurrencyConfigEPL
+	unifiedCurrenciesEPL
+	unifiedHistoryLoanRateEPL
+	unifiedCollateralCurrenciesEPL
+	unifiedEstimateQuickRepaymentEPL
+	unifiedQuickRepaymentEPL
+
+	// Earn fixed-term EPLs
+	earnFixedTermProductEPL
+	earnFixedTermProductListEPL
+
+	// Loan multi-collateral EPLs
+	loanMultiCollateralMortgageEPL
+	loanMultiCollateralCurrencyQuotaEPL
+	loanMultiCollateralCurrentRateEPL
+	loanMultiCollateralCurrenciesEPL
+	loanMultiCollateralLtvEPL
+	loanMultiCollateralFixedRateEPL
+
+	// Earn uni EPLs
+	earnUniCreateLendsEPL
+	earnUniGetLendsEPL
+	earnUniUpdateLendsEPL
+	earnUniLendRecordsEPL
+	earnUniInterestsEPL
+	earnUniInterestRecordsEPL
+	earnUniInterestStatusEPL
+	earnUniChartEPL
+	earnUniRateEPL
+	earnUniCurrenciesEPL
+	earnUniCurrencyEPL
+
+	// Margin uni EPLs
+	marginUniCreateLoansEPL
+	marginUniGetLoansEPL
+	marginUniLoanRecordsEPL
+	marginUniInterestRecordsEPL
+	marginUniBorrowableEPL
+	marginUniCurrencyPairsEPL
+	marginUniCurrencyPairEPL
+
+	// TradFi EPLs
+	tradfiUsersMt5AccountEPL
+	tradfiSymbolsDetailEPL
+	tradfiKlinesEPL
+	tradfiUsersEPL
+	tradfiUsersAssetsEPL
+	tradfiGetTransactionsEPL
+	tradfiCreateTransactionsEPL
+	tradfiGetOrdersEPL
+	tradfiCreateOrdersEPL
+	tradfiUpdateOrdersEPL
+	tradfiDeleteOrdersEPL
+	tradfiOrdersHistoryEPL
+	tradfiGetPositionsEPL
+	tradfiUpdatePositionsEPL
+	tradfiCreatePositionsEPL
+	tradfiPositionsHistoryEPL
+	tradfiSymbolsCategoriesEPL
+	tradfiSymbolsEPL
+	tradfiTickersEPL
+
+	// CrossEx EPLs
+	crossexSymbolsEPL
+	crossexRiskLimitEPL
+	crossexTransfersCoinEPL
+	crossexGetTransfersEPL
+	crossexCreateTransfersEPL
+	crossexCreateOrdersEPL
+	crossexGetOrdersEPL
+	crossexUpdateOrdersEPL
+	crossexDeleteOrdersEPL
+	crossexConvertQuoteEPL
+	crossexConvertOrdersEPL
+	crossexGetAccountsEPL
+	crossexUpdateAccountsEPL
+	crossexGetPositionsLeverageEPL
+	crossexCreatePositionsLeverageEPL
+	crossexGetMarginPositionsLeverageEPL
+	crossexCreateMarginPositionsLeverageEPL
+	crossexPositionEPL
+	crossexInterestRateEPL
+	crossexFeeEPL
+	crossexPositionsEPL
+	crossexMarginPositionsEPL
+	crossexAdlRankEPL
+	crossexOpenOrdersEPL
+	crossexHistoryOrdersEPL
+	crossexHistoryPositionsEPL
+	crossexHistoryMarginPositionsEPL
+	crossexHistoryMarginInterestsEPL
+	crossexHistoryTradesEPL
+	crossexAccountBookEPL
+	crossexCoinDiscountRateEPL
 )
 
 // package level rate limits for REST API
@@ -406,6 +522,122 @@ var packageRateLimits = request.RateLimitDefinitions{
 	deliveryUpdateRiskLimitEPL:      standardRateLimit(),
 	perpetualUpdateRiskDualModeEPL:  standardRateLimit(),
 	perpetualUpdateRiskEPL:          standardRateLimit(),
+
+	// Alpha limits
+	alphaAccountsEPL:    standardRateLimit(),
+	alphaAccountBookEPL: standardRateLimit(),
+	alphaCreateQuoteEPL: standardRateLimit(),
+	alphaPlaceOrderEPL:  spotOrderPlacementRateLimit(),
+	alphaListOrdersEPL:  standardRateLimit(),
+	alphaGetOrderEPL:    standardRateLimit(),
+	alphaCurrenciesEPL:  standardRateLimit(),
+	alphaTickersEPL:     standardRateLimit(),
+
+	// Unified limits
+	unifiedInterestRecordsEPL:                   standardRateLimit(),
+	unifiedRiskUnitsEPL:                         standardRateLimit(),
+	unifiedUpdateUnifiedModeEPL:                 standardRateLimit(),
+	unifiedGetUnifiedModeEPL:                    standardRateLimit(),
+	unifiedEstimateRateEPL:                      standardRateLimit(),
+	unifiedCurrencyDiscountTiersEPL:             standardRateLimit(),
+	unifiedLoanMarginTiersEPL:                   standardRateLimit(),
+	unifiedPortfolioCalculatorEPL:               standardRateLimit(),
+	unifiedGetLeverageUserCurrencySettingEPL:    standardRateLimit(),
+	unifiedCreateLeverageUserCurrencySettingEPL: standardRateLimit(),
+	unifiedLeverageUserCurrencyConfigEPL:        standardRateLimit(),
+	unifiedCurrenciesEPL:                        standardRateLimit(),
+	unifiedHistoryLoanRateEPL:                   standardRateLimit(),
+	unifiedCollateralCurrenciesEPL:              standardRateLimit(),
+	unifiedEstimateQuickRepaymentEPL:            standardRateLimit(),
+	unifiedQuickRepaymentEPL:                    standardRateLimit(),
+
+	// Earn fixed-term limits
+	earnFixedTermProductEPL:     standardRateLimit(),
+	earnFixedTermProductListEPL: standardRateLimit(),
+
+	// Loan multi-collateral limits
+	loanMultiCollateralMortgageEPL:      standardRateLimit(),
+	loanMultiCollateralCurrencyQuotaEPL: standardRateLimit(),
+	loanMultiCollateralCurrentRateEPL:   standardRateLimit(),
+	loanMultiCollateralCurrenciesEPL:    standardRateLimit(),
+	loanMultiCollateralLtvEPL:           standardRateLimit(),
+	loanMultiCollateralFixedRateEPL:     standardRateLimit(),
+
+	// Earn uni limits
+	earnUniCreateLendsEPL:     standardRateLimit(),
+	earnUniGetLendsEPL:        standardRateLimit(),
+	earnUniUpdateLendsEPL:     standardRateLimit(),
+	earnUniLendRecordsEPL:     standardRateLimit(),
+	earnUniInterestsEPL:       standardRateLimit(),
+	earnUniInterestRecordsEPL: standardRateLimit(),
+	earnUniInterestStatusEPL:  standardRateLimit(),
+	earnUniChartEPL:           standardRateLimit(),
+	earnUniRateEPL:            standardRateLimit(),
+	earnUniCurrenciesEPL:      standardRateLimit(),
+	earnUniCurrencyEPL:        standardRateLimit(),
+
+	// Margin uni limits
+	marginUniCreateLoansEPL:     standardRateLimit(),
+	marginUniGetLoansEPL:        standardRateLimit(),
+	marginUniLoanRecordsEPL:     standardRateLimit(),
+	marginUniInterestRecordsEPL: standardRateLimit(),
+	marginUniBorrowableEPL:      standardRateLimit(),
+	marginUniCurrencyPairsEPL:   standardRateLimit(),
+	marginUniCurrencyPairEPL:    standardRateLimit(),
+
+	// TradFi limits
+	tradfiUsersMt5AccountEPL:    standardRateLimit(),
+	tradfiSymbolsDetailEPL:      standardRateLimit(),
+	tradfiKlinesEPL:             standardRateLimit(),
+	tradfiUsersEPL:              standardRateLimit(),
+	tradfiUsersAssetsEPL:        standardRateLimit(),
+	tradfiGetTransactionsEPL:    standardRateLimit(),
+	tradfiCreateTransactionsEPL: standardRateLimit(),
+	tradfiGetOrdersEPL:          standardRateLimit(),
+	tradfiCreateOrdersEPL:       spotOrderPlacementRateLimit(),
+	tradfiUpdateOrdersEPL:       spotOrderPlacementRateLimit(),
+	tradfiDeleteOrdersEPL:       orderCloseRateLimit(),
+	tradfiOrdersHistoryEPL:      standardRateLimit(),
+	tradfiGetPositionsEPL:       standardRateLimit(),
+	tradfiUpdatePositionsEPL:    standardRateLimit(),
+	tradfiCreatePositionsEPL:    standardRateLimit(),
+	tradfiPositionsHistoryEPL:   standardRateLimit(),
+	tradfiSymbolsCategoriesEPL:  standardRateLimit(),
+	tradfiSymbolsEPL:            standardRateLimit(),
+	tradfiTickersEPL:            standardRateLimit(),
+
+	// CrossEx limits
+	crossexSymbolsEPL:                       standardRateLimit(),
+	crossexRiskLimitEPL:                     standardRateLimit(),
+	crossexTransfersCoinEPL:                 standardRateLimit(),
+	crossexGetTransfersEPL:                  standardRateLimit(),
+	crossexCreateTransfersEPL:               standardRateLimit(),
+	crossexCreateOrdersEPL:                  spotOrderPlacementRateLimit(),
+	crossexGetOrdersEPL:                     standardRateLimit(),
+	crossexUpdateOrdersEPL:                  spotOrderPlacementRateLimit(),
+	crossexDeleteOrdersEPL:                  orderCloseRateLimit(),
+	crossexConvertQuoteEPL:                  standardRateLimit(),
+	crossexConvertOrdersEPL:                 spotOrderPlacementRateLimit(),
+	crossexGetAccountsEPL:                   standardRateLimit(),
+	crossexUpdateAccountsEPL:                standardRateLimit(),
+	crossexGetPositionsLeverageEPL:          standardRateLimit(),
+	crossexCreatePositionsLeverageEPL:       standardRateLimit(),
+	crossexGetMarginPositionsLeverageEPL:    standardRateLimit(),
+	crossexCreateMarginPositionsLeverageEPL: standardRateLimit(),
+	crossexPositionEPL:                      orderCloseRateLimit(),
+	crossexInterestRateEPL:                  standardRateLimit(),
+	crossexFeeEPL:                           standardRateLimit(),
+	crossexPositionsEPL:                     standardRateLimit(),
+	crossexMarginPositionsEPL:               standardRateLimit(),
+	crossexAdlRankEPL:                       standardRateLimit(),
+	crossexOpenOrdersEPL:                    standardRateLimit(),
+	crossexHistoryOrdersEPL:                 standardRateLimit(),
+	crossexHistoryPositionsEPL:              standardRateLimit(),
+	crossexHistoryMarginPositionsEPL:        standardRateLimit(),
+	crossexHistoryMarginInterestsEPL:        standardRateLimit(),
+	crossexHistoryTradesEPL:                 standardRateLimit(),
+	crossexAccountBookEPL:                   standardRateLimit(),
+	crossexCoinDiscountRateEPL:              standardRateLimit(),
 }
 
 func standardRateLimit() *request.RateLimiterWithWeight {
