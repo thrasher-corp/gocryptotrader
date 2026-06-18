@@ -3397,10 +3397,10 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 	})
 }
 
-func TestLoadInstrumentOrderExecutionLimitsSkipsInactiveAndEmptyInstruments(t *testing.T) {
+func TestLoadInstrumentOrderExecutionLimits(t *testing.T) {
 	exch := &Exchange{}
 	exch.SetDefaults()
-	exch.Name = "OkxTestLoadInstrumentOrderExecutionLimitsSkipsInactiveAndEmptyInstruments"
+	exch.Name = "OkxTestLoadInstrumentOrderExecutionLimits"
 
 	livePair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
 	inactivePair := currency.NewPairWithDelimiter("ETH", "USDT", "-")
@@ -3423,7 +3423,7 @@ func TestLoadInstrumentOrderExecutionLimitsSkipsInactiveAndEmptyInstruments(t *t
 			TickSize:         types.Number(0.01),
 			MinimumOrderSize: types.Number(2),
 		},
-	}), "loadInstrumentOrderExecutionLimits must skip inactive and empty instruments")
+	}), "loadInstrumentOrderExecutionLimits must load live instruments and skip inactive or empty instruments")
 
 	loadedLimit, err := exch.GetOrderExecutionLimits(asset.Futures, livePair)
 	require.NoError(t, err, "GetOrderExecutionLimits must not error for live instrument")
