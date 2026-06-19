@@ -38,8 +38,7 @@ type Exchange struct {
 	// SymbolsConfig represents all symbols configuration.
 	SymbolsConfig *AllSymbolsConfigs
 
-	// SymbolsV1Config caches the V1 symbols configuration, which carries the
-	// StarkEx asset metadata required by the legacy V1/V2 StarkEx signing code.
+	// SymbolsV1Config caches the V1 symbols configuration.
 	SymbolsV1Config *AllSymbolsV1Config
 
 	StarkConfig       *starkex.StarkConfig
@@ -47,7 +46,6 @@ type Exchange struct {
 	NetworkID         int
 
 	// ZKLinkerSigner is lazily initialised on first V3 signing call.
-	// Access via getOrInitZKLinkerSigner() in apexpro_zksigner.go.
 	ZKLinkerSigner any
 }
 
@@ -111,19 +109,19 @@ func (e *Exchange) getSystemTime(ctx context.Context, path string) (time.Time, e
 	resp := &struct {
 		Time types.Time `json:"time"`
 	}{}
-	return resp.Time.Time(), e.SendHTTPRequest(ctx, exchange.RestSpot, path, request.UnAuth, &resp)
+	return resp.Time.Time(), e.SendHTTPRequest(ctx, exchange.RestSpot, path, publicEPL, &resp)
 }
 
 // GetAllConfigDataV3 retrieves all symbols and asset configurations.
 func (e *Exchange) GetAllConfigDataV3(ctx context.Context) (*AllSymbolsConfigs, error) {
 	var resp *AllSymbolsConfigs
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, "v3/symbols", request.UnAuth, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, "v3/symbols", publicEPL, &resp)
 }
 
 // GetAllSymbolsConfigDataV1 retrieves all symbols and asset configurations from the V1 API.
 func (e *Exchange) GetAllSymbolsConfigDataV1(ctx context.Context) (*AllSymbolsV1Config, error) {
 	var resp *AllSymbolsV1Config
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, "v1/symbols", request.UnAuth, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, "v1/symbols", publicEPL, &resp, true)
 }
 
 // GetMarketDepthV3 retrieve all active orderbook for one symbol, include all bids and asks.
@@ -142,7 +140,7 @@ func (e *Exchange) getMarketDepth(ctx context.Context, symbol, path string, limi
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *MarketDepthV3
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(path, params), request.UnAuth, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(path, params), publicEPL, &resp)
 }
 
 // GetNewestTradingDataV3 retrieve trading data.
@@ -160,7 +158,7 @@ func (e *Exchange) getNewestTradingData(ctx context.Context, symbol, path string
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []*NewTradingData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(path, params), request.UnAuth, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(path, params), publicEPL, &resp)
 }
 
 var intervalToStringMap = []*struct {
@@ -199,8 +197,7 @@ func intervalFromString(intervalString string) (kline.Interval, error) {
 	return kline.Interval(0), fmt.Errorf("unsupported interval string %s: %w", intervalString, kline.ErrInvalidInterval)
 }
 
-// GetCandlestickChartDataV3 etrieves all candlestick chart data.
-// Candlestick chart time indicators: Numbers represent minutes, D for Days, M for Month and W for Week — 1 5 15 30 60 120 240 360 720 "D" "M" "W"
+// GetCandlestickChartDataV3 retrieves all candlestick chart data.
 func (e *Exchange) GetCandlestickChartDataV3(ctx context.Context, symbol string, interval kline.Interval, startTime, endTime time.Time, limit int64) (map[string][]*CandlestickData, error) {
 	return e.getCandlestickChartData(ctx, symbol, "v3/klines", interval, startTime, endTime, limit)
 }
@@ -233,7 +230,7 @@ func (e *Exchange) getCandlestickChartData(ctx context.Context, symbol, path str
 	}
 	params.Set("symbol", symbol)
 	var resp map[string][]*CandlestickData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues(path, params), request.UnAuth, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, common.EncodeURLValues(path, params), publicEPL, &resp)
 }
 
 // GetTickerDataV3 get the latest data on symbol tickers.
@@ -248,7 +245,7 @@ func (e *Exchange) getTickerData(ctx context.Context, symbol, path string) ([]*T
 	params := url.Values{}
 	params.Set("symbol", symbol)
 	var resp []*TickerData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(path, params), request.UnAuth, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, common.EncodeURLValues(path, params), publicEPL, &resp)
 }
 
 // GetFundingHistoryRateV3 retrieves a funding history rate.
@@ -285,13 +282,13 @@ func (e *Exchange) getFundingHistoryRate(ctx context.Context, symbol, path strin
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
 	var resp *FundingRateHistory
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(path, params), request.UnAuth, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(path, params), publicEPL, &resp)
 }
 
 // GetAllConfigDataV2 retrieves USDC and USDT config
 func (e *Exchange) GetAllConfigDataV2(ctx context.Context) (*V2ConfigData, error) {
 	var resp *V2ConfigData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, "v2/symbols", request.UnAuth, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, "v2/symbols", publicEPL, &resp, true)
 }
 
 // GetCheckIfUserExistsV2 checks existence of a persion using the ethereum Address
@@ -311,7 +308,7 @@ func (e *Exchange) getCheckIfUserExists(ctx context.Context, ethAddress, path st
 	params := url.Values{}
 	params.Set("ethAddress", ethAddress)
 	var resp bool
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(path, params), request.UnAuth, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(path, params), publicEPL, &resp)
 }
 
 // ----------------------------------------------------------------     Authenticated Endpoints ----------------------------------------------------------------
@@ -351,7 +348,7 @@ func (e *Exchange) generateNonce(ctx context.Context, l2Key, ethereumAddress, ch
 		ChainID:         chainID,
 	}
 	var resp *NonceResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, request.UnAuth, nil, arg, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, privatePostEPL, nil, arg, &resp)
 }
 
 // GetUsersDataV3 retrieves an account users information.
@@ -371,7 +368,7 @@ func (e *Exchange) GetUsersDataV1(ctx context.Context) (*UserData, error) {
 
 func (e *Exchange) getUsersData(ctx context.Context, path string) (*UserData, error) {
 	var resp *UserData
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, path, request.Unset, nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, path, privateGetEPL, nil, nil, &resp)
 }
 
 // EditUserDataV3 edits user's data.
@@ -394,37 +391,37 @@ func (e *Exchange) editUserData(ctx context.Context, arg *EditUserDataParams, pa
 		return nil, err
 	}
 	var resp *UserDataResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, request.UnAuth, nil, arg, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, privatePostEPL, nil, arg, &resp)
 }
 
 // GetUserAccountDataV3 get an account for a user by id. Using the client, the id will be generated with client information and an Ethereum address.
 func (e *Exchange) GetUserAccountDataV3(ctx context.Context) (*UserAccountDetail, error) {
 	var resp *UserAccountDetail
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v3/account", request.UnAuth, nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v3/account", privateGetEPL, nil, nil, &resp)
 }
 
 // GetUserAccountDataV2 get a user account detail through the V2 API.
 func (e *Exchange) GetUserAccountDataV2(ctx context.Context) (*UserAccountV2, error) {
 	var resp *UserAccountV2
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, "v2/account", request.UnAuth, nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, "v2/account", privateGetEPL, nil, nil, &resp)
 }
 
 // GetUserAccountDataV1 get an account for a user by id
 func (e *Exchange) GetUserAccountDataV1(ctx context.Context) (*UserAccountDetailV1, error) {
 	var resp *UserAccountDetailV1
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v1/account", request.UnAuth, nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v1/account", privateGetEPL, nil, nil, &resp)
 }
 
 // GetUserAccountBalance retrieves user account balance information.
 func (e *Exchange) GetUserAccountBalance(ctx context.Context) (*UserAccountBalanceResponse, error) {
 	var resp *UserAccountBalanceResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v3/account-balance", request.UnAuth, nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v3/account-balance", privateGetEPL, nil, nil, &resp)
 }
 
 // GetUserAccountBalanceV2 retrieves user account balance information through the V2 API.
 func (e *Exchange) GetUserAccountBalanceV2(ctx context.Context) (*UserAccountBalanceV2Response, error) {
 	var resp *UserAccountBalanceV2Response
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, "v2/account-balance", request.UnAuth, nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, "v2/account-balance", privateGetEPL, nil, nil, &resp)
 }
 
 // UserWithdrawalsV2
@@ -468,7 +465,7 @@ func (e *Exchange) getUserTransferData(ctx context.Context, ccy currency.Code, s
 		params.Set("transferType", transferType)
 	}
 	var resp *UserWithdrawalsV2
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, privateGetEPL, params, nil, &resp)
 }
 
 // GetUserWithdrawalListV2 retrieves asset withdrawal list.
@@ -504,7 +501,7 @@ func (e *Exchange) getUserWithdrawalList(ctx context.Context, transferType, path
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
 	var resp *WithdrawalsV2
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, privateGetEPL, params, nil, &resp)
 }
 
 // GetFastAndCrossChainWithdrawalFeesV2 retrieves fee information of fast and cross-chain withdrawal transactions.
@@ -530,7 +527,7 @@ func (e *Exchange) getFastAndCrossChainWithdrawalFees(ctx context.Context, amoun
 		params.Set("chainId", chainID)
 	}
 	var resp *FastAndCrossChainWithdrawalFees
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, privateGetEPL, params, nil, &resp)
 }
 
 // GetAssetWithdrawalAndTransferLimitV2 retrieves an asset withdrawal and transfer limit per interval.
@@ -550,12 +547,10 @@ func (e *Exchange) getAssetWithdrawalAndTransferLimit(ctx context.Context, curre
 	params := url.Values{}
 	params.Set("currencyId", currencyID.String())
 	var resp *TransferAndWithdrawalLimit
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, privateGetEPL, params, nil, &resp)
 }
 
 // GetUserTransferData retrieves user's asset transfer data.
-// Direction: possible values are 'NEXT' and 'PREVIOUS'
-// TransfersType: possible values are 'DEPOSIT', 'WITHDRAW' ,'FAST_WITHDRAW' ,'OMNI_TO_PERP' for spot account -> contract account,'OMNI_FROM_PERP' for spot account <- contract account,'AFFILIATE_REBATE' affliate rebate,'REFERRAL_REBATE' for referral rebate,'BROKER_REBATE' for broker rebate
 func (e *Exchange) GetUserTransferData(ctx context.Context, id, limit int64, tokenID, transferType, subAccountID, direction string, startAt, endAt time.Time, chainIDs []string) (*UserWithdrawals, error) {
 	if startAt.IsZero() {
 		return nil, fmt.Errorf("%w, startTime is required", errInvalidTimestamp)
@@ -589,12 +584,10 @@ func (e *Exchange) GetUserTransferData(ctx context.Context, id, limit int64, tok
 	params.Set("endTimeExclusive", strconv.FormatInt(endAt.UnixMilli(), 10))
 	params.Set("beginTimeInclusive", strconv.FormatInt(startAt.UnixMilli(), 10))
 	var resp *UserWithdrawals
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v3/transfers", request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v3/transfers", privateGetEPL, params, nil, &resp)
 }
 
 // GetWithdrawalFees retrieves list of withdrawal fees.
-// the withdrawal need zkAvailableAmount >= withdrawAmount
-// the fast withdrawal needzkAvailableAmount >= withdrawAmount && fastPoolAvailableAmount>= withdrawAmount
 func (e *Exchange) GetWithdrawalFees(ctx context.Context, amount float64, chainIDs []string, tokenID int64) (*WithdrawalFeeInfos, error) {
 	params := url.Values{}
 	if amount != 0 {
@@ -609,7 +602,7 @@ func (e *Exchange) GetWithdrawalFees(ctx context.Context, amount float64, chainI
 		params.Set("tokenId", strconv.FormatInt(tokenID, 10))
 	}
 	var resp *WithdrawalFeeInfos
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v3/withdraw-fee", request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v3/withdraw-fee", privateGetEPL, params, nil, &resp)
 }
 
 // GetContractAccountTransferLimits retrieves a transfer limit of a contract.
@@ -620,7 +613,7 @@ func (e *Exchange) GetContractAccountTransferLimits(ctx context.Context, ccy cur
 	params := url.Values{}
 	params.Set("token", ccy.String())
 	var resp *ContractTransferLimit
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v3/contract-transfer-limit", request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v3/contract-transfer-limit", privateGetEPL, params, nil, &resp)
 }
 
 // GetTradeHistory retrieves trade fills history
@@ -673,7 +666,7 @@ func (e *Exchange) getTradeHistory(ctx context.Context, symbol, side, orderType,
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *TradeHistory
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, ePath, http.MethodGet, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, ePath, http.MethodGet, path, privateGetEPL, params, nil, &resp)
 }
 
 // GetWorstPriceV3 retrieves the worst market price from orderbook
@@ -747,8 +740,7 @@ func (e *Exchange) orderCreationParamsFilter(ctx context.Context, arg *CreateOrd
 	return params, nil
 }
 
-// orderCreationParamsFilterV3 validates and prepares URL params for a V3 order,
-// signing with the zkKey (ZKLink Schnorr) scheme.
+// orderCreationParamsFilterV3 validates and prepares URL params for a V3 order.
 func (e *Exchange) orderCreationParamsFilterV3(ctx context.Context, arg *CreateOrderParams) (url.Values, error) {
 	if *arg == (CreateOrderParams{}) {
 		return nil, order.ErrOrderDetailIsNil
@@ -809,7 +801,7 @@ func (e *Exchange) CreateOrderV3(ctx context.Context, arg *CreateOrderParams) (*
 		return nil, err
 	}
 	var resp *OrderDetail
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "v3/order", request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "v3/order", createOrderEPL, params, nil, &resp)
 }
 
 // CreateOrderV2 creates a new order through the v2 API
@@ -819,7 +811,7 @@ func (e *Exchange) CreateOrderV2(ctx context.Context, arg *CreateOrderParams) (*
 		return nil, err
 	}
 	var resp *OrderDetail
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "v2/create-order", request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "v2/create-order", createOrderEPL, params, nil, &resp)
 }
 
 // CreateOrderV1 creates a new order through the v2 API
@@ -829,7 +821,7 @@ func (e *Exchange) CreateOrderV1(ctx context.Context, arg *CreateOrderParams) (*
 		return nil, err
 	}
 	var resp *OrderDetail
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "v1/create-order", request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "v1/create-order", createOrderEPL, params, nil, &resp)
 }
 
 // FastWithdrawalV1 withdraws an asset via the StarkEx V1 endpoint.
@@ -881,7 +873,7 @@ func (e *Exchange) fastWithdrawal(ctx context.Context, arg *FastWithdrawalParams
 	params.Set("clientId", arg.ClientID)
 	params.Set("signature", signature)
 	var resp *WithdrawalResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, privatePostEPL, params, nil, &resp)
 }
 
 func (e *Exchange) fastWithdrawalZKLink(ctx context.Context, arg *FastWithdrawalParams, path string) (*WithdrawalResponse, error) {
@@ -901,7 +893,7 @@ func (e *Exchange) fastWithdrawalZKLink(ctx context.Context, arg *FastWithdrawal
 	params.Set("clientId", arg.ClientID)
 	params.Set("zkKeySignature", zkKeySignature)
 	var resp *WithdrawalResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, privatePostEPL, params, nil, &resp)
 }
 
 func (e *Exchange) getWorstPrice(ctx context.Context, symbol, side, path string, amount float64, ePath exchange.URL) (*SymbolWorstPrice, error) {
@@ -919,7 +911,7 @@ func (e *Exchange) getWorstPrice(ctx context.Context, symbol, side, path string,
 	params.Set("side", side)
 	params.Set("symbol", symbol)
 	var resp *SymbolWorstPrice
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, ePath, http.MethodGet, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, ePath, http.MethodGet, path, privateGetEPL, params, nil, &resp)
 }
 
 // CancelPerpOrder cancels a perpetual contract order cancellation.
@@ -937,7 +929,7 @@ func (e *Exchange) cancelOrderByID(ctx context.Context, id, path string) (types.
 		return 0, order.ErrOrderIDNotSet
 	}
 	var resp types.Number
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, request.UnAuth, nil, map[string]any{"id": id}, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, privatePostEPL, nil, map[string]any{"id": id}, &resp)
 }
 
 // CancelAllOpenOrdersV3 cancels all open orders
@@ -946,7 +938,7 @@ func (e *Exchange) CancelAllOpenOrdersV3(ctx context.Context, symbols []string) 
 	if len(symbols) > 0 {
 		symbolString = strings.Join(symbols, ",")
 	}
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "v3/delete-open-orders", request.UnAuth, nil, map[string]string{"symbol": symbolString}, nil)
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "v3/delete-open-orders", privatePostEPL, nil, map[string]string{"symbol": symbolString}, nil)
 }
 
 // CancelPerpOrderV2 cancels a perpetual contract futures order.
@@ -962,29 +954,27 @@ func (e *Exchange) CancelPerpOrderV2(ctx context.Context, orderID string, token 
 		"token": token.String(),
 	}
 	var resp types.Number
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "v2/delete-order", request.UnAuth, nil, arg, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "v2/delete-order", privatePostEPL, nil, arg, &resp)
 }
 
 // GetOpenOrders retrieves an active orders
 func (e *Exchange) GetOpenOrders(ctx context.Context) ([]*OrderDetail, error) {
 	var resp []*OrderDetail
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, "v3/open-orders", request.UnAuth, nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, "v3/open-orders", privateGetEPL, nil, nil, &resp)
 }
 
 // GetOpenOrdersV1 retrieves an active orders
 func (e *Exchange) GetOpenOrdersV1(ctx context.Context) ([]*OrderDetail, error) {
 	var resp []*OrderDetail
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v1/open-orders", request.UnAuth, nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v1/open-orders", privateGetEPL, nil, nil, &resp)
 }
 
 // GetAllOrderHistory retrieves all order history
-// possible ordersKind are "ACTIVE","CONDITION", and "HISTORY"
 func (e *Exchange) GetAllOrderHistory(ctx context.Context, symbol, side, orderType, orderStatus, ordersKind string, startTime, endTime time.Time, page, limit int64) (*OrderHistoryResponse, error) {
 	return e.getAllOrderHistory(ctx, symbol, side, orderType, orderStatus, ordersKind, "", "v3/history-orders", startTime, endTime, page, limit)
 }
 
 // GetAllOrderHistoryV2 retrieves all order history
-// possible ordersKind are "ACTIVE","CONDITION", and "HISTORY"
 func (e *Exchange) GetAllOrderHistoryV2(ctx context.Context, token currency.Code, symbol, side, orderType, orderStatus, ordersKind string, startTime, endTime time.Time, page, limit int64) (*OrderHistoryResponse, error) {
 	if token.IsEmpty() {
 		return nil, fmt.Errorf("%w, token is required", currency.ErrCurrencyCodeEmpty)
@@ -993,7 +983,6 @@ func (e *Exchange) GetAllOrderHistoryV2(ctx context.Context, token currency.Code
 }
 
 // GetAllOrderHistoryV1 retrieves all order history
-// possible ordersKind are "ACTIVE","CONDITION", and "HISTORY"
 func (e *Exchange) GetAllOrderHistoryV1(ctx context.Context, symbol, side, orderType, orderStatus, ordersKind string, startTime, endTime time.Time, page, limit int64) (*OrderHistoryResponse, error) {
 	return e.getAllOrderHistory(ctx, symbol, side, orderType, orderStatus, ordersKind, "", "v1/history-orders", startTime, endTime, page, limit)
 }
@@ -1036,7 +1025,7 @@ func (e *Exchange) getAllOrderHistory(ctx context.Context, symbol, side, orderTy
 		params.Set("page", strconv.FormatInt(page, 10))
 	}
 	var resp *OrderHistoryResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, path, privateGetEPL, params, nil, &resp)
 }
 
 // GetOrderID retrieves a single order by ID.
@@ -1081,7 +1070,7 @@ func (e *Exchange) getSingleOrder(ctx context.Context, orderID, path string, tok
 	params.Set("id", orderID)
 	params.Set("token", token.String())
 	var resp *OrderDetail
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, privateGetEPL, params, nil, &resp)
 }
 
 // GetVerificationEmailLink retrieves a link to the verification email
@@ -1094,11 +1083,10 @@ func (e *Exchange) GetVerificationEmailLink(ctx context.Context, userID string, 
 	if !token.IsEmpty() {
 		params.Set("token", token.String())
 	}
-	return e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("v1/verify-email", params), request.UnAuth, nil)
+	return e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("v1/verify-email", params), publicEPL, nil)
 }
 
 // LinkDevice bind a device to an account.
-// possible device type values: 1 (ios_firebase), 2 (android_firebase)
 func (e *Exchange) LinkDevice(ctx context.Context, deviceToken currency.Code, deviceType string) error {
 	if deviceToken.IsEmpty() {
 		return fmt.Errorf("%w, device token is required", currency.ErrCurrencyCodeEmpty)
@@ -1110,7 +1098,7 @@ func (e *Exchange) LinkDevice(ctx context.Context, deviceToken currency.Code, de
 		"deviceToken": deviceType,
 		"deviceType":  deviceType,
 	}
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "v1/bind-device", request.UnAuth, nil, arg, nil)
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "v1/bind-device", privatePostEPL, nil, arg, nil)
 }
 
 // GetOrderByClientOrderID retrieves a single order by client order ID.
@@ -1125,7 +1113,7 @@ func (e *Exchange) getOrderID(ctx context.Context, id, path string) (*OrderDetai
 	params := url.Values{}
 	params.Set("id", id)
 	var resp *OrderDetail
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, path, privateGetEPL, params, nil, &resp)
 }
 
 // GetFundingRateV3 retrieves a funding rate information.
@@ -1178,7 +1166,7 @@ func (e *Exchange) getFundingRate(ctx context.Context, symbol, side, status, tok
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *FundingRateResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, ePath, http.MethodGet, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, ePath, http.MethodGet, path, privateGetEPL, params, nil, &resp)
 }
 
 // GetUserHistorialProfitAndLoss retrieves a profit and loss history of order positions
@@ -1228,19 +1216,19 @@ func (e *Exchange) getUserHistorialProfitAndLoss(ctx context.Context, symbol, po
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *PNLHistory
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, ePath, http.MethodGet, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, ePath, http.MethodGet, path, privateGetEPL, params, nil, &resp)
 }
 
 // GetYesterdaysPNL retrieves yesterdays profit and loss(PNL)
 func (e *Exchange) GetYesterdaysPNL(ctx context.Context) (types.Number, error) {
 	var resp types.Number
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, "v3/yesterday-pnl", request.UnAuth, nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, "v3/yesterday-pnl", privateGetEPL, nil, nil, &resp)
 }
 
 // GetYesterdaysPNLV1 retrieves yesterdays profit and loss(PNL)
 func (e *Exchange) GetYesterdaysPNLV1(ctx context.Context) (types.Number, error) {
 	var resp types.Number
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v1/yesterday-pnl", request.UnAuth, nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v1/yesterday-pnl", privateGetEPL, nil, nil, &resp)
 }
 
 // GetYesterdaysPNLV2 retrieves yesterdays profit and loss(PNL)
@@ -1251,7 +1239,7 @@ func (e *Exchange) GetYesterdaysPNLV2(ctx context.Context, token currency.Code) 
 	params := url.Values{}
 	params.Set("token", token.String())
 	var resp types.Number
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v2/yesterday-pnl", request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v2/yesterday-pnl", privateGetEPL, params, nil, &resp)
 }
 
 // GetHistoricalAssetValue retrieves a historical asset value
@@ -1289,7 +1277,7 @@ func (e *Exchange) getHistoricalAssetValue(ctx context.Context, token, path stri
 		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
 	}
 	var resp *AssetValueHistory
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, ePath, http.MethodGet, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, ePath, http.MethodGet, path, privateGetEPL, params, nil, &resp)
 }
 
 // SetInitialMarginRateInfo sets an initial margin rate
@@ -1320,7 +1308,7 @@ func (e *Exchange) GetRepaymentPrice(ctx context.Context, repaymentPriceTokens [
 	params.Set("repaymentPriceTokens", paramString)
 	params.Set("clientId", clientID)
 	var resp *LoanRepaymentRates
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v3/repayment-price", request.Auth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v3/repayment-price", privateGetEPL, params, nil, &resp)
 }
 
 // UserManualRepayment sends a user manual repayment request
@@ -1355,7 +1343,7 @@ func (e *Exchange) UserManualRepayment(ctx context.Context, arg *UserManualRepay
 		"expireTime":          strconv.FormatInt(arg.ExpiryTime.UnixMilli(), 10),
 	}
 	var resp *IDResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "v3/manual-create-repayment", request.Auth, nil, argParam, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "v3/manual-create-repayment", privatePostEPL, nil, argParam, &resp)
 }
 
 // SetInitialMarginRateInfoV1 sets an initial margin rate
@@ -1379,7 +1367,7 @@ func (e *Exchange) setInitialMarginRateInfo(ctx context.Context, symbol, path st
 		"symbol":            symbol,
 		"initialMarginRate": strconv.FormatFloat(initialMarginRate, 'f', -1, 64),
 	}
-	return e.SendAuthenticatedHTTPRequest(ctx, ePath, http.MethodPost, path, request.UnAuth, nil, arg, nil)
+	return e.SendAuthenticatedHTTPRequest(ctx, ePath, http.MethodPost, path, privatePostEPL, nil, arg, nil)
 }
 
 // WithdrawAsset posts an asset withdrawal
@@ -1451,7 +1439,7 @@ func (e *Exchange) WithdrawAsset(ctx context.Context, arg *AssetWithdrawalParams
 	}
 	params.Set("zkKeySignature", zkKeySignature)
 	var resp *WithdrawalResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, "v3/withdrawal", request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodGet, "v3/withdrawal", privateGetEPL, params, nil, &resp)
 }
 
 // ----------------------------------------------------- Private V2 Endpoints --------------------------------------------------------------------------------
@@ -1479,7 +1467,7 @@ func (e *Exchange) UserWithdrawalV2(ctx context.Context, arg *WithdrawalParams) 
 	params.Set("signature", signature)
 	params.Set("ethAddress", arg.EthereumAddress)
 	var resp *WithdrawalResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "v2/create-withdrawal", request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "v2/create-withdrawal", privatePostEPL, params, nil, &resp)
 }
 
 // WithdrawalToAddressV1 withdraws as asset to an ethereum address
@@ -1521,7 +1509,7 @@ func (e *Exchange) withdrawalToAddress(ctx context.Context, arg *WithdrawalToAdd
 	params.Set("ethAddress", arg.EthereumAddress)
 	params.Set("signature", signature)
 	var resp *WithdrawalResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, privatePostEPL, params, nil, &resp)
 }
 
 // CrossChainWithdrawalsV1 withdraws an asset through different chains via the StarkEx V1 endpoint.
@@ -1555,7 +1543,7 @@ func (e *Exchange) crossChainWithdrawals(ctx context.Context, arg *FastWithdrawa
 	params.Set("chainId", arg.ChainID)
 	params.Set("signature", signature)
 	var resp *WithdrawalResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, privatePostEPL, params, nil, &resp)
 }
 
 func (e *Exchange) crossChainWithdrawalsZKLink(ctx context.Context, arg *FastWithdrawalParams, path string) (*WithdrawalResponse, error) {
@@ -1574,7 +1562,7 @@ func (e *Exchange) crossChainWithdrawalsZKLink(ctx context.Context, arg *FastWit
 	params.Set("chainId", arg.ChainID)
 	params.Set("zkKeySignature", zkKeySignature)
 	var resp *WithdrawalResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, privatePostEPL, params, nil, &resp)
 }
 
 // SendHTTPRequest sends an unauthenticated request
@@ -1626,7 +1614,7 @@ func (e *Exchange) RegisterRWAAccount(ctx context.Context, arg *RWARegisterAccou
 	params.Set("masterAccountId", arg.MasterAccountID)
 	params.Set("signature", arg.Signature)
 	var resp *RWAStockAccountResult
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "v3/stock/register-account", request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "v3/stock/register-account", privatePostEPL, params, nil, &resp)
 }
 
 // GenerateRWAAPIKey generates API credentials for an RWA sub-account using the primary API key.
@@ -1656,13 +1644,13 @@ func (e *Exchange) GenerateRWAAPIKey(ctx context.Context, arg *RWAGenerateAPIKey
 	params.Set("ethAddress", arg.EthAddress)
 	params.Set("signature", arg.Signature)
 	var resp *RWAStockAccountResult
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "v3/stock/generate-api", request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "v3/stock/generate-api", privatePostEPL, params, nil, &resp)
 }
 
 // GetRWAAccountData retrieves the RWA sub-account data using the RWA API key.
 func (e *Exchange) GetRWAAccountData(ctx context.Context) (*RWAAccountData, error) {
 	var resp *RWAAccountData
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v3/stock/account", request.UnAuth, nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "v3/stock/account", privateGetEPL, nil, nil, &resp)
 }
 
 // TransferContractToRWA transfers an asset from the primary contract account to an RWA sub-account, signing with the primary seeds when no signature is supplied.
@@ -1741,7 +1729,7 @@ func (e *Exchange) contractTransferTo(ctx context.Context, arg *RWATransferParam
 	}
 	params.Set("signature", arg.Signature)
 	var resp *RWATransferResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "v3/contract-transfer-to", request.UnAuth, params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "v3/contract-transfer-to", privatePostEPL, params, nil, &resp)
 }
 
 // CreateRWAOrder places an order on a tokenised RWA market via the shared v3/order endpoint, signed with the RWA sub-account credentials.

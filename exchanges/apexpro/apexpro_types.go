@@ -103,32 +103,38 @@ type AllSymbolsConfigs struct {
 		PredictionCategorys    string                     `json:"predictionCategorys"`
 		StockCategorys         string                     `json:"stockCategorys"`
 	} `json:"contractConfig"`
-	OmniSwapConfig struct {
-		OmniLiquidityTokens []struct {
-			TokenID                     string `json:"tokenId"`
-			Token                       string `json:"token"`
-			DisplayName                 string `json:"displayName"`
-			Decimals                    int    `json:"decimals"`
-			ShowStep                    string `json:"showStep"`
-			IconURL                     string `json:"iconUrl"`
-			SettleStep                  string `json:"settleStep"`
-			EnableCollateral            bool   `json:"enableCollateral"`
-			EnableCrossCollateral       bool   `json:"enableCrossCollateral"`
-			CrossCollateralDiscountRate any    `json:"crossCollateralDiscountRate"`
-			IsGray                      bool   `json:"isGray"`
-		} `json:"omniLiquidityTokens"`
-		MultiChains        []struct{} `json:"multiChains"`
-		GeneralSwapConfigs struct {
-			MinSwapUsdtAmount   types.Number `json:"minSwapUsdtAmount"`
-			MaxSwapUsdtAmount   types.Number `json:"maxSwapUsdtAmount"`
-			DefaultSwapSlippage string       `json:"defaultSwapSlippage"`
-			SwapGasFeeBuffer    string       `json:"swapGasFeeBuffer"`
-			IncreaseRate        types.Number `json:"increaseRate"`
-			PlatformFeeRate     types.Number `json:"platformFeeRate"`
-			LowLiquidityValue   types.Number `json:"lowLiquidityValue"`
-		} `json:"generalSwapConfigs"`
-		ComingChains []string `json:"comingChains"`
-	} `json:"omniSwapConfig"`
+	OmniSwapConfig *OmniPerpetualSwapConfigDetail `json:"omniSwapConfig"`
+}
+
+// OmniPerpetualSwapConfigDetail represents a perpetual swap config detail
+type OmniPerpetualSwapConfigDetail struct {
+	OmniLiquidityTokens []*LiquidityTokenDetail `json:"omniLiquidityTokens"`
+	MultiChains         []struct{}              `json:"multiChains"`
+	GeneralSwapConfigs  struct {
+		MinSwapUsdtAmount   types.Number `json:"minSwapUsdtAmount"`
+		MaxSwapUsdtAmount   types.Number `json:"maxSwapUsdtAmount"`
+		DefaultSwapSlippage string       `json:"defaultSwapSlippage"`
+		SwapGasFeeBuffer    string       `json:"swapGasFeeBuffer"`
+		IncreaseRate        types.Number `json:"increaseRate"`
+		PlatformFeeRate     types.Number `json:"platformFeeRate"`
+		LowLiquidityValue   types.Number `json:"lowLiquidityValue"`
+	} `json:"generalSwapConfigs"`
+	ComingChains []string `json:"comingChains"`
+}
+
+// LiquidityTokenDetail represents apex-omni perpetual swap liquidity token detail
+type LiquidityTokenDetail struct {
+	TokenID                     string `json:"tokenId"`
+	Token                       string `json:"token"`
+	DisplayName                 string `json:"displayName"`
+	Decimals                    int64  `json:"decimals"`
+	ShowStep                    string `json:"showStep"`
+	IconURL                     string `json:"iconUrl"`
+	SettleStep                  string `json:"settleStep"`
+	EnableCollateral            bool   `json:"enableCollateral"`
+	EnableCrossCollateral       bool   `json:"enableCrossCollateral"`
+	CrossCollateralDiscountRate any    `json:"crossCollateralDiscountRate"`
+	IsGray                      bool   `json:"isGray"`
 }
 
 // StockContractDetail represents a stock contract detail information.

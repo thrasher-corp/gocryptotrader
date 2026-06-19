@@ -303,10 +303,36 @@
    "currencyPairs": {
     "bypassConfigFormatUpgrades": false,
     "pairs": {
-     "futures": {
+     "perpetualcontract": {
       "assetEnabled": true,
-      "enabled": "BTC-USDC",
+      "enabled": "BTC-USDC,BTC-USDT",
+      "available": "BTC-USDT,BTC-USDC,ETH-USDC,AVAX-USDC,1000PEPE-USDC,ARB-USDC,XRP-USDC,ATOM-USDC,DOGE-USDC,MATIC-USDC,OP-USDC,SOL-USDC,BNB-USDC,LTC-USDC,APT-USDC,LDO-USDC,BLUR-USDC,BCH-USDC,WLD-USDC,LINK-USDC,LBR-USDC,TON-USDC,DYDX-USDC,TIA-USDC",
+      "requestFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      },
+      "configFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      }
+     },
+     "spot": {
+      "assetEnabled": false,
+      "enabled": "BTC-USDT",
       "available": "BTC-USDC,ETH-USDC,AVAX-USDC,1000PEPE-USDC,ARB-USDC,XRP-USDC,ATOM-USDC,DOGE-USDC,MATIC-USDC,OP-USDC,SOL-USDC,BNB-USDC,LTC-USDC,APT-USDC,LDO-USDC,BLUR-USDC,BCH-USDC,WLD-USDC,LINK-USDC,LBR-USDC,TON-USDC,DYDX-USDC,TIA-USDC",
+      "requestFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      },
+      "configFormat": {
+       "uppercase": true,
+       "delimiter": "-"
+      }
+     },
+     "rwa": {
+      "assetEnabled": true,
+      "enabled": "SPCX-USDT,AAPL-USDT",
+      "available": "SPCX-USDT,USO-USDT,IWM-USDT,BOTZ-USDT,XAU-USDT,XAG-USDT,SPY-USDT,QQQ-USDT,AAPL-USDT,TSLA-USDT,AMZN-USDT,NVDA-USDT,GOOGL-USDT,META-USDT,MSFT-USDT,AAPLTEST-USDT,MRK-USDT,ABBV-USDT,MSTR-USDT,COIN-USDT,CRCL-USDT,HOOD-USDT,UNH-USDT,BMNR-USDT,ORCL-USDT,PLTR-USDT,SNDK-USDT,MU-USDT,INTC-USDT,EWY-USDT,CL-USDT,BZ-USDT,NATGAS-USDT,CBRS-USDT,AMD-USDT,DRAM-USDT,SKHYNIX-USDT,SAMSUNG-USDT,MRVL-USDT,AVGO-USDT,LITE-USDT,RKLB-USDT",
       "requestFormat": {
        "uppercase": true,
        "delimiter": "-"
