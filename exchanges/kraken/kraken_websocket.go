@@ -104,6 +104,7 @@ func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) err
 func (e *Exchange) wsAuthenticate(ctx context.Context, _ websocket.Connection) error {
 	authToken, err := e.GetWebsocketToken(ctx)
 	if err != nil {
+		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
 	}
 	e.setWebsocketAuthToken(authToken)
@@ -660,23 +661,28 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 
 func (e *Exchange) subscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	var errs error
+	successfulSubs := make(subscription.List, 0, len(subs))
 
 	// Keep per-pair keys in the store so inbound status/data messages can match
 	// (Kraken emits `subscriptionStatus` and updates per pair, even when requests are grouped).
 	for _, s := range subs {
 		if s.State() == subscription.ResubscribingState {
+			successfulSubs = append(successfulSubs, s)
 			continue
 		}
 		if err := e.Websocket.AddSubscriptions(conn, s); err != nil {
 			errs = common.AppendError(errs, fmt.Errorf("%w; Channel: %s Pairs: %s", err, s.Channel, s.Pairs.Join()))
+			_ = s.SetState(subscription.InactiveState)
+			continue
 		}
+		successfulSubs = append(successfulSubs, s)
 	}
 
-	errs = common.AppendError(errs, e.ParallelChanOp(ctx, subs.GroupPairs(), func(ctx context.Context, s subscription.List) error {
+	errs = common.AppendError(errs, e.ParallelChanOp(ctx, groupSubscriptionsByRequestLimit(successfulSubs, e.Websocket.MaxSubscriptionsPerConnection), func(ctx context.Context, s subscription.List) error {
 		return e.manageSubs(ctx, krakenWsSubscribe, s, conn)
 	}, 1))
 
-	errs = common.AppendError(errs, e.cleanupUnsubscribedSubs(conn, subs))
+	errs = common.AppendError(errs, e.cleanupUnsubscribedSubs(conn, successfulSubs))
 	return errs
 }
 
@@ -695,9 +701,29 @@ func (e *Exchange) cleanupUnsubscribedSubs(conn websocket.Connection, subs subsc
 }
 
 func (e *Exchange) unsubscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
-	return e.ParallelChanOp(ctx, subs.GroupPairs(), func(ctx context.Context, s subscription.List) error {
+	return e.ParallelChanOp(ctx, groupSubscriptionsByRequestLimit(subs, e.Websocket.MaxSubscriptionsPerConnection), func(ctx context.Context, s subscription.List) error {
 		return e.manageSubs(ctx, krakenWsUnsubscribe, s, conn)
 	}, 1)
+}
+
+func groupSubscriptionsByRequestLimit(subs subscription.List, pairLimit int) subscription.List {
+	grouped := subs.GroupPairs()
+	if pairLimit <= 0 {
+		return grouped
+	}
+	batched := make(subscription.List, 0, len(grouped))
+	for _, s := range grouped {
+		if len(s.Pairs) <= pairLimit {
+			batched = append(batched, s)
+			continue
+		}
+		for _, pairs := range common.Batch(s.Pairs, pairLimit) {
+			clone := s.Clone()
+			clone.Pairs = pairs
+			batched = append(batched, clone)
+		}
+	}
+	return batched
 }
 
 // manageSubs handles both websocket channel subscribe and unsubscribe
@@ -763,9 +789,12 @@ func (e *Exchange) handleSubResps(s *subscription.Subscription, resps [][]byte, 
 	}
 
 	errMap := map[string]error{}
-	pairErrs := map[currency.Pair]error{}
+	pairErrs := map[string]error{}
+	pairLookup := map[string]currency.Pair{}
 	for _, p := range s.Pairs {
-		pairErrs[p.Format(reqFmt)] = errSubPairMissing
+		pairKey := reqFmt.Format(p)
+		pairErrs[pairKey] = errSubPairMissing
+		pairLookup[pairKey] = p.Format(reqFmt)
 	}
 
 	subPairs := currency.Pairs{}
@@ -778,15 +807,18 @@ func (e *Exchange) handleSubResps(s *subscription.Subscription, resps [][]byte, 
 		if err != nil {
 			return fmt.Errorf("%w parsing WS pair; Channel: %s Pair: %s", err, s.Channel, pName)
 		}
+		pair = pair.Format(reqFmt)
+		pairKey := reqFmt.Format(pair)
 		if err := e.getSubRespErr(resp, op); err != nil {
 			// Remove the pair name from the error so we can group errors
 			errStr := strings.TrimSpace(strings.TrimSuffix(err.Error(), pName))
 			if _, ok := errMap[errStr]; !ok {
 				errMap[errStr] = errors.New(errStr)
 			}
-			pairErrs[pair] = errMap[errStr]
+			pairErrs[pairKey] = errMap[errStr]
+			pairLookup[pairKey] = pair
 		} else {
-			delete(pairErrs, pair)
+			delete(pairErrs, pairKey)
 			if e.Verbose && op == krakenWsSubscribe {
 				subPairs = subPairs.Add(pair)
 			}
@@ -795,8 +827,8 @@ func (e *Exchange) handleSubResps(s *subscription.Subscription, resps [][]byte, 
 
 	// 2) Reverse the collection and report a list of pairs with each unique error, and re-add the missing and error pairs for unsubscribe
 	errPairs := map[error]currency.Pairs{}
-	for pair, err := range pairErrs {
-		errPairs[err] = errPairs[err].Add(pair)
+	for pairKey, err := range pairErrs {
+		errPairs[err] = errPairs[err].Add(pairLookup[pairKey])
 	}
 
 	var errs error
@@ -851,7 +883,7 @@ func (e *Exchange) getRespErr(resp []byte) error {
 }
 
 // wsProcessSubStatus handles creating or removing Subscriptions as soon as we receive a message
-// It's job is to ensure that subscription state is kept correct sequentially between WS messages
+// Its job is to ensure that subscription state is kept correct sequentially between WS messages
 // If this responsibility was moved to Subscribe then we would have a race due to the channel connecting IncomingWithData
 func (e *Exchange) wsProcessSubStatus(conn websocket.Connection, resp []byte) {
 	c, err := jsonparser.GetUnsafeString(resp, "channelName")
@@ -874,7 +906,7 @@ func (e *Exchange) wsProcessSubStatus(conn websocket.Connection, resp []byte) {
 			log.Errorf(log.ExchangeSys, "%s error parsing websocket subscription pair %q: %s from message: %s", e.Name, pName, pErr, resp)
 			return
 		}
-		keySub.Pairs = currency.Pairs{pair}
+		keySub.Pairs = currency.Pairs{pair.Format(currency.PairFormat{Uppercase: true})}
 		lookupKey = &subscription.IgnoringAssetKey{Subscription: keySub}
 	}
 
