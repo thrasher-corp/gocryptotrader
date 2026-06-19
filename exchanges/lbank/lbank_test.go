@@ -86,7 +86,7 @@ func TestGetMarketDepths(t *testing.T) {
 	d, err := e.GetMarketDepths(t.Context(), testPair.String(), 4)
 	require.NoError(t, err, "GetMarketDepths must not error")
 	require.NotEmpty(t, d, "GetMarketDepths must return a non-empty response")
-	assert.Len(t, d.Data.Asks, 4, "GetMarketDepths should return 4 asks")
+	assert.Len(t, d.Asks, 4, "GetMarketDepths should return 4 asks")
 }
 
 func TestGetTrades(t *testing.T) {
