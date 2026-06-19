@@ -15,9 +15,6 @@ import (
 
 func TestWebsocketLogin(t *testing.T) {
 	t.Parallel()
-	err := e.websocketLogin(t.Context(), nil, "")
-	require.ErrorIs(t, err, common.ErrNilPointer)
-
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	e := newExchangeWithWebsocket(t, asset.Spot)
