@@ -89,6 +89,9 @@ func (e *Exchange) GetSubAccountStatus(ctx context.Context, subAccount string) (
 
 // CreateBrokerSubAccountAPIKey creates a new sub-account api-key for the broker account
 func (e *Exchange) CreateBrokerSubAccountAPIKey(ctx context.Context, arg *BrokerSubAccountAPIKeyParams) (*BrokerSubAccountAPIKey, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	if arg.SubAccount == "" {
 		return nil, errInvalidSubAccountName
 	}
@@ -115,6 +118,9 @@ func (e *Exchange) GetBrokerSubAccountAPIKey(ctx context.Context, subAccount str
 
 // DeleteBrokerAPIKeySubAccount deletes broker's sub-account API key
 func (e *Exchange) DeleteBrokerAPIKeySubAccount(ctx context.Context, arg *BrokerSubAccountAPIKeyDeletionParams) (any, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	if arg.SubAccount == "" {
 		return nil, errInvalidSubAccountName
 	}
@@ -129,6 +135,9 @@ func (e *Exchange) DeleteBrokerAPIKeySubAccount(ctx context.Context, arg *Broker
 
 // GenerateBrokerSubAccountDepositAddress creates a new deposit address for a broker sub-account
 func (e *Exchange) GenerateBrokerSubAccountDepositAddress(ctx context.Context, arg *BrokerSubAccountDepositAddressCreationParams) (*BrokerSubAccountDepositAddress, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	if arg.Coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}

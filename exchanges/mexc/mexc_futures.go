@@ -603,6 +603,9 @@ func (e *Exchange) ChangePositionMode(ctx context.Context, positionMode int64) (
 
 // PlaceFuturesOrder placed a futures order
 func (e *Exchange) PlaceFuturesOrder(ctx context.Context, arg *PlaceFuturesOrderParams) (int64, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return 0, err
+	}
 	params, err := validateOrderParams(arg)
 	if err != nil {
 		return 0, err
