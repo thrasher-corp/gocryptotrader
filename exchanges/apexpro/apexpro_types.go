@@ -225,10 +225,10 @@ type NewTradingData struct {
 
 // MarketDepthV3 represents a market depth information.
 type MarketDepthV3 struct {
-	Asks       orderbook.LevelsArrayPriceAmount `json:"a"` // Sell
-	Bids       orderbook.LevelsArrayPriceAmount `json:"b"` // Buy
-	Symbol     string                           `json:"s"`
-	UpdateTime types.Time                       `json:"u"`
+	Asks     orderbook.LevelsArrayPriceAmount `json:"a"` // Sell
+	Bids     orderbook.LevelsArrayPriceAmount `json:"b"` // Buy
+	Symbol   string                           `json:"s"`
+	UpdateID int64                            `json:"u"`
 }
 
 // CandlestickData represents a candlestick chart data.

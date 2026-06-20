@@ -57,10 +57,46 @@ func TestMain(m *testing.M) {
 	if err := e.UpdateTradablePairs(context.Background()); err != nil {
 		log.Fatal(err)
 	}
+	if err := e.enablePairs(); err != nil {
+		log.Fatal(err)
+	}
 	os.Exit(m.Run())
 }
 
+var enabledAssetPair map[asset.Item]currency.Pair
+
+func (e *Exchange) enablePairs() error {
+	var err error
+	enabledAssetPair = make(map[asset.Item]currency.Pair, 7)
+	enabledAssetPair[asset.RealWorldAsset], err = e.FormatExchangeCurrency(currency.Pair{Base: currency.NewCode("AAPL"), Quote: currency.USDT}, asset.RealWorldAsset)
+	if err != nil {
+		log.Fatal(err)
+	}
+	enabledAssetPair[asset.PerpetualContract], err = e.FormatExchangeCurrency(currency.Pair{Base: currency.BTC, Quote: currency.USDT}, asset.PerpetualContract)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// store the pairs into the enabled pairs
+	return storeTestPairs(e)
+}
+
+func storeTestPairs(e *Exchange) error {
+	for a, p := range enabledAssetPair {
+		if err := e.CurrencyPairs.StorePairs(a, []currency.Pair{p}, false); err != nil {
+			return err
+		}
+		if err := e.CurrencyPairs.StorePairs(a, []currency.Pair{p}, true); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func getPair(assetType asset.Item) currency.Pair {
+	pair, ok := enabledAssetPair[assetType]
+	if !ok {
+		return pair
+	}
 	pairs, err := e.GetEnabledPairs(assetType)
 	if err != nil {
 		log.Fatal(err)
@@ -1267,7 +1303,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {
 	t.Parallel()
-	is, err := e.IsPerpetualFutureCurrency(asset.PerpetualContract, currency.NewPair(currency.BTC, currency.USDC))
+	is, err := e.IsPerpetualFutureCurrency(asset.PerpetualContract, currency.NewPair(currency.BTC, currency.USDT))
 	require.NoError(t, err)
 	assert.True(t, is)
 }
@@ -1282,7 +1318,7 @@ func TestGetFuturesContractDetails(t *testing.T) {
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 	for _, assetType := range e.GetAssetTypes(true) {
-		result, err := e.GetHistoricCandles(t.Context(), getPair(assetType), assetType, kline.FifteenMin, time.Now().Add(-time.Minute*3), time.Now())
+		result, err := e.GetHistoricCandles(t.Context(), getPair(assetType), assetType, kline.FifteenMin, time.Now().Add(-time.Hour*6), time.Now())
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 	}
@@ -1291,7 +1327,7 @@ func TestGetHistoricCandles(t *testing.T) {
 func TestGetHistoricCandlesExtended(t *testing.T) {
 	t.Parallel()
 	for _, assetType := range e.GetAssetTypes(true) {
-		result, err := e.GetHistoricCandlesExtended(t.Context(), getPair(assetType), assetType, kline.FifteenMin, time.Now().Add(-time.Minute*3), time.Now())
+		result, err := e.GetHistoricCandlesExtended(t.Context(), getPair(assetType), assetType, kline.FifteenMin, time.Now().Add(-time.Hour*6), time.Now())
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 	}
@@ -1314,8 +1350,11 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	err := e.UpdateTradablePairs(t.Context())
-	assert.NoError(t, err)
+	// Use a dedicated instance so mutating the stored pairs does not race with parallel
+	// tests reading the shared exchange's enabled and available pairs.
+	te := new(Exchange)
+	require.NoError(t, testexch.Setup(te), "Setup must not error")
+	assert.NoError(t, te.UpdateTradablePairs(t.Context()), "UpdateTradablePairs should not error")
 }
 
 func TestUpdateTicker(t *testing.T) {
@@ -1351,7 +1390,7 @@ func TestUpdateTickers(t *testing.T) {
 		err := e.UpdateTickers(t.Context(), assetType)
 		require.NoError(t, err)
 
-		result, err := ticker.GetTicker(e.Name, getPair(asset.PerpetualContract), assetType)
+		result, err := ticker.GetTicker(e.Name, getPair(assetType), assetType)
 		require.NoError(t, err)
 		assert.Positive(t, result.Last, "last price should be positive")
 	}

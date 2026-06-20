@@ -220,10 +220,10 @@ func (e *Exchange) getCandlestickChartData(ctx context.Context, symbol, path str
 		params.Set("interval", intervalString)
 	}
 	if !startTime.IsZero() {
-		params.Set("start", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("start", strconv.FormatInt(startTime.Unix(), 10))
 	}
 	if !endTime.IsZero() {
-		params.Set("end", strconv.FormatInt(endTime.UnixMilli(), 10))
+		params.Set("end", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))

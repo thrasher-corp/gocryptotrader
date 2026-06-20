@@ -59,8 +59,11 @@ func (e *Exchange) SetDefaults() {
 		log.Errorln(log.ExchangeSys, err)
 	}
 
+	// The V3 market-data endpoints (ticker, depth, trades) expect RWA symbols without a
+	// delimiter (e.g. AAPLUSDT), matching Spot and PerpetualContract, while pairs are
+	// displayed and stored with a dash.
 	err = e.SetAssetPairStore(asset.RealWorldAsset, currency.PairStore{
-		RequestFormat: dashDeliimiter,
+		RequestFormat: emptyDelimiter,
 		ConfigFormat:  dashDeliimiter,
 	})
 	if err != nil {
@@ -111,7 +114,7 @@ func (e *Exchange) SetDefaults() {
 					kline.IntervalCapacity{Interval: kline.OneWeek},
 					kline.IntervalCapacity{Interval: kline.OneMonth},
 				),
-				GlobalResultLimit: 1000,
+				GlobalResultLimit: 200,
 			},
 		},
 	}
@@ -769,7 +772,6 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, getOrdersRequest *order.
 	if err := getOrdersRequest.Validate(); err != nil {
 		return nil, err
 	}
-	// getOrdersRequest.AssetType
 	pairFormat, err := e.GetPairFormat(asset.PerpetualContract, true)
 	if err != nil {
 		return nil, err
@@ -876,16 +878,15 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	if err != nil {
 		return nil, err
 	}
-	candles, err := e.GetCandlestickChartDataV3(ctx, pairFormat.Format(pair), interval, start, end, 1000)
+	requestSymbol := pairFormat.Format(pair)
+	candles, err := e.GetCandlestickChartDataV3(ctx, requestSymbol, interval, start, end, 200)
 	if err != nil {
 		return nil, err
 	}
 	for x := range candles {
-		cp, err := currency.NewPairFromString(x)
-		if err != nil {
-			return nil, err
-		}
-		if !cp.Equal(pair) {
+		// The response is keyed by the delimiter-less request symbol (e.g. AAPLUSDT), which
+		// cannot be reliably split back into a pair for RWA stock symbols, so match it directly.
+		if x != requestSymbol {
 			continue
 		}
 		timeSeries := make([]kline.Candle, len(candles[x]))
@@ -910,18 +911,16 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 	if err != nil {
 		return nil, err
 	}
+	requestSymbol := req.RequestFormatted.String()
 	timeSeries := make([]kline.Candle, 0, req.Size())
 	for x := range req.RangeHolder.Ranges {
-		candles, err := e.GetCandlestickChartDataV3(ctx, req.RequestFormatted.String(), interval, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time, 1000)
+		candles, err := e.GetCandlestickChartDataV3(ctx, requestSymbol, interval, req.RangeHolder.Ranges[x].Start.Time, req.RangeHolder.Ranges[x].End.Time, 200)
 		if err != nil {
 			return nil, err
 		}
 		for y := range candles {
-			cp, err := currency.NewPairFromString(y)
-			if err != nil {
-				return nil, err
-			}
-			if !cp.Equal(pair) {
+			// Match the delimiter-less response key directly; see GetHistoricCandles.
+			if y != requestSymbol {
 				continue
 			}
 			for p := range candles[y] {
