@@ -55,7 +55,7 @@ func TestWsHandleTicker(t *testing.T) {
 		"SERVER": "V2",
 		"TS": "2024-01-01T00:00:00.000"
 	}`))
-	assert.NoError(t, err, "wsHandleData ticker must not error")
+	assert.NoError(t, err, "wsHandleData ticker should not error")
 }
 
 func TestWsHandleTrades(t *testing.T) {
@@ -86,7 +86,7 @@ func TestWsHandleTrades(t *testing.T) {
 		"SERVER": "V2",
 		"TS": "2024-01-01T00:00:00.000"
 	}`))
-	assert.NoError(t, err, "wsHandleData trades must not error")
+	assert.NoError(t, err, "wsHandleData trades should not error")
 }
 
 func TestWsHandleOrderbook(t *testing.T) {
@@ -117,8 +117,8 @@ func TestWsHandleOrderbook(t *testing.T) {
 	require.NoError(t, err)
 	ob, err := orderbook.Get(ex.Name, p, asset.Spot)
 	require.NoError(t, err, "orderbook.Get must not error")
-	assert.Len(t, ob.Asks, 2, "orderbook must have 2 asks")
-	assert.Len(t, ob.Bids, 2, "orderbook must have 2 bids")
+	assert.Len(t, ob.Asks, 2, "orderbook should have 2 asks")
+	assert.Len(t, ob.Bids, 2, "orderbook should have 2 bids")
 }
 
 func TestGenerateSubscriptions(t *testing.T) {
@@ -129,5 +129,5 @@ func TestGenerateSubscriptions(t *testing.T) {
 
 	subs, err := ex.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
-	assert.NotEmpty(t, subs, "generateSubscriptions must return subscriptions")
+	assert.NotEmpty(t, subs, "generateSubscriptions should return subscriptions")
 }
