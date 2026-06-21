@@ -1,8 +1,12 @@
 package coinmarketcap
 
 import (
+	"fmt"
+	"maps"
+	"strconv"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -17,40 +21,31 @@ const (
 
 	baseURL    = "https://pro-api.coinmarketcap.com"
 	sandboxURL = "https://sandbox-api.coinmarketcap.com"
-	version    = "/v1/"
 
-	endpointCryptocurrencyInfo               = "cryptocurrency/info"
-	endpointCryptocurrencyMap                = "cryptocurrency/map"
-	endpointCryptocurrencyHistoricalListings = "cryptocurrency/listings/historical"
-	endpointCryptocurrencyLatestListings     = "cryptocurrency/listings/latest"
-	endpointCryptocurrencyMarketPairs        = "cryptocurrency/market-pairs/latest"
-	endpointOHLCVHistorical                  = "cryptocurrency/ohlcv/historical"
-	endpointOHLCVLatest                      = "cryptocurrency/ohlcv/latest"
-	endpointGetMarketQuotesHistorical        = "cryptocurrency/quotes/historical"
-	endpointGetMarketQuotesLatest            = "cryptocurrency/quotes/latest"
-	endpointExchangeInfo                     = "exchange/info"
-	endpointExchangeMap                      = "exchange/map"
-	endpointExchangeMarketPairsLatest        = "exchange/market-pairs/latest"
-	endpointExchangeMarketQuoteHistorical    = "exchange/quotes/historical"
-	endpointExchangeMarketQuoteLatest        = "exchange/quotes/latest"
-	endpointGlobalQuoteHistorical            = "global-metrics/quotes/historical"
-	endpointGlobalQuoteLatest                = "global-metrics/quotes/latest"
-	endpointPriceConversion                  = "tools/price-conversion"
+	endpointCryptocurrencyInfo            = "v2/cryptocurrency/info"
+	endpointCryptocurrencyMap             = "v1/cryptocurrency/map"
+	endpointCryptocurrencyLatestListings  = "v3/cryptocurrency/listings/latest"
+	endpointCryptocurrencyMarketPairs     = "v2/cryptocurrency/market-pairs/latest"
+	endpointOHLCVHistorical               = "v2/cryptocurrency/ohlcv/historical"
+	endpointOHLCVLatest                   = "v2/cryptocurrency/ohlcv/latest"
+	endpointGetMarketQuotesHistorical     = "v3/cryptocurrency/quotes/historical"
+	endpointGetMarketQuotesLatest         = "v3/cryptocurrency/quotes/latest"
+	endpointExchangeInfo                  = "v1/exchange/info"
+	endpointExchangeMap                   = "v1/exchange/map"
+	endpointExchangeMarketPairsLatest     = "v1/exchange/market-pairs/latest"
+	endpointExchangeMarketQuoteHistorical = "v1/exchange/quotes/historical"
+	endpointExchangeMarketQuoteLatest     = "v1/exchange/quotes/latest"
+	endpointGlobalQuoteHistorical         = "v1/global-metrics/quotes/historical"
+	endpointGlobalQuoteLatest             = "v1/global-metrics/quotes/latest"
+	endpointPriceConversion               = "v2/tools/price-conversion"
 
 	defaultTimeOut = time.Second * 15
 
-	// BASIC, HOBBYIST STARTUP tier rate limits
-	RateInterval     = time.Minute
-	BasicRequestRate = 30
-
-	// STANDARD tier rate limit
-	StandardRequestRate = 60
-
-	// PROFESSIONAL tier rate limit
-	ProfessionalRequestRate = 90
-
-	// ENTERPRISE tier rate limit - Can be extended checkout agreement
-	EnterpriseRequestRate = 120
+	rateInterval            = time.Minute // BASIC, HOBBYIST STARTUP tier rate limits
+	basicRequestRate        = 30
+	standardRequestRate     = 60  // STANDARD tier rate limit
+	professionalRequestRate = 90  // PROFESSIONAL tier rate limit
+	enterpriseRequestRate   = 120 // ENTERPRISE tier rate limit - Can be extended checkout agreement
 )
 
 // Coinmarketcap is the overarching type across this package
@@ -77,11 +72,11 @@ type Settings struct {
 // Status defines a response status JSON struct that is received with every
 // HTTP request
 type Status struct {
-	Timestamp    string `json:"timestamp"`
-	ErrorCode    int64  `json:"error_code"`
-	ErrorMessage string `json:"error_message"`
-	Elapsed      int64  `json:"elapsed"`
-	CreditCount  int64  `json:"credit_count"`
+	Timestamp    string       `json:"timestamp"`
+	ErrorCode    APIErrorCode `json:"error_code"`
+	ErrorMessage string       `json:"error_message"`
+	Elapsed      int64        `json:"elapsed"`
+	CreditCount  int64        `json:"credit_count"`
 }
 
 // Currency defines a generic sub type to capture currency data
@@ -112,37 +107,37 @@ type OHLC struct {
 
 // CryptoCurrencyInfo defines cryptocurrency information
 type CryptoCurrencyInfo map[string]struct {
-	ID       int      `json:"id"`
-	Name     string   `json:"name"`
-	Symbol   string   `json:"symbol"`
-	Category string   `json:"category"`
-	Slug     string   `json:"slug"`
-	Logo     string   `json:"logo"`
-	Tags     []string `json:"tags"`
-	Platform any      `json:"platform"`
+	ID       int64           `json:"id"`
+	Name     string          `json:"name"`
+	Symbol   string          `json:"symbol"`
+	Category string          `json:"category"`
+	Slug     string          `json:"slug"`
+	Logo     string          `json:"logo"`
+	Tags     json.RawMessage `json:"tags"`
+	Platform json.RawMessage `json:"platform"`
 	Urls     struct {
-		Website      []string `json:"website"`
-		Explorer     []string `json:"explorer"`
-		SourceCode   []string `json:"source_code"`
-		MessageBoard []string `json:"message_board"`
-		Chat         []any    `json:"chat"`
-		Announcement []any    `json:"announcement"`
-		Reddit       []string `json:"reddit"`
-		Twitter      []string `json:"twitter"`
+		Website      []string        `json:"website"`
+		Explorer     []string        `json:"explorer"`
+		SourceCode   []string        `json:"source_code"`
+		MessageBoard []string        `json:"message_board"`
+		Chat         json.RawMessage `json:"chat"`
+		Announcement json.RawMessage `json:"announcement"`
+		Reddit       []string        `json:"reddit"`
+		Twitter      []string        `json:"twitter"`
 	} `json:"urls"`
 }
 
 // CryptoCurrencyMap defines a cryptocurrency struct
 type CryptoCurrencyMap struct {
-	ID                  int       `json:"id"`
+	ID                  int64     `json:"id"`
 	Name                string    `json:"name"`
 	Symbol              string    `json:"symbol"`
 	Slug                string    `json:"slug"`
-	IsActive            int       `json:"is_active"`
+	IsActive            int64     `json:"is_active"`
 	FirstHistoricalData time.Time `json:"first_historical_data"`
 	LastHistoricalData  time.Time `json:"last_historical_data"`
 	Platform            struct {
-		ID           int    `json:"id"`
+		ID           int64  `json:"id"`
 		Name         string `json:"name"`
 		Symbol       string `json:"symbol"`
 		Slug         string `json:"slug"`
@@ -152,63 +147,57 @@ type CryptoCurrencyMap struct {
 
 // CryptocurrencyHistoricalListings defines a historical listing data
 type CryptocurrencyHistoricalListings struct {
-	ID                int       `json:"id"`
+	ID                int64     `json:"id"`
 	Name              string    `json:"name"`
 	Symbol            string    `json:"symbol"`
 	Slug              string    `json:"slug"`
-	CmcRank           int       `json:"cmc_rank"`
-	NumMarketPairs    int       `json:"num_market_pairs"`
+	CmcRank           int64     `json:"cmc_rank"`
+	NumMarketPairs    int64     `json:"num_market_pairs"`
 	CirculatingSupply float64   `json:"circulating_supply"`
 	TotalSupply       float64   `json:"total_supply"`
 	MaxSupply         float64   `json:"max_supply"`
 	LastUpdated       time.Time `json:"last_updated"`
-	Quote             struct {
-		USD Currency `json:"USD"`
-		BTC Currency `json:"BTC"`
-	} `json:"quote"`
+	Quote             QuoteMap  `json:"quote"`
 }
 
 // CryptocurrencyLatestListings defines latest cryptocurrency listing data
 type CryptocurrencyLatestListings struct {
-	ID                int       `json:"id"`
-	Name              string    `json:"name"`
-	Symbol            string    `json:"symbol"`
-	Slug              string    `json:"slug"`
-	CmcRank           int       `json:"cmc_rank"`
-	NumMarketPairs    int       `json:"num_market_pairs"`
-	CirculatingSupply float64   `json:"circulating_supply"`
-	TotalSupply       float64   `json:"total_supply"`
-	MaxSupply         float64   `json:"max_supply"`
-	LastUpdated       time.Time `json:"last_updated"`
-	DateAdded         time.Time `json:"date_added"`
-	Tags              []string  `json:"tags"`
-	Platform          any       `json:"platform"`
-	Quote             struct {
-		USD Currency `json:"USD"`
-		BTC Currency `json:"BTC"`
-	} `json:"quote"`
+	ID                int64           `json:"id"`
+	Name              string          `json:"name"`
+	Symbol            string          `json:"symbol"`
+	Slug              string          `json:"slug"`
+	CmcRank           int64           `json:"cmc_rank"`
+	NumMarketPairs    int64           `json:"num_market_pairs"`
+	CirculatingSupply float64         `json:"circulating_supply"`
+	TotalSupply       float64         `json:"total_supply"`
+	MaxSupply         float64         `json:"max_supply"`
+	LastUpdated       time.Time       `json:"last_updated"`
+	DateAdded         time.Time       `json:"date_added"`
+	Tags              json.RawMessage `json:"tags"`
+	Platform          json.RawMessage `json:"platform"`
+	Quote             QuoteMap        `json:"quote"`
 }
 
 // CryptocurrencyLatestMarketPairs defines the latest cryptocurrency pairs
 type CryptocurrencyLatestMarketPairs struct {
-	ID             int    `json:"id"`
+	ID             int64  `json:"id"`
 	Name           string `json:"name"`
 	Symbol         string `json:"symbol"`
-	NumMarketPairs int    `json:"num_market_pairs"`
+	NumMarketPairs int64  `json:"num_market_pairs"`
 	MarketPairs    []struct {
 		Exchange struct {
-			ID   int    `json:"id"`
+			ID   int64  `json:"id"`
 			Name string `json:"name"`
 			Slug string `json:"slug"`
 		} `json:"exchange"`
 		MarketPair     string `json:"market_pair"`
 		MarketPairBase struct {
-			CurrencyID     int    `json:"currency_id"`
+			CurrencyID     int64  `json:"currency_id"`
 			CurrencySymbol string `json:"currency_symbol"`
 			CurrencyType   string `json:"currency_type"`
 		} `json:"market_pair_base"`
 		MarketPairQuote struct {
-			CurrencyID     int    `json:"currency_id"`
+			CurrencyID     int64  `json:"currency_id"`
 			CurrencySymbol string `json:"currency_symbol"`
 			CurrencyType   string `json:"currency_type"`
 		} `json:"market_pair_quote"`
@@ -226,7 +215,7 @@ type CryptocurrencyLatestMarketPairs struct {
 
 // CryptocurrencyOHLCHistorical defines open high low close historical data
 type CryptocurrencyOHLCHistorical struct {
-	ID     int    `json:"id"`
+	ID     int64  `json:"id"`
 	Name   string `json:"name"`
 	Symbol string `json:"symbol"`
 	Quotes []struct {
@@ -240,41 +229,39 @@ type CryptocurrencyOHLCHistorical struct {
 
 // CryptocurrencyOHLCLatest defines open high low close latest data
 type CryptocurrencyOHLCLatest map[string]struct {
-	ID          int       `json:"id"`
-	Name        string    `json:"name"`
-	Symbol      string    `json:"symbol"`
-	LastUpdated time.Time `json:"last_updated"`
-	TimeOpen    time.Time `json:"time_open"`
-	TimeClose   any       `json:"time_close"`
+	ID          int64           `json:"id"`
+	Name        string          `json:"name"`
+	Symbol      string          `json:"symbol"`
+	LastUpdated time.Time       `json:"last_updated"`
+	TimeOpen    time.Time       `json:"time_open"`
+	TimeClose   json.RawMessage `json:"time_close"`
 	Quote       struct {
 		USD OHLC `json:"USD"`
 	} `json:"quote"`
 }
 
-// CryptocurrencyLatestQuotes defines latest cryptocurrency quotation data
-type CryptocurrencyLatestQuotes map[string]struct {
-	ID                int       `json:"id"`
-	Name              string    `json:"name"`
-	Symbol            string    `json:"symbol"`
-	Slug              string    `json:"slug"`
-	CirculatingSupply float64   `json:"circulating_supply"`
-	TotalSupply       float64   `json:"total_supply"`
-	MaxSupply         float64   `json:"max_supply"`
-	DateAdded         time.Time `json:"date_added"`
-	NumMarketPairs    int       `json:"num_market_pairs"`
-	CmcRank           int       `json:"cmc_rank"`
-	LastUpdated       time.Time `json:"last_updated"`
-	Tags              []string  `json:"tags"`
-	Platform          any       `json:"platform"`
-	Quote             struct {
-		USD Currency `json:"USD"`
-	} `json:"quote"`
+// CryptocurrencyLatestQuotes defines latest cryptocurrency quotation data.
+type CryptocurrencyLatestQuotes []struct {
+	ID                int64           `json:"id"`
+	Name              string          `json:"name"`
+	Symbol            string          `json:"symbol"`
+	Slug              string          `json:"slug"`
+	CirculatingSupply float64         `json:"circulating_supply"`
+	TotalSupply       float64         `json:"total_supply"`
+	MaxSupply         float64         `json:"max_supply"`
+	DateAdded         time.Time       `json:"date_added"`
+	NumMarketPairs    int64           `json:"num_market_pairs"`
+	CmcRank           int64           `json:"cmc_rank"`
+	LastUpdated       time.Time       `json:"last_updated"`
+	Tags              json.RawMessage `json:"tags"`
+	Platform          json.RawMessage `json:"platform"`
+	Quote             QuoteMap        `json:"quote"`
 }
 
 // CryptocurrencyHistoricalQuotes defines historical cryptocurrency quotation
 // data
 type CryptocurrencyHistoricalQuotes struct {
-	ID     int    `json:"id"`
+	ID     int64  `json:"id"`
 	Name   string `json:"name"`
 	Symbol string `json:"symbol"`
 	Quotes []struct {
@@ -288,35 +275,35 @@ type CryptocurrencyHistoricalQuotes struct {
 // ExchangeInfo defines exchange information
 type ExchangeInfo map[string]struct {
 	Urls struct {
-		Website []string `json:"website"`
-		Twitter []string `json:"twitter"`
-		Blog    []any    `json:"blog"`
-		Chat    []string `json:"chat"`
-		Fee     []string `json:"fee"`
+		Website []string        `json:"website"`
+		Twitter []string        `json:"twitter"`
+		Blog    json.RawMessage `json:"blog"`
+		Chat    []string        `json:"chat"`
+		Fee     []string        `json:"fee"`
 	} `json:"urls"`
 	Logo string `json:"logo"`
-	ID   int    `json:"id"`
+	ID   int64  `json:"id"`
 	Name string `json:"name"`
 	Slug string `json:"slug"`
 }
 
 // ExchangeMap defines a data for an exchange
 type ExchangeMap struct {
-	ID                  int       `json:"id"`
+	ID                  int64     `json:"id"`
 	Name                string    `json:"name"`
 	Slug                string    `json:"slug"`
-	IsActive            int       `json:"is_active"`
+	IsActive            int64     `json:"is_active"`
 	FirstHistoricalData time.Time `json:"first_historical_data"`
 	LastHistoricalData  time.Time `json:"last_historical_data"`
 }
 
 // ExchangeHistoricalListings defines historical exchange listings
 type ExchangeHistoricalListings struct {
-	ID             int       `json:"id"`
+	ID             int64     `json:"id"`
 	Name           string    `json:"name"`
 	Slug           string    `json:"slug"`
-	CmcRank        int       `json:"cmc_rank"`
-	NumMarketPairs int       `json:"num_market_pairs"`
+	CmcRank        int64     `json:"cmc_rank"`
+	NumMarketPairs int64     `json:"num_market_pairs"`
 	Timestamp      time.Time `json:"timestamp"`
 	Quote          struct {
 		USD Currency `json:"USD"`
@@ -325,10 +312,10 @@ type ExchangeHistoricalListings struct {
 
 // ExchangeLatestListings defines latest exchange listings
 type ExchangeLatestListings struct {
-	ID             int       `json:"id"`
+	ID             int64     `json:"id"`
 	Name           string    `json:"name"`
 	Slug           string    `json:"slug"`
-	NumMarketPairs int       `json:"num_market_pairs"`
+	NumMarketPairs int64     `json:"num_market_pairs"`
 	LastUpdated    time.Time `json:"last_updated"`
 	Quote          struct {
 		USD Currency `json:"USD"`
@@ -337,19 +324,19 @@ type ExchangeLatestListings struct {
 
 // ExchangeLatestMarketPairs defines latest market pairs
 type ExchangeLatestMarketPairs struct {
-	ID             int    `json:"id"`
+	ID             int64  `json:"id"`
 	Name           string `json:"name"`
 	Slug           string `json:"slug"`
-	NumMarketPairs int    `json:"num_market_pairs"`
+	NumMarketPairs int64  `json:"num_market_pairs"`
 	MarketPairs    []struct {
 		MarketPair     string `json:"market_pair"`
 		MarketPairBase struct {
-			CurrencyID     int    `json:"currency_id"`
+			CurrencyID     int64  `json:"currency_id"`
 			CurrencySymbol string `json:"currency_symbol"`
 			CurrencyType   string `json:"currency_type"`
 		} `json:"market_pair_base"`
 		MarketPairQuote struct {
-			CurrencyID     int    `json:"currency_id"`
+			CurrencyID     int64  `json:"currency_id"`
 			CurrencySymbol string `json:"currency_symbol"`
 			CurrencyType   string `json:"currency_type"`
 		} `json:"market_pair_quote"`
@@ -368,28 +355,24 @@ type ExchangeLatestMarketPairs struct {
 // ExchangeLatestQuotes defines latest exchange quotations
 type ExchangeLatestQuotes struct {
 	Binance struct {
-		ID             int       `json:"id"`
+		ID             int64     `json:"id"`
 		Name           string    `json:"name"`
 		Slug           string    `json:"slug"`
-		NumMarketPairs int       `json:"num_market_pairs"`
+		NumMarketPairs int64     `json:"num_market_pairs"`
 		LastUpdated    time.Time `json:"last_updated"`
-		Quote          struct {
-			USD Currency `json:"USD"`
-		} `json:"quote"`
+		Quote          QuoteMap  `json:"quote"`
 	} `json:"binance"`
 }
 
 // ExchangeHistoricalQuotes defines historical exchange quotations
 type ExchangeHistoricalQuotes struct {
-	ID     int    `json:"id"`
+	ID     int64  `json:"id"`
 	Name   string `json:"name"`
 	Slug   string `json:"slug"`
 	Quotes []struct {
-		Timestamp time.Time `json:"timestamp"`
-		Quote     struct {
-			USD Currency `json:"USD"`
-		} `json:"quote"`
-		NumMarketPairs int `json:"num_market_pairs"`
+		Timestamp      time.Time `json:"timestamp"`
+		Quote          QuoteMap  `json:"quote"`
+		NumMarketPairs int64     `json:"num_market_pairs"`
 	} `json:"quotes"`
 }
 
@@ -397,13 +380,11 @@ type ExchangeHistoricalQuotes struct {
 type GlobalMeticLatestQuotes struct {
 	BtcDominance           float64   `json:"btc_dominance"`
 	EthDominance           float64   `json:"eth_dominance"`
-	ActiveCryptocurrencies int       `json:"active_cryptocurrencies"`
-	ActiveMarketPairs      int       `json:"active_market_pairs"`
-	ActiveExchanges        int       `json:"active_exchanges"`
+	ActiveCryptocurrencies int64     `json:"active_cryptocurrencies"`
+	ActiveMarketPairs      int64     `json:"active_market_pairs"`
+	ActiveExchanges        int64     `json:"active_exchanges"`
 	LastUpdated            time.Time `json:"last_updated"`
-	Quote                  struct {
-		USD Currency `json:"USD"`
-	} `json:"quote"`
+	Quote                  QuoteMap  `json:"quote"`
 }
 
 // GlobalMeticHistoricalQuotes defines historical global metric quotations
@@ -411,9 +392,7 @@ type GlobalMeticHistoricalQuotes struct {
 	Quotes []struct {
 		Timestamp    time.Time `json:"timestamp"`
 		BtcDominance float64   `json:"btc_dominance"`
-		Quote        struct {
-			USD Currency `json:"USD"`
-		} `json:"quote"`
+		Quote        QuoteMap  `json:"quote"`
 	} `json:"quotes"`
 }
 
@@ -424,9 +403,46 @@ type PriceConversion struct {
 	Name        string    `json:"name"`
 	Amount      float64   `json:"amount"`
 	LastUpdated time.Time `json:"last_updated"`
-	Quote       struct {
-		GBP Currency `json:"GBP"`
-		LTC Currency `json:"LTC"`
-		USD Currency `json:"USD"`
-	} `json:"quote"`
+	Quote       QuoteMap  `json:"quote"`
+}
+
+// QuoteMap captures quote values for all returned conversion symbols.
+type QuoteMap map[string]Currency
+
+// APIErrorCode supports status error code decoding from either number or string.
+type APIErrorCode int64
+
+// UnmarshalJSON decodes error code from number or quoted string.
+func (c *APIErrorCode) UnmarshalJSON(data []byte) error {
+	var num int64
+	if err := json.Unmarshal(data, &num); err == nil {
+		*c = APIErrorCode(num)
+		return nil
+	}
+
+	var text string
+	if err := json.Unmarshal(data, &text); err != nil {
+		return err
+	}
+	parsed, err := strconv.ParseInt(text, 10, 64)
+	if err != nil {
+		return fmt.Errorf("failed to parse error code: %w", err)
+	}
+	*c = APIErrorCode(parsed)
+	return nil
+}
+
+// UnmarshalJSON handles quote payloads that may be either an object map or array.
+func (q *QuoteMap) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(data, (*map[string]Currency)(q)); err == nil {
+		return nil
+	}
+	var arr []map[string]Currency
+	if err := json.Unmarshal(data, &arr); err != nil {
+		return err
+	}
+	for i := range arr {
+		maps.Copy(*q, arr[i])
+	}
+	return nil
 }
