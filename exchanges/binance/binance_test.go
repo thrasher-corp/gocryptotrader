@@ -3328,7 +3328,7 @@ func TestGetOrderInfo(t *testing.T) {
 
 func TestModifyOrder(t *testing.T) {
 	t.Parallel()
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	_, err := e.ModifyOrder(t.Context(), &order.Modify{AssetType: asset.Spot, Pair: p, OrderID: "1234"})
 	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
 
@@ -3351,7 +3351,7 @@ func TestCancelBatchOrders(t *testing.T) {
 	_, err := e.CancelBatchOrders(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrCancelOrderIsNil)
 
-	p := currency.NewPair(currency.BTC, currency.USDT)
+	p := currency.NewBTCUSDT()
 	_, err = e.CancelBatchOrders(t.Context(), []order.Cancel{
 		{AssetType: asset.USDTMarginedFutures, Pair: p, OrderID: "1"},
 		{AssetType: asset.CoinMarginedFutures, Pair: p, OrderID: "2"},
