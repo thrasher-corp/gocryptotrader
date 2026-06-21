@@ -5283,7 +5283,7 @@
        "t": 1774954800
       }
      ],
-     "queryString": "contract=ENJ_USDT\u0026limit=1000",
+     "queryString": "contract=BTC_USDT\u0026limit=1000",
      "bodyParams": "",
      "headers": {}
     },

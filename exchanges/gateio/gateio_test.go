@@ -3306,8 +3306,8 @@ func TestProcessFuturesCandlesticksIntervalMapping(t *testing.T) {
 		got, ok := msg.Data.([]kline.Item)
 		require.True(t, ok, "expected []kline.Item")
 		assert.Equal(t, []kline.Item{{
-			Pair:     currency.NewPairWithDelimiter("BTC", "USDT", "_"),
-			Asset:    asset.CoinMarginedFutures,
+			Pair:     getPair(t, asset.USDTMarginedFutures),
+			Asset:    asset.USDTMarginedFutures,
 			Exchange: ex.Name,
 			Interval: kline.OneMin,
 			Candles: []kline.Candle{{
@@ -3642,13 +3642,13 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 
 	_, err = e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
 		Asset: asset.USDTMarginedFutures,
-		Pair:  currency.NewPair(currency.ENJ, currency.USDT),
+		Pair:  getPair(t, asset.USDTMarginedFutures),
 	})
 	assert.ErrorIs(t, err, fundingrate.ErrPaymentCurrencyCannotBeEmpty)
 
 	_, err = e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
 		Asset:           asset.USDTMarginedFutures,
-		Pair:            currency.NewPair(currency.ENJ, currency.USDT),
+		Pair:            getPair(t, asset.USDTMarginedFutures),
 		PaymentCurrency: currency.USDT,
 		IncludePayments: true,
 	})
@@ -3656,7 +3656,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 
 	_, err = e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
 		Asset:                asset.USDTMarginedFutures,
-		Pair:                 currency.NewPair(currency.ENJ, currency.USDT),
+		Pair:                 getPair(t, asset.USDTMarginedFutures),
 		PaymentCurrency:      currency.USDT,
 		IncludePredictedRate: true,
 	})
@@ -3665,7 +3665,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 	startTime, endTime := getTime()
 	_, err = e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
 		Asset:           asset.USDTMarginedFutures,
-		Pair:            currency.NewPair(currency.ENJ, currency.USDT),
+		Pair:            getPair(t, asset.USDTMarginedFutures),
 		PaymentCurrency: currency.USDT,
 		StartDate:       endTime,
 		EndDate:         startTime,
@@ -3674,7 +3674,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 
 	_, err = e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
 		Asset:           asset.USDTMarginedFutures,
-		Pair:            currency.NewPair(currency.ENJ, currency.USDT),
+		Pair:            getPair(t, asset.USDTMarginedFutures),
 		PaymentCurrency: currency.USDT,
 		StartDate:       time.Now().Add(-time.Hour * 8008),
 		EndDate:         time.Now(),
@@ -3683,7 +3683,7 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 
 	history, err := e.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
 		Asset:           asset.USDTMarginedFutures,
-		Pair:            currency.NewPair(currency.ENJ, currency.USDT),
+		Pair:            getPair(t, asset.USDTMarginedFutures),
 		PaymentCurrency: currency.USDT,
 	})
 	require.NoError(t, err)
@@ -4372,8 +4372,8 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 			// This is specifically testing the return responses of WebsocketSpotSubmitOrders
 			// AverageDealPrice is not returned when using this endpoint so purchased and cost fields cannot be set.
 			orders: [][]byte{
-				[]byte(`{"account":"spot","status":"closed","side":"buy","amount":"9.98","id":"775453816782","create_time":"1736980695","update_time":"1736980695","text":"t-740","left":"0.047239","currency_pair":"ETH_USDT","type":"market","finish_as":"filled","price":"0","time_in_force":"fok","iceberg":"0","filled_total":"9.932761","fill_price":"9.932761","create_time_ms":1736980695949,"update_time_ms":1736980695949,"succeeded":true}`),
-				[]byte(`{"account":"spot","status":"closed","side":"buy","amount":"0.00289718","id":"775453816824","create_time":"1736980695","update_time":"1736980695","text":"t-741","left":"0.00000000962","currency_pair":"LIKE_ETH","type":"market","finish_as":"filled","price":"0","time_in_force":"fok","iceberg":"0","filled_total":"0.00289717038","fill_price":"0.00289717038","create_time_ms":1736980695956,"update_time_ms":1736980695956,"succeeded":true}`),
+				[]byte(`{"account":"spot","status":"closed","side":"buy","amount":"9.98","id":"775453816782","create_time":"1736980695","update_time":"1736980695","text":"t-740","left":"0.047239","currency_pair":"BTC_USDT","type":"market","finish_as":"filled","price":"0","time_in_force":"fok","iceberg":"0","filled_total":"9.932761","fill_price":"9.932761","create_time_ms":1736980695949,"update_time_ms":1736980695949,"succeeded":true}`),
+				[]byte(`{"account":"spot","status":"closed","side":"buy","amount":"0.00289718","id":"775453816824","create_time":"1736980695","update_time":"1736980695","text":"t-741","left":"0.00000000962","currency_pair":"BTC_USDT","type":"market","finish_as":"filled","price":"0","time_in_force":"fok","iceberg":"0","filled_total":"0.00289717038","fill_price":"0.00289717038","create_time_ms":1736980695956,"update_time_ms":1736980695956,"succeeded":true}`),
 				[]byte(`{"text":"t-742","label":"BALANCE_NOT_ENOUGH","message":"Not enough balance"}`),
 			},
 			expected: []*order.SubmitResponse{
@@ -4381,7 +4381,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Exchange:        e.Name,
 					OrderID:         "775453816782",
 					AssetType:       asset.Spot,
-					Pair:            currency.NewPair(currency.ETH, currency.USDT).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					Pair:            getPair(t, asset.Spot).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
 					ClientOrderID:   "t-740",
 					Date:            time.UnixMilli(1736980695949),
 					LastUpdated:     time.UnixMilli(1736980695949),
@@ -4396,7 +4396,7 @@ func TestDeriveSpotWebsocketOrderResponses(t *testing.T) {
 					Exchange:        e.Name,
 					OrderID:         "775453816824",
 					AssetType:       asset.Spot,
-					Pair:            currency.NewPair(currency.LIKE, currency.ETH).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
+					Pair:            getPair(t, asset.Spot).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"}),
 					ClientOrderID:   "t-741",
 					Date:            time.UnixMilli(1736980695956),
 					LastUpdated:     time.UnixMilli(1736980695956),
