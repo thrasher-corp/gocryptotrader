@@ -651,37 +651,25 @@ type CExchangeInfo struct {
 	} `json:"rateLimits"`
 	ServerTime types.Time `json:"serverTime"`
 	Symbols    []struct {
-		Filters []struct {
-			FilterType        string  `json:"filterType"`
-			MinPrice          float64 `json:"minPrice,string"`
-			MaxPrice          float64 `json:"maxPrice,string"`
-			StepSize          float64 `json:"stepSize,string"`
-			TickSize          float64 `json:"tickSize,string"`
-			MaxQty            float64 `json:"maxQty,string"`
-			MinQty            float64 `json:"minQty,string"`
-			Limit             int64   `json:"limit"`
-			MultiplierDown    float64 `json:"multiplierDown,string"`
-			MultiplierUp      float64 `json:"multiplierUp,string"`
-			MultiplierDecimal float64 `json:"multiplierDecimal,string"`
-		} `json:"filters"`
-		OrderTypes            []string   `json:"orderType"`
-		TimeInForce           []string   `json:"timeInForce"`
-		Symbol                string     `json:"symbol"`
-		Pair                  string     `json:"pair"`
-		ContractType          string     `json:"contractType"`
-		DeliveryDate          types.Time `json:"deliveryDate"`
-		OnboardDate           types.Time `json:"onboardDate"`
-		ContractStatus        string     `json:"contractStatus"`
-		ContractSize          int64      `json:"contractSize"`
-		QuoteAsset            string     `json:"quoteAsset"`
-		BaseAsset             string     `json:"baseAsset"`
-		MarginAsset           string     `json:"marginAsset"`
-		PricePrecision        int64      `json:"pricePrecision"`
-		QuantityPrecision     int64      `json:"quantityPrecision"`
-		BaseAssetPrecision    int64      `json:"baseAssetPrecision"`
-		QuotePrecision        int64      `json:"quotePrecision"`
-		MaintMarginPercent    float64    `json:"maintMarginPercent,string"`
-		RequiredMarginPercent float64    `json:"requiredMarginPercent,string"`
+		Filters               []*OrderExecutionLimits `json:"filters"`
+		OrderTypes            []string                `json:"orderType"`
+		TimeInForce           []string                `json:"timeInForce"`
+		Symbol                string                  `json:"symbol"`
+		Pair                  string                  `json:"pair"`
+		ContractType          string                  `json:"contractType"`
+		DeliveryDate          types.Time              `json:"deliveryDate"`
+		OnboardDate           types.Time              `json:"onboardDate"`
+		ContractStatus        string                  `json:"contractStatus"`
+		ContractSize          int64                   `json:"contractSize"`
+		QuoteAsset            string                  `json:"quoteAsset"`
+		BaseAsset             string                  `json:"baseAsset"`
+		MarginAsset           string                  `json:"marginAsset"`
+		PricePrecision        int64                   `json:"pricePrecision"`
+		QuantityPrecision     int64                   `json:"quantityPrecision"`
+		BaseAssetPrecision    int64                   `json:"baseAssetPrecision"`
+		QuotePrecision        int64                   `json:"quotePrecision"`
+		MaintMarginPercent    float64                 `json:"maintMarginPercent,string"`
+		RequiredMarginPercent float64                 `json:"requiredMarginPercent,string"`
 	} `json:"symbols"`
 	Timezone string `json:"timezone"`
 }

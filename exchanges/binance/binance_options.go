@@ -559,7 +559,7 @@ func (e *Exchange) ResetMarketMaketProtection(ctx context.Context, underlying st
 	params := url.Values{}
 	params.Set("underlying", underlying)
 	var resp *MarketMakerProtection
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodPost, "/eapi/v1/mmp", params, optionsDefaultRate, nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestOptions, http.MethodPost, "/eapi/v1/mmpReset", params, optionsDefaultRate, nil, &resp)
 }
 
 // SetOptionsAutoCancelAllOpenOrders sets the parameters of the auto-cancel feature which cancels all open orders

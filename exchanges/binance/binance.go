@@ -331,6 +331,9 @@ func (e *Exchange) GetUIKline(ctx context.Context, arg *KlinesRequestParams) ([]
 }
 
 func (e *Exchange) retrieveSpotKline(ctx context.Context, arg *KlinesRequestParams, urlPath string) ([]*CandleStick, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	symbol, err := e.FormatSymbol(arg.Symbol, asset.Spot)
 	if err != nil {
 		return nil, err
@@ -524,6 +527,9 @@ func (e *Exchange) NewOrderTest(ctx context.Context, o *NewOrderRequest, compute
 }
 
 func (e *Exchange) newOrder(ctx context.Context, api string, o *NewOrderRequest, resp *NewOrderResponse, computeCommissionRate bool) error {
+	if err := common.NilGuard(o); err != nil {
+		return err
+	}
 	ratelimit := spotOrderRate
 	if computeCommissionRate {
 		ratelimit = testNewOrderWithCommissionRate
@@ -3558,13 +3564,18 @@ func (e *Exchange) FetchExchangeLimits(ctx context.Context, a asset.Item) ([]lim
 	if err != nil {
 		return nil, err
 	}
+	return e.exchangeLimitsFromSymbols(a, resp.Symbols)
+}
 
+// exchangeLimitsFromSymbols converts spot/margin symbol trading rules into order execution limits,
+// keeping only symbols permitted for the supplied asset. Kept separate from the HTTP fetch so it can
+// be unit-tested with in-memory fixtures, independent of the truncated mock recording.
+func (e *Exchange) exchangeLimitsFromSymbols(a asset.Item, symbols []*SymbolInfo) ([]limits.MinMaxLevel, error) {
 	aUpper := strings.ToUpper(a.String())
 
-	l := make([]limits.MinMaxLevel, 0, len(resp.Symbols))
-	for _, s := range resp.Symbols {
-		var cp currency.Pair
-		cp, err = currency.NewPairFromStrings(s.BaseAsset, s.QuoteAsset)
+	l := make([]limits.MinMaxLevel, 0, len(symbols))
+	for _, s := range symbols {
+		cp, err := currency.NewPairFromStrings(s.BaseAsset, s.QuoteAsset)
 		if err != nil {
 			return nil, err
 		}
@@ -7473,10 +7484,10 @@ func (e *Exchange) GetSpotInfoAboutIfUserIsNew(ctx context.Context, apiAgentCode
 
 // CustomiseSpotPartnerClientID customises partner's customer ID by user email
 func (e *Exchange) CustomiseSpotPartnerClientID(ctx context.Context, customerID, email string) (*CustomerIDResult, error) {
-	return e.customisePartnerClientID(ctx, customerID, email, "/sapi/v1/apiReferral/customization")
+	return e.customisePartnerClientID(ctx, exchange.RestSpot, customerID, email, "/sapi/v1/apiReferral/customization")
 }
 
-func (e *Exchange) customisePartnerClientID(ctx context.Context, customerID, email, path string) (*CustomerIDResult, error) {
+func (e *Exchange) customisePartnerClientID(ctx context.Context, ePath exchange.URL, customerID, email, path string) (*CustomerIDResult, error) {
 	if customerID == "" {
 		return nil, fmt.Errorf("%w: customerID required", order.ErrOrderIDNotSet)
 	}
@@ -7487,15 +7498,15 @@ func (e *Exchange) customisePartnerClientID(ctx context.Context, customerID, ema
 	params.Set("email", email)
 	params.Set("customerId", customerID)
 	var resp *CustomerIDResult
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, params, request.Auth, nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, ePath, http.MethodPost, path, params, request.Auth, nil, &resp)
 }
 
 // GetSpotClientEmailCustomisedID retrieves client email customised ID details
 func (e *Exchange) GetSpotClientEmailCustomisedID(ctx context.Context, customerID, email string) ([]*CustomerIDResult, error) {
-	return e.getClientEmailCustomisedID(ctx, customerID, email, "/sapi/v1/apiReferral/customization")
+	return e.getClientEmailCustomisedID(ctx, exchange.RestSpot, customerID, email, "/sapi/v1/apiReferral/customization")
 }
 
-func (e *Exchange) getClientEmailCustomisedID(ctx context.Context, customerID, email, path string) ([]*CustomerIDResult, error) {
+func (e *Exchange) getClientEmailCustomisedID(ctx context.Context, ePath exchange.URL, customerID, email, path string) ([]*CustomerIDResult, error) {
 	params := url.Values{}
 	if customerID != "" {
 		params.Set("customerId", customerID)
@@ -7504,15 +7515,15 @@ func (e *Exchange) getClientEmailCustomisedID(ctx context.Context, customerID, e
 		params.Set("email", email)
 	}
 	var resp []*CustomerIDResult
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, request.Auth, nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, ePath, http.MethodGet, path, params, request.Auth, nil, &resp)
 }
 
 // CustomiseSpotOwnClientID customise your own customer ID by broker ID
 func (e *Exchange) CustomiseSpotOwnClientID(ctx context.Context, customerID, apiAgentCode string) (*CustomerIDResult, error) {
-	return e.customiseOwnClientID(ctx, customerID, apiAgentCode, "/sapi/v1/apiReferral/userCustomization")
+	return e.customiseOwnClientID(ctx, exchange.RestSpot, customerID, apiAgentCode, "/sapi/v1/apiReferral/userCustomization")
 }
 
-func (e *Exchange) customiseOwnClientID(ctx context.Context, customerID, apiAgentCode, path string) (*CustomerIDResult, error) {
+func (e *Exchange) customiseOwnClientID(ctx context.Context, ePath exchange.URL, customerID, apiAgentCode, path string) (*CustomerIDResult, error) {
 	if customerID == "" {
 		return nil, fmt.Errorf("%w: customerID required", order.ErrOrderIDNotSet)
 	}
@@ -7523,7 +7534,7 @@ func (e *Exchange) customiseOwnClientID(ctx context.Context, customerID, apiAgen
 	params.Set("customerId", customerID)
 	params.Set("apiAgentCode", apiAgentCode)
 	var resp *CustomerIDResult
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, params, request.Auth, nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, ePath, http.MethodPost, path, params, request.Auth, nil, &resp)
 }
 
 // GetSpotUsersCustomisedID retrieves user's customised ID
@@ -7594,22 +7605,22 @@ func (e *Exchange) GetFuturesClientIfNewUser(ctx context.Context, brokerID strin
 		params.Set("type", strconv.Itoa(mType))
 	}
 	var resp *FuturesNewUserDetail
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/fapi/v1/apiReferral/ifNewUser", params, request.Auth, nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiReferral/ifNewUser", params, request.Auth, nil, &resp)
 }
 
 // CustomiseFuturesPartnerClientID customises partner's customer ID by user email
 func (e *Exchange) CustomiseFuturesPartnerClientID(ctx context.Context, customerID, email string) (*CustomerIDResult, error) {
-	return e.customisePartnerClientID(ctx, customerID, email, "/fapi/v1/apiReferral/customization")
+	return e.customisePartnerClientID(ctx, exchange.RestUSDTMargined, customerID, email, "/fapi/v1/apiReferral/customization")
 }
 
 // GetFuturesClientEmailCustomisedID retrieves client email customised ID details for futures account
 func (e *Exchange) GetFuturesClientEmailCustomisedID(ctx context.Context, customerID, email string) ([]*CustomerIDResult, error) {
-	return e.getClientEmailCustomisedID(ctx, customerID, email, "/fapi/v1/apiReferral/customization")
+	return e.getClientEmailCustomisedID(ctx, exchange.RestUSDTMargined, customerID, email, "/fapi/v1/apiReferral/customization")
 }
 
 // CustomiseFuturesOwnClientID customise your own customer ID by broker ID for futures account
 func (e *Exchange) CustomiseFuturesOwnClientID(ctx context.Context, customerID, apiAgentCode string) (*CustomerIDResult, error) {
-	return e.customiseOwnClientID(ctx, customerID, apiAgentCode, "/fapi/v1/apiReferral/userCustomization")
+	return e.customiseOwnClientID(ctx, exchange.RestUSDTMargined, customerID, apiAgentCode, "/fapi/v1/apiReferral/userCustomization")
 }
 
 // GetFuturesUsersCustomisedID retrieves user's customised ID for futures account
@@ -7620,7 +7631,7 @@ func (e *Exchange) GetFuturesUsersCustomisedID(ctx context.Context, brokerID str
 	params := url.Values{}
 	params.Set("brokerId", brokerID)
 	var resp *FuturesCustomerID
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/fapi/v1/apiReferral/userCustomization", params, request.Auth, nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiReferral/userCustomization", params, request.Auth, nil, &resp)
 }
 
 // GetFuturesUserIncomeHistory retrieves a futures user's income history
@@ -7647,7 +7658,7 @@ func (e *Exchange) GetFuturesUserIncomeHistory(ctx context.Context, symbol curre
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []*FuturesUserIncomeDetail
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/fapi/v1/income", params, request.Auth, nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/income", params, request.Auth, nil, &resp)
 }
 
 // GetFuturesReferredTradersNumber retrieve the number of new and existing traders associated with their referral program over specific time periods.
@@ -7672,7 +7683,7 @@ func (e *Exchange) GetFuturesReferredTradersNumber(ctx context.Context, coinMarg
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []*BrokerTradersNumber
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/fapi/v1/apiReferral/traderNum", params, request.Auth, nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiReferral/traderNum", params, request.Auth, nil, &resp)
 }
 
 // GetFuturesRebateDataOverview retrieves an overview of rebate data for brokers, including details like the number of new and existing traders referred, total trading volume, and total rebates earned.
@@ -7682,7 +7693,7 @@ func (e *Exchange) GetFuturesRebateDataOverview(ctx context.Context, coinMargine
 		params.Set("type", "2")
 	}
 	var resp *RebateOverview
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/fapi/v1/apiReferral/overview", params, request.Auth, nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiReferral/overview", params, request.Auth, nil, &resp)
 }
 
 // GetUserTradeVolume retrieves user's trade volume at different timestamps
@@ -7706,7 +7717,7 @@ func (e *Exchange) GetUserTradeVolume(ctx context.Context, coinMargined bool, st
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []*UserTradeVolume
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/fapi/v1/apiReferral/tradeVol", params, request.Auth, nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiReferral/tradeVol", params, request.Auth, nil, &resp)
 }
 
 // GetRebateVolume retrieve rebate volume data for a user's futures trading account
@@ -7730,7 +7741,7 @@ func (e *Exchange) GetRebateVolume(ctx context.Context, coinMargined bool, start
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []*UserRebateVolume
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/fapi/v1/apiReferral/rebateVol", params, request.Auth, nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiReferral/rebateVol", params, request.Auth, nil, &resp)
 }
 
 // GetTraderDetail retrieves detailed trading and rebate volume data for referred traders under the Binance Futures Referral Program
@@ -7757,7 +7768,7 @@ func (e *Exchange) GetTraderDetail(ctx context.Context, customerID string, coinM
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []*TradingAndRebateVolumeData
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "/fapi/v1/apiReferral/traderSummary", params, request.Auth, nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/fapi/v1/apiReferral/traderSummary", params, request.Auth, nil, &resp)
 }
 
 // GetFuturesClientifNewUser retrieves futures client detail if new user

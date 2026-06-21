@@ -547,7 +547,8 @@ func TestUFuturesNewOrder(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidNewOrderResponseType)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.UFuturesNewOrder(t.Context(),
+	result, err := e.UFuturesNewOrder(
+		t.Context(),
 		&UFuturesNewOrderRequest{
 			Symbol:      currency.NewBTCUSDT(),
 			Side:        "BUY",
@@ -1335,8 +1336,11 @@ func TestFuturesBasisData(t *testing.T) {
 
 func TestFuturesNewOrder(t *testing.T) {
 	t.Parallel()
+	_, err := e.FuturesNewOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
 	arg := &FuturesNewOrderRequest{Symbol: usdtmTradablePair, Side: "BUY", OrderType: order.Limit.String(), PositionSide: "abcd", TimeInForce: order.GoodTillCancel.String(), Quantity: 1, Price: 1}
-	_, err := e.FuturesNewOrder(t.Context(), arg)
+	_, err = e.FuturesNewOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errInvalidPositionSide)
 
 	arg.PositionSide = ""
@@ -1689,8 +1693,11 @@ func TestGetAggregatedTrades(t *testing.T) {
 
 func TestGetSpotKline(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetSpotKline(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
 	startTime, endTime := getTime()
-	_, err := e.GetSpotKline(t.Context(), &KlinesRequestParams{Symbol: usdtmTradablePair, Interval: kline.FiveMin.Short(), Limit: 24, StartTime: endTime, EndTime: startTime})
+	_, err = e.GetSpotKline(t.Context(), &KlinesRequestParams{Symbol: usdtmTradablePair, Interval: kline.FiveMin.Short(), Limit: 24, StartTime: endTime, EndTime: startTime})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	result, err := e.GetSpotKline(t.Context(), &KlinesRequestParams{Symbol: usdtmTradablePair, Interval: kline.FiveMin.Short(), Limit: 24, StartTime: startTime, EndTime: endTime})
@@ -1700,8 +1707,11 @@ func TestGetSpotKline(t *testing.T) {
 
 func TestGetUIKline(t *testing.T) {
 	t.Parallel()
+	_, err := e.GetUIKline(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
 	startTime, endTime := getTime()
-	_, err := e.GetUIKline(t.Context(), &KlinesRequestParams{Symbol: usdtmTradablePair, Interval: kline.FiveMin.Short(), Limit: 24, StartTime: endTime, EndTime: startTime})
+	_, err = e.GetUIKline(t.Context(), &KlinesRequestParams{Symbol: usdtmTradablePair, Interval: kline.FiveMin.Short(), Limit: 24, StartTime: endTime, EndTime: startTime})
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	result, err := e.GetUIKline(t.Context(), &KlinesRequestParams{Symbol: usdtmTradablePair, Interval: kline.FiveMin.Short(), Limit: 24, StartTime: startTime, EndTime: endTime})
@@ -2953,8 +2963,11 @@ func TestGetOrderHistory(t *testing.T) {
 
 func TestNewOrderTest(t *testing.T) {
 	t.Parallel()
+	err := e.NewOrderTest(t.Context(), nil, false)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	err := e.NewOrderTest(t.Context(), &NewOrderRequest{
+	err = e.NewOrderTest(t.Context(), &NewOrderRequest{
 		Symbol:      currency.NewPair(currency.LTC, currency.BTC),
 		Side:        order.Buy.String(),
 		TradeType:   order.Limit.String(),
@@ -4032,6 +4045,56 @@ func TestFetchExchangeLimits(t *testing.T) {
 	require.ErrorIs(t, err, asset.ErrNotSupported, "FetchExchangeLimits must error on other asset types")
 }
 
+// TestExchangeLimitsFromSymbols covers the spot/margin limit parsing with in-memory fixtures so value
+// correctness is asserted independently of the mock recording, whose symbols slice is truncated by the
+// recording slice limit and may not contain the pair under test.
+func TestExchangeLimitsFromSymbols(t *testing.T) {
+	t.Parallel()
+	symbols := []*SymbolInfo{
+		{
+			BaseAsset:      "BTC",
+			QuoteAsset:     "USDT",
+			PermissionSets: [][]string{{"SPOT", "MARGIN"}},
+			Filters: []*filterData{
+				{FilterType: priceFilter, MinPrice: 0.01, MaxPrice: 1000000, TickSize: 0.01},
+				{FilterType: lotSizeFilter, MinQty: 0.0001, MaxQty: 9000, StepSize: 0.0001},
+				{FilterType: icebergPartsFilter, Limit: 10},
+				{FilterType: marketLotSizeFilter, MinQty: 0, MaxQty: 100, StepSize: 0.0001},
+				{FilterType: maxNumOrdersFilter, MaxNumOrders: 200, MaxNumAlgoOrders: 5},
+				{FilterType: notionalFilter, MinNotional: 5},
+			},
+		},
+		{ // MARGIN-only symbol must be excluded from a spot lookup
+			BaseAsset:      "ETH",
+			QuoteAsset:     "USDT",
+			PermissionSets: [][]string{{"MARGIN"}},
+			Filters:        []*filterData{{FilterType: priceFilter, MinPrice: 0.01, MaxPrice: 100, TickSize: 0.01}},
+		},
+	}
+
+	l, err := e.exchangeLimitsFromSymbols(asset.Spot, symbols)
+	require.NoError(t, err, "exchangeLimitsFromSymbols must not error")
+	require.Len(t, l, 1, "only the SPOT-permitted symbol must be returned")
+	got := l[0]
+	assert.Equal(t, currency.BTC.Item, got.Key.Base, "limit base should be BTC")
+	assert.Equal(t, currency.USDT.Item, got.Key.Quote, "limit quote should be USDT")
+	assert.Equal(t, 0.01, got.MinPrice, "MinPrice should match price filter")
+	assert.Equal(t, 1000000.0, got.MaxPrice, "MaxPrice should match price filter")
+	assert.Equal(t, 0.01, got.PriceStepIncrementSize, "PriceStepIncrementSize should match tick size")
+	assert.Equal(t, 0.0001, got.MinimumBaseAmount, "MinimumBaseAmount should match lot size")
+	assert.Equal(t, 9000.0, got.MaximumBaseAmount, "MaximumBaseAmount should match lot size")
+	assert.Equal(t, int64(10), got.MaxIcebergParts, "MaxIcebergParts should match iceberg filter")
+	assert.Equal(t, int64(200), got.MaxTotalOrders, "MaxTotalOrders should match max num orders filter")
+	assert.Equal(t, 5.0, got.MinNotional, "MinNotional should match notional filter")
+
+	l, err = e.exchangeLimitsFromSymbols(asset.Margin, symbols)
+	require.NoError(t, err, "exchangeLimitsFromSymbols must not error for margin")
+	assert.Len(t, l, 2, "both MARGIN-permitted symbols must be returned")
+
+	_, err = e.exchangeLimitsFromSymbols(asset.Spot, []*SymbolInfo{{BaseAsset: "BT C", QuoteAsset: "USDT", PermissionSets: [][]string{{"SPOT"}}}})
+	require.Error(t, err, "an invalid currency string must return an error")
+}
+
 func TestUpdateOrderExecutionLimits(t *testing.T) {
 	t.Parallel()
 	for _, a := range e.GetAssetTypes(true) {
@@ -4042,6 +4105,11 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			require.NoError(t, err, "GetPairs must not error")
 			for _, p := range pairs {
 				l, err := e.GetOrderExecutionLimits(a, p)
+				if errors.Is(err, limits.ErrOrderLimitNotFound) {
+					// The mock exchangeInfo recording is truncated by the recording slice limit, so the
+					// enabled pair may be absent. Parsing correctness is covered by TestExchangeLimitsFromSymbols.
+					continue
+				}
 				require.NoError(t, err, "GetOrderExecutionLimits must not error")
 				assert.Positive(t, l.MinPrice, "MinPrice should be positive")
 				assert.Positive(t, l.MaxPrice, "MaxPrice should be positive")
@@ -4990,6 +5058,26 @@ func TestGetWsTradingDayTickers(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestGetWsRollingWindowPriceChanges(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetWsRollingWindowPriceChanges(nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.GetWsRollingWindowPriceChanges(&WsRollingWindowPriceParams{})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	if mockTests {
+		t.SkipNow()
+	}
+	testexch.SetupWs(t, e)
+	if !e.IsAPIStreamConnected() {
+		t.Skip(apiStreamingIsNotConnected)
+	}
+	result, err := e.GetWsRollingWindowPriceChanges(&WsRollingWindowPriceParams{Symbols: []currency.Pair{usdtmTradablePair}})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 func TestGetSymbolPriceTicker(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetSymbolPriceTicker(currency.EMPTYPAIR)
@@ -5286,7 +5374,8 @@ func TestWsCancelOCOOrder(t *testing.T) {
 		t.Skip(apiStreamingIsNotConnected)
 	}
 	result, err := e.WsCancelOCOOrder(
-		usdtmTradablePair, "someID", "12354", "")
+		usdtmTradablePair, "someID", "12354", "",
+	)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

@@ -603,6 +603,9 @@ func (e *Exchange) GetFuturesBasisData(ctx context.Context, pair currency.Pair, 
 
 // FuturesNewOrder sends a new futures order to the exchange
 func (e *Exchange) FuturesNewOrder(ctx context.Context, x *FuturesNewOrderRequest) (*FuturesOrderPlaceData, error) {
+	if err := common.NilGuard(x); err != nil {
+		return nil, err
+	}
 	var err error
 	x.Symbol, err = e.FormatExchangeCurrency(x.Symbol, asset.CoinMarginedFutures)
 	if err != nil {
@@ -1076,27 +1079,11 @@ func (e *Exchange) FetchCoinMarginExchangeLimits(ctx context.Context) ([]limits.
 		if err != nil {
 			return nil, err
 		}
-		if len(coinFutures.Symbols[x].Filters) < 6 {
-			continue
+		mml := limits.MinMaxLevel{
+			Key: key.NewExchangeAssetPair(e.Name, asset.CoinMarginedFutures, cp),
 		}
-
-		l = append(l, limits.MinMaxLevel{
-			Key:                     key.NewExchangeAssetPair(e.Name, asset.CoinMarginedFutures, cp),
-			MinPrice:                coinFutures.Symbols[x].Filters[0].MinPrice,
-			MaxPrice:                coinFutures.Symbols[x].Filters[0].MaxPrice,
-			PriceStepIncrementSize:  coinFutures.Symbols[x].Filters[0].TickSize,
-			MaximumBaseAmount:       coinFutures.Symbols[x].Filters[1].MaxQty,
-			MinimumBaseAmount:       coinFutures.Symbols[x].Filters[1].MinQty,
-			AmountStepIncrementSize: coinFutures.Symbols[x].Filters[1].StepSize,
-			MarketMinQty:            coinFutures.Symbols[x].Filters[2].MinQty,
-			MarketMaxQty:            coinFutures.Symbols[x].Filters[2].MaxQty,
-			MarketStepIncrementSize: coinFutures.Symbols[x].Filters[2].StepSize,
-			MaxTotalOrders:          coinFutures.Symbols[x].Filters[3].Limit,
-			MaxAlgoOrders:           coinFutures.Symbols[x].Filters[4].Limit,
-			MultiplierUp:            coinFutures.Symbols[x].Filters[5].MultiplierUp,
-			MultiplierDown:          coinFutures.Symbols[x].Filters[5].MultiplierDown,
-			MultiplierDecimal:       coinFutures.Symbols[x].Filters[5].MultiplierDecimal,
-		})
+		applyFuturesFilters(&mml, sym.Filters)
+		l = append(l, mml)
 	}
 	return l, nil
 }

@@ -292,6 +292,9 @@ func (e *Exchange) GetSymbolPriceTicker(symbol currency.Pair) ([]*SymbolTickerIt
 // GetWsRollingWindowPriceChanges retrieves rolling window price change statistics with a custom window.
 // this request is similar to ticker.24hr, but statistics are computed on demand using the arbitrary window you specify
 func (e *Exchange) GetWsRollingWindowPriceChanges(arg *WsRollingWindowPriceParams) ([]*PriceChangeStats, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	if arg.Symbol == "" && len(arg.Symbols) == 0 {
 		return nil, currency.ErrCurrencyPairEmpty
 	}

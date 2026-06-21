@@ -1266,29 +1266,45 @@ func (e *Exchange) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]limits.
 		if err != nil {
 			return nil, err
 		}
-		if len(usdtFutures.Symbols[x].Filters) < 6 {
-			continue
+		mml := limits.MinMaxLevel{
+			Key: key.NewExchangeAssetPair(e.Name, asset.USDTMarginedFutures, cp),
 		}
-
-		l = append(l, limits.MinMaxLevel{
-			Key:                     key.NewExchangeAssetPair(e.Name, asset.USDTMarginedFutures, cp),
-			MinPrice:                usdtFutures.Symbols[x].Filters[0].MinPrice,
-			MaxPrice:                usdtFutures.Symbols[x].Filters[0].MaxPrice,
-			PriceStepIncrementSize:  usdtFutures.Symbols[x].Filters[0].TickSize,
-			MaximumBaseAmount:       usdtFutures.Symbols[x].Filters[1].MaxQty,
-			MinimumBaseAmount:       usdtFutures.Symbols[x].Filters[1].MinQty,
-			AmountStepIncrementSize: usdtFutures.Symbols[x].Filters[1].StepSize,
-			MarketMinQty:            usdtFutures.Symbols[x].Filters[2].MinQty,
-			MarketMaxQty:            usdtFutures.Symbols[x].Filters[2].MaxQty,
-			MarketStepIncrementSize: usdtFutures.Symbols[x].Filters[2].StepSize,
-			MaxTotalOrders:          usdtFutures.Symbols[x].Filters[3].Limit,
-			MinNotional:             usdtFutures.Symbols[x].Filters[4].Notional,
-			MultiplierUp:            usdtFutures.Symbols[x].Filters[5].MultiplierUp,
-			MultiplierDown:          usdtFutures.Symbols[x].Filters[5].MultiplierDown,
-			MultiplierDecimal:       usdtFutures.Symbols[x].Filters[5].MultiplierDecimal,
-		})
+		applyFuturesFilters(&mml, usdtFutures.Symbols[x].Filters)
+		l = append(l, mml)
 	}
 	return l, nil
+}
+
+// applyFuturesFilters populates the order execution limit fields from the
+// symbol filters. Filters are keyed by type rather than by position because
+// Binance does not guarantee a fixed ordering and may omit some filters.
+func applyFuturesFilters(mml *limits.MinMaxLevel, filters []*OrderExecutionLimits) {
+	for _, f := range filters {
+		switch filterType(f.FilterType) {
+		case priceFilter:
+			mml.MinPrice = f.MinPrice
+			mml.MaxPrice = f.MaxPrice
+			mml.PriceStepIncrementSize = f.TickSize
+		case lotSizeFilter:
+			mml.MaximumBaseAmount = f.MaxQty
+			mml.MinimumBaseAmount = f.MinQty
+			mml.AmountStepIncrementSize = f.StepSize
+		case marketLotSizeFilter:
+			mml.MarketMinQty = f.MinQty
+			mml.MarketMaxQty = f.MaxQty
+			mml.MarketStepIncrementSize = f.StepSize
+		case maxNumOrdersFilter:
+			mml.MaxTotalOrders = f.Limit
+		case maxNumAlgoOrdersFilter:
+			mml.MaxAlgoOrders = f.Limit
+		case minNotionalFilter:
+			mml.MinNotional = f.Notional
+		case percentPriceFilter:
+			mml.MultiplierUp = f.MultiplierUp
+			mml.MultiplierDown = f.MultiplierDown
+			mml.MultiplierDecimal = f.MultiplierDecimal
+		}
+	}
 }
 
 // SetAssetsMode sets the current asset margin type, true for multi, false for single

@@ -287,6 +287,7 @@ const (
 	percentPriceFilter       filterType = "PERCENT_PRICE"
 	percentPriceBySizeFilter filterType = "PERCENT_PRICE_BY_SIDE"
 	notionalFilter           filterType = "NOTIONAL"
+	minNotionalFilter        filterType = "MIN_NOTIONAL"
 	maxNumOrdersFilter       filterType = "MAX_NUM_ORDERS"
 	maxNumAlgoOrdersFilter   filterType = "MAX_NUM_ALGO_ORDERS"
 )
@@ -299,28 +300,31 @@ type ExchangeInfo struct {
 	ServerTime      types.Time       `json:"serverTime"`
 	RateLimits      []*RateLimitItem `json:"rateLimits"`
 	ExchangeFilters any              `json:"exchangeFilters"`
-	Symbols         []*struct {
-		Symbol                          string        `json:"symbol"`
-		Status                          string        `json:"status"`
-		BaseAsset                       string        `json:"baseAsset"`
-		BaseAssetPrecision              int64         `json:"baseAssetPrecision"`
-		QuoteAsset                      string        `json:"quoteAsset"`
-		QuotePrecision                  int64         `json:"quotePrecision"`
-		OrderTypes                      []string      `json:"orderTypes"`
-		IcebergAllowed                  bool          `json:"icebergAllowed"`
-		OCOAllowed                      bool          `json:"ocoAllowed"`
-		QuoteOrderQtyMarketAllowed      bool          `json:"quoteOrderQtyMarketAllowed"`
-		IsSpotTradingAllowed            bool          `json:"isSpotTradingAllowed"`
-		IsMarginTradingAllowed          bool          `json:"isMarginTradingAllowed"`
-		Filters                         []*filterData `json:"filters"`
-		Permissions                     []string      `json:"permissions"`
-		QuoteAssetPrecision             int64         `json:"quoteAssetPrecision"`
-		AllowTrailingStop               bool          `json:"allowTrailingStop"`
-		CancelReplaceAllowed            bool          `json:"cancelReplaceAllowed"`
-		PermissionSets                  [][]string    `json:"permissionSets"`
-		DefaultSelfTradePreventionMode  string        `json:"defaultSelfTradePreventionMode"`
-		AllowedSelfTradePreventionModes []string      `json:"allowedSelfTradePreventionModes"`
-	} `json:"symbols"`
+	Symbols         []*SymbolInfo    `json:"symbols"`
+}
+
+// SymbolInfo holds the trading rules and filters for a single spot/margin symbol
+type SymbolInfo struct {
+	Symbol                          string        `json:"symbol"`
+	Status                          string        `json:"status"`
+	BaseAsset                       string        `json:"baseAsset"`
+	BaseAssetPrecision              int64         `json:"baseAssetPrecision"`
+	QuoteAsset                      string        `json:"quoteAsset"`
+	QuotePrecision                  int64         `json:"quotePrecision"`
+	OrderTypes                      []string      `json:"orderTypes"`
+	IcebergAllowed                  bool          `json:"icebergAllowed"`
+	OCOAllowed                      bool          `json:"ocoAllowed"`
+	QuoteOrderQtyMarketAllowed      bool          `json:"quoteOrderQtyMarketAllowed"`
+	IsSpotTradingAllowed            bool          `json:"isSpotTradingAllowed"`
+	IsMarginTradingAllowed          bool          `json:"isMarginTradingAllowed"`
+	Filters                         []*filterData `json:"filters"`
+	Permissions                     []string      `json:"permissions"`
+	QuoteAssetPrecision             int64         `json:"quoteAssetPrecision"`
+	AllowTrailingStop               bool          `json:"allowTrailingStop"`
+	CancelReplaceAllowed            bool          `json:"cancelReplaceAllowed"`
+	PermissionSets                  [][]string    `json:"permissionSets"`
+	DefaultSelfTradePreventionMode  string        `json:"defaultSelfTradePreventionMode"`
+	AllowedSelfTradePreventionModes []string      `json:"allowedSelfTradePreventionModes"`
 }
 
 type filterData struct {

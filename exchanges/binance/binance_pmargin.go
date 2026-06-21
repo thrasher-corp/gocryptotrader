@@ -483,7 +483,7 @@ func (e *Exchange) getOpenUMCMConditionalOrder(ctx context.Context, symbol curre
 		params.Set("newClientStrategyId", newClientStrategyID)
 	}
 	var resp *ConditionalOrder
-	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, params, pmDefaultRate, nil, &resp)
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestFuturesSupplementary, http.MethodGet, path, params, pmDefaultRate, nil, &resp)
 }
 
 // GetAllUMOpenConditionalOrders retrieves all open conditional orders on a symbol.
