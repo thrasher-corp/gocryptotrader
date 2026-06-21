@@ -2,6 +2,7 @@ package lbank
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"text/template"
@@ -26,6 +27,12 @@ const (
 	lbankWsTicker      = "tick"
 	lbankWsTrades      = "trade"
 	lbankWsOrderbook   = "depth"
+)
+
+var (
+	errMissingTickData  = errors.New("lbank: missing tick data in websocket message")
+	errMissingTradeData = errors.New("lbank: missing trade data in websocket message")
+	errMissingDepthData = errors.New("lbank: missing depth data in websocket message")
 )
 
 var defaultSubscriptions = subscription.List{
@@ -54,6 +61,7 @@ var defaultSubscriptionTemplate = template.Must(template.New("").Funcs(template.
 {{- end -}}
 `))
 
+// WsConnect connects to the LBank websocket
 func (e *Exchange) WsConnect() error {
 	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
 		return websocket.ErrWebsocketNotEnabled
@@ -103,34 +111,37 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		return err
 	}
 
-	pairRaw, ok := result["pair"]
-	if !ok {
-		return fmt.Errorf("lbank: missing pair in websocket message: %s", respRaw)
-	}
-	var pairStr string
-	if err := json.Unmarshal(pairRaw, &pairStr); err != nil {
-		return err
-	}
-	p, err := currency.NewPairFromString(pairStr)
-	if err != nil {
-		return err
+	switch msgType {
+	case lbankWsTicker, lbankWsTrades, lbankWsOrderbook:
+		pairRaw, ok := result["pair"]
+		if !ok {
+			return fmt.Errorf("lbank: missing pair in websocket message: %s", respRaw)
+		}
+		var pairStr string
+		if err := json.Unmarshal(pairRaw, &pairStr); err != nil {
+			return err
+		}
+		p, err := currency.NewPairFromString(pairStr)
+		if err != nil {
+			return err
+		}
+
+		switch msgType {
+		case lbankWsTicker:
+			return e.wsHandleTicker(ctx, result, p, respRaw)
+		case lbankWsTrades:
+			return e.wsHandleTrades(ctx, result, p, respRaw)
+		case lbankWsOrderbook:
+			return e.wsHandleOrderbook(result, p, respRaw)
+		}
 	}
 
-	switch {
-	case msgType == lbankWsTicker:
-		return e.wsHandleTicker(ctx, result, p)
-	case msgType == lbankWsTrades:
-		return e.wsHandleTrades(ctx, result, p)
-	case msgType == lbankWsOrderbook:
-		return e.wsHandleOrderbook(result, p)
-	default:
-		return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
-			Message: e.Name + websocket.UnhandledMessage + string(respRaw),
-		})
-	}
+	return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
+		Message: e.Name + websocket.UnhandledMessage + string(respRaw),
+	})
 }
 
-func (e *Exchange) wsHandleTicker(ctx context.Context, result map[string]json.RawMessage, p currency.Pair) error {
+func (e *Exchange) wsHandleTicker(ctx context.Context, result map[string]json.RawMessage, p currency.Pair, respRaw []byte) error {
 	var tick struct {
 		High   types.Number `json:"high"`
 		Low    types.Number `json:"low"`
@@ -140,12 +151,12 @@ func (e *Exchange) wsHandleTicker(ctx context.Context, result map[string]json.Ra
 	}
 	tickRaw, ok := result[lbankWsTicker]
 	if !ok {
-		return fmt.Errorf("lbank: missing tick data in websocket message")
+		return fmt.Errorf("%w: %s", errMissingTickData, respRaw)
 	}
 	if err := json.Unmarshal(tickRaw, &tick); err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, (&ticker.Price{ //nolint:errcheck
+	return e.Websocket.DataHandler.Send(ctx, (&ticker.Price{
 		ExchangeName: e.Name,
 		Pair:         p,
 		AssetType:    asset.Spot,
@@ -157,7 +168,7 @@ func (e *Exchange) wsHandleTicker(ctx context.Context, result map[string]json.Ra
 }
 
 // wsHandleTrades handles trade websocket messages
-func (e *Exchange) wsHandleTrades(ctx context.Context, result map[string]json.RawMessage, p currency.Pair) error {
+func (e *Exchange) wsHandleTrades(_ context.Context, result map[string]json.RawMessage, p currency.Pair, respRaw []byte) error {
 	if !e.IsSaveTradeDataEnabled() {
 		return nil
 	}
@@ -170,7 +181,7 @@ func (e *Exchange) wsHandleTrades(ctx context.Context, result map[string]json.Ra
 	}
 	tradeRaw, ok := result[lbankWsTrades]
 	if !ok {
-		return fmt.Errorf("lbank: missing trade data in websocket message")
+		return fmt.Errorf("%w: %s", errMissingTradeData, respRaw)
 	}
 	if err := json.Unmarshal(tradeRaw, &trades); err != nil {
 		return err
@@ -195,14 +206,14 @@ func (e *Exchange) wsHandleTrades(ctx context.Context, result map[string]json.Ra
 	return trade.AddTradesToBuffer(out...)
 }
 
-func (e *Exchange) wsHandleOrderbook(result map[string]json.RawMessage, p currency.Pair) error {
+func (e *Exchange) wsHandleOrderbook(result map[string]json.RawMessage, p currency.Pair, respRaw []byte) error {
 	var depth struct {
 		Asks [][]types.Number `json:"asks"`
 		Bids [][]types.Number `json:"bids"`
 	}
 	depthRaw, ok := result[lbankWsOrderbook]
 	if !ok {
-		return fmt.Errorf("lbank: missing depth data in websocket message")
+		return fmt.Errorf("%w: %s", errMissingDepthData, respRaw)
 	}
 	if err := json.Unmarshal(depthRaw, &depth); err != nil {
 		return err
@@ -214,18 +225,18 @@ func (e *Exchange) wsHandleOrderbook(result map[string]json.RawMessage, p curren
 		ValidateOrderbook: e.ValidateOrderbook,
 	}
 	book.Asks = make(orderbook.Levels, len(depth.Asks))
-	for i, ask := range depth.Asks {
-		if len(ask) < 2 {
-			continue
+	for i := range depth.Asks {
+		if len(depth.Asks[i]) < 2 {
+			panic("lbank: invalid ask level length")
 		}
-		book.Asks[i] = orderbook.Level{Price: ask[0].Float64(), Amount: ask[1].Float64()}
+		book.Asks[i] = orderbook.Level{Price: depth.Asks[i][0].Float64(), Amount: depth.Asks[i][1].Float64()}
 	}
 	book.Bids = make(orderbook.Levels, len(depth.Bids))
-	for i, bid := range depth.Bids {
-		if len(bid) < 2 {
-			continue
+	for i := range depth.Bids {
+		if len(depth.Bids[i]) < 2 {
+			panic("lbank: invalid bid level length")
 		}
-		book.Bids[i] = orderbook.Level{Price: bid[0].Float64(), Amount: bid[1].Float64()}
+		book.Bids[i] = orderbook.Level{Price: depth.Bids[i][0].Float64(), Amount: depth.Bids[i][1].Float64()}
 	}
 	return book.Process()
 }
@@ -234,10 +245,12 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 	return e.Features.Subscriptions.ExpandTemplates(e)
 }
 
+// GetSubscriptionTemplate returns the subscription template for LBank
 func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return defaultSubscriptionTemplate, nil
 }
 
+// Subscribe subscribes to a list of websocket channels
 func (e *Exchange) Subscribe(subs subscription.List) error {
 	ctx := context.TODO()
 	for _, s := range subs {
@@ -265,6 +278,7 @@ func (e *Exchange) Subscribe(subs subscription.List) error {
 	return nil
 }
 
+// Unsubscribe unsubscribes from a list of websocket channels
 func (e *Exchange) Unsubscribe(subs subscription.List) error {
 	ctx := context.TODO()
 	for _, s := range subs {

@@ -118,7 +118,6 @@ func (e *Exchange) SetDefaults() {
 		exchange.RestSpot:      lbankAPIURL,
 		exchange.WebsocketSpot: lbankWSURL,
 	})
-
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}

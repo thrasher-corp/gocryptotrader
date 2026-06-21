@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -112,7 +113,9 @@ func TestWsHandleOrderbook(t *testing.T) {
 	}`))
 	require.NoError(t, err, "wsHandleData orderbook must not error")
 
-	ob, err := orderbook.Get(ex.Name, testPair, asset.Spot)
+	p, err := currency.NewPairFromString("btc_usdt")
+	require.NoError(t, err)
+	ob, err := orderbook.Get(ex.Name, p, asset.Spot)
 	require.NoError(t, err, "orderbook.Get must not error")
 	assert.Len(t, ob.Asks, 2, "orderbook must have 2 asks")
 	assert.Len(t, ob.Bids, 2, "orderbook must have 2 bids")
