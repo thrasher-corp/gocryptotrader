@@ -103,6 +103,13 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 
 	typeRaw, ok := result["type"]
 	if !ok {
+		if msgRaw, ok := result["message"]; ok {
+			var errMsg string
+			if err := json.Unmarshal(msgRaw, &errMsg); err != nil {
+				return err
+			}
+			return fmt.Errorf("lbank websocket error: %s", errMsg)
+		}
 		return nil
 	}
 
@@ -227,14 +234,14 @@ func (e *Exchange) wsHandleOrderbook(result map[string]json.RawMessage, p curren
 	book.Asks = make(orderbook.Levels, len(depth.Asks))
 	for i := range depth.Asks {
 		if len(depth.Asks[i]) < 2 {
-			panic("lbank: invalid ask level length")
+			return fmt.Errorf("lbank: invalid ask level length %d", len(depth.Asks[i]))
 		}
 		book.Asks[i] = orderbook.Level{Price: depth.Asks[i][0].Float64(), Amount: depth.Asks[i][1].Float64()}
 	}
 	book.Bids = make(orderbook.Levels, len(depth.Bids))
 	for i := range depth.Bids {
 		if len(depth.Bids[i]) < 2 {
-			panic("lbank: invalid bid level length")
+			return fmt.Errorf("lbank: invalid bid level length %d", len(depth.Bids[i]))
 		}
 		book.Bids[i] = orderbook.Level{Price: depth.Bids[i][0].Float64(), Amount: depth.Bids[i][1].Float64()}
 	}
@@ -254,15 +261,11 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 func (e *Exchange) Subscribe(subs subscription.List) error {
 	ctx := context.TODO()
 	for _, s := range subs {
-		pairs, err := e.GetEnabledPairs(s.Asset)
-		if err != nil {
-			return err
+		chName, ok := subscriptionNames[s.Channel]
+		if !ok {
+			return fmt.Errorf("lbank: unsupported channel %s", s.Channel)
 		}
-		for _, p := range pairs {
-			chName, ok := subscriptionNames[s.Channel]
-			if !ok {
-				return fmt.Errorf("lbank: unsupported channel %s", s.Channel)
-			}
+		for _, p := range s.Pairs {
 			req := map[string]string{
 				"action":    lbankWsSubscribe,
 				"subscribe": chName + "_" + p.Lower().String(),
@@ -282,15 +285,11 @@ func (e *Exchange) Subscribe(subs subscription.List) error {
 func (e *Exchange) Unsubscribe(subs subscription.List) error {
 	ctx := context.TODO()
 	for _, s := range subs {
-		pairs, err := e.GetEnabledPairs(s.Asset)
-		if err != nil {
-			return err
+		chName, ok := subscriptionNames[s.Channel]
+		if !ok {
+			return fmt.Errorf("lbank: unsupported channel %s", s.Channel)
 		}
-		for _, p := range pairs {
-			chName, ok := subscriptionNames[s.Channel]
-			if !ok {
-				return fmt.Errorf("lbank: unsupported channel %s", s.Channel)
-			}
+		for _, p := range s.Pairs {
 			req := map[string]string{
 				"action":    lbankWsUnsubscribe,
 				"subscribe": chName + "_" + p.Lower().String(),

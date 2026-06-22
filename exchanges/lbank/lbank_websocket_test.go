@@ -63,6 +63,7 @@ func TestWsHandleTrades(t *testing.T) {
 
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.SetSaveTradeDataStatus(true)
 
 	err := ex.wsHandleData(t.Context(), []byte(`{
 		"type": "trade",
