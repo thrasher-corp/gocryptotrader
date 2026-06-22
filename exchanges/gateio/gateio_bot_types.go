@@ -151,18 +151,18 @@ type InfiniteGridCreateRequest struct {
 
 // FuturesGridCreateParams holds the creation parameters for a futures (contract) grid strategy.
 type FuturesGridCreateParams struct {
-	Money              float64    `json:"money,string"`
-	LowPrice           float64    `json:"low_price,omitempty,string"`
-	HighPrice          float64    `json:"high_price,omitempty,string"`
-	GridNum            int32      `json:"grid_num"`
-	PriceType          order.Side `json:"price_type"`
-	Leverage           float64    `json:"leverage,string"`
-	Direction          string     `json:"direction,omitempty"` // possible values: 'long', 'short', and 'neutral'
-	TriggerPrice       float64    `json:"trigger_price,omitempty,string"`
-	StopProfit         float64    `json:"stop_profit,omitempty,string"`
-	StopLoss           float64    `json:"stop_loss,omitempty,string"`
-	ProfitSharingRatio float64    `json:"profit_sharing_ratio,omitempty,string"`
-	IsUseBase          bool       `json:"is_use_base,omitempty"`
+	Money              types.Number `json:"money"`
+	LowPrice           types.Number `json:"low_price,omitempty"`
+	HighPrice          types.Number `json:"high_price,omitempty"`
+	GridNum            int32        `json:"grid_num"`
+	PriceType          order.Side   `json:"price_type"`
+	Leverage           types.Number `json:"leverage"`
+	Direction          string       `json:"direction,omitempty"` // possible values: 'long', 'short', and 'neutral'
+	TriggerPrice       types.Number `json:"trigger_price,omitempty"`
+	StopProfit         types.Number `json:"stop_profit,omitempty"`
+	StopLoss           types.Number `json:"stop_loss,omitempty"`
+	ProfitSharingRatio types.Number `json:"profit_sharing_ratio,omitempty"`
+	IsUseBase          bool         `json:"is_use_base,omitempty"`
 }
 
 // FuturesGridCreateRequest is the request body for creating a futures grid strategy.

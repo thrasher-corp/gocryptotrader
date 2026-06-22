@@ -421,10 +421,10 @@ func (e *Exchange) processFuturesTrades(data []byte, assetType asset.Item) error
 
 func (e *Exchange) processFuturesCandlesticks(ctx context.Context, data []byte, assetType asset.Item) error {
 	var resp struct {
-		Time    types.Time           `json:"time"`
-		Channel string               `json:"channel"`
-		Event   string               `json:"event"`
-		Result  []FuturesCandlestick `json:"result"`
+		Time    types.Time            `json:"time"`
+		Channel string                `json:"channel"`
+		Event   string                `json:"event"`
+		Result  []*FuturesCandlestick `json:"result"`
 	}
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err

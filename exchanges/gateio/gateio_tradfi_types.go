@@ -51,9 +51,9 @@ func (r *tradFiResponse[T]) Error() error {
 	return nil
 }
 
-// TradFiMt5Account holds MT5 account information.
-type TradFiMt5Account struct {
-	Mt5UID       int64  `json:"mt5_uid"`
+// TradFiMT5Account holds MT5 account information.
+type TradFiMT5Account struct {
+	MT5UID       int64  `json:"mt5_uid"`
 	Leverage     int64  `json:"leverage"`
 	StopOutLevel string `json:"stop_out_level"`
 	Status       int64  `json:"status"` // Status: 1=not opened, 2=pending review, 3=active.
@@ -155,7 +155,7 @@ type TradFiTicker struct {
 type TradFiUserInfo struct {
 	Status   int64  `json:"status"` // Status: 1=not opened, 2=pending review, 3=opened.
 	Leverage int64  `json:"leverage"`
-	Mt5UID   string `json:"mt5_uid"`
+	MT5UID   string `json:"mt5_uid"`
 }
 
 // TradFiUserAssets holds TradFi account asset information.
@@ -166,7 +166,7 @@ type TradFiUserAssets struct {
 	Margin        types.Number `json:"margin"`
 	MarginFree    types.Number `json:"margin_free"`
 	UnrealizedPNL types.Number `json:"unrealized_pnl"`
-	Mt5UID        string       `json:"mt5_uid"`
+	MT5UID        string       `json:"mt5_uid"`
 }
 
 // TradFiTransaction holds a single fund transfer transaction record.
@@ -223,8 +223,8 @@ type TradFiOrderRequest struct {
 	Side            int64         `json:"side"` // Side: 1=sell, 2=buy.
 	Symbol          currency.Pair `json:"symbol"`
 	Volume          float64       `json:"volume,string"`
-	PriceTakeProfit float64       `json:"price_tp,omitempty,string"`
-	PriceStopLoss   float64       `json:"price_sl,omitempty,string"`
+	PriceTakeProfit types.Number  `json:"price_tp,omitempty"`
+	PriceStopLoss   types.Number  `json:"price_sl,omitempty"`
 }
 
 // TradFiCreateOrderResult holds the queue task ID returned after order creation.
@@ -234,9 +234,9 @@ type TradFiCreateOrderResult struct {
 
 // TradFiOrderUpdateRequest is the request body for modifying an existing order.
 type TradFiOrderUpdateRequest struct {
-	Price           string  `json:"price"`
-	PriceTakeProfit float64 `json:"price_tp,omitempty,string"`
-	PriceStopLoss   float64 `json:"price_sl,omitempty,string"`
+	Price           string       `json:"price"`
+	PriceTakeProfit types.Number `json:"price_tp,omitempty"`
+	PriceStopLoss   types.Number `json:"price_sl,omitempty"`
 }
 
 // TradFiUpdatedOrder holds the order state after modification.

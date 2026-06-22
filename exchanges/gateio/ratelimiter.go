@@ -269,7 +269,7 @@ const (
 	marginUniCurrencyPairEPL
 
 	// TradFi EPLs
-	tradfiUsersMt5AccountEPL
+	tradfiUsersMT5AccountEPL
 	tradfiSymbolsDetailEPL
 	tradfiKlinesEPL
 	tradfiUsersEPL
@@ -586,7 +586,7 @@ var packageRateLimits = request.RateLimitDefinitions{
 	marginUniCurrencyPairEPL:    standardRateLimit(),
 
 	// TradFi limits
-	tradfiUsersMt5AccountEPL:    standardRateLimit(),
+	tradfiUsersMT5AccountEPL:    standardRateLimit(),
 	tradfiSymbolsDetailEPL:      standardRateLimit(),
 	tradfiKlinesEPL:             standardRateLimit(),
 	tradfiUsersEPL:              standardRateLimit(),

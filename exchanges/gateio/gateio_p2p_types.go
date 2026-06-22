@@ -25,8 +25,8 @@ func (p *p2pAPIResponse[T]) Error() error {
 	return nil
 }
 
-// P2pMerchantInfo holds P2P merchant account information.
-type P2pMerchantInfo struct {
+// P2PMerchantInfo holds P2P merchant account information.
+type P2PMerchantInfo struct {
 	IsSelf                    bool         `json:"is_self"`
 	UserLined                 string       `json:"user_lined"`
 	CounterpartiesNum         int64        `json:"counterparties_num"`
@@ -57,8 +57,8 @@ type GetCounterpartyInfoRequest struct {
 	BizUID string `json:"biz_uid"`
 }
 
-// P2pCounterpartyInfo holds P2P counterparty user information.
-type P2pCounterpartyInfo struct {
+// P2PCounterpartyInfo holds P2P counterparty user information.
+type P2PCounterpartyInfo struct {
 	UserLined                 string `json:"user_lined"`
 	EmailVerified             string `json:"email_verified"`
 	Verified                  string `json:"verified"`
@@ -77,16 +77,16 @@ type GetP2PPaymentMethodsRequest struct {
 	Fiat string `json:"fiat,omitempty"`
 }
 
-// P2pPaymentMethodGroup holds a group of payment methods of the same type.
-type P2pPaymentMethodGroup struct {
+// P2PPaymentMethodGroup holds a group of payment methods of the same type.
+type P2PPaymentMethodGroup struct {
 	PayType string              `json:"pay_type"`
 	PayName string              `json:"pay_name"`
 	IDs     []uint64            `json:"ids"`
-	List    []*P2pPaymentMethod `json:"list"`
+	List    []*P2PPaymentMethod `json:"list"`
 }
 
-// P2pPaymentMethod holds a single bound payment method account.
-type P2pPaymentMethod struct {
+// P2PPaymentMethod holds a single bound payment method account.
+type P2PPaymentMethod struct {
 	UID         uint64 `json:"uid"`
 	Bank        string `json:"bank"`
 	BankName    string `json:"bankname"`
@@ -119,13 +119,13 @@ type GetP2PHistoricalOrdersRequest struct {
 	To         int64   `json:"to,omitempty"`
 }
 
-// P2pOrdersData wraps the list of P2P orders returned in a response.
-type P2pOrdersData struct {
-	List []*P2pOrderItem `json:"list"`
+// P2POrdersData wraps the list of P2P orders returned in a response.
+type P2POrdersData struct {
+	List []*P2POrderItem `json:"list"`
 }
 
-// P2pOrderItem holds a single P2P order item.
-type P2pOrderItem struct {
+// P2POrderItem holds a single P2P order item.
+type P2POrderItem struct {
 	TransactionID uint64        `json:"txid"`
 	Type          string        `json:"type"`
 	Currency      currency.Code `json:"currency"`
@@ -144,8 +144,8 @@ type GetP2POrderDetailsRequest struct {
 	Channel       string `json:"channel,omitempty"`
 }
 
-// P2pOrderDetail holds detailed P2P order information.
-type P2pOrderDetail struct {
+// P2POrderDetail holds detailed P2P order information.
+type P2POrderDetail struct {
 	IsSelf        uint64       `json:"is_self"`
 	TransactionID uint64       `json:"txid"`
 	OrderID       uint64       `json:"orderid"`
@@ -221,8 +221,8 @@ type UpdateP2PAdStatusRequest struct {
 	AdvStatus int64 `json:"adv_status"`
 }
 
-// P2pUpdateAdStatusResult holds the result of updating a P2P ad status.
-type P2pUpdateAdStatusResult struct {
+// P2PUpdateAdStatusResult holds the result of updating a P2P ad status.
+type P2PUpdateAdStatusResult struct {
 	Status int64 `json:"status"`
 }
 
@@ -231,8 +231,8 @@ type GetP2PAdDetailsRequest struct {
 	AdvNo string `json:"adv_no"`
 }
 
-// P2pAdDetail holds detailed P2P advertisement information.
-type P2pAdDetail struct {
+// P2PAdDetail holds detailed P2P advertisement information.
+type P2PAdDetail struct {
 	Rate              string       `json:"rate"`
 	Type              string       `json:"type"`
 	Amount            types.Number `json:"amount"`
@@ -267,13 +267,13 @@ type GetMyP2PAdsRequest struct {
 	TradeType string        `json:"trade_type,omitempty"`
 }
 
-// P2pMyAdsData wraps the list of the user's own P2P ads.
-type P2pMyAdsData struct {
-	Lists []*P2pMyAdItem `json:"lists"`
+// P2PMyAdsData wraps the list of the user's own P2P ads.
+type P2PMyAdsData struct {
+	Lists []*P2PMyAdItem `json:"lists"`
 }
 
-// P2pMyAdItem holds a single item from the user's P2P ad list.
-type P2pMyAdItem struct {
+// P2PMyAdItem holds a single item from the user's P2P ad list.
+type P2PMyAdItem struct {
 	Type              string        `json:"type"`
 	Price             types.Number  `json:"price"`
 	Rate              string        `json:"rate"`
@@ -297,8 +297,8 @@ type GetP2PAdsListRequest struct {
 	TradeType string        `json:"trade_type"`
 }
 
-// P2pAdListItem holds a single item from the public P2P ads list.
-type P2pAdListItem struct {
+// P2PAdListItem holds a single item from the public P2P ads list.
+type P2PAdListItem struct {
 	Index                int64         `json:"index"`
 	Asset                currency.Code `json:"asset"`
 	FiatUnit             string        `json:"fiat_unit"`
@@ -308,19 +308,19 @@ type P2pAdListItem struct {
 	AdvertizementNo      uint64        `json:"adv_no"`
 }
 
-// P2pChatMessage holds a single P2P chat message.
-type P2pChatMessage struct {
+// P2PChatMessage holds a single P2P chat message.
+type P2PChatMessage struct {
 	Type        int64              `json:"type"`
 	Time        types.Time         `json:"time"`
 	Message     string             `json:"message"`
 	FileKey     string             `json:"file_key"`
 	FileURL     string             `json:"file_url"`
 	FromUID     uint64             `json:"from_uid"`
-	FromUIDInfo *P2pChatSenderInfo `json:"from_uid_info"`
+	FromUIDInfo *P2PChatSenderInfo `json:"from_uid_info"`
 }
 
-// P2pChatSenderInfo holds basic info about the sender of a P2P chat message.
-type P2pChatSenderInfo struct {
+// P2PChatSenderInfo holds basic info about the sender of a P2P chat message.
+type P2PChatSenderInfo struct {
 	UserName string `json:"user_name"`
 	BizUID   string `json:"biz_uid"`
 }
@@ -333,8 +333,8 @@ type SendP2PChatMessageRequest struct {
 	Message       string `json:"message"`
 }
 
-// P2pSendMessageResult holds the result of sending a P2P chat message.
-type P2pSendMessageResult struct {
+// P2PSendMessageResult holds the result of sending a P2P chat message.
+type P2PSendMessageResult struct {
 	SendTime types.Time `json:"SendTM"`
 }
 
@@ -344,7 +344,7 @@ type UploadP2PChatFileRequest struct {
 	Base64Img        string `json:"base64_img"`
 }
 
-// P2pUploadFileResult holds the result of uploading a P2P chat file.
-type P2pUploadFileResult struct {
+// P2PUploadFileResult holds the result of uploading a P2P chat file.
+type P2PUploadFileResult struct {
 	FileKey string `json:"file_key"`
 }

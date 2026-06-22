@@ -121,17 +121,26 @@ var (
 	errChaseOrderIDOrTextRequired           = errors.New("either id or text is required to stop a chase order")
 	errInvalidChaseSortBy                   = errors.New("invalid sort_by value: must be 1 (ORDER_SORT_CREATED_AT) or 2 (ORDER_SORT_FINISHED_AT)")
 	errChaseOrderPriceLimitOrOffsetRequired = errors.New("either price_limit or offset_limit is required to create a chase order")
-
-	errOtcSideRequired              = errors.New("OTC side (PAY or GET) is required")
-	errOtcOrderTypeRequired         = errors.New("OTC order type (BUY or SELL) is required")
-	errOtcQuoteTokenRequired        = errors.New("OTC quote token is required")
-	errOtcBankIDRequired            = errors.New("OTC bank ID is required")
-	errCurrencyTypeRequired         = errors.New("currency type is required")
-	errOrderRefundRequestIDRequired = errors.New("order-refund request ID is required")
-	errRecordIDRequired             = errors.New("record ID is required")
-	errPlanStatusRequired           = errors.New("plan status is required")
-	errHistoryTypeRequired          = errors.New("history type is required")
-	errProductIDRequired            = errors.New("product ID is missing")
+	errOTCSideRequired                      = errors.New("OTC side (PAY or GET) is required")
+	errOTCOrderTypeRequired                 = errors.New("OTC order type (BUY or SELL) is required")
+	errOTCQuoteTokenRequired                = errors.New("OTC quote token is required")
+	errOTCBankIDRequired                    = errors.New("OTC bank ID is required")
+	errCurrencyTypeRequired                 = errors.New("currency type is required")
+	errOrderRefundRequestIDRequired         = errors.New("order-refund request ID is required")
+	errRecordIDRequired                     = errors.New("record ID is required")
+	errPlanStatusRequired                   = errors.New("plan status is required")
+	errHistoryTypeRequired                  = errors.New("history type is required")
+	errProductIDRequired                    = errors.New("product ID is missing")
+	errBankAccountNameRequired              = errors.New("bank account name is required")
+	errBankNameRequired                     = errors.New("bank name is required")
+	errBankCountryRequired                  = errors.New("bank country is required")
+	errBankAddressRequired                  = errors.New("bank address is required")
+	errIBANAddresRequired                   = errors.New("IBAN address is required")
+	errSwiftAddressRequired                 = errors.New("swift address is required")
+	errDocumentationFileRequired            = errors.New("documentation file is required")
+	errBusinessLicenseCertificateRequired   = errors.New("business license registration certificate required")
+	errShareholdersRequired                 = errors.New("shareholders filecontent required")
+	errPassportRequired                     = errors.New("legal representative passport required")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
@@ -224,7 +233,7 @@ func (e *Exchange) GetTicker(ctx context.Context, currencyPair currency.Pair, ti
 	return nil, fmt.Errorf("no ticker data found for currency pair %v", currencyPair)
 }
 
-var intervalAndStringRepresentations = []*struct {
+var intervalAndStringRepresentations = []struct {
 	Interval kline.Interval
 	String   string
 }{
@@ -292,9 +301,9 @@ func (e *Exchange) GetOrderbook(ctx context.Context, pairString currency.Pair, i
 }
 
 // GetMarketTrades retrieve market trades
-func (e *Exchange) GetMarketTrades(ctx context.Context, pairString currency.Pair, limit uint64, lastID string, reverse bool, from, to time.Time, page uint64) ([]*Trade, error) {
-	if !from.IsZero() && !to.IsZero() {
-		if err := common.StartEndTimeCheck(from, to); err != nil {
+func (e *Exchange) GetMarketTrades(ctx context.Context, pairString currency.Pair, lastID string, reverse bool, startTime, endTime time.Time, page, limit uint64) ([]Trade, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
 	}
@@ -309,11 +318,11 @@ func (e *Exchange) GetMarketTrades(ctx context.Context, pairString currency.Pair
 	if reverse {
 		params.Set("reverse", strconv.FormatBool(reverse))
 	}
-	if !from.IsZero() {
-		params.Set("from", strconv.FormatInt(from.Unix(), 10))
+	if !startTime.IsZero() {
+		params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 	}
-	if !to.IsZero() {
-		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	if !endTime.IsZero() {
+		params.Set("to", strconv.FormatInt(endTime.Unix(), 10))
 	}
 	if page != 0 {
 		params.Set("page", strconv.FormatUint(page, 10))
@@ -321,7 +330,7 @@ func (e *Exchange) GetMarketTrades(ctx context.Context, pairString currency.Pair
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var response []*Trade
+	var response []Trade
 	return response, e.SendHTTPRequest(ctx, exchange.RestSpot, publicMarketTradesSpotEPL, common.EncodeURLValues("spot/trades", params), &response)
 }
 
@@ -876,9 +885,10 @@ func (e *Exchange) CancelAllOpenOrdersSpecifiedCurrencyPair(ctx context.Context,
 	}
 	params := url.Values{}
 	params.Set("currency_pair", currencyPair.String())
-	if side == order.Buy || side == order.Sell {
-		params.Set("side", side.Lower())
+	if side != order.Buy && side != order.Sell {
+		return nil, order.ErrSideIsInvalid
 	}
+	params.Set("side", side.Lower())
 	if a == asset.Spot || a == asset.Margin || a == asset.CrossMargin {
 		params.Set("account", a.String())
 	}
@@ -1022,7 +1032,7 @@ func (e *Exchange) CreatePriceTriggeredOrder(ctx context.Context, arg *PriceTrig
 	if arg.Put.TimeInForce == "" {
 		return nil, fmt.Errorf("%w: %q only 'gtc' and 'ioc' are supported", order.ErrInvalidTimeInForce, arg.Put.TimeInForce)
 	}
-	if arg.Symbol.IsEmpty() {
+	if arg.Market.IsEmpty() {
 		return nil, fmt.Errorf("%w, %s", currency.ErrCurrencyPairEmpty, "field market is required")
 	}
 	if arg.Trigger.Price < 0 {
@@ -3602,96 +3612,6 @@ func (e *Exchange) IsValidPairString(currencyPairString string) bool {
 	return false
 }
 
-// SwapETH2 swaps ETH2
-// 1-Forward Swap (ETH -> ETH2), 2-Reverse Swap (ETH2 -> ETH
-func (e *Exchange) SwapETH2(ctx context.Context, arg *SwapETHParam) error {
-	if err := common.NilGuard(arg); err != nil {
-		return err
-	}
-	if arg.Side == "" {
-		return order.ErrSideIsInvalid
-	}
-	if arg.Amount <= 0 {
-		return order.ErrAmountIsInvalid
-	}
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "earn/staking/eth2/swap", nil, arg, nil)
-}
-
-// GetETH2HistoricalReturnRate gets ETH2 historical return rate
-// Query ETH earnings rate records for the last 31 days
-func (e *Exchange) GetETH2HistoricalReturnRate(ctx context.Context) ([]*ETH2ReturnRate, error) {
-	var resp []*ETH2ReturnRate
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/staking/eth2/rate_records", nil, nil, &resp)
-}
-
-// GetStakingCoins retrieves a list of on-chain staking coin products.
-func (e *Exchange) GetStakingCoins(ctx context.Context, coinType string) ([]*StakingCoin, error) {
-	params := url.Values{}
-	if coinType != "" {
-		params.Set("cointype", coinType)
-	}
-	var resp []*StakingCoin
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/staking/coins", params, nil, &resp)
-}
-
-// SwapStakingCoins performs an on-chain token swap for earned coins (stake or redeem).
-// side: 0=Stake, 1=Redeem
-func (e *Exchange) SwapStakingCoins(ctx context.Context, arg *StakingSwapRequest) (*StakingSwapResponse, error) {
-	if err := common.NilGuard(arg); err != nil {
-		return nil, err
-	}
-	if arg.Coin == "" {
-		return nil, currency.ErrCurrencyCodeEmpty
-	}
-	var resp *StakingSwapResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "earn/staking/swap", nil, arg, &resp)
-}
-
-// GetStakingOrders retrieves a list of on-chain coin-earning orders.
-func (e *Exchange) GetStakingOrders(ctx context.Context, pid, orderType int64, ccy currency.Code, page int32) (*StakingOrdersResponse, error) {
-	params := url.Values{}
-	if pid > 0 {
-		params.Set("pid", strconv.FormatInt(pid, 10))
-	}
-	if !ccy.IsEmpty() {
-		params.Set("coin", ccy.String())
-	}
-	if orderType >= 0 {
-		params.Set("type", strconv.FormatInt(orderType, 10))
-	}
-	if page > 0 {
-		params.Set("page", strconv.FormatInt(int64(page), 10))
-	}
-	var resp *StakingOrdersResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/staking/order_list", params, nil, &resp)
-}
-
-// GetStakingDividendRecords retrieves on-chain coin-earning dividend records.
-func (e *Exchange) GetStakingDividendRecords(ctx context.Context, pid int64, ccy currency.Code, page int32) (*StakingDividendRecordsResponse, error) {
-	params := url.Values{}
-	if pid > 0 {
-		params.Set("pid", strconv.FormatInt(pid, 10))
-	}
-	if !ccy.IsEmpty() {
-		params.Set("coin", ccy.String())
-	}
-	if page > 0 {
-		params.Set("page", strconv.FormatInt(int64(page), 10))
-	}
-	var resp *StakingDividendRecordsResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/staking/award_list", params, nil, &resp)
-}
-
-// GetStakingAssets retrieves on-chain coin-earning assets.
-func (e *Exchange) GetStakingAssets(ctx context.Context, ccy currency.Code) ([]*StakingAssetItem, error) {
-	params := url.Values{}
-	if !ccy.IsEmpty() {
-		params.Set("coin", ccy.String())
-	}
-	var resp []*StakingAssetItem
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/staking/assets", params, nil, &resp)
-}
-
 // GetDualInvestmentProductList dual Investment product list
 func (e *Exchange) GetDualInvestmentProductList(ctx context.Context, planID uint64, sortyType, orderType string, coin, quoteCurrency currency.Code, page, pageSize uint32) ([]*DualInvestmentPlan, error) {
 	params := url.Values{}
@@ -3888,7 +3808,7 @@ func (e *Exchange) AddAutoInvestPlanPosition(ctx context.Context, planID int64, 
 	}
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "earn/autoinvest/plans/add_position", nil, &AutoInvestPlanAddPositionRequest{
 		PlanID: planID,
-		Amount: amount,
+		Amount: types.Number(amount),
 	}, nil)
 }
 
@@ -4109,7 +4029,7 @@ func (e *Exchange) SetFixedTermSubscriptionOrder(ctx context.Context, arg *Fixed
 		return nil, limits.ErrAmountBelowMin
 	}
 	var resp *OrderIDResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/fixed-term/user/lend", nil, arg, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "earn/fixed-term/user/lend", nil, arg, &resp)
 }
 
 // ********************************* Trading Fee calculation ********************************
@@ -4182,7 +4102,7 @@ func (c *FuturesOrderCreateParams) validate(isRest bool) error {
 	if err := common.NilGuard(c); err != nil {
 		return err
 	}
-	return validateOrderCreateParams(c.Contract, c.Size, c.Price, c.AutoSize, c.TimeInForce, c.Text, c.Settle, isRest)
+	return validateOrderCreateParams(c.Contract, c.Size.Float64(), c.Price.Float64(), c.AutoSize, c.TimeInForce, c.Text, c.Settle, isRest)
 }
 
 // validate validates the DeliveryOrderCreateParams
@@ -4190,7 +4110,7 @@ func (c *DeliveryOrderCreateParams) validate(isRest bool) error {
 	if err := common.NilGuard(c); err != nil {
 		return err
 	}
-	return validateOrderCreateParams(c.Contract, c.Size, c.Price, c.AutoSize, c.TimeInForce, c.Text, c.Settle, isRest)
+	return validateOrderCreateParams(c.Contract, c.Size, c.Price.Float64(), c.AutoSize, c.TimeInForce, c.Text, c.Settle, isRest)
 }
 
 // validateOrderCreateParams validates common order creation parameters shared by futures and delivery orders.
@@ -5198,10 +5118,10 @@ func (e *Exchange) GetChaseOrderDetail(ctx context.Context, settle currency.Code
 
 // ***************************************** Over the counter(OTC) endpoints ********************************
 
-// GetFlatStablecoinQuote creates a flat and stablecoin quote, supporting both PAY and GET directions.
-func (e *Exchange) GetFlatStablecoinQuote(ctx context.Context, arg *OtcQuoteRequest) (*OtcQuoteData, error) {
+// GetFiatStablecoinQuote creates a fiat and stablecoin quote, supporting both PAY and GET directions.
+func (e *Exchange) GetFiatStablecoinQuote(ctx context.Context, arg *OTCQuoteRequest) (*OTCQuoteData, error) {
 	if arg.Side == "" {
-		return nil, errOtcSideRequired
+		return nil, errOTCSideRequired
 	}
 	if arg.PayCoin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -5209,29 +5129,47 @@ func (e *Exchange) GetFlatStablecoinQuote(ctx context.Context, arg *OtcQuoteRequ
 	if arg.GetCoin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	var resp otcAPIResponse[*OtcQuoteData]
+	var resp otcAPIResponse[*OTCQuoteData]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "otc/quote", nil, arg, &resp)
 }
 
-// CreateFlatOrder creates a flat order, supporting BUY for on-ramp and SELL for off-ramp.
-func (e *Exchange) CreateFlatOrder(ctx context.Context, arg *OtcFlatOrderRequest) error {
+// CreateFiatOrder creates a fiat order, supporting BUY for on-ramp and SELL for off-ramp.
+func (e *Exchange) CreateFiatOrder(ctx context.Context, arg *OTCFiatOrderRequest) (*OTCActionResponse, error) {
 	if arg.Type == "" {
-		return errOtcOrderTypeRequired
+		return nil, errOTCOrderTypeRequired
+	}
+	if arg.Side == "" {
+		return nil, fmt.Errorf("%w, quote direction is required", order.ErrSideIsInvalid)
 	}
 	if arg.QuoteToken == "" {
-		return errOtcQuoteTokenRequired
+		return nil, errOTCQuoteTokenRequired
 	}
 	if arg.BankID == "" {
-		return errOtcBankIDRequired
+		return nil, errOTCBankIDRequired
 	}
-	var resp OtcActionResponse
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "otc/order/create", nil, arg, &resp)
+	if arg.CryptoCurrency.IsEmpty() {
+		return nil, fmt.Errorf("%w; crypty currency required", currency.ErrCurrencyCodeEmpty)
+	}
+	if arg.FiatCurrency.IsEmpty() {
+		return nil, fmt.Errorf("%w; fiat currency required", currency.ErrCurrencyCodeEmpty)
+	}
+	if arg.CryptoAmount <= 0 {
+		return nil, fmt.Errorf("%w crypto amount must be set", order.ErrAmountMustBeSet)
+	}
+	if arg.FiatAmount <= 0 {
+		return nil, fmt.Errorf("%w fiat amount must be set", order.ErrAmountMustBeSet)
+	}
+	var resp *OTCActionResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "otc/order/create", nil, arg, &resp)
 }
 
 // CreateStablecoinOrder creates a stablecoin order.
-func (e *Exchange) CreateStablecoinOrder(ctx context.Context, arg *OtcStablecoinOrderRequest) (*OtcActionResponse, error) {
-	var resp *OtcActionResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "stable_coin/order/create", nil, arg, &resp)
+func (e *Exchange) CreateStablecoinOrder(ctx context.Context, arg *OTCStablecoinOrderRequest) (*OTCActionResponse, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
+	var resp *OTCActionResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "otc/stable_coin/order/create", nil, arg, &resp)
 }
 
 // GetUserDefaultBankAccount retrieves the user's default bank account information.
@@ -5242,40 +5180,144 @@ func (e *Exchange) GetUserDefaultBankAccount(ctx context.Context) (*OtcUserDefau
 
 // GetUserBankCardList retrieves the user's bank card list.
 func (e *Exchange) GetUserBankCardList(ctx context.Context) ([]*OTCBankCard, error) {
-	var resp otcAPIResponse[*OtcBankCardListData]
-	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "otc/bank_list", nil, nil, &resp); err != nil {
+	var resp otcAPIResponse[*OTCBankCardListData]
+	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "otc/bank/list", nil, nil, &resp); err != nil {
 		return nil, err
 	}
 	if resp.Data == nil {
-		return nil, nil
+		return nil, common.ErrNoResults
 	}
 	return resp.Data.Lists, nil
 }
 
-// MarkFlatOrderAsPaid marks a flat order as paid.
-func (e *Exchange) MarkFlatOrderAsPaid(ctx context.Context, orderID string) error {
+// CreateBankCard binds a bank card. Under the Global entity, an account with a non-matching name may enter manual review (status pending) and require subsequent supplementary materials.
+// For more, see: https://www.gate.com/docs/developers/apiv4/en/otc/#create-bank-card
+func (e *Exchange) CreateBankCard(ctx context.Context, arg *OTCBankCreateMultipartRequest) (*OTCBankCardRequestResponse, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
+	if arg.BankAccountName == "" {
+		return nil, errBankAccountNameRequired
+	}
+	if arg.BankName == "" {
+		return nil, errBankNameRequired
+	}
+	if arg.BankCountry == "" {
+		return nil, errBankCountryRequired
+	}
+	if arg.BankAddress == "" {
+		return nil, errBankAddressRequired
+	}
+	if arg.IBAN == "" {
+		return nil, errIBANAddresRequired
+	}
+	if arg.Swift == "" {
+		return nil, errSwiftAddressRequired
+	}
+	if arg.DocumentationFile == "" {
+		return nil, errDocumentationFileRequired
+	}
+	var resp otcAPIResponse[*OTCBankCardRequestResponse]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "otc/bank/create", nil, arg, &resp)
+}
+
+// DeleteBankCard deletes a bank-card information
+func (e *Exchange) DeleteBankCard(ctx context.Context, bankID string) error {
+	if bankID == "" {
+		return errOTCBankIDRequired
+	}
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "otc/bank/delete", nil, &map[string]string{
+		"bank_id": bankID}, nil)
+}
+
+// SetDefaultBankCard set the specified bank card as default.
+func (e *Exchange) SetDefaultBankCard(ctx context.Context, bankID string) error {
+	if bankID == "" {
+		return errOTCBankIDRequired
+	}
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "otc/bank/delete", nil, &map[string]string{
+		"bank_id": bankID}, nil)
+}
+
+// GetCheckListOfMaterialsToSupplementForBankCard query the checklist of materials to supplement for a bank card
+func (e *Exchange) GetCheckListOfMaterialsToSupplementForBankCard(ctx context.Context, bankID string) (*OTCBankSupplementChecklistItem, error) {
+	if bankID == "" {
+		return nil, errOTCBankIDRequired
+	}
+	params := url.Values{}
+	params.Set("bank_id", bankID)
+
+	var resp otcAPIResponse[*OTCBankSupplementChecklistItem]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "otc/bank/bank_supplement_checklist", params, nil, &resp)
+}
+
+// SubmitBankCardSupplementMaterials submit Bank Card Supplement Materials
+func (e *Exchange) SubmitBankCardSupplementMaterials(ctx context.Context, arg *OTCBankPersonalSupplementMultipartRequest) error {
+	if err := common.NilGuard(arg); err != nil {
+		return err
+	}
+	if arg.BankID == "" {
+		return errOTCBankIDRequired
+	}
+	if arg.IDDocumentFront == "" {
+		return fmt.Errorf("%w ID document front-side file content required", errDocumentationFileRequired)
+	}
+	if arg.IDDocumentBack == "" {
+		return fmt.Errorf("%w ID document back-side file content required", errDocumentationFileRequired)
+	}
+	if arg.AddressProof == "" {
+		return fmt.Errorf("%w address proof is required", errBankAddressRequired)
+	}
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "otc/bank/personal/bank_supplement", nil, arg, nil)
+}
+
+// SubmitEnterpriseBankCardSupplementMaterials users submit supplementary materials.
+func (e *Exchange) SubmitEnterpriseBankCardSupplementMaterials(ctx context.Context, arg *OTCBankEnterpriseSupplementMultipartRequest) error {
+	if err := common.NilGuard(arg); err != nil {
+		return err
+	}
+	if arg.BankID == "" {
+		return errOTCBankIDRequired
+	}
+	if arg.Certificate == "" {
+		return errBusinessLicenseCertificateRequired
+	}
+	if arg.ShareHolders == "" {
+		return errShareholdersRequired
+	}
+	if arg.Passport == "" {
+		return errPassportRequired
+	}
+	if arg.ShareHolders == "" {
+		return fmt.Errorf("%w ownership structure chart file content", errShareholdersRequired)
+	}
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "otc/bank/personal/bank_supplement", nil, arg, nil)
+}
+
+// MarkFiatOrderAsPaid marks a fiat order as paid.
+func (e *Exchange) MarkFiatOrderAsPaid(ctx context.Context, orderID string) error {
 	if orderID == "" {
 		return order.ErrOrderIDNotSet
 	}
-	var resp OtcActionResponse
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "otc/order/paid", nil, &OtcMarkOrderPaidRequest{OrderID: orderID}, &resp)
+	var resp *OTCActionResponse
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "otc/order/paid", nil, &OTCMarkOrderPaidRequest{OrderID: orderID}, &resp)
 }
 
-// CancelFlatOrder cancels a flat order.
-func (e *Exchange) CancelFlatOrder(ctx context.Context, orderID string) error {
+// CancelFiatOrder cancels a fiat order.
+func (e *Exchange) CancelFiatOrder(ctx context.Context, orderID string) error {
 	if orderID == "" {
 		return order.ErrOrderIDNotSet
 	}
 	params := url.Values{}
 	params.Set("order_id", orderID)
-	var resp OtcActionResponse
+	var resp *OTCActionResponse
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "otc/order/cancel", params, nil, &resp)
 }
 
-// GetFlatOrderList retrieves the flat order list with optional filters.
-func (e *Exchange) GetFlatOrderList(ctx context.Context, orderType, status string, flatCurrency, cryptoCurrency currency.Code, from, to time.Time, pageNumber, pageSize uint64) (*OtcOrderListData, error) {
-	if !from.IsZero() && !to.IsZero() {
-		if err := common.StartEndTimeCheck(from, to); err != nil {
+// GetFiatOrderList retrieves the fiat order list with optional filters.
+func (e *Exchange) GetFiatOrderList(ctx context.Context, orderType, status string, fiatCurrency, cryptoCurrency currency.Code, fromTime, endTime time.Time, pageNumber, pageSize uint64) (*OTCOrderListData, error) {
+	if !fromTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(fromTime, endTime); err != nil {
 			return nil, err
 		}
 	}
@@ -5283,8 +5325,8 @@ func (e *Exchange) GetFlatOrderList(ctx context.Context, orderType, status strin
 	if orderType != "" {
 		params.Set("type", orderType)
 	}
-	if !flatCurrency.IsEmpty() {
-		params.Set("flat_currency", flatCurrency.String())
+	if !fiatCurrency.IsEmpty() {
+		params.Set("fiat_currency", fiatCurrency.String())
 	}
 	if !cryptoCurrency.IsEmpty() {
 		params.Set("crypto_currency", cryptoCurrency.String())
@@ -5292,11 +5334,11 @@ func (e *Exchange) GetFlatOrderList(ctx context.Context, orderType, status strin
 	if status != "" {
 		params.Set("status", status)
 	}
-	if !from.IsZero() {
-		params.Set("start_time", strconv.FormatInt(from.UTC().Unix(), 10))
+	if !fromTime.IsZero() {
+		params.Set("start_time", strconv.FormatInt(fromTime.UTC().Unix(), 10))
 	}
-	if !to.IsZero() {
-		params.Set("end_time", strconv.FormatInt(to.UTC().Unix(), 10))
+	if !endTime.IsZero() {
+		params.Set("end_time", strconv.FormatInt(endTime.UTC().Unix(), 10))
 	}
 	if pageNumber > 0 {
 		params.Set("pn", strconv.FormatUint(pageNumber, 10))
@@ -5304,14 +5346,14 @@ func (e *Exchange) GetFlatOrderList(ctx context.Context, orderType, status strin
 	if pageSize > 0 {
 		params.Set("ps", strconv.FormatUint(pageSize, 10))
 	}
-	var resp otcAPIResponse[*OtcOrderListData]
+	var resp otcAPIResponse[*OTCOrderListData]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "otc/order/list", params, nil, &resp)
 }
 
 // GetStablecoinOrderList retrieves the stablecoin order list with optional filters.
-func (e *Exchange) GetStablecoinOrderList(ctx context.Context, coinName currency.Code, status string, from, to time.Time, pageNumber, pageSize uint64) (*OtcStablecoinOrderListData, error) {
-	if !from.IsZero() && !to.IsZero() {
-		if err := common.StartEndTimeCheck(from, to); err != nil {
+func (e *Exchange) GetStablecoinOrderList(ctx context.Context, coinName currency.Code, status string, startTime, endTime time.Time, pageNumber, pageSize uint64) (*OtcStablecoinOrderListData, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
 		}
 	}
@@ -5322,11 +5364,11 @@ func (e *Exchange) GetStablecoinOrderList(ctx context.Context, coinName currency
 	if status != "" {
 		params.Set("status", status)
 	}
-	if !from.IsZero() {
-		params.Set("start_time", strconv.FormatInt(from.UTC().Unix(), 10))
+	if !startTime.IsZero() {
+		params.Set("start_time", strconv.FormatInt(startTime.UTC().Unix(), 10))
 	}
-	if !to.IsZero() {
-		params.Set("end_time", strconv.FormatInt(to.UTC().Unix(), 10))
+	if !endTime.IsZero() {
+		params.Set("end_time", strconv.FormatInt(endTime.UTC().Unix(), 10))
 	}
 	if pageNumber > 0 {
 		params.Set("page_number", strconv.FormatUint(pageNumber, 10))
@@ -5335,11 +5377,11 @@ func (e *Exchange) GetStablecoinOrderList(ctx context.Context, coinName currency
 		params.Set("page_size", strconv.FormatUint(pageSize, 10))
 	}
 	var resp otcAPIResponse[*OtcStablecoinOrderListData]
-	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "stable_coin/order/list", params, nil, &resp)
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "otc/stable_coin/order/list", params, nil, &resp)
 }
 
-// GetFlatOrderDetail retrieves details for a specific flat order.
-func (e *Exchange) GetFlatOrderDetail(ctx context.Context, orderID string) (*OtcOrderDetailData, error) {
+// GetFiatOrderDetail retrieves details for a specific fiat order.
+func (e *Exchange) GetFiatOrderDetail(ctx context.Context, orderID string) (*OtcOrderDetailData, error) {
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}

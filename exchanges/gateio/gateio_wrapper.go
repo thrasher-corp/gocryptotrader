@@ -159,13 +159,6 @@ func (e *Exchange) SetDefaults() {
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
-	if err := e.DisableAssetWebsocketSupport(asset.Margin); err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
-	// TODO: Add websocket cross margin support.
-	if err := e.DisableAssetWebsocketSupport(asset.CrossMargin); err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
 	e.API.Endpoints = e.NewEndpoints()
 	if err := e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
 		exchange.RestSpot:              gateioTradeURL,
@@ -820,7 +813,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 		if p.IsEmpty() {
 			return nil, currency.ErrCurrencyPairEmpty
 		}
-		tradeData, err := e.GetMarketTrades(ctx, p, 0, "", false, time.Time{}, time.Time{}, 0)
+		tradeData, err := e.GetMarketTrades(ctx, p, "", false, time.Time{}, time.Time{}, 0, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -2579,8 +2572,8 @@ func getFuturesOrderRequest(s *order.Submit) (*FuturesOrderCreateParams, error) 
 	}
 	return &FuturesOrderCreateParams{
 		Contract:    s.Pair,
-		Size:        amountWithDirection,
-		Price:       s.Price,
+		Size:        types.Number(amountWithDirection),
+		Price:       types.Number(s.Price),
 		ReduceOnly:  s.ReduceOnly,
 		TimeInForce: tif,
 		Text:        s.ClientOrderID,
@@ -2599,7 +2592,7 @@ func getDeliveryOrderRequest(s *order.Submit) (*DeliveryOrderCreateParams, error
 	return &DeliveryOrderCreateParams{
 		Contract:    s.Pair,
 		Size:        amountWithDirection,
-		Price:       s.Price,
+		Price:       types.Number(s.Price),
 		ReduceOnly:  s.ReduceOnly,
 		TimeInForce: tif,
 		Text:        s.ClientOrderID,

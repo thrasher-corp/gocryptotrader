@@ -21,10 +21,10 @@ var (
 	errTradFiCloseTypeRequired = errors.New("tradfi close type required (1=full close, 2=partial close)")
 )
 
-// GetTradFiMt5Account retrieves the MT5 account information for the authenticated user.
-func (e *Exchange) GetTradFiMt5Account(ctx context.Context) (*TradFiMt5Account, error) {
-	var resp tradFiResponse[*TradFiMt5Account]
-	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, tradfiUsersMt5AccountEPL, http.MethodGet, "tradfi/users/mt5-account", nil, nil, &resp)
+// GetTradFiMT5Account retrieves the MT5 account information for the authenticated user.
+func (e *Exchange) GetTradFiMT5Account(ctx context.Context) (*TradFiMT5Account, error) {
+	var resp tradFiResponse[*TradFiMT5Account]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, tradfiUsersMT5AccountEPL, http.MethodGet, "tradfi/users/mt5-account", nil, nil, &resp)
 }
 
 // GetTradFiSymbolCategories retrieves the list of trading symbol categories.
@@ -33,11 +33,8 @@ func (e *Exchange) GetTradFiSymbolCategories(ctx context.Context) ([]*TradFiCate
 	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, tradfiSymbolsCategoriesEPL, "tradfi/symbols/categories", &resp); err != nil {
 		return nil, err
 	}
-	if err := resp.Error(); err != nil {
-		return nil, err
-	}
 	if resp.Data == nil {
-		return nil, nil
+		return nil, common.ErrNoResults
 	}
 	return resp.Data.List, nil
 }
@@ -48,11 +45,8 @@ func (e *Exchange) GetTradFiSymbols(ctx context.Context) ([]*TradFiSymbol, error
 	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, tradfiSymbolsEPL, "tradfi/symbols", &resp); err != nil {
 		return nil, err
 	}
-	if err := resp.Error(); err != nil {
-		return nil, err
-	}
 	if resp.Data == nil {
-		return nil, nil
+		return nil, common.ErrNoResults
 	}
 	return resp.Data.List, nil
 }
@@ -69,7 +63,7 @@ func (e *Exchange) GetTradFiSymbolDetails(ctx context.Context, symbols currency.
 		return nil, err
 	}
 	if resp.Data == nil {
-		return nil, nil
+		return nil, common.ErrNoResults
 	}
 	return resp.Data.List, nil
 }
@@ -105,11 +99,8 @@ func (e *Exchange) GetTradFiKlines(ctx context.Context, symbol currency.Pair, ar
 	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, tradfiKlinesEPL, common.EncodeURLValues("tradfi/symbols/"+symbol.String()+"/klines", params), &resp); err != nil {
 		return nil, err
 	}
-	if err := resp.Error(); err != nil {
-		return nil, err
-	}
 	if resp.Data == nil {
-		return nil, nil
+		return nil, common.ErrNoResults
 	}
 	return resp.Data.List, nil
 }
@@ -121,9 +112,6 @@ func (e *Exchange) GetTradFiSymbolTicker(ctx context.Context, symbol string) (*T
 	}
 	var resp tradFiResponse[*TradFiTicker]
 	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, tradfiTickersEPL, "tradfi/symbols/"+symbol+"/tickers", &resp); err != nil {
-		return nil, err
-	}
-	if err := resp.Error(); err != nil {
 		return nil, err
 	}
 	return resp.Data, nil
@@ -195,7 +183,7 @@ func (e *Exchange) GetTradFiActiveOrders(ctx context.Context) ([]*TradFiOrder, e
 		return nil, err
 	}
 	if resp.Data == nil {
-		return nil, nil
+		return nil, common.ErrNoResults
 	}
 	return resp.Data.List, nil
 }
@@ -272,7 +260,7 @@ func (e *Exchange) GetTradFiOrderHistory(ctx context.Context, arg *GetTradFiOrde
 		return nil, err
 	}
 	if resp.Data == nil {
-		return nil, nil
+		return nil, common.ErrNoResults
 	}
 	return resp.Data.List, nil
 }
@@ -284,7 +272,7 @@ func (e *Exchange) GetTradFiActivePositions(ctx context.Context) ([]*TradFiPosit
 		return nil, err
 	}
 	if resp.Data == nil {
-		return nil, nil
+		return nil, common.ErrNoResults
 	}
 	return resp.Data.List, nil
 }

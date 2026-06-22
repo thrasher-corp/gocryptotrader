@@ -6,8 +6,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// CrossexSymbol holds symbol information for a CrossEx trading pair.
-type CrossexSymbol struct {
+// CrossExchangeSymbol holds symbol information for a CrossEx trading pair.
+type CrossExchangeSymbol struct {
 	Name         string       `json:"name"`
 	ExchangeType string       `json:"exchange_type"`
 	BusinessType string       `json:"business_type"`
@@ -19,22 +19,22 @@ type CrossexSymbol struct {
 	MaxNumOrders types.Number `json:"max_num_orders"`
 }
 
-// CrossexRiskLimitTier holds a single risk limit tier for a CrossEx symbol.
-type CrossexRiskLimitTier struct {
+// CrossExchangeRiskLimitTier holds a single risk limit tier for a CrossEx symbol.
+type CrossExchangeRiskLimitTier struct {
 	MinRiskLimitValue types.Number `json:"min_risk_limit_value"`
 	QuickAdjAmount    types.Number `json:"quick_adj_amount"`
 	LeverageMax       types.Number `json:"leverage_max"`
 	MaintenanceRate   types.Number `json:"maintenance_rate"`
 }
 
-// CrossexRiskLimit holds the risk limit tiers for a CrossEx symbol.
-type CrossexRiskLimit struct {
-	Symbol string                  `json:"symbol"`
-	Tiers  []*CrossexRiskLimitTier `json:"lec"`
+// CrossExchangeRiskLimit holds the risk limit tiers for a CrossEx symbol.
+type CrossExchangeRiskLimit struct {
+	Symbol string                        `json:"symbol"`
+	Tiers  []*CrossExchangeRiskLimitTier `json:"lec"`
 }
 
-// CrossexTransferCoin holds information about a currency supported for CrossEx transfers.
-type CrossexTransferCoin struct {
+// CrossExchangeTransferCoin holds information about a currency supported for CrossEx transfers.
+type CrossExchangeTransferCoin struct {
 	Coin           currency.Code `json:"coin"`
 	MinTransAmount types.Number  `json:"min_trans_amount"`
 	EstimatedFee   types.Number  `json:"est_fee"`
@@ -42,8 +42,8 @@ type CrossexTransferCoin struct {
 	IsDisabled     int64         `json:"is_disabled"`
 }
 
-// GetCrossexTransferHistoryRequest holds query parameters for the transfer history endpoint.
-type GetCrossexTransferHistoryRequest struct {
+// GetCrossExchangeTransferHistoryRequest holds query parameters for the transfer history endpoint.
+type GetCrossExchangeTransferHistoryRequest struct {
 	Coin          currency.Code
 	OrderID       string
 	ClientOrderID string
@@ -52,8 +52,8 @@ type GetCrossexTransferHistoryRequest struct {
 	Limit         uint64
 }
 
-// CrossexTransferRecord holds a single fund transfer record.
-type CrossexTransferRecord struct {
+// CrossExchangeTransferRecord holds a single fund transfer record.
+type CrossExchangeTransferRecord struct {
 	ID              string        `json:"id"`
 	ClientOrderID   string        `json:"client_order_id"`
 	FromAccountType string        `json:"from_account_type"`
@@ -64,8 +64,8 @@ type CrossexTransferRecord struct {
 	FailReason      string        `json:"fail_reason"`
 }
 
-// CrossexTransferRequest is the request body for a CrossEx fund transfer.
-type CrossexTransferRequest struct {
+// CrossExchangeTransferRequest is the request body for a CrossEx fund transfer.
+type CrossExchangeTransferRequest struct {
 	Coin   currency.Code `json:"coin"`
 	Amount float64       `json:"amount,string"`
 	Text   string        `json:"text,omitempty"`
@@ -73,27 +73,27 @@ type CrossexTransferRequest struct {
 	To     string        `json:"to"`
 }
 
-// CrossexTransferResponse holds the result of a CrossEx fund transfer.
-type CrossexTransferResponse struct {
+// CrossExchangeTransferResponse holds the result of a CrossEx fund transfer.
+type CrossExchangeTransferResponse struct {
 	TxID string `json:"tx_id"`
 }
 
-// CrossexOrderCreateRequest is the request body for creating a CrossEx order.
-type CrossexOrderCreateRequest struct {
-	Text         string     `json:"text,omitempty"`
-	ExchangeType string     `json:"exchange_type"`
-	Symbol       string     `json:"symbol"`
-	Side         order.Side `json:"side"`
-	Type         string     `json:"type"`
-	Quantity     float64    `json:"qty,omitempty,string"`
-	Price        float64    `json:"price,omitempty,string"`
-	QuickQty     float64    `json:"quick_qty,omitempty,string"`
-	ReduceOnly   bool       `json:"reduce_only,omitempty"`
-	PositionSide order.Side `json:"position_side,omitempty"`
+// CrossExchangeOrderCreateRequest is the request body for creating a CrossEx order.
+type CrossExchangeOrderCreateRequest struct {
+	Text         string       `json:"text,omitempty"`
+	ExchangeType string       `json:"exchange_type"`
+	Symbol       string       `json:"symbol"`
+	Side         order.Side   `json:"side"`
+	Type         string       `json:"type"`
+	Quantity     types.Number `json:"qty,omitempty"`
+	Price        types.Number `json:"price,omitempty"`
+	QuickQty     types.Number `json:"quick_qty,omitempty"`
+	ReduceOnly   bool         `json:"reduce_only,omitempty"`
+	PositionSide order.Side   `json:"position_side,omitempty"`
 }
 
-// CrossexOrder holds the full detail of a CrossEx order.
-type CrossexOrder struct {
+// CrossExchangeOrder holds the full detail of a CrossEx order.
+type CrossExchangeOrder struct {
 	UserID            string        `json:"user_id"`
 	OrderID           string        `json:"order_id"`
 	Text              string        `json:"text"`
@@ -121,28 +121,28 @@ type CrossexOrder struct {
 	UpdateTime        types.Time    `json:"update_time"`
 }
 
-// CrossexOrderUpdateRequest is the request body for modifying a CrossEx order.
-type CrossexOrderUpdateRequest struct {
-	Quantity float64 `json:"qty,omitempty,string"`
-	Price    float64 `json:"price,omitempty,string"`
+// CrossExchangeOrderUpdateRequest is the request body for modifying a CrossEx order.
+type CrossExchangeOrderUpdateRequest struct {
+	Quantity types.Number `json:"qty,omitempty"`
+	Price    types.Number `json:"price,omitempty"`
 }
 
-// CrossexOrderActionResponse holds the result of a CrossEx order action (modify/cancel).
-type CrossexOrderActionResponse struct {
+// CrossExchangeOrderActionResponse holds the result of a CrossEx order action (modify/cancel).
+type CrossExchangeOrderActionResponse struct {
 	OrderID string `json:"order_id"`
 	Text    string `json:"text"`
 }
 
-// CrossexConvertQuoteRequest is the request body for a CrossEx flash swap inquiry.
-type CrossexConvertQuoteRequest struct {
+// CrossExchangeConvertQuoteRequest is the request body for a CrossEx flash swap inquiry.
+type CrossExchangeConvertQuoteRequest struct {
 	ExchangeType string        `json:"exchange_type"`
 	FromCoin     currency.Code `json:"from_coin"`
 	ToCoin       currency.Code `json:"to_coin"`
 	FromAmount   float64       `json:"from_amount,string"`
 }
 
-// CrossexConvertQuoteResponse holds the quote returned from a flash swap inquiry.
-type CrossexConvertQuoteResponse struct {
+// CrossExchangeConvertQuoteResponse holds the quote returned from a flash swap inquiry.
+type CrossExchangeConvertQuoteResponse struct {
 	QuoteID    string        `json:"quote_id"`
 	ValidMs    string        `json:"valid_ms"`
 	FromCoin   currency.Code `json:"from_coin"`
@@ -152,102 +152,102 @@ type CrossexConvertQuoteResponse struct {
 	Price      types.Number  `json:"price"`
 }
 
-// CrossexConvertOrderRequest is the request body for executing a CrossEx flash swap.
-type CrossexConvertOrderRequest struct {
+// CrossExchangeConvertOrderRequest is the request body for executing a CrossEx flash swap.
+type CrossExchangeConvertOrderRequest struct {
 	QuoteID string `json:"quote_id"`
 }
 
-// CrossexConvertOrderResponse holds the result of a CrossEx flash swap execution.
-type CrossexConvertOrderResponse struct {
+// CrossExchangeConvertOrderResponse holds the result of a CrossEx flash swap execution.
+type CrossExchangeConvertOrderResponse struct {
 	OrderID string `json:"order_id"`
 	Text    string `json:"text"`
 }
 
-// CrossexAccountAsset holds per-exchange asset information within a CrossEx account.
-type CrossexAccountAsset struct {
+// CrossExchangeAccountAsset holds per-exchange asset information within a CrossEx account.
+type CrossExchangeAccountAsset struct {
 	UserID  string       `json:"user_id"`
 	Balance types.Number `json:"balance"`
 	Equity  types.Number `json:"equity"`
 	PNL     types.Number `json:"pnl"`
 }
 
-// CrossexAccount holds CrossEx account asset information.
-type CrossexAccount struct {
-	UserID                string                 `json:"user_id"`
-	AvailableMargin       types.Number           `json:"available_margin"`
-	MarginBalance         types.Number           `json:"margin_balance"`
-	InitialMargin         types.Number           `json:"initial_margin"`
-	MaintenanceMargin     types.Number           `json:"maintenance_margin"`
-	InitialMarginRate     types.Number           `json:"initial_margin_rate"`
-	MaintenanceMarginRate types.Number           `json:"maintenance_margin_rate"`
-	PositionMode          string                 `json:"position_mode"`
-	AccountLimit          types.Number           `json:"account_limit"`
-	CreateTime            types.Time             `json:"create_time"`
-	ExchangeType          string                 `json:"exchange_type"`
-	AccountMode           string                 `json:"account_mode"`
-	UpdateTime            types.Time             `json:"update_time"`
-	Assets                []*CrossexAccountAsset `json:"assets,omitempty"`
+// CrossExchangeAccount holds CrossEx account asset information.
+type CrossExchangeAccount struct {
+	UserID                string                       `json:"user_id"`
+	AvailableMargin       types.Number                 `json:"available_margin"`
+	MarginBalance         types.Number                 `json:"margin_balance"`
+	InitialMargin         types.Number                 `json:"initial_margin"`
+	MaintenanceMargin     types.Number                 `json:"maintenance_margin"`
+	InitialMarginRate     types.Number                 `json:"initial_margin_rate"`
+	MaintenanceMarginRate types.Number                 `json:"maintenance_margin_rate"`
+	PositionMode          string                       `json:"position_mode"`
+	AccountLimit          types.Number                 `json:"account_limit"`
+	CreateTime            types.Time                   `json:"create_time"`
+	ExchangeType          string                       `json:"exchange_type"`
+	AccountMode           string                       `json:"account_mode"`
+	UpdateTime            types.Time                   `json:"update_time"`
+	Assets                []*CrossExchangeAccountAsset `json:"assets,omitempty"`
 }
 
-// CrossexAccountUpdateRequest is the request body for modifying CrossEx account settings.
-type CrossexAccountUpdateRequest struct {
+// CrossExchangeAccountUpdateRequest is the request body for modifying CrossEx account settings.
+type CrossExchangeAccountUpdateRequest struct {
 	PositionMode string `json:"position_mode,omitempty"`
 	AccountMode  string `json:"account_mode,omitempty"`
 	ExchangeType string `json:"exchange_type,omitempty"`
 }
 
-// CrossexAccountUpdateResponse holds the result of a CrossEx account settings update.
-type CrossexAccountUpdateResponse struct {
+// CrossExchangeAccountUpdateResponse holds the result of a CrossEx account settings update.
+type CrossExchangeAccountUpdateResponse struct {
 	PositionMode string `json:"position_mode"`
 	AccountMode  string `json:"account_mode"`
 	ExchangeType string `json:"exchange_type"`
 }
 
-// CrossexLeverageRequest is the request body for setting CrossEx leverage.
-type CrossexLeverageRequest struct {
+// CrossExchangeLeverageRequest is the request body for setting CrossEx leverage.
+type CrossExchangeLeverageRequest struct {
 	Symbol   string  `json:"symbol"`
 	Leverage float64 `json:"leverage,string"`
 }
 
-// CrossexLeverageResponse holds the result of a CrossEx leverage change.
-type CrossexLeverageResponse struct {
+// CrossExchangeLeverageResponse holds the result of a CrossEx leverage change.
+type CrossExchangeLeverageResponse struct {
 	Symbol   string       `json:"symbol"`
 	Leverage types.Number `json:"leverage"`
 }
 
-// CrossexClosePositionRequest is the request body for fully closing a CrossEx position.
-type CrossexClosePositionRequest struct {
+// CrossExchangeClosePositionRequest is the request body for fully closing a CrossEx position.
+type CrossExchangeClosePositionRequest struct {
 	Symbol       string `json:"symbol"`
 	PositionSide string `json:"position_side,omitempty"`
 }
 
-// CrossexInterestRate holds margin asset interest rate information.
-type CrossexInterestRate struct {
+// CrossExchangeInterestRate holds margin asset interest rate information.
+type CrossExchangeInterestRate struct {
 	Coin             currency.Code `json:"coin"`
 	ExchangeType     string        `json:"exchange_type"`
 	HourInterestRate types.Number  `json:"hour_interest_rate"`
 	Time             types.Time    `json:"time"`
 }
 
-// CrossexSpecialFee holds the special fee rates for a specific CrossEx symbol.
-type CrossexSpecialFee struct {
+// CrossExchangeSpecialFee holds the special fee rates for a specific CrossEx symbol.
+type CrossExchangeSpecialFee struct {
 	Symbol       currency.Pair `json:"symbol"`
 	MakerFeeRate types.Number  `json:"maker_fee_rate,omitempty"`
 	TakerFeeRate types.Number  `json:"taker_fee_rate"`
 }
 
-// CrossexFee holds the fee rate information for a CrossEx exchange type.
-type CrossexFee struct {
-	ExchangeType   string               `json:"exchange_type"`
-	SpotMakerFee   types.Number         `json:"spot_maker_fee"`
-	SpotTakerFee   types.Number         `json:"spot_taker_fee"`
-	FutureMakerFee types.Number         `json:"future_maker_fee"`
-	FutureTakerFee types.Number         `json:"future_taker_fee"`
-	SpecialFeeList []*CrossexSpecialFee `json:"special_fee_list"`
+// CrossExchangeFee holds the fee rate information for a CrossEx exchange type.
+type CrossExchangeFee struct {
+	ExchangeType   string                     `json:"exchange_type"`
+	SpotMakerFee   types.Number               `json:"spot_maker_fee"`
+	SpotTakerFee   types.Number               `json:"spot_taker_fee"`
+	FutureMakerFee types.Number               `json:"future_maker_fee"`
+	FutureTakerFee types.Number               `json:"future_taker_fee"`
+	SpecialFeeList []*CrossExchangeSpecialFee `json:"special_fee_list"`
 }
 
-// CrossexPosition holds a CrossEx contract position.
-type CrossexPosition struct {
+// CrossExchangePosition holds a CrossEx contract position.
+type CrossExchangePosition struct {
 	UserID            string       `json:"user_id"`
 	PositionID        string       `json:"position_id"`
 	Symbol            string       `json:"symbol"`
@@ -268,8 +268,8 @@ type CrossexPosition struct {
 	ExchangeType      string       `json:"exchange_type"`
 }
 
-// CrossexMarginPosition holds a CrossEx leveraged (margin) position.
-type CrossexMarginPosition struct {
+// CrossExchangeMarginPosition holds a CrossEx leveraged (margin) position.
+type CrossExchangeMarginPosition struct {
 	UserID            string        `json:"user_id"`
 	PositionID        string        `json:"position_id"`
 	Symbol            string        `json:"symbol"`
@@ -285,23 +285,23 @@ type CrossexMarginPosition struct {
 	ExchangeType      string        `json:"exchange_type"`
 }
 
-// CrossexAdlRank holds the ADL position reduction ranking for a CrossEx position.
-type CrossexAdlRank struct {
-	UserID          string `json:"user_id"`
-	Symbol          string `json:"symbol"`
-	CrossexAdlRank  string `json:"crossex_adl_rank"`
-	ExchangeAdlRank string `json:"exchange_adl_rank"`
+// CrossExchangeAdlRank holds the ADL position reduction ranking for a CrossEx position.
+type CrossExchangeAdlRank struct {
+	UserID               string `json:"user_id"`
+	Symbol               string `json:"symbol"`
+	CrossExchangeAdlRank string `json:"crossex_adl_rank"`
+	ExchangeAdlRank      string `json:"exchange_adl_rank"`
 }
 
-// GetCrossexOpenOrdersRequest holds query parameters for the open orders endpoint.
-type GetCrossexOpenOrdersRequest struct {
+// GetCrossExchangeOpenOrdersRequest holds query parameters for the open orders endpoint.
+type GetCrossExchangeOpenOrdersRequest struct {
 	Symbol       string
 	ExchangeType string
 	BusinessType string
 }
 
-// GetCrossexOrderHistoryRequest holds query parameters for the order history endpoint.
-type GetCrossexOrderHistoryRequest struct {
+// GetCrossExchangeOrderHistoryRequest holds query parameters for the order history endpoint.
+type GetCrossExchangeOrderHistoryRequest struct {
 	Page      uint64
 	Limit     uint64
 	Symbol    string
@@ -310,8 +310,8 @@ type GetCrossexOrderHistoryRequest struct {
 	Attribute string
 }
 
-// GetCrossexPositionHistoryRequest holds query parameters for the position history endpoints.
-type GetCrossexPositionHistoryRequest struct {
+// GetCrossExchangePositionHistoryRequest holds query parameters for the position history endpoints.
+type GetCrossExchangePositionHistoryRequest struct {
 	Page   uint64
 	Limit  uint64
 	Symbol string
@@ -319,8 +319,8 @@ type GetCrossexPositionHistoryRequest struct {
 	To     int64
 }
 
-// CrossexHistoricalPosition holds a closed CrossEx contract position record.
-type CrossexHistoricalPosition struct {
+// CrossExchangeHistoricalPosition holds a closed CrossEx contract position record.
+type CrossExchangeHistoricalPosition struct {
 	PositionID     string        `json:"position_id"`
 	UserID         string        `json:"user_id"`
 	Symbol         string        `json:"symbol"`
@@ -336,8 +336,8 @@ type CrossexHistoricalPosition struct {
 	UpdateTime     types.Time    `json:"update_time"`
 }
 
-// CrossexHistoricalMarginPosition holds a closed CrossEx leveraged position record.
-type CrossexHistoricalMarginPosition struct {
+// CrossExchangeHistoricalMarginPosition holds a closed CrossEx leveraged position record.
+type CrossExchangeHistoricalMarginPosition struct {
 	PositionID          string       `json:"position_id"`
 	UserID              string       `json:"user_id"`
 	Symbol              string       `json:"symbol"`
@@ -353,8 +353,8 @@ type CrossexHistoricalMarginPosition struct {
 	UpdateTime          types.Time   `json:"update_time"`
 }
 
-// GetCrossexMarginInterestHistoryRequest holds query parameters for the margin interest history endpoint.
-type GetCrossexMarginInterestHistoryRequest struct {
+// GetCrossExchangeMarginInterestHistoryRequest holds query parameters for the margin interest history endpoint.
+type GetCrossExchangeMarginInterestHistoryRequest struct {
 	Symbol       string
 	From         int64
 	To           int64
@@ -363,8 +363,8 @@ type GetCrossexMarginInterestHistoryRequest struct {
 	ExchangeType string
 }
 
-// CrossexMarginInterestRecord holds a single leveraged interest deduction record.
-type CrossexMarginInterestRecord struct {
+// CrossExchangeMarginInterestRecord holds a single leveraged interest deduction record.
+type CrossExchangeMarginInterestRecord struct {
 	UserID        string        `json:"user_id"`
 	Symbol        string        `json:"symbol"`
 	InterestID    string        `json:"interest_id"`
@@ -378,8 +378,8 @@ type CrossexMarginInterestRecord struct {
 	ExchangeType  string        `json:"exchange_type"`
 }
 
-// GetCrossexTradeHistoryRequest holds query parameters for the trade history endpoint.
-type GetCrossexTradeHistoryRequest struct {
+// GetCrossExchangeTradeHistoryRequest holds query parameters for the trade history endpoint.
+type GetCrossExchangeTradeHistoryRequest struct {
 	Page   uint64
 	Limit  uint64
 	Symbol string
@@ -387,8 +387,8 @@ type GetCrossexTradeHistoryRequest struct {
 	To     int64
 }
 
-// CrossexTrade holds a single CrossEx trade record.
-type CrossexTrade struct {
+// CrossExchangeTrade holds a single CrossEx trade record.
+type CrossExchangeTrade struct {
 	UserID         string        `json:"user_id"`
 	TransactionID  string        `json:"transaction_id"`
 	FilledRecordID string        `json:"filled_record_id"`
@@ -405,8 +405,8 @@ type CrossexTrade struct {
 	CreateTime     types.Time    `json:"create_time"`
 }
 
-// GetCrossexAccountBookRequest holds query parameters for the account book endpoint.
-type GetCrossexAccountBookRequest struct {
+// GetCrossExchangeAccountBookRequest holds query parameters for the account book endpoint.
+type GetCrossExchangeAccountBookRequest struct {
 	Page          uint64
 	Limit         uint64
 	Coin          currency.Code
@@ -415,8 +415,8 @@ type GetCrossexAccountBookRequest struct {
 	To            int64
 }
 
-// CrossexAccountBookRecord holds a single account asset change record.
-type CrossexAccountBookRecord struct {
+// CrossExchangeAccountBookRecord holds a single account asset change record.
+type CrossExchangeAccountBookRecord struct {
 	ID            string       `json:"id"`
 	UserID        string       `json:"user_id"`
 	BusinessID    string       `json:"business_id"`
@@ -427,8 +427,8 @@ type CrossexAccountBookRecord struct {
 	CreateTime    types.Time   `json:"create_time"`
 }
 
-// CrossexCoinDiscountRate holds the currency discount rate information for a CrossEx asset.
-type CrossexCoinDiscountRate struct {
+// CrossExchangeCoinDiscountRate holds the currency discount rate information for a CrossEx asset.
+type CrossExchangeCoinDiscountRate struct {
 	Coin         currency.Code `json:"coin"`
 	ExchangeType string        `json:"exchange_type"`
 	Tier         string        `json:"tier"`

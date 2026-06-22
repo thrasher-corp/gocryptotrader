@@ -44,9 +44,9 @@ type AlphaAccountTransactionItem struct {
 type AlphaCurrencyQuoteInfoRequest struct {
 	Currency currency.Code `json:"currency"`
 	Side     order.Side    `json:"side"`
-	Amount   float64       `json:"amount,string"`
+	Amount   types.Number  `json:"amount"`
 	GasMode  string        `json:"gas_mode"`
-	Slippage float64       `json:"slippage,omitempty,string"`
+	Slippage types.Number  `json:"slippage,omitempty"`
 	QuoteID  string        `json:"quote_id,omitempty"`
 }
 

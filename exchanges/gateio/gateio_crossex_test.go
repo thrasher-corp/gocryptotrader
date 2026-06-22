@@ -11,84 +11,84 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
-func TestGetCrossexSymbols(t *testing.T) {
+func TestGetCrossExchangeSymbols(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetCrossexSymbols(t.Context(), nil)
+	result, err := e.GetCrossExchangeSymbols(t.Context(), nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 }
 
-func TestGetCrossexRiskLimits(t *testing.T) {
+func TestGetCrossExchangeRiskLimits(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetCrossexRiskLimits(t.Context(), nil)
+	result, err := e.GetCrossExchangeRiskLimits(t.Context(), nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 }
 
-func TestGetCrossexTransferCoins(t *testing.T) {
+func TestGetCrossExchangeTransferCoins(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCrossexTransferCoins(t.Context(), currency.EMPTYCODE)
+	result, err := e.GetCrossExchangeTransferCoins(t.Context(), currency.EMPTYCODE)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 }
 
-func TestGetCrossexTransferHistory(t *testing.T) {
+func TestGetCrossExchangeTransferHistory(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCrossexTransferHistory(t.Context(), nil)
+	result, err := e.GetCrossExchangeTransferHistory(t.Context(), nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 }
 
-func TestCrossexFundTransfer(t *testing.T) {
+func TestCrossExchangeFundTransfer(t *testing.T) {
 	t.Parallel()
-	_, err := e.CrossexFundTransfer(t.Context(), nil)
+	_, err := e.CrossExchangeFundTransfer(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = e.CrossexFundTransfer(t.Context(), &CrossexTransferRequest{})
+	_, err = e.CrossExchangeFundTransfer(t.Context(), &CrossExchangeTransferRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	_, err = e.CrossexFundTransfer(t.Context(), &CrossexTransferRequest{Coin: currency.BTC})
+	_, err = e.CrossExchangeFundTransfer(t.Context(), &CrossExchangeTransferRequest{Coin: currency.BTC})
 	require.ErrorIs(t, err, order.ErrAmountMustBeSet)
 
-	_, err = e.CrossexFundTransfer(t.Context(), &CrossexTransferRequest{Coin: currency.BTC, Amount: 0.001})
-	require.ErrorIs(t, err, errCrossexFromAccountRequired)
+	_, err = e.CrossExchangeFundTransfer(t.Context(), &CrossExchangeTransferRequest{Coin: currency.BTC, Amount: 0.001})
+	require.ErrorIs(t, err, errCrossExchangeFromAccountRequired)
 
-	_, err = e.CrossexFundTransfer(t.Context(), &CrossexTransferRequest{Coin: currency.BTC, Amount: 0.001, From: "spot"})
-	require.ErrorIs(t, err, errCrossexToAccountRequired)
+	_, err = e.CrossExchangeFundTransfer(t.Context(), &CrossExchangeTransferRequest{Coin: currency.BTC, Amount: 0.001, From: "spot"})
+	require.ErrorIs(t, err, errCrossExchangeToAccountRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.CrossexFundTransfer(t.Context(), &CrossexTransferRequest{
+	result, err := e.CrossExchangeFundTransfer(t.Context(), &CrossExchangeTransferRequest{
 		Coin: currency.BTC, Amount: 0.001, From: "spot", To: "crossex",
 	})
 	require.NoError(t, err)
 	assert.NotEmpty(t, result.TxID)
 }
 
-func TestCreateCrossexOrder(t *testing.T) {
+func TestCreateCrossExchangeOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.CreateCrossexOrder(t.Context(), nil)
+	_, err := e.CreateCrossExchangeOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = e.CreateCrossexOrder(t.Context(), &CrossexOrderCreateRequest{})
-	require.ErrorIs(t, err, errCrossexExchangeTypeRequired)
+	_, err = e.CreateCrossExchangeOrder(t.Context(), &CrossExchangeOrderCreateRequest{})
+	require.ErrorIs(t, err, errCrossExchangeExchangeTypeRequired)
 
-	_, err = e.CreateCrossexOrder(t.Context(), &CrossexOrderCreateRequest{ExchangeType: "BINANCE"})
+	_, err = e.CreateCrossExchangeOrder(t.Context(), &CrossExchangeOrderCreateRequest{ExchangeType: "BINANCE"})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
-	_, err = e.CreateCrossexOrder(t.Context(), &CrossexOrderCreateRequest{ExchangeType: "BINANCE", Symbol: "BINANCE_FUTURE_BTC_USDT"})
+	_, err = e.CreateCrossExchangeOrder(t.Context(), &CrossExchangeOrderCreateRequest{ExchangeType: "BINANCE", Symbol: "BINANCE_FUTURE_BTC_USDT"})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
-	_, err = e.CreateCrossexOrder(t.Context(), &CrossexOrderCreateRequest{ExchangeType: "BINANCE", Symbol: "BINANCE_FUTURE_BTC_USDT", Side: order.Buy})
+	_, err = e.CreateCrossExchangeOrder(t.Context(), &CrossExchangeOrderCreateRequest{ExchangeType: "BINANCE", Symbol: "BINANCE_FUTURE_BTC_USDT", Side: order.Buy})
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.CreateCrossexOrder(t.Context(), &CrossexOrderCreateRequest{
+	result, err := e.CreateCrossExchangeOrder(t.Context(), &CrossExchangeOrderCreateRequest{
 		ExchangeType: "BINANCE",
 		Symbol:       "BINANCE_FUTURE_BTC_USDT",
 		Side:         order.Buy,
@@ -100,62 +100,62 @@ func TestCreateCrossexOrder(t *testing.T) {
 	assert.NotEmpty(t, result.OrderID)
 }
 
-func TestGetCrossexOrderDetails(t *testing.T) {
+func TestGetCrossExchangeOrderDetails(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetCrossexOrderDetails(t.Context(), "")
+	_, err := e.GetCrossExchangeOrderDetails(t.Context(), "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCrossexOrderDetails(t.Context(), "20491522002333905922")
+	result, err := e.GetCrossExchangeOrderDetails(t.Context(), "20491522002333905922")
 	require.NoError(t, err)
 	assert.NotEmpty(t, result.OrderID)
 }
 
-func TestModifyCrossexOrder(t *testing.T) {
+func TestModifyCrossExchangeOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.ModifyCrossexOrder(t.Context(), "", &CrossexOrderUpdateRequest{})
+	_, err := e.ModifyCrossExchangeOrder(t.Context(), "", &CrossExchangeOrderUpdateRequest{})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.ModifyCrossexOrder(t.Context(), "20491522002333905922", &CrossexOrderUpdateRequest{Price: 64000})
+	result, err := e.ModifyCrossExchangeOrder(t.Context(), "20491522002333905922", &CrossExchangeOrderUpdateRequest{Price: 64000})
 	require.NoError(t, err)
 	assert.NotEmpty(t, result.OrderID)
 }
 
-func TestCancelCrossexOrder(t *testing.T) {
+func TestCancelCrossExchangeOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.CancelCrossexOrder(t.Context(), "")
+	_, err := e.CancelCrossExchangeOrder(t.Context(), "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.CancelCrossexOrder(t.Context(), "20491522002333905922")
+	result, err := e.CancelCrossExchangeOrder(t.Context(), "20491522002333905922")
 	require.NoError(t, err)
 	assert.NotEmpty(t, result.OrderID)
 }
 
-func TestGetCrossexConvertQuote(t *testing.T) {
+func TestGetCrossExchangeConvertQuote(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetCrossexConvertQuote(t.Context(), nil)
+	_, err := e.GetCrossExchangeConvertQuote(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = e.GetCrossexConvertQuote(t.Context(), &CrossexConvertQuoteRequest{})
-	require.ErrorIs(t, err, errCrossexExchangeTypeRequired)
+	_, err = e.GetCrossExchangeConvertQuote(t.Context(), &CrossExchangeConvertQuoteRequest{})
+	require.ErrorIs(t, err, errCrossExchangeExchangeTypeRequired)
 
-	_, err = e.GetCrossexConvertQuote(t.Context(), &CrossexConvertQuoteRequest{ExchangeType: "BINANCE"})
+	_, err = e.GetCrossExchangeConvertQuote(t.Context(), &CrossExchangeConvertQuoteRequest{ExchangeType: "BINANCE"})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	_, err = e.GetCrossexConvertQuote(t.Context(), &CrossexConvertQuoteRequest{ExchangeType: "BINANCE", FromCoin: currency.BTC})
+	_, err = e.GetCrossExchangeConvertQuote(t.Context(), &CrossExchangeConvertQuoteRequest{ExchangeType: "BINANCE", FromCoin: currency.BTC})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	_, err = e.GetCrossexConvertQuote(t.Context(), &CrossexConvertQuoteRequest{ExchangeType: "BINANCE", FromCoin: currency.BTC, ToCoin: currency.USDT})
+	_, err = e.GetCrossExchangeConvertQuote(t.Context(), &CrossExchangeConvertQuoteRequest{ExchangeType: "BINANCE", FromCoin: currency.BTC, ToCoin: currency.USDT})
 	require.ErrorIs(t, err, order.ErrAmountMustBeSet)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCrossexConvertQuote(t.Context(), &CrossexConvertQuoteRequest{
+	result, err := e.GetCrossExchangeConvertQuote(t.Context(), &CrossExchangeConvertQuoteRequest{
 		ExchangeType: "BINANCE",
 		FromCoin:     currency.BTC,
 		ToCoin:       currency.USDT,
@@ -165,33 +165,33 @@ func TestGetCrossexConvertQuote(t *testing.T) {
 	assert.NotEmpty(t, result.QuoteID)
 }
 
-func TestExecuteCrossexConvertOrder(t *testing.T) {
+func TestExecuteCrossExchangeConvertOrder(t *testing.T) {
 	t.Parallel()
-	_, err := e.ExecuteCrossexConvertOrder(t.Context(), "")
-	require.ErrorIs(t, err, errCrossexQuoteIDRequired)
+	_, err := e.ExecuteCrossExchangeConvertOrder(t.Context(), "")
+	require.ErrorIs(t, err, errCrossExchangeQuoteIDRequired)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.ExecuteCrossexConvertOrder(t.Context(), "CTH46487058372")
+	result, err := e.ExecuteCrossExchangeConvertOrder(t.Context(), "CTH46487058372")
 	require.NoError(t, err)
 	assert.NotEmpty(t, result.OrderID)
 }
 
-func TestGetCrossexAccountAssets(t *testing.T) {
+func TestGetCrossExchangeAccountAssets(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCrossexAccountAssets(t.Context(), "")
+	result, err := e.GetCrossExchangeAccountAssets(t.Context(), "")
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 }
 
-func TestUpdateCrossexAccount(t *testing.T) {
+func TestUpdateCrossExchangeAccount(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.UpdateCrossexAccount(t.Context(), &CrossexAccountUpdateRequest{
+	result, err := e.UpdateCrossExchangeAccount(t.Context(), &CrossExchangeAccountUpdateRequest{
 		PositionMode: "SINGLE",
 		AccountMode:  "CROSS_EXCHANGE",
 		ExchangeType: "BINANCE",
@@ -200,29 +200,29 @@ func TestUpdateCrossexAccount(t *testing.T) {
 	assert.NotEmpty(t, result.ExchangeType)
 }
 
-func TestGetCrossexContractLeverage(t *testing.T) {
+func TestGetCrossExchangeContractLeverage(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCrossexContractLeverage(t.Context(), nil)
+	result, err := e.GetCrossExchangeContractLeverage(t.Context(), nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 }
 
-func TestSetCrossexContractLeverage(t *testing.T) {
+func TestSetCrossExchangeContractLeverage(t *testing.T) {
 	t.Parallel()
-	_, err := e.SetCrossexContractLeverage(t.Context(), nil)
+	_, err := e.SetCrossExchangeContractLeverage(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = e.SetCrossexContractLeverage(t.Context(), &CrossexLeverageRequest{})
+	_, err = e.SetCrossExchangeContractLeverage(t.Context(), &CrossExchangeLeverageRequest{})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
-	_, err = e.SetCrossexContractLeverage(t.Context(), &CrossexLeverageRequest{Symbol: "BINANCE_FUTURE_BTC_USDT"})
-	require.ErrorIs(t, err, errCrossexLeverageRequired)
+	_, err = e.SetCrossExchangeContractLeverage(t.Context(), &CrossExchangeLeverageRequest{Symbol: "BINANCE_FUTURE_BTC_USDT"})
+	require.ErrorIs(t, err, errCrossExchangeLeverageRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.SetCrossexContractLeverage(t.Context(), &CrossexLeverageRequest{
+	result, err := e.SetCrossExchangeContractLeverage(t.Context(), &CrossExchangeLeverageRequest{
 		Symbol:   "BINANCE_FUTURE_BTC_USDT",
 		Leverage: 10,
 	})
@@ -230,29 +230,29 @@ func TestSetCrossexContractLeverage(t *testing.T) {
 	assert.NotEmpty(t, result.Symbol)
 }
 
-func TestGetCrossexMarginLeverage(t *testing.T) {
+func TestGetCrossExchangeMarginLeverage(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCrossexMarginLeverage(t.Context(), nil)
+	result, err := e.GetCrossExchangeMarginLeverage(t.Context(), nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 }
 
-func TestSetCrossexMarginLeverage(t *testing.T) {
+func TestSetCrossExchangeMarginLeverage(t *testing.T) {
 	t.Parallel()
-	_, err := e.SetCrossexMarginLeverage(t.Context(), nil)
+	_, err := e.SetCrossExchangeMarginLeverage(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = e.SetCrossexMarginLeverage(t.Context(), &CrossexLeverageRequest{})
+	_, err = e.SetCrossExchangeMarginLeverage(t.Context(), &CrossExchangeLeverageRequest{})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
-	_, err = e.SetCrossexMarginLeverage(t.Context(), &CrossexLeverageRequest{Symbol: "BINANCE_MARGIN_BTC_USDT"})
-	require.ErrorIs(t, err, errCrossexLeverageRequired)
+	_, err = e.SetCrossExchangeMarginLeverage(t.Context(), &CrossExchangeLeverageRequest{Symbol: "BINANCE_MARGIN_BTC_USDT"})
+	require.ErrorIs(t, err, errCrossExchangeLeverageRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.SetCrossexMarginLeverage(t.Context(), &CrossexLeverageRequest{
+	result, err := e.SetCrossExchangeMarginLeverage(t.Context(), &CrossExchangeLeverageRequest{
 		Symbol:   "BINANCE_MARGIN_BTC_USDT",
 		Leverage: 5,
 	})
@@ -260,16 +260,16 @@ func TestSetCrossexMarginLeverage(t *testing.T) {
 	assert.NotEmpty(t, result.Symbol)
 }
 
-func TestCloseCrossexPosition(t *testing.T) {
+func TestCloseCrossExchangePosition(t *testing.T) {
 	t.Parallel()
-	_, err := e.CloseCrossexPosition(t.Context(), nil)
+	_, err := e.CloseCrossExchangePosition(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = e.CloseCrossexPosition(t.Context(), &CrossexClosePositionRequest{})
+	_, err = e.CloseCrossExchangePosition(t.Context(), &CrossExchangeClosePositionRequest{})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.CloseCrossexPosition(t.Context(), &CrossexClosePositionRequest{
+	result, err := e.CloseCrossExchangePosition(t.Context(), &CrossExchangeClosePositionRequest{
 		Symbol:       "BINANCE_FUTURE_BTC_USDT",
 		PositionSide: "LONG",
 	})
@@ -277,135 +277,135 @@ func TestCloseCrossexPosition(t *testing.T) {
 	assert.NotEmpty(t, result.OrderID)
 }
 
-func TestGetCrossexInterestRates(t *testing.T) {
+func TestGetCrossExchangeInterestRates(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCrossexInterestRates(t.Context(), currency.EMPTYCODE, "")
+	result, err := e.GetCrossExchangeInterestRates(t.Context(), currency.EMPTYCODE, "")
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 }
 
-func TestGetCrossexUserFeeRates(t *testing.T) {
+func TestGetCrossExchangeUserFeeRates(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCrossexUserFeeRates(t.Context())
+	result, err := e.GetCrossExchangeUserFeeRates(t.Context())
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 }
 
-func TestGetCrossexContractPositions(t *testing.T) {
+func TestGetCrossExchangeContractPositions(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCrossexContractPositions(t.Context(), "", "")
+	result, err := e.GetCrossExchangeContractPositions(t.Context(), "", "")
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 }
 
-func TestGetCrossexMarginPositions(t *testing.T) {
+func TestGetCrossExchangeMarginPositions(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCrossexMarginPositions(t.Context(), "", "")
+	result, err := e.GetCrossExchangeMarginPositions(t.Context(), "", "")
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 }
 
-func TestGetCrossexADLRank(t *testing.T) {
+func TestGetCrossExchangeADLRank(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetCrossexADLRank(t.Context(), "")
+	_, err := e.GetCrossExchangeADLRank(t.Context(), "")
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCrossexADLRank(t.Context(), "BINANCE_FUTURE_ADA_USDT")
+	result, err := e.GetCrossExchangeADLRank(t.Context(), "BINANCE_FUTURE_ADA_USDT")
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 }
 
-func TestGetCrossexOpenOrders(t *testing.T) {
+func TestGetCrossExchangeOpenOrders(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCrossexOpenOrders(t.Context(), nil)
+	result, err := e.GetCrossExchangeOpenOrders(t.Context(), nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 }
 
-func TestGetCrossexOrderHistory(t *testing.T) {
+func TestGetCrossExchangeOrderHistory(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCrossexOrderHistory(t.Context(), nil)
+	result, err := e.GetCrossExchangeOrderHistory(t.Context(), nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 }
 
-func TestGetCrossexContractPositionHistory(t *testing.T) {
+func TestGetCrossExchangeContractPositionHistory(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCrossexContractPositionHistory(t.Context(), nil)
+	result, err := e.GetCrossExchangeContractPositionHistory(t.Context(), nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 }
 
-func TestGetCrossexMarginPositionHistory(t *testing.T) {
+func TestGetCrossExchangeMarginPositionHistory(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCrossexMarginPositionHistory(t.Context(), nil)
+	result, err := e.GetCrossExchangeMarginPositionHistory(t.Context(), nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 }
 
-func TestGetCrossexMarginInterestHistory(t *testing.T) {
+func TestGetCrossExchangeMarginInterestHistory(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCrossexMarginInterestHistory(t.Context(), nil)
+	result, err := e.GetCrossExchangeMarginInterestHistory(t.Context(), nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 }
 
-func TestGetCrossexTradeHistory(t *testing.T) {
+func TestGetCrossExchangeTradeHistory(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCrossexTradeHistory(t.Context(), nil)
+	result, err := e.GetCrossExchangeTradeHistory(t.Context(), nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 }
 
-func TestGetCrossexAccountBook(t *testing.T) {
+func TestGetCrossExchangeAccountBook(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCrossexAccountBook(t.Context(), nil)
+	result, err := e.GetCrossExchangeAccountBook(t.Context(), nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 }
 
-func TestGetCrossexCoinDiscountRates(t *testing.T) {
+func TestGetCrossExchangeCoinDiscountRates(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCrossexCoinDiscountRates(t.Context(), "", "")
+	result, err := e.GetCrossExchangeCoinDiscountRates(t.Context(), "", "")
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 }
