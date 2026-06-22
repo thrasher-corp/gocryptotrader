@@ -189,6 +189,48 @@ func TestPriceDivisor(t *testing.T) {
 	}
 }
 
+func TestOldestTime(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UTC()
+	pastOldest := time.Unix(1_700_000_000, 0).UTC()
+	pastNewer := pastOldest.Add(2 * time.Hour)
+	future := now.Add(24 * time.Hour)
+
+	for _, tc := range []struct {
+		name   string
+		times  []time.Time
+		expect time.Time
+	}{
+		{
+			name:   "no times returns zero",
+			expect: time.Time{},
+		},
+		{
+			name:   "zero and future times are ignored",
+			times:  []time.Time{{}, future},
+			expect: time.Time{},
+		},
+		{
+			name:   "single past time is returned",
+			times:  []time.Time{pastNewer},
+			expect: pastNewer,
+		},
+		{
+			name:   "oldest past time is returned",
+			times:  []time.Time{future, pastNewer, {}, pastOldest},
+			expect: pastOldest,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := oldestTime(tc.times...)
+			assert.Equal(t, tc.expect, got, "oldest time should match expected value")
+		})
+	}
+}
+
 // 7610378	       143.3 ns/op	      48 B/op	       2 allocs/op
 func BenchmarkMessageID(b *testing.B) {
 	for b.Loop() {
