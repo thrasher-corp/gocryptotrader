@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -23,11 +24,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-const (
-	APIKey                  = ""
-	APISecret               = ""
-	canManipulateRealOrders = false
-)
+const canManipulateRealOrders = false
+
+var apiCredentials = &accounts.Credentials{
+	Key:    "",
+	Secret: "",
+}
 
 var (
 	e        *Exchange
@@ -44,9 +46,9 @@ func TestMain(m *testing.M) {
 		log.Fatalf("EXMO Setup error: %s", err)
 	}
 
-	if APIKey != "" && APISecret != "" {
+	if apiCredentials.Key != "" && apiCredentials.Secret != "" {
 		e.API.AuthenticatedSupport = true
-		e.SetCredentials(APIKey, APISecret, "", "", "", "")
+		e.SetCredentials(apiCredentials)
 	}
 
 	os.Exit(m.Run())

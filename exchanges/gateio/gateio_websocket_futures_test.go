@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
@@ -168,7 +169,7 @@ func TestGenerateFuturesPayload(t *testing.T) {
 		ex.Name = "generateFuturesPayloadAuthTest"
 		ex.API.AuthenticatedWebsocketSupport = true
 		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-		ex.SetCredentials("key", "secret", "", "", "", "")
+		ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 
 		got, err := ex.generateFuturesPayload(t.Context(), subscribeEvent, subscription.List{
 			&subscription.Subscription{

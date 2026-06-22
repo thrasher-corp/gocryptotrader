@@ -29,11 +29,13 @@ var (
 )
 
 // Please supply your own keys here to do better tests
-const (
-	apiKey                  = ""
-	clientID                = ""
-	canManipulateRealOrders = false
-)
+const canManipulateRealOrders = false
+
+// Please supply your own credentials here to do authenticated endpoint testing
+var apiCredentials = &accounts.Credentials{
+	Key:      "",
+	ClientID: "",
+}
 
 func TestMain(m *testing.M) {
 	e = new(Exchange)
@@ -41,10 +43,10 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Coinut Setup error: %s", err)
 	}
 
-	if apiKey != "" && clientID != "" {
+	if apiCredentials.Key != "" && apiCredentials.ClientID != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(apiKey, clientID, "", "", "", "")
+		e.SetCredentials(apiCredentials)
 	}
 
 	if err := e.SeedInstruments(context.Background()); err != nil {
@@ -114,7 +116,7 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if apiKey == "" {
+	if apiCredentials.Key == "" {
 		if feeBuilder.FeeType != exchange.OfflineTradeFee {
 			t.Errorf("Expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
 		}
@@ -341,7 +343,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
-	if apiKey != "" || clientID != "" {
+	if apiCredentials.Key != "" || apiCredentials.ClientID != "" {
 		_, err := e.UpdateAccountBalances(t.Context(), asset.Spot)
 		require.NoError(t, err, "UpdateAccountBalances must not error")
 	} else {

@@ -53,12 +53,14 @@ supplied meet the requirements to make an authenticated request.
     var b bitstamp.Bitstamp
     b.SetDefaults()
 
-    // Set default keys 
-    b.API.SetKey("your_key") 
-    b.API.SetSecret("your_secret") 
-    b.API.SetClientID("your_clientid")
-    b.API.SetPEMKey("your_PEM_key")
-    b.API.SetSubAccount("your_specific_subaccount")
+    // Set default credentials
+    b.SetCredentials(&accounts.Credentials{
+        Key:        "your_key",
+        Secret:     "your_secret",
+        ClientID:   "your_clientid",
+        PEMKey:     "your_PEM_key",
+        SubAccount: "your_specific_subaccount",
+    })
 
     // Set client/strategy/subsystem specific credentials that will override
     // default credentials.
