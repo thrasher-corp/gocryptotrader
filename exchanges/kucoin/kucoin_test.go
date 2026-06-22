@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -34,12 +35,14 @@ import (
 )
 
 // Please supply your own keys here to do authenticated endpoint testing
-const (
-	apiKey                  = ""
-	apiSecret               = ""
-	passPhrase              = ""
-	canManipulateRealOrders = false
-)
+const canManipulateRealOrders = false
+
+// Please supply your own credentials here to do authenticated endpoint testing
+var apiCredentials = &accounts.Credentials{
+	Key:      "",
+	Secret:   "",
+	ClientID: "", // passphrase
+}
 
 var (
 	e                                                         *Exchange
@@ -53,11 +56,11 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Kucoin Setup error: %s", err)
 	}
 
-	if apiKey != "" && apiSecret != "" && passPhrase != "" {
+	if apiCredentials.Key != "" && apiCredentials.Secret != "" && apiCredentials.ClientID != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
 		e.API.CredentialsValidator.RequiresBase64DecodeSecret = false
-		e.SetCredentials(apiKey, apiSecret, passPhrase, "", "", "")
+		e.SetCredentials(apiCredentials)
 		e.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	}
 
@@ -2782,7 +2785,7 @@ func TestModifySubAccountSpotAPIs(t *testing.T) {
 	result, err := e.ModifySubAccountSpotAPIs(t.Context(), &SpotAPISubAccountParams{
 		SubAccountName: "gocryptoTrader1",
 		Passphrase:     "mysecretPassphrase123",
-		APIKey:         apiKey,
+		APIKey:         apiCredentials.Key,
 	})
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2798,7 +2801,7 @@ func TestDeleteSubAccountSpotAPI(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidPassPhraseInstance)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.DeleteSubAccountSpotAPI(t.Context(), apiKey, "gocryptoTrader1", "the-passphrase")
+	result, err := e.DeleteSubAccountSpotAPI(t.Context(), apiCredentials.Key, "gocryptoTrader1", "the-passphrase")
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -3034,7 +3037,8 @@ func TestGetOpenInterest(t *testing.T) {
 	cp1 := currency.NewPair(currency.ETH, currency.USDTM)
 
 	sharedtestvalues.SetupCurrencyPairsForExchangeAsset(t, ku, asset.Futures, cp1)
-	resp, err = ku.GetOpenInterest(t.Context(),
+	resp, err = ku.GetOpenInterest(
+		t.Context(),
 		key.PairAsset{
 			Base:  futuresTradablePair.Base.Item,
 			Quote: futuresTradablePair.Quote.Item,

@@ -19,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -35,12 +36,15 @@ import (
 
 // Please supply your APIKeys here for better testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
 	canManipulateRealOrders = false
 	// Sandbox functionality only works for certain endpoints https://docs.cdp.coinbase.com/coinbase-app/advanced-trade-apis/sandbox
 	testingInSandbox = false
 )
+
+var apiCredentials = &accounts.Credentials{
+	Key:    "",
+	Secret: "",
+}
 
 var (
 	e                = &Exchange{}
@@ -1910,8 +1914,8 @@ func exchangeBaseHelper(e *Exchange) error {
 	if err := testexch.Setup(e); err != nil {
 		return err
 	}
-	if apiKey != "" {
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+	if apiCredentials.Key != "" {
+		e.SetCredentials(apiCredentials)
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
 	}

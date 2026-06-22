@@ -12,6 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -24,11 +25,12 @@ import (
 )
 
 // Please enter sandbox API keys & assigned roles for better testing procedures
-const (
-	apiKey                  = ""
-	apiSecret               = ""
-	canManipulateRealOrders = false
-)
+const canManipulateRealOrders = false
+
+var apiCredentials = &accounts.Credentials{
+	Key:    "",
+	Secret: "",
+}
 
 const testCurrency = "btcusd"
 
@@ -1117,7 +1119,8 @@ func TestWsError(t *testing.T) {
 	for x := range tt {
 		err := e.wsHandleData(t.Context(), tt[x].Data)
 		if tt[x].ErrorExpected && err != nil && !strings.Contains(err.Error(), tt[x].ErrorShouldContain) {
-			t.Errorf("expected error to contain: %s, got: %s",
+			t.Errorf(
+				"expected error to contain: %s, got: %s",
 				tt[x].ErrorShouldContain, err.Error(),
 			)
 		} else if !tt[x].ErrorExpected && err != nil {
@@ -1366,7 +1369,8 @@ func TestGenerateSubscriptions(t *testing.T) {
 	_, err = subscription.List{{Asset: asset.Spot, Channel: subscription.CandlesChannel, Pairs: p, Interval: kline.FourHour}}.ExpandTemplates(e)
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "ExpandTemplates should error on invalid interval")
 
-	assert.PanicsWithError(t,
+	assert.PanicsWithError(
+		t,
 		"subscription channel not supported: wibble",
 		func() { channelName(&subscription.Subscription{Channel: "wibble"}) },
 		"should panic on invalid channel",
