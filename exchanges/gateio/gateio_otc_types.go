@@ -130,17 +130,6 @@ type OTCStablecoinOrderRequest struct {
 	QuoteToken    string        `json:"quote_token,omitempty"`
 }
 
-// OTCUserDefaultBankData holds the user's default bank account information.
-type OTCUserDefaultBankData struct {
-	ID              string `json:"id"`
-	BankAccountName string `json:"bank_account_name"`
-	BankName        string `json:"bank_name"`
-	BankCountry     string `json:"bank_country"`
-	BankAddress     string `json:"bank_address"`
-	BankCode        string `json:"bank_code"`
-	BranchCode      string `json:"branch_code"`
-}
-
 // OTCBankCard holds a single bank card entry.
 type OTCBankCard struct {
 	ID                    string     `json:"id"`

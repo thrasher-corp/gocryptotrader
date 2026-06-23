@@ -328,38 +328,18 @@ func (e *Exchange) WsHandleOptionsData(ctx context.Context, conn websocket.Conne
 	case optionsUserTradesChannel:
 		return e.processOptionsUserTradesPushData(respRaw)
 	case optionsLiquidatesChannel:
-		var data struct {
-			Time    types.Time            `json:"time"`
-			Channel string                `json:"channel"`
-			Event   string                `json:"event"`
-			Result  []WsOptionsLiquidates `json:"result"`
-		}
+		var data websocketResponse[[]*WsOptionsLiquidates]
 		return e.processResponse(ctx, respRaw, &data)
 	case optionsUserSettlementChannel:
-		var data struct {
-			Time    types.Time                `json:"time"`
-			Channel string                    `json:"channel"`
-			Event   string                    `json:"event"`
-			Result  []WsOptionsUserSettlement `json:"result"`
-		}
+		var data websocketResponse[[]*WsOptionsUserSettlement]
 		return e.processResponse(ctx, respRaw, &data)
 	case optionsPositionCloseChannel:
-		var data struct {
-			Time    types.Time        `json:"time"`
-			Channel string            `json:"channel"`
-			Event   string            `json:"event"`
-			Result  []WsPositionClose `json:"result"`
-		}
+		var data websocketResponse[[]*WsPositionClose]
 		return e.processResponse(ctx, respRaw, &data)
 	case optionsBalancesChannel:
 		return e.processBalancePushData(ctx, push.Result, asset.Options)
 	case optionsPositionsChannel:
-		var data struct {
-			Time    types.Time          `json:"time"`
-			Channel string              `json:"channel"`
-			Event   string              `json:"event"`
-			Result  []WsOptionsPosition `json:"result"`
-		}
+		var data websocketResponse[[]*WsOptionsPosition]
 		return e.processResponse(ctx, respRaw, &data)
 	case "options.pong":
 		return nil

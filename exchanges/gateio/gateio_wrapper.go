@@ -165,6 +165,11 @@ func (e *Exchange) SetDefaults() {
 		exchange.RestFutures:           gateioFuturesLiveTradingAlternative,
 		exchange.RestSpotSupplementary: gateioFuturesTestnetTrading,
 		exchange.WebsocketSpot:         gateioWebsocketEndpoint,
+		exchange.WebsocketUSDTMargined: usdtFuturesWebsocketURL,
+		exchange.WebsocketCoinMargined: btcFuturesWebsocketURL,
+		exchange.WebsocketFutures:      deliveryRealBTCTradingURL,
+		exchange.WebsocketTrade:        deliveryRealUSDTTradingURL,
+		exchange.WebsocketOptions:      optionsWebsocketURL,
 	}); err != nil {
 		log.Errorln(log.ExchangeSys, err)
 	}
@@ -206,8 +211,12 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 	// Spot connection
+	wsSpotURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                   gateioWebsocketEndpoint,
+		URL:                   wsSpotURL,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 		Handler:               e.WsHandleSpotData,
@@ -221,8 +230,12 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 	// Futures connection - USDT margined
+	wsUSDTMarginedURL, err := e.API.Endpoints.GetURL(exchange.WebsocketUSDTMargined)
+	if err != nil {
+		return err
+	}
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  usdtFuturesWebsocketURL,
+		URL:                  wsUSDTMarginedURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
@@ -241,8 +254,12 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 
 	// Futures connection - BTC margined
+	wsCoinMarginedURL, err := e.API.Endpoints.GetURL(exchange.WebsocketCoinMargined)
+	if err != nil {
+		return err
+	}
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  btcFuturesWebsocketURL,
+		URL:                  wsCoinMarginedURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
@@ -260,8 +277,12 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 
 	// Futures connection - Delivery - BTC margined
+	wsDeliveryFuturesURL, err := e.API.Endpoints.GetURL(exchange.WebsocketFutures)
+	if err != nil {
+		return err
+	}
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  deliveryRealBTCTradingURL,
+		URL:                  wsDeliveryFuturesURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
@@ -281,8 +302,12 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 
 	// Futures connection - Delivery - USDT margined
+	wsDeliveryFuturesUSDTMarginedURL, err := e.API.Endpoints.GetURL(exchange.WebsocketTrade)
+	if err != nil {
+		return err
+	}
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                  deliveryRealUSDTTradingURL,
+		URL:                  wsDeliveryFuturesUSDTMarginedURL,
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 		Handler: func(ctx context.Context, conn websocket.Connection, incoming []byte) error {
@@ -302,8 +327,12 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 
 	// Futures connection - Options
+	wsOptionsURL, err := e.API.Endpoints.GetURL(exchange.WebsocketOptions)
+	if err != nil {
+		return err
+	}
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                   optionsWebsocketURL,
+		URL:                   wsOptionsURL,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
 		Handler:               e.WsHandleOptionsData,
@@ -818,8 +847,7 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 			return nil, err
 		}
 		resp = make([]trade.Data, len(tradeData))
-		for i := range tradeData {
-			td := tradeData[i]
+		for i, td := range tradeData {
 			side, err := order.StringToOrderSide(td.Side)
 			if err != nil {
 				return nil, err
@@ -1106,8 +1134,8 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 			if err != nil {
 				return nil, err
 			}
-			for j, cancelResp := range cancelResponses {
-				if cancelResponses[j].Succeeded {
+			for _, cancelResp := range cancelResponses {
+				if cancelResp.Succeeded {
 					response.Status[cancelResp.OrderID] = order.Cancelled.String()
 				}
 			}
@@ -2378,7 +2406,7 @@ func openInterestFromStats(stats []*ContractStat) (float64, error) {
 		return 0, errNoValidResponseFromServer
 	}
 	latest := stats[0]
-	for _, cStat := range stats {
+	for _, cStat := range stats[1:] {
 		if cStat.Time.Time().After(latest.Time.Time()) {
 			latest = cStat
 		}

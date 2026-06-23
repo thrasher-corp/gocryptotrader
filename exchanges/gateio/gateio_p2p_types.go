@@ -473,15 +473,56 @@ type P2PAdListItem struct {
 	AdvertizementNo      uint64        `json:"adv_no"`
 }
 
-// P2PChatMessage holds a single P2P chat message.
-type P2PChatMessage struct {
-	Type        int64              `json:"type"`
-	Time        types.Time         `json:"time"`
-	Message     string             `json:"message"`
-	FileKey     string             `json:"file_key"`
-	FileURL     string             `json:"file_url"`
-	FromUID     uint64             `json:"from_uid"`
-	FromUIDInfo *P2PChatSenderInfo `json:"from_uid_info"`
+// P2PChatMessagesResponse holds a single P2P chat message.
+type P2PChatMessagesResponse struct {
+	Messages      []*P2PMessageDetail `json:"messages"`
+	Memo          string              `json:"memo"`
+	HasHistory    bool                `json:"has_history"`
+	TransactionID uint64              `json:"txid"`
+	ServerTime    uint64              `json:"SRVTM"`
+	OrderStatus   string              `json:"order_status"`
+}
+
+// P2PMessageDetail represents a P2P conversation message detail
+type P2PMessageDetail struct {
+	IsSell        int64          `json:"is_sell,omitempty"`
+	MessageType   int64          `json:"msg_type,omitempty"`
+	Msg           string         `json:"msg"`
+	Username      string         `json:"username"`
+	Timest        types.Time     `json:"timest"`
+	RiskType      int64          `json:"risk_type,omitempty"`
+	ToastMsg      string         `json:"toast_msg,omitempty"`
+	UID           string         `json:"uid,omitempty"`
+	Type          int64          `json:"type,omitempty"`
+	MessageObject *MessageObject `json:"msg_obj,omitempty"`
+	Pic           string         `json:"pic,omitempty"`
+	FileKey       string         `json:"file_key,omitempty"`
+	FileType      string         `json:"file_type,omitempty"`
+}
+
+// MessageObject represents
+type MessageObject struct {
+	ID                 string `json:"id"`
+	Status             string `json:"status"`
+	Text               string `json:"text"`
+	ReasonID           int    `json:"reason_id"`
+	ToastID            int    `json:"toast_id"`
+	ReasonMemo         string `json:"reason_memo"`
+	CancelTime         int64  `json:"cancel_time"`
+	SellerConfirm      int64  `json:"seller_confirm"`
+	PaymentVoucher     []any  `json:"payment_voucher"`
+	AccountDescription string `json:"account_des"`
+	PaymentType        string `json:"pay_type"`
+	File               string `json:"file"`
+	FileKey            string `json:"file_key"`
+	Account            string `json:"account"`
+	Memo               string `json:"memo"`
+	Code               string `json:"code"`
+	MemoExtended       string `json:"memo_ext"`
+	TradeTips          string `json:"trade_tips"`
+	RealName           string `json:"real_name"`
+	IsDelete           int    `json:"is_delete"`
+	PayName            string `json:"pay_name"`
 }
 
 // P2PChatSenderInfo holds basic info about the sender of a P2P chat message.
@@ -500,7 +541,12 @@ type SendP2PChatMessageRequest struct {
 
 // P2PSendMessageResult holds the result of sending a P2P chat message.
 type P2PSendMessageResult struct {
-	SendTime types.Time `json:"SendTM"`
+	Srvtm          int64  `json:"SRVTM"`
+	TransactionID  int64  `json:"txid"`
+	ConversationID string `json:"conversation_id"`
+	MessageType    int64  `json:"msg_type"`
+	RiskType       int64  `json:"risk_type"`
+	ToastMessge    string `json:"toast_msg"`
 }
 
 // UploadP2PChatFileRequest holds request parameters for uploading a P2P chat file.

@@ -191,54 +191,24 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 	case futuresUserTradesChannel:
 		return e.procesFuturesUserTrades(respRaw, a)
 	case futuresLiquidatesChannel:
-		var data struct {
-			Time    types.Time                          `json:"time"`
-			Channel string                              `json:"channel"`
-			Event   string                              `json:"event"`
-			Result  []*WsFuturesLiquidationNotification `json:"result"`
-		}
+		var data websocketResponse[[]*WsFuturesLiquidationNotification]
 		return e.processResponse(ctx, respRaw, &data)
 	case futuresAutoDeleveragesChannel:
-		var data struct {
-			Time    types.Time                             `json:"time"`
-			Channel string                                 `json:"channel"`
-			Event   string                                 `json:"event"`
-			Result  []WsFuturesAutoDeleveragesNotification `json:"result"`
-		}
+		var data websocketResponse[[]*WsFuturesAutoDeleveragesNotification]
 		return e.processResponse(ctx, respRaw, &data)
 	case futuresAutoPositionCloseChannel:
-		var data struct {
-			Time    types.Time        `json:"time"`
-			Channel string            `json:"channel"`
-			Event   string            `json:"event"`
-			Result  []WsPositionClose `json:"result"`
-		}
+		var data websocketResponse[[]*WsPositionClose]
 		return e.processResponse(ctx, respRaw, &data)
 	case futuresBalancesChannel:
 		return e.processBalancePushData(ctx, push.Result, a)
 	case futuresReduceRiskLimitsChannel:
-		var data struct {
-			Time    types.Time                             `json:"time"`
-			Channel string                                 `json:"channel"`
-			Event   string                                 `json:"event"`
-			Result  []WsFuturesReduceRiskLimitNotification `json:"result"`
-		}
+		var data websocketResponse[[]*WsFuturesReduceRiskLimitNotification]
 		return e.processResponse(ctx, respRaw, &data)
 	case futuresPositionsChannel:
-		var data struct {
-			Time    types.Time          `json:"time"`
-			Channel string              `json:"channel"`
-			Event   string              `json:"event"`
-			Result  []WsFuturesPosition `json:"result"`
-		}
+		var data websocketResponse[[]*WsFuturesPosition]
 		return e.processResponse(ctx, respRaw, &data)
 	case futuresAutoOrdersChannel:
-		var data struct {
-			Time    types.Time           `json:"time"`
-			Channel string               `json:"channel"`
-			Event   string               `json:"event"`
-			Result  []WsFuturesAutoOrder `json:"result"`
-		}
+		var data websocketResponse[[]*WsFuturesAutoOrder]
 		return e.processResponse(ctx, respRaw, &data)
 	case "futures.pong":
 		return nil

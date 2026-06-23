@@ -6020,3 +6020,30 @@ func TestGetChaseOrderDetail(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestGetRecentPartnerApplicationRecords(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetRecentPartnerApplicationRecords(t.Context())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCheckPartnerApplicationEligibility(t *testing.T) {
+	t.Parallel()
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.CheckPartnerApplicationEligibility(t.Context())
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetAggregatedPartnerAgentStatistics(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetAggregatedPartnerAgentStatistics(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "nil arg must return ErrNilPointer")
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetAggregatedPartnerAgentStatistics(t.Context(), &RebateAggregatedStatistics{})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}

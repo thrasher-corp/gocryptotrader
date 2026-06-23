@@ -92,14 +92,6 @@ func TestCreateStablecoinOrder(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestGetUserDefaultBankAccount(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetUserDefaultBankAccount(t.Context())
-	require.NoError(t, err)
-	assert.NotNil(t, result, "result should not be nil")
-}
-
 func TestGetUserBankCardList(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)

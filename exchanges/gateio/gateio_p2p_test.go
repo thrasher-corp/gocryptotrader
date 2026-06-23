@@ -245,7 +245,10 @@ func TestGetMyP2PAds(t *testing.T) {
 
 func TestGetP2PAdList(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetP2PAdList(t.Context(), &GetP2PAdsListRequest{})
+	_, err := e.GetP2PAdList(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.GetP2PAdList(t.Context(), &GetP2PAdsListRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	_, err = e.GetP2PAdList(t.Context(), &GetP2PAdsListRequest{Asset: currency.USDT})
@@ -262,18 +265,22 @@ func TestGetP2PAdList(t *testing.T) {
 
 func TestGetP2PChatHistory(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetP2PChatHistory(t.Context(), 0, 0)
-	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
-
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetP2PChatHistory(t.Context(), 40000001, 0)
+	result, err := e.GetP2PChatHistory(t.Context(), 40000001, 0, 0)
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+
+	result, err = e.GetP2PChatHistory(t.Context(), 40000001, 1767009884, 1767009000)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
 
 func TestSendP2PChatMessage(t *testing.T) {
 	t.Parallel()
-	_, err := e.SendP2PChatMessage(t.Context(), &SendP2PChatMessageRequest{})
+	_, err := e.SendP2PChatMessage(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.SendP2PChatMessage(t.Context(), &SendP2PChatMessageRequest{})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	_, err = e.SendP2PChatMessage(t.Context(), &SendP2PChatMessageRequest{TransactionID: 40000001})
@@ -287,7 +294,10 @@ func TestSendP2PChatMessage(t *testing.T) {
 
 func TestUploadP2PChatFile(t *testing.T) {
 	t.Parallel()
-	_, err := e.UploadP2PChatFile(t.Context(), &UploadP2PChatFileRequest{})
+	_, err := e.UploadP2PChatFile(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.UploadP2PChatFile(t.Context(), &UploadP2PChatFileRequest{})
 	require.ErrorIs(t, err, errP2PImageTypeRequired)
 
 	_, err = e.UploadP2PChatFile(t.Context(), &UploadP2PChatFileRequest{ImageContentType: "image/png"})

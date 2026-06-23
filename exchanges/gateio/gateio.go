@@ -301,7 +301,7 @@ func (e *Exchange) GetOrderbook(ctx context.Context, pairString currency.Pair, i
 }
 
 // GetMarketTrades retrieve market trades
-func (e *Exchange) GetMarketTrades(ctx context.Context, pairString currency.Pair, lastID string, reverse bool, startTime, endTime time.Time, page, limit uint64) ([]Trade, error) {
+func (e *Exchange) GetMarketTrades(ctx context.Context, pairString currency.Pair, lastID string, reverse bool, startTime, endTime time.Time, page, limit uint64) ([]*Trade, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
@@ -330,8 +330,8 @@ func (e *Exchange) GetMarketTrades(ctx context.Context, pairString currency.Pair
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
-	var response []Trade
-	return response, e.SendHTTPRequest(ctx, exchange.RestSpot, publicMarketTradesSpotEPL, common.EncodeURLValues("spot/trades", params), &response)
+	var resp []*Trade
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicMarketTradesSpotEPL, common.EncodeURLValues("spot/trades", params), &resp)
 }
 
 // GetCandlesticks retrieves market candlesticks.

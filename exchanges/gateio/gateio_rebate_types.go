@@ -170,3 +170,73 @@ type UserSubordinateRelation struct {
 type UserSubordinateRelationResponse struct {
 	List []*UserSubordinateRelation `json:"list"`
 }
+
+// RecentPartnerApplicationRecords represents recent partner application records
+type RecentPartnerApplicationRecords struct {
+	ID                int64  `json:"id"`
+	UID               int64  `json:"uid"`
+	Language          string `json:"language"`
+	CountryID         int64  `json:"country_id"`
+	Firstname         string `json:"firstname"`
+	Lastname          string `json:"lastname"`
+	Email             string `json:"email"`
+	JoinUID           int64  `json:"join_uid"`
+	JoinCountryID     int64  `json:"join_country_id"`
+	IdentityComment   string `json:"identity_comment"`
+	PromotionChannels string `json:"promotion_channels"`
+	ContactDetails    string `json:"contact_details"`
+	KnowDetails       string `json:"know_details"`
+	QuestionLang      string `json:"question_lang"`
+	CreateTimest      string `json:"create_timest"`
+	UpdateTimest      string `json:"update_timest"`
+	ApplyType         int64  `json:"apply_type"`
+	AuditStatus       int64  `json:"audit_status"`
+	EditCounts        int64  `json:"edit_counts"`
+	ProofImages       string `json:"proof_images"`
+	ProofVideos       string `json:"proof_videos"`
+	ProofURL          string `json:"proof_url"`
+	AuditReason       int64  `json:"audit_reason"`
+	ChannelType       int64  `json:"channel_type"`
+	Region            string `json:"region"`
+	Phone             string `json:"phone"`
+	Telegram          string `json:"telegram"`
+	OtherContact      struct {
+		Type  int64  `json:"type"`
+		Value string `json:"value"`
+	} `json:"other_contact"`
+	ProofImagesURLList []string `json:"proof_images_url_list"`
+	ProofVideosURLList []any    `json:"proof_videos_url_list"`
+	ApplyMsg           string   `json:"apply_msg"`
+	JumpURL            string   `json:"jump_url"`
+}
+
+// RebaseEligibilityResponse represents an application eligibility response
+type RebaseEligibilityResponse struct {
+	Eligible         bool     `json:"eligible"`
+	BlockReasons     []string `json:"block_reasons"`
+	BlockReasonCodes []string `json:"block_reason_codes"`
+}
+
+// RebateAggregatedStatistics represents aggregated partner agent statistics
+type RebateAggregatedStatistics struct {
+	RebateAmount     types.Number `json:"rebate_amount"`
+	TradeVolume      types.Number `json:"trade_volume"`
+	NetFee           types.Number `json:"net_fee"`
+	CustomerCount    int64        `json:"customer_count"`
+	TradingUserCount types.Number `json:"trading_user_count"`
+	TimeRangeDesc    string       `json:"time_range_desc"`
+	BusinessType     int64        `json:"business_type"`
+	BusinessTypeDesc string       `json:"business_type_desc"`
+}
+
+// RebateAgentStatisticsResponse represents rebate agent statistics
+type RebateAgentStatisticsResponse struct {
+	RebateAmount     types.Number `json:"rebate_amount"`
+	TradeVolume      types.Number `json:"trade_volume"`
+	NetFee           types.Number `json:"net_fee"`
+	CustomerCount    int64        `json:"customer_count"`
+	TradingUserCount types.Number `json:"trading_user_count"`
+	TimeRangeDesc    string       `json:"time_range_desc"`
+	BusinessType     int64        `json:"business_type"`
+	BusinessTypeDesc string       `json:"business_type_desc"`
+}

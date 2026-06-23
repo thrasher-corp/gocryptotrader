@@ -3944,3 +3944,11 @@ type ChaseOrder struct {
 	CreateTime    types.Time    `json:"create_time"`
 	FinishTime    types.Time    `json:"finish_time"`
 }
+
+// websocketResponse is a generic wrapper for all futures websocket responses.
+type websocketResponse[T any] struct {
+	Time    types.Time `json:"time"`
+	Channel string     `json:"channel"`
+	Event   string     `json:"event"`
+	Result  T          `json:"result"`
+}

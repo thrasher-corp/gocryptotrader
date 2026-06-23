@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
-	"strconv"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -28,7 +26,7 @@ var (
 	errP2PMessageRequired   = errors.New("P2P chat message required")
 	errP2PImageTypeRequired = errors.New("P2P image content type required")
 	errP2PImageDataRequired = errors.New("P2P base64 image data required")
-	errP2PWorkStatusMissing = errors.New("work status missing")
+	errP2PWorkStatusMissing = errors.New("P2P work status missing")
 )
 
 // GetP2PAccountInfo retrieves the current user's P2P merchant account information.
@@ -205,7 +203,7 @@ func (e *Exchange) PublishP2PAdOrder(ctx context.Context, arg *PublishP2PAdReque
 		return errP2PMinAmountRequired
 	}
 	var resp p2pAPIResponse[struct{}]
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/books/publish_ad_order", nil, arg, &resp)
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/books/place_biz_push_order", nil, arg, &resp)
 }
 
 // UpdateP2PAdStatus updates the status of a P2P advertisement.
@@ -233,7 +231,7 @@ func (e *Exchange) GetP2PAdDetails(ctx context.Context, arg *GetP2PAdDetailsRequ
 		return nil, errP2PAdIDRequired
 	}
 	var resp p2pAPIResponse[P2PAdDetail]
-	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/books/ad_detail", nil, arg, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/books/ads_detail", nil, arg, &resp)
 }
 
 // GetMyP2PAds retrieves the current user's P2P advertisements.
@@ -244,6 +242,9 @@ func (e *Exchange) GetMyP2PAds(ctx context.Context, arg *GetMyP2PAdsRequest) (*P
 
 // GetP2PAdList retrieves the public P2P advertisement list for a given asset/fiat pair and trade side.
 func (e *Exchange) GetP2PAdList(ctx context.Context, arg *GetP2PAdsListRequest) ([]*P2PAdListItem, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	if arg.Asset.IsEmpty() {
 		return nil, fmt.Errorf("%w P2P asset required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -258,40 +259,48 @@ func (e *Exchange) GetP2PAdList(ctx context.Context, arg *GetP2PAdsListRequest) 
 }
 
 // GetP2PChatHistory retrieves the chat history for a P2P order.
-func (e *Exchange) GetP2PChatHistory(ctx context.Context, transactionID, counterparty int64) ([]*P2PChatMessage, error) {
-	if transactionID == 0 {
-		return nil, order.ErrOrderIDNotSet
+func (e *Exchange) GetP2PChatHistory(ctx context.Context, transactionID, lastReceived, firstReceived int64) (*P2PChatMessagesResponse, error) {
+	arg := make(map[string]int64)
+	if transactionID > 0 {
+		arg["txid"] = transactionID
 	}
-	params := url.Values{}
-	params.Set("txid", strconv.FormatInt(transactionID, 10))
-	if counterparty > 0 {
-		params.Set("counterparty", strconv.FormatInt(counterparty, 10))
+	if lastReceived > 0 {
+		arg["lastreceived"] = lastReceived
 	}
-	var resp p2pAPIResponse[[]*P2PChatMessage]
-	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "p2p/merchant/chat/history", params, nil, &resp)
+	if firstReceived > 0 {
+		arg["firstreceived"] = firstReceived
+	}
+	var resp p2pAPIResponse[*P2PChatMessagesResponse]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/chat/get_chats_list", nil, arg, &resp)
 }
 
 // SendP2PChatMessage sends a chat message for a P2P order.
 // Type: 0=text (default), 1=file; for file type pass the file_key from UploadP2PChatFile as Message.
 func (e *Exchange) SendP2PChatMessage(ctx context.Context, arg *SendP2PChatMessageRequest) (*P2PSendMessageResult, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	if arg.TransactionID == 0 {
 		return nil, order.ErrOrderIDNotSet
 	}
 	if arg.Message == "" {
 		return nil, errP2PMessageRequired
 	}
-	var resp p2pAPIResponse[P2PSendMessageResult]
-	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/chat/send_chat_message", nil, arg, &resp)
+	var resp p2pAPIResponse[*P2PSendMessageResult]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/chat/send_chat_message", nil, arg, &resp)
 }
 
 // UploadP2PChatFile uploads a file for use in P2P chat.
 func (e *Exchange) UploadP2PChatFile(ctx context.Context, arg *UploadP2PChatFileRequest) (*P2PUploadFileResult, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	if arg.ImageContentType == "" {
 		return nil, errP2PImageTypeRequired
 	}
 	if arg.Base64Img == "" {
 		return nil, errP2PImageDataRequired
 	}
-	var resp p2pAPIResponse[P2PUploadFileResult]
-	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/chat/upload_chat_file", nil, arg, &resp)
+	var resp p2pAPIResponse[*P2PUploadFileResult]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/chat/upload_chat_file", nil, arg, &resp)
 }

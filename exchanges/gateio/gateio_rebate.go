@@ -204,3 +204,24 @@ func (e *Exchange) GetUserSubordinateRelationship(ctx context.Context, userIDLis
 	var resp *UserSubordinateRelationResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/user/sub_relation", params, nil, &resp)
 }
+
+// GetRecentPartnerApplicationRecords retrieves the current user's recent partner application records.
+func (e *Exchange) GetRecentPartnerApplicationRecords(ctx context.Context) (*RecentPartnerApplicationRecords, error) {
+	var resp *RecentPartnerApplicationRecords
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/partner/applications/recent", nil, nil, &resp)
+}
+
+// CheckPartnerApplicationEligibility check partner application eligibility
+func (e *Exchange) CheckPartnerApplicationEligibility(ctx context.Context) (*RebaseEligibilityResponse, error) {
+	var resp *RebaseEligibilityResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/partner/eligibility", nil, nil, &resp)
+}
+
+// GetAggregatedPartnerAgentStatistics retrieves aggregated partner agent statistics
+func (e *Exchange) GetAggregatedPartnerAgentStatistics(ctx context.Context, arg *RebateAggregatedStatistics) (*RebateAgentStatisticsResponse, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
+	var resp *RebateAgentStatisticsResponse
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/partner/data/aggregated", nil, nil, &resp)
+}

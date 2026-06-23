@@ -69,12 +69,6 @@ func (e *Exchange) CreateStablecoinOrder(ctx context.Context, arg *OTCStablecoin
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "otc/stable_coin/order/create", nil, arg, &resp)
 }
 
-// GetUserDefaultBankAccount retrieves the user's default bank account information.
-func (e *Exchange) GetUserDefaultBankAccount(ctx context.Context) (*OTCUserDefaultBankData, error) {
-	var resp otcAPIResponse[*OTCUserDefaultBankData]
-	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "otc/get_user_def_bank", nil, nil, &resp)
-}
-
 // GetUserBankCardList retrieves the user's bank card list.
 func (e *Exchange) GetUserBankCardList(ctx context.Context) ([]*OTCBankCard, error) {
 	var resp otcAPIResponse[*OTCBankCardListData]
