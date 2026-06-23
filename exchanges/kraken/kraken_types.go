@@ -69,10 +69,6 @@ const (
 	futuresTransfers         = "/api/v3/transfers"
 	futuresEditOrder         = "/api/v3/editorder"
 
-	// Rate limit consts
-	krakenRateInterval = time.Second
-	krakenRequestRate  = 1
-
 	// Status consts
 	statusOpen = "open"
 )
