@@ -70,6 +70,16 @@ type P2PCounterpartyInfo struct {
 	CompleteTransactionsMonth string `json:"complete_transactions_month"`
 	CancelledUserTimeMonth    string `json:"cancelled_user_time_month"`
 	CompleteRateMonth         string `json:"complete_rate_month"`
+	UserTimest                string `json:"user_timest"`
+	AcceptedTransactions      string `json:"accepted_transactions"`
+	TransactionsUsedTime      string `json:"transactions_used_time"`
+	CancelledUsedTimeMonth    string `json:"cancelled_used_time_month"`
+	IsFollow                  uint64 `json:"is_follow"`
+	HaveTraded                uint64 `json:"have_traded"`
+	BizUID                    string `json:"biz_uid"`
+	RegistrationDays          uint64 `json:"registration_days"`
+	FirstTradeDays            uint64 `json:"first_trade_days"`
+	TradeVersatile            bool   `json:"trade_versatile"`
 }
 
 // GetP2PPaymentMethodsRequest holds the request parameters for getting payment methods.
@@ -87,20 +97,195 @@ type P2PPaymentMethodGroup struct {
 
 // P2PPaymentMethod holds a single bound payment method account.
 type P2PPaymentMethod struct {
-	UID         uint64 `json:"uid"`
-	Bank        string `json:"bank"`
-	BankName    string `json:"bankname"`
-	BankBranch  string `json:"bankbranch"`
-	BankAddress string `json:"bankaddress"`
-	HoldNote    string `json:"hold_note"`
-	HoldSign    uint64 `json:"hold_sign"`
-	RealName    string `json:"real_name"`
-	AccountNo   string `json:"account_no"`
-	TitleKey    string `json:"title_key"`
-	MemoAll     string `json:"memo_all"`
-	NoteMask    string `json:"note_mask"`
-	Memo        string `json:"memo"`
-	TradeType   string `json:"trade_type"`
+	UID                   uint64 `json:"uid"`
+	ID                    string `json:"id"`
+	BankID                string `json:"bankid"`
+	BankName              string `json:"bankname"`
+	BankBranch            string `json:"bankbranch"`
+	BankAddress           string `json:"bankaddr"`
+	BankCity              string `json:"bankcity"`
+	BankProvince          string `json:"bankprov"`
+	BankDescription       string `json:"bankdesc"`
+	RealName              string `json:"real_name"`
+	AccountDescription    string `json:"account_des"`
+	BankHolderUID         string `json:"hold_uid"`
+	BankHoderUsername     string `json:"hold_username"`
+	PaymentMethodType     string `json:"pay_type"`
+	PaymentMethodFileLink string `json:"file"`
+	PaymentMethodFileKey  string `json:"file_key"`
+	Account               string `json:"account"`
+	Memo                  string `json:"memo"`
+	Code                  string `json:"code"`
+	MemoExtended          string `json:"memo_ext"`
+	TradeTips             string `json:"trade_tips"`
+	Version               string `json:"version"`
+	Nickname              int    `json:"nickname"`
+}
+
+// SetMerchantWorkHoursRequest represents request paramters to sent merchant working hour
+type SetMerchantWorkHoursRequest struct {
+	WorkStatus int64  `json:"work_status"`
+	CycleType  string `json:"cycle_type"`
+	DayOfWeek  string `json:"day_of_week"`
+	TimeZone   string `json:"time_zone"`
+	StartTime  string `json:"start_time"`
+	EndTime    string `json:"end_time"`
+}
+
+// WorkStatusResponse represents a response payload after setting working time
+type WorkStatusResponse struct {
+	WorkStatus int64 `json:"work_status"`
+}
+
+// PendingP2POrderRequest represents a p2p order request parameter
+type PendingP2POrderRequest struct {
+	CryptoCurrency currency.Code `json:"crypto_currency"`
+	FiatCurrency   currency.Code `json:"fiat_currency"`
+	OrderTab       string        `json:"order_tab"`
+	SelectType     string        `json:"select_type"`
+	Status         string        `json:"status"`
+	TransatinoID   uint64        `json:"txid"`
+	StartTime      uint64        `json:"start_time"`
+	EndTime        uint64        `json:"end_time"`
+}
+
+// P2POrderList represents a P2P transactions detail list
+type P2POrderList struct {
+	List      []*P2POrderInfo `json:"list"`
+	TransTime []struct {
+		OdTime int `json:"od_time"`
+	} `json:"trans_time"`
+	Count       int `json:"count"`
+	ExportedNum int `json:"exported_num"`
+}
+
+// P2POrderInfo represents a P2P order detail instance
+type P2POrderInfo struct {
+	TypeBuy        int64                `json:"type_buy"`
+	Timest         string               `json:"timest"`
+	TimestExpire   string               `json:"timest_expire"`
+	Timestamp      types.Time           `json:"timestamp"`
+	Rate           types.Number         `json:"rate"`
+	Amount         types.Number         `json:"amount"`
+	Total          types.Number         `json:"total"`
+	TransactionID  uint64               `json:"txid"`
+	Status         string               `json:"status"`
+	ItsRealname    string               `json:"its_realname"`
+	ItsUID         string               `json:"its_uid"`
+	ItsNick        string               `json:"its_nick"`
+	SellerRealname string               `json:"seller_realname"`
+	BuyerRealname  string               `json:"buyer_realname"`
+	Cancelable     int64                `json:"cancelable"`
+	CurrencyType   string               `json:"currency_type"`
+	WantType       string               `json:"want_type"`
+	HidePayment    int64                `json:"hide_payment"`
+	SelPaytype     string               `json:"sel_paytype"`
+	CountdownTime  int64                `json:"cd_time"`
+	OrderType      int64                `json:"order_type"`
+	OrderTag       []string             `json:"order_tag"`
+	ConvertInfo    *P2PConvertInfo      `json:"convert_info"`
+	PayOthers      []OtherPaymentMethod `json:"pay_others"`
+	IsSelf         uint64               `json:"is_self"`
+	BizID          uint64               `json:"bizid"`
+	LastPayTime    types.Number         `json:"last_pay_time"`
+	Type           string               `json:"type"`
+	TotalFiat      string               `json:"totalfat"`
+	DisputeTime    types.Time           `json:"dispute_time"`
+	TradeType      string               `json:"trade_type"`
+	TradeNote      string               `json:"trade_note"`
+	BankName       string               `json:"bankname"`
+	BankBranch     string               `json:"bankbranch"`
+}
+
+// P2POrderDetail represents a P2P order detail
+type P2POrderDetail struct {
+	IsSell                int64                `json:"is_sell"`
+	Txid                  int64                `json:"txid"`
+	Orderid               int64                `json:"orderid"`
+	Timest                int64                `json:"timest"`
+	LastPayTime           int64                `json:"last_pay_time"`
+	RemainPayTime         int64                `json:"remain_pay_time"`
+	CurrencyType          string               `json:"currency_type"`
+	WantType              string               `json:"want_type"`
+	Symbol                currency.Pair        `json:"symbol"`
+	Rate                  types.Number         `json:"rate"`
+	Amount                types.Number         `json:"amount"`
+	Total                 types.Number         `json:"total"`
+	Status                string               `json:"status"`
+	ReasonID              string               `json:"reason_id"`
+	ReasonDesc            string               `json:"reason_desc"`
+	CancelTime            types.Time           `json:"cancel_time"`
+	InAppeal              int64                `json:"in_appeal"`
+	DisputeTime           types.Number         `json:"dispute_time"`
+	Cancelable            int64                `json:"cancelable"`
+	HidePayment           int64                `json:"hide_payment"`
+	TradeTips             string               `json:"trade_tips"`
+	ShowBank              string               `json:"show_bank"`
+	BankName              string               `json:"bankname"`
+	BankBranch            string               `json:"bankbranch"`
+	BankID                string               `json:"bankid"`
+	BankHolderRealname    string               `json:"bank_holder_realname"`
+	ShowAlipayDetail      string               `json:"show_ali"`
+	Aliname               string               `json:"aliname"`
+	IsAlicode             int64                `json:"is_alicode"`
+	ShowWechat            string               `json:"show_wechat"`
+	Wename                string               `json:"wename"`
+	ShowOthers            string               `json:"show_others"`
+	PayOthers             []OtherPaymentMethod `json:"pay_others"`
+	SelPaytype            string               `json:"sel_paytype"`
+	ItsUID                string               `json:"its_uid"`
+	ItsNickname           string               `json:"its_nickname"`
+	ItsRealname           string               `json:"its_realname"`
+	HaveTraded            int64                `json:"have_traded"`
+	AppealAllowCancel     int64                `json:"appeal_allow_cancel"`
+	AppealVerdictHasOpen  string               `json:"appeal_verdict_has_open"`
+	ImUnread              int64                `json:"im_unread"`
+	PaymentVoucherURL     []string             `json:"payment_voucher_url"`
+	TimestPaid            int64                `json:"timest_paid"`
+	OwnRealname           string               `json:"own_realname"`
+	OrderType             int64                `json:"order_type"`
+	IsShowReceive         int64                `json:"is_show_receive"`
+	ShowSellerContactInfo bool                 `json:"show_seller_contact_info"`
+	SupportedPayTypes     []string             `json:"supported_pay_types"`
+}
+
+// OtherPaymentMethod represents other payment methods detail
+type OtherPaymentMethod struct {
+	ID                         string `json:"id"`
+	PaymentAccountDescriptions string `json:"account_des"`
+	PayType                    string `json:"pay_type"`
+	PayName                    string `json:"pay_name"`
+	Account                    string `json:"account"`
+	Memo                       string `json:"memo"`
+	TradeTips                  string `json:"trade_tips"`
+}
+
+// P2PConvertInfo represents a P2P order transction convert info
+type P2PConvertInfo struct {
+	ConvertType         string       `json:"convert_type"`
+	ConvertStatus       string       `json:"convert_status"`
+	ExpectedPriceRate   types.Number `json:"pre_rate"`
+	ExecutionRate       types.Number `json:"rate"`
+	ExpectedFiatPrice   types.Number `json:"pre_fiat_rate"`
+	FiatRate            types.Number `json:"fiat_rate"`
+	Amount              types.Number `json:"amount"`
+	SwapAmount          types.Number `json:"convert_amount"`
+	SlippageCalculation types.Number `json:"slippage"`
+	Status              string       `json:"status"`
+}
+
+// P2PCompletedOrderRequest holds request parameters to retrieve completed p2p orders
+type P2PCompletedOrderRequest struct {
+	CryptoCurrency currency.Code `json:"crypto_currency"`
+	FiatCurrency   currency.Code `json:"fiat_currency"`
+	SelectType     string        `json:"select_type"`
+	Status         string        `json:"status"`
+	TransactionID  int64         `json:"txid"`
+	StartTime      int64         `json:"start_time"`
+	EndTime        int64         `json:"end_time"`
+	QueryDispute   int64         `json:"query_dispute"`
+	Page           int64         `json:"page"`
+	PerPage        int64         `json:"per_page"`
 }
 
 // GetP2POrdersRequest holds request parameters for getting pending P2P orders.
@@ -142,26 +327,6 @@ type P2POrderItem struct {
 type GetP2POrderDetailsRequest struct {
 	TransactionID uint64 `json:"txid"`
 	Channel       string `json:"channel,omitempty"`
-}
-
-// P2POrderDetail holds detailed P2P order information.
-type P2POrderDetail struct {
-	IsSelf        uint64       `json:"is_self"`
-	TransactionID uint64       `json:"txid"`
-	OrderID       uint64       `json:"orderid"`
-	BizID         uint64       `json:"bizid"`
-	LastPayTime   types.Number `json:"last_pay_time"`
-	Type          string       `json:"type"`
-	Status        int64        `json:"status"`
-	Amount        types.Number `json:"amount"`
-	TotalFiat     string       `json:"totalfat"`
-	ReasonDesc    string       `json:"reason_desc"`
-	ReasonNote    int64        `json:"reason_note"`
-	DisputeTime   types.Time   `json:"dispute_time"`
-	TradeType     string       `json:"trade_type"`
-	TradeNote     string       `json:"trade_note"`
-	BankName      string       `json:"bankname"`
-	BankBranch    string       `json:"bankbranch"`
 }
 
 // ConfirmP2PPaymentRequest holds request parameters for confirming P2P payment.

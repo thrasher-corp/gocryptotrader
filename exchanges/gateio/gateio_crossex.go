@@ -305,14 +305,14 @@ func (e *Exchange) GetCrossExchangeMarginPositions(ctx context.Context, symbol, 
 }
 
 // GetCrossExchangeADLRank retrieves the ADL (Auto-Deleveraging) position reduction ranking for a CrossEx symbol.
-func (e *Exchange) GetCrossExchangeADLRank(ctx context.Context, symbol string) ([]*CrossExchangeAdlRank, error) {
+func (e *Exchange) GetCrossExchangeADLRank(ctx context.Context, symbol string) ([]*CrossExchangeADLRank, error) {
 	if symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	params := url.Values{}
 	params.Set("symbol", symbol)
-	var resp []*CrossExchangeAdlRank
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexAdlRankEPL, http.MethodGet, "crossex/adl_rank", params, nil, &resp)
+	var resp []*CrossExchangeADLRank
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexADLRankEPL, http.MethodGet, "crossex/adl_rank", params, nil, &resp)
 }
 
 // GetCrossExchangeOpenOrders retrieves all currently open CrossEx orders.

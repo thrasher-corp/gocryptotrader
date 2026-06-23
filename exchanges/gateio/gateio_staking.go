@@ -9,30 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
-
-// SwapETH2 swaps ETH2
-// 1-Forward Swap (ETH -> ETH2), 2-Reverse Swap (ETH2 -> ETH
-func (e *Exchange) SwapETH2(ctx context.Context, arg *SwapETHParam) error {
-	if err := common.NilGuard(arg); err != nil {
-		return err
-	}
-	if arg.Side == "" {
-		return order.ErrSideIsInvalid
-	}
-	if arg.Amount <= 0 {
-		return order.ErrAmountIsInvalid
-	}
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodPost, "earn/staking/eth2/swap", nil, arg, nil)
-}
-
-// GetETH2HistoricalReturnRate gets ETH2 historical return rate
-// Query ETH earnings rate records for the last 31 days
-func (e *Exchange) GetETH2HistoricalReturnRate(ctx context.Context) ([]*ETH2ReturnRate, error) {
-	var resp []*ETH2ReturnRate
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/staking/eth2/rate_records", nil, nil, &resp)
-}
 
 // GetStakingCoins retrieves a list of on-chain staking coin products.
 func (e *Exchange) GetStakingCoins(ctx context.Context, coinType string) ([]*StakingCoin, error) {
@@ -86,7 +63,7 @@ func (e *Exchange) GetStakingDividendRecords(ctx context.Context, ccy currency.C
 		params.Set("coin", ccy.String())
 	}
 	if page > 0 {
-		params.Set("page", strconv.FormatInt(int64(page), 10))
+		params.Set("page", strconv.FormatInt(page, 10))
 	}
 	var resp *StakingDividendRecordsResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/staking/award_list", params, nil, &resp)

@@ -192,10 +192,10 @@ func (e *Exchange) WsHandleFuturesData(ctx context.Context, conn websocket.Conne
 		return e.procesFuturesUserTrades(respRaw, a)
 	case futuresLiquidatesChannel:
 		var data struct {
-			Time    types.Time                         `json:"time"`
-			Channel string                             `json:"channel"`
-			Event   string                             `json:"event"`
-			Result  []WsFuturesLiquidationNotification `json:"result"`
+			Time    types.Time                          `json:"time"`
+			Channel string                              `json:"channel"`
+			Event   string                              `json:"event"`
+			Result  []*WsFuturesLiquidationNotification `json:"result"`
 		}
 		return e.processResponse(ctx, respRaw, &data)
 	case futuresAutoDeleveragesChannel:

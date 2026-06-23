@@ -312,7 +312,7 @@ const (
 	crossexFeeEPL
 	crossexPositionsEPL
 	crossexMarginPositionsEPL
-	crossexAdlRankEPL
+	crossexADLRankEPL
 	crossexOpenOrdersEPL
 	crossexHistoryOrdersEPL
 	crossexHistoryPositionsEPL
@@ -629,7 +629,7 @@ var packageRateLimits = request.RateLimitDefinitions{
 	crossexFeeEPL:                           standardRateLimit(),
 	crossexPositionsEPL:                     standardRateLimit(),
 	crossexMarginPositionsEPL:               standardRateLimit(),
-	crossexAdlRankEPL:                       standardRateLimit(),
+	crossexADLRankEPL:                       standardRateLimit(),
 	crossexOpenOrdersEPL:                    standardRateLimit(),
 	crossexHistoryOrdersEPL:                 standardRateLimit(),
 	crossexHistoryPositionsEPL:              standardRateLimit(),

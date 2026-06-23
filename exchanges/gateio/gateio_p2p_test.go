@@ -33,12 +33,66 @@ func TestGetP2PCounterpartyInfo(t *testing.T) {
 
 func TestGetP2PPaymentMethods(t *testing.T) {
 	t.Parallel()
+
+	_, err := e.GetP2PPaymentMethods(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.GetP2PPaymentMethods(t.Context(), &GetP2PPaymentMethodsRequest{})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 
 	result, err = e.GetP2PPaymentMethods(t.Context(), &GetP2PPaymentMethodsRequest{Fiat: "USD"})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestSetMerchantWorkingStatusAndCustomWorking(t *testing.T) {
+	t.Parallel()
+
+	_, err := e.SetMerchantWorkingStatusAndCustomWorking(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.SetMerchantWorkingStatusAndCustomWorking(t.Context(), &SetMerchantWorkHoursRequest{})
+	require.ErrorIs(t, err, errP2PWorkStatusMissing)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.SetMerchantWorkingStatusAndCustomWorking(t.Context(), &SetMerchantWorkHoursRequest{WorkStatus: 1})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetPendingP2POrders(t *testing.T) {
+	t.Parallel()
+
+	_, err := e.GetPendingP2POrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.GetPendingP2POrders(t.Context(), &PendingP2POrderRequest{})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.GetPendingP2POrders(t.Context(), &PendingP2POrderRequest{CryptoCurrency: currency.USDT})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetPendingP2POrders(t.Context(), &PendingP2POrderRequest{CryptoCurrency: currency.USDT, FiatCurrency: currency.USD})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetHistoricalP2POrders(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetHistoricalP2POrders(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.GetHistoricalP2POrders(t.Context(), &P2PCompletedOrderRequest{})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.GetHistoricalP2POrders(t.Context(), &P2PCompletedOrderRequest{CryptoCurrency: currency.USDT})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+	result, err := e.GetHistoricalP2POrders(t.Context(), &P2PCompletedOrderRequest{CryptoCurrency: currency.USDT, FiatCurrency: currency.USD})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -96,7 +150,10 @@ func TestConfirmP2PReceipt(t *testing.T) {
 
 func TestCancelP2POrder(t *testing.T) {
 	t.Parallel()
-	err := e.CancelP2POrder(t.Context(), &CancelP2POrderRequest{})
+	err := e.CancelP2POrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	err = e.CancelP2POrder(t.Context(), &CancelP2POrderRequest{})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -106,7 +163,10 @@ func TestCancelP2POrder(t *testing.T) {
 
 func TestPublishP2PAdOrder(t *testing.T) {
 	t.Parallel()
-	err := e.PublishP2PAdOrder(t.Context(), &PublishP2PAdRequest{})
+	err := e.PublishP2PAdOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	err = e.PublishP2PAdOrder(t.Context(), &PublishP2PAdRequest{})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	arg := &PublishP2PAdRequest{Asset: currency.USDT}
@@ -142,7 +202,10 @@ func TestPublishP2PAdOrder(t *testing.T) {
 
 func TestUpdateP2PAdStatus(t *testing.T) {
 	t.Parallel()
-	_, err := e.UpdateP2PAdStatus(t.Context(), &UpdateP2PAdStatusRequest{AdvNo: 0, AdvStatus: 1})
+	_, err := e.UpdateP2PAdStatus(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.UpdateP2PAdStatus(t.Context(), &UpdateP2PAdStatusRequest{AdvNo: 0, AdvStatus: 1})
 	require.ErrorIs(t, err, errP2PAdIDRequired)
 
 	_, err = e.UpdateP2PAdStatus(t.Context(), &UpdateP2PAdStatusRequest{AdvNo: 2124000001, AdvStatus: 2})
@@ -156,7 +219,10 @@ func TestUpdateP2PAdStatus(t *testing.T) {
 
 func TestGetP2PAdDetails(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetP2PAdDetails(t.Context(), &GetP2PAdDetailsRequest{})
+	_, err := e.GetP2PAdDetails(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.GetP2PAdDetails(t.Context(), &GetP2PAdDetailsRequest{})
 	require.ErrorIs(t, err, errP2PAdIDRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)

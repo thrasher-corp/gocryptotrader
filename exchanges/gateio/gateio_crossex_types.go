@@ -285,12 +285,12 @@ type CrossExchangeMarginPosition struct {
 	ExchangeType      string        `json:"exchange_type"`
 }
 
-// CrossExchangeAdlRank holds the ADL position reduction ranking for a CrossEx position.
-type CrossExchangeAdlRank struct {
+// CrossExchangeADLRank holds the ADL position reduction ranking for a CrossEx position.
+type CrossExchangeADLRank struct {
 	UserID               string `json:"user_id"`
 	Symbol               string `json:"symbol"`
-	CrossExchangeAdlRank string `json:"crossex_adl_rank"`
-	ExchangeAdlRank      string `json:"exchange_adl_rank"`
+	CrossExchangeADLRank string `json:"crossex_adl_rank"`
+	ExchangeADLRank      string `json:"exchange_adl_rank"`
 }
 
 // GetCrossExchangeOpenOrdersRequest holds query parameters for the open orders endpoint.

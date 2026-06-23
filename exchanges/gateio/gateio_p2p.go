@@ -28,6 +28,7 @@ var (
 	errP2PMessageRequired   = errors.New("P2P chat message required")
 	errP2PImageTypeRequired = errors.New("P2P image content type required")
 	errP2PImageDataRequired = errors.New("P2P base64 image data required")
+	errP2PWorkStatusMissing = errors.New("work status missing")
 )
 
 // GetP2PAccountInfo retrieves the current user's P2P merchant account information.
@@ -47,8 +48,55 @@ func (e *Exchange) GetP2PCounterpartyInfo(ctx context.Context, arg *GetCounterpa
 
 // GetP2PPaymentMethods retrieves the current user's bound P2P payment methods.
 func (e *Exchange) GetP2PPaymentMethods(ctx context.Context, arg *GetP2PPaymentMethodsRequest) ([]*P2PPaymentMethodGroup, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	var resp p2pAPIResponse[[]*P2PPaymentMethodGroup]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/account/get_myself_payment", nil, arg, &resp)
+}
+
+// SetMerchantWorkingStatusAndCustomWorking set merchant working status and custom working hours
+// Working status. 0: resting, 1: working, 2: using custom working hours
+// Custom working cycle; required when work_status is 2
+func (e *Exchange) SetMerchantWorkingStatusAndCustomWorking(ctx context.Context, arg *SetMerchantWorkHoursRequest) (*WorkStatusResponse, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
+	if arg.WorkStatus == 0 {
+		return nil, errP2PWorkStatusMissing
+	}
+	var resp p2pAPIResponse[*WorkStatusResponse]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/account/set_merchant_work_hours", nil, arg, &resp)
+}
+
+// GetPendingP2POrders retrieves a list of pending p2p order.
+func (e *Exchange) GetPendingP2POrders(ctx context.Context, arg *PendingP2POrderRequest) (*P2POrderList, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
+	if arg.CryptoCurrency.IsEmpty() {
+		return nil, fmt.Errorf("%w crypto currency is missing", currency.ErrCurrencyCodeEmpty)
+	}
+	if arg.FiatCurrency.IsEmpty() {
+		return nil, fmt.Errorf("%w fiat currency is missing", currency.ErrCurrencyCodeEmpty)
+	}
+	var resp p2pAPIResponse[*P2POrderList]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/transaction/get_pending_transaction_list", nil, arg, &resp)
+}
+
+// GetHistoricalP2POrders retrieves a list of completed p2p orders
+func (e *Exchange) GetHistoricalP2POrders(ctx context.Context, arg *P2PCompletedOrderRequest) (*P2POrderList, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
+	if arg.CryptoCurrency.IsEmpty() {
+		return nil, fmt.Errorf("%w crypto currency is missing", currency.ErrCurrencyCodeEmpty)
+	}
+	if arg.FiatCurrency.IsEmpty() {
+		return nil, fmt.Errorf("%w fiat currency is missing", currency.ErrCurrencyCodeEmpty)
+	}
+	var resp p2pAPIResponse[*P2POrderList]
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/transaction/get_completed_transaction_list", nil, arg, &resp)
 }
 
 // GetP2PPendingOrders retrieves the current user's active (pending) P2P orders.
@@ -82,6 +130,9 @@ func (e *Exchange) GetP2PHistoricalOrders(ctx context.Context, from, to time.Tim
 // GetP2POrderDetails retrieves detailed information for a specific P2P order.
 // Channel is optional; use "web3" for Web3 orders, omit for normal P2P orders.
 func (e *Exchange) GetP2POrderDetails(ctx context.Context, arg *GetP2POrderDetailsRequest) (*P2POrderDetail, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	if arg.TransactionID == 0 {
 		return nil, order.ErrOrderIDNotSet
 	}
@@ -91,6 +142,9 @@ func (e *Exchange) GetP2POrderDetails(ctx context.Context, arg *GetP2POrderDetai
 
 // ConfirmP2PPayment confirms that payment has been made for a P2P order.
 func (e *Exchange) ConfirmP2PPayment(ctx context.Context, arg *ConfirmP2PPaymentRequest) error {
+	if err := common.NilGuard(arg); err != nil {
+		return err
+	}
 	if arg.TransactionID == "" {
 		return order.ErrOrderIDNotSet
 	}
@@ -100,6 +154,9 @@ func (e *Exchange) ConfirmP2PPayment(ctx context.Context, arg *ConfirmP2PPayment
 
 // ConfirmP2PReceipt confirms that payment has been received for a P2P order.
 func (e *Exchange) ConfirmP2PReceipt(ctx context.Context, arg *ConfirmP2PReceiptRequest) error {
+	if err := common.NilGuard(arg); err != nil {
+		return err
+	}
 	if arg.TransactionID == "" {
 		return order.ErrOrderIDNotSet
 	}
@@ -110,6 +167,9 @@ func (e *Exchange) ConfirmP2PReceipt(ctx context.Context, arg *ConfirmP2PReceipt
 // CancelP2POrder cancels a P2P order.
 // ReasonID and ReasonMemo are optional; ReasonMemo is required when ReasonID is 0.
 func (e *Exchange) CancelP2POrder(ctx context.Context, arg *CancelP2POrderRequest) error {
+	if err := common.NilGuard(arg); err != nil {
+		return err
+	}
 	if arg.TransactionID == "" {
 		return order.ErrOrderIDNotSet
 	}
@@ -120,6 +180,9 @@ func (e *Exchange) CancelP2POrder(ctx context.Context, arg *CancelP2POrderReques
 // PublishP2PAdOrder publishes a new P2P advertisement.
 // PriceType: 1=floating (uses PremiumRatio), 2=fixed (uses FixedPrice).
 func (e *Exchange) PublishP2PAdOrder(ctx context.Context, arg *PublishP2PAdRequest) error {
+	if err := common.NilGuard(arg); err != nil {
+		return err
+	}
 	if arg.Asset.IsEmpty() {
 		return fmt.Errorf("%w P2P asset required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -148,6 +211,9 @@ func (e *Exchange) PublishP2PAdOrder(ctx context.Context, arg *PublishP2PAdReque
 // UpdateP2PAdStatus updates the status of a P2P advertisement.
 // AdvStatus: 1=listed, 3=delisted, 4=closed.
 func (e *Exchange) UpdateP2PAdStatus(ctx context.Context, arg *UpdateP2PAdStatusRequest) (*P2PUpdateAdStatusResult, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	if arg.AdvNo == 0 {
 		return nil, fmt.Errorf("%w: adv_no is required", errP2PAdIDRequired)
 	}
@@ -160,6 +226,9 @@ func (e *Exchange) UpdateP2PAdStatus(ctx context.Context, arg *UpdateP2PAdStatus
 
 // GetP2PAdDetails retrieves detailed information for a specific P2P advertisement.
 func (e *Exchange) GetP2PAdDetails(ctx context.Context, arg *GetP2PAdDetailsRequest) (*P2PAdDetail, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	if arg.AdvNo == "" {
 		return nil, errP2PAdIDRequired
 	}

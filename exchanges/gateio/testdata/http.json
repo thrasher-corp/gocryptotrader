@@ -11837,6 +11837,63 @@
      "queryString": "currency_pair=BTC_USDT\u0026page=1\u0026reverse=true",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": [
+      {
+       "amount": "0.029077",
+       "create_time": "1775423972",
+       "create_time_ms": "1775423972061.432000",
+       "currency_pair": "BTC_USDT",
+       "id": "192742010",
+       "price": "67502.7",
+       "sequence_id": "192742010",
+       "side": "buy"
+      },
+      {
+       "amount": "0.002405",
+       "create_time": "1775423970",
+       "create_time_ms": "1775423970493.731000",
+       "currency_pair": "BTC_USDT",
+       "id": "192742009",
+       "price": "67502.7",
+       "sequence_id": "192742009",
+       "side": "buy"
+      },
+      {
+       "amount": "0.41442",
+       "create_time": "1775423969",
+       "create_time_ms": "1775423969022.970000",
+       "currency_pair": "BTC_USDT",
+       "id": "192742008",
+       "price": "67502.6",
+       "sequence_id": "192742008",
+       "side": "sell"
+      },
+      {
+       "amount": "0.39815",
+       "create_time": "1775423967",
+       "create_time_ms": "1775423967535.445000",
+       "currency_pair": "BTC_USDT",
+       "id": "192742007",
+       "price": "67502.6",
+       "sequence_id": "192742007",
+       "side": "sell"
+      },
+      {
+       "amount": "0.364043",
+       "create_time": "1775423964",
+       "create_time_ms": "1775423964604.279000",
+       "currency_pair": "BTC_USDT",
+       "id": "192742006",
+       "price": "67502.6",
+       "sequence_id": "192742006",
+       "side": "sell"
+      }
+     ],
+     "queryString": "currency_pair=BTC_USDT\u0026from=1744103854\u0026limit=100\u0026page=1\u0026reverse=true\u0026to=1744190254",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },

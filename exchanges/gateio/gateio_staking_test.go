@@ -55,10 +55,3 @@ func TestGetStakingAssets(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
-
-func TestGetETH2HistoricalReturnRate(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetETH2HistoricalReturnRate(t.Context())
-	require.NoError(t, err)
-}

@@ -17,8 +17,6 @@ import (
 
 func TestFetchWSOrderbookSnapshot(t *testing.T) {
 	t.Parallel()
-
-	e.Verbose = true
 	_, err := e.fetchWSOrderbookSnapshot(t.Context(), currency.NewBTCUSDT(), asset.Spread)
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 

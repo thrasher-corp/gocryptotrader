@@ -30,7 +30,6 @@ func (e *Exchange) GetFuturesRiskTable(ctx context.Context, settleCurrency curre
 	if settleCurrency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	println("tableID=", tableID)
 	if tableID == "" {
 		return nil, errTableIDEmpty
 	}
