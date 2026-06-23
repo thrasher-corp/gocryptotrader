@@ -108,7 +108,7 @@ func (e *Exchange) SynchroniseWebsocketOrderbook(ctx context.Context) {
 	e.Websocket.Wg.Go(func() {
 		for {
 			select {
-			case <-e.Websocket.ShutdownC:
+			case <-e.Websocket.ShutdownSignal():
 				for {
 					select {
 					case <-e.obm.jobs:
