@@ -12,7 +12,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 var (
@@ -32,7 +31,7 @@ var (
 // GetP2PAccountInfo retrieves the current user's P2P merchant account information.
 func (e *Exchange) GetP2PAccountInfo(ctx context.Context) (*P2PMerchantInfo, error) {
 	var resp p2pAPIResponse[P2PMerchantInfo]
-	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/account/get_user_info", nil, nil, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pAccountInfoEPL, http.MethodPost, "p2p/merchant/account/get_user_info", nil, nil, &resp)
 }
 
 // GetP2PCounterpartyInfo retrieves P2P user information for a counterparty by their biz_uid.
@@ -41,7 +40,7 @@ func (e *Exchange) GetP2PCounterpartyInfo(ctx context.Context, arg *GetCounterpa
 		return nil, errBizUIDRequired
 	}
 	var resp p2pAPIResponse[P2PCounterpartyInfo]
-	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/account/get_counterparty_user_info", nil, arg, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pCounterpartyInfoEPL, http.MethodPost, "p2p/merchant/account/get_counterparty_user_info", nil, arg, &resp)
 }
 
 // GetP2PPaymentMethods retrieves the current user's bound P2P payment methods.
@@ -50,7 +49,7 @@ func (e *Exchange) GetP2PPaymentMethods(ctx context.Context, arg *GetP2PPaymentM
 		return nil, err
 	}
 	var resp p2pAPIResponse[[]*P2PPaymentMethodGroup]
-	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/account/get_myself_payment", nil, arg, &resp)
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pPaymentMethodsEPL, http.MethodPost, "p2p/merchant/account/get_myself_payment", nil, arg, &resp)
 }
 
 // SetMerchantWorkingStatusAndCustomWorking set merchant working status and custom working hours
@@ -64,7 +63,7 @@ func (e *Exchange) SetMerchantWorkingStatusAndCustomWorking(ctx context.Context,
 		return nil, errP2PWorkStatusMissing
 	}
 	var resp p2pAPIResponse[*WorkStatusResponse]
-	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/account/set_merchant_work_hours", nil, arg, &resp)
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pSetWorkHoursEPL, http.MethodPost, "p2p/merchant/account/set_merchant_work_hours", nil, arg, &resp)
 }
 
 // GetPendingP2POrders retrieves a list of pending p2p order.
@@ -79,7 +78,7 @@ func (e *Exchange) GetPendingP2POrders(ctx context.Context, arg *PendingP2POrder
 		return nil, fmt.Errorf("%w fiat currency is missing", currency.ErrCurrencyCodeEmpty)
 	}
 	var resp p2pAPIResponse[*P2POrderList]
-	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/transaction/get_pending_transaction_list", nil, arg, &resp)
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pPendingTransactionsEPL, http.MethodPost, "p2p/merchant/transaction/get_pending_transaction_list", nil, arg, &resp)
 }
 
 // GetHistoricalP2POrders retrieves a list of completed p2p orders
@@ -94,13 +93,13 @@ func (e *Exchange) GetHistoricalP2POrders(ctx context.Context, arg *P2PCompleted
 		return nil, fmt.Errorf("%w fiat currency is missing", currency.ErrCurrencyCodeEmpty)
 	}
 	var resp p2pAPIResponse[*P2POrderList]
-	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/transaction/get_completed_transaction_list", nil, arg, &resp)
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pCompletedTransactionsEPL, http.MethodPost, "p2p/merchant/transaction/get_completed_transaction_list", nil, arg, &resp)
 }
 
 // GetP2PPendingOrders retrieves the current user's active (pending) P2P orders.
 func (e *Exchange) GetP2PPendingOrders(ctx context.Context, arg *GetP2POrdersRequest) (*P2POrdersData, error) {
 	var resp p2pAPIResponse[P2POrdersData]
-	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/transaction/my_list", nil, arg, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pMyListEPL, http.MethodPost, "p2p/merchant/transaction/my_list", nil, arg, &resp)
 }
 
 // GetP2PHistoricalOrders retrieves the current user's historical P2P orders.
@@ -122,7 +121,7 @@ func (e *Exchange) GetP2PHistoricalOrders(ctx context.Context, from, to time.Tim
 		arg.To = to.UnixMilli()
 	}
 	var resp p2pAPIResponse[P2POrdersData]
-	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/transaction/my_history_list", nil, arg, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pMyHistoryListEPL, http.MethodPost, "p2p/merchant/transaction/my_history_list", nil, arg, &resp)
 }
 
 // GetP2POrderDetails retrieves detailed information for a specific P2P order.
@@ -135,7 +134,7 @@ func (e *Exchange) GetP2POrderDetails(ctx context.Context, arg *GetP2POrderDetai
 		return nil, order.ErrOrderIDNotSet
 	}
 	var resp p2pAPIResponse[P2POrderDetail]
-	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/transaction/get_transaction_details", nil, arg, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pTransactionDetailsEPL, http.MethodPost, "p2p/merchant/transaction/get_transaction_details", nil, arg, &resp)
 }
 
 // ConfirmP2PPayment confirms that payment has been made for a P2P order.
@@ -147,7 +146,7 @@ func (e *Exchange) ConfirmP2PPayment(ctx context.Context, arg *ConfirmP2PPayment
 		return order.ErrOrderIDNotSet
 	}
 	var resp p2pAPIResponse[struct{}]
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/transaction/confirm-payment", nil, arg, &resp)
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pConfirmPaymentEPL, http.MethodPost, "p2p/merchant/transaction/confirm-payment", nil, arg, &resp)
 }
 
 // ConfirmP2PReceipt confirms that payment has been received for a P2P order.
@@ -159,7 +158,7 @@ func (e *Exchange) ConfirmP2PReceipt(ctx context.Context, arg *ConfirmP2PReceipt
 		return order.ErrOrderIDNotSet
 	}
 	var resp p2pAPIResponse[struct{}]
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/transaction/confirm-receipt", nil, arg, &resp)
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pConfirmReceiptEPL, http.MethodPost, "p2p/merchant/transaction/confirm-receipt", nil, arg, &resp)
 }
 
 // CancelP2POrder cancels a P2P order.
@@ -172,7 +171,7 @@ func (e *Exchange) CancelP2POrder(ctx context.Context, arg *CancelP2POrderReques
 		return order.ErrOrderIDNotSet
 	}
 	var resp p2pAPIResponse[struct{}]
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/transaction/cancel", nil, arg, &resp)
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pCancelTransactionEPL, http.MethodPost, "p2p/merchant/transaction/cancel", nil, arg, &resp)
 }
 
 // PublishP2PAdOrder publishes a new P2P advertisement.
@@ -203,7 +202,7 @@ func (e *Exchange) PublishP2PAdOrder(ctx context.Context, arg *PublishP2PAdReque
 		return errP2PMinAmountRequired
 	}
 	var resp p2pAPIResponse[struct{}]
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/books/place_biz_push_order", nil, arg, &resp)
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pPublishAdEPL, http.MethodPost, "p2p/merchant/books/place_biz_push_order", nil, arg, &resp)
 }
 
 // UpdateP2PAdStatus updates the status of a P2P advertisement.
@@ -219,7 +218,7 @@ func (e *Exchange) UpdateP2PAdStatus(ctx context.Context, arg *UpdateP2PAdStatus
 		return nil, errP2PAdStatusInvalid
 	}
 	var resp p2pAPIResponse[P2PUpdateAdStatusResult]
-	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/books/ads_update_status", nil, arg, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pUpdateAdStatusEPL, http.MethodPost, "p2p/merchant/books/ads_update_status", nil, arg, &resp)
 }
 
 // GetP2PAdDetails retrieves detailed information for a specific P2P advertisement.
@@ -231,13 +230,13 @@ func (e *Exchange) GetP2PAdDetails(ctx context.Context, arg *GetP2PAdDetailsRequ
 		return nil, errP2PAdIDRequired
 	}
 	var resp p2pAPIResponse[P2PAdDetail]
-	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/books/ads_detail", nil, arg, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pAdDetailEPL, http.MethodPost, "p2p/merchant/books/ads_detail", nil, arg, &resp)
 }
 
 // GetMyP2PAds retrieves the current user's P2P advertisements.
 func (e *Exchange) GetMyP2PAds(ctx context.Context, arg *GetMyP2PAdsRequest) (*P2PMyAdsData, error) {
 	var resp p2pAPIResponse[P2PMyAdsData]
-	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/books/my_ads_list", nil, arg, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pMyAdsListEPL, http.MethodPost, "p2p/merchant/books/my_ads_list", nil, arg, &resp)
 }
 
 // GetP2PAdList retrieves the public P2P advertisement list for a given asset/fiat pair and trade side.
@@ -255,7 +254,7 @@ func (e *Exchange) GetP2PAdList(ctx context.Context, arg *GetP2PAdsListRequest) 
 		return nil, errP2PTradeTypeRequired
 	}
 	var resp p2pAPIResponse[[]*P2PAdListItem]
-	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/books/ads_list", nil, arg, &resp)
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pAdsListEPL, http.MethodPost, "p2p/merchant/books/ads_list", nil, arg, &resp)
 }
 
 // GetP2PChatHistory retrieves the chat history for a P2P order.
@@ -271,7 +270,7 @@ func (e *Exchange) GetP2PChatHistory(ctx context.Context, transactionID, lastRec
 		arg["firstreceived"] = firstReceived
 	}
 	var resp p2pAPIResponse[*P2PChatMessagesResponse]
-	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/chat/get_chats_list", nil, arg, &resp)
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pChatHistoryEPL, http.MethodPost, "p2p/merchant/chat/get_chats_list", nil, arg, &resp)
 }
 
 // SendP2PChatMessage sends a chat message for a P2P order.
@@ -287,7 +286,7 @@ func (e *Exchange) SendP2PChatMessage(ctx context.Context, arg *SendP2PChatMessa
 		return nil, errP2PMessageRequired
 	}
 	var resp p2pAPIResponse[*P2PSendMessageResult]
-	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/chat/send_chat_message", nil, arg, &resp)
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pSendChatMessageEPL, http.MethodPost, "p2p/merchant/chat/send_chat_message", nil, arg, &resp)
 }
 
 // UploadP2PChatFile uploads a file for use in P2P chat.
@@ -302,5 +301,5 @@ func (e *Exchange) UploadP2PChatFile(ctx context.Context, arg *UploadP2PChatFile
 		return nil, errP2PImageDataRequired
 	}
 	var resp p2pAPIResponse[*P2PUploadFileResult]
-	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "p2p/merchant/chat/upload_chat_file", nil, arg, &resp)
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, p2pUploadChatFileEPL, http.MethodPost, "p2p/merchant/chat/upload_chat_file", nil, arg, &resp)
 }

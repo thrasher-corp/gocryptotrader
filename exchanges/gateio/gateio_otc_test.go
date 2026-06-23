@@ -41,6 +41,10 @@ func TestCreateFlatOrder(t *testing.T) {
 
 	arg.Type = "BUY"
 	_, err = e.CreateFiatOrder(t.Context(), arg)
+	require.ErrorIs(t, err, order.ErrSideIsInvalid)
+
+	arg.Side = "FIAT"
+	_, err = e.CreateFiatOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errOTCQuoteTokenRequired)
 
 	arg.QuoteToken = "token"

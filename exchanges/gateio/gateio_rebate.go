@@ -9,7 +9,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 // rebateTransactionHistoryParams builds the shared query parameters used by the agency and partner transaction history endpoints.
@@ -115,7 +114,7 @@ func (e *Exchange) GetAgencyTransactionHistory(ctx context.Context, arg *RebateT
 		return nil, err
 	}
 	var resp *AgencyTransactionHistoryResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/agency/transaction_history", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rebateAgencyTransactionHistoryEPL, http.MethodGet, "rebate/agency/transaction_history", params, nil, &resp)
 }
 
 // GetAgencyCommissionHistory retrieves a broker's rebate history of recommended users.
@@ -125,7 +124,7 @@ func (e *Exchange) GetAgencyCommissionHistory(ctx context.Context, arg *RebateCo
 		return nil, err
 	}
 	var resp *AgencyCommissionHistoryResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/agency/commission_history", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rebateAgencyCommissionHistoryEPL, http.MethodGet, "rebate/agency/commission_history", params, nil, &resp)
 }
 
 // GetPartnerTransactionHistory retrieves a partner's transaction history of recommended users.
@@ -135,7 +134,7 @@ func (e *Exchange) GetPartnerTransactionHistory(ctx context.Context, arg *Rebate
 		return nil, err
 	}
 	var resp *PartnerTransactionHistoryResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/partner/transaction_history", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rebatePartnerTransactionHistoryEPL, http.MethodGet, "rebate/partner/transaction_history", params, nil, &resp)
 }
 
 // GetPartnerCommissionHistory retrieves a partner's rebate records of recommended users.
@@ -145,7 +144,7 @@ func (e *Exchange) GetPartnerCommissionHistory(ctx context.Context, arg *RebateC
 		return nil, err
 	}
 	var resp *PartnerCommissionHistoryResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/partner/commission_history", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rebatePartnerCommissionHistoryEPL, http.MethodGet, "rebate/partner/commission_history", params, nil, &resp)
 }
 
 // GetPartnerSubordinateList retrieves a partner's subordinate list, including sub-agents, direct customers, and indirect customers.
@@ -163,7 +162,7 @@ func (e *Exchange) GetPartnerSubordinateList(ctx context.Context, arg *PartnerSu
 		}
 	}
 	var resp *PartnerSubordinateListResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/partner/sub_list", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rebatePartnerSubListEPL, http.MethodGet, "rebate/partner/sub_list", params, nil, &resp)
 }
 
 // GetBrokerCommissionHistory retrieves a broker's rebate records for users.
@@ -173,7 +172,7 @@ func (e *Exchange) GetBrokerCommissionHistory(ctx context.Context, arg *RebateBr
 		return nil, err
 	}
 	var resp *BrokerCommissionHistoryResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/broker/commission_history", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rebateBrokerCommissionHistoryEPL, http.MethodGet, "rebate/broker/commission_history", params, nil, &resp)
 }
 
 // GetBrokerTransactionHistory retrieves a broker's trading history for users.
@@ -183,7 +182,7 @@ func (e *Exchange) GetBrokerTransactionHistory(ctx context.Context, arg *RebateB
 		return nil, err
 	}
 	var resp *BrokerTransactionHistoryResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/broker/transaction_history", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rebateBrokerTransactionHistoryEPL, http.MethodGet, "rebate/broker/transaction_history", params, nil, &resp)
 }
 
 // GetUserRebateInformation retrieves the authenticated user's rebate information, returning the inviter's UID.
@@ -191,7 +190,7 @@ func (e *Exchange) GetUserRebateInformation(ctx context.Context) (uint64, error)
 	var resp struct {
 		InviteUID uint64 `json:"invite_uid"`
 	}
-	return resp.InviteUID, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/user/info", nil, nil, &resp)
+	return resp.InviteUID, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rebateUserInfoEPL, http.MethodGet, "rebate/user/info", nil, nil, &resp)
 }
 
 // GetUserSubordinateRelationship queries whether the specified users are within the system.
@@ -202,19 +201,19 @@ func (e *Exchange) GetUserSubordinateRelationship(ctx context.Context, userIDLis
 	params := url.Values{}
 	params.Set("user_id_list", strings.Join(userIDList, ","))
 	var resp *UserSubordinateRelationResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/user/sub_relation", params, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rebateUserSubRelationEPL, http.MethodGet, "rebate/user/sub_relation", params, nil, &resp)
 }
 
 // GetRecentPartnerApplicationRecords retrieves the current user's recent partner application records.
 func (e *Exchange) GetRecentPartnerApplicationRecords(ctx context.Context) (*RecentPartnerApplicationRecords, error) {
 	var resp *RecentPartnerApplicationRecords
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/partner/applications/recent", nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rebatePartnerApplicationsRecentEPL, http.MethodGet, "rebate/partner/applications/recent", nil, nil, &resp)
 }
 
 // CheckPartnerApplicationEligibility check partner application eligibility
 func (e *Exchange) CheckPartnerApplicationEligibility(ctx context.Context) (*RebaseEligibilityResponse, error) {
 	var resp *RebaseEligibilityResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/partner/eligibility", nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rebatePartnerEligibilityEPL, http.MethodGet, "rebate/partner/eligibility", nil, nil, &resp)
 }
 
 // GetAggregatedPartnerAgentStatistics retrieves aggregated partner agent statistics
@@ -223,5 +222,5 @@ func (e *Exchange) GetAggregatedPartnerAgentStatistics(ctx context.Context, arg 
 		return nil, err
 	}
 	var resp *RebateAgentStatisticsResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "rebate/partner/data/aggregated", nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rebatePartnerDataAggregatedEPL, http.MethodGet, "rebate/partner/data/aggregated", nil, nil, &resp)
 }

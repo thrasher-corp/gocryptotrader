@@ -122,7 +122,7 @@ type P2PPaymentMethod struct {
 	Nickname              int    `json:"nickname"`
 }
 
-// SetMerchantWorkHoursRequest represents request paramters to sent merchant working hour
+// SetMerchantWorkHoursRequest represents request parameters to sent merchant working hour
 type SetMerchantWorkHoursRequest struct {
 	WorkStatus int64  `json:"work_status"`
 	CycleType  string `json:"cycle_type"`
@@ -260,7 +260,7 @@ type OtherPaymentMethod struct {
 	TradeTips                  string `json:"trade_tips"`
 }
 
-// P2PConvertInfo represents a P2P order transction convert info
+// P2PConvertInfo represents a P2P order transaction convert info
 type P2PConvertInfo struct {
 	ConvertType         string       `json:"convert_type"`
 	ConvertStatus       string       `json:"convert_status"`

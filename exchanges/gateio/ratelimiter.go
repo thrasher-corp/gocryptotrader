@@ -321,6 +321,71 @@ const (
 	crossexHistoryTradesEPL
 	crossexAccountBookEPL
 	crossexCoinDiscountRateEPL
+
+	// P2P EPLs
+	p2pAccountInfoEPL
+	p2pCounterpartyInfoEPL
+	p2pPaymentMethodsEPL
+	p2pSetWorkHoursEPL
+	p2pPendingTransactionsEPL
+	p2pCompletedTransactionsEPL
+	p2pMyListEPL
+	p2pMyHistoryListEPL
+	p2pTransactionDetailsEPL
+	p2pConfirmPaymentEPL
+	p2pConfirmReceiptEPL
+	p2pCancelTransactionEPL
+	p2pPublishAdEPL
+	p2pUpdateAdStatusEPL
+	p2pAdDetailEPL
+	p2pMyAdsListEPL
+	p2pAdsListEPL
+	p2pChatHistoryEPL
+	p2pSendChatMessageEPL
+	p2pUploadChatFileEPL
+
+	// Bot EPLs
+	botStrategyRecommendEPL
+	botSpotGridCreateEPL
+	botMarginGridCreateEPL
+	botInfiniteGridCreateEPL
+	botFuturesGridCreateEPL
+	botSpotMartingaleCreateEPL
+	botContractMartingaleCreateEPL
+	botPortfolioRunningEPL
+	botPortfolioDetailEPL
+	botPortfolioStopEPL
+
+	// Rebate EPLs
+	rebateAgencyTransactionHistoryEPL
+	rebateAgencyCommissionHistoryEPL
+	rebatePartnerTransactionHistoryEPL
+	rebatePartnerCommissionHistoryEPL
+	rebatePartnerSubListEPL
+	rebateBrokerCommissionHistoryEPL
+	rebateBrokerTransactionHistoryEPL
+	rebateUserInfoEPL
+	rebateUserSubRelationEPL
+	rebatePartnerApplicationsRecentEPL
+	rebatePartnerEligibilityEPL
+	rebatePartnerDataAggregatedEPL
+
+	// OTC EPLs
+	otcQuoteEPL
+	otcOrderCreateEPL
+	otcStablecoinOrderCreateEPL
+	otcBankListEPL
+	otcBankCreateEPL
+	otcBankDeleteEPL
+	otcBankSetDefaultEPL
+	otcBankSupplementChecklistEPL
+	otcBankPersonalSupplementEPL
+	otcBankEnterpriseSupplementEPL
+	otcOrderPaidEPL
+	otcOrderCancelEPL
+	otcOrderListEPL
+	otcStablecoinOrderListEPL
+	otcOrderDetailEPL
 )
 
 // package level rate limits for REST API
@@ -638,6 +703,71 @@ var packageRateLimits = request.RateLimitDefinitions{
 	crossexHistoryTradesEPL:                 standardRateLimit(),
 	crossexAccountBookEPL:                   standardRateLimit(),
 	crossexCoinDiscountRateEPL:              standardRateLimit(),
+
+	// P2P limits
+	p2pAccountInfoEPL:           standardRateLimit(),
+	p2pCounterpartyInfoEPL:      standardRateLimit(),
+	p2pPaymentMethodsEPL:        standardRateLimit(),
+	p2pSetWorkHoursEPL:          standardRateLimit(),
+	p2pPendingTransactionsEPL:   standardRateLimit(),
+	p2pCompletedTransactionsEPL: standardRateLimit(),
+	p2pMyListEPL:                standardRateLimit(),
+	p2pMyHistoryListEPL:         standardRateLimit(),
+	p2pTransactionDetailsEPL:    standardRateLimit(),
+	p2pConfirmPaymentEPL:        standardRateLimit(),
+	p2pConfirmReceiptEPL:        standardRateLimit(),
+	p2pCancelTransactionEPL:     standardRateLimit(),
+	p2pPublishAdEPL:             standardRateLimit(),
+	p2pUpdateAdStatusEPL:        standardRateLimit(),
+	p2pAdDetailEPL:              standardRateLimit(),
+	p2pMyAdsListEPL:             standardRateLimit(),
+	p2pAdsListEPL:               standardRateLimit(),
+	p2pChatHistoryEPL:           standardRateLimit(),
+	p2pSendChatMessageEPL:       standardRateLimit(),
+	p2pUploadChatFileEPL:        standardRateLimit(),
+
+	// Bot limits
+	botStrategyRecommendEPL:        standardRateLimit(),
+	botSpotGridCreateEPL:           standardRateLimit(),
+	botMarginGridCreateEPL:         standardRateLimit(),
+	botInfiniteGridCreateEPL:       standardRateLimit(),
+	botFuturesGridCreateEPL:        standardRateLimit(),
+	botSpotMartingaleCreateEPL:     standardRateLimit(),
+	botContractMartingaleCreateEPL: standardRateLimit(),
+	botPortfolioRunningEPL:         standardRateLimit(),
+	botPortfolioDetailEPL:          standardRateLimit(),
+	botPortfolioStopEPL:            standardRateLimit(),
+
+	// Rebate limits
+	rebateAgencyTransactionHistoryEPL:  standardRateLimit(),
+	rebateAgencyCommissionHistoryEPL:   standardRateLimit(),
+	rebatePartnerTransactionHistoryEPL: standardRateLimit(),
+	rebatePartnerCommissionHistoryEPL:  standardRateLimit(),
+	rebatePartnerSubListEPL:            standardRateLimit(),
+	rebateBrokerCommissionHistoryEPL:   standardRateLimit(),
+	rebateBrokerTransactionHistoryEPL:  standardRateLimit(),
+	rebateUserInfoEPL:                  standardRateLimit(),
+	rebateUserSubRelationEPL:           standardRateLimit(),
+	rebatePartnerApplicationsRecentEPL: standardRateLimit(),
+	rebatePartnerEligibilityEPL:        standardRateLimit(),
+	rebatePartnerDataAggregatedEPL:     standardRateLimit(),
+
+	// OTC limits
+	otcQuoteEPL:                    standardRateLimit(),
+	otcOrderCreateEPL:              standardRateLimit(),
+	otcStablecoinOrderCreateEPL:    standardRateLimit(),
+	otcBankListEPL:                 standardRateLimit(),
+	otcBankCreateEPL:               standardRateLimit(),
+	otcBankDeleteEPL:               standardRateLimit(),
+	otcBankSetDefaultEPL:           standardRateLimit(),
+	otcBankSupplementChecklistEPL:  standardRateLimit(),
+	otcBankPersonalSupplementEPL:   standardRateLimit(),
+	otcBankEnterpriseSupplementEPL: standardRateLimit(),
+	otcOrderPaidEPL:                standardRateLimit(),
+	otcOrderCancelEPL:              standardRateLimit(),
+	otcOrderListEPL:                standardRateLimit(),
+	otcStablecoinOrderListEPL:      standardRateLimit(),
+	otcOrderDetailEPL:              standardRateLimit(),
 }
 
 func standardRateLimit() *request.RateLimiterWithWeight {

@@ -3632,10 +3632,10 @@ func (e *Exchange) GetDualInvestmentProductList(ctx context.Context, sortyType, 
 		params.Set("quote_currency", quoteCurrency.String())
 	}
 	if page > 0 {
-		params.Set("page", strconv.FormatUint(uint64(page), 10))
+		params.Set("page", strconv.FormatUint(page, 10))
 	}
 	if pageSize > 0 {
-		params.Set("page_size", strconv.FormatUint(uint64(pageSize), 10))
+		params.Set("page_size", strconv.FormatUint(pageSize, 10))
 	}
 	var resp []*DualInvestmentPlan
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/dual/investment_plan", params, nil, &resp)

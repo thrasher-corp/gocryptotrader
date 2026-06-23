@@ -11,7 +11,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
 var (
@@ -72,7 +71,7 @@ func (e *Exchange) GetBotStrategyRecommendations(ctx context.Context, arg *GetBo
 		}
 	}
 	var resp BotDiscoverResponse
-	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "bot/strategy/recommend", params, nil, &resp)
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, botStrategyRecommendEPL, http.MethodGet, "bot/strategy/recommend", params, nil, &resp)
 }
 
 // CreateSpotGridBot creates a spot grid strategy based on the incoming parameters.
@@ -97,7 +96,7 @@ func (e *Exchange) CreateSpotGridBot(ctx context.Context, arg *SpotGridCreateReq
 	}
 	arg.StrategyType = BotStrategySpotGrid
 	var resp BotCreateResponse
-	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "bot/spot-grid/create", nil, arg, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, botSpotGridCreateEPL, http.MethodPost, "bot/spot-grid/create", nil, arg, &resp)
 }
 
 // CreateMarginGridBot creates a leverage (margin) grid strategy based on the passed parameters.
@@ -125,7 +124,7 @@ func (e *Exchange) CreateMarginGridBot(ctx context.Context, arg *MarginGridCreat
 	}
 	arg.StrategyType = BotStrategyMarginGrid
 	var resp BotCreateResponse
-	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "bot/margin-grid/create", nil, arg, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, botMarginGridCreateEPL, http.MethodPost, "bot/margin-grid/create", nil, arg, &resp)
 }
 
 // CreateInfiniteGridBot creates an infinite grid strategy based on the passed parameters.
@@ -147,7 +146,7 @@ func (e *Exchange) CreateInfiniteGridBot(ctx context.Context, arg *InfiniteGridC
 	}
 	arg.StrategyType = BotStrategyInfiniteGrid
 	var resp BotCreateResponse
-	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "bot/infinite-grid/create", nil, arg, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, botInfiniteGridCreateEPL, http.MethodPost, "bot/infinite-grid/create", nil, arg, &resp)
 }
 
 // CreateFuturesGridBot creates a futures (contract) grid strategy based on the incoming parameters.
@@ -172,7 +171,7 @@ func (e *Exchange) CreateFuturesGridBot(ctx context.Context, arg *FuturesGridCre
 	}
 	arg.StrategyType = BotStrategyFuturesGrid
 	var resp BotCreateResponse
-	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "bot/futures-grid/create", nil, arg, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, botFuturesGridCreateEPL, http.MethodPost, "bot/futures-grid/create", nil, arg, &resp)
 }
 
 // CreateSpotMartingaleBot creates a spot martingale strategy based on the passed parameters.
@@ -194,7 +193,7 @@ func (e *Exchange) CreateSpotMartingaleBot(ctx context.Context, arg *SpotMarting
 	}
 	arg.StrategyType = BotStrategySpotMartingale
 	var resp BotCreateResponse
-	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "bot/spot-martingale/create", nil, arg, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, botSpotMartingaleCreateEPL, http.MethodPost, "bot/spot-martingale/create", nil, arg, &resp)
 }
 
 // CreateContractMartingaleBot creates a contract martingale strategy based on the input parameters.
@@ -222,7 +221,7 @@ func (e *Exchange) CreateContractMartingaleBot(ctx context.Context, arg *Contrac
 	}
 	arg.StrategyType = BotStrategyContractMartingale
 	var resp BotCreateResponse
-	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "bot/contract-martingale/create", nil, arg, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, botContractMartingaleCreateEPL, http.MethodPost, "bot/contract-martingale/create", nil, arg, &resp)
 }
 
 // GetBotRunningStrategies queries the list of AIHub strategies currently running by the user. Supports filtering by strategy type, trading pair, and paging.
@@ -241,7 +240,7 @@ func (e *Exchange) GetBotRunningStrategies(ctx context.Context, strategyType, ma
 		params.Set("page_size", strconv.Itoa(int(pageSize)))
 	}
 	var resp BotPortfolioRunningResponse
-	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "bot/portfolio/running", params, nil, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, botPortfolioRunningEPL, http.MethodGet, "bot/portfolio/running", params, nil, &resp)
 }
 
 // GetBotStrategyDetail queries the detail of a single running AIHub strategy. Both strategyID and strategyType must be provided.
@@ -256,7 +255,7 @@ func (e *Exchange) GetBotStrategyDetail(ctx context.Context, strategyID, strateg
 	params.Set("strategy_id", strategyID)
 	params.Set("strategy_type", strategyType)
 	var resp BotPortfolioDetailResponse
-	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "bot/portfolio/detail", params, nil, &resp)
+	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, botPortfolioDetailEPL, http.MethodGet, "bot/portfolio/detail", params, nil, &resp)
 }
 
 // StopBotStrategy terminates a single running AIHub strategy. Only one policy may be terminated per request.
@@ -272,5 +271,5 @@ func (e *Exchange) StopBotStrategy(ctx context.Context, strategyID, strategyType
 		StrategyType: strategyType,
 	}
 	var resp BotPortfolioStopResponse
-	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "bot/portfolio/stop", nil, arg, &resp)
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, botPortfolioStopEPL, http.MethodPost, "bot/portfolio/stop", nil, arg, &resp)
 }
