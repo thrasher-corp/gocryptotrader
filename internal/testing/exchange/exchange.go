@@ -248,7 +248,7 @@ func UpdatePairsOnce(tb testing.TB, e exchange.IBotExchange) {
 		return
 	}
 
-	err := e.UpdateTradablePairs(tb.Context())
+	err := e.UpdateTradablePairs(tb.Context(), e)
 	require.NoError(tb, err, "UpdateTradablePairs must not error")
 
 	cache := new(currency.PairsManager)

@@ -235,7 +235,7 @@ func TestFetchTradablePairs(t *testing.T) {
 
 func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
-	err := e.UpdateTradablePairs(t.Context())
+	err := e.UpdateTradablePairs(t.Context(), e)
 	require.NoError(t, err, "UpdateTradablePairs must not error")
 }
 

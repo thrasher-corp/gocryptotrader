@@ -1829,7 +1829,7 @@ func Bootstrap(ctx context.Context, b IBotExchange) error {
 	}
 
 	if b.GetEnabledFeatures().AutoPairUpdates {
-		if err := b.UpdateTradablePairs(ctx); err != nil {
+		if err := b.UpdateTradablePairs(ctx, b); err != nil {
 			return fmt.Errorf("failed to update tradable pairs: %w", err)
 		}
 	}
@@ -1882,7 +1882,7 @@ func GetDefaultConfig(ctx context.Context, exch IBotExchange) (*config.Exchange,
 	}
 
 	if b.Features.Supports.RESTCapabilities.AutoPairUpdates {
-		err = exch.UpdateTradablePairs(ctx)
+		err = exch.UpdateTradablePairs(ctx, exch)
 		if err != nil {
 			return nil, err
 		}
@@ -1986,4 +1986,25 @@ func (b *Base) MessageSequence() int64 {
 // SubscribeAccountBalances returns a pipe to stream account holding updates
 func (b *Base) SubscribeAccountBalances() (dispatch.Pipe, error) {
 	return b.Accounts.Subscribe()
+}
+
+// UpdateTradablePairs updates the tradable pairs for the specified assets, or all assets if none are specified.
+func (b *Base) UpdateTradablePairs(ctx context.Context, exch IBotExchange, assets ...asset.Item) error {
+	if len(assets) == 0 {
+		assets = b.GetAssetTypes(false)
+	}
+	var errs common.ErrorCollector
+	for _, a := range assets {
+		errs.Go(func() error {
+			pairs, err := exch.FetchTradablePairs(ctx, a)
+			if err != nil {
+				return err
+			}
+			return b.UpdatePairs(pairs, a, false)
+		})
+	}
+	if err := errs.Collect(); err != nil {
+		return err
+	}
+	return b.EnsureOnePairEnabled()
 }

@@ -221,22 +221,6 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, assetType asset.Item)
 	return resp, nil
 }
 
-// UpdateTradablePairs updates the exchanges available pairs and stores
-// them in the exchanges config
-func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
-	var errs common.ErrorCollector
-	for _, a := range e.GetAssetTypes(false) {
-		errs.Go(func() error {
-			pairs, err := e.FetchTradablePairs(ctx, a)
-			if err != nil {
-				return err
-			}
-			return e.UpdatePairs(pairs, a, false)
-		})
-	}
-	return errs.Collect()
-}
-
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (e *Exchange) UpdateTickers(_ context.Context, _ asset.Item) error {
 	return common.ErrFunctionNotSupported
