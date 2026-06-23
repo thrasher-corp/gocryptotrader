@@ -942,12 +942,21 @@ func (e *Exchange) GetFundingBook(ctx context.Context, symbol string) (FundingBo
 	return response, nil
 }
 
-// GetLends returns a list of the most recent funding data for the given
-// currency: total amount provided and Flash Return Rate (in % by 365 days)
-// over time
+// GetLends returns a list of funding data for the given currency: total amount
+// provided and Flash Return Rate (in % by 365 days) over time.
 // Symbol - example "USD"
-func (e *Exchange) GetLends(ctx context.Context, symbol string, values url.Values) ([]Lends, error) {
+func (e *Exchange) GetLends(ctx context.Context, symbol string, limit int64, end, start time.Time) ([]Lends, error) {
 	var response []Lends
+	values := url.Values{}
+	if limit > 0 {
+		values.Set("limit", strconv.FormatInt(limit, 10))
+	}
+	if !end.IsZero() {
+		values.Set("end", strconv.FormatInt(end.Unix(), 10))
+	}
+	if !start.IsZero() {
+		values.Set("start", strconv.FormatInt(start.Unix(), 10))
+	}
 	path := common.EncodeURLValues(bitfinexAPIVersion+
 		bitfinexLends+
 		symbol,

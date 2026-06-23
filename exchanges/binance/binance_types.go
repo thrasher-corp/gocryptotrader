@@ -898,6 +898,14 @@ type UserMarginInterestHistory struct {
 	IsolatedSymbol      string     `json:"isolatedSymbol"`
 }
 
+// MarginInterestRateHistoryItem stores margin interest rate history row data.
+type MarginInterestRateHistoryItem struct {
+	Asset             currency.Code `json:"asset"`
+	DailyInterestRate float64       `json:"dailyInterestRate,string"`
+	Timestamp         types.Time    `json:"timestamp"`
+	VIPLevel          int64         `json:"vipLevel,string"`
+}
+
 // CryptoLoansIncomeHistory stores crypto loan income history data
 type CryptoLoansIncomeHistory struct {
 	Asset         currency.Code `json:"asset"`

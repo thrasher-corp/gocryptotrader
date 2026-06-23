@@ -174,6 +174,7 @@ var validWrapperParams = []reflect.Type{
 	orderCancelsParam,
 	pairKeySliceParam,
 	getOrdersRequestParam,
+	currentRatesRequestParam,
 	latestRateRequest,
 }
 
@@ -298,6 +299,7 @@ var (
 	orderCancelParam            = reflect.TypeFor[*order.Cancel]()
 	orderCancelsParam           = reflect.TypeFor[[]order.Cancel]()
 	getOrdersRequestParam       = reflect.TypeFor[*order.MultiOrderRequest]()
+	currentRatesRequestParam    = reflect.TypeFor[*margin.CurrentRatesRequest]()
 	positionChangeRequestParam  = reflect.TypeFor[*margin.PositionChangeRequest]()
 	positionSummaryRequestParam = reflect.TypeFor[*futures.PositionSummaryRequest]()
 	positionsRequestParam       = reflect.TypeFor[*futures.PositionsRequest]()
@@ -500,6 +502,11 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			FromOrderID: "1337",
 			AssetType:   argGenerator.AssetParams.Asset,
 			Pairs:       currency.Pairs{argGenerator.AssetParams.Pair},
+		})
+	case argGenerator.MethodInputType.AssignableTo(currentRatesRequestParam):
+		input = reflect.ValueOf(&margin.CurrentRatesRequest{
+			Asset: argGenerator.AssetParams.Asset,
+			Pairs: currency.Pairs{argGenerator.AssetParams.Pair},
 		})
 	case argGenerator.MethodInputType.AssignableTo(marginTypeParam):
 		input = reflect.ValueOf(margin.Isolated)

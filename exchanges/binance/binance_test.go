@@ -2885,6 +2885,25 @@ func TestGetUserMarginInterestHistory(t *testing.T) {
 	}
 }
 
+func TestGetMarginInterestRateHistory(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty currency", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.GetMarginInterestRateHistory(t.Context(), currency.EMPTYCODE, 0, time.Time{}, time.Time{})
+		assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+	})
+
+	t.Run("authenticated request", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		startTime := time.Now().Add(-24 * time.Hour)
+		endTime := time.Now()
+		_, err := e.GetMarginInterestRateHistory(t.Context(), currency.USDT, 1, startTime, endTime)
+		assert.NoError(t, err)
+	})
+}
+
 func TestSetAssetsMode(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
