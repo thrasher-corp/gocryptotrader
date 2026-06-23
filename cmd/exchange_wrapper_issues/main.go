@@ -675,8 +675,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, cfg *Config) []E
 			Response:   jsonifyInterface([]any{cancelBatchOrdersResponse}),
 		})
 
-		var cancellAllOrdersResponse order.CancelAllResponse
-		cancellAllOrdersResponse, err = e.CancelAllOrders(context.TODO(), &cancelRequest)
+		cancellAllOrdersResponse, err := e.CancelAllOrders(context.TODO(), &cancelRequest)
 		msg = ""
 		if err != nil {
 			msg = err.Error()

@@ -300,7 +300,7 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	if err := e.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(assetType); err != nil {
 		return nil, err
 	}
 	book := &orderbook.Book{
@@ -494,9 +494,9 @@ func (e *Exchange) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*orde
 // CancelAllOrders cancels all orders associated with a currency pair
 // If product ID is sent, all orders of that specified market will be cancelled
 // If not specified, all orders of all markets will be cancelled
-func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (order.CancelAllResponse, error) {
+func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order.Cancel) (*order.CancelAllResponse, error) {
 	if err := orderCancellation.Validate(); err != nil {
-		return order.CancelAllResponse{}, err
+		return nil, err
 	}
 
 	var resp order.CancelAllResponse
@@ -504,21 +504,26 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 	fPair, err := e.FormatExchangeCurrency(orderCancellation.Pair,
 		orderCancellation.AssetType)
 	if err != nil {
-		return resp, err
+		if len(resp.Status) > 0 {
+			return &resp, err
+		}
+		return nil, err
 	}
 
 	allOrders, err := e.CancelExistingOrder(ctx, "", fPair.String(), "")
 	if err != nil {
-		return resp, err
+		if len(resp.Status) > 0 {
+			return &resp, err
+		}
+		return nil, err
 	}
 
-	resp.Status = make(map[string]string)
 	for x := range allOrders {
 		if allOrders[x].Status == orderCancelled {
-			resp.Status[allOrders[x].OrderID] = order.Cancelled.String()
+			resp.Add(allOrders[x].OrderID, order.Cancelled.String())
 		}
 	}
-	return resp, nil
+	return &resp, nil
 }
 
 func orderIntToType(i int) order.Type {
@@ -1132,13 +1137,12 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 	resp := make([]fundingrate.LatestRateResponse, 0, len(rates))
 	for i := range rates {
 		var cp currency.Pair
-		var isEnabled bool
-		cp, isEnabled, err = e.MatchSymbolCheckEnabled(rates[i].Symbol, r.Asset, true)
-		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+		cp, err = e.MatchSymbolWithAvailablePairs(rates[i].Symbol, r.Asset, true)
+		if err != nil {
+			if errors.Is(err, currency.ErrPairNotFound) {
+				continue
+			}
 			return nil, err
-		}
-		if !isEnabled {
-			continue
 		}
 		var isPerp bool
 		isPerp, err = e.IsPerpetualFutureCurrency(r.Asset, cp)
@@ -1217,13 +1221,12 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 	resp := make([]futures.OpenInterest, 0, len(tickers))
 	for i := range tickers {
 		var symbol currency.Pair
-		var enabled bool
-		symbol, enabled, err = e.MatchSymbolCheckEnabled(tickers[i].Symbol, asset.Futures, false)
-		if err != nil && !errors.Is(err, currency.ErrPairNotFound) {
+		symbol, err = e.MatchSymbolWithAvailablePairs(tickers[i].Symbol, asset.Futures, false)
+		if err != nil {
+			if errors.Is(err, currency.ErrPairNotFound) {
+				continue
+			}
 			return nil, err
-		}
-		if !enabled {
-			continue
 		}
 		var appendData bool
 		for j := range k {
@@ -1245,7 +1248,7 @@ func (e *Exchange) GetOpenInterest(ctx context.Context, k ...key.PairAsset) ([]f
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := e.CurrencyPairs.IsPairEnabled(cp, a)
+	_, err := e.CurrencyPairs.IsPairAvailable(cp, a)
 	if err != nil {
 		return "", err
 	}
