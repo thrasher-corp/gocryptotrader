@@ -3962,7 +3962,7 @@ func (r *otcAPIResponse[T]) Error() error {
 	return nil
 }
 
-// OTCBankSupplementCheckListItem represents a bank supplement check list item
+// OTCBankSupplementChecklistItem represents a bank supplement check list item
 type OTCBankSupplementChecklistItem struct {
 	UserType string `json:"user_type"`
 	Items    []struct {

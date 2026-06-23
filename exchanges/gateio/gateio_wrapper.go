@@ -818,7 +818,8 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 			return nil, err
 		}
 		resp = make([]trade.Data, len(tradeData))
-		for i, td := range tradeData {
+		for i := range tradeData {
+			td := tradeData[i]
 			side, err := order.StringToOrderSide(td.Side)
 			if err != nil {
 				return nil, err

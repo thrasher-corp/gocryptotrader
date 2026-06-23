@@ -5226,8 +5226,7 @@ func (e *Exchange) DeleteBankCard(ctx context.Context, bankID string) error {
 	if bankID == "" {
 		return errOTCBankIDRequired
 	}
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "otc/bank/delete", nil, &map[string]string{
-		"bank_id": bankID}, nil)
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "otc/bank/delete", nil, &map[string]string{"bank_id": bankID}, nil)
 }
 
 // SetDefaultBankCard set the specified bank card as default.
@@ -5235,8 +5234,7 @@ func (e *Exchange) SetDefaultBankCard(ctx context.Context, bankID string) error 
 	if bankID == "" {
 		return errOTCBankIDRequired
 	}
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "otc/bank/delete", nil, &map[string]string{
-		"bank_id": bankID}, nil)
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "otc/bank/delete", nil, &map[string]string{"bank_id": bankID}, nil)
 }
 
 // GetCheckListOfMaterialsToSupplementForBankCard query the checklist of materials to supplement for a bank card

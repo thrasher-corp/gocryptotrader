@@ -2420,6 +2420,7 @@ func TestGetDualCurrencyRecommendedProjects(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
 func TestCreateAutoInvestPlan(t *testing.T) {
 	t.Parallel()
 	_, err := e.CreateAutoInvestPlan(t.Context(), nil)

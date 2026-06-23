@@ -58,7 +58,7 @@ func (e *Exchange) SwapStakingCoins(ctx context.Context, arg *StakingSwapRequest
 }
 
 // GetStakingOrders retrieves a list of on-chain coin-earning orders.
-func (e *Exchange) GetStakingOrders(ctx context.Context, pid, orderType int64, ccy currency.Code, page int32) (*StakingOrdersResponse, error) {
+func (e *Exchange) GetStakingOrders(ctx context.Context, ccy currency.Code, pid, orderType, page int64) (*StakingOrdersResponse, error) {
 	params := url.Values{}
 	if pid > 0 {
 		params.Set("pid", strconv.FormatInt(pid, 10))
@@ -70,7 +70,7 @@ func (e *Exchange) GetStakingOrders(ctx context.Context, pid, orderType int64, c
 		params.Set("type", strconv.FormatInt(orderType, 10))
 	}
 	if page > 0 {
-		params.Set("page", strconv.FormatInt(int64(page), 10))
+		params.Set("page", strconv.FormatInt(page, 10))
 	}
 	var resp *StakingOrdersResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, "earn/staking/order_list", params, nil, &resp)

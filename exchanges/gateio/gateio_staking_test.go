@@ -35,7 +35,7 @@ func TestSwapStakingCoins(t *testing.T) {
 func TestGetStakingOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetStakingOrders(t.Context(), 0, -1, currency.EMPTYCODE, 0)
+	result, err := e.GetStakingOrders(t.Context(), currency.EMPTYCODE, 0, -1, 0)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
