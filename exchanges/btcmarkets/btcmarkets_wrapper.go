@@ -207,7 +207,7 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
 func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
-	allPairs, err := e.GetEnabledPairs(a)
+	allPairs, err := e.GetAvailablePairs(a)
 	if err != nil {
 		return err
 	}
@@ -215,10 +215,6 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 	tickers, err := e.GetTickers(ctx, allPairs)
 	if err != nil {
 		return err
-	}
-
-	if len(allPairs) != len(tickers) {
-		return errors.New("enabled pairs differ from returned tickers")
 	}
 
 	for x := range tickers {
