@@ -781,6 +781,7 @@ func hundredPer10SecondsRateLimit() *request.RateLimiterWithWeight {
 func hundredPer60SecondsRateLimit() *request.RateLimiterWithWeight {
 	return request.NewRateLimitWithWeight(time.Minute, 100, 1)
 }
+
 func standardRateLimit() *request.RateLimiterWithWeight {
 	return request.NewRateLimitWithWeight(time.Second*10, 200, 1)
 }
