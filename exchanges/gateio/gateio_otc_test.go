@@ -230,11 +230,11 @@ func TestGetChecklistOfMaterialsToSupplementForBankCard(t *testing.T) {
 
 func TestMarkFlatOrderAsPaid(t *testing.T) {
 	t.Parallel()
-	err := e.MarkFiatOrderAsPaid(t.Context(), "")
+	err := e.MarkFiatOrderAsPaid(t.Context(), "", "client-order-id-here", "", "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	err = e.MarkFiatOrderAsPaid(t.Context(), "203")
+	err = e.MarkFiatOrderAsPaid(t.Context(), "203", "client-order-id-here", "payment-receipt-file-key", "payment-receipt")
 	require.NoError(t, err)
 }
 

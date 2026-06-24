@@ -124,7 +124,7 @@ func (e *Exchange) SetDefaultBankCard(ctx context.Context, bankID string) error 
 	if bankID == "" {
 		return errOTCBankIDRequired
 	}
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, otcBankSetDefaultEPL, http.MethodPost, "otc/bank/delete", nil, &map[string]string{"bank_id": bankID}, nil)
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, otcBankSetDefaultEPL, http.MethodPost, "otc/bank/set_default", nil, &map[string]string{"bank_id": bankID}, nil)
 }
 
 // GetCheckListOfMaterialsToSupplementForBankCard query the checklist of materials to supplement for a bank card
@@ -134,7 +134,6 @@ func (e *Exchange) GetCheckListOfMaterialsToSupplementForBankCard(ctx context.Co
 	}
 	params := url.Values{}
 	params.Set("bank_id", bankID)
-
 	var resp otcAPIResponse[*OTCBankSupplementChecklistItem]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, otcBankSupplementChecklistEPL, http.MethodGet, "otc/bank/bank_supplement_checklist", params, nil, &resp)
 }
@@ -179,16 +178,27 @@ func (e *Exchange) SubmitEnterpriseBankCardSupplementMaterials(ctx context.Conte
 	if arg.ShareHolders == "" {
 		return fmt.Errorf("%w ownership structure chart file content", errShareholdersRequired)
 	}
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, otcBankEnterpriseSupplementEPL, http.MethodPost, "otc/bank/personal/bank_supplement", nil, arg, nil)
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, otcBankEnterpriseSupplementEPL, http.MethodPost, "otc/bank/enterprise/bank_supplement", nil, arg, nil)
 }
 
 // MarkFiatOrderAsPaid marks a fiat order as paid.
-func (e *Exchange) MarkFiatOrderAsPaid(ctx context.Context, orderID string) error {
+func (e *Exchange) MarkFiatOrderAsPaid(ctx context.Context, orderID, clientOrderID, paymentReceiptFileKey, paymentReceipt string) error {
 	if orderID == "" {
 		return order.ErrOrderIDNotSet
 	}
+	arg := make(map[string]string)
+	arg["order_id"] = orderID
+	if clientOrderID != "" {
+		arg["client_order_id"] = clientOrderID
+	}
+	if paymentReceiptFileKey != "" {
+		arg["payment_receipt_file_key"] = paymentReceiptFileKey
+	}
+	if paymentReceipt != "" {
+		arg["payment_receipt"] = paymentReceipt
+	}
 	var resp *OTCActionResponse
-	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, otcOrderPaidEPL, http.MethodPost, "otc/order/paid", nil, &OTCMarkOrderPaidRequest{OrderID: orderID}, &resp)
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, otcOrderPaidEPL, http.MethodPost, "otc/order/paid", nil, &arg, &resp)
 }
 
 // CancelFiatOrder cancels a fiat order.

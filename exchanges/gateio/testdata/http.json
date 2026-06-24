@@ -952,45 +952,114 @@
     }
    ]
   },
-  "/api/v4/crossex/risk_limit": {
+  "/api/v4/crossex/rule/risk_limits": {
    "GET": [
     {
      "data": [
       {
        "symbol": "BINANCE_FUTURE_BTC_USDT",
-       "lec": [
+       "tiers": [
         {
-         "min_risk_limit_value": "5000",
-         "quick_adj_amount": "1000",
          "leverage_max": "20",
-         "maintenance_rate": "0.01"
+         "maintenance_rate": "0.0065",
+         "max_risk_limit_value": "3000000",
+         "min_risk_limit_value": "0",
+         "quick_cal_amount": "0",
+         "tier": "1"
+        },
+        {
+         "leverage_max": "19",
+         "maintenance_rate": "0.01",
+         "max_risk_limit_value": "12000000",
+         "min_risk_limit_value": "3000000",
+         "quick_cal_amount": "10500",
+         "tier": "2"
+        },
+        {
+         "leverage_max": "18",
+         "maintenance_rate": "0.02",
+         "max_risk_limit_value": "70000000",
+         "min_risk_limit_value": "12000000",
+         "quick_cal_amount": "130500",
+         "tier": "3"
+        },
+        {
+         "leverage_max": "17",
+         "maintenance_rate": "0.025",
+         "max_risk_limit_value": "100000000",
+         "min_risk_limit_value": "70000000",
+         "quick_cal_amount": "480500",
+         "tier": "4"
+        }
+       ]
+      },
+      {
+       "symbol": "BINANCE_FUTURE_ETH_USDT",
+       "tiers": [
+        {
+         "leverage_max": "20",
+         "maintenance_rate": "0.0065",
+         "max_risk_limit_value": "3000000",
+         "min_risk_limit_value": "0",
+         "quick_cal_amount": "0",
+         "tier": "1"
+        },
+        {
+         "leverage_max": "19",
+         "maintenance_rate": "0.01",
+         "max_risk_limit_value": "12000000",
+         "min_risk_limit_value": "3000000",
+         "quick_cal_amount": "10500",
+         "tier": "2"
+        },
+        {
+         "leverage_max": "18",
+         "maintenance_rate": "0.02",
+         "max_risk_limit_value": "50000000",
+         "min_risk_limit_value": "12000000",
+         "quick_cal_amount": "130500",
+         "tier": "3"
+        },
+        {
+         "leverage_max": "17",
+         "maintenance_rate": "0.025",
+         "max_risk_limit_value": "65000000",
+         "min_risk_limit_value": "50000000",
+         "quick_cal_amount": "380500",
+         "tier": "4"
         }
        ]
       }
      ],
-     "queryString": "",
+     "queryString": "symbols=BINANCE_FUTURE_BTC_USDT%2CBINANCE_FUTURE_ETH_USDT",
      "bodyParams": "",
      "headers": {}
     }
    ]
   },
-  "/api/v4/crossex/symbols": {
+  "/api/v4/crossex/rule/symbols": {
    "GET": [
     {
      "data": [
       {
-       "name": "BINANCE_FUTURE_BTC_USDT",
+       "business_type": "FUTURE",
+       "contract_size": null,
+       "default_leverage": "5",
+       "delist_time": "0",
        "exchange_type": "BINANCE",
-       "business_type": "FUTURES",
-       "state": "LIVE",
-       "tick_size": "0.1",
-       "lot_size": "1",
-       "min_notional": "5",
-       "min_size": "1",
-       "max_num_orders": "200"
+       "liquidation_fee": "0.012500",
+       "lot_size": "0.001",
+       "max_limit_size": "1000",
+       "max_market_size": "120",
+       "max_num_orders": "100",
+       "min_notional": "50",
+       "min_size": "0.001",
+       "state": "live",
+       "symbol": "BINANCE_FUTURE_BTC_USDT",
+       "tick_size": "0.10"
       }
      ],
-     "queryString": "",
+     "queryString": "symbols=BINANCE_FUTURE_BTC_USDT",
      "bodyParams": "",
      "headers": {}
     }

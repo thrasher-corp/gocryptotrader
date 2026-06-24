@@ -178,11 +178,6 @@ type OTCBankCreateMultipartRequest struct {
 	DocumentationFile    string `json:"documentation_file"`
 }
 
-// OTCMarkOrderPaidRequest holds request parameters for marking a fiat order as paid.
-type OTCMarkOrderPaidRequest struct {
-	OrderID string `json:"order_id"`
-}
-
 // OTCOrderListItem holds a single fiat order list item.
 type OTCOrderListItem struct {
 	CreateAt            types.Time      `json:"create_at"`

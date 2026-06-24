@@ -13,14 +13,22 @@ import (
 
 func TestGetCrossExchangeSymbols(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetCrossExchangeSymbols(t.Context(), nil)
+	_, err := e.GetCrossExchangeSymbols(t.Context(), nil)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	e.Verbose = true
+	result, err := e.GetCrossExchangeSymbols(t.Context(), []string{"BINANCE_FUTURE_BTC_USDT"})
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 }
 
 func TestGetCrossExchangeRiskLimits(t *testing.T) {
 	t.Parallel()
-	result, err := e.GetCrossExchangeRiskLimits(t.Context(), nil)
+	_, err := e.GetCrossExchangeSymbols(t.Context(), nil)
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
+	e.Verbose = true
+	result, err := e.GetCrossExchangeRiskLimits(t.Context(), []string{"BINANCE_FUTURE_BTC_USDT", "BINANCE_FUTURE_ETH_USDT"})
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 }
@@ -76,25 +84,21 @@ func TestCreateCrossExchangeOrder(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	_, err = e.CreateCrossExchangeOrder(t.Context(), &CrossExchangeOrderCreateRequest{})
-	require.ErrorIs(t, err, errCrossExchangeExchangeTypeRequired)
-
-	_, err = e.CreateCrossExchangeOrder(t.Context(), &CrossExchangeOrderCreateRequest{ExchangeType: "BINANCE"})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
-	_, err = e.CreateCrossExchangeOrder(t.Context(), &CrossExchangeOrderCreateRequest{ExchangeType: "BINANCE", Symbol: "BINANCE_FUTURE_BTC_USDT"})
+	_, err = e.CreateCrossExchangeOrder(t.Context(), &CrossExchangeOrderCreateRequest{Symbol: "BINANCE_FUTURE_BTC_USDT"})
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
-
-	_, err = e.CreateCrossExchangeOrder(t.Context(), &CrossExchangeOrderCreateRequest{ExchangeType: "BINANCE", Symbol: "BINANCE_FUTURE_BTC_USDT", Side: order.Buy})
-	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.CreateCrossExchangeOrder(t.Context(), &CrossExchangeOrderCreateRequest{
-		ExchangeType: "BINANCE",
 		Symbol:       "BINANCE_FUTURE_BTC_USDT",
 		Side:         order.Buy,
-		Type:         "GTC",
+		OrderType:    "GTC",
 		Quantity:     1,
 		Price:        65000,
+		TimeInForce:  "GTC",
+		ReduceOnly:   true,
+		PositionSide: order.Short,
 	})
 	require.NoError(t, err)
 	assert.NotEmpty(t, result.OrderID)
@@ -117,6 +121,8 @@ func TestModifyCrossExchangeOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.ModifyCrossExchangeOrder(t.Context(), "", &CrossExchangeOrderUpdateRequest{})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+	_, err = e.ModifyCrossExchangeOrder(t.Context(), "20491522002333905922", nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.ModifyCrossExchangeOrder(t.Context(), "20491522002333905922", &CrossExchangeOrderUpdateRequest{Price: 64000})
@@ -190,6 +196,9 @@ func TestGetCrossExchangeAccountAssets(t *testing.T) {
 
 func TestUpdateCrossExchangeAccount(t *testing.T) {
 	t.Parallel()
+	_, err := e.UpdateCrossExchangeAccount(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.UpdateCrossExchangeAccount(t.Context(), &CrossExchangeAccountUpdateRequest{
 		PositionMode: "SINGLE",
@@ -405,7 +414,7 @@ func TestGetCrossExchangeCoinDiscountRates(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCrossExchangeCoinDiscountRates(t.Context(), "", "")
+	result, err := e.GetCrossExchangeCoinDiscountRates(t.Context(), currency.ETH, "")
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 }
