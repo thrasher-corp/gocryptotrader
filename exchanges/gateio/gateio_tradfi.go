@@ -23,13 +23,13 @@ var (
 
 // GetTradFiMT5Account retrieves the MT5 account information for the authenticated user.
 func (e *Exchange) GetTradFiMT5Account(ctx context.Context) (*TradFiMT5Account, error) {
-	var resp tradFiResponse[*TradFiMT5Account]
+	var resp gateioAPIResponse[*TradFiMT5Account]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, tradfiUsersMT5AccountEPL, http.MethodGet, "tradfi/users/mt5-account", nil, nil, &resp)
 }
 
 // GetTradFiSymbolCategories retrieves the list of trading symbol categories.
 func (e *Exchange) GetTradFiSymbolCategories(ctx context.Context) ([]*TradFiCategory, error) {
-	var resp tradFiResponse[*TradFiCategoryList]
+	var resp gateioAPIResponse[*TradFiCategoryList]
 	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, tradfiSymbolsCategoriesEPL, "tradfi/symbols/categories", &resp); err != nil {
 		return nil, err
 	}
@@ -41,7 +41,7 @@ func (e *Exchange) GetTradFiSymbolCategories(ctx context.Context) ([]*TradFiCate
 
 // GetTradFiSymbols retrieves the full list of tradable symbols.
 func (e *Exchange) GetTradFiSymbols(ctx context.Context) ([]*TradFiSymbol, error) {
-	var resp tradFiResponse[*TradFiSymbolList]
+	var resp gateioAPIResponse[*TradFiSymbolList]
 	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, tradfiSymbolsEPL, "tradfi/symbols", &resp); err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func (e *Exchange) GetTradFiSymbolDetails(ctx context.Context, symbols currency.
 	}
 	params := url.Values{}
 	params.Set("symbols", symbols.Join())
-	var resp tradFiResponse[*TradFiSymbolDetailList]
+	var resp gateioAPIResponse[*TradFiSymbolDetailList]
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, tradfiSymbolsDetailEPL, http.MethodGet, "tradfi/symbols/detail", params, nil, &resp); err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func (e *Exchange) GetTradFiKlines(ctx context.Context, symbol currency.Pair, ar
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
 	}
-	var resp tradFiResponse[*TradFiKlineList]
+	var resp gateioAPIResponse[*TradFiKlineList]
 	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, tradfiKlinesEPL, common.EncodeURLValues("tradfi/symbols/"+symbol.String()+"/klines", params), &resp); err != nil {
 		return nil, err
 	}
@@ -110,7 +110,7 @@ func (e *Exchange) GetTradFiSymbolTicker(ctx context.Context, symbol string) (*T
 	if symbol == "" {
 		return nil, fmt.Errorf("%w: tradfi symbol required", currency.ErrSymbolStringEmpty)
 	}
-	var resp tradFiResponse[*TradFiTicker]
+	var resp gateioAPIResponse[*TradFiTicker]
 	if err := e.SendHTTPRequest(ctx, exchange.RestSpot, tradfiTickersEPL, "tradfi/symbols/"+symbol+"/tickers", &resp); err != nil {
 		return nil, err
 	}
@@ -119,13 +119,13 @@ func (e *Exchange) GetTradFiSymbolTicker(ctx context.Context, symbol string) (*T
 
 // ActivateTradFiUser activates the TradFi service for the authenticated user.
 func (e *Exchange) ActivateTradFiUser(ctx context.Context) (*TradFiUserInfo, error) {
-	var resp tradFiResponse[*TradFiUserInfo]
+	var resp gateioAPIResponse[*TradFiUserInfo]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, tradfiUsersEPL, http.MethodPost, "tradfi/users", nil, nil, &resp)
 }
 
 // GetTradFiUserAssets retrieves the account balance and margin information.
 func (e *Exchange) GetTradFiUserAssets(ctx context.Context) (*TradFiUserAssets, error) {
-	var resp tradFiResponse[*TradFiUserAssets]
+	var resp gateioAPIResponse[*TradFiUserAssets]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, tradfiUsersAssetsEPL, http.MethodGet, "tradfi/users/assets", nil, nil, &resp)
 }
 
@@ -154,7 +154,7 @@ func (e *Exchange) GetTradFiTransactions(ctx context.Context, arg *GetTradFiTran
 			params.Set("page_size", strconv.FormatUint(arg.PageSize, 10))
 		}
 	}
-	var resp tradFiResponse[*TradFiTransactionListData]
+	var resp gateioAPIResponse[*TradFiTransactionListData]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, tradfiGetTransactionsEPL, http.MethodGet, "tradfi/transactions", params, nil, &resp)
 }
 
@@ -172,13 +172,13 @@ func (e *Exchange) CreateTradFiTransaction(ctx context.Context, arg *TradFiTrans
 	if arg.Type == "" {
 		return errTradFiTypeRequired
 	}
-	var resp tradFiResponse[struct{}]
+	var resp gateioAPIResponse[struct{}]
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, tradfiCreateTransactionsEPL, http.MethodPost, "tradfi/transactions", nil, arg, &resp)
 }
 
 // GetTradFiActiveOrders retrieves the list of active (pending) orders.
 func (e *Exchange) GetTradFiActiveOrders(ctx context.Context) ([]*TradFiOrder, error) {
-	var resp tradFiResponse[*TradFiOrderList]
+	var resp gateioAPIResponse[*TradFiOrderList]
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, tradfiGetOrdersEPL, http.MethodGet, "tradfi/orders", nil, nil, &resp); err != nil {
 		return nil, err
 	}
@@ -205,7 +205,7 @@ func (e *Exchange) CreateTradFiOrder(ctx context.Context, arg *TradFiOrderReques
 	if arg.Side != 1 && arg.Side != 2 {
 		return nil, fmt.Errorf("%w; order side required (1=sell, 2=buy)", order.ErrSideIsInvalid)
 	}
-	var resp tradFiResponse[*TradFiCreateOrderResult]
+	var resp gateioAPIResponse[*TradFiCreateOrderResult]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, tradfiCreateOrdersEPL, http.MethodPost, "tradfi/orders", nil, arg, &resp)
 }
 
@@ -220,7 +220,7 @@ func (e *Exchange) UpdateTradFiOrder(ctx context.Context, orderID int64, arg *Tr
 	if arg.Price == "" {
 		return nil, fmt.Errorf("%w: tradfi order volume required", limits.ErrPriceBelowMin)
 	}
-	var resp tradFiResponse[*TradFiUpdatedOrder]
+	var resp gateioAPIResponse[*TradFiUpdatedOrder]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, tradfiUpdateOrdersEPL, http.MethodPut, "tradfi/orders/"+strconv.FormatInt(orderID, 10), nil, arg, &resp)
 }
 
@@ -229,7 +229,7 @@ func (e *Exchange) CancelTradFiOrder(ctx context.Context, orderID int64) error {
 	if orderID == 0 {
 		return order.ErrOrderIDNotSet
 	}
-	var resp tradFiResponse[struct{}]
+	var resp gateioAPIResponse[struct{}]
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, tradfiDeleteOrdersEPL, http.MethodDelete, "tradfi/orders/"+strconv.FormatInt(orderID, 10), nil, nil, &resp)
 }
 
@@ -255,7 +255,7 @@ func (e *Exchange) GetTradFiOrderHistory(ctx context.Context, arg *GetTradFiOrde
 			params.Set("side", strconv.FormatUint(arg.Side, 10))
 		}
 	}
-	var resp tradFiResponse[*TradFiOrderHistoryList]
+	var resp gateioAPIResponse[*TradFiOrderHistoryList]
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, tradfiOrdersHistoryEPL, http.MethodGet, "tradfi/orders/history", params, nil, &resp); err != nil {
 		return nil, err
 	}
@@ -267,7 +267,7 @@ func (e *Exchange) GetTradFiOrderHistory(ctx context.Context, arg *GetTradFiOrde
 
 // GetTradFiActivePositions retrieves the list of currently open positions.
 func (e *Exchange) GetTradFiActivePositions(ctx context.Context) ([]*TradFiPosition, error) {
-	var resp tradFiResponse[*TradFiPositionList]
+	var resp gateioAPIResponse[*TradFiPositionList]
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, tradfiGetPositionsEPL, http.MethodGet, "tradfi/positions", nil, nil, &resp); err != nil {
 		return nil, err
 	}
@@ -282,7 +282,7 @@ func (e *Exchange) UpdateTradFiPosition(ctx context.Context, positionID int64, a
 	if positionID == 0 {
 		return order.ErrOrderIDNotSet
 	}
-	var resp tradFiResponse[struct{}]
+	var resp gateioAPIResponse[struct{}]
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, tradfiUpdatePositionsEPL, http.MethodPut, "tradfi/positions/"+strconv.FormatInt(positionID, 10), nil, arg, &resp)
 }
 
@@ -297,7 +297,7 @@ func (e *Exchange) CloseTradFiPosition(ctx context.Context, positionID int64, ar
 	if arg.CloseType != 1 && arg.CloseType != 2 {
 		return errTradFiCloseTypeRequired
 	}
-	var resp tradFiResponse[struct{}]
+	var resp gateioAPIResponse[struct{}]
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, tradfiCreatePositionsEPL, http.MethodPost, "tradfi/positions/"+strconv.FormatInt(positionID, 10)+"/close", nil, arg, &resp)
 }
 
@@ -329,6 +329,6 @@ func (e *Exchange) GetTradFiPositionHistory(ctx context.Context, arg *GetTradFiP
 			params.Set("position_dir", arg.PositionDir)
 		}
 	}
-	var resp tradFiResponse[*TradFiHistoricalPositionListData]
+	var resp gateioAPIResponse[*TradFiHistoricalPositionListData]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, tradfiPositionsHistoryEPL, http.MethodGet, "tradfi/positions/history", params, nil, &resp)
 }

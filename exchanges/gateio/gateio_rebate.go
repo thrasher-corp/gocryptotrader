@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -217,10 +218,23 @@ func (e *Exchange) CheckPartnerApplicationEligibility(ctx context.Context) (*Reb
 }
 
 // GetAggregatedPartnerAgentStatistics retrieves aggregated partner agent statistics
-func (e *Exchange) GetAggregatedPartnerAgentStatistics(ctx context.Context, arg *RebateAggregatedStatistics) (*RebateAgentStatisticsResponse, error) {
-	if err := common.NilGuard(arg); err != nil {
-		return nil, err
+// Business type filter: - 0: All (default) - 1: Spot - 2: Futures - 3: Alpha - 4: Web3 - 5: Perps (DEX) - 6: Exchange All - 7: Web3 All - 8: TradFi
+func (e *Exchange) GetAggregatedPartnerAgentStatistics(ctx context.Context, startTime, endTime time.Time, businessType uint64) (*RebateAgentStatisticsResponse, error) {
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
+			return nil, err
+		}
+	}
+	params := url.Values{}
+	if !startTime.IsZero() {
+		params.Set("start_date", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("end_date", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	if businessType > 0 {
+		params.Set("business_type", strconv.FormatUint(businessType, 10))
 	}
 	var resp *RebateAgentStatisticsResponse
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rebatePartnerDataAggregatedEPL, http.MethodGet, "rebate/partner/data/aggregated", nil, nil, &resp)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, rebatePartnerDataAggregatedEPL, http.MethodGet, "rebate/partner/data/aggregated", params, nil, &resp)
 }

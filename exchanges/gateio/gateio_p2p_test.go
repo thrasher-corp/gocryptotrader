@@ -56,8 +56,8 @@ func TestSetMerchantWorkingStatusAndCustomWorking(t *testing.T) {
 	_, err := e.SetMerchantWorkingStatusAndCustomWorking(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = e.SetMerchantWorkingStatusAndCustomWorking(t.Context(), &SetMerchantWorkHoursRequest{})
-	require.ErrorIs(t, err, errP2PWorkStatusMissing)
+	_, err = e.SetMerchantWorkingStatusAndCustomWorking(t.Context(), &SetMerchantWorkHoursRequest{WorkStatus: 5})
+	require.ErrorIs(t, err, errP2PWorkStatusInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.SetMerchantWorkingStatusAndCustomWorking(t.Context(), &SetMerchantWorkHoursRequest{WorkStatus: 1})

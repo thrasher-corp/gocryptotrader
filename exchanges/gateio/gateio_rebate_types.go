@@ -217,18 +217,6 @@ type RebaseEligibilityResponse struct {
 	BlockReasonCodes []string `json:"block_reason_codes"`
 }
 
-// RebateAggregatedStatistics represents aggregated partner agent statistics
-type RebateAggregatedStatistics struct {
-	RebateAmount     types.Number `json:"rebate_amount"`
-	TradeVolume      types.Number `json:"trade_volume"`
-	NetFee           types.Number `json:"net_fee"`
-	CustomerCount    int64        `json:"customer_count"`
-	TradingUserCount types.Number `json:"trading_user_count"`
-	TimeRangeDesc    string       `json:"time_range_desc"`
-	BusinessType     int64        `json:"business_type"`
-	BusinessTypeDesc string       `json:"business_type_desc"`
-}
-
 // RebateAgentStatisticsResponse represents rebate agent statistics
 type RebateAgentStatisticsResponse struct {
 	RebateAmount     types.Number `json:"rebate_amount"`

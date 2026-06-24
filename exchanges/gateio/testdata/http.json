@@ -489,7 +489,7 @@
        "discount_rate": "0.93"
       }
      ],
-     "queryString": "",
+     "queryString": "coin=ETH",
      "bodyParams": "",
      "headers": {}
     }

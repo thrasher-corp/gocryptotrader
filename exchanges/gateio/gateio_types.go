@@ -1,6 +1,7 @@
 package gateio
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
@@ -467,6 +468,24 @@ var WithdrawalFees = map[currency.Code]float64{
 	currency.BUY:      100,
 	currency.INSUR:    290,
 	currency.PUSH:     79,
+}
+
+// gateioAPIResponse is a generic wrapper for API responses.
+type gateioAPIResponse[T any] struct {
+	Timestamp types.Number `json:"timestamp"`
+	Method    string       `json:"method"`
+	Code      int64        `json:"code"`
+	Message   string       `json:"message"`
+	Data      T            `json:"data"`
+	Version   string       `json:"version"`
+}
+
+// Error implements the error check interface to be used by the SendAuthenticatedHTTPRequest method
+func (p *gateioAPIResponse[T]) Error() error {
+	if p.Code != 0 {
+		return fmt.Errorf("error code: %d message: %s", p.Code, p.Message)
+	}
+	return nil
 }
 
 // CurrencyInfo represents currency details with permission.

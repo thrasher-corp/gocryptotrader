@@ -6039,11 +6039,9 @@ func TestCheckPartnerApplicationEligibility(t *testing.T) {
 
 func TestGetAggregatedPartnerAgentStatistics(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetAggregatedPartnerAgentStatistics(t.Context(), nil)
-	require.ErrorIs(t, err, common.ErrNilPointer, "nil arg must return ErrNilPointer")
-
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetAggregatedPartnerAgentStatistics(t.Context(), &RebateAggregatedStatistics{})
+	startTime, endTime := getTime()
+	result, err := e.GetAggregatedPartnerAgentStatistics(t.Context(), startTime, endTime, 1)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

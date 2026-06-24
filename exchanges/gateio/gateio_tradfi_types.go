@@ -31,26 +31,6 @@ func klineIntervalToTypeString(interval kline.Interval) (string, error) {
 	return "", fmt.Errorf("%w: %v", kline.ErrUnsupportedInterval, interval)
 }
 
-// tradFiResponse is a generic wrapper for all TradFi API responses.
-type tradFiResponse[T any] struct {
-	Code      int64        `json:"code"`
-	Label     string       `json:"label"`
-	Message   string       `json:"message"`
-	Timestamp types.Number `json:"timestamp"`
-	Data      T            `json:"data"`
-}
-
-// Error implements the error check interface used by SendAuthenticatedHTTPRequest.
-func (r *tradFiResponse[T]) Error() error {
-	if r.Code != 0 {
-		return fmt.Errorf("code: %d message: %s", r.Code, r.Message)
-	}
-	if r.Label != "" {
-		return fmt.Errorf("label: %s message: %s", r.Label, r.Message)
-	}
-	return nil
-}
-
 // TradFiMT5Account holds MT5 account information.
 type TradFiMT5Account struct {
 	MT5UID       int64  `json:"mt5_uid"`

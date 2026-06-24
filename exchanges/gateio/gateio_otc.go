@@ -47,7 +47,7 @@ func (e *Exchange) GetFiatStablecoinQuote(ctx context.Context, arg *OTCQuoteRequ
 	if arg.GetCoin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
-	var resp otcAPIResponse[*OTCQuoteData]
+	var resp gateioAPIResponse[*OTCQuoteData]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, otcQuoteEPL, http.MethodPost, "otc/quote", nil, arg, &resp)
 }
 
@@ -95,7 +95,7 @@ func (e *Exchange) CreateStablecoinOrder(ctx context.Context, arg *OTCStablecoin
 
 // GetUserBankCardList retrieves the user's bank card list.
 func (e *Exchange) GetUserBankCardList(ctx context.Context) ([]*OTCBankCard, error) {
-	var resp otcAPIResponse[*OTCBankCardListData]
+	var resp gateioAPIResponse[*OTCBankCardListData]
 	if err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, otcBankListEPL, http.MethodGet, "otc/bank/list", nil, nil, &resp); err != nil {
 		return nil, err
 	}
@@ -132,7 +132,7 @@ func (e *Exchange) CreateBankCard(ctx context.Context, arg *OTCBankCreateMultipa
 	if arg.DocumentationFile == "" {
 		return nil, errDocumentationFileRequired
 	}
-	var resp otcAPIResponse[*OTCBankCardRequestResponse]
+	var resp gateioAPIResponse[*OTCBankCardRequestResponse]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, otcBankCreateEPL, http.MethodPost, "otc/bank/create", nil, arg, &resp)
 }
 
@@ -159,7 +159,7 @@ func (e *Exchange) GetCheckListOfMaterialsToSupplementForBankCard(ctx context.Co
 	}
 	params := url.Values{}
 	params.Set("bank_id", bankID)
-	var resp otcAPIResponse[*OTCBankSupplementChecklistItem]
+	var resp gateioAPIResponse[*OTCBankSupplementChecklistItem]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, otcBankSupplementChecklistEPL, http.MethodGet, "otc/bank/bank_supplement_checklist", params, nil, &resp)
 }
 
@@ -270,7 +270,7 @@ func (e *Exchange) GetFiatOrderList(ctx context.Context, orderType, status strin
 	if pageSize > 0 {
 		params.Set("ps", strconv.FormatUint(pageSize, 10))
 	}
-	var resp otcAPIResponse[*OTCOrderListData]
+	var resp gateioAPIResponse[*OTCOrderListData]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, otcOrderListEPL, http.MethodGet, "otc/order/list", params, nil, &resp)
 }
 
@@ -300,7 +300,7 @@ func (e *Exchange) GetStablecoinOrderList(ctx context.Context, coinName currency
 	if pageSize > 0 {
 		params.Set("page_size", strconv.FormatUint(pageSize, 10))
 	}
-	var resp otcAPIResponse[*OTCStablecoinOrderListData]
+	var resp gateioAPIResponse[*OTCStablecoinOrderListData]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, otcStablecoinOrderListEPL, http.MethodGet, "otc/stable_coin/order/list", params, nil, &resp)
 }
 
@@ -311,6 +311,6 @@ func (e *Exchange) GetFiatOrderDetail(ctx context.Context, orderID string) (*OTC
 	}
 	params := url.Values{}
 	params.Set("order_id", orderID)
-	var resp otcAPIResponse[*OTCOrderDetailData]
+	var resp gateioAPIResponse[*OTCOrderDetailData]
 	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, otcOrderDetailEPL, http.MethodGet, "otc/order/detail", params, nil, &resp)
 }

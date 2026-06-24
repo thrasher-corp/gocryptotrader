@@ -209,6 +209,10 @@ func TestSubmitEnterpriseBankCardSupplementMaterials(t *testing.T) {
 	require.ErrorIs(t, err, errPassportRequired)
 
 	arg.Passport = "base64passport"
+	err = e.SubmitEnterpriseBankCardSupplementMaterials(t.Context(), arg)
+	require.ErrorIs(t, err, errShareholdersRequired)
+
+	arg.ShareHoldingStructure = "base64structure"
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	err = e.SubmitEnterpriseBankCardSupplementMaterials(t.Context(), arg)
 	require.NoError(t, err)
@@ -238,6 +242,9 @@ func TestMarkFlatOrderAsPaid(t *testing.T) {
 	t.Parallel()
 	err := e.MarkFiatOrderAsPaid(t.Context(), "", "client-order-id-here", "", "")
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
+
+	err = e.MarkFiatOrderAsPaid(t.Context(), "203", "client-order-id-here", "", "")
+	require.ErrorIs(t, err, errPaymentReceiptFileKeyRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	err = e.MarkFiatOrderAsPaid(t.Context(), "203", "client-order-id-here", "payment-receipt-file-key", "payment-receipt")

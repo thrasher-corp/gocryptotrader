@@ -137,7 +137,7 @@ func (e *Exchange) ModifyCrossExchangeOrder(ctx context.Context, orderID string,
 	if orderID == "" {
 		return nil, order.ErrOrderIDNotSet
 	}
-	if err := common.NilGuard(); err != nil {
+	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
 	var resp CrossExchangeOrderActionResponse

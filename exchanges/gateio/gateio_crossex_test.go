@@ -27,7 +27,9 @@ func TestGetCrossExchangeRiskLimits(t *testing.T) {
 	_, err := e.GetCrossExchangeSymbols(t.Context(), nil)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
-	e.Verbose = true
+	_, err = e.GetCrossExchangeRiskLimits(t.Context(), []string{"BINANCE_FUTURE_BTC_USDT", ""})
+	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
+
 	result, err := e.GetCrossExchangeRiskLimits(t.Context(), []string{"BINANCE_FUTURE_BTC_USDT", "BINANCE_FUTURE_ETH_USDT"})
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)

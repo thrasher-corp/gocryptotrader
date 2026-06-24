@@ -1,29 +1,9 @@
 package gateio
 
 import (
-	"fmt"
-
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
-
-// p2pAPIResponse is a generic wrapper for all P2P API responses.
-type p2pAPIResponse[T any] struct {
-	Timestamp types.Number `json:"timestamp"`
-	Method    string       `json:"method"`
-	Code      int64        `json:"code"`
-	Message   string       `json:"message"`
-	Data      T            `json:"data"`
-	Version   string       `json:"version"`
-}
-
-// Error implements the error check interface to be used by the SendAuthenticatedHTTPRequest method
-func (p *p2pAPIResponse[T]) Error() error {
-	if p.Code != 0 {
-		return fmt.Errorf("error code: %d message: %s", p.Code, p.Message)
-	}
-	return nil
-}
 
 // P2PMerchantInfo holds P2P merchant account information.
 type P2PMerchantInfo struct {

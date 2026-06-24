@@ -7,22 +7,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// otcAPIResponse is a generic wrapper for OTC API responses containing a data payload.
-type otcAPIResponse[T any] struct {
-	Code      int64  `json:"code"`
-	Message   string `json:"message"`
-	Data      T      `json:"data"`
-	Timestamp int64  `json:"timestamp"`
-}
-
-// Error implements the error interface for OTC API responses.
-func (r *otcAPIResponse[T]) Error() error {
-	if r.Code != 0 {
-		return fmt.Errorf("error code: %d message: %s", r.Code, r.Message)
-	}
-	return nil
-}
-
 // OTCBankSupplementChecklistItem represents a bank supplement check list item
 type OTCBankSupplementChecklistItem struct {
 	UserType string `json:"user_type"`

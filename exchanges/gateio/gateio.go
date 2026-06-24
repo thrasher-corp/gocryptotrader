@@ -4464,17 +4464,39 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	if err != nil {
 		return err
 	}
-	return e.SendPayload(ctx, epl, func() (*request.Item, error) {
+	var intermediary json.RawMessage
+	if err := e.SendPayload(ctx, epl, func() (*request.Item, error) {
 		return &request.Item{
 			Method:                 http.MethodGet,
 			Path:                   endpoint + gateioAPIVersion + path,
-			Result:                 result,
+			Result:                 &intermediary,
 			Verbose:                e.Verbose,
 			HTTPDebugging:          e.HTTPDebugging,
 			HTTPRecording:          e.HTTPRecording,
 			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 		}, nil
-	}, request.UnauthenticatedRequest)
+	}, request.UnauthenticatedRequest); err != nil {
+		return err
+	}
+
+	if result == nil {
+		return nil
+	}
+	var errCap struct {
+		Label   string `json:"label"`
+		Code    string `json:"code"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(intermediary, &errCap); err == nil && errCap.Code != "" {
+		return fmt.Errorf("%s request error, code: %s message: %s", e.Name, errCap.Label, errCap.Message)
+	}
+	if err := json.Unmarshal(intermediary, result); err != nil {
+		return fmt.Errorf("%s: %w", e.Name, err)
+	}
+	if errType, ok := result.(interface{ Error() error }); ok && errType.Error() != nil {
+		return errType.Error()
+	}
+	return nil
 }
 
 // ----- Earning endpoints -----------------

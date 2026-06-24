@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
@@ -22,7 +23,10 @@ func TestListSubAccounts(t *testing.T) {
 
 func TestCreateSubAccount(t *testing.T) {
 	t.Parallel()
-	_, err := e.CreateSubAccount(t.Context(), &CreateSubAccountRequest{})
+	_, err := e.CreateSubAccount(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.CreateSubAccount(t.Context(), &CreateSubAccountRequest{})
 	require.ErrorIs(t, err, errInvalidSubAccount)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
@@ -62,6 +66,9 @@ func TestCreateSubAccountAPIKey(t *testing.T) {
 	t.Parallel()
 	_, err := e.CreateSubAccountAPIKey(t.Context(), 0, &SubAccountKeyRequest{})
 	require.ErrorIs(t, err, errInvalidSubAccountUserID)
+
+	_, err = e.CreateSubAccountAPIKey(t.Context(), 12345678, nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.CreateSubAccountAPIKey(t.Context(), 12345678, &SubAccountKeyRequest{
