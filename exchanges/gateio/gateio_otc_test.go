@@ -13,7 +13,10 @@ import (
 
 func TestGetFlatStablecoinQuote(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetFiatStablecoinQuote(t.Context(), &OTCQuoteRequest{})
+	_, err := e.GetFiatStablecoinQuote(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.GetFiatStablecoinQuote(t.Context(), &OTCQuoteRequest{})
 	require.ErrorIs(t, err, errOTCSideRequired)
 
 	_, err = e.GetFiatStablecoinQuote(t.Context(), &OTCQuoteRequest{Side: "PAY"})
@@ -35,8 +38,11 @@ func TestGetFlatStablecoinQuote(t *testing.T) {
 
 func TestCreateFlatOrder(t *testing.T) {
 	t.Parallel()
+	_, err := e.CreateFiatOrder(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
 	arg := &OTCFiatOrderRequest{}
-	_, err := e.CreateFiatOrder(t.Context(), arg)
+	_, err = e.CreateFiatOrder(t.Context(), arg)
 	require.ErrorIs(t, err, errOTCOrderTypeRequired)
 
 	arg.Type = "BUY"

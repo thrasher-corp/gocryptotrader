@@ -2,6 +2,7 @@ package gateio
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -14,8 +15,29 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
+var (
+	errPaymentReceiptFileKeyRequired      = errors.New("payment receipt file key required")
+	errOTCSideRequired                    = errors.New("OTC side (PAY or GET) is required")
+	errOTCOrderTypeRequired               = errors.New("OTC order type (BUY or SELL) is required")
+	errOTCQuoteTokenRequired              = errors.New("OTC quote token is required")
+	errOTCBankIDRequired                  = errors.New("OTC bank ID is required")
+	errBankAccountNameRequired            = errors.New("OTC bank account name is required")
+	errBankNameRequired                   = errors.New("OTC bank name is required")
+	errBankCountryRequired                = errors.New("OTC bank country is required")
+	errBankAddressRequired                = errors.New("OTC bank address is required")
+	errIBANAddresRequired                 = errors.New("OTC IBAN address is required")
+	errSwiftAddressRequired               = errors.New("OTC swift address is required")
+	errDocumentationFileRequired          = errors.New("OTC documentation file is required")
+	errBusinessLicenseCertificateRequired = errors.New("OTC business license registration certificate required")
+	errShareholdersRequired               = errors.New("OTC shareholders filecontent required")
+	errPassportRequired                   = errors.New("OTC legal representative passport required")
+)
+
 // GetFiatStablecoinQuote creates a fiat and stablecoin quote, supporting both PAY and GET directions.
 func (e *Exchange) GetFiatStablecoinQuote(ctx context.Context, arg *OTCQuoteRequest) (*OTCQuoteData, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	if arg.Side == "" {
 		return nil, errOTCSideRequired
 	}
@@ -31,6 +53,9 @@ func (e *Exchange) GetFiatStablecoinQuote(ctx context.Context, arg *OTCQuoteRequ
 
 // CreateFiatOrder creates a fiat order, supporting BUY for on-ramp and SELL for off-ramp.
 func (e *Exchange) CreateFiatOrder(ctx context.Context, arg *OTCFiatOrderRequest) (*OTCActionResponse, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	if arg.Type == "" {
 		return nil, errOTCOrderTypeRequired
 	}
@@ -175,7 +200,7 @@ func (e *Exchange) SubmitEnterpriseBankCardSupplementMaterials(ctx context.Conte
 	if arg.Passport == "" {
 		return errPassportRequired
 	}
-	if arg.ShareHolders == "" {
+	if arg.ShareHoldingStructure == "" {
 		return fmt.Errorf("%w ownership structure chart file content", errShareholdersRequired)
 	}
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, otcBankEnterpriseSupplementEPL, http.MethodPost, "otc/bank/enterprise/bank_supplement", nil, arg, nil)
@@ -186,14 +211,15 @@ func (e *Exchange) MarkFiatOrderAsPaid(ctx context.Context, orderID, clientOrder
 	if orderID == "" {
 		return order.ErrOrderIDNotSet
 	}
+	if paymentReceiptFileKey == "" {
+		return errPaymentReceiptFileKeyRequired
+	}
 	arg := make(map[string]string)
 	arg["order_id"] = orderID
 	if clientOrderID != "" {
 		arg["client_order_id"] = clientOrderID
 	}
-	if paymentReceiptFileKey != "" {
-		arg["payment_receipt_file_key"] = paymentReceiptFileKey
-	}
+	arg["payment_receipt_file_key"] = paymentReceiptFileKey
 	if paymentReceipt != "" {
 		arg["payment_receipt"] = paymentReceipt
 	}

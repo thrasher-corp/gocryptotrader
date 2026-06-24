@@ -151,6 +151,9 @@ func (e *Exchange) CreateInfiniteGridBot(ctx context.Context, arg *InfiniteGridC
 
 // CreateFuturesGridBot creates a futures (contract) grid strategy based on the incoming parameters.
 func (e *Exchange) CreateFuturesGridBot(ctx context.Context, arg *FuturesGridCreateRequest) (*BotCreateData, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	if arg.Market == "" {
 		return nil, errBotMarketRequired
 	}

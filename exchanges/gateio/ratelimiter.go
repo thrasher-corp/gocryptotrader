@@ -676,20 +676,20 @@ var packageRateLimits = request.RateLimitDefinitions{
 	crossexRiskLimitEPL:                     standardRateLimit(),
 	crossexTransfersCoinEPL:                 standardRateLimit(),
 	crossexGetTransfersEPL:                  standardRateLimit(),
-	crossexCreateTransfersEPL:               standardRateLimit(),
-	crossexCreateOrdersEPL:                  spotOrderPlacementRateLimit(),
+	crossexCreateTransfersEPL:               tenPer10SecondsRateLimit(),
+	crossexCreateOrdersEPL:                  hundredPer10SecondsRateLimit(),
 	crossexGetOrdersEPL:                     standardRateLimit(),
-	crossexUpdateOrdersEPL:                  spotOrderPlacementRateLimit(),
-	crossexDeleteOrdersEPL:                  orderCloseRateLimit(),
-	crossexConvertQuoteEPL:                  standardRateLimit(),
-	crossexConvertOrdersEPL:                 spotOrderPlacementRateLimit(),
+	crossexUpdateOrdersEPL:                  hundredPer10SecondsRateLimit(),
+	crossexDeleteOrdersEPL:                  hundredPer10SecondsRateLimit(),
+	crossexConvertQuoteEPL:                  hundredPerDayRateLimit(),
+	crossexConvertOrdersEPL:                 tenPer10SecondsRateLimit(),
 	crossexGetAccountsEPL:                   standardRateLimit(),
-	crossexUpdateAccountsEPL:                standardRateLimit(),
+	crossexUpdateAccountsEPL:                hundredPer60SecondsRateLimit(),
 	crossexGetPositionsLeverageEPL:          standardRateLimit(),
-	crossexCreatePositionsLeverageEPL:       standardRateLimit(),
+	crossexCreatePositionsLeverageEPL:       hundredPer10SecondsRateLimit(),
 	crossexGetMarginPositionsLeverageEPL:    standardRateLimit(),
-	crossexCreateMarginPositionsLeverageEPL: standardRateLimit(),
-	crossexPositionEPL:                      orderCloseRateLimit(),
+	crossexCreateMarginPositionsLeverageEPL: request.NewRateLimitWithWeight(time.Second*10, 100, 1),
+	crossexPositionEPL:                      hundredPerDayRateLimit(),
 	crossexInterestRateEPL:                  standardRateLimit(),
 	crossexFeeEPL:                           standardRateLimit(),
 	crossexPositionsEPL:                     standardRateLimit(),
@@ -770,6 +770,17 @@ var packageRateLimits = request.RateLimitDefinitions{
 	otcOrderDetailEPL:              standardRateLimit(),
 }
 
+func hundredPerDayRateLimit() *request.RateLimiterWithWeight {
+	return request.NewRateLimitWithWeight(time.Hour*24, 100, 1)
+}
+
+func hundredPer10SecondsRateLimit() *request.RateLimiterWithWeight {
+	return request.NewRateLimitWithWeight(time.Second*10, 100, 1)
+}
+
+func hundredPer60SecondsRateLimit() *request.RateLimiterWithWeight {
+	return request.NewRateLimitWithWeight(time.Minute, 100, 1)
+}
 func standardRateLimit() *request.RateLimiterWithWeight {
 	return request.NewRateLimitWithWeight(time.Second*10, 200, 1)
 }
@@ -780,6 +791,10 @@ func personalAccountRateLimit() *request.RateLimiterWithWeight {
 
 func orderCloseRateLimit() *request.RateLimiterWithWeight {
 	return request.NewRateLimitWithWeight(time.Second, 200, 1)
+}
+
+func tenPer10SecondsRateLimit() *request.RateLimiterWithWeight {
+	return request.NewRateLimitWithWeight(time.Second*10, 10, 1)
 }
 
 func spotOrderPlacementRateLimit() *request.RateLimiterWithWeight {

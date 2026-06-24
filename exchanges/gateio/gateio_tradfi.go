@@ -291,6 +291,9 @@ func (e *Exchange) CloseTradFiPosition(ctx context.Context, positionID int64, ar
 	if positionID == 0 {
 		return order.ErrOrderIDNotSet
 	}
+	if err := common.NilGuard(arg); err != nil {
+		return err
+	}
 	if arg.CloseType != 1 && arg.CloseType != 2 {
 		return errTradFiCloseTypeRequired
 	}

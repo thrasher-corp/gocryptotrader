@@ -102,7 +102,7 @@ type OTCQuoteData struct {
 	GateBankName           string        `json:"gate_bank_name"`
 	OrderType              string        `json:"order_type"`
 	QuoteToken             string        `json:"quote_token"`
-	RefreshLimit           uint64        `json:"refresh_limit"`
+	RefreshLimit           types.Number  `json:"refresh_limit"`
 	RefreshLimitMsg        string        `json:"refresh_limit_msg"`
 }
 

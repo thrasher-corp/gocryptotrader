@@ -11983,6 +11983,22 @@
      "queryString": "",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": [
+      {
+       "remark": "test sub account",
+       "login_name": "test_sub_account_001",
+       "email": "test@example.com",
+       "state": 1,
+       "type": 1,
+       "user_id": 12345678,
+       "create_time": 1682899200
+      }
+     ],
+     "queryString": "type=1",
+     "bodyParams": "",
+     "headers": {}
     }
    ],
    "POST": [

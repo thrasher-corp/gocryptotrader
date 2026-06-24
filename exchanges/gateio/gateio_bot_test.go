@@ -123,7 +123,10 @@ func TestCreateInfiniteGridBot(t *testing.T) {
 
 func TestCreateFuturesGridBot(t *testing.T) {
 	t.Parallel()
-	_, err := e.CreateFuturesGridBot(t.Context(), &FuturesGridCreateRequest{})
+	_, err := e.CreateFuturesGridBot(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.CreateFuturesGridBot(t.Context(), &FuturesGridCreateRequest{})
 	require.ErrorIs(t, err, errBotMarketRequired)
 
 	arg := &FuturesGridCreateRequest{Market: "BTC_USDT"}

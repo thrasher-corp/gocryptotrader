@@ -22,7 +22,10 @@ func TestGetP2PAccountInfo(t *testing.T) {
 
 func TestGetP2PCounterpartyInfo(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetP2PCounterpartyInfo(t.Context(), &GetCounterpartyInfoRequest{})
+	_, err := e.GetP2PCounterpartyInfo(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.GetP2PCounterpartyInfo(t.Context(), &GetCounterpartyInfoRequest{})
 	require.ErrorIs(t, err, errBizUIDRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)

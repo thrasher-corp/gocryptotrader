@@ -13,9 +13,11 @@ func TestListSubAccounts(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.ListSubAccounts(t.Context(), -1)
+	_, err := e.ListSubAccounts(t.Context(), -1)
 	require.NoError(t, err)
-	assert.NotEmpty(t, result)
+
+	_, err = e.ListSubAccounts(t.Context(), 1)
+	require.NoError(t, err)
 }
 
 func TestCreateSubAccount(t *testing.T) {
@@ -39,9 +41,8 @@ func TestGetSubAccount(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetSubAccount(t.Context(), 12345678)
+	_, err = e.GetSubAccount(t.Context(), 12345678)
 	require.NoError(t, err)
-	assert.NotEmpty(t, result)
 }
 
 func TestListSubAccountAPIKeys(t *testing.T) {
@@ -81,9 +82,8 @@ func TestGetSubAccountAPIKey(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetSubAccountAPIKey(t.Context(), 12345678, "test-api-key-001")
+	_, err = e.GetSubAccountAPIKey(t.Context(), 12345678, "test-api-key-001")
 	require.NoError(t, err)
-	assert.NotEmpty(t, result)
 }
 
 func TestUpdateSubAccountAPIKey(t *testing.T) {

@@ -121,26 +121,12 @@ var (
 	errChaseOrderIDOrTextRequired           = errors.New("either id or text is required to stop a chase order")
 	errInvalidChaseSortBy                   = errors.New("invalid sort_by value: must be 1 (ORDER_SORT_CREATED_AT) or 2 (ORDER_SORT_FINISHED_AT)")
 	errChaseOrderPriceLimitOrOffsetRequired = errors.New("either price_limit or offset_limit is required to create a chase order")
-	errOTCSideRequired                      = errors.New("OTC side (PAY or GET) is required")
-	errOTCOrderTypeRequired                 = errors.New("OTC order type (BUY or SELL) is required")
-	errOTCQuoteTokenRequired                = errors.New("OTC quote token is required")
-	errOTCBankIDRequired                    = errors.New("OTC bank ID is required")
 	errCurrencyTypeRequired                 = errors.New("currency type is required")
 	errOrderRefundRequestIDRequired         = errors.New("order-refund request ID is required")
 	errRecordIDRequired                     = errors.New("record ID is required")
+	errProductIDRequired                    = errors.New("product ID is missing")
 	errPlanStatusRequired                   = errors.New("plan status is required")
 	errHistoryTypeRequired                  = errors.New("history type is required")
-	errProductIDRequired                    = errors.New("product ID is missing")
-	errBankAccountNameRequired              = errors.New("bank account name is required")
-	errBankNameRequired                     = errors.New("bank name is required")
-	errBankCountryRequired                  = errors.New("bank country is required")
-	errBankAddressRequired                  = errors.New("bank address is required")
-	errIBANAddresRequired                   = errors.New("IBAN address is required")
-	errSwiftAddressRequired                 = errors.New("swift address is required")
-	errDocumentationFileRequired            = errors.New("documentation file is required")
-	errBusinessLicenseCertificateRequired   = errors.New("business license registration certificate required")
-	errShareholdersRequired                 = errors.New("shareholders filecontent required")
-	errPassportRequired                     = errors.New("legal representative passport required")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
@@ -1891,13 +1877,14 @@ func (e *Exchange) GetFuturesCandlesticks(ctx context.Context, settle currency.C
 
 // PremiumIndexKline retrieves premium Index K-Line
 // Maximum of 1000 points can be returned in a query. Be sure not to exceed the limit when specifying from, to and interval
-func (e *Exchange) PremiumIndexKline(ctx context.Context, settleCurrency currency.Code, contract currency.Pair, from, to time.Time, limit int64, interval kline.Interval) (*FuturesPremiumIndexKlineResponse, error) {
+func (e *Exchange) PremiumIndexKline(ctx context.Context, settleCurrency currency.Code, contract currency.Pair, from, to time.Time, limit int64, interval kline.Interval) ([]*FuturesPremiumIndexKlineResponse, error) {
 	if settleCurrency.IsEmpty() {
 		return nil, fmt.Errorf("%w; settlement currency is required", errEmptyOrInvalidSettlementCurrency)
 	}
 	if contract.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
+	params := url.Values{}
 	if !from.IsZero() && !to.IsZero() {
 		if err := common.StartEndTimeCheck(from, to); err != nil {
 			return nil, err
@@ -1907,7 +1894,6 @@ func (e *Exchange) PremiumIndexKline(ctx context.Context, settleCurrency currenc
 	if err != nil {
 		return nil, err
 	}
-	params := url.Values{}
 	params.Set("contract", contract.String())
 	if !from.IsZero() {
 		params.Set("from", strconv.FormatInt(from.Unix(), 10))
@@ -1915,11 +1901,11 @@ func (e *Exchange) PremiumIndexKline(ctx context.Context, settleCurrency currenc
 	if !to.IsZero() {
 		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
-	if limit > 0 {
+	if from.IsZero() && to.IsZero() && limit > 0 {
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	params.Set("interval", intervalString)
-	var resp *FuturesPremiumIndexKlineResponse
+	var resp []*FuturesPremiumIndexKlineResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, publicPremiumIndexEPL, common.EncodeURLValues(futuresPath+settleCurrency.Item.Lower+"/premium_index", params), &resp)
 }
 

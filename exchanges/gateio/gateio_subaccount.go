@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strconv"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -23,6 +24,9 @@ func (e *Exchange) ListSubAccounts(ctx context.Context, subAccountType int64) ([
 
 // CreateSubAccount creates a new sub-account under the main account.
 func (e *Exchange) CreateSubAccount(ctx context.Context, arg *CreateSubAccountRequest) (*SubAccount, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	if arg.LoginName == "" {
 		return nil, fmt.Errorf("%w: login name is required", errInvalidSubAccount)
 	}
@@ -52,6 +56,9 @@ func (e *Exchange) ListSubAccountAPIKeys(ctx context.Context, userID uint64) ([]
 func (e *Exchange) CreateSubAccountAPIKey(ctx context.Context, userID uint64, arg *SubAccountKeyRequest) (*SubAccountAPIKey, error) {
 	if userID == 0 {
 		return nil, errInvalidSubAccountUserID
+	}
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
 	}
 	var resp *SubAccountAPIKey
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, subAccountEPL, http.MethodPost, "sub_accounts/"+strconv.FormatUint(userID, 10)+"/keys", nil, arg, &resp)

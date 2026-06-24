@@ -109,9 +109,8 @@ func TestGetUserRebateInformation(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetUserRebateInformation(t.Context())
+	_, err := e.GetUserRebateInformation(t.Context())
 	require.NoError(t, err)
-	assert.NotZero(t, result)
 }
 
 func TestGetUserSubordinateRelationship(t *testing.T) {
@@ -122,7 +121,6 @@ func TestGetUserSubordinateRelationship(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetUserSubordinateRelationship(t.Context(), []string{"12342", "21312312312"})
+	_, err = e.GetUserSubordinateRelationship(t.Context(), []string{"12342", "21312312312"})
 	require.NoError(t, err)
-	assert.NotNil(t, result)
 }

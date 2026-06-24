@@ -12,14 +12,14 @@ type CreateSubAccountRequest struct {
 
 // SubAccount holds sub-account detail information.
 type SubAccount struct {
-	Remark    string     `json:"remark"`
-	LoginName string     `json:"login_name"`
-	Password  string     `json:"password"`
-	Email     string     `json:"email"`
-	State     int64      `json:"state"`
-	Type      int64      `json:"type"`
-	UserID    uint64     `json:"user_id"`
-	CreatedAt types.Time `json:"create_time"`
+	Remark     string     `json:"remark"`
+	LoginName  string     `json:"login_name"`
+	Password   string     `json:"password"`
+	Email      string     `json:"email"`
+	State      int64      `json:"state"`
+	Type       int64      `json:"type"`
+	UserID     uint64     `json:"user_id"`
+	CreateTime types.Time `json:"create_time"`
 }
 
 // SubAccountKeyRequest holds parameters for creating or updating a sub-account API key.
@@ -48,6 +48,8 @@ type SubAccountAPIKey struct {
 	State       int64                `json:"state"`
 	CreatedAt   types.Time           `json:"created_at"`
 	UpdatedAt   types.Time           `json:"updated_at"`
+	LastAccess  int64                `json:"last_access"`
+	UpdateAt    types.Time           `json:"update_at"`
 }
 
 // SubAccountMode holds unified account mode information for a sub-account.

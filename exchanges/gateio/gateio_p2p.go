@@ -36,6 +36,9 @@ func (e *Exchange) GetP2PAccountInfo(ctx context.Context) (*P2PMerchantInfo, err
 
 // GetP2PCounterpartyInfo retrieves P2P user information for a counterparty by their biz_uid.
 func (e *Exchange) GetP2PCounterpartyInfo(ctx context.Context, arg *GetCounterpartyInfoRequest) (*P2PCounterpartyInfo, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	if arg.BizUID == "" {
 		return nil, errBizUIDRequired
 	}
