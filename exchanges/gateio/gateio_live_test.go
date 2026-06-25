@@ -31,7 +31,6 @@ func TestMain(m *testing.M) {
 	if err := e.populateTradablePairs(); err != nil {
 		log.Fatal(err)
 	}
-	e.HTTPRecording = true
 	os.Exit(m.Run())
 }
 
@@ -41,7 +40,7 @@ func (e *Exchange) populateTradablePairs() error {
 	}
 	enabledAssetPair = make(map[asset.Item]currency.Pair, 7)
 	for _, a := range e.GetAssetTypes(true) {
-		tradablePairs, err := e.GetEnabledPairs(asset.Spot)
+		tradablePairs, err := e.GetEnabledPairs(a)
 		if err != nil {
 			return err
 		} else if len(tradablePairs) == 0 {

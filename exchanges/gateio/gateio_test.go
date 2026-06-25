@@ -40,8 +40,8 @@ import (
 // Please supply your own APIKEYS here for due diligence testing
 
 const (
-	apiKey                  = ""
-	apiSecret               = ""
+	apiKey                  = "4f0067d9ac2b2460ce9faaf204400007"
+	apiSecret               = "dd2ae2c090d9c147ca3231628ff56eeb4d3b4e70142a43d804a88222e84cfe92"
 	canManipulateRealOrders = false
 )
 

@@ -13,10 +13,6 @@ import (
 
 func TestGetCrossExchangeSymbols(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetCrossExchangeSymbols(t.Context(), nil)
-	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
-
-	e.Verbose = true
 	result, err := e.GetCrossExchangeSymbols(t.Context(), []string{"BINANCE_FUTURE_BTC_USDT"})
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
@@ -24,7 +20,7 @@ func TestGetCrossExchangeSymbols(t *testing.T) {
 
 func TestGetCrossExchangeRiskLimits(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetCrossExchangeSymbols(t.Context(), nil)
+	_, err := e.GetCrossExchangeRiskLimits(t.Context(), nil)
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 
 	_, err = e.GetCrossExchangeRiskLimits(t.Context(), []string{"BINANCE_FUTURE_BTC_USDT", ""})
@@ -176,7 +172,7 @@ func TestGetCrossExchangeConvertQuote(t *testing.T) {
 func TestExecuteCrossExchangeConvertOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.ExecuteCrossExchangeConvertOrder(t.Context(), "")
-	require.ErrorIs(t, err, errCrossExchangeQuoteIDRequired)
+	require.ErrorIs(t, err, errQuoteIDRequired)
 
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)

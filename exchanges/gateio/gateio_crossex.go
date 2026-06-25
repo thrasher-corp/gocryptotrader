@@ -21,17 +21,15 @@ var (
 	errCrossExchangeExchangeTypeRequired = errors.New("crossex exchange type required")
 	errCrossExchangeFromAccountRequired  = errors.New("crossex from account required")
 	errCrossExchangeToAccountRequired    = errors.New("crossex to account required")
-	errCrossExchangeQuoteIDRequired      = errors.New("crossex quote ID required")
 	errCrossExchangeLeverageRequired     = errors.New("crossex leverage required")
 )
 
 // GetCrossExchangeSymbols retrieves symbol information for CrossEx trading pairs.
 func (e *Exchange) GetCrossExchangeSymbols(ctx context.Context, symbols []string) ([]*CrossExchangeSymbol, error) {
-	if len(symbols) == 0 || slices.Contains(symbols, "") {
-		return nil, currency.ErrSymbolStringEmpty
-	}
 	params := url.Values{}
-	params.Set("symbols", strings.Join(symbols, ","))
+	if len(symbols) != 0 {
+		params.Set("symbols", strings.Join(symbols, ","))
+	}
 	var resp []*CrossExchangeSymbol
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, crossexSymbolsEPL, common.EncodeURLValues("crossex/rule/symbols", params), &resp)
 }
@@ -177,7 +175,7 @@ func (e *Exchange) GetCrossExchangeConvertQuote(ctx context.Context, arg *CrossE
 // ExecuteCrossExchangeConvertOrder executes a CrossEx flash swap using a previously obtained quote ID.
 func (e *Exchange) ExecuteCrossExchangeConvertOrder(ctx context.Context, quoteID string) (*CrossExchangeConvertOrderResponse, error) {
 	if quoteID == "" {
-		return nil, errCrossExchangeQuoteIDRequired
+		return nil, errQuoteIDRequired
 	}
 	var resp CrossExchangeConvertOrderResponse
 	return &resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexConvertOrdersEPL, http.MethodPost, "crossex/convert/orders", nil, &CrossExchangeConvertOrderRequest{QuoteID: quoteID}, &resp)
