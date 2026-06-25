@@ -8,6 +8,7 @@ package coinmarketcap
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -17,6 +18,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/log"
+)
+
+var (
+	errAPIResponse           = errors.New("coinmarketcap api response error")
+	errEndpointNotAvailable  = errors.New("endpoint is not yet available")
+	errFunctionUseNotAllowed = errors.New("function use not allowed, higher plan needed")
 )
 
 // NewFromSettings returns a new coin market cap instance with supplied settings
@@ -35,11 +42,10 @@ func (c *Coinmarketcap) SetDefaults() {
 	c.Enabled = false
 	c.Verbose = false
 	c.APIUrl = baseURL
-	c.APIVersion = version
 	var err error
 	c.Requester, err = request.New(c.Name,
 		common.NewHTTPClientWithTimeout(defaultTimeOut),
-		request.WithLimiter(request.NewBasicRateLimit(RateInterval, BasicRequestRate, 1)),
+		request.WithLimiter(request.NewBasicRateLimit(rateInterval, basicRequestRate, 1)),
 	)
 	if err != nil {
 		log.Errorln(log.Global, err)
@@ -89,7 +95,7 @@ func (c *Coinmarketcap) GetCryptocurrencyInfo(currencyID ...int64) (CryptoCurren
 	}
 
 	if resp.Status.ErrorCode != 0 {
-		return resp.Data, errors.New(resp.Status.ErrorMessage)
+		return resp.Data, fmt.Errorf("%w: %s", errAPIResponse, resp.Status.ErrorMessage)
 	}
 
 	return resp.Data, nil
@@ -114,7 +120,7 @@ func (c *Coinmarketcap) GetCryptocurrencyIDMap() ([]CryptoCurrencyMap, error) {
 	}
 
 	if resp.Status.ErrorCode != 0 {
-		return resp.Data, errors.New(resp.Status.ErrorMessage)
+		return resp.Data, fmt.Errorf("%w: %s", errAPIResponse, resp.Status.ErrorMessage)
 	}
 
 	return resp.Data, nil
@@ -124,31 +130,6 @@ func (c *Coinmarketcap) GetCryptocurrencyIDMap() ([]CryptoCurrencyMap, error) {
 // cryptocurrencies with market data for a given historical time.
 func (c *Coinmarketcap) GetCryptocurrencyHistoricalListings() ([]CryptocurrencyHistoricalListings, error) {
 	return nil, common.ErrNotYetImplemented
-	// NOTE unreachable code but will be utilised at a later date
-	// resp := struct {
-	// 	Data   []CryptocurrencyHistoricalListings `json:"data"`
-	// 	ServerStatus Status                       `json:"status"`
-	// }{}
-
-	//nolint:gocritic // unused code, used as example
-	// err := c.CheckAccountPlan(0)
-	// if err != nil {
-	// 	return resp.Data, err
-	// }
-
-	//nolint:gocritic // unused code, used as example
-	// err = c.SendHTTPRequest(http.MethodGet, endpointCryptocurrencyHistoricalListings, nil, &resp)
-	// if err != nil {
-	// 	return resp.Data, err
-	// }
-
-	//nolint:gocritic // unused code, used as example
-	// if resp.ServerStatus.ErrorCode != 0 {
-	// 	return resp.Data, errors.New(resp.ServerStatus.ErrorMessage)
-	// }
-
-	//nolint:gocritic // unused code, used as example
-	// return resp.Data, nil
 }
 
 // GetCryptocurrencyLatestListing returns a paginated list of all
@@ -182,7 +163,7 @@ func (c *Coinmarketcap) GetCryptocurrencyLatestListing(start, limit int64) ([]Cr
 	}
 
 	if resp.Status.ErrorCode != 0 {
-		return resp.Data, errors.New(resp.Status.ErrorMessage)
+		return resp.Data, fmt.Errorf("%w: %s", errAPIResponse, resp.Status.ErrorMessage)
 	}
 
 	return resp.Data, nil
@@ -222,7 +203,7 @@ func (c *Coinmarketcap) GetCryptocurrencyLatestMarketPairs(currencyID, start, li
 	}
 
 	if resp.Status.ErrorCode != 0 {
-		return resp.Data, errors.New(resp.Status.ErrorMessage)
+		return resp.Data, fmt.Errorf("%w: %s", errAPIResponse, resp.Status.ErrorMessage)
 	}
 
 	return resp.Data, nil
@@ -260,7 +241,7 @@ func (c *Coinmarketcap) GetCryptocurrencyOHLCHistorical(currencyID int64, tStart
 	}
 
 	if resp.Status.ErrorCode != 0 {
-		return resp.Data, errors.New(resp.Status.ErrorMessage)
+		return resp.Data, fmt.Errorf("%w: %s", errAPIResponse, resp.Status.ErrorMessage)
 	}
 
 	return resp.Data, nil
@@ -294,7 +275,7 @@ func (c *Coinmarketcap) GetCryptocurrencyOHLCLatest(currencyID int64) (Cryptocur
 	}
 
 	if resp.Status.ErrorCode != 0 {
-		return resp.Data, errors.New(resp.Status.ErrorMessage)
+		return resp.Data, fmt.Errorf("%w: %s", errAPIResponse, resp.Status.ErrorMessage)
 	}
 
 	return resp.Data, nil
@@ -329,7 +310,7 @@ func (c *Coinmarketcap) GetCryptocurrencyLatestQuotes(currencyID ...int64) (Cryp
 	}
 
 	if resp.Status.ErrorCode != 0 {
-		return resp.Data, errors.New(resp.Status.ErrorMessage)
+		return resp.Data, fmt.Errorf("%w: %s", errAPIResponse, resp.Status.ErrorMessage)
 	}
 
 	return resp.Data, nil
@@ -366,7 +347,7 @@ func (c *Coinmarketcap) GetCryptocurrencyHistoricalQuotes(currencyID int64, tSta
 	}
 
 	if resp.Status.ErrorCode != 0 {
-		return resp.Data, errors.New(resp.Status.ErrorMessage)
+		return resp.Data, fmt.Errorf("%w: %s", errAPIResponse, resp.Status.ErrorMessage)
 	}
 
 	return resp.Data, nil
@@ -401,7 +382,7 @@ func (c *Coinmarketcap) GetExchangeInfo(exchangeID ...int64) (ExchangeInfo, erro
 	}
 
 	if resp.Status.ErrorCode != 0 {
-		return resp.Data, errors.New(resp.Status.ErrorMessage)
+		return resp.Data, fmt.Errorf("%w: %s", errAPIResponse, resp.Status.ErrorMessage)
 	}
 
 	return resp.Data, nil
@@ -432,7 +413,7 @@ func (c *Coinmarketcap) GetExchangeMap(start, limit int64) ([]ExchangeMap, error
 	}
 
 	if limit != 0 {
-		val.Set("limit", strconv.FormatInt(start, 10))
+		val.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
 	err = c.SendHTTPRequest(http.MethodGet, endpointExchangeMap, val, &resp)
@@ -441,7 +422,7 @@ func (c *Coinmarketcap) GetExchangeMap(start, limit int64) ([]ExchangeMap, error
 	}
 
 	if resp.Status.ErrorCode != 0 {
-		return resp.Data, errors.New(resp.Status.ErrorMessage)
+		return resp.Data, fmt.Errorf("%w: %s", errAPIResponse, resp.Status.ErrorMessage)
 	}
 
 	return resp.Data, nil
@@ -455,7 +436,7 @@ func (c *Coinmarketcap) GetExchangeHistoricalListings() ([]ExchangeHistoricalLis
 		Status Status                       `json:"status"`
 	}{}
 
-	return resp.Data, errors.New("this endpoint is not yet available")
+	return resp.Data, errEndpointNotAvailable
 }
 
 // GetExchangeLatestListings returns a paginated list of all cryptocurrency
@@ -466,7 +447,7 @@ func (c *Coinmarketcap) GetExchangeLatestListings() ([]ExchangeLatestListings, e
 		Status Status                   `json:"status"`
 	}{}
 
-	return resp.Data, errors.New("this endpoint is not yet available")
+	return resp.Data, errEndpointNotAvailable
 }
 
 // GetExchangeLatestMarketPairs returns a list of active market pairs for an
@@ -494,7 +475,7 @@ func (c *Coinmarketcap) GetExchangeLatestMarketPairs(exchangeID, start, limit in
 	}
 
 	if limit != 0 {
-		val.Set("limit", strconv.FormatInt(start, 10))
+		val.Set("limit", strconv.FormatInt(limit, 10))
 	}
 
 	err = c.SendHTTPRequest(http.MethodGet, endpointExchangeMarketPairsLatest, val, &resp)
@@ -503,7 +484,7 @@ func (c *Coinmarketcap) GetExchangeLatestMarketPairs(exchangeID, start, limit in
 	}
 
 	if resp.Status.ErrorCode != 0 {
-		return resp.Data, errors.New(resp.Status.ErrorMessage)
+		return resp.Data, fmt.Errorf("%w: %s", errAPIResponse, resp.Status.ErrorMessage)
 	}
 
 	return resp.Data, nil
@@ -538,7 +519,7 @@ func (c *Coinmarketcap) GetExchangeLatestQuotes(exchangeID ...int64) (ExchangeLa
 	}
 
 	if resp.Status.ErrorCode != 0 {
-		return resp.Data, errors.New(resp.Status.ErrorMessage)
+		return resp.Data, fmt.Errorf("%w: %s", errAPIResponse, resp.Status.ErrorMessage)
 	}
 
 	return resp.Data, nil
@@ -575,7 +556,7 @@ func (c *Coinmarketcap) GetExchangeHistoricalQuotes(exchangeID int64, tStart, tE
 	}
 
 	if resp.Status.ErrorCode != 0 {
-		return resp.Data, errors.New(resp.Status.ErrorMessage)
+		return resp.Data, fmt.Errorf("%w: %s", errAPIResponse, resp.Status.ErrorMessage)
 	}
 
 	return resp.Data, nil
@@ -600,7 +581,7 @@ func (c *Coinmarketcap) GetGlobalMeticLatestQuotes() (GlobalMeticLatestQuotes, e
 	}
 
 	if resp.Status.ErrorCode != 0 {
-		return resp.Data, errors.New(resp.Status.ErrorMessage)
+		return resp.Data, fmt.Errorf("%w: %s", errAPIResponse, resp.Status.ErrorMessage)
 	}
 
 	return resp.Data, nil
@@ -635,7 +616,7 @@ func (c *Coinmarketcap) GetGlobalMeticHistoricalQuotes(tStart, tEnd time.Time) (
 	}
 
 	if resp.Status.ErrorCode != 0 {
-		return resp.Data, errors.New(resp.Status.ErrorMessage)
+		return resp.Data, fmt.Errorf("%w: %s", errAPIResponse, resp.Status.ErrorMessage)
 	}
 
 	return resp.Data, nil
@@ -652,8 +633,8 @@ func (c *Coinmarketcap) GetGlobalMeticHistoricalQuotes(tStart, tEnd time.Time) (
 // conversion.
 func (c *Coinmarketcap) GetPriceConversion(amount float64, currencyID int64, atHistoricTime time.Time) (PriceConversion, error) {
 	resp := struct {
-		Data PriceConversion `json:"data"`
-		Status
+		Data   PriceConversion `json:"data"`
+		Status Status          `json:"status"`
 	}{}
 
 	err := c.CheckAccountPlan(Hobbyist)
@@ -675,7 +656,7 @@ func (c *Coinmarketcap) GetPriceConversion(amount float64, currencyID int64, atH
 	}
 
 	if resp.Status.ErrorCode != 0 {
-		return resp.Data, errors.New(resp.Status.ErrorMessage)
+		return resp.Data, fmt.Errorf("%w: %s", errAPIResponse, resp.Status.ErrorMessage)
 	}
 
 	return resp.Data, nil
@@ -687,7 +668,7 @@ func (c *Coinmarketcap) SendHTTPRequest(method, endpoint string, v url.Values, r
 	headers["Accept"] = "application/json"
 	headers["X-CMC_PRO_API_KEY"] = c.APIkey
 
-	path := c.APIUrl + c.APIVersion + endpoint
+	path := c.APIUrl + "/" + endpoint
 	if v != nil {
 		path = path + "?" + v.Encode()
 	}
@@ -708,7 +689,7 @@ func (c *Coinmarketcap) SendHTTPRequest(method, endpoint string, v url.Values, r
 // account privileges
 func (c *Coinmarketcap) CheckAccountPlan(minAllowable uint8) error {
 	if c.Plan < minAllowable {
-		return errors.New("function use not allowed, higher plan needed")
+		return errFunctionUseNotAllowed
 	}
 	return nil
 }
