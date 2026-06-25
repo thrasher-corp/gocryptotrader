@@ -5,6 +5,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
 func TestWsHandle(t *testing.T) {
@@ -48,8 +51,60 @@ func TestWsHandleFuturesData(t *testing.T) {
 	for elem := range futuresWsPushDataMap {
 		t.Run(elem, func(t *testing.T) {
 			t.Parallel()
-			err := e.WsHandleData(context.Background(), nil, []byte(futuresWsPushDataMap[elem]))
-			assert.NoErrorf(t, err, "%v: %s", err, elem)
+			err := e.WsHandleFuturesData(context.Background(), nil, []byte(futuresWsPushDataMap[elem]))
+			assert.NoErrorf(t, err, "WsHandleFuturesData should not error for %s", elem)
 		})
 	}
+}
+
+func TestAssetTypeToString(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "spot", assetTypeToString(asset.Spot))
+	assert.Equal(t, "futures", assetTypeToString(asset.Futures))
+	assert.Empty(t, assetTypeToString(asset.Margin))
+}
+
+func TestChannelName(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		asset    asset.Item
+		channel  string
+		expected string
+	}{
+		{asset.Futures, subscription.TickerChannel, channelFTickers},
+		{asset.Futures, subscription.OrderbookChannel, channelFDepthFull},
+		{asset.Futures, subscription.MyTradesChannel, channelFDeal},
+		{asset.Futures, subscription.MyOrdersChannel, channelFPersonalOrder},
+		{asset.Futures, subscription.MyAccountChannel, channelFPersonalAssets},
+		{asset.Spot, subscription.TickerChannel, channelBookTiker},
+		{asset.Spot, subscription.OrderbookChannel, channelLimitDepthV3},
+		{asset.Spot, subscription.AllTradesChannel, channelAggreDealsV3},
+		{asset.Spot, subscription.CandlesChannel, channelKlineV3},
+		{asset.Spot, subscription.MyTradesChannel, channelPrivateDealsV3},
+		{asset.Spot, subscription.MyOrdersChannel, channelPrivateOrdersAPI},
+		{asset.Spot, subscription.MyAccountChannel, channelAccountV3},
+		{asset.Spot, subscription.HeartbeatChannel, subscription.HeartbeatChannel},
+	} {
+		assert.Equalf(t, tc.expected, channelName(&subscription.Subscription{Asset: tc.asset, Channel: tc.channel}), "channelName should return correct channel for %s %s", tc.asset, tc.channel)
+	}
+}
+
+func TestIsFutures(t *testing.T) {
+	t.Parallel()
+	assert.True(t, isFutures(&subscription.Subscription{Asset: asset.Futures}))
+	assert.False(t, isFutures(&subscription.Subscription{Asset: asset.Spot}))
+}
+
+func TestIsSymbolChannel(t *testing.T) {
+	t.Parallel()
+	assert.True(t, isSymbolChannel(channelBookTiker))
+	assert.False(t, isSymbolChannel(channelAccountV3))
+	assert.False(t, isSymbolChannel(channelPrivateDealsV3))
+	assert.False(t, isSymbolChannel(channelPrivateOrdersAPI))
+}
+
+func TestWsIntervalString(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "Min15", wsIntervalString(&subscription.Subscription{Interval: kline.FifteenMin}))
+	assert.Empty(t, wsIntervalString(&subscription.Subscription{Interval: kline.SixMonth}))
 }

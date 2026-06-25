@@ -26,10 +26,10 @@ const (
 
 type PublicAggreBookTickerV3Api struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	BidPrice     string                `protobuf:"bytes,1,opt,name=bidPrice,proto3" json:"bidPrice,omitempty"`
-	BidQuantity  string                `protobuf:"bytes,2,opt,name=bidQuantity,proto3" json:"bidQuantity,omitempty"`
-	AskPrice     string                `protobuf:"bytes,3,opt,name=askPrice,proto3" json:"askPrice,omitempty"`
-	AskQuantity  string                `protobuf:"bytes,4,opt,name=askQuantity,proto3" json:"askQuantity,omitempty"`
+	BidPrice      string                 `protobuf:"bytes,1,opt,name=bidPrice,proto3" json:"bidPrice,omitempty"`
+	BidQuantity   string                 `protobuf:"bytes,2,opt,name=bidQuantity,proto3" json:"bidQuantity,omitempty"`
+	AskPrice      string                 `protobuf:"bytes,3,opt,name=askPrice,proto3" json:"askPrice,omitempty"`
+	AskQuantity   string                 `protobuf:"bytes,4,opt,name=askQuantity,proto3" json:"askQuantity,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

@@ -122,6 +122,20 @@ func TestIntervalToString(t *testing.T) {
 	assert.NotEmpty(t, intervalString)
 }
 
+func TestIntervalFromString(t *testing.T) {
+	t.Parallel()
+	_, err := IntervalFromString("invalid")
+	require.ErrorIs(t, err, kline.ErrInvalidInterval)
+
+	interval, err := IntervalFromString("Min5")
+	require.NoError(t, err)
+	assert.Equal(t, kline.FiveMin, interval)
+
+	interval, err = IntervalFromString("1d")
+	require.NoError(t, err)
+	assert.Equal(t, kline.OneDay, interval)
+}
+
 func TestGetCandlestick(t *testing.T) {
 	t.Parallel()
 	intervalString, err := intervalToString(kline.FiveMin)
@@ -1966,4 +1980,54 @@ func TestCancelAllOrders(t *testing.T) {
 	result, err = e.CancelAllOrders(t.Context(), &order.Cancel{OrderID: "12345", AssetType: asset.Futures, Pair: futuresTradablePair})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+func TestAccountStatusToString(t *testing.T) {
+	t.Parallel()
+	for status, expected := range map[int64]string{
+		1: "SMALL", 2: "TIME_DELAY", 3: "LARGE_DELAY", 4: "PENDING",
+		5: "SUCCESS", 6: "AUDITING", 7: "REJECTED", 0: "", 99: "",
+	} {
+		assert.Equalf(t, expected, accountStatusToString(status), "accountStatusToString should return correct value for %d", status)
+	}
+}
+
+func TestWithdrawalStatusToString(t *testing.T) {
+	t.Parallel()
+	for status, expected := range map[int64]string{
+		1: "APPLY", 2: "AUDITING", 3: "WAIT", 4: "PROCESSING", 5: "WAIT_PACKAGING",
+		6: "WAIT_CONFIRM", 7: "SUCCESS", 8: "FAILED", 9: "CANCEL", 10: "MANUAL", 0: "", 99: "",
+	} {
+		assert.Equalf(t, expected, withdrawalStatusToString(status), "withdrawalStatusToString should return correct value for %d", status)
+	}
+}
+
+func TestOrderStateFromInt(t *testing.T) {
+	t.Parallel()
+	for state, expected := range map[int64]order.Status{
+		1: order.Pending, 2: order.New, 3: order.Filled, 4: order.Cancelled,
+		5: order.Closed, 0: order.UnknownStatus, 99: order.UnknownStatus,
+	} {
+		assert.Equalf(t, expected, orderStateFromInt(state), "orderStateFromInt should return correct status for %d", state)
+	}
+}
+
+func TestOrderTypeAndTimeInForceFromOrderTypeInt(t *testing.T) {
+	t.Parallel()
+	for orderType, expected := range map[int64]struct {
+		oType order.Type
+		tif   order.TimeInForce
+	}{
+		1: {order.Limit, order.GoodTillCancel},
+		2: {order.Limit, order.PostOnly},
+		3: {order.Market, order.ImmediateOrCancel},
+		4: {order.Market, order.FillOrKill},
+		5: {order.Market, order.UnknownTIF},
+		6: {order.Chase, order.UnknownTIF},
+		0: {order.UnknownType, order.UnknownTIF},
+	} {
+		oType, tif := orderTypeAndTimeInForceFromOrderTypeInt(orderType)
+		assert.Equalf(t, expected.oType, oType, "orderTypeAndTimeInForceFromOrderTypeInt should return correct type for %d", orderType)
+		assert.Equalf(t, expected.tif, tif, "orderTypeAndTimeInForceFromOrderTypeInt should return correct TIF for %d", orderType)
+	}
 }

@@ -95,7 +95,8 @@ func (e *Exchange) SetDefaults() {
 		Subscriptions: defaultSubscriptions.Clone(),
 	}
 	var err error
-	e.Requester, err = request.New(e.Name,
+	e.Requester, err = request.New(
+		e.Name,
 		common.NewHTTPClientWithTimeout(exchange.DefaultHTTPTimeout),
 		request.WithLimiter(GetRateLimit()),
 	)
@@ -216,11 +217,7 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 			case 2, 3, 4:
 				continue
 			}
-			pair, err := currency.NewPairFromStrings(result.Data[i].BaseCoin, result.Data[i].QuoteCoin)
-			if err != nil {
-				return nil, err
-			}
-			currencyPairs = append(currencyPairs, pair.Format(pairFormat))
+			currencyPairs = append(currencyPairs, currency.NewPair(result.Data[i].BaseCoin, result.Data[i].QuoteCoin).Format(pairFormat))
 		}
 		return currencyPairs, nil
 	default:
@@ -548,7 +545,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 			Status:          accountStatusToString(result[a].Status),
 			TransferID:      result[a].TransactionID,
 			Timestamp:       result[a].ConfirmTimes.Time(),
-			Currency:        result[a].Coin,
+			Currency:        result[a].Coin.String(),
 			Amount:          result[a].Amount.Float64(),
 			CryptoToAddress: result[a].Address,
 			TransferType:    "diposit",
@@ -1407,7 +1404,8 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 		}
 		timeSeries := make([]kline.Candle, 0, req.Size())
 		for x := range req.RangeHolder.Ranges {
-			result, err := e.GetCandlestick(ctx,
+			result, err := e.GetCandlestick(
+				ctx,
 				pair.Format(pFormat),
 				intervalString,
 				req.RangeHolder.Ranges[x].Start.Time,
@@ -1492,7 +1490,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			Name:               cp,
 			Asset:              item,
 			Exchange:           e.Name,
-			SettlementCurrency: currency.NewCode(contracts.Data[a].SettleCoin),
+			SettlementCurrency: contracts.Data[a].SettleCoin,
 			Type:               contractType,
 			MaxLeverage:        contracts.Data[a].MaxLeverage,
 			IsActive:           contracts.Data[a].State == 0,

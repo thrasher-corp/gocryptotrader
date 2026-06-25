@@ -10,7 +10,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
@@ -32,19 +31,9 @@ func TestMain(m *testing.M) {
 	if err := populateTradablePairs(); err != nil {
 		log.Fatal(err)
 	}
-	var err error
-	spotTradablePair, err = currency.NewPairFromString("BTCUSDT")
-	if err != nil {
-		log.Fatal(err)
-	}
-	futuresTradablePair, err = currency.NewPairFromString("BTC_USDT")
-	if err != nil {
-		log.Fatal(err)
-	}
 	if err := e.setEnabledPairs(spotTradablePair, futuresTradablePair); err != nil {
 		log.Fatal(err)
 	}
-	e.HTTPRecording = true
 	os.Exit(m.Run())
 }
 

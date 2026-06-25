@@ -37,7 +37,7 @@ type PrivateDealsV3Api struct {
 	OrderId       string                 `protobuf:"bytes,9,opt,name=orderId,proto3" json:"orderId,omitempty"`
 	FeeAmount     string                 `protobuf:"bytes,10,opt,name=feeAmount,proto3" json:"feeAmount,omitempty"`
 	FeeCurrency   string                 `protobuf:"bytes,11,opt,name=feeCurrency,proto3" json:"feeCurrency,omitempty"`
-	Time          string                  `protobuf:"varint,12,opt,name=time,proto3" json:"time,omitempty"`
+	Time          string                 `protobuf:"varint,12,opt,name=time,proto3" json:"time,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

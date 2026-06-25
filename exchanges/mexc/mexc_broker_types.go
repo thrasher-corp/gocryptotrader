@@ -69,7 +69,7 @@ func (sl StringList) MarshalJSON() ([]byte, error) {
 
 // BrokerSubAccountAPIKeys holds a list of subaccount API keys
 type BrokerSubAccountAPIKeys struct {
-	SubAccount []BrokerSubAccountAPIKey `json:"subAccount"`
+	SubAccount []*BrokerSubAccountAPIKey `json:"subAccount"`
 }
 
 // BrokerSubAccountAPIKeyDeletionParams holds request parameters for deleting a subaccount API key

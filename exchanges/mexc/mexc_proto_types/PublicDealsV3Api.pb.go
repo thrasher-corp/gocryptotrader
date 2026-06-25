@@ -82,7 +82,7 @@ type PublicDealsV3ApiItem struct {
 	Price         string                 `protobuf:"bytes,1,opt,name=price,proto3" json:"price,omitempty"`
 	Quantity      string                 `protobuf:"bytes,2,opt,name=quantity,proto3" json:"quantity,omitempty"`
 	TradeType     int32                  `protobuf:"varint,3,opt,name=tradeType,proto3" json:"tradeType,omitempty"`
-	Time          types.Time                  `protobuf:"varint,4,opt,name=time,proto3" json:"time,omitempty"`
+	Time          types.Time             `protobuf:"varint,4,opt,name=time,proto3" json:"time,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

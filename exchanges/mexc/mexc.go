@@ -694,7 +694,7 @@ func (e *Exchange) DustTransfer(ctx context.Context, assets []currency.Code) (*D
 		if assets[a].IsEmpty() {
 			return nil, currency.ErrCurrencyCodeEmpty
 		}
-		assetsStringSb682.WriteString(assets[a].String() + ",")
+		fmt.Fprintf(&assetsStringSb682, "%s%s", assets[a].String(), ",")
 	}
 	assetsString += assetsStringSb682.String()
 	assetsString = strings.Trim(assetsString, ",")
