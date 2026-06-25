@@ -907,15 +907,6 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	return resp, nil
 }
 
-func getOrderTypeString(oType order.Type) string {
-	switch oType {
-	case order.UnknownType:
-		return ""
-	default:
-		return oType.String()
-	}
-}
-
 // ModifyOrder modifies an existing order
 func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
 	arg, err := e.deriveAmendOrderArguments(action)

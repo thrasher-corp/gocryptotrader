@@ -39,35 +39,32 @@ func (e *Exchange) deriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderReque
 		}
 	}
 
-	orderFilter := "Order" // If "Order" is not passed, "Order" by default.
-	if s.TakeProfit.Price != 0 || s.TakeProfit.LimitPrice != 0 ||
-		s.StopLoss.Price != 0 || s.StopLoss.LimitPrice != 0 {
-		orderFilter = ""
-	} else if s.TriggerPrice != 0 {
-		orderFilter = "tpslOrder"
-	}
-
-	var triggerPriceType string
-	if s.TriggerPrice != 0 {
-		triggerPriceType = s.TriggerPriceType.String()
+	var orderFilter string
+	if s.AssetType == asset.Spot {
+		orderFilter = "Order" // If "Order" is not passed, "Order" by default.
+		if s.TakeProfit.Price != 0 || s.TakeProfit.LimitPrice != 0 ||
+			s.StopLoss.Price != 0 || s.StopLoss.LimitPrice != 0 {
+			orderFilter = ""
+		} else if s.TriggerPrice != 0 {
+			orderFilter = "tpslOrder"
+		}
 	}
 
 	arg := &PlaceOrderRequest{
-		Category:         getCategoryName(s.AssetType),
-		Symbol:           formattedPair,
-		Side:             side,
-		OrderType:        orderTypeToString(s.Type),
-		OrderQuantity:    s.Amount,
-		Price:            s.Price,
-		OrderLinkID:      s.ClientOrderID,
-		EnableBorrow:     s.AssetType == asset.Margin,
-		ReduceOnly:       s.ReduceOnly,
-		OrderFilter:      orderFilter,
-		TriggerPrice:     s.TriggerPrice,
-		TimeInForce:      timeInForce,
-		TriggerPriceType: triggerPriceType,
+		Category:      getCategoryName(s.AssetType),
+		Symbol:        formattedPair,
+		Side:          side,
+		OrderType:     orderTypeToString(s.Type),
+		OrderQuantity: s.Amount,
+		Price:         s.Price,
+		OrderLinkID:   s.ClientOrderID,
+		EnableBorrow:  s.AssetType == asset.Margin,
+		ReduceOnly:    s.ReduceOnly,
+		OrderFilter:   orderFilter,
+		TriggerPrice:  s.TriggerPrice,
+		TimeInForce:   timeInForce,
 	}
-	if arg.TriggerPrice != 0 {
+	if s.TriggerPrice != 0 {
 		arg.TriggerPriceType = s.TriggerPriceType.String()
 	}
 	if s.TakeProfit.Price != 0 {
@@ -75,9 +72,9 @@ func (e *Exchange) deriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderReque
 		arg.TakeProfitTriggerBy = s.TakeProfit.TriggerPriceType.String()
 		arg.TpLimitPrice = s.TakeProfit.LimitPrice
 		if s.TakeProfit.LimitPrice != 0 {
-			arg.TpOrderType = getOrderTypeString(order.Limit)
+			arg.TpOrderType = orderTypeToString(order.Limit)
 		} else {
-			arg.TpOrderType = getOrderTypeString(order.Market)
+			arg.TpOrderType = orderTypeToString(order.Market)
 		}
 	}
 	if s.StopLoss.Price != 0 {
@@ -85,9 +82,9 @@ func (e *Exchange) deriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderReque
 		arg.StopLossTriggerBy = s.StopLoss.TriggerPriceType.String()
 		arg.SlLimitPrice = s.StopLoss.LimitPrice
 		if s.StopLoss.LimitPrice != 0 {
-			arg.SlOrderType = getOrderTypeString(order.Limit)
+			arg.SlOrderType = orderTypeToString(order.Limit)
 		} else {
-			arg.SlOrderType = getOrderTypeString(order.Market)
+			arg.SlOrderType = orderTypeToString(order.Market)
 		}
 	}
 	return arg, nil
@@ -108,16 +105,15 @@ func (e *Exchange) deriveAmendOrderArguments(action *order.Modify) (*AmendOrderR
 	}
 
 	arg := &AmendOrderRequest{
-		Category:         getCategoryName(action.AssetType),
-		Symbol:           pair,
-		OrderID:          action.OrderID,
-		OrderLinkID:      action.ClientOrderID,
-		OrderQuantity:    action.Amount,
-		Price:            action.Price,
-		TriggerPrice:     action.TriggerPrice,
-		TriggerPriceType: action.TriggerPriceType.String(),
+		Category:      getCategoryName(action.AssetType),
+		Symbol:        pair,
+		OrderID:       action.OrderID,
+		OrderLinkID:   action.ClientOrderID,
+		OrderQuantity: action.Amount,
+		Price:         action.Price,
+		TriggerPrice:  action.TriggerPrice,
 	}
-	if arg.TriggerPrice != 0 {
+	if action.TriggerPrice != 0 {
 		arg.TriggerPriceType = action.TriggerPriceType.String()
 	}
 	if action.TakeProfit.Price != 0 {

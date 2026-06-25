@@ -1238,10 +1238,6 @@ func (s *RPCServer) SubmitOrder(ctx context.Context, r *gctrpc.SubmitOrderReques
 			TriggerPriceType: order.StringToPriceType(r.TakeProfit.PriceType),
 		}
 	}
-	if r.MarginType != "" {
-		submission.MarginType = marginType
-	}
-
 	resp, err := s.OrderManager.Submit(ctx, submission)
 	if err != nil {
 		return &gctrpc.SubmitOrderResponse{}, err

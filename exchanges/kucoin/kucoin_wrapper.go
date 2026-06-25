@@ -739,9 +739,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			return s.DeriveSubmitResponse(o)
 		case order.OCO:
 			switch {
-			case s.TakeProfit != (order.RiskManagement{}) && s.TakeProfit.Price <= 0:
+			case s.TakeProfit.Price <= 0:
 				return nil, fmt.Errorf("%w: take profit price is required", limits.ErrPriceBelowMin)
-			case s.StopLoss != (order.RiskManagement{}) && s.StopLoss.Price <= 0:
+			case s.StopLoss.Price <= 0:
 				return nil, fmt.Errorf("%w: stop loss price is required", limits.ErrPriceBelowMin)
 			}
 			switch s.Side {

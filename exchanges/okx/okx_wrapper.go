@@ -1096,7 +1096,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 			TakeProfitOrderPrice:       s.TakeProfit.LimitPrice,
 			TakeProfitTriggerPriceType: priceTypeString(s.TriggerPriceType),
 
-			StopLossTriggerPrice:     s.TakeProfit.Price,
+			StopLossTriggerPrice:     s.StopLoss.Price,
 			StopLossOrderPrice:       s.StopLoss.LimitPrice,
 			StopLossTriggerPriceType: priceTypeString(s.TriggerPriceType),
 		})
@@ -1196,7 +1196,7 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 					NewTakeProfitTriggerPrice:     action.TakeProfit.Price,
 					NewTakeProfitOrderPrice:       action.TakeProfit.LimitPrice,
 					NewStopLossTriggerPrice:       action.StopLoss.Price,
-					NewStopLossOrderPrice:         action.StopLoss.Price,
+					NewStopLossOrderPrice:         action.StopLoss.LimitPrice,
 					NewTakeProfitTriggerPriceType: priceTypeString(action.TakeProfit.TriggerPriceType),
 					NewStopLossTriggerPriceType:   priceTypeString(action.StopLoss.TriggerPriceType),
 				},

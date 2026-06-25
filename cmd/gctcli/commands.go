@@ -3207,6 +3207,9 @@ func getCurrencyTradeURL(c *cli.Context) error {
 func unmarshalCLIFields(c *cli.Context, params any) error {
 	val := reflect.ValueOf(params).Elem()
 	typ := val.Type()
+	// argIndex tracks the positional argument slot, which only advances for
+	// flag-eligible fields so it stays aligned when fields are skipped.
+	argIndex := 0
 	for i := range typ.NumField() {
 		field := typ.Field(i)
 		if !field.IsExported() {
@@ -3225,7 +3228,7 @@ func unmarshalCLIFields(c *cli.Context, params any) error {
 				if c.IsSet(flagNames[n]) {
 					value = c.String(flagNames[n])
 				} else {
-					value = c.Args().Get(i)
+					value = c.Args().Get(argIndex)
 				}
 				if value != "" {
 					break
@@ -3242,9 +3245,9 @@ func unmarshalCLIFields(c *cli.Context, params any) error {
 			for n := range flagNames {
 				if c.IsSet(flagNames[n]) {
 					value = c.Float64(flagNames[n])
-				} else if c.Args().Get(i) != "" {
+				} else if c.Args().Get(argIndex) != "" {
 					var err error
-					value, err = strconv.ParseFloat(c.Args().Get(i), 64)
+					value, err = strconv.ParseFloat(c.Args().Get(argIndex), 64)
 					if err != nil {
 						return err
 					}
@@ -3264,11 +3267,11 @@ func unmarshalCLIFields(c *cli.Context, params any) error {
 			for n := range flagNames {
 				if c.IsSet(flagNames[n]) {
 					value = c.Bool(flagNames[n])
-				} else if c.Args().Get(i) != "" {
+				} else if c.Args().Get(argIndex) != "" {
 					var err error
-					value, err = strconv.ParseBool(c.Args().Get(i))
-					if required && (err != nil || !value) {
-						return fmt.Errorf("%w for flag %q", ErrRequiredValueMissing, flagNames[0])
+					value, err = strconv.ParseBool(c.Args().Get(argIndex))
+					if err != nil {
+						return err
 					}
 				}
 				if value {
@@ -3284,9 +3287,9 @@ func unmarshalCLIFields(c *cli.Context, params any) error {
 			for n := range flagNames {
 				if c.IsSet(flagNames[n]) {
 					value = c.Int64(flagNames[n])
-				} else if c.Args().Get(i) != "" {
+				} else if c.Args().Get(argIndex) != "" {
 					var err error
-					value, err = strconv.ParseInt(c.Args().Get(i), 10, 64)
+					value, err = strconv.ParseInt(c.Args().Get(argIndex), 10, 64)
 					if err != nil {
 						return err
 					}
@@ -3302,6 +3305,7 @@ func unmarshalCLIFields(c *cli.Context, params any) error {
 			}
 			val.Field(i).SetInt(value)
 		}
+		argIndex++
 	}
 	return nil
 }
