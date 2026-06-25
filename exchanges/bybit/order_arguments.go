@@ -39,43 +39,53 @@ func (e *Exchange) deriveSubmitOrderArguments(s *order.Submit) (*PlaceOrderReque
 		}
 	}
 
-	orderFilter := "" // If "Order" is not passed, "Order" by default.
-	if s.AssetType == asset.Spot && s.TriggerPrice != 0 {
-		orderFilter = "tpslOrder"
-	}
-
-	var triggerPriceType string
-	if s.TriggerPrice != 0 {
-		triggerPriceType = s.TriggerPriceType.String()
+	var orderFilter string
+	if s.AssetType == asset.Spot {
+		orderFilter = "Order" // If "Order" is not passed, "Order" by default.
+		if s.TakeProfit.Price != 0 || s.TakeProfit.LimitPrice != 0 ||
+			s.StopLoss.Price != 0 || s.StopLoss.LimitPrice != 0 {
+			orderFilter = ""
+		} else if s.TriggerPrice != 0 {
+			orderFilter = "tpslOrder"
+		}
 	}
 
 	arg := &PlaceOrderRequest{
-		Category:         getCategoryName(s.AssetType),
-		Symbol:           formattedPair,
-		Side:             side,
-		OrderType:        orderTypeToString(s.Type),
-		OrderQuantity:    s.Amount,
-		Price:            s.Price,
-		OrderLinkID:      s.ClientOrderID,
-		EnableBorrow:     s.AssetType == asset.Margin,
-		ReduceOnly:       s.ReduceOnly,
-		OrderFilter:      orderFilter,
-		TriggerPrice:     s.TriggerPrice,
-		TimeInForce:      timeInForce,
-		TriggerPriceType: triggerPriceType,
+		Category:      getCategoryName(s.AssetType),
+		Symbol:        formattedPair,
+		Side:          side,
+		OrderType:     orderTypeToString(s.Type),
+		OrderQuantity: s.Amount,
+		Price:         s.Price,
+		OrderLinkID:   s.ClientOrderID,
+		EnableBorrow:  s.AssetType == asset.Margin,
+		ReduceOnly:    s.ReduceOnly,
+		OrderFilter:   orderFilter,
+		TriggerPrice:  s.TriggerPrice,
+		TimeInForce:   timeInForce,
 	}
-
-	if s.RiskManagementModes.TakeProfit.Price != 0 {
-		arg.TakeProfitPrice = s.RiskManagementModes.TakeProfit.Price
-		arg.TakeProfitTriggerBy = s.RiskManagementModes.TakeProfit.TriggerPriceType.String()
-		arg.TpOrderType = getOrderTypeString(s.RiskManagementModes.TakeProfit.OrderType)
-		arg.TpLimitPrice = s.RiskManagementModes.TakeProfit.LimitPrice
+	if s.TriggerPrice != 0 {
+		arg.TriggerPriceType = s.TriggerPriceType.String()
 	}
-	if s.RiskManagementModes.StopLoss.Price != 0 {
-		arg.StopLossPrice = s.RiskManagementModes.StopLoss.Price
-		arg.StopLossTriggerBy = s.RiskManagementModes.StopLoss.TriggerPriceType.String()
-		arg.SlOrderType = getOrderTypeString(s.RiskManagementModes.StopLoss.OrderType)
-		arg.SlLimitPrice = s.RiskManagementModes.StopLoss.LimitPrice
+	if s.TakeProfit.Price != 0 {
+		arg.TakeProfitPrice = s.TakeProfit.Price
+		arg.TakeProfitTriggerBy = s.TakeProfit.TriggerPriceType.String()
+		arg.TpLimitPrice = s.TakeProfit.LimitPrice
+		if s.TakeProfit.LimitPrice != 0 {
+			arg.TpOrderType = orderTypeToString(order.Limit)
+		} else {
+			arg.TpOrderType = orderTypeToString(order.Market)
+		}
+	}
+	if s.StopLoss.Price != 0 {
+		arg.StopLossPrice = s.StopLoss.Price
+		arg.StopLossTriggerBy = s.StopLoss.TriggerPriceType.String()
+		arg.SlLimitPrice = s.StopLoss.LimitPrice
+		if s.StopLoss.LimitPrice != 0 {
+			arg.SlOrderType = orderTypeToString(order.Limit)
+		} else {
+			arg.SlOrderType = orderTypeToString(order.Market)
+		}
 	}
 	return arg, nil
 }
@@ -94,22 +104,29 @@ func (e *Exchange) deriveAmendOrderArguments(action *order.Modify) (*AmendOrderR
 		pair.Delimiter = currency.DashDelimiter
 	}
 
-	return &AmendOrderRequest{
-		Category:             getCategoryName(action.AssetType),
-		Symbol:               pair,
-		OrderID:              action.OrderID,
-		OrderLinkID:          action.ClientOrderID,
-		OrderQuantity:        action.Amount,
-		Price:                action.Price,
-		TriggerPrice:         action.TriggerPrice,
-		TriggerPriceType:     action.TriggerPriceType.String(),
-		TakeProfitPrice:      action.RiskManagementModes.TakeProfit.Price,
-		TakeProfitTriggerBy:  getOrderTypeString(action.RiskManagementModes.TakeProfit.OrderType),
-		TakeProfitLimitPrice: action.RiskManagementModes.TakeProfit.LimitPrice,
-		StopLossPrice:        action.RiskManagementModes.StopLoss.Price,
-		StopLossTriggerBy:    action.RiskManagementModes.StopLoss.TriggerPriceType.String(),
-		StopLossLimitPrice:   action.RiskManagementModes.StopLoss.LimitPrice,
-	}, nil
+	arg := &AmendOrderRequest{
+		Category:      getCategoryName(action.AssetType),
+		Symbol:        pair,
+		OrderID:       action.OrderID,
+		OrderLinkID:   action.ClientOrderID,
+		OrderQuantity: action.Amount,
+		Price:         action.Price,
+		TriggerPrice:  action.TriggerPrice,
+	}
+	if action.TriggerPrice != 0 {
+		arg.TriggerPriceType = action.TriggerPriceType.String()
+	}
+	if action.TakeProfit.Price != 0 {
+		arg.TakeProfitPrice = action.TakeProfit.Price
+		arg.TakeProfitTriggerBy = action.TakeProfit.TriggerPriceType.String()
+		arg.TakeProfitLimitPrice = action.TakeProfit.LimitPrice
+	}
+	if action.StopLoss.Price != 0 {
+		arg.StopLossPrice = action.StopLoss.Price
+		arg.StopLossTriggerBy = action.StopLoss.TriggerPriceType.String()
+		arg.StopLossLimitPrice = action.StopLoss.LimitPrice
+	}
+	return arg, nil
 }
 
 func (e *Exchange) deriveCancelOrderArguments(ord *order.Cancel) (*CancelOrderRequest, error) {

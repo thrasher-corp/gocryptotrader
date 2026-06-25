@@ -19,14 +19,14 @@ var (
 	defaultText = "\u001b[0m"
 )
 
-func clearScreen() error {
+func clearScreen(ctx context.Context) error {
 	switch runtime.GOOS {
 	case "windows":
-		cmd := exec.CommandContext(context.TODO(), "cmd", "/c", "cls")
+		cmd := exec.CommandContext(ctx, "cmd", "/c", "cls")
 		cmd.Stdout = os.Stdout
 		return cmd.Run()
 	default:
-		cmd := exec.CommandContext(context.TODO(), "clear")
+		cmd := exec.CommandContext(ctx, "clear")
 		cmd.Stdout = os.Stdout
 		return cmd.Run()
 	}

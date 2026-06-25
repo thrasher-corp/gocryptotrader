@@ -1765,6 +1765,30 @@ func TestStringToTrackingMode(t *testing.T) {
 	}
 }
 
+func TestStringToPriceType(t *testing.T) {
+	t.Parallel()
+	priceTypes := map[string]PriceType{
+		"last_price":  LastPrice,
+		"Last_Price":  LastPrice,
+		"LAST_PRICE":  LastPrice,
+		"LAST":        LastPrice,
+		"last_Price":  LastPrice,
+		"index_price": IndexPrice,
+		"INDEX":       IndexPrice,
+		"INDEX_PRICE": IndexPrice,
+		"Index_Price": IndexPrice,
+		"mark":        MarkPrice,
+		"Mark_Price":  MarkPrice,
+		"MARK_PRICE":  MarkPrice,
+		"abcd":        UnsetPriceType,
+		"":            UnsetPriceType,
+	}
+	for key, val := range priceTypes {
+		result := StringToPriceType(key)
+		assert.Equal(t, val, result)
+	}
+}
+
 func TestTrackingModeString(t *testing.T) {
 	t.Parallel()
 	inputs := map[TrackingMode]string{
@@ -1793,7 +1817,7 @@ func TestMarshalOrder(t *testing.T) {
 	}
 	j, err := json.Marshal(orderSubmit)
 	require.NoError(t, err, "Marshal must not error")
-	exp := []byte(`{"Exchange":"test","Type":4,"Side":"BUY","Pair":"BTC-USDT","AssetType":"spot","TimeInForce":"","ReduceOnly":false,"Leverage":0,"Price":1000,"Amount":1,"QuoteAmount":0,"TriggerPrice":0,"TriggerPriceType":0,"ClientID":"","ClientOrderID":"","AutoBorrow":false,"MarginType":"multi","RetrieveFees":false,"RetrieveFeeDelay":0,"RiskManagementModes":{"Mode":"","TakeProfit":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopLoss":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0},"StopEntry":{"Enabled":false,"TriggerPriceType":0,"Price":0,"LimitPrice":0,"OrderType":0}},"Hidden":false,"Iceberg":false,"EndTime":"0001-01-01T00:00:00Z","StopDirection":false,"TrackingMode":0,"TrackingValue":0,"LimitTrackingMode":0,"LimitTrackingValue":0,"RFQDisabled":false,"SlippageTolerance":0}`)
+	exp := []byte(`{"Exchange":"test","Type":4,"Side":"BUY","Pair":"BTC-USDT","AssetType":"spot","TimeInForce":"","ReduceOnly":false,"Leverage":0,"Price":1000,"Amount":1,"QuoteAmount":0,"TriggerPrice":0,"TriggerLimitPrice":0,"TriggerPriceType":0,"ClientID":"","ClientOrderID":"","AutoBorrow":false,"MarginType":"multi","RetrieveFees":false,"RetrieveFeeDelay":0,"TakeProfit":{"TriggerPriceType":0,"Price":0,"LimitPrice":0},"StopLoss":{"TriggerPriceType":0,"Price":0,"LimitPrice":0},"Hidden":false,"Iceberg":false,"EndTime":"0001-01-01T00:00:00Z","StopDirection":false,"TrackingMode":0,"TrackingValue":0,"LimitTrackingMode":0,"LimitTrackingValue":0,"RFQDisabled":false,"SlippageTolerance":0}`)
 	assert.Equal(t, exp, j)
 }
 
