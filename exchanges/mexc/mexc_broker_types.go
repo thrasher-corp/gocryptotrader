@@ -44,7 +44,7 @@ type BrokerSubAccountAPIKey struct {
 	SubAccount  string     `json:"subAccount"`
 	Permissions string     `json:"permissions"`
 	Note        string     `json:"note"`
-	APIkey      string     `json:"apikey"`
+	APIkey      string     `json:"apikey"` //nolint:gosec // false positive
 	SecretKey   string     `json:"secretKey"`
 	CreateTime  types.Time `json:"createTime"`
 	IP          string     `json:"ip"`
@@ -75,7 +75,7 @@ type BrokerSubAccountAPIKeys struct {
 // BrokerSubAccountAPIKeyDeletionParams holds request parameters for deleting a subaccount API key
 type BrokerSubAccountAPIKeyDeletionParams struct {
 	SubAccount string `json:"subAccount"`
-	APIKey     string `json:"apiKey"`
+	APIKey     string `json:"apiKey"` //nolint:gosec // false positive
 }
 
 // BrokerSubAccountDepositAddress holds a broker sub-account deposit address

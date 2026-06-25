@@ -34,7 +34,7 @@ type FWebsocketReqParam struct {
 	Limit    int    `json:"limit,omitempty"`
 
 	// Used for authentication
-	APIKey      string `json:"apiKey,omitempty"`
+	APIKey      string `json:"apiKey,omitempty"` //nolint:gosec // false positive
 	Signature   string `json:"signature,omitempty"`
 	RequestTime int64  `json:"reqTime,omitempty,string"`
 }

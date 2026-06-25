@@ -186,7 +186,7 @@ type SubAccounts struct {
 type SubAccountAPIDetail struct {
 	SubAccount  string     `json:"subAccount"`
 	Note        string     `json:"note"`
-	APIKey      string     `json:"apiKey"`
+	APIKey      string     `json:"apiKey"` //nolint:gosec // false positive
 	SecretKey   string     `json:"secretKey"`
 	Permissions string     `json:"permissions"`
 	IP          string     `json:"ip"`
