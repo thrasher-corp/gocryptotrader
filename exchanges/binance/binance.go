@@ -3659,10 +3659,10 @@ func (e *Exchange) CryptoLoanIncomeHistory(ctx context.Context, curr currency.Co
 // CryptoLoanBorrow borrows crypto
 func (e *Exchange) CryptoLoanBorrow(ctx context.Context, loanCoin currency.Code, loanAmount float64, collateralCoin currency.Code, collateralAmount float64, loanTerm int64) ([]*CryptoLoanBorrow, error) {
 	if loanCoin.IsEmpty() {
-		return nil, errLoanCoinMustBeSet
+		return nil, fmt.Errorf("%w loan coin must bet set", currency.ErrCurrencyCodeEmpty)
 	}
 	if collateralCoin.IsEmpty() {
-		return nil, errCollateralCoinMustBeSet
+		return nil, fmt.Errorf("%w; collateral coin must be set", currency.ErrCurrencyCodeEmpty)
 	}
 	if loanTerm <= 0 {
 		return nil, errLoanTermMustBeSet
@@ -3840,10 +3840,10 @@ func (e *Exchange) CryptoLoanCollateralAssetsData(ctx context.Context, collatera
 // CryptoLoanCheckCollateralRepayRate checks the collateral repay rate
 func (e *Exchange) CryptoLoanCheckCollateralRepayRate(ctx context.Context, loanCoin, collateralCoin currency.Code, amount float64) (*CollateralRepayRate, error) {
 	if loanCoin.IsEmpty() {
-		return nil, errLoanCoinMustBeSet
+		return nil, fmt.Errorf("%w loan coin must bet set", currency.ErrCurrencyCodeEmpty)
 	}
 	if collateralCoin.IsEmpty() {
-		return nil, errCollateralCoinMustBeSet
+		return nil, fmt.Errorf("%w; collateral coin must be set", currency.ErrCurrencyCodeEmpty)
 	}
 	if amount <= 0 {
 		return nil, limits.ErrAmountBelowMin
@@ -3876,10 +3876,10 @@ func (e *Exchange) CryptoLoanCustomiseMarginCall(ctx context.Context, orderID in
 // FlexibleLoanBorrow creates a flexible loan
 func (e *Exchange) FlexibleLoanBorrow(ctx context.Context, loanCoin, collateralCoin currency.Code, loanAmount, collateralAmount float64) (*FlexibleLoanBorrow, error) {
 	if loanCoin.IsEmpty() {
-		return nil, errLoanCoinMustBeSet
+		return nil, fmt.Errorf("%w loan coin must bet set", currency.ErrCurrencyCodeEmpty)
 	}
 	if collateralCoin.IsEmpty() {
-		return nil, errCollateralCoinMustBeSet
+		return nil, fmt.Errorf("%w; collateral coin must be set", currency.ErrCurrencyCodeEmpty)
 	}
 	if loanAmount == 0 && collateralAmount == 0 {
 		return nil, fmt.Errorf("%w: either loan or collateral amounts must be set", limits.ErrAmountBelowMin)
@@ -3938,10 +3938,10 @@ func (e *Exchange) FlexibleLoanBorrowHistory(ctx context.Context, loanCoin, coll
 // FlexibleLoanRepay repays a flexible loan
 func (e *Exchange) FlexibleLoanRepay(ctx context.Context, loanCoin, collateralCoin currency.Code, amount float64, collateralReturn, fullRepayment bool) (*FlexibleLoanRepay, error) {
 	if loanCoin.IsEmpty() {
-		return nil, errLoanCoinMustBeSet
+		return nil, fmt.Errorf("%w loan coin must bet set", currency.ErrCurrencyCodeEmpty)
 	}
 	if collateralCoin.IsEmpty() {
-		return nil, errCollateralCoinMustBeSet
+		return nil, fmt.Errorf("%w; collateral coin must be set", currency.ErrCurrencyCodeEmpty)
 	}
 	if amount <= 0 {
 		return nil, limits.ErrAmountBelowMin
@@ -3980,10 +3980,10 @@ func (e *Exchange) FlexibleLoanRepayHistory(ctx context.Context, loanCoin, colla
 // FlexibleLoanCollateralRepayment flexible loan collateral repayment
 func (e *Exchange) FlexibleLoanCollateralRepayment(ctx context.Context, loanCoin, collateralCoin currency.Code, repaymentAmount float64, fullRepayment bool) (*FlexibleLoanCollateralRepaymentResponse, error) {
 	if loanCoin.IsEmpty() {
-		return nil, errLoanCoinMustBeSet
+		return nil, fmt.Errorf("%w loan coin must bet set", currency.ErrCurrencyCodeEmpty)
 	}
 	if collateralCoin.IsEmpty() {
-		return nil, errCollateralCoinMustBeSet
+		return nil, fmt.Errorf("%w; collateral coin must be set", currency.ErrCurrencyCodeEmpty)
 	}
 	if repaymentAmount <= 0 {
 		return nil, fmt.Errorf("%w: repayment amount is required", limits.ErrAmountBelowMin)
@@ -4002,10 +4002,10 @@ func (e *Exchange) FlexibleLoanCollateralRepayment(ctx context.Context, loanCoin
 // CheckCollateralRepayRate checks collateral loan repayment rate of the account
 func (e *Exchange) CheckCollateralRepayRate(ctx context.Context, loanCoin, collateralCoin currency.Code) (*CollateralRepayRate, error) {
 	if loanCoin.IsEmpty() {
-		return nil, errLoanCoinMustBeSet
+		return nil, fmt.Errorf("%w loan coin must bet set", currency.ErrCurrencyCodeEmpty)
 	}
 	if collateralCoin.IsEmpty() {
-		return nil, errCollateralCoinMustBeSet
+		return nil, fmt.Errorf("%w; collateral coin must be set", currency.ErrCurrencyCodeEmpty)
 	}
 	params := url.Values{}
 	params.Set("loanCoin", loanCoin.String())
@@ -4036,10 +4036,10 @@ func (e *Exchange) GetFlexibleLoanLiquidiationHistory(ctx context.Context, loanC
 // FlexibleLoanAdjustLTV adjusts the LTV of a flexible loan
 func (e *Exchange) FlexibleLoanAdjustLTV(ctx context.Context, loanCoin, collateralCoin currency.Code, amount float64, reduce bool) (*FlexibleLoanAdjustLTV, error) {
 	if loanCoin.IsEmpty() {
-		return nil, errLoanCoinMustBeSet
+		return nil, fmt.Errorf("%w loan coin must bet set", currency.ErrCurrencyCodeEmpty)
 	}
 	if collateralCoin.IsEmpty() {
-		return nil, errCollateralCoinMustBeSet
+		return nil, fmt.Errorf("%w; collateral coin must be set", currency.ErrCurrencyCodeEmpty)
 	}
 	if amount <= 0 {
 		return nil, limits.ErrAmountBelowMin

@@ -54,7 +54,7 @@ func (e *Exchange) newUMCMOrder(ctx context.Context, arg *UMOrderParam, path str
 	switch arg.OrderType {
 	case order.Limit.String():
 		if arg.TimeInForce == "" {
-			return nil, errTimeInForceRequired
+			return nil, order.ErrInvalidTimeInForce
 		}
 		if arg.Quantity <= 0 {
 			return nil, limits.ErrAmountBelowMin

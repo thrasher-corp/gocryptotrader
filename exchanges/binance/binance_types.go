@@ -55,9 +55,7 @@ const (
 )
 
 var (
-	errLoanCoinMustBeSet            = errors.New("loan coin must bet set")
 	errLoanTermMustBeSet            = errors.New("loan term must be set")
-	errCollateralCoinMustBeSet      = errors.New("collateral coin must be set")
 	errTimestampInfoRequired        = errors.New("timestamp information is required")
 	errListenKeyIsRequired          = errors.New("listen key is required")
 	errValidEmailRequired           = errors.New("valid email address is required")
@@ -110,11 +108,10 @@ var (
 	errPlanStatusRequired           = errors.New("plan status is required")
 	errUsageTypeRequired            = errors.New("usage type is required")
 	errMarginCallValueRequired      = errors.New("margin call value required")
-	errTimeInForceRequired          = errors.New("time in force required")
 	errIncomeTypeRequired           = errors.New("invalid incomeType")
 	errInvalidNewOrderResponseType  = errors.New("invalid new order response type")
 	errInvalidAutoCloseType         = errors.New("invalid auto close type")
-	errDownloadIDRequired           = errors.New("downloadId is required")
+	errDownloadIDRequired           = errors.New("download id is required")
 	errMarginChangeTypeInvalid      = errors.New("invalid margin changeType")
 	errCancelReplaceModeRequired    = errors.New("cancelReplaceMode is required")
 	errExpirationTimeRequired       = errors.New("expiration time is required")
@@ -173,103 +170,70 @@ const (
 func (a TransferTypes) String() string {
 	switch a {
 	case ttMainUMFuture:
-		// Spot account transfer to USDⓈ-M Futures account
 		return "MAIN_UMFUTURE"
 	case ttMainCMFuture:
-		// Spot account transfer to COIN-M Futures account
 		return "MAIN_CMFUTURE"
 	case ttMainMargin:
-		// Spot account transfer to Margin（cross）account
 		return "MAIN_MARGIN"
 	case ttUMFutureMain:
-		// USDⓈ-M Futures account transfer to Spot account
 		return "UMFUTURE_MAIN"
 	case ttUMFutureMargin:
-		// USDⓈ-M Futures account transfer to Margin（cross）account
 		return "UMFUTURE_MARGIN"
 	case ttCMFutureMain:
-		// COIN-M Futures account transfer to Spot account
 		return "CMFUTURE_MAIN"
 	case ttCMFutureMargin:
-		// COIN-M Futures account transfer to Margin(cross) account
 		return "CMFUTURE_MARGIN"
 	case ttMarginMain:
-		// Margin（cross）account transfer to Spot account
 		return "MARGIN_MAIN"
 	case ttMarginUMFuture:
-		// Margin（cross）account transfer to USDⓈ-M Futures
 		return "MARGIN_UMFUTURE"
 	case ttMarginCMFuture:
-		// Margin（cross）account transfer to COIN-M Futures
 		return "MARGIN_CMFUTURE"
 	case ttIsolatedMarginMargin:
-		// Isolated margin account transfer to Margin(cross) account
 		return "ISOLATEDMARGIN_MARGIN"
 	case ttMarginIsolatedMargin:
-		// Margin(cross) account transfer to Isolated margin account
 		return "MARGIN_ISOLATEDMARGIN"
 	case ttIsolatedMarginIsolatedMargin:
-		// Isolated margin account transfer to Isolated margin account
 		return "ISOLATEDMARGIN_ISOLATEDMARGIN"
 	case ttMainFunding:
-		// Spot account transfer to Funding account
 		return "MAIN_FUNDING"
 	case ttFundingMain:
-		// Funding account transfer to Spot account
 		return "FUNDING_MAIN"
 	case ttFundingUMFuture:
-		// Funding account transfer to UMFUTURE account
 		return "FUNDING_UMFUTURE"
 	case ttUMFutureFunding:
-		// UMFUTURE account transfer to Funding account
 		return "UMFUTURE_FUNDING"
 	case ttMarginFunding:
-		// MARGIN account transfer to Funding account
 		return "MARGIN_FUNDING"
 	case ttFundingMargin:
-		// Funding account transfer to Margin account
 		return "FUNDING_MARGIN"
 	case ttFundingCMFuture:
-		// Funding account transfer to CMFUTURE account
 		return "FUNDING_CMFUTURE"
 	case ttCMFutureFunding:
-		// CMFUTURE account transfer to Funding account
 		return "CMFUTURE_FUNDING"
 	case ttMainOption:
-		// Spot account transfer to Options account
 		return "MAIN_OPTION"
 	case ttOptionMain:
-		// Options account transfer to Spot account
 		return "OPTION_MAIN"
 	case ttUMFutureOption:
-		// USDⓈ-M Futures account transfer to Options account
 		return "UMFUTURE_OPTION"
 	case ttOptionUMFuture:
-		// Options account transfer to USDⓈ-M Futures account
 		return "OPTION_UMFUTURE"
 	case ttMarginOption:
-		// Margin（cross）account transfer to Options account
 		return "MARGIN_OPTION"
 	case ttOptionMargin:
-		// Options account transfer to Margin（cross）account
 		return "OPTION_MARGIN"
 	case ttFundingOption:
-		// Funding account transfer to Options account
 		return "FUNDING_OPTION"
 	case ttOptionFunding:
-		// Options account transfer to Funding account
 		return "OPTION_FUNDING"
 	case ttMainPortfolioMargin:
-		// Spot account transfer to Portfolio Margin account
 		return "MAIN_PORTFOLIO_MARGIN"
 	case ttPortfolioMarginMain:
-		// Portfolio Margin account transfer to Spot account
 		return "PORTFOLIO_MARGIN_MAIN"
 	case ttMainIsolatedMargin:
-		// Spot account transfer to Isolated margin account
 		return "MAIN_ISOLATED_MARGIN"
 	case ttIsolatedMarginMain:
-		// Isolated margin account transfer to Spot account
 		return "ISOLATED_MARGIN_MAIN"
 	default:
 		return ""
@@ -434,13 +398,13 @@ type RecentTradeRequestParams struct {
 
 // RecentTrade holds recent trade data
 type RecentTrade struct {
-	ID           int64      `json:"id"`
-	Price        float64    `json:"price,string"`
-	Quantity     float64    `json:"qty,string"`
-	QuoteQty     string     `json:"quoteQty"`
-	Time         types.Time `json:"time"`
-	IsBuyerMaker bool       `json:"isBuyerMaker"`
-	IsBestMatch  bool       `json:"isBestMatch"`
+	ID           int64        `json:"id"`
+	Price        float64      `json:"price,string"`
+	Quantity     float64      `json:"qty,string"`
+	QuoteQty     types.Number `json:"quoteQty"`
+	Time         types.Time   `json:"time"`
+	IsBuyerMaker bool         `json:"isBuyerMaker"`
+	IsBestMatch  bool         `json:"isBestMatch"`
 }
 
 // TradeStream holds the trade stream data
@@ -1184,13 +1148,13 @@ type DepositAddress struct {
 // AssetsDust represents assets that can be converted into BNB
 type AssetsDust struct {
 	Details []struct {
-		Asset            string `json:"asset"`
-		AssetFullName    string `json:"assetFullName"`
-		AmountFree       string `json:"amountFree"`
-		ToBTC            string `json:"toBTC"`
-		ToBNB            string `json:"toBNB"`
-		ToBNBOffExchange string `json:"toBNBOffExchange"`
-		Exchange         string `json:"exchange"`
+		Asset            string       `json:"asset"`
+		AssetFullName    string       `json:"assetFullName"`
+		AmountFree       types.Number `json:"amountFree"`
+		ToBTC            string       `json:"toBTC"`
+		ToBNB            string       `json:"toBNB"`
+		ToBNBOffExchange string       `json:"toBNBOffExchange"`
+		Exchange         string       `json:"exchange"`
 	} `json:"details"`
 	TotalTransferBtc   string `json:"totalTransferBtc"`
 	TotalTransferBNB   string `json:"totalTransferBNB"`
@@ -1445,9 +1409,9 @@ type CrossMarginInterestData struct {
 	Data          []struct {
 		AssetName string `json:"assetName"`
 		Specs     []struct {
-			VipLevel          string `json:"vipLevel"`
-			DailyInterestRate string `json:"dailyInterestRate"`
-			BorrowLimit       string `json:"borrowLimit"`
+			VipLevel          string       `json:"vipLevel"`
+			DailyInterestRate types.Number `json:"dailyInterestRate"`
+			BorrowLimit       types.Number `json:"borrowLimit"`
 		} `json:"specs"`
 	} `json:"data"`
 	Success bool `json:"success"`
@@ -2093,7 +2057,7 @@ type WsOrderbookTickers []*WsOrderbookTicker
 
 // APISignatureInfo holds API key and signature information
 type APISignatureInfo struct {
-	APIKey    string `json:"apiKey,omitempty"`
+	APIKey    string `json:"apiKey,omitempty"` //nolint:gosec // false positive
 	Signature string `json:"signature,omitempty"`
 	Timestamp int64  `json:"timestamp,omitempty"`
 }
@@ -2197,7 +2161,7 @@ type TradeOrderResponse struct {
 
 // FuturesAuthenticationResp holds authentication.
 type FuturesAuthenticationResp struct {
-	APIKey           string     `json:"apiKey"`
+	APIKey           string     `json:"apiKey"` //nolint:gosec // false positive
 	AuthorizedSince  int64      `json:"authorizedSince"`
 	ConnectedSince   int64      `json:"connectedSince"`
 	ReturnRateLimits bool       `json:"returnRateLimits"`
@@ -2370,7 +2334,7 @@ type OSROrder struct {
 		MatchType       string       `json:"matchType"`
 		Price           types.Number `json:"price"`
 		Quantity        types.Number `json:"qty"`
-		Commission      string       `json:"commission"`
+		Commission      types.Number `json:"commission"`
 		CommissionAsset string       `json:"commissionAsset"`
 		TradeID         int64        `json:"tradeId"`
 		AllocID         int64        `json:"allocId"`
@@ -2435,7 +2399,7 @@ type SORReplacements struct {
 	Price           types.Number `json:"price"`
 	Quantity        types.Number `json:"qty"`
 	QuoteQty        types.Number `json:"quoteQty"`
-	Commission      string       `json:"commission"`
+	Commission      types.Number `json:"commission"`
 	CommissionAsset string       `json:"commissionAsset"`
 	Time            types.Time   `json:"time"`
 	IsBuyer         bool         `json:"isBuyer"`
@@ -2449,10 +2413,10 @@ type CommissionRateInto struct {
 	StandardCommission *CommissionInfo `json:"standardCommission"`
 	TaxCommission      *CommissionInfo `json:"taxCommission"`
 	Discount           struct {
-		EnabledForAccount bool   `json:"enabledForAccount"`
-		EnabledForSymbol  bool   `json:"enabledForSymbol"`
-		DiscountAsset     string `json:"discountAsset"`
-		Discount          string `json:"discount"`
+		EnabledForAccount bool         `json:"enabledForAccount"`
+		EnabledForSymbol  bool         `json:"enabledForSymbol"`
+		DiscountAsset     string       `json:"discountAsset"`
+		Discount          types.Number `json:"discount"`
 	} `json:"discount"`
 }
 
@@ -2481,7 +2445,7 @@ type DailyAccountSnapshot struct {
 				Free   types.Number `json:"free"`
 				Locked types.Number `json:"locked"`
 			} `json:"balances"`
-			TotalAssetOfBTC string `json:"totalAssetOfBtc"`
+			TotalAssetOfBTC types.Number `json:"totalAssetOfBtc"`
 		} `json:"data"`
 		Type       string     `json:"type"`
 		UpdateTime types.Time `json:"updateTime"`
@@ -2700,14 +2664,14 @@ type SubAccountMarginAccountDetail struct {
 
 // SubAccountMarginAccount represents a sub-account margin detail.
 type SubAccountMarginAccount struct {
-	TotalAssetOfBTC     string `json:"totalAssetOfBtc"`
-	TotalLiabilityOfBTC string `json:"totalLiabilityOfBtc"`
-	TotalNetAssetOfBTC  string `json:"totalNetAssetOfBtc"`
+	TotalAssetOfBTC     types.Number `json:"totalAssetOfBtc"`
+	TotalLiabilityOfBTC types.Number `json:"totalLiabilityOfBtc"`
+	TotalNetAssetOfBTC  types.Number `json:"totalNetAssetOfBtc"`
 	SubAccountList      []struct {
-		Email               string `json:"email"`
-		TotalAssetOfBTC     string `json:"totalAssetOfBtc"`
-		TotalLiabilityOfBTC string `json:"totalLiabilityOfBtc"`
-		TotalNetAssetOfBTC  string `json:"totalNetAssetOfBtc"`
+		Email               string       `json:"email"`
+		TotalAssetOfBTC     types.Number `json:"totalAssetOfBtc"`
+		TotalLiabilityOfBTC types.Number `json:"totalLiabilityOfBtc"`
+		TotalNetAssetOfBTC  types.Number `json:"totalNetAssetOfBtc"`
 	} `json:"subAccountList"`
 }
 
@@ -2729,7 +2693,7 @@ type SubAccountsFuturesAccount struct {
 		MaxWithdrawAmount      types.Number `json:"maxWithdrawAmount"`
 		OpenOrderInitialMargin types.Number `json:"openOrderInitialMargin"`
 		PositionInitialMargin  types.Number `json:"positionInitialMargin"`
-		UnrealizedProfit       string       `json:"unrealizedProfit"`
+		UnrealizedProfit       types.Number `json:"unrealizedProfit"`
 		WalletBalance          types.Number `json:"walletBalance"`
 	} `json:"assets"`
 	CanDeposit                  bool         `json:"canDeposit"`
@@ -2798,16 +2762,16 @@ type SubAccountTransferHistory struct {
 
 // SubAccountTransferHistoryItem represents aub-account transfer history from sub-accounts
 type SubAccountTransferHistoryItem struct {
-	CounterParty    string     `json:"counterParty"`
-	Email           string     `json:"email"`
-	Type            int64      `json:"type"`
-	Asset           string     `json:"asset"`
-	Qty             string     `json:"qty"`
-	FromAccountType string     `json:"fromAccountType"`
-	ToAccountType   string     `json:"toAccountType"`
-	Status          string     `json:"status"`
-	TranID          int64      `json:"tranId"`
-	Time            types.Time `json:"time"`
+	CounterParty    string       `json:"counterParty"`
+	Email           string       `json:"email"`
+	Type            int64        `json:"type"`
+	Asset           string       `json:"asset"`
+	Qty             types.Number `json:"qty"`
+	FromAccountType string       `json:"fromAccountType"`
+	ToAccountType   string       `json:"toAccountType"`
+	Status          string       `json:"status"`
+	TranID          int64        `json:"tranId"`
+	Time            types.Time   `json:"time"`
 }
 
 // UniversalTransferParams represents a universal transfer parameters.
@@ -2928,7 +2892,7 @@ type APIRestrictions struct {
 	IPRestrict string     `json:"ipRestrict"`
 	IPList     []string   `json:"ipList"`
 	UpdateTime types.Time `json:"updateTime"`
-	APIKey     string     `json:"apiKey"`
+	APIKey     string     `json:"apiKey"` //nolint:gosec // false positive
 }
 
 // ManagedSubAccountAssetInfo represents managed sub-account asset information
@@ -3001,7 +2965,7 @@ type ManagedSubAccountFuturesAssetDetail struct {
 
 // SubAccountMarginAsset represents a sub-account margin asset details response
 type SubAccountMarginAsset struct {
-	MarginLevel         string       `json:"marginLevel"`
+	MarginLevel         types.Number `json:"marginLevel"`
 	TotalAssetOfBTC     types.Number `json:"totalAssetOfBtc"`
 	TotalLiabilityOfBTC types.Number `json:"totalLiabilityOfBtc"`
 	TotalNetAssetOfBTC  types.Number `json:"totalNetAssetOfBtc"`
@@ -3191,7 +3155,7 @@ type SOROrderResponse struct {
 		MatchType       string       `json:"matchType"`
 		Price           types.Number `json:"price"`
 		Quantity        types.Number `json:"qty"`
-		Commission      string       `json:"commission"`
+		Commission      types.Number `json:"commission"`
 		CommissionAsset string       `json:"commissionAsset"`
 		TradeID         int64        `json:"tradeId"`
 		AllocID         int64        `json:"allocId"`
@@ -3210,7 +3174,7 @@ type AccountTradeItem struct {
 	Price           types.Number `json:"price"`
 	Quantity        types.Number `json:"qty"`
 	QuoteQty        types.Number `json:"quoteQty"`
-	Commission      string       `json:"commission"`
+	Commission      types.Number `json:"commission"`
 	CommissionAsset string       `json:"commissionAsset"`
 	Time            types.Time   `json:"time"`
 	IsBuyer         bool         `json:"isBuyer"`
@@ -3250,7 +3214,7 @@ type Allocation struct {
 	Price           types.Number `json:"price"`
 	Quantity        types.Number `json:"qty"`
 	QuoteQty        types.Number `json:"quoteQty"`
-	Commission      string       `json:"commission"`
+	Commission      types.Number `json:"commission"`
 	CommissionAsset string       `json:"commissionAsset"`
 	Time            types.Time   `json:"time"`
 	IsBuyer         bool         `json:"isBuyer"`
@@ -3287,7 +3251,7 @@ type MarginAccountBorrowRepayRecords struct {
 		IsolatedSymbol string       `json:"isolatedSymbol"`
 		Amount         types.Number `json:"amount"`
 		Asset          string       `json:"asset"`
-		Interest       string       `json:"interest"`
+		Interest       types.Number `json:"interest"`
 		Principal      string       `json:"principal"`
 		Status         string       `json:"status"`
 		Timestamp      types.Time   `json:"timestamp"`
@@ -3355,7 +3319,7 @@ type MarginAccountOrder struct {
 	Price                   types.Number      `json:"price"`
 	OrigQty                 types.Number      `json:"origQty"`
 	ExecutedQty             types.Number      `json:"executedQty"`
-	CummulativeQuoteQty     string            `json:"cummulativeQuoteQty"`
+	CummulativeQuoteQty     types.Number      `json:"cummulativeQuoteQty"`
 	Status                  string            `json:"status"`
 	TimeInForce             order.TimeInForce `json:"timeInForce"`
 	OrderType               string            `json:"type"`
@@ -3395,8 +3359,8 @@ type MarginAccountOrderDetail struct {
 // MarginOrderResponse represents a margin order detail
 type MarginOrderResponse struct {
 	OrderResponse
-	OrderType  string `json:"type"`
-	IcebergQty string `json:"icebergQty"`
+	OrderType  string       `json:"type"`
+	IcebergQty types.Number `json:"icebergQty"`
 }
 
 // CrossMarginTransferHistory represents a cross-margin transfer history
@@ -3491,7 +3455,7 @@ type IsolatedMarginAccountInfo struct {
 		Symbol            string       `json:"symbol"`
 		IsolatedCreated   bool         `json:"isolatedCreated"`
 		Enabled           bool         `json:"enabled"`
-		MarginLevel       string       `json:"marginLevel"`
+		MarginLevel       types.Number `json:"marginLevel"`
 		MarginLevelStatus string       `json:"marginLevelStatus"`
 		MarginRatio       types.Number `json:"marginRatio"`
 		IndexPrice        types.Number `json:"indexPrice"`
@@ -3549,10 +3513,10 @@ type BNBBurnOnSpotAndMarginInterest struct {
 
 // MarginInterestRate represents a margin interest rate item.
 type MarginInterestRate struct {
-	Asset             string     `json:"asset"`
-	DailyInterestRate string     `json:"dailyInterestRate"`
-	Timestamp         types.Time `json:"timestamp"`
-	VipLevel          int64      `json:"vipLevel"`
+	Asset             string       `json:"asset"`
+	DailyInterestRate types.Number `json:"dailyInterestRate"`
+	Timestamp         types.Time   `json:"timestamp"`
+	VipLevel          int64        `json:"vipLevel"`
 }
 
 // CrossMarginFeeData represents a cross margin fee detail
@@ -3569,12 +3533,12 @@ type CrossMarginFeeData struct {
 
 // IsolatedMarginFeeData represents an isolated margin fee data.
 type IsolatedMarginFeeData struct {
-	VipLevel int64  `json:"vipLevel"`
-	Symbol   string `json:"symbol"`
-	Leverage string `json:"leverage"`
+	VipLevel int64        `json:"vipLevel"`
+	Symbol   string       `json:"symbol"`
+	Leverage types.Number `json:"leverage"`
 	Data     []struct {
 		Coin          string       `json:"coin"`
-		DailyInterest string       `json:"dailyInterest"`
+		DailyInterest types.Number `json:"dailyInterest"`
 		BorrowLimit   types.Number `json:"borrowLimit"`
 	} `json:"data"`
 }
@@ -3611,11 +3575,11 @@ type CrossMarginCollateralRatio struct {
 
 // SmallLiabilityCoin represents information of coins which can be small liability
 type SmallLiabilityCoin struct {
-	Asset          string  `json:"asset"`
-	Interest       string  `json:"interest"`
-	Principal      string  `json:"principal"`
-	LiabilityAsset string  `json:"liabilityAsset"`
-	LiabilityQty   float64 `json:"liabilityQty"`
+	Asset          string       `json:"asset"`
+	Interest       types.Number `json:"interest"`
+	Principal      string       `json:"principal"`
+	LiabilityAsset string       `json:"liabilityAsset"`
+	LiabilityQty   float64      `json:"liabilityQty"`
 }
 
 // SmallLiabilityExchange represents small liability exchange history.
@@ -3623,7 +3587,7 @@ type SmallLiabilityExchange struct {
 	Total int `json:"total"`
 	Rows  []struct {
 		Asset        string       `json:"asset"`
-		Amount       string       `json:"amount"`
+		Amount       types.Number `json:"amount"`
 		TargetAsset  string       `json:"targetAsset"`
 		TargetAmount types.Number `json:"targetAmount"`
 		BizType      string       `json:"bizType"`
@@ -3860,11 +3824,11 @@ type FlexibleReward struct {
 // LockedRewards represents locked rewards list.
 type LockedRewards struct {
 	Rows []struct {
-		PositionID string     `json:"positionId"`
-		Time       types.Time `json:"time"`
-		Asset      string     `json:"asset"`
-		LockPeriod string     `json:"lockPeriod"`
-		Amount     string     `json:"amount"`
+		PositionID string       `json:"positionId"`
+		Time       types.Time   `json:"time"`
+		Asset      string       `json:"asset"`
+		LockPeriod string       `json:"lockPeriod"`
+		Amount     types.Number `json:"amount"`
 	} `json:"rows"`
 	Total int64 `json:"total"`
 }
@@ -4002,9 +3966,9 @@ type AutoInvestmentAsset struct {
 	AutoInvestAssetList []struct {
 		TargetAsset             string `json:"targetAsset"`
 		RoiAndDimensionTypeList []struct {
-			SimulateRoi    string       `json:"simulateRoi"`
-			DimensionValue types.Number `json:"dimensionValue"`
-			DimensionUnit  string       `json:"dimensionUnit"`
+			SimulateReturnOnInvestment string       `json:"simulateRoi"`
+			DimensionValue             types.Number `json:"dimensionValue"`
+			DimensionUnit              string       `json:"dimensionUnit"`
 		} `json:"roiAndDimensionTypeList"`
 	} `json:"autoInvestAssetList"`
 }
@@ -4084,11 +4048,11 @@ type ChangePlanStatusResponse struct {
 
 // InvestmentPlans represents an investment plans
 type InvestmentPlans struct {
-	PlanValueInUSD string `json:"planValueInUSD"`
-	PlanValueInBTC string `json:"planValueInBTC"`
-	PnlInUSD       string `json:"pnlInUSD"`
-	Roi            string `json:"roi"`
-	Plans          []struct {
+	PlanValueInUSD     string       `json:"planValueInUSD"`
+	PlanValueInBTC     string       `json:"planValueInBTC"`
+	PNLInUSD           types.Number `json:"pnlInUSD"`
+	ReturnOnInvestment string       `json:"roi"`
+	Plans              []struct {
 		PlanID                   int64        `json:"planId"`
 		PlanType                 string       `json:"planType"`
 		EditAllowed              string       `json:"editAllowed"`
@@ -4109,42 +4073,42 @@ type InvestmentPlans struct {
 		SourceWallet             string       `json:"sourceWallet"`
 		FlexibleAllowedToUse     string       `json:"flexibleAllowedToUse"`
 		PlanValueInUSD           string       `json:"planValueInUSD"`
-		PnlInUSD                 string       `json:"pnlInUSD"`
+		PNLInUSD                 types.Number `json:"pnlInUSD"`
 		ROI                      string       `json:"roi"`
 	} `json:"plans"`
 }
 
 // InvestmentPlanHoldingDetail represents a holding detail of an investment plan.
 type InvestmentPlanHoldingDetail struct {
-	PlanID                 int64      `json:"planId"`
-	PlanType               string     `json:"planType"`
-	EditAllowed            string     `json:"editAllowed"`
-	FlexibleAllowedToUse   string     `json:"flexibleAllowedToUse"`
-	CreationDateTime       types.Time `json:"creationDateTime"`
-	FirstExecutionDateTime types.Time `json:"firstExecutionDateTime"`
-	NextExecutionDateTime  types.Time `json:"nextExecutionDateTime"`
-	Status                 string     `json:"status"`
-	TargetAsset            string     `json:"targetAsset"`
-	SourceAsset            string     `json:"sourceAsset"`
-	PlanValueInUSD         string     `json:"planValueInUSD"`
-	PnlInUSD               string     `json:"pnlInUSD"`
-	Roi                    string     `json:"roi"`
-	TotalInvestedInUSD     string     `json:"totalInvestedInUSD"`
+	PlanID                 int64        `json:"planId"`
+	PlanType               string       `json:"planType"`
+	EditAllowed            string       `json:"editAllowed"`
+	FlexibleAllowedToUse   string       `json:"flexibleAllowedToUse"`
+	CreationDateTime       types.Time   `json:"creationDateTime"`
+	FirstExecutionDateTime types.Time   `json:"firstExecutionDateTime"`
+	NextExecutionDateTime  types.Time   `json:"nextExecutionDateTime"`
+	Status                 string       `json:"status"`
+	TargetAsset            string       `json:"targetAsset"`
+	SourceAsset            string       `json:"sourceAsset"`
+	PlanValueInUSD         string       `json:"planValueInUSD"`
+	PNLInUSD               types.Number `json:"pnlInUSD"`
+	ReturnOnInvestment     string       `json:"roi"`
+	TotalInvestedInUSD     string       `json:"totalInvestedInUSD"`
 	Details                []struct {
 		TargetAsset         string       `json:"targetAsset"`
-		AveragePriceInUSD   string       `json:"averagePriceInUSD"`
+		AveragePriceInUSD   types.Number `json:"averagePriceInUSD"`
 		TotalInvestedInUSD  string       `json:"totalInvestedInUSD"`
 		PurchasedAmount     types.Number `json:"purchasedAmount"`
 		PurchasedAmountUnit string       `json:"purchasedAmountUnit"`
-		PnlInUSD            string       `json:"pnlInUSD"`
-		ROI                 string       `json:"roi"`
-		Percentage          string       `json:"percentage"`
+		PNLInUSD            types.Number `json:"pnlInUSD"`
+		ROI                 types.Number `json:"roi"`
+		Percentage          types.Number `json:"percentage"`
 		AssetStatus         string       `json:"assetStatus"`
 		AvailableAmount     types.Number `json:"availableAmount"`
 		AvailableAmountUnit string       `json:"availableAmountUnit"`
 		RedeemedAmout       types.Number `json:"redeemedAmout"`
 		RedeemedAmoutUnit   string       `json:"redeemedAmoutUnit"`
-		AssetValueInUSD     string       `json:"assetValueInUSD"`
+		AssetValueInUSD     types.Number `json:"assetValueInUSD"`
 	} `json:"details"`
 }
 
@@ -4164,7 +4128,7 @@ type AutoInvestSubscriptionTransactionItem struct {
 	TargetAssetAmount   types.Number `json:"targetAssetAmount"`
 	SourceWallet        string       `json:"sourceWallet"`
 	FlexibleUsed        string       `json:"flexibleUsed"` // whether simple earn wallet is used
-	TransactionFee      string       `json:"transactionFee"`
+	TransactionFee      types.Number `json:"transactionFee"`
 	TransactionFeeUnit  string       `json:"transactionFeeUnit"` // denominated coin of the transaction fee
 	ExecutionPrice      types.Number `json:"executionPrice"`     // price of the subscription price. It's amount of source asset equivalent of 1 unit of target asset
 	SubscriptionCycle   types.Number `json:"subscriptionCycle"`
@@ -4172,8 +4136,8 @@ type AutoInvestSubscriptionTransactionItem struct {
 
 // AutoInvestSubscriptionTransactionResponse represents a detail of auto-investment subscription transaction.
 type AutoInvestSubscriptionTransactionResponse struct {
-	Total int64                                   `json:"total"`
-	List  []AutoInvestSubscriptionTransactionItem `json:"list"`
+	Total int64                                    `json:"total"`
+	List  []*AutoInvestSubscriptionTransactionItem `json:"list"`
 }
 
 // AutoInvestmentIndexDetail represents an index detail information.
@@ -4192,7 +4156,7 @@ type IndexLinkedPlanPositionDetail struct {
 	IndexID              int64        `json:"indexId"`
 	TotalInvestedInUSD   types.Number `json:"totalInvestedInUSD"`
 	CurrentInvestedInUSD types.Number `json:"currentInvestedInUSD"`
-	PnlInUSD             types.Number `json:"pnlInUSD"`
+	PNLInUSD             types.Number `json:"pnlInUSD"`
 	ROI                  types.Number `json:"roi"`
 	AssetAllocation      []struct {
 		TargetAsset string `json:"targetAsset"`
@@ -4264,7 +4228,7 @@ type IndexLinkedPlanRebalanceDetail struct {
 type StakingSubscriptionResponse struct {
 	Success         bool         `json:"success"`
 	WbethAmount     types.Number `json:"wbethAmount"`
-	ConversionRatio string       `json:"conversionRatio"`
+	ConversionRatio types.Number `json:"conversionRatio"`
 }
 
 // StakingRedemptionResponse represents redemption response response.
@@ -4308,7 +4272,7 @@ type BETHRewardDistribution struct {
 	Rows []struct {
 		Time                 types.Time   `json:"time"`
 		Asset                string       `json:"asset"`
-		Holding              string       `json:"holding"`              // BETH holding balance
+		Holding              types.Number `json:"holding"`              // BETH holding balance
 		Amount               types.Number `json:"amount"`               // Distributed rewards
 		AnnualPercentageRate string       `json:"annualPercentageRate"` // 0.5 means 50% here
 		Status               string       `json:"status"`
@@ -4340,7 +4304,7 @@ type ETHStakingAccountDetail struct {
 
 // StakingAccountV2Response represents ETH staking account detail
 type StakingAccountV2Response struct {
-	HoldingInETH string `json:"holdingInETH"`
+	HoldingInETH types.Number `json:"holdingInETH"`
 	Holdings     struct {
 		WbethAmount types.Number `json:"wbethAmount"`
 		BethAmount  types.Number `json:"bethAmount"`
@@ -4508,9 +4472,9 @@ type MinersDetailList struct {
 		WorkerName    string `json:"workerName"` // Mining Account name
 		Type          string `json:"type"`       // Type of hourly hashrate
 		HashrateDatas []struct {
-			Time     types.Time `json:"time"`
-			Hashrate string     `json:"hashrate"`
-			Reject   int64      `json:"reject"` // Rejection Rate
+			Time     types.Time   `json:"time"`
+			Hashrate types.Number `json:"hashrate"`
+			Reject   int64        `json:"reject"` // Rejection Rate
 		} `json:"hashrateDatas"`
 	} `json:"data"`
 }
@@ -4622,8 +4586,8 @@ type UserStatistics struct {
 	Code int    `json:"code"`
 	Msg  string `json:"msg"`
 	Data struct {
-		FifteenMinHashRate string                  `json:"fifteenMinHashRate"`
-		DayHashRate        string                  `json:"dayHashRate"`
+		FifteenMinHashRate types.Number            `json:"fifteenMinHashRate"`
+		DayHashRate        types.Number            `json:"dayHashRate"`
 		ValidNum           int64                   `json:"validNum"`
 		InvalidNum         int64                   `json:"invalidNum"`
 		ProfitToday        map[string]types.Number `json:"profitToday"`
@@ -4644,7 +4608,7 @@ type MiningAccounts struct {
 		List     []struct {
 			Time     types.Time   `json:"time"`
 			Hashrate types.Number `json:"hashrate"`
-			Reject   string       `json:"reject"` // Rejection Rate
+			Reject   types.Number `json:"reject"` // Rejection Rate
 		} `json:"list"`
 	} `json:"data"`
 }
@@ -4785,12 +4749,12 @@ type SpotTWAPOrderParam struct {
 
 // ClassicPMAccountInfo represents a classic portfolio margin account information.
 type ClassicPMAccountInfo struct {
-	UniMMR             string `json:"uniMMR"`             // Classic Portfolio margin account maintenance margin rate
-	AccountEquity      string `json:"accountEquity"`      // Account equity, unit：USD
-	ActualEquity       string `json:"actualEquity"`       // Actual equity, unit：USD
-	AccountMaintMargin string `json:"accountMaintMargin"` // Classic Portfolio margin account maintenance margin, unit：USD
-	AccountStatus      string `json:"accountStatus"`      // Classic Portfolio margin account status:"NORMAL", "MARGIN_CALL", "SUPPLY_MARGIN", "REDUCE_ONLY", "ACTIVE_LIQUIDATION", "FORCE_LIQUIDAT
-	AccountType        string `json:"accountType"`        // PM_1 for classic PM, PM_2 for PM
+	UniMMR             types.Number `json:"uniMMR"`             // Classic Portfolio margin account maintenance margin rate
+	AccountEquity      string       `json:"accountEquity"`      // Account equity, unit：USD
+	ActualEquity       string       `json:"actualEquity"`       // Actual equity, unit：USD
+	AccountMaintMargin types.Number `json:"accountMaintMargin"` // Classic Portfolio margin account maintenance margin, unit：USD
+	AccountStatus      string       `json:"accountStatus"`      // Classic Portfolio margin account status:"NORMAL", "MARGIN_CALL", "SUPPLY_MARGIN", "REDUCE_ONLY", "ACTIVE_LIQUIDATION", "FORCE_LIQUIDAT
+	AccountType        string       `json:"accountType"`        // PM_1 for classic PM, PM_2 for PM
 }
 
 // PMCollateralRate represents a classic portfolio margin collateral rate
@@ -4842,7 +4806,7 @@ type BLVTTokenDetail struct {
 	CurrentBaskets []struct {
 		Symbol        string       `json:"symbol"`
 		Amount        types.Number `json:"amount"`
-		NotionalValue string       `json:"notionalValue"`
+		NotionalValue types.Number `json:"notionalValue"`
 	} `json:"currentBaskets"`
 	Nav                string       `json:"nav"`
 	RealLeverage       types.Number `json:"realLeverage"`
@@ -4960,7 +4924,7 @@ type C2CTransaction struct {
 		UnitPrice           types.Number `json:"unitPrice"`   // Unit Price (in Fiat)
 		OrderStatus         string       `json:"orderStatus"` // possible values are: 'PENDING', 'TRADING', 'BUYER_PAYED', 'DISTRIBUTING', 'COMPLETED', 'IN_APPEAL', 'CANCELLED', 'CANCELLED_BY_SYSTEM'
 		CreateTime          types.Time   `json:"createTime"`
-		Commission          string       `json:"commission"` // Transaction Fee (in Crypto)
+		Commission          types.Number `json:"commission"` // Transaction Fee (in Crypto)
 		CounterPartNickName string       `json:"counterPartNickName"`
 		AdvertisementRole   string       `json:"advertisementRole"`
 	} `json:"data"`
@@ -4975,7 +4939,7 @@ type VIPLoanOngoingOrders struct {
 		LoanCoin                         string       `json:"loanCoin"`
 		TotalDebt                        types.Number `json:"totalDebt"`
 		LoanRate                         types.Number `json:"loanRate"`
-		ResidualInterest                 string       `json:"residualInterest"`
+		ResidualInterest                 types.Number `json:"residualInterest"`
 		CollateralAccountID              string       `json:"collateralAccountId"`
 		CollateralCoin                   string       `json:"collateralCoin"`
 		TotalCollateralValueAfterHaircut string       `json:"totalCollateralValueAfterHaircut"`
@@ -4985,7 +4949,7 @@ type VIPLoanOngoingOrders struct {
 		LoanDate                         string       `json:"loanDate"`
 		LoanTerm                         string       `json:"loanTerm"`
 		InitialLtv                       string       `json:"initialLtv"`
-		MarginCallLtv                    string       `json:"marginCallLtv"`
+		MarginCallLtv                    types.Number `json:"marginCallLtv"`
 		LiquidationLtv                   string       `json:"liquidationLtv"`
 	} `json:"rows"`
 	Total int64 `json:"total"`
@@ -4996,7 +4960,7 @@ type VIPLoanRepayResponse struct {
 	LoanCoin           string       `json:"loanCoin"`
 	RepayAmount        types.Number `json:"repayAmount"`
 	RemainingPrincipal string       `json:"remainingPrincipal"`
-	RemainingInterest  string       `json:"remainingInterest"`
+	RemainingInterest  types.Number `json:"remainingInterest"`
 	CollateralCoin     string       `json:"collateralCoin"`
 	CurrentLTV         string       `json:"currentLTV"`
 	RepayStatus        string       `json:"repayStatus"`
@@ -5082,7 +5046,7 @@ type OrderQuantityPrecision struct {
 // ConvertQuoteResponse represents a response quote for the requested token pairs
 type ConvertQuoteResponse struct {
 	QuoteID        string       `json:"quoteId"`
-	Ratio          string       `json:"ratio"`
+	Ratio          types.Number `json:"ratio"`
 	InverseRatio   types.Number `json:"inverseRatio"`
 	ValidTimestamp types.Time   `json:"validTimestamp"`
 	ToAmount       types.Number `json:"toAmount"`
@@ -5373,15 +5337,15 @@ type VIPLoanableAssetsData struct {
 // VIPCollateralAssetData represents a VIP collateral asset data.
 type VIPCollateralAssetData struct {
 	Rows []struct {
-		CollateralCoin         string `json:"collateralCoin"`
-		OneStCollateralRatio   string `json:"_1stCollateralRatio"`
-		OneStCollateralRange   string `json:"_1stCollateralRange"`
-		TwoNdCollateralRatio   string `json:"_2ndCollateralRatio"`
-		TwoNdCollateralRange   string `json:"_2ndCollateralRange"`
-		ThreeRdCollateralRatio string `json:"_3rdCollateralRatio"`
-		ThreeRdCollateralRange string `json:"_3rdCollateralRange"`
-		FourThCollateralRatio  string `json:"_4thCollateralRatio"`
-		FourThCollateralRange  string `json:"_4thCollateralRange"`
+		CollateralCoin         string       `json:"collateralCoin"`
+		OneStCollateralRatio   types.Number `json:"_1stCollateralRatio"`
+		OneStCollateralRange   string       `json:"_1stCollateralRange"`
+		TwoNdCollateralRatio   types.Number `json:"_2ndCollateralRatio"`
+		TwoNdCollateralRange   string       `json:"_2ndCollateralRange"`
+		ThreeRdCollateralRatio types.Number `json:"_3rdCollateralRatio"`
+		ThreeRdCollateralRange string       `json:"_3rdCollateralRange"`
+		FourThCollateralRatio  types.Number `json:"_4thCollateralRatio"`
+		FourThCollateralRange  string       `json:"_4thCollateralRange"`
 	} `json:"rows"`
 	Total int64 `json:"total"`
 }
@@ -5582,7 +5546,7 @@ type FuturesSubAccountEnableResponse struct {
 // SubAccountAPIKey holds sub-accounts API key details
 type SubAccountAPIKey struct {
 	SubaccountID string `json:"subaccountId"`
-	APIKey       string `json:"apiKey"`
+	APIKey       string `json:"apiKey"` //nolint:gosec // false positive
 	SecretKey    string `json:"secretKey"`
 	CanTrade     bool   `json:"canTrade"`
 	MarginTrade  bool   `json:"marginTrade"`
@@ -5592,7 +5556,7 @@ type SubAccountAPIKey struct {
 // SubAccountUniversalTransferEnableResponse holds subaccounts universal transfer enabling response
 type SubAccountUniversalTransferEnableResponse struct {
 	SubaccountID         string `json:"subaccountId"`
-	Apikey               string `json:"apikey"`
+	Apikey               string `json:"apikey"` //nolint:gosec // false positive
 	CanUniversalTransfer bool   `json:"canUniversalTransfer"`
 }
 
@@ -5601,7 +5565,7 @@ type SubAccountIPRestrictioin struct {
 	Status     string     `json:"status"`
 	IPList     []string   `json:"ipList"`
 	UpdateTime types.Time `json:"updateTime"`
-	APIKey     string     `json:"apiKey"`
+	APIKey     string     `json:"apiKey"` //nolint:gosec // false positive
 }
 
 // BrokerCreateSubAccount represents a subaccount creation response through a broker
@@ -5694,7 +5658,7 @@ type MarginSubAccountAssetInfo struct {
 		TotalAssetOfBtc     types.Number `json:"totalAssetOfBtc,omitempty"`
 		TotalLiabilityOfBtc types.Number `json:"totalLiabilityOfBtc,omitempty"`
 		TotalNetAssetOfBtc  types.Number `json:"totalNetAssetOfBtc,omitempty"`
-		MarginLevel         string       `json:"marginLevel,omitempty"`
+		MarginLevel         types.Number `json:"marginLevel,omitempty"`
 	} `json:"data"`
 	Timestamp types.Time `json:"timestamp"`
 }
@@ -5714,9 +5678,9 @@ type FuturesSubAccountAssetInfo struct {
 		Asset                       string       `json:"asset,omitempty"`
 
 		// Returned with coin margined futures assets information
-		TotalWalletBalanceOfUsdt    string `json:"totalWalletBalanceOfUsdt,omitempty"`
-		TotalUnrealizedProfitOfUsdt string `json:"totalUnrealizedProfitOfUsdt,omitempty"`
-		TotalMarginBalanceOfUsdt    string `json:"totalMarginBalanceOfUsdt,omitempty"`
+		TotalWalletBalanceOfUsdt    types.Number `json:"totalWalletBalanceOfUsdt,omitempty"`
+		TotalUnrealizedProfitOfUsdt string       `json:"totalUnrealizedProfitOfUsdt,omitempty"`
+		TotalMarginBalanceOfUsdt    types.Number `json:"totalMarginBalanceOfUsdt,omitempty"`
 	} `json:"data"`
 	Timestamp types.Time `json:"timestamp"`
 }
@@ -5912,12 +5876,12 @@ type FuturesUserStatus struct {
 	Success bool `json:"success"`
 }
 
-// UserAPIKeyCreationResponse holds user API key detailes
+// UserAPIKeyCreationResponse holds user API key details
 type UserAPIKeyCreationResponse struct {
 	Code    string `json:"code"`
 	Message any    `json:"message"`
 	Data    struct {
-		APIKey                string     `json:"apiKey"`
+		APIKey                string     `json:"apiKey"` //nolint:gosec // false positive
 		APIName               string     `json:"apiName"`
 		SecretKey             string     `json:"secretKey"`
 		EnableTrade           bool       `json:"enableTrade"`

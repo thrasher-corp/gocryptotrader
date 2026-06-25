@@ -4517,9 +4517,9 @@ func TestGetCryptoLoansIncomeHistory(t *testing.T) {
 func TestCryptoLoanBorrow(t *testing.T) {
 	t.Parallel()
 	_, err := e.CryptoLoanBorrow(t.Context(), currency.EMPTYCODE, 1000, currency.BTC, 1, 7)
-	require.ErrorIs(t, err, errLoanCoinMustBeSet)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.CryptoLoanBorrow(t.Context(), currency.USDT, 1000, currency.EMPTYCODE, 1, 7)
-	require.ErrorIs(t, err, errCollateralCoinMustBeSet)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.CryptoLoanBorrow(t.Context(), currency.USDT, 0, currency.BTC, 1, 0)
 	require.ErrorIs(t, err, errLoanTermMustBeSet)
 	_, err = e.CryptoLoanBorrow(t.Context(), currency.USDT, 0, currency.BTC, 0, 7)
@@ -4621,9 +4621,9 @@ func TestCryptoLoanCollateralAssetsData(t *testing.T) {
 func TestCryptoLoanCheckCollateralRepayRate(t *testing.T) {
 	t.Parallel()
 	_, err := e.CryptoLoanCheckCollateralRepayRate(t.Context(), currency.EMPTYCODE, currency.BNB, 69)
-	require.ErrorIs(t, err, errLoanCoinMustBeSet)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.CryptoLoanCheckCollateralRepayRate(t.Context(), currency.BUSD, currency.EMPTYCODE, 69)
-	require.ErrorIs(t, err, errCollateralCoinMustBeSet)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.CryptoLoanCheckCollateralRepayRate(t.Context(), currency.BUSD, currency.BNB, 0)
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
@@ -4647,9 +4647,9 @@ func TestCryptoLoanCustomiseMarginCall(t *testing.T) {
 func TestFlexibleLoanBorrow(t *testing.T) {
 	t.Parallel()
 	_, err := e.FlexibleLoanBorrow(t.Context(), currency.EMPTYCODE, currency.USDC, 1, 0)
-	require.ErrorIs(t, err, errLoanCoinMustBeSet)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.FlexibleLoanBorrow(t.Context(), currency.ATOM, currency.EMPTYCODE, 1, 0)
-	require.ErrorIs(t, err, errCollateralCoinMustBeSet)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.FlexibleLoanBorrow(t.Context(), currency.ATOM, currency.USDC, 0, 0)
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
@@ -4682,9 +4682,9 @@ func TestFlexibleLoanBorrowHistory(t *testing.T) {
 func TestFlexibleLoanRepay(t *testing.T) {
 	t.Parallel()
 	_, err := e.FlexibleLoanRepay(t.Context(), currency.EMPTYCODE, currency.BTC, 1, false, false)
-	require.ErrorIs(t, err, errLoanCoinMustBeSet)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.FlexibleLoanRepay(t.Context(), currency.USDT, currency.EMPTYCODE, 1, false, false)
-	require.ErrorIs(t, err, errCollateralCoinMustBeSet)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.FlexibleLoanRepay(t.Context(), currency.USDT, currency.BTC, 0, false, false)
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
@@ -4709,9 +4709,9 @@ func TestFlexibleLoanRepayHistory(t *testing.T) {
 func TestFlexibleLoanCollateralRepayment(t *testing.T) {
 	t.Parallel()
 	_, err := e.FlexibleLoanCollateralRepayment(t.Context(), currency.EMPTYCODE, currency.USDT, 1000, true)
-	require.ErrorIs(t, err, errLoanCoinMustBeSet)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.FlexibleLoanCollateralRepayment(t.Context(), currency.BTC, currency.EMPTYCODE, 1000, true)
-	require.ErrorIs(t, err, errCollateralCoinMustBeSet)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.FlexibleLoanCollateralRepayment(t.Context(), currency.BTC, currency.USDT, 0, true)
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
@@ -4724,9 +4724,9 @@ func TestFlexibleLoanCollateralRepayment(t *testing.T) {
 func TestCheckCollateralRepayRate(t *testing.T) {
 	t.Parallel()
 	_, err := e.CheckCollateralRepayRate(t.Context(), currency.EMPTYCODE, currency.USDT)
-	require.ErrorIs(t, err, errLoanCoinMustBeSet)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.CheckCollateralRepayRate(t.Context(), currency.BTC, currency.EMPTYCODE)
-	require.ErrorIs(t, err, errCollateralCoinMustBeSet)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	result, err := e.CheckCollateralRepayRate(t.Context(), currency.BTC, currency.USDT)
@@ -4749,9 +4749,9 @@ func TestGetFlexibleLoanLiquidiationHistory(t *testing.T) {
 func TestFlexibleLoanAdjustLTV(t *testing.T) {
 	t.Parallel()
 	_, err := e.FlexibleLoanAdjustLTV(t.Context(), currency.EMPTYCODE, currency.BTC, 1, true)
-	require.ErrorIs(t, err, errLoanCoinMustBeSet)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.FlexibleLoanAdjustLTV(t.Context(), currency.USDT, currency.EMPTYCODE, 1, true)
-	require.ErrorIs(t, err, errCollateralCoinMustBeSet)
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 	_, err = e.FlexibleLoanAdjustLTV(t.Context(), currency.USDT, currency.BTC, 0, true)
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
@@ -6445,7 +6445,7 @@ func TestNewUMOrder(t *testing.T) {
 
 	arg.OrderType = "limit"
 	_, err = e.NewUMOrder(t.Context(), arg)
-	require.ErrorIs(t, err, errTimeInForceRequired)
+	require.ErrorIs(t, err, order.ErrInvalidTimeInForce)
 
 	arg.TimeInForce = "GTC"
 	_, err = e.NewUMOrder(t.Context(), arg)
@@ -6507,7 +6507,7 @@ func TestNewCMOrder(t *testing.T) {
 
 	arg.OrderType = order.Limit.String()
 	_, err = e.NewCMOrder(t.Context(), arg)
-	require.ErrorIs(t, err, errTimeInForceRequired)
+	require.ErrorIs(t, err, order.ErrInvalidTimeInForce)
 
 	arg.TimeInForce = "GTC"
 	_, err = e.NewCMOrder(t.Context(), arg)
