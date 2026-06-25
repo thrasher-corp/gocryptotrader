@@ -388,11 +388,14 @@ const (
 	AnyType
 	Liquidation
 	Trigger
+	SOR // smart-order-routine(SOR) used in Binance
+	OTO // one-trigger-other used in Binance: https://developers.binance.com/docs/binance-spot-api-docs/enums#contingencytype
 	LimitMaker
-	OCO             // One-cancels-the-other order
-	ConditionalStop // One-way stop order
-	TWAP            // time-weighted average price
-	Chase           // chase limit order
+	OCO                 // One-cancels-the-other order
+	ConditionalStop     // One-way stop order
+	TWAP                // time-weighted average price
+	VolumeParticipation // volume-participation trade order used in Binance: https://developers.binance.com/docs/algo/future-algo
+	Chase               // chase limit order
 	OptimalLimit
 	MarketMakerProtection
 
@@ -400,6 +403,7 @@ const (
 	StopLimit         = Stop | Limit
 	StopMarket        = Stop | Market
 	TakeProfitMarket  = TakeProfit | Market
+	TakeProfitLimit   = TakeProfit | Limit
 	TrailingStopLimit = TrailingStop | Limit
 	Bracket           = Stop | TakeProfit
 )
@@ -413,9 +417,11 @@ const (
 	orderStop                  = "STOP"
 	orderConditionalStop       = "CONDITIONAL"
 	orderTWAP                  = "TWAP"
+	orderVolumeParticipation   = "VP"
 	orderChase                 = "CHASE"
 	orderTakeProfit            = "TAKE PROFIT"
 	orderTakeProfitMarket      = "TAKE PROFIT MARKET"
+	orderTakeProfitLimit       = "TAKE PROFIT LIMIT"
 	orderTrailingStop          = "TRAILING_STOP"
 	orderTrailingStopLimit     = "TRAILING_STOP_LIMIT"
 	orderIOS                   = "IOS"
@@ -427,6 +433,8 @@ const (
 	orderMarketMakerProtection = "MMP"
 	orderBracket               = "BRACKET"
 	orderAnyType               = "ANY"
+	orderOTO                   = "OTO"
+	orderSOR                   = "SOR"
 )
 
 // AllOrderTypes collects all order types for easy and consistent comparisons
@@ -443,6 +451,7 @@ var AllOrderTypes = Limit |
 	OCO |
 	ConditionalStop |
 	TWAP |
+	VolumeParticipation |
 	Chase |
 	OptimalLimit |
 	MarketMakerProtection
@@ -522,6 +531,10 @@ type RiskManagement struct {
 	LimitPrice float64
 	// OrderType order type when stop-loss or take-profit risk management method is triggered.
 	OrderType Type
+
+	// Added to support the iceberg quantity and time-in-force requirement of binance OCO orders.
+	IcebergQuantity float64
+	TimeInForce     TimeInForce
 }
 
 // RiskManagementModes represents take-profit and stop-loss risk management methods.
