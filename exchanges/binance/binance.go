@@ -36,11 +36,6 @@ type Exchange struct {
 	validLimits []uint64
 	obm         *orderbookManager
 
-	// isAPIStreamConnected is true if the spot API stream websocket connection is established
-	isAPIStreamConnected bool
-
-	isAPIStreamConnectionLock sync.Mutex
-
 	// represents a USD-Margined futures account position mode information and lock for synchronized access.
 	umAccountPositionMode     UserAccountPositionMode
 	umAccountPositionModeLock sync.Mutex
@@ -68,7 +63,7 @@ type UserAccountPositionMode int
 
 // represents account position modes for futures orders
 const (
-	UnknownPositionMode UserAccountPositionMode = iota
+	UnknownPositionMode UserAccountPositionMode = 0
 	OneWayMode                                  = 1 << iota
 	DualMode
 )
@@ -141,10 +136,7 @@ func (e *Exchange) GetOrderBook(ctx context.Context, obd OrderBookDataRequestPar
 	params.Set("symbol", symbol)
 	params.Set("limit", strconv.FormatUint(obd.Limit, 10))
 	var resp *OrderBook
-	return resp, e.SendHTTPRequest(ctx,
-		exchange.RestSpot,
-		common.EncodeURLValues("/api/v3/depth", params),
-		orderbookLimit(obd.Limit), &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/api/v3/depth", params), orderbookLimit(obd.Limit), &resp)
 }
 
 // GetMostRecentTrades returns recent trade activity
@@ -211,14 +203,16 @@ func (e *Exchange) GetAggregatedTrades(ctx context.Context, arg *AggregatedTrade
 		params.Set("fromId", strconv.FormatInt(arg.FromID, 10))
 	}
 	if !arg.StartTime.IsZero() && !arg.EndTime.IsZero() {
-		err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime)
-		if err != nil {
+		if err := common.StartEndTimeCheck(arg.StartTime, arg.EndTime); err != nil {
 			return nil, err
 		}
+	}
+	if !arg.StartTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(arg.StartTime.UnixMilli(), 10))
+	}
+	if !arg.EndTime.IsZero() {
 		params.Set("endTime", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
 	}
-
 	// startTime and endTime are set and time between startTime and endTime is more than 1 hour
 	needBatch = needBatch || (!arg.StartTime.IsZero() && !arg.EndTime.IsZero() && arg.EndTime.Sub(arg.StartTime) > time.Hour)
 	// Fall back to batch requests, if possible and necessary
@@ -263,11 +257,7 @@ func (e *Exchange) batchAggregateTrades(ctx context.Context, arg *AggregatedTrad
 			}
 			params.Set("startTime", timeString(start))
 			params.Set("endTime", timeString(start.Add(increment)))
-			err := e.SendHTTPRequest(ctx,
-				exchange.RestSpot,
-				common.EncodeURLValues("/api/v3/aggTrades", params),
-				getAggregateTradeListRate, &resp)
-			if err != nil {
+			if err := e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/api/v3/aggTrades", params), getAggregateTradeListRate, &resp); err != nil {
 				return resp, fmt.Errorf("%w %v", err, arg.Symbol)
 			}
 		}
@@ -418,7 +408,7 @@ func (e *Exchange) GetTradingDayTicker(ctx context.Context, symbols currency.Pai
 	params := url.Values{}
 	switch {
 	case len(symbols) > 1:
-		params.Set("symbols", "["+strings.Join(symbols.Strings(), "")+"]")
+		params.Set("symbols", "["+strings.Join(symbols.Strings(), ",")+"]")
 	case len(symbols) == 1 && !symbols[0].IsEmpty():
 		params.Set("symbol", symbols[0].String())
 	default:
@@ -448,7 +438,7 @@ func (e *Exchange) GetLatestSpotPrice(ctx context.Context, symbol currency.Pair,
 		}
 		params.Set("symbol", symbolValue)
 	} else if len(symbols) > 0 {
-		params.Set("symbols", "["+strings.Join(symbols.Strings(), "")+"]")
+		params.Set("symbols", "["+strings.Join(symbols.Strings(), ",")+"]")
 	}
 	var resp *SymbolPrice
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/api/v3/ticker/price", params), rateLimit, &resp)
@@ -471,7 +461,7 @@ func (e *Exchange) GetBestPrice(ctx context.Context, symbol currency.Pair, symbo
 		}
 		params.Set("symbol", symbolValue)
 	} else if len(symbols) > 1 {
-		params.Set("symbols", "["+strings.Join(symbols.Strings(), "")+"]")
+		params.Set("symbols", "["+strings.Join(symbols.Strings(), ",")+"]")
 	}
 	var resp *BestPrice
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/api/v3/ticker/bookTicker", params), rateLimit, &resp)
@@ -487,7 +477,7 @@ func (e *Exchange) GetTickerData(ctx context.Context, symbols currency.Pairs, wi
 	params := url.Values{}
 	switch {
 	case len(symbols) > 1:
-		params.Set("symbols", "["+strings.Join(symbols.Strings(), "")+"]")
+		params.Set("symbols", "["+strings.Join(symbols.Strings(), ",")+"]")
 	case len(symbols) == 1 && !symbols[0].IsEmpty():
 		params.Set("symbol", symbols[0].String())
 	default:
@@ -1022,7 +1012,6 @@ func (e *Exchange) MarginAccountBorrowRepay(ctx context.Context, assetName curre
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	if isIsolated {
 		params.Set("isIsolated", "TRUE")
-		// Default is FALSE for Cross Margin
 	}
 	resp := &struct {
 		TransactionID string `json:"tranId"`
@@ -1030,8 +1019,7 @@ func (e *Exchange) MarginAccountBorrowRepay(ctx context.Context, assetName curre
 	return resp.TransactionID, e.SendAuthHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, "/sapi/v1/margin/borrow-repay", params, marginAccountBorrowRepayRate, nil, &resp)
 }
 
-// GetBorrowOrRepayRecordsInMarginAccount retrieves borrow/repay records in Margin account.
-// tranId in POST /sapi/v1/margin/loan
+// GetBorrowOrRepayRecordsInMarginAccount retrieves borrow/repay records in Margin account
 func (e *Exchange) GetBorrowOrRepayRecordsInMarginAccount(ctx context.Context, assetName currency.Code, isolatedSymbol, lendingType string, transactionID, current, size int64, startTime, endTime time.Time) (*MarginAccountBorrowRepayRecords, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
@@ -1738,26 +1726,7 @@ func (e *Exchange) GetFutureHourlyInterestRate(ctx context.Context, assets []str
 }
 
 // GetCrossOrIsolatedMarginCapitalFlow retrieves cross or isolated margin capital flow
-// type: represents a capital flow type.
-// Supported types:
-//
-//	TRANSFER("Transfer")
-//	BORROW("Borrow")
-//	REPAY("Repay")
-//	BUY_INCOME("Buy-Trading Income")
-//	BUY_EXPENSE("Buy-Trading Expense")
-//	SELL_INCOME("Sell-Trading Income")
-//	SELL_EXPENSE("Sell-Trading Expense")
-//	TRADING_COMMISSION("Trading Commission")
-//	BUY_LIQUIDATION("Buy by Liquidation")
-//	SELL_LIQUIDATION("Sell by Liquidation")
-//	REPAY_LIQUIDATION("Repay by Liquidation")
-//	OTHER_LIQUIDATION("Other Liquidation")
-//	LIQUIDATION_FEE("Liquidation Fee")
-//	SMALL_BALANCE_CONVERT("Small Balance Convert")
-//	COMMISSION_RETURN("Commission Return")
-//	SMALL_CONVERT("Small Convert")
-func (e *Exchange) GetCrossOrIsolatedMarginCapitalFlow(ctx context.Context, assetName currency.Code, symbol currency.Pair, flowType string, startTime, endTime time.Time, fromID, limit int64) ([]*MarginCapitalFlow, error) {
+func (e *Exchange) GetCrossOrIsolatedMarginCapitalFlow(ctx context.Context, assetName currency.Code, symbol currency.Pair, flowType capitalFlowType, startTime, endTime time.Time, fromID, limit int64) ([]*MarginCapitalFlow, error) {
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if err := common.StartEndTimeCheck(startTime, endTime); err != nil {
 			return nil, err
@@ -1770,8 +1739,8 @@ func (e *Exchange) GetCrossOrIsolatedMarginCapitalFlow(ctx context.Context, asse
 	if !symbol.IsEmpty() {
 		params.Set("symbol", symbol.String())
 	}
-	if flowType != "" {
-		params.Set("type", flowType)
+	if flowType != 0 {
+		params.Set("type", flowType.String())
 	}
 	if !startTime.IsZero() {
 		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
@@ -1907,11 +1876,11 @@ func (e *Exchange) SendAPIKeyHTTPRequest(ctx context.Context, ePath exchange.URL
 
 // interfaceToParams convert interface into url.Values instance.
 func interfaceToParams(val any) (url.Values, error) {
-	dMap := make(map[string]any)
 	data, err := json.Marshal(val)
 	if err != nil {
 		return nil, err
 	}
+	dMap := make(map[string]any)
 	if err := json.Unmarshal(data, &dMap); err != nil {
 		return nil, err
 	}

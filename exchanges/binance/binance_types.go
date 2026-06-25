@@ -3612,6 +3612,69 @@ type MarginCapitalFlow struct {
 	Amount        types.Number `json:"amount"`
 }
 
+// capitalFlowType represents a cross or isolated margin capital flow type.
+type capitalFlowType int
+
+// Capital flow types accepted by GetCrossOrIsolatedMarginCapitalFlow.
+const (
+	capitalFlowTransfer capitalFlowType = iota + 1
+	capitalFlowBorrow
+	capitalFlowRepay
+	capitalFlowBuyIncome
+	capitalFlowBuyExpense
+	capitalFlowSellIncome
+	capitalFlowSellExpense
+	capitalFlowTradingCommission
+	capitalFlowBuyLiquidation
+	capitalFlowSellLiquidation
+	capitalFlowRepayLiquidation
+	capitalFlowOtherLiquidation
+	capitalFlowLiquidationFee
+	capitalFlowSmallBalanceConvert
+	capitalFlowCommissionReturn
+	capitalFlowSmallConvert
+)
+
+// String returns the API enum value for the capital flow type.
+func (c capitalFlowType) String() string {
+	switch c {
+	case capitalFlowTransfer:
+		return "TRANSFER"
+	case capitalFlowBorrow:
+		return "BORROW"
+	case capitalFlowRepay:
+		return "REPAY"
+	case capitalFlowBuyIncome:
+		return "BUY_INCOME"
+	case capitalFlowBuyExpense:
+		return "BUY_EXPENSE"
+	case capitalFlowSellIncome:
+		return "SELL_INCOME"
+	case capitalFlowSellExpense:
+		return "SELL_EXPENSE"
+	case capitalFlowTradingCommission:
+		return "TRADING_COMMISSION"
+	case capitalFlowBuyLiquidation:
+		return "BUY_LIQUIDATION"
+	case capitalFlowSellLiquidation:
+		return "SELL_LIQUIDATION"
+	case capitalFlowRepayLiquidation:
+		return "REPAY_LIQUIDATION"
+	case capitalFlowOtherLiquidation:
+		return "OTHER_LIQUIDATION"
+	case capitalFlowLiquidationFee:
+		return "LIQUIDATION_FEE"
+	case capitalFlowSmallBalanceConvert:
+		return "SMALL_BALANCE_CONVERT"
+	case capitalFlowCommissionReturn:
+		return "COMMISSION_RETURN"
+	case capitalFlowSmallConvert:
+		return "SMALL_CONVERT"
+	default:
+		return ""
+	}
+}
+
 // MarginDelistSchedule represents delist schedule for cross-margin and isolated-margin accounts.
 type MarginDelistSchedule struct {
 	DelistTime            types.Time `json:"delistTime"`

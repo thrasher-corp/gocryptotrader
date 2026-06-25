@@ -39,14 +39,6 @@ var websocketStatusCodes = map[int64]string{
 
 // WsConnectAPI creates a new websocket connection to API server
 func (e *Exchange) WsConnectAPI(ctx context.Context, conn websocket.Connection) (err error) {
-	defer func() {
-		if err != nil {
-			e.SetIsAPIStreamConnected(false)
-			return
-		}
-		e.SetIsAPIStreamConnected(true)
-	}()
-
 	if err := e.CurrencyPairs.IsAssetEnabled(asset.Spot); err != nil {
 		return err
 	}
@@ -72,16 +64,8 @@ func (e *Exchange) WsConnectAPI(ctx context.Context, conn websocket.Connection) 
 
 // IsAPIStreamConnected checks if the API stream connection is established
 func (e *Exchange) IsAPIStreamConnected() bool {
-	e.isAPIStreamConnectionLock.Lock()
-	defer e.isAPIStreamConnectionLock.Unlock()
-	return e.isAPIStreamConnected
-}
-
-// SetIsAPIStreamConnected sets a value of whether the API stream connection is established
-func (e *Exchange) SetIsAPIStreamConnected(isAPIStreamConnected bool) {
-	e.isAPIStreamConnectionLock.Lock()
-	defer e.isAPIStreamConnectionLock.Unlock()
-	e.isAPIStreamConnected = isAPIStreamConnected
+	_, err := e.Websocket.GetConnection(spotWebsocketAPI)
+	return err == nil
 }
 
 // wsHandleSpotAPIData routes API response data.

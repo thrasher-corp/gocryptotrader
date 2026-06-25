@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"reflect"
 	"testing"
@@ -7783,11 +7785,11 @@ func TestGetFutureHourlyInterestRate(t *testing.T) {
 func TestGetCrossOrIsolatedMarginCapitalFlow(t *testing.T) {
 	t.Parallel()
 	startTime, endTime := getTime()
-	_, err := e.GetCrossOrIsolatedMarginCapitalFlow(t.Context(), currency.ETH, currency.EMPTYPAIR, "BORROW", endTime, startTime, 10, 20)
+	_, err := e.GetCrossOrIsolatedMarginCapitalFlow(t.Context(), currency.ETH, currency.EMPTYPAIR, capitalFlowBorrow, endTime, startTime, 10, 20)
 	require.ErrorIs(t, err, common.ErrStartAfterEnd)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetCrossOrIsolatedMarginCapitalFlow(t.Context(), currency.ETH, currency.EMPTYPAIR, "BORROW", startTime, endTime, 10, 20)
+	result, err := e.GetCrossOrIsolatedMarginCapitalFlow(t.Context(), currency.ETH, currency.EMPTYPAIR, capitalFlowBorrow, startTime, endTime, 10, 20)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
@@ -10713,4 +10715,66 @@ func TestUnmarshalPriceChangesWrapper(t *testing.T) {
 	err = json.Unmarshal(sliceData, &resp)
 	require.NoError(t, err)
 	assert.Len(t, resp, 2)
+}
+
+func TestSendHTTPRequestErrorResponse(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name       string
+		statusCode int
+		body       string
+		wantErr    error
+		wantMsg    string
+	}{
+		{
+			name:       "mapped error code",
+			statusCode: http.StatusBadRequest,
+			body:       `{"code":-1121,"msg":"Invalid symbol."}`,
+			wantErr:    currency.ErrCurrencyPairEmpty,
+			wantMsg:    "msg: Invalid symbol.",
+		},
+		{
+			name:       "unmapped error code",
+			statusCode: http.StatusBadRequest,
+			body:       `{"code":-9999,"msg":"Unknown error."}`,
+			wantMsg:    "err code: -9999 msg: Unknown error.",
+		},
+		{
+			name:       "non error response body",
+			statusCode: http.StatusInternalServerError,
+			body:       `{"someField":"value"}`,
+			wantErr:    request.ErrBadStatus,
+		},
+		{
+			name:       "non json body",
+			statusCode: http.StatusBadGateway,
+			body:       `not json`,
+			wantErr:    request.ErrBadStatus,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			e := new(Exchange)
+			require.NoError(t, testexch.Setup(e), "Setup must not error")
+
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(tc.statusCode)
+				_, err := w.Write([]byte(tc.body))
+				assert.NoError(t, err, "Writing response should not error")
+			}))
+			defer server.Close()
+
+			require.NoError(t, e.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
+
+			var result any
+			err := e.SendHTTPRequest(t.Context(), exchange.RestSpot, "/foo", request.UnauthenticatedRequest, &result)
+			require.Error(t, err, "SendHTTPRequest must return an error")
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr, "SendHTTPRequest must return the expected error")
+			}
+			if tc.wantMsg != "" {
+				assert.Contains(t, err.Error(), tc.wantMsg, "error should contain the response message")
+			}
+		})
+	}
 }
