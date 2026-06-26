@@ -2685,7 +2685,7 @@ func TestGetUsersLiquidationHistoryForSpecifiedUnderlying(t *testing.T) {
 
 func TestPlaceOptionOrder(t *testing.T) {
 	t.Parallel()
-	arg := &OptionOrderParam{
+	arg := &OptionOrderRequest{
 		OrderSize:   -1,
 		Iceberg:     0,
 		Text:        "-",
@@ -2700,7 +2700,7 @@ func TestPlaceOptionOrder(t *testing.T) {
 	assert.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err = e.PlaceOptionOrder(t.Context(), &OptionOrderParam{
+	_, err = e.PlaceOptionOrder(t.Context(), &OptionOrderRequest{
 		Contract:    getPair(t, asset.Options),
 		OrderSize:   -1,
 		Iceberg:     0,
@@ -2765,17 +2765,17 @@ func TestGetMyOptionsTradingHistory(t *testing.T) {
 
 func TestWithdrawCurrency(t *testing.T) {
 	t.Parallel()
-	_, err := e.WithdrawCurrency(t.Context(), &WithdrawalRequestParam{})
+	_, err := e.WithdrawCurrency(t.Context(), &WithdrawalRequest{})
 	assert.ErrorIs(t, err, order.ErrAmountIsInvalid)
 
-	_, err = e.WithdrawCurrency(t.Context(), &WithdrawalRequestParam{Amount: 0.000000001})
+	_, err = e.WithdrawCurrency(t.Context(), &WithdrawalRequest{Amount: 0.000000001})
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	_, err = e.WithdrawCurrency(t.Context(), &WithdrawalRequestParam{Amount: 1, Currency: currency.BTC})
+	_, err = e.WithdrawCurrency(t.Context(), &WithdrawalRequest{Amount: 1, Currency: currency.BTC})
 	assert.ErrorIs(t, err, errInvalidCurrencyChain)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err = e.WithdrawCurrency(t.Context(), &WithdrawalRequestParam{
+	_, err = e.WithdrawCurrency(t.Context(), &WithdrawalRequest{
 		Currency: currency.BTC,
 		Amount:   0.00000001,
 		Chain:    "ERC20",
@@ -3240,9 +3240,10 @@ func TestProcessFuturesCandlesticksIntervalMapping(t *testing.T) {
 	select {
 	case msg := <-ex.Websocket.DataHandler.C:
 		got, ok := msg.Data.([]kline.Item)
+		expectedPair := currency.NewPairWithDelimiter("BTC", "USDT", "_")
 		require.True(t, ok, "expected []kline.Item")
 		assert.Equal(t, []kline.Item{{
-			Pair:     getPair(t, asset.USDTMarginedFutures),
+			Pair:     expectedPair,
 			Asset:    asset.USDTMarginedFutures,
 			Exchange: ex.Name,
 			Interval: kline.OneMin,
@@ -3827,15 +3828,15 @@ func TestGetBatchUnifiedAccountMaximumBorrowableAmount(t *testing.T) {
 
 func TestBorrowOrRepay(t *testing.T) {
 	t.Parallel()
-	_, err := e.BorrowOrRepay(t.Context(), &BorrowOrRepayParams{Amount: 1})
+	_, err := e.BorrowOrRepay(t.Context(), &BorrowOrRepayRequest{Amount: 1})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = e.BorrowOrRepay(t.Context(), &BorrowOrRepayParams{Currency: currency.ETH})
+	_, err = e.BorrowOrRepay(t.Context(), &BorrowOrRepayRequest{Currency: currency.ETH})
 	require.ErrorIs(t, err, errLoanTypeIsRequired)
-	_, err = e.BorrowOrRepay(t.Context(), &BorrowOrRepayParams{Currency: currency.ETH, Type: "borrow"})
+	_, err = e.BorrowOrRepay(t.Context(), &BorrowOrRepayRequest{Currency: currency.ETH, Type: "borrow"})
 	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err = e.BorrowOrRepay(t.Context(), &BorrowOrRepayParams{Amount: 2, Currency: currency.ETH, Type: "borrow"})
+	_, err = e.BorrowOrRepay(t.Context(), &BorrowOrRepayRequest{Amount: 2, Currency: currency.ETH, Type: "borrow"})
 	assert.NoError(t, err)
 }
 

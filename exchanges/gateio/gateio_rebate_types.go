@@ -201,12 +201,12 @@ type RecentPartnerApplicationRecords struct {
 	Phone             string `json:"phone"`
 	Telegram          string `json:"telegram"`
 	OtherContact      struct {
-		Type  int64  `json:"type"`
-		Value string `json:"value"`
+		Type  int64        `json:"type"`
+		Value types.Number `json:"value"`
 	} `json:"other_contact"`
 	ProofImagesURLList []string `json:"proof_images_url_list"`
 	ProofVideosURLList []any    `json:"proof_videos_url_list"`
-	ApplyMsg           string   `json:"apply_msg"`
+	ApplyMessage       string   `json:"apply_msg"`
 	JumpURL            string   `json:"jump_url"`
 }
 

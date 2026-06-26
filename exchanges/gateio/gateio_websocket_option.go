@@ -489,12 +489,12 @@ func (e *Exchange) processOptionsOrderbookSnapshotPushData(event string, incomin
 		}
 		base.Asks = make([]orderbook.Level, len(data.Asks))
 		for x := range data.Asks {
-			base.Asks[x].Amount = data.Asks[x].Size
+			base.Asks[x].Amount = data.Asks[x].Size.Float64()
 			base.Asks[x].Price = data.Asks[x].Price.Float64()
 		}
 		base.Bids = make([]orderbook.Level, len(data.Bids))
 		for x := range data.Bids {
-			base.Bids[x].Amount = data.Bids[x].Size
+			base.Bids[x].Amount = data.Bids[x].Size.Float64()
 			base.Bids[x].Price = data.Bids[x].Price.Float64()
 		}
 		return e.Websocket.Orderbook.LoadSnapshot(&base)

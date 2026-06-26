@@ -198,7 +198,7 @@ func TestPublishP2PAdOrder(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	arg.MinAmount = 10
-	arg.FixedPrice = "1.05"
+	arg.FixedPrice = 1.05
 	err = e.PublishP2PAdOrder(t.Context(), arg)
 	require.NoError(t, err)
 }

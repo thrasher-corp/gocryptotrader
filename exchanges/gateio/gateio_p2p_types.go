@@ -99,7 +99,7 @@ type P2PPaymentMethod struct {
 	MemoExtended          string `json:"memo_ext"`
 	TradeTips             string `json:"trade_tips"`
 	Version               string `json:"version"`
-	Nickname              int    `json:"nickname"`
+	Nickname              int64  `json:"nickname"`
 }
 
 // SetMerchantWorkHoursRequest represents request parameters to sent merchant working hour
@@ -131,12 +131,15 @@ type PendingP2POrderRequest struct {
 
 // P2POrderList represents a P2P transactions detail list
 type P2POrderList struct {
-	List      []*P2POrderInfo `json:"list"`
-	TransTime []struct {
-		OdTime int `json:"od_time"`
-	} `json:"trans_time"`
-	Count       int `json:"count"`
-	ExportedNum int `json:"exported_num"`
+	List            []*P2POrderInfo             `json:"list"`
+	TransactionTime []*P2pTransactionTimeMarker `json:"trans_time"`
+	Count           uint64                      `json:"count"`
+	ExportedNum     uint64                      `json:"exported_num"`
+}
+
+// P2pTransactionTimeMarker represents the transaction time maker info
+type P2pTransactionTimeMarker struct {
+	OrderTime uint64 `json:"od_time"`
 }
 
 // P2POrderInfo represents a P2P order detail instance
@@ -339,10 +342,10 @@ type PublishP2PAdRequest struct {
 	TradeType         string        `json:"trade_type"`
 	PayIDs            string        `json:"pay_ids"`
 	PriceType         int64         `json:"price_type"`
-	PremiumRatio      string        `json:"premium_ratio,omitempty"`
-	FixedPrice        string        `json:"fixed_price,omitempty"`
-	MaxAmount         float64       `json:"max_amount,string"`
-	MinAmount         float64       `json:"min_amount,string"`
+	PremiumRatio      types.Number  `json:"premium_ratio,omitempty"`
+	FixedPrice        types.Number  `json:"fixed_price,omitempty"`
+	MaxAmount         types.Number  `json:"max_amount"`
+	MinAmount         types.Number  `json:"min_amount"`
 	Remarks           string        `json:"remarks,omitempty"`
 	AutoReply         string        `json:"auto_reply,omitempty"`
 	RegDaysLimit      int64         `json:"reg_days_limit,omitempty"`
@@ -352,7 +355,7 @@ type PublishP2PAdRequest struct {
 	HasUnfinished     int64         `json:"has_unfinished,omitempty"`
 	AdvOrderNumLimit  int64         `json:"adv_ordernum_limit,omitempty"`
 	IsTrusted         int64         `json:"is_trusted,omitempty"`
-	TradeAmount       string        `json:"trade_amount,omitempty"`
+	TradeAmount       types.Number  `json:"trade_amount,omitempty"`
 	TradeDays         int64         `json:"trade_days,omitempty"`
 	MaxCompletedLimit int64         `json:"max_completed_limit,omitempty"`
 	CompleteRateLimit int64         `json:"complete_rate_limit,omitempty"`
@@ -378,7 +381,7 @@ type GetP2PAdDetailsRequest struct {
 
 // P2PAdDetail holds detailed P2P advertisement information.
 type P2PAdDetail struct {
-	Rate              string       `json:"rate"`
+	Rate              types.Number `json:"rate"`
 	Type              string       `json:"type"`
 	Amount            types.Number `json:"amount"`
 	MinAmount         types.Number `json:"min_amount"`
@@ -389,18 +392,18 @@ type P2PAdDetail struct {
 	TradeNote         string       `json:"trade_note"`
 	NodeReply         string       `json:"node_reply"`
 	Status            string       `json:"status"`
-	AdvNo             types.Number `json:"adv_no"`
+	AdvertisementNo   types.Number `json:"adv_no"`
 	LockedAmount      types.Number `json:"locked_amount"`
 	CurrencyType      string       `json:"currency_type"`
 	CreatedAt         types.Time   `json:"created_at"`
-	TradeAmount       string       `json:"trade_amount"`
+	TradeAmount       types.Number `json:"trade_amount"`
 	TradeTypeID       int64        `json:"trade_type_id"`
 	NoteState         int64        `json:"note_state"`
-	OriginRate        string       `json:"origin_rate"`
-	MaxCompletedLimit int64        `json:"max_completed_limit"`
-	RegLimit          int64        `json:"reg_limit"`
-	RegionAsk         int64        `json:"region_ask"`
-	MaxNumOrdersLimit int64        `json:"max_num_orders_limit"`
+	OriginRate        types.Number `json:"origin_rate"`
+	MaxCompletedLimit types.Number `json:"max_completed_limit"`
+	RegLimit          types.Number `json:"reg_limit"`
+	RegionAsk         types.Number `json:"region_ask"`
+	MaxNumOrdersLimit types.Number `json:"max_num_orders_limit"`
 	IsHedge           int64        `json:"is_hedge"`
 	HidePayment       int64        `json:"hide_payment"`
 }
@@ -421,7 +424,7 @@ type P2PMyAdsData struct {
 type P2PMyAdItem struct {
 	Type              string        `json:"type"`
 	Price             types.Number  `json:"price"`
-	Rate              string        `json:"rate"`
+	Rate              types.Number  `json:"rate"`
 	Status            string        `json:"status"`
 	AdvNo             string        `json:"adv_no"`
 	BuyTypeNum        types.Number  `json:"buy_type_num"`
@@ -430,7 +433,7 @@ type P2PMyAdItem struct {
 	RegTimeLimit      int64         `json:"reg_time_limit"`
 	NewKYC            int64         `json:"new_kyc"`
 	PriceLimit        int64         `json:"price_limit"`
-	CompleteRateLimit int64         `json:"complete_rate_limit"`
+	CompleteRateLimit types.Number  `json:"complete_rate_limit"`
 	Timestamp         types.Time    `json:"timestamp"`
 	IsBadge           int64         `json:"is_badge"`
 }
@@ -448,7 +451,7 @@ type P2PAdListItem struct {
 	Asset                currency.Code `json:"asset"`
 	FiatUnit             string        `json:"fiat_unit"`
 	Price                types.Number  `json:"price"`
-	MaxSingleTransAmount string        `json:"max_single_trans_amount"`
+	MaxSingleTransAmount types.Number  `json:"max_single_trans_amount"`
 	LibName              string        `json:"lib_name"`
 	AdvertizementNo      uint64        `json:"adv_no"`
 }

@@ -19,7 +19,7 @@ type CrossExchangeSymbol struct {
 	MaxNumOrders    types.Number `json:"max_num_orders"`
 	ContractSize    types.Number `json:"contract_size"`
 	DefaultLeverage types.Number `json:"default_leverage"`
-	DelistTime      string       `json:"delist_time"`
+	DelistTime      types.Time   `json:"delist_time"`
 	LiquidationFee  types.Number `json:"liquidation_fee"`
 	MaxLimitSize    types.Number `json:"max_limit_size"`
 	MaxMarketSize   types.Number `json:"max_market_size"`
@@ -75,15 +75,15 @@ type CrossExchangeTransferRecord struct {
 	FailReason      string        `json:"fail_reason"`
 	TransferAmount  string        `json:"amount"`
 	ActualReceive   string        `json:"actual_receive"`
-	CreateTime      int64         `json:"create_time"`
-	UpdateTime      int64         `json:"update_time"`
+	CreateTime      types.Time    `json:"create_time"`
+	UpdateTime      types.Time    `json:"update_time"`
 }
 
 // CrossExchangeTransferRequest is the request body for a CrossEx fund transfer.
 type CrossExchangeTransferRequest struct {
 	Coin   currency.Code `json:"coin"`
-	Amount float64       `json:"amount,string"`
-	Text   string        `json:"text,omitempty"`
+	Amount types.Number  `json:"amount"`
+	Text   string        `json:"text"`
 	From   string        `json:"from"`
 	To     string        `json:"to"`
 }
@@ -158,7 +158,7 @@ type CrossExchangeConvertQuoteRequest struct {
 	ExchangeType string        `json:"exchange_type"`
 	FromCoin     currency.Code `json:"from_coin"`
 	ToCoin       currency.Code `json:"to_coin"`
-	FromAmount   float64       `json:"from_amount,string"`
+	FromAmount   types.Number  `json:"from_amount"`
 }
 
 // CrossExchangeConvertQuoteResponse holds the quote returned from a flash swap inquiry.
@@ -234,8 +234,8 @@ type CrossExchangeAccountUpdateResponse struct {
 
 // CrossExchangeLeverageRequest is the request body for setting CrossEx leverage.
 type CrossExchangeLeverageRequest struct {
-	Symbol   string  `json:"symbol"`
-	Leverage float64 `json:"leverage,string"`
+	Symbol   string       `json:"symbol"`
+	Leverage types.Number `json:"leverage"`
 }
 
 // CrossExchangeLeverageResponse holds the result of a CrossEx leverage change.

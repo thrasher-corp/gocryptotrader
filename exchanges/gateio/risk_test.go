@@ -30,9 +30,28 @@ func TestGetFuturesRiskTable(t *testing.T) {
 	_, err = e.GetFuturesRiskTable(t.Context(), currency.USDT, "")
 	require.ErrorIs(t, err, errTableIDEmpty)
 
-	got, err := e.GetFuturesRiskTable(t.Context(), currency.USDT, getPair(t, asset.DeliveryFutures).String())
-	require.NoError(t, err)
-	assert.NotEmpty(t, got)
+	// A risk limit table ID is only exposed on a Position; no public endpoint returns one.
+	// Mock runs use the recorded fixture ID; live runs source it from an open USDT futures position.
+	tableID := "BTC_USDT_20260626" // matches the recorded mock fixture's table_id query
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		positions, err := e.GetAllFuturesPositionsOfUsers(t.Context(), currency.USDT, true)
+		require.NoError(t, err, "GetAllFuturesPositionsOfUsers must not error")
+		tableID = ""
+		for _, p := range positions {
+			if p.RiskLimitTable != "" {
+				tableID = p.RiskLimitTable
+				break
+			}
+		}
+		if tableID == "" {
+			t.Skip("no open USDT futures position with a risk limit table to test against")
+		}
+	}
+
+	got, err := e.GetFuturesRiskTable(t.Context(), currency.USDT, tableID)
+	require.NoError(t, err, "GetFuturesRiskTable must not error")
+	assert.NotEmpty(t, got, "GetFuturesRiskTable should return tiers")
 }
 
 func TestGetFuturesRiskLimitTiers(t *testing.T) {

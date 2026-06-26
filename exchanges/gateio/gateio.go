@@ -461,7 +461,7 @@ func (e *Exchange) GetBatchUnifiedAccountMaximumBorrowableAmount(ctx context.Con
 // When borrowing, ensure the borrowed amount is not below the minimum borrowing threshold for the specific cryptocurrency and does not exceed the maximum borrowing limit set by the platform and user.
 // Loan interest will be automatically deducted from the account at regular intervals. Users are responsible for managing repayment of borrowed amounts.
 // For repayment, use repaid_all=true to repay all available amounts
-func (e *Exchange) BorrowOrRepay(ctx context.Context, arg *BorrowOrRepayParams) (string, error) {
+func (e *Exchange) BorrowOrRepay(ctx context.Context, arg *BorrowOrRepayRequest) (string, error) {
 	if arg.Currency.IsEmpty() {
 		return "", currency.ErrCurrencyCodeEmpty
 	}
@@ -1132,7 +1132,7 @@ func (e *Exchange) GenerateSignature(secret, method, path, query string, body an
 // *********************************** Withdrawals ******************************
 
 // WithdrawCurrency to withdraw a currency.
-func (e *Exchange) WithdrawCurrency(ctx context.Context, arg *WithdrawalRequestParam) (*WithdrawalResponse, error) {
+func (e *Exchange) WithdrawCurrency(ctx context.Context, arg *WithdrawalRequest) (*WithdrawalResponse, error) {
 	if arg.Amount <= 0 {
 		return nil, fmt.Errorf("%w currency amount must be greater than zero", order.ErrAmountIsInvalid)
 	}
@@ -3267,7 +3267,7 @@ func (e *Exchange) GetUsersLiquidationHistoryForSpecifiedUnderlying(ctx context.
 }
 
 // PlaceOptionOrder creates an options order
-func (e *Exchange) PlaceOptionOrder(ctx context.Context, arg *OptionOrderParam) (*OptionOrderResponse, error) {
+func (e *Exchange) PlaceOptionOrder(ctx context.Context, arg *OptionOrderRequest) (*OptionOrderResponse, error) {
 	if arg.Contract.IsEmpty() {
 		return nil, fmt.Errorf("%w: contract pair is required", currency.ErrCurrencyPairEmpty)
 	}
@@ -4089,7 +4089,7 @@ func (c *FuturesOrderCreateParams) validate(isRest bool) error {
 	if err := common.NilGuard(c); err != nil {
 		return err
 	}
-	return validateOrderCreateParams(c.Contract, c.Size.Float64(), c.Price.Float64(), c.AutoSize, c.TimeInForce, c.Text, c.Settle, isRest)
+	return validateOrderCreateParams(c.Contract, c.Size, c.Price, c.AutoSize, c.TimeInForce, c.Text, c.Settle, isRest)
 }
 
 // validate validates the DeliveryOrderCreateParams
@@ -4097,11 +4097,11 @@ func (c *DeliveryOrderCreateParams) validate(isRest bool) error {
 	if err := common.NilGuard(c); err != nil {
 		return err
 	}
-	return validateOrderCreateParams(c.Contract, c.Size, c.Price.Float64(), c.AutoSize, c.TimeInForce, c.Text, c.Settle, isRest)
+	return validateOrderCreateParams(c.Contract, c.Size, c.Price, c.AutoSize, c.TimeInForce, c.Text, c.Settle, isRest)
 }
 
 // validateOrderCreateParams validates common order creation parameters shared by futures and delivery orders.
-func validateOrderCreateParams(contract currency.Pair, size, price float64, autoSize, timeInForce, text string, settle currency.Code, isRest bool) error {
+func validateOrderCreateParams(contract currency.Pair, size, price types.Number, autoSize, timeInForce, text string, settle currency.Code, isRest bool) error {
 	if contract.IsEmpty() {
 		return currency.ErrCurrencyPairEmpty
 	}
@@ -4961,7 +4961,7 @@ func (e *Exchange) GetIsolatedMarginAccountInterestDeductionRecords(ctx context.
 }
 
 // GetIsolatedMarginAccountMaximumBorrowableAmountByCurrency retrieves a maximum borrowable amount if currency.Code for a currency pair market
-func (e *Exchange) GetIsolatedMarginAccountMaximumBorrowableAmountByCurrency(ctx context.Context, ccy currency.Code, currencyPair currency.Pair) ([]*MaximumBorrowableAmount, error) {
+func (e *Exchange) GetIsolatedMarginAccountMaximumBorrowableAmountByCurrency(ctx context.Context, ccy currency.Code, currencyPair currency.Pair) (*MaximumBorrowableAmount, error) {
 	if ccy.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -4971,7 +4971,7 @@ func (e *Exchange) GetIsolatedMarginAccountMaximumBorrowableAmountByCurrency(ctx
 	params := url.Values{}
 	params.Set("currency", ccy.String())
 	params.Set("currency_pair", currencyPair.String())
-	var resp []*MaximumBorrowableAmount
+	var resp *MaximumBorrowableAmount
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginUniBorrowableEPL, http.MethodGet, "margin/uni/borrowable", params, nil, &resp)
 }
 
@@ -5002,7 +5002,7 @@ func (e *Exchange) SetUserIsolatedMarginAccountMarketLeverageMultiplier(ctx cont
 	if leverage == 0 {
 		return order.ErrSubmitLeverageNotSupported
 	}
-	arg := &SetMarginMarketLeverageRequest{
+	arg := &CurrencyPairAndLeverage{
 		CurrencyPair: currencyPair,
 		Leverage:     leverage,
 	}
@@ -5066,7 +5066,7 @@ func (e *Exchange) StopAllChaseOrders(ctx context.Context, settle currency.Code,
 
 // GetChaseOrders retrieves a paginated list of futures chase limit orders.
 // sortBy must be 1 (sort by creation time) or 2 (sort by finish time).
-func (e *Exchange) GetChaseOrders(ctx context.Context, settle currency.Code, contract currency.Pair, isFinished bool, startAt, endAt time.Time, pageNum, pageSize uint64, sortBy int64, hideCancel, reduceOnly bool, side string) ([]*ChaseOrder, error) {
+func (e *Exchange) GetChaseOrders(ctx context.Context, settle currency.Code, contract currency.Pair, isFinished bool, startAt, endAt time.Time, pageNum, pageSize uint64, sortBy int64, hideCancel, reduceOnly bool, side string) (*ChaseOrdersResponse, error) {
 	if settle.IsEmpty() {
 		return nil, fmt.Errorf("%w: settlement currency is required", currency.ErrCurrencyCodeEmpty)
 	}
@@ -5107,7 +5107,7 @@ func (e *Exchange) GetChaseOrders(ctx context.Context, settle currency.Code, con
 	if side != "" {
 		params.Set("side", side)
 	}
-	var resp []*ChaseOrder
+	var resp *ChaseOrdersResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, perpetualGetChaseOrdersEPL, http.MethodGet, futuresPath+settle.Item.Lower+"/autoorder/v1/chase/list", params, nil, &resp)
 }
 

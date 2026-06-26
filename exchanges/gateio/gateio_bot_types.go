@@ -86,16 +86,16 @@ func (b *BotCreateResponse) Error() error { return botResponseError(b.Code, b.Me
 
 // SpotGridCreateParams holds the creation parameters for a spot grid strategy.
 type SpotGridCreateParams struct {
-	Money              float64    `json:"money,string"`
-	LowPrice           float64    `json:"low_price,string"`
-	HighPrice          float64    `json:"high_price,string"`
-	GridNum            int32      `json:"grid_num"`
-	PriceType          order.Side `json:"price_type"`
-	TriggerPrice       string     `json:"trigger_price,omitempty"`
-	StopProfit         float64    `json:"stop_profit,string,omitempty"`
-	StopLoss           float64    `json:"stop_loss,string,omitempty"`
-	ProfitSharingRatio float64    `json:"profit_sharing_ratio,string,omitempty"`
-	IsUseBase          bool       `json:"is_use_base,omitempty"`
+	Money              types.Number `json:"money"`
+	LowPrice           types.Number `json:"low_price"`
+	HighPrice          types.Number `json:"high_price"`
+	GridNumber         int32        `json:"grid_num"`
+	PriceType          order.Side   `json:"price_type"`
+	TriggerPrice       string       `json:"trigger_price,omitempty"`
+	StopProfit         types.Number `json:"stop_profit,omitempty"`
+	StopLoss           types.Number `json:"stop_loss,omitempty"`
+	ProfitSharingRatio types.Number `json:"profit_sharing_ratio,omitempty"`
+	IsUseBase          bool         `json:"is_use_base,omitempty"`
 }
 
 // SpotGridCreateRequest is the request body for creating a spot grid strategy.
@@ -107,18 +107,18 @@ type SpotGridCreateRequest struct {
 
 // MarginGridCreateParams holds the creation parameters for a leverage grid strategy.
 type MarginGridCreateParams struct {
-	Money              string     `json:"money"`
-	LowPrice           float64    `json:"low_price,string"`
-	HighPrice          float64    `json:"high_price,string"`
-	GridNum            int32      `json:"grid_num"`
-	PriceType          order.Side `json:"price_type"`
-	Leverage           string     `json:"leverage"`
-	Direction          string     `json:"direction,omitempty"` // possible values: 'long', 'short', and 'neutral'
-	TriggerPrice       float64    `json:"trigger_price,string,omitempty"`
-	StopProfit         float64    `json:"stop_profit,string,omitempty"`
-	StopLoss           float64    `json:"stop_loss,string,omitempty"`
-	ProfitSharingRatio float64    `json:"profit_sharing_ratio,string,omitempty"`
-	IsUseBase          bool       `json:"is_use_base,omitempty"`
+	Money              string       `json:"money"`
+	LowPrice           types.Number `json:"low_price"`
+	HighPrice          types.Number `json:"high_price"`
+	GridNum            int32        `json:"grid_num"`
+	PriceType          order.Side   `json:"price_type"`
+	Leverage           types.Number `json:"leverage"`
+	Direction          string       `json:"direction,omitempty"` // possible values: 'long', 'short', and 'neutral'
+	TriggerPrice       types.Number `json:"trigger_price,omitempty"`
+	StopProfit         types.Number `json:"stop_profit,omitempty"`
+	StopLoss           types.Number `json:"stop_loss,omitempty"`
+	ProfitSharingRatio types.Number `json:"profit_sharing_ratio,omitempty"`
+	IsUseBase          bool         `json:"is_use_base,omitempty"`
 }
 
 // MarginGridCreateRequest is the request body for creating a leverage grid strategy.
@@ -174,13 +174,13 @@ type FuturesGridCreateRequest struct {
 
 // SpotMartingaleCreateParams holds the creation parameters for a spot martingale strategy.
 type SpotMartingaleCreateParams struct {
-	InvestAmount       string `json:"invest_amount"`
-	PriceDeviation     string `json:"price_deviation"`
-	MaxOrders          int32  `json:"max_orders"`
-	TakeProfitRatio    string `json:"take_profit_ratio"`
-	StopLossPerCycle   string `json:"stop_loss_per_cycle,omitempty"`
-	TriggerPrice       string `json:"trigger_price,omitempty"`
-	ProfitSharingRatio string `json:"profit_sharing_ratio,omitempty"`
+	InvestAmount       types.Number `json:"invest_amount"`
+	PriceDeviation     types.Number `json:"price_deviation"`
+	MaxOrders          int32        `json:"max_orders"`
+	TakeProfitRatio    types.Number `json:"take_profit_ratio"`
+	StopLossPerCycle   types.Number `json:"stop_loss_per_cycle,omitempty"`
+	TriggerPrice       types.Number `json:"trigger_price,omitempty"`
+	ProfitSharingRatio types.Number `json:"profit_sharing_ratio,omitempty"`
 }
 
 // SpotMartingaleCreateRequest is the request body for creating a spot martingale strategy.

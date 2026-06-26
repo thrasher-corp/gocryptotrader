@@ -107,8 +107,8 @@ type OTCFiatOrderRequest struct {
 type OTCStablecoinOrderRequest struct {
 	PayCoin       currency.Code `json:"pay_coin"`
 	GetCoin       currency.Code `json:"get_coin"`
-	PayAmount     float64       `json:"pay_amount,omitempty"`
-	GetAmount     float64       `json:"get_amount,omitempty"`
+	PayAmount     types.Number  `json:"pay_amount,omitempty"`
+	GetAmount     types.Number  `json:"get_amount,omitempty"`
 	Side          string        `json:"side,omitempty"`
 	PromotionCode string        `json:"promotion_code,omitempty"`
 	QuoteToken    string        `json:"quote_token,omitempty"`

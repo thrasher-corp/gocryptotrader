@@ -91,7 +91,7 @@ func (e *Exchange) CreateSpotGridBot(ctx context.Context, arg *SpotGridCreateReq
 	if arg.CreateParams.HighPrice <= 0 {
 		return nil, errBotHighPriceRequired
 	}
-	if arg.CreateParams.GridNum <= 0 {
+	if arg.CreateParams.GridNumber <= 0 {
 		return nil, errBotGridNumRequired
 	}
 	arg.StrategyType = BotStrategySpotGrid
@@ -119,7 +119,7 @@ func (e *Exchange) CreateMarginGridBot(ctx context.Context, arg *MarginGridCreat
 	if arg.CreateParams.GridNum <= 0 {
 		return nil, errBotGridNumRequired
 	}
-	if arg.CreateParams.Leverage == "" {
+	if arg.CreateParams.Leverage == 0 {
 		return nil, order.ErrSubmitLeverageNotSupported
 	}
 	arg.StrategyType = BotStrategyMarginGrid
@@ -182,16 +182,16 @@ func (e *Exchange) CreateSpotMartingaleBot(ctx context.Context, arg *SpotMarting
 	if arg.Market == "" {
 		return nil, errBotMarketRequired
 	}
-	if arg.CreateParams.InvestAmount == "" {
+	if arg.CreateParams.InvestAmount == 0 {
 		return nil, errBotInvestAmountRequired
 	}
-	if arg.CreateParams.PriceDeviation == "" {
+	if arg.CreateParams.PriceDeviation == 0 {
 		return nil, errBotPriceDeviationRequired
 	}
 	if arg.CreateParams.MaxOrders <= 0 {
 		return nil, errBotMaxOrdersRequired
 	}
-	if arg.CreateParams.TakeProfitRatio == "" {
+	if arg.CreateParams.TakeProfitRatio == 0 {
 		return nil, errBotTakeProfitRequired
 	}
 	arg.StrategyType = BotStrategySpotMartingale

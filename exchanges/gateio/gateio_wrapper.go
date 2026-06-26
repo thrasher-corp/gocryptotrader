@@ -1027,9 +1027,9 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		resp.AverageExecutedPrice = o.FillPrice.Float64()
 		return resp, nil
 	case asset.Options:
-		optionOrder, err := e.PlaceOptionOrder(ctx, &OptionOrderParam{
+		optionOrder, err := e.PlaceOptionOrder(ctx, &OptionOrderRequest{
 			Contract:   s.Pair,
-			OrderSize:  s.Amount,
+			OrderSize:  types.Number(s.Amount),
 			Price:      types.Number(s.Price),
 			ReduceOnly: s.ReduceOnly,
 			Text:       s.ClientOrderID,
@@ -1404,7 +1404,7 @@ func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	response, err := e.WithdrawCurrency(ctx, &WithdrawalRequestParam{
+	response, err := e.WithdrawCurrency(ctx, &WithdrawalRequest{
 		Amount:   types.Number(withdrawRequest.Amount),
 		Currency: withdrawRequest.Currency,
 		Address:  withdrawRequest.Crypto.Address,
@@ -1694,8 +1694,8 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			}
 			for _, optionTradeDetail := range o {
 				od := order.Detail{
-					OrderID:   strconv.FormatInt(optionTradeDetail.OrderID, 10),
-					Amount:    optionTradeDetail.Size,
+					OrderID:   strconv.FormatUint(optionTradeDetail.OrderID, 10),
+					Amount:    optionTradeDetail.Size.Float64(),
 					Price:     optionTradeDetail.Price.Float64(),
 					Date:      optionTradeDetail.CreateTime.Time(),
 					Exchange:  e.Name,
@@ -2620,7 +2620,7 @@ func getDeliveryOrderRequest(s *order.Submit) (*DeliveryOrderCreateParams, error
 	}
 	return &DeliveryOrderCreateParams{
 		Contract:    s.Pair,
-		Size:        amountWithDirection,
+		Size:        types.Number(amountWithDirection),
 		Price:       types.Number(s.Price),
 		ReduceOnly:  s.ReduceOnly,
 		TimeInForce: tif,

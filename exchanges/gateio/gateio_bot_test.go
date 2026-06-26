@@ -52,7 +52,7 @@ func TestCreateSpotGridBot(t *testing.T) {
 	require.ErrorIs(t, err, errBotGridNumRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	arg.CreateParams.GridNum = 20
+	arg.CreateParams.GridNumber = 20
 	result, err := e.CreateSpotGridBot(t.Context(), arg)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result.StrategyID)
@@ -87,7 +87,7 @@ func TestCreateMarginGridBot(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrSubmitLeverageNotSupported)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	arg.CreateParams.Leverage = "3"
+	arg.CreateParams.Leverage = 3
 	arg.CreateParams.Direction = order.Long.Lower()
 	result, err := e.CreateMarginGridBot(t.Context(), arg)
 	require.NoError(t, err)
@@ -166,11 +166,11 @@ func TestCreateSpotMartingaleBot(t *testing.T) {
 	_, err = e.CreateSpotMartingaleBot(t.Context(), arg)
 	require.ErrorIs(t, err, errBotInvestAmountRequired)
 
-	arg.CreateParams.InvestAmount = "1000"
+	arg.CreateParams.InvestAmount = 1000
 	_, err = e.CreateSpotMartingaleBot(t.Context(), arg)
 	require.ErrorIs(t, err, errBotPriceDeviationRequired)
 
-	arg.CreateParams.PriceDeviation = "0.02"
+	arg.CreateParams.PriceDeviation = 0.02
 	_, err = e.CreateSpotMartingaleBot(t.Context(), arg)
 	require.ErrorIs(t, err, errBotMaxOrdersRequired)
 
@@ -179,7 +179,7 @@ func TestCreateSpotMartingaleBot(t *testing.T) {
 	require.ErrorIs(t, err, errBotTakeProfitRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	arg.CreateParams.TakeProfitRatio = "0.05"
+	arg.CreateParams.TakeProfitRatio = 0.05
 	result, err := e.CreateSpotMartingaleBot(t.Context(), arg)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result.StrategyID)

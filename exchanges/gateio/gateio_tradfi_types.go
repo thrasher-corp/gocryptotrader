@@ -80,9 +80,9 @@ type TradFiSymbolDetail struct {
 	SettlementCurrency currency.Code `json:"settlement_currency"`
 	MaxOrderVolume     types.Number  `json:"max_order_volume"`
 	MinOrderVolume     types.Number  `json:"min_order_volume"`
-	Leverage           float64       `json:"leverage"`
+	Leverage           types.Number  `json:"leverage"`
 	PricePrecision     int64         `json:"price_precision"`
-	PriceStopLossLevel string        `json:"price_sl_level"`
+	PriceStopLossLevel types.Number  `json:"price_sl_level"`
 	SwapCostType       string        `json:"swap_cost_type"`
 	BuySwapCostRate    types.Number  `json:"buy_swap_cost_rate"`
 	SellSwapCostRate   types.Number  `json:"sell_swap_cost_rate"`
@@ -170,7 +170,7 @@ type TradFiTransactionListData struct {
 // TradFiTransactionRequest is the request body for fund deposit or withdrawal.
 type TradFiTransactionRequest struct {
 	Asset  currency.Code `json:"asset"`
-	Change float64       `json:"change,string"`
+	Change types.Number  `json:"change"`
 	Type   string        `json:"type"`
 }
 
@@ -198,11 +198,11 @@ type TradFiOrderList struct {
 
 // TradFiOrderRequest is the request body for creating an order.
 type TradFiOrderRequest struct {
-	Price           float64       `json:"price,string"`
+	Price           types.Number  `json:"price"`
 	PriceType       string        `json:"price_type"`
 	Side            int64         `json:"side"` // Side: 1=sell, 2=buy.
 	Symbol          currency.Pair `json:"symbol"`
-	Volume          float64       `json:"volume,string"`
+	Volume          types.Number  `json:"volume"`
 	PriceTakeProfit types.Number  `json:"price_tp,omitempty"`
 	PriceStopLoss   types.Number  `json:"price_sl,omitempty"`
 }
@@ -276,14 +276,14 @@ type TradFiPositionList struct {
 
 // TradFiPositionUpdateRequest is the request body for modifying a position's TP/SL.
 type TradFiPositionUpdateRequest struct {
-	PriceTakeProfit float64 `json:"price_tp,omitempty,string"`
-	PriceStopLoss   float64 `json:"price_sl,omitempty,string"`
+	PriceTakeProfit types.Number `json:"price_tp,omitempty"`
+	PriceStopLoss   types.Number `json:"price_sl,omitempty"`
 }
 
 // TradFiClosePositionRequest is the request body for closing a position.
 type TradFiClosePositionRequest struct {
-	CloseType   int64   `json:"close_type"` // CloseType: 1=full close, 2=partial close.
-	CloseVolume float64 `json:"close_volume,omitempty,string"`
+	CloseType   int64        `json:"close_type"` // CloseType: 1=full close, 2=partial close.
+	CloseVolume types.Number `json:"close_volume,omitempty"`
 }
 
 // TradFiLiquidationDetail holds margin details recorded at the time of liquidation.
