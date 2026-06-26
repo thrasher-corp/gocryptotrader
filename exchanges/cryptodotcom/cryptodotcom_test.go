@@ -56,11 +56,9 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+// initmainTP seeds the package-level test pairs from the config-loaded enabled
+// pairs. It deliberately avoids UpdateTradablePairs so TestMain makes no API call.
 func initmainTP() error {
-	err := e.UpdateTradablePairs(context.Background())
-	if err != nil {
-		return err
-	}
 	enabledPairs, err := e.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return err
@@ -106,6 +104,29 @@ func TestGetCandlestickDetail(t *testing.T) {
 	result, err := e.GetCandlestickDetail(t.Context(), mainTP.String(), kline.FiveMin, 100, time.Now().Add(-time.Hour*50), time.Now())
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+func TestCandlestickItemUnmarshalNumber(t *testing.T) {
+	t.Parallel()
+	var item CandlestickItem
+	err := json.Unmarshal([]byte(`{"t":1234567890000,"o":"100.5","h":105,"l":"99.25","c":"","v":null}`), &item)
+	require.NoError(t, err, "Unmarshal must not error")
+	assert.InDelta(t, 100.5, item.Open.Float64(), 1e-9, "Open should decode from a quoted string")
+	assert.InDelta(t, 105.0, item.High.Float64(), 1e-9, "High should decode from a bare number")
+	assert.InDelta(t, 99.25, item.Low.Float64(), 1e-9, "Low should decode from a quoted string")
+	assert.Zero(t, item.Close.Float64(), "Close should decode an empty string as zero")
+	assert.Zero(t, item.Volume.Float64(), "Volume should decode null as zero")
+}
+
+func TestFiatCreateWithdrawlMarshalNumber(t *testing.T) {
+	t.Parallel()
+	data, err := json.Marshal(&FiatCreateWithdrawl{AccountID: "1", Amount: 123.45, Currency: "USD"})
+	require.NoError(t, err, "Marshal must not error")
+	assert.Contains(t, string(data), `"amount":"123.45"`, "Amount should marshal as a quoted string")
+
+	data, err = json.Marshal(&FiatCreateWithdrawl{AccountID: "1", Currency: "USD"})
+	require.NoError(t, err, "Marshal must not error")
+	assert.NotContains(t, string(data), "amount", "Amount should be omitted when zero")
 }
 
 func TestGetTickers(t *testing.T) {

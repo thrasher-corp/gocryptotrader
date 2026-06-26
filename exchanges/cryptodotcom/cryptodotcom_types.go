@@ -57,12 +57,12 @@ type CandlestickDetail struct {
 
 // CandlestickItem candlesticks (k-line data history) item.
 type CandlestickItem struct {
-	EndTime types.Time `json:"t"` // this represents Start Time for websocket push data.
-	Open    float64    `json:"o,string"`
-	High    float64    `json:"h,string"`
-	Low     float64    `json:"l,string"`
-	Close   float64    `json:"c,string"`
-	Volume  float64    `json:"v,string"`
+	EndTime types.Time   `json:"t"` // this represents Start Time for websocket push data.
+	Open    types.Number `json:"o"`
+	High    types.Number `json:"h"`
+	Low     types.Number `json:"l"`
+	Close   types.Number `json:"c"`
+	Volume  types.Number `json:"v"`
 }
 
 // WsCandlestickItem represents candlestick (k-line data history) item pushed through the websocket connection.
@@ -1345,14 +1345,14 @@ type FiatWithdrawalHistory struct {
 
 // FiatCreateWithdrawl hods fiat withdrawal params
 type FiatCreateWithdrawl struct {
-	AccountID              string  `json:"account_id"`
-	Amount                 float64 `json:"amount,omitempty,string"`
-	Currency               string  `json:"currency"`
-	PaymentNetwork         string  `json:"payment_network"`
-	AuthorizationID        string  `json:"authorization_id,omitempty"`
-	BeneficiaryID          string  `json:"beneficiary_id,omitempty"`
-	AccountIdentifierValue string  `json:"account_identifier_value,omitempty"`
-	BankIdentifierValue    string  `json:"bank_identifier_value,omitempty"`
+	AccountID              string       `json:"account_id"`
+	Amount                 types.Number `json:"amount,omitempty"`
+	Currency               string       `json:"currency"`
+	PaymentNetwork         string       `json:"payment_network"`
+	AuthorizationID        string       `json:"authorization_id,omitempty"`
+	BeneficiaryID          string       `json:"beneficiary_id,omitempty"`
+	AccountIdentifierValue string       `json:"account_identifier_value,omitempty"`
+	BankIdentifierValue    string       `json:"bank_identifier_value,omitempty"`
 	IntermediateBank       struct {
 		BankIdentifierType  string `json:"bank_identifier_type,omitempty"`
 		BankIdentifierValue string `json:"bank_identifier_value,omitempty"`

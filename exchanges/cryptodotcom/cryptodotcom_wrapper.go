@@ -1121,11 +1121,11 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 	for x := range candles.Data {
 		candleElements[x] = kline.Candle{
 			Time:   candles.Data[x].EndTime.Time(),
-			Open:   candles.Data[x].Open,
-			High:   candles.Data[x].High,
-			Low:    candles.Data[x].Low,
-			Close:  candles.Data[x].Close,
-			Volume: candles.Data[x].Volume,
+			Open:   candles.Data[x].Open.Float64(),
+			High:   candles.Data[x].High.Float64(),
+			Low:    candles.Data[x].Low.Float64(),
+			Close:  candles.Data[x].Close.Float64(),
+			Volume: candles.Data[x].Volume.Float64(),
 		}
 	}
 	return req.ProcessResponse(candleElements)

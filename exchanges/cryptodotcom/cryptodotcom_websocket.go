@@ -556,10 +556,10 @@ func (e *Exchange) processCandlestick(ctx context.Context, resp *WsResult) error
 			Pair:     resp.InstrumentName,
 			Candles: []kline.Candle{
 				{
-					Open:   data[x].Open,
-					High:   data[x].High,
-					Low:    data[x].Low,
-					Volume: data[x].Volume,
+					Open:   data[x].Open.Float64(),
+					High:   data[x].High.Float64(),
+					Low:    data[x].Low.Float64(),
+					Volume: data[x].Volume.Float64(),
 					Time:   data[x].UpdateTime.Time(),
 				},
 			},
