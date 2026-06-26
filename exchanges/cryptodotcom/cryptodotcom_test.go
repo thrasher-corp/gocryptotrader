@@ -1076,7 +1076,7 @@ func TestGetCreateParamMap(t *testing.T) {
 func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	feeBuilder := &exchange.FeeBuilder{
 		FeeType:       exchange.CryptocurrencyTradeFee,
-		Pair:          currency.NewPair(currency.BTC, currency.USD),
+		Pair:          currency.NewBTCUSD(),
 		IsMaker:       true,
 		Amount:        1,
 		PurchasePrice: 1000,
