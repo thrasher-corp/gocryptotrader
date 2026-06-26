@@ -32,7 +32,6 @@ const (
 	Index
 	Binary
 	OTC // Over-the-counter(OTC)
-	// Futures asset consts must come below this comment for method `IsFutures`
 	Futures
 	PerpetualContract
 	PerpetualSwap
@@ -45,7 +44,6 @@ const (
 	FutureCombo
 	LinearContract
 	Spread
-	// Options asset consts must come below this comment for method `IsOptions`
 	Options
 	OptionCombo
 
@@ -83,7 +81,7 @@ var supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binar
 
 // Supported returns a list of supported asset types
 func Supported() Items {
-	return supportedList
+	return slices.Clone(supportedList)
 }
 
 // String converts an Item to its string representation
@@ -169,25 +167,91 @@ func (a Item) IsValid() bool {
 	return a > Empty && a < All
 }
 
+// IsMargin checks if the asset type is margin trading based
+func (a Item) IsMargin() bool {
+	switch a {
+	case Margin, CrossMargin:
+		return true
+	default:
+		return false
+	}
+}
+
 // IsFutures checks if the asset type is a futures contract based asset
 func (a Item) IsFutures() bool {
-	return a >= Futures && a < Options
+	switch a {
+	case Futures,
+		PerpetualContract,
+		PerpetualSwap,
+		DeliveryFutures,
+		UpsideProfitContract,
+		DownsideProfitContract,
+		CoinMarginedFutures,
+		USDTMarginedFutures,
+		USDCMarginedFutures,
+		FutureCombo,
+		LinearContract,
+		Spread:
+		return true
+	default:
+		return false
+	}
 }
 
 // IsOptions checks if the asset type is options contract based asset
 func (a Item) IsOptions() bool {
-	return a >= Options && a < All
+	switch a {
+	case Options, OptionCombo:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsDerivative checks if the asset type is a futures or options contract based asset
+func (a Item) IsDerivative() bool {
+	return a.IsFutures() || a.IsOptions()
+}
+
+// IsMultiLeg checks if the asset type requires multi-leg handling
+func (a Item) IsMultiLeg() bool {
+	switch a {
+	case FutureCombo, OptionCombo, Spread:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsStablecoinMargined checks if the futures asset type is margined by a stablecoin
+func (a Item) IsStablecoinMargined() bool {
+	switch a {
+	case USDTMarginedFutures, USDCMarginedFutures:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsCoinMargined checks if the futures asset type is coin margined
+func (a Item) IsCoinMargined() bool {
+	return a == CoinMarginedFutures
+}
+
+// IsFunding checks if the asset type is used for funding markets
+func (a Item) IsFunding() bool {
+	return a == MarginFunding
 }
 
 // UnmarshalJSON conforms type to the unmarshaler interface
 func (a *Item) UnmarshalJSON(d []byte) error {
 	var assetString string
-	err := json.Unmarshal(d, &assetString)
-	if err != nil {
+	if err := json.Unmarshal(d, &assetString); err != nil {
 		return err
 	}
 
 	if assetString == "" {
+		*a = Empty
 		return nil
 	}
 
@@ -207,8 +271,7 @@ func (a Item) MarshalJSON() ([]byte, error) {
 
 // New takes an input matches to relevant package assets
 func New(input string) (Item, error) {
-	input = strings.ToLower(input)
-	switch input {
+	switch input = strings.ToLower(input); input {
 	case spot:
 		return Spot, nil
 	case margin:

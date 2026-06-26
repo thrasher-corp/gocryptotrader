@@ -69,7 +69,7 @@ jobs:
       shell: bash
 
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Setup Go
       uses: actions/setup-go@v6
@@ -115,7 +115,7 @@ jobs:
         GOARCH: ${{ matrix.goarch }}
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v6
+      uses: codecov/codecov-action@v7
       env:
         CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
@@ -149,7 +149,7 @@ jobs:
       shell: bash
 
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Setup Go
       uses: actions/setup-go@v6
@@ -172,7 +172,7 @@ jobs:
         access_token: ${{ github.token }}
 
     - name: Checkout code
-      uses: actions/checkout@v6
+      uses: actions/checkout@v7
 
     - name: Set up Docker buildx
       uses: docker/setup-buildx-action@v4
