@@ -871,10 +871,14 @@ func (e *Exchange) CancelAllOpenOrdersSpecifiedCurrencyPair(ctx context.Context,
 	}
 	params := url.Values{}
 	params.Set("currency_pair", currencyPair.String())
-	if side != order.Buy && side != order.Sell {
+	switch side {
+	case order.Buy, order.Sell:
+		params.Set("side", side.Lower())
+	case order.UnknownSide, order.AnySide:
+		// Do not set side. Gate will cancel both bids and asks.
+	default:
 		return nil, order.ErrSideIsInvalid
 	}
-	params.Set("side", side.Lower())
 	if a == asset.Spot || a == asset.Margin || a == asset.CrossMargin {
 		params.Set("account", a.String())
 	}

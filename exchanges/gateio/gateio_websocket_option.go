@@ -85,12 +85,18 @@ func (e *Exchange) WsOptionsConnect(ctx context.Context, conn websocket.Connecti
 func (e *Exchange) GenerateOptionsDefaultSubscriptions() (subscription.List, error) {
 	ctx := context.TODO()
 	channelsToSubscribe := defaultOptionsSubscriptions
+	pairs, err := e.GetEnabledPairs(asset.Options)
+	if err != nil {
+		if errors.Is(err, asset.ErrNotEnabled) {
+			return nil, nil // no enabled pairs, subscriptions require an associated pair.
+		}
+		return nil, err
+	}
 	var userID int64
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		var err error
 		if _, err = e.GetCredentials(ctx); err != nil {
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			goto getEnabledPairs
+			goto buildSubscriptions
 		}
 		response, err := e.GetSubAccountBalances(ctx, "")
 		if err != nil {
@@ -107,15 +113,7 @@ func (e *Exchange) GenerateOptionsDefaultSubscriptions() (subscription.List, err
 		}
 	}
 
-getEnabledPairs:
-
-	pairs, err := e.GetEnabledPairs(asset.Options)
-	if err != nil {
-		if errors.Is(err, asset.ErrNotEnabled) {
-			return nil, nil // no enabled pairs, subscriptions require an associated pair.
-		}
-		return nil, err
-	}
+buildSubscriptions:
 
 	var subscriptions subscription.List
 	for i := range channelsToSubscribe {

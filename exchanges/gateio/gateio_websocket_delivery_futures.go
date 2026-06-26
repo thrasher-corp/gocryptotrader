@@ -64,7 +64,7 @@ func (e *Exchange) GenerateDeliveryFuturesDefaultSubscriptions(assetType asset.I
 
 	pairs, err := e.GetEnabledPairs(assetType)
 	if err != nil {
-		if errors.Is(err, asset.ErrNotEnabled) {
+		if errors.Is(err, asset.ErrNotEnabled) || errors.Is(err, asset.ErrNotSupported) {
 			return nil, nil // no enabled pairs, subscriptions require an associated pair.
 		}
 		return nil, err

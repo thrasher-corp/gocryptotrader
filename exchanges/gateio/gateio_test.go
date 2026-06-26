@@ -2049,6 +2049,9 @@ func TestGetDeliveryFuturesCandlesticks(t *testing.T) {
 	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
 
 	deliveryFuturesPair := getPair(t, asset.DeliveryFutures)
+	startTime = endTime.Add(-time.Hour)
+	endTime = time.Now().UTC()
+
 	_, err = e.GetDeliveryFuturesCandlesticks(t.Context(), currency.USDT, deliveryFuturesPair, startTime, endTime, 0, kline.OneMin)
 	assert.NoError(t, err)
 }
@@ -3397,10 +3400,30 @@ func TestGenerateFuturesDefaultSubscriptions(t *testing.T) {
 	require.Empty(t, subs, "Disabled asset must return no pairs")
 }
 
-func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
+func TestGenerateDeliveryFuturesDefaultSubscriptionsSkipsUnsupportedAsset(t *testing.T) {
 	t.Parallel()
-	_, err := e.GenerateOptionsDefaultSubscriptions()
-	assert.NoError(t, err)
+
+	ex := new(Exchange)
+	ex.SetDefaults()
+
+	got, err := ex.GenerateDeliveryFuturesDefaultSubscriptions(asset.BTCMarginedDeliveryFutures)
+	require.NoError(t, err, "GenerateDeliveryFuturesDefaultSubscriptions must not error for unsupported delivery asset")
+	require.Empty(t, got, "unsupported delivery asset must not generate subscriptions")
+}
+
+func TestGenerateOptionsDefaultSubscriptionsSkipsDisabledAssetBeforeAuth(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	ex.SetDefaults()
+	ex.API.AuthenticatedWebsocketSupport = true
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+
+	require.NoError(t, ex.CurrencyPairs.SetAssetEnabled(asset.Options, false), "SetAssetEnabled must not error")
+	got, err := ex.GenerateOptionsDefaultSubscriptions()
+	require.NoError(t, err, "GenerateOptionsDefaultSubscriptions must not error for disabled asset")
+	require.Empty(t, got, "disabled options asset must not generate subscriptions")
+	require.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "authenticated endpoints must not be changed when disabled options are skipped before auth")
 }
 
 func TestParseGateioMilliSecTimeUnmarshal(t *testing.T) {
