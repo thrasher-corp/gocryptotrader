@@ -3,6 +3,7 @@ package kraken
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -83,6 +84,139 @@ func TestGeneratePrivateSubscriptions(t *testing.T) {
 		{Channel: subscription.MyOrdersChannel, QualifiedChannel: krakenWsOpenOrders},
 		{Channel: subscription.MyTradesChannel, QualifiedChannel: krakenWsOwnTrades},
 	}, subs)
+}
+
+func TestSplitPairSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	t.Run("splits multi-pair subscriptions", func(t *testing.T) {
+		t.Parallel()
+
+		ethUSDPair := currency.NewPair(currency.ETH, currency.USD)
+		onePairSub := &subscription.Subscription{
+			Asset:   asset.Spot,
+			Channel: subscription.TickerChannel,
+			Pairs:   currency.Pairs{spotTestPair},
+		}
+		multiPairSub := &subscription.Subscription{
+			Asset:   asset.Spot,
+			Channel: subscription.OrderbookChannel,
+			Pairs:   currency.Pairs{spotTestPair, ethUSDPair},
+			Levels:  1000,
+		}
+		noPairSub := &subscription.Subscription{
+			Channel:       subscription.MyOrdersChannel,
+			Authenticated: true,
+		}
+
+		subs := splitPairSubscriptions(subscription.List{noPairSub, onePairSub, multiPairSub})
+		require.Len(t, subs, 4, "splitPairSubscriptions must split multi-pair subscriptions")
+		assert.Empty(t, subs[0].Pairs, "no-pair subscription should be retained")
+		assert.Equal(t, currency.Pairs{spotTestPair}, subs[1].Pairs, "single-pair subscription should be retained")
+		assert.Equal(t, currency.Pairs{spotTestPair}, subs[2].Pairs, "first split subscription should contain the first pair")
+		assert.Equal(t, currency.Pairs{ethUSDPair}, subs[3].Pairs, "second split subscription should contain the second pair")
+		assert.Len(t, multiPairSub.Pairs, 2, "original subscription should not be modified")
+	})
+
+	t.Run("keeps connection batches under configured pair budget", func(t *testing.T) {
+		t.Parallel()
+
+		const pairLimit = 200
+		makePairs := func(prefix string) currency.Pairs {
+			pairs := make(currency.Pairs, 100)
+			for i := range pairs {
+				pairs[i] = currency.NewPair(currency.XBT, currency.NewCode(prefix+strconv.Itoa(i)))
+			}
+			return pairs
+		}
+
+		reviewerExample := subscription.List{
+			{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: makePairs("AAA")},
+			{Asset: asset.Spot, Channel: subscription.AllTradesChannel, Pairs: makePairs("BBB")},
+			{Asset: asset.Spot, Channel: subscription.OrderbookChannel, Pairs: makePairs("CCC"), Levels: 1000},
+		}
+		var totalPairs int
+		for _, sub := range reviewerExample {
+			totalPairs += len(sub.Pairs)
+		}
+		require.Equal(t, 300, totalPairs, "reviewer example must contain 300 symbols across three requests")
+
+		unsplitRequests := groupSubscriptionsByRequestLimit(reviewerExample, pairLimit)
+		require.Len(t, unsplitRequests, 3, "reviewer example must start as three grouped requests")
+		for _, req := range unsplitRequests {
+			assert.Len(t, req.Pairs, 100, "each grouped request should contain 100 pairs")
+		}
+
+		subs := splitPairSubscriptions(reviewerExample)
+		require.Len(t, subs, 300, "splitPairSubscriptions must create one logical subscription per channel symbol")
+
+		countPairs := func(requests subscription.List) int {
+			var count int
+			for _, req := range requests {
+				count += len(req.Pairs)
+			}
+			return count
+		}
+
+		firstConnectionRequests := groupSubscriptionsByRequestLimit(subs[:pairLimit], pairLimit)
+		require.Len(t, firstConnectionRequests, 2, "first connection subscriptions must group into two requests")
+		assert.Equal(t, pairLimit, countPairs(firstConnectionRequests), "first connection requests should contain the configured pair budget")
+
+		secondConnectionRequests := groupSubscriptionsByRequestLimit(subs[pairLimit:], pairLimit)
+		require.Len(t, secondConnectionRequests, 1, "remaining subscription must group into one request")
+		assert.Equal(t, 100, countPairs(secondConnectionRequests), "second connection requests should contain the remaining symbols")
+	})
+}
+
+func TestGeneratePublicSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name    string
+		canAuth bool
+	}{
+		{name: "without authenticated endpoints"},
+		{name: "with authenticated endpoints", canAuth: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup instance must not error")
+			ex.Websocket.SetCanUseAuthenticatedEndpoints(tc.canAuth)
+
+			pairs, err := ex.GetEnabledPairs(asset.Spot)
+			require.NoError(t, err, "GetEnabledPairs must not error")
+			templates := subscription.List{
+				{Channel: subscription.TickerChannel},
+				{Channel: subscription.AllTradesChannel},
+				{Channel: subscription.CandlesChannel, Interval: kline.OneMin},
+				{Channel: subscription.OrderbookChannel, Levels: 1000},
+			}
+			exp := make(subscription.List, 0, len(templates)*len(pairs))
+			for _, s := range templates {
+				for _, pair := range pairs {
+					exp = append(exp, &subscription.Subscription{
+						Channel:          s.Channel,
+						QualifiedChannel: channelName(s),
+						Asset:            asset.Spot,
+						Interval:         s.Interval,
+						Levels:           s.Levels,
+						Pairs:            currency.Pairs{pair},
+					})
+				}
+			}
+
+			subs, err := ex.generatePublicSubscriptions()
+			require.NoError(t, err, "generatePublicSubscriptions must not error")
+			require.Len(t, subs, len(exp), "generatePublicSubscriptions must return public channel-pair subscriptions only")
+			testsubs.EqualLists(t, exp, subs)
+			for _, sub := range subs {
+				assert.False(t, sub.Authenticated, "public subscription should not be authenticated")
+				assert.Len(t, sub.Pairs, 1, "public subscription should contain one pair for connection scaling")
+			}
+		})
+	}
 }
 
 func TestWsAuthenticate(t *testing.T) {
@@ -192,6 +326,21 @@ func TestWsProcessSubStatusInvalidPair(t *testing.T) {
 	assert.Equal(t, subscription.SubscribingState, s.State(), "invalid websocket subscription pair should leave the subscription state unchanged")
 }
 
+func TestWsProcessSubStatus(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup instance must not error")
+	sub := &subscription.Subscription{
+		Channel: subscription.TickerChannel,
+		Pairs:   currency.Pairs{currency.NewPairWithDelimiter("XBT", "USD", "/")},
+	}
+	require.NoError(t, ex.Websocket.AddSubscriptions(nil, sub), "subscription must be added in subscribing state")
+
+	ex.wsProcessSubStatus(nil, []byte(`{"channelName":"ticker","event":"subscriptionStatus","pair":"XBT/USD","status":"subscribed","subscription":{"name":"ticker"}}`))
+	assert.Equal(t, subscription.SubscribedState, sub.State(), "slash-delimited websocket subscription pair should match the stored subscription")
+}
+
 func TestGetWSToken(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -290,6 +439,55 @@ func TestSubscribeForConnectionSkipsFailedAdds(t *testing.T) {
 	require.ErrorIs(t, err, subscription.ErrDuplicate, "subscribeForConnection must surface duplicate subscription errors")
 	assert.Equal(t, subscription.InactiveState, duplicate.State(), "failed subscription should be set inactive")
 	assert.Equal(t, subscription.SubscribedState, fresh.State(), "valid subscription should still subscribe")
+}
+
+func TestCleanupUnsubscribedSubs(t *testing.T) {
+	t.Parallel()
+
+	t.Run("removes inactive subscriptions", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup instance must not error")
+		inactiveSub := &subscription.Subscription{
+			Asset:            asset.Spot,
+			Channel:          subscription.TickerChannel,
+			QualifiedChannel: channelName(&subscription.Subscription{Channel: subscription.TickerChannel}),
+			Pairs:            currency.Pairs{spotTestPair},
+		}
+		subscribedSub := &subscription.Subscription{
+			Asset:            asset.Spot,
+			Channel:          subscription.TickerChannel,
+			QualifiedChannel: channelName(&subscription.Subscription{Channel: subscription.TickerChannel}),
+			Pairs:            currency.Pairs{currency.NewPair(currency.ETH, currency.USD)},
+		}
+		require.NoError(t, ex.Websocket.AddSubscriptions(nil, inactiveSub, subscribedSub), "AddSubscriptions must not error")
+		require.NoError(t, subscribedSub.SetState(subscription.SubscribedState), "subscribed sub SetState must not error")
+
+		err := ex.cleanupUnsubscribedSubs(nil, subscription.List{inactiveSub, subscribedSub})
+		require.NoError(t, err, "cleanupUnsubscribedSubs must not error")
+		assert.Equal(t, subscription.UnsubscribedState, inactiveSub.State(), "failed subscription should be removed from the store")
+		assert.Equal(t, subscription.SubscribedState, subscribedSub.State(), "subscribed subscription should be left alone")
+		assert.Nil(t, ex.Websocket.GetSubscription(inactiveSub), "failed subscription should be removed")
+		assert.NotNil(t, ex.Websocket.GetSubscription(subscribedSub), "subscribed subscription should remain stored")
+	})
+
+	t.Run("returns remove errors", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup instance must not error")
+		missingSub := &subscription.Subscription{
+			Asset:            asset.Spot,
+			Channel:          subscription.TickerChannel,
+			QualifiedChannel: channelName(&subscription.Subscription{Channel: subscription.TickerChannel}),
+			Pairs:            currency.Pairs{spotTestPair},
+		}
+
+		err := ex.cleanupUnsubscribedSubs(nil, subscription.List{missingSub})
+		require.ErrorIs(t, err, subscription.ErrNotFound, "cleanupUnsubscribedSubs must return remove subscription errors")
+		assert.ErrorContains(t, err, "error removing failed subscription", "cleanupUnsubscribedSubs should include removal context")
+	})
 }
 
 func TestSubscribeForConnectionCandlesInterval(t *testing.T) {
