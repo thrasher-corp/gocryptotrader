@@ -3854,7 +3854,7 @@ type LoanMarginTierDetail struct {
 	Leverage              types.Number `json:"leverage"`
 }
 
-// CurrencyPairAndLeverage holds a currency pair and leverage infomration
+// CurrencyPairAndLeverage holds a currency pair and leverage information
 type CurrencyPairAndLeverage struct {
 	CurrencyPair currency.Pair `json:"currency_pair"`
 	Leverage     uint16        `json:"leverage,string"`
