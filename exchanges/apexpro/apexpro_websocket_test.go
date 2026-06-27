@@ -143,7 +143,7 @@ func TestWsProcessTrades(t *testing.T) {
 	require.Len(t, trades, 1, "a single trade must be processed")
 	assert.Equal(t, 100.5, trades[0].Price, "trade price should be decoded")
 	assert.Equal(t, 1.5, trades[0].Amount, "trade amount should be decoded")
-	assert.Equal(t, asset.PerpetualContract, trades[0].AssetType, "trade must be filed under asset.PerpetualContract")
+	assert.Equal(t, asset.PerpetualContract, trades[0].AssetType, "trade should be filed under asset.PerpetualContract")
 }
 
 func TestProcessAccountOrdersAndFills(t *testing.T) {
@@ -158,7 +158,7 @@ func TestProcessAccountOrdersAndFills(t *testing.T) {
 	gotOrders, ok := payload.Data.([]order.Detail)
 	require.True(t, ok, "account orders must produce []order.Detail")
 	require.Len(t, gotOrders, 1, "a single order must be processed")
-	assert.Equal(t, asset.PerpetualContract, gotOrders[0].AssetType, "order must be filed under asset.PerpetualContract")
+	assert.Equal(t, asset.PerpetualContract, gotOrders[0].AssetType, "order should be filed under asset.PerpetualContract")
 	assert.Equal(t, order.Open, gotOrders[0].Status, "order status should map to open")
 
 	fills := []*WsAccountOrderFill{{ID: "fill-1", OrderID: "order-1", Symbol: "BTC-USDT", Side: "BUY", Price: types.Number(100), Size: types.Number(1)}}
@@ -167,5 +167,5 @@ func TestProcessAccountOrdersAndFills(t *testing.T) {
 	gotFills, ok := payload.Data.([]fill.Data)
 	require.True(t, ok, "account fills must produce []fill.Data")
 	require.Len(t, gotFills, 1, "a single fill must be processed")
-	assert.Equal(t, asset.PerpetualContract, gotFills[0].AssetType, "fill must be filed under asset.PerpetualContract")
+	assert.Equal(t, asset.PerpetualContract, gotFills[0].AssetType, "fill should be filed under asset.PerpetualContract")
 }
