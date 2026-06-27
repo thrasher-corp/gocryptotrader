@@ -51,7 +51,7 @@ func TestGenerateDefaultSubscriptions(t *testing.T) {
 
 func TestHandleSubscriptionPayload(t *testing.T) {
 	t.Parallel()
-	pair := currency.NewPair(currency.BTC, currency.USDT)
+	pair := currency.NewBTCUSDT()
 	subs := subscription.List{
 		{Channel: chOrderbook, Pairs: currency.Pairs{pair}, Levels: 200},
 		{Channel: chTrade, Pairs: currency.Pairs{pair}},
@@ -73,7 +73,7 @@ func TestHandleSubscriptionPayload(t *testing.T) {
 
 func TestHandleSubscriptionPayloadErrors(t *testing.T) {
 	t.Parallel()
-	pair := currency.NewPair(currency.BTC, currency.USDT)
+	pair := currency.NewBTCUSDT()
 	_, err := e.handleSubscriptionPayload("subscribe", subscription.List{{Channel: chOrderbook, Pairs: currency.Pairs{pair}}})
 	require.ErrorIs(t, err, errOrderbookLevelIsRequired, "orderbook subscription without a level must error")
 
@@ -120,7 +120,7 @@ func TestWsProcessOrderbook(t *testing.T) {
 	require.NoError(t, e.wsHandleData(t.Context(), []byte(snapshot)), "orderbook snapshot must not error")
 	require.NoError(t, e.wsHandleData(t.Context(), []byte(delta)), "delta must apply to the snapshot loaded under the same asset")
 
-	ob, err := e.Websocket.Orderbook.GetOrderbook(currency.NewPair(currency.BTC, currency.USDT), asset.PerpetualContract)
+	ob, err := e.Websocket.Orderbook.GetOrderbook(currency.NewBTCUSDT(), asset.PerpetualContract)
 	require.NoError(t, err, "orderbook must be retrievable under asset.PerpetualContract")
 	require.NotEmpty(t, ob.Bids, "orderbook must contain bids")
 	require.NotEmpty(t, ob.Asks, "orderbook must contain asks")

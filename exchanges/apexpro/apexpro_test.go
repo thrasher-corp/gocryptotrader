@@ -1303,7 +1303,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 
 func TestIsPerpetualFutureCurrency(t *testing.T) {
 	t.Parallel()
-	is, err := e.IsPerpetualFutureCurrency(asset.PerpetualContract, currency.NewPair(currency.BTC, currency.USDT))
+	is, err := e.IsPerpetualFutureCurrency(asset.PerpetualContract, currency.NewBTCUSDT())
 	require.NoError(t, err)
 	assert.True(t, is)
 }
@@ -1352,9 +1352,9 @@ func TestUpdateTradablePairs(t *testing.T) {
 	t.Parallel()
 	// Use a dedicated instance so mutating the stored pairs does not race with parallel
 	// tests reading the shared exchange's enabled and available pairs.
-	te := new(Exchange)
-	require.NoError(t, testexch.Setup(te), "Setup must not error")
-	assert.NoError(t, te.UpdateTradablePairs(t.Context()), "UpdateTradablePairs should not error")
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	assert.NoError(t, ex.UpdateTradablePairs(t.Context()), "UpdateTradablePairs should not error")
 }
 
 func TestUpdateTicker(t *testing.T) {

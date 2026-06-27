@@ -1181,7 +1181,7 @@ type WsInput struct {
 	Topics      []string `json:"topics,omitempty"`
 	HTTPMethod  string   `json:"httpMethod,omitempty"`
 	RequestPath string   `json:"requestPath,omitempty"`
-	APIKey      string   `json:"apiKey,omitempty"` //nolint:gosec // API Key is used as an identifier for authentication, not a secret credential.
+	APIKey      string   `json:"apiKey,omitempty"`
 	Passphrase  string   `json:"passphrase,omitempty"`
 	Timestamp   int64    `json:"timestamp,omitempty"`
 	Signature   string   `json:"signature,omitempty"`
@@ -1416,7 +1416,7 @@ type RWAStockAccount struct {
 // RWAAPIKey holds the API credentials generated for an RWA sub-account.
 type RWAAPIKey struct {
 	Key        string `json:"key"`
-	Secret     string `json:"secret"` //nolint:gosec // API secret returned by the exchange on RWA key generation, not a hardcoded credential
+	Secret     string `json:"secret"`
 	Passphrase string `json:"passphrase"`
 }
 

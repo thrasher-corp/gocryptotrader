@@ -156,7 +156,7 @@ func (p *Point) ScalarMul(p1 *Point, scalar fr.Element) *Point {
 	for i := 4 - 1; i >= 0; i-- {
 		for j := range wordSize {
 			resProj.Double(&resProj)
-			b := (scalar[i] & (uint64(1) << uint64(wordSize-1-j))) >> uint64(wordSize-1-j)
+			b := (scalar[i] >> (wordSize - 1 - j)) & 1
 			if b == 1 {
 				resProj.Add(&resProj, &p1Proj)
 			}
