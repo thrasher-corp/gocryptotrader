@@ -148,7 +148,7 @@ func TestProcessZKKeyOrderSignature_MissingCredentials(t *testing.T) {
 	t.Parallel()
 
 	ex := new(Exchange)
-	_, err := ex.ProcessZKKeyOrderSignature(t.Context(), &CreateOrderParams{
+	_, err := ex.ProcessZKKeyOrderSignature(t.Context(), &CreateOrderRequestParams{
 		Symbol: currency.NewPairWithDelimiter("BTC", "USDT", "-"),
 		Side:   "BUY",
 	})
@@ -159,7 +159,7 @@ func TestProcessZKKeyWithdrawalSignature_MissingCredentials(t *testing.T) {
 	t.Parallel()
 
 	ex := new(Exchange)
-	_, err := ex.ProcessZKKeyWithdrawalSignature(t.Context(), &AssetWithdrawalParams{
+	_, err := ex.ProcessZKKeyWithdrawalSignature(t.Context(), &AssetWithdrawalRequest{
 		Amount:          1.0,
 		L2SourceTokenID: currency.USDT,
 		L1TargetTokenID: currency.USDT,
@@ -171,7 +171,7 @@ func TestProcessZKKeyTransferSignature_MissingCredentials(t *testing.T) {
 	t.Parallel()
 
 	ex := new(Exchange)
-	_, err := ex.ProcessZKKeyTransferSignature(t.Context(), &FastWithdrawalParams{
+	_, err := ex.ProcessZKKeyTransferSignature(t.Context(), &FastWithdrawalRequest{
 		Amount:  1.0,
 		Asset:   currency.USDT,
 		ChainID: "1",
@@ -182,7 +182,7 @@ func TestProcessZKKeyTransferSignature_MissingCredentials(t *testing.T) {
 func TestProcessZKKeyOrderSignature_Integration(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
-	result, err := e.ProcessZKKeyOrderSignature(t.Context(), &CreateOrderParams{
+	result, err := e.ProcessZKKeyOrderSignature(t.Context(), &CreateOrderRequestParams{
 		Symbol:    currency.NewPairWithDelimiter("BTC", "USDT", "-"),
 		Side:      "BUY",
 		OrderType: "LIMIT",

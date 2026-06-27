@@ -539,7 +539,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
-	params := &CreateOrderParams{
+	params := &CreateOrderRequestParams{
 		Symbol:           s.Pair,
 		Side:             s.Side.String(),
 		OrderType:        orderTypeString(s.Type),
@@ -676,7 +676,7 @@ func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 	if err := withdrawRequest.Validate(); err != nil {
 		return nil, err
 	}
-	withdrawalResponse, err := e.WithdrawAsset(ctx, &AssetWithdrawalParams{
+	withdrawalResponse, err := e.WithdrawAsset(ctx, &AssetWithdrawalRequest{
 		Amount:           withdrawRequest.Amount,
 		ClientWithdrawID: withdrawRequest.ClientOrderID,
 		Timestamp:        time.Now(),

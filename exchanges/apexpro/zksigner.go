@@ -62,7 +62,7 @@ func (e *Exchange) getOrInitZKLinkerSigner(seedsHex string) (*zklink.Signer, err
 
 // ProcessZKKeyOrderSignature builds a ContractBuilder from the order params,
 // Rescue-hashes it, and returns a 64-byte Schnorr signature as a hex string.
-func (e *Exchange) ProcessZKKeyOrderSignature(ctx context.Context, arg *CreateOrderParams) (string, error) {
+func (e *Exchange) ProcessZKKeyOrderSignature(ctx context.Context, arg *CreateOrderRequestParams) (string, error) {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return "", err
@@ -167,7 +167,7 @@ func (e *Exchange) ProcessZKKeyOrderSignature(ctx context.Context, arg *CreateOr
 
 // ProcessZKKeyWithdrawalSignature builds a WithdrawBuilder from the withdrawal params,
 // Rescue-hashes it, and returns a 64-byte Schnorr signature as a hex string.
-func (e *Exchange) ProcessZKKeyWithdrawalSignature(ctx context.Context, arg *AssetWithdrawalParams) (string, error) {
+func (e *Exchange) ProcessZKKeyWithdrawalSignature(ctx context.Context, arg *AssetWithdrawalRequest) (string, error) {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return "", err
@@ -266,7 +266,7 @@ func (e *Exchange) ProcessZKKeyWithdrawalSignature(ctx context.Context, arg *Ass
 
 // ProcessZKKeyTransferSignature builds a TransferBuilder from the fast-withdrawal params,
 // Rescue-hashes it, and returns a 64-byte Schnorr signature as a hex string.
-func (e *Exchange) ProcessZKKeyTransferSignature(ctx context.Context, arg *FastWithdrawalParams) (string, error) {
+func (e *Exchange) ProcessZKKeyTransferSignature(ctx context.Context, arg *FastWithdrawalRequest) (string, error) {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return "", err

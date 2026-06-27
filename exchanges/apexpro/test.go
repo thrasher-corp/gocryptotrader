@@ -312,7 +312,7 @@ func TestEditUserData(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.EditUserDataV3(t.Context(), &EditUserDataParams{
+	result, err := e.EditUserDataV3(t.Context(), &EditUserDataRequest{
 		Email:                    "someone@thrasher.io",
 		UserData:                 "",
 		Username:                 "Thrasher",
@@ -333,7 +333,7 @@ func TestEditUserDataV2(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.EditUserDataV2(t.Context(), &EditUserDataParams{
+	result, err := e.EditUserDataV2(t.Context(), &EditUserDataRequest{
 		Email:                    "samuaeladnew@gmail.com",
 		UserData:                 "",
 		Username:                 "Username",
@@ -586,7 +586,7 @@ func TestCreateOrder(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, e.UserAccountDetail)
 	}
-	result, err := e.CreateOrderV3(t.Context(), &CreateOrderParams{
+	result, err := e.CreateOrderV3(t.Context(), &CreateOrderRequestParams{
 		Symbol:          futuresTradablePair,
 		Side:            order.Buy.String(),
 		OrderType:       "LIMIT",
@@ -936,7 +936,7 @@ func TestSetInitialMarginRateInfoV2(t *testing.T) {
 
 func TestWithdrawAsset(t *testing.T) {
 	t.Parallel()
-	_, err := e.WithdrawAsset(t.Context(), &AssetWithdrawalParams{
+	_, err := e.WithdrawAsset(t.Context(), &AssetWithdrawalRequest{
 		ClientWithdrawID: "123123",
 		Timestamp:        time.Now(),
 		EthereumAddress:  ethereumAddress,
@@ -948,7 +948,7 @@ func TestWithdrawAsset(t *testing.T) {
 	})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
-	_, err = e.WithdrawAsset(t.Context(), &AssetWithdrawalParams{
+	_, err = e.WithdrawAsset(t.Context(), &AssetWithdrawalRequest{
 		Amount:          1,
 		Timestamp:       time.Now(),
 		EthereumAddress: ethereumAddress,
@@ -960,7 +960,7 @@ func TestWithdrawAsset(t *testing.T) {
 	})
 	require.ErrorIs(t, err, order.ErrClientOrderIDMustBeSet)
 
-	_, err = e.WithdrawAsset(t.Context(), &AssetWithdrawalParams{
+	_, err = e.WithdrawAsset(t.Context(), &AssetWithdrawalRequest{
 		Amount:           1,
 		ClientWithdrawID: "123123",
 		EthereumAddress:  ethereumAddress,
@@ -974,7 +974,7 @@ func TestWithdrawAsset(t *testing.T) {
 
 	// The following validations execute after GetCredentials, so they require credentials to be set.
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err = e.WithdrawAsset(t.Context(), &AssetWithdrawalParams{
+	_, err = e.WithdrawAsset(t.Context(), &AssetWithdrawalRequest{
 		Amount:           1,
 		ClientWithdrawID: "123123",
 		Timestamp:        time.Now(),
@@ -982,7 +982,7 @@ func TestWithdrawAsset(t *testing.T) {
 		L2Key:            "0x1",
 	})
 	require.ErrorIs(t, err, errChainIDMissing)
-	_, err = e.WithdrawAsset(t.Context(), &AssetWithdrawalParams{
+	_, err = e.WithdrawAsset(t.Context(), &AssetWithdrawalRequest{
 		Amount:           1,
 		ClientWithdrawID: "123123",
 		Timestamp:        time.Now(),
@@ -991,7 +991,7 @@ func TestWithdrawAsset(t *testing.T) {
 		ToChainID:        "3",
 	})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = e.WithdrawAsset(t.Context(), &AssetWithdrawalParams{
+	_, err = e.WithdrawAsset(t.Context(), &AssetWithdrawalRequest{
 		Amount:           1,
 		ClientWithdrawID: "123123",
 		Timestamp:        time.Now(),
@@ -1002,7 +1002,7 @@ func TestWithdrawAsset(t *testing.T) {
 	})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	result, err := e.WithdrawAsset(t.Context(), &AssetWithdrawalParams{
+	result, err := e.WithdrawAsset(t.Context(), &AssetWithdrawalRequest{
 		Amount:           1,
 		ClientWithdrawID: "123123",
 		Timestamp:        time.Now(),
@@ -1019,16 +1019,16 @@ func TestWithdrawAsset(t *testing.T) {
 
 func TestUserWithdrawalV2(t *testing.T) {
 	t.Parallel()
-	_, err := e.UserWithdrawalV2(t.Context(), &WithdrawalParams{})
+	_, err := e.UserWithdrawalV2(t.Context(), &WithdrawalRequest{})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
-	_, err = e.UserWithdrawalV2(t.Context(), &WithdrawalParams{Amount: 1})
+	_, err = e.UserWithdrawalV2(t.Context(), &WithdrawalRequest{Amount: 1})
 	require.ErrorIs(t, err, errEthereumAddressMissing)
-	_, err = e.UserWithdrawalV2(t.Context(), &WithdrawalParams{Amount: 1, EthereumAddress: "0x0330eBB5e894720e6746070371F9Fd797BE9D074"})
+	_, err = e.UserWithdrawalV2(t.Context(), &WithdrawalRequest{Amount: 1, EthereumAddress: "0x0330eBB5e894720e6746070371F9Fd797BE9D074"})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	result, err := e.UserWithdrawalV2(t.Context(),
-		&WithdrawalParams{
+		&WithdrawalRequest{
 			Amount:          1,
 			Asset:           currency.USDC,
 			EthereumAddress: "0x0330eBB5e894720e6746070371F9Fd797BE9D074",
@@ -1041,13 +1041,13 @@ func TestWithdrawalToAddressV2(t *testing.T) {
 	t.Parallel()
 	_, err := e.WithdrawalToAddressV2(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
-	_, err = e.WithdrawalToAddressV2(t.Context(), &WithdrawalToAddressParams{Asset: currency.ETH})
+	_, err = e.WithdrawalToAddressV2(t.Context(), &WithdrawalToAddressRequest{Asset: currency.ETH})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
-	_, err = e.WithdrawalToAddressV2(t.Context(), &WithdrawalToAddressParams{
+	_, err = e.WithdrawalToAddressV2(t.Context(), &WithdrawalToAddressRequest{
 		Amount: .1,
 	})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
-	_, err = e.WithdrawalToAddressV2(t.Context(), &WithdrawalToAddressParams{
+	_, err = e.WithdrawalToAddressV2(t.Context(), &WithdrawalToAddressRequest{
 		Amount:        1,
 		ClientOrderID: "12334",
 		Asset:         currency.BTC,
@@ -1055,7 +1055,7 @@ func TestWithdrawalToAddressV2(t *testing.T) {
 	require.ErrorIs(t, err, errEthereumAddressMissing)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.WithdrawalToAddressV2(t.Context(), &WithdrawalToAddressParams{
+	result, err := e.WithdrawalToAddressV2(t.Context(), &WithdrawalToAddressRequest{
 		Amount:          1,
 		Asset:           currency.USDC,
 		EthereumAddress: "0x0330eBB5e894720e6746070371F9Fd797BE9D074",
@@ -1067,7 +1067,7 @@ func TestWithdrawalToAddressV2(t *testing.T) {
 func TestWithdrawalToAddressV1(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.WithdrawalToAddressV1(t.Context(), &WithdrawalToAddressParams{
+	result, err := e.WithdrawalToAddressV1(t.Context(), &WithdrawalToAddressRequest{
 		Amount:          1,
 		Asset:           currency.USDC,
 		EthereumAddress: "0x0330eBB5e894720e6746070371F9Fd797BE9D074",
@@ -1080,15 +1080,15 @@ func TestOrderCreationParamsFilter(t *testing.T) {
 	t.Parallel()
 	_, err := e.orderCreationParamsFilter(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrOrderDetailIsNil)
-	_, err = e.orderCreationParamsFilter(t.Context(), &CreateOrderParams{Side: order.Buy.String()})
+	_, err = e.orderCreationParamsFilter(t.Context(), &CreateOrderRequestParams{Side: order.Buy.String()})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 	futuresTradablePair, err := currency.NewPairFromString("BTC-USDC")
 	require.NoError(t, err)
-	arg := &CreateOrderParams{Symbol: futuresTradablePair}
+	arg := &CreateOrderRequestParams{Symbol: futuresTradablePair}
 	_, err = e.orderCreationParamsFilter(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	arg.Side = order.Buy.String()
-	_, err = e.orderCreationParamsFilter(t.Context(), &CreateOrderParams{Symbol: futuresTradablePair, Side: order.Buy.String()})
+	_, err = e.orderCreationParamsFilter(t.Context(), &CreateOrderRequestParams{Symbol: futuresTradablePair, Side: order.Buy.String()})
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 	arg.OrderType = order.Limit.String()
 	_, err = e.orderCreationParamsFilter(t.Context(), arg)
@@ -1107,13 +1107,13 @@ func TestOrderCreationParamsFilter(t *testing.T) {
 
 func TestOrderCreationParamsFilterV3(t *testing.T) {
 	t.Parallel()
-	_, err := e.orderCreationParamsFilterV3(t.Context(), &CreateOrderParams{})
+	_, err := e.orderCreationParamsFilterV3(t.Context(), &CreateOrderRequestParams{})
 	require.ErrorIs(t, err, order.ErrOrderDetailIsNil)
-	_, err = e.orderCreationParamsFilterV3(t.Context(), &CreateOrderParams{Side: order.Buy.String()})
+	_, err = e.orderCreationParamsFilterV3(t.Context(), &CreateOrderRequestParams{Side: order.Buy.String()})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 	futuresTradablePair, err := currency.NewPairFromString("BTC-USDC")
 	require.NoError(t, err)
-	arg := &CreateOrderParams{Symbol: futuresTradablePair}
+	arg := &CreateOrderRequestParams{Symbol: futuresTradablePair}
 	_, err = e.orderCreationParamsFilterV3(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	arg.Side = order.Buy.String()
@@ -1158,7 +1158,7 @@ func TestCreateOrderV1(t *testing.T) {
 		require.NotNil(t, e.UserAccountDetail)
 	}
 
-	result, err := e.CreateOrderV1(t.Context(), &CreateOrderParams{
+	result, err := e.CreateOrderV1(t.Context(), &CreateOrderRequestParams{
 		Symbol:          futuresTradablePair,
 		Side:            order.Buy.String(),
 		OrderType:       "LIMIT",
@@ -1184,7 +1184,7 @@ func TestCreateOrderV2(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, e.UserAccountDetail)
 	}
-	result, err := e.CreateOrderV2(t.Context(), &CreateOrderParams{
+	result, err := e.CreateOrderV2(t.Context(), &CreateOrderRequestParams{
 		Symbol:          futuresTradablePair,
 		Side:            order.Buy.String(),
 		OrderType:       "LIMIT",
@@ -1202,7 +1202,7 @@ func TestCreateOrderV2(t *testing.T) {
 func TestFastWithdrawalV2(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.FastWithdrawalV2(t.Context(), &FastWithdrawalParams{
+	result, err := e.FastWithdrawalV2(t.Context(), &FastWithdrawalRequest{
 		Amount:       1,
 		ClientID:     "123213",
 		Expiration:   time.Now().Add(time.Hour * 45).UnixMilli(),
@@ -1218,7 +1218,7 @@ func TestFastWithdrawalV2(t *testing.T) {
 func TestFastWithdrawalV1(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.FastWithdrawalV1(t.Context(), &FastWithdrawalParams{
+	result, err := e.FastWithdrawalV1(t.Context(), &FastWithdrawalRequest{
 		Amount:  1,
 		Asset:   currency.USDC,
 		ChainID: "1",
@@ -1233,17 +1233,17 @@ func TestFastWithdrawalV3(t *testing.T) {
 	_, err := e.FastWithdrawalV3(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = e.FastWithdrawalV3(t.Context(), &FastWithdrawalParams{Asset: currency.USDC, ChainID: "1"})
+	_, err = e.FastWithdrawalV3(t.Context(), &FastWithdrawalRequest{Asset: currency.USDC, ChainID: "1"})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
-	_, err = e.FastWithdrawalV3(t.Context(), &FastWithdrawalParams{Amount: 1, ChainID: "1"})
+	_, err = e.FastWithdrawalV3(t.Context(), &FastWithdrawalRequest{Amount: 1, ChainID: "1"})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	_, err = e.FastWithdrawalV3(t.Context(), &FastWithdrawalParams{Amount: 1, Asset: currency.USDC})
+	_, err = e.FastWithdrawalV3(t.Context(), &FastWithdrawalRequest{Amount: 1, Asset: currency.USDC})
 	require.ErrorIs(t, err, errChainIDMissing)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.FastWithdrawalV3(t.Context(), &FastWithdrawalParams{
+	result, err := e.FastWithdrawalV3(t.Context(), &FastWithdrawalRequest{
 		Amount:       1,
 		ClientID:     "123213",
 		Expiration:   time.Now().Add(time.Hour * 45).UnixMilli(),
@@ -1261,17 +1261,17 @@ func TestCrossChainWithdrawalsV3(t *testing.T) {
 	_, err := e.CrossChainWithdrawalsV3(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = e.CrossChainWithdrawalsV3(t.Context(), &FastWithdrawalParams{Asset: currency.USDC, ChainID: "1"})
+	_, err = e.CrossChainWithdrawalsV3(t.Context(), &FastWithdrawalRequest{Asset: currency.USDC, ChainID: "1"})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
-	_, err = e.CrossChainWithdrawalsV3(t.Context(), &FastWithdrawalParams{Amount: 1, ChainID: "1"})
+	_, err = e.CrossChainWithdrawalsV3(t.Context(), &FastWithdrawalRequest{Amount: 1, ChainID: "1"})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	_, err = e.CrossChainWithdrawalsV3(t.Context(), &FastWithdrawalParams{Amount: 1, Asset: currency.USDC})
+	_, err = e.CrossChainWithdrawalsV3(t.Context(), &FastWithdrawalRequest{Amount: 1, Asset: currency.USDC})
 	require.ErrorIs(t, err, errChainIDMissing)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.CrossChainWithdrawalsV3(t.Context(), &FastWithdrawalParams{
+	result, err := e.CrossChainWithdrawalsV3(t.Context(), &FastWithdrawalRequest{
 		Amount:  1,
 		Asset:   currency.USDC,
 		ChainID: "1",
@@ -1593,16 +1593,16 @@ func TestUserManualRepayment(t *testing.T) {
 	t.Parallel()
 	_, err := e.UserManualRepayment(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
-	_, err = e.UserManualRepayment(t.Context(), &UserManualRepaymentParams{ExpiryTime: time.Now().Add(-time.Hour * 48)})
+	_, err = e.UserManualRepayment(t.Context(), &UserManualRepaymentRequest{ExpiryTime: time.Now().Add(-time.Hour * 48)})
 	require.ErrorIs(t, err, errClientIDMissing)
-	_, err = e.UserManualRepayment(t.Context(), &UserManualRepaymentParams{ClientID: "1234567"})
+	_, err = e.UserManualRepayment(t.Context(), &UserManualRepaymentRequest{ClientID: "1234567"})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
-	_, err = e.UserManualRepayment(t.Context(), &UserManualRepaymentParams{
+	_, err = e.UserManualRepayment(t.Context(), &UserManualRepaymentRequest{
 		ClientID:                    "1234567",
 		LoanRepaymentTokenAndAmount: LoanRepaymentTokenAndAmountList{{Token: currency.BTC, Amount: 123.4}},
 	})
 	require.ErrorIs(t, err, common.ErrEmptyParams)
-	_, err = e.UserManualRepayment(t.Context(), &UserManualRepaymentParams{
+	_, err = e.UserManualRepayment(t.Context(), &UserManualRepaymentRequest{
 		ClientID:                    "1234567",
 		LoanRepaymentTokenAndAmount: LoanRepaymentTokenAndAmountList{{Token: currency.BTC, Amount: 123.4}},
 		PoolRepaymentTokensDetail:   LoanRepaymentTokenAndAmountList{{Token: currency.BTC, Amount: 123.4}},
@@ -1610,7 +1610,7 @@ func TestUserManualRepayment(t *testing.T) {
 	require.ErrorIs(t, err, errExpirationTimeRequired)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.UserManualRepayment(t.Context(), &UserManualRepaymentParams{
+	result, err := e.UserManualRepayment(t.Context(), &UserManualRepaymentRequest{
 		ClientID:                    "1234567",
 		ExpiryTime:                  time.Now().Add(-time.Hour * 48),
 		PoolRepaymentTokensDetail:   LoanRepaymentTokenAndAmountList{{Token: currency.BTC, Amount: 123.4}},
@@ -1625,17 +1625,17 @@ func TestRegisterRWAAccount(t *testing.T) {
 	_, err := e.RegisterRWAAccount(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = e.RegisterRWAAccount(t.Context(), &RWARegisterAccountParams{MasterAccountID: "123", Signature: "sig"})
+	_, err = e.RegisterRWAAccount(t.Context(), &RWARegisterAccountRequest{MasterAccountID: "123", Signature: "sig"})
 	require.ErrorIs(t, err, errL2KeyMissing)
 
-	_, err = e.RegisterRWAAccount(t.Context(), &RWARegisterAccountParams{L2Key: "0xabc", Signature: "sig"})
+	_, err = e.RegisterRWAAccount(t.Context(), &RWARegisterAccountRequest{L2Key: "0xabc", Signature: "sig"})
 	require.ErrorIs(t, err, errMasterAccountIDMissing)
 
-	_, err = e.RegisterRWAAccount(t.Context(), &RWARegisterAccountParams{L2Key: "0xabc", MasterAccountID: "123"})
+	_, err = e.RegisterRWAAccount(t.Context(), &RWARegisterAccountRequest{L2Key: "0xabc", MasterAccountID: "123"})
 	require.ErrorIs(t, err, errSignatureMissing)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.RegisterRWAAccount(t.Context(), &RWARegisterAccountParams{
+	result, err := e.RegisterRWAAccount(t.Context(), &RWARegisterAccountRequest{
 		L2Key:           "0xabc",
 		MasterAccountID: "123",
 		Signature:       "sig",
@@ -1649,23 +1649,23 @@ func TestGenerateRWAAPIKey(t *testing.T) {
 	_, err := e.GenerateRWAAPIKey(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = e.GenerateRWAAPIKey(t.Context(), &RWAGenerateAPIKeyParams{WalletName: "w", AccountID: "1", EthAddress: "0xeth", Signature: "sig"})
+	_, err = e.GenerateRWAAPIKey(t.Context(), &RWAGenerateAPIKeyRequest{WalletName: "w", AccountID: "1", EthAddress: "0xeth", Signature: "sig"})
 	require.ErrorIs(t, err, errL2KeyMissing)
 
-	_, err = e.GenerateRWAAPIKey(t.Context(), &RWAGenerateAPIKeyParams{L2Key: "0xabc", AccountID: "1", EthAddress: "0xeth", Signature: "sig"})
+	_, err = e.GenerateRWAAPIKey(t.Context(), &RWAGenerateAPIKeyRequest{L2Key: "0xabc", AccountID: "1", EthAddress: "0xeth", Signature: "sig"})
 	require.ErrorIs(t, err, errWalletNameMissing)
 
-	_, err = e.GenerateRWAAPIKey(t.Context(), &RWAGenerateAPIKeyParams{L2Key: "0xabc", WalletName: "w", EthAddress: "0xeth", Signature: "sig"})
+	_, err = e.GenerateRWAAPIKey(t.Context(), &RWAGenerateAPIKeyRequest{L2Key: "0xabc", WalletName: "w", EthAddress: "0xeth", Signature: "sig"})
 	require.ErrorIs(t, err, errAccountIDMissing)
 
-	_, err = e.GenerateRWAAPIKey(t.Context(), &RWAGenerateAPIKeyParams{L2Key: "0xabc", WalletName: "w", AccountID: "1", Signature: "sig"})
+	_, err = e.GenerateRWAAPIKey(t.Context(), &RWAGenerateAPIKeyRequest{L2Key: "0xabc", WalletName: "w", AccountID: "1", Signature: "sig"})
 	require.ErrorIs(t, err, errEthereumAddressMissing)
 
-	_, err = e.GenerateRWAAPIKey(t.Context(), &RWAGenerateAPIKeyParams{L2Key: "0xabc", WalletName: "w", AccountID: "1", EthAddress: "0xeth"})
+	_, err = e.GenerateRWAAPIKey(t.Context(), &RWAGenerateAPIKeyRequest{L2Key: "0xabc", WalletName: "w", AccountID: "1", EthAddress: "0xeth"})
 	require.ErrorIs(t, err, errSignatureMissing)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.GenerateRWAAPIKey(t.Context(), &RWAGenerateAPIKeyParams{
+	result, err := e.GenerateRWAAPIKey(t.Context(), &RWAGenerateAPIKeyRequest{
 		L2Key:      "0xabc",
 		WalletName: "w",
 		AccountID:  "1",
@@ -1689,26 +1689,26 @@ func TestTransferContractToRWA(t *testing.T) {
 	_, err := e.TransferContractToRWA(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = e.TransferContractToRWA(t.Context(), &RWATransferParams{Asset: currency.USDT, ReceiverAccountID: "1", ReceiverL2Key: "0xabc", ReceiverAddress: "0xeth", ClientID: "c"})
+	_, err = e.TransferContractToRWA(t.Context(), &RWATransferRequest{Asset: currency.USDT, ReceiverAccountID: "1", ReceiverL2Key: "0xabc", ReceiverAddress: "0xeth", ClientID: "c"})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
-	_, err = e.TransferContractToRWA(t.Context(), &RWATransferParams{Amount: 1, ReceiverAccountID: "1", ReceiverL2Key: "0xabc", ReceiverAddress: "0xeth", ClientID: "c"})
+	_, err = e.TransferContractToRWA(t.Context(), &RWATransferRequest{Amount: 1, ReceiverAccountID: "1", ReceiverL2Key: "0xabc", ReceiverAddress: "0xeth", ClientID: "c"})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	_, err = e.TransferContractToRWA(t.Context(), &RWATransferParams{Amount: 1, Asset: currency.USDT, ReceiverL2Key: "0xabc", ReceiverAddress: "0xeth", ClientID: "c"})
+	_, err = e.TransferContractToRWA(t.Context(), &RWATransferRequest{Amount: 1, Asset: currency.USDT, ReceiverL2Key: "0xabc", ReceiverAddress: "0xeth", ClientID: "c"})
 	require.ErrorIs(t, err, errReceiverAccountIDMissing)
 
-	_, err = e.TransferContractToRWA(t.Context(), &RWATransferParams{Amount: 1, Asset: currency.USDT, ReceiverAccountID: "1", ReceiverAddress: "0xeth", ClientID: "c"})
+	_, err = e.TransferContractToRWA(t.Context(), &RWATransferRequest{Amount: 1, Asset: currency.USDT, ReceiverAccountID: "1", ReceiverAddress: "0xeth", ClientID: "c"})
 	require.ErrorIs(t, err, errReceiverL2KeyMissing)
 
-	_, err = e.TransferContractToRWA(t.Context(), &RWATransferParams{Amount: 1, Asset: currency.USDT, ReceiverAccountID: "1", ReceiverL2Key: "0xabc", ClientID: "c"})
+	_, err = e.TransferContractToRWA(t.Context(), &RWATransferRequest{Amount: 1, Asset: currency.USDT, ReceiverAccountID: "1", ReceiverL2Key: "0xabc", ClientID: "c"})
 	require.ErrorIs(t, err, errReceiverAddressMissing)
 
-	_, err = e.TransferContractToRWA(t.Context(), &RWATransferParams{Amount: 1, Asset: currency.USDT, ReceiverAccountID: "1", ReceiverL2Key: "0xabc", ReceiverAddress: "0xeth"})
+	_, err = e.TransferContractToRWA(t.Context(), &RWATransferRequest{Amount: 1, Asset: currency.USDT, ReceiverAccountID: "1", ReceiverL2Key: "0xabc", ReceiverAddress: "0xeth"})
 	require.ErrorIs(t, err, errClientIDMissing)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.TransferContractToRWA(t.Context(), &RWATransferParams{
+	result, err := e.TransferContractToRWA(t.Context(), &RWATransferRequest{
 		Amount:            1,
 		Asset:             currency.USDT,
 		ReceiverAccountID: "850000000000000001",
@@ -1726,11 +1726,11 @@ func TestTransferRWAToContract(t *testing.T) {
 	_, err := e.TransferRWAToContract(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = e.TransferRWAToContract(t.Context(), &RWATransferParams{Amount: 1, Asset: currency.USDT, ReceiverAccountID: "1", ReceiverL2Key: "0xabc", ReceiverAddress: "0xeth"})
+	_, err = e.TransferRWAToContract(t.Context(), &RWATransferRequest{Amount: 1, Asset: currency.USDT, ReceiverAccountID: "1", ReceiverL2Key: "0xabc", ReceiverAddress: "0xeth"})
 	require.ErrorIs(t, err, errClientIDMissing)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.TransferRWAToContract(t.Context(), &RWATransferParams{
+	result, err := e.TransferRWAToContract(t.Context(), &RWATransferRequest{
 		Amount:            1,
 		Asset:             currency.USDT,
 		ReceiverAccountID: "123",
@@ -1749,7 +1749,7 @@ func TestCreateRWAOrder(t *testing.T) {
 	require.NoError(t, err)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.CreateRWAOrder(t.Context(), &CreateOrderParams{
+	result, err := e.CreateRWAOrder(t.Context(), &CreateOrderRequestParams{
 		Symbol:      rwaPair,
 		Side:        order.Buy.String(),
 		OrderType:   "LIMIT",
@@ -1815,7 +1815,7 @@ func TestEditUserDataV1(t *testing.T) {
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.EditUserDataV1(t.Context(), &EditUserDataParams{
+	result, err := e.EditUserDataV1(t.Context(), &EditUserDataRequest{
 		Email:                    "someone@thrasher.io",
 		Username:                 "Thrasher",
 		Country:                  "Ethiopia",
@@ -1830,17 +1830,17 @@ func TestCrossChainWithdrawalsV1(t *testing.T) {
 	_, err := e.CrossChainWithdrawalsV1(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = e.CrossChainWithdrawalsV1(t.Context(), &FastWithdrawalParams{Asset: currency.USDC, ChainID: "1"})
+	_, err = e.CrossChainWithdrawalsV1(t.Context(), &FastWithdrawalRequest{Asset: currency.USDC, ChainID: "1"})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
-	_, err = e.CrossChainWithdrawalsV1(t.Context(), &FastWithdrawalParams{Amount: 1, ChainID: "1"})
+	_, err = e.CrossChainWithdrawalsV1(t.Context(), &FastWithdrawalRequest{Amount: 1, ChainID: "1"})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	_, err = e.CrossChainWithdrawalsV1(t.Context(), &FastWithdrawalParams{Amount: 1, Asset: currency.USDC})
+	_, err = e.CrossChainWithdrawalsV1(t.Context(), &FastWithdrawalRequest{Amount: 1, Asset: currency.USDC})
 	require.ErrorIs(t, err, errChainIDMissing)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.CrossChainWithdrawalsV1(t.Context(), &FastWithdrawalParams{
+	result, err := e.CrossChainWithdrawalsV1(t.Context(), &FastWithdrawalRequest{
 		Amount:  1,
 		Asset:   currency.USDC,
 		ChainID: "1",
@@ -1854,17 +1854,17 @@ func TestCrossChainWithdrawalsV2(t *testing.T) {
 	_, err := e.CrossChainWithdrawalsV2(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
 
-	_, err = e.CrossChainWithdrawalsV2(t.Context(), &FastWithdrawalParams{Asset: currency.USDC, ChainID: "1"})
+	_, err = e.CrossChainWithdrawalsV2(t.Context(), &FastWithdrawalRequest{Asset: currency.USDC, ChainID: "1"})
 	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
 
-	_, err = e.CrossChainWithdrawalsV2(t.Context(), &FastWithdrawalParams{Amount: 1, ChainID: "1"})
+	_, err = e.CrossChainWithdrawalsV2(t.Context(), &FastWithdrawalRequest{Amount: 1, ChainID: "1"})
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	_, err = e.CrossChainWithdrawalsV2(t.Context(), &FastWithdrawalParams{Amount: 1, Asset: currency.USDC})
+	_, err = e.CrossChainWithdrawalsV2(t.Context(), &FastWithdrawalRequest{Amount: 1, Asset: currency.USDC})
 	require.ErrorIs(t, err, errChainIDMissing)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.CrossChainWithdrawalsV2(t.Context(), &FastWithdrawalParams{
+	result, err := e.CrossChainWithdrawalsV2(t.Context(), &FastWithdrawalRequest{
 		Amount:  1,
 		Asset:   currency.USDC,
 		ChainID: "1",

@@ -372,21 +372,21 @@ func (e *Exchange) getUsersData(ctx context.Context, path string) (*UserData, er
 }
 
 // EditUserDataV3 edits user's data.
-func (e *Exchange) EditUserDataV3(ctx context.Context, arg *EditUserDataParams) (*UserDataResponse, error) {
+func (e *Exchange) EditUserDataV3(ctx context.Context, arg *EditUserDataRequest) (*UserDataResponse, error) {
 	return e.editUserData(ctx, arg, "v3/modify-user")
 }
 
 // EditUserDataV2 edits user's data through the V2 API.
-func (e *Exchange) EditUserDataV2(ctx context.Context, arg *EditUserDataParams) (*UserDataResponse, error) {
+func (e *Exchange) EditUserDataV2(ctx context.Context, arg *EditUserDataRequest) (*UserDataResponse, error) {
 	return e.editUserData(ctx, arg, "v2/modify-user")
 }
 
 // EditUserDataV1 edits user's data through the V1 API.
-func (e *Exchange) EditUserDataV1(ctx context.Context, arg *EditUserDataParams) (*UserDataResponse, error) {
+func (e *Exchange) EditUserDataV1(ctx context.Context, arg *EditUserDataRequest) (*UserDataResponse, error) {
 	return e.editUserData(ctx, arg, "v1/modify-user")
 }
 
-func (e *Exchange) editUserData(ctx context.Context, arg *EditUserDataParams, path string) (*UserDataResponse, error) {
+func (e *Exchange) editUserData(ctx context.Context, arg *EditUserDataRequest, path string) (*UserDataResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -684,8 +684,8 @@ func (e *Exchange) GetWorstPriceV1(ctx context.Context, symbol, side string, amo
 	return e.getWorstPrice(ctx, symbol, side, "v1/get-worst-price", amount, exchange.RestSpot)
 }
 
-func (e *Exchange) orderCreationParamsFilter(ctx context.Context, arg *CreateOrderParams) (url.Values, error) {
-	if arg == nil || *arg == (CreateOrderParams{}) {
+func (e *Exchange) orderCreationParamsFilter(ctx context.Context, arg *CreateOrderRequestParams) (url.Values, error) {
+	if arg == nil || *arg == (CreateOrderRequestParams{}) {
 		return nil, order.ErrOrderDetailIsNil
 	}
 	if arg.Symbol.IsEmpty() {
@@ -741,8 +741,8 @@ func (e *Exchange) orderCreationParamsFilter(ctx context.Context, arg *CreateOrd
 }
 
 // orderCreationParamsFilterV3 validates and prepares URL params for a V3 order.
-func (e *Exchange) orderCreationParamsFilterV3(ctx context.Context, arg *CreateOrderParams) (url.Values, error) {
-	if *arg == (CreateOrderParams{}) {
+func (e *Exchange) orderCreationParamsFilterV3(ctx context.Context, arg *CreateOrderRequestParams) (url.Values, error) {
+	if *arg == (CreateOrderRequestParams{}) {
 		return nil, order.ErrOrderDetailIsNil
 	}
 	if arg.Symbol.IsEmpty() {
@@ -795,7 +795,7 @@ func (e *Exchange) orderCreationParamsFilterV3(ctx context.Context, arg *CreateO
 }
 
 // CreateOrderV3 creates a new order using the ZKLink (zkKey) signing scheme.
-func (e *Exchange) CreateOrderV3(ctx context.Context, arg *CreateOrderParams) (*OrderDetail, error) {
+func (e *Exchange) CreateOrderV3(ctx context.Context, arg *CreateOrderRequestParams) (*OrderDetail, error) {
 	params, err := e.orderCreationParamsFilterV3(ctx, arg)
 	if err != nil {
 		return nil, err
@@ -805,7 +805,7 @@ func (e *Exchange) CreateOrderV3(ctx context.Context, arg *CreateOrderParams) (*
 }
 
 // CreateOrderV2 creates a new order through the v2 API
-func (e *Exchange) CreateOrderV2(ctx context.Context, arg *CreateOrderParams) (*OrderDetail, error) {
+func (e *Exchange) CreateOrderV2(ctx context.Context, arg *CreateOrderRequestParams) (*OrderDetail, error) {
 	params, err := e.orderCreationParamsFilter(ctx, arg)
 	if err != nil {
 		return nil, err
@@ -815,7 +815,7 @@ func (e *Exchange) CreateOrderV2(ctx context.Context, arg *CreateOrderParams) (*
 }
 
 // CreateOrderV1 creates a new order through the v2 API
-func (e *Exchange) CreateOrderV1(ctx context.Context, arg *CreateOrderParams) (*OrderDetail, error) {
+func (e *Exchange) CreateOrderV1(ctx context.Context, arg *CreateOrderRequestParams) (*OrderDetail, error) {
 	params, err := e.orderCreationParamsFilter(ctx, arg)
 	if err != nil {
 		return nil, err
@@ -825,21 +825,21 @@ func (e *Exchange) CreateOrderV1(ctx context.Context, arg *CreateOrderParams) (*
 }
 
 // FastWithdrawalV1 withdraws an asset via the StarkEx V1 endpoint.
-func (e *Exchange) FastWithdrawalV1(ctx context.Context, arg *FastWithdrawalParams) (*WithdrawalResponse, error) {
+func (e *Exchange) FastWithdrawalV1(ctx context.Context, arg *FastWithdrawalRequest) (*WithdrawalResponse, error) {
 	return e.fastWithdrawal(ctx, arg, "v1/fast-withdraw")
 }
 
 // FastWithdrawalV2 withdraws an asset via the StarkEx V2 endpoint.
-func (e *Exchange) FastWithdrawalV2(ctx context.Context, arg *FastWithdrawalParams) (*WithdrawalResponse, error) {
+func (e *Exchange) FastWithdrawalV2(ctx context.Context, arg *FastWithdrawalRequest) (*WithdrawalResponse, error) {
 	return e.fastWithdrawal(ctx, arg, "v2/fast-withdraw")
 }
 
 // FastWithdrawalV3 withdraws an asset via the ZKLink V3 endpoint.
-func (e *Exchange) FastWithdrawalV3(ctx context.Context, arg *FastWithdrawalParams) (*WithdrawalResponse, error) {
+func (e *Exchange) FastWithdrawalV3(ctx context.Context, arg *FastWithdrawalRequest) (*WithdrawalResponse, error) {
 	return e.fastWithdrawalZKLink(ctx, arg, "v3/fast-withdraw")
 }
 
-func (e *Exchange) fillWithdrawalParams(arg *FastWithdrawalParams) error {
+func (e *Exchange) fillWithdrawalParams(arg *FastWithdrawalRequest) error {
 	if err := common.NilGuard(arg); err != nil {
 		return err
 	}
@@ -855,7 +855,7 @@ func (e *Exchange) fillWithdrawalParams(arg *FastWithdrawalParams) error {
 	return nil
 }
 
-func (e *Exchange) fastWithdrawal(ctx context.Context, arg *FastWithdrawalParams, path string) (*WithdrawalResponse, error) {
+func (e *Exchange) fastWithdrawal(ctx context.Context, arg *FastWithdrawalRequest, path string) (*WithdrawalResponse, error) {
 	err := e.fillWithdrawalParams(arg)
 	if err != nil {
 		return nil, err
@@ -876,7 +876,7 @@ func (e *Exchange) fastWithdrawal(ctx context.Context, arg *FastWithdrawalParams
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, privatePostEPL, params, nil, &resp)
 }
 
-func (e *Exchange) fastWithdrawalZKLink(ctx context.Context, arg *FastWithdrawalParams, path string) (*WithdrawalResponse, error) {
+func (e *Exchange) fastWithdrawalZKLink(ctx context.Context, arg *FastWithdrawalRequest, path string) (*WithdrawalResponse, error) {
 	if err := e.fillWithdrawalParams(arg); err != nil {
 		return nil, err
 	}
@@ -1312,7 +1312,7 @@ func (e *Exchange) GetRepaymentPrice(ctx context.Context, repaymentPriceTokens [
 }
 
 // UserManualRepayment sends a user manual repayment request
-func (e *Exchange) UserManualRepayment(ctx context.Context, arg *UserManualRepaymentParams) (*IDResponse, error) {
+func (e *Exchange) UserManualRepayment(ctx context.Context, arg *UserManualRepaymentRequest) (*IDResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -1371,7 +1371,7 @@ func (e *Exchange) setInitialMarginRateInfo(ctx context.Context, symbol, path st
 }
 
 // WithdrawAsset posts an asset withdrawal
-func (e *Exchange) WithdrawAsset(ctx context.Context, arg *AssetWithdrawalParams) (*WithdrawalResponse, error) {
+func (e *Exchange) WithdrawAsset(ctx context.Context, arg *AssetWithdrawalRequest) (*WithdrawalResponse, error) {
 	if arg.Amount <= 0 {
 		return nil, limits.ErrAmountBelowMin
 	}
@@ -1445,7 +1445,7 @@ func (e *Exchange) WithdrawAsset(ctx context.Context, arg *AssetWithdrawalParams
 // ----------------------------------------------------- Private V2 Endpoints --------------------------------------------------------------------------------
 
 // UserWithdrawalV2 withdraws an asset
-func (e *Exchange) UserWithdrawalV2(ctx context.Context, arg *WithdrawalParams) (*WithdrawalResponse, error) {
+func (e *Exchange) UserWithdrawalV2(ctx context.Context, arg *WithdrawalRequest) (*WithdrawalResponse, error) {
 	if arg.Amount <= 0 {
 		return nil, limits.ErrAmountBelowMin
 	}
@@ -1471,16 +1471,16 @@ func (e *Exchange) UserWithdrawalV2(ctx context.Context, arg *WithdrawalParams) 
 }
 
 // WithdrawalToAddressV1 withdraws as asset to an ethereum address
-func (e *Exchange) WithdrawalToAddressV1(ctx context.Context, arg *WithdrawalToAddressParams) (*WithdrawalResponse, error) {
+func (e *Exchange) WithdrawalToAddressV1(ctx context.Context, arg *WithdrawalToAddressRequest) (*WithdrawalResponse, error) {
 	return e.withdrawalToAddress(ctx, arg, "v1/create-withdrawal-to-address")
 }
 
 // WithdrawalToAddressV2 withdraws as asset to an ethereum address
-func (e *Exchange) WithdrawalToAddressV2(ctx context.Context, arg *WithdrawalToAddressParams) (*WithdrawalResponse, error) {
+func (e *Exchange) WithdrawalToAddressV2(ctx context.Context, arg *WithdrawalToAddressRequest) (*WithdrawalResponse, error) {
 	return e.withdrawalToAddress(ctx, arg, "v2/create-withdrawal-to-address")
 }
 
-func (e *Exchange) withdrawalToAddress(ctx context.Context, arg *WithdrawalToAddressParams, path string) (*WithdrawalResponse, error) {
+func (e *Exchange) withdrawalToAddress(ctx context.Context, arg *WithdrawalToAddressRequest, path string) (*WithdrawalResponse, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -1513,21 +1513,21 @@ func (e *Exchange) withdrawalToAddress(ctx context.Context, arg *WithdrawalToAdd
 }
 
 // CrossChainWithdrawalsV1 withdraws an asset through different chains via the StarkEx V1 endpoint.
-func (e *Exchange) CrossChainWithdrawalsV1(ctx context.Context, arg *FastWithdrawalParams) (*WithdrawalResponse, error) {
+func (e *Exchange) CrossChainWithdrawalsV1(ctx context.Context, arg *FastWithdrawalRequest) (*WithdrawalResponse, error) {
 	return e.crossChainWithdrawals(ctx, arg, "v1/cross-chain-withdraw")
 }
 
 // CrossChainWithdrawalsV2 withdraws an asset through different chains via the StarkEx V2 endpoint.
-func (e *Exchange) CrossChainWithdrawalsV2(ctx context.Context, arg *FastWithdrawalParams) (*WithdrawalResponse, error) {
+func (e *Exchange) CrossChainWithdrawalsV2(ctx context.Context, arg *FastWithdrawalRequest) (*WithdrawalResponse, error) {
 	return e.crossChainWithdrawals(ctx, arg, "v2/cross-chain-withdraw")
 }
 
 // CrossChainWithdrawalsV3 withdraws an asset through different chains via the ZKLink V3 endpoint.
-func (e *Exchange) CrossChainWithdrawalsV3(ctx context.Context, arg *FastWithdrawalParams) (*WithdrawalResponse, error) {
+func (e *Exchange) CrossChainWithdrawalsV3(ctx context.Context, arg *FastWithdrawalRequest) (*WithdrawalResponse, error) {
 	return e.crossChainWithdrawalsZKLink(ctx, arg, "v3/cross-chain-withdraw")
 }
 
-func (e *Exchange) crossChainWithdrawals(ctx context.Context, arg *FastWithdrawalParams, path string) (*WithdrawalResponse, error) {
+func (e *Exchange) crossChainWithdrawals(ctx context.Context, arg *FastWithdrawalRequest, path string) (*WithdrawalResponse, error) {
 	if err := e.fillWithdrawalParams(arg); err != nil {
 		return nil, err
 	}
@@ -1546,7 +1546,7 @@ func (e *Exchange) crossChainWithdrawals(ctx context.Context, arg *FastWithdrawa
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, path, privatePostEPL, params, nil, &resp)
 }
 
-func (e *Exchange) crossChainWithdrawalsZKLink(ctx context.Context, arg *FastWithdrawalParams, path string) (*WithdrawalResponse, error) {
+func (e *Exchange) crossChainWithdrawalsZKLink(ctx context.Context, arg *FastWithdrawalRequest, path string) (*WithdrawalResponse, error) {
 	if err := e.fillWithdrawalParams(arg); err != nil {
 		return nil, err
 	}
@@ -1596,7 +1596,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ePath exchange.URL, path
 // ---------------------- Real World Asset (RWA) endpoints ------------------------------------------------------
 
 // RegisterRWAAccount registers a Real World Asset (RWA) sub-account using the primary API key.
-func (e *Exchange) RegisterRWAAccount(ctx context.Context, arg *RWARegisterAccountParams) (*RWAStockAccountResult, error) {
+func (e *Exchange) RegisterRWAAccount(ctx context.Context, arg *RWARegisterAccountRequest) (*RWAStockAccountResult, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -1618,7 +1618,7 @@ func (e *Exchange) RegisterRWAAccount(ctx context.Context, arg *RWARegisterAccou
 }
 
 // GenerateRWAAPIKey generates API credentials for an RWA sub-account using the primary API key.
-func (e *Exchange) GenerateRWAAPIKey(ctx context.Context, arg *RWAGenerateAPIKeyParams) (*RWAStockAccountResult, error) {
+func (e *Exchange) GenerateRWAAPIKey(ctx context.Context, arg *RWAGenerateAPIKeyRequest) (*RWAStockAccountResult, error) {
 	if err := common.NilGuard(arg); err != nil {
 		return nil, err
 	}
@@ -1654,7 +1654,7 @@ func (e *Exchange) GetRWAAccountData(ctx context.Context) (*RWAAccountData, erro
 }
 
 // TransferContractToRWA transfers an asset from the primary contract account to an RWA sub-account, signing with the primary seeds when no signature is supplied.
-func (e *Exchange) TransferContractToRWA(ctx context.Context, arg *RWATransferParams) (*RWATransferResponse, error) {
+func (e *Exchange) TransferContractToRWA(ctx context.Context, arg *RWATransferRequest) (*RWATransferResponse, error) {
 	if err := e.validateRWATransfer(arg); err != nil {
 		return nil, err
 	}
@@ -1673,7 +1673,7 @@ func (e *Exchange) TransferContractToRWA(ctx context.Context, arg *RWATransferPa
 }
 
 // TransferRWAToContract transfers an asset from an RWA sub-account back to the primary contract account, signing with the RWA seeds when no signature is supplied.
-func (e *Exchange) TransferRWAToContract(ctx context.Context, arg *RWATransferParams) (*RWATransferResponse, error) {
+func (e *Exchange) TransferRWAToContract(ctx context.Context, arg *RWATransferRequest) (*RWATransferResponse, error) {
 	if err := e.validateRWATransfer(arg); err != nil {
 		return nil, err
 	}
@@ -1691,7 +1691,7 @@ func (e *Exchange) TransferRWAToContract(ctx context.Context, arg *RWATransferPa
 	return e.contractTransferTo(ctx, arg)
 }
 
-func (e *Exchange) validateRWATransfer(arg *RWATransferParams) error {
+func (e *Exchange) validateRWATransfer(arg *RWATransferRequest) error {
 	if err := common.NilGuard(arg); err != nil {
 		return err
 	}
@@ -1716,7 +1716,7 @@ func (e *Exchange) validateRWATransfer(arg *RWATransferParams) error {
 	return nil
 }
 
-func (e *Exchange) contractTransferTo(ctx context.Context, arg *RWATransferParams) (*RWATransferResponse, error) {
+func (e *Exchange) contractTransferTo(ctx context.Context, arg *RWATransferRequest) (*RWATransferResponse, error) {
 	params := url.Values{}
 	params.Set("amount", strconv.FormatFloat(arg.Amount, 'f', -1, 64))
 	params.Set("asset", arg.Asset.String())
@@ -1733,12 +1733,12 @@ func (e *Exchange) contractTransferTo(ctx context.Context, arg *RWATransferParam
 }
 
 // CreateRWAOrder places an order on a tokenised RWA market via the shared v3/order endpoint, signed with the RWA sub-account credentials.
-func (e *Exchange) CreateRWAOrder(ctx context.Context, arg *CreateOrderParams) (*OrderDetail, error) {
+func (e *Exchange) CreateRWAOrder(ctx context.Context, arg *CreateOrderRequestParams) (*OrderDetail, error) {
 	return e.CreateOrderV3(ctx, arg)
 }
 
 // ProcessRWATransferSignature returns the hex ZKLink Schnorr signature for a transfer from the given account to the receiver in arg.
-func (e *Exchange) ProcessRWATransferSignature(ctx context.Context, arg *RWATransferParams, fromZkAccountID, fromSubAccountID string, nonce int64) (string, error) {
+func (e *Exchange) ProcessRWATransferSignature(ctx context.Context, arg *RWATransferRequest, fromZkAccountID, fromSubAccountID string, nonce int64) (string, error) {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return "", err

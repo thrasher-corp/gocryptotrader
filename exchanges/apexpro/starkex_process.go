@@ -46,7 +46,7 @@ func (e *Exchange) loadSymbolsV1Config(ctx context.Context) error {
 }
 
 // ProcessOrderSignature processes order request parameter and generates a starkEx signature
-func (e *Exchange) ProcessOrderSignature(ctx context.Context, arg *CreateOrderParams) (string, error) {
+func (e *Exchange) ProcessOrderSignature(ctx context.Context, arg *CreateOrderRequestParams) (string, error) {
 	creds, err := e.GetCredentials(context.Background())
 	if err != nil {
 		return "", err
@@ -169,7 +169,7 @@ func appendSignatures(r, s *big.Int) string {
 }
 
 // ProcessWithdrawalToAddressSignatureV3 processes withdrawal to specified ethereum address request parameter and generates a starkEx signature
-func (e *Exchange) ProcessWithdrawalToAddressSignatureV3(ctx context.Context, arg *AssetWithdrawalParams) (string, error) {
+func (e *Exchange) ProcessWithdrawalToAddressSignatureV3(ctx context.Context, arg *AssetWithdrawalRequest) (string, error) {
 	creds, err := e.GetCredentials(context.Background())
 	if err != nil {
 		return "", err
@@ -238,7 +238,7 @@ func (e *Exchange) ProcessWithdrawalToAddressSignatureV3(ctx context.Context, ar
 }
 
 // ProcessWithdrawalToAddressSignature processes withdrawal to specified ethereum address request parameter and generates a starkEx signature for V1 and V2 api endpoints
-func (e *Exchange) ProcessWithdrawalToAddressSignature(ctx context.Context, arg *WithdrawalToAddressParams) (string, error) {
+func (e *Exchange) ProcessWithdrawalToAddressSignature(ctx context.Context, arg *WithdrawalToAddressRequest) (string, error) {
 	creds, err := e.GetCredentials(context.Background())
 	if err != nil {
 		return "", err
@@ -311,7 +311,7 @@ func (e *Exchange) ProcessWithdrawalToAddressSignature(ctx context.Context, arg 
 }
 
 // ProcessWithdrawalSignature processes withdrawal request parameter and generates a starkEx signature
-func (e *Exchange) ProcessWithdrawalSignature(ctx context.Context, arg *WithdrawalParams) (string, error) {
+func (e *Exchange) ProcessWithdrawalSignature(ctx context.Context, arg *WithdrawalRequest) (string, error) {
 	creds, err := e.GetCredentials(context.Background())
 	if err != nil {
 		return "", err
@@ -371,7 +371,7 @@ func (e *Exchange) ProcessWithdrawalSignature(ctx context.Context, arg *Withdraw
 }
 
 // ProcessTransferSignature processes withdrawal request parameter and generates a starkEx signature
-func (e *Exchange) ProcessTransferSignature(ctx context.Context, arg *FastWithdrawalParams) (string, error) {
+func (e *Exchange) ProcessTransferSignature(ctx context.Context, arg *FastWithdrawalRequest) (string, error) {
 	creds, err := e.GetCredentials(context.Background())
 	if err != nil {
 		return "", err
@@ -437,7 +437,7 @@ func (e *Exchange) ProcessTransferSignature(ctx context.Context, arg *FastWithdr
 }
 
 // ProcessConditionalTransfer processes conditional transfer request parameter and generates a starkEx signature
-func (e *Exchange) ProcessConditionalTransfer(ctx context.Context, arg *FastWithdrawalParams) (string, error) {
+func (e *Exchange) ProcessConditionalTransfer(ctx context.Context, arg *FastWithdrawalRequest) (string, error) {
 	creds, err := e.GetCredentials(context.Background())
 	if err != nil {
 		return "", err

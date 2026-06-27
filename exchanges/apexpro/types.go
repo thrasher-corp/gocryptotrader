@@ -426,7 +426,7 @@ type ChainInfo struct {
 	BridgeTokens         any    `json:"bridgeTokens"`
 	OmniTokens           []struct {
 		Token        string `json:"token"`
-		Decimals     int    `json:"decimals"`
+		Decimals     int64  `json:"decimals"`
 		TokenAddress string `json:"tokenAddress"`
 	} `json:"omniTokens"`
 }
@@ -589,8 +589,8 @@ type WsTrade struct {
 
 // WsTradeDetail represents a trade details
 type WsTradeDetail struct {
-	Timestamp       types.Time   `json:"T"`
 	Symbol          string       `json:"s"`
+	Timestamp       types.Time   `json:"T"`
 	Side            string       `json:"S"`
 	Volume          types.Number `json:"v"`
 	Price           types.Number `json:"p"`
@@ -656,28 +656,31 @@ type WsCandlesticks struct {
 
 // WsSymbolsTickerInformaton represents a ticker information for assets.
 type WsSymbolsTickerInformaton struct {
-	Topic string `json:"topic"`
-	Data  []struct {
-		Symbol                    string       `json:"s"`
-		LastPrice                 types.Number `json:"p"`
-		Price24HrChangePercentage types.Number `json:"pr"`
-		Highest24Hr               types.Number `json:"h"`
-		Lowest24Hr                types.Number `json:"l"`
-		OpeningPrice              types.Number `json:"op,omitempty"`
-		IndexPrice                types.Number `json:"xp"`
-		Turnover24Hr              types.Number `json:"to"`
-		Volume24Hr                types.Number `json:"v"`
-		FundingRate               types.Number `json:"fr"`
-		OpenInterest              types.Number `json:"o"`
-		TradeCount24Hr            types.Number `json:"tc"`
-		MarkPrice                 types.Number `json:"mp,omitempty"`
-	} `json:"data"`
-	Type      string     `json:"type"`
-	Timestamp types.Time `json:"ts"`
+	Topic     string               `json:"topic"`
+	Data      []SymbolTickerDetail `json:"data"`
+	Type      string               `json:"type"`
+	Timestamp types.Time           `json:"ts"`
 }
 
-// EditUserDataParams represents a request parameter to edit user data.
-type EditUserDataParams struct {
+// SymbolTickerDetail represents a symbol ticker detail
+type SymbolTickerDetail struct {
+	Symbol                    string       `json:"s"`
+	LastPrice                 types.Number `json:"p"`
+	Price24HrChangePercentage types.Number `json:"pr"`
+	Highest24Hr               types.Number `json:"h"`
+	Lowest24Hr                types.Number `json:"l"`
+	OpeningPrice              types.Number `json:"op,omitempty"`
+	IndexPrice                types.Number `json:"xp"`
+	Turnover24Hr              types.Number `json:"to"`
+	Volume24Hr                types.Number `json:"v"`
+	FundingRate               types.Number `json:"fr"`
+	OpenInterest              types.Number `json:"o"`
+	TradeCount24Hr            types.Number `json:"tc"`
+	MarkPrice                 types.Number `json:"mp,omitempty"`
+}
+
+// EditUserDataRequest represents a request parameter to edit user data.
+type EditUserDataRequest struct {
 	Email                    string `json:"email,omitempty"`
 	UserData                 string `json:"userData,omitempty"`
 	Username                 string `json:"username,omitempty"`
@@ -871,8 +874,8 @@ type UserWithdrawal struct {
 	ClientID        string       `json:"clientId"`
 }
 
-// WithdrawalToAddressParams represents a withdrawal parameter to an address through the V2 API
-type WithdrawalToAddressParams struct {
+// WithdrawalToAddressRequest represents a withdrawal parameter to an address through the V2 API
+type WithdrawalToAddressRequest struct {
 	Amount          float64       `json:"amount"`
 	ClientOrderID   string        `json:"clientId"`
 	ExpEpoch        int64         `json:"expiration"`
@@ -880,8 +883,8 @@ type WithdrawalToAddressParams struct {
 	EthereumAddress string        `json:"ethAddress"`
 }
 
-// AssetWithdrawalParams represents a user asset withdrawal parameter.
-type AssetWithdrawalParams struct {
+// AssetWithdrawalRequest represents a user asset withdrawal parameter.
+type AssetWithdrawalRequest struct {
 	Amount           float64
 	ClientWithdrawID string
 	Timestamp        time.Time
@@ -1100,50 +1103,46 @@ type TransferAndWithdrawalLimit struct {
 }
 
 // CreateOrderParams represents a request parameter for creating order.
-type CreateOrderParams struct {
-	Symbol          currency.Pair `json:"symbol"`
-	Side            string        `json:"side,omitempty"`
-	OrderType       string        `json:"type,omitempty"`
-	Size            float64       `json:"size,omitempty,string"`
-	Price           float64       `json:"price,omitempty,string"`
-	LimitFee        float64       `json:"limitFee,omitempty,string"`
-	ExpirationTime  int64         `json:"expiration,omitempty,string"`
-	TimeInForce     string        `json:"timeInForce,omitempty"`
-	TriggerPrice    float64       `json:"triggerPrice,omitempty,string"`
-	TrailingPercent float64       `json:"trailingPercent,omitempty,string"`
-	ClientOrderID   string        `json:"clientOrderId,omitempty"`
-	ReduceOnly      bool          `json:"reduceOnly,omitempty,string"`
-	Signature       string        `json:"signature,omitempty"`
-
-	TriggerPriceType string `json:"triggerPriceType"`
-
-	ClientID        string `json:"clientId,omitempty"`
-	IsPositionTPSL  string `json:"isPositionTpsl,omitempty"`
-	IsOpenTPSLOrder string `json:"isOpenTpslOrder,omitempty"`
-
-	IsSetOpenStopLoss   string `json:"isSetOpenSl,omitempty"`
-	IsSetOpenTakeProfit string `json:"isSetOpenTp,omitempty"`
-
-	StopLossClientOrderID      string `json:"slClientOrderId,omitempty"`
-	StopLossPrice              string `json:"slPrice,omitempty"`
-	StopLossSide               string `json:"slSide,omitempty"`
-	StopLossSize               string `json:"slSize,omitempty"`
-	StopLossTriggerPrice       string `json:"slTriggerPrice,omitempty"`
-	StopLossTriggerPriceType   string `json:"slTriggerPriceType,omitempty"`
-	StopLossExpiration         string `json:"slExpiration,omitempty"`
-	StopLossLimitFee           string `json:"slLimitFee,omitempty"`
-	StopLossSignature          string `json:"slSignature,omitempty"`
-	TakeProfitClientOrderID    string `json:"tpClientOrderId,omitempty"`
-	TakeProfitPrice            string `json:"tpPrice,omitempty"`
-	TakeProfitSide             string `json:"tpSide,omitempty"`
-	TakeProfitSize             string `json:"tpSize,omitempty"`
-	TakeProfitTriggerPrice     string `json:"tpTriggerPrice,omitempty"`
-	TakeProfitTriggerPriceType string `json:"tpTriggerPriceType,omitempty"`
-	TakeProfitExpiration       string `json:"tpExpiration,omitempty"`
-	TakeProfitLimitFee         string `json:"tpLimitFee,omitempty"`
-	TakeProfitSignature        string `json:"tpSignature,omitempty"`
-	SourceFlag                 string `json:"sourceFlag,omitempty"`
-	BrokerID                   string `json:"brokerId,omitempty"`
+type CreateOrderRequestParams struct {
+	Symbol                     currency.Pair `json:"symbol"`
+	Side                       string        `json:"side,omitempty"`
+	OrderType                  string        `json:"type,omitempty"`
+	Size                       float64       `json:"size,omitempty,string"`
+	Price                      float64       `json:"price,omitempty,string"`
+	LimitFee                   float64       `json:"limitFee,omitempty,string"`
+	ExpirationTime             int64         `json:"expiration,omitempty,string"`
+	TimeInForce                string        `json:"timeInForce,omitempty"`
+	TriggerPrice               float64       `json:"triggerPrice,omitempty,string"`
+	TrailingPercent            float64       `json:"trailingPercent,omitempty,string"`
+	ClientOrderID              string        `json:"clientOrderId,omitempty"`
+	ReduceOnly                 bool          `json:"reduceOnly,omitempty,string"`
+	Signature                  string        `json:"signature,omitempty"`
+	TriggerPriceType           string        `json:"triggerPriceType"`
+	ClientID                   string        `json:"clientId,omitempty"`
+	IsPositionTPSL             string        `json:"isPositionTpsl,omitempty"`
+	IsOpenTPSLOrder            string        `json:"isOpenTpslOrder,omitempty"`
+	IsSetOpenStopLoss          string        `json:"isSetOpenSl,omitempty"`
+	IsSetOpenTakeProfit        string        `json:"isSetOpenTp,omitempty"`
+	StopLossClientOrderID      string        `json:"slClientOrderId,omitempty"`
+	StopLossPrice              string        `json:"slPrice,omitempty"`
+	StopLossSide               string        `json:"slSide,omitempty"`
+	StopLossSize               string        `json:"slSize,omitempty"`
+	StopLossTriggerPrice       string        `json:"slTriggerPrice,omitempty"`
+	StopLossTriggerPriceType   string        `json:"slTriggerPriceType,omitempty"`
+	StopLossExpiration         string        `json:"slExpiration,omitempty"`
+	StopLossLimitFee           string        `json:"slLimitFee,omitempty"`
+	StopLossSignature          string        `json:"slSignature,omitempty"`
+	TakeProfitClientOrderID    string        `json:"tpClientOrderId,omitempty"`
+	TakeProfitPrice            string        `json:"tpPrice,omitempty"`
+	TakeProfitSide             string        `json:"tpSide,omitempty"`
+	TakeProfitSize             string        `json:"tpSize,omitempty"`
+	TakeProfitTriggerPrice     string        `json:"tpTriggerPrice,omitempty"`
+	TakeProfitTriggerPriceType string        `json:"tpTriggerPriceType,omitempty"`
+	TakeProfitExpiration       string        `json:"tpExpiration,omitempty"`
+	TakeProfitLimitFee         string        `json:"tpLimitFee,omitempty"`
+	TakeProfitSignature        string        `json:"tpSignature,omitempty"`
+	SourceFlag                 string        `json:"sourceFlag,omitempty"`
+	BrokerID                   string        `json:"brokerId,omitempty"`
 }
 
 // SignatureInfo holds the r and s signature string of ECDSA signature
@@ -1152,8 +1151,8 @@ type SignatureInfo struct {
 	S string `json:"s,omitempty"`
 }
 
-// WithdrawalParams represents an asset withdrawal parameters
-type WithdrawalParams struct {
+// WithdrawalRequest represents an asset withdrawal parameters
+type WithdrawalRequest struct {
 	Amount   float64
 	ClientID string
 	Asset    currency.Code
@@ -1162,8 +1161,8 @@ type WithdrawalParams struct {
 	ExpEpoch        int64
 }
 
-// FastWithdrawalParams represents a cross-chain withdrawal parameters
-type FastWithdrawalParams struct {
+// FastWithdrawalRequest represents a cross-chain withdrawal parameters
+type FastWithdrawalRequest struct {
 	Amount       float64       `json:"amount"`
 	ClientID     string        `json:"clientId"`
 	Expiration   int64         `json:"expiration"`
@@ -1321,8 +1320,8 @@ type AccountNotificationInfo struct {
 	CreatedTime types.Time `json:"createdTime"`
 }
 
-// CreateOrderParam represents a stark order creation parameters
-type CreateOrderParam struct {
+// CreateOrderRequest represents a stark order creation parameters
+type CreateOrderRequest struct {
 	AmountCollateral    string         `json:"amount_collateral"`
 	AmountFee           string         `json:"amount_fee"`
 	AmountSynthetic     string         `json:"amount_synthetic"`
@@ -1352,8 +1351,8 @@ type RepaymentTokenAndAmount struct {
 	Amount float64
 }
 
-// UserLoanRepaymentParams holds user manual loans repayment parameter
-type UserLoanRepaymentParams struct {
+// UserLoanRepaymentRequest holds user manual loans repayment parameter
+type UserLoanRepaymentRequest struct {
 	RepaymentTokens     []*RepaymentTokenAndAmount `json:"repaymentTokens"`
 	ClientID            string                     `json:"clientId"`
 	PoolRepaymentTokens []*RepaymentTokenAndAmount `json:"poolRepaymentTokens"`
@@ -1372,8 +1371,8 @@ func (l LoanRepaymentTokenAndAmountList) MarshalJSON() ([]byte, error) {
 	return byteData, nil
 }
 
-// UserManualRepaymentParams holds request parameters for user manual repayments
-type UserManualRepaymentParams struct {
+// UserManualRepaymentRequest holds request parameters for user manual repayments
+type UserManualRepaymentRequest struct {
 	LoanRepaymentTokenAndAmount LoanRepaymentTokenAndAmountList
 	ClientID                    string
 	ExpiryTime                  time.Time
@@ -1385,15 +1384,15 @@ type IDResponse struct {
 	ID string `json:"id"`
 }
 
-// RWARegisterAccountParams holds the parameters required to register a Real World Asset (RWA) sub-account.
-type RWARegisterAccountParams struct {
+// RWARegisterAccountRequest holds the parameters required to register a Real World Asset (RWA) sub-account.
+type RWARegisterAccountRequest struct {
 	L2Key           string `json:"l2Key"`
 	MasterAccountID string `json:"masterAccountId"`
 	Signature       string `json:"signature"`
 }
 
-// RWAGenerateAPIKeyParams holds the parameters required to generate API credentials for an RWA sub-account.
-type RWAGenerateAPIKeyParams struct {
+// RWAGenerateAPIKeyRequest holds the parameters required to generate API credentials for an RWA sub-account.
+type RWAGenerateAPIKeyRequest struct {
 	L2Key      string `json:"l2Key"`
 	WalletName string `json:"walletName"`
 	AccountID  string `json:"accountId"`
@@ -1449,8 +1448,8 @@ type RWASubAccountInfo struct {
 	AccountType string `json:"accountType"`
 }
 
-// RWATransferParams holds the parameters required to transfer assets to or from an RWA sub-account.
-type RWATransferParams struct {
+// RWATransferRequest holds the parameters required to transfer assets to or from an RWA sub-account.
+type RWATransferRequest struct {
 	Amount            float64
 	Asset             currency.Code
 	ReceiverAccountID string
