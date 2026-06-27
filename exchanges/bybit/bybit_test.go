@@ -3064,7 +3064,7 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 	ex.API.AuthenticatedSupport = true
 	ex.API.AuthenticatedWebsocketSupport = true
-	ex.SetCredentials("test", "test", "", "", "", "")
+	ex.SetCredentials("test", "test", "", "", "", "", "", "", "")
 	formattedOptionsPair, err := ex.FormatExchangeCurrency(optionsTradablePair, asset.Options)
 	require.NoError(t, err)
 	storeFixturePairs := func(a asset.Item, pairs currency.Pairs) {

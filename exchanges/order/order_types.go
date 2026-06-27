@@ -97,6 +97,8 @@ type Submit struct {
 	// Iceberg specifies whether or not only visible portions of orders are shown in iceberg orders
 	Iceberg bool
 
+	// Specifies  used with trailing stop order types.
+	TrailingPercent float64
 	// EndTime is the moment which a good til date order is valid until
 	EndTime time.Time
 

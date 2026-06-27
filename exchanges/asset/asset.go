@@ -45,6 +45,10 @@ const (
 	Spread
 	Options
 	OptionCombo
+
+	// RealWorldAsset represents a real world asset such as a stock, bond, commodity, etc. that is tokenized on a blockchain.
+	RealWorldAsset
+
 	// All asset const must come immediately after all valid assets for method `IsValid`
 	All
 )
@@ -71,6 +75,7 @@ const (
 	optionCombo            = "option_combo"
 	futureCombo            = "future_combo"
 	linearContract         = "linearcontract"
+	realWorldAsset         = "rwa"
 	all                    = "all"
 )
 
@@ -124,6 +129,8 @@ func (a Item) String() string {
 		return futureCombo
 	case LinearContract:
 		return linearContract
+	case RealWorldAsset:
+		return realWorldAsset
 	case All:
 		return all
 	default:
@@ -307,6 +314,8 @@ func New(input string) (Item, error) {
 		return FutureCombo, nil
 	case linearContract:
 		return LinearContract, nil
+	case realWorldAsset:
+		return RealWorldAsset, nil
 	case all:
 		return All, nil
 	default:
