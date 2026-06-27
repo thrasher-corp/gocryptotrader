@@ -656,7 +656,7 @@
       },
       "configFormat": {
        "uppercase": true,
-       "delimiter": "-"
+       "delimiter": ":"
       }
      },
      "spot": {

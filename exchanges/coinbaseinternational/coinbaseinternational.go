@@ -309,7 +309,7 @@ func (e *Exchange) CreateOrder(ctx context.Context, arg *OrderRequestParams) (*O
 	if arg.TimeInForce == "" {
 		return nil, fmt.Errorf("%w: time-in-force is missing", order.ErrInvalidTimeInForce)
 	}
-	if arg.Instrument.IsEmpty() {
+	if arg.Instrument == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
 	var resp *OrderDetail
@@ -343,7 +343,7 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, instrument currency.Pair, 
 		params.Set("order_type", orderType)
 	}
 	if !startingDateTime.IsZero() {
-		params.Set("ref_datetime", startingDateTime.String())
+		params.Set("ref_datetime", startingDateTime.UTC().Format("2006-01-02T15:04:05Z"))
 	}
 	if resultOffset > 0 {
 		params.Set("result_offset", strconv.FormatInt(resultOffset, 10))
@@ -855,7 +855,7 @@ func (e *Exchange) TransferFundsBetweenPortfolios(ctx context.Context, arg *Tran
 	if arg.To == "" {
 		return false, fmt.Errorf("%w: destination portfolio account is missing", errMissingPortfolioID)
 	}
-	if arg.AssetID.IsEmpty() {
+	if arg.AssetID == "" {
 		return false, errAssetIdentifierRequired
 	}
 	if arg.Amount <= 0 {
@@ -941,10 +941,10 @@ func (e *Exchange) ListMatchingTransfers(ctx context.Context, portfolios []strin
 		params.Set("type", transferType)
 	}
 	if !timeFrom.IsZero() {
-		params.Set("time_from", timeFrom.String())
+		params.Set("time_from", timeFrom.UTC().Format("2006-01-02T15:04:05Z"))
 	}
 	if !timeTo.IsZero() {
-		params.Set("time_to", timeTo.String())
+		params.Set("time_to", timeTo.UTC().Format("2006-01-02T15:04:05Z"))
 	}
 	var resp *Transfers
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "transfers", params, nil, &resp, true)
@@ -1126,12 +1126,12 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, method,
 		Title  string `json:"title"`
 		Status int64  `json:"status"`
 	}
-	if err := json.Unmarshal(intrim, &errorMessage); err != nil {
-		return err
-	}
-	if errorMessage.Status != 0 {
+	// Error responses are JSON objects carrying a non-zero status; successful
+	// responses may be bare JSON arrays which won't match this shape, so an
+	// unmarshal failure here is not itself an error - decode the result below.
+	if json.Unmarshal(intrim, &errorMessage) == nil && errorMessage.Status != 0 {
 		if authenticated {
-			return fmt.Errorf("%v %w status: %d title: %s", err, request.ErrAuthRequestFailed, errorMessage.Status, errorMessage.Title)
+			return fmt.Errorf("%w status: %d title: %s", request.ErrAuthRequestFailed, errorMessage.Status, errorMessage.Title)
 		}
 		return fmt.Errorf("status: %d Title: %s", errorMessage.Status, errorMessage.Title)
 	}

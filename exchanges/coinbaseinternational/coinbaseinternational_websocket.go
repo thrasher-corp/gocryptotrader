@@ -9,7 +9,6 @@ import (
 	"time"
 
 	gws "github.com/gorilla/websocket"
-	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -134,83 +133,69 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 }
 
 func (e *Exchange) processOrderbookLevel2(respRaw []byte) error {
-	var resp []*WsOrderbookLevel2
+	var resp *WsOrderbookLevel2
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
-	for x := range resp {
-		pair, err := currency.NewPairFromString(resp[x].ProductID)
-		if err != nil {
-			return err
-		}
-		if resp[x].Type == "UPDATE" {
-			if err := e.Websocket.Orderbook.Update(&orderbook.Update{
-				UpdateID:   resp[x].Sequence,
-				UpdateTime: resp[x].Time,
-				Asset:      asset.Spot,
-				Action:     orderbook.UpdateAction,
-				Bids:       resp[x].Bids.Levels(),
-				Asks:       resp[x].Asks.Levels(),
-				Pair:       pair,
-			}); err != nil {
-				return err
-			}
-		}
-		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-			Bids:         resp[x].Bids.Levels(),
-			Asks:         resp[x].Asks.Levels(),
-			Pair:         pair,
-			Exchange:     e.Name,
-			Asset:        asset.Spot,
-			LastUpdated:  resp[x].Time,
-			LastUpdateID: resp[x].Sequence,
-		}); err != nil {
-			return err
-		}
+	pair, err := currency.NewPairFromString(resp.ProductID)
+	if err != nil {
+		return err
 	}
-	return nil
+	if resp.Type == "UPDATE" {
+		return e.Websocket.Orderbook.Update(&orderbook.Update{
+			UpdateID:   resp.Sequence,
+			UpdateTime: resp.Time,
+			Asset:      asset.Spot,
+			Action:     orderbook.UpdateAction,
+			Bids:       resp.Bids.Levels(),
+			Asks:       resp.Asks.Levels(),
+			Pair:       pair,
+		})
+	}
+	return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		Bids:         resp.Bids.Levels(),
+		Asks:         resp.Asks.Levels(),
+		Pair:         pair,
+		Exchange:     e.Name,
+		Asset:        asset.Spot,
+		LastUpdated:  resp.Time,
+		LastUpdateID: resp.Sequence,
+	})
 }
 
 func (e *Exchange) processOrderbookLevel1(respRaw []byte) error {
-	var resp []*WsOrderbookLevel1
+	var resp *WsOrderbookLevel1
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
-	for x := range resp {
-		pair, err := currency.NewPairFromString(resp[x].ProductID)
-		if err != nil {
-			return err
-		}
-		if resp[x].Type == "UPDATE" {
-			if err := e.Websocket.Orderbook.Update(&orderbook.Update{
-				Pair:       pair,
-				Asset:      asset.Spot,
-				UpdateTime: resp[x].Time,
-				Action:     orderbook.UpdateAction,
-				UpdateID:   resp[x].Sequence,
-				Asks:       []orderbook.Level{{Price: resp[x].AskPrice.Float64(), Amount: resp[x].AskQty.Float64()}},
-				Bids:       []orderbook.Level{{Price: resp[x].BidPrice.Float64(), Amount: resp[x].BidQuantity.Float64()}},
-			}); err != nil {
-				return err
-			}
-		}
-		if err := e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-			Pair:         pair,
-			Exchange:     e.Name,
-			Asset:        asset.Spot,
-			LastUpdated:  resp[x].Time,
-			LastUpdateID: resp[x].Sequence,
-			Asks:         []orderbook.Level{{Price: resp[x].AskPrice.Float64(), Amount: resp[x].AskQty.Float64()}},
-			Bids:         []orderbook.Level{{Price: resp[x].BidPrice.Float64(), Amount: resp[x].BidQuantity.Float64()}},
-		}); err != nil {
-			return err
-		}
+	pair, err := currency.NewPairFromString(resp.ProductID)
+	if err != nil {
+		return err
 	}
-	return nil
+	if resp.Type == "UPDATE" {
+		return e.Websocket.Orderbook.Update(&orderbook.Update{
+			Pair:       pair,
+			Asset:      asset.Spot,
+			UpdateTime: resp.Time,
+			Action:     orderbook.UpdateAction,
+			UpdateID:   resp.Sequence,
+			Asks:       []orderbook.Level{{Price: resp.AskPrice.Float64(), Amount: resp.AskQty.Float64()}},
+			Bids:       []orderbook.Level{{Price: resp.BidPrice.Float64(), Amount: resp.BidQuantity.Float64()}},
+		})
+	}
+	return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		Pair:         pair,
+		Exchange:     e.Name,
+		Asset:        asset.Spot,
+		LastUpdated:  resp.Time,
+		LastUpdateID: resp.Sequence,
+		Asks:         []orderbook.Level{{Price: resp.AskPrice.Float64(), Amount: resp.AskQty.Float64()}},
+		Bids:         []orderbook.Level{{Price: resp.BidPrice.Float64(), Amount: resp.BidQuantity.Float64()}},
+	})
 }
 
 func (e *Exchange) processRisk(respRaw []byte) error {
-	var resp []*WsRisk
+	var resp *WsRisk
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
@@ -218,22 +203,18 @@ func (e *Exchange) processRisk(respRaw []byte) error {
 }
 
 func (e *Exchange) processFunding(respRaw []byte) error {
-	var resp []*WsFunding
+	var resp *WsFunding
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
-	fundingInfos := make([]fundingrate.Rate, len(resp))
-	for x := range resp {
-		fundingInfos[x] = fundingrate.Rate{
-			Time: resp[x].Time,
-			Rate: decimal.NewFromFloat(resp[x].FundingRate.Float64()),
-		}
-	}
-	return e.Websocket.DataHandler.Send(context.Background(), fundingInfos)
+	return e.Websocket.DataHandler.Send(context.Background(), fundingrate.Rate{
+		Time: resp.Time,
+		Rate: resp.FundingRate.Decimal(),
+	})
 }
 
 func (e *Exchange) processMatch(respRaw []byte) error {
-	var resp []*WsMatch
+	var resp *WsMatch
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
@@ -241,7 +222,7 @@ func (e *Exchange) processMatch(respRaw []byte) error {
 }
 
 func (e *Exchange) processInstruments(respRaw []byte) error {
-	var resp []*WsInstrument
+	var resp *WsInstrument
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}

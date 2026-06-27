@@ -202,10 +202,10 @@ func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
 
 // UpdateTicker updates and returns the ticker for a currency pair
 func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType asset.Item) (*ticker.Price, error) {
-	if assetType != asset.Spot {
-		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, asset.Spot)
+	if !e.SupportsAsset(assetType) {
+		return nil, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
 	}
-	format, err := e.GetPairFormat(asset.Spot, true)
+	format, err := e.GetPairFormat(assetType, true)
 	if err != nil {
 		return nil, err
 	}
@@ -227,12 +227,12 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, assetType 
 		LastUpdated:  tick.Timestamp,
 		Volume:       tick.TradeQty.Float64(),
 		ExchangeName: e.Name,
-		AssetType:    asset.Spot,
-		Pair:         p.Format(format),
+		AssetType:    assetType,
+		Pair:         p,
 	}); err != nil {
 		return nil, err
 	}
-	return ticker.GetTicker(e.Name, p, asset.Spot)
+	return ticker.GetTicker(e.Name, p, assetType)
 }
 
 // UpdateTickers updates all currency pairs of a given asset type
@@ -241,7 +241,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 		return fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
 	}
 	var tick *QuoteInformation
-	enabledPairs, err := e.GetEnabledPairs(asset.Spot)
+	enabledPairs, err := e.GetEnabledPairs(assetType)
 	if err != nil {
 		return err
 	}
@@ -260,10 +260,10 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			Open:         tick.MarkPrice.Float64(),
 			Close:        tick.SettlementPrice.Float64(),
 			LastUpdated:  tick.Timestamp,
-			Volume:       tick.TradeQty.Float64() / tick.TradePrice.Float64(),
-			QuoteVolume:  tick.TradeQty.Float64(),
+			Volume:       tick.TradeQty.Float64(),
+			QuoteVolume:  tick.TradeQty.Float64() * tick.TradePrice.Float64(),
 			Pair:         enabledPairs[x],
-			AssetType:    asset.Spot,
+			AssetType:    assetType,
 			ExchangeName: e.Name,
 		}); err != nil {
 			return err
@@ -443,7 +443,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		ClientOrderID: s.ClientOrderID,
 		Side:          s.Side.String(),
 		BaseSize:      s.Amount,
-		Instrument:    s.Pair,
+		Instrument:    s.Pair.String(),
 		OrderType:     oType,
 		Price:         s.Price,
 		StopPrice:     s.TriggerPrice,
@@ -648,7 +648,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 		if err != nil {
 			return nil, err
 		}
-		if len(getOrdersRequest.Pairs) != 0 && getOrdersRequest.Pairs.Contains(orderDetail.Symbol, true) {
+		if len(getOrdersRequest.Pairs) != 0 && !getOrdersRequest.Pairs.Contains(orderDetail.Symbol, true) {
 			continue
 		}
 		tif, err := order.StringToTimeInForce(orderDetail.TimeInForce)

@@ -42,45 +42,45 @@ type AssetInfoWithSupportedNetwork struct {
 
 // InstrumentInfo represents an instrument detail for specific instrument id.
 type InstrumentInfo struct {
-	InstrumentID              string              `json:"instrument_id"`
-	InstrumentUUID            string              `json:"instrument_uuid"`
-	Symbol                    currency.Pair       `json:"symbol"`
-	Type                      string              `json:"type"`
-	BaseAssetID               string              `json:"base_asset_id"`
-	BaseAssetUUID             string              `json:"base_asset_uuid"`
-	BaseAssetName             string              `json:"base_asset_name"`
-	QuoteAssetID              string              `json:"quote_asset_id"`
-	QuoteAssetUUID            string              `json:"quote_asset_uuid"`
-	QuoteAssetName            string              `json:"quote_asset_name"`
-	BaseIncrement             types.Number        `json:"base_increment"`
-	QuoteIncrement            types.Number        `json:"quote_increment"`
-	PriceBandPercent          float64             `json:"price_band_percent"`
-	MarketOrderPercent        float64             `json:"market_order_percent"`
-	Quantity24Hr              types.Number        `json:"qty_24hr"`
-	Notional24Hr              types.Number        `json:"notional_24hr"`
-	AvgDailyQuantity          types.Number        `json:"avg_daily_qty"`
-	AvgDailyNotional          types.Number        `json:"avg_daily_notional"`
-	PreviousDayQuantity       types.Number        `json:"previous_day_qty"`
-	OpenInterest              types.Number        `json:"open_interest"`
-	PositionLimitQty          types.Number        `json:"position_limit_qty"`
-	PositionLimitAdqPct       float64             `json:"position_limit_adq_pct"`
-	PositionNotionalLimit     types.Number        `json:"position_notional_limit"`
-	OpenInterestNotionalLimit types.Number        `json:"open_interest_notional_limit"`
-	ReplacementCost           types.Number        `json:"replacement_cost"`
-	BaseImf                   float64             `json:"base_imf"`
-	MinNotionalValue          string              `json:"min_notional_value"`
-	FundingInterval           string              `json:"funding_interval"`
-	TradingState              string              `json:"trading_state"`
-	PositionLimitAdv          float64             `json:"position_limit_adv"`
-	InitialMarginAdv          float64             `json:"initial_margin_adv"`
-	Mode                      string              `json:"mode"`
-	Average30DayNotional      string              `json:"avg_30day_notional"`
-	Average30DayQuantity      types.Number        `json:"avg_30day_qty"`
-	Quote                     ContractQuoteDetail `json:"quote,omitempty"`
-	DefaultImf                float64             `json:"default_imf,omitempty"`
-	BaseAssetMultiplier       string              `json:"base_asset_multiplier"`
-	UnderlyingType            string              `json:"underlying_type"`
-	RFQMakerFeeRate           types.Number        `json:"rfq_maker_fee_rate"`
+	InstrumentID              string               `json:"instrument_id"`
+	InstrumentUUID            string               `json:"instrument_uuid"`
+	Symbol                    currency.Pair        `json:"symbol"`
+	Type                      string               `json:"type"`
+	BaseAssetID               string               `json:"base_asset_id"`
+	BaseAssetUUID             string               `json:"base_asset_uuid"`
+	BaseAssetName             string               `json:"base_asset_name"`
+	QuoteAssetID              string               `json:"quote_asset_id"`
+	QuoteAssetUUID            string               `json:"quote_asset_uuid"`
+	QuoteAssetName            string               `json:"quote_asset_name"`
+	BaseIncrement             types.Number         `json:"base_increment"`
+	QuoteIncrement            types.Number         `json:"quote_increment"`
+	PriceBandPercent          float64              `json:"price_band_percent"`
+	MarketOrderPercent        float64              `json:"market_order_percent"`
+	Quantity24Hr              types.Number         `json:"qty_24hr"`
+	Notional24Hr              types.Number         `json:"notional_24hr"`
+	AvgDailyQuantity          types.Number         `json:"avg_daily_qty"`
+	AvgDailyNotional          types.Number         `json:"avg_daily_notional"`
+	PreviousDayQuantity       types.Number         `json:"previous_day_qty"`
+	OpenInterest              types.Number         `json:"open_interest"`
+	PositionLimitQty          types.Number         `json:"position_limit_qty"`
+	PositionLimitAdqPct       float64              `json:"position_limit_adq_pct"`
+	PositionNotionalLimit     types.Number         `json:"position_notional_limit"`
+	OpenInterestNotionalLimit types.Number         `json:"open_interest_notional_limit"`
+	ReplacementCost           types.Number         `json:"replacement_cost"`
+	BaseImf                   float64              `json:"base_imf"`
+	MinNotionalValue          types.Number         `json:"min_notional_value"`
+	FundingInterval           string               `json:"funding_interval"`
+	TradingState              string               `json:"trading_state"`
+	PositionLimitAdv          float64              `json:"position_limit_adv"`
+	InitialMarginAdv          float64              `json:"initial_margin_adv"`
+	Mode                      string               `json:"mode"`
+	Average30DayNotional      types.Number         `json:"avg_30day_notional"`
+	Average30DayQuantity      types.Number         `json:"avg_30day_qty"`
+	Quote                     *ContractQuoteDetail `json:"quote,omitempty"`
+	DefaultIMF                float64              `json:"default_imf,omitempty"`
+	BaseAssetMultiplier       types.Number         `json:"base_asset_multiplier"`
+	UnderlyingType            string               `json:"underlying_type"`
+	RFQMakerFeeRate           types.Number         `json:"rfq_maker_fee_rate"`
 }
 
 // ContractQuoteDetail represents a contract quote detail
@@ -231,22 +231,22 @@ type QuoteInformation struct {
 
 // OrderRequestParams represents a request parameter for creating order.
 type OrderRequestParams struct {
-	ClientOrderID  string        `json:"client_order_id"`
-	Side           string        `json:"side,omitempty"`
-	BaseSize       float64       `json:"size,omitempty,string"`
-	TimeInForce    string        `json:"tif,omitempty"`        // Possible values: [GTC, IOC, GTT]
-	Instrument     currency.Pair `json:"instrument,omitempty"` // The name, ID, or UUID of the instrument the order wants to transact
-	OrderType      string        `json:"type,omitempty"`
-	Price          float64       `json:"price,omitempty,string"`
-	StopPrice      float64       `json:"stop_price,omitempty,string"`
-	StopLimitPrice float64       `json:"stop_limit_price,omitempty"`
-	ExpireTime     string        `json:"expire_time,omitempty"` // e.g., 2023-03-16T23:59:53Z
-	Portfolio      string        `json:"portfolio,omitempty"`
-	User           string        `json:"user,omitempty"`     // The ID or UUID of the user the order belongs to (only used and required for brokers)
-	STPMode        string        `json:"stp_mode,omitempty"` // Possible values: [NONE, AGGRESSING, BOTH]
-	PostOnly       bool          `json:"post_only,omitempty"`
-	CloseOnly      bool          `json:"close_only,omitempty"`
-	AlgoStrategy   string        `json:"algo_strategy,omitempty"`
+	ClientOrderID  string  `json:"client_order_id"`
+	Side           string  `json:"side,omitempty"`
+	BaseSize       float64 `json:"size,omitempty,string"`
+	TimeInForce    string  `json:"tif,omitempty"`        // Possible values: [GTC, IOC, GTT]
+	Instrument     string  `json:"instrument,omitempty"` // The name, ID, or UUID of the instrument the order wants to transact
+	OrderType      string  `json:"type,omitempty"`
+	Price          float64 `json:"price,omitempty,string"`
+	StopPrice      float64 `json:"stop_price,omitempty,string"`
+	StopLimitPrice float64 `json:"stop_limit_price,omitempty"`
+	ExpireTime     string  `json:"expire_time,omitempty"` // e.g., 2023-03-16T23:59:53Z
+	Portfolio      string  `json:"portfolio,omitempty"`
+	User           string  `json:"user,omitempty"`     // The ID or UUID of the user the order belongs to (only used and required for brokers)
+	STPMode        string  `json:"stp_mode,omitempty"` // Possible values: [NONE, AGGRESSING, BOTH]
+	PostOnly       bool    `json:"post_only,omitempty"`
+	CloseOnly      bool    `json:"close_only,omitempty"`
+	AlgoStrategy   string  `json:"algo_strategy,omitempty"`
 }
 
 // Orders represents an open order detail.
@@ -563,10 +563,10 @@ type PortfolioPositionLimit struct {
 
 // TransferFundsBetweenPortfoliosParams transfer assets from one portfolio to another
 type TransferFundsBetweenPortfoliosParams struct {
-	From    string        `json:"from,omitempty"`
-	To      string        `json:"to,omitempty"`
-	AssetID currency.Code `json:"asset,omitempty"`
-	Amount  float64       `json:"amount,omitempty"`
+	From    string  `json:"from,omitempty"`
+	To      string  `json:"to,omitempty"`
+	AssetID string  `json:"asset,omitempty"`
+	Amount  float64 `json:"amount,omitempty"`
 }
 
 // TransferPortfolioParams represents a response detail for transfer an existing position from one portfolio to another
@@ -658,12 +658,12 @@ type WithdrawToCoinbaseINTXParam struct {
 
 // WithdrawToCoinbaseResponse represents a response after withdrawing to coinbase account.
 type WithdrawToCoinbaseResponse struct {
-	ID       string       `json:"id"`
-	Amount   types.Number `json:"amount"`
-	Fee      types.Number `json:"fee"`
-	Currency string       `json:"currency"`
-	PayoutAt string       `json:"payout_at"`
-	Subtotal string       `json:"subtotal"`
+	ID       string        `json:"id"`
+	Amount   types.Number  `json:"amount"`
+	Fee      types.Number  `json:"fee"`
+	Currency currency.Code `json:"currency"`
+	PayoutAt string        `json:"payout_at"`
+	Subtotal types.Number  `json:"subtotal"`
 }
 
 // WithdrawCryptoParams holds crypto fund withdrawal information.
@@ -746,11 +746,11 @@ type SubscriptionInput struct {
 
 // SubscriptionResponse represents a subscription response
 type SubscriptionResponse struct {
-	Channels      []*SubscribedChannel `json:"channels,omitempty"`
-	Authenticated bool                 `json:"authenticated,omitempty"`
-	Channel       string               `json:"channel,omitempty"`
-	Type          string               `json:"type,omitempty"`
-	Time          time.Time            `json:"time,omitempty"`
+	Channels      []*SubscribedChannel `json:"channels"`
+	Authenticated bool                 `json:"authenticated"`
+	Channel       string               `json:"channel"`
+	Type          string               `json:"type"`
+	Time          types.Time           `json:"time"`
 
 	// Error message and failure reason information.
 	Message string `json:"message,omitempty"`

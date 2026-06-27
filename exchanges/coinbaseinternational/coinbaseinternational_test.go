@@ -306,7 +306,7 @@ func TestCreateOrder(t *testing.T) {
 		ClientOrderID: "123442",
 		Side:          "BUY",
 		BaseSize:      1,
-		Instrument:    perpetualTP,
+		Instrument:    perpetualTP.String(),
 		OrderType:     orderType,
 		Price:         12345.67,
 		ExpireTime:    "",
@@ -706,11 +706,11 @@ func TestTransferFundsBetweenPortfolios(t *testing.T) {
 	_, err = e.TransferFundsBetweenPortfolios(t.Context(), &TransferFundsBetweenPortfoliosParams{From: "892e8c7c-e979-4cad-b61b-55a197932cf1", To: "5189861793641175"})
 	require.ErrorIs(t, err, errAssetIdentifierRequired)
 
-	_, err = e.TransferFundsBetweenPortfolios(t.Context(), &TransferFundsBetweenPortfoliosParams{From: "892e8c7c-e979-4cad-b61b-55a197932cf1", To: "5189861793641175", AssetID: currency.BTC})
+	_, err = e.TransferFundsBetweenPortfolios(t.Context(), &TransferFundsBetweenPortfoliosParams{From: "892e8c7c-e979-4cad-b61b-55a197932cf1", To: "5189861793641175", AssetID: currency.BTC.String()})
 	require.ErrorIs(t, err, order.ErrAmountIsInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.TransferFundsBetweenPortfolios(t.Context(), &TransferFundsBetweenPortfoliosParams{From: "892e8c7c-e979-4cad-b61b-55a197932cf1", To: "5189861793641175", AssetID: currency.BTC, Amount: 1})
+	result, err := e.TransferFundsBetweenPortfolios(t.Context(), &TransferFundsBetweenPortfoliosParams{From: "892e8c7c-e979-4cad-b61b-55a197932cf1", To: "5189861793641175", AssetID: currency.BTC.String(), Amount: 1})
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
