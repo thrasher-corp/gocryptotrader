@@ -458,7 +458,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 	for x := range transfers.Transfers {
 		resp[x] = exchange.FundingHistory{
 			ExchangeName: e.Name,
-			Status:       resp[x].Status,
+			Status:       transfers.Transfers[x].Status,
 			Timestamp:    transfers.Transfers[x].UpdatedTime.Time(),
 			Currency:     transfers.Transfers[x].CurrencyID,
 			Amount:       transfers.Transfers[x].Amount.Float64(),
@@ -650,7 +650,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, _ currency.
 		ContractAmount:  orderDetail.Size.Float64(),
 		TriggerPrice:    orderDetail.TriggerPrice.Float64(),
 		ExecutedAmount:  orderDetail.CumMatchFillSize.Float64(),
-		RemainingAmount: orderDetail.Size.Float64() - orderDetail.TriggerPrice.Float64(),
+		RemainingAmount: orderDetail.Size.Float64() - orderDetail.CumMatchFillSize.Float64(),
 		Fee:             orderDetail.Fee.Float64(),
 		Exchange:        e.Name,
 		OrderID:         orderDetail.ID,
@@ -749,7 +749,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 			ContractAmount:  orders[a].Size.Float64(),
 			TriggerPrice:    orders[a].TriggerPrice.Float64(),
 			ExecutedAmount:  orders[a].CumMatchFillSize.Float64(),
-			RemainingAmount: orders[a].Size.Float64() - orders[a].TriggerPrice.Float64(),
+			RemainingAmount: orders[a].Size.Float64() - orders[a].CumMatchFillSize.Float64(),
 			Fee:             orders[a].Fee.Float64(),
 			Exchange:        e.Name,
 			OrderID:         orders[a].ID,

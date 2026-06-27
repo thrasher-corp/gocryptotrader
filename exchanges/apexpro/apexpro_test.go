@@ -1808,3 +1808,73 @@ func TestUpdateAccountBalancesRealWorldAsset(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestEditUserDataV1(t *testing.T) {
+	t.Parallel()
+	_, err := e.EditUserDataV1(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	result, err := e.EditUserDataV1(t.Context(), &EditUserDataParams{
+		Email:                    "someone@thrasher.io",
+		Username:                 "Thrasher",
+		Country:                  "Ethiopia",
+		EmailNotifyGeneralEnable: true,
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCrossChainWithdrawalsV1(t *testing.T) {
+	t.Parallel()
+	_, err := e.CrossChainWithdrawalsV1(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.CrossChainWithdrawalsV1(t.Context(), &FastWithdrawalParams{Asset: currency.USDC, ChainID: "1"})
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+
+	_, err = e.CrossChainWithdrawalsV1(t.Context(), &FastWithdrawalParams{Amount: 1, ChainID: "1"})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.CrossChainWithdrawalsV1(t.Context(), &FastWithdrawalParams{Amount: 1, Asset: currency.USDC})
+	require.ErrorIs(t, err, errChainIDMissing)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	result, err := e.CrossChainWithdrawalsV1(t.Context(), &FastWithdrawalParams{
+		Amount:  1,
+		Asset:   currency.USDC,
+		ChainID: "1",
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestCrossChainWithdrawalsV2(t *testing.T) {
+	t.Parallel()
+	_, err := e.CrossChainWithdrawalsV2(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer)
+
+	_, err = e.CrossChainWithdrawalsV2(t.Context(), &FastWithdrawalParams{Asset: currency.USDC, ChainID: "1"})
+	require.ErrorIs(t, err, limits.ErrAmountBelowMin)
+
+	_, err = e.CrossChainWithdrawalsV2(t.Context(), &FastWithdrawalParams{Amount: 1, ChainID: "1"})
+	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
+
+	_, err = e.CrossChainWithdrawalsV2(t.Context(), &FastWithdrawalParams{Amount: 1, Asset: currency.USDC})
+	require.ErrorIs(t, err, errChainIDMissing)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	result, err := e.CrossChainWithdrawalsV2(t.Context(), &FastWithdrawalParams{
+		Amount:  1,
+		Asset:   currency.USDC,
+		ChainID: "1",
+	})
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
+func TestGetTokenByID(t *testing.T) {
+	t.Parallel()
+	// An unknown token ID must resolve to an empty token rather than panicking.
+	assert.Empty(t, e.GetTokenByID("non-existent-token-id"), "unknown token ID should return an empty token")
+}

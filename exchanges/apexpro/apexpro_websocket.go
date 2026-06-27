@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	gws "github.com/gorilla/websocket"
@@ -26,7 +27,7 @@ import (
 )
 
 const (
-	apexProWebsocket        = "wss://qa-quote.omni.apex.exchange/realtime_public"
+	apexProWebsocket        = "wss://quote.omni.apex.exchange/realtime_public"
 	apexProPrivateWebsocket = "wss://quote.omni.apex.exchange/realtime_private"
 
 	chOrderbook   = "orderBook"
@@ -124,7 +125,7 @@ func (e *Exchange) WsAuth(ctx context.Context, conn websocket.Connection) error 
 // GenerateDefaultSubscriptions generates a default subscription list.
 func (e *Exchange) GenerateDefaultSubscriptions() (subscription.List, error) {
 	subscriptions := subscription.List{}
-	enabledPairs, err := e.GetEnabledPairs(asset.Futures)
+	enabledPairs, err := e.GetEnabledPairs(asset.PerpetualContract)
 	if err != nil {
 		return subscriptions, err
 	}
@@ -185,7 +186,7 @@ func (e *Exchange) handleSubscriptionPayload(operation string, subscriptions sub
 		Operation: operation,
 		Args:      []string{},
 	}
-	pairFormat, err := e.GetPairFormat(asset.Futures, true)
+	pairFormat, err := e.GetPairFormat(asset.PerpetualContract, true)
 	if err != nil {
 		return nil, err
 	}
@@ -222,22 +223,23 @@ func (e *Exchange) handleSubscriptionPayload(operation string, subscriptions sub
 }
 
 func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
-	var resp WsMessage
+	var resp WsResponse
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
-	switch resp.Operation {
-	case "pong":
-	case chOrderbook:
+	switch {
+	case resp.Operation == "pong" || resp.Topic == "pong":
+	case strings.HasPrefix(resp.Topic, chOrderbook):
 		return e.processOrderbook(respRaw)
-	case chTrade:
+	case strings.HasPrefix(resp.Topic, chTrade):
 		return e.processTrades(respRaw)
-	case chTicker:
-		return e.processTickerData(ctx, respRaw)
-	case chCandlestick:
+	case strings.HasPrefix(resp.Topic, chCandlestick):
 		return e.processCandlestickData(ctx, respRaw)
-	case chAllTickers:
+	// chAllTickers ("instrumentInfo.all") must be matched before chTicker ("instrumentInfo") as it shares the prefix.
+	case strings.HasPrefix(resp.Topic, chAllTickers):
 		return e.processAllTickers(ctx, respRaw)
+	case strings.HasPrefix(resp.Topic, chTicker):
+		return e.processTickerData(ctx, respRaw)
 	default:
 		var authResp *WsAuthResponse
 		if err := json.Unmarshal(respRaw, &authResp); err != nil {
@@ -325,7 +327,7 @@ func (e *Exchange) processAccountOrders(ctx context.Context, respOrders []*Order
 			Type:               oType,
 			Side:               oSide,
 			Status:             oStatus,
-			AssetType:          asset.Futures,
+			AssetType:          asset.PerpetualContract,
 			Date:               respOrders[o].CreatedAt.Time(),
 			CloseTime:          respOrders[o].ExpiresAt.Time(),
 			LastUpdated:        respOrders[o].UpdatedTime.Time(),
@@ -351,7 +353,7 @@ func (e *Exchange) processAccountFills(ctx context.Context, orderFills []*WsAcco
 			ID:           orderFills[f].ID,
 			Timestamp:    orderFills[f].UpdatedAt.Time(),
 			Exchange:     e.Name,
-			AssetType:    asset.Futures,
+			AssetType:    asset.PerpetualContract,
 			CurrencyPair: pair,
 			Side:         oSide,
 			OrderID:      orderFills[f].OrderID,
@@ -375,12 +377,12 @@ func (e *Exchange) processOrderbook(respRaw []byte) error {
 			Pair:       resp.Data.Symbol,
 			UpdateID:   resp.Data.UpdateID,
 			UpdateTime: resp.Timestamp.Time(),
-			Asset:      asset.Futures,
+			Asset:      asset.PerpetualContract,
 		})
 	}
 	return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 		Pair:              resp.Data.Symbol,
-		Asset:             asset.Spot,
+		Asset:             asset.PerpetualContract,
 		Exchange:          e.Name,
 		LastUpdateID:      resp.Data.UpdateID,
 		ValidateOrderbook: e.ValidateOrderbook,
@@ -412,7 +414,7 @@ func (e *Exchange) processTrades(respRaw []byte) error {
 			Price:        resp.Data[a].Price.Float64(),
 			Amount:       resp.Data[a].Volume.Float64(),
 			Exchange:     e.Name,
-			AssetType:    asset.Futures,
+			AssetType:    asset.PerpetualContract,
 			TID:          resp.Data[a].OrderID,
 		}
 	}
@@ -429,6 +431,9 @@ func (e *Exchange) processTickerData(ctx context.Context, respRaw []byte) error 
 		return err
 	}
 	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
+		Pair:         cp,
+		ExchangeName: e.Name,
+		AssetType:    asset.PerpetualContract,
 		Last:         resp.Data.LastPrice.Float64(),
 		High:         resp.Data.HighPrice24H.Float64(),
 		Low:          resp.Data.LowPrice24H.Float64(),
@@ -436,9 +441,6 @@ func (e *Exchange) processTickerData(ctx context.Context, respRaw []byte) error 
 		OpenInterest: resp.Data.OpenInterest.Float64(),
 		MarkPrice:    resp.Data.OraclePrice.Float64(),
 		IndexPrice:   resp.Data.IndexPrice.Float64(),
-		Pair:         cp,
-		ExchangeName: e.Name,
-		AssetType:    asset.Futures,
 	})
 }
 
@@ -459,7 +461,7 @@ func (e *Exchange) processCandlestickData(ctx context.Context, respRaw []byte) e
 		}
 		klineData[a] = kline.Item{
 			Pair:     pair,
-			Asset:    asset.Futures,
+			Asset:    asset.PerpetualContract,
 			Exchange: e.Name,
 			Interval: interval,
 			Candles: []kline.Candle{
@@ -499,7 +501,7 @@ func (e *Exchange) processAllTickers(ctx context.Context, respRaw []byte) error 
 			IndexPrice:   resp.Data[a].IndexPrice.Float64(),
 			Pair:         pair,
 			ExchangeName: e.Name,
-			AssetType:    asset.Futures,
+			AssetType:    asset.PerpetualContract,
 			LastUpdated:  resp.Timestamp.Time(),
 		}
 	}

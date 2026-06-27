@@ -224,13 +224,13 @@ func setExchangeAPIKeys(name string, keys map[string]*config.APICredentialsConfi
 		creds.ClientID = config.DefaultAPIClientID
 	}
 	if base.API.CredentialsValidator.RequiresL2Key && creds.L2Key == "" {
-		creds.ClientID = config.DefaultAPIL2Key
+		creds.L2Key = config.DefaultAPIL2Key
 	}
 	if base.API.CredentialsValidator.RequiresL2Secret && creds.L2Secret == "" {
-		creds.ClientID = config.DefaultAPIL2Secret
+		creds.L2Secret = config.DefaultAPIL2Secret
 	}
 	if base.API.CredentialsValidator.RequiresL2KeyYCoordinate && creds.L2KeyYCoordinate == "" {
-		creds.ClientID = config.DefaultAPIL2KeyYCoordinate
+		creds.L2KeyYCoordinate = config.DefaultAPIL2KeyYCoordinate
 	}
 	if creds.OTPSecret == "" {
 		creds.OTPSecret = "-" // Ensure OTP is available for use

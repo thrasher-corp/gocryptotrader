@@ -555,6 +555,15 @@ type WsMessage struct {
 	Args      []string `json:"args"`
 }
 
+// WsResponse represents response type
+type WsResponse struct {
+	Operation string          `json:"op"`
+	Type      string          `json:"type"`
+	Timestamp types.Time      `json:"timestamp"`
+	Topic     string          `json:"topic"`
+	Contents  json.RawMessage `json:"contents"`
+}
+
 // WsDepth represents a websocket orderbook data.
 type WsDepth struct {
 	Topic string `json:"topic"`
