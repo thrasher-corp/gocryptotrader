@@ -32,22 +32,19 @@ type PreciseNumber struct {
 	val float64 // parsed cache for fast Float64()
 }
 
-// NewPreciseNumberFromString constructs a PreciseNumber from a base-10 decimal
-// string without precision loss. Empty input, hexadecimal, scientific notation,
-// NaN and Inf are rejected.
+// NewPreciseNumberFromString constructs a PreciseNumber from a numeric string.
+// It accepts the same inputs as decimal.NewFromString (so scientific notation
+// is allowed, but Go-literal underscores and hexadecimal are not), and
+// additionally rejects values too large to be represented by a float64.
 func NewPreciseNumberFromString(s string) (PreciseNumber, error) {
-	if s == "" {
-		return PreciseNumber{}, fmt.Errorf("%w: empty string", errInvalidPreciseNumberValue)
-	}
 	return parsePreciseNumber([]byte(s))
 }
 
-// parsePreciseNumber validates s as a base-10 decimal and returns a
+// parsePreciseNumber validates data via decimal.NewFromString and returns a
 // PreciseNumber holding the original string and a derived float64 cache.
 //
-// decimal.NewFromString is used as the source of truth: it rejects
-// hexadecimal, scientific notation, NaN and Inf, all of which strconv.ParseFloat
-// would happily accept and which are never legitimate exchange wire values.
+// Values whose magnitude overflows float64 (InexactFloat64 returns Inf) are
+// rejected so the cached float is always finite.
 func parsePreciseNumber(data []byte) (PreciseNumber, error) {
 	s := string(data)
 	d, err := decimal.NewFromString(s)
@@ -55,8 +52,8 @@ func parsePreciseNumber(data []byte) (PreciseNumber, error) {
 		return PreciseNumber{}, fmt.Errorf("%w: %s", errInvalidPreciseNumberValue, data)
 	}
 	val := d.InexactFloat64()
-	if math.IsNaN(val) || math.IsInf(val, 0) {
-		return PreciseNumber{}, fmt.Errorf("%w: non-finite %s", errInvalidPreciseNumberValue, data)
+	if math.IsInf(val, 0) {
+		return PreciseNumber{}, fmt.Errorf("%w: magnitude overflows float64: %s", errInvalidPreciseNumberValue, data)
 	}
 	return PreciseNumber{raw: s, val: val}, nil
 }
@@ -75,14 +72,14 @@ func (p *PreciseNumber) UnmarshalJSON(data []byte) error {
 	case 'n': // null
 		*p = PreciseNumber{}
 		return nil
-	case 't', 'f':
-		return fmt.Errorf("%w: %s", errInvalidPreciseNumberValue, data)
 	case '"':
 		if len(data) < 2 || data[len(data)-1] != '"' {
 			return fmt.Errorf("%w: %s", errInvalidPreciseNumberValue, data)
 		}
 		data = data[1 : len(data)-1]
 	default:
+		// Bare tokens (true, false, garbage) fail here: the first byte is
+		// neither '-' nor a digit. decimal.NewFromString validates the rest.
 		if c != '-' && (c < '0' || c > '9') {
 			return fmt.Errorf("%w: %s", errInvalidPreciseNumberValue, data)
 		}
@@ -108,11 +105,7 @@ func (p PreciseNumber) MarshalJSON() ([]byte, error) {
 	if p.raw == "" {
 		return []byte(`""`), nil
 	}
-	out := make([]byte, 0, len(p.raw)+2)
-	out = append(out, '"')
-	out = append(out, p.raw...)
-	out = append(out, '"')
-	return out, nil
+	return []byte(`"` + p.raw + `"`), nil
 }
 
 // Float64 returns the cached float64 form. Suitable for sorting, comparisons
@@ -124,6 +117,10 @@ func (p PreciseNumber) Float64() float64 {
 // Int64 returns the integer value parsed from the original string, truncated
 // toward zero. For values that originated as integers (trade IDs, integer
 // timestamps) this returns the exact value with no float round-trip.
+//
+// If the underlying value is outside the int64 range, the result is the
+// truncated low-order bits and is not meaningful — callers handling
+// potentially large values should use Decimal instead.
 //
 // raw is always a valid base-10 decimal here because every entry path runs
 // it through [parsePreciseNumber]; the zero value short-circuits to 0.
