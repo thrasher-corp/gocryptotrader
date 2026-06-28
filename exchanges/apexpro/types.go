@@ -76,7 +76,7 @@ type GlobalDefaultConfigs struct {
 	StocksAssetPoolEthAddress         string `json:"stocksAssetPoolEthAddress"`
 	StocksAssetPoolZkAccountID        string `json:"stocksAssetPoolZkAccountId"`
 	StocksAssetPoolSubAccount         string `json:"stocksAssetPoolSubAccount"`
-	OrderExpireDays                   int    `json:"orderExpireDays"`
+	OrderExpireDays                   int64  `json:"orderExpireDays"`
 }
 
 // AllSymbolsConfigs represents all symbols configurations.
@@ -173,10 +173,10 @@ type StockContractDetail struct {
 	Tag                              string       `json:"tag"`
 	RiskTip                          bool         `json:"riskTip"`
 	DefaultInitialMarginRate         types.Number `json:"defaultInitialMarginRate"`
-	KlineStartTime                   int          `json:"klineStartTime"`
+	KlineStartTime                   int64        `json:"klineStartTime"`
 	MaxMarketSizeBuffer              string       `json:"maxMarketSizeBuffer"`
 	EnableFundingSettlement          bool         `json:"enableFundingSettlement"`
-	IndexPriceDecimals               int          `json:"indexPriceDecimals"`
+	IndexPriceDecimals               int64        `json:"indexPriceDecimals"`
 	IndexPriceVarRate                types.Number `json:"indexPriceVarRate"`
 	OpenPositionOiLimitRate          types.Number `json:"openPositionOiLimitRate"`
 	FundingMaxRate                   types.Number `json:"fundingMaxRate"`
@@ -184,7 +184,7 @@ type StockContractDetail struct {
 	FundingMaxValue                  types.Number `json:"fundingMaxValue"`
 	EnableFundingMxValue             bool         `json:"enableFundingMxValue"`
 	L2PairID                         string       `json:"l2PairId"`
-	SettleTimeStamp                  int          `json:"settleTimeStamp"`
+	SettleTimeStamp                  int64        `json:"settleTimeStamp"`
 	IsPrelaunch                      bool         `json:"isPrelaunch"`
 	RiskLimitConfig                  struct {
 		PositionSteps []string `json:"positionSteps"`
@@ -194,8 +194,8 @@ type StockContractDetail struct {
 	Category                string `json:"category,omitempty"`
 	ContractType            string `json:"contractType"`
 	PredictionContractType  string `json:"predictionContractType"`
-	PullOffTime             int    `json:"pullOffTime,omitempty"`
-	DisableOpenPositionTime int    `json:"disableOpenPositionTime,omitempty"`
+	PullOffTime             int64  `json:"pullOffTime,omitempty"`
+	DisableOpenPositionTime int64  `json:"disableOpenPositionTime,omitempty"`
 }
 
 // AssetInfo represents an asset detail information.
@@ -211,7 +211,7 @@ type AssetInfo struct {
 	EnableCrossCollateral       bool         `json:"enableCrossCollateral"`
 	CrossCollateralDiscountRate any          `json:"crossCollateralDiscountRate"`
 	IsGray                      bool         `json:"isGray"`
-	PrepMaxCrossCollateralSize  int          `json:"prepMaxCrossCollateralSize,omitempty"`
+	PrepMaxCrossCollateralSize  int64        `json:"prepMaxCrossCollateralSize,omitempty"`
 }
 
 // NewTradingData represents a new trading data detail.
@@ -410,9 +410,9 @@ type ChainInfo struct {
 	StopSwap             bool   `json:"stopSwap"`
 	StopBuy              bool   `json:"stopBuy"`
 	SupportEnv           string `json:"supportEnv"`
-	GasTokenDecimals     int    `json:"gasTokenDecimals"`
+	GasTokenDecimals     int64  `json:"gasTokenDecimals"`
 	DynamicFee           bool   `json:"dynamicFee"`
-	FeeGasLimit          int    `json:"feeGasLimit"`
+	FeeGasLimit          int64  `json:"feeGasLimit"`
 	SwapFeeRate          string `json:"swapFeeRate"`
 	BlockTime            string `json:"blockTime"`
 	MinSwapUsdtAmount    string `json:"minSwapUsdtAmount"`
@@ -1301,7 +1301,7 @@ type AccountAssetTransfer struct {
 
 // WsAccountNotificationsResponse represents an account's notification responses
 type WsAccountNotificationsResponse struct {
-	UnreadNum     int                        `json:"unreadNum"`
+	UnreadNum     int64                      `json:"unreadNum"`
 	NotifyMsgList []*AccountNotificationInfo `json:"notifyMsgList"`
 	NotifyList    []*AccountNotificationInfo `json:"notify_list"`
 }
