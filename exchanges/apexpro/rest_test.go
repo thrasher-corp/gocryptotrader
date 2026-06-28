@@ -586,7 +586,7 @@ func TestCreateOrder(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, e.UserAccountDetail)
 	}
-	result, err := e.CreateOrderV3(t.Context(), &CreateOrderRequestParams{
+	result, err := e.CreateOrderV3(t.Context(), &CreateOrderRequest{
 		Symbol:          futuresTradablePair,
 		Side:            order.Buy.String(),
 		OrderType:       "LIMIT",
@@ -1080,15 +1080,15 @@ func TestOrderCreationParamsFilter(t *testing.T) {
 	t.Parallel()
 	_, err := e.orderCreationParamsFilter(t.Context(), nil)
 	require.ErrorIs(t, err, order.ErrOrderDetailIsNil)
-	_, err = e.orderCreationParamsFilter(t.Context(), &CreateOrderRequestParams{Side: order.Buy.String()})
+	_, err = e.orderCreationParamsFilter(t.Context(), &CreateOrderRequest{Side: order.Buy.String()})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 	futuresTradablePair, err := currency.NewPairFromString("BTC-USDC")
 	require.NoError(t, err)
-	arg := &CreateOrderRequestParams{Symbol: futuresTradablePair}
+	arg := &CreateOrderRequest{Symbol: futuresTradablePair}
 	_, err = e.orderCreationParamsFilter(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	arg.Side = order.Buy.String()
-	_, err = e.orderCreationParamsFilter(t.Context(), &CreateOrderRequestParams{Symbol: futuresTradablePair, Side: order.Buy.String()})
+	_, err = e.orderCreationParamsFilter(t.Context(), &CreateOrderRequest{Symbol: futuresTradablePair, Side: order.Buy.String()})
 	require.ErrorIs(t, err, order.ErrTypeIsInvalid)
 	arg.OrderType = order.Limit.String()
 	_, err = e.orderCreationParamsFilter(t.Context(), arg)
@@ -1107,13 +1107,13 @@ func TestOrderCreationParamsFilter(t *testing.T) {
 
 func TestOrderCreationParamsFilterV3(t *testing.T) {
 	t.Parallel()
-	_, err := e.orderCreationParamsFilterV3(t.Context(), &CreateOrderRequestParams{})
+	_, err := e.orderCreationParamsFilterV3(t.Context(), &CreateOrderRequest{})
 	require.ErrorIs(t, err, order.ErrOrderDetailIsNil)
-	_, err = e.orderCreationParamsFilterV3(t.Context(), &CreateOrderRequestParams{Side: order.Buy.String()})
+	_, err = e.orderCreationParamsFilterV3(t.Context(), &CreateOrderRequest{Side: order.Buy.String()})
 	require.ErrorIs(t, err, currency.ErrSymbolStringEmpty)
 	futuresTradablePair, err := currency.NewPairFromString("BTC-USDC")
 	require.NoError(t, err)
-	arg := &CreateOrderRequestParams{Symbol: futuresTradablePair}
+	arg := &CreateOrderRequest{Symbol: futuresTradablePair}
 	_, err = e.orderCreationParamsFilterV3(t.Context(), arg)
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 	arg.Side = order.Buy.String()
@@ -1158,7 +1158,7 @@ func TestCreateOrderV1(t *testing.T) {
 		require.NotNil(t, e.UserAccountDetail)
 	}
 
-	result, err := e.CreateOrderV1(t.Context(), &CreateOrderRequestParams{
+	result, err := e.CreateOrderV1(t.Context(), &CreateOrderRequest{
 		Symbol:          futuresTradablePair,
 		Side:            order.Buy.String(),
 		OrderType:       "LIMIT",
@@ -1184,7 +1184,7 @@ func TestCreateOrderV2(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, e.UserAccountDetail)
 	}
-	result, err := e.CreateOrderV2(t.Context(), &CreateOrderRequestParams{
+	result, err := e.CreateOrderV2(t.Context(), &CreateOrderRequest{
 		Symbol:          futuresTradablePair,
 		Side:            order.Buy.String(),
 		OrderType:       "LIMIT",
@@ -1749,7 +1749,7 @@ func TestCreateRWAOrder(t *testing.T) {
 	require.NoError(t, err)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	result, err := e.CreateRWAOrder(t.Context(), &CreateOrderRequestParams{
+	result, err := e.CreateRWAOrder(t.Context(), &CreateOrderRequest{
 		Symbol:      rwaPair,
 		Side:        order.Buy.String(),
 		OrderType:   "LIMIT",

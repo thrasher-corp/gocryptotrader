@@ -539,7 +539,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err := s.Validate(e.GetTradingRequirements()); err != nil {
 		return nil, err
 	}
-	params := &CreateOrderRequestParams{
+	params := &CreateOrderRequest{
 		Symbol:           s.Pair,
 		Side:             s.Side.String(),
 		OrderType:        orderTypeString(s.Type),

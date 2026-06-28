@@ -46,7 +46,7 @@ func (e *Exchange) loadSymbolsV1Config(ctx context.Context) error {
 }
 
 // ProcessOrderSignature processes order request parameter and generates a starkEx signature
-func (e *Exchange) ProcessOrderSignature(ctx context.Context, arg *CreateOrderRequestParams) (string, error) {
+func (e *Exchange) ProcessOrderSignature(ctx context.Context, arg *CreateOrderRequest) (string, error) {
 	creds, err := e.GetCredentials(context.Background())
 	if err != nil {
 		return "", err

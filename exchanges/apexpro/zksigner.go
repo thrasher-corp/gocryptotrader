@@ -62,7 +62,7 @@ func (e *Exchange) getOrInitZKLinkerSigner(seedsHex string) (*zklink.Signer, err
 
 // ProcessZKKeyOrderSignature builds a ContractBuilder from the order params,
 // Rescue-hashes it, and returns a 64-byte Schnorr signature as a hex string.
-func (e *Exchange) ProcessZKKeyOrderSignature(ctx context.Context, arg *CreateOrderRequestParams) (string, error) {
+func (e *Exchange) ProcessZKKeyOrderSignature(ctx context.Context, arg *CreateOrderRequest) (string, error) {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
 		return "", err

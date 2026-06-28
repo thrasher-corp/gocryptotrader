@@ -1102,8 +1102,8 @@ type TransferAndWithdrawalLimit struct {
 	TransferAvailableAmount types.Number `json:"transferAvailableAmount"`
 }
 
-// CreateOrderParams represents a request parameter for creating order.
-type CreateOrderRequestParams struct {
+// CreateOrderRequest represents a request parameter for creating order.
+type CreateOrderRequest struct {
 	Symbol                     currency.Pair `json:"symbol"`
 	Side                       string        `json:"side,omitempty"`
 	OrderType                  string        `json:"type,omitempty"`
@@ -1318,22 +1318,6 @@ type AccountNotificationInfo struct {
 	WebLink     string     `json:"webLink"`
 	Read        bool       `json:"read"`
 	CreatedTime types.Time `json:"createdTime"`
-}
-
-// CreateOrderRequest represents a stark order creation parameters
-type CreateOrderRequest struct {
-	AmountCollateral    string         `json:"amount_collateral"`
-	AmountFee           string         `json:"amount_fee"`
-	AmountSynthetic     string         `json:"amount_synthetic"`
-	AssetIDCollateral   string         `json:"asset_id_collateral"`
-	AssetIDSynthetic    string         `json:"asset_id_synthetic"`
-	ExpirationTimestamp string         `json:"expiration_timestamp"`
-	IsBuyingSynthetic   bool           `json:"is_buying_synthetic"`
-	Nonce               string         `json:"nonce"`
-	OrderType           string         `json:"order_type"`
-	PositionID          string         `json:"position_id"`
-	PublicKey           string         `json:"public_key"`
-	Signature           *SignatureInfo `json:"signature"`
 }
 
 // LoanRepaymentRates represents a loan repayment rates

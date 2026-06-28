@@ -684,8 +684,8 @@ func (e *Exchange) GetWorstPriceV1(ctx context.Context, symbol, side string, amo
 	return e.getWorstPrice(ctx, symbol, side, "v1/get-worst-price", amount, exchange.RestSpot)
 }
 
-func (e *Exchange) orderCreationParamsFilter(ctx context.Context, arg *CreateOrderRequestParams) (url.Values, error) {
-	if arg == nil || *arg == (CreateOrderRequestParams{}) {
+func (e *Exchange) orderCreationParamsFilter(ctx context.Context, arg *CreateOrderRequest) (url.Values, error) {
+	if arg == nil || *arg == (CreateOrderRequest{}) {
 		return nil, order.ErrOrderDetailIsNil
 	}
 	if arg.Symbol.IsEmpty() {
@@ -741,8 +741,8 @@ func (e *Exchange) orderCreationParamsFilter(ctx context.Context, arg *CreateOrd
 }
 
 // orderCreationParamsFilterV3 validates and prepares URL params for a V3 order.
-func (e *Exchange) orderCreationParamsFilterV3(ctx context.Context, arg *CreateOrderRequestParams) (url.Values, error) {
-	if *arg == (CreateOrderRequestParams{}) {
+func (e *Exchange) orderCreationParamsFilterV3(ctx context.Context, arg *CreateOrderRequest) (url.Values, error) {
+	if *arg == (CreateOrderRequest{}) {
 		return nil, order.ErrOrderDetailIsNil
 	}
 	if arg.Symbol.IsEmpty() {
@@ -795,7 +795,7 @@ func (e *Exchange) orderCreationParamsFilterV3(ctx context.Context, arg *CreateO
 }
 
 // CreateOrderV3 creates a new order using the ZKLink (zkKey) signing scheme.
-func (e *Exchange) CreateOrderV3(ctx context.Context, arg *CreateOrderRequestParams) (*OrderDetail, error) {
+func (e *Exchange) CreateOrderV3(ctx context.Context, arg *CreateOrderRequest) (*OrderDetail, error) {
 	params, err := e.orderCreationParamsFilterV3(ctx, arg)
 	if err != nil {
 		return nil, err
@@ -805,7 +805,7 @@ func (e *Exchange) CreateOrderV3(ctx context.Context, arg *CreateOrderRequestPar
 }
 
 // CreateOrderV2 creates a new order through the v2 API
-func (e *Exchange) CreateOrderV2(ctx context.Context, arg *CreateOrderRequestParams) (*OrderDetail, error) {
+func (e *Exchange) CreateOrderV2(ctx context.Context, arg *CreateOrderRequest) (*OrderDetail, error) {
 	params, err := e.orderCreationParamsFilter(ctx, arg)
 	if err != nil {
 		return nil, err
@@ -815,7 +815,7 @@ func (e *Exchange) CreateOrderV2(ctx context.Context, arg *CreateOrderRequestPar
 }
 
 // CreateOrderV1 creates a new order through the v2 API
-func (e *Exchange) CreateOrderV1(ctx context.Context, arg *CreateOrderRequestParams) (*OrderDetail, error) {
+func (e *Exchange) CreateOrderV1(ctx context.Context, arg *CreateOrderRequest) (*OrderDetail, error) {
 	params, err := e.orderCreationParamsFilter(ctx, arg)
 	if err != nil {
 		return nil, err
@@ -1733,7 +1733,7 @@ func (e *Exchange) contractTransferTo(ctx context.Context, arg *RWATransferReque
 }
 
 // CreateRWAOrder places an order on a tokenised RWA market via the shared v3/order endpoint, signed with the RWA sub-account credentials.
-func (e *Exchange) CreateRWAOrder(ctx context.Context, arg *CreateOrderRequestParams) (*OrderDetail, error) {
+func (e *Exchange) CreateRWAOrder(ctx context.Context, arg *CreateOrderRequest) (*OrderDetail, error) {
 	return e.CreateOrderV3(ctx, arg)
 }
 
