@@ -829,7 +829,7 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	case asset.Futures:
 		var err error
 		if ord.OrderID != "" {
-			_, err = e.CancelOrdersByID(ctx, ord.Pair.String(), ord.OrderID)
+			_, err = e.CancelOrdersByID(ctx, ord.OrderID)
 		} else {
 			_, err = e.CancelOrderByClientOrderID(ctx, ord.Pair, ord.ClientOrderID)
 		}

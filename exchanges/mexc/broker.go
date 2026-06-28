@@ -51,13 +51,13 @@ func (e *Exchange) GetBrokerUniversalTransferHistory(ctx context.Context, fromAc
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp []*BrokerAssetTransfer
-	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "broker/sub-account/universalTransfer", params, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "broker/sub-account/universalTransfer", params, nil, &resp, true)
 }
 
 // CreateBrokerSubAccount holds a broker sub-account detail
 func (e *Exchange) CreateBrokerSubAccount(ctx context.Context) (*BrokerSubAccounts, error) {
 	var resp *BrokerSubAccounts
-	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "broker/sub-account/virtualSubAccount", nil, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodPost, "broker/sub-account/virtualSubAccount", nil, nil, &resp, true)
 }
 
 // GetBrokerAccountSubAccountList represents a list of broker sub-accounts and their details of the broker account
@@ -73,7 +73,7 @@ func (e *Exchange) GetBrokerAccountSubAccountList(ctx context.Context, subAccoun
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *BrokerSubAccounts
-	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "broker/sub-account/list", params, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "broker/sub-account/list", params, nil, &resp, true)
 }
 
 // GetSubAccountStatus retrieves broker sub-account status information
@@ -84,7 +84,7 @@ func (e *Exchange) GetSubAccountStatus(ctx context.Context, subAccount string) (
 	params := url.Values{}
 	params.Set("subAccount", subAccount)
 	var resp *BrokerSubAccountStatus
-	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "broker/sub-account/status", params, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, request.Auth, http.MethodGet, "broker/sub-account/status", params, nil, &resp, true)
 }
 
 // CreateBrokerSubAccountAPIKey creates a new sub-account api-key for the broker account

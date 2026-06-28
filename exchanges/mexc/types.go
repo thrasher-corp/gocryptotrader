@@ -186,7 +186,7 @@ type SubAccounts struct {
 type SubAccountAPIDetail struct {
 	SubAccount  string     `json:"subAccount"`
 	Note        string     `json:"note"`
-	APIKey      string     `json:"apiKey"` //nolint:gosec // false positive
+	APIKey      string     `json:"apiKey"`
 	SecretKey   string     `json:"secretKey"`
 	Permissions string     `json:"permissions"`
 	IP          string     `json:"ip"`
@@ -335,22 +335,22 @@ type CurrencyInformation struct {
 	Coin        string `json:"coin"`
 	Name        string `json:"Name"`
 	NetworkList []struct {
-		Coin                    string       `json:"coin"`
-		DepositDesc             string       `json:"depositDesc"`
-		DepositEnable           bool         `json:"depositEnable"`
-		MinConfirm              int64        `json:"minConfirm"`
-		Name                    string       `json:"Name"`
-		Network                 string       `json:"network"`
-		WithdrawEnable          bool         `json:"withdrawEnable"`
-		WithdrawFee             types.Number `json:"withdrawFee"`
-		WithdrawIntegerMultiple string       `json:"withdrawIntegerMultiple"`
-		WithdrawMax             types.Number `json:"withdrawMax"`
-		WithdrawMin             types.Number `json:"withdrawMin"`
-		SameAddress             bool         `json:"sameAddress"`
-		Contract                string       `json:"contract"`
-		WithdrawTips            string       `json:"withdrawTips"`
-		DepositTips             string       `json:"depositTips"`
-		NetWork                 string       `json:"netWork,omitempty"`
+		Coin                    currency.Code `json:"coin"`
+		DepositDesc             string        `json:"depositDesc"`
+		DepositEnable           bool          `json:"depositEnable"`
+		MinConfirm              int64         `json:"minConfirm"`
+		Name                    string        `json:"Name"`
+		Network                 string        `json:"network"`
+		WithdrawEnable          bool          `json:"withdrawEnable"`
+		WithdrawFee             types.Number  `json:"withdrawFee"`
+		WithdrawIntegerMultiple types.Number  `json:"withdrawIntegerMultiple"`
+		WithdrawMax             types.Number  `json:"withdrawMax"`
+		WithdrawMin             types.Number  `json:"withdrawMin"`
+		SameAddress             bool          `json:"sameAddress"`
+		Contract                string        `json:"contract"`
+		WithdrawTips            string        `json:"withdrawTips"`
+		DepositTips             string        `json:"depositTips"`
+		NetWork                 string        `json:"netWork,omitempty"`
 	} `json:"networkList"`
 }
 
@@ -405,11 +405,11 @@ type DepositAddressInfo struct {
 
 // WithdrawalAddressTag represents an asset withdrawal address detail
 type WithdrawalAddressTag struct {
-	Coin       string `json:"coin"`
-	Network    string `json:"network"`
-	Address    string `json:"address"`
-	AddressTag string `json:"addressTag"`
-	Memo       string `json:"memo"`
+	Coin       currency.Code `json:"coin"`
+	Network    string        `json:"network"`
+	Address    string        `json:"address"`
+	AddressTag string        `json:"addressTag"`
+	Memo       string        `json:"memo"`
 }
 
 // WithdrawalAddressesDetail represents a detailed list of previously used withdrawal addresses

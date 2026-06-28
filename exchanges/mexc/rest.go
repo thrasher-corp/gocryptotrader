@@ -424,7 +424,7 @@ func (e *Exchange) GetSubAccountUnversalTransferHistory(ctx context.Context, fro
 		params.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	var resp *UniversalTransferHistoryData
-	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getSubaccUnversalTransfersEPL, http.MethodGet, "capital/sub-account/universalTransfer", params, resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, getSubaccUnversalTransfersEPL, http.MethodGet, "capital/sub-account/universalTransfer", params, nil, &resp, true)
 }
 
 // GetSubAccountAsset represents a sub-account asset balance detail

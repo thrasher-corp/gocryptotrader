@@ -215,7 +215,7 @@ func (e *Exchange) GetContractFundingRateHistory(ctx context.Context, symbol cur
 // GetAllUserAssetsInformation retrieves all user asset balances
 func (e *Exchange) GetAllUserAssetsInformation(ctx context.Context) (*UserAssetsBalance, error) {
 	var resp *UserAssetsBalance
-	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, allUserAssetsInfoEPL, http.MethodGet, "private/account/assets", nil, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, allUserAssetsInfoEPL, http.MethodGet, "private/account/assets", nil, nil, &resp, true)
 }
 
 // GetUserSingleCurrencyAssetInformation retrieves user's single asset balance
@@ -226,7 +226,7 @@ func (e *Exchange) GetUserSingleCurrencyAssetInformation(ctx context.Context, cc
 	var resp struct {
 		Data *UserAssetBalance `json:"data"`
 	}
-	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestFutures, userSingleCurrencyAssetInfoEPL, http.MethodGet, "private/account/asset/"+ccy.String(), nil, &resp, true)
+	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestFutures, userSingleCurrencyAssetInfoEPL, http.MethodGet, "private/account/asset/"+ccy.String(), nil, nil, &resp, true)
 }
 
 // GetUserAssetTransferRecords retrieves user's asset transfer records
@@ -366,7 +366,7 @@ func (e *Exchange) GetOrderBasedOnExternalNumber(ctx context.Context, symbol cur
 	var resp struct {
 		Data *FuturesOrderDetail `json:"data"`
 	}
-	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestFutures, getOrderBasedOnExternalNumberEPL, http.MethodGet, "private/order/external/"+symbol.String()+"/"+externalOrderID, nil, &resp, true)
+	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestFutures, getOrderBasedOnExternalNumberEPL, http.MethodGet, "private/order/external/"+symbol.String()+"/"+externalOrderID, nil, nil, &resp, true)
 }
 
 // GetOrderByOrderID retrieves a single order using order id
@@ -529,7 +529,7 @@ func (e *Exchange) IncreaseDecreaseMargin(ctx context.Context, positionID int64,
 	params.Set("positionId", strconv.FormatInt(positionID, 10))
 	params.Set("amount", strconv.FormatFloat(amount, 'f', -1, 64))
 	params.Set("type", changeType)
-	return e.SendHTTPRequest(ctx, exchange.RestFutures, increaseDecreaseMarginEPL, http.MethodPost, "private/position/change_margin", params, nil, true)
+	return e.SendHTTPRequest(ctx, exchange.RestFutures, increaseDecreaseMarginEPL, http.MethodPost, "private/position/change_margin", params, nil, nil, true)
 }
 
 // GetContractLeverage retrieves leverage information for a contract
@@ -578,7 +578,7 @@ func (e *Exchange) SwitchLeverage(ctx context.Context, positionID, leverage, ope
 // GetPositionMode retrieves a list of position modes
 func (e *Exchange) GetPositionMode(ctx context.Context) (*PositionMode, error) {
 	var resp *PositionMode
-	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, getPositionModeEPL, http.MethodGet, "private/position/position_mode", nil, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, getPositionModeEPL, http.MethodGet, "private/position/position_mode", nil, nil, &resp, true)
 }
 
 // ChangePositionMode updates the position mode.
@@ -697,7 +697,7 @@ func (e *Exchange) CancelOrderByClientOrderID(ctx context.Context, symbol curren
 	params.Set("symbol", symbol.String())
 	params.Set("externalOid", externalOrderID)
 	var resp *OrderCancellationResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, cancelOrderByClientOrderIDEPL, "private/order/cancel_with_external", http.MethodPost, params, nil, &resp, true)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, cancelOrderByClientOrderIDEPL, http.MethodPost, "private/order/cancel_with_external", params, nil, &resp, true)
 }
 
 // CancelAllOpenOrders cancels all open contracts under this account
