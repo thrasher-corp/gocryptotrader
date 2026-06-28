@@ -16,16 +16,16 @@ import (
 
 func newSignedTestExchange(t *testing.T, handler http.Handler) *Exchange {
 	t.Helper()
-	te := new(Exchange)
-	require.NoError(t, testexch.Setup(te), "test exchange Setup must not error")
-	te.SetCredentials("mock", "tester", "", "", "", "")
-	te.GetBase().SkipAuthCheck = true
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "test exchange Setup must not error")
+	ex.SetCredentials("mock", "tester", "", "", "", "")
+	ex.GetBase().SkipAuthCheck = true
 	server := httptest.NewServer(handler)
 	t.Cleanup(server.Close)
-	for k := range te.API.Endpoints.GetURLMap() {
-		require.NoErrorf(t, te.API.Endpoints.SetRunningURL(k, server.URL), "SetRunningURL must not error for %s", k)
+	for k := range ex.API.Endpoints.GetURLMap() {
+		require.NoErrorf(t, ex.API.Endpoints.SetRunningURL(k, server.URL), "SetRunningURL must not error for %s", k)
 	}
-	return te
+	return ex
 }
 
 func TestPrivateEndpointRequestConstruction(t *testing.T) {
