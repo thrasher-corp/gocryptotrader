@@ -630,7 +630,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, getOrdersRequest *order.
 	if len(getOrdersRequest.Pairs) == 1 {
 		instrument = getOrdersRequest.Pairs[0].String()
 	}
-	resp, err := e.GetOpenOrders(ctx, currency.EMPTYPAIR, "", instrument, asssetToInstrumentType(getOrdersRequest.AssetType), "", "", "LIMIT", getOrdersRequest.StartTime, 0, 0)
+	resp, err := e.GetOpenOrders(ctx, currency.EMPTYPAIR, "", instrument, assetToInstrumentType(getOrdersRequest.AssetType), "", "", "LIMIT", getOrdersRequest.StartTime, 0, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -812,8 +812,8 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, fr *fundingrate.La
 	if err != nil {
 		return nil, err
 	}
-	resp := make([]fundingrate.LatestRateResponse, len(result.Results))
-	for a, fundingRate := range result.Results {
+	resp := make([]fundingrate.LatestRateResponse, 0, len(result.Results))
+	for _, fundingRate := range result.Results {
 		var (
 			cp        currency.Pair
 			isEnabled bool
@@ -824,7 +824,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, fr *fundingrate.La
 		} else if !isEnabled {
 			continue
 		}
-		resp[a] = fundingrate.LatestRateResponse{
+		resp = append(resp, fundingrate.LatestRateResponse{
 			Exchange:    e.Name,
 			TimeChecked: time.Now(),
 			Asset:       fr.Asset,
@@ -833,7 +833,7 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, fr *fundingrate.La
 				Time: fundingRate.EventTime,
 				Rate: decimal.NewFromFloat(fundingRate.FundingRate.Float64()),
 			},
-		}
+		})
 	}
 	if len(resp) == 0 {
 		return nil, fmt.Errorf("%w %v %v", futures.ErrNotPerpetualFuture, fr.Asset, fr.Pair)

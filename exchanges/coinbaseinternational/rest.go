@@ -153,9 +153,9 @@ func (e *Exchange) GetIndexCandles(ctx context.Context, indexName, granularity s
 	}
 	params := url.Values{}
 	params.Set("granularity", granularity)
-	params.Set("start", start.Format("2006-01-02T15:04:05Z"))
+	params.Set("start", start.UTC().Format("2006-01-02T15:04:05Z"))
 	if !end.IsZero() {
-		params.Set("end", end.Format("2006-01-02T15:04:05Z"))
+		params.Set("end", end.UTC().Format("2006-01-02T15:04:05Z"))
 	}
 	var resp *IndexPriceCandlesticks
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "index/"+indexName+"/candles", params, nil, &resp, true)
@@ -215,7 +215,7 @@ func (e *Exchange) GetDailyTradingVolumes(ctx context.Context, instruments curre
 		params.Set("result_limit", strconv.FormatInt(resultLimit, 10))
 	}
 	if !timeFrom.IsZero() {
-		params.Set("time_from", timeFrom.Format("2006-01-02T15:04:05Z"))
+		params.Set("time_from", timeFrom.UTC().Format("2006-01-02T15:04:05Z"))
 	}
 	if showOther {
 		params.Set("show_other", "true")
@@ -233,7 +233,7 @@ func (e *Exchange) GetAggregatedCandlesDataPerInstrument(ctx context.Context, in
 		return nil, errStartTimeRequired
 	}
 	params := url.Values{}
-	params.Set("start", start.Format("2006-01-02T15:04:05Z"))
+	params.Set("start", start.UTC().Format("2006-01-02T15:04:05Z"))
 	if granularity != kline.Interval(0) {
 		intervalString, err := stringFromInterval(granularity)
 		if err != nil {
@@ -242,7 +242,7 @@ func (e *Exchange) GetAggregatedCandlesDataPerInstrument(ctx context.Context, in
 		params.Set("granularity", intervalString)
 	}
 	if !end.IsZero() {
-		params.Set("end", end.Format("2006-01-02T15:04:05Z"))
+		params.Set("end", end.UTC().Format("2006-01-02T15:04:05Z"))
 	}
 	var resp *CandlestickDataHistory
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "instruments/"+instrument.String()+"/candles", params, nil, &resp, false)
@@ -760,7 +760,7 @@ func (e *Exchange) GetFillsByPortfolio(ctx context.Context, portfolioUUID, order
 		params.Set("client_order_id", clientOrderID)
 	}
 	if !refDateTime.IsZero() {
-		params.Set("ref_datetime", refDateTime.Format("2006-01-02T15:04:05Z"))
+		params.Set("ref_datetime", refDateTime.UTC().Format("2006-01-02T15:04:05Z"))
 	}
 	if resultLimit > 0 {
 		params.Set("result_limit", strconv.FormatInt(resultLimit, 10))
@@ -769,7 +769,7 @@ func (e *Exchange) GetFillsByPortfolio(ctx context.Context, portfolioUUID, order
 		params.Set("result_offset", strconv.FormatInt(resultOffset, 10))
 	}
 	if !timeFrom.IsZero() {
-		params.Set("time_from", timeFrom.Format("2006-01-02T15:04:05Z"))
+		params.Set("time_from", timeFrom.UTC().Format("2006-01-02T15:04:05Z"))
 	}
 	var resp *PortfolioFill
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, "portfolios/fills", params, nil, &resp, true)
@@ -1204,8 +1204,8 @@ func getOfflineTradeFee(price, amount float64) float64 {
 	return 0.02 * price * amount
 }
 
-// asssetToInstrumentType returns a string representation of the two supported asset types
-func asssetToInstrumentType(assetItem asset.Item) string {
+// assetToInstrumentType returns a string representation of the two supported asset types
+func assetToInstrumentType(assetItem asset.Item) string {
 	switch assetItem {
 	case asset.Spot:
 		return "SPOT"
