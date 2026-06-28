@@ -3586,22 +3586,6 @@ func (e *Exchange) InitiateFlashSwapOrderReview(ctx context.Context, arg *FlashS
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, flashOrderReviewEPL, http.MethodPost, "flash_swap/orders/preview", nil, &arg, &response)
 }
 
-// IsValidPairString returns true if the string represents a valid currency pair
-func (e *Exchange) IsValidPairString(currencyPairString string) bool {
-	if len(currencyPairString) < 3 {
-		return false
-	}
-	pf, err := e.CurrencyPairs.GetFormat(asset.Spot, true)
-	if err != nil {
-		return false
-	}
-	if strings.Contains(currencyPairString, pf.Delimiter) {
-		result := strings.Split(currencyPairString, pf.Delimiter)
-		return len(result) >= 2
-	}
-	return false
-}
-
 // GetDualInvestmentProductList dual Investment product list
 // Sort field enum: apy — highest APY first short-period — shortest tenor first multiple — highest premium first
 func (e *Exchange) GetDualInvestmentProductList(ctx context.Context, sortyType, orderType string, coin, quoteCurrency currency.Code, planID, page, pageSize uint64) ([]*DualInvestmentPlan, error) {

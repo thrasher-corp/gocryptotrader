@@ -128,6 +128,20 @@ func TestGetRequestedOpenInterestPair(t *testing.T) {
 	assert.Equal(t, currency.EMPTYPAIR, requested)
 }
 
+func TestIsPerpetualFutureCurrency(t *testing.T) {
+	t.Parallel()
+	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDTMarginedFutures} {
+		is, err := e.IsPerpetualFutureCurrency(a, currency.EMPTYPAIR)
+		require.NoErrorf(t, err, "IsPerpetualFutureCurrency must not error for %s", a)
+		assert.Truef(t, is, "%s should be a perpetual future currency", a)
+	}
+	for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.CrossMargin, asset.DeliveryFutures, asset.Options} {
+		is, err := e.IsPerpetualFutureCurrency(a, currency.EMPTYPAIR)
+		require.NoErrorf(t, err, "IsPerpetualFutureCurrency must not error for %s", a)
+		assert.Falsef(t, is, "%s should not be a perpetual future currency", a)
+	}
+}
+
 func TestMessageID(t *testing.T) {
 	t.Parallel()
 	id := e.MessageID()

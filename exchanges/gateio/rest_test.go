@@ -5053,6 +5053,45 @@ func TestGetIntervalString(t *testing.T) {
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "Any other random interval should also be invalid")
 }
 
+func TestGetIntervalFromString(t *testing.T) {
+	t.Parallel()
+	for str, exp := range map[string]kline.Interval{
+		"10ms":  kline.TenMilliseconds,
+		"20ms":  kline.TwentyMilliseconds,
+		"100ms": kline.HundredMilliseconds,
+		"250ms": kline.TwoHundredAndFiftyMilliseconds,
+		"10s":   kline.TenSecond,
+		"30s":   kline.ThirtySecond,
+		"1m":    kline.OneMin,
+		"5m":    kline.FiveMin,
+		"15m":   kline.FifteenMin,
+		"30m":   kline.ThirtyMin,
+		"1h":    kline.OneHour,
+		"2h":    kline.TwoHour,
+		"4h":    kline.FourHour,
+		"8h":    kline.EightHour,
+		"12h":   kline.TwelveHour,
+		"1d":    kline.OneDay,
+		"7d":    kline.SevenDay,
+		"30d":   kline.OneMonth,
+		// Input is lowercased before matching, so mixed case must resolve too
+		"1H": kline.OneHour,
+	} {
+		t.Run(str, func(t *testing.T) {
+			t.Parallel()
+			interval, err := e.GetIntervalFromString(str)
+			require.NoError(t, err)
+			assert.Equal(t, exp, interval)
+		})
+	}
+
+	_, err := e.GetIntervalFromString("")
+	assert.ErrorIs(t, err, kline.ErrInvalidInterval, "empty interval string should be invalid")
+
+	_, err = e.GetIntervalFromString("3w")
+	assert.ErrorIs(t, err, kline.ErrInvalidInterval, "unknown interval string should be invalid")
+}
+
 func TestTransferBetweenSubAccountsByUID(t *testing.T) {
 	t.Parallel()
 	_, err := e.TransferBetweenSubAccountsByUID(t.Context(), &SubAccountTransfer{})
