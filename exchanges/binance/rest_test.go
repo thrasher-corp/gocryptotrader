@@ -4091,7 +4091,7 @@ func TestExchangeLimitsFromSymbols(t *testing.T) {
 
 	l, err = e.exchangeLimitsFromSymbols(asset.Margin, symbols)
 	require.NoError(t, err, "exchangeLimitsFromSymbols must not error for margin")
-	assert.Len(t, l, 2, "both MARGIN-permitted symbols must be returned")
+	assert.Len(t, l, 2, "both MARGIN-permitted symbols should be returned")
 
 	_, err = e.exchangeLimitsFromSymbols(asset.Spot, []*SymbolInfo{{BaseAsset: "BT C", QuoteAsset: "USDT", PermissionSets: [][]string{{"SPOT"}}}})
 	require.Error(t, err, "an invalid currency string must return an error")

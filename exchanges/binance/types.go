@@ -2057,7 +2057,7 @@ type WsOrderbookTickers []*WsOrderbookTicker
 
 // APISignatureInfo holds API key and signature information
 type APISignatureInfo struct {
-	APIKey    string `json:"apiKey,omitempty"` //nolint:gosec // false positive
+	APIKey    string `json:"apiKey,omitempty"`
 	Signature string `json:"signature,omitempty"`
 	Timestamp int64  `json:"timestamp,omitempty"`
 }
@@ -2161,7 +2161,7 @@ type TradeOrderResponse struct {
 
 // FuturesAuthenticationResp holds authentication.
 type FuturesAuthenticationResp struct {
-	APIKey           string     `json:"apiKey"` //nolint:gosec // false positive
+	APIKey           string     `json:"apiKey"`
 	AuthorizedSince  int64      `json:"authorizedSince"`
 	ConnectedSince   int64      `json:"connectedSince"`
 	ReturnRateLimits bool       `json:"returnRateLimits"`
@@ -2892,7 +2892,7 @@ type APIRestrictions struct {
 	IPRestrict string     `json:"ipRestrict"`
 	IPList     []string   `json:"ipList"`
 	UpdateTime types.Time `json:"updateTime"`
-	APIKey     string     `json:"apiKey"` //nolint:gosec // false positive
+	APIKey     string     `json:"apiKey"`
 }
 
 // ManagedSubAccountAssetInfo represents managed sub-account asset information
@@ -5609,7 +5609,7 @@ type FuturesSubAccountEnableResponse struct {
 // SubAccountAPIKey holds sub-accounts API key details
 type SubAccountAPIKey struct {
 	SubaccountID string `json:"subaccountId"`
-	APIKey       string `json:"apiKey"` //nolint:gosec // false positive
+	APIKey       string `json:"apiKey"`
 	SecretKey    string `json:"secretKey"`
 	CanTrade     bool   `json:"canTrade"`
 	MarginTrade  bool   `json:"marginTrade"`
@@ -5619,7 +5619,7 @@ type SubAccountAPIKey struct {
 // SubAccountUniversalTransferEnableResponse holds subaccounts universal transfer enabling response
 type SubAccountUniversalTransferEnableResponse struct {
 	SubaccountID         string `json:"subaccountId"`
-	Apikey               string `json:"apikey"` //nolint:gosec // false positive
+	Apikey               string `json:"apikey"`
 	CanUniversalTransfer bool   `json:"canUniversalTransfer"`
 }
 
@@ -5628,7 +5628,7 @@ type SubAccountIPRestrictioin struct {
 	Status     string     `json:"status"`
 	IPList     []string   `json:"ipList"`
 	UpdateTime types.Time `json:"updateTime"`
-	APIKey     string     `json:"apiKey"` //nolint:gosec // false positive
+	APIKey     string     `json:"apiKey"`
 }
 
 // BrokerCreateSubAccount represents a subaccount creation response through a broker
@@ -5944,7 +5944,7 @@ type UserAPIKeyCreationResponse struct {
 	Code    string `json:"code"`
 	Message any    `json:"message"`
 	Data    struct {
-		APIKey                string     `json:"apiKey"` //nolint:gosec // false positive
+		APIKey                string     `json:"apiKey"`
 		APIName               string     `json:"apiName"`
 		SecretKey             string     `json:"secretKey"`
 		EnableTrade           bool       `json:"enableTrade"`
