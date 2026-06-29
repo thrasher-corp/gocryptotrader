@@ -87,10 +87,10 @@ func (e *Exchange) GetTradFiKlines(ctx context.Context, symbol currency.Pair, ar
 		}
 	}
 	if !arg.BeginTime.IsZero() {
-		params.Set("begin_time", strconv.FormatInt(arg.BeginTime.UnixMilli(), 10))
+		params.Set("begin_time", strconv.FormatInt(arg.BeginTime.Unix(), 10))
 	}
 	if !arg.EndTime.IsZero() {
-		params.Set("end_time", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
+		params.Set("end_time", strconv.FormatInt(arg.EndTime.Unix(), 10))
 	}
 	if arg.Limit > 0 {
 		params.Set("limit", strconv.FormatUint(arg.Limit, 10))
@@ -139,10 +139,10 @@ func (e *Exchange) GetTradFiTransactions(ctx context.Context, arg *GetTradFiTran
 			}
 		}
 		if !arg.BeginTime.IsZero() {
-			params.Set("begin_time", strconv.FormatInt(arg.BeginTime.UnixMilli(), 10))
+			params.Set("begin_time", strconv.FormatInt(arg.BeginTime.Unix(), 10))
 		}
 		if !arg.EndTime.IsZero() {
-			params.Set("end_time", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
+			params.Set("end_time", strconv.FormatInt(arg.EndTime.Unix(), 10))
 		}
 		if arg.Type != "" {
 			params.Set("type", arg.Type)
@@ -243,10 +243,10 @@ func (e *Exchange) GetTradFiOrderHistory(ctx context.Context, arg *GetTradFiOrde
 			}
 		}
 		if !arg.BeginTime.IsZero() {
-			params.Set("begin_time", strconv.FormatInt(arg.BeginTime.UnixMilli(), 10))
+			params.Set("begin_time", strconv.FormatInt(arg.BeginTime.Unix(), 10))
 		}
 		if !arg.EndTime.IsZero() {
-			params.Set("end_time", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
+			params.Set("end_time", strconv.FormatInt(arg.EndTime.Unix(), 10))
 		}
 		if !arg.Symbol.IsEmpty() {
 			params.Set("symbol", arg.Symbol.String())
@@ -317,10 +317,10 @@ func (e *Exchange) GetTradFiPositionHistory(ctx context.Context, arg *GetTradFiP
 			params.Set("page_size", strconv.FormatUint(arg.PageSize, 10))
 		}
 		if !arg.BeginTime.IsZero() {
-			params.Set("begin_time", strconv.FormatInt(arg.BeginTime.UnixMilli(), 10))
+			params.Set("begin_time", strconv.FormatInt(arg.BeginTime.Unix(), 10))
 		}
 		if !arg.EndTime.IsZero() {
-			params.Set("end_time", strconv.FormatInt(arg.EndTime.UnixMilli(), 10))
+			params.Set("end_time", strconv.FormatInt(arg.EndTime.Unix(), 10))
 		}
 		if !arg.Symbol.IsEmpty() {
 			params.Set("symbol", arg.Symbol.String())

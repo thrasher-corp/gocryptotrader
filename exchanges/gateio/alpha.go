@@ -40,9 +40,9 @@ func (e *Exchange) GetAlphaAccountTransactionHistory(ctx context.Context, from, 
 		}
 	}
 	params := url.Values{}
-	params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
+	params.Set("from", strconv.FormatInt(from.Unix(), 10))
 	if !to.IsZero() {
-		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
+		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
 	if page > 0 {
 		params.Set("page", strconv.FormatUint(page, 10))
@@ -119,10 +119,10 @@ func (e *Exchange) GetAlphaOrders(ctx context.Context, memeCcy currency.Code, or
 		params.Set("status", strconv.FormatUint(uint64(state), 10))
 	}
 	if !from.IsZero() {
-		params.Set("from", strconv.FormatInt(from.UnixMilli(), 10))
+		params.Set("from", strconv.FormatInt(from.Unix(), 10))
 	}
 	if !to.IsZero() {
-		params.Set("to", strconv.FormatInt(to.UnixMilli(), 10))
+		params.Set("to", strconv.FormatInt(to.Unix(), 10))
 	}
 	if page > 0 {
 		params.Set("page", strconv.FormatUint(page, 10))

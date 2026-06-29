@@ -227,10 +227,10 @@ func (e *Exchange) GetAggregatedPartnerAgentStatistics(ctx context.Context, star
 	}
 	params := url.Values{}
 	if !startTime.IsZero() {
-		params.Set("start_date", strconv.FormatInt(startTime.UnixMilli(), 10))
+		params.Set("start_date", startTime.Format("2006-01-02 15:04:05"))
 	}
 	if !endTime.IsZero() {
-		params.Set("end_date", strconv.FormatInt(endTime.UnixMilli(), 10))
+		params.Set("end_date", endTime.Format("2006-01-02 15:04:05"))
 	}
 	if businessType > 0 {
 		params.Set("business_type", strconv.FormatUint(businessType, 10))
