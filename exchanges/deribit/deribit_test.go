@@ -4127,12 +4127,10 @@ func TestCancelAllOrders(t *testing.T) {
 		Pair:      futuresTradablePair,
 		AssetType: asset.Futures,
 	}
-	var result order.CancelAllResponse
-	var err error
 	for assetType, cp := range assetTypeToPairsMap {
 		orderCancellation.AssetType = assetType
 		orderCancellation.Pair = cp
-		result, err = e.CancelAllOrders(t.Context(), orderCancellation)
+		result, err := e.CancelAllOrders(t.Context(), orderCancellation)
 		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
 		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
 	}

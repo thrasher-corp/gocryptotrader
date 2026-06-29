@@ -108,6 +108,55 @@
      "headers": {}
     }
    ]
+  },
+  "/options/tickers": {
+   "GET": [
+    {
+     "data": [
+      {
+       "name": "BTC_USDT-20211130-50000-C",
+       "last_price": "100",
+       "mark_price": "100",
+       "position_size": 10,
+       "ask1_size": 1,
+       "ask1_price": "101",
+       "bid1_size": 1,
+       "bid1_price": "99",
+       "vega": "0",
+       "theta": "0",
+       "rho": "0",
+       "gamma": "0",
+       "delta": "0",
+       "mark_iv": "0.1",
+       "bid_iv": "0.1",
+       "ask_iv": "0.1",
+       "leverage": "1"
+      },
+      {
+       "name": "BTC_USDT-20211130-50000-P",
+       "last_price": "90",
+       "mark_price": "90",
+       "position_size": 10,
+       "ask1_size": 1,
+       "ask1_price": "91",
+       "bid1_size": 1,
+       "bid1_price": "89",
+       "vega": "0",
+       "theta": "0",
+       "rho": "0",
+       "gamma": "0",
+       "delta": "0",
+       "mark_iv": "0.1",
+       "bid_iv": "0.1",
+       "ask_iv": "0.1",
+       "leverage": "1"
+      }
+     ],
+     "queryString": "underlying=BTC_USDT",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
   }
  }
 }

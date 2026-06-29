@@ -214,7 +214,6 @@ func (m *ExchangeManager) Shutdown(shutdownTimeout time.Duration) error {
 		delete(m.exchanges, res.key)
 		m.mtx.Unlock()
 	}
-
 	timer := time.NewTimer(shutdownTimeout)
 	defer timer.Stop()
 
