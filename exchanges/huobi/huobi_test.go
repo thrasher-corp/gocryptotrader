@@ -607,10 +607,10 @@ func TestGetSwapPriceLimits(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestGetMarginRates(t *testing.T) {
+func TestGetLoanMarginRates(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetMarginRates(t.Context(), btcusdtPair)
+	_, err := e.GetLoanMarginRates(t.Context(), btcusdtPair)
 	require.NoError(t, err)
 }
 

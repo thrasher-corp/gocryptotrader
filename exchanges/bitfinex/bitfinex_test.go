@@ -453,7 +453,7 @@ func TestGetFundingBook(t *testing.T) {
 
 func TestGetLends(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetLends(t.Context(), "usd", nil)
+	_, err := e.GetLends(t.Context(), "usd", 0, time.Time{}, time.Time{})
 	if err != nil {
 		t.Error(err)
 	}

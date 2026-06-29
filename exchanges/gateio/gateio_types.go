@@ -1260,13 +1260,24 @@ type MarginCurrencyBalance struct {
 	UnpairInterest types.Number `json:"interest"`
 }
 
-// MarginAccountItem margin account item
+// MarginAccountItem margin account item.
+// Returned by the GET /margin/user/account endpoint which is the latest interface
+// supporting both risk-based (risk) and maintenance-margin-based (mmr) isolated
+// margin accounts.
 type MarginAccountItem struct {
-	Locked       bool                      `json:"locked"`
-	CurrencyPair string                    `json:"currency_pair"`
-	Risk         string                    `json:"risk"`
-	Base         AccountBalanceInformation `json:"base"`
-	Quote        AccountBalanceInformation `json:"quote"`
+	CurrencyPair string `json:"currency_pair"`
+	// AccountType indicates the account mode: "risk" (risk rate account),
+	// "mmr" (maintenance margin rate account), or "inactive" (market not activated).
+	AccountType string `json:"account_type"`
+	// Leverage is the user's current market leverage multiplier.
+	Leverage types.Number `json:"leverage"`
+	Locked   bool         `json:"locked"`
+	// Risk is the current risk rate (returned for risk-rate accounts).
+	Risk string `json:"risk"`
+	// Mmr is the current maintenance margin rate (returned for mmr accounts).
+	Mmr   string                    `json:"mmr"`
+	Base  AccountBalanceInformation `json:"base"`
+	Quote AccountBalanceInformation `json:"quote"`
 }
 
 // AccountBalanceInformation represents currency account balance information.
@@ -1646,6 +1657,13 @@ type MaxTransferAndLoanAmount struct {
 	Amount       types.Number `json:"amount"`
 }
 
+// MaxBorrowableAmount represents the max borrowable amount for specific margin currency.
+type MaxBorrowableAmount struct {
+	Currency   currency.Code `json:"currency"`
+	Borrowable types.Number  `json:"borrowable"`
+	Pair       currency.Pair `json:"currency_pair"`
+}
+
 // CrossMarginCurrencies represents a currency supported by cross margin
 type CrossMarginCurrencies struct {
 	Name                 string       `json:"name"`
@@ -1730,6 +1748,28 @@ type RepaymentHistoryItem struct {
 	Currency   string       `json:"currency"`
 	Principal  types.Number `json:"principal"`
 	Interest   types.Number `json:"interest"`
+}
+
+// UniLoanInterestRecord represents a single interest deduction record from
+// the GET margin/uni/interest_records endpoint.
+type UniLoanInterestRecord struct {
+	Currency     string       `json:"currency"`
+	CurrencyPair string       `json:"currency_pair"`
+	ActualRate   types.Number `json:"actual_rate"`
+	Interest     types.Number `json:"interest"`
+	Status       int64        `json:"status"` // 0=undeducted, 1=deducted
+	CreateTime   types.Time   `json:"create_time"`
+	Type         string       `json:"type"` // "platform" or "margin"
+}
+
+// UniLoanBorrowRepayParam represents the request parameters for the unified
+// margin borrow-or-repay endpoint (POST margin/uni/loans).
+type UniLoanBorrowRepayParam struct {
+	CurrencyPair currency.Pair `json:"currency_pair"`
+	Currency     currency.Code `json:"currency"`
+	// Type is either "borrow" or "repay".
+	Type   string       `json:"type"`
+	Amount types.Number `json:"amount"`
 }
 
 // FlashSwapOrderParams represents create flash swap order request parameters.

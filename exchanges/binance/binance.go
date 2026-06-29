@@ -55,7 +55,8 @@ const (
 	historicalTrades  = "/api/v3/historicalTrades"
 
 	// Margin endpoints
-	marginInterestHistory = "/sapi/v1/margin/interestHistory"
+	marginInterestHistory     = "/sapi/v1/margin/interestHistory"
+	marginInterestRateHistory = "/sapi/v1/margin/interestRateHistory"
 
 	// Authenticated endpoints
 	newOrderTest      = "/api/v3/order/test"
@@ -203,6 +204,27 @@ func (e *Exchange) GetUserMarginInterestHistory(ctx context.Context, assetCurren
 	path := marginInterestHistory + "?" + params.Encode()
 	var resp UserMarginInterestHistoryResponse
 	return &resp, e.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
+}
+
+// GetMarginInterestRateHistory returns margin interest rate history by asset.
+func (e *Exchange) GetMarginInterestRateHistory(ctx context.Context, assetCurrency currency.Code, vipLevel int64, startTime, endTime time.Time) ([]MarginInterestRateHistoryItem, error) {
+	if assetCurrency.IsEmpty() {
+		return nil, currency.ErrCurrencyCodeEmpty
+	}
+	params := url.Values{}
+	params.Set("asset", assetCurrency.String())
+	if vipLevel > 0 {
+		params.Set("vipLevel", strconv.FormatInt(vipLevel, 10))
+	}
+	if !startTime.IsZero() {
+		params.Set("startTime", strconv.FormatInt(startTime.UnixMilli(), 10))
+	}
+	if !endTime.IsZero() {
+		params.Set("endTime", strconv.FormatInt(endTime.UnixMilli(), 10))
+	}
+	path := marginInterestRateHistory + "?" + params.Encode()
+	var resp []MarginInterestRateHistoryItem
+	return resp, e.SendAPIKeyHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 }
 
 // GetAggregatedTrades returns aggregated trade activity.

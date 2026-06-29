@@ -1,7 +1,8 @@
-package kucoin
+package bitfinex
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,34 +13,8 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
-func TestUpdateOrderExecutionLimits(t *testing.T) {
-	t.Parallel()
-	testexch.UpdatePairsOnce(t, e)
-	for _, a := range e.GetAssetTypes(false) {
-		t.Run(a.String(), func(t *testing.T) {
-			t.Parallel()
-			require.NoError(t, e.UpdateOrderExecutionLimits(t.Context(), a), "UpdateOrderExecutionLimits must not error")
-			pairs, err := e.GetAvailablePairs(a)
-			require.NoError(t, err, "GetPairs must not error")
-			for _, p := range pairs {
-				l, err := e.GetOrderExecutionLimits(a, p)
-				require.NoError(t, err, "GetOrderExecutionLimits must not error")
-				assert.Positive(t, l.AmountStepIncrementSize, "AmountStepIncrementSize should not be zero")
-			}
-		})
-	}
-	t.Run("unsupported asset", func(t *testing.T) {
-		t.Parallel()
-		require.ErrorIs(t, e.UpdateOrderExecutionLimits(t.Context(), asset.Binary), asset.ErrNotSupported)
-	})
-}
-
 func TestGetMarginRatesHistory(t *testing.T) {
 	t.Parallel()
-	ccy := currency.USDT
-	if !marginTradablePair.IsEmpty() && !marginTradablePair.Base.IsEmpty() {
-		ccy = marginTradablePair.Base
-	}
 	testCases := []struct {
 		name    string
 		req     *margin.RateHistoryRequest
@@ -55,22 +30,24 @@ func TestGetMarginRatesHistory(t *testing.T) {
 			name: "unsupported asset",
 			req: &margin.RateHistoryRequest{
 				Asset:    asset.Spot,
-				Currency: currency.USDT,
+				Currency: currency.USD,
 			},
 			errIs: asset.ErrNotSupported,
 		},
 		{
 			name: "missing currency",
 			req: &margin.RateHistoryRequest{
-				Asset: asset.Margin,
+				Asset: asset.MarginFunding,
 			},
 			errIs: currency.ErrCurrencyCodeEmpty,
 		},
 		{
 			name: "success",
 			req: &margin.RateHistoryRequest{
-				Asset:    asset.Margin,
-				Currency: ccy,
+				Asset:     asset.MarginFunding,
+				Currency:  currency.USD,
+				StartDate: time.Now().Add(-30 * 24 * time.Hour),
+				EndDate:   time.Now(),
 			},
 			success: true,
 		},
@@ -116,7 +93,7 @@ func TestGetMarginRates(t *testing.T) {
 		{
 			name: "empty pair",
 			req: &margin.CurrentRatesRequest{
-				Asset: asset.Margin,
+				Asset: asset.MarginFunding,
 				Pairs: currency.Pairs{currency.EMPTYPAIR},
 			},
 			errIs: currency.ErrCurrencyPairEmpty,
@@ -124,7 +101,7 @@ func TestGetMarginRates(t *testing.T) {
 		{
 			name: "empty pairs lookup error",
 			req: &margin.CurrentRatesRequest{
-				Asset: asset.Margin,
+				Asset: asset.MarginFunding,
 			},
 			useLocal:     true,
 			disableAsset: true,
@@ -133,7 +110,7 @@ func TestGetMarginRates(t *testing.T) {
 		{
 			name: "empty pairs after lookup",
 			req: &margin.CurrentRatesRequest{
-				Asset: asset.Margin,
+				Asset: asset.MarginFunding,
 			},
 			useLocal:     true,
 			clearEnabled: true,
@@ -142,8 +119,11 @@ func TestGetMarginRates(t *testing.T) {
 		{
 			name: "success",
 			req: &margin.CurrentRatesRequest{
-				Asset: asset.Margin,
-				Pairs: currency.Pairs{marginTradablePair},
+				Asset: asset.MarginFunding,
+				Pairs: currency.Pairs{
+					currency.NewPair(currency.USD, currency.USDT),
+					currency.NewPair(currency.USD, currency.BTC),
+				},
 			},
 			expectSuccess: true,
 		},
@@ -156,14 +136,14 @@ func TestGetMarginRates(t *testing.T) {
 				local := new(Exchange)
 				require.NoError(t, testexch.Setup(local))
 				if tc.disableAsset {
-					require.NoError(t, local.CurrencyPairs.SetAssetEnabled(asset.Margin, false))
+					require.NoError(t, local.CurrencyPairs.SetAssetEnabled(asset.MarginFunding, false))
 				}
 				if tc.clearEnabled {
-					ps, err := local.CurrencyPairs.Get(asset.Margin)
+					ps, err := local.CurrencyPairs.Get(asset.MarginFunding)
 					require.NoError(t, err)
 					ps.AssetEnabled = true
 					ps.Enabled = nil
-					require.NoError(t, local.CurrencyPairs.Store(asset.Margin, ps))
+					require.NoError(t, local.CurrencyPairs.Store(asset.MarginFunding, ps))
 				}
 				target = local
 			}
@@ -178,10 +158,16 @@ func TestGetMarginRates(t *testing.T) {
 				require.NotEmpty(t, rates)
 				for i := range rates {
 					assert.Equal(t, target.Name, rates[i].Exchange)
-					assert.Equal(t, asset.Margin, rates[i].Asset)
+					assert.Equal(t, asset.MarginFunding, rates[i].Asset)
 					assert.NotNil(t, rates[i].CurrentRate)
 					assert.False(t, rates[i].CurrentRate.Time.IsZero())
 					assert.False(t, rates[i].TimeChecked.IsZero())
+					assert.False(t,
+						rates[i].CurrentRate.HourlyRate.IsZero() &&
+							rates[i].CurrentRate.YearlyRate.IsZero() &&
+							rates[i].CurrentRate.HourlyBorrowRate.IsZero() &&
+							rates[i].CurrentRate.YearlyBorrowRate.IsZero(),
+					)
 				}
 			}
 		})
