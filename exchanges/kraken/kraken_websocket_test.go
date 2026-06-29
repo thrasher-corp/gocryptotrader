@@ -3,7 +3,6 @@ package kraken
 import (
 	"context"
 	"net/http"
-	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -86,88 +85,6 @@ func TestGeneratePrivateSubscriptions(t *testing.T) {
 	}, subs)
 }
 
-func TestSplitPairSubscriptions(t *testing.T) {
-	t.Parallel()
-
-	t.Run("splits multi-pair subscriptions", func(t *testing.T) {
-		t.Parallel()
-
-		ethUSDPair := currency.NewPair(currency.ETH, currency.USD)
-		onePairSub := &subscription.Subscription{
-			Asset:   asset.Spot,
-			Channel: subscription.TickerChannel,
-			Pairs:   currency.Pairs{spotTestPair},
-		}
-		multiPairSub := &subscription.Subscription{
-			Asset:   asset.Spot,
-			Channel: subscription.OrderbookChannel,
-			Pairs:   currency.Pairs{spotTestPair, ethUSDPair},
-			Levels:  1000,
-		}
-		noPairSub := &subscription.Subscription{
-			Channel:       subscription.MyOrdersChannel,
-			Authenticated: true,
-		}
-
-		subs := splitPairSubscriptions(subscription.List{noPairSub, onePairSub, multiPairSub})
-		require.Len(t, subs, 4, "splitPairSubscriptions must split multi-pair subscriptions")
-		assert.Empty(t, subs[0].Pairs, "no-pair subscription should be retained")
-		assert.Equal(t, currency.Pairs{spotTestPair}, subs[1].Pairs, "single-pair subscription should be retained")
-		assert.Equal(t, currency.Pairs{spotTestPair}, subs[2].Pairs, "first split subscription should contain the first pair")
-		assert.Equal(t, currency.Pairs{ethUSDPair}, subs[3].Pairs, "second split subscription should contain the second pair")
-		assert.Len(t, multiPairSub.Pairs, 2, "original subscription should not be modified")
-	})
-
-	t.Run("keeps connection batches under configured pair budget", func(t *testing.T) {
-		t.Parallel()
-
-		const pairLimit = 200
-		makePairs := func(prefix string) currency.Pairs {
-			pairs := make(currency.Pairs, 100)
-			for i := range pairs {
-				pairs[i] = currency.NewPair(currency.XBT, currency.NewCode(prefix+strconv.Itoa(i)))
-			}
-			return pairs
-		}
-
-		reviewerExample := subscription.List{
-			{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: makePairs("AAA")},
-			{Asset: asset.Spot, Channel: subscription.AllTradesChannel, Pairs: makePairs("BBB")},
-			{Asset: asset.Spot, Channel: subscription.OrderbookChannel, Pairs: makePairs("CCC"), Levels: 1000},
-		}
-		var totalPairs int
-		for _, sub := range reviewerExample {
-			totalPairs += len(sub.Pairs)
-		}
-		require.Equal(t, 300, totalPairs, "reviewer example must contain 300 symbols across three requests")
-
-		unsplitRequests := groupSubscriptionsByRequestLimit(reviewerExample, pairLimit)
-		require.Len(t, unsplitRequests, 3, "reviewer example must start as three grouped requests")
-		for _, req := range unsplitRequests {
-			assert.Len(t, req.Pairs, 100, "each grouped request should contain 100 pairs")
-		}
-
-		subs := splitPairSubscriptions(reviewerExample)
-		require.Len(t, subs, 300, "splitPairSubscriptions must create one logical subscription per channel symbol")
-
-		countPairs := func(requests subscription.List) int {
-			var count int
-			for _, req := range requests {
-				count += len(req.Pairs)
-			}
-			return count
-		}
-
-		firstConnectionRequests := groupSubscriptionsByRequestLimit(subs[:pairLimit], pairLimit)
-		require.Len(t, firstConnectionRequests, 2, "first connection subscriptions must group into two requests")
-		assert.Equal(t, pairLimit, countPairs(firstConnectionRequests), "first connection requests should contain the configured pair budget")
-
-		secondConnectionRequests := groupSubscriptionsByRequestLimit(subs[pairLimit:], pairLimit)
-		require.Len(t, secondConnectionRequests, 1, "remaining subscription must group into one request")
-		assert.Equal(t, 100, countPairs(secondConnectionRequests), "second connection requests should contain the remaining symbols")
-	})
-}
-
 func TestGeneratePublicSubscriptions(t *testing.T) {
 	t.Parallel()
 
@@ -187,33 +104,25 @@ func TestGeneratePublicSubscriptions(t *testing.T) {
 
 			pairs, err := ex.GetEnabledPairs(asset.Spot)
 			require.NoError(t, err, "GetEnabledPairs must not error")
-			templates := subscription.List{
+			exp := subscription.List{
 				{Channel: subscription.TickerChannel},
 				{Channel: subscription.AllTradesChannel},
 				{Channel: subscription.CandlesChannel, Interval: kline.OneMin},
 				{Channel: subscription.OrderbookChannel, Levels: 1000},
 			}
-			exp := make(subscription.List, 0, len(templates)*len(pairs))
-			for _, s := range templates {
-				for _, pair := range pairs {
-					exp = append(exp, &subscription.Subscription{
-						Channel:          s.Channel,
-						QualifiedChannel: channelName(s),
-						Asset:            asset.Spot,
-						Interval:         s.Interval,
-						Levels:           s.Levels,
-						Pairs:            currency.Pairs{pair},
-					})
-				}
+			for _, s := range exp {
+				s.QualifiedChannel = channelName(s)
+				s.Asset = asset.Spot
+				s.Pairs = pairs
 			}
 
 			subs, err := ex.generatePublicSubscriptions()
 			require.NoError(t, err, "generatePublicSubscriptions must not error")
-			require.Len(t, subs, len(exp), "generatePublicSubscriptions must return public channel-pair subscriptions only")
+			require.Len(t, subs, len(exp), "generatePublicSubscriptions must return grouped public channel subscriptions only")
 			testsubs.EqualLists(t, exp, subs)
 			for _, sub := range subs {
 				assert.False(t, sub.Authenticated, "public subscription should not be authenticated")
-				assert.Len(t, sub.Pairs, 1, "public subscription should contain one pair for connection scaling")
+				assert.Len(t, sub.Pairs, len(pairs), "public subscription should retain grouped pairs")
 			}
 		})
 	}
@@ -229,42 +138,6 @@ func TestWsAuthenticate(t *testing.T) {
 	err := ex.wsAuthenticate(t.Context(), nil)
 	require.Error(t, err, "wsAuthenticate must error without credentials")
 	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "websocket auth endpoints should be disabled after auth failure")
-}
-
-func TestGroupSubscriptionsByRequestLimit(t *testing.T) {
-	t.Parallel()
-
-	pairs := make(currency.Pairs, 5)
-	for i := range pairs {
-		pairs[i] = currency.NewPair(currency.NewCode("XBT"), currency.NewCode("USD"+string(rune('A'+i))))
-	}
-	subs := subscription.List{
-		{
-			Asset:            asset.Spot,
-			Channel:          subscription.CandlesChannel,
-			QualifiedChannel: krakenWsOHLC,
-			Interval:         kline.OneMin,
-			Pairs:            pairs[:3],
-		},
-		{
-			Asset:            asset.Spot,
-			Channel:          subscription.CandlesChannel,
-			QualifiedChannel: krakenWsOHLC,
-			Interval:         kline.OneMin,
-			Pairs:            pairs[3:],
-		},
-	}
-
-	got := groupSubscriptionsByRequestLimit(subs, 2)
-	require.Len(t, got, 3, "groupSubscriptionsByRequestLimit must batch grouped pairs")
-	assert.Len(t, got[0].Pairs, 2, "first batch should contain pair limit")
-	assert.Len(t, got[1].Pairs, 2, "second batch should contain pair limit")
-	assert.Len(t, got[2].Pairs, 1, "third batch should contain remainder")
-	for _, sub := range got {
-		assert.LessOrEqual(t, len(sub.Pairs), 2, "batched subscription pair count should not exceed limit")
-		assert.Equal(t, subscription.CandlesChannel, sub.Channel, "batched subscription should retain channel")
-		assert.Equal(t, kline.OneMin, sub.Interval, "batched subscription should retain interval")
-	}
 }
 
 func TestManageSubs(t *testing.T) {

@@ -115,6 +115,80 @@ func TestRemove(t *testing.T) {
 	assert.ErrorIs(t, s.Remove(&ExactKey{&Subscription{Channel: CandlesChannel, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}}}), ErrNotFound, "Should error correctly when called twice ")
 }
 
+func TestUpdateKeyAndState(t *testing.T) {
+	t.Parallel()
+
+	t.Run("validation errors", func(t *testing.T) {
+		t.Parallel()
+
+		err := (*Store)(nil).UpdateKeyAndState(&Subscription{}, 42, SubscribedState)
+		assert.ErrorIs(t, err, common.ErrNilPointer, "UpdateKeyAndState should error when called on nil Store")
+		assert.ErrorContains(t, err, "called on nil Store", "UpdateKeyAndState should include nil Store context")
+
+		err = new(Store).UpdateKeyAndState(&Subscription{}, 42, SubscribedState)
+		assert.ErrorIs(t, err, common.ErrNilPointer, "UpdateKeyAndState should error when called on uninitialised Store")
+		assert.ErrorContains(t, err, "called on an uninitialised Store", "UpdateKeyAndState should include uninitialised Store context")
+
+		err = NewStore().UpdateKeyAndState(nil, 42, SubscribedState)
+		assert.ErrorIs(t, err, common.ErrNilPointer, "UpdateKeyAndState should error when subscription is nil")
+		assert.ErrorContains(t, err, "Subscription param", "UpdateKeyAndState should include subscription parameter context")
+
+		err = NewStore().UpdateKeyAndState(&Subscription{}, nil, SubscribedState)
+		assert.ErrorIs(t, err, common.ErrNilPointer, "UpdateKeyAndState should error when key is nil")
+		assert.ErrorContains(t, err, "key param", "UpdateKeyAndState should include key parameter context")
+	})
+
+	t.Run("missing subscription", func(t *testing.T) {
+		t.Parallel()
+
+		err := NewStore().UpdateKeyAndState(&Subscription{Channel: TickerChannel}, 42, SubscribedState)
+		assert.ErrorIs(t, err, ErrNotFound, "UpdateKeyAndState should error when subscription is missing")
+	})
+
+	t.Run("duplicate target key", func(t *testing.T) {
+		t.Parallel()
+
+		store := NewStore()
+		existing := &Subscription{Key: 42, Channel: TickerChannel}
+		other := &Subscription{Key: 1337, Channel: OrderbookChannel}
+		require.NoError(t, store.Add(existing), "Add existing subscription must not error")
+		require.NoError(t, store.Add(other), "Add other subscription must not error")
+
+		err := store.UpdateKeyAndState(existing, other.Key, SubscribedState)
+		assert.ErrorIs(t, err, ErrDuplicate, "UpdateKeyAndState should error when the target key is already used")
+		assert.Same(t, existing, store.Get(42), "existing subscription should remain stored at its original key")
+		assert.Same(t, other, store.Get(1337), "other subscription should remain stored at the duplicate target key")
+	})
+
+	t.Run("updates key and state", func(t *testing.T) {
+		t.Parallel()
+
+		store := NewStore()
+		sub := &Subscription{Key: "temporary", Channel: TickerChannel}
+		require.NoError(t, store.Add(sub), "Add subscription must not error")
+
+		err := store.UpdateKeyAndState(sub, 42, SubscribedState)
+		require.NoError(t, err, "UpdateKeyAndState must not error")
+		assert.Nil(t, store.Get("temporary"), "old key should no longer resolve")
+		assert.Same(t, sub, store.Get(42), "new key should resolve to the same subscription")
+		assert.Equal(t, 42, sub.Key, "subscription key should be updated")
+		assert.Equal(t, SubscribedState, sub.State(), "subscription state should be updated")
+	})
+
+	t.Run("invalid state", func(t *testing.T) {
+		t.Parallel()
+
+		store := NewStore()
+		sub := &Subscription{Key: "temporary", Channel: TickerChannel}
+		require.NoError(t, store.Add(sub), "Add subscription must not error")
+
+		err := store.UpdateKeyAndState(sub, 42, UnsubscribedState+1)
+		assert.ErrorIs(t, err, ErrInvalidState, "UpdateKeyAndState should error on invalid state")
+		assert.Same(t, sub, store.Get("temporary"), "subscription should remain at its original key after state error")
+		assert.Nil(t, store.Get(42), "new key should not resolve after state error")
+	})
+}
+
 // TestList exercises the List and Len methods
 func TestList(t *testing.T) {
 	t.Parallel()

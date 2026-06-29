@@ -1630,10 +1630,14 @@ func TestWSSubscribedResponse(t *testing.T) {
 		assert.ErrorContains(t, err, "waiter1", "Should error containing subID if")
 	}
 
-	err = e.Websocket.AddSubscriptions(conn, &subscription.Subscription{Key: "waiter1"})
+	sub := &subscription.Subscription{Key: "waiter1"}
+	err = e.Websocket.AddSubscriptions(conn, sub)
 	require.NoError(t, err, "AddSubscriptions must not error")
 	err = e.wsHandleData(t.Context(), conn, []byte(`{"event":"subscribed","channel":"ticker","chanId":224555,"subId":"waiter1","symbol":"tBTCUSD","pair":"BTCUSD"}`))
 	assert.NoError(t, err, "wsHandleData should not error")
+	assert.Nil(t, e.Websocket.GetSubscription("waiter1"), "temporary subID key should be removed")
+	assert.Same(t, sub, e.Websocket.GetSubscription(224555), "chanID key should return the same subscription")
+	assert.Equal(t, subscription.SubscribedState, sub.State(), "subscription should be subscribed after acknowledgement")
 	if assert.NotEmpty(t, ch, "Matcher should have received a sub notification") {
 		msg := <-ch
 		cID, err := jsonparser.GetInt(msg, "chanId")

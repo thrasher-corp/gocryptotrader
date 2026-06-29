@@ -198,10 +198,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		ExchangeConfig:               exch,
 		UseMultiConnectionManagement: true,
 		Features:                     &e.Features.Supports.WebsocketCapabilities,
-		// Kraken v1 accepts grouped pair requests. Count pairs before grouping so
-		// large subscription sets spread across multiple sockets.
-		MaxWebsocketSubscriptionsPerConnection: 200,
-		OrderbookBufferConfig:                  buffer.Config{SortBuffer: true},
+		OrderbookBufferConfig:        buffer.Config{SortBuffer: true},
 	})
 	if err != nil {
 		return err

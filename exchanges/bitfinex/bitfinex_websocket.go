@@ -514,14 +514,8 @@ func (e *Exchange) handleWSSubscribed(conn websocket.Connection, respRaw []byte)
 		return fmt.Errorf("%w: %w 'chanId': %w; Channel: %s Pair: %s", websocket.ErrSubscriptionFailure, common.ErrParsingWSField, err, c.Channel, c.Pairs)
 	}
 
-	// Transition subID keyed subscription -> chanID keyed subscription.
-	// Remove sets unsubscribed state, AddSuccessful sets subscribed state.
-	err = e.Websocket.RemoveSubscriptions(conn, c)
-	if err != nil {
-		return fmt.Errorf("%w: %w subID: %s", websocket.ErrSubscriptionFailure, err, subID)
-	}
-	c.SetKey(int(chanID)) // Channel update and unsubscribe paths use int keys.
-	err = e.Websocket.AddSuccessfulSubscriptions(conn, c)
+	// Channel update and unsubscribe paths use int keys.
+	err = e.Websocket.UpdateSuccessfulSubscriptionKey(conn, c, int(chanID))
 	if err != nil {
 		return fmt.Errorf("%w: %w subID: %s", websocket.ErrSubscriptionFailure, err, subID)
 	}
