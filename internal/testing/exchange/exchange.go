@@ -224,8 +224,27 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 
 	err = w.Connect(context.TODO())
 	require.NoError(tb, err, "Connect must not error")
+
 	w.DataHandler = stream.NewRelay(100000)
+
+	w.Wg.Add(1)
+	go streamDataConsumer(w)
+
 	setupWsOnce[e] = true
+}
+
+func streamDataConsumer(w *websocket.Manager) {
+	defer w.Wg.Done()
+	for {
+		select {
+		case _, ok := <-w.DataHandler.C:
+			if !ok {
+				return
+			}
+		case <-w.ShutdownC:
+			return
+		}
+	}
 }
 
 var (
