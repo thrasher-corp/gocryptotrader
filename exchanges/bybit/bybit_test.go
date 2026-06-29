@@ -3041,8 +3041,9 @@ func TestWSHandleData(t *testing.T) {
 
 	keys := slices.Collect(maps.Keys(pushDataMap))
 	slices.Sort(keys)
+	conn := testexch.GetMockConn(t, e, "")
 	for x := range keys {
-		err := e.wsHandleData(t.Context(), nil, asset.Spot, []byte(pushDataMap[keys[x]]))
+		err := e.wsHandleData(t.Context(), conn, asset.Spot, []byte(pushDataMap[keys[x]]))
 		if keys[x] == "unhandled" {
 			assert.ErrorIs(t, err, errUnhandledStreamData, "wsHandleData should error correctly for unhandled topics")
 		} else {
@@ -3254,12 +3255,10 @@ func TestWsTicker(t *testing.T) {
 		asset.Spot, asset.Options, asset.USDTMarginedFutures, asset.USDTMarginedFutures,
 		asset.USDCMarginedFutures, asset.USDCMarginedFutures, asset.CoinMarginedFutures, asset.CoinMarginedFutures,
 	}
-	routingIndex := 0
+	conn := testexch.GetMockConn(t, e, "")
 	testexch.FixtureToDataHandler(t, "testdata/wsTicker.json", func(_ context.Context, r []byte) error {
-		require.Less(t, routingIndex, len(assetRouting), "routingIndex must stay within ticker fixture asset routing bounds")
-		a := assetRouting[routingIndex]
-		routingIndex++
-		return e.wsHandleData(t.Context(), nil, a, r)
+		defer slices.Delete(assetRouting, 0, 1)
+		return e.wsHandleData(t.Context(), conn, assetRouting[0], r)
 	})
 	e.Websocket.DataHandler.Close()
 	expected := 8
@@ -3508,7 +3507,7 @@ func TestFetchTradablePairs(t *testing.T) {
 func TestDeltaUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	data := []byte(`{"topic":"orderbook.50.WEMIXUSDT","ts":1697573183768,"type":"snapshot","data":{"s":"WEMIXUSDT","b":[["0.9511","260.703"],["0.9677","0"]],"a":[],"u":3119516,"seq":14126848493},"cts":1728966699481}`)
-	err := e.wsHandleData(t.Context(), nil, asset.Spot, data)
+	err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), asset.Spot, data)
 	require.NoError(t, err, "wsHandleData must not error")
 	update := []byte(`{"topic":"orderbook.50.WEMIXUSDT","ts":1697573183768,"type":"delta","data":{"s":"WEMIXUSDT","b":[["0.9511","260.703"],["0.9677","0"]],"a":[],"u":3119516,"seq":14126848493},"cts":1728966699481}`)
 	var wsResponse WebsocketResponse
