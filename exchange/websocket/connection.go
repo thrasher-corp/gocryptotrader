@@ -219,11 +219,12 @@ func (c *connection) writeToConn(ctx context.Context, epl request.EndpointLimit,
 	}
 
 	if rl != nil {
-		if weight > 0 {
-			additionalRateLimits = append([]request.RateLimitWithWeightOverride{{WeightOverride: weight}}, additionalRateLimits...)
-		}
 		if len(additionalRateLimits) > 0 {
-			if err := request.RateLimitWithAdditional(ctx, rl, additionalRateLimits...); err != nil {
+			if err := request.RateLimitWithAdditionalWeight(ctx, rl, weight, additionalRateLimits...); err != nil {
+				return fmt.Errorf("%s websocket connection: rate limit error: %w", c.ExchangeName, err)
+			}
+		} else if weight > 0 {
+			if err := request.RateLimitWithAdditionalWeight(ctx, rl, weight); err != nil {
 				return fmt.Errorf("%s websocket connection: rate limit error: %w", c.ExchangeName, err)
 			}
 		} else if err := rl.RateLimit(ctx); err != nil {

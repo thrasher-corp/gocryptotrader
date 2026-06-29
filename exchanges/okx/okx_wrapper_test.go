@@ -85,20 +85,20 @@ func TestLookupInstrumentIDCode(t *testing.T) {
 	}
 }
 
-func TestOptionInstrumentSelectors(t *testing.T) {
+func TestOptionInstrumentFamilyWrapper(t *testing.T) {
 	t.Parallel()
 
-	underlying, family := optionInstrumentSelectors("BTC-USD-240329-70000-C")
-	require.Equal(t, "BTC-USD", underlying, "underlying selector must parse option instrument ID")
+	family, err := optionInstrumentFamily("BTC-USD-240329-70000-C")
+	require.NoError(t, err, "dash-delimited option instrument ID must not error")
 	require.Equal(t, "BTC-USD", family, "family selector must parse option instrument ID")
 
-	underlying, family = optionInstrumentSelectors("ETH_USD_240329_3500_P")
-	require.Equal(t, "ETH_USD", underlying, "underlying selector must parse underscore instrument ID")
+	family, err = optionInstrumentFamily("ETH_USD_240329_3500_P")
+	require.NoError(t, err, "underscore-delimited option instrument ID must not error")
 	require.Equal(t, "ETH_USD", family, "family selector must parse underscore instrument ID")
 
-	underlying, family = optionInstrumentSelectors("INVALID")
-	require.Equal(t, "INVALID", underlying, "fallback underlying must return raw instrument ID")
-	require.Equal(t, "INVALID", family, "fallback family must return raw instrument ID")
+	family, err = optionInstrumentFamily("INVALID")
+	require.ErrorIs(t, err, errMissingTradeRateLimitScope, "invalid option instrument ID must return missing scope error")
+	require.Empty(t, family, "invalid option instrument ID must not return a family")
 }
 
 func TestCachedInstrumentIDCode(t *testing.T) {

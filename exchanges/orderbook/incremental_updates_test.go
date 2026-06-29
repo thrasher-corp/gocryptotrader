@@ -76,8 +76,12 @@ func TestProcessUpdate(t *testing.T) {
 	require.ErrorIs(t, err, errChecksumMismatch)
 
 	require.NoError(t, d.LoadSnapshot(newSnapshot(20)))
-	err = d.ProcessUpdate(&Update{UpdateTime: time.Now(), Asks: Levels{{Price: 1337.5, Amount: 69420, ID: 69420}}, ExpectedChecksum: 1337, GenerateChecksum: func(*Book) uint32 { return 1337 }})
+	checksumCompletedAt := time.Now().Add(-time.Second)
+	err = d.ProcessUpdate(&Update{UpdateTime: time.Now(), Asks: Levels{{Price: 1337.5, Amount: 69420, ID: 69420}}, ExpectedChecksum: 1337, GenerateChecksum: func(*Book) uint32 { return 1337 }, ChecksumCompletedAt: checksumCompletedAt})
 	require.NoError(t, err)
+	ob, err = d.Retrieve()
+	require.NoError(t, err)
+	assert.Equal(t, checksumCompletedAt, ob.ChecksumCompletedAt, "ProcessUpdate should preserve supplied checksum completion time")
 
 	require.NoError(t, d.LoadSnapshot(newSnapshot(20)))
 	d.askLevels.Levels[0].Amount = 0
