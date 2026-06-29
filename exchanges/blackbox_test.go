@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	shared "github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
 
@@ -15,7 +16,7 @@ type mockEx struct {
 	flow chan int
 }
 
-func (m *mockEx) UpdateTradablePairs(context.Context) error {
+func (m *mockEx) UpdateTradablePairs(context.Context, exchange.IBotExchange, ...asset.Item) error {
 	m.flow <- 42
 	return nil
 }

@@ -196,21 +196,6 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 	return pairs, nil
 }
 
-// UpdateTradablePairs updates the exchanges available pairs and stores them in the exchanges config
-func (e *Exchange) UpdateTradablePairs(ctx context.Context) error {
-	assets := e.GetAssetTypes(false)
-	for i := range assets {
-		pairs, err := e.FetchTradablePairs(ctx, assets[i])
-		if err != nil {
-			return err
-		}
-		if err := e.UpdatePairs(pairs, assets[i], false); err != nil {
-			return err
-		}
-	}
-	return e.EnsureOnePairEnabled()
-}
-
 // UpdateAccountBalances retrieves currency balances
 func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
 	for cursor := int64(0); ; {

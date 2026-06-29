@@ -36,7 +36,7 @@ func TestMain(m *testing.M) {
 }
 
 func (e *Exchange) populateTradablePairs() error {
-	if err := e.UpdateTradablePairs(context.Background()); err != nil {
+	if err := e.UpdateTradablePairs(context.Background(), e); err != nil {
 		return err
 	}
 	tradablePairs, err := e.GetEnabledPairs(asset.Spot)

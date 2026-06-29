@@ -49,7 +49,7 @@ func TestMain(m *testing.M) {
 	}
 	e.Websocket.DataHandler = stream.NewRelay(sharedtestvalues.WebsocketRelayBufferCapacity)
 	log.Printf(sharedtestvalues.LiveTesting, e.Name)
-	if err := e.UpdateTradablePairs(context.Background()); err != nil {
+	if err := e.UpdateTradablePairs(context.Background(), e); err != nil {
 		log.Fatalf("Binance UpdateTradablePairs error: %s", err)
 	}
 	os.Exit(m.Run())
