@@ -17,9 +17,33 @@ const (
 func TestTradeScopeFromInstrumentID(t *testing.T) {
 	t.Parallel()
 
-	require.Empty(t, tradeScopeFromInstrumentID(""))
-	require.Equal(t, tradeRateLimitBTCUSDT, tradeScopeFromInstrumentID("btc-usdt"))
-	require.Equal(t, "BTC-USD", tradeScopeFromInstrumentID(tradeRateLimitBTCUSDOptionCall))
+	scope, err := tradeScopeFromInstrumentID("")
+	require.ErrorIs(t, err, errMissingTradeRateLimitScope, "empty instrument ID must return missing scope error")
+	assert.Empty(t, scope, "empty instrument ID should not return a scope")
+
+	scope, err = tradeScopeFromInstrumentID("btc-usdt")
+	require.NoError(t, err, "spot instrument ID must not error")
+	require.Equal(t, tradeRateLimitBTCUSDT, scope, "spot instrument ID must normalise")
+
+	scope, err = tradeScopeFromInstrumentID(tradeRateLimitBTCUSDOptionCall)
+	require.NoError(t, err, "option instrument ID must not error")
+	require.Equal(t, "BTC-USD", scope, "option instrument ID must return family scope")
+}
+
+func TestOptionInstrumentFamily(t *testing.T) {
+	t.Parallel()
+
+	family, err := optionInstrumentFamily("BTC-USD-240329-70000-C")
+	require.NoError(t, err, "dash-delimited option instrument ID must not error")
+	require.Equal(t, "BTC-USD", family, "dash-delimited option family must parse")
+
+	family, err = optionInstrumentFamily("ETH_USD_240329_3500_P")
+	require.NoError(t, err, "underscore-delimited option instrument ID must not error")
+	require.Equal(t, "ETH_USD", family, "underscore-delimited option family must parse")
+
+	family, err = optionInstrumentFamily("INVALID")
+	require.ErrorIs(t, err, errMissingTradeRateLimitScope, "invalid option instrument ID must return missing scope error")
+	require.Empty(t, family, "invalid option instrument ID must not return a family")
 }
 
 func TestIsOptionInstrumentID(t *testing.T) {

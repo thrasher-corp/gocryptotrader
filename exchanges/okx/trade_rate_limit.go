@@ -3,7 +3,6 @@ package okx
 import (
 	"errors"
 	"fmt"
-	"math"
 	"strings"
 	"sync"
 
@@ -31,7 +30,8 @@ var (
 )
 
 const (
-	maxBatchOrders = 20
+	maxBatchOrders          = 20
+	maxTradeRateLimitWeight = int(^request.Weight(0))
 
 	tradeRateLimitPlaceSingle  tradeRateLimitClass = "place-single"
 	tradeRateLimitPlaceBatch   tradeRateLimitClass = "place-batch"
@@ -131,30 +131,28 @@ func (l *tradeRateLimiter) subAccountRateLimit(orderCount int) (request.RateLimi
 	}, true, nil
 }
 
-func tradeScopeFromInstrumentID(instrumentID string) string {
+func tradeScopeFromInstrumentID(instrumentID string) (string, error) {
 	trimmed := strings.ToUpper(strings.TrimSpace(instrumentID))
 	if trimmed == "" {
-		return ""
+		return "", errMissingTradeRateLimitScope
 	}
 	if isOptionInstrumentID(trimmed) {
-		_, family := optionInstrumentSelectors(trimmed)
-		return family
+		return optionInstrumentFamily(trimmed)
 	}
-	return trimmed
+	return trimmed, nil
 }
 
-func optionInstrumentSelectors(instrumentID string) (underlying, family string) {
+func optionInstrumentFamily(instrumentID string) (string, error) {
 	delimiter := "-"
 	parts := strings.Split(instrumentID, delimiter)
 	if len(parts) < 2 {
 		delimiter = "_"
 		parts = strings.Split(instrumentID, delimiter)
 		if len(parts) < 2 {
-			return instrumentID, instrumentID
+			return "", fmt.Errorf("%w: %s", errMissingTradeRateLimitScope, instrumentID)
 		}
 	}
-	underlying = strings.Join(parts[:2], delimiter)
-	return underlying, underlying
+	return strings.Join(parts[:2], delimiter), nil
 }
 
 func isOptionInstrumentID(instrumentID string) bool {
@@ -176,9 +174,9 @@ func tradeScopeCountsFromAmendOrders(args []AmendOrderRequestParams) (map[string
 func tradeScopeCounts[T any](args []T, instrumentID func(T) string) (map[string]int, error) {
 	counts := make(map[string]int)
 	for _, arg := range args {
-		scope := tradeScopeFromInstrumentID(instrumentID(arg))
-		if scope == "" {
-			return nil, errMissingTradeRateLimitScope
+		scope, err := tradeScopeFromInstrumentID(instrumentID(arg))
+		if err != nil {
+			return nil, err
 		}
 		counts[scope]++
 	}
@@ -186,7 +184,14 @@ func tradeScopeCounts[T any](args []T, instrumentID func(T) string) (map[string]
 }
 
 func clampWeight(count int) request.Weight {
-	return request.Weight(min(max(count, 0), math.MaxUint8))
+	switch {
+	case count <= 0:
+		return 0
+	case count > maxTradeRateLimitWeight:
+		return request.Weight(maxTradeRateLimitWeight)
+	default:
+		return request.Weight(count)
+	}
 }
 
 func newTradeSubAccountRateLimiter() *request.RateLimiterWithWeight {

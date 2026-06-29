@@ -138,18 +138,27 @@ func TestRateLimitWithAdditional(t *testing.T) {
 		err = RateLimitWithAdditional(t.Context(), endpoint, RateLimitWithWeightOverride{Limiter: &RateLimiterWithWeight{limiter: rate.NewLimiter(rate.Limit(1), 1)}})
 		assert.ErrorIs(t, err, errInvalidWeight, "zero additional weight should return errInvalidWeight")
 
+		err = RateLimitWithAdditional(t.Context(), endpoint, RateLimitWithWeightOverride{WeightOverride: 1})
+		assert.ErrorContains(t, err, "nil pointer: *request.RateLimiterWithWeight", "nil additional limiter should return a nil guard error")
+	})
+}
+
+func TestRateLimitWithAdditionalWeight(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
 		weightedEndpoint := NewRateLimitWithWeight(100*time.Millisecond, 1, 1)
 		weightedExtra := NewRateLimitWithWeight(100*time.Millisecond, 1, 1)
-		start = time.Now()
-		err = RateLimitWithAdditional(t.Context(), weightedEndpoint, RateLimitWithWeightOverride{WeightOverride: 3}, RateLimitWithWeightOverride{Limiter: weightedExtra, WeightOverride: 1})
-		elapsed = time.Since(start)
+		start := time.Now()
+		err := RateLimitWithAdditionalWeight(t.Context(), weightedEndpoint, 3, RateLimitWithWeightOverride{Limiter: weightedExtra, WeightOverride: 1})
+		elapsed := time.Since(start)
 		require.NoError(t, err, "explicit endpoint weight must not error")
 		assert.Equal(t, 200*time.Millisecond, elapsed, "explicit endpoint weight should override endpoint default weight")
 
 		standaloneEndpoint := NewRateLimitWithWeight(100*time.Millisecond, 1, 1)
-		require.NoError(t, RateLimitWithAdditional(t.Context(), standaloneEndpoint, RateLimitWithWeightOverride{WeightOverride: 5}), "first weighted endpoint reservation must not error")
+		require.NoError(t, RateLimitWithAdditionalWeight(t.Context(), standaloneEndpoint, 5), "first weighted endpoint reservation must not error")
 		start = time.Now()
-		err = RateLimitWithAdditional(t.Context(), standaloneEndpoint, RateLimitWithWeightOverride{WeightOverride: 5})
+		err = RateLimitWithAdditionalWeight(t.Context(), standaloneEndpoint, 5)
 		elapsed = time.Since(start)
 		require.NoError(t, err, "standalone weighted endpoint reservation must not error")
 		assert.Equal(t, 500*time.Millisecond, elapsed, "standalone endpoint weight should apply requested delay")
@@ -343,14 +352,7 @@ func TestInitiateRateLimit(t *testing.T) {
 		require.NoError(t, err, "additional rate limit must not error")
 		assert.Equal(t, 300*time.Millisecond, elapsed, "endpoint and additional rate limits should wait for the longest limiter only")
 
-		r, err = New("test", new(http.Client), WithLimiter(NewBasicRateLimit(100*time.Millisecond, 1, 1)))
-		require.NoError(t, err, "requester must initialise")
-		require.NoError(t, r.InitiateRateLimit(t.Context(), Unset, RateLimitWithWeightOverride{WeightOverride: 5}), "first weighted reservation must not error")
-
-		start = time.Now()
-		err = r.InitiateRateLimit(t.Context(), Unset, RateLimitWithWeightOverride{WeightOverride: 5})
-		elapsed = time.Since(start)
-		require.NoError(t, err, "weighted endpoint rate limit must not error")
-		assert.Equal(t, 500*time.Millisecond, elapsed, "endpoint weight should apply requested delay")
+		err = r.InitiateRateLimit(t.Context(), Unset, RateLimitWithWeightOverride{WeightOverride: 1})
+		assert.ErrorContains(t, err, "nil pointer: *request.RateLimiterWithWeight", "nil additional limiter should return a nil guard error")
 	})
 }

@@ -38,7 +38,7 @@ func (e *Exchange) WSPlaceOrder(ctx context.Context, arg *PlaceOrderRequestParam
 	}
 
 	var resp []*OrderData
-	if err = e.sendAuthenticatedWebsocketRequest(ctx, placeOrderEPL, e.MessageID(), "order", []PlaceOrderRequestParam{*arg}, &resp, requestScopedRateLimits...); err != nil {
+	if err := e.sendAuthenticatedWebsocketRequest(ctx, placeOrderEPL, e.MessageID(), "order", []PlaceOrderRequestParam{*arg}, &resp, requestScopedRateLimits...); err != nil {
 		return nil, err
 	}
 	return singleItem(resp)
@@ -92,7 +92,7 @@ func (e *Exchange) WSCancelOrder(ctx context.Context, arg *CancelOrderRequestPar
 	}
 
 	var resp []*OrderData
-	if err = e.sendAuthenticatedWebsocketRequest(ctx, cancelOrderEPL, e.MessageID(), "cancel-order", []CancelOrderRequestParam{*arg}, &resp, requestScopedRateLimits...); err != nil {
+	if err := e.sendAuthenticatedWebsocketRequest(ctx, cancelOrderEPL, e.MessageID(), "cancel-order", []CancelOrderRequestParam{*arg}, &resp, requestScopedRateLimits...); err != nil {
 		return nil, err
 	}
 
@@ -153,7 +153,7 @@ func (e *Exchange) WSAmendOrder(ctx context.Context, arg *AmendOrderRequestParam
 	}
 
 	var resp []*OrderData
-	if err = e.sendAuthenticatedWebsocketRequest(ctx, amendOrderEPL, e.MessageID(), "amend-order", []AmendOrderRequestParams{*arg}, &resp, requestScopedRateLimits...); err != nil {
+	if err := e.sendAuthenticatedWebsocketRequest(ctx, amendOrderEPL, e.MessageID(), "amend-order", []AmendOrderRequestParams{*arg}, &resp, requestScopedRateLimits...); err != nil {
 		return nil, err
 	}
 	return singleItem(resp)
