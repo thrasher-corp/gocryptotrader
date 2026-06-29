@@ -117,7 +117,7 @@ func (e *Exchange) generatePublicSubscriptions() (subscription.List, error) {
 	if err != nil {
 		return nil, err
 	}
-	return splitPairSubscriptions(subs.Public()), nil
+	return subs.Public(), nil
 }
 
 func (e *Exchange) generatePrivateSubscriptions() (subscription.List, error) {
@@ -125,30 +125,7 @@ func (e *Exchange) generatePrivateSubscriptions() (subscription.List, error) {
 	if err != nil {
 		return nil, err
 	}
-	return splitPairSubscriptions(subs.Private()), nil
-}
-
-// splitPairSubscriptions makes the websocket manager count pair-level work
-// instead of channel templates when it decides how many subscriptions can fit
-// on a connection. Kraken v1 accepts grouped requests like "book for 300 pairs",
-// but the manager only counts subscription objects and would see that as 1 item.
-// Splitting it into 300 single-pair subscriptions lets the configured
-// per-connection budget create multiple sockets. subscribeForConnection groups
-// those single-pair subscriptions back into Kraken's multi-pair request format.
-func splitPairSubscriptions(subs subscription.List) subscription.List {
-	split := make(subscription.List, 0, len(subs))
-	for _, sub := range subs {
-		if len(sub.Pairs) <= 1 {
-			split = append(split, sub)
-			continue
-		}
-		for _, pair := range sub.Pairs {
-			clone := sub.Clone()
-			clone.Pairs = currency.Pairs{pair}
-			split = append(split, clone)
-		}
-	}
-	return split
+	return subs.Private(), nil
 }
 
 func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
@@ -701,7 +678,7 @@ func (e *Exchange) subscribeForConnection(ctx context.Context, conn websocket.Co
 		successfulSubs = append(successfulSubs, s)
 	}
 
-	errs = common.AppendError(errs, e.ParallelChanOp(ctx, groupSubscriptionsByRequestLimit(successfulSubs, e.Websocket.MaxSubscriptionsPerConnection), func(ctx context.Context, s subscription.List) error {
+	errs = common.AppendError(errs, e.ParallelChanOp(ctx, successfulSubs.GroupPairs(), func(ctx context.Context, s subscription.List) error {
 		return e.manageSubs(ctx, krakenWsSubscribe, s, conn)
 	}, 1))
 
@@ -724,29 +701,9 @@ func (e *Exchange) cleanupUnsubscribedSubs(conn websocket.Connection, subs subsc
 }
 
 func (e *Exchange) unsubscribeForConnection(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
-	return e.ParallelChanOp(ctx, groupSubscriptionsByRequestLimit(subs, e.Websocket.MaxSubscriptionsPerConnection), func(ctx context.Context, s subscription.List) error {
+	return e.ParallelChanOp(ctx, subs.GroupPairs(), func(ctx context.Context, s subscription.List) error {
 		return e.manageSubs(ctx, krakenWsUnsubscribe, s, conn)
 	}, 1)
-}
-
-func groupSubscriptionsByRequestLimit(subs subscription.List, pairLimit int) subscription.List {
-	grouped := subs.GroupPairs()
-	if pairLimit <= 0 {
-		return grouped
-	}
-	batched := make(subscription.List, 0, len(grouped))
-	for _, s := range grouped {
-		if len(s.Pairs) <= pairLimit {
-			batched = append(batched, s)
-			continue
-		}
-		for _, pairs := range common.Batch(s.Pairs, pairLimit) {
-			clone := s.Clone()
-			clone.Pairs = pairs
-			batched = append(batched, clone)
-		}
-	}
-	return batched
 }
 
 // manageSubs handles both websocket channel subscribe and unsubscribe
