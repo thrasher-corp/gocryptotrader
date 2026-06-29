@@ -116,7 +116,6 @@ var (
 	errTooManyCurrencyCodes                 = errors.New("too many currency codes supplied")
 	errFetchingOrderbook                    = errors.New("error fetching orderbook")
 	errNoSpotInstrument                     = errors.New("no spot instrument available")
-	errOperationTypeRequired                = errors.New("operation type required")
 	errInvalidLeverage                      = errors.New("invalid leverage value")
 	errChaseOrderIDOrTextRequired           = errors.New("either id or text is required to stop a chase order")
 	errInvalidChaseSortBy                   = errors.New("invalid sort_by value: must be 1 (ORDER_SORT_CREATED_AT) or 2 (ORDER_SORT_FINISHED_AT)")
