@@ -24,21 +24,34 @@ func TestGetUnifiedUserRiskUnitDetails(t *testing.T) {
 
 func TestGetFuturesRiskTable(t *testing.T) {
 	t.Parallel()
-
 	_, err := e.GetFuturesRiskTable(t.Context(), currency.EMPTYCODE, "")
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	_, err = e.GetFuturesRiskTable(t.Context(), currency.USDT, "")
 	require.ErrorIs(t, err, errTableIDEmpty)
 
-	// mock HTTP response due to dynamically generated table IDs, which can only be retrieved via authenticated endpoint
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e))
-	require.NoError(t, testexch.MockHTTPInstance(e, "/"))
+	// A risk limit table ID is only exposed on a Position; no public endpoint returns one.
+	// Mock runs use the recorded fixture ID; live runs source it from an open USDT futures position.
+	tableID := "BTC_USDT_20260626" // matches the recorded mock fixture's table_id query
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
+		positions, err := e.GetAllFuturesPositionsOfUsers(t.Context(), currency.USDT, true)
+		require.NoError(t, err, "GetAllFuturesPositionsOfUsers must not error")
+		tableID = ""
+		for _, p := range positions {
+			if p.RiskLimitTable != "" {
+				tableID = p.RiskLimitTable
+				break
+			}
+		}
+		if tableID == "" {
+			t.Skip("no open USDT futures position with a risk limit table to test against")
+		}
+	}
 
-	got, err := e.GetFuturesRiskTable(t.Context(), currency.USDT, "BTC_USDT_202507040223")
-	require.NoError(t, err)
-	assert.NotEmpty(t, got)
+	got, err := e.GetFuturesRiskTable(t.Context(), currency.USDT, tableID)
+	require.NoError(t, err, "GetFuturesRiskTable must not error")
+	assert.NotEmpty(t, got, "GetFuturesRiskTable should return tiers")
 }
 
 func TestGetFuturesRiskLimitTiers(t *testing.T) {
@@ -56,7 +69,9 @@ func TestGetFuturesRiskLimitTiers(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 
-	testexch.UpdatePairsOnce(t, e)
+	if !mockTests {
+		testexch.UpdatePairsOnce(t, e)
+	}
 	avail, err := e.GetAvailablePairs(asset.USDTMarginedFutures)
 	require.NoError(t, err)
 	require.NotEmpty(t, avail)
@@ -81,7 +96,9 @@ func TestGetDeliveryRiskLimitTiers(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 
-	testexch.UpdatePairsOnce(t, e)
+	if !mockTests {
+		testexch.UpdatePairsOnce(t, e)
+	}
 	avail, err := e.GetAvailablePairs(asset.DeliveryFutures)
 	require.NoError(t, err)
 	require.NotEmpty(t, avail)
@@ -102,9 +119,10 @@ func TestDeliveryUpdatePositionRiskLimit(t *testing.T) {
 	_, err = e.DeliveryUpdatePositionRiskLimit(t.Context(), currency.USDT, currency.NewBTCUSD(), 0)
 	require.ErrorIs(t, err, errInvalidRiskLimit)
 
+	if !mockTests {
+		testexch.UpdatePairsOnce(t, e)
+	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-
-	testexch.UpdatePairsOnce(t, e)
 	avail, err := e.GetAvailablePairs(asset.DeliveryFutures)
 	require.NoError(t, err)
 	require.NotEmpty(t, avail)
@@ -130,9 +148,10 @@ func TestFuturesUpdatePositionRiskLimit(t *testing.T) {
 	_, err = e.FuturesUpdatePositionRiskLimit(t.Context(), currency.USDT, currency.NewBTCUSD(), 0)
 	require.ErrorIs(t, err, errInvalidRiskLimit)
 
+	if !mockTests {
+		testexch.UpdatePairsOnce(t, e)
+	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-
-	testexch.UpdatePairsOnce(t, e)
 	avail, err := e.GetAvailablePairs(asset.USDTMarginedFutures)
 	require.NoError(t, err)
 	require.NotEmpty(t, avail)
@@ -159,9 +178,10 @@ func TestFuturesUpdatePositionRiskLimitDualMode(t *testing.T) {
 	_, err = e.FuturesUpdatePositionRiskLimitDualMode(t.Context(), currency.USDT, currency.NewBTCUSD(), 0)
 	require.ErrorIs(t, err, errInvalidRiskLimit)
 
+	if !mockTests {
+		testexch.UpdatePairsOnce(t, e)
+	}
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-
-	testexch.UpdatePairsOnce(t, e)
 	avail, err := e.GetAvailablePairs(asset.USDTMarginedFutures)
 	require.NoError(t, err)
 	require.NotEmpty(t, avail)

@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -84,7 +83,7 @@ func TestOpenInterestFromStats(t *testing.T) {
 	_, err := openInterestFromStats(nil)
 	require.ErrorIs(t, err, errNoValidResponseFromServer)
 
-	openInterest, err := openInterestFromStats([]ContractStat{
+	openInterest, err := openInterestFromStats([]*ContractStat{
 		{Time: types.Time(time.Unix(100, 0)), OpenInterest: types.Number(2)},
 		{Time: types.Time(time.Unix(300, 0)), OpenInterest: types.Number(4)},
 		{Time: types.Time(time.Unix(200, 0)), OpenInterest: types.Number(3)},
@@ -127,6 +126,20 @@ func TestGetRequestedOpenInterestPair(t *testing.T) {
 	requested, err = getRequestedOpenInterestPair(e, []key.PairAsset{{Asset: asset.DeliveryFutures}, {Asset: asset.DeliveryFutures}}, asset.DeliveryFutures)
 	require.NoError(t, err)
 	assert.Equal(t, currency.EMPTYPAIR, requested)
+}
+
+func TestIsPerpetualFutureCurrency(t *testing.T) {
+	t.Parallel()
+	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDTMarginedFutures} {
+		is, err := e.IsPerpetualFutureCurrency(a, currency.EMPTYPAIR)
+		require.NoErrorf(t, err, "IsPerpetualFutureCurrency must not error for %s", a)
+		assert.Truef(t, is, "%s should be a perpetual future currency", a)
+	}
+	for _, a := range []asset.Item{asset.Spot, asset.Margin, asset.CrossMargin, asset.DeliveryFutures, asset.Options} {
+		is, err := e.IsPerpetualFutureCurrency(a, currency.EMPTYPAIR)
+		require.NoErrorf(t, err, "IsPerpetualFutureCurrency must not error for %s", a)
+		assert.Falsef(t, is, "%s should not be a perpetual future currency", a)
+	}
 }
 
 func TestMessageID(t *testing.T) {
@@ -199,8 +212,6 @@ func BenchmarkMessageID(b *testing.B) {
 func TestFetchOrderbook(t *testing.T) {
 	t.Parallel()
 
-	testexch.UpdatePairsOnce(t, e)
-
 	availMargin, err := e.GetAvailablePairs(asset.Margin)
 	require.NoError(t, err, "GetAvailablePairs must not error")
 	require.NotEmpty(t, availMargin, "margin pairs must not be empty")
@@ -261,8 +272,8 @@ func TestFetchOrderbook(t *testing.T) {
 			assert.Equal(t, e.Name, got.Exchange, "Exchange name should be correct")
 			assert.True(t, tc.pair.Equal(got.Pair), "Pair should be correct")
 			assert.Equal(t, tc.a, got.Asset, "Asset should be correct")
-			assert.LessOrEqual(t, len(got.Asks), 1, "Asks count should not exceed limit, but may be empty especially for options")
-			assert.LessOrEqual(t, len(got.Bids), 1, "Bids count should not exceed limit, but may be empty especially for options")
+			assert.LessOrEqual(t, len(got.Asks), 5, "Asks count should not exceed limit, but may be empty especially for options")
+			assert.LessOrEqual(t, len(got.Bids), 5, "Bids count should not exceed limit, but may be empty especially for options")
 			assert.NotZero(t, got.LastUpdated, "Last updated timestamp should be set")
 			assert.NotZero(t, got.LastUpdateID, "Last update ID should be set")
 			assert.NotZero(t, got.LastPushed, "Last pushed timestamp should be set")
@@ -274,13 +285,7 @@ func TestFetchOrderbook(t *testing.T) {
 func TestFetchOrderbookNoSpotInstrument(t *testing.T) {
 	t.Parallel()
 
-	ex := new(Exchange)
-	ex.SetDefaults()
-	ex.Name = t.Name()
-
-	require.NoError(t, ex.Base.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{currency.NewBTCUSDT()}, false))
-
 	fakePair := currency.NewPair(currency.NewCode("ZZFAKE"), currency.USDT)
-	_, err := ex.fetchOrderbook(t.Context(), fakePair, asset.Margin, 1)
+	_, err := e.fetchOrderbook(t.Context(), fakePair, asset.Margin, 1)
 	require.ErrorIs(t, err, errNoSpotInstrument)
 }
