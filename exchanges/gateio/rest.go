@@ -41,7 +41,7 @@ const (
 	gateioSpotPriceOrders = "spot/price_orders"
 
 	// Wallets
-	walletSubAccountTransfer = "/wallet/sub_account_transfers"
+	walletSubAccountTransfer = "wallet/sub_account_transfers"
 
 	// Margin
 	gateioMarginAutoRepay       = "margin/auto_repay"
@@ -1369,13 +1369,13 @@ func (e *Exchange) GetWithdrawalStatus(ctx context.Context, ccy currency.Code) (
 }
 
 // GetSubAccountBalances retrieve sub account balances
-func (e *Exchange) GetSubAccountBalances(ctx context.Context, subAccountUserID string) (*SubAccountBalances, error) {
+func (e *Exchange) GetSubAccountBalances(ctx context.Context, subAccountUserID string) ([]*SubAccountBalances, error) {
 	params := url.Values{}
 	if subAccountUserID != "" {
 		params.Set("sub_uid", subAccountUserID)
 	}
-	var response *SubAccountBalances
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSubAccountBalancesEPL, http.MethodGet, "wallet/sub_account_balances", params, nil, &response)
+	var resp []*SubAccountBalances
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, walletSubAccountBalancesEPL, http.MethodGet, "wallet/sub_account_balances", params, nil, &resp)
 }
 
 // GetSubAccountMarginBalances query sub accounts' margin balances
@@ -3203,8 +3203,8 @@ func (e *Exchange) GetOptionsOrderbook(ctx context.Context, contract currency.Pa
 	return response, e.SendHTTPRequest(ctx, exchange.RestSpot, publicOrderbookOptionsEPL, common.EncodeURLValues("options/order_book", params), &response)
 }
 
-// GetOptionAccounts lists option accounts
-func (e *Exchange) GetOptionAccounts(ctx context.Context) (*OptionAccount, error) {
+// GetOptionAccount lists option accounts
+func (e *Exchange) GetOptionAccount(ctx context.Context) (*OptionAccount, error) {
 	var resp *OptionAccount
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, optionsAccountsEPL, http.MethodGet, "options/accounts", nil, nil, &resp)
 }

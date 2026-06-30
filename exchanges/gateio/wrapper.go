@@ -749,14 +749,14 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, a asset.Item) (acc
 			Free:  acc.Available.Float64(),
 		})
 	case asset.Options:
-		balance, err := e.GetOptionAccounts(ctx)
+		optionAccount, err := e.GetOptionAccount(ctx)
 		if err != nil {
 			return nil, err
 		}
-		subAccts[0].Balances.Set(balance.Currency, accounts.Balance{
-			Total: balance.Total.Float64(),
-			Hold:  balance.Total.Float64() - balance.Available.Float64(),
-			Free:  balance.Available.Float64(),
+		subAccts[0].Balances.Set(optionAccount.Currency, accounts.Balance{
+			Total: optionAccount.Total.Float64(),
+			Hold:  optionAccount.Total.Float64() - optionAccount.Available.Float64(),
+			Free:  optionAccount.Available.Float64(),
 		})
 	default:
 		return nil, fmt.Errorf("%w asset type: %q", asset.ErrNotSupported, a)
@@ -1455,13 +1455,24 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	}
 	switch req.AssetType {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
-		spotOrders, err := e.GetSpotOpenOrders(ctx, 0, 0, req.AssetType == asset.CrossMargin)
+		// Gate rejects account=cross_margin on spot/open_orders for some
+		// account types, so the listing is fetched without an account filter
+		// and matched against the requested asset via each order's account
+		// field below.
+		spotOrders, err := e.GetSpotOpenOrders(ctx, 0, 0, false)
 		if err != nil {
 			return nil, err
 		}
 		for _, sOrder := range spotOrders {
 			for _, sOrderDetail := range sOrder.Orders {
 				if sOrderDetail.Status != statusOpen {
+					continue
+				}
+				orderAccount := sOrderDetail.Account
+				if orderAccount == "" {
+					orderAccount = asset.Spot.String()
+				}
+				if orderAccount != req.AssetType.String() {
 					continue
 				}
 				side, err := order.StringToOrderSide(sOrderDetail.Side)

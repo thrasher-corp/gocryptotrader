@@ -2097,7 +2097,7 @@
      "RestFuturesURL": "https://fx-api.gateio.ws",
      "RestSpotSupplementaryURL": "https://fx-api-testnet.gateio.ws",
      "RestSpotURL": "https://api.gateio.ws",
-     "WebsocketSpotURL": "wss://api.gateio.ws"
+     "WebsocketSpotURL": "wss://api.gateio.ws/ws/v4/"
     }
    },
    "features": {

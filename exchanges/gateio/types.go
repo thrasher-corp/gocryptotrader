@@ -1015,7 +1015,7 @@ type OptionsUnderlyingTicker struct {
 
 // OptionAccount represents an option account.
 type OptionAccount struct {
-	User                         int64         `json:"user"`
+	UserID                       int64         `json:"user"`
 	Total                        types.Number  `json:"total"`
 	PositionValue                types.Number  `json:"position_value"`
 	Equity                       types.Number  `json:"equity"`
@@ -1032,8 +1032,8 @@ type OptionAccount struct {
 	Available                    types.Number  `json:"available"`
 	Point                        types.Number  `json:"point"`
 	Currency                     currency.Code `json:"currency"`
-	MaxOrderLimit                uint32        `json:"orders_limit"`
-	PositionNotionalLimit        uint64        `json:"position_notional_limit"`
+	MaxOrderLimit                types.Number  `json:"orders_limit"`
+	PositionNotionalLimit        types.Number  `json:"position_notional_limit"`
 }
 
 // AccountBook represents account changing history item
@@ -1236,7 +1236,7 @@ type WithdrawalStatus struct {
 
 // SubAccountBalances holds all subaccount balance information
 type SubAccountBalances struct {
-	UID       string                         `json:"uid"`
+	UID       types.Number                   `json:"uid"`
 	Available map[currency.Code]types.Number `json:"available"`
 }
 

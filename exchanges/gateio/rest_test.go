@@ -2641,7 +2641,7 @@ func TestGetMyOptionsSettlements(t *testing.T) {
 func TestGetOptionAccounts(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetOptionAccounts(t.Context())
+	_, err := e.GetOptionAccount(t.Context())
 	assert.NoError(t, err)
 }
 

@@ -6541,13 +6541,11 @@
   "/api/v4/margin/uni/borrowable": {
    "GET": [
     {
-     "data": [
-      {
+     "data": {
        "currency": "BTC",
        "borrowable": "1123.344",
        "currency_pair": "BTC_USDT"
-      }
-     ],
+      },
      "queryString": "currency=BTC\u0026currency_pair=BTC_USDT",
      "bodyParams": "",
      "headers": {}

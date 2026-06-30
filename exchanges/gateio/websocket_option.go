@@ -98,7 +98,7 @@ func (e *Exchange) GenerateOptionsDefaultSubscriptions() (subscription.List, err
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 			goto buildSubscriptions
 		}
-		response, err := e.GetSubAccountBalances(ctx, "")
+		response, err := e.GetOptionAccount(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -107,10 +107,7 @@ func (e *Exchange) GenerateOptionsDefaultSubscriptions() (subscription.List, err
 			optionsUserTradesChannel,
 			optionsBalancesChannel,
 		)
-		userID, err = strconv.ParseInt(response.UID, 10, 64)
-		if err != nil {
-			return nil, err
-		}
+		userID = response.UserID
 	}
 
 buildSubscriptions:
