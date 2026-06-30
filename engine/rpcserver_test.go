@@ -1347,7 +1347,7 @@ func TestGetOrders(t *testing.T) {
 	})
 	assert.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty)
 
-	b.SetCredentials("test", "test", "", "", "", "")
+	b.SetCredentials("test", "test", "", "", "", "", "", "", "")
 	b.API.AuthenticatedSupport = true
 
 	_, err = s.GetOrders(t.Context(), &gctrpc.GetOrdersRequest{

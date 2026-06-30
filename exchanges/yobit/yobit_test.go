@@ -39,7 +39,7 @@ func TestMain(m *testing.M) {
 
 	if apiKey != "" && apiSecret != "" {
 		e.API.AuthenticatedSupport = true
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.SetCredentials(apiKey, apiSecret, "", "", "", "", "", "", "")
 	}
 
 	os.Exit(m.Run())
