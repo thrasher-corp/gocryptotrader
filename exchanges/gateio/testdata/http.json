@@ -6651,7 +6651,7 @@
        "create_time": 1673247054000
       }
      ],
-     "queryString": "currency=BTC\u0026currency_pair=BTC_USDT\u0026from=1744103854944\u0026limit=10\u0026page=1\u0026to=1744190254944",
+     "queryString": "currency=BTC\u0026currency_pair=BTC_USDT\u0026from=1744103854\u0026limit=10\u0026page=1\u0026to=1744190254",
      "bodyParams": "",
      "headers": {}
     }

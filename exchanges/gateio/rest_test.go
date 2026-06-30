@@ -2049,8 +2049,11 @@ func TestGetDeliveryFuturesCandlesticks(t *testing.T) {
 	require.ErrorIs(t, err, kline.ErrUnsupportedInterval)
 
 	deliveryFuturesPair := getPair(t, asset.DeliveryFutures)
-	startTime = endTime.Add(-time.Hour)
-	endTime = time.Now().UTC()
+	startTime, endTime = getTime()
+	if !mockTests {
+		endTime = time.Now().UTC()
+		startTime = endTime.Add(-time.Hour)
+	}
 
 	_, err = e.GetDeliveryFuturesCandlesticks(t.Context(), currency.USDT, deliveryFuturesPair, startTime, endTime, 0, kline.OneMin)
 	assert.NoError(t, err)
