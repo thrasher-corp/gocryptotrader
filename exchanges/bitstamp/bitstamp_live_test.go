@@ -20,9 +20,9 @@ func TestMain(m *testing.M) {
 	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("Bitstamp Setup error: %s", err)
 	}
-	if apiKey != "" && apiSecret != "" {
+	if apiCredentials.Key != "" && apiCredentials.Secret != "" {
 		e.API.AuthenticatedSupport = true
-		e.SetCredentials(apiKey, apiSecret, customerID, "", "", "")
+		e.SetCredentials(apiCredentials)
 	}
 	log.Printf(sharedtestvalues.LiveTesting, e.Name)
 	os.Exit(m.Run())

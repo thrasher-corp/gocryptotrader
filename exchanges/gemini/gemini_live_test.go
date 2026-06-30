@@ -21,9 +21,9 @@ func TestMain(m *testing.M) {
 	if err := testexch.Setup(e); err != nil {
 		log.Fatalf("Gemini Setup error: %s", err)
 	}
-	if apiKey != "" && apiSecret != "" {
+	if apiCredentials.Key != "" && apiCredentials.Secret != "" {
 		e.API.AuthenticatedSupport = true
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.SetCredentials(apiCredentials)
 	}
 	if err := e.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), geminiAPIURL); err != nil {
 		log.Fatalf("Gemini SetRunningURL error: %s", err)

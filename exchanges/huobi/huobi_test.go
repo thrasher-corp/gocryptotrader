@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -37,11 +38,12 @@ import (
 )
 
 // Please supply you own test keys here for due diligence testing.
-const (
-	apiKey                  = ""
-	apiSecret               = ""
-	canManipulateRealOrders = false
-)
+const canManipulateRealOrders = false
+
+var apiCredentials = &accounts.Credentials{
+	Key:    "",
+	Secret: "",
+}
 
 var (
 	e                  *Exchange
@@ -58,10 +60,10 @@ func TestMain(m *testing.M) {
 		log.Fatalf("HUOBI Setup error: %s", err)
 	}
 
-	if apiKey != "" && apiSecret != "" {
+	if apiCredentials.Key != "" && apiCredentials.Secret != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.SetCredentials(apiCredentials)
 	}
 
 	os.Exit(m.Run())
@@ -1841,7 +1843,8 @@ func TestPairFromContractExpiryCode(t *testing.T) {
 			require.NoError(t, err, "currency code must be a parsable date")
 			require.Falsef(t, exp.Before(today), "expiry must be today or after; Got: %q", exp)
 			diff := uint(exp.Sub(today).Hours() / 24)
-			require.LessOrEqualf(t, diff, expiryWindows[cType], "expiry must be within expected update window; Today: %q, Expiry: %q",
+			require.LessOrEqualf(
+				t, diff, expiryWindows[cType], "expiry must be within expected update window; Today: %q, Expiry: %q",
 				today.Format(time.DateOnly),
 				exp.Format(time.DateOnly),
 			)

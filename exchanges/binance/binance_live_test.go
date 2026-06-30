@@ -30,10 +30,10 @@ func TestMain(m *testing.M) {
 		log.Fatalf("Binance Setup error: %s", err)
 	}
 
-	if apiKey != "" && apiSecret != "" {
+	if apiCredentials.Key != "" && apiCredentials.Secret != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.CredentialsValidator.RequiresBase64DecodeSecret = false
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.SetCredentials(apiCredentials)
 	}
 
 	if useTestNet {

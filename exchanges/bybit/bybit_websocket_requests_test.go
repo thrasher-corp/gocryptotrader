@@ -200,8 +200,8 @@ func getWebsocketInstance(t *testing.T) *Exchange {
 	require.NoError(t, err)
 	bConf.API.AuthenticatedSupport = true
 	bConf.API.AuthenticatedWebsocketSupport = true
-	bConf.API.Credentials.Key = apiKey
-	bConf.API.Credentials.Secret = apiSecret
+	bConf.API.Credentials.Key = apiCredentials.Key
+	bConf.API.Credentials.Secret = apiCredentials.Secret
 
 	require.NoError(t, e.Setup(bConf), "Setup must not error")
 	e.CurrencyPairs.Load(pairs)
