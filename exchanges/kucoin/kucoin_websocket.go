@@ -489,6 +489,7 @@ func (e *Exchange) processFuturesMarkPriceAndIndexPrice(ctx context.Context, res
 
 // processFuturesOrderbookSnapshot processes a futures account orderbook websocket update.
 func (e *Exchange) processFuturesOrderbookSnapshot(respData []byte, instrument string) error {
+	reachedGCTAt := time.Now()
 	var resp WsFuturesOrderbookLevelResponse
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
@@ -505,6 +506,7 @@ func (e *Exchange) processFuturesOrderbookSnapshot(respData []byte, instrument s
 		LastUpdateID: resp.Sequence,
 		LastUpdated:  resp.Timestamp.Time(),
 		LastPushed:   resp.PushTimestamp.Time(),
+		ReachedGCTAt: reachedGCTAt,
 		Asset:        asset.Futures,
 		Bids:         bids,
 		Asks:         asks,
@@ -514,6 +516,7 @@ func (e *Exchange) processFuturesOrderbookSnapshot(respData []byte, instrument s
 
 // processFuturesOrderbookLevel2 processes a V2 futures account orderbook data
 func (e *Exchange) processFuturesOrderbookLevel2(ctx context.Context, respData []byte, instrument string) error {
+	reachedGCTAt := time.Now()
 	pair, err := e.MatchSymbolWithAvailablePairs(instrument, asset.Futures, false)
 	if err != nil {
 		return err
@@ -550,13 +553,14 @@ func (e *Exchange) processFuturesOrderbookLevel2(ctx context.Context, respData [
 	}
 
 	return e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, resp.Sequence, &orderbook.Update{
-		UpdateTime: resp.Timestamp.Time(),
-		LastPushed: resp.Timestamp.Time(),
-		UpdateID:   resp.Sequence,
-		Pair:       pair,
-		Asset:      asset.Futures,
-		Asks:       asks,
-		Bids:       bids,
+		UpdateTime:   resp.Timestamp.Time(),
+		LastPushed:   resp.Timestamp.Time(),
+		ReachedGCTAt: reachedGCTAt,
+		UpdateID:     resp.Sequence,
+		Pair:         pair,
+		Asset:        asset.Futures,
+		Asks:         asks,
+		Bids:         bids,
 	})
 }
 
@@ -857,6 +861,7 @@ func (e *Exchange) processCandlesticks(ctx context.Context, respData []byte, ins
 
 // processSpotOrderbookWithDepth processes order book data with a specified depth for a particular symbol.
 func (e *Exchange) processSpotOrderbookWithDepth(ctx context.Context, respData []byte, instrument string) error {
+	reachedGCTAt := time.Now()
 	pair, err := currency.NewPairFromString(instrument)
 	if err != nil {
 		return err
@@ -887,18 +892,20 @@ func (e *Exchange) processSpotOrderbookWithDepth(ctx context.Context, respData [
 	}
 
 	return e.wsOBUpdateMgr.ProcessOrderbookUpdate(ctx, resp.Result.SequenceStart, &orderbook.Update{
-		UpdateID:   resp.Result.SequenceEnd,
-		UpdateTime: resp.Result.TimeMS.Time(),
-		LastPushed: resp.Result.TimeMS.Time(), // Realtime so this is pushed when a change occurs
-		Asset:      asset.Spot,
-		Bids:       bids,
-		Asks:       asks,
-		Pair:       pair,
+		UpdateID:     resp.Result.SequenceEnd,
+		UpdateTime:   resp.Result.TimeMS.Time(),
+		LastPushed:   resp.Result.TimeMS.Time(), // Realtime so this is pushed when a change occurs
+		ReachedGCTAt: reachedGCTAt,
+		Asset:        asset.Spot,
+		Bids:         bids,
+		Asks:         asks,
+		Pair:         pair,
 	})
 }
 
 // processOrderbook processes orderbook data for a specific symbol.
 func (e *Exchange) processOrderbook(respData []byte, symbol, topic string) error {
+	reachedGCTAt := time.Now()
 	var resp Level2Depth5Or20
 	if err := json.Unmarshal(respData, &resp); err != nil {
 		return err
@@ -922,12 +929,14 @@ func (e *Exchange) processOrderbook(respData []byte, symbol, topic string) error
 	bids := mergeRoundedOrderbookLevels(resp.Bids.Levels())
 	for x := range assets {
 		err = e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
-			Exchange:    e.Name,
-			Asks:        asks,
-			Bids:        bids,
-			Pair:        pair,
-			Asset:       assets[x],
-			LastUpdated: lastUpdatedTime,
+			Exchange:     e.Name,
+			Asks:         asks,
+			Bids:         bids,
+			Pair:         pair,
+			Asset:        assets[x],
+			LastUpdated:  lastUpdatedTime,
+			LastPushed:   lastUpdatedTime,
+			ReachedGCTAt: reachedGCTAt,
 		})
 		if err != nil {
 			return err

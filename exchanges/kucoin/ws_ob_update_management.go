@@ -2,6 +2,7 @@ package kucoin
 
 import (
 	"context"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
@@ -26,6 +27,7 @@ func (e *Exchange) fetchWSOrderbookSnapshot(ctx context.Context, p currency.Pair
 	if err != nil {
 		return nil, err
 	}
+	reachedGCTAt := time.Now()
 
 	return &orderbook.Book{
 		Exchange:          e.Name,
@@ -37,6 +39,7 @@ func (e *Exchange) fetchWSOrderbookSnapshot(ctx context.Context, p currency.Pair
 		LastUpdateID:      ob.Sequence,
 		LastUpdated:       ob.Time,
 		LastPushed:        ob.Time,
+		ReachedGCTAt:      reachedGCTAt,
 	}, nil
 }
 
