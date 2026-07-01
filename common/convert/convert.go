@@ -96,7 +96,7 @@ func DecimalToHumanFriendlyString(number decimal.Decimal, rounding uint, decPoin
 		rounding = math.MaxInt32 // Not feasible to test due to the size of the number
 	}
 
-	return numberToHumanFriendlyString(number.StringFixed(int32(rounding)), rounding, decPoint, thousandsSep, neg) //nolint:gosec // Checked above
+	return numberToHumanFriendlyString(number.StringFixed(int32(rounding)), rounding, decPoint, thousandsSep, neg)
 }
 
 func numberToHumanFriendlyString(str string, dec uint, decPoint, thousandsSep string, neg bool) string {
