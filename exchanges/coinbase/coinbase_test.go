@@ -2,6 +2,14 @@ package coinbase
 
 import (
 	"context"
+	"crypto"
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/pem"
 	"errors"
 	"log"
 	"net/http"
@@ -1729,6 +1737,70 @@ func TestGetJWT(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, _, err := e.GetJWT(t.Context(), "a")
 	assert.NoError(t, err)
+}
+
+func TestParseSigningKey(t *testing.T) {
+	t.Parallel()
+	ecKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	sec1, err := x509.MarshalECPrivateKey(ecKey)
+	require.NoError(t, err)
+	ecPKCS8, err := x509.MarshalPKCS8PrivateKey(ecKey)
+	require.NoError(t, err)
+	_, edKey, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	edPKCS8, err := x509.MarshalPKCS8PrivateKey(edKey)
+	require.NoError(t, err)
+	toPEM := func(blockType string, der []byte) string {
+		return string(pem.EncodeToMemory(&pem.Block{Type: blockType, Bytes: der}))
+	}
+	for _, tc := range []struct {
+		name    string
+		secret  string
+		wantAlg string
+		wantKey crypto.PrivateKey
+	}{
+		{name: "SEC1 PEM ECDSA", secret: toPEM("EC PRIVATE KEY", sec1), wantAlg: "ES256", wantKey: ecKey},
+		{name: "PKCS#8 PEM ECDSA", secret: toPEM("PRIVATE KEY", ecPKCS8), wantAlg: "ES256", wantKey: ecKey},
+		{name: "PKCS#8 PEM Ed25519", secret: toPEM("PRIVATE KEY", edPKCS8), wantAlg: "EdDSA", wantKey: edKey},
+		{name: "base64 Ed25519 private key", secret: base64.StdEncoding.EncodeToString(edKey), wantAlg: "EdDSA", wantKey: edKey},
+		{name: "base64 Ed25519 seed", secret: base64.StdEncoding.EncodeToString(edKey.Seed()), wantAlg: "EdDSA", wantKey: edKey},
+		{name: "not base64 or PEM", secret: "not a key"},
+		{name: "base64 of wrong length", secret: base64.StdEncoding.EncodeToString([]byte("short"))},
+		{name: "PEM with invalid DER", secret: toPEM("PRIVATE KEY", []byte("garbage"))},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			key, alg, err := parseSigningKey(tc.secret)
+			if tc.wantKey == nil {
+				assert.ErrorIs(t, err, errDecodingPrivateKey)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantAlg, alg)
+			eq, ok := key.(interface{ Equal(crypto.PrivateKey) bool })
+			require.True(t, ok, "parsed key must support Equal")
+			assert.True(t, eq.Equal(tc.wantKey), "parsed key should equal the generated key")
+		})
+	}
+}
+
+func TestSignJWT(t *testing.T) {
+	t.Parallel()
+	ecKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	sig, err := signJWT(ecKey, "input")
+	require.NoError(t, err)
+	assert.Len(t, sig, 64, "ECDSA signature should be raw R||S")
+
+	pub, edKey, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+	sig, err = signJWT(edKey, "input")
+	require.NoError(t, err)
+	assert.True(t, ed25519.Verify(pub, []byte("input"), sig), "Ed25519 signature should verify against the public key")
+
+	_, err = signJWT("not a key", "input")
+	assert.ErrorIs(t, err, common.ErrTypeAssertFailure)
 }
 
 func TestEncodeDateRange(t *testing.T) {
