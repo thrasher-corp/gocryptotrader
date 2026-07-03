@@ -645,12 +645,71 @@ func TestProcessOrderbook(t *testing.T) {
 func TestProcessSpotOrderbookWithDepth(t *testing.T) {
 	t.Parallel()
 
+	t.Run("update_time_fields", func(t *testing.T) {
+		t.Parallel()
+		ku := testInstance(t)
+		ku.Name += "-TestProcessSpotOrderbookWithDepth"
+
+		pair := currency.NewBTCUSDT()
+		const sequenceStart = int64(14103844)
+		const sequenceEnd = int64(14103847)
+		updateTime := time.UnixMilli(1663747970273)
+		ku.wsOBUpdateMgr = buffer.NewUpdateManager(&buffer.UpdateManagerParams{
+			FetchDelay:    0,
+			FetchDeadline: buffer.DefaultWSOrderbookUpdateDeadline,
+			FetchOrderbook: func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+				if !p.Equal(pair) {
+					return nil, fmt.Errorf("snapshot pair must match the websocket payload symbol: %s", p)
+				}
+				if a != asset.Spot {
+					return nil, fmt.Errorf("snapshot asset must be spot: %s", a)
+				}
+				return &orderbook.Book{
+					Exchange:     ku.Name,
+					Pair:         pair,
+					Asset:        asset.Spot,
+					Bids:         orderbook.Levels{{Price: 18890, Amount: 1, ID: sequenceStart - 1}},
+					Asks:         orderbook.Levels{{Price: 18910, Amount: 1, ID: sequenceStart - 1}},
+					LastUpdated:  updateTime.Add(-time.Millisecond),
+					LastPushed:   updateTime.Add(-time.Millisecond),
+					LastUpdateID: sequenceStart - 1,
+				}, nil
+			},
+			CheckPendingUpdate: checkPendingUpdate,
+			BufferInstance:     &ku.Websocket.Orderbook,
+		})
+
+		before := time.Now()
+		err := ku.processSpotOrderbookWithDepth(t.Context(), []byte(`{"data":{"changes":{"asks":[["18906","0.00331","14103845"]],"bids":[["18891.9","0.15688","14103847"]]},"sequenceEnd":14103847,"sequenceStart":14103844,"symbol":"BTC-USDT","time":1663747970273}}`), "BTC-USDT,ETH-USDT")
+		after := time.Now()
+		require.NoError(t, err, "processSpotOrderbookWithDepth must not error")
+
+		require.Eventually(t, func() bool {
+			id, err := ku.Websocket.Orderbook.LastUpdateID(pair, asset.Spot)
+			return err == nil && id == sequenceEnd
+		}, time.Second*5, time.Millisecond*50, "spot orderbook update must eventually sync")
+
+		book, err := ku.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+		require.NoError(t, err, "GetOrderbook must not error for spot incremental updates")
+		assert.Equal(t, sequenceEnd, book.LastUpdateID, "LastUpdateID should match sequenceEnd")
+		assert.Equal(t, updateTime, book.LastUpdated, "LastUpdated should match the websocket time field")
+		assert.Equal(t, updateTime, book.LastPushed, "LastPushed should match the websocket time field")
+		assert.WithinRange(t, book.ReachedGCTAt, before, after, "ReachedGCTAt should be set before orderbook processing")
+		assert.False(t, book.InsertedAt.Before(book.ReachedGCTAt), "InsertedAt should not be before the update reached GCT")
+		require.NotEmpty(t, book.Bids, "bids must not be empty after processing a spot update")
+		require.NotEmpty(t, book.Asks, "asks must not be empty after processing a spot update")
+		assert.Equal(t, 18891.9, book.Bids[0].Price, "bid price should match websocket update")
+		assert.InDelta(t, 0.15688, book.Bids[0].Amount, 1e-12, "bid amount should match websocket update")
+		assert.Equal(t, 18906.0, book.Asks[0].Price, "ask price should match websocket update")
+		assert.InDelta(t, 0.00331, book.Asks[0].Amount, 1e-12, "ask amount should match websocket update")
+	})
+
 	t.Run("error_paths", func(t *testing.T) {
 		t.Parallel()
 		t.Run("invalid_instrument", func(t *testing.T) {
 			t.Parallel()
 			ku := testInstance(t)
-			err := ku.processSpotOrderbookWithDepth(t.Context(), []byte(`{"data":{"changes":{"asks":[["18906","0.00331","14103845"]],"bids":[["18891.9","0.15688","14103847"]]},"sequenceEnd":14103847,"sequenceStart":14103844,"symbol":"BTC-USDT","time":1663747970273}}`), "a")
+			err := ku.processSpotOrderbookWithDepth(t.Context(), []byte(`{"data":{"changes":{"asks":[["18906","0.00331","14103845"]],"bids":[["18891.9","0.15688","14103847"]]},"sequenceEnd":14103847,"sequenceStart":14103844,"time":1663747970273}}`), "a")
 			require.ErrorIs(t, err, currency.ErrCreatingPair)
 		})
 

@@ -65,6 +65,9 @@ func TestNewUpdateManager(t *testing.T) {
 	params.FetchDeadline = time.Second
 	require.Panics(t, func() { NewUpdateManager(params) })
 	params.FetchDelay = time.Second
+	params.OutdatedSnapshotRetryDelay = -time.Second
+	require.Panics(t, func() { NewUpdateManager(params) })
+	params.OutdatedSnapshotRetryDelay = 0
 	require.Panics(t, func() { NewUpdateManager(params) })
 
 	params.FetchOrderbook = func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) { return nil, nil }
@@ -229,6 +232,193 @@ func TestApplyUpdate(t *testing.T) {
 	id, err := m.ob.LastUpdateID(currency.NewBTCUSDT(), asset.USDTMarginedFutures)
 	require.NoError(t, err, "LastUpdateID must not error after successful update application")
 	require.Equal(t, int64(1339), id, "LastUpdateID must match the last applied update ID")
+
+	t.Run("check_live_updates", func(t *testing.T) {
+		t.Parallel()
+		pair := currency.NewBTCUSDT()
+		tp := newTestParams()
+		tp.CheckLiveUpdates = true
+		tp.CheckPendingUpdate = func(lastUpdateID, firstUpdateID int64, update *orderbook.Update) (bool, error) {
+			target := lastUpdateID + 1
+			if firstUpdateID > target {
+				return false, ErrOrderbookSnapshotOutdated
+			}
+			if update.UpdateID < target {
+				return true, nil
+			}
+			bids := make(orderbook.Levels, 0, len(update.Bids))
+			for i := range update.Bids {
+				if update.Bids[i].ID >= target {
+					bids = append(bids, update.Bids[i])
+				}
+			}
+			update.Bids = bids
+			return false, nil
+		}
+		m := NewUpdateManager(&tp)
+		require.NoError(t, m.ob.LoadSnapshot(&orderbook.Book{
+			Exchange:     m.ob.exchangeName,
+			Pair:         pair,
+			Asset:        asset.Spot,
+			Bids:         []orderbook.Level{{Price: 1, Amount: 1}},
+			Asks:         []orderbook.Level{{Price: 2, Amount: 1}},
+			LastUpdated:  time.Now(),
+			LastPushed:   time.Now(),
+			LastUpdateID: 1337,
+		}), "LoadSnapshot must not error")
+		cache, err := m.loadCache(pair, asset.Spot)
+		require.NoError(t, err, "loadCache must not error")
+
+		updateTime := time.Now()
+		cache.m.Lock()
+		err = m.applyUpdate(t.Context(), cache, 1336, &orderbook.Update{
+			Pair:       pair,
+			Asset:      asset.Spot,
+			UpdateID:   1339,
+			UpdateTime: updateTime,
+			LastPushed: updateTime,
+			Bids: orderbook.Levels{
+				{Price: 0.9, Amount: 1, ID: 1336},
+				{Price: 1.1, Amount: 2, ID: 1338},
+			},
+		})
+		cache.m.Unlock()
+		require.NoError(t, err, "applyUpdate must accept and trim overlapping live updates")
+
+		book, err := m.ob.GetOrderbook(pair, asset.Spot)
+		require.NoError(t, err, "GetOrderbook must not error")
+		require.Equal(t, int64(1339), book.LastUpdateID, "LastUpdateID must match the overlapping update end")
+		require.Len(t, book.Bids, 2, "bids must include original and non-stale overlapping level")
+		assert.Equal(t, 1.1, book.Bids[0].Price, "fresh overlapping level should be applied")
+
+		cache.m.Lock()
+		err = m.applyUpdate(t.Context(), cache, 1336, &orderbook.Update{
+			Pair:       pair,
+			Asset:      asset.Spot,
+			UpdateID:   1337,
+			UpdateTime: updateTime,
+			LastPushed: updateTime,
+			Bids:       orderbook.Levels{{Price: 1.2, Amount: 2, ID: 1337}},
+		})
+		cache.m.Unlock()
+		require.NoError(t, err, "applyUpdate must skip live updates that are already behind")
+		id, err := m.ob.LastUpdateID(pair, asset.Spot)
+		require.NoError(t, err, "LastUpdateID must not error")
+		assert.Equal(t, int64(1339), id, "skipped update should not move LastUpdateID")
+	})
+}
+
+func TestCheckSnapshotCanApply(t *testing.T) {
+	t.Parallel()
+
+	pair := currency.NewBTCUSDT()
+	tp := newTestParams()
+	tp.CheckPendingUpdate = func(lastUpdateID, firstUpdateID int64, _ *orderbook.Update) (bool, error) {
+		if firstUpdateID > lastUpdateID+1 {
+			return false, ErrOrderbookSnapshotOutdated
+		}
+		return false, nil
+	}
+	m := NewUpdateManager(&tp)
+	cache, err := m.loadCache(pair, asset.Spot)
+	require.NoError(t, err, "loadCache must not error")
+	cache.updates = []pendingUpdate{{
+		firstUpdateID: 1337,
+		update: &orderbook.Update{
+			Pair:       pair,
+			Asset:      asset.Spot,
+			UpdateID:   1339,
+			UpdateTime: time.Now(),
+			Bids:       orderbook.Levels{{Price: 1, Amount: 1, ID: 1337}},
+			Asks:       orderbook.Levels{{Price: 2, Amount: 1, ID: 1339}},
+		},
+	}}
+
+	require.NoError(t, m.checkSnapshotCanApply(cache, 1336), "checkSnapshotCanApply must accept a snapshot bridged by the queued update")
+	require.ErrorIs(t, m.checkSnapshotCanApply(cache, 1335), ErrOrderbookSnapshotOutdated, "checkSnapshotCanApply must reject a stale snapshot")
+	require.Equal(t, orderbook.Levels{{Price: 1, Amount: 1, ID: 1337}}, cache.updates[0].update.Bids, "queued bids must not be mutated by the snapshot check")
+	require.Equal(t, orderbook.Levels{{Price: 2, Amount: 1, ID: 1339}}, cache.updates[0].update.Asks, "queued asks must not be mutated by the snapshot check")
+}
+
+func TestCloneOrderbookUpdate(t *testing.T) {
+	t.Parallel()
+
+	require.Nil(t, cloneOrderbookUpdate(nil), "cloneOrderbookUpdate must return nil for nil updates")
+	update := &orderbook.Update{
+		UpdateID:   1337,
+		Pair:       currency.NewBTCUSDT(),
+		Asset:      asset.Spot,
+		Bids:       orderbook.Levels{{Price: 1, Amount: 2, ID: 3}},
+		Asks:       orderbook.Levels{{Price: 4, Amount: 5, ID: 6}},
+		UpdateTime: time.Now(),
+	}
+
+	clone := cloneOrderbookUpdate(update)
+	require.NotSame(t, update, clone, "cloneOrderbookUpdate must return a different update pointer")
+	require.Equal(t, update, clone, "cloneOrderbookUpdate must preserve update values")
+	clone.Bids[0].Amount = 99
+	clone.Asks[0].Amount = 100
+	assert.Equal(t, 2.0, update.Bids[0].Amount, "source bids should not change when clone bids mutate")
+	assert.Equal(t, 5.0, update.Asks[0].Amount, "source asks should not change when clone asks mutate")
+}
+
+func TestApplyUpdatePanicOnDesync(t *testing.T) {
+	t.Parallel()
+
+	tp := newTestParams()
+	tp.PanicOnDesync = true
+	m := NewUpdateManager(&tp)
+	pair := currency.NewBTCUSDT()
+	require.NoError(t, m.ob.LoadSnapshot(&orderbook.Book{
+		Exchange:     m.ob.exchangeName,
+		Pair:         pair,
+		Asset:        asset.Spot,
+		Bids:         []orderbook.Level{{Price: 1, Amount: 1}},
+		Asks:         []orderbook.Level{{Price: 2, Amount: 1}},
+		LastUpdated:  time.Now(),
+		LastPushed:   time.Now(),
+		LastUpdateID: 1337,
+	}), "LoadSnapshot must not error")
+
+	cache, err := m.loadCache(pair, asset.Spot)
+	require.NoError(t, err, "loadCache must not error")
+
+	cache.m.Lock()
+	defer cache.m.Unlock()
+	require.PanicsWithValue(t,
+		"TestExchange websocket orderbook manager desync for BTCUSDT spot: last update ID 1337, first update ID 1339, update ID 1340",
+		func() {
+			_ = m.applyUpdate(t.Context(), cache, 1339, &orderbook.Update{
+				Pair:       pair,
+				Asset:      asset.Spot,
+				UpdateID:   1340,
+				UpdateTime: time.Now(),
+				Bids:       orderbook.Levels{{Price: 1, Amount: 2}},
+			})
+		},
+		"applyUpdate must panic with desync details when diagnostic mode is enabled")
+}
+
+func TestHandleDesync(t *testing.T) {
+	t.Parallel()
+
+	tp := newTestParams()
+	tp.PanicOnDesync = true
+	m := NewUpdateManager(&tp)
+	pair := currency.NewBTCUSDT()
+	cache, err := m.loadCache(pair, asset.Spot)
+	require.NoError(t, err, "loadCache must not error")
+
+	require.PanicsWithValue(t,
+		"TestExchange websocket orderbook manager desync for BTCUSDT spot: last update ID 1337, first update ID 1339, update ID 1340: orderbook snapshot is outdated",
+		func() {
+			_ = m.handleDesync(t.Context(), cache, 1339, &orderbook.Update{
+				Pair:     pair,
+				Asset:    asset.Spot,
+				UpdateID: 1340,
+			}, 1337, ErrOrderbookSnapshotOutdated)
+		},
+		"handleDesync must panic with desync details when diagnostic mode is enabled")
 }
 
 func TestApplyUpdateInvalidateOnUpdateError(t *testing.T) {

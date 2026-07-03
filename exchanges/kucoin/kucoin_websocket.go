@@ -862,14 +862,18 @@ func (e *Exchange) processCandlesticks(ctx context.Context, respData []byte, ins
 // processSpotOrderbookWithDepth processes order book data with a specified depth for a particular symbol.
 func (e *Exchange) processSpotOrderbookWithDepth(ctx context.Context, respData []byte, instrument string) error {
 	reachedGCTAt := time.Now()
-	pair, err := currency.NewPairFromString(instrument)
-	if err != nil {
-		return err
-	}
 	var resp struct {
 		Result WsOrderbook `json:"data"`
 	}
 	if err := json.Unmarshal(respData, &resp); err != nil {
+		return err
+	}
+
+	if resp.Result.Symbol != "" {
+		instrument = resp.Result.Symbol
+	}
+	pair, err := currency.NewPairFromString(instrument)
+	if err != nil {
 		return err
 	}
 

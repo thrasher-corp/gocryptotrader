@@ -173,11 +173,14 @@ func (e *Exchange) SetDefaults() {
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 	e.wsOBUpdateMgr = buffer.NewUpdateManager(&buffer.UpdateManagerParams{
-		FetchDelay:         buffer.DefaultWSOrderbookUpdateTimeDelay,
-		FetchDeadline:      buffer.DefaultWSOrderbookUpdateDeadline,
-		FetchOrderbook:     e.fetchWSOrderbookSnapshot,
-		CheckPendingUpdate: checkPendingUpdate,
-		BufferInstance:     &e.Websocket.Orderbook,
+		FetchDelay:                 0,
+		FetchDeadline:              buffer.DefaultWSOrderbookUpdateDeadline,
+		FetchOrderbook:             e.fetchWSOrderbookSnapshot,
+		OutdatedSnapshotRetryDelay: buffer.DefaultWSOrderbookOutdatedSnapshotRetryWait,
+		CheckPendingUpdate:         checkPendingUpdate,
+		CheckLiveUpdates:           true,
+		PanicOnDesync:              true,
+		BufferInstance:             &e.Websocket.Orderbook,
 	})
 }
 
