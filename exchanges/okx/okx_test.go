@@ -4092,6 +4092,110 @@ func TestCalculateOrderbookChecksum(t *testing.T) {
 	require.Equal(t, generateOrderbookChecksum(book), checksum, "CalculateOrderbookChecksum must match generateOrderbookChecksum for equivalent book data")
 }
 
+func TestWsProcessSnapshotOrderBook(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name                     string
+		pairSuffix               string
+		useChecksum              bool
+		checksumCompletedAtIsSet bool
+	}{
+		{
+			name:                     "legacy_checksum",
+			pairSuffix:               "CHECKSUM",
+			useChecksum:              true,
+			checksumCompletedAtIsSet: true,
+		},
+		{
+			name:       "zero_checksum",
+			pairSuffix: "ZERO",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			tracked := new(Exchange)
+			require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
+
+			data := &WsOrderBookData{
+				Bids: []WsOrderBookLevel{
+					{Price: 100.5, Amount: 1.25, PriceString: "100.5", AmountString: "1.25"},
+				},
+				Asks: []WsOrderBookLevel{
+					{Price: 100.6, Amount: 0.75, PriceString: "100.6", AmountString: "0.75"},
+				},
+				Timestamp:  types.Time(time.UnixMilli(1659792392540)),
+				SequenceID: 42,
+			}
+			if tc.useChecksum {
+				checksum, err := tracked.CalculateOrderbookChecksum(data)
+				require.NoError(t, err, "CalculateOrderbookChecksum must not error")
+				data.Checksum = int32(checksum) //nolint:gosec // OKX checksum is signed on the wire.
+			}
+
+			pair := currency.NewPairWithDelimiter("SNAP"+tc.pairSuffix, "USDT", "-")
+			err := tracked.WsProcessSnapshotOrderBook(data, pair, []asset.Item{asset.Spot})
+			require.NoError(t, err, "WsProcessSnapshotOrderBook must not error")
+
+			book, err := tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+			require.NoError(t, err, "GetOrderbook must not error")
+			require.Equal(t, data.Timestamp.Time(), book.LastUpdated, "LastUpdated must match OKX generation timestamp")
+			assert.Equal(t, data.Timestamp.Time(), book.LastPushed, "LastPushed should match OKX generation timestamp")
+			assert.False(t, book.ReachedGCTAt.IsZero(), "ReachedGCTAt should be set")
+			assert.Equal(t, tc.checksumCompletedAtIsSet, !book.ChecksumCompletedAt.IsZero(), "ChecksumCompletedAt should match checksum usage")
+		})
+	}
+}
+
+func TestWsProcessUpdateOrderbook(t *testing.T) {
+	t.Parallel()
+
+	tracked := new(Exchange)
+	require.NoError(t, testexch.Setup(tracked), "Test instance Setup must not error")
+
+	pair := currency.NewPairWithDelimiter("UPD", "USDT", "-")
+	err := tracked.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
+		Exchange:     tracked.Name,
+		Pair:         pair,
+		Asset:        asset.Spot,
+		LastUpdateID: 10,
+		LastUpdated:  time.UnixMilli(1659792392540),
+		LastPushed:   time.UnixMilli(1659792392540),
+		Bids:         orderbook.Levels{{Price: 100.5, Amount: 1.25}},
+		Asks:         orderbook.Levels{{Price: 100.6, Amount: 0.75}},
+	})
+	require.NoError(t, err, "LoadSnapshot must not error")
+
+	update := &WsOrderBookData{
+		Timestamp:          types.Time(time.UnixMilli(1659792392640)),
+		PreviousSequenceID: 10,
+		SequenceID:         11,
+	}
+	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot})
+	require.NoError(t, err, "WsProcessUpdateOrderbook must not error when prevSeqId matches")
+	book, err := tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error")
+	require.Equal(t, int64(11), book.LastUpdateID, "LastUpdateID must advance to update seqId")
+	require.Equal(t, update.Timestamp.Time(), book.LastUpdated, "LastUpdated must match OKX generation timestamp")
+	assert.Equal(t, update.Timestamp.Time(), book.LastPushed, "LastPushed should match OKX generation timestamp")
+
+	update.PreviousSequenceID = 10
+	update.SequenceID = 11
+	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot})
+	require.NoError(t, err, "WsProcessUpdateOrderbook must discard stale updates without error")
+	book, err = tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error")
+	require.Equal(t, int64(11), book.LastUpdateID, "LastUpdateID must remain unchanged after stale update")
+
+	update.PreviousSequenceID = 10
+	update.SequenceID = 12
+	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot})
+	require.ErrorIs(t, err, errInvalidOrderbookSequence, "WsProcessUpdateOrderbook must reject sequence gaps")
+}
+
 func TestOrderPushData(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
@@ -4868,6 +4972,8 @@ func TestWsProcessOrderbook5(t *testing.T) {
 
 	require.Len(t, got.Asks, 5)
 	assert.Len(t, got.Bids, 5)
+	require.Equal(t, time.UnixMilli(1695864901807), got.LastUpdated, "LastUpdated must match OKX generation timestamp")
+	assert.Equal(t, got.LastUpdated, got.LastPushed, "LastPushed should match OKX generation timestamp")
 }
 
 func TestGetLeverateEstimatedInfo(t *testing.T) {
@@ -6597,7 +6703,14 @@ const (
 func TestWsProcessSpreadOrderbook(t *testing.T) {
 	t.Parallel()
 	err := e.wsProcessSpreadOrderbook([]byte(processSpreadOrderbookJSON))
-	assert.NoError(t, err)
+	require.NoError(t, err)
+
+	pair, err := e.GetPairFromInstrumentID("BTC-USDT_BTC-USDT-SWAP")
+	require.NoError(t, err, "GetPairFromInstrumentID must not error")
+	book, err := e.Websocket.Orderbook.GetOrderbook(pair, asset.Spread)
+	require.NoError(t, err, "GetOrderbook must not error")
+	require.Equal(t, time.UnixMilli(1670324386802), book.LastUpdated, "LastUpdated must match OKX generation timestamp")
+	assert.Equal(t, book.LastUpdated, book.LastPushed, "LastPushed should match OKX generation timestamp")
 }
 
 func TestWsProcessPublicSpreadTrades(t *testing.T) {

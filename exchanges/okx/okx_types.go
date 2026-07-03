@@ -162,6 +162,7 @@ var (
 	errInvoiceTextMissing                   = errors.New("missing invoice text")
 	errFeeTypeUnsupported                   = errors.New("fee type is not supported")
 	errInvalidOrderBookLevel                = errors.New("invalid orderbook level")
+	errInvalidOrderbookSequence             = errors.New("invalid orderbook sequence")
 )
 
 // testNetKey this key is designed for using the testnet endpoints
