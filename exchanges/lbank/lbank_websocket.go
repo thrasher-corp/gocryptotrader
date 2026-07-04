@@ -30,6 +30,7 @@ const (
 	lbankWsOrderbook   = "depth"
 	lbankWsKbar        = "kbar"
 	lbankWsOrderUpdate = "orderUpdate"
+	lbankWsAssetUpdate = "assetUpdate"
 )
 
 var klineIntervals = map[kline.Interval]string{
@@ -50,6 +51,7 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
 	{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true},
+	{Enabled: true, Channel: subscription.MyAccountChannel, Authenticated: true},
 }
 
 var subscriptionNames = map[string]string{
@@ -58,6 +60,7 @@ var subscriptionNames = map[string]string{
 	subscription.OrderbookChannel: lbankWsOrderbook,
 	subscription.CandlesChannel:   lbankWsKbar,
 	subscription.MyOrdersChannel:  lbankWsOrderUpdate,
+	subscription.MyAccountChannel: lbankWsAssetUpdate,
 }
 
 var defaultSubscriptionTemplate = template.Must(template.New("").Funcs(template.FuncMap{
@@ -142,6 +145,8 @@ func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
 		return e.wsHandleKbar(ctx, respRaw)
 	case lbankWsOrderUpdate:
 		return e.wsHandleOrderUpdate(ctx, respRaw)
+	case lbankWsAssetUpdate:
+		return e.wsHandleAssetUpdate(ctx, respRaw)
 	default:
 		return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
 			Message: e.Name + websocket.UnhandledMessage + string(respRaw),
@@ -293,6 +298,15 @@ func (e *Exchange) wsHandleOrderUpdate(ctx context.Context, respRaw []byte) erro
 	})
 }
 
+// wsHandleAssetUpdate handles asset update websocket messages
+func (e *Exchange) wsHandleAssetUpdate(ctx context.Context, respRaw []byte) error {
+	var resp websocketAssetUpdateResponse
+	if err := json.Unmarshal(respRaw, &resp); err != nil {
+		return err
+	}
+	return e.Websocket.DataHandler.Send(ctx, resp.Data)
+}
+
 // klineIntervalFromString converts an LBank interval string to a kline.Interval
 func klineIntervalFromString(s string) (kline.Interval, error) {
 	for interval, str := range klineIntervals {
@@ -323,8 +337,9 @@ func (e *Exchange) manageSubs(ctx context.Context, subs subscription.List, actio
 			continue
 		}
 
-		// orderUpdate subscribes once for all pairs
-		if s.Channel == subscription.MyOrdersChannel {
+		// orderUpdate and assetUpdate subscribe once without pairs
+		switch s.Channel {
+		case subscription.MyOrdersChannel:
 			req := map[string]any{
 				"action":       action,
 				"subscribe":    lbankWsOrderUpdate,
@@ -341,11 +356,34 @@ func (e *Exchange) manageSubs(ctx context.Context, subs subscription.List, actio
 				errs = common.AppendError(errs, e.Websocket.RemoveSubscriptions(e.Websocket.Conn, s))
 			}
 			continue
+		case subscription.MyAccountChannel:
+			req := map[string]any{
+				"action":       action,
+				"subscribe":    lbankWsAssetUpdate,
+				"subscribeKey": e.wsSubscribeKey,
+			}
+			if err := e.Websocket.Conn.SendJSONMessage(ctx, 0, req); err != nil {
+				errs = common.AppendError(errs, err)
+				continue
+			}
+			if action == lbankWsSubscribe {
+				errs = common.AppendError(errs, e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, s))
+			} else {
+				errs = common.AppendError(errs, e.Websocket.RemoveSubscriptions(e.Websocket.Conn, s))
+			}
+			continue
 		}
 
 		for _, p := range s.Pairs {
 			var req map[string]any
 			switch s.Channel {
+			case subscription.OrderbookChannel:
+				req = map[string]any{
+					"action":    action,
+					"subscribe": chName,
+					"depth":     "100",
+					"pair":      p.Lower().String(),
+				}
 			case subscription.CandlesChannel:
 				intervalStr, ok := klineIntervals[s.Interval]
 				if !ok {
@@ -361,7 +399,8 @@ func (e *Exchange) manageSubs(ctx context.Context, subs subscription.List, actio
 			default:
 				req = map[string]any{
 					"action":    action,
-					"subscribe": chName + "_" + p.Lower().String(),
+					"subscribe": chName,
+					"pair":      p.Lower().String(),
 				}
 			}
 			if err := e.Websocket.Conn.SendJSONMessage(ctx, 0, req); err != nil {

@@ -136,6 +136,22 @@ type websocketTradeResponse struct {
 	Trade websocketTradeData `json:"trade"`
 }
 
+// websocketAssetUpdateResponse holds an asset update websocket message
+type websocketAssetUpdateResponse struct {
+	websocketResponse
+	Data websocketAssetUpdateData `json:"data"`
+}
+
+// websocketAssetUpdateData holds asset update fields
+type websocketAssetUpdateData struct {
+	Asset     types.Number `json:"asset"`
+	AssetCode string       `json:"assetCode"`
+	Free      types.Number `json:"free"`
+	Freeze    types.Number `json:"freeze"`
+	Time      types.Time   `json:"time"`
+	Type      string       `json:"type"`
+}
+
 // websocketTradeData holds trade data fields
 type websocketTradeData struct {
 	Volume    types.Number `json:"volume"`

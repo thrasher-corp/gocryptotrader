@@ -176,6 +176,28 @@ func TestWsHandleTicker(t *testing.T) {
 	assert.NoError(t, err, "wsHandleData ticker should not error")
 }
 
+func TestWsHandleAssetUpdate(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+
+	err := ex.wsHandleData(t.Context(), []byte(`{
+		"type": "assetUpdate",
+		"data": {
+			"asset": "114548.31881315",
+			"assetCode": "usdt",
+			"free": "97430.6739041",
+			"freeze": "17117.64490905",
+			"time": 1627300043270,
+			"type": "ORDER_CREATE"
+		},
+		"SERVER": "V2",
+		"TS": 1627300043270
+	}`))
+	assert.NoError(t, err, "wsHandleData assetUpdate should not error")
+}
+
 func TestWsHandleTrades(t *testing.T) {
 	t.Parallel()
 
