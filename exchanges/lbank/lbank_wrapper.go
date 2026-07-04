@@ -67,11 +67,13 @@ func (e *Exchange) SetDefaults() {
 				CryptoWithdrawalFee: true,
 			},
 			WebsocketCapabilities: protocol.Features{
-				TradeFetching:     true,
-				OrderbookFetching: true,
-				TickerFetching:    true,
-				Subscribe:         true,
-				Unsubscribe:       true,
+				TradeFetching:          true,
+				OrderbookFetching:      true,
+				TickerFetching:         true,
+				Subscribe:              true,
+				Unsubscribe:            true,
+				AuthenticatedEndpoints: true,
+				GetOrders:              true,
 			},
 
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithAPIPermission |

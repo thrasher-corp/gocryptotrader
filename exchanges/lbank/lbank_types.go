@@ -107,6 +107,90 @@ type QueryOrderFinalResponse struct {
 	Orders []OrderResponse
 }
 
+// websocketResponse is the base envelope for all LBank websocket messages
+type websocketResponse struct {
+	Type    string `json:"type"`
+	Pair    string `json:"pair"`
+	Message string `json:"message"`
+	Status  string `json:"status"`
+}
+
+// websocketTickResponse holds a ticker websocket message
+type websocketTickResponse struct {
+	websocketResponse
+	Tick websocketTickData `json:"tick"`
+}
+
+// websocketTickData holds ticker data fields
+type websocketTickData struct {
+	High     types.Number `json:"high"`
+	Low      types.Number `json:"low"`
+	Latest   types.Number `json:"latest"`
+	Vol      types.Number `json:"vol"`
+	Turnover types.Number `json:"turnover"`
+}
+
+// websocketTradeResponse holds a trade websocket message
+type websocketTradeResponse struct {
+	websocketResponse
+	Trade websocketTradeData `json:"trade"`
+}
+
+// websocketTradeData holds trade data fields
+type websocketTradeData struct {
+	Volume    types.Number `json:"volume"`
+	Price     types.Number `json:"price"`
+	Direction string       `json:"direction"`
+	TS        types.Time   `json:"TS"`
+}
+
+// websocketDepthResponse holds an orderbook websocket message
+type websocketDepthResponse struct {
+	websocketResponse
+	Depth websocketDepthData `json:"depth"`
+}
+
+// websocketDepthData holds orderbook data fields
+type websocketDepthData struct {
+	Asks orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Bids orderbook.LevelsArrayPriceAmount `json:"bids"`
+}
+
+// websocketKbarResponse holds a kline websocket message
+type websocketKbarResponse struct {
+	websocketResponse
+	Kbar websocketKbarData `json:"kbar"`
+}
+
+// websocketKbarData holds kline fields
+type websocketKbarData struct {
+	Open      types.Number `json:"o"`
+	High      types.Number `json:"h"`
+	Low       types.Number `json:"l"`
+	Close     types.Number `json:"c"`
+	Volume    types.Number `json:"v"`
+	Timestamp types.Time   `json:"t"`
+	Slot      string       `json:"slot"`
+}
+
+// websocketOrderUpdateResponse holds an order update websocket message
+type websocketOrderUpdateResponse struct {
+	websocketResponse
+	OrderUpdate websocketOrderUpdateData `json:"orderUpdate"`
+}
+
+// websocketOrderUpdateData holds order update fields
+type websocketOrderUpdateData struct {
+	Amount      types.Number `json:"amount"`
+	OrderStatus int64        `json:"orderStatus"`
+	Price       types.Number `json:"price"`
+	Role        string       `json:"role"`
+	UpdateTime  types.Time   `json:"updateTime"`
+	UUID        string       `json:"uuid"`
+	TxUUID      string       `json:"txUuid"`
+	VolumePrice types.Number `json:"volumePrice"`
+}
+
 // OrderHistory stores data for past orders
 type OrderHistory struct {
 	Result      bool            `json:"result,string"`

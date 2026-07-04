@@ -2,23 +2,24 @@ package lbank
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"text/template"
+	"time"
 
 	gws "github.com/gorilla/websocket"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
-	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -27,24 +28,36 @@ const (
 	lbankWsTicker      = "tick"
 	lbankWsTrades      = "trade"
 	lbankWsOrderbook   = "depth"
+	lbankWsKbar        = "kbar"
+	lbankWsOrderUpdate = "orderUpdate"
 )
 
-var (
-	errMissingTickData  = errors.New("lbank: missing tick data in websocket message")
-	errMissingTradeData = errors.New("lbank: missing trade data in websocket message")
-	errMissingDepthData = errors.New("lbank: missing depth data in websocket message")
-)
+var klineIntervals = map[kline.Interval]string{
+	kline.OneMin:     "1min",
+	kline.FiveMin:    "5min",
+	kline.FifteenMin: "15min",
+	kline.ThirtyMin:  "30min",
+	kline.OneHour:    "1hr",
+	kline.FourHour:   "4hr",
+	kline.OneDay:     "day",
+	kline.OneWeek:    "week",
+	kline.OneMonth:   "month",
+}
 
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
+	{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true},
 }
 
 var subscriptionNames = map[string]string{
 	subscription.TickerChannel:    lbankWsTicker,
 	subscription.AllTradesChannel: lbankWsTrades,
 	subscription.OrderbookChannel: lbankWsOrderbook,
+	subscription.CandlesChannel:   lbankWsKbar,
+	subscription.MyOrdersChannel:  lbankWsOrderUpdate,
 }
 
 var defaultSubscriptionTemplate = template.Must(template.New("").Funcs(template.FuncMap{
@@ -72,6 +85,16 @@ func (e *Exchange) WsConnect() error {
 	if err != nil {
 		return err
 	}
+	if e.IsWebsocketAuthenticationSupported() {
+		key, err := e.GetWebsocketSubscribeKey(ctx)
+		if err != nil {
+			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
+			log.Errorf(log.ExchangeSys, "%s websocket auth failed: %v\n", e.Name, err)
+		} else {
+			e.wsSubscribeKey = key
+			e.Websocket.SetCanUseAuthenticatedEndpoints(true)
+		}
+	}
 	if e.Verbose {
 		log.Debugf(log.ExchangeSys, "%s Connected to Websocket.\n", e.Name)
 	}
@@ -80,6 +103,7 @@ func (e *Exchange) WsConnect() error {
 	return nil
 }
 
+// wsReadData receives and passes on websocket messages for processing
 func (e *Exchange) wsReadData(ctx context.Context) {
 	defer e.Websocket.Wg.Done()
 	for {
@@ -95,159 +119,191 @@ func (e *Exchange) wsReadData(ctx context.Context) {
 	}
 }
 
+// wsHandleData handles incoming websocket messages
 func (e *Exchange) wsHandleData(ctx context.Context, respRaw []byte) error {
-	var result map[string]json.RawMessage
-	if err := json.Unmarshal(respRaw, &result); err != nil {
+	var base websocketResponse
+	if err := json.Unmarshal(respRaw, &base); err != nil {
 		return err
 	}
-
-	typeRaw, ok := result["type"]
-	if !ok {
-		if msgRaw, ok := result["message"]; ok {
-			var errMsg string
-			if err := json.Unmarshal(msgRaw, &errMsg); err != nil {
-				return err
-			}
-			return fmt.Errorf("lbank websocket error: %s", errMsg)
+	if base.Type == "" {
+		if base.Message != "" {
+			return fmt.Errorf("lbank websocket error: %s", base.Message)
 		}
 		return nil
 	}
-
-	var msgType string
-	if err := json.Unmarshal(typeRaw, &msgType); err != nil {
-		return err
+	switch base.Type {
+	case lbankWsTicker:
+		return e.wsHandleTicker(ctx, respRaw)
+	case lbankWsTrades:
+		return e.wsHandleTrades(respRaw)
+	case lbankWsOrderbook:
+		return e.wsHandleOrderbook(respRaw)
+	case lbankWsKbar:
+		return e.wsHandleKbar(ctx, respRaw)
+	case lbankWsOrderUpdate:
+		return e.wsHandleOrderUpdate(ctx, respRaw)
+	default:
+		return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
+			Message: e.Name + websocket.UnhandledMessage + string(respRaw),
+		})
 	}
-
-	switch msgType {
-	case lbankWsTicker, lbankWsTrades, lbankWsOrderbook:
-		pairRaw, ok := result["pair"]
-		if !ok {
-			return fmt.Errorf("lbank: missing pair in websocket message: %s", respRaw)
-		}
-		var pairStr string
-		if err := json.Unmarshal(pairRaw, &pairStr); err != nil {
-			return err
-		}
-		p, err := currency.NewPairFromString(pairStr)
-		if err != nil {
-			return err
-		}
-
-		switch msgType {
-		case lbankWsTicker:
-			return e.wsHandleTicker(ctx, result, p, respRaw)
-		case lbankWsTrades:
-			return e.wsHandleTrades(ctx, result, p, respRaw)
-		case lbankWsOrderbook:
-			return e.wsHandleOrderbook(result, p, respRaw)
-		}
-	}
-
-	return e.Websocket.DataHandler.Send(ctx, websocket.UnhandledMessageWarning{
-		Message: e.Name + websocket.UnhandledMessage + string(respRaw),
-	})
 }
 
-func (e *Exchange) wsHandleTicker(ctx context.Context, result map[string]json.RawMessage, p currency.Pair, respRaw []byte) error {
-	var tick struct {
-		High   types.Number `json:"high"`
-		Low    types.Number `json:"low"`
-		Latest types.Number `json:"latest"`
-		Vol    types.Number `json:"vol"`
-		Change types.Number `json:"change"`
-	}
-	tickRaw, ok := result[lbankWsTicker]
-	if !ok {
-		return fmt.Errorf("%w: %s", errMissingTickData, respRaw)
-	}
-	if err := json.Unmarshal(tickRaw, &tick); err != nil {
+// wsHandleTicker handles ticker websocket messages
+func (e *Exchange) wsHandleTicker(ctx context.Context, respRaw []byte) error {
+	var resp websocketTickResponse
+	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, (&ticker.Price{
+	p, err := currency.NewPairFromString(resp.Pair)
+	if err != nil {
+		return err
+	}
+	return e.Websocket.DataHandler.Send(ctx, &ticker.Price{
 		ExchangeName: e.Name,
 		Pair:         p,
 		AssetType:    asset.Spot,
-		High:         tick.High.Float64(),
-		Low:          tick.Low.Float64(),
-		Last:         tick.Latest.Float64(),
-		Volume:       tick.Vol.Float64(),
-	}))
+		High:         resp.Tick.High.Float64(),
+		Low:          resp.Tick.Low.Float64(),
+		Last:         resp.Tick.Latest.Float64(),
+		Volume:       resp.Tick.Vol.Float64(),
+	})
 }
 
 // wsHandleTrades handles trade websocket messages
-func (e *Exchange) wsHandleTrades(_ context.Context, result map[string]json.RawMessage, p currency.Pair, respRaw []byte) error {
-	if !e.IsSaveTradeDataEnabled() {
+func (e *Exchange) wsHandleTrades(respRaw []byte) error {
+	if !e.IsSaveTradeDataEnabled() && !e.IsTradeFeedEnabled() {
 		return nil
 	}
-	var trades []struct {
-		DateMs types.Time   `json:"date_ms"`
-		Amount types.Number `json:"amount"`
-		Price  types.Number `json:"price"`
-		Type   string       `json:"type"`
-		TID    string       `json:"tid"`
-	}
-	tradeRaw, ok := result[lbankWsTrades]
-	if !ok {
-		return fmt.Errorf("%w: %s", errMissingTradeData, respRaw)
-	}
-	if err := json.Unmarshal(tradeRaw, &trades); err != nil {
+	var resp websocketTradeResponse
+	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
-	out := make([]trade.Data, len(trades))
-	for i, t := range trades {
-		side, err := order.StringToOrderSide(t.Type)
-		if err != nil {
-			return err
-		}
-		out[i] = trade.Data{
-			Exchange:     e.Name,
-			AssetType:    asset.Spot,
-			CurrencyPair: p,
-			Price:        t.Price.Float64(),
-			Amount:       t.Amount.Float64(),
-			Timestamp:    t.DateMs.Time(),
-			Side:         side,
-			TID:          t.TID,
-		}
+	p, err := currency.NewPairFromString(resp.Pair)
+	if err != nil {
+		return err
 	}
-	return trade.AddTradesToBuffer(out...)
+	side, err := order.StringToOrderSide(resp.Trade.Direction)
+	if err != nil {
+		return err
+	}
+	return trade.AddTradesToBuffer(trade.Data{
+		Exchange:     e.Name,
+		AssetType:    asset.Spot,
+		CurrencyPair: p,
+		Price:        resp.Trade.Price.Float64(),
+		Amount:       resp.Trade.Volume.Float64(),
+		Timestamp:    resp.Trade.TS.Time(),
+		Side:         side,
+	})
 }
 
-func (e *Exchange) wsHandleOrderbook(result map[string]json.RawMessage, p currency.Pair, respRaw []byte) error {
-	var depth struct {
-		Asks [][]types.Number `json:"asks"`
-		Bids [][]types.Number `json:"bids"`
-	}
-	depthRaw, ok := result[lbankWsOrderbook]
-	if !ok {
-		return fmt.Errorf("%w: %s", errMissingDepthData, respRaw)
-	}
-	if err := json.Unmarshal(depthRaw, &depth); err != nil {
+// wsHandleOrderbook handles orderbook websocket messages
+func (e *Exchange) wsHandleOrderbook(respRaw []byte) error {
+	var resp websocketDepthResponse
+	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
-	book := &orderbook.Book{
+	p, err := currency.NewPairFromString(resp.Pair)
+	if err != nil {
+		return err
+	}
+	return e.Websocket.Orderbook.LoadSnapshot(&orderbook.Book{
 		Exchange:          e.Name,
 		Pair:              p,
 		Asset:             asset.Spot,
 		ValidateOrderbook: e.ValidateOrderbook,
-	}
-	book.Asks = make(orderbook.Levels, len(depth.Asks))
-	for i := range depth.Asks {
-		if len(depth.Asks[i]) < 2 {
-			return fmt.Errorf("lbank: invalid ask level length %d", len(depth.Asks[i]))
-		}
-		book.Asks[i] = orderbook.Level{Price: depth.Asks[i][0].Float64(), Amount: depth.Asks[i][1].Float64()}
-	}
-	book.Bids = make(orderbook.Levels, len(depth.Bids))
-	for i := range depth.Bids {
-		if len(depth.Bids[i]) < 2 {
-			return fmt.Errorf("lbank: invalid bid level length %d", len(depth.Bids[i]))
-		}
-		book.Bids[i] = orderbook.Level{Price: depth.Bids[i][0].Float64(), Amount: depth.Bids[i][1].Float64()}
-	}
-	return book.Process()
+		Asks:              resp.Depth.Asks.Levels(),
+		Bids:              resp.Depth.Bids.Levels(),
+		LastUpdated:       time.Now(),
+	})
 }
 
+// wsHandleKbar handles kline websocket messages
+func (e *Exchange) wsHandleKbar(ctx context.Context, respRaw []byte) error {
+	var resp websocketKbarResponse
+	if err := json.Unmarshal(respRaw, &resp); err != nil {
+		return err
+	}
+	p, err := currency.NewPairFromString(resp.Pair)
+	if err != nil {
+		return err
+	}
+	interval, err := klineIntervalFromString(resp.Kbar.Slot)
+	if err != nil {
+		return err
+	}
+	return e.Websocket.DataHandler.Send(ctx, kline.Item{
+		Exchange: e.Name,
+		Pair:     p,
+		Asset:    asset.Spot,
+		Interval: interval,
+		Candles: []kline.Candle{{
+			Time:   resp.Kbar.Timestamp.Time(),
+			Open:   resp.Kbar.Open.Float64(),
+			High:   resp.Kbar.High.Float64(),
+			Low:    resp.Kbar.Low.Float64(),
+			Close:  resp.Kbar.Close.Float64(),
+			Volume: resp.Kbar.Volume.Float64(),
+		}},
+	})
+}
+
+// lbankOrderStatusToOrderStatus converts LBank integer status to order.Status
+func lbankOrderStatusToOrderStatus(status int64) (order.Status, error) {
+	switch status {
+	case 0:
+		return order.New, nil
+	case 1:
+		return order.PartiallyFilled, nil
+	case 2:
+		return order.Filled, nil
+	case 3:
+		return order.PartiallyCancelled, nil
+	case 4:
+		return order.PendingCancel, nil
+	default:
+		return order.UnknownStatus, fmt.Errorf("lbank: unknown order status %d", status)
+	}
+}
+
+// wsHandleOrderUpdate handles order update websocket messages
+func (e *Exchange) wsHandleOrderUpdate(ctx context.Context, respRaw []byte) error {
+	var resp websocketOrderUpdateResponse
+	if err := json.Unmarshal(respRaw, &resp); err != nil {
+		return err
+	}
+	p, err := currency.NewPairFromString(resp.Pair)
+	if err != nil {
+		return err
+	}
+	status, err := lbankOrderStatusToOrderStatus(resp.OrderUpdate.OrderStatus)
+	if err != nil {
+		return err
+	}
+	return e.Websocket.DataHandler.Send(ctx, &order.Detail{
+		Exchange:    e.Name,
+		AssetType:   asset.Spot,
+		Pair:        p,
+		Price:       resp.OrderUpdate.Price.Float64(),
+		Amount:      resp.OrderUpdate.Amount.Float64(),
+		OrderID:     resp.OrderUpdate.UUID,
+		Status:      status,
+		LastUpdated: resp.OrderUpdate.UpdateTime.Time(),
+	})
+}
+
+// klineIntervalFromString converts an LBank interval string to a kline.Interval
+func klineIntervalFromString(s string) (kline.Interval, error) {
+	for interval, str := range klineIntervals {
+		if str == s {
+			return interval, nil
+		}
+	}
+	return 0, fmt.Errorf("lbank: unsupported kline interval string %s", s)
+}
+
+// generateSubscriptions generates default subscriptions
 func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 	return e.Features.Subscriptions.ExpandTemplates(e)
 }
@@ -257,50 +313,77 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 	return defaultSubscriptionTemplate, nil
 }
 
-// Subscribe subscribes to a list of websocket channels
-func (e *Exchange) Subscribe(subs subscription.List) error {
-	ctx := context.TODO()
+// manageSubs handles both subscribe and unsubscribe
+func (e *Exchange) manageSubs(ctx context.Context, subs subscription.List, action string) error {
+	var errs error
 	for _, s := range subs {
 		chName, ok := subscriptionNames[s.Channel]
 		if !ok {
-			return fmt.Errorf("lbank: unsupported channel %s", s.Channel)
+			errs = common.AppendError(errs, fmt.Errorf("lbank: unsupported channel %s", s.Channel))
+			continue
 		}
-		for _, p := range s.Pairs {
-			req := map[string]string{
-				"action":    lbankWsSubscribe,
-				"subscribe": chName + "_" + p.Lower().String(),
+
+		// orderUpdate subscribes once for all pairs
+		if s.Channel == subscription.MyOrdersChannel {
+			req := map[string]any{
+				"action":       action,
+				"subscribe":    lbankWsOrderUpdate,
+				"subscribeKey": e.wsSubscribeKey,
+				"pair":         "all",
 			}
 			if err := e.Websocket.Conn.SendJSONMessage(ctx, 0, req); err != nil {
-				return err
+				errs = common.AppendError(errs, err)
+				continue
+			}
+			if action == lbankWsSubscribe {
+				errs = common.AppendError(errs, e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, s))
+			} else {
+				errs = common.AppendError(errs, e.Websocket.RemoveSubscriptions(e.Websocket.Conn, s))
+			}
+			continue
+		}
+
+		for _, p := range s.Pairs {
+			var req map[string]any
+			switch s.Channel {
+			case subscription.CandlesChannel:
+				intervalStr, ok := klineIntervals[s.Interval]
+				if !ok {
+					errs = common.AppendError(errs, fmt.Errorf("lbank: unsupported kline interval %v", s.Interval))
+					continue
+				}
+				req = map[string]any{
+					"action":    action,
+					"subscribe": chName,
+					"kbar":      intervalStr,
+					"pair":      p.Lower().String(),
+				}
+			default:
+				req = map[string]any{
+					"action":    action,
+					"subscribe": chName + "_" + p.Lower().String(),
+				}
+			}
+			if err := e.Websocket.Conn.SendJSONMessage(ctx, 0, req); err != nil {
+				errs = common.AppendError(errs, err)
+				continue
 			}
 		}
-		if err := e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, s); err != nil {
-			return err
+		if action == lbankWsSubscribe {
+			errs = common.AppendError(errs, e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, s))
+		} else {
+			errs = common.AppendError(errs, e.Websocket.RemoveSubscriptions(e.Websocket.Conn, s))
 		}
 	}
-	return nil
+	return errs
+}
+
+// Subscribe subscribes to a list of websocket channels
+func (e *Exchange) Subscribe(subs subscription.List) error {
+	return e.manageSubs(context.TODO(), subs, lbankWsSubscribe)
 }
 
 // Unsubscribe unsubscribes from a list of websocket channels
 func (e *Exchange) Unsubscribe(subs subscription.List) error {
-	ctx := context.TODO()
-	for _, s := range subs {
-		chName, ok := subscriptionNames[s.Channel]
-		if !ok {
-			return fmt.Errorf("lbank: unsupported channel %s", s.Channel)
-		}
-		for _, p := range s.Pairs {
-			req := map[string]string{
-				"action":    lbankWsUnsubscribe,
-				"subscribe": chName + "_" + p.Lower().String(),
-			}
-			if err := e.Websocket.Conn.SendJSONMessage(ctx, 0, req); err != nil {
-				return err
-			}
-		}
-		if err := e.Websocket.RemoveSubscriptions(e.Websocket.Conn, s); err != nil {
-			return err
-		}
-	}
-	return nil
+	return e.manageSubs(context.TODO(), subs, lbankWsUnsubscribe)
 }
