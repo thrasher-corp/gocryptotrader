@@ -82,7 +82,7 @@ A helper tool [cmd/dbseed](../cmd/dbseed/README.md) has been created for assisti
 | GateIO         | Y           |
 | Gemini         |             |
 | HitBTC         | Y           |     
-| Huobi          | Y           |              
+| HTX            | Y           |              
 | Kraken         | Y           |
 | Kucoin         | Y           |                 
 | lBank          | Y           |                

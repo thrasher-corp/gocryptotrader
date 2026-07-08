@@ -1,6 +1,6 @@
-{{define "exchanges huobi" -}}
+{{define "exchanges htx" -}}
 {{template "header" .}}
-## Huobi Exchange
+## HTX Exchange
 
 ### Current Features
 
@@ -30,7 +30,7 @@ main.go
 var h exchange.IBotExchange
 
 for i := range bot.Exchanges {
-	if bot.Exchanges[i].GetName() == "Huobi" {
+	if bot.Exchanges[i].GetName() == "HTX" {
 		h = bot.Exchanges[i]
 	}
 }

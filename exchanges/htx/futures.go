@@ -1,4 +1,4 @@
-package huobi
+package htx
 
 import (
 	"bytes"
@@ -44,6 +44,7 @@ const (
 	fLiquidationOrders         = "/api/v3/contract_liquidation_orders"
 	fIndexKline                = "/index/market/history/index"
 	fBasisData                 = "/index/market/history/basis"
+	v3HistoryDirectionPrevious = "prev"
 
 	// Auth
 	fAccountData               = "/api/v1/contract_account_info"
@@ -51,7 +52,7 @@ const (
 	fAllSubAccountAssets       = "/api/v1/contract_sub_account_list"
 	fSingleSubAccountAssets    = "/api/v1/contract_sub_account_info"
 	fSingleSubAccountPositions = "/api/v1/contract_sub_position_info"
-	fFinancialRecords          = "/api/v1/contract_financial_record"
+	fFinancialRecords          = "/api/v3/contract_financial_record"
 	fSettlementRecords         = "/api/v1/contract_user_settlement_records"
 	fOrderLimitInfo            = "/api/v1/contract_order_limit"
 	fContractTradingFee        = "/api/v1/contract_fee"
@@ -69,15 +70,13 @@ const (
 	fOrderInfo                 = "/api/v1/contract_order_info"
 	fOrderDetails              = "/api/v1/contract_order_detail"
 	fQueryOpenOrders           = "/api/v1/contract_openorders"
-	fOrderHistory              = "/api/v1/contract_hisorders"
-	fMatchResult               = "/api/v1/contract_matchresults"
+	fOrderHistory              = "/api/v3/contract_hisorders"
+	fMatchResult               = "/api/v3/contract_matchresults"
 	fTriggerOrder              = "/api/v1/contract_trigger_order"
 	fCancelTriggerOrder        = "/api/v1/contract_trigger_cancel"
 	fCancelAllTriggerOrders    = "/api/v1/contract_trigger_cancelall"
 	fTriggerOpenOrders         = "/api/v1/contract_trigger_openorders"
 	fTriggerOrderHistory       = "/api/v1/contract_trigger_hisorders"
-
-	uContractOpenInterest = "/linear-swap-api/v1/swap_open_interest"
 )
 
 var (
@@ -146,39 +145,6 @@ func (e *Exchange) FContractPriceLimitations(ctx context.Context, symbol, contra
 	}
 	path := common.EncodeURLValues(fContractPriceLimitation, params)
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
-}
-
-// ContractOpenInterestUSDT gets open interest data for futures contracts
-func (e *Exchange) ContractOpenInterestUSDT(ctx context.Context, contractCode, pair currency.Pair, contractType, businessType string) ([]UContractOpenInterest, error) {
-	params := url.Values{}
-	if !contractCode.IsEmpty() {
-		cc, err := e.formatFuturesPair(contractCode, true)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("contract_code", cc)
-	}
-	if !pair.IsEmpty() {
-		p, err := e.formatFuturesPair(pair, true)
-		if err != nil {
-			return nil, err
-		}
-		params.Set("pair", p)
-	}
-	if t := strings.ToLower(contractType); t != "" {
-		if _, ok := contractExpiryNames[t]; !ok {
-			return nil, fmt.Errorf("%w: %v", errInvalidContractType, t)
-		}
-		params.Set("contract_type", t)
-	}
-	if businessType != "" {
-		params.Set("business_type", businessType)
-	}
-	path := common.EncodeURLValues(uContractOpenInterest, params)
-	var resp struct {
-		Data []UContractOpenInterest `json:"data"`
-	}
-	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
 // FContractOpenInterest gets open interest data for futures contracts
@@ -551,7 +517,7 @@ func (e *Exchange) FGetSingleSubPositions(ctx context.Context, symbol, subUID st
 }
 
 // FGetFinancialRecords gets financial records for futures
-func (e *Exchange) FGetFinancialRecords(ctx context.Context, symbol, recordType string, createDate, pageIndex, pageSize int64) (FFinancialRecords, error) {
+func (e *Exchange) FGetFinancialRecords(ctx context.Context, symbol, recordType string, createDate, pageIndex, _ int64) (FFinancialRecords, error) {
 	var resp FFinancialRecords
 	req := make(map[string]any)
 	if symbol != "" {
@@ -565,14 +531,12 @@ func (e *Exchange) FGetFinancialRecords(ctx context.Context, symbol, recordType 
 		req["type"] = rType
 	}
 	if createDate > 0 && createDate < 90 {
-		req["create_date"] = createDate
+		addV3HistoryTimeRange(req, createDate)
 	}
 	if pageIndex != 0 {
-		req["page_index"] = pageIndex
+		req["from_id"] = pageIndex
 	}
-	if pageSize != 0 {
-		req["page_size"] = pageSize
-	}
+	req["direct"] = v3HistoryDirectionPrevious
 	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, fFinancialRecords, nil, req, &resp)
 }
 
@@ -951,13 +915,14 @@ func (e *Exchange) FGetOrderHistory(ctx context.Context, contractCode currency.P
 	if createDate < 0 || createDate > 90 {
 		return resp, errors.New("invalid createDate")
 	}
-	req["create_date"] = createDate
+	addV3HistoryTimeRange(req, createDate)
+	req["direct"] = v3HistoryDirectionPrevious
 	if !contractCode.IsEmpty() {
 		codeValue, err := e.FormatSymbol(contractCode, asset.Futures)
 		if err != nil {
 			return resp, err
 		}
-		req["contract_code"] = codeValue
+		req["contract"] = codeValue
 	}
 	if orderType != "" {
 		oType, ok := validFuturesOrderTypes[orderType]
@@ -967,17 +932,17 @@ func (e *Exchange) FGetOrderHistory(ctx context.Context, contractCode currency.P
 		req["order_type"] = oType
 	}
 	if pageIndex != 0 {
-		req["page_index"] = pageIndex
+		req["from_id"] = pageIndex
 	}
 	if pageSize != 0 {
-		req["page_size"] = pageSize
+		req["limit"] = pageSize
 	}
 	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, fOrderHistory, nil, req, &resp)
 }
 
 // FTradeHistory gets trade history data for futures
-func (e *Exchange) FTradeHistory(ctx context.Context, contractCode currency.Pair, symbol, tradeType string, createDate, pageIndex, pageSize int64) (FOrderHistoryData, error) {
-	var resp FOrderHistoryData
+func (e *Exchange) FTradeHistory(ctx context.Context, contractCode currency.Pair, symbol, tradeType string, createDate, pageIndex, _ int64) (FTradeHistoryData, error) {
+	var resp FTradeHistoryData
 	req := make(map[string]any)
 	req["symbol"] = symbol
 	tType, ok := validTradeType[tradeType]
@@ -990,19 +955,29 @@ func (e *Exchange) FTradeHistory(ctx context.Context, contractCode currency.Pair
 		if err != nil {
 			return resp, err
 		}
-		req["contract_code"] = codeValue
+		req["contract"] = codeValue
 	}
 	if createDate <= 0 || createDate > 90 {
 		return resp, errors.New("invalid createDate")
 	}
-	req["create_date"] = createDate
+	addV3HistoryTimeRange(req, createDate)
+	req["direct"] = v3HistoryDirectionPrevious
 	if pageIndex != 0 {
-		req["page_index"] = pageIndex
-	}
-	if pageSize != 0 {
-		req["page_size"] = pageSize
+		req["from_id"] = pageIndex
 	}
 	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, fMatchResult, nil, req, &resp)
+}
+
+func addV3HistoryTimeRange(req map[string]any, lookbackDays int64) {
+	if lookbackDays <= 0 {
+		return
+	}
+	if lookbackDays > 2 {
+		lookbackDays = 2
+	}
+	endTime := time.Now().UTC()
+	req["start_time"] = endTime.Add(-time.Duration(lookbackDays) * 24 * time.Hour).UnixMilli()
+	req["end_time"] = endTime.UnixMilli()
 }
 
 // FPlaceTriggerOrder places a trigger order for futures
@@ -1134,7 +1109,7 @@ func (e *Exchange) FQueryTriggerOrderHistory(ctx context.Context, contractCode c
 	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, fTriggerOrderHistory, nil, req, &resp)
 }
 
-// FuturesAuthenticatedHTTPRequest sends authenticated requests to the HUOBI API
+// FuturesAuthenticatedHTTPRequest sends authenticated requests to the HTX API
 func (e *Exchange) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, values url.Values, data, result any) error {
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
@@ -1144,10 +1119,14 @@ func (e *Exchange) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep excha
 	if err != nil {
 		return err
 	}
-	if ep == exchange.RestFutures && ePoint[len(ePoint)-1] == '/' {
+	if ep == exchange.RestFutures && strings.HasSuffix(ePoint, "/") {
 		// prevent signature errors for non-standard paths until we can
 		// have a method to force update endpoints
-		ePoint = ePoint[:len(ePoint)-1]
+		ePoint = strings.TrimSuffix(ePoint, "/")
+	}
+	signatureHost, err := getSignatureHost(ePoint)
+	if err != nil {
+		return err
 	}
 	if values == nil {
 		values = url.Values{}
@@ -1155,12 +1134,13 @@ func (e *Exchange) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep excha
 
 	var tempResp json.RawMessage
 	newRequest := func() (*request.Item, error) {
+		values.Del("Signature")
 		values.Set("AccessKeyId", creds.Key)
 		values.Set("SignatureMethod", "HmacSHA256")
 		values.Set("SignatureVersion", "2")
 		values.Set("Timestamp", time.Now().UTC().Format("2006-01-02T15:04:05"))
-		sigPath := fmt.Sprintf("%s\napi.hbdm.com\n%s\n%s",
-			method, endpoint, values.Encode())
+		sigPath := fmt.Sprintf("%s\n%s\n%s\n%s",
+			method, signatureHost, endpoint, values.Encode())
 		headers := make(map[string]string)
 		if method == http.MethodGet {
 			headers["Content-Type"] = "application/x-www-form-urlencoded"
@@ -1173,7 +1153,7 @@ func (e *Exchange) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep excha
 			return nil, err
 		}
 
-		values.Add("Signature", base64.StdEncoding.EncodeToString(hmac))
+		values.Set("Signature", base64.StdEncoding.EncodeToString(hmac))
 		var body io.Reader
 		var payload []byte
 		if data != nil {
@@ -1209,6 +1189,12 @@ func (e *Exchange) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep excha
 		}
 		if errCap.ErrMsgType2 != "" {
 			return fmt.Errorf("%w error code: %v error message: %s", request.ErrAuthRequestFailed, errCap.CodeType2, errCap.ErrMsgType2)
+		}
+	}
+	if strings.HasPrefix(endpoint, "/v5/") {
+		var resp V5Response
+		if err = json.Unmarshal(tempResp, &resp); err == nil && resp.Code != 0 && resp.Code != http.StatusOK {
+			return fmt.Errorf("%w error code: %v error message: %s", request.ErrAuthRequestFailed, resp.Code, resp.Message)
 		}
 	}
 	return json.Unmarshal(tempResp, result)

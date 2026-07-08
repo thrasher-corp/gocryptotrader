@@ -391,7 +391,7 @@ func (c *Coinmarketcap) GetExchangeInfo(exchangeID ...int64) (ExchangeInfo, erro
 // GetExchangeMap returns a paginated list of all cryptocurrency exchanges by
 // CoinMarketCap ID. Recommend using this convenience endpoint to lookup and
 // utilise the unique exchange id across all endpoints as typical exchange
-// identifiers may change over time. ie huobi -> hadax -> global -> who knows
+// identifiers may change over time. ie htx -> hadax -> global -> who knows
 // what else
 //
 // Start - optionally offsets the paginated items

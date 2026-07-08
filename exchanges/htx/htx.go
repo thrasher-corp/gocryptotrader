@@ -1,4 +1,4 @@
-package huobi
+package htx
 
 import (
 	"bytes"
@@ -24,66 +24,95 @@ import (
 )
 
 const (
-	huobiAPIURL       = "https://api.huobi.pro"
-	huobiURL          = "https://api.hbdm.com"
-	huobiFuturesURL   = huobiURL
-	huobiAPIVersion   = "1"
-	huobiAPIVersion2  = "2"
+	htxAPIURL         = "https://api.huobi.pro"
+	htxURL            = "https://api.hbdm.com"
+	htxFuturesURL     = htxURL
+	htxAPIVersion     = "1"
+	htxAPIVersion2    = "2"
 	tradeBaseURL      = "https://www.htx.com/"
 	tradeSpot         = "trade/"
 	tradeFutures      = "futures/linear_swap/exchange#contract_code="
 	tradeCoinMargined = "futures/swap/exchange/#symbol="
 
 	// Spot endpoints
-	huobiMarketHistoryKline           = "/market/history/kline"
-	huobiMarketDetail                 = "/market/detail"
-	huobiMarketDetailMerged           = "/market/detail/merged"
-	huobi24HrMarketSummary            = "/market/detail?"
-	huobiMarketDepth                  = "/market/depth"
-	huobiMarketTrade                  = "/market/trade"
-	huobiMarketTickers                = "/market/tickers"
-	huobiMarketTradeHistory           = "/market/history/trade"
-	huobiSymbols                      = "/v1/common/symbols"
-	huobiCurrencies                   = "/v1/common/currencys"
-	huobiTimestamp                    = "/common/timestamp"
-	huobiAccounts                     = "/account/accounts"
-	huobiAccountBalance               = "/account/accounts/%s/balance"
-	huobiAccountDepositAddress        = "/account/deposit/address"
-	huobiAccountWithdrawQuota         = "/account/withdraw/quota"
-	huobiAccountQueryWithdrawAddress  = "/account/withdraw/"
-	huobiAggregatedBalance            = "/subuser/aggregate-balance"
-	huobiOrderPlace                   = "/order/orders/place"
-	huobiOrderCancel                  = "/order/orders/%s/submitcancel"
-	huobiOrderCancelBatch             = "/order/orders/batchcancel"
-	huobiBatchCancelOpenOrders        = "/order/orders/batchCancelOpenOrders"
-	huobiGetOrder                     = "/order/orders/getClientOrder"
-	huobiGetOrderMatch                = "/order/orders/%s/matchresults"
-	huobiGetOrders                    = "/order/orders"
-	huobiGetOpenOrders                = "/order/openOrders"
-	huobiGetOrdersMatch               = "/orders/matchresults"
-	huobiMarginTransferIn             = "/dw/transfer-in/margin"
-	huobiMarginTransferOut            = "/dw/transfer-out/margin"
-	huobiMarginOrders                 = "/margin/orders"
-	huobiMarginRepay                  = "/margin/orders/%s/repay"
-	huobiMarginLoanOrders             = "/margin/loan-orders"
-	huobiMarginAccountBalance         = "/margin/accounts/balance"
-	huobiWithdrawCreate               = "/dw/withdraw/api/create"
-	huobiWithdrawCancel               = "/dw/withdraw-virtual/%s/cancel"
-	huobiStatusError                  = "error"
-	huobiMarginRates                  = "/margin/loan-info"
-	huobiCurrenciesReference          = "/v2/reference/currencies"
-	huobiWithdrawHistory              = "/query/deposit-withdraw"
-	huobiBatchCoinMarginSwapContracts = "/v2/swap-ex/market/detail/batch_merged"
-	huobiBatchLinearSwapContracts     = "/v2/linear-swap-ex/market/detail/batch_merged"
-	huobiBatchContracts               = "/v2/market/detail/batch_merged"
+	htxMarketHistoryKline           = "/market/history/kline"
+	htxMarketDetail                 = "/market/detail"
+	htxMarketDetailMerged           = "/market/detail/merged"
+	htx24HrMarketSummary            = "/market/detail?"
+	htxMarketDepth                  = "/market/depth"
+	htxMarketTrade                  = "/market/trade"
+	htxMarketTickers                = "/market/tickers"
+	htxMarketTradeHistory           = "/market/history/trade"
+	htxSymbols                      = "/v1/common/symbols"
+	htxCurrencies                   = "/v1/common/currencys"
+	htxTimestamp                    = "/common/timestamp"
+	htxAccounts                     = "/account/accounts"
+	htxAccountBalance               = "/account/accounts/%s/balance"
+	htxAccountDepositAddress        = "/account/deposit/address"
+	htxAccountWithdrawQuota         = "/account/withdraw/quota"
+	htxAggregatedBalance            = "/subuser/aggregate-balance"
+	htxOrderPlace                   = "/order/orders/place"
+	htxOrderCancel                  = "/order/orders/%s/submitcancel"
+	htxOrderCancelBatch             = "/order/orders/batchcancel"
+	htxBatchCancelOpenOrders        = "/order/orders/batchCancelOpenOrders"
+	htxGetOrder                     = "/order/orders/getClientOrder"
+	htxGetOrderMatch                = "/order/orders/%s/matchresults"
+	htxGetOrders                    = "/order/orders"
+	htxGetOpenOrders                = "/order/openOrders"
+	htxGetOrdersMatch               = "/order/matchresults"
+	htxMarginTransferIn             = "/dw/transfer-in/margin"
+	htxMarginTransferOut            = "/dw/transfer-out/margin"
+	htxMarginOrders                 = "/margin/orders"
+	htxMarginRepay                  = "/margin/orders/%s/repay"
+	htxMarginLoanOrders             = "/margin/loan-orders"
+	htxMarginAccountBalance         = "/margin/accounts/balance"
+	htxWithdrawCreate               = "/dw/withdraw/api/create"
+	htxWithdrawCancel               = "/dw/withdraw-virtual/%s/cancel"
+	htxStatusSuccess                = "success"
+	htxStatusError                  = "error"
+	htxMarginRates                  = "/margin/loan-info"
+	htxCurrenciesReference          = "/v2/reference/currencies"
+	htxWithdrawHistory              = "/query/deposit-withdraw"
+	htxBatchCoinMarginSwapContracts = "/v2/swap-ex/market/detail/batch_merged"
+	htxBatchLinearSwapContracts     = "/v2/linear-swap-ex/market/detail/batch_merged"
+	htxBatchContracts               = "/v2/market/detail/batch_merged"
 )
 
-// Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Huobi
+var errWithdrawDetailsUnset = errors.New("currency, address and amount must be set")
+
+// Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with HTX
 type Exchange struct {
 	exchange.Base
 	AccountID                string
 	futureContractCodesMutex sync.RWMutex
 	futureContractCodes      map[string]currency.Code
+}
+
+var errInvalidEndpoint = errors.New("invalid endpoint")
+
+func getSignatureHost(endpoint string) (string, error) {
+	parsedEndpoint, err := url.Parse(endpoint)
+	if err != nil {
+		return "", fmt.Errorf("%w: %w", errInvalidEndpoint, err)
+	}
+	if parsedEndpoint.Host == "" {
+		return "", fmt.Errorf("%w: missing host", errInvalidEndpoint)
+	}
+	return parsedEndpoint.Host, nil
+}
+
+func websocketPrivateURL(endpoint string) (string, error) {
+	parsedEndpoint, err := url.Parse(endpoint)
+	if err != nil {
+		return "", fmt.Errorf("%w: %w", errInvalidEndpoint, err)
+	}
+	if parsedEndpoint.Host == "" {
+		return "", fmt.Errorf("%w: missing host", errInvalidEndpoint)
+	}
+	parsedEndpoint.Path = wsPrivatePath
+	parsedEndpoint.RawQuery = ""
+	parsedEndpoint.Fragment = ""
+	return parsedEndpoint.String(), nil
 }
 
 // GetMarginRates gets margin rates
@@ -97,7 +126,7 @@ func (e *Exchange) GetMarginRates(ctx context.Context, symbol currency.Pair) (Ma
 		}
 		vals.Set("symbol", symbolValue)
 	}
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, huobiMarginRates, vals, nil, &resp, false)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxMarginRates, vals, nil, &resp, false)
 }
 
 // GetSpotKline returns kline data
@@ -122,7 +151,7 @@ func (e *Exchange) GetSpotKline(ctx context.Context, arg KlinesRequestParams) ([
 
 	var result response
 
-	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(huobiMarketHistoryKline, vals), &result)
+	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketHistoryKline, vals), &result)
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
@@ -138,7 +167,7 @@ func (e *Exchange) Get24HrMarketSummary(ctx context.Context, symbol currency.Pai
 		return result, err
 	}
 	params.Set("symbol", symbolValue)
-	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, huobi24HrMarketSummary+params.Encode(), &result)
+	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, htx24HrMarketSummary+params.Encode(), &result)
 }
 
 // GetBatchCoinMarginSwapContracts returns the tickers for coin margined swap contracts
@@ -146,7 +175,7 @@ func (e *Exchange) GetBatchCoinMarginSwapContracts(ctx context.Context) ([]Futur
 	var result struct {
 		Data []FuturesBatchTicker `json:"ticks"`
 	}
-	err := e.SendHTTPRequest(ctx, exchange.RestFutures, huobiBatchCoinMarginSwapContracts, &result)
+	err := e.SendHTTPRequest(ctx, exchange.RestFutures, htxBatchCoinMarginSwapContracts, &result)
 	return result.Data, err
 }
 
@@ -155,7 +184,7 @@ func (e *Exchange) GetBatchLinearSwapContracts(ctx context.Context) ([]FuturesBa
 	var result struct {
 		Data []FuturesBatchTicker `json:"ticks"`
 	}
-	err := e.SendHTTPRequest(ctx, exchange.RestFutures, huobiBatchLinearSwapContracts, &result)
+	err := e.SendHTTPRequest(ctx, exchange.RestFutures, htxBatchLinearSwapContracts, &result)
 	return result.Data, err
 }
 
@@ -164,14 +193,14 @@ func (e *Exchange) GetBatchFuturesContracts(ctx context.Context) ([]FuturesBatch
 	var result struct {
 		Data []FuturesBatchTicker `json:"ticks"`
 	}
-	err := e.SendHTTPRequest(ctx, exchange.RestFutures, huobiBatchContracts, &result)
+	err := e.SendHTTPRequest(ctx, exchange.RestFutures, htxBatchContracts, &result)
 	return result.Data, err
 }
 
 // GetTickers returns the ticker for the specified symbol
 func (e *Exchange) GetTickers(ctx context.Context) (Tickers, error) {
 	var result Tickers
-	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, huobiMarketTickers, &result)
+	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, htxMarketTickers, &result)
 }
 
 // GetMarketDetailMerged returns the ticker for the specified symbol
@@ -190,7 +219,7 @@ func (e *Exchange) GetMarketDetailMerged(ctx context.Context, symbol currency.Pa
 
 	var result response
 
-	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(huobiMarketDetailMerged, vals), &result)
+	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketDetailMerged, vals), &result)
 	if result.ErrorMessage != "" {
 		return result.Tick, errors.New(result.ErrorMessage)
 	}
@@ -216,7 +245,7 @@ func (e *Exchange) GetDepth(ctx context.Context, obd *OrderBookDataRequestParams
 	}
 
 	var result response
-	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(huobiMarketDepth, vals), &result)
+	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketDepth, vals), &result)
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
@@ -241,7 +270,7 @@ func (e *Exchange) GetTrades(ctx context.Context, symbol currency.Pair) ([]Trade
 
 	var result response
 
-	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(huobiMarketTrade, vals), &result)
+	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketTrade, vals), &result)
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
@@ -283,7 +312,7 @@ func (e *Exchange) GetTradeHistory(ctx context.Context, symbol currency.Pair, si
 
 	var result response
 
-	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(huobiMarketTradeHistory, vals), &result)
+	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketTradeHistory, vals), &result)
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
@@ -306,14 +335,14 @@ func (e *Exchange) GetMarketDetail(ctx context.Context, symbol currency.Pair) (D
 
 	var result response
 
-	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(huobiMarketDetail, vals), &result)
+	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketDetail, vals), &result)
 	if result.ErrorMessage != "" {
 		return result.Tick, errors.New(result.ErrorMessage)
 	}
 	return result.Tick, err
 }
 
-// GetSymbols returns an array of symbols supported by Huobi
+// GetSymbols returns an array of symbols supported by HTX
 func (e *Exchange) GetSymbols(ctx context.Context) ([]Symbol, error) {
 	type response struct {
 		Response
@@ -322,14 +351,14 @@ func (e *Exchange) GetSymbols(ctx context.Context) ([]Symbol, error) {
 
 	var result response
 
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, huobiSymbols, &result)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, htxSymbols, &result)
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
 	return result.Symbols, err
 }
 
-// GetCurrencies returns a list of currencies supported by Huobi
+// GetCurrencies returns a list of currencies supported by HTX
 func (e *Exchange) GetCurrencies(ctx context.Context) ([]string, error) {
 	type response struct {
 		Response
@@ -338,7 +367,7 @@ func (e *Exchange) GetCurrencies(ctx context.Context) ([]string, error) {
 
 	var result response
 
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, huobiCurrencies, &result)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, htxCurrencies, &result)
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
@@ -355,7 +384,7 @@ func (e *Exchange) GetCurrenciesIncludingChains(ctx context.Context, curr curren
 	if !curr.IsEmpty() {
 		vals.Set("currency", curr.Lower().String())
 	}
-	path := common.EncodeURLValues(huobiCurrenciesReference, vals)
+	path := common.EncodeURLValues(htxCurrenciesReference, vals)
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 	if err != nil {
 		return nil, err
@@ -363,34 +392,34 @@ func (e *Exchange) GetCurrenciesIncludingChains(ctx context.Context, curr curren
 	return resp.Data, nil
 }
 
-// GetCurrentServerTime returns the Huobi server time
+// GetCurrentServerTime returns the HTX server time
 func (e *Exchange) GetCurrentServerTime(ctx context.Context) (time.Time, error) {
 	var result struct {
 		Response
 		Timestamp types.Time `json:"data"`
 	}
-	err := e.SendHTTPRequest(ctx, exchange.RestSpot, "/v"+huobiAPIVersion+"/"+huobiTimestamp, &result)
+	err := e.SendHTTPRequest(ctx, exchange.RestSpot, "/v"+htxAPIVersion+"/"+htxTimestamp, &result)
 	if result.ErrorMessage != "" {
 		return time.Time{}, errors.New(result.ErrorMessage)
 	}
 	return result.Timestamp.Time(), err
 }
 
-// GetAccounts returns the Huobi user accounts
+// GetAccounts returns the HTX user accounts
 func (e *Exchange) GetAccounts(ctx context.Context) ([]Account, error) {
 	result := struct {
 		Accounts []Account `json:"data"`
 	}{}
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, huobiAccounts, url.Values{}, nil, &result, false)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxAccounts, url.Values{}, nil, &result, false)
 	return result.Accounts, err
 }
 
-// GetAccountBalance returns the users Huobi account balance
+// GetAccountBalance returns the users HTX account balance
 func (e *Exchange) GetAccountBalance(ctx context.Context, accountID string) ([]AccountBalanceDetail, error) {
 	result := struct {
 		AccountBalanceData AccountBalance `json:"data"`
 	}{}
-	endpoint := fmt.Sprintf(huobiAccountBalance, accountID)
+	endpoint := fmt.Sprintf(htxAccountBalance, accountID)
 	v := url.Values{}
 	v.Set("account-id", accountID)
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, v, nil, &result, false)
@@ -404,7 +433,7 @@ func (e *Exchange) GetAggregatedBalance(ctx context.Context) ([]AggregatedBalanc
 	}{}
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot,
 		http.MethodGet,
-		huobiAggregatedBalance,
+		htxAggregatedBalance,
 		nil,
 		nil,
 		&result,
@@ -413,7 +442,7 @@ func (e *Exchange) GetAggregatedBalance(ctx context.Context) ([]AggregatedBalanc
 	return result.AggregatedBalances, err
 }
 
-// SpotNewOrder submits an order to Huobi
+// SpotNewOrder submits an order to HTX
 func (e *Exchange) SpotNewOrder(ctx context.Context, arg *SpotNewOrderRequestParams) (int64, error) {
 	symbolValue, err := e.FormatSymbol(arg.Symbol, asset.Spot)
 	if err != nil {
@@ -449,7 +478,7 @@ func (e *Exchange) SpotNewOrder(ctx context.Context, arg *SpotNewOrderRequestPar
 	err = e.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot,
 		http.MethodPost,
-		huobiOrderPlace,
+		htxOrderPlace,
 		nil,
 		data,
 		&result,
@@ -458,12 +487,12 @@ func (e *Exchange) SpotNewOrder(ctx context.Context, arg *SpotNewOrderRequestPar
 	return result.OrderID, err
 }
 
-// CancelExistingOrder cancels an order on Huobi
+// CancelExistingOrder cancels an order on HTX
 func (e *Exchange) CancelExistingOrder(ctx context.Context, orderID int64) (int64, error) {
 	resp := struct {
 		OrderID int64 `json:"data,string"`
 	}{}
-	endpoint := fmt.Sprintf(huobiOrderCancel, strconv.FormatInt(orderID, 10))
+	endpoint := fmt.Sprintf(htxOrderCancel, strconv.FormatInt(orderID, 10))
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, endpoint, url.Values{}, nil, &resp, false)
 	return resp.OrderID, err
 }
@@ -481,7 +510,7 @@ func (e *Exchange) CancelOrderBatch(ctx context.Context, orderIDs, clientOrderID
 		ClientOrderIDs: clientOrderIDs,
 		OrderIDs:       orderIDs,
 	}
-	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, huobiOrderCancelBatch, nil, data, &resp, false)
+	return resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, htxOrderCancelBatch, nil, data, &resp, false)
 }
 
 // CancelOpenOrdersBatch cancels a batch of orders -- to-do
@@ -502,7 +531,7 @@ func (e *Exchange) CancelOpenOrdersBatch(ctx context.Context, accountID string, 
 		Symbol:    symbolValue,
 	}
 
-	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, huobiBatchCancelOpenOrders, url.Values{}, data, &result, false)
+	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, htxBatchCancelOpenOrders, url.Values{}, data, &result, false)
 	if result.Data.FailedCount > 0 {
 		return result, fmt.Errorf("there were %v failed order cancellations", result.Data.FailedCount)
 	}
@@ -518,7 +547,7 @@ func (e *Exchange) GetOrder(ctx context.Context, orderID int64) (OrderInfo, erro
 	urlVal := url.Values{}
 	urlVal.Set("clientOrderId", strconv.FormatInt(orderID, 10))
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
-		huobiGetOrder,
+		htxGetOrder,
 		urlVal,
 		nil,
 		&resp,
@@ -531,7 +560,7 @@ func (e *Exchange) GetOrderMatchResults(ctx context.Context, orderID int64) ([]O
 	resp := struct {
 		Orders []OrderMatchInfo `json:"data"`
 	}{}
-	endpoint := fmt.Sprintf(huobiGetOrderMatch, strconv.FormatInt(orderID, 10))
+	endpoint := fmt.Sprintf(htxGetOrderMatch, strconv.FormatInt(orderID, 10))
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, endpoint, url.Values{}, nil, &resp, false)
 	return resp.Orders, err
 }
@@ -574,7 +603,7 @@ func (e *Exchange) GetOrders(ctx context.Context, symbol currency.Pair, orderTyp
 		vals.Set("size", size)
 	}
 
-	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, huobiGetOrders, vals, nil, &resp, false)
+	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxGetOrders, vals, nil, &resp, false)
 	return resp.Orders, err
 }
 
@@ -596,7 +625,7 @@ func (e *Exchange) GetOpenOrders(ctx context.Context, symbol currency.Pair, acco
 	}
 	vals.Set("size", strconv.FormatInt(size, 10))
 
-	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, huobiGetOpenOrders, vals, nil, &resp, false)
+	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxGetOpenOrders, vals, nil, &resp, false)
 	return resp.Orders, err
 }
 
@@ -637,7 +666,7 @@ func (e *Exchange) GetOrdersMatch(ctx context.Context, symbol currency.Pair, ord
 		vals.Set("size", size)
 	}
 
-	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, huobiGetOrdersMatch, vals, nil, &resp, false)
+	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxGetOrdersMatch, vals, nil, &resp, false)
 	return resp.Orders, err
 }
 
@@ -657,9 +686,9 @@ func (e *Exchange) MarginTransfer(ctx context.Context, symbol currency.Pair, ccy
 		Amount:   strconv.FormatFloat(amount, 'f', -1, 64),
 	}
 
-	path := huobiMarginTransferIn
+	path := htxMarginTransferIn
 	if !in {
-		path = huobiMarginTransferOut
+		path = htxMarginTransferOut
 	}
 
 	resp := struct {
@@ -688,7 +717,7 @@ func (e *Exchange) MarginOrder(ctx context.Context, symbol currency.Pair, ccy st
 	resp := struct {
 		MarginOrderID int64 `json:"data"`
 	}{}
-	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, huobiMarginOrders, nil, data, &resp, false)
+	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, htxMarginOrders, nil, data, &resp, false)
 	return resp.MarginOrderID, err
 }
 
@@ -704,7 +733,7 @@ func (e *Exchange) MarginRepayment(ctx context.Context, orderID int64, amount fl
 		MarginOrderID int64 `json:"data"`
 	}{}
 
-	endpoint := fmt.Sprintf(huobiMarginRepay, strconv.FormatInt(orderID, 10))
+	endpoint := fmt.Sprintf(htxMarginRepay, strconv.FormatInt(orderID, 10))
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, endpoint, nil, data, &resp, false)
 	return resp.MarginOrderID, err
 }
@@ -746,7 +775,7 @@ func (e *Exchange) GetMarginLoanOrders(ctx context.Context, symbol currency.Pair
 	resp := struct {
 		MarginLoanOrders []MarginOrder `json:"data"`
 	}{}
-	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, huobiMarginLoanOrders, vals, nil, &resp, false)
+	err = e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxMarginLoanOrders, vals, nil, &resp, false)
 	return resp.MarginLoanOrders, err
 }
 
@@ -763,14 +792,14 @@ func (e *Exchange) GetMarginAccountBalance(ctx context.Context, symbol currency.
 		}
 		vals.Set("symbol", symbolValue)
 	}
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, huobiMarginAccountBalance, vals, nil, &resp, false)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxMarginAccountBalance, vals, nil, &resp, false)
 	return resp.Balances, err
 }
 
 // Withdraw withdraws the desired amount and currency
 func (e *Exchange) Withdraw(ctx context.Context, c currency.Code, address, addrTag, chain string, amount, fee float64) (int64, error) {
 	if c.IsEmpty() || address == "" || amount <= 0 {
-		return 0, errors.New("currency, address and amount must be set")
+		return 0, errWithdrawDetailsUnset
 	}
 
 	resp := struct {
@@ -802,7 +831,7 @@ func (e *Exchange) Withdraw(ctx context.Context, c currency.Code, address, addrT
 		data.Chain = strings.ToLower(chain)
 	}
 
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, huobiWithdrawCreate, nil, data, &resp, false)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, htxWithdrawCreate, nil, data, &resp, false)
 	return resp.WithdrawID, err
 }
 
@@ -814,7 +843,7 @@ func (e *Exchange) CancelWithdraw(ctx context.Context, withdrawID int64) (int64,
 	vals := url.Values{}
 	vals.Set("withdraw-id", strconv.FormatInt(withdrawID, 10))
 
-	endpoint := fmt.Sprintf(huobiWithdrawCancel, strconv.FormatInt(withdrawID, 10))
+	endpoint := fmt.Sprintf(htxWithdrawCancel, strconv.FormatInt(withdrawID, 10))
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, endpoint, vals, nil, &resp, false)
 	return resp.WithdrawID, err
 }
@@ -828,7 +857,7 @@ func (e *Exchange) QueryDepositAddress(ctx context.Context, cryptocurrency curre
 	vals := url.Values{}
 	vals.Set("currency", cryptocurrency.Lower().String())
 
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, huobiAccountDepositAddress, vals, nil, &resp, true)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxAccountDepositAddress, vals, nil, &resp, true)
 	if err != nil {
 		return nil, err
 	}
@@ -847,7 +876,7 @@ func (e *Exchange) QueryWithdrawQuotas(ctx context.Context, cryptocurrency strin
 	vals := url.Values{}
 	vals.Set("currency", cryptocurrency)
 
-	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, huobiAccountWithdrawQuota, vals, nil, &resp, true)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxAccountWithdrawQuota, vals, nil, &resp, true)
 	if err != nil {
 		return WithdrawQuota{}, err
 	}
@@ -871,7 +900,7 @@ func (e *Exchange) SearchForExistedWithdrawsAndDeposits(ctx context.Context, c c
 	if limit > 0 {
 		vals.Set("size", strconv.FormatInt(limit, 10))
 	}
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, huobiWithdrawHistory, vals, nil, &resp, false)
+	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, htxWithdrawHistory, vals, nil, &resp, false)
 }
 
 // SendHTTPRequest sends an unauthenticated HTTP request
@@ -913,7 +942,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 	return json.Unmarshal(tempResp, result)
 }
 
-// SendAuthenticatedHTTPRequest sends authenticated requests to the HUOBI API
+// SendAuthenticatedHTTPRequest sends authenticated requests to the HTX API
 func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, endpoint string, values url.Values, data, result any, isVersion2API bool) error {
 	var err error
 	creds, err := e.GetCredentials(ctx)
@@ -924,25 +953,31 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	if err != nil {
 		return err
 	}
+	signatureHost, err := getSignatureHost(ePoint)
+	if err != nil {
+		return err
+	}
 	if values == nil {
 		values = url.Values{}
 	}
 
 	interim := json.RawMessage{}
 	newRequest := func() (*request.Item, error) {
+		values.Del("Signature")
 		values.Set("AccessKeyId", creds.Key)
 		values.Set("SignatureMethod", "HmacSHA256")
 		values.Set("SignatureVersion", "2")
 		values.Set("Timestamp", time.Now().UTC().Format("2006-01-02T15:04:05"))
 
+		signatureEndpoint := endpoint
 		if isVersion2API {
-			endpoint = "/v" + huobiAPIVersion2 + endpoint
+			signatureEndpoint = "/v" + htxAPIVersion2 + signatureEndpoint
 		} else {
-			endpoint = "/v" + huobiAPIVersion + endpoint
+			signatureEndpoint = "/v" + htxAPIVersion + signatureEndpoint
 		}
 
-		payload := fmt.Sprintf("%s\napi.huobi.pro\n%s\n%s",
-			method, endpoint, values.Encode())
+		payload := fmt.Sprintf("%s\n%s\n%s\n%s",
+			method, signatureHost, signatureEndpoint, values.Encode())
 
 		headers := make(map[string]string)
 
@@ -969,7 +1004,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 
 		return &request.Item{
 			Method:                 method,
-			Path:                   ePoint + common.EncodeURLValues(endpoint, values),
+			Path:                   ePoint + common.EncodeURLValues(signatureEndpoint, values),
 			Headers:                headers,
 			Body:                   bytes.NewReader(body),
 			Result:                 &interim,
@@ -995,7 +1030,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	} else {
 		var errCap Response
 		if err = json.Unmarshal(interim, &errCap); err == nil {
-			if errCap.Status == huobiStatusError && errCap.ErrorMessage != "" {
+			if errCap.Status == htxStatusError && errCap.ErrorMessage != "" {
 				return fmt.Errorf("%w error code: %v error message: %s", request.ErrAuthRequestFailed, errCap.ErrorCode, errCap.ErrorMessage)
 			}
 		}

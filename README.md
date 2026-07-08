@@ -35,7 +35,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | GateIO | Yes | Yes | NA |
 | Gemini | Yes | Yes | No |
 | HitBTC | Yes | Yes | No |
-| Huobi.Pro | Yes | Yes | NA |
+| HTX | Yes | Yes | NA |
 | Kraken | Yes | Yes | NA |
 | Kucoin | Yes | Yes | NA |
 | Lbank | Yes | No | NA |
