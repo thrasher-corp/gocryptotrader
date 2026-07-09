@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
@@ -15,6 +16,8 @@ import (
 )
 
 var errAPIKeyNotSet = errors.New("API key must be set")
+
+const requestRateLimit = 60
 
 // Setup sets appropriate values for the FXMacroData provider.
 func (f *FXMacroData) Setup(config base.Settings) error {
@@ -30,7 +33,11 @@ func (f *FXMacroData) Setup(config base.Settings) error {
 	f.APIURL = APIURL
 
 	var err error
-	f.Requester, err = request.New(f.Name, common.NewHTTPClientWithTimeout(base.DefaultTimeOut))
+	f.Requester, err = request.New(
+		f.Name,
+		common.NewHTTPClientWithTimeout(base.DefaultTimeOut),
+		request.WithLimiter(request.NewBasicRateLimit(time.Minute, requestRateLimit, 1)),
+	)
 	return err
 }
 

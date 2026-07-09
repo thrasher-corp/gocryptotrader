@@ -31,7 +31,9 @@ func newTestProvider(t *testing.T, handler http.Handler) (provider *FXMacroData,
 func TestGetRates(t *testing.T) {
 	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Query().Get("api_key") != "test-key" {
-			t.Fatalf("expected api_key query auth")
+			t.Errorf("expected api_key query auth")
+			http.Error(w, "missing API key", http.StatusUnauthorized)
+			return
 		}
 		switch r.URL.Path {
 		case "/api/v1/forex/usd/aud":
@@ -39,7 +41,8 @@ func TestGetRates(t *testing.T) {
 		case "/api/v1/forex/usd/eur":
 			_, _ = w.Write([]byte(`{"data":[{"val":0.9}]}`))
 		default:
-			t.Fatalf("unexpected path %s", r.URL.Path)
+			t.Errorf("unexpected path %s", r.URL.Path)
+			http.NotFound(w, r)
 		}
 	}))
 	defer closeServer()
@@ -65,30 +68,35 @@ func TestReadEndpointHelpers(t *testing.T) {
 	defer closeServer()
 
 	values := url.Values{"limit": []string{"1"}}
-	helpers := []func() (map[string]any, error){
-		func() (map[string]any, error) { return provider.DataCatalogue("usd") },
-		func() (map[string]any, error) { return provider.Announcements("usd", "cpi", values) },
-		func() (map[string]any, error) { return provider.LatestAnnouncements("usd", values) },
-		func() (map[string]any, error) { return provider.AnnouncementChanges(values) },
-		func() (map[string]any, error) { return provider.Calendar("usd", values) },
-		func() (map[string]any, error) { return provider.Predictions("usd", "cpi", values) },
-		func() (map[string]any, error) { return provider.COT("jpy", values) },
-		func() (map[string]any, error) { return provider.Commodity("brent", values) },
-		func() (map[string]any, error) { return provider.CommoditiesLatest(values) },
-		func() (map[string]any, error) { return provider.Curves("usd", values) },
-		func() (map[string]any, error) { return provider.CurveProxies("usd", values) },
-		func() (map[string]any, error) { return provider.ForwardCurves("usd", values) },
-		func() (map[string]any, error) { return provider.RateDifferentials("eur", "usd", values) },
-		func() (map[string]any, error) { return provider.ForwardDifferentials("eur", "usd", values) },
-		func() (map[string]any, error) { return provider.MarketSessions(values) },
-		func() (map[string]any, error) { return provider.RiskSentiment(values) },
-		func() (map[string]any, error) { return provider.News("usd", values) },
-		func() (map[string]any, error) { return provider.PressReleases("usd", values) },
+	helpers := []struct {
+		name string
+		fn   func() (map[string]any, error)
+	}{
+		{"DataCatalogue", func() (map[string]any, error) { return provider.DataCatalogue("usd") }},
+		{"Announcements", func() (map[string]any, error) { return provider.Announcements("usd", "cpi", values) }},
+		{"LatestAnnouncements", func() (map[string]any, error) { return provider.LatestAnnouncements("usd", values) }},
+		{"AnnouncementChanges", func() (map[string]any, error) { return provider.AnnouncementChanges(values) }},
+		{"Calendar", func() (map[string]any, error) { return provider.Calendar("usd", values) }},
+		{"Predictions", func() (map[string]any, error) { return provider.Predictions("usd", "cpi", values) }},
+		{"COT", func() (map[string]any, error) { return provider.COT("jpy", values) }},
+		{"Commodity", func() (map[string]any, error) { return provider.Commodity("brent", values) }},
+		{"CommoditiesLatest", func() (map[string]any, error) { return provider.CommoditiesLatest(values) }},
+		{"Curves", func() (map[string]any, error) { return provider.Curves("usd", values) }},
+		{"CurveProxies", func() (map[string]any, error) { return provider.CurveProxies("usd", values) }},
+		{"ForwardCurves", func() (map[string]any, error) { return provider.ForwardCurves("usd", values) }},
+		{"RateDifferentials", func() (map[string]any, error) { return provider.RateDifferentials("eur", "usd", values) }},
+		{"ForwardDifferentials", func() (map[string]any, error) { return provider.ForwardDifferentials("eur", "usd", values) }},
+		{"MarketSessions", func() (map[string]any, error) { return provider.MarketSessions(values) }},
+		{"RiskSentiment", func() (map[string]any, error) { return provider.RiskSentiment(values) }},
+		{"News", func() (map[string]any, error) { return provider.News("usd", values) }},
+		{"PressReleases", func() (map[string]any, error) { return provider.PressReleases("usd", values) }},
 	}
-	for _, helper := range helpers {
-		if _, err := helper(); err != nil {
-			t.Fatal(err)
-		}
+	for _, tc := range helpers {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := tc.fn(); err != nil {
+				t.Fatal(err)
+			}
+		})
 	}
 
 	expected := []string{
@@ -110,6 +118,9 @@ func TestReadEndpointHelpers(t *testing.T) {
 		"/api/v1/risk_sentiment",
 		"/api/v1/news/usd",
 		"/api/v1/press-releases/usd",
+	}
+	if len(seen) != len(expected) {
+		t.Fatalf("expected %d requests, got %d", len(expected), len(seen))
 	}
 	for i := range expected {
 		if seen[i] != expected[i] {
