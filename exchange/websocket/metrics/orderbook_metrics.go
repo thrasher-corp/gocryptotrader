@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -42,6 +43,8 @@ type orderbookSyncCounts struct {
 	resyncSucceeded     int64
 	resyncFailed        int64
 	resyncRequestFailed int64
+	resyncDurationTotal time.Duration
+	resyncDurationCount int64
 	reasons             map[string]int64
 }
 
@@ -53,6 +56,8 @@ type OrderbookSyncSummary struct {
 	TotalDroppedBooks  int64
 	TotalResyncSuccess int64
 	TotalResyncFailure int64
+	TotalResyncTime    time.Duration
+	TotalResyncTimed   int64
 	WorstOffender      *OrderbookSyncSummaryItem
 }
 
@@ -70,6 +75,8 @@ type OrderbookSyncSummaryItem struct {
 	ResyncSucceeded     int64
 	ResyncFailed        int64
 	ResyncRequestFailed int64
+	ResyncTime          time.Duration
+	ResyncTimed         int64
 	Reasons             map[string]int64
 }
 
@@ -84,6 +91,7 @@ type OrderbookSyncEvent struct {
 	LastUpdateID  int64
 	FirstUpdateID int64
 	UpdateID      int64
+	Duration      time.Duration
 }
 
 // RecordOrderbookDesync increments the websocket orderbook desync metric.
@@ -128,6 +136,8 @@ func SnapshotOrderbookSyncSummary() OrderbookSyncSummary {
 			ResyncSucceeded:     counts.resyncSucceeded,
 			ResyncFailed:        counts.resyncFailed,
 			ResyncRequestFailed: counts.resyncRequestFailed,
+			ResyncTime:          counts.resyncDurationTotal,
+			ResyncTimed:         counts.resyncDurationCount,
 			Reasons:             make(map[string]int64, len(counts.reasons)),
 		}
 		maps.Copy(item.Reasons, counts.reasons)
@@ -154,6 +164,8 @@ func SnapshotOrderbookSyncSummary() OrderbookSyncSummary {
 		summary.TotalDroppedBooks += items[i].DroppedOrderbooks
 		summary.TotalResyncSuccess += items[i].ResyncSucceeded
 		summary.TotalResyncFailure += items[i].ResyncFailed + items[i].ResyncRequestFailed
+		summary.TotalResyncTime += items[i].ResyncTime
+		summary.TotalResyncTimed += items[i].ResyncTimed
 	}
 	if len(items) != 0 {
 		summary.WorstOffender = &summary.Items[0]
@@ -165,16 +177,22 @@ func SnapshotOrderbookSyncSummary() OrderbookSyncSummary {
 func OrderbookSyncSummaryLines() []string {
 	summary := SnapshotOrderbookSyncSummary()
 	if len(summary.Items) == 0 {
-		return []string{"Websocket orderbook sync summary: dropped_orderbooks=0 desyncs=0 sequence_gap_total=0 resync_success=0 resync_failure=0"}
+		return []string{
+			"Websocket orderbook sync summary: dropped_orderbooks=0 desyncs=0 sequence_gap_total=0 " +
+				"resync_success=0 resync_failure=0 resync_time_total=0s resync_time_avg=N/A",
+		}
 	}
 
 	lines := []string{fmt.Sprintf(
-		"Websocket orderbook sync summary: dropped_orderbooks=%d desyncs=%d sequence_gap_total=%d resync_success=%d resync_failure=%d",
+		"Websocket orderbook sync summary: dropped_orderbooks=%d desyncs=%d sequence_gap_total=%d "+
+			"resync_success=%d resync_failure=%d resync_time_total=%s resync_time_avg=%s",
 		summary.TotalDroppedBooks,
 		summary.TotalDesyncs,
 		summary.TotalSequenceGap,
 		summary.TotalResyncSuccess,
 		summary.TotalResyncFailure,
+		summary.TotalResyncTime,
+		formatOrderbookSyncDuration(summary.TotalResyncTime, summary.TotalResyncTimed),
 	)}
 	if summary.WorstOffender != nil {
 		lines = append(lines, fmt.Sprintf(
@@ -221,26 +239,39 @@ func OrderbookSyncSummaryLinesForExchange(exchangeName string) []string {
 		}
 	}
 	if len(items) == 0 {
-		return []string{fmt.Sprintf("Websocket orderbook sync summary for %s: dropped_orderbooks=0 desyncs=0 sequence_gap_total=0 resync_success=0 resync_failure=0", exchangeName)}
+		return []string{fmt.Sprintf(
+			"Websocket orderbook sync summary for %s: dropped_orderbooks=0 desyncs=0 "+
+				"sequence_gap_total=0 resync_success=0 resync_failure=0 resync_time_total=0s "+
+				"resync_time_avg=N/A",
+			exchangeName,
+		)}
 	}
 
 	var totalDesyncs, totalSequenceGap, totalDroppedBooks, totalResyncSuccess, totalResyncFailure int64
+	var totalResyncTime time.Duration
+	var totalResyncTimed int64
 	for i := range items {
 		totalDesyncs += items[i].Desyncs
 		totalSequenceGap += items[i].SequenceGapTotal
 		totalDroppedBooks += items[i].DroppedOrderbooks
 		totalResyncSuccess += items[i].ResyncSucceeded
 		totalResyncFailure += items[i].ResyncFailed + items[i].ResyncRequestFailed
+		totalResyncTime += items[i].ResyncTime
+		totalResyncTimed += items[i].ResyncTimed
 	}
 
 	lines := []string{fmt.Sprintf(
-		"Websocket orderbook sync summary for %s: dropped_orderbooks=%d desyncs=%d sequence_gap_total=%d resync_success=%d resync_failure=%d",
+		"Websocket orderbook sync summary for %s: dropped_orderbooks=%d desyncs=%d "+
+			"sequence_gap_total=%d resync_success=%d resync_failure=%d resync_time_total=%s "+
+			"resync_time_avg=%s",
 		exchangeName,
 		totalDroppedBooks,
 		totalDesyncs,
 		totalSequenceGap,
 		totalResyncSuccess,
 		totalResyncFailure,
+		totalResyncTime,
+		formatOrderbookSyncDuration(totalResyncTime, totalResyncTimed),
 	)}
 	limit := min(len(items), 3)
 	for i := range limit {
@@ -299,6 +330,17 @@ func recordOrderbookSyncResync(event *OrderbookSyncEvent) {
 	case "request_failed":
 		counts.resyncRequestFailed++
 	}
+	if event.Duration > 0 {
+		counts.resyncDurationTotal += event.Duration
+		counts.resyncDurationCount++
+	}
+}
+
+func formatOrderbookSyncDuration(total time.Duration, count int64) string {
+	if count <= 0 {
+		return "N/A"
+	}
+	return (total / time.Duration(count)).String()
 }
 
 func (s *orderbookSyncStore) load(event *OrderbookSyncEvent) *orderbookSyncCounts {

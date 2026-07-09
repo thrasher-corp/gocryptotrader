@@ -173,10 +173,11 @@ func (e *Exchange) SetDefaults() {
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 	e.wsOBUpdateMgr = buffer.NewUpdateManager(&buffer.UpdateManagerParams{
-		FetchDelay:                 0,
+		FetchDelay:                 kucoinWSOrderbookSnapshotFetchDelay,
 		FetchDeadline:              buffer.DefaultWSOrderbookUpdateDeadline,
 		FetchOrderbook:             e.fetchWSOrderbookSnapshot,
 		OutdatedSnapshotRetryDelay: buffer.DefaultWSOrderbookOutdatedSnapshotRetryWait,
+		SnapshotSyncLimit:          kucoinWSOrderbookSnapshotSyncLimit,
 		CheckPendingUpdate:         checkPendingUpdate,
 		CheckLiveUpdates:           true,
 		RecordMetrics:              true,
@@ -683,7 +684,7 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 		var orderType, stopOrderType, stopOrderBoundary string
 		switch s.Type {
 		case order.Stop, order.StopLimit, order.TrailingStop:
-			orderType = "limit"
+			orderType = kucoinLimit
 			if s.TriggerPrice == 0 {
 				break
 			}
@@ -878,7 +879,7 @@ func MarginModeToString(mType margin.Type) string {
 	case margin.Isolated:
 		return mType.String()
 	case margin.Multi:
-		return "cross"
+		return kucoinCross
 	default:
 		return ""
 	}
@@ -1238,9 +1239,9 @@ func (e *Exchange) WithdrawFiatFundsToInternationalBank(_ context.Context, _ *wi
 func OrderTypeToString(oType order.Type) (string, error) {
 	switch oType {
 	case order.Limit:
-		return "limit", nil
+		return kucoinLimit, nil
 	case order.Market:
-		return "market", nil
+		return kucoinMarket, nil
 	case order.StopLimit:
 		return "limit_stop", nil
 	case order.StopMarket:

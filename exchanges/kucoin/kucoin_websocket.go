@@ -67,6 +67,9 @@ const (
 	futuresSystemAnnouncementChannel              = "/contract/announcement"
 	futuresTrasactionStatisticsTimerEventChannel  = "/contractMarket/snapshot" // /contractMarket/snapshot:{symbol},...
 
+	kucoinWSOrderbookSnapshotFetchDelay = 500 * time.Millisecond
+	kucoinWSOrderbookSnapshotSyncLimit  = 24
+
 	// futures private channels
 	futuresTradeOrderChannel               = "/contractMarket/tradeOrders" // /contractMarket/tradeOrders:{symbol},...
 	futuresPositionChangeEventChannel      = "/contract/position"          // /contract/position:{symbol},...
@@ -1297,7 +1300,7 @@ func channelInterval(s *subscription.Subscription) string {
 // Updates the AssetPairs map parameter to contain only those currencies as Base items for expandTemplates to see
 func assetCurrencies(s *subscription.Subscription, ap map[asset.Item]currency.Pairs) currency.Currencies {
 	cs := common.SortStrings(ap[s.Asset].GetCurrencies())
-	p := currency.Pairs{}
+	p := make(currency.Pairs, 0, len(cs))
 	for _, c := range cs {
 		p = append(p, currency.Pair{Base: c})
 	}

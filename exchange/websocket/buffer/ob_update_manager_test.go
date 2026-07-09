@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/metrics"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
@@ -71,6 +72,9 @@ func TestNewUpdateManager(t *testing.T) {
 	params.OutdatedSnapshotRetryDelay = -time.Second
 	require.Panics(t, func() { NewUpdateManager(params) })
 	params.OutdatedSnapshotRetryDelay = 0
+	params.SnapshotSyncLimit = -1
+	require.Panics(t, func() { NewUpdateManager(params) })
+	params.SnapshotSyncLimit = 2
 	require.Panics(t, func() { NewUpdateManager(params) })
 
 	params.FetchOrderbook = func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) { return nil, nil }
@@ -81,6 +85,10 @@ func TestNewUpdateManager(t *testing.T) {
 	got := NewUpdateManager(params)
 	require.NotNil(t, got)
 	assert.NotNil(t, got.lookup)
+	assert.Equal(t,
+		2,
+		cap(got.syncLimit),
+		"sync limit should match configured snapshot sync limit")
 }
 
 func TestProcessOrderbookUpdate(t *testing.T) {
@@ -464,13 +472,23 @@ func TestRecordResyncResult(t *testing.T) {
 	tp.RecordMetrics = true
 	m := NewUpdateManager(&tp)
 	pair := currency.NewPair(currency.XRP, currency.USDT)
+	started := time.Now().Add(-time.Millisecond)
 
-	m.recordResyncResult(true, pair, asset.Spot, "succeeded")
-	m.recordResyncResult(false, pair, asset.Spot, "ignored")
+	m.recordResyncResult(true, pair, asset.Spot, "succeeded", started)
+	m.recordResyncResult(false, pair, asset.Spot, "ignored", started)
 
 	got := expvar.Get("gct_websocket_orderbook_resync_total").String()
 	assert.Contains(t, got, `"exchange=TestExchange,asset=spot,pair=XRPUSDT,channel=orderbook,result=succeeded": 1`, "resync result metric should be recorded")
 	assert.NotContains(t, got, `"exchange=TestExchange,asset=spot,pair=XRPUSDT,channel=orderbook,result=ignored"`, "resync result metric should not be recorded when resync is false")
+	summary := metrics.SnapshotOrderbookSyncSummary()
+	for _, item := range summary.Items {
+		if item.Exchange == "TestExchange" && item.Pair == pair.String() && item.Asset == asset.Spot.String() {
+			assert.Positive(t, item.ResyncTime, "resync time should be recorded")
+			assert.Positive(t, item.ResyncTimed, "resync timed count should be recorded")
+			return
+		}
+	}
+	require.Fail(t, "summary must include recorded resync result")
 }
 
 func TestApplyUpdateInvalidateOnUpdateError(t *testing.T) {
@@ -616,6 +634,38 @@ func TestSyncOrderbook(t *testing.T) {
 	cache.updates = []pendingUpdate{{update: &orderbook.Update{Pair: pair, Asset: asset.USDTMarginedFutures, UpdateID: 1337, AllowEmpty: true, UpdateTime: time.Now()}}}
 	err = m.syncOrderbook(t.Context(), cache, pair, asset.USDTMarginedFutures, false)
 	require.NoError(t, err)
+}
+
+func TestSyncOrderbookSnapshotSyncLimit(t *testing.T) {
+	t.Parallel()
+
+	pair := currency.NewBTCUSDT()
+	tp := newTestParams()
+	tp.SnapshotSyncLimit = 1
+	m := NewUpdateManager(&tp)
+	m.syncLimit <- struct{}{}
+	cache := &updateCache{
+		updates: []pendingUpdate{{
+			update: &orderbook.Update{
+				Pair:       pair,
+				Asset:      asset.Spot,
+				UpdateID:   1337,
+				AllowEmpty: true,
+				UpdateTime: time.Now(),
+			},
+		}},
+	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	err := m.syncOrderbook(ctx, cache, pair, asset.Spot, false)
+	require.ErrorIs(t,
+		err,
+		context.Canceled,
+		"syncOrderbook must return cancellation while waiting for a sync slot")
+	assert.Empty(t,
+		cache.updates,
+		"pending updates should be cleared after cancellation while waiting for a sync slot")
 }
 
 func TestSyncOrderbookApplyPendingUpdatesFailure(t *testing.T) {

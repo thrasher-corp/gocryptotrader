@@ -373,7 +373,7 @@ func (e *Exchange) FillFuturesPostOrderArgumentFilter(arg *FuturesOrderParam) er
 		}
 	}
 	switch arg.OrderType {
-	case "limit", "":
+	case kucoinLimit, "":
 		if arg.Price <= 0 {
 			return fmt.Errorf("%w %f", limits.ErrPriceBelowMin, arg.Price)
 		}
@@ -383,7 +383,7 @@ func (e *Exchange) FillFuturesPostOrderArgumentFilter(arg *FuturesOrderParam) er
 		if arg.VisibleSize < 0 {
 			return fmt.Errorf("%w, visible size must be non-zero positive value", limits.ErrAmountBelowMin)
 		}
-	case "market":
+	case kucoinMarket:
 		if arg.Size <= 0 {
 			return fmt.Errorf("%w, market size must be > 0", limits.ErrAmountBelowMin)
 		}
@@ -847,7 +847,7 @@ func (e *Exchange) GetPositionHistory(ctx context.Context, symbol string, from, 
 		params.Set("symbol", symbol)
 	}
 	if limit > 0 {
-		params.Set("limit", strconv.FormatInt(limit, 10))
+		params.Set(kucoinLimit, strconv.FormatInt(limit, 10))
 	}
 	if pageID > 0 {
 		params.Set("pageId", strconv.FormatInt(pageID, 10))

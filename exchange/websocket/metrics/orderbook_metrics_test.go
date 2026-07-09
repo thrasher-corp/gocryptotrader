@@ -3,6 +3,7 @@ package metrics
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -80,6 +81,14 @@ func TestSnapshotOrderbookSyncSummary(t *testing.T) {
 		Channel:  "books",
 		Result:   "started",
 	})
+	RecordOrderbookResync(&OrderbookSyncEvent{
+		Exchange: "MetricSnapshotExchange",
+		Pair:     pair,
+		Asset:    asset.Spot,
+		Channel:  "books",
+		Result:   "succeeded",
+		Duration: 75 * time.Millisecond,
+	})
 
 	summary := SnapshotOrderbookSyncSummary()
 
@@ -93,6 +102,9 @@ func TestSnapshotOrderbookSyncSummary(t *testing.T) {
 		assert.Equal(t, int64(2), item.SequenceGapTotal, "sequence gap total should match")
 		assert.Equal(t, int64(1), item.DroppedOrderbooks, "dropped orderbook count should match")
 		assert.Equal(t, int64(1), item.ResyncStarted, "resync started count should match")
+		assert.Equal(t, int64(1), item.ResyncSucceeded, "resync succeeded count should match")
+		assert.Equal(t, 75*time.Millisecond, item.ResyncTime, "resync time should match")
+		assert.Equal(t, int64(1), item.ResyncTimed, "resync timed count should match")
 		assert.Equal(t, int64(1), item.Reasons["sequence_gap"], "reason count should match")
 	}
 	assert.True(t, found, "summary should include recorded item")
@@ -231,6 +243,7 @@ func TestRecordOrderbookSyncResync(t *testing.T) {
 				Asset:    asset.Spot,
 				Channel:  "books",
 				Result:   tc.result,
+				Duration: 25 * time.Millisecond,
 			})
 
 			summary := SnapshotOrderbookSyncSummary()
@@ -241,10 +254,19 @@ func TestRecordOrderbookSyncResync(t *testing.T) {
 				}
 				found = true
 				tc.assert(t, item)
+				assert.Equal(t, 25*time.Millisecond, item.ResyncTime, "resync time should increment")
+				assert.Equal(t, int64(1), item.ResyncTimed, "resync timed count should increment")
 			}
 			require.True(t, found, "summary must include direct resync record")
 		})
 	}
+}
+
+func TestFormatOrderbookSyncDuration(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "N/A", formatOrderbookSyncDuration(time.Second, 0), "empty average should be unavailable")
+	assert.Equal(t, "25ms", formatOrderbookSyncDuration(100*time.Millisecond, 4), "average should divide total time")
 }
 
 func TestOrderbookSyncStoreLoad(t *testing.T) {

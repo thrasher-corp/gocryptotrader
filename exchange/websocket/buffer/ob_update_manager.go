@@ -42,6 +42,7 @@ type UpdateManager struct {
 	deadline           time.Duration
 	delay              time.Duration
 	retryDelay         time.Duration
+	syncLimit          chan struct{}
 	fetchOrderbook     func(ctx context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error)
 	checkPendingUpdate func(lastUpdateID, firstUpdateID int64, update *orderbook.Update) (skip bool, err error)
 	checkLiveUpdates   bool
@@ -84,6 +85,8 @@ type UpdateManagerParams struct {
 	// OutdatedSnapshotRetryDelay defines how long to wait before fetching another REST snapshot when the first snapshot
 	// is too old for the queued websocket updates.
 	OutdatedSnapshotRetryDelay time.Duration
+	// SnapshotSyncLimit caps concurrent REST snapshot synchronisation attempts. Zero leaves synchronisation unbounded.
+	SnapshotSyncLimit int
 	// CheckPendingUpdate allows custom logic to determine if a pending update added to cache should be skipped or if an
 	// error has occurred.
 	CheckPendingUpdate func(lastUpdateID, firstUpdateID int64, update *orderbook.Update) (skip bool, err error)
@@ -109,13 +112,16 @@ func NewUpdateManager(params *UpdateManagerParams) *UpdateManager {
 	if params.OutdatedSnapshotRetryDelay < 0 {
 		panic("outdated snapshot retry delay must be greater than or equal to zero")
 	}
+	if params.SnapshotSyncLimit < 0 {
+		panic("snapshot sync limit must be greater than or equal to zero")
+	}
 	if params.OutdatedSnapshotRetryDelay == 0 {
 		params.OutdatedSnapshotRetryDelay = DefaultWSOrderbookOutdatedSnapshotRetryWait
 	}
 	if err := common.NilGuard(params.FetchOrderbook, params.CheckPendingUpdate, params.BufferInstance); err != nil {
 		panic(err)
 	}
-	return &UpdateManager{
+	manager := &UpdateManager{
 		lookup:             make(map[key.PairAsset]*updateCache),
 		deadline:           params.FetchDeadline,
 		delay:              params.FetchDelay,
@@ -127,6 +133,10 @@ func NewUpdateManager(params *UpdateManagerParams) *UpdateManager {
 		recordMetrics:      params.RecordMetrics,
 		ob:                 params.BufferInstance,
 	}
+	if params.SnapshotSyncLimit > 0 {
+		manager.syncLimit = make(chan struct{}, params.SnapshotSyncLimit)
+	}
+	return manager
 }
 
 // ProcessOrderbookUpdate processes an orderbook update by syncing snapshot, caching updates and applying them
@@ -246,6 +256,9 @@ func (m *UpdateManager) initialiseOrderbookCache(ctx context.Context, firstUpdat
 	cache.updates = append(cache.updates, pendingUpdate{update: update, firstUpdateID: firstUpdateID})
 	go func() {
 		if err := m.syncOrderbook(ctx, cache, update.Pair, update.Asset, resync); err != nil {
+			if errors.Is(err, context.Canceled) {
+				return
+			}
 			log.Errorf(log.ExchangeSys, "%s websocket orderbook manager: failed to sync orderbook for %v %v: %v", m.ob.exchangeName, update.Pair, update.Asset, err)
 		}
 	}()
@@ -271,12 +284,27 @@ func (m *UpdateManager) invalidateCache(ctx context.Context, firstUpdateID int64
 
 // syncOrderbook fetches and synchronises an orderbook snapshot so that pending updates can be applied to the orderbook.
 func (m *UpdateManager) syncOrderbook(ctx context.Context, cache *updateCache, pair currency.Pair, a asset.Item, resync bool) error {
+	var resyncStarted time.Time
+	if m.recordMetrics && resync {
+		resyncStarted = time.Now()
+	}
+	if m.syncLimit != nil {
+		select {
+		case <-ctx.Done():
+			cache.clearPendingUpdatesWithLock()
+			m.recordResyncResult(resync, pair, a, "failed", resyncStarted)
+			return ctx.Err()
+		case m.syncLimit <- struct{}{}:
+			defer func() { <-m.syncLimit }()
+		}
+	}
+
 	// REST requests can be behind websocket updates by a large margin, so we wait here to allow the cache to fill with
 	// updates before we fetch the orderbook snapshot.
 	select {
 	case <-ctx.Done():
 		cache.clearPendingUpdatesWithLock()
-		m.recordResyncResult(resync, pair, a, "failed")
+		m.recordResyncResult(resync, pair, a, "failed", resyncStarted)
 		return ctx.Err()
 	case <-time.After(m.delay):
 	}
@@ -292,26 +320,26 @@ func (m *UpdateManager) syncOrderbook(ctx context.Context, cache *updateCache, p
 		book, err = m.fetchOrderbook(ctx, pair, a)
 		if err != nil {
 			cache.clearWithLock()
-			m.recordResyncResult(resync, pair, a, "failed")
+			m.recordResyncResult(resync, pair, a, "failed", resyncStarted)
 			return err
 		}
 
 		if err := cache.waitForUpdate(ctx, book.LastUpdateID+1); err != nil {
 			cache.clearWithLock()
-			m.recordResyncResult(resync, pair, a, "failed")
+			m.recordResyncResult(resync, pair, a, "failed", resyncStarted)
 			return err
 		}
 
 		if err := m.checkSnapshotCanApply(cache, book.LastUpdateID); err != nil {
 			if !errors.Is(err, ErrOrderbookSnapshotOutdated) {
 				cache.clearWithLock()
-				m.recordResyncResult(resync, pair, a, "failed")
+				m.recordResyncResult(resync, pair, a, "failed", resyncStarted)
 				return err
 			}
 			select {
 			case <-ctx.Done():
 				cache.clearWithLock()
-				m.recordResyncResult(resync, pair, a, "failed")
+				m.recordResyncResult(resync, pair, a, "failed", resyncStarted)
 				return ctx.Err()
 			case <-time.After(m.retryDelay):
 				continue
@@ -322,7 +350,7 @@ func (m *UpdateManager) syncOrderbook(ctx context.Context, cache *updateCache, p
 
 	if err := m.ob.LoadSnapshot(book); err != nil {
 		cache.clearWithLock()
-		m.recordResyncResult(resync, pair, a, "failed")
+		m.recordResyncResult(resync, pair, a, "failed", resyncStarted)
 		return err
 	}
 
@@ -334,17 +362,27 @@ func (m *UpdateManager) syncOrderbook(ctx context.Context, cache *updateCache, p
 
 	if err := m.applyPendingUpdates(cache); err != nil {
 		cache.resetStateNoLock()
-		m.recordResyncResult(resync, pair, a, "failed")
+		m.recordResyncResult(resync, pair, a, "failed", resyncStarted)
 		return common.AppendError(err, m.ob.InvalidateOrderbook(pair, a))
 	}
 
-	m.recordResyncResult(resync, pair, a, "succeeded")
+	m.recordResyncResult(resync, pair, a, "succeeded", resyncStarted)
 	return nil
 }
 
-func (m *UpdateManager) recordResyncResult(resync bool, pair currency.Pair, a asset.Item, result string) {
+func (m *UpdateManager) recordResyncResult(
+	resync bool,
+	pair currency.Pair,
+	a asset.Item,
+	result string,
+	started time.Time,
+) {
 	if !m.recordMetrics || !resync {
 		return
+	}
+	var duration time.Duration
+	if !started.IsZero() {
+		duration = time.Since(started)
 	}
 	metrics.RecordOrderbookResync(&metrics.OrderbookSyncEvent{
 		Exchange: m.ob.exchangeName,
@@ -352,6 +390,7 @@ func (m *UpdateManager) recordResyncResult(resync bool, pair currency.Pair, a as
 		Asset:    a,
 		Channel:  "orderbook",
 		Result:   result,
+		Duration: duration,
 	})
 }
 

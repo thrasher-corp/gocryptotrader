@@ -42,6 +42,10 @@ const (
 	tradeFutures = "futures/"
 
 	symbolQuery = "?symbol="
+
+	kucoinLimit  = "limit"
+	kucoinMarket = "market"
+	kucoinCross  = "cross"
 )
 
 // GetSymbols gets pairs details on the exchange
@@ -165,7 +169,7 @@ func (e *Exchange) GetOrderbookAuthenticatedV1(ctx context.Context, symbol strin
 	params := url.Values{}
 	params.Set("tradeType", tradeType)
 	params.Set("symbol", symbol)
-	params.Set("limit", limit)
+	params.Set(kucoinLimit, limit)
 	var o *orderbookResponse
 	if err := e.SendAuthHTTPRequest(ctx, exchange.RestSpot, spotFuturesOrderbookV1EPL, http.MethodGet, common.EncodeURLValues("/ua/v1/market/orderbook", params), nil, &o); err != nil {
 		return nil, err
