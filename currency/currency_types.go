@@ -33,6 +33,7 @@ type BotOverrides struct {
 	CurrencyLayer     bool
 	ExchangeRates     bool
 	Fixer             bool
+	FXMacroData       bool
 	OpenExchangeRates bool
 }
 
@@ -45,6 +46,7 @@ type SystemsSettings struct {
 	Currencyconverter FXSettings
 	Currencylayer     FXSettings
 	Fixer             FXSettings
+	FXmacrodata       FXSettings
 	Openexchangerates FXSettings
 }
 
