@@ -1,19 +1,19 @@
 package fxmacrodata
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
-func newTestProvider(t *testing.T, handler http.Handler) (*FXMacroData, func()) {
+func newTestProvider(t *testing.T, handler http.Handler) (provider *FXMacroData, closeServer func()) {
 	t.Helper()
 	server := httptest.NewServer(handler)
-	provider := &FXMacroData{}
+	provider = &FXMacroData{}
 	err := provider.Setup(base.Settings{
 		Name:            "FXMacroData",
 		Enabled:         true,
