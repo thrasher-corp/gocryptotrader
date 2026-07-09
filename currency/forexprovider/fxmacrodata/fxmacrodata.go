@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -86,7 +87,7 @@ func (f *FXMacroData) GetLatestForexRate(baseCurrency, quoteCurrency string) (fl
 
 // DataCatalogue returns the available FXMacroData indicators for a currency.
 func (f *FXMacroData) DataCatalogue(currency string) (map[string]any, error) {
-	return f.getMap(fmt.Sprintf("data_catalogue/%s", strings.ToLower(currency)), nil)
+	return f.getMap("data_catalogue/"+strings.ToLower(currency), nil)
 }
 
 // Announcements returns historical macro announcement rows.
@@ -106,7 +107,7 @@ func (f *FXMacroData) AnnouncementChanges(values url.Values) (map[string]any, er
 
 // Calendar returns the release calendar for a currency.
 func (f *FXMacroData) Calendar(currency string, values url.Values) (map[string]any, error) {
-	return f.getMap(fmt.Sprintf("calendar/%s", strings.ToLower(currency)), values)
+	return f.getMap("calendar/"+strings.ToLower(currency), values)
 }
 
 // Predictions returns consensus/model prediction rows.
@@ -116,12 +117,12 @@ func (f *FXMacroData) Predictions(currency, indicator string, values url.Values)
 
 // COT returns CFTC positioning data for a currency.
 func (f *FXMacroData) COT(currency string, values url.Values) (map[string]any, error) {
-	return f.getMap(fmt.Sprintf("cot/%s", strings.ToLower(currency)), values)
+	return f.getMap("cot/"+strings.ToLower(currency), values)
 }
 
 // Commodity returns a commodity time series.
 func (f *FXMacroData) Commodity(indicator string, values url.Values) (map[string]any, error) {
-	return f.getMap(fmt.Sprintf("commodities/%s", indicator), values)
+	return f.getMap("commodities/"+indicator, values)
 }
 
 // CommoditiesLatest returns latest commodity points.
@@ -131,17 +132,17 @@ func (f *FXMacroData) CommoditiesLatest(values url.Values) (map[string]any, erro
 
 // Curves returns yield curve data for a currency.
 func (f *FXMacroData) Curves(currency string, values url.Values) (map[string]any, error) {
-	return f.getMap(fmt.Sprintf("curves/%s", strings.ToLower(currency)), values)
+	return f.getMap("curves/"+strings.ToLower(currency), values)
 }
 
 // CurveProxies returns curve proxy data for a currency.
 func (f *FXMacroData) CurveProxies(currency string, values url.Values) (map[string]any, error) {
-	return f.getMap(fmt.Sprintf("curve_proxies/%s", strings.ToLower(currency)), values)
+	return f.getMap("curve_proxies/"+strings.ToLower(currency), values)
 }
 
 // ForwardCurves returns forward curve data for a currency.
 func (f *FXMacroData) ForwardCurves(currency string, values url.Values) (map[string]any, error) {
-	return f.getMap(fmt.Sprintf("forward_curves/%s", strings.ToLower(currency)), values)
+	return f.getMap("forward_curves/"+strings.ToLower(currency), values)
 }
 
 // RateDifferentials returns rate differentials for a pair.
@@ -166,12 +167,12 @@ func (f *FXMacroData) RiskSentiment(values url.Values) (map[string]any, error) {
 
 // News returns macro news for a currency.
 func (f *FXMacroData) News(currency string, values url.Values) (map[string]any, error) {
-	return f.getMap(fmt.Sprintf("news/%s", strings.ToLower(currency)), values)
+	return f.getMap("news/"+strings.ToLower(currency), values)
 }
 
 // PressReleases returns central-bank and official press releases.
 func (f *FXMacroData) PressReleases(currency string, values url.Values) (map[string]any, error) {
-	return f.getMap(fmt.Sprintf("press-releases/%s", strings.ToLower(currency)), values)
+	return f.getMap("press-releases/"+strings.ToLower(currency), values)
 }
 
 // GraphQL executes an FXMacroData GraphQL request.
@@ -189,7 +190,7 @@ func (f *FXMacroData) SendHTTPRequest(endpoint string, values url.Values, result
 	return f.send(endpoint, values, nil, http.MethodGet, result)
 }
 
-func (f *FXMacroData) send(endpoint string, values url.Values, body *strings.Reader, method string, result any) error {
+func (f *FXMacroData) send(endpoint string, values url.Values, body io.Reader, method string, result any) error {
 	if f.APIKey == "" {
 		return errAPIKeyNotSet
 	}
