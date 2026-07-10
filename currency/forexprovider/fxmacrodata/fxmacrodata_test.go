@@ -5,7 +5,10 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -34,9 +37,9 @@ func newTestProvider(t *testing.T, handler http.Handler) (provider *FXMacroData,
 }
 
 func TestGetRates(t *testing.T) {
-	var requestCount int
+	var requestCount atomic.Int64
 	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestCount++
+		requestCount.Add(1)
 		if r.URL.Query().Get("api_key") != "test-key" {
 			t.Errorf("expected api_key query auth")
 			http.Error(w, "missing API key", http.StatusUnauthorized)
@@ -60,7 +63,40 @@ func TestGetRates(t *testing.T) {
 	assert.Equal(t, 0.9, rates["USDEUR"], "USDEUR should match mocked latest rate")
 	assert.NotContains(t, rates, "USDXYZ", "unsupported currency should not be requested")
 	assert.Len(t, rates, 2, "GetRates should return only unique supported targets")
-	assert.Equal(t, 2, requestCount, "GetRates should request each unique supported target once")
+	assert.Equal(t, int64(2), requestCount.Load(), "GetRates should request each unique supported target once")
+}
+
+func TestGetRatesLimitsConcurrentRequests(t *testing.T) {
+	var activeRequests atomic.Int64
+	var maxConcurrentRequests atomic.Int64
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("api_key") != "test-key" {
+			t.Errorf("expected api_key query auth")
+			http.Error(w, "missing API key", http.StatusUnauthorized)
+			return
+		}
+		if !strings.HasPrefix(r.URL.Path, "/api/v1/forex/usd/") {
+			t.Errorf("unexpected path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		current := activeRequests.Add(1)
+		defer activeRequests.Add(-1)
+		for {
+			maxSeen := maxConcurrentRequests.Load()
+			if current <= maxSeen || maxConcurrentRequests.CompareAndSwap(maxSeen, current) {
+				break
+			}
+		}
+		time.Sleep(25 * time.Millisecond)
+		_, _ = w.Write([]byte(`{"data":[{"val":1.0}]}`))
+	}))
+	defer closeServer()
+
+	rates, err := provider.GetRates("USD", "AUD,BRL,CAD,CHF,CNH,CNY")
+	require.NoError(t, err, "GetRates must not error")
+	assert.Len(t, rates, 6, "GetRates should return every requested supported target")
+	assert.LessOrEqual(t, maxConcurrentRequests.Load(), int64(maxRateWorkers), "GetRates should cap concurrent FXMacroData requests")
 }
 
 func TestGetRatesUnsupportedBase(t *testing.T) {
