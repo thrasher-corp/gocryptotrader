@@ -99,6 +99,51 @@ func TestGetRatesLimitsConcurrentRequests(t *testing.T) {
 	assert.LessOrEqual(t, maxConcurrentRequests.Load(), int64(maxRateWorkers), "GetRates should cap concurrent FXMacroData requests")
 }
 
+func TestGetRatesDefaultsToSupportedTargets(t *testing.T) {
+	var requestCount atomic.Int64
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount.Add(1)
+		if !strings.HasPrefix(r.URL.Path, "/api/v1/forex/usd/") {
+			t.Errorf("unexpected path %s", r.URL.Path)
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(`{"data":[{"val":1.0}]}`))
+	}))
+	defer closeServer()
+
+	rates, err := provider.GetRates("USD", "")
+	require.NoError(t, err, "GetRates must not error")
+	supported, err := provider.GetSupportedCurrencies()
+	require.NoError(t, err, "GetSupportedCurrencies must not error")
+	assert.Len(t, rates, len(supported)-1, "GetRates should default to every supported target except base currency")
+	assert.Equal(t, int64(len(supported)-1), requestCount.Load(), "GetRates should request each default target once")
+}
+
+func TestGetRatesUnsupportedTargetsOnly(t *testing.T) {
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("unsupported targets should not issue HTTP request")
+		http.NotFound(w, r)
+	}))
+	defer closeServer()
+
+	rates, err := provider.GetRates("USD", "XYZ")
+	assert.ErrorIs(t, err, errUnsupportedCurrency, "GetRates should reject unsupported target currencies when no rates are available")
+	assert.Nil(t, rates, "rates should be nil when every target currency is unsupported")
+}
+
+func TestGetRatesPropagatesLatestRateError(t *testing.T) {
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/api/v1/forex/usd/aud", r.URL.Path, "GetRates should request the expected FX pair")
+		_, _ = w.Write([]byte(`{"data":[]}`))
+	}))
+	defer closeServer()
+
+	rates, err := provider.GetRates("USD", "AUD")
+	assert.ErrorContains(t, err, "no FXMacroData rate returned", "GetRates should propagate latest rate lookup errors")
+	assert.Nil(t, rates, "rates should be nil when latest rate lookup fails")
+}
+
 func TestGetRatesUnsupportedBase(t *testing.T) {
 	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Errorf("unsupported base should not issue HTTP request")
