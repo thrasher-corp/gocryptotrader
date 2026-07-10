@@ -1,11 +1,14 @@
 package fxmacrodata
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
@@ -22,14 +25,18 @@ func newTestProvider(t *testing.T, handler http.Handler) (provider *FXMacroData,
 	})
 	if err != nil {
 		server.Close()
-		t.Fatal(err)
+		require.NoError(t, err, "Setup must not error")
 	}
 	provider.APIURL = server.URL + "/api/v1/"
+	err = provider.Requester.DisableRateLimiter()
+	require.NoError(t, err, "rate limiter must disable for local httptest provider")
 	return provider, server.Close
 }
 
 func TestGetRates(t *testing.T) {
+	var requestCount int
 	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
 		if r.URL.Query().Get("api_key") != "test-key" {
 			t.Errorf("expected api_key query auth")
 			http.Error(w, "missing API key", http.StatusUnauthorized)
@@ -47,16 +54,36 @@ func TestGetRates(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rates, err := provider.GetRates("USD", "AUD,EUR")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if rates["USDAUD"] != 1.5 {
-		t.Fatalf("expected USDAUD 1.5, got %f", rates["USDAUD"])
-	}
-	if rates["USDEUR"] != 0.9 {
-		t.Fatalf("expected USDEUR 0.9, got %f", rates["USDEUR"])
-	}
+	rates, err := provider.GetRates("USD", "AUD, EUR, XYZ, AUD, usd")
+	require.NoError(t, err, "GetRates must not error")
+	assert.Equal(t, 1.5, rates["USDAUD"], "USDAUD should match mocked latest rate")
+	assert.Equal(t, 0.9, rates["USDEUR"], "USDEUR should match mocked latest rate")
+	assert.NotContains(t, rates, "USDXYZ", "unsupported currency should not be requested")
+	assert.Len(t, rates, 2, "GetRates should return only unique supported targets")
+	assert.Equal(t, 2, requestCount, "GetRates should request each unique supported target once")
+}
+
+func TestGetRatesUnsupportedBase(t *testing.T) {
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("unsupported base should not issue HTTP request")
+		http.NotFound(w, r)
+	}))
+	defer closeServer()
+
+	rates, err := provider.GetRates("MXN", "AUD")
+	assert.ErrorIs(t, err, errUnsupportedCurrency, "GetRates should reject unsupported base currency")
+	assert.Nil(t, rates, "rates should be nil when base currency is unsupported")
+}
+
+func TestGetLatestForexRateEmptyData(t *testing.T) {
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"data":[]}`))
+	}))
+	defer closeServer()
+
+	rate, err := provider.GetLatestForexRate("USD", "AUD")
+	assert.ErrorContains(t, err, "no FXMacroData rate returned", "GetLatestForexRate should reject empty data")
+	assert.Zero(t, rate, "rate should be zero when no data is returned")
 }
 
 func TestReadEndpointHelpers(t *testing.T) {
@@ -93,9 +120,8 @@ func TestReadEndpointHelpers(t *testing.T) {
 	}
 	for _, tc := range helpers {
 		t.Run(tc.name, func(t *testing.T) {
-			if _, err := tc.fn(); err != nil {
-				t.Fatal(err)
-			}
+			_, err := tc.fn()
+			require.NoErrorf(t, err, "%s must not error", tc.name)
 		})
 	}
 
@@ -119,12 +145,41 @@ func TestReadEndpointHelpers(t *testing.T) {
 		"/api/v1/news/usd",
 		"/api/v1/press-releases/usd",
 	}
-	if len(seen) != len(expected) {
-		t.Fatalf("expected %d requests, got %d", len(expected), len(seen))
-	}
+	require.Len(t, seen, len(expected), "seen requests must match expected request count")
 	for i := range expected {
-		if seen[i] != expected[i] {
-			t.Fatalf("expected path %s, got %s", expected[i], seen[i])
-		}
+		assert.Equal(t, expected[i], seen[i], "request path should match expected order")
 	}
+	assert.Empty(t, values.Get("api_key"), "SendHTTPRequest should not mutate caller query values")
+}
+
+func TestGraphQL(t *testing.T) {
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodPost, r.Method, "GraphQL should use POST")
+		assert.Equal(t, "/api/v1/graphql", r.URL.Path, "GraphQL should use graphql endpoint")
+		assert.Equal(t, "test-key", r.URL.Query().Get("api_key"), "GraphQL should pass query auth")
+		assert.Equal(t, "application/json", r.Header.Get("Content-Type"), "GraphQL should send JSON content type")
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("request body must be readable: %v", err)
+			http.Error(w, "body read failed", http.StatusBadRequest)
+			return
+		}
+		assert.JSONEq(t, `{"query":"{ viewer }"}`, string(body), "GraphQL should forward JSON payload")
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer closeServer()
+
+	var result map[string]bool
+	err := provider.GraphQL(`{"query":"{ viewer }"}`, &result)
+	require.NoError(t, err, "GraphQL must not error")
+	assert.True(t, result["ok"], "GraphQL should decode response")
+}
+
+func TestSetupRequiresAPIKey(t *testing.T) {
+	var provider FXMacroData
+	err := provider.Setup(base.Settings{Name: "FXMacroData"})
+	assert.ErrorIs(t, err, errAPIKeyNotSet, "Setup should require API key")
+
+	err = provider.SendHTTPRequest("data_catalogue/usd", nil, &map[string]any{})
+	assert.ErrorIs(t, err, errAPIKeyNotSet, "SendHTTPRequest should require API key")
 }
