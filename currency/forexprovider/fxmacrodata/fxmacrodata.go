@@ -15,7 +15,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
-var errAPIKeyNotSet = errors.New("API key must be set")
+var (
+	errAPIKeyNotSet        = errors.New("api key must be set")
+	errUnsupportedCurrency = errors.New("currency not supported by FXMacroData")
+)
 
 const requestRateLimit = 60
 
@@ -49,26 +52,47 @@ func (f *FXMacroData) GetSupportedCurrencies() ([]string, error) {
 // GetRates returns latest FX conversion rates for GoCryptoTrader's currency store.
 func (f *FXMacroData) GetRates(baseCurrency, symbols string) (map[string]float64, error) {
 	baseCurrency = strings.ToUpper(baseCurrency)
+	supportedCurrencies, err := f.GetSupportedCurrencies()
+	if err != nil {
+		return nil, err
+	}
+	supported := make(map[string]struct{}, len(supportedCurrencies))
+	for _, currency := range supportedCurrencies {
+		supported[strings.ToUpper(currency)] = struct{}{}
+	}
+	if _, ok := supported[baseCurrency]; !ok {
+		return nil, fmt.Errorf("%w: %s", errUnsupportedCurrency, baseCurrency)
+	}
+
 	targets := splitSymbols(symbols)
 	if len(targets) == 0 {
-		var err error
-		targets, err = f.GetSupportedCurrencies()
-		if err != nil {
-			return nil, err
-		}
+		targets = supportedCurrencies
 	}
 
 	standardisedRates := make(map[string]float64)
+	seen := make(map[string]struct{}, len(targets))
+	var unsupported []string
 	for _, symbol := range targets {
 		symbol = strings.ToUpper(strings.TrimSpace(symbol))
 		if symbol == "" || symbol == baseCurrency {
 			continue
 		}
+		if _, ok := supported[symbol]; !ok {
+			unsupported = append(unsupported, symbol)
+			continue
+		}
+		if _, ok := seen[symbol]; ok {
+			continue
+		}
+		seen[symbol] = struct{}{}
 		rate, err := f.GetLatestForexRate(baseCurrency, symbol)
 		if err != nil {
 			return nil, err
 		}
 		standardisedRates[baseCurrency+symbol] = rate
+	}
+	if len(standardisedRates) == 0 && len(unsupported) != 0 {
+		return nil, fmt.Errorf("%w: %s", errUnsupportedCurrency, strings.Join(unsupported, ","))
 	}
 	return standardisedRates, nil
 }
@@ -79,7 +103,7 @@ func (f *FXMacroData) GetLatestForexRate(baseCurrency, quoteCurrency string) (fl
 	values := url.Values{}
 	values.Set("limit", "1")
 	err := f.SendHTTPRequest(
-		fmt.Sprintf("forex/%s/%s", strings.ToLower(baseCurrency), strings.ToLower(quoteCurrency)),
+		"forex/"+strings.ToLower(baseCurrency)+"/"+strings.ToLower(quoteCurrency),
 		values,
 		&resp,
 	)
@@ -99,12 +123,12 @@ func (f *FXMacroData) DataCatalogue(currency string) (map[string]any, error) {
 
 // Announcements returns historical macro announcement rows.
 func (f *FXMacroData) Announcements(currency, indicator string, values url.Values) (map[string]any, error) {
-	return f.getMap(fmt.Sprintf("announcements/%s/%s", strings.ToLower(currency), indicator), values)
+	return f.getMap("announcements/"+strings.ToLower(currency)+"/"+indicator, values)
 }
 
 // LatestAnnouncements returns latest announcements for a currency.
 func (f *FXMacroData) LatestAnnouncements(currency string, values url.Values) (map[string]any, error) {
-	return f.getMap(fmt.Sprintf("announcements/%s/latest", strings.ToLower(currency)), values)
+	return f.getMap("announcements/"+strings.ToLower(currency)+"/latest", values)
 }
 
 // AnnouncementChanges returns recently changed announcement rows.
@@ -119,7 +143,7 @@ func (f *FXMacroData) Calendar(currency string, values url.Values) (map[string]a
 
 // Predictions returns consensus/model prediction rows.
 func (f *FXMacroData) Predictions(currency, indicator string, values url.Values) (map[string]any, error) {
-	return f.getMap(fmt.Sprintf("predictions/%s/%s", strings.ToLower(currency), indicator), values)
+	return f.getMap("predictions/"+strings.ToLower(currency)+"/"+indicator, values)
 }
 
 // COT returns CFTC positioning data for a currency.
@@ -154,12 +178,12 @@ func (f *FXMacroData) ForwardCurves(currency string, values url.Values) (map[str
 
 // RateDifferentials returns rate differentials for a pair.
 func (f *FXMacroData) RateDifferentials(baseCurrency, quoteCurrency string, values url.Values) (map[string]any, error) {
-	return f.getMap(fmt.Sprintf("rate_differentials/%s/%s", strings.ToLower(baseCurrency), strings.ToLower(quoteCurrency)), values)
+	return f.getMap("rate_differentials/"+strings.ToLower(baseCurrency)+"/"+strings.ToLower(quoteCurrency), values)
 }
 
 // ForwardDifferentials returns forward differentials for a pair.
 func (f *FXMacroData) ForwardDifferentials(baseCurrency, quoteCurrency string, values url.Values) (map[string]any, error) {
-	return f.getMap(fmt.Sprintf("forward_differentials/%s/%s", strings.ToLower(baseCurrency), strings.ToLower(quoteCurrency)), values)
+	return f.getMap("forward_differentials/"+strings.ToLower(baseCurrency)+"/"+strings.ToLower(quoteCurrency), values)
 }
 
 // MarketSessions returns FX market-session state.
@@ -201,13 +225,14 @@ func (f *FXMacroData) send(endpoint string, values url.Values, body io.Reader, m
 	if f.APIKey == "" {
 		return errAPIKeyNotSet
 	}
-	if values == nil {
-		values = url.Values{}
+	query := make(url.Values, len(values)+1)
+	for k, v := range values {
+		query[k] = append([]string(nil), v...)
 	}
-	values.Set("api_key", f.APIKey)
+	query.Set("api_key", f.APIKey)
 
 	baseURL := strings.TrimRight(f.APIURL, "/") + "/"
-	path := common.EncodeURLValues(baseURL+strings.TrimLeft(endpoint, "/"), values)
+	path := common.EncodeURLValues(baseURL+strings.TrimLeft(endpoint, "/"), query)
 	headers := map[string]string{"Accept": "application/json"}
 	if method == http.MethodPost {
 		headers["Content-Type"] = "application/json"
