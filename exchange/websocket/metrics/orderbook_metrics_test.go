@@ -62,6 +62,38 @@ func TestRecordOrderbookResyncNil(t *testing.T) {
 	RecordOrderbookResync(nil)
 }
 
+func TestRecordEmptyOrderbook(t *testing.T) {
+	t.Parallel()
+
+	event := &OrderbookSyncEvent{
+		Exchange: "MetricEmptyExchange",
+		Pair:     currency.NewPair(currency.XRP, currency.USDT),
+		Asset:    asset.Spot,
+		Channel:  "orderbook",
+	}
+	key := formatOrderbookSyncMetricKey(event)
+
+	RecordEmptyOrderbook(event)
+	RecordEmptyOrderbook(event)
+
+	assert.Contains(t, orderbookEmptyMetric.String(), `"`+key+`": 2`, "empty snapshot metric should count observations")
+	orderbookSyncStats.Lock()
+	_, found := orderbookSyncStats.emptyLookup[orderbookSyncKey{
+		exchange: event.Exchange,
+		pair:     event.Pair.String(),
+		asset:    event.Asset.String(),
+		channel:  event.Channel,
+	}]
+	orderbookSyncStats.Unlock()
+	assert.True(t, found, "empty orderbook summary should retain the unique book")
+}
+
+func TestRecordEmptyOrderbookNil(t *testing.T) {
+	t.Parallel()
+
+	RecordEmptyOrderbook(nil)
+}
+
 func TestSnapshotOrderbookSyncSummary(t *testing.T) {
 	pair := currency.NewPair(currency.SOL, currency.USDT)
 	event := &OrderbookSyncEvent{
@@ -72,6 +104,7 @@ func TestSnapshotOrderbookSyncSummary(t *testing.T) {
 		Reason:        "sequence_gap",
 		LastUpdateID:  20,
 		FirstUpdateID: 23,
+		UpdateID:      24,
 	}
 	RecordOrderbookDesync(event)
 	RecordOrderbookResync(&OrderbookSyncEvent{
@@ -82,12 +115,24 @@ func TestSnapshotOrderbookSyncSummary(t *testing.T) {
 		Result:   "started",
 	})
 	RecordOrderbookResync(&OrderbookSyncEvent{
-		Exchange: "MetricSnapshotExchange",
-		Pair:     pair,
-		Asset:    asset.Spot,
-		Channel:  "books",
-		Result:   "succeeded",
-		Duration: 75 * time.Millisecond,
+		Exchange:             "MetricSnapshotExchange",
+		Pair:                 pair,
+		Asset:                asset.Spot,
+		Channel:              "books",
+		Result:               "succeeded",
+		Duration:             75 * time.Millisecond,
+		PermitWait:           time.Millisecond,
+		FetchDelay:           2 * time.Millisecond,
+		SnapshotFetch:        3 * time.Millisecond,
+		RetryWait:            4 * time.Millisecond,
+		SnapshotLoad:         5 * time.Millisecond,
+		CacheLockWait:        6 * time.Millisecond,
+		PendingApply:         7 * time.Millisecond,
+		FetchAttempts:        2,
+		QueuedUpdates:        3,
+		SnapshotUpdateID:     21,
+		PendingFirstUpdateID: 23,
+		PendingUpdateID:      24,
 	})
 
 	summary := SnapshotOrderbookSyncSummary()
@@ -100,11 +145,27 @@ func TestSnapshotOrderbookSyncSummary(t *testing.T) {
 		found = true
 		assert.Equal(t, int64(1), item.Desyncs, "desync count should match")
 		assert.Equal(t, int64(2), item.SequenceGapTotal, "sequence gap total should match")
+		assert.Equal(t, int64(20), item.LastUpdateID)
+		assert.Equal(t, int64(23), item.LastFirstUpdateID)
+		assert.Equal(t, int64(24), item.LastReceivedUpdateID)
 		assert.Equal(t, int64(1), item.DroppedOrderbooks, "dropped orderbook count should match")
 		assert.Equal(t, int64(1), item.ResyncStarted, "resync started count should match")
 		assert.Equal(t, int64(1), item.ResyncSucceeded, "resync succeeded count should match")
 		assert.Equal(t, 75*time.Millisecond, item.ResyncTime, "resync time should match")
 		assert.Equal(t, int64(1), item.ResyncTimed, "resync timed count should match")
+		assert.Equal(t, time.Millisecond, item.PermitWait)
+		assert.Equal(t, 2*time.Millisecond, item.FetchDelay)
+		assert.Equal(t, 3*time.Millisecond, item.SnapshotFetch)
+		assert.Equal(t, 4*time.Millisecond, item.RetryWait)
+		assert.Equal(t, 5*time.Millisecond, item.SnapshotLoad)
+		assert.Equal(t, 6*time.Millisecond, item.CacheLockWait)
+		assert.Equal(t, 7*time.Millisecond, item.PendingApply)
+		assert.Equal(t, int64(2), item.FetchAttempts)
+		assert.Equal(t, int64(3), item.QueuedUpdates)
+		assert.Equal(t, int64(3), item.MaxQueuedUpdates)
+		assert.Equal(t, int64(21), item.LastSnapshotUpdateID)
+		assert.Equal(t, int64(23), item.LastPendingFirstUpdateID)
+		assert.Equal(t, int64(24), item.LastPendingUpdateID)
 		assert.Equal(t, int64(1), item.Reasons["sequence_gap"], "reason count should match")
 	}
 	assert.True(t, found, "summary should include recorded item")

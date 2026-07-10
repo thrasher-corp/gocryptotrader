@@ -41,7 +41,7 @@ func (b *Book) Validate() error {
 func validate(b *Book) error {
 	// Some exchanges may return empty sides, but it's not an error
 	// Options have empty sides too frequently for this warning to be useful
-	if (len(b.Asks) == 0 || len(b.Bids) == 0) && !b.Asset.IsOptions() {
+	if (len(b.Asks) == 0 || len(b.Bids) == 0) && !b.Asset.IsOptions() && !b.SuppressEmptyBookWarning {
 		log.Warnf(log.OrderBook, bookLengthIssue, b.Exchange, b.Pair, b.Asset, len(b.Bids), len(b.Asks))
 	}
 	err := checkAlignment(b.Bids, b.IsFundingRate, b.PriceDuplication, b.IDAlignment, b.ChecksumStringRequired, isDsc, b.Exchange)

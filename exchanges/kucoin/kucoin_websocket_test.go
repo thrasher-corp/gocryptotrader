@@ -1221,6 +1221,49 @@ func TestManageSubscriptions(t *testing.T) {
 	})
 }
 
+func TestScheduleOrderbookSnapshotFallback(t *testing.T) {
+	t.Parallel()
+
+	t.Run("registers_only_full_depth_orderbooks", func(t *testing.T) {
+		t.Parallel()
+		ku := testInstance(t)
+		ku.wsOBUpdateMgr = buffer.NewUpdateManager(&buffer.UpdateManagerParams{
+			FetchDeadline: time.Second,
+			FetchOrderbook: func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) {
+				return nil, orderbook.ErrDepthNotFound
+			},
+			CheckPendingUpdate:           checkPendingUpdate,
+			InitialSnapshotFallbackDelay: time.Hour,
+			InitialSnapshotFallbackLimit: 1,
+			BufferInstance:               &ku.Websocket.Orderbook,
+		})
+		spotPair := currency.NewBTCUSDT()
+		futuresPair := currency.NewPair(currency.ETH, currency.USDT)
+		subs := subscription.List{
+			{Channel: marketOrderbookChannel, Asset: asset.Spot, Pairs: currency.Pairs{spotPair}},
+			{Channel: futuresOrderbookChannel, Asset: asset.Futures, Pairs: currency.Pairs{futuresPair}},
+			{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{spotPair}},
+			nil,
+		}
+
+		require.NoError(t, ku.scheduleOrderbookSnapshotFallback(t.Context(), subs))
+		stats := ku.wsOBUpdateMgr.BootstrapStats()
+		assert.Equal(t, 1, stats[asset.Spot].Subscribed)
+		assert.Equal(t, 1, stats[asset.Futures].Subscribed)
+	})
+
+	t.Run("returns_invalid_pair", func(t *testing.T) {
+		t.Parallel()
+		ku := testInstance(t)
+		err := ku.scheduleOrderbookSnapshotFallback(t.Context(), subscription.List{{
+			Channel: marketOrderbookChannel,
+			Asset:   asset.Spot,
+			Pairs:   currency.Pairs{currency.EMPTYPAIR},
+		}})
+		require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+	})
+}
+
 func TestProcessFuturesKline(t *testing.T) {
 	t.Parallel()
 

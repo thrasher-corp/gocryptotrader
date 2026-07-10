@@ -173,15 +173,19 @@ func (e *Exchange) SetDefaults() {
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
 	e.wsOBUpdateMgr = buffer.NewUpdateManager(&buffer.UpdateManagerParams{
-		FetchDelay:                 kucoinWSOrderbookSnapshotFetchDelay,
-		FetchDeadline:              buffer.DefaultWSOrderbookUpdateDeadline,
-		FetchOrderbook:             e.fetchWSOrderbookSnapshot,
-		OutdatedSnapshotRetryDelay: buffer.DefaultWSOrderbookOutdatedSnapshotRetryWait,
-		SnapshotSyncLimit:          kucoinWSOrderbookSnapshotSyncLimit,
-		CheckPendingUpdate:         checkPendingUpdate,
-		CheckLiveUpdates:           true,
-		RecordMetrics:              true,
-		BufferInstance:             &e.Websocket.Orderbook,
+		FetchDelay:                        kucoinWSOrderbookSnapshotFetchDelay,
+		FetchDeadline:                     buffer.DefaultWSOrderbookUpdateDeadline,
+		FetchOrderbook:                    e.fetchWSOrderbookSnapshot,
+		OutdatedSnapshotRetryDelay:        buffer.DefaultWSOrderbookOutdatedSnapshotRetryWait,
+		SnapshotSyncLimit:                 kucoinWSOrderbookSnapshotSyncLimit,
+		AcceptSnapshotWhenUpdatesCovered:  true,
+		InitialSnapshotFallbackDelay:      kucoinWSOrderbookFallbackDelay,
+		InitialSnapshotFallbackRetryDelay: kucoinWSOrderbookFallbackRetryDelay,
+		InitialSnapshotFallbackLimit:      kucoinWSOrderbookFallbackSyncLimit,
+		CheckPendingUpdate:                checkPendingUpdate,
+		CheckLiveUpdates:                  true,
+		RecordMetrics:                     true,
+		BufferInstance:                    &e.Websocket.Orderbook,
 	})
 }
 

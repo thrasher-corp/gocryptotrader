@@ -117,6 +117,9 @@ type Book struct {
 	// user configuration, this allows for a potential processing boost but
 	// a potential for orderbook integrity being deminished.
 	ValidateOrderbook bool
+	// SuppressEmptyBookWarning prevents validation from logging an individual
+	// warning when empty snapshots are reported through aggregate metrics.
+	SuppressEmptyBookWarning bool
 	// RestSnapshot defines if the depth was applied via the REST protocol thus
 	// an update cannot be applied via websocket mechanics and a resubscription
 	// would need to take place to maintain book integrity

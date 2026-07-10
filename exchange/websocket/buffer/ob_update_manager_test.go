@@ -5,6 +5,7 @@ import (
 	"errors"
 	"expvar"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -75,12 +76,23 @@ func TestNewUpdateManager(t *testing.T) {
 	params.SnapshotSyncLimit = -1
 	require.Panics(t, func() { NewUpdateManager(params) })
 	params.SnapshotSyncLimit = 2
+	params.InitialSnapshotFallbackDelay = -time.Second
+	require.Panics(t, func() { NewUpdateManager(params) })
+	params.InitialSnapshotFallbackDelay = time.Second
+	require.Panics(t, func() { NewUpdateManager(params) })
+	params.InitialSnapshotFallbackLimit = -1
+	require.Panics(t, func() { NewUpdateManager(params) })
+	params.InitialSnapshotFallbackLimit = 1
+	params.InitialSnapshotFallbackRetryDelay = -time.Second
+	require.Panics(t, func() { NewUpdateManager(params) })
+	params.InitialSnapshotFallbackRetryDelay = 0
 	require.Panics(t, func() { NewUpdateManager(params) })
 
 	params.FetchOrderbook = func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) { return nil, nil }
 	params.CheckPendingUpdate = func(_, _ int64, _ *orderbook.Update) (bool, error) {
 		return false, nil
 	}
+	params.AcceptSnapshotWhenUpdatesCovered = true
 	params.BufferInstance = &Orderbook{}
 	got := NewUpdateManager(params)
 	require.NotNil(t, got)
@@ -89,6 +101,200 @@ func TestNewUpdateManager(t *testing.T) {
 		2,
 		cap(got.syncLimit),
 		"sync limit should match configured snapshot sync limit")
+	assert.True(t,
+		got.acceptSnapshotWhenUpdatesCovered,
+		"covered snapshot acceptance should match configuration")
+	assert.Equal(t, time.Second, got.initialSnapshotFallbackDelay)
+	assert.Equal(t, 30*time.Second, got.initialSnapshotFallbackRetry)
+	assert.Equal(t, 1, cap(got.initialSnapshotFallbackLimit))
+}
+
+func TestScheduleInitialSnapshot(t *testing.T) {
+	t.Parallel()
+
+	t.Run("fallback_initialises_quiet_book_once", func(t *testing.T) {
+		t.Parallel()
+		pair := currency.NewBTCUSDT()
+		params := newTestParams()
+		params.BufferInstance.exchangeName = "TestExchangeFallbackQuiet"
+		params.AcceptSnapshotWhenUpdatesCovered = true
+		params.InitialSnapshotFallbackDelay = time.Millisecond
+		params.InitialSnapshotFallbackRetryDelay = 10 * time.Millisecond
+		params.InitialSnapshotFallbackLimit = 1
+		var fetches atomic.Int64
+		params.FetchOrderbook = func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+			fetches.Add(1)
+			return &orderbook.Book{
+				Exchange:     params.BufferInstance.exchangeName,
+				Pair:         p,
+				Asset:        a,
+				Bids:         orderbook.Levels{{Price: 1, Amount: 1}},
+				Asks:         orderbook.Levels{{Price: 2, Amount: 1}},
+				LastUpdated:  time.Now(),
+				LastPushed:   time.Now(),
+				LastUpdateID: 1336,
+			}, nil
+		}
+		manager := NewUpdateManager(&params)
+
+		require.NoError(t, manager.ScheduleInitialSnapshot(t.Context(), pair, asset.Spot))
+		require.NoError(t, manager.ScheduleInitialSnapshot(t.Context(), pair, asset.Spot))
+		require.Eventually(t, func() bool {
+			id, err := params.BufferInstance.LastUpdateID(pair, asset.Spot)
+			return err == nil && id == 1336
+		}, time.Second, time.Millisecond)
+		require.Equal(t, int64(1), fetches.Load(), "duplicate schedules must not duplicate REST snapshots")
+
+		stats := manager.BootstrapStats()[asset.Spot]
+		assert.Equal(t, 1, stats.Subscribed)
+		assert.Zero(t, stats.FirstUpdateSeen)
+		assert.Equal(t, 1, stats.SnapshotStarted)
+		assert.Equal(t, 1, stats.SnapshotSucceeded)
+		assert.Zero(t, stats.SnapshotFailed)
+		assert.Zero(t, stats.WaitingForFirstUpdate)
+		assert.Equal(t, 1, stats.FallbackStarted)
+	})
+
+	t.Run("first_update_wins", func(t *testing.T) {
+		t.Parallel()
+		pair := currency.NewPair(currency.LTC, currency.USDT)
+		params := newTestParams()
+		params.BufferInstance.exchangeName = "TestExchangeFirstUpdateWins"
+		params.AcceptSnapshotWhenUpdatesCovered = true
+		params.InitialSnapshotFallbackDelay = 30 * time.Millisecond
+		params.InitialSnapshotFallbackRetryDelay = 10 * time.Millisecond
+		params.InitialSnapshotFallbackLimit = 1
+		var fetches atomic.Int64
+		params.FetchOrderbook = func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+			fetches.Add(1)
+			return &orderbook.Book{
+				Exchange:     params.BufferInstance.exchangeName,
+				Pair:         p,
+				Asset:        a,
+				Bids:         orderbook.Levels{{Price: 1, Amount: 1}},
+				Asks:         orderbook.Levels{{Price: 2, Amount: 1}},
+				LastUpdated:  time.Now(),
+				LastPushed:   time.Now(),
+				LastUpdateID: 1336,
+			}, nil
+		}
+		params.CheckPendingUpdate = func(lastUpdateID, firstUpdateID int64, _ *orderbook.Update) (bool, error) {
+			return firstUpdateID <= lastUpdateID, nil
+		}
+		manager := NewUpdateManager(&params)
+
+		require.NoError(t, manager.ScheduleInitialSnapshot(t.Context(), pair, asset.Spot))
+		require.NoError(t, manager.ProcessOrderbookUpdate(t.Context(), 1337, &orderbook.Update{
+			Pair:       pair,
+			Asset:      asset.Spot,
+			AllowEmpty: true,
+			UpdateID:   1337,
+			UpdateTime: time.Now(),
+		}))
+		require.Eventually(t, func() bool {
+			id, err := params.BufferInstance.LastUpdateID(pair, asset.Spot)
+			return err == nil && id == 1337
+		}, time.Second, time.Millisecond)
+		time.Sleep(50 * time.Millisecond)
+		require.Equal(t, int64(1), fetches.Load(), "fallback must not fetch after websocket bootstrap succeeds")
+
+		stats := manager.BootstrapStats()[asset.Spot]
+		assert.Equal(t, 1, stats.FirstUpdateSeen)
+		assert.Equal(t, 1, stats.SnapshotSucceeded)
+		assert.Zero(t, stats.FallbackStarted)
+	})
+
+	t.Run("fallback_retries_after_failure", func(t *testing.T) {
+		t.Parallel()
+		pair := currency.NewPair(currency.XRP, currency.USDT)
+		params := newTestParams()
+		params.BufferInstance.exchangeName = "TestExchangeFallbackRetry"
+		params.AcceptSnapshotWhenUpdatesCovered = true
+		params.InitialSnapshotFallbackDelay = time.Millisecond
+		params.InitialSnapshotFallbackRetryDelay = time.Millisecond
+		params.InitialSnapshotFallbackLimit = 1
+		var fetches atomic.Int64
+		params.FetchOrderbook = func(_ context.Context, p currency.Pair, a asset.Item) (*orderbook.Book, error) {
+			if fetches.Add(1) == 1 {
+				return nil, errTestDesyncReason
+			}
+			return &orderbook.Book{
+				Exchange:     params.BufferInstance.exchangeName,
+				Pair:         p,
+				Asset:        a,
+				Bids:         orderbook.Levels{{Price: 1, Amount: 1}},
+				Asks:         orderbook.Levels{{Price: 2, Amount: 1}},
+				LastUpdated:  time.Now(),
+				LastPushed:   time.Now(),
+				LastUpdateID: 1336,
+			}, nil
+		}
+		manager := NewUpdateManager(&params)
+
+		require.NoError(t, manager.ScheduleInitialSnapshot(t.Context(), pair, asset.Spot))
+		require.Eventually(t, func() bool {
+			id, err := params.BufferInstance.LastUpdateID(pair, asset.Spot)
+			return err == nil && id == 1336
+		}, time.Second, time.Millisecond)
+		assert.Equal(t, int64(2), fetches.Load())
+		stats := manager.BootstrapStats()[asset.Spot]
+		assert.Equal(t, 1, stats.SnapshotFailed)
+		assert.Equal(t, 1, stats.SnapshotSucceeded)
+	})
+
+	t.Run("cancelled_before_fallback", func(t *testing.T) {
+		t.Parallel()
+		params := newTestParams()
+		params.AcceptSnapshotWhenUpdatesCovered = true
+		params.InitialSnapshotFallbackDelay = 10 * time.Millisecond
+		params.InitialSnapshotFallbackLimit = 1
+		var fetches atomic.Int64
+		params.FetchOrderbook = func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) {
+			fetches.Add(1)
+			return nil, errTestDesyncReason
+		}
+		manager := NewUpdateManager(&params)
+		ctx, cancel := context.WithCancel(t.Context())
+		require.NoError(t, manager.ScheduleInitialSnapshot(ctx, currency.NewBTCUSDT(), asset.Spot))
+		cancel()
+		time.Sleep(30 * time.Millisecond)
+		assert.Zero(t, fetches.Load())
+	})
+}
+
+func TestBootstrapStats(t *testing.T) {
+	t.Parallel()
+	manager := NewUpdateManager(func() *UpdateManagerParams {
+		params := newTestParams()
+		return &params
+	}())
+	spotCache, err := manager.loadCache(currency.NewBTCUSDT(), asset.Spot)
+	require.NoError(t, err)
+	spotCache.fallbackScheduled = true
+	spotCache.firstUpdateSeen = true
+	spotCache.snapshotStarted = true
+	spotCache.snapshotSucceeded = true
+
+	futuresCache, err := manager.loadCache(currency.NewPair(currency.ETH, currency.USDT), asset.Futures)
+	require.NoError(t, err)
+	futuresCache.fallbackScheduled = true
+	futuresCache.snapshotStarted = true
+	futuresCache.snapshotFailures = 2
+	futuresCache.fallbackStarted = true
+
+	stats := manager.BootstrapStats()
+	assert.Equal(t, OrderbookBootstrapStats{
+		Subscribed:        1,
+		FirstUpdateSeen:   1,
+		SnapshotStarted:   1,
+		SnapshotSucceeded: 1,
+	}, stats[asset.Spot])
+	assert.Equal(t, OrderbookBootstrapStats{
+		Subscribed:      1,
+		SnapshotStarted: 1,
+		SnapshotFailed:  2,
+		FallbackStarted: 1,
+	}, stats[asset.Futures])
 }
 
 func TestProcessOrderbookUpdate(t *testing.T) {
@@ -472,23 +678,140 @@ func TestRecordResyncResult(t *testing.T) {
 	tp.RecordMetrics = true
 	m := NewUpdateManager(&tp)
 	pair := currency.NewPair(currency.XRP, currency.USDT)
-	started := time.Now().Add(-time.Millisecond)
+	timing := orderbookSyncTiming{
+		started:         time.Now().Add(-time.Millisecond),
+		permitWait:      time.Microsecond,
+		fetchDelay:      2 * time.Microsecond,
+		snapshotFetch:   3 * time.Microsecond,
+		retryWait:       4 * time.Microsecond,
+		snapshotLoad:    5 * time.Microsecond,
+		cacheLockWait:   6 * time.Microsecond,
+		pendingApply:    7 * time.Microsecond,
+		fetchAttempts:   2,
+		queuedUpdates:   3,
+		snapshotID:      100,
+		pendingFirstID:  101,
+		pendingUpdateID: 103,
+	}
 
-	m.recordResyncResult(true, pair, asset.Spot, "succeeded", started)
-	m.recordResyncResult(false, pair, asset.Spot, "ignored", started)
+	m.recordResyncResult(pair, asset.Spot, "succeeded", &timing)
 
 	got := expvar.Get("gct_websocket_orderbook_resync_total").String()
 	assert.Contains(t, got, `"exchange=TestExchange,asset=spot,pair=XRPUSDT,channel=orderbook,result=succeeded": 1`, "resync result metric should be recorded")
-	assert.NotContains(t, got, `"exchange=TestExchange,asset=spot,pair=XRPUSDT,channel=orderbook,result=ignored"`, "resync result metric should not be recorded when resync is false")
 	summary := metrics.SnapshotOrderbookSyncSummary()
 	for _, item := range summary.Items {
-		if item.Exchange == "TestExchange" && item.Pair == pair.String() && item.Asset == asset.Spot.String() {
-			assert.Positive(t, item.ResyncTime, "resync time should be recorded")
-			assert.Positive(t, item.ResyncTimed, "resync timed count should be recorded")
-			return
+		if item.Exchange != "TestExchange" || item.Pair != pair.String() || item.Asset != asset.Spot.String() {
+			continue
 		}
+		assert.Positive(t, item.ResyncTime, "resync time should be recorded")
+		assert.Positive(t, item.ResyncTimed, "resync timed count should be recorded")
+		assert.Equal(t, timing.permitWait, item.PermitWait)
+		assert.Equal(t, timing.fetchDelay, item.FetchDelay)
+		assert.Equal(t, timing.snapshotFetch, item.SnapshotFetch)
+		assert.Equal(t, timing.retryWait, item.RetryWait)
+		assert.Equal(t, timing.snapshotLoad, item.SnapshotLoad)
+		assert.Equal(t, timing.cacheLockWait, item.CacheLockWait)
+		assert.Equal(t, timing.pendingApply, item.PendingApply)
+		assert.Equal(t, timing.fetchAttempts, item.FetchAttempts)
+		assert.Equal(t, timing.queuedUpdates, item.QueuedUpdates)
+		assert.Equal(t, timing.queuedUpdates, item.MaxQueuedUpdates)
+		assert.Equal(t, timing.snapshotID, item.LastSnapshotUpdateID)
+		assert.Equal(t, timing.pendingFirstID, item.LastPendingFirstUpdateID)
+		assert.Equal(t, timing.pendingUpdateID, item.LastPendingUpdateID)
+		return
 	}
 	require.Fail(t, "summary must include recorded resync result")
+}
+
+func TestSyncOrderbookRecordsResyncPhases(t *testing.T) {
+	t.Parallel()
+
+	pair, err := currency.NewPairFromStrings("RESYNCPHASE", "USDT")
+	require.NoError(t, err)
+	tp := newTestParams()
+	tp.BufferInstance.exchangeName = "TestExchangeResyncPhases"
+	tp.FetchDelay = time.Millisecond
+	tp.FetchOrderbook = fetchOrderbookMock
+	tp.RecordMetrics = true
+	m := NewUpdateManager(&tp)
+	cache := &updateCache{
+		updates: []pendingUpdate{{
+			firstUpdateID: 1337,
+			update: &orderbook.Update{
+				Pair:       pair,
+				Asset:      asset.Spot,
+				UpdateID:   1337,
+				AllowEmpty: true,
+				UpdateTime: time.Now(),
+			},
+		}},
+		state: cacheStateQueuing,
+	}
+
+	require.NoError(t, m.syncOrderbook(t.Context(), cache, pair, asset.Spot, true))
+
+	summary := metrics.SnapshotOrderbookSyncSummary()
+	for _, item := range summary.Items {
+		if item.Exchange != tp.BufferInstance.exchangeName || item.Pair != pair.String() {
+			continue
+		}
+		assert.Equal(t, int64(1), item.ResyncSucceeded)
+		assert.Equal(t, int64(1), item.ResyncTimed)
+		assert.Positive(t, item.ResyncTime)
+		assert.Positive(t, item.FetchDelay)
+		assert.GreaterOrEqual(t, item.SnapshotFetch, time.Duration(0))
+		assert.GreaterOrEqual(t, item.SnapshotLoad, time.Duration(0))
+		assert.GreaterOrEqual(t, item.CacheLockWait, time.Duration(0))
+		assert.GreaterOrEqual(t, item.PendingApply, time.Duration(0))
+		assert.Equal(t, int64(1), item.FetchAttempts)
+		assert.Equal(t, int64(1), item.QueuedUpdates)
+		assert.Equal(t, int64(1), item.MaxQueuedUpdates)
+		assert.Equal(t, int64(1336), item.LastSnapshotUpdateID)
+		assert.Equal(t, int64(1337), item.LastPendingFirstUpdateID)
+		assert.Equal(t, int64(1337), item.LastPendingUpdateID)
+		return
+	}
+	require.Fail(t, "summary must include recorded resync phases")
+}
+
+func TestSyncOrderbookRecordsEmptySnapshot(t *testing.T) {
+	t.Parallel()
+
+	pair, err := currency.NewPairFromStrings("EMPTYSNAPSHOT", "USDT")
+	require.NoError(t, err)
+	book := &orderbook.Book{
+		Exchange:          "TestExchangeEmptySnapshot",
+		Pair:              pair,
+		Asset:             asset.Spot,
+		LastUpdated:       time.Now(),
+		LastUpdateID:      1336,
+		ValidateOrderbook: true,
+	}
+	tp := newTestParams()
+	tp.BufferInstance.exchangeName = book.Exchange
+	tp.FetchOrderbook = func(context.Context, currency.Pair, asset.Item) (*orderbook.Book, error) {
+		return book, nil
+	}
+	tp.RecordMetrics = true
+	tp.AcceptSnapshotWhenUpdatesCovered = true
+	m := NewUpdateManager(&tp)
+	cache := &updateCache{
+		updates: []pendingUpdate{{
+			firstUpdateID: 1335,
+			update: &orderbook.Update{
+				Pair:       pair,
+				Asset:      asset.Spot,
+				UpdateID:   1336,
+				AllowEmpty: true,
+				UpdateTime: time.Now(),
+			},
+		}},
+		state: cacheStateQueuing,
+	}
+
+	require.NoError(t, m.syncOrderbook(t.Context(), cache, pair, asset.Spot, false))
+	assert.True(t, book.SuppressEmptyBookWarning, "empty snapshot warning should be represented by aggregate metrics")
+	assert.Positive(t, metrics.SnapshotOrderbookSyncSummary().TotalEmptyOrderbooks)
 }
 
 func TestApplyUpdateInvalidateOnUpdateError(t *testing.T) {
@@ -691,6 +1014,70 @@ func TestSyncOrderbookApplyPendingUpdatesFailure(t *testing.T) {
 	require.ErrorIs(t, err, errPendingUpdatesNotApplied, "syncOrderbook must surface applyPendingUpdates errors")
 	assert.Equal(t, cacheStateInitialised, cache.state, "syncOrderbook should reset cache state on pending update failures")
 	assert.Empty(t, cache.updates, "syncOrderbook should clear pending updates after failure")
+}
+
+func TestSyncOrderbookAcceptSnapshotWhenUpdatesCovered(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name             string
+		firstUpdateID    int64
+		updateID         int64
+		expectedUpdateID int64
+	}{
+		{
+			name:             "snapshot_covers_pending_update",
+			firstUpdateID:    1335,
+			updateID:         1336,
+			expectedUpdateID: 1336,
+		},
+		{
+			name:             "newer_pending_update_is_applied",
+			firstUpdateID:    1337,
+			updateID:         1337,
+			expectedUpdateID: 1337,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			tp := newTestParams()
+			tp.AcceptSnapshotWhenUpdatesCovered = true
+			tp.FetchOrderbook = fetchOrderbookMock
+			tp.CheckPendingUpdate = func(lastUpdateID, firstUpdateID int64, update *orderbook.Update) (bool, error) {
+				if firstUpdateID > lastUpdateID+1 {
+					return false, ErrOrderbookSnapshotOutdated
+				}
+				return update.UpdateID <= lastUpdateID, nil
+			}
+			m := NewUpdateManager(&tp)
+			pair, err := currency.NewPairFromStrings(tc.name, "USDT")
+			require.NoError(t, err, "currency pair must be created")
+			cache := &updateCache{
+				updates: []pendingUpdate{{
+					firstUpdateID: tc.firstUpdateID,
+					update: &orderbook.Update{
+						Pair:       pair,
+						Asset:      asset.Spot,
+						UpdateID:   tc.updateID,
+						AllowEmpty: true,
+						UpdateTime: time.Now(),
+					},
+				}},
+				state: cacheStateQueuing,
+			}
+
+			err = m.syncOrderbook(t.Context(), cache, pair, asset.Spot, false)
+			require.NoError(t, err, "syncOrderbook must accept a usable snapshot")
+			assert.Equal(t, cacheStateSynced, cache.state, "cache should be synced")
+			assert.Empty(t, cache.updates, "pending updates should be cleared")
+			lastUpdateID, err := m.ob.LastUpdateID(pair, asset.Spot)
+			require.NoError(t, err, "LastUpdateID must return the final sequence")
+			assert.Equal(t, tc.expectedUpdateID, lastUpdateID, "final sequence should match expected state")
+		})
+	}
 }
 
 func TestApplyPendingUpdates(t *testing.T) {

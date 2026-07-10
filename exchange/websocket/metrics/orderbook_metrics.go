@@ -17,15 +17,18 @@ var (
 	orderbookDesyncMetric    = expvar.NewMap("gct_websocket_orderbook_desync_total")
 	orderbookDesyncGapMetric = expvar.NewMap("gct_websocket_orderbook_desync_gap_total")
 	orderbookResyncMetric    = expvar.NewMap("gct_websocket_orderbook_resync_total")
+	orderbookEmptyMetric     = expvar.NewMap("gct_websocket_orderbook_empty_total")
 )
 
 var orderbookSyncStats = orderbookSyncStore{
-	lookup: make(map[orderbookSyncKey]*orderbookSyncCounts),
+	lookup:      make(map[orderbookSyncKey]*orderbookSyncCounts),
+	emptyLookup: make(map[orderbookSyncKey]struct{}),
 }
 
 type orderbookSyncStore struct {
 	sync.Mutex
-	lookup map[orderbookSyncKey]*orderbookSyncCounts
+	lookup      map[orderbookSyncKey]*orderbookSyncCounts
+	emptyLookup map[orderbookSyncKey]struct{}
 }
 
 type orderbookSyncKey struct {
@@ -36,62 +39,117 @@ type orderbookSyncKey struct {
 }
 
 type orderbookSyncCounts struct {
-	desyncs             int64
-	sequenceGapTotal    int64
-	resyncStarted       int64
-	resyncRequested     int64
-	resyncSucceeded     int64
-	resyncFailed        int64
-	resyncRequestFailed int64
-	resyncDurationTotal time.Duration
-	resyncDurationCount int64
-	reasons             map[string]int64
+	desyncs              int64
+	sequenceGapTotal     int64
+	lastUpdateID         int64
+	lastFirstUpdateID    int64
+	lastReceivedUpdateID int64
+	resyncStarted        int64
+	resyncRequested      int64
+	resyncSucceeded      int64
+	resyncFailed         int64
+	resyncRequestFailed  int64
+	resyncDurationTotal  time.Duration
+	resyncDurationCount  int64
+	resyncPermitWait     time.Duration
+	resyncFetchDelay     time.Duration
+	resyncSnapshotFetch  time.Duration
+	resyncRetryWait      time.Duration
+	resyncSnapshotLoad   time.Duration
+	resyncCacheLockWait  time.Duration
+	resyncPendingApply   time.Duration
+	resyncFetchAttempts  int64
+	resyncQueuedUpdates  int64
+	resyncMaxQueued      int64
+	lastSnapshotID       int64
+	lastPendingFirstID   int64
+	lastPendingUpdateID  int64
+	reasons              map[string]int64
 }
 
 // OrderbookSyncSummary contains aggregated orderbook desync and resync metrics.
 type OrderbookSyncSummary struct {
-	Items              []OrderbookSyncSummaryItem
-	TotalDesyncs       int64
-	TotalSequenceGap   int64
-	TotalDroppedBooks  int64
-	TotalResyncSuccess int64
-	TotalResyncFailure int64
-	TotalResyncTime    time.Duration
-	TotalResyncTimed   int64
-	WorstOffender      *OrderbookSyncSummaryItem
+	Items                []OrderbookSyncSummaryItem
+	TotalDesyncs         int64
+	TotalSequenceGap     int64
+	TotalDroppedBooks    int64
+	TotalResyncSuccess   int64
+	TotalResyncFailure   int64
+	TotalResyncTime      time.Duration
+	TotalResyncTimed     int64
+	TotalPermitWait      time.Duration
+	TotalFetchDelay      time.Duration
+	TotalSnapshotFetch   time.Duration
+	TotalRetryWait       time.Duration
+	TotalSnapshotLoad    time.Duration
+	TotalCacheLockWait   time.Duration
+	TotalPendingApply    time.Duration
+	TotalFetchAttempts   int64
+	TotalQueuedUpdates   int64
+	MaxQueuedUpdates     int64
+	TotalEmptyOrderbooks int64
+	WorstOffender        *OrderbookSyncSummaryItem
 }
 
 // OrderbookSyncSummaryItem contains orderbook desync and resync metrics for one exchange/pair/asset/channel.
 type OrderbookSyncSummaryItem struct {
-	Exchange            string
-	Pair                string
-	Asset               string
-	Channel             string
-	Desyncs             int64
-	SequenceGapTotal    int64
-	DroppedOrderbooks   int64
-	ResyncStarted       int64
-	ResyncRequested     int64
-	ResyncSucceeded     int64
-	ResyncFailed        int64
-	ResyncRequestFailed int64
-	ResyncTime          time.Duration
-	ResyncTimed         int64
-	Reasons             map[string]int64
+	Exchange                 string
+	Pair                     string
+	Asset                    string
+	Channel                  string
+	Desyncs                  int64
+	SequenceGapTotal         int64
+	LastUpdateID             int64
+	LastFirstUpdateID        int64
+	LastReceivedUpdateID     int64
+	DroppedOrderbooks        int64
+	ResyncStarted            int64
+	ResyncRequested          int64
+	ResyncSucceeded          int64
+	ResyncFailed             int64
+	ResyncRequestFailed      int64
+	ResyncTime               time.Duration
+	ResyncTimed              int64
+	PermitWait               time.Duration
+	FetchDelay               time.Duration
+	SnapshotFetch            time.Duration
+	RetryWait                time.Duration
+	SnapshotLoad             time.Duration
+	CacheLockWait            time.Duration
+	PendingApply             time.Duration
+	FetchAttempts            int64
+	QueuedUpdates            int64
+	MaxQueuedUpdates         int64
+	LastSnapshotUpdateID     int64
+	LastPendingFirstUpdateID int64
+	LastPendingUpdateID      int64
+	Reasons                  map[string]int64
 }
 
 // OrderbookSyncEvent identifies an orderbook desync or resync metric event.
 type OrderbookSyncEvent struct {
-	Exchange      string
-	Pair          currency.Pair
-	Asset         asset.Item
-	Channel       string
-	Reason        string
-	Result        string
-	LastUpdateID  int64
-	FirstUpdateID int64
-	UpdateID      int64
-	Duration      time.Duration
+	Exchange             string
+	Pair                 currency.Pair
+	Asset                asset.Item
+	Channel              string
+	Reason               string
+	Result               string
+	LastUpdateID         int64
+	FirstUpdateID        int64
+	UpdateID             int64
+	Duration             time.Duration
+	PermitWait           time.Duration
+	FetchDelay           time.Duration
+	SnapshotFetch        time.Duration
+	RetryWait            time.Duration
+	SnapshotLoad         time.Duration
+	CacheLockWait        time.Duration
+	PendingApply         time.Duration
+	FetchAttempts        int64
+	QueuedUpdates        int64
+	SnapshotUpdateID     int64
+	PendingFirstUpdateID int64
+	PendingUpdateID      int64
 }
 
 // RecordOrderbookDesync increments the websocket orderbook desync metric.
@@ -116,6 +174,25 @@ func RecordOrderbookResync(event *OrderbookSyncEvent) {
 	recordOrderbookSyncResync(event)
 }
 
+// RecordEmptyOrderbook records an orderbook which supplied a snapshot with an empty side.
+func RecordEmptyOrderbook(event *OrderbookSyncEvent) {
+	if event == nil {
+		return
+	}
+	orderbookEmptyMetric.Add(formatOrderbookSyncMetricKey(event), 1)
+	orderbookSyncStats.Lock()
+	defer orderbookSyncStats.Unlock()
+	if orderbookSyncStats.emptyLookup == nil {
+		orderbookSyncStats.emptyLookup = make(map[orderbookSyncKey]struct{})
+	}
+	orderbookSyncStats.emptyLookup[orderbookSyncKey{
+		exchange: event.Exchange,
+		pair:     event.Pair.String(),
+		asset:    event.Asset.String(),
+		channel:  event.Channel,
+	}] = struct{}{}
+}
+
 // SnapshotOrderbookSyncSummary returns a stable snapshot of websocket orderbook sync metrics.
 func SnapshotOrderbookSyncSummary() OrderbookSyncSummary {
 	orderbookSyncStats.Lock()
@@ -124,21 +201,37 @@ func SnapshotOrderbookSyncSummary() OrderbookSyncSummary {
 	items := make([]OrderbookSyncSummaryItem, 0, len(orderbookSyncStats.lookup))
 	for key, counts := range orderbookSyncStats.lookup {
 		item := OrderbookSyncSummaryItem{
-			Exchange:            key.exchange,
-			Pair:                key.pair,
-			Asset:               key.asset,
-			Channel:             key.channel,
-			Desyncs:             counts.desyncs,
-			SequenceGapTotal:    counts.sequenceGapTotal,
-			DroppedOrderbooks:   counts.resyncStarted + counts.resyncRequested + counts.resyncRequestFailed,
-			ResyncStarted:       counts.resyncStarted,
-			ResyncRequested:     counts.resyncRequested,
-			ResyncSucceeded:     counts.resyncSucceeded,
-			ResyncFailed:        counts.resyncFailed,
-			ResyncRequestFailed: counts.resyncRequestFailed,
-			ResyncTime:          counts.resyncDurationTotal,
-			ResyncTimed:         counts.resyncDurationCount,
-			Reasons:             make(map[string]int64, len(counts.reasons)),
+			Exchange:                 key.exchange,
+			Pair:                     key.pair,
+			Asset:                    key.asset,
+			Channel:                  key.channel,
+			Desyncs:                  counts.desyncs,
+			SequenceGapTotal:         counts.sequenceGapTotal,
+			LastUpdateID:             counts.lastUpdateID,
+			LastFirstUpdateID:        counts.lastFirstUpdateID,
+			LastReceivedUpdateID:     counts.lastReceivedUpdateID,
+			DroppedOrderbooks:        counts.resyncStarted + counts.resyncRequested + counts.resyncRequestFailed,
+			ResyncStarted:            counts.resyncStarted,
+			ResyncRequested:          counts.resyncRequested,
+			ResyncSucceeded:          counts.resyncSucceeded,
+			ResyncFailed:             counts.resyncFailed,
+			ResyncRequestFailed:      counts.resyncRequestFailed,
+			ResyncTime:               counts.resyncDurationTotal,
+			ResyncTimed:              counts.resyncDurationCount,
+			PermitWait:               counts.resyncPermitWait,
+			FetchDelay:               counts.resyncFetchDelay,
+			SnapshotFetch:            counts.resyncSnapshotFetch,
+			RetryWait:                counts.resyncRetryWait,
+			SnapshotLoad:             counts.resyncSnapshotLoad,
+			CacheLockWait:            counts.resyncCacheLockWait,
+			PendingApply:             counts.resyncPendingApply,
+			FetchAttempts:            counts.resyncFetchAttempts,
+			QueuedUpdates:            counts.resyncQueuedUpdates,
+			MaxQueuedUpdates:         counts.resyncMaxQueued,
+			LastSnapshotUpdateID:     counts.lastSnapshotID,
+			LastPendingFirstUpdateID: counts.lastPendingFirstID,
+			LastPendingUpdateID:      counts.lastPendingUpdateID,
+			Reasons:                  make(map[string]int64, len(counts.reasons)),
 		}
 		maps.Copy(item.Reasons, counts.reasons)
 		items = append(items, item)
@@ -157,7 +250,10 @@ func SnapshotOrderbookSyncSummary() OrderbookSyncSummary {
 		return items[i].label() < items[j].label()
 	})
 
-	summary := OrderbookSyncSummary{Items: items}
+	summary := OrderbookSyncSummary{
+		Items:                items,
+		TotalEmptyOrderbooks: int64(len(orderbookSyncStats.emptyLookup)),
+	}
 	for i := range items {
 		summary.TotalDesyncs += items[i].Desyncs
 		summary.TotalSequenceGap += items[i].SequenceGapTotal
@@ -166,6 +262,16 @@ func SnapshotOrderbookSyncSummary() OrderbookSyncSummary {
 		summary.TotalResyncFailure += items[i].ResyncFailed + items[i].ResyncRequestFailed
 		summary.TotalResyncTime += items[i].ResyncTime
 		summary.TotalResyncTimed += items[i].ResyncTimed
+		summary.TotalPermitWait += items[i].PermitWait
+		summary.TotalFetchDelay += items[i].FetchDelay
+		summary.TotalSnapshotFetch += items[i].SnapshotFetch
+		summary.TotalRetryWait += items[i].RetryWait
+		summary.TotalSnapshotLoad += items[i].SnapshotLoad
+		summary.TotalCacheLockWait += items[i].CacheLockWait
+		summary.TotalPendingApply += items[i].PendingApply
+		summary.TotalFetchAttempts += items[i].FetchAttempts
+		summary.TotalQueuedUpdates += items[i].QueuedUpdates
+		summary.MaxQueuedUpdates = max(summary.MaxQueuedUpdates, items[i].MaxQueuedUpdates)
 	}
 	if len(items) != 0 {
 		summary.WorstOffender = &summary.Items[0]
@@ -178,14 +284,15 @@ func OrderbookSyncSummaryLines() []string {
 	summary := SnapshotOrderbookSyncSummary()
 	if len(summary.Items) == 0 {
 		return []string{
-			"Websocket orderbook sync summary: dropped_orderbooks=0 desyncs=0 sequence_gap_total=0 " +
+			fmt.Sprintf("Websocket orderbook sync summary: empty_orderbooks_observed=%d dropped_orderbooks=0 desyncs=0 sequence_gap_total=0 ", summary.TotalEmptyOrderbooks) +
 				"resync_success=0 resync_failure=0 resync_time_total=0s resync_time_avg=N/A",
 		}
 	}
 
 	lines := []string{fmt.Sprintf(
-		"Websocket orderbook sync summary: dropped_orderbooks=%d desyncs=%d sequence_gap_total=%d "+
+		"Websocket orderbook sync summary: empty_orderbooks_observed=%d dropped_orderbooks=%d desyncs=%d sequence_gap_total=%d "+
 			"resync_success=%d resync_failure=%d resync_time_total=%s resync_time_avg=%s",
+		summary.TotalEmptyOrderbooks,
 		summary.TotalDroppedBooks,
 		summary.TotalDesyncs,
 		summary.TotalSequenceGap,
@@ -303,6 +410,9 @@ func recordOrderbookSyncDesync(event *OrderbookSyncEvent, gap int64) {
 
 	counts := orderbookSyncStats.load(event)
 	counts.desyncs++
+	counts.lastUpdateID = event.LastUpdateID
+	counts.lastFirstUpdateID = event.FirstUpdateID
+	counts.lastReceivedUpdateID = event.UpdateID
 	if gap > 0 {
 		counts.sequenceGapTotal += gap
 	}
@@ -333,6 +443,25 @@ func recordOrderbookSyncResync(event *OrderbookSyncEvent) {
 	if event.Duration > 0 {
 		counts.resyncDurationTotal += event.Duration
 		counts.resyncDurationCount++
+	}
+	counts.resyncPermitWait += event.PermitWait
+	counts.resyncFetchDelay += event.FetchDelay
+	counts.resyncSnapshotFetch += event.SnapshotFetch
+	counts.resyncRetryWait += event.RetryWait
+	counts.resyncSnapshotLoad += event.SnapshotLoad
+	counts.resyncCacheLockWait += event.CacheLockWait
+	counts.resyncPendingApply += event.PendingApply
+	counts.resyncFetchAttempts += event.FetchAttempts
+	counts.resyncQueuedUpdates += event.QueuedUpdates
+	counts.resyncMaxQueued = max(counts.resyncMaxQueued, event.QueuedUpdates)
+	if event.SnapshotUpdateID != 0 {
+		counts.lastSnapshotID = event.SnapshotUpdateID
+	}
+	if event.PendingFirstUpdateID != 0 {
+		counts.lastPendingFirstID = event.PendingFirstUpdateID
+	}
+	if event.PendingUpdateID != 0 {
+		counts.lastPendingUpdateID = event.PendingUpdateID
 	}
 }
 

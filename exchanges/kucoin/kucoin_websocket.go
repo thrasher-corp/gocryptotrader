@@ -69,6 +69,9 @@ const (
 
 	kucoinWSOrderbookSnapshotFetchDelay = 500 * time.Millisecond
 	kucoinWSOrderbookSnapshotSyncLimit  = 24
+	kucoinWSOrderbookFallbackDelay      = 2 * time.Minute
+	kucoinWSOrderbookFallbackRetryDelay = 30 * time.Second
+	kucoinWSOrderbookFallbackSyncLimit  = 4
 
 	// futures private channels
 	futuresTradeOrderChannel               = "/contractMarket/tradeOrders" // /contractMarket/tradeOrders:{symbol},...
@@ -1038,6 +1041,9 @@ func (e *Exchange) manageSubscriptions(ctx context.Context, conn websocket.Conne
 				err = e.Websocket.RemoveSubscriptions(conn, *assoc...)
 			} else {
 				err = e.Websocket.AddSuccessfulSubscriptions(conn, *assoc...)
+				if err == nil {
+					err = e.scheduleOrderbookSnapshotFallback(ctx, *assoc)
+				}
 				if e.Verbose {
 					log.Debugf(log.ExchangeSys, "%s Subscribed to Channel: %s", e.Name, s.Channel)
 				}
@@ -1050,6 +1056,30 @@ func (e *Exchange) manageSubscriptions(ctx context.Context, conn websocket.Conne
 		}
 	}
 	return errs
+}
+
+// scheduleOrderbookSnapshotFallback registers acknowledged full-depth topics for delayed bootstrap.
+func (e *Exchange) scheduleOrderbookSnapshotFallback(ctx context.Context, subs subscription.List) error {
+	for _, sub := range subs {
+		if sub == nil {
+			continue
+		}
+		var a asset.Item
+		switch sub.Channel {
+		case marketOrderbookChannel:
+			a = asset.Spot
+		case futuresOrderbookChannel:
+			a = asset.Futures
+		default:
+			continue
+		}
+		for _, p := range sub.Pairs {
+			if err := e.wsOBUpdateMgr.ScheduleInitialSnapshot(ctx, p, a); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // collapseSubscriptionList merges per-pair subscriptions into KuCoin-compatible
