@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -20,7 +21,10 @@ var (
 	errUnsupportedCurrency = errors.New("currency not supported by FXMacroData")
 )
 
-const requestRateLimit = 60
+const (
+	requestRateLimit = 60
+	maxRateWorkers   = 4
+)
 
 // Setup sets appropriate values for the FXMacroData provider.
 func (f *FXMacroData) Setup(config base.Settings) error {
@@ -69,7 +73,7 @@ func (f *FXMacroData) GetRates(baseCurrency, symbols string) (map[string]float64
 		targets = supportedCurrencies
 	}
 
-	standardisedRates := make(map[string]float64)
+	targetSymbols := make([]string, 0, len(targets))
 	seen := make(map[string]struct{}, len(targets))
 	var unsupported []string
 	for _, symbol := range targets {
@@ -85,14 +89,66 @@ func (f *FXMacroData) GetRates(baseCurrency, symbols string) (map[string]float64
 			continue
 		}
 		seen[symbol] = struct{}{}
-		rate, err := f.GetLatestForexRate(baseCurrency, symbol)
-		if err != nil {
-			return nil, err
-		}
-		standardisedRates[baseCurrency+symbol] = rate
+		targetSymbols = append(targetSymbols, symbol)
+	}
+
+	standardisedRates, err := f.getLatestForexRates(baseCurrency, targetSymbols)
+	if err != nil {
+		return nil, err
 	}
 	if len(standardisedRates) == 0 && len(unsupported) != 0 {
 		return nil, fmt.Errorf("%w: %s", errUnsupportedCurrency, strings.Join(unsupported, ","))
+	}
+	return standardisedRates, nil
+}
+
+func (f *FXMacroData) getLatestForexRates(baseCurrency string, targetSymbols []string) (map[string]float64, error) {
+	standardisedRates := make(map[string]float64, len(targetSymbols))
+	if len(targetSymbols) == 0 {
+		return standardisedRates, nil
+	}
+
+	workerCount := maxRateWorkers
+	if len(targetSymbols) < workerCount {
+		workerCount = len(targetSymbols)
+	}
+
+	type rateResult struct {
+		symbol string
+		rate   float64
+		err    error
+	}
+
+	jobs := make(chan string)
+	results := make(chan rateResult, len(targetSymbols))
+	var wg sync.WaitGroup
+	wg.Add(workerCount)
+	for i := 0; i < workerCount; i++ {
+		go func() {
+			defer wg.Done()
+			for symbol := range jobs {
+				rate, err := f.GetLatestForexRate(baseCurrency, symbol)
+				results <- rateResult{
+					symbol: symbol,
+					rate:   rate,
+					err:    err,
+				}
+			}
+		}()
+	}
+
+	for _, symbol := range targetSymbols {
+		jobs <- symbol
+	}
+	close(jobs)
+	wg.Wait()
+	close(results)
+
+	for result := range results {
+		if result.err != nil {
+			return nil, result.err
+		}
+		standardisedRates[baseCurrency+result.symbol] = result.rate
 	}
 	return standardisedRates, nil
 }
