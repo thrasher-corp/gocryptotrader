@@ -108,10 +108,7 @@ func (f *FXMacroData) getLatestForexRates(baseCurrency string, targetSymbols []s
 		return standardisedRates, nil
 	}
 
-	workerCount := maxRateWorkers
-	if len(targetSymbols) < workerCount {
-		workerCount = len(targetSymbols)
-	}
+	workerCount := min(maxRateWorkers, len(targetSymbols))
 
 	type rateResult struct {
 		symbol string
@@ -123,7 +120,7 @@ func (f *FXMacroData) getLatestForexRates(baseCurrency string, targetSymbols []s
 	results := make(chan rateResult, len(targetSymbols))
 	var wg sync.WaitGroup
 	wg.Add(workerCount)
-	for i := 0; i < workerCount; i++ {
+	for range workerCount {
 		go func() {
 			defer wg.Done()
 			for symbol := range jobs {
