@@ -36,7 +36,7 @@ type AlphaAccountTransactionItem struct {
 	ID       string        `json:"id"`
 	Time     types.Time    `json:"time"`
 	Currency currency.Code `json:"currency"`
-	Change   string        `json:"change"`
+	Change   types.Number  `json:"change"`
 	Balance  types.Number  `json:"balance"`
 }
 

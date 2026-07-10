@@ -184,6 +184,8 @@ func TestNew(t *testing.T) {
 		{Input: "spread", Expected: Spread},
 		{Input: "linearContract", Expected: LinearContract},
 		{Input: "DELIVERY", Expected: DeliveryFutures},
+		{Input: "btcmargineddelivery", Expected: BTCMarginedDeliveryFutures},
+		{Input: "btcMarginedDelivery", Expected: BTCMarginedDeliveryFutures},
 		{Input: "all", Expected: All},
 	}
 

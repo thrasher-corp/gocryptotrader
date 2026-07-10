@@ -3,7 +3,6 @@ package gateio
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -32,7 +31,7 @@ func (e *Exchange) GetAlphaAccounts(ctx context.Context) ([]*AlphaAccount, error
 // gas_mode possible values are 'speed' : Smart mode 'custom' : Custom mode, uses slippage parameter
 func (e *Exchange) GetAlphaAccountTransactionHistory(ctx context.Context, from, to time.Time, page, limit uint64) ([]*AlphaAccountTransactionItem, error) {
 	if from.IsZero() {
-		return nil, fmt.Errorf("%w: from is missing", errStartTimeRequired)
+		return nil, errStartTimeRequired
 	}
 	if !to.IsZero() {
 		if err := common.StartEndTimeCheck(from, to); err != nil {
