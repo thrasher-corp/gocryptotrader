@@ -594,7 +594,7 @@ func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, method, endpoint str
 // GetWebsocketSubscribeKey gets a subscribe key for websocket authentication
 func (e *Exchange) GetWebsocketSubscribeKey(ctx context.Context) (string, error) {
 	var resp struct {
-		Key string `json:"key"` // ← was "subscribeKey"
+		Key string `json:"key"`
 	}
 	path := "/v" + lbankAPIVersion2 + "/" + lbankSubscribeGetKey
 	if err := e.SendAuthHTTPRequest(ctx, http.MethodPost, path, nil, &resp); err != nil {
