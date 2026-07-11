@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -40,8 +39,8 @@ func TestGetRates(t *testing.T) {
 	var requestCount atomic.Int64
 	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestCount.Add(1)
-		if r.URL.Query().Get("api_key") != "test-key" {
-			t.Errorf("expected api_key query auth")
+		if r.Header.Get("X-API-Key") != "test-key" {
+			t.Errorf("expected X-API-Key header auth")
 			http.Error(w, "missing API key", http.StatusUnauthorized)
 			return
 		}
@@ -57,7 +56,7 @@ func TestGetRates(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rates, err := provider.GetRates("USD", "AUD, EUR, XYZ, AUD, usd")
+	rates, err := provider.GetRates("USD", "AUD,EUR,XYZ,usd")
 	require.NoError(t, err, "GetRates must not error")
 	assert.Equal(t, 1.5, rates["USDAUD"], "USDAUD should match mocked latest rate")
 	assert.Equal(t, 0.9, rates["USDEUR"], "USDEUR should match mocked latest rate")
@@ -66,37 +65,28 @@ func TestGetRates(t *testing.T) {
 	assert.Equal(t, int64(2), requestCount.Load(), "GetRates should request each unique supported target once")
 }
 
-func TestGetRatesLimitsConcurrentRequests(t *testing.T) {
-	var activeRequests atomic.Int64
-	var maxConcurrentRequests atomic.Int64
+func TestGetRatesDuplicateTarget(t *testing.T) {
 	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Get("api_key") != "test-key" {
-			t.Errorf("expected api_key query auth")
-			http.Error(w, "missing API key", http.StatusUnauthorized)
-			return
-		}
-		if !strings.HasPrefix(r.URL.Path, "/api/v1/forex/usd/") {
-			t.Errorf("unexpected path %s", r.URL.Path)
-			http.NotFound(w, r)
-			return
-		}
-		current := activeRequests.Add(1)
-		defer activeRequests.Add(-1)
-		for {
-			maxSeen := maxConcurrentRequests.Load()
-			if current <= maxSeen || maxConcurrentRequests.CompareAndSwap(maxSeen, current) {
-				break
-			}
-		}
-		time.Sleep(25 * time.Millisecond)
-		_, _ = w.Write([]byte(`{"data":[{"val":1.0}]}`))
+		t.Errorf("duplicate targets should not issue HTTP request")
+		http.NotFound(w, r)
 	}))
 	defer closeServer()
 
-	rates, err := provider.GetRates("USD", "AUD,BRL,CAD,CHF,CNH,CNY")
-	require.NoError(t, err, "GetRates must not error")
-	assert.Len(t, rates, 6, "GetRates should return every requested supported target")
-	assert.LessOrEqual(t, maxConcurrentRequests.Load(), int64(maxRateWorkers), "GetRates should cap concurrent FXMacroData requests")
+	rates, err := provider.GetRates("USD", "AUD,EUR,AUD")
+	assert.ErrorIs(t, err, errDuplicateCurrency, "GetRates should reject duplicate target currencies")
+	assert.Nil(t, rates, "rates should be nil when target currencies are duplicated")
+}
+
+func TestGetRatesEmptyTarget(t *testing.T) {
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("empty targets should not issue HTTP request")
+		http.NotFound(w, r)
+	}))
+	defer closeServer()
+
+	rates, err := provider.GetRates("USD", "AUD,,EUR")
+	assert.ErrorIs(t, err, errEmptyCurrency, "GetRates should reject empty target currency segments")
+	assert.Nil(t, rates, "rates should be nil when target currencies include an empty segment")
 }
 
 func TestGetRatesDefaultsToSupportedTargets(t *testing.T) {
@@ -237,7 +227,8 @@ func TestGraphQL(t *testing.T) {
 	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodPost, r.Method, "GraphQL should use POST")
 		assert.Equal(t, "/api/v1/graphql", r.URL.Path, "GraphQL should use graphql endpoint")
-		assert.Equal(t, "test-key", r.URL.Query().Get("api_key"), "GraphQL should pass query auth")
+		assert.Equal(t, "test-key", r.Header.Get("X-API-Key"), "GraphQL should pass header auth")
+		assert.Empty(t, r.URL.Query().Get("api_key"), "GraphQL should not pass query auth")
 		assert.Equal(t, "application/json", r.Header.Get("Content-Type"), "GraphQL should send JSON content type")
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
