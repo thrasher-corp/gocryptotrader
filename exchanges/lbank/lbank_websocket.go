@@ -11,6 +11,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -304,7 +305,15 @@ func (e *Exchange) wsHandleAssetUpdate(ctx context.Context, respRaw []byte) erro
 	if err := json.Unmarshal(respRaw, &resp); err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, resp.Data)
+	return e.Websocket.DataHandler.Send(ctx, accounts.Change{
+		AssetType: asset.Spot,
+		Balance: accounts.Balance{
+			Currency: currency.NewCode(resp.Data.AssetCode),
+			Total:    resp.Data.Asset.Float64(),
+			Free:     resp.Data.Free.Float64(),
+			Hold:     resp.Data.Freeze.Float64(),
+		},
+	})
 }
 
 // klineIntervalFromString converts an LBank interval string to a kline.Interval
