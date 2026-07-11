@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -19,11 +18,12 @@ import (
 var (
 	errAPIKeyNotSet        = errors.New("api key must be set")
 	errUnsupportedCurrency = errors.New("currency not supported by FXMacroData")
+	errEmptyCurrency       = errors.New("currency symbol must not be empty")
+	errDuplicateCurrency   = errors.New("duplicate currency symbol")
 )
 
 const (
 	requestRateLimit = 60
-	maxRateWorkers   = 4
 )
 
 // Setup sets appropriate values for the FXMacroData provider.
@@ -65,7 +65,7 @@ func (f *FXMacroData) GetRates(baseCurrency, symbols string) (map[string]float64
 		supported[strings.ToUpper(currency)] = struct{}{}
 	}
 	if _, ok := supported[baseCurrency]; !ok {
-		return nil, fmt.Errorf("%w: %s", errUnsupportedCurrency, baseCurrency)
+		return nil, fmt.Errorf("%w: %q", errUnsupportedCurrency, baseCurrency)
 	}
 
 	targets := splitSymbols(symbols)
@@ -77,8 +77,11 @@ func (f *FXMacroData) GetRates(baseCurrency, symbols string) (map[string]float64
 	seen := make(map[string]struct{}, len(targets))
 	var unsupported []string
 	for _, symbol := range targets {
-		symbol = strings.ToUpper(strings.TrimSpace(symbol))
-		if symbol == "" || symbol == baseCurrency {
+		symbol = strings.ToUpper(symbol)
+		if symbol == "" {
+			return nil, errEmptyCurrency
+		}
+		if symbol == baseCurrency {
 			continue
 		}
 		if _, ok := supported[symbol]; !ok {
@@ -86,7 +89,7 @@ func (f *FXMacroData) GetRates(baseCurrency, symbols string) (map[string]float64
 			continue
 		}
 		if _, ok := seen[symbol]; ok {
-			continue
+			return nil, fmt.Errorf("%w: %s", errDuplicateCurrency, symbol)
 		}
 		seen[symbol] = struct{}{}
 		targetSymbols = append(targetSymbols, symbol)
@@ -108,44 +111,12 @@ func (f *FXMacroData) getLatestForexRates(baseCurrency string, targetSymbols []s
 		return standardisedRates, nil
 	}
 
-	workerCount := min(maxRateWorkers, len(targetSymbols))
-
-	type rateResult struct {
-		symbol string
-		rate   float64
-		err    error
-	}
-
-	jobs := make(chan string)
-	results := make(chan rateResult, len(targetSymbols))
-	var wg sync.WaitGroup
-	wg.Add(workerCount)
-	for range workerCount {
-		go func() {
-			defer wg.Done()
-			for symbol := range jobs {
-				rate, err := f.GetLatestForexRate(baseCurrency, symbol)
-				results <- rateResult{
-					symbol: symbol,
-					rate:   rate,
-					err:    err,
-				}
-			}
-		}()
-	}
-
-	for _, symbol := range targetSymbols {
-		jobs <- symbol
-	}
-	close(jobs)
-	wg.Wait()
-	close(results)
-
-	for result := range results {
-		if result.err != nil {
-			return nil, result.err
+	for _, quote := range targetSymbols {
+		rate, err := f.GetLatestForexRate(baseCurrency, quote)
+		if err != nil {
+			return nil, err
 		}
-		standardisedRates[baseCurrency+result.symbol] = result.rate
+		standardisedRates[baseCurrency+quote] = rate
 	}
 	return standardisedRates, nil
 }
@@ -278,15 +249,17 @@ func (f *FXMacroData) send(endpoint string, values url.Values, body io.Reader, m
 	if f.APIKey == "" {
 		return errAPIKeyNotSet
 	}
-	query := make(url.Values, len(values)+1)
+	query := make(url.Values, len(values))
 	for k, v := range values {
 		query[k] = append([]string(nil), v...)
 	}
-	query.Set("api_key", f.APIKey)
 
 	baseURL := strings.TrimRight(f.APIURL, "/") + "/"
 	path := common.EncodeURLValues(baseURL+strings.TrimLeft(endpoint, "/"), query)
-	headers := map[string]string{"Accept": "application/json"}
+	headers := map[string]string{
+		"Accept":    "application/json",
+		"X-API-Key": f.APIKey,
+	}
 	if method == http.MethodPost {
 		headers["Content-Type"] = "application/json"
 	}
@@ -295,11 +268,9 @@ func (f *FXMacroData) send(endpoint string, values url.Values, body io.Reader, m
 		Method:  method,
 		Path:    path,
 		Headers: headers,
+		Body:    body,
 		Result:  result,
 		Verbose: f.Verbose,
-	}
-	if body != nil {
-		item.Body = body
 	}
 	return f.Requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
 		return item, nil
@@ -310,13 +281,5 @@ func splitSymbols(symbols string) []string {
 	if strings.TrimSpace(symbols) == "" {
 		return nil
 	}
-	parts := strings.Split(symbols, ",")
-	out := make([]string, 0, len(parts))
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if part != "" {
-			out = append(out, part)
-		}
-	}
-	return out
+	return strings.Split(symbols, ",")
 }
