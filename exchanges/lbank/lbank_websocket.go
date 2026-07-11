@@ -44,6 +44,7 @@ var klineIntervals = map[kline.Interval]string{
 	kline.OneDay:     "day",
 	kline.OneWeek:    "week",
 	kline.OneMonth:   "month",
+	kline.OneYear:    "year",
 }
 
 var defaultSubscriptions = subscription.List{
@@ -318,12 +319,30 @@ func (e *Exchange) wsHandleAssetUpdate(ctx context.Context, respRaw []byte) erro
 
 // klineIntervalFromString converts an LBank interval string to a kline.Interval
 func klineIntervalFromString(s string) (kline.Interval, error) {
-	for interval, str := range klineIntervals {
-		if str == s {
-			return interval, nil
-		}
+	switch s {
+	case "1min":
+		return kline.OneMin, nil
+	case "5min":
+		return kline.FiveMin, nil
+	case "15min":
+		return kline.FifteenMin, nil
+	case "30min":
+		return kline.ThirtyMin, nil
+	case "1hr":
+		return kline.OneHour, nil
+	case "4hr":
+		return kline.FourHour, nil
+	case "day":
+		return kline.OneDay, nil
+	case "week":
+		return kline.OneWeek, nil
+	case "month":
+		return kline.OneMonth, nil
+	case "year":
+		return kline.OneYear, nil
+	default:
+		return 0, fmt.Errorf("lbank: unsupported kline interval string %s", s)
 	}
-	return 0, fmt.Errorf("lbank: unsupported kline interval string %s", s)
 }
 
 // generateSubscriptions generates default subscriptions
