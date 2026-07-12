@@ -358,6 +358,7 @@ func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*templ
 // manageSubs handles both subscribe and unsubscribe
 func (e *Exchange) manageSubs(ctx context.Context, subs subscription.List, action string) error {
 	var errs error
+subscriptionLoop:
 	for _, s := range subs {
 		chName, ok := subscriptionNames[s.Channel]
 		if !ok {
@@ -416,7 +417,7 @@ func (e *Exchange) manageSubs(ctx context.Context, subs subscription.List, actio
 				intervalStr, ok := klineIntervals[s.Interval]
 				if !ok {
 					errs = common.AppendError(errs, fmt.Errorf("lbank: unsupported kline interval %v", s.Interval))
-					continue
+					continue subscriptionLoop
 				}
 				req = map[string]any{
 					"action":    action,
@@ -433,7 +434,7 @@ func (e *Exchange) manageSubs(ctx context.Context, subs subscription.List, actio
 			}
 			if err := e.Websocket.Conn.SendJSONMessage(ctx, 0, req); err != nil {
 				errs = common.AppendError(errs, err)
-				continue
+				continue subscriptionLoop
 			}
 		}
 		if action == lbankWsSubscribe {
