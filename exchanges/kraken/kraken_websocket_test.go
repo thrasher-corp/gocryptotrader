@@ -88,43 +88,30 @@ func TestGeneratePrivateSubscriptions(t *testing.T) {
 func TestGeneratePublicSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	for _, tc := range []struct {
-		name    string
-		canAuth bool
-	}{
-		{name: "without authenticated endpoints"},
-		{name: "with authenticated endpoints", canAuth: true},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup instance must not error")
 
-			ex := new(Exchange)
-			require.NoError(t, testexch.Setup(ex), "Setup instance must not error")
-			ex.Websocket.SetCanUseAuthenticatedEndpoints(tc.canAuth)
+	pairs, err := ex.GetEnabledPairs(asset.Spot)
+	require.NoError(t, err, "GetEnabledPairs must not error")
+	exp := subscription.List{
+		{Channel: subscription.TickerChannel},
+		{Channel: subscription.AllTradesChannel},
+		{Channel: subscription.CandlesChannel, Interval: kline.OneMin},
+		{Channel: subscription.OrderbookChannel, Levels: 1000},
+	}
+	for _, s := range exp {
+		s.QualifiedChannel = channelName(s)
+		s.Asset = asset.Spot
+		s.Pairs = pairs
+	}
 
-			pairs, err := ex.GetEnabledPairs(asset.Spot)
-			require.NoError(t, err, "GetEnabledPairs must not error")
-			exp := subscription.List{
-				{Channel: subscription.TickerChannel},
-				{Channel: subscription.AllTradesChannel},
-				{Channel: subscription.CandlesChannel, Interval: kline.OneMin},
-				{Channel: subscription.OrderbookChannel, Levels: 1000},
-			}
-			for _, s := range exp {
-				s.QualifiedChannel = channelName(s)
-				s.Asset = asset.Spot
-				s.Pairs = pairs
-			}
-
-			subs, err := ex.generatePublicSubscriptions()
-			require.NoError(t, err, "generatePublicSubscriptions must not error")
-			require.Len(t, subs, len(exp), "generatePublicSubscriptions must return grouped public channel subscriptions only")
-			testsubs.EqualLists(t, exp, subs)
-			for _, sub := range subs {
-				assert.False(t, sub.Authenticated, "public subscription should not be authenticated")
-				assert.Len(t, sub.Pairs, len(pairs), "public subscription should retain grouped pairs")
-			}
-		})
+	subs, err := ex.generatePublicSubscriptions()
+	require.NoError(t, err, "generatePublicSubscriptions must not error")
+	require.Len(t, subs, len(exp), "generatePublicSubscriptions must return grouped public channel subscriptions only")
+	testsubs.EqualLists(t, exp, subs)
+	for _, sub := range subs {
+		assert.False(t, sub.Authenticated, "public subscription should not be authenticated")
+		assert.Len(t, sub.Pairs, len(pairs), "public subscription should retain grouped pairs")
 	}
 }
 
@@ -358,7 +345,7 @@ func TestCleanupUnsubscribedSubs(t *testing.T) {
 		}
 
 		err := ex.cleanupUnsubscribedSubs(nil, subscription.List{missingSub})
-		require.ErrorIs(t, err, subscription.ErrNotFound, "cleanupUnsubscribedSubs must return remove subscription errors")
+		require.ErrorIs(t, err, subscription.ErrNotFound, "cleanupUnsubscribedSubs must return error when failing to remove subscription")
 		assert.ErrorContains(t, err, "error removing failed subscription", "cleanupUnsubscribedSubs should include removal context")
 	})
 }

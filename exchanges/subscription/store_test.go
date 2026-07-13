@@ -149,14 +149,14 @@ func TestUpdateKeyAndState(t *testing.T) {
 		t.Parallel()
 
 		store := NewStore()
-		existing := &Subscription{Key: 42, Channel: TickerChannel}
+		original := &Subscription{Key: 42, Channel: TickerChannel}
 		other := &Subscription{Key: 1337, Channel: OrderbookChannel}
-		require.NoError(t, store.Add(existing), "Add existing subscription must not error")
+		require.NoError(t, store.Add(original), "Add original subscription must not error")
 		require.NoError(t, store.Add(other), "Add other subscription must not error")
 
-		err := store.UpdateKeyAndState(existing, other.Key, SubscribedState)
+		err := store.UpdateKeyAndState(original, other.Key, SubscribedState)
 		assert.ErrorIs(t, err, ErrDuplicate, "UpdateKeyAndState should error when the target key is already used")
-		assert.Same(t, existing, store.Get(42), "existing subscription should remain stored at its original key")
+		assert.Same(t, original, store.Get(42), "original subscription should remain stored at its original key")
 		assert.Same(t, other, store.Get(1337), "other subscription should remain stored at the duplicate target key")
 	})
 

@@ -76,7 +76,7 @@ var subscriptionNames = map[string]string{
 }
 
 func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
-	return conn.Dial(ctx, &gws.Dialer{}, http.Header{})
+	return conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil)
 }
 
 func (e *Exchange) wsAuth(ctx context.Context, conn websocket.Connection) error {

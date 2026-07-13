@@ -62,7 +62,7 @@ var defaultSubscriptions = subscription.List{
 }
 
 func (e *Exchange) wsConnect(ctx context.Context, conn websocket.Connection) error {
-	return conn.Dial(ctx, &gws.Dialer{}, http.Header{})
+	return conn.Dial(ctx, &gws.Dialer{}, http.Header{}, nil)
 }
 
 // wsProcessTicker handles ticker data from the websocket
