@@ -157,6 +157,17 @@ func TestGetLatestForexRateEmptyData(t *testing.T) {
 	assert.Zero(t, rate, "rate should be zero when no data is returned")
 }
 
+func TestGetLatestForexRateHTTPError(t *testing.T) {
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "upstream unavailable", http.StatusServiceUnavailable)
+	}))
+	defer closeServer()
+
+	rate, err := provider.GetLatestForexRate("USD", "AUD")
+	assert.Error(t, err, "GetLatestForexRate should return HTTP errors")
+	assert.Zero(t, rate, "rate should be zero when the request fails")
+}
+
 func TestReadEndpointHelpers(t *testing.T) {
 	seen := make([]string, 0)
 	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
