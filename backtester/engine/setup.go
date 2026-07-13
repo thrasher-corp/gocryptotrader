@@ -944,22 +944,21 @@ func setExchangeCredentials(cfg *config.Config, exch *gctexchange.Base) error {
 	if len(cfg.DataSettings.LiveData.ExchangeCredentials) == 0 {
 		return errNoCredsNoLive
 	}
-	name := strings.ToLower(exch.Name)
-	for i := range cfg.DataSettings.LiveData.ExchangeCredentials {
-		if !strings.EqualFold(cfg.DataSettings.LiveData.ExchangeCredentials[i].Exchange, name) ||
-			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.IsEmpty() {
-			return fmt.Errorf("%v %w, please review your live, real order config", exch.GetName(), gctexchange.ErrCredentialsAreEmpty)
+	for _, creds := range cfg.DataSettings.LiveData.ExchangeCredentials {
+		if !strings.EqualFold(creds.Exchange, exch.Name) {
+			continue
+		}
+		if creds.Keys.IsEmpty() {
+			break
 		}
 		exch.API.AuthenticatedSupport = true
 		exch.API.AuthenticatedWebsocketSupport = true
-		exch.SetCredentials(&cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys)
+		exch.SetCredentials(&creds.Keys)
 		_, err := exch.GetCredentials(context.TODO())
-		if err != nil {
-			return err
-		}
+		return err
 	}
 
-	return nil
+	return fmt.Errorf("%v %w, please review your live, real order config", exch.GetName(), gctexchange.ErrCredentialsAreEmpty)
 }
 
 // NewBacktesterFromConfigs creates a new backtester based on config settings

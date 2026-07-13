@@ -326,9 +326,8 @@ func TestSetCredentials(t *testing.T) {
 	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
 	b.API.AuthenticatedSupport = true
 	b.SetCredentials(&accounts.Credentials{Key: "RocketMan", Secret: "aGVsbG8gd29ybGQ=", ClientID: "007"})
-	if !b.API.AuthenticatedSupport && b.API.credentials.Secret != "hello world" {
-		t.Error("invalid secret should disable authenticated API support")
-	}
+	require.True(t, b.API.AuthenticatedSupport)
+	require.Equal(t, "hello world", b.API.credentials.Secret)
 }
 
 func TestGetDefaultCredentials(t *testing.T) {
