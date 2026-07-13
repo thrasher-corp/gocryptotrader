@@ -26,33 +26,29 @@ func (e *Exchange) GetUnifiedUserRiskUnitDetails(ctx context.Context) (*UserRisk
 }
 
 // GetFuturesRiskTable retrieves the futures risk table for a given settlement currency and table ID
-func (e *Exchange) GetFuturesRiskTable(ctx context.Context, settleCurrency currency.Code, tableID string) ([]RiskTable, error) {
+func (e *Exchange) GetFuturesRiskTable(ctx context.Context, settleCurrency currency.Code, tableID string) ([]*RiskTable, error) {
 	if settleCurrency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
 	if tableID == "" {
 		return nil, errTableIDEmpty
 	}
-	var result []RiskTable
+	var result []*RiskTable
 	path := futuresPath + settleCurrency.Lower().String() + "/risk_limit_table?table_id=" + tableID
 	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, publicFuturesRiskTableEPL, path, &result)
 }
 
 // GetFuturesRiskLimitTiers retrieves the futures risk limit tiers
-// NOTE: 'limit' and 'offset' correspond to pagination queries at the market level, not to the length of the returned
-// array. This only takes effect when the contract parameter is empty.
-func (e *Exchange) GetFuturesRiskLimitTiers(ctx context.Context, settleCurrency currency.Code, contract currency.Pair, limit, offset uint64) ([]RiskTable, error) {
+func (e *Exchange) GetFuturesRiskLimitTiers(ctx context.Context, settleCurrency currency.Code, contract currency.Pair, limit, offset uint64) ([]*RiskTable, error) {
 	return e.getRiskLimitTiers(ctx, futuresPath, publicFuturesRiskLimitTiersEPL, settleCurrency, contract, limit, offset)
 }
 
 // GetDeliveryRiskLimitTiers retrieves the delivery risk limit tiers
-// NOTE: 'limit' and 'offset' correspond to pagination queries at the market level, not to the length of the returned
-// array. This only takes effect when the contract parameter is empty.
-func (e *Exchange) GetDeliveryRiskLimitTiers(ctx context.Context, settleCurrency currency.Code, contract currency.Pair, limit, offset uint64) ([]RiskTable, error) {
+func (e *Exchange) GetDeliveryRiskLimitTiers(ctx context.Context, settleCurrency currency.Code, contract currency.Pair, limit, offset uint64) ([]*RiskTable, error) {
 	return e.getRiskLimitTiers(ctx, deliveryPath, publicDeliveryRiskLimitTiersEPL, settleCurrency, contract, limit, offset)
 }
 
-func (e *Exchange) getRiskLimitTiers(ctx context.Context, assetPath string, epl request.EndpointLimit, settleCurrency currency.Code, contract currency.Pair, limit, offset uint64) ([]RiskTable, error) {
+func (e *Exchange) getRiskLimitTiers(ctx context.Context, assetPath string, epl request.EndpointLimit, settleCurrency currency.Code, contract currency.Pair, limit, offset uint64) ([]*RiskTable, error) {
 	if settleCurrency.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
 	}
@@ -73,8 +69,7 @@ func (e *Exchange) getRiskLimitTiers(ctx context.Context, assetPath string, epl 
 	}
 
 	path := common.EncodeURLValues(assetPath+settleCurrency.Lower().String()+"/risk_limit_tiers", params)
-
-	var result []RiskTable
+	var result []*RiskTable
 	return result, e.SendHTTPRequest(ctx, exchange.RestSpot, epl, path, &result)
 }
 
