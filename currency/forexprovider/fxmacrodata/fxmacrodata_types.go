@@ -24,3 +24,9 @@ type forexResponse struct {
 		Val float64 `json:"val"`
 	} `json:"data"`
 }
+
+// ServiceStatusResponse represents a public FXMacroData service status response.
+type ServiceStatusResponse struct {
+	Status  string `json:"status"`
+	Service string `json:"service"`
+}
