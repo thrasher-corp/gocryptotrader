@@ -17,7 +17,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
@@ -41,12 +40,6 @@ const (
 	canManipulateRealOrders = false
 	useTestNet              = false
 )
-
-// Please supply your own credentials here to do authenticated endpoint testing
-var apiCredentials = &accounts.Credentials{
-	Key:    "",
-	Secret: "",
-}
 
 var (
 	e *Exchange

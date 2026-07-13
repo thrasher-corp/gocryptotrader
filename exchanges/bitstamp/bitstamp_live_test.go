@@ -9,11 +9,20 @@ import (
 	"os"
 	"testing"
 
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
-var mockTests = false
+var (
+	mockTests = false
+	// Please supply your own credentials here to do authenticated endpoint testing.
+	apiCredentials = &accounts.Credentials{
+		Key:      "",
+		Secret:   "",
+		ClientID: "", // customerID used to log in
+	}
+)
 
 func TestMain(m *testing.M) {
 	e = new(Exchange)

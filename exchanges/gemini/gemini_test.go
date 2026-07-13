@@ -12,7 +12,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -26,11 +25,6 @@ import (
 
 // Please enter sandbox API keys & assigned roles for better testing procedures
 const canManipulateRealOrders = false
-
-var apiCredentials = &accounts.Credentials{
-	Key:    "",
-	Secret: "",
-}
 
 const testCurrency = "btcusd"
 
