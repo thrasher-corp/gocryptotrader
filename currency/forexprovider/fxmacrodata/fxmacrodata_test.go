@@ -168,6 +168,28 @@ func TestGetLatestForexRateHTTPError(t *testing.T) {
 	assert.Zero(t, rate, "rate should be zero when the request fails")
 }
 
+func TestServiceStatusEndpoints(t *testing.T) {
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Empty(t, r.Header.Get("X-API-Key"), "public status requests should not include an API key")
+		switch r.URL.Path {
+		case "/api/v1/health", "/api/v1/ping":
+			_, _ = w.Write([]byte(`{"status":"ok","service":"fxmacrodata-api"}`))
+		default:
+			t.Errorf("unexpected path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	defer closeServer()
+
+	health, err := provider.Health()
+	require.NoError(t, err, "Health must not error")
+	assert.Equal(t, "ok", health.Status, "Health should decode the service status")
+
+	ping, err := provider.Ping()
+	require.NoError(t, err, "Ping must not error")
+	assert.Equal(t, "fxmacrodata-api", ping.Service, "Ping should decode the service name")
+}
+
 func TestReadEndpointHelpers(t *testing.T) {
 	seen := make([]string, 0)
 	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

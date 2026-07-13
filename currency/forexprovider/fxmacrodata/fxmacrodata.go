@@ -140,6 +140,18 @@ func (f *FXMacroData) GetLatestForexRate(baseCurrency, quoteCurrency string) (fl
 	return resp.Data[0].Val, nil
 }
 
+// Health returns the public FXMacroData service health status.
+func (f *FXMacroData) Health() (*ServiceStatusResponse, error) {
+	response := new(ServiceStatusResponse)
+	return response, f.sendPublic("health", response)
+}
+
+// Ping returns the public FXMacroData service liveness status.
+func (f *FXMacroData) Ping() (*ServiceStatusResponse, error) {
+	response := new(ServiceStatusResponse)
+	return response, f.sendPublic("ping", response)
+}
+
 // DataCatalogue returns the available FXMacroData indicators for a currency.
 func (f *FXMacroData) DataCatalogue(currency string) (map[string]any, error) {
 	return f.getMap("data_catalogue/"+strings.ToLower(currency), nil)
@@ -275,6 +287,21 @@ func (f *FXMacroData) send(endpoint string, values url.Values, body io.Reader, m
 	return f.Requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
 		return item, nil
 	}, request.AuthenticatedRequest)
+}
+
+func (f *FXMacroData) sendPublic(endpoint string, result any) error {
+	item := &request.Item{
+		Method: http.MethodGet,
+		Path:   strings.TrimRight(f.APIURL, "/") + "/" + strings.TrimLeft(endpoint, "/"),
+		Headers: map[string]string{
+			"Accept": "application/json",
+		},
+		Result:  result,
+		Verbose: f.Verbose,
+	}
+	return f.Requester.SendPayload(context.Background(), request.Unset, func() (*request.Item, error) {
+		return item, nil
+	}, request.UnauthenticatedRequest)
 }
 
 func splitSymbols(symbols string) []string {
