@@ -301,12 +301,12 @@ func TestSetupAllowsPublicRequestsWithoutAPIKey(t *testing.T) {
 	defer server.Close()
 
 	provider := new(FXMacroData)
-	require.NoError(t, provider.Setup(base.Settings{Name: "FXMacroData"}), "Setup should allow API-key-free public use")
+	require.NoError(t, provider.Setup(base.Settings{Name: "FXMacroData"}), "Setup must allow API-key-free public use")
 	provider.APIURL = server.URL + "/api/v1/"
 	require.NoError(t, provider.Requester.DisableRateLimiter(), "rate limiter must disable for local httptest provider")
 
 	_, err := provider.DataCatalogue("usd")
-	require.NoError(t, err, "public data catalogue request should not require an API key")
+	require.NoError(t, err, "public data catalogue request must not require an API key")
 }
 
 func TestSendHTTPRequestContextHonoursCancellation(t *testing.T) {
