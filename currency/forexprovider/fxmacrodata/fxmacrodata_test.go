@@ -1,6 +1,7 @@
 package fxmacrodata
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -12,7 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
-	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 )
 
 func newTestProvider(t *testing.T, handler http.Handler) (provider *FXMacroData, closeServer func()) {
@@ -56,7 +56,7 @@ func TestGetRates(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rates, err := provider.GetRates("USD", "AUD,EUR,XYZ,usd")
+	rates, err := provider.GetRates(" USD ", " AUD, EUR ,XYZ, usd ")
 	require.NoError(t, err, "GetRates must not error")
 	assert.Equal(t, 1.5, rates["USDAUD"], "USDAUD should match mocked latest rate")
 	assert.Equal(t, 0.9, rates["USDEUR"], "USDEUR should match mocked latest rate")
@@ -87,6 +87,18 @@ func TestGetRatesEmptyTarget(t *testing.T) {
 	rates, err := provider.GetRates("USD", "AUD,,EUR")
 	assert.ErrorIs(t, err, errEmptyCurrency, "GetRates should reject empty target currency segments")
 	assert.Nil(t, rates, "rates should be nil when target currencies include an empty segment")
+}
+
+func TestGetRatesRejectsNoEffectiveTarget(t *testing.T) {
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("a base-only request should not issue an HTTP request")
+		http.NotFound(w, r)
+	}))
+	defer closeServer()
+
+	rates, err := provider.GetRates("USD", " USD ")
+	assert.ErrorIs(t, err, errNoTargetCurrencies, "GetRates should reject target lists that only contain the base currency")
+	assert.Nil(t, rates, "rates should be nil when no target currencies remain")
 }
 
 func TestGetRatesDefaultsToSupportedTargets(t *testing.T) {
@@ -194,37 +206,37 @@ func TestReadEndpointHelpers(t *testing.T) {
 	seen := make([]string, 0)
 	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		seen = append(seen, r.URL.Path)
-		_ = json.NewEncoder(w).Encode(map[string]any{"ok": true})
+		_, _ = w.Write([]byte(`{"data":[]}`))
 	}))
 	defer closeServer()
 
 	values := url.Values{"limit": []string{"1"}}
 	helpers := []struct {
 		name string
-		fn   func() (map[string]any, error)
+		fn   func() error
 	}{
-		{"DataCatalogue", func() (map[string]any, error) { return provider.DataCatalogue("usd") }},
-		{"Announcements", func() (map[string]any, error) { return provider.Announcements("usd", "cpi", values) }},
-		{"LatestAnnouncements", func() (map[string]any, error) { return provider.LatestAnnouncements("usd", values) }},
-		{"AnnouncementChanges", func() (map[string]any, error) { return provider.AnnouncementChanges(values) }},
-		{"Calendar", func() (map[string]any, error) { return provider.Calendar("usd", values) }},
-		{"Predictions", func() (map[string]any, error) { return provider.Predictions("usd", "cpi", values) }},
-		{"COT", func() (map[string]any, error) { return provider.COT("jpy", values) }},
-		{"Commodity", func() (map[string]any, error) { return provider.Commodity("brent", values) }},
-		{"CommoditiesLatest", func() (map[string]any, error) { return provider.CommoditiesLatest(values) }},
-		{"Curves", func() (map[string]any, error) { return provider.Curves("usd", values) }},
-		{"CurveProxies", func() (map[string]any, error) { return provider.CurveProxies("usd", values) }},
-		{"ForwardCurves", func() (map[string]any, error) { return provider.ForwardCurves("usd", values) }},
-		{"RateDifferentials", func() (map[string]any, error) { return provider.RateDifferentials("eur", "usd", values) }},
-		{"ForwardDifferentials", func() (map[string]any, error) { return provider.ForwardDifferentials("eur", "usd", values) }},
-		{"MarketSessions", func() (map[string]any, error) { return provider.MarketSessions(values) }},
-		{"RiskSentiment", func() (map[string]any, error) { return provider.RiskSentiment(values) }},
-		{"News", func() (map[string]any, error) { return provider.News("usd", values) }},
-		{"PressReleases", func() (map[string]any, error) { return provider.PressReleases("usd", values) }},
+		{"DataCatalogue", func() error { _, err := provider.DataCatalogue("usd"); return err }},
+		{"Announcements", func() error { _, err := provider.Announcements("usd", "cpi", values); return err }},
+		{"LatestAnnouncements", func() error { _, err := provider.LatestAnnouncements("usd", values); return err }},
+		{"AnnouncementChanges", func() error { _, err := provider.AnnouncementChanges(values); return err }},
+		{"Calendar", func() error { _, err := provider.Calendar("usd", values); return err }},
+		{"Predictions", func() error { _, err := provider.Predictions("usd", "cpi", values); return err }},
+		{"COT", func() error { _, err := provider.COT("jpy", values); return err }},
+		{"Commodity", func() error { _, err := provider.Commodity("brent", values); return err }},
+		{"CommoditiesLatest", func() error { _, err := provider.CommoditiesLatest(values); return err }},
+		{"Curves", func() error { _, err := provider.Curves("usd", values); return err }},
+		{"CurveProxies", func() error { _, err := provider.CurveProxies("usd", values); return err }},
+		{"ForwardCurves", func() error { _, err := provider.ForwardCurves("usd", values); return err }},
+		{"RateDifferentials", func() error { _, err := provider.RateDifferentials("eur", "usd", values); return err }},
+		{"ForwardDifferentials", func() error { _, err := provider.ForwardDifferentials("eur", "usd", values); return err }},
+		{"MarketSessions", func() error { _, err := provider.MarketSessions(values); return err }},
+		{"RiskSentiment", func() error { _, err := provider.RiskSentiment(values); return err }},
+		{"News", func() error { _, err := provider.News("usd", values); return err }},
+		{"PressReleases", func() error { _, err := provider.PressReleases("usd", values); return err }},
 	}
 	for _, tc := range helpers {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := tc.fn()
+			err := tc.fn()
 			require.NoErrorf(t, err, "%s must not error", tc.name)
 		})
 	}
@@ -280,11 +292,32 @@ func TestGraphQL(t *testing.T) {
 	assert.True(t, result["ok"], "GraphQL should decode response")
 }
 
-func TestSetupRequiresAPIKey(t *testing.T) {
-	var provider FXMacroData
-	err := provider.Setup(base.Settings{Name: "FXMacroData"})
-	assert.ErrorIs(t, err, errAPIKeyNotSet, "Setup should require API key")
+func TestSetupAllowsPublicRequestsWithoutAPIKey(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Empty(t, r.Header.Get("X-API-Key"), "public requests should not include an API key")
+		assert.Equal(t, "/api/v1/data_catalogue/usd", r.URL.Path, "public request should use the requested endpoint")
+		_, _ = w.Write([]byte(`{"data":[]}`))
+	}))
+	defer server.Close()
 
-	err = provider.SendHTTPRequest("data_catalogue/usd", nil, &map[string]any{})
-	assert.ErrorIs(t, err, errAPIKeyNotSet, "SendHTTPRequest should require API key")
+	provider := new(FXMacroData)
+	require.NoError(t, provider.Setup(base.Settings{Name: "FXMacroData"}), "Setup should allow API-key-free public use")
+	provider.APIURL = server.URL + "/api/v1/"
+	require.NoError(t, provider.Requester.DisableRateLimiter(), "rate limiter must disable for local httptest provider")
+
+	_, err := provider.DataCatalogue("usd")
+	require.NoError(t, err, "public data catalogue request should not require an API key")
+}
+
+func TestSendHTTPRequestContextHonoursCancellation(t *testing.T) {
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("a cancelled context should not issue an HTTP request")
+		http.NotFound(w, r)
+	}))
+	defer closeServer()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err := provider.SendHTTPRequestContext(ctx, "data_catalogue/usd", nil, new(DataCatalogueResponse))
+	assert.ErrorIs(t, err, context.Canceled, "SendHTTPRequestContext should return the caller cancellation")
 }
