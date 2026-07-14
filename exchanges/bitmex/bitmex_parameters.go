@@ -109,7 +109,7 @@ func (p *APIKeyParams) ToURLVals(path string) (string, error) {
 	return common.EncodeURLValues(path, values), nil
 }
 
-// IsNil checks to see if any values has been set for the parameter
+// IsNil checks to see if any values have been set for the parameter
 func (p *APIKeyParams) IsNil() bool {
 	return (APIKeyParams{}) == *p
 }

@@ -28,12 +28,9 @@ type TickerResponse struct {
 
 // MarketDepthResponse stores arrays for asks, bids and a timestamp for a currency pair
 type MarketDepthResponse struct {
-	ErrCapture
-	Data struct {
-		Asks      orderbook.LevelsArrayPriceAmount `json:"asks"`
-		Bids      orderbook.LevelsArrayPriceAmount `json:"bids"`
-		Timestamp types.Time                       `json:"timestamp"`
-	} `json:"data"`
+	Asks      orderbook.LevelsArrayPriceAmount `json:"asks"`
+	Bids      orderbook.LevelsArrayPriceAmount `json:"bids"`
+	Timestamp types.Time                       `json:"timestamp"`
 }
 
 // TradeResponse stores date_ms, amount, price, type, tid for a currency pair
@@ -243,9 +240,12 @@ type GetAllOpenIDResp struct {
 	OrderID      string
 }
 
-// TimestampResponse holds timestamp data
-type TimestampResponse struct {
-	Timestamp types.Time `json:"data"`
+// V2Response wraps all LBank v2 API responses
+type V2Response struct {
+	Result    string          `json:"result"`
+	Msg       string          `json:"msg"`
+	Data      json.RawMessage `json:"data"`
+	ErrorCode int64           `json:"error_code"`
 }
 
 var errorCodes = map[int64]string{
