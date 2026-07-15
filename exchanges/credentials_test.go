@@ -326,8 +326,27 @@ func TestSetCredentials(t *testing.T) {
 	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
 	b.API.AuthenticatedSupport = true
 	b.SetCredentials(&accounts.Credentials{Key: "RocketMan", Secret: "aGVsbG8gd29ybGQ=", ClientID: "007"})
-	require.True(t, b.API.AuthenticatedSupport)
-	require.Equal(t, "hello world", b.API.credentials.Secret)
+	require.True(t, b.API.AuthenticatedSupport, "authenticated support must remain enabled")
+	require.Equal(t, "hello world", b.API.credentials.Secret, "secret must be decoded")
+
+	// Unchanged decoded secret
+	creds := b.GetDefaultCredentials()
+	b.SetCredentials(creds)
+	require.True(t, b.API.AuthenticatedSupport, "authenticated support must remain enabled")
+	require.Equal(t, "hello world", b.API.credentials.Secret, "secret must not be decoded again")
+
+	// Rotated secret with stale derived state
+	creds.Secret = "Z29vZGJ5ZSB3b3JsZA=="
+	b.SetCredentials(creds)
+	require.Equal(t, "goodbye world", b.API.credentials.Secret, "rotated secret must be decoded")
+	require.True(t, b.API.credentials.SecretBase64Decoded, "rotated secret must be marked as decoded")
+
+	// Invalid rotated secret with stale derived state
+	creds = b.GetDefaultCredentials()
+	creds.Secret = "%%"
+	b.SetCredentials(creds)
+	require.False(t, b.API.credentials.SecretBase64Decoded, "invalid secret must not be marked as decoded")
+	require.ErrorIs(t, b.VerifyAPICredentials(b.GetDefaultCredentials()), errBase64DecodeFailure, "invalid secret must fail verification")
 }
 
 func TestGetDefaultCredentials(t *testing.T) {

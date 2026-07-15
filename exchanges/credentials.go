@@ -155,16 +155,16 @@ func (b *Base) SetCredentials(creds *accounts.Credentials) {
 		b.API.credentials = accounts.Credentials{}
 		return
 	}
+	secretAlreadyDecoded := b.API.credentials.SecretBase64Decoded && creds.SecretBase64Decoded && b.API.credentials.Secret == creds.Secret
 	b.API.credentials = *creds
 
-	if b.API.CredentialsValidator.RequiresBase64DecodeSecret && !b.API.credentials.SecretBase64Decoded {
+	if b.API.CredentialsValidator.RequiresBase64DecodeSecret && !secretAlreadyDecoded {
+		b.API.credentials.SecretBase64Decoded = false
 		result, err := base64.StdEncoding.DecodeString(b.API.credentials.Secret)
 		if err != nil {
 			b.API.AuthenticatedSupport = false
 			b.API.AuthenticatedWebsocketSupport = false
-			log.Warnf(log.ExchangeSys,
-				warningBase64DecryptSecretKeyFailed,
-				b.Name)
+			log.Warnf(log.ExchangeSys, warningBase64DecryptSecretKeyFailed, b.Name)
 			return
 		}
 		b.API.credentials.Secret = string(result)
