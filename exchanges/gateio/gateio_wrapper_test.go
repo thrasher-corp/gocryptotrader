@@ -191,12 +191,12 @@ func TestFetchTradablePairsUsesMarginProductSources(t *testing.T) {
 
 	marginPairs, err := ex.FetchTradablePairs(t.Context(), asset.Margin)
 	require.NoError(t, err, "FetchTradablePairs must not error for margin")
-	require.Len(t, marginPairs, 1, "margin should return one active isolated pair")
+	require.Len(t, marginPairs, 1, "margin must return one active isolated pair")
 	assert.True(t, marginPairs[0].Equal(currency.NewPair(currency.ETH, currency.USDT)), "margin should use the isolated-margin pair endpoint")
 
 	crossPairs, err := ex.FetchTradablePairs(t.Context(), asset.CrossMargin)
 	require.NoError(t, err, "FetchTradablePairs must not error for cross margin")
-	require.Len(t, crossPairs, 1, "cross margin should return one enabled tradable pair")
+	require.Len(t, crossPairs, 1, "cross margin must return one enabled tradable pair")
 	assert.True(t, crossPairs[0].Equal(currency.NewBTCUSDT()), "cross margin should use enabled currencies and tradable spot pairs")
 }
 
