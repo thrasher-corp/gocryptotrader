@@ -59,11 +59,11 @@ type MinMaxLevel struct {
 	AveragePriceMinutes     int64
 	MinimumBaseAmount       float64
 	MaximumBaseAmount       float64
-	MinimumQuoteAmount      float64
+	MinimumQuoteAmount      float64 // used if exchange says "Minimum order must be ≥ 1 USDT in quote regardless of amount × price rule"
 	MaximumQuoteAmount      float64
 	AmountStepIncrementSize float64
 	QuoteStepIncrementSize  float64
-	MinNotional             float64
+	MinNotional             float64 // Used if exchange says "Order must satisfy price x amount >= MinNotional"
 	MaxIcebergParts         int64
 	MarketMinQty            float64
 	MarketMaxQty            float64

@@ -136,7 +136,7 @@ func (e *Exchange) KeepAuthKeyAlive(ctx context.Context) {
 	defer e.Websocket.Wg.Done()
 	for {
 		select {
-		case <-e.Websocket.ShutdownC:
+		case <-e.Websocket.ShutdownSignal():
 			return
 		case <-time.After(time.Minute * 30):
 			if err := e.MaintainWsAuthStreamKey(ctx); err != nil {
@@ -665,7 +665,7 @@ func (e *Exchange) SynchroniseWebsocketOrderbook(ctx context.Context) {
 	e.Websocket.Wg.Go(func() {
 		for {
 			select {
-			case <-e.Websocket.ShutdownC:
+			case <-e.Websocket.ShutdownSignal():
 				for {
 					select {
 					case <-e.obm.jobs:
