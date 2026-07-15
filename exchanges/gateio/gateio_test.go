@@ -709,10 +709,10 @@ func TestGetMaxBorrowableAmountForSpecificMarginCurrency(t *testing.T) {
 
 func TestCurrencySupportedByCrossMargin(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.CurrencySupportedByCrossMargin(t.Context()); err != nil {
-		t.Errorf("%s CurrencySupportedByCrossMargin() error %v", e.Name, err)
-	}
+	got, err := e.CurrencySupportedByCrossMargin(t.Context())
+	require.NoError(t, err)
+	require.NotEmpty(t, got)
+	fmt.Printf("Cross margin supported currencies: %+v\n", got)
 }
 
 func TestGetCrossMarginSupportedCurrencyDetail(t *testing.T) {

@@ -1664,15 +1664,16 @@ type MaxTransferAndLoanAmount struct {
 
 // CrossMarginCurrencies represents a currency supported by cross margin
 type CrossMarginCurrencies struct {
-	Name                 string       `json:"name"`
-	Rate                 types.Number `json:"rate"`
-	CurrencyPrecision    types.Number `json:"prec"`
-	Discount             string       `json:"discount"`
-	MinBorrowAmount      types.Number `json:"min_borrow_amount"`
-	UserMaxBorrowAmount  types.Number `json:"user_max_borrow_amount"`
-	TotalMaxBorrowAmount types.Number `json:"total_max_borrow_amount"`
-	Price                types.Number `json:"price"` // Price change between this currency and USDT
-	Status               int64        `json:"status"`
+	Name                 currency.Code `json:"name"`
+	Rate                 types.Number  `json:"rate"`
+	CurrencyPrecision    types.Number  `json:"prec"`
+	Discount             types.Number  `json:"discount"`
+	MinBorrowAmount      types.Number  `json:"min_borrow_amount"`
+	UserMaxBorrowAmount  types.Number  `json:"user_max_borrow_amount"`
+	TotalMaxBorrowAmount types.Number  `json:"total_max_borrow_amount"`
+	Price                types.Number  `json:"price"` // Price change between this currency and USDT
+	Loanable             bool          `json:"loanable"`
+	Status               int64         `json:"status"`
 }
 
 // CrossMarginCurrencyBalance represents the currency detailed balance information for cross margin
