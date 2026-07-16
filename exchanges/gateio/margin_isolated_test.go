@@ -19,7 +19,7 @@ func TestTransferCollateralToIsolatedMargin(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err = e.TransferCollateralToIsolatedMargin(t.Context(), BTCUSDT, currency.USDT, 10)
+	_, err = e.TransferCollateralToIsolatedMargin(t.Context(), BTCUSDT, currency.USDT, -10)
 	require.NoError(t, err, "TransferCollateralToIsolatedMargin must not error")
 }
 
@@ -29,7 +29,7 @@ func TestTransferCollateralFromIsolatedMargin(t *testing.T) {
 	require.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err = e.TransferCollateralFromIsolatedMargin(t.Context(), BTCUSDT, currency.USDT, 1)
+	_, err = e.TransferCollateralFromIsolatedMargin(t.Context(), BTCUSDT, currency.USDT, -1)
 	require.NoError(t, err, "TransferCollateralFromIsolatedMargin must not error")
 }
 

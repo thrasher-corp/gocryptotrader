@@ -79,11 +79,13 @@ type MaxBorrowableAmount struct {
 
 // AccountBalanceInformation represents currency account balance information.
 type AccountBalanceInformation struct {
-	Available    types.Number  `json:"available"`
-	Borrowed     types.Number  `json:"borrowed"`
+	Available types.Number `json:"available"` // Includes borrowed funds while positive; interest deductions can make this negative.
+	Borrowed  types.Number `json:"borrowed"`  // Outstanding borrowed principal, excluding accrued interest.
+	// Interest is present in the response schema but is not populated for isolated margin accounts.
+	// Gate.io instead applies interest deductions to Available.
 	Interest     types.Number  `json:"interest"`
 	Currency     currency.Code `json:"currency"`
-	LockedAmount types.Number  `json:"locked"`
+	LockedAmount types.Number  `json:"locked"` // Funds reserved by active orders.
 }
 
 // MarginAccountItem margin account item.

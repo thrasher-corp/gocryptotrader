@@ -288,6 +288,9 @@ func (e *Exchange) SetUserMarketLeverageMultiplier(ctx context.Context, market c
 
 // GetIsolatedMarginAccountList retrieves user's isolated margin account list.
 // Supports querying both risk-based and margin-based isolated margin accounts.
+// Gate.io reports outstanding principal in Borrowed, but applies isolated-margin interest deductions to Available
+// instead of populating Interest. Available can therefore contain borrowed funds while positive or be negative after
+// an interest deduction.
 func (e *Exchange) GetIsolatedMarginAccountList(ctx context.Context, currencyPair currency.Pair) ([]MarginAccountItem, error) {
 	params := url.Values{}
 	if currencyPair.IsPopulated() {

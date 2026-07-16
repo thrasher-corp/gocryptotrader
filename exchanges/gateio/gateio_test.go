@@ -149,11 +149,13 @@ func TestSetIsolatedMarginAccountBalances(t *testing.T) {
 				Currency:     currency.BTC,
 				Available:    types.Number(1),
 				LockedAmount: types.Number(0.2),
+				Borrowed:     types.Number(0.25),
 			},
 			Quote: AccountBalanceInformation{
 				Currency:     currency.USDT,
 				Available:    types.Number(10),
 				LockedAmount: types.Number(2),
+				Borrowed:     types.Number(2),
 			},
 		},
 		{
@@ -161,6 +163,7 @@ func TestSetIsolatedMarginAccountBalances(t *testing.T) {
 				Currency:     currency.BTC,
 				Available:    types.Number(3),
 				LockedAmount: types.Number(0.4),
+				Borrowed:     types.Number(0.5),
 			},
 			Quote: AccountBalanceInformation{
 				Currency:     currency.ETH,
@@ -173,6 +176,7 @@ func TestSetIsolatedMarginAccountBalances(t *testing.T) {
 				Currency:     currency.ETH,
 				Available:    types.Number(7),
 				LockedAmount: types.Number(0.8),
+				Borrowed:     types.Number(1),
 			},
 			Quote: AccountBalanceInformation{
 				Currency:     currency.USDT,
@@ -187,16 +191,39 @@ func TestSetIsolatedMarginAccountBalances(t *testing.T) {
 	assert.InDelta(t, 4.6, btc.Total, 0.00000001, "BTC total should include all isolated margin markets")
 	assert.InDelta(t, 0.6, btc.Hold, 0.00000001, "BTC hold should include all isolated margin markets")
 	assert.InDelta(t, 4, btc.Free, 0.00000001, "BTC free should include all isolated margin markets")
+	assert.InDelta(t, 0.75, btc.Borrowed, 0.00000001, "BTC borrowed should include principal from all isolated margin markets")
+	assert.InDelta(t, 3.25, btc.AvailableWithoutBorrow, 0.00000001, "BTC available without borrow should subtract borrowed principal")
 
 	usdt := balances[currency.USDT]
 	assert.InDelta(t, 36, usdt.Total, 0.00000001, "USDT total should include all isolated margin markets")
 	assert.InDelta(t, 6, usdt.Hold, 0.00000001, "USDT hold should include all isolated margin markets")
 	assert.InDelta(t, 30, usdt.Free, 0.00000001, "USDT free should include all isolated margin markets")
+	assert.InDelta(t, 2, usdt.Borrowed, 0.00000001, "USDT borrowed should include principal from all isolated margin markets")
+	assert.InDelta(t, 28, usdt.AvailableWithoutBorrow, 0.00000001, "USDT available without borrow should subtract borrowed principal")
 
 	eth := balances[currency.ETH]
 	assert.InDelta(t, 13.4, eth.Total, 0.00000001, "ETH total should include base and quote isolated margin entries")
 	assert.InDelta(t, 1.4, eth.Hold, 0.00000001, "ETH hold should include base and quote isolated margin entries")
 	assert.InDelta(t, 12, eth.Free, 0.00000001, "ETH free should include base and quote isolated margin entries")
+	assert.InDelta(t, 1, eth.Borrowed, 0.00000001, "ETH borrowed should include principal from all isolated margin markets")
+	assert.InDelta(t, 11, eth.AvailableWithoutBorrow, 0.00000001, "ETH available without borrow should subtract borrowed principal")
+}
+
+func TestAddIsolatedMarginAccountBalanceWithNegativeAvailable(t *testing.T) {
+	t.Parallel()
+	balances := accounts.CurrencyBalances{}
+	err := addIsolatedMarginAccountBalance(&balances, AccountBalanceInformation{
+		Currency:  currency.LRC,
+		Available: types.Number(-0.01462404),
+		Borrowed:  types.Number(4.85),
+	})
+	require.NoError(t, err, "addIsolatedMarginAccountBalance must add a valid isolated margin balance")
+
+	lrc := balances[currency.LRC]
+	assert.InDelta(t, -0.01462404, lrc.Total, 0.00000001, "total should preserve the exchange-reported negative available balance")
+	assert.InDelta(t, -0.01462404, lrc.Free, 0.00000001, "free should preserve the exchange-reported negative available balance")
+	assert.InDelta(t, 4.85, lrc.Borrowed, 0.00000001, "borrowed should include the outstanding principal")
+	assert.InDelta(t, -4.86462404, lrc.AvailableWithoutBorrow, 0.00000001, "available without borrow should account for the outstanding principal")
 }
 
 func TestWithdraw(t *testing.T) {

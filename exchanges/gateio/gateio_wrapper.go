@@ -802,12 +802,16 @@ func setIsolatedMarginAccountBalances(balances *accounts.CurrencyBalances, respo
 }
 
 func addIsolatedMarginAccountBalance(balances *accounts.CurrencyBalances, balance AccountBalanceInformation) error {
+	// Interest is already reflected in available, so only principal is removed from available without borrow.
+	borrowed := balance.Borrowed.Float64()
 	available := balance.Available.Float64()
 	locked := balance.LockedAmount.Float64()
 	return balances.Add(balance.Currency, accounts.Balance{
-		Total: available + locked,
-		Hold:  locked,
-		Free:  available,
+		Total:                  available + locked,
+		Hold:                   locked,
+		Free:                   available,
+		AvailableWithoutBorrow: available - borrowed,
+		Borrowed:               borrowed,
 	})
 }
 
