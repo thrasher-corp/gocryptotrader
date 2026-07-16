@@ -281,11 +281,6 @@ func (f fExchange) GetMarginRatesHistory(context.Context, *margin.RateHistoryReq
 			Time:             time.Now(),
 			MarketBorrowSize: leet,
 			HourlyRate:       leet,
-			HourlyBorrowRate: leet,
-			LendingPayment: margin.LendingPayment{
-				Payment: leet,
-				Size:    leet,
-			},
 			BorrowCost: margin.BorrowCost{
 				Cost: leet,
 				Size: leet,
@@ -293,13 +288,11 @@ func (f fExchange) GetMarginRatesHistory(context.Context, *margin.RateHistoryReq
 		},
 	}
 	resp := &margin.RateHistoryResponse{
-		Rates:              rates,
-		SumBorrowCosts:     leet,
-		AverageBorrowSize:  leet,
-		SumLendingPayments: leet,
-		AverageLendingSize: leet,
-		PredictedRate:      rates[0],
-		TakerFeeRate:       leet,
+		Rates:             rates,
+		SumBorrowCosts:    leet,
+		AverageBorrowSize: leet,
+		PredictedRate:     rates[0],
+		TakerFeeRate:      leet,
 	}
 
 	return resp, nil
@@ -2603,38 +2596,21 @@ func TestGetMarginRatesHistory(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyNotFound)
 
 	request.Currency = "usd"
-	_, err = s.GetMarginRatesHistory(t.Context(), request)
-	assert.NoError(t, err)
-
-	request.GetBorrowRates = true
-	request.GetLendingPayments = true
-	request.GetBorrowCosts = true
-	request.GetPredictedRate = true
-	request.IncludeAllRates = true
 	resp, err := s.GetMarginRatesHistory(t.Context(), request)
 	assert.NoError(t, err)
+	assert.Empty(t, resp.SumLendingPayments)
+	assert.Empty(t, resp.AvgLendingSize)
+	assert.Empty(t, resp.TakerFeeRate)
 
-	if len(resp.Rates) == 0 {
-		t.Errorf("received '%v' expected '%v'", len(resp.Rates), 1)
-	}
-	if resp.PredictedRate == nil {
-		t.Errorf("received '%v' expected '%v'", nil, "not nil")
-	}
-	if resp.TakerFeeRate != "1337" {
-		t.Errorf("received '%v' expected '%v'", resp.TakerFeeRate, "1337")
-	}
-	if resp.SumLendingPayments != "1337" {
-		t.Errorf("received '%v' expected '%v'", resp.SumLendingPayments, "1337")
-	}
-	if resp.AvgBorrowSize != "1337" {
-		t.Errorf("received '%v' expected '%v'", resp.AvgBorrowSize, "1337")
-	}
-	if resp.AvgLendingSize != "1337" {
-		t.Errorf("received '%v' expected '%v'", resp.AvgLendingSize, "1337")
-	}
-	if resp.SumBorrowCosts != "1337" {
-		t.Errorf("received '%v' expected '%v'", resp.SumBorrowCosts, "1337")
-	}
+	request.GetBorrowCosts = true
+	request.IncludeAllRates = true
+	resp, err = s.GetMarginRatesHistory(t.Context(), request)
+	assert.NoError(t, err)
+
+	assert.NotEmpty(t, resp.Rates)
+	assert.NotNil(t, resp.PredictedRate)
+	assert.Equal(t, "1337", resp.AvgBorrowSize)
+	assert.Equal(t, "1337", resp.SumBorrowCosts)
 
 	request.CalculateOffline = true
 	_, err = s.GetMarginRatesHistory(t.Context(), request)
