@@ -244,7 +244,7 @@ func (e *Exchange) GetAggregateTrades(ctx context.Context, agg *AggregatedTradeR
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpotSupplementary, path, spotDefaultRate, &resp)
 }
 
-// batchAggregateTrades fetches trades in multiple requests   <-- copied and amended from the  binance
+// batchAggregateTrades fetches trades in multiple requests <-- copied and amended from Binance
 // first phase, hourly requests until the first trade (or end time) is reached
 // second phase, limit requests from previous trade until end time (or limit) is reached
 func (e *Exchange) batchAggregateTrades(ctx context.Context, args *AggregatedTradeRequestParams, params url.Values) ([]AggregatedTrade, error) {
@@ -507,7 +507,7 @@ func (e *Exchange) GetAccount(ctx context.Context) (*Account, error) {
 	return &resp.Account, nil
 }
 
-// GetUserAccountStatus  to fetch account status detail.
+// GetUserAccountStatus fetches account status details.
 func (e *Exchange) GetUserAccountStatus(ctx context.Context, recvWindow uint64) (*AccountStatusResponse, error) {
 	var resp AccountStatusResponse
 	params := url.Values{}

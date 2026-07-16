@@ -180,7 +180,7 @@ type HistoricalVolatilityData struct {
 	Value     types.Number
 }
 
-// UnmarshalJSON  parses volatility data from a JSON array into HistoricalVolatilityData fields.
+// UnmarshalJSON parses volatility data from a JSON array into HistoricalVolatilityData fields.
 func (h *HistoricalVolatilityData) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &[2]any{&h.Timestamp, &h.Value})
 }

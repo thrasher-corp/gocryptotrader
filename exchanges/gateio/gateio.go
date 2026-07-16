@@ -1603,7 +1603,7 @@ func (e *Exchange) ModifyALoanRecord(ctx context.Context, loanRecordID string, a
 // CurrencySupportedByCrossMargin currencies supported by cross margin.
 func (e *Exchange) CurrencySupportedByCrossMargin(ctx context.Context) ([]CrossMarginCurrencies, error) {
 	var response []CrossMarginCurrencies
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginSupportedCurrencyCrossListEPL, http.MethodGet, gateioCrossMarginCurrencies, nil, nil, &response)
+	return response, e.SendHTTPRequest(ctx, exchange.RestSpot, marginSupportedCurrencyCrossListEPL, gateioCrossMarginCurrencies, &response)
 }
 
 // GetCrossMarginSupportedCurrencyDetail retrieve detail of one single currency supported by cross margin

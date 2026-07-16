@@ -332,7 +332,7 @@ var packageRateLimits = request.RateLimitDefinitions{
 	marginMarketLoanMarginTiersEPL:      otherPrivateEndpointRateLimit(),
 	marginSetUserMarketLeverageEPL:      otherPrivateEndpointRateLimit(),
 	marginUserAccountListEPL:            otherPrivateEndpointRateLimit(),
-	marginSupportedCurrencyCrossListEPL: otherPrivateEndpointRateLimit(),
+	marginSupportedCurrencyCrossListEPL: standardRateLimit(),
 	marginSupportedCurrencyCrossEPL:     otherPrivateEndpointRateLimit(),
 	marginAccountsEPL:                   otherPrivateEndpointRateLimit(),
 	marginAccountHistoryEPL:             otherPrivateEndpointRateLimit(),

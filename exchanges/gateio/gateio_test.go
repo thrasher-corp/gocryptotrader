@@ -22,6 +22,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -707,10 +708,10 @@ func TestQueryInterestDeductionRecords(t *testing.T) {
 
 func TestCurrencySupportedByCrossMargin(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	if _, err := e.CurrencySupportedByCrossMargin(t.Context()); err != nil {
-		t.Errorf("%s CurrencySupportedByCrossMargin() error %v", e.Name, err)
-	}
+	got, err := e.CurrencySupportedByCrossMargin(t.Context())
+	require.NoError(t, err)
+	require.NotEmpty(t, got)
+	fmt.Printf("Cross margin supported currencies: %+v\n", got)
 }
 
 func TestGetCrossMarginSupportedCurrencyDetail(t *testing.T) {
@@ -2905,6 +2906,10 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 				case asset.Margin, asset.CrossMargin:
 					assert.Positivef(t, l.MinimumQuoteAmount, "MinimumQuoteAmount should be positive for %s", p)
 					assert.Positivef(t, l.MinimumBaseAmount, "MinimumBaseAmount should be positive for %s", p)
+					assert.Positivef(t, l.PriceStepIncrementSize, "PriceStepIncrementSize should be positive for %s", p)
+					invalidPrice := l.PriceStepIncrementSize / 2
+					err = l.Validate(invalidPrice, l.MinimumBaseAmount, order.Limit)
+					assert.ErrorIsf(t, err, limits.ErrPriceExceedsStep, "Validate should reject an invalid price tick for %s", p)
 					if l.QuoteStepIncrementSize != 0 {
 						assert.Positivef(t, l.QuoteStepIncrementSize, "QuoteStepIncrementSize should be positive for %s when set", p)
 					}
