@@ -174,13 +174,13 @@ var Exchanges = []string{
 #### Setup and run the [documentation tool](../cmd/documentation)
 
 - Create a new file named *exchangename*.tmpl
-- Copy contents of a template from another exchange, with Coinut used here as an example
+- Copy contents of a template from another exchange, with Okx used here as an example
 - Replace names and variables as shown:
 
 ```go
-{{define "exchanges coinut" -}} // coinut -> binance
+{{define "exchanges okx" -}} // okx -> binance
 {{template "header" .}}
-## Coinut Exchange
+## Okx Exchange
 
 #### Current Features
 
@@ -188,11 +188,11 @@ var Exchanges = []string{
 ```
 
 ```go
-var c exchange.IBotExchange
+var o exchange.IBotExchange
 
 for i := range bot.Exchanges {
-  if bot.Exchanges[i].GetName() == "COINUT" { // COINUT -> Binance
-    c = bot.Exchanges[i]
+  if bot.Exchanges[i].GetName() == "Okx" { // Okx -> Binance
+    o = bot.Exchanges[i]
   }
 }
 
@@ -201,13 +201,13 @@ for i := range bot.Exchanges {
 pair := currency.NewBTCUSD()
 
 // Fetches current ticker information
-tick, err := c.GetCachedTicker(context.Background(), pair, asset.Spot)
+tick, err := o.GetCachedTicker(context.Background(), pair, asset.Spot)
 if err != nil {
   // Handle error
 }
 
 // Fetches current orderbook information
-ob, err := c.GetCachedOrderbook(context.Background(), pair, asset.Spot)
+ob, err := o.GetCachedOrderbook(context.Background(), pair, asset.Spot)
 if err != nil {
   // Handle error
 }
