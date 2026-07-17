@@ -3,6 +3,7 @@ package coinbase
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -26,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -259,6 +261,28 @@ func TestCancelOrders(t *testing.T) {
 	resp, err := e.CancelOrders(t.Context(), orderSlice)
 	require.NoError(t, err)
 	assert.NotEmpty(t, resp, errExpectedNonEmpty)
+}
+
+func TestClassifyOrderNotFound(t *testing.T) {
+	t.Parallel()
+	body := json.RawMessage(`{"error":"NOT_FOUND","message":"fixture"}`)
+	err := classifyOrderNotFound(parseResponseError(fmt.Errorf("%w raw response: %s", request.ErrBadStatus, body), body))
+	assert.ErrorIs(t, err, order.ErrOrderNotFound, "error should wrap order not found")
+	assert.ErrorIs(t, err, request.ErrBadStatus, "error should preserve the request failure")
+	assert.ErrorContains(t, err, string(body), "error should preserve the raw Coinbase response")
+
+	body = json.RawMessage(`{"error":"INVALID_ARGUMENT","message":"fixture"}`)
+	err = classifyOrderNotFound(parseResponseError(fmt.Errorf("%w raw response: %s", request.ErrBadStatus, body), body))
+	assert.NotErrorIs(t, err, order.ErrOrderNotFound, "invalid argument should not prove order absence")
+	assert.ErrorIs(t, err, request.ErrBadStatus, "error should preserve the request failure")
+	assert.ErrorContains(t, err, string(body), "error should preserve the raw Coinbase response")
+}
+
+func TestCancelOrderResultError(t *testing.T) {
+	t.Parallel()
+	assert.NoError(t, cancelOrderResultError(OrderCancelDetail{Success: true}, "order-id"))
+	assert.ErrorIs(t, cancelOrderResultError(OrderCancelDetail{FailureReason: unknownCancelOrderFailure}, "order-id"), order.ErrOrderNotFound)
+	assert.ErrorIs(t, cancelOrderResultError(OrderCancelDetail{FailureReason: "INVALID_CANCEL_REQUEST"}, "order-id"), errOrderFailedToCancel)
 }
 
 func TestClosePosition(t *testing.T) {
