@@ -712,7 +712,6 @@ func TestCurrencySupportedByCrossMargin(t *testing.T) {
 	got, err := e.CurrencySupportedByCrossMargin(t.Context())
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
-	fmt.Printf("Cross margin supported currencies: %+v\n", got)
 }
 
 func TestGetCrossMarginSupportedCurrencyDetail(t *testing.T) {
