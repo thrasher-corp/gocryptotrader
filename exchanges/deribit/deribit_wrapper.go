@@ -685,15 +685,18 @@ func (e *Exchange) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*orde
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *Exchange) CancelAllOrders(ctx context.Context, cancel *order.Cancel) (order.CancelAllResponse, error) {
+func (e *Exchange) CancelAllOrders(ctx context.Context, cancel *order.Cancel) (*order.CancelAllResponse, error) {
 	var resp order.CancelAllResponse
 	if err := cancel.Validate(); err != nil {
-		return resp, err
+		return nil, err
 	}
 
 	fPair, err := e.FormatExchangeCurrency(cancel.Pair, cancel.AssetType)
 	if err != nil {
-		return resp, err
+		if len(resp.Status) > 0 {
+			return &resp, err
+		}
+		return nil, err
 	}
 	var orderTypeStr string
 	switch cancel.Type {
@@ -704,7 +707,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancel *order.Cancel) (o
 	case order.AnyType, order.UnknownType:
 		orderTypeStr = "all"
 	default:
-		return resp, fmt.Errorf("%s %w: %v", e.Name, order.ErrTypeIsInvalid, cancel.Type)
+		return nil, fmt.Errorf("%s %w: %v", e.Name, order.ErrTypeIsInvalid, cancel.Type)
 	}
 
 	var cancelData *MultipleCancelResponse
@@ -714,14 +717,17 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, cancel *order.Cancel) (o
 		cancelData, err = e.SubmitCancelAllByInstrument(ctx, fPair.String(), orderTypeStr, true, true)
 	}
 	if err != nil {
-		return resp, err
+		if len(resp.Status) > 0 {
+			return &resp, err
+		}
+		return nil, err
 	}
 	for a := range cancelData.CancelDetails {
 		for b := range cancelData.CancelDetails[a].Result {
 			resp.Add(cancelData.CancelDetails[a].Result[b].OrderID, cancelData.CancelDetails[a].Result[b].OrderState)
 		}
 	}
-	return resp, nil
+	return &resp, nil
 }
 
 // GetOrderInfo returns order information based on order ID

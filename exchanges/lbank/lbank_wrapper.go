@@ -159,7 +159,7 @@ func (e *Exchange) UpdateTickers(ctx context.Context, a asset.Item) error {
 	if err != nil {
 		return err
 	}
-	pairs, err := e.GetEnabledPairs(a)
+	pairs, err := e.GetAvailablePairs(a)
 	if err != nil {
 		return err
 	}
@@ -255,7 +255,7 @@ func (e *Exchange) GetAccountFundingHistory(_ context.Context) ([]exchange.Fundi
 
 // GetWithdrawalsHistory returns previous withdrawals data
 func (e *Exchange) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a asset.Item) ([]exchange.WithdrawalHistory, error) {
-	if err := e.CurrencyPairs.IsAssetEnabled(a); err != nil {
+	if err := e.CurrencyPairs.IsAssetAvailable(a); err != nil {
 		return nil, err
 	}
 	withdrawalRecords, err := e.GetWithdrawalRecords(ctx, c.String(), 1, 0, 100)
@@ -403,64 +403,49 @@ func (e *Exchange) GetServerTime(ctx context.Context, _ asset.Item) (time.Time, 
 }
 
 // CancelAllOrders cancels all orders associated with a currency pair
-func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (order.CancelAllResponse, error) {
+func (e *Exchange) CancelAllOrders(ctx context.Context, o *order.Cancel) (*order.CancelAllResponse, error) {
 	if err := o.Validate(); err != nil {
-		return order.CancelAllResponse{}, err
+		return nil, err
 	}
-
-	var resp order.CancelAllResponse
-	orderIDs, err := e.getAllOpenOrderID(ctx)
+	if o.Pair.IsEmpty() {
+		return nil, order.ErrPairRequiredForCancelAllFanout
+	}
+	fPair, err := e.FormatExchangeCurrency(o.Pair, asset.Spot)
 	if err != nil {
-		return resp, err
+		return nil, err
+	}
+	var resp order.CancelAllResponse
+	orderIDs, err := e.getOpenOrderID(ctx, fPair)
+	if err != nil {
+		if len(resp.Status) > 0 {
+			return &resp, err
+		}
+		return nil, err
+	}
+	if len(orderIDs) == 0 {
+		return &resp, nil
 	}
 
-	for key := range orderIDs {
-		if key != o.Pair.String() {
-			continue
+	for _, batch := range common.Batch(orderIDs, 3) {
+		cancelResponse, err := e.RemoveOrder(ctx, fPair.String(), strings.Join(batch, ","))
+		if err != nil {
+			if len(resp.Status) > 0 {
+				return &resp, err
+			}
+			return nil, err
 		}
-		x, y := 0, 0
-		var input string
-		var tempSlice []string
-		for x <= len(orderIDs[key]) {
-			x++
-			for y != x {
-				tempSlice = append(tempSlice, orderIDs[key][y])
-				if y%3 == 0 {
-					input = strings.Join(tempSlice, ",")
-					CancelResponse, err2 := e.RemoveOrder(ctx, key, input)
-					if err2 != nil {
-						return resp, err2
-					}
-					tempStringSuccess := strings.Split(CancelResponse.Success, ",")
-					for k := range tempStringSuccess {
-						resp.Status[tempStringSuccess[k]] = "Cancelled"
-					}
-					tempStringError := strings.Split(CancelResponse.Err, ",")
-					for l := range tempStringError {
-						resp.Status[tempStringError[l]] = "Failed"
-					}
-					tempSlice = tempSlice[:0]
-					y++
-				}
-				y++
+		for success := range strings.SplitSeq(cancelResponse.Success, ",") {
+			if success != "" {
+				resp.Add(success, "Cancelled")
 			}
-			input = strings.Join(tempSlice, ",")
-			CancelResponse, err2 := e.RemoveOrder(ctx, key, input)
-			if err2 != nil {
-				return resp, err2
+		}
+		for failure := range strings.SplitSeq(cancelResponse.Err, ",") {
+			if failure != "" {
+				resp.Add(failure, "Failed")
 			}
-			tempStringSuccess := strings.Split(CancelResponse.Success, ",")
-			for k := range tempStringSuccess {
-				resp.Status[tempStringSuccess[k]] = "Cancelled"
-			}
-			tempStringError := strings.Split(CancelResponse.Err, ",")
-			for l := range tempStringError {
-				resp.Status[tempStringError[l]] = "Failed"
-			}
-			tempSlice = tempSlice[:0]
 		}
 	}
-	return resp, nil
+	return &resp, nil
 }
 
 // GetOrderInfo returns order information based on order ID
@@ -724,36 +709,32 @@ func (e *Exchange) getAllOpenOrderID(ctx context.Context) (map[string][]string, 
 		if err != nil {
 			return nil, err
 		}
-		b := int64(1)
-		tempResp, err := e.GetOpenOrders(ctx,
-			fPair.String(),
-			strconv.FormatInt(b, 10),
-			"200")
+		resp[fPair.String()], err = e.getOpenOrderID(ctx, fPair)
 		if err != nil {
 			return resp, err
 		}
-		tempData := len(tempResp.Orders)
-		for tempData != 0 {
-			tempResp, err = e.GetOpenOrders(ctx,
-				fPair.String(),
-				strconv.FormatInt(b, 10),
-				"200")
-			if err != nil {
-				return resp, err
-			}
-
-			if len(tempResp.Orders) == 0 {
-				return resp, nil
-			}
-
-			for c := range tempData {
-				resp[fPair.String()] = append(resp[fPair.String()], tempResp.Orders[c].OrderID)
-			}
-			tempData = len(tempResp.Orders)
-			b++
-		}
 	}
 	return resp, nil
+}
+
+func (e *Exchange) getOpenOrderID(ctx context.Context, fPair currency.Pair) ([]string, error) {
+	var resp []string
+	for page := int64(1); ; page++ {
+		tempResp, err := e.GetOpenOrders(ctx,
+			fPair.String(),
+			strconv.FormatInt(page, 10),
+			"200")
+		if err != nil {
+			return nil, err
+		}
+		if len(tempResp.Orders) == 0 {
+			return resp, nil
+		}
+
+		for i := range tempResp.Orders {
+			resp = append(resp, tempResp.Orders[i].OrderID)
+		}
+	}
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper functionality
@@ -887,7 +868,7 @@ func (e *Exchange) UpdateOrderExecutionLimits(_ context.Context, _ asset.Item) e
 
 // GetCurrencyTradeURL returns the URL to the exchange's trade page for the given asset and currency pair
 func (e *Exchange) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp currency.Pair) (string, error) {
-	_, err := e.CurrencyPairs.IsPairEnabled(cp, a)
+	_, err := e.CurrencyPairs.IsPairAvailable(cp, a)
 	if err != nil {
 		return "", err
 	}

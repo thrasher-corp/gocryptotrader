@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -1642,6 +1643,53 @@ func TestWsProcessCandleIntervalMapping(t *testing.T) {
 	default:
 		require.Fail(t, "expected websocket candle payload")
 	}
+}
+
+func TestWsProcessTickerCachesAliasTickers(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup instance must not error")
+	ex.Name += "-" + t.Name()
+
+	basePair := currency.NewPairWithDelimiter("BTC", "USD", "-")
+	enabledAlias := currency.NewPairWithDelimiter("XBT", "USD", "-")
+	disabledAlias := currency.NewPairWithDelimiter("ETH", "USD", "-")
+
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{enabledAlias, disabledAlias}, false), "StorePairs available must not error")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{enabledAlias}, true), "StorePairs enabled must not error")
+
+	ex.pairAliases.Load(map[currency.Pair]currency.Pairs{
+		basePair: {enabledAlias, disabledAlias},
+	})
+
+	resp := &StandardWebsocketResponse{
+		Channel:   subscription.TickerChannel,
+		Timestamp: time.Unix(1704067200, 0),
+		Events: json.RawMessage(`[
+			{
+				"type":"snapshot",
+				"tickers":[
+					{"product_id":"BTC-USD","price":"123.45"}
+				]
+			}
+		]`),
+	}
+	require.NoError(t, ex.wsProcessTicker(t.Context(), resp), "wsProcessTicker must not error")
+
+	require.Len(t, ex.Websocket.DataHandler.C, 1, "websocket data handler must receive one ticker batch")
+	payload := <-ex.Websocket.DataHandler.C
+	batch, ok := payload.Data.([]ticker.Price)
+	require.True(t, ok, "expected []ticker.Price payload")
+	require.Len(t, batch, 1, "wsProcessTicker must only emit enabled alias pairs")
+	assert.True(t, batch[0].Pair.Equal(enabledAlias), "wsProcessTicker should emit ticker data for enabled alias pairs")
+
+	got, err := ticker.GetTicker(ex.Name, enabledAlias, asset.Spot)
+	require.NoError(t, err, "GetTicker must return cached enabled alias ticker")
+	assert.InDelta(t, 123.45, got.Last, 0.000001, "cached ticker should match websocket payload")
+
+	_, err = ticker.GetTicker(ex.Name, disabledAlias, asset.Spot)
+	assert.ErrorIs(t, err, ticker.ErrTickerNotFound, "GetTicker should not return disabled alias ticker data")
 }
 
 func TestProcessSnapshotUpdate(t *testing.T) {
