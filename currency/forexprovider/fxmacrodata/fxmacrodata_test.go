@@ -164,7 +164,7 @@ func TestGetLatestForexRateEmptyData(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rate, err := provider.GetLatestForexRate("USD", "AUD")
+	rate, err := provider.GetLatestForexRate(context.Background(), "USD", "AUD")
 	assert.ErrorContains(t, err, "no FXMacroData rate returned", "GetLatestForexRate should reject empty data")
 	assert.Zero(t, rate, "rate should be zero when no data is returned")
 }
@@ -175,7 +175,7 @@ func TestGetLatestForexRateHTTPError(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rate, err := provider.GetLatestForexRate("USD", "AUD")
+	rate, err := provider.GetLatestForexRate(context.Background(), "USD", "AUD")
 	assert.Error(t, err, "GetLatestForexRate should return HTTP errors")
 	assert.Zero(t, rate, "rate should be zero when the request fails")
 }
@@ -193,11 +193,11 @@ func TestServiceStatusEndpoints(t *testing.T) {
 	}))
 	defer closeServer()
 
-	health, err := provider.Health()
+	health, err := provider.Health(context.Background())
 	require.NoError(t, err, "Health must not error")
 	assert.Equal(t, "ok", health.Status, "Health should decode the service status")
 
-	ping, err := provider.Ping()
+	ping, err := provider.Ping(context.Background())
 	require.NoError(t, err, "Ping must not error")
 	assert.Equal(t, "fxmacrodata-api", ping.Service, "Ping should decode the service name")
 }
@@ -211,28 +211,29 @@ func TestReadEndpointHelpers(t *testing.T) {
 	defer closeServer()
 
 	values := url.Values{"limit": []string{"1"}}
+	ctx := context.Background()
 	helpers := []struct {
 		name string
 		fn   func() error
 	}{
-		{"DataCatalogue", func() error { _, err := provider.DataCatalogue("usd"); return err }},
-		{"Announcements", func() error { _, err := provider.Announcements("usd", "cpi", values); return err }},
-		{"LatestAnnouncements", func() error { _, err := provider.LatestAnnouncements("usd", values); return err }},
-		{"AnnouncementChanges", func() error { _, err := provider.AnnouncementChanges(values); return err }},
-		{"Calendar", func() error { _, err := provider.Calendar("usd", values); return err }},
-		{"Predictions", func() error { _, err := provider.Predictions("usd", "cpi", values); return err }},
-		{"COT", func() error { _, err := provider.COT("jpy", values); return err }},
-		{"Commodity", func() error { _, err := provider.Commodity("brent", values); return err }},
-		{"CommoditiesLatest", func() error { _, err := provider.CommoditiesLatest(values); return err }},
-		{"Curves", func() error { _, err := provider.Curves("usd", values); return err }},
-		{"CurveProxies", func() error { _, err := provider.CurveProxies("usd", values); return err }},
-		{"ForwardCurves", func() error { _, err := provider.ForwardCurves("usd", values); return err }},
-		{"RateDifferentials", func() error { _, err := provider.RateDifferentials("eur", "usd", values); return err }},
-		{"ForwardDifferentials", func() error { _, err := provider.ForwardDifferentials("eur", "usd", values); return err }},
-		{"MarketSessions", func() error { _, err := provider.MarketSessions(values); return err }},
-		{"RiskSentiment", func() error { _, err := provider.RiskSentiment(values); return err }},
-		{"News", func() error { _, err := provider.News("usd", values); return err }},
-		{"PressReleases", func() error { _, err := provider.PressReleases("usd", values); return err }},
+		{"DataCatalogue", func() error { _, err := provider.DataCatalogue(ctx, "usd"); return err }},
+		{"Announcements", func() error { _, err := provider.Announcements(ctx, "usd", "cpi", values); return err }},
+		{"LatestAnnouncements", func() error { _, err := provider.LatestAnnouncements(ctx, "usd", values); return err }},
+		{"AnnouncementChanges", func() error { _, err := provider.AnnouncementChanges(ctx, values); return err }},
+		{"Calendar", func() error { _, err := provider.Calendar(ctx, "usd", values); return err }},
+		{"Predictions", func() error { _, err := provider.Predictions(ctx, "usd", "cpi", values); return err }},
+		{"COT", func() error { _, err := provider.COT(ctx, "jpy", values); return err }},
+		{"Commodity", func() error { _, err := provider.Commodity(ctx, "brent", values); return err }},
+		{"CommoditiesLatest", func() error { _, err := provider.CommoditiesLatest(ctx, values); return err }},
+		{"Curves", func() error { _, err := provider.Curves(ctx, "usd", values); return err }},
+		{"CurveProxies", func() error { _, err := provider.CurveProxies(ctx, "usd", values); return err }},
+		{"ForwardCurves", func() error { _, err := provider.ForwardCurves(ctx, "usd", values); return err }},
+		{"RateDifferentials", func() error { _, err := provider.RateDifferentials(ctx, "eur", "usd", values); return err }},
+		{"ForwardDifferentials", func() error { _, err := provider.ForwardDifferentials(ctx, "eur", "usd", values); return err }},
+		{"MarketSessions", func() error { _, err := provider.MarketSessions(ctx, values); return err }},
+		{"RiskSentiment", func() error { _, err := provider.RiskSentiment(ctx, values); return err }},
+		{"News", func() error { _, err := provider.News(ctx, "usd", values); return err }},
+		{"PressReleases", func() error { _, err := provider.PressReleases(ctx, "usd", values); return err }},
 	}
 	for _, tc := range helpers {
 		t.Run(tc.name, func(t *testing.T) {
@@ -287,7 +288,7 @@ func TestGraphQL(t *testing.T) {
 	defer closeServer()
 
 	var result map[string]bool
-	err := provider.GraphQL(`{"query":"{ viewer }"}`, &result)
+	err := provider.GraphQL(context.Background(), `{"query":"{ viewer }"}`, &result)
 	require.NoError(t, err, "GraphQL must not error")
 	assert.True(t, result["ok"], "GraphQL should decode response")
 }
@@ -305,11 +306,11 @@ func TestSetupAllowsPublicRequestsWithoutAPIKey(t *testing.T) {
 	provider.APIURL = server.URL + "/api/v1/"
 	require.NoError(t, provider.Requester.DisableRateLimiter(), "rate limiter must disable for local httptest provider")
 
-	_, err := provider.DataCatalogue("usd")
+	_, err := provider.DataCatalogue(context.Background(), "usd")
 	require.NoError(t, err, "public data catalogue request does not require an API key")
 }
 
-func TestSendHTTPRequestContextHonoursCancellation(t *testing.T) {
+func TestSendHTTPRequestHonoursCancellation(t *testing.T) {
 	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Errorf("a cancelled context should not issue an HTTP request")
 		http.NotFound(w, r)
@@ -318,6 +319,6 @@ func TestSendHTTPRequestContextHonoursCancellation(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	err := provider.SendHTTPRequestContext(ctx, "data_catalogue/usd", nil, new(DataCatalogueResponse))
-	assert.ErrorIs(t, err, context.Canceled, "SendHTTPRequestContext should return the caller cancellation")
+	err := provider.SendHTTPRequest(ctx, "data_catalogue/usd", nil, new(DataCatalogueResponse))
+	assert.ErrorIs(t, err, context.Canceled, "SendHTTPRequest should return the caller cancellation")
 }
