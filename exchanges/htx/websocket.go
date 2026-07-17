@@ -1,4 +1,4 @@
-package huobi
+package htx
 
 import (
 	"context"
@@ -354,10 +354,10 @@ func (e *Exchange) wsHandleMyOrdersMsg(ctx context.Context, s *subscription.Subs
 	}
 	d := &order.Detail{
 		ClientOrderID:   o.ClientOrderID,
-		Price:           o.Price,
-		Amount:          o.Size,
-		ExecutedAmount:  o.ExecutedAmount,
-		RemainingAmount: o.RemainingAmount,
+		Price:           o.Price.Float64(),
+		Amount:          o.Size.Float64(),
+		ExecutedAmount:  o.ExecutedAmount.Float64(),
+		RemainingAmount: o.RemainingAmount.Float64(),
 		Exchange:        e.Name,
 		Side:            o.Side,
 		AssetType:       s.Asset,
@@ -422,8 +422,8 @@ func (e *Exchange) wsHandleMyTradesMsg(ctx context.Context, s *subscription.Subs
 	}
 	d := &order.Detail{
 		ClientOrderID: t.ClientOrderID,
-		Price:         t.OrderPrice,
-		Amount:        t.OrderSize,
+		Price:         t.OrderPrice.Float64(),
+		Amount:        t.OrderSize.Float64(),
 		Exchange:      e.Name,
 		Side:          t.Side,
 		AssetType:     s.Asset,
@@ -461,9 +461,9 @@ func (e *Exchange) wsHandleMyTradesMsg(ctx context.Context, s *subscription.Subs
 	}
 	d.Trades = []order.TradeHistory{
 		{
-			Price:     t.TradePrice,
-			Amount:    t.TradeVolume,
-			Fee:       t.TransactFee,
+			Price:     t.TradePrice.Float64(),
+			Amount:    t.TradeVolume.Float64(),
+			Fee:       t.TransactFee.Float64(),
 			Exchange:  e.Name,
 			TID:       strconv.FormatInt(t.TradeID, 10),
 			Type:      d.Type,
@@ -558,12 +558,16 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 }
 
 func (e *Exchange) wsGenerateSignature(creds *accounts.Credentials, timestamp string) ([]byte, error) {
+	signatureHost, err := getSignatureHost(e.Websocket.AuthConn.GetURL())
+	if err != nil {
+		return nil, err
+	}
 	values := url.Values{}
 	values.Set("accessKey", creds.Key)
 	values.Set("signatureMethod", signatureMethod)
 	values.Set("signatureVersion", signatureVersion)
 	values.Set("timestamp", timestamp)
-	payload := http.MethodGet + "\n" + wsSpotHost + "\n" + wsPrivatePath + "\n" + values.Encode()
+	payload := http.MethodGet + "\n" + signatureHost + "\n" + wsPrivatePath + "\n" + values.Encode()
 	return crypto.GetHMAC(crypto.HashSHA256, []byte(payload), []byte(creds.Secret))
 }
 

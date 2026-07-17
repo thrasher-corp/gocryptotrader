@@ -1,7 +1,10 @@
-package huobi
+package htx
 
 import (
+	"bytes"
+
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -44,12 +47,12 @@ type FContractPriceLimits struct {
 
 // FContractOIData stores open interest data for futures contracts
 type FContractOIData struct {
-	Data      []UContractOpenInterest `json:"data"`
+	Data      []FContractOpenInterest `json:"data"`
 	Timestamp types.Time              `json:"ts"`
 }
 
-// UContractOpenInterest stores open interest data for futures contracts
-type UContractOpenInterest struct {
+// FContractOpenInterest stores open interest data for futures contracts.
+type FContractOpenInterest struct {
 	Volume        float64 `json:"volume"`
 	Amount        float64 `json:"amount"`
 	Symbol        string  `json:"symbol"`
@@ -118,17 +121,17 @@ type FKlineData struct {
 type FMarketOverviewData struct {
 	Ch   string `json:"ch"`
 	Tick struct {
-		Vol       float64 `json:"vol,string"`
+		Vol       types.Number `json:"vol,string"`
 		Ask       [2]float64
 		Bid       [2]float64
-		Close     float64    `json:"close,string"`
-		Count     float64    `json:"count"`
-		High      float64    `json:"high,string"`
-		ID        int64      `jso:"id"`
-		Low       float64    `json:"low,string"`
-		Open      float64    `json:"open,string"`
-		Timestamp types.Time `json:"ts"`
-		Amount    float64    `json:"amount,string"`
+		Close     types.Number `json:"close,string"`
+		Count     float64      `json:"count"`
+		High      types.Number `json:"high,string"`
+		ID        int64        `jso:"id"`
+		Low       types.Number `json:"low,string"`
+		Open      types.Number `json:"open,string"`
+		Timestamp types.Time   `json:"ts"`
+		Amount    types.Number `json:"amount,string"`
 	} `json:"tick"`
 	Timestamp types.Time `json:"ts"`
 }
@@ -138,11 +141,11 @@ type FLastTradeData struct {
 	Ch   string `json:"ch"`
 	Tick struct {
 		Data []struct {
-			Amount    float64    `json:"amount,string"`
-			Direction string     `json:"direction"`
-			ID        int64      `json:"id"`
-			Price     float64    `json:"price,string"`
-			Timestamp types.Time `json:"ts"`
+			Amount    types.Number `json:"amount,string"`
+			Direction string       `json:"direction"`
+			ID        int64        `json:"id"`
+			Price     types.Number `json:"price,string"`
+			Timestamp types.Time   `json:"ts"`
 		} `json:"data"`
 		ID        int64      `json:"id"`
 		Timestamp types.Time `json:"ts"`
@@ -215,9 +218,9 @@ type FOIData struct {
 		Symbol       string `json:"symbol"`
 		ContractType string `json:"contract_type"`
 		Tick         []struct {
-			Volume     float64    `json:"volume,string"`
-			AmountType int64      `json:"amount_type"`
-			Timestamp  types.Time `json:"ts"`
+			Volume     types.Number `json:"volume,string"`
+			AmountType int64        `json:"amount_type"`
+			Timestamp  types.Time   `json:"ts"`
 		} `json:"tick"`
 	} `json:"data"`
 	Timestamp types.Time `json:"ts"`
@@ -302,11 +305,11 @@ type FIndexKlineData struct {
 type FBasisData struct {
 	Ch   string `json:"ch"`
 	Data []struct {
-		Basis         float64 `json:"basis,string"`
-		BasisRate     float64 `json:"basis_rate,string"`
-		ContractPrice float64 `json:"contract_price,string"`
-		ID            int64   `json:"id"`
-		IndexPrice    float64 `json:"index_price,string"`
+		Basis         types.Number `json:"basis,string"`
+		BasisRate     types.Number `json:"basis_rate,string"`
+		ContractPrice types.Number `json:"contract_price,string"`
+		ID            int64        `json:"id"`
+		IndexPrice    types.Number `json:"index_price,string"`
 	} `json:"data"`
 	Timestamp types.Time `json:"ts"`
 }
@@ -409,21 +412,50 @@ type FSingleSubAccountPositionsInfo struct {
 	Timestamp types.Time `json:"ts"`
 }
 
-// FFinancialRecords stores financial records data for futures
+// FFinancialRecord stores a financial record entry for futures.
+type FFinancialRecord struct {
+	QueryID      int64      `json:"query_id"`
+	ID           int64      `json:"id"`
+	Timestamp    types.Time `json:"ts"`
+	Symbol       string     `json:"symbol"`
+	ContractCode string     `json:"contract_code"`
+	RecordType   int64      `json:"type"`
+	Amount       float64    `json:"amount"`
+}
+
+// FFinancialRecordsData stores financial record data and legacy pagination values.
+type FFinancialRecordsData struct {
+	FinancialRecord []FFinancialRecord `json:"financial_record"`
+	TotalPage       int64              `json:"total_page"`
+	CurrentPage     int64              `json:"current_page"`
+	TotalSize       int64              `json:"total_size"`
+}
+
+// FFinancialRecords stores financial records data for futures.
 type FFinancialRecords struct {
-	Data struct {
-		FinancialRecord []struct {
-			ID         int64      `json:"id"`
-			Timestamp  types.Time `json:"ts"`
-			Symbol     string     `json:"symbol"`
-			RecordType int64      `json:"type"`
-			Amount     float64    `json:"amount"`
-		} `json:"financial_record"`
-		TotalPage   int64 `json:"total_page"`
-		CurrentPage int64 `json:"current_page"`
-		TotalSize   int64 `json:"total_size"`
-	} `json:"data"`
-	Timestamp types.Time `json:"ts"`
+	Data      FFinancialRecordsData `json:"data"`
+	Timestamp types.Time            `json:"ts"`
+}
+
+// UnmarshalJSON supports the documented v3 array response while preserving the
+// legacy paged-object shape used by older responses.
+func (f *FFinancialRecords) UnmarshalJSON(data []byte) error {
+	type response FFinancialRecords
+	var raw struct {
+		response
+		Data json.RawMessage `json:"data"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	*f = FFinancialRecords(raw.response)
+	if isEmptyHTXData(raw.Data) {
+		return nil
+	}
+	if bytes.HasPrefix(bytes.TrimSpace(raw.Data), []byte("[")) {
+		return json.Unmarshal(raw.Data, &f.Data.FinancialRecord)
+	}
+	return json.Unmarshal(raw.Data, &f.Data)
 }
 
 // FSettlementRecords stores user's futures settlement records
@@ -479,13 +511,13 @@ type FContractInfoOnOrderLimit struct {
 // FContractTradingFeeData stores contract trading fee data
 type FContractTradingFeeData struct {
 	ContractTradingFeeData []struct {
-		Symbol        string  `json:"symbol"`
-		OpenMakerFee  float64 `json:"open_maker_fee,string"`
-		OpenTakerFee  float64 `json:"open_taker_fee,string"`
-		CloseMakerFee float64 `json:"close_maker_fee,string"`
-		CloseTakerFee float64 `json:"close_taker_fee,string"`
-		DeliveryFee   float64 `json:"delivery_fee,string"`
-		FeeAsset      string  `json:"fee_asset"`
+		Symbol        string       `json:"symbol"`
+		OpenMakerFee  types.Number `json:"open_maker_fee,string"`
+		OpenTakerFee  types.Number `json:"open_taker_fee,string"`
+		CloseMakerFee types.Number `json:"close_maker_fee,string"`
+		CloseTakerFee types.Number `json:"close_taker_fee,string"`
+		DeliveryFee   types.Number `json:"delivery_fee,string"`
+		FeeAsset      string       `json:"fee_asset"`
 	} `json:"data"`
 	Timestamp types.Time `json:"ts"`
 }
@@ -724,69 +756,126 @@ type FOpenOrdersData struct {
 	Timestamp types.Time `json:"ts"`
 }
 
-// FOrderHistoryData stores order history data
-type FOrderHistoryData struct {
-	Data struct {
-		Orders []struct {
-			Symbol          string     `json:"symbol"`
-			ContractType    string     `json:"contract_type"`
-			ContractCode    string     `json:"contract_code"`
-			Volume          float64    `json:"volume"`
-			Price           float64    `json:"price"`
-			OrderPriceType  string     `json:"order_price_type"`
-			Direction       string     `json:"direction"`
-			Offset          string     `json:"offset"`
-			LeverageRate    float64    `json:"lever_rate"`
-			OrderID         int64      `json:"order_id"`
-			OrderIDString   string     `json:"order_id_str"`
-			OrderSource     string     `json:"order_source"`
-			CreateDate      types.Time `json:"create_date"`
-			TradeVolume     float64    `json:"trade_volume"`
-			TradeTurnover   float64    `json:"trade_turnover"`
-			Fee             float64    `json:"fee"`
-			TradeAvgPrice   float64    `json:"trade_avg_price"`
-			MarginFrozen    float64    `json:"margin_frozen"`
-			Profit          float64    `json:"profit"`
-			Status          int64      `json:"status"`
-			OrderType       int64      `json:"order_type"`
-			FeeAsset        string     `json:"fee_asset"`
-			LiquidationType int64      `json:"liquidation_type"`
-		} `json:"orders"`
-		TotalPage   int64 `json:"total_page"`
-		CurrentPage int64 `json:"current_page"`
-		TotalSize   int64 `json:"total_size"`
-	} `json:"data"`
-	Timestamp types.Time `json:"ts"`
+// FOrderHistoryEntry stores an order history entry for futures.
+type FOrderHistoryEntry struct {
+	QueryID         int64        `json:"query_id"`
+	Symbol          string       `json:"symbol"`
+	ContractType    string       `json:"contract_type"`
+	ContractCode    string       `json:"contract_code"`
+	Volume          float64      `json:"volume"`
+	Price           float64      `json:"price"`
+	OrderPriceType  string       `json:"order_price_type"`
+	Direction       string       `json:"direction"`
+	Offset          string       `json:"offset"`
+	LeverageRate    float64      `json:"lever_rate"`
+	OrderID         int64        `json:"order_id"`
+	OrderIDString   string       `json:"order_id_str"`
+	OrderSource     string       `json:"order_source"`
+	CreateDate      types.Time   `json:"create_date"`
+	UpdateTime      types.Time   `json:"update_time"`
+	TradeVolume     float64      `json:"trade_volume"`
+	TradeTurnover   float64      `json:"trade_turnover"`
+	Fee             float64      `json:"fee"`
+	TradeAvgPrice   float64      `json:"trade_avg_price"`
+	MarginFrozen    float64      `json:"margin_frozen"`
+	Profit          float64      `json:"profit"`
+	Status          int64        `json:"status"`
+	OrderType       int64        `json:"order_type"`
+	FeeAsset        string       `json:"fee_asset"`
+	LiquidationType types.Number `json:"liquidation_type"`
 }
 
-// FTradeHistoryData stores trade history data for futures
+// FOrderHistoryResponseData stores order history data and legacy pagination values.
+type FOrderHistoryResponseData struct {
+	Orders      []FOrderHistoryEntry `json:"orders"`
+	TotalPage   int64                `json:"total_page"`
+	CurrentPage int64                `json:"current_page"`
+	TotalSize   int64                `json:"total_size"`
+}
+
+// FOrderHistoryData stores order history data.
+type FOrderHistoryData struct {
+	Data      FOrderHistoryResponseData `json:"data"`
+	Timestamp types.Time                `json:"ts"`
+}
+
+// UnmarshalJSON supports the documented v3 array response while preserving the
+// legacy paged-object shape used by older responses.
+func (f *FOrderHistoryData) UnmarshalJSON(data []byte) error {
+	type response FOrderHistoryData
+	var raw struct {
+		response
+		Data json.RawMessage `json:"data"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	*f = FOrderHistoryData(raw.response)
+	if isEmptyHTXData(raw.Data) {
+		return nil
+	}
+	if bytes.HasPrefix(bytes.TrimSpace(raw.Data), []byte("[")) {
+		return json.Unmarshal(raw.Data, &f.Data.Orders)
+	}
+	return json.Unmarshal(raw.Data, &f.Data)
+}
+
+// FTradeHistoryEntry stores a trade history entry for futures.
+type FTradeHistoryEntry struct {
+	QueryID       int64   `json:"query_id"`
+	ID            string  `json:"id"`
+	ContractCode  string  `json:"contract_code"`
+	ContractType  string  `json:"contract_type"`
+	CreateDate    int64   `json:"create_date"`
+	Direction     string  `json:"direction"`
+	MatchID       int64   `json:"match_id"`
+	Offset        string  `json:"offset"`
+	OffsetPNL     float64 `json:"offset_profitloss"`
+	OrderID       int64   `json:"order_id"`
+	OrderIDString string  `json:"order_id_str"`
+	Symbol        string  `json:"symbol"`
+	OrderSource   string  `json:"order_source"`
+	TradeFee      float64 `json:"trade_fee"`
+	TradePrice    float64 `json:"trade_price"`
+	TradeTurnover float64 `json:"trade_turnover"`
+	TradeVolume   float64 `json:"trade_volume"`
+	Role          string  `json:"role"`
+	FeeAsset      string  `json:"fee_asset"`
+}
+
+// FTradeHistoryResponseData stores trade history data and legacy pagination values.
+type FTradeHistoryResponseData struct {
+	TotalPage   int64                `json:"total_page"`
+	CurrentPage int64                `json:"current_page"`
+	TotalSize   int64                `json:"total_size"`
+	Trades      []FTradeHistoryEntry `json:"trades"`
+}
+
+// FTradeHistoryData stores trade history data for futures.
 type FTradeHistoryData struct {
-	Data struct {
-		TotalPage   int64 `json:"total_page"`
-		CurrentPage int64 `json:"current_page"`
-		TotalSize   int64 `json:"total_size"`
-		Trades      []struct {
-			ID            string  `json:"id"`
-			ContractCode  string  `json:"contract_code"`
-			ContractType  string  `json:"contract_type"`
-			CreateDate    int64   `json:"create_date"`
-			Direction     string  `json:"direction"`
-			MatchID       int64   `json:"match_id"`
-			Offset        string  `json:"offset"`
-			OffsetPNL     float64 `json:"offset_profitloss"`
-			OrderID       int64   `json:"order_id"`
-			OrderIDString string  `json:"order_id_str"`
-			Symbol        string  `json:"symbol"`
-			OrderSource   string  `json:"order_source"`
-			TradeFee      float64 `json:"trade_fee"`
-			TradePrice    float64 `json:"trade_price"`
-			TradeTurnover float64 `json:"trade_turnover"`
-			TradeVolume   float64 `json:"trade_volume"`
-			Role          string  `json:"role"`
-			FeeAsset      string  `json:"fee_asset"`
-		} `json:"trades"`
-	} `json:"data"`
-	Timestamp types.Time `json:"ts"`
+	Data      FTradeHistoryResponseData `json:"data"`
+	Timestamp types.Time                `json:"ts"`
+}
+
+// UnmarshalJSON supports the documented v3 array response while preserving the
+// legacy paged-object shape used by older responses.
+func (f *FTradeHistoryData) UnmarshalJSON(data []byte) error {
+	type response FTradeHistoryData
+	var raw struct {
+		response
+		Data json.RawMessage `json:"data"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	*f = FTradeHistoryData(raw.response)
+	if isEmptyHTXData(raw.Data) {
+		return nil
+	}
+	if bytes.HasPrefix(bytes.TrimSpace(raw.Data), []byte("[")) {
+		return json.Unmarshal(raw.Data, &f.Data.Trades)
+	}
+	return json.Unmarshal(raw.Data, &f.Data)
 }
 
 // FTriggerOrderData stores trigger order data

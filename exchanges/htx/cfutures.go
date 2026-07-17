@@ -1,4 +1,4 @@
-package huobi
+package htx
 
 import (
 	"context"
@@ -17,62 +17,62 @@ import (
 
 const (
 	// Coin Margined Swap (perpetual futures) endpoints
-	huobiSwapMarkets                  = "/swap-api/v1/swap_contract_info"
-	huobiSwapFunding                  = "/swap-api/v1/swap_funding_rate"
-	huobiSwapBatchFunding             = "/swap-api/v1/swap_batch_funding_rate"
-	huobiSwapIndexPriceInfo           = "/swap-api/v1/swap_index"
-	huobiSwapPriceLimitation          = "/swap-api/v1/swap_price_limit"
-	huobiSwapOpenInterestInfo         = "/swap-api/v1/swap_open_interest"
-	huobiSwapMarketDepth              = "/swap-ex/market/depth"
-	huobiKLineData                    = "/swap-ex/market/history/kline"
-	huobiMarketDataOverview           = "/swap-ex/market/detail/merged"
-	huobiLastTradeContract            = "/swap-ex/market/trade"
-	huobiRequestBatchOfTradingRecords = "/swap-ex/market/history/trade"
-	huobiTieredAdjustmentFactor       = "/swap-api/v1/swap_adjustfactor"
-	huobiOpenInterestInfo             = "/swap-api/v1/swap_his_open_interest"
-	huobiSwapSystemStatus             = "/swap-api/v1/swap_api_state"
-	huobiSwapSentimentAccountData     = "/swap-api/v1/swap_elite_account_ratio"
-	huobiSwapSentimentPosition        = "/swap-api/v1/swap_elite_position_ratio"
-	huobiSwapLiquidationOrders        = "/swap-api/v3/swap_liquidation_orders"
-	huobiSwapHistoricalFundingRate    = "/swap-api/v1/swap_historical_funding_rate"
-	huobiPremiumIndexKlineData        = "/index/market/history/swap_premium_index_kline"
-	huobiPredictedFundingRateData     = "/index/market/history/swap_estimated_rate_kline"
-	huobiBasisData                    = "/index/market/history/swap_basis"
-	huobiSwapAccInfo                  = "/swap-api/v1/swap_account_info"
-	huobiSwapPosInfo                  = "/swap-api/v1/swap_position_info"
-	huobiSwapAssetsAndPos             = "/swap-api/v1/swap_account_position_info" //nolint // false positive gosec
-	huobiSwapSubAccList               = "/swap-api/v1/swap_sub_account_list"
-	huobiSwapSubAccInfo               = "/swap-api/v1/swap_sub_account_info"
-	huobiSwapSubAccPosInfo            = "/swap-api/v1/swap_sub_position_info"
-	huobiSwapFinancialRecords         = "/swap-api/v1/swap_financial_record"
-	huobiSwapSettlementRecords        = "/swap-api/v1/swap_user_settlement_records"
-	huobiSwapAvailableLeverage        = "/swap-api/v1/swap_available_level_rate"
-	huobiSwapOrderLimitInfo           = "/swap-api/v1/swap_order_limit"
-	huobiSwapTradingFeeInfo           = "/swap-api/v1/swap_fee"
-	huobiSwapTransferLimitInfo        = "/swap-api/v1/swap_transfer_limit"
-	huobiSwapPositionLimitInfo        = "/swap-api/v1/swap_position_limit"
-	huobiSwapInternalTransferData     = "/swap-api/v1/swap_master_sub_transfer"
-	huobiSwapInternalTransferRecords  = "/swap-api/v1/swap_master_sub_transfer_record"
-	huobiSwapPlaceOrder               = "/swap-api/v1/swap_order"
-	huobiSwapPlaceBatchOrder          = "/swap-api/v1/swap_batchorder"
-	huobiSwapCancelOrder              = "/swap-api/v1/swap_cancel"
-	huobiSwapCancelAllOrders          = "/swap-api/v1/swap_cancelall"
-	huobiSwapLightningCloseOrder      = "/swap-api/v1/swap_lightning_close_position"
-	huobiSwapOrderInfo                = "/swap-api/v1/swap_order_info"
-	huobiSwapOrderDetails             = "/swap-api/v1/swap_order_detail"
-	huobiSwapOpenOrders               = "/swap-api/v1/swap_openorders"
-	huobiSwapOrderHistory             = "/swap-api/v1/swap_hisorders"
-	huobiSwapTradeHistory             = "/swap-api/v1/swap_matchresults"
-	huobiSwapTriggerOrder             = "/swap-api/v1/swap_trigger_order"
-	huobiSwapCancelTriggerOrder       = "/swap-api/v1/swap_trigger_cancel"
-	huobiSwapCancelAllTriggerOrders   = "/swap-api/v1/swap_trigger_cancelall"
-	huobiSwapTriggerOrderHistory      = "/swap-api/v1/swap_trigger_hisorders"
+	htxSwapMarkets                  = "/swap-api/v1/swap_contract_info"
+	htxSwapFunding                  = "/swap-api/v1/swap_funding_rate"
+	htxSwapBatchFunding             = "/swap-api/v1/swap_batch_funding_rate"
+	htxSwapIndexPriceInfo           = "/swap-api/v1/swap_index"
+	htxSwapPriceLimitation          = "/swap-api/v1/swap_price_limit"
+	htxSwapOpenInterestInfo         = "/swap-api/v1/swap_open_interest"
+	htxSwapMarketDepth              = "/swap-ex/market/depth"
+	htxKLineData                    = "/swap-ex/market/history/kline"
+	htxMarketDataOverview           = "/swap-ex/market/detail/merged"
+	htxLastTradeContract            = "/swap-ex/market/trade"
+	htxRequestBatchOfTradingRecords = "/swap-ex/market/history/trade"
+	htxTieredAdjustmentFactor       = "/swap-api/v1/swap_adjustfactor"
+	htxOpenInterestInfo             = "/swap-api/v1/swap_his_open_interest"
+	htxSwapSystemStatus             = "/swap-api/v1/swap_api_state"
+	htxSwapSentimentAccountData     = "/swap-api/v1/swap_elite_account_ratio"
+	htxSwapSentimentPosition        = "/swap-api/v1/swap_elite_position_ratio"
+	htxSwapLiquidationOrders        = "/swap-api/v3/swap_liquidation_orders"
+	htxSwapHistoricalFundingRate    = "/swap-api/v1/swap_historical_funding_rate"
+	htxPremiumIndexKlineData        = "/index/market/history/swap_premium_index_kline"
+	htxPredictedFundingRateData     = "/index/market/history/swap_estimated_rate_kline"
+	htxBasisData                    = "/index/market/history/swap_basis"
+	htxSwapAccInfo                  = "/swap-api/v1/swap_account_info"
+	htxSwapPosInfo                  = "/swap-api/v1/swap_position_info"
+	htxSwapAssetsAndPos             = "/swap-api/v1/swap_account_position_info" //nolint // false positive gosec
+	htxSwapSubAccList               = "/swap-api/v1/swap_sub_account_list"
+	htxSwapSubAccInfo               = "/swap-api/v1/swap_sub_account_info"
+	htxSwapSubAccPosInfo            = "/swap-api/v1/swap_sub_position_info"
+	htxSwapFinancialRecords         = "/swap-api/v3/swap_financial_record"
+	htxSwapSettlementRecords        = "/swap-api/v1/swap_user_settlement_records"
+	htxSwapAvailableLeverage        = "/swap-api/v1/swap_available_level_rate"
+	htxSwapOrderLimitInfo           = "/swap-api/v1/swap_order_limit"
+	htxSwapTradingFeeInfo           = "/swap-api/v1/swap_fee"
+	htxSwapTransferLimitInfo        = "/swap-api/v1/swap_transfer_limit"
+	htxSwapPositionLimitInfo        = "/swap-api/v1/swap_position_limit"
+	htxSwapInternalTransferData     = "/swap-api/v1/swap_master_sub_transfer"
+	htxSwapInternalTransferRecords  = "/swap-api/v1/swap_master_sub_transfer_record"
+	htxSwapPlaceOrder               = "/swap-api/v1/swap_order"
+	htxSwapPlaceBatchOrder          = "/swap-api/v1/swap_batchorder"
+	htxSwapCancelOrder              = "/swap-api/v1/swap_cancel"
+	htxSwapCancelAllOrders          = "/swap-api/v1/swap_cancelall"
+	htxSwapLightningCloseOrder      = "/swap-api/v1/swap_lightning_close_position"
+	htxSwapOrderInfo                = "/swap-api/v1/swap_order_info"
+	htxSwapOrderDetails             = "/swap-api/v1/swap_order_detail"
+	htxSwapOpenOrders               = "/swap-api/v1/swap_openorders"
+	htxSwapOrderHistory             = "/swap-api/v3/swap_hisorders"
+	htxSwapTradeHistory             = "/swap-api/v3/swap_matchresults"
+	htxSwapTriggerOrder             = "/swap-api/v1/swap_trigger_order"
+	htxSwapCancelTriggerOrder       = "/swap-api/v1/swap_trigger_cancel"
+	htxSwapCancelAllTriggerOrders   = "/swap-api/v1/swap_trigger_cancelall"
+	htxSwapTriggerOrderHistory      = "/swap-api/v1/swap_trigger_hisorders"
 )
 
 // QuerySwapIndexPriceInfo gets perpetual swap index's price info
 func (e *Exchange) QuerySwapIndexPriceInfo(ctx context.Context, code currency.Pair) (SwapIndexPriceData, error) {
 	var resp SwapIndexPriceData
-	path := huobiSwapIndexPriceInfo
+	path := htxSwapIndexPriceInfo
 	if !code.IsEmpty() {
 		codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 		if err != nil {
@@ -94,7 +94,7 @@ func (e *Exchange) GetSwapPriceLimits(ctx context.Context, code currency.Pair) (
 	}
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
-	path := common.EncodeURLValues(huobiSwapPriceLimitation, params)
+	path := common.EncodeURLValues(htxSwapPriceLimitation, params)
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -109,7 +109,7 @@ func (e *Exchange) SwapOpenInterestInformation(ctx context.Context, code currenc
 	if !code.IsEmpty() {
 		params.Set("contract_code", codeValue)
 	}
-	path := common.EncodeURLValues(huobiSwapOpenInterestInfo, params)
+	path := common.EncodeURLValues(htxSwapOpenInterestInfo, params)
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -123,7 +123,7 @@ func (e *Exchange) GetSwapMarketDepth(ctx context.Context, code currency.Pair, d
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
 	params.Set("type", dataType)
-	path := common.EncodeURLValues(huobiSwapMarketDepth, params)
+	path := common.EncodeURLValues(htxSwapMarketDepth, params)
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -150,7 +150,7 @@ func (e *Exchange) GetSwapKlineData(ctx context.Context, code currency.Pair, per
 		params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("to", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	path := common.EncodeURLValues(huobiKLineData, params)
+	path := common.EncodeURLValues(htxKLineData, params)
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -163,7 +163,7 @@ func (e *Exchange) GetSwapMarketOverview(ctx context.Context, code currency.Pair
 	}
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
-	path := common.EncodeURLValues(huobiMarketDataOverview, params)
+	path := common.EncodeURLValues(htxMarketDataOverview, params)
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -176,7 +176,7 @@ func (e *Exchange) GetLastTrade(ctx context.Context, code currency.Pair) (LastTr
 	}
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
-	path := common.EncodeURLValues(huobiLastTradeContract, params)
+	path := common.EncodeURLValues(htxLastTradeContract, params)
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -190,7 +190,7 @@ func (e *Exchange) GetBatchTrades(ctx context.Context, code currency.Pair, size 
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
 	params.Set("size", strconv.FormatInt(size, 10))
-	path := common.EncodeURLValues(huobiRequestBatchOfTradingRecords, params)
+	path := common.EncodeURLValues(htxRequestBatchOfTradingRecords, params)
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -203,7 +203,7 @@ func (e *Exchange) GetTieredAjustmentFactorInfo(ctx context.Context, code curren
 	}
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
-	path := common.EncodeURLValues(huobiTieredAdjustmentFactor, params)
+	path := common.EncodeURLValues(htxTieredAdjustmentFactor, params)
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -229,7 +229,7 @@ func (e *Exchange) GetOpenInterestInfo(ctx context.Context, code currency.Pair, 
 	params.Set("period", period)
 	params.Set("size", strconv.FormatInt(size, 10))
 	params.Set("amount_type", strconv.FormatInt(aType, 10))
-	path := common.EncodeURLValues(huobiOpenInterestInfo, params)
+	path := common.EncodeURLValues(htxOpenInterestInfo, params)
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -242,7 +242,7 @@ func (e *Exchange) GetSystemStatusInfo(ctx context.Context, code currency.Pair) 
 	}
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
-	path := common.EncodeURLValues(huobiSwapSystemStatus, params)
+	path := common.EncodeURLValues(htxSwapSystemStatus, params)
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -259,7 +259,7 @@ func (e *Exchange) GetTraderSentimentIndexAccount(ctx context.Context, code curr
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
 	params.Set("period", period)
-	path := common.EncodeURLValues(huobiSwapSentimentAccountData, params)
+	path := common.EncodeURLValues(htxSwapSentimentAccountData, params)
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -277,7 +277,7 @@ func (e *Exchange) GetTraderSentimentIndexPosition(ctx context.Context, code cur
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
 	params.Set("period", period)
-	path := common.EncodeURLValues(huobiSwapSentimentPosition, params)
+	path := common.EncodeURLValues(htxSwapSentimentPosition, params)
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -308,7 +308,7 @@ func (e *Exchange) GetLiquidationOrders(ctx context.Context, contract currency.P
 	if fromID != 0 {
 		params.Set("from_id", strconv.FormatInt(fromID, 10))
 	}
-	path := common.EncodeURLValues(huobiSwapLiquidationOrders, params)
+	path := common.EncodeURLValues(htxSwapLiquidationOrders, params)
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -327,7 +327,7 @@ func (e *Exchange) GetHistoricalFundingRatesForPair(ctx context.Context, code cu
 	if pageSize != 0 {
 		params.Set("page_size", strconv.FormatInt(pageIndex, 10))
 	}
-	path := common.EncodeURLValues(huobiSwapHistoricalFundingRate, params)
+	path := common.EncodeURLValues(htxSwapHistoricalFundingRate, params)
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -348,7 +348,7 @@ func (e *Exchange) GetPremiumIndexKlineData(ctx context.Context, code currency.P
 	params.Set("contract_code", codeValue)
 	params.Set("size", strconv.FormatInt(size, 10))
 	params.Set("period", period)
-	path := common.EncodeURLValues(huobiPremiumIndexKlineData, params)
+	path := common.EncodeURLValues(htxPremiumIndexKlineData, params)
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -369,7 +369,7 @@ func (e *Exchange) GetEstimatedFundingRates(ctx context.Context, code currency.P
 	params.Set("contract_code", codeValue)
 	params.Set("period", period)
 	params.Set("size", strconv.FormatInt(size, 10))
-	path := common.EncodeURLValues(huobiPredictedFundingRateData, params)
+	path := common.EncodeURLValues(htxPredictedFundingRateData, params)
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -393,7 +393,7 @@ func (e *Exchange) GetBasisData(ctx context.Context, code currency.Pair, period,
 	params.Set("contract_code", codeValue)
 	params.Set("period", period)
 	params.Set("size", strconv.FormatInt(size, 10))
-	path := common.EncodeURLValues(huobiBasisData, params)
+	path := common.EncodeURLValues(htxBasisData, params)
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
 }
 
@@ -408,7 +408,7 @@ func (e *Exchange) GetSwapAccountInfo(ctx context.Context, code currency.Pair) (
 		}
 		req["contract_code"] = codeValue
 	}
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapAccInfo, nil, req, &resp)
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapAccInfo, nil, req, &resp)
 }
 
 // GetSwapPositionsInfo gets swap positions' info
@@ -420,7 +420,7 @@ func (e *Exchange) GetSwapPositionsInfo(ctx context.Context, code currency.Pair)
 		return resp, err
 	}
 	req["contract_code"] = codeValue
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapPosInfo, nil, req, &resp)
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapPosInfo, nil, req, &resp)
 }
 
 // GetSwapAssetsAndPositions gets swap positions and asset info
@@ -432,7 +432,7 @@ func (e *Exchange) GetSwapAssetsAndPositions(ctx context.Context, code currency.
 		return resp, err
 	}
 	req["contract_code"] = codeValue
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapAssetsAndPos, nil, req, &resp)
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapAssetsAndPos, nil, req, &resp)
 }
 
 // GetSwapAllSubAccAssets gets asset info for all subaccounts
@@ -446,7 +446,7 @@ func (e *Exchange) GetSwapAllSubAccAssets(ctx context.Context, code currency.Pai
 		}
 		req["contract_code"] = codeValue
 	}
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapSubAccList, nil, req, &resp)
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapSubAccList, nil, req, &resp)
 }
 
 // SwapSingleSubAccAssets gets a subaccount's assets info
@@ -459,7 +459,7 @@ func (e *Exchange) SwapSingleSubAccAssets(ctx context.Context, code currency.Pai
 	}
 	req["contract_code"] = codeValue
 	req["sub_uid"] = subUID
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapSubAccInfo, nil, req, &resp)
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapSubAccInfo, nil, req, &resp)
 }
 
 // GetSubAccPositionInfo gets a subaccount's positions info
@@ -472,31 +472,29 @@ func (e *Exchange) GetSubAccPositionInfo(ctx context.Context, code currency.Pair
 	}
 	req["contract_code"] = codeValue
 	req["sub_uid"] = subUID
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapSubAccPosInfo, nil, req, &resp)
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapSubAccPosInfo, nil, req, &resp)
 }
 
 // GetAccountFinancialRecords gets the account's financial records
-func (e *Exchange) GetAccountFinancialRecords(ctx context.Context, code currency.Pair, orderType string, createDate, pageIndex, pageSize int64) (FinancialRecordData, error) {
+func (e *Exchange) GetAccountFinancialRecords(ctx context.Context, code currency.Pair, orderType string, createDate, pageIndex, _ int64) (FinancialRecordData, error) {
 	var resp FinancialRecordData
 	req := make(map[string]any)
 	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
-	req["contract_code"] = codeValue
+	req["contract"] = codeValue
 	if orderType != "" {
 		req["type"] = orderType
 	}
 	if createDate != 0 {
-		req["create_date"] = createDate
+		addV3HistoryTimeRange(req, createDate)
 	}
 	if pageIndex != 0 {
-		req["page_index"] = pageIndex
+		req["from_id"] = pageIndex
 	}
-	if pageSize != 0 {
-		req["page_size"] = pageSize
-	}
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapFinancialRecords, nil, req, &resp)
+	req["direct"] = v3HistoryDirectionPrevious
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapFinancialRecords, nil, req, &resp)
 }
 
 // GetSwapSettlementRecords gets the swap account's settlement records
@@ -521,7 +519,7 @@ func (e *Exchange) GetSwapSettlementRecords(ctx context.Context, code currency.P
 	if pageSize != 0 {
 		req["page_size"] = pageSize
 	}
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapSettlementRecords, nil, req, &resp)
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapSettlementRecords, nil, req, &resp)
 }
 
 // GetAvailableLeverage gets user's available leverage data
@@ -535,7 +533,7 @@ func (e *Exchange) GetAvailableLeverage(ctx context.Context, code currency.Pair)
 		}
 		req["contract_code"] = codeValue
 	}
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapAvailableLeverage, nil, req, &resp)
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapAvailableLeverage, nil, req, &resp)
 }
 
 // GetSwapOrderLimitInfo gets order limit info for swaps
@@ -551,7 +549,7 @@ func (e *Exchange) GetSwapOrderLimitInfo(ctx context.Context, code currency.Pair
 		return resp, errors.New("invalid ordertype provided")
 	}
 	req["order_price_type"] = orderType
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapOrderLimitInfo, nil, req, &resp)
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapOrderLimitInfo, nil, req, &resp)
 }
 
 // GetSwapTradingFeeInfo gets trading fee info for swaps
@@ -563,7 +561,7 @@ func (e *Exchange) GetSwapTradingFeeInfo(ctx context.Context, code currency.Pair
 		return resp, err
 	}
 	req["contract_code"] = codeValue
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapTradingFeeInfo, nil, req, &resp)
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapTradingFeeInfo, nil, req, &resp)
 }
 
 // GetSwapTransferLimitInfo gets transfer limit info for swaps
@@ -575,7 +573,7 @@ func (e *Exchange) GetSwapTransferLimitInfo(ctx context.Context, code currency.P
 		return resp, err
 	}
 	req["contract_code"] = codeValue
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapTransferLimitInfo, nil, req, &resp)
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapTransferLimitInfo, nil, req, &resp)
 }
 
 // GetSwapPositionLimitInfo gets transfer limit info for swaps
@@ -587,7 +585,7 @@ func (e *Exchange) GetSwapPositionLimitInfo(ctx context.Context, code currency.P
 		return resp, err
 	}
 	req["contract_code"] = codeValue
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapPositionLimitInfo, nil, req, &resp)
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapPositionLimitInfo, nil, req, &resp)
 }
 
 // AccountTransferData gets asset transfer data between master and subaccounts
@@ -605,7 +603,7 @@ func (e *Exchange) AccountTransferData(ctx context.Context, code currency.Pair, 
 		return resp, errors.New("invalid transferType received")
 	}
 	req["type"] = transferType
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapInternalTransferData, nil, req, &resp)
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapInternalTransferData, nil, req, &resp)
 }
 
 // AccountTransferRecords gets asset transfer records between master and subaccounts
@@ -631,7 +629,7 @@ func (e *Exchange) AccountTransferRecords(ctx context.Context, code currency.Pai
 	if pageSize > 0 && pageSize <= 50 {
 		req["page_size"] = pageSize
 	}
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapInternalTransferRecords, nil, req, &resp)
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapInternalTransferRecords, nil, req, &resp)
 }
 
 // PlaceSwapOrders places orders for swaps
@@ -655,7 +653,7 @@ func (e *Exchange) PlaceSwapOrders(ctx context.Context, code currency.Pair, clie
 	req["price"] = price
 	req["volume"] = volume
 	req["lever_rate"] = leverage
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapPlaceOrder, nil, req, &resp)
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapPlaceOrder, nil, req, &resp)
 }
 
 // PlaceSwapBatchOrders places a batch of orders for swaps
@@ -680,7 +678,7 @@ func (e *Exchange) PlaceSwapBatchOrders(ctx context.Context, data BatchOrderRequ
 		data.Data[x].ContractCode = codeValue
 	}
 	req["orders_data"] = data.Data
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapPlaceBatchOrder, nil, req, &resp)
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapPlaceBatchOrder, nil, req, &resp)
 }
 
 // CancelSwapOrder sends a request to cancel an order
@@ -694,7 +692,7 @@ func (e *Exchange) CancelSwapOrder(ctx context.Context, orderID, clientOrderID s
 		req["client_order_id"] = clientOrderID
 	}
 	req["contract_code"] = contractCode
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapCancelOrder, nil, req, &resp)
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapCancelOrder, nil, req, &resp)
 }
 
 // CancelAllSwapOrders sends a request to cancel an order
@@ -702,7 +700,7 @@ func (e *Exchange) CancelAllSwapOrders(ctx context.Context, contractCode currenc
 	var resp CancelOrdersData
 	req := make(map[string]any)
 	req["contract_code"] = contractCode
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapCancelAllOrders, nil, req, &resp)
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapCancelAllOrders, nil, req, &resp)
 }
 
 // PlaceLightningCloseOrder places a lightning close order
@@ -721,7 +719,7 @@ func (e *Exchange) PlaceLightningCloseOrder(ctx context.Context, contractCode cu
 		}
 		req["order_price_type"] = orderPriceType
 	}
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapLightningCloseOrder, nil, req, &resp)
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapLightningCloseOrder, nil, req, &resp)
 }
 
 // GetSwapOrderDetails gets order info
@@ -742,7 +740,7 @@ func (e *Exchange) GetSwapOrderDetails(ctx context.Context, contractCode currenc
 	if pageSize > 0 && pageSize <= 50 {
 		req["page_size"] = pageSize
 	}
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapOrderDetails, nil, req, &resp)
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapOrderDetails, nil, req, &resp)
 }
 
 // GetSwapOrderInfo gets info on a swap order
@@ -762,7 +760,7 @@ func (e *Exchange) GetSwapOrderInfo(ctx context.Context, contractCode currency.P
 	if clientOrderID != "" {
 		req["client_order_id"] = clientOrderID
 	}
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapOrderInfo, nil, req, &resp)
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapOrderInfo, nil, req, &resp)
 }
 
 // GetSwapOpenOrders gets open orders for swap
@@ -780,18 +778,18 @@ func (e *Exchange) GetSwapOpenOrders(ctx context.Context, contractCode currency.
 	if pageSize > 0 && pageSize <= 50 {
 		req["page_size"] = pageSize
 	}
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapOpenOrders, nil, req, &resp)
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapOpenOrders, nil, req, &resp)
 }
 
 // GetSwapOrderHistory gets swap order history
-func (e *Exchange) GetSwapOrderHistory(ctx context.Context, contractCode currency.Pair, tradeType, reqType string, status []order.Status, createDate, pageIndex, pageSize int64) (SwapOrderHistory, error) {
+func (e *Exchange) GetSwapOrderHistory(ctx context.Context, contractCode currency.Pair, tradeType, reqType string, status []order.Status, createDate, pageIndex, _ int64) (SwapOrderHistory, error) {
 	var resp SwapOrderHistory
 	req := make(map[string]any)
 	codeValue, err := e.FormatSymbol(contractCode, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
-	req["contract_code"] = codeValue
+	req["contract"] = codeValue
 	tType, ok := validFuturesTradeType[tradeType]
 	if !ok {
 		return resp, errors.New("invalid tradeType")
@@ -822,25 +820,23 @@ func (e *Exchange) GetSwapOrderHistory(ctx context.Context, contractCode currenc
 	if createDate < 0 || createDate > 90 {
 		return resp, errors.New("invalid createDate")
 	}
-	req["create_date"] = createDate
+	addV3HistoryTimeRange(req, createDate)
+	req["direct"] = v3HistoryDirectionPrevious
 	if pageIndex != 0 {
-		req["page_index"] = pageIndex
+		req["from_id"] = pageIndex
 	}
-	if pageSize != 0 {
-		req["page_size"] = pageSize
-	}
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapOrderHistory, nil, req, &resp)
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapOrderHistory, nil, req, &resp)
 }
 
 // GetSwapTradeHistory gets swap trade history
-func (e *Exchange) GetSwapTradeHistory(ctx context.Context, contractCode currency.Pair, tradeType string, createDate, pageIndex, pageSize int64) (AccountTradeHistoryData, error) {
+func (e *Exchange) GetSwapTradeHistory(ctx context.Context, contractCode currency.Pair, tradeType string, createDate, pageIndex, _ int64) (AccountTradeHistoryData, error) {
 	var resp AccountTradeHistoryData
 	req := make(map[string]any)
 	codeValue, err := e.FormatSymbol(contractCode, asset.CoinMarginedFutures)
 	if err != nil {
 		return resp, err
 	}
-	req["contract_code"] = codeValue
+	req["contract"] = codeValue
 	if createDate > 90 {
 		return resp, errors.New("invalid create date value: only supports up to 90 days")
 	}
@@ -849,14 +845,12 @@ func (e *Exchange) GetSwapTradeHistory(ctx context.Context, contractCode currenc
 		return resp, errors.New("invalid trade type")
 	}
 	req["trade_type"] = tType
-	req["create_date"] = strconv.FormatInt(createDate, 10)
+	addV3HistoryTimeRange(req, createDate)
+	req["direct"] = v3HistoryDirectionPrevious
 	if pageIndex != 0 {
-		req["page_index"] = pageIndex
+		req["from_id"] = pageIndex
 	}
-	if pageSize > 0 && pageSize <= 50 {
-		req["page_size"] = pageSize
-	}
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapTradeHistory, nil, req, &resp)
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapTradeHistory, nil, req, &resp)
 }
 
 // PlaceSwapTriggerOrder places a trigger order for a swap
@@ -883,7 +877,7 @@ func (e *Exchange) PlaceSwapTriggerOrder(ctx context.Context, contractCode curre
 		return resp, errors.New("invalid order price type")
 	}
 	req["order_price_type"] = orderPriceType
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapTriggerOrder, nil, req, &resp)
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapTriggerOrder, nil, req, &resp)
 }
 
 // CancelSwapTriggerOrder cancels swap trigger order
@@ -892,7 +886,7 @@ func (e *Exchange) CancelSwapTriggerOrder(ctx context.Context, contractCode curr
 	req := make(map[string]any)
 	req["contract_code"] = contractCode
 	req["order_id"] = orderID
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapCancelTriggerOrder, nil, req, &resp)
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapCancelTriggerOrder, nil, req, &resp)
 }
 
 // CancelAllSwapTriggerOrders cancels all swap trigger orders
@@ -904,7 +898,7 @@ func (e *Exchange) CancelAllSwapTriggerOrders(ctx context.Context, contractCode 
 		return resp, err
 	}
 	req["contract_code"] = codeValue
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapCancelAllTriggerOrders, nil, req, &resp)
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapCancelAllTriggerOrders, nil, req, &resp)
 }
 
 // GetSwapTriggerOrderHistory gets history for swap trigger orders
@@ -932,7 +926,7 @@ func (e *Exchange) GetSwapTriggerOrderHistory(ctx context.Context, contractCode 
 	if pageSize > 0 && pageSize <= 50 {
 		req["page_size"] = pageSize
 	}
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, huobiSwapTriggerOrderHistory, nil, req, &resp)
+	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapTriggerOrderHistory, nil, req, &resp)
 }
 
 // GetSwapMarkets gets data of swap markets
@@ -950,7 +944,7 @@ func (e *Exchange) GetSwapMarkets(ctx context.Context, contract currency.Pair) (
 		Data []SwapMarketsData `json:"data"`
 	}
 	var result response
-	err := e.SendHTTPRequest(ctx, exchange.RestFutures, huobiSwapMarkets+"?"+vals.Encode(), &result)
+	err := e.SendHTTPRequest(ctx, exchange.RestFutures, htxSwapMarkets+"?"+vals.Encode(), &result)
 	if result.ErrorMessage != "" {
 		return nil, errors.New(result.ErrorMessage)
 	}
@@ -970,7 +964,7 @@ func (e *Exchange) GetSwapFundingRate(ctx context.Context, contract currency.Pai
 		Data FundingRatesData `json:"data"`
 	}
 	var result response
-	err = e.SendHTTPRequest(ctx, exchange.RestFutures, huobiSwapFunding+"?"+vals.Encode(), &result)
+	err = e.SendHTTPRequest(ctx, exchange.RestFutures, htxSwapFunding+"?"+vals.Encode(), &result)
 	if result.ErrorMessage != "" {
 		return FundingRatesData{}, errors.New(result.ErrorMessage)
 	}
@@ -980,6 +974,6 @@ func (e *Exchange) GetSwapFundingRate(ctx context.Context, contract currency.Pai
 // GetSwapFundingRates gets funding rates data
 func (e *Exchange) GetSwapFundingRates(ctx context.Context) (SwapFundingRatesResponse, error) {
 	var result SwapFundingRatesResponse
-	err := e.SendHTTPRequest(ctx, exchange.RestFutures, huobiSwapBatchFunding, &result)
+	err := e.SendHTTPRequest(ctx, exchange.RestFutures, htxSwapBatchFunding, &result)
 	return result, err
 }
