@@ -79,18 +79,20 @@ const (
 	walletTotalBalance                  = "wallet/total_balance"
 
 	// Margin
-	gateioMarginCurrencyPairs     = "margin/currency_pairs"
-	gateioMarginFundingBook       = "margin/funding_book"
-	gateioMarginLoans             = "margin/loans"
-	gateioMarginMergedLoans       = "margin/merged_loans"
-	gateioMarginLoanRecords       = "margin/loan_records"
-	gateioCrossMarginCurrencies   = "margin/cross/currencies"
-	gateioCrossMarginAccounts     = "margin/cross/accounts"
-	gateioCrossMarginAccountBook  = "margin/cross/account_book"
-	gateioCrossMarginLoans        = "margin/cross/loans"
-	gateioCrossMarginRepayments   = "margin/cross/repayments"
-	gateioCrossMarginTransferable = "margin/cross/transferable"
-	gateioCrossMarginBorrowable   = "margin/cross/borrowable"
+	gateioMarginCurrencyPairs      = "margin/currency_pairs"
+	gateioMarginFundingBook        = "margin/funding_book"
+	gateioMarginLoans              = "margin/loans"
+	gateioMarginMergedLoans        = "margin/merged_loans"
+	gateioMarginLoanRecords        = "margin/loan_records"
+	gateioCrossMarginCurrencies    = "margin/cross/currencies"
+	gateioCrossMarginAccounts      = "margin/cross/accounts"
+	gateioCrossMarginAccountBook   = "margin/cross/account_book"
+	gateioCrossMarginLoans         = "margin/cross/loans"
+	gateioCrossMarginRepayments    = "margin/cross/repayments"
+	gateioCrossMarginTransferable  = "margin/cross/transferable"
+	gateioCrossMarginBorrowable    = "margin/cross/borrowable"
+	gateioMarginUniLoans           = "margin/uni/loans"
+	gateioMarginUniInterestRecords = "margin/uni/interest_records"
 
 	// Options
 	gateioOptionUnderlyings            = "options/underlyings"
@@ -170,6 +172,7 @@ var (
 	errTooManyCurrencyCodes             = errors.New("too many currency codes supplied")
 	errFetchingOrderbook                = errors.New("error fetching orderbook")
 	errNoSpotInstrument                 = errors.New("no spot instrument available")
+	errInvalidUniLoanType               = errors.New("invalid uni loan type: must be \"borrow\" or \"repay\"")
 )
 
 // validTimesInForce holds a list of supported time-in-force values and corresponding string representations.
@@ -1361,6 +1364,57 @@ func (e *Exchange) QueryInterestDeductionRecords(ctx context.Context, ccy curren
 	}
 	var response []LoanInterestDeductionRecord
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, unifiedInterestRecordsEPL, http.MethodGet, "unified/interest_records", params, nil, &response)
+}
+
+// UniLoanBorrowOrRepay borrows or repays currency in a unified margin account
+// using the margin/uni/loans endpoint. Pass type="borrow" to open a loan or
+// type="repay" to close one. This replaces the deprecated POST margin/loans
+// endpoint which returned 403 "This API is no longer supported" for unified
+// margin accounts.
+func (e *Exchange) UniLoanBorrowOrRepay(ctx context.Context, arg *UniLoanBorrowRepayParam) error {
+	if arg == nil {
+		return errNilArgument
+	}
+	if arg.CurrencyPair.IsEmpty() {
+		return currency.ErrCurrencyPairEmpty
+	}
+	if arg.Currency.IsEmpty() {
+		return currency.ErrCurrencyCodeEmpty
+	}
+	if arg.Type != "borrow" && arg.Type != "repay" {
+		return errInvalidUniLoanType
+	}
+	if arg.Amount <= 0 {
+		return fmt.Errorf("%w, amount must be greater than 0", errInvalidAmount)
+	}
+	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginUniLoanBorrowRepayEPL, http.MethodPost, gateioMarginUniLoans, nil, arg, nil)
+}
+
+// GetUniLoanInterestRecords retrieves interest deduction records for unified
+// margin loans. Optionally filters by currency pair or by currency code.
+// Pagination: page starts at 1, limit defaults to 100 (max 100).
+func (e *Exchange) GetUniLoanInterestRecords(ctx context.Context, pair currency.Pair, ccy currency.Code, page, limit uint64, from, to time.Time) ([]UniLoanInterestRecord, error) {
+	params := url.Values{}
+	if pair.IsPopulated() {
+		params.Set("currency_pair", pair.String())
+	}
+	if !ccy.IsEmpty() {
+		params.Set("currency", ccy.String())
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatUint(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	if !from.IsZero() {
+		params.Set("from", strconv.FormatInt(from.Unix(), 10))
+	}
+	if !to.IsZero() {
+		params.Set("to", strconv.FormatInt(to.Unix(), 10))
+	}
+	var response []UniLoanInterestRecord
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginUniInterestRecordsEPL, http.MethodGet, gateioMarginUniInterestRecords, params, nil, &response)
 }
 
 // GetMarginSupportedCurrencyPairs retrieves margin supported currency pairs.

@@ -1679,16 +1679,6 @@ type CurrencyAndAmount struct {
 	Amount   types.Number  `json:"amount"`
 }
 
-// RepaymentHistoryItem represents an item in a repayment history.
-type RepaymentHistoryItem struct {
-	ID         string       `json:"id"`
-	CreateTime types.Time   `json:"create_time"`
-	LoanID     string       `json:"loan_id"`
-	Currency   string       `json:"currency"`
-	Principal  types.Number `json:"principal"`
-	Interest   types.Number `json:"interest"`
-}
-
 // LoanInterestDeductionRecord represents a single interest deduction record
 type LoanInterestDeductionRecord struct {
 	Currency     currency.Code `json:"currency"`
@@ -1698,6 +1688,27 @@ type LoanInterestDeductionRecord struct {
 	Status       int64         `json:"status"` // 0=undeducted, 1=deducted
 	CreateTime   types.Time    `json:"create_time"`
 	Type         string        `json:"type"` // "platform" or "margin"
+}
+
+// UniLoanInterestRecord represents a single interest deduction record from
+// the GET margin/uni/interest_records endpoint.
+type UniLoanInterestRecord struct {
+	Currency     string       `json:"currency"`
+	CurrencyPair string       `json:"currency_pair"`
+	ActualRate   types.Number `json:"actual_rate"`
+	Interest     types.Number `json:"interest"`
+	Status       int64        `json:"status"` // 0 = undeducted, 1 = deducted
+	CreateTime   types.Time   `json:"create_time"`
+	Type         string       `json:"type"` // "platform" or "margin"
+}
+
+// UniLoanBorrowRepayParam represents the request parameters for the unified
+// margin borrow-or-repay endpoint (POST margin/uni/loans).
+type UniLoanBorrowRepayParam struct {
+	CurrencyPair currency.Pair `json:"currency_pair"`
+	Currency     currency.Code `json:"currency"`
+	Type         string        `json:"type"` // Type is either "borrow" or "repay"
+	Amount       types.Number  `json:"amount"`
 }
 
 // FlashSwapOrderParams represents create flash swap order request parameters.

@@ -139,6 +139,7 @@ const (
 	marginUniLoanRecordsEPL
 	marginUniInterestRecordsEPL
 	unifiedInterestRecordsEPL
+	marginUniLoanBorrowRepayEPL
 
 	flashSwapOrderEPL
 	flashGetOrdersEPL
@@ -350,6 +351,7 @@ var packageRateLimits = request.RateLimitDefinitions{
 	marginUniLoanRecordsEPL:             otherPrivateEndpointRateLimit(),
 	marginUniInterestRecordsEPL:         otherPrivateEndpointRateLimit(),
 	unifiedInterestRecordsEPL:           otherPrivateEndpointRateLimit(),
+	marginUniLoanBorrowRepayEPL:         otherPrivateEndpointRateLimit(),
 
 	flashSwapOrderEPL:   otherPrivateEndpointRateLimit(),
 	flashGetOrdersEPL:   otherPrivateEndpointRateLimit(),
