@@ -100,7 +100,7 @@ type WebsocketFuturesOrderResponse struct {
 	Status                    string        `json:"status"`
 	Contract                  currency.Pair `json:"contract"`
 	Size                      types.Number  `json:"size"`
-	Iceberg                   int64         `json:"iceberg"`
+	Iceberg                   types.Number  `json:"iceberg"`
 	Price                     types.Number  `json:"price"`
 	IsClose                   bool          `json:"is_close"`
 	IsReduceOnly              bool          `json:"is_reduce_only"`
@@ -116,6 +116,8 @@ type WebsocketFuturesOrderResponse struct {
 	SelfTradePreventionAction string        `json:"stp_act"`
 	AmendText                 string        `json:"amend_text"`
 	BizInfo                   string        `json:"biz_info"`
+	BestBidOffer              string        `json:"bbo"`
+	MarketOrderSlipRatio      types.Number  `json:"market_order_slip_ratio"`
 	UpdateTime                types.Time    `json:"update_time"`
 	Succeeded                 *bool         `json:"succeeded"` // Nil if not present in returned response.
 }
