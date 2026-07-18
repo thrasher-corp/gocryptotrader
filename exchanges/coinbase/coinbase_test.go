@@ -1773,6 +1773,7 @@ func TestParseSigningKey(t *testing.T) {
 			t.Parallel()
 			key, alg, err := parseSigningKey(tc.secret)
 			if tc.wantKey == nil {
+			    require.Nil(t, key)
 				assert.ErrorIs(t, err, errDecodingPrivateKey)
 				return
 			}
