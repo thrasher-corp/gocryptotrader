@@ -1,6 +1,6 @@
 {
  "name": "Skynet",
- "version": 11,
+ "version": 12,
  "dataDirectory": "",
  "encryptConfig": 0,
  "globalHTTPTimeout": 15000000000,
@@ -1920,90 +1920,6 @@
       "authenticated": true
      }
     ]
-   },
-   "bankAccounts": [
-    {
-     "enabled": false,
-     "bankName": "",
-     "bankAddress": "",
-     "bankPostalCode": "",
-     "bankPostalCity": "",
-     "bankCountry": "",
-     "accountName": "",
-     "accountNumber": "",
-     "swiftCode": "",
-     "iban": "",
-     "supportedCurrencies": ""
-    }
-   ],
-   "orderbook": {
-    "verificationBypass": false,
-    "websocketBufferLimit": 5,
-    "websocketBufferEnabled": false
-   }
-  },
-  {
-   "name": "EXMO",
-   "enabled": true,
-   "verbose": false,
-   "httpTimeout": 15000000000,
-   "websocketResponseCheckTimeout": 30000000,
-   "websocketResponseMaxLimit": 7000000000,
-   "websocketTrafficTimeout": 30000000000,
-   "connectionMonitorDelay": 2000000000,
-   "baseCurrencies": "USD,EUR,RUB,PLN,UAH",
-   "currencyPairs": {
-    "bypassConfigFormatUpgrades": false,
-    "requestFormat": {
-     "uppercase": true,
-     "delimiter": "_",
-     "separator": ","
-    },
-    "configFormat": {
-     "uppercase": true,
-     "delimiter": "_"
-    },
-    "useGlobalFormat": true,
-    "pairs": {
-     "spot": {
-      "assetEnabled": true,
-      "enabled": "BTC_USD,LTC_USD",
-      "available": "A_USDC,A_USDT,AAVE_USDC,AAVE_USDT,ACT_USDT,ADA_USD,ADA_USDC,ADA_USDT,AIXBT_USDT,ALGO_EUR,ALGO_USDC,ALGO_USDT,ARB_USDC,ARB_USDT,ASTER_USDT,ATOM_EUR,ATOM_USD,ATOM_USDC,ATOM_USDT,AXS_USDC,AXS_USDT,BCH_USD,BCH_USDC,BCH_USDT,BERA_USDT,BIO_USDT,BTC_DAI,BTC_EUR,BTC_PLN,BTC_UAH,BTC_USD,BTC_USDC,BTC_USDQ,BTC_USDR,BTC_USDT,BTT100K_USDC,BTT100K_USDT,CHZ_USDT,CRV_USDT,DEGEN_USDC,DEGEN_USDT,DOGE_EUR,DOGE_USD,DOGE_USDC,DOGE_USDT,DOGS_BTC,DOGS_USDT,DOT_USD,DOT_USDC,DOT_USDT,ELIZAOS_USDC,ELIZAOS_USDT,ENA_USDC,ENA_USDT,ETC_USD,ETC_USDC,ETC_USDT,ETH_BTC,ETH_DAI,ETH_EUR,ETH_PLN,ETH_UAH,ETH_USD,ETH_USDC,ETH_USDT,EUL_USDC,EUL_USDT,EXM_USDC,EXM_USDT,FARTCOIN_USDT,FLOKI_USDC,FLOKI_USDT,GAS_USDT,GOAT_USDT,GRT_USDC,GRT_USDT,HMSTR_USDC,HMSTR_USDT,HTX100K_USDC,HTX100K_USDT,HYPE_USDT,IMX_USDC,IMX_USDT,JST_USDC,JST_USDT,JUP_USDC,JUP_USDT,KAS_USDT,KMNO_USDT,LAYER_USDT,LDO_USDC,LDO_USDT,LINEA_USDT,LINK_USDC,LINK_USDT,LTC_ETH,LTC_USD,LTC_USDC,LTC_USDT,MANA_USDC,MANA_USDT,MELANIA_USDC,MELANIA_USDT,MON_USDT,MOVE_USDT,NEAR_USD,NEAR_USDC,NEAR_USDT,NEO_USD,NEO_USDT,NFT1M_USDC,NFT1M_USDT,NOT_USDC,NOT_USDT,ONDO_USDC,ONDO_USDT,OP_USDC,OP_USDT,PENGU_USDC,PENGU_USDT,PEPE_USDC,PEPE_USDT,POL_USDC,POL_USDT,PUMP_USDT,QTUM_USDT,RENDER_USDC,RENDER_USDT,RSR_USDT,SAND_USDC,SAND_USDT,SHIB_USD,SHIB_USDC,SHIB_USDT,SKY_USDT,SOL_USDC,SOL_USDT,SUI_USDC,SUI_USDT,SUN_USDC,SUN_USDT,TON_USDC,TON_USDT,TRUMP_USDC,TRUMP_USDT,TRX_EUR,TRX_USD,TRX_USDC,TRX_USDT,UNI_USDT,USDC_EUR,USDC_PLN,USDC_USD,USDC_USDT,USDD_USDT,USDQ_USDT,USDR_USDT,USDT_BRL,USDT_DAI,USDT_EUR,USDT_PLN,USDT_UAH,USDT_USD,VIRTUAL_USDT,WAVES_ETH,WAVES_USDT,WCT_USDC,WCT_USDT,WIF_USDC,WIF_USDT,WIN10K_BTC,WIN10K_USDC,WIN10K_USDT,XAUT_USDT,XLM_USDC,XLM_USDT,XRP_EUR,XRP_USD,XRP_USDC,XRP_USDT,XTZ_USDC,XTZ_USDT,YFI_USDT,ZEC_USDT,ZK_USDT,ZRO_USDT,ZRX_USDT"
-     }
-    }
-   },
-   "api": {
-    "authenticatedSupport": false,
-    "authenticatedWebsocketApiSupport": false,
-    "credentials": {
-     "key": "Key",
-     "secret": "Secret"
-    },
-    "credentialsValidator": {
-     "requiresKey": true,
-     "requiresSecret": true
-    },
-    "urlEndpoints": {
-     "RestSpotURL": "https://api.exmo.com"
-    }
-   },
-   "features": {
-    "supports": {
-     "restAPI": true,
-     "restCapabilities": {
-      "tickerBatching": true,
-      "autoPairUpdates": true,
-      "fundingRateFetching": false
-     },
-     "websocketAPI": false
-    },
-    "enabled": {
-     "autoPairUpdates": true,
-     "websocketAPI": false,
-     "saveTradeData": false,
-     "tradeFeed": false,
-     "fillsFeed": false
-    }
    },
    "bankAccounts": [
     {
