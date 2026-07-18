@@ -280,9 +280,9 @@ func TestClassifyOrderNotFound(t *testing.T) {
 
 func TestCancelOrderResultError(t *testing.T) {
 	t.Parallel()
-	assert.NoError(t, cancelOrderResultError(OrderCancelDetail{Success: true}, "order-id"))
-	assert.ErrorIs(t, cancelOrderResultError(OrderCancelDetail{FailureReason: unknownCancelOrderFailure}, "order-id"), order.ErrOrderNotFound)
-	assert.ErrorIs(t, cancelOrderResultError(OrderCancelDetail{FailureReason: "INVALID_CANCEL_REQUEST"}, "order-id"), errOrderFailedToCancel)
+	assert.NoError(t, cancelOrderResultError(OrderCancelDetail{Success: true}, "order-id"), "successful cancellation should not error")
+	assert.ErrorIs(t, cancelOrderResultError(OrderCancelDetail{FailureReason: unknownCancelOrderFailure}, "order-id"), order.ErrOrderNotFound, "unknown order should return order not found")
+	assert.ErrorIs(t, cancelOrderResultError(OrderCancelDetail{FailureReason: "INVALID_CANCEL_REQUEST"}, "order-id"), errOrderFailedToCancel, "other cancellation failures should return the generic cancellation error")
 }
 
 func TestClosePosition(t *testing.T) {
