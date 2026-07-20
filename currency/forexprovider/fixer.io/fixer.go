@@ -64,7 +64,10 @@ func (f *Fixer) GetSupportedCurrencies() ([]string, error) {
 }
 
 // GetRates is a wrapper function to return rates
-func (f *Fixer) GetRates(baseCurrency, symbols string) (map[string]float64, error) {
+func (f *Fixer) GetRates(ctx context.Context, baseCurrency, symbols string) (map[string]float64, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	rates, err := f.GetLatestRates(baseCurrency, symbols)
 	if err != nil {
 		return nil, err

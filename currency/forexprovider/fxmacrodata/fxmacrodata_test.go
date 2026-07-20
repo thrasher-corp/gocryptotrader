@@ -56,7 +56,7 @@ func TestGetRates(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rates, err := provider.GetRates(" USD ", " AUD, EUR ,XYZ, usd ")
+	rates, err := provider.GetRates(context.Background(), " USD ", " AUD, EUR ,XYZ, usd ")
 	require.NoError(t, err, "GetRates must not error")
 	assert.Equal(t, 1.5, rates["USDAUD"], "USDAUD should match mocked latest rate")
 	assert.Equal(t, 0.9, rates["USDEUR"], "USDEUR should match mocked latest rate")
@@ -72,7 +72,7 @@ func TestGetRatesDuplicateTarget(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rates, err := provider.GetRates("USD", "AUD,EUR,AUD")
+	rates, err := provider.GetRates(context.Background(), "USD", "AUD,EUR,AUD")
 	assert.ErrorIs(t, err, errDuplicateCurrency, "GetRates should reject duplicate target currencies")
 	assert.Nil(t, rates, "rates should be nil when target currencies are duplicated")
 }
@@ -84,7 +84,7 @@ func TestGetRatesEmptyTarget(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rates, err := provider.GetRates("USD", "AUD,,EUR")
+	rates, err := provider.GetRates(context.Background(), "USD", "AUD,,EUR")
 	assert.ErrorIs(t, err, errEmptyCurrency, "GetRates should reject empty target currency segments")
 	assert.Nil(t, rates, "rates should be nil when target currencies include an empty segment")
 }
@@ -96,7 +96,7 @@ func TestGetRatesRejectsNoEffectiveTarget(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rates, err := provider.GetRates("USD", " USD ")
+	rates, err := provider.GetRates(context.Background(), "USD", " USD ")
 	assert.ErrorIs(t, err, errNoTargetCurrencies, "GetRates should reject target lists that only contain the base currency")
 	assert.Nil(t, rates, "rates should be nil when no target currencies remain")
 }
@@ -114,7 +114,7 @@ func TestGetRatesDefaultsToSupportedTargets(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rates, err := provider.GetRates("USD", "")
+	rates, err := provider.GetRates(context.Background(), "USD", "")
 	require.NoError(t, err, "GetRates must not error")
 	supported, err := provider.GetSupportedCurrencies()
 	require.NoError(t, err, "GetSupportedCurrencies must not error")
@@ -129,7 +129,7 @@ func TestGetRatesUnsupportedTargetsOnly(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rates, err := provider.GetRates("USD", "XYZ")
+	rates, err := provider.GetRates(context.Background(), "USD", "XYZ")
 	assert.ErrorIs(t, err, errUnsupportedCurrency, "GetRates should reject unsupported target currencies when no rates are available")
 	assert.Nil(t, rates, "rates should be nil when every target currency is unsupported")
 }
@@ -141,7 +141,7 @@ func TestGetRatesPropagatesLatestRateError(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rates, err := provider.GetRates("USD", "AUD")
+	rates, err := provider.GetRates(context.Background(), "USD", "AUD")
 	assert.ErrorContains(t, err, "no FXMacroData rate returned", "GetRates should propagate latest rate lookup errors")
 	assert.Nil(t, rates, "rates should be nil when latest rate lookup fails")
 }
@@ -153,7 +153,7 @@ func TestGetRatesUnsupportedBase(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rates, err := provider.GetRates("MXN", "AUD")
+	rates, err := provider.GetRates(context.Background(), "MXN", "AUD")
 	assert.ErrorIs(t, err, errUnsupportedCurrency, "GetRates should reject unsupported base currency")
 	assert.Nil(t, rates, "rates should be nil when base currency is unsupported")
 }
@@ -266,7 +266,7 @@ func TestReadEndpointHelpers(t *testing.T) {
 	for i := range expected {
 		assert.Equal(t, expected[i], seen[i], "request path should match expected order")
 	}
-	assert.Empty(t, values.Get("api_key"), "SendHTTPRequest should not mutate caller query values")
+	assert.Empty(t, values.Get("api_key"), "request helpers should not mutate caller query values")
 }
 
 func TestGraphQL(t *testing.T) {
@@ -310,7 +310,7 @@ func TestSetupAllowsPublicRequestsWithoutAPIKey(t *testing.T) {
 	require.NoError(t, err, "public data catalogue request does not require an API key")
 }
 
-func TestSendHTTPRequestHonoursCancellation(t *testing.T) {
+func TestGetRatesHonoursCancellation(t *testing.T) {
 	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Errorf("a cancelled context should not issue an HTTP request")
 		http.NotFound(w, r)
@@ -319,6 +319,66 @@ func TestSendHTTPRequestHonoursCancellation(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	err := provider.SendHTTPRequest(ctx, "data_catalogue/usd", nil, new(DataCatalogueResponse))
-	assert.ErrorIs(t, err, context.Canceled, "SendHTTPRequest should return the caller cancellation")
+	_, err := provider.GetRates(ctx, "USD", "AUD")
+	assert.ErrorIs(t, err, context.Canceled, "GetRates should return the caller cancellation")
+}
+
+func TestAuthenticatedEndpointsRequireAPIKey(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("an API-key-required endpoint should fail before issuing an HTTP request")
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	provider := new(FXMacroData)
+	require.NoError(t, provider.Setup(base.Settings{Name: "FXMacroData"}))
+	provider.APIURL = server.URL + "/api/v1/"
+	require.NoError(t, provider.Requester.DisableRateLimiter())
+
+	_, err := provider.GetLatestForexRate(context.Background(), "USD", "AUD")
+	assert.ErrorIs(t, err, errAPIKeyNotConfigured, "forex requests should require a configured API key")
+
+	err = provider.GraphQL(context.Background(), `{"query":"{ viewer }"}`, new(map[string]bool))
+	assert.ErrorIs(t, err, errAPIKeyNotConfigured, "GraphQL requests should require a configured API key")
+}
+
+func TestTypedEndpointResponses(t *testing.T) {
+	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/market_sessions":
+			assert.Empty(t, r.Header.Get("X-API-Key"), "public market-session requests should not include an API key")
+			_, _ = w.Write([]byte(`{"now_utc":"2026-07-20T00:00:00Z","now_unix":1784505600,"is_market_day":true,"sessions":[{"name":"London","currencies":["GBP","EUR"],"is_open":true}],"overlaps":[{"name":"London / New York","sessions":["London","New York"],"duration_hours":4}]}`))
+		case "/api/v1/risk_sentiment":
+			assert.Empty(t, r.Header.Get("X-API-Key"), "public risk-sentiment requests should not include an API key")
+			_, _ = w.Write([]byte(`{"start_date":"2026-07-01","end_date":"2026-07-20","data_quality":{},"component_metadata":{"aliases":{"score":"alias for val"}},"pagination":{"limit":1,"offset":0,"returned_count":1,"total_count":1,"has_more":false,"next_offset":null},"data":[{"components":{"ofr_fsi":0.5},"val":0.5,"date":"2026-07-20","regime":"risk_on","component_coverage":{"ofr_fsi":true}}]}`))
+		case "/api/v1/news/usd", "/api/v1/press-releases/usd":
+			assert.Equal(t, "test-key", r.Header.Get("X-API-Key"), "configured API key should be sent to currency-scoped requests")
+			_, _ = w.Write([]byte(`{"currency":"USD","source":"Federal Reserve","source_url":"https://www.federalreserve.gov","limit":1,"offset":0,"count":1,"pagination":{"limit":1,"offset":0,"returned_count":1,"total_count":1,"has_more":false,"next_offset":null},"data":[{"title":"Policy statement","url":"https://example.test/release","date":"2026-07-20","summary":"Held rates","sentiment":0,"topics":["policy"],"category":"monetary_policy","relevance":0.9,"rate_path":{"score":0,"label":"Neutral","bias_action":"hold","confidence":"low","raw_score":0,"matches":[{"phrase":"held rates","weight":0}]}}]}`))
+		default:
+			t.Errorf("unexpected path %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}))
+	defer closeServer()
+
+	ctx := context.Background()
+	sessions, err := provider.MarketSessions(ctx, nil)
+	require.NoError(t, err)
+	assert.Equal(t, "London", sessions.Sessions[0].Name)
+	assert.Equal(t, "London / New York", sessions.Overlaps[0].Name)
+
+	risk, err := provider.RiskSentiment(ctx, url.Values{"limit": []string{"1"}})
+	require.NoError(t, err)
+	assert.Equal(t, 0.5, risk.Data[0].Components["ofr_fsi"])
+	assert.Equal(t, "alias for val", risk.ComponentMetadata.Aliases["score"])
+
+	news, err := provider.News(ctx, "USD", nil)
+	require.NoError(t, err)
+	assert.Equal(t, "Policy statement", news.Data[0].Title)
+	assert.Equal(t, "hold", news.Data[0].RatePath.BiasAction)
+
+	pressReleases, err := provider.PressReleases(ctx, "USD", nil)
+	require.NoError(t, err)
+	assert.Equal(t, 1, pressReleases.Count)
+	assert.Equal(t, "policy", pressReleases.Data[0].Topics[0])
 }

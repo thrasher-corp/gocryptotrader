@@ -1,6 +1,7 @@
 package base
 
 import (
+	"context"
 	"errors"
 	"math/rand/v2"
 	"strings"
@@ -24,7 +25,7 @@ func (m *MockProvider) GetName() string {
 	return ""
 }
 
-func (m *MockProvider) GetRates(baseCurrency, symbols string) (map[string]float64, error) {
+func (m *MockProvider) GetRates(ctx context.Context, baseCurrency, symbols string) (map[string]float64, error) {
 	c := map[string]float64{}
 	for s := range strings.SplitSeq(symbols, ",") {
 		if s == "XRP" && m.value == 1.5 {
@@ -41,7 +42,7 @@ func (m *MockProvider) GetRates(baseCurrency, symbols string) (map[string]float6
 
 func TestBackupGetRate(t *testing.T) {
 	var f FXHandler
-	_, err := f.backupGetRate("", nil)
+	_, err := f.backupGetRate(context.Background(), "", nil)
 	assert.ErrorIs(t, err, errNoProvider)
 	f.Support = append(f.Support, Provider{
 		SupportedCurrencies: []string{"BTC", "ETH", "XRP"},
@@ -54,12 +55,12 @@ func TestBackupGetRate(t *testing.T) {
 			value: 2.5,
 		},
 	})
-	_, err = f.backupGetRate("", []string{"XRP"})
+	_, err = f.backupGetRate(context.Background(), "", []string{"XRP"})
 	assert.ErrorIs(t, err, errCurrencyNotSupported)
-	_, err = f.backupGetRate("", []string{"NOTREALCURRENCY"})
+	_, err = f.backupGetRate(context.Background(), "", []string{"NOTREALCURRENCY"})
 	assert.ErrorIs(t, err, errUnsupportedCurrencies)
 	f.Support[0].SupportedCurrencies = []string{"BTC", "ETH"}
-	r, err := f.backupGetRate("USD", []string{"BTC", "ETH", "LTC", "XRP"})
+	r, err := f.backupGetRate(context.Background(), "USD", []string{"BTC", "ETH", "LTC", "XRP"})
 	assert.NoError(t, err)
 	assert.Len(t, r, 4)
 	assert.Equal(t, 1.5, r["USDBTC"])

@@ -1,6 +1,7 @@
 package fixer
 
 import (
+	"context"
 	"testing"
 
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider/base"
@@ -26,7 +27,7 @@ func setup(t *testing.T) {
 
 func TestGetRates(t *testing.T) {
 	setup(t)
-	_, err := f.GetRates("EUR", "AUD")
+	_, err := f.GetRates(context.Background(), "EUR", "AUD")
 	if err == nil {
 		t.Error("fixer GetRates() Expected error")
 	}

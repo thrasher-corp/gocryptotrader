@@ -1,6 +1,7 @@
 package currencyconverter
 
 import (
+	"context"
 	"testing"
 )
 
@@ -15,7 +16,7 @@ func TestGetRates(t *testing.T) {
 		t.Skip("API keys unset, skipping")
 	}
 
-	result, err := c.GetRates("USD", "AUD")
+	result, err := c.GetRates(context.Background(), "USD", "AUD")
 	if err != nil {
 		t.Error("Test Error. CurrencyConverter GetRates() error", err)
 	}
@@ -24,7 +25,7 @@ func TestGetRates(t *testing.T) {
 		t.Fatal("Test error. Expected 2 rates")
 	}
 
-	result, err = c.GetRates("USD", "AUD,EUR")
+	result, err = c.GetRates(context.Background(), "USD", "AUD,EUR")
 	if err != nil {
 		t.Error("Test Error. CurrencyConverter GetRates() error", err)
 	}
@@ -33,7 +34,7 @@ func TestGetRates(t *testing.T) {
 		t.Fatal("Test error. Expected 2 rates")
 	}
 
-	result, err = c.GetRates("USD", "AUD,EUR,GBP")
+	result, err = c.GetRates(context.Background(), "USD", "AUD,EUR,GBP")
 	if err != nil {
 		t.Error("Test Error. CurrencyConverter GetRates() error", err)
 	}
@@ -42,7 +43,7 @@ func TestGetRates(t *testing.T) {
 		t.Fatal("Test error. Expected 3 rates")
 	}
 
-	result, err = c.GetRates("USD", "AUD,EUR,GBP,CNY")
+	result, err = c.GetRates(context.Background(), "USD", "AUD,EUR,GBP,CNY")
 	if err != nil {
 		t.Error("Test Error. CurrencyConverter GetRates() error", err)
 	}

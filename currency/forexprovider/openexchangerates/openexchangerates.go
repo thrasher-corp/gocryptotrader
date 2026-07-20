@@ -44,7 +44,10 @@ func (o *OXR) Setup(config base.Settings) error {
 }
 
 // GetRates is a wrapper function to return rates
-func (o *OXR) GetRates(baseCurrency, symbols string) (map[string]float64, error) {
+func (o *OXR) GetRates(ctx context.Context, baseCurrency, symbols string) (map[string]float64, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	rates, err := o.GetLatest(baseCurrency, symbols, false, false)
 	if err != nil {
 		return nil, err

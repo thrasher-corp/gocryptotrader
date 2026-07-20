@@ -386,23 +386,148 @@ type ForwardDifferentialPoint struct {
 	QuoteEndAnnouncementDatetime   json.RawMessage `json:"quote_end_announcement_datetime"`
 }
 
-// MarketSessionsResponse contains the undocumented market-session payload.
-// Data is preserved verbatim until the API publishes a field-level schema.
+// Pagination describes offset pagination returned by list endpoints.
+type Pagination struct {
+	Limit         int  `json:"limit"`
+	Offset        int  `json:"offset"`
+	ReturnedCount int  `json:"returned_count"`
+	TotalCount    int  `json:"total_count"`
+	HasMore       bool `json:"has_more"`
+	NextOffset    *int `json:"next_offset"`
+}
+
+// MarketSessionsResponse contains the FX market-session snapshot.
 type MarketSessionsResponse struct {
-	Data json.RawMessage `json:"data"`
+	NowUTC      string                 `json:"now_utc"`
+	NowUnix     int64                  `json:"now_unix"`
+	IsMarketDay bool                   `json:"is_market_day"`
+	Sessions    []MarketSession        `json:"sessions"`
+	Overlaps    []MarketSessionOverlap `json:"overlaps"`
 }
 
-// RiskSentimentResponse contains the undocumented risk-sentiment payload.
+// MarketSession is one major FX market session.
+type MarketSession struct {
+	Name           string   `json:"name"`
+	DisplayName    string   `json:"display_name"`
+	Description    string   `json:"description"`
+	Currencies     []string `json:"currencies"`
+	Timezone       string   `json:"timezone"`
+	OpenUTC        string   `json:"open_utc"`
+	CloseUTC       string   `json:"close_utc"`
+	OpenUnix       int64    `json:"open_unix"`
+	CloseUnix      int64    `json:"close_unix"`
+	IsOpen         bool     `json:"is_open"`
+	SecondsToOpen  *int64   `json:"seconds_to_open"`
+	SecondsToClose *int64   `json:"seconds_to_close"`
+}
+
+// MarketSessionOverlap is a named overlap between major FX sessions.
+type MarketSessionOverlap struct {
+	Name           string   `json:"name"`
+	Sessions       []string `json:"sessions"`
+	Description    string   `json:"description"`
+	Priority       string   `json:"priority"`
+	NotablePairs   []string `json:"notable_pairs"`
+	StartUTC       string   `json:"start_utc"`
+	EndUTC         string   `json:"end_utc"`
+	StartUnix      int64    `json:"start_unix"`
+	EndUnix        int64    `json:"end_unix"`
+	IsActive       bool     `json:"is_active"`
+	SecondsToStart *int64   `json:"seconds_to_start"`
+	SecondsToEnd   *int64   `json:"seconds_to_end"`
+	DurationHours  float64  `json:"duration_hours"`
+}
+
+// RiskSentimentResponse contains global daily risk-on/risk-off observations.
 type RiskSentimentResponse struct {
-	Data json.RawMessage `json:"data"`
+	StartDate           string                         `json:"start_date"`
+	EndDate             string                         `json:"end_date"`
+	LatestAvailableDate string                         `json:"latest_available_date"`
+	LastUpdated         string                         `json:"last_updated"`
+	DataQuality         DataQuality                    `json:"data_quality"`
+	ComponentMetadata   RiskSentimentComponentMetadata `json:"component_metadata"`
+	Pagination          Pagination                     `json:"pagination"`
+	Data                []RiskSentimentPoint           `json:"data"`
 }
 
-// NewsResponse contains the undocumented macro-news payload.
+// RiskSentimentComponentMetadata describes the components used in the score.
+type RiskSentimentComponentMetadata struct {
+	StoredComponents                      []string          `json:"stored_components"`
+	ComponentCoverageFields               []string          `json:"component_coverage_fields"`
+	Aliases                               map[string]string `json:"aliases"`
+	UnavailableComponentsAreReportedFalse bool              `json:"unavailable_components_are_reported_false"`
+}
+
+// RiskSentimentPoint is one daily risk-sentiment observation.
+type RiskSentimentPoint struct {
+	Components           map[string]float64 `json:"components"`
+	Val                  float64            `json:"val"`
+	Date                 string             `json:"date"`
+	Regime               string             `json:"regime"`
+	Score                float64            `json:"score"`
+	RiskRegime           string             `json:"risk_regime"`
+	Sentiment            string             `json:"sentiment"`
+	ComponentCoverage    map[string]bool    `json:"component_coverage"`
+	StoredComponentCount int                `json:"stored_component_count"`
+	FinancialStressScore *float64           `json:"financial_stress_score"`
+	CommodityBetaScore   *float64           `json:"commodity_beta_score"`
+	SafeHavenScore       *float64           `json:"safe_haven_score"`
+}
+
+// NewsResponse contains central-bank news and press-release items.
 type NewsResponse struct {
-	Data json.RawMessage `json:"data"`
+	Currency   string             `json:"currency"`
+	Source     string             `json:"source"`
+	SourceURL  string             `json:"source_url"`
+	Limit      int                `json:"limit"`
+	Offset     int                `json:"offset"`
+	Pagination Pagination         `json:"pagination"`
+	Data       []PressReleaseItem `json:"data"`
 }
 
-// PressReleasesResponse contains the undocumented official-release payload.
+// PressReleasesResponse contains official central-bank release items.
 type PressReleasesResponse struct {
-	Data json.RawMessage `json:"data"`
+	Currency   string             `json:"currency"`
+	Source     string             `json:"source"`
+	SourceURL  string             `json:"source_url"`
+	Limit      int                `json:"limit"`
+	Offset     int                `json:"offset"`
+	Count      int                `json:"count"`
+	Pagination Pagination         `json:"pagination"`
+	Data       []PressReleaseItem `json:"data"`
+}
+
+// PressReleaseItem is one official central-bank announcement or news item.
+type PressReleaseItem struct {
+	Title                    string         `json:"title"`
+	URL                      string         `json:"url"`
+	Date                     string         `json:"date"`
+	Summary                  string         `json:"summary"`
+	Sentiment                float64        `json:"sentiment"`
+	Topics                   []string       `json:"topics"`
+	Category                 string         `json:"category"`
+	Relevance                float64        `json:"relevance"`
+	AISummary                string         `json:"ai_summary"`
+	AIStance                 string         `json:"ai_stance"`
+	AIStanceScore            *float64       `json:"ai_stance_score"`
+	AINextMeetingAction      string         `json:"ai_next_meeting_action"`
+	AINextMeetingProbability *float64       `json:"ai_next_meeting_probability"`
+	AIRationale              string         `json:"ai_rationale"`
+	RatePath                 RatePathSignal `json:"rate_path"`
+}
+
+// RatePathSignal is the deterministic hawkish/dovish interpretation of a release.
+type RatePathSignal struct {
+	Score      float64         `json:"score"`
+	Label      string          `json:"label"`
+	BiasAction string          `json:"bias_action"`
+	Confidence string          `json:"confidence"`
+	RawScore   float64         `json:"raw_score"`
+	Matches    []RatePathMatch `json:"matches"`
+}
+
+// RatePathMatch is one rate-path phrase and its weighted contribution.
+type RatePathMatch struct {
+	Phrase string  `json:"phrase"`
+	Weight float64 `json:"weight"`
 }
