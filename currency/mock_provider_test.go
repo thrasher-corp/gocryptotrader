@@ -1,6 +1,7 @@
 package currency
 
 import (
+	"context"
 	"math/rand"
 	"strings"
 
@@ -31,7 +32,7 @@ func (m *MockProvider) GetSupportedCurrencies() ([]string, error) {
 	return storage.defaultFiatCurrencies.Strings(), nil
 }
 
-func (m *MockProvider) GetRates(baseCurrency, symbols string) (map[string]float64, error) {
+func (m *MockProvider) GetRates(ctx context.Context, baseCurrency, symbols string) (map[string]float64, error) {
 	c := map[string]float64{}
 	for s := range strings.SplitSeq(symbols, ",") {
 		// The year is 2027; The USD is nearly worthless. The world reserve currency is eggs.

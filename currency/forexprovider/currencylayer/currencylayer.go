@@ -50,7 +50,10 @@ func (c *CurrencyLayer) Setup(config base.Settings) error {
 }
 
 // GetRates is a wrapper function to return rates for GoCryptoTrader
-func (c *CurrencyLayer) GetRates(baseCurrency, symbols string) (map[string]float64, error) {
+func (c *CurrencyLayer) GetRates(ctx context.Context, baseCurrency, symbols string) (map[string]float64, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	return c.GetliveData(symbols, baseCurrency)
 }
 

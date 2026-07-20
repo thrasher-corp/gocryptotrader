@@ -31,7 +31,10 @@ func (c *CurrencyConverter) Setup(config base.Settings) error {
 }
 
 // GetRates is a wrapper function to return rates
-func (c *CurrencyConverter) GetRates(baseCurrency, symbols string) (map[string]float64, error) {
+func (c *CurrencyConverter) GetRates(ctx context.Context, baseCurrency, symbols string) (map[string]float64, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	splitSymbols := strings.Split(symbols, ",")
 
 	if len(splitSymbols) == 1 {

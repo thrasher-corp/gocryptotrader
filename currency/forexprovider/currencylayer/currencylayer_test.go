@@ -1,6 +1,7 @@
 package currencylayer
 
 import (
+	"context"
 	"log"
 	"os"
 	"strings"
@@ -64,7 +65,7 @@ func TestGetSupportedCurrencies(t *testing.T) {
 func TestGetRates(t *testing.T) {
 	t.Parallel()
 	skipIfNoAPIKey(t)
-	r, err := c.GetRates("USD", "AUD")
+	r, err := c.GetRates(context.Background(), "USD", "AUD")
 	if assert.NoError(t, err, "GetRates should not error") {
 		assert.Contains(t, r, "USDAUD", "Should find a USDAUD rate")
 		assert.Positive(t, r["USDAUD"], "Rate should be positive")
