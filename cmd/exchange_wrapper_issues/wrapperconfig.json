@@ -106,11 +106,6 @@
     "secret": "Secret",
     "otpSecret": "-"
    },
-  "exmo": {
-   "key": "Key",
-   "secret": "Secret",
-   "otpSecret": "-"
-  },
   "gateio": {
    "key": "Key",
    "secret": "Secret",
