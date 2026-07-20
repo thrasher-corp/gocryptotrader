@@ -124,6 +124,8 @@ const (
 	marginGetCrossBorrowHistoryEPL
 	marginGetBorrowEPL
 	marginEstimateRateEPL
+	marginUniLoanBorrowRepayEPL
+	marginUniInterestRecordsEPL
 
 	flashSwapOrderEPL
 	flashGetOrdersEPL
@@ -308,7 +310,7 @@ var packageRateLimits = request.RateLimitDefinitions{
 	marginGetAutoRepaySettingsEPL:       otherPrivateEndpointRateLimit(),
 	marginGetMaxTransferEPL:             otherPrivateEndpointRateLimit(),
 	marginGetMaxBorrowEPL:               otherPrivateEndpointRateLimit(),
-	marginSupportedCurrencyCrossListEPL: otherPrivateEndpointRateLimit(),
+	marginSupportedCurrencyCrossListEPL: standardRateLimit(),
 	marginSupportedCurrencyCrossEPL:     otherPrivateEndpointRateLimit(),
 	marginAccountsEPL:                   otherPrivateEndpointRateLimit(),
 	marginAccountHistoryEPL:             otherPrivateEndpointRateLimit(),
@@ -320,6 +322,8 @@ var packageRateLimits = request.RateLimitDefinitions{
 	marginGetCrossBorrowHistoryEPL:      otherPrivateEndpointRateLimit(),
 	marginGetBorrowEPL:                  otherPrivateEndpointRateLimit(),
 	marginEstimateRateEPL:               otherPrivateEndpointRateLimit(),
+	marginUniLoanBorrowRepayEPL:         otherPrivateEndpointRateLimit(),
+	marginUniInterestRecordsEPL:         otherPrivateEndpointRateLimit(),
 
 	flashSwapOrderEPL:   otherPrivateEndpointRateLimit(),
 	flashGetOrdersEPL:   otherPrivateEndpointRateLimit(),

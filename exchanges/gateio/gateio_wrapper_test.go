@@ -2,6 +2,8 @@ package gateio
 
 import (
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -10,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -104,6 +107,99 @@ func TestUseOpenInterestStats(t *testing.T) {
 	assert.True(t, useOpenInterestStats([]key.PairAsset{{Asset: asset.USDTMarginedFutures}}, asset.USDTMarginedFutures))
 }
 
+func TestGetCrossMarginMinimums(t *testing.T) {
+	t.Parallel()
+
+	minimums, err := e.getCrossMarginMinimums(t.Context())
+	require.NoError(t, err, "getCrossMarginMinimums must not error")
+	require.NotEmpty(t, minimums, "getCrossMarginMinimums must return loanable currencies")
+	for ccy, minimum := range minimums {
+		assert.Falsef(t, ccy.IsEmpty(), "currency should not be empty for minimum %f", minimum)
+		assert.Positivef(t, minimum, "minimum should be positive for %s", ccy)
+	}
+}
+
+func TestUpdateOrderExecutionLimitsUsesProductBorrowMinimums(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = "GateIOProductBorrowMinimums"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method, "request method should be GET")
+		switch r.URL.Path {
+		case "/api/v4/spot/currency_pairs":
+			_, err := fmt.Fprint(w, `[{"id":"BTC_USDT","base":"BTC","quote":"USDT","min_base_amount":"0.001","min_quote_amount":"1","amount_precision":3,"precision":2,"trade_status":"tradable"}]`)
+			assert.NoError(t, err, "writing spot currency pairs should not error")
+		case "/api/v4/margin/currency_pairs":
+			_, err := fmt.Fprint(w, `[{"id":"BTC_USDT","base":"BTC","quote":"USDT","min_base_amount":"0.01","min_quote_amount":"2","status":1}]`)
+			assert.NoError(t, err, "writing margin currency pairs should not error")
+		case "/api/v4/margin/cross/currencies":
+			_, err := fmt.Fprint(w, `[{"name":"BTC","min_borrow_amount":"0.03","loanable":true,"status":1},{"name":"USDT","min_borrow_amount":"4","loanable":true,"status":1}]`)
+			assert.NoError(t, err, "writing cross-margin currencies should not error")
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
+
+	pair := currency.NewBTCUSDT()
+	require.NoError(t, ex.UpdateOrderExecutionLimits(t.Context(), asset.Margin), "UpdateOrderExecutionLimits must not error for margin")
+	isolatedLimits, err := ex.GetOrderExecutionLimits(asset.Margin, pair)
+	require.NoError(t, err, "GetOrderExecutionLimits must not error for margin")
+	assert.Equal(t, 0.01, isolatedLimits.MinimumBorrowAmountBase, "margin base borrow minimum should use the isolated pair value")
+	assert.Equal(t, 2.0, isolatedLimits.MinimumBorrowAmountQuote, "margin quote borrow minimum should use the isolated pair value")
+
+	require.NoError(t, ex.UpdateOrderExecutionLimits(t.Context(), asset.CrossMargin), "UpdateOrderExecutionLimits must not error for cross margin")
+	crossLimits, err := ex.GetOrderExecutionLimits(asset.CrossMargin, pair)
+	require.NoError(t, err, "GetOrderExecutionLimits must not error for cross margin")
+	assert.Equal(t, 0.03, crossLimits.MinimumBorrowAmountBase, "cross-margin base borrow minimum should use the currency value")
+	assert.Equal(t, 4.0, crossLimits.MinimumBorrowAmountQuote, "cross-margin quote borrow minimum should use the currency value")
+}
+
+func TestFetchTradablePairsUsesMarginProductSources(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.Name = "GateIOTradableMarginPairs"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, http.MethodGet, r.Method, "request method should be GET")
+		switch r.URL.Path {
+		case "/api/v4/spot/currency_pairs":
+			_, err := fmt.Fprint(w, `[{"id":"BTC_USDT","base":"BTC","quote":"USDT","trade_status":"tradable"},{"id":"ETH_USDT","base":"ETH","quote":"USDT","trade_status":"tradable"},{"id":"DOGE_USDT","base":"DOGE","quote":"USDT","trade_status":"untradable"}]`)
+			assert.NoError(t, err, "writing spot currency pairs should not error")
+		case "/api/v4/margin/currency_pairs":
+			_, err := fmt.Fprint(w, `[{"id":"BTC_USDT","base":"BTC","quote":"USDT","min_base_amount":"0.01","status":0},{"id":"ETH_USDT","base":"ETH","quote":"USDT","min_base_amount":"0.02","status":1}]`)
+			assert.NoError(t, err, "writing margin currency pairs should not error")
+		case "/api/v4/margin/cross/currencies":
+			_, err := fmt.Fprint(w, `[{"name":"BTC","min_borrow_amount":"0.03","loanable":true,"status":1},{"name":"USDT","min_borrow_amount":"4","loanable":true,"status":1},{"name":"ETH","min_borrow_amount":"0.05","loanable":true,"status":0},{"name":"DOGE","min_borrow_amount":"1","loanable":true,"status":1}]`)
+			assert.NoError(t, err, "writing cross-margin currencies should not error")
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
+
+	marginPairs, err := ex.FetchTradablePairs(t.Context(), asset.Margin)
+	require.NoError(t, err, "FetchTradablePairs must not error for margin")
+	require.Len(t, marginPairs, 1, "margin must return one active isolated pair")
+	assert.True(t, marginPairs[0].Equal(currency.NewPair(currency.ETH, currency.USDT)), "margin should use the isolated-margin pair endpoint")
+
+	crossPairs, err := ex.FetchTradablePairs(t.Context(), asset.CrossMargin)
+	require.NoError(t, err, "FetchTradablePairs must not error for cross margin")
+	require.Len(t, crossPairs, 1, "cross margin must return one enabled tradable pair")
+	assert.True(t, crossPairs[0].Equal(currency.NewBTCUSDT()), "cross margin should use enabled currencies and tradable spot pairs")
+}
+
 func TestGetRequestedOpenInterestPair(t *testing.T) {
 	t.Parallel()
 
@@ -185,6 +281,53 @@ func TestPriceDivisor(t *testing.T) {
 
 			require.NoError(t, err, "priceDivisor must not error")
 			assert.Equal(t, tc.expect, got, "price divisor should match expected value")
+		})
+	}
+}
+
+func TestEarliestTime(t *testing.T) {
+	t.Parallel()
+
+	now := time.Now().UTC()
+	pastOldest := time.Unix(1_700_000_000, 0).UTC()
+	pastNewer := pastOldest.Add(2 * time.Hour)
+	future := now.Add(24 * time.Hour)
+
+	for _, tc := range []struct {
+		name   string
+		times  []time.Time
+		expect time.Time
+	}{
+		{
+			name:   "no times returns zero",
+			expect: time.Time{},
+		},
+		{
+			name:   "zero and future times are ignored",
+			times:  []time.Time{{}, future},
+			expect: time.Time{},
+		},
+		{
+			name:   "time equal to now is ignored",
+			times:  []time.Time{now},
+			expect: time.Time{},
+		},
+		{
+			name:   "single past time is returned",
+			times:  []time.Time{pastNewer},
+			expect: pastNewer,
+		},
+		{
+			name:   "oldest past time is returned",
+			times:  []time.Time{future, pastNewer, {}, pastOldest},
+			expect: pastOldest,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := earliestTime(now, tc.times...)
+			assert.Equal(t, tc.expect, got, "earliest time should match expected value")
 		})
 	}
 }
