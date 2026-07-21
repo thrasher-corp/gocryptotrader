@@ -2,14 +2,18 @@ package deribit
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
+	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -17,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -52,6 +57,54 @@ var (
 	assetTypeToPairsMap                                                   map[asset.Item]currency.Pair
 )
 
+type subscriptionTestConnection struct {
+	websocket.Connection
+	requests    []WsSubscriptionInput
+	sendErr     error
+	rawResponse []byte
+	ackLimit    int
+	dialErr     error
+	dialCalls   int
+	sent        []any
+	sentSignal  chan struct{}
+}
+
+func (c *subscriptionTestConnection) Dial(context.Context, *gws.Dialer, http.Header, url.Values) error {
+	c.dialCalls++
+	return c.dialErr
+}
+
+func (c *subscriptionTestConnection) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _, payload any) ([]byte, error) {
+	c.sent = append(c.sent, payload)
+	if c.sentSignal != nil {
+		c.sentSignal <- struct{}{}
+	}
+	if c.sendErr != nil {
+		return nil, c.sendErr
+	}
+	if c.rawResponse != nil {
+		return c.rawResponse, nil
+	}
+	req, ok := payload.(WsSubscriptionInput)
+	if !ok {
+		return []byte(`{"result":{}}`), nil
+	}
+	c.requests = append(c.requests, req)
+	channels := req.Params["channels"]
+	if c.ackLimit > 0 && c.ackLimit < len(channels) {
+		channels = channels[:c.ackLimit]
+	}
+	return json.Marshal(wsSubscriptionResponse{JSONRPCVersion: rpcVersion, ID: req.ID, Result: channels})
+}
+
+func (c *subscriptionTestConnection) SendJSONMessage(_ context.Context, _ request.EndpointLimit, payload any) error {
+	c.sent = append(c.sent, payload)
+	if c.sentSignal != nil {
+		c.sentSignal <- struct{}{}
+	}
+	return c.sendErr
+}
+
 func TestMain(m *testing.M) {
 	e = new(Exchange)
 	if err := testexch.Setup(e); err != nil {
@@ -85,7 +138,7 @@ func TestMain(m *testing.M) {
 		asset.OptionCombo: optionComboTradablePair,
 		asset.FutureCombo: futureComboTradablePair,
 	}
-	setupWs()
+	setupWs(context.Background())
 	os.Exit(m.Run())
 }
 
@@ -129,8 +182,8 @@ func TestUpdateTicker(t *testing.T) {
 
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err := e.UpdateTicker(t.Context(), cp, assetType)
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
-		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
+		require.NoErrorf(t, err, "request must not error for asset %s pair %s", assetType, cp)
+		require.NotNilf(t, result, "result must not be nil for asset %s pair %s", assetType, cp)
 	}
 }
 
@@ -138,7 +191,7 @@ func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err := e.UpdateOrderbook(t.Context(), cp, assetType)
-		require.NoErrorf(t, err, "asset type: %v", assetType)
+		require.NoErrorf(t, err, "request must not error for asset type %v", assetType)
 		require.NotNil(t, result)
 	}
 }
@@ -149,7 +202,7 @@ func TestGetHistoricTrades(t *testing.T) {
 	require.ErrorIs(t, err, asset.ErrNotSupported)
 	for assetType, cp := range map[asset.Item]currency.Pair{asset.Spot: spotTradablePair, asset.Futures: futuresTradablePair} {
 		_, err = e.GetHistoricTrades(t.Context(), cp, assetType, time.Now().Add(-time.Minute*10), time.Now())
-		require.NoErrorf(t, err, "asset type: %v", assetType)
+		require.NoErrorf(t, err, "request must not error for asset type %v", assetType)
 	}
 }
 
@@ -157,8 +210,8 @@ func TestFetchRecentTrades(t *testing.T) {
 	t.Parallel()
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err := e.GetRecentTrades(t.Context(), cp, assetType)
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
-		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
+		require.NoErrorf(t, err, "request must not error for asset %s pair %s", assetType, cp)
+		require.NotNilf(t, result, "result must not be nil for asset %s pair %s", assetType, cp)
 	}
 }
 
@@ -221,8 +274,8 @@ func TestSubmitOrder(t *testing.T) {
 	var info *InstrumentData
 	for assetType, cp := range assetToPairStringMap {
 		info, err = e.GetInstrument(t.Context(), formatPairString(assetType, cp))
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
-		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
+		require.NoErrorf(t, err, "request must not error for asset %s pair %s", assetType, cp)
+		require.NotNilf(t, result, "result must not be nil for asset %s pair %s", assetType, cp)
 
 		result, err = e.SubmitOrder(
 			t.Context(),
@@ -236,8 +289,8 @@ func TestSubmitOrder(t *testing.T) {
 				Pair:      cp,
 			},
 		)
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
-		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
+		require.NoErrorf(t, err, "request must not error for asset %s pair %s", assetType, cp)
+		require.NotNilf(t, result, "result must not be nil for asset %s pair %s", assetType, cp)
 	}
 }
 
@@ -259,8 +312,8 @@ func TestGetMarkPriceHistory(t *testing.T) {
 		futureComboPairToString(futureComboTradablePair),
 	} {
 		result, err = e.GetMarkPriceHistory(t.Context(), ps, time.Now().Add(-5*time.Minute), time.Now())
-		require.NoErrorf(t, err, "expected nil, got %v for pair %s", err, ps)
-		require.NotNilf(t, result, "expected result not to be nil for pair %s", ps)
+		require.NoErrorf(t, err, "request must not error for pair %s", ps)
+		require.NotNilf(t, result, "result must not be nil for pair %s", ps)
 	}
 }
 
@@ -277,8 +330,8 @@ func TestWSRetrieveMarkPriceHistory(t *testing.T) {
 		futureComboPairToString(futureComboTradablePair),
 	} {
 		result, err = e.WSRetrieveMarkPriceHistory(t.Context(), ps, time.Now().Add(-4*time.Hour), time.Now())
-		require.NoErrorf(t, err, "expected %v, got %v currency pair %v", nil, err, ps)
-		require.NotNilf(t, result, "expected value not to be nil for pair: %v", ps)
+		require.NoErrorf(t, err, "request must not error for currency pair %v", ps)
+		require.NotNilf(t, result, "result must not be nil for pair %v", ps)
 	}
 }
 
@@ -341,8 +394,8 @@ func TestWSRetrieveBookSummaryByInstrument(t *testing.T) {
 		optionComboPairToString(optionComboTradablePair),
 	} {
 		result, err = e.WSRetrieveBookSummaryByInstrument(t.Context(), ps)
-		require.NoErrorf(t, err, "expected nil, got %v for pair %s", err, ps)
-		require.NotNilf(t, result, "expected result not to be nil for pair %s", ps)
+		require.NoErrorf(t, err, "request must not error for pair %s", ps)
+		require.NotNilf(t, result, "result must not be nil for pair %s", ps)
 	}
 }
 
@@ -534,8 +587,8 @@ func TestGetInstrumentData(t *testing.T) {
 	var result *InstrumentData
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err = e.GetInstrument(t.Context(), formatPairString(assetType, cp))
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
-		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
+		require.NoErrorf(t, err, "request must not error for asset %s pair %s", assetType, cp)
+		require.NotNilf(t, result, "result must not be nil for asset %s pair %s", assetType, cp)
 	}
 }
 
@@ -564,7 +617,7 @@ func TestGetInstruments(t *testing.T) {
 	result, err = e.GetInstruments(t.Context(), currency.BTC, "", true)
 	require.NoError(t, err)
 	for a := range result {
-		require.Falsef(t, result[a].IsActive, "expected expired instrument, but got active instrument %s", result[a].InstrumentName)
+		require.Falsef(t, result[a].IsActive, "instrument must be expired but was active: %s", result[a].InstrumentName)
 	}
 }
 
@@ -671,8 +724,8 @@ func TestGetLastTradesByInstrument(t *testing.T) {
 
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err := e.GetLastTradesByInstrument(t.Context(), formatPairString(assetType, cp), "30500", "31500", "desc", 0, true)
-		require.NoErrorf(t, err, "expected %v, got %v currency asset %v pair %v", nil, err, assetType, cp)
-		require.NotNilf(t, result, "expected value not to be nil for asset %v pair: %v", assetType, cp)
+		require.NoErrorf(t, err, "request must not error for asset %v pair %v", assetType, cp)
+		require.NotNilf(t, result, "result must not be nil for asset %v pair %v", assetType, cp)
 	}
 }
 
@@ -683,8 +736,8 @@ func TestWSRetrieveLastTradesByInstrument(t *testing.T) {
 
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err := e.WSRetrieveLastTradesByInstrument(t.Context(), formatPairString(assetType, cp), "30500", "31500", "desc", 0, true)
-		require.NoErrorf(t, err, "expected %v, got %v currency asset %v pair %v", nil, err, assetType, cp)
-		require.NotNilf(t, result, "expected value not to be nil for asset %v pair: %v", assetType, cp)
+		require.NoErrorf(t, err, "request must not error for asset %v pair %v", assetType, cp)
+		require.NotNilf(t, result, "result must not be nil for asset %v pair %v", assetType, cp)
 	}
 }
 
@@ -695,8 +748,8 @@ func TestGetLastTradesByInstrumentAndTime(t *testing.T) {
 
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err := e.GetLastTradesByInstrumentAndTime(t.Context(), formatPairString(assetType, cp), "", 0, time.Now().Add(-8*time.Hour), time.Now())
-		require.NoErrorf(t, err, "expected %v, got %v currency pair %v", nil, err, cp)
-		require.NotNilf(t, result, "expected value not to be nil for pair: %v", cp)
+		require.NoErrorf(t, err, "request must not error for currency pair %v", cp)
+		require.NotNilf(t, result, "result must not be nil for pair %v", cp)
 	}
 }
 
@@ -707,8 +760,8 @@ func TestWSRetrieveLastTradesByInstrumentAndTime(t *testing.T) {
 
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err := e.WSRetrieveLastTradesByInstrumentAndTime(t.Context(), formatPairString(assetType, cp), "", 0, true, time.Now().Add(-8*time.Hour), time.Now())
-		require.NoErrorf(t, err, "expected %v, got %v currency pair %v", nil, err, cp)
-		require.NotNilf(t, result, "expected value not to be nil for pair: %v", cp)
+		require.NoErrorf(t, err, "request must not error for currency pair %v", cp)
+		require.NotNilf(t, result, "result must not be nil for pair %v", cp)
 	}
 }
 
@@ -717,7 +770,8 @@ func TestWSProcessTrades(t *testing.T) {
 
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup instance must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", e.wsHandleData)
+	conn := testexch.GetMockConn(t, e, "")
+	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, conn, b) })
 	e.Websocket.DataHandler.Close()
 
 	a, p, err := getAssetPairByInstrument("BTC-PERPETUAL")
@@ -767,8 +821,8 @@ func TestGetOrderbookData(t *testing.T) {
 	var result *Orderbook
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err = e.GetOrderbook(t.Context(), formatPairString(assetType, cp), 0)
-		require.NoErrorf(t, err, "expected %v, got %v currency pair %v", nil, err, cp)
-		require.NotNilf(t, result, "expected value not to be nil for pair: %v", cp)
+		require.NoErrorf(t, err, "request must not error for currency pair %v", cp)
+		require.NotNilf(t, result, "result must not be nil for pair %v", cp)
 	}
 }
 
@@ -783,8 +837,8 @@ func TestWSRetrieveOrderbookData(t *testing.T) {
 	var result *Orderbook
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err = e.WSRetrieveOrderbookData(t.Context(), formatPairString(assetType, cp), 0)
-		require.NoErrorf(t, err, "expected %v, got %v currency pair %v", nil, err, cp)
-		require.NotNilf(t, result, "expected value not to be nil for pair: %v", cp)
+		require.NoErrorf(t, err, "request must not error for currency pair %v", cp)
+		require.NotNilf(t, result, "result must not be nil for pair %v", cp)
 	}
 }
 
@@ -3991,16 +4045,119 @@ func TestWsSimulateBlockTrade(t *testing.T) {
 	assert.True(t, result)
 }
 
-func setupWs() {
+func setupWs(ctx context.Context) {
 	if !e.Websocket.IsEnabled() {
 		return
 	}
 	if !sharedtestvalues.AreAPICredentialsSet(e) {
 		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
-	err := e.WsConnect()
+	err := e.Websocket.Connect(ctx)
 	if err != nil {
 		log.Fatal(err)
+	}
+}
+
+func TestWsConnect(t *testing.T) {
+	t.Parallel()
+
+	t.Run("dial failure", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		errDial := errors.New("dial failure")
+		conn := &subscriptionTestConnection{Connection: testexch.GetMockConn(t, ex, deribitWebsocketAddress), dialErr: errDial}
+
+		assert.ErrorIs(t, ex.wsConnect(t.Context(), conn), errDial, "wsConnect should return the dial failure")
+		assert.Equal(t, 1, conn.dialCalls, "wsConnect should dial once")
+	})
+
+	t.Run("starts heartbeat", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		conn := &subscriptionTestConnection{
+			Connection:  testexch.GetMockConn(t, ex, deribitWebsocketAddress),
+			rawResponse: []byte(`{"result":"ok"}`),
+			sentSignal:  make(chan struct{}, 1),
+		}
+
+		require.NoError(t, ex.wsConnect(t.Context(), conn), "wsConnect must not error")
+		select {
+		case <-conn.sentSignal:
+			assert.Equal(t, 1, conn.dialCalls, "wsConnect should dial once")
+		case <-time.After(time.Second):
+			t.Fatal("wsConnect heartbeat must send within the timeout")
+		}
+	})
+}
+
+func TestWsStartHeartbeat(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	conn := &subscriptionTestConnection{Connection: testexch.GetMockConn(t, ex, deribitWebsocketAddress), rawResponse: []byte(`{"result":"ok"}`)}
+	ex.wsStartHeartbeat(t.Context(), conn)
+	assert.Len(t, conn.sent, 1, "wsStartHeartbeat should send one request")
+}
+
+func TestWsAuthenticate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("missing credentials", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		err := ex.wsAuthenticate(t.Context(), testexch.GetMockConn(t, ex, deribitWebsocketAddress))
+		assert.Error(t, err, "wsAuthenticate should reject missing credentials")
+	})
+
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.SetCredentials("key", "secret", "", "", "", "")
+		conn := &subscriptionTestConnection{Connection: testexch.GetMockConn(t, ex, deribitWebsocketAddress), rawResponse: []byte(`{"result":{"access_token":"token"}}`)}
+
+		require.NoError(t, ex.wsAuthenticate(t.Context(), conn), "wsAuthenticate must not error")
+		assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "wsAuthenticate should enable authenticated endpoints")
+		assert.Len(t, conn.sent, 1, "wsAuthenticate should send one request")
+	})
+
+	t.Run("send failure", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.SetCredentials("key", "secret", "", "", "", "")
+		errSend := errors.New("send failure")
+		conn := &subscriptionTestConnection{Connection: testexch.GetMockConn(t, ex, deribitWebsocketAddress), sendErr: errSend}
+
+		assert.ErrorIs(t, ex.wsAuthenticate(t.Context(), conn), errSend, "wsAuthenticate should return the send failure")
+		assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "wsAuthenticate should disable authenticated endpoints after failure")
+	})
+}
+
+func TestWsSendHeartbeat(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name    string
+		sendErr error
+	}{
+		{name: "success"},
+		{name: "send failure", sendErr: errors.New("send failure")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+			conn := &subscriptionTestConnection{Connection: testexch.GetMockConn(t, ex, deribitWebsocketAddress), sendErr: tc.sendErr}
+			ex.wsSendHeartbeat(t.Context(), conn)
+			assert.Len(t, conn.sent, 1, "wsSendHeartbeat should send one request")
+		})
 	}
 }
 
@@ -4041,6 +4198,109 @@ func TestGenerateSubscriptions(t *testing.T) {
 		}
 	}
 	testsubs.EqualLists(t, exp, subs)
+}
+
+func TestSubscribeForConnection(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	conn := &subscriptionTestConnection{Connection: testexch.GetMockConn(t, ex, deribitWebsocketAddress)}
+	publicSub := &subscription.Subscription{Key: "ticker.BTC-PERPETUAL.raw", QualifiedChannel: "ticker.BTC-PERPETUAL.raw"}
+	privateSub := &subscription.Subscription{Key: "user.orders.BTC-PERPETUAL.raw", QualifiedChannel: "user.orders.BTC-PERPETUAL.raw", Authenticated: true}
+
+	require.NoError(t, ex.subscribeForConnection(t.Context(), conn, subscription.List{publicSub, privateSub}), "subscribeForConnection must not error")
+	require.Len(t, conn.requests, 2, "subscribeForConnection must send public and private requests")
+	assert.Equal(t, "public/subscribe", conn.requests[0].Method, "public subscription should use the public method")
+	assert.Equal(t, "private/subscribe", conn.requests[1].Method, "private subscription should use the private method")
+	assert.Equal(t, subscription.SubscribedState, publicSub.State(), "public subscription should be subscribed")
+	assert.Equal(t, subscription.SubscribedState, privateSub.State(), "private subscription should be subscribed")
+}
+
+func TestUnsubscribeForConnection(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	conn := &subscriptionTestConnection{Connection: testexch.GetMockConn(t, ex, deribitWebsocketAddress)}
+	publicSub := &subscription.Subscription{Key: "ticker.BTC-PERPETUAL.raw", QualifiedChannel: "ticker.BTC-PERPETUAL.raw"}
+	privateSub := &subscription.Subscription{Key: "user.orders.BTC-PERPETUAL.raw", QualifiedChannel: "user.orders.BTC-PERPETUAL.raw", Authenticated: true}
+	require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, publicSub, privateSub), "AddSuccessfulSubscriptions must not error")
+
+	require.NoError(t, ex.unsubscribeForConnection(t.Context(), conn, subscription.List{publicSub, privateSub}), "unsubscribeForConnection must not error")
+	require.Len(t, conn.requests, 2, "unsubscribeForConnection must send public and private requests")
+	assert.Equal(t, "public/unsubscribe", conn.requests[0].Method, "public unsubscription should use the public method")
+	assert.Equal(t, "private/unsubscribe", conn.requests[1].Method, "private unsubscription should use the private method")
+	assert.Equal(t, subscription.UnsubscribedState, publicSub.State(), "public subscription should be unsubscribed")
+	assert.Equal(t, subscription.UnsubscribedState, privateSub.State(), "private subscription should be unsubscribed")
+}
+
+func TestHandleSubscription(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name          string
+		count         int
+		expectedBatch []int
+	}{
+		{name: "empty", expectedBatch: nil},
+		{name: "one", count: 1, expectedBatch: []int{1}},
+		{name: "maximum batch", count: deribitMaxChannelsPerSubscriptionRequest, expectedBatch: []int{deribitMaxChannelsPerSubscriptionRequest}},
+		{name: "multiple batches", count: deribitMaxChannelsPerSubscriptionRequest + 1, expectedBatch: []int{deribitMaxChannelsPerSubscriptionRequest, 1}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+			conn := &subscriptionTestConnection{Connection: testexch.GetMockConn(t, ex, deribitWebsocketAddress)}
+			subs := make(subscription.List, tc.count)
+			for i := range subs {
+				channelKey := "channel-" + strconv.Itoa(i)
+				subs[i] = &subscription.Subscription{Key: channelKey, QualifiedChannel: channelKey}
+			}
+
+			require.NoError(t, ex.handleSubscription(t.Context(), conn, "public/subscribe", subs), "handleSubscription must not error")
+			require.Len(t, conn.requests, len(tc.expectedBatch), "handleSubscription must send the expected batch count")
+			for i, expected := range tc.expectedBatch {
+				assert.Len(t, conn.requests[i].Params["channels"], expected, "handleSubscription batch should have the expected channel count")
+			}
+		})
+	}
+}
+
+func TestHandleSubscriptionBatch(t *testing.T) {
+	t.Parallel()
+
+	t.Run("send failure", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		errSend := errors.New("send failure")
+		conn := &subscriptionTestConnection{Connection: testexch.GetMockConn(t, ex, deribitWebsocketAddress), sendErr: errSend}
+		err := ex.handleSubscriptionBatch(t.Context(), conn, "public/subscribe", subscription.List{{QualifiedChannel: "channel"}})
+		assert.ErrorIs(t, err, errSend, "handleSubscriptionBatch should return the send failure")
+	})
+
+	t.Run("invalid response", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		conn := &subscriptionTestConnection{Connection: testexch.GetMockConn(t, ex, deribitWebsocketAddress), rawResponse: []byte("{")}
+		err := ex.handleSubscriptionBatch(t.Context(), conn, "public/subscribe", subscription.List{{QualifiedChannel: "channel"}})
+		assert.Error(t, err, "handleSubscriptionBatch should return the JSON error")
+	})
+
+	t.Run("partial acknowledgement", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		conn := &subscriptionTestConnection{Connection: testexch.GetMockConn(t, ex, deribitWebsocketAddress), ackLimit: 1}
+		subs := subscription.List{{QualifiedChannel: "first"}, {QualifiedChannel: "second"}}
+		err := ex.handleSubscriptionBatch(t.Context(), conn, "public/subscribe", subs)
+		assert.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "handleSubscriptionBatch should reject a partial acknowledgement")
+		assert.Equal(t, subscription.SubscribedState, subs[0].State(), "acknowledged subscription should be subscribed")
+		assert.Equal(t, subscription.InactiveState, subs[1].State(), "missing subscription should remain inactive")
+	})
 }
 
 func TestChannelInterval(t *testing.T) {
@@ -4133,8 +4393,8 @@ func TestCancelAllOrders(t *testing.T) {
 		orderCancellation.AssetType = assetType
 		orderCancellation.Pair = cp
 		result, err = e.CancelAllOrders(t.Context(), orderCancellation)
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
-		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
+		require.NoErrorf(t, err, "request must not error for asset %s pair %s", assetType, cp)
+		require.NotNilf(t, result, "result must not be nil for asset %s pair %s", assetType, cp)
 	}
 }
 
@@ -4143,8 +4403,8 @@ func TestGetOrderInfo(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err := e.GetOrderInfo(t.Context(), "1234", cp, assetType)
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
-		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
+		require.NoErrorf(t, err, "request must not error for asset %s pair %s", assetType, cp)
+		require.NotNilf(t, result, "result must not be nil for asset %s pair %s", assetType, cp)
 	}
 }
 
@@ -4185,8 +4445,8 @@ func TestGetActiveOrders(t *testing.T) {
 		getOrdersRequest.Pairs = []currency.Pair{cp}
 		getOrdersRequest.AssetType = assetType
 		result, err := e.GetActiveOrders(t.Context(), &getOrdersRequest)
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
-		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
+		require.NoErrorf(t, err, "request must not error for asset %s pair %s", assetType, cp)
+		require.NotNilf(t, result, "result must not be nil for asset %s pair %s", assetType, cp)
 	}
 }
 
@@ -4198,8 +4458,8 @@ func TestGetOrderHistory(t *testing.T) {
 			Type: order.AnyType, AssetType: assetType,
 			Side: order.AnySide, Pairs: []currency.Pair{cp},
 		})
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %s pair %s", err, assetType, cp)
-		require.NotNilf(t, result, "expected result not to be nil for asset type %s pair %s", assetType, cp)
+		require.NoErrorf(t, err, "request must not error for asset %s pair %s", assetType, cp)
+		require.NotNilf(t, result, "result must not be nil for asset %s pair %s", assetType, cp)
 	}
 }
 
@@ -4207,8 +4467,8 @@ func TestGetAssetPairByInstrument(t *testing.T) {
 	t.Parallel()
 	for _, assetType := range []asset.Item{asset.Spot, asset.Futures, asset.Options, asset.OptionCombo, asset.FutureCombo} {
 		availablePairs, err := e.GetAvailablePairs(assetType)
-		require.NoErrorf(t, err, "expected nil, got %v for asset type %s", err, assetType)
-		require.NotNilf(t, availablePairs, "expected result not to be nil for asset type %s", assetType)
+		require.NoErrorf(t, err, "request must not error for asset type %s", assetType)
+		require.NotNilf(t, availablePairs, "available pairs must not be nil for asset type %s", assetType)
 		for _, cp := range availablePairs {
 			instrument := formatPairString(assetType, cp)
 			t.Run(fmt.Sprintf("%s %s", assetType, instrument), func(t *testing.T) {
@@ -4287,9 +4547,9 @@ func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	if !sharedtestvalues.AreAPICredentialsSet(e) {
-		assert.Equalf(t, exchange.OfflineTradeFee, feeBuilder.FeeType, "expected %v, received %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
+		assert.Equalf(t, exchange.OfflineTradeFee, feeBuilder.FeeType, "fee type should match expected value; expected %v, got %v", exchange.OfflineTradeFee, feeBuilder.FeeType)
 	} else {
-		assert.Equalf(t, exchange.CryptocurrencyTradeFee, feeBuilder.FeeType, "expected %v, received %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
+		assert.Equalf(t, exchange.CryptocurrencyTradeFee, feeBuilder.FeeType, "fee type should match expected value; expected %v, got %v", exchange.CryptocurrencyTradeFee, feeBuilder.FeeType)
 	}
 }
 
@@ -4306,14 +4566,14 @@ func TestCalculateTradingFee(t *testing.T) {
 	result, err := calculateTradingFee(feeBuilder)
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	require.Equalf(t, 1e-1, result, "expected result %f, got %f", 1e-1, result)
+	require.Equalf(t, 1e-1, result, "result must equal %f; got %f", 1e-1, result)
 	// futures
 	feeBuilder.Pair, err = currency.NewPairFromString("BTC-21OCT22")
 	require.NoError(t, err)
 	result, err = calculateTradingFee(feeBuilder)
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	require.Equalf(t, 0.1, result, "expected 0.1 but found %f", result)
+	require.Equalf(t, 0.1, result, "result must equal 0.1; got %f", result)
 	// options
 	feeBuilder.Pair, err = currency.NewPairFromString("SOL-21OCT22-20-C")
 	require.NoError(t, err)
@@ -4321,7 +4581,7 @@ func TestCalculateTradingFee(t *testing.T) {
 	result, err = calculateTradingFee(feeBuilder)
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	require.Equalf(t, 0.3, result, "expected 0.3 but found %f", result)
+	require.Equalf(t, 0.3, result, "result must equal 0.3; got %f", result)
 	// options
 	feeBuilder.Pair, err = currency.NewPairFromString("SOL-21OCT22-20-C,SOL-21OCT22-20-P")
 	require.NoError(t, err)
@@ -4329,7 +4589,7 @@ func TestCalculateTradingFee(t *testing.T) {
 	_, err = calculateTradingFee(feeBuilder)
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	require.Equalf(t, 0.3, result, "expected 0.3 but found %f", result)
+	require.Equalf(t, 0.3, result, "result must equal 0.3; got %f", result)
 	// option_combo
 	feeBuilder.Pair, err = currency.NewPairFromString("BTC-STRG-21OCT22-19000_21000")
 	require.NoError(t, err)
@@ -4438,7 +4698,7 @@ func TestProcessPushData(t *testing.T) {
 	for k, v := range websocketPushData {
 		t.Run(k, func(t *testing.T) {
 			t.Parallel()
-			err := e.wsHandleData(t.Context(), []byte(v))
+			err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), []byte(v))
 			require.NoError(t, err, "wsHandleData must not error")
 		})
 	}
@@ -4853,8 +5113,8 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	for _, a := range e.GetAssetTypes(false) {
 		var pairs currency.Pairs
 		pairs, err = e.CurrencyPairs.GetPairs(a, false)
-		require.NoErrorf(t, err, "cannot get pairs for %s", a)
-		require.NotEmptyf(t, pairs, "no pairs for %s", a)
+		require.NoErrorf(t, err, "GetPairs must not error for asset %s", a)
+		require.NotEmptyf(t, pairs, "pairs must not be empty for asset %s", a)
 		var resp string
 		resp, err = e.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		require.NoError(t, err)
@@ -4959,7 +5219,7 @@ func TestTimeInForceFromString(t *testing.T) {
 	t.Parallel()
 	for i := range timeInForceList {
 		result, err := timeInForceFromString(timeInForceList[i].String, timeInForceList[i].PostOnly)
-		assert.Equalf(t, timeInForceList[i].TIF, result, "expected  %s, got %s", timeInForceList[i].TIF.String(), result.String())
+		assert.Equalf(t, timeInForceList[i].TIF, result, "value should match expected TIF; expected %s, got %s", timeInForceList[i].TIF.String(), result.String())
 		require.ErrorIs(t, err, timeInForceList[i].Error)
 	}
 }

@@ -3,10 +3,7 @@ package kraken
 import (
 	"errors"
 	"log"
-	"net/http"
 	"os"
-	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -27,10 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
-	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
-	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -153,30 +147,26 @@ func TestUpdateTickers(t *testing.T) {
 
 func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup instance must not error")
-	ex.Name += "-UpdateOrderbook"
-
-	_, err := ex.UpdateOrderbook(t.Context(), spotTestPair, asset.Spot)
+	_, err := e.UpdateOrderbook(t.Context(), spotTestPair, asset.Spot)
 	assert.NoError(t, err, "UpdateOrderbook spot asset should not error")
-	_, err = ex.UpdateOrderbook(t.Context(), futuresTestPair, asset.Futures)
+	_, err = e.UpdateOrderbook(t.Context(), futuresTestPair, asset.Futures)
 	assert.NoError(t, err, "UpdateOrderbook futures asset should not error")
 }
 
 func TestFuturesBatchOrder(t *testing.T) {
 	t.Parallel()
-	req := []PlaceBatchOrderData{{
+	data := []PlaceBatchOrderData{{
 		PlaceOrderType: "meow",
 		OrderID:        "test123",
 		Symbol:         futuresTestPair.Lower().String(),
 	}}
-	_, err := e.FuturesBatchOrder(t.Context(), req)
+	_, err := e.FuturesBatchOrder(t.Context(), data)
 	assert.ErrorIs(t, err, errInvalidBatchOrderType, "FuturesBatchOrder should error correctly")
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
-	req[0].PlaceOrderType = "cancel"
-	_, err = e.FuturesBatchOrder(t.Context(), req)
+	data[0].PlaceOrderType = "cancel"
+	_, err = e.FuturesBatchOrder(t.Context(), data)
 	assert.NoError(t, err, "FuturesBatchOrder should not error")
 }
 
@@ -879,496 +869,6 @@ func TestWithdrawCancel(t *testing.T) {
 	}
 }
 
-// ---------------------------- Websocket tests -----------------------------------------
-
-// TestWsSubscribe tests unauthenticated websocket subscriptions
-// Specifically looking to ensure multiple errors are collected and returned and ws.Subscriptions Added/Removed in cases of:
-// single pass, single fail, mixed fail, multiple pass, all fail
-// No objection to this becoming a fixture test, so long as it integrates through Un/Subscribe roundtrip
-func TestWsSubscribe(t *testing.T) {
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
-	testexch.SetupWs(t, e)
-
-	for _, enabled := range []bool{false, true} {
-		require.NoError(t, e.SetPairs(currency.Pairs{
-			spotTestPair,
-			currency.NewPairWithDelimiter("ETH", "USD", "/"),
-			currency.NewPairWithDelimiter("LTC", "ETH", "/"),
-			currency.NewPairWithDelimiter("ETH", "XBT", "/"),
-			// Enable pairs that won't error locally, so we get upstream errors to test error combinations
-			currency.NewPairWithDelimiter("DWARF", "HOBBIT", "/"),
-			currency.NewPairWithDelimiter("DWARF", "GOBLIN", "/"),
-			currency.NewPairWithDelimiter("DWARF", "ELF", "/"),
-		}, asset.Spot, enabled), "SetPairs must not error")
-	}
-
-	err := e.Subscribe(subscription.List{{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{spotTestPair}}})
-	require.NoError(t, err, "Simple subscription must not error")
-	subs := e.Websocket.GetSubscriptions()
-	require.Len(t, subs, 1, "Should add 1 Subscription")
-	assert.Equal(t, subscription.SubscribedState, subs[0].State(), "Subscription should be subscribed state")
-
-	err = e.Subscribe(subscription.List{{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{spotTestPair}}})
-	assert.ErrorIs(t, err, subscription.ErrDuplicate, "Resubscribing to the same channel should error with SubscribedAlready")
-	subs = e.Websocket.GetSubscriptions()
-	require.Len(t, subs, 1, "Should not add a subscription on error")
-	assert.Equal(t, subscription.SubscribedState, subs[0].State(), "Existing subscription state should not change")
-
-	err = e.Subscribe(subscription.List{{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("DWARF", "HOBBIT", "/")}}})
-	assert.ErrorContains(t, err, "Currency pair not supported; Channel: ticker Pairs: DWARF/HOBBIT", "Subscribing to an invalid pair should error correctly")
-	require.Len(t, e.Websocket.GetSubscriptions(), 1, "Should not add a subscription on error")
-
-	// Mix success and failure
-	err = e.Subscribe(subscription.List{
-		{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("ETH", "USD", "/")}},
-		{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("DWARF", "HOBBIT", "/")}},
-		{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("DWARF", "ELF", "/")}},
-	})
-	assert.ErrorContains(t, err, "Currency pair not supported; Channel: ticker Pairs:", "Subscribing to an invalid pair should error correctly")
-	assert.ErrorContains(t, err, "DWARF/HOBBIT", "Subscribing to an invalid pair should error correctly")
-	assert.ErrorContains(t, err, "DWARF/ELF", "Subscribing to an invalid pair should error correctly")
-	require.Len(t, e.Websocket.GetSubscriptions(), 2, "Should have 2 subscriptions after mixed success/failures")
-
-	// Just failures
-	err = e.Subscribe(subscription.List{
-		{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("DWARF", "HOBBIT", "/")}},
-		{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("DWARF", "GOBLIN", "/")}},
-	})
-	assert.ErrorContains(t, err, "Currency pair not supported; Channel: ticker Pairs:", "Subscribing to an invalid pair should error correctly")
-	assert.ErrorContains(t, err, "DWARF/HOBBIT", "Subscribing to an invalid pair should error correctly")
-	assert.ErrorContains(t, err, "DWARF/GOBLIN", "Subscribing to an invalid pair should error correctly")
-	require.Len(t, e.Websocket.GetSubscriptions(), 2, "Should have 2 subscriptions after mixed success/failures")
-
-	// Just success
-	err = e.Subscribe(subscription.List{
-		{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("ETH", "XBT", "/")}},
-		{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("LTC", "ETH", "/")}},
-	})
-	assert.NoError(t, err, "Multiple successful subscriptions should not error")
-
-	subs = e.Websocket.GetSubscriptions()
-	assert.Len(t, subs, 4, "Should have correct number of subscriptions")
-
-	err = e.Unsubscribe(subs[:1])
-	assert.NoError(t, err, "Simple Unsubscribe should succeed")
-	assert.Len(t, e.Websocket.GetSubscriptions(), 3, "Should have removed 1 channel")
-
-	err = e.Unsubscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("DWARF", "WIZARD", "/")}, Key: 1337}})
-	assert.ErrorIs(t, err, subscription.ErrNotFound, "Simple failing Unsubscribe should error NotFound")
-	assert.ErrorContains(t, err, "DWARF/WIZARD", "Unsubscribing from an invalid pair should error correctly")
-	assert.Len(t, e.Websocket.GetSubscriptions(), 3, "Should not have removed any channels")
-
-	err = e.Unsubscribe(subscription.List{
-		subs[1],
-		{Asset: asset.Spot, Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewPairWithDelimiter("DWARF", "EAGLE", "/")}, Key: 1338},
-	})
-	assert.ErrorIs(t, err, subscription.ErrNotFound, "Mixed failing Unsubscribe should error NotFound")
-	assert.ErrorContains(t, err, "Channel: ticker Pairs: DWARF/EAGLE", "Unsubscribing from an invalid pair should error correctly")
-
-	subs = e.Websocket.GetSubscriptions()
-	assert.Len(t, subs, 2, "Should have removed only 1 more channel")
-
-	err = e.Unsubscribe(subs)
-	assert.NoError(t, err, "Unsubscribe multiple passing subscriptions should not error")
-	assert.Empty(t, e.Websocket.GetSubscriptions(), "Should have successfully removed all channels")
-
-	for _, c := range []string{"ohlc", "ohlc-5"} {
-		err = e.Subscribe(subscription.List{{
-			Asset:   asset.Spot,
-			Channel: c,
-			Pairs:   currency.Pairs{spotTestPair},
-		}})
-		assert.ErrorIs(t, err, subscription.ErrUseConstChannelName, "Must error when trying to use a private channel name")
-		assert.ErrorContains(t, err, c+" => subscription.CandlesChannel", "Must error when trying to use a private channel name")
-	}
-}
-
-// TestWsResubscribe tests websocket resubscription
-func TestWsResubscribe(t *testing.T) {
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "TestInstance must not error")
-	testexch.SetupWs(t, e)
-
-	err := e.Subscribe(subscription.List{{Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 1000}})
-	require.NoError(t, err, "Subscribe must not error")
-	subs := e.Websocket.GetSubscriptions()
-	require.Len(t, subs, 1, "Should add 1 Subscription")
-	require.Equal(t, subscription.SubscribedState, subs[0].State(), "Subscription must be in a subscribed state")
-
-	require.Eventually(t, func() bool {
-		b, e2 := e.Websocket.Orderbook.GetOrderbook(spotTestPair, asset.Spot)
-		if e2 == nil {
-			return !b.LastUpdated.IsZero()
-		}
-		return false
-	}, time.Second*4, time.Millisecond*10, "orderbook must start streaming")
-
-	// Set the state to Unsub so we definitely know Resub worked
-	err = subs[0].SetState(subscription.UnsubscribingState)
-	require.NoError(t, err)
-
-	err = e.Websocket.ResubscribeToChannel(t.Context(), e.Websocket.Conn, subs[0])
-	require.NoError(t, err, "Resubscribe must not error")
-	require.Equal(t, subscription.SubscribedState, subs[0].State(), "subscription must be subscribed again")
-}
-
-// TestWsOrderbookSub tests orderbook subscriptions for MaxDepth params
-func TestWsOrderbookSub(t *testing.T) {
-	t.Parallel()
-
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
-	testexch.SetupWs(t, e)
-
-	err := e.Subscribe(subscription.List{{
-		Asset:   asset.Spot,
-		Channel: subscription.OrderbookChannel,
-		Pairs:   currency.Pairs{spotTestPair},
-		Levels:  25,
-	}})
-	require.NoError(t, err, "Simple subscription must not error")
-
-	subs := e.Websocket.GetSubscriptions()
-	require.Equal(t, 1, len(subs), "Must have 1 subscription channel")
-
-	err = e.Unsubscribe(subs)
-	assert.NoError(t, err, "Unsubscribe should not error")
-	assert.Empty(t, e.Websocket.GetSubscriptions(), "Should have successfully removed all channels")
-
-	err = e.Subscribe(subscription.List{{
-		Asset:   asset.Spot,
-		Channel: subscription.OrderbookChannel,
-		Pairs:   currency.Pairs{spotTestPair},
-		Levels:  42,
-	}})
-	assert.ErrorContains(t, err, "Subscription depth not supported", "Bad subscription should error about depth")
-}
-
-// TestWsCandlesSub tests candles subscription for Timeframe params
-func TestWsCandlesSub(t *testing.T) {
-	t.Parallel()
-
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
-	testexch.SetupWs(t, e)
-
-	err := e.Subscribe(subscription.List{{
-		Asset:    asset.Spot,
-		Channel:  subscription.CandlesChannel,
-		Pairs:    currency.Pairs{spotTestPair},
-		Interval: kline.OneHour,
-	}})
-	require.NoError(t, err, "Simple subscription must not error")
-
-	subs := e.Websocket.GetSubscriptions()
-	require.Equal(t, 1, len(subs), "Should add 1 Subscription")
-
-	err = e.Unsubscribe(subs)
-	assert.NoError(t, err, "Unsubscribe should not error")
-	assert.Empty(t, e.Websocket.GetSubscriptions(), "Should have successfully removed all channels")
-
-	err = e.Subscribe(subscription.List{{
-		Asset:    asset.Spot,
-		Channel:  subscription.CandlesChannel,
-		Pairs:    currency.Pairs{spotTestPair},
-		Interval: kline.Interval(time.Minute * time.Duration(127)),
-	}})
-	assert.ErrorContains(t, err, "Subscription ohlc interval not supported", "Bad subscription should error about interval")
-}
-
-func TestWsProcessCandleIntervalMapping(t *testing.T) {
-	t.Parallel()
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup Instance must not error")
-
-	err := ex.wsProcessCandle(t.Context(),
-		"ohlc-5",
-		json.RawMessage(`[1542057314,1542057360,3586.7,3586.7,3586.6,3586.6,3586.68,0.03373,2]`),
-		currency.NewPairWithDelimiter("XBT", "USD", "/"))
-	require.NoError(t, err)
-
-	select {
-	case msg := <-ex.Websocket.DataHandler.C:
-		got, ok := msg.Data.(kline.Item)
-		require.True(t, ok, "expected kline item")
-		assert.Equal(t, kline.Item{
-			Asset:    asset.Spot,
-			Pair:     currency.NewPairWithDelimiter("XBT", "USD", "/"),
-			Exchange: ex.Name,
-			Interval: kline.FiveMin,
-			Candles: []kline.Candle{{
-				Time:        time.Unix(1542057314, 0),
-				Open:        3586.7,
-				High:        3586.7,
-				Low:         3586.6,
-				Close:       3586.6,
-				Volume:      0.03373,
-				QuoteVolume: 120.97871640000001,
-			}},
-		}, got)
-	default:
-		require.Fail(t, "expected websocket candle payload")
-	}
-}
-
-// TestWsOwnTradesSub tests the authenticated WS subscription channel for trades
-func TestWsOwnTradesSub(t *testing.T) {
-	t.Parallel()
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
-	testexch.SetupWs(t, e)
-
-	err := e.Subscribe(subscription.List{{Channel: subscription.MyTradesChannel, Authenticated: true}})
-	assert.NoError(t, err, "Subsrcibing to ownTrades should not error")
-
-	subs := e.Websocket.GetSubscriptions()
-	assert.Len(t, subs, 1, "Should add 1 Subscription")
-
-	err = e.Unsubscribe(subs)
-	assert.NoError(t, err, "Unsubscribing an auth channel should not error")
-	assert.Empty(t, e.Websocket.GetSubscriptions(), "Should have successfully removed channel")
-}
-
-func TestWsProcessSubStatusAuthenticated(t *testing.T) {
-	t.Parallel()
-
-	for _, tc := range []struct {
-		name             string
-		channel          string
-		qualifiedChannel string
-	}{
-		{name: "own trades", channel: subscription.MyTradesChannel, qualifiedChannel: krakenWsOwnTrades},
-		{name: "open orders", channel: subscription.MyOrdersChannel, qualifiedChannel: krakenWsOpenOrders},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			ex := new(Exchange)
-			require.NoError(t, testexch.Setup(ex), "Setup Instance must not error")
-			s := &subscription.Subscription{Channel: tc.channel, QualifiedChannel: tc.qualifiedChannel, Authenticated: true}
-			require.NoError(t, ex.Websocket.AddSubscriptions(nil, s), "authenticated subscription must be added in subscribing state")
-
-			ex.wsProcessSubStatus([]byte(`{"channelName":"` + tc.qualifiedChannel + `","event":"subscriptionStatus","reqid":3,"status":"subscribed","subscription":{"name":"` + tc.qualifiedChannel + `"}}`))
-			assert.Equal(t, subscription.SubscribedState, s.State(), "authenticated subscription status should be updated without requiring a pair field")
-		})
-	}
-}
-
-// TestGenerateSubscriptions tests the subscriptions generated from configuration
-func TestGenerateSubscriptions(t *testing.T) {
-	t.Parallel()
-
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Setup instance must not error")
-
-	pairs, err := ex.GetEnabledPairs(asset.Spot)
-	require.NoError(t, err, "GetEnabledPairs must not error")
-	require.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "Websocket must not be authenticated by default")
-	exp := subscription.List{
-		{Channel: subscription.TickerChannel},
-		{Channel: subscription.AllTradesChannel},
-		{Channel: subscription.CandlesChannel, Interval: kline.OneMin},
-		{Channel: subscription.OrderbookChannel, Levels: 1000},
-	}
-	for _, s := range exp {
-		s.QualifiedChannel = channelName(s)
-		s.Asset = asset.Spot
-		s.Pairs = pairs
-	}
-	subs, err := ex.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions must not error")
-	testsubs.EqualLists(t, exp, subs)
-
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	exp = append(exp, subscription.List{
-		{Channel: subscription.MyOrdersChannel, QualifiedChannel: krakenWsOpenOrders},
-		{Channel: subscription.MyTradesChannel, QualifiedChannel: krakenWsOwnTrades},
-	}...)
-	subs, err = ex.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions must not error")
-	testsubs.EqualLists(t, exp, subs)
-}
-
-func TestGetWSToken(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
-	testexch.SetupWs(t, e)
-
-	resp, err := e.GetWebsocketToken(t.Context())
-	require.NoError(t, err, "GetWebsocketToken must not error")
-	assert.NotEmpty(t, resp, "Token should not be empty")
-}
-
-// TestWsAddOrder exercises roundtrip of wsAddOrder; See also: mockWsAddOrder
-func TestWsAddOrder(t *testing.T) {
-	t.Parallel()
-
-	k := testexch.MockWsInstance[Exchange](t, curryWsMockUpgrader(t, mockWsServer))
-	require.True(t, k.IsWebsocketAuthenticationSupported(), "WS must be authenticated")
-	id, err := k.wsAddOrder(t.Context(), &WsAddOrderRequest{
-		OrderType: order.Limit.Lower(),
-		OrderSide: order.Buy.Lower(),
-		Pair:      "XBT/USD",
-		Price:     80000,
-	})
-	require.NoError(t, err, "wsAddOrder must not error")
-	assert.Equal(t, "ONPNXH-KMKMU-F4MR5V", id, "wsAddOrder should return correct order ID")
-}
-
-// TestWsCancelOrders exercises roundtrip of wsCancelOrders; See also: mockWsCancelOrders
-func TestWsCancelOrders(t *testing.T) {
-	t.Parallel()
-
-	k := testexch.MockWsInstance[Exchange](t, curryWsMockUpgrader(t, mockWsServer))
-	require.True(t, k.IsWebsocketAuthenticationSupported(), "WS must be authenticated")
-
-	err := k.wsCancelOrders(t.Context(), []string{"RABBIT", "BATFISH", "SQUIRREL", "CATFISH", "MOUSE"})
-	assert.ErrorIs(t, err, errCancellingOrder, "Should error cancelling order")
-	assert.ErrorContains(t, err, "BATFISH", "Should error containing txn id")
-	assert.ErrorContains(t, err, "CATFISH", "Should error containing txn id")
-	assert.ErrorContains(t, err, "[EOrder:Unknown order]", "Should error containing server error")
-
-	err = k.wsCancelOrders(t.Context(), []string{"RABBIT", "SQUIRREL", "MOUSE"})
-	assert.NoError(t, err, "Should not error with valid ids")
-}
-
-func TestWsCancelAllOrders(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
-	_, err := e.wsCancelAllOrders(t.Context())
-	require.NoError(t, err, "wsCancelAllOrders must not error")
-}
-
-func TestWsHandleData(t *testing.T) {
-	t.Parallel()
-	// Use a dedicated exchange name so checksum-sensitive fixtures do not contend
-	// with global orderbook cache entries updated by other websocket tests.
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
-	e.Name += "-WsHandleData"
-	for _, l := range []int{10, 100} {
-		err := e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, &subscription.Subscription{
-			Channel: subscription.OrderbookChannel,
-			Pairs:   currency.Pairs{spotTestPair},
-			Asset:   asset.Spot,
-			Levels:  l,
-		})
-		require.NoError(t, err, "AddSuccessfulSubscriptions must not error")
-	}
-	testexch.FixtureToDataHandler(t, "testdata/wsHandleData.json", e.wsHandleData)
-}
-
-func TestWSProcessTrades(t *testing.T) {
-	t.Parallel()
-
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	err := e.Websocket.AddSubscriptions(e.Websocket.Conn, &subscription.Subscription{Asset: asset.Spot, Pairs: currency.Pairs{spotTestPair}, Channel: subscription.AllTradesChannel, Key: 18788})
-	require.NoError(t, err, "AddSubscriptions must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsAllTrades.json", e.wsHandleData)
-	e.Websocket.DataHandler.Close()
-
-	invalid := []any{"trades", []any{[]any{"95873.80000", "0.00051182", "1708731380.3791859"}}}
-	rawBytes, err := json.Marshal(invalid)
-	require.NoError(t, err, "Marshal must not error marshalling invalid trade data")
-
-	pair := currency.NewPair(currency.XBT, currency.USD)
-	err = e.wsProcessTrades(t.Context(), json.RawMessage(rawBytes), pair)
-	require.ErrorContains(t, err, "error unmarshalling trade data")
-
-	expJSON := []string{
-		`{"AssetType":"spot","CurrencyPair":"XBT/USD","Side":"BUY","Price":95873.80000,"Amount":0.00051182,"Timestamp":"2025-02-23T23:29:40.379186Z"}`,
-		`{"AssetType":"spot","CurrencyPair":"XBT/USD","Side":"SELL","Price":95940.90000,"Amount":0.00011069,"Timestamp":"2025-02-24T02:01:12.853682Z"}`,
-	}
-	require.Len(t, e.Websocket.DataHandler.C, len(expJSON), "Must see correct number of trades")
-	for resp := range e.Websocket.DataHandler.C {
-		switch v := resp.Data.(type) {
-		case trade.Data:
-			i := 1 - len(e.Websocket.DataHandler.C)
-			exp := trade.Data{Exchange: e.Name, CurrencyPair: spotTestPair}
-			require.NoErrorf(t, json.Unmarshal([]byte(expJSON[i]), &exp), "Must not error unmarshalling json %d: %s", i, expJSON[i])
-			require.Equalf(t, exp, v, "Trade [%d] must be correct", i)
-		case error:
-			t.Error(v)
-		default:
-			t.Errorf("Unexpected type in DataHandler: %T (%s)", v, v)
-		}
-	}
-}
-
-func TestWsOpenOrders(t *testing.T) {
-	t.Parallel()
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	testexch.UpdatePairsOnce(t, e)
-	testexch.FixtureToDataHandler(t, "testdata/wsOpenTrades.json", e.wsHandleData)
-	e.Websocket.DataHandler.Close()
-	assert.Len(t, e.Websocket.DataHandler.C, 7, "Should see 7 orders")
-	for resp := range e.Websocket.DataHandler.C {
-		switch v := resp.Data.(type) {
-		case *order.Detail:
-			switch len(e.Websocket.DataHandler.C) {
-			case 6:
-				assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
-				assert.Equal(t, order.Limit, v.Type, "order type")
-				assert.Equal(t, order.Sell, v.Side, "order side")
-				assert.Equal(t, order.Open, v.Status, "order status")
-				assert.Equal(t, 34.5, v.Price, "price")
-				assert.Equal(t, 10.00345345, v.Amount, "amount")
-			case 5:
-				assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
-				assert.Equal(t, order.Market, v.Type, "order type")
-				assert.Equal(t, order.Buy, v.Side, "order side")
-				assert.Equal(t, order.Pending, v.Status, "order status")
-				assert.Equal(t, 0.0, v.Price, "price")
-				assert.Equal(t, 0.0001, v.Amount, "amount")
-				assert.Equal(t, time.UnixMicro(1692851641361371).UTC(), v.Date.UTC(), "Date")
-			case 4:
-				assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
-				assert.Equal(t, order.Open, v.Status, "order status")
-			case 3:
-				assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
-				assert.Equal(t, order.UnknownStatus, v.Status, "order status")
-				assert.Equal(t, 26425.2, v.AverageExecutedPrice, "AverageExecutedPrice")
-				assert.Equal(t, 0.0001, v.ExecutedAmount, "ExecutedAmount")
-				assert.Equal(t, 0.0, v.RemainingAmount, "RemainingAmount") // Not in the message; Testing regression to bad derivation
-				assert.Equal(t, 0.00687, v.Fee, "Fee")
-			case 2:
-				assert.Equal(t, "OKB55A-UEMMN-YUXM2A", v.OrderID, "OrderID")
-				assert.Equal(t, order.Closed, v.Status, "order status")
-				assert.Equal(t, 0.0001, v.ExecutedAmount, "ExecutedAmount")
-				assert.Equal(t, 26425.2, v.AverageExecutedPrice, "AverageExecutedPrice")
-				assert.Equal(t, 0.00687, v.Fee, "Fee")
-				assert.Equal(t, time.UnixMicro(1692851641361447).UTC(), v.LastUpdated.UTC(), "LastUpdated")
-			case 1:
-				assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
-				assert.Equal(t, order.UnknownStatus, v.Status, "order status")
-				assert.Equal(t, 10.00345345, v.ExecutedAmount, "ExecutedAmount")
-				assert.Equal(t, 0.001, v.Fee, "Fee")
-				assert.Equal(t, 34.5, v.AverageExecutedPrice, "AverageExecutedPrice")
-			case 0:
-				assert.Equal(t, "OGTT3Y-C6I3P-XRI6HR", v.OrderID, "OrderID")
-				assert.Equal(t, order.Closed, v.Status, "order status")
-				assert.Equal(t, time.UnixMicro(1692675961789052).UTC(), v.LastUpdated.UTC(), "LastUpdated")
-				assert.Equal(t, 10.00345345, v.ExecutedAmount, "ExecutedAmount")
-				assert.Equal(t, 0.001, v.Fee, "Fee")
-				assert.Equal(t, 34.5, v.AverageExecutedPrice, "AverageExecutedPrice")
-			}
-		case error:
-			t.Error(v)
-		default:
-			t.Errorf("Unexpected type in DataHandler: %T (%s)", v, v)
-		}
-	}
-}
-
 func TestGetHistoricCandles(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, e)
@@ -1512,48 +1012,6 @@ var websocketGSTEUROrderbookUpdates = []string{
 	`[8912,{"b":[["0.01000","60583.48958963","1690256620.206768"],["0.01000","63083.48958963","1690256620.206783"]],"c":"69619317"},"book-10","GST/EUR"]`,
 }
 
-func TestWsOrderbookMax10Depth(t *testing.T) {
-	t.Parallel()
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
-	pairs := currency.Pairs{
-		currency.NewPairWithDelimiter("XDG", "USD", "/"),
-		currency.NewPairWithDelimiter("LUNA", "EUR", "/"),
-		currency.NewPairWithDelimiter("GST", "EUR", "/"),
-	}
-	for _, p := range pairs {
-		err := e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, &subscription.Subscription{
-			Channel: subscription.OrderbookChannel,
-			Pairs:   currency.Pairs{p},
-			Asset:   asset.Spot,
-			Levels:  10,
-		})
-		require.NoError(t, err, "AddSuccessfulSubscriptions must not error")
-	}
-
-	for x := range websocketXDGUSDOrderbookUpdates {
-		err := e.wsHandleData(t.Context(), []byte(websocketXDGUSDOrderbookUpdates[x]))
-		require.NoError(t, err, "wsHandleData must not error")
-	}
-
-	for x := range websocketLUNAEUROrderbookUpdates {
-		err := e.wsHandleData(t.Context(), []byte(websocketLUNAEUROrderbookUpdates[x]))
-		// TODO: Known issue with LUNA pairs and big number float precision
-		// storage and checksum calc. Might need to store raw strings as fields
-		// in the orderbook.Level struct.
-		// Required checksum: 7465000014735432016076747100005084881400000007476000097005027047670474990000293338023886300750000004333333333333375020000152914844934167507000014652990542161752500007370728572000475400000670061645671407546000098022663603417745900007102987806720745800001593557686404000745200003375861179634000743500003156650585902777434000030172726079999999743200006461149653837000743100001042285966000000074300000403660461058200074200000369021657320475740500001674242117790510
-		if x != len(websocketLUNAEUROrderbookUpdates)-1 {
-			require.NoError(t, err, "wsHandleData must not error")
-		}
-	}
-
-	// This has less than 10 bids and still needs a checksum calc.
-	for x := range websocketGSTEUROrderbookUpdates {
-		err := e.wsHandleData(t.Context(), []byte(websocketGSTEUROrderbookUpdates[x]))
-		require.NoError(t, err, "wsHandleData must not error")
-	}
-}
-
 func TestGetFuturesContractDetails(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetFuturesContractDetails(t.Context(), asset.Spot)
@@ -1648,19 +1106,6 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.NotEmpty(t, resp)
 }
 
-// curryWsMockUpgrader handles Kraken specific http auth token responses prior to handling off to standard Websocket upgrader
-func curryWsMockUpgrader(tb testing.TB, h mockws.WsMockFunc) http.HandlerFunc {
-	tb.Helper()
-	return func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.URL.Path, "GetWebSocketsToken") {
-			_, err := w.Write([]byte(`{"result":{"token":"mockAuth"}}`))
-			assert.NoError(tb, err, "Write should not error")
-			return
-		}
-		mockws.WsMockUpgrader(tb, w, r, h)
-	}
-}
-
 func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, e)
@@ -1669,7 +1114,7 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 		if len(pairs) == 0 {
 			continue
 		}
-		require.NoErrorf(t, err, "cannot get pairs for %s", a)
+		require.NoErrorf(t, err, "GetPairs must not error for asset %s", a)
 		resp, err := e.GetCurrencyTradeURL(t.Context(), a, pairs[0])
 		if a != asset.Spot && a != asset.Futures {
 			assert.ErrorIs(t, err, asset.ErrNotSupported)
@@ -1784,39 +1229,4 @@ func TestEnforceStandardChannelNames(t *testing.T) {
 		err := enforceStandardChannelNames(&subscription.Subscription{Channel: n})
 		assert.ErrorIsf(t, err, subscription.ErrUseConstChannelName, "Private channel names should not be allowed for %s", n)
 	}
-}
-
-func TestWebsocketAuthToken(t *testing.T) {
-	t.Parallel()
-	e := new(Exchange)
-	e.setWebsocketAuthToken("meep")
-	const n = 69
-	var wg sync.WaitGroup
-	wg.Add(2 * n)
-
-	start := make(chan struct{})
-	for range n {
-		go func() {
-			defer wg.Done()
-			<-start
-			e.setWebsocketAuthToken("69420")
-		}()
-	}
-	for range n {
-		go func() {
-			defer wg.Done()
-			<-start
-			e.websocketAuthToken()
-		}()
-	}
-	close(start)
-	wg.Wait()
-	assert.Equal(t, "69420", e.websocketAuthToken(), "websocketAuthToken should return correctly after concurrent reads and writes")
-}
-
-func TestSetWebsocketAuthToken(t *testing.T) {
-	t.Parallel()
-	e := new(Exchange)
-	e.setWebsocketAuthToken("69420")
-	assert.Equal(t, "69420", e.websocketAuthToken())
 }

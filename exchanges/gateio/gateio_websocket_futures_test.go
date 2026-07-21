@@ -8,9 +8,44 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
+
+func TestWsFuturesConnect(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name     string
+		endpoint exchange.URL
+		url      string
+		err      error
+	}{
+		{name: "USDT margined", endpoint: exchange.WebsocketUSDTMargined},
+		{name: "coin margined", endpoint: exchange.WebsocketCoinMargined},
+		{name: "unrelated connection", url: "wss://unsupported.example.com", err: errUnsupportedFuturesWebsocketURL},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Setup must not error")
+			if tc.url == "" {
+				url, err := ex.API.Endpoints.GetURL(tc.endpoint)
+				require.NoError(t, err, "Getting the websocket endpoint must not error")
+				tc.url = url
+			}
+			conn := testexch.GetMockConn(t, ex, tc.url)
+			err := ex.WsFuturesConnect(t.Context(), conn)
+			if tc.err != nil {
+				require.ErrorIs(t, err, tc.err, "WsFuturesConnect must return the expected error")
+			} else {
+				require.NoError(t, err, "WsFuturesConnect must support the futures websocket endpoint")
+			}
+		})
+	}
+}
 
 func TestGenerateFuturesPayload(t *testing.T) {
 	t.Parallel()

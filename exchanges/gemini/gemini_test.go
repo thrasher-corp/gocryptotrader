@@ -1,8 +1,10 @@
 package gemini
 
 import (
+	"context"
+	"errors"
+	"net/http"
 	"net/url"
-	"strings"
 	"testing"
 	"time"
 
@@ -12,10 +14,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -33,6 +37,26 @@ const (
 const testCurrency = "btcusd"
 
 var e *Exchange
+
+type websocketTestConnection struct {
+	websocket.Connection
+	dialErr     error
+	sendErr     error
+	dialCalls   int
+	dialHeaders http.Header
+	sent        []any
+}
+
+func (c *websocketTestConnection) Dial(_ context.Context, _ *gws.Dialer, headers http.Header, _ url.Values) error {
+	c.dialCalls++
+	c.dialHeaders = headers.Clone()
+	return c.dialErr
+}
+
+func (c *websocketTestConnection) SendJSONMessage(_ context.Context, _ request.EndpointLimit, payload any) error {
+	c.sent = append(c.sent, payload)
+	return c.sendErr
+}
 
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
@@ -66,9 +90,7 @@ func TestGetTicker(t *testing.T) {
 		t.Error("GetTicker() error", err)
 	}
 	_, err = e.GetTicker(t.Context(), "bla")
-	if err == nil {
-		t.Error("GetTicker() Expected error")
-	}
+	assert.ErrorIs(t, err, errTickerRequestFailed, "GetTicker should error for invalid symbol")
 }
 
 func TestGetOrderbook(t *testing.T) {
@@ -90,11 +112,11 @@ func TestGetTrades(t *testing.T) {
 func TestGetNotionalVolume(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetNotionalVolume(t.Context())
-	if err != nil && mockTests {
-		t.Error("GetNotionalVolume() error", err)
-	} else if err == nil && !mockTests {
-		t.Error("GetNotionalVolume() error cannot be nil")
+	if mockTests {
+		assert.NoError(t, err, "GetNotionalVolume should not error in mock mode")
+		return
 	}
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetNotionalVolume should error when credentials are unset")
 }
 
 func TestGetAuction(t *testing.T) {
@@ -121,107 +143,103 @@ func TestNewOrder(t *testing.T) {
 		9000000,
 		order.Sell.Lower(),
 		"exchange limit")
-	if err != nil && mockTests {
-		t.Error("NewOrder() error", err)
-	} else if err == nil && !mockTests {
-		t.Error("NewOrder() error cannot be nil")
+	if mockTests {
+		assert.NoError(t, err, "NewOrder should not error in mock mode")
+		return
 	}
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "NewOrder should error when credentials are unset")
 }
 
 func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelExistingOrder(t.Context(), 265555413)
-	if err != nil && mockTests {
-		t.Error("CancelExistingOrder() error", err)
-	} else if err == nil && !mockTests {
-		t.Error("CancelExistingOrder() error cannot be nil")
+	if mockTests {
+		assert.NoError(t, err, "CancelExistingOrder should not error in mock mode")
+		return
 	}
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "CancelExistingOrder should error when credentials are unset")
 }
 
 func TestCancelExistingOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.CancelExistingOrders(t.Context(), false)
-	if err != nil && mockTests {
-		t.Error("CancelExistingOrders() error", err)
-	} else if err == nil && !mockTests {
-		t.Error("CancelExistingOrders() error cannot be nil")
+	if mockTests {
+		assert.NoError(t, err, "CancelExistingOrders should not error in mock mode")
+		return
 	}
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "CancelExistingOrders should error when credentials are unset")
 }
 
 func TestGetOrderStatus(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetOrderStatus(t.Context(), 265563260)
-	if err != nil && mockTests {
-		t.Error("GetOrderStatus() error", err)
-	} else if err == nil && !mockTests {
-		t.Error("GetOrderStatus() error cannot be nil")
+	if mockTests {
+		assert.NoError(t, err, "GetOrderStatus should not error in mock mode")
+		return
 	}
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetOrderStatus should error when credentials are unset")
 }
 
 func TestGetOrders(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetOrders(t.Context())
-	if err != nil && mockTests {
-		t.Error("GetOrders() error", err)
-	} else if err == nil && !mockTests {
-		t.Error("GetOrders() error cannot be nil")
+	if mockTests {
+		assert.NoError(t, err, "GetOrders should not error in mock mode")
+		return
 	}
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetOrders should error when credentials are unset")
 }
 
 func TestGetTradeHistory(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetTradeHistory(t.Context(), testCurrency, 0)
-	if err != nil && mockTests {
-		t.Error("GetTradeHistory() error", err)
-	} else if err == nil && !mockTests {
-		t.Error("GetTradeHistory() error cannot be nil")
+	if mockTests {
+		assert.NoError(t, err, "GetTradeHistory should not error in mock mode")
+		return
 	}
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetTradeHistory should error when credentials are unset")
 }
 
 func TestGetTradeVolume(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetTradeVolume(t.Context())
-	if err != nil && mockTests {
-		t.Error("GetTradeVolume() error", err)
-	} else if err == nil && !mockTests {
-		t.Error("GetTradeVolume() error cannot be nil")
+	if mockTests {
+		assert.NoError(t, err, "GetTradeVolume should not error in mock mode")
+		return
 	}
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetTradeVolume should error when credentials are unset")
 }
 
 func TestGetBalances(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetBalances(t.Context())
-	if err != nil && mockTests {
-		t.Error("GetBalances() error", err)
-	} else if err == nil && !mockTests {
-		t.Error("GetBalances() error cannot be nil")
+	if mockTests {
+		assert.NoError(t, err, "GetBalances should not error in mock mode")
+		return
 	}
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetBalances should error when credentials are unset")
 }
 
 func TestGetCryptoDepositAddress(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetCryptoDepositAddress(t.Context(), "LOL123", "btc")
-	if err == nil {
-		t.Error("GetCryptoDepositAddress() Expected error")
-	}
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetCryptoDepositAddress should error for invalid account")
 }
 
 func TestWithdrawCrypto(t *testing.T) {
 	t.Parallel()
 	_, err := e.WithdrawCrypto(t.Context(), "LOL123", "btc", 1)
-	if err == nil {
-		t.Error("WithdrawCrypto() Expected error")
-	}
+	assert.ErrorIs(t, err, errWithdrawRequestFailed, "WithdrawCrypto should error for invalid account")
 }
 
 func TestPostHeartbeat(t *testing.T) {
 	t.Parallel()
 	_, err := e.PostHeartbeat(t.Context())
-	if err != nil && mockTests {
-		t.Error("PostHeartbeat() error", err)
-	} else if err == nil && !mockTests {
-		t.Error("PostHeartbeat() error cannot be nil")
+	if mockTests {
+		assert.NoError(t, err, "PostHeartbeat should not error in mock mode")
+		return
 	}
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "PostHeartbeat should error when credentials are unset")
 }
 
 func setFeeBuilder() *exchange.FeeBuilder {
@@ -264,68 +282,59 @@ func TestGetFee(t *testing.T) {
 	feeBuilder := setFeeBuilder()
 	if sharedtestvalues.AreAPICredentialsSet(e) || mockTests {
 		// CryptocurrencyTradeFee Basic
-		if _, err := e.GetFee(t.Context(), feeBuilder); err != nil {
-			t.Error(err)
-		}
+		_, err := e.GetFee(t.Context(), feeBuilder)
+		assert.NoError(t, err)
 
 		// CryptocurrencyTradeFee High quantity
 		feeBuilder = setFeeBuilder()
 		feeBuilder.Amount = 1000
 		feeBuilder.PurchasePrice = 1000
-		if _, err := e.GetFee(t.Context(), feeBuilder); err != nil {
-			t.Error(err)
-		}
+		_, err = e.GetFee(t.Context(), feeBuilder)
+		assert.NoError(t, err)
 
 		// CryptocurrencyTradeFee IsMaker
 		feeBuilder = setFeeBuilder()
 		feeBuilder.IsMaker = true
-		if _, err := e.GetFee(t.Context(), feeBuilder); err != nil {
-			t.Error(err)
-		}
+		_, err = e.GetFee(t.Context(), feeBuilder)
+		assert.NoError(t, err)
 
 		// CryptocurrencyTradeFee Negative purchase price
 		feeBuilder = setFeeBuilder()
 		feeBuilder.PurchasePrice = -1000
-		if _, err := e.GetFee(t.Context(), feeBuilder); err != nil {
-			t.Error(err)
-		}
+		_, err = e.GetFee(t.Context(), feeBuilder)
+		assert.NoError(t, err)
 	}
 	// CryptocurrencyWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	if _, err := e.GetFee(t.Context(), feeBuilder); err != nil {
-		t.Error(err)
-	}
+	_, err := e.GetFee(t.Context(), feeBuilder)
+	assert.NoError(t, err)
 
 	// CryptocurrencyWithdrawalFee Invalid currency
 	feeBuilder = setFeeBuilder()
 	feeBuilder.Pair.Base = currency.NewCode("hello")
 	feeBuilder.FeeType = exchange.CryptocurrencyWithdrawalFee
-	if _, err := e.GetFee(t.Context(), feeBuilder); err != nil {
-		t.Error(err)
-	}
+	_, err = e.GetFee(t.Context(), feeBuilder)
+	assert.NoError(t, err)
 
 	// CryptocurrencyDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.CryptocurrencyDepositFee
-	if _, err := e.GetFee(t.Context(), feeBuilder); err != nil {
-		t.Error(err)
-	}
+	_, err = e.GetFee(t.Context(), feeBuilder)
+	assert.NoError(t, err)
 
 	// InternationalBankDepositFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankDepositFee
-	if _, err := e.GetFee(t.Context(), feeBuilder); err != nil {
-		t.Error(err)
-	}
+	_, err = e.GetFee(t.Context(), feeBuilder)
+	assert.NoError(t, err)
 
 	// InternationalBankWithdrawalFee Basic
 	feeBuilder = setFeeBuilder()
 	feeBuilder.FeeType = exchange.InternationalBankWithdrawalFee
 	feeBuilder.FiatCurrency = currency.USD
-	if _, err := e.GetFee(t.Context(), feeBuilder); err != nil {
-		t.Error(err)
-	}
+	_, err = e.GetFee(t.Context(), feeBuilder)
+	assert.NoError(t, err)
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {
@@ -356,12 +365,10 @@ func TestGetActiveOrders(t *testing.T) {
 
 	_, err := e.GetActiveOrders(t.Context(), &getOrdersRequest)
 	switch {
-	case sharedtestvalues.AreAPICredentialsSet(e) && err != nil && !mockTests:
-		t.Errorf("Could not get open orders: %s", err)
-	case !sharedtestvalues.AreAPICredentialsSet(e) && err == nil && !mockTests:
-		t.Error("Expecting an error when no keys are set")
-	case mockTests && err != nil:
-		t.Errorf("Could not get open orders: %s", err)
+	case !sharedtestvalues.AreAPICredentialsSet(e) && !mockTests:
+		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetActiveOrders should error when no keys are set")
+	case sharedtestvalues.AreAPICredentialsSet(e) || mockTests:
+		assert.NoError(t, err, "GetActiveOrders should not error")
 	}
 }
 
@@ -376,12 +383,10 @@ func TestGetOrderHistory(t *testing.T) {
 
 	_, err := e.GetOrderHistory(t.Context(), &getOrdersRequest)
 	switch {
-	case sharedtestvalues.AreAPICredentialsSet(e) && err != nil:
-		t.Errorf("Could not get order history: %s", err)
-	case !sharedtestvalues.AreAPICredentialsSet(e) && err == nil && !mockTests:
-		t.Error("Expecting an error when no keys are set")
-	case err != nil && mockTests:
-		t.Errorf("Could not get order history: %s", err)
+	case !sharedtestvalues.AreAPICredentialsSet(e) && !mockTests:
+		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetOrderHistory should error when no keys are set")
+	case sharedtestvalues.AreAPICredentialsSet(e) || mockTests:
+		assert.NoError(t, err, "GetOrderHistory should not error")
 	}
 }
 
@@ -409,12 +414,13 @@ func TestSubmitOrder(t *testing.T) {
 
 	response, err := e.SubmitOrder(t.Context(), orderSubmission)
 	switch {
-	case sharedtestvalues.AreAPICredentialsSet(e) && (err != nil || response.Status != order.New):
-		t.Errorf("Order failed to be placed: %v", err)
-	case !sharedtestvalues.AreAPICredentialsSet(e) && err == nil && !mockTests:
-		t.Error("Expecting an error when no keys are set")
-	case mockTests && err != nil:
-		t.Errorf("Order failed to be placed: %v", err)
+	case sharedtestvalues.AreAPICredentialsSet(e):
+		require.NoError(t, err, "SubmitOrder must not error")
+		assert.Equal(t, order.New, response.Status, "SubmitOrder should return order.New status")
+	case !sharedtestvalues.AreAPICredentialsSet(e) && !mockTests:
+		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "SubmitOrder should error when no keys are set")
+	case mockTests:
+		assert.NoError(t, err, "SubmitOrder should not error")
 	}
 }
 
@@ -431,12 +437,10 @@ func TestCancelExchangeOrder(t *testing.T) {
 
 	err := e.CancelOrder(t.Context(), orderCancellation)
 	switch {
-	case !sharedtestvalues.AreAPICredentialsSet(e) && err == nil && !mockTests:
-		t.Error("Expecting an error when no keys are set")
-	case sharedtestvalues.AreAPICredentialsSet(e) && err != nil:
-		t.Errorf("Could not cancel orders: %v", err)
-	case err != nil && mockTests:
-		t.Errorf("Could not cancel orders: %v", err)
+	case !sharedtestvalues.AreAPICredentialsSet(e) && !mockTests:
+		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "CancelOrder should error when no keys are set")
+	case sharedtestvalues.AreAPICredentialsSet(e) || mockTests:
+		assert.NoError(t, err, "CancelOrder should not error")
 	}
 }
 
@@ -456,12 +460,10 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 
 	resp, err := e.CancelAllOrders(t.Context(), orderCancellation)
 	switch {
-	case !sharedtestvalues.AreAPICredentialsSet(e) && err == nil && !mockTests:
-		t.Error("Expecting an error when no keys are set")
-	case sharedtestvalues.AreAPICredentialsSet(e) && err != nil:
-		t.Errorf("Could not cancel orders: %v", err)
-	case mockTests && err != nil:
-		t.Errorf("Could not cancel orders: %v", err)
+	case !sharedtestvalues.AreAPICredentialsSet(e) && !mockTests:
+		assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "CancelAllOrders should error when no keys are set")
+	case sharedtestvalues.AreAPICredentialsSet(e) || mockTests:
+		assert.NoError(t, err, "CancelAllOrders should not error")
 	}
 
 	if len(resp.Status) > 0 {
@@ -474,9 +476,7 @@ func TestModifyOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
 
 	_, err := e.ModifyOrder(t.Context(), &order.Modify{AssetType: asset.Spot})
-	if err == nil {
-		t.Error("ModifyOrder() Expected error")
-	}
+	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "ModifyOrder should error for incomplete request")
 }
 
 func TestWithdraw(t *testing.T) {
@@ -496,22 +496,11 @@ func TestWithdraw(t *testing.T) {
 				Address: core.BitcoinDonationAddress,
 			},
 		})
-	if !sharedtestvalues.AreAPICredentialsSet(e) && err == nil {
-		t.Error("Expecting an error when no keys are set")
-	}
-	if sharedtestvalues.AreAPICredentialsSet(e) && err != nil && !mockTests {
-		t.Errorf("Withdraw failed to be placed: %v", err)
-	}
-	if sharedtestvalues.AreAPICredentialsSet(e) && err == nil && mockTests {
-		t.Errorf("Withdraw failed to be placed: %v", err)
-	}
+	assert.ErrorIs(t, err, errWithdrawRequestFailed, "Withdraw should error for invalid request")
 }
 
 func TestWithdrawFiat(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
-	}
 
 	withdrawFiatRequest := withdraw.Request{}
 	_, err := e.WithdrawFiatFunds(t.Context(), &withdrawFiatRequest)
@@ -524,9 +513,6 @@ func TestWithdrawFiat(t *testing.T) {
 
 func TestWithdrawInternationalBank(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, e, canManipulateRealOrders)
-	}
 
 	withdrawFiatRequest := withdraw.Request{}
 	_, err := e.WithdrawFiatFundsToInternationalBank(t.Context(),
@@ -541,37 +527,74 @@ func TestWithdrawInternationalBank(t *testing.T) {
 func TestGetDepositAddress(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetDepositAddress(t.Context(), currency.BTC, "", "")
-	if err == nil {
-		t.Error("GetDepositAddress error cannot be nil")
-	}
+	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetDepositAddress should error when account details are missing")
 }
 
-func TestWsAuth(t *testing.T) {
+func TestWsAuthConnect(t *testing.T) {
 	t.Parallel()
-	err := e.API.Endpoints.SetRunningURL(exchange.WebsocketSpot.String(), geminiWebsocketSandboxEndpoint)
-	if err != nil {
-		t.Error(err)
-	}
-	testexch.SkipTestIfCannotUseAuthenticatedWebsocket(t, e)
-	var dialer gws.Dialer
-	err = e.WsAuth(t.Context(), &dialer)
-	if err != nil {
-		t.Error(err)
-	}
-	timer := time.NewTimer(sharedtestvalues.WebsocketResponseDefaultTimeout)
-	select {
-	case resp := <-e.Websocket.DataHandler.C:
-		subAck, ok := resp.Data.(WsSubscriptionAcknowledgementResponse)
-		if !ok {
-			t.Error("unable to type assert WsSubscriptionAcknowledgementResponse")
+
+	t.Run("missing credentials", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		conn := &websocketTestConnection{Connection: testexch.GetMockConn(t, ex, geminiWebsocketSandboxEndpoint+geminiWsOrderEvents)}
+		assert.Error(t, ex.wsAuthConnect(t.Context(), conn), "wsAuthConnect should error without credentials")
+		assert.Zero(t, conn.dialCalls, "wsAuthConnect should not dial without credentials")
+	})
+
+	t.Run("authenticated dial", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.SetCredentials("key", "secret", "", "", "", "")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.WebsocketSpotSupplementary.String(), geminiWebsocketSandboxEndpoint+geminiWsOrderEvents), "SetRunningURL must not error")
+		conn := &websocketTestConnection{Connection: testexch.GetMockConn(t, ex, geminiWebsocketSandboxEndpoint+geminiWsOrderEvents)}
+
+		require.NoError(t, ex.wsAuthConnect(t.Context(), conn), "wsAuthConnect must not error")
+		assert.Equal(t, 1, conn.dialCalls, "wsAuthConnect should dial once")
+		assert.Equal(t, "key", conn.dialHeaders.Get("X-GEMINI-APIKEY"), "wsAuthConnect should set the API key header")
+		assert.NotEmpty(t, conn.dialHeaders.Get("X-GEMINI-PAYLOAD"), "wsAuthConnect should set the payload header")
+		assert.NotEmpty(t, conn.dialHeaders.Get("X-GEMINI-SIGNATURE"), "wsAuthConnect should set the signature header")
+	})
+
+	t.Run("dial failure", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.SetCredentials("key", "secret", "", "", "", "")
+		errDial := errors.New("dial failure")
+		conn := &websocketTestConnection{
+			Connection: testexch.GetMockConn(t, ex, geminiWebsocketSandboxEndpoint+geminiWsOrderEvents),
+			dialErr:    errDial,
 		}
-		if subAck.Type != "subscription_ack" {
-			t.Error("Login failed")
-		}
-	case <-timer.C:
-		t.Error("Expected response")
-	}
-	timer.Stop()
+
+		err := ex.wsAuthConnect(t.Context(), conn)
+		assert.ErrorContains(t, err, errDial.Error(), "wsAuthConnect should include the dial failure")
+	})
+}
+
+func TestWsConnect(t *testing.T) {
+	t.Parallel()
+
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		conn := &websocketTestConnection{Connection: testexch.GetMockConn(t, ex, geminiWebsocketEndpoint)}
+		require.NoError(t, ex.wsConnect(t.Context(), conn), "wsConnect must not error")
+		assert.Equal(t, 1, conn.dialCalls, "wsConnect should dial once")
+	})
+
+	t.Run("dial failure", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		errDial := errors.New("dial failure")
+		conn := &websocketTestConnection{Connection: testexch.GetMockConn(t, ex, geminiWebsocketEndpoint), dialErr: errDial}
+		assert.ErrorIs(t, ex.wsConnect(t.Context(), conn), errDial, "wsConnect should return the dial failure")
+	})
 }
 
 func TestWsMissingRole(t *testing.T) {
@@ -580,9 +603,7 @@ func TestWsMissingRole(t *testing.T) {
 		"reason":"MissingRole",
 		"message":"To access this endpoint, you need to log in to the website and go to the settings page to assign one of these roles [FundManager] to API key wujB3szN54gtJ4QDhqRJ which currently has roles [Trader]"
 	}`)
-	if err := e.wsHandleData(t.Context(), pressXToJSON); err == nil {
-		t.Error("Expected error")
-	}
+	assert.ErrorIs(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), errWebsocketAuthResponse, "wsHandleData should return an error")
 }
 
 func TestWsOrderEventSubscriptionResponse(t *testing.T) {
@@ -604,10 +625,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
   "original_amount" : "14.0296",
   "price" : "1059.54"
 } ]`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 
 	pressXToJSON = []byte(`[{
     "type": "accepted",
@@ -626,10 +644,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
     "price": "3592.00",
     "socket_sequence": 13
 }]`)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 
 	pressXToJSON = []byte(`[{
     "type": "accepted",
@@ -647,10 +662,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
     "total_spend": "200.00",
     "socket_sequence": 29
 }]`)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 
 	pressXToJSON = []byte(`[{
     "type": "accepted",
@@ -668,10 +680,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
     "original_amount": "25",
     "socket_sequence": 26
 }]`)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 
 	pressXToJSON = []byte(`[ {
   "type" : "accepted",
@@ -690,10 +699,7 @@ func TestWsOrderEventSubscriptionResponse(t *testing.T) {
   "original_amount" : "500",
   "socket_sequence" : 32307
 } ]`)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 }
 
 func TestWsSubAck(t *testing.T) {
@@ -712,9 +718,7 @@ func TestWsSubAck(t *testing.T) {
     "closed"
   ]
 }`)
-	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 }
 
 func TestWsHeartbeat(t *testing.T) {
@@ -725,9 +729,7 @@ func TestWsHeartbeat(t *testing.T) {
   "trace_id": "b8biknoqppr32kc7gfgg",
   "socket_sequence": 37
 }`)
-	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 }
 
 func TestWsUnsubscribe(t *testing.T) {
@@ -746,10 +748,7 @@ func TestWsUnsubscribe(t *testing.T) {
         ]}
     ]
 }`)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 }
 
 func TestWsTradeData(t *testing.T) {
@@ -769,9 +768,7 @@ func TestWsTradeData(t *testing.T) {
     }
   ]
 }`)
-	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 }
 
 func TestWsAuctionData(t *testing.T) {
@@ -801,9 +798,7 @@ func TestWsAuctionData(t *testing.T) {
     ],
     "type": "update"
 }`)
-	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 }
 
 func TestWsBlockTrade(t *testing.T) {
@@ -822,9 +817,7 @@ func TestWsBlockTrade(t *testing.T) {
       }
    ]
 }`)
-	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 }
 
 func TestWSTrade(t *testing.T) {
@@ -837,9 +830,7 @@ func TestWSTrade(t *testing.T) {
 		"quantity": "0.09110000",
 		"side": "buy"
 	}`)
-	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 }
 
 func TestWsCandles(t *testing.T) {
@@ -870,7 +861,7 @@ func TestWsCandles(t *testing.T) {
     ]
   ]
 }`)
-	require.NoError(t, g.wsHandleData(t.Context(), pressXToJSON))
+	require.NoError(t, g.wsHandleData(t.Context(), testexch.GetMockConn(t, g, ""), pressXToJSON))
 
 	for _, exp := range []kline.Candle{
 		{
@@ -943,9 +934,7 @@ func TestWsAuctions(t *testing.T) {
     ],
     "type": "update"
 }`)
-	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 
 	pressXToJSON = []byte(`{
     "type": "update",
@@ -967,9 +956,7 @@ func TestWsAuctions(t *testing.T) {
         }
     ]
 }`)
-	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 
 	pressXToJSON = []byte(`{
     "type": "update",
@@ -998,9 +985,7 @@ func TestWsAuctions(t *testing.T) {
         }
     ]
 }`)
-	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 }
 
 func TestWsMarketData(t *testing.T) {
@@ -1027,10 +1012,7 @@ func TestWsMarketData(t *testing.T) {
     }
   ]
 }    `)
-	err := e.wsHandleData(t.Context(), pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 
 	pressXToJSON = []byte(`{
   "type": "update",
@@ -1055,10 +1037,7 @@ func TestWsMarketData(t *testing.T) {
     }
   ]
 }    `)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 
 	pressXToJSON = []byte(`{
   "type": "update",
@@ -1077,52 +1056,60 @@ func TestWsMarketData(t *testing.T) {
     }
   ]
 }  `)
-	err = e.wsHandleData(t.Context(), pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 }
 
 func TestWsError(t *testing.T) {
+	t.Parallel()
 	tt := []struct {
+		Case               string
 		Data               []byte
 		ErrorExpected      bool
 		ErrorShouldContain string
 	}{
 		{
+			Case:          "no error payload type",
 			Data:          []byte(`{"type": "test"}`),
 			ErrorExpected: false,
 		},
 		{
+			Case:          "no error payload result",
 			Data:          []byte(`{"result": "bla"}`),
 			ErrorExpected: false,
 		},
 		{
+			Case:               "generic websocket error",
 			Data:               []byte(`{"result": "error"}`),
 			ErrorExpected:      true,
 			ErrorShouldContain: "Unhandled websocket error",
 		},
 		{
+			Case:               "invalid json reason",
 			Data:               []byte(`{"result": "error","reason": "InvalidJson"}`),
 			ErrorExpected:      true,
 			ErrorShouldContain: "InvalidJson",
 		},
 		{
+			Case:               "invalid json reason with message",
 			Data:               []byte(`{"result": "error","reason": "InvalidJson", "message": "WeAreGoingToTheMoonKirby"}`),
 			ErrorExpected:      true,
 			ErrorShouldContain: "InvalidJson - WeAreGoingToTheMoonKirby",
 		},
 	}
 
-	for x := range tt {
-		err := e.wsHandleData(t.Context(), tt[x].Data)
-		if tt[x].ErrorExpected && err != nil && !strings.Contains(err.Error(), tt[x].ErrorShouldContain) {
-			t.Errorf("expected error to contain: %s, got: %s",
-				tt[x].ErrorShouldContain, err.Error(),
-			)
-		} else if !tt[x].ErrorExpected && err != nil {
-			t.Errorf("unexpected error: %s", err)
-		}
+	for _, tc := range tt {
+		t.Run(tc.Case, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+
+			err := ex.wsHandleData(t.Context(), testexch.GetMockConn(t, ex, ""), tc.Data)
+			if tc.ErrorExpected {
+				assert.ErrorContains(t, err, tc.ErrorShouldContain, "wsHandleData should return expected error")
+				return
+			}
+			assert.NoError(t, err, "wsHandleData should not error for this payload")
+		})
 	}
 }
 
@@ -1175,73 +1162,79 @@ func TestWsLevel2Update(t *testing.T) {
 			}
 		]
 	}`)
-	if err := e.wsHandleData(t.Context(), pressXToJSON); err != nil {
-		t.Error(err)
+	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
+}
+
+func TestStringToOrderStatus(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name   string
+		result order.Status
+		err    error
+	}{
+		{name: "accepted", result: order.New},
+		{name: "booked", result: order.Active},
+		{name: "fill", result: order.Filled},
+		{name: "cancelled", result: order.Cancelled},
+		{name: "cancel_rejected", result: order.Rejected},
+		{name: "closed", result: order.Filled},
+		{name: "LOL", result: order.UnknownStatus, err: errUnrecognisedOrderStatus},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result, err := stringToOrderStatus(tc.name)
+			if tc.err != nil {
+				assert.ErrorIs(t, err, tc.err, "stringToOrderStatus should return the expected error")
+			} else {
+				assert.NoError(t, err, "stringToOrderStatus should not error")
+			}
+			assert.Equal(t, tc.result, result, "order status should match expected conversion")
+		})
 	}
 }
 
-func TestResponseToStatus(t *testing.T) {
-	type TestCases struct {
-		Case   string
-		Result order.Status
+func TestStringToOrderType(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name   string
+		result order.Type
+		err    error
+	}{
+		{name: "exchange limit", result: order.Limit},
+		{name: "auction-only limit", result: order.Limit},
+		{name: "indication-of-interest limit", result: order.Limit},
+		{name: "market buy", result: order.Market},
+		{name: "market sell", result: order.Market},
+		{name: "block_trade", result: order.Market},
+		{name: "LOL", result: order.UnknownType, err: errUnrecognisedOrderType},
 	}
-	testCases := []TestCases{
-		{Case: "accepted", Result: order.New},
-		{Case: "booked", Result: order.Active},
-		{Case: "fill", Result: order.Filled},
-		{Case: "cancelled", Result: order.Cancelled},
-		{Case: "cancel_rejected", Result: order.Rejected},
-		{Case: "closed", Result: order.Filled},
-		{Case: "LOL", Result: order.UnknownStatus},
-	}
-	for i := range testCases {
-		result, _ := stringToOrderStatus(testCases[i].Case)
-		if result != testCases[i].Result {
-			t.Errorf("Expected: %v, received: %v", testCases[i].Result, result)
-		}
-	}
-}
-
-func TestResponseToOrderType(t *testing.T) {
-	type TestCases struct {
-		Case   string
-		Result order.Type
-	}
-	testCases := []TestCases{
-		{Case: "exchange limit", Result: order.Limit},
-		{Case: "auction-only limit", Result: order.Limit},
-		{Case: "indication-of-interest limit", Result: order.Limit},
-		{Case: "market buy", Result: order.Market},
-		{Case: "market sell", Result: order.Market},
-		{Case: "block_trade", Result: order.Market},
-		{Case: "LOL", Result: order.UnknownType},
-	}
-	for i := range testCases {
-		result, _ := stringToOrderType(testCases[i].Case)
-		if result != testCases[i].Result {
-			t.Errorf("Expected: %v, received: %v", testCases[i].Result, result)
-		}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result, err := stringToOrderType(tc.name)
+			if tc.err != nil {
+				assert.ErrorIs(t, err, tc.err, "stringToOrderType should return the expected error")
+			} else {
+				assert.NoError(t, err, "stringToOrderType should not error")
+			}
+			assert.Equal(t, tc.result, result, "order type should match expected conversion")
+		})
 	}
 }
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
 	currencyPair, err := currency.NewPairFromString(testCurrency)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	_, err = e.GetRecentTrades(t.Context(), currencyPair, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetHistoricTrades(t *testing.T) {
 	t.Parallel()
 	currencyPair, err := currency.NewPairFromString(testCurrency)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	tStart := time.Date(2020, 6, 6, 0, 0, 0, 0, time.UTC)
 	tEnd := time.Date(2020, 6, 7, 0, 0, 0, 0, time.UTC)
 	if !mockTests {
@@ -1250,9 +1243,7 @@ func TestGetHistoricTrades(t *testing.T) {
 	}
 	_, err = e.GetHistoricTrades(t.Context(),
 		currencyPair, asset.Spot, tStart, tEnd)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestTransfers(t *testing.T) {
@@ -1260,9 +1251,7 @@ func TestTransfers(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
 	_, err := e.Transfers(t.Context(), currency.BTC, time.Time{}, 100, "", true)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetAccountFundingHistory(t *testing.T) {
@@ -1270,9 +1259,7 @@ func TestGetAccountFundingHistory(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
 	_, err := e.GetAccountFundingHistory(t.Context())
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetWithdrawalsHistory(t *testing.T) {
@@ -1280,9 +1267,7 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
 	_, err := e.GetWithdrawalsHistory(t.Context(), currency.BTC, asset.Spot)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetOrderInfo(t *testing.T) {
@@ -1290,21 +1275,15 @@ func TestGetOrderInfo(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
 	_, err := e.GetOrderInfo(t.Context(), "1234", currency.EMPTYPAIR, asset.Empty)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestGetSymbolDetails(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetSymbolDetails(t.Context(), "all")
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 	_, err = e.GetSymbolDetails(t.Context(), "btcusd")
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestUpdateOrderExecutionLimits(t *testing.T) {
@@ -1333,12 +1312,15 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, e)
 	for _, a := range e.GetAssetTypes(false) {
-		pairs, err := e.CurrencyPairs.GetPairs(a, false)
-		require.NoErrorf(t, err, "cannot get pairs for %s", a)
-		require.NotEmptyf(t, pairs, "no pairs for %s", a)
-		resp, err := e.GetCurrencyTradeURL(t.Context(), a, pairs[0])
-		require.NoError(t, err)
-		assert.NotEmpty(t, resp)
+		t.Run(a.String(), func(t *testing.T) {
+			t.Parallel()
+			pairs, err := e.CurrencyPairs.GetPairs(a, false)
+			require.NoErrorf(t, err, "GetPairs must not error for asset %s", a)
+			require.NotEmptyf(t, pairs, "pairs must not be empty for asset %s", a)
+			resp, err := e.GetCurrencyTradeURL(t.Context(), a, pairs[0])
+			require.NoError(t, err, "GetCurrencyTradeURL must not error")
+			assert.NotEmpty(t, resp, "GetCurrencyTradeURL should return a URL")
+		})
 	}
 }
 
@@ -1358,10 +1340,13 @@ func TestGenerateSubscriptions(t *testing.T) {
 	testsubs.EqualLists(t, exp, subs)
 
 	for _, i := range []kline.Interval{kline.OneMin, kline.FiveMin, kline.FifteenMin, kline.ThirtyMin, kline.OneHour, kline.SixHour} {
-		subs, err = subscription.List{{Asset: asset.Spot, Channel: subscription.CandlesChannel, Pairs: p, Interval: i}}.ExpandTemplates(e)
-		assert.NoErrorf(t, err, "ExpandTemplates should not error on interval %s", i)
-		require.NotEmpty(t, subs)
-		assert.Equal(t, "candles_"+i.Short(), subs[0].QualifiedChannel)
+		t.Run(i.String(), func(t *testing.T) {
+			t.Parallel()
+			subRes, err := subscription.List{{Asset: asset.Spot, Channel: subscription.CandlesChannel, Pairs: p, Interval: i}}.ExpandTemplates(e)
+			assert.NoErrorf(t, err, "ExpandTemplates should not error on interval %s", i)
+			require.NotEmpty(t, subRes, "ExpandTemplates result must not be empty")
+			assert.Equal(t, "candles_"+i.Short(), subRes[0].QualifiedChannel, "qualified channel should match expected interval")
+		})
 	}
 	_, err = subscription.List{{Asset: asset.Spot, Channel: subscription.CandlesChannel, Pairs: p, Interval: kline.FourHour}}.ExpandTemplates(e)
 	assert.ErrorIs(t, err, kline.ErrUnsupportedInterval, "ExpandTemplates should error on invalid interval")
@@ -1371,4 +1356,78 @@ func TestGenerateSubscriptions(t *testing.T) {
 		func() { channelName(&subscription.Subscription{Channel: "wibble"}) },
 		"should panic on invalid channel",
 	)
+}
+
+func TestGeneratePublicSubscriptions(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	p := currency.Pairs{currency.NewPairWithDelimiter("BTC", "USD", ""), currency.NewPairWithDelimiter("ETH", "BTC", "")}
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, p, false), "StorePairs must not error")
+	require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, p, true), "StorePairs must not error")
+
+	subs, err := ex.generatePublicSubscriptions()
+	require.NoError(t, err, "generatePublicSubscriptions must not error")
+	require.NotEmpty(t, subs, "generatePublicSubscriptions must return subscriptions")
+	for _, s := range subs {
+		assert.False(t, s.Authenticated, "generatePublicSubscriptions should only return public subscriptions")
+	}
+}
+
+func TestSubscribeForConnection(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	conn := &websocketTestConnection{Connection: testexch.GetMockConn(t, ex, geminiWebsocketEndpoint)}
+	sub := &subscription.Subscription{
+		Asset:            asset.Spot,
+		Channel:          subscription.OrderbookChannel,
+		QualifiedChannel: marketDataLevel2,
+		Pairs:            currency.Pairs{currency.NewBTCUSD()},
+	}
+
+	require.NoError(t, ex.subscribeForConnection(t.Context(), conn, subscription.List{sub}), "subscribeForConnection must not error")
+	assert.Len(t, conn.sent, 1, "subscribeForConnection should send one request")
+	assert.Same(t, sub, ex.Websocket.GetSubscription(sub), "subscribeForConnection should store the subscription")
+	assert.Equal(t, subscription.SubscribedState, sub.State(), "subscribeForConnection should mark the subscription subscribed")
+}
+
+func TestUnsubscribeForConnection(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	conn := &websocketTestConnection{Connection: testexch.GetMockConn(t, ex, geminiWebsocketEndpoint)}
+	sub := &subscription.Subscription{
+		Asset:            asset.Spot,
+		Channel:          subscription.OrderbookChannel,
+		QualifiedChannel: marketDataLevel2,
+		Pairs:            currency.Pairs{currency.NewBTCUSD()},
+	}
+	require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, sub), "AddSuccessfulSubscriptions must not error")
+
+	require.NoError(t, ex.unsubscribeForConnection(t.Context(), conn, subscription.List{sub}), "unsubscribeForConnection must not error")
+	assert.Len(t, conn.sent, 1, "unsubscribeForConnection should send one request")
+	assert.Nil(t, ex.Websocket.GetSubscription(sub), "unsubscribeForConnection should remove the subscription")
+	assert.Equal(t, subscription.UnsubscribedState, sub.State(), "unsubscribeForConnection should mark the subscription unsubscribed")
+}
+
+func TestManageSubs(t *testing.T) {
+	t.Parallel()
+
+	t.Run("send failure", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		errSend := errors.New("send failure")
+		conn := &websocketTestConnection{
+			Connection: testexch.GetMockConn(t, ex, geminiWebsocketEndpoint),
+			sendErr:    errSend,
+		}
+		subs := subscription.List{{QualifiedChannel: marketDataLevel2}}
+
+		assert.ErrorIs(t, ex.manageSubs(t.Context(), conn, subs, wsSubscribeOp), errSend, "manageSubs should return the send failure")
+		assert.Empty(t, ex.Websocket.GetSubscriptions(), "manageSubs should not store subscriptions after a send failure")
+	})
 }
