@@ -2,14 +2,18 @@ package deribit
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
+	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -17,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -52,6 +57,54 @@ var (
 	assetTypeToPairsMap                                                   map[asset.Item]currency.Pair
 )
 
+type subscriptionTestConnection struct {
+	websocket.Connection
+	requests    []WsSubscriptionInput
+	sendErr     error
+	rawResponse []byte
+	ackLimit    int
+	dialErr     error
+	dialCalls   int
+	sent        []any
+	sentSignal  chan struct{}
+}
+
+func (c *subscriptionTestConnection) Dial(context.Context, *gws.Dialer, http.Header, url.Values) error {
+	c.dialCalls++
+	return c.dialErr
+}
+
+func (c *subscriptionTestConnection) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _, payload any) ([]byte, error) {
+	c.sent = append(c.sent, payload)
+	if c.sentSignal != nil {
+		c.sentSignal <- struct{}{}
+	}
+	if c.sendErr != nil {
+		return nil, c.sendErr
+	}
+	if c.rawResponse != nil {
+		return c.rawResponse, nil
+	}
+	req, ok := payload.(WsSubscriptionInput)
+	if !ok {
+		return []byte(`{"result":{}}`), nil
+	}
+	c.requests = append(c.requests, req)
+	channels := req.Params["channels"]
+	if c.ackLimit > 0 && c.ackLimit < len(channels) {
+		channels = channels[:c.ackLimit]
+	}
+	return json.Marshal(wsSubscriptionResponse{JSONRPCVersion: rpcVersion, ID: req.ID, Result: channels})
+}
+
+func (c *subscriptionTestConnection) SendJSONMessage(_ context.Context, _ request.EndpointLimit, payload any) error {
+	c.sent = append(c.sent, payload)
+	if c.sentSignal != nil {
+		c.sentSignal <- struct{}{}
+	}
+	return c.sendErr
+}
+
 func TestMain(m *testing.M) {
 	e = new(Exchange)
 	if err := testexch.Setup(e); err != nil {
@@ -85,7 +138,7 @@ func TestMain(m *testing.M) {
 		asset.OptionCombo: optionComboTradablePair,
 		asset.FutureCombo: futureComboTradablePair,
 	}
-	setupWs()
+	setupWs(context.Background())
 	os.Exit(m.Run())
 }
 
@@ -3992,16 +4045,119 @@ func TestWsSimulateBlockTrade(t *testing.T) {
 	assert.True(t, result)
 }
 
-func setupWs() {
+func setupWs(ctx context.Context) {
 	if !e.Websocket.IsEnabled() {
 		return
 	}
 	if !sharedtestvalues.AreAPICredentialsSet(e) {
 		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	}
-	err := e.Websocket.Connect(context.TODO())
+	err := e.Websocket.Connect(ctx)
 	if err != nil {
 		log.Fatal(err)
+	}
+}
+
+func TestWsConnect(t *testing.T) {
+	t.Parallel()
+
+	t.Run("dial failure", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		errDial := errors.New("dial failure")
+		conn := &subscriptionTestConnection{Connection: testexch.GetMockConn(t, ex, deribitWebsocketAddress), dialErr: errDial}
+
+		assert.ErrorIs(t, ex.wsConnect(t.Context(), conn), errDial, "wsConnect should return the dial failure")
+		assert.Equal(t, 1, conn.dialCalls, "wsConnect should dial once")
+	})
+
+	t.Run("starts heartbeat", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		conn := &subscriptionTestConnection{
+			Connection:  testexch.GetMockConn(t, ex, deribitWebsocketAddress),
+			rawResponse: []byte(`{"result":"ok"}`),
+			sentSignal:  make(chan struct{}, 1),
+		}
+
+		require.NoError(t, ex.wsConnect(t.Context(), conn), "wsConnect must not error")
+		select {
+		case <-conn.sentSignal:
+			assert.Equal(t, 1, conn.dialCalls, "wsConnect should dial once")
+		case <-time.After(time.Second):
+			t.Fatal("wsConnect heartbeat must send within the timeout")
+		}
+	})
+}
+
+func TestWsStartHeartbeat(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	conn := &subscriptionTestConnection{Connection: testexch.GetMockConn(t, ex, deribitWebsocketAddress), rawResponse: []byte(`{"result":"ok"}`)}
+	ex.wsStartHeartbeat(t.Context(), conn)
+	assert.Len(t, conn.sent, 1, "wsStartHeartbeat should send one request")
+}
+
+func TestWsAuthenticate(t *testing.T) {
+	t.Parallel()
+
+	t.Run("missing credentials", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		err := ex.wsAuthenticate(t.Context(), testexch.GetMockConn(t, ex, deribitWebsocketAddress))
+		assert.Error(t, err, "wsAuthenticate should reject missing credentials")
+	})
+
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.SetCredentials("key", "secret", "", "", "", "")
+		conn := &subscriptionTestConnection{Connection: testexch.GetMockConn(t, ex, deribitWebsocketAddress), rawResponse: []byte(`{"result":{"access_token":"token"}}`)}
+
+		require.NoError(t, ex.wsAuthenticate(t.Context(), conn), "wsAuthenticate must not error")
+		assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "wsAuthenticate should enable authenticated endpoints")
+		assert.Len(t, conn.sent, 1, "wsAuthenticate should send one request")
+	})
+
+	t.Run("send failure", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.SetCredentials("key", "secret", "", "", "", "")
+		errSend := errors.New("send failure")
+		conn := &subscriptionTestConnection{Connection: testexch.GetMockConn(t, ex, deribitWebsocketAddress), sendErr: errSend}
+
+		assert.ErrorIs(t, ex.wsAuthenticate(t.Context(), conn), errSend, "wsAuthenticate should return the send failure")
+		assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "wsAuthenticate should disable authenticated endpoints after failure")
+	})
+}
+
+func TestWsSendHeartbeat(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name    string
+		sendErr error
+	}{
+		{name: "success"},
+		{name: "send failure", sendErr: errors.New("send failure")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+			conn := &subscriptionTestConnection{Connection: testexch.GetMockConn(t, ex, deribitWebsocketAddress), sendErr: tc.sendErr}
+			ex.wsSendHeartbeat(t.Context(), conn)
+			assert.Len(t, conn.sent, 1, "wsSendHeartbeat should send one request")
+		})
 	}
 }
 
@@ -4042,6 +4198,109 @@ func TestGenerateSubscriptions(t *testing.T) {
 		}
 	}
 	testsubs.EqualLists(t, exp, subs)
+}
+
+func TestSubscribeForConnection(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	conn := &subscriptionTestConnection{Connection: testexch.GetMockConn(t, ex, deribitWebsocketAddress)}
+	publicSub := &subscription.Subscription{Key: "ticker.BTC-PERPETUAL.raw", QualifiedChannel: "ticker.BTC-PERPETUAL.raw"}
+	privateSub := &subscription.Subscription{Key: "user.orders.BTC-PERPETUAL.raw", QualifiedChannel: "user.orders.BTC-PERPETUAL.raw", Authenticated: true}
+
+	require.NoError(t, ex.subscribeForConnection(t.Context(), conn, subscription.List{publicSub, privateSub}), "subscribeForConnection must not error")
+	require.Len(t, conn.requests, 2, "subscribeForConnection must send public and private requests")
+	assert.Equal(t, "public/subscribe", conn.requests[0].Method, "public subscription should use the public method")
+	assert.Equal(t, "private/subscribe", conn.requests[1].Method, "private subscription should use the private method")
+	assert.Equal(t, subscription.SubscribedState, publicSub.State(), "public subscription should be subscribed")
+	assert.Equal(t, subscription.SubscribedState, privateSub.State(), "private subscription should be subscribed")
+}
+
+func TestUnsubscribeForConnection(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	conn := &subscriptionTestConnection{Connection: testexch.GetMockConn(t, ex, deribitWebsocketAddress)}
+	publicSub := &subscription.Subscription{Key: "ticker.BTC-PERPETUAL.raw", QualifiedChannel: "ticker.BTC-PERPETUAL.raw"}
+	privateSub := &subscription.Subscription{Key: "user.orders.BTC-PERPETUAL.raw", QualifiedChannel: "user.orders.BTC-PERPETUAL.raw", Authenticated: true}
+	require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, publicSub, privateSub), "AddSuccessfulSubscriptions must not error")
+
+	require.NoError(t, ex.unsubscribeForConnection(t.Context(), conn, subscription.List{publicSub, privateSub}), "unsubscribeForConnection must not error")
+	require.Len(t, conn.requests, 2, "unsubscribeForConnection must send public and private requests")
+	assert.Equal(t, "public/unsubscribe", conn.requests[0].Method, "public unsubscription should use the public method")
+	assert.Equal(t, "private/unsubscribe", conn.requests[1].Method, "private unsubscription should use the private method")
+	assert.Equal(t, subscription.UnsubscribedState, publicSub.State(), "public subscription should be unsubscribed")
+	assert.Equal(t, subscription.UnsubscribedState, privateSub.State(), "private subscription should be unsubscribed")
+}
+
+func TestHandleSubscription(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name          string
+		count         int
+		expectedBatch []int
+	}{
+		{name: "empty", expectedBatch: nil},
+		{name: "one", count: 1, expectedBatch: []int{1}},
+		{name: "maximum batch", count: deribitMaxChannelsPerSubscriptionRequest, expectedBatch: []int{deribitMaxChannelsPerSubscriptionRequest}},
+		{name: "multiple batches", count: deribitMaxChannelsPerSubscriptionRequest + 1, expectedBatch: []int{deribitMaxChannelsPerSubscriptionRequest, 1}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+			conn := &subscriptionTestConnection{Connection: testexch.GetMockConn(t, ex, deribitWebsocketAddress)}
+			subs := make(subscription.List, tc.count)
+			for i := range subs {
+				channelKey := "channel-" + strconv.Itoa(i)
+				subs[i] = &subscription.Subscription{Key: channelKey, QualifiedChannel: channelKey}
+			}
+
+			require.NoError(t, ex.handleSubscription(t.Context(), conn, "public/subscribe", subs), "handleSubscription must not error")
+			require.Len(t, conn.requests, len(tc.expectedBatch), "handleSubscription must send the expected batch count")
+			for i, expected := range tc.expectedBatch {
+				assert.Len(t, conn.requests[i].Params["channels"], expected, "handleSubscription batch should have the expected channel count")
+			}
+		})
+	}
+}
+
+func TestHandleSubscriptionBatch(t *testing.T) {
+	t.Parallel()
+
+	t.Run("send failure", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		errSend := errors.New("send failure")
+		conn := &subscriptionTestConnection{Connection: testexch.GetMockConn(t, ex, deribitWebsocketAddress), sendErr: errSend}
+		err := ex.handleSubscriptionBatch(t.Context(), conn, "public/subscribe", subscription.List{{QualifiedChannel: "channel"}})
+		assert.ErrorIs(t, err, errSend, "handleSubscriptionBatch should return the send failure")
+	})
+
+	t.Run("invalid response", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		conn := &subscriptionTestConnection{Connection: testexch.GetMockConn(t, ex, deribitWebsocketAddress), rawResponse: []byte("{")}
+		err := ex.handleSubscriptionBatch(t.Context(), conn, "public/subscribe", subscription.List{{QualifiedChannel: "channel"}})
+		assert.Error(t, err, "handleSubscriptionBatch should return the JSON error")
+	})
+
+	t.Run("partial acknowledgement", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		conn := &subscriptionTestConnection{Connection: testexch.GetMockConn(t, ex, deribitWebsocketAddress), ackLimit: 1}
+		subs := subscription.List{{QualifiedChannel: "first"}, {QualifiedChannel: "second"}}
+		err := ex.handleSubscriptionBatch(t.Context(), conn, "public/subscribe", subs)
+		assert.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "handleSubscriptionBatch should reject a partial acknowledgement")
+		assert.Equal(t, subscription.SubscribedState, subs[0].State(), "acknowledged subscription should be subscribed")
+		assert.Equal(t, subscription.InactiveState, subs[1].State(), "missing subscription should remain inactive")
+	})
 }
 
 func TestChannelInterval(t *testing.T) {

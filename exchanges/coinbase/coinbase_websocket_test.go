@@ -3,7 +3,6 @@ package coinbase
 import (
 	"context"
 	"errors"
-	"strconv"
 	"strings"
 	"testing"
 	"text/template"
@@ -19,12 +18,24 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 )
+
+type subscriptionTestConnection struct {
+	websocket.Connection
+	sendErr error
+	sent    []any
+}
+
+func (c *subscriptionTestConnection) SendJSONMessage(_ context.Context, _ request.EndpointLimit, payload any) error {
+	c.sent = append(c.sent, payload)
+	return c.sendErr
+}
 
 func TestWsConnect(t *testing.T) {
 	t.Parallel()
@@ -154,19 +165,19 @@ func TestWsHandleData(t *testing.T) {
 	})
 }
 
-func TestWsHandleDataSequence(t *testing.T) {
+func TestCheckWSSequence(t *testing.T) {
 	t.Parallel()
-	connA := testexch.GetMockConn(t, e, "ws://coinbase-seq-a")
-	connB := testexch.GetMockConn(t, e, "ws://coinbase-seq-b")
-	buildSubMsg := func(seq uint64) []byte {
-		return []byte(`{"sequence_num":` + strconv.FormatUint(seq, 10) + `,"channel":"subscriptions"}`)
-	}
 
-	assert.NoError(t, e.wsHandleData(t.Context(), connA, buildSubMsg(7)), "wsHandleData should not error for initial sequence")
-	assert.NoError(t, e.wsHandleData(t.Context(), connA, buildSubMsg(8)), "wsHandleData should not error for in-order sequence")
-	assert.ErrorIs(t, e.wsHandleData(t.Context(), connA, buildSubMsg(10)), errOutOfSequence, "wsHandleData should error for out-of-order sequence")
-	assert.NoError(t, e.wsHandleData(t.Context(), connA, buildSubMsg(11)), "wsHandleData should not error after sequence state is resynced")
-	assert.NoError(t, e.wsHandleData(t.Context(), connB, buildSubMsg(3)), "wsHandleData should not error for a different connection sequence state")
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	connA := testexch.GetMockConn(t, ex, "ws://coinbase-seq-a")
+	connB := testexch.GetMockConn(t, ex, "ws://coinbase-seq-b")
+
+	assert.NoError(t, ex.checkWSSequence(connA, 7), "checkWSSequence should accept an initial sequence")
+	assert.NoError(t, ex.checkWSSequence(connA, 8), "checkWSSequence should accept an in-order sequence")
+	assert.ErrorIs(t, ex.checkWSSequence(connA, 10), errOutOfSequence, "checkWSSequence should reject an out-of-order sequence")
+	assert.NoError(t, ex.checkWSSequence(connA, 11), "checkWSSequence should accept the resynchronised sequence")
+	assert.NoError(t, ex.checkWSSequence(connB, 3), "checkWSSequence should maintain independent connection state")
 }
 
 func TestProcessSnapshot(t *testing.T) {
@@ -252,21 +263,56 @@ func TestGenerateSubscriptions(t *testing.T) {
 
 func TestSubscribeForConnection(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	req := subscription.List{{Channel: subscription.TickerChannel, Asset: asset.Spot, Pairs: currency.Pairs{currency.NewPairWithDelimiter(testCrypto.String(), testFiat.String(), "-")}}}
-	err := subscribeForTest(t.Context(), e, req)
-	assert.NoError(t, err)
-	t.Cleanup(func() {
-		assert.NoError(t, unsubscribeForTest(t.Context(), e, req), "unsubscribeForTest should not error during cleanup")
-	})
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	conn := &subscriptionTestConnection{Connection: testexch.GetMockConn(t, ex, "wss://coinbase-subscribe.test")}
+	sub := &subscription.Subscription{
+		Channel:          subscription.TickerChannel,
+		Asset:            asset.Spot,
+		Pairs:            currency.Pairs{currency.NewBTCUSD()},
+		QualifiedChannel: "ticker",
+	}
+
+	require.NoError(t, ex.subscribeForConnection(t.Context(), conn, subscription.List{sub}), "subscribeForConnection must not error")
+	assert.Len(t, conn.sent, 1, "subscribeForConnection should send one request")
+	assert.Same(t, sub, ex.Websocket.GetSubscription(sub), "subscribeForConnection should store the subscription")
+	assert.Equal(t, subscription.SubscribedState, sub.State(), "subscribeForConnection should mark the subscription subscribed")
 }
 
 func TestUnsubscribeForConnection(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	req := subscription.List{{Channel: "heartbeat", Asset: asset.Spot, Pairs: currency.Pairs{currency.NewPairWithDelimiter(testCrypto.String(), testFiat.String(), "-")}}}
-	require.NoError(t, subscribeForTest(t.Context(), e, req), "subscribeForTest must not error before unsubscribe")
-	assert.NoError(t, unsubscribeForTest(t.Context(), e, req), "unsubscribeForTest should not error")
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	conn := &subscriptionTestConnection{Connection: testexch.GetMockConn(t, ex, "wss://coinbase-unsubscribe.test")}
+	sub := &subscription.Subscription{
+		Channel:          subscription.TickerChannel,
+		Asset:            asset.Spot,
+		Pairs:            currency.Pairs{currency.NewBTCUSD()},
+		QualifiedChannel: "ticker",
+	}
+	require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, sub), "AddSuccessfulSubscriptions must not error")
+
+	require.NoError(t, ex.unsubscribeForConnection(t.Context(), conn, subscription.List{sub}), "unsubscribeForConnection must not error")
+	assert.Len(t, conn.sent, 1, "unsubscribeForConnection should send one request")
+	assert.Nil(t, ex.Websocket.GetSubscription(sub), "unsubscribeForConnection should remove the subscription")
+	assert.Equal(t, subscription.UnsubscribedState, sub.State(), "unsubscribeForConnection should mark the subscription unsubscribed")
+}
+
+func TestManageSubs(t *testing.T) {
+	t.Parallel()
+
+	t.Run("send failure", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		errSend := errors.New("send failure")
+		conn := &subscriptionTestConnection{Connection: testexch.GetMockConn(t, ex, "wss://coinbase-manage.test"), sendErr: errSend}
+		sub := &subscription.Subscription{QualifiedChannel: "ticker"}
+
+		err := ex.manageSubs(t.Context(), conn, "subscribe", subscription.List{sub})
+		assert.ErrorIs(t, err, errSend, "manageSubs should return the send failure")
+		assert.Nil(t, ex.Websocket.GetSubscription(sub), "manageSubs should not store the subscription after a send failure")
+	})
 }
 
 func TestCheckSubscriptions(t *testing.T) {
@@ -365,18 +411,20 @@ func TestProcessBidAskArray(t *testing.T) {
 	}
 }
 
-func receiveDataHandlerPayload(t *testing.T, ex *Exchange) any {
+func receiveDataHandlerPayload(t *testing.T, ex *Exchange, timeout time.Duration) any {
 	t.Helper()
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
 	select {
 	case payload := <-ex.Websocket.DataHandler.C:
 		return payload.Data
-	default:
+	case <-timer.C:
 		t.Fatal("timed out waiting for websocket data handler payload")
 		return nil
 	}
 }
 
-func TestWSProcessCandle(t *testing.T) {
+func TestWsProcessCandle(t *testing.T) {
 	t.Parallel()
 
 	t.Run("update", func(t *testing.T) {
@@ -411,7 +459,7 @@ func TestWSProcessCandle(t *testing.T) {
 		}
 		require.NoError(t, ex.wsProcessCandle(t.Context(), resp), "wsProcessCandle must not error")
 
-		data := receiveDataHandlerPayload(t, ex)
+		data := receiveDataHandlerPayload(t, ex, time.Second)
 		candles, ok := data.([]kline.Item)
 		require.True(t, ok, "payload must be kline items")
 		require.Len(t, candles, 2, "candles must include both updates")
@@ -432,7 +480,7 @@ func TestWSProcessCandle(t *testing.T) {
 	})
 }
 
-func TestWSProcessMarketTrades(t *testing.T) {
+func TestWsProcessMarketTrades(t *testing.T) {
 	t.Parallel()
 
 	t.Run("update", func(t *testing.T) {
@@ -454,7 +502,7 @@ func TestWSProcessMarketTrades(t *testing.T) {
 		}
 		require.NoError(t, ex.wsProcessMarketTrades(t.Context(), resp), "wsProcessMarketTrades must not error")
 
-		data := receiveDataHandlerPayload(t, ex)
+		data := receiveDataHandlerPayload(t, ex, time.Second)
 		trades, ok := data.([]trade.Data)
 		require.True(t, ok, "payload must be trade data")
 		require.Len(t, trades, 1, "payload must include one trade")
@@ -471,7 +519,7 @@ func TestWSProcessMarketTrades(t *testing.T) {
 	})
 }
 
-func TestWSProcessL2(t *testing.T) {
+func TestWsProcessL2(t *testing.T) {
 	t.Parallel()
 
 	t.Run("snapshot update", func(t *testing.T) {
@@ -514,7 +562,7 @@ func TestWSProcessL2(t *testing.T) {
 	})
 }
 
-func TestWSProcessUser(t *testing.T) {
+func TestWsProcessUser(t *testing.T) {
 	t.Parallel()
 
 	t.Run("snapshot", func(t *testing.T) {
@@ -562,7 +610,7 @@ func TestWSProcessUser(t *testing.T) {
 		}
 		require.NoError(t, ex.wsProcessUser(t.Context(), resp), "wsProcessUser must not error")
 
-		data := receiveDataHandlerPayload(t, ex)
+		data := receiveDataHandlerPayload(t, ex, time.Second)
 		orders, ok := data.([]order.Detail)
 		require.True(t, ok, "payload must be order details")
 		require.Len(t, orders, 3, "payload must include order and positions")
@@ -578,20 +626,4 @@ func TestWSProcessUser(t *testing.T) {
 		resp := &StandardWebsocketResponse{Events: []byte(`[{"type":"snapshot","orders":[{"order_type":"WAT"}]}]`)}
 		assert.ErrorIs(t, ex.wsProcessUser(t.Context(), resp), order.ErrUnrecognisedOrderType, "wsProcessUser should return unrecognised order type")
 	})
-}
-
-func subscribeForTest(ctx context.Context, e *Exchange, subs subscription.List) error {
-	conn, err := e.Websocket.GetConnection(asset.Spot)
-	if err != nil {
-		return err
-	}
-	return e.subscribeForConnection(ctx, conn, subs)
-}
-
-func unsubscribeForTest(ctx context.Context, e *Exchange, subs subscription.List) error {
-	conn, err := e.Websocket.GetConnection(asset.Spot)
-	if err != nil {
-		return err
-	}
-	return e.unsubscribeForConnection(ctx, conn, subs)
 }

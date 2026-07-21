@@ -1441,7 +1441,23 @@ func TestWSSubscribe(t *testing.T) {
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "TestInstance must not error")
 	testexch.SetupWs(t, e)
-	err := subscribeForTest(t.Context(), e, subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
+	if !e.Websocket.IsConnected() {
+		require.NoError(t, e.Websocket.Connect(t.Context()), "Websocket connection must not error")
+	}
+	conn, err := e.Websocket.GetConnection(asset.Spot)
+	require.NoError(t, err, "Getting the spot connection must not error")
+	subscribe := func(subs subscription.List) error {
+		subs, err = subs.ExpandTemplates(e)
+		if err != nil {
+			return err
+		}
+		return e.subscribeForConnection(t.Context(), conn, subs)
+	}
+	unsubscribe := func(subs subscription.List) error {
+		return e.unsubscribeForConnection(t.Context(), conn, subs)
+	}
+
+	err = subscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
 	require.NoError(t, err, "Subscribe must not error")
 	catcher := func() (ok bool) {
 		i := <-e.Websocket.DataHandler.C
@@ -1464,57 +1480,26 @@ func TestWSSubscribe(t *testing.T) {
 	}
 	require.NotEmpty(t, tickerSubs, "Expected at least one BTC/USD ticker subscription")
 
-	err = subscribeForTest(t.Context(), e, subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
+	err = subscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{currency.NewBTCUSD()}, Asset: asset.Spot}})
 	require.ErrorContains(t, err, "subscribe: dup (code: 10301)", "Duplicate subscription must error correctly")
 
-	err = unsubscribeForTest(t.Context(), e, subscription.List{tickerSubs[0]})
+	err = unsubscribe(subscription.List{tickerSubs[0]})
 	assert.NoError(t, err, "Unsubscribing should not error")
 
 	chanID, ok := tickerSubs[0].Key.(int)
 	assert.True(t, ok, "sub.Key should be an int")
 
-	err = unsubscribeForTest(t.Context(), e, subscription.List{tickerSubs[0]})
+	err = unsubscribe(subscription.List{tickerSubs[0]})
 	assert.ErrorContains(t, err, strconv.Itoa(chanID), "Unsubscribe should contain correct chanId")
 	assert.ErrorContains(t, err, "unsubscribe: invalid (code: 10400)", "Unsubscribe should contain correct upstream error")
 
-	err = subscribeForTest(t.Context(), e, subscription.List{{
+	err = subscribe(subscription.List{{
 		Channel: subscription.TickerChannel,
 		Pairs:   currency.Pairs{currency.NewBTCUSD()},
 		Asset:   asset.Spot,
 		Params:  map[string]any{"key": "tBTCUSD"},
 	}})
 	assert.ErrorIs(t, err, errParamNotAllowed, "Trying to use a 'key' param should error errParamNotAllowed")
-}
-
-func subscribeForTest(ctx context.Context, e *Exchange, subs subscription.List) error {
-	var err error
-	subs, err = subs.ExpandTemplates(e)
-	if err != nil {
-		return err
-	}
-	if !e.Websocket.IsConnected() {
-		if err := e.Websocket.Connect(ctx); err != nil {
-			return err
-		}
-	}
-	conn, err := e.Websocket.GetConnection(asset.Spot)
-	if err != nil {
-		return err
-	}
-	return e.subscribeForConnection(ctx, conn, subs)
-}
-
-func unsubscribeForTest(ctx context.Context, e *Exchange, subs subscription.List) error {
-	if !e.Websocket.IsConnected() {
-		if err := e.Websocket.Connect(ctx); err != nil {
-			return err
-		}
-	}
-	conn, err := e.Websocket.GetConnection(asset.Spot)
-	if err != nil {
-		return err
-	}
-	return e.unsubscribeForConnection(ctx, conn, subs)
 }
 
 // TestSubToMap tests the channel to request map marshalling
@@ -1551,79 +1536,166 @@ func TestSubToMap(t *testing.T) {
 	assert.Equal(t, "tBTCLTC", r["symbol"], "symbol should not use colon delimiter if both currencies < 3 chars")
 }
 
-func TestWSNewOrder(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
-	_, err := e.WsNewOrder(t.Context(), &WsNewOrderRequest{
-		GroupID: 1,
-		Type:    "EXCHANGE LIMIT",
-		Symbol:  "tXRPUSD",
-		Amount:  -20,
-		Price:   1000,
+func TestMakeRequestInterface(t *testing.T) {
+	t.Parallel()
+
+	payload := &WsCancelOrderRequest{OrderID: 42}
+	assert.Equal(t, []any{0, wsOrderCancel, nil, payload}, makeRequestInterface(wsOrderCancel, payload), "makeRequestInterface should construct the websocket request envelope")
+}
+
+func TestWsNewOrder(t *testing.T) {
+	t.Parallel()
+
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		conn := &wsConnectFixtureConnection{
+			Connection:  testexch.GetMockConn(t, ex, authenticatedBitfinexWebsocketEndpoint),
+			responseRaw: []byte(`[0,0,[null,null,null,null,[1234]]]`),
+		}
+		require.NoError(t, ex.Websocket.TrackTestConnection("auth", conn), "TrackTestConnection must not error")
+
+		id, err := ex.WsNewOrder(t.Context(), &WsNewOrderRequest{
+			GroupID: 1,
+			Type:    "EXCHANGE LIMIT",
+			Symbol:  "tXRPUSD",
+			Amount:  -20,
+			Price:   1000,
+		})
+		require.NoError(t, err, "WsNewOrder must not error")
+		assert.Equal(t, "1234", id, "WsNewOrder should return the order ID")
 	})
-	assert.NoError(t, err)
+
+	t.Run("short response detail", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		conn := &wsConnectFixtureConnection{
+			Connection:  testexch.GetMockConn(t, ex, authenticatedBitfinexWebsocketEndpoint),
+			responseRaw: []byte(`[0,0,[null,null,null,null]]`),
+		}
+		require.NoError(t, ex.Websocket.TrackTestConnection("auth", conn), "TrackTestConnection must not error")
+
+		_, err := ex.WsNewOrder(t.Context(), &WsNewOrderRequest{})
+		assert.EqualError(t, err, "invalid responseDataDetail length", "WsNewOrder should reject a short response detail")
+	})
 }
 
-func TestWSCancelOrder(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
-	err := e.WsCancelOrder(t.Context(), 1234)
-	assert.NoError(t, err)
+func TestWsCancelOrder(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	conn := &wsConnectFixtureConnection{Connection: testexch.GetMockConn(t, ex, authenticatedBitfinexWebsocketEndpoint), responseRaw: []byte(`[0,0,[]]`)}
+	require.NoError(t, ex.Websocket.TrackTestConnection("auth", conn), "TrackTestConnection must not error")
+
+	require.NoError(t, ex.WsCancelOrder(t.Context(), 1234), "WsCancelOrder must not error")
 }
 
-func TestWSModifyOrder(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
-	err := e.WsModifyOrder(t.Context(), &WsUpdateOrderRequest{
+func TestWsModifyOrder(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	conn := &wsConnectFixtureConnection{Connection: testexch.GetMockConn(t, ex, authenticatedBitfinexWebsocketEndpoint), responseRaw: []byte(`[0,0,[]]`)}
+	require.NoError(t, ex.Websocket.TrackTestConnection("auth", conn), "TrackTestConnection must not error")
+
+	err := ex.WsModifyOrder(t.Context(), &WsUpdateOrderRequest{
 		OrderID: 1234,
 		Price:   -111,
 		Amount:  111,
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err, "WsModifyOrder must not error")
 }
 
-func TestWSCancelAllOrders(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
-	err := e.WsCancelAllOrders(t.Context())
-	assert.NoError(t, err)
+func TestWsCancelAllOrders(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	conn := &wsConnectFixtureConnection{Connection: testexch.GetMockConn(t, ex, authenticatedBitfinexWebsocketEndpoint)}
+	require.NoError(t, ex.Websocket.TrackTestConnection("auth", conn), "TrackTestConnection must not error")
+
+	require.NoError(t, ex.WsCancelAllOrders(t.Context()), "WsCancelAllOrders must not error")
+	assert.Len(t, conn.sent, 1, "WsCancelAllOrders should send one request")
 }
 
-func TestWSCancelMultiOrders(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
-	err := e.WsCancelMultiOrders(t.Context(), []int64{1, 2, 3, 4})
-	assert.NoError(t, err)
+func TestWsCancelMultiOrders(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	conn := &wsConnectFixtureConnection{Connection: testexch.GetMockConn(t, ex, authenticatedBitfinexWebsocketEndpoint)}
+	require.NoError(t, ex.Websocket.TrackTestConnection("auth", conn), "TrackTestConnection must not error")
+
+	require.NoError(t, ex.WsCancelMultiOrders(t.Context(), []int64{1, 2, 3, 4}), "WsCancelMultiOrders must not error")
+	assert.Len(t, conn.sent, 1, "WsCancelMultiOrders should send one request")
 }
 
-func TestWSNewOffer(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
-	err := e.WsNewOffer(t.Context(), &WsNewOfferRequest{
+func TestWsNewOffer(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	conn := &wsConnectFixtureConnection{Connection: testexch.GetMockConn(t, ex, authenticatedBitfinexWebsocketEndpoint)}
+	require.NoError(t, ex.Websocket.TrackTestConnection("auth", conn), "TrackTestConnection must not error")
+
+	err := ex.WsNewOffer(t.Context(), &WsNewOfferRequest{
 		Type:   order.Limit.String(),
 		Symbol: "fBTC",
 		Amount: -10,
 		Rate:   10,
 		Period: 30,
 	})
-	assert.NoError(t, err)
+	require.NoError(t, err, "WsNewOffer must not error")
+	assert.Len(t, conn.sent, 1, "WsNewOffer should send one request")
 }
 
-func TestWSCancelOffer(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
-	err := e.WsCancelOffer(t.Context(), 1234)
-	assert.NoError(t, err)
+func TestWsCancelOffer(t *testing.T) {
+	t.Parallel()
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	conn := &wsConnectFixtureConnection{Connection: testexch.GetMockConn(t, ex, authenticatedBitfinexWebsocketEndpoint), responseRaw: []byte(`[0,0,[]]`)}
+	require.NoError(t, ex.Websocket.TrackTestConnection("auth", conn), "TrackTestConnection must not error")
+
+	require.NoError(t, ex.WsCancelOffer(t.Context(), 1234), "WsCancelOffer must not error")
 }
 
-func TestWSSubscribedResponse(t *testing.T) {
+func TestHandleWSEvent(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name        string
+		message     string
+		errIs       error
+		errContains string
+	}{
+		{name: "info", message: `{"event":"info"}`},
+		{name: "missing event", message: `{}`, errIs: common.ErrParsingWSField},
+		{name: "unknown event", message: `{"event":"unknown"}`, errContains: "unknown WS event"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+			err := ex.handleWSEvent(t.Context(), testexch.GetMockConn(t, ex, ""), []byte(tc.message))
+			switch {
+			case tc.errIs != nil:
+				require.ErrorIs(t, err, tc.errIs, "handleWSEvent must return the expected error")
+			case tc.errContains != "":
+				require.ErrorContains(t, err, tc.errContains, "handleWSEvent must return the expected error")
+			default:
+				require.NoError(t, err, "handleWSEvent must not error")
+			}
+		})
+	}
+}
+
+func TestHandleWSSubscribed(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
-	conn := testexch.GetMockConn(t, e, publicBitfinexWebsocketEndpoint)
-	ch, err := e.Websocket.Match.Set("subscribe:waiter1", 1)
-	assert.NoError(t, err, "Setting a matcher should not error")
-	err = e.wsHandleData(t.Context(), conn, []byte(`{"event":"subscribed","channel":"ticker","chanId":224555,"subId":"waiter1","symbol":"tBTCUSD","pair":"BTCUSD"}`))
+	conn, err := e.Websocket.CreateTestConnection(asset.Spot)
+	require.NoError(t, err, "Creating a test connection must not error")
+	ch, err := conn.MatchReturnResponses(t.Context(), "subscribe:waiter1", 1)
+	require.NoError(t, err, "Setting a connection matcher must not error")
+	err = e.handleWSSubscribed(conn, []byte(`{"event":"subscribed","channel":"ticker","chanId":224555,"subId":"waiter1","symbol":"tBTCUSD","pair":"BTCUSD"}`))
 	if assert.Error(t, err, "Should error if sub is not registered yet") {
 		assert.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "Should error SubFailure if sub isn't registered yet")
 		assert.ErrorIs(t, err, subscription.ErrNotFound, "Should error SubNotFound if sub isn't registered yet")
@@ -1633,17 +1705,17 @@ func TestWSSubscribedResponse(t *testing.T) {
 	sub := &subscription.Subscription{Key: "waiter1"}
 	err = e.Websocket.AddSubscriptions(conn, sub)
 	require.NoError(t, err, "AddSubscriptions must not error")
-	err = e.wsHandleData(t.Context(), conn, []byte(`{"event":"subscribed","channel":"ticker","chanId":224555,"subId":"waiter1","symbol":"tBTCUSD","pair":"BTCUSD"}`))
-	assert.NoError(t, err, "wsHandleData should not error")
+	err = e.handleWSSubscribed(conn, []byte(`{"event":"subscribed","channel":"ticker","chanId":224555,"subId":"waiter1","symbol":"tBTCUSD","pair":"BTCUSD"}`))
+	assert.NoError(t, err, "handleWSSubscribed should not error")
 	assert.Nil(t, e.Websocket.GetSubscription("waiter1"), "temporary subID key should be removed")
 	assert.Same(t, sub, e.Websocket.GetSubscription(224555), "chanID key should return the same subscription")
 	assert.Equal(t, subscription.SubscribedState, sub.State(), "subscription should be subscribed after acknowledgement")
-	if assert.NotEmpty(t, ch, "Matcher should have received a sub notification") {
-		msg := <-ch
-		cID, err := jsonparser.GetInt(msg, "chanId")
-		assert.NoError(t, err, "Should get chanId from sub notification without error")
-		assert.EqualValues(t, 224555, cID, "Should get the correct chanId through the matcher notification")
-	}
+	matched := <-ch
+	require.NoError(t, matched.Err, "Connection matcher must receive the subscription notification")
+	require.Len(t, matched.Responses, 1, "Connection matcher must receive one subscription notification")
+	cID, err := jsonparser.GetInt(matched.Responses[0], "chanId")
+	assert.NoError(t, err, "Getting chanId from the subscription notification should not error")
+	assert.EqualValues(t, 224555, cID, "Subscription notification should contain the correct chanId")
 }
 
 func TestWSOrderBook(t *testing.T) {
@@ -1960,18 +2032,35 @@ func TestWSNotifications(t *testing.T) {
 	}
 }
 
-func TestWSNotificationsNilConnPanics(t *testing.T) {
+func TestWsHandleData(t *testing.T) {
 	t.Parallel()
 
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	t.Run("nil connection notification", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 
-	payload := []byte(`[0,"n",[1575287438.515,"on-req",null,null,[1185815098,null,1575287436979,"tETHUSD",1575287438515,1575287438515,-2.5,-2.5,"LIMIT",null,null,null,0,"ACTIVE",null,null,230,0,0,0,null,null,null,0,null,null,null,null,"API>BFX",null,null,null],null,"SUCCESS","Submitting limit sell order for -2.5 ETH."]]`)
-	assert.Panics(t,
-		func() {
-			_ = e.wsHandleData(t.Context(), nil, payload)
-		},
-		"wsHandleData should panic when conn is nil for on-req notifications")
+		payload := []byte(`[0,"n",[1575287438.515,"on-req",null,null,[1185815098,null,1575287436979,"tETHUSD",1575287438515,1575287438515,-2.5,-2.5,"LIMIT",null,null,null,0,"ACTIVE",null,null,230,0,0,0,null,null,null,0,null,null,null,null,"API>BFX",null,null,null],null,"SUCCESS","Submitting limit sell order for -2.5 ETH."]]`)
+		assert.Panics(t,
+			func() {
+				_ = ex.wsHandleData(t.Context(), nil, payload)
+			},
+			"wsHandleData should panic when conn is nil for on-req notifications")
+	})
+
+	for name, payload := range map[string]string{
+		"wallet snapshot":    `[0,"ws",[["exchange","SAN",19.76,0,null,null,null]]]`,
+		"balance update":     `[0,"bu",[4131.85,4131.85]]`,
+		"margin info update": `[0,"miu",["base",[-13.014640000000007,0,49331.70267297,49318.68803297,27]]]`,
+		"funding info":       `[0,"fiu",["sym","tETHUSD",[149361.09689202666,149639.26293509,830.0182168075556,895.0658432466332]]]`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+			require.NoError(t, ex.wsHandleData(t.Context(), testexch.GetMockConn(t, ex, ""), []byte(payload)), "wsHandleData must not error")
+		})
+	}
 }
 
 func TestWSFundingOfferSnapshotAndUpdate(t *testing.T) {
@@ -2007,23 +2096,6 @@ func TestWSFundingLoanSnapshotAndUpdate(t *testing.T) {
 	pressXToJSON = `[0,"fln",[2995444,"fUSD",-1,1575298742000,1575298742000,1000,0,"ACTIVE",null,null,null,0.002,7,1575298742000,1575298742000,0,0,null,0,null,0]]`
 	if err := e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), []byte(pressXToJSON)); err != nil {
 		t.Error(err)
-	}
-}
-
-func TestWSAccountFundingUpdates(t *testing.T) {
-	t.Parallel()
-	tests := map[string]string{
-		"wallet snapshot":    `[0,"ws",[["exchange","SAN",19.76,0,null,null,null]]]`,
-		"balance update":     `[0,"bu",[4131.85,4131.85]]`,
-		"margin info update": `[0,"miu",["base",[-13.014640000000007,0,49331.70267297,49318.68803297,27]]]`,
-		"funding info":       `[0,"fiu",["sym","tETHUSD",[149361.09689202666,149639.26293509,830.0182168075556,895.0658432466332]]]`,
-	}
-
-	for name, payload := range tests {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-			require.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), []byte(payload)))
-		})
 	}
 }
 

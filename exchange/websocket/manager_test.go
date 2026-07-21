@@ -1809,3 +1809,47 @@ func TestShutdown(t *testing.T) {
 	require.Equal(t, m.ShutdownC, authConn.shutdown, "shutdown channels must be the same after original shutdown channel is closed")
 	require.Equal(t, m.ShutdownC, unauthConn.shutdown, "shutdown channels must be the same after original shutdown channel is closed")
 }
+
+func TestCreateUnmanagedTestConnection(t *testing.T) {
+	t.Parallel()
+
+	m := NewManager()
+	first := m.CreateUnmanagedTestConnection("wss://first.example/ws")
+	second := m.CreateUnmanagedTestConnection("wss://second.example/ws")
+
+	assert.Equal(t, "wss://first.example/ws", first.GetURL(), "first connection should retain its URL")
+	assert.Equal(t, "wss://second.example/ws", second.GetURL(), "second connection should retain its URL")
+	require.NotNil(t, first.Subscriptions(), "first connection must have a subscription store")
+	require.NotNil(t, second.Subscriptions(), "second connection must have a subscription store")
+	sub := &subscription.Subscription{Channel: "ticker"}
+	require.NoError(t, m.AddSubscriptions(first, sub), "adding a first-connection subscription must not error")
+	assert.Same(t, sub, first.Subscriptions().Get(sub), "first connection should own its subscription")
+	assert.Nil(t, second.Subscriptions().Get(sub), "second connection should not receive first connection subscriptions")
+	assert.Nil(t, m.subscriptions.Get(sub), "manager-global store should not receive connection subscriptions")
+
+	responses, err := first.MatchReturnResponses(t.Context(), "request", 1)
+	require.NoError(t, err, "first connection matcher setup must not error")
+	assert.False(t, second.IncomingWithData("request", []byte("wrong connection")), "second connection should not share first connection matcher state")
+	require.NoError(t, first.RequireMatchWithData("request", []byte("expected")), "first connection must match its own response")
+	matched := <-responses
+	require.NoError(t, matched.Err, "matched response must not error")
+	assert.Equal(t, [][]byte{[]byte("expected")}, matched.Responses, "first connection should receive its own response")
+}
+
+func TestTrackTestConnection(t *testing.T) {
+	t.Parallel()
+
+	m := NewManager()
+	m.useMultiConnectionManagement = true
+	m.connectionManager = []*websocket{{
+		setup:         &ConnectionSetup{MessageFilter: "auth"},
+		subscriptions: subscription.NewStore(),
+	}}
+	conn := &connection{subscriptions: subscription.NewStore()}
+
+	require.NoError(t, m.TrackTestConnection("auth", conn), "TrackTestConnection must not error")
+	got, err := m.GetConnection("auth")
+	require.NoError(t, err, "GetConnection must not error for a tracked test connection")
+	assert.Same(t, conn, got, "GetConnection should return the tracked test connection")
+	assert.ErrorIs(t, m.TrackTestConnection("missing", conn), ErrRequestRouteNotFound, "TrackTestConnection should reject an unknown message filter")
+}

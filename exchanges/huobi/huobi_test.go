@@ -2,13 +2,17 @@ package huobi
 
 import (
 	"context"
+	"errors"
 	"log"
+	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
 
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -23,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
@@ -48,6 +53,34 @@ var (
 	btcusdtPair        = currency.NewPairWithDelimiter("BTC", "USDT", "-")
 	ethusdPair         = currency.NewPairWithDelimiter("ETH", "USD", "-")
 )
+
+type websocketTestConnection struct {
+	websocket.Connection
+	dialErr   error
+	sendErr   error
+	response  websocket.Response
+	dialCalls int
+	sent      []any
+}
+
+func (c *websocketTestConnection) Dial(context.Context, *gws.Dialer, http.Header, url.Values) error {
+	c.dialCalls++
+	return c.dialErr
+}
+
+func (c *websocketTestConnection) SendJSONMessage(_ context.Context, _ request.EndpointLimit, payload any) error {
+	c.sent = append(c.sent, payload)
+	return c.sendErr
+}
+
+func (c *websocketTestConnection) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _, payload any) ([]byte, error) {
+	c.sent = append(c.sent, payload)
+	return c.response.Raw, c.sendErr
+}
+
+func (c *websocketTestConnection) ReadMessage() websocket.Response {
+	return c.response
+}
 
 func TestMain(m *testing.M) {
 	e = new(Exchange)
@@ -2024,15 +2057,236 @@ func TestGeneratePrivateSubscriptions(t *testing.T) {
 	}
 }
 
-func TestWsAuthMismatchedRoute(t *testing.T) {
+func TestWsConnect(t *testing.T) {
 	t.Parallel()
+
+	for _, tc := range []struct {
+		name    string
+		dialErr error
+	}{
+		{name: "success"},
+		{name: "dial failure", dialErr: errors.New("dial failure")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+			conn := &websocketTestConnection{Connection: testexch.GetMockConn(t, ex, wsSpotURL+wsPublicPath), dialErr: tc.dialErr}
+			err := ex.wsConnect(t.Context(), conn)
+			assert.ErrorIs(t, err, tc.dialErr, "wsConnect should return the dial result")
+			assert.Equal(t, 1, conn.dialCalls, "wsConnect should dial once")
+		})
+	}
+}
+
+func TestWsAuth(t *testing.T) {
+	t.Parallel()
+
+	t.Run("mismatched route", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+
+		err := ex.wsAuth(t.Context(), testexch.GetMockConn(t, ex, wsSpotURL+wsPublicPath))
+		assert.ErrorIs(t, err, websocket.ErrRequestRouteNotFound, "wsAuth should error for a non-auth connection route")
+		assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "wsAuth should disable authenticated endpoints after route mismatch")
+	})
+
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.SetCredentials("key", "secret", "", "", "", "")
+		authURL, err := ex.API.Endpoints.GetURL(exchange.WebsocketSpotSupplementary)
+		require.NoError(t, err, "GetURL must not error")
+		conn := &websocketTestConnection{
+			Connection: testexch.GetMockConn(t, ex, authURL),
+			response:   websocket.Response{Raw: []byte(`{"code":200}`)},
+		}
+
+		require.NoError(t, ex.wsAuth(t.Context(), conn), "wsAuth must not error")
+		assert.True(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "wsAuth should enable authenticated endpoints")
+		assert.Len(t, conn.sent, 1, "wsAuth should send one login request")
+	})
+}
+
+func TestWsHandleV1ping(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name    string
+		sendErr error
+	}{
+		{name: "success"},
+		{name: "send failure", sendErr: errors.New("send failure")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+			conn := &websocketTestConnection{Connection: testexch.GetMockConn(t, ex, wsSpotURL+wsPublicPath), sendErr: tc.sendErr}
+			err := ex.wsHandleV1ping(t.Context(), conn, 42)
+			assert.ErrorIs(t, err, tc.sendErr, "wsHandleV1ping should return the send result")
+			assert.Len(t, conn.sent, 1, "wsHandleV1ping should send one pong")
+		})
+	}
+}
+
+func TestWsHandleV2ping(t *testing.T) {
+	t.Parallel()
+
+	t.Run("invalid timestamp", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		err := ex.wsHandleV2ping(t.Context(), testexch.GetMockConn(t, ex, wsSpotURL+wsPrivatePath), []byte(`{"action":"ping"}`))
+		assert.Error(t, err, "wsHandleV2ping should reject a missing timestamp")
+	})
+
+	for _, tc := range []struct {
+		name    string
+		sendErr error
+	}{
+		{name: "success"},
+		{name: "send failure", sendErr: errors.New("send failure")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+			conn := &websocketTestConnection{Connection: testexch.GetMockConn(t, ex, wsSpotURL+wsPrivatePath), sendErr: tc.sendErr}
+			err := ex.wsHandleV2ping(t.Context(), conn, []byte(`{"action":"ping","data":{"ts":42}}`))
+			assert.ErrorIs(t, err, tc.sendErr, "wsHandleV2ping should return the send result")
+			assert.Len(t, conn.sent, 1, "wsHandleV2ping should send one pong")
+		})
+	}
+}
+
+func TestWsHandleV2subResp(t *testing.T) {
+	t.Parallel()
+
+	t.Run("message without channel", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		assert.NoError(t, ex.wsHandleV2subResp(testexch.GetMockConn(t, ex, ""), wsSubOp, []byte(`{"action":"sub"}`)), "wsHandleV2subResp should ignore a message without a channel")
+	})
+
+	t.Run("matched channel", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		conn := testexch.GetMockConn(t, ex, "")
+		matched, err := conn.MatchReturnResponses(t.Context(), wsSubOp+":orders#btcusdt", 1)
+		require.NoError(t, err, "MatchReturnResponses must not error")
+		payload := []byte(`{"action":"sub","ch":"orders#btcusdt","code":200}`)
+		require.NoError(t, ex.wsHandleV2subResp(conn, wsSubOp, payload), "wsHandleV2subResp must not error")
+		response := <-matched
+		require.NoError(t, response.Err, "matched response must not error")
+		assert.Equal(t, [][]byte{payload}, response.Responses, "matched response should contain the payload")
+	})
+}
+
+func TestSubscribeForConnection(t *testing.T) {
+	t.Parallel()
+
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	conn := &websocketTestConnection{
+		Connection: testexch.GetMockConn(t, ex, wsSpotURL+wsPublicPath),
+		response:   websocket.Response{Raw: []byte(`{"status":"ok"}`)},
+	}
+	sub := &subscription.Subscription{QualifiedChannel: "market.btcusdt.detail"}
 
-	err := ex.wsAuth(t.Context(), testexch.GetMockConn(t, ex, wsSpotURL+wsPublicPath))
-	assert.ErrorIs(t, err, websocket.ErrRequestRouteNotFound, "wsAuth should error for a non-auth connection route")
-	assert.False(t, ex.Websocket.CanUseAuthenticatedEndpoints(), "wsAuth should disable authenticated endpoints after route mismatch")
+	require.NoError(t, ex.subscribeForConnection(t.Context(), conn, subscription.List{sub}), "subscribeForConnection must not error")
+	assert.Len(t, conn.sent, 1, "subscribeForConnection should send one request")
+	assert.Same(t, sub, ex.Websocket.GetSubscription(sub), "subscribeForConnection should store the subscription")
+	assert.Equal(t, subscription.SubscribedState, sub.State(), "subscribeForConnection should mark the subscription subscribed")
+}
+
+func TestUnsubscribeForConnection(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	conn := &websocketTestConnection{
+		Connection: testexch.GetMockConn(t, ex, wsSpotURL+wsPublicPath),
+		response:   websocket.Response{Raw: []byte(`{"status":"ok"}`)},
+	}
+	sub := &subscription.Subscription{Key: "market.btcusdt.detail", QualifiedChannel: "market.btcusdt.detail"}
+	require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, sub), "AddSuccessfulSubscriptions must not error")
+
+	require.NoError(t, ex.unsubscribeForConnection(t.Context(), conn, subscription.List{sub}), "unsubscribeForConnection must not error")
+	assert.Len(t, conn.sent, 1, "unsubscribeForConnection should send one request")
+	assert.Nil(t, ex.Websocket.GetSubscription(sub), "unsubscribeForConnection should remove the subscription")
+	assert.Equal(t, subscription.UnsubscribedState, sub.State(), "unsubscribeForConnection should mark the subscription unsubscribed")
+}
+
+func TestManageSubs(t *testing.T) {
+	t.Parallel()
+
+	t.Run("rejects batching", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		err := ex.manageSubs(t.Context(), testexch.GetMockConn(t, ex, wsSpotURL+wsPublicPath), wsSubOp, nil)
+		assert.ErrorIs(t, err, subscription.ErrBatchingNotSupported, "manageSubs should reject a batch that is not exactly one subscription")
+	})
+
+	t.Run("send failure cleans up subscription", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		errSend := errors.New("send failure")
+		conn := &websocketTestConnection{Connection: testexch.GetMockConn(t, ex, wsSpotURL+wsPublicPath), sendErr: errSend}
+		sub := &subscription.Subscription{QualifiedChannel: "market.btcusdt.detail"}
+
+		err := ex.manageSubs(t.Context(), conn, wsSubOp, subscription.List{sub})
+		assert.ErrorIs(t, err, errSend, "manageSubs should return the send failure")
+		assert.Nil(t, ex.Websocket.GetSubscription(sub), "manageSubs should remove a failed subscription")
+	})
+}
+
+func TestWsLogin(t *testing.T) {
+	t.Parallel()
+
+	t.Run("missing credentials", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		err := ex.wsLogin(t.Context(), testexch.GetMockConn(t, ex, wsSpotURL+wsPrivatePath))
+		assert.Error(t, err, "wsLogin should reject missing credentials")
+	})
+
+	t.Run("connection closes before response", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.SetCredentials("key", "secret", "", "", "", "")
+		conn := &websocketTestConnection{Connection: testexch.GetMockConn(t, ex, wsSpotURL+wsPrivatePath)}
+
+		var closeErr *gws.CloseError
+		err := ex.wsLogin(t.Context(), conn)
+		assert.ErrorAs(t, err, &closeErr, "wsLogin should return a close error when no response is received")
+	})
+
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.SetCredentials("key", "secret", "", "", "", "")
+		conn := &websocketTestConnection{
+			Connection: testexch.GetMockConn(t, ex, wsSpotURL+wsPrivatePath),
+			response:   websocket.Response{Raw: []byte(`{"code":200}`)},
+		}
+
+		require.NoError(t, ex.wsLogin(t.Context(), conn), "wsLogin must not error")
+		assert.Len(t, conn.sent, 1, "wsLogin should send one authentication request")
+	})
 }
 
 func TestChannelName(t *testing.T) {

@@ -1649,12 +1649,16 @@ func (e *Exchange) subscribeToChan(ctx context.Context, conn websocket.Connectio
 
 	respRaw, err := conn.SendMessageReturnResponse(ctx, request.Unset, "subscribe:"+subID, req)
 	if err != nil {
-		_ = e.Websocket.RemoveSubscriptions(conn, s)
+		if cleanupErr := e.Websocket.RemoveSubscriptions(conn, s); cleanupErr != nil && !errors.Is(cleanupErr, subscription.ErrNotFound) {
+			err = common.AppendError(err, fmt.Errorf("failed to remove subscription: %w", cleanupErr))
+		}
 		return fmt.Errorf("%w: Channel: %s Pair: %s", err, s.Channel, s.Pairs)
 	}
 
 	if err = e.getErrResp(respRaw); err != nil {
-		_ = e.Websocket.RemoveSubscriptions(conn, s)
+		if cleanupErr := e.Websocket.RemoveSubscriptions(conn, s); cleanupErr != nil && !errors.Is(cleanupErr, subscription.ErrNotFound) {
+			err = common.AppendError(err, fmt.Errorf("failed to remove subscription: %w", cleanupErr))
+		}
 		return fmt.Errorf("%w: Channel: %s Pair: %s", err, s.Channel, s.Pairs)
 	}
 
@@ -1664,7 +1668,7 @@ func (e *Exchange) subscribeToChan(ctx context.Context, conn websocket.Connectio
 // unsubscribeFromChan sends a websocket message to stop receiving data from a channel
 func (e *Exchange) unsubscribeFromChan(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	if len(subs) != 1 {
-		return errors.New("subscription batching limited to 1")
+		return subscription.ErrBatchingNotSupported
 	}
 	s := subs[0]
 	chanID, ok := s.Key.(int)
@@ -1752,15 +1756,11 @@ func (e *Exchange) wsSendAuthConn(ctx context.Context, conn websocket.Connection
 	})
 }
 
-func (e *Exchange) wsAuthConnection() (websocket.Connection, error) {
-	return e.Websocket.GetConnection("auth")
-}
-
 // WsNewOrder authenticated new order request
 func (e *Exchange) WsNewOrder(ctx context.Context, data *WsNewOrderRequest) (string, error) {
 	data.CustomID = e.MessageSequence()
 	req := makeRequestInterface(wsOrderNew, data)
-	conn, err := e.wsAuthConnection()
+	conn, err := e.Websocket.GetConnection("auth")
 	if err != nil {
 		return "", err
 	}
@@ -1785,7 +1785,7 @@ func (e *Exchange) WsNewOrder(ctx context.Context, data *WsNewOrderRequest) (str
 		return "", errors.New("unable to type assert respData")
 	}
 
-	if len(responseDataDetail) < 4 {
+	if len(responseDataDetail) < 5 {
 		return "", errors.New("invalid responseDataDetail length")
 	}
 
@@ -1821,7 +1821,7 @@ func (e *Exchange) WsNewOrder(ctx context.Context, data *WsNewOrderRequest) (str
 // WsModifyOrder authenticated modify order request
 func (e *Exchange) WsModifyOrder(ctx context.Context, data *WsUpdateOrderRequest) error {
 	req := makeRequestInterface(wsOrderUpdate, data)
-	conn, err := e.wsAuthConnection()
+	conn, err := e.Websocket.GetConnection("auth")
 	if err != nil {
 		return err
 	}
@@ -1870,7 +1870,7 @@ func (e *Exchange) WsCancelMultiOrders(ctx context.Context, orderIDs []int64) er
 		OrderID: orderIDs,
 	}
 	req := makeRequestInterface(wsCancelMultipleOrders, cancel)
-	conn, err := e.wsAuthConnection()
+	conn, err := e.Websocket.GetConnection("auth")
 	if err != nil {
 		return err
 	}
@@ -1883,7 +1883,7 @@ func (e *Exchange) WsCancelOrder(ctx context.Context, orderID int64) error {
 		OrderID: orderID,
 	}
 	req := makeRequestInterface(wsOrderCancel, cancel)
-	conn, err := e.wsAuthConnection()
+	conn, err := e.Websocket.GetConnection("auth")
 	if err != nil {
 		return err
 	}
@@ -1929,7 +1929,7 @@ func (e *Exchange) WsCancelOrder(ctx context.Context, orderID int64) error {
 func (e *Exchange) WsCancelAllOrders(ctx context.Context) error {
 	cancelAll := WsCancelAllOrdersRequest{All: 1}
 	req := makeRequestInterface(wsCancelMultipleOrders, cancelAll)
-	conn, err := e.wsAuthConnection()
+	conn, err := e.Websocket.GetConnection("auth")
 	if err != nil {
 		return err
 	}
@@ -1939,7 +1939,7 @@ func (e *Exchange) WsCancelAllOrders(ctx context.Context) error {
 // WsNewOffer authenticated new offer request
 func (e *Exchange) WsNewOffer(ctx context.Context, data *WsNewOfferRequest) error {
 	req := makeRequestInterface(wsFundingOfferNew, data)
-	conn, err := e.wsAuthConnection()
+	conn, err := e.Websocket.GetConnection("auth")
 	if err != nil {
 		return err
 	}
@@ -1952,7 +1952,7 @@ func (e *Exchange) WsCancelOffer(ctx context.Context, orderID int64) error {
 		OrderID: orderID,
 	}
 	req := makeRequestInterface(wsFundingOfferCancel, cancel)
-	conn, err := e.wsAuthConnection()
+	conn, err := e.Websocket.GetConnection("auth")
 	if err != nil {
 		return err
 	}

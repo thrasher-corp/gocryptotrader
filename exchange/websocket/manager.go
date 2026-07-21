@@ -524,7 +524,7 @@ func (m *Manager) connect(ctx context.Context) error {
 		var subs subscription.List
 		if !ws.setup.SubscriptionsNotRequired {
 			if ws.setup.GenerateSubscriptions == nil {
-				multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, errWebsocketSubscriptionsGeneratorUnset)
+				multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w", i+1, ws.setup.URL, errWebsocketSubscriptionsGeneratorUnset)
 				break
 			}
 
@@ -537,28 +537,28 @@ func (m *Manager) connect(ctx context.Context) error {
 
 			if len(subs) == 0 {
 				if m.verbose {
-					log.Warnf(log.WebsocketMgr, "%s websocket: no subscriptions generated", m.exchangeName)
+					log.Warnf(log.WebsocketMgr, "%s websocket: no subscriptions generated for [conn:%d] [URL:%s]", m.exchangeName, i+1, ws.setup.URL)
 				}
 				continue
 			}
 		}
 
 		if ws.setup.Connector == nil {
-			multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, errNoConnectFunc)
+			multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w", i+1, ws.setup.URL, errNoConnectFunc)
 			break
 		}
 		if ws.setup.Handler == nil {
-			multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, errWebsocketDataHandlerUnset)
+			multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w", i+1, ws.setup.URL, errWebsocketDataHandlerUnset)
 			break
 		}
 		if ws.setup.Subscriber == nil && !ws.setup.SubscriptionsNotRequired {
-			multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, errWebsocketSubscriberUnset)
+			multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w", i+1, ws.setup.URL, errWebsocketSubscriberUnset)
 			break
 		}
 
 		if ws.setup.SubscriptionsNotRequired && len(subs) == 0 {
 			if err := m.createConnectAndSubscribe(ctx, ws, nil); err != nil {
-				multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err)
+				multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w", i+1, ws.setup.URL, err)
 				break
 			}
 			if m.verbose {
@@ -570,7 +570,7 @@ func (m *Manager) connect(ctx context.Context) error {
 		// Pre-pass: absorb trackable logical subscriptions onto already-managed connections before batching/capacity routing to avoid misplacement.
 		remainingSubs, err := m.absorbTrackableSubscriptionsAndValidate(ctx, ws, subs)
 		if err != nil {
-			subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err))
+			subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w", i+1, ws.setup.URL, err))
 			continue
 		}
 		if len(remainingSubs) == 0 {
@@ -583,7 +583,7 @@ func (m *Manager) connect(ctx context.Context) error {
 		for _, batchCandidates := range common.Batch(remainingSubs, m.MaxSubscriptionsPerConnection) {
 			batchRemainingSubs, err := m.absorbTrackableSubscriptionsAndValidate(ctx, ws, batchCandidates)
 			if err != nil {
-				subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err))
+				subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w", i+1, ws.setup.URL, err))
 				continue
 			}
 			if len(batchRemainingSubs) == 0 {
@@ -594,10 +594,10 @@ func (m *Manager) connect(ctx context.Context) error {
 			}
 			if err := m.createConnectAndSubscribe(ctx, ws, batchRemainingSubs); err != nil {
 				if errors.Is(err, common.ErrFatal) {
-					multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err)
+					multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w", i+1, ws.setup.URL, err)
 					break
 				}
-				subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w ", i+1, ws.setup.URL, err))
+				subscriptionError = common.AppendError(subscriptionError, fmt.Errorf("subscription error on [conn:%d] [URL:%s]: %w", i+1, ws.setup.URL, err))
 				continue
 			}
 			if m.verbose {

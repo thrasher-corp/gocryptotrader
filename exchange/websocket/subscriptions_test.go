@@ -197,25 +197,41 @@ func TestSuccessfulSubscriptions(t *testing.T) {
 func TestUpdateSuccessfulSubscriptionKey(t *testing.T) {
 	t.Parallel()
 
-	assert.ErrorIs(t, (*Manager)(nil).UpdateSuccessfulSubscriptionKey(nil, &subscription.Subscription{}, 42), common.ErrNilPointer, "UpdateSuccessfulSubscriptionKey should error when called on nil Websocket")
-	assert.ErrorIs(t, (&Manager{}).UpdateSuccessfulSubscriptionKey(nil, &subscription.Subscription{}, 42), common.ErrNilPointer, "UpdateSuccessfulSubscriptionKey should error when called on an uninitialised Websocket")
+	t.Run("nil manager", func(t *testing.T) {
+		t.Parallel()
+		assert.ErrorIs(t, (*Manager)(nil).UpdateSuccessfulSubscriptionKey(nil, &subscription.Subscription{}, 42), common.ErrNilPointer, "UpdateSuccessfulSubscriptionKey should error when called on nil Websocket")
+	})
 
-	w := new(Manager)
-	sub := &subscription.Subscription{Key: "temporary", Channel: subscription.TickerChannel}
-	require.NoError(t, w.AddSubscriptions(nil, sub), "AddSubscriptions must not error")
+	t.Run("uninitialised manager", func(t *testing.T) {
+		t.Parallel()
+		assert.ErrorIs(t, (&Manager{}).UpdateSuccessfulSubscriptionKey(nil, &subscription.Subscription{}, 42), common.ErrNilPointer, "UpdateSuccessfulSubscriptionKey should error when called on an uninitialised Websocket")
+	})
 
-	err := w.UpdateSuccessfulSubscriptionKey(nil, sub, 42)
-	require.NoError(t, err, "UpdateSuccessfulSubscriptionKey must not error")
-	assert.Nil(t, w.GetSubscription("temporary"), "old key should no longer resolve")
-	assert.Same(t, sub, w.GetSubscription(42), "new key should resolve to the same subscription")
-	assert.Equal(t, 42, sub.Key, "subscription key should be updated")
-	assert.Equal(t, subscription.SubscribedState, sub.State(), "subscription should be subscribed")
+	t.Run("updates key and state", func(t *testing.T) {
+		t.Parallel()
+		w := new(Manager)
+		sub := &subscription.Subscription{Key: "temporary", Channel: subscription.TickerChannel}
+		require.NoError(t, w.AddSubscriptions(nil, sub), "AddSubscriptions must not error")
 
-	duplicate := &subscription.Subscription{Key: 1337, Channel: subscription.OrderbookChannel}
-	require.NoError(t, w.AddSubscriptions(nil, duplicate), "AddSubscriptions must not error")
-	assert.ErrorIs(t, w.UpdateSuccessfulSubscriptionKey(nil, sub, 1337), subscription.ErrDuplicate, "UpdateSuccessfulSubscriptionKey should error when the target key is already used")
-	assert.Same(t, sub, w.GetSubscription(42), "subscription should remain at the original key after duplicate error")
-	assert.Same(t, duplicate, w.GetSubscription(1337), "duplicate target subscription should remain stored")
+		err := w.UpdateSuccessfulSubscriptionKey(nil, sub, 42)
+		require.NoError(t, err, "UpdateSuccessfulSubscriptionKey must not error")
+		assert.Nil(t, w.GetSubscription("temporary"), "old key should no longer resolve")
+		assert.Same(t, sub, w.GetSubscription(42), "new key should resolve to the same subscription")
+		assert.Equal(t, 42, sub.Key, "subscription key should be updated")
+		assert.Equal(t, subscription.SubscribedState, sub.State(), "subscription should be subscribed")
+	})
+
+	t.Run("duplicate target key", func(t *testing.T) {
+		t.Parallel()
+		w := new(Manager)
+		sub := &subscription.Subscription{Key: 42, Channel: subscription.TickerChannel}
+		duplicate := &subscription.Subscription{Key: 1337, Channel: subscription.OrderbookChannel}
+		require.NoError(t, w.AddSubscriptions(nil, sub, duplicate), "AddSubscriptions must not error")
+
+		assert.ErrorIs(t, w.UpdateSuccessfulSubscriptionKey(nil, sub, 1337), subscription.ErrDuplicate, "UpdateSuccessfulSubscriptionKey should error when the target key is already used")
+		assert.Same(t, sub, w.GetSubscription(42), "subscription should remain at the original key after duplicate error")
+		assert.Same(t, duplicate, w.GetSubscription(1337), "duplicate target subscription should remain stored")
+	})
 }
 
 // TestGetSubscription logic test

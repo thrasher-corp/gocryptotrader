@@ -19,7 +19,7 @@ func mockWsServer(tb testing.TB, msg []byte, w *gws.Conn) error {
 		return err
 	}
 	switch event {
-	case krakenWsCancelOrder:
+	case krakenWsCancelOrder, krakenWsCancelAll:
 		return mockWsCancelOrders(tb, msg, w)
 	case krakenWsAddOrder:
 		return mockWsAddOrder(tb, msg, w)
@@ -80,7 +80,9 @@ func mockWsCancelOrders(tb testing.TB, msg []byte, w *gws.Conn) error {
 		RequestID: req.RequestID,
 		Count:     int64(len(req.TransactionIDs)),
 	}
-	if len(req.TransactionIDs) == 0 || strings.Contains(req.TransactionIDs[0], "FISH") { // Reject anything that smells suspicious
+	if req.Event == krakenWsCancelAll {
+		resp.Count = 3
+	} else if len(req.TransactionIDs) == 0 || strings.Contains(req.TransactionIDs[0], "FISH") { // Reject anything that smells suspicious
 		resp.Status = "error"
 		resp.ErrorMessage = "[EOrder:Unknown order]"
 	}

@@ -41,7 +41,11 @@ const (
 	candlesChannel   = "candles"
 )
 
-var errWebsocketAuthResponse = errors.New("gemini websocket auth response error")
+var (
+	errUnrecognisedOrderStatus = errors.New("unrecognised order status")
+	errUnrecognisedOrderType   = errors.New("unrecognised order type")
+	errWebsocketAuthResponse   = errors.New("gemini websocket auth response error")
+)
 
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneDay},
@@ -144,7 +148,7 @@ func (e *Exchange) wsAuthConnect(ctx context.Context, conn websocket.Connection)
 
 	err = conn.Dial(ctx, &gws.Dialer{}, headers, nil)
 	if err != nil {
-		return fmt.Errorf("%v Websocket connection %v error. Error %v", e.Name, endpoint, err)
+		return fmt.Errorf("%s websocket connection %s: %w", e.Name, endpoint, err)
 	}
 	return nil
 }
@@ -369,7 +373,7 @@ func stringToOrderStatus(status string) (order.Status, error) {
 	case "closed":
 		return order.Filled, nil
 	default:
-		return order.UnknownStatus, errors.New(status + " not recognised as order status")
+		return order.UnknownStatus, fmt.Errorf("%w: %s", errUnrecognisedOrderStatus, status)
 	}
 }
 
@@ -382,7 +386,7 @@ func stringToOrderType(oType string) (order.Type, error) {
 		// but would be considered a hidden trade
 		return order.Market, nil
 	default:
-		return order.UnknownType, errors.New(oType + " not recognised as order type")
+		return order.UnknownType, fmt.Errorf("%w: %s", errUnrecognisedOrderType, oType)
 	}
 }
 

@@ -3,7 +3,6 @@ package deribit
 import (
 	"context"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -169,7 +168,7 @@ func (e *Exchange) wsAuthenticate(ctx context.Context, conn websocket.Connection
 	var response wsLoginResponse
 	err = json.Unmarshal(resp, &response)
 	if err != nil {
-		return fmt.Errorf("%v %v", e.Name, err)
+		return fmt.Errorf("%s: %w", e.Name, err)
 	}
 	if response.Error != nil && (response.Error.Code > 0 || response.Error.Message != "") {
 		return fmt.Errorf("%v Error:%v Message:%v", e.Name, response.Error.Code, response.Error.Message)
@@ -848,7 +847,7 @@ func (e *Exchange) handleSubscriptionBatch(ctx context.Context, conn websocket.C
 	var response wsSubscriptionResponse
 	err = json.Unmarshal(data, &response)
 	if err != nil {
-		return fmt.Errorf("%v %v", e.Name, err)
+		return fmt.Errorf("%s: %w", e.Name, err)
 	}
 	subAck := map[string]bool{}
 	for _, c := range response.Result {
@@ -866,7 +865,7 @@ func (e *Exchange) handleSubscriptionBatch(ctx context.Context, conn websocket.C
 				err = common.AppendError(err, e.Websocket.RemoveSubscriptions(conn, s))
 			}
 		} else {
-			err = common.AppendError(err, errors.New(s.String()+" failed to "+method))
+			err = common.AppendError(err, fmt.Errorf("%w: %s failed to %s", websocket.ErrSubscriptionFailure, s, method))
 		}
 	}
 

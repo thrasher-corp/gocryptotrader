@@ -1,15 +1,20 @@
 package gemini
 
 import (
+	"context"
+	"errors"
+	"net/http"
 	"net/url"
 	"testing"
 	"time"
 
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -32,6 +37,26 @@ const (
 const testCurrency = "btcusd"
 
 var e *Exchange
+
+type websocketTestConnection struct {
+	websocket.Connection
+	dialErr     error
+	sendErr     error
+	dialCalls   int
+	dialHeaders http.Header
+	sent        []any
+}
+
+func (c *websocketTestConnection) Dial(_ context.Context, _ *gws.Dialer, headers http.Header, _ url.Values) error {
+	c.dialCalls++
+	c.dialHeaders = headers.Clone()
+	return c.dialErr
+}
+
+func (c *websocketTestConnection) SendJSONMessage(_ context.Context, _ request.EndpointLimit, payload any) error {
+	c.sent = append(c.sent, payload)
+	return c.sendErr
+}
 
 func TestGetSymbols(t *testing.T) {
 	t.Parallel()
@@ -505,24 +530,71 @@ func TestGetDepositAddress(t *testing.T) {
 	assert.ErrorIs(t, err, request.ErrAuthRequestFailed, "GetDepositAddress should error when account details are missing")
 }
 
-func TestWsAuth(t *testing.T) {
+func TestWsAuthConnect(t *testing.T) {
 	t.Parallel()
-	if !e.Websocket.IsEnabled() ||
-		!e.API.AuthenticatedWebsocketSupport ||
-		!sharedtestvalues.AreAPICredentialsSet(e) {
-		t.Skip("authenticated websocket is not available for this test")
-	}
-	require.NoError(t, e.API.Endpoints.SetRunningURL(exchange.WebsocketSpotSupplementary.String(), geminiWebsocketSandboxEndpoint+geminiWsOrderEvents))
-	conn := testexch.GetMockConn(t, e, geminiWebsocketSandboxEndpoint+geminiWsOrderEvents)
-	require.NoError(t, e.wsAuthConnect(t.Context(), conn))
+
+	t.Run("missing credentials", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		conn := &websocketTestConnection{Connection: testexch.GetMockConn(t, ex, geminiWebsocketSandboxEndpoint+geminiWsOrderEvents)}
+		assert.Error(t, ex.wsAuthConnect(t.Context(), conn), "wsAuthConnect should error without credentials")
+		assert.Zero(t, conn.dialCalls, "wsAuthConnect should not dial without credentials")
+	})
+
+	t.Run("authenticated dial", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.SetCredentials("key", "secret", "", "", "", "")
+		require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.WebsocketSpotSupplementary.String(), geminiWebsocketSandboxEndpoint+geminiWsOrderEvents), "SetRunningURL must not error")
+		conn := &websocketTestConnection{Connection: testexch.GetMockConn(t, ex, geminiWebsocketSandboxEndpoint+geminiWsOrderEvents)}
+
+		require.NoError(t, ex.wsAuthConnect(t.Context(), conn), "wsAuthConnect must not error")
+		assert.Equal(t, 1, conn.dialCalls, "wsAuthConnect should dial once")
+		assert.Equal(t, "key", conn.dialHeaders.Get("X-GEMINI-APIKEY"), "wsAuthConnect should set the API key header")
+		assert.NotEmpty(t, conn.dialHeaders.Get("X-GEMINI-PAYLOAD"), "wsAuthConnect should set the payload header")
+		assert.NotEmpty(t, conn.dialHeaders.Get("X-GEMINI-SIGNATURE"), "wsAuthConnect should set the signature header")
+	})
+
+	t.Run("dial failure", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		ex.API.AuthenticatedWebsocketSupport = true
+		ex.SetCredentials("key", "secret", "", "", "", "")
+		errDial := errors.New("dial failure")
+		conn := &websocketTestConnection{
+			Connection: testexch.GetMockConn(t, ex, geminiWebsocketSandboxEndpoint+geminiWsOrderEvents),
+			dialErr:    errDial,
+		}
+
+		err := ex.wsAuthConnect(t.Context(), conn)
+		assert.ErrorContains(t, err, errDial.Error(), "wsAuthConnect should include the dial failure")
+	})
 }
 
 func TestWsConnect(t *testing.T) {
 	t.Parallel()
-	ex := new(Exchange)
-	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
-	conn := testexch.GetMockConn(t, ex, geminiWebsocketEndpoint)
-	assert.NoError(t, ex.wsConnect(t.Context(), conn), "wsConnect should not error")
+
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		conn := &websocketTestConnection{Connection: testexch.GetMockConn(t, ex, geminiWebsocketEndpoint)}
+		require.NoError(t, ex.wsConnect(t.Context(), conn), "wsConnect must not error")
+		assert.Equal(t, 1, conn.dialCalls, "wsConnect should dial once")
+	})
+
+	t.Run("dial failure", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		errDial := errors.New("dial failure")
+		conn := &websocketTestConnection{Connection: testexch.GetMockConn(t, ex, geminiWebsocketEndpoint), dialErr: errDial}
+		assert.ErrorIs(t, ex.wsConnect(t.Context(), conn), errDial, "wsConnect should return the dial failure")
+	})
 }
 
 func TestWsMissingRole(t *testing.T) {
@@ -1093,50 +1165,60 @@ func TestWsLevel2Update(t *testing.T) {
 	assert.NoError(t, e.wsHandleData(t.Context(), testexch.GetMockConn(t, e, ""), pressXToJSON), "wsHandleData should not error")
 }
 
-func TestResponseToStatus(t *testing.T) {
+func TestStringToOrderStatus(t *testing.T) {
 	t.Parallel()
-	type TestCases struct {
-		Case   string
-		Result order.Status
+	testCases := []struct {
+		name   string
+		result order.Status
+		err    error
+	}{
+		{name: "accepted", result: order.New},
+		{name: "booked", result: order.Active},
+		{name: "fill", result: order.Filled},
+		{name: "cancelled", result: order.Cancelled},
+		{name: "cancel_rejected", result: order.Rejected},
+		{name: "closed", result: order.Filled},
+		{name: "LOL", result: order.UnknownStatus, err: errUnrecognisedOrderStatus},
 	}
-	testCases := []TestCases{
-		{Case: "accepted", Result: order.New},
-		{Case: "booked", Result: order.Active},
-		{Case: "fill", Result: order.Filled},
-		{Case: "cancelled", Result: order.Cancelled},
-		{Case: "cancel_rejected", Result: order.Rejected},
-		{Case: "closed", Result: order.Filled},
-		{Case: "LOL", Result: order.UnknownStatus},
-	}
-	for i := range testCases {
-		t.Run(testCases[i].Case, func(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			result, _ := stringToOrderStatus(testCases[i].Case)
-			assert.Equal(t, testCases[i].Result, result, "order status should match expected conversion")
+			result, err := stringToOrderStatus(tc.name)
+			if tc.err != nil {
+				assert.ErrorIs(t, err, tc.err, "stringToOrderStatus should return the expected error")
+			} else {
+				assert.NoError(t, err, "stringToOrderStatus should not error")
+			}
+			assert.Equal(t, tc.result, result, "order status should match expected conversion")
 		})
 	}
 }
 
-func TestResponseToOrderType(t *testing.T) {
+func TestStringToOrderType(t *testing.T) {
 	t.Parallel()
-	type TestCases struct {
-		Case   string
-		Result order.Type
+	testCases := []struct {
+		name   string
+		result order.Type
+		err    error
+	}{
+		{name: "exchange limit", result: order.Limit},
+		{name: "auction-only limit", result: order.Limit},
+		{name: "indication-of-interest limit", result: order.Limit},
+		{name: "market buy", result: order.Market},
+		{name: "market sell", result: order.Market},
+		{name: "block_trade", result: order.Market},
+		{name: "LOL", result: order.UnknownType, err: errUnrecognisedOrderType},
 	}
-	testCases := []TestCases{
-		{Case: "exchange limit", Result: order.Limit},
-		{Case: "auction-only limit", Result: order.Limit},
-		{Case: "indication-of-interest limit", Result: order.Limit},
-		{Case: "market buy", Result: order.Market},
-		{Case: "market sell", Result: order.Market},
-		{Case: "block_trade", Result: order.Market},
-		{Case: "LOL", Result: order.UnknownType},
-	}
-	for i := range testCases {
-		t.Run(testCases[i].Case, func(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			result, _ := stringToOrderType(testCases[i].Case)
-			assert.Equal(t, testCases[i].Result, result, "order type should match expected conversion")
+			result, err := stringToOrderType(tc.name)
+			if tc.err != nil {
+				assert.ErrorIs(t, err, tc.err, "stringToOrderType should return the expected error")
+			} else {
+				assert.NoError(t, err, "stringToOrderType should not error")
+			}
+			assert.Equal(t, tc.result, result, "order type should match expected conversion")
 		})
 	}
 }
@@ -1290,4 +1372,62 @@ func TestGeneratePublicSubscriptions(t *testing.T) {
 	for _, s := range subs {
 		assert.False(t, s.Authenticated, "generatePublicSubscriptions should only return public subscriptions")
 	}
+}
+
+func TestSubscribeForConnection(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	conn := &websocketTestConnection{Connection: testexch.GetMockConn(t, ex, geminiWebsocketEndpoint)}
+	sub := &subscription.Subscription{
+		Asset:            asset.Spot,
+		Channel:          subscription.OrderbookChannel,
+		QualifiedChannel: marketDataLevel2,
+		Pairs:            currency.Pairs{currency.NewBTCUSD()},
+	}
+
+	require.NoError(t, ex.subscribeForConnection(t.Context(), conn, subscription.List{sub}), "subscribeForConnection must not error")
+	assert.Len(t, conn.sent, 1, "subscribeForConnection should send one request")
+	assert.Same(t, sub, ex.Websocket.GetSubscription(sub), "subscribeForConnection should store the subscription")
+	assert.Equal(t, subscription.SubscribedState, sub.State(), "subscribeForConnection should mark the subscription subscribed")
+}
+
+func TestUnsubscribeForConnection(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+	conn := &websocketTestConnection{Connection: testexch.GetMockConn(t, ex, geminiWebsocketEndpoint)}
+	sub := &subscription.Subscription{
+		Asset:            asset.Spot,
+		Channel:          subscription.OrderbookChannel,
+		QualifiedChannel: marketDataLevel2,
+		Pairs:            currency.Pairs{currency.NewBTCUSD()},
+	}
+	require.NoError(t, ex.Websocket.AddSuccessfulSubscriptions(conn, sub), "AddSuccessfulSubscriptions must not error")
+
+	require.NoError(t, ex.unsubscribeForConnection(t.Context(), conn, subscription.List{sub}), "unsubscribeForConnection must not error")
+	assert.Len(t, conn.sent, 1, "unsubscribeForConnection should send one request")
+	assert.Nil(t, ex.Websocket.GetSubscription(sub), "unsubscribeForConnection should remove the subscription")
+	assert.Equal(t, subscription.UnsubscribedState, sub.State(), "unsubscribeForConnection should mark the subscription unsubscribed")
+}
+
+func TestManageSubs(t *testing.T) {
+	t.Parallel()
+
+	t.Run("send failure", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
+		errSend := errors.New("send failure")
+		conn := &websocketTestConnection{
+			Connection: testexch.GetMockConn(t, ex, geminiWebsocketEndpoint),
+			sendErr:    errSend,
+		}
+		subs := subscription.List{{QualifiedChannel: marketDataLevel2}}
+
+		assert.ErrorIs(t, ex.manageSubs(t.Context(), conn, subs, wsSubscribeOp), errSend, "manageSubs should return the send failure")
+		assert.Empty(t, ex.Websocket.GetSubscriptions(), "manageSubs should not store subscriptions after a send failure")
+	})
 }

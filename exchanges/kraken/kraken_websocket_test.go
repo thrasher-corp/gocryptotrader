@@ -2,11 +2,14 @@ package kraken
 
 import (
 	"context"
+	"errors"
 	"net/http"
+	"net/url"
 	"sync"
 	"testing"
 	"time"
 
+	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -26,13 +29,45 @@ import (
 
 type mockAuthSubConnection struct {
 	websocket.Connection
-	responses [][]byte
-	expected  int
+	responses      [][]byte
+	expected       int
+	dialErr        error
+	pingHandlerSet bool
+}
+
+func (m *mockAuthSubConnection) Dial(context.Context, *gws.Dialer, http.Header, url.Values) error {
+	return m.dialErr
+}
+
+func (m *mockAuthSubConnection) SetupPingHandler(request.EndpointLimit, websocket.PingHandler) {
+	m.pingHandlerSet = true
 }
 
 func (m *mockAuthSubConnection) SendMessageReturnResponses(_ context.Context, _ request.EndpointLimit, _, _ any, expected int) ([][]byte, error) {
 	m.expected = expected
 	return m.responses, nil
+}
+
+func TestWsConnect(t *testing.T) {
+	t.Parallel()
+
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+		ex := new(Exchange)
+		conn := new(mockAuthSubConnection)
+
+		require.NoError(t, ex.wsConnect(t.Context(), conn), "wsConnect must not error")
+		assert.True(t, conn.pingHandlerSet, "wsConnect should configure the ping handler")
+	})
+
+	t.Run("dial error", func(t *testing.T) {
+		t.Parallel()
+		errDial := errors.New("dial failed")
+		conn := &mockAuthSubConnection{dialErr: errDial}
+
+		require.ErrorIs(t, new(Exchange).wsConnect(t.Context(), conn), errDial, "wsConnect must return the dial error")
+		assert.False(t, conn.pingHandlerSet, "wsConnect should not configure the ping handler after a dial error")
+	})
 }
 
 // TestGenerateSubscriptions tests the subscriptions generated from configuration
@@ -201,7 +236,7 @@ func TestWsProcessSubStatus(t *testing.T) {
 	assert.Equal(t, subscription.SubscribedState, sub.State(), "slash-delimited websocket subscription pair should match the stored subscription")
 }
 
-func TestGetWSToken(t *testing.T) {
+func TestGetWebsocketToken(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 
@@ -217,88 +252,114 @@ func TestGetWSToken(t *testing.T) {
 func TestSubscribeForConnection(t *testing.T) {
 	t.Parallel()
 
-	k := testexch.MockWsInstance[Exchange](t, mockWsHandler(t, mockWsServer))
+	t.Run("new subscriptions", func(t *testing.T) {
+		t.Parallel()
 
-	conn, err := k.Websocket.GetConnection("auth")
-	require.NoError(t, err, "GetConnection must not error")
+		k := testexch.MockWsInstance[Exchange](t, mockWsHandler(t, mockWsServer))
 
-	subs := subscription.List{
-		{
+		conn, err := k.Websocket.GetConnection("auth")
+		require.NoError(t, err, "GetConnection must not error")
+
+		subs := subscription.List{
+			{
+				Asset:            asset.Spot,
+				Channel:          subscription.OrderbookChannel,
+				QualifiedChannel: channelName(&subscription.Subscription{Channel: subscription.OrderbookChannel}),
+				Pairs:            currency.Pairs{spotTestPair},
+				Levels:           1000,
+			},
+			{
+				Asset:            asset.Spot,
+				Channel:          subscription.OrderbookChannel,
+				QualifiedChannel: channelName(&subscription.Subscription{Channel: subscription.OrderbookChannel}),
+				Pairs:            currency.Pairs{currency.NewPair(currency.ETH, currency.USD)},
+				Levels:           1000,
+			},
+		}
+
+		require.NoError(t, k.subscribeForConnection(t.Context(), conn, subs), "subscribeForConnection must not error")
+		for _, s := range subs {
+			got := k.Websocket.GetSubscription(s)
+			require.NotNil(t, got, "subscription must be stored")
+			assert.Equal(t, subscription.SubscribedState, got.State(), "subscription should transition to subscribed state")
+		}
+	})
+
+	t.Run("resubscribe", func(t *testing.T) {
+		t.Parallel()
+
+		k := testexch.MockWsInstance[Exchange](t, mockWsHandler(t, mockWsServer))
+
+		conn, err := k.Websocket.GetConnection("auth")
+		require.NoError(t, err, "GetConnection must not error")
+
+		sub := &subscription.Subscription{
 			Asset:            asset.Spot,
-			Channel:          subscription.OrderbookChannel,
-			QualifiedChannel: channelName(&subscription.Subscription{Channel: subscription.OrderbookChannel}),
+			Channel:          subscription.TickerChannel,
+			QualifiedChannel: channelName(&subscription.Subscription{Channel: subscription.TickerChannel}),
 			Pairs:            currency.Pairs{spotTestPair},
-			Levels:           1000,
-		},
-		{
+		}
+
+		require.NoError(t, k.Websocket.AddSubscriptions(conn, sub), "AddSubscriptions must not error")
+		require.NoError(t, sub.SetState(subscription.ResubscribingState), "SetState must not error")
+
+		require.NoError(t, k.subscribeForConnection(t.Context(), conn, subscription.List{sub}), "subscribeForConnection must not error")
+		got := k.Websocket.GetSubscription(sub)
+		require.NotNil(t, got, "resubscribing subscription must be stored")
+		assert.Equal(t, subscription.SubscribedState, got.State(), "resubscribing subscription should transition to subscribed state")
+	})
+
+	t.Run("skips failed adds", func(t *testing.T) {
+		t.Parallel()
+
+		k := testexch.MockWsInstance[Exchange](t, mockWsHandler(t, mockWsServer))
+
+		conn, err := k.Websocket.GetConnection("auth")
+		require.NoError(t, err, "GetConnection must not error")
+
+		existing := &subscription.Subscription{
 			Asset:            asset.Spot,
-			Channel:          subscription.OrderbookChannel,
-			QualifiedChannel: channelName(&subscription.Subscription{Channel: subscription.OrderbookChannel}),
+			Channel:          subscription.TickerChannel,
+			QualifiedChannel: channelName(&subscription.Subscription{Channel: subscription.TickerChannel}),
+			Pairs:            currency.Pairs{spotTestPair},
+		}
+		require.NoError(t, k.Websocket.AddSubscriptions(conn, existing), "AddSubscriptions must not error")
+
+		duplicate := existing.Clone()
+		fresh := &subscription.Subscription{
+			Asset:            asset.Spot,
+			Channel:          subscription.TickerChannel,
+			QualifiedChannel: channelName(&subscription.Subscription{Channel: subscription.TickerChannel}),
 			Pairs:            currency.Pairs{currency.NewPair(currency.ETH, currency.USD)},
-			Levels:           1000,
-		},
-	}
+		}
 
-	require.NoError(t, k.subscribeForConnection(t.Context(), conn, subs), "subscribeForConnection must not error")
-	for _, s := range subs {
-		got := k.Websocket.GetSubscription(s)
-		require.NotNil(t, got, "subscription must be stored")
-		assert.Equal(t, subscription.SubscribedState, got.State(), "subscription should transition to subscribed state")
-	}
-}
+		err = k.subscribeForConnection(t.Context(), conn, subscription.List{duplicate, fresh})
+		require.ErrorIs(t, err, subscription.ErrDuplicate, "subscribeForConnection must surface duplicate subscription errors")
+		assert.Equal(t, subscription.InactiveState, duplicate.State(), "failed subscription should be set inactive")
+		assert.Equal(t, subscription.SubscribedState, fresh.State(), "valid subscription should still subscribe")
+	})
 
-func TestSubscribeForConnectionResubscribe(t *testing.T) {
-	t.Parallel()
+	t.Run("candle interval", func(t *testing.T) {
+		t.Parallel()
 
-	k := testexch.MockWsInstance[Exchange](t, mockWsHandler(t, mockWsServer))
+		k := testexch.MockWsInstance[Exchange](t, mockWsHandler(t, mockWsServer))
 
-	conn, err := k.Websocket.GetConnection("auth")
-	require.NoError(t, err, "GetConnection must not error")
+		conn, err := k.Websocket.GetConnection("auth")
+		require.NoError(t, err, "GetConnection must not error")
 
-	sub := &subscription.Subscription{
-		Asset:            asset.Spot,
-		Channel:          subscription.TickerChannel,
-		QualifiedChannel: channelName(&subscription.Subscription{Channel: subscription.TickerChannel}),
-		Pairs:            currency.Pairs{spotTestPair},
-	}
+		sub := &subscription.Subscription{
+			Asset:            asset.Spot,
+			Channel:          subscription.CandlesChannel,
+			QualifiedChannel: channelName(&subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.FiveMin}),
+			Pairs:            currency.Pairs{spotTestPair},
+			Interval:         kline.FiveMin,
+		}
 
-	require.NoError(t, k.Websocket.AddSubscriptions(conn, sub), "AddSubscriptions must not error")
-	require.NoError(t, sub.SetState(subscription.ResubscribingState), "SetState must not error")
-
-	require.NoError(t, k.subscribeForConnection(t.Context(), conn, subscription.List{sub}), "subscribeForConnection must not error")
-	got := k.Websocket.GetSubscription(sub)
-	require.NotNil(t, got, "resubscribing subscription must be stored")
-	assert.Equal(t, subscription.SubscribedState, got.State(), "resubscribing subscription should transition to subscribed state")
-}
-
-func TestSubscribeForConnectionSkipsFailedAdds(t *testing.T) {
-	t.Parallel()
-
-	k := testexch.MockWsInstance[Exchange](t, mockWsHandler(t, mockWsServer))
-
-	conn, err := k.Websocket.GetConnection("auth")
-	require.NoError(t, err, "GetConnection must not error")
-
-	existing := &subscription.Subscription{
-		Asset:            asset.Spot,
-		Channel:          subscription.TickerChannel,
-		QualifiedChannel: channelName(&subscription.Subscription{Channel: subscription.TickerChannel}),
-		Pairs:            currency.Pairs{spotTestPair},
-	}
-	require.NoError(t, k.Websocket.AddSubscriptions(conn, existing), "AddSubscriptions must not error")
-
-	duplicate := existing.Clone()
-	fresh := &subscription.Subscription{
-		Asset:            asset.Spot,
-		Channel:          subscription.TickerChannel,
-		QualifiedChannel: channelName(&subscription.Subscription{Channel: subscription.TickerChannel}),
-		Pairs:            currency.Pairs{currency.NewPair(currency.ETH, currency.USD)},
-	}
-
-	err = k.subscribeForConnection(t.Context(), conn, subscription.List{duplicate, fresh})
-	require.ErrorIs(t, err, subscription.ErrDuplicate, "subscribeForConnection must surface duplicate subscription errors")
-	assert.Equal(t, subscription.InactiveState, duplicate.State(), "failed subscription should be set inactive")
-	assert.Equal(t, subscription.SubscribedState, fresh.State(), "valid subscription should still subscribe")
+		require.NoError(t, k.subscribeForConnection(t.Context(), conn, subscription.List{sub}), "subscribeForConnection with candle interval must not error")
+		got := k.Websocket.GetSubscription(sub)
+		require.NotNil(t, got, "interval subscription must be stored")
+		assert.Equal(t, subscription.SubscribedState, got.State(), "interval subscription should transition to subscribed state")
+	})
 }
 
 func TestCleanupUnsubscribedSubs(t *testing.T) {
@@ -350,28 +411,6 @@ func TestCleanupUnsubscribedSubs(t *testing.T) {
 	})
 }
 
-func TestSubscribeForConnectionCandlesInterval(t *testing.T) {
-	t.Parallel()
-
-	k := testexch.MockWsInstance[Exchange](t, mockWsHandler(t, mockWsServer))
-
-	conn, err := k.Websocket.GetConnection("auth")
-	require.NoError(t, err, "GetConnection must not error")
-
-	sub := &subscription.Subscription{
-		Asset:            asset.Spot,
-		Channel:          subscription.CandlesChannel,
-		QualifiedChannel: channelName(&subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.FiveMin}),
-		Pairs:            currency.Pairs{spotTestPair},
-		Interval:         kline.FiveMin,
-	}
-
-	require.NoError(t, k.subscribeForConnection(t.Context(), conn, subscription.List{sub}), "subscribeForConnection with candle interval must not error")
-	got := k.Websocket.GetSubscription(sub)
-	require.NotNil(t, got, "interval subscription must be stored")
-	assert.Equal(t, subscription.SubscribedState, got.State(), "interval subscription should transition to subscribed state")
-}
-
 func TestUnsubscribeForConnection(t *testing.T) {
 	t.Parallel()
 
@@ -410,6 +449,33 @@ func TestWsAddOrder(t *testing.T) {
 	assert.Equal(t, "ONPNXH-KMKMU-F4MR5V", id, "wsAddOrder should return correct order ID")
 }
 
+func TestWsCancelOrder(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name    string
+		orderID string
+		err     error
+	}{
+		{name: "success", orderID: "RABBIT"},
+		{name: "upstream error", orderID: "BATFISH", err: errCancellingOrder},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			ex := testexch.MockWsInstance[Exchange](t, mockWsHandler(t, mockWsServer))
+			conn, err := ex.Websocket.GetConnection("auth")
+			require.NoError(t, err, "Getting the authenticated connection must not error")
+
+			err = ex.wsCancelOrder(t.Context(), conn, tc.orderID)
+			if tc.err != nil {
+				require.ErrorIs(t, err, tc.err, "wsCancelOrder must return the expected error")
+			} else {
+				require.NoError(t, err, "wsCancelOrder must not error")
+			}
+		})
+	}
+}
+
 // TestWsCancelOrders exercises roundtrip of wsCancelOrders; See also: mockWsCancelOrders
 func TestWsCancelOrders(t *testing.T) {
 	t.Parallel()
@@ -428,10 +494,12 @@ func TestWsCancelOrders(t *testing.T) {
 }
 
 func TestWsCancelAllOrders(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	testexch.SetupWs(t, e)
-	_, err := e.wsCancelAllOrders(t.Context())
+	t.Parallel()
+
+	k := testexch.MockWsInstance[Exchange](t, mockWsHandler(t, mockWsServer))
+	resp, err := k.wsCancelAllOrders(t.Context())
 	require.NoError(t, err, "wsCancelAllOrders must not error")
+	assert.Equal(t, int64(3), resp.Count, "wsCancelAllOrders should return the cancelled order count")
 }
 
 func TestWsHandleData(t *testing.T) {
@@ -454,7 +522,7 @@ func TestWsHandleData(t *testing.T) {
 	testexch.FixtureToDataHandler(t, "testdata/wsHandleData.json", func(ctx context.Context, b []byte) error { return e.wsHandleData(ctx, conn, b) })
 }
 
-func TestWSProcessTrades(t *testing.T) {
+func TestWsProcessTrades(t *testing.T) {
 	t.Parallel()
 
 	e := new(Exchange)
@@ -493,7 +561,7 @@ func TestWSProcessTrades(t *testing.T) {
 	}
 }
 
-func TestWsOpenOrders(t *testing.T) {
+func TestWsProcessOpenOrders(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
@@ -560,7 +628,7 @@ func TestWsOpenOrders(t *testing.T) {
 	}
 }
 
-func TestWsOrderbookMax10Depth(t *testing.T) {
+func TestWsProcessOrderBook(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")

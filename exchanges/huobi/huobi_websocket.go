@@ -528,7 +528,9 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op
 	}
 	if err != nil {
 		if op == wsSubOp {
-			_ = e.Websocket.RemoveSubscriptions(conn, s)
+			if cleanupErr := e.Websocket.RemoveSubscriptions(conn, s); cleanupErr != nil && !errors.Is(cleanupErr, subscription.ErrNotFound) {
+				err = common.AppendError(err, fmt.Errorf("failed to remove subscription: %w", cleanupErr))
+			}
 		}
 		return fmt.Errorf("%s: %w", s, err)
 	}
