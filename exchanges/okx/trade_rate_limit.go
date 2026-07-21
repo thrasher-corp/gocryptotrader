@@ -49,13 +49,12 @@ func validateBatchOrderCount(count int) error {
 }
 
 func (l *tradeRateLimiter) getOrCreateScopedLimiter(class tradeRateLimitClass, scope string) (*request.RateLimiterWithWeight, error) {
-	normalisedScope := strings.ToUpper(strings.TrimSpace(scope))
-	if normalisedScope == "" {
+	if scope == "" {
 		return nil, errMissingTradeRateLimitScope
 	}
 	key := tradeRateLimitKey{
 		class: class,
-		scope: normalisedScope,
+		scope: scope,
 	}
 	l.scopedLimitersLock.Lock()
 	defer l.scopedLimitersLock.Unlock()
@@ -132,14 +131,13 @@ func (l *tradeRateLimiter) subAccountRateLimit(orderCount int) (request.RateLimi
 }
 
 func tradeScopeFromInstrumentID(instrumentID string) (string, error) {
-	trimmed := strings.ToUpper(strings.TrimSpace(instrumentID))
-	if trimmed == "" {
+	if strings.TrimSpace(instrumentID) == "" {
 		return "", errMissingTradeRateLimitScope
 	}
-	if isOptionInstrumentID(trimmed) {
-		return optionInstrumentFamily(trimmed)
+	if isOptionInstrumentID(instrumentID) {
+		return optionInstrumentFamily(instrumentID)
 	}
-	return trimmed, nil
+	return instrumentID, nil
 }
 
 func optionInstrumentFamily(instrumentID string) (string, error) {

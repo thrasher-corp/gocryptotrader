@@ -197,68 +197,17 @@ func RateLimitAll(ctx context.Context, rateLimits ...RateLimitWithWeightOverride
 		return nil
 	}
 
-	requests := make([]rateLimitReservation, 0, len(rateLimits))
-	for x := range rateLimits {
-		requests = append(requests, newRateLimitReservation(rateLimits[x].Limiter, rateLimits[x].WeightOverride))
-	}
-	return rateLimitAll(ctx, requests...)
-}
-
-// RateLimitWithAdditional reserves the endpoint limiter with any additional request-scoped limits.
-func RateLimitWithAdditional(ctx context.Context, endpoint *RateLimiterWithWeight, additionalRateLimits ...RateLimitWithWeightOverride) error {
-	return rateLimitWithAdditionalWeight(ctx, endpoint, 0, additionalRateLimits...)
-}
-
-// RateLimitWithAdditionalWeight reserves the endpoint limiter using a request-specific endpoint weight with any additional request-scoped limits.
-func RateLimitWithAdditionalWeight(ctx context.Context, endpoint *RateLimiterWithWeight, endpointWeightOverride Weight, additionalRateLimits ...RateLimitWithWeightOverride) error {
-	return rateLimitWithAdditionalWeight(ctx, endpoint, endpointWeightOverride, additionalRateLimits...)
-}
-
-func rateLimitWithAdditionalWeight(ctx context.Context, endpoint *RateLimiterWithWeight, endpointWeightOverride Weight, additionalRateLimits ...RateLimitWithWeightOverride) error {
-	if err := common.NilGuard(endpoint); err != nil {
-		return err
-	}
-	if len(additionalRateLimits) == 0 {
-		if endpointWeightOverride > 0 {
-			return endpoint.rateLimit(ctx, endpointWeightOverride)
-		}
-		return endpoint.RateLimit(ctx)
-	}
-
-	requests := make([]rateLimitReservation, 0, len(additionalRateLimits)+1)
-	requests = append(requests, newRateLimitReservation(endpoint, endpointWeightOverride))
-	for x := range additionalRateLimits {
-		requests = append(requests, newRateLimitReservation(additionalRateLimits[x].Limiter, additionalRateLimits[x].WeightOverride))
-	}
-	return rateLimitAll(ctx, requests...)
-}
-
-func newRateLimitReservation(limiter *RateLimiterWithWeight, weightOverride Weight) rateLimitReservation {
-	weight := weightOverride
-	if weight == 0 && limiter != nil {
-		weight = limiter.weight
-	}
-	return rateLimitReservation{
-		limiter: limiter,
-		weight:  weight,
-	}
-}
-
-func rateLimitAll(ctx context.Context, requests ...rateLimitReservation) error {
-	if len(requests) == 0 {
-		return nil
-	}
-
 	tn := time.Now()
-	reserved := make([]rateLimitReservation, 0, len(requests))
+	reserved := make([]rateLimitReservation, 0, len(rateLimits))
 	var finalDelay time.Duration
-	for x := range requests {
-		delay, err := requests[x].reserveRateLimit(tn)
+	for x := range rateLimits {
+		reservation := newRateLimitReservation(rateLimits[x].Limiter, rateLimits[x].WeightOverride)
+		delay, err := reservation.reserveRateLimit(tn)
 		if err != nil {
 			cancelRateLimitReservations(reserved, tn)
 			return err
 		}
-		reserved = append(reserved, requests[x])
+		reserved = append(reserved, reservation)
 		if delay > finalDelay {
 			finalDelay = delay
 		}
@@ -286,6 +235,47 @@ func rateLimitAll(ctx context.Context, requests ...rateLimitReservation) error {
 		return ctx.Err()
 	case <-time.After(finalDelay):
 		return nil
+	}
+}
+
+// RateLimitWithAdditional reserves the endpoint limiter with any additional request-scoped limits.
+func RateLimitWithAdditional(ctx context.Context, endpoint *RateLimiterWithWeight, additionalRateLimits ...RateLimitWithWeightOverride) error {
+	return rateLimitWithAdditionalWeight(ctx, endpoint, 0, additionalRateLimits...)
+}
+
+// RateLimitWithAdditionalWeight reserves the endpoint limiter using a request-specific endpoint weight with any additional request-scoped limits.
+func RateLimitWithAdditionalWeight(ctx context.Context, endpoint *RateLimiterWithWeight, endpointWeightOverride Weight, additionalRateLimits ...RateLimitWithWeightOverride) error {
+	return rateLimitWithAdditionalWeight(ctx, endpoint, endpointWeightOverride, additionalRateLimits...)
+}
+
+func rateLimitWithAdditionalWeight(ctx context.Context, endpoint *RateLimiterWithWeight, endpointWeightOverride Weight, additionalRateLimits ...RateLimitWithWeightOverride) error {
+	if err := common.NilGuard(endpoint); err != nil {
+		return err
+	}
+	if len(additionalRateLimits) == 0 {
+		if endpointWeightOverride > 0 {
+			return endpoint.rateLimit(ctx, endpointWeightOverride)
+		}
+		return endpoint.RateLimit(ctx)
+	}
+
+	rateLimits := make([]RateLimitWithWeightOverride, 0, len(additionalRateLimits)+1)
+	rateLimits = append(rateLimits, RateLimitWithWeightOverride{
+		Limiter:        endpoint,
+		WeightOverride: endpointWeightOverride,
+	})
+	rateLimits = append(rateLimits, additionalRateLimits...)
+	return RateLimitAll(ctx, rateLimits...)
+}
+
+func newRateLimitReservation(limiter *RateLimiterWithWeight, weightOverride Weight) rateLimitReservation {
+	weight := weightOverride
+	if weight == 0 && limiter != nil {
+		weight = limiter.weight
+	}
+	return rateLimitReservation{
+		limiter: limiter,
+		weight:  weight,
 	}
 }
 

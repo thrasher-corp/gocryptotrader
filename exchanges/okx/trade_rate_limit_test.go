@@ -17,17 +17,51 @@ const (
 func TestTradeScopeFromInstrumentID(t *testing.T) {
 	t.Parallel()
 
-	scope, err := tradeScopeFromInstrumentID("")
-	require.ErrorIs(t, err, errMissingTradeRateLimitScope, "empty instrument ID must return missing scope error")
-	assert.Empty(t, scope, "empty instrument ID should not return a scope")
+	testCases := []struct {
+		name          string
+		instrumentID  string
+		expectedScope string
+		expectedError error
+	}{
+		{
+			name:          "empty instrument ID",
+			expectedError: errMissingTradeRateLimitScope,
+		},
+		{
+			name:          "blank instrument ID",
+			instrumentID:  " ",
+			expectedError: errMissingTradeRateLimitScope,
+		},
+		{
+			name:          "spot instrument ID",
+			instrumentID:  tradeRateLimitBTCUSDT,
+			expectedScope: tradeRateLimitBTCUSDT,
+		},
+		{
+			name:          "instrument ID casing remains unchanged",
+			instrumentID:  "btc-usdt",
+			expectedScope: "btc-usdt",
+		},
+		{
+			name:          "option instrument ID",
+			instrumentID:  tradeRateLimitBTCUSDOptionCall,
+			expectedScope: "BTC-USD",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	scope, err = tradeScopeFromInstrumentID("btc-usdt")
-	require.NoError(t, err, "spot instrument ID must not error")
-	require.Equal(t, tradeRateLimitBTCUSDT, scope, "spot instrument ID must normalise")
-
-	scope, err = tradeScopeFromInstrumentID(tradeRateLimitBTCUSDOptionCall)
-	require.NoError(t, err, "option instrument ID must not error")
-	require.Equal(t, "BTC-USD", scope, "option instrument ID must return family scope")
+			scope, err := tradeScopeFromInstrumentID(tc.instrumentID)
+			if tc.expectedError != nil {
+				require.ErrorIs(t, err, tc.expectedError, "tradeScopeFromInstrumentID must return expected error")
+				assert.Empty(t, scope, "error response should not return a scope")
+				return
+			}
+			require.NoError(t, err, "tradeScopeFromInstrumentID must not error")
+			assert.Equal(t, tc.expectedScope, scope, "trade scope should preserve the exchange identifier")
+		})
+	}
 }
 
 func TestOptionInstrumentFamily(t *testing.T) {
@@ -127,11 +161,15 @@ func TestTradeRateLimiterGetOrCreateScopedLimiter(t *testing.T) {
 	t.Parallel()
 
 	limiter := &tradeRateLimiter{scopedLimiters: make(map[tradeRateLimitKey]*request.RateLimiterWithWeight)}
-	first, err := limiter.getOrCreateScopedLimiter(tradeRateLimitPlaceSingle, " btc-usdt ")
+	first, err := limiter.getOrCreateScopedLimiter(tradeRateLimitPlaceSingle, tradeRateLimitBTCUSDT)
 	require.NoError(t, err, "getOrCreateScopedLimiter must not error")
 	second, err := limiter.getOrCreateScopedLimiter(tradeRateLimitPlaceSingle, tradeRateLimitBTCUSDT)
 	require.NoError(t, err, "getOrCreateScopedLimiter must not error")
-	require.Same(t, first, second, "scoped limiter must be cached by normalised key")
+	require.Same(t, first, second, "scoped limiter must be cached by exact key")
+
+	lowercase, err := limiter.getOrCreateScopedLimiter(tradeRateLimitPlaceSingle, "btc-usdt")
+	require.NoError(t, err, "getOrCreateScopedLimiter must not error")
+	require.NotSame(t, first, lowercase, "differently cased instrument IDs must use distinct keys")
 
 	batch, err := limiter.getOrCreateScopedLimiter(tradeRateLimitPlaceBatch, tradeRateLimitBTCUSDT)
 	require.NoError(t, err, "getOrCreateScopedLimiter must not error")
