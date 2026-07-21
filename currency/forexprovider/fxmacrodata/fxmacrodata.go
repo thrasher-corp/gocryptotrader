@@ -149,19 +149,19 @@ func (f *FXMacroData) GetLatestForexRate(ctx context.Context, baseCurrency, quot
 // Health returns the public FXMacroData service health status.
 func (f *FXMacroData) Health(ctx context.Context) (*ServiceStatusResponse, error) {
 	response := new(ServiceStatusResponse)
-	return response, f.sendHTTPPublicRequest(ctx, "health", nil, nil, http.MethodGet, response)
+	return response, f.sendHTTPPublicRequest(ctx, "health", nil, response)
 }
 
 // Ping returns the public FXMacroData service liveness status.
 func (f *FXMacroData) Ping(ctx context.Context) (*ServiceStatusResponse, error) {
 	response := new(ServiceStatusResponse)
-	return response, f.sendHTTPPublicRequest(ctx, "ping", nil, nil, http.MethodGet, response)
+	return response, f.sendHTTPPublicRequest(ctx, "ping", nil, response)
 }
 
 // DataCatalogue returns the available FXMacroData indicators for a currency.
 func (f *FXMacroData) DataCatalogue(ctx context.Context, currency string) (*DataCatalogueResponse, error) {
 	response := new(DataCatalogueResponse)
-	return response, f.sendHTTPPublicRequest(ctx, "data_catalogue/"+strings.ToLower(currency), nil, nil, http.MethodGet, response)
+	return response, f.sendHTTPPublicRequest(ctx, "data_catalogue/"+strings.ToLower(currency), nil, response)
 }
 
 // Announcements returns historical macro announcement rows.
@@ -245,13 +245,13 @@ func (f *FXMacroData) ForwardDifferentials(ctx context.Context, baseCurrency, qu
 // MarketSessions returns FX market-session state.
 func (f *FXMacroData) MarketSessions(ctx context.Context, values url.Values) (*MarketSessionsResponse, error) {
 	response := new(MarketSessionsResponse)
-	return response, f.sendHTTPPublicRequest(ctx, "market_sessions", values, nil, http.MethodGet, response)
+	return response, f.sendHTTPPublicRequest(ctx, "market_sessions", values, response)
 }
 
 // RiskSentiment returns risk sentiment data.
 func (f *FXMacroData) RiskSentiment(ctx context.Context, values url.Values) (*RiskSentimentResponse, error) {
 	response := new(RiskSentimentResponse)
-	return response, f.sendHTTPPublicRequest(ctx, "risk_sentiment", values, nil, http.MethodGet, response)
+	return response, f.sendHTTPPublicRequest(ctx, "risk_sentiment", values, response)
 }
 
 // News returns macro news for a currency.
@@ -273,7 +273,7 @@ func (f *FXMacroData) GraphQL(ctx context.Context, payload string, result any) e
 
 func (f *FXMacroData) sendCurrencyScopedRequest(ctx context.Context, currency, endpoint string, values url.Values, result any) error {
 	if strings.EqualFold(currency, "USD") && f.APIKey == "" {
-		return f.sendHTTPPublicRequest(ctx, endpoint, values, nil, http.MethodGet, result)
+		return f.sendHTTPPublicRequest(ctx, endpoint, values, result)
 	}
 	return f.sendHTTPAuthRequest(ctx, endpoint, values, nil, http.MethodGet, result)
 }
@@ -287,8 +287,8 @@ func (f *FXMacroData) sendHTTPAuthRequest(ctx context.Context, endpoint string, 
 }
 
 // sendHTTPPublicRequest sends an unauthenticated FXMacroData request.
-func (f *FXMacroData) sendHTTPPublicRequest(ctx context.Context, endpoint string, values url.Values, body io.Reader, method string, result any) error {
-	return f.send(ctx, endpoint, values, body, method, result, request.UnauthenticatedRequest)
+func (f *FXMacroData) sendHTTPPublicRequest(ctx context.Context, endpoint string, values url.Values, result any) error {
+	return f.send(ctx, endpoint, values, nil, http.MethodGet, result, request.UnauthenticatedRequest)
 }
 
 func (f *FXMacroData) send(ctx context.Context, endpoint string, values url.Values, body io.Reader, method string, result any, auth request.AuthType) error {

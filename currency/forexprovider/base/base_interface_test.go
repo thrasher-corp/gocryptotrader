@@ -25,7 +25,7 @@ func (m *MockProvider) GetName() string {
 	return ""
 }
 
-func (m *MockProvider) GetRates(ctx context.Context, baseCurrency, symbols string) (map[string]float64, error) {
+func (m *MockProvider) GetRates(_ context.Context, baseCurrency, symbols string) (map[string]float64, error) {
 	c := map[string]float64{}
 	for s := range strings.SplitSeq(symbols, ",") {
 		if s == "XRP" && m.value == 1.5 {
