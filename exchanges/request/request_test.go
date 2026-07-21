@@ -351,6 +351,30 @@ func TestSendPayloadWithRateLimitWeight(t *testing.T) {
 	})
 }
 
+func TestRequesterSendPayload(t *testing.T) {
+	t.Parallel()
+
+	r, err := New("test", new(http.Client))
+	require.NoError(t, err, "New requester must not error")
+	requestErr := errors.New("request generation failed")
+	err = r.sendPayload(t.Context(), Unset, 0, func() (*Item, error) {
+		return nil, requestErr
+	}, UnauthenticatedRequest)
+	require.ErrorIs(t, err, requestErr, "sendPayload must return the request generation error")
+}
+
+func TestRequesterDoRequest(t *testing.T) {
+	t.Parallel()
+
+	r, err := New("test", new(http.Client))
+	require.NoError(t, err, "New requester must not error")
+	requestErr := errors.New("request generation failed")
+	err = r.doRequest(t.Context(), Unset, 0, func() (*Item, error) {
+		return nil, requestErr
+	})
+	require.ErrorIs(t, err, requestErr, "doRequest must return the request generation error")
+}
+
 func TestDoRequest_NoContent(t *testing.T) {
 	t.Parallel()
 	newRequester := func(t *testing.T) *Requester {

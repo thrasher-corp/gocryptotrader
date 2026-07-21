@@ -84,6 +84,7 @@ var (
 	errIndexComponentNotFound               = errors.New("unable to fetch index components")
 	errLimitValueExceedsMaxOf100            = errors.New("limit value exceeds the maximum value 100")
 	errMissingInstrumentID                  = errors.New("missing instrument ID")
+	errMissingInstrumentIDCode              = errors.New("missing instrument ID code")
 	errEitherInstIDOrCcyIsRequired          = errors.New("either parameter instId or ccy is required")
 	errInvalidTradeMode                     = errors.New("unacceptable required argument, trade mode")
 	errMissingExpiryTimeParameter           = errors.New("missing expiry date parameter")

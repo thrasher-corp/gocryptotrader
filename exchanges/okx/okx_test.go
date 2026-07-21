@@ -32,6 +32,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
@@ -3446,13 +3447,24 @@ func TestLoadInstrumentOrderExecutionLimits(t *testing.T) {
 	exch.Name = t.Name()
 
 	livePair := currency.NewPairWithDelimiter("BTC", "USDT", "-")
+	pastPair := currency.NewPairWithDelimiter("LTC", "USDT", "-")
 	inactivePair := currency.NewPairWithDelimiter("ETH", "USDT", "-")
+	futureExpiry := time.Now().UTC().Add(time.Hour)
+	pastExpiry := time.Now().UTC().Add(-time.Hour)
 	require.NoError(t, exch.loadInstrumentOrderExecutionLimits(asset.Futures, []Instrument{
 		{
 			InstrumentID:     livePair,
 			State:            stateLive,
 			TickSize:         types.Number(0.1),
 			MinimumOrderSize: types.Number(1),
+			ExpTime:          types.Time(futureExpiry),
+		},
+		{
+			InstrumentID:     pastPair,
+			State:            stateLive,
+			TickSize:         types.Number(0.1),
+			MinimumOrderSize: types.Number(1),
+			ExpTime:          types.Time(pastExpiry),
 		},
 		{
 			InstrumentID:     inactivePair,
@@ -3472,6 +3484,13 @@ func TestLoadInstrumentOrderExecutionLimits(t *testing.T) {
 	require.NoError(t, err, "GetOrderExecutionLimits must not error for live instrument")
 	assert.Equal(t, 0.1, loadedLimit.PriceStepIncrementSize, "PriceStepIncrementSize should be set from live instrument")
 	assert.Equal(t, 1.0, loadedLimit.MinimumBaseAmount, "MinimumBaseAmount should be set from live instrument")
+	assert.Equal(t, futureExpiry, loadedLimit.Delisting, "future expiry should set delisting")
+	assert.True(t, loadedLimit.Delisted.IsZero(), "future expiry should not set delisted")
+
+	pastLimit, err := exch.GetOrderExecutionLimits(asset.Futures, pastPair)
+	require.NoError(t, err, "GetOrderExecutionLimits must not error for an expired live instrument")
+	assert.Equal(t, pastExpiry, pastLimit.Delisting, "past expiry should set delisting")
+	assert.Equal(t, pastExpiry, pastLimit.Delisted, "past expiry should set delisted")
 
 	_, err = exch.GetOrderExecutionLimits(asset.Futures, inactivePair)
 	require.ErrorIs(t, err, limits.ErrOrderLimitNotFound, "inactive instruments must not be loaded")
@@ -3513,6 +3532,38 @@ func TestUpdateTickers(t *testing.T) {
 		}
 		require.NoErrorf(t, err, "UpdateTickers for asset %s must not error", a)
 	}
+
+	t.Run("filters disabled pairs", func(t *testing.T) {
+		t.Parallel()
+
+		ex := new(Exchange)
+		require.NoError(t, testexch.Setup(ex), "Setup must not error")
+		ex.Name = t.Name()
+		ticks, err := ex.GetTickers(contextGenerate(), instTypeSpot, "", "")
+		require.NoError(t, err, "GetTickers must not error")
+		require.GreaterOrEqual(t, len(ticks), 2, "fixture must contain at least two tickers")
+		enabledPair, err := ex.GetPairFromInstrumentID(ticks[0].InstrumentID.String())
+		require.NoError(t, err, "enabled fixture instrument ID must produce a pair")
+		disabledPair, err := ex.GetPairFromInstrumentID(ticks[1].InstrumentID.String())
+		require.NoError(t, err, "disabled fixture instrument ID must produce a pair")
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{enabledPair, disabledPair}, false), "StorePairs must store the fixture pairs as available")
+		require.NoError(t, ex.CurrencyPairs.StorePairs(asset.Spot, currency.Pairs{enabledPair}, true), "StorePairs must enable only the selected pair")
+
+		require.NoError(t, ex.UpdateTickers(contextGenerate(), asset.Spot), "UpdateTickers must not error")
+		_, err = ticker.GetTicker(ex.Name, enabledPair, asset.Spot)
+		require.NoError(t, err, "enabled pair ticker must be stored")
+		_, err = ticker.GetTicker(ex.Name, disabledPair, asset.Spot)
+		require.ErrorIs(t, err, ticker.ErrTickerNotFound, "disabled pair ticker must not be stored")
+	})
+}
+
+func TestSendHTTPRequestWithRateLimitWeight(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	ex.SetDefaults()
+	err := ex.sendHTTPRequestWithRateLimitWeight(t.Context(), exchange.URL(^uint16(0)), request.Unset, 1, "", "", nil, nil, request.UnauthenticatedRequest)
+	require.ErrorIs(t, err, exchange.ErrEndpointPathNotFound, "sendHTTPRequestWithRateLimitWeight must return an invalid endpoint error")
 }
 
 func TestUpdateOrderbook(t *testing.T) {
@@ -4190,8 +4241,24 @@ func TestWsProcessUpdateOrderbook(t *testing.T) {
 	require.NoError(t, err, "GetOrderbook must not error")
 	require.Equal(t, int64(11), book.LastUpdateID, "LastUpdateID must remain unchanged after stale update")
 
-	update.PreviousSequenceID = 10
-	update.SequenceID = 12
+	update.PreviousSequenceID = 11
+	update.SequenceID = 3
+	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot})
+	require.NoError(t, err, "WsProcessUpdateOrderbook must accept a documented sequence reset")
+	book, err = tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error")
+	require.Equal(t, int64(3), book.LastUpdateID, "LastUpdateID must move to the reset sequence")
+
+	update.PreviousSequenceID = 3
+	update.SequenceID = 5
+	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot})
+	require.NoError(t, err, "WsProcessUpdateOrderbook must continue from the reset sequence")
+	book, err = tracked.Websocket.Orderbook.GetOrderbook(pair, asset.Spot)
+	require.NoError(t, err, "GetOrderbook must not error")
+	require.Equal(t, int64(5), book.LastUpdateID, "LastUpdateID must advance from the reset sequence")
+
+	update.PreviousSequenceID = 3
+	update.SequenceID = 6
 	err = tracked.WsProcessUpdateOrderbook(update, pair, []asset.Item{asset.Spot})
 	require.ErrorIs(t, err, errInvalidOrderbookSequence, "WsProcessUpdateOrderbook must reject sequence gaps")
 }
@@ -4667,6 +4734,11 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 			expectedError: currency.ErrCurrencyNotSupported,
 		},
 		{
+			name:          "disabled spot instrument",
+			instrumentID:  "ETH-USDT",
+			expectedError: asset.ErrNotEnabled,
+		},
+		{
 			name:               "futures instrument",
 			instrumentID:       "BTC-USD-240329",
 			expectedAssetTypes: []asset.Item{asset.Futures},
@@ -4687,7 +4759,17 @@ func TestGetAssetsFromInstrumentTypeOrID(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			t.Parallel()
 
-			assets, err := e.getAssetsFromInstrumentID(testCase.instrumentID)
+			ex := new(Exchange)
+			ex.SetDefaults()
+			if testCase.expectedError == nil {
+				pair, err := currency.NewPairDelimiter(testCase.instrumentID, currency.DashDelimiter)
+				require.NoError(t, err, "test instrument ID must produce a pair")
+				for _, assetType := range testCase.expectedAssetTypes {
+					require.NoError(t, ex.CurrencyPairs.StorePairs(assetType, currency.Pairs{pair}, true), "StorePairs must enable the test pair")
+				}
+			}
+
+			assets, err := ex.getAssetsFromInstrumentID(testCase.instrumentID)
 			if testCase.expectedError != nil {
 				require.ErrorIs(t, err, testCase.expectedError, "getAssetsFromInstrumentID must return expected error")
 				return
@@ -4702,6 +4784,10 @@ func TestGetAssetsFromInstrumentID(t *testing.T) {
 	t.Parallel()
 
 	e := new(Exchange)
+	e.SetDefaults()
+	pair, err := currency.NewPairDelimiter("BTC-USD-240329-70000-C", currency.DashDelimiter)
+	require.NoError(t, err, "test instrument ID must produce a pair")
+	require.NoError(t, e.CurrencyPairs.StorePairs(asset.Options, currency.Pairs{pair}, true), "StorePairs must enable the option pair")
 	assets, err := e.getAssetsFromInstrumentID("BTC-USD-240329-70000-C")
 	require.NoError(t, err, "getAssetsFromInstrumentID must not error for option instrument IDs")
 	require.Equal(t, []asset.Item{asset.Options}, assets, "getAssetsFromInstrumentID must infer options asset type")
@@ -6866,46 +6952,4 @@ func TestValidateSpreadOrderParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
 	p.Side = order.Buy.String()
 	require.NoError(t, p.Validate())
-}
-
-func TestDeriveDelistingWindow(t *testing.T) {
-	t.Parallel()
-
-	now := time.Date(2026, time.May, 11, 16, 0, 0, 0, time.UTC)
-	futureExpiry := now.Add(2 * time.Hour)
-	pastExpiry := now.Add(-2 * time.Hour)
-
-	t.Run("future expiry maps to delisting only", func(t *testing.T) {
-		t.Parallel()
-		delistingAt, delistedAt := (&Instrument{
-			State:   "suspend",
-			ExpTime: types.Time(futureExpiry),
-		}).deriveDelistingWindow(now)
-		require.Equal(t, futureExpiry, delistingAt)
-		require.True(t, delistedAt.IsZero())
-	})
-
-	t.Run("past expiry maps to delisting and delisted", func(t *testing.T) {
-		t.Parallel()
-		delistingAt, delistedAt := (&Instrument{
-			State:   "suspend",
-			ExpTime: types.Time(pastExpiry),
-		}).deriveDelistingWindow(now)
-		require.Equal(t, pastExpiry, delistingAt)
-		require.Equal(t, pastExpiry, delistedAt)
-	})
-
-	t.Run("live state has no delisting", func(t *testing.T) {
-		t.Parallel()
-		delistingAt, delistedAt := (&Instrument{State: "live"}).deriveDelistingWindow(now)
-		require.True(t, delistingAt.IsZero())
-		require.True(t, delistedAt.IsZero())
-	})
-
-	t.Run("non live state maps to delisted window", func(t *testing.T) {
-		t.Parallel()
-		delistingAt, delistedAt := (&Instrument{State: "suspend"}).deriveDelistingWindow(now)
-		require.Equal(t, now.Add(-30*time.Minute), delistingAt)
-		require.Equal(t, now, delistedAt)
-	})
 }

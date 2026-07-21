@@ -1026,9 +1026,9 @@ func (e *Exchange) WsProcessSnapshotOrderBook(data *WsOrderBookData, pair curren
 	return nil
 }
 
-// WsProcessUpdateOrderbook updates an existing orderbook using websocket data
-// After merging WS data, it will sort, validate and finally update the existing
-// orderbook
+// WsProcessUpdateOrderbook updates an existing orderbook using websocket data.
+// OKX can reset sequence IDs to a lower value while retaining continuity through
+// prevSeqId; see https://app.okx.com/docs-v5/en/#order-book-trading-market-data-ws-order-book-channel
 func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency.Pair, assets []asset.Item) error {
 	reachedGCTAt := time.Now()
 	asks, asksPoolItem := appendWsOrderbookItemsFromPool(data.Asks)
@@ -1042,7 +1042,11 @@ func (e *Exchange) WsProcessUpdateOrderbook(data *WsOrderBookData, pair currency
 			if err != nil {
 				return err
 			}
-			if data.SequenceID != 0 && data.SequenceID <= lastUpdateID {
+			// Equal sequence IDs contain no book change. Older updates from a
+			// superseded sequence chain are stale, but a lower sequence ID whose
+			// prevSeqId matches our current sequence is a documented OKX reset.
+			if data.SequenceID != 0 && data.SequenceID <= lastUpdateID &&
+				(data.SequenceID == lastUpdateID || data.PreviousSequenceID != lastUpdateID) {
 				continue
 			}
 			if lastUpdateID != data.PreviousSequenceID {

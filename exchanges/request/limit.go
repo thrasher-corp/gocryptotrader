@@ -115,14 +115,8 @@ func (r *Requester) initiateRateLimit(ctx context.Context, e EndpointLimit, endp
 	if err := common.NilGuard(r.limiter); err != nil {
 		return err
 	}
-	if len(additionalRateLimits) > 0 {
+	if len(additionalRateLimits) > 0 || endpointWeightOverride > 0 {
 		if err := rateLimitWithAdditionalWeight(ctx, r.limiter[e], endpointWeightOverride, additionalRateLimits...); err != nil {
-			return fmt.Errorf("cannot rate limit request %w for endpoint %d", err, e)
-		}
-		return nil
-	}
-	if endpointWeightOverride > 0 {
-		if err := rateLimitWithAdditionalWeight(ctx, r.limiter[e], endpointWeightOverride); err != nil {
 			return fmt.Errorf("cannot rate limit request %w for endpoint %d", err, e)
 		}
 		return nil
@@ -185,6 +179,9 @@ func (r *RateLimiterWithWeight) rateLimit(ctx context.Context, weight Weight) er
 
 	select {
 	case <-ctx.Done():
+		r.m.Lock()
+		cancelAll(reserved, time.Now())
+		r.m.Unlock()
 		return ctx.Err()
 	case <-time.After(finalDelay):
 		return nil
@@ -200,8 +197,8 @@ func RateLimitAll(ctx context.Context, rateLimits ...RateLimitWithWeightOverride
 	tn := time.Now()
 	reserved := make([]rateLimitReservation, 0, len(rateLimits))
 	var finalDelay time.Duration
-	for x := range rateLimits {
-		reservation := newRateLimitReservation(rateLimits[x].Limiter, rateLimits[x].WeightOverride)
+	for _, rateLimit := range rateLimits {
+		reservation := newRateLimitReservation(rateLimit.Limiter, rateLimit.WeightOverride)
 		delay, err := reservation.reserveRateLimit(tn)
 		if err != nil {
 			cancelRateLimitReservations(reserved, tn)
@@ -232,6 +229,7 @@ func RateLimitAll(ctx context.Context, rateLimits ...RateLimitWithWeightOverride
 
 	select {
 	case <-ctx.Done():
+		cancelRateLimitReservations(reserved, time.Now())
 		return ctx.Err()
 	case <-time.After(finalDelay):
 		return nil
@@ -300,19 +298,17 @@ func (r *rateLimitReservation) reserveRateLimit(tn time.Time) (time.Duration, er
 }
 
 func cancelRateLimitReservations(reserved []rateLimitReservation, tn time.Time) {
-	slices.Reverse(reserved)
-	for x := range reserved {
-		reserved[x].limiter.m.Lock()
-		cancelAll(reserved[x].reservations, tn)
-		reserved[x].limiter.m.Unlock()
+	for _, reservation := range slices.Backward(reserved) {
+		reservation.limiter.m.Lock()
+		cancelAll(reservation.reservations, tn)
+		reservation.limiter.m.Unlock()
 	}
 }
 
 // cancelAll cancels all reservations at a specific time.
 // Does not provide locking protection, so callers can maintain a single lock throughout.
 func cancelAll(reservations []*rate.Reservation, at time.Time) {
-	slices.Reverse(reservations) // cancel in reverse order for correct token reimbursement
-	for _, r := range reservations {
+	for _, r := range slices.Backward(reservations) { // cancel in reverse order for correct token reimbursement
 		r.CancelAt(at)
 	}
 }

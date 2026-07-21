@@ -58,7 +58,7 @@ func (e *Exchange) SetDefaults() {
 	e.instrumentsInfoMap = make(map[string][]Instrument)
 	e.tradeLimiter = tradeRateLimiter{
 		scopedLimiters:    make(map[tradeRateLimitKey]*request.RateLimiterWithWeight),
-		subAccountLimiter: newTradeSubAccountRateLimiter(),
+		subAccountLimiter: request.NewRateLimitWithWeight(twoSecondsInterval, subAccountTradeRateLimitActions, 1),
 	}
 
 	cpf := &currency.PairFormat{
@@ -397,6 +397,7 @@ func (e *Exchange) loadInstrumentOrderExecutionLimits(a asset.Item, insts []Inst
 		return err
 	}
 	l := make([]limits.MinMaxLevel, 0, len(insts))
+	now := time.Now().UTC()
 	for i := range insts {
 		if insts[i].State != stateLive || insts[i].InstrumentID.IsEmpty() {
 			continue
@@ -405,7 +406,11 @@ func (e *Exchange) loadInstrumentOrderExecutionLimits(a asset.Item, insts []Inst
 		if limitKey.Pair().IsEmpty() {
 			continue
 		}
-		delistingAt, delistedAt := insts[i].deriveDelistingWindow(time.Now().UTC())
+		expiry := insts[i].ExpTime.Time()
+		var delistedAt time.Time
+		if !expiry.IsZero() && expiry.Before(now) {
+			delistedAt = expiry
+		}
 		l = append(l, limits.MinMaxLevel{
 			Key:                     limitKey,
 			PriceStepIncrementSize:  insts[i].TickSize.Float64(),
@@ -416,30 +421,15 @@ func (e *Exchange) loadInstrumentOrderExecutionLimits(a asset.Item, insts []Inst
 			MarketMaxQty:            insts[i].MaxQuantityOfMarketLimitOrder.Float64(),
 			MultiplierDecimal:       insts[i].ContractValue.Float64(),
 			Listed:                  insts[i].ListTime.Time(),
-			Delisting:               delistingAt,
+			Delisting:               expiry,
 			Delisted:                delistedAt,
-			Expiry:                  insts[i].ExpTime.Time(),
+			Expiry:                  expiry,
 		})
 	}
 	if len(l) == 0 {
 		return common.ErrInvalidResponse
 	}
 	return limits.Load(l)
-}
-
-func (inst *Instrument) deriveDelistingWindow(now time.Time) (delistingAt, delistedAt time.Time) {
-	if !inst.ExpTime.Time().IsZero() {
-		delistingAt = inst.ExpTime.Time()
-		if delistingAt.Before(now) {
-			delistedAt = delistingAt
-		}
-		return delistingAt, delistedAt
-	}
-	if inst.State == stateLive || inst.State == "" {
-		return time.Time{}, time.Time{}
-	}
-	delistedAt = now
-	return delistedAt.Add(-30 * time.Minute), delistedAt
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair
@@ -523,6 +513,10 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 	case asset.Spread:
 		return common.ErrFunctionNotSupported
 	case asset.Spot, asset.PerpetualSwap, asset.Futures, asset.Options, asset.Margin:
+		enabledPairs, err := e.GetEnabledPairs(assetType)
+		if err != nil {
+			return err
+		}
 		instrumentType := GetInstrumentTypeFromAssetItem(assetType)
 		if assetType == asset.Margin {
 			instrumentType = instTypeSpot
@@ -537,7 +531,14 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 			if err != nil {
 				return err
 			}
-			err = ticker.ProcessTicker(&ticker.Price{
+			if !enabledPairs.Contains(pair, true) {
+				continue
+			}
+			formattedPair, err := e.FormatExchangeCurrency(pair, assetType)
+			if err != nil {
+				return err
+			}
+			if err := ticker.ProcessTicker(&ticker.Price{
 				Last:         ticks[y].LastTradePrice.Float64(),
 				High:         ticks[y].High24H.Float64(),
 				Low:          ticks[y].Low24H.Float64(),
@@ -549,11 +550,10 @@ func (e *Exchange) UpdateTickers(ctx context.Context, assetType asset.Item) erro
 				QuoteVolume:  ticks[y].VolCcy24H.Float64(),
 				Open:         ticks[y].Open24H.Float64(),
 				LastUpdated:  ticks[y].TickerDataGenerationTime.Time(),
-				Pair:         pair,
+				Pair:         formattedPair,
 				ExchangeName: e.Name,
 				AssetType:    assetType,
-			})
-			if err != nil {
+			}); err != nil {
 				return err
 			}
 		}
@@ -1201,9 +1201,11 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 			ClientOrderID: action.ClientOrderID,
 		}
 		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			if instrumentIDCode := e.cachedInstrumentIDCode(action.AssetType, amendRequest.InstrumentID); instrumentIDCode > 0 {
-				amendRequest.InstrumentIDCode = instrumentIDCode
+			instrumentIDCode, codeErr := e.cachedInstrumentIDCode(action.AssetType, amendRequest.InstrumentID)
+			if codeErr != nil {
+				return nil, codeErr
 			}
+			amendRequest.InstrumentIDCode = instrumentIDCode
 			_, err = e.WSAmendOrder(ctx, &amendRequest)
 		} else {
 			_, err = e.AmendOrder(ctx, &amendRequest)
@@ -1279,16 +1281,19 @@ func (e *Exchange) ModifyOrder(ctx context.Context, action *order.Modify) (*orde
 
 // WebsocketModifyOrder modifies an OKX order through websocket when available.
 func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modify) (*order.ModifyResponse, error) {
+	if err := common.NilGuard(action); err != nil {
+		return nil, err
+	}
 	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		return nil, common.ErrFunctionNotSupported
 	}
-	if err := action.Validate(); err != nil {
-		return nil, err
-	}
-	if math.Trunc(action.Amount) != action.Amount {
-		return nil, errContractAmountCanNotBeDecimal
-	}
 	if action.AssetType == asset.Spread {
+		if err := action.Validate(); err != nil {
+			return nil, err
+		}
+		if math.Trunc(action.Amount) != action.Amount {
+			return nil, errContractAmountCanNotBeDecimal
+		}
 		_, err := e.WSAmendSpreadOrder(ctx, &AmendSpreadOrderParam{
 			OrderID:       action.OrderID,
 			ClientOrderID: action.ClientOrderID,
@@ -1300,14 +1305,21 @@ func (e *Exchange) WebsocketModifyOrder(ctx context.Context, action *order.Modif
 		}
 		return action.DeriveModifyResponse()
 	}
+	switch action.Type {
+	case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
+	default:
+		return nil, fmt.Errorf("%w for websocket modification: %v", order.ErrUnsupportedOrderType, action.Type)
+	}
 	arg, err := e.deriveAmendOrderArguments(action)
 	if err != nil {
 		return nil, err
 	}
-	if instrumentIDCode := e.cachedInstrumentIDCode(action.AssetType, arg.InstrumentID); instrumentIDCode > 0 {
-		arg.InstrumentIDCode = instrumentIDCode
+	instrumentIDCode, err := e.cachedInstrumentIDCode(action.AssetType, arg.InstrumentID)
+	if err != nil {
+		return nil, err
 	}
-	if _, err = e.WSAmendOrder(ctx, arg); err != nil {
+	arg.InstrumentIDCode = instrumentIDCode
+	if _, err := e.WSAmendOrder(ctx, arg); err != nil {
 		return nil, err
 	}
 	return action.DeriveModifyResponse()
@@ -1343,9 +1355,11 @@ func (e *Exchange) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 			ClientOrderID: ord.ClientOrderID,
 		}
 		if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			if instrumentIDCode := e.cachedInstrumentIDCode(ord.AssetType, req.InstrumentID); instrumentIDCode > 0 {
-				req.InstrumentIDCode = instrumentIDCode
+			instrumentIDCode, codeErr := e.cachedInstrumentIDCode(ord.AssetType, req.InstrumentID)
+			if codeErr != nil {
+				return codeErr
 			}
+			req.InstrumentIDCode = instrumentIDCode
 			_, err = e.WSCancelOrder(ctx, &req)
 		} else {
 			_, err = e.CancelSingleOrder(ctx, &req)
@@ -1525,6 +1539,9 @@ func (e *Exchange) deriveCancelOrderArguments(ord *order.Cancel) (*CancelOrderRe
 
 // WebsocketCancelOrder cancels an OKX order through websocket when available.
 func (e *Exchange) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) error {
+	if err := common.NilGuard(ord); err != nil {
+		return err
+	}
 	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		return common.ErrFunctionNotSupported
 	}
@@ -1532,15 +1549,24 @@ func (e *Exchange) WebsocketCancelOrder(ctx context.Context, ord *order.Cancel) 
 		_, err := e.WSCancelSpreadOrder(ctx, ord.OrderID, ord.ClientOrderID)
 		return err
 	}
+	switch ord.Type {
+	case order.UnknownType, order.Market, order.Limit, order.OptimalLimit, order.MarketMakerProtection:
+	default:
+		return fmt.Errorf("%w for websocket cancellation: %v", order.ErrUnsupportedOrderType, ord.Type)
+	}
 	arg, err := e.deriveCancelOrderArguments(ord)
 	if err != nil {
 		return err
 	}
-	if instrumentIDCode := e.cachedInstrumentIDCode(ord.AssetType, arg.InstrumentID); instrumentIDCode > 0 {
-		arg.InstrumentIDCode = instrumentIDCode
+	instrumentIDCode, err := e.cachedInstrumentIDCode(ord.AssetType, arg.InstrumentID)
+	if err != nil {
+		return err
 	}
-	_, err = e.WSCancelOrder(ctx, arg)
-	return err
+	arg.InstrumentIDCode = instrumentIDCode
+	if _, err := e.WSCancelOrder(ctx, arg); err != nil {
+		return err
+	}
+	return nil
 }
 
 // CancelBatchOrders cancels orders by their corresponding ID numbers
@@ -1577,9 +1603,11 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 				ClientOrderID: ord.ClientOrderID,
 			}
 			if e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-				if instrumentIDCode := e.cachedInstrumentIDCode(ord.AssetType, cancelOrder.InstrumentID); instrumentIDCode > 0 {
-					cancelOrder.InstrumentIDCode = instrumentIDCode
+				instrumentIDCode, codeErr := e.cachedInstrumentIDCode(ord.AssetType, cancelOrder.InstrumentID)
+				if codeErr != nil {
+					return nil, codeErr
 				}
+				cancelOrder.InstrumentIDCode = instrumentIDCode
 			}
 			cancelOrderParams = append(cancelOrderParams, cancelOrder)
 		case order.Trigger, order.OCO, order.ConditionalStop,
@@ -1637,6 +1665,9 @@ func (e *Exchange) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*or
 
 // WebsocketSubmitOrder submits the order through OKX websocket when available.
 func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitResponse, error) {
+	if err := common.NilGuard(s); err != nil {
+		return nil, err
+	}
 	if !e.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		return nil, common.ErrFunctionNotSupported
 	}
@@ -1674,9 +1705,11 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	if err != nil {
 		return nil, err
 	}
-	if instrumentIDCode := e.cachedInstrumentIDCode(s.AssetType, arg.InstrumentID); instrumentIDCode > 0 {
-		arg.InstrumentIDCode = instrumentIDCode
+	instrumentIDCode, err := e.cachedInstrumentIDCode(s.AssetType, arg.InstrumentID)
+	if err != nil {
+		return nil, err
 	}
+	arg.InstrumentIDCode = instrumentIDCode
 	resp, err := e.WSPlaceOrder(ctx, arg)
 	if err != nil {
 		return nil, err
@@ -1691,17 +1724,21 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	return response, nil
 }
 
-func (e *Exchange) cachedInstrumentIDCode(ai asset.Item, instrumentID string) int64 {
+func (e *Exchange) cachedInstrumentIDCode(ai asset.Item, instrumentID string) (int64, error) {
 	if instrumentID == "" {
-		return 0
+		return 0, errMissingInstrumentID
 	}
 	instType := GetInstrumentTypeFromAssetItem(ai)
 	if instType == "" {
-		return 0
+		return 0, fmt.Errorf("%w: %v", asset.ErrNotSupported, ai)
 	}
-	e.instrumentsInfoMapLock.Lock()
-	defer e.instrumentsInfoMapLock.Unlock()
-	return lookupInstrumentIDCode(e.instrumentsInfoMap[instType], instrumentID)
+	e.instrumentsInfoMapLock.RLock()
+	instrumentIDCode := lookupInstrumentIDCode(e.instrumentsInfoMap[instType], instrumentID)
+	e.instrumentsInfoMapLock.RUnlock()
+	if instrumentIDCode <= 0 {
+		return 0, fmt.Errorf("%w: %s", errMissingInstrumentIDCode, instrumentID)
+	}
+	return instrumentIDCode, nil
 }
 
 func lookupInstrumentIDCode(instruments []Instrument, instrumentID string) int64 {
@@ -1802,9 +1839,11 @@ ordersLoop:
 			if remaining[i].InstrumentID == "" {
 				continue
 			}
-			if instrumentIDCode := e.cachedInstrumentIDCode(orderCancellation.AssetType, remaining[i].InstrumentID); instrumentIDCode > 0 {
-				remaining[i].InstrumentIDCode = instrumentIDCode
+			instrumentIDCode, codeErr := e.cachedInstrumentIDCode(orderCancellation.AssetType, remaining[i].InstrumentID)
+			if codeErr != nil {
+				return order.CancelAllResponse{}, codeErr
 			}
+			remaining[i].InstrumentIDCode = instrumentIDCode
 		}
 	}
 	loop := int(math.Ceil(float64(len(remaining)) / 20.0))

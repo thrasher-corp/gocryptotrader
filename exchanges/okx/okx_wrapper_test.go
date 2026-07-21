@@ -85,38 +85,42 @@ func TestLookupInstrumentIDCode(t *testing.T) {
 	}
 }
 
-func TestOptionInstrumentFamilyWrapper(t *testing.T) {
-	t.Parallel()
-
-	family, err := optionInstrumentFamily("BTC-USD-240329-70000-C")
-	require.NoError(t, err, "dash-delimited option instrument ID must not error")
-	require.Equal(t, "BTC-USD", family, "family selector must parse option instrument ID")
-
-	family, err = optionInstrumentFamily("ETH_USD_240329_3500_P")
-	require.NoError(t, err, "underscore-delimited option instrument ID must not error")
-	require.Equal(t, "ETH_USD", family, "family selector must parse underscore instrument ID")
-
-	family, err = optionInstrumentFamily("INVALID")
-	require.ErrorIs(t, err, errMissingTradeRateLimitScope, "invalid option instrument ID must return missing scope error")
-	require.Empty(t, family, "invalid option instrument ID must not return a family")
-}
-
 func TestCachedInstrumentIDCode(t *testing.T) {
 	t.Parallel()
 
-	ex := &Exchange{
-		instrumentsInfoMap: map[string][]Instrument{
-			instTypeSpot: {
-				{
-					InstrumentID:     currency.NewPairWithDelimiter("BTC", "USDT", "-"),
-					InstrumentIDCode: types.Number(123),
-				},
-			},
-		},
+	testCases := []struct {
+		name          string
+		assetType     asset.Item
+		instrumentID  string
+		expected      int64
+		expectedError error
+	}{
+		{name: "empty instrument ID", assetType: asset.Spot, expectedError: errMissingInstrumentID},
+		{name: "unsupported asset", assetType: asset.Empty, instrumentID: "BTC-USDT", expectedError: asset.ErrNotSupported},
+		{name: "cache miss", assetType: asset.Spot, instrumentID: "ETH-USDT", expectedError: errMissingInstrumentIDCode},
+		{name: "cache hit", assetType: asset.Spot, instrumentID: "BTC-USDT", expected: 123},
 	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	assert.Zero(t, ex.cachedInstrumentIDCode(asset.Spot, ""), "empty instrument ID should return zero")
-	assert.Zero(t, ex.cachedInstrumentIDCode(asset.Empty, "BTC-USDT"), "invalid asset should return zero")
-	assert.Zero(t, ex.cachedInstrumentIDCode(asset.Spot, "ETH-USDT"), "missing cached instrument should return zero")
-	assert.Equal(t, int64(123), ex.cachedInstrumentIDCode(asset.Spot, "BTC-USDT"), "cached instrument ID code should be returned")
+			ex := &Exchange{
+				instrumentsInfoMap: map[string][]Instrument{
+					instTypeSpot: {
+						{
+							InstrumentID:     currency.NewPairWithDelimiter("BTC", "USDT", "-"),
+							InstrumentIDCode: types.Number(123),
+						},
+					},
+				},
+			}
+			instrumentIDCode, err := ex.cachedInstrumentIDCode(tc.assetType, tc.instrumentID)
+			if tc.expectedError != nil {
+				require.ErrorIs(t, err, tc.expectedError, "cachedInstrumentIDCode must return expected error")
+				return
+			}
+			require.NoError(t, err, "cachedInstrumentIDCode must not error for a cached instrument")
+			assert.Equal(t, tc.expected, instrumentIDCode, "cached instrument ID code should be returned")
+		})
+	}
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *Exchange {
@@ -27,6 +28,12 @@ func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *E
 
 	ex := new(Exchange)
 	require.NoError(t, testexch.Setup(ex))
+	ex.instrumentsInfoMap[instTypeOption] = []Instrument{
+		{
+			InstrumentID:     mainPair,
+			InstrumentIDCode: types.Number(123),
+		},
+	}
 
 	server := httptest.NewServer(mockws.CurryWsMockUpgrader(t, wsHandler))
 	t.Cleanup(server.Close)
@@ -83,10 +90,15 @@ func connectOKXWithMockedWebsocket(t *testing.T, wsHandler mockws.WsMockFunc) *E
 	return ex
 }
 
-func okxOrderWsMock(_ testing.TB, p []byte, c *gws.Conn) error {
+func okxOrderWsMock(tb testing.TB, p []byte, c *gws.Conn) error {
+	tb.Helper()
+
 	var req struct {
-		ID string `json:"id"`
-		Op string `json:"op"`
+		ID        string `json:"id"`
+		Op        string `json:"op"`
+		Arguments []struct {
+			InstrumentIDCode int64 `json:"instIdCode"`
+		} `json:"args"`
 	}
 	if err := json.Unmarshal(p, &req); err != nil {
 		return err
@@ -98,10 +110,16 @@ func okxOrderWsMock(_ testing.TB, p []byte, c *gws.Conn) error {
 	var response string
 	switch req.Op {
 	case "order":
+		require.Len(tb, req.Arguments, 1, "order request must contain one argument")
+		require.Positive(tb, req.Arguments[0].InstrumentIDCode, "order request must contain instIdCode")
 		response = `{"id":"` + req.ID + `","op":"order","code":"0","msg":"","data":[{"ordId":"submit-order","clOrdId":"client-order","sCode":"0","sMsg":"","ts":"1694153250532"}]}`
 	case "amend-order":
+		require.Len(tb, req.Arguments, 1, "amend request must contain one argument")
+		require.Positive(tb, req.Arguments[0].InstrumentIDCode, "amend request must contain instIdCode")
 		response = `{"id":"` + req.ID + `","op":"amend-order","code":"0","msg":"","data":[{"ordId":"amended-order","sCode":"0","sMsg":""}]}`
 	case "cancel-order":
+		require.Len(tb, req.Arguments, 1, "cancel request must contain one argument")
+		require.Positive(tb, req.Arguments[0].InstrumentIDCode, "cancel request must contain instIdCode")
 		response = `{"id":"` + req.ID + `","op":"cancel-order","code":"0","msg":"","data":[{"ordId":"cancelled-order","sCode":"0","sMsg":""}]}`
 	default:
 		response = `{"id":"` + req.ID + `","op":"` + req.Op + `","code":"1","msg":"operation failed","data":[{"sCode":"51000","sMsg":"failed"}]}`
@@ -112,75 +130,173 @@ func okxOrderWsMock(_ testing.TB, p []byte, c *gws.Conn) error {
 func TestWebsocketSubmitOrderMocked(t *testing.T) {
 	t.Parallel()
 
-	ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+	t.Run("nil submission", func(t *testing.T) {
+		t.Parallel()
 
-	resp, err := ex.WebsocketSubmitOrder(t.Context(), &order.Submit{
-		Exchange:  ex.Name,
-		Pair:      mainPair,
-		AssetType: asset.Options,
-		Side:      order.Long,
-		Type:      order.Limit,
-		Amount:    1,
-		Price:     1,
+		_, err := new(Exchange).WebsocketSubmitOrder(t.Context(), nil)
+		require.ErrorIs(t, err, common.ErrNilPointer, "nil submission must return the common nil error")
 	})
-	require.NoError(t, err)
-	require.Equal(t, "submit-order", resp.OrderID)
-	assert.Equal(t, "client-order", resp.ClientOrderID)
-	expectedTimestamp := time.UnixMilli(1694153250532)
-	assert.True(t, resp.Date.Equal(expectedTimestamp), "Date should match exchange timestamp")
-	assert.True(t, resp.LastUpdated.Equal(expectedTimestamp), "LastUpdated should match exchange timestamp")
 
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
-	_, err = ex.WebsocketSubmitOrder(t.Context(), &order.Submit{
-		Exchange:  ex.Name,
-		Pair:      mainPair,
-		AssetType: asset.Options,
-		Side:      order.Long,
-		Type:      order.Limit,
-		Amount:    1,
-		Price:     1,
+	t.Run("valid submission", func(t *testing.T) {
+		t.Parallel()
+
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		resp, err := ex.WebsocketSubmitOrder(t.Context(), &order.Submit{
+			Exchange:  ex.Name,
+			Pair:      mainPair,
+			AssetType: asset.Options,
+			Side:      order.Long,
+			Type:      order.Limit,
+			Amount:    1,
+			Price:     1,
+		})
+		require.NoError(t, err, "WebsocketSubmitOrder must not error")
+		require.Equal(t, "submit-order", resp.OrderID, "order ID must match")
+		assert.Equal(t, "client-order", resp.ClientOrderID, "client order ID should match")
+		expectedTimestamp := time.UnixMilli(1694153250532)
+		assert.True(t, resp.Date.Equal(expectedTimestamp), "Date should match exchange timestamp")
+		assert.True(t, resp.LastUpdated.Equal(expectedTimestamp), "LastUpdated should match exchange timestamp")
 	})
-	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+
+	t.Run("missing instrument ID code", func(t *testing.T) {
+		t.Parallel()
+
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		ex.instrumentsInfoMapLock.Lock()
+		delete(ex.instrumentsInfoMap, instTypeOption)
+		ex.instrumentsInfoMapLock.Unlock()
+		_, err := ex.WebsocketSubmitOrder(t.Context(), &order.Submit{
+			Exchange:  ex.Name,
+			Pair:      mainPair,
+			AssetType: asset.Options,
+			Side:      order.Long,
+			Type:      order.Limit,
+			Amount:    1,
+			Price:     1,
+		})
+		require.ErrorIs(t, err, errMissingInstrumentIDCode, "missing cached instrument code must return the expected error")
+	})
+
+	t.Run("authenticated websocket unavailable", func(t *testing.T) {
+		t.Parallel()
+
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		_, err := ex.WebsocketSubmitOrder(t.Context(), &order.Submit{
+			Exchange:  ex.Name,
+			Pair:      mainPair,
+			AssetType: asset.Options,
+			Side:      order.Long,
+			Type:      order.Limit,
+			Amount:    1,
+			Price:     1,
+		})
+		require.ErrorIs(t, err, common.ErrFunctionNotSupported, "unavailable authenticated websocket must return unsupported")
+	})
 }
 
 func TestWebsocketModifyOrderMocked(t *testing.T) {
 	t.Parallel()
 
-	ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+	t.Run("nil modification", func(t *testing.T) {
+		t.Parallel()
 
-	modify := &order.Modify{
-		OrderID:   "order-1",
-		AssetType: asset.Options,
-		Pair:      mainPair,
-		Amount:    1,
-		Price:     1,
-	}
-	resp, err := ex.WebsocketModifyOrder(t.Context(), modify)
-	require.NoError(t, err)
-	require.Equal(t, "order-1", resp.OrderID)
+		_, err := new(Exchange).WebsocketModifyOrder(t.Context(), nil)
+		require.ErrorIs(t, err, common.ErrNilPointer, "nil modification must return the common nil error")
+	})
 
-	invalid := *modify
-	invalid.Amount = 1.5
-	_, err = ex.WebsocketModifyOrder(t.Context(), &invalid)
-	require.ErrorIs(t, err, errContractAmountCanNotBeDecimal)
+	t.Run("valid modification", func(t *testing.T) {
+		t.Parallel()
+
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		resp, err := ex.WebsocketModifyOrder(t.Context(), &order.Modify{
+			OrderID:   "order-1",
+			AssetType: asset.Options,
+			Pair:      mainPair,
+			Amount:    1,
+			Price:     1,
+		})
+		require.NoError(t, err, "WebsocketModifyOrder must not error")
+		assert.Equal(t, "order-1", resp.OrderID, "order ID should match")
+	})
+
+	t.Run("decimal contract amount", func(t *testing.T) {
+		t.Parallel()
+
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		_, err := ex.WebsocketModifyOrder(t.Context(), &order.Modify{
+			OrderID:   "order-1",
+			AssetType: asset.Options,
+			Pair:      mainPair,
+			Amount:    1.5,
+			Price:     1,
+		})
+		require.ErrorIs(t, err, errContractAmountCanNotBeDecimal, "decimal contract amount must return expected error")
+	})
+
+	t.Run("algorithmic order", func(t *testing.T) {
+		t.Parallel()
+
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		_, err := ex.WebsocketModifyOrder(t.Context(), &order.Modify{
+			OrderID:   "order-1",
+			AssetType: asset.Options,
+			Pair:      mainPair,
+			Amount:    1,
+			Price:     1,
+			Type:      order.Trigger,
+		})
+		require.ErrorIs(t, err, order.ErrUnsupportedOrderType, "algorithmic modification must not use the regular websocket endpoint")
+	})
 }
 
 func TestWebsocketCancelOrderMocked(t *testing.T) {
 	t.Parallel()
 
-	ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+	t.Run("nil cancellation", func(t *testing.T) {
+		t.Parallel()
 
-	cancel := &order.Cancel{
-		OrderID:   "1",
-		AssetType: asset.Options,
-		Pair:      mainPair,
-	}
-	err := ex.WebsocketCancelOrder(t.Context(), cancel)
-	require.NoError(t, err)
+		err := new(Exchange).WebsocketCancelOrder(t.Context(), nil)
+		require.ErrorIs(t, err, common.ErrNilPointer, "nil cancellation must return the common nil error")
+	})
 
-	ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
-	err = ex.WebsocketCancelOrder(t.Context(), cancel)
-	require.ErrorIs(t, err, common.ErrFunctionNotSupported)
+	t.Run("valid cancellation", func(t *testing.T) {
+		t.Parallel()
+
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		err := ex.WebsocketCancelOrder(t.Context(), &order.Cancel{
+			OrderID:   "1",
+			AssetType: asset.Options,
+			Pair:      mainPair,
+		})
+		require.NoError(t, err, "WebsocketCancelOrder must not error")
+	})
+
+	t.Run("algorithmic order", func(t *testing.T) {
+		t.Parallel()
+
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		err := ex.WebsocketCancelOrder(t.Context(), &order.Cancel{
+			OrderID:   "1",
+			AssetType: asset.Options,
+			Pair:      mainPair,
+			Type:      order.Trigger,
+		})
+		require.ErrorIs(t, err, order.ErrUnsupportedOrderType, "algorithmic cancellation must not use the regular websocket endpoint")
+	})
+
+	t.Run("authenticated websocket unavailable", func(t *testing.T) {
+		t.Parallel()
+
+		ex := connectOKXWithMockedWebsocket(t, okxOrderWsMock)
+		ex.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		err := ex.WebsocketCancelOrder(t.Context(), &order.Cancel{
+			OrderID:   "1",
+			AssetType: asset.Options,
+			Pair:      mainPair,
+		})
+		require.ErrorIs(t, err, common.ErrFunctionNotSupported, "unavailable authenticated websocket must return unsupported")
+	})
 }
 
 func TestWebsocketSpreadRouting(t *testing.T) {

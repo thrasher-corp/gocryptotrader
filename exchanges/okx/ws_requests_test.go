@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -41,19 +42,32 @@ func TestWSPlaceOrder(t *testing.T) {
 
 	_, err := e.WSPlaceOrder(t.Context(), nil)
 	require.ErrorIs(t, err, common.ErrNilPointer)
+	_, err = e.WSPlaceOrder(t.Context(), &PlaceOrderRequestParam{
+		InstrumentID: mainPair.String(),
+		TradeMode:    TradeModeIsolated,
+		Side:         order.Buy.String(),
+		OrderType:    orderPostOnly,
+		Amount:       1,
+	})
+	require.ErrorIs(t, err, errMissingInstrumentIDCode, "WSPlaceOrder must require instIdCode")
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	testexch.SetupWs(t, e)
+	testexch.UpdatePairsOnce(t, e)
+	instrumentIDCode, err := e.cachedInstrumentIDCode(asset.Spot, mainPair.String())
+	require.NoError(t, err, "cachedInstrumentIDCode must return the live instrument code")
 
 	out := &PlaceOrderRequestParam{
-		InstrumentID: mainPair.String(),
-		TradeMode:    TradeModeIsolated, // depending on portfolio settings this can also be TradeModeCash
-		Side:         "Buy",
-		OrderType:    "post_only",
-		Amount:       0.0001,
-		Price:        20000,
-		Currency:     "USDT",
+		AssetType:        asset.Spot,
+		InstrumentID:     mainPair.String(),
+		InstrumentIDCode: instrumentIDCode,
+		TradeMode:        TradeModeIsolated, // depending on portfolio settings this can also be TradeModeCash
+		Side:             "Buy",
+		OrderType:        "post_only",
+		Amount:           0.0001,
+		Price:            20000,
+		Currency:         "USDT",
 	}
 
 	got, err := e.WSPlaceOrder(request.WithVerbose(t.Context()), out)
@@ -72,19 +86,32 @@ func TestWSPlaceMultipleOrders(t *testing.T) {
 
 	_, err = e.WSPlaceMultipleOrders(t.Context(), []PlaceOrderRequestParam{{}})
 	require.ErrorIs(t, err, errMissingInstrumentID)
+	_, err = e.WSPlaceMultipleOrders(t.Context(), []PlaceOrderRequestParam{{
+		InstrumentID: mainPair.String(),
+		TradeMode:    TradeModeIsolated,
+		Side:         order.Buy.String(),
+		OrderType:    orderPostOnly,
+		Amount:       1,
+	}})
+	require.ErrorIs(t, err, errMissingInstrumentIDCode, "WSPlaceMultipleOrders must require instIdCode")
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	testexch.SetupWs(t, e)
+	testexch.UpdatePairsOnce(t, e)
+	instrumentIDCode, err := e.cachedInstrumentIDCode(asset.Spot, mainPair.String())
+	require.NoError(t, err, "cachedInstrumentIDCode must return the live instrument code")
 
 	out := PlaceOrderRequestParam{
-		InstrumentID: mainPair.String(),
-		TradeMode:    TradeModeIsolated, // depending on portfolio settings this can also be TradeModeCash
-		Side:         "Buy",
-		OrderType:    "post_only",
-		Amount:       0.0001,
-		Price:        20000,
-		Currency:     "USDT",
+		AssetType:        asset.Spot,
+		InstrumentID:     mainPair.String(),
+		InstrumentIDCode: instrumentIDCode,
+		TradeMode:        TradeModeIsolated, // depending on portfolio settings this can also be TradeModeCash
+		Side:             "Buy",
+		OrderType:        "post_only",
+		Amount:           0.0001,
+		Price:            20000,
+		Currency:         "USDT",
 	}
 
 	got, err := e.WSPlaceMultipleOrders(request.WithVerbose(t.Context()), []PlaceOrderRequestParam{out})
@@ -102,13 +129,19 @@ func TestWSCancelOrder(t *testing.T) {
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
 	_, err = e.WSCancelOrder(t.Context(), &CancelOrderRequestParam{InstrumentID: mainPair.String()})
+	require.ErrorIs(t, err, errMissingInstrumentIDCode, "WSCancelOrder must require instIdCode")
+
+	_, err = e.WSCancelOrder(t.Context(), &CancelOrderRequestParam{InstrumentID: mainPair.String(), InstrumentIDCode: 1})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	testexch.SetupWs(t, e)
+	testexch.UpdatePairsOnce(t, e)
+	instrumentIDCode, err := e.cachedInstrumentIDCode(asset.Spot, mainPair.String())
+	require.NoError(t, err, "cachedInstrumentIDCode must return the live instrument code")
 
-	got, err := e.WSCancelOrder(request.WithVerbose(t.Context()), &CancelOrderRequestParam{InstrumentID: mainPair.String(), OrderID: "2341161427393388544"})
+	got, err := e.WSCancelOrder(request.WithVerbose(t.Context()), &CancelOrderRequestParam{InstrumentID: mainPair.String(), InstrumentIDCode: instrumentIDCode, OrderID: "2341161427393388544"})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
@@ -126,13 +159,19 @@ func TestWSCancelMultipleOrders(t *testing.T) {
 	require.ErrorIs(t, err, errMissingInstrumentID)
 
 	_, err = e.WSCancelMultipleOrders(t.Context(), []CancelOrderRequestParam{{InstrumentID: mainPair.String()}})
+	require.ErrorIs(t, err, errMissingInstrumentIDCode, "WSCancelMultipleOrders must require instIdCode")
+
+	_, err = e.WSCancelMultipleOrders(t.Context(), []CancelOrderRequestParam{{InstrumentID: mainPair.String(), InstrumentIDCode: 1}})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	testexch.SetupWs(t, e)
+	testexch.UpdatePairsOnce(t, e)
+	instrumentIDCode, err := e.cachedInstrumentIDCode(asset.Spot, mainPair.String())
+	require.NoError(t, err, "cachedInstrumentIDCode must return the live instrument code")
 
-	got, err := e.WSCancelMultipleOrders(request.WithVerbose(t.Context()), []CancelOrderRequestParam{{InstrumentID: mainPair.String(), OrderID: "2341184920998715392"}})
+	got, err := e.WSCancelMultipleOrders(request.WithVerbose(t.Context()), []CancelOrderRequestParam{{InstrumentID: mainPair.String(), InstrumentIDCode: instrumentIDCode, OrderID: "2341184920998715392"}})
 	require.NoError(t, err)
 	require.NotEmpty(t, got)
 }
@@ -149,6 +188,10 @@ func TestWSAmendOrder(t *testing.T) {
 
 	out.InstrumentID = mainPair.String()
 	_, err = e.WSAmendOrder(t.Context(), out)
+	require.ErrorIs(t, err, errMissingInstrumentIDCode, "WSAmendOrder must require instIdCode")
+
+	out.InstrumentIDCode = 1
+	_, err = e.WSAmendOrder(t.Context(), out)
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	out.OrderID = "2341200629875154944"
@@ -158,6 +201,9 @@ func TestWSAmendOrder(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 
 	testexch.SetupWs(t, e)
+	testexch.UpdatePairsOnce(t, e)
+	out.InstrumentIDCode, err = e.cachedInstrumentIDCode(asset.Spot, mainPair.String())
+	require.NoError(t, err, "cachedInstrumentIDCode must return the live instrument code")
 
 	out.NewPrice = 21000
 	got, err := e.WSAmendOrder(request.WithVerbose(t.Context()), out)
@@ -180,6 +226,10 @@ func TestWSAmendMultipleOrders(t *testing.T) {
 
 	out.InstrumentID = mainPair.String()
 	_, err = e.WSAmendMultipleOrders(t.Context(), []AmendOrderRequestParams{out})
+	require.ErrorIs(t, err, errMissingInstrumentIDCode, "WSAmendMultipleOrders must require instIdCode")
+
+	out.InstrumentIDCode = 1
+	_, err = e.WSAmendMultipleOrders(t.Context(), []AmendOrderRequestParams{out})
 	require.ErrorIs(t, err, order.ErrOrderIDNotSet)
 
 	out.OrderID = "2341200629875154944"
@@ -188,6 +238,9 @@ func TestWSAmendMultipleOrders(t *testing.T) {
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	testexch.SetupWs(t, e)
+	testexch.UpdatePairsOnce(t, e)
+	out.InstrumentIDCode, err = e.cachedInstrumentIDCode(asset.Spot, mainPair.String())
+	require.NoError(t, err, "cachedInstrumentIDCode must return the live instrument code")
 	out.NewPrice = 20000
 
 	got, err := e.WSAmendMultipleOrders(request.WithVerbose(t.Context()), []AmendOrderRequestParams{out})
@@ -299,6 +352,20 @@ func TestParseWSResponseErrors(t *testing.T) {
 	require.ErrorIs(t, err, errPartialSuccess)
 	require.ErrorIs(t, err, err1)
 	require.ErrorIs(t, err, err2)
+}
+
+func TestSendAuthenticatedWebsocketRequest(t *testing.T) {
+	t.Parallel()
+
+	err := new(Exchange).sendAuthenticatedWebsocketRequest(t.Context(), request.Unset, "id", "", nil, nil)
+	require.ErrorIs(t, err, errInvalidWebsocketRequest, "sendAuthenticatedWebsocketRequest must validate the request")
+}
+
+func TestSendAuthenticatedWebsocketRequestWithRateLimitWeight(t *testing.T) {
+	t.Parallel()
+
+	err := new(Exchange).sendAuthenticatedWebsocketRequestWithRateLimitWeight(t.Context(), request.Unset, 1, "id", "", nil, nil)
+	require.ErrorIs(t, err, errInvalidWebsocketRequest, "sendAuthenticatedWebsocketRequestWithRateLimitWeight must validate the request")
 }
 
 func TestSingleItem(t *testing.T) {

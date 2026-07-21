@@ -1137,6 +1137,22 @@ func TestSendMessageReturnResponseWithRateLimitWeight(t *testing.T) {
 	require.NoError(t, err, "SendMessageReturnResponseWithRateLimitWeight must not error")
 }
 
+func TestSendRawMessage(t *testing.T) {
+	t.Parallel()
+
+	wc := new(connection)
+	err := wc.sendRawMessage(t.Context(), request.Unset, 2, gws.TextMessage, []byte("test"))
+	require.ErrorIs(t, err, errWebsocketIsDisconnected, "sendRawMessage must reject a disconnected connection")
+}
+
+func TestSendMessageReturnResponses(t *testing.T) {
+	t.Parallel()
+
+	wc := &connection{Match: NewMatch()}
+	_, err := wc.sendMessageReturnResponses(t.Context(), request.Unset, 1, "signature", make(chan struct{}), 1, nil)
+	require.Error(t, err, "sendMessageReturnResponses must return a JSON encoding error")
+}
+
 func TestWaitForResponses(t *testing.T) {
 	t.Parallel()
 	dummy := &connection{
