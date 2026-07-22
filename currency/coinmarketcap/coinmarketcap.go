@@ -402,7 +402,7 @@ func (c *Coinmarketcap) GetExchangeMap(start, limit int64) ([]ExchangeMap, error
 		Status Status        `json:"status"`
 	}{}
 
-	err := c.CheckAccountPlan(Startup)
+	err := c.CheckAccountPlan(Basic)
 	if err != nil {
 		return resp.Data, err
 	}

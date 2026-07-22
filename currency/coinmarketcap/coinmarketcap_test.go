@@ -226,6 +226,20 @@ func TestGetExchangeMap(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetExchangeMapAllowsBasicPlan(t *testing.T) {
+	t.Parallel()
+	c, closeFn := newSyntheticClient(t, map[string]string{
+		"/v1/exchange/map": `{"data":[{"id":270,"name":"Binance","slug":"binance","is_active":1}],"status":{"error_code":0}}`,
+	})
+	t.Cleanup(closeFn)
+	c.Plan = Basic
+
+	result, err := c.GetExchangeMap(1, 10)
+	require.NoError(t, err, "Basic-plan exchange map request must not error")
+	require.Len(t, result, 1, "exchange map must contain the returned entry")
+	assert.Equal(t, int64(270), result[0].ID, "exchange ID should match")
+}
+
 func TestGetExchangeHistoricalListings(t *testing.T) {
 	t.Parallel()
 	c := newConfiguredClient(t)
