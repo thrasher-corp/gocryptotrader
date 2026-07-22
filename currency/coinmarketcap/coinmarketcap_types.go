@@ -411,7 +411,7 @@ type GlobalMeticHistoricalQuotes struct {
 // PriceConversion defines price conversion data
 type PriceConversion struct {
 	Symbol      string    `json:"symbol"`
-	ID          string    `json:"id"`
+	ID          int64     `json:"id"`
 	Name        string    `json:"name"`
 	Amount      float64   `json:"amount"`
 	LastUpdated time.Time `json:"last_updated"`

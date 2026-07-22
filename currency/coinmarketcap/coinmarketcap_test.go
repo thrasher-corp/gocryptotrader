@@ -319,6 +319,19 @@ func TestGetPriceConversion(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetPriceConversionDecodesNumericID(t *testing.T) {
+	t.Parallel()
+	c, closeFn := newSyntheticClient(t, map[string]string{
+		"/v2/tools/price-conversion": `{"data":{"symbol":"BTC","id":1,"name":"Bitcoin","amount":50,"last_updated":"2018-06-06T08:04:36Z","quote":{"USD":{"price":284656.08}}},"status":{"error_code":0}}`,
+	})
+	t.Cleanup(closeFn)
+
+	result, err := c.GetPriceConversion(50, 1, time.Time{})
+	require.NoError(t, err, "price conversion request must not error")
+	assert.Equal(t, int64(1), result.ID, "price conversion ID should match")
+	assert.Equal(t, 284656.08, result.Quote["USD"].Price, "converted price should match")
+}
+
 func TestSetAccountPlan(t *testing.T) {
 	t.Parallel()
 	var c Coinmarketcap
