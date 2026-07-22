@@ -218,6 +218,20 @@ func TestGetExchangeInfo(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetExchangeInfoAllowsBasicPlan(t *testing.T) {
+	t.Parallel()
+	c, closeFn := newSyntheticClient(t, map[string]string{
+		"/v1/exchange/info": `{"data":{"1":{"id":270,"name":"Binance","slug":"binance"}},"status":{"error_code":0}}`,
+	})
+	t.Cleanup(closeFn)
+	c.Plan = Basic
+
+	result, err := c.GetExchangeInfo(1)
+	require.NoError(t, err, "Basic-plan exchange metadata request must not error")
+	require.Contains(t, result, "1", "exchange metadata must contain the requested entry")
+	assert.Equal(t, int64(270), result["1"].ID, "exchange ID should match")
+}
+
 func TestGetExchangeMap(t *testing.T) {
 	t.Parallel()
 	c := newConfiguredClient(t)

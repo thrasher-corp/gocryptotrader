@@ -363,7 +363,7 @@ func (c *Coinmarketcap) GetExchangeInfo(exchangeID ...int64) (ExchangeInfo, erro
 		Status Status       `json:"status"`
 	}{}
 
-	err := c.CheckAccountPlan(Startup)
+	err := c.CheckAccountPlan(Basic)
 	if err != nil {
 		return resp.Data, err
 	}
