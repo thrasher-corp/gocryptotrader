@@ -258,6 +258,21 @@ func TestGetExchangeLatestQuotes(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetExchangeLatestQuotesDecodesResultMap(t *testing.T) {
+	t.Parallel()
+	c, closeFn := newSyntheticClient(t, map[string]string{
+		"/v1/exchange/quotes/latest": `{"data":{"1":{"id":270,"name":"Binance","slug":"binance","quote":{"USD":{"volume_24h":768478308.52}}},"2":{"id":89,"name":"Coinbase Exchange","slug":"coinbase-exchange","quote":{"USD":{"volume_24h":1234.5}}}},"status":{"error_code":0}}`,
+	})
+	t.Cleanup(closeFn)
+
+	result, err := c.GetExchangeLatestQuotes(1)
+	require.NoError(t, err, "latest exchange quote request must not error")
+	assert.Equal(t, int64(270), result.Binance.ID, "Binance ID should match")
+	require.Len(t, result.Exchanges, 2, "latest exchange quotes must retain every result")
+	assert.Equal(t, "Coinbase Exchange", result.Exchanges["2"].Name, "second exchange name should match")
+	assert.Equal(t, 1234.5, result.Exchanges["2"].Quote["USD"].Volume24H, "second exchange volume should match")
+}
+
 func TestGetExchangeHistoricalQuotes(t *testing.T) {
 	t.Parallel()
 	c := newConfiguredClient(t)

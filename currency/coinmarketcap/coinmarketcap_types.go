@@ -353,7 +353,17 @@ type ExchangeLatestMarketPairs struct {
 	} `json:"market_pairs"`
 }
 
-// ExchangeLatestQuotes defines latest exchange quotations
+// ExchangeLatestQuote defines a latest exchange quotation.
+type ExchangeLatestQuote struct {
+	ID             int64     `json:"id"`
+	Name           string    `json:"name"`
+	Slug           string    `json:"slug"`
+	NumMarketPairs int64     `json:"num_market_pairs"`
+	LastUpdated    time.Time `json:"last_updated"`
+	Quote          QuoteMap  `json:"quote"`
+}
+
+// ExchangeLatestQuotes defines latest exchange quotations.
 type ExchangeLatestQuotes struct {
 	Binance struct {
 		ID             int64     `json:"id"`
@@ -363,6 +373,7 @@ type ExchangeLatestQuotes struct {
 		LastUpdated    time.Time `json:"last_updated"`
 		Quote          QuoteMap  `json:"quote"`
 	} `json:"binance"`
+	Exchanges map[string]ExchangeLatestQuote `json:"-"`
 }
 
 // ExchangeHistoricalQuotes defines historical exchange quotations
