@@ -498,7 +498,7 @@ func (c *Coinmarketcap) GetExchangeLatestQuotes(exchangeID ...int64) (ExchangeLa
 	var result ExchangeLatestQuotes
 	resp := struct {
 		Data   map[string]ExchangeLatestQuote `json:"data"`
-		Status Status                           `json:"status"`
+		Status Status                         `json:"status"`
 	}{}
 
 	err := c.CheckAccountPlan(Standard)
@@ -548,7 +548,7 @@ func (c *Coinmarketcap) GetExchangeLatestQuotes(exchangeID ...int64) (ExchangeLa
 func (c *Coinmarketcap) GetExchangeHistoricalQuotes(exchangeID int64, tStart, tEnd time.Time) (ExchangeHistoricalQuotes, error) {
 	resp := struct {
 		Data   map[string]ExchangeHistoricalQuotes `json:"data"`
-		Status Status                               `json:"status"`
+		Status Status                              `json:"status"`
 	}{}
 
 	err := c.CheckAccountPlan(Standard)
