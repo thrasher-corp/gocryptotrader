@@ -360,6 +360,28 @@ func TestGetPriceConversionDecodesNumericID(t *testing.T) {
 	assert.Equal(t, 284656.08, result.Quote["USD"].Price, "converted price should match")
 }
 
+func TestGetPriceConversionPlanAccess(t *testing.T) {
+	t.Parallel()
+	responses := map[string]string{
+		"/v2/tools/price-conversion": `{"data":{"symbol":"BTC","id":1,"name":"Bitcoin","amount":1,"quote":{"USD":{"price":2}}},"status":{"error_code":0}}`,
+	}
+	c, closeFn := newSyntheticClient(t, responses)
+	t.Cleanup(closeFn)
+	c.Plan = Basic
+
+	_, err := c.GetPriceConversion(1, 1, time.Time{})
+	require.NoError(t, err, "Basic-plan latest price conversion must not error")
+
+	_, err = c.GetPriceConversion(1, 1, time.Now())
+	assert.ErrorIs(t, err, errFunctionUseNotAllowed, "Basic-plan historical conversion should return the plan error")
+
+	historicalClient, historicalCloseFn := newSyntheticClient(t, responses)
+	t.Cleanup(historicalCloseFn)
+	historicalClient.Plan = Hobbyist
+	_, err = historicalClient.GetPriceConversion(1, 1, time.Now())
+	assert.NoError(t, err, "Hobbyist-plan historical conversion should not error")
+}
+
 func TestSetAccountPlan(t *testing.T) {
 	t.Parallel()
 	var c Coinmarketcap

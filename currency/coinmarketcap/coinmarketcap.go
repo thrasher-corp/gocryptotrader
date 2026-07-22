@@ -651,7 +651,11 @@ func (c *Coinmarketcap) GetPriceConversion(amount float64, currencyID int64, atH
 		Status Status          `json:"status"`
 	}{}
 
-	err := c.CheckAccountPlan(Hobbyist)
+	minimumPlan := Basic
+	if !atHistoricTime.IsZero() {
+		minimumPlan = Hobbyist
+	}
+	err := c.CheckAccountPlan(minimumPlan)
 	if err != nil {
 		return resp.Data, err
 	}
