@@ -2,7 +2,6 @@ package coinmarketcap
 
 import (
 	"fmt"
-	"maps"
 	"strconv"
 	"time"
 
@@ -81,6 +80,8 @@ type Status struct {
 
 // Currency defines a generic sub type to capture currency data
 type Currency struct {
+	ID                     int64     `json:"id"`
+	Symbol                 string    `json:"symbol"`
 	Price                  float64   `json:"price"`
 	Volume24H              float64   `json:"volume_24h"`
 	Volume24HAdjusted      float64   `json:"volume_24h_adjusted"`
@@ -434,15 +435,19 @@ func (c *APIErrorCode) UnmarshalJSON(data []byte) error {
 
 // UnmarshalJSON handles quote payloads that may be either an object map or array.
 func (q *QuoteMap) UnmarshalJSON(data []byte) error {
-	if err := json.Unmarshal(data, (*map[string]Currency)(q)); err == nil {
+	var quotes map[string]Currency
+	if err := json.Unmarshal(data, &quotes); err == nil {
+		*q = quotes
 		return nil
 	}
-	var arr []map[string]Currency
+	var arr []Currency
 	if err := json.Unmarshal(data, &arr); err != nil {
 		return err
 	}
+	quotes = make(QuoteMap, len(arr))
 	for i := range arr {
-		maps.Copy(*q, arr[i])
+		quotes[arr[i].Symbol] = arr[i]
 	}
+	*q = quotes
 	return nil
 }

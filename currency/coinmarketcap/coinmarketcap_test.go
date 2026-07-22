@@ -320,14 +320,27 @@ func TestQuoteMapUnmarshal(t *testing.T) {
 	t.Parallel()
 	var qm QuoteMap
 	err := qm.UnmarshalJSON([]byte(`{"USD":{"price":1.23},"BTC":{"price":0.1}}`))
-	require.NoError(t, err)
-	assert.Equal(t, 1.23, qm["USD"].Price)
-	assert.Equal(t, 0.1, qm["BTC"].Price)
+	require.NoError(t, err, "object quote map must unmarshal")
+	assert.Equal(t, 1.23, qm["USD"].Price, "USD price should match")
+	assert.Equal(t, 0.1, qm["BTC"].Price, "BTC price should match")
 
-	err = qm.UnmarshalJSON([]byte(`[{"USD":{"price":2.34}},{"ETH":{"price":3.45}}]`))
-	require.NoError(t, err)
-	assert.Equal(t, 2.34, qm["USD"].Price)
-	assert.Equal(t, 3.45, qm["ETH"].Price)
+	var v3Quotes QuoteMap
+	err = v3Quotes.UnmarshalJSON([]byte(`[{"id":2781,"symbol":"USD","price":2.34},{"id":1027,"symbol":"ETH","price":3.45}]`))
+	require.NoError(t, err, "v3 quote array must unmarshal")
+	assert.Equal(t, int64(2781), v3Quotes["USD"].ID, "USD ID should match")
+	assert.Equal(t, "USD", v3Quotes["USD"].Symbol, "USD symbol should match")
+	assert.Equal(t, 2.34, v3Quotes["USD"].Price, "USD price should match")
+	assert.Equal(t, int64(1027), v3Quotes["ETH"].ID, "ETH ID should match")
+	assert.Equal(t, "ETH", v3Quotes["ETH"].Symbol, "ETH symbol should match")
+	assert.Equal(t, 3.45, v3Quotes["ETH"].Price, "ETH price should match")
+
+	var empty QuoteMap
+	err = empty.UnmarshalJSON([]byte(`[]`))
+	require.NoError(t, err, "empty quote array must unmarshal")
+	assert.NotNil(t, empty, "empty quote array should initialise the map")
+
+	err = qm.UnmarshalJSON([]byte(`[{"id":"invalid"}]`))
+	assert.Error(t, err, "invalid quote array should error")
 }
 
 func TestAPIErrorCodeUnmarshal(t *testing.T) {
