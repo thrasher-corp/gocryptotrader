@@ -21,7 +21,12 @@ const (
 	marginPoolLoanPageLimit = 100
 )
 
-var errInvalidLimit = errors.New("invalid limit")
+var (
+	errInvalidLimit                  = errors.New("invalid limit")
+	errInvalidIsolatedMarginLoanType = errors.New("invalid isolated margin loan type: must be \"borrow\" or \"repay\"")
+	errAmountOverriddenByRepaidAll   = errors.New("amount is overridden when repaid_all is true")
+	errInvalidRepaidAllOperation     = errors.New("repaid_all is only valid for repay operations")
+)
 
 // TransferCollateralToIsolatedMargin transfers collateral from spot account to isolated margin account for a specific currency and pair.
 func (e *Exchange) TransferCollateralToIsolatedMargin(ctx context.Context, pair currency.Pair, ccy currency.Code, amount float64) (*TransactionIDResponse, error) {
@@ -175,9 +180,16 @@ func (e *Exchange) IsolatedMarginBorrowOrRepay(ctx context.Context, arg *Isolate
 		return currency.ErrCurrencyCodeEmpty
 	}
 	if arg.Type != "borrow" && arg.Type != "repay" {
-		return errors.New("invalid isolated margin loan type: must be \"borrow\" or \"repay\"")
+		return errInvalidIsolatedMarginLoanType
 	}
-	if arg.Amount <= 0 {
+	if arg.RepaidAll {
+		if arg.Type != "repay" {
+			return errInvalidRepaidAllOperation
+		}
+		if arg.Amount > 0 {
+			return errAmountOverriddenByRepaidAll
+		}
+	} else if arg.Amount <= 0 {
 		return fmt.Errorf("%w, amount must be greater than 0", errInvalidAmount)
 	}
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginCreateUniLoanEPL, http.MethodPost, "margin/uni/loans", nil, arg, nil)

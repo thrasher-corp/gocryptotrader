@@ -1,6 +1,7 @@
 package gateio
 
 import (
+	"encoding/json"
 	"net/http"
 	"testing"
 	"time"
@@ -142,18 +143,31 @@ func TestIsolatedMarginBorrowOrRepay(t *testing.T) {
 		Type:         "borrow",
 		Amount:       1,
 	}), currency.ErrCurrencyCodeEmpty)
-	assert.ErrorContains(t, e.IsolatedMarginBorrowOrRepay(t.Context(), &IsolatedBorrowRepayRequest{
+	assert.ErrorIs(t, e.IsolatedMarginBorrowOrRepay(t.Context(), &IsolatedBorrowRepayRequest{
 		CurrencyPair: BTCUSDT,
 		Currency:     currency.BTC,
 		Type:         "invalid",
 		Amount:       1,
-	}), "invalid isolated margin loan type")
+	}), errInvalidIsolatedMarginLoanType)
 	assert.ErrorIs(t, e.IsolatedMarginBorrowOrRepay(t.Context(), &IsolatedBorrowRepayRequest{
 		CurrencyPair: BTCUSDT,
 		Currency:     currency.BTC,
 		Type:         "borrow",
 		Amount:       0,
 	}), errInvalidAmount)
+	assert.ErrorIs(t, e.IsolatedMarginBorrowOrRepay(t.Context(), &IsolatedBorrowRepayRequest{
+		CurrencyPair: BTCUSDT,
+		Currency:     currency.BTC,
+		Type:         "repay",
+		Amount:       1,
+		RepaidAll:    true,
+	}), errAmountOverriddenByRepaidAll)
+	assert.ErrorIs(t, e.IsolatedMarginBorrowOrRepay(t.Context(), &IsolatedBorrowRepayRequest{
+		CurrencyPair: BTCUSDT,
+		Currency:     currency.BTC,
+		Type:         "borrow",
+		RepaidAll:    true,
+	}), errInvalidRepaidAllOperation)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	assert.NoError(t, e.IsolatedMarginBorrowOrRepay(t.Context(), &IsolatedBorrowRepayRequest{
@@ -162,6 +176,19 @@ func TestIsolatedMarginBorrowOrRepay(t *testing.T) {
 		Type:         "repay",
 		Amount:       0.00004,
 	}))
+}
+
+func TestIsolatedBorrowRepayRequestFullRepayment(t *testing.T) {
+	t.Parallel()
+
+	payload, err := json.Marshal(&IsolatedBorrowRepayRequest{
+		CurrencyPair: BTCUSDT,
+		Currency:     currency.BTC,
+		Type:         "repay",
+		RepaidAll:    true,
+	})
+	require.NoError(t, err, "marshalling a full repayment request must not error")
+	assert.JSONEq(t, `{"currency_pair":"BTC_USDT","currency":"BTC","type":"repay","amount":"","repaid_all":true}`, string(payload), "full repayment request should include repaid_all")
 }
 
 func TestGetIsolatedMarginLoanRecords(t *testing.T) {

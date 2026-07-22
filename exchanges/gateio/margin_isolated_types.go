@@ -51,13 +51,13 @@ type IsolatedMarginLendingTier struct {
 	MaximumPermissibleLeverage types.Number `json:"leverage"`
 }
 
-// IsolatedBorrowRepayRequest represents the request parameters for the isolated margin borrow-or-repay
-// endpoint (POST margin/uni/loans).
+// IsolatedBorrowRepayRequest represents the request parameters for the isolated margin borrow-or-repay endpoint.
 type IsolatedBorrowRepayRequest struct {
 	CurrencyPair currency.Pair `json:"currency_pair"`
 	Currency     currency.Code `json:"currency"`
 	Type         string        `json:"type"` // Type is either "borrow" or "repay".
 	Amount       types.Number  `json:"amount"`
+	RepaidAll    bool          `json:"repaid_all,omitempty"` // If true, the amount is ignored and the entire outstanding loan is repaid.
 }
 
 // IsolatedMarginLoanResponse represents a record of borrowing or repaying in an isolated margin account.

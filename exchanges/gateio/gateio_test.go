@@ -684,49 +684,6 @@ func TestRepayALoan(t *testing.T) {
 	}
 }
 
-func TestUniLoanBorrowOrRepay(t *testing.T) {
-	t.Parallel()
-	assert.ErrorIs(t, e.UniLoanBorrowOrRepay(t.Context(), nil), errNilArgument)
-	assert.ErrorIs(t, e.UniLoanBorrowOrRepay(t.Context(), &UniLoanBorrowRepayParam{
-		Currency: currency.BTC,
-		Type:     "borrow",
-		Amount:   1,
-	}), currency.ErrCurrencyPairEmpty)
-	assert.ErrorIs(t, e.UniLoanBorrowOrRepay(t.Context(), &UniLoanBorrowRepayParam{
-		CurrencyPair: currency.NewBTCUSDT(),
-		Type:         "borrow",
-		Amount:       1,
-	}), currency.ErrCurrencyCodeEmpty)
-	assert.ErrorIs(t, e.UniLoanBorrowOrRepay(t.Context(), &UniLoanBorrowRepayParam{
-		CurrencyPair: currency.NewBTCUSDT(),
-		Currency:     currency.BTC,
-		Type:         "invalid",
-		Amount:       1,
-	}), errInvalidUniLoanType)
-	assert.ErrorIs(t, e.UniLoanBorrowOrRepay(t.Context(), &UniLoanBorrowRepayParam{
-		CurrencyPair: currency.NewBTCUSDT(),
-		Currency:     currency.BTC,
-		Type:         "borrow",
-		Amount:       0,
-	}), errInvalidAmount)
-
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	assert.NoError(t, e.UniLoanBorrowOrRepay(t.Context(), &UniLoanBorrowRepayParam{
-		CurrencyPair: currency.Pair{Base: currency.BTC, Quote: currency.USDT, Delimiter: currency.UnderscoreDelimiter},
-		Currency:     currency.BTC,
-		Type:         "borrow",
-		Amount:       0.001,
-	}))
-}
-
-func TestGetUniLoanInterestRecords(t *testing.T) {
-	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	records, err := e.GetUniLoanInterestRecords(t.Context(), BTCUSDT, currency.BTC, 1, 100, time.Time{}, time.Time{})
-	assert.NoError(t, err)
-	assert.NotNil(t, records)
-}
-
 func TestListLoanRepaymentRecords(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
@@ -3127,7 +3084,8 @@ func TestGetOpenInterest(t *testing.T) {
 
 	coinPair := getPair(t, asset.CoinMarginedFutures)
 	usdtPair := getPair(t, asset.USDTMarginedFutures)
-	resp, err = e.GetOpenInterest(t.Context(),
+	resp, err = e.GetOpenInterest(
+		t.Context(),
 		key.PairAsset{Base: coinPair.Base.Item, Quote: coinPair.Quote.Item, Asset: asset.CoinMarginedFutures},
 		key.PairAsset{Base: usdtPair.Base.Item, Quote: usdtPair.Quote.Item, Asset: asset.USDTMarginedFutures},
 	)
