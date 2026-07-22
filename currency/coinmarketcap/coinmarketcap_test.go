@@ -196,6 +196,20 @@ func TestGetCryptocurrencyHistoricalQuotes(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetCryptocurrencyHistoricalQuotesDecodesResultMap(t *testing.T) {
+	t.Parallel()
+	c, closeFn := newSyntheticClient(t, map[string]string{
+		"/v3/cryptocurrency/quotes/historical": `{"data":{"1":{"id":1,"name":"Bitcoin","symbol":"BTC","quotes":[{"timestamp":"2018-06-22T00:00:00Z","quote":{"USD":{"price":6242.48}}}]}},"status":{"error_code":0}}`,
+	})
+	t.Cleanup(closeFn)
+
+	result, err := c.GetCryptocurrencyHistoricalQuotes(1, time.Unix(1, 0), time.Unix(2, 0))
+	require.NoError(t, err, "historical quote request must not error")
+	assert.Equal(t, int64(1), result.ID, "cryptocurrency ID should match")
+	require.Len(t, result.Quotes, 1, "historical quotes must contain the returned entry")
+	assert.Equal(t, 6242.48, result.Quotes[0].Quote.USD.Price, "historical USD price should match")
+}
+
 func TestGetExchangeInfo(t *testing.T) {
 	t.Parallel()
 	c := newConfiguredClient(t)

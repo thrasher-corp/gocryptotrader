@@ -324,13 +324,13 @@ func (c *Coinmarketcap) GetCryptocurrencyLatestQuotes(currencyID ...int64) (Cryp
 // tEnd - refers to the end of the time block if zero will default to time.Now()
 func (c *Coinmarketcap) GetCryptocurrencyHistoricalQuotes(currencyID int64, tStart, tEnd time.Time) (CryptocurrencyHistoricalQuotes, error) {
 	resp := struct {
-		Data   CryptocurrencyHistoricalQuotes `json:"data"`
-		Status Status                         `json:"status"`
+		Data   map[string]CryptocurrencyHistoricalQuotes `json:"data"`
+		Status Status                                    `json:"status"`
 	}{}
 
 	err := c.CheckAccountPlan(Standard)
 	if err != nil {
-		return resp.Data, err
+		return CryptocurrencyHistoricalQuotes{}, err
 	}
 
 	val := url.Values{}
@@ -343,14 +343,14 @@ func (c *Coinmarketcap) GetCryptocurrencyHistoricalQuotes(currencyID int64, tSta
 
 	err = c.SendHTTPRequest(http.MethodGet, endpointGetMarketQuotesHistorical, val, &resp)
 	if err != nil {
-		return resp.Data, err
+		return CryptocurrencyHistoricalQuotes{}, err
 	}
 
 	if resp.Status.ErrorCode != 0 {
-		return resp.Data, fmt.Errorf("%w: %s", errAPIResponse, resp.Status.ErrorMessage)
+		return CryptocurrencyHistoricalQuotes{}, fmt.Errorf("%w: %s", errAPIResponse, resp.Status.ErrorMessage)
 	}
 
-	return resp.Data, nil
+	return resp.Data[strconv.FormatInt(currencyID, 10)], nil
 }
 
 // GetExchangeInfo returns all static metadata for one or more exchanges
