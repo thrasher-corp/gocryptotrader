@@ -324,13 +324,13 @@ func (c *Coinmarketcap) GetCryptocurrencyLatestQuotes(currencyID ...int64) (Cryp
 // tEnd - refers to the end of the time block if zero will default to time.Now()
 func (c *Coinmarketcap) GetCryptocurrencyHistoricalQuotes(currencyID int64, tStart, tEnd time.Time) (CryptocurrencyHistoricalQuotes, error) {
 	resp := struct {
-		Data   CryptocurrencyHistoricalQuotes `json:"data"`
-		Status Status                         `json:"status"`
+		Data   map[string]CryptocurrencyHistoricalQuotes `json:"data"`
+		Status Status                                    `json:"status"`
 	}{}
 
 	err := c.CheckAccountPlan(Standard)
 	if err != nil {
-		return resp.Data, err
+		return CryptocurrencyHistoricalQuotes{}, err
 	}
 
 	val := url.Values{}
@@ -343,14 +343,14 @@ func (c *Coinmarketcap) GetCryptocurrencyHistoricalQuotes(currencyID int64, tSta
 
 	err = c.SendHTTPRequest(http.MethodGet, endpointGetMarketQuotesHistorical, val, &resp)
 	if err != nil {
-		return resp.Data, err
+		return CryptocurrencyHistoricalQuotes{}, err
 	}
 
 	if resp.Status.ErrorCode != 0 {
-		return resp.Data, fmt.Errorf("%w: %s", errAPIResponse, resp.Status.ErrorMessage)
+		return CryptocurrencyHistoricalQuotes{}, fmt.Errorf("%w: %s", errAPIResponse, resp.Status.ErrorMessage)
 	}
 
-	return resp.Data, nil
+	return resp.Data[strconv.FormatInt(currencyID, 10)], nil
 }
 
 // GetExchangeInfo returns all static metadata for one or more exchanges
@@ -363,7 +363,7 @@ func (c *Coinmarketcap) GetExchangeInfo(exchangeID ...int64) (ExchangeInfo, erro
 		Status Status       `json:"status"`
 	}{}
 
-	err := c.CheckAccountPlan(Startup)
+	err := c.CheckAccountPlan(Basic)
 	if err != nil {
 		return resp.Data, err
 	}
@@ -402,7 +402,7 @@ func (c *Coinmarketcap) GetExchangeMap(start, limit int64) ([]ExchangeMap, error
 		Status Status        `json:"status"`
 	}{}
 
-	err := c.CheckAccountPlan(Startup)
+	err := c.CheckAccountPlan(Basic)
 	if err != nil {
 		return resp.Data, err
 	}
@@ -495,14 +495,15 @@ func (c *Coinmarketcap) GetExchangeLatestMarketPairs(exchangeID, start, limit in
 //
 // exchangeID - refers to coinmarketcap exchange id
 func (c *Coinmarketcap) GetExchangeLatestQuotes(exchangeID ...int64) (ExchangeLatestQuotes, error) {
+	var result ExchangeLatestQuotes
 	resp := struct {
-		Data   ExchangeLatestQuotes `json:"data"`
-		Status Status               `json:"status"`
+		Data   map[string]ExchangeLatestQuote `json:"data"`
+		Status Status                         `json:"status"`
 	}{}
 
 	err := c.CheckAccountPlan(Standard)
 	if err != nil {
-		return resp.Data, err
+		return result, err
 	}
 
 	exchStr := make([]string, len(exchangeID))
@@ -515,14 +516,27 @@ func (c *Coinmarketcap) GetExchangeLatestQuotes(exchangeID ...int64) (ExchangeLa
 
 	err = c.SendHTTPRequest(http.MethodGet, endpointExchangeMarketQuoteLatest, val, &resp)
 	if err != nil {
-		return resp.Data, err
+		return result, err
 	}
 
 	if resp.Status.ErrorCode != 0 {
-		return resp.Data, fmt.Errorf("%w: %s", errAPIResponse, resp.Status.ErrorMessage)
+		return result, fmt.Errorf("%w: %s", errAPIResponse, resp.Status.ErrorMessage)
 	}
 
-	return resp.Data, nil
+	result.Exchanges = resp.Data
+	for _, exchangeQuote := range resp.Data {
+		if exchangeQuote.Slug != "binance" {
+			continue
+		}
+		result.Binance.ID = exchangeQuote.ID
+		result.Binance.Name = exchangeQuote.Name
+		result.Binance.Slug = exchangeQuote.Slug
+		result.Binance.NumMarketPairs = exchangeQuote.NumMarketPairs
+		result.Binance.LastUpdated = exchangeQuote.LastUpdated
+		result.Binance.Quote = exchangeQuote.Quote
+		break
+	}
+	return result, nil
 }
 
 // GetExchangeHistoricalQuotes returns an interval of historic quotes for any
@@ -533,13 +547,13 @@ func (c *Coinmarketcap) GetExchangeLatestQuotes(exchangeID ...int64) (ExchangeLa
 // tEnd - refers to the end of the time block if zero will default to time.Now()
 func (c *Coinmarketcap) GetExchangeHistoricalQuotes(exchangeID int64, tStart, tEnd time.Time) (ExchangeHistoricalQuotes, error) {
 	resp := struct {
-		Data   ExchangeHistoricalQuotes `json:"data"`
-		Status Status                   `json:"status"`
+		Data   map[string]ExchangeHistoricalQuotes `json:"data"`
+		Status Status                              `json:"status"`
 	}{}
 
 	err := c.CheckAccountPlan(Standard)
 	if err != nil {
-		return resp.Data, err
+		return ExchangeHistoricalQuotes{}, err
 	}
 
 	val := url.Values{}
@@ -552,14 +566,14 @@ func (c *Coinmarketcap) GetExchangeHistoricalQuotes(exchangeID int64, tStart, tE
 
 	err = c.SendHTTPRequest(http.MethodGet, endpointExchangeMarketQuoteHistorical, val, &resp)
 	if err != nil {
-		return resp.Data, err
+		return ExchangeHistoricalQuotes{}, err
 	}
 
 	if resp.Status.ErrorCode != 0 {
-		return resp.Data, fmt.Errorf("%w: %s", errAPIResponse, resp.Status.ErrorMessage)
+		return ExchangeHistoricalQuotes{}, fmt.Errorf("%w: %s", errAPIResponse, resp.Status.ErrorMessage)
 	}
 
-	return resp.Data, nil
+	return resp.Data[strconv.FormatInt(exchangeID, 10)], nil
 }
 
 // GetGlobalMeticLatestQuotes returns the latest quote of aggregate market
@@ -637,7 +651,11 @@ func (c *Coinmarketcap) GetPriceConversion(amount float64, currencyID int64, atH
 		Status Status          `json:"status"`
 	}{}
 
-	err := c.CheckAccountPlan(Hobbyist)
+	minimumPlan := Basic
+	if !atHistoricTime.IsZero() {
+		minimumPlan = Hobbyist
+	}
+	err := c.CheckAccountPlan(minimumPlan)
 	if err != nil {
 		return resp.Data, err
 	}

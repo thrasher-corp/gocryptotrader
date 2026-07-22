@@ -196,6 +196,20 @@ func TestGetCryptocurrencyHistoricalQuotes(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetCryptocurrencyHistoricalQuotesDecodesResultMap(t *testing.T) {
+	t.Parallel()
+	c, closeFn := newSyntheticClient(t, map[string]string{
+		"/v3/cryptocurrency/quotes/historical": `{"data":{"1":{"id":1,"name":"Bitcoin","symbol":"BTC","quotes":[{"timestamp":"2018-06-22T00:00:00Z","quote":{"USD":{"price":6242.48}}}]}},"status":{"error_code":0}}`,
+	})
+	t.Cleanup(closeFn)
+
+	result, err := c.GetCryptocurrencyHistoricalQuotes(1, time.Unix(1, 0), time.Unix(2, 0))
+	require.NoError(t, err, "historical quote request must not error")
+	assert.Equal(t, int64(1), result.ID, "cryptocurrency ID should match")
+	require.Len(t, result.Quotes, 1, "historical quotes must contain the returned entry")
+	assert.Equal(t, 6242.48, result.Quotes[0].Quote.USD.Price, "historical USD price should match")
+}
+
 func TestGetExchangeInfo(t *testing.T) {
 	t.Parallel()
 	c := newConfiguredClient(t)
@@ -204,12 +218,40 @@ func TestGetExchangeInfo(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetExchangeInfoAllowsBasicPlan(t *testing.T) {
+	t.Parallel()
+	c, closeFn := newSyntheticClient(t, map[string]string{
+		"/v1/exchange/info": `{"data":{"1":{"id":270,"name":"Binance","slug":"binance"}},"status":{"error_code":0}}`,
+	})
+	t.Cleanup(closeFn)
+	c.Plan = Basic
+
+	result, err := c.GetExchangeInfo(1)
+	require.NoError(t, err, "Basic-plan exchange metadata request must not error")
+	require.Contains(t, result, "1", "exchange metadata must contain the requested entry")
+	assert.Equal(t, int64(270), result["1"].ID, "exchange ID should match")
+}
+
 func TestGetExchangeMap(t *testing.T) {
 	t.Parallel()
 	c := newConfiguredClient(t)
 	skipIfLiveCredentialsUnavailable(t, c, Startup)
 	_, err := c.GetExchangeMap(0, 0)
 	assert.NoError(t, err)
+}
+
+func TestGetExchangeMapAllowsBasicPlan(t *testing.T) {
+	t.Parallel()
+	c, closeFn := newSyntheticClient(t, map[string]string{
+		"/v1/exchange/map": `{"data":[{"id":270,"name":"Binance","slug":"binance","is_active":1}],"status":{"error_code":0}}`,
+	})
+	t.Cleanup(closeFn)
+	c.Plan = Basic
+
+	result, err := c.GetExchangeMap(1, 10)
+	require.NoError(t, err, "Basic-plan exchange map request must not error")
+	require.Len(t, result, 1, "exchange map must contain the returned entry")
+	assert.Equal(t, int64(270), result[0].ID, "exchange ID should match")
 }
 
 func TestGetExchangeHistoricalListings(t *testing.T) {
@@ -244,12 +286,41 @@ func TestGetExchangeLatestQuotes(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetExchangeLatestQuotesDecodesResultMap(t *testing.T) {
+	t.Parallel()
+	c, closeFn := newSyntheticClient(t, map[string]string{
+		"/v1/exchange/quotes/latest": `{"data":{"1":{"id":270,"name":"Binance","slug":"binance","quote":{"USD":{"volume_24h":768478308.52}}},"2":{"id":89,"name":"Coinbase Exchange","slug":"coinbase-exchange","quote":{"USD":{"volume_24h":1234.5}}}},"status":{"error_code":0}}`,
+	})
+	t.Cleanup(closeFn)
+
+	result, err := c.GetExchangeLatestQuotes(1)
+	require.NoError(t, err, "latest exchange quote request must not error")
+	assert.Equal(t, int64(270), result.Binance.ID, "Binance ID should match")
+	require.Len(t, result.Exchanges, 2, "latest exchange quotes must retain every result")
+	assert.Equal(t, "Coinbase Exchange", result.Exchanges["2"].Name, "second exchange name should match")
+	assert.Equal(t, 1234.5, result.Exchanges["2"].Quote["USD"].Volume24H, "second exchange volume should match")
+}
+
 func TestGetExchangeHistoricalQuotes(t *testing.T) {
 	t.Parallel()
 	c := newConfiguredClient(t)
 	skipIfLiveCredentialsUnavailable(t, c, Standard)
 	_, err := c.GetExchangeHistoricalQuotes(1, time.Now(), time.Now())
 	assert.NoError(t, err)
+}
+
+func TestGetExchangeHistoricalQuotesDecodesResultMap(t *testing.T) {
+	t.Parallel()
+	c, closeFn := newSyntheticClient(t, map[string]string{
+		"/v1/exchange/quotes/historical": `{"data":{"1":{"id":270,"name":"Binance","slug":"binance","quotes":[{"timestamp":"2018-06-03T00:00:00Z","quote":{"USD":{"volume_24h":1632390000}},"num_market_pairs":338}]}},"status":{"error_code":0}}`,
+	})
+	t.Cleanup(closeFn)
+
+	result, err := c.GetExchangeHistoricalQuotes(1, time.Unix(1, 0), time.Unix(2, 0))
+	require.NoError(t, err, "historical exchange quote request must not error")
+	assert.Equal(t, int64(270), result.ID, "exchange ID should match")
+	require.Len(t, result.Quotes, 1, "historical exchange quotes must contain the returned entry")
+	assert.Equal(t, 1632390000.0, result.Quotes[0].Quote["USD"].Volume24H, "historical exchange volume should match")
 }
 
 func TestGetGlobalMeticLatestQuotes(t *testing.T) {
@@ -274,6 +345,41 @@ func TestGetPriceConversion(t *testing.T) {
 	skipIfLiveCredentialsUnavailable(t, c, Hobbyist)
 	_, err := c.GetPriceConversion(0, 1, time.Now())
 	assert.NoError(t, err)
+}
+
+func TestGetPriceConversionDecodesNumericID(t *testing.T) {
+	t.Parallel()
+	c, closeFn := newSyntheticClient(t, map[string]string{
+		"/v2/tools/price-conversion": `{"data":{"symbol":"BTC","id":1,"name":"Bitcoin","amount":50,"last_updated":"2018-06-06T08:04:36Z","quote":{"USD":{"price":284656.08}}},"status":{"error_code":0}}`,
+	})
+	t.Cleanup(closeFn)
+
+	result, err := c.GetPriceConversion(50, 1, time.Time{})
+	require.NoError(t, err, "price conversion request must not error")
+	assert.Equal(t, int64(1), result.ID, "price conversion ID should match")
+	assert.Equal(t, 284656.08, result.Quote["USD"].Price, "converted price should match")
+}
+
+func TestGetPriceConversionPlanAccess(t *testing.T) {
+	t.Parallel()
+	responses := map[string]string{
+		"/v2/tools/price-conversion": `{"data":{"symbol":"BTC","id":1,"name":"Bitcoin","amount":1,"quote":{"USD":{"price":2}}},"status":{"error_code":0}}`,
+	}
+	c, closeFn := newSyntheticClient(t, responses)
+	t.Cleanup(closeFn)
+	c.Plan = Basic
+
+	_, err := c.GetPriceConversion(1, 1, time.Time{})
+	require.NoError(t, err, "Basic-plan latest price conversion must not error")
+
+	_, err = c.GetPriceConversion(1, 1, time.Now())
+	assert.ErrorIs(t, err, errFunctionUseNotAllowed, "Basic-plan historical conversion should return the plan error")
+
+	historicalClient, historicalCloseFn := newSyntheticClient(t, responses)
+	t.Cleanup(historicalCloseFn)
+	historicalClient.Plan = Hobbyist
+	_, err = historicalClient.GetPriceConversion(1, 1, time.Now())
+	assert.NoError(t, err, "Hobbyist-plan historical conversion should not error")
 }
 
 func TestSetAccountPlan(t *testing.T) {
@@ -320,14 +426,27 @@ func TestQuoteMapUnmarshal(t *testing.T) {
 	t.Parallel()
 	var qm QuoteMap
 	err := qm.UnmarshalJSON([]byte(`{"USD":{"price":1.23},"BTC":{"price":0.1}}`))
-	require.NoError(t, err)
-	assert.Equal(t, 1.23, qm["USD"].Price)
-	assert.Equal(t, 0.1, qm["BTC"].Price)
+	require.NoError(t, err, "object quote map must unmarshal")
+	assert.Equal(t, 1.23, qm["USD"].Price, "USD price should match")
+	assert.Equal(t, 0.1, qm["BTC"].Price, "BTC price should match")
 
-	err = qm.UnmarshalJSON([]byte(`[{"USD":{"price":2.34}},{"ETH":{"price":3.45}}]`))
-	require.NoError(t, err)
-	assert.Equal(t, 2.34, qm["USD"].Price)
-	assert.Equal(t, 3.45, qm["ETH"].Price)
+	var v3Quotes QuoteMap
+	err = v3Quotes.UnmarshalJSON([]byte(`[{"id":2781,"symbol":"USD","price":2.34},{"id":1027,"symbol":"ETH","price":3.45}]`))
+	require.NoError(t, err, "v3 quote array must unmarshal")
+	assert.Equal(t, int64(2781), v3Quotes["USD"].ID, "USD ID should match")
+	assert.Equal(t, "USD", v3Quotes["USD"].Symbol, "USD symbol should match")
+	assert.Equal(t, 2.34, v3Quotes["USD"].Price, "USD price should match")
+	assert.Equal(t, int64(1027), v3Quotes["ETH"].ID, "ETH ID should match")
+	assert.Equal(t, "ETH", v3Quotes["ETH"].Symbol, "ETH symbol should match")
+	assert.Equal(t, 3.45, v3Quotes["ETH"].Price, "ETH price should match")
+
+	var empty QuoteMap
+	err = empty.UnmarshalJSON([]byte(`[]`))
+	require.NoError(t, err, "empty quote array must unmarshal")
+	assert.NotNil(t, empty, "empty quote array should initialise the map")
+
+	err = qm.UnmarshalJSON([]byte(`[{"id":"invalid"}]`))
+	assert.Error(t, err, "invalid quote array should error")
 }
 
 func TestAPIErrorCodeUnmarshal(t *testing.T) {
@@ -484,10 +603,6 @@ func TestCoinmarketcapAccountPlanGatesSynthetic(t *testing.T) {
 	assert.ErrorIs(t, err, errFunctionUseNotAllowed, "GetCryptocurrencyOHLCLatest should return expected error")
 	_, err = c.GetCryptocurrencyHistoricalQuotes(1, time.Now(), time.Now())
 	assert.ErrorIs(t, err, errFunctionUseNotAllowed, "GetCryptocurrencyHistoricalQuotes should return expected error")
-	_, err = c.GetExchangeInfo(1)
-	assert.ErrorIs(t, err, errFunctionUseNotAllowed, "GetExchangeInfo should return expected error")
-	_, err = c.GetExchangeMap(1, 1)
-	assert.ErrorIs(t, err, errFunctionUseNotAllowed, "GetExchangeMap should return expected error")
 	_, err = c.GetExchangeLatestMarketPairs(1, 1, 1)
 	assert.ErrorIs(t, err, errFunctionUseNotAllowed, "GetExchangeLatestMarketPairs should return expected error")
 	_, err = c.GetExchangeLatestQuotes(1)
