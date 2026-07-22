@@ -547,13 +547,13 @@ func (c *Coinmarketcap) GetExchangeLatestQuotes(exchangeID ...int64) (ExchangeLa
 // tEnd - refers to the end of the time block if zero will default to time.Now()
 func (c *Coinmarketcap) GetExchangeHistoricalQuotes(exchangeID int64, tStart, tEnd time.Time) (ExchangeHistoricalQuotes, error) {
 	resp := struct {
-		Data   ExchangeHistoricalQuotes `json:"data"`
-		Status Status                   `json:"status"`
+		Data   map[string]ExchangeHistoricalQuotes `json:"data"`
+		Status Status                               `json:"status"`
 	}{}
 
 	err := c.CheckAccountPlan(Standard)
 	if err != nil {
-		return resp.Data, err
+		return ExchangeHistoricalQuotes{}, err
 	}
 
 	val := url.Values{}
@@ -566,14 +566,14 @@ func (c *Coinmarketcap) GetExchangeHistoricalQuotes(exchangeID int64, tStart, tE
 
 	err = c.SendHTTPRequest(http.MethodGet, endpointExchangeMarketQuoteHistorical, val, &resp)
 	if err != nil {
-		return resp.Data, err
+		return ExchangeHistoricalQuotes{}, err
 	}
 
 	if resp.Status.ErrorCode != 0 {
-		return resp.Data, fmt.Errorf("%w: %s", errAPIResponse, resp.Status.ErrorMessage)
+		return ExchangeHistoricalQuotes{}, fmt.Errorf("%w: %s", errAPIResponse, resp.Status.ErrorMessage)
 	}
 
-	return resp.Data, nil
+	return resp.Data[strconv.FormatInt(exchangeID, 10)], nil
 }
 
 // GetGlobalMeticLatestQuotes returns the latest quote of aggregate market

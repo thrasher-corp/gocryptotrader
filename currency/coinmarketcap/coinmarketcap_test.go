@@ -281,6 +281,20 @@ func TestGetExchangeHistoricalQuotes(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetExchangeHistoricalQuotesDecodesResultMap(t *testing.T) {
+	t.Parallel()
+	c, closeFn := newSyntheticClient(t, map[string]string{
+		"/v1/exchange/quotes/historical": `{"data":{"1":{"id":270,"name":"Binance","slug":"binance","quotes":[{"timestamp":"2018-06-03T00:00:00Z","quote":{"USD":{"volume_24h":1632390000}},"num_market_pairs":338}]}},"status":{"error_code":0}}`,
+	})
+	t.Cleanup(closeFn)
+
+	result, err := c.GetExchangeHistoricalQuotes(1, time.Unix(1, 0), time.Unix(2, 0))
+	require.NoError(t, err, "historical exchange quote request must not error")
+	assert.Equal(t, int64(270), result.ID, "exchange ID should match")
+	require.Len(t, result.Quotes, 1, "historical exchange quotes must contain the returned entry")
+	assert.Equal(t, 1632390000.0, result.Quotes[0].Quote["USD"].Volume24H, "historical exchange volume should match")
+}
+
 func TestGetGlobalMeticLatestQuotes(t *testing.T) {
 	t.Parallel()
 	c := newConfiguredClient(t)
