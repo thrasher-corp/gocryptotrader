@@ -1,7 +1,6 @@
 package base
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"maps"
@@ -22,7 +21,7 @@ var (
 // supported in GoCryptoTrader
 type IFXProvider interface {
 	Setup(config Settings) error
-	GetRates(ctx context.Context, baseCurrency, symbols string) (map[string]float64, error)
+	GetRates(baseCurrency, symbols string) (map[string]float64, error)
 	GetName() string
 	IsEnabled() bool
 	IsPrimaryProvider() bool
@@ -48,7 +47,7 @@ type Provider struct {
 
 // GetNewRate access rates by predetermined logic based on how a provider
 // handles requests
-func (p *Provider) GetNewRate(ctx context.Context, base string, currencies []string) (map[string]float64, error) {
+func (p *Provider) GetNewRate(base string, currencies []string) (map[string]float64, error) {
 	if !p.Provider.IsEnabled() {
 		return nil, fmt.Errorf("provider %s is not enabled",
 			p.Provider.GetName())
@@ -56,10 +55,10 @@ func (p *Provider) GetNewRate(ctx context.Context, base string, currencies []str
 
 	switch p.Provider.GetName() {
 	case "ExchangeRates":
-		return p.Provider.GetRates(ctx, base, "") // Zero value to get all rates
+		return p.Provider.GetRates(base, "") // Zero value to get all rates
 
 	default:
-		return p.Provider.GetRates(ctx, base, strings.Join(currencies, ","))
+		return p.Provider.GetRates(base, strings.Join(currencies, ","))
 	}
 }
 
@@ -77,7 +76,7 @@ func (p Provider) CheckCurrencies(currencies []string) []string {
 }
 
 // GetCurrencyData returns currency data from enabled FX providers
-func (f *FXHandler) GetCurrencyData(ctx context.Context, baseCurrency string, currencies []string) (map[string]float64, error) {
+func (f *FXHandler) GetCurrencyData(baseCurrency string, currencies []string) (map[string]float64, error) {
 	fullRange := currencies
 
 	if !common.StringSliceCompareInsensitive(currencies, baseCurrency) {
@@ -92,16 +91,16 @@ func (f *FXHandler) GetCurrencyData(ctx context.Context, baseCurrency string, cu
 	}
 
 	shunt := f.Primary.CheckCurrencies(fullRange)
-	rates, err := f.Primary.GetNewRate(ctx, baseCurrency, currencies)
+	rates, err := f.Primary.GetNewRate(baseCurrency, currencies)
 	if err != nil {
-		return f.backupGetRate(ctx, baseCurrency, currencies)
+		return f.backupGetRate(baseCurrency, currencies)
 	}
 
 	if len(shunt) != 0 {
 		return rates, nil
 	}
 
-	rateNew, err := f.backupGetRate(ctx, baseCurrency, shunt)
+	rateNew, err := f.backupGetRate(baseCurrency, shunt)
 	if err != nil {
 		log.Warnf(log.Global, "%s and subsequent providers, failed to update rate map for currencies %v %v",
 			f.Primary.Provider.GetName(),
@@ -114,7 +113,7 @@ func (f *FXHandler) GetCurrencyData(ctx context.Context, baseCurrency string, cu
 }
 
 // backupGetRate uses the currencies that are supported and falls through, and errors when unsupported currency found
-func (f *FXHandler) backupGetRate(ctx context.Context, base string, currencies []string) (map[string]float64, error) {
+func (f *FXHandler) backupGetRate(base string, currencies []string) (map[string]float64, error) {
 	if f.Support == nil {
 		return nil, errNoProvider
 	}
@@ -124,7 +123,7 @@ func (f *FXHandler) backupGetRate(ctx context.Context, base string, currencies [
 		toGet := slices.DeleteFunc(currencies, func(s string) bool {
 			return common.StringSliceContains(missed, s)
 		})
-		newRate, err := f.Support[i].GetNewRate(ctx, base, toGet)
+		newRate, err := f.Support[i].GetNewRate(base, toGet)
 		if err != nil {
 			return nil, err
 		}

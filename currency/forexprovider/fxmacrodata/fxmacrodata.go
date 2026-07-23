@@ -54,7 +54,7 @@ func (f *FXMacroData) GetSupportedCurrencies() ([]string, error) {
 }
 
 // GetRates returns latest FX conversion rates for GoCryptoTrader's currency store.
-func (f *FXMacroData) GetRates(ctx context.Context, baseCurrency, symbols string) (map[string]float64, error) {
+func (f *FXMacroData) GetRates(baseCurrency, symbols string) (map[string]float64, error) {
 	baseCurrency = strings.ToUpper(strings.TrimSpace(baseCurrency))
 	supportedCurrencies, err := f.GetSupportedCurrencies()
 	if err != nil {
@@ -98,7 +98,7 @@ func (f *FXMacroData) GetRates(ctx context.Context, baseCurrency, symbols string
 		return nil, fmt.Errorf("%w: %s", errUnsupportedCurrency, strings.Join(unsupported, ","))
 	}
 
-	standardisedRates, err := f.getLatestForexRates(ctx, baseCurrency, targetSymbols)
+	standardisedRates, err := f.getLatestForexRates(context.TODO(), baseCurrency, targetSymbols)
 	if err != nil {
 		return nil, err
 	}
@@ -124,8 +124,7 @@ func (f *FXMacroData) getLatestForexRates(ctx context.Context, baseCurrency stri
 	return standardisedRates, nil
 }
 
-// GetLatestForexRate returns the latest available FXMacroData rate for a pair
-// and honours ctx while sending the request.
+// GetLatestForexRate returns the latest available FXMacroData rate for a pair.
 func (f *FXMacroData) GetLatestForexRate(ctx context.Context, baseCurrency, quoteCurrency string) (float64, error) {
 	var resp forexResponse
 	values := url.Values{}

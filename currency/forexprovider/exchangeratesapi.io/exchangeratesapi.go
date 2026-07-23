@@ -223,10 +223,7 @@ func (e *ExchangeRates) GetFluctuations(startDate, endDate time.Time, baseCurren
 }
 
 // GetRates is a wrapper function to return forex rates
-func (e *ExchangeRates) GetRates(ctx context.Context, baseCurrency, symbols string) (map[string]float64, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
+func (e *ExchangeRates) GetRates(baseCurrency, symbols string) (map[string]float64, error) {
 	result, err := e.GetLatestRates(baseCurrency, symbols)
 	if err != nil {
 		return nil, err

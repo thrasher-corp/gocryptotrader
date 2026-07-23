@@ -8,7 +8,7 @@ import (
 
 const (
 	// APIURL is the default FXMacroData API endpoint.
-	APIURL = "https://fxmacrodata.com/api/v1/"
+	APIURL = "https://api.fxmacrodata.com/v1/"
 
 	supportedCurrencies = "AUD,BRL,CAD,CHF,CNH,CNY,DKK,EUR,GBP,ILS,JPY,NGN,NOK,NZD,PEN,SEK,THB,USD"
 )

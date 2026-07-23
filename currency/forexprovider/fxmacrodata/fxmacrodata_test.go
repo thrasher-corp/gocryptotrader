@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -56,7 +57,7 @@ func TestGetRates(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rates, err := provider.GetRates(context.Background(), " USD ", " AUD, EUR ,XYZ, usd ")
+	rates, err := provider.GetRates(" USD ", " AUD, EUR ,XYZ, usd ")
 	require.NoError(t, err, "GetRates must not error")
 	assert.Equal(t, 1.5, rates["USDAUD"], "USDAUD should match mocked latest rate")
 	assert.Equal(t, 0.9, rates["USDEUR"], "USDEUR should match mocked latest rate")
@@ -72,7 +73,7 @@ func TestGetRatesDuplicateTarget(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rates, err := provider.GetRates(context.Background(), "USD", "AUD,EUR,AUD")
+	rates, err := provider.GetRates("USD", "AUD,EUR,AUD")
 	assert.ErrorIs(t, err, errDuplicateCurrency, "GetRates should reject duplicate target currencies")
 	assert.Nil(t, rates, "rates should be nil when target currencies are duplicated")
 }
@@ -84,7 +85,7 @@ func TestGetRatesEmptyTarget(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rates, err := provider.GetRates(context.Background(), "USD", "AUD,,EUR")
+	rates, err := provider.GetRates("USD", "AUD,,EUR")
 	assert.ErrorIs(t, err, errEmptyCurrency, "GetRates should reject empty target currency segments")
 	assert.Nil(t, rates, "rates should be nil when target currencies include an empty segment")
 }
@@ -96,7 +97,7 @@ func TestGetRatesRejectsNoEffectiveTarget(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rates, err := provider.GetRates(context.Background(), "USD", " USD ")
+	rates, err := provider.GetRates("USD", " USD ")
 	assert.ErrorIs(t, err, errNoTargetCurrencies, "GetRates should reject target lists that only contain the base currency")
 	assert.Nil(t, rates, "rates should be nil when no target currencies remain")
 }
@@ -114,7 +115,7 @@ func TestGetRatesDefaultsToSupportedTargets(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rates, err := provider.GetRates(context.Background(), "USD", "")
+	rates, err := provider.GetRates("USD", "")
 	require.NoError(t, err, "GetRates must not error")
 	supported, err := provider.GetSupportedCurrencies()
 	require.NoError(t, err, "GetSupportedCurrencies must not error")
@@ -129,7 +130,7 @@ func TestGetRatesUnsupportedTargetsOnly(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rates, err := provider.GetRates(context.Background(), "USD", "XYZ")
+	rates, err := provider.GetRates("USD", "XYZ")
 	assert.ErrorIs(t, err, errUnsupportedCurrency, "GetRates should reject unsupported target currencies when no rates are available")
 	assert.Nil(t, rates, "rates should be nil when every target currency is unsupported")
 }
@@ -141,7 +142,7 @@ func TestGetRatesPropagatesLatestRateError(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rates, err := provider.GetRates(context.Background(), "USD", "AUD")
+	rates, err := provider.GetRates("USD", "AUD")
 	assert.ErrorContains(t, err, "no FXMacroData rate returned", "GetRates should propagate latest rate lookup errors")
 	assert.Nil(t, rates, "rates should be nil when latest rate lookup fails")
 }
@@ -153,7 +154,7 @@ func TestGetRatesUnsupportedBase(t *testing.T) {
 	}))
 	defer closeServer()
 
-	rates, err := provider.GetRates(context.Background(), "MXN", "AUD")
+	rates, err := provider.GetRates("MXN", "AUD")
 	assert.ErrorIs(t, err, errUnsupportedCurrency, "GetRates should reject unsupported base currency")
 	assert.Nil(t, rates, "rates should be nil when base currency is unsupported")
 }
@@ -303,6 +304,7 @@ func TestSetupAllowsPublicRequestsWithoutAPIKey(t *testing.T) {
 
 	provider := new(FXMacroData)
 	require.NoError(t, provider.Setup(base.Settings{Name: "FXMacroData"}), "Setup allows API-key-free public use")
+	assert.Equal(t, APIURL, provider.APIURL, "Setup should use the canonical FXMacroData API URL")
 	provider.APIURL = server.URL + "/api/v1/"
 	require.NoError(t, provider.Requester.DisableRateLimiter(), "rate limiter must disable for local httptest provider")
 
@@ -310,7 +312,25 @@ func TestSetupAllowsPublicRequestsWithoutAPIKey(t *testing.T) {
 	require.NoError(t, err, "public data catalogue request does not require an API key")
 }
 
-func TestGetRatesHonoursCancellation(t *testing.T) {
+func TestPublicEndpointsLive(t *testing.T) {
+	if os.Getenv("GCT_RUN_LIVE_TESTS") != "true" {
+		t.Skip("set GCT_RUN_LIVE_TESTS=true to run the public FXMacroData smoke test")
+	}
+
+	provider := new(FXMacroData)
+	require.NoError(t, provider.Setup(base.Settings{Name: "FXMacroData"}),
+		"Setup must configure the public endpoint client")
+
+	health, err := provider.Health(t.Context())
+	require.NoError(t, err, "Health must not error")
+	assert.NotEmpty(t, health.Status, "Health should return a status")
+
+	catalogue, err := provider.DataCatalogue(t.Context(), "usd")
+	require.NoError(t, err, "DataCatalogue must not error")
+	assert.NotNil(t, catalogue, "DataCatalogue should return a response")
+}
+
+func TestGetLatestForexRateHonoursCancellation(t *testing.T) {
 	provider, closeServer := newTestProvider(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Errorf("a cancelled context should not issue an HTTP request")
 		http.NotFound(w, r)
@@ -319,8 +339,8 @@ func TestGetRatesHonoursCancellation(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	_, err := provider.GetRates(ctx, "USD", "AUD")
-	assert.ErrorIs(t, err, context.Canceled, "GetRates should return the caller cancellation")
+	_, err := provider.GetLatestForexRate(ctx, "USD", "AUD")
+	assert.ErrorIs(t, err, context.Canceled, "GetLatestForexRate should return the caller cancellation")
 }
 
 func TestAuthenticatedEndpointsRequireAPIKey(t *testing.T) {

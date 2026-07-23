@@ -1,7 +1,6 @@
 package currency
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -512,7 +511,7 @@ func (s *Storage) SeedForeignExchangeRatesByCurrencies(c Currencies) error {
 	if s.fiatExchangeMarkets == nil {
 		return nil
 	}
-	rates, err := s.fiatExchangeMarkets.GetCurrencyData(context.TODO(), s.baseCurrency.String(),
+	rates, err := s.fiatExchangeMarkets.GetCurrencyData(s.baseCurrency.String(),
 		c.Strings())
 	if err != nil {
 		return err
@@ -525,7 +524,7 @@ func (s *Storage) SeedForeignExchangeRate(from, to Code) (map[string]float64, er
 	if s.fiatExchangeMarkets == nil {
 		return nil, nil
 	}
-	return s.fiatExchangeMarkets.GetCurrencyData(context.TODO(), from.String(),
+	return s.fiatExchangeMarkets.GetCurrencyData(from.String(),
 		[]string{to.String()})
 }
 
@@ -548,8 +547,7 @@ func (s *Storage) SeedDefaultForeignExchangeRates() error {
 	if s.fiatExchangeMarkets == nil {
 		return errNoForeignExchangeProvidersEnabled
 	}
-	rates, err := s.fiatExchangeMarkets.GetCurrencyData(context.TODO(),
-		s.defaultBaseCurrency.String(),
+	rates, err := s.fiatExchangeMarkets.GetCurrencyData(s.defaultBaseCurrency.String(),
 		s.defaultFiatCurrencies.Strings())
 	if err != nil {
 		return err
@@ -575,7 +573,7 @@ func (s *Storage) SeedForeignExchangeRates() error {
 	if s.fiatExchangeMarkets == nil {
 		return errNoForeignExchangeProvidersEnabled
 	}
-	rates, err := s.fiatExchangeMarkets.GetCurrencyData(context.TODO(), s.baseCurrency.String(),
+	rates, err := s.fiatExchangeMarkets.GetCurrencyData(s.baseCurrency.String(),
 		s.fiatCurrencies.Strings())
 	if err != nil {
 		return err
