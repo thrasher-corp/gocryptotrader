@@ -182,10 +182,10 @@ func (e *Exchange) GetTradeHistory(ctx context.Context, instrumentID, start, lim
 	var result TradeHistory
 	params := make(map[string]any)
 	params["inst_id"] = instrumentID
-	if start >= 0 && start <= 100 {
+	if start >= 0 {
 		params["start"] = start
 	}
-	if limit >= 0 && start <= 100 {
+	if limit >= 0 {
 		params["limit"] = limit
 	}
 

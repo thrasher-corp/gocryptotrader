@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -98,6 +100,64 @@ func TestSeedInstruments(t *testing.T) {
 
 	if len(e.instrumentMap.GetInstrumentIDs()) == 0 {
 		t.Error("instrument map hasn't been seeded")
+	}
+}
+
+func TestGetTradeHistoryPagination(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name  string
+		start int64
+		limit int64
+	}{
+		{name: "omit pagination", start: -1, limit: -1},
+		{name: "limit only", start: -1, limit: 2},
+		{name: "start only", start: 101, limit: -1},
+		{name: "start and limit", start: 101, limit: 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			type requestResult struct {
+				payload map[string]any
+				err     error
+			}
+			requestC := make(chan requestResult, 1)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				var payload map[string]any
+				err := json.NewDecoder(r.Body).Decode(&payload)
+				requestC <- requestResult{payload: payload, err: err}
+				_, err = w.Write([]byte(`{"status":["OK"],"total_number":0,"trades":[]}`))
+				assert.NoError(t, err, "Writing the response should not error")
+			}))
+			t.Cleanup(server.Close)
+
+			ex := new(Exchange)
+			require.NoError(t, testexch.Setup(ex), "Test exchange setup must not error")
+			ex.SkipAuthCheck = true
+			require.NoError(t, ex.SetHTTPClient(server.Client()), "Setting the HTTP client must not error")
+			require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "Setting the REST endpoint must not error")
+
+			result, err := ex.GetTradeHistory(t.Context(), 123, tc.start, tc.limit)
+			require.NoError(t, err, "GetTradeHistory must not error")
+			assert.Equal(t, TradeHistory{Trades: []OrderFilledResponse{}}, result, "Trade history should match the response")
+
+			request := <-requestC
+			require.NoError(t, request.err, "Decoding the request must not error")
+			delete(request.payload, "nonce")
+			expected := map[string]any{
+				"inst_id": float64(123),
+				"request": coinutTradeHistory,
+			}
+			if tc.start >= 0 {
+				expected["start"] = float64(tc.start)
+			}
+			if tc.limit >= 0 {
+				expected["limit"] = float64(tc.limit)
+			}
+			assert.Equal(t, expected, request.payload, "Request parameters should match")
+		})
 	}
 }
 
