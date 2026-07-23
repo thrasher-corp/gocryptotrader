@@ -3,7 +3,9 @@ package coinbase
 import (
 	"bytes"
 	"context"
+	"crypto"
 	"crypto/ecdsa"
+	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/x509"
@@ -1441,11 +1443,7 @@ func (e *Exchange) GetJWT(ctx context.Context, uri string) (string, time.Time, e
 	if err != nil {
 		return "", time.Time{}, err
 	}
-	block, _ := pem.Decode([]byte(creds.Secret))
-	if block == nil {
-		return "", time.Time{}, errDecodingPrivateKey
-	}
-	privateKey, err := x509.ParseECPrivateKey(block.Bytes)
+	privateKey, alg, err := parseSigningKey(creds.Secret)
 	if err != nil {
 		return "", time.Time{}, err
 	}
@@ -1456,7 +1454,7 @@ func (e *Exchange) GetJWT(ctx context.Context, uri string) (string, time.Time, e
 	head := map[string]any{
 		"kid":   creds.Key,
 		"typ":   "JWT",
-		"alg":   "ES256",
+		"alg":   alg,
 		"nonce": nonce,
 	}
 	headJSON, err := json.Marshal(head)
@@ -1481,23 +1479,71 @@ func (e *Exchange) GetJWT(ctx context.Context, uri string) (string, time.Time, e
 	}
 	bodyEnc := base64.RawURLEncoding.EncodeToString(bodyJSON)
 	signingInput := headEnc + "." + bodyEnc
-	hash := sha256.Sum256([]byte(signingInput))
-	r, s, err := ecdsa.Sign(rand.Reader, privateKey, hash[:])
+	sig, err := signJWT(privateKey, signingInput)
 	if err != nil {
 		return "", time.Time{}, err
 	}
-	n := privateKey.Params().N
-	halfN := new(big.Int).Rsh(n, 1)
-	if s.Cmp(halfN) == 1 {
-		s.Sub(n, s)
+	return signingInput + "." + base64.RawURLEncoding.EncodeToString(sig), regTime.Add(2 * time.Minute), nil
+}
+
+// parseSigningKey decodes a CDP API secret and returns the private key with
+// the matching JWT algorithm. ECDSA keys arrive as SEC1 or PKCS#8 PEM,
+// Ed25519 keys as PKCS#8 PEM or base64, either the 64 byte private key or
+// the 32 byte seed
+func parseSigningKey(secret string) (crypto.PrivateKey, string, error) {
+	block, _ := pem.Decode([]byte(secret))
+	if block == nil {
+		raw, err := base64.StdEncoding.DecodeString(secret)
+		if err != nil {
+			return nil, "", fmt.Errorf("%w: %w", errDecodingPrivateKey, err)
+		}
+		switch len(raw) {
+		case ed25519.SeedSize:
+			return ed25519.NewKeyFromSeed(raw), "EdDSA", nil
+		case ed25519.PrivateKeySize:
+			return ed25519.PrivateKey(raw), "EdDSA", nil
+		}
+		return nil, "", fmt.Errorf("%w: %d bytes is not an Ed25519 key or seed", errDecodingPrivateKey, len(raw))
 	}
-	rb := r.Bytes()
-	sb := s.Bytes()
-	sig := make([]byte, 64)
-	copy(sig[32-len(rb):32], rb)
-	copy(sig[64-len(sb):], sb)
-	sigEnc := base64.RawURLEncoding.EncodeToString(sig)
-	return signingInput + "." + sigEnc, regTime.Add(2 * time.Minute), nil
+	if ecKey, err := x509.ParseECPrivateKey(block.Bytes); err == nil {
+		return ecKey, "ES256", nil
+	}
+	parsed, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		return nil, "", fmt.Errorf("%w: %w", errDecodingPrivateKey, err)
+	}
+	switch k := parsed.(type) {
+	case *ecdsa.PrivateKey:
+		return k, "ES256", nil
+	case ed25519.PrivateKey:
+		return k, "EdDSA", nil
+	}
+	return nil, "", fmt.Errorf("%w: unsupported key type %T", errDecodingPrivateKey, parsed)
+}
+
+// signJWT signs the JWT signing input with the given private key
+func signJWT(privKey crypto.PrivateKey, signingInput string) ([]byte, error) {
+	switch k := privKey.(type) {
+	case *ecdsa.PrivateKey:
+		hash := sha256.Sum256([]byte(signingInput))
+		r, s, err := ecdsa.Sign(rand.Reader, k, hash[:])
+		if err != nil {
+			return nil, err
+		}
+		n := k.Params().N
+		halfN := new(big.Int).Rsh(n, 1)
+		if s.Cmp(halfN) == 1 {
+			s.Sub(n, s)
+		}
+		sig := make([]byte, 64)
+		r.FillBytes(sig[:32])
+		s.FillBytes(sig[32:])
+		return sig, nil
+	case ed25519.PrivateKey:
+		return ed25519.Sign(k, []byte(signingInput)), nil
+	default:
+		return nil, common.GetTypeAssertError("*ecdsa.PrivateKey|ed25519.PrivateKey", privKey)
+	}
 }
 
 // GetFee returns an estimate of fee based on type of transaction
