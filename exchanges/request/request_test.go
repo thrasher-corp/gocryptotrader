@@ -161,6 +161,7 @@ func TestCheckRequest(t *testing.T) {
 	// Test setting headers
 	check.Headers = map[string]string{
 		"Content-Type": "Super awesome HTTP party experience",
+		"preserved":    "true",
 	}
 
 	// Test user agent set
@@ -177,6 +178,18 @@ func TestCheckRequest(t *testing.T) {
 	if req.UserAgent() != "r00t axxs" {
 		t.Fatal(unexpected)
 	}
+
+	ctx = WithHeaders(ctx, http.Header{
+		"Content-Type": {"context override"},
+		"User-Agent":   {"context agent"},
+		"X-Values":     {"one", "two"},
+	})
+	req, err = check.validateRequest(ctx, r)
+	require.NoError(t, err, "validateRequest must not error")
+	assert.Equal(t, "context override", req.Header.Get("Content-Type"), "context header should override item header")
+	assert.Equal(t, "context agent", req.UserAgent(), "context header should override requester user agent")
+	assert.Equal(t, []string{"one", "two"}, req.Header.Values("X-Values"), "context header values should be preserved")
+	assert.Equal(t, "true", req.Header.Get("preserved"), "item header should be preserved when not overridden by context")
 }
 
 var globalshell = RateLimitDefinitions{
