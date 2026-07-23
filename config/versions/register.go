@@ -6,6 +6,7 @@ import (
 	v10 "github.com/thrasher-corp/gocryptotrader/config/versions/v10"
 	v11 "github.com/thrasher-corp/gocryptotrader/config/versions/v11"
 	v12 "github.com/thrasher-corp/gocryptotrader/config/versions/v12"
+	v13 "github.com/thrasher-corp/gocryptotrader/config/versions/v13"
 	v2 "github.com/thrasher-corp/gocryptotrader/config/versions/v2"
 	v3 "github.com/thrasher-corp/gocryptotrader/config/versions/v3"
 	v4 "github.com/thrasher-corp/gocryptotrader/config/versions/v4"
@@ -16,18 +17,21 @@ import (
 	v9 "github.com/thrasher-corp/gocryptotrader/config/versions/v9"
 )
 
-func init() {
-	Manager.registerVersion(0, &v0.Version{})
-	Manager.registerVersion(1, &v1.Version{})
-	Manager.registerVersion(2, &v2.Version{})
-	Manager.registerVersion(3, &v3.Version{})
-	Manager.registerVersion(4, &v4.Version{})
-	Manager.registerVersion(5, &v5.Version{})
-	Manager.registerVersion(6, &v6.Version{})
-	Manager.registerVersion(7, &v7.Version{})
-	Manager.registerVersion(8, &v8.Version{})
-	Manager.registerVersion(9, &v9.Version{})
-	Manager.registerVersion(10, &v10.Version{})
-	Manager.registerVersion(11, &v11.Version{})
-	Manager.registerVersion(12, &v12.Version{})
+func newManager() *manager {
+	m := new(manager)
+	m.registerVersion(0, &v0.Version{})
+	m.registerVersion(1, &v1.Version{})
+	m.registerVersion(2, &v2.Version{})
+	m.registerVersion(3, &v3.Version{})
+	m.registerVersion(4, &v4.Version{})
+	m.registerVersion(5, &v5.Version{})
+	m.registerVersion(6, &v6.Version{})
+	m.registerVersion(7, &v7.Version{})
+	m.registerVersion(8, &v8.Version{})
+	m.registerVersion(9, &v9.Version{})
+	m.registerVersion(10, &v10.Version{})
+	m.registerVersion(11, &v11.Version{})
+	m.registerVersion(12, &v12.Version{})
+	m.registerVersion(13, &v13.Version{})
+	return m
 }

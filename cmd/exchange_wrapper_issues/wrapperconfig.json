@@ -59,11 +59,6 @@
    "secret": "Secret",
    "otpSecret": "-"
   },
-  "bitmex": {
-   "key": "Key",
-   "secret": "Secret",
-   "otpSecret": "-"
-  },
   "bitstamp": {
    "key": "Key",
    "secret": "Secret",

@@ -123,7 +123,6 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 | Bitfinex | Yes  | Yes        | NA  |
 | Bitflyer | Yes  | No      | NA  |
 | Bithumb | Yes  | NA       | NA  |
-| BitMEX | Yes | Yes | NA |
 | Bitstamp | Yes  | Yes       | No  |
 | BTCMarkets | Yes | No       | NA  |
 | BTSE | Yes | Yes | NA |
@@ -151,7 +150,6 @@ var Exchanges = []string{
     "bitfinex",
     "bitflyer",
     "bithumb",
-    "bitmex",
     "bitstamp",
     "btc markets",
     "btse",
