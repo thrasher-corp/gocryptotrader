@@ -1675,8 +1675,10 @@ func TestGetOptionsSpecifiedSettlementHistory(t *testing.T) {
 }
 
 func TestGetSupportedFlashSwapCurrencies(t *testing.T) {
-	t.Parallel()
 	if _, err := e.GetSupportedFlashSwapCurrencies(t.Context()); err != nil {
+		if strings.Contains(err.Error(), `status "429`) {
+			t.Skipf("%s GetSupportedFlashSwapCurrencies() rate limited: %v", e.Name, err)
+		}
 		t.Errorf("%s GetSupportedFlashSwapCurrencies() error %v", e.Name, err)
 	}
 }
