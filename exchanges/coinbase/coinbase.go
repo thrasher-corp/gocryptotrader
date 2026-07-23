@@ -97,6 +97,8 @@ const (
 
 	defaultOrderFillCount = 3000       // Largest number of fills the exchange will let one retrieve in a request, found through experimentation
 	defaultOrderCount     = 2147483647 // int32 limit, largest number of orders the exchange will let one retrieve in a request, found through experimentation
+
+	unknownCancelOrderFailure = "UNKNOWN_CANCEL_ORDER"
 )
 
 // Constants defining whether a transfer is a deposit or withdrawal, used to simplify interactions with a few endpoints
@@ -363,7 +365,8 @@ func (e *Exchange) CancelOrders(ctx context.Context, orderIDs []string) ([]Order
 	resp := struct {
 		Results []OrderCancelDetail `json:"results"`
 	}{}
-	return resp.Results, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, cancelOrdersReqBase{OrderIDs: orderIDs}, true, &resp)
+	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, path, nil, cancelOrdersReqBase{OrderIDs: orderIDs}, true, &resp)
+	return resp.Results, classifyOrderNotFound(err)
 }
 
 // ClosePosition closes a position by client order ID, product ID, and size
@@ -471,7 +474,7 @@ func (e *Exchange) GetOrderByID(ctx context.Context, orderID, clientOID string, 
 	resp := struct {
 		Order GetOrderResponse `json:"order"`
 	}{}
-	return &resp.Order, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp)
+	return &resp.Order, classifyOrderNotFound(e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet, path, vals, nil, true, &resp))
 }
 
 // ListFills returns information on recent order fills
@@ -1356,6 +1359,34 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 	}, request.UnauthenticatedRequest)
 }
 
+type responseError struct {
+	response ErrorResponse
+	err      error
+}
+
+func (e *responseError) Error() string { return e.err.Error() }
+
+func (e *responseError) Unwrap() error { return e.err }
+
+func classifyOrderNotFound(err error) error {
+	var responseErr *responseError
+	if errors.As(err, &responseErr) && responseErr.response.ErrorType == "NOT_FOUND" {
+		return fmt.Errorf("%w: %w", order.ErrOrderNotFound, err)
+	}
+	return err
+}
+
+func parseResponseError(err error, raw json.RawMessage) error {
+	if !errors.Is(err, request.ErrBadStatus) {
+		return err
+	}
+	var response ErrorResponse
+	if json.Unmarshal(raw, &response) != nil || response.ErrorType == "" {
+		return err
+	}
+	return &responseError{response: response, err: err}
+}
+
 // SendAuthenticatedHTTPRequest sends an authenticated HTTP request
 func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange.URL, method, path string, queryParams url.Values, payload any, isVersion3 bool, result any) (err error) {
 	endpoint, err := e.API.Endpoints.GetURL(ep)
@@ -1398,7 +1429,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		rateLim = V3Rate
 	}
 	if err := e.SendPayload(ctx, rateLim, newRequest, request.AuthenticatedRequest); err != nil {
-		return err
+		return parseResponseError(err, interim)
 	}
 	// Doing this error handling because the docs indicate that errors can be returned even with a 200 status code, and that these errors can be buried in the JSON returned
 	singleErrCap := struct {
