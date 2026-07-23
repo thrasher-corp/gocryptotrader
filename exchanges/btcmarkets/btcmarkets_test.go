@@ -1,8 +1,13 @@
 package btcmarkets
 
 import (
+	"context"
 	"encoding/base64"
 	"log"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
 	"testing"
 	"time"
@@ -68,6 +73,77 @@ func TestGetTrades(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetTrades(t.Context(), spotTestPair.String(), 0, 0, 5)
 	assert.NoError(t, err, "GetTrades should not error")
+}
+
+func TestGetTradesPagination(t *testing.T) {
+	queryC := make(chan url.Values, 1)
+	responseErrC := make(chan error, 1)
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		queryC <- r.URL.Query()
+		_, err := w.Write([]byte("[]"))
+		responseErrC <- err
+	}))
+	t.Cleanup(server.Close)
+
+	client := server.Client()
+	transport, ok := client.Transport.(*http.Transport)
+	require.True(t, ok, "Test server transport must be an HTTP transport")
+	transport.TLSClientConfig.ServerName = "example.com"
+	dialer := new(net.Dialer)
+	transport.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
+		return dialer.DialContext(ctx, network, server.Listener.Addr().String())
+	}
+
+	ex := new(Exchange)
+	ex.SetDefaults()
+	require.NoError(t, ex.SetHTTPClient(client), "Setting the test HTTP client must not error")
+
+	for _, tc := range []struct {
+		name          string
+		before        int64
+		after         int64
+		limit         int64
+		expectedQuery url.Values
+		expectedError string
+	}{
+		{
+			name:          "No pagination",
+			expectedQuery: url.Values{},
+		},
+		{
+			name:   "Before cursor",
+			before: 78234976,
+			limit:  10,
+			expectedQuery: url.Values{
+				"before": {"78234976"},
+				"limit":  {"10"},
+			},
+		},
+		{
+			name:  "After cursor",
+			after: 78234876,
+			expectedQuery: url.Values{
+				"after": {"78234876"},
+			},
+		},
+		{
+			name:          "Both cursors",
+			before:        78234976,
+			after:         78234876,
+			expectedError: "BTCMarkets only supports either before or after, not both",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ex.GetTrades(t.Context(), spotTestPair.String(), tc.before, tc.after, tc.limit)
+			if tc.expectedError != "" {
+				assert.EqualError(t, err, tc.expectedError, "GetTrades should reject conflicting cursors")
+				return
+			}
+			require.NoError(t, err, "GetTrades must accept valid pagination")
+			require.NoError(t, <-responseErrC, "Writing the response must not error")
+			assert.Equal(t, tc.expectedQuery, <-queryC, "GetTrades should send the expected query")
+		})
+	}
 }
 
 func TestGetOrderbook(t *testing.T) {

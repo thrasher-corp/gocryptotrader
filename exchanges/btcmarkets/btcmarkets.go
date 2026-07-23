@@ -114,7 +114,7 @@ func (e *Exchange) GetTicker(ctx context.Context, marketID string) (Ticker, erro
 
 // GetTrades returns executed trades on the exchange
 func (e *Exchange) GetTrades(ctx context.Context, marketID string, before, after, limit int64) ([]Trade, error) {
-	if (before > 0) && (after >= 0) {
+	if before > 0 && after > 0 {
 		return nil, errors.New("BTCMarkets only supports either before or after, not both")
 	}
 	var trades []Trade
