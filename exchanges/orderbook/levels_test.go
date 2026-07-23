@@ -266,7 +266,7 @@ func TestUpdateByID(t *testing.T) {
 	})
 	require.ErrorIs(t, err, errIDCannotBeMatched)
 
-	err = a.updateByID(Levels{ // Simulate Bitmex updating
+	err = a.updateByID(Levels{ // Simulate an amount-only update
 		{Price: 0, Amount: 1337, ID: 3},
 	})
 	require.NoError(t, err)
