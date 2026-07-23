@@ -286,9 +286,7 @@ func TestRegisterWebsocketDataHandlerWithFunctionality(t *testing.T) {
 	mock := websocket.NewManager()
 	m.state.Store(readyState)
 	err = m.websocketDataReceiver(mock)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	err = mock.DataHandler.Send(t.Context(), nil)
 	require.NoError(t, err)

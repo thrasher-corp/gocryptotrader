@@ -122,6 +122,7 @@ func (m *WebsocketRoutineManager) websocketRoutine(ctx context.Context) {
 	if err != nil {
 		log.Errorf(log.WebsocketMgr, "websocket routine manager cannot get exchanges: %v", err)
 	}
+
 	var wg sync.WaitGroup
 	for _, exch := range exchanges {
 		if !exch.SupportsWebsocket() {
@@ -198,7 +199,7 @@ func (m *WebsocketRoutineManager) websocketDataReceiver(ws *websocket.Manager) e
 				return
 			case payload := <-ws.DataHandler.C:
 				if payload.Data == nil {
-					log.Errorf(log.WebsocketMgr, "exchange %s nil data sent to websocket", ws.GetName())
+					continue
 				}
 				m.mu.RLock()
 				for x := range m.dataHandlers {
@@ -224,11 +225,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		return fmt.Errorf("exchange %s websocket error - %s", exchName, data)
 	case websocket.FundingData:
 		if m.verbose {
-			log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v",
-				exchName,
-				m.FormatCurrency(d.CurrencyPair),
-				d.AssetType,
-				d)
+			log.Infof(log.WebsocketMgr, "%s websocket %s %s funding updated %+v", exchName, m.FormatCurrency(d.CurrencyPair), d.AssetType, d)
 		}
 	case *ticker.Price:
 		if m.syncer.IsRunning() {
@@ -245,7 +242,9 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		if err != nil {
 			return err
 		}
-		m.syncer.PrintTickerSummary(d, "websocket", err)
+		m.wg.Go(func() {
+			m.syncer.PrintTickerSummary(d, "websocket", err)
+		})
 	case []ticker.Price:
 		for x := range d {
 			if m.syncer.IsRunning() {
@@ -262,7 +261,9 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 			if err != nil {
 				return err
 			}
-			m.syncer.PrintTickerSummary(&d[x], "websocket", err)
+			m.wg.Go(func() {
+				m.syncer.PrintTickerSummary(&d[x], "websocket", err)
+			})
 		}
 	case order.Detail, ticker.Price, orderbook.Depth:
 		return errUseAPointer
@@ -299,7 +300,9 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 				return err
 			}
 		}
-		m.syncer.PrintOrderbookSummary(base, "websocket", nil)
+		m.wg.Go(func() {
+			m.syncer.PrintOrderbookSummary(base, "websocket", nil)
+		})
 	case *order.Detail:
 		if !m.orderManager.IsRunning() {
 			return nil
@@ -309,7 +312,9 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 			if err != nil {
 				return err
 			}
-			m.printOrderSummary(d, false)
+			m.wg.Go(func() {
+				m.printOrderSummary(d, false)
+			})
 		} else {
 			od, err := m.orderManager.GetByExchangeAndID(d.Exchange, d.OrderID)
 			if err != nil {
@@ -324,7 +329,9 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 			if err != nil {
 				return err
 			}
-			m.printOrderSummary(od, true)
+			m.wg.Go(func() {
+				m.printOrderSummary(od, true)
+			})
 		}
 	case []order.Detail:
 		if !m.orderManager.IsRunning() {
@@ -332,11 +339,12 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		}
 		for x := range d {
 			if !m.orderManager.Exists(&d[x]) {
-				err := m.orderManager.Add(&d[x])
-				if err != nil {
+				if err := m.orderManager.Add(&d[x]); err != nil {
 					return err
 				}
-				m.printOrderSummary(&d[x], false)
+				m.wg.Go(func() {
+					m.printOrderSummary(&d[x], false)
+				})
 			} else {
 				od, err := m.orderManager.GetByExchangeAndID(d[x].Exchange, d[x].OrderID)
 				if err != nil {
@@ -350,7 +358,9 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 				if err != nil {
 					return err
 				}
-				m.printOrderSummary(od, true)
+				m.wg.Go(func() {
+					m.printOrderSummary(od, true)
+				})
 			}
 		}
 	case order.ClassificationError:
@@ -398,7 +408,8 @@ func (m *WebsocketRoutineManager) printOrderSummary(o *order.Detail, isUpdate bo
 		orderNotif = "Order Change:"
 	}
 
-	log.Debugf(log.WebsocketMgr,
+	log.Debugf(
+		log.WebsocketMgr,
 		"%s %s %s %s %s %s %s OrderID:%s ClientOrderID:%s Price:%f Amount:%f Executed Amount:%f Remaining Amount:%f",
 		orderNotif,
 		o.Exchange,
