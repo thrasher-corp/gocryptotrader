@@ -131,12 +131,14 @@ Similar to the configs, spot support is inbuilt but other asset types will need 
 | COINUT | Yes | Yes | NA |
 | Deribit | Yes | Yes | NA |
 | Coinbase | Yes | Yes | No|
+| CoinbaseInternational | Yes | Yes | No |
 | GateIO | Yes | Yes | NA |
 | Gemini | Yes | Yes | No |
 | HitBTC | Yes | Yes | No |
 | Huobi.Pro | Yes | Yes | NA |
 | Kraken | Yes | Yes | NA |
 | Kucoin | Yes | Yes | No |
+| MEXC | Yes | Yes | No |
 | Lbank | Yes | No | NA |
 | Okx | Yes | Yes | NA |
 | Poloniex | Yes | Yes | NA |
@@ -157,6 +159,7 @@ var Exchanges = []string{
     "btse",
     "bybit",
     "coinbase",
+    "coinbaseinternational",
     "coinut",
     "deribit",
     "gateio",
@@ -166,6 +169,7 @@ var Exchanges = []string{
     "kraken",
     "kucoin",
     "lbank",
+    "mexc",
     "okx",
     "poloniex",
     "yobit",
