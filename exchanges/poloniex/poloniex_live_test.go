@@ -25,7 +25,7 @@ func TestMain(m *testing.M) {
 		log.Fatal(err)
 	}
 
-	e.setAPICredential(apiKey, apiSecret)
+	e.setAPICredential(apiCredentials)
 	if err := e.populateTradablePairs(); err != nil {
 		log.Fatal(err)
 	}

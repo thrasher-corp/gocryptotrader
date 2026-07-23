@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -94,7 +95,7 @@ func TestPushData(t *testing.T) {
 	// Isolate global orderbook keying by exchange name to avoid cross-test contamination
 	// when Kucoin websocket tests run in parallel.
 	e.Name += "-TestPushData"
-	e.SetCredentials("mock", "test", "test", "", "", "")
+	e.SetCredentials(&accounts.Credentials{Key: "mock", Secret: "test", ClientID: "test"})
 	e.API.AuthenticatedSupport = true
 	e.API.AuthenticatedWebsocketSupport = true
 

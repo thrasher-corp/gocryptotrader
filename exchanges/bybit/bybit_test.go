@@ -44,12 +44,15 @@ import (
 
 // Please supply your own keys here to do authenticated endpoint testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
 	canManipulateRealOrders = false
 
 	skipAuthenticatedFunctionsForMockTesting = "skipping authenticated function for mock testing"
 )
+
+var apiCredentials = &accounts.Credentials{
+	Key:    "",
+	Secret: "",
+}
 
 var (
 	e *Exchange
@@ -3064,7 +3067,7 @@ func TestWSHandleAuthenticatedData(t *testing.T) {
 	require.NoError(t, testexch.Setup(ex), "Test instance Setup must not error")
 	ex.API.AuthenticatedSupport = true
 	ex.API.AuthenticatedWebsocketSupport = true
-	ex.SetCredentials("test", "test", "", "", "", "")
+	ex.SetCredentials(&accounts.Credentials{Key: "test", Secret: "test"})
 	formattedOptionsPair, err := ex.FormatExchangeCurrency(optionsTradablePair, asset.Options)
 	require.NoError(t, err)
 	storeFixturePairs := func(a asset.Item, pairs currency.Pairs) {

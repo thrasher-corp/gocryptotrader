@@ -87,9 +87,7 @@ func TestGetCredentials(t *testing.T) {
 	_, err = b.GetCredentials(ctx)
 	require.ErrorIs(t, err, errRequiresAPIClientID)
 
-	b.API.SetKey("hello")
-	b.API.SetSecret("sir")
-	b.API.SetClientID("1337")
+	b.SetCredentials(&accounts.Credentials{Key: "hello", Secret: "sir", ClientID: "1337"})
 
 	ctx = context.WithValue(t.Context(), accounts.ContextSubAccountFlag, "superaccount")
 	overriddenSA, err := b.GetCredentials(ctx)
@@ -134,7 +132,6 @@ func TestVerifyAPICredentials(t *testing.T) {
 		RequiresSecret             bool
 		RequiresClientID           bool
 		RequiresBase64DecodeSecret bool
-		UseSetCredentials          bool
 		CheckBase64DecodedOutput   bool
 		Expected                   error
 	}
@@ -160,7 +157,6 @@ func TestVerifyAPICredentials(t *testing.T) {
 		{RequiresBase64DecodeSecret: true, RequiresSecret: true, Expected: errRequiresAPISecret, Key: "bruh"},
 		{RequiresBase64DecodeSecret: true, Secret: "%%", Expected: errBase64DecodeFailure},
 		{RequiresBase64DecodeSecret: true, Secret: "aGVsbG8gd29ybGQ=", CheckBase64DecodedOutput: true},
-		{RequiresBase64DecodeSecret: true, Secret: "aGVsbG8gd29ybGQ=", UseSetCredentials: true, CheckBase64DecodedOutput: true},
 	}
 
 	setupBase := func(tData *tester) *Base {
@@ -175,14 +171,12 @@ func TestVerifyAPICredentials(t *testing.T) {
 				},
 			},
 		}
-		if tData.UseSetCredentials {
-			b.SetCredentials(tData.Key, tData.Secret, tData.ClientID, "", tData.PEMKey, "")
-		} else {
-			b.API.SetKey(tData.Key)
-			b.API.SetSecret(tData.Secret)
-			b.API.SetClientID(tData.ClientID)
-			b.API.SetPEMKey(tData.PEMKey)
-		}
+		b.SetCredentials(&accounts.Credentials{
+			Key:      tData.Key,
+			Secret:   tData.Secret,
+			ClientID: tData.ClientID,
+			PEMKey:   tData.PEMKey,
+		})
 		return b
 	}
 
@@ -301,39 +295,6 @@ func TestCheckCredentials(t *testing.T) {
 	}
 }
 
-func TestAPISetters(t *testing.T) {
-	t.Parallel()
-	api := API{}
-	api.SetKey(accounts.Key)
-	if api.credentials.Key != accounts.Key {
-		t.Fatal("unexpected value")
-	}
-
-	api = API{}
-	api.SetSecret(accounts.Secret)
-	if api.credentials.Secret != accounts.Secret {
-		t.Fatal("unexpected value")
-	}
-
-	api = API{}
-	api.SetClientID(accounts.ClientID)
-	if api.credentials.ClientID != accounts.ClientID {
-		t.Fatal("unexpected value")
-	}
-
-	api = API{}
-	api.SetPEMKey(accounts.PEMKey)
-	if api.credentials.PEMKey != accounts.PEMKey {
-		t.Fatal("unexpected value")
-	}
-
-	api = API{}
-	api.SetSubAccount(accounts.SubAccountSTR)
-	if api.credentials.SubAccount != accounts.SubAccountSTR {
-		t.Fatal("unexpected value")
-	}
-}
-
 func TestSetCredentials(t *testing.T) {
 	t.Parallel()
 
@@ -346,7 +307,7 @@ func TestSetCredentials(t *testing.T) {
 		},
 	}
 
-	b.SetCredentials("RocketMan", "Digereedoo", "007", "", "", "")
+	b.SetCredentials(&accounts.Credentials{Key: "RocketMan", Secret: "Digereedoo", ClientID: "007"})
 	if b.API.credentials.Key != "RocketMan" &&
 		b.API.credentials.Secret != "Digereedoo" &&
 		b.API.credentials.ClientID != "007" {
@@ -356,7 +317,7 @@ func TestSetCredentials(t *testing.T) {
 	// Invalid secret
 	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
 	b.API.AuthenticatedSupport = true
-	b.SetCredentials("RocketMan", "%%", "007", "", "", "")
+	b.SetCredentials(&accounts.Credentials{Key: "RocketMan", Secret: "%%", ClientID: "007"})
 	if b.API.AuthenticatedSupport || b.API.AuthenticatedWebsocketSupport {
 		t.Error("invalid secret should disable authenticated API support")
 	}
@@ -364,10 +325,28 @@ func TestSetCredentials(t *testing.T) {
 	// valid secret
 	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
 	b.API.AuthenticatedSupport = true
-	b.SetCredentials("RocketMan", "aGVsbG8gd29ybGQ=", "007", "", "", "")
-	if !b.API.AuthenticatedSupport && b.API.credentials.Secret != "hello world" {
-		t.Error("invalid secret should disable authenticated API support")
-	}
+	b.SetCredentials(&accounts.Credentials{Key: "RocketMan", Secret: "aGVsbG8gd29ybGQ=", ClientID: "007"})
+	require.True(t, b.API.AuthenticatedSupport, "authenticated support must remain enabled")
+	require.Equal(t, "hello world", b.API.credentials.Secret, "secret must be decoded")
+
+	// Unchanged decoded secret
+	creds := b.GetDefaultCredentials()
+	b.SetCredentials(creds)
+	require.True(t, b.API.AuthenticatedSupport, "authenticated support must remain enabled")
+	require.Equal(t, "hello world", b.API.credentials.Secret, "secret must not be decoded again")
+
+	// Rotated secret with stale derived state
+	creds.Secret = "Z29vZGJ5ZSB3b3JsZA=="
+	b.SetCredentials(creds)
+	require.Equal(t, "goodbye world", b.API.credentials.Secret, "rotated secret must be decoded")
+	require.True(t, b.API.credentials.SecretBase64Decoded, "rotated secret must be marked as decoded")
+
+	// Invalid rotated secret with stale derived state
+	creds = b.GetDefaultCredentials()
+	creds.Secret = "%%"
+	b.SetCredentials(creds)
+	require.False(t, b.API.credentials.SecretBase64Decoded, "invalid secret must not be marked as decoded")
+	require.ErrorIs(t, b.VerifyAPICredentials(b.GetDefaultCredentials()), errBase64DecodeFailure, "invalid secret must fail verification")
 }
 
 func TestGetDefaultCredentials(t *testing.T) {
@@ -375,7 +354,7 @@ func TestGetDefaultCredentials(t *testing.T) {
 	if b.GetDefaultCredentials() != nil {
 		t.Fatal("unexpected return")
 	}
-	b.SetCredentials("test", "", "", "", "", "")
+	b.SetCredentials(&accounts.Credentials{Key: "test"})
 	if b.GetDefaultCredentials() == nil {
 		t.Fatal("unexpected return")
 	}

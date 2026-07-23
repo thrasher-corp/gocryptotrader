@@ -37,8 +37,6 @@ import (
 
 // Please supply your own keys here for due diligence testing
 const (
-	apiKey                  = ""
-	apiSecret               = ""
 	canManipulateRealOrders = false
 	useTestNet              = false
 )
@@ -388,7 +386,8 @@ func TestUCompositeIndexInfo(t *testing.T) {
 func TestUFuturesNewOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err := e.UFuturesNewOrder(t.Context(),
+	_, err := e.UFuturesNewOrder(
+		t.Context(),
 		&UFuturesNewOrderRequest{
 			Symbol:      currency.NewBTCUSDT(),
 			Side:        "BUY",
@@ -1499,7 +1498,8 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 				expFunc: func(t *testing.T, results []AggregatedTrade) {
 					t.Helper()
 					require.Equal(t, 1012, len(results), "must return correct number of records")
-					assert.Equal(t,
+					assert.Equal(
+						t,
 						time.Date(2020, 1, 2, 16, 18, 31, int(919*time.Millisecond), time.UTC),
 						results[len(results)-1].TimeStamp.Time().UTC(),
 						"should return the correct time for the last record",
@@ -1512,7 +1512,8 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 				expFunc: func(t *testing.T, results []AggregatedTrade) {
 					t.Helper()
 					require.Equal(t, 1001, len(results), "must return correct number of records")
-					assert.Equal(t,
+					assert.Equal(
+						t,
 						time.Date(2020, 1, 2, 15, 18, 39, int(226*time.Millisecond), time.UTC),
 						results[len(results)-1].TimeStamp.Time().UTC(),
 						"should return the correct time for the last record",
@@ -1525,7 +1526,8 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 				expFunc: func(t *testing.T, results []AggregatedTrade) {
 					t.Helper()
 					require.Equal(t, 3, len(results), "must return correct number of records")
-					assert.Equal(t,
+					assert.Equal(
+						t,
 						time.Date(2020, 1, 2, 16, 19, 5, int(200*time.Millisecond), time.UTC),
 						results[len(results)-1].TimeStamp.Time().UTC(),
 						"should return the correct time for the last record",

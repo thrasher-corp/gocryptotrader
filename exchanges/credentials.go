@@ -30,41 +30,6 @@ var (
 	errBase64DecodeFailure = errors.New("base64 decode has failed")
 )
 
-// SetKey sets new key for the default credentials
-func (a *API) SetKey(key string) {
-	a.credMu.Lock()
-	defer a.credMu.Unlock()
-	a.credentials.Key = key
-}
-
-// SetSecret sets new secret for the default credentials
-func (a *API) SetSecret(secret string) {
-	a.credMu.Lock()
-	defer a.credMu.Unlock()
-	a.credentials.Secret = secret
-}
-
-// SetClientID sets new clientID for the default credentials
-func (a *API) SetClientID(clientID string) {
-	a.credMu.Lock()
-	defer a.credMu.Unlock()
-	a.credentials.ClientID = clientID
-}
-
-// SetPEMKey sets pem key for the default credentials
-func (a *API) SetPEMKey(pem string) {
-	a.credMu.Lock()
-	defer a.credMu.Unlock()
-	a.credentials.PEMKey = pem
-}
-
-// SetSubAccount sets sub account for the default credentials
-func (a *API) SetSubAccount(sub string) {
-	a.credMu.Lock()
-	defer a.credMu.Unlock()
-	a.credentials.SubAccount = sub
-}
-
 // CheckCredentials checks to see if the required fields have been set before
 // sending an authenticated API request
 func (b *Base) CheckCredentials(creds *accounts.Credentials, isContext bool) error {
@@ -179,30 +144,31 @@ func (b *Base) VerifyAPICredentials(creds *accounts.Credentials) error {
 	return nil
 }
 
-// SetCredentials is a method that sets the current API keys for the exchange
-func (b *Base) SetCredentials(apiKey, apiSecret, clientID, subaccount, pemKey, oneTimePassword string) {
+// SetCredentials sets the exchange's default API credentials, copying the
+// supplied credentials so later caller mutation has no effect. When the
+// exchange requires a base64-decoded secret, the secret is decoded here and
+// authenticated support is disabled if decoding fails.
+func (b *Base) SetCredentials(creds *accounts.Credentials) {
 	b.API.credMu.Lock()
 	defer b.API.credMu.Unlock()
-	b.API.credentials.Key = apiKey
-	b.API.credentials.ClientID = clientID
-	b.API.credentials.SubAccount = subaccount
-	b.API.credentials.PEMKey = pemKey
-	b.API.credentials.OneTimePassword = oneTimePassword
+	if creds == nil {
+		b.API.credentials = accounts.Credentials{}
+		return
+	}
+	secretAlreadyDecoded := b.API.credentials.SecretBase64Decoded && creds.SecretBase64Decoded && b.API.credentials.Secret == creds.Secret
+	b.API.credentials = *creds
 
-	if b.API.CredentialsValidator.RequiresBase64DecodeSecret {
-		result, err := base64.StdEncoding.DecodeString(apiSecret)
+	if b.API.CredentialsValidator.RequiresBase64DecodeSecret && !secretAlreadyDecoded {
+		b.API.credentials.SecretBase64Decoded = false
+		result, err := base64.StdEncoding.DecodeString(b.API.credentials.Secret)
 		if err != nil {
 			b.API.AuthenticatedSupport = false
 			b.API.AuthenticatedWebsocketSupport = false
-			log.Warnf(log.ExchangeSys,
-				warningBase64DecryptSecretKeyFailed,
-				b.Name)
+			log.Warnf(log.ExchangeSys, warningBase64DecryptSecretKeyFailed, b.Name)
 			return
 		}
 		b.API.credentials.Secret = string(result)
 		b.API.credentials.SecretBase64Decoded = true
-	} else {
-		b.API.credentials.Secret = apiSecret
 	}
 }
 

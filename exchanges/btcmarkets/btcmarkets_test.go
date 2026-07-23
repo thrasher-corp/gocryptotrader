@@ -26,11 +26,12 @@ import (
 var e *Exchange
 
 // Please supply your own keys here to do better tests
-const (
-	apiKey                  = ""
-	apiSecret               = ""
-	canManipulateRealOrders = false
-)
+const canManipulateRealOrders = false
+
+var apiCredentials = &accounts.Credentials{
+	Key:    "",
+	Secret: "",
+}
 
 var spotTestPair = currency.NewPair(currency.BTC, currency.AUD).Format(currency.PairFormat{Uppercase: true, Delimiter: currency.DashDelimiter})
 
@@ -40,10 +41,10 @@ func TestMain(m *testing.M) {
 		log.Fatalf("BTCMarkets Setup error: %s", err)
 	}
 
-	if apiKey != "" && apiSecret != "" {
+	if apiCredentials.Key != "" && apiCredentials.Secret != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.SetCredentials(apiCredentials)
 	}
 
 	os.Exit(m.Run())
@@ -996,7 +997,8 @@ func TestGenerateSubscriptions(t *testing.T) {
 		exp = append(exp, s)
 	}
 	testsubs.EqualLists(t, exp, subs)
-	assert.PanicsWithError(t,
+	assert.PanicsWithError(
+		t,
 		"subscription channel not supported: wibble",
 		func() { channelName(&subscription.Subscription{Channel: "wibble"}) },
 		"should panic on invalid channel",

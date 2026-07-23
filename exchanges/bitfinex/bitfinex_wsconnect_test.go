@@ -13,6 +13,7 @@ import (
 	gws "github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -65,7 +66,7 @@ func TestWsConnectAuthDialFailureSkipsAuthReaderAndAuthSend(t *testing.T) {
 
 	ex.API.AuthenticatedSupport = true
 	ex.API.AuthenticatedWebsocketSupport = true
-	ex.SetCredentials("key", "secret", "", "", "", "")
+	ex.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 
 	publicConn := &wsConnectFixtureConnection{}
