@@ -1,7 +1,6 @@
 package exchangerates
 
 import (
-	"context"
 	"errors"
 	"log"
 	"os"
@@ -203,7 +202,7 @@ func TestGetRates(t *testing.T) {
 		t.Skip("API key not set, skipping test")
 	}
 
-	if _, err := e.GetRates(context.Background(), "EUR", ""); err != nil {
+	if _, err := e.GetRates("EUR", ""); err != nil {
 		t.Fatalf("failed to GetRates. Err: %s", err)
 	}
 }

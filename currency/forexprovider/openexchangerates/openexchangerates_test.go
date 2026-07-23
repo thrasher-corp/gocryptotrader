@@ -1,7 +1,6 @@
 package openexchangerates
 
 import (
-	"context"
 	"log"
 	"os"
 	"testing"
@@ -33,7 +32,7 @@ func TestMain(m *testing.M) {
 
 func TestGetRates(t *testing.T) {
 	t.Parallel()
-	_, err := o.GetRates(context.Background(), "USD", "AUD")
+	_, err := o.GetRates("USD", "AUD")
 	if err == nil {
 		t.Error("GetRates() Expected error")
 	}
