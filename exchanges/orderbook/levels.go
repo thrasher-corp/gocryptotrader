@@ -59,8 +59,8 @@ updates:
 				continue
 			}
 			if updts[x].Price > 0 {
-				// Only apply changes when zero values are not present, Bitmex
-				// for example sends 0 price values.
+				// Some feeds use zero price values to signal an
+				// amount-only update.
 				l[y].Price = updts[x].Price
 				l[y].StrPrice = updts[x].StrPrice
 			}

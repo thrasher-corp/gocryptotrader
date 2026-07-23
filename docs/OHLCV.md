@@ -70,7 +70,6 @@ A helper tool [cmd/dbseed](../cmd/dbseed/README.md) has been created for assisti
 | Bitfinex       | Y           | 
 | Bitflyer       |             | 
 | Bithumb        | Y           | 
-| Bitmex         |             |        
 | Bitstamp       | Y           | 
 | BTC Markets    | Y           | 
 | BTSE           | Y           |      

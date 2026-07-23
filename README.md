@@ -23,7 +23,6 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 | Bitfinex | Yes  | Yes        | NA  |
 | Bitflyer | Yes  | No      | NA  |
 | Bithumb | Yes  | Yes       | NA  |
-| BitMEX | Yes | Yes | NA |
 | Bitstamp | Yes  | Yes       | No  |
 | BTCMarkets | Yes | Yes       | NA  |
 | BTSE | Yes | Yes | NA |

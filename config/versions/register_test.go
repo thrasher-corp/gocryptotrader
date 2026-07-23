@@ -40,7 +40,7 @@ func TestVersionsRegistered(t *testing.T) {
 			version, err := strconv.ParseUint(verMatch[1], 10, 16)
 			require.NoError(t, err, "verMatch must ParseUint without error")
 			v := versions.Manager.Version(uint16(version))
-			require.NotNil(t, v, "version.Manager init must register this version")
+			require.NotNil(t, v, "versions.Manager must register this version")
 			require.Contains(t, reflect.TypeOf(v).String(), "*"+verStr+".Version", "version registered must be the correct type")
 		})
 		return filepath.SkipDir
