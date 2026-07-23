@@ -24,6 +24,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 + Currency Layer support
 + Exchange Rates support
 + Fixer.io support
++ FXMacroData support
 + Open Exchange Rates support
 
 ## Donations
