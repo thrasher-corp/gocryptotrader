@@ -33,15 +33,20 @@ import (
 // Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with Lbank
 type Exchange struct {
 	exchange.Base
-	privateKey *rsa.PrivateKey
+	privateKey     *rsa.PrivateKey
+	wsSubscribeKey string
 }
 
 const (
-	lbankAPIURL      = "https://api.lbkex.com"
-	lbankAPIVersion1 = "1"
-	lbankAPIVersion2 = "2"
-	lbankFeeNotFound = 0.0
-	tradeBaseURL     = "https://www.lbank.com/trade/"
+	lbankAPIURL              = "https://api.lbkex.com"
+	lbankWSURL               = "wss://www.lbkex.net/ws/V2/"
+	lbankAPIVersion1         = "1"
+	lbankAPIVersion2         = "2"
+	lbankFeeNotFound         = 0.0
+	tradeBaseURL             = "https://www.lbank.com/trade/"
+	lbankSubscribeGetKey     = "subscribe/get_key.do"
+	lbankSubscribeRefreshKey = "subscribe/refresh_key.do"
+	lbankSubscribeDestroyKey = "subscribe/destroy_key.do"
 
 	// Public endpoints
 	lbankTicker         = "ticker.do"
@@ -603,4 +608,38 @@ func (e *Exchange) SendAuthHTTPRequest(ctx context.Context, method, endpoint str
 		item.Body = bytes.NewBufferString(payload)
 		return item, nil
 	}, request.AuthenticatedRequest)
+}
+
+// GetWebsocketSubscribeKey gets a subscribe key for websocket authentication
+func (e *Exchange) GetWebsocketSubscribeKey(ctx context.Context) (string, error) {
+	var resp struct {
+		Key string `json:"key"`
+	}
+	path := "/v" + lbankAPIVersion2 + "/" + lbankSubscribeGetKey
+	if err := e.SendAuthHTTPRequest(ctx, http.MethodPost, path, nil, &resp); err != nil {
+		return "", err
+	}
+	return resp.Key, nil
+}
+
+// RefreshWebsocketSubscribeKey refreshes an existing subscribe key
+func (e *Exchange) RefreshWebsocketSubscribeKey(ctx context.Context, key string) error {
+	params := url.Values{}
+	params.Set("subscribeKey", key)
+	path := "/v" + lbankAPIVersion1 + "/" + lbankSubscribeRefreshKey
+	var resp struct {
+		Result string `json:"result"`
+	}
+	return e.SendAuthHTTPRequest(ctx, http.MethodPost, path, params, &resp)
+}
+
+// DestroyWebsocketSubscribeKey destroys an existing subscribe key
+func (e *Exchange) DestroyWebsocketSubscribeKey(ctx context.Context, key string) error {
+	params := url.Values{}
+	params.Set("subscribeKey", key)
+	path := "/v" + lbankAPIVersion1 + "/" + lbankSubscribeDestroyKey
+	var resp struct {
+		Result string `json:"result"`
+	}
+	return e.SendAuthHTTPRequest(ctx, http.MethodPost, path, params, &resp)
 }
