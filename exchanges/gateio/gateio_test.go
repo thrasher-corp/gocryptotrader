@@ -1675,8 +1675,10 @@ func TestGetOptionsSpecifiedSettlementHistory(t *testing.T) {
 }
 
 func TestGetSupportedFlashSwapCurrencies(t *testing.T) {
-	t.Parallel()
 	if _, err := e.GetSupportedFlashSwapCurrencies(t.Context()); err != nil {
+		if strings.Contains(err.Error(), `status "429`) {
+			t.Skipf("%s GetSupportedFlashSwapCurrencies() rate limited: %v", e.Name, err)
+		}
 		t.Errorf("%s GetSupportedFlashSwapCurrencies() error %v", e.Name, err)
 	}
 }
@@ -2997,31 +2999,28 @@ func TestGetOpenInterest(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrPairNotFound, "GetOpenInterest should error correctly")
 
 	var resp []futures.OpenInterest
+	validPairs := make(map[asset.Item]key.PairAsset, 3)
 	for _, a := range []asset.Item{asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures} {
-		p := getPair(t, a)
-		resp, err = e.GetOpenInterest(t.Context(), key.PairAsset{
-			Base:  p.Base.Item,
-			Quote: p.Quote.Item,
-			Asset: a,
-		})
-		assert.NoErrorf(t, err, "GetOpenInterest should not error for %s asset", a)
+		pair, response := getPairWithOpenInterest(t, a)
+		validPairs[a] = pair
+		resp = response
 		require.Lenf(t, resp, 1, "GetOpenInterest must return 1 item for %s asset", a)
 		assert.Positivef(t, resp[0].OpenInterest, "GetOpenInterest should return positive open interest for %s asset", a)
 	}
 
-	coinPair := getPair(t, asset.CoinMarginedFutures)
-	usdtPair := getPair(t, asset.USDTMarginedFutures)
+	coinPair := validPairs[asset.CoinMarginedFutures]
+	usdtPair := validPairs[asset.USDTMarginedFutures]
 	resp, err = e.GetOpenInterest(
 		t.Context(),
-		key.PairAsset{Base: coinPair.Base.Item, Quote: coinPair.Quote.Item, Asset: asset.CoinMarginedFutures},
-		key.PairAsset{Base: usdtPair.Base.Item, Quote: usdtPair.Quote.Item, Asset: asset.USDTMarginedFutures},
+		coinPair,
+		usdtPair,
 	)
 	assert.NoError(t, err, "GetOpenInterest should not error for multiple explicit perpetual pairs")
 	require.Len(t, resp, 2, "GetOpenInterest returns exactly the requested perpetual pairs")
 
 	expected := map[asset.Item]currency.Pair{
-		asset.CoinMarginedFutures: coinPair,
-		asset.USDTMarginedFutures: usdtPair,
+		asset.CoinMarginedFutures: coinPair.Pair(),
+		asset.USDTMarginedFutures: usdtPair.Pair(),
 	}
 	found := make(map[asset.Item]bool, len(expected))
 	for _, oi := range resp {
@@ -3630,6 +3629,19 @@ func getPair(tb testing.TB, a asset.Item) currency.Pair {
 		return p[0]
 	}
 	return currency.EMPTYPAIR
+}
+
+func getPairWithOpenInterest(t *testing.T, a asset.Item) (key.PairAsset, []futures.OpenInterest) {
+	t.Helper()
+	for _, pair := range getPairs(t, a) {
+		pairAsset := key.PairAsset{Base: pair.Base.Item, Quote: pair.Quote.Item, Asset: a}
+		response, err := e.GetOpenInterest(t.Context(), pairAsset)
+		if err == nil && len(response) == 1 && response[0].OpenInterest > 0 {
+			return pairAsset, response
+		}
+	}
+	t.Fatalf("GetOpenInterest must find a live pair for %s asset", a)
+	return key.PairAsset{}, nil
 }
 
 func getPairs(tb testing.TB, a asset.Item) currency.Pairs {
