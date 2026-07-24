@@ -5,7 +5,10 @@ import (
 	"io"
 	"log"
 	"os"
+	"runtime"
+	"runtime/debug"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -325,6 +328,391 @@ func TestStageNewLogEvent(t *testing.T) {
 	<-w.Finished
 	if contents := w.Read(); contents != "header space  space out\n" { //nolint:dupword // False positive
 		t.Errorf("received: '%v' but expected: '%v'", contents, "header space  space out\n") //nolint:dupword // False positive
+	}
+}
+
+func TestGetFields(t *testing.T) {
+	mu.Lock()
+	originalConfig := globalLogConfig
+	originalLogger := logger
+	originalPool := logFieldsPool
+	mu.Unlock()
+	t.Cleanup(func() {
+		mu.Lock()
+		globalLogConfig = originalConfig
+		logger = originalLogger
+		logFieldsPool = originalPool
+		mu.Unlock()
+	})
+
+	enabled := true
+	mu.Lock()
+	globalLogConfig = &Config{Enabled: &enabled}
+	mu.Unlock()
+	mu.RLock()
+	f := (*SubLogger)(nil).getFields()
+	mu.RUnlock()
+	assert.Nil(t, f, "getFields should return nil for a nil sublogger")
+
+	sl := &SubLogger{}
+	mu.Lock()
+	globalLogConfig = nil
+	mu.Unlock()
+	mu.RLock()
+	f = sl.getFields()
+	mu.RUnlock()
+	assert.Nil(t, f, "getFields should return nil without a global config")
+
+	mu.Lock()
+	globalLogConfig = &Config{}
+	mu.Unlock()
+	mu.RLock()
+	f = sl.getFields()
+	mu.RUnlock()
+	assert.Nil(t, f, "getFields should return nil without an enabled setting")
+
+	mu.Lock()
+	enabled = false
+	globalLogConfig.Enabled = &enabled
+	mu.Unlock()
+	mu.RLock()
+	f = sl.getFields()
+	mu.RUnlock()
+	assert.Nil(t, f, "getFields should return nil when logging is disabled")
+
+	output := &multiWriterHolder{}
+	sl = &SubLogger{
+		name:              "FIELDS",
+		levels:            Levels{Info: true, Debug: true, Warn: true, Error: true},
+		output:            output,
+		botName:           "bot",
+		structuredLogging: true,
+	}
+	currentLogger := Logger{InfoHeader: "current"}
+	staleLogger := Logger{InfoHeader: "stale"}
+	mu.Lock()
+	enabled = true
+	logger = staleLogger
+	pooled := originalPool.New().(*fields) //nolint:forcetypeassert // Not necessary from a pool
+	pooled.structuredFields = ExtraFields{"stale": true}
+	logFieldsPool = &sync.Pool{New: func() any { return pooled }}
+	logger = currentLogger
+	mu.Unlock()
+	mu.RLock()
+	f = sl.getFields()
+	if f == nil {
+		mu.RUnlock()
+		require.NotNil(t, f, "getFields result must not be nil when logging is enabled")
+		return
+	}
+	assert.Equal(t, sl.levels.Info, f.info, "getFields should copy the info level")
+	assert.Equal(t, sl.levels.Debug, f.debug, "getFields should copy the debug level")
+	assert.Equal(t, sl.levels.Warn, f.warn, "getFields should copy the warn level")
+	assert.Equal(t, sl.levels.Error, f.error, "getFields should copy the error level")
+	assert.Equal(t, sl.name, f.name, "getFields should copy the sublogger name")
+	assert.Same(t, output, f.output, "getFields should copy the output")
+	assert.Equal(t, sl.botName, f.botName, "getFields should copy the bot name")
+	assert.Equal(t, sl.structuredLogging, f.structuredLogging, "getFields should copy structured logging")
+	assert.Same(t, &logger, f.logger, "getFields should use the current logger")
+	assert.Equal(t, currentLogger, *f.logger, "getFields should return the current logger")
+	assert.Nil(t, f.structuredFields, "getFields should discard stale structured fields")
+	logFieldsPool.Put(f)
+	mu.RUnlock()
+}
+
+func TestPooledFieldsUseCurrentLogger(t *testing.T) {
+	w := newTestBuffer()
+	sl := &SubLogger{
+		name:   "CURRENT",
+		levels: Levels{Info: true},
+		output: &multiWriterHolder{writers: []io.Writer{w}},
+	}
+	enabled := true
+	currentLogger := Logger{InfoHeader: "current", Spacer: " "}
+	staleLogger := Logger{InfoHeader: "stale", Spacer: " "}
+
+	mu.Lock()
+	originalConfig := globalLogConfig
+	originalHook := customLogHook
+	originalLogger := logger
+	originalPool := logFieldsPool
+	globalLogConfig = &Config{Enabled: &enabled}
+	customLogHook = nil
+	logger = staleLogger
+	pooled := originalPool.New().(*fields) //nolint:forcetypeassert // Not necessary from a pool
+	logFieldsPool = &sync.Pool{New: func() any { return pooled }}
+	logger = currentLogger
+	mu.Unlock()
+	t.Cleanup(func() {
+		mu.Lock()
+		globalLogConfig = originalConfig
+		customLogHook = originalHook
+		logger = originalLogger
+		logFieldsPool = originalPool
+		mu.Unlock()
+	})
+
+	Infoln(sl, "message")
+	barrier := make(chan struct{})
+	jobsChannel <- &job{Passback: barrier}
+	<-barrier
+	wroteOutput := false
+	select {
+	case <-w.Finished:
+		wroteOutput = true
+	default:
+	}
+	assert.True(t, wroteOutput, "Infoln should write with the current logger")
+	output := w.Read()
+	assert.Contains(t, output, currentLogger.InfoHeader, "Infoln should use the current logger header")
+	assert.NotContains(t, output, staleLogger.InfoHeader, "Infoln should not use a stale logger header")
+}
+
+func TestFieldsCustomLogHook(t *testing.T) {
+	testLogger := Logger{InfoHeader: "[INFO]", Spacer: " "}
+	mu.Lock()
+	originalHook := customLogHook
+	originalPool := logFieldsPool
+	mu.Unlock()
+	t.Cleanup(func() {
+		mu.Lock()
+		customLogHook = originalHook
+		logFieldsPool = originalPool
+		mu.Unlock()
+	})
+
+	for _, tc := range []struct {
+		name             string
+		operation        string
+		hookSet          bool
+		bypass           bool
+		call             func(*fields)
+		expectedHookArgs []any
+		expectedOutput   string
+	}{
+		{name: "stageln without hook", operation: "stageln", call: func(f *fields) { f.stageln(testLogger.InfoHeader, "message", 1) }, expectedOutput: "message1"},
+		{name: "stageln hook falls through", operation: "stageln", hookSet: true, call: func(f *fields) { f.stageln(testLogger.InfoHeader, "message", 1) }, expectedHookArgs: []any{"message", 1}, expectedOutput: "message1"},
+		{name: "stageln hook bypasses", operation: "stageln", hookSet: true, bypass: true, call: func(f *fields) { f.stageln(testLogger.InfoHeader, "message", 1) }, expectedHookArgs: []any{"message", 1}},
+		{name: "stagef without hook", operation: "stagef", call: func(f *fields) { f.stagef(testLogger.InfoHeader, "formatted %s %d", "message", 1) }, expectedOutput: "formatted message 1"},
+		{name: "stagef hook falls through", operation: "stagef", hookSet: true, call: func(f *fields) { f.stagef(testLogger.InfoHeader, "formatted %s %d", "message", 1) }, expectedHookArgs: []any{"formatted message 1"}, expectedOutput: "formatted message 1"},
+		{name: "stagef hook bypasses", operation: "stagef", hookSet: true, bypass: true, call: func(f *fields) { f.stagef(testLogger.InfoHeader, "formatted %s %d", "message", 1) }, expectedHookArgs: []any{"formatted message 1"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			w := newTestBuffer()
+			var hookArgs []any
+			mu.Lock()
+			if tc.hookSet {
+				customLogHook = func(_, _ string, a ...any) bool {
+					hookArgs = append(hookArgs, a...)
+					return tc.bypass
+				}
+			} else {
+				customLogHook = nil
+			}
+			logFieldsPool = &sync.Pool{New: func() any {
+				return &fields{
+					info:   true,
+					name:   "HOOK",
+					output: &multiWriterHolder{writers: []io.Writer{w}},
+					logger: &testLogger,
+				}
+			}}
+			f := logFieldsPool.Get().(*fields) //nolint:forcetypeassert // Not necessary from a pool
+			mu.Unlock()
+
+			mu.RLock()
+			tc.call(f)
+			mu.RUnlock()
+			barrier := make(chan struct{})
+			jobsChannel <- &job{Passback: barrier}
+			<-barrier
+			wroteOutput := false
+			select {
+			case <-w.Finished:
+				wroteOutput = true
+			default:
+			}
+			if tc.expectedOutput != "" {
+				assert.Truef(t, wroteOutput, "%s should write internal output", tc.operation)
+				assert.Containsf(t, w.Read(), tc.expectedOutput, "%s should write the correct output", tc.operation)
+			} else {
+				assert.Falsef(t, wroteOutput, "%s should bypass internal output", tc.operation)
+				assert.Emptyf(t, w.Read(), "%s should not write internal output", tc.operation)
+			}
+			assert.Equalf(t, tc.expectedHookArgs, hookArgs, "%s should pass the correct hook arguments", tc.operation)
+		})
+	}
+
+	message := []byte("before")
+	w := newTestBuffer()
+	mu.Lock()
+	customLogHook = func(_, _ string, a ...any) bool {
+		assert.Equal(t, []any{"before"}, a, "stagef should pass the formatted message to the hook")
+		copy(message, "after!")
+		return false
+	}
+	logFieldsPool = &sync.Pool{New: func() any {
+		return &fields{
+			info:   true,
+			name:   "HOOK",
+			output: &multiWriterHolder{writers: []io.Writer{w}},
+			logger: &testLogger,
+		}
+	}}
+	f := logFieldsPool.Get().(*fields) //nolint:forcetypeassert // Not necessary from a pool
+	mu.Unlock()
+
+	mu.RLock()
+	f.stagef(testLogger.InfoHeader, "%s", message)
+	mu.RUnlock()
+	barrier := make(chan struct{})
+	jobsChannel <- &job{Passback: barrier}
+	<-barrier
+	wroteSnapshot := false
+	select {
+	case <-w.Finished:
+		wroteSnapshot = true
+	default:
+	}
+	assert.True(t, wroteSnapshot, "stagef should write fall-through output")
+	output := w.Read()
+	assert.Contains(t, output, "before", "stagef should reuse the hook-formatted message")
+	assert.NotContains(t, output, "after!", "stagef should not format mutable arguments twice")
+}
+
+func TestFieldsCustomLogHookRecyclesFields(t *testing.T) {
+	previousMaxProcs := runtime.GOMAXPROCS(1)
+	t.Cleanup(func() { runtime.GOMAXPROCS(previousMaxProcs) })
+	previousGCPercent := debug.SetGCPercent(-1)
+	t.Cleanup(func() { debug.SetGCPercent(previousGCPercent) })
+
+	testLogger := Logger{InfoHeader: "[INFO]"}
+	mu.Lock()
+	originalHook := customLogHook
+	originalPool := logFieldsPool
+	customLogHook = func(_, _ string, _ ...any) bool { return true }
+	mu.Unlock()
+	t.Cleanup(func() {
+		mu.Lock()
+		customLogHook = originalHook
+		logFieldsPool = originalPool
+		mu.Unlock()
+	})
+
+	for _, tc := range []struct {
+		name string
+		call func(*fields)
+	}{
+		{name: "stageln", call: func(f *fields) { f.stageln(testLogger.InfoHeader, "message") }},
+		{name: "stagef", call: func(f *fields) { f.stagef(testLogger.InfoHeader, "%s", "message") }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			const attempts = 1000
+			// Race builds may deliberately discard sync.Pool puts, so sample
+			// enough operations to distinguish drops from a missing Put path.
+			poolMisses := 0
+			mu.Lock()
+			logFieldsPool = &sync.Pool{New: func() any {
+				poolMisses++
+				return &fields{name: "HOOK", logger: &testLogger}
+			}}
+			mu.Unlock()
+
+			for range attempts {
+				mu.RLock()
+				f := logFieldsPool.Get().(*fields) //nolint:forcetypeassert // Not necessary from a pool
+				tc.call(f)
+				mu.RUnlock()
+			}
+			assert.Lessf(t, poolMisses, attempts/2, "%s should return fields to the pool", tc.name)
+		})
+	}
+}
+
+func TestLoggersDiscardStaleStructuredFields(t *testing.T) {
+	mu.Lock()
+	originalPool := logFieldsPool
+	originalHook := customLogHook
+	mu.Unlock()
+	t.Cleanup(func() {
+		mu.Lock()
+		logFieldsPool = originalPool
+		customLogHook = originalHook
+		mu.Unlock()
+	})
+
+	for _, tc := range []struct {
+		name                string
+		withFieldsOperation string
+		logWithFields       func(*SubLogger, ExtraFields, string)
+		logPlain            func(*SubLogger, string)
+	}{
+		{name: "Infoln", withFieldsOperation: "InfolnWithFields", logWithFields: func(sl *SubLogger, extra ExtraFields, message string) { InfolnWithFields(sl, extra, message) }, logPlain: func(sl *SubLogger, message string) { Infoln(sl, message) }},
+		{name: "Infof", withFieldsOperation: "InfoWithFieldsf", logWithFields: func(sl *SubLogger, extra ExtraFields, message string) { InfoWithFieldsf(sl, extra, "%s", message) }, logPlain: func(sl *SubLogger, message string) { Infof(sl, "%s", message) }},
+		{name: "Debugln", withFieldsOperation: "DebuglnWithFields", logWithFields: func(sl *SubLogger, extra ExtraFields, message string) { DebuglnWithFields(sl, extra, message) }, logPlain: func(sl *SubLogger, message string) { Debugln(sl, message) }},
+		{name: "Debugf", withFieldsOperation: "DebugWithFieldsf", logWithFields: func(sl *SubLogger, extra ExtraFields, message string) { DebugWithFieldsf(sl, extra, "%s", message) }, logPlain: func(sl *SubLogger, message string) { Debugf(sl, "%s", message) }},
+		{name: "Warnln", withFieldsOperation: "WarnlnWithFields", logWithFields: func(sl *SubLogger, extra ExtraFields, message string) { WarnlnWithFields(sl, extra, message) }, logPlain: func(sl *SubLogger, message string) { Warnln(sl, message) }},
+		{name: "Warnf", withFieldsOperation: "WarnWithFieldsf", logWithFields: func(sl *SubLogger, extra ExtraFields, message string) { WarnWithFieldsf(sl, extra, "%s", message) }, logPlain: func(sl *SubLogger, message string) { Warnf(sl, "%s", message) }},
+		{name: "Errorln", withFieldsOperation: "ErrorlnWithFields", logWithFields: func(sl *SubLogger, extra ExtraFields, message string) { ErrorlnWithFields(sl, extra, message) }, logPlain: func(sl *SubLogger, message string) { Errorln(sl, message) }},
+		{name: "Errorf", withFieldsOperation: "ErrorWithFieldsf", logWithFields: func(sl *SubLogger, extra ExtraFields, message string) { ErrorWithFieldsf(sl, extra, "%s", message) }, logPlain: func(sl *SubLogger, message string) { Errorf(sl, "%s", message) }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			w := newTestBuffer()
+			sl := &SubLogger{
+				name:              "PLAIN",
+				levels:            Levels{Info: true, Debug: true, Warn: true, Error: true},
+				output:            &multiWriterHolder{writers: []io.Writer{w}},
+				structuredLogging: true,
+			}
+			pooled := &fields{logger: &logger}
+			mu.Lock()
+			customLogHook = nil
+			logFieldsPool = &sync.Pool{New: func() any { return pooled }}
+			mu.Unlock()
+
+			tc.logWithFields(sl, ExtraFields{"stale": true}, "structured")
+			barrier := make(chan struct{})
+			jobsChannel <- &job{Passback: barrier}
+			<-barrier
+			wroteStructured := false
+			select {
+			case <-w.Finished:
+				wroteStructured = true
+			default:
+			}
+			assert.Truef(t, wroteStructured, "%s should write structured output", tc.withFieldsOperation)
+			assert.Containsf(t, w.Read(), "stale", "%s should write structured fields", tc.withFieldsOperation)
+
+			tc.logPlain(nil, "ignored")
+			tc.logPlain(sl, tc.name)
+			barrier = make(chan struct{})
+			jobsChannel <- &job{Passback: barrier}
+			<-barrier
+			wrotePlain := false
+			select {
+			case <-w.Finished:
+				wrotePlain = true
+			default:
+			}
+			assert.Truef(t, wrotePlain, "%s should write plain output", tc.name)
+			output := w.Read()
+			assert.Containsf(t, output, tc.name, "%s should write the correct output", tc.name)
+			assert.NotContainsf(t, output, "stale", "%s should discard stale structured fields", tc.name)
+
+			sl.setLevelsProtected(Levels{})
+			tc.logPlain(sl, "ignored")
+			barrier = make(chan struct{})
+			jobsChannel <- &job{Passback: barrier}
+			<-barrier
+			wroteDisabled := false
+			select {
+			case <-w.Finished:
+				wroteDisabled = true
+			default:
+			}
+			assert.Falsef(t, wroteDisabled, "%s should not write when disabled", tc.name)
+			assert.Emptyf(t, w.Read(), "%s should not stage disabled output", tc.name)
+		})
 	}
 }
 
@@ -659,6 +1047,152 @@ func BenchmarkInfoDisabled(b *testing.B) {
 	for b.Loop() {
 		Infoln(Global, "Hello this is an info benchmark")
 	}
+}
+
+// BenchmarkFormattedDisabled measures level-disabled formatted logging while
+// global logging remains enabled.
+func BenchmarkFormattedDisabled(b *testing.B) {
+	enabled := true
+	benchmarkLogger := Logger{
+		InfoHeader:  "[INFO]",
+		DebugHeader: "[DEBUG]",
+		WarnHeader:  "[WARN]",
+		ErrorHeader: "[ERROR]",
+	}
+	mu.Lock()
+	originalEnabled := globalLogConfig.Enabled
+	originalHook := customLogHook
+	originalLogger := logger
+	originalPool := logFieldsPool
+	globalLogConfig.Enabled = &enabled
+	customLogHook = nil
+	logger = benchmarkLogger
+	logFieldsPool = &sync.Pool{New: func() any { return &fields{logger: &logger} }}
+	mu.Unlock()
+	b.Cleanup(func() {
+		mu.Lock()
+		globalLogConfig.Enabled = originalEnabled
+		customLogHook = originalHook
+		logger = originalLogger
+		logFieldsPool = originalPool
+		mu.Unlock()
+	})
+
+	barrier := make(chan struct{})
+	jobsChannel <- &job{Passback: barrier}
+	<-barrier
+
+	sl := &SubLogger{}
+	for _, tc := range []struct {
+		name string
+		logf func(*SubLogger, string, ...any)
+	}{
+		{name: "Infof", logf: Infof},
+		{name: "Debugf", logf: Debugf},
+		{name: "Warnf", logf: Warnf},
+		{name: "Errorf", logf: Errorf},
+	} {
+		b.Run(tc.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				tc.logf(sl, "formatted %s", "message")
+			}
+		})
+	}
+}
+
+// BenchmarkCustomLogHookBypass measures logging when a custom hook handles the
+// event and bypasses the internal logging system.
+func BenchmarkCustomLogHookBypass(b *testing.B) {
+	enabled := true
+	benchmarkLogger := Logger{
+		InfoHeader:  "[INFO]",
+		DebugHeader: "[DEBUG]",
+		WarnHeader:  "[WARN]",
+		ErrorHeader: "[ERROR]",
+	}
+	mu.Lock()
+	originalEnabled := globalLogConfig.Enabled
+	originalHook := customLogHook
+	originalLogger := logger
+	originalPool := logFieldsPool
+	globalLogConfig.Enabled = &enabled
+	customLogHook = func(_, _ string, _ ...any) bool { return true }
+	logger = benchmarkLogger
+	logFieldsPool = &sync.Pool{New: func() any { return &fields{logger: &logger} }}
+	mu.Unlock()
+	b.Cleanup(func() {
+		mu.Lock()
+		globalLogConfig.Enabled = originalEnabled
+		customLogHook = originalHook
+		logger = originalLogger
+		logFieldsPool = originalPool
+		mu.Unlock()
+	})
+
+	sl := &SubLogger{name: "BENCHMARK"}
+	for _, tc := range []struct {
+		name string
+		log  func(*SubLogger)
+	}{
+		{name: "Infoln", log: func(sl *SubLogger) { Infoln(sl, "message") }},
+		{name: "Infof", log: func(sl *SubLogger) { Infof(sl, "formatted %s", "message") }},
+	} {
+		b.Run(tc.name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				tc.log(sl)
+			}
+		})
+	}
+}
+
+// BenchmarkCustomLogHookFallthrough measures formatted logging when a custom
+// hook observes the event and the internal logger still handles it.
+func BenchmarkCustomLogHookFallthrough(b *testing.B) {
+	enabled := true
+	benchmarkLogger := Logger{
+		InfoHeader:                    "[INFO]",
+		Spacer:                        " ",
+		BypassJobChannelFilledWarning: true,
+	}
+	mu.Lock()
+	originalEnabled := globalLogConfig.Enabled
+	originalHook := customLogHook
+	originalLogger := logger
+	originalPool := logFieldsPool
+	globalLogConfig.Enabled = &enabled
+	customLogHook = func(_, _ string, _ ...any) bool { return false }
+	logger = benchmarkLogger
+	logFieldsPool = &sync.Pool{New: func() any { return &fields{logger: &logger} }}
+	mu.Unlock()
+	b.Cleanup(func() {
+		mu.Lock()
+		globalLogConfig.Enabled = originalEnabled
+		customLogHook = originalHook
+		logger = originalLogger
+		logFieldsPool = originalPool
+		mu.Unlock()
+	})
+
+	barrier := make(chan struct{})
+	jobsChannel <- &job{Passback: barrier}
+	<-barrier
+
+	sl := &SubLogger{
+		name:   "BENCHMARK",
+		levels: Levels{Info: true},
+		output: &multiWriterHolder{writers: []io.Writer{io.Discard}},
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		Infof(sl, "formatted %s %d", "message", 1)
+	}
+	barrier = make(chan struct{})
+	jobsChannel <- &job{Passback: barrier}
+	<-barrier
+	b.StopTimer()
 }
 
 // BenchmarkInfof-8   	 1000000	     72641 ns/op	     178 B/op	       4 allocs/op
