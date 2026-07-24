@@ -6,6 +6,7 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/x509"
@@ -1525,6 +1526,9 @@ func parseSigningKey(secret string) (crypto.PrivateKey, string, error) {
 func signJWT(privKey crypto.PrivateKey, signingInput string) ([]byte, error) {
 	switch k := privKey.(type) {
 	case *ecdsa.PrivateKey:
+		if k.Curve != elliptic.P256() {
+			return nil, fmt.Errorf("%w: ECDSA private key must use P-256", errDecodingPrivateKey)
+		}
 		hash := sha256.Sum256([]byte(signingInput))
 		r, s, err := ecdsa.Sign(rand.Reader, k, hash[:])
 		if err != nil {

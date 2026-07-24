@@ -1773,7 +1773,7 @@ func TestParseSigningKey(t *testing.T) {
 			t.Parallel()
 			key, alg, err := parseSigningKey(tc.secret)
 			if tc.wantKey == nil {
-			    require.Nil(t, key)
+				require.Nil(t, key)
 				assert.ErrorIs(t, err, errDecodingPrivateKey)
 				return
 			}
@@ -1793,6 +1793,11 @@ func TestSignJWT(t *testing.T) {
 	sig, err := signJWT(ecKey, "input")
 	require.NoError(t, err)
 	assert.Len(t, sig, 64, "ECDSA signature should be raw R||S")
+
+	p384Key, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	require.NoError(t, err)
+	_, err = signJWT(p384Key, "input")
+	assert.ErrorIs(t, err, errDecodingPrivateKey, "signJWT should reject non-P-256 ECDSA keys")
 
 	pub, edKey, err := ed25519.GenerateKey(rand.Reader)
 	require.NoError(t, err)
