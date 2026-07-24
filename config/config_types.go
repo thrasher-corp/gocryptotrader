@@ -69,7 +69,9 @@ const (
 	WebsocketURLNonDefaultMessage = "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
 	DefaultUnsetAPIKey            = "Key"
 	DefaultUnsetAPISecret         = "Secret"
-	DefaultUnsetAccountPlan       = "accountPlan"
+	DefaultAccountPlan            = "basic"
+	DefaultUnsetAccountPlan       = DefaultAccountPlan // Deprecated: use DefaultAccountPlan.
+	legacyDefaultAccountPlan      = "accountPlan"
 	DefaultGRPCUsername           = "admin"
 	DefaultGRPCPassword           = "Password"
 )

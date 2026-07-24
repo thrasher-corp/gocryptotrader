@@ -2,10 +2,11 @@ package coinmarketcap
 
 import (
 	"fmt"
-	"maps"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
@@ -13,9 +14,9 @@ import (
 // Coinmarketcap account plan bitmasks, url and endpoint consts
 const (
 	Basic uint8 = 1 << iota
-	Hobbyist
+	Builder
 	Startup
-	Standard
+	Growth
 	Professional
 	Enterprise
 
@@ -41,11 +42,14 @@ const (
 
 	defaultTimeOut = time.Second * 15
 
-	rateInterval            = time.Minute // BASIC, HOBBYIST STARTUP tier rate limits
-	basicRequestRate        = 30
-	standardRequestRate     = 60  // STANDARD tier rate limit
-	professionalRequestRate = 90  // PROFESSIONAL tier rate limit
-	enterpriseRequestRate   = 120 // ENTERPRISE tier rate limit - Can be extended checkout agreement
+	// CoinMarketCap publishes current plan limits at https://coinmarketcap.com/api/pricing/.
+	rateInterval            = time.Minute
+	basicRequestRate        = 50
+	builderRequestRate      = 300
+	startupRequestRate      = 600
+	growthRequestRate       = 750
+	professionalRequestRate = 1200
+	enterpriseRequestRate   = 1600
 )
 
 // Coinmarketcap is the overarching type across this package
@@ -81,6 +85,8 @@ type Status struct {
 
 // Currency defines a generic sub type to capture currency data
 type Currency struct {
+	ID                     int64     `json:"id"`
+	Symbol                 string    `json:"symbol"`
 	Price                  float64   `json:"price"`
 	Volume24H              float64   `json:"volume_24h"`
 	Volume24HAdjusted      float64   `json:"volume_24h_adjusted"`
@@ -352,7 +358,17 @@ type ExchangeLatestMarketPairs struct {
 	} `json:"market_pairs"`
 }
 
-// ExchangeLatestQuotes defines latest exchange quotations
+// ExchangeLatestQuote defines a latest exchange quotation.
+type ExchangeLatestQuote struct {
+	ID             int64     `json:"id"`
+	Name           string    `json:"name"`
+	Slug           string    `json:"slug"`
+	NumMarketPairs int64     `json:"num_market_pairs"`
+	LastUpdated    time.Time `json:"last_updated"`
+	Quote          QuoteMap  `json:"quote"`
+}
+
+// ExchangeLatestQuotes defines latest exchange quotations.
 type ExchangeLatestQuotes struct {
 	Binance struct {
 		ID             int64     `json:"id"`
@@ -362,6 +378,7 @@ type ExchangeLatestQuotes struct {
 		LastUpdated    time.Time `json:"last_updated"`
 		Quote          QuoteMap  `json:"quote"`
 	} `json:"binance"`
+	Exchanges map[string]ExchangeLatestQuote `json:"-"`
 }
 
 // ExchangeHistoricalQuotes defines historical exchange quotations
@@ -399,7 +416,7 @@ type GlobalMeticHistoricalQuotes struct {
 // PriceConversion defines price conversion data
 type PriceConversion struct {
 	Symbol      string    `json:"symbol"`
-	ID          string    `json:"id"`
+	ID          int64     `json:"id"`
 	Name        string    `json:"name"`
 	Amount      float64   `json:"amount"`
 	LastUpdated time.Time `json:"last_updated"`
@@ -434,15 +451,29 @@ func (c *APIErrorCode) UnmarshalJSON(data []byte) error {
 
 // UnmarshalJSON handles quote payloads that may be either an object map or array.
 func (q *QuoteMap) UnmarshalJSON(data []byte) error {
-	if err := json.Unmarshal(data, (*map[string]Currency)(q)); err == nil {
+	var quotes map[string]Currency
+	if err := json.Unmarshal(data, &quotes); err == nil && quotes != nil {
+		*q = quotes
 		return nil
 	}
-	var arr []map[string]Currency
+	var arr []Currency
 	if err := json.Unmarshal(data, &arr); err != nil {
-		return err
+		return fmt.Errorf("%w: quote collection: %w", common.ErrInvalidResponse, err)
 	}
+	if arr == nil {
+		return fmt.Errorf("%w: quote collection is null", common.ErrInvalidResponse)
+	}
+	quotes = make(QuoteMap, len(arr))
 	for i := range arr {
-		maps.Copy(*q, arr[i])
+		symbol := arr[i].Symbol
+		if symbol == "" || strings.TrimSpace(symbol) != symbol {
+			return fmt.Errorf("%w: quote at index %d has an invalid symbol", common.ErrInvalidResponse, i)
+		}
+		if _, exists := quotes[symbol]; exists {
+			return fmt.Errorf("%w: duplicate quote symbol %q", common.ErrInvalidResponse, symbol)
+		}
+		quotes[symbol] = arr[i]
 	}
+	*q = quotes
 	return nil
 }

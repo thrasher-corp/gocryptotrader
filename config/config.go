@@ -1094,15 +1094,16 @@ func (c *Config) CheckCurrencyConfigValues() error {
 		c.Currency.CryptocurrencyProvider.Name = "CoinMarketCap"
 		c.Currency.CryptocurrencyProvider.Enabled = false
 		c.Currency.CryptocurrencyProvider.Verbose = false
-		c.Currency.CryptocurrencyProvider.AccountPlan = DefaultUnsetAccountPlan
+		c.Currency.CryptocurrencyProvider.AccountPlan = DefaultAccountPlan
 		c.Currency.CryptocurrencyProvider.APIKey = DefaultUnsetAPIKey
 	}
 
 	if c.Currency.CryptocurrencyProvider.APIKey == "" {
 		c.Currency.CryptocurrencyProvider.APIKey = DefaultUnsetAPIKey
 	}
-	if c.Currency.CryptocurrencyProvider.AccountPlan == "" {
-		c.Currency.CryptocurrencyProvider.AccountPlan = DefaultUnsetAccountPlan
+	if c.Currency.CryptocurrencyProvider.AccountPlan == "" ||
+		strings.EqualFold(strings.TrimSpace(c.Currency.CryptocurrencyProvider.AccountPlan), legacyDefaultAccountPlan) {
+		c.Currency.CryptocurrencyProvider.AccountPlan = DefaultAccountPlan
 	}
 
 	if c.Currency.CurrencyPairFormat == nil {

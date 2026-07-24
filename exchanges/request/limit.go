@@ -82,6 +82,18 @@ func GetRateLimiterWithWeight(l *rate.Limiter, weight Weight) *RateLimiterWithWe
 	return &RateLimiterWithWeight{limiter: l, weight: weight}
 }
 
+// SetRateLimit replaces the underlying rate limiter while retaining its request weight.
+func (r *RateLimiterWithWeight) SetRateLimit(interval time.Duration, actions int) error {
+	if err := common.NilGuard(r); err != nil {
+		return err
+	}
+
+	r.m.Lock()
+	r.limiter = NewRateLimit(interval, actions)
+	r.m.Unlock()
+	return nil
+}
+
 // NewBasicRateLimit returns an object that implements the limiter interface for basic rate limit.
 func NewBasicRateLimit(interval time.Duration, actions int, weight Weight) RateLimitDefinitions {
 	rl := NewRateLimitWithWeight(interval, actions, weight)
