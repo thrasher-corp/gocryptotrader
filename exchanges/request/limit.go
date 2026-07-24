@@ -4,9 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -50,6 +48,17 @@ type RateLimiterWithWeight struct {
 	m       sync.Mutex
 }
 
+// RateLimitWithWeightOverride requests a limiter with an optional request-specific weight.
+type RateLimitWithWeightOverride struct {
+	Limiter        *RateLimiterWithWeight
+	WeightOverride Weight
+}
+
+type rateLimitReservation struct {
+	limiter      *RateLimiterWithWeight
+	reservations []*rate.Reservation
+}
+
 // NewRateLimit creates a new RateLimit based of time interval and how many actions allowed and breaks it down to an
 // actions-per-second basis -- Burst rate is kept as one as this is not supported for out-bound requests.
 func NewRateLimit(interval time.Duration, actions int) *rate.Limiter {
@@ -88,48 +97,108 @@ func NewBasicRateLimit(interval time.Duration, actions int, weight Weight) RateL
 	return RateLimitDefinitions{Unset: rl, Auth: rl, UnAuth: rl}
 }
 
-// InitiateRateLimit sleeps for designated end point rate limits.
-func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit) error {
-	if r == nil {
-		return ErrRequestSystemIsNil
-	}
-	if atomic.LoadInt32(&r.disableRateLimiter) == 1 {
-		return nil
-	}
-	if err := common.NilGuard(r.limiter); err != nil {
-		return err
-	}
-	if err := r.limiter[e].RateLimit(ctx); err != nil {
-		return fmt.Errorf("cannot rate limit request %w for endpoint %d", err, e)
-	}
-	return nil
-}
-
-// GetRateLimiterDefinitions returns the rate limiter definitions for the requester.
-func (r *Requester) GetRateLimiterDefinitions() RateLimitDefinitions {
-	if r == nil {
-		return nil
-	}
-	return r.limiter
-}
-
 // RateLimit throttles a request based on weight, delaying the request.
 // Errors if no delay is permitted via the context and a delay is required.
 func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 	if err := common.NilGuard(r); err != nil {
 		return err
 	}
+	return r.rateLimit(ctx, r.weight)
+}
 
+// RateLimitWithWeight applies a request-specific endpoint weight and any additional request-scoped limits.
+func (r *RateLimiterWithWeight) RateLimitWithWeight(ctx context.Context, endpointWeightOverride Weight, additionalRateLimits ...RateLimitWithWeightOverride) error {
+	if err := common.NilGuard(r); err != nil {
+		return err
+	}
+	if len(additionalRateLimits) == 0 {
+		weight := endpointWeightOverride
+		if weight == 0 {
+			weight = r.weight
+		}
+		return r.rateLimit(ctx, weight)
+	}
+
+	tn := time.Now()
+	reserved := make([]rateLimitReservation, 0, len(additionalRateLimits)+1)
+	cancelReservations := func(at time.Time) {
+		for i := len(reserved) - 1; i >= 0; i-- {
+			reservation := reserved[i]
+			reservation.limiter.m.Lock()
+			for j := len(reservation.reservations) - 1; j >= 0; j-- {
+				reservation.reservations[j].CancelAt(at)
+			}
+			reservation.limiter.m.Unlock()
+		}
+	}
+
+	rateLimits := append([]RateLimitWithWeightOverride{{Limiter: r, WeightOverride: endpointWeightOverride}}, additionalRateLimits...)
+	var finalDelay time.Duration
+	for _, rateLimit := range rateLimits {
+		if err := common.NilGuard(rateLimit.Limiter); err != nil {
+			cancelReservations(tn)
+			return err
+		}
+		weight := rateLimit.WeightOverride
+		rateLimit.Limiter.m.Lock()
+		if weight == 0 {
+			weight = rateLimit.Limiter.weight
+		}
+		if weight == 0 {
+			rateLimit.Limiter.m.Unlock()
+			cancelReservations(tn)
+			return errInvalidWeight
+		}
+		reservations := make([]*rate.Reservation, 0, weight)
+		for range weight {
+			// Reserving one token at a time avoids requiring burst capacity.
+			reservations = append(reservations, rateLimit.Limiter.limiter.ReserveN(tn, 1))
+		}
+		delay := reservations[len(reservations)-1].DelayFrom(tn)
+		rateLimit.Limiter.m.Unlock()
+		reserved = append(reserved, rateLimitReservation{limiter: rateLimit.Limiter, reservations: reservations})
+		if finalDelay < delay {
+			finalDelay = delay
+		}
+	}
+
+	if hasDelayNotAllowed(ctx) {
+		if finalDelay > 0 {
+			cancelReservations(tn)
+			return ErrDelayNotAllowed
+		}
+		return nil
+	}
+
+	if dl, ok := ctx.Deadline(); ok && dl.Before(tn.Add(finalDelay)) {
+		cancelReservations(tn)
+		return fmt.Errorf("rate limit delay of %s will exceed deadline: %w", finalDelay, context.DeadlineExceeded)
+	}
+
+	if finalDelay == 0 {
+		return nil
+	}
+
+	select {
+	case <-ctx.Done():
+		cancelReservations(time.Now())
+		return ctx.Err()
+	case <-time.After(finalDelay):
+		return nil
+	}
+}
+
+func (r *RateLimiterWithWeight) rateLimit(ctx context.Context, weight Weight) error {
 	r.m.Lock()
-	if r.weight == 0 {
+	if weight == 0 {
 		r.m.Unlock()
 		return errInvalidWeight
 	}
 
 	tn := time.Now()
-	reserved := make([]*rate.Reservation, 0, r.weight)
-	for range r.weight {
-		// This avoids needing burst capacity in the limiter, which would otherwise allow the rate limit to be exceeded over short periods
+	reserved := make([]*rate.Reservation, 0, weight)
+	for range weight {
+		// Reserving one token at a time avoids requiring burst capacity.
 		reserved = append(reserved, r.limiter.ReserveN(tn, 1))
 	}
 	finalDelay := reserved[len(reserved)-1].DelayFrom(tn)
@@ -140,13 +209,17 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 	}
 
 	if hasDelayNotAllowed(ctx) {
-		cancelAll(reserved, tn)
+		for i := len(reserved) - 1; i >= 0; i-- {
+			reserved[i].CancelAt(tn)
+		}
 		r.m.Unlock()
 		return ErrDelayNotAllowed
 	}
 
 	if dl, ok := ctx.Deadline(); ok && dl.Before(tn.Add(finalDelay)) {
-		cancelAll(reserved, tn)
+		for i := len(reserved) - 1; i >= 0; i-- {
+			reserved[i].CancelAt(tn)
+		}
 		r.m.Unlock()
 		return fmt.Errorf("rate limit delay of %s will exceed deadline: %w", finalDelay, context.DeadlineExceeded)
 	}
@@ -154,39 +227,13 @@ func (r *RateLimiterWithWeight) RateLimit(ctx context.Context) error {
 
 	select {
 	case <-ctx.Done():
+		r.m.Lock()
+		for i := len(reserved) - 1; i >= 0; i-- {
+			reserved[i].CancelAt(time.Now())
+		}
+		r.m.Unlock()
 		return ctx.Err()
 	case <-time.After(finalDelay):
 		return nil
 	}
-}
-
-// cancelAll cancels all reservations at a specific time.
-// Does not provide locking protection, so callers can maintain a single lock throughout.
-func cancelAll(reservations []*rate.Reservation, at time.Time) {
-	slices.Reverse(reservations) // cancel in reverse order for correct token reimbursement
-	for _, r := range reservations {
-		r.CancelAt(at)
-	}
-}
-
-// DisableRateLimiter disables the rate limiting system for the exchange.
-func (r *Requester) DisableRateLimiter() error {
-	if r == nil {
-		return ErrRequestSystemIsNil
-	}
-	if !atomic.CompareAndSwapInt32(&r.disableRateLimiter, 0, 1) {
-		return fmt.Errorf("%s %w", r.name, ErrRateLimiterAlreadyDisabled)
-	}
-	return nil
-}
-
-// EnableRateLimiter enables the rate limiting system for the exchange.
-func (r *Requester) EnableRateLimiter() error {
-	if r == nil {
-		return ErrRequestSystemIsNil
-	}
-	if !atomic.CompareAndSwapInt32(&r.disableRateLimiter, 1, 0) {
-		return fmt.Errorf("%s %w", r.name, ErrRateLimiterAlreadyEnabled)
-	}
-	return nil
 }

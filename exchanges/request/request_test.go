@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -308,6 +309,70 @@ func TestDoRequest(t *testing.T) {
 	}
 
 	require.NoError(t, ec.Collect(), "Collect must return no errors")
+}
+
+func TestSendPayload_AdditionalRateLimits(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+		r, err := New("test", new(http.Client), WithLimiter(NewBasicRateLimit(100*time.Millisecond, 1, 1)))
+		require.NoError(t, err, "New requester must not error")
+		extra := NewRateLimitWithWeight(300*time.Millisecond, 1, 1)
+		requestErr := errors.New("request generation failed")
+		newRequest := func() (*Item, error) {
+			return nil, requestErr
+		}
+
+		additionalRateLimits := []RateLimitWithWeightOverride{{Limiter: extra, WeightOverride: 1}}
+		err = r.SendPayload(t.Context(), Unset, newRequest, UnauthenticatedRequest, additionalRateLimits...)
+		require.ErrorIs(t, err, requestErr, "first call must reach request generation")
+
+		err = r.SendPayload(WithDelayNotAllowed(t.Context()), Unset, newRequest, UnauthenticatedRequest, additionalRateLimits...)
+		require.ErrorIs(t, err, ErrDelayNotAllowed, "second call must apply additional request-scoped rate limit")
+	})
+}
+
+func TestSendPayloadWithRateLimitWeight(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) { //nolint:thelper,nolintlint // false positive
+		r, err := New("test", new(http.Client), WithLimiter(NewBasicRateLimit(100*time.Millisecond, 1, 1)))
+		require.NoError(t, err, "New requester must not error")
+		requestErr := errors.New("request generation failed")
+		newRequest := func() (*Item, error) {
+			return nil, requestErr
+		}
+
+		err = r.SendPayloadWithRateLimitWeight(t.Context(), Unset, 3, newRequest, UnauthenticatedRequest)
+		require.ErrorIs(t, err, requestErr, "first call must reach request generation")
+
+		err = r.SendPayloadWithRateLimitWeight(WithDelayNotAllowed(t.Context()), Unset, 3, newRequest, UnauthenticatedRequest)
+		require.ErrorIs(t, err, ErrDelayNotAllowed, "second call must apply request-specific endpoint weight")
+	})
+}
+
+func TestRequesterSendPayload(t *testing.T) {
+	t.Parallel()
+
+	r, err := New("test", new(http.Client))
+	require.NoError(t, err, "New requester must not error")
+	requestErr := errors.New("request generation failed")
+	err = r.sendPayload(t.Context(), Unset, 0, func() (*Item, error) {
+		return nil, requestErr
+	}, UnauthenticatedRequest)
+	require.ErrorIs(t, err, requestErr, "sendPayload must return the request generation error")
+}
+
+func TestRequesterDoRequest(t *testing.T) {
+	t.Parallel()
+
+	r, err := New("test", new(http.Client))
+	require.NoError(t, err, "New requester must not error")
+	requestErr := errors.New("request generation failed")
+	err = r.doRequest(t.Context(), Unset, 0, func() (*Item, error) {
+		return nil, requestErr
+	})
+	require.ErrorIs(t, err, requestErr, "doRequest must return the request generation error")
 }
 
 func TestDoRequest_NoContent(t *testing.T) {

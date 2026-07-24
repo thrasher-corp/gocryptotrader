@@ -2,11 +2,13 @@ package okx
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -334,4 +336,85 @@ func TestTrackEquivalentSubscriptionsOnExistingConnection(t *testing.T) {
 		require.Equal(t, spotSnapshot.Bids, marginBook.Bids)
 		require.Equal(t, spotSnapshot.Asks, marginBook.Asks)
 	})
+}
+
+type authConnectionStub struct {
+	websocket.Connection
+	response []byte
+	err      error
+}
+
+func (a *authConnectionStub) SendMessageReturnResponse(_ context.Context, _ request.EndpointLimit, _, _ any, _ ...request.RateLimitWithWeightOverride) ([]byte, error) {
+	return a.response, a.err
+}
+
+func (a *authConnectionStub) SendMessageReturnResponseWithRateLimitWeight(_ context.Context, _ request.EndpointLimit, _ request.Weight, _, _ any, _ ...request.RateLimitWithWeightOverride) ([]byte, error) {
+	return a.response, a.err
+}
+
+func TestWSAuthenticateConnection(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	ex.API.AuthenticatedSupport = true
+	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	ex.SetCredentials("key", "secret", "passphrase", "", "", "")
+
+	t.Run("send error", func(t *testing.T) {
+		t.Parallel()
+		incomingErr := errors.New("send failed")
+		conn := &authConnectionStub{err: incomingErr}
+		err := ex.wsAuthenticateConnection(t.Context(), conn)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "wsAuthenticateConnection must wrap auth request failure")
+		require.ErrorIs(t, err, incomingErr, "wsAuthenticateConnection must preserve source error")
+	})
+
+	t.Run("unmarshal error", func(t *testing.T) {
+		t.Parallel()
+		conn := &authConnectionStub{response: []byte("{")}
+		err := ex.wsAuthenticateConnection(t.Context(), conn)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "wsAuthenticateConnection must wrap decode failure")
+	})
+
+	t.Run("non zero code", func(t *testing.T) {
+		t.Parallel()
+		conn := &authConnectionStub{response: []byte(`{"code":"1","msg":"bad auth"}`)}
+		err := ex.wsAuthenticateConnection(t.Context(), conn)
+		require.ErrorIs(t, err, request.ErrAuthRequestFailed, "wsAuthenticateConnection must treat non-zero code as auth failure")
+	})
+
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+		conn := &authConnectionStub{response: []byte(`{"code":"0","msg":""}`)}
+		require.NoError(t, ex.wsAuthenticateConnection(t.Context(), conn), "wsAuthenticateConnection must not error on success")
+	})
+}
+
+func TestChunkRequestsDeduplicatesArguments(t *testing.T) {
+	t.Parallel()
+
+	ex := new(Exchange)
+	require.NoError(t, testexch.Setup(ex), "Setup must not error")
+	require.NoError(t, ex.GetBase().SetPairs(currency.Pairs{currency.NewBTCUSDT()}, asset.Futures, false), "SetPairs available must not error")
+	require.NoError(t, ex.GetBase().SetPairs(currency.Pairs{currency.NewBTCUSDT()}, asset.Futures, true), "SetPairs enabled must not error")
+	ex.Features.Subscriptions = subscription.List{
+		{Channel: subscription.OrderbookChannel, Asset: asset.Futures},
+		{Channel: subscription.OrderbookChannel, Asset: asset.Futures},
+	}
+
+	subs, err := ex.generateSubscriptions(true)
+	require.NoError(t, err, "generateSubscriptions must not error")
+	require.Len(t, subs, 2, "template expansion must preserve logical duplicates")
+
+	requests, err := ex.chunkRequests(subs, operationSubscribe)
+	require.NoError(t, err, "chunkRequests must not error")
+	require.NotEmpty(t, requests, "chunkRequests must return at least one request")
+	require.Len(t, requests[0].subs, 2, "chunkRequests must continue tracking both logical subscriptions")
+	require.Len(t, requests[0].Arguments, 1, "chunkRequests must deduplicate identical outbound arguments")
+
+	firstArg, err := json.Marshal(requests[0].Arguments[0])
+	require.NoError(t, err, "Marshal first argument must not error")
+	expectedArg := []byte(`{"channel":"books","instId":"BTC-USDT"}`)
+	require.JSONEq(t, string(expectedArg), string(firstArg), "chunkRequests must retain expected outbound request payload")
 }

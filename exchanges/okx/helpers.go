@@ -85,62 +85,61 @@ func orderTypeString(orderType order.Type, tif order.TimeInForce) (string, error
 	}
 }
 
-// getAssetsFromInstrumentID parses an instrument ID and returns a list of assets types
-// that the instrument is associated with
+// getAssetsFromInstrumentID infers candidate asset types from the OKX instrument
+// ID shape and returns only those enabled for the pair.
 func (e *Exchange) getAssetsFromInstrumentID(instrumentID string) ([]asset.Item, error) {
 	if instrumentID == "" {
 		return nil, errMissingInstrumentID
 	}
-	pf, err := e.CurrencyPairs.GetFormat(asset.Spot, true)
-	if err != nil {
-		return nil, err
+	var candidates []asset.Item
+	const swapSuffixLength = len("-SWAP")
+	if len(instrumentID) > swapSuffixLength {
+		suffix := instrumentID[len(instrumentID)-swapSuffixLength:]
+		if strings.EqualFold(suffix, "-SWAP") {
+			candidates = []asset.Item{asset.PerpetualSwap}
+		}
 	}
-	splitSymbol := strings.Split(instrumentID, pf.Delimiter)
-	if len(splitSymbol) <= 1 {
-		return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotSupported, instrumentID)
+
+	splitInstrumentID := strings.Split(instrumentID, "-")
+	if len(candidates) == 0 {
+		switch len(splitInstrumentID) {
+		case 2:
+			candidates = []asset.Item{asset.Spot, asset.Margin}
+		case 3:
+			candidates = []asset.Item{asset.Futures}
+		case 5:
+			switch strings.ToUpper(splitInstrumentID[len(splitInstrumentID)-1]) {
+			case "C", "P":
+				candidates = []asset.Item{asset.Options}
+			default:
+				return nil, fmt.Errorf("%w: unsupported option instrument ID %q", asset.ErrNotSupported, instrumentID)
+			}
+		default:
+			if len(splitInstrumentID) < 2 {
+				return nil, fmt.Errorf("%w %v", currency.ErrCurrencyNotSupported, instrumentID)
+			}
+			return nil, fmt.Errorf("%w: unsupported OKX instrument ID %q", asset.ErrNotSupported, instrumentID)
+		}
 	}
-	pair, err := currency.NewPairDelimiter(instrumentID, pf.Delimiter)
+
+	pair, err := currency.NewPairDelimiter(instrumentID, currency.DashDelimiter)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %q", err, instrumentID)
 	}
-	switch {
-	case len(splitSymbol) == 2:
-		resp := make([]asset.Item, 0, 2)
-		enabled, err := e.IsPairEnabled(pair, asset.Spot)
+	enabledAssets := make([]asset.Item, 0, len(candidates))
+	for _, candidate := range candidates {
+		enabled, err := e.IsPairEnabled(pair, candidate)
 		if err != nil {
 			return nil, err
 		}
 		if enabled {
-			resp = append(resp, asset.Spot)
-		}
-		enabled, err = e.IsPairEnabled(pair, asset.Margin)
-		if err != nil {
-			return nil, err
-		}
-		if enabled {
-			resp = append(resp, asset.Margin)
-		}
-		if len(resp) > 0 {
-			return resp, nil
-		}
-	case len(splitSymbol) > 2:
-		var aType asset.Item
-		switch strings.ToLower(splitSymbol[len(splitSymbol)-1]) {
-		case "swap":
-			aType = asset.PerpetualSwap
-		case "c", "p":
-			aType = asset.Options
-		default:
-			aType = asset.Futures
-		}
-		enabled, err := e.IsPairEnabled(pair, aType)
-		if err != nil {
-			return nil, err
-		} else if enabled {
-			return []asset.Item{aType}, nil
+			enabledAssets = append(enabledAssets, candidate)
 		}
 	}
-	return nil, fmt.Errorf("%w: no asset enabled with instrument ID `%v`", asset.ErrNotEnabled, instrumentID)
+	if len(enabledAssets) == 0 {
+		return nil, fmt.Errorf("%w: no asset enabled with instrument ID %q", asset.ErrNotEnabled, instrumentID)
+	}
+	return enabledAssets, nil
 }
 
 // assetTypeFromInstrumentType returns an asset Item instance given and Instrument Type string

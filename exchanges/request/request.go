@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"sync/atomic"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -73,8 +74,17 @@ func New(name string, httpRequester *http.Client, opts ...RequesterOption) (*Req
 	return r, nil
 }
 
-// SendPayload handles sending HTTP/HTTPS requests
-func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newRequest Generate, requestType AuthType) error {
+// SendPayload handles sending HTTP/HTTPS requests with endpoint and optional additional request-scoped rate limits.
+func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newRequest Generate, requestType AuthType, additionalRateLimits ...RateLimitWithWeightOverride) error {
+	return r.sendPayload(ctx, ep, 0, newRequest, requestType, additionalRateLimits...)
+}
+
+// SendPayloadWithRateLimitWeight handles sending HTTP/HTTPS requests with a request-specific endpoint rate-limit weight.
+func (r *Requester) SendPayloadWithRateLimitWeight(ctx context.Context, ep EndpointLimit, weight Weight, newRequest Generate, requestType AuthType, additionalRateLimits ...RateLimitWithWeightOverride) error {
+	return r.sendPayload(ctx, ep, weight, newRequest, requestType, additionalRateLimits...)
+}
+
+func (r *Requester) sendPayload(ctx context.Context, ep EndpointLimit, weight Weight, newRequest Generate, requestType AuthType, additionalRateLimits ...RateLimitWithWeightOverride) error {
 	if r == nil {
 		return ErrRequestSystemIsNil
 	}
@@ -92,7 +102,7 @@ func (r *Requester) SendPayload(ctx context.Context, ep EndpointLimit, newReques
 		return errRequestFunctionIsNil
 	}
 
-	err := r.doRequest(ctx, ep, newRequest)
+	err := r.doRequest(ctx, ep, weight, newRequest, additionalRateLimits...)
 	if err != nil && requestType == AuthenticatedRequest {
 		err = common.AppendError(err, ErrAuthRequestFailed)
 	}
@@ -138,8 +148,8 @@ func (i *Item) validateRequest(ctx context.Context, r *Requester) (*http.Request
 	return req, nil
 }
 
-// doRequest performs a HTTP/HTTPS request with the supplied params
-func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRequest Generate) error {
+// doRequest performs a HTTP/HTTPS request with the supplied params.
+func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, weight Weight, newRequest Generate, additionalRateLimits ...RateLimitWithWeightOverride) error {
 	for attempt := 1; ; attempt++ {
 		// Check if context has finished before executing new attempt.
 		select {
@@ -150,8 +160,7 @@ func (r *Requester) doRequest(ctx context.Context, endpoint EndpointLimit, newRe
 
 		if r.limiter != nil {
 			// Initiate a rate limit reservation and sleep on requested endpoint
-			err := r.InitiateRateLimit(ctx, endpoint)
-			if err != nil {
+			if err := r.initiateRateLimit(ctx, endpoint, weight, additionalRateLimits...); err != nil {
 				return fmt.Errorf("failed to rate limit HTTP request: %w", err)
 			}
 		}
@@ -387,4 +396,61 @@ func (r *Requester) Shutdown() error {
 		return ErrRequestSystemIsNil
 	}
 	return r._HTTPClient.release()
+}
+
+// InitiateRateLimit sleeps for designated endpoint rate limits and optional additional request-scoped rate limits.
+func (r *Requester) InitiateRateLimit(ctx context.Context, e EndpointLimit, additionalRateLimits ...RateLimitWithWeightOverride) error {
+	return r.initiateRateLimit(ctx, e, 0, additionalRateLimits...)
+}
+
+func (r *Requester) initiateRateLimit(ctx context.Context, e EndpointLimit, endpointWeightOverride Weight, additionalRateLimits ...RateLimitWithWeightOverride) error {
+	if r == nil {
+		return ErrRequestSystemIsNil
+	}
+	if atomic.LoadInt32(&r.disableRateLimiter) == 1 {
+		return nil
+	}
+	if err := common.NilGuard(r.limiter); err != nil {
+		return err
+	}
+	var err error
+	if len(additionalRateLimits) > 0 || endpointWeightOverride > 0 {
+		err = r.limiter[e].RateLimitWithWeight(ctx, endpointWeightOverride, additionalRateLimits...)
+	} else {
+		err = r.limiter[e].RateLimit(ctx)
+	}
+	if err != nil {
+		return fmt.Errorf("cannot rate limit request %w for endpoint %d", err, e)
+	}
+	return nil
+}
+
+// GetRateLimiterDefinitions returns the rate limiter definitions for the requester.
+func (r *Requester) GetRateLimiterDefinitions() RateLimitDefinitions {
+	if r == nil {
+		return nil
+	}
+	return r.limiter
+}
+
+// DisableRateLimiter disables the rate limiting system for the exchange.
+func (r *Requester) DisableRateLimiter() error {
+	if r == nil {
+		return ErrRequestSystemIsNil
+	}
+	if !atomic.CompareAndSwapInt32(&r.disableRateLimiter, 0, 1) {
+		return fmt.Errorf("%s %w", r.name, ErrRateLimiterAlreadyDisabled)
+	}
+	return nil
+}
+
+// EnableRateLimiter enables the rate limiting system for the exchange.
+func (r *Requester) EnableRateLimiter() error {
+	if r == nil {
+		return ErrRequestSystemIsNil
+	}
+	if !atomic.CompareAndSwapInt32(&r.disableRateLimiter, 1, 0) {
+		return fmt.Errorf("%s %w", r.name, ErrRateLimiterAlreadyEnabled)
+	}
+	return nil
 }
