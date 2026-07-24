@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -325,6 +326,143 @@ func TestStageNewLogEvent(t *testing.T) {
 	<-w.Finished
 	if contents := w.Read(); contents != "header space  space out\n" { //nolint:dupword // False positive
 		t.Errorf("received: '%v' but expected: '%v'", contents, "header space  space out\n") //nolint:dupword // False positive
+	}
+}
+
+func TestGetFields(t *testing.T) {
+	mu.Lock()
+	originalConfig := globalLogConfig
+	originalPool := logFieldsPool
+	mu.Unlock()
+	t.Cleanup(func() {
+		mu.Lock()
+		globalLogConfig = originalConfig
+		logFieldsPool = originalPool
+		mu.Unlock()
+	})
+
+	enabled := true
+	mu.Lock()
+	globalLogConfig = &Config{Enabled: &enabled}
+	mu.Unlock()
+	mu.RLock()
+	f := (*SubLogger)(nil).getFields()
+	mu.RUnlock()
+	assert.Nil(t, f, "getFields should return nil for a nil sublogger")
+
+	sl := &SubLogger{}
+	mu.Lock()
+	globalLogConfig = nil
+	mu.Unlock()
+	mu.RLock()
+	f = sl.getFields()
+	mu.RUnlock()
+	assert.Nil(t, f, "getFields should return nil without a global config")
+
+	mu.Lock()
+	globalLogConfig = &Config{}
+	mu.Unlock()
+	mu.RLock()
+	f = sl.getFields()
+	mu.RUnlock()
+	assert.Nil(t, f, "getFields should return nil without an enabled setting")
+
+	mu.Lock()
+	enabled = false
+	globalLogConfig.Enabled = &enabled
+	mu.Unlock()
+	mu.RLock()
+	f = sl.getFields()
+	mu.RUnlock()
+	assert.Nil(t, f, "getFields should return nil when logging is disabled")
+
+	output := &multiWriterHolder{}
+	sl = &SubLogger{
+		name:              "FIELDS",
+		levels:            Levels{Info: true, Debug: true, Warn: true, Error: true},
+		output:            output,
+		botName:           "bot",
+		structuredLogging: true,
+	}
+	mu.Lock()
+	enabled = true
+	logFieldsPool = &sync.Pool{New: func() any {
+		return &fields{logger: logger, structuredFields: ExtraFields{"stale": true}}
+	}}
+	mu.Unlock()
+	mu.RLock()
+	f = sl.getFields()
+	mu.RUnlock()
+	require.NotNil(t, f, "getFields must return fields when logging is enabled")
+	assert.Equal(t, sl.levels.Info, f.info, "getFields should copy the info level")
+	assert.Equal(t, sl.levels.Debug, f.debug, "getFields should copy the debug level")
+	assert.Equal(t, sl.levels.Warn, f.warn, "getFields should copy the warn level")
+	assert.Equal(t, sl.levels.Error, f.error, "getFields should copy the error level")
+	assert.Equal(t, sl.name, f.name, "getFields should copy the sublogger name")
+	assert.Same(t, output, f.output, "getFields should copy the output")
+	assert.Equal(t, sl.botName, f.botName, "getFields should copy the bot name")
+	assert.Equal(t, sl.structuredLogging, f.structuredLogging, "getFields should copy structured logging")
+	assert.Nil(t, f.structuredFields, "getFields should discard stale structured fields")
+	mu.RLock()
+	logFieldsPool.Put(f)
+	mu.RUnlock()
+}
+
+func TestLoggersDiscardStaleStructuredFields(t *testing.T) {
+	w := newTestBuffer()
+	sl := &SubLogger{
+		name:              "PLAIN",
+		levels:            Levels{Info: true, Debug: true, Warn: true, Error: true},
+		output:            &multiWriterHolder{writers: []io.Writer{w}},
+		structuredLogging: true,
+	}
+	mu.Lock()
+	originalPool := logFieldsPool
+	mu.Unlock()
+	t.Cleanup(func() {
+		mu.Lock()
+		logFieldsPool = originalPool
+		mu.Unlock()
+	})
+	for _, tc := range []struct {
+		name string
+		log  func(*SubLogger, string)
+	}{
+		{name: "Infoln", log: func(sl *SubLogger, message string) { Infoln(sl, message) }},
+		{name: "Infof", log: func(sl *SubLogger, message string) { Infof(sl, "%s", message) }},
+		{name: "Debugln", log: func(sl *SubLogger, message string) { Debugln(sl, message) }},
+		{name: "Debugf", log: func(sl *SubLogger, message string) { Debugf(sl, "%s", message) }},
+		{name: "Warnln", log: func(sl *SubLogger, message string) { Warnln(sl, message) }},
+		{name: "Warnf", log: func(sl *SubLogger, message string) { Warnf(sl, "%s", message) }},
+		{name: "Errorln", log: func(sl *SubLogger, message string) { Errorln(sl, message) }},
+		{name: "Errorf", log: func(sl *SubLogger, message string) { Errorf(sl, "%s", message) }},
+	} {
+		poolMisses := 0
+		mu.Lock()
+		logFieldsPool = &sync.Pool{New: func() any {
+			poolMisses++
+			return &fields{logger: logger, structuredFields: ExtraFields{"stale": true}}
+		}}
+		mu.Unlock()
+		tc.log(nil, "ignored")
+		tc.log(sl, tc.name)
+		<-w.Finished
+		output := w.Read()
+		assert.Containsf(t, output, tc.name, "%s should write output", tc.name)
+		assert.NotContainsf(t, output, "stale", "%s should discard stale structured fields", tc.name)
+		assert.Equalf(t, 1, poolMisses, "%s should acquire one fields value", tc.name)
+
+		sl.levels = Levels{}
+		tc.log(sl, "ignored")
+		barrier := make(chan struct{})
+		jobsChannel <- &job{Passback: barrier}
+		<-barrier
+		select {
+		case <-w.Finished:
+		default:
+		}
+		assert.Emptyf(t, w.Read(), "%s should not write when disabled", tc.name)
+		sl.levels = Levels{Info: true, Debug: true, Warn: true, Error: true}
 	}
 }
 
@@ -658,6 +796,57 @@ func BenchmarkInfoDisabled(b *testing.B) {
 
 	for b.Loop() {
 		Infoln(Global, "Hello this is an info benchmark")
+	}
+}
+
+// BenchmarkFormattedDisabled measures level-disabled formatted logging while
+// global logging remains enabled.
+func BenchmarkFormattedDisabled(b *testing.B) {
+	enabled := true
+	benchmarkLogger := Logger{
+		InfoHeader:  "[INFO]",
+		DebugHeader: "[DEBUG]",
+		WarnHeader:  "[WARN]",
+		ErrorHeader: "[ERROR]",
+	}
+	mu.Lock()
+	originalEnabled := globalLogConfig.Enabled
+	originalHook := customLogHook
+	originalLogger := logger
+	originalPool := logFieldsPool
+	globalLogConfig.Enabled = &enabled
+	customLogHook = nil
+	logger = benchmarkLogger
+	logFieldsPool = &sync.Pool{New: func() any { return &fields{logger: benchmarkLogger} }}
+	mu.Unlock()
+	b.Cleanup(func() {
+		mu.Lock()
+		globalLogConfig.Enabled = originalEnabled
+		customLogHook = originalHook
+		logger = originalLogger
+		logFieldsPool = originalPool
+		mu.Unlock()
+	})
+
+	barrier := make(chan struct{})
+	jobsChannel <- &job{Passback: barrier}
+	<-barrier
+
+	sl := &SubLogger{}
+	for _, tc := range []struct {
+		name string
+		logf func(*SubLogger, string, ...any)
+	}{
+		{name: "Infof", logf: Infof},
+		{name: "Debugf", logf: Debugf},
+		{name: "Warnf", logf: Warnf},
+		{name: "Errorf", logf: Errorf},
+	} {
+		b.Run(tc.name, func(b *testing.B) {
+			for b.Loop() {
+				tc.logf(sl, "formatted %s", "message")
+			}
+		})
 	}
 }
 

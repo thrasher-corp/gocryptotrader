@@ -39,7 +39,7 @@ func Infof(sl *SubLogger, format string, a ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f := sl.getFields(); f != nil {
-		sl.getFields().stagef(f.logger.InfoHeader, format, a...)
+		f.stagef(f.logger.InfoHeader, format, a...)
 	}
 }
 
@@ -92,7 +92,7 @@ func Debugf(sl *SubLogger, data string, v ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f := sl.getFields(); f != nil {
-		sl.getFields().stagef(f.logger.DebugHeader, data, v...)
+		f.stagef(f.logger.DebugHeader, data, v...)
 	}
 }
 
@@ -144,7 +144,7 @@ func Warnf(sl *SubLogger, data string, v ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f := sl.getFields(); f != nil {
-		sl.getFields().stagef(f.logger.WarnHeader, data, v...)
+		f.stagef(f.logger.WarnHeader, data, v...)
 	}
 }
 
@@ -196,7 +196,7 @@ func Errorf(sl *SubLogger, data string, v ...any) {
 	mu.RLock()
 	defer mu.RUnlock()
 	if f := sl.getFields(); f != nil {
-		sl.getFields().stagef(f.logger.ErrorHeader, data, v...)
+		f.stagef(f.logger.ErrorHeader, data, v...)
 	}
 }
 
