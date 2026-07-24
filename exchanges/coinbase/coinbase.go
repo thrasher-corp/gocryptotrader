@@ -1369,8 +1369,7 @@ func (e *responseError) Error() string { return e.err.Error() }
 func (e *responseError) Unwrap() error { return e.err }
 
 func classifyOrderNotFound(err error) error {
-	var responseErr *responseError
-	if errors.As(err, &responseErr) && responseErr.response.ErrorType == "NOT_FOUND" {
+	if responseErr, ok := errors.AsType[*responseError](err); ok && responseErr.response.ErrorType == "NOT_FOUND" {
 		return fmt.Errorf("%w: %w", order.ErrOrderNotFound, err)
 	}
 	return err

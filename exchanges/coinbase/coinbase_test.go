@@ -278,6 +278,22 @@ func TestClassifyOrderNotFound(t *testing.T) {
 	assert.ErrorContains(t, err, string(body), "error should preserve the raw Coinbase response")
 }
 
+func TestParseResponseError(t *testing.T) {
+	t.Parallel()
+	unrelatedErr := errors.New("unrelated error")
+	assert.Same(t, unrelatedErr, parseResponseError(unrelatedErr, nil), "unrelated errors should be returned unchanged")
+
+	badStatusErr := fmt.Errorf("%w: fixture", request.ErrBadStatus)
+	assert.Same(t, badStatusErr, parseResponseError(badStatusErr, json.RawMessage(`{`)), "invalid JSON should return the original error")
+	assert.Same(t, badStatusErr, parseResponseError(badStatusErr, json.RawMessage(`{"message":"fixture"}`)), "a missing error type should return the original error")
+
+	err := parseResponseError(badStatusErr, json.RawMessage(`{"error":"NOT_FOUND","message":"fixture"}`))
+	responseErr, ok := errors.AsType[*responseError](err)
+	require.True(t, ok, "a structured error response must be wrapped")
+	assert.Equal(t, ErrorResponse{ErrorType: "NOT_FOUND", Message: "fixture"}, responseErr.response, "parsed response should match")
+	assert.ErrorIs(t, err, badStatusErr, "wrapped response should preserve the original error")
+}
+
 func TestCancelOrderResultError(t *testing.T) {
 	t.Parallel()
 	assert.NoError(t, cancelOrderResultError(OrderCancelDetail{Success: true}, "order-id"), "successful cancellation should not error")
