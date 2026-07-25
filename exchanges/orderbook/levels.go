@@ -213,21 +213,24 @@ updates:
 func (l *Levels) insertUpdates(updts Levels, comp comparison) error {
 updates:
 	for x := range updts {
+		update := updts[x]
 		if len(*l) == 0 {
-			*l = append(*l, updts[x])
+			*l = append(*l, update)
 			continue
 		}
 
 		for y := range *l {
 			switch {
-			case (*l)[y].Price == updts[x].Price: // Price already found
-				return fmt.Errorf("%w for price %f", errCollisionDetected, updts[x].Price)
-			case comp((*l)[y].Price, updts[x].Price): // price at correct spot
-				*l = append((*l)[:y], append([]Level{updts[x]}, (*l)[y:]...)...)
+			case (*l)[y].Price == update.Price: // Price already found
+				return fmt.Errorf("%w for price %f", errCollisionDetected, update.Price)
+			case comp((*l)[y].Price, update.Price): // price at correct spot
+				*l = append(*l, Level{})
+				copy((*l)[y+1:], (*l)[y:])
+				(*l)[y] = update
 				continue updates
 			}
 		}
-		*l = append(*l, updts[x])
+		*l = append(*l, update)
 	}
 	return nil
 }

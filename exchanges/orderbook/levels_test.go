@@ -1095,6 +1095,66 @@ func TestInsertUpdatesAsk(t *testing.T) {
 	Check(t, a, 1, 5.5, 1)
 }
 
+func TestLevelsInsertUpdates(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty", func(t *testing.T) {
+		t.Parallel()
+		var levels Levels
+		update := Level{Price: 2, Amount: 1, ID: 2}
+		err := levels.insertUpdates(Levels{update}, askCompare)
+		require.NoError(t, err, "insertUpdates must not error for an empty book")
+		assert.Equal(t, Levels{update}, levels, "insertUpdates should append to an empty book correctly")
+	})
+
+	t.Run("ordered inserts without spare capacity", func(t *testing.T) {
+		t.Parallel()
+		levels := make(Levels, 2)
+		levels[0] = Level{Price: 2, Amount: 1, ID: 2}
+		levels[1] = Level{Price: 4, Amount: 1, ID: 4}
+		require.Equal(t, len(levels), cap(levels), "levels must start without spare capacity")
+
+		err := levels.insertUpdates(Levels{
+			{Price: 1, Amount: 1, ID: 1},
+			{Price: 3, Amount: 1, ID: 3},
+			{Price: 5, Amount: 1, ID: 5},
+		}, askCompare)
+		require.NoError(t, err, "insertUpdates must not error for ordered inserts")
+		assert.Equal(t, Levels{
+			{Price: 1, Amount: 1, ID: 1},
+			{Price: 2, Amount: 1, ID: 2},
+			{Price: 3, Amount: 1, ID: 3},
+			{Price: 4, Amount: 1, ID: 4},
+			{Price: 5, Amount: 1, ID: 5},
+		}, levels, "insertUpdates should insert head, middle, and tail levels correctly")
+	})
+
+	t.Run("collision", func(t *testing.T) {
+		t.Parallel()
+		levels := Levels{{Price: 2, Amount: 1, ID: 2}}
+		err := levels.insertUpdates(levels[:1], askCompare)
+		assert.ErrorIs(t, err, errCollisionDetected, "insertUpdates should return the collision error")
+		assert.Equal(t, Levels{{Price: 2, Amount: 1, ID: 2}}, levels, "insertUpdates should preserve levels after a collision")
+	})
+
+	t.Run("aliased update with spare capacity", func(t *testing.T) {
+		t.Parallel()
+		backing := make(Levels, 3, 4)
+		backing[0] = Level{Price: 1, Amount: 1, ID: 1}
+		backing[1] = Level{Price: 3, Amount: 1, ID: 3}
+		backing[2] = Level{Price: 2, Amount: 1, ID: 2}
+		levels := backing[:2]
+
+		err := levels.insertUpdates(backing[2:3], askCompare)
+		require.NoError(t, err, "insertUpdates must not error for an aliased update")
+		assert.Equal(t, Levels{
+			{Price: 1, Amount: 1, ID: 1},
+			{Price: 2, Amount: 1, ID: 2},
+			{Price: 3, Amount: 1, ID: 3},
+		}, levels, "insertUpdates should preserve an aliased update while reusing capacity")
+	})
+}
+
 // check checks depth values after an update has taken place
 func Check(t *testing.T, depth any, liquidity, value float64, expectedLen int) {
 	t.Helper()
