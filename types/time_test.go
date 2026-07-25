@@ -26,17 +26,28 @@ func TestUnmarshalJSON(t *testing.T) {
 		{`"0.00000"`, time.Time{}, nil},
 		{`"0.0.0.0"`, time.Time{}, strconv.ErrSyntax},
 		{`"0.1"`, time.Time{}, ErrInvalidTimestampFormat},
+		{`"202003.25"`, time.Date(2020, 3, 25, 0, 0, 0, 0, time.UTC), nil},
 		{`"20200325"`, time.Date(2020, 3, 25, 0, 0, 0, 0, time.UTC), nil},
+		{"1628736847", time.Unix(1628736847, 0), nil},
 		{`"1628736847"`, time.Unix(1628736847, 0), nil},
+		{`"-123456789.5"`, time.UnixMilli(-123456789500), nil},
 		{`"1726104395.5"`, time.UnixMilli(1726104395500), nil},
 		{`"1726104395.56"`, time.UnixMilli(1726104395560), nil},
+		{`"16287368473"`, time.UnixMilli(1628736847300), nil},
+		{`"162873684732"`, time.UnixMilli(1628736847320), nil},
 		{`"1628736847325"`, time.UnixMilli(1628736847325), nil},
+		{`"16287368473251"`, time.UnixMicro(1628736847325100), nil},
+		{`"162873684732512"`, time.UnixMicro(1628736847325120), nil},
 		{`"1628736847325123"`, time.UnixMicro(1628736847325123), nil},
 		{`"1726106210903.0"`, time.UnixMicro(1726106210903000), nil},
 		{`"1747278712.09328"`, time.UnixMicro(1747278712093280), nil},
+		{`"16062922182134578"`, time.Unix(0, 1606292218213457800), nil},
+		{`"160629221821345780"`, time.Unix(0, 1606292218213457800), nil},
 		{`"1606292218213.4578"`, time.Unix(0, 1606292218213457800), nil},
 		{`"1560516023.070651"`, time.Unix(0, 1560516023070651000), nil},
 		{`"1606292218213457800"`, time.Unix(0, 1606292218213457800), nil},
+		{`"00000000000000000000.0"`, time.Time{}, nil},
+		{`"12345678901234567890.1"`, time.Time{}, strconv.ErrRange},
 		{`"blurp"`, time.Time{}, strconv.ErrSyntax},
 		{`"123456"`, time.Time{}, ErrInvalidTimestampFormat},
 		{`"12345678"`, time.Time{}, ErrInvalidTimestampFormat},
@@ -46,15 +57,18 @@ func TestUnmarshalJSON(t *testing.T) {
 		t.Run(tc.input, func(t *testing.T) {
 			t.Parallel()
 			var testTime Time
-			err := json.Unmarshal([]byte(tc.input), &testTime)
-			require.ErrorIsf(t, err, tc.expError, "Unmarshal must not error for input %q", tc.input)
-			assert.Equal(t, tc.want, testTime.Time())
+			err := testTime.UnmarshalJSON([]byte(tc.input))
+			require.ErrorIsf(t, err, tc.expError, "UnmarshalJSON must return the expected error for input %q", tc.input)
+			assert.Equalf(t, tc.want, testTime.Time(), "UnmarshalJSON should set Time correctly for input %q", tc.input)
+
+			var decoded Time
+			err = json.Unmarshal([]byte(tc.input), &decoded)
+			require.ErrorIsf(t, err, tc.expError, "json.Unmarshal must return the expected error for input %q", tc.input)
+			assert.Equalf(t, tc.want, decoded.Time(), "json.Unmarshal should set Time correctly for input %q", tc.input)
 		})
 	}
 }
 
-// 3948978         303.5 ns/op       168 B/op          2 allocs/op (current) after more stringent checks
-// 6152384         195.5 ns/op       168 B/op          2 allocs/op (previous)
 func BenchmarkUnmarshalJSON(b *testing.B) {
 	var testTime Time
 	for b.Loop() {
