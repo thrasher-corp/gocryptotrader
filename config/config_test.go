@@ -2112,6 +2112,7 @@ func TestCheckCurrencyConfigValues(t *testing.T) {
 
 func TestCheckCurrencyConfigValuesAccountPlan(t *testing.T) {
 	t.Parallel()
+	assert.Equal(t, "accountPlan", DefaultUnsetAccountPlan, "DefaultUnsetAccountPlan should preserve the legacy config placeholder")
 
 	for _, tc := range []struct {
 		name     string

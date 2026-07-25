@@ -1102,7 +1102,7 @@ func (c *Config) CheckCurrencyConfigValues() error {
 		c.Currency.CryptocurrencyProvider.APIKey = DefaultUnsetAPIKey
 	}
 	if c.Currency.CryptocurrencyProvider.AccountPlan == "" ||
-		strings.EqualFold(strings.TrimSpace(c.Currency.CryptocurrencyProvider.AccountPlan), legacyDefaultAccountPlan) {
+		strings.EqualFold(strings.TrimSpace(c.Currency.CryptocurrencyProvider.AccountPlan), DefaultUnsetAccountPlan) {
 		c.Currency.CryptocurrencyProvider.AccountPlan = DefaultAccountPlan
 	}
 

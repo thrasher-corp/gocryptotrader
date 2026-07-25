@@ -49,7 +49,7 @@ func newConfiguredClient(t *testing.T) *Coinmarketcap {
 		Enabled:     true,
 	}
 	err := c.Setup(cfg)
-	require.NoError(t, err)
+	require.NoError(t, err, "Setup must configure the client")
 	return c
 }
 
@@ -119,10 +119,10 @@ func TestCheckAccountPlan(t *testing.T) {
 	}{
 		{name: "basic allows basic", plan: Basic, min: Basic},
 		{name: "basic blocks builder", plan: Basic, min: Builder, expectErr: true},
-		{name: "hobbyist alias allows builder", plan: Hobbyist, min: Builder},
+		{name: "builder allows builder", plan: Builder, min: Builder},
 		{name: "startup allows builder", plan: Startup, min: Builder},
 		{name: "startup blocks growth", plan: Startup, min: Growth, expectErr: true},
-		{name: "standard alias allows growth", plan: Standard, min: Growth},
+		{name: "growth allows growth", plan: Growth, min: Growth},
 		{name: "enterprise allows professional", plan: Enterprise, min: Professional},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -752,17 +752,17 @@ func TestNewFromSettingsAndSetupDisabled(t *testing.T) {
 	t.Parallel()
 	cfg := Settings{Enabled: true, Verbose: true, AccountPlan: "basic", APIKey: "x"}
 	client, err := NewFromSettings(cfg)
-	require.NoError(t, err)
-	assert.True(t, client.Enabled)
+	require.NoError(t, err, "NewFromSettings must configure an enabled client")
+	assert.True(t, client.Enabled, "NewFromSettings should set Enabled correctly")
 	assert.True(t, client.Verbose, "Setup should set Verbose correctly")
 	assert.Equal(t, "x", client.APIkey, "Setup should set APIkey correctly")
-	assert.Equal(t, Basic, client.Plan)
+	assert.Equal(t, Basic, client.Plan, "NewFromSettings should set Plan correctly")
 
 	var disabled Coinmarketcap
 	disabled.SetDefaults()
 	err = disabled.Setup(Settings{Enabled: false})
-	require.NoError(t, err)
-	assert.False(t, disabled.Enabled)
+	require.NoError(t, err, "Setup must accept a disabled client")
+	assert.False(t, disabled.Enabled, "Setup should leave the client disabled")
 }
 
 func TestSetupRejectsInvalidPlanWithoutMutation(t *testing.T) {

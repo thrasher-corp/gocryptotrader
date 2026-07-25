@@ -23,17 +23,6 @@ const (
 )
 
 const (
-	// Hobbyist is retained for source compatibility.
-	//
-	// Deprecated: use Builder.
-	Hobbyist = Builder
-	// Standard is retained for source compatibility.
-	//
-	// Deprecated: use Growth.
-	Standard = Growth
-)
-
-const (
 	baseURL    = "https://pro-api.coinmarketcap.com"
 	sandboxURL = "https://sandbox-api.coinmarketcap.com"
 

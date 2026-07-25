@@ -70,8 +70,7 @@ const (
 	DefaultUnsetAPIKey            = "Key"
 	DefaultUnsetAPISecret         = "Secret"
 	DefaultAccountPlan            = "basic"
-	DefaultUnsetAccountPlan       = DefaultAccountPlan // Deprecated: use DefaultAccountPlan.
-	legacyDefaultAccountPlan      = "accountPlan"
+	DefaultUnsetAccountPlan       = "accountPlan" // Deprecated: use DefaultAccountPlan.
 	DefaultGRPCUsername           = "admin"
 	DefaultGRPCPassword           = "Password"
 )
