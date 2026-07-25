@@ -756,7 +756,7 @@ func (c *Coinmarketcap) SetAccountPlan(s string) error {
 	if c.Requester != nil {
 		limiter := c.Requester.GetRateLimiterDefinitions()[request.Unset]
 		if err := limiter.SetRateLimit(rateInterval, requestRate); err != nil {
-			return fmt.Errorf("%w for account plan %q: %v", errRateLimiterNotSet, planName, err)
+			return fmt.Errorf("%w for account plan %q: %w", errRateLimiterNotSet, planName, err)
 		}
 	}
 	c.Plan = plan

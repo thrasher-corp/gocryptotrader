@@ -192,6 +192,7 @@ func TestSetRateLimit(t *testing.T) {
 	t.Parallel()
 
 	err := (*RateLimiterWithWeight)(nil).SetRateLimit(time.Second, 10)
+	assert.ErrorIs(t, err, common.ErrNilPointer, "SetRateLimit should return common.ErrNilPointer for a nil limiter")
 	assert.ErrorContains(t, err, "nil pointer: *request.RateLimiterWithWeight", "SetRateLimit should return an error for a nil limiter")
 
 	r := NewRateLimitWithWeight(time.Second, 1, 5)

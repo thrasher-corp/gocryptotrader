@@ -1,6 +1,7 @@
 package coinmarketcap
 
 import (
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -117,8 +119,10 @@ func TestCheckAccountPlan(t *testing.T) {
 	}{
 		{name: "basic allows basic", plan: Basic, min: Basic},
 		{name: "basic blocks builder", plan: Basic, min: Builder, expectErr: true},
+		{name: "hobbyist alias allows builder", plan: Hobbyist, min: Builder},
 		{name: "startup allows builder", plan: Startup, min: Builder},
 		{name: "startup blocks growth", plan: Startup, min: Growth, expectErr: true},
+		{name: "standard alias allows growth", plan: Standard, min: Growth},
 		{name: "enterprise allows professional", plan: Enterprise, min: Professional},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -166,6 +170,132 @@ func TestGetCryptocurrencyLatestListing(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestGetCryptocurrencyLatestListingDecodesV3Payload(t *testing.T) {
+	t.Parallel()
+	c, closeFn := newSyntheticClient(t, map[string]string{
+		"/v3/cryptocurrency/listings/latest": `{
+			"data":[{
+				"id":1,
+				"name":"Bitcoin",
+				"symbol":"BTC",
+				"slug":"bitcoin",
+				"platform":{"id":1027,"slug":"ethereum","name":"Ethereum","symbol":"ETH","token_address":"0xabc"},
+				"quote":[{
+					"id":2781,
+					"symbol":"USD",
+					"price":1,
+					"volume_24h":2,
+					"cex_volume_24h":3,
+					"dex_volume_24h":4,
+					"volume_24h_reported":5,
+					"volume_7d":6,
+					"volume_7d_reported":7,
+					"volume_30d":8,
+					"volume_30d_reported":9,
+					"volume_change_24h":10,
+					"percent_change_1h":11,
+					"percent_change_24h":12,
+					"percent_change_7d":13,
+					"percent_change_30d":14,
+					"percent_change_60d":15,
+					"percent_change_90d":16,
+					"market_cap":17,
+					"market_cap_dominance":18,
+					"fully_diluted_market_cap":19,
+					"minted_market_cap":20,
+					"tvl":null,
+					"market_cap_by_total_supply":22,
+					"last_updated":"2026-06-19T14:02:00Z"
+				}],
+				"tags":["mineable"],
+				"is_active":1,
+				"infinite_supply":true,
+				"is_market_cap_included_in_calc":1,
+				"is_fiat":1,
+				"circulating_supply":100,
+				"total_supply":110,
+				"max_supply":null,
+				"date_added":"2010-07-13T00:00:00Z",
+				"num_market_pairs":140,
+				"cmc_rank":1,
+				"last_updated":"2026-06-19T14:02:00Z",
+				"tvl_ratio":1.5,
+				"self_reported_circulating_supply":150,
+				"self_reported_market_cap":160,
+				"unlocked_circulating_supply":170,
+				"unlocked_market_cap":180,
+				"minted_market_cap":130
+			}],
+			"status":{"error_code":"0","error_message":"","notice":"synthetic"}
+		}`,
+	})
+	t.Cleanup(closeFn)
+
+	result, err := c.GetCryptocurrencyLatestListing(1, 1)
+	require.NoError(t, err, "GetCryptocurrencyLatestListing must not error")
+	mintedMarketCap := 130.0
+	tvlRatio := 1.5
+	selfReportedCirculatingSupply := 150.0
+	selfReportedMarketCap := 160.0
+	unlockedCirculatingSupply := 170.0
+	unlockedMarketCap := 180.0
+	expected := []CryptocurrencyLatestListings{
+		{
+			ID:                            1,
+			Name:                          "Bitcoin",
+			Symbol:                        "BTC",
+			Slug:                          "bitcoin",
+			Platform:                      []byte(`{"id":1027,"slug":"ethereum","name":"Ethereum","symbol":"ETH","token_address":"0xabc"}`),
+			Tags:                          []byte(`["mineable"]`),
+			IsActive:                      1,
+			InfiniteSupply:                true,
+			IsMarketCapIncludedInCalc:     1,
+			IsFiat:                        1,
+			CirculatingSupply:             100,
+			TotalSupply:                   110,
+			DateAdded:                     time.Date(2010, 7, 13, 0, 0, 0, 0, time.UTC),
+			NumMarketPairs:                140,
+			CmcRank:                       1,
+			LastUpdated:                   time.Date(2026, 6, 19, 14, 2, 0, 0, time.UTC),
+			TVLRatio:                      &tvlRatio,
+			SelfReportedCirculatingSupply: &selfReportedCirculatingSupply,
+			SelfReportedMarketCap:         &selfReportedMarketCap,
+			UnlockedCirculatingSupply:     &unlockedCirculatingSupply,
+			UnlockedMarketCap:             &unlockedMarketCap,
+			MintedMarketCap:               &mintedMarketCap,
+			Quote: CryptocurrencyLatestQuoteMap{
+				"USD": {
+					ID:                     2781,
+					Symbol:                 "USD",
+					Price:                  1,
+					Volume24H:              2,
+					CEXVolume24H:           3,
+					DEXVolume24H:           4,
+					Volume24HReported:      5,
+					Volume7D:               6,
+					Volume7DReported:       7,
+					Volume30D:              8,
+					Volume30DReported:      9,
+					VolumeChange24H:        10,
+					PercentChange1H:        11,
+					PercentChange24H:       12,
+					PercentChange7D:        13,
+					PercentChange30D:       14,
+					PercentChange60D:       15,
+					PercentChange90D:       16,
+					MarketCap:              17,
+					MarketCapDominance:     18,
+					FullyDilutedMarketCap:  19,
+					MintedMarketCap:        20,
+					MarketCapByTotalSupply: 22,
+					LastUpdated:            time.Date(2026, 6, 19, 14, 2, 0, 0, time.UTC),
+				},
+			},
+		},
+	}
+	assert.Equal(t, expected, result, "GetCryptocurrencyLatestListing should return the complete V3 payload")
+}
+
 func TestGetCryptocurrencyLatestMarketPairs(t *testing.T) {
 	t.Parallel()
 	c := newConfiguredClient(t)
@@ -196,6 +326,131 @@ func TestGetCryptocurrencyLatestQuotes(t *testing.T) {
 	skipIfLiveCredentialsUnavailable(t, c, Basic)
 	_, err := c.GetCryptocurrencyLatestQuotes(1)
 	assert.NoError(t, err)
+}
+
+func TestGetCryptocurrencyLatestQuotesDecodesV3Payload(t *testing.T) {
+	t.Parallel()
+	c, closeFn := newSyntheticClient(t, map[string]string{
+		"/v3/cryptocurrency/quotes/latest": `{
+			"data":[{
+				"id":1,
+				"name":"Bitcoin",
+				"symbol":"BTC",
+				"slug":"bitcoin",
+				"is_active":1,
+				"infinite_supply":false,
+				"is_market_cap_included_in_calc":1,
+				"is_fiat":0,
+				"circulating_supply":100,
+				"total_supply":110,
+				"max_supply":120,
+				"date_added":"2010-07-13T00:00:00Z",
+				"num_market_pairs":140,
+				"cmc_rank":1,
+				"last_updated":"2026-06-19T14:02:00Z",
+				"tvl_ratio":1.5,
+				"self_reported_circulating_supply":150,
+				"self_reported_market_cap":160,
+				"unlocked_circulating_supply":170,
+				"unlocked_market_cap":180,
+				"tags":[{"slug":"mineable"}],
+				"platform":null,
+				"quote":[{
+					"id":2781,
+					"symbol":"USD",
+					"price":1,
+					"volume_24h":2,
+					"cex_volume_24h":3,
+					"dex_volume_24h":4,
+					"volume_24h_reported":5,
+					"volume_7d":6,
+					"volume_7d_reported":7,
+					"volume_30d":8,
+					"volume_30d_reported":9,
+					"volume_change_24h":10,
+					"percent_change_1h":11,
+					"percent_change_24h":12,
+					"percent_change_7d":13,
+					"percent_change_30d":14,
+					"percent_change_60d":15,
+					"percent_change_90d":16,
+					"market_cap":17,
+					"market_cap_dominance":18,
+					"fully_diluted_market_cap":19,
+					"minted_market_cap":20,
+					"tvl":null,
+					"market_cap_by_total_supply":22,
+					"last_updated":"2026-06-19T14:02:00Z"
+				}]
+			}],
+			"status":{"error_code":"0","error_message":""}
+		}`,
+	})
+	t.Cleanup(closeFn)
+
+	result, err := c.GetCryptocurrencyLatestQuotes(1)
+	require.NoError(t, err, "GetCryptocurrencyLatestQuotes must not error")
+	maxSupply := 120.0
+	tvlRatio := 1.5
+	selfReportedCirculatingSupply := 150.0
+	selfReportedMarketCap := 160.0
+	unlockedCirculatingSupply := 170.0
+	unlockedMarketCap := 180.0
+	expected := CryptocurrencyLatestQuotes{
+		{
+			ID:                            1,
+			Name:                          "Bitcoin",
+			Symbol:                        "BTC",
+			Slug:                          "bitcoin",
+			IsActive:                      1,
+			InfiniteSupply:                false,
+			IsMarketCapIncludedInCalc:     1,
+			IsFiat:                        0,
+			CirculatingSupply:             100,
+			TotalSupply:                   110,
+			MaxSupply:                     &maxSupply,
+			DateAdded:                     time.Date(2010, 7, 13, 0, 0, 0, 0, time.UTC),
+			NumMarketPairs:                140,
+			CmcRank:                       1,
+			LastUpdated:                   time.Date(2026, 6, 19, 14, 2, 0, 0, time.UTC),
+			TVLRatio:                      &tvlRatio,
+			SelfReportedCirculatingSupply: &selfReportedCirculatingSupply,
+			SelfReportedMarketCap:         &selfReportedMarketCap,
+			UnlockedCirculatingSupply:     &unlockedCirculatingSupply,
+			UnlockedMarketCap:             &unlockedMarketCap,
+			Tags:                          []byte(`[{"slug":"mineable"}]`),
+			Platform:                      []byte(`null`),
+			Quote: CryptocurrencyLatestQuoteMap{
+				"USD": {
+					ID:                     2781,
+					Symbol:                 "USD",
+					Price:                  1,
+					Volume24H:              2,
+					CEXVolume24H:           3,
+					DEXVolume24H:           4,
+					Volume24HReported:      5,
+					Volume7D:               6,
+					Volume7DReported:       7,
+					Volume30D:              8,
+					Volume30DReported:      9,
+					VolumeChange24H:        10,
+					PercentChange1H:        11,
+					PercentChange24H:       12,
+					PercentChange7D:        13,
+					PercentChange30D:       14,
+					PercentChange60D:       15,
+					PercentChange90D:       16,
+					MarketCap:              17,
+					MarketCapDominance:     18,
+					FullyDilutedMarketCap:  19,
+					MintedMarketCap:        20,
+					MarketCapByTotalSupply: 22,
+					LastUpdated:            time.Date(2026, 6, 19, 14, 2, 0, 0, time.UTC),
+				},
+			},
+		},
+	}
+	assert.Equal(t, expected, result, "GetCryptocurrencyLatestQuotes should return the complete V3 payload")
 }
 
 func TestGetCryptocurrencyHistoricalQuotes(t *testing.T) {
@@ -489,6 +744,7 @@ func TestSetAccountPlanWithoutRateLimiter(t *testing.T) {
 	c := Coinmarketcap{Plan: Enterprise, Requester: new(request.Requester)}
 	err := c.SetAccountPlan("builder")
 	require.ErrorIs(t, err, errRateLimiterNotSet, "SetAccountPlan must reject a requester without a rate limiter")
+	assert.ErrorIs(t, err, common.ErrNilPointer, "SetAccountPlan should wrap the underlying nil limiter error")
 	assert.Equal(t, Enterprise, c.Plan, "SetAccountPlan should not change Plan when the rate limiter is missing")
 }
 
@@ -536,61 +792,242 @@ func TestQuoteMapUnmarshal(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
 		input    string
+		initial  QuoteMap
 		expected QuoteMap
 		wantErr  bool
 	}{
 		{
-			name:  "object",
-			input: `{"USD":{"price":1.23},"BTC":{"price":0.1}}`,
+			name:    "object merges with receiver",
+			input:   `{"USD":{"price":1.23},"BTC":{"price":0.1}}`,
+			initial: QuoteMap{"OLD": {Price: 9}},
 			expected: QuoteMap{
+				"OLD": {Price: 9},
 				"USD": {Price: 1.23},
 				"BTC": {Price: 0.1},
 			},
 		},
-		{name: "empty object", input: `{}`, expected: QuoteMap{}},
 		{
-			name:  "v3 array",
-			input: `[{"id":2781,"symbol":"USD","price":2.34},{"id":1027,"symbol":"ETH","price":3.45}]`,
+			name:     "empty object preserves receiver",
+			input:    `{}`,
+			initial:  QuoteMap{"OLD": {Price: 9}},
+			expected: QuoteMap{"OLD": {Price: 9}},
+		},
+		{
+			name:  "array of maps on fresh receiver",
+			input: `[{"USD":{"price":2.34}},{"ETH":{"price":3.45}}]`,
 			expected: QuoteMap{
-				"USD": {ID: 2781, Symbol: "USD", Price: 2.34},
-				"ETH": {ID: 1027, Symbol: "ETH", Price: 3.45},
+				"USD": {Price: 2.34},
+				"ETH": {Price: 3.45},
 			},
 		},
-		{name: "empty array", input: `[]`, expected: QuoteMap{}},
-		{name: "null", input: `null`, wantErr: true},
-		{name: "missing symbol", input: `[{"id":2781}]`, wantErr: true},
-		{name: "empty symbol", input: `[{"id":2781,"symbol":""}]`, wantErr: true},
-		{name: "whitespace symbol", input: `[{"id":2781,"symbol":" USD "}]`, wantErr: true},
-		{name: "duplicate symbol", input: `[{"symbol":"USD"},{"symbol":"USD"}]`, wantErr: true},
-		{name: "invalid element", input: `[{"id":"invalid","symbol":"USD"}]`, wantErr: true},
+		{
+			name:     "array merges with receiver",
+			input:    `[{"USD":{"price":1.23}}]`,
+			initial:  QuoteMap{"BTC": {Price: 0.1}},
+			expected: QuoteMap{"BTC": {Price: 0.1}, "USD": {Price: 1.23}},
+		},
+		{
+			name:     "array duplicate keys use last value",
+			input:    `[{"USD":{"price":1.23}},{"USD":{"price":2.34}}]`,
+			expected: QuoteMap{"USD": {Price: 2.34}},
+		},
+		{name: "empty array", input: `[]`},
+		{
+			name:     "empty array preserves receiver",
+			input:    `[]`,
+			initial:  QuoteMap{"OLD": {Price: 9}},
+			expected: QuoteMap{"OLD": {Price: 9}},
+		},
+		{name: "null clears receiver", input: `null`, initial: QuoteMap{"OLD": {Price: 9}}},
+		{
+			name:     "malformed object preserves receiver",
+			input:    `{"USD":{"price":"invalid"}}`,
+			initial:  QuoteMap{"OLD": {Price: 9}},
+			expected: QuoteMap{"OLD": {Price: 9}},
+			wantErr:  true,
+		},
+		{
+			name:     "partially invalid array preserves receiver",
+			input:    `[{"USD":{"price":1.23}},{"BTC":{"price":"invalid"}}]`,
+			initial:  QuoteMap{"OLD": {Price: 9}},
+			expected: QuoteMap{"OLD": {Price: 9}},
+			wantErr:  true,
+		},
+		{name: "invalid collection", input: `true`, wantErr: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			var actual QuoteMap
+			actual := maps.Clone(tc.initial)
 			err := actual.UnmarshalJSON([]byte(tc.input))
 			if tc.wantErr {
 				assert.ErrorIs(t, err, common.ErrInvalidResponse, "UnmarshalJSON should error correctly for invalid quote collections")
-				return
+			} else {
+				require.NoError(t, err, "UnmarshalJSON must not error")
 			}
-			require.NoError(t, err, "UnmarshalJSON must not error")
 			assert.Equal(t, tc.expected, actual, "UnmarshalJSON should return the correct QuoteMap")
 		})
 	}
 }
 
+func TestCryptocurrencyLatestQuoteMapUnmarshal(t *testing.T) {
+	t.Parallel()
+	tvl := 21.0
+	for _, tc := range []struct {
+		name     string
+		input    string
+		initial  CryptocurrencyLatestQuoteMap
+		expected CryptocurrencyLatestQuoteMap
+		wantErr  bool
+	}{
+		{
+			name:    "object replaces receiver",
+			input:   `{"USD":{"id":2781,"symbol":"USD","price":1}}`,
+			initial: CryptocurrencyLatestQuoteMap{"OLD": {Symbol: "OLD", Price: 9}},
+			expected: CryptocurrencyLatestQuoteMap{
+				"USD": {ID: 2781, Symbol: "USD", Price: 1},
+			},
+		},
+		{name: "empty object", input: `{}`, expected: CryptocurrencyLatestQuoteMap{}},
+		{
+			name: "v3 array with all documented fields",
+			input: `[{
+				"id":2781,
+				"symbol":"USD",
+				"price":1,
+				"volume_24h":2,
+				"cex_volume_24h":3,
+				"dex_volume_24h":4,
+				"volume_24h_reported":5,
+				"volume_7d":6,
+				"volume_7d_reported":7,
+				"volume_30d":8,
+				"volume_30d_reported":9,
+				"volume_change_24h":10,
+				"percent_change_1h":11,
+				"percent_change_24h":12,
+				"percent_change_7d":13,
+				"percent_change_30d":14,
+				"percent_change_60d":15,
+				"percent_change_90d":16,
+				"market_cap":17,
+				"market_cap_dominance":18,
+				"fully_diluted_market_cap":19,
+				"minted_market_cap":20,
+				"tvl":21,
+				"market_cap_by_total_supply":22,
+				"last_updated":"2026-06-19T14:02:00Z"
+			}]`,
+			expected: CryptocurrencyLatestQuoteMap{
+				"USD": {
+					ID:                     2781,
+					Symbol:                 "USD",
+					Price:                  1,
+					Volume24H:              2,
+					CEXVolume24H:           3,
+					DEXVolume24H:           4,
+					Volume24HReported:      5,
+					Volume7D:               6,
+					Volume7DReported:       7,
+					Volume30D:              8,
+					Volume30DReported:      9,
+					VolumeChange24H:        10,
+					PercentChange1H:        11,
+					PercentChange24H:       12,
+					PercentChange7D:        13,
+					PercentChange30D:       14,
+					PercentChange60D:       15,
+					PercentChange90D:       16,
+					MarketCap:              17,
+					MarketCapDominance:     18,
+					FullyDilutedMarketCap:  19,
+					MintedMarketCap:        20,
+					TVL:                    &tvl,
+					MarketCapByTotalSupply: 22,
+					LastUpdated:            time.Date(2026, 6, 19, 14, 2, 0, 0, time.UTC),
+				},
+			},
+		},
+		{name: "empty array", input: `[]`, expected: CryptocurrencyLatestQuoteMap{}},
+		{
+			name:    "null clears receiver",
+			input:   `null`,
+			initial: CryptocurrencyLatestQuoteMap{"OLD": {Symbol: "OLD", Price: 9}},
+		},
+		{name: "missing symbol", input: `[{"id":2781}]`, wantErr: true},
+		{name: "empty symbol", input: `[{"id":2781,"symbol":""}]`, wantErr: true},
+		{name: "whitespace symbol", input: `[{"id":2781,"symbol":" USD "}]`, wantErr: true},
+		{name: "duplicate symbol", input: `[{"symbol":"USD"},{"symbol":"USD"}]`, wantErr: true},
+		{name: "invalid element", input: `[{"id":"invalid","symbol":"USD"}]`, wantErr: true},
+		{
+			name:     "invalid second element preserves receiver",
+			input:    `[{"id":2781,"symbol":"USD"},{"id":"invalid","symbol":"ETH"}]`,
+			initial:  CryptocurrencyLatestQuoteMap{"OLD": {Symbol: "OLD", Price: 9}},
+			expected: CryptocurrencyLatestQuoteMap{"OLD": {Symbol: "OLD", Price: 9}},
+			wantErr:  true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			actual := maps.Clone(tc.initial)
+			err := actual.UnmarshalJSON([]byte(tc.input))
+			if tc.wantErr {
+				assert.ErrorIs(t, err, common.ErrInvalidResponse, "UnmarshalJSON should error correctly for invalid cryptocurrency quote collections")
+			} else {
+				require.NoError(t, err, "UnmarshalJSON must not error")
+			}
+			assert.Equal(t, tc.expected, actual, "UnmarshalJSON should return the correct CryptocurrencyLatestQuoteMap")
+		})
+	}
+}
+
+func TestStatusUnmarshal(t *testing.T) {
+	t.Parallel()
+	var status Status
+	err := json.Unmarshal([]byte(`{
+		"timestamp":"2026-06-19T14:03:33.664Z",
+		"error_code":"0",
+		"error_message":"",
+		"elapsed":8,
+		"credit_count":1,
+		"notice":"synthetic"
+	}`), &status)
+	require.NoError(t, err, "Unmarshal must not error")
+	assert.Equal(t, Status{
+		Timestamp:   "2026-06-19T14:03:33.664Z",
+		Elapsed:     8,
+		CreditCount: 1,
+		Notice:      "synthetic",
+	}, status, "Unmarshal should return the complete API status payload")
+}
+
 func TestAPIErrorCodeUnmarshal(t *testing.T) {
 	t.Parallel()
-	var code APIErrorCode
-	err := code.UnmarshalJSON([]byte(`123`))
-	require.NoError(t, err)
-	assert.Equal(t, APIErrorCode(123), code)
-
-	err = code.UnmarshalJSON([]byte(`"456"`))
-	require.NoError(t, err)
-	assert.Equal(t, APIErrorCode(456), code)
-
-	err = code.UnmarshalJSON([]byte(`"bad"`))
-	assert.Error(t, err)
+	for _, tc := range []struct {
+		name     string
+		input    string
+		expected APIErrorCode
+		wantErr  bool
+	}{
+		{name: "numeric zero", input: `0`},
+		{name: "quoted zero", input: `"0"`},
+		{name: "numeric nonzero", input: `123`, expected: 123},
+		{name: "quoted nonzero", input: `"456"`, expected: 456},
+		{name: "invalid quoted numeric", input: `"bad"`, wantErr: true},
+		{name: "non-string JSON", input: `true`, wantErr: true},
+		{name: "malformed JSON", input: `{`, wantErr: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var actual APIErrorCode
+			err := actual.UnmarshalJSON([]byte(tc.input))
+			if tc.wantErr {
+				assert.Error(t, err, "UnmarshalJSON should reject an invalid API error code")
+				return
+			}
+			require.NoError(t, err, "UnmarshalJSON must not error")
+			assert.Equal(t, tc.expected, actual, "UnmarshalJSON should return the correct API error code")
+		})
+	}
 }
 
 func TestCoinmarketcapEndpointSuccessSynthetic(t *testing.T) {
