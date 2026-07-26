@@ -69,6 +69,12 @@ func TestUnmarshalJSON(t *testing.T) {
 	}
 }
 
+// Reproduce from the repository root (Go 1.26.1, linux/amd64 WSL2,
+// Intel i7-6700K, warm Go build cache):
+// GOMAXPROCS=1 go test ./types -run '^$' -bench '^BenchmarkUnmarshalJSON$' -benchmem -benchtime=1s -count=15 -cpu=1
+// 4005054         304.1 ns/op       168 B/op          2 allocs/op (current; median time/op of 15 samples)
+// 6152384         195.5 ns/op       168 B/op          2 allocs/op (older historical recording; conditions
+// and statistic not retained, so it is not directly comparable)
 func BenchmarkUnmarshalJSON(b *testing.B) {
 	var testTime Time
 	for b.Loop() {
