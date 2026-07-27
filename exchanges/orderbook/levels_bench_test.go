@@ -172,12 +172,12 @@ func BenchmarkUpdateInsertByID_bids(b *testing.B) {
 // Alternate 20 baseline/candidate single-sample executions of each command,
 // appending their outputs to baseline.txt and candidate.txt:
 // GOMAXPROCS=1 ./orderbook.test -test.run '^$' -test.bench '^BenchmarkInsertUpdates/<case>$' -test.benchmem -test.benchtime=20000x -test.count=1
-// Run <case> separately for MiddleFullCapacity, MiddleSpareCapacity,
+// Run <case> separately for MiddleFreshCopy, MiddleSpareCapacity,
 // TailSpareCapacity, and Collision. Compare the raw outputs with:
 // benchstat baseline.txt candidate.txt
 //
 // Benchstat medians, n=20 per commit:
-// MiddleFullCapacity: 12.075 us/op, 32640 B/op, 2 allocs/op -> 8.334 us/op, 21760 B/op, 1 alloc/op (-30.98%, p=0.000)
+// MiddleFreshCopy (recorded as MiddleFullCapacity): 12.075 us/op, 32640 B/op, 2 allocs/op -> 8.334 us/op, 21760 B/op, 1 alloc/op (-30.98%, p=0.000)
 // MiddleSpareCapacity: 5942.5 ns/op, 10880 B/op, 1 alloc/op -> 476.1 ns/op, 0 B/op, 0 allocs/op (-91.99%, p=0.000)
 // TailSpareCapacity: 621.0 ns/op -> 533.2 ns/op (-14.14%, p=0.001); both 0 B/op, 0 allocs/op
 // Collision: 632.7 ns/op -> 618.9 ns/op (p=0.341, not significant); both 104 B/op, 3 allocs/op
@@ -193,7 +193,7 @@ func BenchmarkInsertUpdates(b *testing.B) {
 	}
 	middleUpdate := Levels{{Price: float64(middle*2 - 1), Amount: 2, ID: levelCount + 1}}
 
-	b.Run("MiddleFullCapacity", func(b *testing.B) {
+	b.Run("MiddleFreshCopy", func(b *testing.B) {
 		for b.Loop() {
 			levels := append(Levels(nil), snapshot...)
 			if err := levels.insertUpdates(middleUpdate, askCompare); err != nil {
