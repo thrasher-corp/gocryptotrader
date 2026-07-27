@@ -71,15 +71,39 @@ func TestPairsFromString(t *testing.T) {
 
 func TestPairsJoin(t *testing.T) {
 	t.Parallel()
-	pairs, err := NewPairsFromStrings([]string{"btc_usd", "btc_aud", "btc_ltc"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	expected := "btc_usd,btc_aud,btc_ltc"
 
-	if pairs.Join() != expected {
-		t.Errorf("Pairs Join() error expected %s but received %s",
-			expected, pairs.Join())
+	for _, tc := range []struct {
+		name     string
+		pairs    Pairs
+		expected string
+	}{
+		{
+			name: "Empty",
+		},
+		{
+			name:     "Single",
+			pairs:    Pairs{NewPairWithDelimiter("btc", "usd", "_")},
+			expected: "btc_usd",
+		},
+		{
+			name: "Multiple",
+			pairs: Pairs{
+				NewPairWithDelimiter("btc", "usd", "_"),
+				NewPairWithDelimiter("btc", "aud", "_"),
+				NewPairWithDelimiter("btc", "ltc", "_"),
+			},
+			expected: "btc_usd,btc_aud,btc_ltc",
+		},
+		{
+			name:     "Empty pair components",
+			pairs:    Pairs{EMPTYPAIR, NewPairWithDelimiter("btc", "usd", "_")},
+			expected: ",btc_usd",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, tc.pairs.Join(), "Join should return the correct value")
+		})
 	}
 }
 
@@ -489,6 +513,22 @@ func BenchmarkPairsString(b *testing.B) {
 
 	for b.Loop() {
 		_ = pairs.Strings()
+	}
+}
+
+func BenchmarkPairsJoin(b *testing.B) {
+	pairs := Pairs{
+		NewBTCUSD(),
+		NewPair(LTC, USD),
+		NewPair(USD, NZD),
+		NewPair(LTC, USDT),
+		NewPair(LTC, DAI),
+		NewPair(USDT, XRP),
+		NewPair(DAI, XRP),
+	}
+
+	for b.Loop() {
+		_ = pairs.Join()
 	}
 }
 
