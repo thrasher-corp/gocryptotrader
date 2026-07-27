@@ -210,10 +210,10 @@ updates:
 }
 
 // insertUpdates inserts new updates for bids or asks based on price level
+// TODO: Remove when BitMEX support is removed.
 func (l *Levels) insertUpdates(updts Levels, comp comparison) error {
 updates:
-	for x := range updts {
-		update := updts[x]
+	for _, update := range updts {
 		if len(*l) == 0 {
 			*l = append(*l, update)
 			continue
