@@ -66,8 +66,43 @@ func TestGetTicker(t *testing.T) {
 
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
-	_, err := e.GetTrades(t.Context(), spotTestPair.String(), 0, 0, 5)
-	assert.NoError(t, err, "GetTrades should not error")
+
+	for _, tc := range []struct {
+		name        string
+		before      int64
+		after       int64
+		limit       int64
+		expectedErr error
+	}{
+		{
+			name:  "No pagination",
+			limit: 5,
+		},
+		{
+			name:   "Before cursor",
+			before: 78234976,
+		},
+		{
+			name:  "After cursor",
+			after: 78234876,
+		},
+		{
+			name:        "Both cursors",
+			before:      78234976,
+			after:       78234876,
+			expectedErr: errConflictingPaginationCursors,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := e.GetTrades(t.Context(), spotTestPair.String(), tc.before, tc.after, tc.limit)
+			if tc.expectedErr != nil {
+				assert.ErrorIs(t, err, tc.expectedErr, "GetTrades should error correctly")
+				return
+			}
+			assert.NoError(t, err, "GetTrades should not error")
+		})
+	}
 }
 
 func TestGetOrderbook(t *testing.T) {
