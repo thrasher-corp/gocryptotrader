@@ -957,6 +957,14 @@ func TestInsertUpdatesAsk(t *testing.T) {
 func TestLevelsInsertUpdates(t *testing.T) {
 	t.Parallel()
 
+	t.Run("empty updates", func(t *testing.T) {
+		t.Parallel()
+		levels := Levels{{Price: 2, Amount: 1, ID: 2}}
+		err := levels.insertUpdates(nil, askCompare)
+		require.NoError(t, err, "insertUpdates must not error for empty updates")
+		assert.Equal(t, Levels{{Price: 2, Amount: 1, ID: 2}}, levels, "insertUpdates should preserve levels for empty updates")
+	})
+
 	t.Run("empty", func(t *testing.T) {
 		t.Parallel()
 		var levels Levels
@@ -994,6 +1002,24 @@ func TestLevelsInsertUpdates(t *testing.T) {
 		err := levels.insertUpdates(levels[:1], askCompare)
 		assert.ErrorIs(t, err, errCollisionDetected, "insertUpdates should return the collision error")
 		assert.Equal(t, Levels{{Price: 2, Amount: 1, ID: 2}}, levels, "insertUpdates should preserve levels after a collision")
+	})
+
+	t.Run("collision after insertion", func(t *testing.T) {
+		t.Parallel()
+		levels := Levels{
+			{Price: 2, Amount: 1, ID: 2},
+			{Price: 4, Amount: 1, ID: 4},
+		}
+		err := levels.insertUpdates(Levels{
+			{Price: 1, Amount: 1, ID: 1},
+			{Price: 2, Amount: 2, ID: 20},
+		}, askCompare)
+		assert.ErrorIs(t, err, errCollisionDetected, "insertUpdates should return the collision error after an insertion")
+		assert.Equal(t, Levels{
+			{Price: 1, Amount: 1, ID: 1},
+			{Price: 2, Amount: 1, ID: 2},
+			{Price: 4, Amount: 1, ID: 4},
+		}, levels, "insertUpdates should preserve updates applied before a collision")
 	})
 
 	t.Run("aliased update with spare capacity", func(t *testing.T) {
