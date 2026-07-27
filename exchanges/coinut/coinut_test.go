@@ -143,7 +143,14 @@ func TestGetTradeHistoryPagination(t *testing.T) {
 			require.NoError(t, err, "GetTradeHistory must not error")
 			assert.Equal(t, TradeHistory{Trades: []OrderFilledResponse{}}, result, "Trade history should match the response")
 
-			request := <-requestC
+			timer := time.NewTimer(time.Second)
+			defer timer.Stop()
+			var request requestResult
+			select {
+			case request = <-requestC:
+			case <-timer.C:
+				t.Fatal("GetTradeHistory must send a request to the mock server")
+			}
 			require.NoError(t, request.err, "Decoding the request must not error")
 			delete(request.payload, "nonce")
 			expected := map[string]any{
