@@ -24,8 +24,9 @@ import (
 )
 
 var (
-	errInvalidAmount = errors.New("cannot be less than or equal to zero")
-	errIDRequired    = errors.New("id is required")
+	errConflictingPaginationCursors = errors.New("BTCMarkets only supports either before or after, not both")
+	errInvalidAmount                = errors.New("cannot be less than or equal to zero")
+	errIDRequired                   = errors.New("id is required")
 )
 
 const (
@@ -115,7 +116,7 @@ func (e *Exchange) GetTicker(ctx context.Context, marketID string) (Ticker, erro
 // GetTrades returns executed trades on the exchange
 func (e *Exchange) GetTrades(ctx context.Context, marketID string, before, after, limit int64) ([]Trade, error) {
 	if before > 0 && after > 0 {
-		return nil, errors.New("BTCMarkets only supports either before or after, not both")
+		return nil, errConflictingPaginationCursors
 	}
 	var trades []Trade
 	params := url.Values{}
