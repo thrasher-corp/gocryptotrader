@@ -965,7 +965,7 @@ func TestLevelsInsertUpdates(t *testing.T) {
 		assert.Equal(t, Levels{{Price: 2, Amount: 1, ID: 2}}, levels, "insertUpdates should preserve levels for empty updates")
 	})
 
-	t.Run("empty", func(t *testing.T) {
+	t.Run("empty book", func(t *testing.T) {
 		t.Parallel()
 		var levels Levels
 		update := Level{Price: 2, Amount: 1, ID: 2}
