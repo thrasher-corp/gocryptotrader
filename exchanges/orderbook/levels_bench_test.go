@@ -161,11 +161,11 @@ func BenchmarkUpdateInsertByID_bids(b *testing.B) {
 	}
 }
 
-// The measurements below used the standalone benchmark harness retained in
-// f128775b2d1f66650dbd46b89106564fd2d33d6d. Restore that identical harness
-// in separate worktrees at baseline 301d9636271013e697dba8ad0f9c4627ef7e6286
-// and candidate baa730ca9848beaf51541b52530c745f8d2c0cc6 with:
-// git show f128775b2d1f66650dbd46b89106564fd2d33d6d:exchanges/orderbook/insert_updates_bench_test.go > exchanges/orderbook/insert_updates_bench_test.go
+// To reproduce the measurements below, copy BenchmarkInsertUpdates verbatim
+// into a temporary _test.go file in package orderbook with an import for
+// "testing". Use separate worktrees at baseline
+// 301d9636271013e697dba8ad0f9c4627ef7e6286 and candidate
+// baa730ca9848beaf51541b52530c745f8d2c0cc6.
 // The environment was Go 1.26.1, linux/amd64 WSL2, Intel i7-6700K,
 // GOMAXPROCS=1, with a warm Go build cache. Build each harness with:
 // GOMAXPROCS=1 go test -c ./exchanges/orderbook -o orderbook.test
