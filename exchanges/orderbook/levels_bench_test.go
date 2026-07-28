@@ -161,26 +161,6 @@ func BenchmarkUpdateInsertByID_bids(b *testing.B) {
 	}
 }
 
-// To reproduce the measurements below, copy BenchmarkInsertUpdates verbatim
-// into a temporary _test.go file in package orderbook with an import for
-// "testing". Use separate worktrees at baseline
-// 301d9636271013e697dba8ad0f9c4627ef7e6286 and candidate
-// baa730ca9848beaf51541b52530c745f8d2c0cc6.
-// The environment was Go 1.26.1, linux/amd64 WSL2, Intel i7-6700K,
-// GOMAXPROCS=1, with a warm Go build cache. Build each harness with:
-// GOMAXPROCS=1 go test -c ./exchanges/orderbook -o orderbook.test
-// Alternate 20 baseline/candidate single-sample executions of each command,
-// appending their outputs to baseline.txt and candidate.txt:
-// GOMAXPROCS=1 ./orderbook.test -test.run '^$' -test.bench '^BenchmarkInsertUpdates/<case>$' -test.benchmem -test.benchtime=20000x -test.count=1
-// Run <case> separately for MiddleFreshCopy, MiddleSpareCapacity,
-// TailSpareCapacity, and Collision. Compare the raw outputs with:
-// benchstat baseline.txt candidate.txt
-//
-// Benchstat medians, n=20 per commit:
-// MiddleFreshCopy (recorded as MiddleFullCapacity): 12.075 us/op, 32640 B/op, 2 allocs/op -> 8.334 us/op, 21760 B/op, 1 alloc/op (-30.98%, p=0.000)
-// MiddleSpareCapacity: 5942.5 ns/op, 10880 B/op, 1 alloc/op -> 476.1 ns/op, 0 B/op, 0 allocs/op (-91.99%, p=0.000)
-// TailSpareCapacity: 621.0 ns/op -> 533.2 ns/op (-14.14%, p=0.001); both 0 B/op, 0 allocs/op
-// Collision: 632.7 ns/op -> 618.9 ns/op (p=0.341, not significant); both 104 B/op, 3 allocs/op
 func BenchmarkInsertUpdates(b *testing.B) {
 	const (
 		levelCount = 256

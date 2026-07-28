@@ -5,20 +5,6 @@ import (
 	"time"
 )
 
-// To reproduce the measurement below, copy the package/import block and
-// BenchmarkProcessUpdateInsertDelete verbatim into a temporary _test.go file
-// in separate worktrees at baseline 301d9636271013e697dba8ad0f9c4627ef7e6286
-// and candidate baa730ca9848beaf51541b52530c745f8d2c0cc6.
-// The environment was Go 1.26.1, linux/amd64 WSL2, Intel i7-6700K,
-// GOMAXPROCS=1, with a warm Go build cache. Build each harness with:
-// GOMAXPROCS=1 go test -c ./exchanges/orderbook -o orderbook.test
-// Alternate 20 baseline/candidate single-sample executions of this command,
-// appending their outputs to baseline.txt and candidate.txt:
-// GOMAXPROCS=1 ./orderbook.test -test.run '^$' -test.bench '^BenchmarkProcessUpdateInsertDelete$' -test.benchmem -test.benchtime=100000x -test.count=1
-// Compare the raw outputs with: benchstat baseline.txt candidate.txt
-//
-// Benchstat medians, n=20 per commit:
-// ProcessUpdateInsertDelete: 6271.0 ns/op, 10880 B/op, 1 alloc/op -> 752.8 ns/op, 0 B/op, 0 allocs/op (-88.00%, p=0.000)
 func BenchmarkProcessUpdateInsertDelete(b *testing.B) {
 	depth := NewDepth(id)
 	if err := depth.LoadSnapshot(newSnapshot(256)); err != nil {
