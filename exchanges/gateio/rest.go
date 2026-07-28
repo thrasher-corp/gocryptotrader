@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -4455,9 +4456,22 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	if err := json.Unmarshal(intermediary, result); err != nil {
 		return fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, err)
 	}
+	if err := responseError(result); err != nil {
+		return fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, err)
+	}
+	return nil
+}
+
+// responseError surfaces an API level error carried in the body of an otherwise successful
+// response. Results are commonly unmarshalled into a pointer to a pointer, whose method set is
+// empty, so the pointed-to value is checked as well.
+func responseError(result any) error {
 	if errType, ok := result.(interface{ AsError() error }); ok {
-		if err := errType.AsError(); err != nil {
-			return fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, err)
+		return errType.AsError()
+	}
+	if v := reflect.ValueOf(result); v.Kind() == reflect.Pointer && !v.IsNil() {
+		if errType, ok := v.Elem().Interface().(interface{ AsError() error }); ok {
+			return errType.AsError()
 		}
 	}
 	return nil
@@ -4498,12 +4512,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	if err := json.Unmarshal(intermediary, result); err != nil {
 		return fmt.Errorf("%s: %w", e.Name, err)
 	}
-	if errType, ok := result.(interface{ AsError() error }); ok {
-		if err := errType.AsError(); err != nil {
-			return err
-		}
-	}
-	return nil
+	return responseError(result)
 }
 
 // ----- Earning endpoints -----------------

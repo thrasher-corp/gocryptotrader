@@ -5956,3 +5956,24 @@ func TestGetAggregatedPartnerAgentStatistics(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+func TestResponseError(t *testing.T) {
+	t.Parallel()
+
+	assert.NoError(t, responseError(nil), "nil result should not error")
+	assert.NoError(t, responseError(&struct{ Field string }{}), "result without AsError should not error")
+
+	clean := &BotCreateResponse{Code: 200}
+	assert.NoError(t, responseError(clean), "successful response should not error")
+
+	failed := &BotCreateResponse{Code: 4, Message: "boom", TraceID: "trace-1"}
+	err := responseError(failed)
+	require.Error(t, err, "failed response must error")
+	assert.Contains(t, err.Error(), "trace-1", "error should carry the trace ID")
+
+	// Results are commonly unmarshalled into a pointer to a pointer, whose method set is empty
+	doubled := &AlphaCurrencyQuoteDetail{alphaStatusError: alphaStatusError{Label: "BALANCE_NOT_ENOUGH", Message: "insufficient"}}
+	err = responseError(&doubled)
+	require.Error(t, err, "double pointer result must still surface the embedded error")
+	assert.Contains(t, err.Error(), "BALANCE_NOT_ENOUGH", "error should carry the alpha label")
+}
