@@ -23,12 +23,7 @@ import (
 )
 
 // Please add your private keys and customerID for better tests
-const (
-	apiKey                  = ""
-	apiSecret               = ""
-	customerID              = "" // This is the customer id you use to log in
-	canManipulateRealOrders = false
-)
+const canManipulateRealOrders = false
 
 var (
 	e          *Exchange
@@ -1025,7 +1020,8 @@ func TestGenerateSubscriptions(t *testing.T) {
 		}
 	}
 	testsubs.EqualLists(t, exp, subs)
-	assert.PanicsWithError(t,
+	assert.PanicsWithError(
+		t,
 		"subscription channel not supported: wibble",
 		func() { channelName(&subscription.Subscription{Channel: "wibble"}) },
 		"should panic on invalid channel",

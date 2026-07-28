@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"slices"
 	"sort"
@@ -458,14 +459,38 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 			pairs = append(pairs, currency.NewPair(cpDetail.Base, cpDetail.Quote))
 		}
 		return pairs, nil
-	case asset.Margin, asset.CrossMargin:
-		tradables, err := e.ListLendingMarkets(ctx)
+	case asset.Margin:
+		tradables, err := e.GetMarginSupportedCurrencyPairs(ctx)
 		if err != nil {
 			return nil, err
 		}
-		pairs := make(currency.Pairs, len(tradables))
-		for x, mPairDetail := range tradables {
-			pairs[x] = mPairDetail.CurrencyPair
+		pairs := make([]currency.Pair, 0, len(tradables))
+		for _, mPairDetail := range tradables {
+			if mPairDetail.Status == 0 || mPairDetail.BaseMinimumBorrowAmount.Float64() == 0 { // Pairs with min_base_amount == 0 are effectively dead and skipped.
+				continue
+			}
+			pairs = append(pairs, mPairDetail.ID)
+		}
+		return pairs, nil
+	case asset.CrossMargin:
+		crossMinimums, err := e.getCrossMarginMinimums(ctx)
+		if err != nil {
+			return nil, err
+		}
+		tradables, err := e.ListSpotCurrencyPairs(ctx)
+		if err != nil {
+			return nil, err
+		}
+		pairs := make([]currency.Pair, 0, len(tradables))
+		for i := range tradables {
+			if tradables[i].TradeStatus == "untradable" {
+				continue
+			}
+			_, baseOK := crossMinimums[tradables[i].Base]
+			_, quoteOK := crossMinimums[tradables[i].Quote]
+			if baseOK && quoteOK {
+				pairs = append(pairs, tradables[i].ID)
+			}
 		}
 		return pairs, nil
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures:
@@ -526,6 +551,22 @@ func (e *Exchange) FetchTradablePairs(ctx context.Context, a asset.Item) (curren
 	default:
 		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
 	}
+}
+
+func (e *Exchange) getCrossMarginMinimums(ctx context.Context) (map[currency.Code]float64, error) {
+	crossCurrencies, err := e.CurrencySupportedByCrossMargin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	crossMinimums := make(map[currency.Code]float64, len(crossCurrencies))
+	for i := range crossCurrencies {
+		minimum := crossCurrencies[i].MinBorrowAmount.Float64()
+		if crossCurrencies[i].Status == 0 || !crossCurrencies[i].Loanable || minimum == 0 {
+			continue
+		}
+		crossMinimums[crossCurrencies[i].Name] = minimum
+	}
+	return crossMinimums, nil
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
@@ -1990,11 +2031,99 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 			}
 			l = append(l, limits.MinMaxLevel{
 				Key:                     key.NewExchangeAssetPair(e.Name, a, currency.NewPair(cpDetail.Base, cpDetail.Quote)),
-				QuoteStepIncrementSize:  math.Pow10(-int(cpDetail.PricePrecision)),
+				PriceStepIncrementSize:  math.Pow10(-int(cpDetail.PricePrecision)),
 				AmountStepIncrementSize: math.Pow10(-int(cpDetail.AmountPrecision)),
 				MinimumBaseAmount:       minBaseAmount,
 				MinimumQuoteAmount:      cpDetail.MinQuoteAmount.Float64(),
+				MaximumBaseAmount:       cpDetail.MaxBaseAmount.Float64(),
+				MaximumQuoteAmount:      cpDetail.MaxQuoteAmount.Float64(),
 				Delisted:                cpDetail.DelistingTime.Time(),
+				Listed:                  earliestTime(time.Now(), cpDetail.SellStart.Time(), cpDetail.BuyStart.Time()),
+				MultiplierUp:            cpDetail.MaximumQuoteRisePercentage.Float64(),
+				MultiplierDown:          cpDetail.MaximumQuoteDeclinePercentage.Float64(),
+				MarketMaxQty:            cpDetail.MarketOrderMaxStock.Float64(),
+			})
+		}
+	case asset.Margin:
+		marginPairs, err := e.GetMarginSupportedCurrencyPairs(ctx)
+		if err != nil {
+			return err
+		}
+
+		supported := make(map[currency.Pair]*MarginCurrencyPairInfo, len(marginPairs))
+		for _, mPairInfo := range marginPairs {
+			if mPairInfo.Status == 0 || mPairInfo.BaseMinimumBorrowAmount.Float64() == 0 { // Pairs with min_base_amount == 0 are effectively dead and skipped.
+				continue
+			}
+			supported[mPairInfo.ID] = mPairInfo
+		}
+
+		// Required for spot trading limits
+		pairsData, err := e.ListSpotCurrencyPairs(ctx)
+		if err != nil {
+			return err
+		}
+
+		l = make([]limits.MinMaxLevel, 0, len(supported))
+		unsupported := maps.Clone(supported)
+		for i := range pairsData {
+			mInfo, ok := supported[pairsData[i].ID]
+			if !ok {
+				continue
+			}
+			delete(unsupported, pairsData[i].ID) // Remove ids returned by the API. Any remaining will trigger a warning
+			minBaseAmount := pairsData[i].MinBaseAmount.Float64()
+			if minBaseAmount == 0 {
+				minBaseAmount = math.Pow10(-int(pairsData[i].AmountPrecision))
+			}
+			l = append(l, limits.MinMaxLevel{
+				Key:                      key.NewExchangeAssetPair(e.Name, a, pairsData[i].ID),
+				PriceStepIncrementSize:   math.Pow10(-int(pairsData[i].PricePrecision)),
+				AmountStepIncrementSize:  math.Pow10(-int(pairsData[i].AmountPrecision)),
+				MinimumBaseAmount:        minBaseAmount,
+				MinimumQuoteAmount:       pairsData[i].MinQuoteAmount.Float64(),
+				Delisted:                 pairsData[i].DelistingTime.Time(),
+				MinimumBorrowAmountBase:  mInfo.BaseMinimumBorrowAmount.Float64(),
+				MinimumBorrowAmountQuote: mInfo.QuoteMinimumBorrowAmount.Float64(),
+			})
+		}
+		if len(unsupported) > 0 {
+			log.Warnf(log.ExchangeSys, "%s %d unsupported margin pairs found, no execution limits loaded for: %v", e.Name, len(unsupported), unsupported)
+		}
+	case asset.CrossMargin:
+		crossMinimums, err := e.getCrossMarginMinimums(ctx)
+		if err != nil {
+			return err
+		}
+
+		pairsData, err := e.ListSpotCurrencyPairs(ctx)
+		if err != nil {
+			return err
+		}
+
+		l = make([]limits.MinMaxLevel, 0, len(pairsData))
+		for i := range pairsData {
+			if pairsData[i].TradeStatus == "untradable" {
+				continue
+			}
+			baseMinimum, baseOK := crossMinimums[pairsData[i].Base]
+			quoteMinimum, quoteOK := crossMinimums[pairsData[i].Quote]
+			if !baseOK || !quoteOK {
+				continue
+			}
+			minBaseAmount := pairsData[i].MinBaseAmount.Float64()
+			if minBaseAmount == 0 {
+				minBaseAmount = math.Pow10(-int(pairsData[i].AmountPrecision))
+			}
+			l = append(l, limits.MinMaxLevel{
+				Key:                      key.NewExchangeAssetPair(e.Name, a, pairsData[i].ID),
+				PriceStepIncrementSize:   math.Pow10(-int(pairsData[i].PricePrecision)),
+				AmountStepIncrementSize:  math.Pow10(-int(pairsData[i].AmountPrecision)),
+				MinimumBaseAmount:        minBaseAmount,
+				MinimumQuoteAmount:       pairsData[i].MinQuoteAmount.Float64(),
+				Delisted:                 pairsData[i].DelistingTime.Time(),
+				MinimumBorrowAmountBase:  baseMinimum,
+				MinimumBorrowAmountQuote: quoteMinimum,
 			})
 		}
 	case asset.USDTMarginedFutures, asset.CoinMarginedFutures:
@@ -2096,6 +2225,20 @@ func (e *Exchange) UpdateOrderExecutionLimits(ctx context.Context, a asset.Item)
 	}
 
 	return limits.Load(l)
+}
+
+// earliestTime returns the earliest non-zero time before now from a list of times. If no such time exists, it returns a zero time.
+func earliestTime(now time.Time, times ...time.Time) time.Time {
+	var earliest time.Time
+	for _, ts := range times {
+		if ts.IsZero() || !ts.Before(now) {
+			continue
+		}
+		if earliest.IsZero() || ts.Before(earliest) {
+			earliest = ts
+		}
+	}
+	return earliest
 }
 
 // MBABYDOGE price is 1e6 x spot price for futures contracts. This is the only currency that has this characteristic.
@@ -2557,7 +2700,7 @@ func (e *Exchange) WebsocketSubmitOrder(ctx context.Context, s *order.Submit) (*
 	}
 
 	switch s.AssetType {
-	case asset.Spot:
+	case asset.Spot, asset.Margin, asset.CrossMargin:
 		req, err := e.getSpotOrderRequest(s)
 		if err != nil {
 			return nil, err
@@ -2831,6 +2974,8 @@ func (e *Exchange) getSpotOrderRequest(s *order.Submit) (*CreateOrderRequest, er
 		CurrencyPair: s.Pair,
 		Text:         s.ClientOrderID,
 		TimeInForce:  tif,
+		AutoBorrow:   s.AutoBorrow,
+		AutoRepay:    s.AutoRepay,
 	}, nil
 }
 

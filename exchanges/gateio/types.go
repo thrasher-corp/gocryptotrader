@@ -502,25 +502,30 @@ type CurrencyInfo struct {
 
 // CurrencyPairDetail represents a single currency pair detail.
 type CurrencyPairDetail struct {
-	ID              currency.Pair `json:"id"`
-	Base            currency.Code `json:"base"`
-	BaseName        string        `json:"base_name"`
-	Quote           currency.Code `json:"quote"`
-	QuoteName       string        `json:"quote_name"`
-	Fee             types.Number  `json:"fee"`
-	MinBaseAmount   types.Number  `json:"min_base_amount"`
-	MinQuoteAmount  types.Number  `json:"min_quote_amount"`
-	MaxBaseAmount   types.Number  `json:"max_base_amount"`
-	MaxQuoteAmount  types.Number  `json:"max_quote_amount"`
-	AmountPrecision uint8         `json:"amount_precision"`
-	PricePrecision  uint8         `json:"precision"`
-	TradeStatus     string        `json:"trade_status"` // e.g. "untradable", "buyable", "sellable", "tradable"
-	SellStart       types.Time    `json:"sell_start"`
-	BuyStart        types.Time    `json:"buy_start"`
-	DelistingTime   types.Time    `json:"delisting_time"`
-	Type            string        `json:"type"` // e.g. "normal", "pre-market"
-	TradeURL        string        `json:"trade_url"`
-	STTag           bool          `json:"st_tag"`
+	ID                            currency.Pair `json:"id"`
+	Base                          currency.Code `json:"base"`
+	BaseName                      string        `json:"base_name"`
+	Quote                         currency.Code `json:"quote"`
+	QuoteName                     string        `json:"quote_name"`
+	Fee                           types.Number  `json:"fee"`
+	MinBaseAmount                 types.Number  `json:"min_base_amount"`
+	MinQuoteAmount                types.Number  `json:"min_quote_amount"`
+	MaxBaseAmount                 types.Number  `json:"max_base_amount"`
+	MaxQuoteAmount                types.Number  `json:"max_quote_amount"`
+	AmountPrecision               uint8         `json:"amount_precision"`
+	PricePrecision                uint8         `json:"precision"`
+	TradeStatus                   string        `json:"trade_status"` // e.g. "untradable", "buyable", "sellable", "tradable"
+	SellStart                     types.Time    `json:"sell_start"`
+	BuyStart                      types.Time    `json:"buy_start"`
+	DelistingTime                 types.Time    `json:"delisting_time"`
+	Type                          string        `json:"type"` // e.g. "normal", "pre-market"
+	TradeURL                      string        `json:"trade_url"`
+	STTag                         bool          `json:"st_tag"`
+	MaximumQuoteRisePercentage    types.Number  `json:"up_rate"`
+	MaximumQuoteDeclinePercentage types.Number  `json:"down_rate"`
+	Slippage                      types.Number  `json:"slippage"`
+	MarketOrderMaxStock           types.Number  `json:"market_order_max_stock"`
+	MarketOrderMaxMoney           types.Number  `json:"market_order_max_money"`
 }
 
 // Ticker holds detail ticker information for a currency pair
@@ -661,14 +666,14 @@ type SmallCurrencyBalance struct {
 
 // MarginCurrencyPairInfo represents margin currency pair detailed info.
 type MarginCurrencyPairInfo struct {
-	ID             currency.Pair `json:"id"`
-	Base           currency.Code `json:"base"`
-	Quote          currency.Code `json:"quote"`
-	Leverage       types.Number  `json:"leverage"`
-	MinBaseAmount  types.Number  `json:"min_base_amount"`
-	MinQuoteAmount types.Number  `json:"min_quote_amount"`
-	MaxQuoteAmount types.Number  `json:"max_quote_amount"`
-	Status         int32         `json:"status"`
+	ID                       currency.Pair `json:"id"`
+	Base                     currency.Code `json:"base"`
+	Quote                    currency.Code `json:"quote"`
+	Leverage                 types.Number  `json:"leverage"`
+	BaseMinimumBorrowAmount  types.Number  `json:"min_base_amount"`
+	QuoteMinimumBorrowAmount types.Number  `json:"min_quote_amount"`
+	QuoteMaximumBorrowAmount types.Number  `json:"max_quote_amount"`
+	Status                   int32         `json:"status"`
 }
 
 // OrderbookOfLendingLoan represents order book of lending loans
@@ -1338,13 +1343,24 @@ type MarginCurrencyBalance struct {
 	UnpairInterest types.Number `json:"interest"`
 }
 
-// MarginAccountItem margin account item
+// MarginAccountItem margin account item.
+// Returned by the GET /margin/user/account endpoint which is the latest interface
+// supporting both risk-based (risk) and maintenance-margin-based (mmr) isolated
+// margin accounts.
 type MarginAccountItem struct {
-	Locked       bool                      `json:"locked"`
-	CurrencyPair currency.Pair             `json:"currency_pair"`
-	Risk         string                    `json:"risk"`
-	Base         AccountBalanceInformation `json:"base"`
-	Quote        AccountBalanceInformation `json:"quote"`
+	CurrencyPair currency.Pair `json:"currency_pair"`
+	// AccountType indicates the account mode: "risk" (risk rate account),
+	// "mmr" (maintenance margin rate account), or "inactive" (market not activated).
+	AccountType string `json:"account_type"`
+	// Leverage is the user's current market leverage multiplier.
+	Leverage types.Number `json:"leverage"`
+	Locked   bool         `json:"locked"`
+	// Risk is the current risk rate (returned for risk-rate accounts).
+	Risk types.Number `json:"risk"`
+	// MaintenanceMarginRate is the current maintenance margin rate (returned for mmr accounts).
+	MaintenanceMarginRate types.Number              `json:"mmr"`
+	Base                  AccountBalanceInformation `json:"base"`
+	Quote                 AccountBalanceInformation `json:"quote"`
 }
 
 // AccountBalanceInformation represents currency account balance information.
@@ -1654,15 +1670,16 @@ type MaxTransferAndLoanAmount struct {
 
 // CrossMarginCurrencies represents a currency supported by cross margin
 type CrossMarginCurrencies struct {
-	Name                 string       `json:"name"`
-	Rate                 types.Number `json:"rate"`
-	CurrencyPrecision    types.Number `json:"prec"`
-	Discount             string       `json:"discount"`
-	MinBorrowAmount      types.Number `json:"min_borrow_amount"`
-	UserMaxBorrowAmount  types.Number `json:"user_max_borrow_amount"`
-	TotalMaxBorrowAmount types.Number `json:"total_max_borrow_amount"`
-	Price                types.Number `json:"price"` // Price change between this currency and USDT
-	Status               int64        `json:"status"`
+	Name                 currency.Code `json:"name"`
+	Rate                 types.Number  `json:"rate"`
+	CurrencyPrecision    types.Number  `json:"prec"`
+	Discount             types.Number  `json:"discount"`
+	MinBorrowAmount      types.Number  `json:"min_borrow_amount"`
+	UserMaxBorrowAmount  types.Number  `json:"user_max_borrow_amount"`
+	TotalMaxBorrowAmount types.Number  `json:"total_max_borrow_amount"`
+	Price                types.Number  `json:"price"` // Price change between this currency and USDT
+	Loanable             bool          `json:"loanable"`
+	Status               int64         `json:"status"`
 }
 
 // CrossMarginCurrencyBalance represents the currency detailed balance information for cross margin
@@ -3324,7 +3341,7 @@ type InterestDeductionRecord struct {
 	CurrencyPair currency.Pair `json:"currency_pair"`
 	Currency     currency.Code `json:"currency"`
 	ActualRate   types.Number  `json:"actual_rate"`
-	Interest     string        `json:"interest"`
+	Interest     types.Number  `json:"interest"`
 	LoanType     string        `json:"type"`
 	CreateTime   types.Time    `json:"create_time"`
 }
@@ -3861,26 +3878,6 @@ type CurrencyPairAndLeverage struct {
 }
 
 // IsolatedMarginAccountDetail represents an isolated margin account detail.
-type IsolatedMarginAccountDetail struct {
-	CurrencyPair          currency.Pair          `json:"currency_pair"`
-	AccountType           string                 `json:"account_type"`
-	Leverage              types.Number           `json:"leverage"`
-	Locked                bool                   `json:"locked"`
-	Risk                  types.Number           `json:"risk"`
-	MaintenanceMarginRate types.Number           `json:"mmr"`
-	Base                  *CurrencyBalanceDetail `json:"base"`
-	Quote                 *CurrencyBalanceDetail `json:"quote"`
-}
-
-// CurrencyBalanceDetail represents a currency balance detail
-type CurrencyBalanceDetail struct {
-	Currency  currency.Code `json:"currency"`
-	Available types.Number  `json:"available"`
-	Locked    types.Number  `json:"locked"`
-	Borrowed  types.Number  `json:"borrowed"`
-	Interest  types.Number  `json:"interest"`
-}
-
 // CreateChaseOrderRequest represents a chase limit order creation request.
 type CreateChaseOrderRequest struct {
 	Contract           currency.Pair `json:"contract"`

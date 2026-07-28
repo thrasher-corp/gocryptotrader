@@ -37,13 +37,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// Please supply your own APIKEYS here for due diligence testing
+const canManipulateRealOrders = false
 
-const (
-	apiKey                  = ""
-	apiSecret               = ""
-	canManipulateRealOrders = false
-)
+// apiCredentials holds the credentials used for due diligence testing; please supply your own
+var apiCredentials = &accounts.Credentials{
+	Key:    "",
+	Secret: "",
+}
 
 var (
 	e                    *Exchange
@@ -702,11 +702,15 @@ func TestGetMarginAccountList(t *testing.T) {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
 	result, err := e.GetIsolatedMarginAccountList(t.Context(), currency.EMPTYPAIR)
-	require.NoError(t, err)
+	require.NoError(t, err, "GetIsolatedMarginAccountList must not error")
 	assert.NotNil(t, result)
+	for _, acc := range result {
+		assert.NotEmpty(t, acc.CurrencyPair, "CurrencyPair should not be empty")
+		assert.NotEmpty(t, acc.AccountType, "AccountType should not be empty")
+	}
 
 	result, err = e.GetIsolatedMarginAccountList(t.Context(), getPair(t, asset.Margin))
-	require.NoError(t, err)
+	require.NoError(t, err, "GetIsolatedMarginAccountList must not error")
 	assert.NotNil(t, result)
 }
 
@@ -5581,19 +5585,6 @@ func TestSetUserIsolatedMarginAccountMarketLeverageMultiplier(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestGetUserIsolatedMarginAccountList(t *testing.T) {
-	t.Parallel()
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	}
-	result, err := e.GetUserIsolatedMarginAccountList(t.Context(), getPair(t, asset.Margin))
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-
-	result, err = e.GetUserIsolatedMarginAccountList(t.Context(), currency.EMPTYPAIR)
-	require.NoError(t, err)
-	assert.NotNil(t, result)
-}
 
 func TestGetAvailableTransferChains(t *testing.T) {
 	t.Parallel()

@@ -1533,14 +1533,15 @@ func (e *Exchange) GetEstimatedInterestRate(ctx context.Context, currencies []cu
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginEstimateRateEPL, http.MethodGet, "margin/uni/estimate_rate", params, nil, &response)
 }
 
-// GetIsolatedMarginAccountList margin account list
+// GetIsolatedMarginAccountList retrieves the user's isolated margin account list, supporting
+// both risk-based and maintenance-margin-based accounts
 func (e *Exchange) GetIsolatedMarginAccountList(ctx context.Context, currencyPair currency.Pair) ([]*MarginAccountItem, error) {
 	params := url.Values{}
 	if !currencyPair.IsEmpty() {
 		params.Set("currency_pair", currencyPair.String())
 	}
 	var response []*MarginAccountItem
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginAccountListEPL, http.MethodGet, "margin/accounts", params, nil, &response)
+	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginAccountListEPL, http.MethodGet, "margin/user/account", params, nil, &response)
 }
 
 // ListMarginAccountBalanceChangeHistory retrieves margin account balance change history
@@ -1616,10 +1617,16 @@ func (e *Exchange) GetMaxTransferableAmountForSpecificMarginCurrency(ctx context
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginGetMaxTransferEPL, http.MethodGet, "margin/transferable", params, nil, &response)
 }
 
+// GetMarginSupportedCurrencyPairs retrieves margin supported currency pairs
+func (e *Exchange) GetMarginSupportedCurrencyPairs(ctx context.Context) ([]*MarginCurrencyPairInfo, error) {
+	var response []*MarginCurrencyPairInfo
+	return response, e.SendHTTPRequest(ctx, exchange.RestSpot, publicCurrencyPairsMarginEPL, "margin/currency_pairs", &response)
+}
+
 // CurrencySupportedByCrossMargin currencies supported by cross margin.
 func (e *Exchange) CurrencySupportedByCrossMargin(ctx context.Context) ([]*CrossMarginCurrencies, error) {
 	var response []*CrossMarginCurrencies
-	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, marginSupportedCurrencyCrossListEPL, http.MethodGet, gateioCrossMarginCurrencies, nil, nil, &response)
+	return response, e.SendHTTPRequest(ctx, exchange.RestSpot, marginSupportedCurrencyCrossListEPL, gateioCrossMarginCurrencies, &response)
 }
 
 // GetCrossMarginSupportedCurrencyDetail retrieve detail of one single currency supported by cross margin
@@ -4377,6 +4384,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	if err != nil {
 		return err
 	}
+	respHeaders := make(http.Header)
 	var intermediary json.RawMessage
 	if err := e.SendPayload(ctx, epl, func() (*request.Item, error) {
 		headers := make(map[string]string)
@@ -4419,12 +4427,19 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			HTTPDebugging:          e.HTTPDebugging,
 			HTTPRecording:          e.HTTPRecording,
 			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
+			HeaderResponse:         &respHeaders,
 		}, nil
 	}, request.AuthenticatedRequest); err != nil {
 		return err
 	}
-	if result == nil {
-		return nil
+	if respHeaders.Get("Status") == "204" { // 204 No Content is returned with empty body, so intermediary will be empty but it is not an error
+		if len(intermediary) != 0 {
+			return fmt.Errorf("%s %w, expected empty response body but got %s", e.Name, request.ErrAuthRequestFailed, string(intermediary))
+		}
+		if result == nil {
+			return nil
+		}
+		return fmt.Errorf("%s %w, empty response body with non-nil result", e.Name, request.ErrAuthRequestFailed)
 	}
 	var errCap struct {
 		Label   string `json:"label"`
@@ -4432,10 +4447,10 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		Message string `json:"message"`
 	}
 	if err := json.Unmarshal(intermediary, &errCap); err == nil && errCap.Code != "" {
-		return fmt.Errorf("%s auth request error, code: %s message: %s",
-			e.Name,
-			errCap.Label,
-			errCap.Message)
+		return fmt.Errorf("%s auth request error, code: %s message: %s", e.Name, errCap.Label, errCap.Message)
+	}
+	if result == nil {
+		return nil
 	}
 	if err := json.Unmarshal(intermediary, result); err != nil {
 		return fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, err)
@@ -4813,16 +4828,6 @@ func (e *Exchange) SetUserIsolatedMarginAccountMarketLeverageMultiplier(ctx cont
 		Leverage:     leverage,
 	}
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "margin/leverage/user_market_setting", nil, arg, nil)
-}
-
-// GetUserIsolatedMarginAccountList retrieves user's isolated margin account list
-func (e *Exchange) GetUserIsolatedMarginAccountList(ctx context.Context, currencyPair currency.Pair) ([]*IsolatedMarginAccountDetail, error) {
-	params := url.Values{}
-	if !currencyPair.IsEmpty() {
-		params.Set("currency_pair", currencyPair.String())
-	}
-	var resp []*IsolatedMarginAccountDetail
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodGet, "margin/user/account", params, nil, &resp)
 }
 
 // *********************************Futures Chase Orders***************************************

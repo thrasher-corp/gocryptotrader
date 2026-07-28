@@ -1,6 +1,6 @@
 //go:build !mock_test_off
 
-// This will build if build tag mock_test_off is parsed and will do live testing
+// This will build unless build tag mock_test_off is parsed and will do mock testing
 // using all tests in (exchange)_test.go
 package gateio
 
@@ -19,10 +19,10 @@ func TestMain(m *testing.M) {
 	if err := testexch.Setup(e); err != nil {
 		log.Fatal(err)
 	}
-	if apiKey != "" && apiSecret != "" {
+	if apiCredentials.Key != "" && apiCredentials.Secret != "" {
 		e.API.AuthenticatedSupport = true
 		e.API.AuthenticatedWebsocketSupport = true
-		e.SetCredentials(apiKey, apiSecret, "", "", "", "")
+		e.SetCredentials(apiCredentials)
 	}
 	if err := testexch.MockHTTPInstance(e, ""); err != nil {
 		log.Fatalf("MockHTTPInstance error: %s", err)
