@@ -1072,7 +1072,6 @@
      "data": [
       {
        "amount_actual": "10",
-       "client_order_id": "test-1",
        "coin": "USDT",
        "fail_reason": "",
        "from_account_type": "SPOT",
@@ -1111,6 +1110,20 @@
      ],
      "headers": {},
      "queryString": ""
+    },
+    {
+     "bodyParams": "",
+     "data": [
+      {
+       "coin": "USDT",
+       "est_fee": 1,
+       "is_disabled": 0,
+       "min_trans_amount": 10,
+       "precision": 6
+      }
+     ],
+     "headers": {},
+     "queryString": "coin=USDT"
     }
    ]
   },

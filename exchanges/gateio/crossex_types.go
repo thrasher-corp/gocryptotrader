@@ -8,7 +8,6 @@ import (
 
 // CrossExchangeSymbol holds symbol information for a CrossEx trading pair.
 type CrossExchangeSymbol struct {
-	Name            string       `json:"name"`
 	ExchangeType    string       `json:"exchange_type"`
 	BusinessType    string       `json:"business_type"`
 	State           string       `json:"state"`
@@ -30,7 +29,6 @@ type CrossExchangeSymbol struct {
 type CrossExchangeRiskLimitTier struct {
 	MinRiskLimitValue      types.Number `json:"min_risk_limit_value"`
 	MaxRiskLimitValue      types.Number `json:"max_risk_limit_value"`
-	QuickAdjAmount         types.Number `json:"quick_adj_amount"`
 	LeverageMax            types.Number `json:"leverage_max"`
 	MaintenanceRate        types.Number `json:"maintenance_rate"`
 	QuickCalculationAmount types.Number `json:"quick_cal_amount"`
@@ -40,7 +38,7 @@ type CrossExchangeRiskLimitTier struct {
 // CrossExchangeRiskLimit holds the risk limit tiers for a CrossEx symbol.
 type CrossExchangeRiskLimit struct {
 	Symbol string                        `json:"symbol"`
-	Tiers  []*CrossExchangeRiskLimitTier `json:"lec"`
+	Tiers  []*CrossExchangeRiskLimitTier `json:"tiers"`
 }
 
 // CrossExchangeTransferCoin holds information about a currency supported for CrossEx transfers.
@@ -54,20 +52,19 @@ type CrossExchangeTransferCoin struct {
 
 // GetCrossExchangeTransferHistoryRequest holds query parameters for the transfer history endpoint.
 type GetCrossExchangeTransferHistoryRequest struct {
-	Coin          currency.Code
-	OrderID       string
-	ClientOrderID string
-	To            int64
-	From          int64
-	PageNumber    int64
-	Limit         uint64
+	Coin currency.Code
+	// OrderID matches either a Gate order ID or a client supplied ID
+	OrderID    string
+	To         int64
+	From       int64
+	PageNumber int64
+	Limit      uint64
 }
 
 // CrossExchangeTransferRecord holds a single fund transfer record.
 type CrossExchangeTransferRecord struct {
 	ID              string        `json:"id"`
 	Text            string        `json:"text"`
-	ClientOrderID   string        `json:"client_order_id"`
 	FromAccountType string        `json:"from_account_type"`
 	ToAccountType   string        `json:"to_account_type"`
 	Coin            currency.Code `json:"coin"`
@@ -91,6 +88,7 @@ type CrossExchangeTransferRequest struct {
 // CrossExchangeTransferResponse holds the result of a CrossEx fund transfer.
 type CrossExchangeTransferResponse struct {
 	TxID string `json:"tx_id"`
+	Text string `json:"text"`
 }
 
 // CrossExchangeOrderCreateRequest is the request body for creating a CrossEx order.
@@ -124,14 +122,12 @@ type CrossExchangeOrder struct {
 	ExecutedQuantity     types.Number      `json:"executed_qty"`
 	ExecutedAmount       types.Number      `json:"executed_amount"`
 	Fee                  types.Number      `json:"fee"`
-	FeeAsset             currency.Code     `json:"fee_asset"`
 	TimeInForce          order.TimeInForce `json:"time_in_force"`
 	Leverage             types.Number      `json:"leverage"`
 	LastExecutedQty      types.Number      `json:"last_executed_qty"`
 	LastExecutedPrice    types.Number      `json:"last_executed_price"`
 	PositionSide         string            `json:"position_side"`
 	ReduceOnly           types.Boolean     `json:"reduce_only"`
-	LastExecutedTime     types.Time        `json:"last_executed_time"`
 	CreateTime           types.Time        `json:"create_time"`
 	UpdateTime           types.Time        `json:"update_time"`
 	QuoteQty             types.Number      `json:"quote_qty"`

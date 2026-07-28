@@ -28,7 +28,6 @@ func (e *Exchange) GetAlphaAccounts(ctx context.Context) ([]*AlphaAccount, error
 }
 
 // GetAlphaAccountTransactionHistory retrieves alpha account asset transactions
-// gas_mode possible values are 'speed' : Smart mode 'custom' : Custom mode, uses slippage parameter
 func (e *Exchange) GetAlphaAccountTransactionHistory(ctx context.Context, from, to time.Time, page, limit uint64) ([]*AlphaAccountTransactionItem, error) {
 	if from.IsZero() {
 		return nil, errStartTimeRequired
@@ -174,4 +173,23 @@ func (e *Exchange) GetAlphaCurrencyTicker(ctx context.Context, memeCcy currency.
 	}
 	var resp []*AlphaCurrencyTickerInfo
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, alphaTickersEPL, common.EncodeURLValues("alpha/tickers", params), &resp)
+}
+
+// GetAlphaTokens retrieves token information, optionally filtered by chain and launch platform
+func (e *Exchange) GetAlphaTokens(ctx context.Context, chain, launchPlatform string, limit, page uint64) ([]*AlphaCurrencyDetail, error) {
+	params := url.Values{}
+	if chain != "" {
+		params.Set("chain", chain)
+	}
+	if launchPlatform != "" {
+		params.Set("launch_platform", launchPlatform)
+	}
+	if page > 0 {
+		params.Set("page", strconv.FormatUint(page, 10))
+	}
+	if limit > 0 {
+		params.Set("limit", strconv.FormatUint(limit, 10))
+	}
+	var resp []*AlphaCurrencyDetail
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, alphaTokensEPL, common.EncodeURLValues("alpha/tokens", params), &resp)
 }

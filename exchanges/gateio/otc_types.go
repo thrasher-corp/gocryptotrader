@@ -45,8 +45,8 @@ type OTCActionResponse struct {
 	Timestamp types.Time `json:"timestamp"`
 }
 
-// Error implements the error interface for OTC action responses.
-func (r *OTCActionResponse) Error() error {
+// AsError returns the response status as an error, or nil when the request succeeded
+func (r *OTCActionResponse) AsError() error {
 	if r.Code != 0 {
 		return fmt.Errorf("error code: %d message: %s", r.Code, r.Message)
 	}

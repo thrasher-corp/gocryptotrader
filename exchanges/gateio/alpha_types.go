@@ -4,18 +4,19 @@ import (
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-// alphaStatusError implements an interface with a method Error()
+// alphaStatusError holds the error label and message embedded in alpha endpoint responses
 type alphaStatusError struct {
 	Label   string `json:"Label"`
 	Message string `json:"Message"`
 }
 
-// Error represents an error interface for
-func (a *alphaStatusError) Error() error {
+// AsError returns the embedded alpha status as an error, or nil when the response carries no error label
+func (a *alphaStatusError) AsError() error {
 	if a.Label != "" {
 		return fmt.Errorf("label: %s message: %s", a.Label, a.Message)
 	}
@@ -45,9 +46,23 @@ type AlphaCurrencyQuoteInfoRequest struct {
 	Currency currency.Code `json:"currency"`
 	Side     order.Side    `json:"side"`
 	Amount   types.Number  `json:"amount"`
-	GasMode  string        `json:"gas_mode"`
-	Slippage types.Number  `json:"slippage,omitempty"`
-	QuoteID  string        `json:"quote_id,omitempty"`
+	// GasMode selects how slippage is applied; "speed" for smart mode or "custom" to use Slippage
+	GasMode  string       `json:"gas_mode"`
+	Slippage types.Number `json:"slippage,omitempty"`
+	QuoteID  string       `json:"quote_id,omitempty"`
+}
+
+// MarshalJSON lowercases the order side, which order.Side otherwise marshals as "BUY"/"SELL"
+// while Gate only accepts "buy"/"sell"
+func (a *AlphaCurrencyQuoteInfoRequest) MarshalJSON() ([]byte, error) {
+	type Alias AlphaCurrencyQuoteInfoRequest
+	return json.Marshal(&struct {
+		Side string `json:"side"`
+		*Alias
+	}{
+		Side:  a.Side.Lower(),
+		Alias: (*Alias)(a),
+	})
 }
 
 // AlphaCurrencyQuoteDetail holds a currency quote information detail
@@ -69,7 +84,7 @@ type AlphaCurrencyQuoteDetail struct {
 type AlphaPlaceOrderResponse struct {
 	alphaStatusError
 	OrderID      string       `json:"order_id"`
-	Status       int64        `json:"status"`
+	Status       uint8        `json:"status"`
 	Side         string       `json:"side"`
 	GasMode      string       `json:"gas_mode"`
 	CreateTime   types.Time   `json:"create_time"`
@@ -87,11 +102,11 @@ type AlphaOrderDetail struct {
 	USDTAmount      types.Number  `json:"usdt_amount"`
 	Currency        currency.Code `json:"currency"`
 	CurrencyAmount  types.Number  `json:"currency_amount"`
-	Status          int64         `json:"status"`
+	Status          uint8         `json:"status"`
 	GasMode         string        `json:"gas_mode"`
 	Chain           string        `json:"chain"`
 	GasFee          types.Number  `json:"gas_fee"`
-	TransactionFee  string        `json:"transaction_fee"`
+	TransactionFee  types.Number  `json:"transaction_fee"`
 	CreateTime      types.Time    `json:"create_time"`
 	FailedReason    string        `json:"failed_reason"`
 }
@@ -110,8 +125,8 @@ type AlphaCurrencyDetail struct {
 // AlphaCurrencyTickerInfo represents an alpha currency ticker detail
 type AlphaCurrencyTickerInfo struct {
 	Currency  currency.Code `json:"currency"`
-	Change    string        `json:"change"`
+	Change    types.Number  `json:"change"`
 	Last      types.Number  `json:"last"`
 	Volume    types.Number  `json:"volume"`
-	MarketCap string        `json:"market_cap"`
+	MarketCap types.Number  `json:"market_cap"`
 }

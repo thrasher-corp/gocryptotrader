@@ -52,7 +52,7 @@ func (e *Exchange) GetCrossExchangeTransferCoins(ctx context.Context, coin curre
 		params.Set("coin", coin.String())
 	}
 	var resp []*CrossExchangeTransferCoin
-	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexTransfersCoinEPL, http.MethodGet, "crossex/transfers/coin", params, nil, &resp)
+	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, crossexTransfersCoinEPL, common.EncodeURLValues("crossex/transfers/coin", params), &resp)
 }
 
 // GetCrossExchangeTransferHistory retrieves the fund transfer history for the authenticated user.
@@ -64,9 +64,6 @@ func (e *Exchange) GetCrossExchangeTransferHistory(ctx context.Context, arg *Get
 		}
 		if arg.OrderID != "" {
 			params.Set("order_id", arg.OrderID)
-		}
-		if arg.ClientOrderID != "" {
-			params.Set("client_order_id", arg.ClientOrderID)
 		}
 		if arg.From > 0 {
 			params.Set("from", strconv.FormatInt(arg.From, 10))
@@ -116,6 +113,9 @@ func (e *Exchange) CreateCrossExchangeOrder(ctx context.Context, arg *CrossExcha
 	}
 	if arg.Side == order.UnknownSide {
 		return nil, order.ErrSideIsInvalid
+	}
+	if arg.Quantity <= 0 && arg.QuoteQuantity <= 0 {
+		return nil, fmt.Errorf("%w: crossex qty or quote_qty required", order.ErrAmountMustBeSet)
 	}
 	var resp *CrossExchangeOrderActionResponse
 	return resp, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, crossexCreateOrdersEPL, http.MethodPost, "crossex/orders", nil, arg, &resp)

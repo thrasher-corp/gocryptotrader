@@ -36,7 +36,7 @@ func TestGetCrossExchangeTransferCoins(t *testing.T) {
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	}
-	result, err := e.GetCrossExchangeTransferCoins(t.Context(), currency.EMPTYCODE)
+	result, err := e.GetCrossExchangeTransferCoins(t.Context(), currency.USDT)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
 }

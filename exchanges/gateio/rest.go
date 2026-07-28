@@ -785,20 +785,17 @@ func (e *Exchange) CreateBatchOrders(ctx context.Context, args []CreateOrderRequ
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotBatchOrdersEPL, http.MethodPost, "spot/batch_orders", nil, &args, &response)
 }
 
-// GetSpotOpenOrders retrieves all open orders
-// List open orders in all currency pairs.
-// Note that pagination parameters affect record number in each currency pair's open order list. No pagination is applied to the number of currency pairs returned. All currency pairs with open orders will be returned.
-// Spot and margin orders are returned by default. To list cross margin orders, account must be set to cross_margin
-func (e *Exchange) GetSpotOpenOrders(ctx context.Context, page, limit uint64, isCrossMargin bool) ([]*SpotOrdersDetail, error) {
+// GetSpotOpenOrders retrieves open orders across all currency pairs, covering spot, margin and
+// cross margin accounts. Gate rejects an account filter on this endpoint, so callers wanting a
+// single account must filter the returned orders by their Account field.
+// Pagination applies per currency pair, not to the number of currency pairs returned.
+func (e *Exchange) GetSpotOpenOrders(ctx context.Context, page, limit uint64) ([]*SpotOrdersDetail, error) {
 	params := url.Values{}
 	if page > 0 {
 		params.Set("page", strconv.FormatUint(page, 10))
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
-	}
-	if isCrossMargin {
-		params.Set("account", asset.CrossMargin.String())
 	}
 	var response []*SpotOrdersDetail
 	return response, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotGetOpenOrdersEPL, http.MethodGet, "spot/open_orders", params, nil, &response)
@@ -4118,6 +4115,9 @@ func validateOrderCreateParams(contract currency.Pair, size, price types.Number,
 		if autoSize != "close_long" && autoSize != "close_short" {
 			return fmt.Errorf("%w: %q", errInvalidAutoSize, autoSize)
 		}
+		if size != 0 {
+			return fmt.Errorf("%w: size must be zero when auto size is set", order.ErrAmountIsInvalid)
+		}
 	}
 	// REST requests require a settlement currency, but it can be anything
 	// Websocket requests may have an empty settlement currency, or it must be BTC or USDT
@@ -4455,8 +4455,10 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	if err := json.Unmarshal(intermediary, result); err != nil {
 		return fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, err)
 	}
-	if errType, ok := result.(interface{ Error() error }); ok && errType.Error() != nil {
-		return fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, errType.Error())
+	if errType, ok := result.(interface{ AsError() error }); ok {
+		if err := errType.AsError(); err != nil {
+			return fmt.Errorf("%w: %w", request.ErrAuthRequestFailed, err)
+		}
 	}
 	return nil
 }
@@ -4496,8 +4498,10 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, epl req
 	if err := json.Unmarshal(intermediary, result); err != nil {
 		return fmt.Errorf("%s: %w", e.Name, err)
 	}
-	if errType, ok := result.(interface{ Error() error }); ok && errType.Error() != nil {
-		return errType.Error()
+	if errType, ok := result.(interface{ AsError() error }); ok {
+		if err := errType.AsError(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -4825,7 +4829,7 @@ func (e *Exchange) SetUserIsolatedMarginAccountMarketLeverageMultiplier(ctx cont
 	}
 	arg := &CurrencyPairAndLeverage{
 		CurrencyPair: currencyPair,
-		Leverage:     leverage,
+		Leverage:     types.Number(leverage),
 	}
 	return e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, request.Auth, http.MethodPost, "margin/leverage/user_market_setting", nil, arg, nil)
 }

@@ -10,6 +10,7 @@
  "variables": [
   "bsb",
   "user",
+  "name",
   "real_name",
   "receiver_name",
   "account_number",

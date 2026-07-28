@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -40,20 +39,6 @@ func (e *Exchange) WebsocketFuturesSubmitOrders(ctx context.Context, a asset.Ite
 	for _, o := range orders {
 		if err := o.validate(false); err != nil {
 			return nil, err
-		}
-		if o.Price == 0 && !slices.Contains([]string{"ioc", "fok"}, o.TimeInForce) {
-			return nil, order.ErrPriceMustBeSetIfLimitOrder
-		}
-		if o.Size == 0 && o.AutoSize == "" {
-			return nil, fmt.Errorf("%w: size cannot be zero", order.ErrAmountIsInvalid)
-		}
-		if o.AutoSize != "" {
-			if o.AutoSize != "close_long" && o.AutoSize != "close_short" {
-				return nil, fmt.Errorf("%w: %s", errInvalidAutoSize, o.AutoSize)
-			}
-			if o.Size != 0 {
-				return nil, fmt.Errorf("%w: size needs to be zero when auto size is set", order.ErrAmountIsInvalid)
-			}
 		}
 		if _, err := getSettlementCurrency(o.Contract, a); err != nil {
 			return nil, err

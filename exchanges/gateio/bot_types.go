@@ -1,7 +1,6 @@
 package gateio
 
 import (
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -15,6 +14,15 @@ const (
 	BotStrategyContractMartingale = "contract_martingale"
 )
 
+// BotPriceType denotes the grid spacing mode used by AIHub grid strategies
+type BotPriceType uint8
+
+// Grid spacing modes accepted by the bot grid creation endpoints
+const (
+	BotPriceTypeArithmetic BotPriceType = 0
+	BotPriceTypeGeometric  BotPriceType = 1
+)
+
 // Enumeration of scenarios supported by the policy recommendation interface.
 const (
 	BotSceneTop1    = "top1"
@@ -25,15 +33,15 @@ const (
 
 // GetBotStrategyRecommendationsRequest holds parameters for the AIHub strategy recommendation endpoint.
 type GetBotStrategyRecommendationsRequest struct {
-	Market                  string `json:"market,omitempty"`
-	StrategyType            string `json:"strategy_type,omitempty"`
-	Direction               string `json:"direction,omitempty"`
-	InvestAmount            string `json:"invest_amount,omitempty"`
-	Scene                   string `json:"scene,omitempty"`
-	RefreshRecommendationID string `json:"refresh_recommendation_id,omitempty"`
-	Limit                   int32  `json:"limit,omitempty"`
-	MaxDrawdownLTE          string `json:"max_drawdown_lte,omitempty"`
-	BacktestAPRGTE          string `json:"backtest_apr_gte,omitempty"`
+	Market                  string       `json:"market,omitempty"`
+	StrategyType            string       `json:"strategy_type,omitempty"`
+	Direction               string       `json:"direction,omitempty"`
+	InvestAmount            types.Number `json:"invest_amount,omitempty"`
+	Scene                   string       `json:"scene,omitempty"`
+	RefreshRecommendationID string       `json:"refresh_recommendation_id,omitempty"`
+	Limit                   int32        `json:"limit,omitempty"`
+	MaxDrawdownLTE          string       `json:"max_drawdown_lte,omitempty"`
+	BacktestAPRGTE          string       `json:"backtest_apr_gte,omitempty"`
 }
 
 // BotRecommendation holds a single strategy recommendation.
@@ -63,7 +71,8 @@ type BotDiscoverResponse struct {
 	TraceID string           `json:"trace_id"`
 }
 
-func (b *BotDiscoverResponse) Error() error { return botResponseError(b.Code, b.Message) }
+// AsError returns the response status as an error, or nil when the request succeeded
+func (b *BotDiscoverResponse) AsError() error { return botResponseError(b.Code, b.Message, b.TraceID) }
 
 // BotCreateData holds the policy information returned after a strategy is successfully created.
 type BotCreateData struct {
@@ -82,7 +91,8 @@ type BotCreateResponse struct {
 	TraceID string        `json:"trace_id"`
 }
 
-func (b *BotCreateResponse) Error() error { return botResponseError(b.Code, b.Message) }
+// AsError returns the response status as an error, or nil when the request succeeded
+func (b *BotCreateResponse) AsError() error { return botResponseError(b.Code, b.Message, b.TraceID) }
 
 // SpotGridCreateParams holds the creation parameters for a spot grid strategy.
 type SpotGridCreateParams struct {
@@ -90,8 +100,8 @@ type SpotGridCreateParams struct {
 	LowPrice           types.Number `json:"low_price"`
 	HighPrice          types.Number `json:"high_price"`
 	GridNumber         int32        `json:"grid_num"`
-	PriceType          order.Side   `json:"price_type"`
-	TriggerPrice       string       `json:"trigger_price,omitempty"`
+	PriceType          BotPriceType `json:"price_type"`
+	TriggerPrice       types.Number `json:"trigger_price,omitempty"`
 	StopProfit         types.Number `json:"stop_profit,omitempty"`
 	StopLoss           types.Number `json:"stop_loss,omitempty"`
 	ProfitSharingRatio types.Number `json:"profit_sharing_ratio,omitempty"`
@@ -107,11 +117,11 @@ type SpotGridCreateRequest struct {
 
 // MarginGridCreateParams holds the creation parameters for a leverage grid strategy.
 type MarginGridCreateParams struct {
-	Money              string       `json:"money"`
+	Money              types.Number `json:"money"`
 	LowPrice           types.Number `json:"low_price"`
 	HighPrice          types.Number `json:"high_price"`
 	GridNum            int32        `json:"grid_num"`
-	PriceType          order.Side   `json:"price_type"`
+	PriceType          BotPriceType `json:"price_type"`
 	Leverage           types.Number `json:"leverage"`
 	Direction          string       `json:"direction,omitempty"` // possible values: 'long', 'short', and 'neutral'
 	TriggerPrice       types.Number `json:"trigger_price,omitempty"`
@@ -130,16 +140,16 @@ type MarginGridCreateRequest struct {
 
 // InfiniteGridCreateParams holds the creation parameters for an infinite grid strategy.
 type InfiniteGridCreateParams struct {
-	Money              string     `json:"money"`
-	PriceFloor         string     `json:"price_floor"`
-	ProfitPerGrid      string     `json:"profit_per_grid"`
-	GridNum            int32      `json:"grid_num,omitempty"`
-	PriceType          order.Side `json:"price_type,omitempty"`
-	TriggerPrice       string     `json:"trigger_price,omitempty"`
-	StopProfit         string     `json:"stop_profit,omitempty"`
-	StopLoss           string     `json:"stop_loss,omitempty"`
-	ProfitSharingRatio string     `json:"profit_sharing_ratio,omitempty"`
-	IsUseBase          bool       `json:"is_use_base,omitempty"`
+	Money              types.Number `json:"money"`
+	PriceFloor         types.Number `json:"price_floor"`
+	ProfitPerGrid      types.Number `json:"profit_per_grid"`
+	GridNum            int32        `json:"grid_num,omitempty"`
+	PriceType          BotPriceType `json:"price_type,omitempty"`
+	TriggerPrice       types.Number `json:"trigger_price,omitempty"`
+	StopProfit         types.Number `json:"stop_profit,omitempty"`
+	StopLoss           types.Number `json:"stop_loss,omitempty"`
+	ProfitSharingRatio types.Number `json:"profit_sharing_ratio,omitempty"`
+	IsUseBase          bool         `json:"is_use_base,omitempty"`
 }
 
 // InfiniteGridCreateRequest is the request body for creating an infinite grid strategy.
@@ -152,10 +162,10 @@ type InfiniteGridCreateRequest struct {
 // FuturesGridCreateParams holds the creation parameters for a futures (contract) grid strategy.
 type FuturesGridCreateParams struct {
 	Money              types.Number `json:"money"`
-	LowPrice           types.Number `json:"low_price,omitempty"`
-	HighPrice          types.Number `json:"high_price,omitempty"`
+	LowPrice           types.Number `json:"low_price"`
+	HighPrice          types.Number `json:"high_price"`
 	GridNum            int32        `json:"grid_num"`
-	PriceType          order.Side   `json:"price_type"`
+	PriceType          BotPriceType `json:"price_type"`
 	Leverage           types.Number `json:"leverage"`
 	Direction          string       `json:"direction,omitempty"` // possible values: 'long', 'short', and 'neutral'
 	TriggerPrice       types.Number `json:"trigger_price,omitempty"`
@@ -192,14 +202,14 @@ type SpotMartingaleCreateRequest struct {
 
 // ContractMartingaleCreateParams holds the creation parameters for a contract martingale strategy.
 type ContractMartingaleCreateParams struct {
-	InvestAmount       string `json:"invest_amount"`
-	PriceDeviation     string `json:"price_deviation"`
-	MaxOrders          int32  `json:"max_orders"`
-	TakeProfitRatio    string `json:"take_profit_ratio"`
-	Direction          string `json:"direction"`
-	Leverage           string `json:"leverage"`
-	StopLossPrice      string `json:"stop_loss_price,omitempty"`
-	ProfitSharingRatio string `json:"profit_sharing_ratio,omitempty"`
+	InvestAmount       types.Number `json:"invest_amount"`
+	PriceDeviation     types.Number `json:"price_deviation"`
+	MaxOrders          int32        `json:"max_orders"`
+	TakeProfitRatio    types.Number `json:"take_profit_ratio"`
+	Direction          string       `json:"direction"`
+	Leverage           types.Number `json:"leverage"`
+	StopLossPrice      types.Number `json:"stop_loss_price,omitempty"`
+	ProfitSharingRatio types.Number `json:"profit_sharing_ratio,omitempty"`
 }
 
 // ContractMartingaleCreateRequest is the request body for creating a contract martingale strategy.
@@ -238,7 +248,10 @@ type BotPortfolioRunningResponse struct {
 	TraceID string                  `json:"trace_id"`
 }
 
-func (b *BotPortfolioRunningResponse) Error() error { return botResponseError(b.Code, b.Message) }
+// AsError returns the response status as an error, or nil when the request succeeded
+func (b *BotPortfolioRunningResponse) AsError() error {
+	return botResponseError(b.Code, b.Message, b.TraceID)
+}
 
 // BotPortfolioBaseInfo holds base information about a portfolio strategy.
 type BotPortfolioBaseInfo struct {
@@ -262,7 +275,7 @@ type BotPortfolioMetrics struct {
 	GridProfitRate            types.Number `json:"grid_profit_rate"`
 	RealizedPNL               types.Number `json:"realized_pnl"`
 	FinishedRounds            int64        `json:"finished_rounds"`
-	AverageCost               string       `json:"avg_cost"`
+	AverageCost               types.Number `json:"avg_cost"`
 	TakeProfitPrice           types.Number `json:"take_profit_price"`
 	MaintenanceMarginRatio    types.Number `json:"maintenance_margin_ratio"`
 }
@@ -297,7 +310,10 @@ type BotPortfolioDetailResponse struct {
 	TraceID string                 `json:"trace_id"`
 }
 
-func (b *BotPortfolioDetailResponse) Error() error { return botResponseError(b.Code, b.Message) }
+// AsError returns the response status as an error, or nil when the request succeeded
+func (b *BotPortfolioDetailResponse) AsError() error {
+	return botResponseError(b.Code, b.Message, b.TraceID)
+}
 
 // BotPortfolioStopRequest is the request body for terminating a running strategy.
 type BotPortfolioStopRequest struct {
@@ -321,5 +337,7 @@ type BotPortfolioStopResponse struct {
 	TraceID string                `json:"trace_id"`
 }
 
-// Error implements the error check interface for use by requester.
-func (b *BotPortfolioStopResponse) Error() error { return botResponseError(b.Code, b.Message) }
+// AsError returns the response status as an error, or nil when the request succeeded
+func (b *BotPortfolioStopResponse) AsError() error {
+	return botResponseError(b.Code, b.Message, b.TraceID)
+}

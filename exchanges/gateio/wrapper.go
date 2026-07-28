@@ -847,6 +847,7 @@ func (e *Exchange) GetAccountFundingHistory(ctx context.Context) ([]exchange.Fun
 			CryptoChain:     w.Chain,
 		})
 	}
+	slices.SortFunc(history, func(a, b exchange.FundingHistory) int { return a.Timestamp.Compare(b.Timestamp) })
 	return history, nil
 }
 
@@ -1500,7 +1501,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 		// account types, so the listing is fetched without an account filter
 		// and matched against the requested asset via each order's account
 		// field below.
-		spotOrders, err := e.GetSpotOpenOrders(ctx, 0, 0, false)
+		spotOrders, err := e.GetSpotOpenOrders(ctx, 0, 0)
 		if err != nil {
 			return nil, err
 		}

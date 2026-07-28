@@ -215,6 +215,7 @@ const (
 	alphaGetOrderEPL
 	alphaCurrenciesEPL
 	alphaTickersEPL
+	alphaTokensEPL
 
 	// Unified EPLs
 	unifiedInterestRecordsEPL
@@ -591,12 +592,13 @@ var packageRateLimits = request.RateLimitDefinitions{
 	// Alpha limits
 	alphaAccountsEPL:    standardRateLimit(),
 	alphaAccountBookEPL: standardRateLimit(),
-	alphaCreateQuoteEPL: standardRateLimit(),
-	alphaPlaceOrderEPL:  spotOrderPlacementRateLimit(),
+	alphaCreateQuoteEPL: spotOrderPlacementRateLimit(),
+	alphaPlaceOrderEPL:  fivePerSecondRateLimit(),
 	alphaListOrdersEPL:  standardRateLimit(),
 	alphaGetOrderEPL:    standardRateLimit(),
 	alphaCurrenciesEPL:  standardRateLimit(),
 	alphaTickersEPL:     standardRateLimit(),
+	alphaTokensEPL:      standardRateLimit(),
 
 	// Unified limits
 	unifiedInterestRecordsEPL:                   standardRateLimit(),
@@ -675,7 +677,7 @@ var packageRateLimits = request.RateLimitDefinitions{
 	crossexSymbolsEPL:                       standardRateLimit(),
 	crossexRiskLimitEPL:                     standardRateLimit(),
 	crossexTransfersCoinEPL:                 standardRateLimit(),
-	crossexGetTransfersEPL:                  standardRateLimit(),
+	crossexGetTransfersEPL:                  otherPrivateEndpointRateLimit(),
 	crossexCreateTransfersEPL:               tenPer10SecondsRateLimit(),
 	crossexCreateOrdersEPL:                  hundredPer10SecondsRateLimit(),
 	crossexGetOrdersEPL:                     standardRateLimit(),
@@ -688,7 +690,7 @@ var packageRateLimits = request.RateLimitDefinitions{
 	crossexGetPositionsLeverageEPL:          standardRateLimit(),
 	crossexCreatePositionsLeverageEPL:       hundredPer10SecondsRateLimit(),
 	crossexGetMarginPositionsLeverageEPL:    standardRateLimit(),
-	crossexCreateMarginPositionsLeverageEPL: request.NewRateLimitWithWeight(time.Second*10, 100, 1),
+	crossexCreateMarginPositionsLeverageEPL: hundredPer10SecondsRateLimit(),
 	crossexPositionEPL:                      hundredPerDayRateLimit(),
 	crossexInterestRateEPL:                  standardRateLimit(),
 	crossexFeeEPL:                           standardRateLimit(),
@@ -727,16 +729,16 @@ var packageRateLimits = request.RateLimitDefinitions{
 	p2pUploadChatFileEPL:        standardRateLimit(),
 
 	// Bot limits
-	botStrategyRecommendEPL:        standardRateLimit(),
-	botSpotGridCreateEPL:           standardRateLimit(),
-	botMarginGridCreateEPL:         standardRateLimit(),
-	botInfiniteGridCreateEPL:       standardRateLimit(),
-	botFuturesGridCreateEPL:        standardRateLimit(),
-	botSpotMartingaleCreateEPL:     standardRateLimit(),
-	botContractMartingaleCreateEPL: standardRateLimit(),
-	botPortfolioRunningEPL:         standardRateLimit(),
-	botPortfolioDetailEPL:          standardRateLimit(),
-	botPortfolioStopEPL:            standardRateLimit(),
+	botStrategyRecommendEPL:        otherPrivateEndpointRateLimit(),
+	botSpotGridCreateEPL:           otherPrivateEndpointRateLimit(),
+	botMarginGridCreateEPL:         otherPrivateEndpointRateLimit(),
+	botInfiniteGridCreateEPL:       otherPrivateEndpointRateLimit(),
+	botFuturesGridCreateEPL:        otherPrivateEndpointRateLimit(),
+	botSpotMartingaleCreateEPL:     otherPrivateEndpointRateLimit(),
+	botContractMartingaleCreateEPL: otherPrivateEndpointRateLimit(),
+	botPortfolioRunningEPL:         otherPrivateEndpointRateLimit(),
+	botPortfolioDetailEPL:          otherPrivateEndpointRateLimit(),
+	botPortfolioStopEPL:            otherPrivateEndpointRateLimit(),
 
 	// Rebate limits
 	rebateAgencyTransactionHistoryEPL:  standardRateLimit(),
@@ -800,6 +802,10 @@ func tenPer10SecondsRateLimit() *request.RateLimiterWithWeight {
 
 func spotOrderPlacementRateLimit() *request.RateLimiterWithWeight {
 	return request.NewRateLimitWithWeight(time.Second, 10, 1)
+}
+
+func fivePerSecondRateLimit() *request.RateLimiterWithWeight {
+	return request.NewRateLimitWithWeight(time.Second, 5, 1)
 }
 
 func otherPrivateEndpointRateLimit() *request.RateLimiterWithWeight {

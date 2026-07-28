@@ -480,8 +480,9 @@ type gateioAPIResponse[T any] struct {
 	Version   string       `json:"version"`
 }
 
-// Error implements the error check interface to be used by the SendAuthenticatedHTTPRequest method
-func (p *gateioAPIResponse[T]) Error() error {
+// AsError returns the response status as an error, or nil when the request succeeded. It is used
+// by SendAuthenticatedHTTPRequest to surface API level failures carried in a 200 response body.
+func (p *gateioAPIResponse[T]) AsError() error {
 	if p.Code != 0 {
 		return fmt.Errorf("error code: %d message: %s", p.Code, p.Message)
 	}
@@ -1776,19 +1777,6 @@ type InitFlashSwapOrderPreviewResponse struct {
 	BuyCurrency  currency.Code `json:"buy_currency"`
 	BuyAmount    types.Number  `json:"buy_amount"`
 	Price        types.Number  `json:"price"`
-}
-
-// SwapETHParam holds an ETH2 swap parameter
-type SwapETHParam struct {
-	Side   string       `json:"side"`
-	Amount types.Number `json:"amount"`
-}
-
-// ETH2ReturnRate holds a historical return rate
-type ETH2ReturnRate struct {
-	DateTime types.Time   `json:"date_time"`
-	Date     string       `json:"date"`
-	Rate     types.Number `json:"rate"`
 }
 
 // DualInvestmentPlan holds an earn dual investment plan detail
@@ -3874,10 +3862,9 @@ type LoanMarginTierDetail struct {
 // CurrencyPairAndLeverage holds a currency pair and leverage information
 type CurrencyPairAndLeverage struct {
 	CurrencyPair currency.Pair `json:"currency_pair"`
-	Leverage     uint16        `json:"leverage,string"`
+	Leverage     types.Number  `json:"leverage"`
 }
 
-// IsolatedMarginAccountDetail represents an isolated margin account detail.
 // CreateChaseOrderRequest represents a chase limit order creation request.
 type CreateChaseOrderRequest struct {
 	Contract           currency.Pair `json:"contract"`

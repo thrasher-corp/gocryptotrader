@@ -10,7 +10,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 var (
@@ -28,12 +27,15 @@ var (
 	errBotMaxOrdersRequired      = errors.New("bot max orders must be greater than zero")
 	errBotTakeProfitRequired     = errors.New("bot take profit ratio required")
 	errBotDirectionRequired      = errors.New("bot direction required")
+	errBotLeverageRequired       = errors.New("bot leverage required")
+	errBotPriceTypeInvalid       = errors.New("bot price type must be 0 (arithmetic) or 1 (geometric)")
 )
 
-// botResponseError converts a non-zero bot API response code into an error.
-func botResponseError(code int32, message string) error {
+// botResponseError converts a non-zero bot API response code into an error. The trace ID is
+// included so failures can be correlated with Gate support requests.
+func botResponseError(code int32, message, traceID string) error {
 	if code != 0 && code != 200 {
-		return fmt.Errorf("bot api error code: %d message: %s", code, message)
+		return fmt.Errorf("bot api error code: %d message: %s trace id: %s", code, message, traceID)
 	}
 	return nil
 }
@@ -51,8 +53,8 @@ func (e *Exchange) GetBotStrategyRecommendations(ctx context.Context, arg *GetBo
 		if arg.Direction != "" {
 			params.Set("direction", arg.Direction)
 		}
-		if arg.InvestAmount != "" {
-			params.Set("invest_amount", arg.InvestAmount)
+		if arg.InvestAmount > 0 {
+			params.Set("invest_amount", arg.InvestAmount.String())
 		}
 		if arg.Scene != "" {
 			params.Set("scene", arg.Scene)
@@ -94,6 +96,9 @@ func (e *Exchange) CreateSpotGridBot(ctx context.Context, arg *SpotGridCreateReq
 	if arg.CreateParams.GridNumber <= 0 {
 		return nil, errBotGridNumRequired
 	}
+	if arg.CreateParams.PriceType > BotPriceTypeGeometric {
+		return nil, errBotPriceTypeInvalid
+	}
 	arg.StrategyType = BotStrategySpotGrid
 	var resp BotCreateResponse
 	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, botSpotGridCreateEPL, http.MethodPost, "bot/spot-grid/create", nil, arg, &resp)
@@ -107,7 +112,7 @@ func (e *Exchange) CreateMarginGridBot(ctx context.Context, arg *MarginGridCreat
 	if arg.Market == "" {
 		return nil, errBotMarketRequired
 	}
-	if arg.CreateParams.Money == "" {
+	if arg.CreateParams.Money <= 0 {
 		return nil, errBotMoneyRequired
 	}
 	if arg.CreateParams.LowPrice <= 0 {
@@ -119,8 +124,11 @@ func (e *Exchange) CreateMarginGridBot(ctx context.Context, arg *MarginGridCreat
 	if arg.CreateParams.GridNum <= 0 {
 		return nil, errBotGridNumRequired
 	}
-	if arg.CreateParams.Leverage == 0 {
-		return nil, order.ErrSubmitLeverageNotSupported
+	if arg.CreateParams.PriceType > BotPriceTypeGeometric {
+		return nil, errBotPriceTypeInvalid
+	}
+	if arg.CreateParams.Leverage <= 0 {
+		return nil, errBotLeverageRequired
 	}
 	arg.StrategyType = BotStrategyMarginGrid
 	var resp BotCreateResponse
@@ -135,14 +143,17 @@ func (e *Exchange) CreateInfiniteGridBot(ctx context.Context, arg *InfiniteGridC
 	if arg.Market == "" {
 		return nil, errBotMarketRequired
 	}
-	if arg.CreateParams.Money == "" {
+	if arg.CreateParams.Money <= 0 {
 		return nil, errBotMoneyRequired
 	}
-	if arg.CreateParams.PriceFloor == "" {
+	if arg.CreateParams.PriceFloor <= 0 {
 		return nil, errBotPriceFloorRequired
 	}
-	if arg.CreateParams.ProfitPerGrid == "" {
+	if arg.CreateParams.ProfitPerGrid <= 0 {
 		return nil, errBotProfitPerGridRequired
+	}
+	if arg.CreateParams.PriceType > BotPriceTypeGeometric {
+		return nil, errBotPriceTypeInvalid
 	}
 	arg.StrategyType = BotStrategyInfiniteGrid
 	var resp BotCreateResponse
@@ -169,8 +180,11 @@ func (e *Exchange) CreateFuturesGridBot(ctx context.Context, arg *FuturesGridCre
 	if arg.CreateParams.GridNum <= 0 {
 		return nil, errBotGridNumRequired
 	}
+	if arg.CreateParams.PriceType > BotPriceTypeGeometric {
+		return nil, errBotPriceTypeInvalid
+	}
 	if arg.CreateParams.Leverage <= 0 {
-		return nil, order.ErrSubmitLeverageNotSupported
+		return nil, errBotLeverageRequired
 	}
 	arg.StrategyType = BotStrategyFuturesGrid
 	var resp BotCreateResponse
@@ -179,6 +193,9 @@ func (e *Exchange) CreateFuturesGridBot(ctx context.Context, arg *FuturesGridCre
 
 // CreateSpotMartingaleBot creates a spot martingale strategy based on the passed parameters.
 func (e *Exchange) CreateSpotMartingaleBot(ctx context.Context, arg *SpotMartingaleCreateRequest) (*BotCreateData, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	if arg.Market == "" {
 		return nil, errBotMarketRequired
 	}
@@ -201,26 +218,29 @@ func (e *Exchange) CreateSpotMartingaleBot(ctx context.Context, arg *SpotMarting
 
 // CreateContractMartingaleBot creates a contract martingale strategy based on the input parameters.
 func (e *Exchange) CreateContractMartingaleBot(ctx context.Context, arg *ContractMartingaleCreateRequest) (*BotCreateData, error) {
+	if err := common.NilGuard(arg); err != nil {
+		return nil, err
+	}
 	if arg.Market == "" {
 		return nil, errBotMarketRequired
 	}
-	if arg.CreateParams.InvestAmount == "" {
+	if arg.CreateParams.InvestAmount <= 0 {
 		return nil, errBotInvestAmountRequired
 	}
-	if arg.CreateParams.PriceDeviation == "" {
+	if arg.CreateParams.PriceDeviation <= 0 {
 		return nil, errBotPriceDeviationRequired
 	}
 	if arg.CreateParams.MaxOrders <= 0 {
 		return nil, errBotMaxOrdersRequired
 	}
-	if arg.CreateParams.TakeProfitRatio == "" {
+	if arg.CreateParams.TakeProfitRatio <= 0 {
 		return nil, errBotTakeProfitRequired
 	}
 	if arg.CreateParams.Direction == "" {
 		return nil, errBotDirectionRequired
 	}
-	if arg.CreateParams.Leverage == "" {
-		return nil, order.ErrSubmitLeverageNotSupported
+	if arg.CreateParams.Leverage <= 0 {
+		return nil, errBotLeverageRequired
 	}
 	arg.StrategyType = BotStrategyContractMartingale
 	var resp BotCreateResponse
@@ -246,7 +266,7 @@ func (e *Exchange) GetBotRunningStrategies(ctx context.Context, strategyType, ma
 	return &resp.Data, e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, botPortfolioRunningEPL, http.MethodGet, "bot/portfolio/running", params, nil, &resp)
 }
 
-// GetBotStrategyDetail queries the detail of a single running AIHub strategy. Both strategyID and strategyType must be provided.
+// GetBotStrategyDetail queries the detail of a single running AIHub strategy.
 func (e *Exchange) GetBotStrategyDetail(ctx context.Context, strategyID, strategyType string) (*BotPortfolioDetailData, error) {
 	if strategyID == "" {
 		return nil, errBotStrategyIDRequired

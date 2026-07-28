@@ -396,7 +396,7 @@ func (e *Exchange) processResponse(ctx context.Context, incoming []byte, data an
 	if err := json.Unmarshal(incoming, data); err != nil {
 		return err
 	}
-	return e.Websocket.DataHandler.Send(ctx, &data)
+	return e.Websocket.DataHandler.Send(ctx, data)
 }
 
 func (e *Exchange) processOptionsCandlestickPushData(ctx context.Context, data []byte) error {

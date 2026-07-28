@@ -390,7 +390,7 @@ func TestCreateBatchOrders(t *testing.T) {
 func TestGetSpotOpenOrders(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	result, err := e.GetSpotOpenOrders(t.Context(), 0, 0, false)
+	result, err := e.GetSpotOpenOrders(t.Context(), 0, 0)
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 }
