@@ -145,7 +145,7 @@ func TestUpdateOrderExecutionLimitsUsesProductBorrowMinimums(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
 
 	pair := currency.NewBTCUSDT()
 	require.NoError(t, ex.UpdateOrderExecutionLimits(t.Context(), asset.Margin), "UpdateOrderExecutionLimits must not error for margin")
@@ -187,7 +187,7 @@ func TestFetchTradablePairsUsesMarginProductSources(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	require.NoError(t, ex.SetHTTPClient(server.Client()), "SetHTTPClient must not error")
-	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL+"/api/v4/"), "SetRunningURL must not error")
+	require.NoError(t, ex.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "SetRunningURL must not error")
 
 	marginPairs, err := ex.FetchTradablePairs(t.Context(), asset.Margin)
 	require.NoError(t, err, "FetchTradablePairs must not error for margin")

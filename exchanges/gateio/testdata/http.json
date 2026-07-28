@@ -3,6 +3,7 @@
   "/api/v4/alpha/currencies": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "address": "5MAYDfq5yxtudAhtfyuMBuHZjgAbaS9tbEyEQYAhDS5y",
@@ -50,11 +51,11 @@
        "status": 1
       }
      ],
-     "queryString": "limit=100\u0026page=10",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "limit=100&page=10"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "address": "6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN",
@@ -66,15 +67,15 @@
        "status": 1
       }
      ],
-     "queryString": "currency=memeboxtrump\u0026limit=100\u0026page=10",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency=memeboxtrump&limit=100&page=10"
     }
    ]
   },
   "/api/v4/alpha/tickers": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "change": "0.27",
@@ -112,11 +113,11 @@
        "volume": "2317.01"
       }
      ],
-     "queryString": "limit=100\u0026page=10",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "limit=100&page=10"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "change": "-2.26",
@@ -126,569 +127,569 @@
        "volume": "8511430.61"
       }
      ],
-     "queryString": "currency=memeboxtrump\u0026limit=100\u0026page=10",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency=memeboxtrump&limit=100&page=10"
     }
    ]
   },
   "/api/v4/bot/contract-martingale/create": {
    "POST": [
     {
+     "bodyParams": "",
      "data": {
       "code": 200,
-      "message": "success",
       "data": {
-       "strategy_id": "cm_001",
-       "strategy_type": "contract_martingale",
+       "jump_url": "https://www.gate.io/bot/contract-martingale/cm_001",
        "market": "BTC_USDT",
        "status": "running",
-       "jump_url": "https://www.gate.io/bot/contract-martingale/cm_001"
+       "strategy_id": "cm_001",
+       "strategy_type": "contract_martingale"
       },
+      "message": "success",
       "trace_id": "trace_007"
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": null
+     "headers": null,
+     "queryString": ""
     }
    ]
   },
   "/api/v4/bot/futures-grid/create": {
    "POST": [
     {
+     "bodyParams": "",
      "data": {
       "code": 200,
-      "message": "success",
       "data": {
-       "strategy_id": "fg_001",
-       "strategy_type": "futures_grid",
+       "jump_url": "https://www.gate.io/bot/futures-grid/fg_001",
        "market": "BTC_USDT",
        "status": "running",
-       "jump_url": "https://www.gate.io/bot/futures-grid/fg_001"
+       "strategy_id": "fg_001",
+       "strategy_type": "futures_grid"
       },
+      "message": "success",
       "trace_id": "trace_005"
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": null
+     "headers": null,
+     "queryString": ""
     }
    ]
   },
   "/api/v4/bot/infinite-grid/create": {
    "POST": [
     {
+     "bodyParams": "",
      "data": {
       "code": 200,
-      "message": "success",
       "data": {
-       "strategy_id": "ig_001",
-       "strategy_type": "infinite_grid",
+       "jump_url": "https://www.gate.io/bot/infinite-grid/ig_001",
        "market": "BTC_USDT",
        "status": "running",
-       "jump_url": "https://www.gate.io/bot/infinite-grid/ig_001"
+       "strategy_id": "ig_001",
+       "strategy_type": "infinite_grid"
       },
+      "message": "success",
       "trace_id": "trace_004"
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": null
+     "headers": null,
+     "queryString": ""
     }
    ]
   },
   "/api/v4/bot/margin-grid/create": {
    "POST": [
     {
+     "bodyParams": "",
      "data": {
       "code": 200,
-      "message": "success",
       "data": {
-       "strategy_id": "mg_001",
-       "strategy_type": "margin_grid",
+       "jump_url": "https://www.gate.io/bot/margin-grid/mg_001",
        "market": "BTC_USDT",
        "status": "running",
-       "jump_url": "https://www.gate.io/bot/margin-grid/mg_001"
+       "strategy_id": "mg_001",
+       "strategy_type": "margin_grid"
       },
+      "message": "success",
       "trace_id": "trace_003"
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": null
+     "headers": null,
+     "queryString": ""
     }
    ]
   },
   "/api/v4/bot/portfolio/detail": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "code": 200,
-      "message": "success",
       "data": {
-       "strategy_id": "sg_001",
-       "strategy_type": "spot_grid",
-       "market": "BTC_USDT",
-       "status": "running",
        "base_info": {
-        "strategy_name": "BTC_USDT Spot Grid",
         "created_at": "2024-01-01T00:00:00Z",
-        "running_duration": 86400,
         "invest_amount": "1000",
-        "total_profit": "120.50",
-        "profit_rate": "0.12"
+        "profit_rate": "0.12",
+        "running_duration": 86400,
+        "strategy_name": "BTC_USDT Spot Grid",
+        "total_profit": "120.50"
        },
+       "market": "BTC_USDT",
        "metrics": {
-        "grid_profit": "100.00",
-        "floating_pnl": "20.50",
         "arbitrage_count": 42,
-        "price_range": "90000-110000",
-        "grid_count": 20,
-        "estimated_liquidation_price": "",
-        "price_floor": "",
-        "grid_profit_rate": "0.10",
-        "realized_pnl": "100.00",
-        "finished_rounds": 0,
         "avg_cost": "",
-        "take_profit_price": "",
-        "maintenance_margin_ratio": ""
+        "estimated_liquidation_price": "",
+        "finished_rounds": 0,
+        "floating_pnl": "20.50",
+        "grid_count": 20,
+        "grid_profit": "100.00",
+        "grid_profit_rate": "0.10",
+        "maintenance_margin_ratio": "",
+        "price_floor": "",
+        "price_range": "90000-110000",
+        "realized_pnl": "100.00",
+        "take_profit_price": ""
        },
        "position": {
         "amount": "0.01",
         "entry_price": "100000",
-        "quote_amount": "500",
-        "position_value": "1000",
         "margin": "",
+        "position_value": "1000",
+        "quote_amount": "500",
         "side": "long"
        },
-       "stop_supported": true
+       "status": "running",
+       "stop_supported": true,
+       "strategy_id": "sg_001",
+       "strategy_type": "spot_grid"
       },
+      "message": "success",
       "trace_id": "trace_009"
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": null
+     "headers": null,
+     "queryString": ""
     }
    ]
   },
   "/api/v4/bot/portfolio/running": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "code": 200,
-      "message": "success",
       "data": {
        "items": [
         {
-         "strategy_id": "sg_001",
-         "strategy_type": "spot_grid",
-         "strategy_name": "BTC_USDT Spot Grid",
+         "created_at": "2024-01-01T00:00:00Z",
+         "invest_amount": "1000",
          "market": "BTC_USDT",
-         "status": "running",
          "pnl": "120.50",
          "pnl_rate": "0.12",
-         "invest_amount": "1000",
-         "created_at": "2024-01-01T00:00:00Z"
+         "status": "running",
+         "strategy_id": "sg_001",
+         "strategy_name": "BTC_USDT Spot Grid",
+         "strategy_type": "spot_grid"
         }
        ],
        "page": 1,
        "page_size": 20,
        "total": 1
       },
+      "message": "success",
       "trace_id": "trace_008"
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": null
+     "headers": null,
+     "queryString": ""
     }
    ]
   },
   "/api/v4/bot/portfolio/stop": {
    "POST": [
     {
+     "bodyParams": "",
      "data": {
       "code": 200,
-      "message": "success",
       "data": {
-       "strategy_id": "sg_001",
-       "strategy_type": "spot_grid",
+       "result_message": "Strategy is being stopped",
        "status": "stopping",
-       "result_message": "Strategy is being stopped"
+       "strategy_id": "sg_001",
+       "strategy_type": "spot_grid"
       },
+      "message": "success",
       "trace_id": "trace_010"
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": null
+     "headers": null,
+     "queryString": ""
     }
    ]
   },
   "/api/v4/bot/spot-grid/create": {
    "POST": [
     {
+     "bodyParams": "",
      "data": {
       "code": 200,
-      "message": "success",
       "data": {
-       "strategy_id": "sg_001",
-       "strategy_type": "spot_grid",
+       "jump_url": "https://www.gate.io/bot/spot-grid/sg_001",
        "market": "BTC_USDT",
        "status": "running",
-       "jump_url": "https://www.gate.io/bot/spot-grid/sg_001"
+       "strategy_id": "sg_001",
+       "strategy_type": "spot_grid"
       },
+      "message": "success",
       "trace_id": "trace_002"
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": null
+     "headers": null,
+     "queryString": ""
     }
    ]
   },
   "/api/v4/bot/spot-martingale/create": {
    "POST": [
     {
+     "bodyParams": "",
      "data": {
       "code": 200,
-      "message": "success",
       "data": {
-       "strategy_id": "sm_001",
-       "strategy_type": "spot_martingale",
+       "jump_url": "https://www.gate.io/bot/spot-martingale/sm_001",
        "market": "BTC_USDT",
        "status": "running",
-       "jump_url": "https://www.gate.io/bot/spot-martingale/sm_001"
+       "strategy_id": "sm_001",
+       "strategy_type": "spot_martingale"
       },
+      "message": "success",
       "trace_id": "trace_006"
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": null
+     "headers": null,
+     "queryString": ""
     }
    ]
   },
   "/api/v4/bot/strategy/recommend": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "code": 200,
-      "message": "success",
       "data": {
-       "scene": "top1",
        "recommendations": [
         {
-         "recommendation_id": "rec_001",
-         "market": "BTC_USDT",
-         "strategy_type": "spot_grid",
-         "strategy_name": "BTC_USDT Spot Grid",
          "backtest_apr": "0.35",
+         "market": "BTC_USDT",
          "max_drawdown": "0.12",
-         "summary": "Recommended spot grid for BTC_USDT",
-         "strategy_params_preview": "{\"low_price\":\"90000\",\"high_price\":\"110000\",\"grid_num\":20}"
+         "recommendation_id": "rec_001",
+         "strategy_name": "BTC_USDT Spot Grid",
+         "strategy_params_preview": "{\"low_price\":\"90000\",\"high_price\":\"110000\",\"grid_num\":20}",
+         "strategy_type": "spot_grid",
+         "summary": "Recommended spot grid for BTC_USDT"
         }
        ],
+       "scene": "top1",
        "unsupported_filters": []
       },
+      "message": "success",
       "trace_id": "trace_001"
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": null
+     "headers": null,
+     "queryString": ""
     }
    ]
   },
   "/api/v4/crossex/account_book": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "id": "book-001",
-       "user_id": "100001",
-       "business_id": "biz-001",
-       "statement_type": "TRADE_FEE",
-       "exchange_type": "BINANCE",
-       "change": "-6.5",
        "balance": "993.5",
-       "create_time": "1715864142400"
+       "business_id": "biz-001",
+       "change": "-6.5",
+       "create_time": "1715864142400",
+       "exchange_type": "BINANCE",
+       "id": "book-001",
+       "statement_type": "TRADE_FEE",
+       "user_id": "100001"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/crossex/accounts": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "user_id": "12345678",
-       "available_margin": "1100",
-       "margin_balance": "1100",
-       "initial_margin": "0",
-       "maintenance_margin": "0",
-       "initial_margin_rate": "0",
-       "maintenance_margin_rate": "0",
-       "position_mode": "SINGLE",
        "account_limit": "10000",
+       "account_mode": "CROSS_EXCHANGE",
+       "available_margin": "1100",
        "create_time": "1715864142378",
        "exchange_type": "BINANCE",
-       "account_mode": "CROSS_EXCHANGE",
-       "update_time": "1715864142378"
+       "initial_margin": "0",
+       "initial_margin_rate": "0",
+       "maintenance_margin": "0",
+       "maintenance_margin_rate": "0",
+       "margin_balance": "1100",
+       "position_mode": "SINGLE",
+       "update_time": "1715864142378",
+       "user_id": "12345678"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ],
    "PUT": [
     {
-     "data": {
-      "position_mode": "SINGLE",
-      "account_mode": "CROSS_EXCHANGE",
-      "exchange_type": "BINANCE"
-     },
-     "queryString": "",
      "bodyParams": "",
-     "headers": {}
+     "data": {
+      "account_mode": "CROSS_EXCHANGE",
+      "exchange_type": "BINANCE",
+      "position_mode": "SINGLE"
+     },
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/crossex/adl_rank": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "user_id": "111",
-       "symbol": "BINANCE_FUTURE_ADA_USDT",
        "crossex_adl_rank": "1",
-       "exchange_adl_rank": "1"
+       "exchange_adl_rank": "1",
+       "symbol": "BINANCE_FUTURE_ADA_USDT",
+       "user_id": "111"
       }
      ],
-     "queryString": "symbol=BINANCE_FUTURE_ADA_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "symbol=BINANCE_FUTURE_ADA_USDT"
     }
    ]
   },
   "/api/v4/crossex/coin_discount_rate": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "coin": "SOL",
+       "discount_rate": "0.95",
        "exchange_type": "GATE",
-       "tier": "1",
-       "min_value": "0",
        "max_value": "10000",
-       "discount_rate": "0.95"
+       "min_value": "0",
+       "tier": "1"
       },
       {
        "coin": "SOL",
+       "discount_rate": "0.93",
        "exchange_type": "GATE",
-       "tier": "2",
-       "min_value": "10000",
        "max_value": "20000",
-       "discount_rate": "0.93"
+       "min_value": "10000",
+       "tier": "2"
       }
      ],
-     "queryString": "coin=ETH",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "coin=ETH"
     }
    ]
   },
   "/api/v4/crossex/convert/orders": {
    "POST": [
     {
+     "bodyParams": "quote_id=CTH46487058372",
      "data": {
       "order_id": "123456",
       "text": "123456"
      },
-     "queryString": "",
-     "bodyParams": "quote_id=CTH46487058372",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/crossex/convert/quote": {
    "POST": [
     {
+     "bodyParams": "exchange_type=BINANCE&from_amount=1&from_coin=BTC&to_coin=USDT",
      "data": {
-      "quote_id": "CTH46487058372",
-      "valid_ms": "1715864152378",
-      "from_coin": "BTC",
-      "to_coin": "USDT",
       "from_amount": "1",
+      "from_coin": "BTC",
+      "price": "65000",
+      "quote_id": "CTH46487058372",
       "to_amount": "65000",
-      "price": "65000"
+      "to_coin": "USDT",
+      "valid_ms": "1715864152378"
      },
-     "queryString": "",
-     "bodyParams": "exchange_type=BINANCE\u0026from_amount=1\u0026from_coin=BTC\u0026to_coin=USDT",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/crossex/fee": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "exchange_type": "BINANCE",
-       "spot_maker_fee": "0.0001",
-       "spot_taker_fee": "0.0025",
        "future_maker_fee": "0.0002",
        "future_taker_fee": "0.0005",
-       "special_fee_list": []
+       "special_fee_list": [],
+       "spot_maker_fee": "0.0001",
+       "spot_taker_fee": "0.0025"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/crossex/history_margin_interests": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "user_id": "100001",
-       "symbol": "BINANCE_MARGIN_BTC_USDT",
-       "interest_id": "int-001",
-       "liability_id": "pos-001",
-       "liability": "0.01",
-       "liability_coin": "BTC",
+       "create_time": "1763371200000",
+       "exchange_type": "BINANCE",
        "interest": "0.000001",
+       "interest_id": "int-001",
        "interest_rate": "0.0001",
        "interest_type": "INTEREST_ON_POSITION",
-       "create_time": "1763371200000",
-       "exchange_type": "BINANCE"
+       "liability": "0.01",
+       "liability_coin": "BTC",
+       "liability_id": "pos-001",
+       "symbol": "BINANCE_MARGIN_BTC_USDT",
+       "user_id": "100001"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/crossex/history_margin_positions": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "position_id": "mpos-001",
-       "user_id": "100001",
-       "symbol": "BINANCE_MARGIN_BTC_USDT",
-       "position_side": "LONG",
-       "closed_type": "COMPLETE_CLOSED",
+       "closed_avg_price": "65000",
        "closed_pnl": "50",
        "closed_pnl_rate": "0.10",
-       "open_avg_price": "64000",
-       "closed_avg_price": "65000",
-       "max_position_qty": "1",
-       "exchange_type": "BINANCE",
+       "closed_type": "COMPLETE_CLOSED",
        "create_time": "1715864142378",
-       "update_time": "1715864142400"
+       "exchange_type": "BINANCE",
+       "max_position_qty": "1",
+       "open_avg_price": "64000",
+       "position_id": "mpos-001",
+       "position_side": "LONG",
+       "symbol": "BINANCE_MARGIN_BTC_USDT",
+       "update_time": "1715864142400",
+       "user_id": "100001"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/crossex/history_orders": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "user_id": "100001",
-       "order_id": "20491522002333905922",
-       "text": "crossex-test-1",
-       "state": "FILLED",
-       "symbol": "BINANCE_FUTURE_BTC_USDT",
-       "side": "BUY",
-       "type": "GTC",
        "attribute": "COMMON",
-       "exchange_type": "BINANCE",
        "business_type": "FUTURES",
-       "qty": "1",
-       "price": "65000",
-       "time_in_force": "GTC",
-       "executed_qty": "1",
+       "create_time": "1715864142378",
+       "exchange_type": "BINANCE",
        "executed_amount": "65000",
+       "executed_qty": "1",
        "fee": "6.5",
        "fee_asset": "USDT",
-       "leverage": "10",
-       "last_executed_qty": "1",
        "last_executed_price": "65000",
-       "position_side": "LONG",
-       "reduce_only": "false",
+       "last_executed_qty": "1",
        "last_executed_time": "1715864142400",
-       "create_time": "1715864142378",
-       "update_time": "1715864142400"
+       "leverage": "10",
+       "order_id": "20491522002333905922",
+       "position_side": "LONG",
+       "price": "65000",
+       "qty": "1",
+       "reduce_only": "false",
+       "side": "BUY",
+       "state": "FILLED",
+       "symbol": "BINANCE_FUTURE_BTC_USDT",
+       "text": "crossex-test-1",
+       "time_in_force": "GTC",
+       "type": "GTC",
+       "update_time": "1715864142400",
+       "user_id": "100001"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/crossex/history_positions": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "position_id": "pos-001",
-       "user_id": "100001",
-       "symbol": "BINANCE_FUTURE_BTC_USDT",
-       "position_side": "LONG",
-       "closed_type": "COMPLETE_CLOSED",
+       "closed_avg_price": "65500",
        "closed_pnl": "150",
        "closed_pnl_rate": "0.23",
-       "open_avg_price": "64000",
-       "closed_avg_price": "65500",
-       "max_position_qty": "2",
-       "exchange_type": "BINANCE",
+       "closed_type": "COMPLETE_CLOSED",
        "create_time": "1715864142378",
-       "update_time": "1715864142400"
+       "exchange_type": "BINANCE",
+       "max_position_qty": "2",
+       "open_avg_price": "64000",
+       "position_id": "pos-001",
+       "position_side": "LONG",
+       "symbol": "BINANCE_FUTURE_BTC_USDT",
+       "update_time": "1715864142400",
+       "user_id": "100001"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/crossex/history_trades": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "user_id": "100001",
-       "transaction_id": "trade-001",
-       "filled_record_id": "fill-001",
-       "order_id": "20491522002333905922",
-       "text": "crossex-test-1",
-       "symbol": "BINANCE_FUTURE_BTC_USDT",
-       "exchange_type": "BINANCE",
        "business_type": "FUTURES",
-       "side": "BUY",
-       "qty": "1",
-       "price": "65000",
+       "create_time": "1715864142400",
+       "exchange_type": "BINANCE",
        "fee": "6.5",
        "fee_coin": "USDT",
-       "create_time": "1715864142400"
+       "filled_record_id": "fill-001",
+       "order_id": "20491522002333905922",
+       "price": "65000",
+       "qty": "1",
+       "side": "BUY",
+       "symbol": "BINANCE_FUTURE_BTC_USDT",
+       "text": "crossex-test-1",
+       "transaction_id": "trade-001",
+       "user_id": "100001"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/crossex/interest_rate": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "coin": "BCH",
@@ -703,258 +704,258 @@
        "time": "1763371200000"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/crossex/margin_positions": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "user_id": "100001",
-       "position_id": "mpos-001",
-       "symbol": "BINANCE_MARGIN_BTC_USDT",
-       "position_side": "LONG",
-       "initial_margin": "500",
-       "maintenance_margin": "250",
-       "asset_qty": "1",
        "asset_coin": "BTC",
-       "position_value": "65000",
-       "leverage": "5",
-       "exchange_type": "BINANCE",
+       "asset_qty": "1",
        "create_time": "1715864142378",
-       "update_time": "1715864142378"
+       "exchange_type": "BINANCE",
+       "initial_margin": "500",
+       "leverage": "5",
+       "maintenance_margin": "250",
+       "position_id": "mpos-001",
+       "position_side": "LONG",
+       "position_value": "65000",
+       "symbol": "BINANCE_MARGIN_BTC_USDT",
+       "update_time": "1715864142378",
+       "user_id": "100001"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/crossex/margin_positions/leverage": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "BINANCE_MARGIN_BTC_USDT": "5",
       "OKX_MARGIN_BTC_USDT": "5"
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ],
    "POST": [
     {
-     "data": {
-      "symbol": "BINANCE_MARGIN_BTC_USDT",
-      "leverage": "5"
-     },
-     "queryString": "",
      "bodyParams": "",
-     "headers": {}
+     "data": {
+      "leverage": "5",
+      "symbol": "BINANCE_MARGIN_BTC_USDT"
+     },
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/crossex/open_orders": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "user_id": "100001",
-       "order_id": "20491522002333905922",
-       "text": "crossex-test-1",
-       "state": "OPEN",
-       "symbol": "BINANCE_FUTURE_BTC_USDT",
-       "side": "BUY",
-       "type": "GTC",
        "attribute": "COMMON",
-       "exchange_type": "BINANCE",
        "business_type": "FUTURES",
-       "qty": "1",
-       "price": "65000",
-       "time_in_force": "GTC",
-       "executed_qty": "0",
+       "create_time": "1715864142378",
+       "exchange_type": "BINANCE",
        "executed_amount": "0",
+       "executed_qty": "0",
        "fee": "0",
        "fee_asset": "USDT",
-       "leverage": "10",
-       "last_executed_qty": "0",
        "last_executed_price": "0",
-       "position_side": "LONG",
-       "reduce_only": "false",
+       "last_executed_qty": "0",
        "last_executed_time": "0",
-       "create_time": "1715864142378",
-       "update_time": "1715864142378"
+       "leverage": "10",
+       "order_id": "20491522002333905922",
+       "position_side": "LONG",
+       "price": "65000",
+       "qty": "1",
+       "reduce_only": "false",
+       "side": "BUY",
+       "state": "OPEN",
+       "symbol": "BINANCE_FUTURE_BTC_USDT",
+       "text": "crossex-test-1",
+       "time_in_force": "GTC",
+       "type": "GTC",
+       "update_time": "1715864142378",
+       "user_id": "100001"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/crossex/orders": {
    "POST": [
     {
+     "bodyParams": "",
      "data": {
-      "user_id": "100001",
-      "order_id": "20491522002333905922",
-      "text": "crossex-test-1",
-      "state": "NEW",
-      "symbol": "BINANCE_FUTURE_BTC_USDT",
-      "side": "BUY",
-      "type": "GTC",
       "attribute": "COMMON",
-      "exchange_type": "BINANCE",
       "business_type": "FUTURES",
-      "qty": "1",
-      "price": "65000",
-      "time_in_force": "GTC",
-      "executed_qty": "0",
+      "create_time": "1715864142378",
+      "exchange_type": "BINANCE",
       "executed_amount": "0",
+      "executed_qty": "0",
       "fee": "0",
       "fee_asset": "USDT",
-      "leverage": "10",
-      "last_executed_qty": "0",
       "last_executed_price": "0",
-      "position_side": "LONG",
-      "reduce_only": "false",
+      "last_executed_qty": "0",
       "last_executed_time": "0",
-      "create_time": "1715864142378",
-      "update_time": "1715864142378"
+      "leverage": "10",
+      "order_id": "20491522002333905922",
+      "position_side": "LONG",
+      "price": "65000",
+      "qty": "1",
+      "reduce_only": "false",
+      "side": "BUY",
+      "state": "NEW",
+      "symbol": "BINANCE_FUTURE_BTC_USDT",
+      "text": "crossex-test-1",
+      "time_in_force": "GTC",
+      "type": "GTC",
+      "update_time": "1715864142378",
+      "user_id": "100001"
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/crossex/orders/20491522002333905922": {
    "DELETE": [
     {
+     "bodyParams": "",
      "data": {
       "order_id": "20491522002333905922",
       "text": "crossex-test-1"
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ],
    "GET": [
     {
+     "bodyParams": "",
      "data": {
-      "user_id": "100001",
-      "order_id": "20491522002333905922",
-      "text": "crossex-test-1",
-      "state": "FILLED",
-      "symbol": "BINANCE_FUTURE_BTC_USDT",
-      "side": "BUY",
-      "type": "GTC",
       "attribute": "COMMON",
-      "exchange_type": "BINANCE",
       "business_type": "FUTURES",
-      "qty": "1",
-      "price": "65000",
-      "time_in_force": "GTC",
-      "executed_qty": "1",
+      "create_time": "1715864142378",
+      "exchange_type": "BINANCE",
       "executed_amount": "65000",
+      "executed_qty": "1",
       "fee": "6.5",
       "fee_asset": "USDT",
-      "leverage": "10",
-      "last_executed_qty": "1",
       "last_executed_price": "65000",
-      "position_side": "LONG",
-      "reduce_only": "false",
+      "last_executed_qty": "1",
       "last_executed_time": "1715864142400",
-      "create_time": "1715864142378",
-      "update_time": "1715864142400"
+      "leverage": "10",
+      "order_id": "20491522002333905922",
+      "position_side": "LONG",
+      "price": "65000",
+      "qty": "1",
+      "reduce_only": "false",
+      "side": "BUY",
+      "state": "FILLED",
+      "symbol": "BINANCE_FUTURE_BTC_USDT",
+      "text": "crossex-test-1",
+      "time_in_force": "GTC",
+      "type": "GTC",
+      "update_time": "1715864142400",
+      "user_id": "100001"
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ],
    "PUT": [
     {
+     "bodyParams": "",
      "data": {
       "order_id": "20491522002333905922",
       "text": "crossex-test-1"
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/crossex/positions": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "user_id": "100001",
-       "position_id": "pos-001",
-       "symbol": "BINANCE_FUTURE_BTC_USDT",
-       "position_side": "LONG",
-       "initial_margin": "1000",
-       "maintenance_margin": "500",
-       "position_qty": "1",
-       "position_value": "65000",
-       "upnl": "100",
-       "leverage": "10",
-       "exchange_type": "BINANCE",
        "create_time": "1715864142378",
-       "update_time": "1715864142378"
+       "exchange_type": "BINANCE",
+       "initial_margin": "1000",
+       "leverage": "10",
+       "maintenance_margin": "500",
+       "position_id": "pos-001",
+       "position_qty": "1",
+       "position_side": "LONG",
+       "position_value": "65000",
+       "symbol": "BINANCE_FUTURE_BTC_USDT",
+       "update_time": "1715864142378",
+       "upnl": "100",
+       "user_id": "100001"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ],
    "POST": [
     {
+     "bodyParams": "",
      "data": {
       "order_id": "123456",
       "text": "123456"
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/crossex/positions/leverage": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "BINANCE_FUTURE_BTC_USDT": "10",
       "OKX_FUTURE_BTC_USDT": "10"
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ],
    "POST": [
     {
-     "data": {
-      "symbol": "BINANCE_FUTURE_BTC_USDT",
-      "leverage": "10"
-     },
-     "queryString": "",
      "bodyParams": "",
-     "headers": {}
+     "data": {
+      "leverage": "10",
+      "symbol": "BINANCE_FUTURE_BTC_USDT"
+     },
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/crossex/rule/risk_limits": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "symbol": "BINANCE_FUTURE_BTC_USDT",
@@ -1031,15 +1032,15 @@
        ]
       }
      ],
-     "queryString": "symbols=BINANCE_FUTURE_BTC_USDT%2CBINANCE_FUTURE_ETH_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "symbols=BINANCE_FUTURE_BTC_USDT%2CBINANCE_FUTURE_ETH_USDT"
     }
    ]
   },
   "/api/v4/crossex/rule/symbols": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "business_type": "FUTURE",
@@ -1059,84 +1060,84 @@
        "tick_size": "0.10"
       }
      ],
-     "queryString": "symbols=BINANCE_FUTURE_BTC_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "symbols=BINANCE_FUTURE_BTC_USDT"
     }
    ]
   },
   "/api/v4/crossex/transfers": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "id": "12345",
-       "client_order_id": "test-1",
-       "from_account_type": "SPOT",
-       "to_account_type": "CROSSEX_BALANCE",
-       "coin": "USDT",
        "amount_actual": "10",
+       "client_order_id": "test-1",
+       "coin": "USDT",
+       "fail_reason": "",
+       "from_account_type": "SPOT",
+       "id": "12345",
        "status": "SUCCESS",
-       "fail_reason": ""
+       "to_account_type": "CROSSEX_BALANCE"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ],
    "POST": [
     {
+     "bodyParams": "",
      "data": {
       "tx_id": "transfer-001"
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/crossex/transfers/coin": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "coin": "USDT",
-       "min_trans_amount": 10,
        "est_fee": 1,
-       "precision": 6,
-       "is_disabled": 0
+       "is_disabled": 0,
+       "min_trans_amount": 10,
+       "precision": 6
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/delivery/btc/contracts": {
    "GET": [
     {
-     "data": null,
-     "queryString": "",
      "bodyParams": "",
-     "headers": {}
+     "data": null,
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/delivery/btc/insurance": {
    "GET": [
     {
-     "data": null,
-     "queryString": "",
      "bodyParams": "",
-     "headers": {}
+     "data": null,
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/delivery/usdt/candlesticks": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "66329.5",
@@ -1163,11 +1164,11 @@
        "v": 52151
       }
      ],
-     "queryString": "contract=BTC_USDT_20260626\u0026from=1774797662\u0026interval=1d\u0026to=1774970462",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT_20260626&from=1774797662&interval=1d&to=1774970462"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "66884.3",
@@ -1210,20 +1211,20 @@
        "v": 49
       }
      ],
-     "queryString": "contract=BTC_USDT_20260626\u0026from=1774797660\u0026interval=1m\u0026to=1774857660",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT_20260626&from=1774797660&interval=1m&to=1774857660"
     },
     {
+     "bodyParams": "",
      "data": {
       "detail": "Invalid request parameter `from` value: 1775246491",
       "label": "INVALID_PARAM_VALUE"
      },
-     "queryString": "contract=BTC_USDT_20260626\u0026from=1775246491\u0026interval=1m\u0026to=1775419291",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT_20260626&from=1775246491&interval=1m&to=1775419291"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "67274.1",
@@ -1250,11 +1251,11 @@
        "v": 42558
       }
      ],
-     "queryString": "contract=BTC_USDT_20260626\u0026from=1775246494\u0026interval=1d\u0026to=1775419294",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT_20260626&from=1775246494&interval=1d&to=1775419294"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "67421.4",
@@ -1297,20 +1298,20 @@
        "v": 39
       }
      ],
-     "queryString": "contract=BTC_USDT_20260626\u0026from=1775306460\u0026interval=1m\u0026to=1775366460",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT_20260626&from=1775306460&interval=1m&to=1775366460"
     },
     {
+     "bodyParams": "",
      "data": {
       "detail": "Invalid request parameter `from` value: 1775246716",
       "label": "INVALID_PARAM_VALUE"
      },
-     "queryString": "contract=BTC_USDT_20260626\u0026from=1775246716\u0026interval=1m\u0026to=1775419516",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT_20260626&from=1775246716&interval=1m&to=1775419516"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "67244.9",
@@ -1353,11 +1354,11 @@
        "v": 393
       }
      ],
-     "queryString": "contract=BTC_USDT_20260626\u0026from=1775250900\u0026interval=1m\u0026to=1775310900",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT_20260626&from=1775250900&interval=1m&to=1775310900"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "67560.2",
@@ -1400,11 +1401,11 @@
        "v": 30
       }
      ],
-     "queryString": "contract=BTC_USDT_20260626\u0026from=1775310900\u0026interval=1m\u0026to=1775370900",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT_20260626&from=1775310900&interval=1m&to=1775370900"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "67131.4",
@@ -1447,11 +1448,11 @@
        "v": 124
       }
      ],
-     "queryString": "contract=BTC_USDT_20260626\u0026from=1775370900\u0026interval=1m\u0026to=1775423760",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT_20260626&from=1775370900&interval=1m&to=1775423760"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "67239.2",
@@ -1494,11 +1495,11 @@
        "v": 9
       }
      ],
-     "queryString": "contract=BTC_USDT_20260626\u0026from=1775251140\u0026interval=1m\u0026to=1775311140",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT_20260626&from=1775251140&interval=1m&to=1775311140"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "67544.5",
@@ -1541,11 +1542,11 @@
        "v": 40
       }
      ],
-     "queryString": "contract=BTC_USDT_20260626\u0026from=1775311140\u0026interval=1m\u0026to=1775371140",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT_20260626&from=1775311140&interval=1m&to=1775371140"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "67149.2",
@@ -1588,11 +1589,11 @@
        "v": 26
       }
      ],
-     "queryString": "contract=BTC_USDT_20260626\u0026from=1775371140\u0026interval=1m\u0026to=1775424000",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT_20260626&from=1775371140&interval=1m&to=1775424000"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "67274.1",
@@ -1619,11 +1620,11 @@
        "v": 45523
       }
      ],
-     "queryString": "contract=BTC_USDT_20260626\u0026from=1775251164\u0026interval=1d\u0026to=1775423964",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT_20260626&from=1775251164&interval=1d&to=1775423964"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "80824.4",
@@ -1666,11 +1667,11 @@
        "v": 11106
       }
      ],
-     "queryString": "contract=BTC_USDT_20260626\u0026from=1744099200\u0026interval=4h\u0026to=1744200000",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT_20260626&from=1744099200&interval=4h&to=1744200000"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "77242",
@@ -1689,11 +1690,11 @@
        "v": 65609
       }
      ],
-     "queryString": "contract=BTC_USDT_20260626\u0026from=1744103854\u0026interval=1d\u0026to=1744190254",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT_20260626&from=1744103854&interval=1d&to=1744190254"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "79897.8",
@@ -1736,15 +1737,15 @@
        "v": 55
       }
      ],
-     "queryString": "contract=BTC_USDT_20260626\u0026from=1744103854\u0026interval=1m\u0026to=1744190254",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT_20260626&from=1744103854&interval=1m&to=1744190254"
     }
    ]
   },
   "/api/v4/delivery/usdt/contracts": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "basis_impact_value": "1000",
@@ -1993,15 +1994,15 @@
        "underlying": "ADA_USDT"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/delivery/usdt/contracts/BTC_USDT_20260626": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "basis_impact_value": "1000",
       "basis_rate": "0.022966",
@@ -2043,15 +2044,15 @@
       "type": "direct",
       "underlying": "BTC_USDT"
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/delivery/usdt/order_book": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "asks": [
        {
@@ -2101,11 +2102,11 @@
       "id": 175093772,
       "update": 1775423963.338
      },
-     "queryString": "contract=BTC_USDT_20260626\u0026limit=1\u0026with_id=true",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT_20260626&limit=1&with_id=true"
     },
     {
+     "bodyParams": "",
      "data": {
       "asks": [
        {
@@ -2154,11 +2155,11 @@
       "current": 1775423963.401,
       "update": 1775423963.338
      },
-     "queryString": "contract=BTC_USDT_20260626\u0026interval=0",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT_20260626&interval=0"
     },
     {
+     "bodyParams": "",
      "data": {
       "asks": [
        {
@@ -2208,168 +2209,168 @@
       "id": 175093772,
       "update": 1775423976.249
      },
-     "queryString": "contract=BTC_USDT_20260626\u0026with_id=true",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT_20260626&with_id=true"
     }
    ]
   },
   "/api/v4/delivery/usdt/risk_limit_tiers": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "maintenance_rate": "0.01",
-       "tier": 1,
+       "contract": "ZTX_USDT",
+       "deduction": "0",
        "initial_rate": "0.02",
        "leverage_max": "50",
+       "maintenance_rate": "0.01",
        "risk_limit": "20000",
-       "contract": "ZTX_USDT",
-       "deduction": "0"
+       "tier": 1
       }
      ],
-     "queryString": "contract=BTC_USDT_20260626",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT_20260626"
     },
     {
+     "bodyParams": "",
      "data": [
       {
-       "maintenance_rate": "0.01",
-       "tier": 1,
+       "contract": "ZTX_USDT",
+       "deduction": "0",
        "initial_rate": "0.02",
        "leverage_max": "50",
+       "maintenance_rate": "0.01",
        "risk_limit": "20000",
-       "contract": "ZTX_USDT",
-       "deduction": "0"
+       "tier": 1
       },
       {
-       "maintenance_rate": "0.013",
-       "tier": 2,
+       "contract": "ZTX_USDT",
+       "deduction": "60",
        "initial_rate": "0.025",
        "leverage_max": "40",
+       "maintenance_rate": "0.013",
        "risk_limit": "30000",
-       "contract": "ZTX_USDT",
-       "deduction": "60"
+       "tier": 2
       },
       {
-       "maintenance_rate": "0.015",
-       "tier": 3,
+       "contract": "ZTX_USDT",
+       "deduction": "120",
        "initial_rate": "0.02857",
        "leverage_max": "35",
+       "maintenance_rate": "0.015",
        "risk_limit": "50000",
-       "contract": "ZTX_USDT",
-       "deduction": "120"
+       "tier": 3
       },
       {
-       "maintenance_rate": "0.02",
-       "tier": 4,
+       "contract": "ZTX_USDT",
+       "deduction": "370",
        "initial_rate": "0.03333",
        "leverage_max": "30",
+       "maintenance_rate": "0.02",
        "risk_limit": "70000",
-       "contract": "ZTX_USDT",
-       "deduction": "370"
+       "tier": 4
       },
       {
-       "maintenance_rate": "0.025",
-       "tier": 5,
+       "contract": "ZTX_USDT",
+       "deduction": "720",
        "initial_rate": "0.04",
        "leverage_max": "25",
+       "maintenance_rate": "0.025",
        "risk_limit": "100000",
-       "contract": "ZTX_USDT",
-       "deduction": "720"
+       "tier": 5
       }
      ],
-     "queryString": "limit=10\u0026offset=10",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "limit=10&offset=10"
     },
     {
+     "bodyParams": "",
      "data": [
       {
-       "maintenance_rate": "0.01",
-       "tier": 1,
+       "contract": "ZTX_USDT",
+       "deduction": "0",
        "initial_rate": "0.02",
        "leverage_max": "50",
+       "maintenance_rate": "0.01",
        "risk_limit": "20000",
-       "contract": "ZTX_USDT",
-       "deduction": "0"
+       "tier": 1
       },
       {
-       "maintenance_rate": "0.013",
-       "tier": 2,
+       "contract": "ZTX_USDT",
+       "deduction": "60",
        "initial_rate": "0.025",
        "leverage_max": "40",
+       "maintenance_rate": "0.013",
        "risk_limit": "30000",
-       "contract": "ZTX_USDT",
-       "deduction": "60"
+       "tier": 2
       },
       {
-       "maintenance_rate": "0.015",
-       "tier": 3,
+       "contract": "ZTX_USDT",
+       "deduction": "120",
        "initial_rate": "0.02857",
        "leverage_max": "35",
+       "maintenance_rate": "0.015",
        "risk_limit": "50000",
-       "contract": "ZTX_USDT",
-       "deduction": "120"
+       "tier": 3
       },
       {
-       "maintenance_rate": "0.02",
-       "tier": 4,
+       "contract": "ZTX_USDT",
+       "deduction": "370",
        "initial_rate": "0.03333",
        "leverage_max": "30",
+       "maintenance_rate": "0.02",
        "risk_limit": "70000",
-       "contract": "ZTX_USDT",
-       "deduction": "370"
+       "tier": 4
       },
       {
-       "maintenance_rate": "0.025",
-       "tier": 5,
+       "contract": "ZTX_USDT",
+       "deduction": "720",
        "initial_rate": "0.04",
        "leverage_max": "25",
+       "maintenance_rate": "0.025",
        "risk_limit": "100000",
-       "contract": "ZTX_USDT",
-       "deduction": "720"
+       "tier": 5
       }
      ],
-     "queryString": "contract=DOGE_USDT_20260410",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=DOGE_USDT_20260410"
     }
    ]
   },
   "/api/v4/delivery/usdt/tickers": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "contract": "BTC_USDT",
-       "last": "6432",
-       "low_24h": "6278",
-       "high_24h": "6790",
        "change_percentage": "4.43",
-       "total_size": "32323904",
-       "volume_24h": "184040233284",
-       "volume_24h_btc": "28613220",
-       "volume_24h_usd": "184040233284",
-       "volume_24h_base": "28613220",
-       "volume_24h_quote": "184040233284",
-       "volume_24h_settle": "28613220",
-       "mark_price": "6534",
+       "contract": "BTC_USDT",
        "funding_rate": "0.0001",
        "funding_rate_indicative": "0.0001",
-       "index_price": "6531",
+       "high_24h": "6790",
        "highest_bid": "34089.7",
        "highest_size": "100",
+       "index_price": "6531",
+       "last": "6432",
+       "low_24h": "6278",
        "lowest_ask": "34217.9",
-       "lowest_size": "1000"
+       "lowest_size": "1000",
+       "mark_price": "6534",
+       "total_size": "32323904",
+       "volume_24h": "184040233284",
+       "volume_24h_base": "28613220",
+       "volume_24h_btc": "28613220",
+       "volume_24h_quote": "184040233284",
+       "volume_24h_settle": "28613220",
+       "volume_24h_usd": "184040233284"
       }
      ],
-     "queryString": "contract=BTC_USDT_20260213",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT_20260213"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "basis_rate": "0.016946",
@@ -2391,11 +2392,11 @@
        "volume_24h_settle": "520353"
       }
      ],
-     "queryString": "contract=BTC_USDT_20260626",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT_20260626"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "basis_rate": "-0.080318",
@@ -2493,15 +2494,15 @@
        "volume_24h_settle": "41063"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/delivery/usdt/trades": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "contract": "BTC_USDT_20260626",
@@ -2544,15 +2545,15 @@
        "size": -10
       }
      ],
-     "queryString": "contract=BTC_USDT_20260626",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT_20260626"
     }
    ]
   },
   "/api/v4/earn/autoinvest/config": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "coin": "BTC",
@@ -2563,297 +2564,297 @@
        "max_limit": "100000"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/earn/autoinvest/orders": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "id": 679157,
-       "type": "buy",
        "amount": "0.0162",
        "asset": "USDT",
+       "id": 679157,
        "plan_id": 12345,
-       "side": 3,
        "record_id": 67890,
-       "total_money": "72.728"
+       "side": 3,
+       "total_money": "72.728",
+       "type": "buy"
       }
      ],
-     "queryString": "plan_id=12345\u0026record_id=67890",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "plan_id=12345&record_id=67890"
     }
    ]
   },
   "/api/v4/earn/autoinvest/plans/add_position": {
    "POST": [
     {
+     "bodyParams": "amount=12.345&plan_id=142583",
      "data": null,
-     "queryString": "",
-     "bodyParams": "amount=12.345\u0026plan_id=142583",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/earn/autoinvest/plans/detail": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
-      "id": 14509,
-      "version": 4,
-      "name": "plan_list5007",
+      "amount": "10",
       "create_time": 1737373532,
+      "id": 14509,
+      "money": "USDT",
+      "name": "plan_list5007",
+      "period_day": 1,
+      "period_type": "monthly",
       "update_time": 1737216404,
       "user_id": 1231264,
-      "money": "USDT",
-      "amount": "10",
-      "period_type": "monthly",
-      "period_day": 1
+      "version": 4
      },
-     "queryString": "plan_id=12345",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "plan_id=12345"
     }
    ]
   },
   "/api/v4/earn/autoinvest/plans/list_info": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
-      "page": 1,
-      "page_size": 10,
-      "page_count": 2,
-      "total_count": 11,
       "list": [
        {
-        "id": 12345,
-        "version": 1,
-        "name": "Beta Invest BTC",
+        "amount": "10",
         "create_time": 1737031532,
+        "id": 12345,
+        "money": "USDT",
+        "name": "Beta Invest BTC",
+        "period_day": 1,
+        "period_type": "monthly",
         "update_time": 1737031532,
         "user_id": 2121604096,
-        "money": "USDT",
-        "amount": "10",
-        "period_type": "monthly",
-        "period_day": 1
+        "version": 1
        }
-      ]
+      ],
+      "page": 1,
+      "page_count": 2,
+      "page_size": 10,
+      "total_count": 11
      },
-     "queryString": "page=1\u0026page_size=100\u0026status=active",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "page=1&page_size=100&status=active"
     }
    ]
   },
   "/api/v4/earn/autoinvest/plans/records": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
-      "page": 1,
-      "page_size": 10,
-      "total_page": 10,
-      "total": 96,
       "list": [
        {
         "id": 17008013840415,
-        "type": "Auto Invest",
         "money": "USDT",
+        "type": "Auto Invest",
         "user_id": 6172
        }
-      ]
+      ],
+      "page": 1,
+      "page_size": 10,
+      "total": 96,
+      "total_page": 10
      },
-     "queryString": "plan_id=12345",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "plan_id=12345"
     }
    ]
   },
   "/api/v4/earn/autoinvest/plans/stop": {
    "POST": [
     {
-     "data": null,
-     "queryString": "",
      "bodyParams": "plan_id=142582",
-     "headers": {}
+     "data": null,
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/earn/fixed-term/product": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "code": 0,
-      "message": "",
       "data": {
        "list": [
         {
-         "id": 11,
-         "name": "USDT-TEST",
          "asset": "USDT",
+         "create_time": "2024-12-13T03:29:41.103Z",
+         "id": 11,
          "lock_up_period": 16,
          "min_lend_amount": "1",
-         "user_max_lend_amount": "100000",
-         "total_lend_amount": "100000000",
-         "year_rate": "0.03",
+         "name": "USDT-TEST",
          "status": 2,
-         "create_time": "2024-12-13T03:29:41.103Z",
-         "user_total_amount": "0"
+         "total_lend_amount": "100000000",
+         "user_max_lend_amount": "100000",
+         "user_total_amount": "0",
+         "year_rate": "0.03"
         },
         {
-         "id": 10,
-         "name": "示例",
          "asset": "USDT",
+         "create_time": "2024-12-13T03:29:41.103Z",
+         "id": 10,
          "lock_up_period": 15,
          "min_lend_amount": "1",
-         "user_max_lend_amount": "100000",
-         "total_lend_amount": "100000000",
-         "year_rate": "0.03",
+         "name": "\u793a\u4f8b",
          "status": 2,
-         "create_time": "2024-12-13T03:29:41.103Z",
-         "user_total_amount": "0"
+         "total_lend_amount": "100000000",
+         "user_max_lend_amount": "100000",
+         "user_total_amount": "0",
+         "year_rate": "0.03"
         }
        ],
        "total": 12
       },
+      "message": "",
       "timestamp": 1737644889
      },
-     "queryString": "limit=10\u0026page=1",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "limit=10&page=1"
     }
    ]
   },
   "/api/v4/earn/fixed-term/product/USDT/list": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "code": 0,
-      "message": "",
       "data": {
        "list": [
         {
-         "id": 11,
          "asset": "USDT",
+         "id": 11,
          "lock_up_period": 7,
-         "year_rate": "0.05",
-         "type": 1
+         "type": 1,
+         "year_rate": "0.05"
         }
        ]
       },
+      "message": "",
       "timestamp": 1737644889
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/earn/fixed-term/products": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "code": 0,
-      "message": "",
       "data": {
        "list": [
         {
-         "id": 11,
-         "name": "USDT-TEST",
          "asset": "USDT",
+         "id": 11,
          "lock_up_period": 7,
-         "min_lend_amount": "1"
+         "min_lend_amount": "1",
+         "name": "USDT-TEST"
         }
        ]
       },
-      "total": 1,
-      "timestamp": 1736419846
+      "message": "",
+      "timestamp": 1736419846,
+      "total": 1
      },
-     "queryString": "limit=10\u0026page=1",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "limit=10&page=1"
     }
    ]
   },
   "/api/v4/earn/fixed-term/user/history": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "code": 0,
-      "message": "",
       "data": {
        "list": [
         {
-         "id": 10001,
-         "order_id": 20001,
-         "user_id": 30001,
-         "product_id": 11,
-         "asset": "USDT",
          "amount": "100",
-         "type": 1,
-         "status": "finished",
+         "asset": "USDT",
+         "id": 10001,
          "lock_up_period": 7,
+         "order_id": 20001,
+         "product_id": 11,
+         "status": "finished",
+         "type": 1,
+         "user_id": 30001,
          "uts_time": 1734393600
         }
        ]
       },
-      "total": 1,
-      "timestamp": 1736419846
+      "message": "",
+      "timestamp": 1736419846,
+      "total": 1
      },
-     "queryString": "limit=10\u0026page=1\u0026type=1",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "limit=10&page=1&type=1"
     }
    ]
   },
   "/api/v4/earn/fixed-term/user/lend": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "code": 0,
-      "message": "",
       "data": {
        "list": [
         {
-         "id": 10001,
-         "product_id": 11,
-         "user_id": 30001,
-         "asset": "USDT",
          "amount": "100",
-         "status": "finished",
-         "lock_up_period": 7,
          "annual_rate": "0.05",
-         "start_time": 1734393600,
-         "end_time": 1735003200,
+         "asset": "USDT",
          "create_time": 1734393600,
-         "interest": "0.96"
+         "end_time": 1735003200,
+         "id": 10001,
+         "interest": "0.96",
+         "lock_up_period": 7,
+         "product_id": 11,
+         "start_time": 1734393600,
+         "status": "finished",
+         "user_id": 30001
         }
        ]
       },
-      "total": 1,
-      "timestamp": 1736419846
+      "message": "",
+      "timestamp": 1736419846,
+      "total": 1
      },
-     "queryString": "limit=10\u0026page=1\u0026product_id=11",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "limit=10&page=1&product_id=11"
     },
     {
+     "bodyParams": "",
      "data": {
       "order_id": 20001
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/earn/uni/currencies": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "currency": "USDT",
@@ -2891,15 +2892,15 @@
        "min_rate": "0.00000011"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/earn/uni/currencies/eth": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "currency": "ETH",
       "max_lend_amount": "500000000",
@@ -2907,15 +2908,15 @@
       "min_lend_amount": "0.001",
       "min_rate": "0.00000011"
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/flash_swap/currencies": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "currency": "XRP",
@@ -3044,15 +3045,15 @@
        "swappable": []
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/flash_swap/currency_pairs": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "buy_currency": "USDT",
@@ -3100,11 +3101,11 @@
        "sell_min_amount": "1"
       }
      ],
-     "queryString": "currency=BTC\u0026limit=10",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency=BTC&limit=10"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "buy_currency": "USDT",
@@ -3152,21 +3153,21 @@
        "sell_min_amount": "1"
       }
      ],
-     "queryString": "limit=10\u0026page=1",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "limit=10&page=1"
     }
    ]
   },
   "/api/v4/futures/btc/candlesticks": {
    "GET": [
     {
-     "data": [],
-     "queryString": "contract=BTC_USD\u0026interval=7d",
      "bodyParams": "",
-     "headers": {}
+     "data": [],
+     "headers": {},
+     "queryString": "contract=BTC_USD&interval=7d"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "79861.2",
@@ -3214,11 +3215,11 @@
        "v": 2822737
       }
      ],
-     "queryString": "contract=BTC_USD\u0026from=1744099200\u0026interval=4h\u0026to=1744200000",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USD&from=1744099200&interval=4h&to=1744200000"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "76095.5",
@@ -3239,35 +3240,35 @@
        "v": 12502932
       }
      ],
-     "queryString": "contract=BTC_USD\u0026from=1744103854\u0026interval=1d\u0026to=1744190254",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USD&from=1744103854&interval=1d&to=1744190254"
     }
    ]
   },
   "/api/v4/futures/btc/contract_stats": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "time": 1774966920,
-       "lsr_taker": 0.7998239573691359,
-       "lsr_account": 1.584655572755418,
        "long_liq_size": 0,
-       "short_liq_size": 0,
-       "open_interest": 8701256,
-       "short_liq_usd": 0,
+       "lsr_account": 1.584655572755418,
+       "lsr_taker": 0.7998239573691359,
        "mark_price": 67501.33,
-       "top_lsr_size": 1.0448598856547422,
+       "open_interest": 8701256,
        "open_interest_usd": 587456789.12,
-       "top_lsr_account": 0.5405405405405405
+       "short_liq_size": 0,
+       "short_liq_usd": 0,
+       "time": 1774966920,
+       "top_lsr_account": 0.5405405405405405,
+       "top_lsr_size": 1.0448598856547422
       }
      ],
-     "queryString": "contract=BTC_USD\u0026limit=1",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USD&limit=1"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "long_liq_amount": 0,
@@ -3374,15 +3375,15 @@
        "top_short_size": 8485895
       }
      ],
-     "queryString": "contract=BTC_USD",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USD"
     }
    ]
   },
   "/api/v4/futures/btc/contracts": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "config_change_time": 1769580511,
@@ -3440,41 +3441,38 @@
        "voucher_leverage": "0"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/futures/btc/contracts/BTC_USD": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "label": "CONTRACT_NOT_FOUND"
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/futures/btc/funding_rate": {
    "GET": [
     {
-     "data": [],
-     "queryString": "contract=BTC_USD",
      "bodyParams": "",
-     "headers": {}
+     "data": [],
+     "headers": {},
+     "queryString": "contract=BTC_USD"
     }
    ]
   },
   "/api/v4/futures/btc/order_book": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
-      "id": 123456,
-      "current": 1623898993.123,
-      "update": 1623898993.121,
       "asks": [
        {
         "p": "1.52",
@@ -3494,17 +3492,17 @@
         "p": "1.16",
         "s": "203"
        }
-      ]
+      ],
+      "current": 1623898993.123,
+      "id": 123456,
+      "update": 1623898993.121
      },
-     "queryString": "contract=BTC_USD\u0026with_id=true",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USD&with_id=true"
     },
     {
+     "bodyParams": "",
      "data": {
-      "id": 123456,
-      "current": 1623898993.123,
-      "update": 1623898993.121,
       "asks": [
        {
         "p": "1.52",
@@ -3524,31 +3522,34 @@
         "p": "1.16",
         "s": "203"
        }
-      ]
+      ],
+      "current": 1623898993.123,
+      "id": 123456,
+      "update": 1623898993.121
      },
-     "queryString": "contract=BTC_USD\u0026limit=10",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USD&limit=10"
     }
    ]
   },
   "/api/v4/futures/btc/premium_index": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "t": 1539852480,
        "c": "0",
        "h": "0.00023",
        "l": "0",
-       "o": "0"
+       "o": "0",
+       "t": 1539852480
       }
      ],
-     "queryString": "contract=BTC_USD\u0026from=1780577537\u0026interval=7d\u0026to=1781787137",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USD&from=1780577537&interval=7d&to=1781787137"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "-0.00066518121321320381",
@@ -3572,15 +3573,15 @@
        "t": 1781481600
       }
      ],
-     "queryString": "contract=BTC_USD\u0026from=1780581847\u0026interval=7d\u0026to=1781791447",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USD&from=1780581847&interval=7d&to=1781791447"
     }
    ]
   },
   "/api/v4/futures/btc/tickers": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "change_percentage": "0.18",
@@ -3607,11 +3608,11 @@
        "volume_24h_usd": "964612"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "change_percentage": "0.18",
@@ -3638,93 +3639,93 @@
        "volume_24h_usd": "964612"
       }
      ],
-     "queryString": "contract=BTC_USD",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USD"
     }
    ]
   },
   "/api/v4/futures/btc/trades": {
    "GET": [
     {
-     "data": [],
-     "queryString": "contract=BTC_USD",
      "bodyParams": "",
-     "headers": {}
+     "data": [],
+     "headers": {},
+     "queryString": "contract=BTC_USD"
     }
    ]
   },
   "/api/v4/futures/usdt/autoorder/v1/chase/detail": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
-      "id": 1,
-      "contract": "BTC_USDT",
       "amount": 1,
       "chase_price": "67900.1",
+      "contract": "BTC_USDT",
+      "create_time": 1774991579,
+      "finish_as": "",
+      "finish_time": 0,
+      "id": 1,
       "interval_sec": 5,
-      "suborder_id": 100,
-      "suborder_size": 1,
-      "suborder_left": 0,
-      "price_type": 0,
+      "is_dual_mode": false,
+      "offset_limit": "0",
+      "pos_margin_mode": "cross",
       "price_gap_type": 0,
       "price_gap_value": "0",
       "price_limit": "68000",
-      "offset_limit": "0",
-      "status": "open",
-      "finish_as": "",
+      "price_type": 0,
       "reduce_only": false,
-      "is_dual_mode": false,
-      "pos_margin_mode": "cross",
       "side": "buy",
-      "text": "t-abc",
-      "create_time": 1774991579,
-      "finish_time": 0
+      "status": "open",
+      "suborder_id": 100,
+      "suborder_left": 0,
+      "suborder_size": 1,
+      "text": "t-abc"
      },
-     "queryString": "id=1",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "id=1"
     }
    ]
   },
   "/api/v4/futures/usdt/autoorder/v1/chase/list": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "id": 1,
-       "contract": "BTC_USDT",
        "amount": 1,
        "chase_price": "67900.1",
+       "contract": "BTC_USDT",
+       "create_time": 1774991579,
+       "finish_as": "",
+       "finish_time": 0,
+       "id": 1,
        "interval_sec": 5,
-       "suborder_id": 100,
-       "suborder_size": 1,
-       "suborder_left": 0,
-       "price_type": 0,
+       "is_dual_mode": false,
+       "offset_limit": "0",
+       "pos_margin_mode": "cross",
        "price_gap_type": 0,
        "price_gap_value": "0",
        "price_limit": "68000",
-       "offset_limit": "0",
-       "status": "open",
-       "finish_as": "",
+       "price_type": 0,
        "reduce_only": false,
-       "is_dual_mode": false,
-       "pos_margin_mode": "cross",
        "side": "buy",
-       "text": "t-abc",
-       "create_time": 1774991579,
-       "finish_time": 0
+       "status": "open",
+       "suborder_id": 100,
+       "suborder_left": 0,
+       "suborder_size": 1,
+       "text": "t-abc"
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026is_finished=1\u0026page_num=1\u0026page_size=100\u0026sort_by=1",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&is_finished=1&page_num=1&page_size=100&sort_by=1"
     }
    ]
   },
   "/api/v4/futures/usdt/candlesticks": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "65984.9",
@@ -3754,11 +3755,11 @@
        "v": 566916395
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1774793965\u0026interval=1d\u0026to=1774966765",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1774793965&interval=1d&to=1774966765"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "66539.3",
@@ -3806,11 +3807,11 @@
        "v": 163314
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1774795440\u0026interval=1m\u0026to=1774855440",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1774795440&interval=1m&to=1774855440"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "67274",
@@ -3858,11 +3859,11 @@
        "v": 294901
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1774855440\u0026interval=1m\u0026to=1774915440",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1774855440&interval=1m&to=1774915440"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "66784.9",
@@ -3910,11 +3911,11 @@
        "v": 650169
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1774915440\u0026interval=1m\u0026to=1774968300",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1774915440&interval=1m&to=1774968300"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "65984.9",
@@ -3944,11 +3945,11 @@
        "v": 596914184
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1774795469\u0026interval=1d\u0026to=1774968269",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1774795469&interval=1d&to=1774968269"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "65984.9",
@@ -3978,11 +3979,11 @@
        "v": 667023409
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1774797662\u0026interval=1d\u0026to=1774970462",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1774797662&interval=1d&to=1774970462"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "66520",
@@ -4030,11 +4031,11 @@
        "v": 1463936
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1774797660\u0026interval=1m\u0026to=1774857660",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1774797660&interval=1m&to=1774857660"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "67630.1",
@@ -4082,11 +4083,11 @@
        "v": 2354842
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1774857660\u0026interval=1m\u0026to=1774917660",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1774857660&interval=1m&to=1774917660"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "66927.9",
@@ -4116,11 +4117,11 @@
        "v": 293035397
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1775246494\u0026interval=1d\u0026to=1775419294",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1775246494&interval=1d&to=1775419294"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "66842",
@@ -4168,11 +4169,11 @@
        "v": 7588
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1775246460\u0026interval=1m\u0026to=1775306460",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1775246460&interval=1m&to=1775306460"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "67051.8",
@@ -4220,11 +4221,11 @@
        "v": 110003
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1775306460\u0026interval=1m\u0026to=1775366460",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1775306460&interval=1m&to=1775366460"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "67034.3",
@@ -4272,11 +4273,11 @@
        "v": 60092
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1775366460\u0026interval=1m\u0026to=1775419320",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1775366460&interval=1m&to=1775419320"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "66890.7",
@@ -4324,11 +4325,11 @@
        "v": 90031
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1775250900\u0026interval=1m\u0026to=1775310900",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1775250900&interval=1m&to=1775310900"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "67180",
@@ -4376,11 +4377,11 @@
        "v": 99699
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1775310900\u0026interval=1m\u0026to=1775370900",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1775310900&interval=1m&to=1775370900"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "66766.5",
@@ -4428,11 +4429,11 @@
        "v": 244605
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1775370900\u0026interval=1m\u0026to=1775423760",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1775370900&interval=1m&to=1775423760"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "66927.9",
@@ -4462,11 +4463,11 @@
        "v": 314984439
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1775251164\u0026interval=1d\u0026to=1775423964",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1775251164&interval=1d&to=1775423964"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "66847.9",
@@ -4514,11 +4515,11 @@
        "v": 7534
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1775251140\u0026interval=1m\u0026to=1775311140",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1775251140&interval=1m&to=1775311140"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "67165.8",
@@ -4566,11 +4567,11 @@
        "v": 97055
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1775311140\u0026interval=1m\u0026to=1775371140",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1775311140&interval=1m&to=1775371140"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "66785",
@@ -4618,11 +4619,11 @@
        "v": 37933
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1775371140\u0026interval=1m\u0026to=1775424000",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1775371140&interval=1m&to=1775424000"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "66173.3",
@@ -4670,11 +4671,11 @@
        "v": 577233221
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026interval=7d",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&interval=7d"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "79948.1",
@@ -4722,11 +4723,11 @@
        "v": 94167913
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1744099200\u0026interval=4h\u0026to=1744200000",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1744099200&interval=4h&to=1744200000"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "76303.1",
@@ -4747,43 +4748,43 @@
        "v": 566153127
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1744103854\u0026interval=1d\u0026to=1744190254",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1744103854&interval=1d&to=1744190254"
     }
    ]
   },
   "/api/v4/futures/usdt/contract_stats": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "time": 1774966920,
-       "lsr_taker": 0.7998239573691359,
-       "lsr_account": 1.584655572755418,
        "long_liq_size": 0,
-       "short_liq_size": 0,
+       "lsr_account": 1.584655572755418,
+       "lsr_taker": 0.7998239573691359,
+       "mark_price": 67653.45,
        "open_interest": 587202544,
        "open_interest_usd": 3972627795.03768,
-       "mark_price": 67653.45,
-       "top_lsr_size": 1.0448598856547422,
-       "top_lsr_account": 0.5405405405405405
+       "short_liq_size": 0,
+       "time": 1774966920,
+       "top_lsr_account": 0.5405405405405405,
+       "top_lsr_size": 1.0448598856547422
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026limit=1",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&limit=1"
     },
     {
+     "bodyParams": "",
      "data": {
       "label": "INVALID_PARAM_VALUE",
       "message": "from time exceeds 180-day limit"
      },
-     "queryString": "contract=BTC_USDT\u0026from=1744103854\u0026interval=1m\u0026limit=100",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1744103854&interval=1m&limit=100"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "long_liq_amount": 0,
@@ -4916,15 +4917,15 @@
        "top_short_size": 34571528
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1780846985\u0026interval=1m\u0026limit=100",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1780846985&interval=1m&limit=100"
     }
    ]
   },
   "/api/v4/futures/usdt/contracts": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "config_change_time": 1774162712,
@@ -5257,15 +5258,15 @@
        "voucher_leverage": "0"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/futures/usdt/contracts/BTC_USDT": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "config_change_time": 1770798325,
       "contract_type": "",
@@ -5321,15 +5322,15 @@
       "type": "direct",
       "voucher_leverage": "2"
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/futures/usdt/funding_rate": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "r": "-0.000449",
@@ -5352,11 +5353,11 @@
        "t": 1774954800
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026limit=1000",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&limit=1000"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "r": "0.000001",
@@ -5379,15 +5380,15 @@
        "t": 1775289601
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026limit=10",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&limit=10"
     }
    ]
   },
   "/api/v4/futures/usdt/index_constituents/BTC_USDT": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "constituents": [
        {
@@ -5423,15 +5424,15 @@
       ],
       "index": "BTC_USDT"
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/futures/usdt/insurance": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "b": 132672449.967292,
@@ -5454,51 +5455,51 @@
        "t": 1775001600
       }
      ],
-     "queryString": "limit=10",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "limit=10"
     }
    ]
   },
   "/api/v4/futures/usdt/liq_orders": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "label": "INVALID_PARAM_VALUE",
       "message": "range from/to must in 1 hour"
      },
-     "queryString": "contract=BTC_USDT\u0026from=1774797679\u0026limit=100\u0026to=1774970479",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1774797679&limit=100&to=1774970479"
     },
     {
+     "bodyParams": "",
      "data": {
       "label": "INVALID_PARAM_VALUE",
       "message": "range from/to must in 1 hour"
      },
-     "queryString": "contract=BTC_USDT\u0026from=1774818625\u0026limit=100\u0026to=1774991425",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1774818625&limit=100&to=1774991425"
     },
     {
+     "bodyParams": "",
      "data": {
       "label": "INVALID_PARAM_VALUE",
       "message": "range from/to must in 1 hour"
      },
-     "queryString": "contract=BTC_USDT\u0026from=1774818685\u0026limit=100\u0026to=1774991485",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1774818685&limit=100&to=1774991485"
     },
     {
+     "bodyParams": "",
      "data": {
       "label": "INVALID_PARAM_VALUE",
       "message": "range from/to must in 1 hour"
      },
-     "queryString": "contract=BTC_USDT\u0026from=1774818814\u0026limit=100\u0026to=1774991614",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1774818814&limit=100&to=1774991614"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "contract": "BTC_USDT",
@@ -5528,11 +5529,11 @@
        "time": 1774990056
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1774989904\u0026limit=100\u0026to=1774991704",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1774989904&limit=100&to=1774991704"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "contract": "BTC_USDT",
@@ -5562,11 +5563,11 @@
        "time": 1774990056
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1774989950\u0026limit=100\u0026to=1774991750",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1774989950&limit=100&to=1774991750"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "contract": "BTC_USDT",
@@ -5605,15 +5606,15 @@
        "time": 1775422436
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1775422171\u0026limit=100\u0026to=1775423971",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1775422171&limit=100&to=1775423971"
     }
    ]
   },
   "/api/v4/futures/usdt/order_book": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "asks": [
        {
@@ -5663,11 +5664,11 @@
       "id": 116388268171,
       "update": 1775423973.949
      },
-     "queryString": "contract=BTC_USDT\u0026limit=1\u0026with_id=true",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&limit=1&with_id=true"
     },
     {
+     "bodyParams": "",
      "data": {
       "asks": [
        {
@@ -5717,11 +5718,11 @@
       "id": 116388268171,
       "update": 1775423973.949
      },
-     "queryString": "contract=BTC_USDT\u0026with_id=true",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&with_id=true"
     },
     {
+     "bodyParams": "",
      "data": {
       "asks": [
        {
@@ -5770,11 +5771,11 @@
       "current": 1775423973.95,
       "update": 1775423973.949
      },
-     "queryString": "contract=BTC_USDT\u0026limit=10",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&limit=10"
     },
     {
+     "bodyParams": "",
      "data": {
       "asks": [
        {
@@ -5824,56 +5825,56 @@
       "id": 116388268171,
       "update": 1781709835.769
      },
-     "queryString": "contract=BTC_USDT\u0026limit=20\u0026with_id=true",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&limit=20&with_id=true"
     }
    ]
   },
   "/api/v4/futures/usdt/premium_index": {
    "GET": [
     {
-     "data": null,
-     "queryString": "contract=BTC_USDT\u0026from=-62135596800\u0026interval=7d\u0026to=-62135596800",
      "bodyParams": "",
-     "headers": {}
+     "data": null,
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=-62135596800&interval=7d&to=-62135596800"
     },
     {
+     "bodyParams": "",
      "data": {
       "label": "INTERNAL",
       "message": "Request Timeout"
      },
-     "queryString": "contract=BTC_USDT\u0026interval=7d",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&interval=7d"
     },
     {
+     "bodyParams": "",
      "data": {
       "label": "CONTRACT_NOT_FOUND"
      },
-     "queryString": "contract=BTCUSDT\u0026interval=7d",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTCUSDT&interval=7d"
     },
     {
+     "bodyParams": "",
      "data": {
       "label": "INVALID_PARAM_VALUE",
       "message": "from time exceeds 180-day limit"
      },
-     "queryString": "contract=BTC_USDT\u0026from=1744103854\u0026interval=7d\u0026to=1744190254",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1744103854&interval=7d&to=1744190254"
     },
     {
+     "bodyParams": "",
      "data": {
       "label": "INVALID_PARAM_VALUE",
       "message": "from time exceeds 180-day limit"
      },
-     "queryString": "contract=BTC_USDT\u0026from=1744103854\u0026interval=7d\u0026limit=1\u0026to=1744190254",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1744103854&interval=7d&limit=1&to=1744190254"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "-0.00051958188047529567",
@@ -5897,11 +5898,11 @@
        "t": 1781481600
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1780581847\u0026interval=7d\u0026to=1781791447",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1780581847&interval=7d&to=1781791447"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "-0.00059881424127876895",
@@ -5918,11 +5919,11 @@
        "t": 1781481600
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026interval=7d\u0026limit=1",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&interval=7d&limit=1"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "-0.00051958188047529567",
@@ -5939,42 +5940,42 @@
        "t": 1780876800
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1780581847\u0026interval=7d\u0026limit=1\u0026to=1781791447",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1780581847&interval=7d&limit=1&to=1781791447"
     }
    ]
   },
   "/api/v4/futures/usdt/risk_limit_table": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "tier": 1,
-       "risk_limit": "10000",
+       "deduction": "0",
        "initial_rate": "0.025",
-       "maintenance_rate": "0.015",
        "leverage_max": "40",
-       "deduction": "0"
+       "maintenance_rate": "0.015",
+       "risk_limit": "10000",
+       "tier": 1
       },
       {
-       "tier": 2,
-       "risk_limit": "30000",
+       "deduction": "50",
        "initial_rate": "0.03333",
-       "maintenance_rate": "0.02",
        "leverage_max": "30",
-       "deduction": "50"
+       "maintenance_rate": "0.02",
+       "risk_limit": "30000",
+       "tier": 2
       }
      ],
-     "queryString": "table_id=BTC_USDT_20260626",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "table_id=BTC_USDT_20260626"
     }
    ]
   },
   "/api/v4/futures/usdt/risk_limit_tiers": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "deduction": "0",
@@ -5985,11 +5986,11 @@
        "tier": 1
       }
      ],
-     "queryString": "contract=BTC_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "deduction": "0",
@@ -6000,11 +6001,11 @@
        "tier": 1
       }
      ],
-     "queryString": "limit=10\u0026offset=10",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "limit=10&offset=10"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "deduction": "0",
@@ -6047,15 +6048,15 @@
        "tier": 5
       }
      ],
-     "queryString": "contract=BTC_USDT\u0026from=1\u0026limit=10",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT&from=1&limit=10"
     }
    ]
   },
   "/api/v4/futures/usdt/tickers": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "change_percentage": "-0.31",
@@ -6168,11 +6169,11 @@
        "volume_24h_settle": "6683"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "change_percentage": "0.37",
@@ -6197,15 +6198,15 @@
        "volume_24h_settle": "2196541426"
       }
      ],
-     "queryString": "contract=BTC_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT"
     }
    ]
   },
   "/api/v4/futures/usdt/trades": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "contract": "BTC_USDT",
@@ -6248,16 +6249,23 @@
        "size": 1467
       }
      ],
-     "queryString": "contract=BTC_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT"
     }
    ]
   },
   "/api/v4/loan/multi_collateral/currencies": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
+      "collateral_currencies": [
+       {
+        "currency": "BTC",
+        "discount": "0.7",
+        "index_price": "1212"
+       }
+      ],
       "loan_currencies": [
        {
         "currency": "BTC",
@@ -6267,42 +6275,35 @@
         "currency": "GT",
         "price": "12"
        }
-      ],
-      "collateral_currencies": [
-       {
-        "currency": "BTC",
-        "index_price": "1212",
-        "discount": "0.7"
-       }
       ]
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/loan/multi_collateral/currency_quota": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "currency": "BTC",
        "index_price": "37510.24",
-       "min_quota": "0.001",
        "left_quota": "1000",
-       "left_quote_with_max": "500"
+       "left_quote_with_max": "500",
+       "min_quota": "0.001"
       }
      ],
-     "queryString": "currency=BTC\u0026currency_type=collateral",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency=BTC&currency_type=collateral"
     }
    ]
   },
   "/api/v4/loan/multi_collateral/current_rate": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "currency": "BTC",
@@ -6313,248 +6314,414 @@
        "current_rate": "0.000015"
       }
      ],
-     "queryString": "currencies=BTC%2CGT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currencies=BTC%2CGT"
     }
    ]
   },
   "/api/v4/loan/multi_collateral/fixed_rate": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "currency": "BTC",
-       "rate_7d": "0.000023",
        "rate_30d": "0.1",
+       "rate_7d": "0.000023",
        "update_time": 1703820105
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/loan/multi_collateral/ltv": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
-      "init_ltv": "0.7",
       "alert_ltv": "0.8",
+      "init_ltv": "0.7",
       "liquidate_ltv": "0.9"
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/margin/account_book": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
+       "balance": "4.59921",
+       "change": "-1.0",
+       "currency": "BTC",
+       "currency_pair": "BTC_USDT",
        "id": "12456",
        "time": "1547633726523",
        "time_ms": 1547633726523,
-       "currency": "BTC",
-       "currency_pair": "BTC_USDT",
-       "change": "-1.0",
-       "balance": "4.59921",
        "type": "platform"
       }
      ],
-     "queryString": "currency=BTC\u0026currency_pair=BTC_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency=BTC&currency_pair=BTC_USDT"
     },
     {
+     "bodyParams": "",
      "data": [
       {
+       "balance": "4.59921",
+       "change": "-1.0",
+       "currency": "BTC",
+       "currency_pair": "BTC_USDT",
        "id": "12456",
        "time": "1547633726523",
        "time_ms": 1547633726523,
-       "currency": "BTC",
-       "currency_pair": "BTC_USDT",
-       "change": "-1.0",
-       "balance": "4.59921",
        "type": "platform"
       }
      ],
-     "queryString": "currency=BTC\u0026currency_pair=BTC_USDT\u0026from=1744103854\u0026limit=100\u0026page=1\u0026to=1744190254",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency=BTC&currency_pair=BTC_USDT&from=1744103854&limit=100&page=1&to=1744190254"
     }
    ]
   },
   "/api/v4/margin/accounts": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
+       "base": {
+        "available": "0.05",
+        "borrowed": "0",
+        "currency": "BTC",
+        "interest": "0",
+        "locked": "0"
+       },
        "currency_pair": "BTC_USDT",
        "locked": false,
-       "risk": "0.90",
-       "base": {
-        "currency": "BTC",
-        "available": "0.05",
-        "locked": "0",
-        "borrowed": "0",
-        "interest": "0"
-       },
        "quote": {
-        "currency": "USDT",
         "available": "1000",
-        "locked": "0",
         "borrowed": "0",
-        "interest": "0"
-       }
+        "currency": "USDT",
+        "interest": "0",
+        "locked": "0"
+       },
+       "risk": "0.90"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     },
     {
+     "bodyParams": "",
      "data": [
       {
+       "base": {
+        "available": "0.05",
+        "borrowed": "0",
+        "currency": "BTC",
+        "interest": "0",
+        "locked": "0"
+       },
        "currency_pair": "BTC_USDT",
        "locked": false,
-       "risk": "0.90",
-       "base": {
-        "currency": "BTC",
-        "available": "0.05",
-        "locked": "0",
-        "borrowed": "0",
-        "interest": "0"
-       },
        "quote": {
-        "currency": "USDT",
         "available": "1000",
-        "locked": "0",
         "borrowed": "0",
-        "interest": "0"
-       }
+        "currency": "USDT",
+        "interest": "0",
+        "locked": "0"
+       },
+       "risk": "0.90"
       }
      ],
-     "queryString": "currency_pair=BTC_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency_pair=BTC_USDT"
     }
    ]
   },
   "/api/v4/margin/auto_repay": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "status": "on"
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ],
    "POST": [
     {
+     "bodyParams": "",
      "data": {
       "status": "on"
      },
-     "queryString": "",
+     "headers": {},
+     "queryString": ""
+    }
+   ]
+  },
+  "/api/v4/margin/cross/currencies": {
+   "GET": [
+    {
      "bodyParams": "",
-     "headers": {}
+     "data": [
+      {
+       "discount": "1",
+       "loanable": true,
+       "min_borrow_amount": "0.01",
+       "name": "BTC",
+       "prec": "0.000001",
+       "price": "1",
+       "rate": "0.0002",
+       "status": 1,
+       "total_max_borrow_amount": "10000000",
+       "user_max_borrow_amount": "1000000"
+      },
+      {
+       "discount": "1",
+       "loanable": true,
+       "min_borrow_amount": "3",
+       "name": "USDT",
+       "prec": "0.000001",
+       "price": "1",
+       "rate": "0.0002",
+       "status": 1,
+       "total_max_borrow_amount": "10000000",
+       "user_max_borrow_amount": "1000000"
+      },
+      {
+       "discount": "1",
+       "loanable": true,
+       "min_borrow_amount": "0.01",
+       "name": "ALEPH",
+       "prec": "0.000001",
+       "price": "1",
+       "rate": "0.0002",
+       "status": 1,
+       "total_max_borrow_amount": "10000000",
+       "user_max_borrow_amount": "1000000"
+      },
+      {
+       "discount": "1",
+       "loanable": true,
+       "min_borrow_amount": "1",
+       "name": "ORNJ",
+       "prec": "0.000001",
+       "price": "1",
+       "rate": "0.0002",
+       "status": 1,
+       "total_max_borrow_amount": "10000000",
+       "user_max_borrow_amount": "1000000"
+      },
+      {
+       "discount": "1",
+       "loanable": true,
+       "min_borrow_amount": "0.01",
+       "name": "POOL",
+       "prec": "0.000001",
+       "price": "1",
+       "rate": "0.0002",
+       "status": 1,
+       "total_max_borrow_amount": "10000000",
+       "user_max_borrow_amount": "1000000"
+      },
+      {
+       "discount": "1",
+       "loanable": true,
+       "min_borrow_amount": "1",
+       "name": "PEIPEI",
+       "prec": "0.000001",
+       "price": "1",
+       "rate": "0.0002",
+       "status": 1,
+       "total_max_borrow_amount": "10000000",
+       "user_max_borrow_amount": "1000000"
+      },
+      {
+       "discount": "1",
+       "loanable": true,
+       "min_borrow_amount": "0.01",
+       "name": "ACN3S",
+       "prec": "0.000001",
+       "price": "1",
+       "rate": "0.0002",
+       "status": 1,
+       "total_max_borrow_amount": "10000000",
+       "user_max_borrow_amount": "1000000"
+      }
+     ],
+     "headers": null,
+     "queryString": ""
+    }
+   ]
+  },
+  "/api/v4/margin/currency_pairs": {
+   "GET": [
+    {
+     "bodyParams": "",
+     "data": [
+      {
+       "base": "BTC",
+       "id": "BTC_USDT",
+       "leverage": "3",
+       "max_quote_amount": "5000000",
+       "min_base_amount": "0.01",
+       "min_quote_amount": "3",
+       "quote": "USDT",
+       "status": 1
+      },
+      {
+       "base": "ALEPH",
+       "id": "ALEPH_USDT",
+       "leverage": "3",
+       "max_quote_amount": "5000000",
+       "min_base_amount": "0.01",
+       "min_quote_amount": "3",
+       "quote": "USDT",
+       "status": 1
+      },
+      {
+       "base": "ORNJ",
+       "id": "ORNJ_USDT",
+       "leverage": "3",
+       "max_quote_amount": "5000000",
+       "min_base_amount": "1",
+       "min_quote_amount": "3",
+       "quote": "USDT",
+       "status": 1
+      },
+      {
+       "base": "POOL",
+       "id": "POOL_USDT",
+       "leverage": "3",
+       "max_quote_amount": "5000000",
+       "min_base_amount": "0.01",
+       "min_quote_amount": "3",
+       "quote": "USDT",
+       "status": 1
+      },
+      {
+       "base": "PEIPEI",
+       "id": "PEIPEI_USDT",
+       "leverage": "3",
+       "max_quote_amount": "5000000",
+       "min_base_amount": "1",
+       "min_quote_amount": "3",
+       "quote": "USDT",
+       "status": 1
+      },
+      {
+       "base": "ACN3S",
+       "id": "ACN3S_USDT",
+       "leverage": "3",
+       "max_quote_amount": "5000000",
+       "min_base_amount": "0.01",
+       "min_quote_amount": "3",
+       "quote": "USDT",
+       "status": 1
+      }
+     ],
+     "headers": null,
+     "queryString": ""
     }
    ]
   },
   "/api/v4/margin/funding_accounts": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "currency": "BTC",
        "available": "1.238",
-       "locked": "0",
+       "currency": "BTC",
        "lent": "3.32",
+       "locked": "0",
        "total_lent": "3.32"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     },
     {
+     "bodyParams": "",
      "data": [
       {
-       "currency": "BTC",
        "available": "1.238",
-       "locked": "0",
+       "currency": "BTC",
        "lent": "3.32",
+       "locked": "0",
        "total_lent": "3.32"
       }
      ],
-     "queryString": "currency=BTC",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency=BTC"
     }
    ]
   },
   "/api/v4/margin/leverage/user_market_setting": {
    "POST": [
     {
-     "data": null,
-     "queryString": "",
      "bodyParams": "",
-     "headers": {}
+     "data": null,
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/margin/loan_margin_tiers": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "tier_amount": "100",
+       "leverage": "1",
        "mmr": "0.9",
-       "leverage": "1"
+       "tier_amount": "100"
       }
      ],
-     "queryString": "currency_pair=BTC_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency_pair=BTC_USDT"
     }
    ]
   },
   "/api/v4/margin/transferable": {
    "GET": [
     {
-     "data": {
-      "currency": "ETH",
-      "currency_pair": "ETH_USDT",
-      "amount": "10000"
-     },
-     "queryString": "currency=BTC\u0026currency_pair=BTC_USDT",
      "bodyParams": "",
-     "headers": {}
+     "data": {
+      "amount": "10000",
+      "currency": "ETH",
+      "currency_pair": "ETH_USDT"
+     },
+     "headers": {},
+     "queryString": "currency=BTC&currency_pair=BTC_USDT"
     }
    ]
   },
   "/api/v4/margin/uni/borrowable": {
    "GET": [
     {
-     "data": {
-       "currency": "BTC",
-       "borrowable": "1123.344",
-       "currency_pair": "BTC_USDT"
-      },
-     "queryString": "currency=BTC\u0026currency_pair=BTC_USDT",
      "bodyParams": "",
-     "headers": {}
+     "data": {
+      "borrowable": "1123.344",
+      "currency": "BTC",
+      "currency_pair": "BTC_USDT"
+     },
+     "headers": {},
+     "queryString": "currency=BTC&currency_pair=BTC_USDT"
     }
    ]
   },
   "/api/v4/margin/uni/currency_pairs": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "base_min_borrow_amount": "8",
@@ -6587,214 +6754,214 @@
        "quote_min_borrow_amount": "1"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/margin/uni/currency_pairs/BTC_USDT": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "base_min_borrow_amount": "0.00001",
       "currency_pair": "BTC_USDT",
       "leverage": "10",
       "quote_min_borrow_amount": "1"
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/margin/uni/estimate_rate": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "BTC": "0.000002",
       "GT": "0.0000001"
      },
-     "queryString": "currencies=BTC",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currencies=BTC"
     }
    ]
   },
   "/api/v4/margin/uni/interest_records": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "status": 1,
-       "currency_pair": "BTC_USDT",
-       "currency": "BTC",
        "actual_rate": "0.00000813",
+       "create_time": 1673247054000,
+       "currency": "BTC",
+       "currency_pair": "BTC_USDT",
        "interest": "0.0000001",
-       "type": "platform",
-       "create_time": 1673247054000
+       "status": 1,
+       "type": "platform"
       }
      ],
-     "queryString": "currency=BTC\u0026currency_pair=BTC_USDT\u0026limit=10\u0026page=1",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency=BTC&currency_pair=BTC_USDT&limit=10&page=1"
     },
     {
+     "bodyParams": "",
      "data": [
       {
-       "status": 1,
-       "currency_pair": "BTC_USDT",
-       "currency": "BTC",
        "actual_rate": "0.00000813",
+       "create_time": 1673247054000,
+       "currency": "BTC",
+       "currency_pair": "BTC_USDT",
        "interest": "0.0000001",
-       "type": "platform",
-       "create_time": 1673247054000
+       "status": 1,
+       "type": "platform"
       }
      ],
-     "queryString": "currency=BTC\u0026currency_pair=BTC_USDT\u0026from=1744103854\u0026limit=10\u0026page=1\u0026to=1744190254",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency=BTC&currency_pair=BTC_USDT&from=1744103854&limit=10&page=1&to=1744190254"
     }
    ]
   },
   "/api/v4/margin/uni/loan_records": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "type": "borrow",
-       "currency_pair": "BTC_USDT",
-       "currency": "BTC",
        "amount": "1000",
-       "create_time": 1673247054000
+       "create_time": 1673247054000,
+       "currency": "BTC",
+       "currency_pair": "BTC_USDT",
+       "type": "borrow"
       }
      ],
-     "queryString": "currency=BTC\u0026currency_pair=BTC_USDT\u0026limit=100\u0026page=1\u0026type=borrow",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency=BTC&currency_pair=BTC_USDT&limit=100&page=1&type=borrow"
     }
    ]
   },
   "/api/v4/margin/uni/loans": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
+       "amount": "1",
+       "change_time": 1673247054000,
+       "create_time": 1673247054000,
        "currency": "USDT",
        "currency_pair": "GT_USDT",
-       "amount": "1",
-       "type": "margin",
-       "change_time": 1673247054000,
-       "create_time": 1673247054000
+       "type": "margin"
       }
      ],
-     "queryString": "currency=BTC\u0026currency_pair=BTC_USDT\u0026limit=100\u0026page=1",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency=BTC&currency_pair=BTC_USDT&limit=100&page=1"
     }
    ],
    "POST": [
     {
-     "data": null,
-     "queryString": "",
      "bodyParams": "",
-     "headers": {}
+     "data": null,
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/margin/user/account": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "currency_pair": "BTC_USDT",
        "account_type": "margin",
+       "base": {
+        "available": "0.05",
+        "borrowed": "0",
+        "currency": "BTC",
+        "interest": "0",
+        "locked": "0"
+       },
+       "currency_pair": "BTC_USDT",
        "leverage": 3,
        "locked": false,
-       "risk": "0.90",
        "mmr": "0.03",
-       "base": {
-        "currency": "BTC",
-        "available": "0.05",
-        "locked": "0",
-        "borrowed": "0",
-        "interest": "0"
-       },
        "quote": {
-        "currency": "USDT",
         "available": "1000",
-        "locked": "0",
         "borrowed": "0",
-        "interest": "0"
-       }
+        "currency": "USDT",
+        "interest": "0",
+        "locked": "0"
+       },
+       "risk": "0.90"
       }
      ],
-     "queryString": "currency_pair=BTC_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency_pair=BTC_USDT"
     },
     {
+     "bodyParams": "",
      "data": [
       {
-       "currency_pair": "BTC_USDT",
        "account_type": "margin",
+       "base": {
+        "available": "0.05",
+        "borrowed": "0",
+        "currency": "BTC",
+        "interest": "0",
+        "locked": "0"
+       },
+       "currency_pair": "BTC_USDT",
        "leverage": 3,
        "locked": false,
-       "risk": "0.90",
        "mmr": "0.03",
-       "base": {
-        "currency": "BTC",
-        "available": "0.05",
-        "locked": "0",
-        "borrowed": "0",
-        "interest": "0"
-       },
        "quote": {
-        "currency": "USDT",
         "available": "1000",
-        "locked": "0",
         "borrowed": "0",
-        "interest": "0"
-       }
+        "currency": "USDT",
+        "interest": "0",
+        "locked": "0"
+       },
+       "risk": "0.90"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/margin/user/loan_margin_tiers": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "tier_amount": "100",
+       "leverage": "1",
        "mmr": "0.9",
-       "leverage": "1"
+       "tier_amount": "100"
       }
      ],
-     "queryString": "currency_pair=BTC_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency_pair=BTC_USDT"
     }
    ]
   },
   "/api/v4/options/candlesticks": {
    "GET": [
     {
-     "data": null,
-     "queryString": "contract=BTC_USDT-20260925-75000-P\u0026from=1774797085\u0026interval=30m\u0026limit=1000\u0026to=1774969885",
      "bodyParams": "",
-     "headers": {}
+     "data": null,
+     "headers": {},
+     "queryString": "contract=BTC_USDT-20260925-75000-P&from=1774797085&interval=30m&limit=1000&to=1774969885"
     },
     {
-     "data": null,
-     "queryString": "contract=BTC_USDT-20260925-75000-P\u0026from=1774797671\u0026interval=30m\u0026limit=1000\u0026to=1774970471",
      "bodyParams": "",
-     "headers": {}
+     "data": null,
+     "headers": {},
+     "queryString": "contract=BTC_USDT-20260925-75000-P&from=1774797671&interval=30m&limit=1000&to=1774970471"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "12227",
@@ -6837,21 +7004,21 @@
        "v": 0
       }
      ],
-     "queryString": "contract=BTC_USDT-20260925-75000-P\u0026from=1775251173\u0026interval=30m\u0026limit=1000\u0026to=1775423973",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT-20260925-75000-P&from=1775251173&interval=30m&limit=1000&to=1775423973"
     },
     {
-     "data": [],
-     "queryString": "contract=BTC_USDT-20260925-75000-P\u0026from=1744103854\u0026interval=30m\u0026limit=1000\u0026to=1744190254",
      "bodyParams": "",
-     "headers": {}
+     "data": [],
+     "headers": {},
+     "queryString": "contract=BTC_USDT-20260925-75000-P&from=1744103854&interval=30m&limit=1000&to=1744190254"
     }
    ]
   },
   "/api/v4/options/contracts": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "ask1_price": "5672",
@@ -7100,11 +7267,11 @@
        "underlying_price": "67488.71"
       }
      ],
-     "queryString": "underlying=BTC_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "underlying=BTC_USDT"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "ask1_price": "388.4",
@@ -7312,11 +7479,11 @@
        "underlying_price": "2060.26"
       }
      ],
-     "queryString": "underlying=ETH_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "underlying=ETH_USDT"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "ask1_price": "0",
@@ -7524,11 +7691,11 @@
        "underlying_price": "53.58"
       }
      ],
-     "queryString": "underlying=LTC_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "underlying=LTC_USDT"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "ask1_price": "0",
@@ -7736,11 +7903,11 @@
        "underlying_price": "79.7681"
       }
      ],
-     "queryString": "underlying=SOL_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "underlying=SOL_USDT"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "ask1_price": "0",
@@ -7948,11 +8115,11 @@
        "underlying_price": "0.090345"
       }
      ],
-     "queryString": "underlying=DOGE_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "underlying=DOGE_USDT"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "ask1_price": "0.0293",
@@ -8160,11 +8327,11 @@
        "underlying_price": "0.24275"
       }
      ],
-     "queryString": "underlying=ADA_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "underlying=ADA_USDT"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "ask1_price": "0.124",
@@ -8372,11 +8539,11 @@
        "underlying_price": "1.24485"
       }
      ],
-     "queryString": "underlying=TON_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "underlying=TON_USDT"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "ask1_price": "0",
@@ -8584,11 +8751,11 @@
        "underlying_price": "1.2994"
       }
      ],
-     "queryString": "underlying=XRP_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "underlying=XRP_USDT"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "ask1_price": "58.73",
@@ -8796,11 +8963,11 @@
        "underlying_price": "591.175"
       }
      ],
-     "queryString": "underlying=BNB_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "underlying=BNB_USDT"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "ask1_price": "5.53",
@@ -9008,11 +9175,11 @@
        "underlying_price": "35.829"
       }
      ],
-     "queryString": "underlying=HYPE_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "underlying=HYPE_USDT"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "ask1_price": "0",
@@ -9220,11 +9387,11 @@
        "underlying_price": "0.84785"
       }
      ],
-     "queryString": "underlying=SUI_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "underlying=SUI_USDT"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "ask1_price": "0",
@@ -9432,11 +9599,11 @@
        "underlying_price": "0"
       }
      ],
-     "queryString": "underlying=XAUT_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "underlying=XAUT_USDT"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "ask1_price": "16.86",
@@ -9644,15 +9811,15 @@
        "underlying_price": "112.61"
       }
      ],
-     "queryString": "underlying=XTI_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "underlying=XTI_USDT"
     }
    ]
   },
   "/api/v4/options/contracts/BTC_USDT-20260925-75000-P": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "ask1_price": "12824",
       "ask1_size": 80,
@@ -9694,15 +9861,15 @@
       "underlying": "BTC_USDT",
       "underlying_price": "68398.81"
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/options/expirations": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       1775635200,
       1775548800,
@@ -9715,15 +9882,15 @@
       1776412800,
       1790323200
      ],
-     "queryString": "underlying=BTC_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "underlying=BTC_USDT"
     }
    ]
   },
   "/api/v4/options/order_book": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "asks": [
        {
@@ -9773,11 +9940,11 @@
       "id": 2836984,
       "update": 1774970470.308
      },
-     "queryString": "contract=BTC_USDT-20260925-75000-P\u0026limit=1\u0026with_id=true",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT-20260925-75000-P&limit=1&with_id=true"
     },
     {
+     "bodyParams": "",
      "data": {
       "asks": [
        {
@@ -9827,11 +9994,11 @@
       "id": 2836984,
       "update": 1774970470.308
      },
-     "queryString": "contract=BTC_USDT-20260925-75000-P\u0026interval=0.1\u0026limit=9\u0026with_id=true",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT-20260925-75000-P&interval=0.1&limit=9&with_id=true"
     },
     {
+     "bodyParams": "",
      "data": {
       "asks": [
        {
@@ -9881,15 +10048,15 @@
       "id": 2836984,
       "update": 1774970470.308
      },
-     "queryString": "contract=BTC_USDT-20260925-75000-P\u0026with_id=true",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT-20260925-75000-P&with_id=true"
     }
    ]
   },
   "/api/v4/options/settlements": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "contract": "BTC_USDT-20260405-60000-P",
@@ -9900,11 +10067,11 @@
        "time": 1775376000
       }
      ],
-     "queryString": "limit=1\u0026underlying=BTC_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "limit=1&underlying=BTC_USDT"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "contract": "BTC_USDT-20260405-60000-P",
@@ -9947,15 +10114,15 @@
        "time": 1775376000
       }
      ],
-     "queryString": "underlying=BTC_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "underlying=BTC_USDT"
     }
    ]
   },
   "/api/v4/options/settlements/BTC_USDT-20260331-60000-C": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "contract": "BTC_USDT-20260331-60000-C",
       "fee": "0",
@@ -9964,15 +10131,15 @@
       "strike_price": "60000",
       "time": 1774944000
      },
-     "queryString": "at=1774944000\u0026underlying=BTC_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "at=1774944000&underlying=BTC_USDT"
     }
    ]
   },
   "/api/v4/options/settlements/BTC_USDT-20260405-60000-P": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "contract": "BTC_USDT-20260405-60000-P",
       "fee": "0",
@@ -9981,15 +10148,15 @@
       "strike_price": "60000",
       "time": 1774944000
      },
-     "queryString": "at=1775376000\u0026underlying=BTC_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "at=1775376000&underlying=BTC_USDT"
     }
    ]
   },
   "/api/v4/options/tickers": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "ask1_price": "5672",
@@ -10013,11 +10180,11 @@
        "vega": "2.92983"
       }
      ],
-     "queryString": "underlying=LTC_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "underlying=LTC_USDT"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "ask1_price": "5672",
@@ -10041,11 +10208,11 @@
        "vega": "2.92983"
       }
      ],
-     "queryString": "underlying=ETH_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "underlying=ETH_USDT"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "ask1_price": "5672",
@@ -10153,11 +10320,11 @@
        "vega": "8.21628"
       }
      ],
-     "queryString": "underlying=SOL_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "underlying=SOL_USDT"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "ask1_price": "5672",
@@ -10265,27 +10432,27 @@
        "vega": "8.21628"
       }
      ],
-     "queryString": "underlying=BTC_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "underlying=BTC_USDT"
     }
    ]
   },
   "/api/v4/options/trades": {
    "GET": [
     {
-     "data": null,
-     "queryString": "contract=BTC_USDT-20260925-75000-P\u0026from=1774797064\u0026to=1774969864\u0026type=C",
      "bodyParams": "",
-     "headers": {}
+     "data": null,
+     "headers": {},
+     "queryString": "contract=BTC_USDT-20260925-75000-P&from=1774797064&to=1774969864&type=C"
     },
     {
-     "data": null,
-     "queryString": "contract=BTC_USDT-20260925-75000-P\u0026from=1774797669\u0026to=1774970469\u0026type=C",
      "bodyParams": "",
-     "headers": {}
+     "data": null,
+     "headers": {},
+     "queryString": "contract=BTC_USDT-20260925-75000-P&from=1774797669&to=1774970469&type=C"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "contract": "BTC_USDT-20260925-75000-P",
@@ -10309,11 +10476,11 @@
        "size": -1
       }
      ],
-     "queryString": "contract=BTC_USDT-20260925-75000-P",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT-20260925-75000-P"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "contract": "BTC_USDT-20260925-75000-P",
@@ -10323,21 +10490,21 @@
        "size": -1
       }
      ],
-     "queryString": "contract=BTC_USDT-20260925-75000-P\u0026from=1775251168\u0026to=1775423968\u0026type=C",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "contract=BTC_USDT-20260925-75000-P&from=1775251168&to=1775423968&type=C"
     },
     {
-     "data": [],
-     "queryString": "contract=BTC_USDT-20260925-75000-P\u0026from=1744103854\u0026to=1744190254\u0026type=C",
      "bodyParams": "",
-     "headers": {}
+     "data": [],
+     "headers": {},
+     "queryString": "contract=BTC_USDT-20260925-75000-P&from=1744103854&to=1744190254&type=C"
     }
    ]
   },
   "/api/v4/options/underlying/candlesticks": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "c": "67264.82",
@@ -10354,29 +10521,29 @@
        "t": 1772928000
       }
      ],
-     "queryString": "interval=30d\u0026underlying=BTC_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "interval=30d&underlying=BTC_USDT"
     }
    ]
   },
   "/api/v4/options/underlying/tickers/BTC_USDT": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "index_price": "67503.71",
       "trade_call": 1345,
       "trade_put": 278
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/options/underlyings": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "index_price": "67504.01",
@@ -10404,15 +10571,15 @@
        "name": "DOGE_USDT"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/otc/order/list": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "code": 0,
       "data": {
@@ -10425,8 +10592,6 @@
       "message": "success",
       "timestamp": 1781797045
      },
-     "queryString": "crypto_currency=USDT\u0026end_time=1781797045\u0026pn=1\u0026ps=10\u0026start_time=1781624245\u0026type=BUY",
-     "bodyParams": "",
      "headers": {
       "Accept": [
        "application/json"
@@ -10443,9 +10608,11 @@
       "Timestamp": [
        "1781797045"
       ]
-     }
+     },
+     "queryString": "crypto_currency=USDT&end_time=1781797045&pn=1&ps=10&start_time=1781624245&type=BUY"
     },
     {
+     "bodyParams": "",
      "data": {
       "code": 0,
       "data": {
@@ -10458,8 +10625,6 @@
       "message": "success",
       "timestamp": 1781797170
      },
-     "queryString": "crypto_currency=USDT\u0026end_time=1744190254\u0026pn=1\u0026ps=10\u0026start_time=1744103854\u0026type=BUY",
-     "bodyParams": "",
      "headers": {
       "Accept": [
        "application/json"
@@ -10476,222 +10641,224 @@
       "Timestamp": [
        "1781797170"
       ]
-     }
+     },
+     "queryString": "crypto_currency=USDT&end_time=1744190254&pn=1&ps=10&start_time=1744103854&type=BUY"
     }
    ]
   },
   "/api/v4/rebate/agency/commission_history": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "currency_pair": "BTC_USDT",
-      "total": 1,
       "list": [
        {
-        "commission_time": 1715864142,
-        "user_id": 10000001,
-        "group_name": "group_a",
         "commission_amount": "12.5",
         "commission_asset": "USDT",
-        "source": "SPOT"
+        "commission_time": 1715864142,
+        "group_name": "group_a",
+        "source": "SPOT",
+        "user_id": 10000001
        }
-      ]
+      ],
+      "total": 1
      },
-     "queryString": "commission_type=1\u0026currency=USDT\u0026from=1744103854\u0026limit=10\u0026to=1744190254",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "commission_type=1&currency=USDT&from=1744103854&limit=10&to=1744190254"
     }
    ]
   },
   "/api/v4/rebate/agency/transaction_history": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "currency_pair": "BTC_USDT",
-      "total": 1,
       "list": [
        {
-        "transaction_time": 1715864142,
-        "user_id": 10000001,
-        "group_name": "group_a",
-        "fee": "0.65",
-        "fee_asset": "USDT",
-        "currency_pair": "BTC_USDT",
         "amount": "1500.5",
         "amount_asset": "USDT",
-        "source": "SPOT"
+        "currency_pair": "BTC_USDT",
+        "fee": "0.65",
+        "fee_asset": "USDT",
+        "group_name": "group_a",
+        "source": "SPOT",
+        "transaction_time": 1715864142,
+        "user_id": 10000001
        }
-      ]
+      ],
+      "total": 1
      },
-     "queryString": "currency_pair=BTC_USDT\u0026from=1744103854\u0026limit=10\u0026to=1744190254",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency_pair=BTC_USDT&from=1744103854&limit=10&to=1744190254"
     }
    ]
   },
   "/api/v4/rebate/broker/commission_history": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
-      "total": 1,
       "list": [
        {
-        "commission_time": 1715864142,
-        "user_id": 10000001,
-        "group_name": "group_a",
+        "alpha_contract_addr": "",
         "amount": "1500.5",
+        "commission_time": 1715864142,
+        "currency_pair": "BTC_USDT",
         "fee": "0.65",
         "fee_asset": "USDT",
+        "group_name": "group_a",
         "rebate_fee": "0.32",
         "source": "Spot",
-        "currency_pair": "BTC_USDT",
         "sub_broker_info": {
-         "user_id": 20000002,
+         "commission_rate": "0.0004",
          "original_commission_rate": "0.0008",
          "relative_commission_rate": "0.5",
-         "commission_rate": "0.0004"
+         "user_id": 20000002
         },
-        "alpha_contract_addr": ""
+        "user_id": 10000001
        }
-      ]
+      ],
+      "total": 1
      },
-     "queryString": "from=1744103854\u0026limit=1\u0026offset=100\u0026to=1744190254\u0026user_id=12312312",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "from=1744103854&limit=1&offset=100&to=1744190254&user_id=12312312"
     }
    ]
   },
   "/api/v4/rebate/broker/transaction_history": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
-      "total": 1,
       "list": [
        {
-        "transaction_time": 1715864142,
-        "user_id": 10000001,
-        "group_name": "group_a",
-        "fee": "0.65",
-        "currency_pair": "BTC_USDT",
+        "alpha_contract_addr": "",
         "amount": "1500.5",
+        "currency_pair": "BTC_USDT",
+        "fee": "0.65",
         "fee_asset": "USDT",
+        "group_name": "group_a",
         "source": "Spot",
         "sub_broker_info": {
-         "user_id": 20000002,
+         "commission_rate": "0.0004",
          "original_commission_rate": "0.0008",
          "relative_commission_rate": "0.5",
-         "commission_rate": "0.0004"
+         "user_id": 20000002
         },
-        "alpha_contract_addr": ""
+        "transaction_time": 1715864142,
+        "user_id": 10000001
        }
-      ]
+      ],
+      "total": 1
      },
-     "queryString": "from=1744103854\u0026limit=1\u0026offset=100\u0026to=1744190254\u0026user_id=12312312",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "from=1744103854&limit=1&offset=100&to=1744190254&user_id=12312312"
     }
    ]
   },
   "/api/v4/rebate/partner/commission_history": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
-      "total": 1,
       "list": [
        {
-        "commission_time": 1715864142,
-        "user_id": 10000001,
-        "group_name": "group_a",
         "commission_amount": "12.5",
         "commission_asset": "USDT",
-        "source": "SPOT"
+        "commission_time": 1715864142,
+        "group_name": "group_a",
+        "source": "SPOT",
+        "user_id": 10000001
        }
-      ]
+      ],
+      "total": 1
      },
-     "queryString": "currency=USDT\u0026from=1744103854\u0026limit=10\u0026to=1744190254\u0026user_id=10100011213",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency=USDT&from=1744103854&limit=10&to=1744190254&user_id=10100011213"
     }
    ]
   },
   "/api/v4/rebate/partner/sub_list": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
-      "total": 1,
       "list": [
        {
+        "type": 3,
         "user_id": 10000001,
-        "user_join_time": 1715864142,
-        "type": 3
+        "user_join_time": 1715864142
        }
-      ]
+      ],
+      "total": 1
      },
-     "queryString": "limit=10\u0026offset=100\u0026user_id=12312312",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "limit=10&offset=100&user_id=12312312"
     }
    ]
   },
   "/api/v4/rebate/partner/transaction_history": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
-      "total": 1,
       "list": [
        {
-        "transaction_time": 1715864142,
-        "user_id": 10000001,
-        "group_name": "group_a",
-        "fee": "0.65",
-        "fee_asset": "USDT",
-        "currency_pair": "BTC_USDT",
         "amount": "1500.5",
         "amount_asset": "USDT",
-        "source": "SPOT"
+        "currency_pair": "BTC_USDT",
+        "fee": "0.65",
+        "fee_asset": "USDT",
+        "group_name": "group_a",
+        "source": "SPOT",
+        "transaction_time": 1715864142,
+        "user_id": 10000001
        }
-      ]
+      ],
+      "total": 1
      },
-     "queryString": "from=1744103854\u0026limit=10\u0026to=1744190254",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "from=1744103854&limit=10&to=1744190254"
     }
    ]
   },
   "/api/v4/rebate/user/info": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "invite_uid": 10000001
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/rebate/user/sub_relation": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "list": [
        {
-        "uid": 12342,
         "belong": "partner",
+        "ref_uid": 10000001,
         "type": 5,
-        "ref_uid": 10000001
+        "uid": 12342
        }
       ]
      },
-     "queryString": "user_id_list=12342,21312312312",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "user_id_list=12342,21312312312"
     }
    ]
   },
   "/api/v4/spot/candlesticks": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       [
        "1774742400",
@@ -10724,11 +10891,11 @@
        "false"
       ]
      ],
-     "queryString": "currency_pair=BTC_USDT\u0026from=1774793965\u0026interval=1d\u0026to=1774966765",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency_pair=BTC_USDT&from=1774793965&interval=1d&to=1774966765"
     },
     {
+     "bodyParams": "",
      "data": [
       [
        "1774742400",
@@ -10761,11 +10928,11 @@
        "false"
       ]
      ],
-     "queryString": "currency_pair=BTC_USDT\u0026from=1774795469\u0026interval=1d\u0026to=1774968269",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency_pair=BTC_USDT&from=1774795469&interval=1d&to=1774968269"
     },
     {
+     "bodyParams": "",
      "data": [
       [
        "1774742400",
@@ -10798,11 +10965,11 @@
        "false"
       ]
      ],
-     "queryString": "currency_pair=BTC_USDT\u0026from=1744103820\u0026interval=1m\u0026to=1744163820",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency_pair=BTC_USDT&from=1744103820&interval=1m&to=1744163820"
     },
     {
+     "bodyParams": "",
      "data": [
       [
        "1766361600",
@@ -10855,20 +11022,20 @@
        "true"
       ]
      ],
-     "queryString": "currency_pair=BTC_USDT\u0026interval=1d",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency_pair=BTC_USDT&interval=1d"
     },
     {
+     "bodyParams": "",
      "data": {
       "label": "INVALID_PARAM_VALUE",
       "message": "Candlestick range too broad. Maximum 1000 data points are allowed per request"
      },
-     "queryString": "currency_pair=BTC_USDT\u0026from=1774797660\u0026interval=1m\u0026to=1774857660",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency_pair=BTC_USDT&from=1774797660&interval=1m&to=1774857660"
     },
     {
+     "bodyParams": "",
      "data": [
       [
        "1774742400",
@@ -10901,11 +11068,11 @@
        "false"
       ]
      ],
-     "queryString": "currency_pair=BTC_USDT\u0026from=1774797662\u0026interval=1d\u0026to=1774970462",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency_pair=BTC_USDT&from=1774797662&interval=1d&to=1774970462"
     },
     {
+     "bodyParams": "",
      "data": [
       [
        "1775174400",
@@ -10938,29 +11105,29 @@
        "false"
       ]
      ],
-     "queryString": "currency_pair=BTC_USDT\u0026from=1775246494\u0026interval=1d\u0026to=1775419294",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency_pair=BTC_USDT&from=1775246494&interval=1d&to=1775419294"
     },
     {
+     "bodyParams": "",
      "data": {
       "label": "INVALID_PARAM_VALUE",
       "message": "Candlestick range too broad. Maximum 1000 data points are allowed per request"
      },
-     "queryString": "currency_pair=BTC_USDT\u0026from=1775246460\u0026interval=1m\u0026to=1775306460",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency_pair=BTC_USDT&from=1775246460&interval=1m&to=1775306460"
     },
     {
+     "bodyParams": "",
      "data": {
       "label": "INVALID_PARAM_VALUE",
       "message": "Candlestick range too broad. Maximum 1000 data points are allowed per request"
      },
-     "queryString": "currency_pair=BTC_USDT\u0026from=1775250900\u0026interval=1m\u0026to=1775310900",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency_pair=BTC_USDT&from=1775250900&interval=1m&to=1775310900"
     },
     {
+     "bodyParams": "",
      "data": [
       [
        "1775174400",
@@ -10993,20 +11160,20 @@
        "false"
       ]
      ],
-     "queryString": "currency_pair=BTC_USDT\u0026from=1775251164\u0026interval=1d\u0026to=1775423964",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency_pair=BTC_USDT&from=1775251164&interval=1d&to=1775423964"
     },
     {
+     "bodyParams": "",
      "data": {
       "label": "INVALID_PARAM_VALUE",
       "message": "Candlestick range too broad. Maximum 1000 data points are allowed per request"
      },
-     "queryString": "currency_pair=BTC_USDT\u0026from=1775251140\u0026interval=1m\u0026to=1775311140",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency_pair=BTC_USDT&from=1775251140&interval=1m&to=1775311140"
     },
     {
+     "bodyParams": "",
      "data": [
       [
        "1744099200",
@@ -11059,11 +11226,11 @@
        "true"
       ]
      ],
-     "queryString": "currency_pair=BTC_USDT\u0026from=1744099200\u0026interval=4h\u0026to=1744200000",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency_pair=BTC_USDT&from=1744099200&interval=4h&to=1744200000"
     },
     {
+     "bodyParams": "",
      "data": [
       [
        "1744070400",
@@ -11086,15 +11253,15 @@
        "true"
       ]
      ],
-     "queryString": "currency_pair=BTC_USDT\u0026from=1744103854\u0026interval=1d\u0026to=1744190254",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency_pair=BTC_USDT&from=1744103854&interval=1d&to=1744190254"
     }
    ]
   },
   "/api/v4/spot/currencies": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "category": [],
@@ -11206,15 +11373,15 @@
        "withdraw_disabled": false
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/spot/currencies/BTC": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "category": [],
       "chain": "BTC",
@@ -11245,15 +11412,15 @@
       "withdraw_delayed": false,
       "withdraw_disabled": false
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/spot/currency_pairs": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "amount_precision": 2,
@@ -11400,15 +11567,15 @@
        "up_rate": "0.6"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/spot/currency_pairs/BTC_USDT": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "amount_precision": 6,
       "base": "BTC",
@@ -11434,15 +11601,15 @@
       "type": "normal",
       "up_rate": "0.08"
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/spot/fee": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "debit_fee": 2,
       "gt_discount": false,
@@ -11454,8 +11621,6 @@
       "taker_fee": "0.001",
       "user_id": 30627410
      },
-     "queryString": "currency_pair=BTC_USDT",
-     "bodyParams": "",
      "headers": {
       "Accept": [
        "application/json"
@@ -11472,13 +11637,15 @@
       "Timestamp": [
        "1781796744"
       ]
-     }
+     },
+     "queryString": "currency_pair=BTC_USDT"
     }
    ]
   },
   "/api/v4/spot/order_book": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "asks": [
        [
@@ -11528,11 +11695,11 @@
       "id": 34890909828,
       "update": 1774968317359
      },
-     "queryString": "currency_pair=BTC_USDT\u0026limit=1\u0026with_id=true",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency_pair=BTC_USDT&limit=1&with_id=true"
     },
     {
+     "bodyParams": "",
      "data": {
       "asks": [
        [
@@ -11550,11 +11717,11 @@
       "id": 27596272446,
       "update": 1774968317359
      },
-     "queryString": "currency_pair=BTC_USDT\u0026limit=20\u0026with_id=true",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency_pair=BTC_USDT&limit=20&with_id=true"
     },
     {
+     "bodyParams": "",
      "data": {
       "asks": [
        [
@@ -11603,11 +11770,11 @@
       "current": 1774968317360,
       "update": 1774968317359
      },
-     "queryString": "currency_pair=BTC_USDT\u0026interval=0.1\u0026limit=10\u0026with_id=false",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency_pair=BTC_USDT&interval=0.1&limit=10&with_id=false"
     },
     {
+     "bodyParams": "",
      "data": {
       "asks": [
        [
@@ -11657,15 +11824,15 @@
       "id": 34890909828,
       "update": 1775423974345
      },
-     "queryString": "currency_pair=BTC_USDT\u0026with_id=true",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency_pair=BTC_USDT&with_id=true"
     }
    ]
   },
   "/api/v4/spot/tickers": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "base_volume": "10980.383815",
@@ -11681,11 +11848,11 @@
        "quote_volume": "737010383.3594575"
       }
      ],
-     "queryString": "currency_pair=BTC_USDT\u0026timezone=utc8",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency_pair=BTC_USDT&timezone=utc8"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "base_volume": "5504390622",
@@ -11751,11 +11918,11 @@
        "quote_volume": "26159.0385982"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "base_volume": "4322.4404579762",
@@ -11771,27 +11938,27 @@
        "quote_volume": "290264968.57010812722"
       }
      ],
-     "queryString": "currency_pair=BTC_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency_pair=BTC_USDT"
     }
    ]
   },
   "/api/v4/spot/time": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "server_time": 1774386128160
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/spot/trades": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "amount": "0.100977",
@@ -11844,11 +12011,11 @@
        "side": "sell"
       }
      ],
-     "queryString": "currency_pair=BTC_USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency_pair=BTC_USDT"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "amount": "0.029077",
@@ -11901,11 +12068,11 @@
        "side": "sell"
       }
      ],
-     "queryString": "currency_pair=BTC_USDT\u0026page=1\u0026reverse=true",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency_pair=BTC_USDT&page=1&reverse=true"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "amount": "0.029077",
@@ -11958,88 +12125,90 @@
        "side": "sell"
       }
      ],
-     "queryString": "currency_pair=BTC_USDT\u0026from=1744103854\u0026limit=100\u0026page=1\u0026reverse=true\u0026to=1744190254",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency_pair=BTC_USDT&from=1744103854&limit=100&page=1&reverse=true&to=1744190254"
     }
    ]
   },
   "/api/v4/sub_accounts": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "remark": "test sub account",
-       "login_name": "test_sub_account_001",
+       "create_time": 1682899200,
        "email": "test@example.com",
+       "login_name": "test_sub_account_001",
+       "remark": "test sub account",
        "state": 1,
        "type": 1,
-       "user_id": 12345678,
-       "create_time": 1682899200
+       "user_id": 12345678
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     },
     {
+     "bodyParams": "",
      "data": [
       {
-       "remark": "test sub account",
-       "login_name": "test_sub_account_001",
+       "create_time": 1682899200,
        "email": "test@example.com",
+       "login_name": "test_sub_account_001",
+       "remark": "test sub account",
        "state": 1,
        "type": 1,
-       "user_id": 12345678,
-       "create_time": 1682899200
+       "user_id": 12345678
       }
      ],
-     "queryString": "type=1",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "type=1"
     }
    ],
    "POST": [
     {
+     "bodyParams": "",
      "data": {
-      "remark": "test sub account",
-      "login_name": "test_sub_account_001",
+      "create_time": 1682899200,
       "email": "test@example.com",
+      "login_name": "test_sub_account_001",
+      "remark": "test sub account",
       "state": 1,
       "type": 1,
-      "user_id": 12345678,
-      "create_time": 1682899200
+      "user_id": 12345678
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/sub_accounts/12345678": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
-      "remark": "test sub account",
-      "login_name": "test_sub_account_001",
+      "create_time": 1682899200,
       "email": "test@example.com",
+      "login_name": "test_sub_account_001",
+      "remark": "test sub account",
       "state": 1,
       "type": 1,
-      "user_id": 12345678,
-      "create_time": 1682899200
+      "user_id": 12345678
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/sub_accounts/12345678/keys": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "user_id": 12345678,
+       "created_at": 1682899200,
+       "ip_whitelist": [],
+       "key": "test-api-key-001",
        "mode": 1,
        "name": "test_api_key",
        "perms": [
@@ -12068,22 +12237,22 @@
          "read_only": false
         }
        ],
-       "ip_whitelist": [],
-       "key": "test-api-key-001",
        "state": 1,
-       "created_at": 1682899200,
-       "updated_at": 1682899200
+       "updated_at": 1682899200,
+       "user_id": 12345678
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ],
    "POST": [
     {
+     "bodyParams": "",
      "data": {
-      "user_id": 12345678,
+      "created_at": 1682899200,
+      "ip_whitelist": [],
+      "key": "test-api-key-001",
       "mode": 1,
       "name": "test_key",
       "perms": [
@@ -12096,32 +12265,32 @@
         "read_only": false
        }
       ],
-      "ip_whitelist": [],
-      "key": "test-api-key-001",
       "secret": "test-api-secret-001",
       "state": 1,
-      "created_at": 1682899200,
-      "updated_at": 1682899200
+      "updated_at": 1682899200,
+      "user_id": 12345678
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/sub_accounts/12345678/keys/test-api-key-001": {
    "DELETE": [
     {
-     "data": null,
-     "queryString": "",
      "bodyParams": "",
-     "headers": {}
+     "data": null,
+     "headers": {},
+     "queryString": ""
     }
    ],
    "GET": [
     {
+     "bodyParams": "",
      "data": {
-      "user_id": 12345678,
+      "created_at": 1682899200,
+      "ip_whitelist": [],
+      "key": "test-api-key-001",
       "mode": 1,
       "name": "test_api_key",
       "perms": [
@@ -12150,65 +12319,63 @@
         "read_only": false
        }
       ],
-      "ip_whitelist": [],
-      "key": "test-api-key-001",
       "state": 1,
-      "created_at": 1682899200,
-      "updated_at": 1682899200
+      "updated_at": 1682899200,
+      "user_id": 12345678
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ],
    "PATCH": [
     {
-     "data": null,
-     "queryString": "",
      "bodyParams": "",
-     "headers": {}
+     "data": null,
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/sub_accounts/12345678/lock": {
    "POST": [
     {
-     "data": null,
-     "queryString": "",
      "bodyParams": "",
-     "headers": {}
+     "data": null,
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/sub_accounts/12345678/unlock": {
    "POST": [
     {
-     "data": null,
-     "queryString": "",
      "bodyParams": "",
-     "headers": {}
+     "data": null,
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/sub_accounts/unified_mode": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
-       "user_id": 12345678,
        "is_unified": true,
-       "mode": "multi_currency"
+       "mode": "multi_currency",
+       "user_id": 12345678
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/tradfi/symbols": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "data": {
        "list": [
@@ -12270,7 +12437,7 @@
          "open_time": 0,
          "price_precision": 2,
          "settlement_currency": "EUR",
-         "settlement_currency_symbol": "€",
+         "settlement_currency_symbol": "\u20ac",
          "status": "closed",
          "symbol": "GER40200",
          "symbol_desc": "DAX 40",
@@ -12320,15 +12487,15 @@
       "label": "",
       "timestamp": 1781650076861
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/tradfi/symbols/EURUSD/klines": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "data": {
        "list": [
@@ -12372,15 +12539,15 @@
       "label": "",
       "timestamp": 1781650114726
      },
-     "queryString": "kline_type=1m",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "kline_type=1m"
     }
    ]
   },
   "/api/v4/tradfi/symbols/EURUSD/tickers": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "data": {
        "ask_price": "1.16128",
@@ -12403,15 +12570,15 @@
       "label": "",
       "timestamp": 1781650144522
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/tradfi/symbols/categories": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "data": {
        "list": [
@@ -12445,111 +12612,111 @@
       "label": "",
       "timestamp": 1781649931162
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/unified/collateral_currencies": {
    "POST": [
     {
+     "bodyParams": "{\"collateral_type\":1,\"enable_list\":[\"BTC\",\"ETH\"]}",
      "data": {
       "is_success": true
      },
-     "queryString": "",
-     "bodyParams": "{\"collateral_type\":1,\"enable_list\":[\"BTC\",\"ETH\"]}",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/unified/currencies": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
+       "loan_status": "enable",
+       "min_borrow_amount": "0.01",
        "name": "BTC",
        "prec": "0.000001",
-       "min_borrow_amount": "0.01",
-       "user_max_borrow_amount": "1000000",
        "total_max_borrow_amount": "1000000",
-       "loan_status": "enable"
+       "user_max_borrow_amount": "1000000"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/unified/estimate_quick_repayment": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
+      "available_currencies": [
+       {
+        "available": "1500",
+        "currency": "USDT",
+        "estimated_usd": "1500"
+       }
+      ],
       "debt_currencies": [
        {
+        "borrowed": "0.5",
         "currency": "ETH",
         "debt_amount": "0.5",
         "estimated_usd": "1500",
-        "neg_balance": "-0.5",
-        "borrowed": "0.5"
-       }
-      ],
-      "available_currencies": [
-       {
-        "currency": "USDT",
-        "available": "1500",
-        "estimated_usd": "1500"
+        "neg_balance": "-0.5"
        }
       ]
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/unified/history_loan_rate": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
       "currency": "USDT",
-      "tier": "1",
-      "tier_up_rate": "1.18",
       "rates": [
        {
-        "time": 1729476160000,
-        "rate": "0.00010287"
+        "rate": "0.00010287",
+        "time": 1729476160000
        }
-      ]
+      ],
+      "tier": "1",
+      "tier_up_rate": "1.18"
      },
-     "queryString": "currency=USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency=USDT"
     }
    ]
   },
   "/api/v4/unified/leverage/user_currency_config": {
    "GET": [
     {
+     "bodyParams": "",
      "data": {
-      "current_leverage": "2",
-      "min_leverage": "0",
-      "max_leverage": "8",
-      "debit": "0",
       "available_margin": "0",
       "borrowable": "0",
-      "except_leverage_borrowable": "0"
+      "current_leverage": "2",
+      "debit": "0",
+      "except_leverage_borrowable": "0",
+      "max_leverage": "8",
+      "min_leverage": "0"
      },
-     "queryString": "currency=BTC",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency=BTC"
     }
    ]
   },
   "/api/v4/unified/leverage/user_currency_setting": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "currency": "BTC",
@@ -12560,72 +12727,72 @@
        "leverage": "2"
       }
      ],
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ],
    "POST": [
     {
-     "data": null,
-     "queryString": "",
      "bodyParams": "{\"currency\":\"BTC\",\"leverage\":\"3\"}",
-     "headers": {}
+     "data": null,
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/unified/portfolio_calculator": {
    "POST": [
     {
+     "bodyParams": "",
      "data": {
-      "maintain_margin_total": "0.003",
-      "initial_margin_total": "0.006",
       "calculate_time": 1714000000,
+      "initial_margin_total": "0.006",
+      "maintain_margin_total": "0.003",
       "risk_unit": [
        {
-        "symbol": "BTC_USDT",
+        "initial_margin": "0.006",
+        "maintain_margin": "0.003",
         "margin_result": [
          {
-          "type": "delta",
-          "profit_loss_ranges": [
-           {
-            "price_percentage": "0.1",
-            "implied_volatility_percentage": "0",
-            "profit_loss": "-300"
-           }
-          ],
           "max_loss": {
-           "price_percentage": "0.2",
            "implied_volatility_percentage": "0",
+           "price_percentage": "0.2",
            "profit_loss": "-600"
           },
           "mr1": "0.003",
           "mr2": "0",
           "mr3": "0",
-          "mr4": "0"
+          "mr4": "0",
+          "profit_loss_ranges": [
+           {
+            "implied_volatility_percentage": "0",
+            "price_percentage": "0.1",
+            "profit_loss": "-300"
+           }
+          ],
+          "type": "delta"
          }
         ],
-        "maintain_margin": "0.003",
-        "initial_margin": "0.006"
+        "symbol": "BTC_USDT"
        }
       ]
      },
-     "queryString": "",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/unified/quick_repayment": {
    "POST": [
     {
+     "bodyParams": "{\"debt_currencies\":[\"USDT\",\"ETH\"],\"available_currencies\":[\"USDT\",\"BTC\"]}",
      "data": {
       "order_id": "qr_12345",
       "repaid_info": [
        {
         "currency": "ETH",
-        "repaid": "0.5",
-        "left": "0"
+        "left": "0",
+        "repaid": "0.5"
        }
       ],
       "used_info": [
@@ -12635,15 +12802,15 @@
        }
       ]
      },
-     "queryString": "",
-     "bodyParams": "{\"debt_currencies\":[\"USDT\",\"ETH\"],\"available_currencies\":[\"USDT\",\"BTC\"]}",
-     "headers": {}
+     "headers": {},
+     "queryString": ""
     }
    ]
   },
   "/api/v4/wallet/currency_chains": {
    "GET": [
     {
+     "bodyParams": "",
      "data": [
       {
        "chain": "BTC",
@@ -12668,11 +12835,11 @@
        "name_en": "BNB Smart Chain(BEP20)"
       }
      ],
-     "queryString": "currency=BTC",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency=BTC"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "chain": "ETH",
@@ -12730,11 +12897,11 @@
        "name_en": "Arbitrum One"
       }
      ],
-     "queryString": "currency=USDT",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency=USDT"
     },
     {
+     "bodyParams": "",
      "data": [
       {
        "chain": "ETH",
@@ -12792,9 +12959,8 @@
        "name_en": "Base"
       }
      ],
-     "queryString": "currency=ETH",
-     "bodyParams": "",
-     "headers": {}
+     "headers": {},
+     "queryString": "currency=ETH"
     }
    ]
   }
