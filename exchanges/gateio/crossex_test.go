@@ -34,9 +34,6 @@ func TestGetCrossExchangeRiskLimits(t *testing.T) {
 
 func TestGetCrossExchangeTransferCoins(t *testing.T) {
 	t.Parallel()
-	if !mockTests {
-		sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	}
 	result, err := e.GetCrossExchangeTransferCoins(t.Context(), currency.USDT)
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)

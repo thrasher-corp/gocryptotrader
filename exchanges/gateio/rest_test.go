@@ -471,8 +471,11 @@ func TestCancelAllOpenOrdersSpecifiedCurrencyPair(t *testing.T) {
 	require.ErrorIs(t, err, order.ErrSideIsInvalid)
 
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	_, err = e.CancelAllOpenOrdersSpecifiedCurrencyPair(t.Context(), getPair(t, asset.Spot), order.Sell, asset.Spot)
-	assert.NoError(t, err)
+	// UnknownSide and AnySide omit the optional side filter so Gate cancels both bids and asks
+	for _, side := range []order.Side{order.Sell, order.UnknownSide, order.AnySide} {
+		_, err = e.CancelAllOpenOrdersSpecifiedCurrencyPair(t.Context(), getPair(t, asset.Spot), side, asset.Spot)
+		assert.NoErrorf(t, err, "CancelAllOpenOrdersSpecifiedCurrencyPair should not error for side %s", side)
+	}
 }
 
 func TestCancelBatchOrdersWithIDList(t *testing.T) {
