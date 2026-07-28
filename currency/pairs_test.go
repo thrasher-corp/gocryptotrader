@@ -516,9 +516,9 @@ func BenchmarkPairsString(b *testing.B) {
 	}
 }
 
-// benchstat medians (10 alternating samples per revision):
-// Current (6da7f2cc): 135.9 ns/op      64 B/op      1 allocs/op
-// Prev (301d9636):    477.8 ns/op     232 B/op      9 allocs/op
+// Benchstat medians (10 alternating samples per revision):
+// Before: 477.8 ns/op  232 B/op  9 allocs/op
+// After:  135.9 ns/op   64 B/op  1 alloc/op
 func BenchmarkPairsJoin(b *testing.B) {
 	pairs := Pairs{
 		NewBTCUSD(),
