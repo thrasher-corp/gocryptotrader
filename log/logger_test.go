@@ -1031,7 +1031,6 @@ func BenchmarkNewLogEvent(b *testing.B) {
 	}
 }
 
-// BenchmarkInfo-8   	 1000000	     64971 ns/op	      47 B/op	       1 allocs/op
 func BenchmarkInfo(b *testing.B) {
 	for b.Loop() {
 		Infoln(Global, "Hello this is an info benchmark")
@@ -1051,11 +1050,6 @@ func BenchmarkInfoDisabled(b *testing.B) {
 
 // BenchmarkFormattedDisabled measures level-disabled formatted logging while
 // global logging remains enabled.
-// Reproduce from the repository root (Go 1.26.1, linux/amd64 WSL2,
-// GOAMD64=v1, Intel i7-6700K; timing is sensitive to host load):
-// GOAMD64=v1 GOMAXPROCS=1 taskset -c 7 go test ./log -run '^$' -bench '^BenchmarkFormattedDisabled$' -benchmem -benchtime=100ms -count=20
-// ba39f484: 109.5-114.1 ns/op across per-path medians, 64 B/op, 2 allocs/op (previous; 20 samples)
-// 948c4de7: 108.5-114.0 ns/op across per-path medians, 64 B/op, 2 allocs/op (current; 20 samples)
 func BenchmarkFormattedDisabled(b *testing.B) {
 	enabled := true
 	benchmarkLogger := Logger{
@@ -1108,11 +1102,6 @@ func BenchmarkFormattedDisabled(b *testing.B) {
 
 // BenchmarkCustomLogHookBypass measures logging when a custom hook handles the
 // event and bypasses the internal logging system.
-// Reproduce from the repository root (Go 1.26.1, linux/amd64 WSL2,
-// GOAMD64=v1, Intel i7-6700K; timing is sensitive to host load):
-// GOAMD64=v1 GOMAXPROCS=1 taskset -c 7 go test ./log -run '^$' -bench '^BenchmarkCustomLogHookBypass$' -benchmem -benchtime=500ms -count=15
-// ba39f484: Infoln 148.20 ns/op, 208 B/op, 2 allocs/op; Infof 346.2 ns/op, 264 B/op, 5 allocs/op (previous medians; 15 samples)
-// 948c4de7: Infoln 71.69 ns/op, 16 B/op, 1 alloc/op; Infof 237.5 ns/op, 72 B/op, 4 allocs/op (current medians; 15 samples)
 func BenchmarkCustomLogHookBypass(b *testing.B) {
 	enabled := true
 	benchmarkLogger := Logger{
@@ -1159,11 +1148,6 @@ func BenchmarkCustomLogHookBypass(b *testing.B) {
 
 // BenchmarkCustomLogHookFallthrough measures formatted logging when a custom
 // hook observes the event and the internal logger still handles it.
-// Reproduce from the repository root (Go 1.26.1, linux/amd64 WSL2,
-// GOAMD64=v1, Intel i7-6700K; timing is sensitive to host load):
-// GOAMD64=v1 GOMAXPROCS=1 taskset -c 7 go test ./log -run '^$' -bench '^BenchmarkCustomLogHookFallthrough$' -benchmem -benchtime=500ms -count=15
-// Before snapshot reuse: 689.3 ns/op, 185 B/op, 6 allocs/op (previous median; 15 samples)
-// 948c4de7: 607.0 ns/op, 132 B/op, 5 allocs/op (current median; 15 samples)
 func BenchmarkCustomLogHookFallthrough(b *testing.B) {
 	enabled := true
 	benchmarkLogger := Logger{
@@ -1210,14 +1194,12 @@ func BenchmarkCustomLogHookFallthrough(b *testing.B) {
 	b.StopTimer()
 }
 
-// BenchmarkInfof-8   	 1000000	     72641 ns/op	     178 B/op	       4 allocs/op
 func BenchmarkInfof(b *testing.B) {
 	for n := range b.N {
 		Infof(Global, "Hello this is an infof benchmark %v %v %v\n", n, 1, 2)
 	}
 }
 
-// BenchmarkInfoln-8   	 1000000	     68152 ns/op	     121 B/op	       3 allocs/op
 func BenchmarkInfoln(b *testing.B) {
 	for b.Loop() {
 		Infoln(Global, "Hello this is an infoln benchmark")
