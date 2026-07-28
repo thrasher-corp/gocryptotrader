@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -137,4 +138,19 @@ func TestGetAlphaCurrencyTicker(t *testing.T) {
 	result, err = e.GetAlphaCurrencyTicker(t.Context(), currency.NewCode("memeboxtrump"), 100, 10)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
+}
+
+func TestAlphaCurrencyQuoteInfoRequestMarshalJSON(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		side order.Side
+		exp  string
+	}{
+		{order.Buy, "buy"},
+		{order.Sell, "sell"},
+	} {
+		got, err := json.Marshal(&AlphaCurrencyQuoteInfoRequest{Currency: currency.BTC, Side: tc.side, Amount: 1, GasMode: "speed"})
+		require.NoErrorf(t, err, "Marshal must not error for %s", tc.side)
+		assert.Containsf(t, string(got), `"side":"`+tc.exp+`"`, "side should be sent lower-case for %s", tc.side)
+	}
 }

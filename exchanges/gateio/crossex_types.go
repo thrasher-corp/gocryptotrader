@@ -2,9 +2,13 @@ package gateio
 
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
+
+// crossExPostOnlyTIF is the CrossEx spelling of post-only, which order.TimeInForce renders as POSTONLY
+const crossExPostOnlyTIF = "POC"
 
 // CrossExchangeSymbol holds symbol information for a CrossEx trading pair.
 type CrossExchangeSymbol struct {
@@ -93,16 +97,37 @@ type CrossExchangeTransferResponse struct {
 
 // CrossExchangeOrderCreateRequest is the request body for creating a CrossEx order.
 type CrossExchangeOrderCreateRequest struct {
-	Text          string       `json:"text,omitempty"`
-	Symbol        string       `json:"symbol"`
-	Side          order.Side   `json:"side"`
-	OrderType     string       `json:"type,omitempty"`
-	TimeInForce   string       `json:"time_in_force,omitempty"`
-	Quantity      types.Number `json:"qty,omitempty"`
-	Price         types.Number `json:"price,omitempty"`
-	QuoteQuantity types.Number `json:"quote_qty,omitempty"`
-	ReduceOnly    bool         `json:"reduce_only,omitempty"`
-	PositionSide  order.Side   `json:"position_side,omitempty"`
+	Text          string            `json:"text,omitempty"`
+	Symbol        string            `json:"symbol"`
+	Side          order.Side        `json:"side"`
+	OrderType     order.Type        `json:"type,omitempty"`
+	TimeInForce   order.TimeInForce `json:"time_in_force,omitempty"`
+	Quantity      types.Number      `json:"qty,omitempty"`
+	Price         types.Number      `json:"price,omitempty"`
+	QuoteQuantity types.Number      `json:"quote_qty,omitempty"`
+	ReduceOnly    bool              `json:"reduce_only,omitempty"`
+	PositionSide  order.Side        `json:"position_side,omitempty"`
+}
+
+// MarshalJSON renders the order type and time in force as CrossEx expects them; order.Type has no
+// JSON representation of its own and order.TimeInForce renders post-only as POSTONLY, not POC
+func (c *CrossExchangeOrderCreateRequest) MarshalJSON() ([]byte, error) {
+	type Alias CrossExchangeOrderCreateRequest
+	aux := &struct {
+		OrderType   string `json:"type,omitempty"`
+		TimeInForce string `json:"time_in_force,omitempty"`
+		*Alias
+	}{Alias: (*Alias)(c)}
+	if c.OrderType != order.UnknownType {
+		aux.OrderType = c.OrderType.String()
+	}
+	switch {
+	case c.TimeInForce.Is(order.PostOnly):
+		aux.TimeInForce = crossExPostOnlyTIF
+	case c.TimeInForce != order.UnknownTIF:
+		aux.TimeInForce = c.TimeInForce.String()
+	}
+	return json.Marshal(aux)
 }
 
 // CrossExchangeOrder holds the full detail of a CrossEx order.

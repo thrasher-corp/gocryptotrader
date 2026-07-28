@@ -5591,7 +5591,6 @@ func TestSetUserIsolatedMarginAccountMarketLeverageMultiplier(t *testing.T) {
 	require.NoError(t, err)
 }
 
-
 func TestGetAvailableTransferChains(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetAvailableTransferChains(t.Context(), currency.EMPTYCODE)

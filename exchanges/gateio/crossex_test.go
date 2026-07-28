@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
@@ -91,10 +92,10 @@ func TestCreateCrossExchangeOrder(t *testing.T) {
 	result, err := e.CreateCrossExchangeOrder(t.Context(), &CrossExchangeOrderCreateRequest{
 		Symbol:       "BINANCE_FUTURE_BTC_USDT",
 		Side:         order.Buy,
-		OrderType:    "GTC",
+		OrderType:    order.Limit,
 		Quantity:     1,
 		Price:        65000,
-		TimeInForce:  "GTC",
+		TimeInForce:  order.GoodTillCancel,
 		ReduceOnly:   true,
 		PositionSide: order.Short,
 	})
@@ -415,4 +416,42 @@ func TestGetCrossExchangeCoinDiscountRates(t *testing.T) {
 	result, err := e.GetCrossExchangeCoinDiscountRates(t.Context(), currency.ETH, "")
 	require.NoError(t, err)
 	assert.NotEmpty(t, result)
+}
+
+func TestCrossExchangeOrderCreateRequestMarshalJSON(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name        string
+		req         *CrossExchangeOrderCreateRequest
+		contains    []string
+		notContains []string
+	}{
+		{
+			name:     "limit GTC",
+			req:      &CrossExchangeOrderCreateRequest{Symbol: "BINANCE_FUTURE_BTC_USDT", Side: order.Buy, OrderType: order.Limit, TimeInForce: order.GoodTillCancel},
+			contains: []string{`"type":"LIMIT"`, `"time_in_force":"GTC"`, `"side":"BUY"`},
+		},
+		{
+			name:     "post only maps to POC",
+			req:      &CrossExchangeOrderCreateRequest{Symbol: "BINANCE_FUTURE_BTC_USDT", Side: order.Sell, OrderType: order.Limit, TimeInForce: order.PostOnly},
+			contains: []string{`"time_in_force":"POC"`},
+		},
+		{
+			name:        "unset type and TIF are omitted",
+			req:         &CrossExchangeOrderCreateRequest{Symbol: "BINANCE_FUTURE_BTC_USDT", Side: order.Buy},
+			notContains: []string{`"type"`, `"time_in_force"`},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := json.Marshal(tc.req)
+			require.NoError(t, err, "Marshal must not error")
+			for _, exp := range tc.contains {
+				assert.Containsf(t, string(got), exp, "payload should contain %s", exp)
+			}
+			for _, unexp := range tc.notContains {
+				assert.NotContainsf(t, string(got), unexp, "payload should not contain %s", unexp)
+			}
+		})
+	}
 }
