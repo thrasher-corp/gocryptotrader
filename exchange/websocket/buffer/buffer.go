@@ -52,11 +52,10 @@ func (o *Orderbook) LoadSnapshot(book *orderbook.Book) error {
 		return err
 	}
 
-	o.m.RLock()
-	holder, ok := o.ob[key.PairAsset{Base: book.Pair.Base.Item, Quote: book.Pair.Quote.Item, Asset: book.Asset}]
-	o.m.RUnlock()
+	bookKey := key.PairAsset{Base: book.Pair.Base.Item, Quote: book.Pair.Quote.Item, Asset: book.Asset}
+	o.m.Lock()
+	holder, ok := o.ob[bookKey]
 	if !ok {
-		o.m.Lock()
 		// Associate orderbook pointer with local exchange depth map
 		depth, err := orderbook.DeployDepth(book.Exchange, book.Pair, book.Asset)
 		if err != nil {
@@ -65,9 +64,9 @@ func (o *Orderbook) LoadSnapshot(book *orderbook.Book) error {
 		}
 		depth.AssignOptions(book)
 		holder = &orderbookHolder{ob: depth, buffer: make([]orderbook.Update, 0, o.obBufferLimit)}
-		o.ob[key.PairAsset{Base: book.Pair.Base.Item, Quote: book.Pair.Quote.Item, Asset: book.Asset}] = holder
-		o.m.Unlock()
+		o.ob[bookKey] = holder
 	}
+	o.m.Unlock()
 
 	book.RestSnapshot = false
 	if err := holder.ob.LoadSnapshot(book); err != nil {

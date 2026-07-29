@@ -3,6 +3,7 @@ package buffer
 import (
 	"math/rand"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -471,6 +472,49 @@ func TestLoadSnapshot(t *testing.T) {
 	snapShot1.Pair = cp
 	snapShot1.LastUpdated = time.Now()
 	require.NoError(t, obl.LoadSnapshot(&snapShot1))
+}
+
+func TestLoadSnapshotConcurrentHolderStability(t *testing.T) {
+	t.Parallel()
+
+	cp, err := getExclusivePair()
+	require.NoError(t, err, "getExclusivePair must not error")
+
+	const snapshotCount = 16
+	obl := Orderbook{
+		dataHandler:  stream.NewRelay(snapshotCount),
+		exchangeName: exchangeName,
+		ob:           make(map[key.PairAsset]*orderbookHolder),
+	}
+	bookKey := key.PairAsset{Base: cp.Base.Item, Quote: cp.Quote.Item, Asset: asset.Spot}
+	start := make(chan struct{})
+	errs := make([]error, snapshotCount)
+	holders := make([]*orderbookHolder, snapshotCount)
+	var wg sync.WaitGroup
+	for i := range snapshotCount {
+		wg.Go(func() {
+			<-start
+			errs[i] = obl.LoadSnapshot(&orderbook.Book{
+				Exchange:     exchangeName,
+				Pair:         cp,
+				Asset:        asset.Spot,
+				LastUpdated:  time.Unix(int64(i+1), 0),
+				LastUpdateID: int64(i + 1),
+			})
+			obl.m.RLock()
+			holders[i] = obl.ob[bookKey]
+			obl.m.RUnlock()
+		})
+	}
+	close(start)
+	wg.Wait()
+
+	require.NotNil(t, holders[0], "LoadSnapshot must retain an orderbook holder")
+	for i := range snapshotCount {
+		require.NoErrorf(t, errs[i], "LoadSnapshot must not error for concurrent snapshot %d", i)
+		assert.Samef(t, holders[0], holders[i], "LoadSnapshot should retain one holder for concurrent snapshot %d", i)
+	}
+	require.Len(t, obl.ob, 1, "LoadSnapshot must retain one orderbook entry")
 }
 
 // TestFlushBuffer logic test
