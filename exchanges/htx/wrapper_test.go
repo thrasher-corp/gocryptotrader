@@ -383,8 +383,9 @@ func TestGetAccountID(t *testing.T) {
 func TestSubmitOrder(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
-	accounts, err := e.GetAccounts(t.Context())
+	accs, err := e.GetAccounts(t.Context())
 	require.NoError(t, err, "GetAccounts must not error")
+	require.NotEmpty(t, accs, "GetAccounts must return at least one account")
 
 	orderSubmission := &order.Submit{
 		Exchange: e.Name,
@@ -396,7 +397,7 @@ func TestSubmitOrder(t *testing.T) {
 		Type:      order.Limit,
 		Price:     5,
 		Amount:    1,
-		ClientID:  strconv.FormatInt(accounts[0].ID, 10),
+		ClientID:  strconv.FormatInt(accs[0].ID, 10),
 		AssetType: asset.Spot,
 	}
 	response, err := e.SubmitOrder(t.Context(), orderSubmission)

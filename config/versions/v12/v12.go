@@ -2,28 +2,60 @@ package v12
 
 import (
 	"context"
+	"encoding/json" //nolint:depguard // Config versions must retain stable standard-library JSON behaviour
+	"errors"
+	"strings"
 
 	"github.com/buger/jsonparser"
 )
 
-// Version is an ExchangeVersion to change the name of Huobi to HTX.
+const exmo = "EXMO"
+
+// Version implements ConfigVersion to remove the decommissioned EXMO exchange.
 type Version struct{}
 
-// Exchanges returns Huobi and HTX.
-func (*Version) Exchanges() []string { return []string{"Huobi", "HTX"} }
-
-// UpgradeExchange will change the exchange name from Huobi to HTX.
-func (*Version) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
-	if n, err := jsonparser.GetString(e, "name"); err == nil && n == "Huobi" {
-		return jsonparser.Set(e, []byte(`"HTX"`), "name")
+// UpgradeConfig removes all EXMO configurations while preserving every other exchange.
+func (*Version) UpgradeConfig(_ context.Context, config []byte) ([]byte, error) {
+	exchangesJSON, valueType, _, err := jsonparser.Get(config, "exchanges")
+	switch {
+	case errors.Is(err, jsonparser.KeyPathNotFoundError):
+		return config, nil
+	case err != nil:
+		return config, err
+	case valueType != jsonparser.Array:
+		return config, nil
 	}
-	return e, nil
+
+	var exchanges []json.RawMessage
+	if err := json.Unmarshal(exchangesJSON, &exchanges); err != nil {
+		return config, err
+	}
+
+	filtered := exchanges[:0]
+	for i := range exchanges {
+		var exchange struct {
+			Name string `json:"name"`
+		}
+		if err := json.Unmarshal(exchanges[i], &exchange); err != nil {
+			return config, err
+		}
+		if !strings.EqualFold(exchange.Name, exmo) {
+			filtered = append(filtered, exchanges[i])
+		}
+	}
+
+	if len(filtered) == len(exchanges) {
+		return config, nil
+	}
+
+	exchangesJSON, err = json.Marshal(filtered)
+	if err != nil {
+		return config, err
+	}
+	return jsonparser.Set(config, exchangesJSON, "exchanges")
 }
 
-// DowngradeExchange will change the exchange name from HTX to Huobi.
-func (*Version) DowngradeExchange(_ context.Context, e []byte) ([]byte, error) {
-	if n, err := jsonparser.GetString(e, "name"); err == nil && n == "HTX" {
-		return jsonparser.Set(e, []byte(`"Huobi"`), "name")
-	}
-	return e, nil
+// DowngradeConfig is a no-op because removed EXMO configuration and credentials cannot be reconstructed.
+func (*Version) DowngradeConfig(_ context.Context, config []byte) ([]byte, error) {
+	return config, nil
 }

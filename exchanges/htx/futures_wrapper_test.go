@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -105,7 +106,7 @@ func TestFSwitchLeverage(t *testing.T) {
 	h := new(Exchange)
 	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
 	h.API.AuthenticatedSupport = true
-	h.SetCredentials("key", "secret", "", "", "", "")
+	h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "futures endpoint must be set")
 	require.NoError(t, h.FSwitchLeverage(t.Context(), currency.BTC, 5), "FSwitchLeverage must not error")
 }
@@ -124,7 +125,7 @@ func TestSwitchCoinMarginedLeverage(t *testing.T) {
 	h := new(Exchange)
 	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
 	h.API.AuthenticatedSupport = true
-	h.SetCredentials("key", "secret", "", "", "", "")
+	h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "futures endpoint must be set")
 	require.NoError(t, h.SwitchCoinMarginedLeverage(t.Context(), btcusdPair, 5), "SwitchCoinMarginedLeverage must not error")
 }
@@ -144,7 +145,7 @@ func TestSwitchLinearSwapLeverage(t *testing.T) {
 	h := new(Exchange)
 	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
 	h.API.AuthenticatedSupport = true
-	h.SetCredentials("key", "secret", "", "", "", "")
+	h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "USDT-margined endpoint must be set")
 	expectedPath = linearSwapSwitchLeverage
 	require.NoError(t, h.SwitchLinearSwapLeverage(t.Context(), btcusdtPair, 5, false), "isolated SwitchLinearSwapLeverage must not error")
