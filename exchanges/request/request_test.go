@@ -573,8 +573,6 @@ func TestGetNonce(t *testing.T) {
 	assert.NotEqual(t, n2, n4)
 }
 
-// 40532461	       30.29 ns/op	       0 B/op	       0 allocs/op (prev)
-// 45329203	       26.53 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkGetNonce(b *testing.B) {
 	r, err := New("test", new(http.Client), WithLimiter(globalshell))
 	require.NoError(b, err)

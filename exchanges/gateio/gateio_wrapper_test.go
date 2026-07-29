@@ -332,7 +332,6 @@ func TestEarliestTime(t *testing.T) {
 	}
 }
 
-// 7610378	       143.3 ns/op	      48 B/op	       2 allocs/op
 func BenchmarkMessageID(b *testing.B) {
 	for b.Loop() {
 		_ = e.MessageID()
