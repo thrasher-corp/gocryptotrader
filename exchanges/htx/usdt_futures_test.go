@@ -2,6 +2,7 @@ package htx
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -35,6 +36,18 @@ func TestGetLinearSwapMarketOverview(t *testing.T) {
 	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), "http://127.0.0.1:1"), "USDT-margined endpoint must be set")
 	_, err := h.GetLinearSwapMarketOverview(t.Context(), btcusdtPair)
 	require.Error(t, err, "GetLinearSwapMarketOverview must return transport error")
+}
+
+func TestGetLinearSwapKlineData(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetLinearSwapKlineData(t.Context(), btcusdtPair, "1min", 10, time.Time{}, time.Time{})
+	require.NoError(t, err, "GetLinearSwapKlineData must not error")
+}
+
+func TestGetLinearSwapBatchTrades(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetLinearSwapBatchTrades(t.Context(), btcusdtPair, 10)
+	require.NoError(t, err, "GetLinearSwapBatchTrades must not error")
 }
 
 func TestGetLinearSwapFundingRate(t *testing.T) {

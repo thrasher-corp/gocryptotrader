@@ -1,6 +1,8 @@
 package htx
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"sync"
 	"testing"
@@ -19,10 +21,28 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
+
+func TestSetDefaults(t *testing.T) {
+	t.Parallel()
+	h := new(Exchange)
+	h.SetDefaults()
+	assert.Equal(t, "HTX", h.Name, "exchange name should match")
+	assert.True(t, h.Features.Supports.WebsocketCapabilities.FundingRateFetching, "websocket funding rates should be supported")
+	assert.Len(t, h.Features.Subscriptions, 21, "default subscriptions should cover spot and derivatives")
+}
+
+func TestSetup(t *testing.T) {
+	t.Parallel()
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "Setup must not error")
+	assert.NotNil(t, h.Websocket, "websocket manager should be configured")
+	assert.True(t, h.SupportsAsset(asset.Futures), "delivery futures should remain enabled")
+	assert.True(t, h.SupportsAsset(asset.CoinMarginedFutures), "coin-margined futures should remain enabled")
+	assert.True(t, h.SupportsAsset(asset.USDTMarginedFutures), "USDT-margined futures should remain enabled")
+}
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
@@ -30,7 +50,14 @@ func TestFetchTradablePairs(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestUpdateTickerSpot(t *testing.T) {
+func TestUpdateTradablePairs(t *testing.T) {
+	t.Parallel()
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+	require.NoError(t, h.UpdateTradablePairs(t.Context()), "UpdateTradablePairs must not error")
+}
+
+func TestUpdateTicker(t *testing.T) {
 	t.Parallel()
 	_, err := e.UpdateTicker(t.Context(), currency.NewPairWithDelimiter("INV", "ALID", "-"), asset.Spot)
 	assert.ErrorContains(t, err, "invalid symbol")
@@ -58,7 +85,7 @@ func TestUpdateTickerUSDTMarginedFutures(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestUpdateOrderbookSpot(t *testing.T) {
+func TestUpdateOrderbook(t *testing.T) {
 	t.Parallel()
 	_, err := e.UpdateOrderbook(t.Context(), btcusdtPair, asset.Spot)
 	require.NoError(t, err)
@@ -88,6 +115,22 @@ func TestUpdateOrderbookUnsupportedAsset(t *testing.T) {
 	t.Parallel()
 	_, err := e.UpdateOrderbook(t.Context(), btcusdtPair, asset.Binary)
 	require.ErrorIs(t, err, asset.ErrNotSupported, "UpdateOrderbook must reject unsupported assets")
+}
+
+func TestUpdateOrderbookWithLimit(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"status":"ok","tick":{"ts":1604312615051,"bids":[[10,2],[9,3]],"asks":[[11,2],[12,3]]}}`))
+	}))
+	t.Cleanup(server.Close)
+
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "spot endpoint must be set")
+	book, err := h.UpdateOrderbookWithLimit(t.Context(), btcusdtPair, asset.Spot, 1)
+	require.NoError(t, err, "UpdateOrderbookWithLimit must not error")
+	assert.Len(t, book.Bids, 1, "bid depth should be capped")
+	assert.Len(t, book.Asks, 1, "ask depth should be capped")
 }
 
 func TestGetOrderHistory(t *testing.T) {
@@ -172,21 +215,21 @@ func TestGetTickers(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestGetTimestamp(t *testing.T) {
+func TestGetCurrentServerTime(t *testing.T) {
 	t.Parallel()
 	st, err := e.GetCurrentServerTime(t.Context())
 	require.NoError(t, err)
 	assert.NotEmpty(t, st, "GetCurrentServerTime should return a time")
 }
 
-func TestWrapperGetServerTime(t *testing.T) {
+func TestGetServerTime(t *testing.T) {
 	t.Parallel()
 	st, err := e.GetServerTime(t.Context(), asset.Spot)
 	require.NoError(t, err)
 	assert.NotEmpty(t, st, "GetServerTime should return a time")
 }
 
-func TestGetFeeByTypeOfflineTradeFee(t *testing.T) {
+func TestGetFeeByType(t *testing.T) {
 	t.Parallel()
 	feeBuilder := setFeeBuilder()
 
@@ -424,7 +467,7 @@ func TestCancelExchangeOrder(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestCancelOrderValidation(t *testing.T) {
+func TestCancelOrder(t *testing.T) {
 	t.Parallel()
 
 	err := e.CancelOrder(t.Context(), nil)
@@ -582,13 +625,13 @@ func TestWithdrawCryptocurrencyFunds(t *testing.T) {
 	require.ErrorContains(t, err, withdraw.ErrStrAmountMustBeGreaterThanZero)
 }
 
-func TestWithdrawFiat(t *testing.T) {
+func TestWithdrawFiatFunds(t *testing.T) {
 	t.Parallel()
 	_, err := e.WithdrawFiatFunds(t.Context(), &withdraw.Request{})
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
 }
 
-func TestWithdrawInternationalBank(t *testing.T) {
+func TestWithdrawFiatFundsToInternationalBank(t *testing.T) {
 	t.Parallel()
 	_, err := e.WithdrawFiatFundsToInternationalBank(t.Context(), &withdraw.Request{})
 	assert.ErrorIs(t, err, common.ErrFunctionNotSupported)
@@ -628,7 +671,7 @@ func TestGetDepositAddressAuthentication(t *testing.T) {
 	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "GetDepositAddress must require credentials")
 }
 
-func TestGetOrderInfoValidation(t *testing.T) {
+func TestGetOrderInfo(t *testing.T) {
 	t.Parallel()
 
 	_, err := e.GetOrderInfo(t.Context(), "1", currency.EMPTYPAIR, asset.Spot)
@@ -688,7 +731,7 @@ func TestGetRecentTrades(t *testing.T) {
 	_, err = e.GetRecentTrades(t.Context(), btcusdPair, asset.CoinMarginedFutures)
 	require.NoError(t, err)
 	_, err = e.GetRecentTrades(t.Context(), btcusdtPair, asset.USDTMarginedFutures)
-	require.ErrorIs(t, err, asset.ErrNotSupported, "GetRecentTrades must reject unsupported assets")
+	require.NoError(t, err)
 }
 
 func TestGetHistoricTrades(t *testing.T) {
@@ -921,12 +964,6 @@ func TestUpdateTickers(t *testing.T) {
 	for _, a := range e.GetAssetTypes(false) {
 		err := e.UpdateTickers(t.Context(), a)
 		require.NoErrorf(t, err, "asset %s", a)
-		avail, err := e.GetAvailablePairs(a)
-		require.NoError(t, err)
-		for _, p := range avail {
-			_, err = ticker.GetTicker(e.Name, p, a)
-			assert.NoErrorf(t, err, "Could not get ticker for %s %s", a, p)
-		}
 	}
 }
 

@@ -29,6 +29,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -58,12 +59,6 @@ func (e *Exchange) SetDefaults() {
 		}
 		if err := e.SetAssetPairStore(a, ps); err != nil {
 			log.Errorf(log.ExchangeSys, "%s error storing %q default asset formats: %s", e.Name, a, err)
-		}
-	}
-
-	for _, a := range []asset.Item{asset.Futures, asset.CoinMarginedFutures, asset.USDTMarginedFutures} {
-		if err := e.DisableAssetWebsocketSupport(a); err != nil {
-			log.Errorf(log.ExchangeSys, "%s error disabling %q asset type websocket support: %s", e.Name, a, err)
 		}
 	}
 
@@ -105,7 +100,7 @@ func (e *Exchange) SetDefaults() {
 				GetOrder:               true,
 				GetOrders:              true,
 				TickerFetching:         true,
-				FundingRateFetching:    false, // supported but not implemented // TODO when multi-websocket support added
+				FundingRateFetching:    true,
 			},
 			WithdrawPermissions: exchange.AutoWithdrawCryptoWithSetup |
 				exchange.NoFiatWithdrawals,
@@ -150,7 +145,7 @@ func (e *Exchange) SetDefaults() {
 				GlobalResultLimit: 2000,
 			},
 		},
-		Subscriptions: defaultSubscriptions.Clone(),
+		Subscriptions: append(defaultSubscriptions.Clone(), defaultFuturesSubscriptions.Clone()...),
 	}
 
 	var err error
@@ -162,11 +157,15 @@ func (e *Exchange) SetDefaults() {
 	}
 	e.API.Endpoints = e.NewEndpoints()
 	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:         htxAPIURL,
-		exchange.RestFutures:      htxFuturesURL,
-		exchange.RestCoinMargined: htxFuturesURL,
-		exchange.RestUSDTMargined: htxFuturesURL,
-		exchange.WebsocketSpot:    wsSpotURL + wsPublicPath,
+		exchange.RestSpot:              htxAPIURL,
+		exchange.RestFutures:           htxFuturesURL,
+		exchange.RestCoinMargined:      htxFuturesURL,
+		exchange.RestUSDTMargined:      htxFuturesURL,
+		exchange.WebsocketSpot:         wsSpotURL + wsPublicPath,
+		exchange.WebsocketPrivate:      wsSpotURL + wsPrivatePath,
+		exchange.WebsocketFutures:      wsFuturesURL,
+		exchange.WebsocketCoinMargined: wsCoinMarginedURL,
+		exchange.WebsocketUSDTMargined: wsUSDTMarginedURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -203,45 +202,51 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
-	wsRunningURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
-	}
-	wsAuthURL, err := websocketPrivateURL(wsRunningURL)
-	if err != nil {
-		return err
-	}
-
-	err = e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            wsSpotURL + wsPublicPath,
-		RunningURL:            wsRunningURL,
-		Connector:             e.WsConnect,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
-		GenerateSubscriptions: e.generateSubscriptions,
-		Features:              &e.Features.Supports.WebsocketCapabilities,
-	})
-	if err != nil {
+	if err := e.Websocket.Setup(&websocket.ManagerSetup{
+		ExchangeConfig:               exch,
+		Features:                     &e.Features.Supports.WebsocketCapabilities,
+		UseMultiConnectionManagement: true,
+	}); err != nil {
 		return err
 	}
 
-	err = e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		RateLimit:            request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-	})
-	if err != nil {
-		return err
+	for _, ws := range []struct {
+		endpoint exchange.URL
+		asset    asset.Item
+		private  bool
+	}{
+		{endpoint: exchange.WebsocketSpot, asset: asset.Spot},
+		{endpoint: exchange.WebsocketPrivate, asset: asset.Spot, private: true},
+		{endpoint: exchange.WebsocketFutures, asset: asset.Futures},
+		{endpoint: exchange.WebsocketCoinMargined, asset: asset.CoinMarginedFutures},
+		{endpoint: exchange.WebsocketUSDTMargined, asset: asset.USDTMarginedFutures},
+	} {
+		runningURL, err := e.API.Endpoints.GetURL(ws.endpoint)
+		if err != nil {
+			return err
+		}
+		setup := &websocket.ConnectionSetup{
+			URL:                  runningURL,
+			RateLimit:            request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+			Connector:            e.wsConnect,
+			Handler:              e.wsHandleData,
+			Subscriber:           e.subscribeConnection,
+			Unsubscriber:         e.unsubscribeConnection,
+			MessageFilter:        ws.endpoint,
+			GenerateSubscriptions: func() (subscription.List, error) {
+				return e.generateSubscriptionsForAsset(ws.asset, ws.private)
+			},
+		}
+		if ws.private {
+			setup.Authenticate = e.wsAuthenticateConnection
+		}
+		if err := e.Websocket.SetupNewConnection(setup); err != nil {
+			return err
+		}
 	}
-
-	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		RateLimit:            request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  wsAuthURL,
-		Authenticated:        true,
-	})
+	return nil
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs
@@ -550,10 +555,10 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		}
 
 		if len(marketData.Tick.Bid) == 0 {
-			return nil, errors.New("invalid data for bid")
+			return nil, errInvalidBidData
 		}
 		if len(marketData.Tick.Ask) == 0 {
-			return nil, errors.New("invalid data for Ask")
+			return nil, errInvalidAskData
 		}
 
 		err = ticker.ProcessTicker(&ticker.Price{
@@ -579,10 +584,10 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 		}
 
 		if len(marketData.Tick.Bid) == 0 {
-			return nil, errors.New("invalid data for bid")
+			return nil, errInvalidBidData
 		}
 		if len(marketData.Tick.Ask) == 0 {
-			return nil, errors.New("invalid data for Ask")
+			return nil, errInvalidAskData
 		}
 
 		err = ticker.ProcessTicker(&ticker.Price{
@@ -629,6 +634,11 @@ func (e *Exchange) UpdateTicker(ctx context.Context, p currency.Pair, a asset.It
 
 // UpdateOrderbook updates and returns the orderbook for a currency pair
 func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType asset.Item) (*orderbook.Book, error) {
+	return e.UpdateOrderbookWithLimit(ctx, p, assetType, 0)
+}
+
+// UpdateOrderbookWithLimit updates and returns an orderbook capped to the requested depth.
+func (e *Exchange) UpdateOrderbookWithLimit(ctx context.Context, p currency.Pair, assetType asset.Item, limit uint64) (*orderbook.Book, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -738,6 +748,10 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	default:
 		return book, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
+	if limit != 0 {
+		book.Asks = book.Asks[:min(uint64(len(book.Asks)), limit)]
+		book.Bids = book.Bids[:min(uint64(len(book.Bids)), limit)]
+	}
 	err = book.Process()
 	if err != nil {
 		return book, err
@@ -753,7 +767,7 @@ func (e *Exchange) GetAccountID(ctx context.Context) ([]Account, error) {
 	}
 
 	if len(acc) < 1 {
-		return nil, errors.New("no account returned")
+		return nil, errNoAccountReturned
 	}
 
 	return acc, nil
@@ -991,6 +1005,31 @@ func (e *Exchange) GetRecentTrades(ctx context.Context, p currency.Pair, a asset
 				Price:        cTrades.Data[i].Price,
 				Amount:       cTrades.Data[i].Amount,
 				Timestamp:    cTrades.Data[i].Timestamp.Time(),
+			})
+		}
+	case asset.USDTMarginedFutures:
+		var linearTrades BatchTradesData
+		linearTrades, err = e.GetLinearSwapBatchTrades(ctx, p, 2000)
+		if err != nil {
+			return nil, err
+		}
+		for i := range linearTrades.Data {
+			var side order.Side
+			if linearTrades.Data[i].Direction != "" {
+				side, err = order.StringToOrderSide(linearTrades.Data[i].Direction)
+				if err != nil {
+					return nil, err
+				}
+			}
+			resp = append(resp, trade.Data{
+				Exchange:     e.Name,
+				TID:          strconv.FormatInt(linearTrades.Data[i].ID, 10),
+				CurrencyPair: p,
+				AssetType:    a,
+				Side:         side,
+				Price:        linearTrades.Data[i].Price,
+				Amount:       linearTrades.Data[i].Amount,
+				Timestamp:    linearTrades.Data[i].Timestamp.Time(),
 			})
 		}
 	default:
@@ -1309,7 +1348,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, orderCancellation *order
 						resp.Data.FailedCount)
 			}
 			if resp.Status == "error" {
-				return cancelAllOrdersResponse, errors.New(resp.ErrorMessage)
+				return cancelAllOrdersResponse, htxError(resp.ErrorMessage)
 			}
 		}
 	case asset.CoinMarginedFutures:
@@ -1432,8 +1471,7 @@ func (e *Exchange) GetOrderInfo(ctx context.Context, orderID string, pair curren
 		}
 		responseID := strconv.FormatInt(respData.ID, 10)
 		if responseID != orderID {
-			return nil, errors.New(e.Name + " - GetOrderInfo orderID mismatch. Expected: " +
-				orderID + " Received: " + responseID)
+			return nil, fmt.Errorf("%s - GetOrderInfo order ID mismatch; expected %s, received %s", e.Name, orderID, responseID)
 		}
 		typeDetails := strings.Split(respData.Type, "-")
 		orderSide, err := order.StringToOrderSide(typeDetails[0])
@@ -1591,7 +1629,7 @@ func (e *Exchange) GetDepositAddress(ctx context.Context, cryptocurrency currenc
 			}, nil
 		}
 	}
-	return nil, errors.New("unable to match deposit address currency or chain")
+	return nil, errDepositAddressNotFound
 }
 
 // WithdrawCryptocurrencyFunds returns a withdrawal ID when a withdrawal is
@@ -1649,7 +1687,7 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	switch req.AssetType {
 	case asset.Spot:
 		if len(req.Pairs) == 0 {
-			return nil, errors.New("currency must be supplied")
+			return nil, errCurrencyNotSupplied
 		}
 		side := ""
 		if req.Side == order.Sell {
@@ -1834,7 +1872,7 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 	switch req.AssetType {
 	case asset.Spot:
 		if len(req.Pairs) == 0 {
-			return nil, errors.New("currency must be supplied")
+			return nil, errCurrencyNotSupplied
 		}
 		states := "partial-canceled,filled,canceled"
 		for i := range req.Pairs {
@@ -2007,7 +2045,7 @@ func setOrderSideStatusAndType(orderState, requestType string, orderDetail *orde
 
 // AuthenticateWebsocket sends an authentication message to the websocket
 func (e *Exchange) AuthenticateWebsocket(ctx context.Context) error {
-	return e.wsLogin(ctx)
+	return e.wsLogin(ctx, e.Websocket.AuthConn)
 }
 
 // ValidateAPICredentials validates current credentials used for wrapper functionality
@@ -2112,6 +2150,26 @@ func (e *Exchange) GetHistoricCandles(ctx context.Context, pair currency.Pair, a
 				Volume: candles.Data[x].Volume,
 			})
 		}
+	case asset.USDTMarginedFutures:
+		size := int64(-1)
+		candles, err := e.GetLinearSwapKlineData(ctx, req.Pair, e.FormatExchangeKlineInterval(req.ExchangeInterval), size, req.Start, req.End)
+		if err != nil {
+			return nil, err
+		}
+		for x := range candles.Data {
+			timestamp := candles.Data[x].IDTimestamp.Time()
+			if timestamp.Before(req.Start) || timestamp.After(req.End) {
+				continue
+			}
+			timeSeries = append(timeSeries, kline.Candle{
+				Time:   timestamp,
+				Open:   candles.Data[x].Open,
+				High:   candles.Data[x].High,
+				Low:    candles.Data[x].Low,
+				Close:  candles.Data[x].Close,
+				Volume: candles.Data[x].Volume,
+			})
+		}
 	}
 
 	return req.ProcessResponse(timeSeries)
@@ -2178,6 +2236,29 @@ func (e *Exchange) GetHistoricCandlesExtended(ctx context.Context, pair currency
 				})
 			}
 		}
+	case asset.USDTMarginedFutures:
+		for i := range req.RangeHolder.Ranges {
+			size := int64(-1)
+			var candles SwapKlineData
+			candles, err = e.GetLinearSwapKlineData(ctx, req.Pair, e.FormatExchangeKlineInterval(req.ExchangeInterval), size, req.RangeHolder.Ranges[i].Start.Time, req.RangeHolder.Ranges[i].End.Time)
+			if err != nil {
+				return nil, err
+			}
+			for x := range candles.Data {
+				timestamp := candles.Data[x].IDTimestamp.Time()
+				if timestamp.Before(req.Start) || timestamp.After(req.End) {
+					continue
+				}
+				timeSeries = append(timeSeries, kline.Candle{
+					Time:   timestamp,
+					Open:   candles.Data[x].Open,
+					High:   candles.Data[x].High,
+					Low:    candles.Data[x].Low,
+					Close:  candles.Data[x].Close,
+					Volume: candles.Data[x].Volume,
+				})
+			}
+		}
 	}
 
 	return req.ProcessResponse(timeSeries)
@@ -2192,7 +2273,7 @@ func compatibleVars(side, orderPriceType string, status int64) (OrderVars, error
 	case "sell":
 		resp.Side = order.Sell
 	default:
-		return resp, errors.New("invalid orderSide")
+		return resp, errUnrecognisedOrderSide
 	}
 	switch orderPriceType {
 	case "limit":
@@ -2203,7 +2284,7 @@ func compatibleVars(side, orderPriceType string, status int64) (OrderVars, error
 		resp.OrderType = order.Limit
 		resp.TimeInForce = order.PostOnly
 	default:
-		return resp, errors.New("invalid orderPriceType")
+		return resp, errInvalidOrderPriceType
 	}
 	switch status {
 	case 1, 2, 11:
@@ -2219,7 +2300,7 @@ func compatibleVars(side, orderPriceType string, status int64) (OrderVars, error
 	case 7:
 		resp.Status = order.Cancelled
 	default:
-		return resp, errors.New("invalid orderStatus")
+		return resp, errInvalidOrderStatus
 	}
 	return resp, nil
 }
@@ -2232,7 +2313,7 @@ func (e *Exchange) GetAvailableTransferChains(ctx context.Context, cryptocurrenc
 	}
 
 	if len(resp) == 0 {
-		return nil, errors.New("no chains returned from currencies API")
+		return nil, errNoTransferChains
 	}
 
 	chains := resp[0].ChainData

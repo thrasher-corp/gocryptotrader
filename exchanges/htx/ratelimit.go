@@ -1,8 +1,10 @@
 package htx
 
 import (
+	"strings"
 	"time"
 
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
@@ -39,4 +41,26 @@ func GetRateLimit() request.RateLimitDefinitions {
 		htxSwapUnAuth:      request.NewRateLimitWithWeight(htxSwapRateInterval, htxSwapUnauthRequestRate, 1),
 		htxFuturesTransfer: request.NewRateLimitWithWeight(htxFuturesTransferRateInterval, htxFuturesTransferReqRate, 1),
 	}
+}
+
+func getRateLimitID(ep exchange.URL, path string, authenticated bool) request.EndpointLimit {
+	if ep == exchange.RestSpot {
+		return request.Unset
+	}
+	if authenticated && strings.Contains(path, "transfer") {
+		return htxFuturesTransfer
+	}
+	isSwap := ep == exchange.RestUSDTMargined ||
+		ep == exchange.RestCoinMargined ||
+		strings.HasPrefix(path, "/swap-")
+	if isSwap {
+		if authenticated {
+			return htxSwapAuth
+		}
+		return htxSwapUnAuth
+	}
+	if authenticated {
+		return htxFuturesAuth
+	}
+	return htxFuturesUnAuth
 }

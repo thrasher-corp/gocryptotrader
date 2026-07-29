@@ -991,7 +991,7 @@ type OrderVars struct {
 // Variables below are used to check api requests being sent out
 
 var (
-	validPeriods = []string{"5min", "15min", "30min", "60min", "4hour", "1day"}
+	validPeriods = []string{"1min", "5min", "15min", "30min", "60min", "4hour", "1day", "1mon"}
 
 	validBasisPriceTypes = []string{"open", "close", "high", "low", "average"}
 

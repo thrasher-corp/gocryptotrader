@@ -564,7 +564,7 @@ type FundingRatesData struct {
 	ContractCode    string       `json:"contract_code"`
 	Symbol          string       `json:"symbol"`
 	FeeAsset        string       `json:"fee_asset"`
-	FundingTime     types.Time   `json:"fundingTime"`
+	FundingTime     types.Time   `json:"funding_time"`
 	NextFundingTime types.Time   `json:"next_funding_time"`
 }
 
@@ -582,7 +582,7 @@ type HistoricalFundingRateData struct {
 type HistoricalRateData struct {
 	FundingRate     types.Number `json:"funding_rate,string"`
 	RealizedRate    types.Number `json:"realized_rate,string"`
-	FundingTime     types.Time   `json:"fundingTime"`
+	FundingTime     types.Time   `json:"funding_time"`
 	ContractCode    string       `json:"contract_code"`
 	Symbol          string       `json:"symbol"`
 	FeeAsset        string       `json:"fee_asset"`
@@ -775,6 +775,21 @@ type AvailableLeverageData struct {
 		AvailableLeverage string `json:"available_level_rate"`
 	} `json:"data"`
 	Timestamp types.Time `json:"timestamp"`
+}
+
+// SwitchCoinMarginedLeverageRequest defines a coin-margined perpetual leverage change.
+type SwitchCoinMarginedLeverageRequest struct {
+	ContractCode string `json:"contract_code"`
+	LeverageRate uint64 `json:"lever_rate"`
+}
+
+// SwitchCoinMarginedLeverageResponse contains the leverage accepted by HTX.
+type SwitchCoinMarginedLeverageResponse struct {
+	Response
+	Data struct {
+		ContractCode string `json:"contract_code"`
+		LeverageRate uint64 `json:"lever_rate"`
+	} `json:"data"`
 }
 
 // FinancialRecord stores a coin-margined financial record entry.

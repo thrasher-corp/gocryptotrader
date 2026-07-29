@@ -2,6 +2,8 @@ package htx
 
 import (
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strconv"
 	"testing"
@@ -20,8 +22,8 @@ import (
 
 // Please supply your own test keys here for due diligence testing.
 const (
-	apiKey                  = "" //nolint:gosec // live HTX tests use developer-supplied local credentials.
-	apiSecret               = ""      //nolint:gosec // live HTX tests use developer-supplied local credentials.
+	apiKey                  = ""
+	apiSecret               = ""
 	canManipulateRealOrders = false
 )
 
@@ -90,6 +92,41 @@ func TestGetSignatureHost(t *testing.T) {
 			assert.Equal(t, tt.want, got, "signature host should match")
 		})
 	}
+}
+
+func TestSendHTTPRequest(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/public", r.URL.Path, "request path should match")
+		_, _ = w.Write([]byte(`{"status":"ok","data":1}`))
+	}))
+	t.Cleanup(server.Close)
+
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "spot endpoint must be set")
+	var response struct {
+		Response
+		Data uint64 `json:"data"`
+	}
+	require.NoError(t, h.SendHTTPRequest(t.Context(), exchange.RestSpot, "/public", &response), "SendHTTPRequest must not error")
+	assert.Equal(t, uint64(1), response.Data, "response data should match")
+}
+
+func TestSendAuthenticatedHTTPRequest(t *testing.T) {
+	t.Parallel()
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+	err := h.SendAuthenticatedHTTPRequest(t.Context(), exchange.RestSpot, http.MethodGet, "/private", nil, nil, nil, false)
+	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "SendAuthenticatedHTTPRequest must require credentials")
+}
+
+func TestFuturesAuthenticatedHTTPRequest(t *testing.T) {
+	t.Parallel()
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+	err := h.FuturesAuthenticatedHTTPRequest(t.Context(), exchange.RestFutures, http.MethodGet, "/private", nil, nil, nil)
+	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "FuturesAuthenticatedHTTPRequest must require credentials")
 }
 
 func TestSpotMatchResultsEndpoint(t *testing.T) {
@@ -474,6 +511,14 @@ func TestCancelOrderBatch(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	_, err := e.CancelOrderBatch(t.Context(), []string{"1234"}, nil)
 	require.NoError(t, err)
+}
+
+func TestCancelOpenOrdersBatch(t *testing.T) {
+	t.Parallel()
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+	_, err := h.CancelOpenOrdersBatch(t.Context(), "1", btcusdtPair)
+	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "CancelOpenOrdersBatch must require credentials")
 }
 
 func TestCancelBatchOrders(t *testing.T) {

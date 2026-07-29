@@ -2,7 +2,6 @@ package htx
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -16,7 +15,7 @@ import (
 )
 
 const (
-	// Coin Margined Swap (perpetual futures) endpoints
+	// Coin-margined swap endpoints.
 	htxSwapMarkets                  = "/swap-api/v1/swap_contract_info"
 	htxSwapFunding                  = "/swap-api/v1/swap_funding_rate"
 	htxSwapBatchFunding             = "/swap-api/v1/swap_batch_funding_rate"
@@ -47,6 +46,7 @@ const (
 	htxSwapFinancialRecords         = "/swap-api/v3/swap_financial_record"
 	htxSwapSettlementRecords        = "/swap-api/v1/swap_user_settlement_records"
 	htxSwapAvailableLeverage        = "/swap-api/v1/swap_available_level_rate"
+	htxSwapSwitchLeverage           = "/swap-api/v1/swap_switch_lever_rate"
 	htxSwapOrderLimitInfo           = "/swap-api/v1/swap_order_limit"
 	htxSwapTradingFeeInfo           = "/swap-api/v1/swap_fee"
 	htxSwapTransferLimitInfo        = "/swap-api/v1/swap_transfer_limit"
@@ -135,7 +135,7 @@ func (e *Exchange) GetSwapKlineData(ctx context.Context, code currency.Pair, per
 		return resp, err
 	}
 	if !common.StringSliceCompareInsensitive(validPeriods, period) {
-		return resp, errors.New("invalid period value received")
+		return resp, errInvalidPeriod
 	}
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
@@ -145,7 +145,7 @@ func (e *Exchange) GetSwapKlineData(ctx context.Context, code currency.Pair, per
 	}
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
-			return resp, errors.New("startTime cannot be after endTime")
+			return resp, errStartTimeAfterEndTime
 		}
 		params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("to", strconv.FormatInt(endTime.Unix(), 10))
@@ -215,14 +215,14 @@ func (e *Exchange) GetOpenInterestInfo(ctx context.Context, code currency.Pair, 
 		return resp, err
 	}
 	if !common.StringSliceCompareInsensitive(validPeriods, period) {
-		return resp, errors.New("invalid period value received")
+		return resp, errInvalidPeriod
 	}
 	if size <= 0 || size > 1200 {
-		return resp, errors.New("invalid size provided, only values between 1-1200 are supported")
+		return resp, errInvalidSize
 	}
 	aType, ok := validAmountType[amountType]
 	if !ok {
-		return resp, errors.New("invalid trade type")
+		return resp, errInvalidTradeType
 	}
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
@@ -254,7 +254,7 @@ func (e *Exchange) GetTraderSentimentIndexAccount(ctx context.Context, code curr
 		return resp, err
 	}
 	if !common.StringSliceCompareInsensitive(validPeriods, period) {
-		return resp, errors.New("invalid period value received")
+		return resp, errInvalidPeriod
 	}
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
@@ -272,7 +272,7 @@ func (e *Exchange) GetTraderSentimentIndexPosition(ctx context.Context, code cur
 	}
 
 	if !common.StringSliceCompareInsensitive(validPeriods, period) {
-		return resp, errors.New("invalid period value received")
+		return resp, errInvalidPeriod
 	}
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
@@ -290,7 +290,7 @@ func (e *Exchange) GetLiquidationOrders(ctx context.Context, contract currency.P
 	}
 	tType, ok := validTradeTypes[tradeType]
 	if !ok {
-		return resp, errors.New("invalid trade type")
+		return resp, errInvalidTradeType
 	}
 	params := url.Values{}
 	params.Set("contract", formattedContract)
@@ -325,7 +325,7 @@ func (e *Exchange) GetHistoricalFundingRatesForPair(ctx context.Context, code cu
 		params.Set("page_index", strconv.FormatInt(pageIndex, 10))
 	}
 	if pageSize != 0 {
-		params.Set("page_size", strconv.FormatInt(pageIndex, 10))
+		params.Set("page_size", strconv.FormatInt(pageSize, 10))
 	}
 	path := common.EncodeURLValues(htxSwapHistoricalFundingRate, params)
 	return resp, e.SendHTTPRequest(ctx, exchange.RestFutures, path, &resp)
@@ -339,10 +339,10 @@ func (e *Exchange) GetPremiumIndexKlineData(ctx context.Context, code currency.P
 		return resp, err
 	}
 	if !common.StringSliceCompareInsensitive(validPeriods, period) {
-		return resp, errors.New("invalid period value received")
+		return resp, errInvalidPeriod
 	}
 	if size <= 0 || size > 1200 {
-		return resp, errors.New("invalid size provided, only values between 1-1200 are supported")
+		return resp, errInvalidSize
 	}
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
@@ -360,10 +360,10 @@ func (e *Exchange) GetEstimatedFundingRates(ctx context.Context, code currency.P
 		return resp, err
 	}
 	if !common.StringSliceCompareInsensitive(validPeriods, period) {
-		return resp, errors.New("invalid period value received")
+		return resp, errInvalidPeriod
 	}
 	if size <= 0 || size > 1200 {
-		return resp, errors.New("invalid size provided, only values between 1-1200 are supported")
+		return resp, errInvalidSize
 	}
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
@@ -381,13 +381,13 @@ func (e *Exchange) GetBasisData(ctx context.Context, code currency.Pair, period,
 		return resp, err
 	}
 	if !common.StringSliceCompareInsensitive(validPeriods, period) {
-		return resp, errors.New("invalid period value received")
+		return resp, errInvalidPeriod
 	}
 	if size <= 0 || size > 1200 {
-		return resp, errors.New("invalid size provided, only values between 1-1200 are supported")
+		return resp, errInvalidSize
 	}
 	if !common.StringSliceCompareInsensitive(validBasisPriceTypes, basisPriceType) {
-		return resp, errors.New("invalid period value received")
+		return resp, errInvalidPeriod
 	}
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
@@ -508,7 +508,7 @@ func (e *Exchange) GetSwapSettlementRecords(ctx context.Context, code currency.P
 	req["contract_code"] = codeValue
 	if !startTime.IsZero() && !endTime.IsZero() {
 		if startTime.After(endTime) {
-			return resp, errors.New("startTime cannot be after endTime")
+			return resp, errStartTimeAfterEndTime
 		}
 		req["start_time"] = strconv.FormatInt(startTime.UnixMilli(), 10)
 		req["end_time"] = strconv.FormatInt(endTime.UnixMilli(), 10)
@@ -536,6 +536,20 @@ func (e *Exchange) GetAvailableLeverage(ctx context.Context, code currency.Pair)
 	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapAvailableLeverage, nil, req, &resp)
 }
 
+// SwitchCoinMarginedLeverage changes the leverage used by a coin-margined perpetual contract.
+func (e *Exchange) SwitchCoinMarginedLeverage(ctx context.Context, code currency.Pair, leverage uint64) error {
+	codeValue, err := e.FormatSymbol(code, asset.CoinMarginedFutures)
+	if err != nil {
+		return err
+	}
+	req := &SwitchCoinMarginedLeverageRequest{
+		ContractCode: codeValue,
+		LeverageRate: leverage,
+	}
+	var resp *SwitchCoinMarginedLeverageResponse
+	return e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapSwitchLeverage, nil, req, &resp)
+}
+
 // GetSwapOrderLimitInfo gets order limit info for swaps
 func (e *Exchange) GetSwapOrderLimitInfo(ctx context.Context, code currency.Pair, orderType string) (SwapOrderLimitInfo, error) {
 	var resp SwapOrderLimitInfo
@@ -546,7 +560,7 @@ func (e *Exchange) GetSwapOrderLimitInfo(ctx context.Context, code currency.Pair
 	}
 	req["contract_code"] = codeValue
 	if !common.StringSliceCompareInsensitive(validOrderTypes, orderType) {
-		return resp, errors.New("invalid ordertype provided")
+		return resp, errInvalidOrderType
 	}
 	req["order_price_type"] = orderType
 	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapOrderLimitInfo, nil, req, &resp)
@@ -600,7 +614,7 @@ func (e *Exchange) AccountTransferData(ctx context.Context, code currency.Pair, 
 	req["subUid"] = subUID
 	req["amount"] = amount
 	if !common.StringSliceCompareInsensitive(validTransferType, transferType) {
-		return resp, errors.New("invalid transferType received")
+		return resp, errInvalidTransferType
 	}
 	req["type"] = transferType
 	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapInternalTransferData, nil, req, &resp)
@@ -616,11 +630,11 @@ func (e *Exchange) AccountTransferRecords(ctx context.Context, code currency.Pai
 	}
 	req["contract_code"] = codeValue
 	if !common.StringSliceCompareInsensitive(validTransferType, transferType) {
-		return resp, errors.New("invalid transferType received")
+		return resp, errInvalidTransferType
 	}
 	req["type"] = transferType
 	if createDate > 90 {
-		return resp, errors.New("invalid create date value: only supports up to 90 days")
+		return resp, errInvalidCreateDate
 	}
 	req["create_date"] = strconv.FormatInt(createDate, 10)
 	if pageIndex != 0 {
@@ -647,7 +661,7 @@ func (e *Exchange) PlaceSwapOrders(ctx context.Context, code currency.Pair, clie
 	req["direction"] = direction
 	req["offset"] = offset
 	if !common.StringSliceCompareInsensitive(validOrderTypes, orderPriceType) {
-		return resp, errors.New("invalid ordertype provided")
+		return resp, errInvalidOrderType
 	}
 	req["order_price_type"] = orderPriceType
 	req["price"] = price
@@ -661,7 +675,7 @@ func (e *Exchange) PlaceSwapBatchOrders(ctx context.Context, data BatchOrderRequ
 	var resp BatchOrderData
 	req := make(map[string]any)
 	if len(data.Data) > 10 || len(data.Data) == 0 {
-		return resp, errors.New("invalid data provided: maximum of 10 batch orders supported")
+		return resp, errBatchOrderLimitExceeded
 	}
 	for x := range data.Data {
 		if data.Data[x].ContractCode == "" {
@@ -715,7 +729,7 @@ func (e *Exchange) PlaceLightningCloseOrder(ctx context.Context, contractCode cu
 	}
 	if orderPriceType != "" {
 		if !common.StringSliceCompareInsensitive(validLightningOrderPriceType, orderPriceType) {
-			return resp, errors.New("invalid orderPriceType")
+			return resp, errInvalidOrderPriceType
 		}
 		req["order_price_type"] = orderPriceType
 	}
@@ -731,7 +745,7 @@ func (e *Exchange) GetSwapOrderDetails(ctx context.Context, contractCode currenc
 	req["created_at"] = createdAt
 	oType, ok := validOrderType[orderType]
 	if !ok {
-		return resp, errors.New("invalid ordertype")
+		return resp, errInvalidOrderType
 	}
 	req["order_type"] = oType
 	if pageIndex != 0 {
@@ -792,12 +806,12 @@ func (e *Exchange) GetSwapOrderHistory(ctx context.Context, contractCode currenc
 	req["contract"] = codeValue
 	tType, ok := validFuturesTradeType[tradeType]
 	if !ok {
-		return resp, errors.New("invalid tradeType")
+		return resp, errInvalidTradeType
 	}
 	req["trade_type"] = tType
 	rType, ok := validFuturesReqType[reqType]
 	if !ok {
-		return resp, errors.New("invalid reqType")
+		return resp, errInvalidRequestType
 	}
 	req["type"] = rType
 	reqStatus := "0"
@@ -806,7 +820,7 @@ func (e *Exchange) GetSwapOrderHistory(ctx context.Context, contractCode currenc
 		for x := range status {
 			sType, ok := validOrderStatus[status[x]]
 			if !ok {
-				return resp, errors.New("invalid status")
+				return resp, errInvalidOrderStatus
 			}
 			if firstTime {
 				firstTime = false
@@ -818,7 +832,7 @@ func (e *Exchange) GetSwapOrderHistory(ctx context.Context, contractCode currenc
 	}
 	req["status"] = reqStatus
 	if createDate < 0 || createDate > 90 {
-		return resp, errors.New("invalid createDate")
+		return resp, errInvalidCreateDate
 	}
 	addV3HistoryTimeRange(req, createDate)
 	req["direct"] = v3HistoryDirectionPrevious
@@ -838,11 +852,11 @@ func (e *Exchange) GetSwapTradeHistory(ctx context.Context, contractCode currenc
 	}
 	req["contract"] = codeValue
 	if createDate > 90 {
-		return resp, errors.New("invalid create date value: only supports up to 90 days")
+		return resp, errInvalidCreateDate
 	}
 	tType, ok := validTradeType[tradeType]
 	if !ok {
-		return resp, errors.New("invalid trade type")
+		return resp, errInvalidTradeType
 	}
 	req["trade_type"] = tType
 	addV3HistoryTimeRange(req, createDate)
@@ -864,7 +878,7 @@ func (e *Exchange) PlaceSwapTriggerOrder(ctx context.Context, contractCode curre
 	req["contract_code"] = codeValue
 	tType, ok := validTriggerType[triggerType]
 	if !ok {
-		return resp, errors.New("invalid trigger type")
+		return resp, errInvalidTriggerType
 	}
 	req["trigger_type"] = tType
 	req["direction"] = direction
@@ -874,7 +888,7 @@ func (e *Exchange) PlaceSwapTriggerOrder(ctx context.Context, contractCode curre
 	req["lever_rate"] = leverageRate
 	req["order_price"] = orderPrice
 	if !common.StringSliceCompareInsensitive(validOrderPriceType, orderPriceType) {
-		return resp, errors.New("invalid order price type")
+		return resp, errInvalidOrderPriceType
 	}
 	req["order_price_type"] = orderPriceType
 	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, htxSwapTriggerOrder, nil, req, &resp)
@@ -913,11 +927,11 @@ func (e *Exchange) GetSwapTriggerOrderHistory(ctx context.Context, contractCode 
 	req["status"] = status
 	tType, ok := validTradeType[tradeType]
 	if !ok {
-		return resp, errors.New("invalid trade type")
+		return resp, errInvalidTradeType
 	}
 	req["trade_type"] = tType
 	if createDate > 90 {
-		return resp, errors.New("invalid create date value: only supports up to 90 days")
+		return resp, errInvalidCreateDate
 	}
 	req["create_date"] = strconv.FormatInt(createDate, 10)
 	if pageIndex != 0 {
@@ -946,7 +960,7 @@ func (e *Exchange) GetSwapMarkets(ctx context.Context, contract currency.Pair) (
 	var result response
 	err := e.SendHTTPRequest(ctx, exchange.RestFutures, htxSwapMarkets+"?"+vals.Encode(), &result)
 	if result.ErrorMessage != "" {
-		return nil, errors.New(result.ErrorMessage)
+		return nil, htxError(result.ErrorMessage)
 	}
 	return result.Data, err
 }
@@ -966,7 +980,7 @@ func (e *Exchange) GetSwapFundingRate(ctx context.Context, contract currency.Pai
 	var result response
 	err = e.SendHTTPRequest(ctx, exchange.RestFutures, htxSwapFunding+"?"+vals.Encode(), &result)
 	if result.ErrorMessage != "" {
-		return FundingRatesData{}, errors.New(result.ErrorMessage)
+		return FundingRatesData{}, htxError(result.ErrorMessage)
 	}
 	return result.Data, err
 }

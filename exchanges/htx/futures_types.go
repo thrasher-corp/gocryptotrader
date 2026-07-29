@@ -603,6 +603,21 @@ type FAvailableLeverageData struct {
 	Timestamp types.Time `json:"timestamp"`
 }
 
+// FSwitchLeverageRequest defines a delivery-contract leverage change.
+type FSwitchLeverageRequest struct {
+	Symbol       string `json:"symbol"`
+	LeverageRate uint64 `json:"lever_rate"`
+}
+
+// FSwitchLeverageResponse contains the leverage accepted by HTX.
+type FSwitchLeverageResponse struct {
+	Response
+	Data struct {
+		Symbol       string `json:"symbol"`
+		LeverageRate uint64 `json:"lever_rate"`
+	} `json:"data"`
+}
+
 // FOrderData stores order data for futures
 type FOrderData struct {
 	Data struct {

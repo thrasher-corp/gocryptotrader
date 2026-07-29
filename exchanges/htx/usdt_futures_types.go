@@ -30,6 +30,22 @@ type V5Response struct {
 	Timestamp types.Time `json:"ts"`
 }
 
+// SwitchLinearSwapLeverageRequest defines a USDT-margined leverage change.
+type SwitchLinearSwapLeverageRequest struct {
+	ContractCode string `json:"contract_code"`
+	LeverageRate uint64 `json:"lever_rate"`
+}
+
+// SwitchLinearSwapLeverageResponse contains the leverage accepted by HTX.
+type SwitchLinearSwapLeverageResponse struct {
+	Response
+	Data struct {
+		ContractCode string `json:"contract_code"`
+		LeverageRate uint64 `json:"lever_rate"`
+		MarginMode   string `json:"margin_mode"`
+	} `json:"data"`
+}
+
 // V5AccountBalanceResponse stores USDT-margined unified-margin balances.
 type V5AccountBalanceResponse struct {
 	V5Response

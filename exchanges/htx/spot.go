@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -78,17 +77,13 @@ const (
 	htxBatchContracts               = "/v2/market/detail/batch_merged"
 )
 
-var errWithdrawDetailsUnset = errors.New("currency, address and amount must be set")
-
-// Exchange implements exchange.IBotExchange and contains additional specific api methods for interacting with HTX
+// Exchange implements exchange.IBotExchange and contains additional API methods for interacting with HTX.
 type Exchange struct {
 	exchange.Base
 	AccountID                string
 	futureContractCodesMutex sync.RWMutex
 	futureContractCodes      map[string]currency.Code
 }
-
-var errInvalidEndpoint = errors.New("invalid endpoint")
 
 func getSignatureHost(endpoint string) (string, error) {
 	parsedEndpoint, err := url.Parse(endpoint)
@@ -153,7 +148,7 @@ func (e *Exchange) GetSpotKline(ctx context.Context, arg KlinesRequestParams) ([
 
 	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketHistoryKline, vals), &result)
 	if result.ErrorMessage != "" {
-		return nil, errors.New(result.ErrorMessage)
+		return nil, htxError(result.ErrorMessage)
 	}
 	return result.Data, err
 }
@@ -221,7 +216,7 @@ func (e *Exchange) GetMarketDetailMerged(ctx context.Context, symbol currency.Pa
 
 	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketDetailMerged, vals), &result)
 	if result.ErrorMessage != "" {
-		return result.Tick, errors.New(result.ErrorMessage)
+		return result.Tick, htxError(result.ErrorMessage)
 	}
 	return result.Tick, err
 }
@@ -247,7 +242,7 @@ func (e *Exchange) GetDepth(ctx context.Context, obd *OrderBookDataRequestParams
 	var result response
 	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketDepth, vals), &result)
 	if result.ErrorMessage != "" {
-		return nil, errors.New(result.ErrorMessage)
+		return nil, htxError(result.ErrorMessage)
 	}
 	return &result.Depth, err
 }
@@ -272,7 +267,7 @@ func (e *Exchange) GetTrades(ctx context.Context, symbol currency.Pair) ([]Trade
 
 	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketTrade, vals), &result)
 	if result.ErrorMessage != "" {
-		return nil, errors.New(result.ErrorMessage)
+		return nil, htxError(result.ErrorMessage)
 	}
 	return result.Tick.Data, err
 }
@@ -286,7 +281,7 @@ func (e *Exchange) GetLatestSpotPrice(ctx context.Context, symbol currency.Pair)
 		return 0, err
 	}
 	if len(list) == 0 {
-		return 0, errors.New("the length of the list is 0")
+		return 0, errEmptyResult
 	}
 
 	return list[0].Trades[0].Price, nil
@@ -314,7 +309,7 @@ func (e *Exchange) GetTradeHistory(ctx context.Context, symbol currency.Pair, si
 
 	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketTradeHistory, vals), &result)
 	if result.ErrorMessage != "" {
-		return nil, errors.New(result.ErrorMessage)
+		return nil, htxError(result.ErrorMessage)
 	}
 	return result.TradeHistory, err
 }
@@ -337,7 +332,7 @@ func (e *Exchange) GetMarketDetail(ctx context.Context, symbol currency.Pair) (D
 
 	err = e.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues(htxMarketDetail, vals), &result)
 	if result.ErrorMessage != "" {
-		return result.Tick, errors.New(result.ErrorMessage)
+		return result.Tick, htxError(result.ErrorMessage)
 	}
 	return result.Tick, err
 }
@@ -353,7 +348,7 @@ func (e *Exchange) GetSymbols(ctx context.Context) ([]Symbol, error) {
 
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, htxSymbols, &result)
 	if result.ErrorMessage != "" {
-		return nil, errors.New(result.ErrorMessage)
+		return nil, htxError(result.ErrorMessage)
 	}
 	return result.Symbols, err
 }
@@ -369,7 +364,7 @@ func (e *Exchange) GetCurrencies(ctx context.Context) ([]string, error) {
 
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, htxCurrencies, &result)
 	if result.ErrorMessage != "" {
-		return nil, errors.New(result.ErrorMessage)
+		return nil, htxError(result.ErrorMessage)
 	}
 	return result.Currencies, err
 }
@@ -400,7 +395,7 @@ func (e *Exchange) GetCurrentServerTime(ctx context.Context) (time.Time, error) 
 	}
 	err := e.SendHTTPRequest(ctx, exchange.RestSpot, "/v"+htxAPIVersion+"/"+htxTimestamp, &result)
 	if result.ErrorMessage != "" {
-		return time.Time{}, errors.New(result.ErrorMessage)
+		return time.Time{}, htxError(result.ErrorMessage)
 	}
 	return result.Timestamp.Time(), err
 }
@@ -862,7 +857,7 @@ func (e *Exchange) QueryDepositAddress(ctx context.Context, cryptocurrency curre
 		return nil, err
 	}
 	if len(resp.DepositAddress) == 0 {
-		return nil, errors.New("deposit address data isn't populated")
+		return nil, errDepositAddressMissing
 	}
 	return resp.DepositAddress, nil
 }
@@ -921,7 +916,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
 	}
 
-	err = e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+	err = e.SendPayload(ctx, getRateLimitID(ep, path, false), func() (*request.Item, error) {
 		return item, nil
 	}, request.UnauthenticatedRequest)
 	if err != nil {
@@ -932,11 +927,11 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 	if err := json.Unmarshal(tempResp, &errCap); err == nil {
 		if errCap.ErrMsgType1 != "" {
 			return fmt.Errorf("error code: %v error message: %s", errCap.CodeType1,
-				errors.New(errCap.ErrMsgType1))
+				htxError(errCap.ErrMsgType1))
 		}
 		if errCap.ErrMsgType2 != "" {
 			return fmt.Errorf("error code: %v error message: %s", errCap.CodeType2,
-				errors.New(errCap.ErrMsgType2))
+				htxError(errCap.ErrMsgType2))
 		}
 	}
 	return json.Unmarshal(tempResp, result)
@@ -1015,7 +1010,7 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 		}, nil
 	}
 
-	err = e.SendPayload(ctx, request.Unset, newRequest, request.AuthenticatedRequest)
+	err = e.SendPayload(ctx, getRateLimitID(ep, endpoint, true), newRequest, request.AuthenticatedRequest)
 	if err != nil {
 		return err
 	}

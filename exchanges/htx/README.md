@@ -10,7 +10,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/thrasher-corp/gocryptotrader)](https://goreportcard.com/report/github.com/thrasher-corp/gocryptotrader)
 
 
-This htx package is part of the GoCryptoTrader codebase.
+This HTX package is part of the GoCryptoTrader codebase.
 
 ## This is still in active development
 
@@ -22,8 +22,17 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 
 ### Current Features
 
-+ REST Support
-+ Websocket Support
+- Spot REST and public/private websocket support
+- Coin-margined delivery futures REST and public websocket support
+- Coin-margined perpetual futures REST and public websocket support
+- USDT-margined perpetual futures REST and public websocket support
+- Latest and historical perpetual funding rates
+- Derivatives open interest and leverage management
+
+The implementation follows HTX's official [spot](https://huobiapi.github.io/docs/spot/v1/en/),
+[delivery futures](https://huobiapi.github.io/docs/dm/v1/en/),
+[coin-margined perpetual](https://huobiapi.github.io/docs/coin_margined_swap/v1/en/) and
+[USDT-margined](https://huobiapi.github.io/docs/usdt_swap/v1/en/) API references.
 
 ### How to enable
 
@@ -112,22 +121,27 @@ if err != nil {
 
 ### Subscriptions
 
-All subscriptions are for spot only.
-
 Default Public Subscriptions:
-- Ticker
-- Candles ( Interval: 1min )
-- Orderbook ( Level: 0 - No aggregation )
+
+- Spot, delivery futures, coin-margined perpetuals and USDT-margined perpetuals:
+  - Ticker
+  - Candles (interval: 1min)
+  - Orderbook
+  - Trades
+- Coin-margined and USDT-margined perpetuals:
+  - Funding rates
+- Spot orderbooks default to level 0 (no aggregation).
   - Configure Level: 1-5 for depth aggregation, for example:
+
 ```json
  {"enabled": true, "channel": "orderbook", "asset": "spot", "levels": 1}
 ```
-- Trades
 
-Default Authenticated Subscriptions:
-- Account Trades
-- Account Orders
-- Account Updates
+Default Authenticated Spot Subscriptions:
+
+- Account trades
+- Account orders
+- Account updates
 
 ## Donations
 

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -18,8 +19,13 @@ const (
 	linearSwapMarkets        = "/linear-swap-api/v1/swap_contract_info"
 	linearSwapMarketDepth    = "/linear-swap-ex/market/depth"
 	linearSwapMarketOverview = "/linear-swap-ex/market/detail/merged"
+	linearSwapKline          = "/linear-swap-ex/market/history/kline"
+	linearSwapBatchTrades    = "/linear-swap-ex/market/history/trade"
 	linearSwapFunding        = "/linear-swap-api/v1/swap_funding_rate"
 	linearSwapBatchFunding   = "/linear-swap-api/v1/swap_batch_funding_rate"
+	linearSwapFundingHistory = "/linear-swap-api/v1/swap_historical_funding_rate"
+	linearSwapSwitchLeverage = "/linear-swap-api/v1/swap_switch_lever_rate"
+	linearSwapCrossLeverage  = "/linear-swap-api/v1/swap_cross_switch_lever_rate"
 	v5AccountBalance         = "/v5/account/balance"
 	v5TradeOrder             = "/v5/trade/order"
 	v5TradeCancelOrder       = "/v5/trade/cancel_order"
@@ -79,6 +85,45 @@ func (e *Exchange) GetLinearSwapMarketOverview(ctx context.Context, code currenc
 	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(linearSwapMarketOverview, params), &resp)
 }
 
+// GetLinearSwapKlineData gets USDT-margined contract candlesticks.
+func (e *Exchange) GetLinearSwapKlineData(ctx context.Context, code currency.Pair, period string, size int64, startTime, endTime time.Time) (SwapKlineData, error) {
+	var resp SwapKlineData
+	codeValue, err := e.FormatSymbol(code, asset.USDTMarginedFutures)
+	if err != nil {
+		return resp, err
+	}
+	if !common.StringSliceCompareInsensitive(validPeriods, period) {
+		return resp, errInvalidPeriod
+	}
+	params := url.Values{}
+	params.Set("contract_code", codeValue)
+	params.Set("period", period)
+	if size > 0 {
+		params.Set("size", strconv.FormatInt(size, 10))
+	}
+	if !startTime.IsZero() && !endTime.IsZero() {
+		if startTime.After(endTime) {
+			return resp, errStartTimeAfterEndTime
+		}
+		params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
+		params.Set("to", strconv.FormatInt(endTime.Unix(), 10))
+	}
+	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(linearSwapKline, params), &resp)
+}
+
+// GetLinearSwapBatchTrades gets recent trades for a USDT-margined contract.
+func (e *Exchange) GetLinearSwapBatchTrades(ctx context.Context, code currency.Pair, size int64) (BatchTradesData, error) {
+	var resp BatchTradesData
+	codeValue, err := e.FormatSymbol(code, asset.USDTMarginedFutures)
+	if err != nil {
+		return resp, err
+	}
+	params := url.Values{}
+	params.Set("contract_code", codeValue)
+	params.Set("size", strconv.FormatInt(size, 10))
+	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(linearSwapBatchTrades, params), &resp)
+}
+
 // GetLinearSwapFundingRate gets the current funding rate for a USDT-margined contract.
 func (e *Exchange) GetLinearSwapFundingRate(ctx context.Context, code currency.Pair) (FundingRatesData, error) {
 	var resp struct {
@@ -98,6 +143,42 @@ func (e *Exchange) GetLinearSwapFundingRate(ctx context.Context, code currency.P
 func (e *Exchange) GetLinearSwapFundingRates(ctx context.Context) (SwapFundingRatesResponse, error) {
 	var resp SwapFundingRatesResponse
 	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, linearSwapBatchFunding, &resp)
+}
+
+// GetLinearSwapHistoricalFundingRates gets historical funding rates for a USDT-margined contract.
+func (e *Exchange) GetLinearSwapHistoricalFundingRates(ctx context.Context, code currency.Pair, pageSize, pageIndex int64) (HistoricalFundingRateData, error) {
+	var resp HistoricalFundingRateData
+	codeValue, err := e.FormatSymbol(code, asset.USDTMarginedFutures)
+	if err != nil {
+		return resp, err
+	}
+	params := url.Values{}
+	params.Set("contract_code", codeValue)
+	if pageIndex != 0 {
+		params.Set("page_index", strconv.FormatInt(pageIndex, 10))
+	}
+	if pageSize != 0 {
+		params.Set("page_size", strconv.FormatInt(pageSize, 10))
+	}
+	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(linearSwapFundingHistory, params), &resp)
+}
+
+// SwitchLinearSwapLeverage changes the leverage used by a USDT-margined contract.
+func (e *Exchange) SwitchLinearSwapLeverage(ctx context.Context, code currency.Pair, leverage uint64, crossMargin bool) error {
+	codeValue, err := e.FormatSymbol(code, asset.USDTMarginedFutures)
+	if err != nil {
+		return err
+	}
+	req := &SwitchLinearSwapLeverageRequest{
+		ContractCode: codeValue,
+		LeverageRate: leverage,
+	}
+	endpoint := linearSwapSwitchLeverage
+	if crossMargin {
+		endpoint = linearSwapCrossLeverage
+	}
+	var resp *SwitchLinearSwapLeverageResponse
+	return e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, endpoint, nil, req, &resp)
 }
 
 // GetV5OpenInterest gets the current USDT-margined contract open interest.

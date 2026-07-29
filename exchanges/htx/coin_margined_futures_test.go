@@ -160,12 +160,6 @@ func TestGetLiquidationOrders(t *testing.T) {
 	assert.NoError(t, err, "GetLiquidationOrders should not error")
 }
 
-func TestGetHistoricalFundingRates(t *testing.T) {
-	t.Parallel()
-	_, err := e.GetHistoricalFundingRatesForPair(t.Context(), btcusdPair, 0, 0)
-	require.NoError(t, err)
-}
-
 func TestGetPremiumIndexKlineData(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetPremiumIndexKlineData(t.Context(), btcusdPair, "5min", 15)
@@ -438,6 +432,12 @@ func TestGetSwapFundingRates(t *testing.T) {
 	t.Parallel()
 	_, err := e.GetSwapFundingRates(t.Context())
 	require.NoError(t, err)
+}
+
+func TestGetSwapFundingRate(t *testing.T) {
+	t.Parallel()
+	_, err := e.GetSwapFundingRate(t.Context(), btcusdPair)
+	require.NoError(t, err, "GetSwapFundingRate must not error")
 }
 
 func TestGetBatchCoinMarginSwapContracts(t *testing.T) {

@@ -492,6 +492,15 @@ func TestFormatFuturesPair(t *testing.T) {
 	assert.Equal(t, "BTC-USDT", r)
 }
 
+func TestFormatFuturesCode(t *testing.T) {
+	t.Parallel()
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+	formatted, err := h.formatFuturesCode(currency.NewCode("btc"))
+	require.NoError(t, err, "formatFuturesCode must not error")
+	assert.Equal(t, "BTC", formatted, "futures code should use the configured case")
+}
+
 var expiryWindows = map[string]uint{
 	"CW": 14,
 	"NW": 21,
