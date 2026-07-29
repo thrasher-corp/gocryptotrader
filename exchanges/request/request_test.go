@@ -12,9 +12,12 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
+	"testing/iotest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -29,6 +32,31 @@ var (
 	testURL     string
 	serverLimit *RateLimiterWithWeight
 )
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (r roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return r(req)
+}
+
+type trackedReadCloser struct {
+	io.Reader
+	closeErr   error
+	closeCalls int
+}
+
+func (t *trackedReadCloser) Close() error {
+	t.closeCalls++
+	return t.closeErr
+}
+
+type trackingReporter struct {
+	calls int
+}
+
+func (t *trackingReporter) Latency(string, string, string, time.Duration) {
+	t.calls++
+}
 
 func TestMain(m *testing.M) {
 	serverLimitInterval := time.Millisecond * 500
@@ -310,6 +338,501 @@ func TestDoRequest(t *testing.T) {
 	require.NoError(t, ec.Collect(), "Collect must return no errors")
 }
 
+func TestExecuteRequestClosesResponseBody(t *testing.T) {
+	t.Parallel()
+
+	readErr := errors.New("response read failure")
+	closeErr := errors.New("response close failure")
+	retryErr := errors.New("retry policy failure")
+
+	for _, tc := range []struct {
+		name          string
+		statusCode    int
+		body          io.Reader
+		closeErr      error
+		retryPolicy   RetryPolicy
+		expectedErr   error
+		errContains   string
+		headers       http.Header
+		trailer       http.Header
+		transfer      []string
+		record        bool
+		debug         bool
+		verbose       bool
+		report        bool
+		attempt       int
+		expectedRetry bool
+	}{
+		{
+			name:       "successful response",
+			statusCode: http.StatusOK,
+			body:       strings.NewReader(`{"response":true}`),
+		},
+		{
+			name:        "unsuccessful response",
+			statusCode:  http.StatusBadRequest,
+			body:        strings.NewReader(`{"error":true}`),
+			expectedErr: ErrBadStatus,
+		},
+		{
+			name:        "response read failure",
+			statusCode:  http.StatusOK,
+			body:        iotest.ErrReader(readErr),
+			expectedErr: readErr,
+		},
+		{
+			name:       "response close failure",
+			statusCode: http.StatusOK,
+			body:       strings.NewReader(`{"response":true}`),
+			closeErr:   closeErr,
+		},
+		{
+			name:       "retry policy failure",
+			statusCode: http.StatusOK,
+			body:       strings.NewReader(`{"response":true}`),
+			retryPolicy: func(*http.Response, error) (bool, error) {
+				return false, retryErr
+			},
+			expectedErr: retryErr,
+		},
+		{
+			name:        "mock recording failure",
+			statusCode:  http.StatusOK,
+			body:        strings.NewReader(`{"response":true}`),
+			record:      true,
+			errContains: "mock recording failure",
+		},
+		{
+			name:       "debug response dump failure",
+			statusCode: http.StatusOK,
+			body:       strings.NewReader(`{"response":true}`),
+			trailer: http.Header{
+				"Content-Length": {"1"},
+			},
+			transfer: []string{"chunked"},
+			debug:    true,
+			verbose:  true,
+		},
+		{
+			name:       "verbose response with latency reporter",
+			statusCode: http.StatusOK,
+			body:       strings.NewReader(`{"response":true}`),
+			headers: http.Header{
+				"X-Test": {"value"},
+			},
+			verbose: true,
+			report:  true,
+		},
+		{
+			name:          "retry response",
+			statusCode:    http.StatusTooManyRequests,
+			body:          strings.NewReader(`{"retry":true}`),
+			expectedRetry: true,
+		},
+		{
+			name:        "terminal retry response",
+			statusCode:  http.StatusTooManyRequests,
+			body:        strings.NewReader(`{"retry":true}`),
+			attempt:     MaxRetryAttempts + 1,
+			expectedErr: errFailedToRetryRequest,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			body := &trackedReadCloser{
+				Reader:   tc.body,
+				closeErr: tc.closeErr,
+			}
+			httpClient := &http.Client{
+				Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					return &http.Response{
+						Status:           fmt.Sprintf("%d %s", tc.statusCode, http.StatusText(tc.statusCode)),
+						StatusCode:       tc.statusCode,
+						ProtoMajor:       1,
+						ProtoMinor:       1,
+						Header:           tc.headers.Clone(),
+						Trailer:          tc.trailer.Clone(),
+						TransferEncoding: slices.Clone(tc.transfer),
+						Body:             body,
+						Request:          req,
+					}, nil
+				}),
+			}
+			options := []RequesterOption{WithBackoff(func(int) time.Duration { return 0 })}
+			if tc.retryPolicy != nil {
+				options = append(options, WithRetryPolicy(tc.retryPolicy))
+			}
+			reporter := &trackingReporter{}
+			if tc.report {
+				options = append(options, WithReporter(reporter))
+			}
+			requesterName := "test"
+			if tc.record {
+				requesterName = ""
+			}
+			r, err := New(requesterName, httpClient, options...)
+			require.NoError(t, err, "New requester must not error")
+			t.Cleanup(func() {
+				assert.NoError(t, r.Shutdown(), "Requester shutdown should not error")
+			})
+
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.com", http.NoBody)
+			require.NoError(t, err, "New request must not error")
+			attempt := tc.attempt
+			if attempt == 0 {
+				attempt = 1
+			}
+			retry, err := r.executeRequest(t.Context(), &Item{
+				Method:        http.MethodGet,
+				Path:          "https://example.com",
+				HTTPRecording: tc.record,
+				HTTPDebugging: tc.debug,
+			}, req, attempt, tc.verbose)
+			require.Equal(t, tc.expectedRetry, retry, "executeRequest must return the expected retry decision")
+			switch {
+			case tc.expectedErr != nil:
+				require.ErrorIs(t, err, tc.expectedErr, "executeRequest must return the expected error")
+			case tc.errContains != "":
+				require.ErrorContains(t, err, tc.errContains, "executeRequest must return the expected error")
+			default:
+				require.NoError(t, err, "executeRequest must not error")
+			}
+			assert.Equal(t, 1, body.closeCalls, "Response body should be closed exactly once")
+			if tc.report {
+				assert.Equal(t, 1, reporter.calls, "Reporter should receive one latency observation")
+			}
+		})
+	}
+}
+
+func TestExecuteRequestRecordsResponse(t *testing.T) {
+	serviceDir, err := os.MkdirTemp("..", "request_test_http_recording_") //nolint:usetesting // mock.HTTPRecord requires a sibling fixture directory.
+	require.NoError(t, err, "MkdirTemp must create the recording service directory")
+	recordingDir := filepath.Join(serviceDir, "testdata")
+	recordingFile := filepath.Join(recordingDir, "http.json")
+	t.Cleanup(func() {
+		require.NoError(t, os.RemoveAll(serviceDir), "RemoveAll must remove the recording service directory")
+	})
+	require.NoError(t, os.Mkdir(recordingDir, 0o755), "Mkdir must create the recording testdata directory")
+	require.NoError(t, os.WriteFile(recordingFile, []byte(`{"routes":null}`), 0o600), "WriteFile must create the recording fixture")
+
+	service := filepath.Base(serviceDir)
+	body := &trackedReadCloser{Reader: strings.NewReader(`{"response":true}`)}
+	httpClient := &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Status:     "200 OK",
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body:       body,
+				Request:    req,
+			}, nil
+		}),
+	}
+	r, err := New(service, httpClient)
+	require.NoError(t, err, "New requester must not error")
+	t.Cleanup(func() {
+		assert.NoError(t, r.Shutdown(), "Requester shutdown should not error")
+	})
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.com/record", http.NoBody)
+	require.NoError(t, err, "NewRequestWithContext must not error")
+	retry, err := r.executeRequest(t.Context(), &Item{
+		Method:        http.MethodGet,
+		Path:          "https://example.com/record",
+		HTTPRecording: true,
+	}, req, 1, false)
+	require.NoError(t, err, "executeRequest must not error")
+	require.False(t, retry, "executeRequest must not retry")
+	assert.Equal(t, 1, body.closeCalls, "Response body should be closed exactly once")
+	recorded, err := os.ReadFile(recordingFile)
+	require.NoError(t, err, "ReadFile must read the recording fixture")
+	assert.Contains(t, string(recorded), `"/record"`, "HTTP recording should contain the request path")
+}
+
+func TestDoRequestExecutesRetryDecision(t *testing.T) {
+	t.Parallel()
+
+	attempts := 0
+	bodies := make([]*trackedReadCloser, 0, 2)
+	httpClient := &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			attempts++
+			statusCode := http.StatusOK
+			if attempts == 1 {
+				statusCode = http.StatusTooManyRequests
+			}
+			body := &trackedReadCloser{Reader: strings.NewReader(`{"response":true}`)}
+			bodies = append(bodies, body)
+			return &http.Response{
+				Status:     fmt.Sprintf("%d %s", statusCode, http.StatusText(statusCode)),
+				StatusCode: statusCode,
+				Header:     make(http.Header),
+				Body:       body,
+				Request:    req,
+			}, nil
+		}),
+	}
+	r, err := New("test", httpClient, WithBackoff(func(int) time.Duration { return 0 }))
+	require.NoError(t, err, "New requester must not error")
+	t.Cleanup(func() {
+		assert.NoError(t, r.Shutdown(), "Requester shutdown should not error")
+	})
+
+	err = r.doRequest(t.Context(), Unset, func() (*Item, error) {
+		return &Item{
+			Method:       http.MethodGet,
+			Path:         "https://example.com",
+			NonceEnabled: true,
+		}, nil
+	})
+	require.NoError(t, err, "doRequest must not error")
+	require.Len(t, bodies, 2, "Response bodies must contain one entry per request attempt")
+	for _, body := range bodies {
+		assert.Equal(t, 1, body.closeCalls, "Response body should be closed exactly once")
+	}
+}
+
+func TestDoRequestReturnsExecutionError(t *testing.T) {
+	t.Parallel()
+
+	retryErr := errors.New("retry policy failure")
+	body := &trackedReadCloser{Reader: strings.NewReader(`{"response":true}`)}
+	httpClient := &http.Client{
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Status:     "200 OK",
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body:       body,
+				Request:    req,
+			}, nil
+		}),
+	}
+	r, err := New("test", httpClient, WithRetryPolicy(func(*http.Response, error) (bool, error) {
+		return false, retryErr
+	}))
+	require.NoError(t, err, "New requester must not error")
+	t.Cleanup(func() {
+		assert.NoError(t, r.Shutdown(), "Requester shutdown should not error")
+	})
+
+	err = r.doRequest(t.Context(), Unset, func() (*Item, error) {
+		return &Item{
+			Method:       http.MethodGet,
+			Path:         "https://example.com",
+			NonceEnabled: true,
+		}, nil
+	})
+	require.ErrorIs(t, err, retryErr, "doRequest must return the execution error")
+	assert.Equal(t, 1, body.closeCalls, "Response body should be closed exactly once")
+}
+
+func TestExecuteRequestProcessesResponse(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name           string
+		statusCode     int
+		payload        string
+		initialResult  bool
+		expectedResult bool
+		debug          bool
+		expectError    bool
+	}{
+		{
+			name:           "decoded response with headers and debugging",
+			statusCode:     http.StatusOK,
+			payload:        `{"response":true}`,
+			expectedResult: true,
+			debug:          true,
+		},
+		{
+			name:           "no content preserves result",
+			statusCode:     http.StatusNoContent,
+			initialResult:  true,
+			expectedResult: true,
+		},
+		{
+			name:        "invalid response",
+			statusCode:  http.StatusOK,
+			payload:     `{`,
+			expectError: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			body := &trackedReadCloser{Reader: strings.NewReader(tc.payload)}
+			httpClient := &http.Client{
+				Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					return &http.Response{
+						Status:     fmt.Sprintf("%d %s", tc.statusCode, http.StatusText(tc.statusCode)),
+						StatusCode: tc.statusCode,
+						Header: http.Header{
+							"X-Test": {"value"},
+						},
+						Body:    body,
+						Request: req,
+					}, nil
+				}),
+			}
+			r, err := New("test", httpClient)
+			require.NoError(t, err, "New requester must not error")
+			t.Cleanup(func() {
+				assert.NoError(t, r.Shutdown(), "Requester shutdown should not error")
+			})
+
+			result := struct {
+				Response bool `json:"response"`
+			}{Response: tc.initialResult}
+			headerResponse := make(http.Header)
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.com", http.NoBody)
+			require.NoError(t, err, "New request must not error")
+			retry, err := r.executeRequest(t.Context(), &Item{
+				Method:         http.MethodGet,
+				Path:           "https://example.com",
+				Result:         &result,
+				HeaderResponse: &headerResponse,
+				HTTPDebugging:  tc.debug,
+			}, req, 1, false)
+			require.False(t, retry, "executeRequest must not retry")
+			if tc.expectError {
+				require.Error(t, err, "executeRequest must return the response decoding error")
+			} else {
+				require.NoError(t, err, "executeRequest must not error")
+			}
+			assert.Equal(t, tc.expectedResult, result.Response, "executeRequest should return the expected response result")
+			assert.Equal(t, []string{"value"}, headerResponse.Values("X-Test"), "executeRequest should return the expected response headers")
+			assert.Equal(t, 1, body.closeCalls, "Response body should be closed exactly once")
+		})
+	}
+}
+
+func TestExecuteRequestTransportError(t *testing.T) {
+	t.Parallel()
+
+	transportErr := errors.New("transport failure")
+	reporter := &trackingReporter{}
+	httpClient := &http.Client{
+		Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+			return nil, transportErr
+		}),
+	}
+	r, err := New("test", httpClient, WithReporter(reporter))
+	require.NoError(t, err, "New requester must not error")
+	t.Cleanup(func() {
+		assert.NoError(t, r.Shutdown(), "Requester shutdown should not error")
+	})
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.com", http.NoBody)
+	require.NoError(t, err, "New request must not error")
+	retry, err := r.executeRequest(t.Context(), &Item{Method: http.MethodGet, Path: "https://example.com"}, req, 1, false)
+	require.ErrorIs(t, err, transportErr, "executeRequest must return the transport error")
+	require.False(t, retry, "executeRequest must not retry")
+	assert.Zero(t, reporter.calls, "Reporter should not receive a latency observation")
+}
+
+func TestExecuteRequestVerboseRequestBody(t *testing.T) {
+	t.Parallel()
+
+	getBodyErr := errors.New("get request body failure")
+	readErr := errors.New("read request body failure")
+	closeErr := errors.New("close request body failure")
+
+	for _, tc := range []struct {
+		name                       string
+		body                       io.Reader
+		getBodyErr                 error
+		closeErr                   error
+		expectedErr                error
+		expectedCloseCalls         int
+		expectedTransportCalls     int
+		expectedResponseCloseCalls int
+	}{
+		{
+			name:        "get body failure",
+			getBodyErr:  getBodyErr,
+			expectedErr: getBodyErr,
+		},
+		{
+			name:               "read body failure",
+			body:               iotest.ErrReader(readErr),
+			expectedErr:        readErr,
+			expectedCloseCalls: 1,
+		},
+		{
+			name:                       "close body failure",
+			body:                       strings.NewReader(`{"request":true}`),
+			closeErr:                   closeErr,
+			expectedCloseCalls:         1,
+			expectedTransportCalls:     1,
+			expectedResponseCloseCalls: 1,
+		},
+		{
+			name:                       "successful body copy",
+			body:                       strings.NewReader(`{"request":true}`),
+			expectedCloseCalls:         1,
+			expectedTransportCalls:     1,
+			expectedResponseCloseCalls: 1,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			requestBody := &trackedReadCloser{
+				Reader:   tc.body,
+				closeErr: tc.closeErr,
+			}
+			responseBody := &trackedReadCloser{Reader: strings.NewReader(`{"response":true}`)}
+			transportCalls := 0
+			httpClient := &http.Client{
+				Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					transportCalls++
+					return &http.Response{
+						Status:     "200 OK",
+						StatusCode: http.StatusOK,
+						ProtoMajor: 1,
+						ProtoMinor: 1,
+						Header:     make(http.Header),
+						Body:       responseBody,
+						Request:    req,
+					}, nil
+				}),
+			}
+			r, err := New("test", httpClient)
+			require.NoError(t, err, "New requester must not error")
+			t.Cleanup(func() {
+				assert.NoError(t, r.Shutdown(), "Requester shutdown should not error")
+			})
+
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, "https://example.com", http.NoBody)
+			require.NoError(t, err, "New request must not error")
+			req.Header.Set("X-Test", "value")
+			req.GetBody = func() (io.ReadCloser, error) {
+				if tc.getBodyErr != nil {
+					return nil, tc.getBodyErr
+				}
+				return requestBody, nil
+			}
+			retry, err := r.executeRequest(t.Context(), &Item{
+				Method: http.MethodPost,
+				Path:   "https://example.com",
+			}, req, 1, true)
+			require.False(t, retry, "executeRequest must not retry")
+			if tc.expectedErr == nil {
+				require.NoError(t, err, "executeRequest must not error")
+			} else {
+				require.ErrorIs(t, err, tc.expectedErr, "executeRequest must return the expected error")
+			}
+			assert.Equal(t, tc.expectedCloseCalls, requestBody.closeCalls, "Request body should be closed the expected number of times")
+			assert.Equal(t, tc.expectedTransportCalls, transportCalls, "executeRequest should execute the transport the expected number of times")
+			assert.Equal(t, tc.expectedResponseCloseCalls, responseBody.closeCalls, "executeRequest should close the response body the expected number of times")
+		})
+	}
+}
+
 func TestDoRequest_NoContent(t *testing.T) {
 	t.Parallel()
 	newRequester := func(t *testing.T) *Requester {
@@ -500,6 +1023,36 @@ func TestEvaluateRetry(t *testing.T) {
 	require.ErrorIs(t, err, errInvalidPath, "must return incoming error when retry not allowed")
 	require.False(t, retry, "must not retry when retry not allowed")
 
+	retryPolicyErr := errors.New("retry policy failure")
+	responseBody := &trackedReadCloser{Reader: strings.NewReader("response")}
+	r.retryPolicy = func(*http.Response, error) (bool, error) {
+		return false, retryPolicyErr
+	}
+	retry, err = r.evaluateRetry(t.Context(), &http.Response{Body: responseBody}, nil, 1, false)
+	require.ErrorIs(t, err, retryPolicyErr, "evaluateRetry must return the retry policy error")
+	require.False(t, retry, "evaluateRetry must not retry after a retry policy error")
+	assert.Equal(t, 1, responseBody.closeCalls, "Response body should be closed exactly once after a retry policy error")
+
+	retry, err = r.evaluateRetry(t.Context(), nil, nil, 1, false)
+	require.ErrorIs(t, err, retryPolicyErr, "evaluateRetry must return the retry policy error without a response")
+	require.False(t, retry, "evaluateRetry must not retry after a retry policy error without a response")
+
+	transportErr := errors.New("transport failure")
+	responseBody = &trackedReadCloser{Reader: strings.NewReader("response")}
+	retry, err = r.evaluateRetry(t.Context(), &http.Response{Body: responseBody}, transportErr, 1, false)
+	require.ErrorIs(t, err, retryPolicyErr, "evaluateRetry must return the retry policy error after a transport error")
+	require.False(t, retry, "evaluateRetry must not retry after a retry policy and transport error")
+	assert.Zero(t, responseBody.closeCalls, "Response body should remain owned by the transport after a transport error")
+	require.NoError(t, responseBody.Close(), "Response body cleanup must not error")
+
+	drainErr := errors.New("response drain failure")
+	drainCloseErr := errors.New("response close failure")
+	responseBody = &trackedReadCloser{Reader: iotest.ErrReader(drainErr), closeErr: drainCloseErr}
+	retry, err = r.evaluateRetry(t.Context(), &http.Response{Body: responseBody}, nil, 1, false)
+	require.ErrorIs(t, err, retryPolicyErr, "evaluateRetry must return the retry policy error after drain and close failures")
+	require.False(t, retry, "evaluateRetry must not retry after drain and close failures")
+	assert.Equal(t, 1, responseBody.closeCalls, "Response body should be closed exactly once after drain and close failures")
+
 	r.retryPolicy = DefaultRetryPolicy
 	retry, err = r.evaluateRetry(t.Context(), nil, errInvalidPath, 1, false)
 	require.ErrorIs(t, err, errInvalidPath, "must return incoming error when using default retry policy")
@@ -516,9 +1069,11 @@ func TestEvaluateRetry(t *testing.T) {
 	require.ErrorIs(t, err, errTimeout, "must wrap original error")
 	require.False(t, retry, "must not retry when max attempts exceeded")
 
-	retry, err = r.evaluateRetry(t.Context(), &http.Response{StatusCode: http.StatusTooManyRequests, Status: "429", Body: io.NopCloser(strings.NewReader(""))}, nil, 1, false)
+	maxRetryBody := &trackedReadCloser{Reader: strings.NewReader("")}
+	retry, err = r.evaluateRetry(t.Context(), &http.Response{StatusCode: http.StatusTooManyRequests, Status: "429", Body: maxRetryBody}, nil, 1, false)
 	require.ErrorContains(t, err, "failed to retry request exceeds maximum retry attempts: status \"429\"", "must return error and status code when attempt is higher than max retries")
 	require.False(t, retry, "must not retry when max attempts exceeded")
+	assert.Equal(t, 1, maxRetryBody.closeCalls, "Response body should be closed exactly once after maximum retries")
 
 	r.maxRetries = 1
 	r.backoff = func(int) time.Duration { return time.Millisecond * 10 }
@@ -530,22 +1085,34 @@ func TestEvaluateRetry(t *testing.T) {
 	require.ErrorIs(t, err, errTimeout, "must wrap original error")
 	require.False(t, retry, "must not retry when deadline would be exceeded")
 
-	retry, err = r.evaluateRetry(ctx, &http.Response{StatusCode: http.StatusTooManyRequests, Status: "429", Body: io.NopCloser(strings.NewReader(""))}, nil, 1, false)
+	deadlineBody := &trackedReadCloser{Reader: strings.NewReader("")}
+	retry, err = r.evaluateRetry(ctx, &http.Response{StatusCode: http.StatusTooManyRequests, Status: "429", Body: deadlineBody}, nil, 1, false)
 	require.ErrorContains(t, err, "failed to retry request context deadline exceeded: status \"429\"", "must return error and status code when attempt is higher than max retries")
 	require.False(t, retry, "must not retry when deadline would be exceeded")
+	assert.Equal(t, 1, deadlineBody.closeCalls, "Response body should be closed exactly once when the deadline would be exceeded")
 
 	ctx, cancel = context.WithCancel(t.Context())
 	cancel()
-	retry, err = r.evaluateRetry(ctx, &http.Response{StatusCode: http.StatusTooManyRequests, Status: "429", Body: io.NopCloser(strings.NewReader(""))}, nil, 1, true)
+	cancelledBody := &trackedReadCloser{Reader: strings.NewReader("")}
+	retry, err = r.evaluateRetry(ctx, &http.Response{StatusCode: http.StatusTooManyRequests, Status: "429", Body: cancelledBody}, nil, 1, true)
 	require.ErrorIs(t, err, errFailedToRetryRequest, "must return error when context is cancelled")
 	require.ErrorIs(t, err, context.Canceled, "must return error when context is cancelled")
 	require.False(t, retry, "must not retry when context is cancelled")
+	assert.Equal(t, 1, cancelledBody.closeCalls, "Response body should be closed exactly once when the context is cancelled")
 
-	retry, err = r.evaluateRetry(t.Context(), &http.Response{StatusCode: http.StatusTooManyRequests, Status: "429", Body: io.NopCloser(strings.NewReader(""))}, nil, 1, true)
+	retryBody := &trackedReadCloser{Reader: strings.NewReader("")}
+	retry, err = r.evaluateRetry(t.Context(), &http.Response{StatusCode: http.StatusTooManyRequests, Status: "429", Body: retryBody}, nil, 1, true)
 	require.NoError(t, err, "must not error")
 	require.True(t, retry, "must retry on 429 response")
+	assert.Equal(t, 1, retryBody.closeCalls, "Response body should be closed exactly once before retrying")
 
 	r.backoff = func(int) time.Duration { return 0 }
+	retryBody = &trackedReadCloser{Reader: iotest.ErrReader(drainErr), closeErr: drainCloseErr}
+	retry, err = r.evaluateRetry(t.Context(), &http.Response{StatusCode: http.StatusTooManyRequests, Status: "429", Body: retryBody}, nil, 1, true)
+	require.NoError(t, err, "evaluateRetry must not error after drain and close failures")
+	require.True(t, retry, "evaluateRetry must retry after drain and close failures")
+	assert.Equal(t, 1, retryBody.closeCalls, "Response body should be closed exactly once after drain and close failures")
+
 	retry, err = r.evaluateRetry(t.Context(), nil, errTimeout, 1, true)
 	require.NoError(t, err, "must not error")
 	require.True(t, retry, "must retry on timeout error")
