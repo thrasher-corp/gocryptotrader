@@ -1023,7 +1023,196 @@ func newTestBuffer() *testBuffer {
 	return &testBuffer{Finished: make(chan struct{}, 1)}
 }
 
-// 2140294	       770.0 ns/op	       0 B/op	       0 allocs/op
+func drainBenchmarkLoggerJobs() {
+	barrier := make(chan struct{})
+	jobsChannel <- &job{Passback: barrier}
+	<-barrier
+}
+
+func benchmarkLoggerState(enabled bool, levels Levels, hook CustomLogHook, writer io.Writer) (sl *SubLogger, cleanup func()) {
+	drainBenchmarkLoggerJobs()
+
+	benchmarkLogger := Logger{
+		InfoHeader:                    "[INFO]",
+		DebugHeader:                   "[DEBUG]",
+		WarnHeader:                    "[WARN]",
+		ErrorHeader:                   "[ERROR]",
+		Spacer:                        " ",
+		BypassJobChannelFilledWarning: true,
+	}
+
+	mu.Lock()
+	originalConfig := globalLogConfig
+	originalHook := customLogHook
+	originalLogger := logger
+	originalFieldsPool := logFieldsPool
+	originalJobsPool := jobsPool
+	globalLogConfig = &Config{Enabled: &enabled}
+	customLogHook = hook
+	logger = benchmarkLogger
+	logFieldsPool = &sync.Pool{New: originalFieldsPool.New}
+	jobsPool = &sync.Pool{New: originalJobsPool.New}
+	mu.Unlock()
+
+	sl = &SubLogger{
+		name:   "BENCHMARK",
+		levels: levels,
+		output: &multiWriterHolder{writers: []io.Writer{writer}},
+	}
+	cleanup = func() {
+		drainBenchmarkLoggerJobs()
+		mu.Lock()
+		globalLogConfig = originalConfig
+		customLogHook = originalHook
+		logger = originalLogger
+		logFieldsPool = originalFieldsPool
+		jobsPool = originalJobsPool
+		mu.Unlock()
+	}
+	return sl, cleanup
+}
+
+func TestBenchmarkLoggerWorkloads(t *testing.T) {
+	t.Run("GlobalDisabled", func(t *testing.T) {
+		var output strings.Builder
+		sl, cleanup := benchmarkLoggerState(false, Levels{Info: true}, nil, &output)
+		defer cleanup()
+
+		Infoln(sl, "disabled")
+		Infof(sl, "disabled %s", "formatted")
+		drainBenchmarkLoggerJobs()
+		assert.Empty(t, output.String(), "global-disabled logging should not write output")
+	})
+
+	t.Run("FormattedLevelDisabled", func(t *testing.T) {
+		var output strings.Builder
+		sl, cleanup := benchmarkLoggerState(true, Levels{}, nil, &output)
+		defer cleanup()
+
+		Infof(sl, "formatted %s", "message")
+		Debugf(sl, "formatted %s", "message")
+		Warnf(sl, "formatted %s", "message")
+		Errorf(sl, "formatted %s", "message")
+		drainBenchmarkLoggerJobs()
+		assert.Empty(t, output.String(), "level-disabled formatted logging should not write output")
+	})
+
+	t.Run("CustomHookBypass", func(t *testing.T) {
+		var output strings.Builder
+		hookCalls := 0
+		sl, cleanup := benchmarkLoggerState(true, Levels{Info: true}, func(_, _ string, _ ...any) bool {
+			hookCalls++
+			return true
+		}, &output)
+		defer cleanup()
+
+		Infoln(sl, "plain")
+		Infof(sl, "formatted %s", "message")
+		drainBenchmarkLoggerJobs()
+		assert.Equal(t, 2, hookCalls, "customLogHook should be called for both bypass operations")
+		assert.Empty(t, output.String(), "customLogHook should bypass internal output")
+	})
+
+	t.Run("CustomHookFallthrough", func(t *testing.T) {
+		var output strings.Builder
+		hookCalls := 0
+		sl, cleanup := benchmarkLoggerState(true, Levels{Info: true}, func(_, _ string, _ ...any) bool {
+			hookCalls++
+			return false
+		}, &output)
+		defer cleanup()
+
+		Infof(sl, "formatted %s %d", "message", 1)
+		drainBenchmarkLoggerJobs()
+		assert.Equal(t, 1, hookCalls, "customLogHook should be called once for fall-through logging")
+		assert.Equal(t, 1, strings.Count(output.String(), "formatted message 1"), "Infof should write the formatted message once")
+	})
+
+	t.Run("Lifecycle", func(t *testing.T) {
+		var output strings.Builder
+		sl, cleanup := benchmarkLoggerState(true, Levels{Info: true}, nil, &output)
+		defer cleanup()
+
+		Infof(sl, "infof %d", 1)
+		Infoln(sl, "infoln")
+		drainBenchmarkLoggerJobs()
+		assert.Equal(t, 1, strings.Count(output.String(), "infof 1"), "Infof should write one lifecycle message")
+		assert.Equal(t, 1, strings.Count(output.String(), "infoln"), "Infoln should write one lifecycle message")
+	})
+
+	t.Run("StateLifecycle", func(t *testing.T) {
+		restoredHookCalls := 0
+		restoredHook := func(header, name string, _ ...any) bool {
+			restoredHookCalls++
+			return header == "restored" && name == "hook"
+		}
+		mu.Lock()
+		originalConfig := globalLogConfig
+		originalHook := customLogHook
+		originalLogger := logger
+		originalFieldsPool := logFieldsPool
+		originalJobsPool := jobsPool
+		customLogHook = restoredHook
+		mu.Unlock()
+		t.Cleanup(func() {
+			drainBenchmarkLoggerJobs()
+			mu.Lock()
+			globalLogConfig = originalConfig
+			customLogHook = originalHook
+			logger = originalLogger
+			logFieldsPool = originalFieldsPool
+			jobsPool = originalJobsPool
+			mu.Unlock()
+		})
+
+		activeHookCalls := 0
+		expectedLevels := Levels{Info: true}
+		sl, cleanup := benchmarkLoggerState(true, expectedLevels, func(_, _ string, _ ...any) bool {
+			activeHookCalls++
+			return false
+		}, io.Discard)
+
+		mu.RLock()
+		activeConfig := globalLogConfig
+		activeHook := customLogHook
+		activeLogger := logger
+		activeFieldsPool := logFieldsPool
+		activeJobsPool := jobsPool
+		mu.RUnlock()
+		cleanup()
+
+		require.NotNil(t, activeConfig, "benchmarkLoggerState must install globalLogConfig")
+		require.NotNil(t, activeConfig.Enabled, "benchmarkLoggerState must install globalLogConfig.Enabled")
+		assert.True(t, *activeConfig.Enabled, "benchmarkLoggerState should install the requested enabled state")
+		require.NotNil(t, activeHook, "benchmarkLoggerState must install customLogHook")
+		assert.False(t, activeHook("active", "hook"), "benchmarkLoggerState should install the requested customLogHook")
+		assert.Equal(t, 1, activeHookCalls, "customLogHook should be callable while benchmark state is active")
+		assert.Equal(t, Logger{InfoHeader: "[INFO]", DebugHeader: "[DEBUG]", WarnHeader: "[WARN]", ErrorHeader: "[ERROR]", Spacer: " ", BypassJobChannelFilledWarning: true}, activeLogger, "benchmarkLoggerState should install the benchmark logger")
+		assert.NotSame(t, originalFieldsPool, activeFieldsPool, "benchmarkLoggerState should install a fresh logFieldsPool")
+		assert.NotSame(t, originalJobsPool, activeJobsPool, "benchmarkLoggerState should install a fresh jobsPool")
+		assert.Equal(t, "BENCHMARK", sl.name, "benchmarkLoggerState should set the SubLogger name")
+		assert.Equal(t, expectedLevels, sl.levels, "benchmarkLoggerState should set the requested SubLogger levels")
+		require.NotNil(t, sl.output, "benchmarkLoggerState must set the SubLogger output")
+		require.Len(t, sl.output.writers, 1, "benchmarkLoggerState must set one SubLogger writer")
+		assert.Equal(t, io.Discard, sl.output.writers[0], "benchmarkLoggerState should set the requested SubLogger writer")
+
+		mu.RLock()
+		restoredConfig := globalLogConfig
+		currentHook := customLogHook
+		restoredLogger := logger
+		restoredFieldsPool := logFieldsPool
+		restoredJobsPool := jobsPool
+		mu.RUnlock()
+		assert.Same(t, originalConfig, restoredConfig, "benchmarkLoggerState should restore globalLogConfig")
+		require.NotNil(t, currentHook, "benchmarkLoggerState must restore customLogHook")
+		assert.True(t, currentHook("restored", "hook"), "benchmarkLoggerState should restore the prior customLogHook")
+		assert.Equal(t, 1, restoredHookCalls, "restored customLogHook should be callable after cleanup")
+		assert.Equal(t, originalLogger, restoredLogger, "benchmarkLoggerState should restore logger")
+		assert.Same(t, originalFieldsPool, restoredFieldsPool, "benchmarkLoggerState should restore logFieldsPool")
+		assert.Same(t, originalJobsPool, restoredJobsPool, "benchmarkLoggerState should restore jobsPool")
+	})
+}
+
 func BenchmarkNewLogEvent(b *testing.B) {
 	mw := &multiWriterHolder{writers: []io.Writer{io.Discard}}
 	for b.Loop() {
@@ -1031,57 +1220,26 @@ func BenchmarkNewLogEvent(b *testing.B) {
 	}
 }
 
-func BenchmarkInfo(b *testing.B) {
-	for b.Loop() {
-		Infoln(Global, "Hello this is an info benchmark")
-	}
-}
-
-// BenchmarkInfoDisabled-8 47124242	        24.16 ns/op	       0 B/op	       0 allocs/op
+// Benchstat medians for PR base to measured production head; no significant
+// difference detected at n=20, p=0.113 (counterbalanced fresh-process observations per revision):
+// Before: 41.41 ns/op  16 B/op  1 allocs/op; After: 41.62 ns/op  16 B/op  1 allocs/op
 func BenchmarkInfoDisabled(b *testing.B) {
-	if err := SetupDisabled(); err != nil {
-		b.Fatal(err)
-	}
-
+	sl, cleanup := benchmarkLoggerState(false, Levels{Info: true}, nil, io.Discard)
+	b.Cleanup(cleanup)
+	b.ReportAllocs()
+	b.ResetTimer()
 	for b.Loop() {
-		Infoln(Global, "Hello this is an info benchmark")
+		Infoln(sl, "Hello this is an info benchmark")
 	}
 }
 
 // BenchmarkFormattedDisabled measures level-disabled formatted logging while
 // global logging remains enabled.
+// Benchstat medians for PR base to measured production head
+// (20 counterbalanced fresh-process observations per revision):
+// Before: 216.0-221.5 ns/op  256 B/op  3 allocs/op
+// After:  109.2-114.5 ns/op   64 B/op  2 allocs/op
 func BenchmarkFormattedDisabled(b *testing.B) {
-	enabled := true
-	benchmarkLogger := Logger{
-		InfoHeader:  "[INFO]",
-		DebugHeader: "[DEBUG]",
-		WarnHeader:  "[WARN]",
-		ErrorHeader: "[ERROR]",
-	}
-	mu.Lock()
-	originalEnabled := globalLogConfig.Enabled
-	originalHook := customLogHook
-	originalLogger := logger
-	originalPool := logFieldsPool
-	globalLogConfig.Enabled = &enabled
-	customLogHook = nil
-	logger = benchmarkLogger
-	logFieldsPool = &sync.Pool{New: func() any { return &fields{logger: &logger} }}
-	mu.Unlock()
-	b.Cleanup(func() {
-		mu.Lock()
-		globalLogConfig.Enabled = originalEnabled
-		customLogHook = originalHook
-		logger = originalLogger
-		logFieldsPool = originalPool
-		mu.Unlock()
-	})
-
-	barrier := make(chan struct{})
-	jobsChannel <- &job{Passback: barrier}
-	<-barrier
-
-	sl := &SubLogger{}
 	for _, tc := range []struct {
 		name string
 		logf func(*SubLogger, string, ...any)
@@ -1092,7 +1250,10 @@ func BenchmarkFormattedDisabled(b *testing.B) {
 		{name: "Errorf", logf: Errorf},
 	} {
 		b.Run(tc.name, func(b *testing.B) {
+			sl, cleanup := benchmarkLoggerState(true, Levels{}, nil, io.Discard)
+			b.Cleanup(cleanup)
 			b.ReportAllocs()
+			b.ResetTimer()
 			for b.Loop() {
 				tc.logf(sl, "formatted %s", "message")
 			}
@@ -1102,34 +1263,11 @@ func BenchmarkFormattedDisabled(b *testing.B) {
 
 // BenchmarkCustomLogHookBypass measures logging when a custom hook handles the
 // event and bypasses the internal logging system.
+// Benchstat medians for hook-change predecessor to measured production head
+// (20 counterbalanced fresh-process observations per revision):
+// Before: Infoln 144.40 ns/op, 208 B/op, 2 allocs/op; Infof 306.5 ns/op, 264 B/op, 5 allocs/op
+// After:  Infoln  65.90 ns/op,  16 B/op, 1 allocs/op; Infof 218.5 ns/op, 72 B/op, 4 allocs/op
 func BenchmarkCustomLogHookBypass(b *testing.B) {
-	enabled := true
-	benchmarkLogger := Logger{
-		InfoHeader:  "[INFO]",
-		DebugHeader: "[DEBUG]",
-		WarnHeader:  "[WARN]",
-		ErrorHeader: "[ERROR]",
-	}
-	mu.Lock()
-	originalEnabled := globalLogConfig.Enabled
-	originalHook := customLogHook
-	originalLogger := logger
-	originalPool := logFieldsPool
-	globalLogConfig.Enabled = &enabled
-	customLogHook = func(_, _ string, _ ...any) bool { return true }
-	logger = benchmarkLogger
-	logFieldsPool = &sync.Pool{New: func() any { return &fields{logger: &logger} }}
-	mu.Unlock()
-	b.Cleanup(func() {
-		mu.Lock()
-		globalLogConfig.Enabled = originalEnabled
-		customLogHook = originalHook
-		logger = originalLogger
-		logFieldsPool = originalPool
-		mu.Unlock()
-	})
-
-	sl := &SubLogger{name: "BENCHMARK"}
 	for _, tc := range []struct {
 		name string
 		log  func(*SubLogger)
@@ -1138,7 +1276,12 @@ func BenchmarkCustomLogHookBypass(b *testing.B) {
 		{name: "Infof", log: func(sl *SubLogger) { Infof(sl, "formatted %s", "message") }},
 	} {
 		b.Run(tc.name, func(b *testing.B) {
+			sl, cleanup := benchmarkLoggerState(true, Levels{Info: true}, func(_, _ string, _ ...any) bool {
+				return true
+			}, io.Discard)
+			b.Cleanup(cleanup)
 			b.ReportAllocs()
+			b.ResetTimer()
 			for b.Loop() {
 				tc.log(sl)
 			}
@@ -1148,62 +1291,53 @@ func BenchmarkCustomLogHookBypass(b *testing.B) {
 
 // BenchmarkCustomLogHookFallthrough measures formatted logging when a custom
 // hook observes the event and the internal logger still handles it.
+// Benchstat medians for hook-change predecessor to measured production head
+// (20 counterbalanced fresh-process observations per revision):
+// Before: 674.6 ns/op  185 B/op  6 allocs/op
+// After:  494.3 ns/op  133 B/op  5 allocs/op
 func BenchmarkCustomLogHookFallthrough(b *testing.B) {
-	enabled := true
-	benchmarkLogger := Logger{
-		InfoHeader:                    "[INFO]",
-		Spacer:                        " ",
-		BypassJobChannelFilledWarning: true,
-	}
-	mu.Lock()
-	originalEnabled := globalLogConfig.Enabled
-	originalHook := customLogHook
-	originalLogger := logger
-	originalPool := logFieldsPool
-	globalLogConfig.Enabled = &enabled
-	customLogHook = func(_, _ string, _ ...any) bool { return false }
-	logger = benchmarkLogger
-	logFieldsPool = &sync.Pool{New: func() any { return &fields{logger: &logger} }}
-	mu.Unlock()
-	b.Cleanup(func() {
-		mu.Lock()
-		globalLogConfig.Enabled = originalEnabled
-		customLogHook = originalHook
-		logger = originalLogger
-		logFieldsPool = originalPool
-		mu.Unlock()
-	})
-
-	barrier := make(chan struct{})
-	jobsChannel <- &job{Passback: barrier}
-	<-barrier
-
-	sl := &SubLogger{
-		name:   "BENCHMARK",
-		levels: Levels{Info: true},
-		output: &multiWriterHolder{writers: []io.Writer{io.Discard}},
-	}
+	sl, cleanup := benchmarkLoggerState(true, Levels{Info: true}, func(_, _ string, _ ...any) bool {
+		return false
+	}, io.Discard)
+	b.Cleanup(cleanup)
 	b.ReportAllocs()
 	b.ResetTimer()
 	for range b.N {
 		Infof(sl, "formatted %s %d", "message", 1)
 	}
-	barrier = make(chan struct{})
-	jobsChannel <- &job{Passback: barrier}
-	<-barrier
+	drainBenchmarkLoggerJobs()
 	b.StopTimer()
 }
 
+// Benchstat medians for PR base to measured production head
+// (20 counterbalanced fresh-process observations per revision):
+// Before: 765.7 ns/op  371 B/op  5 allocs/op
+// After:  552.3 ns/op  175 B/op  4 allocs/op
 func BenchmarkInfof(b *testing.B) {
+	sl, cleanup := benchmarkLoggerState(true, Levels{Info: true}, nil, io.Discard)
+	b.Cleanup(cleanup)
+	b.ReportAllocs()
+	b.ResetTimer()
 	for n := range b.N {
-		Infof(Global, "Hello this is an infof benchmark %v %v %v\n", n, 1, 2)
+		Infof(sl, "Hello this is an infof benchmark %v %v %v\n", n, 1, 2)
 	}
+	drainBenchmarkLoggerJobs()
+	b.StopTimer()
 }
 
+// Benchstat medians for PR base to measured production head; no significant
+// difference detected at n=20, p=0.551 (counterbalanced fresh-process observations per revision):
+// Before: 330.6 ns/op  114 B/op  3 allocs/op; After: 334.8 ns/op  114 B/op  3 allocs/op
 func BenchmarkInfoln(b *testing.B) {
-	for b.Loop() {
-		Infoln(Global, "Hello this is an infoln benchmark")
+	sl, cleanup := benchmarkLoggerState(true, Levels{Info: true}, nil, io.Discard)
+	b.Cleanup(cleanup)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		Infoln(sl, "Hello this is an infoln benchmark")
 	}
+	drainBenchmarkLoggerJobs()
+	b.StopTimer()
 }
 
 type testCapture struct {
