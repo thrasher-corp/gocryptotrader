@@ -89,6 +89,11 @@ func TestTimeUnmarshalJSONEmptyInput(t *testing.T) {
 	}
 }
 
+// Benchstat medians (20 counterbalanced fresh-process observations per revision):
+// direct/fractional Before: 119.55 ns/op  48 B/op  2 allocs/op
+// direct/fractional After:   56.73 ns/op   0 B/op  0 allocs/op
+// decoder/fractional Before: 335.3 ns/op  192 B/op  3 allocs/op
+// decoder/fractional After:  279.4 ns/op  144 B/op  1 alloc/op
 func BenchmarkUnmarshalJSON(b *testing.B) {
 	for _, tc := range []struct {
 		name  string
