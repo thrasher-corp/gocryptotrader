@@ -1,0 +1,256 @@
+{
+  "common.BenchmarkCounter": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 4.58
+  },
+  "common/math.BenchmarkDecimalPercentageDifference": {
+    "allocs": 27,
+    "bytes": 792,
+    "ns_hint": 1233
+  },
+  "common/math.BenchmarkPercentageDifference": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 0.72
+  },
+  "common/timedmutex.BenchmarkTimedMutexTime": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 819.7
+  },
+  "common/timedmutex.BenchmarkTimedMutexTimeLinearInteraction": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 101.7
+  },
+  "common/timedmutex.BenchmarkTimedMutexTimeUnlockNotPrimed": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 1.94
+  },
+  "common/timedmutex.BenchmarkTimedMutexTimeUnlockPrimed": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 26.6
+  },
+  "config.BenchmarkUpdateConfig": {
+    "allocs": 40490,
+    "allocs_tolerance": 0.001,
+    "bytes": 9897592,
+    "ns_hint": 18414186,
+    "reason": "40490 on almost every sample but 40491 has been observed; the tolerance is a few dozen allocations against a 40k budget, far below any real regression"
+  },
+  "currency.BenchmarkFindDifferences": {
+    "allocs": 2,
+    "bytes": 288,
+    "ns_hint": 653
+  },
+  "currency.BenchmarkFindMatchingPairsBetween": {
+    "allocs": 2,
+    "bytes": 944,
+    "ns_hint": 808
+  },
+  "currency.BenchmarkGetCrypto": {
+    "allocs": 1,
+    "bytes": 48,
+    "ns_hint": 143.9
+  },
+  "currency.BenchmarkNewCode": {
+    "allocs": 1,
+    "bytes": 8,
+    "ns_hint": 99.4
+  },
+  "currency.BenchmarkPairsFormat": {
+    "allocs": 1,
+    "bytes": 352,
+    "ns_hint": 209.1
+  },
+  "currency.BenchmarkPairsString": {
+    "allocs": 7,
+    "bytes": 56,
+    "ns_hint": 252.6
+  },
+  "currency.BenchmarkRemovePairsByFilter": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 26.6
+  },
+  "dispatch.BenchmarkSubscribe": {
+    "allocs": 1,
+    "bytes": 158,
+    "bytes_tolerance": 0.1,
+    "ns_hint": 206,
+    "reason": "worker goroutines make B/op scheduler dependent; observed 151-161 across runs"
+  },
+  "encoding/json.BenchmarkUnmarshal": {
+    "allocs": 24,
+    "bytes": 816,
+    "ns_hint": 2048
+  },
+  "exchanges/gateio.BenchmarkMessageID": {
+    "allocs": 2,
+    "bytes": 48,
+    "ns_hint": 183.6
+  },
+  "exchanges/gateio.BenchmarkTimeInForceFromString": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 41
+  },
+  "exchanges/okx.BenchmarkMessageID": {
+    "allocs": 2,
+    "bytes": 48,
+    "ns_hint": 178.8
+  },
+  "exchanges/order.BenchmarkFilterOrdersByPairs": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 121.7
+  },
+  "exchanges/order.BenchmarkFilterOrdersBySide": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 67
+  },
+  "exchanges/order.BenchmarkFilterOrdersByTimeRange": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 322
+  },
+  "exchanges/order.BenchmarkFilterOrdersByType": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 66.7
+  },
+  "exchanges/order.BenchmarkIsActive": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 1.94
+  },
+  "exchanges/order.BenchmarkIsInactive": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 166.2
+  },
+  "exchanges/order.BenchmarkStringToOrderSide": {
+    "allocs": 1,
+    "bytes": 8,
+    "ns_hint": 42.9
+  },
+  "exchanges/order.BenchmarkStringToOrderStatus": {
+    "allocs": 1,
+    "bytes": 24,
+    "ns_hint": 159.6
+  },
+  "exchanges/order.BenchmarkStringToOrderType": {
+    "allocs": 1,
+    "bytes": 8,
+    "ns_hint": 48.2
+  },
+  "exchanges/order.BenchmarkStringToTimeInForce": {
+    "allocs": 13,
+    "bytes": 272,
+    "ns_hint": 1704
+  },
+  "exchanges/orderbook.BenchmarkDeleteByID": {
+    "allocs": 1,
+    "bytes": 480,
+    "ns_hint": 308.6
+  },
+  "exchanges/orderbook.BenchmarkLoad": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 17
+  },
+  "exchanges/orderbook.BenchmarkProcess": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 282.3
+  },
+  "exchanges/orderbook.BenchmarkRetrieve": {
+    "allocs": 1,
+    "bytes": 480,
+    "ns_hint": 220.8
+  },
+  "exchanges/orderbook.BenchmarkReverse": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 2241
+  },
+  "exchanges/orderbook.BenchmarkSortAsksAscending": {
+    "allocs": 3,
+    "bytes": 152,
+    "ns_hint": 3469
+  },
+  "exchanges/orderbook.BenchmarkSortAsksDecending": {
+    "allocs": 3,
+    "bytes": 152,
+    "ns_hint": 3513
+  },
+  "exchanges/orderbook.BenchmarkSortAsksStandard": {
+    "allocs": 3,
+    "bytes": 152,
+    "ns_hint": 109298
+  },
+  "exchanges/orderbook.BenchmarkSortBidsAscending": {
+    "allocs": 3,
+    "bytes": 152,
+    "ns_hint": 3510
+  },
+  "exchanges/orderbook.BenchmarkSortBidsDescending": {
+    "allocs": 3,
+    "bytes": 152,
+    "ns_hint": 3492
+  },
+  "exchanges/orderbook.BenchmarkSortBidsStandard": {
+    "allocs": 3,
+    "bytes": 152,
+    "ns_hint": 111746
+  },
+  "exchanges/orderbook.BenchmarkUpdateByID": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 25.2
+  },
+  "exchanges/orderbook.BenchmarkUpdateInsertByID_asks": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 58.3
+  },
+  "exchanges/orderbook.BenchmarkUpdateInsertByID_bids": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 76.4
+  },
+  "exchanges/orderbook.BenchmarkUpdateInsertByPrice_Amend": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 7.59
+  },
+  "exchanges/orderbook.BenchmarkUpdateInsertByPrice_Insert_Delete": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 57.2
+  },
+  "exchanges/request.BenchmarkGetNonce": {
+    "allocs": 0,
+    "bytes": 0,
+    "ns_hint": 116.5
+  },
+  "types.BenchmarkNumberMarshalJSON": {
+    "allocs": 1,
+    "bytes": 16,
+    "ns_hint": 109.8
+  },
+  "types.BenchmarkNumberUnmarshalJSON": {
+    "allocs": 1,
+    "bytes": 16,
+    "ns_hint": 77.1
+  },
+  "types.BenchmarkUnmarshalJSON": {
+    "allocs": 4,
+    "bytes": 216,
+    "ns_hint": 376.4
+  }
+}

@@ -1,0 +1,54 @@
+# Packages benchmarked by `make bench`. One package per line, relative to the module root.
+#
+# A trailing "gated" marks a package in which every benchmark must have an entry in baseline.json,
+# so a new `func Benchmark` fails CI until it is seeded with `make bench_update`. Benchmarks in
+# unmarked packages are still checked whenever they already have a baseline entry; the marker only
+# makes that coverage mandatory.
+#
+# Gate a package once its benchmarks are hermetic - no network, no shared state between benchmarks,
+# no writes to stdout during measurement, and reproducible allocation counts. Verify with:
+#   make bench_pkg PKG=./<pkg>/
+# run a few times over, and confirm allocs/op does not move. That target uses the gate's own
+# BENCH_FLAGS, so the measurement matches; a hand-written go test line drifts from it and -cpu/-p in
+# particular change what a scheduler-sensitive benchmark reports.
+
+common                     gated
+common/math                gated
+common/timedmutex          gated
+currency                   gated
+dispatch                   gated
+encoding/json              gated
+exchanges/order            gated
+exchanges/orderbook        gated
+exchanges/request          gated
+types                      gated
+
+# Benchmarked and checked against the baseline, but not gated:
+config                     # near-deterministic; entry carries a small allocs tolerance
+exchanges/gateio           # seeded, but the package's benchmarks are not yet audited for hermeticity
+exchanges/okx              # as above
+
+# Not benchmarked at all, and why. Note that a baseline "ignore" only skips comparison - it does not
+# stop the benchmark running - so a benchmark that is unsafe to execute must be excluded here.
+#
+#   exchanges/alert           - BenchmarkWait calls Wait(nil) and never reads the reply, so each
+#                               iteration leaks the goroutine that alert.hold documents as leakable.
+#                               Harmless at 100ms, but the scheduled 1s x 15 run accumulates millions
+#                               and can exhaust memory. Excluding the package also drops
+#                               BenchmarkAlert, which is otherwise fine
+#   exchange/websocket/buffer - every benchmark fails with "channel buffer is full: failed to relay
+#                               <*orderbook.Depth>" once it runs enough iterations. They pass at
+#                               -benchtime 10x and fail at 100ms, alone or together, so the relay
+#                               channel simply overruns rather than this being shared state
+#   exchanges/binance         - BenchmarkWsHandleData is hermetic and its output is clean, but its
+#                               counts are not reproducible: allocs/op moves between 198 and 209 and
+#                               B/op by around 20% even at a fixed iteration count, so no tolerance
+#                               gates anything useful. Would need wsHandleData itself to take the
+#                               same path every iteration
+#   exchanges/kucoin          - its TestMain calls getFirstTradablePairOfAssets unconditionally, so
+#                               the package fetches tradable pairs from the live KuCoin API even
+#                               under -run '^$'. A rate limit or outage would fail the whole gate
+#                               job, for one benchmark that allocates nothing
+#   log                       - the logger writes to stdout during measurement, which interleaves
+#                               into the result lines and corrupts them; route the benchmarks at
+#                               io.Discard (as BenchmarkNewLogEvent already does) to re-enable
