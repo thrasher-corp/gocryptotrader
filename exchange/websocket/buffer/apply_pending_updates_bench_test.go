@@ -13,6 +13,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 )
 
+// Benchstat medians (20 counterbalanced fresh-process observations per revision):
+// 64 updates:
+// Before: 18.61 µs/op  3120 B/op  65 allocs/op
+// After:  16.51 µs/op  3120 B/op  65 allocs/op
+// 256 updates:
+// Before: 74.16 µs/op  12336 B/op  257 allocs/op
+// After:  65.69 µs/op  12336 B/op  257 allocs/op
 func BenchmarkApplyPendingUpdates(b *testing.B) {
 	for _, updateCount := range []uint{1, 2, 8, 64, 256} {
 		benchmarkName := strconv.FormatUint(uint64(updateCount), 10)
