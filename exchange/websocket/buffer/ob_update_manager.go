@@ -241,8 +241,29 @@ func (m *UpdateManager) syncOrderbook(ctx context.Context, cache *updateCache, p
 // assumes lock already active on cache
 func (m *UpdateManager) applyPendingUpdates(cache *updateCache) error {
 	var updated bool
+	var lastKey key.PairAsset
+	var lastHolder *orderbookHolder
 	for _, data := range cache.updates {
-		bookLastUpdateID, err := m.ob.LastUpdateID(data.update.Pair, data.update.Asset)
+		currentKey := key.PairAsset{Base: data.update.Pair.Base.Item, Quote: data.update.Pair.Quote.Item, Asset: data.update.Asset}
+		// Read the live update ID on every iteration because buffering or skipped
+		// updates can leave it unchanged, while avoiding repeated map lookups.
+		if lastHolder == nil || currentKey != lastKey {
+			if data.update.Pair.IsEmpty() {
+				return currency.ErrCurrencyPairEmpty
+			}
+			if !data.update.Asset.IsValid() {
+				return asset.ErrInvalidAsset
+			}
+			m.ob.m.RLock()
+			var ok bool
+			lastHolder, ok = m.ob.ob[currentKey]
+			m.ob.m.RUnlock()
+			if !ok {
+				return fmt.Errorf("%s %w: %s.%s", m.ob.exchangeName, orderbook.ErrDepthNotFound, data.update.Asset, data.update.Pair)
+			}
+			lastKey = currentKey
+		}
+		bookLastUpdateID, err := lastHolder.ob.LastUpdateID()
 		if err != nil {
 			return err
 		}
