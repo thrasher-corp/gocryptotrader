@@ -1202,7 +1202,10 @@ func (e *Exchange) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep excha
 			return fmt.Errorf("%w error code: %v error message: %s", request.ErrAuthRequestFailed, resp.Code, resp.Message)
 		}
 	}
-	return json.Unmarshal(tempResp, result)
+	if err = unmarshalResponse(tempResp, result); err != nil {
+		return common.AppendError(err, request.ErrAuthRequestFailed)
+	}
+	return nil
 }
 
 func (e *Exchange) formatFuturesCode(p currency.Code) (string, error) {

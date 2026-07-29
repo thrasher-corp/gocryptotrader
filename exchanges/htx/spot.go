@@ -934,7 +934,7 @@ func (e *Exchange) SendHTTPRequest(ctx context.Context, ep exchange.URL, path st
 				htxError(errCap.ErrMsgType2))
 		}
 	}
-	return json.Unmarshal(tempResp, result)
+	return unmarshalResponse(tempResp, result)
 }
 
 // SendAuthenticatedHTTPRequest sends authenticated requests to the HTX API
@@ -1030,11 +1030,25 @@ func (e *Exchange) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 			}
 		}
 	}
-	err = json.Unmarshal(interim, result)
+	err = unmarshalResponse(interim, result)
 	if err != nil {
 		return common.AppendError(err, request.ErrAuthRequestFailed)
 	}
 	return nil
+}
+
+func unmarshalResponse(response json.RawMessage, result any) error {
+	trimmed := bytes.TrimSpace(response)
+	if len(trimmed) == 0 {
+		if result == nil {
+			return nil
+		}
+		return errExpectedResponseBody
+	}
+	if result == nil {
+		return fmt.Errorf("%w: received %d bytes", errUnexpectedResponseBody, len(trimmed))
+	}
+	return json.Unmarshal(trimmed, result)
 }
 
 // GetFee returns an estimate of fee based on type of transaction

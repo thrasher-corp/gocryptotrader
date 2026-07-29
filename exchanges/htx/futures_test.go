@@ -1,6 +1,8 @@
 package htx
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -8,9 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
@@ -23,6 +27,97 @@ func TestFuturesHistoryEndpointPaths(t *testing.T) {
 	assert.Equal(t, "/swap-api/v3/swap_financial_record", htxSwapFinancialRecords, "coin-margined financial records endpoint should match HTX docs")
 	assert.Equal(t, "/swap-api/v3/swap_hisorders", htxSwapOrderHistory, "coin-margined order history endpoint should match HTX docs")
 	assert.Equal(t, "/swap-api/v3/swap_matchresults", htxSwapTradeHistory, "coin-margined trade history endpoint should match HTX docs")
+}
+
+func TestFuturesAuthenticatedHTTPRequest(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name         string
+		statusCode   int
+		body         string
+		authenticate bool
+		nilResult    bool
+		expected     []error
+	}{
+		{
+			name:       "authentication required",
+			statusCode: http.StatusOK,
+			expected:   []error{exchange.ErrAuthenticationSupportNotEnabled},
+		},
+		{
+			name:         "empty data",
+			statusCode:   http.StatusOK,
+			body:         `{"code":200,"msg":"","data":"","ts":1604312615051}`,
+			authenticate: true,
+		},
+		{
+			name:         "no content without result",
+			statusCode:   http.StatusNoContent,
+			authenticate: true,
+			nilResult:    true,
+		},
+		{
+			name:         "no content with result",
+			statusCode:   http.StatusNoContent,
+			authenticate: true,
+			expected:     []error{errExpectedResponseBody, request.ErrAuthRequestFailed},
+		},
+		{
+			name:         "unexpected response without result",
+			statusCode:   http.StatusOK,
+			body:         `{"code":200,"msg":"","data":[]}`,
+			authenticate: true,
+			nilResult:    true,
+			expected:     []error{errUnexpectedResponseBody, request.ErrAuthRequestFailed},
+		},
+		{
+			name:         "API error without result",
+			statusCode:   http.StatusOK,
+			body:         `{"status":"error","err_code":1001,"err_msg":"invalid request"}`,
+			authenticate: true,
+			nilResult:    true,
+			expected:     []error{request.ErrAuthRequestFailed},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/private", r.URL.Path, "request path should match")
+				assert.Equal(t, "application/json", r.Header.Get("Content-Type"), "request content type should match")
+				if tc.body != "" {
+					w.Header().Set("Content-Type", "application/json")
+				}
+				w.WriteHeader(tc.statusCode)
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			t.Cleanup(server.Close)
+
+			h := new(Exchange)
+			require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+			if tc.authenticate {
+				h.API.AuthenticatedSupport = true
+				h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+			}
+			require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "futures endpoint must be set")
+			response := new(FFinancialRecords)
+			var result any = response
+			if tc.nilResult {
+				result = nil
+			}
+			err := h.FuturesAuthenticatedHTTPRequest(t.Context(), exchange.RestFutures, http.MethodPost, "/private", nil, nil, result)
+			for _, expected := range tc.expected {
+				assert.ErrorIs(t, err, expected, "FuturesAuthenticatedHTTPRequest should return the expected error")
+			}
+			if len(tc.expected) != 0 {
+				require.Error(t, err, "FuturesAuthenticatedHTTPRequest must return an error")
+				return
+			}
+			require.NoError(t, err, "FuturesAuthenticatedHTTPRequest must not error")
+			if result != nil {
+				assert.Empty(t, response.Data.FinancialRecord, "empty data should produce an empty result")
+			}
+		})
+	}
 }
 
 func TestFFinancialRecordsUnmarshalJSON(t *testing.T) {

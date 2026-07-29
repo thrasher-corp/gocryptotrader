@@ -17,6 +17,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
@@ -98,37 +99,204 @@ func TestGetSignatureHost(t *testing.T) {
 
 func TestSendHTTPRequest(t *testing.T) {
 	t.Parallel()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/public", r.URL.Path, "request path should match")
-		_, _ = w.Write([]byte(`{"status":"ok","data":1}`))
-	}))
-	t.Cleanup(server.Close)
+	for _, tc := range []struct {
+		name       string
+		statusCode int
+		body       string
+		nilResult  bool
+		expected   error
+		expectedID uint64
+	}{
+		{
+			name:       "JSON response",
+			statusCode: http.StatusOK,
+			body:       `{"status":"ok","data":1}`,
+			expectedID: 1,
+		},
+		{
+			name:       "no content without result",
+			statusCode: http.StatusNoContent,
+			nilResult:  true,
+		},
+		{
+			name:       "no content with result",
+			statusCode: http.StatusNoContent,
+			expected:   errExpectedResponseBody,
+		},
+		{
+			name:       "unexpected response without result",
+			statusCode: http.StatusOK,
+			body:       `{"status":"ok"}`,
+			nilResult:  true,
+			expected:   errUnexpectedResponseBody,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/public", r.URL.Path, "request path should match")
+				if tc.body != "" {
+					w.Header().Set("Content-Type", "application/json")
+				}
+				w.WriteHeader(tc.statusCode)
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			t.Cleanup(server.Close)
 
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
-	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "spot endpoint must be set")
-	var response struct {
-		Response
-		Data uint64 `json:"data"`
+			h := new(Exchange)
+			require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+			require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "spot endpoint must be set")
+			var response struct {
+				Response
+				Data uint64 `json:"data"`
+			}
+			var result any = &response
+			if tc.nilResult {
+				result = nil
+			}
+			err := h.SendHTTPRequest(t.Context(), exchange.RestSpot, "/public", result)
+			if tc.expected != nil {
+				require.ErrorIs(t, err, tc.expected, "SendHTTPRequest must return the expected error")
+				return
+			}
+			require.NoError(t, err, "SendHTTPRequest must not error")
+			assert.Equal(t, tc.expectedID, response.Data, "response data should match")
+		})
 	}
-	require.NoError(t, h.SendHTTPRequest(t.Context(), exchange.RestSpot, "/public", &response), "SendHTTPRequest must not error")
-	assert.Equal(t, uint64(1), response.Data, "response data should match")
 }
 
 func TestSendAuthenticatedHTTPRequest(t *testing.T) {
 	t.Parallel()
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
-	err := h.SendAuthenticatedHTTPRequest(t.Context(), exchange.RestSpot, http.MethodGet, "/private", nil, nil, nil, false)
-	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "SendAuthenticatedHTTPRequest must require credentials")
+	for _, tc := range []struct {
+		name         string
+		statusCode   int
+		body         string
+		authenticate bool
+		nilResult    bool
+		expected     []error
+		expectedID   uint64
+	}{
+		{
+			name:       "authentication required",
+			statusCode: http.StatusOK,
+			expected:   []error{exchange.ErrAuthenticationSupportNotEnabled},
+		},
+		{
+			name:         "JSON response",
+			statusCode:   http.StatusOK,
+			body:         `{"status":"ok","data":1}`,
+			authenticate: true,
+			expectedID:   1,
+		},
+		{
+			name:         "no content without result",
+			statusCode:   http.StatusNoContent,
+			authenticate: true,
+			nilResult:    true,
+		},
+		{
+			name:         "no content with result",
+			statusCode:   http.StatusNoContent,
+			authenticate: true,
+			expected:     []error{errExpectedResponseBody, request.ErrAuthRequestFailed},
+		},
+		{
+			name:         "unexpected response without result",
+			statusCode:   http.StatusOK,
+			body:         `{"status":"ok"}`,
+			authenticate: true,
+			nilResult:    true,
+			expected:     []error{errUnexpectedResponseBody, request.ErrAuthRequestFailed},
+		},
+		{
+			name:         "API error without result",
+			statusCode:   http.StatusOK,
+			body:         `{"status":"error","err-code":"bad-request","err-msg":"invalid request"}`,
+			authenticate: true,
+			nilResult:    true,
+			expected:     []error{request.ErrAuthRequestFailed},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, "/v1/private", r.URL.Path, "request path should match")
+				assert.Equal(t, "application/json", r.Header.Get("Content-Type"), "request content type should match")
+				if tc.body != "" {
+					w.Header().Set("Content-Type", "application/json")
+				}
+				w.WriteHeader(tc.statusCode)
+				_, _ = w.Write([]byte(tc.body))
+			}))
+			t.Cleanup(server.Close)
+
+			h := new(Exchange)
+			require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+			if tc.authenticate {
+				h.API.AuthenticatedSupport = true
+				h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+			}
+			require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestSpot.String(), server.URL), "spot endpoint must be set")
+			var response struct {
+				Response
+				Data uint64 `json:"data"`
+			}
+			var result any = &response
+			if tc.nilResult {
+				result = nil
+			}
+			err := h.SendAuthenticatedHTTPRequest(t.Context(), exchange.RestSpot, http.MethodPost, "/private", nil, nil, result, false)
+			for _, expected := range tc.expected {
+				assert.ErrorIs(t, err, expected, "SendAuthenticatedHTTPRequest should return the expected error")
+			}
+			if len(tc.expected) != 0 {
+				require.Error(t, err, "SendAuthenticatedHTTPRequest must return an error")
+				return
+			}
+			require.NoError(t, err, "SendAuthenticatedHTTPRequest must not error")
+			assert.Equal(t, tc.expectedID, response.Data, "response data should match")
+		})
+	}
 }
 
-func TestFuturesAuthenticatedHTTPRequest(t *testing.T) {
+func TestUnmarshalResponse(t *testing.T) {
 	t.Parallel()
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
-	err := h.FuturesAuthenticatedHTTPRequest(t.Context(), exchange.RestFutures, http.MethodGet, "/private", nil, nil, nil)
-	require.ErrorIs(t, err, exchange.ErrAuthenticationSupportNotEnabled, "FuturesAuthenticatedHTTPRequest must require credentials")
+	for _, tc := range []struct {
+		name      string
+		response  string
+		nilResult bool
+		expected  error
+		malformed bool
+	}{
+		{name: "empty response without result", nilResult: true},
+		{name: "whitespace response without result", response: " \n\t", nilResult: true},
+		{name: "empty response with result", expected: errExpectedResponseBody},
+		{name: "unexpected response without result", response: `{}`, nilResult: true, expected: errUnexpectedResponseBody},
+		{name: "malformed response", response: `{`, malformed: true},
+		{name: "empty data", response: `{"code":200,"msg":"","data":"","ts":1604312615051}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			response := new(FFinancialRecords)
+			var result any = response
+			if tc.nilResult {
+				result = nil
+			}
+			err := unmarshalResponse(json.RawMessage(tc.response), result)
+			if tc.expected != nil {
+				require.ErrorIs(t, err, tc.expected, "unmarshalResponse must return the expected error")
+				return
+			}
+			if tc.malformed {
+				require.Error(t, err, "unmarshalResponse must return malformed JSON errors")
+				return
+			}
+			require.NoError(t, err, "unmarshalResponse must not error")
+			if result != nil {
+				assert.Empty(t, response.Data.FinancialRecord, "empty data should produce an empty result")
+			}
+		})
+	}
 }
 
 func TestSpotMatchResultsEndpoint(t *testing.T) {

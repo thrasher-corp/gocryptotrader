@@ -30,6 +30,8 @@ const (
 	errInvalidOrderStatus            htxError = "invalid order status"
 	errInvalidTriggerType            htxError = "invalid trigger type"
 	errInvalidOffset                 htxError = "invalid offset"
+	errExpectedResponseBody          htxError = "expected response body"
+	errUnexpectedResponseBody        htxError = "expected no response body"
 	errEmptyResult                   htxError = "result contains no data"
 	errDepositAddressMissing         htxError = "deposit address data is not populated"
 	errBidPriceTypeAssertion         htxError = "unable to type assert bid price"
