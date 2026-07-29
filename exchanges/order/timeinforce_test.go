@@ -163,7 +163,6 @@ func TestMarshalJSON(t *testing.T) {
 	assert.Equal(t, "IOC", target.TimeInForce.String())
 }
 
-// BenchmarkStringToTimeInForce-8            416595              2834 ns/op            1368 B/op         81 allocs/op
 func BenchmarkStringToTimeInForce(b *testing.B) {
 	for b.Loop() {
 		for k := range timeInForceStringToValueMap {

@@ -405,7 +405,6 @@ func TestMuxPublish(t *testing.T) {
 	assert.NoError(t, err, "stop should not error")
 }
 
-// 13636467	        84.26 ns/op	     141 B/op	       1 allocs/op
 func BenchmarkSubscribe(b *testing.B) {
 	d := NewDispatcher()
 	err := d.start(0, 0)

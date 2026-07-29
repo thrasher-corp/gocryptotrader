@@ -1957,6 +1957,21 @@ func TestGetDepositAddress(t *testing.T) {
 
 func BenchmarkWsHandleData(bb *testing.B) {
 	bb.ReportAllocs()
+	ctx := bb.Context()
+	e := new(Exchange)
+	require.NoError(bb, testexch.Setup(e), "Test instance Setup must not error")
+	// The depth lines route through e.obm, which is otherwise only built when the websocket
+	// connects, so without it the benchmark dereferences a nil orderbookManager. It is constructed
+	// directly rather than via setupOrderbookManager because that also starts the synchronisation
+	// workers, which seed order books over REST and outlive the benchmark: they exit only on
+	// websocket shutdown, so their errors land on stdout mid-result-line and corrupt the output.
+	// Queueing a job is non-blocking, so with nothing draining the channel this measures the
+	// wsHandleData path alone.
+	e.obm = &orderbookManager{
+		state: make(map[currency.Code]map[currency.Code]map[asset.Item]*update),
+		jobs:  make(chan job, maxWSOrderbookJobs),
+	}
+
 	ap, err := e.CurrencyPairs.GetPairs(asset.Spot, false)
 	require.NoError(bb, err)
 	err = e.CurrencyPairs.StorePairs(asset.Spot, ap, true)
@@ -1968,12 +1983,16 @@ func BenchmarkWsHandleData(bb *testing.B) {
 	require.Len(bb, lines, 8)
 	go func() {
 		for {
-			<-e.Websocket.DataHandler.C
+			select {
+			case <-e.Websocket.DataHandler.C:
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
 	for bb.Loop() {
 		for x := range lines {
-			assert.NoError(bb, e.wsHandleData(bb.Context(), lines[x]))
+			assert.NoError(bb, e.wsHandleData(ctx, lines[x]))
 		}
 	}
 }

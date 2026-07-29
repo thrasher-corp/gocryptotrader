@@ -99,8 +99,6 @@ func TestLoad(t *testing.T) {
 	Check(t, list, 0, 0, 0)
 }
 
-// 27906781	        42.4 ns/op	       0 B/op	       0 allocs/op (old)
-// 84119028	        13.87 ns/op	       0 B/op	       0 allocs/op (new)
 func BenchmarkLoad(b *testing.B) {
 	ts := Levels{}
 	for b.Loop() {
@@ -244,8 +242,6 @@ func TestUpdateInsertByPrice(t *testing.T) {
 	Check(t, b, 6, 36, 6)
 }
 
-// 134830672	         9.83 ns/op	       0 B/op	       0 allocs/op (old)
-// 206689897	         5.761 ns/op	   0 B/op	       0 allocs/op (new)
 func BenchmarkUpdateInsertByPrice_Amend(b *testing.B) {
 	a := askLevels{}
 	a.load(ask)
@@ -266,8 +262,6 @@ func BenchmarkUpdateInsertByPrice_Amend(b *testing.B) {
 	}
 }
 
-// 49763002	        24.9 ns/op	       0 B/op	       0 allocs/op (old)
-// 25662849	        45.32 ns/op	       0 B/op	       0 allocs/op (new)
 func BenchmarkUpdateInsertByPrice_Insert_Delete(b *testing.B) {
 	a := askLevels{}
 
@@ -338,8 +332,6 @@ func TestUpdateByID(t *testing.T) {
 	}
 }
 
-// 46043871	        25.9 ns/op	       0 B/op	       0 allocs/op (old)
-// 63445401	        18.51 ns/op	       0 B/op	       0 allocs/op (new)
 func BenchmarkUpdateByID(b *testing.B) {
 	asks := Levels{}
 	asksSnapshot := Levels{
@@ -407,7 +399,6 @@ func TestDeleteByID(t *testing.T) {
 	}
 }
 
-// 26724331	        44.69 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkDeleteByID(b *testing.B) {
 	asks := Levels{}
 	asksSnapshot := Levels{
@@ -682,7 +673,6 @@ func TestUpdateInsertByIDAsk(t *testing.T) {
 	Check(t, a, 14, 87, 7)
 }
 
-// 21614455	        81.74 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkUpdateInsertByID_asks(b *testing.B) {
 	asks := Levels{}
 	asksSnapshot := Levels{
@@ -953,7 +943,6 @@ func TestUpdateInsertByIDBids(t *testing.T) {
 	Check(t, b, 14, 87, 7)
 }
 
-// 20328886	        59.94 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkUpdateInsertByID_bids(b *testing.B) {
 	bids := Levels{}
 	bidsSnapshot := Levels{
@@ -1836,7 +1825,6 @@ func TestFinalizeFields(t *testing.T) {
 	assert.InDelta(t, 717.0, mov.SlippageCost, 0.000000001, "SlippageCost should be correct")
 }
 
-// 8384302	       150.9 ns/op	     480 B/op	       1 allocs/op
 func BenchmarkRetrieve(b *testing.B) {
 	asks := Levels{}
 	asksSnapshot := Levels{

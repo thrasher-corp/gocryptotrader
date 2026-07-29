@@ -277,6 +277,64 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# 9. Benchmark results pasted into comments
+# ---------------------------------------------------------------------------
+# benchmarks/baseline.json is the single source of truth for benchmark numbers and it is verified
+# on every run by `make bench`
+#
+# A digit immediately before the unit is what a pasted measurement looks like; prose naming a unit
+# ("carries no B/op or allocs/op") has no leading digit, and a literal such as metrics["ns/op"] has
+# a quote there. Anchored on a comment marker rather than the line start, so /* ... */ blocks,
+# their continuation lines, and a measurement tacked onto the end of a statement are all caught.
+info "Check for benchmark results stored in comments"
+if ere_grep '(//|/\*|^[[:space:]]*\*).*[0-9][[:space:]]*(ns/op|B/op|allocs/op)' '*.go' 0 '.'; then
+    fail "Remove benchmark results from comments; benchmarks/baseline.json records them, run 'make bench_update'"
+else
+    pass "No benchmark results stored in comments"
+fi
+
+# ---------------------------------------------------------------------------
+# 10. Benchmark history publish logic
+# ---------------------------------------------------------------------------
+info "Check benchmark history publish logic"
+# Run once and keep the output: re-running to show it would waste the work and, if the test ever
+# became non-deterministic, could pass on the second run and report a failure with nothing printed.
+if [[ ! -f "$SCRIPT_DIR/bench_history_test.sh" ]]; then
+    fail "scripts/bench_history_test.sh is missing"
+elif history_output="$(bash "$SCRIPT_DIR/bench_history_test.sh" 2>&1)"; then
+    pass "Benchmark history fetch/publish behaves correctly"
+else
+    echo "$history_output"
+    fail "Benchmark history checks failed, see output above"
+fi
+
+# ---------------------------------------------------------------------------
+# 11. Shell scripts
+# ---------------------------------------------------------------------------
+# -S warning skips the info-level SC2016 notices about single-quoted perl bodies in this file, which
+# are deliberate, while still catching the class of bug that actually bites: unquoted expansions,
+# a failed cd leaving the script in the wrong directory, and exit codes read indirectly.
+info "Check shell scripts with shellcheck"
+# Discovered rather than globbed: an unmatched glob is passed to shellcheck verbatim, which then
+# fails on the literal path and reports it as a finding. Discovery also covers scripts added later.
+# A read loop rather than mapfile, which macOS's bash 3.2 does not have.
+shell_scripts=()
+while IFS= read -r script; do
+    shell_scripts+=("$script")
+done < <(find "$REPO_ROOT" -name '*.sh' -not -path '*/.git/*' -not -path '*/vendor/*' | sort)
+
+if ! command -v shellcheck >/dev/null 2>&1; then
+    info "Skipping shellcheck (not installed)"
+elif [[ "${#shell_scripts[@]}" -eq 0 ]]; then
+    fail "No shell scripts found to check"
+elif shellcheck_output="$(shellcheck -S warning "${shell_scripts[@]}" 2>&1)"; then
+    pass "Shell scripts are shellcheck clean (${#shell_scripts[@]} files)"
+else
+    echo "$shellcheck_output"
+    fail "Fix the shellcheck findings above"
+fi
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 echo ""

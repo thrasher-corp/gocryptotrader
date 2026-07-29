@@ -71,7 +71,6 @@ func createSnapshot(pair currency.Pair) (holder *Orderbook, asks, bids orderbook
 
 // BenchmarkBufferPerformance demonstrates buffer more performant than multi
 // process calls
-// 890016	      1688 ns/op	     416 B/op	       3 allocs/op
 func BenchmarkBufferPerformance(b *testing.B) {
 	cp, err := getExclusivePair()
 	require.NoError(b, err)
@@ -95,9 +94,6 @@ func BenchmarkBufferPerformance(b *testing.B) {
 	}
 }
 
-// BenchmarkBufferSortingPerformance benchmark
-//
-//	613964	      2093 ns/op	     440 B/op	       4 allocs/op
 func BenchmarkBufferSortingPerformance(b *testing.B) {
 	cp, err := getExclusivePair()
 	require.NoError(b, err)
@@ -122,7 +118,6 @@ func BenchmarkBufferSortingPerformance(b *testing.B) {
 	}
 }
 
-// 914500	      1599 ns/op	     440 B/op	       4 allocs/op
 func BenchmarkBufferSortingByIDPerformance(b *testing.B) {
 	cp, err := getExclusivePair()
 	require.NoError(b, err)
@@ -151,9 +146,6 @@ func BenchmarkBufferSortingByIDPerformance(b *testing.B) {
 
 // BenchmarkNoBufferPerformance demonstrates orderbook process more performant
 // than buffer
-//   122659	     12792 ns/op	     972 B/op	       7 allocs/op PRIOR
-//  1225924	      1028 ns/op	     240 B/op	       2 allocs/op CURRENT
-
 func BenchmarkNoBufferPerformance(b *testing.B) {
 	cp, err := getExclusivePair()
 	require.NoError(b, err)
