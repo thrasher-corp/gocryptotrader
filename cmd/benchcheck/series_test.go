@@ -35,7 +35,7 @@ func TestAppendSeries(t *testing.T) {
 	assert.Equal(t, float64(104), rec.NSMedian, "the median ns should be recorded")
 	assert.Equal(t, float64(98), rec.NSMin, "the fastest sample should be recorded alongside the median")
 	assert.Equal(t, uint64(8), rec.BytesMedian, "the median bytes should be recorded")
-	assert.Equal(t, uint64(1), rec.AllocsMedn, "the median allocs should be recorded")
+	assert.Equal(t, uint64(1), rec.AllocsMedian, "the median allocs should be recorded")
 }
 
 func TestAppendSeriesAppends(t *testing.T) {

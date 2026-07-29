@@ -15,15 +15,15 @@ import (
 // the least contaminated by scheduler noise, which makes it the better estimator when reading the
 // ns/op trend across runs on different machines.
 type SeriesRecord struct {
-	Timestamp   time.Time `json:"ts"`
-	Commit      string    `json:"commit,omitempty"`
-	Package     string    `json:"pkg"`
-	Benchmark   string    `json:"bench"`
-	Samples     int       `json:"samples"`
-	NSMedian    float64   `json:"ns_median"`
-	NSMin       float64   `json:"ns_min"`
-	BytesMedian uint64    `json:"bytes_median"`
-	AllocsMedn  uint64    `json:"allocs_median"`
+	Timestamp    time.Time `json:"ts"`
+	Commit       string    `json:"commit,omitempty"`
+	Package      string    `json:"pkg"`
+	Benchmark    string    `json:"bench"`
+	Samples      int       `json:"samples"`
+	NSMedian     float64   `json:"ns_median"`
+	NSMin        float64   `json:"ns_min"`
+	BytesMedian  uint64    `json:"bytes_median"`
+	AllocsMedian uint64    `json:"allocs_median"`
 }
 
 // AppendSeries appends one record per benchmark to path, creating it if absent. Records are only
@@ -45,15 +45,15 @@ func AppendSeries(path, commit string, results map[string]*Result, now time.Time
 	for _, key := range sortedKeys(results) {
 		r := results[key]
 		rec := &SeriesRecord{
-			Timestamp:   now.UTC(),
-			Commit:      commit,
-			Package:     r.Pkg,
-			Benchmark:   r.Name,
-			Samples:     len(r.NS),
-			NSMedian:    median(r.NS),
-			NSMin:       minimum(r.NS),
-			BytesMedian: uint64(median(r.Bytes)),
-			AllocsMedn:  uint64(median(r.Allocs)),
+			Timestamp:    now.UTC(),
+			Commit:       commit,
+			Package:      r.Pkg,
+			Benchmark:    r.Name,
+			Samples:      len(r.NS),
+			NSMedian:     median(r.NS),
+			NSMin:        minimum(r.NS),
+			BytesMedian:  uint64(median(r.Bytes)),
+			AllocsMedian: uint64(median(r.Allocs)),
 		}
 		line, err := json.Marshal(rec)
 		if err != nil {
