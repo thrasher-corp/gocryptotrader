@@ -23,6 +23,9 @@ var ErrInvalidTimestampFormat = errors.New("invalid timestamp format")
 func (t *Time) UnmarshalJSON(data []byte) error {
 	timestamp := data
 
+	if len(timestamp) == 0 {
+		return nil
+	}
 	if timestamp[0] == '"' {
 		timestamp = timestamp[1 : len(timestamp)-1]
 	}

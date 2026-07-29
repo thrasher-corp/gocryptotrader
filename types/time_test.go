@@ -26,7 +26,6 @@ func TestUnmarshalJSON(t *testing.T) {
 		{`"0.00000"`, time.Time{}, nil},
 		{`"0.0.0.0"`, time.Time{}, strconv.ErrSyntax},
 		{`"0.1"`, time.Time{}, ErrInvalidTimestampFormat},
-		{`"202003.25"`, time.Date(2020, 3, 25, 0, 0, 0, 0, time.UTC), nil},
 		{`"20200325"`, time.Date(2020, 3, 25, 0, 0, 0, 0, time.UTC), nil},
 		{"1628736847", time.Unix(1628736847, 0), nil},
 		{`"1628736847"`, time.Unix(1628736847, 0), nil},
@@ -69,12 +68,73 @@ func TestUnmarshalJSON(t *testing.T) {
 	}
 }
 
+func TestTimeUnmarshalJSONEmptyInput(t *testing.T) {
+	t.Parallel()
+
+	initial := Time(time.Date(2020, 3, 25, 0, 0, 0, 0, time.UTC))
+	for _, tc := range []struct {
+		name  string
+		input []byte
+	}{
+		{"nil", nil},
+		{"empty", []byte{}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			testTime := initial
+			err := testTime.UnmarshalJSON(tc.input)
+			require.NoErrorf(t, err, "Time.UnmarshalJSON must not error for %s input", tc.name)
+			assert.Equalf(t, initial, testTime, "Time.UnmarshalJSON should preserve Time for %s input", tc.name)
+		})
+	}
+}
+
 func BenchmarkUnmarshalJSON(b *testing.B) {
-	var testTime Time
-	for b.Loop() {
-		if err := json.Unmarshal([]byte(`"1691122380942.173000"`), &testTime); err != nil {
-			b.Fatal(err)
-		}
+	for _, tc := range []struct {
+		name  string
+		input string
+		want  time.Time
+	}{
+		{"seconds", `"1628736847"`, time.Unix(1628736847, 0)},
+		{"padded_width", `"16287368473"`, time.UnixMilli(1628736847300)},
+		{"fractional", `"1691122380942.173000"`, time.Unix(0, 1691122380942173000)},
+		{"date", `"20200325"`, time.Date(2020, 3, 25, 0, 0, 0, 0, time.UTC)},
+	} {
+		data := []byte(tc.input)
+		b.Run("direct/"+tc.name, func(b *testing.B) {
+			b.StopTimer()
+			var testTime Time
+			if err := testTime.UnmarshalJSON(data); err != nil {
+				b.Fatal(err)
+			}
+			if got := testTime.Time(); !got.Equal(tc.want) {
+				b.Fatalf("UnmarshalJSON returned %v, want %v", got, tc.want)
+			}
+			b.ReportAllocs()
+			b.StartTimer()
+			for b.Loop() {
+				if err := testTime.UnmarshalJSON(data); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+		b.Run("decoder/"+tc.name, func(b *testing.B) {
+			b.StopTimer()
+			var testTime Time
+			if err := json.Unmarshal(data, &testTime); err != nil {
+				b.Fatal(err)
+			}
+			if got := testTime.Time(); !got.Equal(tc.want) {
+				b.Fatalf("json.Unmarshal returned %v, want %v", got, tc.want)
+			}
+			b.ReportAllocs()
+			b.StartTimer()
+			for b.Loop() {
+				if err := json.Unmarshal(data, &testTime); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
 	}
 }
 
