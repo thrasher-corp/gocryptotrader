@@ -376,7 +376,7 @@ func (e *Exchange) SendFuturesAuthRequest(ctx context.Context, method, path stri
 		}, nil
 	}
 
-	err = e.SendPayload(ctx, request.Unset, newRequest, request.AuthenticatedRequest)
+	err = e.SendPayload(ctx, krakenLimitFuturesAuth, newRequest, request.AuthenticatedRequest)
 
 	if err == nil {
 		err = getFuturesErr(interim)

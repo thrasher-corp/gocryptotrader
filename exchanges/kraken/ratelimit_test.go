@@ -1,7 +1,6 @@
 package kraken
 
 import (
-	"errors"
 	"net/http"
 	"testing"
 
@@ -10,70 +9,44 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 )
 
-func TestNewKrakenSpotPrivateLimiter(t *testing.T) {
-	t.Parallel()
-
-	limiter := newKrakenSpotPrivateLimiter()
-	require.NotNil(t, limiter, "limiter must not be nil")
-	assert.Equal(t, KrakenSpotDecayPerSec, float64(limiter.Limit()), "limit should match Kraken private decay")
-	assert.Equal(t, KrakenSpotMaxCounter, limiter.Burst(), "burst should match Kraken private counter")
-}
-
-func TestNewKrakenSpotOrderLimiter(t *testing.T) {
-	t.Parallel()
-
-	limiter := newKrakenSpotOrderLimiter()
-	require.NotNil(t, limiter, "limiter must not be nil")
-	assert.Equal(t, KrakenSpotOrderRate, float64(limiter.Limit()), "limit should match Kraken order rate")
-	assert.Equal(t, KrakenSpotOrderMaxBurst, limiter.Burst(), "burst should match Kraken order burst")
-}
-
-func TestNewKrakenPublicLimiter(t *testing.T) {
-	t.Parallel()
-
-	limiter := newKrakenPublicLimiter()
-	require.NotNil(t, limiter, "limiter must not be nil")
-	assert.Equal(t, KrakenPublicRate, float64(limiter.Limit()), "limit should match Kraken public rate")
-	assert.Equal(t, KrakenPublicMaxBurst, limiter.Burst(), "burst should match Kraken public burst")
-}
-
 func TestBuildKrakenRateLimits(t *testing.T) {
 	t.Parallel()
 
 	rateLimits := buildKrakenRateLimits()
-	require.NotEmpty(t, rateLimits, "rate limits must not be empty")
-
-	expectedLimits := []request.EndpointLimit{
-		request.Unset,
-		request.Auth,
-		request.UnAuth,
-		krakenLimitDefault,
+	for _, limit := range []request.EndpointLimit{
 		krakenLimitPublic,
 		krakenLimitFuturesPublic,
-		krakenLimitBalance,
+		krakenLimitFuturesAuth,
+		krakenLimitAuth,
 		krakenLimitHistory,
 		krakenLimitTrading,
-		krakenLimitWithdraw,
-	}
-	for _, limit := range expectedLimits {
+		krakenLimitCancel,
+	} {
 		assert.NotNilf(t, rateLimits[limit], "rate limit should exist for endpoint %d", limit)
 	}
 
 	requester, err := request.New("krakenRateLimits", http.DefaultClient, request.WithLimiter(rateLimits))
 	require.NoError(t, err, "request.New must not error")
 
-	for range KrakenSpotMaxCounter / 4 {
-		require.NoError(t, requester.InitiateRateLimit(request.WithDelayNotAllowed(t.Context()), krakenLimitHistory), "history limit must allow burst usage")
-	}
-	assert.ErrorIs(t, requester.InitiateRateLimit(request.WithDelayNotAllowed(t.Context()), krakenLimitHistory), request.ErrDelayNotAllowed, "history limit should consume private weight")
-	assert.ErrorIs(t, requester.InitiateRateLimit(request.WithDelayNotAllowed(t.Context()), krakenLimitBalance), request.ErrDelayNotAllowed, "balance limit should share the private limiter")
-	assert.NoError(t, requester.InitiateRateLimit(request.WithDelayNotAllowed(t.Context()), krakenLimitTrading), "trading limit should use a separate limiter")
-	assert.NoError(t, requester.InitiateRateLimit(request.WithDelayNotAllowed(t.Context()), krakenLimitPublic), "public limit should use a separate limiter")
-	assert.NoError(t, requester.InitiateRateLimit(request.WithDelayNotAllowed(t.Context()), krakenLimitFuturesPublic), "futures public limit should not consume a rate budget")
+	ctx := request.WithDelayNotAllowed(t.Context())
 
-	err = requester.InitiateRateLimit(request.WithDelayNotAllowed(t.Context()), request.UnAuth)
-	if errors.Is(err, request.ErrDelayNotAllowed) {
-		t.Fatal("unauthenticated limit must not share the exhausted private limiter")
+	// History requests cost 2 on the private counter, so half the counter
+	// maximum fills it exactly
+	for range krakenSpotMaxCounter / 2 {
+		require.NoError(t, requester.InitiateRateLimit(ctx, krakenLimitHistory), "history requests must be allowed up to the counter maximum")
 	}
-	require.NoError(t, err, "unauthenticated limit must use the public limiter")
+	assert.ErrorIs(t, requester.InitiateRateLimit(ctx, krakenLimitHistory), request.ErrDelayNotAllowed, "history should be limited once the private counter is exhausted")
+	assert.ErrorIs(t, requester.InitiateRateLimit(ctx, krakenLimitAuth), request.ErrDelayNotAllowed, "auth should share the exhausted private counter")
+
+	assert.NoError(t, requester.InitiateRateLimit(ctx, krakenLimitTrading), "trading should use a separate counter")
+	assert.NoError(t, requester.InitiateRateLimit(ctx, krakenLimitPublic), "public should use a separate limiter")
+	assert.NoError(t, requester.InitiateRateLimit(ctx, krakenLimitFuturesPublic), "futures public should not consume any budget")
+	assert.NoError(t, requester.InitiateRateLimit(ctx, krakenLimitFuturesAuth), "futures auth should use a separate limiter")
+
+	// One trading unit is already consumed above; 7 worst-case cancels
+	// consume another 56 of the 60 burst, and the next cannot fit
+	for range 7 {
+		require.NoError(t, requester.InitiateRateLimit(ctx, krakenLimitCancel), "cancels must be allowed within the trading counter")
+	}
+	assert.ErrorIs(t, requester.InitiateRateLimit(ctx, krakenLimitCancel), request.ErrDelayNotAllowed, "cancel weight should throttle rapid cancellations")
 }
