@@ -63,13 +63,14 @@ func (p Pairs) Join() string {
 	}
 
 	// Build directly to avoid allocating an intermediate string for each pair.
-	size := len(p) - 1
+	// len(p) - 1 accounts for the commas inserted between pairs.
+	outputLen := len(p) - 1
 	for i := range p {
-		size += len(p[i].Base.String()) + len(p[i].Delimiter) + len(p[i].Quote.String())
+		outputLen += len(p[i].Base.String()) + len(p[i].Delimiter) + len(p[i].Quote.String())
 	}
 
 	var joined strings.Builder
-	joined.Grow(size)
+	joined.Grow(outputLen)
 	for i := range p {
 		if i > 0 {
 			joined.WriteByte(',')
