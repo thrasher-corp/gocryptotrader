@@ -161,6 +161,12 @@ func BenchmarkUpdateInsertByID_bids(b *testing.B) {
 	}
 }
 
+// Benchstat medians for PR base to measured production head
+// (20 counterbalanced fresh-process observations per revision):
+// MiddleFreshCopy: Before 11.156 µs/op, 32640 B/op, 2 allocs/op; After 7.631 µs/op, 21760 B/op, 1 allocs/op
+// MiddleSpareCapacity: Before 4643.0 ns/op, 10880 B/op, 1 allocs/op; After 462.4 ns/op, 0 B/op, 0 allocs/op
+// TailSpareCapacity guard: no significant difference at n=20, p=0.774; 565.1 vs 566.1 ns/op, 0 B/op, 0 allocs/op
+// Collision guard: no significant difference at n=20, p=0.899; both ~626 ns/op, 104 B/op, 3 allocs/op
 func BenchmarkInsertUpdates(b *testing.B) {
 	const (
 		levelCount = 256
