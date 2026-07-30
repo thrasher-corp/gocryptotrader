@@ -366,31 +366,24 @@ subscriptionLoop:
 			continue
 		}
 
-		// orderUpdate and assetUpdate subscribe once without pairs
+		var req map[string]any
 		switch s.Channel {
 		case subscription.MyOrdersChannel:
-			req := map[string]any{
+			req = map[string]any{
 				"action":       action,
 				"subscribe":    lbankWsOrderUpdate,
 				"subscribeKey": e.wsSubscribeKey,
 				"pair":         "all",
 			}
-			if err := e.Websocket.Conn.SendJSONMessage(ctx, 0, req); err != nil {
-				errs = common.AppendError(errs, err)
-				continue
-			}
-			if action == lbankWsSubscribe {
-				errs = common.AppendError(errs, e.Websocket.AddSuccessfulSubscriptions(e.Websocket.Conn, s))
-			} else {
-				errs = common.AppendError(errs, e.Websocket.RemoveSubscriptions(e.Websocket.Conn, s))
-			}
-			continue
 		case subscription.MyAccountChannel:
-			req := map[string]any{
+			req = map[string]any{
 				"action":       action,
 				"subscribe":    lbankWsAssetUpdate,
 				"subscribeKey": e.wsSubscribeKey,
 			}
+		}
+
+		if req != nil {
 			if err := e.Websocket.Conn.SendJSONMessage(ctx, 0, req); err != nil {
 				errs = common.AppendError(errs, err)
 				continue
