@@ -1,6 +1,7 @@
 package htx
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -24,9 +25,6 @@ func TestFuturesHistoryEndpointPaths(t *testing.T) {
 	assert.Equal(t, "/api/v3/contract_financial_record", fFinancialRecords, "delivery futures financial records endpoint should match HTX docs")
 	assert.Equal(t, "/api/v3/contract_hisorders", fOrderHistory, "delivery futures order history endpoint should match HTX docs")
 	assert.Equal(t, "/api/v3/contract_matchresults", fMatchResult, "delivery futures trade history endpoint should match HTX docs")
-	assert.Equal(t, "/swap-api/v3/swap_financial_record", htxSwapFinancialRecords, "coin-margined financial records endpoint should match HTX docs")
-	assert.Equal(t, "/swap-api/v3/swap_hisorders", htxSwapOrderHistory, "coin-margined order history endpoint should match HTX docs")
-	assert.Equal(t, "/swap-api/v3/swap_matchresults", htxSwapTradeHistory, "coin-margined trade history endpoint should match HTX docs")
 }
 
 func TestFuturesAuthenticatedHTTPRequest(t *testing.T) {
@@ -195,17 +193,19 @@ func TestFTradeHistoryDataUnmarshalJSON(t *testing.T) {
 func TestAddV3HistoryTimeRange(t *testing.T) {
 	t.Parallel()
 	req := make(map[string]any)
-	addV3HistoryTimeRange(req, 10)
+	err := addV3HistoryTimeRange(req, 2)
+	require.NoError(t, err, "addV3HistoryTimeRange must accept a two-day lookback")
 	startTime, ok := req["start_time"].(int64)
 	require.True(t, ok, "start time must be set")
 	endTime, ok := req["end_time"].(int64)
 	require.True(t, ok, "end time must be set")
 	assert.Greater(t, endTime, startTime, "end time should be after start time")
-	assert.InDelta(t, int64(48*time.Hour/time.Millisecond), endTime-startTime, float64(time.Minute/time.Millisecond), "lookback should be capped at 48 hours")
+	assert.InDelta(t, int64(48*time.Hour/time.Millisecond), endTime-startTime, float64(time.Minute/time.Millisecond), "lookback should cover 48 hours")
 
 	emptyReq := make(map[string]any)
-	addV3HistoryTimeRange(emptyReq, 0)
+	require.NoError(t, addV3HistoryTimeRange(emptyReq, 0), "addV3HistoryTimeRange must accept a zero lookback")
 	assert.Empty(t, emptyReq, "zero lookback should not set a time range")
+	require.ErrorIs(t, addV3HistoryTimeRange(make(map[string]any), 3), errInvalidCreateDate, "addV3HistoryTimeRange must reject lookbacks over two days")
 }
 
 func TestFGetContractInfo(t *testing.T) {
@@ -512,19 +512,53 @@ func TestFGetOpenOrders(t *testing.T) {
 
 func TestFGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.FGetOrderHistory(t.Context(),
 		currency.EMPTYPAIR, "BTC",
 		"all", "all", "limit",
 		[]order.Status{},
-		5, 0, 0)
-	require.NoError(t, err)
+		3, 0, 0)
+	require.ErrorIs(t, err, errInvalidCreateDate, "FGetOrderHistory must reject lookbacks over two days")
+}
+
+func TestFGetOrderHistoryByTimeRange(t *testing.T) {
+	t.Parallel()
+	body := make(chan []byte, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		payload, err := io.ReadAll(r.Body)
+		assert.NoError(t, err, "request body should be readable")
+		body <- payload
+		_, _ = w.Write([]byte(`{"code":200,"data":[{"query_id":12,"order_id":34,"order_id_str":"34","contract_code":"BTC-USD","direction":"buy","order_price_type":"limit","status":6}]}`))
+	}))
+	t.Cleanup(server.Close)
+
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+	h.API.AuthenticatedSupport = true
+	h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "futures endpoint must be set")
+	startTime := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)
+	endTime := startTime.Add(48 * time.Hour)
+	resp, err := h.FGetOrderHistoryByTimeRange(t.Context(), currency.EMPTYPAIR, "BTC", "all", "all", "limit", nil, startTime, endTime, 11, 50)
+	require.NoError(t, err, "FGetOrderHistoryByTimeRange must not error")
+	require.Len(t, resp.Data.Orders, 1, "decoded order history must be returned")
+	assert.Equal(t, int64(12), resp.Data.Orders[0].QueryID, "query ID should decode")
+
+	var requestBody map[string]any
+	require.NoError(t, json.Unmarshal(<-body, &requestBody), "request body must decode")
+	assert.Equal(t, float64(startTime.UnixMilli()), requestBody["start_time"], "start time should be preserved")
+	assert.Equal(t, float64(endTime.UnixMilli()), requestBody["end_time"], "end time should be preserved")
+	assert.Equal(t, v3HistoryDirectionNext, requestBody["direct"], "pagination direction should move forwards")
+	assert.Equal(t, float64(11), requestBody["from_id"], "cursor should be preserved")
+	assert.Equal(t, float64(50), requestBody["limit"], "limit should be preserved")
+
+	_, err = h.FGetOrderHistoryByTimeRange(t.Context(), currency.EMPTYPAIR, "BTC", "all", "all", "limit", nil, startTime, endTime.Add(time.Millisecond), 0, 50)
+	require.ErrorIs(t, err, errHistoryTimeRangeExceeded, "FGetOrderHistoryByTimeRange must reject intervals over 48 hours")
 }
 
 func TestFTradeHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.FTradeHistory(t.Context(), currency.EMPTYPAIR, "BTC", "all", 10, 0, 0)
+	_, err := e.FTradeHistory(t.Context(), currency.EMPTYPAIR, "BTC", "all", 2, 0, 0)
 	require.NoError(t, err)
 }
 

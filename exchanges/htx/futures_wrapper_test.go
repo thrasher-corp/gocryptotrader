@@ -25,7 +25,7 @@ import (
 func TestGetHistoricalFundingRatesForPair(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, htxSwapHistoricalFundingRate, r.URL.Path, "coin-margined funding history path should match")
+		assert.Equal(t, "/swap-api/v1/swap_historical_funding_rate", r.URL.Path, "coin-margined funding history path should match")
 		assert.Equal(t, "25", r.URL.Query().Get("page_size"), "page size should use the pageSize argument")
 		assert.Equal(t, "2", r.URL.Query().Get("page_index"), "page index should use the pageIndex argument")
 		_, _ = w.Write([]byte(`{"status":"ok","data":{"total_page":1,"current_page":1,"total_size":1,"data":[{"funding_rate":"0.001","funding_time":"1604312615051","contract_code":"BTC-USD"}]}}`))
@@ -114,7 +114,7 @@ func TestFSwitchLeverage(t *testing.T) {
 func TestSwitchCoinMarginedLeverage(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, htxSwapSwitchLeverage, r.URL.Path, "coin-margined leverage path should match")
+		assert.Equal(t, "/swap-api/v1/swap_switch_lever_rate", r.URL.Path, "coin-margined leverage path should match")
 		body, err := io.ReadAll(r.Body)
 		assert.NoError(t, err, "request body should be readable")
 		assert.JSONEq(t, `{"contract_code":"BTC-USD","lever_rate":5}`, string(body), "coin-margined leverage body should match")

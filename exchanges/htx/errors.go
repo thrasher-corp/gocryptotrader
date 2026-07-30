@@ -22,6 +22,7 @@ const (
 	errInvalidOrderType              htxError = "invalid order type"
 	errInvalidTransferType           htxError = "invalid transfer type"
 	errInvalidCreateDate             htxError = "invalid create date"
+	errHistoryTimeRangeExceeded      htxError = "history time range cannot exceed 48 hours"
 	errInvalidOffsetAmounts          htxError = "invalid offset amounts"
 	errInvalidLeverage               htxError = "invalid leverage"
 	errInvalidOrderPriceType         htxError = "invalid order price type"

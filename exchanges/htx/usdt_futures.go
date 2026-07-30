@@ -57,7 +57,10 @@ func (e *Exchange) GetLinearSwapMarkets(ctx context.Context, code currency.Pair,
 	if businessType != "" {
 		params.Set("business_type", businessType)
 	}
-	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(linearSwapMarkets, params), &resp)
+	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(linearSwapMarkets, params), &resp); err != nil {
+		return nil, err
+	}
+	return resp.Data, nil
 }
 
 // GetLinearSwapMarketDepth gets current USDT-margined market depth.
@@ -70,7 +73,10 @@ func (e *Exchange) GetLinearSwapMarketDepth(ctx context.Context, code currency.P
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
 	params.Set("type", dataType)
-	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(linearSwapMarketDepth, params), &resp)
+	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(linearSwapMarketDepth, params), &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
 }
 
 // GetLinearSwapMarketOverview gets current USDT-margined market overview.
@@ -82,7 +88,10 @@ func (e *Exchange) GetLinearSwapMarketOverview(ctx context.Context, code currenc
 	}
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
-	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(linearSwapMarketOverview, params), &resp)
+	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(linearSwapMarketOverview, params), &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
 }
 
 // GetLinearSwapKlineData gets USDT-margined contract candlesticks.
@@ -108,7 +117,10 @@ func (e *Exchange) GetLinearSwapKlineData(ctx context.Context, code currency.Pai
 		params.Set("from", strconv.FormatInt(startTime.Unix(), 10))
 		params.Set("to", strconv.FormatInt(endTime.Unix(), 10))
 	}
-	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(linearSwapKline, params), &resp)
+	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(linearSwapKline, params), &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
 }
 
 // GetLinearSwapBatchTrades gets recent trades for a USDT-margined contract.
@@ -121,7 +133,10 @@ func (e *Exchange) GetLinearSwapBatchTrades(ctx context.Context, code currency.P
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
 	params.Set("size", strconv.FormatInt(size, 10))
-	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(linearSwapBatchTrades, params), &resp)
+	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(linearSwapBatchTrades, params), &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
 }
 
 // GetLinearSwapFundingRate gets the current funding rate for a USDT-margined contract.
@@ -136,13 +151,19 @@ func (e *Exchange) GetLinearSwapFundingRate(ctx context.Context, code currency.P
 	}
 	params := url.Values{}
 	params.Set("contract_code", codeValue)
-	return resp.Data, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(linearSwapFunding, params), &resp)
+	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(linearSwapFunding, params), &resp); err != nil {
+		return resp.Data, err
+	}
+	return resp.Data, nil
 }
 
 // GetLinearSwapFundingRates gets current funding rates for USDT-margined contracts.
 func (e *Exchange) GetLinearSwapFundingRates(ctx context.Context) (SwapFundingRatesResponse, error) {
 	var resp SwapFundingRatesResponse
-	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, linearSwapBatchFunding, &resp)
+	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, linearSwapBatchFunding, &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
 }
 
 // GetLinearSwapHistoricalFundingRates gets historical funding rates for a USDT-margined contract.
@@ -160,7 +181,10 @@ func (e *Exchange) GetLinearSwapHistoricalFundingRates(ctx context.Context, code
 	if pageSize != 0 {
 		params.Set("page_size", strconv.FormatInt(pageSize, 10))
 	}
-	return resp, e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(linearSwapFundingHistory, params), &resp)
+	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues(linearSwapFundingHistory, params), &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
 }
 
 // SwitchLinearSwapLeverage changes the leverage used by a USDT-margined contract.
@@ -203,7 +227,10 @@ func (e *Exchange) GetV5OpenInterest(ctx context.Context, code currency.Pair) (*
 // GetV5AccountBalance gets the migrated USDT-margined unified-margin account balance.
 func (e *Exchange) GetV5AccountBalance(ctx context.Context) (*V5AccountBalanceResponse, error) {
 	var resp *V5AccountBalanceResponse
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, v5AccountBalance, nil, nil, &resp)
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, v5AccountBalance, nil, nil, &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
 }
 
 // PlaceV5Order places a migrated USDT-margined unified-margin order.
@@ -212,7 +239,10 @@ func (e *Exchange) PlaceV5Order(ctx context.Context, req *V5OrderRequest) (*V5Or
 		return nil, fmt.Errorf("%w V5OrderRequest", common.ErrNilPointer)
 	}
 	var resp *V5OrderResponse
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, v5TradeOrder, nil, req, &resp)
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, v5TradeOrder, nil, req, &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
 }
 
 // CancelV5Order cancels a migrated USDT-margined unified-margin order.
@@ -231,7 +261,10 @@ func (e *Exchange) CancelV5Order(ctx context.Context, code currency.Pair, orderI
 		req.ClientOrderID = clientOrderID
 	}
 	var resp *V5OrderResponse
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, v5TradeCancelOrder, nil, req, &resp)
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, v5TradeCancelOrder, nil, req, &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
 }
 
 // CancelAllV5Orders cancels all migrated USDT-margined unified-margin orders for a contract.
@@ -248,7 +281,10 @@ func (e *Exchange) CancelAllV5Orders(ctx context.Context, code currency.Pair, si
 		req.ContractCode = codeValue
 	}
 	var resp *V5CancelAllOrdersResponse
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, v5TradeCancelAllOrders, nil, req, &resp)
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, v5TradeCancelAllOrders, nil, req, &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
 }
 
 // GetV5Order gets a migrated USDT-margined unified-margin order.
@@ -269,7 +305,10 @@ func (e *Exchange) GetV5Order(ctx context.Context, code currency.Pair, marginMod
 		params.Set("client_order_id", clientOrderID)
 	}
 	var resp *V5OrderQueryResponse
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, v5TradeOrder, params, nil, &resp)
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, v5TradeOrder, params, nil, &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
 }
 
 // GetV5OpenOrders gets migrated USDT-margined unified-margin open orders.
@@ -301,5 +340,8 @@ func (e *Exchange) GetV5OpenOrders(ctx context.Context, code currency.Pair, marg
 		params.Set("direct", direct)
 	}
 	var resp *V5OrdersQueryResponse
-	return resp, e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, v5TradeOrderOpens, params, nil, &resp)
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, v5TradeOrderOpens, params, nil, &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
 }

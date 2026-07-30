@@ -1,6 +1,9 @@
 package htx
 
 import (
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -8,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -240,7 +244,7 @@ func TestSwapSingleSubAccAssets(t *testing.T) {
 func TestGetAccountFinancialRecords(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetAccountFinancialRecords(t.Context(), ethusdPair, "3,4", 15, 0, 0)
+	_, err := e.GetAccountFinancialRecords(t.Context(), ethusdPair, "3,4", 2, 0, 0)
 	require.NoError(t, err)
 }
 
@@ -382,15 +386,49 @@ func TestGetSwapOpenOrders(t *testing.T) {
 
 func TestGetSwapOrderHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
 	_, err := e.GetSwapOrderHistory(t.Context(), ethusdPair, "all", "all", []order.Status{order.PartiallyCancelled, order.Active}, 25, 0, 0)
-	require.NoError(t, err)
+	require.ErrorIs(t, err, errInvalidCreateDate, "GetSwapOrderHistory must reject lookbacks over two days")
+}
+
+func TestGetSwapOrderHistoryByTimeRange(t *testing.T) {
+	t.Parallel()
+	body := make(chan []byte, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		payload, err := io.ReadAll(r.Body)
+		assert.NoError(t, err, "request body should be readable")
+		body <- payload
+		_, _ = w.Write([]byte(`{"code":200,"data":[{"query_id":12,"order_id":34,"order_id_str":"34","contract_code":"ETH-USD","direction":"buy","order_price_type":"limit","status":6}]}`))
+	}))
+	t.Cleanup(server.Close)
+
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+	h.API.AuthenticatedSupport = true
+	h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "futures endpoint must be set")
+	startTime := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)
+	endTime := startTime.Add(48 * time.Hour)
+	resp, err := h.GetSwapOrderHistoryByTimeRange(t.Context(), ethusdPair, "all", "all", nil, startTime, endTime, 11, 50)
+	require.NoError(t, err, "GetSwapOrderHistoryByTimeRange must not error")
+	require.Len(t, resp.Data.Orders, 1, "decoded order history must be returned")
+	assert.Equal(t, int64(12), resp.Data.Orders[0].QueryID, "query ID should decode")
+
+	var requestBody map[string]any
+	require.NoError(t, json.Unmarshal(<-body, &requestBody), "request body must decode")
+	assert.Equal(t, float64(startTime.UnixMilli()), requestBody["start_time"], "start time should be preserved")
+	assert.Equal(t, float64(endTime.UnixMilli()), requestBody["end_time"], "end time should be preserved")
+	assert.Equal(t, v3HistoryDirectionNext, requestBody["direct"], "pagination direction should move forwards")
+	assert.Equal(t, float64(11), requestBody["from_id"], "cursor should be preserved")
+	assert.Equal(t, float64(50), requestBody["limit"], "limit should be preserved")
+
+	_, err = h.GetSwapOrderHistoryByTimeRange(t.Context(), ethusdPair, "all", "all", nil, endTime, startTime, 0, 50)
+	require.ErrorIs(t, err, errStartTimeAfterEndTime, "GetSwapOrderHistoryByTimeRange must reject reversed intervals")
 }
 
 func TestGetSwapTradeHistory(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	_, err := e.GetSwapTradeHistory(t.Context(), ethusdPair, "liquidateShort", 10, 0, 0)
+	_, err := e.GetSwapTradeHistory(t.Context(), ethusdPair, "liquidateShort", 2, 0, 0)
 	require.NoError(t, err)
 }
 

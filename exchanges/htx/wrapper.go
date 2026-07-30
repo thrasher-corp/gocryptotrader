@@ -1871,6 +1871,36 @@ func (e *Exchange) GetActiveOrders(ctx context.Context, req *order.MultiOrderReq
 	return req.Filter(e.Name, orders), nil
 }
 
+type v3HistoryWindow struct {
+	start time.Time
+	end   time.Time
+}
+
+func getV3HistoryWindows(startTime, endTime time.Time) ([]v3HistoryWindow, error) {
+	if startTime.IsZero() && endTime.IsZero() {
+		return []v3HistoryWindow{{}}, nil
+	}
+	if startTime.IsZero() || endTime.IsZero() {
+		return nil, errInvalidCreateDate
+	}
+	if startTime.After(endTime) {
+		return nil, errStartTimeAfterEndTime
+	}
+	if endTime.Sub(startTime) > 90*24*time.Hour {
+		return nil, errInvalidCreateDate
+	}
+	windows := make([]v3HistoryWindow, 0, int(endTime.Sub(startTime)/(48*time.Hour))+1)
+	for !startTime.After(endTime) {
+		windowEnd := startTime.Add(48 * time.Hour)
+		if windowEnd.After(endTime) {
+			windowEnd = endTime
+		}
+		windows = append(windows, v3HistoryWindow{start: startTime, end: windowEnd})
+		startTime = windowEnd.Add(time.Millisecond)
+	}
+	return windows, nil
+}
+
 // GetOrderHistory retrieves account order information
 // Can Limit response to specific order status
 func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest) (order.FilteredOrders, error) {
@@ -1920,109 +1950,168 @@ func (e *Exchange) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 			}
 		}
 	case asset.CoinMarginedFutures:
+		windows, err := getV3HistoryWindows(req.StartTime, req.EndTime)
+		if err != nil {
+			return nil, err
+		}
 		for x := range req.Pairs {
-			var currentPage int64
-			for done := false; !done; {
-				orderHistory, err := e.GetSwapOrderHistory(ctx,
-					req.Pairs[x],
-					"all",
-					"all",
-					[]order.Status{order.AnyStatus},
-					int64(req.EndTime.Sub(req.StartTime).Hours()/24),
-					currentPage,
-					50)
-				if err != nil {
-					return orders, err
-				}
-				var orderVars OrderVars
-				for x := range orderHistory.Data.Orders {
-					p, err := currency.NewPairFromString(orderHistory.Data.Orders[x].ContractCode)
+			seen := make(map[int64]struct{})
+			for _, window := range windows {
+				var cursor int64
+				for {
+					orderHistory, err := e.GetSwapOrderHistoryByTimeRange(ctx,
+						req.Pairs[x],
+						"all",
+						"all",
+						[]order.Status{order.AnyStatus},
+						window.start,
+						window.end,
+						cursor,
+						50)
 					if err != nil {
 						return orders, err
 					}
-
-					orderVars, err = compatibleVars(orderHistory.Data.Orders[x].Direction,
-						orderHistory.Data.Orders[x].OrderPriceType,
-						orderHistory.Data.Orders[x].Status)
-					if err != nil {
-						return orders, err
+					var orderVars OrderVars
+					for x := range orderHistory.Data.Orders {
+						if orderHistory.Data.Orders[x].QueryID != 0 {
+							if _, ok := seen[orderHistory.Data.Orders[x].QueryID]; ok {
+								continue
+							}
+							seen[orderHistory.Data.Orders[x].QueryID] = struct{}{}
+						}
+						p, err := currency.NewPairFromString(orderHistory.Data.Orders[x].ContractCode)
+						if err != nil {
+							return orders, err
+						}
+						orderVars, err = compatibleVars(orderHistory.Data.Orders[x].Direction,
+							orderHistory.Data.Orders[x].OrderPriceType,
+							orderHistory.Data.Orders[x].Status)
+						if err != nil {
+							return orders, err
+						}
+						orders = append(orders, order.Detail{
+							TimeInForce:     orderVars.TimeInForce,
+							Leverage:        orderHistory.Data.Orders[x].LeverageRate,
+							Price:           orderHistory.Data.Orders[x].Price,
+							Amount:          orderHistory.Data.Orders[x].Volume,
+							ExecutedAmount:  orderHistory.Data.Orders[x].TradeVolume,
+							RemainingAmount: orderHistory.Data.Orders[x].Volume - orderHistory.Data.Orders[x].TradeVolume,
+							Fee:             orderHistory.Data.Orders[x].Fee,
+							Exchange:        e.Name,
+							AssetType:       req.AssetType,
+							OrderID:         orderHistory.Data.Orders[x].OrderIDString,
+							Side:            orderVars.Side,
+							Type:            orderVars.OrderType,
+							Status:          orderVars.Status,
+							Pair:            p,
+						})
 					}
-					orders = append(orders, order.Detail{
-						TimeInForce:     orderVars.TimeInForce,
-						Leverage:        orderHistory.Data.Orders[x].LeverageRate,
-						Price:           orderHistory.Data.Orders[x].Price,
-						Amount:          orderHistory.Data.Orders[x].Volume,
-						ExecutedAmount:  orderHistory.Data.Orders[x].TradeVolume,
-						RemainingAmount: orderHistory.Data.Orders[x].Volume - orderHistory.Data.Orders[x].TradeVolume,
-						Fee:             orderHistory.Data.Orders[x].Fee,
-						Exchange:        e.Name,
-						AssetType:       req.AssetType,
-						OrderID:         orderHistory.Data.Orders[x].OrderIDString,
-						Side:            orderVars.Side,
-						Type:            orderVars.OrderType,
-						Status:          orderVars.Status,
-						Pair:            p,
-					})
+					if orderHistory.Data.TotalPage > 0 {
+						cursor++
+						if cursor >= orderHistory.Data.TotalPage {
+							break
+						}
+						continue
+					}
+					if len(orderHistory.Data.Orders) < 50 {
+						break
+					}
+					nextCursor := cursor
+					for x := range orderHistory.Data.Orders {
+						nextCursor = max(nextCursor, orderHistory.Data.Orders[x].QueryID)
+					}
+					if nextCursor == cursor {
+						break
+					}
+					cursor = nextCursor
 				}
-				currentPage++
-				done = currentPage == orderHistory.Data.TotalPage
 			}
 		}
 	case asset.Futures:
+		windows, err := getV3HistoryWindows(req.StartTime, req.EndTime)
+		if err != nil {
+			return nil, err
+		}
 		for x := range req.Pairs {
-			var currentPage int64
-			for done := false; !done; {
-				openOrders, err := e.FGetOrderHistory(ctx,
-					req.Pairs[x],
-					"",
-					"all",
-					"all",
-					"limit",
-					[]order.Status{order.AnyStatus},
-					int64(req.EndTime.Sub(req.StartTime).Hours()/24),
-					currentPage,
-					50)
-				if err != nil {
-					return orders, err
-				}
-				var orderVars OrderVars
-				for x := range openOrders.Data.Orders {
-					orderVars, err = compatibleVars(openOrders.Data.Orders[x].Direction,
-						openOrders.Data.Orders[x].OrderPriceType,
-						openOrders.Data.Orders[x].Status)
+			seen := make(map[int64]struct{})
+			for _, window := range windows {
+				var cursor int64
+				for {
+					openOrders, err := e.FGetOrderHistoryByTimeRange(ctx,
+						req.Pairs[x],
+						"",
+						"all",
+						"all",
+						"limit",
+						[]order.Status{order.AnyStatus},
+						window.start,
+						window.end,
+						cursor,
+						50)
 					if err != nil {
 						return orders, err
 					}
-					if req.Side != orderVars.Side {
+					var orderVars OrderVars
+					for x := range openOrders.Data.Orders {
+						if openOrders.Data.Orders[x].QueryID != 0 {
+							if _, ok := seen[openOrders.Data.Orders[x].QueryID]; ok {
+								continue
+							}
+							seen[openOrders.Data.Orders[x].QueryID] = struct{}{}
+						}
+						orderVars, err = compatibleVars(openOrders.Data.Orders[x].Direction,
+							openOrders.Data.Orders[x].OrderPriceType,
+							openOrders.Data.Orders[x].Status)
+						if err != nil {
+							return orders, err
+						}
+						if req.Side != order.AnySide && req.Side != orderVars.Side {
+							continue
+						}
+						if req.Type != order.AnyType && req.Type != orderVars.OrderType {
+							continue
+						}
+						p, err := currency.NewPairFromString(openOrders.Data.Orders[x].ContractCode)
+						if err != nil {
+							return orders, err
+						}
+						orders = append(orders, order.Detail{
+							TimeInForce:     orderVars.TimeInForce,
+							Leverage:        openOrders.Data.Orders[x].LeverageRate,
+							Price:           openOrders.Data.Orders[x].Price,
+							Amount:          openOrders.Data.Orders[x].Volume,
+							ExecutedAmount:  openOrders.Data.Orders[x].TradeVolume,
+							RemainingAmount: openOrders.Data.Orders[x].Volume - openOrders.Data.Orders[x].TradeVolume,
+							Fee:             openOrders.Data.Orders[x].Fee,
+							Exchange:        e.Name,
+							AssetType:       req.AssetType,
+							OrderID:         openOrders.Data.Orders[x].OrderIDString,
+							Side:            orderVars.Side,
+							Type:            orderVars.OrderType,
+							Status:          orderVars.Status,
+							Pair:            p,
+							Date:            openOrders.Data.Orders[x].CreateDate.Time(),
+						})
+					}
+					if openOrders.Data.TotalPage > 0 {
+						cursor++
+						if cursor >= openOrders.Data.TotalPage {
+							break
+						}
 						continue
 					}
-					if req.Type != orderVars.OrderType {
-						continue
+					if len(openOrders.Data.Orders) < 50 {
+						break
 					}
-					p, err := currency.NewPairFromString(openOrders.Data.Orders[x].ContractCode)
-					if err != nil {
-						return orders, err
+					nextCursor := cursor
+					for x := range openOrders.Data.Orders {
+						nextCursor = max(nextCursor, openOrders.Data.Orders[x].QueryID)
 					}
-					orders = append(orders, order.Detail{
-						TimeInForce:     orderVars.TimeInForce,
-						Leverage:        openOrders.Data.Orders[x].LeverageRate,
-						Price:           openOrders.Data.Orders[x].Price,
-						Amount:          openOrders.Data.Orders[x].Volume,
-						ExecutedAmount:  openOrders.Data.Orders[x].TradeVolume,
-						RemainingAmount: openOrders.Data.Orders[x].Volume - openOrders.Data.Orders[x].TradeVolume,
-						Fee:             openOrders.Data.Orders[x].Fee,
-						Exchange:        e.Name,
-						AssetType:       req.AssetType,
-						OrderID:         openOrders.Data.Orders[x].OrderIDString,
-						Side:            orderVars.Side,
-						Type:            orderVars.OrderType,
-						Status:          orderVars.Status,
-						Pair:            p,
-						Date:            openOrders.Data.Orders[x].CreateDate.Time(),
-					})
+					if nextCursor == cursor {
+						break
+					}
+					cursor = nextCursor
 				}
-				currentPage++
-				done = currentPage == openOrders.Data.TotalPage
 			}
 		}
 	default:

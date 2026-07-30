@@ -1,10 +1,13 @@
 package htx
 
 import (
+	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -14,6 +17,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -147,25 +152,124 @@ func TestUpdateOrderbookWithLimit(t *testing.T) {
 
 func TestGetOrderHistory(t *testing.T) {
 	t.Parallel()
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e)
-	updatePairsOnce(t, e)
-	getOrdersRequest := order.MultiOrderRequest{
-		Type:      order.AnyType,
-		Pairs:     []currency.Pair{currency.NewBTCUSDT()},
-		AssetType: asset.Spot,
-		Side:      order.AnySide,
-	}
-	_, err := e.GetOrderHistory(t.Context(), &getOrdersRequest)
-	require.NoError(t, err)
+	for _, tc := range []struct {
+		name       string
+		item       asset.Item
+		pair       currency.Pair
+		path       string
+		contract   string
+		extraEntry map[string]any
+	}{
+		{
+			name:     "coin margined futures",
+			item:     asset.CoinMarginedFutures,
+			pair:     btcusdPair,
+			path:     "/swap-api/v3/swap_hisorders",
+			contract: "BTC-USD",
+		},
+		{
+			name:     "delivery futures",
+			item:     asset.Futures,
+			pair:     btccwPair,
+			path:     fOrderHistory,
+			contract: "BTC_CW",
+			extraEntry: map[string]any{
+				"create_date": time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC).UnixMilli(),
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var calls atomic.Int64
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, tc.path, r.URL.Path, "history endpoint path should match")
+				payload, err := io.ReadAll(r.Body)
+				assert.NoError(t, err, "request body should be readable")
+				var requestBody map[string]any
+				assert.NoError(t, json.Unmarshal(payload, &requestBody), "request body should decode")
+				assert.Equal(t, v3HistoryDirectionNext, requestBody["direct"], "history pagination should move forwards")
+				cursor, _ := requestBody["from_id"].(float64)
+				entries := make([]map[string]any, 0, 50)
+				switch int64(cursor) {
+				case 0:
+					for queryID := int64(1); queryID <= 50; queryID++ {
+						entry := map[string]any{
+							"query_id":         queryID,
+							"order_id":         queryID,
+							"order_id_str":     strconv.FormatInt(queryID, 10),
+							"contract_code":    tc.contract,
+							"direction":        "buy",
+							"order_price_type": "limit",
+							"status":           6,
+						}
+						maps.Copy(entry, tc.extraEntry)
+						entries = append(entries, entry)
+					}
+				case 50:
+					entry := map[string]any{
+						"query_id":         int64(51),
+						"order_id":         int64(51),
+						"order_id_str":     "51",
+						"contract_code":    tc.contract,
+						"direction":        "buy",
+						"order_price_type": "limit",
+						"status":           6,
+					}
+					maps.Copy(entry, tc.extraEntry)
+					entries = append(entries, entry)
+				}
+				response, err := json.Marshal(map[string]any{"code": 200, "data": entries})
+				assert.NoError(t, err, "response body should encode")
+				_, _ = w.Write(response)
+				calls.Add(1)
+			}))
+			t.Cleanup(server.Close)
 
-	getOrdersRequest.Pairs = []currency.Pair{btcusdPair}
-	getOrdersRequest.AssetType = asset.CoinMarginedFutures
-	_, err = e.GetOrderHistory(t.Context(), &getOrdersRequest)
-	require.NoError(t, err)
-	getOrdersRequest.Pairs = []currency.Pair{btcFutureDatedPair}
-	getOrdersRequest.AssetType = asset.Futures
-	_, err = e.GetOrderHistory(t.Context(), &getOrdersRequest)
-	require.NoError(t, err)
+			h := new(Exchange)
+			require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+			h.API.AuthenticatedSupport = true
+			h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+			require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestFutures.String(), server.URL), "futures endpoint must be set")
+			startTime := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)
+			orders, err := h.GetOrderHistory(t.Context(), &order.MultiOrderRequest{
+				Type:      order.AnyType,
+				Pairs:     []currency.Pair{tc.pair},
+				AssetType: tc.item,
+				Side:      order.AnySide,
+				StartTime: startTime,
+				EndTime:   startTime.Add(24 * time.Hour),
+			})
+			require.NoError(t, err, "GetOrderHistory must not error")
+			assert.Len(t, orders, 51, "all cursor pages should be returned")
+			assert.Equal(t, int64(2), calls.Load(), "pagination should stop after the short final page")
+		})
+	}
+}
+
+func TestGetV3HistoryWindows(t *testing.T) {
+	t.Parallel()
+	startTime := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)
+	endTime := startTime.Add(5 * 24 * time.Hour)
+	windows, err := getV3HistoryWindows(startTime, endTime)
+	require.NoError(t, err, "getV3HistoryWindows must not error")
+	require.Len(t, windows, 3, "five days must be split into three windows")
+	for x := range windows {
+		assert.LessOrEqual(t, windows[x].end.Sub(windows[x].start), 48*time.Hour, "each window should be at most 48 hours")
+	}
+	assert.Equal(t, startTime, windows[0].start, "first window should preserve the requested start")
+	assert.Equal(t, endTime, windows[len(windows)-1].end, "last window should preserve the requested end")
+	assert.Equal(t, time.Millisecond, windows[1].start.Sub(windows[0].end), "adjacent millisecond ranges should not overlap")
+
+	windows, err = getV3HistoryWindows(time.Time{}, time.Time{})
+	require.NoError(t, err, "getV3HistoryWindows must accept an unspecified interval")
+	require.Len(t, windows, 1, "an unspecified interval must produce one request")
+	assert.True(t, windows[0].start.IsZero(), "unspecified start should remain zero")
+	assert.True(t, windows[0].end.IsZero(), "unspecified end should remain zero")
+
+	_, err = getV3HistoryWindows(endTime, startTime)
+	require.ErrorIs(t, err, errStartTimeAfterEndTime, "getV3HistoryWindows must reject reversed intervals")
+	_, err = getV3HistoryWindows(startTime, startTime.Add(91*24*time.Hour))
+	require.ErrorIs(t, err, errInvalidCreateDate, "getV3HistoryWindows must reject intervals over 90 days")
 }
 
 func TestCancelAllOrders(t *testing.T) {

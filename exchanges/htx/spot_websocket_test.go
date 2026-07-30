@@ -487,14 +487,12 @@ func wsFixture(tb testing.TB, msg []byte, w *gws.Conn) error {
 	return fmt.Errorf("%w: %s", errUnhandledMockWebsocketMessage, msg)
 }
 
-// TestSubscribe exercises live public subscriptions
+// TestSubscribe exercises public subscriptions against the deterministic websocket fixture.
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
-	e := new(Exchange)
-	require.NoError(t, testexch.Setup(e), "Test instance Setup must not error")
+	e := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
 	subs, err := defaultSubscriptions.ExpandTemplates(e)
 	require.NoError(t, err, "ExpandTemplates must not error")
-	testexch.SetupWs(t, e)
 	err = e.Subscribe(subs)
 	require.NoError(t, err, "Subscribe must not error")
 	conn, err := e.Websocket.GetConnection(exchange.WebsocketSpot)
