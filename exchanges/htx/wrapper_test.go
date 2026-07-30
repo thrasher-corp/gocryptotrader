@@ -31,7 +31,19 @@ func TestSetDefaults(t *testing.T) {
 	h.SetDefaults()
 	assert.Equal(t, "HTX", h.Name, "exchange name should match")
 	assert.True(t, h.Features.Supports.WebsocketCapabilities.FundingRateFetching, "websocket funding rates should be supported")
-	assert.Len(t, h.Features.Subscriptions, 21, "default subscriptions should cover spot and derivatives")
+	assert.Len(t, h.Features.Subscriptions, 41, "default subscriptions should cover public and private spot and derivatives channels")
+	for _, tt := range []struct {
+		endpoint exchange.URL
+		want     string
+	}{
+		{endpoint: exchange.WebsocketFuturesPrivate, want: wsFuturesPrivateURL},
+		{endpoint: exchange.WebsocketCoinMarginedPrivate, want: wsCoinMarginedPrivateURL},
+		{endpoint: exchange.WebsocketUSDTMarginedPrivate, want: wsUSDTMarginedPrivateURL},
+	} {
+		got, err := h.API.Endpoints.GetURL(tt.endpoint)
+		require.NoError(t, err, "private derivative endpoint must be configured")
+		assert.Equal(t, tt.want, got, "private derivative endpoint should match HTX documentation")
+	}
 }
 
 func TestSetup(t *testing.T) {

@@ -157,15 +157,18 @@ func (e *Exchange) SetDefaults() {
 	}
 	e.API.Endpoints = e.NewEndpoints()
 	err = e.API.Endpoints.SetDefaultEndpoints(map[exchange.URL]string{
-		exchange.RestSpot:              htxAPIURL,
-		exchange.RestFutures:           htxFuturesURL,
-		exchange.RestCoinMargined:      htxFuturesURL,
-		exchange.RestUSDTMargined:      htxFuturesURL,
-		exchange.WebsocketSpot:         wsSpotURL + wsPublicPath,
-		exchange.WebsocketPrivate:      wsSpotURL + wsPrivatePath,
-		exchange.WebsocketFutures:      wsFuturesURL,
-		exchange.WebsocketCoinMargined: wsCoinMarginedURL,
-		exchange.WebsocketUSDTMargined: wsUSDTMarginedURL,
+		exchange.RestSpot:                     htxAPIURL,
+		exchange.RestFutures:                  htxFuturesURL,
+		exchange.RestCoinMargined:             htxFuturesURL,
+		exchange.RestUSDTMargined:             htxFuturesURL,
+		exchange.WebsocketSpot:                wsSpotURL + wsPublicPath,
+		exchange.WebsocketPrivate:             wsSpotURL + wsPrivatePath,
+		exchange.WebsocketFutures:             wsFuturesURL,
+		exchange.WebsocketFuturesPrivate:      wsFuturesPrivateURL,
+		exchange.WebsocketCoinMargined:        wsCoinMarginedURL,
+		exchange.WebsocketCoinMarginedPrivate: wsCoinMarginedPrivateURL,
+		exchange.WebsocketUSDTMargined:        wsUSDTMarginedURL,
+		exchange.WebsocketUSDTMarginedPrivate: wsUSDTMarginedPrivateURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -218,16 +221,23 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		{endpoint: exchange.WebsocketSpot, asset: asset.Spot},
 		{endpoint: exchange.WebsocketPrivate, asset: asset.Spot, private: true},
 		{endpoint: exchange.WebsocketFutures, asset: asset.Futures},
+		{endpoint: exchange.WebsocketFuturesPrivate, asset: asset.Futures, private: true},
 		{endpoint: exchange.WebsocketCoinMargined, asset: asset.CoinMarginedFutures},
+		{endpoint: exchange.WebsocketCoinMarginedPrivate, asset: asset.CoinMarginedFutures, private: true},
 		{endpoint: exchange.WebsocketUSDTMargined, asset: asset.USDTMarginedFutures},
+		{endpoint: exchange.WebsocketUSDTMarginedPrivate, asset: asset.USDTMarginedFutures, private: true},
 	} {
 		runningURL, err := e.API.Endpoints.GetURL(ws.endpoint)
 		if err != nil {
 			return err
 		}
+		rateLimitDuration := 20 * time.Millisecond
+		if ws.private && ws.asset != asset.Spot {
+			rateLimitDuration = 25 * time.Millisecond
+		}
 		setup := &websocket.ConnectionSetup{
 			URL:                  runningURL,
-			RateLimit:            request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
+			RateLimit:            request.NewWeightedRateLimitByDuration(rateLimitDuration),
 			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
 			Connector:            e.wsConnect,

@@ -456,6 +456,17 @@ func TestGetSubscriptionTemplate(t *testing.T) {
 
 func wsFixture(tb testing.TB, msg []byte, w *gws.Conn) error {
 	tb.Helper()
+	operation, _ := jsonparser.GetString(msg, "op")
+	topic, _ := jsonparser.GetString(msg, "topic")
+	if operation == wsAuthChannel {
+		return w.WriteMessage(gws.TextMessage, []byte(`{"op":"auth","type":"api","ts":1489474081631,"err-code":0,"data":{"user-id":"12345678"}}`))
+	}
+	if operation == wsSubOp || operation == wsUnsubOp {
+		return w.WriteMessage(gws.TextMessage, []byte(`{"op":"`+operation+`","topic":"`+topic+`","ts":1489474081631,"err-code":0}`))
+	}
+	if operation == "pong" {
+		return nil
+	}
 	action, _ := jsonparser.GetString(msg, "action")
 	ch, _ := jsonparser.GetString(msg, "ch")
 	if action == "req" && ch == "auth" {
@@ -531,8 +542,30 @@ func TestAuthSubscribe(t *testing.T) {
 }
 
 func TestChannelName(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "market.BTC-USD.kline", channelName(&subscription.Subscription{Channel: subscription.CandlesChannel}, btcusdPair))
 	assert.Equal(t, "trade.clearing#*#1", channelName(&subscription.Subscription{Channel: subscription.MyTradesChannel}, btcusdPair))
+	for _, tt := range []struct {
+		channel string
+		want    string
+	}{
+		{channel: subscription.MyOrdersChannel, want: "orders.*"},
+		{channel: subscription.MyTradesChannel, want: "matchOrders.*"},
+		{channel: subscription.MyAccountChannel, want: "accounts.*"},
+		{channel: wsPositionsChannel, want: "positions.*"},
+		{channel: wsTriggerOrdersChannel, want: "trigger_order.*"},
+		{channel: wsCrossOrdersChannel, want: "orders_cross.*"},
+		{channel: wsCrossTradesChannel, want: "matchOrders_cross.*"},
+		{channel: wsCrossAccountsChannel, want: "accounts_cross.*"},
+		{channel: wsCrossPositionsChannel, want: "positions_cross.*"},
+		{channel: wsCrossTriggersChannel, want: "trigger_order_cross.*"},
+	} {
+		t.Run(tt.channel, func(t *testing.T) {
+			t.Parallel()
+			sub := &subscription.Subscription{Asset: asset.USDTMarginedFutures, Channel: tt.channel, Authenticated: true}
+			assert.Equal(t, tt.want, channelName(sub), "private derivative channel should use the documented wildcard topic")
+		})
+	}
 	assert.Panics(t, func() { channelName(&subscription.Subscription{Channel: wsOrderbookChannel}, btcusdPair) })
 }
 
@@ -541,6 +574,7 @@ func TestIsWildcardChannel(t *testing.T) {
 	assert.False(t, isWildcardChannel(&subscription.Subscription{Channel: subscription.CandlesChannel}))
 	assert.True(t, isWildcardChannel(&subscription.Subscription{Channel: subscription.MyOrdersChannel}))
 	assert.True(t, isWildcardChannel(&subscription.Subscription{Channel: subscription.MyAccountChannel}))
+	assert.True(t, isWildcardChannel(&subscription.Subscription{Channel: wsPositionsChannel, Authenticated: true}))
 	assert.Panics(t, func() { channelName(&subscription.Subscription{Channel: wsOrderbookChannel}) })
 }
 
@@ -555,4 +589,9 @@ func TestGetErrResp(t *testing.T) {
 
 	err = getErrResp([]byte(`{"action":"sub","code":200,"ch":"orders#btcusdt","data":{}}`))
 	assert.NoError(t, err, "V2 success should not error")
+
+	err = getErrResp([]byte(`{"op":"auth","err-code":0}`))
+	assert.NoError(t, err, "derivative websocket success should not error")
+	err = getErrResp([]byte(`{"op":"auth","err-code":2001,"err-msg":"invalid authentication"}`))
+	assert.ErrorContains(t, err, "invalid authentication (2001)", "derivative websocket errors should include their numeric code")
 }

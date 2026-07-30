@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/buger/jsonparser"
-	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -97,6 +96,33 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 			return e.wsHandleV2ping(ctx, conn, respRaw)
 		case wsSubOp, wsUnsubOp:
 			return e.wsHandleV2subResp(conn, action, respRaw)
+		case wsRequestOp:
+			ch, err := jsonparser.GetString(respRaw, "ch")
+			if err != nil {
+				return fmt.Errorf("%w 'ch': %w", common.ErrParsingWSField, err)
+			}
+			return conn.RequireMatchWithData(ch, respRaw)
+		}
+	}
+
+	if operation, err := jsonparser.GetString(respRaw, "op"); err == nil {
+		switch operation {
+		case wsAuthChannel:
+			return conn.RequireMatchWithData(wsAuthChannel, respRaw)
+		case "ping":
+			return e.wsHandleFuturesPing(ctx, conn, respRaw)
+		case wsSubOp, wsUnsubOp:
+			return e.wsHandleFuturesOperationResponse(conn, operation, respRaw)
+		case "notify":
+			topic, err := jsonparser.GetString(respRaw, "topic")
+			if err != nil {
+				return fmt.Errorf("%w 'topic': %w", common.ErrParsingWSField, err)
+			}
+			s := e.getFuturesPrivateSubscription(conn, topic)
+			if s == nil {
+				return fmt.Errorf("%w: %q", subscription.ErrNotFound, topic)
+			}
+			return e.wsHandleChannelMsgs(ctx, s, respRaw)
 		}
 	}
 
@@ -148,6 +174,9 @@ func (e *Exchange) wsHandleV2subResp(conn websocket.Connection, action string, r
 }
 
 func (e *Exchange) wsHandleChannelMsgs(ctx context.Context, s *subscription.Subscription, respRaw []byte) error {
+	if s.Authenticated && s.Asset != asset.Spot {
+		return e.wsHandleFuturesPrivateMessage(ctx, s, respRaw)
+	}
 	switch s.Channel {
 	case subscription.TickerChannel:
 		return e.wsHandleTickerMsg(ctx, s, respRaw)
@@ -492,9 +521,12 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op
 	}
 	s := subs[0]
 	var req any
-	if s.Authenticated {
+	switch {
+	case s.Authenticated && s.Asset == asset.Spot:
 		req = wsReq{Action: op, Channel: s.QualifiedChannel}
-	} else {
+	case s.Authenticated:
+		req = wsFuturesSubscriptionRequest{Operation: op, Topic: s.QualifiedChannel}
+	default:
 		if op == wsSubOp {
 			// Set the id to the channel so that V1 errors can make it back to us
 			req = wsSubReq{ID: wsSubOp + ":" + s.QualifiedChannel, Sub: s.QualifiedChannel}
@@ -566,15 +598,11 @@ func (e *Exchange) wsLogin(ctx context.Context, conn websocket.Connection) error
 			Timestamp:        ts,
 		},
 	}
-	if err := conn.SendJSONMessage(ctx, request.Unset, req); err != nil {
+	resp, err := conn.SendMessageReturnResponse(ctx, request.Unset, wsAuthChannel, req)
+	if err != nil {
 		return err
 	}
-	resp := conn.ReadMessage()
-	if resp.Raw == nil {
-		return &gws.CloseError{Code: gws.CloseAbnormalClosure}
-	}
-
-	return getErrResp(resp.Raw)
+	return getErrResp(resp)
 }
 
 func stringToOrderStatus(status string) (order.Status, error) {
@@ -628,9 +656,15 @@ Errors are returned in the format of <message> (<code>)
 func getErrResp(msg []byte) error {
 	var errCode string
 	errMsg, _ := jsonparser.GetString(msg, "err-msg")
-	errCode, err := jsonparser.GetString(msg, "err-code")
+	value, valueType, _, err := jsonparser.Get(msg, "err-code")
 	switch err {
-	case nil: // Nothing to do
+	case nil:
+		switch valueType {
+		case jsonparser.String, jsonparser.Number:
+			errCode = string(value)
+		default:
+			return fmt.Errorf("%w 'err-code': unexpected JSON type %s from message: %s", common.ErrParsingWSField, valueType, msg)
+		}
 	case jsonparser.KeyPathNotFoundError: // Look for a V2 error
 		errCodeInt, err := jsonparser.GetInt(msg, "code")
 		if errCodeInt == 200 || errors.Is(err, jsonparser.KeyPathNotFoundError) {
@@ -642,7 +676,7 @@ func getErrResp(msg []byte) error {
 		errCode = strconv.Itoa(int(errCodeInt))
 		errMsg, _ = jsonparser.GetString(msg, "message")
 	}
-	if errCode != "" {
+	if errCode != "" && errCode != "0" {
 		return fmt.Errorf("%s (%v)", errMsg, errCode)
 	}
 	return nil
@@ -651,17 +685,45 @@ func getErrResp(msg []byte) error {
 // channelName converts global channel Names used in config of channel input into exchange channel names
 // returns the name unchanged if no match is found
 func channelName(s *subscription.Subscription, p ...currency.Pair) string {
-	if n, ok := subscriptionNames[s.Channel]; ok {
-		if strings.Contains(n, "%s") {
-			return fmt.Sprintf(n, p[0])
+	if s.Authenticated && s.Asset != asset.Spot {
+		switch s.Channel {
+		case subscription.MyOrdersChannel:
+			return "orders.*"
+		case subscription.MyTradesChannel:
+			return "matchOrders.*"
+		case subscription.MyAccountChannel:
+			return "accounts.*"
+		case wsPositionsChannel:
+			return "positions.*"
+		case wsTriggerOrdersChannel:
+			return "trigger_order.*"
+		case wsCrossOrdersChannel:
+			return "orders_cross.*"
+		case wsCrossTradesChannel:
+			return "matchOrders_cross.*"
+		case wsCrossAccountsChannel:
+			return "accounts_cross.*"
+		case wsCrossPositionsChannel:
+			return "positions_cross.*"
+		case wsCrossTriggersChannel:
+			return "trigger_order_cross.*"
+		default:
+			panic(subscription.ErrUseConstChannelName)
 		}
-		return n
 	}
-	panic(subscription.ErrUseConstChannelName)
+	n, ok := subscriptionNames[s.Channel]
+	if !ok {
+		panic(subscription.ErrUseConstChannelName)
+	}
+	if strings.Contains(n, "%s") {
+		return fmt.Sprintf(n, p[0])
+	}
+	return n
 }
 
 func isWildcardChannel(s *subscription.Subscription) bool {
-	return s.Channel == subscription.MyTradesChannel ||
+	return s.Authenticated ||
+		s.Channel == subscription.MyTradesChannel ||
 		s.Channel == subscription.MyOrdersChannel ||
 		s.Channel == subscription.MyAccountChannel
 }

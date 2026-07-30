@@ -1817,6 +1817,8 @@ func TestGetGetURLTypeFromString(t *testing.T) {
 		{Endpoint: websocketSpotSupplementaryURL, Expected: WebsocketSpotSupplementary},
 		{Endpoint: websocketFuturesURL, Expected: WebsocketFutures},
 		{Endpoint: websocketFuturesPrivateURL, Expected: WebsocketFuturesPrivate},
+		{Endpoint: websocketCoinMarginedPrivateURL, Expected: WebsocketCoinMarginedPrivate},
+		{Endpoint: websocketUSDTMarginedPrivateURL, Expected: WebsocketUSDTMarginedPrivate},
 		{Endpoint: chainAnalysisURL, Expected: ChainAnalysis},
 		{Endpoint: edgeCase1URL, Expected: EdgeCase1},
 		{Endpoint: edgeCase2URL, Expected: EdgeCase2},

@@ -288,30 +288,34 @@ const (
 	EdgeCase1
 	EdgeCase2
 	EdgeCase3
+	WebsocketCoinMarginedPrivate
+	WebsocketUSDTMarginedPrivate
 
-	restSpotURL                   = "RestSpotURL"
-	restSpotSupplementaryURL      = "RestSpotSupplementaryURL"
-	restUSDTMarginedFuturesURL    = "RestUSDTMarginedFuturesURL"
-	restCoinMarginedFuturesURL    = "RestCoinMarginedFuturesURL"
-	restUSDCMarginedFuturesURL    = "RestUSDCMarginedFuturesURL"
-	restFuturesURL                = "RestFuturesURL"
-	restFuturesSupplementaryURL   = "RestFuturesSupplementaryURL"
-	restSandboxURL                = "RestSandboxURL"
-	restSwapURL                   = "RestSwapURL"
-	websocketSpotURL              = "WebsocketSpotURL"
-	websocketCoinMarginedURL      = "WebsocketCoinMarginedURL"
-	websocketUSDTMarginedURL      = "WebsocketUSDTMarginedURL"
-	websocketUSDCMarginedURL      = "WebsocketUSDCMarginedURL"
-	websocketOptionsURL           = "WebsocketOptionsURL"
-	websocketTradeURL             = "WebsocketTradeURL"
-	websocketPrivateURL           = "WebsocketPrivateURL"
-	websocketSpotSupplementaryURL = "WebsocketSpotSupplementaryURL"
-	websocketFuturesURL           = "WebsocketFuturesURL"
-	websocketFuturesPrivateURL    = "WebsocketFuturesPrivateURL"
-	chainAnalysisURL              = "ChainAnalysisURL"
-	edgeCase1URL                  = "EdgeCase1URL"
-	edgeCase2URL                  = "EdgeCase2URL"
-	edgeCase3URL                  = "EdgeCase3URL"
+	restSpotURL                     = "RestSpotURL"
+	restSpotSupplementaryURL        = "RestSpotSupplementaryURL"
+	restUSDTMarginedFuturesURL      = "RestUSDTMarginedFuturesURL"
+	restCoinMarginedFuturesURL      = "RestCoinMarginedFuturesURL"
+	restUSDCMarginedFuturesURL      = "RestUSDCMarginedFuturesURL"
+	restFuturesURL                  = "RestFuturesURL"
+	restFuturesSupplementaryURL     = "RestFuturesSupplementaryURL"
+	restSandboxURL                  = "RestSandboxURL"
+	restSwapURL                     = "RestSwapURL"
+	websocketSpotURL                = "WebsocketSpotURL"
+	websocketCoinMarginedURL        = "WebsocketCoinMarginedURL"
+	websocketUSDTMarginedURL        = "WebsocketUSDTMarginedURL"
+	websocketUSDCMarginedURL        = "WebsocketUSDCMarginedURL"
+	websocketOptionsURL             = "WebsocketOptionsURL"
+	websocketTradeURL               = "WebsocketTradeURL"
+	websocketPrivateURL             = "WebsocketPrivateURL"
+	websocketSpotSupplementaryURL   = "WebsocketSpotSupplementaryURL"
+	websocketFuturesURL             = "WebsocketFuturesURL"
+	websocketFuturesPrivateURL      = "WebsocketFuturesPrivateURL"
+	websocketCoinMarginedPrivateURL = "WebsocketCoinMarginedPrivateURL"
+	websocketUSDTMarginedPrivateURL = "WebsocketUSDTMarginedPrivateURL"
+	chainAnalysisURL                = "ChainAnalysisURL"
+	edgeCase1URL                    = "EdgeCase1URL"
+	edgeCase2URL                    = "EdgeCase2URL"
+	edgeCase3URL                    = "EdgeCase3URL"
 )
 
 var keyURLs = []URL{
@@ -338,6 +342,8 @@ var keyURLs = []URL{
 	EdgeCase1,
 	EdgeCase2,
 	EdgeCase3,
+	WebsocketCoinMarginedPrivate,
+	WebsocketUSDTMarginedPrivate,
 }
 
 // URL stores uint conversions

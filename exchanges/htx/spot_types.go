@@ -137,7 +137,7 @@ type WsMarketBBOData struct {
 		Bid       [2]float64 `json:"bid"`
 		Ask       [2]float64 `json:"ask"`
 		Timestamp types.Time `json:"ts"`
-		Version   int64      `json:":version"`
+		Version   int64      `json:"version"`
 	} `json:"tick"`
 }
 
@@ -272,7 +272,7 @@ type FWsSubOrderData struct {
 	Status         int64      `json:"status"`
 	LeverageRate   int64      `json:"lever_rate"`
 	OrderID        int64      `json:"order_id"`
-	OrderIDString  string     `json:"order_id_string"`
+	OrderIDString  string     `json:"order_id_str"`
 	ClientOrderID  int64      `json:"client_order_id"`
 	OrderSource    string     `json:"order_source"`
 	OrderType      int64      `json:"order_type"`
@@ -309,7 +309,7 @@ type FWsSubMatchOrderData struct {
 	ContractCode  string     `json:"contract_code"`
 	Status        int64      `json:"status"`
 	OrderID       int64      `json:"order_id"`
-	OrderIDString string     `json:"order_id_string"`
+	OrderIDString string     `json:"order_id_str"`
 	OrderType     string     `json:"order_type"`
 	Volume        float64    `json:"volume"`
 	TradeVolume   float64    `json:"trade_volume"`
@@ -322,7 +322,7 @@ type FWsSubMatchOrderData struct {
 		TradeTurnover float64 `json:"trade_turnover"`
 		CreatedAt     int64   `json:"created_at"`
 		Role          string  `json:"role"`
-	}
+	} `json:"trade"`
 }
 
 // FWsSubEquityUpdates stores account equity updates data for futures websocket
@@ -335,7 +335,7 @@ type FWsSubEquityUpdates struct {
 	Data      []struct {
 		Symbol            string  `json:"symbol"`
 		MarginBalance     float64 `json:"margin_balance"`
-		MarginStatic      int64   `json:"margin_static"`
+		MarginStatic      float64 `json:"margin_static"`
 		MarginPosition    float64 `json:"margin_position"`
 		MarginFrozen      float64 `json:"margin_frozen"`
 		MarginAvailable   float64 `json:"margin_available"`
