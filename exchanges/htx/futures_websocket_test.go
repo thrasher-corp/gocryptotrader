@@ -186,7 +186,7 @@ func TestWSFuturesLogin(t *testing.T) {
 	h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
 	conn, err := h.Websocket.GetConnection(exchange.WebsocketUSDTMarginedPrivate)
 	require.NoError(t, err, "USDT private websocket connection must be available")
-	conn.SetURL(conn.GetURL() + "/linear-swap-notification")
+	conn.SetURL(wsUSDTMarginedPrivateURL)
 	require.NoError(t, h.wsFuturesLogin(t.Context(), conn), "wsFuturesLogin must accept a successful authentication response")
 
 	plain := new(Exchange)
@@ -272,7 +272,7 @@ func TestWSHandleFuturesPrivateMessage(t *testing.T) {
 	}{
 		{a: asset.Futures, expected: &FWsSubOrderData{}},
 		{a: asset.CoinMarginedFutures, expected: &SwapWsSubOrderData{}},
-		{a: asset.USDTMarginedFutures, expected: &SwapWsSubOrderData{}},
+		{a: asset.USDTMarginedFutures, expected: &V5WsOrderUpdate{}},
 	} {
 		sub := &subscription.Subscription{Asset: tt.a, Channel: subscription.MyOrdersChannel, Authenticated: true}
 		require.NoErrorf(t, h.wsHandleFuturesPrivateMessage(t.Context(), sub, []byte(`{"op":"notify","topic":"orders.*","ts":1603878749908}`)), "%s private message must be dispatched", tt.a)
@@ -305,7 +305,7 @@ func TestFuturesAuthSubscribe(t *testing.T) {
 	}{
 		{a: asset.Futures, endpoint: exchange.WebsocketFuturesPrivate, count: 5},
 		{a: asset.CoinMarginedFutures, endpoint: exchange.WebsocketCoinMarginedPrivate, count: 5},
-		{a: asset.USDTMarginedFutures, endpoint: exchange.WebsocketUSDTMarginedPrivate, count: 10},
+		{a: asset.USDTMarginedFutures, endpoint: exchange.WebsocketUSDTMarginedPrivate, count: 7},
 	} {
 		subs, err := h.generateSubscriptionsForAsset(tt.a, true)
 		require.NoErrorf(t, err, "%s private subscriptions must be generated", tt.a)
@@ -319,7 +319,7 @@ func TestFuturesAuthSubscribe(t *testing.T) {
 	}{
 		{endpoint: exchange.WebsocketFuturesPrivate, count: 5},
 		{endpoint: exchange.WebsocketCoinMarginedPrivate, count: 5},
-		{endpoint: exchange.WebsocketUSDTMarginedPrivate, count: 10},
+		{endpoint: exchange.WebsocketUSDTMarginedPrivate, count: 7},
 	} {
 		conn, err := h.Websocket.GetConnection(tt.endpoint)
 		require.NoError(t, err, "private derivative websocket connection must be available")

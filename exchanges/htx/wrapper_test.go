@@ -36,7 +36,7 @@ func TestSetDefaults(t *testing.T) {
 	h.SetDefaults()
 	assert.Equal(t, "HTX", h.Name, "exchange name should match")
 	assert.True(t, h.Features.Supports.WebsocketCapabilities.FundingRateFetching, "websocket funding rates should be supported")
-	assert.Len(t, h.Features.Subscriptions, 41, "default subscriptions should cover public and private spot and derivatives channels")
+	assert.Len(t, h.Features.Subscriptions, 38, "default subscriptions should cover public and private spot and derivatives channels")
 	for _, tt := range []struct {
 		endpoint exchange.URL
 		want     string
@@ -416,6 +416,23 @@ func TestGetFee(t *testing.T) {
 	feeBuilder.FiatCurrency = currency.USD
 	_, err = e.GetFee(feeBuilder)
 	require.NoError(t, err)
+}
+
+func TestCalculateTradingFee(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		pair     currency.Pair
+		expected float64
+	}{
+		{name: "crypto fiat", pair: currency.NewBTCUSD(), expected: 0.1},
+		{name: "non-fiat quote", pair: currency.NewPair(currency.BTC, currency.ETH), expected: 0.2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, calculateTradingFee(tc.pair, 100, 1), "trading fee should use the documented rate")
+		})
+	}
 }
 
 func TestFormatWithdrawPermissions(t *testing.T) {

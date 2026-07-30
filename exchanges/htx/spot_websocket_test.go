@@ -12,6 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -68,7 +70,7 @@ func TestWebsocketPrivateURL(t *testing.T) {
 	}
 }
 
-func TestWSCandles(t *testing.T) {
+func TestWSHandleCandleMsg(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
@@ -98,7 +100,7 @@ func TestWSCandles(t *testing.T) {
 	assert.Equal(t, exp, c)
 }
 
-func TestWSOrderbook(t *testing.T) {
+func TestWSHandleOrderbookMsg(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
@@ -172,7 +174,7 @@ func TestWSHandleAllTradesMsg(t *testing.T) {
 	require.Empty(t, e.Websocket.DataHandler.C, "Must not see any errors going to datahandler")
 }
 
-func TestWSTicker(t *testing.T) {
+func TestWSHandleTickerMsg(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
@@ -201,7 +203,7 @@ func TestWSTicker(t *testing.T) {
 	assert.Equal(t, exp, tick)
 }
 
-func TestWSAccountUpdate(t *testing.T) {
+func TestWSHandleMyAccountMsg(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
@@ -225,7 +227,7 @@ func TestWSAccountUpdate(t *testing.T) {
 	}
 }
 
-func TestWSOrderUpdate(t *testing.T) {
+func TestWSHandleMyOrdersMsg(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
@@ -291,7 +293,7 @@ func TestWSOrderUpdate(t *testing.T) {
 	}
 }
 
-func TestWSMyTrades(t *testing.T) {
+func TestWSHandleMyTradesMsg(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
 	require.NoError(t, testexch.Setup(e), "Setup Instance must not error")
@@ -487,6 +489,145 @@ func wsFixture(tb testing.TB, msg []byte, w *gws.Conn) error {
 	return fmt.Errorf("%w: %s", errUnhandledMockWebsocketMessage, msg)
 }
 
+func TestWSHandleData(t *testing.T) {
+	t.Parallel()
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+	require.NoError(t, h.wsHandleData(t.Context(), nil, []byte(`{"unexpected":true}`)), "unmatched websocket data must be forwarded")
+	message := <-h.Websocket.DataHandler.C
+	assert.IsType(t, websocket.UnhandledMessageWarning{}, message.Data, "unmatched websocket data should produce a warning")
+	require.ErrorIs(t, h.wsHandleData(t.Context(), nil, []byte(`{"ping":123}`)), common.ErrNilPointer, "websocket ping data must require a connection")
+}
+
+func TestWSHandleV2SubResp(t *testing.T) {
+	t.Parallel()
+	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	conn, err := h.Websocket.GetConnection(exchange.WebsocketPrivate)
+	require.NoError(t, err, "private spot websocket connection must be available")
+	require.NoError(t, h.wsHandleV2subResp(conn, wsSubOp, []byte(`{}`)), "subscription response without a channel must be ignored")
+	require.ErrorIs(t, h.wsHandleV2subResp(nil, wsSubOp, []byte(`{}`)), common.ErrNilPointer, "subscription response must require a connection")
+}
+
+func TestWSHandleChannelMsgs(t *testing.T) {
+	t.Parallel()
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+	sub := &subscription.Subscription{
+		Asset:            asset.Spot,
+		Channel:          subscription.CandlesChannel,
+		Pairs:            currency.Pairs{currency.NewBTCUSDT()},
+		Interval:         kline.OneMin,
+		QualifiedChannel: "market.btcusdt.kline.1min",
+	}
+	testexch.FixtureToDataHandler(t, "testdata/wsCandles.json", func(ctx context.Context, data []byte) error {
+		return h.wsHandleChannelMsgs(ctx, sub, data)
+	})
+}
+
+func TestManageSubs(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name         string
+		channel      string
+		topic        string
+		contractCode string
+	}{
+		{name: "orders", channel: subscription.MyOrdersChannel, topic: "orders", contractCode: "*"},
+		{name: "account", channel: subscription.MyAccountChannel, topic: "account"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, func(tb testing.TB, msg []byte, w *gws.Conn) error {
+				tb.Helper()
+				operation, err := jsonparser.GetString(msg, "op")
+				require.NoError(t, err, "subscription operation must decode")
+				topic, err := jsonparser.GetString(msg, "topic")
+				require.NoError(t, err, "subscription topic must decode")
+				contractCode, _ := jsonparser.GetString(msg, "contract_code")
+				assert.Equal(t, tc.topic, topic, "V5 subscription topic should match")
+				assert.Equal(t, tc.contractCode, contractCode, "V5 subscription contract code should match")
+				return w.WriteMessage(gws.TextMessage, []byte(`{"op":"`+operation+`","topic":"`+topic+`","ts":1489474081631,"err-code":0}`))
+			}))
+			conn, err := h.Websocket.GetConnection(exchange.WebsocketUSDTMarginedPrivate)
+			require.NoError(t, err, "private USDT-margined websocket connection must be available")
+			sub := &subscription.Subscription{
+				Asset:            asset.USDTMarginedFutures,
+				Channel:          tc.channel,
+				Authenticated:    true,
+				QualifiedChannel: tc.topic,
+			}
+			require.NoError(t, h.manageSubs(t.Context(), conn, wsSubOp, subscription.List{sub}), "V5 subscription must not error")
+			assert.Equal(t, subscription.SubscribedState, sub.State(), "V5 subscription should be active")
+		})
+	}
+
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+	require.ErrorIs(t, h.manageSubs(t.Context(), nil, wsSubOp, nil), subscription.ErrBatchingNotSupported, "empty subscription batches must be rejected")
+}
+
+func TestWSGenerateSignature(t *testing.T) {
+	t.Parallel()
+	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	conn, err := h.Websocket.GetConnection(exchange.WebsocketPrivate)
+	require.NoError(t, err, "private spot websocket connection must be available")
+	signature, err := h.wsGenerateSignature(conn, &accounts.Credentials{Key: "key", Secret: "secret"}, "2026-07-30T00:00:00")
+	require.NoError(t, err, "spot websocket signature generation must not error")
+	assert.NotEmpty(t, signature, "spot websocket signature should not be empty")
+	_, err = h.wsGenerateSignature(nil, &accounts.Credentials{}, "")
+	require.ErrorIs(t, err, common.ErrNilPointer, "spot websocket signature generation must require a connection")
+	_, err = h.wsGenerateSignature(conn, nil, "")
+	require.ErrorIs(t, err, common.ErrNilPointer, "spot websocket signature generation must require credentials")
+}
+
+func TestWSLogin(t *testing.T) {
+	t.Parallel()
+	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, wsFixture))
+	h.SetCredentials(&accounts.Credentials{Key: "key", Secret: "secret"})
+	conn, err := h.Websocket.GetConnection(exchange.WebsocketPrivate)
+	require.NoError(t, err, "private spot websocket connection must be available")
+	require.NoError(t, h.wsLogin(t.Context(), conn), "spot websocket login must not error")
+}
+
+func TestWSHandleV1Ping(t *testing.T) {
+	t.Parallel()
+	messages := make(chan []byte, 1)
+	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, msg []byte, _ *gws.Conn) error {
+		messages <- msg
+		return nil
+	}))
+	conn, err := h.Websocket.GetConnection(exchange.WebsocketSpot)
+	require.NoError(t, err, "spot websocket connection must be available")
+	require.NoError(t, h.wsHandleV1ping(t.Context(), conn, 123), "V1 ping handler must not error")
+	select {
+	case msg := <-messages:
+		assert.JSONEq(t, `{"pong":123}`, string(msg), "V1 ping handler should send the matching pong")
+	case <-time.After(time.Second):
+		require.Fail(t, "V1 pong must be sent")
+	}
+	require.ErrorIs(t, h.wsHandleV1ping(t.Context(), nil, 123), common.ErrNilPointer, "V1 ping handler must reject a nil connection")
+}
+
+func TestWSHandleV2Ping(t *testing.T) {
+	t.Parallel()
+	messages := make(chan []byte, 1)
+	h := testexch.MockWsInstance[Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, msg []byte, _ *gws.Conn) error {
+		messages <- msg
+		return nil
+	}))
+	conn, err := h.Websocket.GetConnection(exchange.WebsocketPrivate)
+	require.NoError(t, err, "private spot websocket connection must be available")
+	require.NoError(t, h.wsHandleV2ping(t.Context(), conn, []byte(`{"action":"ping","data":{"ts":123}}`)), "V2 ping handler must not error")
+	select {
+	case msg := <-messages:
+		assert.JSONEq(t, `{"action":"pong","data":{"ts":123}}`, string(msg), "V2 ping handler should send the matching pong")
+	case <-time.After(time.Second):
+		require.Fail(t, "V2 pong must be sent")
+	}
+	require.ErrorIs(t, h.wsHandleV2ping(t.Context(), nil, []byte(`{}`)), common.ErrNilPointer, "V2 ping handler must reject a nil connection")
+	require.Error(t, h.wsHandleV2ping(t.Context(), conn, []byte(`{}`)), "V2 ping handler must require a timestamp")
+}
+
 // TestSubscribe exercises public subscriptions against the deterministic websocket fixture.
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
@@ -547,23 +688,25 @@ func TestChannelName(t *testing.T) {
 		channel string
 		want    string
 	}{
-		{channel: subscription.MyOrdersChannel, want: "orders.*"},
-		{channel: subscription.MyTradesChannel, want: "matchOrders.*"},
-		{channel: subscription.MyAccountChannel, want: "accounts.*"},
-		{channel: wsPositionsChannel, want: "positions.*"},
-		{channel: wsTriggerOrdersChannel, want: "trigger_order.*"},
-		{channel: wsCrossOrdersChannel, want: "orders_cross.*"},
-		{channel: wsCrossTradesChannel, want: "matchOrders_cross.*"},
-		{channel: wsCrossAccountsChannel, want: "accounts_cross.*"},
-		{channel: wsCrossPositionsChannel, want: "positions_cross.*"},
-		{channel: wsCrossTriggersChannel, want: "trigger_order_cross.*"},
+		{channel: subscription.MyOrdersChannel, want: "orders"},
+		{channel: wsTradeUpdatesChannel, want: "trade"},
+		{channel: wsExecutionDetailsChannel, want: "trade_detail"},
+		{channel: wsPositionsChannel, want: "positions"},
+		{channel: subscription.MyAccountChannel, want: "account"},
+		{channel: subscription.MyTradesChannel, want: "match_orders"},
+		{channel: wsTriggerOrdersChannel, want: "algo_orders"},
 	} {
 		t.Run(tt.channel, func(t *testing.T) {
 			t.Parallel()
 			sub := &subscription.Subscription{Asset: asset.USDTMarginedFutures, Channel: tt.channel, Authenticated: true}
-			assert.Equal(t, tt.want, channelName(sub), "private derivative channel should use the documented wildcard topic")
+			assert.Equal(t, tt.want, channelName(sub), "private USDT-margined channel should use the documented V5 topic")
 		})
 	}
+	assert.Equal(t, "orders.*", channelName(&subscription.Subscription{
+		Asset:         asset.CoinMarginedFutures,
+		Channel:       subscription.MyOrdersChannel,
+		Authenticated: true,
+	}), "coin-margined private channels should retain the documented wildcard topic")
 	assert.Panics(t, func() { channelName(&subscription.Subscription{Channel: wsOrderbookChannel}, btcusdPair) })
 }
 

@@ -22,6 +22,12 @@ type wsFuturesSubscriptionRequest struct {
 	Topic     string `json:"topic"`
 }
 
+type wsV5FuturesSubscriptionRequest struct {
+	Operation    string `json:"op"`
+	Topic        string `json:"topic"`
+	ContractCode string `json:"contract_code,omitempty"`
+}
+
 type wsFuturesPong struct {
 	Operation string          `json:"op"`
 	Timestamp json.RawMessage `json:"ts"`

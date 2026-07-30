@@ -148,6 +148,9 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 
 // wsHandleV1ping handles v1 style pings, currently only used with public connections
 func (e *Exchange) wsHandleV1ping(ctx context.Context, conn websocket.Connection, pingValue int) error {
+	if err := common.NilGuard(conn); err != nil {
+		return err
+	}
 	if err := conn.SendJSONMessage(ctx, request.Unset, json.RawMessage(`{"pong":`+strconv.Itoa(pingValue)+`}`)); err != nil {
 		return fmt.Errorf("error sending pong response: %w", err)
 	}
@@ -156,6 +159,9 @@ func (e *Exchange) wsHandleV1ping(ctx context.Context, conn websocket.Connection
 
 // wsHandleV2ping handles v2 style pings, currently only used with private connections
 func (e *Exchange) wsHandleV2ping(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
+	if err := common.NilGuard(conn); err != nil {
+		return err
+	}
 	ts, err := jsonparser.GetInt(respRaw, "data", "ts")
 	if err != nil {
 		return fmt.Errorf("error getting ts from auth ping: %w", err)
@@ -167,6 +173,9 @@ func (e *Exchange) wsHandleV2ping(ctx context.Context, conn websocket.Connection
 }
 
 func (e *Exchange) wsHandleV2subResp(conn websocket.Connection, action string, respRaw []byte) error {
+	if err := common.NilGuard(conn); err != nil {
+		return err
+	}
 	if ch, err := jsonparser.GetString(respRaw, "ch"); err == nil {
 		return conn.RequireMatchWithData(action+":"+ch, respRaw)
 	}
@@ -524,6 +533,16 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op
 	switch {
 	case s.Authenticated && s.Asset == asset.Spot:
 		req = wsReq{Action: op, Channel: s.QualifiedChannel}
+	case s.Authenticated && s.Asset == asset.USDTMarginedFutures:
+		contractCode := "*"
+		if s.Channel == subscription.MyAccountChannel {
+			contractCode = ""
+		}
+		req = wsV5FuturesSubscriptionRequest{
+			Operation:    op,
+			Topic:        s.QualifiedChannel,
+			ContractCode: contractCode,
+		}
 	case s.Authenticated:
 		req = wsFuturesSubscriptionRequest{Operation: op, Topic: s.QualifiedChannel}
 	default:
@@ -562,6 +581,9 @@ func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op
 }
 
 func (e *Exchange) wsGenerateSignature(conn websocket.Connection, creds *accounts.Credentials, timestamp string) ([]byte, error) {
+	if err := common.NilGuard(conn, creds); err != nil {
+		return nil, err
+	}
 	signatureHost, err := getSignatureHost(conn.GetURL())
 	if err != nil {
 		return nil, err
@@ -686,6 +708,26 @@ func getErrResp(msg []byte) error {
 // returns the name unchanged if no match is found
 func channelName(s *subscription.Subscription, p ...currency.Pair) string {
 	if s.Authenticated && s.Asset != asset.Spot {
+		if s.Asset == asset.USDTMarginedFutures {
+			switch s.Channel {
+			case subscription.MyOrdersChannel:
+				return "orders"
+			case wsTradeUpdatesChannel:
+				return "trade"
+			case wsExecutionDetailsChannel:
+				return "trade_detail"
+			case wsPositionsChannel:
+				return "positions"
+			case subscription.MyAccountChannel:
+				return "account"
+			case subscription.MyTradesChannel:
+				return "match_orders"
+			case wsTriggerOrdersChannel:
+				return "algo_orders"
+			default:
+				panic(subscription.ErrUseConstChannelName)
+			}
+		}
 		switch s.Channel {
 		case subscription.MyOrdersChannel:
 			return "orders.*"
@@ -697,16 +739,6 @@ func channelName(s *subscription.Subscription, p ...currency.Pair) string {
 			return "positions.*"
 		case wsTriggerOrdersChannel:
 			return "trigger_order.*"
-		case wsCrossOrdersChannel:
-			return "orders_cross.*"
-		case wsCrossTradesChannel:
-			return "matchOrders_cross.*"
-		case wsCrossAccountsChannel:
-			return "accounts_cross.*"
-		case wsCrossPositionsChannel:
-			return "positions_cross.*"
-		case wsCrossTriggersChannel:
-			return "trigger_order_cross.*"
 		default:
 			panic(subscription.ErrUseConstChannelName)
 		}

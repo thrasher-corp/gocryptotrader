@@ -1304,6 +1304,7 @@ func (e *Exchange) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep excha
 	}
 
 	var tempResp json.RawMessage
+	responseHeaders := make(http.Header)
 	newRequest := func() (*request.Item, error) {
 		values.Del("Signature")
 		values.Set("AccessKeyId", creds.Key)
@@ -1344,12 +1345,22 @@ func (e *Exchange) FuturesAuthenticatedHTTPRequest(ctx context.Context, ep excha
 			HTTPDebugging:          e.HTTPDebugging,
 			HTTPRecording:          e.HTTPRecording,
 			HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
+			HeaderResponse:         &responseHeaders,
 		}, nil
 	}
 
 	err = e.SendPayload(ctx, getRateLimitID(ep, endpoint, true), newRequest, request.AuthenticatedRequest)
 	if err != nil {
 		return err
+	}
+	if responseHeaders.Get("Status") == strconv.Itoa(http.StatusNoContent) {
+		if len(bytes.TrimSpace(tempResp)) != 0 {
+			return fmt.Errorf("%w: status %d returned a response body", request.ErrAuthRequestFailed, http.StatusNoContent)
+		}
+		if result == nil {
+			return nil
+		}
+		return common.AppendError(errExpectedResponseBody, request.ErrAuthRequestFailed)
 	}
 
 	var errCap errorCapture

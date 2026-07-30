@@ -30,14 +30,11 @@ const (
 	wsCoinMarginedURL         = "wss://api.hbdm.com/swap-ws"
 	wsCoinMarginedPrivateURL  = "wss://api.hbdm.com/swap-notification"
 	wsUSDTMarginedURL         = "wss://api.hbdm.com/linear-swap-ws"
-	wsUSDTMarginedPrivateURL  = "wss://api.hbdm.com/linear-swap-notification"
+	wsUSDTMarginedPrivateURL  = "wss://api.hbdm.com/ws/v5/notification"
 	wsPositionsChannel        = "positions"
 	wsTriggerOrdersChannel    = "triggerOrders"
-	wsCrossOrdersChannel      = "crossOrders"
-	wsCrossTradesChannel      = "crossTrades"
-	wsCrossAccountsChannel    = "crossAccounts"
-	wsCrossPositionsChannel   = "crossPositions"
-	wsCrossTriggersChannel    = "crossTriggerOrders"
+	wsTradeUpdatesChannel     = "tradeUpdates"
+	wsExecutionDetailsChannel = "executionDetails"
 	wsFuturesSignatureVersion = "2"
 )
 
@@ -67,15 +64,12 @@ var defaultFuturesSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.AllTradesChannel},
 	{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: wsFundingRateChannel},
 	{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.MyOrdersChannel, Authenticated: true},
-	{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.MyTradesChannel, Authenticated: true},
+	{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: wsTradeUpdatesChannel, Authenticated: true},
+	{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: wsExecutionDetailsChannel, Authenticated: true},
 	{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.MyAccountChannel, Authenticated: true},
 	{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: wsPositionsChannel, Authenticated: true},
+	{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: subscription.MyTradesChannel, Authenticated: true},
 	{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: wsTriggerOrdersChannel, Authenticated: true},
-	{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: wsCrossOrdersChannel, Authenticated: true},
-	{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: wsCrossTradesChannel, Authenticated: true},
-	{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: wsCrossAccountsChannel, Authenticated: true},
-	{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: wsCrossPositionsChannel, Authenticated: true},
-	{Enabled: true, Asset: asset.USDTMarginedFutures, Channel: wsCrossTriggersChannel, Authenticated: true},
 }
 
 // wsConnect establishes an HTX websocket connection for the asset selected by its connection setup.

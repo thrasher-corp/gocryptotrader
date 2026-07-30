@@ -18,23 +18,20 @@ func TestWSHandleUSDTMarginedPrivateMessage(t *testing.T) {
 		channel  string
 		expected any
 	}{
-		{name: "isolated orders", channel: subscription.MyOrdersChannel, expected: &SwapWsSubOrderData{}},
-		{name: "cross orders", channel: wsCrossOrdersChannel, expected: &SwapWsSubOrderData{}},
-		{name: "isolated matches", channel: subscription.MyTradesChannel, expected: &SwapWsSubMatchOrderData{}},
-		{name: "cross matches", channel: wsCrossTradesChannel, expected: &SwapWsSubMatchOrderData{}},
-		{name: "isolated accounts", channel: subscription.MyAccountChannel, expected: &SwapWsSubEquityData{}},
-		{name: "cross accounts", channel: wsCrossAccountsChannel, expected: &SwapWsSubEquityData{}},
-		{name: "isolated positions", channel: wsPositionsChannel, expected: &SwapWsSubPositionUpdates{}},
-		{name: "cross positions", channel: wsCrossPositionsChannel, expected: &SwapWsSubPositionUpdates{}},
-		{name: "isolated triggers", channel: wsTriggerOrdersChannel, expected: &SwapWsSubTriggerOrderUpdates{}},
-		{name: "cross triggers", channel: wsCrossTriggersChannel, expected: &SwapWsSubTriggerOrderUpdates{}},
+		{name: "orders", channel: subscription.MyOrdersChannel, expected: &V5WsOrderUpdate{}},
+		{name: "trades", channel: wsTradeUpdatesChannel, expected: &V5WsTradeUpdate{}},
+		{name: "trade details", channel: wsExecutionDetailsChannel, expected: &V5WsTradeDetailUpdate{}},
+		{name: "positions", channel: wsPositionsChannel, expected: &V5WsPositionUpdate{}},
+		{name: "account", channel: subscription.MyAccountChannel, expected: &V5WsAccountUpdate{}},
+		{name: "matches", channel: subscription.MyTradesChannel, expected: &V5WsMatchOrderUpdate{}},
+		{name: "algo orders", channel: wsTriggerOrdersChannel, expected: &V5WsAlgoOrderUpdate{}},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			h := new(Exchange)
 			require.NoError(t, testexch.Setup(h), "HTX setup must not error")
 			sub := &subscription.Subscription{Asset: asset.USDTMarginedFutures, Channel: tt.channel, Authenticated: true}
-			raw := []byte(`{"op":"notify","topic":"private.*","ts":1603878749908,"symbol":"BTC","contract_code":"BTC-USDT","data":[]}`)
+			raw := []byte(`{"op":"notify","topic":"private","ts":1603878749908,"uid":"123","contract_code":"BTC-USDT","data":{}}`)
 			require.NoError(t, h.wsHandleUSDTMarginedPrivateMessage(t.Context(), sub, raw), "private USDT-margined notification must be decoded")
 			message := <-h.Websocket.DataHandler.C
 			assert.IsType(t, tt.expected, message.Data, "notification should use its dedicated response type")
@@ -50,31 +47,31 @@ func TestWSHandleUSDTMarginedPrivateMessage(t *testing.T) {
 	err = h.wsHandleUSDTMarginedPrivateMessage(t.Context(), nil, []byte(`{}`))
 	require.ErrorIs(t, err, common.ErrNilPointer, "nil private USDT-margined subscriptions must be rejected")
 
-	h = new(Exchange)
-	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
 	raw := []byte(`{
 		"op":"notify",
-		"topic":"accounts_cross",
+		"topic":"orders",
+		"contract_code":"SHIB-USDT",
 		"ts":1640756528985,
-		"event":"snapshot",
-		"data":[{
-			"margin_mode":"cross",
-			"margin_account":"USDT",
-			"margin_balance":20.6034,
-			"contract_detail":[{
-				"contract_code":"BTC-USDT",
-				"pair":"BTC-USDT",
-				"business_type":"swap"
-			}]
-		}]
+		"uid":"502061937",
+		"data":{
+			"side":"buy",
+			"position_side":"short",
+			"type":"limit",
+			"price":"0.0000124",
+			"volume":"2",
+			"lever_rate":30,
+			"state":"new",
+			"order_id":"1381668675223068672",
+			"client_order_id":"1381668675223068672",
+			"reduce_only":true
+		}
 	}`)
-	sub := &subscription.Subscription{Asset: asset.USDTMarginedFutures, Channel: wsCrossAccountsChannel, Authenticated: true}
-	require.NoError(t, h.wsHandleUSDTMarginedPrivateMessage(t.Context(), sub, raw), "cross-account notification must be decoded")
+	sub := &subscription.Subscription{Asset: asset.USDTMarginedFutures, Channel: subscription.MyOrdersChannel, Authenticated: true}
+	require.NoError(t, h.wsHandleUSDTMarginedPrivateMessage(t.Context(), sub, raw), "V5 order notification must be decoded")
 	message := <-h.Websocket.DataHandler.C
-	accountUpdate, ok := message.Data.(*SwapWsSubEquityData)
-	require.True(t, ok, "cross-account notification must use the account response type")
-	require.Len(t, accountUpdate.Data, 1, "cross-account notification must contain its account data")
-	assert.Equal(t, "USDT", accountUpdate.Data[0].MarginAccount, "margin account should be retained")
-	require.Len(t, accountUpdate.Data[0].ContractDetail, 1, "cross-account notification must contain contract detail")
-	assert.Equal(t, "BTC-USDT", accountUpdate.Data[0].ContractDetail[0].ContractCode, "contract code should be retained")
+	orderUpdate, ok := message.Data.(*V5WsOrderUpdate)
+	require.True(t, ok, "V5 order notification must use the order response type")
+	assert.Equal(t, "1381668675223068672", orderUpdate.Data.OrderID, "order ID should be retained")
+	assert.Equal(t, uint64(30), orderUpdate.Data.LeverageRate, "leverage should be retained")
+	assert.True(t, orderUpdate.Data.ReduceOnly, "reduce-only should be retained")
 }

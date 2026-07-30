@@ -1004,7 +1004,11 @@ func (e *Exchange) PlaceSwapTriggerOrder(ctx context.Context, contractCode curre
 func (e *Exchange) CancelSwapTriggerOrder(ctx context.Context, contractCode currency.Pair, orderID string) (CancelTriggerOrdersData, error) {
 	var resp CancelTriggerOrdersData
 	req := make(map[string]any)
-	req["contract_code"] = contractCode
+	codeValue, err := e.FormatSymbol(contractCode, asset.CoinMarginedFutures)
+	if err != nil {
+		return resp, err
+	}
+	req["contract_code"] = codeValue
 	req["order_id"] = orderID
 	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestFutures, http.MethodPost, "/swap-api/v1/swap_trigger_cancel", nil, req, &resp); err != nil {
 		return resp, err
