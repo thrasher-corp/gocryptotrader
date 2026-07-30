@@ -233,12 +233,6 @@ func TestGetCryptocurrencyLatestListingDecodesV3Payload(t *testing.T) {
 
 	result, err := c.GetCryptocurrencyLatestListing(1, 1)
 	require.NoError(t, err, "GetCryptocurrencyLatestListing must not error")
-	mintedMarketCap := 130.0
-	tvlRatio := 1.5
-	selfReportedCirculatingSupply := 150.0
-	selfReportedMarketCap := 160.0
-	unlockedCirculatingSupply := 170.0
-	unlockedMarketCap := 180.0
 	expected := []CryptocurrencyLatestListings{
 		{
 			ID:                            1,
@@ -253,16 +247,17 @@ func TestGetCryptocurrencyLatestListingDecodesV3Payload(t *testing.T) {
 			IsFiat:                        1,
 			CirculatingSupply:             100,
 			TotalSupply:                   110,
+			MaxSupply:                     0,
 			DateAdded:                     time.Date(2010, 7, 13, 0, 0, 0, 0, time.UTC),
 			NumMarketPairs:                140,
 			CmcRank:                       1,
 			LastUpdated:                   time.Date(2026, 6, 19, 14, 2, 0, 0, time.UTC),
-			TVLRatio:                      &tvlRatio,
-			SelfReportedCirculatingSupply: &selfReportedCirculatingSupply,
-			SelfReportedMarketCap:         &selfReportedMarketCap,
-			UnlockedCirculatingSupply:     &unlockedCirculatingSupply,
-			UnlockedMarketCap:             &unlockedMarketCap,
-			MintedMarketCap:               &mintedMarketCap,
+			TVLRatio:                      1.5,
+			SelfReportedCirculatingSupply: 150,
+			SelfReportedMarketCap:         160,
+			UnlockedCirculatingSupply:     170,
+			UnlockedMarketCap:             180,
+			MintedMarketCap:               130,
 			Quote: CryptocurrencyLatestQuoteMap{
 				"USD": {
 					ID:                     2781,
@@ -294,6 +289,22 @@ func TestGetCryptocurrencyLatestListingDecodesV3Payload(t *testing.T) {
 		},
 	}
 	assert.Equal(t, expected, result, "GetCryptocurrencyLatestListing should return the complete V3 payload")
+}
+
+func TestCryptocurrencyLatestListingsUnmarshalNullMetrics(t *testing.T) {
+	t.Parallel()
+	var result CryptocurrencyLatestListings
+	err := json.Unmarshal([]byte(`{
+		"max_supply":null,
+		"tvl_ratio":null,
+		"self_reported_circulating_supply":null,
+		"self_reported_market_cap":null,
+		"unlocked_circulating_supply":null,
+		"unlocked_market_cap":null,
+		"minted_market_cap":null
+	}`), &result)
+	require.NoError(t, err, "Unmarshal must not error for null latest-listing metrics")
+	assert.Equal(t, CryptocurrencyLatestListings{}, result, "Unmarshal should leave null latest-listing metrics at zero values")
 }
 
 func TestGetCryptocurrencyLatestMarketPairs(t *testing.T) {
@@ -390,12 +401,6 @@ func TestGetCryptocurrencyLatestQuotesDecodesV3Payload(t *testing.T) {
 
 	result, err := c.GetCryptocurrencyLatestQuotes(1)
 	require.NoError(t, err, "GetCryptocurrencyLatestQuotes must not error")
-	maxSupply := 120.0
-	tvlRatio := 1.5
-	selfReportedCirculatingSupply := 150.0
-	selfReportedMarketCap := 160.0
-	unlockedCirculatingSupply := 170.0
-	unlockedMarketCap := 180.0
 	expected := CryptocurrencyLatestQuotes{
 		{
 			ID:                            1,
@@ -408,16 +413,17 @@ func TestGetCryptocurrencyLatestQuotesDecodesV3Payload(t *testing.T) {
 			IsFiat:                        0,
 			CirculatingSupply:             100,
 			TotalSupply:                   110,
-			MaxSupply:                     &maxSupply,
+			MaxSupply:                     120,
 			DateAdded:                     time.Date(2010, 7, 13, 0, 0, 0, 0, time.UTC),
 			NumMarketPairs:                140,
 			CmcRank:                       1,
 			LastUpdated:                   time.Date(2026, 6, 19, 14, 2, 0, 0, time.UTC),
-			TVLRatio:                      &tvlRatio,
-			SelfReportedCirculatingSupply: &selfReportedCirculatingSupply,
-			SelfReportedMarketCap:         &selfReportedMarketCap,
-			UnlockedCirculatingSupply:     &unlockedCirculatingSupply,
-			UnlockedMarketCap:             &unlockedMarketCap,
+			TVLRatio:                      1.5,
+			SelfReportedCirculatingSupply: 150,
+			SelfReportedMarketCap:         160,
+			UnlockedCirculatingSupply:     170,
+			UnlockedMarketCap:             180,
+			MintedMarketCap:               0,
 			Tags:                          []byte(`[{"slug":"mineable"}]`),
 			Platform:                      []byte(`null`),
 			Quote: CryptocurrencyLatestQuoteMap{

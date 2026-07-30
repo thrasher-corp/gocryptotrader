@@ -184,18 +184,18 @@ type CryptocurrencyLatestListings struct {
 	IsFiat                        int64                        `json:"is_fiat"`
 	CirculatingSupply             float64                      `json:"circulating_supply"`
 	TotalSupply                   float64                      `json:"total_supply"`
-	MaxSupply                     *float64                     `json:"max_supply"`
+	MaxSupply                     float64                      `json:"max_supply"`
 	DateAdded                     time.Time                    `json:"date_added"`
 	NumMarketPairs                int64                        `json:"num_market_pairs"`
 	CmcRank                       int64                        `json:"cmc_rank"`
 	LastUpdated                   time.Time                    `json:"last_updated"`
-	TVLRatio                      *float64                     `json:"tvl_ratio"`
-	SelfReportedCirculatingSupply *float64                     `json:"self_reported_circulating_supply"`
-	SelfReportedMarketCap         *float64                     `json:"self_reported_market_cap"`
-	UnlockedCirculatingSupply     *float64                     `json:"unlocked_circulating_supply"`
-	UnlockedMarketCap             *float64                     `json:"unlocked_market_cap"`
+	TVLRatio                      float64                      `json:"tvl_ratio"`
+	SelfReportedCirculatingSupply float64                      `json:"self_reported_circulating_supply"`
+	SelfReportedMarketCap         float64                      `json:"self_reported_market_cap"`
+	UnlockedCirculatingSupply     float64                      `json:"unlocked_circulating_supply"`
+	UnlockedMarketCap             float64                      `json:"unlocked_market_cap"`
 	// MintedMarketCap is documented on the listings/latest response.
-	MintedMarketCap *float64 `json:"minted_market_cap"`
+	MintedMarketCap float64 `json:"minted_market_cap"`
 }
 
 // CryptocurrencyLatestQuotes defines latest cryptocurrency quotation data
