@@ -151,13 +151,8 @@ func (p PreciseNumber) String() string {
 	return p.raw
 }
 
-// IsZero reports whether the value is the uninitialized zero value.
-//
-// Note: this returns true only for the uninitialized struct, not for an
-// explicit "0" parsed from the wire. The distinction matters when
-// json.Marshal honours the IsZero() method for `omitempty` (Go 1.24+):
-// an explicit "0" must round-trip through JSON for accounting fields,
-// whereas an unset field is correctly omitted.
+// IsZero reports whether the value is unset. An explicit "0" from the wire is
+// not. Consulted by `omitzero`; `omitempty` does not omit structs.
 func (p PreciseNumber) IsZero() bool {
 	return p.raw == ""
 }

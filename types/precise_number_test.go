@@ -210,24 +210,24 @@ func TestNewPreciseNumberFromString(t *testing.T) {
 }
 
 // TestPreciseNumberIsZero pins the contract that IsZero is true only for the
-// uninitialized struct, never for an explicit "0" — the property that
-// protects accounting fields from omitempty data loss.
+// unset struct, never for an explicit "0" — the property that lets `omitzero`
+// drop unset fields while preserving a zero received from the exchange.
 func TestPreciseNumberIsZero(t *testing.T) {
 	t.Parallel()
 
-	assert.True(t, PreciseNumber{}.IsZero(), "uninitialized value should be IsZero")
+	assert.True(t, PreciseNumber{}.IsZero(), "IsZero should return true for the unset value")
 
 	explicit, err := NewPreciseNumberFromString("0")
 	require.NoError(t, err, "NewPreciseNumberFromString must not error")
-	assert.False(t, explicit.IsZero(), "explicitly set \"0\" should not be IsZero")
+	assert.False(t, explicit.IsZero(), `IsZero should return false for an explicit "0"`)
 
 	var fromNull PreciseNumber
 	require.NoError(t, fromNull.UnmarshalJSON([]byte(`null`)), "UnmarshalJSON must not error")
-	assert.True(t, fromNull.IsZero(), "null should parse to IsZero")
+	assert.True(t, fromNull.IsZero(), "IsZero should return true after unmarshalling null")
 
 	var fromEmpty PreciseNumber
 	require.NoError(t, fromEmpty.UnmarshalJSON([]byte(`""`)), "UnmarshalJSON must not error")
-	assert.True(t, fromEmpty.IsZero(), "empty quoted string should parse to IsZero")
+	assert.True(t, fromEmpty.IsZero(), "IsZero should return true after unmarshalling an empty string")
 }
 
 // BenchmarkPreciseNumberUnmarshalJSON measures the cost of UnmarshalJSON for
