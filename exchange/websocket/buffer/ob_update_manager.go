@@ -27,6 +27,7 @@ const (
 )
 
 var (
+	errPendingUpdateKeyMismatch = errors.New("pending update key mismatch")
 	errPendingUpdatesNotApplied = errors.New("pending updates not applied")
 	errUnhandledCacheState      = errors.New("unhandled cache state")
 )
@@ -241,13 +242,11 @@ func (m *UpdateManager) syncOrderbook(ctx context.Context, cache *updateCache, p
 // assumes lock already active on cache
 func (m *UpdateManager) applyPendingUpdates(cache *updateCache) error {
 	var updated bool
-	var lastKey key.PairAsset
-	var lastHolder *orderbookHolder
+	var pendingKey key.PairAsset
+	var holder *orderbookHolder
 	for _, data := range cache.updates {
 		currentKey := key.PairAsset{Base: data.update.Pair.Base.Item, Quote: data.update.Pair.Quote.Item, Asset: data.update.Asset}
-		// Read the live update ID on every iteration because buffering or skipped
-		// updates can leave it unchanged, while avoiding repeated map lookups.
-		if lastHolder == nil || currentKey != lastKey {
+		if holder == nil {
 			if data.update.Pair.IsEmpty() {
 				return currency.ErrCurrencyPairEmpty
 			}
@@ -256,14 +255,18 @@ func (m *UpdateManager) applyPendingUpdates(cache *updateCache) error {
 			}
 			m.ob.m.RLock()
 			var ok bool
-			lastHolder, ok = m.ob.ob[currentKey]
+			holder, ok = m.ob.ob[currentKey]
 			m.ob.m.RUnlock()
 			if !ok {
 				return fmt.Errorf("%s %w: %s.%s", m.ob.exchangeName, orderbook.ErrDepthNotFound, data.update.Asset, data.update.Pair)
 			}
-			lastKey = currentKey
+			pendingKey = currentKey
+		} else if currentKey != pendingKey {
+			return fmt.Errorf("%w: expected %s.%s, got %s.%s", errPendingUpdateKeyMismatch, pendingKey.Asset, pendingKey.Pair(), currentKey.Asset, currentKey.Pair())
 		}
-		bookLastUpdateID, err := lastHolder.ob.LastUpdateID()
+		// Read the live update ID on every iteration because buffering or skipped
+		// updates can leave it unchanged, while avoiding repeated map lookups.
+		bookLastUpdateID, err := holder.ob.LastUpdateID()
 		if err != nil {
 			return err
 		}

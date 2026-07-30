@@ -470,29 +470,49 @@ func TestApplyPendingUpdates(t *testing.T) {
 		{firstUpdateID: 1339, update: &orderbook.Update{Pair: pair, Asset: asset.Spot, UpdateID: 1339, AllowEmpty: true, UpdateTime: time.Now()}},
 	}})
 	require.ErrorIs(t, err, ErrOrderbookSnapshotOutdated, "applyPendingUpdates must error when a later pending update is out of sequence")
+}
 
-	firstPair, err := currency.NewPairFromStrings("PENDMIXONE", "USDT")
-	require.NoError(t, err, "NewPairFromStrings must not error for the first mixed pair")
-	secondPair, err := currency.NewPairFromStrings("PENDMIXTWO", "BTC")
-	require.NoError(t, err, "NewPairFromStrings must not error for the second mixed pair")
-	err = m.ob.LoadSnapshot(&orderbook.Book{Pair: firstPair, Asset: asset.Spot, Exchange: m.ob.exchangeName, LastUpdated: time.Now()})
-	require.NoError(t, err, "LoadSnapshot must not error for the first mixed-pair snapshot")
-	err = m.ob.LoadSnapshot(&orderbook.Book{Pair: secondPair, Asset: asset.Spot, Exchange: m.ob.exchangeName, LastUpdated: time.Now(), LastUpdateID: 10})
-	require.NoError(t, err, "LoadSnapshot must not error for the second mixed-pair snapshot")
+func TestApplyPendingUpdatesKeyMismatch(t *testing.T) {
+	t.Parallel()
 
-	cache = &updateCache{updates: []pendingUpdate{
-		{firstUpdateID: 1, update: &orderbook.Update{Pair: firstPair, Asset: asset.Spot, UpdateID: 1, AllowEmpty: true, UpdateTime: time.Now()}},
-		{firstUpdateID: 11, update: &orderbook.Update{Pair: secondPair, Asset: asset.Spot, UpdateID: 11, AllowEmpty: true, UpdateTime: time.Now()}},
-	}}
-	err = m.applyPendingUpdates(cache)
-	require.NoError(t, err, "applyPendingUpdates must not error when pending updates use different orderbooks")
-	assert.Equal(t, cacheStateSynced, cache.state, "applyPendingUpdates should sync mixed-orderbook pending updates")
-	firstUpdateID, err := m.ob.LastUpdateID(firstPair, asset.Spot)
-	require.NoError(t, err, "LastUpdateID must not error for the first mixed-pair orderbook")
-	assert.Equal(t, int64(1), firstUpdateID, "LastUpdateID should return the correct first mixed-pair update ID")
-	secondUpdateID, err := m.ob.LastUpdateID(secondPair, asset.Spot)
-	require.NoError(t, err, "LastUpdateID must not error for the second mixed-pair orderbook")
-	assert.Equal(t, int64(11), secondUpdateID, "LastUpdateID should return the correct second mixed-pair update ID")
+	pairMismatchKey, err := currency.NewPairFromStrings("PENDKEYPAIR", "USDT")
+	require.NoError(t, err, "NewPairFromStrings must not error for the pair-mismatch pending-update key")
+	assetMismatchKey, err := currency.NewPairFromStrings("PENDKEYASSET", "USDT")
+	require.NoError(t, err, "NewPairFromStrings must not error for the asset-mismatch pending-update key")
+	otherPair, err := currency.NewPairFromStrings("PENDOTHER", "BTC")
+	require.NoError(t, err, "NewPairFromStrings must not error for the mismatched pending-update key")
+
+	for _, tc := range []struct {
+		name        string
+		pendingPair currency.Pair
+		updatePair  currency.Pair
+		updateAsset asset.Item
+		wantContext string
+	}{
+		{name: "pair", pendingPair: pairMismatchKey, updatePair: otherPair, updateAsset: asset.Spot, wantContext: otherPair.String()},
+		{name: "asset", pendingPair: assetMismatchKey, updatePair: assetMismatchKey, updateAsset: asset.Futures, wantContext: asset.Futures.String()},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			tp := newTestParams()
+			m := NewUpdateManager(&tp)
+			err := m.ob.LoadSnapshot(&orderbook.Book{Pair: tc.pendingPair, Asset: asset.Spot, Exchange: m.ob.exchangeName, LastUpdated: time.Now(), LastUpdateID: 10})
+			require.NoError(t, err, "LoadSnapshot must not error for the pending-update key")
+			cache := &updateCache{
+				state: cacheStateQueuing,
+				updates: []pendingUpdate{
+					{firstUpdateID: 11, update: &orderbook.Update{Pair: tc.pendingPair, Asset: asset.Spot, UpdateID: 11, AllowEmpty: true, UpdateTime: time.Now()}},
+					{firstUpdateID: 12, update: &orderbook.Update{Pair: tc.updatePair, Asset: tc.updateAsset, UpdateID: 12, AllowEmpty: true, UpdateTime: time.Now()}},
+				},
+			}
+
+			err = m.applyPendingUpdates(cache)
+			require.ErrorIs(t, err, errPendingUpdateKeyMismatch, "applyPendingUpdates must error when pending update keys differ")
+			assert.Contains(t, err.Error(), tc.wantContext, "applyPendingUpdates error should identify the mismatched pending-update key")
+			assert.Equal(t, cacheStateQueuing, cache.state, "applyPendingUpdates should not sync pending updates with different keys")
+		})
+	}
 }
 
 func TestApplyPendingUpdatesCachedHolderAfterSkip(t *testing.T) {
