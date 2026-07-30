@@ -132,6 +132,42 @@
     }
    ]
   },
+  "/api/v4/alpha/tokens": {
+   "GET": [
+    {
+     "data": [
+      {
+       "address": "6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN",
+       "amount_precision": 4,
+       "chain": "SOLANA",
+       "currency": "memeboxtrump",
+       "name": "TRUMP",
+       "precision": 4,
+       "status": 1
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "address": "FtTSDNLD5mMLn3anqEQpy44cRdrtAJRrLX2MKXxfpump",
+       "amount_precision": 1,
+       "chain": "SOLANA",
+       "currency": "memeboxretard",
+       "name": "retard",
+       "precision": 8,
+       "status": 1
+      }
+     ],
+     "queryString": "address=FtTSDNLD5mMLn3anqEQpy44cRdrtAJRrLX2MKXxfpump\u0026chain=solana\u0026launch_platform=pump\u0026page=1",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
   "/api/v4/bot/contract-martingale/create": {
    "POST": [
     {
@@ -169,7 +205,7 @@
       "trace_id": "trace_005"
      },
      "queryString": "",
-     "bodyParams": "",
+     "bodyParams": "{\"strategy_type\":\"futures_grid\",\"market\":\"BTC_USDT\",\"create_params\":\"{\\\"direction\\\":\\\"long\\\",\\\"grid_num\\\":20,\\\"high_price\\\":\\\"110000\\\",\\\"leverage\\\":\\\"5\\\",\\\"low_price\\\":\\\"90000\\\",\\\"money\\\":\\\"1000\\\",\\\"price_type\\\":0}\"}",
      "headers": null
     }
    ]
@@ -190,7 +226,7 @@
       "trace_id": "trace_004"
      },
      "queryString": "",
-     "bodyParams": "",
+     "bodyParams": "{\"strategy_type\":\"infinite_grid\",\"market\":\"BTC_USDT\",\"create_params\":\"{\\\"money\\\":\\\"1000\\\",\\\"price_floor\\\":\\\"80000\\\",\\\"profit_per_grid\\\":\\\"0.003\\\"}\"}",
      "headers": null
     }
    ]
@@ -211,7 +247,7 @@
       "trace_id": "trace_003"
      },
      "queryString": "",
-     "bodyParams": "",
+     "bodyParams": "{\"strategy_type\":\"margin_grid\",\"market\":\"BTC_USDT\",\"create_params\":\"{\\\"direction\\\":\\\"long\\\",\\\"grid_num\\\":20,\\\"high_price\\\":\\\"110000\\\",\\\"leverage\\\":\\\"3\\\",\\\"low_price\\\":\\\"90000\\\",\\\"money\\\":\\\"1000\\\",\\\"price_type\\\":0}\"}",
      "headers": null
     }
    ]
@@ -416,24 +452,74 @@
   "/api/v4/crossex/accounts": {
    "GET": [
     {
-     "data": [
-      {
-       "user_id": "12345678",
-       "available_margin": "1100",
-       "margin_balance": "1100",
-       "initial_margin": "0",
-       "maintenance_margin": "0",
-       "initial_margin_rate": "0",
-       "maintenance_margin_rate": "0",
-       "position_mode": "SINGLE",
-       "account_limit": "10000",
-       "create_time": "1715864142378",
-       "exchange_type": "BINANCE",
-       "account_mode": "CROSS_EXCHANGE",
-       "update_time": "1715864142378"
-      }
-     ],
+     "data": {
+      "user_id": "12345678",
+      "available_margin": "1100",
+      "margin_balance": "1100",
+      "initial_margin": "0",
+      "maintenance_margin": "0",
+      "initial_margin_rate": "0",
+      "maintenance_margin_rate": "0",
+      "position_mode": "SINGLE",
+      "account_limit": "10000",
+      "create_time": "1715864142378",
+      "exchange_type": "CROSSEX",
+      "account_mode": "CROSS_EXCHANGE",
+      "update_time": "1715864142378",
+      "assets": [
+       {
+        "user_id": "12345678",
+        "coin": "USDT",
+        "exchange_type": "BINANCE",
+        "balance": "1000",
+        "upnl": "100",
+        "equity": "1100",
+        "futures_initial_margin": "0",
+        "futures_maintenance_margin": "0",
+        "borrowing_initial_margin": "0",
+        "borrowing_maintenance_margin": "0",
+        "available_balance": "1000",
+        "liability": "0"
+       }
+      ]
+     },
      "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": {
+      "user_id": "12345678",
+      "available_margin": "1100",
+      "margin_balance": "1100",
+      "initial_margin": "0",
+      "maintenance_margin": "0",
+      "initial_margin_rate": "0",
+      "maintenance_margin_rate": "0",
+      "position_mode": "SINGLE",
+      "account_limit": "10000",
+      "create_time": "1715864142378",
+      "exchange_type": "CROSSEX",
+      "account_mode": "CROSS_EXCHANGE",
+      "update_time": "1715864142378",
+      "assets": [
+       {
+        "user_id": "12345678",
+        "coin": "USDT",
+        "exchange_type": "BINANCE",
+        "balance": "1000",
+        "upnl": "100",
+        "equity": "1100",
+        "futures_initial_margin": "0",
+        "futures_maintenance_margin": "0",
+        "borrowing_initial_margin": "0",
+        "borrowing_maintenance_margin": "0",
+        "available_balance": "1000",
+        "liability": "0"
+       }
+      ]
+     },
+     "queryString": "exchange_type=BINANCE",
      "bodyParams": "",
      "headers": {}
     }
@@ -464,6 +550,31 @@
      ],
      "queryString": "symbol=BINANCE_FUTURE_ADA_USDT",
      "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/crossex/batch_cancel_orders": {
+   "POST": [
+    {
+     "data": [
+      {
+       "order_id": "123456",
+       "text": "",
+       "accepted": "true",
+       "label": "",
+       "message": ""
+      },
+      {
+       "order_id": "",
+       "text": "crossex-test-1",
+       "accepted": "false",
+       "label": "TRADE_ORDER_NOT_FOUND_ERROR",
+       "message": "The order was not found"
+      }
+     ],
+     "queryString": "",
+     "bodyParams": "[{\"order_id\":\"123456\"},{\"text\":\"crossex-test-1\"}]",
      "headers": {}
     }
    ]
@@ -566,6 +677,26 @@
      "queryString": "",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": [
+      {
+       "user_id": "100001",
+       "symbol": "BINANCE_MARGIN_BTC_USDT",
+       "interest_id": "int-001",
+       "liability_id": "pos-001",
+       "liability": "0.01",
+       "liability_coin": "BTC",
+       "interest": "0.000001",
+       "interest_rate": "0.0001",
+       "interest_type": "INTEREST_ON_POSITION",
+       "create_time": "1763371200000",
+       "exchange_type": "BINANCE"
+      }
+     ],
+     "queryString": "exchange_type=BINANCE\u0026symbol=BINANCE_MARGIN_BTC_USDT",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -590,6 +721,28 @@
       }
      ],
      "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "position_id": "mpos-001",
+       "user_id": "100001",
+       "symbol": "BINANCE_MARGIN_BTC_USDT",
+       "position_side": "LONG",
+       "closed_type": "COMPLETE_CLOSED",
+       "closed_pnl": "50",
+       "closed_pnl_rate": "0.10",
+       "open_avg_price": "64000",
+       "closed_avg_price": "65000",
+       "max_position_qty": "1",
+       "exchange_type": "BINANCE",
+       "create_time": "1715864142378",
+       "update_time": "1715864142400"
+      }
+     ],
+     "queryString": "symbol=BINANCE_MARGIN_BTC_USDT",
      "bodyParams": "",
      "headers": {}
     }
@@ -630,6 +783,40 @@
      "queryString": "",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": [
+      {
+       "user_id": "100001",
+       "order_id": "20491522002333905922",
+       "text": "crossex-test-1",
+       "state": "FILLED",
+       "symbol": "BINANCE_FUTURE_BTC_USDT",
+       "side": "BUY",
+       "type": "GTC",
+       "attribute": "COMMON",
+       "exchange_type": "BINANCE",
+       "business_type": "FUTURES",
+       "qty": "1",
+       "price": "65000",
+       "time_in_force": "GTC",
+       "executed_qty": "1",
+       "executed_amount": "65000",
+       "fee": "6.5",
+       "fee_asset": "USDT",
+       "leverage": "10",
+       "last_executed_qty": "1",
+       "last_executed_price": "65000",
+       "position_side": "LONG",
+       "reduce_only": "false",
+       "last_executed_time": "1715864142400",
+       "create_time": "1715864142378",
+       "update_time": "1715864142400"
+      }
+     ],
+     "queryString": "symbol=BINANCE_FUTURE_BTC_USDT",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -654,6 +841,28 @@
       }
      ],
      "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "position_id": "pos-001",
+       "user_id": "100001",
+       "symbol": "BINANCE_FUTURE_BTC_USDT",
+       "position_side": "LONG",
+       "closed_type": "COMPLETE_CLOSED",
+       "closed_pnl": "150",
+       "closed_pnl_rate": "0.23",
+       "open_avg_price": "64000",
+       "closed_avg_price": "65500",
+       "max_position_qty": "2",
+       "exchange_type": "BINANCE",
+       "create_time": "1715864142378",
+       "update_time": "1715864142400"
+      }
+     ],
+     "queryString": "symbol=BINANCE_FUTURE_BTC_USDT",
      "bodyParams": "",
      "headers": {}
     }
@@ -683,6 +892,29 @@
      "queryString": "",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": [
+      {
+       "user_id": "100001",
+       "transaction_id": "trade-001",
+       "filled_record_id": "fill-001",
+       "order_id": "20491522002333905922",
+       "text": "crossex-test-1",
+       "symbol": "BINANCE_FUTURE_BTC_USDT",
+       "exchange_type": "BINANCE",
+       "business_type": "FUTURES",
+       "side": "BUY",
+       "qty": "1",
+       "price": "65000",
+       "fee": "6.5",
+       "fee_coin": "USDT",
+       "create_time": "1715864142400"
+      }
+     ],
+     "queryString": "symbol=BINANCE_FUTURE_BTC_USDT",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -704,6 +936,19 @@
       }
      ],
      "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [
+      {
+       "coin": "BCH",
+       "exchange_type": "GATE",
+       "hour_interest_rate": "0.00000465",
+       "time": "1763371200000"
+      }
+     ],
+     "queryString": "coin=BCH\u0026exchange_type=GATE",
      "bodyParams": "",
      "headers": {}
     }
@@ -732,6 +977,28 @@
      "queryString": "",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": [
+      {
+       "user_id": "100001",
+       "position_id": "mpos-001",
+       "symbol": "BINANCE_MARGIN_BTC_USDT",
+       "position_side": "LONG",
+       "initial_margin": "500",
+       "maintenance_margin": "250",
+       "asset_qty": "1",
+       "asset_coin": "BTC",
+       "position_value": "65000",
+       "leverage": "5",
+       "exchange_type": "BINANCE",
+       "create_time": "1715864142378",
+       "update_time": "1715864142378"
+      }
+     ],
+     "queryString": "exchange_type=BINANCE\u0026symbol=BINANCE_MARGIN_BTC_USDT",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -745,6 +1012,14 @@
      "queryString": "",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": {
+      "BINANCE_MARGIN_BTC_USDT": "5"
+     },
+     "queryString": "symbols=BINANCE_MARGIN_BTC_USDT",
+     "bodyParams": "",
+     "headers": {}
     }
    ],
    "POST": [
@@ -754,7 +1029,7 @@
       "leverage": "5"
      },
      "queryString": "",
-     "bodyParams": "",
+     "bodyParams": "{\"symbol\":\"BINANCE_MARGIN_BTC_USDT\",\"leverage\":\"5\"}",
      "headers": {}
     }
    ]
@@ -794,6 +1069,40 @@
      "queryString": "",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": [
+      {
+       "user_id": "100001",
+       "order_id": "20491522002333905922",
+       "text": "crossex-test-1",
+       "state": "OPEN",
+       "symbol": "BINANCE_FUTURE_BTC_USDT",
+       "side": "BUY",
+       "type": "GTC",
+       "attribute": "COMMON",
+       "exchange_type": "BINANCE",
+       "business_type": "FUTURES",
+       "qty": "1",
+       "price": "65000",
+       "time_in_force": "GTC",
+       "executed_qty": "0",
+       "executed_amount": "0",
+       "fee": "0",
+       "fee_asset": "USDT",
+       "leverage": "10",
+       "last_executed_qty": "0",
+       "last_executed_price": "0",
+       "position_side": "LONG",
+       "reduce_only": "false",
+       "last_executed_time": "0",
+       "create_time": "1715864142378",
+       "update_time": "1715864142378"
+      }
+     ],
+     "queryString": "business_type=FUTURE\u0026exchange_type=BINANCE\u0026symbol=BINANCE_FUTURE_BTC_USDT",
+     "bodyParams": "",
+     "headers": {}
     }
    ]
   },
@@ -826,7 +1135,7 @@
       "update_time": "1715864142378"
      },
      "queryString": "",
-     "bodyParams": "",
+     "bodyParams": "{\"symbol\":\"BINANCE_FUTURE_BTC_USDT\",\"type\":\"LIMIT\",\"time_in_force\":\"GTC\",\"side\":\"BUY\",\"qty\":\"1\",\"price\":\"65000\",\"reduce_only\":\"true\",\"position_side\":\"SHORT\"}",
      "headers": {}
     }
    ]
@@ -887,6 +1196,19 @@
     }
    ]
   },
+  "/api/v4/crossex/position": {
+   "POST": [
+    {
+     "data": {
+      "order_id": "123456",
+      "text": "123456"
+     },
+     "queryString": "",
+     "bodyParams": "position_side=LONG\u0026symbol=BINANCE_FUTURE_BTC_USDT",
+     "headers": {}
+    }
+   ]
+  },
   "/api/v4/crossex/positions": {
    "GET": [
     {
@@ -910,15 +1232,26 @@
      "queryString": "",
      "bodyParams": "",
      "headers": {}
-    }
-   ],
-   "POST": [
+    },
     {
-     "data": {
-      "order_id": "123456",
-      "text": "123456"
-     },
-     "queryString": "",
+     "data": [
+      {
+       "user_id": "100001",
+       "position_id": "pos-001",
+       "symbol": "BINANCE_FUTURE_BTC_USDT",
+       "position_side": "LONG",
+       "initial_margin": "1000",
+       "maintenance_margin": "500",
+       "position_qty": "1",
+       "position_value": "65000",
+       "upnl": "100",
+       "leverage": "10",
+       "exchange_type": "BINANCE",
+       "create_time": "1715864142378",
+       "update_time": "1715864142378"
+      }
+     ],
+     "queryString": "exchange_type=BINANCE\u0026symbol=BINANCE_FUTURE_BTC_USDT",
      "bodyParams": "",
      "headers": {}
     }
@@ -934,6 +1267,14 @@
      "queryString": "",
      "bodyParams": "",
      "headers": {}
+    },
+    {
+     "data": {
+      "BINANCE_FUTURE_BTC_USDT": "10"
+     },
+     "queryString": "symbols=BINANCE_FUTURE_BTC_USDT",
+     "bodyParams": "",
+     "headers": {}
     }
    ],
    "POST": [
@@ -943,7 +1284,7 @@
       "leverage": "10"
      },
      "queryString": "",
-     "bodyParams": "",
+     "bodyParams": "{\"symbol\":\"BINANCE_FUTURE_BTC_USDT\",\"leverage\":\"10\"}",
      "headers": {}
     }
    ]
@@ -11833,6 +12174,22 @@
       "update": 1775423974345
      },
      "queryString": "currency_pair=BTC_USDT\u0026with_id=true",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/api/v4/spot/orders": {
+   "DELETE": [
+    {
+     "data": [],
+     "queryString": "account=spot\u0026currency_pair=BTC_USDT\u0026side=sell",
+     "bodyParams": "",
+     "headers": {}
+    },
+    {
+     "data": [],
+     "queryString": "account=spot\u0026currency_pair=BTC_USDT",
      "bodyParams": "",
      "headers": {}
     }

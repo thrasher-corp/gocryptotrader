@@ -46,10 +46,9 @@ type AlphaCurrencyQuoteInfoRequest struct {
 	Currency currency.Code `json:"currency"`
 	Side     order.Side    `json:"side"`
 	Amount   types.Number  `json:"amount"`
-	// GasMode selects how slippage is applied; "speed" for smart mode or "custom" to use Slippage
-	GasMode  string       `json:"gas_mode"`
-	Slippage types.Number `json:"slippage,omitempty"`
-	QuoteID  string       `json:"quote_id,omitempty"`
+	GasMode  string        `json:"gas_mode"` // Trading mode affects slippage selection: "speed" uses smart mode; "custom" uses the slippage parameter.
+	Slippage types.Number  `json:"slippage,omitempty"`
+	QuoteID  string        `json:"quote_id,omitempty"`
 }
 
 // MarshalJSON lowercases the order side, which order.Side otherwise marshals as "BUY"/"SELL"
@@ -77,7 +76,7 @@ type AlphaCurrencyQuoteDetail struct {
 	OrderFee                 types.Number `json:"order_fee"`
 	TargetTokenMinAmount     types.Number `json:"target_token_min_amount"`
 	TargetTokenMaxAmount     types.Number `json:"target_token_max_amount"`
-	ErrorType                int64        `json:"error_type"`
+	ErrorType                uint64       `json:"error_type"`
 }
 
 // AlphaPlaceOrderResponse represents response details returned after placing alpha orders
@@ -86,7 +85,7 @@ type AlphaPlaceOrderResponse struct {
 	OrderID      string       `json:"order_id"`
 	Status       uint8        `json:"status"`
 	Side         string       `json:"side"`
-	GasMode      string       `json:"gas_mode"`
+	GasMode      string       `json:"gas_mode"` // Trading mode affects slippage selection: "speed" uses smart mode; "custom" uses the slippage parameter.
 	CreateTime   types.Time   `json:"create_time"`
 	Amount       types.Number `json:"amount"`
 	TokenAddress string       `json:"token_address"`
@@ -103,7 +102,7 @@ type AlphaOrderDetail struct {
 	Currency        currency.Code `json:"currency"`
 	CurrencyAmount  types.Number  `json:"currency_amount"`
 	Status          uint8         `json:"status"`
-	GasMode         string        `json:"gas_mode"`
+	GasMode         string        `json:"gas_mode"` // Trading mode affects slippage selection: "speed" uses smart mode; "custom" uses the slippage parameter.
 	Chain           string        `json:"chain"`
 	GasFee          types.Number  `json:"gas_fee"`
 	TransactionFee  types.Number  `json:"transaction_fee"`

@@ -152,7 +152,7 @@ func (e *Exchange) CreateInfiniteGridBot(ctx context.Context, arg *InfiniteGridC
 	if arg.CreateParams.ProfitPerGrid <= 0 {
 		return nil, errBotProfitPerGridRequired
 	}
-	if arg.CreateParams.PriceType > BotPriceTypeGeometric {
+	if arg.CreateParams.PriceType != nil && *arg.CreateParams.PriceType > BotPriceTypeGeometric {
 		return nil, errBotPriceTypeInvalid
 	}
 	arg.StrategyType = BotStrategyInfiniteGrid

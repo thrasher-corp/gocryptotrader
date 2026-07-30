@@ -300,6 +300,7 @@ const (
 	crossexGetOrdersEPL
 	crossexUpdateOrdersEPL
 	crossexDeleteOrdersEPL
+	crossexCancelBatchOrdersEPL
 	crossexConvertQuoteEPL
 	crossexConvertOrdersEPL
 	crossexGetAccountsEPL
@@ -683,6 +684,7 @@ var packageRateLimits = request.RateLimitDefinitions{
 	crossexGetOrdersEPL:                     standardRateLimit(),
 	crossexUpdateOrdersEPL:                  hundredPer10SecondsRateLimit(),
 	crossexDeleteOrdersEPL:                  hundredPer10SecondsRateLimit(),
+	crossexCancelBatchOrdersEPL:             hundredPer10SecondsRateLimit(),
 	crossexConvertQuoteEPL:                  hundredPerDayRateLimit(),
 	crossexConvertOrdersEPL:                 tenPer10SecondsRateLimit(),
 	crossexGetAccountsEPL:                   standardRateLimit(),

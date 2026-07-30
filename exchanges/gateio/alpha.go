@@ -175,8 +175,8 @@ func (e *Exchange) GetAlphaCurrencyTicker(ctx context.Context, memeCcy currency.
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, alphaTickersEPL, common.EncodeURLValues("alpha/tickers", params), &resp)
 }
 
-// GetAlphaTokens retrieves token information, optionally filtered by chain and launch platform
-func (e *Exchange) GetAlphaTokens(ctx context.Context, chain, launchPlatform string, limit, page uint64) ([]*AlphaCurrencyDetail, error) {
+// GetAlphaTokens retrieves token information, optionally filtered by chain, launch platform and contract address
+func (e *Exchange) GetAlphaTokens(ctx context.Context, chain, launchPlatform, address string, page uint64) ([]*AlphaCurrencyDetail, error) {
 	params := url.Values{}
 	if chain != "" {
 		params.Set("chain", chain)
@@ -184,11 +184,11 @@ func (e *Exchange) GetAlphaTokens(ctx context.Context, chain, launchPlatform str
 	if launchPlatform != "" {
 		params.Set("launch_platform", launchPlatform)
 	}
+	if address != "" {
+		params.Set("address", address)
+	}
 	if page > 0 {
 		params.Set("page", strconv.FormatUint(page, 10))
-	}
-	if limit > 0 {
-		params.Set("limit", strconv.FormatUint(limit, 10))
 	}
 	var resp []*AlphaCurrencyDetail
 	return resp, e.SendHTTPRequest(ctx, exchange.RestSpot, alphaTokensEPL, common.EncodeURLValues("alpha/tokens", params), &resp)

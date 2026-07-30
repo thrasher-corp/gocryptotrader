@@ -140,16 +140,16 @@ type MarginGridCreateRequest struct {
 
 // InfiniteGridCreateParams holds the creation parameters for an infinite grid strategy.
 type InfiniteGridCreateParams struct {
-	Money              types.Number `json:"money"`
-	PriceFloor         types.Number `json:"price_floor"`
-	ProfitPerGrid      types.Number `json:"profit_per_grid"`
-	GridNum            int32        `json:"grid_num,omitempty"`
-	PriceType          BotPriceType `json:"price_type,omitempty"`
-	TriggerPrice       types.Number `json:"trigger_price,omitempty"`
-	StopProfit         types.Number `json:"stop_profit,omitempty"`
-	StopLoss           types.Number `json:"stop_loss,omitempty"`
-	ProfitSharingRatio types.Number `json:"profit_sharing_ratio,omitempty"`
-	IsUseBase          bool         `json:"is_use_base,omitempty"`
+	Money              types.Number  `json:"money"`
+	PriceFloor         types.Number  `json:"price_floor"`
+	ProfitPerGrid      types.Number  `json:"profit_per_grid"`
+	GridNum            int32         `json:"grid_num,omitempty"`
+	PriceType          *BotPriceType `json:"price_type,omitempty"`
+	TriggerPrice       types.Number  `json:"trigger_price,omitempty"`
+	StopProfit         types.Number  `json:"stop_profit,omitempty"`
+	StopLoss           types.Number  `json:"stop_loss,omitempty"`
+	ProfitSharingRatio types.Number  `json:"profit_sharing_ratio,omitempty"`
+	IsUseBase          bool          `json:"is_use_base,omitempty"`
 }
 
 // InfiniteGridCreateRequest is the request body for creating an infinite grid strategy.
@@ -257,7 +257,7 @@ func (b *BotPortfolioRunningResponse) AsError() error {
 type BotPortfolioBaseInfo struct {
 	StrategyName    string       `json:"strategy_name"`
 	CreatedAt       types.Time   `json:"created_at"`
-	RunningDuration int64        `json:"running_duration"`
+	RunningDuration uint64       `json:"running_duration"`
 	InvestAmount    types.Number `json:"invest_amount"`
 	TotalProfit     types.Number `json:"total_profit"`
 	ProfitRate      types.Number `json:"profit_rate"`
@@ -267,14 +267,14 @@ type BotPortfolioBaseInfo struct {
 type BotPortfolioMetrics struct {
 	GridProfit                string       `json:"grid_profit"`
 	FloatingPNL               types.Number `json:"floating_pnl"`
-	ArbitrageCount            int64        `json:"arbitrage_count"`
+	ArbitrageCount            uint64       `json:"arbitrage_count"`
 	PriceRange                string       `json:"price_range"`
-	GridCount                 int64        `json:"grid_count"`
+	GridCount                 uint64       `json:"grid_count"`
 	EstimatedLiquidationPrice types.Number `json:"estimated_liquidation_price"`
 	PriceFloor                types.Number `json:"price_floor"`
 	GridProfitRate            types.Number `json:"grid_profit_rate"`
 	RealizedPNL               types.Number `json:"realized_pnl"`
-	FinishedRounds            int64        `json:"finished_rounds"`
+	FinishedRounds            uint64       `json:"finished_rounds"`
 	AverageCost               types.Number `json:"avg_cost"`
 	TakeProfitPrice           types.Number `json:"take_profit_price"`
 	MaintenanceMarginRatio    types.Number `json:"maintenance_margin_ratio"`

@@ -140,6 +140,34 @@ func TestGetAlphaCurrencyTicker(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
+func TestGetAlphaTokens(t *testing.T) {
+	t.Parallel()
+	const contractAddress = "FtTSDNLD5mMLn3anqEQpy44cRdrtAJRrLX2MKXxfpump"
+	for _, tc := range []struct {
+		name           string
+		chain          string
+		launchPlatform string
+		address        string
+		page           uint64
+		expected       string
+	}{
+		{name: "without filters", expected: "6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN"},
+		{name: "with filters", chain: "solana", launchPlatform: "pump", address: contractAddress, page: 1, expected: contractAddress},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			result, err := e.GetAlphaTokens(t.Context(), tc.chain, tc.launchPlatform, tc.address, tc.page)
+			require.NoError(t, err, "GetAlphaTokens must not error")
+			if mockTests {
+				require.NotEmpty(t, result, "GetAlphaTokens must return token data")
+				require.Len(t, result, 1, "GetAlphaTokens must return one mocked token")
+				assert.Equal(t, tc.expected, result[0].Address, "token address should match")
+				assert.Equal(t, "SOLANA", result[0].Chain, "token chain should match")
+			}
+		})
+	}
+}
+
 func TestAlphaCurrencyQuoteInfoRequestMarshalJSON(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {

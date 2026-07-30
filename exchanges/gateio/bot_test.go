@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 )
@@ -91,12 +92,21 @@ func TestCreateMarginGridBot(t *testing.T) {
 	_, err = e.CreateMarginGridBot(t.Context(), arg)
 	require.ErrorIs(t, err, errBotLeverageRequired)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	arg.CreateParams.Leverage = 3
+	arg.CreateParams.PriceType = 2
+	_, err = e.CreateMarginGridBot(t.Context(), arg)
+	require.ErrorIs(t, err, errBotPriceTypeInvalid, "CreateMarginGridBot must reject an invalid price type")
+
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	}
+	arg.CreateParams.PriceType = BotPriceTypeArithmetic
 	arg.CreateParams.Direction = order.Long.Lower()
 	result, err := e.CreateMarginGridBot(t.Context(), arg)
 	require.NoError(t, err)
-	assert.NotEmpty(t, result.StrategyID)
+	if mockTests {
+		assert.NotEmpty(t, result.StrategyID)
+	}
 }
 
 func TestCreateInfiniteGridBot(t *testing.T) {
@@ -119,11 +129,21 @@ func TestCreateInfiniteGridBot(t *testing.T) {
 	_, err = e.CreateInfiniteGridBot(t.Context(), arg)
 	require.ErrorIs(t, err, errBotProfitPerGridRequired)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	arg.CreateParams.ProfitPerGrid = 0.003
+	invalidPriceType := BotPriceType(2)
+	arg.CreateParams.PriceType = &invalidPriceType
+	_, err = e.CreateInfiniteGridBot(t.Context(), arg)
+	require.ErrorIs(t, err, errBotPriceTypeInvalid, "CreateInfiniteGridBot must reject an invalid price type")
+
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	}
+	arg.CreateParams.PriceType = nil
 	result, err := e.CreateInfiniteGridBot(t.Context(), arg)
 	require.NoError(t, err)
-	assert.NotEmpty(t, result.StrategyID)
+	if mockTests {
+		assert.NotEmpty(t, result.StrategyID)
+	}
 }
 
 func TestCreateFuturesGridBot(t *testing.T) {
@@ -154,12 +174,61 @@ func TestCreateFuturesGridBot(t *testing.T) {
 	_, err = e.CreateFuturesGridBot(t.Context(), arg)
 	require.ErrorIs(t, err, errBotLeverageRequired)
 
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
 	arg.CreateParams.Leverage = 5
+	arg.CreateParams.PriceType = 2
+	_, err = e.CreateFuturesGridBot(t.Context(), arg)
+	require.ErrorIs(t, err, errBotPriceTypeInvalid, "CreateFuturesGridBot must reject an invalid price type")
+
+	if !mockTests {
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+	}
+	arg.CreateParams.PriceType = BotPriceTypeArithmetic
 	arg.CreateParams.Direction = order.Long.Lower()
 	result, err := e.CreateFuturesGridBot(t.Context(), arg)
 	require.NoError(t, err)
-	assert.NotEmpty(t, result.StrategyID)
+	if mockTests {
+		assert.NotEmpty(t, result.StrategyID)
+	}
+}
+
+func TestInfiniteGridCreateParamsMarshalJSON(t *testing.T) {
+	t.Parallel()
+	arithmetic := BotPriceTypeArithmetic
+	geometric := BotPriceTypeGeometric
+	for _, tc := range []struct {
+		name        string
+		params      *InfiniteGridCreateParams
+		contains    []string
+		notContains []string
+	}{
+		{
+			name:        "unset price type is omitted",
+			params:      &InfiniteGridCreateParams{},
+			notContains: []string{`"price_type"`},
+		},
+		{
+			name:     "arithmetic price type is included",
+			params:   &InfiniteGridCreateParams{PriceType: &arithmetic},
+			contains: []string{`"price_type":0`},
+		},
+		{
+			name:     "geometric price type is included",
+			params:   &InfiniteGridCreateParams{PriceType: &geometric},
+			contains: []string{`"price_type":1`},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := json.Marshal(tc.params)
+			require.NoError(t, err, "Marshal must not error")
+			for _, exp := range tc.contains {
+				assert.Containsf(t, string(got), exp, "payload should contain %s", exp)
+			}
+			for _, unexp := range tc.notContains {
+				assert.NotContainsf(t, string(got), unexp, "payload should not contain %s", unexp)
+			}
+		})
+	}
 }
 
 func TestCreateSpotMartingaleBot(t *testing.T) {
