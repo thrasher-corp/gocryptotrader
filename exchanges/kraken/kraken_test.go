@@ -1652,6 +1652,15 @@ func TestGetFuturesTrades(t *testing.T) {
 		_, err := ex.GetFuturesTrades(ctx, futuresTestPair, time.Time{}, time.Time{})
 		assert.ErrorIs(t, err, context.Canceled, "GetFuturesTrades should error correctly for a cancelled request")
 	})
+
+	t.Run("live request", func(t *testing.T) {
+		t.Parallel()
+		_, err := e.GetFuturesTrades(t.Context(), futuresTestPair, time.Time{}, time.Time{})
+		assert.NoError(t, err, "GetFuturesTrades should not error")
+
+		_, err = e.GetFuturesTrades(t.Context(), futuresTestPair, time.Now().Add(-time.Hour), time.Now())
+		assert.NoError(t, err, "GetFuturesTrades should not error")
+	})
 }
 
 var websocketXDGUSDOrderbookUpdates = []string{
