@@ -41,25 +41,6 @@ func TestGetHistoricalFundingRatesForPair(t *testing.T) {
 	assert.Equal(t, time.UnixMilli(1604312615051), got.Data.Data[0].FundingTime.Time(), "funding time should match")
 }
 
-func TestGetLinearSwapHistoricalFundingRates(t *testing.T) {
-	t.Parallel()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, linearSwapFundingHistory, r.URL.Path, "USDT-margined funding history path should match")
-		assert.Equal(t, "25", r.URL.Query().Get("page_size"), "page size should use the pageSize argument")
-		assert.Equal(t, "2", r.URL.Query().Get("page_index"), "page index should use the pageIndex argument")
-		_, _ = w.Write([]byte(`{"status":"ok","data":{"total_page":1,"current_page":1,"total_size":1,"data":[{"funding_rate":"0.001","funding_time":"1604312615051","contract_code":"BTC-USDT"}]}}`))
-	}))
-	t.Cleanup(server.Close)
-
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
-	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "USDT-margined endpoint must be set")
-	got, err := h.GetLinearSwapHistoricalFundingRates(t.Context(), btcusdtPair, 25, 2)
-	require.NoError(t, err, "GetLinearSwapHistoricalFundingRates must not error")
-	require.Len(t, got.Data.Data, 1, "one funding rate must be returned")
-	assert.Equal(t, time.UnixMilli(1604312615051), got.Data.Data[0].FundingTime.Time(), "funding time should match")
-}
-
 func TestGetHistoricalFundingRates(t *testing.T) {
 	t.Parallel()
 	h := new(Exchange)
@@ -90,6 +71,24 @@ func TestGetHistoricalFundingRates(t *testing.T) {
 	require.Len(t, got.FundingRates, 1, "one funding rate must be returned")
 	assert.Equal(t, at, got.FundingRates[0].Time, "funding time should match")
 	assert.Equal(t, "0.001", got.FundingRates[0].Rate.String(), "funding rate should match")
+
+	usdtServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/v5/market/funding_rate_history", r.URL.Path, "USDT-margined funding history should use V5")
+		assert.Equal(t, strconv.FormatInt(at.Add(-time.Minute).UnixMilli(), 10), r.URL.Query().Get("start_time"), "start time should be sent")
+		assert.Equal(t, strconv.FormatInt(at.Add(time.Minute).UnixMilli(), 10), r.URL.Query().Get("end_time"), "end time should be sent")
+		_, _ = w.Write([]byte(`{"code":200,"data":[{"id":"1","funding_rate":"0.001","funding_time":"1604312615051","contract_code":"BTC-USDT"}]}`))
+	}))
+	t.Cleanup(usdtServer.Close)
+	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), usdtServer.URL), "USDT-margined endpoint must be set")
+	got, err = h.GetHistoricalFundingRates(t.Context(), &fundingrate.HistoricalRatesRequest{
+		Asset:     asset.USDTMarginedFutures,
+		Pair:      btcusdtPair,
+		StartDate: at.Add(-time.Minute),
+		EndDate:   at.Add(time.Minute),
+	})
+	require.NoError(t, err, "USDT-margined GetHistoricalFundingRates must not error")
+	require.Len(t, got.FundingRates, 1, "one USDT-margined funding rate must be returned")
+	assert.Equal(t, at, got.FundingRates[0].Time, "USDT-margined funding time should match")
 }
 
 func TestFSwitchLeverage(t *testing.T) {

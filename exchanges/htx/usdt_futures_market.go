@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/url"
 	"strconv"
+	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -88,6 +89,77 @@ func (e *Exchange) GetV5EstimatedSettlementPrice(ctx context.Context, code curre
 	}
 	var resp *V5EstimatedSettlementPriceResponse
 	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/v5/market/estimated_settlement_price", params), &resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// GetV5FundingRates gets current funding rates for up to 10 contracts.
+func (e *Exchange) GetV5FundingRates(ctx context.Context, req *V5FundingRatesRequest) (*V5FundingRatesResponse, error) {
+	if req == nil {
+		return nil, common.ErrNilPointer
+	}
+	if len(req.ContractCodes) == 0 || len(req.ContractCodes) > 10 {
+		return nil, errContractCodeLimitExceeded
+	}
+	codes := make([]string, len(req.ContractCodes))
+	for i := range req.ContractCodes {
+		code, err := e.FormatSymbol(req.ContractCodes[i], asset.USDTMarginedFutures)
+		if err != nil {
+			return nil, err
+		}
+		codes[i] = code
+	}
+	params := url.Values{}
+	params.Set("contract_code", strings.Join(codes, ","))
+	var resp *V5FundingRatesResponse
+	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/v5/market/funding_rate", params), &resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// GetV5FundingRateHistory gets historical funding rates for one contract.
+func (e *Exchange) GetV5FundingRateHistory(ctx context.Context, req *V5FundingRateHistoryRequest) (*V5FundingRateHistoryResponse, error) {
+	if req == nil {
+		return nil, common.ErrNilPointer
+	}
+	params := url.Values{}
+	params.Set("contract_code", req.ContractCode)
+	if !req.StartTime.IsZero() {
+		params.Set("start_time", strconv.FormatInt(req.StartTime.UnixMilli(), 10))
+	}
+	if !req.EndTime.IsZero() {
+		params.Set("end_time", strconv.FormatInt(req.EndTime.UnixMilli(), 10))
+	}
+	if req.From != "" {
+		params.Set("from", req.From)
+	}
+	if req.Limit != 0 {
+		params.Set("limit", strconv.FormatUint(req.Limit, 10))
+	}
+	if req.Direction != "" {
+		params.Set("direct", req.Direction)
+	}
+	var resp *V5FundingRateHistoryResponse
+	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/v5/market/funding_rate_history", params), &resp); err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+// GetV5PriceLimits gets the current price limits for one or all contracts.
+func (e *Exchange) GetV5PriceLimits(ctx context.Context, code currency.Pair) (*V5PriceLimitsResponse, error) {
+	params := url.Values{}
+	if !code.IsEmpty() {
+		codeValue, err := e.FormatSymbol(code, asset.USDTMarginedFutures)
+		if err != nil {
+			return nil, err
+		}
+		params.Set("contract_code", codeValue)
+	}
+	var resp *V5PriceLimitsResponse
+	if err := e.SendHTTPRequest(ctx, exchange.RestUSDTMargined, common.EncodeURLValues("/v5/market/price_limit", params), &resp); err != nil {
 		return nil, err
 	}
 	return resp, nil

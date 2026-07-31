@@ -62,6 +62,63 @@ func TestGetV5EstimatedSettlementPrice(t *testing.T) {
 	assert.Equal(t, types.Number(10), resp.Data[0].EstimatedSettlementPrice, "settlement price should decode")
 }
 
+func TestGetV5FundingRates(t *testing.T) {
+	t.Parallel()
+	h := setupV5HTTPTest(t, http.MethodGet, "/v5/market/funding_rate", `{"code":200,"data":[{"contract_code":"BTC-USDT","funding_rate":"-0.0001","funding_time":"1782460800000","next_funding_time":"1782489600000","min_funding_rate":"-0.00375","max_funding_rate":"0.00375"}]}`, func(r *http.Request) {
+		assert.Equal(t, "BTC-USDT,ETH-USDT", r.URL.Query().Get("contract_code"), "contract codes should be sent")
+	})
+	_, err := h.GetV5FundingRates(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetV5FundingRates must reject a nil request")
+	_, err = h.GetV5FundingRates(t.Context(), &V5FundingRatesRequest{})
+	require.ErrorIs(t, err, errContractCodeLimitExceeded, "GetV5FundingRates must require contract codes")
+	tooMany := make(currency.Pairs, 11)
+	_, err = h.GetV5FundingRates(t.Context(), &V5FundingRatesRequest{ContractCodes: tooMany})
+	require.ErrorIs(t, err, errContractCodeLimitExceeded, "GetV5FundingRates must enforce the documented contract limit")
+	resp, err := h.GetV5FundingRates(t.Context(), &V5FundingRatesRequest{
+		ContractCodes: currency.Pairs{btcusdtPair, currency.NewPair(currency.ETH, currency.USDT)},
+	})
+	require.NoError(t, err, "GetV5FundingRates must not error")
+	require.Len(t, resp.Data, 1, "one funding rate must decode")
+	assert.Equal(t, types.Number(-0.0001), resp.Data[0].FundingRate, "funding rate should decode")
+	assert.Equal(t, types.Number(0.00375), resp.Data[0].MaximumRate, "maximum funding rate should decode")
+	assert.False(t, resp.Data[0].NextFundingTime.Time().IsZero(), "next funding time should decode")
+}
+
+func TestGetV5FundingRateHistory(t *testing.T) {
+	t.Parallel()
+	h := setupV5HTTPTest(t, http.MethodGet, "/v5/market/funding_rate_history", `{"code":200,"data":[{"id":"9566","contract_code":"BTC-USDT","funding_rate":"-0.00375","funding_time":"1721887200000"}]}`, func(r *http.Request) {
+		assert.Equal(t, "BTC-USDT", r.URL.Query().Get("contract_code"), "contract code should be sent")
+		assert.Equal(t, "10", r.URL.Query().Get("limit"), "limit should be sent")
+		assert.Equal(t, "next", r.URL.Query().Get("direct"), "direction should be sent")
+	})
+	_, err := h.GetV5FundingRateHistory(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetV5FundingRateHistory must reject a nil request")
+	resp, err := h.GetV5FundingRateHistory(t.Context(), &V5FundingRateHistoryRequest{
+		ContractCode: "BTC-USDT",
+		StartTime:    time.UnixMilli(1),
+		EndTime:      time.UnixMilli(2),
+		From:         "1",
+		Limit:        10,
+		Direction:    "next",
+	})
+	require.NoError(t, err, "GetV5FundingRateHistory must not error")
+	require.Len(t, resp.Data, 1, "one historical funding rate must decode")
+	assert.Equal(t, "9566", resp.Data[0].ID, "funding-rate ID should decode")
+	assert.Equal(t, types.Number(-0.00375), resp.Data[0].FundingRate, "funding rate should decode")
+}
+
+func TestGetV5PriceLimits(t *testing.T) {
+	t.Parallel()
+	h := setupV5HTTPTest(t, http.MethodGet, "/v5/market/price_limit", `{"code":200,"data":[{"contract_code":"BTC-USDT","high_limit":"88660.5","low_limit":"100"}]}`, func(r *http.Request) {
+		assert.Equal(t, "BTC-USDT", r.URL.Query().Get("contract_code"), "contract code should be sent")
+	})
+	resp, err := h.GetV5PriceLimits(t.Context(), btcusdtPair)
+	require.NoError(t, err, "GetV5PriceLimits must not error")
+	require.Len(t, resp.Data, 1, "one price limit must decode")
+	assert.Equal(t, types.Number(88660.5), resp.Data[0].High, "high limit should decode")
+	assert.Equal(t, types.Number(100), resp.Data[0].Low, "low limit should decode")
+}
+
 func TestGetV5LiquidationOrders(t *testing.T) {
 	t.Parallel()
 	h := setupV5HTTPTest(t, http.MethodGet, "/v5/market/liquidation_orders", `{"code":200,"data":[{"id":"1","volume":"2"}]}`, func(r *http.Request) {

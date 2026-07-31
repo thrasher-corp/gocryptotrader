@@ -92,37 +92,6 @@ func TestGetLinearSwapBatchTrades(t *testing.T) {
 	assert.Equal(t, int64(123), resp.ID, "batch ID should decode")
 }
 
-func TestGetLinearSwapFundingRate(t *testing.T) {
-	t.Parallel()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, linearSwapFunding, r.URL.Path, "funding rate endpoint path should match")
-		_, _ = w.Write([]byte(`{"status":"ok","data":{"contract_code":"BTC-USDT"}}`))
-	}))
-	t.Cleanup(server.Close)
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
-	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "USDT-margined endpoint must be set")
-	resp, err := h.GetLinearSwapFundingRate(t.Context(), btcusdtPair)
-	require.NoError(t, err, "GetLinearSwapFundingRate must not error")
-	assert.Equal(t, "BTC-USDT", resp.ContractCode, "contract code should decode")
-}
-
-func TestGetLinearSwapFundingRates(t *testing.T) {
-	t.Parallel()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, linearSwapBatchFunding, r.URL.Path, "batch funding endpoint path should match")
-		_, _ = w.Write([]byte(`{"status":"ok","data":[{"contract_code":"BTC-USDT"}]}`))
-	}))
-	t.Cleanup(server.Close)
-	h := new(Exchange)
-	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
-	require.NoError(t, h.API.Endpoints.SetRunningURL(exchange.RestUSDTMargined.String(), server.URL), "USDT-margined endpoint must be set")
-	resp, err := h.GetLinearSwapFundingRates(t.Context())
-	require.NoError(t, err, "GetLinearSwapFundingRates must not error")
-	require.Len(t, resp.Data, 1, "decoded funding rates must be returned")
-	assert.Equal(t, "BTC-USDT", resp.Data[0].ContractCode, "contract code should decode")
-}
-
 func TestGetV5OpenInterest(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

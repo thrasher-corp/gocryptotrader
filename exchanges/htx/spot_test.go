@@ -307,8 +307,6 @@ func TestSpotMatchResultsEndpoint(t *testing.T) {
 func TestUSDTFuturesEndpointPaths(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, "/linear-swap-api/v1/swap_contract_info", linearSwapMarkets, "linear swap contract info endpoint should match HTX docs")
-	assert.Equal(t, "/linear-swap-api/v1/swap_funding_rate", linearSwapFunding, "linear swap funding rate endpoint should match HTX docs")
-	assert.Equal(t, "/linear-swap-api/v1/swap_batch_funding_rate", linearSwapBatchFunding, "linear swap batch funding rate endpoint should match HTX docs")
 }
 
 func TestV5OrderQueryResponseUnmarshal(t *testing.T) {

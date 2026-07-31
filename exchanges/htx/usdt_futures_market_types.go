@@ -3,6 +3,7 @@ package htx
 import (
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -47,6 +48,64 @@ type V5EstimatedSettlementPrice struct {
 	ContractCode             string       `json:"contract_code"`
 	SettlementType           string       `json:"settlement_type"`
 	EstimatedSettlementPrice types.Number `json:"estimated_settlement_price"`
+}
+
+// V5FundingRatesRequest defines the contracts requested from the current funding-rate endpoint.
+type V5FundingRatesRequest struct {
+	ContractCodes currency.Pairs
+}
+
+// V5FundingRatesResponse stores current contract funding rates.
+type V5FundingRatesResponse struct {
+	V5Response
+	Data []V5FundingRate `json:"data"`
+}
+
+// V5FundingRate stores the current and next funding information for one contract.
+type V5FundingRate struct {
+	ContractCode    string       `json:"contract_code"`
+	FundingRate     types.Number `json:"funding_rate"`
+	FundingTime     types.Time   `json:"funding_time"`
+	NextFundingTime types.Time   `json:"next_funding_time"`
+	MinimumRate     types.Number `json:"min_funding_rate"`
+	MaximumRate     types.Number `json:"max_funding_rate"`
+}
+
+// V5FundingRateHistoryRequest defines historical funding-rate filters.
+type V5FundingRateHistoryRequest struct {
+	ContractCode string
+	StartTime    time.Time
+	EndTime      time.Time
+	From         string
+	Limit        uint64
+	Direction    string
+}
+
+// V5FundingRateHistoryResponse stores historical contract funding rates.
+type V5FundingRateHistoryResponse struct {
+	V5Response
+	Data []V5HistoricalFundingRate `json:"data"`
+}
+
+// V5HistoricalFundingRate stores one historical contract funding rate.
+type V5HistoricalFundingRate struct {
+	ID           string       `json:"id"`
+	ContractCode string       `json:"contract_code"`
+	FundingRate  types.Number `json:"funding_rate"`
+	FundingTime  types.Time   `json:"funding_time"`
+}
+
+// V5PriceLimitsResponse stores current contract price limits.
+type V5PriceLimitsResponse struct {
+	V5Response
+	Data []V5PriceLimit `json:"data"`
+}
+
+// V5PriceLimit stores the highest permitted buy price and lowest permitted sell price.
+type V5PriceLimit struct {
+	ContractCode string       `json:"contract_code"`
+	High         types.Number `json:"high_limit"`
+	Low          types.Number `json:"low_limit"`
 }
 
 // V5LiquidationOrdersRequest defines public liquidation-order filters.

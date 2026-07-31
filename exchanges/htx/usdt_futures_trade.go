@@ -220,6 +220,38 @@ func (e *Exchange) GetV5OrderHistory(ctx context.Context, req *V5OrderHistoryReq
 	return resp, nil
 }
 
+// GetV5OrderDetails gets recent execution details for a USDT-margined contract.
+func (e *Exchange) GetV5OrderDetails(ctx context.Context, req *V5OrderDetailsRequest) (*V5OrderDetailsResponse, error) {
+	if req == nil {
+		return nil, common.ErrNilPointer
+	}
+	params := url.Values{}
+	params.Set("contract_code", req.ContractCode)
+	if req.OrderID != "" {
+		params.Set("order_id", req.OrderID)
+	}
+	if !req.StartTime.IsZero() {
+		params.Set("start_time", strconv.FormatInt(req.StartTime.UnixMilli(), 10))
+	}
+	if !req.EndTime.IsZero() {
+		params.Set("end_time", strconv.FormatInt(req.EndTime.UnixMilli(), 10))
+	}
+	if req.From != "" {
+		params.Set("from", req.From)
+	}
+	if req.Limit != 0 {
+		params.Set("limit", strconv.FormatUint(req.Limit, 10))
+	}
+	if req.Direction != "" {
+		params.Set("direct", req.Direction)
+	}
+	var resp *V5OrderDetailsResponse
+	if err := e.FuturesAuthenticatedHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, "/v5/trade/order/details", params, nil, &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
+}
+
 // GetV5OpenPositions gets current USDT-margined positions.
 func (e *Exchange) GetV5OpenPositions(ctx context.Context, code currency.Pair) (*V5OpenPositionsResponse, error) {
 	params := url.Values{}

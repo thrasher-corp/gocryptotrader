@@ -89,6 +89,32 @@ func TestGetV5OrderHistory(t *testing.T) {
 	assert.Equal(t, types.Number(2), resp.Data[0].Volume, "volume should decode")
 }
 
+func TestGetV5OrderDetails(t *testing.T) {
+	t.Parallel()
+	h := setupV5HTTPTest(t, http.MethodGet, "/v5/trade/order/details", `{"code":200,"data":[{"id":"1124147771","contract_code":"BTC-USDT","order_id":"1343541341268738048","trade_id":"100000032538647","side":"sell","position_side":"short","order_type":"1","margin_mode":"cross","type":"limit","role":"TAKER","trade_price":"31400","trade_volume":"1","trade_turnover":"31.4","created_time":1740366817564,"updated_time":1740366817564,"order_source":"api","fee_currency":"USDT","trade_fee":"0.01884","deduction_price":"","profit":"0","contract_type":"swap"}]}`, func(r *http.Request) {
+		assert.Equal(t, "BTC-USDT", r.URL.Query().Get("contract_code"), "contract code should be sent")
+		assert.Equal(t, "1343541341268738048", r.URL.Query().Get("order_id"), "order ID should be sent")
+		assert.Equal(t, "100", r.URL.Query().Get("limit"), "limit should be sent")
+	})
+	_, err := h.GetV5OrderDetails(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "GetV5OrderDetails must reject a nil request")
+	resp, err := h.GetV5OrderDetails(t.Context(), &V5OrderDetailsRequest{
+		ContractCode: "BTC-USDT",
+		OrderID:      "1343541341268738048",
+		StartTime:    time.UnixMilli(1),
+		EndTime:      time.UnixMilli(2),
+		From:         "1",
+		Limit:        100,
+		Direction:    "next",
+	})
+	require.NoError(t, err, "GetV5OrderDetails must not error")
+	require.Len(t, resp.Data, 1, "one execution detail must decode")
+	assert.Equal(t, "100000032538647", resp.Data[0].TradeID, "trade ID should decode")
+	assert.Equal(t, types.Number(31400), resp.Data[0].TradePrice, "trade price should decode")
+	assert.Equal(t, types.Number(0.01884), resp.Data[0].TradeFee, "trade fee should decode")
+	assert.False(t, resp.Data[0].CreatedTime.Time().IsZero(), "creation time should decode")
+}
+
 func TestGetV5OpenPositions(t *testing.T) {
 	t.Parallel()
 	h := setupV5HTTPTest(t, http.MethodGet, "/v5/trade/position/opens", `{"code":200,"data":[{"contract_code":"BTC-USDT","volume":"2"}]}`, nil)

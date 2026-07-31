@@ -27,6 +27,7 @@ const (
 	errInvalidLeverage               htxError = "invalid leverage"
 	errInvalidOrderPriceType         htxError = "invalid order price type"
 	errBatchOrderLimitExceeded       htxError = "a maximum of 10 batch orders is supported"
+	errContractCodeLimitExceeded     htxError = "between 1 and 10 contract codes must be supplied"
 	errInvalidRequestType            htxError = "invalid request type"
 	errInvalidOrderStatus            htxError = "invalid order status"
 	errInvalidTriggerType            htxError = "invalid trigger type"

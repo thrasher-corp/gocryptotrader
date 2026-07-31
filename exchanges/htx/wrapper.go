@@ -2593,18 +2593,30 @@ func (e *Exchange) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lat
 			rates = append(rates, rateResp)
 		}
 	case asset.USDTMarginedFutures:
+		var pairs currency.Pairs
 		if r.Pair.IsEmpty() {
-			batchRates, err := e.GetLinearSwapFundingRates(ctx)
+			var err error
+			pairs, err = e.GetEnabledPairs(asset.USDTMarginedFutures)
 			if err != nil {
 				return nil, err
 			}
-			rates = batchRates.Data
 		} else {
-			rateResp, err := e.GetLinearSwapFundingRate(ctx, r.Pair)
+			pairs = currency.Pairs{r.Pair}
+		}
+		for start := 0; start < len(pairs); start += 10 {
+			end := min(start+10, len(pairs))
+			rateResp, err := e.GetV5FundingRates(ctx, &V5FundingRatesRequest{ContractCodes: pairs[start:end]})
 			if err != nil {
 				return nil, err
 			}
-			rates = append(rates, rateResp)
+			for i := range rateResp.Data {
+				rates = append(rates, FundingRatesData{
+					FundingRate:     rateResp.Data[i].FundingRate,
+					ContractCode:    rateResp.Data[i].ContractCode,
+					FundingTime:     rateResp.Data[i].FundingTime,
+					NextFundingTime: rateResp.Data[i].NextFundingTime,
+				})
+			}
 		}
 	}
 	resp := make([]fundingrate.LatestRateResponse, 0, len(rates))

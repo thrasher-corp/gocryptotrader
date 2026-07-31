@@ -42,35 +42,69 @@ func (e *Exchange) GetHistoricalFundingRates(ctx context.Context, r *fundingrate
 		StartDate: r.StartDate,
 		EndDate:   r.EndDate,
 	}
-	for page := int64(1); ; page++ {
-		var history HistoricalFundingRateData
-		var err error
-		switch r.Asset {
-		case asset.CoinMarginedFutures:
-			history, err = e.GetHistoricalFundingRatesForPair(ctx, r.Pair, pageSize, page)
-		case asset.USDTMarginedFutures:
-			history, err = e.GetLinearSwapHistoricalFundingRates(ctx, r.Pair, pageSize, page)
-		}
+	if r.Asset == asset.USDTMarginedFutures {
+		codeValue, err := e.FormatSymbol(r.Pair, asset.USDTMarginedFutures)
 		if err != nil {
 			return nil, err
 		}
-		var reachedStartDate bool
-		for _, rate := range history.Data.Data {
-			rateTime := rate.FundingTime.Time()
-			if !r.StartDate.IsZero() && rateTime.Before(r.StartDate) {
-				reachedStartDate = true
-				continue
-			}
-			if !r.EndDate.IsZero() && rateTime.After(r.EndDate) {
-				continue
-			}
-			result.FundingRates = append(result.FundingRates, fundingrate.Rate{
-				Time: rateTime,
-				Rate: decimal.NewFromFloat(rate.FundingRate.Float64()),
-			})
+		windows, err := getV3HistoryWindows(r.StartDate, r.EndDate)
+		if err != nil {
+			return nil, err
 		}
-		if reachedStartDate || history.Data.TotalPage == 0 || page >= history.Data.TotalPage {
-			break
+		for _, window := range windows {
+			var from string
+			for {
+				history, err := e.GetV5FundingRateHistory(ctx, &V5FundingRateHistoryRequest{
+					ContractCode: codeValue,
+					StartTime:    window.start,
+					EndTime:      window.end,
+					From:         from,
+					Limit:        uint64(pageSize),
+					Direction:    "next",
+				})
+				if err != nil {
+					return nil, err
+				}
+				for i := range history.Data {
+					result.FundingRates = append(result.FundingRates, fundingrate.Rate{
+						Time: history.Data[i].FundingTime.Time(),
+						Rate: decimal.NewFromFloat(history.Data[i].FundingRate.Float64()),
+					})
+				}
+				if len(history.Data) < int(pageSize) {
+					break
+				}
+				nextFrom := history.Data[len(history.Data)-1].ID
+				if nextFrom == from {
+					break
+				}
+				from = nextFrom
+			}
+		}
+	} else {
+		for page := int64(1); ; page++ {
+			history, err := e.GetHistoricalFundingRatesForPair(ctx, r.Pair, pageSize, page)
+			if err != nil {
+				return nil, err
+			}
+			var reachedStartDate bool
+			for _, rate := range history.Data.Data {
+				rateTime := rate.FundingTime.Time()
+				if !r.StartDate.IsZero() && rateTime.Before(r.StartDate) {
+					reachedStartDate = true
+					continue
+				}
+				if !r.EndDate.IsZero() && rateTime.After(r.EndDate) {
+					continue
+				}
+				result.FundingRates = append(result.FundingRates, fundingrate.Rate{
+					Time: rateTime,
+					Rate: decimal.NewFromFloat(rate.FundingRate.Float64()),
+				})
+			}
+			if reachedStartDate || history.Data.TotalPage == 0 || page >= history.Data.TotalPage {
+				break
+			}
 		}
 	}
 	if len(result.FundingRates) == 0 {
