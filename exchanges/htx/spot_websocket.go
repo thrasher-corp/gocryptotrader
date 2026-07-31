@@ -630,25 +630,6 @@ func (e *Exchange) wsLogin(ctx context.Context, conn websocket.Connection) error
 	return getErrResp(resp)
 }
 
-func stringToOrderStatus(status string) (order.Status, error) {
-	switch status {
-	case "rejected":
-		return order.Rejected, nil
-	case "submitted":
-		return order.New, nil
-	case "partial-filled":
-		return order.PartiallyFilled, nil
-	case "filled":
-		return order.Filled, nil
-	case "partial-canceled":
-		return order.PartiallyCancelled, nil
-	case "canceled":
-		return order.Cancelled, nil
-	default:
-		return order.UnknownStatus, fmt.Errorf("%w: %s", errUnrecognisedOrderStatus, status)
-	}
-}
-
 func stringToOrderSide(side string) (order.Side, error) {
 	switch {
 	case strings.Contains(side, "buy"):

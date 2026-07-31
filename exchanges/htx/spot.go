@@ -96,20 +96,6 @@ func getSignatureHost(endpoint string) (string, error) {
 	return parsedEndpoint.Host, nil
 }
 
-func websocketPrivateURL(endpoint string) (string, error) {
-	parsedEndpoint, err := url.Parse(endpoint)
-	if err != nil {
-		return "", fmt.Errorf("%w: %w", errInvalidEndpoint, err)
-	}
-	if parsedEndpoint.Host == "" {
-		return "", fmt.Errorf("%w: missing host", errInvalidEndpoint)
-	}
-	parsedEndpoint.Path = wsPrivatePath
-	parsedEndpoint.RawQuery = ""
-	parsedEndpoint.Fragment = ""
-	return parsedEndpoint.String(), nil
-}
-
 // GetMarginRates gets margin rates
 func (e *Exchange) GetMarginRates(ctx context.Context, symbol currency.Pair) (MarginRatesData, error) {
 	var resp MarginRatesData

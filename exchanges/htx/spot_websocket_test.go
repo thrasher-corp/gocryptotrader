@@ -28,48 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
-func TestWebsocketPrivateURL(t *testing.T) {
-	t.Parallel()
-	for _, tt := range []struct {
-		name    string
-		in      string
-		want    string
-		wantErr error
-	}{
-		{
-			name: "default public url",
-			in:   "wss://api.huobi.pro/ws",
-			want: "wss://api.huobi.pro/ws/v2",
-		},
-		{
-			name: "configured host",
-			in:   "wss://api-aws.huobi.pro/ws",
-			want: "wss://api-aws.huobi.pro/ws/v2",
-		},
-		{
-			name: "clears query and fragment",
-			in:   "wss://api.huobi.pro/ws?foo=bar#frag",
-			want: "wss://api.huobi.pro/ws/v2",
-		},
-		{
-			name:    "missing host",
-			in:      "/ws",
-			wantErr: errInvalidEndpoint,
-		},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			got, err := websocketPrivateURL(tt.in)
-			if tt.wantErr != nil {
-				require.ErrorIs(t, err, tt.wantErr, "websocketPrivateURL must return expected error")
-				return
-			}
-			require.NoError(t, err, "websocketPrivateURL must not error")
-			assert.Equal(t, tt.want, got, "private websocket url should match")
-		})
-	}
-}
-
 func TestWSHandleCandleMsg(t *testing.T) {
 	t.Parallel()
 	e := new(Exchange)
@@ -333,27 +291,6 @@ func TestWSHandleMyTradesMsg(t *testing.T) {
 	d, _ := m.Data.(*order.Detail)
 	require.NotNil(t, d)
 	assert.Equal(t, exp, d, "Order Detail should match")
-}
-
-func TestStringToOrderStatus(t *testing.T) {
-	t.Parallel()
-	type TestCases struct {
-		Case   string
-		Result order.Status
-	}
-	testCases := []TestCases{
-		{Case: "submitted", Result: order.New},
-		{Case: "canceled", Result: order.Cancelled},
-		{Case: "partial-filled", Result: order.PartiallyFilled},
-		{Case: "partial-canceled", Result: order.PartiallyCancelled},
-		{Case: "LOL", Result: order.UnknownStatus},
-	}
-	for i := range testCases {
-		result, _ := stringToOrderStatus(testCases[i].Case)
-		if result != testCases[i].Result {
-			t.Errorf("Expected: %v, received: %v", testCases[i].Result, result)
-		}
-	}
 }
 
 func TestStringToOrderSide(t *testing.T) {
