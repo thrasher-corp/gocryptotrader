@@ -44,14 +44,18 @@ func (c *Coinmarketcap) SetDefaults() {
 	c.Enabled = false
 	c.Verbose = false
 	c.APIUrl = baseURL
-	var err error
-	c.Requester, err = request.New(c.Name,
+	// SetDefaults cannot return the requester construction error; newRequester logs it.
+	c.Requester, _ = newRequester(c.Name,
 		common.NewHTTPClientWithTimeout(defaultTimeOut),
-		request.WithLimiter(request.NewBasicRateLimit(rateInterval, basicRequestRate, 1)),
-	)
+		getRateLimits())
+}
+
+func newRequester(name string, client *http.Client, limits request.RateLimitDefinitions) (*request.Requester, error) {
+	requester, err := request.New(name, client, request.WithLimiter(limits))
 	if err != nil {
 		log.Errorln(log.Global, err)
 	}
+	return requester, err
 }
 
 // Setup sets user configuration
@@ -710,7 +714,7 @@ func (c *Coinmarketcap) SendHTTPRequest(method, endpoint string, v url.Values, r
 		Result:  result,
 		Verbose: c.Verbose,
 	}
-	return c.Requester.SendPayload(context.TODO(), request.Unset, func() (*request.Item, error) {
+	return c.Requester.SendPayload(context.TODO(), planRateLimit(c.Plan), func() (*request.Item, error) {
 		return item, nil
 	}, request.AuthenticatedRequest)
 }
@@ -729,33 +733,26 @@ func (c *Coinmarketcap) CheckAccountPlan(minAllowable uint8) error {
 func (c *Coinmarketcap) SetAccountPlan(s string) error {
 	planName := strings.ToLower(strings.TrimSpace(s))
 	var plan uint8
-	var requestRate int
 	switch planName {
 	case "basic":
 		plan = Basic
-		requestRate = basicRequestRate
 	case "builder":
 		plan = Builder
-		requestRate = builderRequestRate
 	case "startup":
 		plan = Startup
-		requestRate = startupRequestRate
 	case "growth":
 		plan = Growth
-		requestRate = growthRequestRate
 	case "professional":
 		plan = Professional
-		requestRate = professionalRequestRate
 	case "enterprise":
 		plan = Enterprise
-		requestRate = enterpriseRequestRate
 	default:
 		return fmt.Errorf("%w: %q", errInvalidAccountPlan, s)
 	}
 
 	if c.Requester != nil {
-		limiter := c.Requester.GetRateLimiterDefinitions()[request.Unset]
-		if err := limiter.SetRateLimit(rateInterval, requestRate); err != nil {
+		limiter := c.Requester.GetRateLimiterDefinitions()[planRateLimit(plan)]
+		if err := common.NilGuard(limiter); err != nil {
 			return fmt.Errorf("%w for account plan %q: %w", errRateLimiterNotSet, planName, err)
 		}
 	}

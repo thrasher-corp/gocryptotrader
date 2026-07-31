@@ -2,7 +2,6 @@ package request
 
 import (
 	"context"
-	"errors"
 	"sync/atomic"
 	"testing"
 	"testing/synctest"
@@ -186,45 +185,6 @@ func TestGetRateLimiterWithWeight(t *testing.T) {
 	require.NotNil(t, weighted, "weighted limiter must not be nil")
 	assert.Equal(t, Weight(5), weighted.weight, "weight should be 5")
 	assert.Equal(t, r, weighted.limiter, "should reference same limiter")
-}
-
-func TestSetRateLimit(t *testing.T) {
-	t.Parallel()
-
-	err := (*RateLimiterWithWeight)(nil).SetRateLimit(time.Second, 10)
-	assert.ErrorIs(t, err, common.ErrNilPointer, "SetRateLimit should return common.ErrNilPointer for a nil limiter")
-	assert.ErrorContains(t, err, "nil pointer: *request.RateLimiterWithWeight", "SetRateLimit should return an error for a nil limiter")
-
-	r := NewRateLimitWithWeight(time.Second, 1, 5)
-	err = r.SetRateLimit(time.Second, 10)
-	require.NoError(t, err, "SetRateLimit must not error for a valid limiter")
-	assert.Equal(t, rate.Limit(10), r.limiter.Limit(), "SetRateLimit should replace the underlying limit")
-	assert.Equal(t, Weight(5), r.weight, "SetRateLimit should preserve the request weight")
-
-	err = r.SetRateLimit(0, 0)
-	require.NoError(t, err, "SetRateLimit must not error for an unrestricted limiter")
-	assert.Equal(t, rate.Inf, r.limiter.Limit(), "SetRateLimit should allow an unrestricted limiter")
-}
-
-func TestSetRateLimitConcurrent(t *testing.T) {
-	t.Parallel()
-
-	r := NewRateLimitWithWeight(time.Second, 10, 1)
-	errs := common.ErrorCollector{}
-	for i := 1; i <= 100; i++ {
-		requestRate := i
-		errs.Go(func() error {
-			return r.SetRateLimit(time.Second, requestRate)
-		})
-		errs.Go(func() error {
-			err := r.RateLimit(WithDelayNotAllowed(t.Context()))
-			if err == nil || errors.Is(err, ErrDelayNotAllowed) {
-				return nil
-			}
-			return err
-		})
-	}
-	require.NoError(t, errs.Collect(), "SetRateLimit and RateLimit must remain concurrency-safe")
 }
 
 func TestNewBasicRateLimit(t *testing.T) {

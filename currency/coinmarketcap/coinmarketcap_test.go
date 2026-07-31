@@ -1,9 +1,11 @@
 package coinmarketcap
 
 import (
+	"errors"
 	"maps"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -84,13 +86,36 @@ func TestSetDefaults(t *testing.T) {
 		assert.Empty(t, c.APIkey, "SetDefaults should not populate the API key")
 		require.NotNil(t, c.Requester, "SetDefaults must populate the requester")
 
-		limiter := c.Requester.GetRateLimiterDefinitions()[request.Unset]
+		definitions := c.Requester.GetRateLimiterDefinitions()
+		require.Len(t, definitions, 6, "SetDefaults must configure all account-plan rate limits")
+		limiter := definitions[basicEPL]
 		require.NotNil(t, limiter, "SetDefaults must configure the request limiter")
 		start := time.Now()
 		require.NoError(t, limiter.RateLimit(t.Context()), "RateLimit must allow the first request")
 		require.NoError(t, limiter.RateLimit(t.Context()), "RateLimit must allow the second request")
 		assert.Equal(t, rateInterval/time.Duration(basicRequestRate), time.Since(start), "SetDefaults should use the Basic request rate")
+
+		var other Coinmarketcap
+		other.SetDefaults()
+		assert.NotSame(t, limiter, other.Requester.GetRateLimiterDefinitions()[basicEPL], "SetDefaults should configure independent client rate limits")
 	})
+}
+
+func TestNewRequester(t *testing.T) {
+	t.Parallel()
+
+	_, expectedErr := request.New("CoinMarketCap", nil)
+	require.Error(t, expectedErr, "request.New must reject a nil HTTP client")
+
+	requester, err := newRequester("CoinMarketCap", nil, getRateLimits())
+	require.Error(t, err, "newRequester must reject a nil HTTP client")
+	assert.ErrorIs(t, err, errors.Unwrap(expectedErr), "newRequester should preserve the requester construction error")
+	assert.Nil(t, requester, "newRequester should return nil for an invalid HTTP client")
+
+	requester, err = newRequester("CoinMarketCap", common.NewHTTPClientWithTimeout(defaultTimeOut), getRateLimits())
+	require.NoError(t, err, "newRequester must accept a valid HTTP client")
+	require.NotNil(t, requester, "newRequester must return a valid requester")
+	assert.Len(t, requester.GetRateLimiterDefinitions(), 6, "newRequester should configure all account-plan rate limits")
 }
 
 func TestSetup(t *testing.T) {
@@ -692,31 +717,118 @@ func TestGetPriceConversionPlanAccess(t *testing.T) {
 	assert.NoError(t, err, "GetPriceConversion should not error")
 }
 
+func TestSendHTTPRequest(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name        string
+		plan        uint8
+		rateLimit   request.EndpointLimit
+		values      url.Values
+		expectedURI string
+	}{
+		{name: "unset", rateLimit: basicEPL, expectedURI: "/test"},
+		{name: "basic with query", plan: Basic, rateLimit: basicEPL, values: url.Values{"a": {"b"}}, expectedURI: "/test?a=b"},
+		{name: "builder", plan: Builder, rateLimit: builderEPL, expectedURI: "/test"},
+		{name: "startup", plan: Startup, rateLimit: startupEPL, expectedURI: "/test"},
+		{name: "growth", plan: Growth, rateLimit: growthEPL, expectedURI: "/test"},
+		{name: "professional", plan: Professional, rateLimit: professionalEPL, expectedURI: "/test"},
+		{name: "enterprise", plan: Enterprise, rateLimit: enterpriseEPL, expectedURI: "/test"},
+		{name: "unknown", plan: 255, rateLimit: basicEPL, expectedURI: "/test"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			received := make(chan []string, 1)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				received <- []string{r.Method, r.URL.RequestURI(), r.Header.Get("X-CMC_PRO_API_KEY"), r.Header.Get("Accept")}
+				_, _ = w.Write([]byte(`{"ok":true}`))
+			}))
+			t.Cleanup(server.Close)
+
+			var c Coinmarketcap
+			c.SetDefaults()
+			c.APIUrl = server.URL
+			c.APIkey = "test-key"
+			c.Plan = tc.plan
+			definitions := c.Requester.GetRateLimiterDefinitions()
+			for key := range definitions {
+				if key != tc.rateLimit {
+					delete(definitions, key)
+				}
+			}
+
+			result := struct {
+				OK bool `json:"ok"`
+			}{}
+			err := c.SendHTTPRequest(http.MethodGet, "test", tc.values, &result)
+			require.NoError(t, err, "SendHTTPRequest must use the selected plan rate limit")
+			assert.True(t, result.OK, "SendHTTPRequest should decode the response")
+			assert.Equal(t, []string{http.MethodGet, tc.expectedURI, "test-key", "application/json"}, <-received, "SendHTTPRequest should send the correct request")
+		})
+	}
+
+	t.Run("missing selected rate limit", func(t *testing.T) {
+		t.Parallel()
+		var c Coinmarketcap
+		c.SetDefaults()
+		c.Plan = Growth
+		delete(c.Requester.GetRateLimiterDefinitions(), growthEPL)
+
+		err := c.SendHTTPRequest(http.MethodGet, "test", nil, nil)
+		require.ErrorIs(t, err, common.ErrNilPointer, "SendHTTPRequest must reject a missing selected rate limit")
+		assert.ErrorContains(t, err, "failed to rate limit HTTP request", "SendHTTPRequest should return the rate-limit failure")
+	})
+
+	t.Run("nil requester", func(t *testing.T) {
+		t.Parallel()
+		c := Coinmarketcap{APIUrl: "https://example.invalid"}
+		err := c.SendHTTPRequest(http.MethodGet, "test", nil, nil)
+		assert.ErrorIs(t, err, request.ErrRequestSystemIsNil, "SendHTTPRequest should reject a nil requester")
+	})
+
+	t.Run("nil rate limit definitions", func(t *testing.T) {
+		t.Parallel()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte(`{"ok":true}`))
+		}))
+		t.Cleanup(server.Close)
+
+		requester, err := request.New("CoinMarketCap", common.NewHTTPClientWithTimeout(defaultTimeOut))
+		require.NoError(t, err, "request.New must create a requester without rate limits")
+		c := Coinmarketcap{APIUrl: server.URL, Plan: Growth, Requester: requester}
+		err = c.SendHTTPRequest(http.MethodGet, "test", nil, nil)
+		assert.NoError(t, err, "SendHTTPRequest should support explicitly disabled rate limiting")
+	})
+}
+
 func TestSetAccountPlan(t *testing.T) {
 	t.Parallel()
 	for _, tc := range []struct {
 		name                string
 		accountPlan         string
 		expected            uint8
+		expectedRateLimit   request.EndpointLimit
 		expectedRequestRate int
 		err                 error
 	}{
-		{name: "basic", accountPlan: "basic", expected: Basic, expectedRequestRate: basicRequestRate},
-		{name: "builder", accountPlan: "builder", expected: Builder, expectedRequestRate: builderRequestRate},
-		{name: "startup", accountPlan: "startup", expected: Startup, expectedRequestRate: startupRequestRate},
-		{name: "growth", accountPlan: "growth", expected: Growth, expectedRequestRate: growthRequestRate},
-		{name: "professional", accountPlan: "professional", expected: Professional, expectedRequestRate: professionalRequestRate},
-		{name: "enterprise", accountPlan: "enterprise", expected: Enterprise, expectedRequestRate: enterpriseRequestRate},
-		{name: "normalised", accountPlan: " Growth ", expected: Growth, expectedRequestRate: growthRequestRate},
-		{name: "legacy hobbyist", accountPlan: "hobbyist", expectedRequestRate: basicRequestRate, err: errInvalidAccountPlan},
-		{name: "legacy standard", accountPlan: "standard", expectedRequestRate: basicRequestRate, err: errInvalidAccountPlan},
-		{name: "unknown", accountPlan: "unknown", expectedRequestRate: basicRequestRate, err: errInvalidAccountPlan},
+		{name: "basic", accountPlan: "basic", expected: Basic, expectedRateLimit: basicEPL, expectedRequestRate: basicRequestRate},
+		{name: "builder", accountPlan: "builder", expected: Builder, expectedRateLimit: builderEPL, expectedRequestRate: builderRequestRate},
+		{name: "startup", accountPlan: "startup", expected: Startup, expectedRateLimit: startupEPL, expectedRequestRate: startupRequestRate},
+		{name: "growth", accountPlan: "growth", expected: Growth, expectedRateLimit: growthEPL, expectedRequestRate: growthRequestRate},
+		{name: "professional", accountPlan: "professional", expected: Professional, expectedRateLimit: professionalEPL, expectedRequestRate: professionalRequestRate},
+		{name: "enterprise", accountPlan: "enterprise", expected: Enterprise, expectedRateLimit: enterpriseEPL, expectedRequestRate: enterpriseRequestRate},
+		{name: "normalised", accountPlan: " Growth ", expected: Growth, expectedRateLimit: growthEPL, expectedRequestRate: growthRequestRate},
+		{name: "empty", expectedRateLimit: enterpriseEPL, expectedRequestRate: enterpriseRequestRate, err: errInvalidAccountPlan},
+		{name: "legacy hobbyist", accountPlan: "hobbyist", expectedRateLimit: enterpriseEPL, expectedRequestRate: enterpriseRequestRate, err: errInvalidAccountPlan},
+		{name: "legacy standard", accountPlan: "standard", expectedRateLimit: enterpriseEPL, expectedRequestRate: enterpriseRequestRate, err: errInvalidAccountPlan},
+		{name: "unknown", accountPlan: "unknown", expectedRateLimit: enterpriseEPL, expectedRequestRate: enterpriseRequestRate, err: errInvalidAccountPlan},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			synctest.Test(t, func(t *testing.T) {
 				c := Coinmarketcap{Plan: Enterprise}
 				c.SetDefaults()
+				limiter := c.Requester.GetRateLimiterDefinitions()[tc.expectedRateLimit]
 				err := c.SetAccountPlan(tc.accountPlan)
 				if tc.err != nil {
 					require.ErrorIs(t, err, tc.err, "SetAccountPlan must error correctly for invalid or obsolete plans")
@@ -726,7 +838,8 @@ func TestSetAccountPlan(t *testing.T) {
 					assert.Equal(t, tc.expected, c.Plan, "SetAccountPlan should set Plan correctly")
 				}
 
-				limiter := c.Requester.GetRateLimiterDefinitions()[request.Unset]
+				assert.Equal(t, tc.expectedRateLimit, planRateLimit(c.Plan), "SetAccountPlan should select the correct tier rate limit")
+				assert.Same(t, limiter, c.Requester.GetRateLimiterDefinitions()[tc.expectedRateLimit], "SetAccountPlan should retain the tier limiter")
 				require.NotNil(t, limiter, "SetAccountPlan must retain the request limiter")
 				start := time.Now()
 				require.NoError(t, limiter.RateLimit(t.Context()), "RateLimit must allow the first request")
@@ -743,15 +856,47 @@ func TestSetAccountPlanWithoutRequester(t *testing.T) {
 	err := c.SetAccountPlan("builder")
 	require.NoError(t, err, "SetAccountPlan must support an uninitialised requester")
 	assert.Equal(t, Builder, c.Plan, "SetAccountPlan should set Plan without a requester")
+	assert.Equal(t, builderEPL, planRateLimit(c.Plan), "SetAccountPlan should select the correct tier rate limit")
 }
 
 func TestSetAccountPlanWithoutRateLimiter(t *testing.T) {
 	t.Parallel()
-	c := Coinmarketcap{Plan: Enterprise, Requester: new(request.Requester)}
-	err := c.SetAccountPlan("builder")
-	require.ErrorIs(t, err, errRateLimiterNotSet, "SetAccountPlan must reject a requester without a rate limiter")
-	assert.ErrorIs(t, err, common.ErrNilPointer, "SetAccountPlan should wrap the underlying nil limiter error")
-	assert.Equal(t, Enterprise, c.Plan, "SetAccountPlan should not change Plan when the rate limiter is missing")
+
+	t.Run("nil definitions", func(t *testing.T) {
+		t.Parallel()
+		c := Coinmarketcap{Plan: Enterprise, Requester: new(request.Requester)}
+		err := c.SetAccountPlan("builder")
+		require.ErrorIs(t, err, errRateLimiterNotSet, "SetAccountPlan must reject nil rate-limit definitions")
+		assert.ErrorIs(t, err, common.ErrNilPointer, "SetAccountPlan should wrap the underlying nil limiter error")
+		assert.Equal(t, Enterprise, c.Plan, "SetAccountPlan should not change Plan when rate-limit definitions are nil")
+	})
+
+	t.Run("missing selected definition", func(t *testing.T) {
+		t.Parallel()
+		c := Coinmarketcap{Plan: Enterprise}
+		c.SetDefaults()
+		delete(c.Requester.GetRateLimiterDefinitions(), builderEPL)
+		err := c.SetAccountPlan("builder")
+		require.ErrorIs(t, err, errRateLimiterNotSet, "SetAccountPlan must reject a missing selected rate limit")
+		assert.ErrorIs(t, err, common.ErrNilPointer, "SetAccountPlan should wrap the underlying nil limiter error")
+		assert.Equal(t, Enterprise, c.Plan, "SetAccountPlan should not change Plan when the selected rate limit is missing")
+	})
+}
+
+func TestSetAccountPlanPreservesRateLimitBudget(t *testing.T) {
+	t.Parallel()
+	synctest.Test(t, func(t *testing.T) {
+		var c Coinmarketcap
+		c.SetDefaults()
+		require.NoError(t, c.SetAccountPlan("basic"), "SetAccountPlan must select the Basic plan")
+		limiter := c.Requester.GetRateLimiterDefinitions()[basicEPL]
+		start := time.Now()
+		require.NoError(t, limiter.RateLimit(t.Context()), "RateLimit must allow the first Basic request")
+		require.NoError(t, c.SetAccountPlan("builder"), "SetAccountPlan must select the Builder plan")
+		require.NoError(t, c.SetAccountPlan("basic"), "SetAccountPlan must reselect the Basic plan")
+		require.NoError(t, limiter.RateLimit(t.Context()), "RateLimit must allow the second Basic request")
+		assert.Equal(t, rateInterval/time.Duration(basicRequestRate), time.Since(start), "SetAccountPlan should preserve the Basic rate-limit budget")
+	})
 }
 
 func TestNewFromSettingsAndSetupDisabled(t *testing.T) {
