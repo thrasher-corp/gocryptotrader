@@ -289,7 +289,7 @@ type CryptocurrencyQuote struct {
 	MarketCapDominance     float64   `json:"market_cap_dominance"`
 	FullyDilutedMarketCap  float64   `json:"fully_diluted_market_cap"`
 	MintedMarketCap        float64   `json:"minted_market_cap"`
-	TVL                    *float64  `json:"tvl"`
+	TVL                    float64   `json:"tvl"`
 	MarketCapByTotalSupply float64   `json:"market_cap_by_total_supply"`
 	LastUpdated            time.Time `json:"last_updated"`
 }

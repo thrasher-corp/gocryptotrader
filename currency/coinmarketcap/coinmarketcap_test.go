@@ -877,7 +877,6 @@ func TestQuoteMapUnmarshal(t *testing.T) {
 
 func TestCryptocurrencyLatestQuoteMapUnmarshal(t *testing.T) {
 	t.Parallel()
-	tvl := 21.0
 	for _, tc := range []struct {
 		name     string
 		input    string
@@ -947,11 +946,16 @@ func TestCryptocurrencyLatestQuoteMapUnmarshal(t *testing.T) {
 					MarketCapDominance:     18,
 					FullyDilutedMarketCap:  19,
 					MintedMarketCap:        20,
-					TVL:                    &tvl,
+					TVL:                    21,
 					MarketCapByTotalSupply: 22,
 					LastUpdated:            time.Date(2026, 6, 19, 14, 2, 0, 0, time.UTC),
 				},
 			},
+		},
+		{
+			name:     "null tvl decodes to zero",
+			input:    `[{"id":2781,"symbol":"USD","tvl":null}]`,
+			expected: CryptocurrencyLatestQuoteMap{"USD": {ID: 2781, Symbol: "USD"}},
 		},
 		{name: "empty array", input: `[]`, expected: CryptocurrencyLatestQuoteMap{}},
 		{
