@@ -55,7 +55,31 @@ func (p Pairs) Strings() []string {
 
 // Join returns a comma separated list of currency pairs
 func (p Pairs) Join() string {
-	return strings.Join(p.Strings(), ",")
+	switch len(p) {
+	case 0:
+		return ""
+	case 1:
+		return p[0].String()
+	}
+
+	// Build directly to avoid allocating an intermediate string for each pair.
+	// len(p) - 1 accounts for the commas inserted between pairs.
+	outputLen := len(p) - 1
+	for i := range p {
+		outputLen += len(p[i].Base.String()) + len(p[i].Delimiter) + len(p[i].Quote.String())
+	}
+
+	var joined strings.Builder
+	joined.Grow(outputLen)
+	for i := range p {
+		if i > 0 {
+			joined.WriteByte(',')
+		}
+		joined.WriteString(p[i].Base.String())
+		joined.WriteString(p[i].Delimiter)
+		joined.WriteString(p[i].Quote.String())
+	}
+	return joined.String()
 }
 
 // Format formats the pair list to the exchange format configuration

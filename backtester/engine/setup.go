@@ -231,7 +231,8 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				cfg.CurrencySettings[i].Asset,
 				cfg.CurrencySettings[i].Base,
 				cfg.CurrencySettings[i].Quote,
-				err)
+				err,
+			)
 		}
 		if portfolioRisk.CurrencySettings == nil {
 			portfolioRisk.CurrencySettings = make(map[key.ExchangeAssetPair]*risk.CurrencySettings)
@@ -344,7 +345,8 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				a,
 				curr.Base,
 				bFunds,
-				decimal.Zero)
+				decimal.Zero,
+			)
 			if err != nil {
 				return err
 			}
@@ -353,7 +355,8 @@ func (bt *BackTest) SetupFromConfig(cfg *config.Config, templatePath, output str
 				a,
 				curr.Quote,
 				qFunds,
-				decimal.Zero)
+				decimal.Zero,
+			)
 			if err != nil {
 				return err
 			}
@@ -486,7 +489,8 @@ func (bt *BackTest) setupExchangeSettings(cfg *config.Config) (*exchange.Exchang
 			cfg.CurrencySettings[i].ExchangeName,
 			cfg.CurrencySettings[i].Base,
 			cfg.CurrencySettings[i].Quote,
-			cfg.CurrencySettings[i].Asset)
+			cfg.CurrencySettings[i].Asset,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -740,7 +744,8 @@ func (bt *BackTest) loadData(cfg *config.Config, exch gctexchange.IBotExchange, 
 			cfg.DataSettings.Interval.Duration(),
 			fPair,
 			a,
-			isUSDTrackingPair)
+			isUSDTrackingPair,
+		)
 		if err != nil {
 			return nil, fmt.Errorf("%v. Please check your GoCryptoTrader configuration", err)
 		}
@@ -879,7 +884,8 @@ func loadDatabaseData(cfg *config.Config, name string, fPair currency.Pair, a as
 		dataType,
 		fPair,
 		a,
-		isUSDTrackingPair)
+		isUSDTrackingPair,
+	)
 }
 
 func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair currency.Pair, a asset.Item, resultLimit uint64, dataType int64) (*kline.DataFromKline, error) {
@@ -891,7 +897,8 @@ func loadAPIData(cfg *config.Config, exch gctexchange.IBotExchange, fPair curren
 		cfg.DataSettings.APIData.StartDate,
 		cfg.DataSettings.APIData.EndDate,
 		cfg.DataSettings.Interval,
-		resultLimit)
+		resultLimit,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -937,29 +944,21 @@ func setExchangeCredentials(cfg *config.Config, exch *gctexchange.Base) error {
 	if len(cfg.DataSettings.LiveData.ExchangeCredentials) == 0 {
 		return errNoCredsNoLive
 	}
-	name := strings.ToLower(exch.Name)
-	for i := range cfg.DataSettings.LiveData.ExchangeCredentials {
-		if !strings.EqualFold(cfg.DataSettings.LiveData.ExchangeCredentials[i].Exchange, name) ||
-			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.IsEmpty() {
-			return fmt.Errorf("%v %w, please review your live, real order config", exch.GetName(), gctexchange.ErrCredentialsAreEmpty)
+	for _, creds := range cfg.DataSettings.LiveData.ExchangeCredentials {
+		if !strings.EqualFold(creds.Exchange, exch.Name) {
+			continue
+		}
+		if creds.Keys.IsEmpty() {
+			break
 		}
 		exch.API.AuthenticatedSupport = true
 		exch.API.AuthenticatedWebsocketSupport = true
-		exch.SetCredentials(
-			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.Key,
-			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.Secret,
-			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.ClientID,
-			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.SubAccount,
-			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.PEMKey,
-			cfg.DataSettings.LiveData.ExchangeCredentials[i].Keys.OneTimePassword,
-		)
+		exch.SetCredentials(&creds.Keys)
 		_, err := exch.GetCredentials(context.TODO())
-		if err != nil {
-			return err
-		}
+		return err
 	}
 
-	return nil
+	return fmt.Errorf("%v %w, please review your live, real order config", exch.GetName(), gctexchange.ErrCredentialsAreEmpty)
 }
 
 // NewBacktesterFromConfigs creates a new backtester based on config settings
