@@ -54,7 +54,6 @@ const (
 	htxOrderCancel                  = "/order/orders/%s/submitcancel"
 	htxOrderCancelBatch             = "/order/orders/batchcancel"
 	htxBatchCancelOpenOrders        = "/order/orders/batchCancelOpenOrders"
-	htxGetOrder                     = "/order/orders/getClientOrder"
 	htxGetOrderMatch                = "/order/orders/%s/matchresults"
 	htxGetOrders                    = "/order/orders"
 	htxGetOpenOrders                = "/order/openOrders"
@@ -431,17 +430,19 @@ func (e *Exchange) SpotNewOrder(ctx context.Context, arg *SpotNewOrderRequestPar
 	}
 
 	data := struct {
-		AccountID int    `json:"account-id,string"`
-		Amount    string `json:"amount"`
-		Price     string `json:"price"`
-		Source    string `json:"source"`
-		Symbol    string `json:"symbol"`
-		Type      string `json:"type"`
+		AccountID     int    `json:"account-id,string"`
+		ClientOrderID string `json:"client-order-id,omitempty"`
+		Amount        string `json:"amount"`
+		Price         string `json:"price"`
+		Source        string `json:"source"`
+		Symbol        string `json:"symbol"`
+		Type          string `json:"type"`
 	}{
-		AccountID: arg.AccountID,
-		Amount:    strconv.FormatFloat(arg.Amount, 'f', -1, 64),
-		Symbol:    symbolValue,
-		Type:      string(arg.Type),
+		AccountID:     arg.AccountID,
+		ClientOrderID: arg.ClientOrderID,
+		Amount:        strconv.FormatFloat(arg.Amount, 'f', -1, 64),
+		Symbol:        symbolValue,
+		Type:          string(arg.Type),
 	}
 
 	// Only set price if order type is not equal to buy-market or sell-market
@@ -525,11 +526,10 @@ func (e *Exchange) GetOrder(ctx context.Context, orderID int64) (OrderInfo, erro
 	resp := struct {
 		Order OrderInfo `json:"data"`
 	}{}
-	urlVal := url.Values{}
-	urlVal.Set("clientOrderId", strconv.FormatInt(orderID, 10))
+	endpoint := "/order/orders/" + strconv.FormatInt(orderID, 10)
 	err := e.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodGet,
-		htxGetOrder,
-		urlVal,
+		endpoint,
+		nil,
 		nil,
 		&resp,
 		false)
@@ -873,7 +873,7 @@ func (e *Exchange) SearchForExistedWithdrawsAndDeposits(ctx context.Context, c c
 		vals.Set("currency", c.Lower().String())
 	}
 	if direction != "" {
-		vals.Set("direction", direction)
+		vals.Set("direct", direction)
 	}
 	if fromID > 0 {
 		vals.Set("from", strconv.FormatInt(fromID, 10))

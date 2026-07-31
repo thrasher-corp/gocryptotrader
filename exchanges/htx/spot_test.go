@@ -20,9 +20,6 @@ import (
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
-// Please supply your own test keys here for due diligence testing.
-const canManipulateRealOrders = false
-
 var apiCredentials = &accounts.Credentials{
 	Key:    "",
 	Secret: "",
@@ -443,7 +440,7 @@ func TestCancelExistingOrder(t *testing.T) {
 
 func TestGetOrder(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1"+htxGetOrder, emptySuccessResponse, nil)
+	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1/order/orders/1337", emptySuccessResponse, nil)
 	_, err := h.GetOrder(t.Context(), 1337)
 	require.NoError(t, err, "GetOrder must not error")
 }
@@ -590,8 +587,11 @@ func TestQueryWithdrawQuotas(t *testing.T) {
 
 func TestSearchForExistedWithdrawsAndDeposits(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1"+htxWithdrawHistory, emptySuccessResponse, nil)
-	_, err := h.SearchForExistedWithdrawsAndDeposits(t.Context(), currency.BTC, "deposit", "", 0, 100)
+	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodGet, "/v1"+htxWithdrawHistory, emptySuccessResponse, func(r *http.Request) {
+		assert.Equal(t, "next", r.URL.Query().Get("direct"), "direct query parameter should match")
+		assert.Empty(t, r.URL.Query().Get("direction"), "undocumented direction query parameter should not be sent")
+	})
+	_, err := h.SearchForExistedWithdrawsAndDeposits(t.Context(), currency.BTC, "deposit", "next", 0, 100)
 	require.NoError(t, err, "SearchForExistedWithdrawsAndDeposits must not error")
 }
 

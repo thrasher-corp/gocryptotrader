@@ -10,10 +10,13 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 // appendFuturesCandles normalises the candlestick shape shared by HTX delivery
@@ -182,4 +185,219 @@ func (e *Exchange) SetLeverage(ctx context.Context, item asset.Item, pair curren
 	default:
 		return fmt.Errorf("%w %v", asset.ErrNotSupported, item)
 	}
+}
+
+func settlementCurrencyForContract(item asset.Item, pair currency.Pair) (currency.Code, error) {
+	if pair.IsEmpty() {
+		return currency.EMPTYCODE, currency.ErrCurrencyPairEmpty
+	}
+	switch item {
+	case asset.Futures, asset.CoinMarginedFutures:
+		return pair.Base, nil
+	case asset.USDTMarginedFutures:
+		return pair.Quote, nil
+	default:
+		return currency.EMPTYCODE, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
+}
+
+// GetCollateralCurrencyForContract returns the currency used as collateral for an HTX contract.
+func (e *Exchange) GetCollateralCurrencyForContract(item asset.Item, pair currency.Pair) (currency.Code, asset.Item, error) {
+	code, err := settlementCurrencyForContract(item, pair)
+	if err != nil {
+		return currency.EMPTYCODE, asset.Empty, err
+	}
+	return code, item, nil
+}
+
+// GetCurrencyForRealisedPNL returns the wallet credited with realised contract profit and loss.
+func (e *Exchange) GetCurrencyForRealisedPNL(item asset.Item, pair currency.Pair) (currency.Code, asset.Item, error) {
+	code, err := settlementCurrencyForContract(item, pair)
+	if err != nil {
+		return currency.EMPTYCODE, asset.Empty, err
+	}
+	return code, item, nil
+}
+
+// SetCollateralMode changes the account-wide USDT-margined collateral mode.
+func (e *Exchange) SetCollateralMode(ctx context.Context, item asset.Item, mode collateral.Mode) error {
+	if item != asset.USDTMarginedFutures {
+		return fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
+	var assetMode uint64
+	switch mode {
+	case collateral.MultiMode:
+		assetMode = 1
+	case collateral.SingleMode:
+		assetMode = 2
+	default:
+		return fmt.Errorf("%w %v", collateral.ErrInvalidCollateralMode, mode)
+	}
+	resp, err := e.SetV5AssetMode(ctx, assetMode)
+	if err != nil {
+		return err
+	}
+	if resp == nil {
+		return errEmptyResult
+	}
+	return nil
+}
+
+// GetCollateralMode returns the account-wide USDT-margined collateral mode.
+func (e *Exchange) GetCollateralMode(ctx context.Context, item asset.Item) (collateral.Mode, error) {
+	if item != asset.USDTMarginedFutures {
+		return collateral.UnsetMode, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
+	resp, err := e.GetV5AssetMode(ctx)
+	if err != nil {
+		return collateral.UnsetMode, err
+	}
+	if resp == nil {
+		return collateral.UnsetMode, errEmptyResult
+	}
+	switch resp.Data.AssetMode {
+	case 1:
+		return collateral.MultiMode, nil
+	case 2:
+		return collateral.SingleMode, nil
+	default:
+		return collateral.UnsetMode, fmt.Errorf("%w %d", collateral.ErrInvalidCollateralMode, resp.Data.AssetMode)
+	}
+}
+
+// GetLeverage gets the configured leverage for an HTX derivatives contract.
+func (e *Exchange) GetLeverage(ctx context.Context, item asset.Item, pair currency.Pair, marginType margin.Type, orderSide order.Side) (float64, error) {
+	if pair.IsEmpty() {
+		return 0, currency.ErrCurrencyPairEmpty
+	}
+	switch item {
+	case asset.Futures:
+		if marginType != margin.Isolated && marginType != margin.Unset {
+			return 0, fmt.Errorf("%w %v", margin.ErrMarginTypeUnsupported, marginType)
+		}
+		account, err := e.FGetAccountInfo(ctx, pair.Base)
+		if err != nil {
+			return 0, err
+		}
+		for i := range account.AccData {
+			if account.AccData[i].Symbol.Equal(pair.Base) {
+				return account.AccData[i].LeverageRate, nil
+			}
+		}
+	case asset.CoinMarginedFutures:
+		if marginType != margin.Isolated && marginType != margin.Unset {
+			return 0, fmt.Errorf("%w %v", margin.ErrMarginTypeUnsupported, marginType)
+		}
+		account, err := e.GetSwapAccountInfo(ctx, pair)
+		if err != nil {
+			return 0, err
+		}
+		contractCode, err := e.FormatSymbol(pair, item)
+		if err != nil {
+			return 0, err
+		}
+		for i := range account.Data {
+			if account.Data[i].ContractCode == contractCode ||
+				(account.Data[i].ContractCode == "" && account.Data[i].Symbol.Equal(pair.Base)) {
+				return account.Data[i].LeverageRate, nil
+			}
+		}
+	case asset.USDTMarginedFutures:
+		marginMode := "cross"
+		switch marginType {
+		case margin.Unset, margin.Multi:
+		case margin.Isolated:
+			marginMode = "isolated"
+		default:
+			return 0, fmt.Errorf("%w %v", margin.ErrMarginTypeUnsupported, marginType)
+		}
+		var positionSide string
+		switch {
+		case orderSide == order.UnknownSide:
+		case orderSide.IsLong():
+			positionSide = "long"
+		case orderSide.IsShort():
+			positionSide = "short"
+		default:
+			return 0, order.ErrSideIsInvalid
+		}
+		leverage, err := e.GetV5Leverage(ctx, pair, marginMode, positionSide)
+		if err != nil {
+			return 0, err
+		}
+		contractCode, err := e.FormatSymbol(pair, item)
+		if err != nil {
+			return 0, err
+		}
+		for i := range leverage.Data {
+			if leverage.Data[i].ContractCode == contractCode &&
+				leverage.Data[i].MarginMode == marginMode &&
+				(positionSide == "" || leverage.Data[i].PositionSide == positionSide) {
+				return float64(leverage.Data[i].LeverageRate), nil
+			}
+		}
+	default:
+		return 0, fmt.Errorf("%w %v", asset.ErrNotSupported, item)
+	}
+	return 0, fmt.Errorf("%w %v %s", futures.ErrPositionNotFound, item, pair)
+}
+
+// ChangePositionMargin adjusts the margin allocated to an isolated USDT-margined position.
+func (e *Exchange) ChangePositionMargin(ctx context.Context, change *margin.PositionChangeRequest) (*margin.PositionChangeResponse, error) {
+	if change == nil {
+		return nil, fmt.Errorf("%w PositionChangeRequest", common.ErrNilPointer)
+	}
+	if change.Asset != asset.USDTMarginedFutures {
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, change.Asset)
+	}
+	if change.Pair.IsEmpty() {
+		return nil, currency.ErrCurrencyPairEmpty
+	}
+	if change.MarginType != margin.Isolated {
+		return nil, fmt.Errorf("%w %v", margin.ErrMarginTypeUnsupported, change.MarginType)
+	}
+	if change.NewAllocatedMargin == 0 {
+		return nil, margin.ErrNewAllocatedMarginRequired
+	}
+	if change.OriginalAllocatedMargin == 0 {
+		return nil, margin.ErrOriginalPositionMarginRequired
+	}
+	if change.NewAllocatedMargin == change.OriginalAllocatedMargin {
+		return &margin.PositionChangeResponse{
+			Exchange:        e.Name,
+			Pair:            change.Pair,
+			Asset:           change.Asset,
+			AllocatedMargin: change.NewAllocatedMargin,
+			MarginType:      change.MarginType,
+		}, nil
+	}
+	amount := change.NewAllocatedMargin - change.OriginalAllocatedMargin
+	changeType := "add"
+	if amount < 0 {
+		changeType = "reduce"
+		amount = -amount
+	}
+	positionSide := change.MarginSide
+	if positionSide == "" {
+		positionSide = "both"
+	}
+	contractCode, err := e.FormatSymbol(change.Pair, change.Asset)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := e.AdjustV5PositionMargin(ctx, &V5AdjustPositionMarginRequest{
+		ContractCode: contractCode,
+		PositionSide: positionSide,
+		Type:         changeType,
+		Amount:       types.Number(amount),
+	}); err != nil {
+		return nil, err
+	}
+	return &margin.PositionChangeResponse{
+		Exchange:        e.Name,
+		Pair:            change.Pair,
+		Asset:           change.Asset,
+		AllocatedMargin: change.NewAllocatedMargin,
+		MarginType:      change.MarginType,
+	}, nil
 }

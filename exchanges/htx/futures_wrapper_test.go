@@ -11,9 +11,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -139,4 +142,184 @@ func TestSetLeverage(t *testing.T) {
 			require.ErrorIs(t, err, tc.expected, "SetLeverage must return the expected validation error")
 		})
 	}
+}
+
+func TestSettlementCurrencyForContract(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name     string
+		item     asset.Item
+		pair     currency.Pair
+		expected currency.Code
+		err      error
+	}{
+		{name: "delivery futures", item: asset.Futures, pair: btccwPair, expected: currency.BTC},
+		{name: "coin margined futures", item: asset.CoinMarginedFutures, pair: btcusdPair, expected: currency.BTC},
+		{name: "USDT margined futures", item: asset.USDTMarginedFutures, pair: btcusdtPair, expected: currency.USDT},
+		{name: "empty pair", item: asset.Futures, err: currency.ErrCurrencyPairEmpty},
+		{name: "unsupported asset", item: asset.Spot, pair: btcusdtPair, err: asset.ErrNotSupported},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := settlementCurrencyForContract(tc.item, tc.pair)
+			if tc.err != nil {
+				require.ErrorIs(t, err, tc.err, "settlementCurrencyForContract must return the expected error")
+				return
+			}
+			require.NoError(t, err, "settlementCurrencyForContract must not error")
+			assert.Equal(t, tc.expected, got, "settlement currency should match")
+		})
+	}
+}
+
+func TestGetCollateralCurrencyForContract(t *testing.T) {
+	t.Parallel()
+	h := new(Exchange)
+	code, item, err := h.GetCollateralCurrencyForContract(asset.CoinMarginedFutures, btcusdPair)
+	require.NoError(t, err, "GetCollateralCurrencyForContract must not error")
+	assert.Equal(t, currency.BTC, code, "collateral currency should match")
+	assert.Equal(t, asset.CoinMarginedFutures, item, "collateral asset should match")
+}
+
+func TestGetCurrencyForRealisedPNL(t *testing.T) {
+	t.Parallel()
+	h := new(Exchange)
+	code, item, err := h.GetCurrencyForRealisedPNL(asset.USDTMarginedFutures, btcusdtPair)
+	require.NoError(t, err, "GetCurrencyForRealisedPNL must not error")
+	assert.Equal(t, currency.USDT, code, "realised PNL currency should match")
+	assert.Equal(t, asset.USDTMarginedFutures, item, "realised PNL asset should match")
+}
+
+func TestSetCollateralMode(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name         string
+		mode         collateral.Mode
+		expectedMode uint64
+	}{
+		{name: "multi asset", mode: collateral.MultiMode, expectedMode: 1},
+		{name: "single asset", mode: collateral.SingleMode, expectedMode: 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/account/asset_mode", `{"code":200,"data":{"asset_mode":1}}`, func(r *http.Request) {
+				var req V5SetAssetModeRequest
+				require.NoError(t, json.NewDecoder(r.Body).Decode(&req), "asset-mode request must decode")
+				assert.Equal(t, tc.expectedMode, req.AssetMode, "HTX asset mode should match")
+			})
+			require.NoError(t, h.SetCollateralMode(t.Context(), asset.USDTMarginedFutures, tc.mode), "SetCollateralMode must not error")
+		})
+	}
+	h := new(Exchange)
+	require.ErrorIs(t, h.SetCollateralMode(t.Context(), asset.Spot, collateral.MultiMode), asset.ErrNotSupported, "SetCollateralMode must reject unsupported assets")
+	require.ErrorIs(t, h.SetCollateralMode(t.Context(), asset.USDTMarginedFutures, collateral.PortfolioMode), collateral.ErrInvalidCollateralMode, "SetCollateralMode must reject unsupported modes")
+}
+
+func TestGetCollateralMode(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name      string
+		assetMode uint64
+		expected  collateral.Mode
+		err       error
+	}{
+		{name: "multi asset", assetMode: 1, expected: collateral.MultiMode},
+		{name: "single asset", assetMode: 2, expected: collateral.SingleMode},
+		{name: "unknown asset mode", assetMode: 3, err: collateral.ErrInvalidCollateralMode},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			h := newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodGet, "/v5/account/asset_mode",
+				`{"code":200,"data":{"asset_mode":`+strconv.FormatUint(tc.assetMode, 10)+`}}`, nil)
+			got, err := h.GetCollateralMode(t.Context(), asset.USDTMarginedFutures)
+			if tc.err != nil {
+				require.ErrorIs(t, err, tc.err, "GetCollateralMode must return the expected error")
+				return
+			}
+			require.NoError(t, err, "GetCollateralMode must not error")
+			assert.Equal(t, tc.expected, got, "collateral mode should match")
+		})
+	}
+	h := new(Exchange)
+	_, err := h.GetCollateralMode(t.Context(), asset.Spot)
+	require.ErrorIs(t, err, asset.ErrNotSupported, "GetCollateralMode must reject unsupported assets")
+}
+
+func TestGetLeverage(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name       string
+		item       asset.Item
+		pair       currency.Pair
+		marginType margin.Type
+		endpoint   exchange.URL
+		method     string
+		path       string
+		response   string
+	}{
+		{
+			name: "delivery futures", item: asset.Futures, pair: btccwPair, marginType: margin.Isolated,
+			endpoint: exchange.RestFutures, method: http.MethodPost, path: fAccountData,
+			response: `{"status":"ok","data":[{"symbol":"BTC","lever_rate":5}]}`,
+		},
+		{
+			name: "coin margined futures", item: asset.CoinMarginedFutures, pair: btcusdPair, marginType: margin.Isolated,
+			endpoint: exchange.RestFutures, method: http.MethodPost, path: "/swap-api/v1/swap_account_info",
+			response: `{"status":"ok","data":[{"contract_code":"BTC-USD","lever_rate":5}]}`,
+		},
+		{
+			name: "USDT margined futures", item: asset.USDTMarginedFutures, pair: btcusdtPair, marginType: margin.Multi,
+			endpoint: exchange.RestUSDTMargined, method: http.MethodGet, path: "/v5/position/lever",
+			response: `{"code":200,"data":[{"contract_code":"BTC-USDT","margin_mode":"cross","position_side":"both","lever_rate":5}]}`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			h := newHTTPTestExchange(t, tc.endpoint, tc.method, tc.path, tc.response, nil)
+			got, err := h.GetLeverage(t.Context(), tc.item, tc.pair, tc.marginType, order.UnknownSide)
+			require.NoError(t, err, "GetLeverage must not error")
+			assert.Equal(t, 5.0, got, "leverage should match")
+		})
+	}
+
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+	_, err := h.GetLeverage(t.Context(), asset.Spot, btcusdtPair, margin.Unset, order.UnknownSide)
+	require.ErrorIs(t, err, asset.ErrNotSupported, "GetLeverage must reject unsupported assets")
+	_, err = h.GetLeverage(t.Context(), asset.Futures, currency.EMPTYPAIR, margin.Unset, order.UnknownSide)
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "GetLeverage must reject empty pairs")
+	_, err = newHTTPTestExchange(t, exchange.RestFutures, http.MethodPost, fAccountData, `{"status":"ok","data":[]}`, nil).
+		GetLeverage(t.Context(), asset.Futures, btccwPair, margin.Isolated, order.UnknownSide)
+	require.ErrorIs(t, err, futures.ErrPositionNotFound, "GetLeverage must report missing leverage data")
+}
+
+func TestChangePositionMargin(t *testing.T) {
+	t.Parallel()
+	h := new(Exchange)
+	require.NoError(t, testexch.Setup(h), "HTX setup must not error")
+	_, err := h.ChangePositionMargin(t.Context(), nil)
+	require.ErrorIs(t, err, common.ErrNilPointer, "ChangePositionMargin must reject nil requests")
+	_, err = h.ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{Asset: asset.Spot})
+	require.ErrorIs(t, err, asset.ErrNotSupported, "ChangePositionMargin must reject unsupported assets")
+	_, err = h.ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{Asset: asset.USDTMarginedFutures})
+	require.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "ChangePositionMargin must reject empty pairs")
+	_, err = h.ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{
+		Asset: asset.USDTMarginedFutures, Pair: btcusdtPair, MarginType: margin.Multi,
+	})
+	require.ErrorIs(t, err, margin.ErrMarginTypeUnsupported, "ChangePositionMargin must reject cross margin")
+
+	resp, err := h.ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{
+		Asset: asset.USDTMarginedFutures, Pair: btcusdtPair, MarginType: margin.Isolated,
+		OriginalAllocatedMargin: 2, NewAllocatedMargin: 2,
+	})
+	require.NoError(t, err, "ChangePositionMargin must accept a no-op adjustment")
+	assert.Equal(t, 2.0, resp.AllocatedMargin, "no-op allocated margin should be unchanged")
+
+	h = newHTTPTestExchange(t, exchange.RestUSDTMargined, http.MethodPost, "/v5/position/margin", `{"code":200}`, nil)
+	resp, err = h.ChangePositionMargin(t.Context(), &margin.PositionChangeRequest{
+		Asset: asset.USDTMarginedFutures, Pair: btcusdtPair, MarginType: margin.Isolated,
+		OriginalAllocatedMargin: 2, NewAllocatedMargin: 5,
+	})
+	require.NoError(t, err, "ChangePositionMargin must not error")
+	assert.Equal(t, 5.0, resp.AllocatedMargin, "allocated margin should match")
 }

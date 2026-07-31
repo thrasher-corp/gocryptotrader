@@ -56,17 +56,17 @@ type SwapKlineData struct {
 type MarketOverviewData struct {
 	Channel string `json:"ch"`
 	Tick    struct {
-		Vol       types.Number `json:"vol,string"`
+		Vol       types.Number `json:"vol"`
 		Ask       []float64    `json:"ask"`
 		Bid       []float64    `json:"bid"`
-		Close     types.Number `json:"close,string"`
+		Close     types.Number `json:"close"`
 		Count     float64      `json:"count"`
-		High      types.Number `json:"high,string"`
+		High      types.Number `json:"high"`
 		ID        int64        `json:"id"`
-		Low       types.Number `json:"low,string"`
-		Open      types.Number `json:"open,string"`
+		Low       types.Number `json:"low"`
+		Open      types.Number `json:"open"`
 		Timestamp types.Time   `json:"ts"`
-		Amount    types.Number `json:"amount,string"`
+		Amount    types.Number `json:"amount"`
 	} `json:"tick"`
 }
 
@@ -75,10 +75,10 @@ type LastTradeData struct {
 	Ch   string `json:"ch"`
 	Tick struct {
 		Data []struct {
-			Amount    types.Number `json:"amount,string"`
+			Amount    types.Number `json:"amount"`
 			Direction string       `json:"direction"`
 			ID        int64        `json:"id"`
-			Price     types.Number `json:"price,string"`
+			Price     types.Number `json:"price"`
 			Timestamp types.Time   `json:"ts"`
 		} `json:"data"`
 	} `json:"tick"`
@@ -220,8 +220,8 @@ type SwapFundingRatesResponse struct {
 
 // FundingRatesData stores funding rates data
 type FundingRatesData struct {
-	EstimatedRate   types.Number `json:"estimated_rate,string"`
-	FundingRate     types.Number `json:"funding_rate,string"`
+	EstimatedRate   types.Number `json:"estimated_rate"`
+	FundingRate     types.Number `json:"funding_rate"`
 	ContractCode    string       `json:"contract_code"`
 	Symbol          string       `json:"symbol"`
 	FeeAsset        string       `json:"fee_asset"`
@@ -241,27 +241,27 @@ type HistoricalFundingRateData struct {
 
 // HistoricalRateData stores historical rates data
 type HistoricalRateData struct {
-	FundingRate     types.Number `json:"funding_rate,string"`
-	RealizedRate    types.Number `json:"realized_rate,string"`
+	FundingRate     types.Number `json:"funding_rate"`
+	RealizedRate    types.Number `json:"realized_rate"`
 	FundingTime     types.Time   `json:"funding_time"`
 	ContractCode    string       `json:"contract_code"`
 	Symbol          string       `json:"symbol"`
 	FeeAsset        string       `json:"fee_asset"`
-	AvgPremiumIndex types.Number `json:"avg_premium_index,string"`
+	AvgPremiumIndex types.Number `json:"avg_premium_index"`
 }
 
 // PremiumIndexKlineData stores kline data for premium
 type PremiumIndexKlineData struct {
 	Channel string `json:"ch"`
 	Data    []struct {
-		Volume types.Number `json:"vol,string"`
-		Close  types.Number `json:"close,string"`
-		Count  types.Number `json:"count,string"`
-		High   types.Number `json:"high,string"`
+		Volume types.Number `json:"vol"`
+		Close  types.Number `json:"close"`
+		Count  types.Number `json:"count"`
+		High   types.Number `json:"high"`
 		ID     int64        `json:"id"`
-		Low    types.Number `json:"low,string"`
-		Open   types.Number `json:"open,string"`
-		Amount types.Number `json:"amount,string"`
+		Low    types.Number `json:"low"`
+		Open   types.Number `json:"open"`
+		Amount types.Number `json:"amount"`
 	} `json:"data"`
 	Timestamp types.Time `json:"ts"`
 }
@@ -509,10 +509,10 @@ type SwapTradingFeeData struct {
 		Symbol        string       `json:"symbol"`
 		ContractCode  string       `json:"contract_code"`
 		FeeAsset      string       `json:"fee_asset"`
-		OpenMakerFee  types.Number `json:"open_maker_fee,string"`
-		OpenTakerFee  types.Number `json:"open_taker_fee,string"`
-		CloseMakerFee types.Number `json:"close_maker_fee,string"`
-		CloseTakerFee types.Number `json:"close_taker_fee,string"`
+		OpenMakerFee  types.Number `json:"open_maker_fee"`
+		OpenTakerFee  types.Number `json:"open_taker_fee"`
+		CloseMakerFee types.Number `json:"close_maker_fee"`
+		CloseTakerFee types.Number `json:"close_taker_fee"`
 	} `json:"data"`
 	Timestamp types.Time `json:"ts"`
 }
@@ -578,7 +578,7 @@ type InternalAccountTransferRecords struct {
 type SwapOrderData struct {
 	Data struct {
 		OrderID       int64  `json:"order_id"`
-		OrderIDString string `json:"order_id_string"`
+		OrderIDString string `json:"order_id_str"`
 		ClientOrderID int64  `json:"client_order_id"`
 	} `json:"data"`
 	Timestamp types.Time `json:"ts"`
@@ -619,12 +619,14 @@ type batchOrderData struct {
 
 // CancelOrdersData stores order cancellation data
 type CancelOrdersData struct {
-	Errors []struct {
-		OrderID string `json:"order_id"`
-		ErrCode int64  `json:"err_code"`
-		ErrMsg  string `json:"err_msg"`
-	} `json:"errors"`
-	Successes string     `json:"successes"`
+	Data struct {
+		Errors []struct {
+			OrderID string `json:"order_id"`
+			ErrCode int64  `json:"err_code"`
+			ErrMsg  string `json:"err_msg"`
+		} `json:"errors"`
+		Successes string `json:"successes"`
+	} `json:"data"`
 	Timestamp types.Time `json:"ts"`
 }
 
@@ -650,7 +652,7 @@ type SwapOrderInfo struct {
 		Offset          string  `json:"offset"`
 		LeverRate       int64   `json:"lever_rate"`
 		OrderID         int64   `json:"order_id"`
-		OrderIDString   string  `json:"order_id_string"`
+		OrderIDString   string  `json:"order_id_str"`
 		ClientOrderID   int64   `json:"client_order_id"`
 		OrderSource     string  `json:"order_source"`
 		CreatedAt       int64   `json:"created_at"`
@@ -662,7 +664,7 @@ type SwapOrderInfo struct {
 		MarginFrozen    float64 `json:"margin_frozen"`
 		Profit          float64 `json:"profit"`
 		Status          int64   `json:"status"`
-		FeeAsset        float64 `json:"fee_asset"`
+		FeeAsset        string  `json:"fee_asset"`
 		LiquidationType int64   `json:"liquidation_type"`
 	}
 	Timestamp types.Time `json:"ts"`

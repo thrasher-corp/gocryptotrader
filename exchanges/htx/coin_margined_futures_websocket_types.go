@@ -73,13 +73,13 @@ type SwapWsSubEstimatedFunding struct {
 	Timestamp types.Time `json:"ts"`
 	Tick      struct {
 		ID     int64        `json:"id"`
-		Volume types.Number `json:"vol,string"`
-		Count  types.Number `json:"count,string"`
-		Open   types.Number `json:"open,string"`
-		Close  types.Number `json:"close,string"`
-		Low    types.Number `json:"low,string"`
-		High   types.Number `json:"high,string"`
-		Amount types.Number `json:"amount,string"`
+		Volume types.Number `json:"vol"`
+		Count  types.Number `json:"count"`
+		Open   types.Number `json:"open"`
+		Close  types.Number `json:"close"`
+		Low    types.Number `json:"low"`
+		High   types.Number `json:"high"`
+		Amount types.Number `json:"amount"`
 	} `json:"tick"`
 }
 
@@ -90,14 +90,14 @@ type SwapWsReqEstimatedFunding struct {
 	WsID      int64      `json:"wsid"`
 	Timestamp types.Time `json:"ts"`
 	Data      []struct {
-		Volume types.Number `json:"vol,string"`
-		Count  types.Number `json:"count,string"`
+		Volume types.Number `json:"vol"`
+		Count  types.Number `json:"count"`
 		ID     int64        `json:"id"`
-		Open   types.Number `json:"open,string"`
-		Close  types.Number `json:"close,string"`
-		Low    types.Number `json:"low,string"`
-		High   types.Number `json:"high,string"`
-		Amount types.Number `json:"amount,string"`
+		Open   types.Number `json:"open"`
+		Close  types.Number `json:"close"`
+		Low    types.Number `json:"low"`
+		High   types.Number `json:"high"`
+		Amount types.Number `json:"amount"`
 	}
 }
 
@@ -107,10 +107,10 @@ type SwapWsSubBasisData struct {
 	Timestamp types.Time `json:"ts"`
 	Tick      []struct {
 		ID            int64        `json:"id"`
-		ContractPrice types.Number `json:"contract_price,string"`
-		IndexPrice    types.Number `json:"index_price,string"`
-		Basis         types.Number `json:"basis,string"`
-		BasisRate     types.Number `json:"basis_rate,string"`
+		ContractPrice types.Number `json:"contract_price"`
+		IndexPrice    types.Number `json:"index_price"`
+		Basis         types.Number `json:"basis"`
+		BasisRate     types.Number `json:"basis_rate"`
 	} `json:"tick"`
 }
 
@@ -325,8 +325,8 @@ type SwapWsSubFundingData struct {
 		ContractCode   string       `json:"contract_code"`
 		FeeAsset       string       `json:"fee_asset"`
 		FundingTime    types.Time   `json:"funding_time"`
-		FundingRate    types.Number `json:"funding_rate,string"`
-		EstimatedRate  types.Number `json:"estimated_rate,string"`
+		FundingRate    types.Number `json:"funding_rate"`
+		EstimatedRate  types.Number `json:"estimated_rate"`
 		SettlementTime types.Time   `json:"settlement_time"`
 	} `json:"data"`
 }

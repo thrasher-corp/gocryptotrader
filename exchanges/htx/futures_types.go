@@ -124,17 +124,17 @@ type FuturesKline struct {
 type FMarketOverviewData struct {
 	Ch   string `json:"ch"`
 	Tick struct {
-		Vol       types.Number `json:"vol,string"`
-		Ask       [2]float64
-		Bid       [2]float64
-		Close     types.Number `json:"close,string"`
+		Vol       types.Number `json:"vol"`
+		Ask       []float64    `json:"ask"`
+		Bid       []float64    `json:"bid"`
+		Close     types.Number `json:"close"`
 		Count     float64      `json:"count"`
-		High      types.Number `json:"high,string"`
+		High      types.Number `json:"high"`
 		ID        int64        `jso:"id"`
-		Low       types.Number `json:"low,string"`
-		Open      types.Number `json:"open,string"`
+		Low       types.Number `json:"low"`
+		Open      types.Number `json:"open"`
 		Timestamp types.Time   `json:"ts"`
-		Amount    types.Number `json:"amount,string"`
+		Amount    types.Number `json:"amount"`
 	} `json:"tick"`
 	Timestamp types.Time `json:"ts"`
 }
@@ -144,10 +144,10 @@ type FLastTradeData struct {
 	Ch   string `json:"ch"`
 	Tick struct {
 		Data []struct {
-			Amount    types.Number `json:"amount,string"`
+			Amount    types.Number `json:"amount"`
 			Direction string       `json:"direction"`
 			ID        int64        `json:"id"`
-			Price     types.Number `json:"price,string"`
+			Price     types.Number `json:"price"`
 			Timestamp types.Time   `json:"ts"`
 		} `json:"data"`
 		ID        int64      `json:"id"`
@@ -221,7 +221,7 @@ type FOIData struct {
 		Symbol       string `json:"symbol"`
 		ContractType string `json:"contract_type"`
 		Tick         []struct {
-			Volume     types.Number `json:"volume,string"`
+			Volume     types.Number `json:"volume"`
 			AmountType int64        `json:"amount_type"`
 			Timestamp  types.Time   `json:"ts"`
 		} `json:"tick"`
@@ -308,11 +308,11 @@ type FIndexKlineData struct {
 type FBasisData struct {
 	Ch   string `json:"ch"`
 	Data []struct {
-		Basis         types.Number `json:"basis,string"`
-		BasisRate     types.Number `json:"basis_rate,string"`
-		ContractPrice types.Number `json:"contract_price,string"`
+		Basis         types.Number `json:"basis"`
+		BasisRate     types.Number `json:"basis_rate"`
+		ContractPrice types.Number `json:"contract_price"`
 		ID            int64        `json:"id"`
-		IndexPrice    types.Number `json:"index_price,string"`
+		IndexPrice    types.Number `json:"index_price"`
 	} `json:"data"`
 	Timestamp types.Time `json:"ts"`
 }
@@ -505,11 +505,11 @@ type FContractInfoOnOrderLimit struct {
 type FContractTradingFeeData struct {
 	ContractTradingFeeData []struct {
 		Symbol        string       `json:"symbol"`
-		OpenMakerFee  types.Number `json:"open_maker_fee,string"`
-		OpenTakerFee  types.Number `json:"open_taker_fee,string"`
-		CloseMakerFee types.Number `json:"close_maker_fee,string"`
-		CloseTakerFee types.Number `json:"close_taker_fee,string"`
-		DeliveryFee   types.Number `json:"delivery_fee,string"`
+		OpenMakerFee  types.Number `json:"open_maker_fee"`
+		OpenTakerFee  types.Number `json:"open_taker_fee"`
+		CloseMakerFee types.Number `json:"close_maker_fee"`
+		CloseTakerFee types.Number `json:"close_taker_fee"`
+		DeliveryFee   types.Number `json:"delivery_fee"`
 		FeeAsset      string       `json:"fee_asset"`
 	} `json:"data"`
 	Timestamp types.Time `json:"ts"`
@@ -667,7 +667,7 @@ type FOrderInfo struct {
 		MarginFrozen    float64 `json:"margin_frozen"`
 		Offset          string  `json:"offset"`
 		OrderID         int64   `json:"order_id"`
-		OrderIDString   string  `json:"order_id_string"`
+		OrderIDString   string  `json:"order_id_str"`
 		OrderPriceType  string  `json:"order_price_type"`
 		OrderSource     string  `json:"order_source"`
 		OrderType       int64   `json:"order_type"`

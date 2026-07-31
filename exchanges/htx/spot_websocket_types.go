@@ -105,8 +105,8 @@ type wsAccountUpdateMsg struct {
 type WsAccountUpdate struct {
 	Currency    string       `json:"currency"`
 	AccountID   int64        `json:"accountId"`
-	Balance     types.Number `json:"balance,string"`
-	Available   types.Number `json:"available,string"`
+	Balance     types.Number `json:"balance"`
+	Available   types.Number `json:"available"`
 	ChangeType  string       `json:"changeType"`
 	AccountType string       `json:"accountType"`
 	ChangeTime  types.Time   `json:"changeTime"`
@@ -126,14 +126,14 @@ type WsOrderUpdate struct {
 	TradeID         int64        `json:"tradeId"`
 	ClientOrderID   string       `json:"clientOrderId"`
 	Source          string       `json:"orderSource"`
-	Price           types.Number `json:"orderPrice,string"`
-	Size            types.Number `json:"orderSize,string"`
-	Value           types.Number `json:"orderValue,string"`
+	Price           types.Number `json:"orderPrice"`
+	Size            types.Number `json:"orderSize"`
+	Value           types.Number `json:"orderValue"`
 	OrderType       string       `json:"type"`
-	TradePrice      types.Number `json:"tradePrice,string"`
-	TradeVolume     types.Number `json:"tradeVolume,string"`
-	RemainingAmount types.Number `json:"remainAmt,string"`
-	ExecutedAmount  types.Number `json:"execAmt,string"`
+	TradePrice      types.Number `json:"tradePrice"`
+	TradeVolume     types.Number `json:"tradeVolume"`
+	RemainingAmount types.Number `json:"remainAmt"`
+	ExecutedAmount  types.Number `json:"execAmt"`
 	IsTaker         bool         `json:"aggressor"`
 	Side            order.Side   `json:"orderSide"`
 	OrderStatus     string       `json:"orderStatus"`
@@ -153,22 +153,22 @@ type WsTradeUpdate struct {
 	EventType       string       `json:"eventType"`
 	Symbol          string       `json:"symbol"`
 	OrderID         int64        `json:"orderId"`
-	TradePrice      types.Number `json:"tradePrice,string"`
-	TradeVolume     types.Number `json:"tradeVolume,string"`
+	TradePrice      types.Number `json:"tradePrice"`
+	TradeVolume     types.Number `json:"tradeVolume"`
 	Side            order.Side   `json:"orderSide"`
 	OrderType       string       `json:"orderType"`
 	IsTaker         bool         `json:"aggressor"`
 	TradeID         int64        `json:"tradeId"`
 	TradeTime       types.Time   `json:"tradeTime"`
-	TransactFee     types.Number `json:"transactFee,string"`
+	TransactFee     types.Number `json:"transactFee"`
 	FeeCurrency     string       `json:"feeCurrency"`
 	FeeDeduct       string       `json:"feeDeduct"`
 	FeeDeductType   string       `json:"feeDeductType"`
 	AccountID       int64        `json:"accountId"`
 	Source          string       `json:"orderSource"`
-	OrderPrice      types.Number `json:"orderPrice,string"`
-	OrderSize       types.Number `json:"orderSize,string"`
-	Value           types.Number `json:"orderValue,string"`
+	OrderPrice      types.Number `json:"orderPrice"`
+	OrderSize       types.Number `json:"orderSize"`
+	Value           types.Number `json:"orderValue"`
 	ClientOrderID   string       `json:"clientOrderId"`
 	StopPrice       string       `json:"stopPrice"`
 	Operator        string       `json:"operator"`

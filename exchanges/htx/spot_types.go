@@ -46,16 +46,16 @@ type CurrenciesChainData struct {
 		NumberOfConfirmations     uint16       `json:"numOfConfirmations"`
 		NumberOfFastConfirmations uint16       `json:"numOfFastConfirmations"`
 		DepositStatus             string       `json:"depositStatus"`
-		MinimumDepositAmount      types.Number `json:"minDepositAmt,string"`
+		MinimumDepositAmount      types.Number `json:"minDepositAmt"`
 		WithdrawStatus            string       `json:"withdrawStatus"`
-		MinimumWithdrawalAmount   types.Number `json:"minWithdrawAmt,string"`
+		MinimumWithdrawalAmount   types.Number `json:"minWithdrawAmt"`
 		WithdrawPrecision         int16        `json:"withdrawPrecision"`
-		MaximumWithdrawAmount     types.Number `json:"maxWithdrawwAmt,string"`
-		WithdrawQuotaPerDay       types.Number `json:"withdrawQuotaPerDay,string"`
-		WithdrawQuotaPerYear      types.Number `json:"withdrawQuotaPerYear,string"`
-		WithdrawQuotaTotal        types.Number `json:"withdrawQuotaTotal,string"`
+		MaximumWithdrawAmount     types.Number `json:"maxWithdrawwAmt"`
+		WithdrawQuotaPerDay       types.Number `json:"withdrawQuotaPerDay"`
+		WithdrawQuotaPerYear      types.Number `json:"withdrawQuotaPerYear"`
+		WithdrawQuotaTotal        types.Number `json:"withdrawQuotaTotal"`
 		WithdrawFeeType           string       `json:"withdrawFeeType"`
-		TransactFeeWithdraw       types.Number `json:"transactFeeWithdraw,string"`
+		TransactFeeWithdraw       types.Number `json:"transactFeeWithdraw"`
 		AddressWithTag            bool         `json:"addrWithTag"`
 		AddressDepositTag         bool         `json:"addrDepositTag"`
 	} `json:"chains"`
@@ -199,13 +199,13 @@ type FWsSubKlineIndex struct {
 	Timestamp types.Time `json:"ts"`
 	Tick      struct {
 		ID     string       `json:"id"`
-		Open   types.Number `json:"open,string"`
-		Close  types.Number `json:"close,string"`
-		High   types.Number `json:"high,string"`
-		Low    types.Number `json:"low,string"`
-		Amount types.Number `json:"amount,string"`
-		Volume types.Number `json:"vol,string"`
-		Count  types.Number `json:"count,string"`
+		Open   types.Number `json:"open"`
+		Close  types.Number `json:"close"`
+		High   types.Number `json:"high"`
+		Low    types.Number `json:"low"`
+		Amount types.Number `json:"amount"`
+		Volume types.Number `json:"vol"`
+		Count  types.Number `json:"count"`
 	} `json:"tick"`
 }
 
@@ -233,10 +233,10 @@ type FWsSubBasisData struct {
 	Timestamp types.Time `json:"ts"`
 	Tick      struct {
 		ID            int64        `json:"id"`
-		IndexPrice    types.Number `json:"index_price,string"`
-		ContractPrice types.Number `json:"contract_price,string"`
-		Basis         types.Number `json:"basis,string"`
-		BasisRate     types.Number `json:"basis_rate,string"`
+		IndexPrice    types.Number `json:"index_price"`
+		ContractPrice types.Number `json:"contract_price"`
+		Basis         types.Number `json:"basis"`
+		BasisRate     types.Number `json:"basis_rate"`
 	}
 }
 
@@ -248,10 +248,10 @@ type FWsReqBasisData struct {
 	WsID      int64      `json:"wsid"`
 	Tick      struct {
 		ID            int64        `json:"id"`
-		IndexPrice    types.Number `json:"index_price,string"`
-		ContractPrice types.Number `json:"contract_price,string"`
-		Basis         types.Number `json:"basis,string"`
-		BasisRate     types.Number `json:"basis_rate,string"`
+		IndexPrice    types.Number `json:"index_price"`
+		ContractPrice types.Number `json:"contract_price"`
+		Basis         types.Number `json:"basis"`
+		BasisRate     types.Number `json:"basis_rate"`
 	} `json:"tick"`
 }
 
@@ -460,11 +460,11 @@ type MarginRatesData struct {
 		Symbol     string `json:"symbol"`
 		Currencies []struct {
 			Currency       string       `json:"currency"`
-			InterestRate   types.Number `json:"interest-rate,string"`
-			MinLoanAmount  types.Number `json:"min-loan-amt,string"`
-			MaxLoanAmount  types.Number `json:"max-loan-amt,string"`
-			LoanableAmount types.Number `json:"loanable-amt,string"`
-			ActualRate     types.Number `json:"actual-rate,string"`
+			InterestRate   types.Number `json:"interest-rate"`
+			MinLoanAmount  types.Number `json:"min-loan-amt"`
+			MaxLoanAmount  types.Number `json:"max-loan-amt"`
+			LoanableAmount types.Number `json:"loanable-amt"`
+			ActualRate     types.Number `json:"actual-rate"`
 		} `json:"currencies"`
 	} `json:"data"`
 }
@@ -527,8 +527,8 @@ type Tickers struct {
 type FuturesBatchTicker struct {
 	ID             float64      `json:"id"`
 	Timestamp      types.Time   `json:"ts"`
-	Ask            [2]float64   `json:"ask"`
-	Bid            [2]float64   `json:"bid"`
+	Ask            []float64    `json:"ask"`
+	Bid            []float64    `json:"bid"`
 	BusinessType   string       `json:"business_type"`
 	ContractCode   string       `json:"contract_code"`
 	Open           types.Number `json:"open"`
@@ -659,22 +659,23 @@ type AccountBalance struct {
 type AccountBalanceDetail struct {
 	Currency currency.Code `json:"currency"`
 	Type     string        `json:"type"`
-	Balance  types.Number  `json:"balance,string"`
+	Balance  types.Number  `json:"balance"`
 }
 
 // AggregatedBalance stores balances of all the sub-account
 type AggregatedBalance struct {
 	Currency string       `json:"currency"`
-	Balance  types.Number `json:"balance,string"`
+	Balance  types.Number `json:"balance"`
 }
 
 // CancelOrderBatch stores the cancel order batch data
 type CancelOrderBatch struct {
 	Success []string `json:"success"`
 	Failed  []struct {
-		OrderID      string `json:"order-id"`
-		ErrorCode    string `json:"err-code"`
-		ErrorMessage string `json:"err-msg"`
+		OrderID       string `json:"order-id"`
+		ClientOrderID string `json:"client-order-id"`
+		ErrorCode     string `json:"err-code"`
+		ErrorMessage  string `json:"err-msg"`
 	} `json:"failed"`
 }
 
@@ -683,15 +684,15 @@ type OrderInfo struct {
 	ID               int64        `json:"id"`
 	Symbol           string       `json:"symbol"`
 	AccountID        int64        `json:"account-id"`
-	Amount           types.Number `json:"amount,string"`
-	Price            types.Number `json:"price,string"`
+	Amount           types.Number `json:"amount"`
+	Price            types.Number `json:"price"`
 	CreatedAt        types.Time   `json:"created-at"`
 	Type             string       `json:"type"`
-	FieldAmount      types.Number `json:"field-amount,string"`
-	FieldCashAmount  types.Number `json:"field-cash-amount,string"`
-	FilledAmount     types.Number `json:"filled-amount,string"`
-	FilledCashAmount types.Number `json:"filled-cash-amount,string"`
-	FilledFees       types.Number `json:"filled-fees,string"`
+	FieldAmount      types.Number `json:"field-amount"`
+	FieldCashAmount  types.Number `json:"field-cash-amount"`
+	FilledAmount     types.Number `json:"filled-amount"`
+	FilledCashAmount types.Number `json:"filled-cash-amount"`
+	FilledFees       types.Number `json:"filled-fees"`
 	FinishedAt       types.Time   `json:"finished-at"`
 	UserID           int64        `json:"user-id"`
 	Source           string       `json:"source"`
@@ -747,12 +748,14 @@ type MarginAccountBalance struct {
 
 // SpotNewOrderRequestParams holds the params required to place an order
 type SpotNewOrderRequestParams struct {
-	AccountID int                           `json:"account-id,string"` // Account ID, obtained using the accounts method. Currency trades use the accountid of the ‘spot’ account; for loan asset transactions, please use the accountid of the ‘margin’ account.
-	Amount    float64                       `json:"amount"`            // The limit price indicates the quantity of the order, the market price indicates how much to buy when the order is paid, and the market price indicates how much the coin is sold when the order is sold.
-	Price     float64                       `json:"price"`             // Order price, market price does not use  this parameter
-	Source    string                        `json:"source"`            // Order source, api: API call, margin-api: loan asset transaction
-	Symbol    currency.Pair                 `json:"symbol"`            // The symbol to use; example btcusdt, bccbtc......
-	Type      SpotNewOrderRequestParamsType `json:"type"`              // 订单类型, buy-market: 市价买, sell-market: 市价卖, buy-limit: 限价买, sell-limit: 限价卖
+	AccountID int `json:"account-id,string"` // Account ID, obtained using the accounts method. Currency trades use the accountid of the ‘spot’ account; for loan asset transactions, please use the accountid of the ‘margin’ account.
+	// ClientOrderID lets callers reconcile an accepted order when the HTTP response is lost.
+	ClientOrderID string                        `json:"client-order-id,omitempty"`
+	Amount        float64                       `json:"amount"` // The limit price indicates the quantity of the order, the market price indicates how much to buy when the order is paid, and the market price indicates how much the coin is sold when the order is sold.
+	Price         float64                       `json:"price"`  // Order price, market price does not use  this parameter
+	Source        string                        `json:"source"` // Order source, api: API call, margin-api: loan asset transaction
+	Symbol        currency.Pair                 `json:"symbol"` // The symbol to use; example btcusdt, bccbtc......
+	Type          SpotNewOrderRequestParamsType `json:"type"`   // 订单类型, buy-market: 市价买, sell-market: 市价卖, buy-limit: 限价买, sell-limit: 限价卖
 }
 
 // DepositAddress stores the users deposit address info
@@ -767,13 +770,13 @@ type DepositAddress struct {
 // ChainQuota stores the users currency chain quota
 type ChainQuota struct {
 	Chain                         string       `json:"chain"`
-	MaxWithdrawAmount             types.Number `json:"maxWithdrawAmt,string"`
-	WithdrawQuotaPerDay           types.Number `json:"withdrawQuotaPerDay,string"`
-	RemainingWithdrawQuotaPerDay  types.Number `json:"remainWithdrawQuotaPerDay,string"`
-	WithdrawQuotaPerYear          types.Number `json:"withdrawQuotaPerYear,string"`
-	RemainingWithdrawQuotaPerYear types.Number `json:"remainWithdrawQuotaPerYear,string"`
-	WithdrawQuotaTotal            types.Number `json:"withdrawQuotaTotal,string"`
-	RemainingWithdrawQuotaTotal   types.Number `json:"remainWithdrawQuotaTotal,string"`
+	MaxWithdrawAmount             types.Number `json:"maxWithdrawAmt"`
+	WithdrawQuotaPerDay           types.Number `json:"withdrawQuotaPerDay"`
+	RemainingWithdrawQuotaPerDay  types.Number `json:"remainWithdrawQuotaPerDay"`
+	WithdrawQuotaPerYear          types.Number `json:"withdrawQuotaPerYear"`
+	RemainingWithdrawQuotaPerYear types.Number `json:"remainWithdrawQuotaPerYear"`
+	WithdrawQuotaTotal            types.Number `json:"withdrawQuotaTotal"`
+	RemainingWithdrawQuotaTotal   types.Number `json:"remainWithdrawQuotaTotal"`
 }
 
 // WithdrawQuota stores the users withdraw quotas
