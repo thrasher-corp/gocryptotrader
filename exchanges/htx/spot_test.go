@@ -17,8 +17,12 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
+
+// canManipulateRealOrders explicitly enables authenticated live tests which may change account state.
+const canManipulateRealOrders = false
 
 var apiCredentials = &accounts.Credentials{
 	Key:    "",
@@ -26,7 +30,7 @@ var apiCredentials = &accounts.Credentials{
 }
 
 func init() {
-	if os.Getenv("GCT_HTX_RUN_LIVE_TESTS") != "true" {
+	if !canManipulateRealOrders && os.Getenv("GCT_HTX_RUN_LIVE_TESTS") != "true" {
 		apiCredentials = new(accounts.Credentials)
 	}
 }
@@ -433,9 +437,19 @@ func TestSpotNewOrder(t *testing.T) {
 
 func TestCancelExistingOrder(t *testing.T) {
 	t.Parallel()
-	h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1"+fmt.Sprintf(htxOrderCancel, "123"), `{"status":"ok","data":"123"}`, nil)
-	_, err := h.CancelExistingOrder(t.Context(), 123)
-	require.NoError(t, err, "CancelExistingOrder must not error")
+	t.Run("mock", func(t *testing.T) {
+		t.Parallel()
+		h := newHTTPTestExchange(t, exchange.RestSpot, http.MethodPost, "/v1"+fmt.Sprintf(htxOrderCancel, "123"), `{"status":"ok","data":"123"}`, nil)
+		_, err := h.CancelExistingOrder(t.Context(), 123)
+		require.NoError(t, err, "CancelExistingOrder must not error")
+	})
+	t.Run("live", func(t *testing.T) {
+		t.Parallel()
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, e, canManipulateRealOrders)
+		const nonexistentOrderID = int64(9223372036854775807)
+		_, err := e.CancelExistingOrder(t.Context(), nonexistentOrderID)
+		require.Error(t, err, "CancelExistingOrder must reject a nonexistent live order")
+	})
 }
 
 func TestGetOrder(t *testing.T) {
